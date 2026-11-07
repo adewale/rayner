@@ -13,6 +13,7 @@
 
 import { Mobject, Group, paintDefaults } from '../src/mobject.ts';
 import type { Box, HasText } from '../src/mobject.ts';
+import { center, pointsBox } from '../src/box.ts';
 import { Animation, Transform, TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey } from '../src/animation.ts';
 import { Follow } from './state.ts';
 import type { AnimOpts, MatchKey, MatchSummary } from '../src/animation.ts';
@@ -287,19 +288,13 @@ function hasText(m: Mobject): boolean { return m.family().some((x) => x instance
  * mobject's own points.
  */
 function layoutBox(m: Mobject): Box | null {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  const arrays: Float32Array[] = [];
   const walk = (x: Mobject): void => {
-    for (const a of x.boundingPointArrays()) {
-      for (let i = 0; i < a.length; i += 2) {
-        const px = a[i]!, py = a[i + 1]!;
-        if (px < minX) minX = px; if (px > maxX) maxX = px;
-        if (py < minY) minY = py; if (py > maxY) maxY = py;
-      }
-    }
+    arrays.push(...x.boundingPointArrays());
     if (!(x instanceof Text)) for (const c of x.children) walk(c);
   };
   walk(m);
-  return minX === Infinity ? null : [minX, minY, maxX, maxY];
+  return pointsBox(arrays);
 }
 
 function layoutSize(m: Mobject): [number, number] {
@@ -310,7 +305,8 @@ function layoutSize(m: Mobject): [number, number] {
 function anchorOf(m: Mobject, place: ViewPlace): Vec | null {
   const b = layoutBox(m);
   if (!b) return null;
-  return [place === 'left' ? b[0] : place === 'right' ? b[2] : (b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
+  const [cx, cy] = center(b);
+  return [place === 'left' ? b[0] : place === 'right' ? b[2] : cx, cy];
 }
 
 /** Same family shape, points within 1e-5 (invisible: the frame is 16 wide), equal styles and strings. */

@@ -15,6 +15,7 @@
 // for any picture seenFrom drew, at rest or mid-Follow.
 import { Group, VMobject, Dot, Circle } from '../src/index.ts';
 import type { Mobject, Vec, Box } from '../src/index.ts';
+import { center } from '../src/box.ts';
 
 /** A point in the model: x toward latitude 0, longitude 0; y toward longitude 90° E; z toward the north pole. */
 export type Vec3 = readonly [number, number, number];
@@ -452,7 +453,7 @@ const fmt = (vp: Viewpoint) => `${vp.kind} yaw ${vp.yaw.toFixed(1)}°, pitch ${v
 function anchors(m: Mobject): Vec[][] {
   if (m instanceof Circle) {
     const b = m.box();
-    return b ? [[[(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]]] : [];
+    return b ? [[center(b)]] : [];
   }
   if (!(m instanceof VMobject)) return [];
   return m.subpaths.map((a) => {

@@ -22,6 +22,7 @@ import { restingFrame, restingTime, undescribed, watchedChanges } from '../../ex
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
 import { closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '../../app/embed-closeup.ts';
 import type { Box, Mobject, Scene, Sink, Step } from '../../src/index.ts';
+import { contains, intersect, nonempty, overlaps } from '../../src/box.ts';
 import type { Project } from './explain-project.ts';
 import { pageFaces, letteringReport, useProjectLettering } from './explain-lettering.ts';
 
@@ -88,25 +89,20 @@ export function labelPx(m: Mobject, scene: Pick<Viewed, 'frame'>): number | null
   const size = readingLabelSize(m);
   return size == null ? null : size * STAGE_PX_PER_UNIT * viewZoom(viewOf(scene));
 }
-/** `box` cut down to every clip around `m`: the part of it that is drawn (a diagram clips to its frame). */
-function clipped(m: Mobject, box: Box): Box {
-  const out: Box = [...box];
-  for (let a: Mobject | null = m; a; a = a.parent)
-    if (a.clipBox) {
-      out[0] = Math.max(out[0], a.clipBox[0]);
-      out[1] = Math.max(out[1], a.clipBox[1]);
-      out[2] = Math.min(out[2], a.clipBox[2]);
-      out[3] = Math.min(out[3], a.clipBox[3]);
-    }
+/**
+ * `box` cut down to every clip around `m`: the part of it that is drawn (a diagram clips
+ * to its frame); null when nothing of it is.
+ */
+function clipped(m: Mobject, box: Box): Box | null {
+  let out: Box | null = nonempty(box) ? [...box] : null;
+  for (let a: Mobject | null = m; a && out; a = a.parent) if (a.clipBox) out = intersect(out, a.clipBox);
   return out;
 }
 /** Fully drawn and inside the viewport: a label a reader can see at its size. */
-const readable = (m: Mobject, box: Box | null, viewport: Box) =>
+const readable = (m: Mobject, box: Box | null, viewport: Box | null) =>
   !!box &&
-  box[0] >= viewport[0] - 1e-5 &&
-  box[2] <= viewport[2] + 1e-5 &&
-  box[1] >= viewport[1] - 1e-5 &&
-  box[3] <= viewport[3] + 1e-5 &&
+  !!viewport &&
+  contains(viewport, box, 1e-5) &&
   m.style.opacity >= 0.95 &&
   (m.style.drawFraction ?? 1) >= 0.95;
 
@@ -151,13 +147,13 @@ export function restingTextProblems(scene: Viewed): string[] {
     const drawn = m.box();
     if (!drawn) continue;
     const box = clipped(m, drawn);
-    if (!(box[2] > box[0] && box[3] > box[1])) continue;
-    const shown = box[0] < view[2] && box[2] > view[0] && box[1] < view[3] && box[3] > view[1];
+    if (!box) continue;
+    const shown = overlaps(box, view, { touching: false });
     if (zoomed && !shown) continue; // off screen while the camera looks elsewhere
     const native = m instanceof Text;
     // The heading, and its number and line: stage furniture, kept clear of the picture by the stage itself.
     const heading = isHeading(m);
-    if (zoomed && (native || heading) && (box[0] < view[0] || box[1] < view[1] || box[2] > view[2] || box[3] > view[3]))
+    if (zoomed && (native || heading) && !contains(view, box))
       problems.push(`"${text}" is cut off by the frame`);
     if (!heading) texts.push({ m, box, native, text });
     else chromeBoxes.push({ box, text });
@@ -165,23 +161,18 @@ export function restingTextProblems(scene: Viewed): string[] {
   // The heading's line takes room under the title: content text must stay clear of all of it.
   for (const t of texts)
     for (const c of chromeBoxes)
-      if (t.box[0] < c.box[2] && t.box[2] > c.box[0] && t.box[1] < c.box[3] && t.box[3] > c.box[1])
+      if (overlaps(t.box, c.box, { touching: false }))
         problems.push(`"${t.text}" runs into the heading's "${c.text}"`);
   for (const t of texts)
-    if (t.native && (t.box[0] < FRAME[0] || t.box[1] < FRAME[1] || t.box[2] > FRAME[2] || t.box[3] > FRAME[3]))
+    if (t.native && !contains(FRAME, t.box))
       problems.push(`"${t.text}" crosses the stage edge`);
   const area = (b: Box) => Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]);
   for (let i = 0; i < texts.length; i++)
     for (let j = i + 1; j < texts.length; j++) {
       const a = texts[i]!,
         b = texts[j]!;
-      const overlap: Box = [
-        Math.max(a.box[0], b.box[0]),
-        Math.max(a.box[1], b.box[1]),
-        Math.min(a.box[2], b.box[2]),
-        Math.min(a.box[3], b.box[3]),
-      ];
-      if (overlap[2] <= overlap[0] || overlap[3] <= overlap[1]) continue;
+      const overlap = intersect(a.box, b.box);
+      if (!overlap) continue;
       if (area(overlap) > 0.12 * Math.min(area(a.box), area(b.box))) problems.push(`"${a.text}" overlaps "${b.text}"`);
     }
   return problems;
@@ -445,8 +436,7 @@ export class LegibilitySink implements Sink {
     record.px = Math.max(record.px, px);
     const close = this.phoneViews.get(frame);
     if (!close) return;
-    const inside = (v: Box) =>
-      !!box && box[0] >= v[0] - 1e-6 && box[2] <= v[2] + 1e-6 && box[1] >= v[1] - 1e-6 && box[3] <= v[3] + 1e-6;
+    const inside = (v: Box) => !!box && contains(v, box, 1e-6);
     if (chrome) return;
     const complete = close.views.filter((v) => inside(v.box));
     // The opening can frame a comparison at a smaller scale than its detail

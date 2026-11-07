@@ -4,11 +4,10 @@ import { Arc, Line, Rectangle, VMobject } from '../../src/index.ts';
 import { ArcBetweenPoints } from '../../src/extras.ts';
 import { renderElements } from '../../src/output.ts';
 import type { Box, Mobject, Scene, Vec } from '../../src/index.ts';
+import { contains, intersect, nonempty, pad, pointsBox } from '../../src/box.ts';
 import { isDiagramConnector, labelOf } from '../../explain/diagrams.ts';
 import { isHeading } from '../../explain/stage.ts';
 
-const intersect = (a: Box, b: Box): Box => [Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.min(a[2], b[2]), Math.min(a[3], b[3])];
-const nonempty = (b: Box) => b[2] > b[0] && b[3] > b[1];
 function visible(m: Mobject): boolean {
   for (let a: Mobject | null = m; a; a = a.parent) if (a.style.opacity < 0.95) return false;
   return true;
@@ -53,7 +52,7 @@ function points(path: Float32Array): Vec[] {
 }
 /** A cubic's convex hull bounds its ink; subdivide uncertain intersections. */
 function curveCrosses(c: Vec[], box: Box, depth = 0): boolean {
-  const hull: Box = [Math.min(...c.map((p) => p[0])), Math.min(...c.map((p) => p[1])), Math.max(...c.map((p) => p[0])), Math.max(...c.map((p) => p[1]))];
+  const hull = pointsBox(c)!;
   if (hull[2] <= box[0] || hull[0] >= box[2] || hull[3] <= box[1] || hull[1] >= box[3]) return false;
   const inside = (p: Vec) => p[0] > box[0] && p[0] < box[2] && p[1] > box[1] && p[1] < box[3];
   if (c.every(inside)) return true;
@@ -115,9 +114,10 @@ export function restingRouteProblems(scene: Scene): string[] {
   const members = [...new Set(scene.familyMembers())];
   const view = scene.frame.box()!;
   const rank = (m: Mobject) => Math.min(...m.family().map((f) => order.get(f.id) ?? Infinity));
-  const clipped = (m: Mobject, b: Box): Box => {
+  /** `b` cut to the camera's view and every clip around `m`; null when nothing of it is left. */
+  const clipped = (m: Mobject, b: Box): Box | null => {
     let box = intersect(b, view);
-    for (let a: Mobject | null = m; a; a = a.parent) if (a.clipBox) box = intersect(box, a.clipBox);
+    for (let a: Mobject | null = m; a && box; a = a.parent) if (a.clipBox) box = intersect(box, a.clipBox);
     return box;
   };
   const labels = members.flatMap((m) => {
@@ -127,7 +127,7 @@ export function restingRouteProblems(scene: Scene): string[] {
     // is not a crossing merely because it touches that invisible layout space.
     const boxes = m.family().filter((f) => f instanceof VMobject && f.hasPoints() && visible(f) &&
       ((f.style.fillOpacity * (paintAlpha(f.style.fill) ?? 1) >= 0.95) || (f.style.strokeWidth > 0 && f.style.strokeOpacity * (paintAlpha(f.style.stroke) ?? 1) >= 0.95)))
-      .flatMap((f) => { const b = f.box(); return b ? [clipped(f, b)] : []; }).filter(nonempty);
+      .flatMap((f) => { const b = f.box(), c = b && clipped(f, b); return c ? [c] : []; });
     const at = rank(m);
     return boxes.length && Number.isFinite(at) ? [{ m, text: info.text, boxes, rank: at }] : [];
   });
@@ -144,18 +144,19 @@ export function restingRouteProblems(scene: Scene): string[] {
     if (fixed) continue;
     const routeRank = order.get(m.id)!;
     const clip = clipped(m, view);
+    if (!clip) continue;
     for (let j = 0; j < m.subpaths.length; j++) {
       if (m.closed[j]) continue;
       const path = m.subpaths[j]!;
       for (const label of labels) for (const ink of label.boxes) {
         const box = intersect(ink, clip);
-        if (!nonempty(box)) continue;
+        if (!box) continue;
         if (plates.some((p) => {
           const visiblePlate = clipped(p, p.box()!);
-          return rank(p) > routeRank && rank(p) < label.rank && box[0] >= visiblePlate[0] && box[1] >= visiblePlate[1] && box[2] <= visiblePlate[2] && box[3] <= visiblePlate[3] && covers(p, box);
+          return rank(p) > routeRank && rank(p) < label.rank && !!visiblePlate && contains(visiblePlate, box) && covers(p, box);
         })) continue;
         const half = m.style.strokeWidth / 2;
-        const footprint: Box = [box[0] - half, box[1] - half, box[2] + half, box[3] + half];
+        const footprint = pad(box, half);
         for (let k = 0; k + 7 < path.length; k += 6) {
           const curve: Vec[] = [];
           for (let q = 0; q < 8; q += 2) curve.push([path[k + q]!, path[k + q + 1]!]);

@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import type { Page } from 'playwright-core';
 import { VMobject } from '../../src/index.ts';
 import { renderElements } from '../../src/output.ts';
+import { intersect, nonempty, pad, pointsBox, unionBoxes } from '../../src/box.ts';
 import type { Scene, SceneClass, Mobject } from '../../src/index.ts';
 import type { ElementRecord } from '../../src/output.ts';
 import { emphasisOf, newlyEmphasised } from '../../explain/look.ts';
@@ -61,16 +62,7 @@ const paintBoundsCache = new WeakMap<ElementRecord, Rect | null>();
 function paintBounds(record: ElementRecord): Rect | null {
   if (paintBoundsCache.has(record)) return paintBoundsCache.get(record)!;
   const coords = record.attrs.d?.match(/-?\d+/g)?.map(Number) ?? [];
-  let left = Infinity,
-    top = Infinity,
-    right = -Infinity,
-    bottom = -Infinity;
-  for (let i = 0; i + 1 < coords.length; i += 2) {
-    left = Math.min(left, coords[i]!);
-    right = Math.max(right, coords[i]!);
-    top = Math.min(top, coords[i + 1]!);
-    bottom = Math.max(bottom, coords[i + 1]!);
-  }
+  const path = pointsBox([coords]);
   const half =
     record.attrs.stroke !== 'none' && Number(record.attrs['stroke-opacity'] ?? 1) > 0
       ? Number(record.attrs['stroke-width'] ?? 0) / 2
@@ -82,24 +74,16 @@ function paintBounds(record: ElementRecord): Rect | null {
   const extent = half * Math.max(miter, record.attrs['stroke-linecap'] === 'square' ? Math.SQRT2 : 1);
   const tx = record.tx ?? 0,
     ty = record.ty ?? 0;
-  let bounds: Rect = [left + tx - extent, top + ty - extent, right + tx + extent, bottom + ty + extent];
-  if (record.clipBox) {
+  const bounds: Rect | null = path && pad([path[0] + tx, path[1] + ty, path[2] + tx, path[3] + ty], extent);
+  let result = bounds && nonempty(bounds) ? bounds : null;
+  if (bounds && record.clipBox) {
     const [x0, y0, x1, y1] = record.clipBox;
-    bounds = [
-      Math.max(bounds[0], x0 * 1000),
-      Math.max(bounds[1], -y1 * 1000),
-      Math.min(bounds[2], x1 * 1000),
-      Math.min(bounds[3], -y0 * 1000),
-    ];
+    result = intersect(bounds, [x0 * 1000, -y1 * 1000, x1 * 1000, -y0 * 1000]);
   }
-  const result = bounds[2] > bounds[0] && bounds[3] > bounds[1] ? bounds : null;
   paintBoundsCache.set(record, result);
   return result;
 }
 
-const intersect = (a: Rect, b: Rect): Rect =>
-  [Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.min(a[2], b[2]), Math.min(a[3], b[3])];
-const nonempty = (r: Rect) => r[2] > r[0] && r[3] > r[1];
 
 /** Bounds identify possible changes, not ink: holes, caps and later opaque
  * layers can make a permutation invisible. Probe only the affected patch with
@@ -111,9 +95,8 @@ async function changedComposite(
 ): Promise<Set<number>> {
   const boxes = [...candidates].flatMap(i => current[i]!.bounds ? [current[i]!.bounds!] : []);
   if (!boxes.length) return new Set();
-  const bounds = intersect([Math.min(...boxes.map(b => b[0])), Math.min(...boxes.map(b => b[1])),
-    Math.max(...boxes.map(b => b[2])), Math.max(...boxes.map(b => b[3]))], camera);
-  if (!nonempty(bounds)) return new Set();
+  const bounds = intersect(unionBoxes(boxes)!, camera);
+  if (!bounds) return new Set();
   const scale = Math.min(1280 / (camera[2] - camera[0]), 720 / (camera[3] - camera[1]));
   const width = Math.max(1, Math.ceil((bounds[2] - bounds[0]) * scale));
   const height = Math.max(1, Math.ceil((bounds[3] - bounds[1]) * scale));
@@ -121,7 +104,7 @@ async function changedComposite(
   const svg = (paints: readonly StoryPaint[]) => {
     const paths: string[] = [], clips = new Map<string, string>();
     for (const { record: r, bounds: b } of paints) {
-      if (!b || !nonempty(intersect(b, bounds))) continue;
+      if (!b || !intersect(b, bounds)) continue;
       if (r.clipBox) {
         const id = r.attrs['clip-path']!.slice(5, -1), [x0, y0, x1, y1] = r.clipBox;
         clips.set(id, `<clipPath id="${escape(id)}" clipPathUnits="userSpaceOnUse"><rect x="${Math.round(x0 * 1000)}" y="${Math.round(-y1 * 1000)}" width="${Math.round((x1 - x0) * 1000)}" height="${Math.round((y1 - y0) * 1000)}"/></clipPath>`);
@@ -236,7 +219,7 @@ async function changedPaint(previous: readonly StoryPaint[], current: readonly S
       // it too. Binding only an identical surviving copy misses that revelation.
       current.forEach((other, i) => {
         if (matched[i]! >= 0 && matched[i]! < previousIndex && paint.bounds && other.bounds &&
-            nonempty(intersect(paint.bounds, other.bounds))) candidates.add(i);
+            intersect(paint.bounds, other.bounds)) candidates.add(i);
       });
     }
     for (const i of await changedComposite(current, reference.map(p => p.paint), candidates, camera)) changed.add(i);
@@ -464,17 +447,15 @@ export function covered(target: Rect, views: readonly Rect[]): boolean {
   let left = [target];
   for (const v of views)
     left = left.flatMap((r): Rect[] => {
-      const x = Math.max(r[0], v[0]),
-        y = Math.max(r[1], v[1]),
-        right = Math.min(r[2], v[2]),
-        bottom = Math.min(r[3], v[3]);
-      if (right <= x || bottom <= y) return [r];
-      return [
+      const shared = intersect(r, v);
+      if (!shared) return [r];
+      const [x, y, right, bottom] = shared;
+      return ([
         [r[0], r[1], x, r[3]],
         [right, r[1], r[2], r[3]],
         [x, r[1], right, y],
         [x, bottom, right, r[3]],
-      ].filter((b) => b[2]! > b[0]! && b[3]! > b[1]!) as Rect[];
+      ] as Rect[]).filter((b) => nonempty(b));
     });
   return left.length === 0;
 }
@@ -713,15 +694,9 @@ export function verifyStoryTargets(
       const expectedClip: Rect = authoredClip
         ? [authoredClip[0] * 1000, -authoredClip[3] * 1000, authoredClip[2] * 1000, -authoredClip[1] * 1000]
         : (original.author as Rect);
-      const box: Rect = bounded
-        ? [
-            Math.max(original.box[0], expectedClip[0], original.author[0]),
-            Math.max(original.box[1], expectedClip[1], original.author[1]),
-            Math.min(original.box[2], expectedClip[2], original.author[2]),
-            Math.min(original.box[3], expectedClip[3], original.author[3]),
-          ]
-        : original.box;
-      if (bounded && (box[2] <= box[0] || box[3] <= box[1])) continue; // context outside an authored viewport is not newly shown ink
+      const clippedBox = bounded ? intersect(original.box as Rect, expectedClip) : null;
+      const box = bounded ? clippedBox && intersect(clippedBox, original.author as Rect) : (original.box as Rect);
+      if (!box) continue; // context outside an authored viewport is not newly shown ink
       const eligible = (target.opening ? [opening] : views).filter((v) => {
         const ink = v.ink.find((p) => p.index === index);
         return ink?.visible && (bounded || ink.complete);

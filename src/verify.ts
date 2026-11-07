@@ -27,6 +27,7 @@ import { copiedFrom } from './animation.ts';
 import type { Box, HasText, Mobject } from './mobject.ts';
 import type { Scene, Sink, Step } from './scene.ts';
 import { FRAME } from './svg.ts';
+import { pad } from './box.ts';
 
 /** Thresholds for analyzeMotion(); see DEFAULTS. */
 export interface MotionOptions {
@@ -145,7 +146,7 @@ export class MotionSink implements Sink {
 // Boxes are padded so thin shapes (a horizontal line has zero height) still overlap
 const PAD = 0.05;
 const iou = (a0: Box, b0: Box): number => {
-  const a: Box = [a0[0] - PAD, a0[1] - PAD, a0[2] + PAD, a0[3] + PAD], b: Box = [b0[0] - PAD, b0[1] - PAD, b0[2] + PAD, b0[3] + PAD];
+  const a = pad(a0, PAD), b = pad(b0, PAD);
   const ix = Math.max(0, Math.min(a[2], b[2]) - Math.max(a[0], b[0]));
   const iy = Math.max(0, Math.min(a[3], b[3]) - Math.max(a[1], b[1]));
   const inter = ix * iy, area = (r: Box) => Math.max(1e-9, (r[2] - r[0]) * (r[3] - r[1]));

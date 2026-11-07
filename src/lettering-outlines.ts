@@ -6,6 +6,7 @@ import type { FontName, ShapedRun, Shaper } from './fonts.ts';
 import type { Font, Run, Segment } from '../vendor/glyph.js';
 import { Text, CodeSpan } from './text.ts';
 import type { Box } from './mobject.ts';
+import { unionBoxes } from './box.ts';
 import {bindTextContext, withTextContext} from './text-context.ts';
 import { LETTERING_SCRIPTS } from './lettering.ts';
 import type {TextShaping} from './text-context.ts';
@@ -348,13 +349,7 @@ function spanBox(span: CodeSpan): Box | undefined {
   const result: Box = [left, frame[1]!, right, frame[3]!];
   const selectedClusters = new Set(selected.map((glyph) => form.source[glyph.cluster] ?? text.text.length));
   const inkGlyphs = text.children.filter((glyph) => selectedClusters.has((glyph as { cluster?: number }).cluster ?? -1));
-  for (const glyph of inkGlyphs) {
-    const ink = glyph.box();
-    if (!ink) continue;
-    result[0] = Math.min(result[0], ink[0]); result[1] = Math.min(result[1], ink[1]);
-    result[2] = Math.max(result[2], ink[2]); result[3] = Math.max(result[3], ink[3]);
-  }
-  return result;
+  return unionBoxes([result, ...inkGlyphs.map((glyph) => glyph.box())])!;
 }
 export function textShaping(provider: LetteringProvider): TextShaping {
   let context = contexts.get(provider);

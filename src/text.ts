@@ -15,6 +15,7 @@ import { Mobject, Group, animateBuilderBase, followScene, paintDefaults } from '
 import type { Style, PathFunc } from './mobject.ts';
 import type { Box, AnimateBuilder, AnimateBuilderBase } from './mobject.ts';
 import { VMobject } from './vmobject.ts';
+import { unionBoxes } from './box.ts';
 import { Rectangle } from './shapes.ts';
 import { embeddedShaperFor } from './fonts.ts';
 import type { FontName } from './fonts.ts';
@@ -487,12 +488,7 @@ export class CodeSpan extends Group {
       return run.width;
     };
     const b: Box = [f[0]! + pen(this.from) * k, f[1]!, f[0]! + pen(this.to) * k, f[3]!];
-    for (const g of this.children) {
-      const gb = g.box();
-      if (!gb) continue;
-      b[0] = Math.min(b[0], gb[0]); b[1] = Math.min(b[1], gb[1]); b[2] = Math.max(b[2], gb[2]); b[3] = Math.max(b[3], gb[3]);
-    }
-    return b;
+    return unionBoxes([b, ...this.children.map((g) => g.box())])!;
   }
 
   // Moving a span moves glyphs the line owns: the line's boxes (and the block's) go stale too

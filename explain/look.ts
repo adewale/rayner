@@ -1,6 +1,7 @@
 import { lerpColor, parseColor } from '../src/color.ts';
 import { Text } from '../src/index.ts';
 import type { Box, Mobject, Scene } from '../src/index.ts';
+import { center } from '../src/box.ts';
 import type { Palette } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { Seen } from './trace.ts';
 
@@ -184,4 +185,4 @@ export function regionBox(
   const b: Box = typeof r === 'string' ? [...REGIONS[r]] : [...r];
   return [left ?? b[0], bottom ?? b[1], right ?? b[2], top ?? b[3]];
 }
-export const boxCenter = (b: Box): [number, number] => [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
+export const boxCenter = (b: Box): [number, number] => center(b);

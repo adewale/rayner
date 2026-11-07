@@ -11,6 +11,7 @@ import type { Scene } from './scene.ts';
 import * as V from './vec.ts';
 import type { Vec } from './vec.ts';
 import type { Box } from './mobject.ts';
+import { center, pointsBox } from './box.ts';
 import { Circle, SurroundingRectangle, boxOf } from './shapes.ts';
 import { NEUTRAL_COLORS } from './color.ts';
 
@@ -676,7 +677,7 @@ export class Circumscribe extends Animation {
 function circleAround(target: Mobject | Box, buff: number, style: { stroke?: string; strokeWidth?: number } = {}): Circle {
   const b = boxOf(target);
   const radius = Math.hypot(b[2] - b[0], b[3] - b[1]) / 2 + buff;
-  return new Circle({ radius, fill: 'none', ...style }).shift([(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]);
+  return new Circle({ radius, fill: 'none', ...style }).shift(center(b));
 }
 
 // ---- restore, copies, sequencing ----
@@ -1202,7 +1203,7 @@ function fadeInsideLines(t: TransformMatching, ride: boolean): void {
     let x0 = Infinity, x1 = -Infinity;
     for (let i = 0; i < box.length; i += 2) { x0 = Math.min(x0, box[i]!); x1 = Math.max(x1, box[i]!); }
     r.tx = Math.min(Math.max(r.tx, x0), x1);
-    if (ride) { const b = pointsBox(r.pts); if (b) r.ride = [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]; }
+    if (ride) { const b = pointsBox(r.pts); if (b) r.ride = center(b); }
   };
   for (const r of t.fadesIn) inside(r, edges.get(r.sub.parent!)?.from[0]);
   for (const r of t.fadesOut) inside(r, edges.get(frameOf(r.sub, t.mobject))?.to[0]);
@@ -1250,19 +1251,7 @@ function bare<M extends Mobject>(m: M): M {
 
 /** Box of a mobject's own points (not its children's), or null. */
 function ownBox(m: Mobject): Box | null { return pointsBox(m.boundingPointArrays()); }
-/** Box of point arrays, or null. */
-function pointsBox(arrays: readonly Float32Array[]): Box | null {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const a of arrays) {
-    for (let i = 0; i < a.length; i += 2) {
-      const x = a[i]!, y = a[i + 1]!;
-      if (x < minX) minX = x; if (x > maxX) maxX = x;
-      if (y < minY) minY = y; if (y > maxY) maxY = y;
-    }
-  }
-  return minX === Infinity ? null : [minX, minY, maxX, maxY];
-}
-function ownCenter(m: Mobject): Vec { const b = ownBox(m); return b ? [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2] : [0, 0]; }
+function ownCenter(m: Mobject): Vec { const b = ownBox(m); return b ? center(b) : [0, 0]; }
 function ownHeight(m: Mobject): number { const b = ownBox(m); return b ? b[3] - b[1] : 0; }
 
 /** Per-coordinate median: robust to the few parts that pair across lines. */

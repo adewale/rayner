@@ -16,6 +16,7 @@ import {
 } from '../src/index.ts';
 import { MoveAlongPath } from '../src/animation.ts';
 import type { Scene, Mobject, Box, Vec, Style, PathFunc } from '../src/index.ts';
+import { center, unionBoxes } from '../src/box.ts';
 import { regionBox, boxCenter, raised, emphasis, dimOpacity, emphasises, selfDescribed } from './look.ts';
 import type { Region } from './look.ts';
 import { diagramsOf, diagramKey, findingsOf, SVG_PX_PER_UNIT } from '../integrations/agentic-mermaid/snapshot.ts';
@@ -363,7 +364,7 @@ function clampedPosition(note: Mobject, box: Box, side: NoteSide, frame: Box): V
   const w = note.width(),
     h = note.height(),
     gap = 0.14;
-  let [x, y] = [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2];
+  let [x, y] = center(box);
   if (side === 'above') y = box[3] + gap + h / 2;
   else if (side === 'below') y = box[1] - gap - h / 2;
   else if (side === 'left') x = box[0] - gap - w / 2;
@@ -408,8 +409,9 @@ export function cameraBox(box: Readonly<Box>, margin = 0.5, zoom = 1): Box {
   const w = Math.min(STAGE[2] - STAGE[0], fit / zoom),
     h = w / aspect;
   const clamp = (c: number, half: number, lo: number, hi: number) => Math.min(Math.max(c, lo + half), hi - half);
-  const cx = clamp((box[0] + box[2]) / 2, w / 2, STAGE[0], STAGE[2]),
-    cy = clamp((box[1] + box[3]) / 2, h / 2, STAGE[1], STAGE[3]);
+  const [x, y] = center(box);
+  const cx = clamp(x, w / 2, STAGE[0], STAGE[2]),
+    cy = clamp(y, h / 2, STAGE[1], STAGE[3]);
   return [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2];
 }
 
@@ -492,7 +494,7 @@ export class Diagram {
           const paper = new Rectangle({
             width: b[2] - b[0] + gap * 2, height: b[3] - b[1] + gap * 2,
             fill: snapshot.palette.paper, stroke: 'none',
-          }).moveTo([(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]);
+          }).moveTo(center(b));
           // Keep the plate with the label through reveals, dimming and focus.
           const i = mob.children.indexOf(label);
           mob.add(paper);
@@ -514,22 +516,15 @@ export class Diagram {
     // Fit all artwork as well as that canvas, rather than clipping those labels.
     const [w, h] = [snapshot.width / SVG_PX_PER_UNIT, snapshot.height / SVG_PX_PER_UNIT];
     const artwork = this.root.box() ?? [0, -h, w, 0];
-    const bounds: Box = [
-      Math.min(0, artwork[0]),
-      Math.min(-h, artwork[1]),
-      Math.max(w, artwork[2]),
-      Math.max(0, artwork[3]),
-    ];
+    const bounds = unionBoxes([[0, -h, w, 0], artwork])!;
     const inset = Math.min(0.12, (box[2] - box[0]) / 20, (box[3] - box[1]) / 20);
     const k = Math.min(
       (box[2] - box[0] - 2 * inset) / (bounds[2] - bounds[0]),
       (box[3] - box[1] - 2 * inset) / (bounds[3] - bounds[1]),
     );
     scaleArtwork(this.root, k);
-    this.root.shift([
-      (box[0] + box[2]) / 2 - ((bounds[0] + bounds[2]) * k) / 2,
-      (box[1] + box[3]) / 2 - ((bounds[1] + bounds[3]) * k) / 2,
-    ]);
+    const [to, from] = [center(box), center(bounds)];
+    this.root.shift([to[0] - from[0] * k, to[1] - from[1] * k]);
     this.home = this.root.copy();
     for (const p of this.parts.values()) if (p.info.owner) this.parts.get(p.info.owner)!.mob.add(p.mob);
     // Hidden marks stay in the addressable map, not in the rendered tree.
@@ -1212,16 +1207,8 @@ export class Diagram {
       // Notes a picture draws beside these parts come into view with them.
       const onStage = new Set(this.scene.familyMembers());
       const notes = [...this.drawnNotes].filter(([m, n]) => onStage.has(m) && tops.includes(this.top(n.id))).map(([m]) => m);
-      const boxes = [...ids.map((id) => this.get(id)), ...notes, ...also]
-        .map((m) => m.box())
-        .filter((b): b is Box => b != null);
-      if (!boxes.length) throw new Error('focus(): nothing to look at');
-      const box: Box = [
-        Math.min(...boxes.map((b) => b[0])),
-        Math.min(...boxes.map((b) => b[1])),
-        Math.max(...boxes.map((b) => b[2])),
-        Math.max(...boxes.map((b) => b[3])),
-      ];
+      const box = unionBoxes([...ids.map((id) => this.get(id)), ...notes, ...also].map((m) => m.box()));
+      if (!box) throw new Error('focus(): nothing to look at');
       this.focused = tops;
       await this.scene.play(frame.animate.fit(cameraBox(box, margin, zoom), { margin: 0 }), { runTime });
       this.focusView = [...frame.box()!] as Box;

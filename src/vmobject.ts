@@ -10,6 +10,7 @@ import type { Style, PathFunc } from './mobject.ts';
 import * as V from './vec.ts';
 import type { Vec } from './vec.ts';
 import { perf } from './perf.ts';
+import { center, pointsBox } from './box.ts';
 import type { AttrsCache } from './svg.ts';
 
 /** SVG path data: `d` relative to (tx, ty), or absolute with a zero translation. */
@@ -378,18 +379,11 @@ export class VMobject extends Mobject {
    * not children. A pure function of the points; a zero-size path keys as a point.
    */
   shapeKey(): string {
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const a of this.subpaths) {
-      for (let i = 0; i < a.length; i += 2) {
-        const x = a[i]!, y = a[i + 1]!;
-        if (x < minX) minX = x; if (x > maxX) maxX = x;
-        if (y < minY) minY = y; if (y > maxY) maxY = y;
-      }
-    }
+    const b = pointsBox(this.subpaths);
     let key = this.subpaths.map((a, i) => a.length / 2 + (this.closed[i] ? 'z' : '')).join(',') + ':';
-    const size = Math.max(maxX - minX, maxY - minY);
-    if (!(size > 1e-6)) return key + 'point';
-    const k = SHAPE_STEPS / size, cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+    const size = b ? Math.max(b[2] - b[0], b[3] - b[1]) : 0;
+    if (!b || !(size > 1e-6)) return key + 'point';
+    const k = SHAPE_STEPS / size, [cx, cy] = center(b);
     for (const a of this.subpaths) for (let i = 0; i < a.length; i += 2) key += Math.round((a[i]! - cx) * k) + ' ' + Math.round((a[i + 1]! - cy) * k) + ' ';
     return key;
   }

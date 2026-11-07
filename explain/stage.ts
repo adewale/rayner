@@ -2,6 +2,7 @@ import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, Cr
 import { View } from './view.ts';
 import { jsonObject } from '../src/json.ts';
 import type { Scene, Vec, Box, FadeOpts, Animation, SceneState, StepKind, SceneColors } from '../src/index.ts';
+import { center, unionBoxes } from '../src/box.ts';
 import type { StepAudio } from './audio.ts';
 import { dimension, pin, callout, legend, tool, Draw, oneStrokeEach } from './annotate.ts';
 import type { LegendItem } from './annotate.ts';
@@ -347,14 +348,8 @@ export function stage(scene: Scene, options: StageOptions = {}) {
     if (Array.isArray(target) && typeof target[0] === 'number') b = target as Box;
     else {
       const mobs = (Array.isArray(target) ? target : [target]) as Mobject[];
-      const boxes = mobs.map((m) => m.box()).filter((x): x is Box => !!x);
-      if (!boxes.length) throw new Error('focus(): nothing to look at');
-      b = [
-        Math.min(...boxes.map((x) => x[0])),
-        Math.min(...boxes.map((x) => x[1])),
-        Math.max(...boxes.map((x) => x[2])),
-        Math.max(...boxes.map((x) => x[3])),
-      ];
+      b = unionBoxes(mobs.map((m) => m.box()));
+      if (!b) throw new Error('focus(): nothing to look at');
     }
     const w = b[2] - b[0] + 2 * margin,
       h = b[3] - b[1] + 2 * margin;
@@ -362,8 +357,8 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       1,
       Math.min((CONTENT[2] - CONTENT[0]) / Math.max(w, 1e-6), (CONTENT[3] - CONTENT[1]) / Math.max(h, 1e-6)),
     );
-    const cc: Vec = [(CONTENT[0] + CONTENT[2]) / 2, (CONTENT[1] + CONTENT[3]) / 2],
-      tc: Vec = [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
+    const cc = center(CONTENT),
+      tc = center(b);
     const hw = 8 / z,
       hh = 4.5 / z;
     // Put the target's centre where the content area's centre is on screen, then keep the view on the stage.
@@ -378,7 +373,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
    */
   function cameraTo(box: Box, runTime: number): Animation[] {
     const k = (box[2] - box[0]) / 16,
-      next = { k, shift: [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2] as Vec };
+      next = { k, shift: center(box) };
     const anims: Animation[] = [new Transform(scene.frame, scene.frame.copy().fit(box, { margin: 0 }), { runTime })];
     for (const m of [heading, ...chrome]) if (home.has(m)) anims.push(new Transform(m, pinned(m, next), { runTime }));
     const away = Math.abs(k - 1) > 1e-9 || Math.abs(next.shift[0]) > 1e-9 || Math.abs(next.shift[1]) > 1e-9;
@@ -605,7 +600,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
           (b[2] - b[0]) / Math.max(1e-6, target.width()),
           (b[3] - b[1]) / Math.max(1e-6, target.height()),
         );
-        target.scale(k).moveTo([(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]);
+        target.scale(k).moveTo(center(b));
       } else target.moveTo(to as Vec);
       await scene.play(new Transform(m, target, { runTime }));
     },
