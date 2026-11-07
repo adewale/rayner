@@ -55,7 +55,7 @@ export function blobCells({ bytes, header: n }: BlobState, part: 'header' | 'con
 }
 
 /** The blob's id, its first seven digits highlighted. */
-export function idRow(id: string, { ink, accent }: Ink): { idRow: Group; idHead: Text } {
+function idRow(id: string, { ink, accent }: Ink): { idRow: Group; idHead: Text } {
   const idHead = new Text(short(id), { fontSize: 0.42, font: 'mono', color: accent, weight: 'bold' }),
     idTail = new Text(id.slice(7), { fontSize: 0.42, font: 'mono', color: ink });
   const idRow = new Group(idHead, idTail);
@@ -80,7 +80,7 @@ const ROW_H = 1.2,
 export const ROW_Y = [-1.7, -3.1];
 
 /** One commit's row, from the state's record of it. `lit` outlines a blob in the emphasis colour; `skip` leaves it out, to arrive by copy. */
-export function commitRow(row: RowState, y: number, { lit, skip }: { lit?: string | null; skip?: string | null }, colours: Ink): { row: Group; blobs: Map<string, Group> } {
+function commitRow(row: RowState, y: number, { lit, skip }: { lit?: string | null; skip?: string | null }, colours: Ink): { row: Group; blobs: Map<string, Group> } {
   const { ink, soft, accent } = colours;
   const keyOf = (file: string) => `exgit-${row.label.replace(' ', '-')}:${file}`;
   const name = new Text(row.label, { fontSize: 0.22, color: soft, anchor: 'end' }).moveTo([TREE_LEFT - 2.9, y], [1, 0]);
