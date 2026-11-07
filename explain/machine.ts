@@ -122,7 +122,7 @@ export function isRefusal(value: unknown): value is Refusal {
 export class Machine<S extends object, E extends string> {
   readonly scene: Scene<S>;
   readonly spec: Required<Pick<MachineSpec<S, E>, 'match' | 'runTime' | 'limit'>> & MachineSpec<S, E>;
-  /** What the scene showed (`scene.shown`, as JSON) when the machine played; exploration redraws under it. */
+  /** What the scene showed (`scene.shown`, as JSON) when the machine last played; exploration redraws under it. */
   private shownWhenPlayed: string | null = null;
   /** The step this machine last played in; exploration checks it on that step's stage. */
   private playedInStep: string | null = null;
@@ -145,9 +145,9 @@ export class Machine<S extends object, E extends string> {
   }
 
   /**
-   * What the scene showed while this machine played (`scene.shown`), or null before it played. A
-   * machine never changes what is shown, and plays under one: exploration draws every reachable
-   * state under it, as the reader would have seen it.
+   * What the scene showed when this machine last played (`scene.shown`), or null before it played.
+   * A machine never changes what is shown; a guided tour may change it between events. Exploration
+   * draws every reachable state under the last, and the live player explores under it too.
    */
   get playedUnder(): SceneState | null { return this.shownWhenPlayed === null ? null : JSON.parse(this.shownWhenPlayed) as SceneState; }
 
@@ -218,10 +218,7 @@ export class Machine<S extends object, E extends string> {
     return new Succession([
       new SetState<S>(this.scene, (current) => {
         if (JSON.stringify(current) !== built) throw new Error(`${String(event)} was built for ${built} but plays from ${JSON.stringify(current)}`);
-        const shown = JSON.stringify(this.scene.shown);
-        if (this.shownWhenPlayed !== null && shown !== this.shownWhenPlayed)
-          throw new Error(`${String(event)} plays under shown ${shown}, but this machine played under ${this.shownWhenPlayed}; a machine plays under one`);
-        this.shownWhenPlayed = shown;
+        this.shownWhenPlayed = JSON.stringify(this.scene.shown);
         this.playedInStep = this.scene.currentStep?.path ?? null;
         return after;
       }, { event }),
@@ -323,9 +320,13 @@ class Landing extends Animation {
       const byKey = new Map(current.children.map((c) => [c.key, c] as const));
       const lines = drawn.children.length === current.children.length && drawn.children.every((d) => d.key !== undefined && byKey.get(d.key)?.sameShapeAs(d));
       if (!lines) { v.rebuild(); continue; }
-      const order = drawn.children.map((d) => byKey.get(d.key)!.become(d));
-      current.children = order;
+      // Kept parts in the drawn order, then the whole picture takes the drawing: the parts keep
+      // their identities, and the root takes its own fields too (a card's lit row, a code
+      // panel's focus, what it says it emphasises), not just its children's.
+      current.children = drawn.children.map((d) => byKey.get(d.key)!);
       current.invalidateBox();
+      if (current.sameShapeAs(drawn)) current.become(drawn);
+      else { for (const d of drawn.children) byKey.get(d.key)!.become(d); current.invalidateBox(); }
     }
   }
 

@@ -2,7 +2,6 @@ import { frames as readerFrames } from './picture.ts';
 import { Scene, Arrow, FadeIn, Create } from '../../../src/index.ts';
 import { stage, regionBox, answerOf, view, CodeBlock } from '../../../explain/index.ts';
 import type { NoteSide } from '../../../explain/index.ts';
-import { wordsOf } from '../../../explain/words.ts';
 import {
   ITEMS,
   SOURCE,
@@ -160,7 +159,7 @@ export default class PasswordExplainer extends Scene {
     const sequenceView = s.diagramView(sequence, (_st, sh) => {
       const q = sh.sequence as SequenceShown;
       return {
-        marks: Object.fromEntries(q.marked.map((id) => [id, { color: sequence.accent, as: wordsOf(this).marked }])),
+        marks: Object.fromEntries(q.marked.map((id) => [id, { color: sequence.accent, as: 'marked' }])),
         notes: q.notes,
       };
     });

@@ -1,7 +1,7 @@
 import { frames as readerFrames, RING, drawSessionCard, reducerSpans, drawTrails, drawRing, drawReading, walkToken } from './picture.ts';
 import { Scene, Text, FadeIn, Create, Transform, AnimationGroup, Succession } from '../../../src/index.ts';
 import type { Animation, SceneState } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, answerOf, Machine, view } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, answerOf, Machine, view, CodeBlock } from '../../../explain/index.ts';
 import type { Card, View, Choreography, Transition } from '../../../explain/index.ts';
 import { reduceSession, sessionStart, sessionNext, SESSION_EVENTS } from './model.ts';
 import type { SessionState, SessionEvent } from './model.ts';
@@ -61,13 +61,24 @@ export default class StateMachineExplainer extends Scene {
     });
     await s.clear();
     const d = await s.show({ source: SOURCE }, { box: DIAGRAM });
-    const code = await s.code(REDUCER, { at: CODE, fontSize: 0.195 });
-    ['idle:CONNECT', 'connecting:OPENED', 'connecting:ERROR', 'open:CLOSE'].forEach((row, i) => {
-      code.code.lines[i + 1]!.key = `reducer:${row}`;
-    });
-    code.code.lines[THROW]!.key = 'reducer:throw';
     const start = sessionStart();
     this.state = { ...start } as unknown as SceneState;
+    // The reducer's code is a view of the state too: its focus bar is on the table until the
+    // first event arrives, when the box on one row takes over.
+    const code = view(
+      this,
+      (st) => {
+        const panel = new CodeBlock(this, s.palette, REDUCER, { at: CODE, fontSize: 0.195, focus: st.event == null ? [1, 4] : null, key: 'code' });
+        ['idle:CONNECT', 'connecting:OPENED', 'connecting:ERROR', 'open:CLOSE'].forEach((row, i) => {
+          panel.code.lines[i + 1]!.key = `reducer:${row}`;
+        });
+        panel.code.lines[THROW]!.key = 'reducer:throw';
+        return panel;
+      },
+      { place: false },
+    );
+    const codeLines = () => (code.current as CodeBlock).code.lines;
+    await s.enter(code, { runTime: 0.4 });
     // The card shows the state, not a copy of it: each sync rebuilds it from scene.state.
     const readout = (this.readout = view(this, (st: SceneState) => drawSessionCard(this, s.palette, st, CARD), { place: false }));
     // The card describes itself, its lit row included.
@@ -76,7 +87,7 @@ export default class StateMachineExplainer extends Scene {
     // What the machine marks on the diagram and the reducer, drawn from the session's state: the
     // ring on the state it is in, the links it travelled, and the row it read or the throw it hit.
     const rowOf = (row: string) => REDUCER.findIndex((l) => l.includes(`'${row}'`));
-    const spans = reducerSpans(code.code, REDUCER, THROW);
+    const spans = reducerSpans((code.current as CodeBlock).code, REDUCER, THROW);
     const session = () => this.state as unknown as SessionState;
     // Three pictures of the session's state, each its own view so each change is its own region.
     // The drawn diagram takes the live one's place: the live diagram leaves the stage, still the
@@ -110,7 +121,6 @@ export default class StateMachineExplainer extends Scene {
     this.remove(d.root);
     d.showBy(diagram);
     await this.play(new Create(ring.current.find(`session:ring:${start.session}`)!, { runTime: RING.runTime }));
-    await code.focus([1, 4]);
 
     /** The card's value for `field` crossfades to its new text. */
     const swap = (k: Choreography, field: string, runTime: number): Animation[] =>
@@ -129,7 +139,7 @@ export default class StateMachineExplainer extends Scene {
       start,
       events: SESSION_EVENTS,
       next: sessionNext,
-      views: [diagram, ring, reducer, readout],
+      views: [diagram, ring, reducer, readout, code],
       // An event the table has a row for walks the link (3.7 s); a throw only lights the throw (1.4 s).
       runTime: ({ after }) => (after.invalid ? 1.35 : 3.66),
       transition: Object.fromEntries(
@@ -138,10 +148,13 @@ export default class StateMachineExplainer extends Scene {
           (t: Transition<SessionState, SessionEvent>) => {
             const { before, after } = t;
             const g = t.choreograph(diagram), o = t.choreograph(ring), c = t.choreograph(reducer), k = t.choreograph(readout);
+            // The focus bar on the table gives way to the box on one row as the first event arrives:
+            // the panel is synced, not choreographed, so it lands as the panel drawn from the state.
+            const unfocus = code.sync({ match: 'key', staged: true, runTime: 0.4 });
             if (after.invalid) {
               // No row: the card shows the event and the throw, and the throw lights.
               return new Succession([
-                new AnimationGroup([...swap(k, 'event', 0.45), ...swap(k, 'returns', 0.45), k.morph('session:bar', { runTime: 0.45 }), ...putBack(c, before, true)]),
+                new AnimationGroup([...swap(k, 'event', 0.45), ...swap(k, 'returns', 0.45), k.morph('session:bar', { runTime: 0.45 }), ...putBack(c, before, true), unfocus]),
                 ...show(c, 'reducer:throw-lit', {}, 0.4),
                 ...show(c, 'reducer:throw-box', { create: true }, 0.5),
                 new AnimationGroup([g.rest({ runTime: 0.01 }), o.rest({ runTime: 0.01 }), c.rest({ runTime: 0.01 }), k.rest({ runTime: 0.01 })]),
@@ -154,7 +167,7 @@ export default class StateMachineExplainer extends Scene {
             const bar = k.own('session:bar'), link = d.link(before.session, after.session);
             const walk = g.travel('walk:token', walkToken(d), link.route, { appear: 0.18, move: 0.8, leave: 0.18 });
             return new Succession([
-              new AnimationGroup([...swap(k, 'event', 0.45), new Transform(bar, barAtEvent, { runTime: 0.45 }), ...putBack(c, before)]),
+              new AnimationGroup([...swap(k, 'event', 0.45), new Transform(bar, barAtEvent, { runTime: 0.45 }), ...putBack(c, before), unfocus]),
               c.enter(`reducer:lit:${after.row}`, {}, { runTime: 0.4 }),
               c.enter(`reducer:box:${after.row}`, { create: true }, { runTime: 0.5 }),
               o.leave(`session:ring:${before.session}`, { runTime: 0.35 }),
@@ -179,7 +192,7 @@ export default class StateMachineExplainer extends Scene {
 
     const events: SessionEvent[] = which === 'success' ? ['CONNECT', 'OPENED', 'CLOSE'] : ['CONNECT', 'ERROR'];
     let state = start.session;
-    for (const [i, event] of events.entries()) {
+    for (const event of events) {
       const next = reduceSession(state, event);
       await this.step(event.toLowerCase(), {
         kind: 'detail',
@@ -187,8 +200,6 @@ export default class StateMachineExplainer extends Scene {
         line: `Row ${state}:${event} returns ${next}, and the ring moves there.`,
         caption: `${event} arrives while the session is ${state}. The reducer finds the boxed row ${state}:${event} and returns ${next}, where the ring now sits.`,
       });
-      // The focus bar on the table gives way to the box on one row.
-      if (i === 0) await code.focus(null);
       await this.play(machine.replay([event]));
       state = next;
     }
@@ -200,6 +211,6 @@ export default class StateMachineExplainer extends Scene {
         'No row starts at closed. A late OPENED finds no closed:OPENED entry, so reduceSession throws InvalidTransition at the boxed line and the ring stays on closed.',
     });
     await this.play(machine.replay(['OPENED']));
-    s.opening(...code.code.lines.slice(1, 5), code.code.lines[THROW]!, diagram.current.find('diagram')!, ring.current.find(`session:ring:${state}`)!, readout.current);
+    s.opening(...codeLines().slice(1, 5), codeLines()[THROW]!, diagram.current.find('diagram')!, ring.current.find(`session:ring:${state}`)!, readout.current);
   }
 }
