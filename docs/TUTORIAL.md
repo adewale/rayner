@@ -143,7 +143,8 @@ Pin what you checked against in the scene's `meta.sources` (principle 3). The sc
 <!-- lru-mru/scene.ts -->
 ```ts
 import { Scene } from 'rayner';
-import { stage, settingsOf, Card, view } from 'rayner/explain';
+import { stage, settingsOf, view } from 'rayner/explain';
+import { card } from 'rayner/drawing';
 import { run, type Policy } from './model.ts';
 
 const SIZE = 3;
@@ -182,22 +183,22 @@ export default class LruMru extends Scene<CardState, { lit: string | null }> {
     const show = async (n: number, lit: string | null = null) => {
       this.state = shown(n);
       this.shown = { lit };
-      await this.play(card.sync());
+      await this.play(cache.sync());
     };
 
     await this.step('full', { title: 'Same items, same order', line: 'A, B and C missed and filled all three slots.', caption: 'Both caches have seen the same three requests, so both hold C, B, A from newest to oldest. The next request, D, misses in both and forces each policy to evict one item.' });
     this.state = shown(3);
     this.shown = { lit: null };
-    const card = view(this, (st, sh) => {
-      return new Card(this, s.palette, [
+    const cache = view(this, (st, sh) => {
+      return card(s, [
         ['Requests', st.Requests],
         ['Slots', SIZE],
         ['Newest first', ...st['Newest first']],
         ['Evicted', ...st.Evicted],
         ['Hits', ...st.Hits],
-      ], { columns: ['LRU', 'MRU'], width: 6.8, fontSize: 0.3, lit: sh.lit, key: 'cache' });
+      ], { columns: ['LRU', 'MRU'], width: 6.8, fontSize: 0.3, lit: sh.lit === null ? null : { row: sh.lit }, key: 'cache' });
     }, { place: false });
-    await s.enter(card, { runTime: 0.35 });
+    await s.enter(cache, { runTime: 0.35 });
 
     const [lruOut, mruOut] = [trace.lru[3]!.evicted, trace.mru[3]!.evicted];
     await this.step('evict', { title: 'D evicts opposite ends', line: `LRU drops ${lruOut}, the oldest; MRU drops ${mruOut}, the newest.`, caption: `LRU evicts the item used longest ago, ${lruOut}. MRU evicts the item used most recently, ${mruOut}. Each then records D as its newest item.` });
@@ -229,7 +230,7 @@ Read it from the top:
 - `static settings` declares one setting with two options. Each option is a scenario: the reader can switch between them, and `check` and `review` visit both. Both scenarios send A B C D first, then either repeat the loop or alternate C and D.
 - `trace` asks the model once per scenario. Every value on the card comes from it: `shown(n)` turns the trace into what the card shows after the first `n` requests.
 - `Scene<CardState, { lit: string | null }>` declares the scene's two types: its model, what the card shows, and what is shown of it, the row the card lights. `this.state`, `this.shown` and the draw's `st` and `sh` are typed from them ([typed state](REFERENCE.md#typed-state-and-shown)).
-- The card is a view of the state: `view(this, draw)` builds a `Card` from `this.state` whenever the state changes, and `show(n, lit)` puts the values after `n` requests (and the row to light) in the state and plays `card.sync(...)`. So the card cannot drift from the state that tests and `rayner describe` read, and `check` redraws it from that state at every step. The card's `key` lets the sync change only what changed: a new value fades in where the old one fades out, and the bar moves to the lit row.
+- The card is a view of the state: `view(this, draw)` builds it with the drawing kit's `card(s, rows, options)` from `this.state` whenever the state changes, its `lit: { row }` from `this.shown`, and `show(n, lit)` puts the values after `n` requests (and the row to light) in the state and plays `cache.sync(...)`. So the card cannot drift from the state that tests and `rayner describe` read, and `check` redraws it from that state at every step. The card's `key` lets the sync change only what changed: a new value fades in where the old one fades out, and the bar moves to the lit row.
 - `stage(this, { style: 'nord', headingSize: 0.54 })` draws the paper and a heading that follows the steps. The larger heading keeps the step number readable on a phone.
 - The card has an LRU column and an MRU column. A row with one value per column compares the policies; a row with a single value, such as Requests, spans both columns because both caches receive the same requests.
 - There are four steps. Each has a stable name used in links, a title and a caption, and the first two have a line under the title. The page prints the caption beside the picture.

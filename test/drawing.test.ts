@@ -7,7 +7,7 @@ import { stage } from '../explain/index.ts';
 import type { Box } from '../src/index.ts';
 
 test('rayner/drawing exports exactly the kit, and package.json publishes it', () => {
-  assert.deepEqual(Object.keys(drawing).sort(), ['bars', 'callout', 'dimension', 'dot', 'emphasised', 'flow', 'keyed', 'keyedParts', 'label', 'legend', 'pin', 'segment', 'stat', 'table', 'tile']);
+  assert.deepEqual(Object.keys(drawing).sort(), ['bars', 'callout', 'card', 'code', 'dimension', 'dot', 'emphasised', 'flow', 'keyed', 'keyedParts', 'label', 'legend', 'pin', 'segment', 'stat', 'table', 'tile']);
   const exports = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).exports;
   assert.deepEqual(exports['./drawing'], { types: './dist/explain/drawing.d.ts', default: './dist/explain/drawing.js' });
 });

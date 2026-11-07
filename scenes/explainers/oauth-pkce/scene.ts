@@ -1,7 +1,8 @@
 import { Scene, Text, Arrow, Dot, AnimationGroup, Succession, FadeIn } from '../../../src/index.ts';
 import type { Choreography, Transition, Diagram, PictureNote, Stage, View } from '../../../explain/index.ts';
 import type { ScheduledAnimation } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Machine, view, having, Card } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, Machine, view, having } from '../../../explain/index.ts';
+import { card } from '../../../explain/drawing.ts';
 import { pkceChallenge, sha256 } from './model.ts';
 import { pkceFlow, theftFlow, lanes, readable, signInStart, signInNext, SIGN_IN_EVENTS, VERIFIER, GUESS, type Message, type SignIn, type SignInEvent } from './model.ts';
 import { listed } from '../lib/format.ts';
@@ -135,17 +136,18 @@ export default class OAuthExplainer extends Scene<OAuthState, OAuthShown> {
     });
     const values = view(
       this,
-      (_st, sh) =>
-        new Card(
-          this,
-          s.palette,
+      (_st, sh) => {
+        const { lit } = having(sh, 'derive').derive;
+        return card(
+          s,
           [
             ['code_verifier', VERIFIER],
             ['SHA-256 (hex)', hex(digest)],
             ['code_challenge', challenge],
           ],
-          { at: regionBox('full', { bottom: -3.9, top: -0.4 }), fontSize: 0.27, lit: having(sh, 'derive').derive.lit, key: 'values' },
-        ),
+          { at: regionBox('full', { bottom: -3.9, top: -0.4 }), fontSize: 0.27, lit: lit == null ? null : { row: lit }, key: 'values' },
+        );
+      },
       { place: false },
     );
     await s.enter(values, { runTime: 0.35, shift: [0, -0.08] });

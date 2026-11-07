@@ -1,8 +1,9 @@
 import { frames as readerFrames, RING, drawSessionCard, reducerSpans, drawTrails, drawRing, drawReading, walkToken } from './picture.ts';
 import { Scene, Text, FadeIn, Create, Transform, AnimationGroup, Succession } from '../../../src/index.ts';
 import type { Animation } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, answerOf, Machine, view, CodeBlock } from '../../../explain/index.ts';
-import type { Card, View, Choreography, Transition } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, answerOf, Machine, view } from '../../../explain/index.ts';
+import { code } from '../../../explain/drawing.ts';
+import type { Card, View, Choreography, Transition, CodeBlock } from '../../../explain/index.ts';
 import { reduceSession, sessionStart, sessionNext, SESSION_EVENTS } from './model.ts';
 import type { SessionState, SessionEvent } from './model.ts';
 const SOURCE =
@@ -63,12 +64,12 @@ export default class StateMachineExplainer extends Scene<SessionState, {}> {
     const d = await s.show({ source: SOURCE }, { box: DIAGRAM });
     const start = sessionStart();
     this.state = { ...start };
-    // The reducer's code is a view of the state too: its focus bar is on the table until the
+    // The reducer's code is a view of the state too: its lit bar is on the table until the
     // first event arrives, when the box on one row takes over.
-    const code = view(
+    const codeView = view(
       this,
       (st) => {
-        const panel = new CodeBlock(this, s.palette, REDUCER, { at: CODE, fontSize: 0.195, focus: st.event == null ? [1, 4] : null, key: 'code' });
+        const panel = code(s, REDUCER, { at: CODE, fontSize: 0.195, lit: st.event == null ? { lines: [1, 4] } : null, key: 'code' });
         // The table's rows and the throw are keyed by what they mean, not by their text as the key option
         // keys them: scene.review.json and the embed tests target these keys.
         ['idle:CONNECT', 'connecting:OPENED', 'connecting:ERROR', 'open:CLOSE'].forEach((row, i) => {
@@ -79,17 +80,17 @@ export default class StateMachineExplainer extends Scene<SessionState, {}> {
       },
       { place: false },
     );
-    const codeLines = () => (code.current as CodeBlock).code.lines;
-    await s.enter(code, { runTime: 0.4 });
+    const codeLines = () => (codeView.current as CodeBlock).code.lines;
+    await s.enter(codeView, { runTime: 0.4 });
     // The card shows the state, not a copy of it: each sync rebuilds it from scene.state.
-    const readout = (this.readout = view(this, (st) => drawSessionCard(this, s.palette, st, CARD), { place: false }));
+    const readout = (this.readout = view(this, (st) => drawSessionCard(s, st, CARD), { place: false }));
     // The card describes itself, its lit row included.
     s.keep(readout);
 
     // What the machine marks on the diagram and the reducer, drawn from the session's state: the
     // ring on the state it is in, the links it travelled, and the row it read or the throw it hit.
     const rowOf = (row: string) => REDUCER.findIndex((l) => l.includes(`'${row}'`));
-    const spans = reducerSpans((code.current as CodeBlock).code, REDUCER, THROW);
+    const spans = reducerSpans((codeView.current as CodeBlock).code, REDUCER, THROW);
     const session = () => this.state;
     // Three pictures of the session's state, each its own view so each change is its own region.
     // The drawn diagram takes the live one's place: the live diagram leaves the stage, still the
@@ -131,7 +132,7 @@ export default class StateMachineExplainer extends Scene<SessionState, {}> {
       start,
       events: SESSION_EVENTS,
       next: sessionNext,
-      views: [diagram, ring, reducer, readout, code],
+      views: [diagram, ring, reducer, readout, codeView],
       // An event the table has a row for walks the link (3.7 s); a throw only lights the throw (1.4 s).
       runTime: ({ after }) => (after.invalid ? 1.35 : 3.66),
       transition: Object.fromEntries(
@@ -139,7 +140,7 @@ export default class StateMachineExplainer extends Scene<SessionState, {}> {
           event,
           (t: Transition<SessionState, SessionEvent>) => {
             const { before, after } = t;
-            const g = t.choreograph(diagram), o = t.choreograph(ring), c = t.choreograph(reducer), k = t.choreograph(readout), p = t.choreograph(code);
+            const g = t.choreograph(diagram), o = t.choreograph(ring), c = t.choreograph(reducer), k = t.choreograph(readout), p = t.choreograph(codeView);
             // The focus bar on the table gives way to the box on one row as the first event arrives.
             const unfocus = p.morph('code:bar', { runTime: 0.4 });
             if (after.invalid) {

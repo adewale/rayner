@@ -353,16 +353,16 @@ test('a link names its ends by their labels: a service by its label, a class or 
   }
 });
 
-// ---- pictures built from state: marks, focus, notes and words that are part of the picture ----
+// ---- pictures built from state: marks, lit rows and lines, notes and words that are part of the picture ----
 
-test('a card drawn lit and code drawn focused carry their bar on the row or lines, and describe and emphasise it', async () => {
-  const { Card, CodeBlock } = await import('../explain/index.ts');
+test('a card drawn lit and code drawn lit carry their bar on the row or lines, and describe and emphasise it', async () => {
+  const { card, code } = await import('../explain/drawing.ts');
   const { emphasisOf } = await import('../explain/look.ts');
   await loadFonts();
   const scene = new Scene(new NullSink());
   const s = stage(scene);
   const rows = [['a', 1], ['b', 22], ['c', 333]] as const;
-  const lit = new Card(scene, s.palette, rows, { at: [1, 0.5], title: 'T', lit: 'b', litAs: 'chosen' });
+  const lit = card(s, rows, { at: [1, 0.5], title: 'T', lit: { row: 'b', as: 'chosen' } });
   // The bar runs across the panel, on row b.
   const bar = lit.bar.box()!, panel = lit.panel.box()!;
   assert.ok(Math.abs(lit.bar.center()[1] - lit.values.get('b')!.anchorPoint()[1]) < 1e-6);
@@ -376,21 +376,21 @@ test('a card drawn lit and code drawn focused carry their bar on the row or line
   assert.deepEqual(lit.describe().parts.map((p) => p.mark), [undefined, 'chosen', undefined]);
   assert.equal(lit.describe().parts.find((p) => p.mark)?.name.startsWith('b'), true);
   // Unlit, the bar is there but hidden, so a picture keeps one family shape whether lit or not.
-  const plain = new Card(scene, s.palette, rows, { at: [1, 0.5], title: 'T' });
+  const plain = card(s, rows, { at: [1, 0.5], title: 'T' });
   assert.equal(plain.bar.style.opacity, 0);
   assert.equal(plain.family().length, lit.family().length);
   assert.equal(plain.describe().parts.some((p) => p.mark), false);
-  assert.throws(() => new Card(scene, s.palette, rows, { lit: 'nope' }), /No card row nope/);
+  assert.throws(() => card(s, rows, { lit: { row: 'nope' } }), /No card row nope/);
 
   const lines = ['one', 'two', 'three', 'four'];
-  const built = new CodeBlock(scene, s.palette, lines, { at: [-3, 0], focus: [1, 2], focusAs: 'run' });
+  const built = code(s, lines, { at: [-3, 0], lit: { lines: [1, 2], as: 'run' } });
   // The bar covers lines 1 and 2, and neither line beside them.
   const span = built.bar.box()!, ys = built.code.lines.map((l) => l.anchorPoint()[1]);
   assert.equal(built.bar.style.opacity, 1);
   assert.ok(ys[1]! > span[1] && ys[1]! < span[3] && ys[2]! > span[1] && ys[2]! < span[3]);
   assert.ok(ys[0]! > span[3] && ys[3]! < span[1]);
   assert.deepEqual(built.describe().parts.map((p) => p.mark), [undefined, 'run', 'run', undefined]);
-  assert.throws(() => new CodeBlock(scene, s.palette, lines, { focus: [2, 9] }), /No code lines 2..9/);
+  assert.throws(() => code(s, lines, { lit: { lines: [2, 9] } }), /No code lines 2..9/);
 
   // On stage, each says what it emphasises.
   scene.add(lit, built);
@@ -400,7 +400,7 @@ test('a card drawn lit and code drawn focused carry their bar on the row or line
 });
 
 test('a view of a card or code is described as that card or code, and a describe speaks for the rest', async () => {
-  const { Card, CodeBlock } = await import('../explain/index.ts');
+  const { card: cardPicture, code } = await import('../explain/drawing.ts');
   const { Group } = await import('../src/index.ts');
   const { view } = await import('../explain/index.ts');
   class Described extends Scene {
@@ -408,14 +408,14 @@ test('a view of a card or code is described as that card or code, and a describe
       const s = stage(this);
       this.state = { n: 7 };
       await this.step('card');
-      const card = view(this, (st) => new Card(this, s.palette, [['n', (st as { n: number }).n]], { lit: 'n', litAs: 'now' }), { place: false });
+      const card = view(this, (st) => cardPicture(s, [['n', (st as { n: number }).n]], { lit: { row: 'n', as: 'now' } }), { place: false });
       await s.enter(card);
       await this.step('both');
       await s.clear();
       // A card beside words of its own: the card describes itself, the describe says the rest.
       const pair = view(
         this,
-        (st) => new Group(new CodeBlock(this, s.palette, [`n = ${(st as { n: number }).n}`], { focus: 0 }), new Text('beside', { color: INK }).moveTo([0, -2])),
+        (st) => new Group(code(s, [`n = ${(st as { n: number }).n}`], { lit: { lines: 0 } }), new Text('beside', { color: INK }).moveTo([0, -2])),
         { place: false },
       );
       await s.enter(pair, { describe: 'Words beside the code' });
@@ -430,7 +430,7 @@ test('a view of a card or code is described as that card or code, and a describe
 });
 
 test('a staged step says what its picture shows with describe, and its own card says itself', async () => {
-  const { Card } = await import('../explain/index.ts');
+  const { card } = await import('../explain/drawing.ts');
   const { Group, Circle } = await import('../src/index.ts');
   class Staged extends Scene {
     override async construct() {
@@ -445,7 +445,7 @@ test('a staged step says what its picture shows with describe, and its own card 
         {
           id: 'words', title: 'Words', line: '', caption: 'Words.',
           state: { k: 'v' },
-          draw: (st, stage) => new Group(new Card(this, stage.palette, [['k', st.k]], { at: [0, 2] }), new Text('under it', { color: INK }).moveTo([0, -2])),
+          draw: (st, stage) => new Group(card(stage, [['k', st.k]], { at: [0, 2] }), new Text('under it', { color: INK }).moveTo([0, -2])),
         },
       ]);
     }

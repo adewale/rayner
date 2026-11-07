@@ -1,6 +1,6 @@
 import { Scene, Text, Group } from '../../../src/index.ts';
-import { stage, settingsOf, Card, CodeBlock, answerOf, view, having } from '../../../explain/index.ts';
-import { callout } from '../../../explain/drawing.ts';
+import { stage, settingsOf, answerOf, view, having } from '../../../explain/index.ts';
+import { callout, card, code } from '../../../explain/drawing.ts';
 import {
   CHARS,
   LINEUP,
@@ -147,11 +147,10 @@ export default class IsDigitExplainer extends Scene<DigitState, {}> {
       (st) => {
         const { predicate, passes } = having(st, 'guard').guard;
         // The lines that run when the check passes, or the check alone when it fails.
-        const block = new CodeBlock(this, s.palette, [`s = "${st.char}"`, `if s.${predicate}():`, '    n = int(s)'], {
+        const block = code(s, [`s = "${st.char}"`, `if s.${predicate}():`, '    n = int(s)'], {
           at: [-7.55, -4.0, 7.55, TOP],
           fontSize: GUARD_SIZE,
-          focus: passes ? [1, 2] : 1,
-          focusAs: passes ? 'run' : 'the check that fails',
+          lit: { lines: passes ? [1, 2] : 1, as: passes ? 'run' : 'the check that fails' },
         });
         const [x0, , x1] = block.panel.box()!,
           across = x1 - x0 + CALLOUT_GAP + new Text(returnsOf(st), { fontSize: GUARD_SIZE }).width();
@@ -190,9 +189,8 @@ export default class IsDigitExplainer extends Scene<DigitState, {}> {
     const transform = view(
       this,
       (st) =>
-        new CodeBlock(
-          this,
-          s.palette,
+        code(
+          s,
           [
             '// unicodeobject.c:9538-9552, abridged',
             'if (ch < 127) out[i] = ch;',
@@ -205,8 +203,7 @@ export default class IsDigitExplainer extends Scene<DigitState, {}> {
           {
             at: [-WIDE, -2.75, WIDE, TOP],
             fontSize: SIZE,
-            focus: answer(st).parsed ? 6 : 5,
-            focusAs: 'the branch this character takes',
+            lit: { lines: answer(st).parsed ? 6 : 5, as: 'the branch this character takes' },
             key: 'transform',
           },
         ),
@@ -309,11 +306,10 @@ export default class IsDigitExplainer extends Scene<DigitState, {}> {
     const quoted = view(
       this,
       (st) =>
-        new CodeBlock(this, s.palette, having(st, 'ucd').ucd, {
+        code(s, having(st, 'ucd').ucd, {
           at: [-WIDE, -0.05, WIDE, TOP],
           fontSize: SIZE,
-          focus: id === 'han' ? 3 : 2,
-          focusAs: id === 'han' ? 'the numeric value' : 'the numeric fields',
+          lit: { lines: id === 'han' ? 3 : 2, as: id === 'han' ? 'the numeric value' : 'the numeric fields' },
         }),
       { place: false },
     );
@@ -331,7 +327,7 @@ export default class IsDigitExplainer extends Scene<DigitState, {}> {
     };
     const fieldCard = view(
       this,
-      (st) => new Card(this, s.palette, fieldRows(st), { at: [-7.55, BOTTOM, 7.55, row.panel.box()![1] - 0.3], align: 'top', fontSize: SIZE, width: 10, direction: 'ltr' }),
+      (st) => card(s, fieldRows(st), { at: [-7.55, BOTTOM, 7.55, row.panel.box()![1] - 0.3], align: 'top', fontSize: SIZE, width: 10, direction: 'ltr' }),
       { place: false },
     );
     await s.enter(fieldCard, { runTime: 0.35, shift: [0, -0.08] });
@@ -388,8 +384,8 @@ export default class IsDigitExplainer extends Scene<DigitState, {}> {
     const counts = view(
       this,
       (st) =>
-        new Card(this, s.palette, countRows(st), {
-          at: [-7.55, -0.75, 7.55, 2.4], align: 'top', fontSize: SIZE, width: 11, direction: 'ltr', lit: MARKED, litAs: 'this scenario’s check',
+        card(s, countRows(st), {
+          at: [-7.55, -0.75, 7.55, 2.4], align: 'top', fontSize: SIZE, width: 11, direction: 'ltr', lit: { row: MARKED, as: 'this scenario’s check' },
         }),
       { place: false },
     );

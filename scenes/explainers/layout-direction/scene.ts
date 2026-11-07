@@ -1,5 +1,6 @@
 import { Scene } from '../../../src/index.ts';
-import { stage, settingsOf, CodeBlock, answerOf, view, having } from '../../../explain/index.ts';
+import { stage, settingsOf, answerOf, view, having } from '../../../explain/index.ts';
+import { card, code } from '../../../explain/drawing.ts';
 import type { LayoutDirection, Card } from '../../../explain/index.ts';
 
 const ROWS: [string, number][] = [['Field', 123]];
@@ -63,9 +64,8 @@ export default class LayoutDirectionExplainer extends Scene<LayoutState, { lit?:
         caption: `In a ${reading} page the reader starts at the ${rtl ? 'right' : 'left'}, so the card read first belongs there. This layout never says left or right: one card goes at start, the other at end, and the End card also sets its own field direction. On this ${direction} stage, which half will the Start card land in, and on which side of 123 will each card put its Field name?`,
         state: layout,
         draw: (st, s) =>
-          new CodeBlock(
-            this,
-            s.palette,
+          code(
+            s,
             [
               `stage(this, { direction: '${st.direction}' })`,
               `s.card(rows, { at: '${st.start.at}' })`,
@@ -94,7 +94,7 @@ export default class LayoutDirectionExplainer extends Scene<LayoutState, { lit?:
     this.state.field = ROWS[0]![1];
     this.shown.lit = null;
     const cardView = (place: typeof layout.start | typeof layout.end, title: string, key: string) =>
-      view(this, (st, sh) => s.cardPicture([['Field', having(st, 'field').field]], { ...place, ...CARD, title, lit: sh.lit, litAs: 'updated', key }), { place: false });
+      view(this, (st, sh) => card(s, [['Field', having(st, 'field').field]], { ...place, ...CARD, title, lit: sh.lit == null ? null : { row: sh.lit, as: 'updated' }, key }), { place: false });
     const start = cardView(layout.start, `Start, ${layout.direction}`, 'start-card');
     const end = cardView(layout.end, `End, own ${layout.end.direction}`, 'end-card');
     await s.enter(start, end);

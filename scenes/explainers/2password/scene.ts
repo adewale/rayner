@@ -1,6 +1,7 @@
 import { frames as readerFrames } from './picture.ts';
 import { Scene, Arrow, FadeIn, Create } from '../../../src/index.ts';
-import { stage, regionBox, answerOf, view, having, CodeBlock } from '../../../explain/index.ts';
+import { stage, regionBox, answerOf, view, having } from '../../../explain/index.ts';
+import { code } from '../../../explain/drawing.ts';
 import type { NoteSide } from '../../../explain/index.ts';
 import {
   ITEMS,
@@ -108,10 +109,10 @@ export default class PasswordExplainer extends Scene<PasswordState, PasswordShow
       this,
       (_st, sh) => {
         const l = having(sh, 'listing').listing;
-        return new CodeBlock(this, s.palette, listingLines(l.columns), {
+        return code(s, listingLines(l.columns), {
           at: [-5.5, -4.25, 5.5, -0.5],
           fontSize: 0.3,
-          focus: l.focus,
+          lit: { lines: l.focus },
           key: 'listing',
         });
       },
@@ -199,10 +200,10 @@ export default class PasswordExplainer extends Scene<PasswordState, PasswordShow
     const command = view(
       this,
       (_st, sh) =>
-        new CodeBlock(this, s.palette, [`2password run --env "API_KEY=${ref}" -- app`, `→ ${launched.argv.join(' ')}`], {
+        code(s, [`2password run --env "API_KEY=${ref}" -- app`, `→ ${launched.argv.join(' ')}`], {
           at: regionBox('top', { bottom: 1.2 }),
           fontSize: 0.3,
-          focus: sh.commandFocus,
+          lit: sh.commandFocus == null ? null : { lines: sh.commandFocus },
           key: 'command',
         }),
       { place: false },

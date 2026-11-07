@@ -1,8 +1,8 @@
 import { Scene, Text, Group, FadeIn } from '../../../src/index.ts';
 import type { Box, FadeOpts } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, answerOf as scriptAnswerOf, view, having } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, answerOf as scriptAnswerOf, view, having } from '../../../explain/index.ts';
 import type { CardOptions, CardRow, View } from '../../../explain/index.ts';
-import { keyed } from '../../../explain/drawing.ts';
+import { keyed, card, code } from '../../../explain/drawing.ts';
 import {
   ADDR,
   MACHINES,
@@ -248,7 +248,7 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
     const ink = s.palette.ink;
     /** A card drawn from the step's state: a view, so check compares it with the state at the end of every step. */
     const cardView = (rowsOf: (st: TrustState) => CardRow[], opts: CardOptions | ((st: TrustState) => CardOptions)) =>
-      view(this, (st) => new Card(this, s.palette, rowsOf(st), typeof opts === 'function' ? opts(st) : opts), { place: false });
+      view(this, (st) => card(s, rowsOf(st), typeof opts === 'function' ? opts(st) : opts), { place: false });
     /**
      * Keep each view and fade them in together, in one play, as s.enter would. A card describes itself;
      * `words` says what else a view shows.
@@ -417,27 +417,26 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
       align: 'top',
       fontSize: BIG,
       title: 'Addresses in the order Express reads them',
-      ...(st.marked ? { lit: answerLabel(readOf(st)), litAs: 'req.ip' } : {}),
+      ...(st.marked ? { lit: { row: answerLabel(readOf(st)), as: 'req.ip' } } : {}),
     }));
     /** The result card, and under it whether req.ip is right. */
     const result = view(
       this,
       (st) => {
         const { sender, outcome } = having(st, 'sender', 'outcome');
-        const card = new Card(
-          this,
-          s.palette,
+        const drawn = card(
+          s,
           [
             ['Sent by', `${sender.addr} (${sender.name})`],
             ['req.ip', String(st.ip)],
           ],
           {
             at: regionBox(FULL, { left: 1.6, top: 2.6 }), align: 'top', fontSize: BIG, title: 'Result',
-            ...(st.marked === 'result' ? { lit: 'req.ip', litAs: outcome === 'sender' ? 'right' : 'wrong' } : {}),
+            ...(st.marked === 'result' ? { lit: { row: 'req.ip', as: outcome === 'sender' ? 'right' : 'wrong' } } : {}),
           },
         );
-        const b = card.box()!;
-        return new Group(card, ...wrap(outcomeWords(outcome, sender.name), [b[0] + 0.1, b[1] - 0.2], b[2] - b[0] - 0.2, BIG, outcome === 'sender' ? s.good : s.bad));
+        const b = drawn.box()!;
+        return new Group(drawn, ...wrap(outcomeWords(outcome, sender.name), [b[0] + 0.1, b[1] - 0.2], b[2] - b[0] - 0.2, BIG, outcome === 'sender' ? s.good : s.bad));
       },
       { place: false },
     );
@@ -548,17 +547,16 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
     await s.clearOverlays();
     const left = regionBox(FULL, { right: -0.1 }),
       right = regionBox(FULL, { left: 0.1 });
-    const focusOf = (f: Focus) => (f ? { focus: f.lines, focusAs: f.as } : {});
     this.shown.trustCode = { compile: null, loop: null } satisfies TrustCodeShown;
     const compile = view(
       this,
       (_st, sh) =>
-        s.codePicture(COMPILE[trustKey === 'true' || trustKey === 'list' ? trustKey : 'number'], {
+        code(s, COMPILE[trustKey === 'true' || trustKey === 'list' ? trustKey : 'number'], {
           at: left,
           align: 'top',
           fontSize: 0.3,
           title: 'express 5.3.0, lib/utils.js, compileTrust',
-          ...focusOf(having(sh, 'trustCode').trustCode.compile),
+          lit: having(sh, 'trustCode').trustCode.compile,
           key: 'compile',
         }),
       { place: false },
@@ -566,7 +564,8 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
     const loop = view(
       this,
       (_st, sh) =>
-        s.codePicture(
+        code(
+          s,
           [
             '// alladdrs',
             'var addrs = forwarded(req)',
@@ -584,7 +583,7 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
             align: 'top',
             fontSize: 0.3,
             title: 'proxy-addr 2.0.8, index.js',
-            ...focusOf(having(sh, 'trustCode').trustCode.loop),
+            lit: having(sh, 'trustCode').trustCode.loop,
             key: 'loop',
           },
         ),
@@ -645,13 +644,13 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
         const all = requestsOf(st);
         const columns = all.map(
           ({ q, readings }, k) =>
-            new Card(this, s.palette, readings.map((x) => [`${x.index + 1}.`, `${x.addr}  ${VERDICT_WORD[x.verdict]}`] as const), {
+            card(s, readings.map((x) => [`${x.index + 1}.`, `${x.addr}  ${VERDICT_WORD[x.verdict]}`] as const), {
               at: [-7.55 + k * third + 0.08, -4.25, -7.55 + (k + 1) * third - 0.08, 2.6] as Box,
               align: 'top',
               fontSize: BIG,
               title: REQUEST_LABEL[q],
               // `columnsMarked`: how many columns, from the left, have their req.ip lit.
-              ...(k < Number(st.columnsMarked ?? 0) ? { lit: `${readings.find((x) => x.verdict === 'answer')!.index + 1}.`, litAs: 'req.ip' } : {}),
+              ...(k < Number(st.columnsMarked ?? 0) ? { lit: { row: `${readings.find((x) => x.verdict === 'answer')!.index + 1}.`, as: 'req.ip' } } : {}),
             }),
         );
         const verdicts = all.flatMap(({ q, outcome }, k) =>
@@ -764,10 +763,7 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
             ips = having(compare, t)[t],
             outcomes = having(compareOutcomes, t)[t];
           return keyed(
-            new Card(
-              this,
-              s.palette,
-              REQUEST_KEYS.map((q) => [REQUEST_LABEL[q], `${ips[q]}  ${outcomes[q] === 'sender' ? 'right' : 'wrong'}`] as const),
+            card(s, REQUEST_KEYS.map((q) => [REQUEST_LABEL[q], `${ips[q]}  ${outcomes[q] === 'sender' ? 'right' : 'wrong'}`] as const),
               { at: box, align: 'top', fontSize: SIZE, title: `trust proxy ${t === 'list' ? TRUST_CODE.list : TRUST_LABEL[t]}` },
             ),
             key,

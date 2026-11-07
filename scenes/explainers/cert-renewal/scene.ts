@@ -1,5 +1,6 @@
 import { Scene, Text, FadeOut } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, CodeBlock, answerOf, view, having } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, answerOf, view, having } from '../../../explain/index.ts';
+import { card, code } from '../../../explain/drawing.ts';
 import type { CardOptions, CardRow, Diagram, NoteSide } from '../../../explain/index.ts';
 import {
   BACKDATE,
@@ -229,7 +230,7 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
       colours = { ink: s.palette.ink, emphasis: s.emphasis, bad: s.bad, soft: s.soft };
     /** A card drawn from the step's state, brought in as `s.card` brings one in; its words are the card's own. */
     const cardOf = async (rowsOf: (st: CertState) => CardRow[], opts: CardOptions) => {
-      const v = view(this, (st) => new Card(this, s.palette, rowsOf(st), opts), { place: false });
+      const v = view(this, (st) => card(s, rowsOf(st), opts), { place: false });
       await s.enter(v, { runTime: 0.35, shift: [0, -0.08] });
       return v;
     };
@@ -307,14 +308,14 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
     const chart = await s.show({ source: oneRenewal }, { box: regionBox('top', { bottom: -0.25 }) });
     const codeOpts = { at: regionBox('full', { top: -0.35 }), fontSize: 0.2, fitHeight: true } as const;
     this.shown.code = { version: 'old', focus: [2, 3] } satisfies CodeShown;
-    const code = view(
+    const codeView = view(
       this,
       (_st, sh) => {
         const c = having(sh, 'code').code;
-        const panel = s.codePicture(c.version === 'old' ? OLD_CODE : NEW_CODE, {
+        const panel = code(s, c.version === 'old' ? OLD_CODE : NEW_CODE, {
           ...codeOpts,
-          width: s.codePicture(OLD_CODE, codeOpts).panel.width(),
-          focus: c.focus,
+          width: code(s, OLD_CODE, codeOpts).panel.width(),
+          lit: { lines: c.focus },
           key: 'code',
         });
         return panel;
@@ -323,9 +324,9 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
     );
     const showCode = async (change: CodeShown) => {
       this.shown.code = change;
-      await this.play(code.sync());
+      await this.play(codeView.sync());
     };
-    await s.enter(code, { runTime: 0.4 });
+    await s.enter(codeView, { runTime: 0.4 });
     const chartView = diagramOf(chart, 'chart');
     await chartView.show({ notes: [{ id: 'task:c2', text: `replaced at day ${days(ninety.renewsAt)}`, side: 'right' }] });
     this.state.oldRule = { due: ninety.due, renewsAt: ninety.renewsAt };
@@ -666,11 +667,10 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
       this,
       (_st, sh) => {
         const f = having(sh, 'ariFocus').ariFocus;
-        return new CodeBlock(this, s.palette, ARI_CODE, {
+        return code(s, ARI_CODE, {
           at: regionBox('full', { bottom: -1.0 }),
           fontSize: 0.22,
-          focus: f.lines,
-          focusAs: f.as,
+          lit: f,
           key: 'ari',
         });
       },

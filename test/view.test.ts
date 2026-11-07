@@ -4,8 +4,9 @@
 // every step is what the state renders (the fidelity helper).
 import { test } from 'node:test';
 import { Square } from '../src/extras.ts';
-import type { ViewSync } from '../explain/index.ts';
-import { view, View, Card, palette, having } from '../explain/index.ts';
+import type { ViewSync, Card, Stage } from '../explain/index.ts';
+import { view, View, having, stage } from '../explain/index.ts';
+import { card } from '../explain/drawing.ts';
 import assert from 'node:assert/strict';
 import { Scene, Group, Text, DecimalNumber, Rectangle, Circle, Animation, FadeIn, Succession } from '../src/index.ts';
 import { StringSink, SnapshotSink, renderAt } from '../src/output.ts';
@@ -251,11 +252,12 @@ test('placement: a moved and scaled View stays moved and scaled; place: false le
 test('a card view of the scene\'s state keeps its labels put as values change', async () => {
   class Counter extends Scene {
     rv?: View<Card>;
+    s?: Stage;
     override async construct(): Promise<void> {
       this.state = { tokens: 10, responses: [] as number[] };
       const text = (v: unknown) => (typeof v === 'string' ? v : JSON.stringify(v));
-      const colors = palette('github-dark');
-      const rv = (this.rv = view(this, (st) => new Card(this, colors, (['tokens', 'responses'] as const).map((k) => [k, text(st[k])] as const), { at: [-3, 1], width: 4, panel: false, key: 'readout' }), { place: false }));
+      const s = (this.s = stage(this, { style: 'github-dark', heading: false }));
+      const rv = (this.rv = view(this, (st) => card(s, (['tokens', 'responses'] as const).map((k) => [k, text(st[k])] as const), { at: [-3, 1], width: 4, panel: false, key: 'readout' }), { place: false }));
       await this.step('show');
       await this.play(new FadeIn(rv));
       for (const [i, code] of [200, 200, 429].entries()) {
@@ -268,7 +270,7 @@ test('a card view of the scene\'s state keeps its labels put as values change', 
   }
   const s = await new Counter(new StringSink()).run();
   assert.deepEqual(s.rv!.texts, ['tokens', '0', 'responses', '[200,200,429]']);
-  const first = new Card(s, palette('github-dark'), [['tokens', '10'], ['responses', '[]']], { at: [-3, 1], width: 4, panel: false });
+  const first = card(s.s!, [['tokens', '10'], ['responses', '[]']], { at: [-3, 1], width: 4, panel: false });
   for (const key of ['tokens', 'responses'])
     assert.ok(Math.abs(s.rv!.current.labels.get(key)!.frameBox[0]! - first.labels.get(key)!.frameBox[0]!) < 1e-5, 'label left edge held');
   assert.equal(await assertViewFollowsState(Counter, (sc) => (sc as Counter).rv), 4);

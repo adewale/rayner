@@ -1,8 +1,8 @@
 import { Scene, FadeOut, Create } from '../../../src/index.ts';
 import type { Box, Group } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, mermaid, answerOf, view, having } from '../../../explain/index.ts';
-import type { Diagram, CardRow, CardOptions, View, Having } from '../../../explain/index.ts';
-import { callout } from '../../../explain/drawing.ts';
+import { stage, settingsOf, regionBox, mermaid, answerOf, view, having } from '../../../explain/index.ts';
+import type { Diagram, CardRow, CardOptions, View, Having, Card } from '../../../explain/index.ts';
+import { callout, card } from '../../../explain/drawing.ts';
 import {
   BLCKSZ,
   COLUMNS,
@@ -142,7 +142,7 @@ export default class PgPageExplainer extends Scene<PgState, PgShown> {
         this,
         (state) => {
           const st = having(state, ...needs);
-          return new Card(this, s.palette, rows(st), typeof opts === 'function' ? opts(st) : opts);
+          return card(s, rows(st), typeof opts === 'function' ? opts(st) : opts);
         },
         { place: false },
       );
@@ -394,7 +394,7 @@ export default class PgPageExplainer extends Scene<PgState, PgShown> {
         ),
       (state) => ({
         at: regionBox('full', { top: 2.6, bottom: -3.6 }), fontSize: 0.42, title: '10 000 rows',
-        lit: COLUMNS[state.column].label, litAs: 'this scenario',
+        lit: { row: COLUMNS[state.column].label, as: 'this scenario' },
       }),
     );
     await enterCard(compareCard);

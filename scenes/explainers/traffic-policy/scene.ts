@@ -1,7 +1,8 @@
 import { Scene, Group } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, CodeBlock, mermaid, answerOf, view, having } from '../../../explain/index.ts';
-import type { CardRow, CardOptions, View, Diagram, PictureNote, Having } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, mermaid, answerOf, view, having } from '../../../explain/index.ts';
+import { card, code } from '../../../explain/drawing.ts';
+import type { CardRow, CardOptions, View, Diagram, PictureNote, Having, Card } from '../../../explain/index.ts';
 import {
   CLIENT_IP,
   PLACEMENTS,
@@ -192,9 +193,9 @@ export default class TrafficPolicyExplainer extends Scene<TrafficState, { cluste
       view(
         this,
         (state) => {
-          const card = new Card(this, s.palette, rows(state), opts);
-          keys?.(card);
-          return card;
+          const drawn = card(s, rows(state), opts);
+          keys?.(drawn);
+          return drawn;
         },
         { place: false },
       );
@@ -284,13 +285,12 @@ export default class TrafficPolicyExplainer extends Scene<TrafficState, { cluste
     this.state.chainPods = chainPods;
     // The real chain lists KUBE-SEP-<hash> targets; here each target is named by its pod. The panel is
     // a view of the chain the step records: each rule's probability and the pod it jumps to.
-    const code = view(
+    const chainView = view(
       this,
       (state) => {
         const st = having(state, 'chain', 'chainPods');
-        return new CodeBlock(
-          this,
-          s.palette,
+        return code(
+          s,
           [
             `# ${st.policy === 'cluster' ? 'KUBE-SVC' : 'KUBE-SVL'} chain on ${st.policy === 'cluster' ? 'every node' : 'Node 1'}, one rule per pod`,
             ...st.chainPods.map((pod, i) =>
@@ -302,7 +302,7 @@ export default class TrafficPolicyExplainer extends Scene<TrafficState, { cluste
       },
       { place: false },
     );
-    await s.enter(code);
+    await s.enter(chainView);
     // Each pod in the chain says its share of the node's requests.
     await showCluster({ notes: chainPods.map((id, i) => above(id, frac(each[i]!))) });
     this.state.chainShares = each.map(frac);

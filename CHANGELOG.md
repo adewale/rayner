@@ -16,8 +16,9 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `emphasised(m, what)` in `rayner/drawing` marks a part as emphasis where it is drawn, so the close-up tour and the descriptions find it in the picture; a diagram's picture reports its own marks the same way.
 - `s.diagramView(d, draw)` shows a diagram by a view of the state (its marks, notes and dimming, as `d.picture` takes them); `s.liveDiagram(d)` hands back for a morph, reveal or walk. `d.trail(hops)` gives a walk's trail as marks. mr-cache is converted.
 - A picture is never changed in place. Cards, code panels and diagrams that change are drawn by views from the state (the model) and `scene.shown` (how it is shown), and synced by key. Removed: `Diagram.mark`, `unmark`, `dim`, `note`, `clearNotes` and `walk`'s `trail`; `Card.set` and `mark`; `CodeBlock.focus`, `morph` and `clearMarks`; `s.emphasise`; and the engine's `StateReadout`. [Card and CodeBlock](docs/REFERENCE.md#card-and-codeblock), [views](docs/VIEWS.md#cards-code-annotations-and-notes-from-state)
-- Cards and code panels take their marks as options: `lit`, `litAs`; `focus`, `focusAs`, `added`; `width` and `fitHeight` keep a panel's size; `key` keys their parts, so a sync keeps what stays, fades a changed value or line across and moves the bar. A code line is keyed by its text, so a line that moves pairs with itself. `panel: false` gives a card with no panel, which is how a readout of state is drawn. A card or panel carries its bar from the start, so a view or staged step draws the mark from state, described and emphasised. `s.cardPicture` and `s.codePicture` build them placed as the stage places them, for a view's draw.
-- What is shown may change between a machine's events (a guided tour moving a code panel's focus); exploration and the live player draw under what the machine last played under.
+- Cards and code panels take their marks as options: `lit: { row, as }` on a card, `lit: { lines, as }` and `added` on a code panel; `width` and `fitHeight` keep a panel's size; `key` keys their parts, so a sync keeps what stays, fades a changed value or line across and moves the bar. A code line is keyed by its text, so a line that moves pairs with itself. `panel: false` gives a card with no panel, which is how a readout of state is drawn. A card or panel carries its bar from the start, so a view or staged step draws the mark from state, described and emphasised.
+- The word for what a mark says is `as` everywhere: a card's and a code panel's `lit`, a diagram mark's `{ color, as }`, and `emphasised(m, as)`. A code panel's highlighted lines are lit, so `focus` means only the camera.
+- What is shown may change between a machine's events (a guided tour moving a code panel's lit line); exploration and the live player draw under what the machine last played under.
 - The phone's close-ups count a mark redrawn at the same keyed place with the same words as the same emphasis, not new.
 - Views, `Machine`, `SetState` and choreography moved from `src/` to `explain/` and are imported from `rayner/explain`; `src/` is the engine taken from Lantern.
 - Three opt-in entry points: `rayner/geo` (`seenFrom` and the globe, out of `rayner/drawing`), `rayner/audio` (the score types) and `rayner/extras` (`Write`, `TransformFromCopy`, `Restore`, `MoveAlongPath`, `ArcBetweenPoints`, `Square`, `Underline`, out of `rayner`).
@@ -42,7 +43,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `s.sketch` draws a path stroke by stroke with a pen or pencil.
 - The collection's explainers use only what the package exports, and a test fails any scene that imports anything else, so an outside author can write what they write.
 - `s.raised` and `s.rule` are the panel colours, and `lerpColor` mixes two colours.
-- `new Card(scene, s.palette, rows)` builds a card inside a view without entering it.
+- The drawing kit's `card(s, rows, opts)` and `code(s, lines, opts)` build a card or code panel for a view's draw, in the stage's colours and placed as the stage places it: `at: 'start' | 'end'` and a card's field order follow the stage's direction (`s.direction`). `s.card` and `s.code` build with them and enter the panel. [Card and CodeBlock](docs/REFERENCE.md#card-and-codeblock)
 - `diagramsOf(scene)` lays out a diagram, so `new Diagram(...)` can be measured before anything is drawn.
 - A picture that should follow the model is a `view(scene, draw)`, and `view.sync()` morphs it to the current state. [Views](docs/VIEWS.md#api)
 - `view.sync()` matches parts by key and stages the change by default: what goes fades out before what comes fades in. `staged` defaults to `true` for every `match`; `staged: false` fades both at once. A key sync whose pictures carry no keys is refused with the fix: key the parts, or say `match: 'text'`, `'shapes'` or `'index'`. [Views](docs/VIEWS.md#match)
@@ -51,7 +52,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `become` takes another mobject's data in place, keeping its identity.
 - `GrowFromEdge` grows bars and `PulseAlongPath` sends tokens along routes.
 - Mermaid diagrams in all 15 Agentic Mermaid families are captured at build time and animated by part id with `reveal`, `walk`, `enlarge` and `morph`; their marks, notes and dimming are drawn from state by `d.picture`. [Diagrams](docs/REFERENCE.md#diagrams)
-- `d.enlarge(ids, { zoom })` enlarges parts of a diagram inside its own box, and `d.enlarge('all')` puts the artwork back; it was `d.focus`, a word the camera's `s.focus` and a code panel's focus bar also use.
+- `d.enlarge(ids, { zoom })` enlarges parts of a diagram inside its own box, and `d.enlarge('all')` puts the artwork back; it was `d.focus`, a word the camera's `s.focus` also uses.
 - A morph can carry its edits (`ops`), which the build replays through Agentic Mermaid and checks against the target source.
 - `mermaid.pie(slices, options)` and `mermaid.frontMatter(config)` in `rayner/explain` build Mermaid source from typed values.
 - `mermaid.pie` and `mermaid.frontMatter` refuse a zero or negative slice, a repeated label, an empty title or an empty config at the call, naming the value.
@@ -156,7 +157,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 
 ### Drawing kit and 3D
 
-- `rayner/drawing` draws the parts explanations keep needing as ordinary keyed mobjects: `keyed`, `label`, `tile`, `segment`, `dot`, `table`, `stat`, `flow` and `bars`. [Drawing kit](docs/REFERENCE.md#drawing-kit)
+- `rayner/drawing` draws the parts explanations keep needing as ordinary keyed mobjects: `keyed`, `label`, `tile`, `segment`, `dot`, `table`, `stat`, `flow`, `bars`, and the card and code panel the stage enters, `card` and `code`. [Drawing kit](docs/REFERENCE.md#drawing-kit)
 - `table()` measures its columns and keys every part: the header row, each header, each row, each cell (`key:<row>:<header>`) and the rule.
 - A `table()` row given as `{ key, cells }` keeps its identity wherever it moves, and a duplicated row key or header is refused by name. python-dict and bloom-filter key their rows.
 - `seenFrom(model, viewpoint)` draws a 3D model on a sphere through an orthographic, perspective, gnomonic or Mercator viewpoint. [3D](docs/REFERENCE.md#3d-seenfrommodel-viewpoint)
@@ -211,6 +212,8 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
 - `ViewSync` is exported as a type only: `view.sync()` makes one.
 - The diagram camera move (`d.focus(ids, { camera: true, also })`) is gone: `s.focus` moves the camera.
 - The free `choreograph(current, target)` is not exported: a transition's `t.choreograph(view)` is the one form.
+- `Card` and `CodeBlock` are exported as types only, and their constructors are internal: the drawing kit's `card(s, rows, opts)` and `code(s, lines, opts)` build them, in the stage's direction and regions, which `new Card(scene, palette, …)` ignored. `s.cardPicture` and `s.codePicture` are gone; a view's draw calls the kit.
+- A card's `lit` and `litAs` are one option, `lit: { row, as }`; a code panel's `focus` and `focusAs` are `lit: { lines, as }`; `emphasised(m, what)` names its words `as`. The words a description and the phone read are unchanged.
 - `Scene.clear()` is the internal `Scene.removeAll()`. A scene clears the stage with `s.clear()`, which fades.
 - The package exports its entry points only. `rayner/internal/*`, which exposed every compiled module, is gone; `rayner-cli` reaches the library's compiled modules through a resolve hook of its own.
 - `rayner/lettering` is gone: import the `LetteringRequest` type from `rayner`. Its functions, which only the build and a lettered page call, are internal.

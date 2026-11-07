@@ -1,7 +1,8 @@
 import { Scene, FadeOut } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, mermaid, answerOf, view, having } from '../../../explain/index.ts';
-import type { Diagram, CardRow, CardOptions, View, Having } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, mermaid, answerOf, view, having } from '../../../explain/index.ts';
+import { card } from '../../../explain/drawing.ts';
+import type { Diagram, CardRow, CardOptions, View, Having, Card } from '../../../explain/index.ts';
 import {
   BLOCK,
   DEFAULT_RESERVE,
@@ -154,7 +155,7 @@ export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
         this,
         (state) => {
           const st = having(state, ...needs);
-          return new Card(this, s.palette, rows(st), typeof opts === 'function' ? opts(st) : opts);
+          return card(s, rows(st), typeof opts === 'function' ? opts(st) : opts);
         },
         { place: false },
       );
@@ -346,12 +347,11 @@ export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
     const journalCard = view(
       this,
       (state, sh) =>
-        new Card(this, s.palette, steps, {
+        card(s, steps, {
           at: CARD,
           fontSize: SIZE,
           title: 'Journal by disk size',
-          lit: sh.journalRow ?? null,
-          litAs: having(state, 'disk').disk.label,
+          lit: sh.journalRow == null ? null : { row: sh.journalRow, as: having(state, 'disk').disk.label },
           key: 'journal',
         }),
       { place: false },
@@ -488,8 +488,7 @@ export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
           at: regionBox('full', { top: 2.6, bottom: -3.6 }),
           fontSize: 0.42,
           title: `mkfs.ext4 -m ${st.disk.reserve}, shares of each disk`,
-          lit: st.disk.label,
-          litAs: 'this scenario',
+          lit: { row: st.disk.label, as: 'this scenario' },
         }),
       ),
     );

@@ -11,8 +11,8 @@ import type { LegendItem } from './annotate.ts';
 import type { Side, ToolKind } from './annotate.ts';
 import { Diagram } from './diagrams.ts';
 import type { ShowOptions, PictureNote } from './diagrams.ts';
-import { Card, CodeBlock } from './panels.ts';
-import type { CardRow, CardOptions, CodeOptions } from './panels.ts';
+import type { Card, CodeBlock, CardRow, CardOptions, CodeOptions } from './panels.ts';
+import { card, code } from './drawing.ts';
 import { diagramsOf } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { Palette, DiagramSpec } from '../integrations/agentic-mermaid/snapshot.ts';
 import { palette } from './palettes.ts';
@@ -21,7 +21,7 @@ import type { Region } from './look.ts';
 import { picture, shownNames } from './trace.ts';
 import { wordsOf, langOf } from './words.ts';
 import type { Seen } from './trace.ts';
-import { layoutDirection } from './layout-direction.ts';
+import { layoutDirection, physicalAt } from './layout-direction.ts';
 import type { LayoutDirection } from './layout-direction.ts';
 
 /** Physical regions retain their coordinates; start/end follow the stage's direction. */
@@ -156,15 +156,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
   scene.onStep(() => opening(scene, ...kept));
   const direction = layoutDirection(options);
   const physical = <T extends Vec | Box | StageRegion | undefined>(at: T): Exclude<T, 'start' | 'end'> | Region =>
-    (at === 'start'
-      ? direction === 'ltr'
-        ? 'left'
-        : 'right'
-      : at === 'end'
-        ? direction === 'ltr'
-          ? 'right'
-          : 'left'
-        : at) as Exclude<T, 'start' | 'end'> | Region;
+    physicalAt(at, direction) as Exclude<T, 'start' | 'end'> | Region;
   // Without a style or palette, the stage adopts the first diagram's palette.
   const adopt = !options.palette && !options.style;
   let colors = options.palette ?? palette(options.style ?? 'nord');
@@ -492,20 +484,19 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       d.unshow();
     },
     /**
-     * A card placed and laid out as `card` places one (`at: 'start' | 'end'` and its field direction
-     * follow the stage's direction), without entering it: for a view's draw, which builds the card
-     * from state at every sync.
+     * The stage's direction: where the logical regions `'start'` and `'end'` fall, and the field
+     * order of the cards the kit's `card` builds on it.
      */
-    cardPicture(rows: readonly CardRow[], opts: Omit<CardOptions, 'at'> & { at?: Vec | Box | StageRegion } = {}): Card {
-      return new Card(scene, colors, rows, { ...opts, at: physical(opts.at), direction: layoutDirection(opts, direction) });
+    get direction(): LayoutDirection {
+      return direction;
     },
-    /** Labelled values, entered: `cardPicture`'s card, faded in and kept. */
+    /** Labelled values, entered: the kit's `card(s, rows, opts)`, faded in and kept. */
     async card(
       rows: readonly CardRow[],
-      opts: Omit<CardOptions, 'at'> & { at?: Vec | Box | StageRegion } & Entry = {},
+      opts: CardOptions & Entry = {},
     ): Promise<Card> {
       return enterPanel(
-        this.cardPicture(rows, opts),
+        card(this as StageApi, rows, opts),
         opts,
         { runTime: 0.35, shift: [0, -0.08] },
       );
@@ -522,16 +513,12 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       if (keep) kept = [...subjects];
       opening(scene, ...subjects);
     },
-    /** A code panel placed as `code` places one, without entering it: for a view's draw. */
-    codePicture(lines: readonly string[], opts: Omit<CodeOptions, 'at'> & { at?: Vec | Box | StageRegion } = {}): CodeBlock {
-      return new CodeBlock(scene, colors, lines, { ...opts, at: physical(opts.at) });
-    },
-    /** Code on a panel, entered: `codePicture`'s panel, faded in and kept. */
+    /** Code on a panel, entered: the kit's `code(s, source, opts)`, faded in and kept. */
     async code(
       lines: readonly string[],
-      opts: Omit<CodeOptions, 'at'> & { at?: Vec | Box | StageRegion } & Entry = {},
+      opts: CodeOptions & Entry = {},
     ): Promise<CodeBlock> {
-      return enterPanel(this.codePicture(lines, opts), opts, {
+      return enterPanel(code(this as StageApi, lines, opts), opts, {
         runTime: 0.4,
       });
     },

@@ -1,5 +1,6 @@
 import { Scene, Group } from '../../../src/index.ts';
-import { stage, settingsOf, Card, CodeBlock, answerOf, view, having } from '../../../explain/index.ts';
+import { stage, settingsOf, answerOf, view, having } from '../../../explain/index.ts';
+import { card, code } from '../../../explain/drawing.ts';
 import type { Diagram, PictureNote, View } from '../../../explain/index.ts';
 import { SINGLES, WRAPS, OPENING, OPENING_TYPE, build, nameOf, isSend, isSync, quadrantOf, threads } from './model.ts';
 import type { Inner, Wrapper, Quadrant, Layer } from './model.ts';
@@ -100,10 +101,10 @@ export default class SendSyncExplainer extends Scene<SendSyncState, SendSyncShow
     const lines = (rows: readonly (string | { text: string; head: true })[], top: number) => columnLines(rows, top, { ink, emphasis: s.emphasis });
     /** A card at the top of the right column, drawn from the state by `rows`: a view check holds to it. */
     const column = async (rows: (st: SendSyncState) => readonly (readonly [string, string])[], title?: string) => {
-      const card = view(
+      const v = view(
         this,
         (state) => {
-          const c = new Card(this, s.palette, rows(state), {
+          const c = card(s, rows(state), {
             at: RIGHT,
             align: 'top',
             fontSize: SIZE,
@@ -115,8 +116,8 @@ export default class SendSyncExplainer extends Scene<SendSyncState, SendSyncShow
         },
         { place: false },
       );
-      await s.enter(card);
-      return card;
+      await s.enter(v);
+      return v;
     };
 
     /**
@@ -154,18 +155,16 @@ export default class SendSyncExplainer extends Scene<SendSyncState, SendSyncShow
       s.liveDiagram(of);
       chartView = null;
     };
-    /** A code panel drawn from a view: the lines in focus, and their word, are `shown[name]`. */
-    const codePanel = (name: 'opener' | 'rules', code: readonly string[], at: [number, number, number, number]) => {
+    /** A code panel drawn from a view: the lit lines, and their word, are `shown[name]`. */
+    const codePanel = (name: 'opener' | 'rules', source: readonly string[], at: [number, number, number, number]) => {
       this.shown[name] = null satisfies CodeFocus;
       return view(
         this,
         (_st, sh) => {
-          const focus = sh[name];
-          return new CodeBlock(this, s.palette, code, {
+          return code(s, source, {
             at,
             fontSize: SIZE,
-            focus: focus?.lines ?? null,
-            ...(focus ? { focusAs: focus.as } : {}),
+            lit: sh[name] ?? null,
             key: name,
           });
         },
@@ -381,7 +380,7 @@ export default class SendSyncExplainer extends Scene<SendSyncState, SendSyncShow
         'A Mutex lets one thread at a time use the value inside, behind its lock, so Mutex<T> needs only T: Send, and is then Sync as well: the lock supplies the synchronisation Cell lacks. Arc<T>, as before, needs T to be both. The lines omit ?Sized and the allocator. The setting picks the type built next, from the inside out.',
     });
     await s.clear();
-    const code = codePanel(
+    const rules = codePanel(
       'rules',
       [
         '// alloc/src/sync.rs:284, 286',
@@ -393,8 +392,8 @@ export default class SendSyncExplainer extends Scene<SendSyncState, SendSyncShow
       ],
       [-7.8, -2.6, 7.8, 3.05],
     );
-    await s.enter(code, { runTime: 0.4 });
-    await focusCode(code, 'rules', {
+    await s.enter(rules, { runTime: 0.4 });
+    await focusCode(rules, 'rules', {
       lines: wrapper === 'arc' ? [1, 2] : wrapper === 'mutex' ? [4, 5] : [1, 5],
       as: wrapper === 'arc-mutex' ? 'both wrappers' : 'this wrapper',
     });

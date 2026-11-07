@@ -1,8 +1,7 @@
 import { Axes, Circle, Cross, Group, Rectangle, Text } from '../../../src/index.ts';
-import type { Mobject, Scene, Vec } from '../../../src/index.ts';
-import { Card } from '../../../explain/index.ts';
-import type { CodeBlock, Palette } from '../../../explain/index.ts';
-import { keyedParts } from '../../../explain/drawing.ts';
+import type { Mobject, Vec } from '../../../src/index.ts';
+import type { CodeBlock, Stage } from '../../../explain/index.ts';
+import { keyedParts, card } from '../../../explain/drawing.ts';
 import type { BucketCall as Call, BucketState } from './model.ts';
 
 /** The stage's colours the pictures are drawn in. */
@@ -238,10 +237,9 @@ export const drawChips = (st: BucketState, count: number, colours: Ink) =>
  * The bucket's balance, each value written by `format`: a card without a panel under the code,
  * its balance row keyed so a phone can find it.
  */
-export function drawReadout(scene: Scene, colors: Palette, state: BucketState, format: (v: unknown) => string) {
-  const card = new Card(
-    scene,
-    colors,
+export function drawReadout(s: Stage, state: BucketState, format: (v: unknown) => string) {
+  const balance = card(
+    s,
     [
       ['Tokens left', format(state.tokens)],
       ['Last refill (s)', format(state.lastRefill)],
@@ -251,12 +249,12 @@ export function drawReadout(scene: Scene, colors: Palette, state: BucketState, f
     { title: 'Bucket balance', fontSize: 0.22, at: [3.3, -4.45, 6.6, -2.3], align: 'top', panel: false },
   );
   // scene.review.json and the embed tests target the balance row by these keys.
-  card.labels.get('Tokens left')!.key = 'balance:label';
-  card.values.get('Tokens left')!.key = 'balance:value';
-  return card;
+  balance.labels.get('Tokens left')!.key = 'balance:label';
+  balance.values.get('Tokens left')!.key = 'balance:value';
+  return balance;
 }
 
-/** The focus bar's place on lines a..b, as CodeBlock.focus draws it, for use inside a Succession. */
+/** The lit bar's place on lines a..b, as a code panel's `lit` draws it, for use inside a Succession. */
 export function barAt(code: CodeBlock, [a, b]: readonly [number, number]) {
   const lines = code.code.lines,
     pitch = Math.abs(lines[1]!.anchorPoint()[1] - lines[0]!.anchorPoint()[1]),

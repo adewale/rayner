@@ -1,5 +1,6 @@
 import { Scene } from '../../../src/index.ts';
-import { stage, settingsOf, Card, view } from '../../../explain/index.ts';
+import { stage, settingsOf, view } from '../../../explain/index.ts';
+import { card } from '../../../explain/drawing.ts';
 import { run, type Policy } from './model.ts';
 
 const SIZE = 3;
@@ -38,22 +39,22 @@ export default class LruMru extends Scene<CardState, { lit: string | null }> {
     const show = async (n: number, lit: string | null = null) => {
       this.state = shown(n);
       this.shown = { lit };
-      await this.play(card.sync());
+      await this.play(cache.sync());
     };
 
     await this.step('full', { title: 'Same items, same order', line: 'A, B and C missed and filled all three slots.', caption: 'Both caches have seen the same three requests, so both hold C, B, A from newest to oldest. The next request, D, misses in both and forces each policy to evict one item.' });
     this.state = shown(3);
     this.shown = { lit: null };
-    const card = view(this, (st, sh) => {
-      return new Card(this, s.palette, [
+    const cache = view(this, (st, sh) => {
+      return card(s, [
         ['Requests', st.Requests],
         ['Slots', SIZE],
         ['Newest first', ...st['Newest first']],
         ['Evicted', ...st.Evicted],
         ['Hits', ...st.Hits],
-      ], { columns: ['LRU', 'MRU'], width: 6.8, fontSize: 0.3, lit: sh.lit, key: 'cache' });
+      ], { columns: ['LRU', 'MRU'], width: 6.8, fontSize: 0.3, lit: sh.lit === null ? null : { row: sh.lit }, key: 'cache' });
     }, { place: false });
-    await s.enter(card, { runTime: 0.35 });
+    await s.enter(cache, { runTime: 0.35 });
 
     const [lruOut, mruOut] = [trace.lru[3]!.evicted, trace.mru[3]!.evicted];
     await this.step('evict', { title: 'D evicts opposite ends', line: `LRU drops ${lruOut}, the oldest; MRU drops ${mruOut}, the newest.`, caption: `LRU evicts the item used longest ago, ${lruOut}. MRU evicts the item used most recently, ${mruOut}. Each then records D as its newest item.` });

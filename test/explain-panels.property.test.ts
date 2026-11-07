@@ -94,7 +94,7 @@ test('a code block refuses empty code', () => {
   );
 });
 
-test('a block drawn with focus has the bar over exactly the chosen lines, inside the block', () => {
+test('a block drawn lit has the bar over exactly the chosen lines, inside the block', () => {
   fc.assert(
     fc.property(
       palette,
@@ -104,7 +104,7 @@ test('a block drawn with focus has the bar over exactly the chosen lines, inside
       fc.option(placed, { nil: undefined }),
       (colors, [text, x, y], at) => {
         const [a, b] = [Math.min(x, y), Math.max(x, y)];
-        const block = code(colors, text, { ...(at ? { at } : {}), focus: a === b ? a : [a, b] });
+        const block = code(colors, text, { ...(at ? { at } : {}), lit: { lines: a === b ? a : [a, b] } });
         const bar = block.bar.box()!;
         const row = (i: number) => block.code.lines[i]!.anchorPoint()[1];
         for (let i = 0; i < text.length; i++) {
@@ -120,7 +120,7 @@ test('a block drawn with focus has the bar over exactly the chosen lines, inside
   );
 });
 
-test('focus refuses any line that is not an index into the code, with the documented error', () => {
+test('lit refuses any line that is not an index into the code, with the documented error', () => {
   fc.assert(
     fc.property(
       palette,
@@ -134,7 +134,7 @@ test('focus refuses any line that is not an index into the code, with the docume
       (colors, code, bad) => {
         const [a, b] = typeof bad === 'number' ? [bad, bad] : bad;
         fc.pre(!(Number.isInteger(a) && Number.isInteger(b) && a >= 0 && b < code.length && a <= b));
-        assert.throws(() => new CodeBlock(scene(), colors, code, { focus: bad as number }), /No code lines/);
+        assert.throws(() => new CodeBlock(scene(), colors, code, { lit: { lines: bad as number } }), /No code lines/);
       },
     ),
     params(),
@@ -186,7 +186,7 @@ const syncCase = fc.record({
   knobs,
 });
 type Of<A> = A extends fc.Arbitrary<infer T> ? T : never;
-/** A keyed code block drawn by a view from `before`, then synced to `after` (focused on a line, if `focus`). */
+/** A keyed code block drawn by a view from `before`, then synced to `after` (lit on a line, if `focus`). */
 async function synced({ colors, before, after, at, focus, knobs: k }: Of<typeof syncCase>) {
   const opts = { ...(at ? { at } : {}), ...k };
   // Refused for want of room: the documented refusal, and no case.
@@ -194,7 +194,7 @@ async function synced({ colors, before, after, at, focus, knobs: k }: Of<typeof 
   code(colors, after, opts);
   const sc = scene();
   let state: { lines: string[]; focus: number | null } = { lines: before, focus: null };
-  const v = view(sc, () => new CodeBlock(sc, colors, state.lines, { ...opts, focus: state.focus, key: 'code' }), { place: false });
+  const v = view(sc, () => new CodeBlock(sc, colors, state.lines, { ...opts, lit: state.focus == null ? null : { lines: state.focus }, key: 'code' }), { place: false });
   sc.add(v);
   const old = v.current, drawn = new Set(old.code.lines.filter(draws));
   state = { lines: after, focus: focus == null ? null : focus % after.length };
@@ -238,11 +238,11 @@ test('after a keyed sync no departed line is on stage, and the block shows exact
   );
 });
 
-test('after a keyed sync, the focus is as on a fresh block: the bar is the block’s, over the line, behind the code', async () => {
+test('after a keyed sync, the lit line is as on a fresh block: the bar is the block’s, over the line, behind the code', async () => {
   await fc.assert(
     fc.asyncProperty(syncCase, async (c) => {
       const { block } = await synced(c);
-      assert.equal(block.bar.parent, block, 'the focus bar belongs to the block');
+      assert.equal(block.bar.parent, block, 'the lit bar belongs to the block');
       assert.ok(block.children.indexOf(block.bar) < block.children.indexOf(block.code), 'the bar draws behind the code');
       if (c.focus == null) return assert.equal(block.bar.style.opacity, 0);
       const i = c.focus % c.after.length;
@@ -455,7 +455,7 @@ test('a repeated row label draws every row, but lit refuses it as ambiguous', ()
       const s = scene();
       const card = new Card(s, colors, dup, { width: 12 });
       assert.equal(card.family().filter((m) => m instanceof Text && m.parent === card).length, 2 * dup.length);
-      assert.throws(() => new Card(s, colors, dup, { width: 12, lit: label }), /not unique/);
+      assert.throws(() => new Card(s, colors, dup, { width: 12, lit: { row: label } }), /not unique/);
     }),
     params(),
   );
@@ -520,7 +520,7 @@ test('a card drawn lit, synced from row to row, lights each row; drawn unlit, it
       const sc = made.s;
       sc.remove(made.k);
       let row: string | null = null;
-      const v = view(sc, () => new Card(sc, c.colors, c.rows, { ...opts, lit: row }), { place: false });
+      const v = view(sc, () => new Card(sc, c.colors, c.rows, { ...opts, lit: row == null ? null : { row } }), { place: false });
       sc.add(v);
       for (const l of lit) {
         row = l;
@@ -656,20 +656,21 @@ test('a row whose value count matches neither one nor the columns is refused', (
   assert.deepEqual(spanning.describe().parts.map((p) => p.name), ['Requests: A B C', 'Hits (LRU): 0', 'Hits (MRU): 3']);
 });
 
-test('the stage’s card and code panel are new Card and new CodeBlock, entered: the same picture and words', async () => {
+test('the stage’s card and code panel are the kit’s card and code, entered: the same picture and words', async () => {
   const { stage } = await import('../explain/index.ts');
+  const kit = await import('../explain/drawing.ts');
   const { pictureFingerprint } = await import('../explain/stage.ts');
   const sc = scene();
   const s = stage(sc, { style: 'nord' });
   const rows: CardRow[] = [['Requests', 'A B C'], ['Hits', 0, 3]];
-  const options = { columns: ['LRU', 'MRU'], width: 6, title: 'Cache', lit: 'Hits' };
+  const options = { columns: ['LRU', 'MRU'], width: 6, title: 'Cache', lit: { row: 'Hits' } };
   const entered = await s.card(rows, { ...options, at: 'right' });
-  const built = new Card(sc, s.palette, rows, { ...options, at: 'right' });
+  const built = kit.card(s, rows, { ...options, at: 'right' });
   assert.equal(pictureFingerprint(entered), pictureFingerprint(built));
   assert.deepEqual(entered.describe(), built.describe());
   const lines = ['const a = 1;', 'return a;'];
-  const code = await s.code(lines, { at: 'left', title: 'f', focus: 1 });
-  const made = new CodeBlock(sc, s.palette, lines, { at: 'left', title: 'f', focus: 1 });
+  const code = await s.code(lines, { at: 'left', title: 'f', lit: { lines: 1 } });
+  const made = kit.code(s, lines, { at: 'left', title: 'f', lit: { lines: 1 } });
   assert.equal(pictureFingerprint(code), pictureFingerprint(made));
   assert.deepEqual(code.describe(), made.describe());
   assert.ok(sc.familyMembers().includes(entered) && sc.familyMembers().includes(code), 'and entered: on the stage');

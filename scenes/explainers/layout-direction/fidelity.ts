@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../explain/testing.ts';
-import { Card } from '../../../explain/index.ts';
+import { Card } from '../../../explain/panels.ts';
 import { assertStepState } from '../../../test/lib/explainer-state.ts';
 import type { FidelityRun } from '../../../test/lib/fidelity.ts';
 

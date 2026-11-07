@@ -1,8 +1,8 @@
 import { Scene, Group } from '../../../src/index.ts';
 import type { Box, Mobject } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, CodeBlock, answerOf, view, having } from '../../../explain/index.ts';
-import type { Diagram, NoteSide, View } from '../../../explain/index.ts';
-import { keyed } from '../../../explain/drawing.ts';
+import { stage, settingsOf, regionBox, answerOf, view, having } from '../../../explain/index.ts';
+import type { Diagram, NoteSide, View, CodeBlock } from '../../../explain/index.ts';
+import { keyed, code } from '../../../explain/drawing.ts';
 // This explainer has no model of its own: its reports are agentic-mermaid 0.5.1's, for small three-node
 // flowcharts, captured with each diagram's snapshot (the broken source's is written below). It does not
 // establish what Mermaid implementations in general accept, and it does not implement the cache-specific
@@ -115,9 +115,9 @@ export default class MermaidExplainer extends Scene<MermaidState, MermaidShown> 
     const first = FIRST[edit],
       broken = BROKEN[edit];
     const colors: Record<Tone, string> = { emphasis: s.emphasis, bad: s.bad, good: s.good };
-    /** A code panel; `focus` puts its bar on line i or lines [a, b]. */
-    const block = (lines: readonly string[], fontSize = 0.3, at: Box = SIDE, focus?: number | [number, number]) =>
-      new CodeBlock(this, s.palette, lines, { at, fontSize, ...(focus != null ? { focus } : {}) });
+    /** A code panel; `lit` puts its bar on line i or lines [a, b]. */
+    const block = (lines: readonly string[], fontSize = 0.3, at: Box = SIDE, lit?: number | [number, number]) =>
+      code(s, lines, { at, fontSize, ...(lit != null ? { lit: { lines: lit } } : {}) });
     /** Side panels share one left edge and one gap, stacked and centred beside the diagram. */
     const stack = (...panels: Mobject[]) => {
       const total = panels.reduce((h, p) => h + p.height(), 0) + GAP * (panels.length - 1);

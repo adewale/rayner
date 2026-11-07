@@ -7,6 +7,7 @@ import type { Mobject } from '../src/index.ts';
 import { stage, palette } from '../explain/index.ts';
 import type { LayoutDirection, StageOptions, CardOptions } from '../explain/index.ts';
 import { Card } from '../explain/panels.ts';
+import { card } from '../explain/drawing.ts';
 import { useDiagrams } from '../integrations/agentic-mermaid/snapshot.ts';
 import { fixedSnapshot, square } from './lib/random-snapshot.ts';
 import { fc, params } from './lib/pbt.ts';
@@ -72,8 +73,8 @@ test('RTL swaps field edges, retaining every glyph and logical row order', async
     // The same card drawn from a later state: its first value replaced and that row lit.
     const first = r[0]![0];
     const later = r.map(([label, value], i) => [label, i === 0 ? replacement : value] as const);
-    const ltrLit = new Card(scene(), colors, later, { width, title: 'Title 123', lit: first });
-    const rtlLit = new Card(scene(), colors, later, { width, title: 'Title 123', direction: 'rtl', lit: first });
+    const ltrLit = new Card(scene(), colors, later, { width, title: 'Title 123', lit: { row: first } });
+    const rtlLit = new Card(scene(), colors, later, { width, title: 'Title 123', direction: 'rtl', lit: { row: first } });
     assert.deepEqual(ltrLit.describe(), rtlLit.describe());
     const litBox = rtlLit.panel.box()!;
     near(rtlLit.bar.center()[1], rtlLit.values.get(first)!.anchorPoint()[1]);
@@ -84,7 +85,7 @@ test('RTL swaps field edges, retaining every glyph and logical row order', async
 test('empty and nonempty labels and values can be lit, in either direction, with the bar on their row', async () => {
   const digits = fc.array(fc.integer({ min: 0, max: 9 }), { maxLength: 6 }).map((xs) => xs.join(''));
   await fc.assert(fc.asyncProperty(direction, fc.constantFrom('', 'field'), digits, async (d, label, value) => {
-    const k = new Card(scene(), colors, [[label, value]], { width: 3, direction: d, lit: label });
+    const k = new Card(scene(), colors, [[label, value]], { width: 3, direction: d, lit: { row: label } });
     near(k.bar.center()[1], k.values.get(label)!.anchorPoint()[1]);
     near(k.bar.center()[0], k.panel.center()[0]);
     assert.equal(k.bar.style.opacity, 1);
@@ -95,10 +96,15 @@ test('empty and nonempty labels and values can be lit, in either direction, with
 test('stage direction resolves logical card/code/carry regions and preserves physical regions and code', async () => {
   for (const d of ['ltr', 'rtl'] as const) {
     const s = stage(scene(), { direction: d, heading: false });
+    assert.equal(s.direction, d);
     for (const [at, x] of [['start', d === 'ltr' ? -3.85 : 3.85], ['end', d === 'ltr' ? 3.85 : -3.85], ['left', -3.85], ['right', 3.85]] as const) {
       const k = await s.card([['field', '123']], { at, width: 3, enter: false });
       near(k.panel.center()[0], x);
       assert.equal(k.direction, d);
+      // The kit's card, for a view's draw, is placed and laid out as the stage's.
+      const drawn = card(s, [['field', '123']], { at, width: 3 });
+      near(drawn.panel.center()[0], x);
+      assert.equal(drawn.direction, d);
       const code = await s.code(['x[12] = 34;'], { at, enter: false });
       near(code.panel.center()[0], x);
       assert.equal(code.code.lines[0]!.text, 'x[12] = 34;');
@@ -142,7 +148,7 @@ test('direction rejects malformed, boxed, inherited and coercing values before d
     const sc = scene();
     assert.throws(() => stage(sc, { direction } as StageOptions), /Layout direction must/);
     assert.equal(sc.mobjects.length, 0);
-    assert.throws(() => new Card(sc, colors, [['field', '123']], { direction } as CardOptions), /Layout direction must/);
+    assert.throws(() => card(stage(scene(), { heading: false }), [['field', '123']], { direction } as CardOptions), /Layout direction must/);
     const s = stage(sc, { heading: false });
     const count = sc.familyMembers().length, time = sc.time;
     await assert.rejects(s.card([['field', '123']], { direction } as CardOptions), /Layout direction must/);
@@ -150,16 +156,16 @@ test('direction rejects malformed, boxed, inherited and coercing values before d
   }
   for (const options of [Object.create({ direction: 'rtl' }), Object.create({ direction: coercing })]) {
     assert.throws(() => stage(scene(), options), /must be an own option/);
-    assert.throws(() => new Card(scene(), colors, [['field', '123']], options), /must be an own option/);
+    assert.throws(() => card(stage(scene()), [['field', '123']], options), /must be an own option/);
     await assert.rejects(stage(scene()).card([['field', '123']], options), /must be an own option/);
   }
   const getter = Object.defineProperty({}, 'direction', { get() { coerced++; return 'rtl'; } });
   assert.throws(() => stage(scene(), getter), /must be a data option/);
-  assert.throws(() => new Card(scene(), colors, [['field', '123']], getter), /must be a data option/);
+  assert.throws(() => card(stage(scene()), [['field', '123']], getter), /must be a data option/);
   await assert.rejects(stage(scene()).card([['field', '123']], getter), /must be a data option/);
   for (const malformed of [null, 1, false, 'rtl', []]) {
     assert.throws(() => stage(scene(), malformed as StageOptions), /Layout options must be an object/);
-    assert.throws(() => new Card(scene(), colors, [['field', '123']], malformed as CardOptions), /Layout options must be an object/);
+    assert.throws(() => card(stage(scene()), [['field', '123']], malformed as CardOptions), /Layout options must be an object/);
   }
   assert.equal(coerced, 0);
 });

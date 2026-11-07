@@ -37,7 +37,7 @@ test('copied and restored cards own their readouts, geometry and mutable row ind
     assert.ok(copied.family().includes(copied.values.get('Count')!));
     assert.equal(copied.describe().parts[0]!.name, `Count: ${after}`);
     // A lit card's copy reports its own bar, not the original's.
-    const lit = new Card(scene, palette('nord'), [['Count', before]], {lit: 'Count'});
+    const lit = new Card(scene, palette('nord'), [['Count', before]], {lit: {row: 'Count'}});
     const litCopy = new Group(lit).copy().children[0] as Card;
     scene.add(litCopy);
     assert.ok(emphasisOf(scene).has(litCopy.bar));
@@ -47,7 +47,7 @@ test('copied and restored cards own their readouts, geometry and mutable row ind
 test('code composites rebind named lines, marks and panels when copied and restored', async () => {
   await loadFonts();
   const scene = new Scene(new NullSink());
-  const original = new CodeBlock(scene, palette('nord'), ['+ added', '- removed'], {diff: true, title: 'Change', focus: 0});
+  const original = new CodeBlock(scene, palette('nord'), ['+ added', '- removed'], {diff: true, title: 'Change', lit: {lines: 0}});
   const copy = new Group(original).copy().children[0] as CodeBlock;
   for (const component of [copy.code, copy.panel, copy.bar, ...copy.marks.map(m => m.mob), ...copy.code.lines])
     assert.ok(copy.family().includes(component));
@@ -78,8 +78,8 @@ test('a copied Card owns its rows and names prototype-sensitive labels as ordina
 test('live copied panels expose inherited highlights without registering temporary copies', async () => {
   await loadFonts();
   const scene = new Scene(new NullSink()), colors = palette('nord');
-  const card = new Card(scene, colors, [['Count', 1]], {lit: 'Count'});
-  const code = new CodeBlock(scene, colors, ['+ added', '- removed'], {diff: true, focus: 0});
+  const card = new Card(scene, colors, [['Count', 1]], {lit: {row: 'Count'}});
+  const code = new CodeBlock(scene, colors, ['+ added', '- removed'], {diff: true, lit: {lines: 0}});
   const copies = new Group(card, code).copy();
   const [copiedCard, copiedCode] = copies.children as [Card, CodeBlock];
   scene.removeAll(); scene.add(copies);

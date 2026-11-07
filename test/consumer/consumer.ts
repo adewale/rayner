@@ -98,7 +98,8 @@ export class Tour extends Scene {
     const code = new Code(['let n = 1;']);
     await this.play(this.frame.animate.fit(code, fit));
     const frame: Frame = this.frame;
-    const readout: View<Card> = view(this, (s) => new Card(this, palette('github-dark'), [['n', s.n]], { panel: false, key: 'n' }), { place: false });
+    const s = stage(this, { palette: palette('github-dark'), heading: false });
+    const readout: View<Card> = view(this, (st) => card(s, [['n', st.n]], { panel: false, key: 'n' }), { place: false });
     const sync: SyncOpts = { runTime: 0.5 };
     this.state = { n: 2 };
     const syncing: ViewSync<Card> = readout.sync(sync);
@@ -192,16 +193,23 @@ export function drawingKit(scene: Scene) {
 }
 
 // What the collection writes, an outside author can write: emphasis a scene draws itself, a card
-// rebuilt inside a view, a diagram laid out before it is drawn, and colours mixed from the palette.
-import { Card, Diagram, diagramsOf } from 'rayner/explain';
-import type { DiagramResolver } from 'rayner/explain';
-import { emphasised } from 'rayner/drawing';
+// and code rebuilt inside a view, a diagram laid out before it is drawn, and colours mixed from the palette.
+import { Diagram, diagramsOf } from 'rayner/explain';
+import type { DiagramResolver, Card, CodeBlock, CodeOptions } from 'rayner/explain';
+import { emphasised, card, code } from 'rayner/drawing';
 import { lerpColor } from 'rayner';
 export async function publicCollection(scene: Scene): Promise<void> {
   const s = stage(scene);
   s.keep(emphasised(new SurroundingRectangle(new Text('slot')), 'outlined: the full slot'));
   const panel = new Rectangle({ fill: s.raised, stroke: s.rule }).setFill(lerpColor(s.palette.paper, s.palette.accent, 0.36));
-  view(scene, (state) => new Card(scene, s.palette, [['State', String(state.phase ?? 'idle')]], { width: 4 }), { place: false });
+  view(scene, (state) => card(s, [['State', String(state.phase ?? 'idle')]], { width: 4, at: 'start', lit: { row: 'State', as: 'now' } }), { place: false });
+  const lit: CodeOptions['lit'] = { lines: [0, 1], as: 'run' };
+  const listing: View<CodeBlock> = view(scene, () => code(s, ['let a = 1;', 'a += 1;'], { at: 'end', lit }), { place: false });
+  const direction: LayoutDirection = s.direction;
+  // The panels are built by the kit, never constructed: Card and CodeBlock are types only.
+  // @ts-expect-error Card is exported as a type, so a scene cannot construct one
+  const constructed = () => new Card();
+  void [listing, direction, constructed];
   const spec: DiagramSpec = { source: 'graph LR\nA --> B' };
   const resolver: DiagramResolver = diagramsOf(scene);
   const plan = new Diagram(scene, spec, await resolver.diagram(spec), { box: 'main' });
@@ -213,7 +221,7 @@ export async function publicCollection(scene: Scene): Promise<void> {
 import { Group, Mobject, VMobject, Circle, Polygon, Arc, Cross, CurvedArrow, BraceLabel, DecimalNumber, ItalicText, FadeOut, LaggedStart, Animation, TransformMatchingShapes, matchByKey, linear, smooth, rushInto, rushFrom, thereAndBack, shaperFor } from 'rayner';
 import type { Box, Vec, SceneState, ScheduledAnimation, MatchKey, FadeOpts, FontName, SceneClass, Sink, Style } from 'rayner';
 import { callout, dimension, pin, legend, keyed, keyedParts } from 'rayner/drawing';
-import { CodeBlock, Machine, refuse, isRefusal, answerOf, settingsOf, resolveSettings, regionBox, mermaid } from 'rayner/explain';
+import { Machine, refuse, isRefusal, answerOf, settingsOf, resolveSettings, regionBox, mermaid } from 'rayner/explain';
 import type { Refusal, Transition, Choreography, CardOptions, CardRow, NoteSide, PictureNote, DiagramPicture, Palette, Stage, ExplainerClass } from 'rayner/explain';
 import { Write, MoveAlongPath, Square, Underline, ArcBetweenPoints } from 'rayner/extras';
 import { seenFrom, seenPictures, depthOrder, latLon, toLatLon, greatArc, circleOn, between, project } from 'rayner/geo';
@@ -292,9 +300,9 @@ export class Collection extends Scene<CollectionModel> {
     this.state.phase = isRefusal(refused) ? refused.reason : 'moved';
 
     await this.step('code', { title: 'Code', caption: 'A code panel and a card, drawn from the state.' });
-    const panel: CodeBlock = await s.code(['let n = 0;', 'n += 1;'], { focus: 1 });
+    const panel: CodeBlock = await s.code(['let n = 0;', 'n += 1;'], { lit: { lines: 1 } });
     const rows: CardRow[] = [['Count', 0]], opts: CardOptions = { width: 3 };
-    const count = view(this, (st) => new Card(this, s.palette, [['Count', st.count]], opts), { place: false });
+    const count = view(this, (st) => card(s, [['Count', st.count]], opts), { place: false });
     await s.enter(count);
     this.state.count = rows.length;
     await this.play(count.sync(), new TransformMatchingShapes(new Text('n'), new Text('n + 1'), { runTime: 0.5 }));
