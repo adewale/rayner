@@ -8,7 +8,7 @@ import { Scene, Text, FadeIn } from 'rayner';
 import { view } from 'rayner/explain';
 import type { View } from 'rayner/explain';
 
-class Ring extends Scene<{ len: number; head: number }> {
+class Ring extends Scene<{ len: number; head: number }, {}> {   // the model's type, and what is shown's
   readout!: View<Text>;                    // kept on the scene, so a test can reach it
   override async construct() {
     this.state = { len: 0, head: 0 };
@@ -24,7 +24,9 @@ class Ring extends Scene<{ len: number; head: number }> {
 
 This is manim's `always_redraw` in the engine's form. The picture changes only
 when you play `sync()`, and each change is a matching transform from the old
-picture to the new one.
+picture to the new one. The draw's arguments are typed from the scene: the scene
+declares its model and shown types, `Scene<Model, Shown>`, and `view(this, draw)`
+infers `draw(state: Model, shown: Shown)` ([typed state](REFERENCE.md#typed-state-and-shown)).
 
 ## How a sync plays
 
@@ -55,7 +57,9 @@ number](CHOREOGRAPHY.md#following-one-number)).
 ## API
 
 ```ts
-view(scene: Scene<S>, draw: (state: S, shown) => M, opts?): View<M>   // draw(scene.state, scene.shown) at each sync; kept for the checks
+view(scene: Scene<S, Sh>, draw: (state: S, shown: Sh) => M, opts?): View<M, S, Sh>   // draw(scene.state, scene.shown) at each sync; kept for the checks
+new View(scene, draw, opts?)   // the same; a bare View type is a view of any scene
+having(state, ...keys)  // the state as the shapes that hold these keys, or a TypeError: for a draw of one phase (below)
 
 view.current            // the picture on screen (the View's one child)
 view.texts              // the strings it shows, in family order
@@ -73,6 +77,15 @@ rarely calls them itself.
 Most draws read only the model, `state`. A picture that depends on which of several
 pictures is showing, which is not part of the model, reads it from `shown`, the
 scene's `this.shown`.
+
+A scene whose state changes shape by phase declares the shapes, as a union or as one
+record with optional parts, and a draw of one phase narrows to its shape:
+`view(this, (st) => year(having(st, 'longitude')))`. `having` returns the state typed
+as the shapes that hold those keys, optional parts made present, and throws for a state
+that lacks one. `rayner check` draws every view from other steps' states as well as its
+own ([below](#the-fidelity-check-the-picture-side)), and a draw that throws on a state of
+another shape has read its state, so the check counts it as depending on it. The same
+narrows an optional part of what is shown: `having(sh, 'flow').flow`.
 
 - **Identity.** The View is what scenes hold, add, put in groups and lay out. A
   sync only swaps its child, so the View stays in the scene and in any Group
@@ -171,12 +184,12 @@ lets the part describe itself. The stage's `s.card`, `s.code` and `s.callout` en
 pictures for a part that does not change.
 
 ```ts
-import { Card, CodeBlock, view } from 'rayner/explain';
+import { Card, CodeBlock, view, having } from 'rayner/explain';
 import { callout } from 'rayner/drawing';
 
 // A marked card: the row the state names is lit, and the description says so.
 const counts = view(this, (st) =>
-  new Card(this, s.palette, rows(st), { at: box, lit: st.chosen as string, litAs: 'this check' }), { place: false });
+  new Card(this, s.palette, rows(st), { at: box, lit: st.chosen, litAs: 'this check' }), { place: false });
 await s.enter(counts);                      // no describe: the card describes itself, its lit row too
 
 // A focused code panel, and a callout beside the focused line, from the same state.
@@ -192,10 +205,11 @@ const note = view(this, (st) => d.notePicture('Capture', `${st.families} familie
 // The whole diagram with its marks and notes, keyed apart from a second picture of the same diagram.
 const wrong = view(this, (st) => d.picture(marksOf(st), { notes: notesOf(st), prefix: 'wrong:' }), { place: false });
 
-// The usual form: the stage shows the diagram by a view of what `shown` marks.
+// The usual form: the stage shows the diagram by a view of what `shown` marks
+// (the scene's shown type: { flow?: { marked: string[]; walked: [string, string][] } }).
 this.shown.flow = { marked: [], walked: [] };
 const flow = s.diagramView(d, (_st, sh) => {
-  const f = sh.flow as { marked: string[]; walked: [string, string][] };
+  const f = having(sh, 'flow').flow;
   return { marks: { ...d.trail(f.walked), ...Object.fromEntries(f.marked.map((id) => [id, { color: s.bad, as: 'rejected' }])) } };
 });
 this.shown.flow = { marked: ['Reject'], walked: [] };

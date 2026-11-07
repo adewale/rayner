@@ -23,7 +23,7 @@ const declination = (m: number) => 23.44 * Math.sin((2 * Math.PI * (m - 2)) / 12
 // Bar i is centered at x = i + 0.5, so the curve reads month x - 0.5 to line up with it
 const daylightAt = (lat: number) => (x: number) => sunlight(lat, declination(x - 0.5)).daylight;
 
-class Daylight extends Scene {
+class Daylight extends Scene<{}, {}> {
   async construct() {
     const axes = new Axes({
       xRange: [0, 12, 1], yRange: [0, 24, 6], width: 10, height: 5, yLabel: 'hours',
