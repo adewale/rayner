@@ -167,7 +167,7 @@ const ops = (ids: string[], focus: boolean): fc.Arbitrary<Op[]> =>
 async function apply(d: Diagram, sequence: Op[]) {
   for (const op of sequence) {
     if (op.k === 'picture') draw(d, op.p);
-    else await d.focus(op.ids);
+    else await d.enlarge(op.ids);
   }
 }
 
@@ -338,7 +338,7 @@ test('walk rejects a link that has not been revealed', async () => {
   );
 });
 
-test("focus on any parts, then focus('all'), returns the diagram to its home frame and its home styles", async () => {
+test("enlarging any parts, then enlarge('all'), returns the diagram to its home frame and its home styles", async () => {
   await fc.assert(
     fc.asyncProperty(
       withPicks((ids) => fc.array(ids.length ? fc.subarray(ids, { minLength: 1 }) : fc.constant([] as string[]), { minLength: 1, maxLength: 3 })),
@@ -353,11 +353,11 @@ test("focus on any parts, then focus('all'), returns the diagram to its home fra
         const span = (b: Box) => Math.max(b[2] - b[0], b[3] - b[1]);
         let far = 0;
         for (const ids of focuses) {
-          await d.focus(ids, { zoom });
+          await d.enlarge(ids, { zoom });
           far = Math.max(far, ...union(boxes()).map(Math.abs));
         }
         const zoomed = span(union(boxes())) / span(home);
-        await d.focus('all');
+        await d.enlarge('all');
         const now = union(boxes());
         // Points are stored as float32. Each camera move rounds every point several times (scale,
         // shift, the transform's landing, the measured bounds the way back is computed from), at the
@@ -373,7 +373,7 @@ test("focus on any parts, then focus('all'), returns the diagram to its home fra
   );
 });
 
-test('under focus, stroke widths and dash lengths scale with the artwork', async () => {
+test('enlarged, stroke widths and dash lengths scale with the artwork', async () => {
   const lengths = (d: Diagram) =>
     tops(d).flatMap((id) => d.get(id).family().map((m) => [m.style.strokeWidth ?? 0, ...(m.style.dashArray ?? '').split(/[ ,]+/).filter(Boolean).map(Number)]));
   await fc.assert(
@@ -390,7 +390,7 @@ test('under focus, stroke widths and dash lengths scale with the artwork', async
         };
         const [before, home] = [lengths(d), span()];
         fc.pre(home > 1e-3);
-        await d.focus(ids, { zoom });
+        await d.enlarge(ids, { zoom });
         const k = span() / home;
         lengths(d).forEach((now, i) =>
           now.forEach((v, j) => {
@@ -404,37 +404,37 @@ test('under focus, stroke widths and dash lengths scale with the artwork', async
   );
 });
 
-test('focus on no parts is refused, and moves nothing', async () => {
+test('enlarging no parts is refused, and moves nothing', async () => {
   await fc.assert(
     fc.asyncProperty(snapshot(), async (s) => {
       const { d } = await shown(s);
       const before = JSON.stringify(tops(d).map((id) => d.get(id).box()));
-      await assert.rejects(d.focus([]), /at least one part/);
+      await assert.rejects(d.enlarge([]), /at least one part/);
       assert.equal(JSON.stringify(tops(d).map((id) => d.get(id).box())), before);
     }),
     params(),
   );
 });
 
-test('focus refuses a zoom that is not a positive number, and moves nothing', async () => {
+test('enlarge refuses a zoom that is not a positive number, and moves nothing', async () => {
   await fc.assert(
     fc.asyncProperty(withPicks((ids) => (ids.length ? fc.subarray(ids, { minLength: 1 }) : fc.constant(['none'] as string[]))), fc.oneof(fc.constantFrom(0, -0, NaN, Infinity, -Infinity), fc.double({ max: 0 })), async ([s, ids], zoom) => {
       fc.pre(s.parts.length > 0);
       const { d } = await shown(s);
       const before = JSON.stringify(tops(d).map((id) => d.get(id).box()));
-      await assert.rejects(d.focus(ids, { zoom }), /zoom must be a positive number/);
+      await assert.rejects(d.enlarge(ids, { zoom }), /zoom must be a positive number/);
       assert.equal(JSON.stringify(tops(d).map((id) => d.get(id).box())), before);
     }),
     params(),
   );
 });
 
-test('focus centres the chosen parts in the frame', async () => {
+test('enlarge centres the chosen parts in the frame', async () => {
   await fc.assert(
     fc.asyncProperty(withPicks((ids) => (ids.length ? fc.subarray(ids, { minLength: 1 }) : fc.constant([] as string[]))), fc.double({ min: 0.25, max: 4, noNaN: true }), where, async ([s, ids], zoom, box) => {
       fc.pre(ids.length > 0);
       const { d } = await shown(s, box);
-      await d.focus(ids, { zoom });
+      await d.enlarge(ids, { zoom });
       const [x0, y0, x1, y1] = union(ids.map((id) => d.get(id).box()!));
       const f = d.frameBox;
       const tol = 2 ** -24 * 64 * Math.max(1, ...[x0, y0, x1, y1, ...f].map(Math.abs));
@@ -444,7 +444,7 @@ test('focus centres the chosen parts in the frame', async () => {
   );
 });
 
-test('a note keeps its size through any focus', async () => {
+test('a note keeps its size through any enlargement', async () => {
   await fc.assert(
     fc.asyncProperty(withPicks((ids) => fc.tuple(fc.constantFrom(...(ids.length ? ids : ['none'])), fc.array(ids.length ? fc.subarray(ids, { minLength: 1 }) : fc.constant(['none'] as string[]), { minLength: 1, maxLength: 3 }))), noteText, async ([s, [id, focuses]], text) => {
       fc.pre(s.parts.some((p) => p.id === id));
@@ -460,22 +460,22 @@ test('a note keeps its size through any focus', async () => {
         assert.ok(Math.abs(nw! - w!) < 1e-5 && Math.abs(nh! - h!) < 1e-5);
       };
       for (const f of focuses) {
-        await d.focus(f);
+        await d.enlarge(f);
         same();
       }
-      await d.focus('all');
+      await d.enlarge('all');
       same();
     }),
     params(300),
   );
 });
 
-test("focus('all') on a diagram with nothing drawn is a no-op", async () => {
+test("enlarge('all') on a diagram with nothing drawn is a no-op", async () => {
   await fc.assert(
     fc.asyncProperty(snapshotPlan, async (plan) => {
       const s = buildSnapshot({ ...plan, nodes: [], links: [], frame: null });
       const { d } = await shown(s);
-      await d.focus('all');
+      await d.enlarge('all');
       assert.equal(d.root.children.length, 0);
     }),
     params(),
@@ -606,7 +606,7 @@ test('morph hands over to the next diagram: every part shown, at its fresh place
   );
 });
 
-test('a part revealed under focus arrives in the current look, and pictures draw it as if it had been there', async () => {
+test('a part revealed while enlarged arrives in the current look, and pictures draw it as if it had been there', async () => {
   await fc.assert(
     fc.asyncProperty(
       withPicks((ids) => fc.tuple(ops(ids, true), drawn(ids))),
@@ -685,7 +685,7 @@ test('a picture refuses to mark, dim to or note an unknown part, and changes not
   );
 });
 
-test('scale probe: a diagram of 1,800 parts with 600 outlined labels builds, is pictured, focuses and walks', { timeout: 120_000 }, async () => {
+test('scale probe: a diagram of 1,800 parts with 600 outlined labels builds, is pictured, enlarged and walked', { timeout: 120_000 }, async () => {
   const nodes = Array.from({ length: 600 }, (_, i) => ({
     id: 'n' + i,
     x: (i % 40) * 0.5,
@@ -723,8 +723,8 @@ test('scale probe: a diagram of 1,800 parts with 600 outlined labels builds, is 
   const t = performance.now();
   const { scene, d } = await shown(s);
   const picture = d.picture({ n1: d.accent, n2: d.accent, ...d.trail([['n0', 'n1']]) }, { dim: ['n1'], notes: [{ id: 'n3', text: 'here' }] });
-  await d.focus(['n5']);
-  await d.focus('all');
+  await d.enlarge(['n5']);
+  await d.enlarge('all');
   await d.walk([['n0', 'n1']]);
   scene.remove(d.root);
   scene.add(picture);

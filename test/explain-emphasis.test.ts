@@ -87,7 +87,7 @@ test('the heading follows step titles; a fixed or absent heading is still possib
   await new Absent(new NullSink()).run();
 });
 
-test('a view’s note follows its part through focus; clear() leaves paper and heading, and a cleared diagram can be drawn again', async () => {
+test('a view’s note follows its part through enlarge; clear() leaves paper and heading, and a cleared diagram can be drawn again', async () => {
   class Notes extends Scene {
     override async construct() {
       const s = stage(this);
@@ -98,11 +98,11 @@ test('a view’s note follows its part through focus; clear() leaves paper and h
       const note = () => this.find('note:C')!;
       const gap = () => note().center()[0] - d.get('C').center()[0];
       assert.ok(Math.abs(gap()) < 1e-6);
-      await d.focus(['A']);
+      await d.enlarge(['A']);
       await sync();
       // Centred over C again, unless the frame's edge holds it back.
       assert.ok(Math.abs(gap()) < 1e-6 || note().center()[0] >= d.frameBox[2] - note().width() / 2 - 0.06);
-      await d.focus('all');
+      await d.enlarge('all');
       await sync();
       assert.ok(Math.abs(gap()) < 1e-6 && note().center()[1] > d.get('C').box()![3]);
       await s.card([['k', 1]]);

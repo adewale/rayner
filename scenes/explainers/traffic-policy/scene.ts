@@ -345,7 +345,7 @@ export default class TrafficPolicyExplainer extends Scene {
       });
       await nextSlate();
       liveCluster();
-      await d.focus('all');
+      await d.enlarge('all');
       if (failing.length)
         await showCluster({
           marks: Object.fromEntries(failing.flatMap((j) => [groups[j]!, `k${j + 1}`]).map((id) => [id, { color: s.bad, as: 'fails the health check' }])),
@@ -395,7 +395,7 @@ export default class TrafficPolicyExplainer extends Scene {
     });
     await nextSlate();
     liveCluster();
-    await d.focus('all');
+    await d.enlarge('all');
     await showCluster({ notes: ids.map((id) => above(id, percent(share[id]!))) });
     this.state.shares = Object.fromEntries(ids.map((id) => [id, frac(share[id]!)]));
 

@@ -326,7 +326,7 @@ export default class ForkExplainer extends Scene {
     await s.clearOverlays();
     await showFlow({ walked: [], notes: [] });
     s.liveDiagram(flow);
-    await flow.focus(['Clock', 'Page', 'Frames', 'Image', 'Check'], { zoom: 0.95 });
+    await flow.enlarge(['Clock', 'Page', 'Frames', 'Image', 'Check'], { zoom: 0.95 });
     flowView = s.diagramView(flow, drawFlow(flow));
     await showFlow({ dim: ['Clock', 'Frames', 'Image'] });
     this.state.timing = { motion: Number(motion.toFixed(2)), held: Number(held.toFixed(2)), words };

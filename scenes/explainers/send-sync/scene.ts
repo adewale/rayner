@@ -299,7 +299,7 @@ export default class SendSyncExplainer extends Scene {
       const chartOf = d;
       await liveChart(chartOf);
       await chartOf.reveal([`point:${p.name}`, `point:${p.name}:label`]);
-      await chartOf.focus([`plate:${p.q}`], { zoom: ZOOM });
+      await chartOf.enlarge([`plate:${p.q}`], { zoom: ZOOM });
       await tell(chartOf, p.name, p.send, p.sync, p.q, [
         meta.source,
         ...(p.name === 'i32' ? ['Only the quadrant counts: a point’s place inside it means nothing.'] : []),
@@ -328,7 +328,7 @@ export default class SendSyncExplainer extends Scene {
       { source: chart([{ name: shared, q: arcCell.quadrant }]) },
       { ops: [{ kind: 'move_point', label: shared, x: ax, y: ay }] },
     );
-    await d.focus([`plate:${arcCell.quadrant}`], { zoom: ZOOM });
+    await d.enlarge([`plate:${arcCell.quadrant}`], { zoom: ZOOM });
     // The opening's wrap is the same in every scenario.
     await tell(d, shared, arcCell.send, arcCell.sync, arcCell.quadrant, [
       'Arc needs T: Send + Sync',
@@ -429,7 +429,7 @@ export default class SendSyncExplainer extends Scene {
         const [x, y] = SPOT[now.quadrant];
         await q.morph({ source: chart(points) }, { ops: [{ kind: 'move_point', label: to, x, y }] });
       }
-      await q.focus([`plate:${now.quadrant}`], { zoom: ZOOM });
+      await q.enlarge([`plate:${now.quadrant}`], { zoom: ZOOM });
       this.state.built = now;
       // The wrapper and the type it wraps, which the column's lines state.
       this.state.wrap = { ctor, inside: was };

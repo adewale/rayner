@@ -77,7 +77,7 @@ A diagram therefore looks as it does in Agentic Mermaid's own renderer, and is m
 
 **Known limits.**
 
-- Some families come out narrow or tall in a 16:9 stage, and their text gets small. Authors choose a direction (`LR` or `TB`) per diagram and use `focus()` to enlarge parts, or with `{ camera: true }` to move the camera; `check` fails labels too small to read at a 1280 px stage. A 390 px phone draws the whole stage at 28% of that size, so the player opens each step there on a close-up of what changed, and `check` reports label sizes in those close-ups.
+- Some families come out narrow or tall in a 16:9 stage, and their text gets small. Authors choose a direction (`LR` or `TB`) per diagram and use `d.enlarge()` to enlarge parts, or `s.focus()` to move the camera; `check` fails labels too small to read at a 1280 px stage. A 390 px phone draws the whole stage at 28% of that size, so the player opens each step there on a close-up of what changed, and `check` reports label sizes in those close-ups.
 - The capture relies on `drawNode`, which is reachable but undocumented. [Upstream](../docs/UPSTREAM.md#agentic-mermaid) lists the Agentic Mermaid release that would replace it.
 
 ## The helper library
@@ -172,7 +172,7 @@ MCP suits live access to a system, like a vault or a ticket queue. An explainer 
 | The helpers grow into a second language | Helpers stay functions a scene calls. No interpreter, no config-driven steps. A helper earns its place by being used in two examples |
 | Agentic Mermaid's output changes | It changes when its owner releases it: pin versions, keep one snapshot file per diagram so a release's effect is a reviewable diff |
 | Styles drift from the real renderer | Capture asserts byte equality with `renderMermaidSVG` and fails on unread SVG |
-| Small text in tall or wide diagrams | Direction per diagram, `focus()`, the legibility check, and close-ups on phones |
+| Small text in tall or wide diagrams | Direction per diagram, `enlarge()`, the legibility check, and close-ups on phones |
 | Settings multiply scenarios | Keep settings few and meaningful; the build runs every combination, so cost shows in CI time; 64 is the limit |
 | An explainer that looks right but is wrong | Walks travel real links; morph ops are replayed; scenes ask the real program; cite sources; have an expert read it |
 | Duplicate engine copies | Resolve scenes, helpers and player to one engine instance; the package smoke test checks it |

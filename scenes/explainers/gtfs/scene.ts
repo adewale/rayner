@@ -245,7 +245,7 @@ export default class GtfsExplainer extends Scene {
     await s.clear();
     const er = await s.show({ source: ER }, { box: LEFT });
     // The calendar the trip's service_id points to is in view too, whole, for the next step.
-    await er.focus(['entity:ROUTE', 'entity:TRIP', 'entity:CALENDAR'], { zoom: ZOOM });
+    await er.enlarge(['entity:ROUTE', 'entity:TRIP', 'entity:CALENDAR'], { zoom: ZOOM });
     this.shown.er = { marked: [], as: null } satisfies ErMarks;
     let erView = s.diagramView(er, drawEr(er));
     await markEr(erView, { marked: ['rel:ROUTE-TRIP#0'], as: null });
@@ -291,7 +291,7 @@ export default class GtfsExplainer extends Scene {
     await s.clearOverlays();
     await markEr(erView, { marked: [], as: null });
     s.liveDiagram(er);
-    await er.focus(['entity:CALENDAR', 'entity:CALENDAR_DATE', 'entity:TRIP'], { zoom: ZOOM });
+    await er.enlarge(['entity:CALENDAR', 'entity:CALENDAR_DATE', 'entity:TRIP'], { zoom: ZOOM });
     erView = s.diagramView(er, drawEr(er));
     await markEr(erView, { marked: ['rel:CALENDAR-TRIP#0', 'rel:CALENDAR_DATE-TRIP#0'], as: 'either table' });
     this.state.services = services;
@@ -422,7 +422,7 @@ export default class GtfsExplainer extends Scene {
     });
     await s.clear();
     const er2 = await s.show({ source: ER }, { box: LEFT });
-    await er2.focus(['entity:TRIP', 'entity:STOP_TIME', 'entity:STOP', 'entity:FREQUENCY'], { zoom: ZOOM });
+    await er2.enlarge(['entity:TRIP', 'entity:STOP_TIME', 'entity:STOP', 'entity:FREQUENCY'], { zoom: ZOOM });
     this.shown.er = { marked: [], as: null } satisfies ErMarks;
     const er2View = s.diagramView(er2, drawEr(er2));
     await markEr(er2View, { marked: ['rel:TRIP-STOP_TIME#0', 'rel:STOP-STOP_TIME#0'], as: null });

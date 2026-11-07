@@ -108,7 +108,6 @@ so a camera that glides past a small label does not make it read
 - [lantern](https://github.com/adewale/rayner/blob/main/scenes/explainers/lantern/scene.ts), "begin": `s.focus(box, { exact: true })` onto
   the classes the step is about and the listing below them, with the heading kept on screen.
 
-The diagram helper `d.focus(ids, { camera: true })` moves the same camera; without `camera` a focus
-enlarges the artwork inside the diagram's box ([reference](REFERENCE.md#diagrams)). With
-`d.focus(…, { camera: true })` or a raw `this.frame` move, the heading falls outside the view while
-zoomed; `s.focus` (the [stage](REFERENCE.md#stage)) keeps it on screen.
+The diagram helper `d.enlarge(ids)` does not move the camera: it enlarges the artwork inside the
+diagram's box ([reference](REFERENCE.md#diagrams)). With a raw `this.frame` move, the heading falls
+outside the view while zoomed; `s.focus` (the [stage](REFERENCE.md#stage)) keeps it on screen.

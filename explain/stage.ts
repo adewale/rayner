@@ -483,7 +483,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       d.showBy(shown.view);
       return shown.view;
     },
-    /** The live diagram back in its view's place, for a morph, a reveal or a focus (see diagramView). */
+    /** The live diagram back in its view's place, for a morph, a reveal or an enlargement (see diagramView). */
     liveDiagram(d: Diagram): void {
       const shown = diagramViews.get(d);
       if (!shown) throw new Error('liveDiagram(): the diagram is not shown by a view (see diagramView)');

@@ -203,7 +203,7 @@ await this.play(flow.sync({ match: 'key', staged: true }));
 ```
 
 A diagram shown by a view keeps its live parts off the stage. For a `reveal`, `walk`, `morph` or
-`focus`, which move the live parts, hand the stage back with `s.liveDiagram(d)` first and show
+`enlarge`, which move the live parts, hand the stage back with `s.liveDiagram(d)` first and show
 it by its view again afterwards; a walk's token travels the same routes the picture draws.
 
 - **Marks are part of the picture.** `lit` and `focus` put the card's or panel's bar on its

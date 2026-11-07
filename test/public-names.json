@@ -130,7 +130,7 @@
     },
     {
       "feature": "Camera",
-      "uses": "`this.frame.animate.fit(...)`, `.reset()`; `d.focus(…, { camera: true })`",
+      "uses": "`this.frame.animate.fit(...)`, `.reset()`; `s.focus`",
       "guide": "[Camera](CAMERA.md)",
       "items": [
         {
@@ -140,10 +140,6 @@
         {
           "label": "s.focus",
           "pattern": "\\bs\\.focus\\("
-        },
-        {
-          "label": "d.focus(…, { camera: true })",
-          "pattern": "camera:\\s*true"
         }
       ]
     },

@@ -18,7 +18,6 @@ import { MoveAlongPath } from '../src/animation.ts';
 import type { Scene, Mobject, Box, Vec, Style, PathFunc } from '../src/index.ts';
 import { center, unionBoxes } from '../src/box.ts';
 import { paintsFill } from '../src/mobject.ts';
-import { STAGE_BOX, atHome } from '../src/svg.ts';
 import { regionBox, boxCenter, raised, emphasis, dimOpacity, emphasises, selfDescribed } from './look.ts';
 import type { Region } from './look.ts';
 import { diagramsOf, diagramKey, findingsOf, SVG_PX_PER_UNIT } from '../integrations/agentic-mermaid/snapshot.ts';
@@ -398,24 +397,6 @@ function moved(m: Group, k: number, from: Vec, to: Vec): Group {
   target.shift([to[0] - from[0], to[1] - from[1]]);
   return target;
 }
-/** The stage: the camera's home box, and the most it shows. */
-const STAGE = STAGE_BOX;
-/**
- * The 16:9 camera box around `box` with `margin` on every side, `zoom` times
- * closer, kept inside the stage so the paper always fills the view.
- */
-export function cameraBox(box: Readonly<Box>, margin = 0.5, zoom = 1): Box {
-  const aspect = (STAGE[2] - STAGE[0]) / (STAGE[3] - STAGE[1]);
-  const fit = Math.max(box[2] - box[0] + 2 * margin, (box[3] - box[1] + 2 * margin) * aspect);
-  const w = Math.min(STAGE[2] - STAGE[0], fit / zoom),
-    h = w / aspect;
-  const clamp = (c: number, half: number, lo: number, hi: number) => Math.min(Math.max(c, lo + half), hi - half);
-  const [x, y] = center(box);
-  const cx = clamp(x, w / 2, STAGE[0], STAGE[2]),
-    cy = clamp(y, h / 2, STAGE[1], STAGE[3]);
-  return [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2];
-}
-
 export class Diagram {
   readonly scene: Scene;
   spec: DiagramSpec;
@@ -441,8 +422,6 @@ export class Diagram {
   private zoom = 1;
   /** The top-level parts last focused on, for the description; null when the diagram is seen whole. */
   private focused: string[] | null = null;
-  /** Where a camera focus left the camera; once the camera is elsewhere, the parts are no longer in focus. */
-  private focusView: Box | null = null;
   /** How opaque dimmed parts stay on this diagram's paper, in a picture that dims (see picture). */
   private dimmed: number;
   /** The last walk, by step name, for the description. */
@@ -755,11 +734,6 @@ export class Diagram {
       : '';
     return `${y}${range}${x ? ` ${w.by(x)}` : ''}${over}`;
   }
-  /** The parts in focus: a camera focus holds only while the camera stays where it put it. */
-  private inFocus(): string[] | null {
-    const view = this.scene.frame.box();
-    return this.focusView && !(view && view.every((v, i) => Math.abs(v - this.focusView![i]!) < 1e-6)) ? null : this.focused;
-  }
   /** What the diagram emphasises now, for the player's phone close-ups (`emphasises` in look.ts). */
   private emphasised(): [Mobject | string, string][] {
     // While a view shows the diagram and the live one is off the stage, a part is named by its key,
@@ -770,7 +744,7 @@ export class Diagram {
       return mob && !live ? mob.key : mob;
     };
     // Marks and notes are drawn in a picture (see picture), which says what it emphasises itself.
-    return (this.inFocus() ?? []).flatMap((id): [Mobject | string, string][] => (part(id) ? [[part(id)!, 'focus']] : []));
+    return (this.focused ?? []).flatMap((id): [Mobject | string, string][] => (part(id) ? [[part(id)!, 'focus']] : []));
   }
   /**
    * What a reader sees of this diagram: what it is and how big, then each shown part
@@ -793,7 +767,7 @@ export class Diagram {
     const step = this.scene.steps.at(-1)?.name;
     // A trail drawn from state (travelled marks) already says the path; a walk without one names it.
     const walked = this.walked;
-    const focused = this.inFocus();
+    const focused = this.focused;
     const trailed = walked?.edges.every((id) => marks.get(id)?.as === w.travelled);
     if (walked && walked.step === step && !trailed && as?.walk !== false) parts.push({ name: walked.hops.join(', '), mark: w.path });
     // Notes drawn from state, in the order the stage draws them; ones no longer on stage are forgotten.
@@ -1150,42 +1124,20 @@ export class Diagram {
     return shown;
   }
   /**
-   * Look closer at these parts, or back at the whole diagram with `'all'`. The description
-   * names the parts in focus.
+   * Enlarge these parts, or put the whole diagram back with `'all'`. The description names the
+   * enlarged parts as focused.
    *
-   * By default the diagram's own view moves: inside its box (which clips it) the artwork
-   * scales `zoom` times past a fit of the parts, notes follow, and whatever stands beside
-   * the box (cards, code, a column of text) stays where it is.
-   *
-   * With `camera: true` the stage's camera (`scene.frame`) moves instead, onto the parts,
-   * their notes and any native objects in `also`, with `margin` scene units around them;
-   * `zoom` above 1 goes closer, below 1 shows more. No point moves: labels keep their size
-   * in the world and the camera enlarges them on screen, which is how `rayner check` and
-   * the player's close-ups measure them. The view never leaves the 16 × 9 stage, but it
-   * shows less of it: the heading, cards and code are world objects too, so keep what the
-   * step's last frame needs inside the view with `also`.
-   *
-   * `'all'` undoes both: the artwork returns to its box and the camera goes home, in one
-   * play. `s.clear()` also brings the camera home.
+   * The diagram's own view moves: inside its box (which clips it) the artwork scales `zoom` times
+   * past a fit of the parts, notes follow, and whatever stands beside the box (cards, code, a
+   * column of text) stays where it is. The camera does not move; `s.focus` moves it.
    */
-  async focus(
-    ids: readonly string[] | 'all',
-    {
-      zoom = 1,
-      camera = false,
-      margin = 0.5,
-      also = [],
-      runTime = 0.9,
-    }: { zoom?: number; camera?: boolean; margin?: number; also?: readonly Mobject[]; runTime?: number } = {},
-  ): Promise<void> {
-    if (!(zoom > 0 && Number.isFinite(zoom))) throw new Error(`focus() zoom must be a positive number, not ${zoom}`);
-    if (!camera && also.length) throw new Error('focus(): `also` frames native objects with the camera; pass camera: true');
-    const frame = this.scene.frame;
+  async enlarge(ids: readonly string[] | 'all', { zoom = 1, runTime = 0.9 }: { zoom?: number; runTime?: number } = {}): Promise<void> {
+    if (!(zoom > 0 && Number.isFinite(zoom))) throw new Error(`enlarge() zoom must be a positive number, not ${zoom}`);
     const mobs = [...this.parts.values()].filter((p) => !p.info.owner).map((p) => p.mob);
     const whole = new Group(...mobs.map((m) => m.copy()));
     if (ids === 'all') {
-      this.focused = this.focusView = null;
-      const anims: Transform[] = atHome(frame.box()!) ? [] : [new Transform(frame, frame.copy().reset(), { runTime })];
+      this.focused = null;
+      const anims: Transform[] = [];
       // Apply one global affine map from current full diagram bounds to its authored frame.
       const home = this.home.box(),
         now = whole.box();
@@ -1204,19 +1156,8 @@ export class Diagram {
       if (restore) this.rezoom(1);
       return;
     }
-    if (!ids.length) throw new Error("focus() needs at least one part, or 'all'");
+    if (!ids.length) throw new Error("enlarge() needs at least one part, or 'all'");
     const tops = [...new Set(ids.map((id) => this.top(id)))];
-    if (camera) {
-      // Notes a picture draws beside these parts come into view with them.
-      const onStage = new Set(this.scene.familyMembers());
-      const notes = [...this.drawnNotes].filter(([m, n]) => onStage.has(m) && tops.includes(this.top(n.id))).map(([m]) => m);
-      const box = unionBoxes([...ids.map((id) => this.get(id)), ...notes, ...also].map((m) => m.box()));
-      if (!box) throw new Error('focus(): nothing to look at');
-      this.focused = tops;
-      await this.scene.play(frame.animate.fit(cameraBox(box, margin, zoom), { margin: 0 }), { runTime });
-      this.focusView = [...frame.box()!] as Box;
-      return;
-    }
     const chosen = new Group(...ids.map((id) => this.get(id).copy()));
     const center = chosen.center(),
       box = this.frameBox;
@@ -1228,7 +1169,6 @@ export class Diagram {
       0.78 *
       zoom;
     this.focused = tops;
-    this.focusView = null;
     const anims = this.partMoves(mobs, (m) => moved(m, k, center, boxCenter(box)), runTime);
     if (anims.length) await this.scene.play(...anims);
     this.rezoom(this.zoom * k);
@@ -1294,7 +1234,7 @@ export class Diagram {
   /** No walk or focus: the state a fresh or morphed diagram starts in. */
   private plain(): void {
     this.walked = null;
-    this.focused = this.focusView = null;
+    this.focused = null;
   }
   /** Fade the whole diagram out. `reveal` can bring parts back. */
   async hide(): Promise<void> {
