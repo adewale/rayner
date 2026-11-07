@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
+import { loadProject } from '../../../explain/testing.ts';
 import type { Trace } from '../../../explain/testing.ts';
 import { Scene } from '../../../src/index.ts';
 import { resolveSettings } from '../../../explain/index.ts';
 import { VOCABULARY } from '../../../explain/words.ts';
-import { collectProject } from '../../../tools/lib/explain-project.ts';
 import { assertStepState } from '../../../test/lib/explainer-state.ts';
 import type { FidelityRun } from '../../../test/lib/fidelity.ts';
 
@@ -23,7 +23,8 @@ export async function check(trace: Trace, values: Record<string, string>, { scen
   // The rows and the sentence it quotes are the token bucket's own: each offered rate is a
   // token-bucket scenario whose trace answers R10 as the fork scene says, and its last step says
   // R10 is accepted at every rate.
-  const bucketProject = await collectProject('scenes/explainers/token-bucket', { write: false });
+  const { default: TokenBucketScene } = await import('../token-bucket/scene.ts');
+  const bucketProject = await loadProject(TokenBucketScene, 'scenes/explainers/token-bucket');
   const offered = bucketProject.scenarios.map((v) => ({
     rate: Number(v.values.rate),
     r10: (v.trace.steps.find((s) => s.step === 'trace')!.after!.responses as number[])[9],
@@ -37,7 +38,6 @@ export async function check(trace: Trace, values: Record<string, string>, { scen
   // The scenarios the choice step draws are the token bucket's own: its setting as declared, one
   // scenario per option with R10's answer from that scenario's trace, and what its settings resolver
   // does with a link naming a listed rate and with one naming 0.1.
-  const { default: TokenBucketScene } = await import('../token-bucket/scene.ts');
   const [rate] = TokenBucketScene.settings;
   const refused = (() => {
     try {

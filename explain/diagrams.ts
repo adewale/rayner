@@ -20,7 +20,7 @@ import { center, unionBoxes } from '../src/box.ts';
 import { paintsFill } from '../src/mobject.ts';
 import { regionBox, boxCenter, raised, emphasis, dimOpacity, emphasises, selfDescribed } from './look.ts';
 import type { Region } from './look.ts';
-import { diagramsOf, diagramKey, findingsOf, SVG_PX_PER_UNIT } from '../integrations/agentic-mermaid/snapshot.ts';
+import { diagramsOf, diagramKey, diagramFindings, SVG_PX_PER_UNIT } from '../integrations/agentic-mermaid/snapshot.ts';
 import { outlineText } from '../integrations/agentic-mermaid/text.ts';
 import { recordWalk } from './trace.ts';
 import { wordsOf, wordsFor, familyNames } from './words.ts';
@@ -553,9 +553,9 @@ export class Diagram {
     for (const p of all) this.base.set(p.info.id, p.mob.family().map((m) => ({ ...m.style })));
   }
 
-  /** The verifier's warnings for this diagram, each with the `part` id it names (see `findingsOf`). */
+  /** The verifier's warnings for this diagram, each with the `part` id it names (see `diagramFindings`). */
   findings() {
-    return findingsOf(this.snapshot);
+    return diagramFindings(this.snapshot);
   }
 
   /**

@@ -1,11 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadFonts } from '../../../explain/testing.ts';
+import { loadFonts, loadSnapshots } from '../../../explain/testing.ts';
 import { fc, params } from '../../../test/lib/pbt.ts';
 import { Scene } from '../../../src/index.ts';
 import { NullSink } from '../../../src/output.ts';
 import { Diagram } from '../../../explain/index.ts';
-import { readSnapshots } from '../../../tools/lib/explain-project.ts';
 import { replayMorph } from '../../../integrations/agentic-mermaid/build/index.ts';
 import { SAMPLE_FEED } from './feed.ts';
 import { readFeed, tripsOn, addDays, dayChart, ganttSource, ganttEdits } from './model.ts';
@@ -18,7 +17,7 @@ const FEED = readFeed(SAMPLE_FEED);
 // A service as calendar.txt and calendar_dates.txt can state it, for properties over any date.
 const ymd = fc.date({ min: new Date(Date.UTC(2005, 0, 1)), max: new Date(Date.UTC(2012, 11, 31)), noInvalidDate: true }).map((d) => d.toISOString().slice(0, 10).replace(/-/g, ''));
 
-const store = await readSnapshots('scenes/explainers/gtfs/scene');
+const store = await loadSnapshots('scenes/explainers/gtfs');
 
 const er = Object.values(store).find((s) => s.family === 'er');
 

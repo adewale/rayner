@@ -2,14 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene } from '../../../src/index.ts';
 import { NullSink } from '../../../src/output.ts';
-import { loadFonts } from '../../../explain/testing.ts';
+import { loadFonts, loadSnapshots } from '../../../explain/testing.ts';
 import { Diagram } from '../../../explain/index.ts';
 import { radarData } from '../../../explain/diagrams.ts';
 import type { DiagramSnapshot } from '../../../explain/index.ts';
 import { wordsFor } from '../../../explain/words.ts';
-import { readSnapshots } from '../../../tools/lib/explain-project.ts';
 
-const store = await readSnapshots('scenes/explainers/tailwind-gamut/scene');
+const store = await loadSnapshots('scenes/explainers/tailwind-gamut');
 
 const radar = (text: string): DiagramSnapshot => {
   const s = Object.values(store).find((x) => x.family === 'radar' && x.spec.source.includes(text));

@@ -22,6 +22,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - Views, `Machine`, `SetState` and choreography moved from `src/` to `explain/` and are imported from `rayner/explain`; `src/` is the engine taken from Lantern.
 - Three opt-in entry points: `rayner/geo` (`seenFrom` and the globe, out of `rayner/drawing`), `rayner/audio` (the score types) and `rayner/extras` (`Write`, `TransformFromCopy`, `Restore`, `MoveAlongPath`, `ArcBetweenPoints`, `Square`, `Underline`, out of `rayner`).
 - `view.tween((t) => state)` moves the state through time and redraws the view at every frame; `c.follow(spec, { targets })` does the same for parts of an authored transition. `Follow` is no longer exported.
+- [Changing what is shown](docs/VIEWS.md#changing-what-is-shown) says which way to change the state for which job: assignment and sync, `SetState`, a machine, `s.steps`, a tween or an authored transition.
 - Every folder in `scenes/explainers/` now holds its own `script.md`, `scene.ts`, `model.ts` (where it has a model) and `picture.ts` (where its drawing is worth separating).
 - Models and pictures moved out of `scenes/explainers/lib/`, which keeps only the shared `format.ts` and `pbt.ts`. `notes.md` files are folded into the script, the model and the picture module.
 - An explainer is a `Scene` subclass with named steps. Each step has a title, a short `line` drawn under it on the picture and a caption under the stage, and holds until the caption could be read.
@@ -168,6 +169,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - The `rayner` command initialises, previews (with `--watch`), captures snapshots, checks, reviews, builds, draws contact sheets and describes a scene. [Command line](docs/REFERENCE.md#command-line)
 - `rayner describe` prints every scenario and step as JSON: the state, what changed, the invariants, the machines, and the picture in words and as text. [Describe](docs/REFERENCE.md#describe)
 - `rayner see` prints one step for a person at a terminal, and `describeExplainer` gives a script the same object.
+- `rayner/testing` loads an explainer for an author's test: `loadProject(Scene, folder)` adopts its script's intent, reads its pinned snapshots and traces every scenario; `loadSnapshots(folder)` reads the snapshots alone; `pictureWordsAt(trace, step)` gives a step's picture in words; and `diagramFindings(snapshot)` a pinned snapshot's verifier warnings. The collection's scene tests use them. [An explainer's test](docs/REFERENCE.md#an-explainers-test)
 - `npm run site:export` publishes the built pages with their descriptions and `llms.txt`. [Publishing](docs/PUBLISHING.md#export-the-collection)
 - The export adds a share page and preview image per step, Open Graph and Twitter tags, oEmbed responses, known embed heights and response headers.
 - Each build writes a receipt of its inputs and a header recipe whose CSP pins the page's inline script and style.
@@ -182,6 +184,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `npm run bench` compares reader timings between two revisions in Chromium and reports a small sample as inconclusive.
 - The engine works without the page: [engine fundamentals](docs/ENGINE-FUNDAMENTALS.md), the runnable [extension recipes](docs/EXTENDING.md) and [scene outputs](docs/SCENE-OUTPUTS.md) cover frames, text and traces from native scenes.
 - Repository-only tooling (site export, gallery, catalog, release, bench, CI scope, vendoring) moved to `tools/repo/`; no package ships it.
+- The code's layers, from the engine up to the command, and what each may import are in [the engine map](docs/ENGINE.md#layers), with where the code departs from them; `test/layers.test.ts` holds the rules that hold.
 - Rayner is two packages: `rayner`, the vocabulary and runtime, with no dependencies, and `rayner-cli`, the `rayner` command, at the same version. Install both. [Quick start](README.md#quick-start)
 - `rayner-cli` holds the player, diagram capture and lettering capture (its Python, requirements, font script and maths typesetter); `rayner` keeps only what replays their snapshots.
 - A release publishes and retains both archives; `npm run pack:smoke` installs both, and `rayner` alone, and type-checks every explainer and recipe against the packed declarations. [Releasing](docs/RELEASING.md)
@@ -204,7 +207,7 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
 - The sinks `StringSink`, `SnapshotSink`, `DomSink`, `SeekSink` and `NullSink` moved to `rayner/output`.
 - Author tooling moved from `rayner` to `rayner/testing`: `traceScene`, `TraceSink`, `MotionSink`, `analyzeMotion`, `InvariantSink`, `viewMismatch`, `machinesOf`, `jsonObject`, `loadFonts`, `takeMissingGlyphs` and `perf`.
 - `describeExplainer`, `scenariosOf`, `scenarioName`, `withSettings` and `bindSnapshots` moved from `rayner/explain` to `rayner/testing`.
-- `findingsOf`, `edgePartOf` and `stagedStepsOf` are internal; use `d.findings()` and `d.link()`.
+- `edgePartOf` and `stagedStepsOf` are internal; use `d.findings()` and `d.link()`. `findingsOf` is `diagramFindings` in `rayner/testing`, for a pinned snapshot read without its diagram.
 - `ViewSync` is exported as a type only: `view.sync()` makes one.
 - The diagram camera move (`d.focus(ids, { camera: true, also })`) is gone: `s.focus` moves the camera.
 - The free `choreograph(current, target)` is not exported: a transition's `t.choreograph(view)` is the one form.

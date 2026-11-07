@@ -10,7 +10,7 @@ import { Scene, VMobject } from '../../src/index.ts';
 import type { Mobject } from '../../src/index.ts';
 import { NullSink, toSvgString } from '../../src/output.ts';
 import { PALETTES } from '../../explain/palettes.ts';
-import { findingsOf } from '../../integrations/agentic-mermaid/snapshot.ts';
+import { diagramFindings } from '../../explain/testing.ts';
 import { Diagram } from '../../explain/diagrams.ts';
 import { dimOpacity } from '../../explain/look.ts';
 
@@ -94,7 +94,7 @@ test('actual branch warnings map both raw per-pair ids to their captured edge pa
     });
     const warnings = snapshot.findings.warnings.filter((w) => w.code === 'DECISION_BRANCH_UNLABELED');
     assert.deepEqual(warnings.map((w) => w.edge), ['A->B#0', 'A->C#0']);
-    const mapped = findingsOf(snapshot).filter((w) => w.code === 'DECISION_BRANCH_UNLABELED');
+    const mapped = diagramFindings(snapshot).filter((w) => w.code === 'DECISION_BRANCH_UNLABELED');
     assert.deepEqual(mapped.map((w) => w.part), ['edge:A->B#0', 'edge:A->C#0']);
     assert.ok(mapped.every((w) => snapshot.parts.some((p) => p.id === w.part && p.kind === 'connector')));
   } finally { await builder.close(); }

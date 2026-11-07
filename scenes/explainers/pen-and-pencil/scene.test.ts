@@ -1,12 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { collectProject } from '../../../tools/lib/explain-project.ts';
+import { loadProject } from '../../../explain/testing.ts';
+import PenAndPencil from './scene.ts';
 import type { Scene, VMobject } from '../../../src/index.ts';
 
 // The marks step says the marks "are the same in both drawings", and the plate step that the second
 // drawing lands in the boxes the first used: the layout's marks owe nothing to the seed.
 test('both drawings trace the same marks: the construction strokes match path for path, so the boxes are shared', async () => {
-  const project = await collectProject('scenes/explainers/pen-and-pencil', { write: false });
+  const project = await loadProject(PenAndPencil, 'scenes/explainers/pen-and-pencil');
   assert.deepEqual(project.scenarios.map((v) => v.values), [{ hand: 'first' }, { hand: 'second' }]);
   const marks: number[][][][] = [];
   for (const scenario of project.scenarios) {

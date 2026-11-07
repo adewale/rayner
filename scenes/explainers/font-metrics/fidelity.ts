@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
+import { pictureWordsAt } from '../../../explain/testing.ts';
 import type { Trace } from '../../../explain/testing.ts';
-import { pictureHtml } from '../../../explain/trace.ts';
 import { assertSteps } from '../../../test/lib/steps.ts';
 import type { FidelityRun } from '../../../test/lib/fidelity.ts';
 
@@ -38,7 +38,7 @@ export async function check(trace: Trace, values: Record<string, string>, { scen
   const actual = trace.steps.find(s => s.step === 'cuts')!.after!.advances as Record<string, number>;
   assert.deepEqual(Object.keys(actual), Object.keys(expected));
   for (const [cut, advance] of Object.entries(expected)) assert.ok(Math.abs(actual[cut]! - advance) < 1e-6, `${cut}: raw-font advance ${advance}, scene ${actual[cut]}`);
-  const shown = pictureHtml(trace.steps.find(s => s.step === 'cuts')!.shown);
+  const shown = pictureWordsAt(trace, 'cuts').full;
   for (const [cut, width] of Object.entries(expected)) assert.ok(shown.includes(`${cut}, advance ${width.toFixed(2)}`), shown);
   // Independent original-font measurements, recorded with source SHA in
   // docs/evidence/authoring-layout/font-vectors.json. No Text measurement
@@ -62,7 +62,7 @@ export async function check(trace: Trace, values: Record<string, string>, { scen
   // The step's notes say each word's stretch: none when measured, more than none from Inter estimates,
   // each the recorded width over the source-font advance at the run's size.
   const stretch = trace.steps.find(s => s.step === 'diagram')!.after!.stretch as Record<string, number>;
-  const diagramShown = pictureHtml(trace.steps.find(s => s.step === 'diagram')!.shown);
+  const diagramShown = pictureWordsAt(trace, 'diagram').full;
   for (const run of values.widths === 'natural' ? runs : runsOf(recorded)) {
     const k = run.width! / (diagramEm[run.text]! * run.size);
     assert.ok(Math.abs(stretch[run.text]! - k) < 0.002, `${run.text}: stretch ${stretch[run.text]}, from the source font ${k}`);

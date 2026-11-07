@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
+import { pictureWordsAt } from '../../../explain/testing.ts';
 import type { Trace } from '../../../explain/testing.ts';
-import { pictureHtml } from '../../../explain/trace.ts';
 import { assertStepState } from '../../../test/lib/explainer-state.ts';
-import { textOf } from '../../../test/lib/fidelity.ts';
 import { Repo, AUTHOR } from './model.ts';
 
 /** Each authored scenario's steps against the program the explainer explains. */
@@ -57,7 +56,7 @@ export async function check(trace: Trace, values: Record<string, string>): Promi
     String(hashes.meta.line),
   );
   // The labels as drawn, read back from the step's picture.
-  const shown = textOf(pictureHtml(hashes.shown));
+  const shown = pictureWordsAt(trace, 'hashes').full;
   for (const label of [
     `Paired with an equal digit anywhere: tree ${paired.tree}, commit ${paired.commit} of 40`,
     `Same digit in the same place, coloured: tree ${inPlace.tree}, commit ${inPlace.commit} of 40`,
@@ -65,7 +64,7 @@ export async function check(trace: Trace, values: Record<string, string>): Promi
     assert.ok(shown.includes(label), `${label}\n${shown}`);
   // The change step no longer prints the kept and grown shape counts (the evidence above still
   // holds the redraw to keeping commit one's row whole); its picture names both commits' rows.
-  const rows = textOf(pictureHtml(stepOf('change').shown));
+  const rows = pictureWordsAt(trace, 'change').full;
   for (const [label, commit, tree] of [['commit one', c1, t1], ['commit two', c2, t2]] as const)
     assert.ok(rows.includes(`${label}: commit ${commit.slice(0, 7)} names tree ${tree.slice(0, 7)}`), `${label}\n${rows}`);
 }

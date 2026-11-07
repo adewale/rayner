@@ -135,17 +135,29 @@
       "describeExplainer": {
         "tooling": "an author's tool or agent that reads the explainer as one JSON object: scenarios, steps, state and pictures in words"
       },
+      "diagramFindings": {
+        "tooling": "an author's test that reads the verifier's warnings on a pinned diagram snapshot without building its diagram"
+      },
       "jsonObject": {
         "tooling": "an author's test or tool that validates and clones state under the trace's JSON rules (the document recipe)"
       },
       "loadFonts": {
         "tooling": "an author's test or tool that draws text outside a scene's run, and so loads the embedded fonts first"
       },
+      "loadProject": {
+        "tooling": "an author's test that runs every scenario of an explainer from its folder, with its script's intent and pinned snapshots, as the command does"
+      },
+      "loadSnapshots": {
+        "tooling": "an author's test or tool that reads an explainer's pinned diagram snapshots from its folder, to build or inspect one diagram"
+      },
       "machinesOf": {
         "tooling": "an author's test that drives or explores a scene's machines from outside the scene"
       },
       "perf": {
         "tooling": "an author profiling a scene or a tool: counters, spans and a trace-event export"
+      },
+      "pictureWordsAt": {
+        "tooling": "an author's test that reads what a reader who cannot see the stage is told about a step's picture"
       },
       "scenarioName": {
         "tooling": "an author's test or tool that names a scenario the way the command and the player do"

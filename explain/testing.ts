@@ -10,3 +10,8 @@ export { scenariosOf, scenarioName, withSettings, bindSnapshots } from './settin
 export { withIntent } from './intent.ts';
 export { viewMismatch } from './view.ts';
 export { machinesOf } from './machine.ts';
+export { loadProject, loadSnapshots } from './project.ts';
+export type { LoadedProject, LoadedScenario } from './project.ts';
+export { pictureWordsAt } from './trace.ts';
+export type { PictureWords } from './trace.ts';
+export { diagramFindings } from '../integrations/agentic-mermaid/snapshot.ts';

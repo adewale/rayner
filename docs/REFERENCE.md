@@ -39,6 +39,8 @@ export default class Reads extends Scene<{ reads?: number }, {}> {   // the mode
   ```
 
 - `meta.id` names the output files. It is the scene's folder name, or its file's name when the file is not `scene.ts`, unless the scene declares its own. `meta.title` is the page title, and `meta.sources` are listed under the transcript.
+- `meta.player` styles this explainer's player; every field is optional. `meta.player.accent: true` colours the primary action and links with the current scenario's stage accent; `meta.player.paper: true` uses its paper for the page and the tile's surface; `meta.player.corners` is `'rounded'` (the default) or `'square'`; `meta.player.minStageWidth` is a standalone page's preferred minimum stage width in CSS pixels, at most 4096; and `meta.player.outline: true` names every step in the steps rail from the start. Without them the player is neutral greys with an ink primary action. [The tile](#the-tile) says how each applies and when a colour is refused.
+- `meta.textContext: 'explicit'` gives text the shaping of the scene that creates it, not of whichever scene is running. Create text with `this.text(...)`, and pass `shaping: this.textShaping` to `Code`, `ItalicText`, `MathTex`, axes and the other primitives that draw text; stage headings, cards, code blocks, annotations and diagram labels take the scene's shaping themselves. It matters for a scene with [requested lettering](#lettering-on-request) that may run beside a scene with other faces: without it, `new Text(...)` takes the running scene's shaping, so such scenes run one at a time across their awaits ([explicit lettering contexts](LETTERING.md)).
 - `meta.lang` (BCP 47, default `en`) is the language of the page and the transcripts. The main player's own words (`app/embed-strings.ts`) and the generated picture descriptions (`explain/words.ts`, whose `families` name each diagram family and its parts) exist in English and French. On a page in any other language both are English, and the descriptions are marked `lang="en"`; `Picture.lang` in the trace records a description's language when it is not English.
 - `StepMeta` types `title`, `line` and `caption` as strings and `kind` as `'short' | 'main' | 'detail'` (default `'main'`); these fields are also checked before a new step begins. Additional metadata fields remain available.
 - Step names are URL identifiers. They must be unique and non-empty in every scenario.
@@ -80,6 +82,7 @@ export default class Bucket extends Scene<Tokens, { lit?: string | null }> {
 - `s.steps([...])` types each step from its own `state`, so one list holds steps whose states differ. A step's state is the scene's state while the step shows, not the scene's declared model type: a scene that reads `this.state` after its steps sets it first. Write the list in the call, where each draw is typed; a list built elsewhere gives each step its type, `StagedStep<Shift>`, or (with named draw functions) is a tuple, `[...] as const`.
 - Type a helper a draw calls with the model type, not `SceneState`: an interface is not assignable to a JSON record.
 - `settingsOf(this)` returns `Readonly<Record<string, string>>`; TypeScript gives an instance no link to its class's `static settings`, so a setting's options are not in its type.
+- Which way to change the state (assign it and sync, `SetState`, a machine, `s.steps`, a tween or an authored transition) depends on when the change happens and what decides it: [changing what is shown](VIEWS.md#changing-what-is-shown) has the table.
 
 ### Lettering on request
 
@@ -536,10 +539,35 @@ The package has an entry point per audience. A scene is written with `rayner` (t
 | `scenariosOf`, `withSettings`, `scenarioName` | `rayner/testing` | Every scenario, a class bound to one, and its name | [Settings](#settings) |
 | `withIntent` | `rayner/testing` | A scene class with its script's intent adopted, for a test that runs it directly | [Scene](#scene) |
 | `bindSnapshots` | `rayner/testing` | Run a scene with diagrams outside the CLI, from its pinned snapshots | [Describe](#describe) |
+| `loadProject`, `loadSnapshots` | `rayner/testing` | An explainer loaded from its folder, as the command runs it: its script's intent, its pinned snapshots and every scenario's trace; or its pinned snapshots alone | [An explainer's test](#an-explainers-test) |
+| `pictureWordsAt` | `rayner/testing` | A step's picture in words, as the stage's description, the player's list and the page's transcript say it | [An explainer's test](#an-explainers-test) |
+| `diagramFindings` | `rayner/testing` | A pinned snapshot's verifier warnings, each with the part it names, as `d.findings()` gives them | [Diagrams](#diagrams) |
 
 `shaperFor` stays in `rayner`, and `refuse` and `isRefusal` (a model's refusal of an event, [machines](MACHINES.md#refused-events-bounds-and-authored-transitions)), `settingsOf` and `resolveSettings` in `rayner/explain`, since models and scenes call them.
 
 The collection's own tests show each in use: `test/lib/explainer-state.ts` compares a trace with a model, and `test/lib/view-fidelity.ts` compares a view with the traced state at every step.
+
+### An explainer's test
+
+An explainer's `scene.test.ts` loads it from its folder and reads each scenario's trace:
+
+```ts
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { loadProject, pictureWordsAt } from 'rayner/testing';
+import Explainer from './scene.ts';
+
+test('every scenario says what the model computed', async () => {
+  const project = await loadProject(Explainer, import.meta.dirname);
+  for (const { values, trace } of project.scenarios) assert.ok(trace.steps.length > 0, JSON.stringify(values));
+  const { trace } = project.scenario();
+  assert.match(pictureWordsAt(trace, trace.steps[0]!.step).full, /\S/);
+});
+```
+
+`loadProject(Scene, where)` takes the scene class and its file, or the folder holding `scene.ts`. It adopts the intent of the `script.md` beside the scene, gives the scene its folder's name as `meta.id` when it declares none, reads `scene.snapshots/`, and traces every scenario in `scenariosOf` order against those snapshots. It returns `{ Scene, snapshots, scenarios, scenario(values?) }`: each scenario is `{ values, Scene, trace }`, its `Scene` bound to its values and the snapshots, and `scenario(values)` is the scenario those values choose with every other setting at its default, as a page link chooses one. It captures nothing: a diagram with no pinned snapshot fails, so run `rayner snapshots` first. It runs none of the checks, which are `rayner check`'s. It cuts no lettering, so it refuses a scene with `meta.lettering`, which only the command can run. `loadSnapshots(where)` reads the pinned snapshots alone, for a test that builds or inspects one diagram. Both read files, so they run under Node.
+
+`pictureWordsAt(trace, step)` gives the picture at the end of the named step in words, as `{ summary, full, transcript }`: `summary` is the stage's accessible description (what is shown, what is emphasised, what is new), `full` is everything shown as the player lists it, each thing's emphasised parts first, and `transcript` is `full` as the page's transcript reads it, where a thing whose parts are as in the previous step lists only its emphasis. Each is plain text. A step name the trace does not have throws.
 
 ## Snapshots
 
@@ -640,7 +668,7 @@ The collection's reviewer (`npm run demos:review`) reads each scene's `scene.rev
 | `build <scene>` | The page, its receipt, its header recipe and `loader.js` |
 | `shots <scene>` | A contact sheet of every step, as SVG and PNG |
 | `describe <scene>` | [`describeExplainer`](#describe) as JSON: every scenario and step, with words, state, what changed and the picture in words and as text |
-| `version` | Print the version; `--version` does the same |
+| `version` | Print the command's version (`rayner-cli`'s, which is also the version of `rayner` it requires); `--version` does the same |
 | `help` | Print the commands and options; `--help`, or no command, does the same |
 | `see <scene> [step]` | One step of [`describeExplainer`](#describe)'s description: its resting picture drawn as text, then its title, caption, the picture in words and what it changed in `scene.state` (`key: before → after`). The last step by default; needs no browser, so an agent can read a scene from a terminal |
 
@@ -682,7 +710,7 @@ An unknown setting or value resets every setting to its default, and a notice na
 
 The explainer is one tile. Everything the page shows is inside one bounded object with one edge and one surface: the card's header (the title, the page's one `h1`, and the scenario picker) over a rule, the stage mounted under it, the stepper row, the step's words, then closed rows for the steps (on a narrow page) and the transcript, and a footer. By default, on a page at least 1100 px wide the steps rail is the tile's second pane, behind a rule that runs the tile's height; its list stays in view as the page scrolls. The footer holds the Rayner mark, linking to the project, and, inside any frame, **Open the explainer**, which opens the page at the reader's step and scenario in a new tab. Nothing is drawn over the stage. Outside the tile a standalone page has only its background. The player defaults to neutral greys with an ink primary action. Opt in on one explainer with `static meta = { …, player: { accent: true, paper: true, corners: 'square', minStageWidth: 880 } }`. All fields are optional: `accent` takes the current scenario's stage palette accent; `paper` uses its paper for the page and tile surface (replacing the former automatic 10% tint); `corners` is `'rounded'` (default) or `'square'`. Without a stage, colour cues stay neutral.
 
-`minStageWidth` sets a standalone page's preferred minimum stage width in CSS pixels, including in **Enlarge**. Only positive, finite numbers take effect; values above 4096 are capped. The floor stays within the available page width without horizontal scrolling, and stages below 600 px retain their close-ups. Above the default 1100 px breakpoint, the steps list stays below the card until the content area can hold the floor plus its 300 px rail. An 880 px floor needs 1180 px of content width, with additional room for page padding and scrollbar space. Wide standalone pages that opt in reserve native scrollbar space so opening content cannot make the rail repeatedly switch positions. The setting is written into that page's hashed stylesheet; pages without it retain their existing sizing, and raw iframes and loader embeds retain host-driven sizing. A short standalone window may need scrolling to reach **Next**. For example, periodic-groups opts into 880 px to keep its smallest full-table labels at least 12 px at 1280×720 and 1366×768; this does not guarantee legibility at every viewport width.
+`meta.player.minStageWidth` sets a standalone page's preferred minimum stage width in CSS pixels, including in **Enlarge**. Only positive, finite numbers take effect; values above 4096 are capped. The floor stays within the available page width without horizontal scrolling, and stages below 600 px retain their close-ups. Above the default 1100 px breakpoint, the steps list stays below the card until the content area can hold the floor plus its 300 px rail. An 880 px floor needs 1180 px of content width, with additional room for page padding and scrollbar space. Wide standalone pages that opt in reserve native scrollbar space so opening content cannot make the rail repeatedly switch positions. The setting is written into that page's hashed stylesheet; pages without it retain their existing sizing, and raw iframes and loader embeds retain host-driven sizing. A short standalone window may need scrolling to reach **Next**. For example, periodic-groups opts into 880 px to keep its smallest full-table labels at least 12 px at 1280×720 and 1366×768; this does not guarantee legibility at every viewport width.
 
 Colour cues accept opaque hex colours only. Each theme checks them independently: paper must retain text 7:1, secondary text 4.5:1 and the neutral accent 3:1; accent must reach 4.5:1 against the page, tile and its button text (it also colours small links). A rejected cue uses that theme's neutral default. A light palette will usually fall back in dark mode; an explicit `?theme=light` or `?theme=dark`, including in a frame, selects the matching checked cues. The build writes the default scenario's cues into the CSP-hashed stylesheet; scenario changes update the same custom properties. These cues affect only that explainer page. Each scenario's paper is in its [description](#describe) as `paper`.
 

@@ -2,11 +2,9 @@ import { test } from 'node:test';
 import type { View } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
 import { Rectangle, Text } from '../../../src/index.ts';
-import { loadFonts, withSettings } from '../../../explain/testing.ts';
+import { loadFonts, loadProject, pictureWordsAt, withSettings } from '../../../explain/testing.ts';
 import type { Mobject } from '../../../src/index.ts';
-import { pictureHtml, pictureSummary } from '../../../explain/trace.ts';
 import { lerpColor } from '../../../src/index.ts';
-import { collectProject } from '../../../tools/lib/explain-project.ts';
 import { assertViewFollowsState } from '../../../test/lib/view-fidelity.ts';
 import { check } from './fidelity.ts';
 import PeriodicGroupsScene from './scene.ts';
@@ -14,11 +12,12 @@ import { withScriptIntent } from '../../../tools/lib/explain-intent.ts';
 
 const PeriodicGroupsExplainer = withScriptIntent(PeriodicGroupsScene, 'scenes/explainers/periodic-groups');
 type PeriodicGroupsExplainer = PeriodicGroupsScene;
+const project = loadProject(PeriodicGroupsExplainer, 'scenes/explainers/periodic-groups');
 
 test('every scenario records the model’s answers at each step', async () => {
-  const project = await collectProject('scenes/explainers/periodic-groups', { write: false });
-  assert.deepEqual(project.scenarios.map((v) => v.values.element), ['na', 'cl', 'fe', 'cu', 'he']);
-  for (const { values, trace } of project.scenarios) check(trace, values);
+  const { scenarios } = await project;
+  assert.deepEqual(scenarios.map((v) => v.values.element), ['na', 'cl', 'fe', 'cu', 'he']);
+  for (const { values, trace } of scenarios) check(trace, values);
 });
 
 test('the table and note text follow the recorded state at every resting step', async () => {
@@ -59,6 +58,7 @@ test('reader descriptions match the run fills and complete block fills in every 
   let checked = 0;
   for (const expected of scenarios) {
     const Source = withSettings(PeriodicGroupsExplainer, { element: expected.element });
+    const { trace } = (await project).scenario({ element: expected.element });
     const visited: string[] = [];
     await new Source({
       async frame() {},
@@ -102,8 +102,8 @@ test('reader descriptions match the run fills and complete block fills in every 
         }
         if (step.name === 'names' || step.name === 'blocks')
           for (const w of ['s: 2 columns', 'd: 10 columns', 'p: 6 columns', 'f: 14 columns,']) assert.ok(words.includes(w), `${label}: ${w}`);
-        const state = scene.describeShown();
-        for (const description of [pictureSummary(state), pictureHtml(state)]) {
+        const pictured = pictureWordsAt(trace, step.name);
+        for (const description of [pictured.summary, pictured.full]) {
           assert.ok(description.length > 0, `${label}: reader description exists`);
           if (step.name === 'stack' || step.name === 'names') {
             assert.ok(description.includes('All 118 element cells are filled in by block colour.'), label);

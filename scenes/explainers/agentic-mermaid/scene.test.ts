@@ -1,15 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { findingsOf } from '../../../integrations/agentic-mermaid/snapshot.ts';
+import { diagramFindings, loadSnapshots } from '../../../explain/testing.ts';
 import type { DiagramSnapshot } from '../../../explain/index.ts';
 import { verifyMermaid, WARNING_SEVERITY } from 'agentic-mermaid/agent';
 import MermaidExplainer, { BROKEN, BROKEN_REPORT } from './scene.ts';
 import { explainerMeta } from '../../../tools/lib/explain-intent.ts';
-import { readSnapshots } from '../../../tools/lib/explain-project.ts';
 
 /** This explainer's pinned snapshots, as test/explain-real.test.ts reads the collection's. */
 const corpus: { id: string; s: DiagramSnapshot }[] = [];
-for (const s of Object.values(await readSnapshots('scenes/explainers/agentic-mermaid/scene'))) corpus.push({ id: 'agentic-mermaid', s });
+for (const s of Object.values(await loadSnapshots('scenes/explainers/agentic-mermaid'))) corpus.push({ id: 'agentic-mermaid', s });
 
 /** The pinned snapshot of explainer `id` whose source contains `text`. */
 const pinned = (id: string, text: string) => {
@@ -23,7 +22,7 @@ test('the Mermaid explainer’s check answers are what the pinned verifier repor
   for (const text of ['A -->|yes| C[Database]', 'A{Cached} -->|yes| B[Reply]']) {
     const s = pinned('agentic-mermaid', text);
     assert.equal(s.findings.ok, true);
-    assert.deepEqual(findingsOf(s), []);
+    assert.deepEqual(diagramFindings(s), []);
   }
   const report = (source: string) => {
     const r = verifyMermaid(source);

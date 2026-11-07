@@ -1,11 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { collectProject } from '../../../tools/lib/explain-project.ts';
+import { loadProject } from '../../../explain/testing.ts';
+import BloomFilter from './scene.ts';
 import { Text } from '../../../src/index.ts';
 
 test("the Bloom filter's tables key each row by its name or row length, and each keyed cell shows the model's answer", async () => {
   const { bloomStory } = await import('./model.ts');
-  const project = await collectProject('scenes/explainers/bloom-filter', { write: false });
+  const project = await loadProject(BloomFilter, 'scenes/explainers/bloom-filter');
   assert.equal(project.scenarios.length, 2);
   let cells = 0;
   for (const scenario of project.scenarios) {

@@ -17,6 +17,7 @@ import { traceRun } from '../../src/trace.ts';
 import type { Palette } from '../../integrations/agentic-mermaid/snapshot.ts';
 import { paperOf, paletteOf } from '../../explain/stage.ts';
 import { checkWatch } from '../../explain/trace.ts';
+import { readSnapshotStore } from '../../explain/project.ts';
 import { checkScriptMeta } from '../../explain/script.ts';
 import { checkClaimsMeta } from '../../explain/claims.ts';
 import { takeLetteringMissing } from '../../src/lettering.ts';
@@ -190,35 +191,20 @@ export async function sceneInputs(p: { file: string; sourceHash: string }, build
 /** File name for one diagram's snapshot: a short hash of its cache key. */
 export const snapshotFileName = (key: string) => hash(key).slice(0, 16) + '.json';
 const json = (value: unknown) => JSON.stringify(value, null, 2) + '\n';
-async function readJson(path: string): Promise<Record<string, unknown> | null> {
-  try {
-    return JSON.parse(await readFile(path, 'utf8'));
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
-    throw error;
-  }
-}
 /**
  * Snapshots live in `scene.snapshots/`: `index.json` maps each diagram key to
  * a file, and each diagram has its own file, so changing one diagram changes
- * one file.
+ * one file. The library reads the format (explain/project.ts); this gives it the files.
  */
 export async function readSnapshots(base: string): Promise<SnapshotStore> {
-  const index = await readJson(join(base + '.snapshots', 'index.json'));
-  const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
-  const store: SnapshotStore = {};
-  // Own data properties, so a key such as `__proto__` is a key like any other.
-  const put = (key: string, value: unknown) =>
-    Object.defineProperty(store, key, { value, enumerable: true, writable: true, configurable: true });
-  if (index?.version === 2) {
-    for (const [key, name] of Object.entries(isObject(index.diagrams) ? index.diagrams : {})) {
-      // Only the file this key's name hashes to: an index entry cannot point outside the folder.
-      if (name !== snapshotFileName(key)) continue;
-      const snapshot = await readJson(join(base + '.snapshots', name));
-      if (snapshot) put(key, snapshot);
+  return readSnapshotStore(async (name) => {
+    try {
+      return await readFile(join(base + '.snapshots', name), 'utf8');
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+      throw error;
     }
-  }
-  return store;
+  });
 }
 /** Write the store and delete files no diagram uses. */
 export async function writeSnapshots(base: string, store: SnapshotStore): Promise<void> {

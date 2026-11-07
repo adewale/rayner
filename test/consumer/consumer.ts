@@ -350,3 +350,15 @@ export async function hostPage(Explainer: SceneClass): Promise<string> {
 export function colours(palette: Palette): string {
   return palette.ink;
 }
+
+import { loadProject, loadSnapshots, pictureWordsAt, diagramFindings } from 'rayner/testing';
+import type { LoadedProject, LoadedScenario, PictureWords } from 'rayner/testing';
+import type { Finding } from 'rayner/explain';
+
+export async function authorTest(Explainer: SceneClass, folder: string): Promise<string> {
+  const project: LoadedProject = await loadProject(Explainer, folder);
+  const first: LoadedScenario = project.scenario();
+  const words: PictureWords = pictureWordsAt(first.trace, first.trace.steps[0]!.step);
+  const findings: Finding[] = Object.values(await loadSnapshots(folder)).flatMap((s) => diagramFindings(s));
+  return `${project.scenarios.length} ${Object.keys(project.snapshots).length} ${words.summary} ${words.full} ${words.transcript} ${findings.length}`;
+}

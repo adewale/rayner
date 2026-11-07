@@ -39,6 +39,31 @@ Modules are in `src/` (the engine taken from Lantern) unless named with `explain
 | `lettering.ts` | [The reference, "Lettering on request"](REFERENCE.md#lettering-on-request) | How does an explainer draw Greek or Cyrillic, and what does that cost the explainers that do not? |
 | `lettering-outlines.ts`, `italic.ts`, `math.ts` | [LETTERING.md](LETTERING.md) | How does an explainer draw another face, real bold and italic, Arabic, Devanagari, Hebrew or maths from runs shaped at build time, and why does no other page carry that code? |
 
+## Layers
+
+The code is a stack, and each layer imports only the layers under it. From the bottom:
+
+| Layer | Modules | May import |
+| --- | --- | --- |
+| Engine | `src/` | Nothing else in the repository but the vendored shaper, `vendor/glyph.js` |
+| Diagram replay | `integrations/agentic-mermaid/snapshot.ts` and `text.ts`: snapshot types, keys, validation and findings, and a captured label's text | The engine |
+| Explain core | `explain/`: `view.ts`, `state.ts`, `machine.ts`, `choreograph.ts` (views, machines and state); `look.ts`, `palettes.ts`, `layout-direction.ts` (the look); `words.ts`, `trace.ts`, `script.ts`, `claims.ts`, `caption-looks.ts` (words); `settings.ts`, `intent.ts`, `mermaid.ts`, `audio.ts`, `score.ts` | The engine and diagram replay |
+| Diagrams and panels | `explain/diagrams.ts`, `explain/panels.ts` | The core, diagram replay and the engine |
+| Drawing kit | `explain/drawing.ts`, `explain/annotate.ts`, `explain/geo.ts`, `explain/seen-from.ts` | Diagrams and panels, the core and the engine |
+| Stage | `explain/stage.ts`, and `explain/index.ts`, the `rayner/explain` entry point | Every layer above |
+| Author tooling | `explain/describe.ts`, `explain/project.ts`, `explain/testing.ts` (with the engine's half, `src/testing.ts`) | The library |
+| Player | `app/` | The library |
+| Command and tools | `tools/` (the command, `rayner-cli`), `integrations/agentic-mermaid/build/` (diagram capture, which the command runs), `tools/repo/` (repository only) | Anything; the command imports nothing repository-only |
+
+An entry point re-exports from its own layer and the layers under it. The library (the first seven layers) imports no package and no Node module, which is how `rayner` has no dependencies and runs in a page; `loadProject` and `loadSnapshots` in `rayner/testing` read files through `process.getBuiltinModule` when they are called, so they alone need Node. The player imports only the library. Diagram replay sits under the explain core, not beside the command: the core's settings bind snapshots through it, the diagrams and the stage read its snapshot types, and what the page replays needs nothing from capture. `test/layers.test.ts` holds these rules for the engine, diagram replay, every module under `explain/` (each is placed in one layer, so a new module must be placed) and the player. `test/package-boundary.test.ts` holds the command to its bundle and the library to its entry points, and `test/scene-imports.test.ts` holds scenes to the entry points.
+
+Where the code departs from the stack:
+
+- **The kit names the stage's type.** Each kit function takes the stage `s` first, to read its colours and text shaping, so `drawing.ts` imports the `Stage` type. Its values come only from the core and the engine; the test allows that one type import and no other. The stage draws its own annotations (`s.callout`, `s.dimension`, `s.pin`, `s.legend`) with `annotate.ts`, the module the kit's `callout`, `dimension`, `pin` and `legend` are drawn with, rather than by calling the kit's functions.
+- **The core's colour type is in diagram replay.** `Palette` is declared in `integrations/agentic-mermaid/snapshot.ts`, which the look, the palettes and the panels import it from.
+- **The engine carries explanation concepts.** `src/scene.ts` holds a step's `kind` (`StepKind`: short, main, detail), its title, line and caption in `StepMeta`, the caption-reading hold (`Scene.captionWpm`), `scene.shown`, and the describers (`describe`, `describeShown`, `addDescriber`). These belong to the explainer layer; they are recorded here and not yet moved.
+- **The player and the command import modules, not entry points.** `app/` reads `explain/stage.ts`, `words.ts`, `look.ts`, `machine.ts` and `trace.ts` directly, and the command reaches the library's compiled modules by its private specifier ([public names](#public-names)). Both are above the library, so the direction holds, but those modules' exports are an interface the player depends on.
+
 ## What belongs in Rayner
 
 Sort a feature request with one question: does it check, ground or publish the result, or does it do work a capable author would do anyway?

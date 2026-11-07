@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
+import { pictureWordsAt } from '../../../explain/testing.ts';
 import type { Trace } from '../../../explain/testing.ts';
-import { pictureHtml } from '../../../explain/trace.ts';
 import { assertStepState } from '../../../test/lib/explainer-state.ts';
-import { textOf } from '../../../test/lib/fidelity.ts';
 import type { FidelityRun } from '../../../test/lib/fidelity.ts';
 
 /** Each authored scenario's steps against the program the explainer explains. */
@@ -21,7 +20,7 @@ export async function check(trace: Trace, values: Record<string, string>, { scen
     hit: { wrong: { edge: 'edge:A->C#0', node: 'Database' }, right: { edge: 'edge:A->B#0', node: 'Reply' } },
   });
   {
-    const shown = textOf(pictureHtml(trace.steps.find((s) => s.step === 'meaning')!.shown)).replace(/\s+/g, ' ');
+    const shown = pictureWordsAt(trace, 'meaning').full.replace(/\s+/g, ' ');
     for (const heading of ['1: yes to Database;', '1: yes to Reply;']) assert.ok(shown.includes(heading), shown);
     const body = '2: ok: true; 3: warnings: 0';
     assert.equal(shown.split(body).length - 1, 2, shown);
