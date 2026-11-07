@@ -90,19 +90,19 @@ export default class CacheMRExplainer extends Scene {
     });
     await s.clear();
     const flow = await s.show({ source: BEFORE }, { box: 'top' });
-    // What the flow diagram shows besides its source is state: the hops walked, its notes and what
-    // stays undimmed. Its view draws them, and each change is the state changed and the view synced.
+    // How the flow diagram is shown, apart from its source: the hops walked, its notes and what stays
+    // undimmed. That is `shown`, not the model; its view draws it, and each change is a sync.
     type FlowState = { walked: [string, string][]; notes: { id: string; text: string; side: NoteSide }[]; dim: string[] | null };
-    const flowState = () => this.state.flow as FlowState;
-    const drawFlow = (st: object) => {
-      const f = (st as { flow: FlowState }).flow;
+    const flowState = () => this.shown.flow as FlowState;
+    const drawFlow = (_st: object, sh: object) => {
+      const f = (sh as { flow: FlowState }).flow;
       return { marks: flow.trail(f.walked), notes: f.notes, dim: f.dim };
     };
     const showFlow = async (change: Partial<FlowState>, runTime = 0.45) => {
-      this.state.flow = { ...flowState(), ...change };
+      this.shown.flow = { ...flowState(), ...change };
       await this.play(flowView.sync({ match: 'key', staged: true, runTime }));
     };
-    this.state.flow = { walked: [], notes: [], dim: null } satisfies FlowState;
+    this.shown.flow = { walked: [], notes: [], dim: null } satisfies FlowState;
     let flowView = s.diagramView(flow, drawFlow);
     const colors = s.palette,
       hot = s.emphasis;
