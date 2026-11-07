@@ -1,6 +1,8 @@
 import { Scene } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
-import { stage, settingsOf, Card, mermaid, answerOf, view } from '../../../explain/index.ts';
+import { stage, settingsOf, Card, CodeBlock, mermaid, answerOf, view } from '../../../explain/index.ts';
+import type { Diagram, View } from '../../../explain/index.ts';
+import { wordsOf } from '../../../explain/words.ts';
 import { stagedStep } from '../../../explain/index.ts';
 import { SAMPLE_FEED } from './feed.ts';
 import {
@@ -170,6 +172,20 @@ export default class GtfsExplainer extends Scene {
       await s.enter(view(this, (st) => drawColumn(rows(st), { ink: s.palette.ink, emphasis: s.emphasis }), { place: false }));
     };
 
+    // The ER diagram's marked joins are how it is shown, not the model: they live in `shown`, and a
+    // diagram is shown by a view that marks the links `shown` names, in its accent, said by its word
+    // (a mark's own word when it names none). A focus moves the live diagram, so the marks leave
+    // `shown`, the live diagram is moved, and the view comes back.
+    type ErMarks = { marked: string[]; as: string | null };
+    const drawEr = (d: Diagram) => (_st: object, sh: Record<string, unknown>) => {
+      const { marked, as } = sh.er as ErMarks;
+      return { marks: Object.fromEntries(marked.map((id) => [id, { color: d.accent, as: as ?? wordsOf(this).marked }])) };
+    };
+    const markEr = async (v: View, marks: ErMarks) => {
+      this.shown.er = marks;
+      await this.play(v.sync({ match: 'key', staged: true }));
+    };
+
     // ------------------------------------------------------------------ day-before
     const tripsToday = tripsOn(FEED, date);
     const was = tripsOn(FEED, before);
@@ -233,7 +249,9 @@ export default class GtfsExplainer extends Scene {
     const er = await s.show({ source: ER }, { box: LEFT });
     // The calendar the trip's service_id points to is in view too, whole, for the next step.
     await er.focus(['entity:ROUTE', 'entity:TRIP', 'entity:CALENDAR'], { zoom: ZOOM });
-    await er.mark(['rel:ROUTE-TRIP#0']);
+    this.shown.er = { marked: [], as: null } satisfies ErMarks;
+    let erView = s.diagramView(er, drawEr(er));
+    await markEr(erView, { marked: ['rel:ROUTE-TRIP#0'], as: null });
     // `ab1`: the trip the column follows, as trips.txt has it.
     this.state.tripsByRoute = Object.fromEntries(tripsByRoute);
     this.state.ab1 = { route_id: ab1Row.route_id, service_id: ab1Row.service_id };
@@ -274,9 +292,11 @@ export default class GtfsExplainer extends Scene {
         .join(', and ')}.`,
     });
     await s.clearOverlays();
-    await er.unmark();
+    await markEr(erView, { marked: [], as: null });
+    s.liveDiagram(er);
     await er.focus(['entity:CALENDAR', 'entity:CALENDAR_DATE', 'entity:TRIP'], { zoom: ZOOM });
-    await er.mark(['rel:CALENDAR-TRIP#0', 'rel:CALENDAR_DATE-TRIP#0'], { as: 'either table' });
+    erView = s.diagramView(er, drawEr(er));
+    await markEr(erView, { marked: ['rel:CALENDAR-TRIP#0', 'rel:CALENDAR_DATE-TRIP#0'], as: 'either table' });
     this.state.services = services;
     await column((st) => (st.services as typeof services).flatMap((x) => [{ head: `${x.id}, ${x.trips} trips` }, `In ${where(x)}`]));
 
@@ -306,15 +326,31 @@ export default class GtfsExplainer extends Scene {
     await s.clear();
     const calendar = SAMPLE_FEED['calendar.txt']!.split('\n'),
       exceptions = SAMPLE_FEED['calendar_dates.txt']!.split('\n');
-    const code = await s.code(['# calendar.txt', ...calendar, '# calendar_dates.txt', ...exceptions], {
-      at: [-7.55, -0.6, 7.55, 3.1],
-      fontSize: 0.2,
-    });
-    // Mark the rows that decide: the exception if one applies, else the weekly rows.
+    // The two tables as a panel drawn from a view: the rows in focus, which are how the panel is shown
+    // and live in `shown`, are the ones that decide, the exception if one applies, else the weekly rows.
+    type TablesFocus = { lines: number | [number, number]; as: string } | null;
+    this.shown.tablesFocus = null satisfies TablesFocus;
+    const tables = view(
+      this,
+      (_st, sh) => {
+        const focus = sh.tablesFocus as TablesFocus;
+        return new CodeBlock(this, s.palette, ['# calendar.txt', ...calendar, '# calendar_dates.txt', ...exceptions], {
+          at: [-7.55, -0.6, 7.55, 3.1],
+          fontSize: 0.2,
+          focus: focus?.lines ?? null,
+          ...(focus ? { focusAs: focus.as } : {}),
+          key: 'tables',
+        });
+      },
+      { place: false },
+    );
+    await s.enter(tables, { runTime: 0.4 });
     const exceptionLine = 1 + calendar.length + 1 + exceptions.findIndex((l) => l.split(',')[1] === date);
-    await code.focus(removed.length ? exceptionLine : [2, calendar.length], {
+    this.shown.tablesFocus = {
+      lines: removed.length ? exceptionLine : [2, calendar.length],
       as: removed.length ? 'applies on this date' : 'decides this date',
-    });
+    } satisfies TablesFocus;
+    await this.play(tables.sync({ match: 'key', staged: true }));
     this.state.today = today;
     // Each service's verdict for the date, and the trips that run: the date and trips are the day step's, still in the state.
     const verdicts = view(
@@ -390,7 +426,9 @@ export default class GtfsExplainer extends Scene {
     await s.clear();
     const er2 = await s.show({ source: ER }, { box: LEFT });
     await er2.focus(['entity:TRIP', 'entity:STOP_TIME', 'entity:STOP', 'entity:FREQUENCY'], { zoom: ZOOM });
-    await er2.mark(['rel:TRIP-STOP_TIME#0', 'rel:STOP-STOP_TIME#0']);
+    this.shown.er = { marked: [], as: null } satisfies ErMarks;
+    const er2View = s.diagramView(er2, drawEr(er2));
+    await markEr(er2View, { marked: ['rel:TRIP-STOP_TIME#0', 'rel:STOP-STOP_TIME#0'], as: null });
     // `bands`: the frequencies.txt rows of the two repeating trips, which the column gives as headways.
     this.state.stopTimes = {
       AB1: ab1.map((r) => [r.stop_id, r.arrival_time, r.departure_time]),
