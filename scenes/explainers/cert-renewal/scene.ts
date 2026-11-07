@@ -1,6 +1,6 @@
 import { Scene, Text, FadeOut } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, answerOf, view } from '../../../explain/index.ts';
-import type { CardOptions, CardRow } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, Card, CodeBlock, answerOf, view } from '../../../explain/index.ts';
+import type { CardOptions, CardRow, Diagram, NoteSide } from '../../../explain/index.ts';
 import {
   BACKDATE,
   BR_PHASES,
@@ -206,6 +206,28 @@ export default class CertRenewalExplainer extends Scene {
       await s.enter(v, { runTime: 0.35, shift: [0, -0.08] });
       return v;
     };
+    // How a diagram is shown, apart from its source: the parts marked as the chosen rule, its notes and
+    // what stays undimmed. That is `shown`, not the model; each diagram's view draws its own entry there.
+    type DiagramShown = { marked: string[]; notes: { id: string; text: string; side: NoteSide }[]; dim: string[] | null };
+    const plain: DiagramShown = { marked: [], notes: [], dim: null };
+    const diagramOf = (d: Diagram, name: string) => {
+      this.shown[name] = plain;
+      const v = s.diagramView(d, (_st, sh) => {
+        const f = sh[name] as DiagramShown;
+        return {
+          marks: Object.fromEntries(f.marked.map((id) => [id, { color: d.accent, as: 'the chosen rule' }])),
+          notes: f.notes,
+          dim: f.dim,
+        };
+      });
+      return {
+        view: v,
+        show: async (change: Partial<DiagramShown>) => {
+          this.shown[name] = { ...(this.shown[name] as DiagramShown), ...change };
+          await this.play(v.sync({ match: 'key', staged: true }));
+        },
+      };
+    };
     const mine = summarize(rule, key),
       theirs = summarize(other, key),
       byRule = { [rule]: mine, [other]: theirs } as Record<Rule, typeof mine>;
@@ -232,7 +254,7 @@ export default class CertRenewalExplainer extends Scene {
         'The same timeline, edited to Let’s Encrypt’s schedule. The opt-in tlsserver profile has issued 45-day certificates since May 2026; the default classic profile moves from 90 days to 64 in February 2027 and to 45 in February 2028. Its opt-in shortlived profile issues 160-hour certificates.',
     });
     await line.morph({ source: LE_SOURCE }, { ops: LE_OPS });
-    await line.dim(['period:period-2']);
+    await diagramOf(line, 'timeline').show({ dim: ['period:period-2'] });
     this.state.letsEncrypt = LE_DATES.map((d) => [d.date, d.profile, d.days]);
 
     // --------------------------------------------------------------- old-rule
@@ -259,9 +281,12 @@ export default class CertRenewalExplainer extends Scene {
     });
     await s.clear();
     const chart = await s.show({ source: oneRenewal }, { box: regionBox('top', { bottom: -0.25 }) });
+    // Still live: a CodeBlock drawn in a view cannot yet rest where code.morph leaves NEW_CODE (the panel's
+    // top and width kept, the code shrunk to the region's height), so this panel keeps focus and morph for now.
     const code = await s.code(OLD_CODE, { at: regionBox('full', { top: -0.35 }), fontSize: 0.2 });
     await code.focus([2, 3]);
-    await chart.note('task:c2', `replaced at day ${days(ninety.renewsAt)}`, { side: 'right' });
+    const chartView = diagramOf(chart, 'chart');
+    await chartView.show({ notes: [{ id: 'task:c2', text: `replaced at day ${days(ninety.renewsAt)}`, side: 'right' }] });
     this.state.oldRule = { due: ninety.due, renewsAt: ninety.renewsAt };
 
     // ----------------------------------------------------------------- margin
@@ -295,7 +320,10 @@ export default class CertRenewalExplainer extends Scene {
             : `A ${named(key)} falls due at day ${days(fixedHere.due)}, with ${lifeLeft(fixedHere.share)} of its life left.`
       }`,
     });
-    await chart.hide();
+    // The chart and its note fade out together, as hide faded them.
+    await this.play(new FadeOut(chartView.view, { runTime: 0.4 }));
+    chart.forget();
+    this.shown.chart = plain;
     await code.focus([7, 8]);
     // The rows' state first: the picture is a view of it.
     this.state.margin = {
@@ -355,7 +383,7 @@ export default class CertRenewalExplainer extends Scene {
     await code.morph(NEW_CODE);
     await code.focus([6, 9]);
     // Each replacement's row names its rule and when it starts; the chosen rule's row is marked.
-    await replaced.mark([`task:${rule}`], { as: 'the chosen rule' });
+    await diagramOf(replaced, 'replaced').show({ marked: [`task:${rule}`] });
     this.state.newRule = {
       lifetime: key,
       fixed30: { due: byRule.fixed30.due, renewsAt: byRule.fixed30.renewsAt },
@@ -498,7 +526,7 @@ export default class CertRenewalExplainer extends Scene {
       '%d %b',
     );
     const margin = await s.show({ source: windows }, { box: 'full' });
-    await margin.mark([`task:${rule}`], { as: 'the chosen rule' });
+    await diagramOf(margin, 'retry').show({ marked: [`task:${rule}`] });
     // Each retry window says what it leaves, just left of its bar, in the row it belongs to.
     // A task's first child is its bar; its row label travels with it.
     const bar = (r: Rule) => margin.get(`task:${r}`).children[0]!.box()!;
@@ -595,8 +623,24 @@ export default class CertRenewalExplainer extends Scene {
       }`,
     });
     await s.clear();
-    const ariCode = await s.code(ARI_CODE, { at: regionBox('full', { bottom: -1.0 }), fontSize: 0.22 });
-    await ariCode.focus(settingFirst ? [10, 12] : [4, 9], { as: settingFirst ? 'the setting first' : 'a fresh draw' });
+    // The ARI code is a view; its focused lines, and what the description calls them, are in `shown`.
+    type AriFocus = { lines: [number, number]; as: string };
+    this.shown.ariFocus = (settingFirst ? { lines: [10, 12], as: 'the setting first' } : { lines: [4, 9], as: 'a fresh draw' }) satisfies AriFocus;
+    const ariCode = view(
+      this,
+      (_st, sh) => {
+        const f = sh.ariFocus as AriFocus;
+        return new CodeBlock(this, s.palette, ARI_CODE, {
+          at: regionBox('full', { bottom: -1.0 }),
+          fontSize: 0.22,
+          focus: f.lines,
+          focusAs: f.as,
+          key: 'ari',
+        });
+      },
+      { place: false },
+    );
+    await s.enter(ariCode, { runTime: 0.4 });
     this.state.ari = {
       start: ari.start,
       end: ari.end,
