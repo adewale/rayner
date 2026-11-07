@@ -5,6 +5,7 @@ import type {TextShaping} from '../src/text-context.ts';
 import { Group, Line, Circle, Rectangle, Polygon, Text, Create, VMobject } from '../src/index.ts';
 import type { Mobject, Vec, Box } from '../src/index.ts';
 import { center, overlaps, pointsBox } from '../src/box.ts';
+import { paintsFill } from '../src/mobject.ts';
 import { selfDescribed } from './look.ts';
 
 const paperFor = (text: Text, fill: string): Rectangle => new Rectangle({
@@ -253,7 +254,7 @@ export class Draw extends Create {
 export function oneStrokeEach(m: Mobject): Mobject {
   const split = (v: VMobject): Mobject | null => {
     if (v.subpaths.length < 2) return null;
-    const filled = v.style.fill !== 'none' && (v.style.fillOpacity ?? 1) > 0;
+    const filled = paintsFill(v.style);
     const clusters: number[][] = [];
     const boxes = v.subpaths.map((a) => pointsBox([a]));
     for (let i = 0; i < boxes.length; i++) {

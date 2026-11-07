@@ -17,6 +17,7 @@ import {
 import { MoveAlongPath } from '../src/animation.ts';
 import type { Scene, Mobject, Box, Vec, Style, PathFunc } from '../src/index.ts';
 import { center, unionBoxes } from '../src/box.ts';
+import { paintsFill } from '../src/mobject.ts';
 import { STAGE_BOX, atHome } from '../src/svg.ts';
 import { regionBox, boxCenter, raised, emphasis, dimOpacity, emphasises, selfDescribed } from './look.ts';
 import type { Region } from './look.ts';
@@ -885,12 +886,14 @@ export class Diagram {
         const paper = parseColor(this.snapshot.palette.paper);
         const hollow = marker && parseColor(st.fill)?.every((v, i) => v === paper?.[i]);
         if (color && !owned && !text) {
+          // Any stroke with a width takes the mark, whatever its opacity now (not paintsStroke):
+          // a mark recolours the outline the part has, shown or not.
           if (st.stroke && st.stroke !== 'none' && (st.strokeWidth ?? 0) > 0) {
             st.stroke = color;
             st.strokeWidth = (st.strokeWidth ?? 0) * 1.8;
           }
-          if (st.fill && st.fill !== 'none' && (st.fillOpacity ?? 1) > 0 && !hollow) {
-            st.fill = connector ? color : lerpColor(st.fill, color, 0.2);
+          if (paintsFill(st) && !hollow) {
+            st.fill = connector ? color : lerpColor(st.fill!, color, 0.2);
             // A shape drawn by fill alone (a bar, a task) gains an outline: the mark shows by shape, not only hue.
             if (!connector && !(st.stroke && st.stroke !== 'none' && (st.strokeWidth ?? 0) > 0)) {
               Object.assign(st, { stroke: color, strokeOpacity: 1, strokeWidth: 0.04 * this.zoom });

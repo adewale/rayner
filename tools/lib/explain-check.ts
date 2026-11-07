@@ -23,6 +23,7 @@ import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
 import { closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '../../app/embed-closeup.ts';
 import type { Box, Mobject, Scene, Sink, Step } from '../../src/index.ts';
 import { contains, intersect, nonempty, overlaps } from '../../src/box.ts';
+import { paints } from '../../src/mobject.ts';
 import { STAGE_BOX, atHome, viewOf } from '../../src/svg.ts';
 import type { Project } from './explain-project.ts';
 import { pageFaces, letteringReport, useProjectLettering } from './explain-lettering.ts';
@@ -121,15 +122,8 @@ export function restingTextProblems(scene: Viewed): string[] {
   const visible = (m: Mobject) => {
     for (let a: Mobject | null = m; a; a = a.parent) if ((a.style.opacity ?? 1) < 0.5) return false;
     // Text is drawn by the fill (and any stroke) of its paths: with neither it shows nothing.
-    // A group's own paint is never drawn, so look at the paths it holds.
-    const painted = (x: Mobject) =>
-      (x.style.opacity ?? 1) >= 0.5 &&
-      ((!!x.style.fill && x.style.fill !== 'none' && (x.style.fillOpacity ?? 1) >= 0.5) ||
-        (!!x.style.stroke &&
-          x.style.stroke !== 'none' &&
-          (x.style.strokeOpacity ?? 1) >= 0.5 &&
-          (x.style.strokeWidth ?? 0) > 0));
-    return m.family().some((x) => !x.children.length && painted(x));
+    // A group's own paint is never drawn, so look at the paths it holds. Legible, not merely present: half opacity at least.
+    return m.family().some((x) => !x.children.length && (x.style.opacity ?? 1) >= 0.5 && paints(x.style, { min: 0.5 }));
   };
   const seen = new Set<Mobject>();
   for (const m of scene.familyMembers()) {

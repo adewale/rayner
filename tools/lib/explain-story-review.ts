@@ -7,6 +7,7 @@ import type { Page } from 'playwright-core';
 import { VMobject } from '../../src/index.ts';
 import { renderElements } from '../../src/output.ts';
 import { intersect, nonempty, pad, pointsBox, unionBoxes } from '../../src/box.ts';
+import { paints } from '../../src/mobject.ts';
 import type { Scene, SceneClass, Mobject } from '../../src/index.ts';
 import type { ElementRecord } from '../../src/output.ts';
 import { emphasisOf, newlyEmphasised } from '../../explain/look.ts';
@@ -336,8 +337,7 @@ export async function storyFrame(
           assert.ok(
             glyph.style.opacity > 0.01 &&
               (glyph.style.drawFraction ?? 1) >= 0.95 &&
-              ((glyph.style.fill !== 'none' && glyph.style.fillOpacity > 0) ||
-                (glyph.style.stroke !== 'none' && glyph.style.strokeWidth > 0 && glyph.style.strokeOpacity > 0)),
+              paints(glyph.style),
             `${name}: ${name} has missing glyph ink`,
           );
           const b = glyph.box()!;

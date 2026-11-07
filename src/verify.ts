@@ -25,6 +25,7 @@
 import { VMobject } from './vmobject.ts';
 import { copiedFrom } from './animation.ts';
 import type { Box, HasText, Mobject } from './mobject.ts';
+import { paintsFill, paintsStroke } from './mobject.ts';
 import type { Scene, Sink, Step } from './scene.ts';
 import { FRAME } from './svg.ts';
 import { pad } from './box.ts';
@@ -74,7 +75,7 @@ function alphaOf(m: Mobject): number {
 /** Which paints show: f(ill), s(troke). */
 function paintsOf(m: Mobject): string {
   const s = m.style;
-  return (s.fill !== 'none' && s.fillOpacity > 0 ? 'f' : '') + (s.stroke !== 'none' && s.strokeOpacity > 0 && s.strokeWidth > 0 ? 's' : '');
+  return (paintsFill(s) ? 'f' : '') + (paintsStroke(s) ? 's' : '');
 }
 /** Each shown part's shape and paints, position and size aside: equal for a copy and its source. */
 function lookOf(m: Mobject, unit: boolean): string[] {

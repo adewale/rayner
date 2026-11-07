@@ -22,6 +22,7 @@
  */
 import type { Box, Mobject, Scene, SceneClass, Sink } from '../src/index.ts';
 import { center, intersect, overlaps, pad, unionBoxes } from '../src/box.ts';
+import { paints, paintsStroke } from '../src/mobject.ts';
 import { STAGE_BOX, viewOf } from '../src/svg.ts';
 import { labelOf, readingLabelSize } from '../explain/diagrams.ts';
 import { emphasisOf, newlyEmphasised, openingOf } from '../explain/look.ts';
@@ -121,9 +122,6 @@ function hashShape(m: Mobject, box: Box): string {
     }
   return (h >>> 0).toString(36);
 }
-const painted = (m: Mobject) =>
-  (m.style.fill !== 'none' && (m.style.fillOpacity ?? 1) > 0) ||
-  (m.style.stroke !== 'none' && (m.style.strokeOpacity ?? 1) > 0 && (m.style.strokeWidth ?? 0) > 0);
 
 /** The paper and the heading frame every step; the heading changes each step but says nothing about where to look. */
 const fixed = (m: Mobject) => m.role === 'paper' || isHeading(m);
@@ -158,9 +156,9 @@ function leavesOf(scene: Scene, fresh: ReadonlySet<Mobject> = new Set()): Leaf[]
       const geometry = m.box(), style = m.style;
       // Keep geometry for label relevance and painted bounds for coverage.
       // A stroke near an unrelated label must not make that label set the zoom.
-      const half = style.stroke !== 'none' && style.strokeOpacity > 0 && style.strokeWidth > 0 ? style.strokeWidth / 2 : 0;
+      const half = paintsStroke(style) ? style.strokeWidth / 2 : 0;
       const bounds: Box | null = geometry ? pad(geometry, half) : null;
-      const seen = bounds && painted(m) && (m.style.drawFraction ?? 1) > 0.05 ? meet(bounds, c) : null;
+      const seen = bounds && paints(style) && (m.style.drawFraction ?? 1) > 0.05 ? meet(bounds, c) : null;
       if (seen) {
         const s = m.style;
         const key = [

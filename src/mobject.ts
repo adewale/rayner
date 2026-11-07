@@ -43,6 +43,27 @@ export interface Style extends SvgPaint {
 /** A mobject's resolved style: every field set except the transient drawFraction. */
 export type StyleRecord = Required<Omit<Style, keyof SvgPaint | 'drawFraction'>> & Pick<Style, keyof SvgPaint | 'drawFraction'>;
 
+/**
+ * Whether a style's fill shows: a paint other than none, at an opacity above zero and at
+ * least `min`. An unset fill paints nothing; an unset opacity is 1. The style's own
+ * `opacity` (and its parents') is the caller's to weigh.
+ */
+export function paintsFill(style: Style, { min = 0 }: { min?: number } = {}): boolean {
+  const o = style.fillOpacity ?? 1;
+  return !!style.fill && style.fill !== 'none' && o > 0 && o >= min;
+}
+/** Whether a style's stroke shows: as paintsFill, and with a width above zero (unset is 0). */
+export function paintsStroke(style: Style, { min = 0 }: { min?: number } = {}): boolean {
+  const o = style.strokeOpacity ?? 1;
+  return !!style.stroke && style.stroke !== 'none' && (style.strokeWidth ?? 0) > 0 && o > 0 && o >= min;
+}
+/**
+ * Whether a style paints anything: its fill or its stroke shows (paintsFill, paintsStroke).
+ * `min` is the least paint opacity that counts: 0 asks whether anything is there at all,
+ * a higher one whether it is there strongly enough to read.
+ */
+export const paints = (style: Style, opts: { min?: number } = {}): boolean => paintsFill(style, opts) || paintsStroke(style, opts);
+
 const DEFAULT_STYLE: StyleRecord = {
   fill: 'none',
   fillOpacity: 1,
