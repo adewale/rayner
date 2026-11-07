@@ -58,7 +58,7 @@ abstract class AnimationTiming {
   constructor({runTime = 1, rateFunc = smooth, lagRatio = 0, remover = false}: AnimOpts = {}) {
     this.runTime = runTime; this.rateFunc = rateFunc; this.lagRatio = lagRatio; this.remover = remover;
   }
-  setOptions({ runTime, rateFunc, lagRatio }: PlayOpts = {}): this {
+  /** @internal */ setOptions({ runTime, rateFunc, lagRatio }: PlayOpts = {}): this {
     if (runTime != null) this.runTime = runTime;
     if (rateFunc != null) this.rateFunc = rateFunc;
     if (lagRatio != null) this.lagRatio = lagRatio;
@@ -84,7 +84,7 @@ abstract class AnimationTiming {
    * every one among its animations, a group's members included, before it begins any of them:
    * rayner/explain's `s.show` and `d.morph` read a diagram's layout first.
    */
-  ready(): Promise<unknown> | null { return null; }
+  /** @internal */ ready(): Promise<unknown> | null { return null; }
 }
 
 /**
@@ -103,14 +103,15 @@ export type ScheduledAnimation = Animation | AnimationGroup;
 
 export class Animation extends AnimationTiming {
   mobject: Mobject;
-  starting!: Mobject;
+  /** @internal */ starting!: Mobject;
   families!: FamilyRow[];
-  slots!: { index: Int32Array; count: number };
+  /** @internal */ slots!: { index: Int32Array; count: number };
   constructor(mobject: Mobject, opts: AnimOpts = {}) { super(opts); this.mobject = mobject; }
   override targets(): Mobject[] { return [this.mobject]; }
   /**
    * What takes the scene's colours before this begins (see Mobject.defaultColors): what it draws,
    * and what it morphs toward, so both endpoints are fixed in the scene's colours.
+   * @internal
    */
   paints(): Mobject[] { return this.targets(); }
   /** Called when play starts. Copies live here, never in the constructor. */
@@ -123,10 +124,10 @@ export class Animation extends AnimationTiming {
 
   protected createStartingMobject(): Mobject { return this.mobject.copy(); }
 
-  /** The mobjects whose families are zipped as arguments to interpolateSubmobject. */
+  /** The mobjects whose families are zipped as arguments to interpolateSubmobject. @internal */
   allMobjects(): Mobject[] { return [this.mobject, this.starting]; }
 
-  zipFamilies(): FamilyRow[] {
+  /** @internal */ zipFamilies(): FamilyRow[] {
     const fams = this.allMobjects().map((m) => m.family());
     // Aligned families: every one is as long as the first
     return fams[0]!.map((_, i) => fams.map((f) => f[i]!));
@@ -151,7 +152,7 @@ export class Animation extends AnimationTiming {
     this.mobject.invalidateBox();
   }
 
-  /** Stagger alpha across submobjects by lagRatio (manim's get_sub_alpha). */
+  /** Stagger alpha across submobjects by lagRatio (manim's get_sub_alpha). @internal */
   subAlpha(alpha: number, index: number, count: number): number {
     const lag = this.lagRatio;
     if (lag === 0) return alpha;
@@ -167,7 +168,7 @@ export class Animation extends AnimationTiming {
    * One family row at `alpha`: called as (sub, start, alpha), or
    * (sub, start, target, alpha) for a Transform; see allMobjects().
    */
-  interpolateSubmobject(..._row: [...FamilyRow, number]): void {}
+  protected interpolateSubmobject(..._row: [...FamilyRow, number]): void {}
 }
 
 /** A path's structure: its subpaths and their closed flags. */
@@ -181,13 +182,13 @@ export interface TransformOpts extends AnimOpts {
 /** Blend `mobject` into `target`. With replace=true, the scene keeps `target` afterwards. */
 export class Transform extends Animation {
   target: Mobject;
-  pathFunc: PathFunc | null;
+  /** @internal */ pathFunc: PathFunc | null;
   replace: boolean;
-  /** The target was built for this animation alone, so begin() may use it without copying. */
+  /** The target was built for this animation alone, so begin() may use it without copying. @internal */
   ownsTarget: boolean;
-  /** The target is a copy of the mobject: same structure, no alignment needed. */
+  /** The target is a copy of the mobject: same structure, no alignment needed. @internal */
   sameStructure: boolean;
-  /** Set by begin(). */
+  /** Set by begin(). @internal */
   targetCopy!: Mobject;
   /** Path structure of the mobject and target families before alignment, restored on landing. */
   private shapes: WeakMap<Mobject, PathShape> | null = null;
@@ -201,7 +202,7 @@ export class Transform extends Animation {
     this.sameStructure = false;
   }
 
-  override paints(): Mobject[] { return [this.mobject, this.target]; }
+  /** @internal */ override paints(): Mobject[] { return [this.mobject, this.target]; }
 
   override begin(): void {
     // An animation that built its own target (FadeIn, .animate) hands it
@@ -266,9 +267,9 @@ export class Transform extends Animation {
     this.mobject.invalidateBox();
   }
 
-  override allMobjects(): Mobject[] { return [this.mobject, this.starting, this.targetCopy]; }
+  /** @internal */ override allMobjects(): Mobject[] { return [this.mobject, this.starting, this.targetCopy]; }
 
-  override interpolateSubmobject(sub: Mobject, start: Mobject, target: Mobject, alpha: number): void {
+  protected override interpolateSubmobject(sub: Mobject, start: Mobject, target: Mobject, alpha: number): void {
     sub.interpolate(start, target, alpha, this.pathFunc);
   }
 
@@ -289,9 +290,9 @@ function fromAnimateBuilder(builder: AnimateBuilderBase, opts: TransformOpts = {
 export interface FadeOpts extends TransformOpts { shift?: Vec | null; scale?: number }
 
 export class FadeIn extends Transform {
-  shiftVec: Vec | null;
-  scaleFrom: number;
-  mobjectStart!: Mobject;
+  /** @internal */ shiftVec: Vec | null;
+  /** @internal */ scaleFrom: number;
+  /** @internal */ mobjectStart!: Mobject;
 
   constructor(mobject: Mobject, { shift = null, scale = 1, ...opts }: FadeOpts = {}) {
     super(mobject, mobject, opts);
@@ -311,8 +312,8 @@ export class FadeIn extends Transform {
 }
 
 export class FadeOut extends Transform {
-  shiftVec: Vec | null;
-  scaleTo: number;
+  /** @internal */ shiftVec: Vec | null;
+  /** @internal */ scaleTo: number;
 
   constructor(mobject: Mobject, { shift = null, scale = 1, ...opts }: FadeOpts = {}) {
     super(mobject, mobject, { remover: true, ...opts });
@@ -344,7 +345,7 @@ export interface GrowFromEdgeOpts extends AnimOpts {
 /** Fade in while expanding along one axis from a fixed cardinal edge. */
 export class GrowFromEdge extends FadeIn {
   readonly edge: Vec;
-  readonly axis: 0 | 1;
+  /** @internal */ readonly axis: 0 | 1;
   readonly initialScale: number;
 
   constructor(mobject: Mobject, edge: Readonly<Vec> = [0, -1], { initialScale = 0.001, ...opts }: GrowFromEdgeOpts = {}) {
@@ -370,7 +371,7 @@ export class GrowFromEdge extends FadeIn {
  * pops in over a few frames.
  */
 export class Create extends Animation {
-  borderWidth: number;
+  /** @internal */ borderWidth: number;
   /** The border was left to the default, so it follows the size of the text it outlines. */
   private autoBorder: boolean;
 
@@ -379,7 +380,7 @@ export class Create extends Animation {
     this.borderWidth = borderWidth ?? Create.BORDER;
     this.autoBorder = borderWidth == null;
   }
-  /** The default border, sized for text at the default font size (0.4). */
+  /** The default border, sized for text at the default font size (0.4). @internal */
   static BORDER = 0.012;
   /** Per-row border widths, fixed at begin(): a glyph's border scales with its text's current size. */
   private borders = new Map<Mobject, number>();
@@ -398,7 +399,7 @@ export class Create extends Animation {
     }
     return w;
   }
-  override interpolateSubmobject(sub: Mobject, start: Mobject, alpha: number): void {
+  protected override interpolateSubmobject(sub: Mobject, start: Mobject, alpha: number): void {
     const s0 = start.style, s = sub.style;
     // Exactly 1 once drawn: (1 - 0.66) / 0.34 is 0.9999999999999999, which would leave the fill a hair short
     const fill = alpha >= 1 ? 1 : clip((alpha - 0.66) / 0.34, 0, 1);
@@ -432,9 +433,9 @@ export class Write extends Create {
 
 /** Run several animations together; lagRatio staggers their start times. */
 export class AnimationGroup extends AnimationTiming {
-  animations: ScheduledAnimation[];
-  timings!: Array<[start: number, end: number]>;
-  maxEnd!: number;
+  /** @internal */ animations: ScheduledAnimation[];
+  /** @internal */ timings!: Array<[start: number, end: number]>;
+  /** @internal */ maxEnd!: number;
 
   constructor(animations: ScheduledAnimation[], { lagRatio = 0, rateFunc = linear, ...opts }: AnimOpts = {}) {
     super({ lagRatio, rateFunc, ...opts });
@@ -456,7 +457,7 @@ export class AnimationGroup extends AnimationTiming {
     });
     this.maxEnd = end;
   }
-  /** A lagRatio given to play() re-staggers the members, as one given to the constructor does. */
+  /** A lagRatio given to play() re-staggers the members, as one given to the constructor does. @internal */
   override setOptions(opts: PlayOpts = {}): this {
     super.setOptions(opts);
     if (opts.runTime != null) this.ownRunTime = true;
@@ -571,7 +572,7 @@ export class MoveAlongPath extends Animation {
 
 /** Travel along a fixed route while fading in and out; remove the token by default. */
 export class PulseAlongPath extends MoveAlongPath {
-  readonly sourcePath: VMobject;
+  /** @internal */ readonly sourcePath: VMobject;
 
   constructor(mobject: Mobject, path: VMobject, opts: MoveAlongPathOpts = {}) {
     super(mobject, path, { rateFunc: linear, remover: true, ...opts });
@@ -640,7 +641,7 @@ export class Circumscribe extends Animation {
   cornerRadius: number;
   keep: boolean;
   fadeOut: boolean;
-  /** The outline's opacity when the play began: what drawing in reaches. Set by begin(). */
+  /** The outline's opacity when the play began: what drawing in reaches. Set by begin(). @internal */
   baseOpacity!: number;
 
   constructor(target: Mobject | Box, { color, shape = 'rect', buff = 0.15, strokeWidth = 0.04, cornerRadius = 0, keep = false, fadeOut = true, ...opts }: CircumscribeOpts = {}) {
@@ -756,7 +757,7 @@ export class TransformFromCopy extends Transform {
     this.taken = null;
   }
 
-  /** Copy the source now, for the next begin(); a second call before it keeps the first copy. */
+  /** Copy the source now, for the next begin(); a second call before it keeps the first copy. @internal */
   takeCopy(): void {
     if (this.taken) return;
     this.taken = this.source.copy();
@@ -810,7 +811,7 @@ export class Succession extends AnimationGroup {
     this.active = -1;
   }
 
-  /** Members run one after another: a lagRatio passed to play() is ignored (runTime and rateFunc apply). */
+  /** Members run one after another: a lagRatio passed to play() is ignored (runTime and rateFunc apply). @internal */
   override setOptions({ lagRatio: _, ...opts }: PlayOpts = {}): this { return super.setOptions(opts); }
 
   override begin(): void {
@@ -1000,7 +1001,7 @@ export class TransformMatching extends Animation {
   key: MatchKey;
   fadeMismatches: boolean;
   ordered: boolean;
-  pathFunc: PathFunc | null;
+  /** @internal */ pathFunc: PathFunc | null;
   replace: boolean;
   staged: boolean;
   // Set by begin(), in source order: [source part, target part]
@@ -1013,11 +1014,11 @@ export class TransformMatching extends Animation {
   /** Target parts that fade in (as copies inside the source). */
   added!: Mobject[];
   // What interpolate() writes, fixed at begin(); readable for tests and tools
-  moves!: MoveRow[];
-  fadesOut!: FadeRow[];
+  /** @internal */ moves!: MoveRow[];
+  /** @internal */ fadesOut!: FadeRow[];
   fadesIn!: FadeRow[];
   frames!: FrameRow[];
-  /** The source family after begin() attached the copies: whose boxes go stale each frame. */
+  /** The source family after begin() attached the copies: whose boxes go stale each frame. @internal */
   touched!: Mobject[];
 
   constructor(mobject: Mobject, target: Mobject, { key, fadeMismatches = true, ordered = false, pathFunc = null, replace = true, staged = false, ...opts }: TransformMatchingOpts) {
@@ -1026,7 +1027,7 @@ export class TransformMatching extends Animation {
     this.pathFunc = pathFunc; this.replace = replace; this.staged = staged;
   }
 
-  override paints(): Mobject[] { return [this.mobject, this.target]; }
+  /** @internal */ override paints(): Mobject[] { return [this.mobject, this.target]; }
 
   /** How many parts were matched, morphed, faded out and faded in. */
   summary(): MatchSummary {
@@ -1459,7 +1460,7 @@ export interface LinePlan { same: Array<[number, number]>; changed: Array<[numbe
 export class TransformDiff extends TransformMatching {
   before: Code;
   after: Code;
-  /** The hunks given to the constructor, or null to compute them. */
+  /** The hunks given to the constructor, or null to compute them. @internal */
   given: readonly Hunk[] | null;
   // Set by begin()
   /** The hunks animated: the ones given, or diffLines of the two texts. */

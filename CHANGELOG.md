@@ -237,6 +237,8 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
   - `Diagram`'s `build`, `forget`, `shownBy` and `frameBox` are internal; `s.show`'s `build` option builds a diagram in.
   - `Card` and `CodeBlock` keep their scene and colours private, `Card.panel` and `Card.bar` are readonly, as `CodeBlock`'s are, and `CodeBlock.marks` is a readonly list.
   - `Labeled`'s and `Axes`' child indexes are private: read `shape`, `label`, `xLabel` and `yLabel`.
+  - The renderer's point buffers and path data (`pointArrays`, `boundingPointArrays`, `pathData`, `toPathD`, `roundedRelative`, `Text.frameBox`), a morph's alignment (`splitCurve`, `insertNCurves`, `zipFamilies`, `starting`, `slots`, `allMobjects`, `subAlpha`, `paints`, and `Transform`'s `ownsTarget`, `sameStructure` and `targetCopy`), `play()`'s `setOptions` and `ready`, `AnimationGroup`'s schedule, the animations' stored options, `Mobject.updaters`, `Text`'s cluster matching, `TransformMatching`'s plan and `DomSink`'s DOM plumbing are internal. `interpolateSubmobject` is `protected`.
+  - `LetteringSnapshot`, `PackedLetteringSnapshot`, `StoredLetteringSnapshot` and `Outcome` are no longer exported.
 
 ### Known limits
 

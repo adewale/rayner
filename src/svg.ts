@@ -431,7 +431,7 @@ export function toSvgString(scene: Scene, { width = 1280, background = scene.col
 
 /** Collects every frame as an SVG string. Works anywhere JS runs. */
 export class StringSink implements Sink {
-  opts: SvgOptions;
+  /** @internal */ opts: SvgOptions;
   frames: string[];
   constructor(opts: SvgOptions = {}) { this.opts = opts; this.frames = []; }
   async frame(scene: Scene): Promise<void> { this.frames.push(toSvgString(scene, this.opts)); }
@@ -440,7 +440,7 @@ export class StringSink implements Sink {
 
 /** Keeps only the latest frame; cheap when you only want a snapshot. */
 export class SnapshotSink implements Sink {
-  opts: SvgOptions;
+  /** @internal */ opts: SvgOptions;
   svg: string;
   constructor(opts: SvgOptions = {}) { this.opts = opts; this.svg = ''; }
   async frame(scene: Scene): Promise<void> { this.svg = toSvgString(scene, this.opts); }
@@ -462,13 +462,13 @@ interface DomNode {
  * real time with requestAnimationFrame.
  */
 export class DomSink implements Sink {
-  doc: Document;
+  /** @internal */ doc: Document;
   svg: SVGSVGElement;
-  NS: 'http://www.w3.org/2000/svg';
+  /** @internal */ NS: 'http://www.w3.org/2000/svg';
   nodes: Map<number, DomNode>;
   realtime: boolean;
   anchor: number | null;
-  lastPatch: number;
+  /** @internal */ lastPatch: number;
   dropped: number;
   maxFreezeMs: number;
   private defs: SVGDefsElement | null = null;
@@ -531,7 +531,7 @@ export class DomSink implements Sink {
     this.apply(renderElements(scene, { relative: false }), viewBoxOf(scene));
   }
 
-  /** Bring the DOM to exactly these records (one frame), and the viewBox to the camera's when given. */
+  /** Bring the DOM to exactly these records (one frame), and the viewBox to the camera's when given. @internal */
   apply(els: readonly ElementRecord[], viewBox?: string): void {
     this.lastPatch = performance.now();
     const end = perf.begin('dom.patch');

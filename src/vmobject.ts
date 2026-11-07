@@ -54,7 +54,7 @@ export class VMobject extends Mobject {
   /** Subclasses build their geometry here. */
   initPoints(): void {}
 
-  override pointArrays(): Float32Array[] { return this.subpaths; }
+  /** @internal */ override pointArrays(): Float32Array[] { return this.subpaths; }
   override pointKind(): string { return 'path'; }
 
   /** `src` is the mobject this one was copied from: same class. */
@@ -216,6 +216,7 @@ export class VMobject extends Mobject {
   /**
    * Split curve `c` of `subpath` into `parts` curves of equal parameter
    * span, using de Casteljau. Returns the new Float32Array for the subpath.
+   * @internal
    */
   static splitCurve(a: Float32Array, c: number, parts: number): Float32Array {
     const o = 6 * c;
@@ -243,6 +244,7 @@ export class VMobject extends Mobject {
    * curves. Which curves get cut decides what morphs into what, so this follows
    * manim's rule (VMobject.insert_n_curves_to_point_list): cut by length, see
    * distributeCurves. test/manim.test.ts holds it to manim's own function.
+   * @internal
    */
   insertNCurves(i: number, n: number): this {
     if (n <= 0) return this;
@@ -306,6 +308,7 @@ export class VMobject extends Mobject {
    *  - points unchanged (version + array identity): return the cached object
    *  - points changed: re-round and compare integers to the cached shape; only
    *    a real shape change formats a new string
+   * @internal
    */
   pathData(relative = true): PathData {
     const c = this._dCache;
@@ -336,7 +339,7 @@ export class VMobject extends Mobject {
     return pd;
   }
 
-  /** Absolute path data string (for tools and tests; rendering uses pathData). */
+  /** Absolute path data string (for tools and tests; rendering uses pathData). @internal */
   toPathD(): string {
     const { ints, lens, tx, ty } = this.roundedRelative();
     for (let i = 0; i < ints.length; i += 2) { ints[i]! += tx; ints[i + 1]! += ty; }
@@ -346,6 +349,7 @@ export class VMobject extends Mobject {
   /**
    * Integer path coordinates for SVG. This is the one place the model's y-up
    * becomes SVG's y-down: y is negated here and nowhere else.
+   * @internal
    */
   roundedRelative(): RoundedPath {
     const k = 1000;

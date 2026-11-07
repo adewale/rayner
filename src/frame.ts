@@ -37,7 +37,7 @@ export class Frame extends Mobject {
     this.corners = new Float32Array(STAGE_BOX);
   }
 
-  override pointArrays(): Float32Array[] { return [this.corners]; }
+  /** @internal */ override pointArrays(): Float32Array[] { return [this.corners]; }
   protected override copyData(src: Mobject): void { this.corners = new Float32Array((src as Frame).corners); }
 
   /** Magnification: 1 for the full 16-wide frame, 2 when half as wide. */

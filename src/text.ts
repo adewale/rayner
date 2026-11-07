@@ -118,6 +118,7 @@ export class Text extends Group {
    * The advance box as a point array of its corners, bottom-left, top-right,
    * top-left, bottom-right: [x0, y0, x1, y1, ...]. All four travel with the glyphs,
    * so a rotated text still knows its size and angle: see build().
+   * @internal
    */
   frameBox!: Float32Array;
 
@@ -173,10 +174,10 @@ export class Text extends Group {
     if (this.formula) throw new Error('new MathTex(): it needs meta.lettering.math, and a fresh lettering snapshot (rayner snapshots)');
     return embeddedShaperFor(this.font)(text, size);
   }
-  get clusterMatching(): boolean { return !!this.shaping?.clusterKey && !this.formula; }
-  clusterKey(cluster: number): string | undefined { return this.shaping?.clusterKey?.(this, cluster); }
+  /** @internal */ get clusterMatching(): boolean { return !!this.shaping?.clusterKey && !this.formula; }
+  /** @internal */ clusterKey(cluster: number): string | undefined { return this.shaping?.clusterKey?.(this, cluster); }
 
-  override pointArrays(): Float32Array[] { return [this.frameBox]; }
+  /** @internal */ override pointArrays(): Float32Array[] { return [this.frameBox]; }
   override pointKind(): string { return 'box'; }
   protected override copyData(src: Mobject): void { this.frameBox = new Float32Array((src as Text).frameBox); }
 

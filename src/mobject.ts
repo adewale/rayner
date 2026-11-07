@@ -130,7 +130,7 @@ export class Mobject {
   children: Mobject[];
   parent: Mobject | null;
   style: StyleRecord;
-  updaters: Updater[];
+  /** @internal */ updaters: Updater[];
   /** @internal The cached bounding box; invalidateBox() clears it up the parent chain. */
   _bbox: Box | null;
   // Assigned lazily (first touchPoints, first merged render, Text): `declare` keeps
@@ -170,10 +170,12 @@ export class Mobject {
 
   // ---- data --------------------------------------------------------------
 
-  /** The Float32Arrays (stride 2) a transform maps over. Subclasses override. */
+  /** The Float32Arrays (stride 2) a transform maps over. Subclasses override. @internal */
   pointArrays(): Float32Array[] { return []; }
   /** Geometry contributing to layout bounds. Transform-only metadata can opt
-   * out here while still following affine maps and animation in pointArrays(). */
+   * out here while still following affine maps and animation in pointArrays().
+   * @internal
+   */
   boundingPointArrays(): Float32Array[] { return this.pointArrays(); }
   /** @internal Frame-only adapter for matching transforms. A target with different
    * metric units can supply a compatible frame without changing drawn parts. */

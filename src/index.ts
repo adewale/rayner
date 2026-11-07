@@ -50,7 +50,7 @@ export type { FontName } from './fonts.ts';
 // Optional lettering: tree-shaken from scenes which do not request it.
 export { MathTex } from './math.ts';
 export { ItalicText } from './italic.ts';
-export type { LetteringRequest, LetteringSnapshot, PackedLetteringSnapshot, StoredLetteringSnapshot, LetteringStyle } from './lettering-outlines.ts';
+export type { LetteringRequest, LetteringStyle } from './lettering-outlines.ts';
 // End optional lettering.
 
 export type {JsonValue, JsonObject} from './json.ts';

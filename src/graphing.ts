@@ -71,7 +71,7 @@ export class NumberLine extends Group {
   min: number;
   max: number;
   step: number;
-  /** Child index of the tip, or -1. */
+  /** Child index of the tip, or -1. @internal */
   tipIdx: number;
 
   constructor({

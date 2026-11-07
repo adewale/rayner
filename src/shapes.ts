@@ -123,7 +123,7 @@ export interface ArrowOpts { tipLength?: number; tipWidth?: number; stroke?: str
  * stored reference would still point at the original's.
  */
 export class Arrow extends Group {
-  opts: { tipLength: number; tipWidth: number };
+  /** @internal */ opts: { tipLength: number; tipWidth: number };
 
   constructor(start: Readonly<Vec>, end: Readonly<Vec>, { tipLength = 0.3, tipWidth = 0.22, stroke, strokeWidth = 0.04, buff = 0 }: ArrowOpts = {}) {
     super();

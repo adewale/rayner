@@ -207,11 +207,11 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
     return plan;
   }
 
-  override ready(): Promise<unknown> | null {
+  /** @internal */ override ready(): Promise<unknown> | null {
     return this.#settled ? null : this.#waiting;
   }
 
-  override setOptions(opts: PlayOpts = {}): this {
+  /** @internal */ override setOptions(opts: PlayOpts = {}): this {
     if (opts.runTime != null) this.#stretched = true;
     return super.setOptions(opts);
   }
