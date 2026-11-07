@@ -1,5 +1,5 @@
 import { Scene } from '../../../src/index.ts';
-import { stage, settingsOf, CodeBlock, answerOf } from '../../../explain/index.ts';
+import { stage, settingsOf, CodeBlock, answerOf, view } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
 import type { LayoutDirection, Card } from '../../../explain/index.ts';
 
@@ -86,12 +86,18 @@ export default class LayoutDirectionExplainer extends Scene {
         : `The ltr stage maps start to the left half and end to the right. The Start card takes ltr columns from the stage, so both cards put Field before 123, and the End card’s own ltr makes no visible difference. ${answer}; on an rtl stage the Start card’s columns flip while the End card’s stay.`,
     });
     await s.clear();
-    // The engine places the cards from the options the state records; the state then records where they landed.
-    const start = await s.card(ROWS, { ...layout.start, ...CARD, title: `Start, ${layout.direction}` });
-    const end = await s.card(ROWS, { ...layout.end, ...CARD, title: `End, own ${layout.end.direction}` });
+    // The engine places the cards from the options the layout records, each a view: its value is
+    // the model's (state.field), the row it lights is how the step shows it (shown.lit). The state
+    // then records where each card landed, measured from the card on the stage.
+    this.state.field = ROWS[0]![1];
+    this.shown.lit = null;
+    const cardView = (place: typeof layout.start | typeof layout.end, title: string, key: string) =>
+      view(this, (st, sh) => s.cardPicture([['Field', st.field]], { ...place, ...CARD, title, lit: sh.lit as string | null, litAs: 'updated', key }), { place: false });
+    const start = cardView(layout.start, `Start, ${layout.direction}`, 'start-card');
+    const end = cardView(layout.end, `End, own ${layout.end.direction}`, 'end-card');
     await s.enter(start, end);
     s.opening(start, end);
-    this.state.cards = { start: layoutOf(start), end: layoutOf(end) };
+    this.state.cards = { start: layoutOf(start.current), end: layoutOf(end.current) };
 
     // 3. An update keeps each card's columns.
     await this.step('updates', {
@@ -101,12 +107,11 @@ export default class LayoutDirectionExplainer extends Scene {
         ? 'Both cards change 123 to 456. The Start card keeps Field on the right and the End card keeps it on the left, because each card keeps the column direction it was built with.'
         : 'Both cards change 123 to 456 and both keep Field on the left, because each card keeps the column direction it was built with.',
     });
-    await start.set({ Field: 456 });
-    await end.set({ Field: 456 });
-    await start.mark('Field', { as: 'updated' });
-    await end.mark('Field', { as: 'updated' });
+    this.state.field = 456;
+    this.shown.lit = 'Field';
+    await this.play(start.sync({ match: 'key', staged: true }), end.sync({ match: 'key', staged: true }));
     s.opening(start, end);
-    this.state.cards = { start: layoutOf(start), end: layoutOf(end) };
+    this.state.cards = { start: layoutOf(start.current), end: layoutOf(end.current) };
 
     // 4. The countercase: physical regions do not follow the stage.
     await this.step('physical', {
