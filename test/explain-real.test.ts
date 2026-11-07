@@ -138,9 +138,10 @@ test('shipped explainers describe their steps: chart values, marks, focus, walks
   const machine = await steps('state-machine');
   const connect = pictureSummary(machine.get('connect')!.shown);
   assert.match(connect, /^State diagram: 4 states, 4 transitions; /);
-  // The trail is the machine's: its picture of the diagram draws the travelled link, and its words name it.
-  assert.match(connect, /; Travelled: idle → connecting: CONNECT; /);
-  assert.match(connect, /New in this step: .*Travelled: idle → connecting: CONNECT/);
+  // The trail is the machine's: its picture of the diagram draws the travelled link as a trail, and
+  // the diagram says it once, among its marks.
+  assert.match(connect, /\. Travelled: idle → connecting: CONNECT; /);
+  assert.equal(connect.match(/Travelled: /g)?.length, 1);
   // The reducer row is boxed, not focused: the box's description names the line and what it means
   assert.match(connect, /A box around line 2 of the reducer: 'idle:CONNECT': 'connecting', the row the reducer reads/);
   assert.match(connect, /A ring around connecting, the state the session is in/);
