@@ -1,6 +1,6 @@
 `glyph.js`, the shaper every page uses, is MIT-licensed glyph at 6398654, the revision
 `vendor/glyph.pin.json` records and `glyph-math.js` is built from; rebuild it with `node tools/repo/vendor-glyph.ts /path/to/glyph`
-after `node scripts/fetch.js --runtime` in that checkout generates its two tables.
+after `node scripts/fetch.js --runtime` in that checkout generates its two tables. Both tables were regenerated that way and are byte-identical to the ones in `glyph.js`.
 
 The optional `glyph-math.js` typesetter is MIT-licensed glyph at
 6398654dfda7d5a91763e3ef07369b9a9d8e3b2b (Ivar Vong). Rebuild with
