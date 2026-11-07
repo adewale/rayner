@@ -314,7 +314,7 @@ export default class TrafficPolicyExplainer extends Scene {
         line: `Node 3 sends this request on to pod ${target} on Node 2.`,
         // source-ip.md:204-209: the node that receives the packet sends it on to the node with the endpoint.
         caption: `Each node gets a third of the requests and picks among all ${n} pods. A request leaves its node when the pick runs elsewhere: ${counts
-          .map((c, j) => `${inN(leave[j]!)} on ${NODES[j]}`)
+          .map((_, j) => `${inN(leave[j]!)} on ${NODES[j]}`)
           .join(', ')}. Here Node 3 sends one to pod ${target} on Node 2.`,
       });
       await nextSlate();
@@ -330,8 +330,8 @@ export default class TrafficPolicyExplainer extends Scene {
 
     } else {
       // ---------------------------------------------------------------- health check
-      const failing = counts.flatMap((c, j) => (passes(counts, 'local', j) ? [] : [j])),
-        healthy = counts.flatMap((c, j) => (passes(counts, 'local', j) ? [j] : []));
+      const failing = counts.flatMap((_, j) => (passes(counts, 'local', j) ? [] : [j])),
+        healthy = counts.flatMap((_, j) => (passes(counts, 'local', j) ? [j] : []));
       await this.step('health', {
         title: failing.length
           ? `${nodeList(failing)} runs no pod, so it fails the health check`

@@ -380,7 +380,7 @@ export interface Counts {
 export function chartCounts(chart: StateNode): Counts {
   const nodes = [...index(chart).values()];
   return {
-    states: nodes.filter(({ node, parent }) => parent && parent.type !== 'parallel').length,
+    states: nodes.filter(({ parent }) => parent && parent.type !== 'parallel').length,
     transitions: nodes.reduce((n, { node }) => n + Object.keys(node.on ?? {}).length, 0),
   };
 }
