@@ -171,7 +171,9 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
   const adopt = !options.palette && !options.style;
   let colors = options.palette ?? palette(options.style ?? 'nord');
   stagePalettes.set(scene, () => ({ ...colors }));
-  let looked: { from: Palette; look: Look } = { from: colors, look: lookOf(colors) };
+  /** The look of the palette as it is now: computed again only when a colour of it changes. */
+  const paletteKey = (p: Palette) => `${p.paper} ${p.ink} ${p.accent} ${p.muted}`;
+  let looked = { from: paletteKey(colors), look: lookOf(colors) };
   // Engine defaults (a Text with no colour, an Axes, a SurroundingRectangle) take the stage's palette.
   scene.colors = sceneColors(colors);
   const mode = options.heading ?? 'step';
@@ -413,7 +415,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
      * good, bad, raised, rule and muted (see Look). The stage's helpers colour from the same look.
      */
     get look(): Look {
-      if (looked.from !== colors) looked = { from: colors, look: lookOf(colors) };
+      if (looked.from !== paletteKey(colors)) looked = { from: paletteKey(colors), look: lookOf(colors) };
       return looked.look;
     },
     /** The palette the stage was styled from, which the panel constructors still take; draw with `look`. */

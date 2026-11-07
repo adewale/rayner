@@ -298,7 +298,7 @@ export default class MontyHall extends Scene<MontyState, { phase?: Phase }> {
               const { before, after } = t, c = t.choreograph(main);
               const from = roundDoor(round(before))!,
                 to = roundDoor(round(after))!;
-              const outline = c.from(`door-${from}:box`);
+              const outline = c.from(`door-${from}`).find(`door-${from}:box`)!;
               const at = (i: number, lift: number) => outline.copy().moveTo([DOOR_X(i), DOOR_Y + lift]);
               const yours = c.insert('monty-yours', outline);
               return new Succession([
