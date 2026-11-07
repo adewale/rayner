@@ -324,14 +324,6 @@ export default class BashExplainer extends Scene {
     const chain = view(this, (st) => shellsPicture(st as unknown as ShellSession, s), { place: false });
     const session = () => this.state as unknown as ShellSession;
     s.keep(chain, { describe: () => shellsWords(session()) });
-    // What the picture marks: the shell the caller keeps, and what each cat printed.
-    s.emphasise(() => {
-      const st = session(), newest = st.shells.length - 1;
-      return [
-        [`shell:${newest}:box`, `kept: s${newest}`],
-        ...st.cats.flatMap((c, i) => (c === null ? [] : [[`out:${i}`, `cat on s${i}: ${prints(c)}`] as const])),
-      ];
-    });
     // Checked on every frame, and through every transition from every state rayner check reaches: whatever ran, s0
     // is the empty shell the caller started with, in the model and in the picture.
     this.addInvariant('s0 stays the empty shell', (scene) => {
@@ -343,9 +335,8 @@ export default class BashExplainer extends Scene {
       return true;
     });
     await this.play(new FadeIn(chain, { runTime: 0.4 }));
-    // The script's code, its focus bar on the cat of the shell the caller keeps: shown, which a machine
-    // keeps the same while it plays, so the bar stays there through the three commands.
-    this.shown = { story: 1 };
+    // The script's code, its focus bar on the line the lesson runs next: shown, set between replays.
+    this.shown = { story: 0 };
     const story = view(
       this,
       (_st, sh) =>
@@ -377,7 +368,11 @@ export default class BashExplainer extends Scene {
     });
     await s.enter(story, { runTime: 0.4 });
     // The lesson's three lines, in order: the write on s0, whose returned shell is kept, then cat on each shell.
-    for (const event of ['RUN_PIPELINE', 'CAT_NEWEST', 'CAT_S0'] as const) await this.play(machine.replay([event]));
+    for (const [line, event] of [[0, 'RUN_PIPELINE'], [1, 'CAT_NEWEST'], [2, 'CAT_S0']] as const) {
+      await focus(story, 'story', line);
+      await this.play(machine.replay([event]));
+    }
+    await focus(story, 'story', 1);
   }
 }
 
