@@ -1,6 +1,6 @@
 import type { Evidence, Box } from '../../../src/index.ts';
 import { Scene, FadeIn, FadeOut } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, answerOf, view } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, answerOf, view, having } from '../../../explain/index.ts';
 import type { CodeBlock, Diagram, NoteSide, View } from '../../../explain/index.ts';
 import { Repo, AUTHOR, parseTree } from './model.ts';
 import { objectLines, reachable } from './objects.ts';
@@ -27,21 +27,30 @@ type Tone = 'emphasis';
 /** How the model is shown, apart from it: each code panel's focus, the diagram's marks and its notes. */
 interface GitShown {
   focus?: Record<string, [number, number]>;
-  diagram: { source: string; marks: { part: string; tone: Tone; as: string }[] };
-  notes: { id: string; part: string; text: string; side: NoteSide }[];
+  diagram?: { source: string; marks: { part: string; tone: Tone; as: string }[] };
+  notes?: { id: string; part: string; text: string; side: NoteSide }[];
+  /** Whether the shared blob has been copied into commit two's row. */
+  copied?: boolean;
+  /** Whether the new ids are coloured where they agree with the old. */
+  idsChanged?: boolean;
 }
+/** Each part from the step that records it. */
 interface GitState {
-  hello: string;
-  blob: { id: string; bytes: number[]; header: number };
-  t1: string;
-  c1: string;
-  t2: string;
-  c2: string;
-  trees: Record<string, TreeState>;
-  commits: Record<string, string[]>;
-  rows: { commits: RowState[]; shared: string | null };
-  samePlace: { tree: number; commit: number };
-  paired: { tree: number; commit: number };
+  hello?: string;
+  blob?: { id: string; bytes: number[]; header: number };
+  t1?: string;
+  c1?: string;
+  head?: string;
+  nextBlob?: string;
+  t2?: string;
+  c2?: string;
+  trees?: Record<string, TreeState>;
+  commits?: Record<string, string[]>;
+  rows?: { commits: RowState[]; shared: string | null };
+  samePlace?: { tree: number; commit: number };
+  paired?: { tree: number; commit: number };
+  /** Whether the second commit shares hello.txt's blob with the first. */
+  shared?: boolean;
 }
 /** What the last `n` matching transforms of the scene recorded (Scene.record): their pairing, as evidence. */
 const lastMatches = (scene: Scene, n: number): Evidence[] => {
@@ -53,7 +62,7 @@ const lastMatches = (scene: Scene, n: number): Evidence[] => {
 const samePlace = (a: string, b: string) => [...a].filter((c, i) => b[i] === c).length;
 
 
-export default class GitExplainer extends Scene {
+export default class GitExplainer extends Scene<GitState, GitShown> {
   static meta = {
     sources: [
       'https://git-scm.com/book/en/v2/Git-Internals-Git-Objects',
@@ -84,22 +93,19 @@ export default class GitExplainer extends Scene {
       ink = s.palette.ink,
       accent = s.emphasis,
       colours = { ink, soft: s.soft, accent };
-    const st = () => this.state as unknown as GitState;
-    const sh = () => this.shown as unknown as GitShown;
     /**
      * A code view: the lines `lines(state)` gives, laid out as s.code lays them out, with its bar on the
      * focus `shown` records for `name`. The panel describes itself and says what it emphasises.
      */
     const codeView = (name: string, at: Box, lines: (g: GitState) => string[]) => {
-      const draw = (state: object, shown: object) => {
-        const g = state as unknown as GitState,
-          focus = (shown as Partial<GitShown>).focus?.[name];
+      const draw = (g: GitState, shown: GitShown) => {
+        const focus = shown.focus?.[name];
         return codePanel(this, s.palette, name, lines(g), at, focus);
       };
       return { v: view(this, draw, { place: false }) };
     };
-    const focus = async (code: { v: View }, name: string, lines: readonly [number, number]) => {
-      this.shown.focus = { ...(sh().focus ?? {}), [name]: lines };
+    const focus = async (code: { v: View }, name: string, lines: [number, number]) => {
+      this.shown.focus = { ...(this.shown.focus ?? {}), [name]: lines };
       await this.play(code.v.sync({ match: 'index', runTime: 0.4 }));
     };
 
@@ -119,9 +125,9 @@ export default class GitExplainer extends Scene {
     this.state.hello = hello;
     // The bytes Git hashes: the header's and the content's, and the id they hash to.
     this.state.blob = { id: hello, bytes: all, header: header.length };
-    const body = view(this, (state) => blobCells((state as unknown as GitState).blob, 'content', colours), { place: false }),
-      head = view(this, (state) => blobCells((state as unknown as GitState).blob, 'header', colours), { place: false });
-    const blobOf = () => st().blob;
+    const body = view(this, (state) => blobCells(having(state, 'blob').blob, 'content', colours), { place: false }),
+      head = view(this, (state) => blobCells(having(state, 'blob').blob, 'header', colours), { place: false });
+    const blobOf = () => having(this.state, 'blob').blob;
     await s.enter(body, {
       runTime: 0.5,
       describe: () => `The content bytes ${JSON.stringify(new TextDecoder().decode(new Uint8Array(blobOf().bytes.slice(blobOf().header))))}, one cell each with its hex value`,
@@ -135,11 +141,11 @@ export default class GitExplainer extends Scene {
       },
     });
     const { arrow, how } = hashArrow(s.soft);
-    const idView = view(this, (state) => blobIdRow((state as unknown as GitState).blob.id, colours), { place: false });
+    const idView = view(this, (state) => blobIdRow(having(state, 'blob').blob.id, colours), { place: false });
     await s.enter(arrow, how, { runTime: 0.4, describe: 'An arrow labelled SHA-1 from the bytes to their id' });
     await s.enter(idView, { runTime: 0.6, describe: () => `The blob id ${blobOf().id}, its first seven digits highlighted` });
     // The short name every later picture uses is this prefix of the real id.
-    const abbrev = view(this, (state) => abbrevBrace((state as unknown as GitState).blob.id, colours), { place: false });
+    const abbrev = view(this, (state) => abbrevBrace(having(state, 'blob').blob.id, colours), { place: false });
     await s.enter(abbrev, {
       runTime: 0.4,
       describe: () => `A brace under the first seven digits, ${short(blobOf().id)}: the name later pictures give the blob`,
@@ -150,8 +156,8 @@ export default class GitExplainer extends Scene {
     // with the marks the state records, and the live diagram, off the stage, keeps its geometry and description.
     let d: Diagram;
     const colorOf: Record<Tone, string> = { emphasis: accent };
-    const picture = (_state: object, shown: object) => {
-      const g = (shown as GitShown).diagram;
+    const picture = (_state: GitState, shown: GitShown) => {
+      const g = having(shown, 'diagram').diagram;
       if (d.spec.source !== g.source) throw new Error('The diagram on show is not the one the state records');
       return d.picture(Object.fromEntries(g.marks.map((m) => [m.part, { color: colorOf[m.tone], as: m.as }])));
     };
@@ -166,19 +172,19 @@ export default class GitExplainer extends Scene {
       d.showBy(diagramView);
       s.keep(diagramView);
     };
-    const mark = async (marks: GitShown['diagram']['marks'], runTime = 0.45) => {
-      this.shown.diagram = { ...sh().diagram, marks };
+    const mark = async (marks: NonNullable<GitShown['diagram']>['marks'], runTime = 0.45) => {
+      this.shown.diagram = { ...having(this.shown, 'diagram').diagram, marks };
       await this.play(diagramView!.sync({ match: 'index', runTime }));
     };
     // Notes beside the diagram's parts, each its own view of the state, as Diagram.note draws and places one;
     // each describes itself and says what it emphasises.
     const notes = new Map<string, View>();
-    const notePicture = (id: string) => (_state: object, shown: object) => {
-      const n = (shown as GitShown).notes.find((x) => x.id === id)!;
+    const notePicture = (id: string) => (_state: GitState, shown: GitShown) => {
+      const n = having(shown, 'notes').notes.find((x) => x.id === id)!;
       return d.notePicture(n.part, n.text, { side: n.side, color: accent, key: `exgit-note:${id}` });
     };
     const note = async (id: string, part: string, text: string, side: NoteSide) => {
-      this.shown.notes = [...(sh().notes ?? []), { id, part, text, side }];
+      this.shown.notes = [...(this.shown.notes ?? []), { id, part, text, side }];
       const v = view(this, notePicture(id), { place: false });
       notes.set(id, v);
       await s.enter(v, { runTime: 0.35, shift: [0, -0.06] });
@@ -186,8 +192,8 @@ export default class GitExplainer extends Scene {
     /** The marks go and the notes fade, then the live diagram, back in the view's place, morphs to `next`. */
     const morph = async (next: string) => {
       const going = [...notes.values()];
-      if (going.length || sh().diagram.marks.length) {
-        this.shown.diagram = { ...sh().diagram, marks: [] };
+      if (going.length || having(this.shown, 'diagram').diagram.marks.length) {
+        this.shown.diagram = { ...having(this.shown, 'diagram').diagram, marks: [] };
         this.shown.notes = [];
         notes.clear();
         await this.play(diagramView!.sync({ match: 'index', runTime: 0.4 }), ...going.map((v) => new FadeOut(v, { runTime: 0.4 })));
@@ -197,7 +203,7 @@ export default class GitExplainer extends Scene {
       await d.morph({ source: next });
       adopt();
     };
-    const walk = async (hops: [string, string][], trail: GitShown['diagram']['marks']) => {
+    const walk = async (hops: [string, string][], trail: NonNullable<GitShown['diagram']>['marks']) => {
       await d.walk(hops);
       await mark(trail);
     };
@@ -214,7 +220,10 @@ export default class GitExplainer extends Scene {
     const t1 = repo.tree([['100644', 'hello.txt', hello]]);
     this.state.t1 = t1;
     this.state.trees = { [t1]: treeOf(repo, t1) };
-    const treeCode = codeView('tree', BOTTOM, (g) => treeLines(g.trees[g.t1]!, g.t1));
+    const treeCode = codeView('tree', BOTTOM, (g) => {
+      const { trees, t1 } = having(g, 'trees', 't1');
+      return treeLines(trees[t1]!, t1);
+    });
     await s.carry(idView, (treeCode.v.current as CodeBlock).code.token(1, hello).box()!);
     s.keep(treeCode.v);
     await this.play(new FadeIn(treeCode.v, { runTime: 0.4 }), new FadeOut(idView, { runTime: 0.4 }));
@@ -236,7 +245,10 @@ export default class GitExplainer extends Scene {
     const C1 = `C1["commit<br/>${short(c1)}"]`;
     const COMMIT = `graph LR\nMain([main])\n${C1}\n${T1}\n${B1}\nMain --> C1\nC1 --> T1\nT1 --> Hello`;
     Object.assign(this.state, { c1, head: repo.resolve('refs/heads/main'), commits: { [c1]: objectLines(repo, c1) } });
-    const commitCode = codeView('commit', BOTTOM, (g) => g.commits[g.c1]!);
+    const commitCode = codeView('commit', BOTTOM, (g) => {
+      const { commits, c1 } = having(g, 'commits', 'c1');
+      return commits[c1]!;
+    });
     s.keep(commitCode.v);
     await this.play(new FadeOut(treeCode.v), new FadeIn(commitCode.v));
     await morph(COMMIT);
@@ -300,9 +312,9 @@ export default class GitExplainer extends Scene {
     const shared = add ? 'hello.txt' : null;
     // The rows the state records: commit one's alone, then both, with the blob they share outlined in each.
     this.state.rows = { commits: [rowOf('commit one', c1)], shared: null };
-    const rows = view(this, (state) => commitRows((state as unknown as GitState).rows, colours), { place: false });
+    const rows = view(this, (state) => commitRows(having(state, 'rows').rows, colours), { place: false });
     const rowsInWords = () => {
-      const r = st().rows;
+      const r = having(this.state, 'rows').rows;
       return r.commits.length === 1
         ? `The row of ${rowWords(r.commits[0]!)}`
         : `Two rows, ${rowWords(r.commits[0]!)}; under it, ${rowWords(r.commits[1]!)}` +
@@ -327,7 +339,7 @@ export default class GitExplainer extends Scene {
       // Tree two names the very object tree one names: the same box moves across, id and all.
       // Drawn first over commit one's box, then in tree two's row: a copy of the box, moved across.
       this.shown.copied = false;
-      same = view(this, (state, shown) => sharedBlob((state as unknown as GitState).rows, shown.copied ? 1 : 0, colours), { place: false });
+      same = view(this, (state, shown) => sharedBlob(having(state, 'rows').rows, shown.copied ? 1 : 0, colours), { place: false });
       s.keep(same, { describe: rowsInWords });
       this.add(same);
       this.shown.copied = true;
@@ -374,8 +386,11 @@ export default class GitExplainer extends Scene {
     this.shown.notes = [];
     notes.clear();
     await this.play(...leaving.map((m) => new FadeOut(m, { runTime: 0.3 })));
-    this.state.commits = { ...st().commits, [c2]: objectLines(repo, c2) };
-    const bodyCode = codeView('body', LEFT, (g) => g.commits[g.c2]!);
+    this.state.commits = { ...this.state.commits, [c2]: objectLines(repo, c2) };
+    const bodyCode = codeView('body', LEFT, (g) => {
+      const { commits, c2 } = having(g, 'commits', 'c2');
+      return commits[c2]!;
+    });
     s.keep(bodyCode.v);
     await this.play(new FadeIn(bodyCode.v, { runTime: 0.4 }));
     // The two ids above the change: each old id stays, and a copy of it morphs, glyph by glyph,
@@ -390,7 +405,7 @@ export default class GitExplainer extends Scene {
       view(
         this,
         (state, shown) => {
-          const g = state as unknown as GitState;
+          const g = having(state, 't1', 't2', 'c1', 'c2');
           const [old, now] = kind === 'tree' ? [g.t1, g.t2] : [g.c1, g.c2];
           return changedId({ old, now }, kind, age, !!shown.idsChanged, idX, colours);
         },
@@ -400,10 +415,10 @@ export default class GitExplainer extends Scene {
     const ids = { treeOld: idView2('tree', 'old'), commitOld: idView2('commit', 'old'), treeNew: idView2('tree', 'new'), commitNew: idView2('commit', 'new') };
     await s.enter(...idLabels, ids.treeOld, ids.commitOld, {
       runTime: 0.4,
-      describe: () => `Tree one’s id ${st().t1} and commit one’s id ${st().c1}, each with a line left under it for the id that replaced it`,
+      describe: () => `Tree one’s id ${this.state.t1} and commit one’s id ${this.state.c1}, each with a line left under it for the id that replaced it`,
     });
     s.keep(ids.treeNew, ids.commitNew, {
-      describe: () => `Tree two’s id ${st().t2} under tree one’s, and commit two’s id ${st().c2} under commit one’s; each digit equal to the old id’s in the same place is coloured`,
+      describe: () => `Tree two’s id ${this.state.t2} under tree one’s, and commit two’s id ${this.state.c2} under commit one’s; each digit equal to the old id’s in the same place is coloured`,
     });
     this.add(ids.treeNew, ids.commitNew);
     this.shown.idsChanged = true;
@@ -414,7 +429,7 @@ export default class GitExplainer extends Scene {
     const counts = view(
       this,
       (state) => {
-        const g = state as unknown as GitState;
+        const g = having(state, 'paired', 'samePlace');
         return pairCounts(g.paired, g.samePlace, idX, s.soft);
       },
       { place: false },

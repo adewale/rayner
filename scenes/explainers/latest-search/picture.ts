@@ -2,10 +2,9 @@ import { Group, Code, Rectangle, Line, Circle, Arrow } from '../../../src/index.
 import type { Mobject } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { runSearch, raceLifetimes, racePage, raceReplay } from './model.ts';
-import type { CompletionOrder, Query, PageSpan, RaceState, RaceEvent } from './model.ts';
+import type { CompletionOrder, Lifetime, Query, PageSpan, RaceState, RaceEvent, SearchSnapshot } from './model.ts';
 import { label, tile, emphasised } from '../../../explain/drawing.ts';
 import type { StagedStep } from '../../../explain/index.ts';
-import { stagedStep } from '../../../explain/index.ts';
 
 /** What the user typed for each search: A is the older keystroke, B the latest. */
 export const TYPED: Record<Query, string> = { A: 'ca', B: 'cat' };
@@ -141,13 +140,19 @@ export function raceWords(st: RaceState): string {
 
 /** A step a machine plays: its words; its state and picture are the race's. */
 export interface RaceStep { id: string; title: string; line: string; caption: string }
+/** The opening race's state: the completion order and each search's lifetime. */
+type RaceIntro = { order: CompletionOrder; completion: Query[]; lifetimes: Lifetime[] };
+/** The tickets step's state: each search's ticket, and the latest. */
+type Tickets = { tickets: Record<Query, number>; latest: number };
+/** A decision's state: the result that lands, its ticket against the latest, and each rule's page after it. */
+type Decision = { query: Query; ticket: number; latest: number; accepted: boolean; off: SearchSnapshot; on: SearchSnapshot };
 
 /**
  * The story: the race (staged), the unguarded race played by its machine, the ticket and the two
  * decisions (staged), and the guarded race played by its machine. `events` is the order the chosen
  * case plays: A starts, B starts, then the two landings in the completion order.
  */
-export async function story(order: CompletionOrder, answer: string): Promise<{ race: StagedStep; overwrite: RaceStep; middle: StagedStep[]; guard: RaceStep; events: RaceEvent[] }> {
+export async function story(order: CompletionOrder, answer: string): Promise<{ race: StagedStep<RaceIntro>; overwrite: RaceStep; middle: [StagedStep<Tickets>, ...StagedStep<Decision>[]]; guard: RaceStep; events: RaceEvent[] }> {
   const [off, on] = await Promise.all([runSearch(false, order), runSearch(true, order)]);
   // The order the promises resolved in, read back from the model's run.
   const done = off.snapshots.slice(1).map((x) => x.completed.at(-1)!);
@@ -155,7 +160,7 @@ export async function story(order: CompletionOrder, answer: string): Promise<{ r
   const staleWins = off.snapshots.at(-1)!.shown !== 'B';
   const latest = TICKET.B;
 
-  const decisions = done.map((query, i) => {
+  const decisions = done.map((query, i): StagedStep<Decision> => {
     const ticket = TICKET[query],
       accepted = ticket === latest,
       without = off.snapshots[i + 1]!.shown,
@@ -164,7 +169,7 @@ export async function story(order: CompletionOrder, answer: string): Promise<{ r
       without === withGuard
         ? `Both rules now show ${q(without)}.`
         : `Without the guard the page would now show ${q(without)}; with it, the page shows ${q(withGuard)}${withGuard ? '' : ' yet'}.`;
-    return stagedStep({
+    return {
       id: i === 0 ? 'reader-first' : 'reader-ticket',
       title: accepted
         ? `Answer: published. ${q(query)} lands with ticket ${ticket}, the latest`
@@ -185,7 +190,7 @@ export async function story(order: CompletionOrder, answer: string): Promise<{ r
           // What each rule leaves on the page after this result, from the model's two runs.
           label(`Page now: ${q(st.on.shown)} with the guard, ${q(st.off.shown)} without`, 0, -3.05, s.palette.ink, 0.62, 'page-now'),
         ),
-    });
+    };
   });
 
   const events: RaceEvent[] = ['start A', 'start B', `${first} lands`, `${last} lands`];
@@ -195,7 +200,7 @@ export async function story(order: CompletionOrder, answer: string): Promise<{ r
     throw new Error('the race machine and the promise run disagree');
   return {
     events,
-    race: stagedStep({
+    race: {
       id: 'race',
       title: `Type ${q('A')}, then ${q('B')}: two searches race`,
       line: `Predict: ${q(first)} answers first and ${q(last)} last. Which results does the page end on?`,
@@ -206,7 +211,7 @@ export async function story(order: CompletionOrder, answer: string): Promise<{ r
           ...timeline(s, st.lifetimes, [], 3).children,
           label(`The user wants ${q('B')}`, 0, -2.0, s.emphasis, 0.75, 'timeline-wants'),
         ),
-    }),
+    },
     overwrite: {
       id: 'overwrite',
       title: staleWins
@@ -221,7 +226,7 @@ export async function story(order: CompletionOrder, answer: string): Promise<{ r
           : `The track under the bars is the page. It changes at each landing: ${q(first)} lands first and the page shows it for a moment, outlined; then ${q(last)} replaces it, so the page ends right by luck. In the other order, ${q('A')} would land on top of ${q('B')}.`
       }`,
     },
-    middle: [stagedStep({
+    middle: [{
       id: 'tickets',
       title: 'Answer: number each search, and publish only the latest',
       line: `Predict: ${q(first)} lands first with ticket ${TICKET[first]}. Published or dropped?`,
@@ -237,7 +242,7 @@ export async function story(order: CompletionOrder, answer: string): Promise<{ r
             color: s.palette.ink,
           }).moveTo([0, -2.1]),
         ),
-    }),
+    },
     ...decisions],
     guard: {
       id: 'reader-guard',

@@ -1,5 +1,5 @@
 import { table } from '../../../explain/drawing.ts';
-import { stagedStep, answerOf, view } from '../../../explain/index.ts';
+import { answerOf, view, having } from '../../../explain/index.ts';
 import { Scene, Text, FadeIn } from '../../../src/index.ts';
 import { stage, regionBox, resolveSettings } from '../../../explain/index.ts';
 import type { ExplainerClass, Diagram, PictureNote, View } from '../../../explain/index.ts';
@@ -63,7 +63,25 @@ function runAt(rate: number) {
   });
 }
 
-export default class ForkExplainer extends Scene {
+// How the flow diagram is shown, apart from its source: the parts marked deleted, the links walked,
+// its notes and what stays undimmed. That is `shown`, not the model; the diagram's view draws it,
+// and each change is a sync. A morph or a focus takes the live diagram, with `shown` plain. The
+// timing step quotes this step's motion, so its plays keep their run times: 0.45 to mark the deleted
+// parts, 0.35 to clear them before the morph, and the trail and the note in one 0.35 play with the families note.
+type FlowShown = { deleted: string[]; walked: [string, string][]; notes: PictureNote[]; dim: string[] | null };
+/**
+ * The opening's runs and the rate the page never built; after the staged steps, the count of
+ * diagram families and the timing of the 'fork' step.
+ */
+type ForkState = Partial<SentenceState> & {
+  unbuilt?: { rate: number; r10: number; found: number };
+  families?: number;
+  timing?: Timing;
+};
+/** The Worker's mark on Lantern's diagram, and how the flow diagram is shown. */
+type ForkShown = { lanternMarked?: boolean; flow?: FlowShown };
+
+export default class ForkExplainer extends Scene<ForkState, ForkShown> {
   static meta = {
     sources: [
       'https://github.com/ivarvong/lantern/blob/2c7bad5/README.md',
@@ -124,7 +142,7 @@ export default class ForkExplainer extends Scene {
     });
 
     // 1. A sentence that is true of every scenario the page offers.
-    const sentenceState = () => this.state as unknown as SentenceState;
+    const sentenceState = () => having(this.state, 'offered', 'runs', 'pending');
     await this.step('sentence', {
       title: '“R10 is accepted at every rate”',
       line: `At ${perSecond(UNBUILT)}, a rate the page doesn’t offer, is it still true?`,
@@ -135,9 +153,9 @@ export default class ForkExplainer extends Scene {
     this.state.runs = RATES.map((r) => runOf(r, true));
     this.state.pending = { rate: UNBUILT };
     // The offered rates' rows, R10's column outlined, with the header and the key: a picture of the runs the state records.
-    const answers = view(this, (st) => drawOffered(st as unknown as SentenceState, colours), { place: false });
+    const answers = view(this, (st) => drawOffered(having(st, 'offered', 'runs', 'pending'), colours), { place: false });
     // Under them, the rate the page never built: a question mark until its run is in the state, then its row.
-    const unbuiltRow = view(this, (st) => drawUnbuilt(st as unknown as SentenceState, TIMES.length, colours), { place: false });
+    const unbuiltRow = view(this, (st) => drawUnbuilt(having(st, 'offered', 'runs', 'pending'), TIMES.length, colours), { place: false });
     await s.enter(answers, {
       describe: () => {
         const offered = sentenceState().runs.filter((r) => r.offered);
@@ -186,7 +204,7 @@ export default class ForkExplainer extends Scene {
     // The scenarios the setting makes, the slot a 0.1 scenario would fill, and where each link lands: all from the choice the state records.
     const choicePicture = (st: { choice: Choice }) => drawChoice(st.choice, colours);
     await s.steps([
-      stagedStep({
+      {
         id: 'choice',
         title: `The build made ${RATES.length} scenarios, and a link opens one of them`,
         line: `A link naming ${UNBUILT} matches no scenario, so the page opens the default, ${byDefault}.`,
@@ -194,7 +212,7 @@ export default class ForkExplainer extends Scene {
         state: { choice },
         draw: (st) => choicePicture(st),
         opening: ['fork-choice-scenarios', 'fork-choice-fallback'],
-      }),
+      },
     ]);
 
     // 4. Where the live page went: Lantern rendered whatever was asked; Rayner offers what it built.
@@ -228,7 +246,7 @@ export default class ForkExplainer extends Scene {
 
     // 5. The price, the ending: every combination of settings is a scenario to build and check.
     await s.steps([
-      stagedStep({
+      {
         id: 'scenarios',
         title: `${PODS.length} pod placements × ${POLICIES.length} traffic policies make ${SCENARIOS} scenarios to build`,
         line: 'Every combination of options is a scenario the build makes and rayner check tests.',
@@ -243,7 +261,7 @@ export default class ForkExplainer extends Scene {
             { xs: [-5, 0, 5], y: 2.2, gap: 1.45, key: 'fork-scenarios' },
           ),
         opening: ['fork-scenarios'],
-      }),
+      },
     ]);
 
     // Details after the ending: what the build does for each scenario, and what replaced Lantern's live parts.
@@ -257,14 +275,8 @@ export default class ForkExplainer extends Scene {
     // The two architectures, what the fork deleted and the path a page takes are fixed facts of the
     // two code bases, the same in every scenario; the count of diagram families is the describer's own.
     const flow = await s.show({ source: LANTERN }, { box: ABOVE });
-    // How the flow diagram is shown, apart from its source: the parts marked deleted, the links walked,
-    // its notes and what stays undimmed. That is `shown`, not the model; the diagram's view draws it,
-    // and each change is a sync. A morph or a focus takes the live diagram, with `shown` plain. The
-    // timing step quotes this step's motion, so its plays keep their run times: 0.45 to mark the deleted
-    // parts, 0.35 to clear them before the morph, and the trail and the note in one 0.35 play with the families note.
-    type FlowShown = { deleted: string[]; walked: [string, string][]; notes: PictureNote[]; dim: string[] | null };
-    const drawFlow = (of: Diagram) => (_st: object, sh: Record<string, unknown>) => {
-      const f = sh.flow as FlowShown;
+    const drawFlow = (of: Diagram) => (_st: ForkState, sh: ForkShown) => {
+      const f = having(sh, 'flow').flow;
       return {
         marks: { ...of.trail(f.walked), ...Object.fromEntries(f.deleted.map((id) => [id, { color: s.bad, as: 'deleted' }])) },
         notes: f.notes,
@@ -274,7 +286,7 @@ export default class ForkExplainer extends Scene {
     this.shown.flow = { deleted: [], walked: [], notes: [], dim: null } satisfies FlowShown;
     let flowView: View = s.diagramView(flow, drawFlow(flow));
     const showFlow = async (change: Partial<FlowShown>, runTime = 0.45) => {
-      this.shown.flow = { ...(this.shown.flow as FlowShown), ...change };
+      this.shown.flow = { ...having(this.shown, 'flow').flow, ...change };
       await this.play(flowView.sync({ match: 'key', staged: true, runTime }));
     };
     await showFlow({ deleted: GONE });
@@ -296,7 +308,7 @@ export default class ForkExplainer extends Scene {
     const familiesNote = view(
       this,
       (st) =>
-        flow.notePicture('Capture', `${(st as { families: number }).families} diagram families, Chromium at build`, {
+        flow.notePicture('Capture', `${having(st, 'families').families} diagram families, Chromium at build`, {
           side: 'below',
           color: s.emphasis,
           key: 'fork-families-note',
@@ -304,7 +316,7 @@ export default class ForkExplainer extends Scene {
       { place: false },
     );
     s.keep(familiesNote);
-    this.shown.flow = { ...(this.shown.flow as FlowShown), walked: path, notes: [{ id: 'Page', text: 'no diagram renderer', side: 'above' }] };
+    this.shown.flow = { ...having(this.shown, 'flow').flow, walked: path, notes: [{ id: 'Page', text: 'no diagram renderer', side: 'above' }] };
     await this.play(
       new FadeIn(familiesNote, { runTime: 0.35, shift: [0, -0.06] }),
       flowView.sync({ match: 'key', staged: true, runTime: 0.35 }),
@@ -331,10 +343,10 @@ export default class ForkExplainer extends Scene {
     await showFlow({ dim: ['Clock', 'Frames', 'Image'] });
     this.state.timing = { motion: Number(motion.toFixed(2)), held: Number(held.toFixed(2)), words };
     // One bar per phase of the 'fork' step, to scale: the timing the state records.
-    const timeline = view(this, (st) => drawTimeline((st as unknown as { timing: Timing }).timing, colours), { place: false });
+    const timeline = view(this, (st) => drawTimeline(having(st, 'timing').timing, colours), { place: false });
     await s.enter(timeline, {
       describe: () => {
-        const t = (this.state as unknown as { timing: Timing }).timing;
+        const t = having(this.state, 'timing').timing;
         return `A timeline of the fork step on the page: ${t.motion.toFixed(1)} seconds of motion, then ${t.held.toFixed(1)} seconds still under its ${t.words}-word caption`;
       },
     });

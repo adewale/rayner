@@ -1,6 +1,5 @@
 import { Scene } from '../../../src/index.ts';
-import { stage, settingsOf, CodeBlock, answerOf, view } from '../../../explain/index.ts';
-import { stagedStep } from '../../../explain/index.ts';
+import { stage, settingsOf, CodeBlock, answerOf, view, having } from '../../../explain/index.ts';
 import type { LayoutDirection, Card } from '../../../explain/index.ts';
 
 const ROWS: [string, number][] = [['Field', 123]];
@@ -25,7 +24,10 @@ function layoutOf(card: Card) {
   };
 }
 
-export default class LayoutDirectionExplainer extends Scene {
+/** The cards' value, and where each card landed, measured from the card on the stage. */
+type LayoutState = { field?: number; cards?: Record<string, ReturnType<typeof layoutOf>> };
+
+export default class LayoutDirectionExplainer extends Scene<LayoutState, { lit?: string | null }> {
   static meta = {
     sources: ['https://github.com/adewale/rayner/blob/main/docs/REFERENCE.md#stage'],
     // The code step's sentence speaks of the code panel it draws.
@@ -54,7 +56,7 @@ export default class LayoutDirectionExplainer extends Scene {
     // drawn from the layout the step's state records: the stage's direction and each card's options.
     const layout = { direction, start: { ...START }, end: { ...END } };
     await s.steps([
-      stagedStep({
+      {
         id: 'code',
         title: `One layout on a ${reading} stage: which side is Start?`,
         line: 'Each card names a logical place, start or end, not a side of the page.',
@@ -72,7 +74,7 @@ export default class LayoutDirectionExplainer extends Scene {
             ],
             { at: 'full', fontSize: 0.56 },
           ),
-      }),
+      },
     ]);
 
     // 2. The output: placement from the stage, columns from the stage unless the card overrides them.
@@ -92,7 +94,7 @@ export default class LayoutDirectionExplainer extends Scene {
     this.state.field = ROWS[0]![1];
     this.shown.lit = null;
     const cardView = (place: typeof layout.start | typeof layout.end, title: string, key: string) =>
-      view(this, (st, sh) => s.cardPicture([['Field', st.field]], { ...place, ...CARD, title, lit: sh.lit as string | null, litAs: 'updated', key }), { place: false });
+      view(this, (st, sh) => s.cardPicture([['Field', having(st, 'field').field]], { ...place, ...CARD, title, lit: sh.lit, litAs: 'updated', key }), { place: false });
     const start = cardView(layout.start, `Start, ${layout.direction}`, 'start-card');
     const end = cardView(layout.end, `End, own ${layout.end.direction}`, 'end-card');
     await s.enter(start, end);

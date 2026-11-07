@@ -1,7 +1,5 @@
 import { Scene, Text, Group } from '../../../src/index.ts';
-import type { SceneState } from '../../../src/index.ts';
-import { stage, settingsOf, Card, CodeBlock, answerOf, view } from '../../../explain/index.ts';
-import { stagedStep } from '../../../explain/index.ts';
+import { stage, settingsOf, Card, CodeBlock, answerOf, view, having } from '../../../explain/index.ts';
 import { callout } from '../../../explain/drawing.ts';
 import {
   CHARS,
@@ -19,7 +17,7 @@ import {
   valueOf,
 } from './model.ts';
 import { grouped } from '../lib/format.ts';
-import type { Char, CharId, Predicate } from './model.ts';
+import type { Char, CharId, NumericType, Predicate } from './model.ts';
 import { SIZE, drawLineup, drawSets } from './picture.ts';
 
 // Sources: CPython at tag v3.15.1 and the Unicode Character Database 17.0.0. Lines are quoted beside
@@ -42,7 +40,22 @@ const rowLines = (c: Char) => {
   return [f.slice(0, 5).join(';') + ';', f.slice(5, 10).join(';') + ';', f.slice(10).join(';')];
 };
 
-export default class IsDigitExplainer extends Scene {
+/** What the steps record of this scenario's character, each part from the step that records it. */
+type DigitState = {
+  /** The character the guard checks. */
+  char?: string;
+  guard?: { predicate: Predicate; passes: boolean };
+  int?: ReturnType<typeof intOf>;
+  fields?: ReturnType<typeof fields>;
+  numericType?: NumericType;
+  flags?: ReturnType<typeof flags>;
+  predicates?: ReturnType<typeof predicates>;
+  /** The database lines the step quotes, the character's row split where its numeric fields are. */
+  ucd?: string[];
+  accepts?: Record<string, number>;
+};
+
+export default class IsDigitExplainer extends Scene<DigitState, {}> {
   static meta = {
     sources: [
       CPY + 'Doc/builtins/stdtypes.rst#L2432-L2523',
@@ -128,11 +141,11 @@ export default class IsDigitExplainer extends Scene {
     // the panel and its callout centred together on the stage.
     const GUARD_SIZE = SIZE * 1.5,
       CALLOUT_GAP = 0.35,
-      returnsOf = (st: SceneState) => `returns ${TF((st.guard as { passes: boolean }).passes)}`;
+      returnsOf = (st: DigitState) => `returns ${TF(having(st, 'guard').guard.passes)}`;
     const program = view(
       this,
       (st) => {
-        const { predicate, passes } = st.guard as { predicate: string; passes: boolean };
+        const { predicate, passes } = having(st, 'guard').guard;
         // The lines that run when the check passes, or the check alone when it fails.
         const block = new CodeBlock(this, s.palette, [`s = "${st.char}"`, `if s.${predicate}():`, '    n = int(s)'], {
           at: [-7.55, -4.0, 7.55, TOP],
@@ -169,8 +182,8 @@ export default class IsDigitExplainer extends Scene {
     });
     await s.clear();
     this.state.int = int;
-    const answer = (st: SceneState) => {
-      const result = st.int as ReturnType<typeof intOf>;
+    const answer = (st: DigitState) => {
+      const result = having(st, 'int').int;
       return { parsed: 'value' in result, said: `int('${st.char}')  ${'value' in result ? `returns ${result.value}` : 'raises ValueError'}` };
     };
     // The source is the same in every scenario; the branch this character takes is its state's.
@@ -234,7 +247,7 @@ export default class IsDigitExplainer extends Scene {
       lineup: lineup.lineup.map(({ char, type }) => ({ char, type })),
     };
     await s.steps([
-      stagedStep({
+      {
         id: 'lineup',
         title: 'Eight numerals; int() accepts only the first four',
         line: `isdigit() is True for the first four and for ${CHARS.super.char} too.`,
@@ -247,7 +260,7 @@ export default class IsDigitExplainer extends Scene {
           return `Eight characters in a row: ${st.lineup.map((x) => x.char).join(' ')}. Brackets above span what each check accepts: isdecimal() the first ${st.accepted.isdecimal}, isdigit() the first ${st.accepted.isdigit}, isnumeric() all ${st.accepted.isnumeric}; the ${st.guard}() bracket is heavier. Brackets below: int() returns ${returned.join(' or ')} for the first ${parses} and raises ValueError for the rest. ${st.char} is circled. Under them: ${sup} passes isdigit() and int('${sup}') raises ValueError.`;
         },
         draw: drawLineup,
-      }),
+      },
     ]);
 
     // ------------------------------------------------------------------ its row in the database
@@ -296,7 +309,7 @@ export default class IsDigitExplainer extends Scene {
     const quoted = view(
       this,
       (st) =>
-        new CodeBlock(this, s.palette, st.ucd as string[], {
+        new CodeBlock(this, s.palette, having(st, 'ucd').ucd, {
           at: [-WIDE, -0.05, WIDE, TOP],
           fontSize: SIZE,
           focus: id === 'han' ? 3 : 2,
@@ -308,8 +321,8 @@ export default class IsDigitExplainer extends Scene {
     const row = quoted.current;
     // The three fields, a view of the state's: each check's field and what the row puts in it.
     const blank = (v: string) => v || 'empty';
-    const fieldRows = (st: SceneState) => {
-      const got = st.fields as ReturnType<typeof fields>;
+    const fieldRows = (st: DigitState) => {
+      const got = having(st, 'fields').fields;
       return [
         ['Field 6: int(), isdecimal()', blank(got.decimal)],
         ['Field 7: isdigit()', blank(got.digit)],
@@ -325,7 +338,7 @@ export default class IsDigitExplainer extends Scene {
 
     // ------------------------------------------------------------------ the nested sets
     await s.steps([
-      stagedStep({
+      {
         id: 'outcome',
         title:
           run.outcome === 'parsed'
@@ -356,7 +369,7 @@ export default class IsDigitExplainer extends Scene {
           return `Three nested boxes. ${label('isnumeric')} holds ${label('isdigit')}, which holds ${label('isdecimal')}. Inside the innermost: ${inside('Decimal')}. In isdigit() but not isdecimal(): ${inside('Digit')}. Only in isnumeric(): ${inside('Numeric')}. The ${st.guard}() box, the check's, is drawn heavier. ${st.char} is circled, ${as}.`;
         },
         draw: drawSets,
-      }),
+      },
     ]);
 
     // ------------------------------------------------------------------ the check that matches int()
@@ -369,8 +382,8 @@ export default class IsDigitExplainer extends Scene {
     await s.clear();
     this.state.accepts = Object.fromEntries(PREDICATES.map((k) => [k, accepts(k)]));
     // The counts, a view of the state's, with this scenario's check marked.
-    const countRows = (st: SceneState) =>
-      PREDICATES.map((k) => [`${k}() but not int()`, grouped((st.accepts as Record<Predicate, number>)[k])] as const);
+    const countRows = (st: DigitState) =>
+      PREDICATES.map((k) => [`${k}() but not int()`, grouped(having(st, 'accepts').accepts[k]!)] as const);
     const MARKED = `${guard}() but not int()`;
     const counts = view(
       this,

@@ -1,5 +1,5 @@
 import { Scene, Group } from '../../../src/index.ts';
-import { stage, settingsOf, Card, CodeBlock, answerOf, view } from '../../../explain/index.ts';
+import { stage, settingsOf, Card, CodeBlock, answerOf, view, having } from '../../../explain/index.ts';
 import type { Diagram, PictureNote, View } from '../../../explain/index.ts';
 import { SINGLES, WRAPS, OPENING, OPENING_TYPE, build, nameOf, isSend, isSync, quadrantOf, threads } from './model.ts';
 import type { Inner, Wrapper, Quadrant, Layer } from './model.ts';
@@ -18,16 +18,28 @@ const yesNo = (b: boolean) => (b ? 'yes' : 'no');
 const traits = (send: boolean, sync: boolean) =>
   send && sync ? 'Send and Sync' : send ? 'Send but not Sync' : sync ? 'Sync but not Send' : 'neither Send nor Sync';
 /** The script's one-sentence answer (script.md); the arc-cell step's caption opens with it. */
-/** What the steps record, accumulated: the fields the views below draw from. */
+/** What the steps record, accumulated: the fields the views below draw from, each from the step that records it. */
 interface SendSyncState {
+  /** The refused program's two threads. */
+  opening?: ReturnType<typeof threads>;
   /** The quadrant the step's point is in, which the small map fills. */
-  here: Quadrant;
+  here?: Quadrant;
+  singles?: Record<string, { send: boolean; sync: boolean }>;
+  /** The single type the step shows. */
+  shown?: string;
+  opened?: Layer;
+  layers?: Layer[];
+  built?: Layer;
   /** In a wrapper step: the wrapper, and the type it wraps. */
-  wrap: { ctor: string; inside: Layer };
-  threads: { name: string; spawnMove: boolean; scopeBorrow: boolean };
+  wrap?: { ctor: string; inside: Layer };
+  threads?: ReturnType<typeof threads>;
 }
+// The chart's notes and marks, and each code panel's focused lines and their word, are `shown`.
+type ChartShown = { notes: PictureNote[]; marks: Record<string, { color: string; as: string }> };
+type CodeFocus = { lines: [number, number]; as: string } | null;
+type SendSyncShown = { chart?: ChartShown; opener?: CodeFocus; rules?: CodeFocus };
 
-export default class SendSyncExplainer extends Scene {
+export default class SendSyncExplainer extends Scene<SendSyncState, SendSyncShown> {
   static meta = {
     sources: [
       RUST + 'alloc/src/sync.rs#L284-L286',
@@ -83,7 +95,6 @@ export default class SendSyncExplainer extends Scene {
       inner = values.inner as Inner;
     const s = stage(this, { style: 'hand-drawn', headingSize: 0.6 });
     const ink = s.palette.ink;
-    const st = () => this.state as unknown as SendSyncState;
 
     /** Lines of text at the reader's size, wrapped to the right column, from `top` down. */
     const lines = (rows: readonly (string | { text: string; head: true })[], top: number) => columnLines(rows, top, { ink, emphasis: s.emphasis });
@@ -92,7 +103,7 @@ export default class SendSyncExplainer extends Scene {
       const card = view(
         this,
         (state) => {
-          const c = new Card(this, s.palette, rows(state as unknown as SendSyncState), {
+          const c = new Card(this, s.palette, rows(state), {
             at: RIGHT,
             align: 'top',
             fontSize: SIZE,
@@ -114,13 +125,12 @@ export default class SendSyncExplainer extends Scene {
      */
     const locator = async (here: Quadrant) => {
       this.state.here = here;
-      const map = view(this, (state) => quadrantMap((state as unknown as SendSyncState).here, { ink, paper: s.palette.paper, emphasis: s.emphasis, soft: s.soft }), { place: false });
-      await s.enter(map, { describe: () => `Map of the four quadrants, “${QUADRANT[st().here]}” filled` });
+      const map = view(this, (state) => quadrantMap(having(state, 'here').here, { ink, paper: s.palette.paper, emphasis: s.emphasis, soft: s.soft }), { place: false });
+      await s.enter(map, { describe: () => `Map of the four quadrants, “${QUADRANT[having(this.state, 'here').here]}” filled` });
     };
     // How the chart in view is shown, apart from its source: the note on its point and the point
     // marked. That is `shown`, not the model; the chart is shown by a view that draws it, and each
     // change is a sync. A reveal, a morph or a focus takes the live chart, with `shown` plain.
-    type ChartShown = { notes: PictureNote[]; marks: Record<string, { color: string; as: string }> };
     const PLAIN: ChartShown = { notes: [], marks: {} };
     let chartView: { of: Diagram; view: View } | null = null;
     const showChart = async (of: Diagram, change: Partial<ChartShown>) => {
@@ -129,12 +139,12 @@ export default class SendSyncExplainer extends Scene {
         chartView = {
           of,
           view: s.diagramView(of, (_st, sh) => {
-            const c = sh.chart as ChartShown;
+            const c = having(sh, 'chart').chart;
             return { marks: c.marks, notes: c.notes };
           }),
         };
       }
-      this.shown.chart = { ...(this.shown.chart as ChartShown), ...change };
+      this.shown.chart = { ...having(this.shown, 'chart').chart, ...change };
       await this.play(chartView.view.sync({ match: 'key', staged: true }));
     };
     /** The live chart back in its view's place, its note and mark gone from `shown` first. */
@@ -145,13 +155,12 @@ export default class SendSyncExplainer extends Scene {
       chartView = null;
     };
     /** A code panel drawn from a view: the lines in focus, and their word, are `shown[name]`. */
-    type CodeFocus = { lines: [number, number]; as: string } | null;
-    const codePanel = (name: string, code: readonly string[], at: [number, number, number, number]) => {
+    const codePanel = (name: 'opener' | 'rules', code: readonly string[], at: [number, number, number, number]) => {
       this.shown[name] = null satisfies CodeFocus;
       return view(
         this,
         (_st, sh) => {
-          const focus = sh[name] as CodeFocus;
+          const focus = sh[name];
           return new CodeBlock(this, s.palette, code, {
             at,
             fontSize: SIZE,
@@ -163,7 +172,7 @@ export default class SendSyncExplainer extends Scene {
         { place: false },
       );
     };
-    const focusCode = async (panel: View, name: string, focus: CodeFocus) => {
+    const focusCode = async (panel: View, name: 'opener' | 'rules', focus: CodeFocus) => {
       this.shown[name] = focus;
       await this.play(panel.sync({ match: 'key', staged: true }));
     };
@@ -179,7 +188,7 @@ export default class SendSyncExplainer extends Scene {
     ) => {
       await showChart(chartOf, { notes: [{ id: `point:${point}:label`, text: `Send: ${yesNo(send)}, Sync: ${yesNo(sync)}`, side: 'below', size: SIZE }] });
       await s.enter(typeof words === 'function'
-        ? view(this, (state) => new Group(...lines(words(state as unknown as SendSyncState), RIGHT[3])), { place: false })
+        ? view(this, (state) => new Group(...lines(words(state), RIGHT[3])), { place: false })
         : new Group(...lines(words, RIGHT[3])));
       await locator(here);
     };
@@ -434,8 +443,8 @@ export default class SendSyncExplainer extends Scene {
       // The wrapper and the type it wraps, which the column's lines state.
       this.state.wrap = { ctor, inside: was };
       await tell(q, to, now.send, now.sync, now.quadrant, (st) => [
-        `${st.wrap.ctor} needs T: ${st.wrap.ctor === 'Arc' ? 'Send + Sync' : 'Send'}`,
-        `T here: ${st.wrap.inside.name}`,
+        `${having(st, 'wrap').wrap.ctor} needs T: ${having(st, 'wrap').wrap.ctor === 'Arc' ? 'Send + Sync' : 'Send'}`,
+        `T here: ${having(st, 'wrap').wrap.inside.name}`,
       ]);
     }
 
@@ -473,8 +482,8 @@ export default class SendSyncExplainer extends Scene {
     this.state.threads = run;
     await column(
       (st) => [
-        ['spawn, needs Send', yesNo(st.threads.spawnMove)],
-        ['scope, needs Sync', yesNo(st.threads.scopeBorrow)],
+        ['spawn, needs Send', yesNo(having(st, 'threads').threads.spawnMove)],
+        ['scope, needs Sync', yesNo(having(st, 'threads').threads.scopeBorrow)],
       ],
       'Compiles?',
     );

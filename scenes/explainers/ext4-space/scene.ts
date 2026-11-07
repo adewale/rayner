@@ -1,7 +1,7 @@
 import { Scene, FadeOut } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, mermaid, answerOf, view } from '../../../explain/index.ts';
-import type { Diagram, CardRow, CardOptions, View } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, Card, mermaid, answerOf, view, having } from '../../../explain/index.ts';
+import type { Diagram, CardRow, CardOptions, View, Having } from '../../../explain/index.ts';
 import {
   BLOCK,
   DEFAULT_RESERVE,
@@ -58,23 +58,28 @@ const SIZE = 0.34;
 // The pie on the left, a card on the right: wider than the 'side' region so that 13-digit counts
 // fit beside their labels at full size.
 const PIE: Box = [-7.55, -4.25, 1.05, 3.25];
-/** What the steps record, accumulated: the fields the cards below draw from. */
+/** What the steps record, accumulated: the fields the cards below draw from, each from the step that records it. */
 interface Ext4State {
-  disk: { size: Size; label: string; reserve: number };
-  df: { blocks: number; users: number; gone: number; pie: Slice[] };
-  reserve: { root: number; kernel: number; metadata: number; free: number; users: number; pie: Slice[] };
-  inodes: { type: string; inodeRatio: number; inodes: number; inodeTables: number; pie: Slice[] };
-  journal: { journal: number };
-  other: { groups: number; superGroups: number; superCopies: number; reservedGdt: number; bitmaps: number; files: number; other: number };
-  descBlocks: number;
-  chosen: { percent: number; root: number; users: number; gained: number; pie: Slice[] };
-  chosenKernel: number;
-  sizes: Record<Size, { metadata: number; root: number; users: number }>;
-  sizeBlocks: Record<Size, number>;
+  disk?: { size: Size; label: string; reserve: number };
+  df?: { blocks: number; users: number; gone: number; pie: Slice[] };
+  reserve?: { root: number; kernel: number; metadata: number; free: number; users: number; pie: Slice[] };
+  inodes?: { type: string; inodeRatio: number; inodes: number; inodeTables: number; pie: Slice[] };
+  journal?: { journal: number };
+  other?: { groups: number; superGroups: number; superCopies: number; reservedGdt: number; bitmaps: number; files: number; other: number };
+  descBlocks?: number;
+  chosen?: { percent: number; root: number; users: number; gained: number; pie: Slice[] };
+  chosenKernel?: number;
+  sizes?: Record<string, { metadata: number; root: number; users: number }>;
+  sizeBlocks?: Record<string, number>;
 }
 const CARD: Box = [1.35, -4.25, 7.55, 3.25];
+// How a pie is shown apart from its slices, the slice it marks, is in `shown` under the pie's name.
+type Marks = Record<string, { color: string; as: string }>;
+type PieName = 'answer' | 'metadata' | 'chosen';
+/** Each pie's marks, and the journal table's lit row. */
+type Ext4Shown = { [name in PieName]?: Marks } & { journalRow?: string };
 
-export default class Ext4SpaceExplainer extends Scene {
+export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
   static meta = {
     sources: [
       E2FS + 'misc/mke2fs.conf.in#L1-L29',
@@ -136,12 +141,19 @@ export default class Ext4SpaceExplainer extends Scene {
       l = sp.layout;
     const of = (n: number) => percent(n, l.blocks);
     const ofMeta = (n: number) => percent(n, l.metadata);
-    /** A card drawn from the state: a view that builds it from `rows(state)`, so check holds it to the state. */
-    const cardOf = (rows: (st: Ext4State) => readonly CardRow[], opts: CardOptions | ((st: Ext4State) => CardOptions)): View<Card> =>
+    /**
+     * A card drawn from the state: a view that builds it from `rows(state)`, so check holds it to the state.
+     * `needs` names the parts of the state it reads, which the steps before it have recorded.
+     */
+    const cardOf = <K extends keyof Ext4State>(
+      needs: readonly [K, ...K[]],
+      rows: (st: Having<Ext4State, K>) => readonly CardRow[],
+      opts: CardOptions | ((st: Having<Ext4State, K>) => CardOptions),
+    ): View<Card> =>
       view(
         this,
         (state) => {
-          const st = state as unknown as Ext4State;
+          const st = having(state, ...needs);
           return new Card(this, s.palette, rows(st), typeof opts === 'function' ? opts(st) : opts);
         },
         { place: false },
@@ -151,21 +163,20 @@ export default class Ext4SpaceExplainer extends Scene {
       await s.enter(card, { runTime: 0.35, shift: [0, -0.08] });
       return card.current;
     };
-    const st = () => this.state as unknown as Ext4State;
-    // How a pie is shown apart from its slices, the slice it marks, is in `shown` under the pie's name.
-    type Marks = Record<string, { color: string; as: string }>;
+    /** The state's parts the steps so far have recorded. */
+    const st = <K extends keyof Ext4State>(...needs: [K, ...K[]]) => having(this.state, ...needs);
     /** Diagram `d` shown by a view of `shown[name]`, its marks. */
-    const pieView = (d: Diagram, name: string) => {
+    const pieView = (d: Diagram, name: PieName) => {
       this.shown = { ...this.shown, [name]: {} };
-      return s.diagramView(d, (_st, sh) => ({ marks: sh[name] as Marks }));
+      return s.diagramView(d, (_st, sh) => ({ marks: having(sh, name)[name] }));
     };
     /** Pie `name` marks these slices, in the pie's accent, and nothing else. */
-    const markSlices = async (v: View, d: Diagram, name: string, ids: string[], as: string) => {
+    const markSlices = async (v: View, d: Diagram, name: PieName, ids: string[], as: string) => {
       this.shown = { ...this.shown, [name]: Object.fromEntries(ids.map((id) => [id, { color: d.accent, as }])) };
       await this.play(v.sync({ match: 'key', staged: true, runTime: 0.45 }));
     };
     /** The disk's blocks, from what the opening records. */
-    const ofDisk = (state: Ext4State, n: number) => percent(n, state.df.blocks);
+    const ofDisk = (state: Having<Ext4State, 'df'>, n: number) => percent(n, state.df.blocks);
     this.state.disk = { size, label: name, reserve: m };
 
     // Every whole-disk pie in this scenario, so that one config colours all of them.
@@ -205,9 +216,10 @@ export default class Ext4SpaceExplainer extends Scene {
     await s.clear();
     this.state.df = { blocks: l.blocks, users: sp.users, gone, pie: openPie };
     // The pies are drawn from the slices each step records.
-    const d3: Diagram = await s.show({ source: pie(answerNames, `Every 4 KiB block of ${name}`, st().df.pie) }, { box: PIE });
+    const d3: Diagram = await s.show({ source: pie(answerNames, `Every 4 KiB block of ${name}`, st('df').df.pie) }, { box: PIE });
     await enterCard(
       cardOf(
+        ['disk', 'df'],
         (st) => [
           ['Disk', `${st.disk.label}, ${grouped(st.df.blocks)} blocks`],
           ['df Avail', `${grouped(st.df.users)} blocks`],
@@ -240,12 +252,12 @@ export default class Ext4SpaceExplainer extends Scene {
     };
     // Not available splits into its three parts, re-coloured from the answer's own config.
     await d3.morph(
-      { source: pie(answerNames, `Every 4 KiB block of ${name}`, st().reserve.pie) },
+      { source: pie(answerNames, `Every 4 KiB block of ${name}`, st('reserve').reserve.pie) },
       {
         ops: [
           { kind: 'rename_slice', from: 'Not available', to: 'Metadata' },
-          { kind: 'set_slice_value', label: 'Metadata', value: st().reserve.metadata },
-          ...st()
+          { kind: 'set_slice_value', label: 'Metadata', value: st('reserve').reserve.metadata },
+          ...st('reserve')
             .reserve.pie.slice(2)
             .map((x) => ({ kind: 'add_slice', label: x.label, value: x.value })),
         ],
@@ -254,6 +266,7 @@ export default class Ext4SpaceExplainer extends Scene {
     await markSlices(pieView(d3, 'answer'), d3, 'answer', ['slice:Root reserve'], 'the answer');
     await enterCard(
       cardOf(
+        ['df', 'reserve'],
         (st) => [
           ['Blocks', grouped(st.df.blocks)],
           ['Metadata', `- ${grouped(st.reserve.metadata)}`],
@@ -289,8 +302,8 @@ export default class Ext4SpaceExplainer extends Scene {
       {
         source: pie(
           ['Inode tables', 'Journal', 'Other metadata'],
-          `The ${grouped(st().reserve.metadata)} metadata blocks`,
-          st().inodes.pie,
+          `The ${grouped(st('reserve').reserve.metadata)} metadata blocks`,
+          st('inodes').inodes.pie,
         ),
       },
       { box: PIE },
@@ -298,6 +311,7 @@ export default class Ext4SpaceExplainer extends Scene {
     const d2View = pieView(d2, 'metadata');
     await markSlices(d2View, d2, 'metadata', ['slice:Inode tables'], 'this step');
     const inodeCard = cardOf(
+        ['inodes', 'df'],
         (st) => [
           ['Size type', st.inodes.type],
           ['One inode per', `${st.inodes.inodeRatio / 1024} KiB`],
@@ -336,14 +350,14 @@ export default class Ext4SpaceExplainer extends Scene {
           at: CARD,
           fontSize: SIZE,
           title: 'Journal by disk size',
-          lit: (sh.journalRow ?? null) as string | null,
-          litAs: (state as unknown as Ext4State).disk.label,
+          lit: sh.journalRow ?? null,
+          litAs: having(state, 'disk').disk.label,
           key: 'journal',
         }),
       { place: false },
     );
     await enterCard(journalCard);
-    const row = steps.filter((_, i) => JOURNAL_STEPS[i]! <= st().df.blocks).at(-1)!;
+    const row = steps.filter((_, i) => JOURNAL_STEPS[i]! <= st('df').df.blocks).at(-1)!;
     this.shown = { ...this.shown, journalRow: row[0] };
     await this.play(journalCard.sync({ match: 'key', staged: true, runTime: 0.4 }));
 
@@ -373,6 +387,7 @@ export default class Ext4SpaceExplainer extends Scene {
     };
     await enterCard(
       cardOf(
+        ['other', 'descBlocks', 'df'],
         (st) => [
           ['Groups with copies', `${st.other.superGroups}`],
           ['Blocks a copy', st.other.reservedGdt ? `1 + ${st.descBlocks} + ${st.other.reservedGdt}` : `1 + ${st.descBlocks}`],
@@ -430,6 +445,7 @@ export default class Ext4SpaceExplainer extends Scene {
       this.state.chosenKernel = chosen.kernel;
       await enterCard(
         cardOf(
+        ['chosen', 'chosenKernel', 'df'],
           (st) => [
             [`Root, ${st.chosen.percent}%`, grouped(st.chosen.root)],
             ['Kernel', grouped(st.chosenKernel)],
@@ -462,9 +478,10 @@ export default class Ext4SpaceExplainer extends Scene {
     this.state.sizeBlocks = Object.fromEntries(all.map((a) => [a.k, a.x.layout.blocks]));
     await enterCard(
       cardOf(
+        ['sizes', 'sizeBlocks', 'disk'],
         (st) =>
-          (Object.entries(st.sizes) as [Size, Ext4State['sizes'][Size]][]).map(([k, x]) => {
-            const of = (n: number) => percent(n, st.sizeBlocks[k]);
+          (Object.entries(st.sizes) as [Size, (typeof st.sizes)[Size]][]).map(([k, x]) => {
+            const of = (n: number) => percent(n, st.sizeBlocks[k]!);
             return [SIZES[k].label, `metadata ${of(x.metadata)}, root reserve ${of(x.root)}, users ${of(x.users)}`] as [string, string];
           }),
         (st) => ({

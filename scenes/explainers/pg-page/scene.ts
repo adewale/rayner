@@ -1,7 +1,7 @@
 import { Scene, FadeOut, Create } from '../../../src/index.ts';
-import type { Box, Group, SceneState } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, mermaid, answerOf, view } from '../../../explain/index.ts';
-import type { Diagram, CardRow, CardOptions, View } from '../../../explain/index.ts';
+import type { Box, Group } from '../../../src/index.ts';
+import { stage, settingsOf, regionBox, Card, mermaid, answerOf, view, having } from '../../../explain/index.ts';
+import type { Diagram, CardRow, CardOptions, View, Having } from '../../../explain/index.ts';
 import { callout } from '../../../explain/drawing.ts';
 import {
   BLCKSZ,
@@ -49,17 +49,19 @@ const pie = (c: { label: string; share: Share }) =>
     { title: pieTitle(c), showData: true, config: CONFIG },
   );
 
-/** What the steps record, accumulated: the fields the views below draw from. */
+/** What the steps record, accumulated: the fields the views below draw from, each from the step that records it. */
 interface PgState {
-  column: Column;
-  empty: { lower: number; upper: number; free: number };
-  pair: { label: string; valueBytes: string }[];
-  row: { lpOff: number; lpLen: number; hoff: number; stored: number; perRow: number; lower: number; upper: number };
-  tuple: TupleState;
-  tuples: [TupleState, TupleState];
-  full: { rows: number; share: Share };
-  why: { used: number; free: number; lower: number; upper: number; heapFree: number; needs: number; unrounded: number };
-  compare: Record<Column, { perRow: number; rows: number; pages: number }>;
+  column?: Column;
+  empty?: { lower: number; upper: number; free: number };
+  pair?: { label: string; valueBytes: string }[];
+  row?: { lpOff: number; lpLen: number; hoff: number; stored: number; perRow: number; lower: number; upper: number };
+  tuple?: TupleState;
+  tuples?: [TupleState, TupleState];
+  full?: { rows: number; share: Share };
+  why?: { used: number; free: number; lower: number; upper: number; heapFree: number; needs: number; unrounded: number };
+  compare?: Record<string, { perRow: number; rows: number; pages: number }>;
+  /** The other column the answer swaps to, and both columns' rows a page and bytes a row. */
+  swap?: { from: Column; to: Column; rows: [number, number]; perRow: [number, number] };
 }
 
 const PIE_BOX: Box = [-7.55, -4.25, 1.75, 3.25];
@@ -68,7 +70,10 @@ const RIGHT: Box = [1.95, -4.1, 7.55, 3.1];
 // The first two steps draw the page on the left and the tuple on the right.
 const ROW_RIGHT: Box = [-0.9, -4.1, 7.55, 3.1];
 
-export default class PgPageExplainer extends Scene {
+/** Where the tuple's grid sits: left, beside the other type's, from the answer step on. */
+type PgShown = { grid?: 'left'; pie?: { marked: string[] } };
+
+export default class PgPageExplainer extends Scene<PgState, PgShown> {
   static meta = {
     sources: [
       PG + 'include/storage/bufpage.h#L158-L218',
@@ -122,14 +127,21 @@ export default class PgPageExplainer extends Scene {
     const [narrow, wide] = column.startsWith('int4') ? [c, w] : [w, c];
     const isText = column !== 'int4' && column !== 'int8';
 
-    /** The scene's state, as the steps record it. */
-    const st = () => this.state as unknown as PgState;
-    /** A card drawn from the state: a view that builds it from `rows(state)`, so check holds it to the state. */
-    const cardOf = (rows: (st: PgState) => readonly CardRow[], opts: CardOptions | ((st: PgState) => CardOptions)): View<Card> =>
+    /** The parts of the state the steps so far have recorded. */
+    const st = <K extends keyof PgState>(...needs: [K, ...K[]]) => having(this.state, ...needs);
+    /**
+     * A card drawn from the state: a view that builds it from `rows(state)`, so check holds it to the state.
+     * `needs` names the parts of the state it reads.
+     */
+    const cardOf = <K extends keyof PgState>(
+      needs: readonly [K, ...K[]],
+      rows: (st: Having<PgState, K>) => readonly CardRow[],
+      opts: CardOptions | ((st: Having<PgState, K>) => CardOptions),
+    ): View<Card> =>
       view(
         this,
         (state) => {
-          const st = state as unknown as PgState;
+          const st = having(state, ...needs);
           return new Card(this, s.palette, rows(st), typeof opts === 'function' ? opts(st) : opts);
         },
         { place: false },
@@ -143,8 +155,8 @@ export default class PgPageExplainer extends Scene {
     const { outline, header, headerLabel, pageSize } = drawPage(colours);
     const pageWords = () =>
       `An 8192-byte page drawn top to bottom, not to scale: a ${PAGE_HEADER}-byte header, then free space` +
-      (st().tuple
-        ? `, then one ${LINE_POINTER}-byte line pointer under the header and one ${st().tuple.stored}-byte tuple at the very end of the page.`
+      (this.state.tuple
+        ? `, then one ${LINE_POINTER}-byte line pointer under the header and one ${this.state.tuple.stored}-byte tuple at the very end of the page.`
         : '.');
     const valueBytes = (x: Scenario) => (x.column.endsWith('text') ? `${x.tuple.data - TEXT_CHARS - 1} + ${TEXT_CHARS + 1}` : `${x.tuple.data}`);
     await this.step('page', {
@@ -158,11 +170,11 @@ export default class PgPageExplainer extends Scene {
     // The two value sizes the question compares, narrow integer first.
     this.state.pair = [narrow, wide].map((x) => ({ label: x.label, valueBytes: valueBytes(x) }));
     // The free space the empty page records, said in it.
-    const freeLabel = view(this, (state) => drawEmptyFree((state as unknown as PgState).empty.free, colours), { place: false });
+    const freeLabel = view(this, (state) => drawEmptyFree(having(state, 'empty').empty.free, colours), { place: false });
     await s.enter(outline, header, headerLabel, freeLabel, pageSize, { describe: pageWords });
     /** A callout drawn from the state, drawn in as s.callout draws one. */
     const calloutOf = async (draw: (st: PgState) => Group) => {
-      const v = view(this, (state) => draw(state as unknown as PgState), { place: false });
+      const v = view(this, draw, { place: false });
       s.keep(v);
       await this.play(new Create(v, { runTime: 0.6, lagRatio: 0.15 }));
       return v;
@@ -172,8 +184,9 @@ export default class PgPageExplainer extends Scene {
       calloutOf((st) => callout(s, [x, y], `pd_lower ${value(st)}`, { side: 'below', gap: 0.35, size: SMALL }));
     const upperAt = ([x, y]: readonly [number, number], value: (st: PgState) => number) =>
       calloutOf((st) => callout(s, [x, y], `pd_upper ${value(st)}`, { side: 'above', gap: 0.45, size: SMALL }));
-    const emptyMarks = [await lowerAt(AT.emptyLower, (st) => st.empty.lower), await upperAt(AT.emptyUpper, (st) => st.empty.upper)];
+    const emptyMarks = [await lowerAt(AT.emptyLower, (st) => having(st, 'empty').empty.lower), await upperAt(AT.emptyUpper, (st) => having(st, 'empty').empty.upper)];
     const question = cardOf(
+      ['pair'],
       (state) => [...state.pair.map((x) => [`${x.label}, value bytes`, x.valueBytes] as [string, string]), ['Rows a page', '?']],
       { at: ROW_RIGHT, fontSize: SIZE, title: 'Two ways to store the same rows' },
     );
@@ -210,26 +223,30 @@ export default class PgPageExplainer extends Scene {
     const LX = -5.9,
       RX = 1.7,
       TOP = 2.35;
-    const rowAt = (shown: SceneState): [number, number] => (shown.grid === 'left' ? [LX, TOP] : [GX, GY]);
-    const row = view(this, (state) => drawFirstRow((state as unknown as PgState).row, colours), { place: false });
-    const mine = view(this, (state, shown) => drawTupleGrid((state as unknown as PgState).tuple, ...rowAt(shown), colours), { place: false });
-    const keys = view(this, (state) => drawKeyGroup((state as unknown as PgState).tuple, GX + 8 * CELL + 0.45, GY - 0.25, colours), {
+    const rowAt = (shown: PgShown): [number, number] => (shown.grid === 'left' ? [LX, TOP] : [GX, GY]);
+    const row = view(this, (state) => drawFirstRow(having(state, 'row').row, colours), { place: false });
+    const mine = view(this, (state, shown) => drawTupleGrid(having(state, 'tuple').tuple, ...rowAt(shown), colours), { place: false });
+    const keys = view(this, (state) => drawKeyGroup(having(state, 'tuple').tuple, GX + 8 * CELL + 0.45, GY - 0.25, colours), {
       place: false,
     });
     await s.enter(row, { describe: pageWords });
-    await s.enter(mine, keys, { describe: () => gridWords(st().tuple) });
+    await s.enter(mine, keys, { describe: () => gridWords(st('tuple').tuple) });
     // pageinspect on Postgres 18.6 (heap_page_items and page_header of block 0 after one insert),
     // each value said where it points: the new free-space edges, the pointer's target and the data's start.
     const byte = (v: View, x: TupleState, i: number) => v.current.family().find((m) => m.key === `pg-byte:${x.column}:${i}`)!;
     const rowMarks = [
-      await lowerAt(AT.rowLower, (st) => st.row.lower),
-      await upperAt(AT.rowUpper(st().row.stored), (st) => st.row.upper),
+      await lowerAt(AT.rowLower, (st) => having(st, 'row').row.lower),
+      await upperAt(AT.rowUpper(st('row').row.stored), (st) => having(st, 'row').row.upper),
     ];
     rowMarks.push(
-      await calloutOf((st) => callout(s, AT.link(st.row.stored), `lp_off ${st.row.lpOff}, lp_len ${st.row.lpLen}`, { side: 'right', gap: 0.3, size: SMALL })),
+      await calloutOf((state) => {
+        const { row } = having(state, 'row');
+        return callout(s, AT.link(row.stored), `lp_off ${row.lpOff}, lp_len ${row.lpLen}`, { side: 'right', gap: 0.3, size: SMALL });
+      }),
     );
     // Under the byte where the data starts, in the row's grid.
-    const hoffMark = await calloutOf((st) => {
+    const hoffMark = await calloutOf((state) => {
+      const st = having(state, 'row', 'tuple');
       const start = byte(mine, st.tuple, st.row.hoff);
       return callout(s, start, `t_hoff ${st.row.hoff}: data starts here`, {
         side: 'below',
@@ -276,10 +293,10 @@ export default class PgPageExplainer extends Scene {
     await this.play(mine.animate.shift([LX - GX, TOP - GY]), { runTime: 0.6 });
     this.shown.grid = 'left';
     /** The titles and keys of both tuples, with the other type's grid on the right. */
-    const pair = view(this, (state) => drawPair((state as unknown as PgState).tuples, LX, RX, TOP, colours), { place: false });
-    await s.enter(pair, { describe: () => `${gridWords(st().tuples[0])} ${gridWords(st().tuples[1])}` });
+    const pair = view(this, (state) => drawPair(having(state, 'tuples').tuples, LX, RX, TOP, colours), { place: false });
+    await s.enter(pair, { describe: () => `${gridWords(st('tuples').tuples[0])} ${gridWords(st('tuples').tuples[1])}` });
     // Where the two differ: the bytes one type uses for its value and the other leaves as padding.
-    const [ours, other] = st().tuples;
+    const [ours, other] = st('tuples').tuples;
     const differ = ours.bytes.flatMap((b, i) => (other.bytes[i] !== b ? [i] : []));
     if (differ.length) {
       const first = differ[0]!;
@@ -310,7 +327,7 @@ export default class PgPageExplainer extends Scene {
     await s.clear();
     this.state.full = { rows: p.rows, share: sh };
     /** The full page's pie, from the share the full step records. */
-    const fullPie = () => pie({ label: COLUMNS[st().column].label, share: st().full.share });
+    const fullPie = () => pie({ label: COLUMNS[st('column').column].label, share: st('full').full.share });
     // The whole stage for the pie, so its narrow slices have room for their labels.
     let d: Diagram = await s.show({ source: fullPie() }, { box: WIDE_PIE });
 
@@ -334,12 +351,13 @@ export default class PgPageExplainer extends Scene {
     const whyPie = d;
     this.shown.pie = { marked: [] };
     const pieView = s.diagramView(whyPie, (_state, sh) => ({
-      marks: Object.fromEntries((sh.pie as { marked: string[] }).marked.map((id) => [id, { color: whyPie.accent, as: 'too small for another row' }])),
+      marks: Object.fromEntries(having(sh, 'pie').pie.marked.map((id) => [id, { color: whyPie.accent, as: 'too small for another row' }])),
     }));
     this.shown.pie = { marked: ['slice:Free space'] };
     await this.play(pieView.sync({ match: 'key', staged: true, runTime: 0.45 }));
     // The arithmetic, from the full page's row count, the row's cost and what the why step records.
     const why = cardOf(
+      ['empty', 'full', 'row', 'why'],
       (state) => [
         ['Free when empty', `${state.empty.free}`],
         [`${state.full.rows} rows x ${state.row.perRow} bytes`, `${state.why.used}`],
@@ -369,8 +387,9 @@ export default class PgPageExplainer extends Scene {
     );
     // One row per column type, from what the compare step records; the scenario's own row is marked.
     const compareCard = cardOf(
+      ['compare', 'column'],
       (state) =>
-        (Object.entries(state.compare) as [Column, PgState['compare'][Column]][]).map(
+        (Object.entries(state.compare) as [Column, (typeof state.compare)[Column]][]).map(
           ([k, x]) => [COLUMNS[k].label, `${x.perRow} bytes a row, ${x.rows} a page, ${x.pages} pages`] as [string, string],
         ),
       (state) => ({

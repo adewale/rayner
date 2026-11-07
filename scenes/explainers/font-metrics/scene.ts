@@ -1,8 +1,7 @@
 import { Scene, ItalicText } from '../../../src/index.ts';
 import { stage, settingsOf, view } from '../../../explain/index.ts';
-import { stagedStep } from '../../../explain/index.ts';
 import { SAMPLE, GAP, drawLayout, drawAdvance, drawRulers, drawCuts } from './picture.ts';
-import type { Pen } from './picture.ts';
+import type { CutsState, Pen } from './picture.ts';
 
 // This page tests one phrase, three EB Garamond cuts (Regular, Bold and Italic outlines, captured and
 // bundled) and two diagram labels; it does not compare other fonts. The diagram deliberately compares
@@ -11,7 +10,10 @@ import type { Pen } from './picture.ts';
 const DIAGRAM = 'graph LR\nA["Ink"] --> B["Paper"]';
 type Widths = 'natural' | 'recorded';
 
-export default class FontMetrics extends Scene {
+/** The cuts' advances, and each diagram word's stretch once the layout is measured. */
+type FontState = CutsState & { stretch?: Record<string, number> };
+
+export default class FontMetrics extends Scene<FontState, {}> {
   static meta = {
     sources: ['https://github.com/googlefonts/ebgaramond'],
     textContext: 'explicit' as const,
@@ -78,15 +80,15 @@ export default class FontMetrics extends Scene {
       drawnEnd = rulers.rulers.drawn.at(-1)!;
     const pen: Pen = { stage: s, text: (value, opts) => this.text(value, opts), phrase, color };
     await s.steps([
-      stagedStep({
+      {
         id: 'layout',
         title: `Measure the wrong face and the marker lands ${(wrong - actual).toFixed(2)} units too far`,
         line: `Same phrase, size and ${GAP}-unit gap; only the measurement changes.`,
         caption: `Both rows draw “${SAMPLE}” in EB Garamond. Each marker adds the same ${GAP}-unit gap, but the upper row placed it using JetBrains Mono’s ${wrong.toFixed(2)}-unit measurement rather than Garamond’s ${actual.toFixed(2)}. That puts it ${(wrong - actual).toFixed(2)} units too far right. Where does the phrase’s width come from?`,
         state: layout,
         draw: (st) => drawLayout(st, pen),
-      }),
-      stagedStep({
+      },
+      {
         id: 'advance',
         title: 'A phrase’s width is the sum of its glyphs’ advances',
         line: `Ticks: where each glyph hands the pen to the next. Dashed: the ${advance.pen.spaces.length} spaces.`,
@@ -94,8 +96,8 @@ export default class FontMetrics extends Scene {
         state: advance,
         describe: (st) => `A tick under “${SAMPLE}” at each of its ${st.pen.starts.length - 1} pen positions, and dashed cells around its ${st.pen.spaces.length} spaces`,
         draw: (st) => drawAdvance(st, pen),
-      }),
-      stagedStep({
+      },
+      {
         id: 'rulers',
         title: 'The upper marker went 0.5 past a JetBrains Mono ruler',
         line: 'Upper ticks: Garamond’s advances, as drawn. Lower: JetBrains Mono’s, as measured.',
@@ -106,7 +108,7 @@ export default class FontMetrics extends Scene {
           return `“${SAMPLE}” in Garamond, as in the opening’s upper row, with its filled marker ${markers.measured.toFixed(2)} units from the start. Under it, two rulers from the same start: Garamond’s ${drawn.length - 1} advances, ending at ${drawn.at(-1)!.toFixed(2)}, and JetBrains Mono’s, ending at ${measured.at(-1)!.toFixed(2)}; thin lines join matching pen stops and spread apart glyph by glyph. A filled marker ${(markers.measured - measured.at(-1)!).toFixed(1)} past the Mono ruler’s end, a ring ${(markers.drawn - drawn.at(-1)!).toFixed(1)} past Garamond’s`;
         },
         draw: (st) => drawRulers(st, pen),
-      }),
+      },
     ]);
 
     // 4. Within one family, every cut is its own face. The rows are a view of the advances the state
@@ -123,7 +125,7 @@ export default class FontMetrics extends Scene {
     });
     await s.clear();
     this.state = { ...rulers, advances: Object.fromEntries(CUTS.map((cut) => [cut, word(cut).advance()])) };
-    const advances = () => this.state.advances as Record<string, number>;
+    const advances = () => this.state.advances;
     const rows = view(this, (st) => drawCuts(st, CUTS, word, pen), { place: false });
     s.opening(rows);
     await s.enter(rows, {
@@ -155,7 +157,7 @@ export default class FontMetrics extends Scene {
       ['B', 'Paper'],
     ] as const;
     const dv = s.diagramView(d, (st) => {
-      const stretch = (st.stretch ?? {}) as Record<string, number>;
+      const stretch = st.stretch ?? {};
       return {
         notes: WORDS.filter(([, text]) => text in stretch).map(([id, text]) => ({
           id,

@@ -64,7 +64,15 @@ const PROSE: Readonly<Record<number, string>> = {
 };
 const said = (n: number) => PROSE[n]!;
 
-export default class GnomeFilesExplainer extends Scene {
+/** The colour key's scores, then (after the staged steps) every give-up and this participant's journey. */
+type FilesState = {
+  key?: Record<string, number | null>;
+  giveUps?: { mine: number[]; others: Record<string, Participant[]>; total: number };
+  /** Each task the journey shows, with this participant's score on it. */
+  journey?: [number, number | null][];
+};
+
+export default class GnomeFilesExplainer extends Scene<FilesState, {}> {
   static meta = {
     sources: [REPORT, ARTICLE, 'https://technicallywewrite.com/images/2025/01/gnome3.png'],
     claims: [
@@ -203,7 +211,7 @@ export default class GnomeFilesExplainer extends Scene {
     // The journey's view marks each task the state scores as a give-up, the report's black.
     const journeyView = s.diagramView(d, (st) => ({
       marks: Object.fromEntries(
-        ((st.journey ?? []) as [number, number | null][]).flatMap(([, score], i) =>
+        (st.journey ?? []).flatMap(([, score], i) =>
           score === SCORE.black ? [[`task:task-${i}`, { color: s.bad, as: 'gave up' }]] : [],
         ),
       ),

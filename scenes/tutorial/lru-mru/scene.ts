@@ -5,7 +5,10 @@ import { run, type Policy } from './model.ts';
 const SIZE = 3;
 const NEXT = { loop: 'ABCD', reuse: 'CDCD' };
 
-export default class LruMru extends Scene {
+/** What the card shows after some requests: the requests so far, and each policy's cache, evictions and hits. */
+type CardState = { Requests: string; 'Newest first': [string, string]; Evicted: [string, string]; Hits: [string, string] };
+
+export default class LruMru extends Scene<CardState, { lit: string | null }> {
   static meta = {
     sources: [
       'https://en.wikipedia.org/w/index.php?title=Cache_replacement_policies&oldid=1376205644',
@@ -21,7 +24,7 @@ export default class LruMru extends Scene {
     const trace = { lru: run('lru', SIZE, requests), mru: run('mru', SIZE, requests) };
 
     // What the card shows after the first n requests, read from the model's trace.
-    const shown = (n: number) => {
+    const shown = (n: number): CardState => {
       const column = (policy: Policy) => {
         const done = trace[policy].slice(0, n), hits = done.filter((r) => r.hit).map((r) => r.key);
         return [done.at(-1)!.cache.join(' '), done.flatMap((r) => r.evicted ?? []).join(' ') || 'none', hits.length ? `${hits.length}: ${hits.join(' ')}` : '0'];
@@ -30,7 +33,6 @@ export default class LruMru extends Scene {
       const pair = (i: number): [string, string] => [lru[i]!, mru[i]!];
       return { Requests: requests.slice(0, n).join(' '), 'Newest first': pair(0), Evicted: pair(1), Hits: pair(2) };
     };
-    type CardState = ReturnType<typeof shown>;
     // The card is a view: its values are the model's (this.state), and the row it lights is how the
     // step shows them (this.shown). Each step changes them, and the card is redrawn from both.
     const show = async (n: number, lit: string | null = null) => {
@@ -43,14 +45,13 @@ export default class LruMru extends Scene {
     this.state = shown(3);
     this.shown = { lit: null };
     const card = view(this, (st, sh) => {
-      const c = st as CardState, lit = (sh as { lit: string | null }).lit;
       return new Card(this, s.palette, [
-        ['Requests', c.Requests],
+        ['Requests', st.Requests],
         ['Slots', SIZE],
-        ['Newest first', ...c['Newest first']],
-        ['Evicted', ...c.Evicted],
-        ['Hits', ...c.Hits],
-      ], { columns: ['LRU', 'MRU'], width: 6.8, fontSize: 0.3, lit, key: 'cache' });
+        ['Newest first', ...st['Newest first']],
+        ['Evicted', ...st.Evicted],
+        ['Hits', ...st.Hits],
+      ], { columns: ['LRU', 'MRU'], width: 6.8, fontSize: 0.3, lit: sh.lit, key: 'cache' });
     }, { place: false });
     await s.enter(card, { runTime: 0.35 });
 

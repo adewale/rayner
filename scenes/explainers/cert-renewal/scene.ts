@@ -1,5 +1,5 @@
 import { Scene, Text, FadeOut } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, CodeBlock, answerOf, view } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, Card, CodeBlock, answerOf, view, having } from '../../../explain/index.ts';
 import type { CardOptions, CardRow, Diagram, NoteSide } from '../../../explain/index.ts';
 import {
   BACKDATE,
@@ -15,7 +15,7 @@ import {
   summarize,
   windowFor,
 } from './model.ts';
-import type { LifetimeKey, Rule } from './model.ts';
+import type { AriSummary, LifetimeKey, Rule, ScenarioSummary } from './model.ts';
 import { days, drawAxis, drawMargin, drawStrip, marginWords, named, ofLife, pct, stamp } from './picture.ts';
 import type { MarginRow, YearRun } from './picture.ts';
 import { listed, upperFirst } from '../lib/format.ts';
@@ -135,8 +135,35 @@ const gantt = (sections: [string, Bar[]][], axis: string) =>
 const at = (hours: number, short: boolean) => (short ? `hour ${Math.round(hours)}` : `day ${days(hours)}`);
 const length = (hours: number, short: boolean) => (short ? `${Math.round(hours)} hours` : `${days(hours)} days`);
 
+/** When a certificate falls due under a rule, and the run that replaces it. */
+type Due = { due: number; renewsAt: number };
+/** What the steps establish, each part from the step that establishes it. */
+type CertState = {
+  limits?: number[];
+  letsEncrypt?: (string | number)[][];
+  oldRule?: Due;
+  margin?: { rows: MarginRow[]; renewsAt: number };
+  newRule?: { lifetime: LifetimeKey; fixed30: Due; fraction: Due };
+  year?: YearRun & { renewalsPerYear: number };
+  otherRule?: Omit<YearRun, 'lifetime' | 'window'> & { renewalsPerYear: number };
+  slack?: { fraction: number; fixed30: number; retries: number; firstRefused: ScenarioSummary['firstRefused']; refused: ScenarioSummary['refusedPerYear'] };
+  replaces?: { replacesSent: boolean; burst: number; emissionHours: number };
+  ari?: Pick<AriSummary, 'start' | 'end' | 'runs' | 'perYear'> & { lifetime: LifetimeKey; withoutAnswer: number };
+};
+// How a diagram is shown, apart from its source: the parts marked as the chosen rule, its notes and
+// what stays undimmed. That is `shown`, not the model; each diagram's view draws its own entry there.
+type DiagramShown = { marked: string[]; notes: { id: string; text: string; side: NoteSide }[]; dim: string[] | null };
+type DiagramName = 'timeline' | 'chart' | 'replaced' | 'retry';
+// The code under the charts is a view: which Certbot's code it shows and the lines in focus are in
+// `shown.code`. Both versions take the old code's width and fit the region's height, and the panel
+// keys each line by its text, so a line both versions share glides to its new row.
+type CodeShown = { version: 'old' | 'new'; focus: [number, number] };
+// The ARI code is a view; its focused lines, and what the description calls them, are in `shown`.
+type AriFocus = { lines: [number, number]; as: string };
+/** Each diagram's entry, the code's version and focus, and the ARI code's focus. */
+type CertShown = { [name in DiagramName]?: DiagramShown } & { code?: CodeShown; ariFocus?: AriFocus };
 
-export default class CertRenewalExplainer extends Scene {
+export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
   static meta = {
     sources: [
       'https://github.com/cabforum/servercert/blob/3574ae809e5f909b58ee4c26b7bac4a3b9e78421/docs/BR.md#632-certificate-operational-periods-and-key-pair-usage-periods',
@@ -201,19 +228,16 @@ export default class CertRenewalExplainer extends Scene {
       s = stage(this, { style: STYLE, headingSize: 0.6 }),
       colours = { ink: s.palette.ink, emphasis: s.emphasis, bad: s.bad, soft: s.soft };
     /** A card drawn from the step's state, brought in as `s.card` brings one in; its words are the card's own. */
-    const cardOf = async (rowsOf: (st: Record<string, unknown>) => CardRow[], opts: CardOptions) => {
+    const cardOf = async (rowsOf: (st: CertState) => CardRow[], opts: CardOptions) => {
       const v = view(this, (st) => new Card(this, s.palette, rowsOf(st), opts), { place: false });
       await s.enter(v, { runTime: 0.35, shift: [0, -0.08] });
       return v;
     };
-    // How a diagram is shown, apart from its source: the parts marked as the chosen rule, its notes and
-    // what stays undimmed. That is `shown`, not the model; each diagram's view draws its own entry there.
-    type DiagramShown = { marked: string[]; notes: { id: string; text: string; side: NoteSide }[]; dim: string[] | null };
     const plain: DiagramShown = { marked: [], notes: [], dim: null };
-    const diagramOf = (d: Diagram, name: string) => {
+    const diagramOf = (d: Diagram, name: DiagramName) => {
       this.shown[name] = plain;
       const v = s.diagramView(d, (_st, sh) => {
-        const f = sh[name] as DiagramShown;
+        const f = having(sh, name)[name];
         return {
           marks: Object.fromEntries(f.marked.map((id) => [id, { color: d.accent, as: 'the chosen rule' }])),
           notes: f.notes,
@@ -223,7 +247,7 @@ export default class CertRenewalExplainer extends Scene {
       return {
         view: v,
         show: async (change: Partial<DiagramShown>) => {
-          this.shown[name] = { ...(this.shown[name] as DiagramShown), ...change };
+          this.shown[name] = { ...having(this.shown, name)[name], ...change };
           await this.play(v.sync({ match: 'key', staged: true }));
         },
       };
@@ -281,16 +305,12 @@ export default class CertRenewalExplainer extends Scene {
     });
     await s.clear();
     const chart = await s.show({ source: oneRenewal }, { box: regionBox('top', { bottom: -0.25 }) });
-    // The code under the charts is a view: which Certbot's code it shows and the lines in focus are in
-    // `shown.code`. Both versions take the old code's width and fit the region's height, and the panel
-    // keys each line by its text, so a line both versions share glides to its new row.
-    type CodeShown = { version: 'old' | 'new'; focus: [number, number] };
     const codeOpts = { at: regionBox('full', { top: -0.35 }), fontSize: 0.2, fitHeight: true } as const;
     this.shown.code = { version: 'old', focus: [2, 3] } satisfies CodeShown;
     const code = view(
       this,
       (_st, sh) => {
-        const c = sh.code as CodeShown;
+        const c = having(sh, 'code').code;
         const panel = s.codePicture(c.version === 'old' ? OLD_CODE : NEW_CODE, {
           ...codeOpts,
           width: s.codePicture(OLD_CODE, codeOpts).panel.width(),
@@ -350,7 +370,7 @@ export default class CertRenewalExplainer extends Scene {
       rows: rows.map(({ lifetime, hours, due, share }) => ({ lifetime, hours, due, share })),
       renewsAt: renewsHere,
     };
-    const marginState = (st: Record<string, unknown>) => st.margin as { rows: MarginRow[]; renewsAt: number };
+    const marginState = (st: CertState) => having(st, 'margin').margin;
     const marginView = view(this, (st) => drawMargin(marginState(st).rows, colours), { place: false });
     await s.enter(marginView, {
       describe: () => {
@@ -442,8 +462,8 @@ export default class CertRenewalExplainer extends Scene {
         run.refused.length ? `; ${run.refused.length} runs refused, the first at hour ${run.refused[0]}` : ''
       }`;
     };
-    const yearRun = (st: Record<string, unknown>) => st.year as YearRun,
-      otherRun = (st: Record<string, unknown>) => ({ ...yearRun(st), ...(st.otherRule as Omit<YearRun, 'lifetime' | 'window'>) });
+    const yearRun = (st: CertState) => having(st, 'year').year,
+      otherRun = (st: CertState) => ({ ...yearRun(st), ...having(st, 'otherRule').otherRule });
     const limitedGaps = (() => {
       const run = perWindow(rule),
         after = run.issued.filter((t) => run.refused.length && t > run.refused[0]!);
@@ -603,7 +623,7 @@ export default class CertRenewalExplainer extends Scene {
     this.state.replaces = { replacesSent: false, burst: LIMIT.burst, emissionHours: EMISSION };
     await cardOf(
       (st) => {
-        const { burst } = st.replaces as { burst: number };
+        const { burst } = having(st, 'replaces').replaces;
         return [
           ['Names its predecessor, inside the window', 'no limit check'],
           ['Anything else, Certbot 5.8 included', `${burst} per 7 days`],
@@ -641,13 +661,11 @@ export default class CertRenewalExplainer extends Scene {
       }`,
     });
     await s.clear();
-    // The ARI code is a view; its focused lines, and what the description calls them, are in `shown`.
-    type AriFocus = { lines: [number, number]; as: string };
     this.shown.ariFocus = (settingFirst ? { lines: [10, 12], as: 'the setting first' } : { lines: [4, 9], as: 'a fresh draw' }) satisfies AriFocus;
     const ariCode = view(
       this,
       (_st, sh) => {
-        const f = sh.ariFocus as AriFocus;
+        const f = having(sh, 'ariFocus').ariFocus;
         return new CodeBlock(this, s.palette, ARI_CODE, {
           at: regionBox('full', { bottom: -1.0 }),
           fontSize: 0.22,
@@ -669,7 +687,7 @@ export default class CertRenewalExplainer extends Scene {
     };
     await cardOf(
       (st) => {
-        const a = st.ari as typeof ari & { lifetime: LifetimeKey; withoutAnswer: number },
+        const a = having(st, 'ari').ari,
           isShort = a.lifetime === '160h',
           on = (h: number) => (isShort ? `hour ${h.toFixed(1)}` : `day ${days(h)}`),
           share = (p: number) => (p < 0.005 ? '<1%' : `${Math.round(p * 100)}%`),

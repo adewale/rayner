@@ -2,7 +2,6 @@ import { Group, Text, Line, Rectangle, BraceLabel, SurroundingRectangle, shaperF
 import type { FontName, Mobject } from '../../../src/index.ts';
 import { label } from '../../../explain/drawing.ts';
 import type { StagedStep } from '../../../explain/index.ts';
-import { stagedStep } from '../../../explain/index.ts';
 const word = 'Hello, outlines',
   size = 0.9; // the size the fidelity test measures
 export { word as WORD, size as SIZE };
@@ -10,14 +9,19 @@ const name = (f: FontName) => (f === 'sans' ? 'Inter' : 'JetBrains Mono');
 /** The glyph's advance in `f` at the size the rows use. */
 const advanceOf = (f: FontName, ch: string) => shaperFor(f)(ch, size).width;
 
+/** The opening question's state: the words' width in each font. */
+type WidthState = { font: FontName; other: FontName; word: string; widths: number[] };
+/** The shape prediction's state: the l's advance in each font. */
+type ShapeState = { font: FontName; other: FontName; l: { sans: number; mono: number } };
+
 /** The opening question, and the two l's that set up the shape-matching prediction. */
-export function frames(font: FontName): StagedStep[] {
+export function frames(font: FontName): [StagedStep<WidthState>, StagedStep<ShapeState>] {
   const other: FontName = font === 'sans' ? 'mono' : 'sans';
   const widths = [font, other].map((f) => shaperFor(f)(word, size).width);
   const w = Object.fromEntries([font, other].map((f, i) => [f, widths[i]!])) as Record<FontName, number>;
   const l = { sans: advanceOf('sans', 'l'), mono: advanceOf('mono', 'l') };
   return [
-    stagedStep({
+    {
       id: 'reader-width',
       title: `Same words, same size: ${w.sans.toFixed(2)} or ${w.mono.toFixed(2)} units wide`,
       line: `Which letters make up the ${Math.abs(w.mono - w.sans).toFixed(2)}-unit difference?`,
@@ -39,8 +43,8 @@ export function frames(font: FontName): StagedStep[] {
         });
         return g;
       },
-    }),
-    stagedStep({
+    },
+    {
       id: 'reader-shape',
       title: 'To fill its wider cell, JetBrains Mono draws a different l',
       line: 'Will shape matching pair any Inter glyph with a JetBrains Mono one?',
@@ -71,7 +75,7 @@ export function frames(font: FontName): StagedStep[] {
         });
         return g;
       },
-    }),
+    },
   ];
 }
 

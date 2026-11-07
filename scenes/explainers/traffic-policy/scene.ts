@@ -1,7 +1,7 @@
 import { Scene, Group } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, CodeBlock, mermaid, answerOf, view } from '../../../explain/index.ts';
-import type { CardRow, CardOptions, View, Diagram, PictureNote } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, Card, CodeBlock, mermaid, answerOf, view, having } from '../../../explain/index.ts';
+import type { CardRow, CardOptions, View, Diagram, PictureNote, Having } from '../../../explain/index.ts';
 import {
   CLIENT_IP,
   PLACEMENTS,
@@ -98,22 +98,32 @@ const shareRows = (s: Record<string, Q>) =>
 // The widest Cluster topology needs the full stage width to keep every
 // imported service label above the completed-view readability floor.
 const DIAGRAM: Box = [-8, -1.25, 8, 3.2];
-/** What the steps record, accumulated: the fields the views below draw from. */
+/** What the steps record, accumulated: the fields the views below draw from. The setup is recorded first; each other part from the step that records it. */
 interface TrafficState {
   policy: Policy;
   placement: number[];
   client: string;
-  flow: Record<Policy, FlowState>;
-  compare: Record<Policy, Record<string, string>>;
-  hops: Record<Policy, string>;
-  chain: (string | null)[];
-  chainPods: string[];
+  flow?: Record<Policy, FlowState>;
+  compare?: Record<Policy, Record<string, string>>;
+  hops?: Record<Policy, string>;
+  chain?: (string | null)[];
+  chainPods?: string[];
+  chainShares?: string[];
+  secondHop?: string;
+  passes?: boolean[];
+  shares?: Record<string, string>;
+  seen?: string;
 }
+// How the cluster diagram is shown, apart from its source: the nodes marked, the links walked and
+// the notes. That is `shown`, not the model; the diagram's view draws it, and each change is a sync.
+// A step's slate starts plain: the overlays clear and what the diagram shows leaves `shown`. A focus
+// moves the live diagram, so the stage shows the live diagram, not the view, while it moves.
+type ClusterShown = { marks: Record<string, { color: string; as: string }>; walked: [string, string][]; notes: PictureNote[] };
 const BELOW: Box = [-7.55, -4.25, 7.55, -1.45];
 const SIZE = 0.24;
 
 
-export default class TrafficPolicyExplainer extends Scene {
+export default class TrafficPolicyExplainer extends Scene<TrafficState, { cluster?: ClusterShown }> {
   static meta = {
     sources: [
       K8S + 'pkg/proxy/iptables/proxier.go#L390-L392',
@@ -182,32 +192,27 @@ export default class TrafficPolicyExplainer extends Scene {
       view(
         this,
         (state) => {
-          const card = new Card(this, s.palette, rows(state as unknown as TrafficState), opts);
+          const card = new Card(this, s.palette, rows(state), opts);
           keys?.(card);
           return card;
         },
         { place: false },
       );
     /** Both policies' flows, from what the flow step records. */
-    const flowPictures = (st: TrafficState) => ({
+    const flowPictures = (st: Having<TrafficState, 'flow'>) => ({
       cluster: flowPanel(st.placement, 'cluster', st.flow.cluster, -3.85, ink, paper, st.policy === 'cluster'),
       local: flowPanel(st.placement, 'local', st.flow.local, 3.85, ink, paper, st.policy === 'local'),
     });
 
-    // How the cluster diagram is shown, apart from its source: the nodes marked, the links walked and
-    // the notes. That is `shown`, not the model; the diagram's view draws it, and each change is a sync.
-    // A step's slate starts plain: the overlays clear and what the diagram shows leaves `shown`. A focus
-    // moves the live diagram, so the stage shows the live diagram, not the view, while it moves.
-    type ClusterShown = { marks: Record<string, { color: string; as: string }>; walked: [string, string][]; notes: PictureNote[] };
     const PLAIN: ClusterShown = { marks: {}, walked: [], notes: [] };
-    const drawCluster = (of: Diagram) => (_st: object, sh: Record<string, unknown>) => {
-      const c = sh.cluster as ClusterShown;
+    const drawCluster = (of: Diagram) => (_st: TrafficState, sh: { cluster?: ClusterShown }) => {
+      const c = having(sh, 'cluster').cluster;
       return { marks: { ...of.trail(c.walked), ...c.marks }, notes: c.notes };
     };
     let clusterView: View | null = null;
     const showCluster = async (change: Partial<ClusterShown>) => {
       clusterView ??= s.diagramView(d, drawCluster(d));
-      this.shown.cluster = { ...(this.shown.cluster as ClusterShown), ...change };
+      this.shown.cluster = { ...having(this.shown, 'cluster').cluster, ...change };
       await this.play(clusterView.sync({ match: 'key', staged: true }));
     };
     const nextSlate = async () => {
@@ -282,7 +287,7 @@ export default class TrafficPolicyExplainer extends Scene {
     const code = view(
       this,
       (state) => {
-        const st = state as unknown as TrafficState;
+        const st = having(state, 'chain', 'chainPods');
         return new CodeBlock(
           this,
           s.palette,
@@ -442,14 +447,14 @@ export default class TrafficPolicyExplainer extends Scene {
     const panels = view(
       this,
       (state) => {
-        const both = flowPictures(state as unknown as TrafficState);
+        const both = flowPictures(having(state, 'flow'));
         return new Group(both.cluster.group, both.local.group);
       },
       { place: false },
     );
     await s.enter(panels, {
       describe: () => {
-        const both = flowPictures(this.state as unknown as TrafficState);
+        const both = flowPictures(having(this.state, 'flow'));
         return `${both.cluster.words()} ${both.local.words()}`;
       },
     });
@@ -527,8 +532,8 @@ export default class TrafficPolicyExplainer extends Scene {
     const half = (p: Policy, box: Box) =>
       cardOf(
         (st) => [
-          ...shareRows(Object.fromEntries(Object.entries(st.compare[p]).map(([id, f]) => [id, parse(f)]))),
-          ['Second hop', inN(parse(st.hops[p]))],
+          ...shareRows(Object.fromEntries(Object.entries(having(st, 'compare').compare[p]).map(([id, f]) => [id, parse(f)]))),
+          ['Second hop', inN(parse(having(st, 'hops').hops[p]))],
           ['Pod sees', p === 'local' ? 'client address' : 'node address'],
         ],
         { at: box, align: 'top', fontSize: SIZE, title: POLICY[p], key: `traffic-compare:${p}` },

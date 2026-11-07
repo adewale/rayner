@@ -11,7 +11,7 @@ import {
   Circumscribe,
 } from '../../../src/index.ts';
 import type { Box, Mobject } from '../../../src/index.ts';
-import { stage, settingsOf, answerOf } from '../../../explain/index.ts';
+import { stage, settingsOf, answerOf, having } from '../../../explain/index.ts';
 import type { NoteSide } from '../../../explain/index.ts';
 // The merge request: the two texts TransformDiff animates, which
 // fidelity.ts holds to the real git diff.
@@ -52,7 +52,13 @@ const CODE_BOX: Box = [-7.55, -4.25, 3.35, -0.65],
 const ADDED = '#2ea043',
   CHANGED = '#bf8700';
 
-export default class CacheMRExplainer extends Scene {
+// How the flow diagram is shown, apart from its source: the hops walked, its notes and what stays
+// undimmed. That is `shown`, not the model; its view draws it, and each change is a sync.
+type FlowState = { walked: [string, string][]; notes: { id: string; text: string; side: NoteSide }[]; dim: string[] | null };
+/** How many database reads the change leaves, then the request followed and its reads. */
+type CacheState = { databaseReads?: string; request?: 'hit' | 'miss'; reads?: number };
+
+export default class CacheMRExplainer extends Scene<CacheState, { flow?: FlowState }> {
   static meta = {
     sources: [
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/mr-cache.ts',
@@ -81,7 +87,7 @@ export default class CacheMRExplainer extends Scene {
     const which = settingsOf(this).request as 'hit' | 'miss',
       s = stage(this, { headingSize: 0.6, style: STYLE });
 
-    await s.steps(readerFrames(which, answerOf(this)), { kind: 'short' });
+    await readerFrames(s, which, answerOf(this), { kind: 'short' });
     await this.step('before', {
       kind: 'detail',
       title: 'Before: every request reads D1',
@@ -91,12 +97,9 @@ export default class CacheMRExplainer extends Scene {
     });
     await s.clear();
     const flow = await s.show({ source: BEFORE }, { box: 'top' });
-    // How the flow diagram is shown, apart from its source: the hops walked, its notes and what stays
-    // undimmed. That is `shown`, not the model; its view draws it, and each change is a sync.
-    type FlowState = { walked: [string, string][]; notes: { id: string; text: string; side: NoteSide }[]; dim: string[] | null };
-    const flowState = () => this.shown.flow as FlowState;
-    const drawFlow = (_st: object, sh: object) => {
-      const f = (sh as { flow: FlowState }).flow;
+    const flowState = () => having(this.shown, 'flow').flow;
+    const drawFlow = (_st: CacheState, sh: { flow?: FlowState }) => {
+      const f = having(sh, 'flow').flow;
       return { marks: flow.trail(f.walked), notes: f.notes, dim: f.dim };
     };
     const showFlow = async (change: Partial<FlowState>, runTime = 0.45) => {

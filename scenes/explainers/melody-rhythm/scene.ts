@@ -15,7 +15,7 @@ interface Music { clips: AudioClip[]; movedStarts: number }
  */
 const BPM = 96;
 
-export default class MelodyRhythm extends Scene {
+export default class MelodyRhythm extends Scene<{}, {}> {
   static meta = {
     sources: [
       'https://learningmusic.ableton.com/make-beats/make-beats.html',

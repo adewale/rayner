@@ -1,7 +1,7 @@
 import { Scene, Text, Arrow, Dot, AnimationGroup, Succession, FadeIn } from '../../../src/index.ts';
-import type { Choreography, Transition, Diagram, PictureNote, View } from '../../../explain/index.ts';
-import type { Animation, SceneState, ScheduledAnimation } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Machine, view, Card } from '../../../explain/index.ts';
+import type { Choreography, Transition, Diagram, PictureNote, Stage, View } from '../../../explain/index.ts';
+import type { ScheduledAnimation } from '../../../src/index.ts';
+import { stage, settingsOf, regionBox, Machine, view, having, Card } from '../../../explain/index.ts';
 import { pkceChallenge, sha256 } from './model.ts';
 import { pkceFlow, theftFlow, lanes, readable, signInStart, signInNext, SIGN_IN_EVENTS, VERIFIER, GUESS, type Message, type SignIn, type SignInEvent } from './model.ts';
 import { listed } from '../lib/format.ts';
@@ -14,6 +14,22 @@ const prefix = (value: string) => `${value.slice(0, 6)}…`;
 /** What a diagram shows besides its source, kept in the state: its marks (with their words) and its notes. */
 type Shown = { marks: Record<string, { color: string; as: string }>; notes: PictureNote[] };
 const NOTHING_SHOWN: Shown = { marks: {}, notes: [] };
+/** What the PKCE steps establish: the verifier and its challenge, what the attack and the exchange get, and the lanes. */
+type PkceFacts = {
+  verifier: string;
+  challenge: string;
+  attackerChallenge?: string;
+  attackerAccepted?: boolean;
+  accepted?: boolean;
+  lanes?: ReturnType<typeof lanes>;
+  readable?: string[];
+};
+/** Whether the stolen code got a token; then the PKCE facts; then the sign-in the last step's machine plays. */
+type OAuthState = { stolenAccepted: boolean } | PkceFacts | SignIn;
+// The derivation's trail and mark, and the card's lit row, are how the secret step shows it: `shown`.
+type Derived = { walked: [string, string][]; marked: boolean; lit: string | null };
+/** Each sequence diagram's marks and notes, and the derivation's. */
+type OAuthShown = { theft?: Shown; seq?: Shown; derive?: Derived };
 /** These parts marked in one colour, said with one word. */
 const marked = (ids: readonly string[], color: string, as: string) => Object.fromEntries(ids.map((id) => [id, { color, as }]));
 /**
@@ -38,7 +54,7 @@ function messageIds(messages: Message[]): string[] {
     return `message:${pair}#${n}`;
   });
 }
-export default class OAuthExplainer extends Scene {
+export default class OAuthExplainer extends Scene<OAuthState, OAuthShown> {
   static meta = {
     sources: ['https://www.rfc-editor.org/rfc/rfc7636', 'https://www.rfc-editor.org/rfc/rfc6749'],
     claims: [
@@ -82,9 +98,9 @@ export default class OAuthExplainer extends Scene {
     await theft.reveal(stolenIds.filter((id) => !thief.includes(id)));
     await theft.reveal(thief);
     // How each diagram is shown, its marks and notes, is in `shown` under its own name; a view draws them.
-    const diagramOf = (d: Diagram, name: string) => s.diagramView(d, (_st, sh) => sh[name] as Shown);
-    const shows = async (v: View, name: string, change: Partial<Shown>) => {
-      this.shown[name] = { ...(this.shown[name] as Shown), ...change };
+    const diagramOf = (d: Diagram, name: 'theft' | 'seq') => s.diagramView(d, (_st, sh) => having(sh, name)[name]);
+    const shows = async (v: View, name: 'theft' | 'seq', change: Partial<Shown>) => {
+      this.shown[name] = { ...having(this.shown, name)[name], ...change };
       await this.play(v.sync({ match: 'key', staged: true, runTime: 0.45 }));
     };
     this.shown.theft = NOTHING_SHOWN;
@@ -111,12 +127,10 @@ export default class OAuthExplainer extends Scene {
       },
       { box: regionBox('full', { bottom: 0, top: 3.15 }) },
     );
-    // The derivation's trail and mark, and the card's lit row, are how this step shows it: `shown`.
-    type Derived = { walked: [string, string][]; marked: boolean; lit: string | null };
     this.shown = { derive: { walked: [], marked: false, lit: null } satisfies Derived };
-    const derived = () => this.shown.derive as Derived;
+    const derived = () => having(this.shown, 'derive').derive;
     const deriveView = s.diagramView(derive, (_st, sh) => {
-      const dv = sh.derive as Derived;
+      const dv = having(sh, 'derive').derive;
       return { marks: { ...derive.trail(dv.walked), ...(dv.marked ? { C: CHALLENGE } : {}) } };
     });
     const values = view(
@@ -130,7 +144,7 @@ export default class OAuthExplainer extends Scene {
             ['SHA-256 (hex)', hex(digest)],
             ['code_challenge', challenge],
           ],
-          { at: regionBox('full', { bottom: -3.9, top: -0.4 }), fontSize: 0.27, lit: (sh.derive as Derived).lit, key: 'values' },
+          { at: regionBox('full', { bottom: -3.9, top: -0.4 }), fontSize: 0.27, lit: having(sh, 'derive').derive.lit, key: 'values' },
         ),
       { place: false },
     );
@@ -170,7 +184,7 @@ export default class OAuthExplainer extends Scene {
     const seq = await s.show({ source: sequence(flow) }, { box: 'full', build: 'frame' });
     /** What a message carries, or what the server makes of it, said on the diagram under its arrow. */
     const say = (id: string, text: string, color: string = s.palette.ink): PictureNote => ({ id, text, side: 'below', color });
-    const seqShown = () => this.shown.seq as Shown;
+    const seqShown = () => having(this.shown, 'seq').seq;
     let seqView: View | null = null;
     /**
      * Reveal these messages on the live diagram, then show it by its view again with the marks it
@@ -258,7 +272,7 @@ export default class OAuthExplainer extends Scene {
    * app's token request, in any order the protocol allows. The run plays the malicious app's head start; rayner check
    * plays every order, and the invariant below holds in each.
    */
-  async anyOrder(s: ReturnType<typeof stage>) {
+  async anyOrder(s: Stage) {
     await this.step('any-order', {
       title: 'Even redeemed first, the stolen code gets invalid_grant',
       line: 'The malicious app catches the redirect first and redeems before the client has the code.',
@@ -267,16 +281,18 @@ export default class OAuthExplainer extends Scene {
     });
     await s.clear();
     const start = signInStart();
-    this.state = { ...start } as unknown as SceneState;
+    this.state = { ...start };
     // The sequence diagrams are gone: the machine plays under nothing shown.
     this.shown = {};
-    const sheet = view(this, (st) => signInPicture(st as unknown as SignIn, s), { place: false });
-    s.keep(sheet, { describe: () => signInWords(this.state as unknown as SignIn) });
+    /** The sign-in the machine plays: the state from here on. */
+    const signIn = (st: OAuthState) => having(st, 'requested');
+    const sheet = view(this, (st) => signInPicture(signIn(st), s), { place: false });
+    s.keep(sheet, { describe: () => signInWords(signIn(this.state)) });
     // Checked on every frame, and through every transition from every state rayner check reaches: a code bound to a
     // challenge never gives the malicious app a token, in the model or in the picture.
     this.addInvariant('a code bound to a challenge gives the malicious app no token', (scene) => {
-      const st = scene.state as unknown as SignIn;
-      if (typeof st.requested !== 'boolean') return false;
+      const st: OAuthState = scene.state;
+      if (!('requested' in st) || typeof st.requested !== 'boolean') return false;
       const said = sheet.current.find('sign-in:label:app-answer')?.family().some((m) => m instanceof Text && m.text === 'Access token') ?? false;
       if (st.challenge !== null && (st.app.answer === 'Access token' || said)) return 'the malicious app holds a token for a code bound to a challenge';
       return true;
@@ -291,7 +307,7 @@ export default class OAuthExplainer extends Scene {
         new AnimationGroup([message.leave, c.enter(`sign-in:label:${id}`, {}, { runTime: 0.3 })]),
       ];
     };
-    const machine = new Machine<SignIn, SignInEvent>(this, {
+    const machine = new Machine<OAuthState, SignInEvent>(this, {
       start,
       events: SIGN_IN_EVENTS,
       // What the player's buttons say: who sends what.
@@ -299,22 +315,22 @@ export default class OAuthExplainer extends Scene {
         AUTHORIZE: 'Authorize, no challenge', AUTHORIZE_S256: 'Authorize with S256', REDIRECT: 'Redirect to the client',
         INTERCEPT: 'App intercepts the redirect', CLIENT_REDEEMS: 'Client redeems the code', APP_REDEEMS: 'App redeems the code',
       },
-      next: signInNext,
+      next: (st, event) => signInNext(signIn(st), event),
       views: [sheet],
       // A token request travels there and its answer back (2.6 s); any other message travels once (1.4 s).
       runTime: ({ event }) => (event.endsWith('REDEEMS') ? 2.6 : 1.4),
       transition: Object.fromEntries(
         SIGN_IN_EVENTS.map((event) => [
           event,
-          (t: Transition<SignIn, SignInEvent>) => {
-            const { after } = t, c = t.choreograph(sheet);
+          (t: Transition<OAuthState, SignInEvent>) => {
+            const after = signIn(t.after), c = t.choreograph(sheet);
             // Each message travels from its sender to its receiver as a dot in the colour of what it carries, drawing
             // its arrow; then its label comes in, and the notes under the parties follow.
             const moves = SENDS[event].flatMap((id) => travel(c, id, tokenColor(id, after, s)));
             return new Succession([...moves, c.rest({ runTime: 0.4 })]);
           },
         ]),
-      ) as unknown as Record<SignInEvent, (t: Transition<SignIn, SignInEvent>) => Animation>,
+      ),
     });
     await this.play(machine.replay(['AUTHORIZE_S256', 'INTERCEPT', 'APP_REDEEMS', 'REDIRECT', 'CLIENT_REDEEMS']));
     // A phone opens on the malicious app's request and the server's refusal.

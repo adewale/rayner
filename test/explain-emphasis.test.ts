@@ -430,25 +430,24 @@ test('a view of a card or code is described as that card or code, and a describe
 });
 
 test('a staged step says what its picture shows with describe, and its own card says itself', async () => {
-  const { Card, stagedStep } = await import('../explain/index.ts');
+  const { Card } = await import('../explain/index.ts');
   const { Group, Circle } = await import('../src/index.ts');
   class Staged extends Scene {
     override async construct() {
       const s = stage(this);
-      const steps = [
-        stagedStep({
+      await s.steps([
+        {
           id: 'geometry', title: 'A circle', line: '', caption: 'A circle.',
           state: { r: 2 },
           describe: (st) => `A circle of radius ${st.r}`,
           draw: (st) => new Circle({ radius: st.r }),
-        }),
-        stagedStep({
+        },
+        {
           id: 'words', title: 'Words', line: '', caption: 'Words.',
           state: { k: 'v' },
           draw: (st, stage) => new Group(new Card(this, stage.palette, [['k', st.k]], { at: [0, 2] }), new Text('under it', { color: INK }).moveTo([0, -2])),
-        }),
-      ];
-      await s.steps(steps);
+        },
+      ]);
     }
   }
   const [geometry, words] = (await traceScene(Staged)).steps.map((st) => (st.shown!.picture as Picture).entries);

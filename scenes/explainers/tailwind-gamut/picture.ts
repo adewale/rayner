@@ -3,9 +3,8 @@ import type { Box } from '../../../src/index.ts';
 import { rows, summarize, cssMap, linearRgb, THEME_LINES } from './model.ts';
 import type { Row, Shade, Space } from './model.ts';
 import { label } from '../../../explain/drawing.ts';
-import type { StagedStep, Diagram } from '../../../explain/index.ts';
+import type { Diagram, Stage, StagedStepsOptions } from '../../../explain/index.ts';
 import { REGIONS, mermaid } from '../../../explain/index.ts';
-import { stagedStep } from '../../../explain/index.ts';
 
 /** The colour an sRGB screen paints for `written`, as #rrggbb, after CSS Color 4's gamut mapping. */
 function painted(L: number, C: number, h: number): string {
@@ -20,15 +19,15 @@ function painted(L: number, C: number, h: number): string {
  * The opening: the shade's colour that goes furthest past sRGB, as written and as an sRGB screen paints
  * it. The comparison is the same whichever screen the reader picks; the screen decides the last step.
  */
-export function frames(shade: Shade, screen: Space): StagedStep[] {
+export function frames(stage: Stage, shade: Shade, screen: Space, opts?: StagedStepsOptions): Promise<void> {
   const all = rows(shade),
     sum = summarize(shade),
     most = all.find((r) => r.family === sum.mostOfSrgb.family)!;
   const preview = painted(most.L, most.C, most.h);
   const written = /oklch\([^)]*\)/.exec(THEME_LINES[most.line]!)![0];
   const name = `${most.family}-${shade}`;
-  return [
-    stagedStep({
+  return stage.steps([
+    {
       id: 'reader-display',
       title: `You wrote ${name}; an sRGB screen paints ${preview}`,
       line: 'Left: the colour as written, which sRGB cannot show. Right: what an sRGB screen paints instead.',
@@ -72,8 +71,8 @@ export function frames(shade: Shade, screen: Space): StagedStep[] {
         );
         return g;
       },
-    }),
-  ];
+    },
+  ], opts);
 }
 
 // ------------------------------------------------------------------ the radar and its side column

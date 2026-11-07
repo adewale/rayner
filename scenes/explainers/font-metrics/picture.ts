@@ -6,7 +6,7 @@
 // ruler's ticks and space cells come from the same shaped run the Text draws, not a separate estimate.
 // The advance step's dimension is drawn here, with the stage, because a staged draw cannot add one later.
 import { Group, Circle, Line, Rectangle } from '../../../src/index.ts';
-import type { Text, TextOpts, SceneState } from '../../../src/index.ts';
+import type { Text, TextOpts } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { dimension } from '../../../explain/drawing.ts';
 
@@ -30,6 +30,8 @@ export interface LayoutState { layout: { wrong: number; actual: number } }
 export interface AdvanceState extends LayoutState { advance: number; pen: { starts: number[]; spaces: { x: number; advance: number }[] } }
 /** The rulers step: each face's pen stops and where each marker went. */
 export interface RulersState extends AdvanceState { rulers: { drawn: number[]; measured: number[]; markers: { drawn: number; measured: number } } }
+/** The cuts step: each cut's advance, by its name. */
+export interface CutsState extends RulersState { advances: Record<string, number> }
 
 /** Two rows of the phrase in EB Garamond, each with a marker GAP past the width measured in one face. */
 export function drawLayout(st: LayoutState, { stage, text, phrase, color }: Pen): Group {
@@ -112,14 +114,14 @@ export function drawRulers(st: RulersState, { stage, text, phrase, color }: Pen)
 }
 
 /** The three cuts in rows: each cut's name, the phrase in it, and its advance as the state records it. */
-export function drawCuts<C extends string>(st: SceneState, cuts: readonly C[], word: (cut: C) => Text, { text, color }: Pen): Group {
+export function drawCuts<C extends string>(st: CutsState, cuts: readonly C[], word: (cut: C) => Text, { text, color }: Pen): Group {
   const g = new Group();
   for (const [index, cut] of cuts.entries()) {
     const y = 2.0 - index * 2.0;
     g.add(
       text(cut, { fontSize: 0.7, color }).moveTo([-5.6, y]),
       word(cut).moveTo([0, y]),
-      text((st.advances as Record<string, number>)[cut]!.toFixed(2), { fontSize: 0.7, color }).moveTo([5.2, y]),
+      text(st.advances[cut]!.toFixed(2), { fontSize: 0.7, color }).moveTo([5.2, y]),
     );
   }
   return g;

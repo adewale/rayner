@@ -1,14 +1,12 @@
 import { Scene } from '../../../src/index.ts';
 import { settingsOf, stage, answerOf } from '../../../explain/index.ts';
-import type { StagedStep } from '../../../explain/index.ts';
 import { birthdayStory } from './model.ts';
 import { drawDays, drawEstimate, pairGrid, room } from './picture.ts';
-import { stagedStep } from '../../../explain/index.ts';
 import { grouped, listed, numberWord, percent } from '../lib/format.ts';
 
 const pct2 = (p: number) => percent(p, { digits: 2 });
 
-export default class BirthdayParadox extends Scene {
+export default class BirthdayParadox extends Scene<{}, {}> {
   static meta = {
     sources: ['https://pudding.cool/2018/04/birthday-paradox/', 'https://mathworld.wolfram.com/BirthdayProblem.html'],
     // Sentences that reach past the rooms on screen, and the tests that hold them; the rest speak of their own step's squares.
@@ -49,16 +47,16 @@ export default class BirthdayParadox extends Scene {
     const shared = m.shared.map((d) => d.date);
     const five = m.growth.find((r) => r.people === 5)!,
       ten = m.growth.find((r) => r.people === 10)!;
-    const frames: StagedStep[] = [
-      stagedStep({
+    await stage(this, { style: 'github-light', headingSize: 0.6 }).steps([
+      {
         id: 'room',
         title: 'Do two of these people share a birthday?',
         line: 'Predict: what is the chance that a room this size holds a shared birthday?',
         caption: `A year has 365 days, so a match can seem to need a crowd. Each card is one person. Before searching the dates, guess how likely a shared birthday is in a room this size. The chances on this page assume independent birthdays, and give every day of a 365-day year the same chance, with no 29 February.`,
         state: { people: n, sample: m.sample.first, dates: m.dates },
         draw: (st, s) => room(s, st.sample, st.dates, [], `${st.people} people, ${st.people} random birthdays`),
-      }),
-      stagedStep({
+      },
+      {
         id: 'chance',
         title: shared.length
           ? `This room of ${n} already has ${numberWord(shared.length)} shared birthdays`
@@ -85,8 +83,8 @@ export default class BirthdayParadox extends Scene {
           return room(s, st.days, st.dates, st.shared.map((d) => d.day), `${dates.length ? `Shared: ${listed(dates)}` : 'No shared date'}. Chance: ${percent(st.chance)}`);
         },
         opening: ['birthday-people', 'birthday-footer'],
-      }),
-      stagedStep({
+      },
+      {
         id: 'you',
         title: `Your own birthday: only ${m.others} chances to match`,
         line: 'Predict: how many comparisons does the whole room make?',
@@ -95,8 +93,8 @@ export default class BirthdayParadox extends Scene {
         draw: (st, s) =>
           pairGrid(s, { you: true, people: st.people, count: st.others, chance: st.one, matched: [], footer: `Your ${st.others} comparisons, one square each` }),
         opening: ['birthday-you-lines', 'birthday-comparisons', 'birthday-chance'],
-      }),
-      stagedStep({
+      },
+      {
         id: 'pairs',
         title: `Every pair drawn: ${n} people make ${m.pairs} pairs`,
         line:
@@ -138,8 +136,8 @@ export default class BirthdayParadox extends Scene {
               : `One square per pair: ${st.people} × ${st.people - 1} / 2 = ${st.pairs}`,
           }),
         opening: ['birthday-pair-lines', 'birthday-pairs', 'birthday-chance'],
-      }),
-      stagedStep({
+      },
+      {
         id: 'exact',
         kind: 'detail',
         title: `Counting exactly: person ${n} must miss ${n - 1} dates already taken`,
@@ -147,8 +145,8 @@ export default class BirthdayParadox extends Scene {
         caption: `Turn the question around: what would it take for nobody to match? Add people one at a time and ask each to miss every date taken so far. Provided earlier people have all missed, each new arrival has one fewer free date. Multiply those chances to get ${pct2(m.noMatch)} for no match, then subtract from 1: ${pct2(m.chance)} for a match. The picture shows the free dates facing person ${n}.`,
         state: { people: n, factors: m.factors, noMatch: m.noMatch, chance: m.chance, occupied: n - 1, allowed: 365 - (n - 1) },
         draw: (st, s) => drawDays(s, st.people, st.occupied, st.allowed),
-      }),
-      stagedStep({
+      },
+      {
         id: 'estimate',
         kind: 'detail',
         title: `${m.pairs} pairs at 1 in 365 each: about ${percent(m.shortcut)}`,
@@ -156,8 +154,7 @@ export default class BirthdayParadox extends Scene {
         caption: `Treating the ${m.pairs} pairs as independent gives the nearby shortcut shown. It is the chance you would have of sharing your own birthday with one of ${m.pairs} other people. The room’s pairs are not jointly independent: if Ann matches Ben and Ben matches Cal, Ann must match Cal. The person-by-person calculation avoids that dependence. Comparisons with your one birthday do involve independent arrivals, so multiplying their miss chances gives the exact ${percent(m.one)} for a match with you.`,
         state: { people: n, pairs: m.pairs, shortcut: m.shortcut, chance: m.chance, one: m.one },
         draw: (st, s) => drawEstimate(s, st.pairs, st.shortcut, st.chance),
-      }),
-    ];
-    await stage(this, { style: 'github-light', headingSize: 0.6 }).steps(frames);
+      },
+    ]);
   }
 }

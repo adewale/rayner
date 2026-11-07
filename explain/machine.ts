@@ -54,7 +54,7 @@ export interface MachineSpec<S extends object, E extends string> {
    */
   transition?: Partial<Record<E, (t: Transition<S, E>) => Animation | AnimationGroup>>;
   /** Pictures of the scene's state, made with view(scene, draw), synced after each event. */
-  views: readonly View[];
+  views: readonly View<Mobject, S>[];
   /**
    * How the views morph when an event has no authored transition (default
    * `matchByKey({ text: 'whole' })`: keyed parts keep their identity, and a keyed Text whose words
@@ -118,16 +118,16 @@ export function isRefusal(value: unknown): value is Refusal {
   return typeof value === 'object' && value !== null && (value as Record<symbol, unknown>)[REFUSAL] === true;
 }
 
-/** A model driven by events on one scene. */
+/** A model driven by events on one scene, typed by the scene's model type `S`. */
 export class Machine<S extends object, E extends string> {
-  readonly scene: Scene<S>;
+  readonly scene: Scene<S, any>;
   readonly spec: Required<Pick<MachineSpec<S, E>, 'match' | 'runTime' | 'limit'>> & MachineSpec<S, E>;
   /** What the scene showed (`scene.shown`, as JSON) when the machine last played; exploration redraws under it. */
   private shownWhenPlayed: string | null = null;
   /** The step this machine last played in; exploration checks it on that step's stage. */
   private playedInStep: string | null = null;
 
-  constructor(scene: Scene<any>, spec: MachineSpec<S, E>) {
+  constructor(scene: Scene<S, any>, spec: MachineSpec<S, E>) {
     if (!spec.events.length) throw new TypeError('A machine needs at least one event');
     if (new Set(spec.events).size !== spec.events.length) throw new TypeError('A machine\'s events must be distinct');
     if (typeof spec.next !== 'function') throw new TypeError('A machine needs next(state, event)');
@@ -193,7 +193,7 @@ export class Machine<S extends object, E extends string> {
     const { views } = this.spec, placed = new Map<View, Mobject>();
     const target = (view: View) => {
       if (!views.includes(view)) throw new RangeError(`${String(event)}: the transition asked for a view this machine does not have`);
-      if (!placed.has(view)) placed.set(view, view.placed(after as SceneState));
+      if (!placed.has(view)) placed.set(view, view.placed(after));
       return placed.get(view)!;
     };
     return { event, before, after, target, choreograph: (view) => choreograph(view.current, target(view)) };
@@ -205,7 +205,7 @@ export class Machine<S extends object, E extends string> {
    * transition plays and the views land on it. The schedule is built for `from`, so it refuses to
    * play from any other state, and a refused event is refused here, before anything plays.
    */
-  send(event: E, from: S = this.scene.state as S): Succession {
+  send(event: E, from: S = this.scene.state): Succession {
     const before = JSON.parse(JSON.stringify(from)) as S;
     const o = this.outcome(before, event);
     if ('beyond' in o) throw new RangeError(`${String(event)} is beyond the story in ${JSON.stringify(before)}: ${o.beyond}`);
@@ -216,7 +216,7 @@ export class Machine<S extends object, E extends string> {
     const authored = this.spec.transition?.[event];
     const built = JSON.stringify(before);
     return new Succession([
-      new SetState<S>(this.scene, (current) => {
+      new SetState(this.scene, (current) => {
         if (JSON.stringify(current) !== built) throw new Error(`${String(event)} was built for ${built} but plays from ${JSON.stringify(current)}`);
         this.shownWhenPlayed = JSON.stringify(this.scene.shown);
         this.playedInStep = this.scene.currentStep?.path ?? null;
@@ -235,7 +235,7 @@ export class Machine<S extends object, E extends string> {
   }
 
   /** Events in turn, each from where the last left the state (default start: the scene's state now). */
-  replay(events: readonly E[], from: S = this.scene.state as S): Succession {
+  replay(events: readonly E[], from: S = this.scene.state): Succession {
     let at = from;
     return new Succession(events.map((e) => {
       const step = this.send(e, at);

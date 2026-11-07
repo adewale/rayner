@@ -1,6 +1,6 @@
 import { Scene, AnimationGroup, Succession, Text, Group, FadeIn, Transform, linear } from '../../../src/index.ts';
 import type { View, Choreography } from '../../../explain/index.ts';
-import type { ScheduledAnimation, Vec, Mobject, SceneState } from '../../../src/index.ts';
+import type { ScheduledAnimation, Vec, Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Card, CodeBlock, Machine, view } from '../../../explain/index.ts';
 import { ringStory, ringStart, ringNext } from './model.ts';
 import type { RingState, RingEvent } from './model.ts';
@@ -35,7 +35,7 @@ const turnBetween = (from: number, to: number) => {
 /** Animations side by side in group time that does not ease, so each member's own easing is not compounded. */
 const together = (anims: ScheduledAnimation[]) => new AnimationGroup(anims, { rateFunc: linear });
 
-export default class RingBufferExplainer extends Scene {
+export default class RingBufferExplainer extends Scene<RingState, {}> {
   static meta = {
     sources: [
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/ring-buffer.doc.json',
@@ -74,10 +74,10 @@ export default class RingBufferExplainer extends Scene {
     const look: Ink = { ink, soft, paper: s.palette.paper, head, bad: s.bad };
     const ringPicture = (st: RingState) => drawRing(st, look);
     // What the ring shows, in words.
-    const ringWords = () => sayRing(this.state as unknown as RingState);
+    const ringWords = () => sayRing(this.state);
 
     // The queue the ring replaces: an array whose pop moves every value left.
-    await s.steps(readerFrames(), { kind: 'short' });
+    await readerFrames(s, { kind: 'short' });
     const shifted = [arrayQueue([1, 2, 3, 4, 5]), arrayQueue([2, 3, 4, 5])];
     await this.step('slots', {
       title: 'Answer: keep the values still, and move two markers instead',
@@ -87,8 +87,8 @@ export default class RingBufferExplainer extends Scene {
     });
     await s.clear();
     const start = ringStart(SLOTS);
-    this.state = { ...start } as unknown as SceneState;
-    const ring = (this.ring = view(this, (st) => ringPicture(st as unknown as RingState), { place: false }));
+    this.state = { ...start };
+    const ring = (this.ring = view(this, ringPicture, { place: false }));
     s.keep(ring, { describe: ringWords });
     // Checked on every frame by rayner check: a pointer moving between slots goes round the ring,
     // never across it, so its arrow always starts on the pointers' circle.
@@ -140,7 +140,7 @@ export default class RingBufferExplainer extends Scene {
       },
       { place: false },
     ));
-    const resultOf = (st: SceneState) =>
+    const resultOf = (st: RingState) =>
       st.error != null
         ? String(st.error)
         : Array.isArray(st.returned)
@@ -171,7 +171,7 @@ export default class RingBufferExplainer extends Scene {
     await this.play(new FadeIn(card, { runTime: 0.35, shift: [0, -0.08] }), new FadeIn(results, { runTime: 0.35 }));
     // The code panel focuses the lines the last operation ran: push's first line when it threw
     // Full, pop's body after a pop, push's body after a push.
-    const focusOf = (st: SceneState): [number, number] | number | null =>
+    const focusOf = (st: RingState): [number, number] | number | null =>
       st.error != null ? 1 : st.operation === 'pop' ? [8, 12] : st.operation != null ? [2, 4] : null;
     const codeAt = regionBox('full', { left: -0.25, top: card.box()![1] - 0.25 });
     const code = (this.code = view(this, (st) => new CodeBlock(this, s.palette, CODE, { at: codeAt, fontSize: 0.2, focus: focusOf(st), key: 'code' }), { place: false }));

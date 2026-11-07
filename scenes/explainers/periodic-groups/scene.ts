@@ -1,6 +1,6 @@
 import { Scene, AnimationGroup, Succession, FadeIn, linear } from '../../../src/index.ts';
 import type { View } from '../../../explain/index.ts';
-import type { ScheduledAnimation, SceneState } from '../../../src/index.ts';
+import type { ScheduledAnimation } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, SetState, view } from '../../../explain/index.ts';
 import {
   POSITIONS,
@@ -23,7 +23,7 @@ import {
 import type { Block, Symbol } from './model.ts';
 import { listed as list, ordinal, upperFirst } from '../lib/format.ts';
 import { PAPER, INK, SOFT, RUNS, ROW_CELLS, samePlace, nameOf, drawTable, drawNotes, sayPeriodic } from './picture.ts';
-import type { Followed, Member } from './picture.ts';
+import type { Followed, Member, PeriodicState } from './picture.ts';
 
 const ELEMENTS = {
   na: 'Na',
@@ -47,7 +47,7 @@ function rowSum(jump: number): string {
   return `${jump} = ${row.map((b) => CAPACITY[b]).join(' + ')}`;
 }
 
-export default class PeriodicGroupsExplainer extends Scene {
+export default class PeriodicGroupsExplainer extends Scene<PeriodicState, {}> {
   static meta = {
     player: { minStageWidth: 880 },
     sources: [
@@ -122,7 +122,7 @@ export default class PeriodicGroupsExplainer extends Scene {
     // How each state looks is picture.ts's; the steps below set the state.
     const followed: Followed = { z, group, name, Name, members, jumps, family };
     const base = { element: symbol, z, group };
-    const apply = (next: SceneState) => new SetState(this, next);
+    const apply = (next: PeriodicState) => new SetState(this, next);
 
     // ---- 1. the column: a puzzle to predict ------------------------------------------
     const distinct = [...new Set(jumps)].sort((a, b) => a - b);
@@ -161,7 +161,7 @@ export default class PeriodicGroupsExplainer extends Scene {
       caption: `Give each element a cell and add its electrons one at a time; in a neutral atom the atomic number counts them. A filling rule arranges them in runs, and every full run is 2, 6, 10 or 14 long. ${ownRuns} Lay each run beside the last, starting a new row at each run of 2: the rows hold ${list(ROW_CELLS.map(String))} cells, and every jump down step 1’s column is one of those row lengths.`,
     });
     {
-      const fillState = (lit: number, runs: number, done: boolean): SceneState => ({
+      const fillState = (lit: number, runs: number, done: boolean): PeriodicState => ({
         ...base,
         note: 'fill',
         layout: 'rows',

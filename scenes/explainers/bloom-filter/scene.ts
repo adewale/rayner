@@ -1,5 +1,5 @@
 import { Scene, Group } from '../../../src/index.ts';
-import { settingsOf, stage } from '../../../explain/index.ts';
+import { settingsOf, stage, having } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { bloomStory, locations, saturation } from './model.ts';
 import { label } from '../../../explain/drawing.ts';
@@ -11,7 +11,7 @@ const pct = (x: number) => percent(x, { under1: { digits: 2 } });
 
 const count = (n: number) => numberWord(n, { zero: 'none' });
 
-export default class BloomFilter extends Scene {
+export default class BloomFilter extends Scene<{}, {}> {
   static meta = {
     sources: [
       'https://doi.org/10.1145/362686.362692',
@@ -165,7 +165,7 @@ export default class BloomFilter extends Scene {
           ...frame,
           state,
           draw: (st: typeof state, s: Stage) => {
-            if (i === 7) return drawPipeline(s, st as Parameters<typeof drawPipeline>[1]);
+            if (i === 7) return drawPipeline(s, having(st, 'queries', 'sampleSize', 'sizes'));
             const query = st.query;
             // A lookup's bits; while inserting, the bits of the name just inserted.
             const active = query?.locations ?? (i === 1 || i === 2 ? locations(st.stored.at(-1)!, st.size) : []);

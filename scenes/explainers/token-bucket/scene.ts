@@ -1,6 +1,6 @@
 import { Scene, FadeIn, Create, Transform, AnimationGroup, Succession, rushFrom, thereAndBack } from '../../../src/index.ts';
 import type { View, Card } from '../../../explain/index.ts';
-import type { ScheduledAnimation as Animation, SceneState, VMobject } from '../../../src/index.ts';
+import type { ScheduledAnimation as Animation, VMobject } from '../../../src/index.ts';
 import { stage, settingsOf, Machine, view, CodeBlock } from '../../../explain/index.ts';
 import { TokenBucket, bucketStart, bucketRequest } from './model.ts';
 import type { BucketCall as Call, BucketState } from './model.ts';
@@ -59,7 +59,7 @@ const formatState = (v: unknown) =>
         : v.toFixed(1)
       : String(v);
 
-export default class TokenBucketExplainer extends Scene {
+export default class TokenBucketExplainer extends Scene<BucketState, {}> {
   static meta = {
     sources: [
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/token-bucket.ts',
@@ -102,7 +102,7 @@ export default class TokenBucketExplainer extends Scene {
     /** When a climb from `prev` to `call` reached the capacity, where min(capacity, …) took over; null when it stayed under. */
     const cappedAt = (prev: { at: number; after: number }, call: Call) => capAt(prev, call, rate, CAPACITY);
     /** The model's state: the bucket and every call so far, which every picture and description is drawn from. */
-    const bucketOf = () => this.state as unknown as BucketState;
+    const bucketOf = () => this.state;
 
     // ---- descriptions of the drawings, read at every step boundary from the state
     const chartSays = () => {
@@ -177,10 +177,10 @@ export default class TokenBucketExplainer extends Scene {
     });
     await s.clear();
     const start = bucketStart(rate, CAPACITY);
-    this.state = start as unknown as SceneState;
-    const gauge = view(this, (st) => gaugePicture(st as unknown as BucketState), { place: false });
-    const chart = view(this, (st) => chartPicture(st as unknown as BucketState), { place: false });
-    const chips = view(this, (st) => chipsPicture(st as unknown as BucketState), { place: false });
+    this.state = start;
+    const gauge = view(this, gaugePicture, { place: false });
+    const chart = view(this, chartPicture, { place: false });
+    const chips = view(this, chipsPicture, { place: false });
     // The balance card describes itself, its values as the readout writes them.
     const readout = view(this, (state) => drawReadout(this, s.palette, state, formatState), { place: false });
     this.readout = readout;
@@ -207,7 +207,7 @@ export default class TokenBucketExplainer extends Scene {
           at: [2.15, -2.25, 7.75, 1.55],
           title: `bucket.allow(now), rate = ${rate}`,
           fontSize: 0.22,
-          ...focusOf(st as unknown as BucketState),
+          ...focusOf(st),
           key: 'code',
         });
         // The min(5, …) line keyed by what it is, not by its text as the key option keys it:
@@ -386,7 +386,7 @@ export default class TokenBucketExplainer extends Scene {
     // their outcomes, so a phone reader sees all three rates together.
     await s.clear();
     const comparison = view(this, (state) =>
-      drawComparison(RATES.map((r) => [r, r === rate ? (state.responses as number[]) : runs.get(r)!.map((c) => (c.ok ? 200 : 429))] as const), rate, TIMES.length, colours),
+      drawComparison(RATES.map((r) => [r, r === rate ? state.responses : runs.get(r)!.map((c) => (c.ok ? 200 : 429))] as const), rate, TIMES.length, colours),
     );
     this.readout = comparison;
     await s.enter(comparison, {

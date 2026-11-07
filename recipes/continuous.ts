@@ -48,7 +48,7 @@ export class FollowAngle extends Animation {
   }
 }
 
-export default class ContinuousScene extends Scene<{ angle: number; x: number; y: number }> {
+export default class ContinuousScene extends Scene<{ angle: number; x: number; y: number }, {}> {
   override state = { angle: 0, x: 3, y: 0 };
   override async construct() {
     const rig = makeOrbit();

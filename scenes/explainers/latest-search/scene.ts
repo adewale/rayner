@@ -1,6 +1,6 @@
 import { Scene, Transform, AnimationGroup, Succession, Cross, rushInto } from '../../../src/index.ts';
 import type { Choreography, View, Transition } from '../../../explain/index.ts';
-import type { ScheduledAnimation, SceneState } from '../../../src/index.ts';
+import type { ScheduledAnimation } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, Machine, view } from '../../../explain/index.ts';
 import { story, raceTimeline, raceTracks, raceWords, tickX, trackY } from './picture.ts';
 import type { RaceStep } from './picture.ts';
@@ -11,7 +11,7 @@ import type { CompletionOrder, RaceState, RaceEvent } from './model.ts';
 // the keystroke "ca", search B the latest keystroke "cat". The two timelines that show the page are
 // machines: each event is a search starting or its response landing, through the same handler
 // createSearch runs, so `rayner check` explores every interleaving under each rule.
-export default class LatestSearchExplainer extends Scene {
+export default class LatestSearchExplainer extends Scene<RaceState, {}> {
   static meta = {
     sources: [
       'https://github.com/adewale/rayner/blob/main/scenes/explainers/latest-search/model.ts',
@@ -44,7 +44,7 @@ export default class LatestSearchExplainer extends Scene {
     // Checked on every frame by rayner check, and on every explored state and transition: under the
     // guard the page never shows a result that landed after a newer search started.
     this.addInvariant('the guarded page never shows a stale result', (scene) => {
-      const st = scene.state as object;
+      const st: object = scene.state;
       if (!isRace(st) || !st.guarded) return;
       return raceShowsStale(st) ? `after ${st.log.join(', ')}, the guarded page shows ${st.page}, which landed after a newer search started` : true;
     });
@@ -92,11 +92,11 @@ export default class LatestSearchExplainer extends Scene {
     };
     /** Each event's transition, on the timeline view it plays on. */
     const transitionOn = (timeline: View) =>
-      Object.fromEntries(RACE_EVENTS.map((e) => [e, (t: Transition<RaceState, RaceEvent>) => (e.startsWith('start') ? start : land)(t, t.choreograph(timeline))])) as unknown as Record<RaceEvent, (t: Transition<RaceState, RaceEvent>) => ScheduledAnimation>;
+      Object.fromEntries(RACE_EVENTS.map((e) => [e, (t: Transition<RaceState, RaceEvent>) => (e.startsWith('start') ? start : land)(t, t.choreograph(timeline))]));
 
     /** One machine per rule, each with its own timeline view: the race's events, under that rule's handler. */
     const raceMachine = (guarded: boolean) => {
-      const timeline = view(this, (st) => raceTimeline(s, (isRace(st) ? st : raceStart(guarded)) as RaceState), { place: false });
+      const timeline = view(this, (st) => raceTimeline(s, isRace(st) ? st : raceStart(guarded)), { place: false });
       const machine = new Machine<RaceState, RaceEvent>(this, {
         start: raceStart(guarded),
         events: RACE_EVENTS,
@@ -112,10 +112,10 @@ export default class LatestSearchExplainer extends Scene {
     const played = async (words: RaceStep, { timeline, machine }: { timeline: View; machine: Machine<RaceState, RaceEvent> }, guarded: boolean) => {
       await this.step(words.id, { title: words.title, line: words.line, caption: words.caption, kind: 'short' });
       await s.clear({ runTime: 0.18 });
-      this.state = { ...raceStart(guarded) } as unknown as SceneState;
+      this.state = { ...raceStart(guarded) };
       timeline.rebuild();
       s.opening(timeline);
-      await s.enter(timeline, { runTime: 0.24, describe: () => raceWords(this.state as unknown as RaceState) });
+      await s.enter(timeline, { runTime: 0.24, describe: () => raceWords(this.state) });
       await this.play(machine.replay(events));
     };
 

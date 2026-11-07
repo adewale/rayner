@@ -13,7 +13,8 @@ import { FanSink, ViewSink } from '../tools/lib/explain-check.ts';
 
 const words = (s: Stage, n: number) => new Group(s.scene.text(`count ${n}`, { fontSize: 0.5, color: s.palette.ink }));
 
-async function run<S extends object = { n: number }>(steps: (bump: () => number) => StagedStep<S>[], kind: 'short' | 'main' = 'main') {
+// Each test's steps have their own state type; `any` lets one runner take them all.
+async function run(steps: (bump: () => number) => StagedStep<any>[], kind: 'short' | 'main' = 'main') {
   let counter = 0;
   const bump = () => ++counter;
   class Steps extends Scene {

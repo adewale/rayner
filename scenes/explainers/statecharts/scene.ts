@@ -1,7 +1,7 @@
 import { Scene, Group, Dot, FadeIn, AnimationGroup, Succession, matchByKey } from '../../../src/index.ts';
 import type { Transition } from '../../../explain/index.ts';
 import type { MatchKey, Box, VMobject } from '../../../src/index.ts';
-import { stage, regionBox, view, Machine } from '../../../explain/index.ts';
+import { stage, regionBox, view, having, Machine } from '../../../explain/index.ts';
 import { CONTROLS, RUNS, player, coffee, coffeeWithFrother, flatten, run, activeStates, chartCounts, flatCounts, send, drivenStart, drivenNext, events as chartEvents } from './model.ts';
 import type { StateNode, Driven } from './model.ts';
 import { PLAYBACK, VOLUME, SUBTITLES, cellKey, cellOf, FLAT, CHART, TRACE, COFFEE, fit, scaleFor, coffeeLayout, coffeePicture, flatPicture, chartPicture, tracePicture } from './picture.ts';
@@ -9,8 +9,15 @@ import type { Drawn } from './picture.ts';
 
 /** Morphs pair parts by key: shapes by their place in the keyed part, a keyed word only with the same word. */
 const byKey: MatchKey = matchByKey({ text: 'whole' });
+type Phase = 'machine' | 'copies' | 'parent' | 'multiply' | 'grid' | 'regions' | 'flatten' | 'question' | 'frother';
+// The picture is a function of the model and of which picture is shown. The model, for the two
+// charts a reader could drive, is their configuration (`config`) and the boxes it is in
+// (`current`); otherwise just the boxes followed, if any. Which picture is `shown.phase`. So a View
+// checks it against the trace, and rayner check can draw any state a Machine reaches.
+type Model = Driven | { current: string[] | null };
+type Shown = { phase: Phase };
 
-export default class Statecharts extends Scene {
+export default class Statecharts extends Scene<Model, Shown> {
   static meta = {
     sources: [
       'https://x.com/DavidKPiano/status/2116523008323981315',
@@ -47,13 +54,6 @@ export default class Statecharts extends Scene {
     const FULL = regionBox('full', { top: 3.05 });
     const big = (b: Box) => fit(b, FULL, scaleFor(b, FULL));
 
-    type Phase = 'machine' | 'copies' | 'parent' | 'multiply' | 'grid' | 'regions' | 'flatten' | 'question' | 'frother';
-    // The picture is a function of the model and of which picture is shown. The model, for the two
-    // charts a reader could drive, is their configuration (`config`) and the boxes it is in
-    // (`current`); which picture is `shown.phase`. So a View checks it against the trace, and
-    // rayner check can draw any state a Machine reaches.
-    type Model = { current: string[] | null; config?: string[] };
-    type Shown = { phase: Phase };
     const [, playing] = PLAYBACK.states,
       [, muted] = VOLUME.states;
     const followCell = cellKey(cellOf([playing, muted]));
@@ -66,7 +66,7 @@ export default class Statecharts extends Scene {
         case 'copies':
           return coffeePicture(s, big(coffeeLayout('flat').bounds), 'flat', { follow: [], lit: Object.keys(COFFEE.ys).map((id) => `c:arrow:${id}:POWER_OFF:off`) });
         case 'parent':
-          return coffeePicture(s, big(coffeeLayout('flat').bounds), 'chart', { follow: st.config ?? [], lit: ['c:arrow:grinding:POWER_OFF:off'] }, true);
+          return coffeePicture(s, big(coffeeLayout('flat').bounds), 'chart', { follow: 'config' in st ? st.config : [], lit: ['c:arrow:grinding:POWER_OFF:off'] }, true);
         case 'multiply':
           return flatPicture(s, playerChart, big(FLAT.bounds), { follow: [], lit: [] });
         case 'grid':
@@ -83,7 +83,7 @@ export default class Statecharts extends Scene {
     };
     this.state = { current: null } satisfies Model;
     this.shown = { phase: 'machine' } satisfies Shown;
-    const main = view(this, (st, sh) => (drawn = picture(st as Model, sh as Shown)).group, { place: false });
+    const main = view(this, (st, sh) => (drawn = picture(st, sh)).group, { place: false });
     const describe = { describe: () => drawn.words.join('; ') };
     const show = (phase: Phase) => { this.shown = { phase } satisfies Shown; };
     /** A new picture: clear the stage and fade the next one in. */
@@ -102,7 +102,7 @@ export default class Statecharts extends Scene {
     // rayner check draws every configuration the events reach. The parent step replays a brew
     // that starts; the frother step the transfer answer's events.
     /** The boxes the picture draws green for a state: the parent step follows the configuration, the frother step every box it is in. */
-    const followed = (st: Driven) => ((this.shown as Shown).phase === 'parent' ? st.config : st.current);
+    const followed = (st: Driven) => (this.shown.phase === 'parent' ? st.config : st.current);
     /** The arrow an event takes: the transition written on the state that handled it (its own, or its parent's), keyed as coffeePicture keys it. */
     const arrowFor = (chart: StateNode, from: string, event: string) => {
       const find = (n: StateNode): StateNode | undefined => (n.id === from ? n : (n.children ?? []).map(find).find(Boolean));
@@ -114,10 +114,10 @@ export default class Statecharts extends Scene {
     // green, a token runs along the arrow of the state that took it (on's own POWER_OFF when the
     // current state has none), and the boxes it enters turn green.
     const driven = (chart: StateNode) =>
-      new Machine<Driven, string>(this, {
+      new Machine<Model, string>(this, {
         start: drivenStart(chart),
         events: chartEvents(chart),
-        next: (state, event) => drivenNext(chart, state, event),
+        next: (state, event) => drivenNext(chart, having(state, 'config'), event),
         views: [main],
         match: byKey,
         // 0.35 s to leave, 0.8 s along the arrow, 0.5 s to arrive.
@@ -125,8 +125,8 @@ export default class Statecharts extends Scene {
         transition: Object.fromEntries(
           chartEvents(chart).map((event) => [
             event,
-            (t: Transition<Driven, string>) => {
-              const { before, after } = t, c = t.choreograph(main);
+            (t: Transition<Model, string>) => {
+              const before = having(t.before, 'config'), after = having(t.after, 'config'), c = t.choreograph(main);
               const was = followed(before), now = followed(after);
               const leaving = was.filter((id) => !now.includes(id)), entering = now.filter((id) => !was.includes(id));
               // One token per state that handled the event, travelling its arrow.

@@ -6,7 +6,7 @@ import {
 import type { Strokes } from './picture.ts';
 import { Scene, Create, FadeOut, LaggedStart } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
-import { stage, settingsOf, Diagram, diagramsOf } from '../../../explain/index.ts';
+import { stage, settingsOf, Diagram, diagramsOf, having } from '../../../explain/index.ts';
 import {
   WORLD,
   TITLE,
@@ -29,7 +29,17 @@ const CHART_BOX: Box = [-7.55, -4.25, 7.55, 0.5];
 
 const fmt = (n: number, d = 3) => n.toFixed(d);
 
-export default class PenAndPencil extends Scene {
+/** What each step finds out about the drawing, from the step that measures it. */
+type PenState = {
+  periods?: number;
+  marks?: { outlines: number; filled: number; words: number };
+  hand?: { stray: number };
+  scene?: { layers: string[]; trespass: number };
+  plate?: { objects: number; stray: number; letters: number; sharpenings: number };
+  freehand?: { misses: number; words: number; maxOff: number };
+};
+
+export default class PenAndPencil extends Scene<PenState, { layout?: { marked: string[] } }> {
   static meta = {
     sources: [
       'https://pele-art-diagrams.vercel.app/',
@@ -197,7 +207,7 @@ export default class PenAndPencil extends Scene {
     this.state.periods = facts.length;
 
     // 2. Why the boxes wander, and the fix in miniature: the route is fixed first, and the hand only follows it.
-    await s.steps(readerFrames(seed), { kind: 'short' });
+    await readerFrames(s, seed, { kind: 'short' });
 
     // 3. For the real timeline, the layout comes first.
 
@@ -216,7 +226,7 @@ export default class PenAndPencil extends Scene {
     // `shown`, not the model; its view draws it.
     this.shown.layout = { marked: [] };
     const layoutView = s.diagramView(d, (_st, sh) => ({
-      marks: Object.fromEntries((sh.layout as { marked: string[] }).marked.map((id) => [id, { color: d.accent, as: 'measured' }])),
+      marks: Object.fromEntries(having(sh, 'layout').layout.marked.map((id) => [id, { color: d.accent, as: 'measured' }])),
     }));
     this.shown.layout = { marked: [`period:period-${FOCUS}`] };
     await this.play(layoutView.sync({ match: 'key', staged: true, runTime: 0.45 }));

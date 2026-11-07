@@ -24,12 +24,12 @@ export interface SetStateOpts {
  * scene's): a model step, so each member of a replay starts where the one before left it.
  */
 export class SetState<S extends object = SceneState> extends Animation {
-  readonly host: Scene<S>;
+  readonly host: Scene<S, any>;
   readonly event: string | undefined;
   private readonly snapshot: JsonObject | null;
   private readonly update: ((current: S) => S) | null;
 
-  constructor(host: Scene<S>, next: NoInfer<S> | ((current: NoInfer<S>) => NoInfer<S>), { event }: SetStateOpts = {}) {
+  constructor(host: Scene<S, any>, next: NoInfer<S> | ((current: NoInfer<S>) => NoInfer<S>), { event }: SetStateOpts = {}) {
     if (event !== undefined && (typeof event !== 'string' || !event.trim())) throw new TypeError('SetState event must be a nonempty string');
     const update = typeof next === 'function' ? (next as (current: S) => S) : null;
     const snapshot = update ? null : jsonObject(next, 'SetState state');
@@ -46,7 +46,7 @@ export class SetState<S extends object = SceneState> extends Animation {
     const next = this.update
       ? this.update(jsonObject(this.host.state, 'SetState current state') as S)
       : this.snapshot;
-    this.host.state = jsonObject(next, 'SetState state') as Scene<S>['state'];
+    this.host.state = jsonObject(next, 'SetState state') as Scene<S, any>['state'];
     super.begin();
   }
 

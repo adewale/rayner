@@ -1,13 +1,13 @@
 // Pictures of state: a view redrawn from the state, a machine of events, SetState and choreography (docs/VIEWS.md, docs/MACHINES.md)
-export { View, view } from './view.ts';
-export type { ViewSync, ViewOpts, ViewPlace, ViewMatch, SyncOpts } from './view.ts';
+export { View, view, having } from './view.ts';
+export type { Having, ViewSync, ViewOpts, ViewPlace, ViewMatch, SyncOpts } from './view.ts';
 export { SetState } from './state.ts';
 export type { SetStateOpts, FollowSpec } from './state.ts';
 export { Machine, refuse, isRefusal } from './machine.ts';
 export type { MachineSpec, Transition, Outcome, Refusal } from './machine.ts';
 export { choreograph } from './choreograph.ts';
 export type { Choreography } from './choreograph.ts';
-export { stage, stagedStep } from './stage.ts';
+export { stage } from './stage.ts';
 export type { StageOptions, Stage, StageRegion, Describe, StagedStep, StagedStepsOptions, DiagramPicture } from './stage.ts';
 export type { LayoutDirection } from './layout-direction.ts';
 export { Diagram } from './diagrams.ts';

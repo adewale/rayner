@@ -7,7 +7,7 @@
 // context beside it; and an element's cell and symbol keep their keys wherever they go, so the runs slide
 // from their rows into the table.
 import { Group, Text, Rectangle, Line, Arrow, matchByKey, lerpColor } from '../../../src/index.ts';
-import type { SceneState, Mobject, Vec, MatchKey } from '../../../src/index.ts';
+import type { Mobject, Vec, MatchKey } from '../../../src/index.ts';
 import { POSITIONS, NAMES, CAPACITY, predicted } from './model.ts';
 import type { Block, Symbol, Subshell, Position } from './model.ts';
 import { listed as list } from '../lib/format.ts';
@@ -145,8 +145,50 @@ export interface Followed {
   family: Member[];
 }
 
+/**
+ * One state of the explainer: the element followed, the step's note, and the knobs the pictures
+ * read. Each step sets the knobs it needs, and a knob it leaves out takes its default.
+ */
+export interface PeriodicState {
+  element: Symbol;
+  z: number;
+  group: number;
+  note: 'column' | 'fill' | 'stack' | 'names' | 'blocks' | 'family';
+  /** The followed column's band. */
+  band?: boolean;
+  members?: number[];
+  gaps?: number[];
+  /** The fill step lays the runs side by side in rows, before the table exists. */
+  layout?: 'rows';
+  /** How many cells are lit, in filling order. */
+  lit?: number;
+  filling?: string;
+  runs?: number[];
+  rows?: number[];
+  blocks?: boolean;
+  helium?: 'over-be' | 'over-ne';
+  slid?: boolean;
+  strip?: 'runs' | 'named';
+  landed?: number;
+  landingRun?: string;
+  capacity?: Record<Block, number>;
+  /** The element whose run the trail follows. */
+  trail?: number;
+  core?: number;
+  coreSymbol?: Symbol | null;
+  ruleMatches?: number;
+  block?: Block;
+  landing?: string[];
+  count?: number;
+  adjustment?: Position['adjustment'];
+  listed?: string;
+  listedCount?: number;
+  ghost?: boolean;
+  family?: { symbol: Symbol; config: string | null; count: number | null }[];
+}
+
 /** The table, drawn from the state: the runs in rows during the fill step, the 18-column table after it. */
-export function drawTable(state: SceneState, { z, group, members }: Followed): Group {
+export function drawTable(state: PeriodicState, { z, group, members }: Followed): Group {
   // The opening compares a family's atomic numbers. The complete table is
   // context there; give the comparison its own readable native drawing.
   const compact = state.note === 'column';
@@ -295,7 +337,7 @@ export function drawTable(state: SceneState, { z, group, members }: Followed): G
 }
 
 /** The words in the empty space above the d block (or, in the opening, the column compared large). */
-export function drawNotes(state: SceneState, { z, group, members, jumps, family, Name }: Followed): Group {
+export function drawNotes(state: PeriodicState, { z, group, members, jumps, family, Name }: Followed): Group {
   const picture = new Group();
   const say = (text: string, at: Vec, { size = 0.26, color = INK, edge = [-1, 0] as Vec, bold = false } = {}) =>
     picture.add(new Text(text, { fontSize: size, color, weight: bold ? 'bold' : 'normal' }).moveTo(at, edge));
@@ -343,14 +385,14 @@ export function drawNotes(state: SceneState, { z, group, members, jumps, family,
   if (note === 'fill') {
     // The element's own runs, by length, in the space right of the short rows; the names
     // s, p, d and f come two steps later.
-    const lengths = (state.runs ?? []) as number[];
+    const lengths = state.runs ?? [];
     const left = ROW_END[3]! + 1.5;
     say(`${Name}: ${z} electron${z > 1 ? 's' : ''}, one per cell`, [left, pkRowY(1)], { size: 0.32, color: SOFT });
     say(lengths.length > 1 ? `${lengths.join(' + ')} = ${lengths.reduce((a, b) => a + b, 0)}` : String(lengths[0] ?? ''), [
       left,
       pkRowY(2) + 0.04,
     ], { size: 0.5 });
-    const rows = (state.rows ?? null) as number[] | null;
+    const rows = state.rows ?? null;
     if (rows) {
       say('Every full run is 2, 6, 10 or 14 cells', [left, pkRowY(3) + 0.08], { size: 0.34 });
       // Each row's length, at its right end.
@@ -372,7 +414,7 @@ export function drawNotes(state: SceneState, { z, group, members, jumps, family,
   if (note === 'blocks') {
     // The scenario's configuration and where its last electron lands, in the empty space above the d block.
     say('2 + 10 + 6 = 18 numbered columns', [NOTE_X, rowY(1)], { size: 0.3, bold: true });
-    ((state.landing ?? []) as string[]).forEach((line, i) => say(line, [NOTE_X, rowY(1) - 0.5 - i * 0.38], { size: 0.27 }));
+    (state.landing ?? []).forEach((line, i) => say(line, [NOTE_X, rowY(1) - 0.5 - i * 0.38], { size: 0.27 }));
   }
   if (note === 'family') {
     // Beside each member, NIST's configuration with the endings lined up: the core
@@ -431,7 +473,7 @@ export function drawNotes(state: SceneState, { z, group, members, jumps, family,
 }
 
 /** The resting picture in words, from the same state and data the two views draw. */
-export function sayPeriodic(st: SceneState, { z, group, name, Name, members, jumps, family }: Followed): string {
+export function sayPeriodic(st: PeriodicState, { z, group, name, Name, members, jumps, family }: Followed): string {
   const note = String(st.note ?? ''),
     said: string[] = [];
   said.push(
@@ -458,17 +500,17 @@ export function sayPeriodic(st: SceneState, { z, group, name, Name, members, jum
   }
   if (note === 'fill') {
     said.push(`Cells 1 to ${st.lit} are filled in order, coloured by the run each one’s electron enters.`);
-    const rows = (st.rows ?? null) as number[] | null;
+    const rows = st.rows ?? null;
     if (rows)
       said.push(
         `Each row starts with a run of 2 and lays its runs side by side: rows of ${list(rows.map(String))} cells. A legend reads blue as a run of 2, gold 6, red 10 and black 14.`,
       );
-    const lengths = (st.runs ?? []) as number[];
+    const lengths = st.runs ?? [];
     said.push(`Note: ${name}’s ${z} electrons are runs of ${lengths.join(', ')}.`);
   }
   if (note === 'stack') said.push(`Note: ${String(st.landingRun ?? '')}.`);
   if (note === 'names') said.push('The run widths are named s, p, d and f, and helium has moved above neon because its first shell is full.');
-  if (note === 'blocks') said.push(`Note: ${((st.landing ?? []) as string[]).join(' ')}`);
+  if (note === 'blocks') said.push(`Note: ${(st.landing ?? []).join(' ')}`);
   if (st.slid)
     said.push('Dashed outlines in rows 2 and 3, columns 3 to 8, mark where their runs of 6 sat before sliding 10 columns right.');
   if (st.ghost) said.push('A dashed cell marked He? sits over beryllium, where helium’s run alone would put it.');

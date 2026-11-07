@@ -5,7 +5,7 @@ import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import type { Diagram, PictureNote, View } from '../../../explain/index.ts';
 import { SHADES, rows, summarize } from './model.ts';
-import type { Shade } from './model.ts';
+import type { Row, Shade } from './model.ts';
 import { listed, percent } from '../lib/format.ts';
 type Side = 'above' | 'below' | 'left' | 'right';
 
@@ -21,7 +21,23 @@ type Screen = 'srgb' | 'p3';
 
 const pct = (v: number) => percent(v, { of: 100 });
 
-export default class TailwindGamutExplainer extends Scene {
+type Summary = ReturnType<typeof summarize>;
+/** What each step measures of the palette, from the step that measures it. */
+type GamutState = {
+  palette?: (string | number)[][];
+  srgbEdge?: Row['srgb'][];
+  outsideSrgb?: Summary['outsideSrgb'];
+  furthest?: Summary['furthest'];
+  ofSrgb?: Row['ofSrgb'][];
+  outsideP3?: Summary['outsideP3'];
+  nearestP3?: Summary['nearestP3'];
+  p3OfSrgb?: Row['p3OfSrgb'][];
+  shown?: (string | number)[][];
+  ofP3?: Row['ofP3'][];
+  srgbOfP3?: Row['srgbOfP3'][];
+};
+
+export default class TailwindGamutExplainer extends Scene<GamutState, { dotNotes?: PictureNote[] }> {
   static meta = {
     sources: [
       THEME + '#L10-L323',
@@ -98,7 +114,7 @@ export default class TailwindGamutExplainer extends Scene {
     // The notes on the dots are how the radar is shown, not the model: they live in `shown`, the radar
     // is shown by a view that draws them, and a note is `shown` changed and the view synced. For a
     // reveal or a morph the live radar comes back.
-    const dotNotes = () => (this.shown.dotNotes ?? []) as PictureNote[];
+    const dotNotes = () => this.shown.dotNotes ?? [];
     let radarView: View | null = null;
     const showNotes = async (notes: PictureNote[]) => {
       this.shown.dotNotes = notes;
@@ -162,7 +178,7 @@ export default class TailwindGamutExplainer extends Scene {
       const sides = [...across, ...along];
       const best = sides.find((sd) => cost(sd) === 0) ?? sides.reduce((a, b) => (cost(b) < cost(a) ? b : a));
       said.push(boxAt(best));
-      radarView ??= s.diagramView(d, (_st, sh) => ({ notes: (sh.dotNotes ?? []) as PictureNote[] }));
+      radarView ??= s.diagramView(d, (_st, sh) => ({ notes: sh.dotNotes ?? [] }));
       await showNotes([...dotNotes(), { id: `dot:tw:${i}`, text, side: best, size }]);
     };
 
@@ -171,7 +187,7 @@ export default class TailwindGamutExplainer extends Scene {
     // (l.322–323) are hex. The 17 coloured families come first (l.10–212), then nine greys. Blog l.358–360: "We've upgraded the entire default
     // color palette from rgb to oklch, taking advantage of the wider gamut to make the colors more vivid in
     // places where we were previously limited by the sRGB color space."
-    await s.steps(readerFrames(shade, screen), { kind: 'short' });
+    await readerFrames(s, shade, screen, { kind: 'short' });
     // Colours that round to the leader's share: the radar draws them at the same radius.
     const level = all.filter((r) => r.family !== sum.mostOfSrgb.family && r.ofSrgb === sum.mostOfSrgb.value).map((r) => r.family);
 

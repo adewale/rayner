@@ -644,7 +644,7 @@ test('the regions meant to sit side by side never overlap', () => {
 
 test('the explain entry point exports exactly its documented names', async () => {
   assert.deepEqual(Object.keys(await import('../explain/index.ts')).sort(), [
-    'Card', 'CodeBlock', 'Diagram', 'Machine', 'REGIONS', 'SetState', 'View', 'answerOf', 'choreograph', 'diagramsOf', 'isRefusal', 'mermaid', 'palette', 'refuse', 'regionBox', 'resolveSettings', 'settingsOf', 'stage', 'stagedStep', 'view',
+    'Card', 'CodeBlock', 'Diagram', 'Machine', 'REGIONS', 'SetState', 'View', 'answerOf', 'choreograph', 'diagramsOf', 'isRefusal', 'mermaid', 'palette', 'refuse', 'regionBox', 'resolveSettings', 'settingsOf', 'stage', 'view',
   ]);
   // The tooling went to rayner/testing.
   assert.deepEqual(Object.keys(await import('../explain/testing.ts')).sort(), [

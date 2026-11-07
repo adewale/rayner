@@ -27,7 +27,16 @@ function shape(font: FontName, text: string) {
   };
 }
 
-export default class GlyphExplainer extends Scene {
+/** The measuring model: each group's share of the difference, and later how many glyphs paired by shape. */
+type GlyphState = {
+  font: FontName;
+  width: number;
+  glyphs: number;
+  gains: Record<string, number>;
+  shapePairs?: { sameFont: number; otherFont: number };
+};
+
+export default class GlyphExplainer extends Scene<GlyphState, { lit?: string }> {
   static meta = {
     sources: ['https://github.com/ivarvong/lantern/blob/2c7bad5/src/text.ts'],
     claims: [
@@ -135,11 +144,10 @@ export default class GlyphExplainer extends Scene {
     this.state = { ...measuring };
     this.shown.lit = named(stems);
     const card = view(this, (st, sh) => {
-      const c = st as typeof measuring;
-      const drawn = new Card(this, s.palette, Object.entries(c.gains).map(([name, gain]) => [name, signed(gain)]), {
+      const drawn = new Card(this, s.palette, Object.entries(st.gains).map(([name, gain]) => [name, signed(gain)]), {
         at: [-4.6, -4.25, 4.6, -1.3],
         title: `${NAME.mono} − ${NAME.sans}: +${total.toFixed(2)} units`,
-        lit: (sh as { lit: string | null }).lit,
+        lit: sh.lit,
         key: 'gains',
       });
       drawn.bar.style.fill = hot;

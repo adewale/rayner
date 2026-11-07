@@ -26,7 +26,7 @@ export function statusRow(labels: readonly string[]): Group {
   return new Group(...labels.map(label => new StatusBadge(label))).arrange([1, 0], 1);
 }
 
-export default class ExtensionScene extends Scene {
+export default class ExtensionScene extends Scene<{ labels?: string[] }, {}> {
   override async construct() {
     const row = statusRow(['queued', 'running', 'done']);
     await this.step('badges', { caption: 'A custom path and a composite participate in the ordinary animation API.' });

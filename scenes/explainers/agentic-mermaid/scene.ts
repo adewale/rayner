@@ -1,9 +1,8 @@
 import { Scene, Group } from '../../../src/index.ts';
 import type { Box, Mobject } from '../../../src/index.ts';
-import { stage, settingsOf, REGIONS, regionBox, CodeBlock, answerOf, view } from '../../../explain/index.ts';
+import { stage, settingsOf, REGIONS, regionBox, CodeBlock, answerOf, view, having } from '../../../explain/index.ts';
 import type { Diagram, NoteSide, View } from '../../../explain/index.ts';
 import { keyed } from '../../../explain/drawing.ts';
-import { stagedStep } from '../../../explain/index.ts';
 // This explainer has no model of its own: its reports are agentic-mermaid 0.5.1's, for small three-node
 // flowcharts, captured with each diagram's snapshot (the broken source's is written below). It does not
 // establish what Mermaid implementations in general accept, and it does not implement the cache-specific
@@ -66,9 +65,28 @@ interface NoteState { part: string; text: string; side: NoteSide; size?: number 
 interface DiagramState { marks: { part: string; tone: Tone; as: string }[]; notes: NoteState[] }
 /** The verifier's report on a diagram, from its pinned snapshot. */
 interface Report { ok: boolean; warnings: { code: string; edge: string; part: string }[]; taskCorrectness: string }
+/** What the steps find out, each part from the step that finds it until a later step drops it. */
+type MermaidState = {
+  /** The source of the diagram each slot shows. */
+  sources?: Partial<Record<Slot, string>>;
+  warnings?: ReturnType<Diagram['findings']>;
+  taskCorrectness?: string;
+  report?: Report;
+  swappedWarnings?: number;
+  flaggedWarnings?: number;
+  /** The side column's code panels, as lines. */
+  column?: string[][];
+  ops?: typeof OPS;
+  rerun?: { ok: boolean; warnings: number };
+  hit?: Record<'wrong' | 'right', { edge: string; node: string }>;
+  reports?: Record<'wrong' | 'right', { ok: boolean; warnings: number }>;
+  finalWarnings?: number;
+};
+/** How each slot's diagram is shown. */
+type MermaidShown = { diagrams?: Partial<Record<Slot, DiagramState>> };
 
 // scene.test.ts runs the pinned verifier on each check question's diagram.
-export default class MermaidExplainer extends Scene {
+export default class MermaidExplainer extends Scene<MermaidState, MermaidShown> {
   static meta = {
     sources: [
       'https://github.com/adewale/agentic-mermaid',
@@ -116,10 +134,10 @@ export default class MermaidExplainer extends Scene {
     // diagram leaves the stage, still the source of geometry, of walks and of the diagram's description.
     const live = new Map<Slot, Diagram>();
     /** What the diagram in `slot` shows: its marks and notes from `shown`, its source checked against the model's; `prefix` keeps two diagrams' part keys apart. */
-    const diagramPicture = (slot: Slot, prefix: string) => (state: object, shown: object) => {
-      const d = live.get(slot), source = (state as { sources: Partial<Record<Slot, string>> }).sources[slot];
+    const diagramPicture = (slot: Slot, prefix: string) => (state: MermaidState, shown: MermaidShown) => {
+      const d = live.get(slot), source = having(state, 'sources').sources[slot];
       if (!d || d.spec.source !== source) throw new Error(`The ${slot} diagram on show is not the one the state records`);
-      const st = (shown as { diagrams: Partial<Record<Slot, DiagramState>> }).diagrams[slot]!;
+      const st = having(shown, 'diagrams').diagrams[slot]!;
       return {
         marks: Object.fromEntries(st.marks.map((m) => [m.part, { color: colors[m.tone], as: m.as }])),
         notes: st.notes.map((n) => ({ id: n.part, text: n.text, side: n.side, ...(n.size ? { size: n.size } : {}) })),
@@ -137,13 +155,13 @@ export default class MermaidExplainer extends Scene {
     /** The diagram in `slot` shown by its view: its source in the model, its marks and notes (none yet) in `shown`. */
     const adopt = (slot: Slot, shownNow: DiagramState = { marks: [], notes: [] }) => {
       const d = live.get(slot)!;
-      this.state.sources = { ...((this.state.sources as object) ?? {}), [slot]: d.spec.source! };
-      this.shown.diagrams = { ...((this.shown.diagrams as object) ?? {}), [slot]: shownNow };
+      this.state.sources = { ...(this.state.sources ?? {}), [slot]: d.spec.source! };
+      this.shown.diagrams = { ...(this.shown.diagrams ?? {}), [slot]: shownNow };
       return s.diagramView(d, diagramPicture(slot, PREFIX[slot]));
     };
     /** Change how a diagram is shown, and play its view's change. */
     const restyle = async (v: View, slot: Slot, change: Partial<DiagramState>, runTime = 0.45) => {
-      const all = this.shown.diagrams as Partial<Record<Slot, DiagramState>>;
+      const all = having(this.shown, 'diagrams').diagrams;
       this.shown.diagrams = { ...all, [slot]: { ...all[slot]!, ...change } };
       await this.play(v.sync({ match: 'key', runTime }));
     };
@@ -188,8 +206,8 @@ export default class MermaidExplainer extends Scene {
     await show('main', first, 'main');
     const main = adopt('main');
     // The source beside it, near the top of the side, leaving room under it for the report the next step adds.
-    const sourceAt = (st: object) => {
-      const source = block((st as { sources: Record<Slot, string> }).sources.main!.split('\n'));
+    const sourceAt = (st: MermaidState) => {
+      const source = block(having(st, 'sources').sources.main!.split('\n'));
       return source.moveTo([SIDE[0], SIDE[3] - 0.5], [-1, 1]);
     };
     const sourcePanel = view(this, (st) => keyed(sourceAt(st), 'mermaid-source'), { place: false });
@@ -230,7 +248,7 @@ export default class MermaidExplainer extends Scene {
     const reportPanel = view(
       this,
       (st) => {
-        const report = block(reportLines((st as unknown as { report: Report }).report));
+        const report = block(reportLines(having(st, 'report').report));
         return keyed(report.moveTo([SIDE[0], sourceAt(st).box()![1] - GAP], [-1, 1]), 'mermaid-report');
       },
       { place: false },
@@ -252,19 +270,19 @@ export default class MermaidExplainer extends Scene {
       return new Group(source, ...stack(report), note);
     };
     await s.steps([
-      stagedStep({
+      {
         id: 'broken',
         title: 'Cut the end off an edge, and verify returns ok: false',
         line: 'With no node at the end of its last arrow, can this source be drawn at all?',
         caption: `The last arrow has no destination. This pinned renderer cannot draw it, so RENDER_FAILED makes ok false; UNSUPPORTED_SYNTAX identifies the dangling edge. The failure establishes a rendering problem without needing to know what a cache should do.`,
         state: { broken: { source: broken, ...BROKEN_REPORT } },
         draw: (st) => brokenPicture(st),
-      }),
+      },
     ]);
 
     /** The side column of a step: code panels from the state's lines, stacked. */
     const column = (key: string) =>
-      view(this, (st) => keyed(new Group(...stack(...(st as unknown as { column: string[][] }).column.map((lines) => block(lines)))), key), { place: false });
+      view(this, (st) => keyed(new Group(...stack(...having(st, 'column').column.map((lines) => block(lines)))), key), { place: false });
     if (swapped) {
       await this.step('flagged', {
         title: 'Delete both labels, and the verifier warns twice',
@@ -294,8 +312,8 @@ export default class MermaidExplainer extends Scene {
       const repaired = await show('main', BAD, 'main');
       this.state.ops = OPS;
       /** The edits as code, in the side column, all in focus. */
-      const opsBlock = (st: object) => {
-        const ops = (st as unknown as { ops: typeof OPS }).ops;
+      const opsBlock = (st: MermaidState) => {
+        const ops = having(st, 'ops').ops;
         return stack(block(ops.flatMap((op) => [`{ kind: '${op.kind}',`, `  target: '${op.target}',`, `  label: '${op.label}' }`]), 0.3, SIDE, [0, ops.length * 3 - 1]))[0] as CodeBlock;
       };
       const opsPanel = view(this, (st) => keyed(opsBlock(st), 'mermaid-ops'), { place: false });
@@ -309,7 +327,7 @@ export default class MermaidExplainer extends Scene {
       const rerunPanel = view(
         this,
         (st) => {
-          const r = (st as unknown as { rerun: { ok: boolean; warnings: number } }).rerun;
+          const r = having(st, 'rerun').rerun;
           const panel = block([`verify(flow).ok: ${r.ok}`, `warnings: ${r.warnings}`]);
           return keyed(panel.moveTo([SIDE[0], opsBlock(st).box()![1] - GAP], [-1, 1]), 'mermaid-rerun');
         },
@@ -324,7 +342,7 @@ export default class MermaidExplainer extends Scene {
       caption: swapped ? 'Two set_label edits, each naming one edge, put yes on the path to Reply and no on the path to Database. The corrected diagram sits below the backwards one, and both reports say ok: true with no warnings. Following yes out of Cached tells them apart: a hit reaches Database above and Reply below. A check that a cache hit reaches Reply without querying Database would catch the backwards one; this page describes that missing check rather than implementing it.' : `${missing ? 'Two further set_label edits' : `${NAMING} A set_label edit changes the label on one named edge; two of them`} reverse the behavior in the upper diagram: a hit now follows yes to Database, while in the lower one it still reaches Reply. Both reports say ok: true with no warnings. Both drawings meet the same structural rules, so those rules cannot tell which one performs the cache’s job; following the yes path can.`,
     });
     await s.clear();
-    for (const stale of ['sources', 'column', 'ops', 'rerun', 'report', 'flaggedWarnings']) delete this.state[stale];
+    for (const stale of ['sources', 'column', 'ops', 'rerun', 'report', 'flaggedWarnings'] as const) delete this.state[stale];
     delete this.shown.diagrams;
     // The wrong diagram above and the right one below, each with its report beside it. The scenario's own edit makes
     // one from the other: the swapped scenario repairs the unlabelled diagram, the others swap the right one's labels.
@@ -374,7 +392,7 @@ export default class MermaidExplainer extends Scene {
       view(
         this,
         (state) => {
-          const st = state as unknown as { hit: Record<'wrong' | 'right', { node: string }>; reports: Record<'wrong' | 'right', { ok: boolean; warnings: number }> };
+          const st = having(having(state, 'hit'), 'reports');
           const r = st.reports[row];
           const panel = block([`yes to ${st.hit[row].node}`, `ok: ${r.ok}`, `warnings: ${r.warnings}`], REPORT_SIZE);
           panel.moveTo([REPORT_X, row === 'wrong' ? between + 0.1 : between - 0.1], [-1, row === 'wrong' ? -1 : 1]);

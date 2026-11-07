@@ -3,8 +3,7 @@ import type { Mobject } from '../../../src/index.ts';
 import { exec } from './model.ts';
 import type { Shell, ShellSession } from './model.ts';
 import { flow, keyedParts, label, table, emphasised } from '../../../explain/drawing.ts';
-import type { StagedStep, stage } from '../../../explain/index.ts';
-import { stagedStep } from '../../../explain/index.ts';
+import type { Stage, StagedStepsOptions } from '../../../explain/index.ts';
 
 export const FILE = 'shout.txt';
 export const files = (sh: Shell) => Object.keys(sh.fs).join(', ') || 'none';
@@ -12,7 +11,7 @@ export const files = (sh: Shell) => Object.keys(sh.fs).join(', ') || 'none';
 export const prints = (out: string) => (out ? `prints ${out.trim()}` : 'prints nothing');
 
 
-export function frames(answer: string): StagedStep[] {
+export function frames(s: Stage, answer: string, opts?: StagedStepsOptions): Promise<void> {
   const original = { fs: {}, steps: 0 },
     run = exec(
       original,
@@ -24,8 +23,8 @@ export function frames(answer: string): StagedStep[] {
     );
   const old = exec(original, [['cat', 'shout.txt']]).stdout,
     next = exec(run.shell, [['cat', 'shout.txt']]).stdout;
-  return [
-    stagedStep({
+  return s.steps([
+    {
       id: 'reader-pipeline',
       title: 'The command ran, yet cat finds nothing in shout.txt',
       line: 'Predict: where did HELLO go?',
@@ -39,8 +38,8 @@ export function frames(answer: string): StagedStep[] {
           label('cat shout.txt on the starting shell:', 0, -1.15, s.palette.ink, 0.62),
           label(prints(st.startingCat), 0, -2.05, s.bad, 0.7),
         ),
-    }),
-    stagedStep({
+    },
+    {
       id: 'reader-values',
       title: 'Answer: the file is in the shell exec returned',
       line: 'Same command, two shell values: only the returned one holds shout.txt.',
@@ -56,8 +55,8 @@ export function frames(answer: string): StagedStep[] {
           s,
           { xs: [-5, 0, 5], y: 2, gap: 1.6 },
         ),
-    }),
-  ];
+    },
+  ], opts);
 }
 
 // ---- the session's picture ------------------------------------------------------------------
@@ -74,7 +73,7 @@ const SHELL_X = [-4.5, 3.1],
  * the accent), an arrow from s0 to the shell the write returned, and under each shell cat has read, an arrow to what it
  * printed. Every part is keyed, so a command's transition can bring in exactly what it adds.
  */
-export function shellsPicture(st: ShellSession, s: ReturnType<typeof stage>): Group {
+export function shellsPicture(st: ShellSession, s: Stage): Group {
   const ink = s.palette.ink, newest = st.shells.length - 1, { add, group } = keyedParts();
   st.shells.forEach((sh, i) => {
     const x = SHELL_X[i]!, kept = i === newest;

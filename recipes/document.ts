@@ -16,7 +16,7 @@ export function requestScene(input: RequestInput) {
   const copy = jsonObject(input, 'input');
   if (typeof copy.cached !== 'boolean') throw new TypeError('cached must be a boolean');
   const cached = copy.cached;
-  return class RequestScene extends Scene<{ cached: boolean; destination: string }> {
+  return class RequestScene extends Scene<{ cached: boolean; destination: string }, {}> {
     override state = { cached, destination: 'pending' };
     override async construct() {
       const request = new Labeled(new Rectangle({ width: 2.4, height: 1 }), new Text('Request', { fontSize: 0.3 })).moveTo([-4, 1]);

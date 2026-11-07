@@ -54,7 +54,7 @@ export default class Lamp extends Scene{
 const options = { skip: process.env.EXPLAIN_BROWSER ? false : 'set EXPLAIN_BROWSER=1 for served live-state review checks' };
 
 test('the visited live states: every state one press away, then breadth first, then the farthest, at most LIVE_STATES', () => {
-  const scene = new Scene(new NullSink());
+  const scene = new Scene<any>(new NullSink());
   // A counter from 0 to 9: one press away are 1 (UP) and nothing below 0; the farthest is 9.
   const counter = new Machine<{ n: number }, 'UP' | 'DOWN' | 'STAY'>(scene, {
     start: { n: 0 }, events: ['UP', 'DOWN', 'STAY'], views: [],

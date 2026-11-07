@@ -1,20 +1,20 @@
 import { Group, Dot, SurroundingRectangle } from '../../../src/index.ts';
-import type { Mobject, Scene, SceneState, Code, CodeSpan } from '../../../src/index.ts';
+import type { Mobject, Scene, Code, CodeSpan } from '../../../src/index.ts';
 import { reduceSession, sessionAttempt } from './model.ts';
 import type { SessionState } from './model.ts';
 import { flow, keyed, label, tile, emphasised } from '../../../explain/drawing.ts';
-import type { StagedStep, Diagram, Palette, CardOptions } from '../../../explain/index.ts';
-import { stagedStep, Card } from '../../../explain/index.ts';
+import type { Stage, StagedStepsOptions, Diagram, Palette, CardOptions } from '../../../explain/index.ts';
+import { Card } from '../../../explain/index.ts';
 
 
-export function frames(which: string, answer: string): StagedStep[] {
+export function frames(stage: Stage, which: string, answer: string, opts?: StagedStepsOptions): Promise<void> {
   const event = which === 'success' ? 'OPENED' : 'ERROR',
     next = reduceSession('connecting', event);
   const closed = which === 'success' ? reduceSession(next, 'CLOSE') : next;
   const rejected = sessionAttempt(closed, 'OPENED');
   const ended = which === 'success' ? 'CLOSE moves open to closed' : `ERROR already moved connecting to ${closed}`;
-  return [
-    stagedStep({
+  return stage.steps([
+    {
       id: 'reader-path',
       title: 'Should a late OPENED reopen a closed session?',
       line: `Predict: the session ends in ${closed}, then an OPENED arrives. What happens?`,
@@ -27,8 +27,8 @@ export function frames(which: string, answer: string): StagedStep[] {
           label(st.event, 2.55, 2.25, s.emphasis, 0.65),
           label('Current state + event → next state', 0, -1.8, s.palette.ink, 0.7),
         ),
-    }),
-    stagedStep({
+    },
+    {
       id: 'reader-reject',
       title: 'Answer: no. Closed has no row for OPENED',
       line: 'The reducer looks up the current state and the event together.',
@@ -46,8 +46,8 @@ export function frames(which: string, answer: string): StagedStep[] {
           label(st.result.error!, 0, -1.4, s.bad, 0.8, 'rejection'),
           label(`State stays ${st.state}`, 0, -2.8, s.palette.ink, 0.7),
         ),
-    }),
-  ];
+    },
+  ], opts);
 }
 
 // One colour says "the machine is here": the ring on the diagram and the row in the code.
@@ -56,10 +56,10 @@ export const NOW = '#f1fa8c',
 export const RING = { keep: true, color: NOW, buff: 0.07, cornerRadius: 0.08, strokeWidth: 0.03, runTime: 0.8 };
 
 /** The card row the bar lights: the error, the new state, or the event that just arrived. */
-const litRow = (st: SceneState) => (st.invalid ? 'Returns' : st.returns ? 'State' : st.event ? 'Event' : null);
+const litRow = (st: SessionState) => (st.invalid ? 'Returns' : st.returns ? 'State' : st.event ? 'Event' : null);
 
 /** The Session card for one state: state, event and return value, the row the session last changed lit. */
-export function drawSessionCard(scene: Scene, palette: Palette, st: SceneState, at: CardOptions['at']): Card {
+export function drawSessionCard(scene: Scene, palette: Palette, st: SessionState, at: CardOptions['at']): Card {
   const card = new Card(
     scene,
     palette,
