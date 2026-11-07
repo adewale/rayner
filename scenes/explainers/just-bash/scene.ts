@@ -1,8 +1,8 @@
 import { frames as readerFrames, FILE, files, prints, shellsPicture, shellsWords, commandLine, faded } from './picture.ts';
-import type { Choreography, Transition } from '../../../explain/index.ts';
-import { Scene, Text, Transform, AnimationGroup, Succession, FadeIn } from '../../../src/index.ts';
+import type { Choreography, Transition, Diagram, PictureNote, View, CardRow } from '../../../explain/index.ts';
+import { Scene, Text, Transform, AnimationGroup, Succession, FadeIn, FadeOut } from '../../../src/index.ts';
 import type { Animation, Box, SceneState } from '../../../src/index.ts';
-import { stage, regionBox, answerOf, Machine, view } from '../../../explain/index.ts';
+import { stage, regionBox, answerOf, Machine, view, Card, CodeBlock } from '../../../explain/index.ts';
 import { exec } from './model.ts';
 import type { Shell } from './model.ts';
 import { sessionOfShells, sessionNextShell, scriptBound, BASH_EVENTS } from './model.ts';
@@ -13,6 +13,12 @@ const PIPELINE = [
   ['tr', 'a-z', 'A-Z'],
 ] as const;
 const q = (v: string) => JSON.stringify(v);
+/** The word a diagram's mark gives its parts by default, in this explainer's language. */
+const MARKED = 'marked';
+/** How a diagram is shown besides its source, kept in `shown`: its marks (trails included) and its notes. */
+type DiagramShown = { marks: Record<string, string | { color: string; as?: string }>; notes: PictureNote[] };
+const PLAIN: DiagramShown = { marks: {}, notes: [] };
+type Focus = number | [number, number] | null;
 /** Ask the model whether it can run a command name. Pure: no animation inside the catch. */
 function lookup(name: string): 'builtin' | 'unsupported' {
   try {
@@ -43,6 +49,40 @@ export default class BashExplainer extends Scene {
       ink = s.palette.ink,
       accent = s.emphasis;
     const old: Shell = { fs: {}, steps: 0 };
+    // How each picture is shown, apart from the model: a code panel's focus, a diagram's marks and
+    // notes, a card's lit row. That is `shown`, under each picture's name; views draw it.
+    const shownOf = <T>(name: string) => this.shown[name] as T;
+    const show = async (v: View, name: string, value: unknown, runTime = 0.45) => {
+      this.shown = { ...this.shown, [name]: value };
+      await this.play(v.sync({ match: 'key', staged: true, runTime }));
+    };
+    /** A code panel as s.code draws it, its focus bar on `shown[name]`. */
+    const codePanel = async (lines: readonly string[], opts: { at: Box | 'side'; fontSize: number }, name: string) => {
+      const v = view(this, (_st, sh) => new CodeBlock(this, s.palette, lines, { ...opts, focus: (sh[name] ?? null) as Focus, key: name }), { place: false });
+      await s.enter(v, { runTime: 0.4 });
+      return v;
+    };
+    const focus = (v: View, name: string, lines: Focus) => show(v, name, lines, 0.4);
+    /** Diagram `d` shown by a view of `shown[name]`. */
+    const diagramView = (d: Diagram, name: string) => {
+      this.shown = { ...this.shown, [name]: PLAIN };
+      return s.diagramView(d, (_st, sh) => sh[name] as DiagramShown);
+    };
+    /** These changes to how diagram `name` is shown, synced. */
+    const showDiagram = (v: View, name: string, change: (was: DiagramShown) => Partial<DiagramShown>) =>
+      show(v, name, { ...shownOf<DiagramShown>(name), ...change(shownOf<DiagramShown>(name)) });
+    /** A walk's token, then its trail left in `shown[name]`, in `color` (the diagram's accent by default). */
+    const walked = async (d: Diagram, v: View, name: string, hops: [string, string][], color?: string) => {
+      await d.walk(hops);
+      await showDiagram(v, name, (was) => ({ marks: { ...was.marks, ...d.trail(hops, color) } }));
+    };
+    const noted = (v: View, name: string, note: PictureNote) => showDiagram(v, name, (was) => ({ notes: [...was.notes, note] }));
+    /** A card as s.card draws it, its lit row on `shown[name]`. */
+    const cardView = async (rows: (st: SceneState, sh: SceneState) => readonly CardRow[], opts: Omit<ConstructorParameters<typeof Card>[3], 'lit' | 'key'>, name: string) => {
+      const v = view(this, (st, sh) => new Card(this, s.palette, rows(st, sh), { ...opts, lit: (sh[name] ?? null) as string | null, key: name }), { place: false });
+      await s.enter(v, { runTime: 0.35, shift: [0, -0.08] });
+      return v;
+    };
     // ── command: a line of text and a shell value ──────────────────────
     await s.steps(readerFrames(answerOf(this)), { kind: 'short' });
     await this.step('command', {
@@ -63,15 +103,16 @@ export default class BashExplainer extends Scene {
     const { line, roles } = commandLine(parts, ink, accent, s.soft);
     await s.enter(line, { runTime: 0.5 });
     await s.enter(roles, { runTime: 0.5 });
-    const api = await s.code(
+    const api = await codePanel(
       [
         `shell = { fs: ${JSON.stringify(old.fs)}, steps: ${old.steps} }`,
         'exec(shell, pipeline, redirect)',
         '  → { shell, stdout }',
       ],
       { at: BOTTOM, fontSize: 0.3 },
+      'api',
     );
-    await api.focus(0);
+    await focus(api, 'api', 0);
     // ── parse: the command is a tree ────────────────────────────────────
     await this.step('parse', {
       kind: 'detail',
@@ -88,16 +129,18 @@ export default class BashExplainer extends Scene {
       },
       { box: 'main' },
     );
-    const call = await s.code(
+    const astView = diagramView(ast, 'ast');
+    const call = await codePanel(
       ['exec(shell,', '  [["echo", "hello"],', '   ["tr", "a-z", "A-Z"]],', `  "${FILE}")`],
       {
         at: 'side',
         fontSize: 0.3,
       },
+      'call',
     );
-    await ast.mark(['Echo', 'Tr']);
-    await call.focus([1, 2]);
-    await ast.note('Redirect', 'not a command', { side: 'below' });
+    await showDiagram(astView, 'ast', () => ({ marks: { Echo: { color: ast.accent, as: MARKED }, Tr: { color: ast.accent, as: MARKED } } }));
+    await focus(call, 'call', [1, 2]);
+    await noted(astView, 'ast', { id: 'Redirect', text: 'not a command', side: 'below' });
     // ── reduce: stdout threads through the builtins ─────────────────────
     const afterEcho = exec(old, [PIPELINE[0]]).stdout,
       afterTr = exec(old, PIPELINE).stdout;
@@ -115,7 +158,8 @@ export default class BashExplainer extends Scene {
       },
       { box: TOP },
     );
-    const loop = await s.code(
+    let flowView = diagramView(flow, 'flow');
+    const loop = await codePanel(
       [
         'stdout = ""',
         'for each [name, ...args] in stages:',
@@ -123,15 +167,16 @@ export default class BashExplainer extends Scene {
         '  tr:   stdout = upper(stdout)',
       ],
       { at: BOTTOM, fontSize: 0.3 },
+      'loop',
     );
-    await loop.focus(0);
-    await flow.walk([['Input', 'Echo']], { trail: true });
-    await loop.focus(2);
-    await flow.note('Echo', q(afterEcho), { side: 'below' });
-    await flow.walk([['Echo', 'Tr']], { trail: true });
-    await loop.focus(3);
-    await flow.note('Tr', q(afterTr), { side: 'below' });
-    await flow.walk([['Tr', 'Output']], { trail: true });
+    await focus(loop, 'loop', 0);
+    await walked(flow, flowView, 'flow', [['Input', 'Echo']]);
+    await focus(loop, 'loop', 2);
+    await noted(flowView, 'flow', { id: 'Echo', text: q(afterEcho), side: 'below' });
+    await walked(flow, flowView, 'flow', [['Echo', 'Tr']]);
+    await focus(loop, 'loop', 3);
+    await noted(flowView, 'flow', { id: 'Tr', text: q(afterTr), side: 'below' });
+    await walked(flow, flowView, 'flow', [['Tr', 'Output']]);
     const run = exec(old, PIPELINE, FILE);
     this.state = { oldShell: old, newShell: run.shell, stdout: run.stdout };
     // ── redirect: the write lands in a new value ────────────────────────
@@ -141,35 +186,48 @@ export default class BashExplainer extends Scene {
       caption:
         'The redirect stores HELLO in shout.txt and empties stdout, but the file does not go into the shell the caller passed in. exec copies that shell’s files into a new shell value, adds shout.txt there and returns it, so the original shell on the left still has no files and its step count is still 0.',
     });
-    await s.clearOverlays();
+    // The code panel goes, and the diagram's notes and trail with it; the live diagram takes the edit.
+    this.shown = { ...this.shown, flow: PLAIN };
+    await this.play(flowView.sync({ match: 'key', staged: true, runTime: 0.3 }), new FadeOut(loop, { runTime: 0.3 }));
+    s.liveDiagram(flow);
     await flow.morph({
       source: `graph LR\nInput[empty stdin] --> Echo[echo hello]\nEcho --> Tr[tr a-z A-Z]\nTr --> File[${FILE}]`,
     });
-    await flow.note('File', q(run.shell.fs[FILE]!), { side: 'below' });
-    const before = await s.card(
-      [
-        ['files', files(old)],
-        ['steps run', old.steps],
+    flowView = s.diagramView(flow, (_st, sh) => sh.flow as DiagramShown);
+    await noted(flowView, 'flow', { id: 'File', text: q(run.shell.fs[FILE]!), side: 'below' });
+    type Shells = { oldShell: Shell; newShell: Shell; stdout: string };
+    const before = await cardView(
+      (st) => [
+        ['files', files((st as unknown as Shells).oldShell)],
+        ['steps run', (st as unknown as Shells).oldShell.steps],
       ],
       { at: BOTTOM_LEFT, align: 'top', title: 'Original shell', fontSize: 0.3, width: 5.2 },
+      'before',
     );
-    const after = await s.card(
-      [
-        ['files', files(old)],
-        [FILE, '—'],
-        ['steps run', old.steps],
-        ['stdout', q(afterTr)],
-      ],
+    // The returned shell's card starts as the copy exec makes, then shows what the redirect wrote.
+    const after = await cardView(
+      (st, sh) => {
+        const { newShell, stdout } = st as unknown as Shells;
+        return sh.written
+          ? [
+              ['files', files(newShell)],
+              [FILE, q(newShell.fs[FILE]!)],
+              ['steps run', newShell.steps],
+              ['stdout', q(stdout)],
+            ]
+          : [
+              ['files', files(old)],
+              [FILE, '—'],
+              ['steps run', old.steps],
+              ['stdout', q(afterTr)],
+            ];
+      },
       { at: BOTTOM_RIGHT, align: 'top', title: 'Returned shell', fontSize: 0.3, width: 5.2 },
+      'after',
     );
-    await after.set({
-      files: files(run.shell),
-      [FILE]: q(run.shell.fs[FILE]!),
-      'steps run': run.shell.steps,
-      stdout: q(run.stdout),
-    });
-    await after.mark(FILE);
-    await before.mark('files');
+    await show(after, 'written', true);
+    await show(after, 'after', FILE, 0.4);
+    await show(before, 'before', 'files', 0.4);
     // ── lookup: names resolve through a policy ──────────────────────────
     await this.step('lookup', {
       kind: 'detail',
@@ -188,7 +246,8 @@ export default class BashExplainer extends Scene {
       },
       { box: TOP },
     );
-    const dispatch = await s.code(
+    const policyView = diagramView(policy, 'policy');
+    const dispatch = await codePanel(
       [
         'if (name === "echo") …',
         'else if (name === "tr") …',
@@ -196,32 +255,30 @@ export default class BashExplainer extends Scene {
         'else throw Error("Unknown model command")',
       ],
       { at: BOTTOM, fontSize: 0.3 },
+      'dispatch',
     );
-    await policy.walk(
-      [
-        ['Name', 'Builtin'],
-        ['Builtin', 'Run'],
-      ],
-      { trail: true },
-    );
-    await policy.note(
-      'Run',
-      found
+    await walked(policy, policyView, 'policy', [
+      ['Name', 'Builtin'],
+      ['Builtin', 'Run'],
+    ]);
+    await noted(policyView, 'policy', {
+      id: 'Run',
+      text: found
         .filter(([, r]) => r === 'builtin')
         .map(([n]) => n)
         .join(' · '),
-      { side: 'above' },
-    );
-    await policy.walk([['Builtin', 'Error']], { trail: s.bad });
-    await policy.note(
-      'Error',
-      found
+      side: 'above',
+    });
+    await walked(policy, policyView, 'policy', [['Builtin', 'Error']], s.bad);
+    await noted(policyView, 'policy', {
+      id: 'Error',
+      text: found
         .filter(([, r]) => r === 'unsupported')
         .map(([n]) => n)
         .join(' · '),
-      { side: 'below' },
-    );
-    await dispatch.focus(3);
+      side: 'below',
+    });
+    await focus(dispatch, 'dispatch', 3);
     // ── cat: the same command against two shells ────────────────────────
     const chosen = run.shell,
       result = exec(chosen, [['cat', FILE]]),
@@ -238,22 +295,18 @@ export default class BashExplainer extends Scene {
       at: regionBox('top', { bottom: 1.6 }),
       fontSize: 0.4,
     });
-    const shellCard = (sh: Shell, out: string, title: string, at: Box) =>
-      s.card(
-        [
-          ['files', files(sh)],
-          [FILE, sh.fs[FILE] == null ? 'missing' : q(sh.fs[FILE]!)],
-          ['cat stdout', q(out)],
-        ],
-        { at, title, fontSize: 0.32 },
-      );
+    const shellRows = (sh: Shell, out: string): CardRow[] => [
+      ['files', files(sh)],
+      [FILE, sh.fs[FILE] == null ? 'missing' : q(sh.fs[FILE]!)],
+      ['cat stdout', q(out)],
+    ];
     const oldResult = other.stdout,
       newResult = result.stdout;
-    const oldCard = await shellCard(old, oldResult, 'Original shell', regionBox('left', { top: 1.3 })),
-      newCard = await shellCard(run.shell, newResult, 'Returned shell', regionBox('right', { top: 1.3 }));
-    const [picked, unpicked] = [newCard, oldCard];
-    await this.play(new Transform(unpicked, faded(unpicked), { runTime: 0.4 }));
-    await picked.mark('cat stdout');
+    const oldCard = await s.card(shellRows(old, oldResult), { at: regionBox('left', { top: 1.3 }), title: 'Original shell', fontSize: 0.32 });
+    // The returned shell's card is the one cat reads: its cat stdout row lights, from `shown`.
+    const newCard = await cardView(() => shellRows(run.shell, newResult), { at: regionBox('right', { top: 1.3 }), title: 'Returned shell', fontSize: 0.32 }, 'picked');
+    await this.play(new Transform(oldCard, faded(oldCard), { runTime: 0.4 }));
+    await show(newCard, 'picked', 'cat stdout', 0.4);
     this.state.cat = result.stdout;
     // ── lesson: the shell as a chain of values ──────────────────────────
     const viaNew = exec(run.shell, [['cat', FILE]]).stdout,
@@ -290,6 +343,25 @@ export default class BashExplainer extends Scene {
       return true;
     });
     await this.play(new FadeIn(chain, { runTime: 0.4 }));
+    // The script's code, its focus bar on the cat of the shell the caller keeps: shown, which a machine
+    // keeps the same while it plays, so the bar stays there through the three commands.
+    this.shown = { story: 1 };
+    const story = view(
+      this,
+      (_st, sh) =>
+        new CodeBlock(
+          this,
+          s.palette,
+          [
+            `s1 = exec(s0, pipeline, "${FILE}").shell`,
+            `exec(s1, [["cat", "${FILE}"]]).stdout   // ${q(viaNew)}`,
+            `exec(s0, [["cat", "${FILE}"]]).stdout   // ${q(viaOld)}`,
+            `s0.fs                               // ${JSON.stringify(old.fs)}`,
+          ],
+          { at: BOTTOM, fontSize: 0.3, focus: sh.story as number, key: 'story' },
+        ),
+      { place: false },
+    );
     const machine = new Machine<ShellSession, BashEvent>(this, {
       start,
       events: BASH_EVENTS,
@@ -303,21 +375,9 @@ export default class BashExplainer extends Scene {
         BASH_EVENTS.map((event) => [event, (t: Transition<ShellSession, BashEvent>) => commandRuns(t.choreograph(chain))]),
       ) as unknown as Record<BashEvent, (t: Transition<ShellSession, BashEvent>) => Animation>,
     });
-    const story = await s.code(
-      [
-        `s1 = exec(s0, pipeline, "${FILE}").shell`,
-        `exec(s1, [["cat", "${FILE}"]]).stdout   // ${q(viaNew)}`,
-        `exec(s0, [["cat", "${FILE}"]]).stdout   // ${q(viaOld)}`,
-        `s0.fs                               // ${JSON.stringify(old.fs)}`,
-      ],
-      { at: BOTTOM, fontSize: 0.3 },
-    );
+    await s.enter(story, { runTime: 0.4 });
     // The lesson's three lines, in order: the write on s0, whose returned shell is kept, then cat on each shell.
-    for (const [line, event] of [[0, 'RUN_PIPELINE'], [1, 'CAT_NEWEST'], [2, 'CAT_S0']] as const) {
-      await story.focus(line);
-      await this.play(machine.replay([event]));
-    }
-    await story.focus(1);
+    for (const event of ['RUN_PIPELINE', 'CAT_NEWEST', 'CAT_S0'] as const) await this.play(machine.replay([event]));
   }
 }
 

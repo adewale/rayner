@@ -1,7 +1,7 @@
 import { Scene, Text, Arrow, Dot, AnimationGroup, Succession, FadeIn } from '../../../src/index.ts';
-import type { Choreography, Transition } from '../../../explain/index.ts';
+import type { Choreography, Transition, Diagram, PictureNote, View } from '../../../explain/index.ts';
 import type { Animation, SceneState, ScheduledAnimation } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Machine, view } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, Machine, view, Card } from '../../../explain/index.ts';
 import { pkceChallenge, sha256 } from './model.ts';
 import { pkceFlow, theftFlow, lanes, readable, signInStart, signInNext, SIGN_IN_EVENTS, VERIFIER, GUESS, type Message, type SignIn, type SignInEvent } from './model.ts';
 import { listed } from '../lib/format.ts';
@@ -11,6 +11,13 @@ const hex = (bytes: Uint8Array) => [...bytes].map((b) => b.toString(16).padStart
 /** A value's first six characters, as the notes say it; the server compares all of them. */
 // Six characters keep the attack's note, both prefixes side by side, within one phone close-up.
 const prefix = (value: string) => `${value.slice(0, 6)}…`;
+/** The word a diagram's mark gives its parts by default, in this explainer's language. */
+const MARKED = 'marked';
+/** What a diagram shows besides its source, kept in the state: its marks (with their words) and its notes. */
+type Shown = { marks: Record<string, { color: string; as: string }>; notes: PictureNote[] };
+const NOTHING_SHOWN: Shown = { marks: {}, notes: [] };
+/** These parts marked in one colour, said with one word. */
+const marked = (ids: readonly string[], color: string, as: string) => Object.fromEntries(ids.map((id) => [id, { color, as }]));
 /**
  * A sequence diagram drawn from the model's messages (lib/pkce.ts); the server's messages are dashed replies. The
  * theft before PKCE calls the malicious app M, so its diagram is told apart from the PKCE flow's, where it is X.
@@ -76,10 +83,20 @@ export default class OAuthExplainer extends Scene {
     const thief = stolenIds.filter((_, i) => stolen[i]!.from === 'M' || stolen[i]!.to === 'M');
     await theft.reveal(stolenIds.filter((id) => !thief.includes(id)));
     await theft.reveal(thief);
-    await theft.mark(thief, { color: s.bad, as: 'theft' });
-    await theft.note(thief.at(-1)!, 'a token for the wrong app', { side: 'below', color: s.bad });
+    // How each diagram is shown, its marks and notes, is in `shown` under its own name; a view draws them.
+    const diagramOf = (d: Diagram, name: string) => s.diagramView(d, (_st, sh) => sh[name] as Shown);
+    const shows = async (v: View, name: string, change: Partial<Shown>) => {
+      this.shown[name] = { ...(this.shown[name] as Shown), ...change };
+      await this.play(v.sync({ match: 'key', staged: true, runTime: 0.45 }));
+    };
+    this.shown.theft = NOTHING_SHOWN;
+    const theftView = diagramOf(theft, 'theft');
+    await shows(theftView, 'theft', {
+      marks: marked(thief, s.bad, 'theft'),
+      notes: [{ id: thief.at(-1)!, text: 'a token for the wrong app', side: 'below', color: s.bad }],
+    });
     // A phone opens on the theft, not on the sign-in above it.
-    s.opening(...thief.map((id) => theft.get(id)));
+    s.opening(...thief.map((id) => theftView.current.find(id)!));
     this.state = { stolenAccepted: stolen.at(-1)!.text === 'Access token' };
 
     // 2. The fix: a secret the code is bound to, sent ahead only as its hash.
@@ -96,23 +113,41 @@ export default class OAuthExplainer extends Scene {
       },
       { box: regionBox('full', { bottom: 0, top: 3.15 }) },
     );
-    const values = await s.card(
-      [
-        ['code_verifier', VERIFIER],
-        ['SHA-256 (hex)', hex(digest)],
-        ['code_challenge', challenge],
-      ],
-      { at: regionBox('full', { bottom: -3.9, top: -0.4 }), fontSize: 0.27 },
+    // The derivation's trail and mark, and the card's lit row, are how this step shows it: `shown`.
+    type Derived = { walked: [string, string][]; marked: boolean; lit: string | null };
+    this.shown = { derive: { walked: [], marked: false, lit: null } satisfies Derived };
+    const derived = () => this.shown.derive as Derived;
+    const deriveView = s.diagramView(derive, (_st, sh) => {
+      const dv = sh.derive as Derived;
+      return { marks: { ...derive.trail(dv.walked), ...(dv.marked ? marked(['C'], CHALLENGE, MARKED) : {}) } };
+    });
+    const values = view(
+      this,
+      (_st, sh) =>
+        new Card(
+          this,
+          s.palette,
+          [
+            ['code_verifier', VERIFIER],
+            ['SHA-256 (hex)', hex(digest)],
+            ['code_challenge', challenge],
+          ],
+          { at: regionBox('full', { bottom: -3.9, top: -0.4 }), fontSize: 0.27, lit: (sh.derive as Derived).lit, key: 'values' },
+        ),
+      { place: false },
     );
-    await derive.walk(
-      [
-        ['V', 'H'],
-        ['H', 'C'],
-      ],
-      { trail: true },
-    );
-    await derive.mark(['C'], { color: CHALLENGE });
-    await values.mark('code_challenge');
+    await s.enter(values, { runTime: 0.35, shift: [0, -0.08] });
+    const hops: [string, string][] = [
+      ['V', 'H'],
+      ['H', 'C'],
+    ];
+    await derive.walk(hops);
+    this.shown.derive = { ...derived(), walked: hops };
+    await this.play(deriveView.sync({ match: 'key', staged: true, runTime: 0.45 }));
+    this.shown.derive = { ...derived(), marked: true };
+    await this.play(deriveView.sync({ match: 'key', staged: true, runTime: 0.45 }));
+    this.shown.derive = { ...derived(), lit: 'code_challenge' };
+    await this.play(values.sync({ match: 'key', staged: true, runTime: 0.4 }));
     this.state = { verifier: VERIFIER, challenge };
 
     const flow = pkceFlow(attacker, VERIFIER, GUESS),
@@ -136,12 +171,27 @@ export default class OAuthExplainer extends Scene {
     await s.clear();
     const seq = await s.show({ source: sequence(flow) }, { box: 'full', build: 'frame' });
     /** What a message carries, or what the server makes of it, said on the diagram under its arrow. */
-    const say = (id: string, text: string, color: string = s.palette.ink) =>
-      seq.note(id, text, { side: 'below', color });
-    await seq.reveal([authorize]);
-    await seq.mark([authorize], { color: CHALLENGE, as: 'carries the challenge' });
+    const say = (id: string, text: string, color: string = s.palette.ink): PictureNote => ({ id, text, side: 'below', color });
+    const seqShown = () => this.shown.seq as Shown;
+    let seqView: View | null = null;
+    /**
+     * Reveal these messages on the live diagram, then show it by its view again with the marks it
+     * had, these marked too, and one note under `noted`. The marks and notes go first: the live
+     * diagram has none.
+     */
+    const revealMarked = async (ids: string[], color: string, as: string, note: PictureNote) => {
+      const before = seqShown().marks;
+      if (seqView) {
+        await shows(seqView, 'seq', NOTHING_SHOWN);
+        s.liveDiagram(seq);
+      }
+      await seq.reveal(ids);
+      seqView = diagramOf(seq, 'seq');
+      await shows(seqView, 'seq', { marks: { ...before, ...marked(ids, color, as) }, notes: [note] });
+    };
+    this.shown = { seq: NOTHING_SHOWN };
     // Short enough to read whole in one phone close-up.
-    await say(authorize, 'challenge + S256; verifier not sent', CHALLENGE);
+    await revealMarked([authorize], CHALLENGE, 'carries the challenge', say(authorize, 'challenge + S256; verifier not sent', CHALLENGE));
 
     await this.step('code', {
       title: 'The redirect carries a short-lived code bound to the challenge',
@@ -151,10 +201,7 @@ export default class OAuthExplainer extends Scene {
       caption:
         'The server stores the challenge with a short-lived code and redirects the browser back to the client. Because the verifier has not travelled, an app that catches this redirect gets the code and nothing else, and the code still has to be exchanged for an access token.',
     });
-    await s.clearOverlays();
-    await seq.reveal([redirect]);
-    await seq.mark([redirect], { color: CODE, as: 'carries the code' });
-    await say(redirect, 'code bound to the challenge', CODE);
+    await revealMarked([redirect], CODE, 'carries the code', say(redirect, 'code bound to the challenge', CODE));
 
     if (attacker) {
       await this.step('attack', {
@@ -166,12 +213,12 @@ export default class OAuthExplainer extends Scene {
       const bad = pkceChallenge(GUESS);
       this.state.attackerChallenge = bad;
       this.state.attackerAccepted = flow.find((m) => m.to === 'X' && m.channel === 'tls')!.text === 'Access token';
-      await s.clearOverlays();
       const attack = [caught!, guess!, refused!];
-      await seq.reveal(attack);
-      await seq.mark(attack, { color: s.bad, as: 'attack' });
       // The server's check, said where it happens: the guess as sent, then the answer.
-      await say(refused!, `S256(guess) = ${prefix(bad)} ≠ ${prefix(challenge)}`, s.bad);
+      await revealMarked(attack, s.bad, 'attack', say(refused!, `S256(guess) = ${prefix(bad)} ≠ ${prefix(challenge)}`, s.bad));
+      // A phone opens on the attack. The view redraws every mark at each sync, so the marks kept from
+      // earlier steps would count as new beside it; the opening says which are this step's.
+      s.opening(...attack.map((id) => seqView!.current.find(id)!));
     }
 
     await this.step('exchange', {
@@ -182,12 +229,14 @@ export default class OAuthExplainer extends Scene {
       caption:
         'The real client sends the code with the verifier it kept. The server computes S256 of the verifier, finds that it equals the challenge stored with the code, and returns an access token, provided its usual checks on the code and the client also pass.',
     });
-    await s.clearOverlays();
-    await seq.reveal([request, token]);
-    await seq.mark([request, token], { color: s.good, as: 'accepted' });
     const recomputed = pkceChallenge(VERIFIER);
     const accepted = flow.find((m) => m.to === 'C' && m.channel === 'tls')!.text === 'Access token';
-    await say(token, `S256(verifier) = ${prefix(recomputed)} ${recomputed === challenge ? '=' : '≠'} bound challenge`, accepted ? s.good : s.bad);
+    await revealMarked(
+      [request, token],
+      s.good,
+      'accepted',
+      say(token, `S256(verifier) = ${prefix(recomputed)} ${recomputed === challenge ? '=' : '≠'} bound challenge`, accepted ? s.good : s.bad),
+    );
     this.state.accepted = accepted;
 
     // 7. The same sign-in redrawn by channel instead of by time: one lane another app can read, one it cannot.
@@ -224,14 +273,10 @@ export default class OAuthExplainer extends Scene {
     await s.clear();
     const start = signInStart();
     this.state = { ...start } as unknown as SceneState;
+    // The sequence diagrams are gone: the machine plays under nothing shown.
+    this.shown = {};
     const sheet = view(this, (st) => signInPicture(st as unknown as SignIn, s), { place: false });
     s.keep(sheet, { describe: () => signInWords(this.state as unknown as SignIn) });
-    // What the picture marks: each server answer, read from state.
-    s.emphasise(() => {
-      const st = this.state as unknown as SignIn;
-      return (['app', 'client'] as const).filter((who) => st[who].answer)
-        .map((who) => [`sign-in:label:${who}-answer`, `${who === 'app' ? 'malicious app' : 'client'}: ${st[who].answer}`] as const);
-    });
     // Checked on every frame, and through every transition from every state rayner check reaches: a code bound to a
     // challenge never gives the malicious app a token, in the model or in the picture.
     this.addInvariant('a code bound to a challenge gives the malicious app no token', (scene) => {
