@@ -1,8 +1,8 @@
 import { table } from '../../../explain/drawing.ts';
 import { stagedStep, answerOf, view } from '../../../explain/index.ts';
-import { Scene, Text } from '../../../src/index.ts';
+import { Scene, Text, FadeIn } from '../../../src/index.ts';
 import { stage, regionBox, resolveSettings } from '../../../explain/index.ts';
-import type { ExplainerClass } from '../../../explain/index.ts';
+import type { ExplainerClass, Diagram, PictureNote, View } from '../../../explain/index.ts';
 import { TokenBucket } from '../token-bucket/model.ts';
 import { PLACEMENTS } from '../traffic-policy/model.ts';
 import { drawChoice, drawOffered, drawTimeline, drawUnbuilt, perSecond } from './picture.ts';
@@ -207,7 +207,14 @@ export default class ForkExplainer extends Scene {
     });
     await s.clear();
     const lantern = await s.show({ source: LANTERN }, { box: regionBox(ABOVE, { right: 3 }) });
-    await lantern.mark(['Worker'], { color: s.emphasis, as: 'renders on request' });
+    // The Worker's mark is how the diagram is shown, not the model: it lives in `shown`, and the
+    // diagram is shown by a view that draws it.
+    this.shown.lanternMarked = false;
+    const lanternView = s.diagramView(lantern, (_st, sh) => ({
+      marks: Object.fromEntries(sh.lanternMarked ? [['Worker', { color: s.emphasis, as: 'renders on request' }]] : []),
+    }));
+    this.shown.lanternMarked = true;
+    await this.play(lanternView.sync({ match: 'key', staged: true, runTime: 0.45 }));
     // What the Worker did, beside it: GET /frame.svg?scene=&step= or &t=, rendered when asked.
     const worker = lantern.get('Worker').box()!;
     await s.enter(
@@ -250,18 +257,39 @@ export default class ForkExplainer extends Scene {
     // The two architectures, what the fork deleted and the path a page takes are fixed facts of the
     // two code bases, the same in every scenario; the count of diagram families is the describer's own.
     const flow = await s.show({ source: LANTERN }, { box: ABOVE });
-    await flow.mark(GONE, { color: s.bad, as: 'deleted' });
+    // How the flow diagram is shown, apart from its source: the parts marked deleted, the links walked,
+    // its notes and what stays undimmed. That is `shown`, not the model; the diagram's view draws it,
+    // and each change is a sync. A morph or a focus takes the live diagram, with `shown` plain. The
+    // timing step quotes this step's motion, so its plays keep their run times: 0.45 to mark, 0.35 to
+    // unmark before the morph, and the trail and the note in one 0.35 play with the families note.
+    type FlowShown = { deleted: string[]; walked: [string, string][]; notes: PictureNote[]; dim: string[] | null };
+    const drawFlow = (of: Diagram) => (_st: object, sh: Record<string, unknown>) => {
+      const f = sh.flow as FlowShown;
+      return {
+        marks: { ...of.trail(f.walked), ...Object.fromEntries(f.deleted.map((id) => [id, { color: s.bad, as: 'deleted' }])) },
+        notes: f.notes,
+        dim: f.dim,
+      };
+    };
+    this.shown.flow = { deleted: [], walked: [], notes: [], dim: null } satisfies FlowShown;
+    let flowView: View = s.diagramView(flow, drawFlow(flow));
+    const showFlow = async (change: Partial<FlowShown>, runTime = 0.45) => {
+      this.shown.flow = { ...(this.shown.flow as FlowShown), ...change };
+      await this.play(flowView.sync({ match: 'key', staged: true, runTime }));
+    };
+    await showFlow({ deleted: GONE });
+    await showFlow({ deleted: [] }, 0.35);
+    s.liveDiagram(flow);
     await flow.morph({ source: FORK });
-    await flow.walk(
-      [
-        ['Settings', 'Scene'],
-        ['Capture', 'Snaps'],
-        ['Snaps', 'Scene'],
-        ['Scene', 'Clock'],
-        ['Clock', 'Page'],
-      ],
-      { trail: true },
-    );
+    flowView = s.diagramView(flow, drawFlow(flow));
+    const path: [string, string][] = [
+      ['Settings', 'Scene'],
+      ['Capture', 'Snaps'],
+      ['Snaps', 'Scene'],
+      ['Scene', 'Clock'],
+      ['Clock', 'Page'],
+    ];
+    await flow.walk(path);
     this.state.families = FAMILIES;
     // The count of families, said in a note below Capture: drawn from the state. The note describes itself
     // and says what it emphasises.
@@ -275,8 +303,12 @@ export default class ForkExplainer extends Scene {
         }),
       { place: false },
     );
-    await s.enter(familiesNote, { runTime: 0.35, shift: [0, -0.06] });
-    await flow.note('Page', 'no diagram renderer', { side: 'above' });
+    s.keep(familiesNote);
+    this.shown.flow = { ...(this.shown.flow as FlowShown), walked: path, notes: [{ id: 'Page', text: 'no diagram renderer', side: 'above' }] };
+    await this.play(
+      new FadeIn(familiesNote, { runTime: 0.35, shift: [0, -0.06] }),
+      flowView.sync({ match: 'key', staged: true, runTime: 0.35 }),
+    );
 
     // A detail after the ending: the page holds each resting picture for its caption. It reads the
     // timing of the 'fork' step, so that step ends here, holding for its caption as any step does.
@@ -292,9 +324,11 @@ export default class ForkExplainer extends Scene {
       caption: `The scene clock reserves reading time after motion. This caption needs ${(motion + held).toFixed(1)} seconds at ${Scene.captionWpm} words a minute; the ${motion.toFixed(1)}-second animation leaves ${held.toFixed(1)} seconds at rest. The caption therefore does not have to compete with a still-changing picture.`,
     });
     await s.clearOverlays();
-    await flow.unmark();
-    await flow.dim(['Clock', 'Frames', 'Image']);
+    await showFlow({ walked: [], notes: [] });
+    s.liveDiagram(flow);
     await flow.focus(['Clock', 'Page', 'Frames', 'Image', 'Check'], { zoom: 0.95 });
+    flowView = s.diagramView(flow, drawFlow(flow));
+    await showFlow({ dim: ['Clock', 'Frames', 'Image'] });
     this.state.timing = { motion: Number(motion.toFixed(2)), held: Number(held.toFixed(2)), words };
     // One bar per phase of the 'fork' step, to scale: the timing the state records.
     const timeline = view(this, (st) => drawTimeline((st as unknown as { timing: Timing }).timing, colours), { place: false });
