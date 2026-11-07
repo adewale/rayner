@@ -1,7 +1,7 @@
 import { Scene, Group } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Card, CodeBlock, mermaid, answerOf, view } from '../../../explain/index.ts';
-import type { CardRow, CardOptions, View } from '../../../explain/index.ts';
+import type { CardRow, CardOptions, View, Diagram, PictureNote } from '../../../explain/index.ts';
 import {
   CLIENT_IP,
   PLACEMENTS,
@@ -206,6 +206,33 @@ export default class TrafficPolicyExplainer extends Scene {
       local: flowPanel(st.placement, 'local', st.flow.local, 3.85, ink, paper, st.policy === 'local'),
     });
 
+    // How the cluster diagram is shown, apart from its source: the nodes marked, the links walked and
+    // the notes. That is `shown`, not the model; the diagram's view draws it, and each change is a sync.
+    // A step's slate starts plain: what the diagram shows leaves `shown`, and the live diagram stands in
+    // while the overlays clear (the view is kept with them) and while it moves.
+    type ClusterShown = { marks: Record<string, { color: string; as: string }>; walked: [string, string][]; notes: PictureNote[] };
+    const PLAIN: ClusterShown = { marks: {}, walked: [], notes: [] };
+    const drawCluster = (of: Diagram) => (_st: object, sh: Record<string, unknown>) => {
+      const c = sh.cluster as ClusterShown;
+      return { marks: { ...of.trail(c.walked), ...c.marks }, notes: c.notes };
+    };
+    let clusterView: View | null = null;
+    const showCluster = async (change: Partial<ClusterShown>) => {
+      clusterView ??= s.diagramView(d, drawCluster(d));
+      this.shown.cluster = { ...(this.shown.cluster as ClusterShown), ...change };
+      await this.play(clusterView.sync({ match: 'key', staged: true }));
+    };
+    const nextSlate = async () => {
+      if (clusterView) {
+        await showCluster(PLAIN);
+        s.liveDiagram(d);
+        clusterView = null;
+      }
+      await s.clearOverlays();
+    };
+    const above = (id: string, text: string): PictureNote => ({ id, text, side: 'above', size: SIZE }),
+      below = (id: string, text: string): PictureNote => ({ id, text, side: 'below', size: SIZE });
+
     // ------------------------------------------------------------------ topology
     await this.step('topology', {
       title: `${n} pods on three nodes behind one load balancer`,
@@ -217,6 +244,7 @@ export default class TrafficPolicyExplainer extends Scene {
     this.state.policy = policy;
     this.state.client = CLIENT_IP;
     let d = await s.show({ source: cluster(counts, policy) }, { box: DIAGRAM });
+    this.shown.cluster = PLAIN;
     const setup = cardOf(
       (st) => [
         ['externalTrafficPolicy', POLICY[st.policy]],
@@ -254,9 +282,9 @@ export default class TrafficPolicyExplainer extends Scene {
             ? `Under Local Node 1 lists only its one pod, in a single rule that always matches.`
             : `Under Local Node 1 lists only its ${chainPods.length} pods: ${spelled}, so each gets ${frac(each[0]!)} of what Node 1 receives.`),
     });
-    await s.clearOverlays();
+    await nextSlate();
     // The whole cluster stays in view, so Node 2 and Node 3 are never cut off at the edge.
-    await d.mark(policy === 'cluster' ? ['k1', 'k2', 'k3'] : ['k1'], { as: 'chain shown' });
+    await showCluster({ marks: Object.fromEntries((policy === 'cluster' ? ['k1', 'k2', 'k3'] : ['k1']).map((id) => [id, { color: d.accent, as: 'chain shown' }])) });
     this.state.chain = chain.map((r) => r.probability);
     // The pods the chain lists, in its order, which the code panel names.
     this.state.chainPods = chainPods;
@@ -282,7 +310,7 @@ export default class TrafficPolicyExplainer extends Scene {
     );
     await s.enter(code);
     // Each pod in the chain says its share of the node's requests.
-    for (const [i, id] of chainPods.entries()) await d.note(id, frac(each[i]!), { side: 'above', size: SIZE });
+    await showCluster({ notes: chainPods.map((id, i) => above(id, frac(each[i]!))) });
     this.state.chainShares = each.map(frac);
 
     const node = nodeShares(counts, policy);
@@ -300,17 +328,15 @@ export default class TrafficPolicyExplainer extends Scene {
           .map((c, j) => `${inN(leave[j]!)} on ${NODES[j]}`)
           .join(', ')}. Here Node 3 sends one to pod ${target} on Node 2.`,
       });
-      await s.clearOverlays();
-      await d.unmark();
-      await d.walk(
-        [
-          ['lb', 'k3'],
-          ['k3', target],
-        ],
-        { trail: true },
-      );
+      await nextSlate();
+      const hops: [string, string][] = [
+        ['lb', 'k3'],
+        ['k3', target],
+      ];
+      await d.walk(hops);
+      await showCluster({ walked: hops });
       // Nodes 2 and 3 say how many of the requests they get they send on (Node 1's share is in the caption).
-      for (const j of [1, 2]) await d.note(`k${j + 1}`, `${inN(leave[j]!)} leave`, { side: 'below', size: SIZE });
+      await showCluster({ notes: [1, 2].map((j) => below(`k${j + 1}`, `${inN(leave[j]!)} leave`)) });
       this.state.secondHop = frac(hop);
 
     } else {
@@ -328,21 +354,16 @@ export default class TrafficPolicyExplainer extends Scene {
           failing.length ? `The load balancer stops sending to ${nodeList(failing)}. It divides requests equally among healthy nodes, regardless of their pod counts, so ` : 'So '
         }${nodeList(healthy)} each get ${frac(node[healthy[0]!]!)} of the requests. The next choice happens inside each node: its share is divided among its own pods.`,
       });
-      await s.clearOverlays();
-      await d.unmark();
+      await nextSlate();
       await d.focus('all');
       if (failing.length)
-        await d.mark(
-          failing.flatMap((j) => [groups[j]!, `k${j + 1}`]),
-          { color: s.bad, as: 'fails the health check' },
-        );
+        await showCluster({
+          marks: Object.fromEntries(failing.flatMap((j) => [groups[j]!, `k${j + 1}`]).map((id) => [id, { color: s.bad, as: 'fails the health check' }])),
+        });
       // Each node's health check answer, said under the node.
-      for (const [j, c] of counts.entries())
-        await d.note(
-          `k${j + 1}`,
-          `${passes(counts, 'local', j) ? '200' : '503'}, ${c} local pod${c === 1 ? '' : 's'}`,
-          { side: 'below', size: SIZE },
-        );
+      await showCluster({
+        notes: counts.map((c, j) => below(`k${j + 1}`, `${passes(counts, 'local', j) ? '200' : '503'}, ${c} local pod${c === 1 ? '' : 's'}`)),
+      });
       this.state.passes = counts.map((_, j) => passes(counts, 'local', j));
 
     }
@@ -382,10 +403,9 @@ export default class TrafficPolicyExplainer extends Scene {
               ? ', so every pod gets the same.'
               : `, so pod ${top[1][0]} gets ${ratio} times as many requests as pod ${low[1][0]}.`),
     });
-    await s.clearOverlays();
-    await d.unmark();
+    await nextSlate();
     await d.focus('all');
-    for (const id of ids) await d.note(id, percent(share[id]!), { side: 'above', size: SIZE });
+    await showCluster({ notes: ids.map((id) => above(id, percent(share[id]!))) });
     this.state.shares = Object.fromEntries(ids.map((id) => [id, frac(share[id]!)]));
 
     // ------------------------------------------------------------------ flow: both policies as bands
@@ -419,6 +439,9 @@ export default class TrafficPolicyExplainer extends Scene {
           : `, so every pod ends at ${frac(lHigh[0])}, as under Cluster, and no band crosses to another node.`),
     });
     await s.clear();
+    // The cluster's view went with the rest of the stage.
+    clusterView = null;
+    this.shown.cluster = PLAIN;
     const flowState = (p: Policy): FlowState => ({
       nodes: nodeShares(counts, p).map(frac),
       bands: flows(counts, p).map((b) => [NODES[b.node]!, b.pod, frac(b.share)]),
@@ -456,15 +479,13 @@ export default class TrafficPolicyExplainer extends Scene {
       // The flow picture gives way to the cluster again.
       await s.clear();
       d = await s.show({ source: cluster(counts, policy) }, { box: DIAGRAM });
-      await d.walk(
-        [
-          ['lb', 'k3'],
-          ['k3', target],
-        ],
-        { trail: true },
-      );
-      await d.note('lb', `from ${CLIENT_IP}`, { side: 'below', size: SIZE });
-      await d.note(target, `from ${seenSource('cluster', 2)}`, { side: 'above', size: SIZE });
+      const hops: [string, string][] = [
+        ['lb', 'k3'],
+        ['k3', target],
+      ];
+      await d.walk(hops);
+      await showCluster({ walked: hops });
+      await showCluster({ notes: [below('lb', `from ${CLIENT_IP}`), above(target, `from ${seenSource('cluster', 2)}`)] });
       this.state.seen = seenSource('cluster', 2);
     } else {
       // ---------------------------------------------------------------- local path
@@ -477,14 +498,13 @@ export default class TrafficPolicyExplainer extends Scene {
       });
       await s.clear();
       d = await s.show({ source: cluster(counts, policy) }, { box: DIAGRAM });
-      await d.walk(
-        [
-          ['lb', 'k1'],
-          ['k1', 'a'],
-        ],
-        { trail: true },
-      );
-      await d.note('a', `from ${seenSource('local', 0)}`, { side: 'above', size: SIZE });
+      const hops: [string, string][] = [
+        ['lb', 'k1'],
+        ['k1', 'a'],
+      ];
+      await d.walk(hops);
+      await showCluster({ walked: hops });
+      await showCluster({ notes: [above('a', `from ${seenSource('local', 0)}`)] });
       this.state.seen = seenSource('local', 0);
     }
 
@@ -506,9 +526,7 @@ export default class TrafficPolicyExplainer extends Scene {
           ? `The load balancer weighs nodes, not pods, so pod ${lTop[1][0]} takes ${value(lTop[0]) / value(lLow[0])} times the load of pod ${lLow[1][0]}.`
           : `Here each node with pods runs the same number, so splitting by node splits evenly by pod.`),
     });
-    await s.clearOverlays();
-    await d.clearNotes();
-    await d.unmark();
+    await nextSlate();
     this.state.compare = {
       cluster: Object.fromEntries(ids.map((id) => [id, frac(cl[id]!)])),
       local: Object.fromEntries(ids.map((id) => [id, frac(local[id]!)])),

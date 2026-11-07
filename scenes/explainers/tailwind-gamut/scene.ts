@@ -3,7 +3,7 @@ import type { Curve } from './picture.ts';
 import { Scene, Group, Text } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
-import type { Diagram } from '../../../explain/index.ts';
+import type { Diagram, PictureNote, View } from '../../../explain/index.ts';
 import { SHADES, rows, summarize } from './model.ts';
 import type { Shade } from './model.ts';
 import { listed, percent } from '../lib/format.ts';
@@ -95,6 +95,25 @@ export default class TailwindGamutExplainer extends Scene {
      * names and ring values) or the notes so far; failing that, where it covers least.
      */
     const said: Box[] = [];
+    // The notes on the dots are how the radar is shown, not the model: they live in `shown`, the radar
+    // is shown by a view that draws them, and a note is `shown` changed and the view synced. For a
+    // reveal or a morph the live radar comes back.
+    const dotNotes = () => (this.shown.dotNotes ?? []) as PictureNote[];
+    let radarView: View | null = null;
+    const showNotes = async (notes: PictureNote[]) => {
+      this.shown.dotNotes = notes;
+      await this.play(radarView!.sync({ match: 'key', staged: true, runTime: 0.35 }));
+    };
+    /** The next step's slate: the notes leave `shown`, the live radar comes back, and the side column goes. */
+    const nextSlate = async (d: Diagram) => {
+      if (radarView) {
+        await showNotes([]);
+        s.liveDiagram(d);
+        radarView = null;
+      }
+      await s.clearOverlays();
+      said.length = 0;
+    };
     const onDot = async (d: Diagram, family: string, text: string) => {
       const i = all.findIndex((r) => r.family === family);
       const dot = d.get(`dot:tw:${i}`).box()!,
@@ -143,7 +162,8 @@ export default class TailwindGamutExplainer extends Scene {
       const sides = [...across, ...along];
       const best = sides.find((sd) => cost(sd) === 0) ?? sides.reduce((a, b) => (cost(b) < cost(a) ? b : a));
       said.push(boxAt(best));
-      await d.note(`dot:tw:${i}`, text, { side: best, size });
+      radarView ??= s.diagramView(d, (_st, sh) => ({ notes: (sh.dotNotes ?? []) as PictureNote[] }));
+      await showNotes([...dotNotes(), { id: `dot:tw:${i}`, text, side: best, size }]);
     };
 
     // ------------------------------------------------------------------ the opening
@@ -186,8 +206,7 @@ export default class TailwindGamutExplainer extends Scene {
       line: 'Predict: measured against its own spoke’s edge, which colour is furthest out?',
       caption: `Most of these colours lie outside sRGB, so an sRGB screen shows them less vivid than written. Tailwind’s own chroma for each colour is drawn over the edge: ${out} of ${n} lie outside, and only ${listed(sum.insideSrgb)} fit. At this scale the overshoot looks like a sliver; ${sum.furthest.family}-${shade}, the furthest out in raw chroma, is ${sum.furthest.value.toFixed(3)} past its edge. But each spoke’s edge sits at a different chroma. As a share of its own edge, which colour goes furthest?`,
     });
-    await s.clearOverlays();
-    said.length = 0;
+    await nextSlate(d);
     await d.reveal(['curve:tw']);
     await onDot(d, sum.furthest.family, `+${sum.furthest.value.toFixed(3)}`);
     await column(d, [], [`Inside sRGB: ${listed(sum.insideSrgb)}.`], [srgbCurve, twCurve]);
@@ -207,8 +226,7 @@ export default class TailwindGamutExplainer extends Scene {
         sum.mostOfSrgb.family === sum.furthest.family ? '' : `: its edge is lower than ${sum.furthest.family}’s, so a smaller overshoot is a larger share of it`
       }.${level.length ? ` ${listed(level)} ${level.length === 1 ? 'is' : 'are'} level with it to one decimal.` : ''} ${sum.leastOfSrgb.family} has the most room, at ${pct(sum.leastOfSrgb.value)}. The centre is now 50%, and the rings are 25 points apart.`,
     });
-    await s.clearOverlays();
-    said.length = 0;
+    await nextSlate(d);
     await d.morph(
       { source: radar(all, shareCurves, SHARE) },
       {
@@ -233,8 +251,7 @@ export default class TailwindGamutExplainer extends Scene {
       line: `Closest to the P3 edge: ${near.family}-${shade}, at ${pct(near.value)} of it.`,
       caption: `The Display P3 edge on the same scale lies beyond sRGB’s on every spoke, from ${pct(sum.p3OfSrgb.lo.value)} at ${sum.p3OfSrgb.lo.family} to ${pct(sum.p3OfSrgb.hi.value)} at ${sum.p3OfSrgb.hi.family}. All ${n} colours fit inside it. The closest is ${near.family}-${shade}, at ${pct(near.value)} of the P3 edge, ${near.spare.toFixed(3)} chroma short of it.`,
     });
-    await s.clearOverlays();
-    said.length = 0;
+    await nextSlate(d);
     await d.morph(
       { source: radar(all, withP3, SHARE) },
       { ops: [{ kind: 'add_curve', id: 'p3', label: p3Curve.label, values: [...p3Curve.values] }] },
@@ -268,8 +285,7 @@ export default class TailwindGamutExplainer extends Scene {
         line: `Chroma drops to the edge; ${lost.family}-${shade} loses most, ${lost.from.toFixed(3)} to ${lost.to.toFixed(3)}.`,
         caption: `CSS Color 4 says a colour outside the screen’s gamut must be mapped into it. Its binary search lowers chroma at fixed lightness and hue until clipping changes the colour by under 0.02, then clips; hue moves by up to ${sum.hueShift.value}°. All ${out} land on the edge. ${lost.family}-${shade} loses most chroma: ${lost.from.toFixed(3)} to ${lost.to.toFixed(3)}.`,
       });
-      await s.clearOverlays();
-      said.length = 0;
+      await nextSlate(d);
       await d.morph(
         { source: radar(all, [shareCurves[0]!, mapped, p3Curve], SHARE) },
         {
@@ -305,8 +321,7 @@ export default class TailwindGamutExplainer extends Scene {
         line: `Ring 100 is now the P3 edge; sRGB’s falls to ${pct(sum.srgbOfP3.lo.value)}–${pct(sum.srgbOfP3.hi.value)} of it.`,
         caption: `Now each spoke is measured against the Display P3 edge, the new 100 ring. CSS Color 4’s gamut mapping leaves a colour inside the screen’s gamut unchanged, so a P3 screen shows all ${n} as written. The sRGB edge falls to ${pct(sum.srgbOfP3.lo.value)}–${pct(sum.srgbOfP3.hi.value)} of P3’s; ${near.family} comes closest, at ${pct(near.value)}.`,
       });
-      await s.clearOverlays();
-      said.length = 0;
+      await nextSlate(d);
       await d.morph(
         { source: radar(all, p3Share, SHARE) },
         { ops: p3Share.map((c) => ({ kind: 'set_curve_values', id: c.id, values: [...c.values] })) },
