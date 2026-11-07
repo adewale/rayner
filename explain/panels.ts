@@ -259,7 +259,10 @@ export class Card extends Group {
     }
   }
 
-  [emphasisSource](): Emphasis { return this.lit ? [[this.bar, `row ${this.lit.label}`]] : []; }
+  // What the lit row shows, its values included: the same row lit with new values is new emphasis.
+  [emphasisSource](): Emphasis {
+    return this.lit ? [[this.bar, `row ${this.lit.label}: ${this.row(this.lit.label).cells.map((c) => c.text).join(', ')}`]] : [];
+  }
   [seenSource](): Seen { return this.describe(); }
 
   override rebindReferences(source: Mobject, copies: ReadonlyMap<Mobject, Mobject>): void {
@@ -453,7 +456,8 @@ export class CodeBlock extends Group {
 
   [emphasisSource](): Emphasis {
     return [
-      ...(this.focused ? [[this.bar, `lines ${this.focused.lines.join('-')}`] as const] : []),
+      // The focused lines with their text: a focus that stays while its lines change is new emphasis.
+      ...(this.focused ? [[this.bar, `lines ${this.focused.lines.join('-')}: ${this.code.lines.slice(this.focused.lines[0], this.focused.lines[1] + 1).map((l) => l.text).join(' / ')}`] as const] : []),
       ...this.marks.map((m) => [m.mob, `${m.kind} ${m.line}`] as const),
     ];
   }

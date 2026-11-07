@@ -395,8 +395,8 @@ test('a card drawn lit and code drawn focused carry their bar on the row or line
   // On stage, each says what it emphasises.
   scene.add(lit, built);
   const said = emphasisOf(scene);
-  assert.equal(said.get(lit.bar), 'row b');
-  assert.equal(said.get(built.bar), 'lines 1-2');
+  assert.equal(said.get(lit.bar), 'row b: 22');
+  assert.equal(said.get(built.bar), 'lines 1-2: two / three');
 });
 
 test('a view of a card or code is described as that card or code, and a describe speaks for the rest', async () => {

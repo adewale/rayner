@@ -55,7 +55,7 @@ test('code composites rebind named lines, marks and panels when copied and resto
   scene.add(copy);
   // The copy reports its own focus bar and line bars, not the original's.
   const highlighted = emphasisOf(scene);
-  assert.equal(highlighted.get(copy.bar), 'lines 0-0');
+  assert.equal(highlighted.get(copy.bar), 'lines 0-0: + added');
   assert.ok(!highlighted.has(original.bar));
   for (const mark of copy.marks) assert.ok(highlighted.has(mark.mob));
   for (const mark of original.marks) assert.ok(!highlighted.has(mark.mob));
@@ -84,8 +84,8 @@ test('live copied panels expose inherited highlights without registering tempora
   const [copiedCard, copiedCode] = copies.children as [Card, CodeBlock];
   scene.clear(); scene.add(copies);
   const highlighted = emphasisOf(scene);
-  assert.equal(highlighted.get(copiedCard.bar), 'row Count');
-  assert.equal(highlighted.get(copiedCode.bar), 'lines 0-0');
+  assert.equal(highlighted.get(copiedCard.bar), 'row Count: 1');
+  assert.equal(highlighted.get(copiedCode.bar), 'lines 0-0: + added');
   assert.equal(copiedCode.marks.length, 2);
   for (const mark of copiedCode.marks) assert.equal(highlighted.get(mark.mob), `${mark.kind} ${mark.line}`);
   assert.equal(highlighted.has(card.bar), false);
@@ -94,11 +94,11 @@ test('live copied panels expose inherited highlights without registering tempora
   assert.deepEqual(emphasisOf(scene), highlighted, 'temporary copies contribute no reader metadata');
   copiedCard.saveState();
   copiedCard.restore();
-  assert.equal(emphasisOf(scene).get(copiedCard.bar), 'row Count');
+  assert.equal(emphasisOf(scene).get(copiedCard.bar), 'row Count: 1');
   const added = copiedCode.copy(); copies.add(added);
-  assert.equal(emphasisOf(scene).get(added.bar), 'lines 0-0');
+  assert.equal(emphasisOf(scene).get(added.bar), 'lines 0-0: + added');
   copiedCode.remove(copiedCode.bar);
-  assert.equal(emphasisOf(scene).get(copiedCode.bar), 'lines 0-0', 'a missing highlight stays declared so story checks can reject it');
+  assert.equal(emphasisOf(scene).get(copiedCode.bar), 'lines 0-0: + added', 'a missing highlight stays declared so story checks can reject it');
   scene.clear();
   assert.equal(emphasisOf(scene).size, 0);
 });
