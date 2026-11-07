@@ -1,3 +1,7 @@
+`glyph.js`, the shaper every page uses, is MIT-licensed glyph at the same revision
+(`vendor/glyph.pin.json`); rebuild it with `node tools/repo/vendor-glyph.ts /path/to/glyph`
+after `node scripts/fetch.js --runtime` in that checkout generates its two tables.
+
 The optional `glyph-math.js` typesetter is MIT-licensed glyph at
 6398654dfda7d5a91763e3ef07369b9a9d8e3b2b (Ivar Vong). Rebuild with
 `node tools/repo/vendor-glyph-math.ts /path/to/glyph`. It reuses the combining-class
