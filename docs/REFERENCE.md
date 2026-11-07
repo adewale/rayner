@@ -244,7 +244,7 @@ A row gives one value per column, or one value that spans them all (Requests abo
 | `legend(s, items, { at, size, direction, gap, key })` | Swatches with words: each item `{ label, fill?, stroke?, dashed?, name? }` is a filled square, a short line or an outlined square (`fill: 'none'`), then its label in the stage's ink. Entries stack (`direction: 'column'`) or sit in a row, the first starting at `at`. Keyed `key`, each entry `key:<label>`; a repeated label or an entry with no swatch is refused. Describes itself as its pairs, “Key: purple fill, cat’s bits; dashed blue line, the browser”, naming each colour by its nearest plain name (`colourName`) or the item's `name`, so a caption's colour word is said on the stage (`bloom-filter`, `wcag-map`, `trust-proxy`) |
 | `pin(s, at, { label, color, size, side, key })` | `s.pin`'s picture. Describes itself, “A pin marked …”. `great-circle` pins its two cities on the globe |
 
-**Keyed cells.** A table keys every part, so the same row in two pictures is the same part and a keyed morph (a view's `sync()`, which matches by key) or `choreograph` keeps it wherever it moves:
+**Keyed cells.** A table keys every part, so the same row in two pictures is the same part and a keyed morph (a view's `sync()`, which matches by key) or a transition's `t.choreograph(view)` keeps it wherever it moves:
 
 | Part | Key |
 | --- | --- |
@@ -253,7 +253,7 @@ A row gives one value per column, or one value that spans them all (Requests abo
 | A row; one cell | `key:<row>`; `key:<row>:<header>` |
 | The rule under the headers | `key:rule` |
 
-A column is named by its header. A row is named by its own `key` when given as `{ key, cells }`, or by its index when given as a bare array, so give rows keys whenever they can move, appear or disappear: a row keyed by index pairs with whichever row ends up in its place. Two rows with one key, a row keyed `head` or `rule`, and two columns with one header are refused with an error naming the table and the key. A row is one keyed part with its cells inside it, so `choreograph` (which addresses a picture's outermost keyed parts) moves whole rows, while a keyed morph pairs each cell by its own key.
+A column is named by its header. A row is named by its own `key` when given as `{ key, cells }`, or by its index when given as a bare array, so give rows keys whenever they can move, appear or disappear: a row keyed by index pairs with whichever row ends up in its place. Two rows with one key, a row keyed `head` or `rule`, and two columns with one header are refused with an error naming the table and the key. A row is one keyed part with its cells inside it, so `t.choreograph(view)` (which addresses a picture's outermost keyed parts) moves whole rows, while a keyed morph pairs each cell by its own key.
 
 ```ts
 const rows = dict.entries.map((e, i) => ({ key: `e${i}`, cells: [i, e.key ?? '–', e.value ?? '–'] }));
@@ -402,7 +402,7 @@ Hand drawing is still justified when position itself carries meaning that a layo
 
 ## Engine features
 
-These are the engine's own features, imported from `rayner` (views, machines, `SetState` and `choreograph` from `rayner/explain`; `Underline`, `Restore` and `TransformFromCopy` from `rayner/extras`) and used beside the helpers. Each guide explains one feature and ends with "In the explainers", what the scenes named here do with it; [the engine map](ENGINE.md) lists the guides by module. What you draw with them is a native drawing: keep it with `s.keep` or `s.enter`, with `describe` when it has no text of its own ([stage](#stage)).
+These are the engine's own features, imported from `rayner` (views, machines and `SetState` from `rayner/explain`; `Underline`, `Restore` and `TransformFromCopy` from `rayner/extras`) and used beside the helpers. Each guide explains one feature and ends with "In the explainers", what the scenes named here do with it; [the engine map](ENGINE.md) lists the guides by module. What you draw with them is a native drawing: keep it with `s.keep` or `s.enter`, with `describe` when it has no text of its own ([stage](#stage)).
 
 <!-- generated from test/public-names.json by `node tools/repo/public-names.ts --write`: engine features -->
 | Feature | What a scene uses | Guide | Used by |
@@ -488,7 +488,7 @@ for (const c of d.scenarios)
 
 ## Testing and tooling API
 
-The package has an entry point per audience. A scene is written with `rayner` (the engine), `rayner/explain` (the stage, diagrams, cards, settings, and pictures of state: views, machines, `SetState` and `choreograph`), `rayner/drawing` (the kit) and, when it asks for lettering, `rayner/lettering`. Three entry points are opt in: `rayner/geo` (`seenFrom` and the globe), `rayner/audio` (the score types for a step's `audio`) and `rayner/extras` (`Write`, `TransformFromCopy`, `Restore`, `MoveAlongPath`, `ArcBetweenPoints`, `Square` and `Underline`: Manim's conveniences, each a shorthand for something in `rayner`, kept for ported scenes and the feature tour). `rayner/output` draws a scene's frames outside the built page, for a host page or a tool. `rayner/testing` is for an author's tests, scripts and tools, and the `rayner` command is built on it; no scene may import it (`test/scene-imports.test.ts`). Both are public, and kept stable like the drawing API.
+The package has an entry point per audience. A scene is written with `rayner` (the engine), `rayner/explain` (the stage, diagrams, cards, settings, and pictures of state: views, machines and `SetState`), `rayner/drawing` (the kit) and, when it asks for lettering, `rayner/lettering`. Three entry points are opt in: `rayner/geo` (`seenFrom` and the globe), `rayner/audio` (the score types for a step's `audio`) and `rayner/extras` (`Write`, `TransformFromCopy`, `Restore`, `MoveAlongPath`, `ArcBetweenPoints`, `Square` and `Underline`: Manim's conveniences, each a shorthand for something in `rayner`, kept for ported scenes and the feature tour). `rayner/output` draws a scene's frames outside the built page, for a host page or a tool. `rayner/testing` is for an author's tests, scripts and tools, and the `rayner` command is built on it; no scene may import it (`test/scene-imports.test.ts`). Both are public, and kept stable like the drawing API.
 
 | Export | From | What it is for | Guide |
 | --- | --- | --- | --- |

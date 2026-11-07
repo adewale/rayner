@@ -94,7 +94,7 @@ A good live step, the step where the machine last plays:
 - **The story's limits are bounds, not refusals.** Where the model would go on but the explainer stops (the client sends ten requests), return the reason from `bound`. `rayner check` fails a bound on an event the model refuses anyway.
 - **The step leaves events to press.** End it in a state where some event goes somewhere, and ideally one is refused with its reason, so the first press teaches. When no event goes anywhere from it, the player starts the reader from `start` instead; when none goes anywhere from either, there are no buttons and the review has nothing to visit, so check `describe`'s `machines` for the live `step`.
 - **What a press changes reads on a phone.** `rayner review` fails a live state whose changed labels read under 12 px at 390 px in the whole picture and every close-up of the step, and a label under 14 px at a 1280 px stage anywhere.
-- **Motion can wait.** Without a `transition`, each view morphs to the new state by key, staged so a word and its replacement never overlap. Author a `transition` with `choreograph` where the motion carries the explanation; check plays every one from every reachable state.
+- **Motion can wait.** Without a `transition`, each view morphs to the new state by key, staged so a word and its replacement never overlap. Author a `transition` with `t.choreograph(view)` where the motion carries the explanation; check plays every one from every reachable state.
 
 ## Loop
 

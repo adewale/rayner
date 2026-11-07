@@ -52,11 +52,6 @@
       "View": {
         "check": "Views: at the end of every step, a view whose words, parts, boxes or opacity differ from a fresh draw of the state, placed where a sync would put it, fails"
       },
-      "choreograph": {
-        "guide": "docs/MACHINES.md#refused-events-bounds-and-authored-transitions",
-        "test": "test/choreograph.test.ts",
-        "check": "Machines: an authored transition that breaks an invariant on the way, or does not end on the pictures of the state it reaches, fails"
-      },
       "refuse": {
         "check": "Machines: a bound that stops an event the model refuses anyway fails"
       },

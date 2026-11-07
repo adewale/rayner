@@ -19,7 +19,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - Cards and code panels take their marks as options: `lit`, `litAs`; `focus`, `focusAs`, `added`; `width` and `fitHeight` keep a panel's size; `key` keys their parts, so a sync keeps what stays, fades a changed value or line across and moves the bar. A code line is keyed by its text, so a line that moves pairs with itself. `panel: false` gives a card with no panel, which is how a readout of state is drawn. A card or panel carries its bar from the start, so a view or staged step draws the mark from state, described and emphasised. `s.cardPicture` and `s.codePicture` build them placed as the stage places them, for a view's draw.
 - What is shown may change between a machine's events (a guided tour moving a code panel's focus); exploration and the live player draw under what the machine last played under.
 - The phone's close-ups count a mark redrawn at the same keyed place with the same words as the same emphasis, not new.
-- Views, `Machine`, `SetState` and `choreograph` moved from `src/` to `explain/` and are imported from `rayner/explain`; `src/` is the engine taken from Lantern.
+- Views, `Machine`, `SetState` and choreography moved from `src/` to `explain/` and are imported from `rayner/explain`; `src/` is the engine taken from Lantern.
 - Three opt-in entry points: `rayner/geo` (`seenFrom` and the globe, out of `rayner/drawing`), `rayner/audio` (the score types) and `rayner/extras` (`Write`, `TransformFromCopy`, `Restore`, `MoveAlongPath`, `ArcBetweenPoints`, `Square`, `Underline`, out of `rayner`).
 - `view.tween((t) => state)` moves the state through time and redraws the view at every frame; `c.follow(spec, { targets })` does the same for parts of an authored transition. `Follow` is no longer exported.
 - Every folder in `scenes/explainers/` now holds its own `script.md`, `scene.ts`, `model.ts` (where it has a model) and `picture.ts` (where its drawing is worth separating).
@@ -92,9 +92,9 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `outcome(state, event)` says what an event does.
 - `reachable(from)` lists every state reachable from a starting point, breadth first, with the shortest events that reach it.
 - An event without authored motion morphs each view to the new state by key, staged, so a word and the word replacing it never overlap. [Default transition](docs/MACHINES.md#the-default-transition)
-- `view.sync({ staged: true })` and the matching transforms' `staged` option stage a morph the same way anywhere.
+- A view's `sync()` stages its morph the same way by default, and the matching transforms' `staged` option stages one anywhere.
 - An event can have authored motion: its `transition` is built from the states either side when its turn comes. The views then land on the model's picture of the new state.
-- `choreograph(current, target)` morphs, brings in and takes out keyed parts in the author's order, landing whatever it does not name.
+- A transition's `t.choreograph(view)` morphs, brings in and takes out keyed parts in the author's order, landing whatever it does not name.
 - Nine of the collection's explainers are machines: statecharts, ring-buffer, state-machine, token-bucket, monty-hall, latest-search, oauth-pkce, just-bash and python-dict. [Nine machines](docs/MACHINES.md#nine-machines)
 - The statecharts machine covers both charts and is checked against XState's explored graph. python-dict's deletions and lookups are two machines on keyed tables.
 - Invariants hold each machine's claims through every reachable state: the guarded search page never shows a stale result, and with PKCE the malicious app never gets a token.
@@ -206,6 +206,7 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
 - `findingsOf`, `edgePartOf` and `stagedStepsOf` are internal; use `d.findings()` and `d.link()`.
 - `ViewSync` is exported as a type only: `view.sync()` makes one.
 - The diagram camera move (`d.focus(ids, { camera: true, also })`) is gone: `s.focus` moves the camera.
+- The free `choreograph(current, target)` is not exported: a transition's `t.choreograph(view)` is the one form.
 - `Scene.clear()` is the internal `Scene.removeAll()`. A scene clears the stage with `s.clear()`, which fades.
 
 ### Known limits

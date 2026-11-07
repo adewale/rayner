@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import { Square } from '../src/extras.ts';
-import { choreograph } from '../explain/index.ts';
+import { choreograph } from '../explain/choreograph.ts';
 import assert from 'node:assert/strict';
 import { Scene, Group, Circle, Dot, Line, Succession, Transform } from '../src/index.ts';
 import { NullSink, toSvgString } from '../src/output.ts';
