@@ -45,7 +45,6 @@ One row per idea.
 | A legend's layout | `stack: 'column' \| 'row'` | Entries stacked or side by side | `direction`, which means left-to-right or right-to-left on the stage and a card |
 | Matching by key | `matchByKey()`, `match: 'key'` | Keyed parts pair with keyed parts; a view's `sync()` matches this way, staged, unless told otherwise | `match: 'keys'` |
 | Enlarging diagram artwork | `d.enlarge(ids \| 'all')` | The diagram's parts scaled up inside its own box; the camera does not move (`s.focus` moves it) | `d.focus` |
-| A state change | `SetState(scene, next, { event })` | A model step at its place in a schedule | |
 | Event-driven model | `Machine`, `machinesOf(scene)` | `start`, `events`, `next`, `views`; `send`, `replay` | `Session`, `sessionsOf`; describe's `sessions` field (now `machines`) |
 | Refused event | `next` returns `refuse(reason)`, the reason in the reader's words (`undefined` refuses with none) | Which buttons a reader cannot press in a state, and why; one function, so the buttons, their reasons and the model cannot disagree | A refused event returning the same state; `why(state, event)`, a reason in a function of its own |
 | Where the story stops | `bound(state, event)` | An event the model would take but the explainer's story does not reach; the player says so instead of calling it refused | |
@@ -113,7 +112,7 @@ The renames came with refactors that make a name's promise checkable:
 ## Names deliberately kept
 
 - `Frame`, because Manim authors know `camera.frame`.
-- `SetState`, `become` and `Transform`: animations named as verbs follow Manim's
+- `become` and `Transform`: animations named as verbs follow Manim's
   convention.
 - `keep`, `enter`, `focus`, `carry` and `opening`: stage verbs read well at their call sites.
 - `describe`: words for what is shown, on the stage, on a part and in `rayner describe`. `Scene.describe()` is the engine's exception: it returns the state.
@@ -146,8 +145,9 @@ agents mostly write, such a name is worse than none. `Circumscribe` stays, becau
   messages between machines. `Machine` says states and events, and it is the word issue #88 used.
 - `Session` for the same thing. It clashes with the HTTP sessions in the state-machine explainer
   and with its general meaning on the web.
-- Folding `SetState` into `Machine.send`. `SetState` is the primitive, used without a machine
-  (periodic-groups) and by every machine's `send`, which is `SetState` plus syncs.
+- A public animation that sets the state (`SetState`). Outside a machine it would do what assigning
+  `this.state` before a sync does, a second way to do one thing. A machine's events change the state
+  at their turns in its schedule with an animation of their own, which no entry point exports.
 - `story()` for staged steps. The script is already the story; the steps are how the stage
   shows it.
 - A separate `Graph` and a second `table`. Two names for nodes and edges, or for rows and

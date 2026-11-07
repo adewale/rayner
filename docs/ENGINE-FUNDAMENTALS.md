@@ -149,7 +149,7 @@ in, apart from the model. `this.record(kind, data)` adds a record, and every
 animation's `evidence()` is recorded as it begins: a matching transform records
 `{ kind: 'match', … }` and `TransformDiff` `{ kind: 'diff', … }`
 ([matching](MATCHING.md#evidence)), a view's sync its morph's counts with the view's
-key as `view`, a follow or a view's tween its interval and targets, and `SetState` with an `event`
+key as `view`, a follow or a view's tween its interval and targets, and a machine's event
 `{ kind: 'event', event }`. `onStep` and `addDescriber` are the extension hooks,
 and each returns its own remover; do not replace the scene's methods to attach
 helpers.

@@ -1,8 +1,7 @@
-// Pictures of state: a view redrawn from the state, a machine of events, SetState and choreography (docs/VIEWS.md, docs/MACHINES.md)
+// Pictures of state: a view redrawn from the state, a machine of events and choreography (docs/VIEWS.md, docs/MACHINES.md)
 export { View, view, having } from './view.ts';
 export type { Having, ViewSync, ViewOpts, ViewPlace, ViewMatch, SyncOpts } from './view.ts';
-export { SetState } from './state.ts';
-export type { SetStateOpts, FollowSpec } from './state.ts';
+export type { FollowSpec } from './state.ts';
 export { Machine, refuse, isRefusal } from './machine.ts';
 export type { MachineSpec, Transition, Outcome, Refusal } from './machine.ts';
 export type { Choreography } from './choreograph.ts';

@@ -32,10 +32,12 @@ await this.play(machine.replay(['POWER_ON', 'START', 'FROTH']));
 
 Since a frame is a pure function of time ([invariant 1](ENGINE.md#correctness-by-construction)),
 a reader's events can be ordinary input to a schedule. Each event becomes a member of a
-`Succession`: a [`SetState`](CHOREOGRAPHY.md#setstate) whose next state `next` computes from the
-state when it plays, then a staged keyed sync of every view ([the default
-transition](#the-default-transition)), or the event's authored transition. A
-replayed machine therefore seeks, traces and records like any other play.
+`Succession`: a change of state at its turn, to the state `next` computes from the
+state when it plays, recorded as `{ kind: 'event', event }`; then a staged keyed sync
+of every view ([the default transition](#the-default-transition)), or the event's
+authored transition. The state changes inside the schedule, not before the play,
+because the schedule is built before it plays: each sync draws the state its own
+event reached. A replayed machine therefore seeks, traces and records like any other play.
 
 | Spec field | What it says |
 | --- | --- |

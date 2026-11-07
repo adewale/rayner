@@ -14,10 +14,10 @@ export function choreography(scene: Scene<{count: number}>) {
   const opts: GrowFromEdgeOpts = { initialScale: 0.01, runTime: 0.5 };
   const grow = new GrowFromEdge(new Rectangle(), [1, 0], opts);
   const pulse = new PulseAlongPath(new Dot(), new Line([0, 0], [2, 0]), { remover: false, fromCurrent: false });
-  const state = new SetState(scene, { count: 3 });
+  scene.state = { count: 3 };
   // @ts-expect-error A typed scene's count is a number.
-  new SetState(scene, { count: 'three' });
-  return [grow, pulse, state];
+  scene.state = { count: 'three' };
+  return [grow, pulse];
 }
 import type { AnimOpts, TextOpts } from 'rayner';
 import { jsonObject } from 'rayner/testing';
@@ -133,7 +133,7 @@ import type { LetteringRequest as OutlineRequest } from 'rayner';
 export const outlineRequest = { scripts: ['Arab'], math: true, faces: { sans: 'inter' } } satisfies OutlineRequest;
 export const formula = () => new MathTex('x^2');
 
-import { stage, SetState, View, view } from 'rayner/explain';
+import { stage, View, view } from 'rayner/explain';
 import type {LayoutDirection, StageRegion, DiagramSpec} from 'rayner/explain';
 export async function authorLayout(scene: Scene): Promise<void> {
   const direction: LayoutDirection = 'rtl', at: StageRegion = 'start';

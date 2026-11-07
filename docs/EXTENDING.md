@@ -142,8 +142,8 @@ In a browser, `DomSink` (`rayner/output`) draws into an SVG element; in a docume
 
 ## Compose built-in animation techniques
 
-[choreography.ts](../recipes/choreography.ts) uses the exported `GrowFromEdge`,
-`PulseAlongPath` and `SetState` with native shapes and a readout drawn from state.
+[choreography.ts](../recipes/choreography.ts) uses the exported `GrowFromEdge`
+and `PulseAlongPath` with native shapes and a readout drawn from state.
 [Reusable choreography](CHOREOGRAPHY.md) documents their timing, ownership, opacity,
 snapshot and cleanup contracts.
 

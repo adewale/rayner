@@ -1,5 +1,5 @@
-import { Scene, Rectangle, Dot, Line, GrowFromEdge, PulseAlongPath, Succession } from 'rayner';
-import { SetState, view, stage } from 'rayner/explain';
+import { Scene, Rectangle, Dot, Line, GrowFromEdge, PulseAlongPath } from 'rayner';
+import { view, stage } from 'rayner/explain';
 import { card } from 'rayner/drawing';
 
 export default class ChoreographyScene extends Scene<{count: number}, {}> {
@@ -16,10 +16,10 @@ export default class ChoreographyScene extends Scene<{count: number}, {}> {
     await this.play(new GrowFromEdge(bar, [0, -1]), new PulseAlongPath(token, route), { runTime: 1 });
 
     await this.step('model-samples');
-    await this.play(new Succession([
-      new SetState(this, { count: 3 }), readout.sync({ runTime: 0.4 }),
-      new SetState(this, { count: 9 }), readout.sync({ runTime: 0.4 }),
-    ]));
+    for (const count of [3, 9]) {
+      this.state = { count };
+      await this.play(readout.sync({ runTime: 0.4 }));
+    }
     await this.step('result', { caption: 'The bar grew from its baseline, the token passed along the route, and each readout followed its own state update.' });
     await this.wait(0.2);
   }
