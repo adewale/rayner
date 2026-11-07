@@ -208,8 +208,8 @@ export default class TrafficPolicyExplainer extends Scene {
 
     // How the cluster diagram is shown, apart from its source: the nodes marked, the links walked and
     // the notes. That is `shown`, not the model; the diagram's view draws it, and each change is a sync.
-    // A step's slate starts plain: what the diagram shows leaves `shown`, and the live diagram stands in
-    // while the overlays clear (the view is kept with them) and while it moves.
+    // A step's slate starts plain: the overlays clear and what the diagram shows leaves `shown`. A focus
+    // moves the live diagram, so it stands in for the view while it moves.
     type ClusterShown = { marks: Record<string, { color: string; as: string }>; walked: [string, string][]; notes: PictureNote[] };
     const PLAIN: ClusterShown = { marks: {}, walked: [], notes: [] };
     const drawCluster = (of: Diagram) => (_st: object, sh: Record<string, unknown>) => {
@@ -223,12 +223,13 @@ export default class TrafficPolicyExplainer extends Scene {
       await this.play(clusterView.sync({ match: 'key', staged: true }));
     };
     const nextSlate = async () => {
-      if (clusterView) {
-        await showCluster(PLAIN);
-        s.liveDiagram(d);
-        clusterView = null;
-      }
       await s.clearOverlays();
+      if (clusterView) await showCluster(PLAIN);
+    };
+    /** The live diagram back in its view's place, for a focus; the next change shows it by the view again. */
+    const liveCluster = () => {
+      if (clusterView) s.liveDiagram(d);
+      clusterView = null;
     };
     const above = (id: string, text: string): PictureNote => ({ id, text, side: 'above', size: SIZE }),
       below = (id: string, text: string): PictureNote => ({ id, text, side: 'below', size: SIZE });
@@ -355,6 +356,7 @@ export default class TrafficPolicyExplainer extends Scene {
         }${nodeList(healthy)} each get ${frac(node[healthy[0]!]!)} of the requests. The next choice happens inside each node: its share is divided among its own pods.`,
       });
       await nextSlate();
+      liveCluster();
       await d.focus('all');
       if (failing.length)
         await showCluster({
@@ -404,6 +406,7 @@ export default class TrafficPolicyExplainer extends Scene {
               : `, so pod ${top[1][0]} gets ${ratio} times as many requests as pod ${low[1][0]}.`),
     });
     await nextSlate();
+    liveCluster();
     await d.focus('all');
     await showCluster({ notes: ids.map((id) => above(id, percent(share[id]!))) });
     this.state.shares = Object.fromEntries(ids.map((id) => [id, frac(share[id]!)]));
