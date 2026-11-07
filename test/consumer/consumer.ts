@@ -118,7 +118,7 @@ export class Tour extends Scene {
     code.saveState();
     await this.play(new Succession([new TransformFromCopy(code, new Code(['n = 2;']).shift([0, -1])), new Restore(code)]));
     this.onStep((s: Step) => s.name);
-    this.addDescriber(() => ({ frame: frame.width(), mismatch }));
+    this.addJson(() => ({ frame: frame.width(), mismatch }));
   }
 }
 

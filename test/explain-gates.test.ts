@@ -233,6 +233,11 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
     message: /Captions name a look the stage does not in the scene: one: the caption names “red”/,
   },
   {
+    gate: 'a step kind that is not short, main or detail',
+    source: scene(`await this.step('one',{caption:'A label.',kind:'details'});${label('hello')}`),
+    message: /step one: kind must be 'short', 'main' or 'detail'/,
+  },
+  {
     gate: 'a scenario with no steps',
     source: `import{Scene,Dot,FadeIn}from'rayner';export default class Bad extends Scene{async construct(){await this.play(new FadeIn(new Dot()));}}`,
     message: /Each scenario needs non-empty named steps/,

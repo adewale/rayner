@@ -107,7 +107,7 @@ export interface LiveRun {
   machine: AnyMachine;
   /** The scene's state at the step's resting picture (JSON). */
   rest: object;
-  /** What the scene shows after the log (`describeShown()`), for the stage's description. */
+  /** What the scene shows after the log (`shownJson()`), for the stage's description. */
   shown: SceneState;
   /** With `keep`, the run held at this picture, to play the reader's next event from it. */
   session?: LiveSession;
@@ -190,7 +190,7 @@ export async function runLive(
       }
       const drawn = animate ?? sink;
       if (drawn) await drawn.frame(this, 0);
-      result = { scene: this, machine, rest, shown: this.describeShown() };
+      result = { scene: this, machine, rest, shown: this.shownJson() };
       if (!keep) throw new StopScene();
       const kept = (result.session = session(log));
       // A session closed while it played lets the run end once that play is done.
@@ -215,7 +215,7 @@ export async function runLive(
           await this.play(machine.send(event));
           const landing = draw.animate ?? draw.sink;
           if (landing) await landing.frame(this, 0);
-          command.done({ scene: this, machine, rest, shown: this.describeShown() });
+          command.done({ scene: this, machine, rest, shown: this.shownJson() });
         } catch (error) {
           command.failed(error);
           break;

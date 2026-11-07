@@ -80,7 +80,7 @@ const scene = await renderAt(Request, time, sink);
 const svg = sink.svg;                       // one SVG frame
 const text = renderText(scene);             // lossy spatial text view
 const elements = renderElements(scene);     // geometry/paint records
-const state = scene.describe();             // the model at this frame; describeShown() for what is shown
+const state = scene.stateJson();            // the model at this frame; shownJson() for what is shown
 const trace = await traceScene(Request);    // complete step-boundary trace
 ```
 
@@ -115,7 +115,7 @@ step exists before sampling.
 `renderAt` samples the first frame at or after the requested time, on the scene's
 fixed frame grid. A time past the end returns the final frame. `traceScene` records
 the model before and after each step and what was shown at its end, not every
-intermediate value; call `scene.describe()` at chosen sample times for those.
+intermediate value; call `scene.stateJson()` at chosen sample times for those.
 
 For all SVG frames:
 

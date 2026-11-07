@@ -16,7 +16,7 @@ export function recordWalk(scene: Scene, walk: WalkRecord): void {
     log = [];
     logs.set(scene, log);
     const entries = log;
-    scene.addDescriber(() => ({ walks: entries.map((entry) => ({ ...entry })) }));
+    scene.addJson(() => ({ walks: entries.map((entry) => ({ ...entry })) }));
   }
   log.push(walk);
   scene.state.walks = log.map((entry) => ({ ...entry }));
@@ -29,16 +29,19 @@ export const restingFrame = (s: Timed) => Math.max(s.frame0 + 1, s.frame1 ?? s.f
 export const restingTime = (s: Timed, fps: number) => Math.max(s.t0, (s.t1 ?? s.t0) - 0.5 / fps);
 
 /** A part of something on the stage, as a reader would name it, with its emphasis. */
-export interface SeenPart {
+export interface DescriptionPart {
   name: string;
   /** The word for its emphasis ("marked", "rejected", "focused", in the scene's language); absent when plain. */
   mark?: string;
   dimmed?: boolean;
 }
-/** One thing on the stage as its helper sees it: what it is, its parts, and anything drawn without words. */
-export interface Seen {
+/**
+ * Words for one thing on the stage, as its helper sees it: what it is, its parts, and anything drawn
+ * without words. What `describe()` returns on a card, a code panel and a diagram.
+ */
+export interface Description {
   what: string;
-  parts: SeenPart[];
+  parts: DescriptionPart[];
   /** Drawn things with nothing to say for them (a part id, a kept drawing): `undescribed` reports these. */
   blank?: string[];
 }
@@ -165,10 +168,10 @@ export function checkWatch(watch: unknown, steps: readonly { before?: SceneState
 }
 const pictureOf = (state: unknown): Picture | undefined => (state as { picture?: Picture } | undefined)?.picture;
 /**
- * Seen things as entries, emphasis first, and what is new since `before` (the names shown
+ * Descriptions as entries, emphasis first, and what is new since `before` (the names shown
  * when the step began), in the words of `lang`, the scene's language.
  */
-export function picture(all: readonly Seen[], before: ReadonlySet<string>, lang?: string): Picture {
+export function picture(all: readonly Description[], before: ReadonlySet<string>, lang?: string): Picture {
   const words = wordsFor(lang),
     said = describedIn(lang);
   const undescribed = all.flatMap((s) => s.blank ?? []);
@@ -200,7 +203,7 @@ export function picture(all: readonly Seen[], before: ReadonlySet<string>, lang?
   };
 }
 /** The names a picture shows, for the next step's `before`. */
-export const shownNames = (seen: readonly Seen[]) =>
+export const shownNames = (seen: readonly Description[]) =>
   new Set(seen.filter((s) => s.what).flatMap(({ what, parts }) => (parts.length ? parts.map((p) => p.name) : [what])));
 
 /**

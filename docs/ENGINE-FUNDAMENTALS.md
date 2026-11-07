@@ -136,9 +136,9 @@ so the step's resting picture, its last frame, can differ from its first.
 `this.state` is the model: what the subject program is doing, and nothing about
 how it is shown. Use `Scene<MyState>` for typed access. `this.shown` holds what is
 shown apart from the model, such as which of several pictures a phase shows; a
-view's `draw` may read it, and a machine never changes it. `describe()` snapshots
-the model plus describers registered into it; `describeShown()` snapshots `shown`
-plus describers registered with `addDescriber(fn, 'shown')`, such as the stage's
+view's `draw` may read it, and a machine never changes it. `stateJson()` copies
+the model as JSON, with the parts helpers add with `addJson(fn)`; `shownJson()` copies
+`shown`, with the parts added with `addJson(fn, 'shown')`, such as the stage's
 description of its picture. The trace records the model as `before` and `after`
 and the second as `shown`. Both accept plain JSON and finite numbers, and refuse
 functions, class instances, cycles and non-finite values; shapes belong in the
@@ -150,7 +150,7 @@ animation's `evidence()` is recorded as it begins: a matching transform records
 `{ kind: 'match', … }` and `TransformDiff` `{ kind: 'diff', … }`
 ([matching](MATCHING.md#evidence)), a view's sync its morph's counts with the view's
 key as `view`, a follow or a view's tween its interval and targets, and a machine's event
-`{ kind: 'event', event }`. `onStep` and `addDescriber` are the extension hooks,
+`{ kind: 'event', event }`. `onStep` and `addJson` are the extension hooks,
 and each returns its own remover; do not replace the scene's methods to attach
 helpers.
 

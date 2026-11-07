@@ -120,7 +120,7 @@ test('sinks only read a frame: after each of Rayner’s sinks takes it, the scen
   for (const [name, make] of Object.entries(sinks)) {
     const inner = make();
     const seen: string[] = [];
-    const look = (s: Scene) => toSvgString(s) + JSON.stringify(s.describe());
+    const look = (s: Scene) => toSvgString(s) + JSON.stringify(s.stateJson());
     const guard = async (s: Scene, call: () => Promise<void> | void, what: string) => {
       const before = look(s);
       await call();

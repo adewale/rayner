@@ -28,16 +28,13 @@ import { Frame } from './frame.ts';
  */
 export class StopScene extends Error {}
 
-/** Which path a step is on: the reader's short path, the main story, or a detail players skip. */
-export type StepKind = 'short' | 'main' | 'detail';
-
-/** Free-form data attached to a step; travels with the trace. A string `caption` holds the step until read. */
+/**
+ * Free-form data attached to a step; travels with the trace. A string `caption` holds the step
+ * until read (see Scene.captionWpm). A layer above the engine names its own fields by declaring
+ * them on this interface: rayner/explain adds a step's title, line and kind.
+ */
 export interface StepMeta {
-  title?: string;
-  line?: string;
   caption?: string;
-  /** Which path the step is on (default 'main'): a 'short' path a reader can take first, or a 'detail' after the story that players skip. */
-  kind?: StepKind;
   [key: string]: unknown;
 }
 
@@ -88,11 +85,11 @@ export interface SceneOptions {
   skipUntil?: number;
 }
 
-/** The author's mutable state; describe() validates and snapshots its JSON representation. */
+/** The author's mutable state; stateJson() validates and copies its JSON representation. */
 export type SceneState = Record<string, unknown>;
 
-/** Where a describer's JSON goes: into the model's description, or into what is shown. */
-export type DescribeInto = 'state' | 'shown';
+/** Where an addJson part goes: into stateJson(), the model's JSON, or into shownJson(), what is shown. */
+export type JsonInto = 'state' | 'shown';
 
 /** A scene class, as traceScene(), renderAt() and the registries take it. */
 export type SceneClass = new (sink: Sink, opts?: SceneOptions) => Scene;
@@ -147,7 +144,7 @@ type Held<S> = unknown extends S ? any : { [K in keyof S]: S[K] };
 /**
  * A scene with typed state: `S` is the model's type (what `state` holds) and `Sh` the type of what
  * is shown of it (`shown`). An explainer declares both, `class X extends Scene<Model, Shown>`, and
- * every view, staged step, machine and SetState on it is typed from them. Untyped, both are JSON
+ * every view, staged step and machine on it is typed from them. Untyped, both are JSON
  * records (SceneState).
  */
 export class Scene<S extends object = SceneState, Sh extends object = SceneState> {
@@ -192,7 +189,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   stopped: boolean;
   // One entry per registration, so each remover removes exactly its own.
   private stepListeners: Array<{ listener: (step: Step) => unknown; on: boolean }>;
-  private describers: Array<{ describer: () => SceneState; into: DescribeInto }>;
+  private jsonParts: Array<{ part: () => SceneState; into: JsonInto }>;
   /** Named invariants of the picture, checked on every frame of a full run by an InvariantSink (see addInvariant). */
   readonly invariants: Map<string, Invariant>;
   /**
@@ -219,14 +216,14 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     // Named steps: the addressable unit for deep links, traces and tests
     this.steps = [];
     this.current = null;
-    // The explanation's own state, and what is shown of it; describe() and describeShown() snapshot them for traces
+    // The explanation's own state, and what is shown of it; stateJson() and shownJson() copy them for traces
     this.state = {} as S;
     this.shown = {} as Sh;
     this.evidence = [];
     this.frame = new Frame();
     this.stopped = false;
     this.stepListeners = [];
-    this.describers = [];
+    this.jsonParts = [];
     this.invariants = new Map();
     this.colors = NEUTRAL_COLORS;
   }
@@ -251,14 +248,14 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   }
 
   /**
-   * Merge `describer()`'s JSON into every describe() (`into: 'state'`, the default), so helper
+   * Merge `part()`'s JSON into every stateJson() (`into: 'state'`, the default), so helper
    * evidence such as recorded walks survives an author replacing `this.state`; or into every
-   * describeShown() (`'shown'`), for what a helper says the stage shows. Returns a remover.
+   * shownJson() (`'shown'`), for what a helper says the stage shows. Returns a remover.
    */
-  addDescriber(describer: () => SceneState, into: DescribeInto = 'state'): () => void {
-    const entry = { describer, into };
-    this.describers.push(entry);
-    return () => { this.describers = this.describers.filter((e) => e !== entry); };
+  addJson(part: () => SceneState, into: JsonInto = 'state'): () => void {
+    const entry = { part, into };
+    this.jsonParts.push(entry);
+    return () => { this.jsonParts = this.jsonParts.filter((e) => e !== entry); };
   }
 
   /**
@@ -309,10 +306,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   async step(name: string, meta: StepMeta = {}): Promise<Step> {
     if (typeof meta === 'function') throw new TypeError('step(name, fn) is gone: call `await this.step(name)` where the step begins');
     if (!meta || typeof meta !== 'object' || Array.isArray(meta)) throw new TypeError('step metadata must be an object');
-    for (const key of ['title', 'line', 'caption'] as const)
-      if (meta[key] !== undefined && typeof meta[key] !== 'string') throw new TypeError(`step ${name}: ${key} must be a string`);
-    if (meta.kind !== undefined && !['short', 'main', 'detail'].includes(meta.kind as string)) throw new TypeError(`step ${name}: kind must be 'short', 'main' or 'detail'`);
-    if ('detail' in meta || 'reader' in meta) throw new TypeError(`step ${name}: say kind: 'detail' or kind: 'short'`);
+    if (meta.caption !== undefined && typeof meta.caption !== 'string') throw new TypeError(`step ${name}: caption must be a string`);
     this.throwIfStopped();
     await this.endCurrentStep();
     const s: Step = { name, path: name, t0: this.time, frame0: this.frameCount, t1: null, frame1: null, meta, evidence: [] };
@@ -362,25 +356,25 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   get currentStep(): Step | null { return this.current; }
 
   /**
-   * What the explanation is about, for traces: a snapshot of `this.state`.
-   * Scenes keep their explicit state there (head, tail, tokens...) and
+   * What the explanation is about, for traces: a copy of `this.state` as JSON, with the parts
+   * helpers add (addJson). Scenes keep their explicit state there (head, tail, tokens...) and
    * mutate it as the animation makes the same change on screen.
    * State is JSON: that is what traces serve and tests hash.
    */
-  describe(): JsonObject { return this.described(this.state, 'state'); }
+  stateJson(): JsonObject { return this.json(this.state, 'state'); }
 
-  /** What is shown, for traces: a snapshot of `this.shown`, with what helpers say the stage shows. */
-  describeShown(): JsonObject { return this.described(this.shown, 'shown'); }
+  /** What is shown, for traces: a copy of `this.shown` as JSON, with what helpers say the stage shows. */
+  shownJson(): JsonObject { return this.json(this.shown, 'shown'); }
 
-  private described(base: object, into: DescribeInto): JsonObject {
+  private json(base: object, into: JsonInto): JsonObject {
     const state = jsonObject(base, `scene.${into}`);
-    for (const { describer, into: where } of this.describers) {
+    for (const { part, into: where } of this.jsonParts) {
       if (where !== into) continue;
-      const extra: unknown = describer();
+      const extra: unknown = part();
       if (!extra || typeof extra !== 'object' || Array.isArray(extra))
-        throw new TypeError('A describer must return a JSON object');
+        throw new TypeError('An addJson part must return a JSON object');
       // Define own keys, so a key such as "__proto__" is copied, not used as a prototype.
-      for (const [k, value] of Object.entries(jsonObject(extra, 'scene describer')))
+      for (const [k, value] of Object.entries(jsonObject(extra, 'scene addJson part')))
         Object.defineProperty(state, k, { value, enumerable: true, writable: true, configurable: true });
     }
     return state;

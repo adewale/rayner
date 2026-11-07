@@ -24,7 +24,7 @@ export async function outputs(SceneClass: SceneClass, time = 0.5) {
   const scene = await renderAt(SceneClass, time, sink);
   return {
     svg: sink.svg, text: renderText(scene), elements: renderElements(scene),
-    state: scene.describe(), trace: await traceScene(SceneClass), index: await indexScene(SceneClass),
+    state: scene.stateJson(), trace: await traceScene(SceneClass), index: await indexScene(SceneClass),
   };
 }
 

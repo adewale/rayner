@@ -61,7 +61,7 @@ One row per idea.
 | Prose check | `meta.claims` | A sentence backed by a named test | |
 | Review subjects | `scene.review.json`'s `subjects` | What a caption names, for the reader review to find on screen | that file's `claims` |
 | Records | trace, evidence, receipt | What each step showed, what an animation decided, what a build produced ([defined in the engine map](ENGINE.md#correctness-by-construction)) | |
-| Words for a picture | `describe` | The same word on the stage, on `Diagram`, in `describeExplainer` and `rayner describe` | |
+| Words for a picture | `describe` | The same word on the stage (`describe` on `s.keep` and `s.enter`), on a card, code panel and `Diagram` (`describe()` returns a `Description`), on a staged step (`describe(state)`), in `describeExplainer` and `rayner describe` | `Scene.describe()` for the state's JSON: it is `stateJson()` |
 | Tables | `table(s, headers, rows, { key })`, rows `{ key, cells }` | The drawing kit's `table()`, with keyed cells: `key:row:column`, each row `key:row`, the header row `key:head`. A row's own `key` (or its index) is its identity, so a moved row is the same part; a duplicated row key or header is refused. Adopted by python-dict (entries keyed `e0`, `e1`, ...) and bloom-filter (lookups keyed by name, sample rows by row length) | A second table primitive |
 | Graphs | `Diagram` | Captured from Mermaid; `walk`, `morph` and `picture` (its marks, notes and dimming, drawn from state) | A separate `Graph` type |
 
@@ -115,7 +115,7 @@ The renames came with refactors that make a name's promise checkable:
 - `become` and `Transform`: animations named as verbs follow Manim's
   convention.
 - `keep`, `enter`, `focus`, `carry` and `opening`: stage verbs read well at their call sites.
-- `describe`: words for what is shown, on the stage, on a part and in `rayner describe`. `Scene.describe()` is the engine's exception: it returns the state.
+- `describe`: words for what is shown, on the stage, on a part and in `rayner describe`. What a scene returns as JSON for its trace is named for what it is: `stateJson()` and `shownJson()`.
 - trace, evidence and receipt: three different records, each answering a different question.
 - Updaters (`addUpdater`). No explainer registers one, but the Lantern explainer teaches them as
   its counterexample, with claims backed by tests that use them. Under the fixed clock a scene

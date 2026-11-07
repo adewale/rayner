@@ -526,7 +526,7 @@ export async function exploreMachines(
       await sizes.frame(host);
       for (const r of [...sizes.labels.values(), ...sizes.staticLabels.values()])
         if (r.px > 0 && r.px < MIN_PX) problems.push(`${at}: “${r.text}” is ${r.px.toFixed(1)} px at a 1280 px stage, under ${MIN_PX}`);
-      const picture = host.describeShown().picture as { entries?: { what?: string; items?: string[] }[] } | undefined;
+      const picture = host.shownJson().picture as { entries?: { what?: string; items?: string[] }[] } | undefined;
       const words = JSON.stringify(picture?.entries ?? []);
       if (!picture?.entries?.some((e) => e.what?.trim())) problems.push(`${at}: the picture has no description`);
       else if (said.has(words)) problems.push(`${at}: the picture is described exactly as ${said.get(words)}, a different state`);

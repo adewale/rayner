@@ -3,7 +3,7 @@ import { Text } from '../src/index.ts';
 import type { Box, Mobject, Scene } from '../src/index.ts';
 import { center } from '../src/box.ts';
 import type { Palette } from '../src/color.ts';
-import type { Seen } from './trace.ts';
+import type { Description } from './trace.ts';
 
 /**
  * Secondary text that still reads on the paper: ink pulled up to a third of the way
@@ -51,11 +51,11 @@ interface EmphasisSource { [emphasisSource](): Emphasis }
  * staged step's picture), so a picture built from state is described as it is built.
  */
 export const seenSource = Symbol('seenSource');
-export interface SeenSource { [seenSource](): Seen }
+export interface SeenSource { [seenSource](): Description }
 /** Whether `m` describes itself. */
 export const describesItself = (m: Mobject): m is Mobject & SeenSource => typeof (m as Partial<SeenSource>)[seenSource] === 'function';
 /** Give `m` its own description (and, when `emphasis` is given, its own emphasis); returns `m`. */
-export function selfDescribed<T extends Mobject>(m: T, seen: () => Seen, emphasis?: () => Emphasis): T {
+export function selfDescribed<T extends Mobject>(m: T, seen: () => Description, emphasis?: () => Emphasis): T {
   Object.assign(m, { [seenSource]: seen, ...(emphasis ? { [emphasisSource]: emphasis } : {}) });
   return m;
 }
@@ -63,8 +63,8 @@ export function selfDescribed<T extends Mobject>(m: T, seen: () => Seen, emphasi
  * What `m` shows in words: each part that describes itself, as it describes itself, and the text
  * of every other `Text`, in family order. A self-describing part's own text is not repeated.
  */
-export function partsSeen(m: Mobject, text: (t: Text) => boolean = () => true): { seen: Seen[]; words: string[] } {
-  const seen: Seen[] = [], words: string[] = [];
+export function partsSeen(m: Mobject, text: (t: Text) => boolean = () => true): { seen: Description[]; words: string[] } {
+  const seen: Description[] = [], words: string[] = [];
   const walk = (x: Mobject): void => {
     if (describesItself(x)) { seen.push(x[seenSource]()); return; }
     if (x instanceof Text) { if (text(x)) words.push(x.text); return; }

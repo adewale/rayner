@@ -34,7 +34,7 @@ export type { DiffOp, Hunk } from './diff.ts';
 export { linear, smooth, rushInto, rushFrom, thereAndBack } from './rate.ts';
 export type { RateFunc } from './rate.ts';
 export { Scene } from './scene.ts';
-export type { Sink, Step, StepMeta, StepKind, SceneOptions, SceneState, SceneClass } from './scene.ts';
+export type { Sink, Step, StepMeta, SceneOptions, SceneState, SceneClass } from './scene.ts';
 export type { Evidence, Invariant } from './scene.ts';
 // Camera: scene.frame, a box the sinks use as the viewBox
 export { Frame } from './frame.ts';
