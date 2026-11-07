@@ -330,7 +330,7 @@ await s.card([['Count', 123]], { at: 'start' });
 await s.card([['Count', 123]], { at: 'end', direction: 'ltr' });
 ```
 
-In an RTL stage, the first card goes on the right, with its label on the right and its value on the left. The second goes on the left, where its override puts the label on the left and the value on the right. Values such as `123` retain their digit order. Titles follow the label's edge; rows retain their authored top-to-bottom order. Updates and marks keep those positions.
+In an RTL stage, the first card goes on the right, with its label on the right and its value on the left. The second goes on the left, where its override puts the label on the left and the value on the right. Values such as `123` retain their digit order. Titles follow the label's edge; rows retain their authored top-to-bottom order. Updates and marks keep those positions. A card or code panel a view draws with the kit's `card(s, …)` or `code(s, …)` is placed and laid out the same way, so it follows the stage's direction too.
 
 Stage direction controls spatial placement separately from paragraph shaping. A Hebrew or Arabic paragraph can read right to left in an LTR card. A code panel placed at `start` moves with the region, while its code keeps its source order. Set Mermaid graph flow in its source (`graph RL`, for example); stage direction never rewrites or mirrors a diagram. The [layout-direction example](https://github.com/adewale/rayner/blob/main/scenes/explainers/layout-direction/scene.ts) shows both card orders together.
 
