@@ -473,8 +473,9 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       }
       scene.add(shown.view);
       scene.remove(d.root);
+      // The stage describes the diagram through the view that shows it, as it describes a live one;
+      // like a live diagram, the view is not an overlay, so clearOverlays leaves it.
       d.showBy(shown.view);
-      keepAll([shown.view], {});
       return shown.view;
     },
     /** The live diagram back in its view's place, for a morph, a reveal or a walk (see diagramView). */

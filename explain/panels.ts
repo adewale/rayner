@@ -430,6 +430,12 @@ export interface CodeOptions {
   title?: string;
   /** Lines beginning `+ ` or `- ` get added/removed bars (the marker is kept). */
   diff?: boolean;
+  /** Lines (by index) that get an added bar without a `+ ` in their text, as `morph(lines, { markAdded })` leaves them. */
+  added?: readonly number[];
+  /** A fixed panel width, so a panel drawn from state keeps its width as its lines change (as `morph` keeps it). */
+  width?: number;
+  /** In a box: shrink the code so the panel fits the box's height too, as `morph` shrinks it. */
+  fitHeight?: boolean;
   /**
    * The focus bar from the start, on line i or lines [a, b] inclusive, as `focus(lines)` leaves it:
    * a code panel drawn from state shows its focus as part of the picture, described and emphasised.
@@ -483,20 +489,27 @@ export class CodeBlock extends Group {
     const box = at.length === 4 ? (at as Box) : null;
     this.region = box ? [...box] : regionBox('full');
     this.title = options.title;
+    const pad = 0.3;
+    const head = options.title
+      ? this.scene.text(options.title, { fontSize: 0.2, color: soft(colors), anchor: 'start' })
+      : null;
     if (box) {
-      const room = box[2] - box[0] - 0.7;
+      const room = (options.width ?? box[2] - box[0]) - 0.7;
       // Room for at least a glyph's width of code beside the padding.
       if (!(room >= fontSize)) throw new Error(`A box ${(box[2] - box[0]).toFixed(2)} wide has no room for code`);
       if (this.code.width() > room) {
         this.scaled = room / this.code.width();
         this.code.scale(this.scaled);
       }
+      // Taller than the box: shrink so the panel fits it, as morph does.
+      const tall = box[3] - box[1] - 2 * pad - (head ? 0.42 : 0) - 1e-4;
+      if (options.fitHeight && tall > 0 && this.code.height() > tall) {
+        const k = tall / this.code.height();
+        this.code.scale(k);
+        this.scaled *= k;
+      }
     }
-    const pad = 0.3;
-    const head = options.title
-      ? this.scene.text(options.title, { fontSize: 0.2, color: soft(colors), anchor: 'start' })
-      : null;
-    const width = this.code.width() + 2 * pad + 0.1,
+    const width = Math.max(options.width ?? 0, this.code.width() + 2 * pad + 0.1),
       height = this.code.height() + 2 * pad + (head ? 0.42 : 0);
     this.panel = panelRect(colors, width, height);
     this.code.moveTo([0, head ? -0.21 : 0]);
@@ -513,6 +526,13 @@ export class CodeBlock extends Group {
         this.marks.push(mark);
         this.add(mark.mob);
       });
+    for (const i of options.added ?? []) {
+      if (!Number.isInteger(i) || i < 0 || i >= lines.length) throw new Error(`added: line ${i} is not a line of this panel`);
+      if (this.marks.some((m) => m.line === i)) continue;
+      const mark = this.lineMark(i, 'added');
+      this.marks.push(mark);
+      this.add(mark.mob);
+    }
     this.add(this.bar, this.code);
     if (head) this.add(head);
     place(this, at, height, options.align);

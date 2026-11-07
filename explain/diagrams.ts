@@ -775,11 +775,17 @@ export class Diagram {
     return this.focusView && !(view && view.every((v, i) => Math.abs(v - this.focusView![i]!) < 1e-6)) ? null : this.focused;
   }
   /** What the diagram emphasises now, for the player's phone close-ups (`emphasises` in look.ts). */
-  private emphasised(): [Mobject, string][] {
-    const part = (id: string) => this.parts.get(id)?.mob;
+  private emphasised(): [Mobject | string, string][] {
+    // While a view shows the diagram and the live one is off the stage, a part is named by its key,
+    // which names the view's copy of it on the stage.
+    const live = this.scene.familyMembers().includes(this.root);
+    const part = (id: string): Mobject | string | undefined => {
+      const mob = this.parts.get(id)?.mob;
+      return mob && !live ? mob.key : mob;
+    };
     return [
-      ...[...this.marks].flatMap(([id, m]): [Mobject, string][] => (part(id) ? [[part(id)!, `mark ${m.color} ${m.as}`]] : [])),
-      ...(this.inFocus() ?? []).flatMap((id): [Mobject, string][] => (part(id) ? [[part(id)!, 'focus']] : [])),
+      ...[...this.marks].flatMap(([id, m]): [Mobject | string, string][] => (part(id) ? [[part(id)!, `mark ${m.color} ${m.as}`]] : [])),
+      ...(this.inFocus() ?? []).flatMap((id): [Mobject | string, string][] => (part(id) ? [[part(id)!, 'focus']] : [])),
       ...this.notes.map((n): [Mobject, string] => [n.mob, `note ${n.text}`]),
     ];
   }
@@ -1411,6 +1417,13 @@ export class Diagram {
   }
   /** Fade the whole diagram (and its notes) out. `reveal` can bring parts back. */
   async hide(): Promise<void> {
+    // Shown by a view (stage.diagramView), with the live diagram off the stage: the view fades, as
+    // the live parts and their notes would.
+    if (this.shownBy && !this.scene.familyMembers().includes(this.root) && this.scene.familyMembers().includes(this.shownBy)) {
+      await this.scene.play(new FadeOut(this.shownBy, { runTime: 0.4 }));
+      this.forget();
+      return;
+    }
     const shown = [...this.visible]
       .filter((id) => !this.parts.get(id)!.info.owner)
       .map((id) => this.parts.get(id)!.mob);
