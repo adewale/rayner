@@ -2,7 +2,7 @@ import { Group, Dot, SurroundingRectangle } from '../../../src/index.ts';
 import type { Mobject, Scene, SceneState, Code, CodeSpan } from '../../../src/index.ts';
 import { reduceSession, sessionAttempt } from './model.ts';
 import type { SessionState } from './model.ts';
-import { flow, keyed, label, tile } from '../../../explain/drawing.ts';
+import { flow, keyed, label, tile, emphasised } from '../../../explain/drawing.ts';
 import type { StagedStep, Diagram, Palette, CardOptions } from '../../../explain/index.ts';
 import { stagedStep, Card } from '../../../explain/index.ts';
 
@@ -96,13 +96,17 @@ const boxOf = (span: CodeSpan, color: string) =>
 
 /** The diagram with the links the session travelled in the trail's colour. */
 export const drawTrails = (d: Diagram, st: SessionState) => new Group(keyed(d.picture(Object.fromEntries(st.travelled.map((l) => { const [from, to] = l.split(':'); return [d.link(from!, to!).id, d.accent]; }))), 'diagram'));
+// What the views mark is emphasis the phone's close-ups visit first and review holds to the caption:
+// the ring, the row read or the throw hit, each tagged where it is drawn; the travelled links are the
+// diagram picture's marks, which report themselves.
 /** The ring on the state the session is in. */
-export const drawRing = (d: Diagram, st: SessionState) => new Group(keyed(new SurroundingRectangle(d.get(st.session), { buff: RING.buff, cornerRadius: RING.cornerRadius, stroke: NOW, strokeWidth: RING.strokeWidth }), `session:ring:${st.session}`));
+export const drawRing = (d: Diagram, st: SessionState) =>
+  new Group(keyed(emphasised(new SurroundingRectangle(d.get(st.session), { buff: RING.buff, cornerRadius: RING.cornerRadius, stroke: NOW, strokeWidth: RING.strokeWidth }), `ring: ${st.session}`), `session:ring:${st.session}`));
 /** The reducer row the session read, or the throw it hit, lit and boxed. */
 export const drawReading = (st: SessionState, spans: ReturnType<typeof reducerSpans>) => {
   const parts: Mobject[] = [];
-  if (st.row) parts.push(keyed(lit(spans.row(st.row), NOW), `reducer:lit:${st.row}`), keyed(boxOf(spans.row(st.row), NOW), `reducer:box:${st.row}`));
-  if (st.invalid) parts.push(keyed(lit(spans.thrown(), REJECT), 'reducer:throw-lit'), keyed(boxOf(spans.thrown(), REJECT), 'reducer:throw-box'));
+  if (st.row) parts.push(keyed(lit(spans.row(st.row), NOW), `reducer:lit:${st.row}`), keyed(emphasised(boxOf(spans.row(st.row), NOW), `row: ${st.row}`), `reducer:box:${st.row}`));
+  if (st.invalid) parts.push(keyed(lit(spans.thrown(), REJECT), 'reducer:throw-lit'), keyed(emphasised(boxOf(spans.thrown(), REJECT), `throw: ${st.session}:${st.event}`), 'reducer:throw-box'));
   return new Group(...parts);
 };
 /** The token that walks a link. */
