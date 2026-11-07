@@ -39,8 +39,6 @@ function offLine(points: readonly (readonly [number, number])[]): number {
 const sink: Sink = { async frame() {} };
 
 const bare = () => new (class extends Scene { override async construct() {} })(sink);
-/** A stage for the pictures' text, on a scene of its own. */
-const s = stage(bare());
 
 test('Henge both street scenarios expose their geometry at all eight resting steps', async () => {
   const project=await collectProject('scenes/explainers/henge',{write:false});
@@ -53,6 +51,8 @@ test('Henge both street scenarios expose their geometry at all eight resting ste
 
 // ---------------------------------------------------------------- the 3D pictures (scenes/explainers/henge/sky.ts)
 await loadFonts();
+/** A stage for the pictures' text, on a scene of its own. */
+const s = stage(bare());
 
 test('Henge dome and year are drawn in depth order at every longitude; a day circle drawn in front where the dome hides it fails (a deliberate defect)', () => {
   for (const model of [henge('manhattan'), henge('west')]) {
