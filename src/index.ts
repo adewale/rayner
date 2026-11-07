@@ -14,7 +14,6 @@ export type { SurroundingRectangleOpts, CrossOpts, BraceOpts, BraceLabelOpts } f
 export { Text, DecimalNumber, Code } from './text.ts';
 export type { TextOpts, DecimalNumberOpts, CodeOpts } from './text.ts';
 export type { CodeSpan, ColorSpan } from './text.ts';
-export { StateReadout } from './panels.ts';
 export { NumberLine, Axes } from './graphing.ts';
 export type { AxisRange, NumberLineOpts, AxisStyle, AxesOpts, PlotOpts, BarOpts, GuideLineOpts } from './graphing.ts';
 

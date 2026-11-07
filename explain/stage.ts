@@ -13,8 +13,8 @@ import type { CardRow, CardOptions, CodeOptions } from './panels.ts';
 import { diagramsOf } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { Palette, DiagramSpec } from '../integrations/agentic-mermaid/snapshot.ts';
 import { palette } from './palettes.ts';
-import { soft, emphasis, good, bad, raised, rule, regionBox, opening, emphasises, partsSeen } from './look.ts';
-import type { Region, Emphasis } from './look.ts';
+import { soft, emphasis, good, bad, raised, rule, regionBox, opening, partsSeen } from './look.ts';
+import type { Region } from './look.ts';
 import { picture, shownNames } from './trace.ts';
 import { wordsOf, langOf } from './words.ts';
 import type { Seen } from './trace.ts';
@@ -517,16 +517,6 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       if (keep) kept = [...subjects];
       opening(scene, ...subjects);
     },
-    /**
-     * Say what this scene's own marks emphasise, read from its state whenever asked: each
-     * part that shows emphasis, by key (`['ring:mark:3', 'outlined: push']`) or as the mobject,
-     * with what it shows there. The stage's helpers (cards, code,
-     * diagrams, notes) register theirs; a scene that draws its own marks registers them here.
-     * Call once; `now` is read at every step boundary and must draw nothing.
-     */
-    emphasise(now: () => Emphasis) {
-      emphasises(scene, now);
-    },
     /** A code panel placed as `code` places one, without entering it: for a view's draw. */
     codePicture(lines: readonly string[], opts: Omit<CodeOptions, 'at'> & { at?: Vec | Box | StageRegion } = {}): CodeBlock {
       return new CodeBlock(scene, colors, lines, { ...opts, at: physical(opts.at) });
@@ -562,11 +552,10 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       keepAll(mobs, { describe });
       if (mobs.length) await scene.play(...mobs.map((m) => new FadeIn(m, fade)));
     },
-    /** Fade out cards, code, kept objects and diagram notes, in one play. */
+    /** Fade out cards, code and kept objects, in one play. */
     async clearOverlays() {
       const present = new Set(scene.familyMembers());
-      const notes = [...diagrams].flatMap((d) => d.notes.splice(0).map((n) => n.mob));
-      const shown = [...overlays.keys(), ...notes].filter((g) => present.has(g));
+      const shown = [...overlays.keys()].filter((g) => present.has(g));
       if (shown.length) await scene.play(...shown.map((g) => new FadeOut(g, { runTime: 0.3 })));
       overlays.clear();
     },
