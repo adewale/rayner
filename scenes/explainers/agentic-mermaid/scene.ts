@@ -62,7 +62,8 @@ type Slot = 'main' | 'wrong' | 'right' | 'history';
 /** A note beside a part of a diagram, as Diagram.note places one. */
 interface NoteState { part: string; text: string; side: NoteSide; size?: number }
 /** A diagram as a step records it: which source is drawn, which parts are marked and how, and its notes. */
-interface DiagramState { source: string; marks: { part: string; tone: Tone; as: string }[]; notes: NoteState[] }
+/** How a slot's diagram is shown, apart from its source (which is the model): what it marks and its notes. */
+interface DiagramState { marks: { part: string; tone: Tone; as: string }[]; notes: NoteState[] }
 /** The verifier's report on a diagram, from its pinned snapshot. */
 interface Report { ok: boolean; warnings: { code: string; edge: string; part: string }[]; taskCorrectness: string }
 
@@ -114,20 +115,16 @@ export default class MermaidExplainer extends Scene {
     // it from the state (which source, which parts are marked, which notes it carries) and the live
     // diagram leaves the stage, still the source of geometry, of walks and of the diagram's description.
     const live = new Map<Slot, Diagram>();
-    const diagramOf = (slot: Slot, st: DiagramState) => {
-      const d = live.get(slot);
-      if (!d || d.spec.source !== st.source) throw new Error(`The ${slot} diagram on show is not the one the state records`);
-      return d;
-    };
-    /** The diagram in `slot` as the state records it, its notes beside it; `prefix` keeps two diagrams' part keys apart. */
-    const diagramPicture = (slot: Slot, prefix: string) => (state: object) => {
-      const st = (state as { diagrams: Partial<Record<Slot, DiagramState>> }).diagrams[slot]!;
-      const d = diagramOf(slot, st);
-      const art = d.picture(Object.fromEntries(st.marks.map((m) => [m.part, { color: colors[m.tone], as: m.as }])), {
+    /** What the diagram in `slot` shows: its marks and notes from `shown`, its source checked against the model's; `prefix` keeps two diagrams' part keys apart. */
+    const diagramPicture = (slot: Slot, prefix: string) => (state: object, shown: object) => {
+      const d = live.get(slot), source = (state as { sources: Partial<Record<Slot, string>> }).sources[slot];
+      if (!d || d.spec.source !== source) throw new Error(`The ${slot} diagram on show is not the one the state records`);
+      const st = (shown as { diagrams: Partial<Record<Slot, DiagramState>> }).diagrams[slot]!;
+      return {
+        marks: Object.fromEntries(st.marks.map((m) => [m.part, { color: colors[m.tone], as: m.as }])),
         notes: st.notes.map((n) => ({ id: n.part, text: n.text, side: n.side, ...(n.size ? { size: n.size } : {}) })),
         prefix,
-      });
-      return st.notes.length ? art : new Group(art);
+      };
     };
     // Each slot's view prefixes its keys, so two pictures of one diagram can share the stage; what each marks is its picture's emphasis.
     const PREFIX: Record<Slot, string> = { main: '', wrong: 'wrong:', right: 'right:', history: '' };
@@ -137,21 +134,17 @@ export default class MermaidExplainer extends Scene {
       live.set(slot, d);
       return d;
     };
-    const adopt = (slot: Slot, state: Omit<DiagramState, 'source'> = { marks: [], notes: [] }) => {
+    /** The diagram in `slot` shown by its view: its source in the model, its marks and notes (none yet) in `shown`. */
+    const adopt = (slot: Slot, shownNow: DiagramState = { marks: [], notes: [] }) => {
       const d = live.get(slot)!;
-      this.state.diagrams = { ...((this.state.diagrams as object) ?? {}), [slot]: { source: d.spec.source!, ...state } };
-      const v = view(this, diagramPicture(slot, PREFIX[slot]), { place: false });
-      this.add(v);
-      this.remove(d.root);
-      d.showBy(v);
-      // Described as the diagram, with the marks and notes the state records.
-      s.keep(v);
-      return v;
+      this.state.sources = { ...((this.state.sources as object) ?? {}), [slot]: d.spec.source! };
+      this.shown.diagrams = { ...((this.shown.diagrams as object) ?? {}), [slot]: shownNow };
+      return s.diagramView(d, diagramPicture(slot, PREFIX[slot]));
     };
-    /** Change what a diagram's state records, and play its view's change. */
-    const restyle = async (v: View, slot: Slot, change: Partial<Omit<DiagramState, 'source'>>, runTime = 0.45) => {
-      const all = this.state.diagrams as Partial<Record<Slot, DiagramState>>;
-      this.state.diagrams = { ...all, [slot]: { ...all[slot]!, ...change } };
+    /** Change how a diagram is shown, and play its view's change. */
+    const restyle = async (v: View, slot: Slot, change: Partial<DiagramState>, runTime = 0.45) => {
+      const all = this.shown.diagrams as Partial<Record<Slot, DiagramState>>;
+      this.shown.diagrams = { ...all, [slot]: { ...all[slot]!, ...change } };
       await this.play(v.sync({ match: 'key', runTime }));
     };
     /** The verifier's own scope line, read from the snapshot of a diagram. */
@@ -196,7 +189,7 @@ export default class MermaidExplainer extends Scene {
     const main = adopt('main');
     // The source beside it, near the top of the side, leaving room under it for the report the next step adds.
     const sourceAt = (st: object) => {
-      const source = block((st as { diagrams: Record<Slot, DiagramState> }).diagrams.main.source.split('\n'));
+      const source = block((st as { sources: Record<Slot, string> }).sources.main!.split('\n'));
       return source.moveTo([SIDE[0], SIDE[3] - 0.5], [-1, 1]);
     };
     const sourcePanel = view(this, (st) => keyed(sourceAt(st), 'mermaid-source'), { place: false });
@@ -331,7 +324,8 @@ export default class MermaidExplainer extends Scene {
       caption: swapped ? 'Two set_label edits, each naming one edge, put yes on the path to Reply and no on the path to Database. The corrected diagram sits below the backwards one, and both reports say ok: true with no warnings. Following yes out of Cached tells them apart: a hit reaches Database above and Reply below. A check that a cache hit reaches Reply without querying Database would catch the backwards one; this page describes that missing check rather than implementing it.' : `${missing ? 'Two further set_label edits' : `${NAMING} A set_label edit changes the label on one named edge; two of them`} reverse the behavior in the upper diagram: a hit now follows yes to Database, while in the lower one it still reaches Reply. Both reports say ok: true with no warnings. Both drawings meet the same structural rules, so those rules cannot tell which one performs the cache’s job; following the yes path can.`,
     });
     await s.clear();
-    for (const stale of ['diagrams', 'column', 'ops', 'rerun', 'report', 'flaggedWarnings']) delete this.state[stale];
+    for (const stale of ['sources', 'column', 'ops', 'rerun', 'report', 'flaggedWarnings']) delete this.state[stale];
+    delete this.shown.diagrams;
     // The wrong diagram above and the right one below, each with its report beside it. The scenario's own edit makes
     // one from the other: the swapped scenario repairs the unlabelled diagram, the others swap the right one's labels.
     // Where a cache hit goes is read from each drawn snapshot (the edge labelled yes, and the node at its end); the
@@ -405,7 +399,8 @@ export default class MermaidExplainer extends Scene {
       caption: `The history keeps source, edit and checked snapshot as separate commits. The snapshot records what this renderer drew and the findings it returned, including taskCorrectness: not-checked. Committing a clean report keeps that evidence; it does not widen what the verifier checked.`,
     });
     await s.clear();
-    delete this.state.diagrams;
+    delete this.state.sources;
+    delete this.shown.diagrams;
     this.state.finalWarnings = committed.warnings.length;
     await show('history', 'gitGraph TB:\n commit id: "source"\n commit id: "typed edit"\n commit id: "checked snapshot"', 'full');
     const history = adopt('history');
