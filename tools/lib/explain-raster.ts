@@ -9,7 +9,7 @@ let resvg: typeof import('@resvg/resvg-js') | undefined;
 /** Rasterise an SVG with the embedded fonts only. resvg loads on first use: only PNG output needs it. */
 export async function rasterize(svg: string) {
   resvg ??= await import('@resvg/resvg-js').catch(() => {
-    throw new Error('PNG output needs @resvg/resvg-js: npm i @resvg/resvg-js@' + PACKAGES['@resvg/resvg-js']);
+    throw new Error('PNG output needs @resvg/resvg-js; npm i @resvg/resvg-js@' + PACKAGES['@resvg/resvg-js']);
   });
   return new resvg.Resvg(svg, { font: { loadSystemFonts: false } }).render();
 }

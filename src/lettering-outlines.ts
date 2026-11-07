@@ -88,7 +88,7 @@ export function packLettering(snapshot: LetteringSnapshot): PackedLetteringSnaps
 export function unpackLettering(snapshot: StoredLetteringSnapshot): LetteringSnapshot {
   const outlines = snapshot.outlines;
   if (outlines === undefined) return snapshot;
-  const fail = (): never => { throw new Error('Invalid lettering snapshot outlines; run rayner snapshots to rebuild it'); };
+  const fail = (): never => { throw new Error('scene.lettering.json: its outlines are invalid; run rayner snapshots to rebuild it'); };
   if (!Array.isArray(outlines) || !outlines.every(Array.isArray) || !snapshot.runs || typeof snapshot.runs !== 'object') fail();
   const used = new Set<number>();
   const runs: LetteringSnapshot['runs'] = {};
@@ -194,10 +194,10 @@ export function snapshotProvider(stored: StoredLetteringSnapshot): LetteringProv
     if (font !== 'math' && state.chains[font]
       && isNumericReplay(text, state.templates[font] ?? [])) {
       const numeric = state.chains[font](text, 1);
-      if (numeric.glyphs.some((g) => g.gid === 0)) throw new Error(`Numeric lettering cannot draw ${JSON.stringify(text)}`);
+      if (numeric.glyphs.some((g) => g.gid === 0)) throw new Error(`new Text(): the lettering snapshot's numerals cannot draw ${JSON.stringify(text)}; run rayner snapshots`);
       return scaledRun(numeric, size);
     }
-    throw new Error(`Lettering snapshot has no run for ${JSON.stringify(text)} (${font}); run rayner snapshots`);
+    throw new Error(`new Text(): the lettering snapshot has no run for ${JSON.stringify(text)} (${font}); run rayner snapshots`);
   };
   return {
     prepare() {
@@ -214,7 +214,7 @@ export function snapshotProvider(stored: StoredLetteringSnapshot): LetteringProv
         const decoded = new Map<string, Promise<Font>>();
         const face = (name: string) => {
           let f = decoded.get(name);
-          if (!f) decoded.set(name, f = decodeFont(snapshot.faces[name]!.data, 'Cannot decode numeric lettering subset'));
+          if (!f) decoded.set(name, f = decodeFont(snapshot.faces[name]!.data, `scene.lettering.json: the subset of ${name}`));
           return f;
         };
         for (const { font, cut, family } of families) {
@@ -227,7 +227,7 @@ export function snapshotProvider(stored: StoredLetteringSnapshot): LetteringProv
           const name = cut ? cutFace(snapshot.request.faces?.[font] ?? defaultCutFace[font], cut) : snapshot.request.faces?.[font];
           let chain: Font[];
           if (name) {
-            if (!snapshot.faces[name]) throw new Error(`Lettering snapshot has no subset for requested face ${name}`);
+            if (!snapshot.faces[name]) throw new Error(`scene.lettering.json: it has no subset for the requested face ${name}; run rayner snapshots`);
             chain = [await face(name), ...scripts, ...embeddedChain(embedded, font)];
           } else {
             const [own, ...rest] = embeddedChain(embedded, font);
@@ -358,7 +358,7 @@ export function textShaping(provider: LetteringProvider): TextShaping {
       prepare: provider.prepare?.bind(provider),
       shape(owner, text, size) {
         if (owner.italic && !provider.request?.styles?.includes('italic'))
-          throw new Error("ItalicText needs static meta.lettering.styles to include 'italic' and a fresh lettering snapshot");
+          throw new Error("new ItalicText(): it needs meta.lettering.styles to include 'italic', and a fresh lettering snapshot (rayner snapshots)");
         return owner.formula ? provider.math(text, size, owner.formula.display)
           : provider.shape(owner.font, text, size, embeddedShaperFor(owner.font), cutOf(owner, provider));
       },

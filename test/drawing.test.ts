@@ -54,7 +54,7 @@ test('keyedParts keys each part in order, groups them, and refuses a key used tw
   const a = p.add(new Circle(), 'slot:0'), b = p.add(new Circle(), 'slot:1');
   assert.deepEqual(p.group().children.map((m) => m.key), ['slot:0', 'slot:1']);
   assert.equal(a.key, 'slot:0'); assert.equal(b.key, 'slot:1');
-  assert.throws(() => p.add(new Circle(), 'slot:0'), /two parts are keyed slot:0/);
+  assert.throws(() => p.add(new Circle(), 'slot:0'), /keyedParts\(\)\.add\(\): two parts are keyed "slot:0"/);
 });
 
 test('callout, dimension and pin build the pictures s.callout, s.dimension and s.pin draw in, and dimension and pin describe themselves', async () => {

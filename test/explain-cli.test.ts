@@ -63,7 +63,7 @@ test('external source and compiled ESM scenes share the CLI engine; source hashe
     assert.equal(refused?.status, 1, 'an unknown command must exit 1');
     // Node 24.0 emits its type-stripping warning before the source CLI runs.
     // Require the CLI's own error line without assuming it owns all of stderr.
-    assert.match(String(refused?.stderr), /^rayner: Unknown command: not-a-command$/m);
+    assert.match(String(refused?.stderr), /^rayner: "not-a-command" is not a command; rayner --help lists the commands$/m);
   } finally {
     await rm(folder, { recursive: true, force: true });
   }
@@ -111,7 +111,7 @@ test('`rayner see` prints a step: its resting picture as text, title, caption, p
     assert.match(await readFile(svg, 'utf8'), /^<svg /);
     const missing = failure(() => execFileSync(process.execPath, [cli, 'see', scene, 'nope'], { stdio: 'pipe' }));
     assert.equal(missing?.status, 1);
-    assert.match(String(missing?.stderr), /No step "nope"\. Steps: .*result/);
+    assert.match(String(missing?.stderr), /the scene has no step "nope"; its steps are .*result/);
   } finally {
     await rm(folder, { recursive: true, force: true });
   }
@@ -137,7 +137,7 @@ test('`rayner see` prints describeExplainer\'s words for the step, so the two ca
   };
   assert.equal(seeText('x', made), 'DRAWN\n\nx · step 2 of 2: b · Size: 3\nTitle: Two\nLine: A line.\nCaption: Cap.\nPicture: A box.\nChanged: n: — → 1; gone: "x" → —');
   assert.equal(seeText('x', made, 'a'), '\n\nx · step 1 of 2: a · Size: 3\nTitle: One\nChanged: nothing in scene.state');
-  assert.throws(() => seeText('x', made, 'c'), /No step "c"\. Steps: a, b/);
+  assert.throws(() => seeText('x', made, 'c'), /the scene has no step "c"; its steps are a, b/);
 });
 
 // `see` draws only the step it shows; its text must still be what the whole description gives.
@@ -165,7 +165,7 @@ test('lettering errors name the rayner capture command', async () => {
     await writeFile(file, `import{Scene}from'rayner';export default class L extends Scene{static meta={id:'missing',lettering:{scripts:['Arab']}};async construct(){await this.step('one');}}`);
     const result = spawnSync(process.execPath, [join(ROOT, 'tools/explain.ts'), 'check', file], { encoding: 'utf8' });
     assert.equal(result.status, 1);
-    assert.match(result.stderr, /stale lettering snapshot; run rayner snapshots /);
+    assert.match(result.stderr, /scene\.lettering\.json: it is missing or stale; run rayner snapshots /);
     assert.doesNotMatch(result.stderr, /run explain snapshots/);
   } finally { await rm(folder, { recursive: true, force: true }); }
 });

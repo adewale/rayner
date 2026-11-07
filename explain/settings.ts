@@ -85,15 +85,15 @@ const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v =
  */
 export function checkExplainerMeta(meta: unknown): void {
   if (meta === undefined) return;
-  if (!isRecord(meta)) throw new TypeError('static meta must be an object');
+  if (!isRecord(meta)) throw new TypeError('static meta: it must be an object');
   const unknown = (keys: object, value: Record<string, unknown>, where: string) => {
     const extra = Object.keys(value).filter((k) => !Object.hasOwn(keys, k));
     if (extra.length)
-      throw new TypeError(`Unknown ${where} key${extra.length > 1 ? 's' : ''} ${extra.map((k) => JSON.stringify(k)).join(', ')}: ${where} takes ${Object.keys(keys).join(', ')}`);
+      throw new TypeError(`${where}: ${extra.map((k) => JSON.stringify(k)).join(', ')} ${extra.length > 1 ? 'are not keys' : 'is not a key'} it takes; it takes ${Object.keys(keys).join(', ')}`);
   };
-  unknown(META_KEYS, meta, 'meta');
+  unknown(META_KEYS, meta, 'static meta');
   if (meta.player === undefined) return;
-  if (!isRecord(meta.player)) throw new TypeError('meta.player must be an object');
+  if (!isRecord(meta.player)) throw new TypeError('meta.player: it must be an object');
   unknown(PLAYER_KEYS, meta.player, 'meta.player');
 }
 /** Settings bound by `withSettings`, per bound class: visible from the first line of any constructor. */
@@ -132,16 +132,16 @@ export function resolveSettings(Scene: ExplainerClass, values: Settings = {}): S
   const result: Record<string, string> = Object.create(null);
   for (const s of Scene.settings ?? []) {
     if (!/^[a-z][a-z0-9_-]*$/i.test(s.id) || reserved.has(s.id) || s.id in result)
-      throw new Error(`Invalid or duplicate setting id: ${s.id}`);
+      throw new Error(`static settings: ${JSON.stringify(s.id)} is not a setting id, or is used twice; an id matches [A-Za-z][A-Za-z0-9_-]*, is not ${[...reserved].join(', ')}, and names one setting`);
     const options = s.options.map((o) => o.value);
     if (!options.length || new Set(options).size !== options.length || !options.includes(s.default))
-      throw new Error(`Invalid options/default for setting: ${s.id}`);
+      throw new Error(`static settings: the setting ${JSON.stringify(s.id)} needs distinct option values, and a default that is one of them`);
     // Own keys only: an id such as `constructor` must not read Object.prototype.
     const value = Object.hasOwn(values, s.id) ? values[s.id]! : s.default;
-    if (!options.includes(value)) throw new SettingsError({ kind: 'option', id: s.id, label: s.label, value }, `Unknown ${s.id} option: ${value}`);
+    if (!options.includes(value)) throw new SettingsError({ kind: 'option', id: s.id, label: s.label, value }, `resolveSettings(): ${JSON.stringify(value)} is not an option of the setting ${JSON.stringify(s.id)}; it takes ${options.join(', ')}`);
     result[s.id] = value;
   }
-  for (const id of Object.keys(values)) if (!(id in result)) throw new SettingsError({ kind: 'setting', id }, `Unknown setting: ${id}`);
+  for (const id of Object.keys(values)) if (!(id in result)) throw new SettingsError({ kind: 'setting', id }, `resolveSettings(): the scene has no setting ${JSON.stringify(id)}`);
   return Object.freeze(result);
 }
 
@@ -177,7 +177,7 @@ export function scenarioName(Scene: ExplainerClass, values: Settings,
 export function scenariosOf(Scene: ExplainerClass, limit = 64): Settings[] {
   resolveSettings(Scene);
   const total = (Scene.settings ?? []).reduce((n, s) => n * s.options.length, 1);
-  if (!(total <= limit)) throw new Error(`Settings exceed ${limit} scenarios`);
+  if (!(total <= limit)) throw new RangeError(`static settings: they make ${total} scenarios, more than ${limit}; remove a setting or some options`);
   let scenarios: Settings[] = [Object.freeze({})];
   for (const s of Scene.settings ?? []) {
     scenarios = scenarios.flatMap((v) => s.options.map((o) => Object.freeze({ ...v, [s.id]: o.value })));

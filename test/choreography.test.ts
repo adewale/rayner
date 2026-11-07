@@ -156,7 +156,7 @@ test('SetState refuses lossy JSON at JavaScript boundaries and retains own proto
   const host = new Scene(new NullSink());
   const cycle: Record<string, unknown> = {}; cycle.self = cycle;
   for (const invalid of [{ n: NaN }, { n: Infinity }, { date: new Date() }, { fn: () => 1 }, { a: [undefined] }, { a: Array(1) }, cycle])
-    assert.throws(() => new SetState(host, invalid), /SetState state/);
+    assert.throws(() => new SetState(host, invalid), /^TypeError: machine\.send\(\): state[.\w\[\]]* must/);
   const ownKey = JSON.parse('{"__proto__":{"safe":true},"count":1}');
   new SetState(host, ownKey).begin();
   assert.ok(Object.hasOwn(host.state, '__proto__'));
@@ -275,7 +275,7 @@ test('Follow samples one value for several drawings: exact ends, linear between,
   assert.throws(() => new Follow({ from: Infinity, to: 1, draw }, { targets: [dot, bar] }), RangeError);
   assert.throws(() => new Follow({ from: 0, to: 1, draw }, { targets: [] }), TypeError);
   assert.throws(() => new Follow({ from: 0, to: 1, draw }, { targets: [{} as Mobject] }), TypeError);
-  assert.throws(() => new Follow({ from: 0, to: 1, draw }, { targets: [dot, dot] }), TypeError);
+  assert.throws(() => new Follow({ from: 0, to: 1, draw }, { targets: [dot, dot] }), /^Error: c\.follow\(\): a target is listed twice/);
   const bad = new Follow({ from: () => NaN, to: 1, draw }, { targets: [dot, bar] });
   assert.throws(() => bad.begin(), RangeError);
   // What draw returns must be one fresh picture per target, of the target's shape
@@ -283,7 +283,7 @@ test('Follow samples one value for several drawings: exact ends, linear between,
   assert.throws(() => new Follow({ from: 0, to: 1, draw: () => dot }, { targets: [dot] }).begin(), /fresh mobjects/);
   const cell = new Group(new Rectangle(), new Text('a'));
   cell.children[1]!.key = 'cell:label';
-  assert.throws(() => new Follow({ from: 0, to: 1, draw: () => new Group(new Rectangle()) }, { targets: [cell] }).begin(), /cell:label would be lost/);
+  assert.throws(() => new Follow({ from: 0, to: 1, draw: () => new Group(new Rectangle()) }, { targets: [cell] }).begin(), /the part keyed "cell:label" would be lost/);
   // One writer per mobject: play() refuses a Follow beside anything else that writes one of its targets
   await assert.rejects(() => scene.play(new Follow({ from: 0, to: 1, draw }, { targets: [dot, bar] }), new Transform(bar, bar.copy().shift([1, 0]))), /both animate/);
   await assert.rejects(() => scene.play(new Follow({ from: 0, to: 1, draw: (v) => new Dot().moveTo([v, 0]) }, { targets: [dot] }), new Follow({ from: 0, to: 1, draw: (v) => new Dot().moveTo([0, v]) }, { targets: [dot] })), /both animate/);

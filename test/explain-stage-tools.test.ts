@@ -61,7 +61,7 @@ test('a step line sits under a numbered title; a line too wide for one line fail
       await this.step('bad', { title: 'T', line: 'word '.repeat(40) });
     }
   }
-  await assert.rejects(new TooLong(new NullSink()).run(), /Step "bad": its line is .* longer than one line under the heading/);
+  await assert.rejects(new TooLong(new NullSink()).run(), /this\.step\(\): the line of step "bad" is .* longer than one line under the heading/);
 });
 
 test('focus zooms onto a target below the heading, which stays put on screen at its size', async () => {

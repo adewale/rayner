@@ -91,7 +91,7 @@ test('a lone step reading its state passes; one with an empty state is exempt; a
 test('a step whose state is not JSON is refused before anything is drawn', async () => {
   await assert.rejects(
     run(() => [step('bad', Number.NaN, (st, s) => words(s, st.n))]),
-    /step bad state/,
+    /s\.steps\(\): state[.\w\[\]]* must .* \(step "bad"\)/,
   );
 });
 

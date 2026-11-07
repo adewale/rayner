@@ -53,7 +53,7 @@ export function letteringRequest(Scene: { meta?: object }): SubsetLetteringReque
   if (value === undefined) return undefined;
   const known: readonly string[] = LETTERING_SCRIPTS;
   const fail = (why: string) => {
-    throw new Error(`meta.lettering ${why}. Ask for { scripts: [...] } with some of ${known.join(', ')}`);
+    throw new TypeError(`meta.lettering: it ${why}; ask for { scripts: [...] } with some of ${known.join(', ')}`);
   };
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail('must be an object');
   const extra = Object.keys(value as object).filter((k) => k !== 'scripts');
@@ -162,7 +162,7 @@ async function cut(family: FontName, codePoints: number[]): Promise<string> {
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT')
       throw new Error(
-        `The lettering this explainer asks for must be cut again, because the letters it draws changed, and that needs fonttools: pip install fonttools brotli (or set PYFTSUBSET to pyftsubset's path)`,
+        `meta.lettering: the lettering it asks for must be cut again, because the letters it draws changed, and that needs fonttools; pip install fonttools brotli, or set PYFTSUBSET to pyftsubset's path`,
       );
     throw error;
   } finally {

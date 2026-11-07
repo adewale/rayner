@@ -29,7 +29,7 @@ export function isHex(s: unknown, { alpha = false }: { alpha?: boolean } = {}): 
  */
 export function luminance(color: string | Readonly<RGB>): number {
   const c = typeof color === 'string' ? parseColor(color) : color;
-  if (!c) throw new Error(`luminance: not a colour: ${JSON.stringify(color)}`);
+  if (!c) throw new TypeError(`luminance(): ${JSON.stringify(color)} is not a colour; give #rgb, #rrggbb or a colour name`);
   const lin = (v: number) => ((v /= 255) <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
   return 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
 }

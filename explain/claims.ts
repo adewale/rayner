@@ -29,15 +29,15 @@ const CODE = /`[^`]+`|\b[a-z]+[A-Z][A-Za-z0-9]*\b|\b[A-Za-z]+_[A-Za-z0-9_]+\b|\b
 /** Refuse `claims` that cannot work: not a list, or a claim without a phrase or a test. */
 export function checkClaimsMeta(meta: ClaimsMeta | undefined): Claim[] {
   if (meta?.claims === undefined) return [];
-  if (!Array.isArray(meta.claims)) throw new Error('meta.claims must be a list of { says, test }');
+  if (!Array.isArray(meta.claims)) throw new TypeError('meta.claims: it must be a list of { says, test }');
   return meta.claims.map((c, i) => {
     const says = (c as { says?: unknown })?.says,
       test = (c as { test?: unknown })?.test,
       shown = (c as { shown?: unknown })?.shown;
-    if (typeof says !== 'string' || !says.trim()) throw new Error(`meta.claims[${i}] has no says`);
+    if (typeof says !== 'string' || !says.trim()) throw new TypeError(`meta.claims: entry ${i} has no says`);
     if (shown === true && test === undefined) return { says, shown: true as const };
     if (typeof test !== 'string' || !/^[^:]+\.test\.ts: .+/.test(test))
-      throw new Error(`meta.claims[${i}] ("${says}") needs test: "test/<file>.test.ts: <part of the test's name>", or shown: true when it speaks only of its own step's picture`);
+      throw new TypeError(`meta.claims: entry ${i} (${JSON.stringify(says)}) needs test: "test/<file>.test.ts: <part of the test's name>", or shown: true when it speaks only of its own step's picture`);
     return { says, test };
   });
 }

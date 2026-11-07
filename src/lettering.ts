@@ -91,8 +91,8 @@ export async function useLettering(faces: LetteringFaces | null): Promise<void> 
     return;
   }
   const base = await embeddedFaces();
-  const sans = faces!.sans ? [await decodeFont(faces!.sans, 'lettering for sans')] : [];
-  const mono = faces!.mono ? [await decodeFont(faces!.mono, 'lettering for mono')] : [];
+  const sans = faces!.sans ? [await decodeFont(faces!.sans, 'meta.lettering: the sans cut')] : [];
+  const mono = faces!.mono ? [await decodeFont(faces!.mono, 'meta.lettering: the mono cut')] : [];
   const requested = new Map<Font, FontName>([...sans.map((f) => [f, 'sans'] as const), ...mono.map((f) => [f, 'mono'] as const)]);
   const selected = Object.freeze({
     sans: shaper(embeddedChain(base, 'sans', { sans, mono }), 'sans', requested, embedded.sans),

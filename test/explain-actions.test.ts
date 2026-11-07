@@ -90,15 +90,15 @@ test('an action plays once: a second play, or awaiting one that played in a play
   const { scene, s } = setUp();
   const entry = s.enter(new Circle({ radius: 0.3 }));
   await scene.play(entry);
-  await assert.rejects(scene.play(entry), /s\.enter\(\) has already played in a play: an action plays once/);
+  await assert.rejects(scene.play(entry), /s\.enter\(\): it has already played in a play; an action plays once/);
   await assert.rejects(async () => entry, /already played in a play[^]*read what it gave from its value/);
   const card = s.card([['k', 'v']]);
   const value = await card;
   assert.equal(await card, value, 'awaiting it again gives the same card, without a second play');
-  await assert.rejects(scene.play(card), /s\.card\(\) has already played: an action plays once/);
+  await assert.rejects(scene.play(card), /s\.card\(\): it has already played; an action plays once/);
   // A Succession that holds it twice plays it once, then refuses.
   const pin = s.pin([0, 0]);
-  await assert.rejects(scene.play(new Succession([pin, pin])), /s\.pin\(\) has already played/);
+  await assert.rejects(scene.play(new Succession([pin, pin])), /s\.pin\(\): it has already played/);
 });
 
 test('an action made but never played fails its step, and the scene at its end', async () => {
@@ -110,7 +110,7 @@ test('an action made but never played fails its step, and the scene at its end',
       await this.step('two');
     }
   }
-  await assert.rejects(new Forgot(new NullSink()).run(), /s\.enter\(\) was made in step "one" but never played: await an action, or hand it to play\(\)/);
+  await assert.rejects(new Forgot(new NullSink()).run(), /s\.enter\(\): it was made in step "one" but never played; await an action, or hand it to play\(\)/);
   class AtTheEnd extends Scene {
     override async construct() {
       const s = stage(this, { heading: false });
@@ -119,7 +119,7 @@ test('an action made but never played fails its step, and the scene at its end',
       new AnimationGroup([s.clear(), new FadeIn(new Circle())]);
     }
   }
-  await assert.rejects(new AtTheEnd(new NullSink()).run(), /s\.clear\(\) was made in step "only" but never played/);
+  await assert.rejects(new AtTheEnd(new NullSink()).run(), /s\.clear\(\): it was made in step \"only\" but never played/);
   class Played extends Scene {
     override async construct() {
       const s = stage(this, { heading: false });
@@ -135,7 +135,7 @@ test('an action’s errors surface when it plays, awaited or composed, not when 
   const { scene, s } = setUp();
   const d = await s.show(spec, { build: 'frame' });
   const walk = d.walk([['B', 'A']]);
-  await assert.rejects(async () => walk, /B -> A is not a real link/);
+  await assert.rejects(async () => walk, /d\.walk\(\): B -> A is not a link of this diagram/);
   // Revealed by the reveal before it in the same Succession: a walk checks its links when it plays.
   await scene.play(new Succession([d.reveal(['A', 'B', 'edge:A->B#0']), d.walk([['A', 'B']])]));
   assert.equal((scene.stateJson().walks as unknown[]).length, 1);

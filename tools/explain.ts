@@ -81,11 +81,11 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     },
   });
   const [command, input, ...extra] = positionals;
-  if (!input) throw new Error('Supply a scene file or directory. Use --help for usage.');
+  if (!input) throw new TypeError('supply a scene file or directory; rayner --help lists the commands');
   // `see` takes the step to show as a second argument.
   const step = command === 'see' ? extra.shift() : undefined;
-  if (extra.length) throw new Error(`Unexpected argument: ${extra[0]}`);
-  if (flags.machine && command !== 'init') throw new Error('--machine is for init');
+  if (extra.length) throw new TypeError(`${JSON.stringify(extra[0])} is one argument too many; rayner --help lists what each command takes`);
+  if (flags.machine && command !== 'init') throw new TypeError('--machine is an option of rayner init alone');
   if (command === 'init') {
     const dir = resolve(input);
     await mkdir(dirname(dir), { recursive: true });
@@ -99,7 +99,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     return;
   }
   if (!['preview', 'snapshots', 'check', 'review', 'build', 'shots', 'describe', 'see'].includes(command!))
-    throw new Error(`Unknown command: ${command}`);
+    throw new RangeError(`${JSON.stringify(command)} is not a command; rayner --help lists the commands`);
   const collection = { refresh: flags.refresh, captureLettering: command === 'snapshots' || command === 'preview' };
   const project = await collectProject(input, collection);
   const slug = sceneSlug(project);
@@ -144,7 +144,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     const values: Record<string, string> = {};
     for (const assignment of flags.scenario ?? []) {
       const at = assignment.indexOf('=');
-      if (at < 1) throw new Error('--scenario requires id=value');
+      if (at < 1) throw new TypeError('--scenario takes id=value, such as --scenario request=miss');
       values[assignment.slice(0, at)] = assignment.slice(at + 1);
     }
     return defaultScenario(project, values);

@@ -51,7 +51,7 @@ test('token() finds the nth occurrence\'s glyphs, by source index', () => {
   assert.equal(code.token(0, 'await').source, 'await');
   assert.deepEqual([code.lineSpan(1).from, code.lineSpan(1).to], [0, LINES[1]!.length]);
   assert.equal(code.lineSpan(2).children.length, 0);
-  assert.throws(() => code.token(1, 'hit', 2), /No "hit" #2/);
+  assert.throws(() => code.token(1, 'hit', 2), /code\.token\(\): line 1 has no occurrence 2 of "hit"/);
   assert.throws(() => code.span(3, 0, 0), RangeError);
   assert.throws(() => code.span(0, 4, 2), RangeError);
   assert.throws(() => code.span(0, 0, 99), RangeError);
@@ -78,7 +78,7 @@ test('a span is a view: it recolours and moves the real glyphs, and goes stale w
   assert.ok(close(code.box()![3], kv.box()[3]) && code.box()![3] > before[3] + 0.5);
   line.setText('const hit = 1;');
   assert.equal(kv.stale, true);
-  assert.throws(() => kv.box(), /Stale span/);
+  assert.throws(() => kv.box(), /code\.span\(\): the span .* is stale/);
   assert.equal(code.token(0, '1').stale, false);
 });
 

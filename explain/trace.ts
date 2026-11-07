@@ -156,14 +156,14 @@ export function watchedChanges(
 export function checkWatch(watch: unknown, steps: readonly { before?: SceneState; after?: SceneState }[]): void {
   if (watch === undefined) return;
   if (!watch || typeof watch !== 'object' || Array.isArray(watch))
-    throw new Error('meta.watch must be a record from a state key to the label readers see');
+    throw new TypeError('meta.watch: it must be a record from a state key to the label readers see');
   const entries = Object.entries(watch);
-  if (entries.length > WATCH_MAX) throw new Error(`meta.watch names ${entries.length} keys; at most ${WATCH_MAX} keep a step's changes readable`);
+  if (entries.length > WATCH_MAX) throw new RangeError(`meta.watch: it names ${entries.length} keys; name at most ${WATCH_MAX}, so a step's changes stay readable`);
   for (const [key, label] of entries) {
-    if (!key) throw new Error('meta.watch has an empty key');
-    if (typeof label !== 'string' || !label.trim()) throw new Error(`meta.watch gives "${key}" an empty label`);
+    if (!key) throw new TypeError('meta.watch: it has an empty key');
+    if (typeof label !== 'string' || !label.trim()) throw new TypeError(`meta.watch: it gives ${JSON.stringify(key)} an empty label`);
     if (!steps.some((s) => Object.hasOwn(s.before ?? {}, key) || Object.hasOwn(s.after ?? {}, key)))
-      throw new Error(`meta.watch names "${key}", which is never in the scene's state at any step of any scenario`);
+      throw new RangeError(`meta.watch: it names ${JSON.stringify(key)}, which is never in the scene's state at any step of any scenario`);
   }
 }
 const pictureOf = (state: unknown): Picture | undefined => (state as { picture?: Picture } | undefined)?.picture;
@@ -324,7 +324,7 @@ export interface PictureWords {
  */
 export function pictureWordsAt(trace: { steps: readonly Pick<StepRecord, 'step' | 'shown'>[] }, step: string): PictureWords {
   const i = trace.steps.findIndex((s) => s.step === step);
-  if (i < 0) throw new Error(`No step "${step}" in the trace: ${trace.steps.map((s) => s.step).join(', ')}`);
+  if (i < 0) throw new RangeError(`pictureWordsAt(): the trace has no step ${JSON.stringify(step)}; its steps are ${trace.steps.map((s) => s.step).join(', ')}`);
   const { shown } = trace.steps[i]!,
     previous = trace.steps[i - 1]?.shown;
   const text = (html: string) =>

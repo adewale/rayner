@@ -111,7 +111,7 @@ test('snapshot JSON with a corrupt point, paint, owner, path, size, finding or c
   for (const corrupt of corruptions) {
     const broken = JSON.parse(JSON.stringify(good));
     corrupt(broken);
-    await assert.rejects(snapshotResolver({ [diagramKey(spec)]: broken }).diagram(spec), /Invalid diagram snapshot/);
+    await assert.rejects(snapshotResolver({ [diagramKey(spec)]: broken }).diagram(spec), /scene\.snapshots: a diagram snapshot is invalid/);
   }
   await assert.rejects(
     snapshotResolver({ [diagramKey(spec)]: { ...good, spec: { source: 'graph LR\\nX-->Y' } } }).diagram(spec),
@@ -148,7 +148,7 @@ test('marker carriers require an explicit semantic connector owner with identica
   for (const [name, corrupt] of corruptions) {
     const broken = structuredClone(good);
     corrupt(broken);
-    await assert.rejects(snapshotResolver({ [diagramKey(spec)]: broken }).diagram(spec), /Invalid diagram snapshot/, name);
+    await assert.rejects(snapshotResolver({ [diagramKey(spec)]: broken }).diagram(spec), /scene\.snapshots: a diagram snapshot is invalid/, name);
   }
 });
 
@@ -237,7 +237,7 @@ test('a snapshot with any one field replaced is accepted or refused with the doc
       try {
         await snapshotResolver({ [key]: broken }).diagram(s.spec);
       } catch (error) {
-        assert.match((error as Error).message, /^(Invalid diagram snapshot|Snapshot source does not match)/, `${path.join('.')} = ${JSON.stringify(value)}`);
+        assert.match((error as Error).message, /^scene\.snapshots: (a diagram snapshot is invalid|a snapshot's source does not match its key)/, `${path.join('.')} = ${JSON.stringify(value)}`);
       }
     }),
     params(),
@@ -252,7 +252,7 @@ test('whatever the validator accepts, a Diagram can draw and describe without in
       try {
         ok = await snapshotResolver({ [diagramKey(s.spec)]: broken }).diagram(s.spec);
       } catch (error) {
-        assert.match((error as Error).message, /^(Invalid diagram snapshot|Snapshot source does not match)/);
+        assert.match((error as Error).message, /^scene\.snapshots: (a diagram snapshot is invalid|a snapshot's source does not match its key)/);
         return;
       }
       const scene = new Scene(new NullSink(), { skipUntil: Infinity });
@@ -313,7 +313,7 @@ test('a label width beyond float32 is refused, not drawn as Infinity (property c
     return snapshotResolver({ [diagramKey(s.spec)]: s }).diagram(s.spec);
   };
   await withLabel(24);
-  await assert.rejects(withLabel(3.4028235677973366e38), /Invalid diagram snapshot/);
+  await assert.rejects(withLabel(3.4028235677973366e38), /scene\.snapshots: a diagram snapshot is invalid/);
 });
 
 test('resolving a snapshot never changes it', async () => {
@@ -341,7 +341,7 @@ test('ownership cycles, and owners that are empty or name no part, are refused',
           fc.pre(!copy.parts.some((p) => p.id === ghost));
           ids[0]!.owner = ghost;
         } else ids.forEach((p, i) => (p.owner = ids[(i + 1) % ids.length]!.id));
-        await assert.rejects(snapshotResolver({ [diagramKey(s.spec)]: copy }).diagram(s.spec), /Invalid diagram snapshot/);
+        await assert.rejects(snapshotResolver({ [diagramKey(s.spec)]: copy }).diagram(s.spec), /scene\.snapshots: a diagram snapshot is invalid/);
       },
     ),
     params(),
@@ -353,7 +353,7 @@ test('a missing snapshot is refused', async () => {
     fc.asyncProperty(randomSnapshot(), fc.array(randomSnapshot('other'), { maxLength: 2 }), async (s, others) => {
       const store = Object.fromEntries(others.map((o) => [diagramKey(o.spec), o]));
       fc.pre(!(diagramKey(s.spec) in store));
-      await assert.rejects(snapshotResolver(store).diagram(s.spec), /Missing diagram snapshot/);
+      await assert.rejects(snapshotResolver(store).diagram(s.spec), /scene\.snapshots: there is no snapshot of/);
     }),
     params(),
   );
@@ -381,7 +381,7 @@ test('diagramResolverOf returns the resolver last bound to that scene, and refus
       }
       for (const scene of scenes)
         if (last.has(scene)) assert.equal(diagramResolverOf(scene), last.get(scene));
-        else assert.throws(() => diagramResolverOf(scene), /No diagram snapshots/);
+        else assert.throws(() => diagramResolverOf(scene), /diagramResolverOf\(\): no diagram snapshots are bound to this scene/);
     }),
     params(),
   );
@@ -540,7 +540,7 @@ test('a panel, its rule and secondary text step from the paper toward the ink, i
 
 test('an unknown style is refused even when its name belongs to Object.prototype', () => {
   for (const name of ['valueOf', 'constructor', '__proto__', 'toString', 'hasOwnProperty', '', 'not-a-style'])
-    assert.throws(() => palette(name), /Unknown style/, name);
+    assert.throws(() => palette(name), /palette\(\): .* is not a style; the styles are/, name);
 });
 
 /** Whether each built-in style's accent is a hue (else emphasis falls back to an orange), as its palette shows. */
@@ -656,11 +656,11 @@ test('the explain entry point exports exactly its documented names', async () =>
 
 test('the testing helpers name a missing step, refuse a scene with lettering, and find no snapshots where none are pinned', async () => {
   const trace = { steps: [{ step: 'first' }, { step: 'second' }] };
-  assert.throws(() => pictureWordsAt(trace, 'third'), /No step "third" in the trace: first, second/);
+  assert.throws(() => pictureWordsAt(trace, 'third'), /pictureWordsAt\(\): the trace has no step "third"; its steps are first, second/);
   assert.deepEqual(pictureWordsAt(trace, 'second'), { summary: '', full: '', transcript: '' });
   const Lettered = class extends Scene {};
   (Lettered as { meta?: object }).meta = { lettering: {} };
-  await assert.rejects(loadProject(Lettered, 'test/fixtures/lettered'), /test\/fixtures\/lettered\/scene\.ts: the scene asks for lettering/);
+  await assert.rejects(loadProject(Lettered, 'test/fixtures/lettered'), /loadProject\(\): test\/fixtures\/lettered\/scene\.ts asks for lettering/);
   assert.deepEqual(await loadSnapshots('test/fixtures/no-such-explainer'), {});
 });
 

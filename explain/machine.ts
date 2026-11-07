@@ -99,7 +99,7 @@ export class Refusal {
   /** Why the model refuses the event, in the reader's words: what the player says of its button. */
   readonly reason: string;
   constructor(reason: string) {
-    if (typeof reason !== 'string' || !reason.trim()) throw new TypeError('A refusal\'s reason must be words; return undefined from next for a refusal with no reason');
+    if (typeof reason !== 'string' || !reason.trim()) throw new TypeError('refuse(): the reason must be words; return undefined from next for a refusal with no reason');
     this.reason = reason;
     Object.defineProperty(this, REFUSAL, { value: true });
     Object.freeze(this);
@@ -128,14 +128,14 @@ export class Machine<S extends object, E extends string> {
   private playedInStep: string | null = null;
 
   constructor(scene: Scene<S, any>, spec: MachineSpec<S, E>) {
-    if (!spec.events.length) throw new TypeError('A machine needs at least one event');
-    if (new Set(spec.events).size !== spec.events.length) throw new TypeError('A machine\'s events must be distinct');
-    if (typeof spec.next !== 'function') throw new TypeError('A machine needs next(state, event)');
-    if ('why' in spec) throw new TypeError('A machine has no why(state, event): return refuse(reason) from next where the model refuses an event');
-    if (spec.end !== undefined && typeof spec.end !== 'function') throw new TypeError('A machine\'s end is a function of the state: the reason the story ends there, or undefined');
+    if (!spec.events.length) throw new TypeError('new Machine(): it needs at least one event');
+    if (new Set(spec.events).size !== spec.events.length) throw new Error('new Machine(): an event is listed twice; list each event once');
+    if (typeof spec.next !== 'function') throw new TypeError('new Machine(): it needs next(state, event)');
+    if ('why' in spec) throw new TypeError('new Machine(): it takes no why(state, event); return refuse(reason) from next where the model refuses an event');
+    if (spec.end !== undefined && typeof spec.end !== 'function') throw new TypeError('new Machine(): end must be a function of the state that returns the reason the story ends there, or undefined');
     for (const [event, label] of Object.entries(spec.labels ?? {})) {
-      if (!spec.events.includes(event as E)) throw new TypeError(`A machine's labels name its events; ${event} is not one`);
-      if (typeof label !== 'string' || !label.trim()) throw new TypeError(`The label of ${event} must be words`);
+      if (!spec.events.includes(event as E)) throw new TypeError(`new Machine(): labels name its events, and ${JSON.stringify(event)} is not one`);
+      if (typeof label !== 'string' || !label.trim()) throw new TypeError(`new Machine(): the label of ${JSON.stringify(event)} must be words`);
     }
     // Exploration redraws any reachable state after the run, which needs each picture to be a function
     // of the scene's state alone. Every View is (view(scene, draw)), so there is nothing to refuse.
@@ -165,7 +165,7 @@ export class Machine<S extends object, E extends string> {
    * `next` is never asked for a state the story does not reach.
    */
   outcome(state: S, event: E): Outcome<S> {
-    if (!this.spec.events.includes(event)) throw new RangeError(`This machine accepts ${this.spec.events.join(', ')}, not ${String(event)}`);
+    if (!this.spec.events.includes(event)) throw new RangeError(`machine.send(): this machine takes ${this.spec.events.join(', ')}, not ${String(event)}`);
     const beyond = this.spec.bound?.(state, event);
     if (beyond !== undefined) return { beyond };
     const model = this.model(state, event);
@@ -192,7 +192,7 @@ export class Machine<S extends object, E extends string> {
   transitionFor(event: E, before: S, after: S): Transition<S, E> {
     const { views } = this.spec, placed = new Map<View, Mobject>();
     const target = (view: View) => {
-      if (!views.includes(view)) throw new RangeError(`${String(event)}: the transition asked for a view this machine does not have`);
+      if (!views.includes(view)) throw new RangeError(`machine.send(): the transition for ${String(event)} asked for a view this machine does not have; list it in views`);
       if (!placed.has(view)) placed.set(view, view.placed(after));
       return placed.get(view)!;
     };
@@ -208,8 +208,8 @@ export class Machine<S extends object, E extends string> {
   send(event: E, from: S = this.scene.state): Succession {
     const before = JSON.parse(JSON.stringify(from)) as S;
     const o = this.outcome(before, event);
-    if ('beyond' in o) throw new RangeError(`${String(event)} is beyond the story in ${JSON.stringify(before)}: ${o.beyond}`);
-    if ('refused' in o) throw new RangeError(`${String(event)} is refused in ${JSON.stringify(before)}${o.refused ? `: ${o.refused}` : ''}`);
+    if ('beyond' in o) throw new RangeError(`machine.send(): ${String(event)} is beyond the story in ${JSON.stringify(before)}: ${o.beyond}`);
+    if ('refused' in o) throw new RangeError(`machine.send(): ${String(event)} is refused in ${JSON.stringify(before)}${o.refused ? `: ${o.refused}` : ''}`);
     const after = o.next;
     const { views, match } = this.spec;
     const runTime = typeof this.spec.runTime === 'function' ? this.spec.runTime({ event, before, after }) : this.spec.runTime;
@@ -217,7 +217,7 @@ export class Machine<S extends object, E extends string> {
     const built = JSON.stringify(before);
     return new Succession([
       new SetState(this.scene, (current) => {
-        if (JSON.stringify(current) !== built) throw new Error(`${String(event)} was built for ${built} but plays from ${JSON.stringify(current)}`);
+        if (JSON.stringify(current) !== built) throw new Error(`machine.send(): ${String(event)} was built for ${built} but plays from ${JSON.stringify(current)}; send it when the state it plays from is the state now`);
         this.shownWhenPlayed = JSON.stringify(this.scene.shown);
         this.playedInStep = this.scene.currentStep?.path ?? null;
         return after;

@@ -50,7 +50,7 @@ export function outlineText(run: SnapshotTextRun, style: Style, shaping?: TextSh
       offset = -text.run.descent;
       break;
     default:
-      throw new Error(`Unsupported imported text baseline: ${run.baseline}`);
+      throw new Error(`scene.snapshots: a label has the text baseline ${run.baseline}, which replay does not support; run \`rayner snapshots <scene> --refresh\``);
   }
   const baseline = run.y + offset;
   text.shift([

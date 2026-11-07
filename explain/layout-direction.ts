@@ -2,17 +2,17 @@
 export type LayoutDirection = 'ltr' | 'rtl';
 
 /** Read only an explicitly authored option; never coerce a value or inherit a default. */
-export function layoutDirection(options: { direction?: LayoutDirection }, fallback: LayoutDirection = 'ltr'): LayoutDirection {
-  if (options === null || typeof options !== 'object' || Array.isArray(options)) throw new TypeError('Layout options must be an object');
+export function layoutDirection(options: { direction?: LayoutDirection }, fallback: LayoutDirection = 'ltr', api = 'stage()'): LayoutDirection {
+  if (options === null || typeof options !== 'object' || Array.isArray(options)) throw new TypeError(`${api}: the options must be an object`);
   if (!Object.hasOwn(options, 'direction')) {
-    if ('direction' in options) throw new TypeError('Layout direction must be an own option');
+    if ('direction' in options) throw new TypeError(`${api}: direction must be the options' own property, not inherited`);
     return fallback;
   }
   const property = Object.getOwnPropertyDescriptor(options, 'direction')!;
-  if (!('value' in property)) throw new TypeError('Layout direction must be a data option');
+  if (!('value' in property)) throw new TypeError(`${api}: direction must be a plain value, not a getter`);
   const direction: unknown = property.value;
   if (direction === undefined) return fallback;
-  if (direction !== 'ltr' && direction !== 'rtl') throw new TypeError('Layout direction must be "ltr" or "rtl"');
+  if (direction !== 'ltr' && direction !== 'rtl') throw new RangeError(`${api}: direction must be 'ltr' or 'rtl', not ${typeof direction === 'string' ? JSON.stringify(direction) : direction === null ? 'null' : `a ${typeof direction}`}`);
   return direction;
 }
 

@@ -118,14 +118,14 @@ export function parseUnifiedDiff(text: string): Hunk[] {
     const line = raw.endsWith('\r') ? raw.slice(0, -1) : raw;
     const at = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/.exec(line);
     if (at) {
-      if (left || right) throw new Error(`parseUnifiedDiff: hunk ended early before ${JSON.stringify(line)}`);
+      if (left || right) throw new Error(`parseUnifiedDiff(): a hunk ended early, before ${JSON.stringify(line)}`);
       h = { oldStart: +at[1]!, oldLines: at[2] == null ? 1 : +at[2], newStart: +at[3]!, newLines: at[4] == null ? 1 : +at[4], ops: [], lines: [] };
       hunks.push(h); left = h.oldLines; right = h.newLines;
       continue;
     }
     if (!h || line.startsWith('\\')) continue;
     if (!left && !right) {
-      if (/^(diff |--- |\+\+\+ )/.test(line)) throw new Error('parseUnifiedDiff: one file per diff (found a second file header)');
+      if (/^(diff |--- |\+\+\+ )/.test(line)) throw new Error('parseUnifiedDiff(): the diff has a second file header; give it one file\'s diff');
       continue;
     }
     const mark = line[0] ?? ' ', body = line.slice(1);
@@ -133,9 +133,9 @@ export function parseUnifiedDiff(text: string): Hunk[] {
     if (mark === ' ' || line === '') { h.ops.push('='); h.lines.push(body); left--; right--; }
     else if (mark === '-') { h.ops.push('-'); h.lines.push(body); left--; }
     else if (mark === '+') { h.ops.push('+'); h.lines.push(body); right--; }
-    else throw new Error(`parseUnifiedDiff: unexpected line in a hunk: ${JSON.stringify(line)}`);
-    if (left < 0 || right < 0) throw new Error(`parseUnifiedDiff: hunk ${hunkHeader(h)} has more lines than its header says`);
+    else throw new Error(`parseUnifiedDiff(): a hunk has a line that is not context, an addition or a removal: ${JSON.stringify(line)}`);
+    if (left < 0 || right < 0) throw new Error(`parseUnifiedDiff(): the hunk ${hunkHeader(h)} has more lines than its header says`);
   }
-  if (left || right) throw new Error('parseUnifiedDiff: the last hunk is shorter than its header says');
+  if (left || right) throw new Error('parseUnifiedDiff(): the last hunk is shorter than its header says');
   return hunks;
 }

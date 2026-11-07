@@ -380,7 +380,7 @@ test('a card drawn lit and code drawn lit carry their bar on the row or lines, a
   assert.equal(plain.bar.style.opacity, 0);
   assert.equal(plain.family().length, lit.family().length);
   assert.equal(plain.describe().parts.some((p) => p.mark), false);
-  assert.throws(() => card(s, rows, { lit: { row: 'nope' } }), /No card row nope/);
+  assert.throws(() => card(s, rows, { lit: { row: 'nope' } }), /card\(\): lit names no row of the card, "nope"/);
 
   const lines = ['one', 'two', 'three', 'four'];
   const built = code(s, lines, { at: [-3, 0], lit: { lines: [1, 2], as: 'run' } });
@@ -390,7 +390,7 @@ test('a card drawn lit and code drawn lit carry their bar on the row or lines, a
   assert.ok(ys[1]! > span[1] && ys[1]! < span[3] && ys[2]! > span[1] && ys[2]! < span[3]);
   assert.ok(ys[0]! > span[3] && ys[3]! < span[1]);
   assert.deepEqual(built.describe().parts.map((p) => p.mark), [undefined, 'run', 'run', undefined]);
-  assert.throws(() => code(s, lines, { lit: { lines: [2, 9] } }), /No code lines 2..9/);
+  assert.throws(() => code(s, lines, { lit: { lines: [2, 9] } }), /code\(\): lit names lines 2\.\.9, which are not lines of this panel/);
 
   // On stage, each says what it emphasises.
   scene.add(lit, built);

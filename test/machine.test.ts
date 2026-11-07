@@ -82,7 +82,7 @@ test('a machine replays events through the model as one schedule: state, evidenc
   assert.throws(() => ran.machine.send('DOWN' as 'UP'), RangeError);
   assert.throws(() => new Machine(ran, { start: { level: 0 }, events: [], next, views: [] }), TypeError);
   // A picture that closes over variables outside the state cannot be redrawn for an explored state
-  assert.throws(() => new Machine(ran, { start: { level: 0 }, events: ['UP', 'UP'], next, views: [] }), TypeError);
+  assert.throws(() => new Machine(ran, { start: { level: 0 }, events: ['UP', 'UP'], next, views: [] }), /^Error: new Machine\(\): an event is listed twice/);
 });
 
 test('without an authored transition, the views morph by key, staged: what goes is gone by halfway, and what comes starts there', async () => {
@@ -414,7 +414,7 @@ test('end finishes the story at a state: the model\'s moves from it are beyond t
   assert.deepEqual((await exploreMachines(ends))[0]!.problems, []);
   // A live step that ends finished starts the reader's events from the machine's start.
   assert.deepEqual(logStart(ends.machine as never, { level: 2 }), { from: 'start', state: { level: 0 } });
-  assert.throws(() => new Machine<Lamp, 'UP' | 'OFF'>(ends, { start: { level: 0 }, events: ['UP'], next, views: [], end: 'bright' as never }), /end is a function of the state/);
+  assert.throws(() => new Machine<Lamp, 'UP' | 'OFF'>(ends, { start: { level: 0 }, events: ['UP'], next, views: [], end: 'bright' as never }), /new Machine\(\): end must be a function of the state/);
 });
 
 test('exploration also walks the states a reader reaches from the live step, not only from the start', async () => {

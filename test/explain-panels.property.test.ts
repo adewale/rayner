@@ -134,7 +134,7 @@ test('lit refuses any line that is not an index into the code, with the document
       (colors, code, bad) => {
         const [a, b] = typeof bad === 'number' ? [bad, bad] : bad;
         fc.pre(!(Number.isInteger(a) && Number.isInteger(b) && a >= 0 && b < code.length && a <= b));
-        assert.throws(() => new CodeBlock(scene(), colors, code, { lit: { lines: bad as number } }), /No code lines/);
+        assert.throws(() => new CodeBlock(scene(), colors, code, { lit: { lines: bad as number } }), /^RangeError: code\(\): lit names lines .* which are not lines of this panel/);
       },
     ),
     params(),

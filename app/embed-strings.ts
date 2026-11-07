@@ -159,7 +159,7 @@ const EN: Chrome = {
   copied: 'Link copied.',
   noStep: (step) => `This scenario has no “${step}” step, so it opens at the first step.`,
   fallback: (p) =>
-    `${p.kind === 'option' ? `Unknown ${p.id} option: ${p.value}` : p.kind === 'setting' ? `Unknown setting: ${p.id}` : p.message}. Showing the default scenario.`,
+    `${p.kind === 'option' ? `The setting “${p.label}” has no option “${p.value}”` : p.kind === 'setting' ? `This explanation has no setting “${p.id}”` : p.message}. Showing the default scenario.`,
   stageLabel: (title, step, line) => `${title}: ${step}${line ? ` — ${line}` : ''}`,
   setting: (label, option) => `${label}: ${option}`,
   transcript: 'Transcript',

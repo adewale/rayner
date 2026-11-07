@@ -69,23 +69,23 @@ const offPageWork = new AsyncLocalStorage<true>();
 export const offPage = <T>(work: () => Promise<T>): Promise<T> => offPageWork.run(true, work);
 const isOffPage = (): boolean => offPageWork.getStore() === true;
 export function validateLettering(request: LetteringRequest): void {
-  if (!request || typeof request !== 'object' || Array.isArray(request)) throw new Error('lettering must be an object');
-  for (const k of Object.keys(request)) if (!['faces', 'scripts', 'math', 'styles'].includes(k)) throw new Error(`Unknown lettering option: ${k}`);
+  if (!request || typeof request !== 'object' || Array.isArray(request)) throw new TypeError('meta.lettering: it must be an object');
+  for (const k of Object.keys(request)) if (!['faces', 'scripts', 'math', 'styles'].includes(k)) throw new TypeError(`meta.lettering: ${JSON.stringify(k)} is not an option it takes; it takes faces, scripts, math and styles`);
   if (request.styles !== undefined) {
-    if (!Array.isArray(request.styles) || !request.styles.length) throw new Error("lettering.styles must be a non-empty array of 'bold' and 'italic'");
-    for (const style of request.styles) if (!STYLES.includes(style)) throw new Error(`Unknown lettering style: ${style}; use 'bold' or 'italic'`);
-    if (new Set(request.styles).size !== request.styles.length) throw new Error('lettering.styles names a style twice');
+    if (!Array.isArray(request.styles) || !request.styles.length) throw new TypeError("meta.lettering: styles must be a non-empty list of 'bold' and 'italic'");
+    for (const style of request.styles) if (!STYLES.includes(style)) throw new RangeError(`meta.lettering: ${JSON.stringify(style)} is not a style; use 'bold' or 'italic'`);
+    if (new Set(request.styles).size !== request.styles.length) throw new Error('meta.lettering: styles names a style twice; name each once');
   }
-  if (request.math !== undefined && typeof request.math !== 'boolean') throw new Error('lettering.math must be boolean');
-  if (request.faces && (typeof request.faces !== 'object' || Array.isArray(request.faces))) throw new Error('lettering.faces must be an object');
+  if (request.math !== undefined && typeof request.math !== 'boolean') throw new TypeError('meta.lettering: math must be true or false');
+  if (request.faces && (typeof request.faces !== 'object' || Array.isArray(request.faces))) throw new TypeError('meta.lettering: faces must be an object, such as { sans: \'eb-garamond\' }');
   for (const [key, name] of Object.entries(request.faces ?? {})) {
-    if (!['sans', 'mono'].includes(key) || !Object.hasOwn(registry, name)) throw new Error(`Unknown lettering face: ${key}=${name}`);
+    if (!['sans', 'mono'].includes(key) || !Object.hasOwn(registry, name)) throw new RangeError(`meta.lettering: faces.${key} = ${JSON.stringify(name)} is not a face it can request; LETTERING.md lists the registered faces, for sans and mono`);
   }
-  if (request.scripts !== undefined && !Array.isArray(request.scripts)) throw new Error('lettering.scripts must be an array');
+  if (request.scripts !== undefined && !Array.isArray(request.scripts)) throw new TypeError('meta.lettering: scripts must be a list');
   for (const script of request.scripts ?? []) {
-    if (typeof script !== 'string' || !/^[A-Z][a-z]{3}$/.test(script)) throw new Error(`Invalid ISO 15924 script: ${script}`);
-    try { new RegExp(`\\p{Script=${script}}`, 'u'); } catch { throw new Error(`Unknown script: ${script}`); }
-    if (!scriptFaces[script] && !request.faces?.sans) throw new Error(`Script ${script} requires a supported face in lettering.faces.sans`);
+    if (typeof script !== 'string' || !/^[A-Z][a-z]{3}$/.test(script)) throw new TypeError(`meta.lettering: ${JSON.stringify(script)} is not an ISO 15924 script code, such as Grek`);
+    try { new RegExp(`\\p{Script=${script}}`, 'u'); } catch { throw new RangeError(`meta.lettering: ${JSON.stringify(script)} is not a script Unicode knows`); }
+    if (!scriptFaces[script] && !request.faces?.sans) throw new RangeError(`meta.lettering: the script ${script} has no registered face; ask for a face that draws it in faces.sans`);
   }
 }
 function python(request: object): unknown {
@@ -95,7 +95,7 @@ function python(request: object): unknown {
     }));
   } catch (error) {
     const stderr = (error as { stderr?: string }).stderr;
-    throw new Error(`Lettering needs fonttools, brotli, uharfbuzz and python-bidi when refreshing snapshots. ${stderr ?? String(error)}`);
+    throw new Error(`meta.lettering: refreshing its snapshot needs fonttools, brotli, uharfbuzz and python-bidi in Python; ${stderr ?? String(error)}`);
   }
 }
 export interface PreparedLettering {
@@ -127,11 +127,11 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
       catch (e) { throw new Error(`${(e as Error).message.replace(/; run rayner snapshots.*$/, '')}; run rayner snapshots ${file}`); }
     }
     if (!snapshot || snapshot.version !== 2 || snapshot.builderHash !== builderHash || json(snapshot.request) !== json(request))
-      throw new Error('Missing or stale lettering snapshot; run rayner snapshots ' + file);
+      throw new Error(`scene.lettering.json: it is missing or stale; run rayner snapshots ${file}`);
     validateLetteringSnapshot(snapshot);
     return { Scene: bindLettering(Source, snapshot), snapshot,
       get measurementHash() {
-        if (!snapshot.fontInputs) throw new Error('Missing natural diagram font identity; run rayner snapshots ' + file);
+        if (!snapshot.fontInputs) throw new Error(`scene.lettering.json: it has no natural diagram font identity; run rayner snapshots ${file}`);
         return hash(JSON.stringify([snapshot.builderHash, snapshot.shaper, snapshot.request, snapshot.fontInputs]));
       }, async finish() {} };
   }
@@ -143,15 +143,15 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
     if (fonts.has(name)) return;
     const [base, cut = ''] = name.split('/') as [string, LetteringCut?];
     const info = registry[base];
-    if (!info) throw new Error(`Unknown lettering face: ${name}`);
+    if (!info) throw new RangeError(`meta.lettering: ${JSON.stringify(name)} is not a registered face`);
     const file = info.cuts[cut];
-    if (!file) throw new Error(`Lettering face ${base} has no ${cut} cut`);
+    if (!file) throw new RangeError(`meta.lettering: the face ${base} has no ${cut} cut; ask for another face or drop the style`);
     let bytes: Buffer, license: string;
     try {
       bytes = readFileSync(join(folder, file));
       license = readFileSync(info.license.startsWith('repo:') ? join(root, info.license.slice(5)) : join(folder, info.license), 'utf8');
-    } catch (e) { throw new Error(`Install requested lettering fonts with tools/lettering-outline-fonts.sh: ${String(e)}`); }
-    if (!licenceOf(license)) throw new Error(`Lettering face ${base} is not under the OFL or Apache-2.0; only those may be embedded`);
+    } catch (e) { throw new Error(`meta.lettering: the fonts it asks for are not installed; install them with tools/lettering-outline-fonts.sh (${String(e)})`); }
+    if (!licenceOf(license)) throw new Error(`meta.lettering: the face ${base} is not under the OFL or Apache-2.0, and only those may be embedded; ask for another face`);
     fonts.set(name, { file: join(folder, file), license, hash: hash(bytes) });
   };
   for (const name of [...Object.values(request.faces ?? {}), ...(request.scripts ?? []).flatMap((s) => scriptFaces[s] ?? [])]) addFace(name);
@@ -163,7 +163,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
     const scripts = (request.scripts ?? []).flatMap((s) => scriptFaces[s] ?? []);
     if (!cut) return [...new Set([request.faces?.[font] ?? font, ...scripts, font, 'sans', ...FALLBACK.map(([name]) => name)])];
     const primary = request.faces?.[font] ?? defaultCutFace[font];
-    if (!hasCut(primary, cut)) throw new Error(`Lettering face ${primary} has no ${cut} cut; ask for another face or drop the style`);
+    if (!hasCut(primary, cut)) throw new RangeError(`meta.lettering: the face ${primary} has no ${cut} cut; ask for another face or drop the style`);
     const cuts = scripts.flatMap((name) => {
       const found = scriptCuts(cut).find((c) => hasCut(name, c));
       return found === undefined ? [] : [cutFace(name, found)];
@@ -210,10 +210,10 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
   let mathFont: Awaited<ReturnType<typeof loadFont>> | undefined;
   if (request.math) {
     const file = process.env.RAYNER_MATH_FONT ?? '/usr/share/texmf/fonts/opentype/public/lm-math/latinmodern-math.otf';
-    const bytes = await readFile(file).catch(() => { throw new Error('Set RAYNER_MATH_FONT to Latin Modern Math 1.959 (OpenType MATH font)'); });
-    if (hash(bytes) !== '6075562b771f8b82f0c179e363389684f2dd09de30038269e2628e504bd7be0f') throw new Error('Latin Modern Math checksum mismatch');
+    const bytes = await readFile(file).catch(() => { throw new Error('meta.lettering: math needs Latin Modern Math; set RAYNER_MATH_FONT to Latin Modern Math 1.959, an OpenType MATH font'); });
+    if (hash(bytes) !== '6075562b771f8b82f0c179e363389684f2dd09de30038269e2628e504bd7be0f') throw new Error('meta.lettering: RAYNER_MATH_FONT is not Latin Modern Math 1.959, whose SHA-256 is pinned; set it to that release');
     mathFont = await loadFont(bytes);
-    if (mathFont.tag !== 'Ok') throw new Error('Cannot load Latin Modern Math: ' + JSON.stringify(mathFont.error));
+    if (mathFont.tag !== 'Ok') throw new Error('meta.lettering: Latin Modern Math cannot be loaded: ' + JSON.stringify(mathFont.error));
     fonts.set('latin-modern-math', { file, hash: hash(bytes), license: await readFile(join(root, 'vendor/licenses/LatinModernMath-GUST.txt'), 'utf8') });
   }
   const { typeset } = request.math ? await import('../../vendor/glyph-math.js') : { typeset: undefined };
@@ -226,7 +226,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
     request,
     shape(font, text, size, fallback, cut = '') {
       if (replay) return replay.shape(font, text, size, fallback, cut);
-      if (cut && !requestCuts(request).includes(cut)) throw new Error(`Lettering cut ${cut} was not requested in meta.lettering.styles`);
+      if (cut && !requestCuts(request).includes(cut)) throw new Error(`new ItalicText(): the ${cut} cut is not requested; add it to meta.lettering.styles`);
       if (!cut && !request.faces?.[font] && !request.scripts?.length) return fallback(text, size);
       const key = runKey(cutFace(font, cut), text);
       let r = snapshot.runs[key];
@@ -236,7 +236,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
           // Existing coverage remains free, including the existing numeral faces.
           if (!coverage.some((f) => f.glyphOf(ch.codePointAt(0)!) !== 0) && !/\p{Cc}|\p{Cf}/u.test(ch) &&
             !(request.scripts ?? []).some((s) => new RegExp(`\\p{Script_Extensions=${s}}`, 'u').test(ch)))
-            throw new Error(`Script not requested in meta.lettering.scripts: ${ch} (U+${ch.codePointAt(0)!.toString(16).toUpperCase()})`);
+            throw new Error(`new Text(): ${ch} (U+${ch.codePointAt(0)!.toString(16).toUpperCase()}) is in a script meta.lettering.scripts does not ask for; ask for its script`);
           used.add(ch.codePointAt(0)!);
         }
         if (!usesLettering(request, font, text, cut)) return fallback(text, size);
@@ -261,13 +261,13 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
     },
     math(text, size, display) {
       if (replay) return replay.math(text, size, display);
-      if (!request.math || !typeset || mathFont?.tag !== 'Ok') throw new Error('MathTex requires meta.lettering.math: true');
+      if (!request.math || !typeset || mathFont?.tag !== 'Ok') throw new Error('new MathTex(): it needs meta.lettering.math: true');
       const key = runKey('math', text, display);
       seen(key);
       let run = snapshot.runs[key];
       if (!run) {
         const result = typeset(mathFont.value, 'latin-modern-math', text, { size: 1, display });
-        if (result.tag !== 'Ok') throw new Error('Math: ' + JSON.stringify(result.error));
+        if (result.tag !== 'Ok') throw new Error(`new MathTex(): glyph cannot typeset ${JSON.stringify(text)}: ${JSON.stringify(result.error)}`);
         const r = result.value;
         run = { width: r.width, ascent: r.ascent, descent: r.descent, s: r.s,
           glyphs: r.glyphs.map((g) => {

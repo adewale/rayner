@@ -494,7 +494,7 @@ export async function exploreMachines(
     const host = stageOf && live.lastPlayedIn ? await stageOf(live.lastPlayedIn) : scene;
     const machine = host === scene ? live : machinesOf(host)[index];
     if (!machine || JSON.stringify(machine.spec.events) !== JSON.stringify(live.spec.events))
-      throw new Error(`exploration: the run to "${live.lastPlayedIn}" made different machines; a scene must make the same machines each run`);
+      throw new Error(`new Machine(): the run to ${JSON.stringify(live.lastPlayedIn)} made different machines; a scene must make the same machines on every run`);
     const problems: string[] = [];
     const missing = machine.spec.views.filter((v) => !host.familyMembers().includes(v));
     if (missing.length) problems.push(`its views ${missing.map((v) => v.key ?? v.constructor.name).join(', ')} are not on the stage where it last played, so its states cannot be checked there`);

@@ -7,12 +7,12 @@ import {inflateSnapshots} from '../app/embed-snapshots.ts';
 
 test('page budgets count UTF-8 bytes and reject raw or compressed excess independently', () => {
   assert.equal(pageSize('é').bytes, 2);
-  assert.throws(() => pageSize('x'.repeat(PAGE_BUDGET.htmlBytes + 1)), /raw bytes.*Reduce scenarios/);
+  assert.throws(() => pageSize('x'.repeat(PAGE_BUDGET.htmlBytes + 1)), /raw bytes.*reduce the scenarios/);
   const noisy = Buffer.alloc(600 * 1024);
   for (let i = 0; i < noisy.length; i += 32) createHash('sha256').update(String(i)).digest().copy(noisy, i);
   const html = noisy.toString('base64');
   assert.ok(Buffer.byteLength(html) < PAGE_BUDGET.htmlBytes);
-  assert.throws(() => pageSize(html), /gzip bytes.*Reduce scenarios/);
+  assert.throws(() => pageSize(html), /gzip bytes.*reduce the scenarios/);
 });
 
 test('the native browser decoder restores exact JSON values, including prototype-sensitive keys', async () => {

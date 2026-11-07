@@ -19,7 +19,7 @@ const value = (v: unknown) => (v === undefined ? '—' : JSON.stringify(v));
 export function seeText(id: string, c: ScenarioDescription, step?: string): string {
   const names = c.steps.map((s) => s.step);
   const s = step == null ? c.steps.at(-1) : c.steps.find((x) => x.step === step);
-  if (!s) throw new Error(`No step "${step}". Steps: ${names.join(', ')}`);
+  if (!s) throw new RangeError(`the scene has no step ${JSON.stringify(step)}; its steps are ${names.join(', ')}`);
   const changed = Object.entries(s.changed).map(([k, { before, after }]) => `${k}: ${value(before)} → ${value(after)}`);
   return [
     s.drawing ?? '',

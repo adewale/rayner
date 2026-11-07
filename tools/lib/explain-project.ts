@@ -151,7 +151,7 @@ export async function loadScene(
       : choices.length === 1
         ? Object.keys(module).find((k) => module[k] === choices[0])!
         : null;
-  if (!exportName) throw new Error('Export one Scene subclass (or a default Scene export)');
+  if (!exportName) throw new TypeError(`${file}: it must export one Scene subclass, or a Scene as its default export`);
   const Explainer = module[exportName] as ExplainerClass;
   return { Scene: Explainer, exportName, file, sourceHash };
 }
@@ -293,7 +293,7 @@ export async function collectProject(
           const { naturalMeasurementIdentity } = await import('../../integrations/agentic-mermaid/build/index.ts');
           if (previous[key].textMeasurement?.id !== naturalMeasurementIdentity(metricOptions).id) {
             if (captureLettering) delete previous[key];
-            else throw new Error('Stale natural diagram font metrics; run rayner snapshots ' + file);
+            else throw new Error(`scene.snapshots: the natural diagram font metrics are stale; run rayner snapshots ${file}`);
           }
       }
       if (previous[key]) {
@@ -366,9 +366,9 @@ export async function collectProject(
         paper = paperOf(ran),
         names = trace.steps.map((s) => s.step);
       if (!names.length || names.some((name) => !name.trim()))
-        throw new Error(`Each scenario needs non-empty named steps: ${JSON.stringify(values)}`);
+        throw new Error(`this.step(): the scenario ${JSON.stringify(values)} has no step, or a step with an empty name; every scenario needs named steps`);
       if (new Set(names).size !== names.length)
-        throw new Error(`Duplicate step names prevent stable links: ${JSON.stringify(values)}`);
+        throw new Error(`this.step(): two steps of the scenario ${JSON.stringify(values)} share a name; name each step once, so each has its own link`);
       // The page never draws these (offPage): they stay out of what it carries
       if (outline) await withSceneLettering(Bound, () => offPage(async () => {
         const { Text } = await import('../../src/index.ts');
@@ -385,7 +385,7 @@ export async function collectProject(
       scenarios.push({ values, Scene: Bound, trace, palette: paletteOf(ran), ...(paper ? { paper } : {}), ...(live.size ? { live } : {}) });
     }
     if (undrawable.length)
-      throw new Error(`The embedded fonts cannot draw these characters:\n${[...new Set(undrawable)].join('\n')}`);
+      throw new Error(`new Text(): the embedded fonts cannot draw these characters; ask for their script in meta.lettering, or write others:\n${[...new Set(undrawable)].join('\n')}`);
     // Every step's title, line and kind must be ones the page can read.
     checkStepMeta(scenarios.flatMap((v) => v.trace.steps));
     // The state readers follow must be state the scene keeps, in some step of some scenario.

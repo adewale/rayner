@@ -89,7 +89,7 @@ test('a passing part the target does not have comes in, moves and goes out, and 
 
 test('a picture with two parts under one key is refused', () => {
   const twice = new Group(Object.assign(new Circle(), { key: 'x' }), Object.assign(new Square(), { key: 'x' }));
-  assert.throws(() => choreograph(twice, after()), /two parts are keyed x/);
+  assert.throws(() => choreograph(twice, after()), /t\.choreograph\(\): two parts of one picture are keyed "x"/);
 });
 
 test('travel: a token appears at the path start, moves along it, and leaves; the picture still lands', async () => {

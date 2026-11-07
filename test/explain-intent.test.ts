@@ -50,7 +50,7 @@ test('the scene takes the intent as its own metadata, and a part declared in bot
     questions: [{ question: 'What does a third press do?', answer: 'It turns the lamp off, as the first press turned it on.' }],
     checkedAgainst: 'the lamp\'s wiring diagram.',
   });
-  assert.throws(() => adoptIntent({ meta: { answer: 'twice' } }, parseIntent(SCRIPT)!, 'lamp'), /answer declared in both script\.md and the scene/);
+  assert.throws(() => adoptIntent({ meta: { answer: 'twice' } }, parseIntent(SCRIPT)!, 'lamp'), /^Error: lamp: answer is declared in both script\.md and the scene/);
   // A scene module loaded once is collected many times in one process: adopting again is not declaring twice.
   adoptIntent(Scene, parseIntent(SCRIPT)!, 'lamp');
   assert.equal(Scene.meta.answer, 'the second press only dims it');

@@ -46,7 +46,7 @@ export class Frame extends Mobject {
   /** The smallest 16:9 box that holds `target` (a mobject or a box) plus `margin` on every side, centered on it. */
   fit(target: Mobject | Readonly<Box>, { margin = 0.5 }: FrameFitOpts = {}): this {
     const b = target instanceof Mobject ? target.box() : target;
-    if (!b) throw new RangeError('Frame.fit(): the target has no points to fit');
+    if (!b) throw new Error('frame.fit(): the target has no points to fit; give a mobject that is drawn, or a box');
     const w = Math.max(b[2] - b[0] + 2 * margin, (b[3] - b[1] + 2 * margin) * ASPECT);
     return this.place(...center(b), w);
   }

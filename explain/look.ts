@@ -186,9 +186,9 @@ const stagePalettes = new WeakMap<object, () => Palette>();
  * The palette a stage was styled from, for the card and code panels the kit builds (a card's
  * headings take the palette's own accent). Not public: a scene draws with `s.look`.
  */
-export function stagePalette(s: object): Palette {
+export function stagePalette(s: object, api: string): Palette {
   const read = stagePalettes.get(s);
-  if (!read) throw new Error('stagePalette(): not a stage');
+  if (!read) throw new TypeError(`${api}: its first argument must be a stage, stage(this)`);
   return read();
 }
 /** Records where a stage's current palette is read from (see stagePalette). */

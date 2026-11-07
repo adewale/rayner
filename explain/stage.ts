@@ -1,6 +1,6 @@
 import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, Create } from '../src/index.ts';
 import { View } from './view.ts';
-import { jsonObject } from '../src/json.ts';
+import { cloneJson } from '../src/json.ts';
 import type { Scene, Vec, Box, FadeOpts, Animation, SceneColors } from '../src/index.ts';
 import { center, unionBoxes } from '../src/box.ts';
 import { STAGE_BOX, atHome } from '../src/svg.ts';
@@ -17,7 +17,7 @@ import type { Plan } from './action.ts';
 import type { ShowOptions, PictureNote } from './diagrams.ts';
 import type { Card, CodeBlock, CardRow, CardOptions, CodeOptions } from './panels.ts';
 import { card, code } from './drawing.ts';
-import { diagramResolverOf } from '../integrations/agentic-mermaid/snapshot.ts';
+import { resolverOf } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { DiagramSpec, DiagramSnapshot } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { Palette } from '../src/color.ts';
 import { palette } from './palettes.ts';
@@ -159,7 +159,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
   /** Each diagram shown by a view of the state (diagramView): the view and what it draws. */
   const diagramViews = new Map<Diagram, { draw: (state: S, shown: Sh) => DiagramPicture; view: View<Mobject, S, Sh> }>();
   scene.onStep(() => opening(scene, ...kept));
-  const direction = layoutDirection(options);
+  const direction = layoutDirection(options, 'ltr', 'stage()');
   const physical = <T extends Vec | Box | StageRegion | undefined>(at: T): Exclude<T, 'start' | 'end'> | Region =>
     physicalAt(at, direction) as Exclude<T, 'start' | 'end'> | Region;
   // Without a style or palette, the stage adopts the first diagram's palette.
@@ -209,7 +209,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       const l = scene.text(line, { fontSize: LINE_SIZE, color: soft(colors) });
       if (l.width() > CHROME_WIDTH)
         throw new Error(
-          `Step "${step}": its line is ${l.width().toFixed(1)} units wide, longer than one line under the heading (${CHROME_WIDTH}); shorten it`,
+          `this.step(): the line of step ${JSON.stringify(step)} is ${l.width().toFixed(1)} units wide, longer than one line under the heading (${CHROME_WIDTH}); shorten it`,
         );
       l.moveTo([0, t.box()![1] - 0.08 - l.height() / 2]);
       l.role = 'chrome';
@@ -359,7 +359,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     else {
       const mobs = (Array.isArray(target) ? target : [target]) as Mobject[];
       b = unionBoxes(mobs.map((m) => m.box()));
-      if (!b) throw new Error('focus(): nothing to look at');
+      if (!b) throw new Error('s.focus(): nothing to look at; give mobjects that are drawn, a box, or \'all\'');
     }
     const w = b[2] - b[0] + 2 * margin,
       h = b[3] - b[1] + 2 * margin;
@@ -431,7 +431,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       if (options.style && spec.style == null) spec = { ...spec, style: options.style };
       let snapshot: DiagramSnapshot | null = null;
       const reading = (async () => {
-        snapshot = await diagramResolverOf(scene).diagram(spec);
+        snapshot = await resolverOf(scene, 's.show()').diagram(spec);
       })();
       return act('s.show()', () => {
         const read = snapshot!;
@@ -487,7 +487,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     /** The live diagram back in its view's place, for a morph, a reveal or an enlargement (see diagramView). */
     liveDiagram(d: Diagram): void {
       const shown = diagramViews.get(d);
-      if (!shown) throw new Error('liveDiagram(): the diagram is not shown by a view (see diagramView)');
+      if (!shown) throw new Error('s.liveDiagram(): the diagram is not shown by a view; show it with s.diagramView(d, draw) first');
       scene.add(d.root);
       scene.remove(shown.view);
       d.unshow();
@@ -504,11 +504,11 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       rows: readonly CardRow[],
       opts: CardOptions & Entry = {},
     ): Action<Card> {
-      return act('s.card()', () => enterPanel(
-        card(this as StageApi, rows, opts),
-        opts,
-        { runTime: 0.35, shift: [0, -0.08] },
-      ));
+      return act('s.card()', () => {
+        // The direction is checked on the options as given, before they are copied with the call's name.
+        layoutDirection(opts, direction, 's.card()');
+        return enterPanel(card(this as StageApi, rows, { ...opts, api: 's.card()' } as CardOptions), opts, { runTime: 0.35, shift: [0, -0.08] });
+      });
     },
     /** Keep these subjects together in the reader's opening when they fit legibly.
      * Other artwork remains available in the close-up tour. Call after step().
@@ -527,7 +527,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       lines: readonly string[],
       opts: CodeOptions & Entry = {},
     ): Action<CodeBlock> {
-      return act('s.code()', () => enterPanel(code(this as StageApi, lines, opts), opts, {
+      return act('s.code()', () => enterPanel(code(this as StageApi, lines, { ...opts, api: 's.code()' } as CodeOptions), opts, {
         runTime: 0.4,
       }));
     },
@@ -661,7 +661,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
      */
     legend(items: readonly LegendItem[], opts: { at?: Vec; size?: number; stack?: 'column' | 'row'; gap?: number; key: string }): Action<Group> {
       return act('s.legend()', () => {
-        const g = onScreen(kit.legend(this, items, { ...opts, at: toScreen(opts.at ?? [0, 0]) }));
+        const g = onScreen(kit.legend(this, items, { ...opts, at: toScreen(opts.at ?? [0, 0]), api: 's.legend()' } as typeof opts));
         return drawIn(g, 0.4, () => new FadeIn(g, { runTime: 0.4 }));
       });
     },
@@ -677,7 +677,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
             ? ([...target, ...target] as Box)
             : (target as Box)
           : (target as Mobject).box();
-        if (!box) throw new Error('callout(): the target has no extent');
+        if (!box) throw new Error('s.callout(): the target has no extent; give a point, a box or a mobject that is drawn');
         const [a, b] = [toScreen([box[0], box[1]]), toScreen([box[2], box[3]])];
         const g = onScreen(kit.callout(this, [a[0], a[1], b[0], b[1]], text, opts));
         return drawIn(g, 0.6, () => new Create(g, { runTime: 0.6, lagRatio: 0.15 }));
@@ -731,7 +731,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
           ...(step.audio ? { audio: step.audio } : {}), ...(kind !== 'main' ? { kind } : {}),
         });
         await this.clear({ runTime: 0.18 });
-        const state = jsonObject(step.state, `step ${step.id} state`) as object;
+        const state = cloneJson(step.state, 's.steps()', 'state', ` (step ${JSON.stringify(step.id)})`) as object;
         // The step's state is the scene's while the step shows: a view of it, which check redraws.
         const host = scene as unknown as Scene<object, Sh>;
         host.state = { ...state };

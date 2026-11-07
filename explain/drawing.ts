@@ -43,7 +43,7 @@ export function keyedParts(): { add<T extends Mobject>(m: T, key: string): T; gr
   const parts: Mobject[] = [], keys = new Set<string>();
   return {
     add(m, key) {
-      if (keys.has(key)) throw new Error(`keyedParts: two parts are keyed ${key}`);
+      if (keys.has(key)) throw new Error(`keyedParts().add(): two parts are keyed ${JSON.stringify(key)}; give each part its own key`);
       keys.add(key);
       parts.push(keyed(m, key));
       return m;
@@ -158,13 +158,13 @@ export function table(
   const named = rows.map((row, r): TableRow => (isTableRow(row) ? row : { key: String(r), cells: row }));
   const columnsSeen = new Set<string>();
   for (const h of headers) {
-    if (columnsSeen.has(h)) throw new Error(`table ${key}: two columns are headed "${h}"; a header names its column's cells, so each column needs its own`);
+    if (columnsSeen.has(h)) throw new Error(`table(): the table ${JSON.stringify(key)} has two columns headed ${JSON.stringify(h)}; a header names its column's cells, so each column needs its own`);
     columnsSeen.add(h);
   }
   const rowsSeen = new Set<string>();
   for (const { key: k } of named) {
-    if (k === 'head' || k === 'rule') throw new Error(`table ${key}: a row cannot be keyed "${k}"; ${key}:${k} is the table's own part`);
-    if (rowsSeen.has(k)) throw new Error(`table ${key}: two rows are keyed "${k}"; a row's key is its identity, so each row needs its own`);
+    if (k === 'head' || k === 'rule') throw new Error(`table(): a row of the table ${JSON.stringify(key)} cannot be keyed ${JSON.stringify(k)}, since ${key}:${k} is the table's own part; key the row otherwise`);
+    if (rowsSeen.has(k)) throw new Error(`table(): the table ${JSON.stringify(key)} has two rows keyed ${JSON.stringify(k)}; a row's key is its identity, so each row needs its own`);
     rowsSeen.add(k);
   }
   const values = named.map((row) => row.cells);
@@ -305,7 +305,7 @@ export function bars(
     maximum <= 0 ||
     rows.some((r) => !Number.isFinite(r.value) || r.value < 0 || r.value > maximum)
   )
-    throw new Error('Bars need a positive scale and values within it');
+    throw new RangeError('bars(): the maximum must be a positive number, and every value must be from 0 to the maximum');
   const [dx, y] = at;
   const g = new Group();
   g.key = key;
@@ -387,9 +387,11 @@ export function pin(
 export function legend(
   s: Stage,
   items: readonly LegendItem[],
-  { at = [0, 0], size = 0.3, stack = 'column', gap, key }: { at?: Vec; size?: number; stack?: 'column' | 'row'; gap?: number; key: string },
+  opts: { at?: Vec; size?: number; stack?: 'column' | 'row'; gap?: number; key: string },
 ): Group {
-  return legendLook(items, { ink: s.look.ink, shaping: s.scene.textShaping, size, at, stack, key, ...(gap === undefined ? {} : { gap }) });
+  const { at = [0, 0], size = 0.3, stack = 'column', gap, key } = opts;
+  const api = (opts as { api?: string }).api ?? 'legend()';
+  return legendLook(items, { ink: s.look.ink, shaping: s.scene.textShaping, size, at, stack, key, api, ...(gap === undefined ? {} : { gap }) });
 }
 /**
  * Labelled values on a panel in the stage's colours: `s.card`'s picture, not entered, for a view's
@@ -399,8 +401,9 @@ export function legend(
  * word.
  */
 export function card(s: Stage, rows: readonly CardRow[], opts: CardOptions = {}): Card {
-  const direction = layoutDirection(opts, s.direction);
-  return new Card(s.scene, stagePalette(s), rows, { ...opts, at: physicalAt(opts.at, s.direction), direction });
+  const api = (opts as { api?: string } | null)?.api ?? 'card()';
+  const direction = layoutDirection(opts, s.direction, api);
+  return new Card(s.scene, stagePalette(s, api), rows, { ...opts, at: physicalAt(opts.at, s.direction), direction });
 }
 /**
  * Code on a panel in the stage's colours, one string per line: `s.code`'s picture, not entered, for
@@ -409,5 +412,5 @@ export function card(s: Stage, rows: readonly CardRow[], opts: CardOptions = {})
  * matching and diff transforms), use the engine's `Code`.
  */
 export function code(s: Stage, source: readonly string[], opts: CodeOptions = {}): CodeBlock {
-  return new CodeBlock(s.scene, stagePalette(s), source, { ...opts, at: physicalAt(opts.at, s.direction) });
+  return new CodeBlock(s.scene, stagePalette(s, (opts as { api?: string } | null)?.api ?? 'code()'), source, { ...opts, at: physicalAt(opts.at, s.direction) });
 }

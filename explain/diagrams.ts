@@ -22,7 +22,7 @@ import { center, unionBoxes } from '../src/box.ts';
 import { paintsFill } from '../src/mobject.ts';
 import { regionBox, boxCenter, raised, emphasis, dimOpacity, emphasises, selfDescribed } from './look.ts';
 import type { Region } from './look.ts';
-import { diagramResolverOf, diagramKey, diagramFindings, SVG_PX_PER_UNIT } from '../integrations/agentic-mermaid/snapshot.ts';
+import { resolverOf, diagramKey, diagramFindings, SVG_PX_PER_UNIT } from '../integrations/agentic-mermaid/snapshot.ts';
 import { outlineText } from '../integrations/agentic-mermaid/text.ts';
 import { recordWalk } from './trace.ts';
 import { wordsOf, wordsFor, familyNames } from './words.ts';
@@ -579,34 +579,34 @@ export class Diagram {
     );
   }
   get(id: string): Group {
-    return this.part(id).mob;
+    return this.part(id, 'd.get()').mob;
   }
   /**
    * Part `id`'s own drawn shapes, in drawing order: a node's outline, a link's line and arrowhead, a
    * task's bar. Its labels, the plates behind them, its route and the parts it owns are not among them.
    */
   shapes(id: string): VMobject[] {
-    return [...this.part(id).shapes];
+    return [...this.part(id, 'd.shapes()').shapes];
   }
   /** Part `id`'s own labels, in drawing order, each with the `text` it reads. */
   labels(id: string): (Mobject & { readonly text: string })[] {
-    return [...this.part(id).labels];
+    return [...this.part(id, 'd.labels()').labels];
   }
-  private part(id: string): Part {
+  private part(id: string, api: string): Part {
     const part = this.find(id);
-    if (!part) throw new Error(`No diagram mark ${id}. Available: ${[...this.parts.keys()].join(', ')}`);
+    if (!part) throw new RangeError(`${api}: the diagram has no part ${JSON.stringify(id)}; its parts are ${[...this.parts.keys()].join(', ')}`);
     return part;
   }
   /** The top-level part an id belongs to (an owned label resolves to its owner); throws for an unknown id. */
-  private top(id: string): string {
-    this.get(id);
+  private top(id: string, api: string): string {
+    this.part(id, api);
     let part = this.find(id)!;
     while (part.info.owner) part = this.parts.get(part.info.owner)!;
     return part.info.id;
   }
   /** As `top`, but an endpoint that names no part stands for itself. */
   private end(id: string): string {
-    return this.find(id) ? this.top(id) : id;
+    return this.find(id) ? this.top(id, 'd.link()') : id;
   }
   /** Put the root on stage. Hidden marks are never added: opacity on a Group does not mask its descendants in the engine. */
   private attach(): void {
@@ -640,10 +640,10 @@ export class Diagram {
     const shown = (id: string) => this.visible.has(id) || coming.has(id);
     const pending = this.order.filter((id) => !shown(id));
     if (typeof which === 'number' && (!Number.isInteger(which) || which < 0))
-      throw new Error('reveal count must be a non-negative integer');
+      throw new RangeError(`${name}: a count of parts must be a whole number, 0 or more, not ${which}`);
     const requested =
       which === 'rest' ? pending : typeof which === 'number' ? pending.slice(0, which) : [...which];
-    const arriving = [...new Set(requested.map((id) => this.top(id)))].filter((id) => !shown(id));
+    const arriving = [...new Set(requested.map((id) => this.top(id, name)))].filter((id) => !shown(id));
     // The members start 0.12 of a run time apart, as the play's group lays them out.
     let last = 0;
     for (let i = 1; i < arriving.length; i++) last += 0.12 * runTime;
@@ -960,7 +960,7 @@ export class Diagram {
     const edge = [...this.parts.values()].find(
       (p) => p.info.from != null && p.info.to != null && this.end(p.info.from) === a && this.end(p.info.to) === b,
     );
-    if (!edge?.route || !edge.route.numCurves()) throw new Error(`link(): ${from} -> ${to} is not a real link`);
+    if (!edge?.route || !edge.route.numCurves()) throw new RangeError(`d.link(): ${from} -> ${to} is not a link of this diagram`);
     return { id: edge.info.id, mob: edge.mob, route: edge.route };
   }
   /**
@@ -989,7 +989,8 @@ export class Diagram {
     const at = new Map(live.map((m, i) => [m, i] as const));
     // A mark given as a colour alone is said as marked, in the scene's language.
     const word = wordsOf(this.scene).marked;
-    const marked = new Map(Object.entries(marks).map(([id, m]) => [this.top(id), typeof m === 'string' ? { color: m, as: word } : { as: word, ...m }] as const));
+    for (const n of notes) this.top(n.id, 'd.picture()');
+    const marked = new Map(Object.entries(marks).map(([id, m]) => [this.top(id, 'd.picture()'), typeof m === 'string' ? { color: m, as: word } : { as: word, ...m }] as const));
     const kept = dim ? this.keptOf(dim) : null;
     // Every part in the diagram's own look, whatever the live diagram shows now: revealed parts as
     // drawn or marked, the rest unseen.
@@ -1056,7 +1057,7 @@ export class Diagram {
     { side = 'above', color = this.emphasis, size = 0.22, key = `note:${id}` }: { side?: NoteSide; color?: string; size?: number; key?: string } = {},
   ): Group {
     const g = this.noteLook(text, color, size);
-    g.moveTo(notePosition(g, this.get(id).box()!, side, this.frameBox));
+    g.moveTo(notePosition(g, this.part(id, 'd.notePicture()').mob.box()!, side, this.frameBox));
     g.key = key;
     const w = wordsOf(this.scene);
     this.drawnNotes.set(g, { id, text });
@@ -1083,7 +1084,7 @@ export class Diagram {
   }
   /** The parts a picture's `dim` keeps: these, what a kept group draws inside it, and the links between kept parts. */
   private keptOf(keep: readonly string[]): Set<string> {
-    const kept = new Set(keep.map((id) => this.top(id)));
+    const kept = new Set(keep.map((id) => this.top(id, 'd.picture()')));
     // Members are not recorded on a group's parts, but the layout draws them inside its box.
     const within = (inner: Box, outer: Box) =>
       inner[0] >= outer[0] - 1e-6 && inner[1] >= outer[1] - 1e-6 && inner[2] <= outer[2] + 1e-6 && inner[3] <= outer[3] + 1e-6;
@@ -1127,13 +1128,13 @@ export class Diagram {
         (p) => p.info.from != null && p.info.to != null && this.end(p.info.from) === a && this.end(p.info.to) === b,
       );
       if (!edge?.route || !edge.route.numCurves())
-        throw new Error(`walk(): ${from} -> ${to} is not a real link`);
+        throw new RangeError(`d.walk(): ${from} -> ${to} is not a link of this diagram`);
       return { edge, from, to, a, b };
     });
     const record = ({ edge, from, to }: (typeof path)[number]) =>
       recordWalk(this.scene, { step: this.scene.currentStep?.name, from, to, edge: edge.info.id });
     const start = () => {
-      for (const { edge } of path) if (!this.visible.has(edge.info.id)) throw new Error(`walk(): reveal ${edge.info.id} first`);
+      for (const { edge } of path) if (!this.visible.has(edge.info.id)) throw new Error(`d.walk(): the link ${edge.info.id} is not revealed; reveal it first`);
       this.walked = {
         step: this.scene.currentStep?.name,
         hops: path.map(({ edge }) => wordsOf(this.scene).arrow(this.endName(edge.info.from!), this.endName(edge.info.to!))),
@@ -1198,7 +1199,7 @@ export class Diagram {
   }
   /** An enlargement, decided now; the parts move, and hidden ones jump, when it plays. */
   private enlargePlan(ids: readonly string[] | 'all', zoom: number, runTime: number): Plan<void> {
-    if (!(zoom > 0 && Number.isFinite(zoom))) throw new Error(`enlarge() zoom must be a positive number, not ${zoom}`);
+    if (!(zoom > 0 && Number.isFinite(zoom))) throw new RangeError(`d.enlarge(): zoom must be a positive number, not ${zoom}`);
     const mobs = [...this.parts.values()].filter((p) => !p.info.owner).map((p) => p.mob);
     const whole = new Group(...mobs.map((m) => m.copy()));
     // Whether the play has anything to show: a shown part moves (partMoves moves hidden ones at once).
@@ -1227,9 +1228,9 @@ export class Diagram {
         }],
       };
     }
-    if (!ids.length) throw new Error("enlarge() needs at least one part, or 'all'");
-    const tops = [...new Set(ids.map((id) => this.top(id)))];
-    const chosen = new Group(...ids.map((id) => this.get(id).copy()));
+    if (!ids.length) throw new RangeError("d.enlarge(): it needs at least one part, or 'all'");
+    const tops = [...new Set(ids.map((id) => this.top(id, 'd.enlarge()')))];
+    const chosen = new Group(...ids.map((id) => this.part(id, 'd.enlarge()').mob.copy()));
     const center = chosen.center(),
       box = this.frameBox;
     const k =
@@ -1274,7 +1275,7 @@ export class Diagram {
     const before = this.spec, spec = next;
     let snapshot: DiagramSnapshot | null = null;
     const reading = (async () => {
-      const resolver = diagramResolverOf(this.scene);
+      const resolver = resolverOf(this.scene, 'd.morph()');
       if (ops && resolver.morph) await resolver.morph(before, spec, ops);
       snapshot = await resolver.diagram(spec);
     })();
