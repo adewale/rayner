@@ -203,8 +203,15 @@ export default class GnomeFilesExplainer extends Scene {
     });
     await s.clear();
     const d = await s.show({ source: source(j) }, { box: 'full' });
-    const ids = shown.flatMap((n, i) => (quit.includes(n) ? [`task:task-${i}`] : []));
-    if (ids.length) await d.mark(ids, { color: s.bad, as: 'gave up' });
+    // The journey's view marks each task the state scores as a give-up, the report's black.
+    const journeyView = s.diagramView(d, (st) => ({
+      marks: Object.fromEntries(
+        ((st.journey ?? []) as [number, number | null][]).flatMap(([, score], i) =>
+          score === SCORE.black ? [[`task:task-${i}`, { color: s.bad, as: 'gave up' }]] : [],
+        ),
+      ),
+    }));
     this.state.journey = shown.map((n) => [n, scoreOf(n, p)]);
+    await this.play(journeyView.sync({ match: 'key', staged: true, runTime: 0.45 }));
   }
 }

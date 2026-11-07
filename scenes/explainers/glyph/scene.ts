@@ -1,7 +1,7 @@
 import { frames as readerFrames, ruler, pairLines, WORD, SIZE, measuredRows, advanceCells, letterRow, letterTargets } from './picture.ts';
 import { Scene, Text, Create, FadeIn, TransformMatchingShapes, shaperFor } from '../../../src/index.ts';
 import type { MatchSummary, FontName } from '../../../src/index.ts';
-import { stage, settingsOf } from '../../../explain/index.ts';
+import { stage, settingsOf, Card, view } from '../../../explain/index.ts';
 
 const SMALL = 0.6; // the smaller copy in the letterforms step
 const STYLE = 'pen-and-ink';
@@ -123,12 +123,6 @@ export default class GlyphExplainer extends Scene {
       [named(wider), wider],
       [`the other ${rest.length}`, rest],
     ];
-    const card = await s.card(
-      groups.map(([name, is]) => [name, signed(sum(is))]),
-      { at: [-4.6, -4.25, 4.6, -1.3], title: `${NAME.mono} − ${NAME.sans}: +${total.toFixed(2)} units` },
-    );
-    card.bar.style.fill = hot;
-    await card.mark(named(stems));
     // The measuring model; the outline step's short picture has a model of its own, after which this one resumes.
     const measuring = {
       font,
@@ -136,7 +130,22 @@ export default class GlyphExplainer extends Scene {
       glyphs: measured.children.length,
       gains: Object.fromEntries(groups.map(([name, is]) => [name, +sum(is).toFixed(3)])),
     };
+    // The card is a view: the gains by group are the model's (this.state), and the group it lights is
+    // how the step shows them (this.shown).
     this.state = { ...measuring };
+    this.shown.lit = named(stems);
+    const card = view(this, (st, sh) => {
+      const c = st as typeof measuring;
+      const drawn = new Card(this, s.palette, Object.entries(c.gains).map(([name, gain]) => [name, signed(gain)]), {
+        at: [-4.6, -4.25, 4.6, -1.3],
+        title: `${NAME.mono} − ${NAME.sans}: +${total.toFixed(2)} units`,
+        lit: (sh as { lit: string | null }).lit,
+        key: 'gains',
+      });
+      drawn.bar.style.fill = hot;
+      return drawn;
+    }, { place: false });
+    await s.enter(card, { runTime: 0.35 });
 
     // 3. The same letter, two outlines: the prediction.
     await s.steps([shapeFrame!], { kind: 'short' });
@@ -148,6 +157,8 @@ export default class GlyphExplainer extends Scene {
       caption: `Rayner’s shape matcher, TransformMatchingShapes, compares outlines after removing position and size. The ${SMALL * 100}% copy keeps those paths, so all ${measured.children.length} of its glyphs pair with the originals; the space has no outline to pair. In this phrase the other font changes the paths: none pairs across the fonts. A character name identifies a letter, not a particular outline.`,
     });
     await s.clear();
+    // The card has gone, and the row it lit with it.
+    delete this.shown.lit;
     const row = letterRow(font, wide, ink);
     await s.enter(row, { runTime: 0.5 });
     const { smaller, across } = letterTargets(row, font, other, SMALL, wide, ink, hot);
