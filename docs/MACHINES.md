@@ -51,6 +51,11 @@ replayed machine therefore seeks, traces and records like any other play.
 | `runTime` | Each event's morph or transition in seconds (default 0.6), or a function of `{ event, before, after }` |
 | `limit` | The most states exploration visits from one origin (default 256) |
 
+The machine's state is the scene's model: `new Machine(this, spec)` on a `Scene<S, Sh>` types
+`start`, `next`, `bound`, `end`, the transitions and the views by `S`. A scene whose machine drives
+one phase of a state that changes shape ([typed state](REFERENCE.md#typed-state-and-shown)) narrows in
+`next` and in its transitions: `next: (st, e) => roundNext(having(st, 'pick'), e)`.
+
 `machine.send(event, from?)` builds one event's schedule for one state (the scene's state by
 default) and refuses to play from any other, so a replay cannot drift from the model.
 `replay(events, from?)` chains them. Those two are what a scene calls. `lastPlayedIn` is the step

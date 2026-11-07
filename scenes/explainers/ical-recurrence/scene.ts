@@ -1,6 +1,6 @@
 import { Scene, Group, Text, diffLines } from '../../../src/index.ts';
 import type { Box, MatchKey, Mobject } from '../../../src/index.ts';
-import { stage, settingsOf, Card, CodeBlock, answerOf, view } from '../../../explain/index.ts';
+import { stage, settingsOf, Card, CodeBlock, answerOf, view, having } from '../../../explain/index.ts';
 import type { Diagram, Stage, NoteSide, DiagramPicture } from '../../../explain/index.ts';
 import {
   DTSTART,
@@ -23,8 +23,7 @@ import {
   validate,
   weeks,
 } from './model.ts';
-import type { Change, Copy, VEvent } from './model.ts';
-import { stagedStep } from '../../../explain/index.ts';
+import type { Change, Copy, Meeting, Relation, VEvent } from './model.ts';
 import { counted, numberWord, upperFirst } from '../lib/format.ts';
 import { RULE_STARTS, week, rows, guestRows, day, copiesPicture } from './picture.ts';
 import type { CopiesState } from './picture.ts';
@@ -61,7 +60,34 @@ const sameWords: MatchKey = (part, root) => {
   return `${part.constructor.name}|${root.family().indexOf(part)}`;
 };
 
-export default class IcalRecurrenceExplainer extends Scene {
+/** An object as a step records it: what it stores, its meetings' starts, and its VEVENTs. */
+type StoredObject = { vevents?: number; stored?: ReturnType<typeof counts>; meetings: string[]; components: readonly VEvent[] };
+/** A copy as the copy step records it: whose it is, what it stores, its meetings and whether each is cancelled. */
+type CopyRecord = {
+  copy: Copy;
+  stored: ReturnType<typeof counts>;
+  meetings: (readonly [Meeting['start'], Meeting['cancelled']])[];
+  components: readonly VEvent[];
+};
+/** Alice's object after each edit, then (after the staged copies) the schema, the copy inspected and the server's rules. */
+type IcalState = {
+  series?: StoredObject;
+  invite?: StoredObject;
+  change?: StoredObject & { change: Change; moved?: { from: string; to: string } };
+  schema?: { relations: Relation[] };
+  copy?: CopyRecord;
+  server?: { relations: Relation[]; refused: Record<string, string[]> };
+};
+// Alice's stored object is a view: its lines are the model's VEVENTs; the lines each edit added and
+// the lines in focus are how the step shows them, in `shown.stored`. The panel is as wide as the widest
+// object shown so far, and keys each line by its text, so a line that stays glides to its row.
+type StoredShown = { added: number[]; focus: [number, number] | null; focusAs?: string };
+// How the schema is shown, apart from its source: its notes and what stays undimmed.
+type ErShown = { notes: { id: string; text: string; side: NoteSide }[]; dim: string[] | null };
+/** The stored object's marks, the meeting the list lights (and what it is called), and the schema's notes. */
+type IcalShown = { stored?: StoredShown; listMark?: { row: string; as: string } | null; er?: ErShown };
+
+export default class IcalRecurrenceExplainer extends Scene<IcalState, IcalShown> {
   static meta = {
     sources: [
       'https://www.rfc-editor.org/rfc/rfc5545#section-3.6.1',
@@ -123,21 +149,17 @@ export default class IcalRecurrenceExplainer extends Scene {
     // `components`: the VEVENTs Alice's object holds after each step, which her meeting list is computed from.
     this.state.series = { vevents: SERIES.length, meetings: expand(SERIES).map((m) => m.start), components: SERIES };
     /** The object as it stands: the change's, else the invitation's, else the series'. */
-    const stored = (st: Record<string, unknown>) => ((st.change ?? st.invite ?? st.series) as { components: VEvent[] }).components;
-    // Alice's stored object is a view: its lines are the model's VEVENTs; the lines each edit added and
-    // the lines in focus are how the step shows them, in `shown.stored`. The panel is as wide as the widest
-    // object shown so far, and keys each line by its text, so a line that stays glides to its row.
-    type StoredShown = { added: number[]; focus: [number, number] | null; focusAs?: string };
+    const stored = (st: IcalState) => (st.change ?? st.invite ?? having(st, 'series').series).components;
     const codeOpts = { at: CODE, align: 'top', fontSize: CODE_SIZE, title: 'Alice’s stored object, some lines left out', fitHeight: true } as const;
     const naturalWidth = (vs: readonly VEvent[]) => s.codePicture(lines(vs), codeOpts).panel.width();
     // The widest of the objects shown so far: the panel widens for wider lines and then stays wide.
-    const widthFor = (st: Record<string, unknown>) =>
+    const widthFor = (st: IcalState) =>
       Math.max(...[SERIES, ...(st.invite || st.change ? [INVITED] : []), ...(st.change ? [stored(st)] : [])].map(naturalWidth));
     this.shown.stored = { added: [], focus: null } satisfies StoredShown;
     const code = view(
       this,
       (st, sh) => {
-        const shownCode = sh.stored as StoredShown;
+        const shownCode = having(sh, 'stored').stored;
         const panel = s.codePicture(lines(stored(st)), {
           ...codeOpts,
           width: widthFor(st),
@@ -162,7 +184,7 @@ export default class IcalRecurrenceExplainer extends Scene {
     const list = view(
       this,
       (st, shown) => {
-        const mark = shown.listMark as { row: string; as: string } | null | undefined;
+        const mark = shown.listMark;
         return new Card(this, s.palette, rows(stored(st)), {
           at: LIST,
           align: 'top',
@@ -257,7 +279,7 @@ export default class IcalRecurrenceExplainer extends Scene {
           change,
         },
       };
-      return stagedStep({
+      return {
         id: 'copies',
         title:
           change === 'skip'
@@ -275,7 +297,7 @@ export default class IcalRecurrenceExplainer extends Scene {
         state,
         draw: copiesPicture,
         opening: ['copies-weeks'],
-      });
+      };
     };
     if (copy === 'organiser') await s.steps([copiesStep()]);
 
@@ -299,15 +321,14 @@ export default class IcalRecurrenceExplainer extends Scene {
       erView = s.diagramView(drawn, drawEr);
       return drawn;
     };
-    type ErShown = { notes: { id: string; text: string; side: NoteSide }[]; dim: string[] | null };
     const plainEr: ErShown = { notes: [], dim: null };
-    const drawEr = (_st: Record<string, unknown>, sh: Record<string, unknown>): DiagramPicture => {
-      const e = sh.er as ErShown;
+    const drawEr = (_st: IcalState, sh: IcalShown): DiagramPicture => {
+      const e = having(sh, 'er').er;
       return { notes: e.notes, dim: e.dim };
     };
     let erView: ReturnType<typeof s.diagramView> | undefined;
     const showEr = async (change: Partial<ErShown>) => {
-      this.shown.er = { ...(this.shown.er as ErShown), ...change };
+      this.shown.er = { ...having(this.shown, 'er').er, ...change };
       await this.play(erView!.sync());
     };
 
@@ -366,7 +387,7 @@ export default class IcalRecurrenceExplainer extends Scene {
           }),
         );
       // A staged step: the stage is cleared and Bob's copy drawn from its VEVENTs and meetings.
-      const copyStep = stagedStep({
+      const copyStep = {
         id: 'copy',
         title:
           change === 'skip'
@@ -389,7 +410,7 @@ export default class IcalRecurrenceExplainer extends Scene {
               : `${upperFirst(answer)}. The invitation reached Bob as an iTIP REQUEST, a scheduling message carrying a meeting’s details, holding only the VEVENTs he attends. The server stored it as it came: the third meeting’s override, with RECURRENCE-ID and no master, which RFC 4791 allows. His stored copy contains ${counted(expand(mine).length, 'meeting', { words: true })} and no rule to generate the others.`,
         state: { copy: copyState, messages: [first, second].filter(Boolean).map((m) => m!.method) },
         draw: bobsCopy,
-      });
+      };
       await s.steps([copyStep]);
     }
     // Bob's copy comes first, then the two copies side by side, then the schema as a detail; Alice's copy was drawn on it.

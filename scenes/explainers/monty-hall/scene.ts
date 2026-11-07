@@ -1,7 +1,7 @@
 import { Scene, Group, Text, FadeIn, Transform, AnimationGroup, Succession, matchByKey } from '../../../src/index.ts';
 import type { Choreography, Transition } from '../../../explain/index.ts';
 import type { ScheduledAnimation, Mobject, MatchKey } from '../../../src/index.ts';
-import { stage, settingsOf, Machine, view } from '../../../explain/index.ts';
+import { stage, settingsOf, Machine, view, having } from '../../../explain/index.ts';
 import { monty, montyExample, threeDoorWorlds, threeDoorCells, oddsAfter, roundStart, roundNext, roundDoor, roundResult, ROUND_EVENTS } from './model.ts';
 import type { Host, Opener, Round, RoundEvent } from './model.ts';
 import { label, tile, stat, keyed, emphasised } from '../../../explain/drawing.ts';
@@ -16,8 +16,26 @@ const HOST: Record<Host, string> = { informed: 'Host who knows', random: 'Random
  * same word, and anything unkeyed by its place in the picture.
  */
 const byKey: MatchKey = matchByKey({ text: 'whole', unkeyed: 'by-place' });
+/** Which picture is shown: the round, the strips, the odds, the copy or the worlds. */
+type Phase = 'choice' | 'predict' | 'rounds' | 'odds' | 'copy' | 'worlds';
+/** What the later steps record: the odds and the strips' cells, then the door opened and what it leaves, then every world. */
+type MontyFacts = {
+  odds: ReturnType<typeof monty>;
+  cells: Cell[] | Record<Host, Cell[]>;
+  opened?: string;
+  seen?: ReturnType<typeof oddsAfter> | Record<Host, ReturnType<typeof oddsAfter>>;
+  choice?: number;
+  host?: Host;
+  worlds?: ReturnType<typeof threeDoorWorlds>;
+  informedWorlds?: ReturnType<typeof threeDoorWorlds>;
+  randomWorlds?: ReturnType<typeof threeDoorWorlds>;
+  informed?: ReturnType<typeof monty>;
+  random?: ReturnType<typeof monty>;
+};
+/** The round a reader plays (the machine's), then the facts the strips are drawn from. */
+type MontyState = Round | MontyFacts;
 
-export default class MontyHall extends Scene {
+export default class MontyHall extends Scene<MontyState, { phase?: Phase }> {
   static meta = {
     sources: ['https://mathigon.org/course/probability/monty-hall', 'https://doi.org/10.1080/00031305.1975.10479121'],
     // Sentences that reach past the strip on screen, and the test that holds each over every first pick.
@@ -60,7 +78,6 @@ export default class MontyHall extends Scene {
       others = [0, 1, 2].filter((i) => i !== choice).map(door);
     const seen = { informed: oddsAfter(choice, 'informed', B), random: oddsAfter(choice, 'random', B) } as Record<Opener, ReturnType<typeof oddsAfter>>;
     const s = stage(this, { style: 'github-light', headingSize: 0.6 });
-    type Phase = 'choice' | 'predict' | 'rounds' | 'odds' | 'copy' | 'worlds';
     // The first strip shows every round; from the next on, only the rounds where he opened B to a goat count and the rest are greyed.
     const dim = (c: Cell) => c.opened !== B || c.shows === 'car';
     const KEY = 'Each cell: opens · shows · wins';
@@ -199,12 +216,14 @@ export default class MontyHall extends Scene {
     // Before the first step the picture is the choice, with no door picked yet.
     // Which picture is shown (`shown.phase`) is not part of the model: the round, the host and the odds are.
     const start = roundStart(host);
-    const roundOf = (st: object) => ('pick' in st ? (st as unknown as Round) : start);
+    const roundOf = (st: MontyState) => ('pick' in st ? st : start);
+    /** The machine's round: the state while the round is played. */
+    const round = (st: MontyState) => having(st, 'pick');
     // What the round marks is emphasis the phone's close-ups visit first and review holds to the
     // caption: your door, and the door the host opened, while the round plays (the prediction asks
     // about the same doors; its caption is the question, so it marks nothing new).
     const main = view(this, (st, sh) => {
-      const phase = (sh as { phase?: Phase }).phase ?? 'choice', r = roundOf(st);
+      const phase = sh.phase ?? 'choice', r = roundOf(st);
       const drawn = keyed(picture(phase, r), 'monty-picture');
       if (phase === 'choice') {
         const yours = roundDoor(r), mine = yours === null ? undefined : drawn.find(`door-${yours}`);
@@ -227,7 +246,7 @@ export default class MontyHall extends Scene {
       shown(next);
       await this.play(main.sync({ match: byKey, staged: false, runTime }));
     };
-    const at = (id: Phase, state: Record<string, unknown>) => {
+    const at = (id: Phase, state: MontyFacts) => {
       this.state = JSON.parse(JSON.stringify(state));
       shown(id);
     };
@@ -250,32 +269,32 @@ export default class MontyHall extends Scene {
       return new Succession([fold, gone, new Transform(open, c.to(key), { runTime: 0.4 })]);
     };
     const together = (anims: ScheduledAnimation[]) => new AnimationGroup(anims);
-    const machine = new Machine<Round, RoundEvent>(this, {
+    const machine = new Machine<MontyState, RoundEvent>(this, {
       start,
       events: ROUND_EVENTS,
-      next: roundNext,
+      next: (st, event) => roundNext(round(st), event),
       views: [main],
       runTime: ({ event }) => (event.startsWith('open') || event.startsWith('car') ? 1.22 : event === 'switch' ? 1.66 : 0.6),
       transition: Object.fromEntries(
-        ROUND_EVENTS.flatMap((event): [RoundEvent, (t: Transition<Round, RoundEvent>) => ScheduledAnimation][] => {
+        ROUND_EVENTS.flatMap((event): [RoundEvent, (t: Transition<MontyState, RoundEvent>) => ScheduledAnimation][] => {
           // The host opens his door: it swings round to show a goat (or, for a random host, the car), then the lines say so.
           if (event.startsWith('open'))
             return [[event, (t) => {
               const { after } = t, c = t.choreograph(main);
-              return new Succession([swing(c, after.opened!), together([...crossfade(c, LINES, 0.45), c.rest({ runTime: 0.45 })])]);
+              return new Succession([swing(c, round(after).opened!), together([...crossfade(c, LINES, 0.45), c.rest({ runTime: 0.45 })])]);
             }]];
           // The car is shown: both closed doors swing open together.
           if (event.startsWith('car'))
             return [[event, (t) => {
               const { after } = t, c = t.choreograph(main);
-              return new Succession([together(closedDoors(after).map((i) => swing(c, i))), together([...crossfade(c, LINES, 0.45), c.rest({ runTime: 0.45 })])]);
+              return new Succession([together(closedDoors(round(after)).map((i) => swing(c, i))), together([...crossfade(c, LINES, 0.45), c.rest({ runTime: 0.45 })])]);
             }]];
           // Switching: your door's outline lifts off it, passes over the open door, and settles on the one he offered.
           if (event === 'switch')
             return [[event, (t) => {
               const { before, after } = t, c = t.choreograph(main);
-              const from = roundDoor(before)!,
-                to = roundDoor(after)!;
+              const from = roundDoor(round(before))!,
+                to = roundDoor(round(after))!;
               const outline = c.from(`door-${from}`).children[0]!;
               const at = (i: number, lift: number) => outline.copy().moveTo([DOOR_X(i), DOOR_Y + lift]);
               const yours = c.insert('monty-yours', outline);

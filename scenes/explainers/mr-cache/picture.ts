@@ -2,14 +2,13 @@ import { Group, Text, Rectangle, Arrow } from '../../../src/index.ts';
 import type { Box, Code } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { flow, label } from '../../../explain/drawing.ts';
-import type { StagedStep } from '../../../explain/index.ts';
+import type { StagedStepsOptions } from '../../../explain/index.ts';
 import { counted } from '../lib/format.ts';
-import { stagedStep } from '../../../explain/index.ts';
 
 
-export function frames(which: 'hit' | 'miss', answer: string): StagedStep[] {
-  return [
-    stagedStep({
+export function frames(stage: Stage, which: 'hit' | 'miss', answer: string, opts?: StagedStepsOptions): Promise<void> {
+  return stage.steps([
+    {
       id: 'reader-request',
       title: 'Does this request need the database?',
       line: `Predict: a saved copy sits in front of the database. What does a cache ${which} cost?`,
@@ -21,8 +20,8 @@ export function frames(which: 'hit' | 'miss', answer: string): StagedStep[] {
           flow(s, ['Request', 'Database', 'Response']),
           label(`Before: ${counted(st.beforeReads, 'database read', { words: true })}`, 0, -1.4, s.palette.ink, 0.8),
         ),
-    }),
-    stagedStep({
+    },
+    {
       id: 'reader-outcome',
       title: which === 'hit' ? 'Answer: the hit skips the database' : 'Answer: the miss still reads the database',
       line: which === 'hit' ? 'The key already has a stored value.' : 'The key has no stored value yet.',
@@ -40,8 +39,8 @@ export function frames(which: 'hit' | 'miss', answer: string): StagedStep[] {
           label(`Database reads: ${st.reads}`, 0, -1.4, s.palette.ink, 0.85),
           label(st.request === 'hit' ? 'Saved value returned' : 'Fetched value saved and returned', 0, -3, s.soft, 0.7),
         ),
-    }),
-  ];
+    },
+  ], opts);
 }
 
 /**

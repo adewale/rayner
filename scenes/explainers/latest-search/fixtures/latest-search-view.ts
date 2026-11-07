@@ -1,15 +1,26 @@
 // Retained chart/state oracle; the public lesson uses one ticket-based story.
 import { Scene, Group, Text, Axes, FadeIn } from '../../../../src/index.ts';
 import type { View } from '../../../../explain/index.ts';
-import type { SceneState } from '../../../../src/index.ts';
-import { stage, settingsOf, view } from '../../../../explain/index.ts';
+import { stage, settingsOf, view, having } from '../../../../explain/index.ts';
 import { runSearch, SEARCH_CODE } from '../model.ts';
-import type { CompletionOrder, Query } from '../model.ts';
+import type { CompletionOrder, Query, SearchSnapshot } from '../model.ts';
 
 const shown = (value: Query | null) => value ?? 'none';
 const point = (value: Query | null) => (value === 'A' ? 1 : value === 'B' ? 2 : 0);
 
-export default class LatestSearchExplainer extends Scene {
+/** A snapshot of the run, with the page's history; comparing, each rule's last result and history too. */
+type ChartState = SearchSnapshot & {
+  guard: string;
+  order: CompletionOrder;
+  compare: boolean;
+  history: (Query | null)[];
+  unguarded?: Query | null;
+  guarded?: Query | null;
+  unguardedHistory?: (Query | null)[];
+  guardedHistory?: (Query | null)[];
+};
+
+export default class LatestSearchExplainer extends Scene<ChartState, { codeFocus?: { focus: [number, number]; focusAs: string } }> {
   static meta = {
     id: 'latest-search',
     title: 'Why can an older search replace the latest result?',
@@ -107,7 +118,7 @@ export default class LatestSearchExplainer extends Scene {
     await this.play(new FadeIn(axes), new FadeIn(key), new FadeIn(latest));
     const chart = view(
       this,
-      (state: SceneState) => {
+      (state) => {
         const picture = new Group();
         const line = (values: (Query | null)[], color: string) => {
           if (values.length < 2) return;
@@ -123,15 +134,17 @@ export default class LatestSearchExplainer extends Scene {
             picture.add(axes.dot(i, point(values[i]!), { color, radius: 0.09 }));
         };
         if (state.compare) {
-          line(state.unguardedHistory as (Query | null)[], s.bad);
-          line(state.guardedHistory as (Query | null)[], s.good);
-        } else line(state.history as (Query | null)[], colors.accent);
+          const both = having(state, 'unguardedHistory', 'guardedHistory');
+          line(both.unguardedHistory, s.bad);
+          line(both.guardedHistory, s.good);
+        } else line(state.history, colors.accent);
         const label = (text: string, x: number, y: number, size = 0.4) =>
           picture.add(new Text(text, { fontSize: size, color: colors.ink }).moveTo([x, y]));
         if (state.compare) {
-          label(`No guard: ${shown(state.unguarded as Query | null)}`, -4.65, 1.57, 0.45);
-          label(`Guard: ${shown(state.guarded as Query | null)}`, -1.4, 1.57, 0.45);
-        } else label(`Displayed: ${shown(state.shown as Query | null)}`, -3.7, 1.57, 0.45);
+          const both = having(state, 'unguarded', 'guarded');
+          label(`No guard: ${shown(both.unguarded)}`, -4.65, 1.57, 0.45);
+          label(`Guard: ${shown(both.guarded)}`, -1.4, 1.57, 0.45);
+        } else label(`Displayed: ${shown(state.shown)}`, -3.7, 1.57, 0.45);
         return picture;
       },
       { place: false },
@@ -141,10 +154,10 @@ export default class LatestSearchExplainer extends Scene {
       describe: () => {
         const state = this.state;
         return (
-          `Search A started before B. B is latest. ${String(state.event)}; the page shows ${shown(state.shown as Query | null)}. ` +
+          `Search A started before B. B is latest. ${String(state.event)}; the page shows ${shown(state.shown)}. ` +
           (state.compare
-            ? `Under the same completion order, no guard shows ${shown(state.unguarded as Query | null)} and the latest-request guard shows ${shown(state.guarded as Query | null)}.`
-            : `Completed: ${(state.completed as Query[]).join(', ') || 'none'}.`)
+            ? `Under the same completion order, no guard shows ${shown(having(state, 'unguarded').unguarded)} and the latest-request guard shows ${shown(having(state, 'guarded').guarded)}.`
+            : `Completed: ${state.completed.join(', ') || 'none'}.`)
         );
       },
     });
@@ -153,7 +166,7 @@ export default class LatestSearchExplainer extends Scene {
     this.shown.codeFocus = { focus: [2, 2], focusAs: 'ticket' };
     const code = view(
       this,
-      (_st, sh) => s.codePicture(SEARCH_CODE, { at: [0.7, -3.35, 7.55, 2.6], fontSize: 0.34, ...(sh.codeFocus as { focus: [number, number]; focusAs: string }), key: 'code' }),
+      (_st, sh) => s.codePicture(SEARCH_CODE, { at: [0.7, -3.35, 7.55, 2.6], fontSize: 0.34, ...having(sh, 'codeFocus').codeFocus, key: 'code' }),
       { place: false },
     );
     await s.enter(code, { runTime: 0.4 });

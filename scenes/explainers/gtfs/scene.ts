@@ -1,8 +1,7 @@
 import { Scene } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
-import { stage, settingsOf, Card, CodeBlock, mermaid, answerOf, view } from '../../../explain/index.ts';
+import { stage, settingsOf, Card, CodeBlock, mermaid, answerOf, view, having } from '../../../explain/index.ts';
 import type { Diagram, View } from '../../../explain/index.ts';
-import { stagedStep } from '../../../explain/index.ts';
 import { SAMPLE_FEED } from './feed.ts';
 import {
   readFeed,
@@ -115,7 +114,36 @@ function verdict(s: ServiceDay, date: GtfsDate): string {
   return `${pattern}: ${s.runs ? 'runs' : 'no service'}`;
 }
 
-export default class GtfsExplainer extends Scene {
+/** A date and the trips that run on it. */
+type Day = { date: GtfsDate; running: string[] };
+/** What the steps read from the feed, each part from the step that reads it. */
+type GtfsState = {
+  dayBefore?: Day;
+  day?: Day & { edits: number };
+  tripsByRoute?: Record<string, string[]>;
+  /** The trip the column follows, as trips.txt has it. */
+  ab1?: { route_id: string | undefined; service_id: string | undefined };
+  services?: { id: string; trips: number; calendar: boolean; dates: number }[];
+  today?: ServiceDay[];
+  stopTimes?: {
+    AB1: [string, string, string][];
+    CITY1: number;
+    frequencyRows: { STBA: number; CITY1: number };
+    bands: Record<'STBA' | 'CITY1', Band[]>;
+  };
+};
+// The ER diagram's marked joins are how it is shown, not the model: they live in `shown`, and a
+// diagram is shown by a view that marks the links `shown` names, in its accent, said by its word
+// (“marked”, a mark's own word, when it names none). A focus moves the live diagram, so the marks leave
+// `shown`, the live diagram is moved, and the view comes back.
+type ErMarks = { marked: string[]; as: string | null };
+// The two tables as a panel drawn from a view: the rows in focus, which are how the panel is shown
+// and live in `shown`, are the ones that decide, the exception if one applies, else the weekly rows.
+type TablesFocus = { lines: number | [number, number]; as: string } | null;
+/** The ER diagram's marks, and the calendar tables' focus. */
+type GtfsShown = { er?: ErMarks; tablesFocus?: TablesFocus };
+
+export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
   static meta = {
     sources: [
       TRANSIT + 'reference.md#L120-L121',
@@ -165,17 +193,12 @@ export default class GtfsExplainer extends Scene {
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
 
     /** The right column as a view of the step's state: check compares its words with the state at each step's end. */
-    const column = async (rows: (st: Record<string, unknown>) => readonly (string | { head: string })[]) => {
+    const column = async (rows: (st: GtfsState) => readonly (string | { head: string })[]) => {
       await s.enter(view(this, (st) => drawColumn(rows(st), { ink: s.palette.ink, emphasis: s.emphasis }), { place: false }));
     };
 
-    // The ER diagram's marked joins are how it is shown, not the model: they live in `shown`, and a
-    // diagram is shown by a view that marks the links `shown` names, in its accent, said by its word
-    // (“marked”, a mark's own word, when it names none). A focus moves the live diagram, so the marks leave
-    // `shown`, the live diagram is moved, and the view comes back.
-    type ErMarks = { marked: string[]; as: string | null };
-    const drawEr = (d: Diagram) => (_st: object, sh: Record<string, unknown>) => {
-      const { marked, as } = sh.er as ErMarks;
+    const drawEr = (d: Diagram) => (_st: GtfsState, sh: GtfsShown) => {
+      const { marked, as } = having(sh, 'er').er;
       return { marks: Object.fromEntries(marked.map((id) => [id, as ? { color: d.accent, as } : d.accent])) };
     };
     const markEr = async (v: View, marks: ErMarks) => {
@@ -203,7 +226,7 @@ export default class GtfsExplainer extends Scene {
       }.`,
     });
     const chart = await s.show({ source: ganttSource(FEED, before) }, { box: FULL });
-    this.state.dayBefore = { date: before, running: was.map((t) => t.trip_id) };
+    this.state.dayBefore = { date: before, running: was.map((t) => t.trip_id!) };
 
     // ------------------------------------------------------------------ day
     const edits = ganttEdits(FEED, before, date);
@@ -228,7 +251,7 @@ export default class GtfsExplainer extends Scene {
       } To see why, follow one trip, AB1, from its route to its dates.`,
     });
     await chart.morph({ source: ganttSource(FEED, date) }, { ops: edits });
-    this.state.day = { date, running: tripsToday.map((t) => t.trip_id), edits: edits.length };
+    this.state.day = { date, running: tripsToday.map((t) => t.trip_id!), edits: edits.length };
 
     // ------------------------------------------------------------------ route-trip
     const tripsByRoute = FEED.routes.map(
@@ -253,12 +276,12 @@ export default class GtfsExplainer extends Scene {
     this.state.tripsByRoute = Object.fromEntries(tripsByRoute);
     this.state.ab1 = { route_id: ab1Row.route_id, service_id: ab1Row.service_id };
     await column((st) => {
-      const ab1 = st.ab1 as { route_id: string; service_id: string };
+      const ab1 = having(st, 'ab1').ab1;
       return [
         { head: 'AB1 in trips.txt' },
         `route_id ${ab1.route_id}, service_id ${ab1.service_id}`,
         { head: 'Trips by route_id' },
-        ...Object.entries(st.tripsByRoute as Record<string, string[]>).map(
+        ...Object.entries(having(st, 'tripsByRoute').tripsByRoute).map(
           ([id, trips]) =>
             `Route ${route(id).route_short_name}: ${trips.length > 3 ? `${trips[0]} to ${trips.at(-1)}` : listed(trips)}`,
         ),
@@ -295,7 +318,7 @@ export default class GtfsExplainer extends Scene {
     erView = s.diagramView(er, drawEr(er));
     await markEr(erView, { marked: ['rel:CALENDAR-TRIP#0', 'rel:CALENDAR_DATE-TRIP#0'], as: 'either table' });
     this.state.services = services;
-    await column((st) => (st.services as typeof services).flatMap((x) => [{ head: `${x.id}, ${x.trips} trips` }, `In ${where(x)}`]));
+    await column((st) => having(st, 'services').services.flatMap((x) => [{ head: `${x.id}, ${x.trips} trips` }, `In ${where(x)}`]));
 
     // ------------------------------------------------------------------ evaluate
     const today = servicesOn(FEED, date);
@@ -323,14 +346,11 @@ export default class GtfsExplainer extends Scene {
     await s.clear();
     const calendar = SAMPLE_FEED['calendar.txt']!.split('\n'),
       exceptions = SAMPLE_FEED['calendar_dates.txt']!.split('\n');
-    // The two tables as a panel drawn from a view: the rows in focus, which are how the panel is shown
-    // and live in `shown`, are the ones that decide, the exception if one applies, else the weekly rows.
-    type TablesFocus = { lines: number | [number, number]; as: string } | null;
     this.shown.tablesFocus = null satisfies TablesFocus;
     const tables = view(
       this,
       (_st, sh) => {
-        const focus = sh.tablesFocus as TablesFocus;
+        const focus = having(sh, 'tablesFocus').tablesFocus;
         return new CodeBlock(this, s.palette, ['# calendar.txt', ...calendar, '# calendar_dates.txt', ...exceptions], {
           at: [-7.55, -0.6, 7.55, 3.1],
           fontSize: 0.2,
@@ -353,12 +373,12 @@ export default class GtfsExplainer extends Scene {
     const verdicts = view(
       this,
       (st) => {
-        const { date: on, running: trips } = st.day as { date: GtfsDate; running: string[] };
+        const { date: on, running: trips } = having(st, 'day').day;
         return new Card(
           this,
           s.palette,
           [
-            ...(st.today as ServiceDay[]).map((x) => [x.serviceId, verdict(x, on)] as [string, string]),
+            ...having(st, 'today').today.map((x) => [x.serviceId, verdict(x, on)] as [string, string]),
             ['Trips that run', `${trips.length} of ${FEED.trips.length}`],
           ],
           { at: [-7.55, -4.25, 7.55, -0.85], width: 10.5, fontSize: 0.28 },
@@ -384,7 +404,7 @@ export default class GtfsExplainer extends Scene {
     // A staged step: the stage is cleared and the grid drawn from `week` and `date`, the date it frames.
     // A phone opens on the date asked about, with its neighbours either side as room allows.
     await s.steps([
-      stagedStep({
+      {
         id: 'week',
       title:
         grid.trips[col] === 0 && empties.length === 1
@@ -404,7 +424,7 @@ export default class GtfsExplainer extends Scene {
         state: { week: grid, date },
         draw: drawWeek,
         opening: ['gtfs-week:day'],
-      }),
+      },
     ]);
 
     // ------------------------------------------------------------------ trip-stops
@@ -428,13 +448,13 @@ export default class GtfsExplainer extends Scene {
     await markEr(er2View, { marked: ['rel:TRIP-STOP_TIME#0', 'rel:STOP-STOP_TIME#0'], as: null });
     // `bands`: the frequencies.txt rows of the two repeating trips, which the column gives as headways.
     this.state.stopTimes = {
-      AB1: ab1.map((r) => [r.stop_id, r.arrival_time, r.departure_time]),
+      AB1: ab1.map((r) => [r.stop_id!, r.arrival_time!, r.departure_time!]),
       CITY1: city1.length,
       frequencyRows: { STBA: stbaBands.length, CITY1: city1Bands.length },
       bands: { STBA: stbaBands, CITY1: city1Bands },
     };
     await column((st) => {
-      const times = st.stopTimes as { AB1: [string, string, string][]; bands: Record<'STBA' | 'CITY1', Band[]> },
+      const times = having(st, 'stopTimes').stopTimes,
         [first, last] = [times.AB1[0]!, times.AB1.at(-1)!],
         { STBA: stba, CITY1: city } = times.bands;
       return [
@@ -460,7 +480,7 @@ export default class GtfsExplainer extends Scene {
     // A staged step: the stage is cleared and the card drawn from the stop's day, the calendar-only day when that
     // is empty, and the date the card is titled with.
     await s.steps([
-      stagedStep({
+      {
         id: 'departures',
       title: !leaving.length
         ? `Nothing leaves ${name} on ${shortDate(date)}`
@@ -487,7 +507,7 @@ export default class GtfsExplainer extends Scene {
           : `A departure is a stop_times row at the stop that is not its trip’s last. On ${shortDate(date)} ${listed(at.departures.map((d) => `${d.tripId} leaves at ${clock(d.time)}`))}.${ending}`,
         state: { departures: at, usual: leaving.length ? null : usual, date },
         draw: departuresPicture(this, FEED),
-      }),
+      },
     ]);
   }
 }

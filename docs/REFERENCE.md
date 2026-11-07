@@ -11,14 +11,18 @@ Words used throughout: a **setting** is a choice a scene declares (an id, a labe
 An explainer is a Rayner `Scene` exported from a TypeScript or ESM file, preferably as the default export. A module with exactly one exported `Scene` subclass also works.
 
 ```ts
-static meta = { lang: 'en', sources: ['https://example.com/spec'] };
+export default class Reads extends Scene<{ reads?: number }, {}> {   // the model's type, and what is shown's
+  static meta = { lang: 'en', sources: ['https://example.com/spec'] };
 
-await this.step('stable-name', {
-  title: 'A claim the picture can prove',
-  line: 'The one thing to see, in a few words.',       // under the title, drawn on the picture
-  caption: 'The value, part or mechanism on screen.',  // under the stage on the page
-});
-this.state.reads = reads;   // program state, recorded at each step boundary
+  override async construct() {
+    await this.step('stable-name', {
+      title: 'A claim the picture can prove',
+      line: 'The one thing to see, in a few words.',       // under the title, drawn on the picture
+      caption: 'The value, part or mechanism on screen.',  // under the stage on the page
+    });
+    this.state.reads = reads;   // program state, recorded at each step boundary
+  }
+}
 ```
 
 - `script.md`, beside the scene, holds the explainer's intent. Its header is the `#` question, labelled lines (`- **Answer:** …`, `- **Checked against:** …` and any others the author wants) and a `## Check yourself` list of numbered questions, each with its answer on the indented lines under it: the reader questions. Rayner reads the question as `meta.title`, Answer as `meta.answer` (without a final full stop), the `## Check yourself` list as `meta.questions` and Checked against as `meta.checkedAgainst`, which the page shows under the sources; each file it names in backticks must be in the explainer's folder ([Checked against](#checks)), so the line says where the evidence is: `` model's answers in `model.test.ts`; XState's explored graph in `fixtures/statecharts-xstate.json` ``. A header needs both Answer and Checked against; the rest of the script is the author's prose and is not read. A scene that declares any of these four as well is refused. A script with no Answer line has no header, and the scene declares its own title, answer and questions. The answer, and the reader questions' answers, that come from the model can be computed beside the script in `answers.ts`, so `check` fails when the two drift apart ([Script answers](#checks)):
@@ -38,7 +42,7 @@ this.state.reads = reads;   // program state, recorded at each step boundary
 - `meta.lang` (BCP 47, default `en`) is the language of the page and the transcripts. The main player's own words (`app/embed-strings.ts`) and the generated picture descriptions (`explain/words.ts`, whose `families` name each diagram family and its parts) exist in English and French. On a page in any other language both are English, and the descriptions are marked `lang="en"`; `Picture.lang` in the trace records a description's language when it is not English.
 - `StepMeta` types `title`, `line` and `caption` as strings and `kind` as `'short' | 'main' | 'detail'` (default `'main'`); these fields are also checked before a new step begins. Additional metadata fields remain available.
 - Step names are URL identifiers. They must be unique and non-empty in every scenario.
-- `this.state` is the model and `this.shown` what is shown apart from it; [engine fundamentals](ENGINE-FUNDAMENTALS.md#steps-state-and-evidence) says what belongs in each and how the trace records them (the stage's description of its picture is under `shown.picture`). `Scene<{ count: number }>` types the state for the author and for `view(scene, draw)`; initialise it with `override state = { count: 0 }`. State and recorded evidence hold plain JSON objects, arrays, strings, booleans, null and finite numbers. Object fields whose value is `undefined` are omitted; array holes, undefined array items, functions, symbols, bigint, class instances and cycles fail with a field path. `jsonObject(value)` validates and clones an object under the same rules. Compute values with a model, show its result, and test that each step's state equals the model's (`assertStepState` in `test/lib/explainer-state.ts`).
+- `this.state` is the model and `this.shown` what is shown apart from it; [engine fundamentals](ENGINE-FUNDAMENTALS.md#steps-state-and-evidence) says what belongs in each and how the trace records them (the stage's description of its picture is under `shown.picture`). The scene declares both types, `Scene<Model, Shown>` ([typed state](#typed-state-and-shown)). State and recorded evidence hold plain JSON objects, arrays, strings, booleans, null and finite numbers. Object fields whose value is `undefined` are omitted; array holes, undefined array items, functions, symbols, bigint, class instances and cycles fail with a field path. `jsonObject(value)` validates and clones an object under the same rules. Compute values with a model, show its result, and test that each step's state equals the model's (`assertStepState` in `test/lib/explainer-state.ts`).
 - `meta.watch` names the state a reader should follow, from a `this.state` key to its label in the scene's language: `watch: { tokens: 'Tokens left', allowed: 'Accepted', rejected: 'Rejected' }`. Raw state is developer data and is never shown wholesale; only these keys are. For each step, a watched key whose JSON differs between the step's start and end is a change, shown in `watch` order, at most four: "Tokens left: 5 → 0" (changed), "Rejected: R6" (appeared) or "Tokens left: removed". Numbers are formatted in the scene's language with at most two decimals; strings are cut to 24 characters; booleans read yes or no in the scene's language; a list of numbers, strings or booleans shows four items and "+n". `null`, absent and an empty list have no value. A value that reads the same before and after is no change. An object or a list of objects cannot be said briefly: the key is skipped for that step and `check` reports it. Collection fails on more than eight entries, an empty key or label, or a key that is never in the state of any step of any scenario. One function, `watchedChanges` in `explain/trace.ts`, formats changes for the player, the transcript, `describeExplainer` and `check`.
 - `meta.answer` is the script's one-sentence answer to the reader's question (see the authoring skill's "Script first"). A caption that states it reads it with `answerOf(this)` from `rayner/explain`, so the answer has one home; a test that runs a scene class directly adopts the script first, with `withIntent(Scene, scriptText)` from `rayner/testing`, or `answerOf` throws. `check` fails unless the title, line or caption of some teaching step contains it, compared ignoring case, quote style, spacing and final punctuation, and reports the first such step. Whether the answer comes before the explanation elaborates is for a reader to judge. `meta.questions` lists the reader questions, those a reader should be able to answer afterwards, each `{ question, answer }`, at most six. The player asks them after the last teaching step with each answer behind a disclosure; the transcript ends with them, and `describeExplainer` returns both fields. Collection refuses an empty answer, an empty list, a question without an answer and more than six questions. A scene without them still checks; `check` reports them as missing, and `rayner init` starts a script with both.
 - `meta.claims` supplies optional editorial evidence links. Each entry is `{ says, test }`, where `says` is a phrase in a step title, line or caption (compared as for `answer`) and `test` is `"tests/model.test.ts: <part of a static test name>"`, or `{ says, shown: true }` for a description of its own picture. A test path is looked for in the scene's folder first (`model.test.ts: …`), then from the directory where `rayner check` is invoked, so an npm author can reference their own project tests. The checker validates that a declared phrase appears and that its evidence reference names a static, non-skipped `node:test` declaration. It does not run that test, establish what it asserts, or prove the claim. Each scenario’s `claims.scope` lists sentences containing selected English scope words and their first matching evidence link; `claims.unbacked` counts unlinked sentences and `claims.code` lists code names. This is editorial lint over step prose, not a complete inventory of reader-visible assertions: stage labels and `meta.questions` are not scanned. Inspect those separately. Multiple declared phrases in one sentence are all recorded as stated. The supported declarations use literal names and inline function callbacks; dynamic names and callback references are not analyzed.
@@ -52,6 +56,30 @@ this.state.reads = reads;   // program state, recorded at each step boundary
 - `this.text(value, options)` creates text with the scene’s own shaping service. See [explicit lettering contexts](LETTERING.md) for concurrent requested-face scenes.
 - `text.setText(value)` replaces a `Text`'s string in place, keeping its style, size and any turn or stretch, and holding its anchor point fixed. `text.anchorPoint()` is that point: the left, centre or right of its advance box (by its `anchor`), at the box's vertical middle. It does not move with the ink, so a scene places rows or a bar level with a line of text by it (`ring-buffer`, `state-machine`).
 - By default, lettering uses the embedded fonts, drawn as outlines. JetBrains Mono falls back to Inter, and both fall back to Noto Sans Arabic, Devanagari and SC subsets that hold numerals only (Arabic-Indic and Devanagari digits, Chinese numerals, fullwidth digits). Diagram labels fit the captured widths unless their spec opts into [natural measurements](LETTERING.md#diagram-measurements). A style does not request its font. Bold is the Regular outline stroked, and there is no italic. Every command rejects characters outside the default fonts and requested lettering, naming the scenario, step and code point. An explainer can request additional scripts, registered faces, real bold and italic, or maths with `meta.lettering`, below.
+
+### Typed state and shown
+
+A scene declares the type of its model and of what is shown: `class Bucket extends Scene<BucketState, BucketShown>`. `this.state` and `this.shown` are typed from them, and so is everything drawn from them: a view's draw (`view(this, (st, sh) => …)` and `new View(this, draw)` infer both arguments from the scene), `s.diagramView`'s draw (`stage(this)` carries the types), a `Machine` and `SetState` (their state is the scene's model type), and `view.tween`. A scene with nothing shown declares `{}`; a scene whose pictures are all staged steps has no model of its own and declares `Scene<{}, {}>`. Untyped, both are JSON records (`SceneState`), which suits a test or a tool.
+
+```ts
+type Tokens = { tokens: number; rejected: string[] };
+export default class Bucket extends Scene<Tokens, { lit?: string | null }> {
+  override async construct() {
+    const s = stage(this);
+    this.state = { tokens: 5, rejected: [] };
+    this.shown.lit = null;
+    const card = view(this, (st, sh) => s.cardPicture([['Tokens', st.tokens]], { lit: sh.lit, key: 'card' }), { place: false });
+    await s.enter(card);
+  }
+}
+```
+
+- The state starts empty (`{}`) until the scene sets it, so set it before a view reads it (or initialise it, `override state = …`).
+- A scene whose state changes shape by phase types it honestly: a union of the shapes (a discriminant such as `phase`, or keys only one shape has), or one record whose per-phase parts are optional. A draw of one phase narrows with a check of its own, or with `having(state, ...keys)` from `rayner/explain`, which returns the state typed as the shapes that hold those keys (optional parts made present) and throws a `TypeError` for a state that lacks one. The same works for an optional part of what is shown: `having(sh, 'flow').flow`. `rayner check` draws every view from other steps' states and counts a draw that throws on a state of another shape as one that reads its state ([checks](#checks)), so a narrowing that throws is what it expects.
+- A machine's state type is the scene's model type. A machine that drives one phase of a union narrows in `next` and in its transitions: `next: (st, e) => roundNext(having(st, 'pick'), e)`.
+- `s.steps([...])` types each step from its own `state`, so one list holds steps whose states differ. A step's state is the scene's state while the step shows, not the scene's declared model type: a scene that reads `this.state` after its steps sets it first. Write the list in the call, where each draw is typed; a list built elsewhere gives each step its type, `StagedStep<Shift>`, or (with named draw functions) is a tuple, `[...] as const`.
+- Type a helper a draw calls with the model type, not `SceneState`: an interface is not assignable to a JSON record.
+- `settingsOf(this)` returns `Readonly<Record<string, string>>`; TypeScript gives an instance no link to its class's `static settings`, so a setting's options are not in its type.
 
 ### Lettering on request
 
@@ -83,7 +111,7 @@ An explainer that sets formulas asks for `math: true`, and draws each one with `
 import { Scene, MathTex } from 'rayner';
 import { stage } from 'rayner/explain';
 
-export default class Roots extends Scene {
+export default class Roots extends Scene<{}, {}> {
   static meta = { id: 'roots', title: 'The quadratic formula', lettering: { math: true } };
   override async construct() {
     const s = stage(this);
@@ -142,7 +170,7 @@ With neither `style` nor `palette`, the stage adopts the first diagram's palette
 | Member | What it does |
 | --- | --- |
 | `s.show(spec, { box, build, runTime })` | Draw a diagram and build it in; returns a `Diagram` |
-| `s.diagramView(d, (state, shown) => ({ marks, notes, dim, prefix }))` | Show diagram `d` by a view that draws its marks, notes and dimming from state, usually from `shown` ([below](#diagrams)); returns the `View`. Change `this.shown` and play `view.sync()` |
+| `s.diagramView(d, (state, shown) => ({ marks, notes, dim, prefix }))` | Show diagram `d` by a view that draws its marks, notes and dimming from state, usually from `shown` ([below](#diagrams)), both typed from the scene; returns the `View`. Change `this.shown` and play `view.sync()` |
 | `s.liveDiagram(d)` | Hand the stage back to the live diagram, for a `reveal`, `morph` or `enlarge` (a `walk` runs over the view); call `s.diagramView(d, draw)` again afterwards |
 | `s.card(rows, { at, align, width, title, columns, fontSize, direction, lit, litAs, key, panel, enter })` | Labelled values; returns a `Card`. `columns` puts values side by side under headings; `direction` overrides the stage's field order; `lit` puts a bar on a row |
 | `s.cardPicture(rows, options)` | The same card, placed and laid out as `s.card` does, without entering it: for a view's draw ([below](#card-and-codeblock)) |
@@ -156,7 +184,7 @@ With neither `style` nor `palette`, the stage adopts the first diagram's palette
 | `s.focus(target \| 'all', { margin, runTime, exact, with })` | Move the camera so a mobject, mobjects or a box fill the stage below the heading, with `margin`; `'all'` goes home. Never zooms out past the stage or shows beyond its edges. `exact: true` takes a 16:9 box as the view as it is; `with` plays other animations in the same play |
 | `s.carry(m, to, { runTime })` | Glide a kept object to a point, or into a box or region it is shrunk to fit (never enlarged): carry an idea on instead of clearing it |
 | `s.sketch(m, { tool, color, runTime, describe })` | Draw `m` stroke by stroke at an even speed with a `'pen'` or `'pencil'` riding the tip (`false` for none), and keep it. Between strokes the tool travels at drawing speed, so it never jumps. `m` must not be on stage yet |
-| `s.steps(steps, { kind }?)` | Present steps in turn. Each step is `{ id, title, line, caption, state, draw, describe?, audio?, kind?, opening? }`: it clears the stage, makes `state` the scene's model, and fades in `draw(state, s)` as a view of that state, described by its words, or by `describe(state)` for a picture whose meaning is its geometry; a part that describes itself (a card, code, a note, a dimension line) is described by itself either way. A `draw` must read its state and nothing a different step changes, and `rayner check` holds it to both ([staged steps](#checks)). `opening` lists keys of the parts a phone opens on ([below](#the-phones-opening-emphasis-and-review-subjects)); without it the whole drawing is the opening's subject. A list takes one state type; `stagedStep(step)` (from `rayner/explain`) types one step's state for a list whose steps' states differ |
+| `s.steps(steps, { kind }?)` | Present steps in turn. Each step is `{ id, title, line, caption, state, draw, describe?, audio?, kind?, opening? }`: it clears the stage, makes `state` the scene's model, and fades in `draw(state, s)` as a view of that state, described by its words, or by `describe(state)` for a picture whose meaning is its geometry; a part that describes itself (a card, code, a note, a dimension line) is described by itself either way. A `draw` must read its state and nothing a different step changes, and `rayner check` holds it to both ([staged steps](#checks)). `opening` lists keys of the parts a phone opens on ([below](#the-phones-opening-emphasis-and-review-subjects)); without it the whole drawing is the opening's subject. Each step is typed by its own `state`, so one list holds steps whose states differ ([typed state](#typed-state-and-shown)) |
 | `s.opening(...subjects, { keep }?)` | Name the mobjects a phone's opening close-up should hold together this step ([below](#the-phones-opening-emphasis-and-review-subjects)); with `{ keep: true }` last, for this step and every later one until another kept opening replaces them (none clears them), though a step's own `s.opening` still wins for that step |
 | `s.dimension(a, b, label, { offset, color, size })` | A dimension line from `a` to `b` with ticks, arrowheads and `label`, set off by `offset`; drawn in and kept. The drawing kit's `dimension` builds the same picture for a draw, with the camera at home; the stage's annotations are sized for the screen when the camera has moved |
 | `s.legend(items, { at, size, direction, gap, key })` | A key of swatches and their meanings, drawn in and kept; the kit's `legend` for a draw |
@@ -207,9 +235,9 @@ A card or code panel is a picture of values: it is built once, with what it mark
 Both are native `Group`s and describe themselves wherever they are drawn, a view's current picture included ([views](VIEWS.md#cards-code-annotations-and-notes-from-state)). `new Card(scene, s.palette, rows, options)` and `new CodeBlock(scene, s.palette, lines, options)` build one directly; `s.cardPicture` and `s.codePicture` build one placed as the stage places it, and `s.card` and `s.code` are those, faded in and kept. A test holds the two to the same picture and words. `CodeBlock` is a panel around the engine's `Code` (from `rayner`), which is plain code text with keyed lines and spans: use `Code` itself for `TransformDiff`, a token's span, or a layout of your own, and `CodeBlock` for code on the stage.
 
 ```ts
-// What the panel focuses is how the code is shown (this.shown), not the model.
+// What the panel focuses is how the code is shown (this.shown, typed { focus?: number | null }), not the model.
 this.shown.focus = null;
-const block = view(this, (_st, sh) => s.codePicture(SOURCE, { at: 'main', focus: sh.focus as number | null, focusAs: 'update', key: 'block' }), { place: false });
+const block = view(this, (_st, sh) => s.codePicture(SOURCE, { at: 'main', focus: sh.focus, focusAs: 'update', key: 'block' }), { place: false });
 await s.enter(block);
 this.shown.focus = 1;
 await this.play(block.sync());
@@ -389,9 +417,9 @@ const d = await s.show({ source: `stateDiagram-v2
   on --> off: POWER_OFF` }, { box: 'full' });
 const hops: [string, string][] = [['off', 'on'], ['on_start', 'idle'], ['idle', 'brewing']];
 await d.walk(hops);
-// The path stays marked: the diagram is shown by a view that draws the trail.
+// The path stays marked: the diagram is shown by a view that draws the trail (shown typed { walked?: [string, string][] }).
 this.shown.walked = hops;
-const v = s.diagramView(d, (_st, sh) => ({ marks: d.trail(sh.walked as [string, string][]) }));
+const v = s.diagramView(d, (_st, sh) => ({ marks: d.trail(having(sh, 'walked').walked) }));
 ```
 
 - A composite `state on { … }` is a box with its name in a header. Its part id is `group:on`, and `'on'` finds it. A transition to or from the composite (`on --> off`) attaches to its border.

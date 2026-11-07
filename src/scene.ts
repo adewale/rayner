@@ -70,7 +70,7 @@ export type Evidence = { kind: string } & Record<string, unknown>;
  * drawn. An invariant that never holds on any frame of a run was never tested, so rayner check
  * fails it: a misspelt key finds nothing and cannot pass for an invariant that held.
  */
-export type Invariant = (scene: Scene<any>) => string | boolean | null | undefined | void;
+export type Invariant = (scene: Scene<any, any>) => string | boolean | null | undefined | void;
 
 /**
  * What a scene renders into: called once per frame (dt = 0 for the first),
@@ -137,7 +137,20 @@ function admitRoots(current: readonly Mobject[], incoming: readonly Mobject[], b
   return roots;
 }
 
-export class Scene<S extends object = SceneState> {
+declare const sceneTypes: unique symbol;
+/**
+ * A state type as a scene holds it: `S`'s own properties (an interface's too, which can then go
+ * wherever a JSON record can), or anything for `Scene<any>`.
+ */
+type Held<S> = unknown extends S ? any : { [K in keyof S]: S[K] };
+
+/**
+ * A scene with typed state: `S` is the model's type (what `state` holds) and `Sh` the type of what
+ * is shown of it (`shown`). An explainer declares both, `class X extends Scene<Model, Shown>`, and
+ * every view, staged step, machine and SetState on it is typed from them. Untyped, both are JSON
+ * records (SceneState).
+ */
+export class Scene<S extends object = SceneState, Sh extends object = SceneState> {
   /** @internal Where frames and step boundaries go (the constructor's sink). */
   sink: Sink;
   fps: number;
@@ -149,12 +162,18 @@ export class Scene<S extends object = SceneState> {
   steps: Step[];
   private current: Step | null;
   /** The model: what the explanation is about (a bucket's tokens, a statechart's configuration). JSON. */
-  state: {[K in keyof S]: S[K]};
+  state: NoInfer<Held<S>>;
   /**
    * What is shown of it, apart from the model: which picture a phase shows, say. JSON. A view's
    * draw may read it; a machine never changes it. Kept apart so the model holds only the domain.
    */
-  shown: SceneState;
+  shown: NoInfer<Held<Sh>>;
+  /**
+   * Type-only, never set: the model and shown types, which views, steps and machines on the scene
+   * infer theirs from. Each is joined with any JSON record, so a typed scene goes wherever a
+   * `Scene` does; its `state` and `shown` still hold it to its own types.
+   */
+  declare readonly [sceneTypes]?: { state: S | Record<string, any>; shown: Sh | Record<string, any> };
   /** Every Scene.record() so far, in order, across steps. */
   evidence: Evidence[];
   /**
@@ -202,7 +221,7 @@ export class Scene<S extends object = SceneState> {
     this.current = null;
     // The explanation's own state, and what is shown of it; describe() and describeShown() snapshot them for traces
     this.state = {} as S;
-    this.shown = {};
+    this.shown = {} as Sh;
     this.evidence = [];
     this.frame = new Frame();
     this.stopped = false;

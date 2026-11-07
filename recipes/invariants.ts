@@ -13,12 +13,12 @@ const RADIUS = 2;
 
 /** The dot half way round the circle, one way or the other, holding on every frame that it stays on it. */
 function orbit(turn: 'sampled' | 'morphed'): SceneClass {
-  return class Orbit extends Scene {
+  return class Orbit extends Scene<{ angle: number }, {}> {
     override async construct() {
       const dotAt = (angle: number) => Object.assign(new Dot({ radius: 0.12 }).moveTo([RADIUS * Math.cos(angle), RADIUS * Math.sin(angle)]), { key: 'orbit:dot' });
       // Sampled, the dot is a view of the angle in the state; morphed, a dot moved from end to end.
       this.state = { angle: 0 };
-      const sampled = turn === 'sampled' ? view(this, (st) => dotAt(st.angle as number), { place: false }) : null;
+      const sampled = turn === 'sampled' ? view(this, (st) => dotAt(st.angle), { place: false }) : null;
       const dot = sampled ?? dotAt(0);
       this.add(new Circle({ radius: RADIUS }), dot);
       // Read by key, changing nothing: a message when it fails, true when it held, nothing

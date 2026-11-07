@@ -35,7 +35,7 @@ Lantern supplies the execution and rendering model. Agentic Mermaid supplies lay
 
 | Area | Inherited from Lantern | The fork |
 | --- | --- | --- |
-| Scene authoring | `Scene` classes with `step()`, `play()`, captions and state | Templates, examples, documentation; static `meta` and `settings` as registration conventions |
+| Scene authoring | `Scene` classes, typed by their model and what is shown, with `step()`, `play()`, captions and state | Templates, examples, documentation; static `meta` and `settings` as registration conventions |
 | Animation engine | Mobjects, animations, deterministic frames and seeking | Semantics preserved; general fixes listed in [upstream](../docs/UPSTREAM.md). The helpers run groups on linear time, because easing compounds in nested groups |
 | Explanation helpers | `title`, `CodePanel` and `StateReadout` | Replaced by `explain/`: the stage, diagrams, cards, code panels and settings. `StateReadout`, the last of them, became a `Card` without a panel |
 | Diagrams | `flowchart()` and Lantern's own Mermaid layout | Replaced by Agentic Mermaid capture, which honours its styles across families |

@@ -149,7 +149,10 @@ import { run, type Policy } from './model.ts';
 const SIZE = 3;
 const NEXT = { loop: 'ABCD', reuse: 'CDCD' };
 
-export default class LruMru extends Scene {
+/** What the card shows after some requests: the requests so far, and each policy's cache, evictions and hits. */
+type CardState = { Requests: string; 'Newest first': [string, string]; Evicted: [string, string]; Hits: [string, string] };
+
+export default class LruMru extends Scene<CardState, { lit: string | null }> {
   static meta = {
     sources: [
       'https://en.wikipedia.org/w/index.php?title=Cache_replacement_policies&oldid=1376205644',
@@ -165,7 +168,7 @@ export default class LruMru extends Scene {
     const trace = { lru: run('lru', SIZE, requests), mru: run('mru', SIZE, requests) };
 
     // What the card shows after the first n requests, read from the model's trace.
-    const shown = (n: number) => {
+    const shown = (n: number): CardState => {
       const column = (policy: Policy) => {
         const done = trace[policy].slice(0, n), hits = done.filter((r) => r.hit).map((r) => r.key);
         return [done.at(-1)!.cache.join(' '), done.flatMap((r) => r.evicted ?? []).join(' ') || 'none', hits.length ? `${hits.length}: ${hits.join(' ')}` : '0'];
@@ -174,7 +177,6 @@ export default class LruMru extends Scene {
       const pair = (i: number): [string, string] => [lru[i]!, mru[i]!];
       return { Requests: requests.slice(0, n).join(' '), 'Newest first': pair(0), Evicted: pair(1), Hits: pair(2) };
     };
-    type CardState = ReturnType<typeof shown>;
     // The card is a view: its values are the model's (this.state), and the row it lights is how the
     // step shows them (this.shown). Each step changes them, and the card is redrawn from both.
     const show = async (n: number, lit: string | null = null) => {
@@ -187,14 +189,13 @@ export default class LruMru extends Scene {
     this.state = shown(3);
     this.shown = { lit: null };
     const card = view(this, (st, sh) => {
-      const c = st as CardState, lit = (sh as { lit: string | null }).lit;
       return new Card(this, s.palette, [
-        ['Requests', c.Requests],
+        ['Requests', st.Requests],
         ['Slots', SIZE],
-        ['Newest first', ...c['Newest first']],
-        ['Evicted', ...c.Evicted],
-        ['Hits', ...c.Hits],
-      ], { columns: ['LRU', 'MRU'], width: 6.8, fontSize: 0.3, lit, key: 'cache' });
+        ['Newest first', ...st['Newest first']],
+        ['Evicted', ...st.Evicted],
+        ['Hits', ...st.Hits],
+      ], { columns: ['LRU', 'MRU'], width: 6.8, fontSize: 0.3, lit: sh.lit, key: 'cache' });
     }, { place: false });
     await s.enter(card, { runTime: 0.35 });
 
@@ -227,6 +228,7 @@ Read it from the top:
 - `static meta` holds the sources the model was checked against. The id, which names the output files, is the folder's name, and the title, answer and reader questions come from the script's header (the questions from its `## Check yourself` list).
 - `static settings` declares one setting with two options. Each option is a scenario: the reader can switch between them, and `check` and `review` visit both. Both scenarios send A B C D first, then either repeat the loop or alternate C and D.
 - `trace` asks the model once per scenario. Every value on the card comes from it: `shown(n)` turns the trace into what the card shows after the first `n` requests.
+- `Scene<CardState, { lit: string | null }>` declares the scene's two types: its model, what the card shows, and what is shown of it, the row the card lights. `this.state`, `this.shown` and the draw's `st` and `sh` are typed from them ([typed state](REFERENCE.md#typed-state-and-shown)).
 - The card is a view of the state: `view(this, draw)` builds a `Card` from `this.state` whenever the state changes, and `show(n, lit)` puts the values after `n` requests (and the row to light) in the state and plays `card.sync(...)`. So the card cannot drift from the state that tests and `rayner describe` read, and `check` redraws it from that state at every step. The card's `key` lets the sync change only what changed: a new value fades in where the old one fades out, and the bar moves to the lit row.
 - `stage(this, { style: 'nord', headingSize: 0.54 })` draws the paper and a heading that follows the steps. The larger heading keeps the step number readable on a phone.
 - The card has an LRU column and an MRU column. A row with one value per column compares the policies; a row with a single value, such as Requests, spans both columns because both caches receive the same requests.

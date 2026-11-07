@@ -1,17 +1,16 @@
 import { Group } from '../../../src/index.ts';
 import { find, run } from './model.ts';
 import { flow, label } from '../../../explain/drawing.ts';
-import type { StagedStep } from '../../../explain/index.ts';
-import { stagedStep } from '../../../explain/index.ts';
+import type { Stage, StagedStepsOptions } from '../../../explain/index.ts';
 
 
 /** Desktop approvals authenticate op, as the scene's run step assumes. */
-export function frames(answer: string): StagedStep[] {
+export function frames(stage: Stage, answer: string, opts?: StagedStepsOptions): Promise<void> {
   const found = find(['cloud api']),
     ref = found.matches[0]!.ref,
     launched = run('desktop', { API_KEY: ref }, ['app']);
-  return [
-    stagedStep({
+  return stage.steps([
+    {
       id: 'ask',
       title: 'An agent must start an app without reading its key',
       line: 'Predict: what could the agent pass along instead of the key?',
@@ -25,8 +24,8 @@ export function frames(answer: string): StagedStep[] {
           label(`needs ${st.needs}`, 4.8, -0.3, s.palette.ink, 0.62),
           ...(st.agentHasValue ? [] : [label('must not read', -4.8, -0.3, s.bad, 0.62), label('the value', -4.8, -1.15, s.bad, 0.62)]),
         ),
-    }),
-    stagedStep({
+    },
+    {
       id: 'reader-boundary',
       title: 'Answer: hand over a reference, and let op swap in the value',
       line: `The agent passes ${ref}; op gives its value to the app.`,
@@ -39,6 +38,6 @@ export function frames(answer: string): StagedStep[] {
           ...(st.childHasValue ? [label('secret value', 2.6, 2.25, s.emphasis, 0.65)] : []),
           label(st.ref, 0, -1.6, s.palette.ink, 0.62),
         ),
-    }),
-  ];
+    },
+  ], opts);
 }

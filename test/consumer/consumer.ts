@@ -147,7 +147,7 @@ export async function authorLayout(scene: Scene): Promise<void> {
 // Author and wire contracts are checked through the installed public declarations.
 function authorContracts(packed: import('rayner').PackedLetteringSnapshot) {
   interface CounterState {count: number}
-  class Counter extends Scene<CounterState> {
+  class Counter extends Scene<CounterState, { lit?: boolean }> {
     override state = {count: 0};
     override async construct() {
       this.state.count++;
@@ -161,6 +161,9 @@ function authorContracts(packed: import('rayner').PackedLetteringSnapshot) {
   view(counter, state => new Text(String(state.count)));
   // @ts-expect-error view callbacks retain their scene's state keys
   view(counter, state => new Text(String(state.misspelled)));
+  view(counter, (state, shown) => new Text(`${state.count} ${shown.lit ?? false}`));
+  // @ts-expect-error view callbacks retain their scene's shown keys
+  view(counter, (_state, shown) => new Text(String(shown.misspelled)));
   const schedule = new AnimationGroup([]);
   // @ts-expect-error a group schedules animations, it owns no drawable target
   schedule.mobject;

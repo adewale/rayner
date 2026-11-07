@@ -8,7 +8,7 @@ Request the work on the scene class:
 import { Scene, MathTex } from 'rayner';
 import { stage } from 'rayner/explain';
 
-export default class Example extends Scene {
+export default class Example extends Scene<{}, {}> {
   static meta = {
     id: 'joining', title: 'Arabic and maths',
     textContext: 'explicit' as const,

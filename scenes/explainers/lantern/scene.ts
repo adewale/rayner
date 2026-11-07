@@ -1,8 +1,7 @@
 import { Scene, Rectangle, Dot, FadeIn, Transform, Animation } from '../../../src/index.ts';
 import { toSvgString, renderAt, StringSink } from '../../../src/output.ts';
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
-import { stage, regionBox, settingsOf, answerOf, view } from '../../../explain/index.ts';
-import { stagedStep } from '../../../explain/index.ts';
+import { stage, regionBox, settingsOf, answerOf, view, having } from '../../../explain/index.ts';
 import type { Diagram, PictureNote } from '../../../explain/index.ts';
 import { START, END, tiny, timelinePicture, checkPicture, playedLabel, seekedLabel, playedPicture, seekPicture, rulerPicture, sinkNote } from './picture.ts';
 import type { Motion, TinyFrame, Still, Seek, TimelineState, CheckState } from './picture.ts';
@@ -84,7 +83,7 @@ class Nudge extends Animation {
 /** A tiny native scene, run inside this one: a box grows, and a dot crosses a track. */
 function demoScene(ink: string, accent: string, soft: string, motion: Motion, nudges: Nudge[]) {
   const parts = tiny(ink, accent, soft);
-  return class SeekDemo extends Scene {
+  return class SeekDemo extends Scene<{}, {}> {
     override async construct() {
       const box = parts.box(3, 2.4, [-4.5, 1.6]);
       const dot = parts.dot(START[0]);
@@ -185,7 +184,15 @@ function dotX(s: Scene): number {
   return +dot.center()[0].toFixed(3) + 0;
 }
 
-export default class LanternExplainer extends Scene {
+// How the classes are shown, apart from their source: the links walked, the notes and what stays
+// undimmed. That is `shown`, not the model; the diagram's view draws it, and each change is a sync.
+type ClassesShown = { walked: [string, string][]; notes: PictureNote[]; dim: string[] | null };
+/** After the staged steps: the frame the still seeks to, and the scene time of each frame. */
+type LanternState = { frameAtSeek?: number; ruler?: { fps: number; times: number[] } };
+/** The pipeline's walked links, and how the classes are shown. */
+type LanternShown = { flowWalked?: [string, string][]; classes?: ClassesShown };
+
+export default class LanternExplainer extends Scene<LanternState, LanternShown> {
   static meta = {
     sources: [
       'https://github.com/ivarvong/lantern',
@@ -283,7 +290,7 @@ export default class LanternExplainer extends Scene {
       moveStarts = runs.nudge.playedX.findIndex((x) => x !== START[0]) + 1;
 
     await s.steps([
-      stagedStep({
+      {
         id: 'played',
         title: `Played, the dot is halfway at t = ${t} s`,
         line: `A still at t = ${SEEK_T} s skips computing frames 1–${run.seekAt - 1}. Where is its dot?`,
@@ -293,8 +300,8 @@ export default class LanternExplainer extends Scene {
         describe: (st) =>
           `Left: the tiny scene ${playedLabel(st.at)}, the dot halfway along its track, fingerprint ${st.played.svg}. Right: an empty frame marked with a question mark, ${seekedLabel(st.at)}.`,
         draw: (st) => playedPicture(st, c),
-      }),
-      stagedStep({
+      },
+      {
         id: 'seek',
         title: match
           ? `The still matches: the same SVG, fingerprint ${print}`
@@ -314,8 +321,8 @@ export default class LanternExplainer extends Scene {
             : `Two frames of the tiny scene at t = ${st.at.t.toFixed(2)} s: played, with the dot halfway (${st.seek.played}); seeked, with the dot near the start of its track and an outline where playback has it (${st.seek.seeked}).`,
         // The two frames, the still's with an outline where playback has the dot when they differ.
         draw: (st) => seekPicture(st, c),
-      }),
-      stagedStep({
+      },
+      {
         id: 'timeline',
         title: 'Seeked frame by frame, the nudged dot never passes its first step',
         line: 'Line: where playback has the dot. Dots: a still taken at each frame.',
@@ -336,7 +343,7 @@ export default class LanternExplainer extends Scene {
           `Two plots of the dot’s place on its track, start to end, against frames 1 to ${st.timeline.frames}. Each has a line for playback and a dot for a still seeked to each frame. Blending fixed endpoints: every dot sits on the line. A nudge each frame: the dots follow the line through frame ${st.timeline.moveStarts}, then stay one nudge from the start while the line climbs to the end; at frame ${st.seek.frame} playback has made ${st.nudges.played} nudges and the still ${st.nudges.seeked}.`,
         draw: (st) => timelinePicture(st, c),
         opening: ['lantern-timeline-nudge-played', 'lantern-timeline-nudge-seeked'],
-      }),
+      },
     ]);
 
     await this.step('clock', {
@@ -354,7 +361,7 @@ export default class LanternExplainer extends Scene {
     // The links walked are how the pipeline is shown, not the model: they live in `shown`, and the
     // pipeline is shown by a view that draws them as a trail.
     this.shown.flowWalked = [];
-    const flowView = s.diagramView(flow, (_st, sh) => ({ marks: flow.trail(sh.flowWalked as [string, string][]) }));
+    const flowView = s.diagramView(flow, (_st, sh) => ({ marks: flow.trail(having(sh, 'flowWalked').flowWalked) }));
     const paced: [string, string][] = [
       ['Clock', 'Browser'],
       ['Clock', 'Trace'],
@@ -366,7 +373,7 @@ export default class LanternExplainer extends Scene {
     this.state.frameAtSeek = run.seekAt;
     this.state.ruler = { fps: this.fps, times: Array.from({ length: 9 }, (_, n) => (n * 1000) / this.fps) };
     // The scene time of each frame the state records, and when each sink takes it.
-    const ruler = view(this, (st) => rulerPicture((st as unknown as { ruler: { fps: number; times: number[] } }).ruler.times, RULER_TOP, c), { place: false });
+    const ruler = view(this, (st) => rulerPicture(having(st, 'ruler').ruler.times, RULER_TOP, c), { place: false });
     await s.enter(ruler);
 
     await this.step('objects', {
@@ -379,17 +386,14 @@ export default class LanternExplainer extends Scene {
     const classesAt: Box = [-6.1, -3.55, 1.0, 2.95];
     const classes = await s.show({ source: CLASSES }, { box: bleed(classesAt, [397.786, 370.7], [40, 40, 358, 331]) });
     inside(classes, ['Scene', 'Mobject', 'Animation', 'Sink'], classesAt, regionBox('full', { right: classesAt[2] + 0.3 }));
-    // How the classes are shown, apart from their source: the links walked, the notes and what stays
-    // undimmed. That is `shown`, not the model; the diagram's view draws it, and each change is a sync.
-    type ClassesShown = { walked: [string, string][]; notes: PictureNote[]; dim: string[] | null };
     this.shown.classes = { walked: [], notes: [], dim: null } satisfies ClassesShown;
-    const drawClasses = (_st: object, sh: Record<string, unknown>) => {
-      const c = sh.classes as ClassesShown;
+    const drawClasses = (_st: LanternState, sh: LanternShown) => {
+      const c = having(sh, 'classes').classes;
       return { marks: classes.trail(c.walked), notes: c.notes, dim: c.dim };
     };
     const classesView = s.diagramView(classes, drawClasses);
     const showClasses = async (change: Partial<ClassesShown>) => {
-      this.shown.classes = { ...(this.shown.classes as ClassesShown), ...change };
+      this.shown.classes = { ...having(this.shown, 'classes').classes, ...change };
       await this.play(classesView.sync());
     };
     for (const hop of [
@@ -398,7 +402,7 @@ export default class LanternExplainer extends Scene {
       ['Scene', 'Sink'],
     ] as [string, string][]) {
       await classes.walk([hop]);
-      await showClasses({ walked: [...(this.shown.classes as ClassesShown).walked, hop] });
+      await showClasses({ walked: [...having(this.shown, 'classes').classes.walked, hop] });
     }
     // What the sink does with a frame, beside it: it reads; it never changes a mobject.
     const sinkBox = classes.get('Sink').box()!;
@@ -452,7 +456,7 @@ export default class LanternExplainer extends Scene {
     const count = (m: Motion) => runs[m].matches.filter(Boolean).length;
     const firstMiss = runs.nudge.matches.indexOf(false) + 1;
     await s.steps([
-      stagedStep({
+      {
         id: 'check',
         title: `Seeked frame by frame: ${count('blend')} of ${total} match with blending, ${count('nudge')} with the nudge`,
         line: 'rayner check fails a page on the first seeked frame that differs from playback.',
@@ -469,7 +473,7 @@ export default class LanternExplainer extends Scene {
           return `Two rows of ${frames} cells, one per frame of the tiny scene, each comparing the seeked frame with the played one. Blending: ${matched.blend === frames ? `all ${frames}` : `${matched.blend} of ${frames}`} match. A nudge each frame: frames 1 to ${miss - 1} match, frames ${miss} to ${frames} differ. A line marks frame ${st.seek.frame}, the still at t = ${st.seek.t.toFixed(2)} s.`;
         },
         draw: (st) => checkPicture(st, c),
-      }),
+      },
     ]);
   }
 }

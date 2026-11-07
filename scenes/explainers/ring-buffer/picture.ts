@@ -2,8 +2,7 @@ import { Group, Arrow, Circle, Text, SurroundingRectangle, Cross } from '../../.
 import type { Vec } from '../../../src/index.ts';
 import { keyedParts } from '../../../explain/drawing.ts';
 import { label, tile, emphasised } from '../../../explain/drawing.ts';
-import type { StagedStep } from '../../../explain/index.ts';
-import { stagedStep } from '../../../explain/index.ts';
+import type { Stage, StagedStepsOptions } from '../../../explain/index.ts';
 import type { RingState } from './model.ts';
 
 /**
@@ -19,7 +18,7 @@ export function arrayQueue(values: readonly number[]) {
   return { before: [...values], after, popped, moved: after.length };
 }
 
-export function frames(): StagedStep[] {
+export function frames(stage: Stage, opts?: StagedStepsOptions): Promise<void> {
   const q = arrayQueue([1, 2, 3, 4, 5]),
     big = arrayQueue(Array.from({ length: 1000 }, (_, i) => i + 1));
   const x = (i: number) => (i - 2) * 2.3,
@@ -27,8 +26,8 @@ export function frames(): StagedStep[] {
     BOTTOM = -1.0,
     W = 2.0,
     H = 1.05;
-  return [
-    stagedStep({
+  return stage.steps([
+    {
       id: 'shift',
       title: 'A queue in an array: each pop moves every value left',
       line: `Predict: how could pop take ${q.popped} without moving the other ${q.moved}?`,
@@ -61,8 +60,8 @@ export function frames(): StagedStep[] {
         );
         return g;
       },
-    }),
-  ];
+    },
+  ], opts);
 }
 
 // ---------------------------------------------------------------- the ring, drawn from the machine's state

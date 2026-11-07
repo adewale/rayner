@@ -1,7 +1,7 @@
 import { Scene, Rectangle, Dot, Line, GrowFromEdge, PulseAlongPath, Succession } from 'rayner';
 import { SetState, view, Card, palette } from 'rayner/explain';
 
-export default class ChoreographyScene extends Scene<{count: number}> {
+export default class ChoreographyScene extends Scene<{count: number}, {}> {
   override state = { count: 0 };
 
   override async construct() {

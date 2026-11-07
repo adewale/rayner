@@ -1,8 +1,8 @@
 import { frames as readerFrames, FILE, files, prints, shellsPicture, shellsWords, commandLine, faded } from './picture.ts';
 import type { Choreography, Transition, Diagram, PictureNote, View, CardRow } from '../../../explain/index.ts';
 import { Scene, Text, Transform, AnimationGroup, Succession, FadeIn, FadeOut } from '../../../src/index.ts';
-import type { Animation, Box, SceneState } from '../../../src/index.ts';
-import { stage, regionBox, answerOf, Machine, view, Card, CodeBlock } from '../../../explain/index.ts';
+import type { Animation, Box } from '../../../src/index.ts';
+import { stage, regionBox, answerOf, Machine, view, having, Card, CodeBlock } from '../../../explain/index.ts';
 import { exec } from './model.ts';
 import type { Shell } from './model.ts';
 import { sessionOfShells, sessionNextShell, scriptBound, BASH_EVENTS } from './model.ts';
@@ -33,7 +33,18 @@ const TOP = regionBox('top', { bottom: -0.2 }),
   BOTTOM = regionBox('bottom', { top: -0.5 }),
   BOTTOM_LEFT = regionBox('left', { top: -0.5 }),
   BOTTOM_RIGHT = regionBox('right', { top: -0.5 });
-export default class BashExplainer extends Scene {
+/**
+ * The two shells a redirect leaves (and what cat printed on the returned one), then the caller's
+ * session of shells that the lesson's machine drives.
+ */
+type BashState = { oldShell?: Shell; newShell?: Shell; stdout?: string; cat?: string } & Partial<ShellSession>;
+type DiagramName = 'ast' | 'flow' | 'policy';
+type CodeName = 'api' | 'call' | 'loop' | 'dispatch' | 'story';
+type CardName = 'before' | 'after' | 'picked';
+/** Each diagram's marks and notes, each code panel's focus, each card's lit row, and whether the redirect has written. */
+type BashShown = { [d in DiagramName]?: DiagramShown } & { [c in CodeName]?: Focus } & { [c in CardName]?: string } & { written?: boolean };
+
+export default class BashExplainer extends Scene<BashState, BashShown> {
   static meta = {
     sources: [
       'https://github.com/elixir-ai-tools/just_bash',
@@ -51,40 +62,40 @@ export default class BashExplainer extends Scene {
     const old: Shell = { fs: {}, steps: 0 };
     // How each picture is shown, apart from the model: a code panel's focus, a diagram's marks and
     // notes, a card's lit row. That is `shown`, under each picture's name; views draw it.
-    const shownOf = <T>(name: string) => this.shown[name] as T;
-    const show = async (v: View, name: string, value: unknown, runTime = 0.45) => {
+    const shownOf = (name: DiagramName) => having(this.shown, name)[name];
+    const show = async <K extends keyof BashShown>(v: View, name: K, value: BashShown[K], runTime = 0.45) => {
       this.shown = { ...this.shown, [name]: value };
       await this.play(v.sync({ runTime }));
     };
     /** A code panel as s.code draws it, its focus bar on `shown[name]`. */
-    const codePanel = async (lines: readonly string[], opts: { at: Box | 'side'; fontSize: number }, name: string) => {
-      const v = view(this, (_st, sh) => new CodeBlock(this, s.palette, lines, { ...opts, focus: (sh[name] ?? null) as Focus, key: name }), { place: false });
+    const codePanel = async (lines: readonly string[], opts: { at: Box | 'side'; fontSize: number }, name: CodeName) => {
+      const v = view(this, (_st, sh) => new CodeBlock(this, s.palette, lines, { ...opts, focus: sh[name] ?? null, key: name }), { place: false });
       await s.enter(v, { runTime: 0.4 });
       return v;
     };
-    const focus = (v: View, name: string, lines: Focus) => show(v, name, lines, 0.4);
+    const focus = (v: View, name: CodeName, lines: Focus) => show(v, name, lines, 0.4);
     /** Diagram `d` shown by a view of `shown[name]`. */
-    const diagramView = (d: Diagram, name: string) => {
+    const diagramView = (d: Diagram, name: DiagramName) => {
       this.shown = { ...this.shown, [name]: PLAIN };
-      return s.diagramView(d, (_st, sh) => sh[name] as DiagramShown);
+      return s.diagramView(d, (_st, sh) => having(sh, name)[name]);
     };
     /** These changes to how diagram `name` is shown, synced. */
-    const showDiagram = (v: View, name: string, change: (was: DiagramShown) => Partial<DiagramShown>) =>
-      show(v, name, { ...shownOf<DiagramShown>(name), ...change(shownOf<DiagramShown>(name)) });
+    const showDiagram = (v: View, name: DiagramName, change: (was: DiagramShown) => Partial<DiagramShown>) =>
+      show(v, name, { ...shownOf(name), ...change(shownOf(name)) });
     /** A walk's token, then its trail left in `shown[name]`, in `color` (the diagram's accent by default). */
-    const walked = async (d: Diagram, v: View, name: string, hops: [string, string][], color?: string) => {
+    const walked = async (d: Diagram, v: View, name: DiagramName, hops: [string, string][], color?: string) => {
       await d.walk(hops);
       await showDiagram(v, name, (was) => ({ marks: { ...was.marks, ...d.trail(hops, color) } }));
     };
-    const noted = (v: View, name: string, note: PictureNote) => showDiagram(v, name, (was) => ({ notes: [...was.notes, note] }));
+    const noted = (v: View, name: DiagramName, note: PictureNote) => showDiagram(v, name, (was) => ({ notes: [...was.notes, note] }));
     /** A card as s.card draws it, its lit row on `shown[name]`. */
-    const cardView = async (rows: (st: SceneState, sh: SceneState) => readonly CardRow[], opts: Omit<ConstructorParameters<typeof Card>[3], 'lit' | 'key'>, name: string) => {
-      const v = view(this, (st, sh) => new Card(this, s.palette, rows(st, sh), { ...opts, lit: (sh[name] ?? null) as string | null, key: name }), { place: false });
+    const cardView = async (rows: (st: BashState, sh: BashShown) => readonly CardRow[], opts: Omit<ConstructorParameters<typeof Card>[3], 'lit' | 'key'>, name: CardName) => {
+      const v = view(this, (st, sh) => new Card(this, s.palette, rows(st, sh), { ...opts, lit: sh[name] ?? null, key: name }), { place: false });
       await s.enter(v, { runTime: 0.35, shift: [0, -0.08] });
       return v;
     };
     // ── command: a line of text and a shell value ──────────────────────
-    await s.steps(readerFrames(answerOf(this)), { kind: 'short' });
+    await readerFrames(s, answerOf(this), { kind: 'short' });
     await this.step('command', {
       kind: 'detail',
       title: 'A command line and the empty shell it runs on',
@@ -193,13 +204,12 @@ export default class BashExplainer extends Scene {
     await flow.morph({
       source: `graph LR\nInput[empty stdin] --> Echo[echo hello]\nEcho --> Tr[tr a-z A-Z]\nTr --> File[${FILE}]`,
     });
-    flowView = s.diagramView(flow, (_st, sh) => sh.flow as DiagramShown);
+    flowView = s.diagramView(flow, (_st, sh) => having(sh, 'flow').flow);
     await noted(flowView, 'flow', { id: 'File', text: q(run.shell.fs[FILE]!), side: 'below' });
-    type Shells = { oldShell: Shell; newShell: Shell; stdout: string };
     const before = await cardView(
       (st) => [
-        ['files', files((st as unknown as Shells).oldShell)],
-        ['steps run', (st as unknown as Shells).oldShell.steps],
+        ['files', files(having(st, 'oldShell').oldShell)],
+        ['steps run', having(st, 'oldShell').oldShell.steps],
       ],
       { at: BOTTOM_LEFT, align: 'top', title: 'Original shell', fontSize: 0.3, width: 5.2 },
       'before',
@@ -207,7 +217,7 @@ export default class BashExplainer extends Scene {
     // The returned shell's card starts as the copy exec makes, then shows what the redirect wrote.
     const after = await cardView(
       (st, sh) => {
-        const { newShell, stdout } = st as unknown as Shells;
+        const { newShell, stdout } = having(st, 'newShell', 'stdout');
         return sh.written
           ? [
               ['files', files(newShell)],
@@ -320,14 +330,14 @@ export default class BashExplainer extends Scene {
     await s.clear();
     // The caller's shells, drawn from the session: each command line is an event of a machine whose model is exec.
     const start = sessionOfShells();
-    this.state = { ...start } as unknown as SceneState;
-    const chain = view(this, (st) => shellsPicture(st as unknown as ShellSession, s), { place: false });
-    const session = () => this.state as unknown as ShellSession;
+    this.state = { ...start };
+    const chain = view(this, (st) => shellsPicture(having(st, 'shells', 'cats'), s), { place: false });
+    const session = () => having(this.state, 'shells', 'cats');
     s.keep(chain, { describe: () => shellsWords(session()) });
     // Checked on every frame, and through every transition from every state rayner check reaches: whatever ran, s0
     // is the empty shell the caller started with, in the model and in the picture.
     this.addInvariant('s0 stays the empty shell', (scene) => {
-      const st = scene.state as unknown as ShellSession;
+      const st: BashState = scene.state;
       if (!Array.isArray(st.shells)) return false;
       if (JSON.stringify(st.shells[0]) !== JSON.stringify(old)) return `s0 is ${JSON.stringify(st.shells[0])}`;
       const said = chain.current.find('shell:0:files')?.family().filter((m): m is Text => m instanceof Text).map((t) => t.text) ?? [];
@@ -349,22 +359,22 @@ export default class BashExplainer extends Scene {
             `exec(s0, [["cat", "${FILE}"]]).stdout   // ${q(viaOld)}`,
             `s0.fs                               // ${JSON.stringify(old.fs)}`,
           ],
-          { at: BOTTOM, fontSize: 0.3, focus: sh.story as number, key: 'story' },
+          { at: BOTTOM, fontSize: 0.3, focus: sh.story, key: 'story' },
         ),
       { place: false },
     );
-    const machine = new Machine<ShellSession, BashEvent>(this, {
+    const machine = new Machine<BashState, BashEvent>(this, {
       start,
       events: BASH_EVENTS,
       // What the player's buttons say: the script's lines as the reader would run them.
       labels: { RUN_PIPELINE: 'Run the pipeline', CAT_NEWEST: 'cat on the newest shell', CAT_S0: 'cat on s0', LS: 'ls' },
-      next: sessionNextShell,
-      bound: scriptBound,
+      next: (st, event) => sessionNextShell(having(st, 'shells', 'cats'), event),
+      bound: (st, event) => scriptBound(having(st, 'shells', 'cats'), event),
       views: [chain],
       runTime: ({ event }) => (event === 'RUN_PIPELINE' ? 1.6 : 1.2),
       transition: Object.fromEntries(
-        BASH_EVENTS.map((event) => [event, (t: Transition<ShellSession, BashEvent>) => commandRuns(t.choreograph(chain))]),
-      ) as unknown as Record<BashEvent, (t: Transition<ShellSession, BashEvent>) => Animation>,
+        BASH_EVENTS.map((event) => [event, (t: Transition<BashState, BashEvent>) => commandRuns(t.choreograph(chain))]),
+      ),
     });
     await s.enter(story, { runTime: 0.4 });
     // The lesson's three lines, in order: the write on s0, whose returned shell is kept, then cat on each shell.

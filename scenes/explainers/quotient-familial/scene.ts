@@ -1,7 +1,7 @@
 import { Scene, Group, Create } from '../../../src/index.ts';
 import { callout } from '../../../explain/drawing.ts';
-import { stage, settingsOf, regionBox, Card, mermaid, view } from '../../../explain/index.ts';
-import type { CardRow, CardOptions, View, Diagram } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, Card, mermaid, view, having } from '../../../explain/index.ts';
+import type { CardRow, CardOptions, View, Diagram, Having } from '../../../explain/index.ts';
 import { impot, bareme, tranche, repartition, BAREME, PARAMS, euros, pourcent, partsTexte, NNBSP } from './model.ts';
 import type { Impot } from './model.ts';
 import { drawRegle } from './picture.ts';
@@ -33,24 +33,28 @@ const FIN_DECOTE = Math.ceil((PARAMS[2024].decoteSeuil - 0.5) / PARAMS[2024].dec
 const RANG = ['1er enfant', '2e enfant', '3e enfant'];
 const COUNTS = ['0 enfant', '1 enfant', '2 enfants', '3 enfants'];
 
-/** What the steps record, accumulated: the fields the cards and the rulers below draw from. */
+/** What the steps record, accumulated: the fields the cards and the rulers below draw from, each part from the step that records it. */
 interface QfState {
   rni: number;
   enfants: number;
-  parts: number;
-  quotient: number;
-  tranches: { rate: number; entier: number; parts: number }[];
-  brut: number;
-  sansEnfants: number;
-  avantage: number;
-  demiParts: number;
-  plafond: number;
-  plafQf: number;
-  decote: number;
-  impot: number;
-  tauxMoyen: number;
-  parEnfants: number[];
-  impot2025: number;
+  parts?: number;
+  quotient?: number;
+  parPart?: number;
+  tranche?: number;
+  tauxMoyenPart?: number;
+  tranches?: { rate: number; entier: number; parts: number }[];
+  brut?: number;
+  sansEnfants?: number;
+  avantage?: number;
+  demiParts?: number;
+  plafond?: number;
+  plafQf?: number;
+  plafonne?: boolean;
+  decote?: number;
+  impot?: number;
+  tauxMoyen?: number;
+  parEnfants?: number[];
+  impot2025?: number;
 }
 /** The income as the scene writes it: whole euros, or with cents when it has them. */
 const rniTexteDe = (rni: number) => (Number.isInteger(rni) ? euros(rni) : eur2(rni));
@@ -94,7 +98,13 @@ const chart = (opts: { width: number; height: number; x: string[]; y: string; ba
   ` bar [${opts.bars.map((v) => v.toFixed(2)).join(', ')}]` +
   (opts.line ? `\n line [${opts.line.map((v) => v.toFixed(2)).join(', ')}]` : '');
 
-export default class QuotientFamilialExplainer extends Scene {
+// How the pipeline is shown, apart from its source: the step in progress, the hops walked and what
+// stays undimmed. That is `shown`, not the model; its view draws it, and each change is a sync.
+type FlowShown = { current: string[]; walked: [string, string][]; dim: string[] | null };
+/** The pipeline, each chart's marked bars, and which year's thresholds file is shown. */
+type QfShown = { flow?: FlowShown; barsMarked?: string[]; capMarked?: string[]; bareme?: 2024 | 2025 };
+
+export default class QuotientFamilialExplainer extends Scene<QfState, QfShown> {
   static meta = {
     lang: 'fr',
     watch: { rni: 'Revenu net imposable', parts: 'Parts', quotient: 'Quotient', impot: 'Impôt' },
@@ -157,19 +167,26 @@ export default class QuotientFamilialExplainer extends Scene {
         opts,
       );
     const rniTexte = rniTexteDe(rni);
-    const st = () => this.state as unknown as QfState;
+    /** The parts of the state the steps so far have recorded. */
+    const st = <K extends keyof QfState>(...needs: [K, ...K[]]) => having(this.state, ...needs);
     /**
      * A card drawn from the state: a view that builds it from `rows(state)`, values in the card's
      * monospaced face, so check holds it to the state. `mark` names the row it lights, if any; the
      * lit row is part of the drawn card, so check holds the bar too.
      */
-    const cardOf = (rows: (st: QfState) => readonly CardRow[], opts: CardOptions | ((st: QfState) => CardOptions)) => ({ rows, opts });
+    const cardOf = <K extends keyof QfState>(
+      needs: readonly [K, ...K[]],
+      rows: (st: Having<QfState, K>) => readonly CardRow[],
+      opts: CardOptions | ((st: Having<QfState, K>) => CardOptions),
+    ) => ({
+      rows: (state: QfState) => rows(having(state, ...needs)),
+      opts: typeof opts === 'function' ? (state: QfState) => opts(having(state, ...needs)) : opts,
+    });
     /** Enter a card view as s.card enters a card, with its row `mark` lit. */
     const enterCard = async ({ rows, opts }: ReturnType<typeof cardOf>, mark?: string, as?: string) => {
       const v: View<Card> = view(
         this,
-        (state) => {
-          const st = state as unknown as QfState;
+        (st) => {
           return new Card(this, s.palette, rows(st).map(([label, value]) => [label, mono(String(value))] as const), {
             ...(typeof opts === 'function' ? opts(st) : opts),
             ...(mark ? { lit: mark, ...(as ? { litAs: as } : {}) } : {}),
@@ -195,23 +212,20 @@ export default class QuotientFamilialExplainer extends Scene {
     await s.clear();
     const flow = await s.show({ source: FLOW }, { box: TOP });
     /** A callout drawn from the state, drawn in as s.callout draws one. */
-    const calloutOf = async (draw: (st: Record<string, unknown>) => Group) => {
+    const calloutOf = async (draw: (st: QfState) => Group) => {
       const v = view(this, (st) => draw(st), { place: false });
       s.keep(v);
       await this.play(new Create(v, { runTime: 0.6, lagRatio: 0.15 }));
       return v;
     };
     /** A step's arithmetic, from the state, said under the node of the pipeline that does it. */
-    const sous = (id: string, texte: (st: Record<string, number>) => string) => {
+    const sous = (id: string, texte: (st: QfState) => string) => {
       const b = flow.get(id).box()!,
         bas = flow.get('REF').box()![1] - 0.4;
-      return calloutOf((st) => callout(s, b, texte(st as Record<string, number>), { side: 'below', gap: b[1] - bas, size: 0.32, color: s.emphasis }));
+      return calloutOf((st) => callout(s, b, texte(st), { side: 'below', gap: b[1] - bas, size: 0.32, color: s.emphasis }));
     };
     this.state = { rni, enfants };
-    // How the pipeline is shown, apart from its source: the step in progress, the hops walked and what
-    // stays undimmed. That is `shown`, not the model; its view draws it, and each change is a sync.
-    type FlowShown = { current: string[]; walked: [string, string][]; dim: string[] | null };
-    const flowOf = (sh: Record<string, unknown>) => sh.flow as FlowShown;
+    const flowOf = (sh: QfShown) => having(sh, 'flow').flow;
     this.shown.flow = { current: [], walked: [], dim: null } satisfies FlowShown;
     const flowView = s.diagramView(flow, (_st, sh) => {
       const f = flowOf(sh);
@@ -233,10 +247,10 @@ export default class QuotientFamilialExplainer extends Scene {
      * A chart shown by a view of its marks (`name` in `shown`), each said by `as`; returns what marks
      * parts. Made as soon as the chart is shown, so what is drawn over the chart stays over it.
      */
-    const chartView = (d: Diagram, name: string, as: string) => {
+    const chartView = (d: Diagram, name: 'barsMarked' | 'capMarked', as: string) => {
       this.shown[name] = [];
       const v = s.diagramView(d, (_st, sh) => ({
-        marks: Object.fromEntries((sh[name] as string[]).map((id) => [id, { color: d.accent, as }])),
+        marks: Object.fromEntries(having(sh, name)[name].map((id) => [id, { color: d.accent, as }])),
       }));
       return async (marked: string[]) => {
         this.shown[name] = marked;
@@ -244,13 +258,14 @@ export default class QuotientFamilialExplainer extends Scene {
       };
     };
     /** A chart hidden: its view fades with its marks, and they leave `shown`. */
-    const hideChart = async (d: Diagram, name: string) => {
+    const hideChart = async (d: Diagram, name: 'barsMarked' | 'capMarked') => {
       await d.hide();
       this.shown[name] = [];
     };
     await showFlow({ current: ['RNI'] });
     await enterCard(
       cardOf(
+        ['rni', 'enfants'],
         (st) => [
           ['Foyer', 'couple marié ou pacsé'],
           ['Enfants à charge', String(st.enfants)],
@@ -343,7 +358,7 @@ export default class QuotientFamilialExplainer extends Scene {
     // Each tranche the quotient reaches says its tax over its own bar.
     for (const [i, x] of b.slices.entries())
       if (x.base > 0)
-        await calloutOf((st) => callout(s, bars.get(`bar:0:${pourcent(x.rate)}`), eur2(bareme(st.quotient as number).slices[i]!.tax), { side: 'above', gap: 0.2, size: 0.26 }));
+        await calloutOf((st) => callout(s, bars.get(`bar:0:${pourcent(x.rate)}`), eur2(bareme(having(st, 'quotient').quotient).slices[i]!.tax), { side: 'above', gap: 0.2, size: 0.26 }));
     // The quotient's top tranche, not the household's taux marginal: when the plafond binds, OpenFisca's
     // ir_taux_marginal is the two-part calculation's, which can be higher. The default couple's quotient is
     // in the 11 % tranche while its taux marginal is 30 % (model.test.ts holds both).
@@ -375,7 +390,7 @@ export default class QuotientFamilialExplainer extends Scene {
     const regles = view(
       this,
       (state) => {
-        const st = state as unknown as QfState;
+        const st = having(state, 'tranches', 'parts', 'quotient');
         return new Group(
           drawRegle(st, 'entier', `Revenu entier, ${rniTexteDe(st.rni)}`, -1.5, s.palette),
           drawRegle(st, 'parts', `Par parts, ${partsTexte(st.parts)} × ${eur2(st.quotient)}`, -2.95, s.palette),
@@ -384,13 +399,13 @@ export default class QuotientFamilialExplainer extends Scene {
       { place: false },
     );
     const ligne = (cle: 'entier' | 'parts') =>
-      st()
+      st('tranches')
         .tranches.filter((t) => t[cle] > 0)
         .map((t) => `${eur2(t[cle])} à ${pourcent(t.rate)}`)
         .join(', ');
     await s.enter(regles, {
       describe: () =>
-        `Deux barres de ${rniTexteDe(st().rni)} à la même échelle, coupées par tranche du barème${deux} revenu entier, ${ligne('entier')}${pv} par parts, ${ligne('parts')}.`,
+        `Deux barres de ${rniTexteDe(this.state.rni)} à la même échelle, coupées par tranche du barème${deux} revenu entier, ${ligne('entier')}${pv} par parts, ${ligne('parts')}.`,
     });
     s.opening(...regles.current.children);
 
@@ -444,6 +459,7 @@ export default class QuotientFamilialExplainer extends Scene {
     this.state.avantage = r.avantage;
     await enterCard(
       cardOf(
+        ['avantage', 'brut', 'parts', 'sansEnfants'],
         (st) => [
           ['Impôt sur 2 parts (sans enfants)', eur2(st.sansEnfants)],
           [`Impôt sur ${partsTexte(st.parts)} parts`, eur2(st.brut)],
@@ -513,6 +529,7 @@ export default class QuotientFamilialExplainer extends Scene {
     this.state.demiParts = r.demiParts;
     await enterCard(
       cardOf(
+        ['avantage', 'demiParts', 'plafQf', 'plafond'],
         (st) => [
           [`Plafond (${st.demiParts} demi-part${st.demiParts > 1 ? 's' : ''} × ${plafondTexte})`, euros(st.plafond)],
           ['Avantage des enfants', eur2(st.avantage)],
@@ -559,6 +576,7 @@ export default class QuotientFamilialExplainer extends Scene {
     this.state.tauxMoyen = r.tauxMoyen;
     await enterCard(
       cardOf(
+        ['decote', 'impot', 'parEnfants', 'plafQf', 'tauxMoyen'],
         (st) => [
           ['Impôt après plafonnement', eur2(st.plafQf)],
           ['Décote', '− ' + euros(st.decote)],
@@ -571,10 +589,11 @@ export default class QuotientFamilialExplainer extends Scene {
     );
     await enterCard(
       cardOf(
+        ['parEnfants'],
         (st) => st.parEnfants.map((v, n) => [COUNTS[n]!, euros(v)] as const),
         (st) => ({ at: RIGHT, title: `Impôt, revenu de ${rniTexteDe(st.rni)}` }),
       ),
-      COUNTS[st().enfants]!,
+      COUNTS[this.state.enfants]!,
       'ce foyer',
     );
 
@@ -600,7 +619,7 @@ export default class QuotientFamilialExplainer extends Scene {
     const code = view(
       this,
       (_st, sh) => {
-        const year = sh.bareme as 2024 | 2025,
+        const year = having(sh, 'bareme').bareme,
           lines = yaml(year);
         const panel = s.codePicture(lines, {
           ...yamlOpts,
@@ -619,6 +638,7 @@ export default class QuotientFamilialExplainer extends Scene {
     // The thresholds, rates and parameters are the same in every scenario; the household's tax is its state.
     await enterCard(
       cardOf(
+        ['impot', 'impot2025'],
         (st) => [
           ['Seuils', '+' + hausse],
           ['Taux', 'inchangés'],

@@ -1,8 +1,8 @@
 import { Scene, Text, Circle, Line, Dot, Rectangle, Arrow, Group, Axes, Transform, TransformMatchingText, Circumscribe, Brace, NumberLine, DecimalNumber, MathTex, TransformMatching, matchByKey, Code, TransformDiff, diffLines, parseUnifiedDiff, smooth, rushInto, rushFrom, thereAndBack } from '../../../src/index.ts';
 import { seenFrom, between, latLon, circleOn, project } from '../../../explain/geo.ts';
 import { Square, Restore, Underline, ArcBetweenPoints, MoveAlongPath, Write, TransformFromCopy } from '../../../src/extras.ts';
-import type { SceneState, Mobject, Vec } from '../../../src/index.ts';
-import { stage, settingsOf, palette, answerOf, view, CodeBlock } from '../../../explain/index.ts';
+import type { Mobject, Vec } from '../../../src/index.ts';
+import { stage, settingsOf, palette, answerOf, view, having, CodeBlock } from '../../../explain/index.ts';
 import { bars, tile, keyed } from '../../../explain/drawing.ts';
 
 type Feature =
@@ -543,7 +543,25 @@ const BEFORE: [number, number, number, number] = [-7.4, -3.5, -2.5, 2.1],
   AFTER: [number, number, number, number] = [-1.3, -3.5, 7.4, 2.1];
 const centre = (b: readonly number[]): [number, number] => [(b[0]! + b[2]!) / 2, (b[1]! + b[3]!) / 2];
 
-export default class FeatureTour extends Scene {
+/** The feature shown, and what its scenario records. */
+type TourState = {
+  feature?: Feature;
+  lines?: string[];
+  added?: number[];
+  matched?: { moved: string; fadedIn: string; fadedOut: string };
+  camera?: { before: number; after: number };
+  count?: number;
+  placed?: { value: number; x: number };
+  order?: string[];
+  ops?: { patch: string; diffLines: string };
+  rates?: string[];
+  turn?: number;
+  london?: number[];
+};
+/** Whether the recipe or its result is on show, the diagram's walked edges and the code's focused line. */
+type TourShown = { phase?: 'recipe' | 'result'; walked?: [string, string][]; focus?: number | null };
+
+export default class FeatureTour extends Scene<TourState, TourShown> {
   static meta = {
     // The maths scenario's formula, typeset once by rayner snapshots into scene.lettering.json.
     lettering: { math: true },
@@ -695,7 +713,7 @@ export default class FeatureTour extends Scene {
       await panels([before], 'the captured flowchart, no path marked');
       // The walked edge is how the diagram is shown (this.shown); its view draws it as a trail.
       this.shown.walked = [];
-      const v = s.diagramView(d, (_st, sh) => ({ marks: d.trail(sh.walked as [string, string][]) }));
+      const v = s.diagramView(d, (_st, sh) => ({ marks: d.trail(having(sh, 'walked').walked) }));
       await d.walk([['A', 'B']]);
       this.shown.walked = [['A', 'B']];
       await this.play(v.sync());
@@ -706,7 +724,7 @@ export default class FeatureTour extends Scene {
       this.shown.focus = null;
       const block = view(
         this,
-        (_st, sh) => new CodeBlock(this, s.palette, ['let count = 0;', 'count += 1;'], { at: AFTER, fontSize: 0.45, focus: sh.focus as number | null, focusAs: 'update', key: 'block' }),
+        (_st, sh) => new CodeBlock(this, s.palette, ['let count = 0;', 'count += 1;'], { at: AFTER, fontSize: 0.45, focus: sh.focus, focusAs: 'update', key: 'block' }),
         { place: false },
       );
       await s.enter(block, { runTime: 0.4 });
@@ -720,7 +738,10 @@ export default class FeatureTour extends Scene {
       this.state.added = [];
       const block = view(
         this,
-        (st) => s.codePicture(st.lines as string[], { at: AFTER, fontSize: 0.5, added: st.added as number[], key: 'block' }),
+        (state) => {
+          const st = having(state, 'lines', 'added');
+          return s.codePicture(st.lines, { at: AFTER, fontSize: 0.5, added: st.added, key: 'block' });
+        },
         { place: false },
       );
       await s.enter(block, { runTime: 0.4 });
@@ -845,7 +866,7 @@ export default class FeatureTour extends Scene {
       this.state.count = 0;
       const label = view(
         this,
-        (state: SceneState) => new Text(String(state.count), { fontSize: 1.3, color: ink }).moveTo([ax, ay]),
+        (state) => new Text(String(state.count), { fontSize: 1.3, color: ink }).moveTo([ax, ay]),
         { place: false },
       );
       await s.enter(label, { describe: () => `Recorded count: ${String(this.state.count)}` });
@@ -1069,7 +1090,7 @@ export default class FeatureTour extends Scene {
       await panels([before], 'the globe from the Atlantic, London near its right edge');
       this.state.turn = 0;
       const base = { ...this.state };
-      const globe = view(this, (st) => draw(st.turn as number, [ax, ay], 2), { place: false });
+      const globe = view(this, (st) => draw(having(st, 'turn').turn, [ax, ay], 2), { place: false });
       await s.enter(globe, { describe: 'After: the globe, turned to face London, which sits near its middle' });
       await this.play(globe.tween((t) => ({ ...base, turn: t })));
       const london = project(latLon(51.5, -0.1), b, 1, { at: [ax, ay], scale: 2 }).at;

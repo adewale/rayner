@@ -5,7 +5,7 @@ import { gitStory, currentFiles, history, moveMainToFeature, unreachable } from 
 import type { GitFrame } from './model.ts';
 import { picture } from './picture.ts';
 
-export default class GitBranches extends Scene {
+export default class GitBranches extends Scene<{}, {}> {
   static meta = {
     sources: [
       'https://git-scm.com/docs/git-merge/2.52.0',

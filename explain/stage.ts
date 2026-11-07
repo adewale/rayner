@@ -1,7 +1,7 @@
 import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, Create } from '../src/index.ts';
 import { View } from './view.ts';
 import { jsonObject } from '../src/json.ts';
-import type { Scene, Vec, Box, FadeOpts, Animation, SceneState, StepKind, SceneColors } from '../src/index.ts';
+import type { Scene, Vec, Box, FadeOpts, Animation, StepKind, SceneColors } from '../src/index.ts';
 import { center, unionBoxes } from '../src/box.ts';
 import { STAGE_BOX, atHome } from '../src/svg.ts';
 import { isDetail, teaching } from './script.ts';
@@ -81,13 +81,8 @@ export interface StagedStep<S extends object = Record<string, unknown>> {
    */
   describe?: (state: S) => string;
 }
-/**
- * A staged step whose state has its own type, for a list that mixes them: `stage.steps` takes one
- * state type per list, and TypeScript cannot infer a type per element of one array literal. Each
- * draw still reads its own step's state typed, which is the state `stage.steps` hands it; `rayner
- * check` also draws each step from other states, and a draw that throws on one has read its state.
- */
-export const stagedStep = <S extends object>(step: StagedStep<S>): StagedStep => step as unknown as StagedStep;
+/** A staged step of each of the state types `S` holds: a list element whose step is one of several. */
+type StepOf<S> = S extends object ? StagedStep<S> : never;
 /** Options for `stage.steps`: `kind` puts every step on that path (default 'main'). */
 export interface StagedStepsOptions { kind?: StepKind }
 /** A picture's text and each part's box, rounded: what a redraw must reproduce. */
@@ -147,12 +142,17 @@ export interface DiagramPicture {
   dim?: readonly string[] | null;
   prefix?: string;
 }
-export function stage(scene: Scene, options: StageOptions = {}) {
+/**
+ * The stage on `scene`: its palette, heading, regions, diagrams and panels, and the helpers that
+ * enter, keep and clear what it shows. Typed from the scene (`Scene<S, Sh>`), so the draws it takes
+ * (`diagramView`'s) read the scene's model and shown types.
+ */
+export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, options: StageOptions = {}) {
   // Each caption owns its opening; a previous step's subjects must not leak, unless opening(..., { keep: true })
   // named them for every step that follows.
   let kept: Mobject[] = [];
   /** Each diagram shown by a view of the state (diagramView): the view and what it draws. */
-  const diagramViews = new Map<Diagram, { draw: (state: SceneState, shown: SceneState) => DiagramPicture; view: View }>();
+  const diagramViews = new Map<Diagram, { draw: (state: S, shown: Sh) => DiagramPicture; view: View<Mobject, S, Sh> }>();
   scene.onStep(() => opening(scene, ...kept));
   const direction = layoutDirection(options);
   const physical = <T extends Vec | Box | StageRegion | undefined>(at: T): Exclude<T, 'start' | 'end'> | Region =>
@@ -462,11 +462,11 @@ export function stage(scene: Scene, options: StageOptions = {}) {
      * runs over the view as it is. For a morph, a reveal or an enlargement, hand the stage back with `liveDiagram(d)`,
      * then call this again to show the diagram by its view once more.
      */
-    diagramView(d: Diagram, draw: (state: SceneState, shown: SceneState) => DiagramPicture = () => ({})): View {
+    diagramView(d: Diagram, draw: (state: S, shown: Sh) => DiagramPicture = () => ({})): View<Mobject, S, Sh> {
       let shown = diagramViews.get(d);
       if (!shown) {
-        const entry = { draw, view: null as unknown as View };
-        entry.view = new View(scene, (st, sh) => {
+        const entry = { draw, view: null as unknown as View<Mobject, S, Sh> };
+        entry.view = new View<Mobject, S, Sh>(scene, (st, sh) => {
           const p = entry.draw(st, sh);
           return d.picture(p.marks ?? {}, { notes: p.notes ?? [], dim: p.dim ?? null, ...(p.prefix ? { prefix: p.prefix } : {}) });
         }, { place: false });
@@ -700,20 +700,24 @@ export function stage(scene: Scene, options: StageOptions = {}) {
      * Present steps in turn: each clears the stage, makes its model the scene's state, and fades in
      * its picture, a view of that state: `rayner check` holds it to its draw as it holds every view.
      * `kind: 'short'` marks the steps as the reader's short path before the main one; each step's
-     * own `kind` overrides the list's.
+     * own `kind` overrides the list's. Each step is typed by its own state, so one list can hold
+     * steps whose states differ: its draw and describe read that step's state. The steps' states
+     * are theirs, not the scene's model type; a scene that reads `this.state` after them sets it first.
      */
-    async steps<S extends object>(list: readonly StagedStep<S>[], { kind: listKind = 'main' }: StagedStepsOptions = {}): Promise<void> {
-      for (const step of list) {
+    async steps<T extends readonly object[] | []>(list: { readonly [K in keyof T]: StepOf<T[K]> }, { kind: listKind = 'main' }: StagedStepsOptions = {}): Promise<void> {
+      for (const step of list as readonly StagedStep<object>[]) {
         const kind = step.kind ?? listKind;
         await scene.step(step.id, {
           title: step.title, line: step.line, caption: step.caption,
           ...(step.audio ? { audio: step.audio } : {}), ...(kind !== 'main' ? { kind } : {}),
         });
         await this.clear({ runTime: 0.18 });
-        const state = jsonObject(step.state as Record<string, unknown>, `step ${step.id} state`) as S;
-        scene.state = { ...state } as SceneState;
-        const picture = new View(scene, (st) => {
-          const drawn = step.draw(st as S, this as StageApi);
+        const state = jsonObject(step.state, `step ${step.id} state`) as object;
+        // The step's state is the scene's while the step shows: a view of it, which check redraws.
+        const host = scene as unknown as Scene<object, Sh>;
+        host.state = { ...state };
+        const picture = new View(host, (st) => {
+          const drawn = step.draw(st, this as StageApi);
           if (kind === 'short') drawn.key = 'reader-picture';
           return drawn;
         }, { place: false });
@@ -729,4 +733,5 @@ export function stage(scene: Scene, options: StageOptions = {}) {
     },
   };
 }
-export type Stage = ReturnType<typeof stage>;
+/** The stage on a `Scene<S, Sh>`; a bare `Stage` is the stage on any scene, as kit functions take it. */
+export type Stage<S extends object = any, Sh extends object = any> = ReturnType<typeof stage<S, Sh>>;

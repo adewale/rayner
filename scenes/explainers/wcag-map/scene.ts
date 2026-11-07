@@ -1,6 +1,6 @@
 import { frames as readerFrames } from './picture.ts';
 import { Scene } from '../../../src/index.ts';
-import { stage, settingsOf, answerOf } from '../../../explain/index.ts';
+import { stage, settingsOf, answerOf, having } from '../../../explain/index.ts';
 import type { NoteSide } from '../../../explain/index.ts';
 import {
   GUIDELINES,
@@ -15,7 +15,7 @@ import {
   principleOf,
   tally,
 } from './model.ts';
-import type { Criterion, Level, Version } from './model.ts';
+import type { Change, Criterion, Level, Tally, Version } from './model.ts';
 import { listed } from '../lib/format.ts';
 
 // Of the light styles, github-light draws the root's label plainly; hand-drawn, excalidraw and pen-and-ink
@@ -116,7 +116,25 @@ const ofThem = (n: number, all: number, level: Level) =>
     ? ''
     : `, ${n === all ? 'all' : n === 0 ? 'none' : n} of them at level ${level === 'A' ? 'A' : 'A or AA'}`;
 
-export default class WcagMapExplainer extends Scene {
+/** Each version's tally and change, the criteria 2.2 removed, and the guideline opened. */
+type WcagState = {
+  v20?: Tally;
+  v21?: { tally: Tally; change: Change };
+  v22?: { tally: Tally; change: Change };
+  removed?: Change['removed'];
+  opened?: (Pick<Criterion, 'num' | 'level' | 'added'> & { removed?: Version })[];
+};
+// How the map is shown, apart from its source: each group of marked topics with its colour (the
+// accent, green or red) and word, its notes and what stays undimmed. That is `shown`, not the model;
+// its view draws it, and each change is a sync. A morph hands the live map back and starts it plain.
+type Tone = 'accent' | 'good' | 'bad';
+type MapShown = {
+  marked: { ids: string[]; tone: Tone; as: string }[];
+  notes: { id: string; text: string; side: NoteSide }[];
+  dim: string[] | null;
+};
+
+export default class WcagMapExplainer extends Scene<WcagState, { map?: MapShown }> {
   static meta = {
     sources: [
       'https://www.w3.org/WAI/WCAG22/wcag.json',
@@ -167,7 +185,7 @@ export default class WcagMapExplainer extends Scene {
       t22 = tally('2.2', level);
 
     // ------------------------------------------------------------------ 2.0
-    await s.steps(readerFrames(level, open, answerOf(this)), { kind: 'short' });
+    await readerFrames(s, level, open, answerOf(this), { kind: 'short' });
     await this.step('v20', {
       kind: 'detail',
       title: `The same list as a tree: ${PRINCIPLES.length} principles and ${guidelinesIn('2.0').length} guidelines in WCAG 2.0`,
@@ -178,19 +196,10 @@ export default class WcagMapExplainer extends Scene {
     let topics = mapTopics('2.0', level);
     const d = await s.show({ source: source(topics) }, { box: 'full' });
     this.state.v20 = t20;
-    // How the map is shown, apart from its source: each group of marked topics with its colour (the
-    // accent, green or red) and word, its notes and what stays undimmed. That is `shown`, not the model;
-    // its view draws it, and each change is a sync. A morph hands the live map back and starts it plain.
-    type Tone = 'accent' | 'good' | 'bad';
-    type MapShown = {
-      marked: { ids: string[]; tone: Tone; as: string }[];
-      notes: { id: string; text: string; side: NoteSide }[];
-      dim: string[] | null;
-    };
     const plain: MapShown = { marked: [], notes: [], dim: null };
     const toneColor = (tone: Tone) => (tone === 'good' ? s.good : tone === 'bad' ? s.bad : d.accent);
-    const drawMap = (_st: Record<string, unknown>, sh: Record<string, unknown>) => {
-      const m = sh.map as MapShown;
+    const drawMap = (_st: WcagState, sh: { map?: MapShown }) => {
+      const m = having(sh, 'map').map;
       return {
         marks: Object.fromEntries(m.marked.flatMap((g) => g.ids.map((id) => [id, { color: toneColor(g.tone), as: g.as }]))),
         notes: m.notes,
@@ -200,7 +209,7 @@ export default class WcagMapExplainer extends Scene {
     this.shown.map = plain;
     let mapView = s.diagramView(d, drawMap);
     const showMap = async (change: Partial<MapShown>) => {
-      this.shown.map = { ...(this.shown.map as MapShown), ...change };
+      this.shown.map = { ...having(this.shown, 'map').map, ...change };
       await this.play(mapView.sync());
     };
     /** The map morphed to `next`: its marks go first, since the live map the morph moves shows none, then it is shown by its view again. */

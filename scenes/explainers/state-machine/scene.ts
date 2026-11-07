@@ -1,6 +1,6 @@
 import { frames as readerFrames, RING, drawSessionCard, reducerSpans, drawTrails, drawRing, drawReading, walkToken } from './picture.ts';
 import { Scene, Text, FadeIn, Create, Transform, AnimationGroup, Succession } from '../../../src/index.ts';
-import type { Animation, SceneState } from '../../../src/index.ts';
+import type { Animation } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, answerOf, Machine, view, CodeBlock } from '../../../explain/index.ts';
 import type { Card, View, Choreography, Transition } from '../../../explain/index.ts';
 import { reduceSession, sessionStart, sessionNext, SESSION_EVENTS } from './model.ts';
@@ -25,7 +25,7 @@ const THROW = 8;
 const DIAGRAM = regionBox('top', { bottom: 0.2 }),
   CODE = regionBox('full', { right: 2.05, top: -0.05 }),
   CARD = regionBox('full', { left: 2.35, top: -0.05 });
-export default class StateMachineExplainer extends Scene {
+export default class StateMachineExplainer extends Scene<SessionState, {}> {
   static meta = {
     sources: ['https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/state-machine.ts'],
     claims: [
@@ -51,7 +51,7 @@ export default class StateMachineExplainer extends Scene {
   override async construct() {
     const which = settingsOf(this).events,
       s = stage(this, { headingSize: 0.6, style: 'dracula' });
-    await s.steps(readerFrames(which!, answerOf(this)), { kind: 'short' });
+    await readerFrames(s, which!, answerOf(this), { kind: 'short' });
     await this.step('machine', {
       kind: 'detail',
       title: 'Four reducer rows, one per arrow',
@@ -62,7 +62,7 @@ export default class StateMachineExplainer extends Scene {
     await s.clear();
     const d = await s.show({ source: SOURCE }, { box: DIAGRAM });
     const start = sessionStart();
-    this.state = { ...start } as unknown as SceneState;
+    this.state = { ...start };
     // The reducer's code is a view of the state too: its focus bar is on the table until the
     // first event arrives, when the box on one row takes over.
     const code = view(
@@ -82,7 +82,7 @@ export default class StateMachineExplainer extends Scene {
     const codeLines = () => (code.current as CodeBlock).code.lines;
     await s.enter(code, { runTime: 0.4 });
     // The card shows the state, not a copy of it: each sync rebuilds it from scene.state.
-    const readout = (this.readout = view(this, (st: SceneState) => drawSessionCard(this, s.palette, st, CARD), { place: false }));
+    const readout = (this.readout = view(this, (st) => drawSessionCard(this, s.palette, st, CARD), { place: false }));
     // The card describes itself, its lit row included.
     s.keep(readout);
 
@@ -90,13 +90,13 @@ export default class StateMachineExplainer extends Scene {
     // ring on the state it is in, the links it travelled, and the row it read or the throw it hit.
     const rowOf = (row: string) => REDUCER.findIndex((l) => l.includes(`'${row}'`));
     const spans = reducerSpans((code.current as CodeBlock).code, REDUCER, THROW);
-    const session = () => this.state as unknown as SessionState;
+    const session = () => this.state;
     // Three pictures of the session's state, each its own view so each change is its own region.
     // The drawn diagram takes the live one's place: the live diagram leaves the stage, still the
     // source of geometry and of the diagram's description, and the reader sees the state's picture.
-    const diagram = view(this, (st) => drawTrails(d, st as unknown as SessionState), { place: false });
-    const ring = view(this, (st) => drawRing(d, st as unknown as SessionState), { place: false });
-    const reducer = view(this, (st) => drawReading(st as unknown as SessionState, spans), { place: false });
+    const diagram = view(this, (st) => drawTrails(d, st), { place: false });
+    const ring = view(this, (st) => drawRing(d, st), { place: false });
+    const reducer = view(this, (st) => drawReading(st, spans), { place: false });
     // The diagram picture says its travelled links itself.
     s.keep(diagram);
     s.keep(ring, { describe: () => `A ring around ${session().session}, the state the session is in` });
@@ -179,7 +179,7 @@ export default class StateMachineExplainer extends Scene {
             ]);
           },
         ]),
-      ) as unknown as Record<SessionEvent, (t: Transition<SessionState, SessionEvent>) => Animation | AnimationGroup>,
+      ),
     });
 
     const events: SessionEvent[] = which === 'success' ? ['CONNECT', 'OPENED', 'CLOSE'] : ['CONNECT', 'ERROR'];

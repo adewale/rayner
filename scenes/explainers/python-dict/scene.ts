@@ -1,5 +1,5 @@
 import { Scene, FadeIn, Text, matchByKey } from '../../../src/index.ts';
-import type { Mobject, SceneState } from '../../../src/index.ts';
+import type { Mobject } from '../../../src/index.ts';
 import { settingsOf, stage, Machine, view } from '../../../explain/index.ts';
 import type { Stage, StagedStep } from '../../../explain/index.ts';
 import { dictStory, route, EMPTY, DELETED, DICT_EVENTS, dictStart, dictNext } from './model.ts';
@@ -10,7 +10,10 @@ import { listed } from '../lib/format.ts';
 /** A picture's words, in drawing order: what the stage says it shows. */
 const words = (m: Mobject) => m.family().filter((t): t is Text => t instanceof Text).map((t) => t.text).filter(Boolean).join('. ');
 
-export default class PythonDict extends Scene {
+/** A staged step's state: the table, the lookup it shows, the key asked for and the policy, and the lookup's route. */
+type DictFrame = { dict: DictTable; result: DictLookup; key: number; policy: string; route?: ReturnType<typeof route> };
+
+export default class PythonDict extends Scene<DictState, {}> {
   static meta = {
     sources: [
       'https://github.com/python/cpython/blob/v3.12.14/Objects/dictobject.c',
@@ -61,12 +64,12 @@ export default class PythonDict extends Scene {
       overHop = offRoute === undefined ? -1 : m.missing.slots.findIndex((b, i) => i > 0 && Math.min(b, m.missing.slots[i - 1]!) < offRoute && offRoute < Math.max(b, m.missing.slots[i - 1]!));
 
     const s = stage(this, { style: 'github-light', headingSize: 0.6 });
-    const staged = (frames: readonly (Omit<StagedStep, 'draw'> & { view: View })[]) =>
-      s.steps(frames.map(({ view, ...frame }): StagedStep => ({
+    const staged = (frames: readonly (Omit<StagedStep<DictFrame>, 'draw'> & { view: View })[]) =>
+      s.steps(frames.map(({ view, ...frame }): StagedStep<DictFrame> => ({
         ...frame,
         // The table, and the route where the view draws one, come from the step's state; the view adds how to show them.
         draw: (state, st: Stage) =>
-          picture(st, { ...view, dict: state.dict as DictTable, ...(view.path ? { path: state.result as DictLookup } : {}) }),
+          picture(st, { ...view, dict: state.dict, ...(view.path ? { path: state.result } : {}) }),
       })));
     const lookupView = (dict: DictTable, q: DictLookup, rest: Omit<View, 'dict' | 'path' | 'ask' | 'middle'>): View =>
       ({ dict, path: q, ask: `d[${q.key}]`, middle: visit(q), ...rest });
@@ -102,8 +105,8 @@ export default class PythonDict extends Scene {
     const play = async (policy: DictPolicy, events: DictEvent[]) => {
       await s.clear({ runTime: 0.18 });
       const start = dictStart(policy);
-      this.state = { ...start } as unknown as SceneState;
-      const pictures = view(this, (st) => picture(s, stateView(st as unknown as DictState)), { place: false });
+      this.state = { ...start };
+      const pictures = view(this, (st) => picture(s, stateView(st)), { place: false });
       const machine = new Machine<DictState, DictEvent>(this, {
         start,
         events: DICT_EVENTS,

@@ -55,15 +55,16 @@ export interface SyncOpts {
 /**
  * A picture rebuilt from state. `current` is the picture on screen; the View
  * itself is what scenes hold, add, group and lay out, and it keeps its identity
- * (and its parent) through every sync: only its child is swapped.
+ * (and its parent) through every sync: only its child is swapped. `S` and `Sh` are its scene's
+ * model and shown types, which its draw reads; a bare `View` is a view of any scene.
  */
-export class View<M extends Mobject = Mobject> extends Group {
+export class View<M extends Mobject = Mobject, S extends object = any, Sh extends object = any> extends Group {
   /** @internal Makes the picture from the scene's state as it is when called. Called at construction and at each sync's begin(). */
   build: () => M;
   /** The picture as a function of the model and what is shown: what the fidelity checks and machine exploration call. */
-  draw: (state: SceneState, shown: SceneState) => M;
+  draw: (state: S, shown: Sh) => M;
   /** The scene whose `shown` a placed or rebuilt picture reads. */
-  private host: Scene<any>;
+  private host: Scene<S, Sh>;
   place: ViewPlace | false;
   /** @internal Unplaced build size [w, h] used as the scale basis; a returning sync restores the retained picture’s basis. */
   builtSize: [number, number];
@@ -74,7 +75,7 @@ export class View<M extends Mobject = Mobject> extends Group {
    * Every View is a picture of a scene's state with a draw that check can call again. A draw can
    * still read variables outside the state; the checks catch that when a redraw disagrees.
    */
-  constructor(scene: Scene<any>, draw: (state: SceneState, shown: SceneState) => M, { place = 'center' }: ViewOpts = {}) {
+  constructor(scene: Scene<S, Sh>, draw: (state: S, shown: Sh) => M, { place = 'center' }: ViewOpts = {}) {
     super();
     this.host = scene;
     // Every picture a view draws takes its scene's colours (see Mobject.defaultColors).
@@ -96,7 +97,7 @@ export class View<M extends Mobject = Mobject> extends Group {
    * morphs the current one into it. It always takes its run time; a picture
    * that comes out the same moves nothing and keeps the current child.
    */
-  sync(opts: SyncOpts = {}): ViewSync<M> { return new ViewSync(this, opts); }
+  sync(opts: SyncOpts = {}): ViewSync<M> { return new ViewSync<M>(this, opts); }
 
   /**
    * The state moving through time, and the picture with it: at each frame the scene's state is
@@ -105,9 +106,9 @@ export class View<M extends Mobject = Mobject> extends Group {
    * play ends with the state at `stateAt(1)`. `stateAt` must be a function of t alone, return JSON,
    * and keep the family shape the view's draw gives (as a Follow's draw does).
    */
-  tween(stateAt: (t: number) => SceneState, opts: AnimOpts = {}): Animation {
+  tween(stateAt: (t: number) => S, opts: AnimOpts = {}): Animation {
     return new Follow({ from: 0, to: 1, draw: (t) => {
-      this.host.state = jsonObject(stateAt(t), 'view.tween state') as SceneState;
+      this.host.state = jsonObject(stateAt(t), 'view.tween state') as Scene<S, Sh>['state'];
       return this.placed(this.host.state);
     } }, { ...opts, targets: [this.current] });
   }
@@ -117,7 +118,7 @@ export class View<M extends Mobject = Mobject> extends Group {
    * put it now, without taking it: what an authored transition morphs into, so it ends where the
    * View will land.
    */
-  placed(state: SceneState, shown: SceneState = this.host.shown): M {
+  placed(state: S, shown: Sh = this.host.shown): M {
     const keep = [this.builtSize, this.scaleK] as const;
     const next = this.fit(fresh(paintedFor(this.host, this.draw(state, shown)), this.current));
     [this.builtSize, this.scaleK] = keep;
@@ -173,7 +174,7 @@ export class View<M extends Mobject = Mobject> extends Group {
  * picture in, so the View holds exactly what build() made (its `text` too).
  */
 export class ViewSync<M extends Mobject = Mobject> extends Animation {
-  view: View<M>;
+  view: View<M, any, any>;
   match: ViewMatch;
   staged: boolean;
   /** @internal Set by begin(): the morph from the current picture to the built one, or null when nothing changed. */
@@ -183,7 +184,7 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
   private previousSize!: [number, number];
   private previousScale!: number;
 
-  constructor(v: View<M>, { match = 'key', staged = true, ...opts }: SyncOpts = {}) {
+  constructor(v: View<M, any, any>, { match = 'key', staged = true, ...opts }: SyncOpts = {}) {
     super(v, opts);
     this.view = v; this.match = match; this.staged = staged;
   }
@@ -237,19 +238,41 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
 }
 
 /** `m`, its parts given `scene`'s colours where they still hold a default. */
-function paintedFor<M extends Mobject>(scene: Scene<any>, m: M): M {
+function paintedFor<M extends Mobject>(scene: Scene<any, any>, m: M): M {
   // A stand-in for a scene (a test's `{ state, shown }`) has no colours: its parts take them when they enter one.
   if (scene.colors && m instanceof Mobject) paintDefaults(m, scene.colors);
   return m;
 }
 
 /**
- * A View of the scene's model: `draw(scene.state, scene.shown)` at each sync. Keeps
- * `draw`, so the picture can be checked against a trace (see viewMismatch)
- * and redrawn for any state a Machine reaches. Most draws read only the model.
+ * A View of the scene's model: `draw(scene.state, scene.shown)` at each sync, its arguments typed
+ * from the scene (`Scene<S, Sh>`). Keeps `draw`, so the picture can be checked against a trace
+ * (see viewMismatch) and redrawn for any state a Machine reaches. Most draws read only the model.
  */
-export function view<S extends object, M extends Mobject>(scene: Scene<S>, draw: (state: S, shown: SceneState) => M, opts?: ViewOpts): View<M> {
-  return new View(scene, (state, shown) => draw(state as S, shown), opts);
+export function view<S extends object, Sh extends object, M extends Mobject>(scene: Scene<S, Sh>, draw: (state: S, shown: Sh) => M, opts?: ViewOpts): View<M, S, Sh> {
+  return new View(scene, draw, opts);
+}
+
+/**
+ * The members of a state type that hold every one of `K`, with those parts required: a union's
+ * members without them are dropped, and optional parts become present. What `having` narrows to.
+ */
+export type Having<S, K extends PropertyKey> =
+  S extends unknown ? ([K] extends [keyof S] ? S & { [P in K]-?: Exclude<S[P & keyof S], undefined> } : never) : never;
+
+/**
+ * `state` narrowed to the shape that holds `keys`, or a TypeError when it lacks one: for a draw of one
+ * phase of a scene whose state changes shape by phase (a union of shapes), or of an optional part
+ * of the state or of what is shown. `rayner check` draws every view from other steps' states too,
+ * and counts a draw that throws on a state of another shape as one that reads its state.
+ *
+ *   const sweep = view(this, (st) => year(having(st, 'longitude')));
+ */
+export function having<S extends object, K extends string>(state: S, ...keys: readonly [K, ...K[]]): Having<S, K> {
+  const missing = keys.filter((k) => (state as Record<string, unknown>)[k] === undefined);
+  if (missing.length)
+    throw new TypeError(`This draw reads a state with ${missing.join(', ')}; this one has ${Object.keys(state).join(', ') || 'nothing'}`);
+  return state as Having<S, K>;
 }
 
 /** The strings of every Text in a picture, in family order (a Code's lines, a readout's keys and values). */

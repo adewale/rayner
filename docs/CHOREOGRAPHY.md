@@ -101,7 +101,7 @@ await this.play(new Succession([
 ]));
 ```
 
-Signature: `new SetState(scene, nextState | (current) => nextState, { event? })`.
+Signature: `new SetState(scene, nextState | (current) => nextState, { event? })`, the state typed as the scene's model.
 
 Given a function, it computes the next state from a copy of the state when it begins,
 so a member of a replay starts where the one before left it; with `event`, it records

@@ -28,6 +28,8 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `static settings` declares the reader's choices, and every scenario (one value for every setting) is built ahead of time. [Settings](docs/REFERENCE.md#settings)
 - A step's `kind: 'short' | 'main' | 'detail'` puts it on the reader's short path, in the story, or under Details and sources.
 - `scene.state` holds the model as plain JSON and `scene.shown` holds what is shown apart from it. The trace records both at every step.
+- A scene declares the types of its model and of what is shown, `class X extends Scene<Model, Shown>`, and `this.state`, `this.shown`, a view's draw (`view(this, (st, sh) => …)`, `new View(this, draw)`), `s.diagramView`'s draw, machines, `SetState` and `view.tween` are typed from them. Every explainer, tutorial scene and recipe declares its types, and none casts its state. Untyped, both are JSON records. [Typed state](docs/REFERENCE.md#typed-state-and-shown)
+- `having(state, ...keys)` in `rayner/explain` narrows a state that changes shape by phase, or an optional part of what is shown, to the shapes that hold those keys, and throws on a state of another shape, which `rayner check` counts as a draw reading its state.
 - Functions, class instances, cycles and non-finite numbers in `scene.state` or `scene.shown` are refused with a field path.
 - `meta.answer` is the explanation's one-sentence answer, which some step must state. `meta.questions` are the reader questions the player asks after the last step: the script's `## Check yourself` list. `describeExplainer` and `rayner describe` give them as `questions`, and `answers.ts` computes their answers as `questions`.
 - `meta.watch` names the state a reader should follow, and the player shows each step's changes to it ("Tokens left: 5 → 0").
@@ -35,7 +37,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `rayner init --machine` writes a machine explainer (a door that locks): a model that refuses with reasons, its test, a live step and review subjects. It passes `check` and `review` as written.
 - `stage(this)` adds the paper, a heading that follows each step, and helpers for diagrams, cards, code panels, notes, dimensions, pins, callouts and the camera. [Stage](docs/REFERENCE.md#stage)
 - A stage region is named (`at: 'main'`) or given as a box with `regionBox('side', { top: 3.05 })`, which returns the region's box with any edge moved. The `REGIONS` table is not exported. [Regions](docs/REFERENCE.md#regions)
-- `s.steps([...])` presents a list of steps, each drawn by `draw(state, s)` from its own state.
+- `s.steps([...])` presents a list of steps, each drawn by `draw(state, s)` from its own state and typed by it, so one list holds steps whose states differ.
 - `s.sketch` draws a path stroke by stroke with a pen or pencil.
 - The collection's explainers use only what the package exports, and a test fails any scene that imports anything else, so an outside author can write what they write.
 - `s.raised` and `s.rule` are the panel colours, and `lerpColor` mixes two colours.
@@ -71,7 +73,6 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - A diagram shown by its picture is described as the picture shows it, with marks named by `{ color, as }`, notes and dimming.
 - A card, a code panel, a diagram note, a dimension line or a pin describes itself wherever it is drawn, including a view's current picture and a staged step. A `describe` speaks for the rest.
 - A staged step's `describe(state)` says what its picture shows when its meaning is geometry rather than labels.
-- `stagedStep(step)` types one staged step's state for a list whose steps' states differ.
 - Text is drawn as outlines of the embedded Inter and JetBrains Mono.
 - Through snapshots committed beside the scene, an explainer can ask for Greek, Cyrillic, Latin Extended, Arabic, Devanagari, Hebrew and Chinese. [Lettering](docs/LETTERING.md#supported-requests)
 - An explainer can also ask for other OFL or Apache-2.0 faces, real bold and italic, and TeX maths with `MathTex`. [Lettering](docs/REFERENCE.md#lettering-on-request)

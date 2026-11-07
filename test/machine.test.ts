@@ -188,7 +188,7 @@ test('a refused event: next says undefined, exploration does not follow it, and 
 });
 
 test('a model refuses with its reason: refuse(reason) where next refuses, and outcome, send and exploration treat it as a refusal', () => {
-  const scene = new Scene(new NullSink());
+  const scene = new Scene<Lamp>(new NullSink());
   // The lamp's own rule, said where it is decided.
   const lamp = new Machine<Lamp, 'UP' | 'OFF'>(scene, {
     start: { level: 0 }, events: ['UP', 'OFF'], views: [],

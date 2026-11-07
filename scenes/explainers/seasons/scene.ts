@@ -1,6 +1,6 @@
 import { Scene, FadeIn, FadeOut, Create } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
-import { stage, settingsOf, view } from '../../../explain/index.ts';
+import { stage, settingsOf, view, having } from '../../../explain/index.ts';
 import { emphasised } from '../../../explain/drawing.ts';
 import { sunlight, daylightYear, noonShare, noonPatch, sunDistance, declinationOn } from './model.ts';
 import {
@@ -33,7 +33,7 @@ const EVENTS = [
   { day: 365 - 10, name: 'Dec solstice' },
 ] as const;
 
-export default class SeasonsExplainer extends Scene {
+export default class SeasonsExplainer extends Scene<SeasonState, {}> {
   static meta = {
     sources: [
       'https://spaceplace.nasa.gov/seasons/en/',
@@ -116,7 +116,7 @@ export default class SeasonsExplainer extends Scene {
     // the noon close-up, the beams, the tables, the chart's values, the bars and the tags. The callouts,
     // dimensions and the pen-drawn curve are the stage's (a draw cannot call them); they say what the
     // state holds.
-    const now = () => this.state as unknown as SeasonState;
+    const now = () => this.state;
     const june = sunlight(place.lat, TILT),
       december = sunlight(place.lat, -TILT);
     // The orbit's Sun, carried here; the side views draw it at the same size.
@@ -143,8 +143,8 @@ export default class SeasonsExplainer extends Scene {
     };
     /** A solstice's globe and its noon ray, each a view of the state, described from it. */
     const solstice = (month: 'June' | 'December') => {
-      const globe = view(this, (st) => sideOf(st as unknown as SeasonState, month, colours).drawing, { place: false });
-      const ray = view(this, (st) => sideOf(st as unknown as SeasonState, month, colours).ray, { place: false });
+      const globe = view(this, (st) => sideOf(st, month, colours).drawing, { place: false });
+      const ray = view(this, (st) => sideOf(st, month, colours).ray, { place: false });
       return {
         globe,
         ray,
@@ -199,7 +199,7 @@ export default class SeasonsExplainer extends Scene {
     });
     // June's share of overhead sunlight; the December step adds December's.
     this.state.noonShare = { june: juneShare };
-    const notes = view(this, (st) => drawNoon(st as unknown as SeasonState, colours).notes, { place: false });
+    const notes = view(this, (st) => drawNoon(st, colours).notes, { place: false });
     // The stage's camera: the heading and its line stay on screen, over the band.
     await s.focus(drawNoon(now(), colours).view, { exact: true, runTime: 1.2, with: [juneSaid, sun].map((m) => new FadeOut(m)) });
     await s.enter(notes, {
@@ -283,7 +283,7 @@ export default class SeasonsExplainer extends Scene {
     emphasised(juneDaylight, null);
     this.state.patch = { june: junePatch, december: decPatch };
     await this.play(...[juneSaid, decSaid].map((c) => new FadeOut(c, { runTime: 0.3 })));
-    const spread = view(this, (st) => drawSpread(st as unknown as SeasonState, colours), { place: false });
+    const spread = view(this, (st) => drawSpread(st, colours), { place: false });
     await s.enter(spread, {
       describe: () => {
         const st = now(),
@@ -328,7 +328,7 @@ export default class SeasonsExplainer extends Scene {
       const card = view(
         this,
         (st) => {
-          const rows = Object.entries((st as unknown as SeasonState).daylightTable![month]);
+          const rows = Object.entries(having(st, 'daylightTable').daylightTable[month]);
           return drawDaylightTable(this, s.palette, rows, title, box, place.name);
         },
         { place: false },
@@ -396,7 +396,7 @@ export default class SeasonsExplainer extends Scene {
     // Solstices and equinoxes: a guide and a name at each, fixed by the calendar, and the model's day
     // length there, a view of the state's events.
     const guides = drawGuides(axes, EVENTS, colours);
-    const marks = view(this, (st) => drawEventMarks(axes, (st as unknown as SeasonState).events!, EVENTS, colours), { place: false });
+    const marks = view(this, (st) => drawEventMarks(axes, having(st, 'events').events, EVENTS, colours), { place: false });
     s.keep(guides, {
       describe: 'Dashed lines at the March and September equinoxes and the June and December solstices',
     });
@@ -490,7 +490,7 @@ export default class SeasonsExplainer extends Scene {
     }
     // The two causes on one scale, beside the chart: sunlight falls off as 1 / distance². A view of the
     // state's bars.
-    const bars = view(this, (st) => drawBars(st as unknown as SeasonState, colours).bars, { place: false });
+    const bars = view(this, (st) => drawBars(st, colours).bars, { place: false });
     await s.enter(bars, {
       describe: () => {
         const st = now(),
@@ -502,7 +502,7 @@ export default class SeasonsExplainer extends Scene {
     });
     // The January values, said beside their dots on tags that read over the curves: a view of the
     // state's daylight and its mirror.
-    const tags = view(this, (st) => drawTags(st as unknown as SeasonState, axes, s.palette.paper), { place: false });
+    const tags = view(this, (st) => drawTags(st, axes, s.palette.paper), { place: false });
     await s.enter(tags, {
       describe: () => {
         const st = now(),

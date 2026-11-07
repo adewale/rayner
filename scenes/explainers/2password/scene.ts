@@ -1,6 +1,6 @@
 import { frames as readerFrames } from './picture.ts';
 import { Scene, Arrow, FadeIn, Create } from '../../../src/index.ts';
-import { stage, regionBox, answerOf, view, CodeBlock } from '../../../explain/index.ts';
+import { stage, regionBox, answerOf, view, having, CodeBlock } from '../../../explain/index.ts';
 import type { NoteSide } from '../../../explain/index.ts';
 import {
   ITEMS,
@@ -21,7 +21,26 @@ const QUERIES = ['cloud api', 'databse'] as const;
 const BOUNDARY = 'graph LR\nAgent[Agent] --> Find[2password find]\nFind --> Op[op CLI]\nOp --> Vault[1Password vault]';
 const pad = (v: unknown, n: number) => String(v).padEnd(n);
 
-export default class PasswordExplainer extends Scene {
+// How the boundary diagram is shown, apart from its source: the hops walked and what stays undimmed.
+// That is `shown`, not the model; its view draws it, and each change is a sync.
+type BoundaryShown = { walked: [string, string][]; dim: string[] | null };
+// The listing is a view; which columns it shows (each item's category and vault, or what each query
+// found) and the lines in focus are how the step shows the items, in `shown`.
+type ListingShown = { columns: 'item' | 'queries'; focus: [number, number] };
+// The reply marked and the notes are how the sequence is shown, drawn by its view from `shown`.
+type SequenceShown = { marked: string[]; notes: { id: string; text: string; side: NoteSide }[] };
+/** What each step finds out: the matches, what find printed, the values it leaked, and what op started. */
+type PasswordState = {
+  matches?: Record<string, string[]>;
+  found?: ReturnType<typeof find>;
+  leaked?: number;
+  argv?: string[];
+  childEnv?: Record<string, string>;
+};
+/** Each picture's part of what is shown, from the step that first shows it; the command's focused line. */
+type PasswordShown = { boundary?: BoundaryShown; listing?: ListingShown; sequence?: SequenceShown; commandFocus?: number | null };
+
+export default class PasswordExplainer extends Scene<PasswordState, PasswordShown> {
   static meta = {
     sources: [
       `${SOURCE}/src/discover.ts`,
@@ -46,7 +65,7 @@ export default class PasswordExplainer extends Scene {
       match = found.matches[0]!,
       suggestion = found.suggestions![0]!;
 
-    await s.steps(readerFrames(answerOf(this)), { kind: 'short' });
+    await readerFrames(s, answerOf(this), { kind: 'short' });
     await this.step('boundary', {
       title: 'To pick a key, the agent searches titles, never values',
       line: `Predict: it asks for “${hitQuery}” and the typo “${missQuery}”. What comes back?`,
@@ -54,16 +73,13 @@ export default class PasswordExplainer extends Scene {
     });
     await s.clear();
     const boundary = await s.show({ source: BOUNDARY }, { box: 'top' });
-    // How the boundary diagram is shown, apart from its source: the hops walked and what stays undimmed.
-    // That is `shown`, not the model; its view draws it, and each change is a sync.
-    type BoundaryShown = { walked: [string, string][]; dim: string[] | null };
     this.shown.boundary = { walked: [], dim: null } satisfies BoundaryShown;
     const boundaryView = s.diagramView(boundary, (_st, sh) => {
-      const b = sh.boundary as BoundaryShown;
+      const b = having(sh, 'boundary').boundary;
       return { marks: boundary.trail(b.walked), dim: b.dim };
     });
     const showBoundary = async (change: Partial<BoundaryShown>) => {
-      this.shown.boundary = { ...(this.shown.boundary as BoundaryShown), ...change };
+      this.shown.boundary = { ...having(this.shown, 'boundary').boundary, ...change };
       await this.play(boundaryView.sync());
     };
     const handled: [string, string][] = [
@@ -80,9 +96,6 @@ export default class PasswordExplainer extends Scene {
     };
     const spelled = (title: string) =>
       closeness(terms(missQuery), title) >= SUGGESTION_THRESHOLD ? 'close: suggested' : 'not close';
-    // The listing is a view; which columns it shows (each item's category and vault, or what each query
-    // found) and the lines in focus are how the step shows the items, in `shown`.
-    type ListingShown = { columns: 'item' | 'queries'; focus: [number, number] };
     const listingLines = (columns: ListingShown['columns']) =>
       columns === 'item'
         ? [pad('title', W) + pad('category', 16) + 'vault', ...ITEMS.map((i) => pad(i.title, W) + pad(i.category, 16) + i.vault)]
@@ -94,7 +107,7 @@ export default class PasswordExplainer extends Scene {
     const listing = view(
       this,
       (_st, sh) => {
-        const l = sh.listing as ListingShown;
+        const l = having(sh, 'listing').listing;
         return new CodeBlock(this, s.palette, listingLines(l.columns), {
           at: [-5.5, -4.25, 5.5, -0.5],
           fontSize: 0.3,
@@ -154,11 +167,9 @@ export default class PasswordExplainer extends Scene {
       },
       { box: 'full' },
     );
-    // The reply marked and the notes are how the sequence is shown, drawn by its view from `shown`.
-    type SequenceShown = { marked: string[]; notes: { id: string; text: string; side: NoteSide }[] };
     this.shown.sequence = { marked: [], notes: [] } satisfies SequenceShown;
     const sequenceView = s.diagramView(sequence, (_st, sh) => {
-      const q = sh.sequence as SequenceShown;
+      const q = having(sh, 'sequence').sequence;
       return {
         marks: Object.fromEntries(q.marked.map((id) => [id, sequence.accent])),
         notes: q.notes,
@@ -191,7 +202,7 @@ export default class PasswordExplainer extends Scene {
         new CodeBlock(this, s.palette, [`2password run --env "API_KEY=${ref}" -- app`, `→ ${launched.argv.join(' ')}`], {
           at: regionBox('top', { bottom: 1.2 }),
           fontSize: 0.3,
-          focus: sh.commandFocus as number | null,
+          focus: sh.commandFocus,
           key: 'command',
         }),
       { place: false },

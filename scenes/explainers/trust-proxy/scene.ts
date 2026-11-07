@@ -1,6 +1,6 @@
 import { Scene, Text, Group, FadeIn } from '../../../src/index.ts';
 import type { Box, FadeOpts } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, answerOf as scriptAnswerOf, view } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, Card, answerOf as scriptAnswerOf, view, having } from '../../../explain/index.ts';
 import type { CardOptions, CardRow, View } from '../../../explain/index.ts';
 import { keyed } from '../../../explain/drawing.ts';
 import {
@@ -144,7 +144,46 @@ const readingsOf = (pairs: readonly (readonly [string, Verdict])[]): Reading[] =
 const outcomeWords = (outcome: Outcome, sender: string) =>
   outcome === 'sender' ? `Right: the ${sender}’s own address.` : `Wrong: ${outcome === 'proxy' ? 'the CDN edge’s address' : 'an address the attacker wrote'}.`;
 
-export default class TrustProxyExplainer extends Scene {
+/** One value per key, in the keys' order: a record a step's state holds. */
+const recordOf = <K extends string, V>(keys: readonly K[], value: (key: K) => V) =>
+  Object.fromEntries(keys.map((k) => [k, value(k)])) as Record<K, V>;
+/** What the steps record: the addresses and the scenario first, then each part from the step that records it. */
+type TrustState = {
+  addresses: typeof ADDR;
+  setting: { trust: TrustKey; request: RequestKey };
+  arrivals?: [keyof typeof MACHINES, string, string | null][];
+  read?: [string, Verdict][];
+  ip?: string;
+  sender?: { name: string; addr: string };
+  outcome?: Outcome;
+  /** Once set, the address req.ip takes and then the result's req.ip row are lit. */
+  marked?: 'order' | 'result';
+  /** Per setting, per route, [who, verdict] counted from Express. */
+  routes?: Record<string, Record<Route, [Position['who'], Verdict][]>>;
+  trust?: string;
+  answers?: Record<RequestKey, string>;
+  readings?: Record<RequestKey, [string, Verdict][]>;
+  outcomes?: Record<RequestKey, Outcome>;
+  /** How many request columns, from the left, have their req.ip lit. */
+  columnsMarked?: number;
+  why?: TrustKey;
+  /** The scenario's setting and the one it is compared with: each request's req.ip, and whose it is. */
+  compare?: Record<string, Record<RequestKey, string>>;
+  compareOutcomes?: Record<string, Record<RequestKey, Outcome>>;
+  table?: Record<TrustKey, string[]>;
+  tableAnswers?: Record<TrustKey, { outcome: Outcome; whose: string }[]>;
+};
+// How the network is shown, apart from its source: the hops walked, each group of marked parts with
+// its colour (good or bad) and word, and what stays undimmed. That is `shown`, not the model; its view
+// draws it, and each change is a sync.
+type NetShown = { walked: [string, string][]; marked: { ids: string[]; tone: 'good' | 'bad'; as: string }[]; dim: string[] | null };
+// The two code panels are views; the lines each focuses, and what the description calls them, are in
+// `shown.trustCode` (none as they come in).
+type Focus = { lines: number | [number, number]; as: string } | null;
+type TrustCodeShown = { compile: Focus; loop: Focus };
+type TrustShown = { network?: NetShown; trustCode?: TrustCodeShown };
+
+export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
   static meta = {
     sources: [
       GUIDE + '#L26-L31',
@@ -208,7 +247,7 @@ export default class TrustProxyExplainer extends Scene {
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const ink = s.palette.ink;
     /** A card drawn from the step's state: a view, so check compares it with the state at the end of every step. */
-    const cardView = (rowsOf: (st: Record<string, unknown>) => CardRow[], opts: CardOptions | ((st: Record<string, unknown>) => CardOptions)) =>
+    const cardView = (rowsOf: (st: TrustState) => CardRow[], opts: CardOptions | ((st: TrustState) => CardOptions)) =>
       view(this, (st) => new Card(this, s.palette, rowsOf(st), typeof opts === 'function' ? opts(st) : opts), { place: false });
     /**
      * Keep each view and fade them in together, in one play, as s.enter would. A card describes itself;
@@ -234,13 +273,9 @@ export default class TrustProxyExplainer extends Scene {
     });
     await s.clear();
     const d = await s.show({ source: NETWORK }, { box: DIAGRAM });
-    // How the network is shown, apart from its source: the hops walked, each group of marked parts with
-    // its colour (good or bad) and word, and what stays undimmed. That is `shown`, not the model; its view
-    // draws it, and each change is a sync.
-    type NetShown = { walked: [string, string][]; marked: { ids: string[]; tone: 'good' | 'bad'; as: string }[]; dim: string[] | null };
     const plainNet: NetShown = { walked: [], marked: [], dim: null };
-    const drawNet = (_st: Record<string, unknown>, sh: Record<string, unknown>) => {
-      const n = sh.network as NetShown;
+    const drawNet = (_st: TrustState, sh: TrustShown) => {
+      const n = having(sh, 'network').network;
       return {
         marks: {
           ...d.trail(n.walked),
@@ -252,7 +287,7 @@ export default class TrustProxyExplainer extends Scene {
     this.shown.network = plainNet;
     let netView = s.diagramView(d, drawNet);
     const showNet = async (change: Partial<NetShown>) => {
-      this.shown.network = { ...(this.shown.network as NetShown), ...change };
+      this.shown.network = { ...having(this.shown, 'network').network, ...change };
       await this.play(netView.sync());
     };
     /** The network hidden: its view fades with what it marks, and that leaves `shown`. */
@@ -265,7 +300,7 @@ export default class TrustProxyExplainer extends Scene {
     this.state.setting = { trust: trustKey, request: reqKey };
     const addresses = cardView(
       (st) => {
-        const a = st.addresses as typeof ADDR;
+        const a = st.addresses;
         return [
           ['Client', a.client],
           ['Attacker', a.attacker],
@@ -277,7 +312,7 @@ export default class TrustProxyExplainer extends Scene {
     );
     const chosen = cardView(
       (st) => {
-        const { trust: t, request: q } = st.setting as { trust: TrustKey; request: RequestKey };
+        const { trust: t, request: q } = st.setting;
         return [
           ['trust proxy setting', TRUST_CODE[t]],
           ['Request followed', REQUEST_LABEL[q]],
@@ -323,7 +358,7 @@ export default class TrustProxyExplainer extends Scene {
     // Each machine on the path with the header it receives; the last is Express, whose socket address closes the card.
     const received = cardView(
       (st) => {
-        const arrived = st.arrivals as [keyof typeof MACHINES, string, string | null][];
+        const arrived = having(st, 'arrivals').arrivals;
         return [
           ...arrived.map(([id, , xff]) => [`${capital(MACHINES[id].name)} receives`, xff ?? 'none'] as const),
           ['Express’s socket address', arrived.at(-1)![1]],
@@ -375,7 +410,7 @@ export default class TrustProxyExplainer extends Scene {
     this.state.ip = mine.ip;
     this.state.sender = { name: req.sender.name, addr: req.sender.addr };
     this.state.outcome = mine.outcome;
-    const readOf = (st: Record<string, unknown>) => readingsOf(st.read as [string, Verdict][]);
+    const readOf = (st: TrustState) => readingsOf(having(st, 'read').read);
     // `marked`: once true, the address req.ip takes and the result's req.ip row are lit.
     const order = cardView((st) => readingRows(readOf(st)), (st) => ({
       at: regionBox(FULL, { right: 1.2, top: 2.6 }),
@@ -388,8 +423,7 @@ export default class TrustProxyExplainer extends Scene {
     const result = view(
       this,
       (st) => {
-        const sender = st.sender as { name: string; addr: string },
-          outcome = st.outcome as Outcome;
+        const { sender, outcome } = having(st, 'sender', 'outcome');
         const card = new Card(
           this,
           s.palette,
@@ -408,7 +442,7 @@ export default class TrustProxyExplainer extends Scene {
       { place: false },
     );
     s.keep(order);
-    s.keep(result, { describe: () => outcomeWords(this.state.outcome as Outcome, (this.state.sender as { name: string }).name) });
+    s.keep(result, { describe: () => outcomeWords(having(this.state, 'outcome').outcome, having(this.state, 'sender').sender.name) });
     await this.play(new FadeIn(order), new FadeIn(result));
     this.state.marked = 'order';
     await this.play(order.sync({ match: 'text', staged: false, runTime: 0.4 }));
@@ -450,11 +484,11 @@ export default class TrustProxyExplainer extends Scene {
       [
         [counted, byCount],
         ['list', byList],
-      ].map(([t, rs]) => [t, Object.fromEntries(ROUTES.map((q) => [q, (rs as Record<Route, Position[]>)[q].map((p) => [p.who, p.verdict])]))]),
+      ].map(([t, rs]) => [t, recordOf(ROUTES, (q) => (rs as Record<Route, Position[]>)[q].map((p): [Position['who'], Verdict] => [p.who, p.verdict]))]),
     );
     /** The routes as the step's state records them: per setting, per route, [who, verdict] counted from Express. */
-    const routesState = (st: Record<string, unknown>) => {
-      const all = st.routes as Record<string, Record<Route, [Position['who'], Verdict][]>>;
+    const routesState = (st: TrustState) => {
+      const all = having(st, 'routes').routes;
       const asPositions = (t: string) =>
         Object.fromEntries(ROUTES.map((q) => [q, all[t]![q].map(([who, verdict], index) => ({ who, verdict, index, addr: '' }))])) as Record<Route, Position[]>;
       // The count is the setting beside the address list.
@@ -514,10 +548,6 @@ export default class TrustProxyExplainer extends Scene {
     await s.clearOverlays();
     const left = regionBox(FULL, { right: -0.1 }),
       right = regionBox(FULL, { left: 0.1 });
-    // The two code panels are views; the lines each focuses, and what the description calls them, are in
-    // `shown.trustCode` (none as they come in).
-    type Focus = { lines: number | [number, number]; as: string } | null;
-    type TrustCodeShown = { compile: Focus; loop: Focus };
     const focusOf = (f: Focus) => (f ? { focus: f.lines, focusAs: f.as } : {});
     this.shown.trustCode = { compile: null, loop: null } satisfies TrustCodeShown;
     const compile = view(
@@ -528,7 +558,7 @@ export default class TrustProxyExplainer extends Scene {
           align: 'top',
           fontSize: 0.3,
           title: 'express 5.3.0, lib/utils.js, compileTrust',
-          ...focusOf((sh.trustCode as TrustCodeShown).compile),
+          ...focusOf(having(sh, 'trustCode').trustCode.compile),
           key: 'compile',
         }),
       { place: false },
@@ -554,7 +584,7 @@ export default class TrustProxyExplainer extends Scene {
             align: 'top',
             fontSize: 0.3,
             title: 'proxy-addr 2.0.8, index.js',
-            ...focusOf((sh.trustCode as TrustCodeShown).loop),
+            ...focusOf(having(sh, 'trustCode').trustCode.loop),
             key: 'loop',
           },
         ),
@@ -595,20 +625,18 @@ export default class TrustProxyExplainer extends Scene {
     });
     await s.clearOverlays();
     // `readings` and `outcomes`: how Express reads each request under this setting, and whose address req.ip is.
-    this.state.answers = Object.fromEntries(REQUEST_KEYS.map((q) => [q, row[q].ip]));
-    this.state.readings = Object.fromEntries(
-      REQUEST_KEYS.map((q) => {
-        const r = atExpress(REQUESTS[q]);
-        return [q, readAddresses(r.socket, r.xff, trust).map((x) => [x.addr, x.verdict])];
-      }),
-    );
-    this.state.outcomes = Object.fromEntries(REQUEST_KEYS.map((q) => [q, row[q].outcome]));
+    this.state.answers = recordOf(REQUEST_KEYS, (q) => row[q].ip);
+    this.state.readings = recordOf(REQUEST_KEYS, (q) => {
+      const r = atExpress(REQUESTS[q]);
+      return readAddresses(r.socket, r.xff, trust).map((x): [string, Verdict] => [x.addr, x.verdict]);
+    });
+    this.state.outcomes = recordOf(REQUEST_KEYS, (q) => row[q].outcome);
     const third = 15.1 / 3;
-    const requestsOf = (st: Record<string, unknown>) =>
+    const requestsOf = (st: TrustState) =>
       REQUEST_KEYS.map((q) => ({
         q,
-        readings: readingsOf((st.readings as Record<RequestKey, [string, Verdict][]>)[q]),
-        outcome: (st.outcomes as Record<RequestKey, Outcome>)[q],
+        readings: readingsOf(having(st, 'readings').readings[q]),
+        outcome: having(st, 'outcomes').outcomes[q],
       }));
     /** A card per request, each with whether its req.ip is right under it. */
     const requestColumns = view(
@@ -720,20 +748,21 @@ export default class TrustProxyExplainer extends Scene {
     await showNet({ dim: null, marked: [{ ids: ['service:edge', 'service:balancer'], tone: 'good', as: 'trusted by address' }] });
     // `compareOutcomes`: whether each of the six answers is the real sender, which the cards mark right or wrong.
     this.state.compare = Object.fromEntries(
-      [trustKey, other].map((t) => [t, Object.fromEntries(REQUEST_KEYS.map((q) => [q, TABLE[t][q].ip]))]),
+      [trustKey, other].map((t) => [t, recordOf(REQUEST_KEYS, (q) => TABLE[t][q].ip)]),
     );
     this.state.compareOutcomes = Object.fromEntries(
-      [trustKey, other].map((t) => [t, Object.fromEntries(REQUEST_KEYS.map((q) => [q, TABLE[t][q].outcome]))]),
+      [trustKey, other].map((t) => [t, recordOf(REQUEST_KEYS, (q) => TABLE[t][q].outcome)]),
     );
     /** One side of the comparison: the scenario's setting (the paths step's, still in the state), or the other one compared. */
     const side = (which: 0 | 1, box: Box, key: string) =>
       view(
         this,
         (st) => {
-          const current = (st.setting as { trust: TrustKey }).trust,
-            t = which === 0 ? current : (Object.keys(st.compare as object).find((k) => k !== current) as TrustKey),
-            ips = (st.compare as Record<TrustKey, Record<RequestKey, string>>)[t],
-            outcomes = (st.compareOutcomes as Record<TrustKey, Record<RequestKey, Outcome>>)[t];
+          const current = st.setting.trust,
+            { compare, compareOutcomes } = having(st, 'compare', 'compareOutcomes'),
+            t = which === 0 ? current : (Object.keys(compare).find((k) => k !== current) as TrustKey),
+            ips = having(compare, t)[t],
+            outcomes = having(compareOutcomes, t)[t];
           return keyed(
             new Card(
               this,
@@ -767,15 +796,12 @@ export default class TrustProxyExplainer extends Scene {
     await s.clearOverlays();
     await hideNet();
     // `tableAnswers`: whose address each of the twelve is, which colours and labels each cell.
-    this.state.table = Object.fromEntries(TRUST_KEYS.map((t) => [t, REQUEST_KEYS.map((q) => TABLE[t][q].ip)]));
-    this.state.tableAnswers = Object.fromEntries(
-      TRUST_KEYS.map((t) => [t, REQUEST_KEYS.map((q) => ({ outcome: TABLE[t][q].outcome, whose: TABLE[t][q].whose }))]),
-    );
+    this.state.table = recordOf(TRUST_KEYS, (t) => REQUEST_KEYS.map((q) => TABLE[t][q].ip));
+    this.state.tableAnswers = recordOf(TRUST_KEYS, (t) => REQUEST_KEYS.map((q) => ({ outcome: TABLE[t][q].outcome, whose: TABLE[t][q].whose })));
     /** The twelve answers from the step's state, by setting then request, and the scenario the table outlines. */
-    const tableOf = (st: Record<string, unknown>) => {
-      const ips = st.table as Record<TrustKey, string[]>,
-        answers = st.tableAnswers as Record<TrustKey, { outcome: Outcome; whose: string }[]>,
-        setting = st.setting as { trust: TrustKey; request: RequestKey };
+    const tableOf = (st: TrustState) => {
+      const { table: ips, tableAnswers: answers } = having(st, 'table', 'tableAnswers'),
+        setting = st.setting;
       const cell = (t: TrustKey, q: RequestKey): Cell => ({ ip: ips[t][REQUEST_KEYS.indexOf(q)]!, ...answers[t][REQUEST_KEYS.indexOf(q)]! });
       return { cell, setting };
     };

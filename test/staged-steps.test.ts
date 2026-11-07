@@ -13,7 +13,8 @@ import { FanSink, ViewSink } from '../tools/lib/explain-check.ts';
 
 const words = (s: Stage, n: number) => new Group(s.scene.text(`count ${n}`, { fontSize: 0.5, color: s.palette.ink }));
 
-async function run<S extends object = { n: number }>(steps: (bump: () => number) => StagedStep<S>[], kind: 'short' | 'main' = 'main') {
+// Each test's steps have their own state type; `any` lets one runner take them all.
+async function run(steps: (bump: () => number) => StagedStep<any>[], kind: 'short' | 'main' = 'main') {
   let counter = 0;
   const bump = () => ++counter;
   class Steps extends Scene {
@@ -92,4 +93,23 @@ test('a step whose state is not JSON is refused before anything is drawn', async
     run(() => [step('bad', Number.NaN, (st, s) => words(s, st.n))]),
     /step bad state/,
   );
+});
+
+test('stage.steps types each step by its own state, so one list holds steps whose states differ', async () => {
+  class Mixed extends Scene<{}, {}> {
+    override async construct() {
+      const s = stage(this);
+      await s.steps([
+        { id: 'count', title: 'A count', line: 'A line.', caption: 'A caption long enough to read.', state: { n: 3 }, draw: (st, s) => words(s, st.n) },
+        {
+          id: 'name', title: 'A name', line: 'A line.', caption: 'A caption long enough to read.', state: { name: 'three' },
+          draw: (st, s) => new Group(s.scene.text(st.name, { fontSize: 0.5, color: s.palette.ink })),
+          describe: (st) => `The word ${st.name}`,
+        },
+      ]);
+      // @ts-expect-error a step's draw reads its own state, not another step's
+      await s.steps([{ id: 'wrong', title: 'Wrong', line: 'A line.', caption: 'A caption.', state: { n: 1 }, draw: (st, s) => words(s, st.name) }]);
+    }
+  }
+  void Mixed;
 });

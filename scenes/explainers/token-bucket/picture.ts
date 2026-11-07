@@ -1,5 +1,5 @@
 import { Axes, Circle, Cross, Group, Rectangle, Text } from '../../../src/index.ts';
-import type { Mobject, Scene, SceneState, Vec } from '../../../src/index.ts';
+import type { Mobject, Scene, Vec } from '../../../src/index.ts';
 import { Card } from '../../../explain/index.ts';
 import type { CodeBlock, Palette } from '../../../explain/index.ts';
 import { keyedParts } from '../../../explain/drawing.ts';
@@ -238,7 +238,7 @@ export const drawChips = (st: BucketState, count: number, colours: Ink) =>
  * The bucket's balance, each value written by `format`: a card without a panel under the code,
  * its balance row keyed so a phone can find it.
  */
-export function drawReadout(scene: Scene, colors: Palette, state: SceneState, format: (v: unknown) => string) {
+export function drawReadout(scene: Scene, colors: Palette, state: BucketState, format: (v: unknown) => string) {
   const card = new Card(
     scene,
     colors,

@@ -43,8 +43,8 @@
       "stage": {
         "check": "Words, Step change: a kept drawing with no text and no describe, or a step whose resting picture equals the previous step's, fails"
       },
-      "stagedStep": {
-        "check": "Views: each step's picture is a view of its state, so a step whose picture differs from a fresh draw of its state, or whose draw ignores its state, fails"
+      "having": {
+        "check": "Views: a draw that reads a state of another shape throws, which counts as reading its state, so a draw that narrows with having is held to the state it draws"
       },
       "Machine": {
         "check": "Machines: every state its events reach is drawn and fails if it collides, has a label under 14 px, has no description, does not show its state or is described like another"

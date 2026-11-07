@@ -3,8 +3,7 @@ import type { Mobject, Vec } from '../../../src/index.ts';
 import { hand, HAND, FREEHAND, freehand, rng, deviation, boxPolygon, boundsOf, hatch, unowned, tag, hershey, fit, pencilWidth, TITLE } from './model.ts';
 import type { Pt, Box, Layer } from './model.ts';
 import { label } from '../../../explain/drawing.ts';
-import type { StagedStep, Diagram } from '../../../explain/index.ts';
-import { stagedStep } from '../../../explain/index.ts';
+import type { Diagram, Stage, StagedStepsOptions } from '../../../explain/index.ts';
 
 // Only these two seeds are pictured. The layout's construction is shared between them; the
 // decorative marks (sea strokes, gulls) depend on the seed. The magnifier compares each drawing's
@@ -85,7 +84,7 @@ const path = (points: readonly Pt[], color: string, width: number, opacity = 1, 
   return vm;
 };
 
-export function frames(seed: number): StagedStep[] {
+export function frames(stage: Stage, seed: number, opts?: StagedStepsOptions): Promise<void> {
   // The failure: both drawings place their own boxes, and the boxes drift apart.
   const free = { first: freeBoxes(SEEDS.first), second: freeBoxes(SEEDS.second) };
   const apart = NAMES.map((_, i) => offset(free.first[i]!, free.second[i]!));
@@ -107,8 +106,8 @@ export function frames(seed: number): StagedStep[] {
   // The picture shows the dark line inside the wide grey one everywhere; refuse to draw it otherwise.
   if (between > 0.06 - 0.0175) throw new Error(`The two drawings are ${between} apart, wider than the grey line shows`);
   const worst = Math.max(...apart);
-  return [
-    stagedStep({
+  return stage.steps([
+    {
       id: 'reader-drift',
       title: 'If the hand places the boxes, a second drawing moves them',
       line: 'Grey: the first drawing. Dark: the second. Dashed: where the boxes belong.',
@@ -122,8 +121,8 @@ export function frames(seed: number): StagedStep[] {
           ...NAMES.map((n, i) => label(n, (laid[i]![0] + laid[i]![2]) / 2, (laid[i]![1] + laid[i]![3]) / 2, s.palette.ink, 0.42)),
           label(`Up to ${Math.max(...st.apart).toFixed(2)} units apart: the boxes moved`, 0, -2.3, s.palette.ink, 0.56),
         ),
-    }),
-    stagedStep({
+    },
+    {
       id: 'reader-separate',
       title: 'With the route fixed first, two drawings stay on it',
       line: 'Blue band: the route the layout fixed. Grey and dark: two drawings of it.',
@@ -150,8 +149,8 @@ export function frames(seed: number): StagedStep[] {
           label(`Two drawings, within ${st.stray.toFixed(3)} units of it`, 0, -2.9, s.palette.ink, 0.62),
         );
       },
-    }),
-  ];
+    },
+  ], opts);
 }
 
 // The real timeline's marks, read back from the laid-out diagram, and the polylines every plate stroke is drawn as.
