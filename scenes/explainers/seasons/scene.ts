@@ -199,7 +199,7 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
     this.state.noonShare = { june: juneShare };
     const notes = view(this, (st) => drawNoon(st, colours).notes, { place: false });
     // The stage's camera: the heading and its line stay on screen, over the band.
-    await s.focus(drawNoon(now(), colours).view, { exact: true, runTime: 1.2, with: [juneSaid, sun].map((m) => new FadeOut(m)) });
+    await this.play(s.focus(drawNoon(now(), colours).view, { exact: true, runTime: 1.2 }), ...[juneSaid, sun].map((m) => new FadeOut(m, { runTime: 1.2 })));
     await s.enter(notes, {
       describe: () => {
         const st = now(),
@@ -228,7 +228,7 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
     this.state.december = december;
     this.state.noonShare = { june: juneShare, december: decShare };
     // Back to the whole stage: the same Sun and June Earth, with June's daylight again.
-    await s.focus('all', { runTime: 1, with: [new FadeOut(notes), new FadeIn(sun), new FadeIn(juneSaid)] });
+    await this.play(s.focus('all', { runTime: 1 }), new FadeOut(notes), new FadeIn(sun), new FadeIn(juneSaid));
     const D = solstice('December');
     await s.enter(D.globe, { describe: D.describe.drawn });
     await s.enter(D.ray, { describe: D.describe.noon });

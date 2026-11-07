@@ -15,7 +15,9 @@ import {
   Text,
 } from '../src/index.ts';
 import { MoveAlongPath } from '../src/animation.ts';
-import type { Scene, Mobject, Box, Vec, Style, PathFunc } from '../src/index.ts';
+import { Action } from './action.ts';
+import type { Beat, Plan } from './action.ts';
+import type { Scene, Mobject, Box, Vec, Style, PathFunc, ScheduledAnimation } from '../src/index.ts';
 import { center, unionBoxes } from '../src/box.ts';
 import { paintsFill } from '../src/mobject.ts';
 import { regionBox, boxCenter, raised, emphasis, dimOpacity, emphasises, selfDescribed } from './look.ts';
@@ -617,62 +619,83 @@ export class Diagram {
     return dot;
   }
   /** @internal Build the diagram in: its scaffolding, then with 'all' the rest in reading order (s.show's `build` option). */
-  async build(mode: 'all' | 'frame' = 'all', runTime = 0.65): Promise<this> {
-    this.attach();
-    await this.reveal(this.order.filter((id) => isScaffold(this.parts.get(id)!.info)), { runTime });
-    if (mode === 'all') await this.reveal('rest', { runTime });
-    return this;
+  build(mode: 'all' | 'frame' = 'all', runTime = 0.65): Action<this> {
+    return new Action(this.scene, 'd.build()', () => this.buildPlan(mode, runTime));
   }
-  async reveal(which: number | readonly string[] | 'rest', { runTime = 0.65 } = {}): Promise<void> {
-    const pending = this.order.filter((id) => !this.visible.has(id));
+  /** @internal What `build` does, decided now: s.show plays it as its own. */
+  buildPlan(mode: 'all' | 'frame' = 'all', runTime = 0.65): Plan<this> {
+    const scaffold = this.revealBeat(this.order.filter((id) => isScaffold(this.parts.get(id)!.info)), runTime, 'd.build()');
+    const rest = mode === 'all' ? [this.revealBeat('rest', runTime, 'd.build()', new Set(scaffold.arriving)).beat] : [];
+    return { value: this, start: () => this.attach(), beats: [scaffold.beat, ...rest] };
+  }
+  /** Bring in the next `n` parts in reading order, named parts, or the rest, in one play. */
+  reveal(which: number | readonly string[] | 'rest', { runTime = 0.65 } = {}): Action {
+    return new Action(this.scene, 'd.reveal()', () => ({ value: undefined, beats: [this.revealBeat(which, runTime, 'd.reveal()').beat] }));
+  }
+  /**
+   * A reveal's play, decided now: the parts that arrive (pending now, and not in `coming`, which
+   * an earlier beat of the same action reveals), and what each does when its turn comes.
+   */
+  private revealBeat(which: number | readonly string[] | 'rest', runTime: number, name: string, coming: ReadonlySet<string> = new Set()): { beat: Beat; arriving: string[] } {
+    const shown = (id: string) => this.visible.has(id) || coming.has(id);
+    const pending = this.order.filter((id) => !shown(id));
     if (typeof which === 'number' && (!Number.isInteger(which) || which < 0))
       throw new Error('reveal count must be a non-negative integer');
     const requested =
       which === 'rest' ? pending : typeof which === 'number' ? pending.slice(0, which) : [...which];
-    const arriving = [...new Set(requested.map((id) => this.top(id)))].filter((id) => !this.visible.has(id));
+    const arriving = [...new Set(requested.map((id) => this.top(id)))].filter((id) => !shown(id));
+    // The members start 0.12 of a run time apart, as the play's group lays them out.
+    let last = 0;
+    for (let i = 1; i < arriving.length; i++) last += 0.12 * runTime;
     const messages: Part[] = [];
-    // Arrive in the current look (dimmed if dimming is on, marked if marked, at the camera's zoom).
-    this.restyle(arriving);
-    const anims = arriving.map((id) => {
-        const p = this.parts.get(id)!;
-        this.visible.add(id);
-        this.attach();
-        for (const child of this.parts.values()) if (child.info.owner === id) this.visible.add(child.info.id);
-        this.root.add(p.mob);
-        if (p.info.role === 'message' && p.info.from && p.info.to && p.route) {
-          const token = this.token(p.route, this.emphasis);
-          messages.push(p);
-          return new AnimationGroup(
-            [
-              new Create(p.mob, { runTime, lagRatio: 0 }),
-              new PulseAlongPath(token, p.route, { runTime, rateFunc: linear }),
-            ],
-            { rateFunc: linear },
-          );
-        }
-        if (p.info.role === 'bar') return new GrowFromEdge(p.mob, [0, -1], { runTime });
-        if (p.info.role === 'task') return new GrowFromEdge(p.mob, [-1, 0], { runTime });
-        return p.info.from
-          ? new Create(p.mob, { runTime, lagRatio: 0 })
-          : new FadeIn(p.mob, { runTime, shift: [0, 0.08] });
-      });
-    if (anims.length) {
+    const play = (): ScheduledAnimation[] => {
+      const early = arriving.find((id) => this.visible.has(id));
+      if (early) throw new Error(`${name}: ${early} was revealed after this reveal was made; make the reveal once the one before it has played`);
+      // Arrive in the current look (dimmed if dimming is on, marked if marked, at the camera's zoom).
+      this.restyle(arriving);
+      const anims = arriving.map((id) => {
+          const p = this.parts.get(id)!;
+          this.visible.add(id);
+          this.attach();
+          for (const child of this.parts.values()) if (child.info.owner === id) this.visible.add(child.info.id);
+          this.root.add(p.mob);
+          if (p.info.role === 'message' && p.info.from && p.info.to && p.route) {
+            const token = this.token(p.route, this.emphasis);
+            messages.push(p);
+            return new AnimationGroup(
+              [
+                new Create(p.mob, { runTime, lagRatio: 0 }),
+                new PulseAlongPath(token, p.route, { runTime, rateFunc: linear }),
+              ],
+              { rateFunc: linear },
+            );
+          }
+          if (p.info.role === 'bar') return new GrowFromEdge(p.mob, [0, -1], { runTime });
+          if (p.info.role === 'task') return new GrowFromEdge(p.mob, [-1, 0], { runTime });
+          return p.info.from
+            ? new Create(p.mob, { runTime, lagRatio: 0 })
+            : new FadeIn(p.mob, { runTime, shift: [0, 0.08] });
+        });
+      if (!anims.length) return [];
       // Draw in snapshot order, sorted once (by rank, not a search per comparison). Transient
       // route tokens (and notes) stay above artwork; the sort is stable among them.
       const rank = new Map(this.snapshot.parts.map((p, i) => [p.id, i]));
       const at = (m: Mobject) => rank.get(this.partIds.get(m)!) ?? this.snapshot.parts.length;
       this.root.children.sort((a, b) => at(a) - at(b));
-      await this.scene.play(new AnimationGroup(anims, { lagRatio: 0.12, rateFunc: linear }));
-    }
-    // Land exactly on that look: drawing animations can end a rounding away from it.
-    this.restyle(arriving);
-    for (const p of messages)
-      recordWalk(this.scene, {
-        step: this.scene.currentStep?.name,
-        from: p.info.from!,
-        to: p.info.to!,
-        edge: p.info.id,
-      });
+      return [new AnimationGroup(anims, { lagRatio: 0.12, rateFunc: linear })];
+    };
+    const after = () => {
+      // Land exactly on that look: drawing animations can end a rounding away from it.
+      this.restyle(arriving);
+      for (const p of messages)
+        recordWalk(this.scene, {
+          step: this.scene.currentStep?.name,
+          from: p.info.from!,
+          to: p.info.to!,
+          edge: p.info.id,
+        });
+    };
+    return { beat: { runTime: arriving.length ? last + runTime : 0, play, after }, arriving };
   }
   /** A part's words: its own text and its labels' (an edge's label is a part it owns; a quadrant point's is `<id>:label`). */
   private words(id: string): string {
@@ -1084,14 +1107,18 @@ export class Diagram {
    * one journey with one token. To leave the path marked for the step's resting
    * frame, draw `trail(hops)` in the diagram's picture (see stage.diagramView).
    */
-  async walk(
+  walk(
     hops: readonly (readonly [string, string])[],
     {
       runTime = 0.8,
       color = this.emphasis,
       parallel = false,
     }: { runTime?: number; color?: string; parallel?: boolean } = {},
-  ): Promise<void> {
+  ): Action {
+    return new Action(this.scene, 'd.walk()', () => this.walkPlan(hops, runTime, color, parallel));
+  }
+  /** A walk, decided now: its hops' links, checked to be real; that they are revealed is checked when it plays. */
+  private walkPlan(hops: readonly (readonly [string, string])[], runTime: number, color: string, parallel: boolean): Plan<void> {
     // A token travels the live diagram's routes, where a picture of it draws them too.
     // Endpoints resolve as `get` resolves ids (so 'actor:A' and 'A' name the same participant).
     const path = hops.map(([from, to]) => {
@@ -1101,42 +1128,46 @@ export class Diagram {
       );
       if (!edge?.route || !edge.route.numCurves())
         throw new Error(`walk(): ${from} -> ${to} is not a real link`);
-      if (!this.visible.has(edge.info.id)) throw new Error(`walk(): reveal ${edge.info.id} first`);
       return { edge, from, to, a, b };
     });
     const record = ({ edge, from, to }: (typeof path)[number]) =>
       recordWalk(this.scene, { step: this.scene.currentStep?.name, from, to, edge: edge.info.id });
-    this.walked = {
-      step: this.scene.currentStep?.name,
-      hops: path.map(({ edge }) => wordsOf(this.scene).arrow(this.endName(edge.info.from!), this.endName(edge.info.to!))),
-      edges: path.map(({ edge }) => edge.info.id),
+    const start = () => {
+      for (const { edge } of path) if (!this.visible.has(edge.info.id)) throw new Error(`walk(): reveal ${edge.info.id} first`);
+      this.walked = {
+        step: this.scene.currentStep?.name,
+        hops: path.map(({ edge }) => wordsOf(this.scene).arrow(this.endName(edge.info.from!), this.endName(edge.info.to!))),
+        edges: path.map(({ edge }) => edge.info.id),
+      };
     };
+    const fade = TOKEN.fade;
     if (parallel && path.length) {
-      const tokens = path.map(({ edge }) => this.token(edge.route!, color));
-      await this.scene.play(...tokens.map((token) => new FadeIn(token, { runTime: TOKEN.fade })));
-      await this.scene.play(
-        ...tokens.map(
-          (token, i) => new MoveAlongPath(token, path[i]!.edge.route!, { runTime, rateFunc: linear }),
-        ),
-      );
-      path.forEach(record);
-      await this.scene.play(...tokens.map((token) => new FadeOut(token, { runTime: TOKEN.fade })));
-      return;
+      let tokens: Dot[] = [];
+      return {
+        value: undefined,
+        start,
+        beats: [
+          { runTime: fade, play: () => (tokens = path.map(({ edge }) => this.token(edge.route!, color))).map((token) => new FadeIn(token, { runTime: fade })) },
+          {
+            runTime,
+            play: () => tokens.map((token, i) => new MoveAlongPath(token, path[i]!.edge.route!, { runTime, rateFunc: linear })),
+            after: () => path.forEach(record),
+          },
+          { runTime: fade, play: () => tokens.map((token) => new FadeOut(token, { runTime: fade })) },
+        ],
+      };
     }
+    // Consecutive hops that join up are one journey: its token fades in before the first and out after the last.
     let token: Dot | null = null;
-    for (let i = 0; i < path.length; i++) {
-      const hop = path[i]!;
-      if (!token) {
-        token = this.token(hop.edge.route!, color);
-        await this.scene.play(new FadeIn(token, { runTime: TOKEN.fade }));
-      }
-      await this.scene.play(new MoveAlongPath(token, hop.edge.route!, { runTime, rateFunc: linear }));
-      record(hop);
-      if (path[i + 1]?.a !== hop.b) {
-        await this.scene.play(new FadeOut(token, { runTime: TOKEN.fade }));
-        token = null;
-      }
-    }
+    const beats: Beat[] = [];
+    path.forEach((hop, i) => {
+      if (i === 0 || path[i - 1]!.b !== hop.a)
+        beats.push({ runTime: fade, play: () => [new FadeIn((token = this.token(hop.edge.route!, color)), { runTime: fade })] });
+      beats.push({ runTime, play: () => [new MoveAlongPath(token!, hop.edge.route!, { runTime, rateFunc: linear })], after: () => record(hop) });
+      if (path[i + 1]?.a !== hop.b)
+        beats.push({ runTime: fade, play: () => [new FadeOut(token!, { runTime: fade })], after: () => { token = null; } });
+    });
+    return { value: undefined, start, beats };
   }
   /** Transforms that take the shown parts to `targetFor`'s copies; hidden parts move at once. */
   private partMoves(mobs: Group[], targetFor: (m: Group) => Group, runTime: number): Transform[] {
@@ -1162,13 +1193,17 @@ export class Diagram {
    * past a fit of the parts, notes follow, and whatever stands beside the box (cards, code, a
    * column of text) stays where it is. The camera does not move; `s.focus` moves it.
    */
-  async enlarge(ids: readonly string[] | 'all', { zoom = 1, runTime = 0.9 }: { zoom?: number; runTime?: number } = {}): Promise<void> {
+  enlarge(ids: readonly string[] | 'all', { zoom = 1, runTime = 0.9 }: { zoom?: number; runTime?: number } = {}): Action {
+    return new Action(this.scene, 'd.enlarge()', () => this.enlargePlan(ids, zoom, runTime));
+  }
+  /** An enlargement, decided now; the parts move, and hidden ones jump, when it plays. */
+  private enlargePlan(ids: readonly string[] | 'all', zoom: number, runTime: number): Plan<void> {
     if (!(zoom > 0 && Number.isFinite(zoom))) throw new Error(`enlarge() zoom must be a positive number, not ${zoom}`);
     const mobs = [...this.parts.values()].filter((p) => !p.info.owner).map((p) => p.mob);
     const whole = new Group(...mobs.map((m) => m.copy()));
+    // Whether the play has anything to show: a shown part moves (partMoves moves hidden ones at once).
+    const shows = mobs.some((m) => this.visible.has(this.partIds.get(m)!));
     if (ids === 'all') {
-      this.focused = null;
-      const anims: Transform[] = [];
       // Apply one global affine map from current full diagram bounds to its authored frame.
       const home = this.home.box(),
         now = whole.box();
@@ -1178,14 +1213,19 @@ export class Diagram {
       const k = !home || !now ? NaN : wide ? (home[2] - home[0]) / (now[2] - now[0]) : (home[3] - home[1]) / (now[3] - now[1]);
       // Nothing drawn, or a diagram fitted down to a point (an absurd canvas size): no extent to restore.
       const restore = Number.isFinite(k) && k > 0;
-      if (restore) {
-        const a: Vec = [(now![0] + now![2]) / 2, (now![1] + now![3]) / 2],
-          b: Vec = [(home![0] + home![2]) / 2, (home![1] + home![3]) / 2];
-        anims.push(...this.partMoves(mobs, (m) => moved(m, k, a, b), runTime));
-      }
-      if (anims.length) await this.scene.play(...anims);
-      if (restore) this.rezoom(1);
-      return;
+      const a: Vec = restore ? [(now![0] + now![2]) / 2, (now![1] + now![3]) / 2] : [0, 0],
+        b: Vec = restore ? [(home![0] + home![2]) / 2, (home![1] + home![3]) / 2] : [0, 0];
+      return {
+        value: undefined,
+        beats: [{
+          runTime: restore && shows ? runTime : 0,
+          play: () => {
+            this.focused = null;
+            return restore ? this.partMoves(mobs, (m) => moved(m, k, a, b), runTime) : [];
+          },
+          after: () => { if (restore) this.rezoom(1); },
+        }],
+      };
     }
     if (!ids.length) throw new Error("enlarge() needs at least one part, or 'all'");
     const tops = [...new Set(ids.map((id) => this.top(id)))];
@@ -1199,10 +1239,17 @@ export class Diagram {
       ) *
       0.78 *
       zoom;
-    this.focused = tops;
-    const anims = this.partMoves(mobs, (m) => moved(m, k, center, boxCenter(box)), runTime);
-    if (anims.length) await this.scene.play(...anims);
-    this.rezoom(this.zoom * k);
+    return {
+      value: undefined,
+      beats: [{
+        runTime: shows ? runTime : 0,
+        play: () => {
+          this.focused = tops;
+          return this.partMoves(mobs, (m) => moved(m, k, center, boxCenter(box)), runTime);
+        },
+        after: () => this.rezoom(this.zoom * k),
+      }],
+    };
   }
   /**
    * The diagram's view has moved: re-derive every look from the home styles at the new zoom (the move
@@ -1218,28 +1265,45 @@ export class Diagram {
    * out. The next diagram starts plain, with no walk or focus.
    * The next diagram keeps this one's style unless it names its own.
    */
-  async morph(
+  morph(
     next: DiagramSpec,
     { ops, runTime = 1.1 }: { ops?: readonly MutationOp[]; runTime?: number } = {},
-  ): Promise<void> {
+  ): Action {
     if (next.style == null && this.spec.style != null) next = { ...next, style: this.spec.style };
-    const resolver = diagramsOf(this.scene);
-    if (ops && resolver.morph) await resolver.morph(this.spec, next, ops);
-    const snapshot = await resolver.diagram(next);
-    const target = new Diagram(this.scene, next, snapshot, { box: this.frameBox });
-    // The frame keeps its key through the morph.
-    const frame = target.parts.get('__frame');
-    if (frame) frame.mob.key = target.frameKey = this.frameKey;
-    const animations = [];
-    for (const [id, p] of this.parts)
-      if (!p.info.owner && this.visible.has(id)) {
-        const q = target.parts.get(id);
-        animations.push(q ? new Transform(p.mob, q.mob, { runTime }) : new FadeOut(p.mob, { runTime }));
-      }
-    for (const [id, q] of target.parts)
-      if (!q.info.owner && !this.visible.has(id)) animations.push(new FadeIn(q.mob, { runTime }));
-    if (animations.length) await this.scene.play(...animations);
-    // Exact handoff to the freshly read tree, retaining semantic route references.
+    // The next diagram's layout is read now; a play waits for it.
+    const before = this.spec, spec = next;
+    let snapshot: DiagramSnapshot | null = null;
+    const reading = (async () => {
+      const resolver = diagramsOf(this.scene);
+      if (ops && resolver.morph) await resolver.morph(before, spec, ops);
+      snapshot = await resolver.diagram(spec);
+    })();
+    let target: Diagram | null = null;
+    return new Action(this.scene, 'd.morph()', () => ({
+      value: undefined,
+      beats: [{
+        runTime,
+        play: () => {
+          target = new Diagram(this.scene, spec, snapshot!, { box: this.frameBox });
+          // The frame keeps its key through the morph.
+          const frame = target.parts.get('__frame');
+          if (frame) frame.mob.key = target.frameKey = this.frameKey;
+          const animations = [];
+          for (const [id, p] of this.parts)
+            if (!p.info.owner && this.visible.has(id)) {
+              const q = target.parts.get(id);
+              animations.push(q ? new Transform(p.mob, q.mob, { runTime }) : new FadeOut(p.mob, { runTime }));
+            }
+          for (const [id, q] of target.parts)
+            if (!q.info.owner && !this.visible.has(id)) animations.push(new FadeIn(q.mob, { runTime }));
+          return animations;
+        },
+        after: () => this.takeOver(target!, spec, snapshot!),
+      }],
+    }), { ready: reading });
+  }
+  /** Exact handoff to the freshly read tree a morph built, retaining semantic route references. */
+  private takeOver(target: Diagram, next: DiagramSpec, snapshot: DiagramSnapshot): void {
     this.scene.remove(this.root);
     for (const p of target.parts.values())
       if (!p.info.owner) {
@@ -1268,19 +1332,20 @@ export class Diagram {
     this.focused = null;
   }
   /** Fade the whole diagram out. `reveal` can bring parts back. */
-  async hide(): Promise<void> {
-    // Shown by a view (stage.diagramView), with the live diagram off the stage: the view fades, as
-    // the live parts would.
-    if (this.shownBy && !this.scene.familyMembers().includes(this.root) && this.scene.familyMembers().includes(this.shownBy)) {
-      await this.scene.play(new FadeOut(this.shownBy, { runTime: 0.4 }));
-      this.forget();
-      return;
-    }
-    const shown = [...this.visible]
-      .filter((id) => !this.parts.get(id)!.info.owner)
-      .map((id) => this.parts.get(id)!.mob);
-    if (shown.length) await this.scene.play(...shown.map((m) => new FadeOut(m, { runTime: 0.4 })));
-    this.forget();
+  hide(): Action {
+    return new Action(this.scene, 'd.hide()', () => {
+      // Shown by a view (stage.diagramView), with the live diagram off the stage: the view fades, as
+      // the live parts would.
+      const view = this.shownBy;
+      const shown = view && !this.scene.familyMembers().includes(this.root) && this.scene.familyMembers().includes(view)
+        ? [view]
+        : [...this.visible].filter((id) => !this.parts.get(id)!.info.owner).map((id) => this.parts.get(id)!.mob);
+      return {
+        value: undefined,
+        beats: [{ runTime: shown.length ? 0.4 : 0, play: () => shown.map((m) => new FadeOut(m, { runTime: 0.4 })) }],
+        end: () => this.forget(),
+      };
+    });
   }
   /** @internal Reset to unrevealed and unemphasised, without animating (the stage has faded it). */
   forget(): void {

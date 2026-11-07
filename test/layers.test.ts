@@ -14,7 +14,7 @@ const ROOT = resolve(import.meta.dirname, '..');
 /** The explainer layer's modules, by layer, from the bottom. */
 const EXPLAIN: Record<string, readonly string[]> = {
   core: [
-    'audio.ts', 'caption-looks.ts', 'choreograph.ts', 'claims.ts', 'intent.ts', 'layout-direction.ts', 'look.ts', 'machine.ts',
+    'action.ts', 'audio.ts', 'caption-looks.ts', 'choreograph.ts', 'claims.ts', 'intent.ts', 'layout-direction.ts', 'look.ts', 'machine.ts',
     'mermaid.ts', 'palettes.ts', 'score.ts', 'script.ts', 'settings.ts', 'state.ts', 'trace.ts', 'view.ts', 'words.ts',
   ],
   diagrams: ['diagrams.ts', 'panels.ts'],

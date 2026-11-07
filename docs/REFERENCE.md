@@ -172,18 +172,18 @@ With neither `style` nor `palette`, the stage adopts the first diagram's palette
 
 | Member | What it does |
 | --- | --- |
-| `s.show(spec, { box, build, runTime })` | Draw a diagram and build it in; returns a `Diagram` |
+| `s.show(spec, { box, build, runTime })` | Draw a diagram and build it in; gives a `Diagram`, once it begins ([actions](#actions)) |
 | `s.diagramView(d, (state, shown) => ({ marks, notes, dim, prefix }))` | Show diagram `d` by a view that draws its marks, notes and dimming from state, usually from `shown` ([below](#diagrams)), both typed from the scene; returns the `View`. Change `this.shown` and play `view.sync()` |
 | `s.liveDiagram(d)` | Hand the stage back to the live diagram, for a `reveal`, `morph` or `enlarge` (a `walk` runs over the view); call `s.diagramView(d, draw)` again afterwards |
-| `s.card(rows, { at, align, width, title, columns, size, direction, lit, key, panel, enter })` | Labelled values: the drawing kit's `card(s, rows, options)`, faded in and kept; returns the `Card`. `columns` puts values side by side under headings; `direction` overrides the stage's field order; `lit: { row, as }` puts a bar on a row ([below](#card-and-codeblock)) |
-| `s.code(lines, { at, align, size, title, diff, added, lit, width, fitHeight, key, enter })` | Code on a panel: the kit's `code(s, lines, options)`, faded in and kept; returns the `CodeBlock`. With `diff`, lines starting `+ ` or `- ` are marked added or removed; `lit: { lines, as }` puts a bar on lines |
+| `s.card(rows, { at, align, width, title, columns, size, direction, lit, key, panel, enter })` | Labelled values: the drawing kit's `card(s, rows, options)`, faded in and kept; gives the `Card`. `columns` puts values side by side under headings; `direction` overrides the stage's field order; `lit: { row, as }` puts a bar on a row ([below](#card-and-codeblock)) |
+| `s.code(lines, { at, align, size, title, diff, added, lit, width, fitHeight, key, enter })` | Code on a panel: the kit's `code(s, lines, options)`, faded in and kept; gives the `CodeBlock`. With `diff`, lines starting `+ ` or `- ` are marked added or removed; `lit: { lines, as }` puts a bar on lines |
 | `s.direction` | `'ltr'` or `'rtl'`, from the `direction` option: where `start` and `end` fall, and the field order of the stage's cards |
 | `s.note(text, { at, size })` | One line of secondary text, default at `[0, -3.9]` |
 | `s.enter(...mobs, { describe, ...fadeOptions })` | Keep native objects and fade them in together, in one play |
 | `s.keep(...mobs, { describe })` | Register objects for description and for `s.clear`, without adding or animating them (add them with `this.add` or a play); returns the first |
 | `s.clearOverlays()` | Fade out cards, code, the stage's notes and kept objects; a diagram, and a view that shows one, stay |
 | `s.clear({ runTime })` | Fade out everything except the backdrop and heading, and bring the camera home, in one play |
-| `s.focus(target \| 'all', { margin, runTime, exact, with })` | Move the camera so a mobject, mobjects or a box fill the stage below the heading, with `margin`; `'all'` goes home. Never zooms out past the stage or shows beyond its edges. `exact: true` takes a 16:9 box as the view as it is; `with` plays other animations in the same play |
+| `s.focus(target \| 'all', { margin, runTime, exact })` | Move the camera so a mobject, mobjects or a box fill the stage below the heading, with `margin`; `'all'` goes home. Never zooms out past the stage or shows beyond its edges. `exact: true` takes a 16:9 box as the view as it is. To move other things in the same play, play them together: `this.play(s.focus(box), new FadeOut(m, { runTime: 0.9 }))` |
 | `s.carry(m, to, { runTime })` | Glide a kept object to a point, or into a box or region it is shrunk to fit (never enlarged): carry an idea on instead of clearing it |
 | `s.sketch(m, { tool, color, runTime, describe })` | Draw `m` stroke by stroke at an even speed with a `'pen'` or `'pencil'` riding the tip (`false` for none), and keep it. Between strokes the tool travels at drawing speed, so it never jumps. `m` must not be on stage yet |
 | `s.steps(steps, { kind }?)` | Present steps in turn. Each step is `{ id, title, line, caption, state, draw, describe?, audio?, kind?, opening? }`: it clears the stage, makes `state` the scene's model, and fades in `draw(state, s)` as a view of that state, described by its words, or by `describe(state)` for a picture whose meaning is its geometry; a part that describes itself (a card, code, a note, a dimension line) is described by itself either way. A `draw` must read its state and nothing a different step changes, and `rayner check` holds it to both ([staged steps](#checks)). `opening` lists keys of the parts a phone opens on ([below](#the-phones-opening-emphasis-and-review-subjects)); without it the whole drawing is the opening's subject. Each step is typed by its own `state`, so one list holds steps whose states differ ([typed state](#typed-state-and-shown)) |
@@ -197,9 +197,30 @@ With neither `style` nor `palette`, the stage adopts the first diagram's palette
 
 Annotations say a value where it is. Prefer a dimension, pin or callout on the drawing to a card beside it, and `carry` to `clear` when the next step builds on this one. One function makes each annotation: the kit's builds the picture in world coordinates, for a view's or a staged step's draw; the stage verb builds it with that function from the points the camera shows and maps it to the screen, so it keeps its size on screen while the camera is away. With the camera at home both give the same picture.
 
-`{ enter: false }` creates a card or code panel without playing it, so `s.enter(card, code)` can bring several in together.
+`{ enter: false }` keeps a card or code panel without playing it in, so `s.enter(card, code)` can bring several in together, in one fade.
 
 `describe` says in words what kept objects show together: a sentence, or a function for a drawing that changes. Without it, the description lists their visible text, and `check` fails a kept drawing that has no text. Either way, a part that describes itself is described by its own words wherever it sits, a view's current picture included: a card or code panel as the stage describes one it entered, its lit row or lines with their word; a diagram note; a dimension line or pin. So a view of a card needs no `describe`, and one given says what else the view shows.
+
+### Actions
+
+The stage's verbs that animate (`s.show`, `s.card`, `s.code`, `s.note`, `s.enter`, `s.clearOverlays`, `s.clear`, `s.focus`, `s.carry`, `s.sketch`, `s.dimension`, `s.legend`, `s.pin` and `s.callout`) and a diagram's `reveal`, `walk`, `enlarge`, `morph` and `hide` each return an action (type `Action<T>` from `rayner/explain`): an `Animation` that is also a promise of what the verb gives, `T`, such as the card, the diagram, or nothing.
+
+- `await` it and it plays itself: one play for each of its beats, each rounded to whole frames. A walk is several beats: its token fades in, moves hop by hop, and fades out.
+- Hand it to `play()`, a `Succession`, an `AnimationGroup` or a `LaggedStart` and it plays there instead, its beats one after another inside that play.
+
+```ts
+await this.play(s.focus(d.get('B')), d.walk([['A', 'B']]));        // together, in one play
+await this.play(new Succession([s.enter(box), d.reveal(['B'])]));  // in turn, in one play
+const panel = s.card(rows, { at: 'end' });
+panel.value.moveTo([4, 1]);                                        // the card exists before it plays
+await this.play(panel, view.sync());
+```
+
+An action is decided when it is called: what it builds, fades, reveals or moves to, as a `Transform`'s target is. Its side effects, such as keeping a card for the description or recording a walk, happen when it plays, at the same moments between its animations whichever way it plays. Each of its animations takes its starting look when it begins. A walk checks that its links are revealed when it plays, so a reveal before it in the same `Succession` counts. Composed, an action's beats are rounded to whole frames together, as a `Succession`'s members are, so a step's length can differ by a frame or two from the same actions awaited one by one.
+
+`value` is what awaiting the action gives. It is there as soon as the action is made, so a card or panel can be read or placed before it plays. `s.show` reads the diagram's layout first, so its diagram, and how long it takes, are known once it begins: `play()` waits for the layout, so play it there or await it, not inside a `Succession` or group built before.
+
+An action plays once. Playing it again, or awaiting one that played in a play, throws. An action does nothing until it is awaited or played, so a step fails when it ends with an action made in it and never played (`s.enter() was made in step "notes" but never played`), and so does the scene at its end.
 
 ### Colours
 
@@ -396,6 +417,8 @@ const source = mermaid.pie(slices.filter((s) => s.value > 0), {
 
 `s.show` builds the diagram in: its scaffolding, then with `build: 'all'` (the default) the rest in reading order, `runTime` per reveal (0.65 s by default). `build: 'frame'` draws only the scaffolding (axes, lanes, lifelines) so the story can arrive with `reveal`.
 
+`reveal`, `walk`, `enlarge`, `morph` and `hide` are [actions](#actions): await one, or play it with others. `morph` reads the next diagram's layout when it is called, and a `play()` waits for that.
+
 To measure a diagram before anything is drawn, lay it out without `s.show`: `new Diagram(scene, spec, await diagramsOf(scene).diagram(spec), { box })`, both from `rayner/explain`, is the diagram `s.show` would build, not yet on stage (`pen-and-pencil` reads its marks this way).
 
 | Method | What it does |
@@ -422,7 +445,7 @@ To measure a diagram before anything is drawn, lay it out without `s.show`: `new
 - `walk` throws on a hop the diagram does not have, requires the link to be revealed, follows its captured route, and records `{ step, from, to, edge }` in `state.walks`.
 - With `ops`, `morph` replays the edits through Agentic Mermaid's `mutate` at build time and fails unless the result serializes to `next`. The failure names the difference: facts (states, transitions, nodes, edges) the edits leave that `next` lacks, or that `next` has and the edits do not make, with `remove_state` suggested for a state whose last transition was removed; or, when the facts agree, the first line where only the order differs, since order changes the layout. Without `ops` it is a visual transition only.
 - `enlarge` is for a diagram that shares the stage with text beside it (send-sync, gtfs, fork). To look closer at the whole stage, move the camera with `s.focus`: it moves no point, so pictures and walks work the same while zoomed, and a label keeps its world size while the camera enlarges it on screen.
-- One scene owns one clock: never call `Scene.play()` concurrently. Use `{ parallel: true }` or one native `play` for simultaneous tokens.
+- One scene owns one clock: never start two plays at once, as `Promise.all` over actions would. Play what moves together in one play: `{ parallel: true }` for simultaneous tokens, or one `play()` of several actions and animations.
 - Descriptions name a link by the labels at its ends ("Attacker → Load balancer"), and a class or ER entity by its name.
 - The collection uses all 15 families. Captured diagrams use the 9 styles listed in `out/explainers/evidence.json` (the build's per-explainer list of families and styles, not step evidence); ring-buffer (dusk) and seasons (tokyo-night) use a style only as the stage palette, and token-bucket uses github-dark that way, a style feature-tour captures. Other styles are untested.
 

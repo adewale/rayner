@@ -198,6 +198,22 @@ keep their identities too. A different shape replaces the children, as a readout
 whose number gains a digit needs; that is refused when any child carries a key, so a
 keyed part cannot silently vanish. `other` is not changed.
 
+## Stage and diagram actions
+
+The stage's and a diagram's verbs compose as these do. Each returns an
+[action](REFERENCE.md#actions): an animation that plays itself when awaited, or
+plays in the `play`, `AnimationGroup`, `LaggedStart` or `Succession` it is handed to.
+
+```ts
+await this.play(s.focus(d.get('cache')), d.walk([['client', 'cache']]));
+await this.play(new Succession([d.reveal(['cache']), s.callout(d.get('cache'), 'warm'), view.sync()]));
+```
+
+An action is decided when it is called and does its side effects (keeping a panel,
+recording a walk) when it plays, between its animations as an awaited one does. Its
+beats run in turn inside the play, as a `Succession`'s members do. It plays once, and
+a step that ends with an action made in it and never played fails.
+
 ## Composition and verification
 
 Growth and pulse capture geometry at `begin()`; `SetState` freezes the supplied

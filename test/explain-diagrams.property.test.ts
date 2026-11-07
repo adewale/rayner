@@ -317,7 +317,7 @@ test('walk rejects a hop that is not a link before anything moves or is recorded
         const before = looks(d),
           built = walks(scene).length;
         const bad = [...path.slice(0, at), [from, to] as [string, string], ...path.slice(at)];
-        await assert.rejects(d.walk(bad), /is not a real link/);
+        await assert.rejects(async () => d.walk(bad), /is not a real link/);
         assert.throws(() => d.trail(bad), /is not a real link/);
         assert.equal(walks(scene).length, built);
         assert.equal(looks(d), before);
@@ -332,7 +332,7 @@ test('walk rejects a link that has not been revealed', async () => {
     fc.asyncProperty(walkSnapshot, async ([s, path]) => {
       fc.pre(path.length > 0);
       const { d } = await shown(s, 'full', 'frame');
-      await assert.rejects(d.walk(path), /reveal [^]* first/);
+      await assert.rejects(async () => d.walk(path), /reveal [^]* first/);
     }),
     params(),
   );
@@ -409,7 +409,7 @@ test('enlarging no parts is refused, and moves nothing', async () => {
     fc.asyncProperty(snapshot(), async (s) => {
       const { d } = await shown(s);
       const before = JSON.stringify(tops(d).map((id) => d.get(id).box()));
-      await assert.rejects(d.enlarge([]), /at least one part/);
+      await assert.rejects(async () => d.enlarge([]), /at least one part/);
       assert.equal(JSON.stringify(tops(d).map((id) => d.get(id).box())), before);
     }),
     params(),
@@ -422,7 +422,7 @@ test('enlarge refuses a zoom that is not a positive number, and moves nothing', 
       fc.pre(s.parts.length > 0);
       const { d } = await shown(s);
       const before = JSON.stringify(tops(d).map((id) => d.get(id).box()));
-      await assert.rejects(d.enlarge(ids, { zoom }), /zoom must be a positive number/);
+      await assert.rejects(async () => d.enlarge(ids, { zoom }), /zoom must be a positive number/);
       assert.equal(JSON.stringify(tops(d).map((id) => d.get(id).box())), before);
     }),
     params(),
@@ -573,7 +573,7 @@ test('reveal rejects a count that is not a non-negative integer, revealing nothi
       async (s, n) => {
         const { d } = await shown(s, 'full', 'frame');
         const before = [...d.visible];
-        await assert.rejects(d.reveal(n), /non-negative integer/);
+        await assert.rejects(async () => d.reveal(n), /non-negative integer/);
         assert.deepEqual([...d.visible], before);
       },
     ),

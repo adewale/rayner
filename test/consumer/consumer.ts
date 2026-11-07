@@ -376,3 +376,21 @@ export async function authorTest(Explainer: SceneClass, folder: string): Promise
   const findings: Finding[] = Object.values(await loadSnapshots(folder)).flatMap((s) => diagramFindings(s));
   return `${project.scenarios.length} ${Object.keys(project.snapshots).length} ${words.summary} ${words.full} ${words.transcript} ${findings.length}`;
 }
+
+import type { Action } from 'rayner/explain';
+
+/** Stage and diagram actions: awaited one by one, or composed into one play or a Succession, with what each gives typed. */
+export class Composed extends Scene {
+  override async construct() {
+    const s = stage(this, { style: 'nord' });
+    await this.step('compose', { title: 'Composed', caption: 'A card and a camera move in one play, then a walk.' });
+    const d: Diagram = await s.show({ source: 'graph LR\nA --> B' });
+    const entry: Action<Card> = s.card([['count', 1]], { at: 'end' });
+    const card: Card = entry.value;
+    await this.play(s.focus(d.get('A')), entry, new FadeIn(new Rectangle({ width: 1, height: 1 }), { runTime: 0.9 }));
+    await this.play(new Succession([d.walk([['A', 'B']]), s.callout(card, 'one'), s.focus('all')]));
+    const panel: CodeBlock = await s.code(['x = 1'], { enter: false });
+    const walked: Action = d.walk([['A', 'B']]);
+    await this.play(new AnimationGroup([walked, s.enter(panel)]));
+  }
+}

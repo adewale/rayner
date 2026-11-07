@@ -10,6 +10,7 @@ export { stage } from './stage.ts';
 export type { StageOptions, Stage, StageRegion, Describe, StagedStep, StagedStepsOptions, DiagramPicture } from './stage.ts';
 export type { LayoutDirection } from './layout-direction.ts';
 export { Diagram } from './diagrams.ts';
+export type { Action } from './action.ts';
 export type { ShowOptions, NoteSide, PictureNote } from './diagrams.ts';
 export type { Card, CodeBlock, CardRow, CardOptions, CodeOptions } from './panels.ts';
 export { regionBox } from './look.ts';
