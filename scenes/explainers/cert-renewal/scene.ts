@@ -281,10 +281,40 @@ export default class CertRenewalExplainer extends Scene {
     });
     await s.clear();
     const chart = await s.show({ source: oneRenewal }, { box: regionBox('top', { bottom: -0.25 }) });
-    // Still live: a CodeBlock drawn in a view cannot yet rest where code.morph leaves NEW_CODE (the panel's
-    // top and width kept, the code shrunk to the region's height), so this panel keeps focus and morph for now.
-    const code = await s.code(OLD_CODE, { at: regionBox('full', { top: -0.35 }), fontSize: 0.2 });
-    await code.focus([2, 3]);
+    // The code under the charts is a view: which Certbot's code it shows and the lines in focus are in
+    // `shown.code`. It keeps the old code's width and fits the region's height, as a morph laid it out, and
+    // keys each line by its text, so a line both versions share glides to its new row.
+    type CodeShown = { version: 'old' | 'new'; focus: [number, number] };
+    const codeOpts = { at: regionBox('full', { top: -0.35 }), fontSize: 0.2, fitHeight: true } as const;
+    this.shown.code = { version: 'old', focus: [2, 3] } satisfies CodeShown;
+    const code = view(
+      this,
+      (_st, sh) => {
+        const c = sh.code as CodeShown;
+        const panel = s.codePicture(c.version === 'old' ? OLD_CODE : NEW_CODE, {
+          ...codeOpts,
+          width: s.codePicture(OLD_CODE, codeOpts).panel.width(),
+          focus: c.focus,
+          key: 'code',
+        });
+        // A panel wider than its code centres it; a morph left the code at the panel's left padding, as
+        // a panel as wide as its code has it. (Stand-in until CodeBlock aligns code left in a wider panel.)
+        panel.code.shift([panel.panel.box()![0] + 0.35 - panel.code.box()![0], 0]);
+        const seen = new Map<string, number>();
+        for (const line of panel.code.lines) {
+          const n = seen.get(line.text) ?? 0;
+          seen.set(line.text, n + 1);
+          line.key = `code:line:${line.text}#${n}`;
+        }
+        return panel;
+      },
+      { place: false },
+    );
+    const showCode = async (change: CodeShown) => {
+      this.shown.code = change;
+      await this.play(code.sync({ match: 'key', staged: true }));
+    };
+    await s.enter(code, { runTime: 0.4 });
     const chartView = diagramOf(chart, 'chart');
     await chartView.show({ notes: [{ id: 'task:c2', text: `replaced at day ${days(ninety.renewsAt)}`, side: 'right' }] });
     this.state.oldRule = { due: ninety.due, renewsAt: ninety.renewsAt };
@@ -320,11 +350,10 @@ export default class CertRenewalExplainer extends Scene {
             : `A ${named(key)} falls due at day ${days(fixedHere.due)}, with ${lifeLeft(fixedHere.share)} of its life left.`
       }`,
     });
-    // The chart and its note fade out together, as hide faded them.
-    await this.play(new FadeOut(chartView.view, { runTime: 0.4 }));
-    chart.forget();
+    // The chart's view fades out, its note with it.
+    await chart.hide();
     this.shown.chart = plain;
-    await code.focus([7, 8]);
+    await showCode({ version: 'old', focus: [7, 8] });
     // The rows' state first: the picture is a view of it.
     this.state.margin = {
       rows: rows.map(({ lifetime, hours, due, share }) => ({ lifetime, hours, due, share })),
@@ -380,8 +409,7 @@ export default class CertRenewalExplainer extends Scene {
     // The margin picture gives way to the replacements each rule makes, in the chart's place above the code.
     await this.play(new FadeOut(marginView, { runTime: 0.3 }));
     const replaced = await s.show({ source: replacements }, { box: regionBox('top', { bottom: -0.25 }) });
-    await code.morph(NEW_CODE);
-    await code.focus([6, 9]);
+    await showCode({ version: 'new', focus: [6, 9] });
     // Each replacement's row names its rule and when it starts; the chosen rule's row is marked.
     await diagramOf(replaced, 'replaced').show({ marked: [`task:${rule}`] });
     this.state.newRule = {
