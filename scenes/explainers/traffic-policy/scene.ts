@@ -24,6 +24,7 @@ import {
 import type { PlacementKey, Policy, Q } from './model.ts';
 import { NODES, POLICY, parse, flowPanel } from './picture.ts';
 import type { FlowState } from './picture.ts';
+import { counted, listed, numberWord } from '../lib/format.ts';
 
 // Sources: kubernetes/kubernetes at tag v1.37.1 and kubernetes/website at commit 0c2509f; the lines each
 // claim rests on are quoted in model.ts and beside the steps below.
@@ -32,7 +33,6 @@ const WEB = 'https://github.com/kubernetes/website/blob/0c2509f55f9de644acef9232
 
 // excalidraw was tried first: its hatched fills, recoloured and thickened by a mark, hid the marked labels.
 const STYLE = 'github-light';
-const NAMES = ['one', 'two', 'three', 'four', 'five', 'six'];
 
 /**
  * The cluster as an architecture diagram: the load balancer under three node groups, each node's address
@@ -71,23 +71,11 @@ const hopTarget = (counts: readonly number[]) =>
     .filter((p) => p.node === 1)
     .at(-1)!.id;
 
-const named = (n: number) => NAMES[n - 1] ?? String(n);
-const podList = (ids: readonly string[]) =>
-  ids.length === 1 ? `pod ${ids[0]}` : `pods ${ids.slice(0, -1).join(', ')} and ${ids.at(-1)}`;
-const nodeList = (nodes: readonly number[]) =>
-  nodes.length === 1
-    ? NODES[nodes[0]!]!
-    : `${nodes
-        .slice(0, -1)
-        .map((j) => NODES[j])
-        .join(', ')} and ${NODES[nodes.at(-1)!]}`;
+const podList = (ids: readonly string[]) => (ids.length === 1 ? `pod ${ids[0]}` : `pods ${listed(ids)}`);
+const nodeList = (nodes: readonly number[]) => listed(nodes.map((j) => NODES[j]!));
 /** "Node 1 runs 3 pods, Node 2 runs 1 and Node 3 runs none." */
-const placementWords = (counts: readonly number[]) => {
-  const parts = counts.map(
-    (n, j) => `${NODES[j]} runs ${n === 0 ? 'none' : j === 0 ? `${n} pod${n === 1 ? '' : 's'}` : n}`,
-  );
-  return `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;
-};
+const placementWords = (counts: readonly number[]) =>
+  listed(counts.map((n, j) => `${NODES[j]} runs ${n === 0 ? 'none' : j === 0 ? counted(n, 'pod') : n}`));
 /** "1 in 4" for a fraction. */
 const inN = (x: Q) => (x[0] === 0 ? 'none' : x[0] === x[1] ? 'all' : `${x[0]} in ${x[1]}`);
 /** Pods grouped by share, largest share first: [[share, ids], ...]. */
@@ -209,7 +197,7 @@ export default class TrafficPolicyExplainer extends Scene {
     // How the cluster diagram is shown, apart from its source: the nodes marked, the links walked and
     // the notes. That is `shown`, not the model; the diagram's view draws it, and each change is a sync.
     // A step's slate starts plain: the overlays clear and what the diagram shows leaves `shown`. A focus
-    // moves the live diagram, so it stands in for the view while it moves.
+    // moves the live diagram, so the stage shows the live diagram, not the view, while it moves.
     type ClusterShown = { marks: Record<string, { color: string; as: string }>; walked: [string, string][]; notes: PictureNote[] };
     const PLAIN: ClusterShown = { marks: {}, walked: [], notes: [] };
     const drawCluster = (of: Diagram) => (_st: object, sh: Record<string, unknown>) => {
@@ -326,7 +314,7 @@ export default class TrafficPolicyExplainer extends Scene {
         line: `Node 3 sends this request on to pod ${target} on Node 2.`,
         // source-ip.md:204-209: the node that receives the packet sends it on to the node with the endpoint.
         caption: `Each node gets a third of the requests and picks among all ${n} pods. A request leaves its node when the pick runs elsewhere: ${counts
-          .map((c, j) => `${inN(leave[j]!)} on ${NODES[j]}`)
+          .map((_, j) => `${inN(leave[j]!)} on ${NODES[j]}`)
           .join(', ')}. Here Node 3 sends one to pod ${target} on Node 2.`,
       });
       await nextSlate();
@@ -342,8 +330,8 @@ export default class TrafficPolicyExplainer extends Scene {
 
     } else {
       // ---------------------------------------------------------------- health check
-      const failing = counts.flatMap((c, j) => (passes(counts, 'local', j) ? [] : [j])),
-        healthy = counts.flatMap((c, j) => (passes(counts, 'local', j) ? [j] : []));
+      const failing = counts.flatMap((_, j) => (passes(counts, 'local', j) ? [] : [j])),
+        healthy = counts.flatMap((_, j) => (passes(counts, 'local', j) ? [j] : []));
       await this.step('health', {
         title: failing.length
           ? `${nodeList(failing)} runs no pod, so it fails the health check`
@@ -364,7 +352,7 @@ export default class TrafficPolicyExplainer extends Scene {
         });
       // Each node's health check answer, said under the node.
       await showCluster({
-        notes: counts.map((c, j) => below(`k${j + 1}`, `${passes(counts, 'local', j) ? '200' : '503'}, ${c} local pod${c === 1 ? '' : 's'}`)),
+        notes: counts.map((c, j) => below(`k${j + 1}`, `${passes(counts, 'local', j) ? '200' : '503'}, ${counted(c, 'local pod')}`)),
       });
       this.state.passes = counts.map((_, j) => passes(counts, 'local', j));
 
@@ -397,7 +385,7 @@ export default class TrafficPolicyExplainer extends Scene {
                       : [
                           c === 1
                             ? `${NODES[j]} sends all of its ${frac(node[j]!)} to pod ${pods.find((p) => p.node === j)!.id}`
-                            : `${NODES[j]} splits its ${frac(node[j]!)} ${named(c)} ways`,
+                            : `${NODES[j]} splits its ${frac(node[j]!)} ${numberWord(c)} ways`,
                         ],
                   )
                   .join('; ')) +
@@ -425,9 +413,9 @@ export default class TrafficPolicyExplainer extends Scene {
         ? [`${NODES[j]} gets no band`]
         : c === 1
           ? [`${NODES[j]} hands its whole ${frac(localNode[j]!)} to pod ${pods.find((p) => p.node === j)!.id}`]
-          : [`${NODES[j]} cuts its ${frac(localNode[j]!)} into ${named(c)} bands of ${frac(shares(counts, 'local')[pods.find((p) => p.node === j)!.id]!)}`],
+          : [`${NODES[j]} cuts its ${frac(localNode[j]!)} into ${numberWord(c)} bands of ${frac(shares(counts, 'local')[pods.find((p) => p.node === j)!.id]!)}`],
     );
-    const cutWords = localCuts.length > 1 ? `${localCuts.slice(0, -1).join(', ')} and ${localCuts.at(-1)}` : localCuts[0]!;
+    const cutWords = listed(localCuts);
     await this.step('flow', {
       title: lUneven
         ? `Under Local, ${NODES[fedBy(lHigh[1][0]!)]}’s whole ${frac(localNode[fedBy(lHigh[1][0]!)]!)} flows into pod ${lHigh[1][0]}`
@@ -435,7 +423,7 @@ export default class TrafficPolicyExplainer extends Scene {
       line: 'Band width is share of requests; colour is the node a request enters.',
       caption:
         `Each band is as wide as its share of the outside requests and takes the colour of the node it enters. The load balancer makes the first cut, by node; each node’s rules make the second, among the pods they list. ` +
-        `Under Cluster each node’s ${frac(clusterNode[0]!)} fans out to all ${n} pods, so every pod bar collects ${named(counts.length)} colours and ends at ${frac(q(1, n))}. ` +
+        `Under Cluster each node’s ${frac(clusterNode[0]!)} fans out to all ${n} pods, so every pod bar collects ${numberWord(counts.length)} colours and ends at ${frac(q(1, n))}. ` +
         `Under Local ${cutWords}` +
         (lUneven
           ? `, so pod ${lHigh[1][0]}’s bar ends ${value(lHigh[0]) / value(lLowest[0])} times as wide as pod ${lLowest[1][0]}’s.`
@@ -543,9 +531,9 @@ export default class TrafficPolicyExplainer extends Scene {
           ['Second hop', inN(parse(st.hops[p]))],
           ['Pod sees', p === 'local' ? 'client address' : 'node address'],
         ],
-        { at: box, align: 'top', fontSize: SIZE, title: POLICY[p] },
+        { at: box, align: 'top', fontSize: SIZE, title: POLICY[p], key: `traffic-compare:${p}` },
+        // Its rows keyed by label, not by index as the key option keys them: scene.review.json targets these.
         (card) => {
-          card.key = `traffic-compare:${p}`;
           card.values.get('Second hop')!.key = `${card.key}:hop`;
           card.values.get('Pod sees')!.key = `${card.key}:source`;
           for (const [label, value] of card.values)

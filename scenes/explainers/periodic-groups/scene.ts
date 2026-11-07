@@ -21,7 +21,7 @@ import {
   beyondCore,
 } from './model.ts';
 import type { Block, Symbol } from './model.ts';
-import { listed as list } from '../lib/format.ts';
+import { listed as list, ordinal, upperFirst } from '../lib/format.ts';
 import { PAPER, INK, SOFT, RUNS, ROW_CELLS, samePlace, nameOf, drawTable, drawNotes, sayPeriodic } from './picture.ts';
 import type { Followed, Member } from './picture.ts';
 
@@ -34,8 +34,6 @@ const ELEMENTS = {
 } as const satisfies Record<string, Symbol>;
 type Choice = keyof typeof ELEMENTS;
 
-const cap = (text: string) => text[0]!.toUpperCase() + text.slice(1);
-const ordinal = (n: number) => `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'}`;
 
 
 /** Of the 108 elements in the NIST reference, how many it lists as the filling rule predicts. */
@@ -91,7 +89,7 @@ export default class PeriodicGroupsExplainer extends Scene {
     const symbol = ELEMENTS[choice],
       z = atomicNumber(symbol),
       name = nameOf(symbol),
-      Name = cap(name);
+      Name = upperFirst(name);
     const here = POSITIONS[z - 1]!,
       group = here.group!;
     const core = coreOf(z),

@@ -22,7 +22,7 @@ import {
   readAddresses,
 } from './model.ts';
 import type { Outcome, Position, Reading, RequestKey, TrustKey, Verdict } from './model.ts';
-import { numberWord } from '../lib/format.ts';
+import { listed, numberWord } from '../lib/format.ts';
 import { ROUTES, WHO_BOX, answerOf, drawAnswerTable, drawRoutesPanel, wrap } from './picture.ts';
 import type { Cell, Route } from './picture.ts';
 
@@ -339,14 +339,12 @@ export default class TrustProxyExplainer extends Scene {
     const forgedUnread = reading.some((r) => r.verdict === 'unread' && r.addr === ADDR.forged);
     const trusted = reading.filter((r) => r.verdict === 'trusted'),
       last = reading.at(-1)!.verdict === 'answer';
-    const both = (xs: readonly string[]) =>
-      xs.length === 1 ? xs[0]! : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`;
     const why =
       trustKey === 'true'
         ? `true trusts every address, so Express reads to the end of the list.`
         : trustKey === 'list'
-          ? `${both(trusted.map((r) => `${r.addr} is in ${TRUSTED_RANGES.find((g) => inRange(r.addr, g))}`))}, so ${trusted.length === 1 ? 'it is' : 'both are'} trusted.`
-          : `Express trusts the first ${trustKey === '1' ? 'address' : `${trustKey} addresses`}, ${both(trusted.map((r) => r.addr))}, for ${trusted.length === 1 ? 'its' : 'their'} position alone.`;
+          ? `${listed(trusted.map((r) => `${r.addr} is in ${TRUSTED_RANGES.find((g) => inRange(r.addr, g))}`))}, so ${trusted.length === 1 ? 'it is' : 'both are'} trusted.`
+          : `Express trusts the first ${trustKey === '1' ? 'address' : `${trustKey} addresses`}, ${listed(trusted.map((r) => r.addr))}, for ${trusted.length === 1 ? 'its' : 'their'} position alone.`;
     const stop = last
       ? `The list ends at ${mine.ip}, so that is req.ip.`
       : trustKey === 'list'
@@ -429,10 +427,10 @@ export default class TrustProxyExplainer extends Scene {
     const countSays =
       counted === 'true'
         ? `trust proxy true trusts every position but the last, and Express takes the last without a test, so on both routes req.ip is ${WHO_ANSWER[answerOf(byCount.forged).who]}.`
-        : `trust proxy ${counted} trusts the first ${counted === '1' ? 'position' : `${numberWord(Number(counted), { zero: 'none' })} positions`}, inside the dashed band, whatever stands there. Through the CDN that is ${both(trustedOf(byCount.forged))}, so req.ip is ${WHO_ANSWER[answerOf(byCount.forged).who]}; skipping the CDN it is ${both(trustedOf(byCount.direct))}, so req.ip is ${WHO_ANSWER[answerOf(byCount.direct).who]}.`;
+        : `trust proxy ${counted} trusts the first ${counted === '1' ? 'position' : `${numberWord(Number(counted), { zero: 'none' })} positions`}, inside the dashed band, whatever stands there. Through the CDN that is ${listed(trustedOf(byCount.forged))}, so req.ip is ${WHO_ANSWER[answerOf(byCount.forged).who]}; skipping the CDN it is ${listed(trustedOf(byCount.direct))}, so req.ip is ${WHO_ANSWER[answerOf(byCount.direct).who]}.`;
     if (answerOf(byList.forged).who !== 'attacker' || answerOf(byList.direct).who !== 'attacker')
       throw new Error('The address list must stop at the attacker on both routes');
-    const listSays = `The address list trusts an address inside ${TRUSTED_RANGES.join(' or ')}: ${both(trustedOf(byList.forged))} through the CDN, ${both(trustedOf(byList.direct))} on the short route. The attacker’s address is in neither range, so on both routes req.ip is ${WHO_ANSWER.attacker}.`;
+    const listSays = `The address list trusts an address inside ${TRUSTED_RANGES.join(' or ')}: ${listed(trustedOf(byList.forged))} through the CDN, ${listed(trustedOf(byList.direct))} on the short route. The attacker’s address is in neither range, so on both routes req.ip is ${WHO_ANSWER.attacker}.`;
     await this.step('routes', {
       title:
         trustKey === 'list'

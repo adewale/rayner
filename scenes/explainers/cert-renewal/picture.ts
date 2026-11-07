@@ -2,6 +2,7 @@ import { Group, Line, Rectangle, Text } from '../../../src/index.ts';
 import { keyed } from '../../../explain/drawing.ts';
 import { DAY, FIXED_INTERVAL, LIFETIMES } from './model.ts';
 import type { LifetimeKey, Rule } from './model.ts';
+import { percent } from '../lib/format.ts';
 
 /** The stage's colours the pictures are drawn in. */
 export type Ink = { ink: string; emphasis: string; bad: string; soft: string };
@@ -10,7 +11,8 @@ export type Ink = { ink: string; emphasis: string; bad: string; soft: string };
 export const BASE = Date.UTC(2028, 2, 1);
 export const stamp = (hours: number) => new Date(BASE + hours * 3600e3).toISOString().slice(0, 16).replace('T', ' ');
 export const days = (hours: number) => +(hours / DAY).toFixed(1);
-export const percent = (x: number) => `${Math.round(x * 100)}%`;
+/** A share of a lifetime as a whole percentage. */
+export const pct = (x: number) => percent(x, { digits: 0, rounding: 'Math.round' });
 
 // ---- the margin: certificates lined up at expiry, each with the 30-day rule's due point -----------
 
@@ -21,7 +23,7 @@ export const named = (k: LifetimeKey) => `${LIFETIMES[k].label.replace(/ (day|ho
 export const marginWords = (r: MarginRow) => (r.due < 0 ? `due ${days(-r.due)} days before issue` : `due at day ${days(r.due)}`);
 export const ofLife = (share: number, k: LifetimeKey) => {
   const life = `a ${LIFETIMES[k].label.replace(/ (day|hour)s$/, '-$1')} life`;
-  return share >= 1 ? `${+share.toFixed(1)} times ${life}` : `${percent(share)} of ${life}`;
+  return share >= 1 ? `${+share.toFixed(1)} times ${life}` : `${pct(share)} of ${life}`;
 };
 
 /**

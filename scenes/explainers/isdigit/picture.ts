@@ -1,7 +1,8 @@
 import { Text, Rectangle, Line, Group } from '../../../src/index.ts';
 import type { Mobject, Box, Vec } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
-import { CHARS, PREDICATES, COUNTS, grouped, intOf } from './model.ts';
+import { CHARS, PREDICATES, COUNTS, intOf } from './model.ts';
+import { grouped } from '../lib/format.ts';
 import type { NumericType, Outcome, Predicate } from './model.ts';
 
 // Sizes are for a 390 px page, whose stage is 358 px wide: native text at 0.54 units is 12 px there,

@@ -14,7 +14,7 @@ export const SUN = '#e0af68',
   AXIS = '#9ece6a',
   PLACE = '#f7768e',
   DIMLINE = '#565f89';
-export const RAD = Math.PI / 180;
+const RAD = Math.PI / 180;
 export const degrees = (d: number) => d.toFixed(1) + '°';
 /** A share of overhead sunlight as a whole percentage. */
 export const pct = (x: number) => percent(x, { digits: 0, rounding: 'Math.round' });
@@ -27,7 +27,7 @@ export const exactly = (d: number) => +d.toFixed(2) + '°';
 /** Earth drawn lit in the orbit views. */
 export const LIT_EARTH = '#7aa2f7';
 // The year chart's colours: this place's curve, December's mark, and the mirrored latitude's curve.
-export const CURVE = '#7aa2f7',
+const CURVE = '#7aa2f7',
   DEC = '#7dcfff',
   MIRROR = '#bb9af7';
 
@@ -35,7 +35,7 @@ export const CURVE = '#7aa2f7',
 export type Ink = { ink: string; soft: string; muted: string };
 
 /** Words on the stage: 0.22 units and the stage's soft colour unless told otherwise, centred on `at` or on its `edge`. */
-export const labeller = (soft: string) => (text: string, at: Vec, opts: { size?: number; color?: string; edge?: Vec } = {}) =>
+const labeller = (soft: string) => (text: string, at: Vec, opts: { size?: number; color?: string; edge?: Vec } = {}) =>
   new Text(text, {
     fontSize: opts.size ?? 0.22,
     color: opts.color ?? soft,
@@ -100,7 +100,7 @@ export type SeasonState = {
 };
 
 /** One season at a latitude: Earth, night half, axis, the place's latitude circle and the noon ray. */
-export function drawSeason(month: string, center: Vec, side: 1 | -1, lat: number, name: string, result: Result, { ink, soft, muted }: Ink) {
+function drawSeason(month: string, center: Vec, side: 1 | -1, lat: number, name: string, result: Result, { ink, soft, muted }: Ink) {
   const label = labeller(soft);
   const v = sideView(center, R, side);
   const ball = new Circle({

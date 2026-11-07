@@ -6,7 +6,7 @@ import { monty, montyExample, threeDoorWorlds, threeDoorCells, oddsAfter, roundS
 import type { Host, Opener, Round, RoundEvent } from './model.ts';
 import { label, tile, stat, keyed, emphasised } from '../../../explain/drawing.ts';
 import { door, X0, X1, F, SLOT, NAME, HEADS, ALONE, left, strip, heads, type Cell } from './picture.ts';
-import { percent } from '../lib/format.ts';
+import { listed, percent } from '../lib/format.ts';
 
 const HOSTS: readonly Host[] = ['informed', 'random'];
 const HOST: Record<Host, string> = { informed: 'Host who knows', random: 'Random host' };
@@ -123,7 +123,7 @@ export default class MontyHall extends Scene {
             ? `The round is over: the car was behind ${O}.`
             : result
               ? `The car is behind ${door(r.car!)}: ${r.decision === 'switch' ? 'switching' : 'staying'} ${result === 'win' ? 'wins' : 'loses'}.`
-              : `The car is behind ${closed.slice(0, -1).join(', ')} or ${closed.at(-1)}.`;
+              : `The car is behind ${listed(closed, { or: true })}.`;
       words = [roundWords(r)];
       return new Group(
         ...[0, 1, 2].flatMap((i) => [
@@ -142,7 +142,7 @@ export default class MontyHall extends Scene {
       );
     };
     /** Switching's chance for a host, right of his name: over every round, or (as) over the rounds left after the seen goat. */
-    const readout = (h: Host, y: number, chance: number, key: string) =>
+    const readout = (y: number, chance: number, key: string) =>
       keyed(new Text(`switch wins ${percent(chance)}`, { fontSize: F, color: s.palette.ink }).moveTo([X1, y], [1, 0]), key);
     const titleOf = (h: Host, y: number) => left(HOST[h], X0, y, h === host ? s.emphasis : s.palette.ink, F, `monty-name-${h}`);
     const describeStrip = (h: Host, list: readonly Cell[], dim: (c: Cell) => boolean = () => false) =>
@@ -188,7 +188,7 @@ export default class MontyHall extends Scene {
             heads(s, HEADS),
             ...HOSTS.flatMap((h) => [
               titleOf(h, SLOT[h] + NAME),
-              ...(phase === 'worlds' ? [readout(h, SLOT[h] + NAME, seen[h].switchChance, `monty-readout-${h}`)] : []),
+              ...(phase === 'worlds' ? [readout(SLOT[h] + NAME, seen[h].switchChance, `monty-readout-${h}`)] : []),
               strip(s, list(h), SLOT[h], h, dim),
             ]),
             cellKey(SLOT.random - NAME),

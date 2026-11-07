@@ -1,6 +1,7 @@
 // The script's check answers, computed from the model: rayner check holds script.md's to these.
 import { RingBuffer } from './model.ts';
 import { arrayQueue } from './picture.ts';
+import { grouped } from '../lib/format.ts';
 
 const ring = new RingBuffer<number>(5);
 for (let v = 1; v <= 5; v++) ring.push(v);
@@ -32,5 +33,5 @@ export const checks = {
   2: () =>
     `Both are at slot ${empty8.head}, just where they were when it was full (head ${full8.head}, tail ${full8.tail}). Only length, ${empty8.length} now against ${full8.length} then, tells empty from full.`,
   3: () =>
-    `The array makes ${arrayMoves.toLocaleString('en')}: each pop copies every value still behind the front, 999, then 998, down to 0. The ring makes none, because a pop moves only head.`,
+    `The array makes ${grouped(arrayMoves)}: each pop copies every value still behind the front, 999, then 998, down to 0. The ring makes none, because a pop moves only head.`,
 };

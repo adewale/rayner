@@ -250,6 +250,7 @@ export function drawReadout(scene: Scene, colors: Palette, state: SceneState, fo
     ],
     { title: 'Bucket balance', fontSize: 0.22, at: [3.3, -4.45, 6.6, -2.3], align: 'top', panel: false },
   );
+  // scene.review.json and the embed tests target the balance row by these keys.
   card.labels.get('Tokens left')!.key = 'balance:label';
   card.values.get('Tokens left')!.key = 'balance:value';
   return card;

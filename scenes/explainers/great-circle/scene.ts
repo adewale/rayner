@@ -7,6 +7,7 @@ import type { StagedStep } from '../../../explain/index.ts';
 import { greatCircle, pole, london, madrid, haversine, rhumb, tens, RADIUS_KM } from './model.ts';
 import { MERCATOR, TROPICS, mercator, stretched, globe, westward, gnomonic, onEquator, turnWords } from './picture.ts';
 import type { MapState, GlobeState, Pair } from './picture.ts';
+import { grouped } from '../lib/format.ts';
 
 
 // ---------------------------------------------------------------- viewpoints: state, turned by a view's tween
@@ -110,7 +111,7 @@ export default class GreatCircle extends Scene {
       { id: 'gnomonic', title: 'A map seen from the Earth’s centre draws shortest routes straight', line: 'The gnomonic map: the eye at the centre, the paper touching the globe.',
         caption: 'Is there a flat map on which every shortest route is a ruler’s line? Put the eye at the Earth’s centre and project each place onto a flat sheet touching the globe. Every great circle lies in a plane through the eye, and that plane meets the sheet in a straight line. On this map, the gnomonic map, every shortest route is drawn straight: the turned globe’s edge-on view, for every route at once. The price is that it cannot show even half the world.',
         state: { viewpoint: GNOMONIC, routes: [L, M] }, draw: gnomonic, opening: ['gnomonic:seen'] },
-      { id: 'limits', title: 'The shortcut over Greenland is the shortest way on a round Earth', line: `${tens(L.km)} km on a sphere of radius ${RADIUS_KM.toLocaleString('en-GB')} km.`,
+      { id: 'limits', title: 'The shortcut over Greenland is the shortest way on a round Earth', line: `${tens(L.km)} km on a sphere of radius ${grouped(RADIUS_KM)} km.`,
         caption: 'The plane flies the great circle because on a round Earth it is the shortest way, and the map draws it bent because a flat map has to stretch a round world. Real flights leave the great circle to ride or avoid the jet stream, to stay within reach of airports and out of closed airspace, and the Earth’s slightly flattened shape changes these distances by a fraction of a per cent. The shortcut over Greenland survives all of them.',
         state: { viewpoint: MERCATOR, route: L }, draw: (st: MapState) => mercator(st, true) },
     ];

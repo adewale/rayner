@@ -203,7 +203,7 @@ export default class WcagMapExplainer extends Scene {
       this.shown.map = { ...(this.shown.map as MapShown), ...change };
       await this.play(mapView.sync({ match: 'key', staged: true }));
     };
-    /** The map morphed to `next`: its marks go first, as the morph took them, then it is shown by its view again. */
+    /** The map morphed to `next`: its marks go first, since the live map the morph moves shows none, then it is shown by its view again. */
     const morphMap = async (...args: Parameters<typeof d.morph>) => {
       if (JSON.stringify(this.shown.map) !== JSON.stringify(plain)) await showMap(plain);
       s.liveDiagram(d);

@@ -9,6 +9,7 @@ import type { Participant, Colour } from './model.ts';
 import { flow, label } from '../../../explain/drawing.ts';
 import type { StagedStep } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
+import { numberWord } from '../lib/format.ts';
 // Locations and observations: the report's task findings, pages 11, 21–22, 25–26, 34 and 40.
 const locations: Record<number, string[]> = {
   1: ['View options', 'Icon size'],
@@ -38,7 +39,8 @@ const named: Record<number, string> = {
   7: 'Open Item Location',
   9: 'Add To Bookmarks',
 };
-const counted = ['No one', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'];
+/** How many of the six: "no one", "one" … "six". */
+const people = (n: number, capital = false) => numberWord(n, { zero: 'no one', capital });
 // Short labels for the report's categories. Keep its full wording in the recorded outcomes.
 const outcomeLines: Record<Colour, readonly [string, string]> = {
   green: ['No', 'difficulty'],
@@ -63,7 +65,7 @@ export function frames(p: Participant): StagedStep[] {
   const rest = (['green', 'yellow', 'orange', 'red', 'gray'] as const)
     .map((c) => [c, row.filter((x) => x === c).length] as const)
     .filter(([, k]) => k > 0)
-    .map(([c, k]) => `${counted[k]!.toLowerCase()} ${phrase[c]}`);
+    .map(([c, k]) => `${people(k)} ${phrase[c]}`);
   return [
     stagedStep({
       id: 'reader-task',
@@ -80,7 +82,7 @@ export function frames(p: Participant): StagedStep[] {
     }),
     stagedStep({
       id: 'reader-sample',
-      title: `${counted[stuck]} of the six gave up on ${named[n]}`,
+      title: `${people(stuck, true)} of the six gave up on ${named[n]}`,
       line: `The others: ${rest.join(', ')}.`,
       caption: `The same task split the six people, graded with the report’s colours; an approach outside the study’s scope counts as neither a success nor a give-up. If a few weaker users caused the trouble, the same names would keep failing. The next step tests that across all eleven tasks.`,
       state: {

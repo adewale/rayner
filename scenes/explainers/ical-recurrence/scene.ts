@@ -1,4 +1,4 @@
-import { Scene, Group, Text } from '../../../src/index.ts';
+import { Scene, Group, Text, diffLines } from '../../../src/index.ts';
 import type { Box, MatchKey, Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, Card, CodeBlock, answerOf, view } from '../../../explain/index.ts';
 import type { Diagram, Stage, NoteSide, DiagramPicture } from '../../../explain/index.ts';
@@ -25,8 +25,8 @@ import {
 } from './model.ts';
 import type { Change, Copy, VEvent } from './model.ts';
 import { stagedStep } from '../../../explain/index.ts';
-import { numberWord } from '../lib/format.ts';
-import { RULE_STARTS, week, plural, upperFirst, rows, guestRows, day, copiesPicture } from './picture.ts';
+import { counted, numberWord, upperFirst } from '../lib/format.ts';
+import { RULE_STARTS, week, rows, guestRows, day, copiesPicture } from './picture.ts';
 import type { CopiesState } from './picture.ts';
 
 // Sources: RFC 5545 and RFC 4791 (sections and lines are quoted in model.ts), and
@@ -125,12 +125,12 @@ export default class IcalRecurrenceExplainer extends Scene {
     /** The object as it stands: the change's, else the invitation's, else the series'. */
     const stored = (st: Record<string, unknown>) => ((st.change ?? st.invite ?? st.series) as { components: VEvent[] }).components;
     // Alice's stored object is a view: its lines are the model's VEVENTs; the lines each edit added and
-    // the lines in focus are how the step shows them, in `shown.stored`. The panel keeps the widest width
-    // it has had, as a morph kept it, and keys each line by its text, so a line that stays glides to its row.
+    // the lines in focus are how the step shows them, in `shown.stored`. The panel is as wide as the widest
+    // object shown so far, and keys each line by its text, so a line that stays glides to its row.
     type StoredShown = { added: number[]; focus: [number, number] | null; focusAs?: string };
     const codeOpts = { at: CODE, align: 'top', fontSize: CODE_SIZE, title: 'Alice’s stored object, some lines left out', fitHeight: true } as const;
     const naturalWidth = (vs: readonly VEvent[]) => s.codePicture(lines(vs), codeOpts).panel.width();
-    // The widest of the objects shown so far: a morph widened the panel for wider lines and kept it wide.
+    // The widest of the objects shown so far: the panel widens for wider lines and then stays wide.
     const widthFor = (st: Record<string, unknown>) =>
       Math.max(...[SERIES, ...(st.invite || st.change ? [INVITED] : []), ...(st.change ? [stored(st)] : [])].map(naturalWidth));
     this.shown.stored = { added: [], focus: null } satisfies StoredShown;
@@ -150,19 +150,9 @@ export default class IcalRecurrenceExplainer extends Scene {
       },
       { place: false },
     );
-    /** The lines of `next` a morph from `before` marks added: those outside their longest common run of equal lines. */
-    const addedLines = (before: readonly string[], next: readonly string[]) => {
-      const table = Array.from({ length: before.length + 1 }, () => new Array<number>(next.length + 1).fill(0));
-      for (let i = before.length - 1; i >= 0; i--)
-        for (let j = next.length - 1; j >= 0; j--)
-          table[i]![j] = before[i] === next[j] ? table[i + 1]![j + 1]! + 1 : Math.max(table[i + 1]![j]!, table[i]![j + 1]!);
-      const kept = new Set<number>();
-      for (let i = 0, j = 0; i < before.length && j < next.length; )
-        if (before[i] === next[j]) kept.add(j++), i++;
-        else if (table[i + 1]![j]! >= table[i]![j + 1]!) i++;
-        else j++;
-      return next.map((_, j) => j).filter((j) => !kept.has(j));
-    };
+    /** The lines of `next` that a line diff from `before` adds: the indices of its hunks' new lines. */
+    const addedLines = (before: readonly string[], next: readonly string[]) =>
+      diffLines(before, next).flatMap((h) => Array.from({ length: h.newLines }, (_, k) => h.newStart - 1 + k));
     const showStored = async (change: StoredShown) => {
       this.shown.stored = change;
       await this.play(code.sync({ match: 'key', staged: true }));
@@ -280,7 +270,7 @@ export default class IcalRecurrenceExplainer extends Scene {
           change === 'skip'
             ? `The same cancellation reaches two different objects. Alice’s holds the master, whose RRULE gives six weeks, so her app takes the third out with EXDATE:${GUEST_MEETING}, leaving ${numberWord(meetingsA)} meetings. Bob’s holds the override for ${day(GUEST_MEETING)} and no master. His other five weeks are empty because nothing in his copy generates them, and the iTIP ${sent.at(-1)} marks the one VEVENT he has STATUS:CANCELLED.`
             : change === 'move'
-              ? `Alice’s object now holds the master and ${plural(na.overrides, 'override')}: the one that invited Bob, and a new one that moves the second meeting to ${short(MOVED_TO)}. Bob’s holds the one override he attends and no master. The iTIP ${sent.at(-1)} the server sends him carries that override again, so his calendar shows the third week and nothing of the move.`
+              ? `Alice’s object now holds the master and ${counted(na.overrides, 'override', { words: true })}: the one that invited Bob, and a new one that moves the second meeting to ${short(MOVED_TO)}. Bob’s holds the one override he attends and no master. The iTIP ${sent.at(-1)} the server sends him carries that override again, so his calendar shows the third week and nothing of the move.`
               : `Alice’s object holds the master, whose RRULE gives all six weeks, and the override that puts Bob in the third. Bob’s holds that override and no master, so his calendar shows the third week and no other.`,
         state,
         draw: copiesPicture,
@@ -326,15 +316,15 @@ export default class IcalRecurrenceExplainer extends Scene {
     const mine = copyOf(change, copy),
       n = counts(mine),
       bob = guestCopy(change);
-    const parts = `${n.masters ? `one master with ${plural(n.rrules, 'RRULE')} and ${plural(n.exdates, 'EXDATE')}` : 'no master'}, and ${plural(n.overrides, 'override')}`;
+    const parts = `${n.masters ? `one master with ${counted(n.rrules, 'RRULE', { words: true })} and ${counted(n.exdates, 'EXDATE', { words: true })}` : 'no master'}, and ${counted(n.overrides, 'override', { words: true })}`;
     // `components`: the VEVENTs the copy holds, which Bob's stored object lists.
     const copyState = { copy, stored: counts(mine), meetings: expand(mine).map((m) => [m.start, m.cancelled] as const), components: mine };
     let er: Diagram | undefined;
     if (copy === 'organiser') {
       er = await schemaStep();
       await this.step('copy', {
-        title: `Alice’s copy: ${plural(n.vevents, 'VEVENT')}, one UID`,
-        line: `${n.masters ? 'One master' : 'No master'} and ${plural(n.overrides, 'override')}; her calendar shows ${numberWord(expand(mine).length)} meetings.`,
+        title: `Alice’s copy: ${counted(n.vevents, 'VEVENT', { words: true })}, one UID`,
+        line: `${n.masters ? 'One master' : 'No master'} and ${counted(n.overrides, 'override', { words: true })}; her calendar shows ${numberWord(expand(mine).length)} meetings.`,
         caption: `The server stores Alice’s object as her app saved it: ${parts}, ${n.vevents > 1 ? 'all ' : ''}with UID standup. The notes on the schema count each part, and parts her copy lacks are dimmed. Bob’s copy is different: ${answer}.`,
       });
       const present = [
@@ -346,7 +336,7 @@ export default class IcalRecurrenceExplainer extends Scene {
       ];
       this.state.copy = copyState;
       const count = (k: number, word: string) =>
-        k ? plural(k, word).replace(/^one /, '1 ').replace(/^two /, '2 ') : `no ${word}`;
+        k ? counted(k, word, { words: true }).replace(/^one /, '1 ').replace(/^two /, '2 ') : `no ${word}`;
       await showEr({
         dim: present,
         notes: [
@@ -396,7 +386,7 @@ export default class IcalRecurrenceExplainer extends Scene {
             ? `${upperFirst(answer)}. Bob is now in no meeting, so the server, Baïkal running sabre/dav, sends him an iTIP CANCEL, the scheduling message that calls a meeting off. Delivering it sets STATUS:CANCELLED on the one VEVENT he holds. Alice’s calendar no longer has a third meeting, because she excluded its start from her rule; Bob had no rule to exclude it from, so his copy still contains ${long(GUEST_MEETING)}, marked cancelled.`
             : change === 'move'
               ? `${upperFirst(answer)}. Saving the move sends Bob an iTIP REQUEST, a scheduling message carrying a meeting’s details, but the server, Baïkal running sabre/dav, puts in it only the VEVENTs Bob attends: the third meeting’s override again. His copy still holds that one VEVENT, and the moved Tuesday meeting never appears in it.`
-              : `${upperFirst(answer)}. The invitation reached Bob as an iTIP REQUEST, a scheduling message carrying a meeting’s details, holding only the VEVENTs he attends. The server stored it as it came: the third meeting’s override, with RECURRENCE-ID and no master, which RFC 4791 allows. His stored copy contains ${plural(expand(mine).length, 'meeting')} and no rule to generate the others.`,
+              : `${upperFirst(answer)}. The invitation reached Bob as an iTIP REQUEST, a scheduling message carrying a meeting’s details, holding only the VEVENTs he attends. The server stored it as it came: the third meeting’s override, with RECURRENCE-ID and no master, which RFC 4791 allows. His stored copy contains ${counted(expand(mine).length, 'meeting', { words: true })} and no rule to generate the others.`,
         state: { copy: copyState, messages: [first, second].filter(Boolean).map((m) => m!.method) },
         draw: bobsCopy,
       });
@@ -435,7 +425,7 @@ export default class IcalRecurrenceExplainer extends Scene {
         label: 'repeats by',
       },
     ] as const;
-    // The notes and dimming go first, as the morph took them; the live schema takes the edit, then its view shows it again.
+    // The notes and dimming go first, since the live schema the morph moves shows neither; it takes the edit, then its view shows it again.
     if (copy === 'organiser') await showEr(plainEr);
     s.liveDiagram(er);
     await er.morph({ source: erSource('sabre') }, { ops });

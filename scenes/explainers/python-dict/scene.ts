@@ -5,6 +5,7 @@ import type { Stage, StagedStep } from '../../../explain/index.ts';
 import { dictStory, route, EMPTY, DELETED, DICT_EVENTS, dictStart, dictNext } from './model.ts';
 import type { DictTable, DictLookup, DictState, DictEvent, DictPolicy } from './model.ts';
 import { picture, stateView, visit, type View } from './picture.ts';
+import { listed } from '../lib/format.ts';
 
 /** A picture's words, in drawing order: what the stage says it shows. */
 const words = (m: Mobject) => m.family().filter((t): t is Text => t instanceof Text).map((t) => t.text).filter(Boolean).join('. ');
@@ -58,7 +59,6 @@ export default class PythonDict extends Scene {
     const missingRoute = route(m.correct, m.missing),
       offRoute = missingRoute.passedOver[0],
       overHop = offRoute === undefined ? -1 : m.missing.slots.findIndex((b, i) => i > 0 && Math.min(b, m.missing.slots[i - 1]!) < offRoute && offRoute < Math.max(b, m.missing.slots[i - 1]!));
-    const list = (items: string[]) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`);
 
     const s = stage(this, { style: 'github-light', headingSize: 0.6 });
     const staged = (frames: readonly (Omit<StagedStep, 'draw'> & { view: View })[]) =>
@@ -138,7 +138,7 @@ export default class PythonDict extends Scene {
     await this.step('missing', {
       title: `Answer: at slot ${missingStop}, the first never-used slot on its route`,
       line: 'D and taken slots send a search on; a never-used slot stops it.',
-      caption: `Key 24’s search passes ${list(missingPasses)}, and stops at slot ${missingStop}, which has never been used: 24 is not in the dict. ${
+      caption: `Key 24’s search passes ${listed(missingPasses)}, and stops at slot ${missingStop}, which has never been used: 24 is not in the dict. ${
         offRoute === undefined
           ? ''
           : `Slot ${offRoute} has never been used either, but the arrow from slot ${m.missing.slots[overHop - 1]} to slot ${m.missing.slots[overHop]} flies over it: 24’s search does not read it, and only slots on the route count. `
@@ -171,8 +171,8 @@ export default class PythonDict extends Scene {
         id: 'collision',
         kind: 'detail',
         title: 'A taken slot sends the search on',
-        line: `Key 16 passes taken slots ${list(sixteen.slots.slice(0, -1).map(String))} to reach slot ${sixteen.slots.at(-1)}.`,
-        caption: `When a key’s slot is taken, Python works out the next slot from the hash and tries again. Storing 8, it found slot 0 taken and used slot ${eight.slots.at(-1)}; storing 16, it found ${list(sixteen.slots.slice(0, -1).map(String))} taken and used slot ${sixteen.slots.at(-1)}. A lookup retraces the same path, checking the key in each taken slot, until the key matches or it reads a never-used slot. That is why an emptied slot 0 stops the search for 8 and for 16.`,
+        line: `Key 16 passes taken slots ${listed(sixteen.slots.slice(0, -1).map(String))} to reach slot ${sixteen.slots.at(-1)}.`,
+        caption: `When a key’s slot is taken, Python works out the next slot from the hash and tries again. Storing 8, it found slot 0 taken and used slot ${eight.slots.at(-1)}; storing 16, it found ${listed(sixteen.slots.slice(0, -1).map(String))} taken and used slot ${sixteen.slots.at(-1)}. A lookup retraces the same path, checking the key in each taken slot, until the key matches or it reads a never-used slot. That is why an emptied slot 0 stops the search for 8 and for 16.`,
         state: { dict: m.original, result: sixteen, key, policy: 'CPython marker', route: route(m.original, sixteen) },
         view: lookupView(m.original, sixteen, {
           outcome: sixteen.value!,

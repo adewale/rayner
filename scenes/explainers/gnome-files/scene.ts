@@ -19,6 +19,7 @@ import {
   task,
 } from './model.ts';
 import type { Participant } from './model.ts';
+import { listed, numberWord } from '../lib/format.ts';
 
 // Sources and the transcription are described in model.ts.
 const REPORT = 'https://blogs.gnome.org/udoijiibike/files/2024/11/Detailed-Report-for-Files-Usability-Test-.pdf';
@@ -46,10 +47,6 @@ const WHY: Readonly<Record<number, string>> = {
   7: 'Open Item Location is in the file’s right-click menu, a command those who quit did not know',
   9: 'over half the sample took six to nine attempts to find Add To Bookmarks or give up',
 };
-/** The answer in script.md's intent header, which the give-ups step's title states. */
-/** "A", "A and B", "A, B and C". */
-const and = (xs: readonly string[]) =>
-  xs.length < 2 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`;
 const name = (n: number) => task(n).name;
 /** A task as a sentence names it: "gave up on Undo". */
 const PROSE: Readonly<Record<number, string>> = {
@@ -135,7 +132,7 @@ export default class GnomeFilesExplainer extends Scene {
       title: answer,
       line: `Black cells are give-ups: ${all.length}, in ${lost.length} tasks and ${people === 6 ? 'all six' : people} columns.`,
       // The reasons are the WHY findings above.
-      caption: `No small group accounts for the give-ups: every one of the six gave up at least once, ${and(once)} once each. All ${all.length} came on menu tasks, though nine of the eleven tasks used menus. The report’s reasons point at where the commands sat: those who quit Undo never opened the Main Menu, those who quit Select All reached for Ctrl+A or dragging, and those who quit Open Item Location had not checked the file’s right-click menu.`,
+      caption: `No small group accounts for the give-ups: every one of the six gave up at least once, ${listed(once)} once each. All ${all.length} came on menu tasks, though nine of the eleven tasks used menus. The report’s reasons point at where the commands sat: those who quit Undo never opened the Main Menu, those who quit Select All reached for Ctrl+A or dragging, and those who quit Open Item Location had not checked the file’s right-click menu.`,
     });
     await s.clear();
     {
@@ -143,7 +140,7 @@ export default class GnomeFilesExplainer extends Scene {
       s.opening(table, rest);
       await s.enter(table, rest, outline, {
         describe: `Give-ups by task and participant, ${p} outlined: ${lost
-          .map((n) => `${n} ${name(n)}: ${and(quitters(n))} gave up`)
+          .map((n) => `${n} ${name(n)}: ${listed(quitters(n))} gave up`)
           .join('; ')}. Give-ups per participant: ${PARTICIPANTS.map((q) => `${q} ${gaveUp(q).length}`).join(', ')}; ${all.length} in all. No one gave up on the other ${SESSION.length - lost.length} tasks.`,
       });
     }
@@ -156,7 +153,7 @@ export default class GnomeFilesExplainer extends Scene {
       line: 'Numbers are this page’s scores; the note on a row names who gave up.',
       // Ranking by black cells is this page's rule. ARTICLE §6.1 names icon size and Bookmarks the
       // worst tasks without saying how it ranks them.
-      caption: `Rows are tasks in session order, columns participants, ${p} outlined; the note on a row names who gave up. Counting give-ups, ${and(worst.map(said))} did worst, ${most} each. The article names changing the icon size and Add To Bookmarks the hardest, without saying how it ranks. Counting everyone graded moderate difficulty or worse puts those two first, with ${struggled(1).length} and ${struggled(9).length} people: the ranking depends on what is counted.`,
+      caption: `Rows are tasks in session order, columns participants, ${p} outlined; the note on a row names who gave up. Counting give-ups, ${listed(worst.map(said))} did worst, ${most} each. The article names changing the icon size and Add To Bookmarks the hardest, without saying how it ranks. Counting everyone graded moderate difficulty or worse puts those two first, with ${struggled(1).length} and ${struggled(9).length} people: the ranking depends on what is counted.`,
     });
     await s.clear();
     {
@@ -172,7 +169,7 @@ export default class GnomeFilesExplainer extends Scene {
         if (!q.length) continue;
         await s.callout(
           rowBox(r),
-          `${and(q)} gave up`,
+          `${listed(q)} gave up`,
           {
             side: 'right',
             gap: 0.3,
@@ -195,10 +192,10 @@ export default class GnomeFilesExplainer extends Scene {
     const gray = shown.length < group.length ? ` ${p}’s Select All is outside the study’s scope, the report’s gray: no column.` : '';
     await this.step('journey', {
       kind: 'detail',
-      title: `${p}’s first ${['', 'one', 'two', 'three', 'four'][group.length] ?? group.length} tasks: gave up on ${and(quit.map(said))}`,
+      title: `${p}’s first ${numberWord(group.length)} tasks: gave up on ${listed(quit.map(said))}`,
       line: 'Each marked task is a give-up, scored 1, the lowest.',
       caption: `One column per task, in session order; the higher the face, the easier it went. Each marked task is a give-up: ${quit.map((n) => WHY[n]).join('; ')}.${
-        calm.length ? ` The same person had no or very little difficulty with ${and(calm.map(said))}.` : ''
+        calm.length ? ` The same person had no or very little difficulty with ${listed(calm.map(said))}.` : ''
       }${gray}`,
     });
     await s.clear();

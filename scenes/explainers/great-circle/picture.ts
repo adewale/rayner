@@ -17,6 +17,7 @@ import { label, keyed, pin } from '../../../explain/drawing.ts';
 import { LAND } from './land.ts';
 import { greatCircle, rhumbLine, pole, tens, RADIUS_KM } from './model.ts';
 import type { Place, Route } from './model.ts';
+import { grouped } from '../lib/format.ts';
 
 const INK = '#1f2328', SOFT = '#59636e', ROUTE = '#b42318', RULER = '#0757b8', LANDLINE = '#6b7d4a', GRID = '#d0d7de';
 const OCEAN = '#eef5fb', SHEET = '#b42318';
@@ -116,7 +117,7 @@ export function stretched(st: StretchState): Group {
     keyed(new Group(label(`×${st.stretch.top.toFixed(1)}`, b[0], b[1] + 0.45, INK, NUMBER)), 'label:stretch-top'),
     keyed(new Group(
       new Rectangle({ width: unit, height: 0.09, fill: INK, stroke: 'none' }).moveTo([-5.5 + unit / 2, 2.45]),
-      label(`×1: ${st.km.toLocaleString('en-GB')} km at the equator`, 0, 0, INK, NAME).moveTo([-5.5 + unit + 0.2, 2.45], [-1, 0]),
+      label(`×1: ${grouped(st.km)} km at the equator`, 0, 0, INK, NAME).moveTo([-5.5 + unit + 0.2, 2.45], [-1, 0]),
     ), 'label:equator-scale'));
   return g;
 }

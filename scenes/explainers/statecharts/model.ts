@@ -1,5 +1,6 @@
 import { refuse } from '../../../explain/index.ts';
 import type { Refusal } from '../../../explain/index.ts';
+import { listed } from '../lib/format.ts';
 // A small statechart model: compound and parallel states with event transitions, run with the
 // SCXML 1.0 selection rules this subset needs (W3C Recommendation, 2015, Appendix D). No guards,
 // actions, history, final states or delays. oracle/statecharts.ts runs the same charts
@@ -289,8 +290,6 @@ export function drivenStart(chart: StateNode): Driven {
   const config = initial(chart);
   return { config, current: activeStates(chart, config) };
 }
-/** "a", "a or b", "a, b or c". */
-const either = (names: readonly string[]) => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} or ${names.at(-1)}`);
 /**
  * A driven chart after `event`: `send`'s configuration, or, when no state it is in handles the
  * event (SCXML discards it), a refusal naming the states and boxes that have no arrow for it.
@@ -300,7 +299,7 @@ export function drivenNext(chart: StateNode, state: Driven, event: string): Driv
   if (step.handled) return { config: step.config, current: activeStates(chart, step.config) };
   const boxes = activeStates(chart, state.config).filter((id) => !state.config.includes(id));
   const around = boxes.length ? [`${boxes.join(' and ')}, the box${boxes.length > 1 ? 'es' : ''} around ${state.config.length > 1 ? 'them' : 'it'}`] : [];
-  return refuse(`no ${event} arrow leaves ${either([...state.config, ...around])}, so the machine ignores ${event}`);
+  return refuse(`no ${event} arrow leaves ${listed([...state.config, ...around], { or: true })}, so the machine ignores ${event}`);
 }
 
 /** Every event any state in the chart handles, in document order. */
@@ -381,7 +380,7 @@ export interface Counts {
 export function chartCounts(chart: StateNode): Counts {
   const nodes = [...index(chart).values()];
   return {
-    states: nodes.filter(({ node, parent }) => parent && parent.type !== 'parallel').length,
+    states: nodes.filter(({ parent }) => parent && parent.type !== 'parallel').length,
     transitions: nodes.reduce((n, { node }) => n + Object.keys(node.on ?? {}).length, 0),
   };
 }

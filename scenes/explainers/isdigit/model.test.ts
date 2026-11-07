@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CHARS, LINEUP, intOf, predicates, PREDICATES, COUNTS, fields, flags, numericType, asciiFor, guarded, accepts, grouped, UNSHOWN, UNSHOWN_DECIMAL, SPACE, rewrite } from './model.ts';
+import { CHARS, LINEUP, intOf, predicates, PREDICATES, COUNTS, fields, flags, numericType, asciiFor, guarded, accepts, UNSHOWN, UNSHOWN_DECIMAL, SPACE, rewrite } from './model.ts';
+import { grouped } from '../lib/format.ts';
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fc, params } from '../lib/pbt.ts';

@@ -4,7 +4,7 @@ import type { ScheduledAnimation as Animation, SceneState, VMobject } from '../.
 import { stage, settingsOf, Machine, view, CodeBlock } from '../../../explain/index.ts';
 import { TokenBucket, bucketStart, bucketRequest } from './model.ts';
 import type { BucketCall as Call, BucketState } from './model.ts';
-import { listed } from '../lib/format.ts';
+import { counted, listed } from '../lib/format.ts';
 import {
   CHIP_Y, SHELL_X, barAt, cappedAt as capAt, chipX, climb, climbTo, coin, drawArrivals, drawAxes, drawBucketLabel, drawChart, drawChips, drawComparison,
   drawGauge, drawLevel, drawReadout, drawShell, fmt, levelY, missingRing, name, startOf,
@@ -210,6 +210,8 @@ export default class TokenBucketExplainer extends Scene {
           ...focusOf(st as unknown as BucketState),
           key: 'code',
         });
+        // The min(5, …) line keyed by what it is, not by its text as the key option keys it:
+        // scene.review.json and the embed tests target it.
         panel.code.lines[1]!.key = 'balance:cap';
         return panel;
       },
@@ -303,7 +305,7 @@ export default class TokenBucketExplainer extends Scene {
 
     // ---------------------------------------- burst, refill, later: the calls
     const f = (i: number) => fmt(plan[i]!.found);
-    const tokens = (n: number) => `${fmt(n)} token${n === 1 ? '' : 's'}`;
+    const tokens = (n: number) => counted(n, 'token', { digits: 1 });
     const r7 = plan[6]!,
       r9 = plan[8]!,
       r10 = plan[9]!;

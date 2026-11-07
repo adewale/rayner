@@ -260,8 +260,8 @@ export default class ForkExplainer extends Scene {
     // How the flow diagram is shown, apart from its source: the parts marked deleted, the links walked,
     // its notes and what stays undimmed. That is `shown`, not the model; the diagram's view draws it,
     // and each change is a sync. A morph or a focus takes the live diagram, with `shown` plain. The
-    // timing step quotes this step's motion, so its plays keep their run times: 0.45 to mark, 0.35 to
-    // unmark before the morph, and the trail and the note in one 0.35 play with the families note.
+    // timing step quotes this step's motion, so its plays keep their run times: 0.45 to mark the deleted
+    // parts, 0.35 to clear them before the morph, and the trail and the note in one 0.35 play with the families note.
     type FlowShown = { deleted: string[]; walked: [string, string][]; notes: PictureNote[]; dim: string[] | null };
     const drawFlow = (of: Diagram) => (_st: object, sh: Record<string, unknown>) => {
       const f = sh.flow as FlowShown;

@@ -17,6 +17,7 @@ import type { NoteSide } from '../../../explain/index.ts';
 // fidelity.ts holds to the real git diff.
 import { BEFORE_CODE, AFTER_CODE, BEFORE_SPANS, AFTER_SPANS } from './code.ts';
 import { frames as readerFrames, panel, inWords, linesBox, lineBar, drawRequestPaths } from './picture.ts';
+import { counted } from '../lib/format.ts';
 
 const STYLE = 'hand-drawn';
 const BEFORE = 'graph LR\nRequest[Request] --> H[Handler]\nH --> D1[(D1)]';
@@ -165,7 +166,6 @@ export default class CacheMRExplainer extends Scene {
     await this.play(new FadeIn(bars, { runTime: 0.5 }));
     // What the diff did, said beside the bars it put there: each run of rewritten or added lines
     // gets a callout in the column right of the code. Unchanged lines have no bar and no callout.
-    const lines = (n: number) => `${n} line${n === 1 ? '' : 's'}`;
     const runs: { from: number; to: number; what: string; color: string }[] = [];
     for (const [js, what, color] of [
       [changed.map(([, j]) => j), 'rewritten', CHANGED],
@@ -182,7 +182,7 @@ export default class CacheMRExplainer extends Scene {
     for (const r of runs.sort((a, b) => a.from - b.from)) {
       const box = linesBox(after, r.from, r.to);
       said.push(
-        await s.callout([right - 0.1, box[1], right - 0.1, box[3]], `${lines(r.to - r.from + 1)} ${r.what}`, {
+        await s.callout([right - 0.1, box[1], right - 0.1, box[3]], `${counted(r.to - r.from + 1, 'line')} ${r.what}`, {
           side: 'right',
           gap: NOTES_BOX[0] - right + 0.15,
           color: r.color,

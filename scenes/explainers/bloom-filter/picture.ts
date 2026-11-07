@@ -2,6 +2,7 @@ import { Group, Rectangle, Text, lerpColor } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { label, table, stat, legend } from '../../../explain/drawing.ts';
 import { locations } from './model.ts';
+import { grouped } from '../lib/format.ts';
 
 /** Each taken name's colour: text on white at 4.5:1 or better, and a pale fill behind a bit it set. */
 const OWNER: Record<string, string> = { cat: '#8250df', dog: '#9a6700', more: '#57606a' };
@@ -9,7 +10,6 @@ const OWNER: Record<string, string> = { cat: '#8250df', dog: '#9a6700', more: '#
 const OWNER_NAME: Record<string, string> = { cat: 'purple', dog: 'brown', more: 'grey' };
 const PAPER = '#ffffff';
 const fillOf = (name: string) => lerpColor(PAPER, OWNER[name]!, 0.36);
-export const thousands = (n: number) => n.toLocaleString('en-US');
 
 /**
  * The taken names over the row, as a legend: each name after a swatch of the fill it gives a bit, with the bits
@@ -103,8 +103,8 @@ export function drawPipeline(
       rows: st.queries.map((q) => ({ key: q.word, cells: [q.word, q.maybe ? 'maybe' : 'no', q.maybe ? (q.stored ? 'taken' : 'free') : 'skipped'] })),
     },
     sample = {
-      headers: [`${thousands(st.sampleSize)} untaken`, 'Bits set', 'Pass'],
-      rows: st.sizes.map((row) => ({ key: `bits-${row.size}`, cells: [`${row.size} bits`, `${row.setBits} of ${row.size}`, thousands(row.sampleFalsePositives)] })),
+      headers: [`${grouped(st.sampleSize)} untaken`, 'Bits set', 'Pass'],
+      rows: st.sizes.map((row) => ({ key: `bits-${row.size}`, cells: [`${row.size} bits`, `${row.setBits} of ${row.size}`, grouped(row.sampleFalsePositives)] })),
     };
   const TABLE = 0.7,
     COLUMN_GAP = 1.1,

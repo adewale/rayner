@@ -229,10 +229,9 @@ export default class PenAndPencil extends Scene {
       caption: `Agentic Mermaid lays the real timeline out first, sizing each box from its words’ measured widths. The construction pencil traces those fixed outlines, and the ink then follows them. These marks separate where the chart belongs from how its strokes look; they are the same in both drawings. The ${wordCount} words have places to fit before either drawing begins.`,
     });
     await drop(width);
-    // The mark goes first, then the live diagram takes the view's place to fade.
+    // The mark goes first, then the diagram fades; hide fades the view that shows it.
     this.shown.layout = { marked: [] };
     await this.play(layoutView.sync({ match: 'key', staged: true, runTime: 0.3 }));
-    s.liveDiagram(d);
     await d.hide();
     delete this.shown.layout;
     const traced = await s.sketch(construction, {
