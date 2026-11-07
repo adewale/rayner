@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import ts from 'typescript';
-import { LIB_ROOT, ROOT } from './roots.ts';
+import { COMPILED, LIB_ROOT, ROOT } from './roots.ts';
 
 // Runtime assets are deliberately broad; Node tools follow the actual producer
 // imports. A reviewer, benchmark or release-script edit does not change a page.
@@ -10,7 +10,7 @@ const producers = ['tools/lib/explain-build.ts', 'tools/lib/explain-project.ts',
 export async function buildInputs(root: string, library = resolve(root) === resolve(ROOT) ? LIB_ROOT : root) {
   root = resolve(root);
   library = resolve(library);
-  const compiled = import.meta.url.endsWith('.js');
+  const compiled = COMPILED;
   // Each input by its name: the command's files by their path in it, the library's (when it is
   // another package, as for the installed command) under rayner/.
   const files = new Map<string, string>();

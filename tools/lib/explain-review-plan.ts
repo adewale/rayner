@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { join, relative, sep } from 'node:path';
 import {catalogEvidence} from './explain-artifacts.ts';
 import { buildInputs } from './build-inputs.ts';
+import { COMPILED } from './roots.ts';
 import { READ_PX } from '../../app/embed-closeup.ts';
 
 /** A planned label can round a few millionths of a CSS pixel in the browser's SVG matrix. */
@@ -181,7 +182,7 @@ export async function reviewCodeHash(root: string, buildHash?: string) {
     'tools/lib/explain-reader-shell.ts',
     'tools/lib/explain-check.ts',
   ];
-  if (import.meta.url.endsWith('.js')) {
+  if (COMPILED) {
     // Installed tools are bundled; individual source module paths do not exist.
     files.length = 0;
     for (const entry of await readdir(join(root, 'dist/tools'), { recursive: true, withFileTypes: true }))

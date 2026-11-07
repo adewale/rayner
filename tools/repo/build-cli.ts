@@ -6,11 +6,12 @@ import { build } from 'esbuild';
 import type { Metafile } from 'esbuild';
 import { chmod, copyFile, cp, mkdir, rm } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { realpathSync } from 'node:fs';
 
-export const ROOT = fileURLToPath(new URL('../../', import.meta.url));
+import { ROOT } from '../lib/roots.ts';
+export { ROOT };
 /** What rayner-cli ships beside its bundle, as paths in this repository and in the package. */
 export const CLI_FILES = [
   'app',

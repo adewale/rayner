@@ -6,7 +6,6 @@
 // nothing never reaches this file's work: see collectProject.
 import { readFile, writeFile, mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -14,8 +13,8 @@ import { createHash } from 'node:crypto';
 import { LETTERING_SCRIPTS, useLettering, takeLetteringUse } from '../../src/lettering.ts';
 import type { SubsetLetteringRequest, LetteringScript, LetteringFaces } from '../../src/lettering.ts';
 import type { FontName } from '../../src/index.ts';
+import { ROOT } from './roots.ts';
 
-const ROOT = new URL('../../', import.meta.url);
 const sha256 = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex');
 
 /** Code point ranges per script. Keep in step with tools/repo/lettering-fonts.sh, which cuts the sources to them. */
@@ -151,7 +150,7 @@ async function cut(family: FontName, codePoints: number[]): Promise<string> {
     await promisify(execFile)(
       tool,
       [
-        fileURLToPath(new URL(SOURCES[family].file, ROOT)),
+        join(ROOT, SOURCES[family].file),
         '--unicodes=' + codePoints.map((cp) => 'U+' + hex(cp)).join(','),
         '--layout-features=' + SOURCES[family].features,
         '--flavor=woff2',

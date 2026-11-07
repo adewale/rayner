@@ -6,7 +6,7 @@ import { access } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep, isAbsolute } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { normalise } from '../../explain/script.ts';
-import { LIB_ROOT } from './explain-project.ts';
+import { COMPILED, LIB_ROOT } from './roots.ts';
 import { entryPoints } from './entry-points.ts';
 
 /** The model test beside the scene and what its run found: how many tests ran and passed, how many were skipped, and the names of those that failed. */
@@ -28,7 +28,7 @@ const exists = (file: string) => access(file).then(() => true, () => false);
  * the check. Where Node can resolve it, it is left alone.
  */
 function raynerResolution(): string {
-  const built = import.meta.url.endsWith('.js');
+  const built = COMPILED;
   const map = Object.fromEntries(
     [...entryPoints()].map(([name, path]) => [name, pathToFileURL(join(LIB_ROOT, built ? `dist/${path}.js` : `${path}.ts`)).href]),
   );

@@ -19,7 +19,8 @@ import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 import { entryPoints as libraryEntryPoints } from '../../lib/entry-points.ts';
 
-export const ROOT = resolve(import.meta.dirname, '../../..');
+import { ROOT } from '../../lib/roots.ts';
+export { ROOT };
 export const LEDGER = 'test/public-names.json';
 
 /** What the ledger says about a name: where it is taught (a guide section and a test), and what check verifies it. */
