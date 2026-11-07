@@ -1,4 +1,4 @@
-import { Scene, Group, Text } from '../../../src/index.ts';
+import { Scene, Group, Text, diffLines } from '../../../src/index.ts';
 import type { Box, MatchKey, Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, Card, CodeBlock, answerOf, view } from '../../../explain/index.ts';
 import type { Diagram, Stage, NoteSide, DiagramPicture } from '../../../explain/index.ts';
@@ -150,19 +150,9 @@ export default class IcalRecurrenceExplainer extends Scene {
       },
       { place: false },
     );
-    /** The lines of `next` a morph from `before` marks added: those outside their longest common run of equal lines. */
-    const addedLines = (before: readonly string[], next: readonly string[]) => {
-      const table = Array.from({ length: before.length + 1 }, () => new Array<number>(next.length + 1).fill(0));
-      for (let i = before.length - 1; i >= 0; i--)
-        for (let j = next.length - 1; j >= 0; j--)
-          table[i]![j] = before[i] === next[j] ? table[i + 1]![j + 1]! + 1 : Math.max(table[i + 1]![j]!, table[i]![j + 1]!);
-      const kept = new Set<number>();
-      for (let i = 0, j = 0; i < before.length && j < next.length; )
-        if (before[i] === next[j]) kept.add(j++), i++;
-        else if (table[i + 1]![j]! >= table[i]![j + 1]!) i++;
-        else j++;
-      return next.map((_, j) => j).filter((j) => !kept.has(j));
-    };
+    /** The lines of `next` that a line diff from `before` adds: the indices of its hunks' new lines. */
+    const addedLines = (before: readonly string[], next: readonly string[]) =>
+      diffLines(before, next).flatMap((h) => Array.from({ length: h.newLines }, (_, k) => h.newStart - 1 + k));
     const showStored = async (change: StoredShown) => {
       this.shown.stored = change;
       await this.play(code.sync({ match: 'key', staged: true }));
