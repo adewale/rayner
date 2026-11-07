@@ -55,30 +55,36 @@ test('the corpus holds every family the explainers use', () => {
   assert.deepEqual([...new Set(corpus.map((c) => c.s.family))].sort(), ['architecture', 'class', 'er', 'flowchart', 'gantt', 'gitgraph', 'journey', 'mindmap', 'pie', 'quadrant', 'radar', 'sequence', 'state', 'timeline', 'xychart']);
 });
 
-test('on every pinned snapshot, marking every part keeps each label its ink', async () => {
+/** Each live member's copy in a picture of the diagram (picture() copies the root whole, member for member). */
+const drawnIn = (d: Diagram, picture: Mobject) => {
+  const live = d.root.family(), drawn = picture.family();
+  return (m: Mobject) => drawn[live.indexOf(m)]!;
+};
+
+test('on every pinned snapshot, a picture marking every part keeps each label its ink', async () => {
   for (const c of corpus) {
     const d = await shown(c.s);
     const leaves = labelLeaves(d);
     assert.ok(leaves.length > 0, `${where(c)} has words`);
     const ink = leaves.map((m) => m.style.fill);
-    await d.mark(tops(d), { color: '#ff0000' });
-    assert.deepEqual(leaves.map((m) => m.style.fill), ink, where(c));
+    const drawn = drawnIn(d, d.picture(Object.fromEntries(tops(d).map((id) => [id, '#ff0000']))));
+    assert.deepEqual(leaves.map((m) => drawn(m).style.fill), ink, where(c));
   }
 });
 
-test('on every pinned snapshot, dimming everything spares the frame and each family’s scaffolding (lifelines, axes, grids, branches, sections, rails, plates, groups)', async () => {
+test('on every pinned snapshot, a picture dimming everything spares the frame and each family’s scaffolding (lifelines, axes, grids, branches, sections, rails, plates, groups)', async () => {
   // The scaffolding a reader keeps their bearings by, as each family's ids name it.
   const scaffold = (id: string) =>
     ['__frame', 'rail', 'border', 'score-guide'].includes(id) ||
     /^(actor|lifeline|axis|grid|branch|section|section-band|section-label|plate|divider|quadrant-label|group|junction|ring|spoke|leader|tick|tick-box|axis-label):/.test(id);
   for (const c of corpus) {
     const d = await shown(c.s);
-    const opacity = (id: string) => d.get(id).family().map((m) => m.style.opacity ?? 1);
+    const opacity = (id: string, as: (m: Mobject) => Mobject = (m) => m) => d.get(id).family().map((m) => as(m).style.opacity ?? 1);
     const before = new Map(tops(d).map((id) => [id, opacity(id)]));
-    await d.dim([]);
+    const drawn = drawnIn(d, d.picture({}, { dim: [] }));
     const faint = dimOpacity(c.s.palette);
     for (const id of tops(d))
-      assert.deepEqual(opacity(id), before.get(id)!.map((o) => (scaffold(id) ? o : o * faint)), `${where(c)}: ${id}`);
+      assert.deepEqual(opacity(id, drawn), before.get(id)!.map((o) => (scaffold(id) ? o : o * faint)), `${where(c)}: ${id}`);
   }
 });
 
