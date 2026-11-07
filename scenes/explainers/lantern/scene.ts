@@ -3,7 +3,7 @@ import { toSvgString, renderAt, StringSink } from '../../../src/output.ts';
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
 import { stage, regionBox, settingsOf, answerOf, view } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
-import type { Diagram } from '../../../explain/index.ts';
+import type { Diagram, PictureNote, View } from '../../../explain/index.ts';
 import { START, END, tiny, timelinePicture, checkPicture, playedLabel, seekedLabel, playedPicture, seekPicture, rulerPicture, sinkNote } from './picture.ts';
 import type { Motion, TinyFrame, Still, Seek, TimelineState, CheckState } from './picture.ts';
 const STYLE = 'hand-drawn';
@@ -351,13 +351,17 @@ export default class LanternExplainer extends Scene {
     const flowAt: Box = [-7.35, RULER_TOP + 0.2, 7.35, 2.95];
     const flow = await s.show({ source: FLOW }, { box: bleed(flowAt, [606.6, 222.7], [40, 40, 566.6, 182.7]) });
     inside(flow, ['Author', 'Browser', 'Trace', 'PNG'], flowAt, regionBox('top', { bottom: RULER_TOP }));
-    await flow.walk(
-      [
-        ['Clock', 'Browser'],
-        ['Clock', 'Trace'],
-      ],
-      { parallel: true, trail: true },
-    );
+    // The links walked are how the pipeline is shown, not the model: they live in `shown`, and the
+    // pipeline is shown by a view that draws them as a trail.
+    this.shown.flowWalked = [];
+    const flowView = s.diagramView(flow, (_st, sh) => ({ marks: flow.trail(sh.flowWalked as [string, string][]) }));
+    const paced: [string, string][] = [
+      ['Clock', 'Browser'],
+      ['Clock', 'Trace'],
+    ];
+    await flow.walk(paced, { parallel: true });
+    this.shown.flowWalked = paced;
+    await this.play(flowView.sync({ match: 'key', staged: true }));
     // Frame times from the scene's own fps; two sinks pace the same frames differently.
     this.state.frameAtSeek = run.seekAt;
     this.state.ruler = { fps: this.fps, times: Array.from({ length: 9 }, (_, n) => (n * 1000) / this.fps) };
@@ -375,9 +379,27 @@ export default class LanternExplainer extends Scene {
     const classesAt: Box = [-6.1, -3.55, 1.0, 2.95];
     const classes = await s.show({ source: CLASSES }, { box: bleed(classesAt, [397.786, 370.7], [40, 40, 358, 331]) });
     inside(classes, ['Scene', 'Mobject', 'Animation', 'Sink'], classesAt, regionBox('full', { right: classesAt[2] + 0.3 }));
-    await classes.walk([['Scene', 'Mobject']], { trail: true });
-    await classes.walk([['Scene', 'Animation']], { trail: true });
-    await classes.walk([['Scene', 'Sink']], { trail: true });
+    // How the classes are shown, apart from their source: the links walked, the notes and what stays
+    // undimmed. That is `shown`, not the model; the diagram's view draws it, and each change is a sync.
+    type ClassesShown = { walked: [string, string][]; notes: PictureNote[]; dim: string[] | null };
+    this.shown.classes = { walked: [], notes: [], dim: null } satisfies ClassesShown;
+    const drawClasses = (_st: object, sh: Record<string, unknown>) => {
+      const c = sh.classes as ClassesShown;
+      return { marks: classes.trail(c.walked), notes: c.notes, dim: c.dim };
+    };
+    let classesView: View = s.diagramView(classes, drawClasses);
+    const showClasses = async (change: Partial<ClassesShown>) => {
+      this.shown.classes = { ...(this.shown.classes as ClassesShown), ...change };
+      await this.play(classesView.sync({ match: 'key', staged: true }));
+    };
+    for (const hop of [
+      ['Scene', 'Mobject'],
+      ['Scene', 'Animation'],
+      ['Scene', 'Sink'],
+    ] as [string, string][]) {
+      await classes.walk([hop]);
+      await showClasses({ walked: [...(this.shown.classes as ClassesShown).walked, hop] });
+    }
     // What the sink does with a frame, beside it: it reads; it never changes a mobject.
     const sinkBox = classes.get('Sink').box()!;
     const reads = sinkNote(sinkBox, soft);
@@ -388,9 +410,14 @@ export default class LanternExplainer extends Scene {
       line: `At t = ${SEEK_T} s the blend is halfway, however many frames ran before.`,
       caption: `begin() copies the starting object. Each frame blends that copy with a fixed end by an amount set only by how far through its run time the animation is. Halfway through the duration therefore means halfway between the endpoints. In contrast, dot.shift(step) adds to the position accumulated by earlier frames.`,
     });
+    // The trail leaves first; the live diagram stands in while the overlays clear, so the view, which
+    // the stage keeps with its overlays, does not fade with them.
+    await showClasses({ walked: [] });
+    s.liveDiagram(classes);
     await s.clearOverlays();
-    await classes.unmark();
-    const fixed = await classes.note('Animation', 'endpoints fixed at begin()', { side: 'below' });
+    classesView = s.diagramView(classes, drawClasses);
+    await showClasses({ notes: [{ id: 'Animation', text: 'endpoints fixed at begin()', side: 'below' }] });
+    const fixed = classesView.current.family().find((m) => m.key === 'note:Animation')!;
     const anim = classes.get('Animation').box()!,
       mob = classes.get('Mobject').box()!;
     // Beside the two boxes it is about: begin() copies a mobject, and the frames blend from that copy.
@@ -409,7 +436,7 @@ export default class LanternExplainer extends Scene {
       { at: [anim[2] + 0.25, anim[1], anim[2] + 4.2, mob[3]], fontSize: 0.19 },
     );
     // Scene and Sink fade, so nothing behind the heading competes with it once the camera moves in.
-    await classes.dim(['Mobject', 'Animation']);
+    await showClasses({ dim: ['Mobject', 'Animation'] });
     // The camera frames Scene and the two links this step is about, Mobject, Animation, its note and the
     // listing below the heading, which stays on screen. Sink, above Mobject, passes under the heading
     // whole, so the frame cuts no box.
