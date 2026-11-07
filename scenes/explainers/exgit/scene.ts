@@ -100,7 +100,7 @@ export default class GitExplainer extends Scene<GitState, GitShown> {
     const codeView = (name: string, at: Box, lines: (g: GitState) => string[]) => {
       const draw = (g: GitState, shown: GitShown) => {
         const focus = shown.focus?.[name];
-        return codePanel(this, s.palette, name, lines(g), at, focus);
+        return codePanel(s, name, lines(g), at, focus);
       };
       return { v: view(this, draw, { place: false }) };
     };

@@ -1,7 +1,8 @@
 import { Scene, FadeIn, Create, Transform, AnimationGroup, Succession, rushFrom, thereAndBack } from '../../../src/index.ts';
-import type { View, Card } from '../../../explain/index.ts';
+import type { View, Card, CodeBlock } from '../../../explain/index.ts';
 import type { ScheduledAnimation as Animation, VMobject } from '../../../src/index.ts';
-import { stage, settingsOf, Machine, view, CodeBlock } from '../../../explain/index.ts';
+import { stage, settingsOf, Machine, view } from '../../../explain/index.ts';
+import { code } from '../../../explain/drawing.ts';
 import { TokenBucket, bucketStart, bucketRequest } from './model.ts';
 import type { BucketCall as Call, BucketState } from './model.ts';
 import { counted, listed } from '../lib/format.ts';
@@ -182,7 +183,7 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
     const chart = view(this, chartPicture, { place: false });
     const chips = view(this, chipsPicture, { place: false });
     // The balance card describes itself, its values as the readout writes them.
-    const readout = view(this, (state) => drawReadout(this, s.palette, state, formatState), { place: false });
+    const readout = view(this, (state) => drawReadout(s, state, formatState), { place: false });
     this.readout = readout;
     s.keep(readout);
     await s.enter(shell, gauge, bucketLabel, { describe: gaugeSays });
@@ -196,18 +197,18 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
     await this.play(new FadeIn(chips, { runTime: 0.4 }), ...[...times, ...names].map((t) => new FadeIn(t)));
     // The code panel is a view of the state: its bar is on the refill lines before any request,
     // then on the lines that answered the last one, spend or refuse.
-    const focusOf = (st: BucketState) => {
+    const litOf = (st: BucketState) => {
       const last = st.calls.at(-1);
-      return !last ? { focus: REFILL, focusAs: 'refill' } : last.ok ? { focus: SPEND, focusAs: 'spend' } : { focus: REFUSE, focusAs: 'refuse' };
+      return !last ? { lines: REFILL, as: 'refill' } : last.ok ? { lines: SPEND, as: 'spend' } : { lines: REFUSE, as: 'refuse' };
     };
-    const code = view(
+    const codeView = view(
       this,
       (st) => {
-        const panel = new CodeBlock(this, s.palette, CODE, {
+        const panel = code(s, CODE, {
           at: [2.15, -2.25, 7.75, 1.55],
           title: `bucket.allow(now), rate = ${rate}`,
           fontSize: 0.22,
-          ...focusOf(st),
+          lit: litOf(st),
           key: 'code',
         });
         // The min(5, …) line keyed by what it is, not by its text as the key option keys it:
@@ -217,8 +218,8 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
       },
       { place: false },
     );
-    const codeLines = () => (code.current as CodeBlock).code.lines;
-    await s.enter(code, { runTime: 0.4 });
+    const codeLines = () => (codeView.current as CodeBlock).code.lines;
+    await s.enter(codeView, { runTime: 0.4 });
     await this.play(new FadeIn(readout));
 
     // ---------------------------------------- the machine: one request at a time
@@ -234,7 +235,7 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
       // request at the last request's time shows the model would go on, and the bound stops the story.
       next: (st) => bucketRequest(st, TIMES[st.calls.length] ?? TIMES.at(-1)!),
       bound: (st) => (st.calls.length >= TIMES.length ? `The client sends ${TIMES.length} requests` : undefined),
-      views: [gauge, chart, chips, readout, code],
+      views: [gauge, chart, chips, readout, codeView],
       runTime: REFILL_S + ANSWER_S,
       transition: {
         request: (t) => {
@@ -242,7 +243,7 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
           const g = t.choreograph(gauge),
             c = t.choreograph(chart),
             q = t.choreograph(chips),
-            k = t.choreograph(code);
+            k = t.choreograph(codeView);
           const i = before.calls.length,
             call = after.calls[i]!,
             prev = before.calls.at(-1) ?? START,
@@ -289,7 +290,7 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
           // line that answered.
           const bar = k.own('code:bar');
           return new Succession([
-            new AnimationGroup([refill, new Transform(bar, barAt(t.target(code) as CodeBlock, REFILL), { runTime: REFILL_S })]),
+            new AnimationGroup([refill, new Transform(bar, barAt(t.target(codeView) as CodeBlock, REFILL), { runTime: REFILL_S })]),
             new AnimationGroup([
               ...answer,
               new Transform(bar, k.to('code:bar'), { runTime: ANSWER_S }),

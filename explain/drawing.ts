@@ -9,18 +9,21 @@ import type { Stage } from './stage.ts';
 import { callout as calloutLook, dimension as dimensionLook, pin as pinLook, legend as legendLook } from './annotate.ts';
 import { emphasisSource } from './look.ts';
 import type { Side, LegendItem } from './annotate.ts';
+import { Card, CodeBlock } from './panels.ts';
+import type { CardRow, CardOptions, CodeOptions } from './panels.ts';
+import { layoutDirection, physicalAt } from './layout-direction.ts';
 export type { LegendItem } from './annotate.ts';
 
 /**
- * `m` marked as emphasis, with what it shows (`'ring: idle'`, `'outlined: push at slot 3'`): call
+ * `m` marked as emphasis, `as` what it shows (`'ring: idle'`, `'outlined: push at slot 3'`): call
  * it where a draw makes a mark, so the phone's close-ups and the descriptions find the mark in the
  * picture itself, at whatever state it was drawn from. A part that does not change can be put on a
  * step's close-up tour the same way, and `null` takes the mark off again. Returns `m`.
  */
-export function emphasised<T extends Mobject>(m: T, what: string | null): T {
-  if (what === null) { delete (m as Partial<Record<typeof emphasisSource, unknown>>)[emphasisSource]; return m; }
+export function emphasised<T extends Mobject>(m: T, as: string | null): T {
+  if (as === null) { delete (m as Partial<Record<typeof emphasisSource, unknown>>)[emphasisSource]; return m; }
   // A method on the part, so a copy (a view's placed picture, say) reports itself, not the original.
-  Object.assign(m, { [emphasisSource](this: Mobject) { return [[this, what]] as const; } });
+  Object.assign(m, { [emphasisSource](this: Mobject) { return [[this, as]] as const; } });
   return m;
 }
 /** `m` with `key` set: the address matching (matchByKey), find(), invariants and reviews read. */
@@ -338,4 +341,24 @@ export function legend(
   const g = legendLook(items, { ink: s.palette.ink, shaping: s.scene.textShaping, size, at, direction, ...(gap === undefined ? {} : { gap }) });
   g.children.forEach((entry, i) => keyed(entry, `${key}:${items[i]!.label}`));
   return keyed(g, key);
+}
+/**
+ * Labelled values on a panel in the stage's colours: `s.card`'s picture, not entered, for a view's
+ * draw, which builds the card from state at every sync. `at: 'start' | 'end'` and the field order
+ * follow the stage's direction; `direction` sets the card's own field order. Each row is a label and
+ * its value, or one value per column with `columns`. A card describes itself, its lit row with its
+ * word.
+ */
+export function card(s: Stage, rows: readonly CardRow[], opts: CardOptions = {}): Card {
+  const direction = layoutDirection(opts, s.direction);
+  return new Card(s.scene, s.palette, rows, { ...opts, at: physicalAt(opts.at, s.direction), direction });
+}
+/**
+ * Code on a panel in the stage's colours, one string per line: `s.code`'s picture, not entered, for
+ * a view's draw. `at: 'start' | 'end'` follows the stage's direction. A code panel describes itself,
+ * its lit, added and removed lines with their words. For code text with no panel (the engine's
+ * matching and diff transforms), use the engine's `Code`.
+ */
+export function code(s: Stage, source: readonly string[], opts: CodeOptions = {}): CodeBlock {
+  return new CodeBlock(s.scene, s.palette, source, { ...opts, at: physicalAt(opts.at, s.direction) });
 }

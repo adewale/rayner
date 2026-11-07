@@ -1,6 +1,7 @@
 import { Scene } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
-import { stage, settingsOf, Card, CodeBlock, mermaid, answerOf, view, having } from '../../../explain/index.ts';
+import { stage, settingsOf, mermaid, answerOf, view, having } from '../../../explain/index.ts';
+import { card, code } from '../../../explain/drawing.ts';
 import type { Diagram, View } from '../../../explain/index.ts';
 import { SAMPLE_FEED } from './feed.ts';
 import {
@@ -351,11 +352,10 @@ export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
       this,
       (_st, sh) => {
         const focus = having(sh, 'tablesFocus').tablesFocus;
-        return new CodeBlock(this, s.palette, ['# calendar.txt', ...calendar, '# calendar_dates.txt', ...exceptions], {
+        return code(s, ['# calendar.txt', ...calendar, '# calendar_dates.txt', ...exceptions], {
           at: [-7.55, -0.6, 7.55, 3.1],
           fontSize: 0.2,
-          focus: focus?.lines ?? null,
-          ...(focus ? { focusAs: focus.as } : {}),
+          lit: focus,
           key: 'tables',
         });
       },
@@ -374,9 +374,8 @@ export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
       this,
       (st) => {
         const { date: on, running: trips } = having(st, 'day').day;
-        return new Card(
-          this,
-          s.palette,
+        return card(
+          s,
           [
             ...having(st, 'today').today.map((x) => [x.serviceId, verdict(x, on)] as [string, string]),
             ['Trips that run', `${trips.length} of ${FEED.trips.length}`],
@@ -506,7 +505,7 @@ export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
           ? `A departure is a stop_times row at the stop that is not its trip’s last. ${listed(at.headways.map((h) => h.tripId))} start here, on headways with exact_times empty: operators keep the gap, not a timetable. The reference does not say whether a vehicle leaves at end_time, so the card gives gaps.${ending}`
           : `A departure is a stop_times row at the stop that is not its trip’s last. On ${shortDate(date)} ${listed(at.departures.map((d) => `${d.tripId} leaves at ${clock(d.time)}`))}.${ending}`,
         state: { departures: at, usual: leaving.length ? null : usual, date },
-        draw: departuresPicture(this, FEED),
+        draw: departuresPicture(FEED),
       },
     ]);
   }

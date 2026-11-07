@@ -1,10 +1,9 @@
 import { Group, Dot, SurroundingRectangle } from '../../../src/index.ts';
-import type { Mobject, Scene, Code, CodeSpan } from '../../../src/index.ts';
+import type { Mobject, Code, CodeSpan } from '../../../src/index.ts';
 import { reduceSession, sessionAttempt } from './model.ts';
 import type { SessionState } from './model.ts';
-import { flow, keyed, label, tile, emphasised } from '../../../explain/drawing.ts';
-import type { Stage, StagedStepsOptions, Diagram, Palette, CardOptions } from '../../../explain/index.ts';
-import { Card } from '../../../explain/index.ts';
+import { flow, keyed, label, tile, emphasised, card } from '../../../explain/drawing.ts';
+import type { Stage, StagedStepsOptions, Diagram, CardOptions, Card } from '../../../explain/index.ts';
 
 
 export function frames(stage: Stage, which: string, answer: string, opts?: StagedStepsOptions): Promise<void> {
@@ -59,22 +58,22 @@ export const RING = { keep: true, color: NOW, buff: 0.07, cornerRadius: 0.08, st
 const litRow = (st: SessionState) => (st.invalid ? 'Returns' : st.returns ? 'State' : st.event ? 'Event' : null);
 
 /** The Session card for one state: state, event and return value, the row the session last changed lit. */
-export function drawSessionCard(scene: Scene, palette: Palette, st: SessionState, at: CardOptions['at']): Card {
-  const card = new Card(
-    scene,
-    palette,
+export function drawSessionCard(s: Stage, st: SessionState, at: CardOptions['at']): Card {
+  const row = litRow(st);
+  const drawn = card(
+    s,
     [
       ['State', st.session],
       ['Event', st.event ?? '–'],
       ['Returns', st.returns ?? (st.event ? '…' : '–')],
     ],
     // The row the session last changed is lit, drawn with the card: described and emphasised with it.
-    { at, fontSize: 0.28, width: 4.8, lit: litRow(st) },
+    { at, fontSize: 0.28, width: 4.8, lit: row && { row } },
   );
   for (const field of ['State', 'Event', 'Returns'])
-    card.values.get(field)!.key = `session:${field.toLowerCase()}`;
-  card.bar.key = 'session:bar';
-  return card;
+    drawn.values.get(field)!.key = `session:${field.toLowerCase()}`;
+  drawn.bar.key = 'session:bar';
+  return drawn;
 }
 
 /** Where a reducer row (from its key to its answer) and the throw sit in the drawn code. */

@@ -2,9 +2,9 @@
 // grid of services by date, and the card of what leaves a stop. Each takes the state it draws and the
 // stage colours, so the scene reads as its steps.
 import { Text, Group, Rectangle } from '../../../src/index.ts';
-import type { Box, Scene } from '../../../src/index.ts';
-import { Card } from '../../../explain/index.ts';
+import type { Box } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
+import { card } from '../../../explain/drawing.ts';
 import { clock, headwayWords, shortDate, stopTimesOf, weekday } from './model.ts';
 import type { Feed, GtfsDate, StopDay, WeekGrid } from './model.ts';
 import { listed, upperFirst } from '../lib/format.ts';
@@ -122,7 +122,7 @@ export function drawWeek(st: { week: WeekGrid; date: GtfsDate }, s: Stage): Grou
  * with nothing, what calendar.txt alone would have sent from it, each marked removed. A frequency row spans the hours
  * vehicles leave the trip's first stop; it is not one vehicle travelling continuously.
  */
-export function departuresPicture(scene: Scene, feed: Feed) {
+export function departuresPicture(feed: Feed) {
   const route = (id: string) => feed.routes.find((r) => r.route_id === id)!;
   const routeOf = (tripId: string) =>
     route(feed.trips.find((t) => t.trip_id === tripId)!.route_id!).route_short_name!;
@@ -150,9 +150,8 @@ export function departuresPicture(scene: Scene, feed: Feed) {
       ),
       ...(here.ending.length ? [['Ends here', listed(here.ending)] as [string, string]] : []),
     ];
-    return new Card(
-      scene,
-      s.palette,
+    return card(
+      s,
       rows.length
         ? rows
         : [

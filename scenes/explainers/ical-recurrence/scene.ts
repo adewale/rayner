@@ -1,6 +1,7 @@
 import { Scene, Group, Text, diffLines } from '../../../src/index.ts';
 import type { Box, MatchKey, Mobject } from '../../../src/index.ts';
-import { stage, settingsOf, Card, CodeBlock, answerOf, view, having } from '../../../explain/index.ts';
+import { stage, settingsOf, answerOf, view, having } from '../../../explain/index.ts';
+import { card, code } from '../../../explain/drawing.ts';
 import type { Diagram, Stage, NoteSide, DiagramPicture } from '../../../explain/index.ts';
 import {
   DTSTART,
@@ -151,21 +152,20 @@ export default class IcalRecurrenceExplainer extends Scene<IcalState, IcalShown>
     /** The object as it stands: the change's, else the invitation's, else the series'. */
     const stored = (st: IcalState) => (st.change ?? st.invite ?? having(st, 'series').series).components;
     const codeOpts = { at: CODE, align: 'top', fontSize: CODE_SIZE, title: 'Alice’s stored object, some lines left out', fitHeight: true } as const;
-    const naturalWidth = (vs: readonly VEvent[]) => s.codePicture(lines(vs), codeOpts).panel.width();
+    const naturalWidth = (vs: readonly VEvent[]) => code(s, lines(vs), codeOpts).panel.width();
     // The widest of the objects shown so far: the panel widens for wider lines and then stays wide.
     const widthFor = (st: IcalState) =>
       Math.max(...[SERIES, ...(st.invite || st.change ? [INVITED] : []), ...(st.change ? [stored(st)] : [])].map(naturalWidth));
     this.shown.stored = { added: [], focus: null } satisfies StoredShown;
-    const code = view(
+    const codeView = view(
       this,
       (st, sh) => {
         const shownCode = having(sh, 'stored').stored;
-        const panel = s.codePicture(lines(stored(st)), {
+        const panel = code(s, lines(stored(st)), {
           ...codeOpts,
           width: widthFor(st),
           added: shownCode.added,
-          focus: shownCode.focus,
-          ...(shownCode.focusAs ? { focusAs: shownCode.focusAs } : {}),
+          lit: shownCode.focus && { lines: shownCode.focus, ...(shownCode.focusAs ? { as: shownCode.focusAs } : {}) },
           key: 'stored',
         });
         return panel;
@@ -177,21 +177,21 @@ export default class IcalRecurrenceExplainer extends Scene<IcalState, IcalShown>
       diffLines(before, next).flatMap((h) => Array.from({ length: h.newLines }, (_, k) => h.newStart - 1 + k));
     const showStored = async (change: StoredShown) => {
       this.shown.stored = change;
-      await this.play(code.sync());
+      await this.play(codeView.sync());
     };
-    await s.enter(code, { runTime: 0.4 });
+    await s.enter(codeView, { runTime: 0.4 });
     // `shown.listMark`: the meeting the list lights and what the description calls it, or none.
     const list = view(
       this,
       (st, shown) => {
         const mark = shown.listMark;
-        return new Card(this, s.palette, rows(stored(st)), {
+        return card(s, rows(stored(st)), {
           at: LIST,
           align: 'top',
           width: LIST_WIDTH,
           fontSize: LIST_SIZE,
           title: 'Meetings Alice’s calendar shows',
-          ...(mark ? { lit: mark.row, litAs: mark.as } : {}),
+          lit: mark ?? null,
         });
       },
       { place: false },
@@ -372,13 +372,13 @@ export default class IcalRecurrenceExplainer extends Scene<IcalState, IcalShown>
       /** Bob's stored object and the meetings his calendar shows, drawn from the step's state alone. */
       const bobsCopy = (st: { copy: typeof copyState }, s: Stage) =>
         new Group(
-          new CodeBlock(this, s.palette, lines(st.copy.components), {
+          code(s, lines(st.copy.components), {
             at: CODE,
             align: 'top',
             fontSize: CODE_SIZE,
             title: 'Bob’s stored object, some lines left out',
           }),
-          new Card(this, s.palette, guestRows(st.copy.meetings), {
+          card(s, guestRows(st.copy.meetings), {
             at: LIST,
             align: 'top',
             width: LIST_WIDTH,

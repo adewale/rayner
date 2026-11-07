@@ -2,6 +2,7 @@
 import { Scene, Group, Text, Axes, FadeIn } from '../../../../src/index.ts';
 import type { View } from '../../../../explain/index.ts';
 import { stage, settingsOf, view, having } from '../../../../explain/index.ts';
+import { code } from '../../../../explain/drawing.ts';
 import { runSearch, SEARCH_CODE } from '../model.ts';
 import type { CompletionOrder, Query, SearchSnapshot } from '../model.ts';
 
@@ -20,7 +21,7 @@ type ChartState = SearchSnapshot & {
   guardedHistory?: (Query | null)[];
 };
 
-export default class LatestSearchExplainer extends Scene<ChartState, { codeFocus?: { focus: [number, number]; focusAs: string } }> {
+export default class LatestSearchExplainer extends Scene<ChartState, { codeFocus?: { lines: [number, number]; as: string } }> {
   static meta = {
     id: 'latest-search',
     title: 'Why can an older search replace the latest result?',
@@ -162,14 +163,14 @@ export default class LatestSearchExplainer extends Scene<ChartState, { codeFocus
       },
     });
     await this.play(new FadeIn(chart));
-    // The lines in focus are how the code is shown (this.shown); the panel is a view of them.
-    this.shown.codeFocus = { focus: [2, 2], focusAs: 'ticket' };
-    const code = view(
+    // The lit lines are how the code is shown (this.shown); the panel is a view of them.
+    this.shown.codeFocus = { lines: [2, 2], as: 'ticket' };
+    const codeView = view(
       this,
-      (_st, sh) => s.codePicture(SEARCH_CODE, { at: [0.7, -3.35, 7.55, 2.6], fontSize: 0.34, ...having(sh, 'codeFocus').codeFocus, key: 'code' }),
+      (_st, sh) => code(s, SEARCH_CODE, { at: [0.7, -3.35, 7.55, 2.6], fontSize: 0.34, lit: having(sh, 'codeFocus').codeFocus, key: 'code' }),
       { place: false },
     );
-    await s.enter(code, { runTime: 0.4 });
+    await s.enter(codeView, { runTime: 0.4 });
 
     const firstResult = run.snapshots[1]!;
     await this.step('first', {
@@ -188,8 +189,8 @@ export default class LatestSearchExplainer extends Scene<ChartState, { codeFocus
     });
     this.state = snapshot(1);
     await this.play(chart.sync({ match: 'index', runTime: 0.55 }));
-    this.shown.codeFocus = { focus: [4, 5], focusAs: 'guard' };
-    await this.play(code.sync({ runTime: 0.4 }));
+    this.shown.codeFocus = { lines: [4, 5], as: 'guard' };
+    await this.play(codeView.sync({ runTime: 0.4 }));
 
     const last = run.snapshots[2]!;
     await this.step('second', {

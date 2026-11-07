@@ -11,8 +11,7 @@ export type { StageOptions, Stage, StageRegion, Describe, StagedStep, StagedStep
 export type { LayoutDirection } from './layout-direction.ts';
 export { Diagram } from './diagrams.ts';
 export type { ShowOptions, NoteSide, PictureNote } from './diagrams.ts';
-export { Card, CodeBlock } from './panels.ts';
-export type { CardRow, CardOptions, CodeOptions } from './panels.ts';
+export type { Card, CodeBlock, CardRow, CardOptions, CodeOptions } from './panels.ts';
 export { regionBox } from './look.ts';
 export type { Region } from './look.ts';
 export { palette } from './palettes.ts';

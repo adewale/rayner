@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
 import { Group, Rectangle, Scene, Text } from '../src/index.ts';
 import { stage, view } from '../explain/index.ts';
+import { card as cardPicture, code as codePicture } from '../explain/drawing.ts';
 import type { View } from '../explain/index.ts';
 import { explainer, labelsSaying, restingBox, wordsOutsideCards } from './lib/scenes.ts';
 import type { Box } from '../src/index.ts';
@@ -379,7 +380,7 @@ test('a step records what it emphasised with the helpers, and only that step', a
   class Marks extends Scene {
     override async construct() {
       const s = stage(this, { heading: false });
-      // The card's values are the model; the lit row and the focused line are how the step shows it.
+      // The card's values are the model; the lit row and the lit line are how the step shows it.
       this.state.first = 1;
       this.shown.lit = null;
       this.shown.focus = null;
@@ -387,12 +388,12 @@ test('a step records what it emphasised with the helpers, and only that step', a
       await this.step('card');
       this.shown.lit = 'third';
       const card = view(this, (st, sh) =>
-        s.cardPicture([['first', st.first], ['second', 2], ['third', 3]], { at: [4, -2], lit: sh.lit as string | null, key: 'card' }), { place: false });
+        cardPicture(s, [['first', st.first], ['second', 2], ['third', 3]], { at: [4, -2], lit: sh.lit == null ? null : { row: sh.lit as string }, key: 'card' }), { place: false });
       await s.enter(card);
       await this.step('code');
       this.shown.focus = 1;
       const code = view(this, (_st, sh) =>
-        s.codePicture(['let a = 1;', 'let b = 2;'], { at: [-4, 2], focus: sh.focus as number | null, key: 'code' }), { place: false });
+        codePicture(s, ['let a = 1;', 'let b = 2;'], { at: [-4, 2], lit: sh.focus == null ? null : { lines: sh.focus as number }, key: 'code' }), { place: false });
       await s.enter(code);
       await this.step('quiet');
       this.state.first = 10;

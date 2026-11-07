@@ -1,7 +1,8 @@
 // The native-scene equivalent of Lantern's nodes/code/state/steps document.
 // Imports are public package imports, so this also runs from an installed archive.
 import { Scene, Rectangle, Labeled, Text, Code, Arrow, FadeIn, Create, Transform, Circumscribe } from 'rayner';
-import { view, Card, palette } from 'rayner/explain';
+import { view, stage } from 'rayner/explain';
+import { card } from 'rayner/drawing';
 import { jsonObject } from 'rayner/testing';
 
 export interface RequestInput { cached: boolean }
@@ -23,8 +24,8 @@ export function requestScene(input: RequestInput) {
       const destination = new Labeled(new Rectangle({ width: 2.4, height: 1 }), new Text('Pending', { fontSize: 0.3 })).moveTo([1, 1]);
       const edge = new Arrow([-2.7, 1], [-0.3, 1]);
       const code = new Code(['if (cached) return cache;', 'return database;'], { fontSize: 0.28 }).moveTo([-2, -1]);
-      const colors = palette('github-dark');
-      const readout = view(this, (s) => new Card(this, colors, [['cached', s.cached], ['destination', s.destination]], { at: [3.6, -1.8], panel: false, key: 'readout' }), { place: false });
+      const s = stage(this, { style: 'github-dark', heading: false });
+      const readout = view(this, (st) => card(s, [['cached', st.cached], ['destination', st.destination]], { at: [3.6, -1.8], panel: false, key: 'readout' }), { place: false });
       await this.step('intro', { caption: 'A request can use a cached result or read the database.' });
       await this.play(new FadeIn(request), new FadeIn(destination), new Create(edge), new FadeIn(code), new FadeIn(readout), { runTime: 0.4 });
 

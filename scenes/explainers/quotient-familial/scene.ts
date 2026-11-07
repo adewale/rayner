@@ -1,7 +1,7 @@
 import { Scene, Group, Create } from '../../../src/index.ts';
-import { callout } from '../../../explain/drawing.ts';
-import { stage, settingsOf, regionBox, Card, mermaid, view, having } from '../../../explain/index.ts';
-import type { CardRow, CardOptions, View, Diagram, Having } from '../../../explain/index.ts';
+import { callout, card, code } from '../../../explain/drawing.ts';
+import { stage, settingsOf, regionBox, mermaid, view, having } from '../../../explain/index.ts';
+import type { CardRow, CardOptions, View, Diagram, Having, Card } from '../../../explain/index.ts';
 import { impot, bareme, tranche, repartition, BAREME, PARAMS, euros, pourcent, partsTexte, NNBSP } from './model.ts';
 import type { Impot } from './model.ts';
 import { drawRegle } from './picture.ts';
@@ -161,7 +161,7 @@ export default class QuotientFamilialExplainer extends Scene<QfState, QfShown> {
       r25 = impot(rni, enfants, 2025);
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
     type Rows = Parameters<typeof s.card>[0];
-    const card = (rows: Rows, opts: Parameters<typeof s.card>[1]) =>
+    const monoCard = (rows: Rows, opts: Parameters<typeof s.card>[1]) =>
       s.card(
         rows.map(([label, value]) => [label, mono(String(value))] as const),
         opts,
@@ -187,9 +187,9 @@ export default class QuotientFamilialExplainer extends Scene<QfState, QfShown> {
       const v: View<Card> = view(
         this,
         (st) => {
-          return new Card(this, s.palette, rows(st).map(([label, value]) => [label, mono(String(value))] as const), {
+          return card(s, rows(st).map(([label, value]) => [label, mono(String(value))] as const), {
             ...(typeof opts === 'function' ? opts(st) : opts),
-            ...(mark ? { lit: mark, ...(as ? { litAs: as } : {}) } : {}),
+            ...(mark ? { lit: { row: mark, ...(as ? { as } : {}) } } : {}),
           });
         },
         { place: false },
@@ -275,7 +275,7 @@ export default class QuotientFamilialExplainer extends Scene<QfState, QfShown> {
         { at: LEFT, title: 'Ce foyer' },
       ),
     );
-    await card(
+    await monoCard(
       [
         ['Réductions, crédits d’impôt', 'non'],
         ['Seuil de recouvrement de 61 €', 'non'],
@@ -616,14 +616,14 @@ export default class QuotientFamilialExplainer extends Scene<QfState, QfShown> {
     // panel's left padding, and the panel keys each line by its text, so a line both years share stays.
     const yamlOpts = { at: regionBox('full', { right: 0.2 }), align: 'top', fontSize: 0.21, fitHeight: true } as const;
     this.shown.bareme = 2024;
-    const code = view(
+    const baremeView = view(
       this,
       (_st, sh) => {
         const year = having(sh, 'bareme').bareme,
           lines = yaml(year);
-        const panel = s.codePicture(lines, {
+        const panel = code(s, lines, {
           ...yamlOpts,
-          width: s.codePicture(yaml(2024), yamlOpts).panel.width(),
+          width: code(s, yaml(2024), yamlOpts).panel.width(),
           added: year === 2025 ? lines.flatMap((l, i) => (l === '    2025-01-01:' ? [i, i + 1] : [])) : [],
           key: 'bareme',
         });
@@ -631,9 +631,9 @@ export default class QuotientFamilialExplainer extends Scene<QfState, QfShown> {
       },
       { place: false },
     );
-    await s.enter(code, { runTime: 0.4 });
+    await s.enter(baremeView, { runTime: 0.4 });
     this.shown.bareme = 2025;
-    await this.play(code.sync({ runTime: 0.9 }));
+    await this.play(baremeView.sync({ runTime: 0.9 }));
     this.state.impot2025 = r25.impot;
     // The thresholds, rates and parameters are the same in every scenario; the household's tax is its state.
     await enterCard(

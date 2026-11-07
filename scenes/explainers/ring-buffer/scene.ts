@@ -1,7 +1,8 @@
 import { Scene, AnimationGroup, Succession, Text, Group, FadeIn, Transform, linear } from '../../../src/index.ts';
-import type { View, Choreography } from '../../../explain/index.ts';
+import type { View, Choreography, CodeOptions } from '../../../explain/index.ts';
 import type { ScheduledAnimation, Vec, Mobject } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, CodeBlock, Machine, view } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, Machine, view } from '../../../explain/index.ts';
+import { card, code } from '../../../explain/drawing.ts';
 import { ringStory, ringStart, ringNext } from './model.ts';
 import type { RingState, RingEvent } from './model.ts';
 import { frames as readerFrames, arrayQueue, SLOTS, C, R, SLOT, angle, polar, pushArg, pointer, pointerAt, drawRing, sayRing } from './picture.ts';
@@ -108,7 +109,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
     // The buffer's own fields, rebuilt from this.state at every sync.
     const readout = (this.readout = view(
       this,
-      (st) => new Card(this, s.palette, (['head', 'tail', 'length'] as const).map((k) => [k, st[k]] as const), {
+      (st) => card(s, (['head', 'tail', 'length'] as const).map((k) => [k, st[k]] as const), {
         fontSize: 0.24, at: [C[0], C[1] + 0.1], width: 1.9, panel: false, key: 'readout',
       }),
       { place: false },
@@ -120,18 +121,17 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
     // The card keeps its panel, title and labels; a View holds its values. The card is drawn from
     // the state too: its Result row is lit while push is refused with Full.
     const blankCard = (lit: string | null) =>
-      new Card(
-        this,
-        s.palette,
+      card(
+        s,
         [
           ['Operation', '–'],
           ['Result', '–'],
         ],
-        { at: regionBox('full', { left: -0.25, bottom: 1.0 }), width: 7.4, fontSize: 0.27, lit, key: 'card' },
+        { at: regionBox('full', { left: -0.25, bottom: 1.0 }), width: 7.4, fontSize: 0.27, lit: lit == null ? null : { row: lit }, key: 'card' },
       );
     const placeholders = blankCard(null);
     const rows = (['Operation', 'Result'] as const).map((label) => ({ label, at: placeholders.values.get(label)!.anchorPoint() }));
-    const card = (this.card = view(
+    const resultCard = (this.card = view(
       this,
       (st) => {
         const c = blankCard(st.error != null ? 'Result' : null);
@@ -168,20 +168,20 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
       describe: () =>
         `A card: Operation: ${String(this.state.operation ?? '–')}, Result: ${resultOf(this.state)}${this.state.error != null ? ' (marked)' : ''}`,
     });
-    await this.play(new FadeIn(card, { runTime: 0.35, shift: [0, -0.08] }), new FadeIn(results, { runTime: 0.35 }));
-    // The code panel focuses the lines the last operation ran: push's first line when it threw
+    await this.play(new FadeIn(resultCard, { runTime: 0.35, shift: [0, -0.08] }), new FadeIn(results, { runTime: 0.35 }));
+    // The code panel lights the lines the last operation ran: push's first line when it threw
     // Full, pop's body after a pop, push's body after a push.
-    const focusOf = (st: RingState): [number, number] | number | null =>
-      st.error != null ? 1 : st.operation === 'pop' ? [8, 12] : st.operation != null ? [2, 4] : null;
-    const codeAt = regionBox('full', { left: -0.25, top: card.box()![1] - 0.25 });
-    const code = (this.code = view(this, (st) => new CodeBlock(this, s.palette, CODE, { at: codeAt, fontSize: 0.2, focus: focusOf(st), key: 'code' }), { place: false }));
-    await s.enter(code, { runTime: 0.4 });
+    const litOf = (st: RingState): CodeOptions['lit'] =>
+      st.error != null ? { lines: 1 } : st.operation === 'pop' ? { lines: [8, 12] } : st.operation != null ? { lines: [2, 4] } : null;
+    const codeAt = regionBox('full', { left: -0.25, top: resultCard.box()![1] - 0.25 });
+    const codePanel = (this.code = view(this, (st) => code(s, CODE, { at: codeAt, fontSize: 0.2, lit: litOf(st), key: 'code' }), { place: false }));
+    await s.enter(codePanel, { runTime: 0.4 });
 
     // The reader could press push or pop; each press is one model step, its motion authored below.
     // A transition morphs the ring's parts in turn; anything it does not name lands at the end.
-    const fields = () => together([readout.sync({ runTime: 0.45 }), results.sync({ match: 'text', staged: false, runTime: 0.45 }), card.sync({ runTime: 0.45 })]);
-    /** The code's focus moves to the lines this operation runs, as it begins. */
-    const focus = () => code.sync({ runTime: 0.4 });
+    const fields = () => together([readout.sync({ runTime: 0.45 }), results.sync({ match: 'text', staged: false, runTime: 0.45 }), resultCard.sync({ runTime: 0.45 })]);
+    /** The code's lit bar moves to the lines this operation runs, as it begins. */
+    const focus = () => codePanel.sync({ runTime: 0.4 });
     /** One angle drives a pointer round the ring, the short way, drawn afresh at each sampled angle. */
     const turn = (c: Choreography, name: 'head' | 'tail', from: number, to: number) => {
       const a0 = angle(from), a1 = a0 + turnBetween(from, to);
@@ -214,7 +214,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
       next: ringNext,
       // The ring would take 10 and on; this story pushes the values 1 to 9.
       bound: (st, event) => (event === 'push' && st.next > 9 ? 'This story pushes the values 1 to 9' : undefined),
-      views: [ring, readout, results, card, code],
+      views: [ring, readout, results, resultCard, codePanel],
       // A push takes 1.8 s, a pop 2.1 s and a refused push, which travels, is crossed and is trayed, 3 s.
       runTime: ({ event, after }) => (event === 'pop' ? 2.1 : after.error ? 3 : 1.8),
       transition: {
@@ -307,7 +307,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
                 ? 'push checks length === capacity on its first line, so with length 5 it throws Full before writing a slot or moving either marker. The 6 is crossed out short of slot 0 and goes to the refused tray, and head, tail and length do not change.'
                 : 'push 7 is refused the same way and joins 6 in the refused tray; the ring still holds 1 to 5. Some ring buffers overwrite the oldest value instead. This one refuses, so no stored value is lost and the caller must handle Full.',
       });
-      // The code's focus and the card's lit Result row are drawn from the state each event leaves.
+      // The code's lit lines and the card's lit Result row are drawn from the state each event leaves.
       await this.play(machine.replay(replays[g]!));
     }
   }

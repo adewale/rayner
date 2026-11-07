@@ -1,8 +1,9 @@
 import { frames as readerFrames, FILE, files, prints, shellsPicture, shellsWords, commandLine, faded } from './picture.ts';
-import type { Choreography, Transition, Diagram, PictureNote, View, CardRow } from '../../../explain/index.ts';
+import type { Choreography, Transition, Diagram, PictureNote, View, CardRow, CardOptions } from '../../../explain/index.ts';
 import { Scene, Text, Transform, AnimationGroup, Succession, FadeIn, FadeOut } from '../../../src/index.ts';
 import type { Animation, Box } from '../../../src/index.ts';
-import { stage, regionBox, answerOf, Machine, view, having, Card, CodeBlock } from '../../../explain/index.ts';
+import { stage, regionBox, answerOf, Machine, view, having } from '../../../explain/index.ts';
+import { card, code } from '../../../explain/drawing.ts';
 import { exec } from './model.ts';
 import type { Shell } from './model.ts';
 import { sessionOfShells, sessionNextShell, scriptBound, BASH_EVENTS } from './model.ts';
@@ -67,9 +68,9 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
       this.shown = { ...this.shown, [name]: value };
       await this.play(v.sync({ runTime }));
     };
-    /** A code panel as s.code draws it, its focus bar on `shown[name]`. */
+    /** A code panel as s.code draws it, its lit bar on `shown[name]`. */
     const codePanel = async (lines: readonly string[], opts: { at: Box | 'side'; fontSize: number }, name: CodeName) => {
-      const v = view(this, (_st, sh) => new CodeBlock(this, s.palette, lines, { ...opts, focus: sh[name] ?? null, key: name }), { place: false });
+      const v = view(this, (_st, sh) => code(s, lines, { ...opts, lit: sh[name] == null ? null : { lines: sh[name] }, key: name }), { place: false });
       await s.enter(v, { runTime: 0.4 });
       return v;
     };
@@ -89,8 +90,8 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
     };
     const noted = (v: View, name: DiagramName, note: PictureNote) => showDiagram(v, name, (was) => ({ notes: [...was.notes, note] }));
     /** A card as s.card draws it, its lit row on `shown[name]`. */
-    const cardView = async (rows: (st: BashState, sh: BashShown) => readonly CardRow[], opts: Omit<ConstructorParameters<typeof Card>[3], 'lit' | 'key'>, name: CardName) => {
-      const v = view(this, (st, sh) => new Card(this, s.palette, rows(st, sh), { ...opts, lit: sh[name] ?? null, key: name }), { place: false });
+    const cardView = async (rows: (st: BashState, sh: BashShown) => readonly CardRow[], opts: Omit<CardOptions, 'lit' | 'key'>, name: CardName) => {
+      const v = view(this, (st, sh) => card(s, rows(st, sh), { ...opts, lit: sh[name] == null ? null : { row: sh[name] }, key: name }), { place: false });
       await s.enter(v, { runTime: 0.35, shift: [0, -0.08] });
       return v;
     };
@@ -350,16 +351,15 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
     const story = view(
       this,
       (_st, sh) =>
-        new CodeBlock(
-          this,
-          s.palette,
+        code(
+          s,
           [
             `s1 = exec(s0, pipeline, "${FILE}").shell`,
             `exec(s1, [["cat", "${FILE}"]]).stdout   // ${q(viaNew)}`,
             `exec(s0, [["cat", "${FILE}"]]).stdout   // ${q(viaOld)}`,
             `s0.fs                               // ${JSON.stringify(old.fs)}`,
           ],
-          { at: BOTTOM, fontSize: 0.3, focus: sh.story, key: 'story' },
+          { at: BOTTOM, fontSize: 0.3, lit: sh.story == null ? null : { lines: sh.story }, key: 'story' },
         ),
       { place: false },
     );

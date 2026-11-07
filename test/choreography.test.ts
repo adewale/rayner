@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import { MoveAlongPath } from '../src/extras.ts';
-import { SetState, view, Card, palette } from '../explain/index.ts';
+import { SetState, view, stage } from '../explain/index.ts';
+import { card } from '../explain/drawing.ts';
+import { isFurniture } from '../explain/stage.ts';
 import assert from 'node:assert/strict';
 import { Scene, Group, Rectangle, Circle, Dot, Line, Text, FadeIn, GrowFromEdge, PulseAlongPath, AnimationGroup, LaggedStart, Succession, linear } from '../src/index.ts';
 import { SnapshotSink, StringSink, NullSink, renderAt, toSvgString } from '../src/output.ts';
@@ -164,7 +166,8 @@ test('SetState sequences state-derived views at the correct turn and leaves no d
   class Demo extends Scene<{count: number}> {
     override state = { count: 0 };
     override async construct() {
-      const readout = view(this, (s) => new Card(this, palette('github-dark'), [['count', s.count]], { panel: false, key: 'readout' }), { place: false }); this.add(readout);
+      const s = stage(this, { style: 'github-dark', heading: false });
+      const readout = view(this, (st) => card(s, [['count', st.count]], { panel: false, key: 'readout' }), { place: false }); this.add(readout);
       await this.step('updates');
       await this.play(new Succession([
         new SetState(this, { count: 3 }), readout.sync({ runTime: 0.5 }),
@@ -180,7 +183,7 @@ test('SetState sequences state-derived views at the correct turn and leaves no d
   const trace = await traceScene(Demo);
   assert.equal(trace.steps[0]!.after!.count, 9);
   const full = new Demo(new NullSink()); await full.run();
-  assert.equal(full.mobjects.length, 1, 'only the readout remains');
+  assert.equal(full.mobjects.filter((m) => !isFurniture(m)).length, 1, 'only the readout remains');
 });
 
 test('SetState rejects simultaneous writers and a mismatched scene before any state changes', async () => {

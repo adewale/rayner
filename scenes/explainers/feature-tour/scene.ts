@@ -2,8 +2,8 @@ import { Scene, Text, Circle, Line, Dot, Rectangle, Arrow, Group, Axes, Transfor
 import { seenFrom, between, latLon, circleOn, project } from '../../../explain/geo.ts';
 import { Square, Restore, Underline, ArcBetweenPoints, MoveAlongPath, Write, TransformFromCopy } from '../../../src/extras.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
-import { stage, settingsOf, palette, answerOf, view, having, CodeBlock } from '../../../explain/index.ts';
-import { bars, tile, keyed } from '../../../explain/drawing.ts';
+import { stage, settingsOf, palette, answerOf, view, having } from '../../../explain/index.ts';
+import { bars, tile, keyed, code } from '../../../explain/drawing.ts';
 
 type Feature =
   | 'steps'
@@ -92,20 +92,20 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     point: 'The trail stays on Start → Finish after the walk ends.',
   },
   code: {
-    title: 'Show the author’s code, then focus a line',
+    title: 'Show the author’s code, then light a line',
     result: 'Two plain lines, then the second marked as the update',
     code: [
-      'this.shown.focus = null;',
-      'const block = view(this, (st, sh) => new CodeBlock(',
-      "  this, s.palette, ['let count = 0;', 'count += 1;'],",
-      "  {at: 'main', focus: sh.focus, focusAs: 'update',",
-      "   key: 'block'}), {place: false});",
+      'this.shown.lit = null;',
+      'const block = view(this, (st, sh) => code(s,',
+      "  ['let count = 0;', 'count += 1;'],",
+      "  {at: 'main', lit: sh.lit, key: 'block'}),",
+      "  {place: false});",
       'await s.enter(block);',
-      'this.shown.focus = 1;',
+      "this.shown.lit = {lines: 1, as: 'update'};",
       "await this.play(block.sync());",
     ],
-    recipe: "A view draws the lines as a code panel, its focus from this.shown, which says how the scene is shown. Setting focus to 1 and syncing points at the line with index 1, the second, and focusAs: 'update' says why.",
-    caption: "The update bar stays on count += 1 after the focus finishes, which ties the caption to the line it explains. The plain copy on the left is a separate drawing of the panel before the focus.",
+    recipe: "A view draws the lines as a code panel, its lit line from this.shown, which says how the scene is shown. Lighting line 1 and syncing points at the line with index 1, the second, and as: 'update' says why.",
+    caption: "The update bar stays on count += 1 after the sync finishes, which ties the caption to the line it explains. The plain copy on the left is a separate drawing of the panel before the bar arrived.",
     point: 'The update bar stays on count += 1 after the motion stops.',
   },
   'code-diff': {
@@ -113,7 +113,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     result: 'count += 1 edited to count += 2, the new line marked',
     code: [
       'const block = view(this, (st) =>',
-      '  s.codePicture(st.lines, {at: AFTER,',
+      '  code(s, st.lines, {at: AFTER,',
       "   added: st.added, key: 'block'}),",
       '  {place: false});',
       'await s.enter(block);',
@@ -509,7 +509,7 @@ const PREDICT: Record<Feature, string> = {
   steps: 'Predict: what address would a link to this step end with?',
   settings: 'Predict: which scenario is this page showing, and how many did the build make?',
   diagram: 'Predict: once the walk ends, what stays on the flowchart?',
-  code: 'Predict: once the focus ends, is any line still marked?',
+  code: 'Predict: once the bar stops moving, is any line still marked?',
   'code-diff': 'Predict: after the edit, which line carries the added mark?',
   animation: 'Predict: opened from a link, do these lines leave the circle, the square or both?',
   matching: 'Predict: from cache miss to cache hit, which letters move rather than fade?',
@@ -559,7 +559,7 @@ type TourState = {
   london?: number[];
 };
 /** Whether the recipe or its result is on show, the diagram's walked edges and the code's focused line. */
-type TourShown = { phase?: 'recipe' | 'result'; walked?: [string, string][]; focus?: number | null };
+type TourShown = { phase?: 'recipe' | 'result'; walked?: [string, string][]; lit?: { lines: number; as: string } | null };
 
 export default class FeatureTour extends Scene<TourState, TourShown> {
   static meta = {
@@ -720,15 +720,15 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
     } else if (feature === 'code') {
       await panels([], 'the two lines, nothing marked');
       await s.code(['let count = 0;', 'count += 1;'], { at: BEFORE, fontSize: 0.36 });
-      // The focused line is how the panel is shown (this.shown); the panel is a view of it.
-      this.shown.focus = null;
+      // The lit line is how the panel is shown (this.shown); the panel is a view of it.
+      this.shown.lit = null;
       const block = view(
         this,
-        (_st, sh) => new CodeBlock(this, s.palette, ['let count = 0;', 'count += 1;'], { at: AFTER, fontSize: 0.45, focus: sh.focus, focusAs: 'update', key: 'block' }),
+        (_st, sh) => code(s, ['let count = 0;', 'count += 1;'], { at: AFTER, fontSize: 0.45, lit: sh.lit ?? null, key: 'block' }),
         { place: false },
       );
       await s.enter(block, { runTime: 0.4 });
-      this.shown.focus = 1;
+      this.shown.lit = { lines: 1, as: 'update' };
       await this.play(block.sync());
     } else if (feature === 'code-diff') {
       await panels([], 'count += 1');
@@ -740,7 +740,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
         this,
         (state) => {
           const st = having(state, 'lines', 'added');
-          return s.codePicture(st.lines, { at: AFTER, fontSize: 0.5, added: st.added, key: 'block' });
+          return code(s, st.lines, { at: AFTER, fontSize: 0.5, added: st.added, key: 'block' });
         },
         { place: false },
       );

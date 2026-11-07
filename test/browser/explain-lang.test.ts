@@ -25,16 +25,16 @@ const scene = (lang: string, label: string, caption: string) =>
   `import{Scene}from'rayner';import{stage,settingsOf}from'rayner/explain';export default class L extends Scene{static meta={id:'lang-${lang}',title:'${label}',lang:'${lang}',sources:['https://example.com/source']};static settings=[{id:'n',label:'${label}',default:'1',options:[{value:'1',label:'1'},{value:'2',label:'2'}]}];async construct(){const s=stage(this);await this.step('one',{title:'${label}',caption:'${caption}'});await s.card([['${label}',settingsOf(this).n]]);}}`;
 // A French scene that uses every kind of generated words: a flowchart shown by its view, marked,
 // noted, walked with and without a trail drawn and dimmed; a titled card with a lit row; code with a
-// diff and a focus; a chart with two bar series and two lines; kept text with no describe.
+// diff and a lit line; a chart with two bar series and two lines; kept text with no describe.
 const rich = `import{Scene,Text}from'rayner';import{stage}from'rayner/explain';export default class R extends Scene{static meta={id:'riche',title:'Riche',lang:'fr'};async construct(){const s=stage(this);
 await this.step('flux',{title:'Flux',caption:'Le revenu passe par le barème.'});
 const d=await s.show({source:'graph LR\\nA["Revenu"] --> B["Barème"]\\nB --> C["Impôt"]'},{box:[-8,0,8,3.4]});
 this.shown.trail=[];this.shown.keep=null;
 const v=s.diagramView(d,(st,sh)=>({marks:{A:d.accent,...d.trail(sh.trail)},notes:[{id:'C',text:'plafond'}],dim:sh.keep}));
-await s.card([['Parts','2'],['Quotient','15 000 €']],{title:'Foyer',at:[-4,-2],lit:'Parts'});
+await s.card([['Parts','2'],['Quotient','15 000 €']],{title:'Foyer',at:[-4,-2],lit:{row:'Parts'}});
 await this.step('trajet',{title:'Trajet',caption:'Le revenu va au barème.'});
 await d.walk([['A','B']]);this.shown.trail=[['A','B']];this.shown.keep=['A','B'];await this.play(v.sync());
-await s.code(['+ seuil: 11600','+ plafond: 1807','- seuil: 11497','taux: 11 %'],{diff:true,title:'barème',at:[4,-2],focus:3});
+await s.code(['+ seuil: 11600','+ plafond: 1807','- seuil: 11497','taux: 11 %'],{diff:true,title:'barème',at:[4,-2],lit:{lines:3}});
 await this.step('chemin',{title:'Chemin',caption:'Puis à l’impôt.'});
 await d.walk([['B','C']]);
 await this.step('graphique',{title:'Graphique',caption:'Les montants par mois.'});

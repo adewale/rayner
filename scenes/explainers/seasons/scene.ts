@@ -329,7 +329,7 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
         this,
         (st) => {
           const rows = Object.entries(having(st, 'daylightTable').daylightTable[month]);
-          return drawDaylightTable(this, s.palette, rows, title, box, place.name);
+          return drawDaylightTable(s, rows, title, box, place.name);
         },
         { place: false },
       );

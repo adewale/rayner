@@ -31,12 +31,6 @@
       }
     },
     "rayner/explain": {
-      "Card": {
-        "check": "Views: a card drawn from state is compared part by part, its lit row included, with a fresh draw"
-      },
-      "CodeBlock": {
-        "check": "Views: a code panel drawn from state is compared part by part, its focus bar included, with a fresh draw"
-      },
       "Diagram": {
         "check": "Routes over labels, Legibility: an imported connector over label ink, or an imported label under 14 px in its viewport, fails"
       },
@@ -60,6 +54,12 @@
       }
     },
     "rayner/drawing": {
+      "card": {
+        "check": "Views: a card drawn from state is compared part by part, its lit row included, with a fresh draw"
+      },
+      "code": {
+        "check": "Views: a code panel drawn from state is compared part by part, its lit bar included, with a fresh draw"
+      },
       "keyed": {
         "check": "Keys: two parts on the stage with one key at the end of a step fail"
       },

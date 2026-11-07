@@ -13,9 +13,10 @@ export type CardRow = readonly [label: string, value: unknown, ...more: unknown[
 export interface CardOptions {
   /**
    * Centre of the card, or a region/box to centre it in. The box's width caps
-   * the card's, and a card never rises above the box's top.
+   * the card's, and a card never rises above the box's top. The regions `'start'` and `'end'`
+   * follow the stage's direction.
    */
-  at?: Vec | Box | Region;
+  at?: Vec | Box | Region | 'start' | 'end';
   /** In a box: 'top' sets the card's top on the box's top, so cards side by side align. */
   align?: 'center' | 'top';
   /** Fixed width; by default the card fits its widest row. */
@@ -27,15 +28,17 @@ export interface CardOptions {
    */
   columns?: readonly string[];
   fontSize?: number;
-  /** Field arrangement only: RTL puts labels on the right and values on the left. */
+  /**
+   * Field arrangement only: RTL puts labels on the right and values on the left. By default the
+   * stage's direction.
+   */
   direction?: LayoutDirection;
   /**
-   * The row lit by a bar across the panel: part of the picture, described with `litAs` and
+   * The row lit by a bar across the panel, and `as`, the word its description gives it (default
+   * "marked", in the scene's language), such as `'rejected'`: part of the picture, described and
    * emphasised. A card that changes is drawn by a view from state, lit row included.
    */
-  lit?: string | null;
-  /** The word the description gives the lit row (default "marked", in the scene's language), such as `'rejected'`. */
-  litAs?: string;
+  lit?: { row: string; as?: string } | null;
   /**
    * Key the card and its parts under this name, for a card drawn in a view: `view.sync()` then changes it
    * in place. Each value's key includes its text, so an
@@ -50,6 +53,8 @@ export interface CardOptions {
    */
   panel?: boolean;
 }
+/** A panel's options with its place resolved: a point, a box or a physical region. */
+type PlacedOptions<T extends { at?: unknown }> = Omit<T, 'at'> & { at?: Vec | Box | Region };
 const ROW = 1.9; // row pitch, in font sizes
 /** Shrink a value towards its anchored edge, never mirroring it. */
 function fitValue(value: Text, room: number, edge: -1 | 1 = 1): void {
@@ -71,7 +76,7 @@ const COLUMN_GAP = 1.2;
 /** The raised, ruled panel cards and code sit on. */
 const panelRect = (colors: Palette, width: number, height: number) =>
   new Rectangle({ width, height, cornerRadius: 0.1, fill: raised(colors), stroke: rule(colors), strokeWidth: 0.016 });
-/** A tinted bar behind a row or lines: the one shape for card marks, code focus and diff lines. */
+/** A tinted bar behind a row or lines: the one shape for lit rows, lit lines and diff lines. */
 const tint = (color: string, width: number, height: number) =>
   new Rectangle({ width, height, cornerRadius: 0.05, fill: color, fillOpacity: 0.2, stroke: 'none' });
 /**
@@ -89,9 +94,9 @@ function place(panel: Group, at: Vec | Box, height: number, align: 'center' | 't
 }
 
 /**
- * Labelled values on a panel. A native Group: move, fade or transform it like
- * any engine object. `set` crossfades changed values and `mark` keeps a row
- * lit, so the resting frame of a step shows what changed.
+ * Labelled values on a panel, built by the kit's `card(s, rows, opts)` and entered by `s.card`. A
+ * native Group: move, fade or transform it like any engine object. Its `lit` row stays lit, so
+ * the resting frame of a step shows what changed.
  */
 export class Card extends Group {
   private readonly scene: Scene;
@@ -116,7 +121,8 @@ export class Card extends Group {
   /** Room for each column's values; empty without columns. */
   private columnRoom: number[] = [];
 
-  constructor(scene: Scene, colors: Palette, rows: readonly CardRow[], options: CardOptions = {}) {
+  /** @internal The kit's `card(s, rows, opts)` builds a card on a stage. */
+  constructor(scene: Scene, colors: Palette, rows: readonly CardRow[], options: PlacedOptions<CardOptions> = {}) {
     super();
     this.direction = layoutDirection(options);
     const edge = this.direction === 'ltr' ? 1 : -1;
@@ -252,8 +258,8 @@ export class Card extends Group {
     place(this, at, height, options.align);
     if (options.lit != null) {
       // The bar runs across the panel, on the row's last value.
-      this.bar.moveTo([this.panel.center()[0], this.row(options.lit).cells.at(-1)!.anchorPoint()[1]]).setOpacity(1);
-      this.lit = { label: options.lit, as: options.litAs ?? wordsOf(scene).marked };
+      this.bar.moveTo([this.panel.center()[0], this.row(options.lit.row).cells.at(-1)!.anchorPoint()[1]]).setOpacity(1);
+      this.lit = { label: options.lit.row, as: options.lit.as ?? wordsOf(scene).marked };
     }
   }
 
@@ -303,8 +309,8 @@ export class Card extends Group {
 }
 
 export interface CodeOptions {
-  /** As for cards: a centre point, or a region/box to centre in. */
-  at?: Vec | Box | Region;
+  /** As for cards: a centre point, or a region/box to centre in (`'start'` and `'end'` follow the stage's direction). */
+  at?: Vec | Box | Region | 'start' | 'end';
   align?: 'center' | 'top';
   fontSize?: number;
   title?: string;
@@ -317,15 +323,14 @@ export interface CodeOptions {
   /** In a box: shrink the code so the panel fits the box's height too. */
   fitHeight?: boolean;
   /**
-   * The focus bar on line i, or lines [a, b] inclusive: part of the picture, described with
-   * `focusAs` and emphasised. A panel whose focus moves is drawn by a view from state.
+   * The lit bar on line i, or on lines [a, b] inclusive, and `as`, the word the description gives
+   * them (default "focused", in the scene's language): part of the picture, described and
+   * emphasised. A panel whose lit lines move is drawn by a view from state.
    */
-  focus?: number | readonly [number, number] | null;
-  /** The word the description gives the focused lines (default "focused", in the scene's language). */
-  focusAs?: string;
+  lit?: { lines: number | readonly [number, number]; as?: string } | null;
   /**
    * Key the panel and its parts under this name, for a panel drawn in a view: `view.sync()` then moves the
-   * focus bar, keeps each line that stays (paired by its
+   * lit bar, keeps each line that stays (paired by its
    * text, wherever it moves), fades a changed line out as its replacement fades in, and brings in
    * the `added` bars. A line already keyed keeps its key.
    */
@@ -339,8 +344,9 @@ interface LineMark {
 }
 
 /**
- * Code on a panel in the stage's colours, with a focus bar that stays where
- * it was put. A native Group around the engine's `Code`.
+ * Code on a panel in the stage's colours, with a lit bar that stays where it was put, built by
+ * the kit's `code(s, source, opts)` and entered by `s.code`. A native Group around the engine's
+ * `Code`, which draws plain highlighted code text with no panel.
  */
 export class CodeBlock extends Group {
   private readonly scene: Scene;
@@ -350,12 +356,13 @@ export class CodeBlock extends Group {
   private readonly colors: Palette;
   /** Added/removed bars behind lines (from `diff`, or `added`). */
   readonly marks: readonly LineMark[];
-  private focused: { lines: readonly [number, number]; as: string } | null = null;
+  private lit: { lines: readonly [number, number]; as: string } | null = null;
   private fontSize: number;
   private scaled = 1;
   private readonly title: string | undefined;
 
-  constructor(scene: Scene, colors: Palette, lines: readonly string[], options: CodeOptions = {}) {
+  /** @internal The kit's `code(s, source, opts)` builds a code panel on a stage. */
+  constructor(scene: Scene, colors: Palette, lines: readonly string[], options: PlacedOptions<CodeOptions> = {}) {
     super();
     this.scene = scene;
     this.colors = colors;
@@ -416,14 +423,14 @@ export class CodeBlock extends Group {
     this.add(this.bar, this.code);
     if (head) this.add(head);
     place(this, at, height, options.align);
-    if (options.focus != null) {
-      const [a, b] = this.lines(options.focus);
+    if (options.lit != null) {
+      const [a, b] = this.lines(options.lit.lines);
       const to = this.lineBar(a, b);
       this.bar.subpaths = to.subpaths.map((p) => p.slice());
       this.bar.closed = [...to.closed];
       this.bar.invalidateBox();
       this.bar.setOpacity(1);
-      this.focused = { lines: [a, b], as: options.focusAs ?? wordsOf(scene).focused };
+      this.lit = { lines: [a, b], as: options.lit.as ?? wordsOf(scene).focused };
     }
     if (options.key) {
       const k = options.key;
@@ -456,8 +463,8 @@ export class CodeBlock extends Group {
 
   [emphasisSource](): Emphasis {
     return [
-      // The focused lines with their text: a focus that stays while its lines change is new emphasis.
-      ...(this.focused ? [[this.bar, `lines ${this.focused.lines.join('-')}: ${this.code.lines.slice(this.focused.lines[0], this.focused.lines[1] + 1).map((l) => l.text).join(' / ')}`] as const] : []),
+      // The lit lines with their text: a bar that stays while its lines change is new emphasis.
+      ...(this.lit ? [[this.bar, `lines ${this.lit.lines.join('-')}: ${this.code.lines.slice(this.lit.lines[0], this.lit.lines[1] + 1).map((l) => l.text).join(' / ')}`] as const] : []),
       ...this.marks.map((m) => [m.mob, `${m.kind} ${m.line}`] as const),
     ];
   }
@@ -472,11 +479,11 @@ export class CodeBlock extends Group {
     });
   }
 
-  /** The lines as a reader sees them, with the focused, added and removed ones named. */
+  /** The lines as a reader sees them, with the lit, added and removed ones named. */
   describe(): Seen {
     const w = wordsOf(this.scene);
     const kinds = new Map(this.marks.map((m) => [m.line, w[m.kind]]));
-    const f = this.focused;
+    const f = this.lit;
     const n = this.code.lines.length;
     return {
       what: `${w.code}${this.title ? ` ${w.quote(this.title)}` : ''}, ${w.count(n, w.line)}`,

@@ -1,7 +1,8 @@
 import { frames as readerFrames, ruler, pairLines, WORD, SIZE, measuredRows, advanceCells, letterRow, letterTargets } from './picture.ts';
 import { Scene, Text, Create, FadeIn, TransformMatchingShapes, shaperFor } from '../../../src/index.ts';
 import type { MatchSummary, FontName } from '../../../src/index.ts';
-import { stage, settingsOf, Card, view } from '../../../explain/index.ts';
+import { stage, settingsOf, view } from '../../../explain/index.ts';
+import { card } from '../../../explain/drawing.ts';
 
 const SMALL = 0.6; // the smaller copy in the letterforms step
 const STYLE = 'pen-and-ink';
@@ -143,17 +144,17 @@ export default class GlyphExplainer extends Scene<GlyphState, { lit?: string }> 
     // how the step shows them (this.shown).
     this.state = { ...measuring };
     this.shown.lit = named(stems);
-    const card = view(this, (st, sh) => {
-      const drawn = new Card(this, s.palette, Object.entries(st.gains).map(([name, gain]) => [name, signed(gain)]), {
+    const gainsCard = view(this, (st, sh) => {
+      const drawn = card(s, Object.entries(st.gains).map(([name, gain]) => [name, signed(gain)]), {
         at: [-4.6, -4.25, 4.6, -1.3],
         title: `${NAME.mono} − ${NAME.sans}: +${total.toFixed(2)} units`,
-        lit: sh.lit,
+        lit: sh.lit == null ? null : { row: sh.lit },
         key: 'gains',
       });
       drawn.bar.style.fill = hot;
       return drawn;
     }, { place: false });
-    await s.enter(card, { runTime: 0.35 });
+    await s.enter(gainsCard, { runTime: 0.35 });
 
     // 3. The same letter, two outlines: the prediction.
     await s.steps([shapeFrame!], { kind: 'short' });

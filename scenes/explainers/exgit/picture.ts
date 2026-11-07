@@ -2,10 +2,9 @@
 // commit's row of object boxes (the commit, its tree, each entry's blob) as the steps record them. The
 // object diagram is Mermaid, laid out by the scene's live diagram.
 import { Text, Rectangle, Group, Arrow, BraceLabel } from '../../../src/index.ts';
-import type { Mobject, Scene, Box } from '../../../src/index.ts';
-import { keyed } from '../../../explain/drawing.ts';
-import { CodeBlock } from '../../../explain/index.ts';
-import type { Palette } from '../../../explain/index.ts';
+import type { Mobject, Box } from '../../../src/index.ts';
+import { keyed, code } from '../../../explain/drawing.ts';
+import type { Stage } from '../../../explain/index.ts';
 
 /** The stage's colours these pictures use: text, secondary text and the emphasis colour. */
 export type Ink = { ink: string; soft: string; accent: string };
@@ -105,9 +104,9 @@ function commitRow(row: RowState, y: number, { lit, skip }: { lit?: string | nul
 export const rowWords = (row: RowState) =>
   `${row.label}: commit ${short(row.commit)} names tree ${short(row.tree)}, which lists ${row.entries.map((e) => `${e.file} as blob ${short(e.blob)}`).join(' and ')}`;
 
-/** A code panel keyed `exgit-<name>`, laid out as s.code lays one out, its bar on `focus` when given. */
-export const codePanel = (scene: Scene, palette: Palette, name: string, lines: string[], at: Box, focus?: [number, number]) =>
-  new CodeBlock(scene, palette, lines, { at, ...(focus ? { focus } : {}), key: `exgit-${name}` });
+/** A code panel keyed `exgit-<name>`, laid out as s.code lays one out, its bar on `lit` lines when given. */
+export const codePanel = (s: Stage, name: string, lines: string[], at: Box, lit?: [number, number]) =>
+  code(s, lines, { at, ...(lit ? { lit: { lines: lit } } : {}), key: `exgit-${name}` });
 
 /** The arrow from the blob's bytes down to their id, labelled SHA-1. */
 export function hashArrow(soft: string): { arrow: Arrow; how: Text } {
