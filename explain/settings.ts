@@ -10,53 +10,92 @@ export interface Setting {
   options: readonly { value: string; label: string }[];
 }
 export type Settings = Readonly<Record<string, string>>;
-export type ExplainerClass = SceneClass & {
+/**
+ * How the explainer's own player looks: palette and corner cues, an optional standalone stage-width
+ * floor in CSS pixels (at most 4096), and `outline`: show every step's title in the steps rail from
+ * the start. By default the rail names only the steps the reader has reached, so a later step's
+ * title cannot answer an earlier question.
+ */
+export interface PlayerMeta { accent?: boolean; paper?: boolean; corners?: 'rounded' | 'square'; minStageWidth?: number; outline?: boolean }
+/**
+ * What a scene's `static meta` declares: `static meta = { … } satisfies ExplainerMeta`. Collection
+ * refuses a key not named here (and a `player` key not in PlayerMeta), so a misspelt key fails
+ * rather than being ignored. A script's intent header supplies `title`, `answer`, `questions` and
+ * `checkedAgainst`; a scene with one declares none of those four itself.
+ */
+export interface ExplainerMeta {
+  /** Names the output files; the scene's folder name (or its file's, for a scene not named scene.ts) unless declared. */
+  id?: string;
+  /** The page title. */
+  title?: string;
+  /** The BCP 47 language of titles, captions and on-stage text (default `en`). */
+  lang?: string;
+  /** Listed under the transcript. */
+  sources?: readonly string[];
+  /** Scripts, faces, styles or maths the build cuts lettering for. */
+  lettering?: LetteringRequest;
+  /** Use Scene.text()/TextOpts.shaping instead of ambient lettering constructors. */
+  textContext?: 'explicit';
+  /** A scenario picker starts at its first step; transcript links enter there too. Direct step URLs still work. */
+  scenarioNavigation?: 'first';
+  player?: PlayerMeta;
   /**
-   * `lang` is the BCP 47 language of titles, captions and on-stage text (default `en`). `watch` names
-   * the state readers follow, from a `scene.state` key to its label in that language (at most eight):
-   * each step shows what it changed of these, under its caption.
+   * The state readers follow, from a `scene.state` key to its label in the scene's language (at most
+   * eight): each step shows what it changed of these, under its caption.
    */
-  meta?: {
-    id?: string;
-    title?: string;
-    lang?: string;
-    sources?: readonly string[];
-    lettering?: LetteringRequest;
-    /** Use Scene.text()/TextOpts.shaping instead of ambient lettering constructors. */
-    textContext?: 'explicit';
-    /** A scenario picker starts at its first step; transcript links enter there too. Direct step URLs still work. */
-    scenarioNavigation?: 'first';
-    /** Palette/corner cues and an optional standalone stage-width floor in CSS pixels (at most 4096). */
-    /**
-     * Palette/corner cues, an optional standalone stage-width floor in CSS pixels (at most 4096), and
-     * `outline`: show every step's title in the steps rail from the start. By default the rail names
-     * only the steps the reader has reached, so a later step's title cannot answer an earlier question.
-     */
-    player?: { accent?: boolean; paper?: boolean; corners?: 'rounded' | 'square'; minStageWidth?: number; outline?: boolean };
-    watch?: Readonly<Record<string, string>>;
-    /**
-     * The script's answer to the reader's question, in one sentence. `check` fails when no teaching
-     * step's title, line or caption contains it, and reports the step where it first appears; it
-     * should come before the explanation elaborates.
-     */
-    answer?: string;
-    /**
-     * Questions a reader should be able to answer afterwards, each with its answer (at most six): the
-     * script's `## Check yourself` list. The player asks them after the last step, with each answer
-     * behind a disclosure; the transcript and `describeExplainer` carry them too.
-     */
-    questions?: readonly { question: string; answer: string }[];
-    /**
-     * Claims that reach beyond the scenarios shown (a sentence with "every", "never", "only" and the like),
-     * each with the test that holds it: `says` is a phrase of the sentence, `test` is
-     * "test/<file>.test.ts: <part of the test's name>"; or `shown: true` when the sentence speaks only of
-     * what its own step draws. `check` fails a claim no step states or whose test is not there, and
-     * reports scope sentences no claim backs (explain/claims.ts).
-     */
-    claims?: readonly ({ says: string; test: string } | { says: string; shown: true })[];
-  };
+  watch?: Readonly<Record<string, string>>;
+  /**
+   * The script's answer to the reader's question, in one sentence. `check` fails when no teaching
+   * step's title, line or caption contains it, and reports the step where it first appears; it
+   * should come before the explanation elaborates.
+   */
+  answer?: string;
+  /**
+   * Questions a reader should be able to answer afterwards, each with its answer (at most six): the
+   * script's `## Check yourself` list. The player asks them after the last step, with each answer
+   * behind a disclosure; the transcript and `describeExplainer` carry them too.
+   */
+  questions?: readonly { question: string; answer: string }[];
+  /** What the model is checked against, shown under the sources; each file it names in backticks must be in the explainer's folder. */
+  checkedAgainst?: string;
+  /**
+   * Claims that reach beyond the scenarios shown (a sentence with "every", "never", "only" and the like),
+   * each with the test that holds it: `says` is a phrase of the sentence, `test` is
+   * "test/<file>.test.ts: <part of the test's name>"; or `shown: true` when the sentence speaks only of
+   * what its own step draws. `check` fails a claim no step states or whose test is not there, and
+   * reports scope sentences no claim backs (explain/claims.ts).
+   */
+  claims?: readonly ({ says: string; test: string } | { says: string; shown: true })[];
+}
+export type ExplainerClass = SceneClass & {
+  meta?: ExplainerMeta;
   settings?: readonly Setting[];
 };
+// Every key of ExplainerMeta and PlayerMeta, so the type and the check below cannot drift apart.
+const META_KEYS: { readonly [K in keyof Required<ExplainerMeta>]: true } = {
+  id: true, title: true, lang: true, sources: true, lettering: true, textContext: true, scenarioNavigation: true,
+  player: true, watch: true, answer: true, questions: true, checkedAgainst: true, claims: true,
+};
+const PLAYER_KEYS: { readonly [K in keyof Required<PlayerMeta>]: true } = { accent: true, paper: true, corners: true, minStageWidth: true, outline: true };
+const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+/**
+ * Refuse `static meta` keys that ExplainerMeta does not name, and `meta.player` keys that PlayerMeta
+ * does not, naming the key and the known keys. The type catches a misspelt key in a literal written
+ * at the declaration; this catches it however the object was built.
+ */
+export function checkExplainerMeta(meta: unknown): void {
+  if (meta === undefined) return;
+  if (!isRecord(meta)) throw new TypeError('static meta must be an object');
+  const unknown = (keys: object, value: Record<string, unknown>, where: string) => {
+    const extra = Object.keys(value).filter((k) => !Object.hasOwn(keys, k));
+    if (extra.length)
+      throw new TypeError(`Unknown ${where} key${extra.length > 1 ? 's' : ''} ${extra.map((k) => JSON.stringify(k)).join(', ')}: ${where} takes ${Object.keys(keys).join(', ')}`);
+  };
+  unknown(META_KEYS, meta, 'meta');
+  if (meta.player === undefined) return;
+  if (!isRecord(meta.player)) throw new TypeError('meta.player must be an object');
+  unknown(PLAYER_KEYS, meta.player, 'meta.player');
+}
 /** Settings bound by `withSettings`, per bound class: visible from the first line of any constructor. */
 const bound = new WeakMap<object, Settings>();
 /**

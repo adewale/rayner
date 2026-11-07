@@ -7,7 +7,7 @@ import type { SceneClass } from '../src/scene.ts';
 import { traceScene } from '../src/trace.ts';
 import type { Trace } from '../src/trace.ts';
 import { withIntent } from './intent.ts';
-import { bindSnapshots, resolveSettings, scenariosOf, withSettings } from './settings.ts';
+import { bindSnapshots, checkExplainerMeta, resolveSettings, scenariosOf, withSettings } from './settings.ts';
 import type { ExplainerClass, Settings } from './settings.ts';
 
 /** One scenario of a loaded explainer: its setting values, the scene bound to them and its snapshots, and its trace. */
@@ -40,7 +40,8 @@ export async function loadSnapshots(where: string): Promise<SnapshotStore> {
 
 /**
  * Load the explainer at `where` (a scene file, or a folder holding `scene.ts`) for a test, given
- * its scene class: adopt the intent of the `script.md` beside it, give it its folder's name as
+ * its scene class: refuse a `meta` key ExplainerMeta does not name, as collection does, adopt the
+ * intent of the `script.md` beside it, give it its folder's name as
  * `meta.id` when it declares none, read its pinned snapshots, and
  * trace every scenario against them, as `rayner check` and `rayner describe` run it. A diagram
  * with no pinned snapshot fails: run `rayner snapshots` first. It captures nothing, cuts no
@@ -55,6 +56,8 @@ export async function loadProject(Explainer: SceneClass, where: string): Promise
   const Scene = Explainer as ExplainerClass,
     read = nodeReader(),
     file = sceneFile(where);
+  // A misspelt meta key is refused, as collection refuses it.
+  try { checkExplainerMeta(Scene.meta); } catch (e) { throw new Error(`${file}: ${(e as Error).message}`); }
   if (Scene.meta?.lettering !== undefined)
     throw new Error(`${file}: the scene asks for lettering (meta.lettering), which the rayner command cuts; loadProject runs scenes in the embedded fonts only`);
   const folder = file.replace(/[^/\\]*$/, ''),

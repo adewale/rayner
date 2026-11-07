@@ -1,5 +1,6 @@
 import { Scene } from '../../../src/index.ts';
 import { settingsOf, stage, answerOf } from '../../../explain/index.ts';
+import type { ExplainerMeta } from '../../../explain/index.ts';
 import { birthdayStory } from './model.ts';
 import { drawDays, drawEstimate, pairGrid, room } from './picture.ts';
 import { grouped, listed, numberWord, percent } from '../lib/format.ts';
@@ -31,7 +32,7 @@ export default class BirthdayParadox extends Scene<{}, {}> {
       { says: 'Every pair drawn', shown: true as const },
       { says: 'one square for every card before it', shown: true as const },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'people',

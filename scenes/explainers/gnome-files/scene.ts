@@ -1,6 +1,7 @@
 import { frames as readerFrames, colourKey, giveUpTable, heatMap, KEY_TOP, KEY_PITCH } from './picture.ts';
 import { Scene } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf } from '../../../explain/index.ts';
+import type { ExplainerMeta } from '../../../explain/index.ts';
 import {
   COLOURS,
   GROUPS,
@@ -85,7 +86,7 @@ export default class GnomeFilesExplainer extends Scene<FilesState, {}> {
         test: 'model.test.ts: every participant gave up at least once',
       },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'participant',

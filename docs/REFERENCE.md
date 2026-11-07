@@ -12,7 +12,7 @@ An explainer is a Rayner `Scene` exported from a TypeScript or ESM file, prefera
 
 ```ts
 export default class Reads extends Scene<{ reads?: number }, {}> {   // the model's type, and what is shown's
-  static meta = { lang: 'en', sources: ['https://example.com/spec'] };
+  static meta = { lang: 'en', sources: ['https://example.com/spec'] } satisfies ExplainerMeta;   // from rayner/explain
 
   override async construct() {
     await this.step('stable-name', {
@@ -38,6 +38,7 @@ export default class Reads extends Scene<{ reads?: number }, {}> {   // the mode
   // export const answer = () => …, when the answer itself comes from the model.
   ```
 
+- `static meta` is an `ExplainerMeta` (from `rayner/explain`), and `satisfies ExplainerMeta` types it where it is declared, so a misspelt key does not compile. Its keys are `id`, `title`, `lang`, `sources`, `lettering`, `textContext`, `scenarioNavigation`, `player` (a `PlayerMeta`), `watch`, `answer`, `questions`, `checkedAgainst` and `claims`, each below. Collection, and `loadProject` in `rayner/testing`, refuse any other key, and any `player` key but `accent`, `paper`, `corners`, `minStageWidth` and `outline`, naming the key and the keys it takes; that holds however the object was built, so a meta returned from a function or kept in a constant is held to it too. `static settings` is a list of `Setting`s and takes `satisfies readonly Setting[]` the same way ([settings](#settings)).
 - `meta.id` names the output files. It is the scene's folder name, or its file's name when the file is not `scene.ts`, unless the scene declares its own. `meta.title` is the page title, and `meta.sources` are listed under the transcript.
 - `meta.player` styles this explainer's player; every field is optional. `meta.player.accent: true` colours the primary action and links with the current scenario's stage accent; `meta.player.paper: true` uses its paper for the page and the tile's surface; `meta.player.corners` is `'rounded'` (the default) or `'square'`; `meta.player.minStageWidth` is a standalone page's preferred minimum stage width in CSS pixels, at most 4096; and `meta.player.outline: true` names every step in the steps rail from the start. Without them the player is neutral greys with an ink primary action. [The tile](#the-tile) says how each applies and when a colour is refused.
 - `meta.textContext: 'explicit'` gives text the shaping of the scene that creates it, not of whichever scene is running. Create text with `this.text(...)`, and pass `shaping: this.textShaping` to `Code`, `ItalicText`, `MathTex`, axes and the other primitives that draw text; stage headings, cards, code blocks, annotations and diagram labels take the scene's shaping themselves. It matters for a scene with [requested lettering](#lettering-on-request) that may run beside a scene with other faces: without it, `new Text(...)` takes the running scene's shaping, so such scenes run one at a time across their awaits ([explicit lettering contexts](LETTERING.md)).
@@ -91,9 +92,9 @@ Requests for Arabic (`Arab`), Devanagari (`Deva`), Hebrew (`Hebr`), Chinese (`Ha
 Plain Latin Extended (`Latn`), Greek (`Grek`) and Cyrillic (`Cyrl`) requests use the subset workflow below; only the requesting page carries the additional lettering:
 
 ```ts
-import type { LetteringRequest } from 'rayner';
+import type { ExplainerMeta } from 'rayner/explain';
 
-static meta = { id: 'alphabet', title: 'Αλφάβητο', lettering: { scripts: ['Grek'] } satisfies LetteringRequest };
+static meta = { id: 'alphabet', title: 'Αλφάβητο', lettering: { scripts: ['Grek'] } } satisfies ExplainerMeta;
 ```
 
 - `scripts` takes ISO 15924 codes: `Latn` (Latin Extended-A, -B and Additional, U+0100–024F and U+1E00–1EFF), `Grek` (U+0370–03FF and U+1F00–1FFF) and `Cyrl` (U+0400–052F). These scripts need no shaping beyond what the shaper already does for Latin. Adding a registered script outside this group, `faces`, `styles` or `math` selects the outline workflow instead. Unknown codes and keys fail validation.

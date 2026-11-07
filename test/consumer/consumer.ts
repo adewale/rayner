@@ -228,7 +228,7 @@ import { Group, Mobject, VMobject, Circle, Polygon, Arc, Cross, CurvedArrow, Bra
 import type { Box, Vec, SceneState, ScheduledAnimation, MatchKey, FadeOpts, FontName, SceneClass, Sink, Style } from 'rayner';
 import { callout, dimension, pin, legend, keyed, keyedParts } from 'rayner/drawing';
 import { Machine, refuse, isRefusal, answerOf, settingsOf, resolveSettings, regionBox, mermaid } from 'rayner/explain';
-import type { Refusal, Transition, Choreography, CardOptions, CardRow, NoteSide, PictureNote, DiagramPicture, Palette, Stage, ExplainerClass } from 'rayner/explain';
+import type { Refusal, Transition, Choreography, CardOptions, CardRow, NoteSide, PictureNote, DiagramPicture, Palette, Stage, ExplainerClass, ExplainerMeta, Setting, StepKind, Description } from 'rayner/explain';
 import { Write, MoveAlongPath, Square, Underline, ArcBetweenPoints } from 'rayner/extras';
 import { seenFrom, seenPictures, depthOrder, latLon, toLatLon, greatArc, circleOn, between, project } from 'rayner/geo';
 import type { Model3D, Part, Seen, SeenOptions, SeenPicture, Vec3, Viewpoint } from 'rayner/geo';
@@ -246,10 +246,21 @@ type DoorEvent = 'open' | 'close';
 const doorNext = <S extends Door>(state: S, event: DoorEvent): S | Refusal =>
   event === 'open' ? (state.door === 'open' ? refuse('the door is open already') : { ...state, door: 'open' }) : state.door === 'closed' ? refuse('the door is closed already') : { ...state, door: 'closed' };
 type CollectionModel = Door & { phase: string; count: number };
+// @ts-expect-error A misspelt meta key does not compile.
+export const misspelt = { id: 'x', titel: 'X' } satisfies ExplainerMeta;
+// @ts-expect-error So does a misspelt player key.
+export const misspeltPlayer = { player: { acent: true } } satisfies ExplainerMeta;
+// A step's kind is the explain layer's, declared on the engine's StepMeta once rayner/explain is loaded.
+export const detail: StepKind = 'detail';
+export const stepMeta = (scene: Scene) => scene.step('aside', { title: 'Aside', line: 'A line', caption: 'Words.', kind: detail });
+// @ts-expect-error A kind outside short, main and detail does not compile.
+export const badKind = (scene: Scene) => scene.step('aside', { kind: 'details' });
+// What a card's, code panel's or diagram's describe() returns.
+export const words = (d: Description) => d.parts.map((p) => `${p.name}${p.mark ? ` (${p.mark})` : ''}`).join(', ') || d.what;
 
 export class Collection extends Scene<CollectionModel> {
-  static meta = { id: 'collection', title: 'What the collection uses', answer: 'Every part of it.' };
-  static settings = [{ id: 'case', label: 'Case', default: 'a', options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }] }];
+  static meta = { id: 'collection', title: 'What the collection uses', answer: 'Every part of it.', player: { corners: 'square' } } satisfies ExplainerMeta;
+  static settings = [{ id: 'case', label: 'Case', default: 'a', options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }] }] satisfies readonly Setting[];
   override state = { door: 'open' as 'open' | 'closed', phase: 'start', count: 0 };
   override async construct() {
     const s: Stage = stage(this);

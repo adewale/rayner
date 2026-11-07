@@ -19,6 +19,7 @@ import { paperOf, paletteOf } from '../../explain/stage.ts';
 import { checkWatch } from '../../explain/trace.ts';
 import { readSnapshotStore } from '../../explain/project.ts';
 import { checkScriptMeta, checkStepMeta } from '../../explain/script.ts';
+import { checkExplainerMeta } from '../../explain/settings.ts';
 import { checkClaimsMeta } from '../../explain/claims.ts';
 import { takeLetteringMissing } from '../../src/lettering.ts';
 import type { Machine } from '../../explain/index.ts';
@@ -243,6 +244,8 @@ export async function collectProject(
 ): Promise<Project> {
   const loaded = await loadScene(input);
   const { file } = loaded;
+  // A misspelt meta key would be ignored: refuse any key ExplainerMeta does not name, before anything runs.
+  try { checkExplainerMeta(loaded.Scene.meta); } catch (e) { throw new Error(`${file}: ${(e as Error).message}`); }
   // A script with an intent header is the one home of the title, answer, checks and what the
   // model is checked against (tools/lib/explain-intent.ts): the scene reads them as its own.
   const scriptIntent = await readIntent(file);

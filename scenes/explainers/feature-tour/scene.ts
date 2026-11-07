@@ -3,6 +3,7 @@ import { seenFrom, between, latLon, circleOn, project } from '../../../explain/g
 import { Square, Restore, Underline, ArcBetweenPoints, MoveAlongPath, Write, TransformFromCopy } from '../../../src/extras.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
 import { stage, settingsOf, palette, answerOf, view, having } from '../../../explain/index.ts';
+import type { ExplainerMeta } from '../../../explain/index.ts';
 import { bars, tile, keyed, code } from '../../../explain/drawing.ts';
 
 type Feature =
@@ -591,7 +592,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
         test: 'test/explain-stage-tools.test.ts: draw: the tool rides the tip without jumps, leaves no trace',
       },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'feature',

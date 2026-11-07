@@ -1,5 +1,5 @@
 import { Scene, FadeIn, Create, Transform, AnimationGroup, Succession, rushFrom, thereAndBack } from '../../../src/index.ts';
-import type { View, Card, CodeBlock } from '../../../explain/index.ts';
+import type { View, Card, CodeBlock, ExplainerMeta } from '../../../explain/index.ts';
 import type { ScheduledAnimation as Animation, VMobject } from '../../../src/index.ts';
 import { stage, settingsOf, Machine, view } from '../../../explain/index.ts';
 import { code } from '../../../explain/drawing.ts';
@@ -75,7 +75,7 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
       { says: 'R6 is refused at every rate', test: 'model.test.ts: R6 is refused at every refill rate' },
       { says: 'R10 is accepted at every rate', test: 'model.test.ts: R10 is accepted at the three offered rates and refused below a fifth of a token a second' },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'rate',

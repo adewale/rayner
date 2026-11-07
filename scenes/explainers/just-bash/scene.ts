@@ -1,5 +1,5 @@
 import { frames as readerFrames, FILE, files, prints, shellsPicture, shellsWords, commandLine, faded } from './picture.ts';
-import type { Choreography, Transition, Diagram, PictureNote, View, CardRow, CardOptions } from '../../../explain/index.ts';
+import type { Choreography, Transition, Diagram, PictureNote, View, CardRow, CardOptions, ExplainerMeta } from '../../../explain/index.ts';
 import { Scene, Text, Transform, AnimationGroup, Succession, FadeIn, FadeOut } from '../../../src/index.ts';
 import type { Animation, Box } from '../../../src/index.ts';
 import { stage, regionBox, answerOf, Machine, view, having } from '../../../explain/index.ts';
@@ -55,7 +55,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
       { says: 'leaves the shell you passed in unchanged', test: 'model.test.ts: exec leaves any shell it is given unchanged' },
       { says: 'only the returned one holds shout.txt', shown: true as const },
     ],
-  };
+  } satisfies ExplainerMeta;
   override async construct() {
     const s = stage(this, { headingSize: 0.6, style: STYLE }),
       ink = s.look.ink,

@@ -12,6 +12,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - The page shows what the model is checked against under Sources.
 - `answerOf(this)` in `rayner/explain` reads the script's answer, so a caption that states it keeps no copy. `withIntent(Scene, scriptText)` in `rayner/testing` adopts a script for a test that runs a scene directly.
 - `meta.id` defaults to the scene's folder name (or its file's name when the file is not `scene.ts`).
+- `static meta` has a type, `ExplainerMeta` (with `PlayerMeta` for `meta.player`), exported from `rayner/explain`: `static meta = { … } satisfies ExplainerMeta`. Collection and `loadProject` refuse a meta key it does not name, and a `player` key `PlayerMeta` does not, naming the key and the keys it takes. Every explainer and tutorial scene declares its meta this way.
 - `rayner check` fails a view whose draw never depends on its state (or on what is shown) at any step that shows it. [Checks](docs/REFERENCE.md#checks)
 - `emphasised(m, what)` in `rayner/drawing` marks a part as emphasis where it is drawn, so the close-up tour and the descriptions find it in the picture; a diagram's picture reports its own marks the same way.
 - `s.diagramView(d, draw)` shows a diagram by a view of the state (its marks, notes and dimming, as `d.picture` takes them); `s.liveDiagram(d)` hands back for a morph, reveal or walk. `d.trail(hops)` gives a walk's trail as marks. mr-cache is converted.

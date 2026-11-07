@@ -144,6 +144,7 @@ Pin what you checked against in the scene's `meta.sources` (principle 3). The sc
 ```ts
 import { Scene } from 'rayner';
 import { stage, settingsOf, view } from 'rayner/explain';
+import type { ExplainerMeta } from 'rayner/explain';
 import { card } from 'rayner/drawing';
 import { run, type Policy } from './model.ts';
 
@@ -159,7 +160,7 @@ export default class LruMru extends Scene<CardState, { lit: string | null }> {
       'https://en.wikipedia.org/w/index.php?title=Cache_replacement_policies&oldid=1376205644',
       'https://www.vldb.org/conf/1985/P127.PDF',
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [{ id: 'next', label: 'After A B C D, request', default: 'loop', options: [{ value: 'loop', label: 'A B C D again' }, { value: 'reuse', label: 'C D C D' }] }];
 
   override async construct() {
@@ -226,7 +227,7 @@ export default class LruMru extends Scene<CardState, { lit: string | null }> {
 
 Read it from the top:
 
-- `static meta` holds the sources the model was checked against. The id, which names the output files, is the folder's name, and the title, answer and reader questions come from the script's header (the questions from its `## Check yourself` list).
+- `static meta` holds the sources the model was checked against. `satisfies ExplainerMeta` types it, so a misspelt key does not compile, and collection refuses a key `ExplainerMeta` does not name. The id, which names the output files, is the folder's name, and the title, answer and reader questions come from the script's header (the questions from its `## Check yourself` list).
 - `static settings` declares one setting with two options. Each option is a scenario: the reader can switch between them, and `check` and `review` visit both. Both scenarios send A B C D first, then either repeat the loop or alternate C and D.
 - `trace` asks the model once per scenario. Every value on the card comes from it: `shown(n)` turns the trace into what the card shows after the first `n` requests.
 - `Scene<CardState, { lit: string | null }>` declares the scene's two types: its model, what the card shows, and what is shown of it, the row the card lights. `this.state`, `this.shown` and the draw's `st` and `sh` are typed from them ([typed state](REFERENCE.md#typed-state-and-shown)).

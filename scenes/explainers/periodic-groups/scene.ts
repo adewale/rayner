@@ -1,5 +1,5 @@
 import { Scene, AnimationGroup, FadeIn, linear } from '../../../src/index.ts';
-import type { View } from '../../../explain/index.ts';
+import type { View, ExplainerMeta } from '../../../explain/index.ts';
 import { stage, settingsOf, answerOf, view } from '../../../explain/index.ts';
 import {
   POSITIONS,
@@ -64,7 +64,7 @@ export default class PeriodicGroupsExplainer extends Scene<PeriodicState, {}> {
       { says: 'Every halogen ends in two s and five p electrons', test: 'model.test.ts: every halogen in two s and five p electrons' },
       { says: 'Each badge counts the electrons after the noble gas that closes the row above', shown: true as const },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'element',

@@ -1,5 +1,5 @@
 import { Scene, Group, Text, FadeIn, Transform, AnimationGroup, Succession, matchByKey } from '../../../src/index.ts';
-import type { Choreography, Transition } from '../../../explain/index.ts';
+import type { Choreography, Transition, ExplainerMeta } from '../../../explain/index.ts';
 import type { ScheduledAnimation, Mobject, MatchKey } from '../../../src/index.ts';
 import { stage, settingsOf, Machine, view, having } from '../../../explain/index.ts';
 import { monty, montyExample, threeDoorWorlds, threeDoorCells, oddsAfter, roundStart, roundNext, roundDoor, roundResult, ROUND_EVENTS } from './model.ts';
@@ -46,7 +46,7 @@ export default class MontyHall extends Scene<MontyState, { phase?: Phase }> {
       { says: 'in only one of them and opens the car in the other', test: 'model.test.ts: the random host opens it in only half those rounds' },
       { says: 'had known where the car was and always shown a goat', test: 'model.test.ts: the host who knows always opens the only goat left' },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'host',

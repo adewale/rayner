@@ -20,7 +20,7 @@ export type { FrontMatterValue, PieSlice, PieOptions } from './mermaid.ts';
 export { settingsOf, resolveSettings } from './settings.ts';
 export { answerOf } from './script.ts';
 export type { StepKind } from './script.ts';
-export type { Setting, Settings, ExplainerClass } from './settings.ts';
+export type { Setting, Settings, ExplainerClass, ExplainerMeta, PlayerMeta } from './settings.ts';
 export { diagramsOf } from '../integrations/agentic-mermaid/snapshot.ts';
 export type {
   DiagramSpec,

@@ -1,7 +1,7 @@
 import { Scene, Group } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, view, having } from '../../../explain/index.ts';
 import { card, code } from '../../../explain/drawing.ts';
-import type { Diagram, PictureNote, View } from '../../../explain/index.ts';
+import type { Diagram, PictureNote, View, ExplainerMeta } from '../../../explain/index.ts';
 import { SINGLES, WRAPS, OPENING, OPENING_TYPE, build, nameOf, isSend, isSync, quadrantOf, threads } from './model.ts';
 import type { Inner, Wrapper, Quadrant, Layer } from './model.ts';
 import { SIZE, SPOT, QUADRANT, chart, LEFT, RIGHT, ZOOM, valueName, columnLines, quadrantMap } from './picture.ts';
@@ -64,7 +64,7 @@ export default class SendSyncExplainer extends Scene<SendSyncState, SendSyncShow
       // The quadrant's name, as the chart labels it.
       { says: '“Send only”', shown: true as const },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'wrapper',

@@ -2,7 +2,7 @@ import { Scene, Rectangle, Dot, FadeIn, Transform, Animation } from '../../../sr
 import { toSvgString, renderAt, StringSink } from '../../../src/output.ts';
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
 import { stage, regionBox, settingsOf, answerOf, view, having } from '../../../explain/index.ts';
-import type { Diagram, PictureNote } from '../../../explain/index.ts';
+import type { Diagram, PictureNote, ExplainerMeta } from '../../../explain/index.ts';
 import { START, END, tiny, timelinePicture, checkPicture, playedLabel, seekedLabel, playedPicture, seekPicture, rulerPicture, sinkNote } from './picture.ts';
 import type { Motion, TinyFrame, Still, Seek, TimelineState, CheckState } from './picture.ts';
 const STYLE = 'hand-drawn';
@@ -235,7 +235,7 @@ export default class LanternExplainer extends Scene<LanternState, LanternShown> 
         test: 'model.test.ts: seek: in a scene with updaters a still computes every frame before t',
       },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'motion',

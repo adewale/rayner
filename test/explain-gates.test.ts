@@ -238,6 +238,12 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
     message: /step one: kind must be 'short', 'main' or 'detail'/,
   },
   {
+    // Built by a function, where the ExplainerMeta type does not reach: collection still refuses the key.
+    gate: 'an unknown meta key',
+    source: scene(`await this.step('one',{caption:'A label.'});${label('hello')}`, `const meta=()=>({title:'T',soruces:[]});`, 'static meta=meta();'),
+    message: /scene\.ts: Unknown meta key "soruces": meta takes id, title,/,
+  },
+  {
     gate: 'a scenario with no steps',
     source: `import{Scene,Dot,FadeIn}from'rayner';export default class Bad extends Scene{async construct(){await this.play(new FadeIn(new Dot()));}}`,
     message: /Each scenario needs non-empty named steps/,

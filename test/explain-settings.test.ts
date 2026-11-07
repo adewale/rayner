@@ -5,7 +5,8 @@ import { NullSink } from '../src/output.ts';
 import { traceScene } from '../explain/testing.ts';
 import { resolveSettings, settingsOf } from '../explain/index.ts';
 import { scenariosOf, withSettings, scenarioName } from '../explain/testing.ts';
-import type { Setting } from '../explain/index.ts';
+import type { Setting, ExplainerMeta, ExplainerClass } from '../explain/index.ts';
+import { checkExplainerMeta } from '../explain/settings.ts';
 import { fc, params } from './lib/pbt.ts';
 
 class Example extends Scene {
@@ -192,4 +193,37 @@ test('the innermost withSettings binding wins, and two bindings never share stat
     }),
     params(),
   );
+});
+
+test('static meta takes the keys ExplainerMeta names, and refuses any other, naming it and the keys it takes', () => {
+  const full: ExplainerMeta = {
+    id: 'a', title: 'A', lang: 'en', sources: [], lettering: { scripts: ['Grek'] }, textContext: 'explicit', scenarioNavigation: 'first',
+    player: { accent: true, paper: true, corners: 'square', minStageWidth: 800, outline: true }, watch: { n: 'N' },
+    answer: 'Yes', questions: [{ question: 'Q?', answer: 'A' }], checkedAgainst: 'model.test.ts', claims: [{ says: 'x', shown: true }],
+  };
+  checkExplainerMeta(full);
+  checkExplainerMeta(undefined);
+  checkExplainerMeta({});
+  // Built apart from the declaration, where the type does not reach: the check still names the key.
+  const built = (): object => ({ title: 'A', soruces: ['https://example.com'] });
+  assert.throws(() => checkExplainerMeta(built()), /^TypeError: Unknown meta key "soruces": meta takes id, title, lang, sources, lettering, textContext, scenarioNavigation, player, watch, answer, questions, checkedAgainst, claims$/);
+  assert.throws(() => checkExplainerMeta({ titel: 'A', lnag: 'fr' }), /Unknown meta keys "titel", "lnag"/);
+  assert.throws(() => checkExplainerMeta({ player: { acent: true } }), /^TypeError: Unknown meta.player key "acent": meta.player takes accent, paper, corners, minStageWidth, outline$/);
+  for (const bad of [null, 4, 'meta', []]) assert.throws(() => checkExplainerMeta(bad), /static meta must be an object/);
+  assert.throws(() => checkExplainerMeta({ player: true }), /meta.player must be an object/);
+  // A key inherited through the prototype is not the scene's: only own keys are read.
+  checkExplainerMeta(Object.create({ titel: 'A' }));
+});
+
+test('every explainer and tutorial scene declares a static meta that collection takes', async () => {
+  const { readdirSync, existsSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const root = join(import.meta.dirname, '..', 'scenes');
+  for (const group of ['explainers', 'tutorial'])
+    for (const id of readdirSync(join(root, group))) {
+      const file = join(root, group, id, 'scene.ts');
+      if (!existsSync(file)) continue;
+      const Explainer = (await import(file)).default as ExplainerClass;
+      checkExplainerMeta(Explainer.meta);
+    }
 });

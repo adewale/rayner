@@ -1,5 +1,6 @@
 import { Scene } from '../../../src/index.ts';
 import { stage, settingsOf, view } from '../../../explain/index.ts';
+import type { ExplainerMeta } from '../../../explain/index.ts';
 import { card } from '../../../explain/drawing.ts';
 import { run, type Policy } from './model.ts';
 
@@ -15,7 +16,7 @@ export default class LruMru extends Scene<CardState, { lit: string | null }> {
       'https://en.wikipedia.org/w/index.php?title=Cache_replacement_policies&oldid=1376205644',
       'https://www.vldb.org/conf/1985/P127.PDF',
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [{ id: 'next', label: 'After A B C D, request', default: 'loop', options: [{ value: 'loop', label: 'A B C D again' }, { value: 'reuse', label: 'C D C D' }] }];
 
   override async construct() {

@@ -1,7 +1,7 @@
 import { Scene } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, view, having } from '../../../explain/index.ts';
 import { card, code } from '../../../explain/drawing.ts';
-import type { LayoutDirection, Card } from '../../../explain/index.ts';
+import type { LayoutDirection, Card, ExplainerMeta } from '../../../explain/index.ts';
 
 const ROWS: [string, number][] = [['Field', 123]];
 /** The two cards' placement and the one field-direction override, as the code panel prints them. */
@@ -33,7 +33,7 @@ export default class LayoutDirectionExplainer extends Scene<LayoutState, { lit?:
     sources: ['https://github.com/adewale/rayner/blob/main/docs/REFERENCE.md#stage'],
     // The code step's sentence speaks of the code panel it draws.
     claims: [{ says: 'This layout never says left or right', shown: true as const }],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'direction',

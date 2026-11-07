@@ -1,5 +1,5 @@
 import { Scene, Transform, AnimationGroup, Succession, Cross, rushInto } from '../../../src/index.ts';
-import type { Choreography, View, Transition } from '../../../explain/index.ts';
+import type { Choreography, View, Transition, ExplainerMeta } from '../../../explain/index.ts';
 import type { ScheduledAnimation } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, Machine, view } from '../../../explain/index.ts';
 import { story, raceTimeline, raceTracks, raceWords, tickX, trackY } from './picture.ts';
@@ -23,7 +23,7 @@ export default class LatestSearchExplainer extends Scene<RaceState, {}> {
       { says: 'publish it only if its ticket is still the latest', test: 'model.test.ts: tickets distinguish repeated query text' },
       { says: 'makes every older ticket stale', test: 'model.test.ts: tickets distinguish repeated query text' },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'order',

@@ -1,7 +1,7 @@
 import { Scene } from '../../../src/index.ts';
 import type { AudioClip } from '../../../explain/score.ts';
 import { settingsOf, stage } from '../../../explain/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { Stage, ExplainerMeta } from '../../../explain/index.ts';
 import { musicStory } from './model.ts';
 import type { Timing } from './model.ts';
 import { scorePicture } from './picture.ts';
@@ -50,7 +50,7 @@ export default class MelodyRhythm extends Scene<{}, {}> {
         test: 'model.test.ts: the shifted B starts none on the 1 of bar 2',
       },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'timing',
