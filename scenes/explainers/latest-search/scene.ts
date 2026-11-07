@@ -1,6 +1,6 @@
 import { Scene, Transform, AnimationGroup, Succession, Cross, rushInto } from '../../../src/index.ts';
 import type { Choreography, View, Transition } from '../../../explain/index.ts';
-import type { Mobject, ScheduledAnimation, SceneState } from '../../../src/index.ts';
+import type { ScheduledAnimation, SceneState } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, Machine, view } from '../../../explain/index.ts';
 import { story, raceTimeline, raceTracks, raceWords, tickX, trackY } from './picture.ts';
 import type { RaceStep } from './picture.ts';
@@ -108,19 +108,6 @@ export default class LatestSearchExplainer extends Scene {
       return { timeline, machine };
     };
     const off = raceMachine(false), on = raceMachine(true);
-    // What a timeline marks, as emphasis the phone's close-ups visit first and review holds to the
-    // caption: each page span outlined in red, a stale result on the page. Read from state.
-    s.emphasise(() => {
-      const st = this.state as object;
-      if (!isRace(st)) return [];
-      const v = st.guarded ? on.timeline : off.timeline, out: [Mobject, string][] = [];
-      for (const track of raceTracks(st))
-        track.page.forEach((span, j) => {
-          const m = span.stale ? v.current.find(`${track.key}:span:${j}`) : undefined;
-          if (m) out.push([m, `${track.name}: stale ${span.shown}`]);
-        });
-      return out;
-    });
     /** A step whose timeline a machine plays: the race starts empty and the scenario's events play through it. */
     const played = async (words: RaceStep, { timeline, machine }: { timeline: View; machine: Machine<RaceState, RaceEvent> }, guarded: boolean) => {
       await this.step(words.id, { title: words.title, line: words.line, caption: words.caption, kind: 'short' });
