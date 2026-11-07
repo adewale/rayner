@@ -149,7 +149,7 @@ test('imported VMobject connectors and copied diagrams obey the same crossing ru
     const s = new Scene(new NullSink(), { skipUntil: Infinity });
     const d = new Diagram(s, spec, snapshot);
     await d.reveal('rest');
-    if (copied) s.clear().add(d.root.copy());
+    if (copied) s.removeAll().add(d.root.copy());
     assert.deepEqual(restingRouteProblems(s), ['A connector crosses "crossed"']);
   }
 });
