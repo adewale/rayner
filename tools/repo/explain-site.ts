@@ -11,25 +11,25 @@
 // beside it as <id>.embed.json; with --origin, also an oEmbed response, <id>.oembed.json, named by a
 // discovery link in the page. Fails, before writing anything, if
 // demos:build has not run since a scene, its folder or the engine changed.
-import { copyFile, mkdir, readFile, writeFile, access, mkdtemp, rename, rm } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, writeFile, mkdtemp, rename, rm } from 'node:fs/promises';
 import { sharePage, publishedPage, checkCards, writeEmbedFiles } from '../lib/explain-share.ts';
 import type { ShareManifest } from '../lib/explain-share.ts';
 import { join, resolve, dirname } from 'node:path';
 import { parseArgs } from 'node:util';
-import { EXPLAINERS, SHOWCASE } from '../../scenes/explainers/catalog.ts';
+import { EXPLAINERS } from '../../scenes/explainers/catalog.ts';
 import { ROOT, collectProject, defaultScenario } from '../lib/explain-project.ts';
 import { writeDescriptions, checkBuilt } from './lib/explain-site-describe.ts';
 import { replaceHeaderBlocks } from './lib/site-headers.ts';
 import { buildInputs } from '../lib/build-inputs.ts';
 import { checkBuiltOutput } from './lib/explain-built-files.ts';
 import {readArtifact, catalog as parseCatalog, catalogEvidence} from '../lib/explain-artifacts.ts';
-import { selectExport } from './lib/explain-export-selection.ts';
+import { isWholeCollection, onlyIds, selectExport } from './lib/explain-export-selection.ts';
 import { cardPng } from '../lib/explain-shots.ts';
 import { useProjectLettering } from '../lib/explain-lettering.ts';
-import { galleryPage } from './lib/explain-gallery.ts';
+import { galleryPage, galleryTokens } from './lib/explain-gallery.ts';
 import { restingTime } from '../../explain/trace.ts';
 import { offPath } from '../../explain/script.ts';
-import { listTree, posixPath, sha256 } from '../lib/hash.ts';
+import { exists, listTree, posixPath, readOptional, sha256 } from '../lib/hash.ts';
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -56,12 +56,7 @@ if (!/^\/(?:[a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+$/.test(path))
 const destination = resolve(root);
 const built = resolve(values.from ?? join(ROOT, 'out/explainers'));
 const inputs = await buildInputs(ROOT);
-const exists = (file: string) =>
-  access(file).then(
-    () => true,
-    () => false,
-  );
-const only = values.only === 'showcase' ? SHOWCASE.join(',') : values.only;
+const only = onlyIds(values.only);
 const selected = selectExport(
   only,
   await readArtifact(join(built, 'catalog.json'), parseCatalog),
@@ -74,7 +69,7 @@ if (items.length !== selected.ids.length || items.some((item, i) => item.id !== 
 
 // Refuse an explainer whose scene, scene folder or engine changed since demos:build built it;
 // check selected pages before staging and again before replacement.
-const collection = items.length === EXPLAINERS.length;
+const collection = isWholeCollection(items);
 for (const { id } of items) await checkBuilt(join(built, id), join(ROOT, 'scenes/explainers', id), inputs.hash);
 await checkBuiltOutput(
   built,
@@ -133,11 +128,7 @@ try {
   await copyFile(join(built, 'loader.js'), join(target, 'loader.js'));
   if (collection)
     await copyFile(join(built, 'embed-lab.html'), join(target, 'embed-lab.html'));
-  const css = await readFile(join(ROOT, 'app/embed.css'), 'utf8');
-  await writeFile(
-    join(target, 'index.html'),
-    galleryPage(selected.catalog, css.slice(0, css.indexOf('\nbody{')), collection),
-  );
+  await writeFile(join(target, 'index.html'), galleryPage(selected.catalog, await galleryTokens(ROOT), collection));
   await writeFile(join(target, 'evidence.json'), JSON.stringify(selected.evidence, null, 2) + '\n');
   await writeFile(join(target, 'catalog.json'), JSON.stringify(selected.catalog, null, 2) + '\n');
   // For agents: each explainer's describeExplainer object as <id>.json beside its page, and llms.txt at the site root.
@@ -164,10 +155,7 @@ try {
       sha256: sha256(await readFile(file)),
     });
   }
-  const hostHeaders = await readFile(join(destination, '_headers'), 'utf8').catch((error) => {
-    if (error.code === 'ENOENT') return '';
-    throw error;
-  });
+  const hostHeaders = (await readOptional(join(destination, '_headers'), 'utf8')) ?? '';
   const ownedPaths = items.flatMap(({ id }) => [`${path}/${id}`, `${path}/${id}.html`]);
   const publishedHeaders = replaceHeaderBlocks(hostHeaders, headers, ownedPaths);
   await writeFile(join(staging, '_headers'), publishedHeaders);
@@ -196,10 +184,7 @@ try {
   await mkdir(dirname(join(destination, path)), { recursive: true });
   const backup = join(staging, '.previous');
   const hadTarget = await exists(join(destination, path));
-  const previousLlms = await readFile(join(destination, 'llms.txt')).catch((error) => {
-    if (error.code === 'ENOENT') return undefined;
-    throw error;
-  });
+  const previousLlms = await readOptional(join(destination, 'llms.txt'));
   const hadHeaders = await exists(join(destination, '_headers'));
   if (hadTarget) await rename(join(destination, path), backup);
   try {

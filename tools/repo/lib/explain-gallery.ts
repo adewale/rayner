@@ -1,5 +1,7 @@
 import { htmlEscape } from '../../../explain/trace.ts';
 import { stepQuery } from '../../../explain/settings.ts';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 
 /** Poster frames are curated; opening a tile starts the reader at step one. */
 export function galleryTile(item: { id: string; title: string; lang: string }, lead = false): string {
@@ -11,6 +13,11 @@ export function galleryTile(item: { id: string; title: string; lang: string }, l
 
 type GalleryCatalog = Pick<import('../../lib/explain-artifacts.ts').Catalog, 'product'> & {scenes: Pick<import('../../lib/explain-artifacts.ts').CatalogScene, 'id' | 'title' | 'lang' | 'group' | 'tier'>[]};
 /** Full collections lead with the showcase tier, of either group, and list the gallery tier behind "More"; coverage scenes get no card. An explicit subset shows its selected cards. */
+/** The player stylesheet's design tokens (everything before its body rule), which the gallery and embed lab share. */
+export async function galleryTokens(root: string): Promise<string> {
+  const css = await readFile(join(root, 'app/embed.css'), 'utf8');
+  return css.slice(0, css.indexOf('\nbody{'));
+}
 export function galleryPage(catalog: GalleryCatalog, tokens: string, collection = true): string {
   const { product, scenes } = catalog,
     entry = product.entry;

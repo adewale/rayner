@@ -1,5 +1,10 @@
 import type {Catalog as ExportCatalog, CatalogEvidence as ExportEvidence} from '../../lib/explain-artifacts.ts';
+import { EXPLAINERS, SHOWCASE } from '../../../scenes/explainers/catalog.ts';
 export type {CatalogTotals as ExportTotals, Catalog as ExportCatalog, CatalogEvidence as ExportEvidence} from '../../lib/explain-artifacts.ts';
+/** The ids `--only` names, as selectedIds reads them: `showcase` stands for the showcase explainers. */
+export const onlyIds = (only: string | undefined): string | undefined => only === 'showcase' ? SHOWCASE.join(',') : only;
+/** Whether a selection is the whole collection, which also gets the embed lab. */
+export const isWholeCollection = (ids: readonly unknown[]): boolean => ids.length === EXPLAINERS.length;
 // Builds and exports select from the same declared ids; no unrelated page is required.
 export function selectedIds(only: string | undefined, known: readonly string[]): string[] {
   const requested = only === undefined ? [...known] : only.split(',');

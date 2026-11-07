@@ -3,7 +3,7 @@
 // in the library, which never imports tools/.)
 import { createHash } from 'node:crypto';
 import type { Dirent } from 'node:fs';
-import { readdir } from 'node:fs/promises';
+import { access, readdir, readFile } from 'node:fs/promises';
 import { relative, sep } from 'node:path';
 
 /** SHA-256 of a string (UTF-8) or bytes, as lowercase hex. */
@@ -21,6 +21,17 @@ export const relativePosix = (from: string, to: string): string => posixPath(rel
 export async function listTree(directory: string, { optional = false }: { optional?: boolean } = {}): Promise<Dirent[]> {
   return readdir(directory, { recursive: true, withFileTypes: true }).catch((error: NodeJS.ErrnoException) => {
     if (optional && error.code === 'ENOENT') return [];
+    throw error;
+  });
+}
+/** Whether `file` exists (and can be reached). */
+export const exists = (file: string): Promise<boolean> => access(file).then(() => true, () => false);
+/** A file's bytes, or its text in `encoding`; undefined when it does not exist. Other errors throw. */
+export function readOptional(file: string): Promise<Buffer | undefined>;
+export function readOptional(file: string, encoding: BufferEncoding): Promise<string | undefined>;
+export function readOptional(file: string, encoding?: BufferEncoding): Promise<Buffer | string | undefined> {
+  return (encoding ? readFile(file, encoding) : readFile(file)).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') return undefined;
     throw error;
   });
 }
