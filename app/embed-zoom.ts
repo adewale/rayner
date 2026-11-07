@@ -6,6 +6,7 @@
  * so does a click or tap, which centres the point under it (no drag needed).
  */
 import { DomSink } from '../src/output.ts';
+import { VIEWBOX } from '../src/svg.ts';
 import type { Scene } from '../src/index.ts';
 import type { ElementRecord } from '../src/output.ts';
 import { isHeading } from '../explain/stage.ts';
@@ -69,7 +70,7 @@ export function panBy(z: Zoom, dx: number, dy: number, w: number, h: number, max
 // On screen, a label is world size × camera zoom × reader zoom × px per view unit.
 
 /** The camera's home viewBox: the whole 16 × 9 stage, in the sinks' user units. */
-export const HOME_VIEW = '-8000 -4500 16000 9000';
+export const HOME_VIEW = VIEWBOX;
 type Rect = [number, number, number, number];
 const rect = (v: string) => v.trim().split(/[\s,]+/).map(Number) as Rect;
 /** How a `w`×`h` stage draws an `aw`×`ah` view at 1× (the SVG letterboxes): px per unit and the offset of its top-left corner. */

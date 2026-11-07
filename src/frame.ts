@@ -7,7 +7,7 @@
 
 import { Mobject } from './mobject.ts';
 import type { Box } from './mobject.ts';
-import { FRAME } from './svg.ts';
+import { FRAME, STAGE_BOX } from './svg.ts';
 import { center } from './box.ts';
 
 export interface FrameFitOpts {
@@ -34,7 +34,7 @@ export class Frame extends Mobject {
 
   constructor() {
     super();
-    this.corners = new Float32Array([-FRAME.w / 2, -FRAME.h / 2, FRAME.w / 2, FRAME.h / 2]);
+    this.corners = new Float32Array(STAGE_BOX);
   }
 
   override pointArrays(): Float32Array[] { return [this.corners]; }

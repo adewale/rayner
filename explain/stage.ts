@@ -3,6 +3,7 @@ import { View } from './view.ts';
 import { jsonObject } from '../src/json.ts';
 import type { Scene, Vec, Box, FadeOpts, Animation, SceneState, StepKind, SceneColors } from '../src/index.ts';
 import { center, unionBoxes } from '../src/box.ts';
+import { STAGE_BOX, atHome } from '../src/svg.ts';
 import type { StepAudio } from './audio.ts';
 import { dimension, pin, callout, legend, tool, Draw, oneStrokeEach } from './annotate.ts';
 import type { LegendItem } from './annotate.ts';
@@ -14,7 +15,7 @@ import type { CardRow, CardOptions, CodeOptions } from './panels.ts';
 import { diagramsOf } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { Palette, DiagramSpec } from '../integrations/agentic-mermaid/snapshot.ts';
 import { palette } from './palettes.ts';
-import { soft, emphasis, good, bad, raised, rule, regionBox, opening, partsSeen } from './look.ts';
+import { soft, emphasis, good, bad, raised, rule, regionBox, opening, partsSeen, REGIONS } from './look.ts';
 import type { Region } from './look.ts';
 import { picture, shownNames } from './trace.ts';
 import { wordsOf, langOf } from './words.ts';
@@ -127,9 +128,7 @@ const LINE_SIZE = 0.3;
 /** The widest the heading and its line may be, in scene units. */
 const CHROME_WIDTH = 14.6;
 /** Where content goes when the camera focuses on it: the stage below the heading and its line. */
-const CONTENT: Box = [-7.55, -4.25, 7.55, 3.25];
-/** The camera's home box: the whole stage. */
-const HOME: Box = [-8, -4.5, 8, 4.5];
+const CONTENT: Readonly<Box> = REGIONS.full;
 
 /** What a diagram's view draws from the state (see diagramView): its marks, notes and the parts left undimmed, as `d.picture` takes them. */
 export interface DiagramPicture {
@@ -560,9 +559,8 @@ export function stage(scene: Scene, options: StageOptions = {}) {
      */
     async clear({ runTime = 0.4 } = {}) {
       const gone = scene.mobjects.filter((m) => m !== paper && m !== heading && m !== band && !chrome.includes(m));
-      const atHome = scene.frame.box()!.every((v, i) => Math.abs(v - HOME[i]!) < 1e-6);
       const anims: Animation[] = gone.map((m) => new FadeOut(m, { runTime }));
-      if (!atHome) anims.push(...cameraTo(HOME, runTime));
+      if (!atHome(scene.frame.box()!)) anims.push(...cameraTo([...STAGE_BOX], runTime));
       if (anims.length) await scene.play(...anims);
       for (const d of diagrams) d.forget();
       overlays.clear();
@@ -583,7 +581,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
         with: also = [],
       }: { margin?: number; runTime?: number; exact?: boolean; with?: Animation[] } = {},
     ) {
-      const box = target === 'all' ? HOME : exact ? (target as Box) : viewFor(target, margin);
+      const box = target === 'all' ? [...STAGE_BOX] as Box : exact ? (target as Box) : viewFor(target, margin);
       await scene.play(...cameraTo(box, runTime), ...also.map((a) => a.setOptions({ runTime })));
     },
     /**

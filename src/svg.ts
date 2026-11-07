@@ -17,7 +17,14 @@ const len = (x: number): string => '' + Math.round(x * UNITS);
 const userRect = (b: Readonly<Box>): string[] => [len(b[0]), len(-b[3]), len(b[2] - b[0]), len(b[3] - b[1])];
 /** Camera: the viewBox is the scene's frame box (16 × 9 at the origin unless the camera moved). */
 const viewBoxOf = (scene: Scene): string => userRect(scene.frame.box()!).join(' ');
-const VIEWBOX = userRect([-FRAME.w / 2, -FRAME.h / 2, FRAME.w / 2, FRAME.h / 2]).join(' ');
+/** The camera's home box: the whole 16 × 9 stage, centred on the origin, in scene units. */
+export const STAGE_BOX: Readonly<Box> = [-FRAME.w / 2, -FRAME.h / 2, FRAME.w / 2, FRAME.h / 2];
+/** The camera's home viewBox: the whole stage, in user units. */
+export const VIEWBOX = userRect(STAGE_BOX).join(' ');
+/** Whether a camera box is the home box, to within float noise from an animated camera. */
+export const atHome = (view: Readonly<Box>): boolean => view.every((v, i) => Math.abs(v - STAGE_BOX[i]!) < 1e-6);
+/** The box of the world on screen: the camera's (`scene.frame`), which the SVG viewBox shows; without one, the whole stage. A new box. */
+export const viewOf = (scene: { frame?: { box(): Box | null } }): Box => [...(scene.frame?.box() ?? STAGE_BOX)] as Box;
 
 const fmt = (x: number): string => (Math.round(x * 1000) / 1000).toString();
 

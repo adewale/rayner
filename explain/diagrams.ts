@@ -17,6 +17,7 @@ import {
 import { MoveAlongPath } from '../src/animation.ts';
 import type { Scene, Mobject, Box, Vec, Style, PathFunc } from '../src/index.ts';
 import { center, unionBoxes } from '../src/box.ts';
+import { STAGE_BOX, atHome } from '../src/svg.ts';
 import { regionBox, boxCenter, raised, emphasis, dimOpacity, emphasises, selfDescribed } from './look.ts';
 import type { Region } from './look.ts';
 import { diagramsOf, diagramKey, findingsOf, SVG_PX_PER_UNIT } from '../integrations/agentic-mermaid/snapshot.ts';
@@ -397,8 +398,7 @@ function moved(m: Group, k: number, from: Vec, to: Vec): Group {
   return target;
 }
 /** The stage: the camera's home box, and the most it shows. */
-const STAGE: Box = [-8, -4.5, 8, 4.5];
-const atHome = (frame: Mobject) => frame.box()!.every((v, i) => Math.abs(v - STAGE[i]!) < 1e-6);
+const STAGE = STAGE_BOX;
 /**
  * The 16:9 camera box around `box` with `margin` on every side, `zoom` times
  * closer, kept inside the stage so the paper always fills the view.
@@ -1182,7 +1182,7 @@ export class Diagram {
     const whole = new Group(...mobs.map((m) => m.copy()));
     if (ids === 'all') {
       this.focused = this.focusView = null;
-      const anims: Transform[] = atHome(frame) ? [] : [new Transform(frame, frame.copy().reset(), { runTime })];
+      const anims: Transform[] = atHome(frame.box()!) ? [] : [new Transform(frame, frame.copy().reset(), { runTime })];
       // Apply one global affine map from current full diagram bounds to its authored frame.
       const home = this.home.box(),
         now = whole.box();

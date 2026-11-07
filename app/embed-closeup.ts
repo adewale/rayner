@@ -22,6 +22,7 @@
  */
 import type { Box, Mobject, Scene, SceneClass, Sink } from '../src/index.ts';
 import { center, intersect, overlaps, pad, unionBoxes } from '../src/box.ts';
+import { STAGE_BOX, viewOf } from '../src/svg.ts';
 import { labelOf, readingLabelSize } from '../explain/diagrams.ts';
 import { emphasisOf, newlyEmphasised, openingOf } from '../explain/look.ts';
 import { isHeading } from '../explain/stage.ts';
@@ -42,7 +43,7 @@ export const NARROW_PX = 600;
 export const NARROW_ASPECT = 5 / 4;
 /** Room left around the changed region, in stage units, so a mark's outline is not cut. */
 const PAD = 0.2;
-const FRAME: Box = [-8, -4.5, 8, 4.5];
+const FRAME = STAGE_BOX;
 
 /** A label on the stage: where it is and its font size, in stage units. */
 export interface LayoutLabel {
@@ -78,7 +79,7 @@ export interface StepLayout {
 const GAP = 0.5;
 
 /** What two boxes share: a line has no height (or no width) and is still drawn; only boxes that miss each other give null. */
-const meet = (a: Box, b: Box): Box | null => intersect(a, b, { lines: true });
+const meet = (a: Readonly<Box>, b: Readonly<Box>): Box | null => intersect(a, b, { lines: true });
 const union = (a: Box | null, b: Box): Box => unionBoxes([a, b])!;
 
 /** A drawn leaf of the resting picture: what it looks like (`key`), how opaque it is, and where. */
@@ -142,8 +143,6 @@ export function toView(box: Box, view: Box): Box {
  * and the tighter side sets the scale. 1 at home.
  */
 export const viewZoom = (view: Box): number => Math.min(16 / (view[2] - view[0]), 9 / (view[3] - view[1]));
-/** The camera's box: what the author's frame shows, the most a leaf can be seen in. */
-const viewOf = (scene: Scene): Box => [...(scene.frame?.box() ?? FRAME)] as Box;
 
 /** The drawn leaves of the resting picture; those under an object in `fresh` show the step's new emphasis. */
 function leavesOf(scene: Scene, fresh: ReadonlySet<Mobject> = new Set()): Leaf[] {
@@ -377,14 +376,14 @@ export function labelsToRead(layout: StepLayout): LayoutLabel[] {
  * to right, overlapping evenly, the way a comic reader's guided view crosses a big panel.
  * Views stay inside `bounds` where they fit it, so a close-up never cuts the heading.
  */
-export function tourRegions(parts: readonly Box[], vw: number, vh: number, bounds: Box = FRAME): Box[] {
+export function tourRegions(parts: readonly Box[], vw: number, vh: number, bounds: Readonly<Box> = FRAME): Box[] {
   const groups: Box[] = [];
   let group: Box | null = null;
   // Room around each part, but never so much that a part which fits a view no longer does.
   const room = (b: Box): Box => {
     const x = b[2] - b[0] <= vw ? Math.min(PAD, (vw - (b[2] - b[0])) / 2) : PAD,
       y = b[3] - b[1] <= vh ? Math.min(PAD, (vh - (b[3] - b[1])) / 2) : PAD;
-    return meet(pad(b, x, y), bounds) ?? bounds;
+    return meet(pad(b, x, y), bounds) ?? [...bounds];
   };
   for (const p of parts.map(room)) {
     const next = union(group, p);

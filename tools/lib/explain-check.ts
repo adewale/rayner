@@ -23,6 +23,7 @@ import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
 import { closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '../../app/embed-closeup.ts';
 import type { Box, Mobject, Scene, Sink, Step } from '../../src/index.ts';
 import { contains, intersect, nonempty, overlaps } from '../../src/box.ts';
+import { STAGE_BOX, atHome, viewOf } from '../../src/svg.ts';
 import type { Project } from './explain-project.ts';
 import { pageFaces, letteringReport, useProjectLettering } from './explain-lettering.ts';
 
@@ -69,15 +70,12 @@ export function lintConstruct(source: string): string[] {
 export const MIN_PX = 14;
 /** Reader CSS pixels per scene unit on a 1280-pixel stage, with the camera home. */
 const STAGE_PX_PER_UNIT = 1280 / 16;
-const FRAME: Box = [-8, -4.5, 8, 4.5];
+const FRAME = STAGE_BOX;
 /** Anything with a camera: a Scene, or a test's stand-in. Without one, the view is the whole stage. */
 interface Viewed {
   familyMembers(): Mobject[];
   frame?: { box(): Box | null };
 }
-/** The box of the world on screen: the camera's (`scene.frame`), which the SVG viewBox shows. */
-export const viewOf = (scene: Pick<Viewed, 'frame'>): Box => [...(scene.frame?.box() ?? FRAME)] as Box;
-const isHome = (view: Box) => view.every((v, i) => Math.abs(v - FRAME[i]!) < 1e-6);
 /**
  * A label's size as the reader sees it, in CSS pixels at a 1280-pixel stage: its size
  * in the world times the camera's zoom. A label the camera has zoomed in on reads
@@ -116,7 +114,7 @@ const readable = (m: Mobject, box: Box | null, viewport: Box | null) =>
  */
 export function restingTextProblems(scene: Viewed): string[] {
   const view = viewOf(scene),
-    zoomed = !isHome(view);
+    zoomed = !atHome(view);
   const texts: { m: Mobject; box: Box; native: boolean; text: string }[] = [];
   const problems: string[] = [];
   const chromeBoxes: { box: Box; text: string }[] = [];
