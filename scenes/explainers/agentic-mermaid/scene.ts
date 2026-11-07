@@ -129,15 +129,8 @@ export default class MermaidExplainer extends Scene {
       });
       return st.notes.length ? art : new Group(art);
     };
-    // What the views mark, read from state: each marked part by its key. Each note says what it emphasises itself.
+    // Each slot's view prefixes its keys, so two pictures of one diagram can share the stage; what each marks is its picture's emphasis.
     const PREFIX: Record<Slot, string> = { main: '', wrong: 'wrong:', right: 'right:', history: '' };
-    s.emphasise(() => {
-      const all = (this.state as { diagrams?: Partial<Record<Slot, DiagramState>> }).diagrams ?? {};
-      return Object.entries(all).flatMap(([slot, st]) => {
-        const prefix = PREFIX[slot as Slot];
-        return st!.marks.map((m): [string, string] => [prefix + m.part, `mark ${colors[m.tone]} ${m.as}`]);
-      });
-    });
     /** Show a diagram in a slot, built in, then hand it to a view of the state. The view starts as the built picture. */
     const show = async (slot: Slot, source: string, box: Box | 'main' | 'full') => {
       const d = await s.show({ source }, { box });

@@ -3,7 +3,7 @@ import type { Mobject } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { runSearch, raceLifetimes, racePage, raceReplay } from './model.ts';
 import type { CompletionOrder, Query, PageSpan, RaceState, RaceEvent } from './model.ts';
-import { label, tile } from '../../../explain/drawing.ts';
+import { label, tile, emphasised } from '../../../explain/drawing.ts';
 import type { StagedStep } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
 
@@ -117,7 +117,17 @@ export function raceTracks(st: RaceState): Track[] {
     : [{ name: 'No guard', page: racePage(st), key: 'timeline-page-off' }];
 }
 /** The race's timeline, drawn from its state alone. */
-export const raceTimeline = (s: Stage, st: RaceState) => keyed(timeline(s, raceLifetimes(st), raceTracks(st), st.log.length - 1), 'reader-picture');
+export const raceTimeline = (s: Stage, st: RaceState) => {
+  const picture = keyed(timeline(s, raceLifetimes(st), raceTracks(st), st.log.length - 1), 'reader-picture');
+  // What the timeline marks, as emphasis the phone's close-ups visit first and review holds to the
+  // caption: each page span outlined in red, a stale result on the page.
+  for (const track of raceTracks(st))
+    track.page.forEach((span, j) => {
+      const m = span.stale ? picture.find(`${track.key}:span:${j}`) : undefined;
+      if (m) emphasised(m, `${track.name}: stale ${span.shown}`);
+    });
+  return picture;
+};
 /** The timeline in words: each search's ticks, and what each page shows in turn. */
 export function raceWords(st: RaceState): string {
   const lives = raceLifetimes(st);

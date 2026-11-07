@@ -1003,8 +1003,13 @@ export class Diagram {
     const pictured = notes.length ? new Group(copy, ...notes.map((n) => this.notePicture(n.id, n.text, { ...n, key: `${prefix}note:${n.id}` }))) : copy;
     const said = new Map([...marked].flatMap(([id, m]) => (m.as ? [[id, { color: m.color, as: m.as }] as const] : [])));
     Object.assign(pictured, { [pictureShows]: { marks: said, kept } });
+    // What it marks is emphasis, as the live diagram's marks are: each marked part by its key here.
+    const emphasis: [string, string][] = [...marked].flatMap(([id, m]): [string, string][] => {
+      const key = this.parts.get(id)?.mob.key;
+      return key === undefined ? [] : [[prefix + key, m.as ? `mark ${m.color} ${m.as}` : `mark ${m.color}`]];
+    });
     // Described with the diagram while it shows it; on its own, as the diagram it pictures.
-    return selfDescribed(pictured, () => (this.shows(pictured) ? { what: '', parts: [] } : this.describe({ marks: said, kept })));
+    return selfDescribed(pictured, () => (this.shows(pictured) ? { what: '', parts: [] } : this.describe({ marks: said, kept })), () => emphasis);
   }
   /** Whether the stage describes this diagram now: its root, or the picture that shows it, is on stage. */
   private described(): boolean {
