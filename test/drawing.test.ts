@@ -20,7 +20,7 @@ test('keyed sets a key and returns the mobject; segment and dot take keys like t
   const c = new Circle();
   assert.equal(drawing.keyed(c, 'sun'), c);
   assert.equal(c.key, 'sun');
-  assert.equal(drawing.segment([0, 0], [1, 0], s.soft, 0.04, 'axis').key, 'axis');
+  assert.equal(drawing.segment([0, 0], [1, 0], s.look.soft, 0.04, 'axis').key, 'axis');
   assert.equal(drawing.dot('A', 0, 0, s, false, 'node:A').key, 'node:A');
   assert.equal(drawing.dot('A', 0, 0, s).key, undefined);
 });

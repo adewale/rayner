@@ -59,7 +59,7 @@ export default class PasswordExplainer extends Scene<PasswordState, PasswordShow
   };
   override async construct() {
     const s = stage(this, { headingSize: 0.6, style: STYLE }),
-      hot = s.emphasis;
+      hot = s.look.emphasis;
     const found = find(QUERIES),
       [hitQuery, missQuery] = QUERIES,
       match = found.matches[0]!,
@@ -171,7 +171,7 @@ export default class PasswordExplainer extends Scene<PasswordState, PasswordShow
     const sequenceView = s.diagramView(sequence, (_st, sh) => {
       const q = having(sh, 'sequence').sequence;
       return {
-        marks: Object.fromEntries(q.marked.map((id) => [id, sequence.accent])),
+        marks: Object.fromEntries(q.marked.map((id) => [id, sequence.emphasis])),
         notes: q.notes,
       };
     });

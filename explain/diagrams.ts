@@ -419,7 +419,8 @@ export class Diagram {
   order: string[];
   /** @internal The box the diagram was laid out in. */
   frameBox: Box;
-  accent: string;
+  /** The diagram's emphasis colour: its style's accent when that has a hue, else a warm orange, as the stage's `look.emphasis`. */
+  emphasis: string;
   private home = new Group();
   /** Unemphasised styles of each top-level part's family, at the home frame (captured when built). */
   private base = new Map<string, Style[]>();
@@ -447,7 +448,7 @@ export class Diagram {
     this.snapshot = snapshot;
     this.frameBox = box;
     this.root.clipBox = [...box];
-    this.accent = emphasis(snapshot.palette);
+    this.emphasis = emphasis(snapshot.palette);
     this.dimmed = dimOpacity(snapshot.palette);
     emphasises(scene, () => this.emphasised());
     for (const info of partsOf(snapshot)) {
@@ -619,7 +620,7 @@ export class Diagram {
         for (const child of this.parts.values()) if (child.info.owner === id) this.visible.add(child.info.id);
         this.root.add(p.mob);
         if (p.info.role === 'message' && p.info.from && p.info.to && p.route) {
-          const token = this.token(p.route, this.accent);
+          const token = this.token(p.route, this.emphasis);
           messages.push(p);
           return new AnimationGroup(
             [
@@ -905,9 +906,9 @@ export class Diagram {
   }
   /**
    * The marks a walk's trail leaves along these hops, for a picture drawn from state (see picture,
-   * and stage.diagramView): each link travelled, in `color` (the diagram's accent), said as travelled.
+   * and stage.diagramView): each link travelled, in `color` (the diagram's emphasis colour), said as travelled.
    */
-  trail(hops: readonly (readonly [string, string])[], color: string = this.accent): Record<string, { color: string; as: string }> {
+  trail(hops: readonly (readonly [string, string])[], color: string = this.emphasis): Record<string, { color: string; as: string }> {
     return Object.fromEntries(hops.map(([from, to]) => [this.link(from, to).id, { color, as: wordsOf(this.scene).travelled }]));
   }
   /** The link from `from` to `to`, its endpoints resolved as walk resolves them: its id, its part and its route. */
@@ -1009,7 +1010,7 @@ export class Diagram {
   notePicture(
     id: string,
     text: string,
-    { side = 'above', color = this.accent, size = 0.22, key = `note:${id}` }: { side?: NoteSide; color?: string; size?: number; key?: string } = {},
+    { side = 'above', color = this.emphasis, size = 0.22, key = `note:${id}` }: { side?: NoteSide; color?: string; size?: number; key?: string } = {},
   ): Group {
     const g = this.noteLook(text, color, size);
     g.moveTo(notePosition(g, this.get(id).box()!, side, this.frameBox));
@@ -1067,7 +1068,7 @@ export class Diagram {
     hops: readonly (readonly [string, string])[],
     {
       runTime = 0.8,
-      color = this.accent,
+      color = this.emphasis,
       parallel = false,
     }: { runTime?: number; color?: string; parallel?: boolean } = {},
   ): Promise<void> {
@@ -1235,7 +1236,7 @@ export class Diagram {
     this.spec = next;
     this.snapshot = snapshot;
     // A new style brings its own emphasis colour and dimming.
-    this.accent = target.accent;
+    this.emphasis = target.emphasis;
     this.dimmed = target.dimmed;
     this.base = target.base;
     this.zoom = 1;

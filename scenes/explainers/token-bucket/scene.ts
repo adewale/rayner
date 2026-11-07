@@ -93,7 +93,7 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
   override async construct() {
     const rate = Number(settingsOf(this).rate),
       s = stage(this, { headingSize: 0.6, style: 'github-dark' });
-    const colours = { ink: s.palette.ink, soft: s.soft, muted: s.palette.muted, paper: s.palette.paper, accent: s.palette.accent, good: s.good, bad: s.bad };
+    const colours = s.look;
 
     // A dry run of the same model at every rate, so titles and captions can name its answers.
     const runs = new Map(RATES.map((r) => [r, runAt(r)] as const)),
@@ -254,7 +254,7 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
           const climbed = climb(prev, call, rate, CAPACITY);
           const balanceAt = (t: number) => (t >= call.at ? call.found : Math.min(CAPACITY, prev.after + (t - prev.at) * rate));
           const refill = g.follow(
-            { from: prev.at, to: call.at, draw: (t) => (rise ? [fill(balanceAt(t)), climbTo(axes, climbed, t, s.palette.accent)] : fill(balanceAt(t))) },
+            { from: prev.at, to: call.at, draw: (t) => (rise ? [fill(balanceAt(t)), climbTo(axes, climbed, t, s.look.emphasis)] : fill(balanceAt(t))) },
             { targets: [level, ...(rise ? [rise] : [])], runTime: REFILL_S },
           );
           // The answer. A 200 takes the top token out of the bucket to the request, as the level

@@ -14,10 +14,11 @@ import type { ShowOptions, PictureNote } from './diagrams.ts';
 import { Card, CodeBlock } from './panels.ts';
 import type { CardRow, CardOptions, CodeOptions } from './panels.ts';
 import { diagramsOf } from '../integrations/agentic-mermaid/snapshot.ts';
-import type { Palette, DiagramSpec } from '../integrations/agentic-mermaid/snapshot.ts';
+import type { DiagramSpec } from '../integrations/agentic-mermaid/snapshot.ts';
+import type { Palette } from '../src/color.ts';
 import { palette } from './palettes.ts';
-import { soft, emphasis, good, bad, raised, rule, regionBox, opening, partsSeen, REGIONS } from './look.ts';
-import type { Region } from './look.ts';
+import { soft, emphasis, bad, lookOf, regionBox, opening, partsSeen, REGIONS } from './look.ts';
+import type { Region, Look } from './look.ts';
 import { picture, shownNames } from './trace.ts';
 import { wordsOf, langOf } from './words.ts';
 import type { Seen } from './trace.ts';
@@ -104,27 +105,27 @@ export function isHeading(m: Mobject): boolean {
   return false;
 }
 /**
- * Stage furniture: the paper, or part of the heading (isHeading), or inside one of them; with
+ * Stage furniture: the backdrop, or part of the heading (isHeading), or inside one of them; with
  * `frame`, a diagram's frame (role `'frame'`) too. It frames every step and says nothing about
  * where to look, so the close-ups, the review and the layout checks leave it out.
  */
 export function isFurniture(m: Mobject, { frame = false }: { frame?: boolean } = {}): boolean {
-  for (let x: Mobject | null = m; x; x = x.parent) if (x.role === 'paper' || (frame && x.role === 'frame')) return true;
+  for (let x: Mobject | null = m; x; x = x.parent) if (x.role === 'backdrop' || (frame && x.role === 'frame')) return true;
   return isHeading(m);
 }
-/** The stage's paper (role `'paper'`), or undefined for a scene drawn without a stage. */
-export const paperPart = (scene: Scene): Mobject | undefined => scene.mobjects.find((m) => m.role === 'paper');
+/** The stage's backdrop (role `'backdrop'`), or undefined for a scene drawn without a stage. */
+export const backdropOf = (scene: Scene): Mobject | undefined => scene.mobjects.find((m) => m.role === 'backdrop');
 /**
- * The colour of the stage's paper (its palette's `paper`) as `scene` has it, or undefined
- * for a scene drawn without a stage. Player palette cues are opt-in through `meta.player`.
+ * The colour of the stage's paper (its look's `paper`, the backdrop's fill) as `scene` has it, or
+ * undefined for a scene drawn without a stage. Player palette cues are opt-in through `meta.player`.
  */
-export const paperOf = (scene: Scene): string | undefined => paperPart(scene)?.style.fill;
+export const paperOf = (scene: Scene): string | undefined => backdropOf(scene)?.style.fill;
 const stagePalettes = new WeakMap<Scene, () => Palette>();
 /** The stage's final palette, including a palette adopted from a diagram. */
 export const paletteOf = (scene: Scene): Palette | undefined => stagePalettes.get(scene)?.();
 const isOptions = (v: unknown): v is object => !!v && !(v instanceof Mobject);
-/** The colours engine defaults take on a stage with this palette: ink and the stage's soft, emphasis and rejected colours. */
-export const sceneColors = (p: Palette): SceneColors => ({ paper: p.paper, ink: p.ink, soft: soft(p), accent: emphasis(p), bad: bad(p) });
+/** The colours engine defaults take on a stage with this palette: its look's paper, ink, soft, emphasis and bad. */
+export const sceneColors = (p: Palette): SceneColors => ({ paper: p.paper, ink: p.ink, soft: soft(p), emphasis: emphasis(p), bad: bad(p) });
 const HEADING_Y = 3.8;
 /** With a line under it, the heading moves up to make room. */
 const HEADING_Y_WITH_LINE = 3.98;
@@ -169,12 +170,13 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
   const adopt = !options.palette && !options.style;
   let colors = options.palette ?? palette(options.style ?? 'nord');
   stagePalettes.set(scene, () => ({ ...colors }));
+  let looked: { from: Palette; look: Look } = { from: colors, look: lookOf(colors) };
   // Engine defaults (a Text with no colour, an Axes, a SurroundingRectangle) take the stage's palette.
   scene.colors = sceneColors(colors);
   const mode = options.heading ?? 'step';
-  const paper = new Rectangle({ width: 16, height: 9, fill: colors.paper, stroke: 'none' });
-  paper.role = 'paper';
-  scene.add(paper);
+  const backdrop = new Rectangle({ width: 16, height: 9, fill: colors.paper, stroke: 'none' });
+  backdrop.role = 'backdrop';
+  scene.add(backdrop);
   const numbered = options.numbered ?? mode === 'step';
   const headingSize = options.headingSize ?? 0.36;
   /**
@@ -401,35 +403,21 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
 
   return {
     scene,
-    paper,
+    backdrop,
     get heading() {
       return heading;
     },
+    /**
+     * The colours to draw with, each reading on the stage's paper: paper, ink, soft, emphasis,
+     * good, bad, raised, rule and muted (see Look). The stage's helpers colour from the same look.
+     */
+    get look(): Look {
+      if (looked.from !== colors) looked = { from: colors, look: lookOf(colors) };
+      return looked.look;
+    },
+    /** The palette the stage was styled from, which the panel constructors still take; draw with `look`. */
     get palette() {
       return colors;
-    },
-    /** The colour helpers use for emphasis; use it for native emphasis too. */
-    get emphasis() {
-      return emphasis(colors);
-    },
-    /** Secondary text colour that still reads on the paper. */
-    get soft() {
-      return soft(colors);
-    },
-    /** Outcome colours that read on the paper: accepted, passed (`good`) and rejected, failed (`bad`). */
-    get good() {
-      return good(colors);
-    },
-    get bad() {
-      return bad(colors);
-    },
-    /** A panel surface one shade off the paper. */
-    get raised() {
-      return raised(colors);
-    },
-    /** A hairline colour that separates without shouting. */
-    get rule() {
-      return rule(colors);
     },
     async show(spec: DiagramSpec, opts: Omit<ShowOptions, 'box'> & { box?: Box | StageRegion } = {}): Promise<Diagram> {
       if (options.style && spec.style == null) spec = { ...spec, style: options.style };
@@ -437,7 +425,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       if (adopt) {
         colors = snapshot.palette;
         scene.colors = sceneColors(colors);
-        paper.setFill(colors.paper);
+        backdrop.setFill(colors.paper);
         heading.setFill(colors.ink);
         band.setFill(colors.paper);
         home.get(band)!.setFill(colors.paper);
@@ -565,11 +553,11 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       overlays.clear();
     },
     /**
-     * Fade everything but paper and heading in one play: a clean slate for the
+     * Fade everything but the backdrop and heading in one play: a clean slate for the
      * next idea. A camera moved by `focus` glides home in the same play.
      */
     async clear({ runTime = 0.4 } = {}) {
-      const gone = scene.mobjects.filter((m) => m !== paper && m !== heading && m !== band && !chrome.includes(m));
+      const gone = scene.mobjects.filter((m) => m !== backdrop && m !== heading && m !== band && !chrome.includes(m));
       const anims: Animation[] = gone.map((m) => new FadeOut(m, { runTime }));
       if (!atHome(scene.frame.box()!)) anims.push(...cameraTo([...STAGE_BOX], runTime));
       if (anims.length) await scene.play(...anims);

@@ -119,7 +119,7 @@ export default class PgPageExplainer extends Scene<PgState, PgShown> {
     const values = settingsOf(this);
     const column = values.column as Column;
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
-    const colours = { ink: s.palette.ink, soft: s.soft, paper: s.palette.paper };
+    const colours = s.look;
     const c = scenarioOf(column, 100),
       w = scenarioOf(SWAP[column], 100),
       t = c.tuple;
@@ -351,7 +351,7 @@ export default class PgPageExplainer extends Scene<PgState, PgShown> {
     const whyPie = d;
     this.shown.pie = { marked: [] };
     const pieView = s.diagramView(whyPie, (_state, sh) => ({
-      marks: Object.fromEntries(having(sh, 'pie').pie.marked.map((id) => [id, { color: whyPie.accent, as: 'too small for another row' }])),
+      marks: Object.fromEntries(having(sh, 'pie').pie.marked.map((id) => [id, { color: whyPie.emphasis, as: 'too small for another row' }])),
     }));
     this.shown.pie = { marked: ['slice:Free space'] };
     await this.play(pieView.sync({ runTime: 0.45 }));

@@ -161,7 +161,7 @@ export default class IsDigitExplainer extends Scene<DigitState, {}> {
         const returns = callout(s, check, returnsOf(st), {
           side: 'right',
           gap: block.panel.box()![2] - check[2] + CALLOUT_GAP,
-          color: passes ? s.good : s.bad,
+          color: passes ? s.look.good : s.look.bad,
           size: GUARD_SIZE,
         });
         return new Group(block, returns);
@@ -214,7 +214,7 @@ export default class IsDigitExplainer extends Scene<DigitState, {}> {
     );
     await s.enter(transform, { runTime: 0.4 });
     // What int() does with it: a view of the state's answer, where the stage's note went.
-    const said = view(this, (st) => this.text(answer(st).said, { fontSize: SIZE, color: s.soft }).moveTo([0, -3.55]), { place: false });
+    const said = view(this, (st) => this.text(answer(st).said, { fontSize: SIZE, color: s.look.soft }).moveTo([0, -3.55]), { place: false });
     await s.enter(said, { runTime: 0.3 });
 
     // ------------------------------------------------------------------ the lineup

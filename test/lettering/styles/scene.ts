@@ -5,7 +5,7 @@ export default class Example extends Scene {
   override async construct() {
     const s = stage(this);
     await this.step('cuts', {title: 'Real cuts', caption: 'Bold, italic and bold italic, each from its own cut.'});
-    const ink = {color: s.palette.ink, fontSize: 0.6};
+    const ink = {color: s.look.ink, fontSize: 0.6};
     await s.enter(
       new Text('Regular', ink).moveTo([-3.5, 1.8]),
       new Text('Bold', {...ink, weight: 'bold'}).moveTo([-3.5, 0.8]),
@@ -17,8 +17,8 @@ export default class Example extends Scene {
     );
     await this.step('count', {title: 'A bold count', caption: 'A bold number counts up in the Bold cut.'});
     await s.clear();
-    const n = new DecimalNumber(0, {color: s.palette.ink, fontSize: 1, weight: 'bold', decimals: 1});
+    const n = new DecimalNumber(0, {color: s.look.ink, fontSize: 1, weight: 'bold', decimals: 1});
     await s.enter(n);
-    await this.play(new Transform(n, new DecimalNumber(9.5, {color: s.palette.ink, fontSize: 1, weight: 'bold', decimals: 1})), {runTime: 1});
+    await this.play(new Transform(n, new DecimalNumber(9.5, {color: s.look.ink, fontSize: 1, weight: 'bold', decimals: 1})), {runTime: 1});
   }
 }

@@ -293,7 +293,7 @@ export class Axes extends Group {
     const [a, b] = xRange ?? [this.xAxis.min, this.xAxis.max];
     const n = Math.max(2, Math.round(samples));
     const xs = Array.from({ length: n }, (_, i) => i === n - 1 ? b : a + (b - a) * i / (n - 1));
-    const m = accented(new VMobject({ stroke: color ?? NEUTRAL_COLORS.accent, strokeWidth: 0.05, ...style, fill: 'none' }), color ?? style.stroke, 'stroke');
+    const m = accented(new VMobject({ stroke: color ?? NEUTRAL_COLORS.emphasis, strokeWidth: 0.05, ...style, fill: 'none' }), color ?? style.stroke, 'stroke');
     let run: Array<[number, number]> = [];
     const flush = () => { if (run.length > 1) this.addSmoothRun(m, run); run = []; };
     for (const x of xs) {
@@ -306,7 +306,7 @@ export class Axes extends Group {
 
   /** A polyline through data points, in the order given: straight segments, no smoothing. */
   lineGraph(points: ReadonlyArray<readonly [x: number, y: number]>, { color, ...style }: Style & { color?: string } = {}): VMobject {
-    const m = accented(new VMobject({ stroke: color ?? NEUTRAL_COLORS.accent, strokeWidth: 0.05, ...style, fill: 'none' }), color ?? style.stroke, 'stroke');
+    const m = accented(new VMobject({ stroke: color ?? NEUTRAL_COLORS.emphasis, strokeWidth: 0.05, ...style, fill: 'none' }), color ?? style.stroke, 'stroke');
     points.forEach(([x, y], i) => { if (i === 0) m.startNewPath(this.c2p(x, y)); else m.addLineTo(this.c2p(x, y)); });
     return m;
   }
@@ -321,7 +321,7 @@ export class Axes extends Group {
   bar(values: readonly number[], {
     x, gap = 0.4, width = 1 - gap, colors, labels, labelFontSize = 0.22, labelColor, fillOpacity = 0.85, ...style
   }: BarOpts = {}): Group {
-    const palette = colors === undefined ? [NEUTRAL_COLORS.accent] : typeof colors === 'string' ? [colors] : colors;
+    const palette = colors === undefined ? [NEUTRAL_COLORS.emphasis] : typeof colors === 'string' ? [colors] : colors;
     const g = new Group();
     values.forEach((v, i) => {
       const cx = x?.[i] ?? i + 0.5, l = cx - width / 2, r = cx + width / 2;
@@ -350,7 +350,7 @@ export class Axes extends Group {
 
   /** A Dot at data coordinates (x, y). */
   dot(x: number, y: number, opts: DotOpts = {}): Dot {
-    return accented(new Dot({ color: NEUTRAL_COLORS.accent, ...opts }), opts.color ?? opts.fill, 'fill').moveTo(this.c2p(x, y));
+    return accented(new Dot({ color: NEUTRAL_COLORS.emphasis, ...opts }), opts.color ?? opts.fill, 'fill').moveTo(this.c2p(x, y));
   }
 
   /** A vertical guide at `x`, across the y range unless `from`/`to` say otherwise. */
@@ -375,7 +375,7 @@ export class Axes extends Group {
       if (!Number.isFinite(y)) throw new RangeError(`areaUnder: fn(${x}) is ${y}`);
       return [x, y];
     });
-    const m = accented(new VMobject({ fill: color ?? NEUTRAL_COLORS.accent, fillOpacity, stroke: 'none', ...style }), color ?? style.fill, 'fill');
+    const m = accented(new VMobject({ fill: color ?? NEUTRAL_COLORS.emphasis, fillOpacity, stroke: 'none', ...style }), color ?? style.fill, 'fill');
     this.addSmoothRun(m, run);
     m.addLineTo(this.c2p(b, 0)).addLineTo(this.c2p(a, 0)).closePath();
     return m;
@@ -431,9 +431,9 @@ function decimalsOf(step: number): number {
   return 6;
 }
 
-/** Plotted data takes the scene's accent when its caller gave no colour. */
+/** Plotted data takes the scene's emphasis colour when its caller gave no colour. */
 function accented<M extends Mobject>(m: M, given: unknown, field: 'fill' | 'stroke'): M {
-  if (given === undefined) followScene(m, { [field]: 'accent' });
+  if (given === undefined) followScene(m, { [field]: 'emphasis' });
   return m;
 }
 /** A guide line takes the scene's soft colour when its caller gave no stroke. */

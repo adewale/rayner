@@ -185,8 +185,8 @@ export default class TrafficPolicyExplainer extends Scene<TrafficState, { cluste
       ids = pods.map((p) => p.id);
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const groups = counts.map((_, j) => `group:n${j + 1}`);
-    const ink = s.palette.ink,
-      paper = s.palette.paper;
+    const ink = s.look.ink,
+      paper = s.look.paper;
     /** A card drawn from the state: a view that builds it from `rows(state)`, so check holds it to the state. */
     const cardOf = (rows: (st: TrafficState) => readonly CardRow[], opts: CardOptions, keys?: (card: Card) => void): View<Card> =>
       view(
@@ -278,7 +278,7 @@ export default class TrafficPolicyExplainer extends Scene<TrafficState, { cluste
     });
     await nextSlate();
     // The whole cluster stays in view, so Node 2 and Node 3 are never cut off at the edge.
-    await showCluster({ marks: Object.fromEntries((policy === 'cluster' ? ['k1', 'k2', 'k3'] : ['k1']).map((id) => [id, { color: d.accent, as: 'chain shown' }])) });
+    await showCluster({ marks: Object.fromEntries((policy === 'cluster' ? ['k1', 'k2', 'k3'] : ['k1']).map((id) => [id, { color: d.emphasis, as: 'chain shown' }])) });
     this.state.chain = chain.map((r) => r.probability);
     // The pods the chain lists, in its order, which the code panel names.
     this.state.chainPods = chainPods;
@@ -353,7 +353,7 @@ export default class TrafficPolicyExplainer extends Scene<TrafficState, { cluste
       await d.enlarge('all');
       if (failing.length)
         await showCluster({
-          marks: Object.fromEntries(failing.flatMap((j) => [groups[j]!, `k${j + 1}`]).map((id) => [id, { color: s.bad, as: 'fails the health check' }])),
+          marks: Object.fromEntries(failing.flatMap((j) => [groups[j]!, `k${j + 1}`]).map((id) => [id, { color: s.look.bad, as: 'fails the health check' }])),
         });
       // Each node's health check answer, said under the node.
       await showCluster({

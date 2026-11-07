@@ -49,11 +49,11 @@ const keyed = <M extends Mobject>(m: M, key: string): M => Object.assign(m, { ke
  * so a machine's transition can move each.
  */
 export function timeline(s: Stage, lifetimes: readonly Life[], tracks: readonly Track[], now: number): Group {
-  const rowLabel = (text: string, y: number, color = s.palette.ink) => label(text, 0, 0, color, 0.62).moveTo([ROW_LABEL_X, y], [-1, 0]);
+  const rowLabel = (text: string, y: number, color = s.look.ink) => label(text, 0, 0, color, 0.62).moveTo([ROW_LABEL_X, y], [-1, 0]);
   const parts: Mobject[] = [];
   for (const { query, start, land } of lifetimes) {
     const y = barY(query),
-      color = query === 'B' ? s.emphasis : s.soft,
+      color = query === 'B' ? s.look.emphasis : s.look.soft,
       a = tickX(start),
       b = land === null ? tickX(now) + RUNNING : tickX(land);
     parts.push(
@@ -66,8 +66,8 @@ export function timeline(s: Stage, lifetimes: readonly Life[], tracks: readonly 
   parts.push(
     keyed(
       new Group(
-        new Arrow([tickX(0), axisY], [RIGHT_EDGE, axisY], { stroke: s.soft, strokeWidth: 0.03, tipLength: 0.2, tipWidth: 0.16 }),
-        label('time', 0, 0, s.soft, 0.62).moveTo([RIGHT_EDGE, axisY - 0.4], [1, 0]),
+        new Arrow([tickX(0), axisY], [RIGHT_EDGE, axisY], { stroke: s.look.soft, strokeWidth: 0.03, tipLength: 0.2, tipWidth: 0.16 }),
+        label('time', 0, 0, s.look.soft, 0.62).moveTo([RIGHT_EDGE, axisY - 0.4], [1, 0]),
       ),
       'timeline-axis',
     ),
@@ -77,11 +77,11 @@ export function timeline(s: Stage, lifetimes: readonly Life[], tracks: readonly 
     for (const { query, land } of lifetimes) {
       if (land === null) continue;
       const x = tickX(land),
-        d = new Line([x, barY(query) - 0.2], [x, trackY(tracks.length - 1) - 0.55], { stroke: s.soft, strokeWidth: 0.025 });
+        d = new Line([x, barY(query) - 0.2], [x, trackY(tracks.length - 1) - 0.55], { stroke: s.look.soft, strokeWidth: 0.025 });
       d.style.dashArray = '0.12 0.1';
       parts.push(keyed(d, `timeline-drop:${query}`));
     }
-    parts.push(keyed(rowLabel('Page shows', TRACK_TOP, s.soft), 'timeline-page-label'));
+    parts.push(keyed(rowLabel('Page shows', TRACK_TOP, s.look.soft), 'timeline-page-label'));
   }
   tracks.forEach(({ name, page, key }, i) => {
     const y = trackY(i);
@@ -95,8 +95,8 @@ export function timeline(s: Stage, lifetimes: readonly Life[], tracks: readonly 
       parts.push(
         keyed(
           new Group(
-            new Rectangle({ width: b - a, height: 0.9, fill: s.palette.paper, stroke: stale ? s.bad : s.soft, strokeWidth: stale ? 0.055 : 0.025 }).moveTo([(a + b) / 2, y]),
-            label(shown ? q(shown) : 'nothing', (a + end) / 2, y, stale ? s.bad : shown ? s.palette.ink : s.soft, 0.62),
+            new Rectangle({ width: b - a, height: 0.9, fill: s.look.paper, stroke: stale ? s.look.bad : s.look.soft, strokeWidth: stale ? 0.055 : 0.025 }).moveTo([(a + b) / 2, y]),
+            label(shown ? q(shown) : 'nothing', (a + end) / 2, y, stale ? s.look.bad : shown ? s.look.ink : s.look.soft, 0.62),
           ),
           `${key}:span:${j}`,
         ),
@@ -184,11 +184,11 @@ export async function story(order: CompletionOrder, answer: string): Promise<{ r
         new Group(
           tile(`${q(st.query)}: ticket ${st.ticket}`, -4, 2, 5.4, 1.2, s),
           tile(`latest = ${st.latest}`, 4, 2, 5.4, 1.2, s),
-          label(st.accepted ? '=' : '≠', 0, 2, st.accepted ? s.good : s.bad, 1),
-          label(st.accepted ? `Publish ${q(st.query)}` : `Drop ${q(st.query)}`, 0, 0.5, st.accepted ? s.good : s.bad, 0.8),
-          new Code([CHECK], { fontSize: CODE_SIZE, color: s.palette.ink }).moveTo([0, -1.35]),
+          label(st.accepted ? '=' : '≠', 0, 2, st.accepted ? s.look.good : s.look.bad, 1),
+          label(st.accepted ? `Publish ${q(st.query)}` : `Drop ${q(st.query)}`, 0, 0.5, st.accepted ? s.look.good : s.look.bad, 0.8),
+          new Code([CHECK], { fontSize: CODE_SIZE, color: s.look.ink }).moveTo([0, -1.35]),
           // What each rule leaves on the page after this result, from the model's two runs.
-          label(`Page now: ${q(st.on.shown)} with the guard, ${q(st.off.shown)} without`, 0, -3.05, s.palette.ink, 0.62, 'page-now'),
+          label(`Page now: ${q(st.on.shown)} with the guard, ${q(st.off.shown)} without`, 0, -3.05, s.look.ink, 0.62, 'page-now'),
         ),
     };
   });
@@ -209,7 +209,7 @@ export async function story(order: CompletionOrder, answer: string): Promise<{ r
       draw: (st, s) =>
         new Group(
           ...timeline(s, st.lifetimes, [], 3).children,
-          label(`The user wants ${q('B')}`, 0, -2.0, s.emphasis, 0.75, 'timeline-wants'),
+          label(`The user wants ${q('B')}`, 0, -2.0, s.look.emphasis, 0.75, 'timeline-wants'),
         ),
     },
     overwrite: {
@@ -236,10 +236,10 @@ export async function story(order: CompletionOrder, answer: string): Promise<{ r
         new Group(
           tile(`${q('A')}: ticket ${st.tickets.A}`, -4, 2, 5.4, 1.2, s),
           tile(`${q('B')}: ticket ${st.tickets.B}`, 4, 2, 5.4, 1.2, s, { active: true }),
-          label(`latest = ${st.latest}`, 0, 0.5, s.emphasis, 0.8),
+          label(`latest = ${st.latest}`, 0, 0.5, s.look.emphasis, 0.8),
           new Code(['// when a search starts', 'const ticket = ++latest', '// when its result lands', CHECK], {
             fontSize: CODE_SIZE,
-            color: s.palette.ink,
+            color: s.look.ink,
           }).moveTo([0, -2.1]),
         ),
     },

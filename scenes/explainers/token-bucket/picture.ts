@@ -1,12 +1,12 @@
 import { Axes, Circle, Cross, Group, Rectangle, Text } from '../../../src/index.ts';
 import type { Mobject, Scene, Vec } from '../../../src/index.ts';
 import { Card } from '../../../explain/index.ts';
-import type { CodeBlock, Palette } from '../../../explain/index.ts';
+import type { CodeBlock, Palette, Look } from '../../../explain/index.ts';
 import { keyedParts } from '../../../explain/drawing.ts';
 import type { BucketCall as Call, BucketState } from './model.ts';
 
 /** The stage's colours the pictures are drawn in. */
-export type Ink = { ink: string; soft: string; muted: string; paper: string; accent: string; good: string; bad: string };
+export type Ink = Pick<Look, 'ink' | 'soft' | 'muted' | 'paper' | 'emphasis' | 'good' | 'bad'>;
 
 export const fmt = (n: number) => n.toFixed(1);
 export const name = (i: number) => 'R' + (i + 1);
@@ -80,13 +80,13 @@ export function drawArrivals(times: readonly number[], { soft }: Pick<Ink, 'soft
  * Each call's climb, its drop when it spent a token, its dot, and the tags on the calls the captions name,
  * on the chart's axes; `last` is the index of the schedule's last request, whose cap note the captions name.
  */
-export function drawChart(st: BucketState, axes: Axes, { rate, capacity, last }: { rate: number; capacity: number; last: number }, { accent, good, bad }: Ink): Group {
+export function drawChart(st: BucketState, axes: Axes, { rate, capacity, last }: { rate: number; capacity: number; last: number }, { emphasis, good, bad }: Ink): Group {
   const pic = keyedParts(), add = (m: Mobject | null, key: string) => { if (m) pic.add(m, key); };
   const notes: Mobject[] = [];
   st.calls.forEach((call, i) => {
     const prev = st.calls[i - 1] ?? startOf(capacity);
-    add(balanceLine(axes, climb(prev, call, rate, capacity), accent), `balance:refill:${name(i)}`);
-    add(call.ok ? balanceLine(axes, [[call.at, call.found], [call.at, call.after]], accent) : null, `balance:spend:${name(i)}`);
+    add(balanceLine(axes, climb(prev, call, rate, capacity), emphasis), `balance:refill:${name(i)}`);
+    add(call.ok ? balanceLine(axes, [[call.at, call.found], [call.at, call.after]], emphasis) : null, `balance:spend:${name(i)}`);
     const dot = axes.dot(call.at, call.found, { radius: 0.085, color: call.ok ? good : bad });
     add(dot, `balance:found:${name(i)}`);
     // Refused calls are named by their dot; R7, the predicted call, also shows what it found.
@@ -100,7 +100,7 @@ export function drawChart(st: BucketState, axes: Axes, { rate, capacity, last }:
     const full = cappedAt(prev, call, rate, capacity);
     if (full != null) {
       const [x, y] = axes.c2p((full + call.at) / 2, capacity);
-      const note = new Text('full: min(5, …)', { fontSize: 0.2, color: accent }).moveTo([x, y + 0.24]);
+      const note = new Text('full: min(5, …)', { fontSize: 0.2, color: emphasis }).moveTo([x, y + 0.24]);
       note.key = i === last ? 'balance:cap:note' : `balance:cap:note:${name(i)}`;
       notes.push(note);
     }
@@ -112,7 +112,7 @@ export function drawChart(st: BucketState, axes: Axes, { rate, capacity, last }:
  * The closing comparison: a row per refill rate, a circle for each 200 and a cross for each 429, request
  * numbers along the top, and this scenario's row outlined. Large, so a phone reader sees all three rates together.
  */
-export function drawComparison(rows: readonly (readonly [number, readonly number[]])[], chosen: number, count: number, { ink, accent, good, bad }: Ink): Group {
+export function drawComparison(rows: readonly (readonly [number, readonly number[]])[], chosen: number, count: number, { ink, emphasis, good, bad }: Ink): Group {
   const picture = new Group();
   const first = -3.7,
     pitch = 1.12;
@@ -127,7 +127,7 @@ export function drawComparison(rows: readonly (readonly [number, readonly number
           width: 14.4,
           height: 1.3,
           cornerRadius: 0.12,
-          stroke: accent,
+          stroke: emphasis,
           strokeWidth: 0.05,
         }).moveTo([0, y]),
       );
@@ -194,18 +194,18 @@ export function drawShell({ muted, paper }: Pick<Ink, 'muted' | 'paper'>) {
   return shell;
 }
 /** The bucket's level at `n` of `capacity` tokens; an empty bucket keeps a sliver 0.001 tall, so it can still be seen. */
-export function drawLevel(n: number, capacity: number, { accent }: Pick<Ink, 'accent'>) {
+export function drawLevel(n: number, capacity: number, { emphasis }: Pick<Ink, 'emphasis'>) {
   const level = new Rectangle({
     width: SHELL_W - 0.16,
     height: Math.max(0.001, ((Y5 - Y0) * n) / capacity),
     stroke: 'none',
-    fill: accent,
+    fill: emphasis,
   }).moveTo([SHELL_X, Y0], [0, -1]);
   level.key = 'bucket:level';
   return level;
 }
 /** The balance in the bucket. */
-export const drawGauge = (st: BucketState, capacity: number, colours: Pick<Ink, 'accent'>) => new Group(drawLevel(st.tokens, capacity, colours));
+export const drawGauge = (st: BucketState, capacity: number, colours: Pick<Ink, 'emphasis'>) => new Group(drawLevel(st.tokens, capacity, colours));
 /** The height of `n` tokens in the bucket. */
 export const levelY = (n: number, capacity: number) => Y0 + ((Y5 - Y0) * n) / capacity;
 /** The word under the bucket. */
@@ -273,7 +273,7 @@ export function barAt(code: CodeBlock, [a, b]: readonly [number, number]) {
 }
 
 /** The token a 200 takes out of the bucket. */
-export const coin = (at: Vec, { accent }: Pick<Ink, 'accent'>) => new Circle({ radius: 0.13, fill: accent, fillOpacity: 1, stroke: 'none' }).moveTo(at);
+export const coin = (at: Vec, { emphasis }: Pick<Ink, 'emphasis'>) => new Circle({ radius: 0.13, fill: emphasis, fillOpacity: 1, stroke: 'none' }).moveTo(at);
 /** The empty, dashed ring where a 429 looks for a token, over a balance of `found`. */
 export const missingRing = (opacity: number, found: number, capacity: number, { bad }: Pick<Ink, 'bad'>) =>
   new Circle({ radius: 0.13, fill: 'none', stroke: bad, strokeWidth: 0.035, dashArray: '0.06 0.05', opacity }).moveTo([SHELL_X, levelY(Math.max(found, 0), capacity) + 0.18]);

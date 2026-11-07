@@ -2,7 +2,7 @@ import { Group, Arrow, Circle, Text, SurroundingRectangle, Cross } from '../../.
 import type { Vec } from '../../../src/index.ts';
 import { keyedParts } from '../../../explain/drawing.ts';
 import { label, tile, emphasised } from '../../../explain/drawing.ts';
-import type { Stage, StagedStepsOptions } from '../../../explain/index.ts';
+import type { Stage, StagedStepsOptions, Look } from '../../../explain/index.ts';
 import type { RingState } from './model.ts';
 
 /**
@@ -38,7 +38,7 @@ export function frames(stage: Stage, opts?: StagedStepsOptions): Promise<void> {
         st.before.forEach((v, i) =>
           g.add(
             tile(v, x(i), TOP, W, H, s, { size: 0.7, key: `array:${i}`, bad: i === 0 }),
-            label(`slot ${i}`, x(i), TOP + 0.95, s.soft, 0.5),
+            label(`slot ${i}`, x(i), TOP + 0.95, s.look.soft, 0.5),
           ),
         );
         st.before.forEach((_, i) => {
@@ -49,14 +49,14 @@ export function frames(stage: Stage, opts?: StagedStepsOptions): Promise<void> {
         for (let i = 0; i < st.moved; i++)
           g.add(
             new Arrow([x(i + 1) - 0.35, TOP - H / 2 - 0.08], [x(i) + 0.35, BOTTOM + H / 2 + 0.08], {
-              stroke: s.emphasis,
+              stroke: s.look.emphasis,
               strokeWidth: 0.04,
               tipLength: 0.2,
               tipWidth: 0.17,
             }),
           );
         g.add(
-          label(`pop() returned ${st.popped} and moved ${st.moved} values`, 0, -2.75, s.bad, 0.58, 'shift-result'),
+          label(`pop() returned ${st.popped} and moved ${st.moved} values`, 0, -2.75, s.look.bad, 0.58, 'shift-result'),
         );
         return g;
       },
@@ -82,8 +82,8 @@ export const polar = (a: number, r: number): Vec => [C[0] + Math.cos(a) * r, C[1
 export const pushArg = (operation: unknown): number | null =>
   typeof operation === 'string' && operation.startsWith('push ') ? Number(operation.slice(5)) : null;
 
-/** The stage's colours the ring is drawn in: `head` is the head pointer's and a pop's colour, `bad` a refusal's. */
-export type Ink = { ink: string; soft: string; paper: string; head: string; bad: string };
+/** The stage's colours the ring is drawn in: `emphasis` is the head pointer's and a pop's colour, `bad` a refusal's. */
+export type Ink = Pick<Look, 'ink' | 'soft' | 'paper' | 'emphasis' | 'bad'>;
 
 // Native pieces of the ring, rebuilt from a model snapshot.
 const slotCircle = (k: Ink, filled: boolean, fresh = false) =>
@@ -120,7 +120,7 @@ const token = (k: Ink, v: number, refused: boolean) => {
 /** A pointer at any angle round the ring: its arrow toward the slot there, its word upright beside it. */
 export const pointerAt = (k: Ink, name: 'head' | 'tail', at: number) => {
   const a = at + (name === 'head' ? 0.22 : -0.22),
-    color = name === 'head' ? k.head : TAIL;
+    color = name === 'head' ? k.emphasis : TAIL;
   const start = polar(a, R + 1.12),
     slot = polar(at, R),
     dir = [start[0] - slot[0], start[1] - slot[1]],
@@ -159,7 +159,7 @@ export function drawRing(st: RingState, k: Ink): Group {
   st.data.forEach((v, i) => { if (v != null) add(stored(k, v, polar(angle(i), R)), `ring:value:${i}`); });
   add(pointer(k, 'head', st.head), 'ring:pointer:head');
   add(pointer(k, 'tail', st.tail), 'ring:pointer:tail');
-  const colour = { push: TAIL, pop: k.head, refused: k.bad } as const;
+  const colour = { push: TAIL, pop: k.emphasis, refused: k.bad } as const;
   for (const m of st.marks) add(emphasised(mark(k, m.slot, colour[m.kind]), `outlined: ${m.kind} at slot ${m.slot}`), `ring:mark:${m.slot}`);
   const v = pushArg(st.operation);
   // No argument (a pop): an unseen ring holds the place.

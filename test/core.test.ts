@@ -25,7 +25,7 @@ test('SVG output: a fixed 16 x 9 frame at 1000 units per scene unit, sized to th
 // the scene's colour for its role when it enters the scene (scene.colors, which a stage sets from
 // its palette), and a scene without a stage draws dark ink on white paper (docs/ENGINE-FUNDAMENTALS.md).
 test("a part built without a colour takes the scene's colour for its role when it enters; a colour given stays", () => {
-  const colors = { paper: '#202020', ink: '#eeeeee', soft: '#999999', accent: '#ffaa00', bad: '#ff3355' };
+  const colors = { paper: '#202020', ink: '#eeeeee', soft: '#999999', emphasis: '#ffaa00', bad: '#ff3355' };
   const scene = new Scene(new NullSink());
   assert.deepEqual(scene.colors, NEUTRAL_COLORS, 'a scene without a stage has the neutral colours');
   scene.colors = colors;
@@ -36,7 +36,7 @@ test("a part built without a colour takes the scene's colour for its role when i
   assert.ok(plain.children.every((g) => g.style.fill === colors.ink), 'text takes the ink');
   assert.ok(given.children.every((g) => g.style.fill === '#ff0000'), 'a colour given stays');
   assert.equal(box.style.stroke, colors.ink, "a shape's default stroke is the ink");
-  assert.equal(outline.style.stroke, colors.accent);
+  assert.equal(outline.style.stroke, colors.emphasis);
   assert.equal(cross.style.stroke, colors.bad);
   assert.equal(dot.style.fill, colors.ink);
   // Set after construction, before it enters: what was set stays.
@@ -59,7 +59,7 @@ test("a part built without a colour takes the scene's colour for its role when i
 });
 
 test("a play fixes both ends in the scene's colours before it begins", async () => {
-  const colors = { paper: '#202020', ink: '#eeeeee', soft: '#999999', accent: '#ffaa00', bad: '#ff3355' };
+  const colors = { paper: '#202020', ink: '#eeeeee', soft: '#999999', emphasis: '#ffaa00', bad: '#ff3355' };
   class S extends Scene {
     override async construct() {
       this.colors = colors;

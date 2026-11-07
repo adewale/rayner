@@ -1,18 +1,13 @@
 import type { Style } from '../../src/mobject.ts';
 import type { Scene } from '../../src/scene.ts';
 import { isHex } from '../../src/color.ts';
+import type { Palette } from '../../src/color.ts';
 
 export interface DiagramSpec {
   source: string;
   style?: string;
   /** Lay out labels using the scene's requested faces, without horizontal stretching. */
   lettering?: 'natural';
-}
-export interface Palette {
-  paper: string;
-  ink: string;
-  accent: string;
-  muted: string;
 }
 export interface SnapshotTextRun {
   text: string;

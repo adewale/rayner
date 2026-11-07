@@ -1,6 +1,7 @@
 import { Rectangle, Dot, Circle, Line, Text, Group, VMobject } from '../../../src/index.ts';
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
 import { keyed } from '../../../explain/drawing.ts';
+import type { Look } from '../../../explain/index.ts';
 
 // How the lantern explainer draws a state: the tiny scene redrawn from a recorded frame, two frames
 // side by side, the dot's place at every frame played and seeked, and a strip of cells per motion.
@@ -10,15 +11,15 @@ export type Motion = 'blend' | 'nudge';
 export const START: Vec = [-6, -3],
   END: Vec = [6, -3];
 /** The stage's colours a state is drawn in. */
-export type Ink = { ink: string; accent: string; soft: string };
+export type Ink = Pick<Look, 'ink' | 'emphasis' | 'soft'>;
 /** The stage's colours for a match and a miss. */
 export type Verdict = { good: string; bad: string };
 
 /** The tiny scene's frame as a step records it: the box's centre and size, and the dot's place on the track. */
 export interface TinyFrame { box: { center: Vec; width: number; height: number }; dot: number }
 /** The tiny scene's look, shared by its own run and by the thumbnails drawn from a recorded frame. */
-export const tiny = (ink: string, accent: string, soft: string) => {
-  const look = { stroke: ink, strokeWidth: 0.14, fill: accent, fillOpacity: 0.35 };
+export const tiny = (ink: string, emphasis: string, soft: string) => {
+  const look = { stroke: ink, strokeWidth: 0.14, fill: emphasis, fillOpacity: 0.35 };
   return {
     track: () =>
       new Group(
@@ -47,8 +48,8 @@ export interface CheckState { check: { frames: number; matched: Record<Motion, n
 export const THUMB_X = 3.7,
   THUMB_Y = -0.45;
 /** A thumbnail of a recorded frame, redrawn from it; `ghost` outlines where playback has the dot. */
-export function thumb({ ink, accent, soft }: Ink, shot: Still | null, cx: number, label: string, ghost?: number) {
-  const parts = tiny(ink, accent, soft);
+export function thumb({ ink, emphasis, soft }: Ink, shot: Still | null, cx: number, label: string, ghost?: number) {
+  const parts = tiny(ink, emphasis, soft);
   const w = 6.6,
     k = w / 16;
   const box = new Rectangle({ width: w, height: (w * 9) / 16, stroke: ink, strokeWidth: 0.02, cornerRadius: 0.04 });
@@ -61,7 +62,7 @@ export function thumb({ ink, accent, soft }: Ink, shot: Still | null, cx: number
     items.push(art);
     // Where playback has the dot, drawn as an outline over a still that has it elsewhere.
     if (ghost !== undefined)
-      items.push(new Circle({ radius: 0.55 * k + 0.04, stroke: accent, strokeWidth: 0.04, fill: 'none' }).moveTo([ghost * k, START[1] * k]));
+      items.push(new Circle({ radius: 0.55 * k + 0.04, stroke: emphasis, strokeWidth: 0.04, fill: 'none' }).moveTo([ghost * k, START[1] * k]));
   } else items.push(new Text('?', { fontSize: 0.9, color: soft, weight: 'bold' }));
   const g = new Group(...items).moveTo([cx, THUMB_Y]);
   const title = new Text(label, { fontSize: 0.3, color: ink }).moveTo([cx, THUMB_Y + (w * 9) / 32 + 0.4]);
@@ -75,7 +76,7 @@ const W = 5.0,
   H = 2.5,
   bottom = -2.0;
 /** One panel of the timeline: the dot's place against the frame, played (a line) and seeked (a dot per frame). */
-function panel(st: TimelineState, m: Motion, left: number, heading: string, { ink, accent, soft }: Ink) {
+function panel(st: TimelineState, m: Motion, left: number, heading: string, { ink, emphasis, soft }: Ink) {
   const { frames: count, moveStarts: starts } = st.timeline;
   const fx = (f: number) => left + (f / count) * W,
     py = (x: number) => bottom + ((x - START[0]) / (END[0] - START[0])) * H;
@@ -93,15 +94,15 @@ function panel(st: TimelineState, m: Motion, left: number, heading: string, { in
     words.add(new Text(String(f), { fontSize: 0.26, font: 'mono', color: soft }).moveTo([fx(f), bottom - 0.32]));
   }
   // The still the story followed.
-  const marker = new Line([fx(st.seek.frame), bottom], [fx(st.seek.frame), bottom + H], { stroke: accent, strokeWidth: 0.025 });
+  const marker = new Line([fx(st.seek.frame), bottom], [fx(st.seek.frame), bottom + H], { stroke: emphasis, strokeWidth: 0.025 });
   marker.style.dashArray = '0.12 0.1';
   const playedLine = new VMobject({ stroke: ink, strokeWidth: 0.045, fill: 'none' });
   st.timeline.played[m].forEach((x, i) => (i ? playedLine.addLineTo([fx(i + 1), py(x)]) : playedLine.startNewPath([fx(1), py(x)])));
-  const stills = new Group(...st.timeline.seeked[m].map((x, i) => new Dot({ radius: 0.065, color: accent }).moveTo([fx(i + 1), py(x)])));
+  const stills = new Group(...st.timeline.seeked[m].map((x, i) => new Dot({ radius: 0.065, color: emphasis }).moveTo([fx(i + 1), py(x)])));
   return { frame, words, marker, played: playedLine, seeked: stills, fx, py };
 }
 export function timelinePicture(st: TimelineState, c: Ink) {
-  const { ink, accent, soft } = c;
+  const { ink, emphasis, soft } = c;
   const blend = panel(st, 'blend', -6.4, 'Blending fixed endpoints', c),
     nudge = panel(st, 'nudge', 1.6, 'A nudge each frame', c);
   // On a phone the step opens on the nudge's panel, where the two runs part.
@@ -114,7 +115,7 @@ export function timelinePicture(st: TimelineState, c: Ink) {
       [x - 0.15, nudge.py(st.timeline.played.nudge[st.seek.frame - 1]!) + 0.25],
       [1, 0],
     ),
-    new Text(`seeked: ${st.nudges.seeked} nudge`, { fontSize: 0.26, color: accent, anchor: 'start' }).moveTo(
+    new Text(`seeked: ${st.nudges.seeked} nudge`, { fontSize: 0.26, color: emphasis, anchor: 'start' }).moveTo(
       [x + 0.15, nudge.py(st.timeline.seeked.nudge[st.seek.frame - 1]!) + 0.3],
       [-1, 0],
     ),
@@ -146,7 +147,7 @@ function strip(matches: readonly boolean[], y: number, label: string, { ink, goo
   return g;
 }
 export function checkPicture(st: CheckState, c: Ink & Verdict) {
-  const { accent, soft } = c;
+  const { emphasis, soft } = c;
   const axis = new Group();
   for (const f of [1, 15, st.seek.frame, st.check.frames]) {
     const x = x1 + cell * (f - 0.5);
@@ -155,8 +156,8 @@ export function checkPicture(st: CheckState, c: Ink & Verdict) {
   axis.add(new Text('frame', { fontSize: 0.26, color: soft, anchor: 'end' }).moveTo([x1 - 0.2, -2.05], [1, 0]));
   // The still the story followed, marked across both rows.
   const x = x1 + cell * (st.seek.frame - 0.5);
-  const marker = new Line([x, 1.7], [x, -1.75], { stroke: accent, strokeWidth: 0.03 });
-  const markerLabel = new Text(`the still at t = ${st.seek.t.toFixed(2)} s`, { fontSize: 0.26, color: accent }).moveTo([x, 1.95]);
+  const marker = new Line([x, 1.7], [x, -1.75], { stroke: emphasis, strokeWidth: 0.03 });
+  const markerLabel = new Text(`the still at t = ${st.seek.t.toFixed(2)} s`, { fontSize: 0.26, color: emphasis }).moveTo([x, 1.95]);
   const key = new Text('filled: seeked frame = played frame · hollow: different', { fontSize: 0.26, color: soft }).moveTo([0, -2.85]);
   return new Group(strip(st.matches.blend, 0.5, 'Blending fixed endpoints', c), strip(st.matches.nudge, -1.2, 'A nudge each frame', c), axis, marker, markerLabel, key);
 }
@@ -172,14 +173,14 @@ export const seekPicture = (st: { seek: { match: boolean }; at: Seek; stills: { 
   new Group(
     thumb(c, st.stills.played, -THUMB_X, playedLabel(st.at)),
     thumb(c, st.stills.seeked, THUMB_X, seekedLabel(st.at), st.seek.match ? undefined : st.stills.played.frame.dot),
-    new Text(st.seek.match ? '=' : '≠', { fontSize: 0.7, color: c.accent, weight: 'bold' }).moveTo([0, THUMB_Y]),
+    new Text(st.seek.match ? '=' : '≠', { fontSize: 0.7, color: c.emphasis, weight: 'bold' }).moveTo([0, THUMB_Y]),
   );
 
 /**
  * The frame ruler under the pipeline, its axis `top` − 0.4: the scene time of each frame, and when the browser
  * sink (one frame a pitch) and the trace sink (all at once) take it.
  */
-export function rulerPicture(times: readonly number[], top: number, { ink, accent, soft }: Ink) {
+export function rulerPicture(times: readonly number[], top: number, { ink, emphasis, soft }: Ink) {
   const x0 = -2.85,
     pitch = 1.25;
   const axisY = top - 0.4,
@@ -200,8 +201,8 @@ export function rulerPicture(times: readonly number[], top: number, { ink, accen
     g.add(
       new Line([x, axisY + 0.14], [x, axisY - 0.14], { stroke: ink, strokeWidth: 0.025 }),
       new Text(ms.toFixed(0), { fontSize: 0.26, font: 'mono', color: ink }).moveTo([x, timeY]),
-      new Dot({ radius: 0.11, color: accent }).moveTo([x, browserY]),
-      new Dot({ radius: 0.11, color: accent }).moveTo([x0 + n * 0.28, traceY]),
+      new Dot({ radius: 0.11, color: emphasis }).moveTo([x, browserY]),
+      new Dot({ radius: 0.11, color: emphasis }).moveTo([x0 + n * 0.28, traceY]),
     );
   });
   return keyed(g, 'lantern-ruler');

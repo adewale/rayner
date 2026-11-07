@@ -44,8 +44,7 @@ export const day = (t: string) => short(t).split(', ')[0]!.split(' ').slice(1).j
  */
 export const copiesPicture = (st: { copies: CopiesState }, s: Stage) => {
   const { change: edit, alice, bob } = st.copies;
-  const pal = s.palette,
-    TOP = 0.3,
+  const TOP = 0.3,
     WEEK = 0.33;
   const text = (t: string, size: number, color: string, at: [number, number], anchor?: 'start', weight?: 'bold') => {
     const m = new Text(t, { fontSize: size, color, ...(anchor ? { anchor } : {}), ...(weight ? { weight } : {}) });
@@ -59,7 +58,7 @@ export const copiesPicture = (st: { copies: CopiesState }, s: Stage) => {
   const column = (who: 'alice' | 'bob', x0: number) => {
     const cs = who === 'alice' ? alice.components : bob.components;
     const parts: (Text | Rectangle)[] = [
-      text(who === 'alice' ? 'Alice’s stored object' : 'Bob’s stored object', TOP, pal.ink, [x0, 2.85], 'start', 'bold'),
+      text(who === 'alice' ? 'Alice’s stored object' : 'Bob’s stored object', TOP, s.look.ink, [x0, 2.85], 'start', 'bold'),
       text(
         who === 'alice'
           ? edit === 'skip'
@@ -69,7 +68,7 @@ export const copiesPicture = (st: { copies: CopiesState }, s: Stage) => {
               : 'As saved after inviting Bob'
           : `iTIP sent to him: ${bob.sent.join(', then ')}`,
         0.3,
-        s.soft,
+        s.look.soft,
         [x0, 2.3],
         'start',
       ),
@@ -79,9 +78,9 @@ export const copiesPicture = (st: { copies: CopiesState }, s: Stage) => {
     rows.forEach(([kind, what, missing], i) => {
       const y = 1.6 - i * 0.66;
       parts.push(
-        box(7.2, 0.58, missing ? s.soft : pal.ink, 0.03, missing).moveTo([x0 + 3.6, y]),
-        text(kind, TOP, missing ? s.soft : pal.ink, [x0 + 0.15, y], 'start', 'bold'),
-        text(what, TOP, missing ? s.soft : pal.ink, [x0 + 1.5, y], 'start'),
+        box(7.2, 0.58, missing ? s.look.soft : s.look.ink, 0.03, missing).moveTo([x0 + 3.6, y]),
+        text(kind, TOP, missing ? s.look.soft : s.look.ink, [x0 + 0.15, y], 'start', 'bold'),
+        text(what, TOP, missing ? s.look.soft : s.look.ink, [x0 + 1.5, y], 'start'),
       );
     });
     const g = new Group(...parts);
@@ -89,16 +88,16 @@ export const copiesPicture = (st: { copies: CopiesState }, s: Stage) => {
     return g;
   };
   const STYLE: Record<Week, { stroke: string; width: number; dashed: boolean; label: boolean; word?: string; ink: string }> = {
-    meeting: { stroke: pal.ink, width: 0.03, dashed: false, label: true, ink: pal.ink },
-    moved: { stroke: s.emphasis, width: 0.05, dashed: false, label: true, word: 'moved', ink: s.emphasis },
-    cancelled: { stroke: s.bad, width: 0.06, dashed: false, label: true, word: 'cancelled', ink: s.bad },
-    excluded: { stroke: s.soft, width: 0.03, dashed: true, label: true, word: 'EXDATE', ink: s.soft },
-    absent: { stroke: s.soft, width: 0.03, dashed: true, label: false, ink: s.soft },
+    meeting: { stroke: s.look.ink, width: 0.03, dashed: false, label: true, ink: s.look.ink },
+    moved: { stroke: s.look.emphasis, width: 0.05, dashed: false, label: true, word: 'moved', ink: s.look.emphasis },
+    cancelled: { stroke: s.look.bad, width: 0.06, dashed: false, label: true, word: 'cancelled', ink: s.look.bad },
+    excluded: { stroke: s.look.soft, width: 0.03, dashed: true, label: true, word: 'EXDATE', ink: s.look.soft },
+    absent: { stroke: s.look.soft, width: 0.03, dashed: true, label: false, ink: s.look.soft },
   };
   const strip = (c: CopyState, name: string, top: number) => {
     const shown = expand(c.components);
     const n = c.weeks.filter((w) => w !== 'excluded' && w !== 'absent').length;
-    const parts: (Text | Rectangle)[] = [text(`${name}: ${counted(n, 'meeting', { words: true })}`, WEEK, pal.ink, [-3.6, top], 'start', 'bold')];
+    const parts: (Text | Rectangle)[] = [text(`${name}: ${counted(n, 'meeting', { words: true })}`, WEEK, s.look.ink, [-3.6, top], 'start', 'bold')];
     const cell = 1.14,
       gap = 0.06;
     c.weeks.forEach((w, i) => {

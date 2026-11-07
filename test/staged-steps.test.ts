@@ -11,7 +11,7 @@ import { stage } from '../explain/index.ts';
 import type { StagedStep, Stage } from '../explain/index.ts';
 import { FanSink, ViewSink } from '../tools/lib/explain-check.ts';
 
-const words = (s: Stage, n: number) => new Group(s.scene.text(`count ${n}`, { fontSize: 0.5, color: s.palette.ink }));
+const words = (s: Stage, n: number) => new Group(s.scene.text(`count ${n}`, { fontSize: 0.5, color: s.look.ink }));
 
 // Each test's steps have their own state type; `any` lets one runner take them all.
 async function run(steps: (bump: () => number) => StagedStep<any>[], kind: 'short' | 'main' = 'main') {
@@ -80,7 +80,7 @@ test('a lone step reading its state passes; one with an empty state is exempt; a
   assert.deepEqual({ checked: still.checked, problems: still.problems, ignoring: still.ignoring }, { checked: 1, problems: [], ignoring: [] });
   // A flag that only colours the picture moves no box, yet the picture depends on it.
   const lit = await run(() => [staged('lit', { lit: true },
-    (st, s) => new Group(s.scene.text('lamp', { fontSize: 0.5, color: st.lit ? s.emphasis : s.palette.ink })))]);
+    (st, s) => new Group(s.scene.text('lamp', { fontSize: 0.5, color: st.lit ? s.look.emphasis : s.look.ink })))]);
   assert.deepEqual(lit.problems, []);
   // A draw that cannot draw a different state has read it.
   const picky = await run(() => [staged('picky', { level: 'AA' },
@@ -103,7 +103,7 @@ test('stage.steps types each step by its own state, so one list holds steps whos
         { id: 'count', title: 'A count', line: 'A line.', caption: 'A caption long enough to read.', state: { n: 3 }, draw: (st, s) => words(s, st.n) },
         {
           id: 'name', title: 'A name', line: 'A line.', caption: 'A caption long enough to read.', state: { name: 'three' },
-          draw: (st, s) => new Group(s.scene.text(st.name, { fontSize: 0.5, color: s.palette.ink })),
+          draw: (st, s) => new Group(s.scene.text(st.name, { fontSize: 0.5, color: s.look.ink })),
           describe: (st) => `The word ${st.name}`,
         },
       ]);

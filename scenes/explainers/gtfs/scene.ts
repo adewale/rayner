@@ -194,12 +194,12 @@ export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
 
     /** The right column as a view of the step's state: check compares its words with the state at each step's end. */
     const column = async (rows: (st: GtfsState) => readonly (string | { head: string })[]) => {
-      await s.enter(view(this, (st) => drawColumn(rows(st), { ink: s.palette.ink, emphasis: s.emphasis }), { place: false }));
+      await s.enter(view(this, (st) => drawColumn(rows(st), s.look), { place: false }));
     };
 
     const drawEr = (d: Diagram) => (_st: GtfsState, sh: GtfsShown) => {
       const { marked, as } = having(sh, 'er').er;
-      return { marks: Object.fromEntries(marked.map((id) => [id, as ? { color: d.accent, as } : d.accent])) };
+      return { marks: Object.fromEntries(marked.map((id) => [id, as ? { color: d.emphasis, as } : d.emphasis])) };
     };
     const markEr = async (v: View, marks: ErMarks) => {
       this.shown.er = marks;

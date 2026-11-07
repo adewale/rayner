@@ -18,7 +18,7 @@ const fillOf = (name: string) => lerpColor(PAPER, OWNER[name]!, 0.36);
  */
 export function takenLabel(s: Stage, size: number, full: boolean, stored: readonly string[]): Group {
   const SIZE = 0.66;
-  const lead = new Text(stored.length ? 'Taken:' : 'Taken: cat, dog. Not yet in the filter', { fontSize: SIZE, color: s.palette.ink });
+  const lead = new Text(stored.length ? 'Taken:' : 'Taken: cat, dog. Not yet in the filter', { fontSize: SIZE, color: s.look.ink });
   const entry = (owner: string, label: string) => ({ label, fill: fillOf(owner), stroke: OWNER[owner]!, name: OWNER_NAME[owner]! });
   const items = !stored.length
     ? []
@@ -58,7 +58,7 @@ export function drawBits(
     positionGap = 0.4;
   const bitTile = (j: number, bit: number, x: number, y: number, setBy: readonly string[], { active = false, bad = false } = {}) => {
     const part = W / Math.max(1, setBy.length);
-    const color = bad ? s.bad : active ? s.emphasis : s.soft;
+    const color = bad ? s.look.bad : active ? s.look.emphasis : s.look.soft;
     const g = new Group(
       ...setBy.map((name, k) =>
         new Rectangle({ width: part, height: H, fill: fillOf(name), fillOpacity: 1, stroke: 'none' }).moveTo([
@@ -70,8 +70,8 @@ export function drawBits(
         x,
         y,
       ]),
-      label(String(j), x, y + H / 2 + positionGap, s.soft, 0.66),
-      label(String(bit), x, y, bad ? s.bad : s.palette.ink, size === 16 ? 0.9 : 0.74),
+      label(String(j), x, y + H / 2 + positionGap, s.look.soft, 0.66),
+      label(String(bit), x, y, bad ? s.look.bad : s.look.ink, size === 16 ? 0.9 : 0.74),
     );
     g.key = `bit-${j}`;
     return g;

@@ -108,8 +108,8 @@ export default class CacheMRExplainer extends Scene<CacheState, { flow?: FlowSta
     };
     this.shown.flow = { walked: [], notes: [], dim: null } satisfies FlowState;
     let flowView = s.diagramView(flow, drawFlow);
-    const colors = s.palette,
-      hot = s.emphasis;
+    const colors = s.look,
+      hot = s.look.emphasis;
     const before = new Code(BEFORE_CODE, { fontSize: FONT, color: colors.ink, spans: BEFORE_SPANS }),
       after = new Code(AFTER_CODE, { fontSize: FONT, color: colors.ink, spans: AFTER_SPANS });
     // The merged file's panel decides where the code sits, and the old file
@@ -249,7 +249,7 @@ export default class CacheMRExplainer extends Scene<CacheState, { flow?: FlowSta
     // Keep the comparison together. The preceding walk follows the captured
     // program path; its result now replaces the detailed diagram/code view.
     await s.clear();
-    const result = drawRequestPaths(which, { emphasis: s.emphasis, ink: s.palette.ink, soft: s.soft });
+    const result = drawRequestPaths(which, s.look);
     await s.enter(result, {
       describe: `Two request paths, ${which} highlighted: hit goes from KV to Reply with 0 D1 reads; miss goes from KV through D1 to Reply with 1 D1 read and caches the row for 300 seconds.`,
     });

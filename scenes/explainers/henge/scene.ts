@@ -127,7 +127,7 @@ export default class Henge extends Scene<HengeState, {}> {
     });
     await s.clear({ runTime: 0.18 });
     this.state = { ...eye(0) };
-    const street = view(this, (st) => look(having(st, 'pitch'), s.palette.paper, names), { place: false });
+    const street = view(this, (st) => look(having(st, 'pitch'), s.look.paper, names), { place: false });
     // The phone opens on the camera's window and its legend; the sky's lines run on past the window, under the paper.
     s.opening(...street.current.family().filter((part) => ['henge-look-window', 'henge-look-legend', 'henge-look-sides', 'henge-look-sun'].includes(part.key ?? '')));
     await s.enter(street, { runTime: 0.24, describe: () => lookWords(having(this.state, 'pitch'), names) });

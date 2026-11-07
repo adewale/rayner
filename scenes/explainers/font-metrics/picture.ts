@@ -35,7 +35,7 @@ export interface CutsState extends RulersState { advances: Record<string, number
 
 /** Two rows of the phrase in EB Garamond, each with a marker GAP past the width measured in one face. */
 export function drawLayout(st: LayoutState, { stage, text, phrase, color }: Pen): Group {
-  const emphasis = stage.emphasis;
+  const emphasis = stage.look.emphasis;
   const comparison = new Group();
   comparison.key = 'font-layout';
   const rows = [
@@ -55,7 +55,7 @@ export function drawLayout(st: LayoutState, { stage, text, phrase, color }: Pen)
 
 /** The phrase with a tick at each pen stop, a dashed cell around each space, and the ruler's total under it. */
 export function drawAdvance(st: AdvanceState, { stage, phrase }: Pen): Group {
-  const emphasis = stage.emphasis;
+  const emphasis = stage.look.emphasis;
   const ruled = phrase().moveTo([0, 1.0]);
   const [x0, y0, , y1] = ruled.box()!;
   const ticks = new Group();
@@ -76,7 +76,7 @@ export function drawAdvance(st: AdvanceState, { stage, phrase }: Pen): Group {
 
 /** The opening's upper row with both faces' rulers under it, matching pen stops joined, and both markers. */
 export function drawRulers(st: RulersState, { stage, text, phrase, color }: Pen): Group {
-  const { emphasis, soft } = stage;
+  const { emphasis, soft } = stage.look;
   const { drawn, measured, markers } = st.rulers;
   const upper = phrase().moveTo([START, TOP], [-1, 0]);
   const yDrawn = upper.box()![1] - 0.12,

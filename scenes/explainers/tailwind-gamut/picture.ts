@@ -43,7 +43,7 @@ export function frames(stage: Stage, shade: Shade, screen: Space, opts?: StagedS
         // As written: an empty, hatched swatch, since sRGB has no paint for it.
         const left = -3.7,
           right = 3.7;
-        const outline = new Rectangle({ width: w, height: h, fill: 'none', stroke: s.palette.ink, strokeWidth: 0.03 }).moveTo([left, y]);
+        const outline = new Rectangle({ width: w, height: h, fill: 'none', stroke: s.look.ink, strokeWidth: 0.03 }).moveTo([left, y]);
         outline.style.dashArray = '0.14 0.1';
         g.add(outline);
         for (let x = -w / 2 + 0.35; x < w / 2 + h; x += 0.42) {
@@ -53,21 +53,21 @@ export function frames(stage: Stage, shade: Shade, screen: Space, opts?: StagedS
           if (x1 - x0 < 0.05) continue;
           g.add(
             new Line([left + x0, y - h / 2 + (x0 - (x - h))], [left + x1, y - h / 2 + (x1 - (x - h))], {
-              stroke: s.soft,
+              stroke: s.look.soft,
               strokeWidth: 0.018,
               strokeOpacity: 0.6,
             }),
           );
         }
         g.add(
-          new Rectangle({ width: w, height: h, fill: st.preview, stroke: s.soft, strokeWidth: 0.03 }).moveTo([right, y]),
-          label('As written', left, y + h / 2 + 0.5, s.palette.ink, 0.66),
-          label('On an sRGB screen', right, y + h / 2 + 0.5, s.palette.ink, 0.66),
-          label(st.writtenAs.slice(0, split), left, y - h / 2 - 0.5, s.palette.ink, 0.66),
-          label(st.writtenAs.slice(split + 1), left, y - h / 2 - 1.3, s.palette.ink, 0.66),
-          label(st.preview, right, y - h / 2 - 0.5, s.palette.ink, 0.66),
-          label(`Chroma ${st.written.toFixed(3)}`, left, y - h / 2 - 2.35, s.emphasis, 0.66),
-          label(`Chroma ${st.shown.toFixed(3)}`, right, y - h / 2 - 2.35, s.emphasis, 0.66),
+          new Rectangle({ width: w, height: h, fill: st.preview, stroke: s.look.soft, strokeWidth: 0.03 }).moveTo([right, y]),
+          label('As written', left, y + h / 2 + 0.5, s.look.ink, 0.66),
+          label('On an sRGB screen', right, y + h / 2 + 0.5, s.look.ink, 0.66),
+          label(st.writtenAs.slice(0, split), left, y - h / 2 - 0.5, s.look.ink, 0.66),
+          label(st.writtenAs.slice(split + 1), left, y - h / 2 - 1.3, s.look.ink, 0.66),
+          label(st.preview, right, y - h / 2 - 0.5, s.look.ink, 0.66),
+          label(`Chroma ${st.written.toFixed(3)}`, left, y - h / 2 - 2.35, s.look.emphasis, 0.66),
+          label(`Chroma ${st.shown.toFixed(3)}`, right, y - h / 2 - 2.35, s.look.emphasis, 0.66),
         );
         return g;
       },

@@ -172,7 +172,7 @@ export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
     };
     /** Pie `name` marks these slices, in the pie's accent, and nothing else. */
     const markSlices = async (v: View, d: Diagram, name: PieName, ids: string[], as: string) => {
-      this.shown = { ...this.shown, [name]: Object.fromEntries(ids.map((id) => [id, { color: d.accent, as }])) };
+      this.shown = { ...this.shown, [name]: Object.fromEntries(ids.map((id) => [id, { color: d.emphasis, as }])) };
       await this.play(v.sync({ runTime: 0.45 }));
     };
     /** The disk's blocks, from what the opening records. */

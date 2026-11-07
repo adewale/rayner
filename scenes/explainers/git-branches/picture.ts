@@ -29,7 +29,7 @@ export function picture(s: Stage, frame: GitFrame, note: string) {
         new Arrow(
           [a[0] + ((b[0] - a[0]) * 0.6) / d, a[1] + ((b[1] - a[1]) * 0.6) / d],
           [b[0] - ((b[0] - a[0]) * 0.6) / d, b[1] - ((b[1] - a[1]) * 0.6) / d],
-          { stroke: s.soft, strokeWidth: 0.035, tipLength: 0.16, tipWidth: 0.16 },
+          { stroke: s.look.soft, strokeWidth: 0.035, tipLength: 0.16, tipWidth: 0.16 },
         ),
       );
     }
@@ -67,14 +67,14 @@ export function picture(s: Stage, frame: GitFrame, note: string) {
     );
   // HEAD points at the branch it names: beside that tag, toward the side with room.
   const named = tags.find((t) => t.name === frame.head)!.box,
-    word = new Text('HEAD', { fontSize: SIZE, color: s.palette.ink, weight: 'bold' }),
+    word = new Text('HEAD', { fontSize: SIZE, color: s.look.ink, weight: 'bold' }),
     cy = (named[1] + named[3]) / 2,
     right = named[2] + 0.75 + word.width() < 7.3,
     edge = right ? named[2] + 0.1 : named[0] - 0.1,
     tail = right ? edge + 0.6 : edge - 0.6;
   const head = new Group(
     word.moveTo([right ? tail + 0.1 : tail - 0.1, cy], [right ? -1 : 1, 0]),
-    new Arrow([tail, cy], [edge, cy], { stroke: s.palette.ink, strokeWidth: 0.035, tipLength: 0.16, tipWidth: 0.16 }),
+    new Arrow([tail, cy], [edge, cy], { stroke: s.look.ink, strokeWidth: 0.035, tipLength: 0.16, tipWidth: 0.16 }),
   );
   head.key = 'git-head';
   // Without M the history is short, so centre what is drawn rather than leave the stage's right side empty.
@@ -94,6 +94,6 @@ export function picture(s: Stage, frame: GitFrame, note: string) {
       s,
       { xs: [-3.3, 2.3], y: -1.55, gap: 0.75, key: 'git-files', size: SIZE },
     ),
-    label(note, 0, -3.95, s.soft, SIZE),
+    label(note, 0, -3.95, s.look.soft, SIZE),
   );
 }

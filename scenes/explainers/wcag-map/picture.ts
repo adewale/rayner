@@ -34,25 +34,25 @@ function lists(st: Lists, s: Stage) {
   const pitch = (x1 - x0 - GAP * (levels.length - 1)) / cols.length;
   const x = (i: number) => x0 + pitch * (i + 0.5) + GAP * levels.indexOf(cols[i]!.level);
   const rowY = (r: number) => 0.95 - r * 1.2;
-  const colour: Record<Version, string> = { '2.0': s.soft, '2.1': s.emphasis, '2.2': s.good };
+  const colour: Record<Version, string> = { '2.0': s.look.soft, '2.1': s.look.emphasis, '2.2': s.look.good };
   const g = new Group();
   for (const l of levels) {
     const at = cols.flatMap((c, i) => (c.level === l ? [i] : []));
     const a = x(at[0]!) - pitch / 2,
       b = x(at.at(-1)!) + pitch / 2;
-    g.add(new Line([a, 1.75], [b, 1.75], { stroke: s.palette.ink, strokeWidth: 0.03 }), label(l, (a + b) / 2, 2.25, s.palette.ink, 0.6));
+    g.add(new Line([a, 1.75], [b, 1.75], { stroke: s.look.ink, strokeWidth: 0.03 }), label(l, (a + b) / 2, 2.25, s.look.ink, 0.6));
   }
-  g.add(label('Criteria', 6.45, 2.25, s.palette.ink, 0.6));
+  g.add(label('Criteria', 6.45, 2.25, s.look.ink, 0.6));
   VERSIONS.forEach((v, r) => {
     const y = rowY(r);
-    g.add(label(v, -5.85, y, s.palette.ink, 0.62), label(st.totals[r]!, 6.45, y, s.palette.ink, 0.62));
+    g.add(label(v, -5.85, y, s.look.ink, 0.62), label(st.totals[r]!, 6.45, y, s.look.ink, 0.62));
     cols.forEach((c, i) => {
       if (st.rows[v]!.includes(c.num))
         g.add(
-          new Rectangle({ width: pitch * 0.78, height: 0.8, fill: c.removed ? s.bad : colour[c.added], stroke: 'none' }).moveTo([x(i), y]),
+          new Rectangle({ width: pitch * 0.78, height: 0.8, fill: c.removed ? s.look.bad : colour[c.added], stroke: 'none' }).moveTo([x(i), y]),
         );
       else if (c.removed && v === c.removed) {
-        const gap = new Rectangle({ width: pitch * 0.78, height: 0.8, fill: 'none', stroke: s.bad, strokeWidth: 0.03 }).moveTo([x(i), y]);
+        const gap = new Rectangle({ width: pitch * 0.78, height: 0.8, fill: 'none', stroke: s.look.bad, strokeWidth: 0.03 }).moveTo([x(i), y]);
         gap.style.dashArray = '0.08 0.06';
         g.add(gap);
       }
@@ -61,20 +61,20 @@ function lists(st: Lists, s: Stage) {
   const parsing = cols.findIndex((c) => c.removed);
   const below = rowY(VERSIONS.length - 1) - 0.4;
   g.add(
-    new Line([x(parsing), below - 0.05], [x(parsing), below - 0.55], { stroke: s.bad, strokeWidth: 0.03 }),
-    label('4.1.1 Parsing', x(parsing), below - 0.95, s.bad, 0.6),
+    new Line([x(parsing), below - 0.05], [x(parsing), below - 0.55], { stroke: s.look.bad, strokeWidth: 0.03 }),
+    label('4.1.1 Parsing', x(parsing), below - 0.95, s.look.bad, 0.6),
   );
   // The key: each cell's colour names the version that added its criterion, and the dashed outline the gap 2.2 left.
   // The strip carries its own key so the colours read with the caption hidden.
-  const lead = label('Added in', 0, 0, s.palette.ink, 0.6).moveTo([0, 0], [-1, 0]);
+  const lead = label('Added in', 0, 0, s.look.ink, 0.6).moveTo([0, 0], [-1, 0]);
   const swatches = legend(
     s,
     [
       { label: '2.0', fill: colour['2.0'] },
       { label: '2.1', fill: colour['2.1'] },
       { label: '2.2', fill: colour['2.2'] },
-      { label: 'Removed', fill: s.bad },
-      { label: 'Gap', fill: 'none', stroke: s.bad, dashed: true },
+      { label: 'Removed', fill: s.look.bad },
+      { label: 'Gap', fill: 'none', stroke: s.look.bad, dashed: true },
     ],
     { size: 0.6, direction: 'row', gap: 0.18, key: 'versions-legend' },
   );
@@ -114,11 +114,11 @@ export function frames(stage: Stage, level: Level, guideline: string, answer: st
       state: { level, focusRequired: focus, buttons, focused: 'Pay' },
       draw: (st, s) =>
         new Group(
-          label('No visible focus', 0, 2.5, s.soft, 0.7),
+          label('No visible focus', 0, 2.5, s.look.soft, 0.7),
           ...st.buttons.map((b) => tile(b, at(b, st.buttons), 1.3, 5, 1, s)),
-          label(`Visible focus on ${st.focused}`, 0, -0.2, s.palette.ink, 0.7),
+          label(`Visible focus on ${st.focused}`, 0, -0.2, s.look.ink, 0.7),
           ...st.buttons.map((b) => tile(b, at(b, st.buttons), -1.5, 5, 1, s)),
-          new Rectangle({ width: 5.45, height: 1.45, fill: 'none', stroke: s.emphasis, strokeWidth: 0.09 }).moveTo([
+          new Rectangle({ width: 5.45, height: 1.45, fill: 'none', stroke: s.look.emphasis, strokeWidth: 0.09 }).moveTo([
             at(st.focused, st.buttons), -1.5,
           ]),
         ),

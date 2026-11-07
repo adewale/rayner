@@ -78,7 +78,7 @@ test('s.focus moves the camera, not the diagram; a view’s notes, marks, dims a
       const v = s.diagramView(d, (_st, sh) =>
         sh.emphasis
           ? {
-              marks: { B: d.accent, ...d.trail(sh.walked as [string, string][]) },
+              marks: { B: d.emphasis, ...d.trail(sh.walked as [string, string][]) },
               dim: ['A', 'B'],
               notes: [{ id: 'B', text: 'here', side: 'above' }],
             }
@@ -91,7 +91,7 @@ test('s.focus moves the camera, not the diagram; a view’s notes, marks, dims a
       assert.deepEqual(pointsOf(parts), before);
       const drawn = (id: string) => v.current.family().find((m) => m.key === id)!;
       assert.ok(drawn('C').family()[1]!.style.opacity! < 1, 'C is dimmed');
-      assert.equal(drawn('edge:A->B#0').family()[1]!.style.stroke, d.accent, 'the walked link is marked travelled');
+      assert.equal(drawn('edge:A->B#0').family()[1]!.style.stroke, d.emphasis, 'the walked link is marked travelled');
       // A focus can frame the part's note with it.
       await s.focus([d.get('B'), this.find('note:B')!]);
       const tight = this.frame.box()!;

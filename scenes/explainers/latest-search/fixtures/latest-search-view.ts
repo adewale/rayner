@@ -93,7 +93,7 @@ export default class LatestSearchExplainer extends Scene<ChartState, { codeFocus
     });
     await s.clear();
     this.state = snapshot(0);
-    const colors = s.palette;
+    const colors = s.look;
     // The reference axes and key never rebuild during a state change. Only
     // the plotted result and its readout belong to the state-driven View.
     const axes = new Axes({
@@ -135,9 +135,9 @@ export default class LatestSearchExplainer extends Scene<ChartState, { codeFocus
         };
         if (state.compare) {
           const both = having(state, 'unguardedHistory', 'guardedHistory');
-          line(both.unguardedHistory, s.bad);
-          line(both.guardedHistory, s.good);
-        } else line(state.history, colors.accent);
+          line(both.unguardedHistory, s.look.bad);
+          line(both.guardedHistory, s.look.good);
+        } else line(state.history, colors.emphasis);
         const label = (text: string, x: number, y: number, size = 0.4) =>
           picture.add(new Text(text, { fontSize: size, color: colors.ink }).moveTo([x, y]));
         if (state.compare) {

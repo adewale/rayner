@@ -125,9 +125,8 @@ export default class ForkExplainer extends Scene<ForkState, ForkShown> {
   override async construct() {
     const answer = answerOf(this);
     const s = stage(this, { headingSize: 0.6, style: STYLE });
-    const ink = s.palette.ink;
     /** The colours the pictures are drawn in. */
-    const colours = { ink, soft: s.soft, good: s.good, bad: s.bad, emphasis: s.emphasis };
+    const colours = s.look;
     const runs = new Map([...RATES, UNBUILT].map((r) => [r, runAt(r)] as const));
     const r10 = (r: number) => runs.get(r)![TIMES.length - 1]!;
     // The second and third steps say R10 gets 200 at every offered rate and 429 at the unbuilt one.
@@ -229,14 +228,14 @@ export default class ForkExplainer extends Scene<ForkState, ForkShown> {
     // diagram is shown by a view that draws it.
     this.shown.lanternMarked = false;
     const lanternView = s.diagramView(lantern, (_st, sh) => ({
-      marks: Object.fromEntries(sh.lanternMarked ? [['Worker', { color: s.emphasis, as: 'renders on request' }]] : []),
+      marks: Object.fromEntries(sh.lanternMarked ? [['Worker', { color: s.look.emphasis, as: 'renders on request' }]] : []),
     }));
     this.shown.lanternMarked = true;
     await this.play(lanternView.sync({ runTime: 0.45 }));
     // What the Worker did, beside it: GET /frame.svg?scene=&step= or &t=, rendered when asked.
     const worker = lantern.get('Worker').box()!;
     await s.enter(
-      new Text('any step or time, on request', { fontSize: 0.24, color: s.emphasis, anchor: 'start' }).moveTo(
+      new Text('any step or time, on request', { fontSize: 0.24, color: s.look.emphasis, anchor: 'start' }).moveTo(
         [worker[2] + 0.25, (worker[1] + worker[3]) / 2],
         [-1, 0],
       ),
@@ -278,7 +277,7 @@ export default class ForkExplainer extends Scene<ForkState, ForkShown> {
     const drawFlow = (of: Diagram) => (_st: ForkState, sh: ForkShown) => {
       const f = having(sh, 'flow').flow;
       return {
-        marks: { ...of.trail(f.walked), ...Object.fromEntries(f.deleted.map((id) => [id, { color: s.bad, as: 'deleted' }])) },
+        marks: { ...of.trail(f.walked), ...Object.fromEntries(f.deleted.map((id) => [id, { color: s.look.bad, as: 'deleted' }])) },
         notes: f.notes,
         dim: f.dim,
       };
@@ -310,7 +309,7 @@ export default class ForkExplainer extends Scene<ForkState, ForkShown> {
       (st) =>
         flow.notePicture('Capture', `${having(st, 'families').families} diagram families, Chromium at build`, {
           side: 'below',
-          color: s.emphasis,
+          color: s.look.emphasis,
           key: 'fork-families-note',
         }),
       { place: false },

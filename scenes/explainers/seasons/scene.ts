@@ -73,9 +73,8 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
     const key = settingsOf(this).place!,
       place = PLACES[key]!,
       s = stage(this, { headingSize: 0.6, style: 'tokyo-night' });
-    const ink = s.palette.ink,
-      soft = s.soft;
-    const colours = { ink, soft, muted: s.palette.muted };
+    const soft = s.look.soft;
+    const colours = s.look;
 
     // ------------------------------------------------------------- nearest
     // The common guess, as a prediction: if nearness made summer, the north would be nearest in July.
@@ -502,7 +501,7 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
     });
     // The January values, said beside their dots on tags that read over the curves: a view of the
     // state's daylight and its mirror.
-    const tags = view(this, (st) => drawTags(st, axes, s.palette.paper), { place: false });
+    const tags = view(this, (st) => drawTags(st, axes, s.look.paper), { place: false });
     await s.enter(tags, {
       describe: () => {
         const st = now(),

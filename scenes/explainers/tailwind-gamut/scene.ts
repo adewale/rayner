@@ -79,7 +79,7 @@ export default class TailwindGamutExplainer extends Scene<GamutState, { dotNotes
     const all = rows(shade),
       sum = summarize(shade);
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
-    const ink = s.palette.ink;
+    const ink = s.look.ink;
     const n = sum.count,
       out = sum.outsideSrgb.length;
     const tw = `Tailwind ${shade}`;

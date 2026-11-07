@@ -174,7 +174,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       "const target = new Text('42');",
       'await s.enter(target);',
       'const circle = new Circumscribe(target,',
-      '  {keep: true, color: s.emphasis});',
+      '  {keep: true, color: s.look.emphasis});',
       's.keep(circle.outline,',
       "  {describe: 'Box round 42'});",
       'await this.play(circle);',
@@ -285,7 +285,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       '  new Text(v).moveTo([i * 1.5, 0]));',
       'await s.enter(...values);',
       'const mark = new Underline(values[1],',
-      '  {stroke: s.emphasis});',
+      '  {stroke: s.look.emphasis});',
       "await s.enter(mark, {describe: '42 underlined'});",
     ],
     recipe: 'Underline draws a stroke just under its target’s box, left to right. The other values are not touched.',
@@ -298,8 +298,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     code: [
       'const line = new NumberLine({range: [0, 10, 2],',
       '  length: 8, includeNumbers: true,',
-      '  stroke: s.soft, labelColor: s.palette.ink});',
-      'const at = new Dot({color: s.emphasis})',
+      '  stroke: s.look.soft, labelColor: s.look.ink});',
+      'const at = new Dot({color: s.look.emphasis})',
       '  .moveTo(line.n2p(7));',
       "await s.enter(line, at, {describe: '7 on 0 to 10'});",
     ],
@@ -342,8 +342,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     result: 'A token at the start, then at the end of its curved route',
     code: [
       'const route = new ArcBetweenPoints([-3, 0], [3, 0],',
-      '  {angle: Math.PI / 2, stroke: s.soft});',
-      'const token = new Dot({color: s.emphasis})',
+      '  {angle: Math.PI / 2, stroke: s.look.soft});',
+      'const token = new Dot({color: s.look.emphasis})',
       '  .moveTo([-3, 0]);',
       "await s.enter(route, token, {describe: 'A route'});",
       'await this.play(new MoveAlongPath(token, route));',
@@ -446,12 +446,12 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     code: [
       'const s = stage(this,',
       "  {palette: palette('nord')});",
-      "await s.card([['Paper', s.palette.paper],",
-      "  ['Ink', s.palette.ink],",
-      "  ['Emphasis', s.emphasis]]);",
+      "await s.card([['Paper', s.look.paper],",
+      "  ['Ink', s.look.ink],",
+      "  ['Emphasis', s.look.emphasis]]);",
     ],
-    recipe: 'palette(\'nord\') gives the stage a named palette of paper, ink and accent. The stage’s helpers colour from it, and s.palette, s.emphasis and s.soft hand the same colours to what you draw.',
-    caption: 'One option recoloured the paper, the heading and the card, and the card lists the colours s.palette gave it, so a drawing coloured from s.palette follows a change of palette and keeps its contrast. The panel on the left is a separate drawing in github-dark, this tour’s usual palette.',
+    recipe: 'palette(\'nord\') gives the stage a named palette of paper, ink and accent. The stage’s helpers colour from its look, and s.look hands the same colours to what you draw.',
+    caption: 'One option recoloured the paper, the heading and the card, and the card lists the colours s.look gave it, so a drawing coloured from s.look follows a change of palette and keeps its contrast. The panel on the left is a separate drawing in github-dark, this tour’s usual palette.',
     point: 'Paper, heading and card all took nord’s colours from one option.',
   },
   globe: {
@@ -642,9 +642,9 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
       numbered: false,
       ...(feature === 'direction' ? { direction: 'rtl' as const } : {}),
     });
-    const ink = s.palette.ink,
-      accent = s.emphasis,
-      soft = s.soft;
+    const ink = s.look.ink,
+      accent = s.look.emphasis,
+      soft = s.look.soft;
 
     // 1. The author's question, and the few lines that answer it.
     await this.step('recipe', {
@@ -1066,16 +1066,16 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
       );
       await s.card(
         [
-          ['Paper', s.palette.paper],
-          ['Ink', s.palette.ink],
-          ['Emphasis', s.emphasis],
+          ['Paper', s.look.paper],
+          ['Ink', s.look.ink],
+          ['Emphasis', s.look.emphasis],
         ],
         { at: AFTER, fontSize: 0.55, title: "palette('nord')" },
       );
     } else {
       // A globe: London and two great circles, seen from one viewpoint and turned to another by a view's tween.
       const model = {
-        body: { radius: 1, fill: s.palette.paper, stroke: soft, strokeWidth: 0.03 },
+        body: { radius: 1, fill: s.look.paper, stroke: soft, strokeWidth: 0.03 },
         parts: [
           { kind: 'path' as const, key: 'globe:equator', lines: [circleOn([0, 0, 1], 90)], closed: true, color: soft, width: 0.025 },
           { kind: 'path' as const, key: 'globe:meridian', lines: [circleOn(latLon(0, 90), 90)], closed: true, color: soft, width: 0.025 },

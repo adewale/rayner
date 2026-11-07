@@ -131,7 +131,7 @@ export default class Statecharts extends Scene<Model, Shown> {
               const leaving = was.filter((id) => !now.includes(id)), entering = now.filter((id) => !was.includes(id));
               // One token per state that handled the event, travelling its arrow.
               const walks = send(chart, before.config, event).sources.map((from, i) =>
-                c.travel(`walk:token:${i}`, new Dot({ radius: 0.11, color: s.emphasis }), c.from(arrowFor(chart, from, event)).children[0] as VMobject, { appear: 0.35, move: 0.8, leave: 0.25 }));
+                c.travel(`walk:token:${i}`, new Dot({ radius: 0.11, color: s.look.emphasis }), c.from(arrowFor(chart, from, event)).children[0] as VMobject, { appear: 0.35, move: 0.8, leave: 0.25 }));
               return new Succession([
                 new AnimationGroup([...leaving.map((id) => c.morph(`c:${id}`, { runTime: 0.35 })), ...walks.map((w) => w.appear)]),
                 new AnimationGroup(walks.map((w) => w.move)),

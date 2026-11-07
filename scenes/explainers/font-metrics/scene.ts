@@ -42,7 +42,7 @@ export default class FontMetrics extends Scene<FontState, {}> {
   override async construct() {
     const widths = settingsOf(this).widths as Widths;
     const s = stage(this, { headingSize: 0.6, style: 'pen-and-ink' });
-    const color = s.palette.ink;
+    const color = s.look.ink;
     /** The phrase in EB Garamond at the rows' size, drawn afresh for each picture. */
     const phrase = () => this.text(SAMPLE, { fontSize: 0.9, color });
     const run = phrase().shapeRun(SAMPLE, 0.9);
@@ -163,7 +163,7 @@ export default class FontMetrics extends Scene<FontState, {}> {
           id,
           text: `stretched ×${stretch[text]!.toFixed(3)}`,
           side: 'below' as const,
-          color: s.emphasis,
+          color: s.look.emphasis,
           size: 0.66,
         })),
       };

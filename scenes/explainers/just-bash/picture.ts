@@ -33,10 +33,10 @@ export function frames(s: Stage, answer: string, opts?: StagedStepsOptions): Pro
       draw: (st, s) =>
         new Group(
           flow(s, ['echo hello', `tr → ${st.file.trim()}`, 'shout.txt']),
-          label('hello', -2.55, 2.25, s.emphasis, 0.65),
-          label(st.file.trim(), 2.55, 2.25, s.emphasis, 0.65),
-          label('cat shout.txt on the starting shell:', 0, -1.15, s.palette.ink, 0.62),
-          label(prints(st.startingCat), 0, -2.05, s.bad, 0.7),
+          label('hello', -2.55, 2.25, s.look.emphasis, 0.65),
+          label(st.file.trim(), 2.55, 2.25, s.look.emphasis, 0.65),
+          label('cat shout.txt on the starting shell:', 0, -1.15, s.look.ink, 0.62),
+          label(prints(st.startingCat), 0, -2.05, s.look.bad, 0.7),
         ),
     },
     {
@@ -74,28 +74,28 @@ const SHELL_X = [-4.5, 3.1],
  * printed. Every part is keyed, so a command's transition can bring in exactly what it adds.
  */
 export function shellsPicture(st: ShellSession, s: Stage): Group {
-  const ink = s.palette.ink, newest = st.shells.length - 1, { add, group } = keyedParts();
+  const ink = s.look.ink, newest = st.shells.length - 1, { add, group } = keyedParts();
   st.shells.forEach((sh, i) => {
     const x = SHELL_X[i]!, kept = i === newest;
     // What the picture marks is emphasis the phone's close-ups visit first and review holds to the
     // caption: the shell the caller keeps, and (below) what each cat printed.
-    const box = new Rectangle({ width: BOX_W, height: BOX_H, cornerRadius: 0.12, fill: kept ? s.emphasis : ink, fillOpacity: kept ? 0.1 : 0.04, stroke: kept ? s.emphasis : s.soft, strokeWidth: kept ? 0.05 : 0.03 }).moveTo([x, SHELL_Y]);
+    const box = new Rectangle({ width: BOX_W, height: BOX_H, cornerRadius: 0.12, fill: kept ? s.look.emphasis : ink, fillOpacity: kept ? 0.1 : 0.04, stroke: kept ? s.look.emphasis : s.look.soft, strokeWidth: kept ? 0.05 : 0.03 }).moveTo([x, SHELL_Y]);
     add(emphasised(box, kept ? `kept: s${i}` : null), `shell:${i}:box`);
     add(new Text(`s${i}: ${i === 0 ? 'original' : 'returned'} shell`, { fontSize: 0.3, color: ink, weight: 'bold' }).moveTo([x, SHELL_Y + 0.2]), `shell:${i}:name`);
     add(new Text(`files: ${files(sh)}`, { fontSize: 0.28, font: 'mono', color: ink }).moveTo([x, SHELL_Y - 0.24]), `shell:${i}:files`);
     if (i > 0) {
-      const arrow = new Arrow([SHELL_X[i - 1]! + BOX_W / 2 + 0.1, SHELL_Y], [x - BOX_W / 2 - 0.1, SHELL_Y], { stroke: s.emphasis, strokeWidth: 0.04, tipLength: 0.22, tipWidth: 0.18 });
+      const arrow = new Arrow([SHELL_X[i - 1]! + BOX_W / 2 + 0.1, SHELL_Y], [x - BOX_W / 2 - 0.1, SHELL_Y], { stroke: s.look.emphasis, strokeWidth: 0.04, tipLength: 0.22, tipWidth: 0.18 });
       add(new Group(arrow, new Text('echo, tr, redirect', { fontSize: 0.26, color: ink }).moveTo([(SHELL_X[i - 1]! + x) / 2, SHELL_Y + 0.32])), `run:${i}`);
     }
   });
   st.cats.forEach((out, i) => {
     if (out === null) return;
-    const x = SHELL_X[i]!, color = i === newest ? s.emphasis : s.soft;
+    const x = SHELL_X[i]!, color = i === newest ? s.look.emphasis : s.look.soft;
     const arrow = new Arrow([x, SHELL_Y - BOX_H / 2 - 0.08], [x, OUT_Y + 0.3 + 0.08], { stroke: color, strokeWidth: 0.035, tipLength: 0.2, tipWidth: 0.16 });
     add(new Group(arrow, new Text(`cat ${FILE}`, { fontSize: 0.26, font: 'mono', color: ink, anchor: 'start' }).moveTo([x + 0.22, (SHELL_Y - BOX_H / 2 + OUT_Y + 0.3) / 2], [-1, 0])), `cat:${i}`);
     add(emphasised(new Group(
-      new Rectangle({ width: 3.0, height: 0.6, cornerRadius: 0.1, fill: s.palette.paper, stroke: color, strokeWidth: 0.03 }).moveTo([x, OUT_Y]),
-      new Text(prints(out), { fontSize: 0.3, color: out ? ink : s.bad }).moveTo([x, OUT_Y]),
+      new Rectangle({ width: 3.0, height: 0.6, cornerRadius: 0.1, fill: s.look.paper, stroke: color, strokeWidth: 0.03 }).moveTo([x, OUT_Y]),
+      new Text(prints(out), { fontSize: 0.3, color: out ? ink : s.look.bad }).moveTo([x, OUT_Y]),
     ), `cat on s${i}: ${prints(out)}`), `out:${i}`);
   });
   return group();

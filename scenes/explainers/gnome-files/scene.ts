@@ -99,8 +99,8 @@ export default class GnomeFilesExplainer extends Scene<FilesState, {}> {
     const answer = answerOf(this);
     const p = settingsOf(this).participant as Participant;
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
-    const ink = s.palette.ink,
-      colours = { ink, soft: s.soft, bad: s.bad, emphasis: s.emphasis };
+    const ink = s.look.ink,
+      colours = s.look;
 
     // ------------------------------------------------------------------ who was studied, and how it was scored
     await this.step('test', {
@@ -181,7 +181,7 @@ export default class GnomeFilesExplainer extends Scene<FilesState, {}> {
           {
             side: 'right',
             gap: 0.3,
-            color: q.includes(p) ? s.emphasis : s.soft,
+            color: q.includes(p) ? s.look.emphasis : s.look.soft,
             size: 0.28,
           },
         );
@@ -212,7 +212,7 @@ export default class GnomeFilesExplainer extends Scene<FilesState, {}> {
     const journeyView = s.diagramView(d, (st) => ({
       marks: Object.fromEntries(
         (st.journey ?? []).flatMap(([, score], i) =>
-          score === SCORE.black ? [[`task:task-${i}`, { color: s.bad, as: 'gave up' }]] : [],
+          score === SCORE.black ? [[`task:task-${i}`, { color: s.look.bad, as: 'gave up' }]] : [],
         ),
       ),
     }));

@@ -33,7 +33,7 @@ export default class References extends Scene {
       });
       await s.clear();
       if (detail) await s.enter(new Rectangle({ width: 4, height: 2, fill: '#ff0044', stroke: 'none' }));
-      await s.enter(new Text(id, { fontSize: 1, color: s.palette.ink }));
+      await s.enter(new Text(id, { fontSize: 1, color: s.look.ink }));
     }
   }
 }

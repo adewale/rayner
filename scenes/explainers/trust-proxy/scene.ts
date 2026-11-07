@@ -245,7 +245,7 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
       reading = readAddresses(got.socket, got.xff, trust),
       mine = answer(trustKey, reqKey);
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
-    const ink = s.palette.ink;
+    const ink = s.look.ink;
     /** A card drawn from the step's state: a view, so check compares it with the state at the end of every step. */
     const cardView = (rowsOf: (st: TrustState) => CardRow[], opts: CardOptions | ((st: TrustState) => CardOptions)) =>
       view(this, (st) => new Card(this, s.palette, rowsOf(st), typeof opts === 'function' ? opts(st) : opts), { place: false });
@@ -279,7 +279,7 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
       return {
         marks: {
           ...d.trail(n.walked),
-          ...Object.fromEntries(n.marked.flatMap((g) => g.ids.map((id) => [id, { color: g.tone === 'good' ? s.good : s.bad, as: g.as }]))),
+          ...Object.fromEntries(n.marked.flatMap((g) => g.ids.map((id) => [id, { color: g.tone === 'good' ? s.look.good : s.look.bad, as: g.as }]))),
         },
         dim: n.dim,
       };
@@ -437,7 +437,7 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
           },
         );
         const b = card.box()!;
-        return new Group(card, ...wrap(outcomeWords(outcome, sender.name), [b[0] + 0.1, b[1] - 0.2], b[2] - b[0] - 0.2, BIG, outcome === 'sender' ? s.good : s.bad));
+        return new Group(card, ...wrap(outcomeWords(outcome, sender.name), [b[0] + 0.1, b[1] - 0.2], b[2] - b[0] - 0.2, BIG, outcome === 'sender' ? s.look.good : s.look.bad));
       },
       { place: false },
     );
@@ -479,7 +479,7 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
     });
     await s.clearOverlays();
     /** The colours the routes panels and the table are drawn in. */
-    const colours = { ink, soft: s.soft, good: s.good, bad: s.bad, emphasis: s.emphasis };
+    const colours = s.look;
     this.state.routes = Object.fromEntries(
       [
         [counted, byCount],
@@ -511,10 +511,10 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
     // The key to the boxes, which the caption reads: trusted, req.ip, not read, and the band a count trusts.
     await s.legend(
       [
-        { label: 'trusted', fill: s.good },
-        { label: 'req.ip: thick outline', fill: 'none', stroke: s.palette.ink },
-        { label: 'not read', fill: 'none', stroke: s.soft, dashed: true },
-        { label: 'trusted by position', fill: 'none', stroke: s.emphasis, dashed: true },
+        { label: 'trusted', fill: s.look.good },
+        { label: 'req.ip: thick outline', fill: 'none', stroke: s.look.ink },
+        { label: 'not read', fill: 'none', stroke: s.look.soft, dashed: true },
+        { label: 'trusted by position', fill: 'none', stroke: s.look.emphasis, dashed: true },
       ],
       { at: [-7.4, -3.72], size: 0.26, direction: 'row', gap: 0.5, key: 'routes-legend' },
     );
@@ -655,7 +655,7 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
             }),
         );
         const verdicts = all.flatMap(({ q, outcome }, k) =>
-          wrap(outcomeWords(outcome, REQUESTS[q].sender.name), [-7.55 + k * third + 0.2, columns[k]!.box()![1] - 0.15], third - 0.5, BIG, outcome === 'sender' ? s.good : s.bad),
+          wrap(outcomeWords(outcome, REQUESTS[q].sender.name), [-7.55 + k * third + 0.2, columns[k]!.box()![1] - 0.15], third - 0.5, BIG, outcome === 'sender' ? s.look.good : s.look.bad),
         );
         return new Group(...columns, ...verdicts);
       },
@@ -722,7 +722,7 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
     const quote = wrap(QUOTE[trustKey], [BELOW[0] + 0.3, BELOW[3] - 0.1], BELOW[2] - BELOW[0] - 0.6, 0.28, ink);
     const cite = new Text(
       `Express guide, “Express behind proxies”, the ${trustKey === 'true' ? 'Boolean' : trustKey === 'list' ? 'IP addresses' : 'Number'} setting`,
-      { fontSize: 0.2, color: s.soft, anchor: 'start' },
+      { fontSize: 0.2, color: s.look.soft, anchor: 'start' },
     ).moveTo([BELOW[0] + 0.3, quote.at(-1)!.box()![1] - 0.3], [-1, 0]);
     await s.enter(...quote, cite);
     this.state.why = trustKey;

@@ -46,16 +46,16 @@ export function strip(s: Stage, cells: readonly Cell[], y: number, as: string, d
       car = c.shows === 'car',
       win = c.swap === 'win';
     x += w;
-    const color = off ? s.soft : car ? s.bad : win ? s.emphasis : s.palette.ink;
+    const color = off ? s.look.soft : car ? s.look.bad : win ? s.look.emphasis : s.look.ink;
     const [opens, shows, wins] = cellWords(c);
     return keyed(
       new Group(
         new Rectangle({
           width: w,
           height: H,
-          fill: off ? s.palette.paper : car ? s.bad : win ? s.emphasis : s.palette.paper,
+          fill: off ? s.look.paper : car ? s.look.bad : win ? s.look.emphasis : s.look.paper,
           fillOpacity: off ? 1 : car || win ? 0.14 : 1,
-          stroke: off ? s.soft : s.palette.ink,
+          stroke: off ? s.look.soft : s.look.ink,
           // Once some rounds are ruled out, the ones left are outlined heavier.
           strokeWidth: off ? 0.02 : dim ? 0.06 : 0.03,
         }).moveTo([cx, y]),
@@ -77,10 +77,10 @@ export const heads = (s: Stage, y: number) =>
           b = a + 2 * SIX - 0.24,
           r = y - 0.36;
         return [
-          label(`Car behind ${door(i)}`, (a + b) / 2, y, s.soft, F),
-          new Line([a, r], [b, r], { stroke: s.soft, strokeWidth: 0.025 }),
-          new Line([a, r], [a, r + 0.14], { stroke: s.soft, strokeWidth: 0.025 }),
-          new Line([b, r], [b, r + 0.14], { stroke: s.soft, strokeWidth: 0.025 }),
+          label(`Car behind ${door(i)}`, (a + b) / 2, y, s.look.soft, F),
+          new Line([a, r], [b, r], { stroke: s.look.soft, strokeWidth: 0.025 }),
+          new Line([a, r], [a, r + 0.14], { stroke: s.look.soft, strokeWidth: 0.025 }),
+          new Line([b, r], [b, r + 0.14], { stroke: s.look.soft, strokeWidth: 0.025 }),
         ];
       }),
     ),

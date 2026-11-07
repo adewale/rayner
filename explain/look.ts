@@ -2,7 +2,7 @@ import { contrastRatio, lerpColor, parseColor } from '../src/color.ts';
 import { Text } from '../src/index.ts';
 import type { Box, Mobject, Scene } from '../src/index.ts';
 import { center } from '../src/box.ts';
-import type { Palette } from '../integrations/agentic-mermaid/snapshot.ts';
+import type { Palette } from '../src/color.ts';
 import type { Seen } from './trace.ts';
 
 /**
@@ -154,6 +154,38 @@ export function dimOpacity(p: Palette): number {
 export const raised = (p: Palette) => lerpColor(p.paper, p.ink, 0.07);
 /** A hairline that separates without shouting. */
 export const rule = (p: Palette) => lerpColor(p.paper, p.ink, 0.28);
+
+export type { Palette } from '../src/color.ts';
+/**
+ * The colours a scene draws with on a stage (`s.look`), derived from its palette so each reads on
+ * its paper. A palette is the input (a named style); the look is what drawing code reads.
+ */
+export interface Look {
+  /** The paper the stage is drawn on. */
+  readonly paper: string;
+  /** Text and lines. */
+  readonly ink: string;
+  /** Secondary text that still reads on the paper: at least 4.5:1 against it. */
+  readonly soft: string;
+  /** Emphasis: trails, marks, lit rows and lines, plotted data. The style's accent when it has a hue, else a warm orange. */
+  readonly emphasis: string;
+  /** An outcome that passed or was accepted. */
+  readonly good: string;
+  /** An outcome that failed or was rejected. */
+  readonly bad: string;
+  /** A panel surface one shade off the paper. */
+  readonly raised: string;
+  /** A hairline that separates without shouting. */
+  readonly rule: string;
+  /** The style's faint colour, for guides, axes and tracks that are not read as text. */
+  readonly muted: string;
+}
+/** The look of a palette: the colours drawn on its paper. */
+export function lookOf(p: Palette): Look {
+  return Object.freeze({
+    paper: p.paper, ink: p.ink, soft: soft(p), emphasis: emphasis(p), good: good(p), bad: bad(p), raised: raised(p), rule: rule(p), muted: p.muted,
+  });
+}
 
 /**
  * Stage regions below the heading, in scene units (16 × 9, y up). Lay native

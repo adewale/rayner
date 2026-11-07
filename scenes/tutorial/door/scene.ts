@@ -10,7 +10,7 @@ export default class DoorMachine extends Scene<DoorState, {}> {
 
   override async construct() {
     const s = stage(this);
-    const door = view(this, (st) => drawDoor(st, { ...s.palette, soft: s.soft, emphasis: s.emphasis }));
+    const door = view(this, (st) => drawDoor(st, s.look));
     // The model, its events and the picture of its state. `next` returns refuse(reason) where the
     // door refuses an event, and the player says that reason on the event's button.
     const machine = new Machine<DoorState, DoorEvent>(this, { start: doorStart(), events: DOOR_EVENTS, next: doorNext, views: [door] });

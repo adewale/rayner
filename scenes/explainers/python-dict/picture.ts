@@ -82,7 +82,7 @@ function hops(s: Stage, path: DictLookup) {
         chord = Math.abs(to[0] - from[0]),
         sag = Math.min(0.8, 0.25 + 0.06 * chord);
       // A positive angle bulges to the right of the direction of travel: below the row when the hop goes right.
-      return new CurvedArrow(from, to, { angle: dir * 4 * Math.atan((2 * sag) / chord), stroke: s.emphasis, strokeWidth: 0.045, tipLength: 0.22, tipWidth: 0.2 });
+      return new CurvedArrow(from, to, { angle: dir * 4 * Math.atan((2 * sag) / chord), stroke: s.look.emphasis, strokeWidth: 0.045, tipLength: 0.22, tipWidth: 0.2 });
     }),
   );
   g.key = 'dict-route';
@@ -108,11 +108,11 @@ export function picture(s: Stage, v: View) {
         size: 0.66,
       });
       keyed(slot.children[1]!, `slot-${i}:entry`);
-      return [label(i, x, SLOT_Y + 0.72, s.soft, 0.66), slot];
+      return [label(i, x, SLOT_Y + 0.72, s.look.soft, 0.66), slot];
     }),
   );
   slots.key = 'dict-index';
-  const note = label(v.note, 0, -3.8, s.palette.ink, 0.62);
+  const note = label(v.note, 0, -3.8, s.look.ink, 0.62);
   if (v.hashes) {
     const heads = ['Key', 'Hash', 'In binary', 'Start slot'],
       rows = v.hashes.map((h) => ({ key: `k${h.key}`, cells: [h.key, h.hash, h.hash.toString(2).padStart(5, '0'), h.slot] }));
@@ -136,18 +136,18 @@ export function picture(s: Stage, v: View) {
     size: 0.66,
   });
   const panelX = (slotX(4) - HALF + RIGHT) / 2,
-    outcome = v.found === null ? s.palette.ink : v.found ? s.good : s.bad;
+    outcome = v.found === null ? s.look.ink : v.found ? s.look.good : s.look.bad;
   const result = new Group(
     new Rectangle({
       width: RIGHT - (slotX(4) - HALF),
       height: 3.44,
-      fill: v.found === null ? s.palette.paper : outcome,
+      fill: v.found === null ? s.look.paper : outcome,
       fillOpacity: v.found === null ? 1 : 0.07,
-      stroke: v.found === null ? s.soft : outcome,
+      stroke: v.found === null ? s.look.soft : outcome,
       strokeWidth: 0.03,
     }).moveTo([panelX, TOP - 1.15]),
-    label(v.ask, panelX, TOP - 0.03, s.palette.ink, 0.8, 'dict-result:ask'),
-    label(v.middle, panelX, TOP - 1.15, s.soft, 0.66, 'dict-result:middle'),
+    label(v.ask, panelX, TOP - 0.03, s.look.ink, 0.8, 'dict-result:ask'),
+    label(v.middle, panelX, TOP - 1.15, s.look.soft, 0.66, 'dict-result:middle'),
     label(v.outcome, panelX, TOP - 2.27, outcome, 0.8, 'dict-result:outcome'),
   );
   result.key = 'dict-result';

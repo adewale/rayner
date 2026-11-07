@@ -18,7 +18,7 @@ export function frames(stage: Stage, which: 'hit' | 'miss', answer: string, opts
       draw: (st, s) =>
         new Group(
           flow(s, ['Request', 'Database', 'Response']),
-          label(`Before: ${counted(st.beforeReads, 'database read', { words: true })}`, 0, -1.4, s.palette.ink, 0.8),
+          label(`Before: ${counted(st.beforeReads, 'database read', { words: true })}`, 0, -1.4, s.look.ink, 0.8),
         ),
     },
     {
@@ -36,8 +36,8 @@ export function frames(stage: Stage, which: 'hit' | 'miss', answer: string, opts
             s,
             st.request === 'hit' ? ['Request', 'KV hit', 'Response'] : ['KV miss', 'Database', 'KV write', 'Response'],
           ),
-          label(`Database reads: ${st.reads}`, 0, -1.4, s.palette.ink, 0.85),
-          label(st.request === 'hit' ? 'Saved value returned' : 'Fetched value saved and returned', 0, -3, s.soft, 0.7),
+          label(`Database reads: ${st.reads}`, 0, -1.4, s.look.ink, 0.85),
+          label(st.request === 'hit' ? 'Saved value returned' : 'Fetched value saved and returned', 0, -3, s.look.soft, 0.7),
         ),
     },
   ], opts);
@@ -59,12 +59,12 @@ export function panel(s: Stage, code: Code, box: Box, title: string, pin?: reado
     width,
     height,
     cornerRadius: 0.1,
-    fill: s.raised,
-    stroke: s.rule,
+    fill: s.look.raised,
+    stroke: s.look.rule,
     strokeWidth: 0.016,
   }).moveTo([cx, cy]);
   code.moveTo([cx, cy - 0.21]);
-  const label = new Text(title, { fontSize: 0.2, color: s.soft, anchor: 'start' }).moveTo(
+  const label = new Text(title, { fontSize: 0.2, color: s.look.soft, anchor: 'start' }).moveTo(
     [cx - width / 2 + pad, cy + height / 2 - 0.3],
     [-1, 0],
   );

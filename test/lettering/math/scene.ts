@@ -5,19 +5,19 @@ export default class Example extends Scene {
   override async construct() {
     const s = stage(this, {heading: false});
     await this.step('example', {title: "Math", caption: "Math"});
-    const half = new MathTex("\\frac{1}{2}+x^2", {color: s.palette.ink});
+    const half = new MathTex("\\frac{1}{2}+x^2", {color: s.look.ink});
     await s.enter(half);
     await this.step('morph', {title: "A morph", caption: "The same glyphs, paired by shape, move to their new places."});
-    const more = new MathTex("x^2+\\frac{1}{2}", {color: s.palette.ink});
+    const more = new MathTex("x^2+\\frac{1}{2}", {color: s.look.ink});
     await this.play(new TransformMatchingShapes(half, more));
     s.keep(more, {describe: 'x squared plus one half.'});
     await this.step('grow', {title: "A new term", caption: "Each glyph keeps its place, and plus y squared grows in at the end."});
-    const grown = new MathTex("x^2+\\frac{1}{2}+y^2", {color: s.palette.ink});
+    const grown = new MathTex("x^2+\\frac{1}{2}+y^2", {color: s.look.ink});
     await this.play(new TransformMatchingText(more, grown));
     s.keep(grown, {describe: 'x squared plus one half plus y squared.'});
     await this.step('forms', {title: "Display maths", caption: "Radicals, large operators with limits, an integral and a matrix."});
     await s.clear();
-    const ink = {color: s.palette.ink, display: true, fontSize: 0.5};
+    const ink = {color: s.look.ink, display: true, fontSize: 0.5};
     const forms = new Group(
       new MathTex("x=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}", ink),
       new MathTex("\\sum_{i=1}^{n} i=\\frac{n(n+1)}{2}", ink),

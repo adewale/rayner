@@ -630,12 +630,12 @@ export class Circumscribe extends Animation {
   baseOpacity!: number;
 
   constructor(target: Mobject | Box, { color, shape = 'rect', buff = 0.15, strokeWidth = 0.04, cornerRadius = 0, keep = false, fadeOut = true, ...opts }: CircumscribeOpts = {}) {
-    const stroke = color ?? NEUTRAL_COLORS.accent;
+    const stroke = color ?? NEUTRAL_COLORS.emphasis;
     const fit = (): VMobject => shape === 'circle'
       ? circleAround(target, buff, { stroke, strokeWidth })
       : new SurroundingRectangle(target, { buff, cornerRadius, stroke, strokeWidth });
     const outline = fit();
-    if (color === undefined) followScene(outline, { stroke: 'accent' });
+    if (color === undefined) followScene(outline, { stroke: 'emphasis' });
     super(outline, { rateFunc: linear, ...opts, remover: !keep });
     this.target = target; this.shape = shape; this.buff = buff; this.cornerRadius = cornerRadius;
     this.keep = keep; this.fadeOut = fadeOut;

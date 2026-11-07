@@ -144,7 +144,7 @@ export default class MontyHall extends Scene<MontyState, { phase?: Phase }> {
       words = [roundWords(r)];
       return new Group(
         ...[0, 1, 2].flatMap((i) => [
-          label(door(i), DOOR_X(i), 2.7, s.soft, 0.64, `monty-letter-${i}`),
+          label(door(i), DOOR_X(i), 2.7, s.look.soft, 0.64, `monty-letter-${i}`),
           tile(i === r.opened ? r.shows! : revealed ? (i === r.car ? 'car' : 'goat') : '?', DOOR_X(i), DOOR_Y, 3.5, 2.5, s, {
             active: i === yours,
             bad: i === r.opened && r.shows === 'car',
@@ -152,20 +152,20 @@ export default class MontyHall extends Scene<MontyState, { phase?: Phase }> {
             key: `door-${i}`,
           }),
         ]),
-        label(said, 0, -1.25, s.palette.ink, 0.62, 'monty-said'),
+        label(said, 0, -1.25, s.look.ink, 0.62, 'monty-said'),
         // The size of the lines around it: a phone's close-up is set by the line that changes, the result.
-        label(rule, 0, -2.45, s.soft, 0.62, 'monty-rule'),
-        label(outcome, 0, -3.65, s.palette.ink, 0.62, 'monty-result'),
+        label(rule, 0, -2.45, s.look.soft, 0.62, 'monty-rule'),
+        label(outcome, 0, -3.65, s.look.ink, 0.62, 'monty-result'),
       );
     };
     /** Switching's chance for a host, right of his name: over every round, or (as) over the rounds left after the seen goat. */
     const readout = (y: number, chance: number, key: string) =>
-      keyed(new Text(`switch wins ${percent(chance)}`, { fontSize: F, color: s.palette.ink }).moveTo([X1, y], [1, 0]), key);
-    const titleOf = (h: Host, y: number) => left(HOST[h], X0, y, h === host ? s.emphasis : s.palette.ink, F, `monty-name-${h}`);
+      keyed(new Text(`switch wins ${percent(chance)}`, { fontSize: F, color: s.look.ink }).moveTo([X1, y], [1, 0]), key);
+    const titleOf = (h: Host, y: number) => left(HOST[h], X0, y, h === host ? s.look.emphasis : s.look.ink, F, `monty-name-${h}`);
     const describeStrip = (h: Host, list: readonly Cell[], dim: (c: Cell) => boolean = () => false) =>
       `${HOST[h]}: ` +
       list.map((c) => `car behind ${c.prize}, he opens ${c.opened}: ${c.shows}, ${c.stay === 'ends' ? 'game over' : c.stay === 'win' ? 'staying wins' : 'switching wins'}, ${c.sixths} sixth${c.sixths > 1 ? 's' : ''}${dim(c) ? ' (greyed)' : ''}`).join('; ');
-    const cellKey = (y: number) => label(KEY, 0, y, s.soft, F, 'monty-key');
+    const cellKey = (y: number) => label(KEY, 0, y, s.look.soft, F, 'monty-key');
 
     /**
      * The picture for a phase: the round (the model) while the doors show, else a function of what is

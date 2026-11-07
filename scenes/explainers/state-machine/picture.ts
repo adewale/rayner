@@ -23,9 +23,9 @@ export function frames(stage: Stage, which: string, answer: string, opts?: Stage
       draw: (st, s) =>
         new Group(
           flow(s, ['idle', 'connecting', st.next]),
-          label('CONNECT', -2.55, 2.25, s.emphasis, 0.65),
-          label(st.event, 2.55, 2.25, s.emphasis, 0.65),
-          label('Current state + event → next state', 0, -1.8, s.palette.ink, 0.7),
+          label('CONNECT', -2.55, 2.25, s.look.emphasis, 0.65),
+          label(st.event, 2.55, 2.25, s.look.emphasis, 0.65),
+          label('Current state + event → next state', 0, -1.8, s.look.ink, 0.7),
         ),
     },
     {
@@ -37,14 +37,14 @@ export function frames(stage: Stage, which: string, answer: string, opts?: Stage
       state: { state: closed, event: 'OPENED', result: rejected, via: which === 'success' ? 'CLOSE' : event },
       draw: (st, s) =>
         new Group(
-          label(`${st.via} → ${st.state}`, 0, 2.65, s.palette.ink, 0.7),
+          label(`${st.via} → ${st.state}`, 0, 2.65, s.look.ink, 0.7),
           tile(st.state, -4.7, 1, 3.8, 1.3, s, { active: true }),
           tile(st.event, 0, 1, 3.8, 1.3, s),
           // The rejected event leaves the state where it was.
           tile(st.result.state ?? st.state, 4.7, 1, 3.8, 1.3, s, { active: true }),
-          label('×', 2.35, 1, s.bad, 1),
-          label(st.result.error!, 0, -1.4, s.bad, 0.8, 'rejection'),
-          label(`State stays ${st.state}`, 0, -2.8, s.palette.ink, 0.7),
+          label('×', 2.35, 1, s.look.bad, 1),
+          label(st.result.error!, 0, -1.4, s.look.bad, 0.8, 'rejection'),
+          label(`State stays ${st.state}`, 0, -2.8, s.look.ink, 0.7),
         ),
     },
   ], opts);
@@ -111,4 +111,4 @@ export const drawReading = (st: SessionState, spans: ReturnType<typeof reducerSp
   return new Group(...parts);
 };
 /** The token that walks a link. */
-export const walkToken = (d: Diagram) => new Dot({ radius: 0.08, color: d.accent });
+export const walkToken = (d: Diagram) => new Dot({ radius: 0.08, color: d.emphasis });

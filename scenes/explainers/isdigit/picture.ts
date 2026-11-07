@@ -51,7 +51,7 @@ export interface LineupState {
  * under the runs int() parses and rejects, this scenario's character circled, and ² said underneath.
  */
 export function drawLineup(st: LineupState, s: Stage): Group {
-  const ink = s.palette.ink,
+  const ink = s.look.ink,
     sup = CHARS.super.char;
   const slot = (i: number) => -6.3 + i * 1.8,
     ROW = -0.8;
@@ -70,17 +70,17 @@ export function drawLineup(st: LineupState, s: Stage): Group {
   };
   const marks: Mobject[] = [];
   PREDICATES.forEach((k, level) => {
-    marks.push(...bracket(0, st.accepted[k] - 1, 0.32 + level * 0.95, true, `${k}() → True`, k === st.guard ? s.emphasis : ink, k === st.guard));
+    marks.push(...bracket(0, st.accepted[k] - 1, 0.32 + level * 0.95, true, `${k}() → True`, k === st.guard ? s.look.emphasis : ink, k === st.guard));
   });
   // The run from the left that int() parses, and the values it returns.
   const parses = st.lineup.filter((x) => 'value' in x.int).length,
     returned = [...new Set(st.lineup.slice(0, parses).map((x) => (x.int as { value: number }).value))];
   marks.push(
-    ...bracket(0, parses - 1, -1.75, false, `int() → ${returned.join(' or ')}`, s.good),
-    ...bracket(parses, st.lineup.length - 1, -1.75, false, 'int() → ValueError', s.bad),
+    ...bracket(0, parses - 1, -1.75, false, `int() → ${returned.join(' or ')}`, s.look.good),
+    ...bracket(parses, st.lineup.length - 1, -1.75, false, 'int() → ValueError', s.look.bad),
   );
   const glyphs = st.lineup.map((x, i) => new Text(x.char, { fontSize: 1.15, color: ink }).moveTo([slot(i), ROW]));
-  const ring = new Rectangle({ width: 1.5, height: 1.5, cornerRadius: 0.15, stroke: s.emphasis, strokeWidth: 0.05, fill: 'none' }).moveTo([
+  const ring = new Rectangle({ width: 1.5, height: 1.5, cornerRadius: 0.15, stroke: s.look.emphasis, strokeWidth: 0.05, fill: 'none' }).moveTo([
     slot(st.lineup.findIndex((x) => x.char === st.char)),
     ROW,
   ]);
@@ -88,7 +88,7 @@ export function drawLineup(st: LineupState, s: Stage): Group {
     ...glyphs,
     ring,
     ...marks,
-    new Text(`${sup}: isdigit() → True, int('${sup}') → ValueError`, { fontSize: SIZE * 1.1, font: 'mono', color: s.bad }).moveTo([0, -3.3]),
+    new Text(`${sup}: isdigit() → True, int('${sup}') → ValueError`, { fontSize: SIZE * 1.1, font: 'mono', color: s.look.bad }).moveTo([0, -3.3]),
   );
 }
 
@@ -106,8 +106,8 @@ export interface SetsState {
  * character circled in the colour of what happened to it.
  */
 export function drawSets(st: SetsState, s: Stage): Group {
-  const ink = s.palette.ink;
-  const mark = st.outcome === 'raised' ? s.bad : s.good;
+  const ink = s.look.ink;
+  const mark = st.outcome === 'raised' ? s.look.bad : s.look.good;
   const mobs: Mobject[] = [];
   for (const set of SETS) {
     const [x0, y0, x1, y1] = set.box;

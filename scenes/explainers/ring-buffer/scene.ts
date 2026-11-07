@@ -67,11 +67,9 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
   override async construct() {
     const which = settingsOf(this).operations!,
       s = stage(this, { headingSize: 0.6, style: 'dusk' }),
-      ink = s.palette.ink,
-      soft = s.soft,
-      head = s.emphasis;
+      ink = s.look.ink;
 
-    const look: Ink = { ink, soft, paper: s.palette.paper, head, bad: s.bad };
+    const look: Ink = s.look;
     const ringPicture = (st: RingState) => drawRing(st, look);
     // What the ring shows, in words.
     const ringWords = () => sayRing(this.state);

@@ -117,9 +117,9 @@ export function frames(stage: Stage, seed: number, opts?: StagedStepsOptions): P
         new Group(
           ...laid.map((b) => path([...boxPolygon(b), boxPolygon(b)[0]!], DASHED, 0.03, 0.8, '0.12 0.1')),
           ...freeInk(st.seeds.first).map((l) => path(l, GREY, 0.045, 0.9)),
-          ...freeInk(st.seeds.second).map((l) => path(l, s.palette.ink, 0.045)),
-          ...NAMES.map((n, i) => label(n, (laid[i]![0] + laid[i]![2]) / 2, (laid[i]![1] + laid[i]![3]) / 2, s.palette.ink, 0.42)),
-          label(`Up to ${Math.max(...st.apart).toFixed(2)} units apart: the boxes moved`, 0, -2.3, s.palette.ink, 0.56),
+          ...freeInk(st.seeds.second).map((l) => path(l, s.look.ink, 0.045)),
+          ...NAMES.map((n, i) => label(n, (laid[i]![0] + laid[i]![2]) / 2, (laid[i]![1] + laid[i]![3]) / 2, s.look.ink, 0.42)),
+          label(`Up to ${Math.max(...st.apart).toFixed(2)} units apart: the boxes moved`, 0, -2.3, s.look.ink, 0.56),
         ),
     },
     {
@@ -130,23 +130,23 @@ export function frames(stage: Stage, seed: number, opts?: StagedStepsOptions): P
       state: { seed, seeds: { first: SEEDS.first, second: SEEDS.second }, stray, between, target, ink: seed === SEEDS.first ? ink.first : ink.second },
       draw: (st, s) => {
         const { ink, far, lensed } = traced(st.target, st.seeds);
-        const lens = new Circle({ radius: LENS * ZOOM, stroke: s.soft, strokeWidth: 0.025, fill: s.palette.paper, fillOpacity: 1 }).moveTo(INSET as Vec);
-        const spot = new Circle({ radius: 0.09, stroke: s.soft, strokeWidth: 0.025 }).moveTo(far.p as Vec);
-        const lead = new Line(far.p as Vec, [INSET[0], INSET[1] - LENS * ZOOM] as Vec, { stroke: s.soft, strokeWidth: 0.02 });
+        const lens = new Circle({ radius: LENS * ZOOM, stroke: s.look.soft, strokeWidth: 0.025, fill: s.look.paper, fillOpacity: 1 }).moveTo(INSET as Vec);
+        const spot = new Circle({ radius: 0.09, stroke: s.look.soft, strokeWidth: 0.025 }).moveTo(far.p as Vec);
+        const lead = new Line(far.p as Vec, [INSET[0], INSET[1] - LENS * ZOOM] as Vec, { stroke: s.look.soft, strokeWidth: 0.02 });
         lead.style.dashArray = '0.06 0.05';
         return new Group(
           path(st.target, BAND, 0.32, 0.45),
           path(ink.first, GREY, 0.12, 0.55),
-          path(ink.second, s.palette.ink, 0.035),
+          path(ink.second, s.look.ink, 0.035),
           spot,
           lead,
           lens,
           ...lensed(ink.first).map((r) => path(r, GREY, 0.07, 0.8)),
-          ...lensed(ink.second).map((r) => path(r, s.palette.ink, 0.035)),
-          label('Blue: the route the layout fixed', 0, 2.55, s.palette.ink, 0.62),
+          ...lensed(ink.second).map((r) => path(r, s.look.ink, 0.035)),
+          label('Blue: the route the layout fixed', 0, 2.55, s.look.ink, 0.62),
           // Above the gap between the route's two upper corners, clear of the band.
-          label(`×${ZOOM}: ${far.d.toFixed(3)} apart`, INSET[0], 1.72, s.palette.ink, 0.62),
-          label(`Two drawings, within ${st.stray.toFixed(3)} units of it`, 0, -2.9, s.palette.ink, 0.62),
+          label(`×${ZOOM}: ${far.d.toFixed(3)} apart`, INSET[0], 1.72, s.look.ink, 0.62),
+          label(`Two drawings, within ${st.stray.toFixed(3)} units of it`, 0, -2.9, s.look.ink, 0.62),
         );
       },
     },

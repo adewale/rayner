@@ -79,8 +79,8 @@ export function frames(p: Participant): [StagedStep<TaskFrame>, StagedStep<Sampl
       draw: (st, s) =>
         new Group(
           flow(s, st.location),
-          label('Task: ' + (st.task === 1 ? 'Change icon size' : task(st.task).name), 0, -1.5, s.palette.ink, 0.75),
-          label(`${st.participant} could not complete it`, 0, -3, s.bad, 0.7),
+          label('Task: ' + (st.task === 1 ? 'Change icon size' : task(st.task).name), 0, -1.5, s.look.ink, 0.75),
+          label(`${st.participant} could not complete it`, 0, -3, s.look.bad, 0.7),
         ),
     },
     {
@@ -105,11 +105,11 @@ export function frames(p: Participant): [StagedStep<TaskFrame>, StagedStep<Sampl
                 width: 4.1,
                 height: 1.2,
                 fill: RGB[color],
-                stroke: s.palette.ink,
+                stroke: s.look.ink,
                 strokeWidth: 0.03,
               }).moveTo([x, y]),
               label(q, x, y, color === 'black' ? '#ffffff' : '#151515', 0.8),
-              ...outcomeLines[color].map((line, row) => label(line, x, y - 1 - row * 0.72, s.palette.ink, 0.65)),
+              ...outcomeLines[color].map((line, row) => label(line, x, y - 1 - row * 0.72, s.look.ink, 0.65)),
             );
             outcome.key = `outcome:${q}`;
             return outcome;

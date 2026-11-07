@@ -22,7 +22,7 @@ export function room(s: Stage, days: readonly number[], dates: readonly string[]
     ),
   );
   cards.key = 'birthday-people';
-  return new Group(cards, label(footer, 0, big ? -3.85 : -3.6, s.palette.ink, 0.62, 'birthday-footer'));
+  return new Group(cards, label(footer, 0, big ? -3.85 : -3.6, s.look.ink, 0.62, 'birthday-footer'));
 }
 
 /**
@@ -43,23 +43,23 @@ export function pairGrid(
   const square = (row: number, col: number, fill: string, opacity: number, size = 0.82) =>
     new Rectangle({ width: cell * size, height: cell * size, fill, fillOpacity: opacity, stroke: 'none' }).moveTo(at(row, col));
   const squares = new Group();
-  for (let row = 1; row < n; row++) for (let col = 0; col < (you ? 1 : row); col++) squares.add(square(row, col, s.emphasis, 0.55));
+  for (let row = 1; row < n; row++) for (let col = 0; col < (you ? 1 : row); col++) squares.add(square(row, col, s.look.emphasis, 0.55));
   squares.key = you ? 'birthday-you-lines' : 'birthday-pair-lines';
   // With `you`, the rest of the room's pairs, faint: the column is one part of the triangle the next step fills.
   const rest = new Group();
-  if (you) for (let row = 2; row < n; row++) for (let col = 1; col < row; col++) rest.add(square(row, col, s.soft, 0.18));
+  if (you) for (let row = 2; row < n; row++) for (let col = 1; col < row; col++) rest.add(square(row, col, s.look.soft, 0.18));
   rest.key = 'birthday-other-pairs';
   // The pairs whose sampled birthdays are the same date, in red.
-  const matched = new Group(...matchedPairs.map(([i, j]) => square(j!, i!, s.bad, 1, 1.3)));
+  const matched = new Group(...matchedPairs.map(([i, j]) => square(j!, i!, s.look.bad, 1, 1.3)));
   matched.key = 'birthday-matched-pairs';
   const g = new Group(rest, squares, matched);
   g.add(
-    label(you ? 'You: card 1' : 'card 1', x0, y0 + 0.28, you ? s.bad : s.soft, 0.42, 'birthday-you').moveTo([x0, y0 + 0.28], [-1, 0]),
-    label('card 2', x0 - 0.15, at(1, 0)[1], s.soft, 0.42).moveTo([x0 - 0.15, at(1, 0)[1]], [1, 0]),
-    label(`card ${n}`, x0 - 0.15, at(n - 1, 0)[1], s.soft, 0.42).moveTo([x0 - 0.15, at(n - 1, 0)[1]], [1, 0]),
+    label(you ? 'You: card 1' : 'card 1', x0, y0 + 0.28, you ? s.look.bad : s.look.soft, 0.42, 'birthday-you').moveTo([x0, y0 + 0.28], [-1, 0]),
+    label('card 2', x0 - 0.15, at(1, 0)[1], s.look.soft, 0.42).moveTo([x0 - 0.15, at(1, 0)[1]], [1, 0]),
+    label(`card ${n}`, x0 - 0.15, at(n - 1, 0)[1], s.look.soft, 0.42).moveTo([x0 - 0.15, at(n - 1, 0)[1]], [1, 0]),
     you ? stat(s, 'Comparisons', count, -4.9, 0.2, 'birthday-comparisons') : stat(s, 'Pairs', count, -4.9, 0.2, 'birthday-pairs'),
     stat(s, 'Chance', percent(chance), 4.9, 0.2, 'birthday-chance'),
-    label(footer, 0, -3.75, s.palette.ink, 0.58, 'birthday-footer'),
+    label(footer, 0, -3.75, s.look.ink, 0.58, 'birthday-footer'),
   );
   return g;
 }
@@ -71,12 +71,12 @@ export function drawDays(s: Stage, people: number, occupied: number, allowed: nu
       new Rectangle({
         width: 0.55,
         height: 0.16,
-        fill: i < occupied ? s.bad : s.emphasis,
+        fill: i < occupied ? s.look.bad : s.look.emphasis,
         fillOpacity: i < occupied ? 1 : 0.35,
         stroke: 'none',
       }).moveTo([((i % 20) - 9.5) * 0.68, 2.6 - Math.floor(i / 20) * 0.31]),
     ),
-    label(`Person ${people}: ${occupied} dates taken, ${allowed} free`, 0, -3.75, s.palette.ink, 0.66),
+    label(`Person ${people}: ${occupied} dates taken, ${allowed} free`, 0, -3.75, s.look.ink, 0.66),
   );
   grid.key = 'birthday-days';
   return grid;
@@ -85,11 +85,11 @@ export function drawDays(s: Stage, people: number, occupied: number, allowed: nu
 /** The pair shortcut's arithmetic, with the shortcut and the exact chance side by side. */
 export function drawEstimate(s: Stage, pairs: number, shortcut: number, chance: number): Group {
   return new Group(
-    label('One pair shares a birthday: 1 in 365', 0, 2.2, s.palette.ink, 0.66),
-    label(`All ${pairs} pairs miss: 364/365, ${pairs} times over`, 0, 1.2, s.palette.ink, 0.66),
-    label(`= ${pct2(1 - shortcut)} chance of no match`, 0, 0.35, s.palette.ink, 0.66),
+    label('One pair shares a birthday: 1 in 365', 0, 2.2, s.look.ink, 0.66),
+    label(`All ${pairs} pairs miss: 364/365, ${pairs} times over`, 0, 1.2, s.look.ink, 0.66),
+    label(`= ${pct2(1 - shortcut)} chance of no match`, 0, 0.35, s.look.ink, 0.66),
     stat(s, 'Pair shortcut', pct2(shortcut), -3.6, -1.7, 'birthday-shortcut'),
     stat(s, 'Exact', pct2(chance), 3.6, -1.7, 'birthday-exact'),
-    label('The gap: pairs that share a person', 0, -3.6, s.soft, 0.62, 'birthday-footer'),
+    label('The gap: pairs that share a person', 0, -3.6, s.look.soft, 0.62, 'birthday-footer'),
   );
 }

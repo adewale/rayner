@@ -26,7 +26,7 @@ const failure = (run: () => unknown) => {
 test('external source and compiled ESM scenes share the CLI engine; source hashes ignore checkout paths', async () => {
   const folder = await mkdtemp(join(tmpdir(), 'rayner-cli-'));
   try {
-    const source = `import{Scene,Text,FadeIn}from'rayner';import{stage}from'rayner/explain';export default class Author extends Scene{static meta={id:'author',title:'External author'};async construct(){const s=stage(this);await this.step('one',{caption:'A real native scene.'});await this.play(new FadeIn(new Text('hello',{color:s.palette.ink})));this.state.answer=42;}}`;
+    const source = `import{Scene,Text,FadeIn}from'rayner';import{stage}from'rayner/explain';export default class Author extends Scene{static meta={id:'author',title:'External author'};async construct(){const s=stage(this);await this.step('one',{caption:'A real native scene.'});await this.play(new FadeIn(new Text('hello',{color:s.look.ink})));this.state.answer=42;}}`;
     const a = join(folder, 'a', 'scene.ts'),
       b = join(folder, 'b', 'scene.ts');
     await mkdir(join(folder, 'a'));

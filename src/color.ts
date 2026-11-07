@@ -58,7 +58,7 @@ export function lerpColor(a: string, b: string, t: number): string {
  * The colours a scene's engine defaults take. A part built without a colour (a `Text` with no
  * `color`, an `Axes` with no `stroke`, a `SurroundingRectangle`, a `Circumscribe`) takes one of
  * these by role when it first enters the scene: `ink` for text and lines, `soft` for guides and
- * secondary labels, `accent` for emphasis and plotted data, `bad` for a `Cross`, and `paper` for the
+ * secondary labels, `emphasis` for emphasis and plotted data, `bad` for a `Cross`, and `paper` for the
  * background an SVG sink draws. A stage sets them from its palette; a scene without one keeps
  * `NEUTRAL_COLORS`, dark ink on white paper.
  */
@@ -66,7 +66,7 @@ export interface SceneColors {
   paper: string;
   ink: string;
   soft: string;
-  accent: string;
+  emphasis: string;
   bad: string;
 }
 /** A role an engine default takes from the scene's colours. */
@@ -79,6 +79,19 @@ export const NEUTRAL_COLORS: Readonly<SceneColors> = Object.freeze({
   paper: '#ffffff',
   ink: '#1f2328',
   soft: '#59636e',
-  accent: '#0969da',
+  emphasis: '#0969da',
   bad: '#cf222e',
 });
+
+/**
+ * A named style's colours, as Agentic Mermaid styles name them: the input a stage or a diagram is
+ * styled from (`palette(name)`, a stage's `palette` option, a diagram snapshot's palette). `accent`
+ * is the style's own accent and `muted` its faint colour; what a scene draws with is the stage's
+ * look (`s.look`), which derives from these the colours that read on the paper.
+ */
+export interface Palette {
+  paper: string;
+  ink: string;
+  accent: string;
+  muted: string;
+}

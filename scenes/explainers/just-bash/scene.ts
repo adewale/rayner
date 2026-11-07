@@ -57,8 +57,8 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
   };
   override async construct() {
     const s = stage(this, { headingSize: 0.6, style: STYLE }),
-      ink = s.palette.ink,
-      accent = s.emphasis;
+      ink = s.look.ink,
+      accent = s.look.emphasis;
     const old: Shell = { fs: {}, steps: 0 };
     // How each picture is shown, apart from the model: a code panel's focus, a diagram's marks and
     // notes, a card's lit row. That is `shown`, under each picture's name; views draw it.
@@ -111,7 +111,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
       ['>', 'redirect'],
       [FILE, 'file'],
     ];
-    const { line, roles } = commandLine(parts, ink, accent, s.soft);
+    const { line, roles } = commandLine(parts, ink, accent, s.look.soft);
     await s.enter(line, { runTime: 0.5 });
     await s.enter(roles, { runTime: 0.5 });
     const api = await codePanel(
@@ -149,7 +149,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
       },
       'call',
     );
-    await showDiagram(astView, 'ast', () => ({ marks: { Echo: { color: ast.accent, as: MARKED }, Tr: { color: ast.accent, as: MARKED } } }));
+    await showDiagram(astView, 'ast', () => ({ marks: { Echo: { color: ast.emphasis, as: MARKED }, Tr: { color: ast.emphasis, as: MARKED } } }));
     await focus(call, 'call', [1, 2]);
     await noted(astView, 'ast', { id: 'Redirect', text: 'not a command', side: 'below' });
     // ── reduce: stdout threads through the builtins ─────────────────────
@@ -279,7 +279,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
         .join(' · '),
       side: 'above',
     });
-    await walked(policy, policyView, 'policy', [['Builtin', 'Error']], s.bad);
+    await walked(policy, policyView, 'policy', [['Builtin', 'Error']], s.look.bad);
     await noted(policyView, 'policy', {
       id: 'Error',
       text: found

@@ -1,6 +1,6 @@
 import { Group, Rectangle, Text, Code } from '../src/index.ts';
 import type { Scene, Vec, Box, Mobject } from '../src/index.ts';
-import type { Palette } from '../integrations/agentic-mermaid/snapshot.ts';
+import type { Palette } from '../src/color.ts';
 import { soft, raised, rule, boxCenter, emphasis, good, bad, regionBox, emphasisSource, seenSource } from './look.ts';
 import type { Region, Emphasis } from './look.ts';
 import type { Seen } from './trace.ts';

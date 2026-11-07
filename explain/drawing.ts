@@ -64,16 +64,16 @@ export function tile(
   s: Stage,
   options: { active?: boolean; bad?: boolean; key?: string; size?: number } = {},
 ): Group {
-  const color = options.bad ? s.bad : options.active ? s.emphasis : s.soft;
+  const color = options.bad ? s.look.bad : options.active ? s.look.emphasis : s.look.soft;
   const g = new Group(
     new Rectangle({
       width,
       height,
-      fill: s.palette.paper,
+      fill: s.look.paper,
       stroke: color,
       strokeWidth: options.active || options.bad ? 0.055 : 0.025,
     }).moveTo([x, y]),
-    label(text, x, y, options.bad ? s.bad : s.palette.ink, options.size ?? 0.62),
+    label(text, x, y, options.bad ? s.look.bad : s.look.ink, options.size ?? 0.62),
   );
   if (options.key) g.key = options.key;
   return g;
@@ -88,11 +88,11 @@ export function dot(text: string, x: number, y: number, s: Stage, active = false
   const g = new Group(
     new Circle({
       radius: 0.5,
-      fill: s.palette.paper,
-      stroke: active ? s.emphasis : s.soft,
+      fill: s.look.paper,
+      stroke: active ? s.look.emphasis : s.look.soft,
       strokeWidth: active ? 0.055 : 0.03,
     }).moveTo([x, y]),
-    label(text, x, y, s.palette.ink, 0.7),
+    label(text, x, y, s.look.ink, 0.7),
   );
   return key ? keyed(g, key) : g;
 }
@@ -143,8 +143,8 @@ export function table(
     rowsSeen.add(k);
   }
   const values = named.map((row) => row.cells);
-  const heads = headers.map((h) => new Text(h, { fontSize: size, color: s.palette.ink, weight: 'bold' }));
-  const cells = values.map((row) => row.map((v) => new Text(String(v), { fontSize: size, color: s.palette.ink })));
+  const heads = headers.map((h) => new Text(h, { fontSize: size, color: s.look.ink, weight: 'bold' }));
+  const cells = values.map((row) => row.map((v) => new Text(String(v), { fontSize: size, color: s.look.ink })));
   const widths = headers.map((_, c) => Math.max(heads[c]!.width(), ...cells.map((row) => row[c]!.width())));
   const xs = Array.isArray(columns) ? (columns as readonly number[]) : columnCentres(widths, columns as Exclude<TableColumns, readonly number[]>);
   const isNumber = (v: TableCell | undefined) =>
@@ -170,7 +170,7 @@ export function table(
         new Line(
           [Math.min(...xs.slice(0, headers.length).map((x, c) => x - widths[c]! / 2)), y - size * 0.7],
           [Math.max(...xs.slice(0, headers.length).map((x, c) => x + widths[c]! / 2)), y - size * 0.7],
-          { stroke: s.soft, strokeWidth: 0.025 },
+          { stroke: s.look.soft, strokeWidth: 0.025 },
         ),
         `${key}:rule`,
       ),
@@ -193,7 +193,7 @@ function columnCentres(widths: readonly number[], at: { left: number; right: num
 }
 /** A title over a large value, keyed. */
 export function stat(s: Stage, title: string, value: string | number, x: number, y: number, key: string): Group {
-  const g = new Group(label(title, x, y + 0.7, s.soft, 0.6), label(value, x, y - 0.45, s.palette.ink, 0.95));
+  const g = new Group(label(title, x, y + 0.7, s.look.soft, 0.6), label(value, x, y - 0.45, s.look.ink, 0.95));
   g.key = key;
   return g;
 }
@@ -223,12 +223,12 @@ export function flow(s: Stage, names: readonly string[], { y = 1, key = 'reader-
             new Rectangle({
               width,
               height,
-              fill: s.palette.paper,
-              stroke: s.soft,
+              fill: s.look.paper,
+              stroke: s.look.soft,
               strokeWidth: 0.025,
             }).moveTo([xs[i]!, y]),
             ...lines.map((line, row) =>
-              label(line, xs[i]!, y + ((lines.length - 1) / 2 - row) * 0.68, s.palette.ink, 0.62),
+              label(line, xs[i]!, y + ((lines.length - 1) / 2 - row) * 0.68, s.look.ink, 0.62),
             ),
           );
     node.key = `${key}:${i}`;
@@ -236,7 +236,7 @@ export function flow(s: Stage, names: readonly string[], { y = 1, key = 'reader-
     if (i)
       g.add(
         new Arrow([xs[i - 1]! + width / 2, y], [xs[i]! - width / 2, y], {
-          stroke: s.emphasis,
+          stroke: s.look.emphasis,
           strokeWidth: 0.04,
           tipLength: 0.16,
           tipWidth: 0.14,
@@ -264,15 +264,15 @@ export function bars(
     const yy = y - i * 2.3,
       width = (r.value / maximum) * 8.5;
     g.add(
-      label(r.label, -4, yy + 0.55, s.palette.ink, 0.64, `${key}:${i}:label`).moveTo([-4, yy + 0.55], [-1, 0]),
-      new Rectangle({ width: 8.5, height: 0.68, fill: 'none', stroke: s.soft, strokeWidth: 0.02 }).moveTo([
+      label(r.label, -4, yy + 0.55, s.look.ink, 0.64, `${key}:${i}:label`).moveTo([-4, yy + 0.55], [-1, 0]),
+      new Rectangle({ width: 8.5, height: 0.68, fill: 'none', stroke: s.look.soft, strokeWidth: 0.02 }).moveTo([
         0.25,
         yy - 0.3,
       ]),
       ...(r.value > 0
-        ? [new Rectangle({ width, height: 0.68, fill: s.emphasis, stroke: 'none' }).moveTo([-4 + width / 2, yy - 0.3])]
+        ? [new Rectangle({ width, height: 0.68, fill: s.look.emphasis, stroke: 'none' }).moveTo([-4 + width / 2, yy - 0.3])]
         : []),
-      label(r.display, 7.2, yy - 0.3, s.palette.ink, 0.7, `${key}:${i}:value`).moveTo([7.2, yy - 0.3], [1, 0]),
+      label(r.display, 7.2, yy - 0.3, s.look.ink, 0.7, `${key}:${i}:value`).moveTo([7.2, yy - 0.3], [1, 0]),
     );
   });
   return g;
@@ -291,9 +291,9 @@ export function callout(
   s: Stage,
   target: Vec | Box | Mobject,
   text: string,
-  { side = 'right', gap = 0.55, color = s.palette.ink, size = 0.24, key }: { side?: Side; gap?: number; color?: string; size?: number; key?: string } = {},
+  { side = 'right', gap = 0.55, color = s.look.ink, size = 0.24, key }: { side?: Side; gap?: number; color?: string; size?: number; key?: string } = {},
 ): Group {
-  const g = calloutLook(target, text, { color, size, side, gap, background: s.palette.paper, shaping: s.scene.textShaping });
+  const g = calloutLook(target, text, { color, size, side, gap, background: s.look.paper, shaping: s.scene.textShaping });
   return key ? keyed(g, key) : g;
 }
 /**
@@ -306,9 +306,9 @@ export function dimension(
   a: Vec,
   b: Vec,
   label: string,
-  { offset = 0.3, color = s.emphasis, size = 0.24, key }: { offset?: number; color?: string; size?: number; key?: string } = {},
+  { offset = 0.3, color = s.look.emphasis, size = 0.24, key }: { offset?: number; color?: string; size?: number; key?: string } = {},
 ): Group {
-  const g = dimensionLook(a, b, label, { color, size, offset, background: s.palette.paper, shaping: s.scene.textShaping });
+  const g = dimensionLook(a, b, label, { color, size, offset, background: s.look.paper, shaping: s.scene.textShaping });
   return key ? keyed(g, key) : g;
 }
 /**
@@ -318,7 +318,7 @@ export function dimension(
 export function pin(
   s: Stage,
   at: Vec,
-  { label, color = s.emphasis, size = 0.24, side = 'right', key }: { label?: string; color?: string; size?: number; side?: 'left' | 'right'; key?: string } = {},
+  { label, color = s.look.emphasis, size = 0.24, side = 'right', key }: { label?: string; color?: string; size?: number; side?: 'left' | 'right'; key?: string } = {},
 ): Group {
   const g = pinLook(at, { color, size, side, shaping: s.scene.textShaping, ...(label ? { label } : {}) });
   return key ? keyed(g, key) : g;
@@ -335,7 +335,7 @@ export function legend(
   items: readonly LegendItem[],
   { at = [0, 0] as Vec, size = 0.3, direction = 'column' as 'column' | 'row', gap, key = 'legend' }: { at?: Vec; size?: number; direction?: 'column' | 'row'; gap?: number; key?: string } = {},
 ): Group {
-  const g = legendLook(items, { ink: s.palette.ink, shaping: s.scene.textShaping, size, at, direction, ...(gap === undefined ? {} : { gap }) });
+  const g = legendLook(items, { ink: s.look.ink, shaping: s.scene.textShaping, size, at, direction, ...(gap === undefined ? {} : { gap }) });
   g.children.forEach((entry, i) => keyed(entry, `${key}:${items[i]!.label}`));
   return keyed(g, key);
 }

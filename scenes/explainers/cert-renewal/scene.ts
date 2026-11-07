@@ -226,7 +226,7 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
       life = LIFETIMES[key],
       short = key === '160h',
       s = stage(this, { style: STYLE, headingSize: 0.6 }),
-      colours = { ink: s.palette.ink, emphasis: s.emphasis, bad: s.bad, soft: s.soft };
+      colours = s.look;
     /** A card drawn from the step's state, brought in as `s.card` brings one in; its words are the card's own. */
     const cardOf = async (rowsOf: (st: CertState) => CardRow[], opts: CardOptions) => {
       const v = view(this, (st) => new Card(this, s.palette, rowsOf(st), opts), { place: false });
@@ -239,7 +239,7 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
       const v = s.diagramView(d, (_st, sh) => {
         const f = having(sh, name)[name];
         return {
-          marks: Object.fromEntries(f.marked.map((id) => [id, { color: d.accent, as: 'the chosen rule' }])),
+          marks: Object.fromEntries(f.marked.map((id) => [id, { color: d.emphasis, as: 'the chosen rule' }])),
           notes: f.notes,
           dim: f.dim,
         };
@@ -578,8 +578,8 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
         b,
         text,
         room
-          ? { side: 'left', gap: 0.2, color: s.emphasis, size: 0.22 }
-          : { side: 'below', gap: 0.8, color: s.emphasis, size: 0.22 },
+          ? { side: 'left', gap: 0.2, color: s.look.emphasis, size: 0.22 }
+          : { side: 'below', gap: 0.8, color: s.look.emphasis, size: 0.22 },
       );
     };
     // Renewing at every run, the 30-day rule's window is the whole life, so its words go under the chart.
@@ -594,7 +594,7 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
         {
           side: 'below',
           gap: 0.8,
-          color: s.emphasis,
+          color: s.look.emphasis,
           size: 0.22,
         },
       );

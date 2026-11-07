@@ -199,7 +199,7 @@ export default class PenAndPencil extends Scene<PenState, { layout?: { marked: s
     await s.clear();
     const source = await s.code(WORLD.split('\n'), { at: [-7.55, 1.2, -2.95, 2.75], fontSize: 0.3, enter: false });
     const opening = freeAt(-1.5);
-    const tally0 = tallyLine(misses.length, wordCountFree, s.palette.ink);
+    const tally0 = tallyLine(misses.length, wordCountFree, s.look.ink);
     await s.enter(source, opening, tally0, {
       describe: `The timeline’s four lines of text, and below them the timeline drawn by a hand that sets off each line from where the last stopped: its boxes, rings and strings wander from left to right, and ${misses.length} of the ${wordCountFree} words, outlined in red, stick out of their boxes.`,
     });
@@ -226,7 +226,7 @@ export default class PenAndPencil extends Scene<PenState, { layout?: { marked: s
     // `shown`, not the model; its view draws it.
     this.shown.layout = { marked: [] };
     const layoutView = s.diagramView(d, (_st, sh) => ({
-      marks: Object.fromEntries(having(sh, 'layout').layout.marked.map((id) => [id, { color: d.accent, as: 'measured' }])),
+      marks: Object.fromEntries(having(sh, 'layout').layout.marked.map((id) => [id, { color: d.emphasis, as: 'measured' }])),
     }));
     this.shown.layout = { marked: [`period:period-${FOCUS}`] };
     await this.play(layoutView.sync({ runTime: 0.45 }));
@@ -345,7 +345,7 @@ export default class PenAndPencil extends Scene<PenState, { layout?: { marked: s
     await s.clear();
     const freePanel = freeAt(1.15);
     const tracedPanel = tracedChart(tints, inked, ringInk, chartWords, chart, -2.6);
-    const heads = panelHeads(s.palette.ink);
+    const heads = panelHeads(s.look.ink);
     await s.enter(heads, freePanel, tracedPanel, {
       describe: `Two drawings of the timeline. Above, drawn by a hand that sets off each line from where the last stopped: the boxes, rings and strings wander from left to right, and ${misses.length} of the ${wordCountFree} words, outlined in red, stick out of their boxes. Below, the same chart traced on the layout’s marks, every word inside its box.`,
     });

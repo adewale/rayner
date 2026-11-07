@@ -297,7 +297,7 @@ export interface LegendItem {
   stroke?: string;
   /** Draw the line or outline dashed. */
   dashed?: boolean;
-  /** The colour's name in words, when the nearest plain name (`colourName`) is not the one the captions use. */
+  /** The colour's name in words, when the nearest plain name (`colorName`) is not the one the captions use. */
   name?: string;
 }
 
@@ -307,7 +307,7 @@ export interface LegendItem {
  * yellow, green, teal, blue, purple or pink. A legend says its swatches with these words, so a
  * caption's "purple fill" finds the swatch that keys it.
  */
-export function colourName(hex: string): string {
+export function colorName(hex: string): string {
   const trimmed = hex.trim();
   if (!isHex(trimmed)) return 'coloured';
   const [r, g, b] = parseColor(trimmed)!.map((v) => v / 255) as [number, number, number];
@@ -331,9 +331,9 @@ export function colourName(hex: string): string {
 
 /** How a legend says one swatch: "purple fill", "dashed red line", "green fill with a dashed outline". */
 export function swatchWords(item: LegendItem): string {
-  const name = (c: string) => item.name ?? colourName(c);
+  const name = (c: string) => item.name ?? colorName(c);
   if (item.fill === 'none' && item.stroke) return `${item.dashed ? 'dashed ' : ''}${name(item.stroke)} outline`;
-  if (item.fill && item.stroke) return `${name(item.fill)} fill with a ${item.dashed ? 'dashed ' : ''}${colourName(item.stroke)} outline`;
+  if (item.fill && item.stroke) return `${name(item.fill)} fill with a ${item.dashed ? 'dashed ' : ''}${colorName(item.stroke)} outline`;
   if (item.fill) return `${name(item.fill)} fill`;
   if (item.stroke) return `${item.dashed ? 'dashed ' : ''}${name(item.stroke)} line`;
   throw new Error(`legend: the entry "${item.label}" needs a fill or a stroke for its swatch`);

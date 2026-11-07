@@ -106,8 +106,8 @@ export default class OAuthExplainer extends Scene<OAuthState, OAuthShown> {
     this.shown.theft = NOTHING_SHOWN;
     const theftView = diagramOf(theft, 'theft');
     await shows(theftView, 'theft', {
-      marks: marked(thief, s.bad, 'theft'),
-      notes: [{ id: thief.at(-1)!, text: 'a token for the wrong app', side: 'below', color: s.bad }],
+      marks: marked(thief, s.look.bad, 'theft'),
+      notes: [{ id: thief.at(-1)!, text: 'a token for the wrong app', side: 'below', color: s.look.bad }],
     });
     // A phone opens on the theft, not on the sign-in above it.
     s.opening(...thief.map((id) => theftView.current.find(id)!));
@@ -183,7 +183,7 @@ export default class OAuthExplainer extends Scene<OAuthState, OAuthShown> {
     await s.clear();
     const seq = await s.show({ source: sequence(flow) }, { box: 'full', build: 'frame' });
     /** What a message carries, or what the server makes of it, said on the diagram under its arrow. */
-    const say = (id: string, text: string, color: string = s.palette.ink): PictureNote => ({ id, text, side: 'below', color });
+    const say = (id: string, text: string, color: string = s.look.ink): PictureNote => ({ id, text, side: 'below', color });
     const seqShown = () => having(this.shown, 'seq').seq;
     let seqView: View | null = null;
     /**
@@ -227,7 +227,7 @@ export default class OAuthExplainer extends Scene<OAuthState, OAuthShown> {
       this.state.attackerAccepted = flow.find((m) => m.to === 'X' && m.channel === 'tls')!.text === 'Access token';
       const attack = [caught!, guess!, refused!];
       // The server's check, said where it happens: the guess as sent, then the answer.
-      await revealMarked(attack, s.bad, 'attack', say(refused!, `S256(guess) = ${prefix(bad)} ≠ ${prefix(challenge)}`, s.bad));
+      await revealMarked(attack, s.look.bad, 'attack', say(refused!, `S256(guess) = ${prefix(bad)} ≠ ${prefix(challenge)}`, s.look.bad));
     }
 
     await this.step('exchange', {
@@ -242,9 +242,9 @@ export default class OAuthExplainer extends Scene<OAuthState, OAuthShown> {
     const accepted = flow.find((m) => m.to === 'C' && m.channel === 'tls')!.text === 'Access token';
     await revealMarked(
       [request, token],
-      s.good,
+      s.look.good,
       'accepted',
-      say(token, `S256(verifier) = ${prefix(recomputed)} ${recomputed === challenge ? '=' : '≠'} bound challenge`, accepted ? s.good : s.bad),
+      say(token, `S256(verifier) = ${prefix(recomputed)} ${recomputed === challenge ? '=' : '≠'} bound challenge`, accepted ? s.look.good : s.look.bad),
     );
     this.state.accepted = accepted;
 

@@ -32,13 +32,13 @@ export function frames(font: FontName): [StagedStep<WidthState>, StagedStep<Shap
         [st.font, st.other].forEach((f, i) => {
           const y = 1.5 - i * 3,
             w = st.widths[i]!,
-            text = new Text(st.word, { font: f, fontSize: size, color: s.palette.ink }).moveTo([-6.5, y], [-1, 0]);
+            text = new Text(st.word, { font: f, fontSize: size, color: s.look.ink }).moveTo([-6.5, y], [-1, 0]);
           text.key = `word:${f}`;
           g.add(
             text,
-            label(name(f), -6.5, y + 1.1, s.palette.ink, 0.65).moveTo([-6.5, y + 1.1], [-1, 0]),
-            new Line([-6.5, y - 0.8], [-6.5 + w, y - 0.8], { stroke: s.emphasis, strokeWidth: 0.05 }),
-            label(w.toFixed(2), 5.5, y - 0.8, s.palette.ink, 0.7).moveTo([5.5, y - 0.8], [1, 0]),
+            label(name(f), -6.5, y + 1.1, s.look.ink, 0.65).moveTo([-6.5, y + 1.1], [-1, 0]),
+            new Line([-6.5, y - 0.8], [-6.5 + w, y - 0.8], { stroke: s.look.emphasis, strokeWidth: 0.05 }),
+            label(w.toFixed(2), 5.5, y - 0.8, s.look.ink, 0.7).moveTo([5.5, y - 0.8], [1, 0]),
           );
         });
         return g;
@@ -55,22 +55,22 @@ export function frames(font: FontName): [StagedStep<WidthState>, StagedStep<Shap
           g = new Group();
         [st.font, st.other].forEach((f, i) => {
           const x = i ? 3.6 : -3.6;
-          const t = new Text('l', { font: f, fontSize: big, color: s.palette.ink }).moveTo([x, 0.75]);
+          const t = new Text('l', { font: f, fontSize: big, color: s.look.ink }).moveTo([x, 0.75]);
           t.key = `l:${f}`;
           const [x0, y0, x1, y1] = t.box()!;
           const cell = new Rectangle({
             width: x1 - x0,
             height: y1 - y0 + 0.3,
             fill: 'none',
-            stroke: s.emphasis,
+            stroke: s.look.emphasis,
             strokeWidth: 0.03,
           }).moveTo([(x0 + x1) / 2, (y0 + y1) / 2]);
           cell.style.dashArray = '0.12 0.08';
           g.add(
             cell,
             t,
-            label(name(f), x, -2.3, s.palette.ink, 0.65),
-            label(`advance ${st.l[f].toFixed(3)}`, x, -3.1, s.emphasis, 0.6),
+            label(name(f), x, -2.3, s.look.ink, 0.65),
+            label(`advance ${st.l[f].toFixed(3)}`, x, -3.1, s.look.emphasis, 0.6),
           );
         });
         return g;

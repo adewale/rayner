@@ -51,7 +51,7 @@ function streetView(half: boolean, paper: string, cx = 0, scale = 1, cy = 0) {
 
 /** The opening picture: the street seen from its middle, the full Sun between its walls, and the street's name. */
 export function drawStreet(st: { street: Street }, s: Stage): Group {
-  return tagged(new Group(streetView(false, s.palette.paper), words(STREET_NAME[st.street], 0, -3.7)), 'henge-street');
+  return tagged(new Group(streetView(false, s.look.paper), words(STREET_NAME[st.street], 0, -3.7)), 'henge-street');
 }
 
 /** The year's sunset directions against the street; with `crossings`, the days the curve crosses it. */
@@ -130,7 +130,7 @@ export function overhead({ bearing, street: which, alignment }: { bearing: numbe
 export function disc({ street }: { street: Street }, s: Stage): Group {
   const seasonNames = seasonsOf(street);
   return tagged(new Group(
-    streetView(true, s.palette.paper, -3.5, 0.5, 0.5), streetView(false, s.palette.paper, 3.5, 0.5, 0.5),
+    streetView(true, s.look.paper, -3.5, 0.5, 0.5), streetView(false, s.look.paper, 3.5, 0.5, 0.5),
     words('Half Sun', -3.5, 2.45), words('Full Sun', 3.5, 2.45),
     words('Centre on horizon', -3.5, -1.6), words('Bottom on horizon', 3.5, -1.6),
     words(`${seasonNames[0]}: half → full`, 0, -2.5, SUMMER),

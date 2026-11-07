@@ -28,7 +28,7 @@ test('SurroundingRectangle is the target box grown by buff, for a mobject or a B
   const t = new Text('emphasis', { fontSize: 0.4 }).shift([1.3, -0.7]);
   const r = new SurroundingRectangle(t);
   nearBox(r.box()!, grow(t.box()!, 0.15), 'default buff');
-  assert.equal(r.style.stroke, '#0969da', 'the neutral accent'); assert.deepEqual(r.defaultColors, { stroke: 'accent' }, "which becomes the scene's accent"); assert.equal(r.style.fill, 'none');
+  assert.equal(r.style.stroke, '#0969da', 'the neutral emphasis colour'); assert.deepEqual(r.defaultColors, { stroke: 'emphasis' }, "which becomes the scene's emphasis colour"); assert.equal(r.style.fill, 'none');
   nearBox(new SurroundingRectangle(t, { buff: 0.4, cornerRadius: 0.1 }).box()!, grow(t.box()!, 0.4), 'rounded, buff 0.4');
   const box: Box = [-2, 1, 3, 1.5];
   nearBox(new SurroundingRectangle(box, { buff: 0 }).box()!, box, 'a Box target');
