@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import { Square } from '../src/extras.ts';
 import type { ViewSync } from '../explain/index.ts';
-import { view, View, Card, palette } from '../explain/index.ts';
+import { view, View, Card, palette, having } from '../explain/index.ts';
 import assert from 'node:assert/strict';
 import { Scene, Group, Text, DecimalNumber, Rectangle, Circle, Animation, FadeIn, Succession } from '../src/index.ts';
 import { StringSink, SnapshotSink, renderAt } from '../src/output.ts';
@@ -327,4 +327,25 @@ test('rayner check names a view whose words match its state but whose marks do n
     if (byHand) assert.match(views.problems[0]!, /^step "one": a view: the view's part \d+ is \["Rectangle"/);
     else assert.deepEqual(views.problems, []);
   }
+});
+
+test('having narrows a state to the shapes that hold its keys and throws on a state of another shape, so check sees the draw read it', async () => {
+  type Phased = { phase: 'year'; longitude: number } | { phase: 'look'; pitch: number };
+  class Phases extends Scene<Phased, { lit?: string }> {
+    year!: View<Text, Phased, { lit?: string }>;
+    override async construct() {
+      this.state = { phase: 'year', longitude: 10 };
+      this.year = view(this, (st, sh) => new Text(`${having(st, 'longitude').longitude} ${sh.lit ?? ''}`));
+      this.add(this.year);
+    }
+  }
+  const scene = new Phases(new StringSink());
+  await scene.run();
+  assert.equal(scene.year.texts[0], '10 ');
+  // A state of the other shape, as check draws one from another step: the draw throws, naming the key.
+  assert.throws(() => scene.year.draw({ phase: 'look', pitch: 3 }, {}), /reads a state with longitude; this one has phase, pitch/);
+  // An optional part, made present: several keys at once, and what is shown alike.
+  const shown: { flow?: { walked: string[] }; lit?: string } = { flow: { walked: ['a'] } };
+  assert.deepEqual(having(shown, 'flow').flow.walked, ['a']);
+  assert.throws(() => having(shown, 'flow', 'lit'), /reads a state with lit/);
 });
