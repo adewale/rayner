@@ -95,15 +95,16 @@ export default class TailwindGamutExplainer extends Scene {
      * names and ring values) or the notes so far; failing that, where it covers least.
      */
     const said: Box[] = [];
-    // The notes on the dots are state: the radar is shown by a view that draws them, and a note is
-    // the state changed and the view synced. For a reveal or a morph the live radar comes back.
-    const dotNotes = () => (this.state.dotNotes ?? []) as PictureNote[];
+    // The notes on the dots are how the radar is shown, not the model: they live in `shown`, the radar
+    // is shown by a view that draws them, and a note is `shown` changed and the view synced. For a
+    // reveal or a morph the live radar comes back.
+    const dotNotes = () => (this.shown.dotNotes ?? []) as PictureNote[];
     let radarView: View | null = null;
     const showNotes = async (notes: PictureNote[]) => {
-      this.state.dotNotes = notes;
+      this.shown.dotNotes = notes;
       await this.play(radarView!.sync({ match: 'key', staged: true, runTime: 0.35 }));
     };
-    /** The next step's slate: the notes leave the state, the live radar comes back, and the side column goes. */
+    /** The next step's slate: the notes leave `shown`, the live radar comes back, and the side column goes. */
     const nextSlate = async (d: Diagram) => {
       if (radarView) {
         await showNotes([]);
@@ -161,7 +162,7 @@ export default class TailwindGamutExplainer extends Scene {
       const sides = [...across, ...along];
       const best = sides.find((sd) => cost(sd) === 0) ?? sides.reduce((a, b) => (cost(b) < cost(a) ? b : a));
       said.push(boxAt(best));
-      radarView ??= s.diagramView(d, (st) => ({ notes: (st.dotNotes ?? []) as PictureNote[] }));
+      radarView ??= s.diagramView(d, (_st, sh) => ({ notes: (sh.dotNotes ?? []) as PictureNote[] }));
       await showNotes([...dotNotes(), { id: `dot:tw:${i}`, text, side: best, size }]);
     };
 
