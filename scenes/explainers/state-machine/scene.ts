@@ -105,17 +105,6 @@ export default class StateMachineExplainer extends Scene {
         return '';
       },
     });
-    // What the views mark, as emphasis the phone's close-ups visit first and review holds to the
-    // caption: the ring, the row read or the throw hit, and each link travelled, read from state.
-    s.emphasise(() => {
-      const st = session();
-      return [
-        [`session:ring:${st.session}`, `ring: ${st.session}`],
-        ...(st.row ? [[`reducer:box:${st.row}`, `row: ${st.row}`] as const] : []),
-        ...(st.invalid ? [['reducer:throw-box', `throw: ${st.session}:${st.event}`] as const] : []),
-        ...st.travelled.map((l) => { const [from, to] = l.split(':'); return [d.link(from!, to!).id, 'travelled'] as const; }),
-      ];
-    });
     await this.play(new FadeIn(readout, { runTime: 0.35, shift: [0, -0.08] }));
     this.add(diagram, reducer, ring);
     this.remove(d.root);
@@ -147,17 +136,16 @@ export default class StateMachineExplainer extends Scene {
           event,
           (t: Transition<SessionState, SessionEvent>) => {
             const { before, after } = t;
-            const g = t.choreograph(diagram), o = t.choreograph(ring), c = t.choreograph(reducer), k = t.choreograph(readout);
-            // The focus bar on the table gives way to the box on one row as the first event arrives:
-            // the panel is synced, not choreographed, so it lands as the panel drawn from the state.
-            const unfocus = code.sync({ match: 'key', staged: true, runTime: 0.4 });
+            const g = t.choreograph(diagram), o = t.choreograph(ring), c = t.choreograph(reducer), k = t.choreograph(readout), p = t.choreograph(code);
+            // The focus bar on the table gives way to the box on one row as the first event arrives.
+            const unfocus = p.morph('code:bar', { runTime: 0.4 });
             if (after.invalid) {
               // No row: the card shows the event and the throw, and the throw lights.
               return new Succession([
                 new AnimationGroup([...swap(k, 'event', 0.45), ...swap(k, 'returns', 0.45), k.morph('session:bar', { runTime: 0.45 }), ...putBack(c, before, true), unfocus]),
                 ...show(c, 'reducer:throw-lit', {}, 0.4),
                 ...show(c, 'reducer:throw-box', { create: true }, 0.5),
-                new AnimationGroup([g.rest({ runTime: 0.01 }), o.rest({ runTime: 0.01 }), c.rest({ runTime: 0.01 }), k.rest({ runTime: 0.01 })]),
+                new AnimationGroup([g.rest({ runTime: 0.01 }), o.rest({ runTime: 0.01 }), c.rest({ runTime: 0.01 }), k.rest({ runTime: 0.01 }), p.rest({ runTime: 0.01 })]),
               ]);
             }
             // The event arrives on the card, the last lit row is put back, the row lights and is
@@ -183,6 +171,7 @@ export default class StateMachineExplainer extends Scene {
                 o.rest({ runTime: 0.8 }),
                 c.rest({ runTime: 0.8 }),
                 k.rest({ runTime: 0.8 }),
+                p.rest({ runTime: 0.8 }),
               ]),
             ]);
           },

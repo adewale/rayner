@@ -2,7 +2,7 @@ import { Arrow, Group, Rectangle, Text } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import { exec } from './model.ts';
 import type { Shell, ShellSession } from './model.ts';
-import { flow, keyedParts, label, table } from '../../../explain/drawing.ts';
+import { flow, keyedParts, label, table, emphasised } from '../../../explain/drawing.ts';
 import type { StagedStep, stage } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
 
@@ -78,7 +78,10 @@ export function shellsPicture(st: ShellSession, s: ReturnType<typeof stage>): Gr
   const ink = s.palette.ink, newest = st.shells.length - 1, { add, group } = keyedParts();
   st.shells.forEach((sh, i) => {
     const x = SHELL_X[i]!, kept = i === newest;
-    add(new Rectangle({ width: BOX_W, height: BOX_H, cornerRadius: 0.12, fill: kept ? s.emphasis : ink, fillOpacity: kept ? 0.1 : 0.04, stroke: kept ? s.emphasis : s.soft, strokeWidth: kept ? 0.05 : 0.03 }).moveTo([x, SHELL_Y]), `shell:${i}:box`);
+    // What the picture marks is emphasis the phone's close-ups visit first and review holds to the
+    // caption: the shell the caller keeps, and (below) what each cat printed.
+    const box = new Rectangle({ width: BOX_W, height: BOX_H, cornerRadius: 0.12, fill: kept ? s.emphasis : ink, fillOpacity: kept ? 0.1 : 0.04, stroke: kept ? s.emphasis : s.soft, strokeWidth: kept ? 0.05 : 0.03 }).moveTo([x, SHELL_Y]);
+    add(emphasised(box, kept ? `kept: s${i}` : null), `shell:${i}:box`);
     add(new Text(`s${i}: ${i === 0 ? 'original' : 'returned'} shell`, { fontSize: 0.3, color: ink, weight: 'bold' }).moveTo([x, SHELL_Y + 0.2]), `shell:${i}:name`);
     add(new Text(`files: ${files(sh)}`, { fontSize: 0.28, font: 'mono', color: ink }).moveTo([x, SHELL_Y - 0.24]), `shell:${i}:files`);
     if (i > 0) {
@@ -91,10 +94,10 @@ export function shellsPicture(st: ShellSession, s: ReturnType<typeof stage>): Gr
     const x = SHELL_X[i]!, color = i === newest ? s.emphasis : s.soft;
     const arrow = new Arrow([x, SHELL_Y - BOX_H / 2 - 0.08], [x, OUT_Y + 0.3 + 0.08], { stroke: color, strokeWidth: 0.035, tipLength: 0.2, tipWidth: 0.16 });
     add(new Group(arrow, new Text(`cat ${FILE}`, { fontSize: 0.26, font: 'mono', color: ink, anchor: 'start' }).moveTo([x + 0.22, (SHELL_Y - BOX_H / 2 + OUT_Y + 0.3) / 2], [-1, 0])), `cat:${i}`);
-    add(new Group(
+    add(emphasised(new Group(
       new Rectangle({ width: 3.0, height: 0.6, cornerRadius: 0.1, fill: s.palette.paper, stroke: color, strokeWidth: 0.03 }).moveTo([x, OUT_Y]),
       new Text(prints(out), { fontSize: 0.3, color: out ? ink : s.bad }).moveTo([x, OUT_Y]),
-    ), `out:${i}`);
+    ), `cat on s${i}: ${prints(out)}`), `out:${i}`);
   });
   return group();
 }
