@@ -3,10 +3,8 @@
 // edits. `explainer(id)` is what readers see: an explainer's default scenario with
 // its diagram snapshots bound.
 import { join } from 'node:path';
-import {
-  Scene, Rectangle, Circle, Arrow, Line, Dot, Text, Code, DecimalNumber,
-  FadeIn, FadeOut, Write, Create, Transform, MoveAlongPath, LaggedStart,
-} from '../../src/index.ts';
+import { Write, MoveAlongPath } from '../../src/extras.ts';
+import { Scene, Rectangle, Circle, Arrow, Line, Dot, Text, Code, DecimalNumber, FadeIn, FadeOut, Create, Transform, LaggedStart } from '../../src/index.ts';
 import { Indicate } from './transient.ts';
 import type { Box, Mobject, SceneClass } from '../../src/index.ts';
 import { labelOf } from '../../explain/diagrams.ts';

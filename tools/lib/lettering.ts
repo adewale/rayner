@@ -5,7 +5,6 @@ import { readFileSync } from 'node:fs';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { execFileSync } from 'node:child_process';
 import { resolve, join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { loadFont } from '../../vendor/glyph.js';
 import { SANS, MONO, FALLBACK } from '../../src/font-data.ts';
@@ -14,8 +13,10 @@ import type { LetteringCut, PackedLetteringSnapshot, StoredLetteringSnapshot, Le
 import type { ExplainerClass } from '../../explain/settings.ts';
 import type { Run } from '../../vendor/glyph.js';
 import { licenceOf, validateLetteringSnapshot } from './lettering-validation.ts';
+import { LIB_ROOT, ROOT } from './roots.ts';
 
-const root = fileURLToPath(new URL('../../', import.meta.url));
+// The capture's files ship with the command (ROOT); the shaper and fallback faces it replays with, with the library.
+const root = ROOT;
 const hash = (s: string | Uint8Array) => createHash('sha256').update(s).digest('hex');
 const json = (x: unknown) => JSON.stringify(x, null, 2) + '\n';
 /**
@@ -102,15 +103,17 @@ export interface PreparedLettering {
   readonly measurementHash: string;
   finish(): Promise<void>;
 }
-export async function prepareLettering(Source: ExplainerClass, file: string, sourceHash: string, capture: boolean, persist = true): Promise<PreparedLettering | undefined> {
+export async function prepareLettering(Source: ExplainerClass, file: string, capture: boolean, persist = true): Promise<PreparedLettering | undefined> {
   const request = letteringOf(Source);
   if (!request) return undefined;
   validateLettering(request);
   if (!Object.keys(request.faces ?? {}).length && !request.scripts?.length && !request.math && !request.styles?.length) return undefined;
-  // Default faces and the core shaper are inputs too: requested runs may contain
-  // glyphs from the existing fallback chain, and Text determines the strings
-  // handed to the shaper (for example after tab expansion).
-  const builderHash = hash((await Promise.all(['src/text-context.ts', 'src/lettering-outlines.ts', 'src/math.ts', 'src/italic.ts', 'src/font-data.ts', 'src/fonts.ts', 'src/text.ts', 'tools/lib/lettering.ts', 'tools/lib/lettering-validation.ts', 'tools/lettering.py', 'tools/lettering-requirements.txt', 'vendor/glyph.js', 'vendor/glyph-math.js'].map((name) => readFile(join(root, name), 'utf8')))).join('\n'));
+  // What decides the outlines: the shaper and its pinned requirements, the vendored glyph and math
+  // shapers, and the fallback faces' bytes (requested runs may contain their glyphs). A snapshot
+  // captured by any other tool is stale. Changes to Rayner's own code are checked by behaviour, not
+  // here: a different string asks for a run the snapshot lacks, and CI's capture tests compare
+  // fresh runs with stored ones.
+  const builderHash = hash((await Promise.all(([[root, 'tools/lettering.py'], [root, 'tools/lettering-requirements.txt'], [LIB_ROOT, 'vendor/glyph.js'], [root, 'vendor/glyph-math.js'], [LIB_ROOT, 'src/font-data.ts']] as const).map(([base, name]) => readFile(join(base, name), 'utf8')))).join('\n'));
   const path = file.replace(/\.[^.]+$/, '') + '.lettering.json';
   if (!capture) {
     const raw: unknown = await readFile(path, 'utf8').then(JSON.parse).catch((e: NodeJS.ErrnoException) => {
@@ -122,11 +125,9 @@ export async function prepareLettering(Source: ExplainerClass, file: string, sou
       try { snapshot = unpackLettering(raw as LetteringSnapshot); }
       catch (e) { throw new Error(`${(e as Error).message.replace(/; run rayner snapshots.*$/, '')}; run rayner snapshots ${file}`); }
     }
-    if (!snapshot || snapshot.version !== 1 || snapshot.sourceHash !== sourceHash || snapshot.builderHash !== builderHash || json(snapshot.request) !== json(request))
+    if (!snapshot || snapshot.version !== 2 || snapshot.builderHash !== builderHash || json(snapshot.request) !== json(request))
       throw new Error('Missing or stale lettering snapshot; run rayner snapshots ' + file);
     validateLetteringSnapshot(snapshot);
-    if (!snapshot.payloadHash || snapshot.payloadHash !== hash(JSON.stringify({ ...snapshot, payloadHash: undefined })))
-      throw new Error('Invalid lettering snapshot payload checksum; run rayner snapshots ' + file);
     return { Scene: bindLettering(Source, snapshot), snapshot,
       get measurementHash() {
         if (!snapshot.fontInputs) throw new Error('Missing natural diagram font identity; run rayner snapshots ' + file);
@@ -205,7 +206,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, sou
     if (result.tag !== 'Ok') throw new Error('Cannot decode existing font coverage');
     return result.value;
   }));
-  const snapshot: LetteringSnapshot = { version: 1, sourceHash, builderHash, request, runs: {}, faces: {}, shaper: 'uharfbuzz+python-bidi/fonttools; glyph-math@6398654' };
+  const snapshot: LetteringSnapshot = { version: 2, builderHash, request, runs: {}, faces: {}, shaper: 'uharfbuzz+python-bidi/fonttools; glyph-math@6398654' };
   const used = new Set<number>();
   const usedMath = new Set<number>();
   let mathFont: Awaited<ReturnType<typeof loadFont>> | undefined;
@@ -315,7 +316,6 @@ export async function prepareLettering(Source: ExplainerClass, file: string, sou
       snapshot.runs = Object.fromEntries(Object.entries(snapshot.runs).sort(([a], [b]) => a.localeCompare(b)));
       const off = Object.keys(snapshot.runs).filter((key) => offPageOnly.has(key) && !onPage.has(key));
       if (off.length) snapshot.offPage = off;
-      snapshot.payloadHash = hash(JSON.stringify({ ...snapshot, payloadHash: undefined }));
       replay = snapshotProvider(snapshot);
       if (persist) {
         await mkdir(dirname(path), { recursive: true });
@@ -367,7 +367,7 @@ export async function pageSnapshot(snapshot: LetteringSnapshot): Promise<PackedL
   const runs = Object.fromEntries(Object.entries(snapshot.runs).filter(([key]) => !off.has(key)));
   await snapshotProvider({ ...snapshot, runs, faces }).prepare!();
   return packLettering({
-    version: 1, sourceHash: '', builderHash: '', request: snapshot.request, runs, shaper: '',
+    version: 2, builderHash: '', request: snapshot.request, runs, shaper: '',
     faces: Object.fromEntries([...used].sort().map((name) => [name, { hash: '', data: snapshot.faces[name]!.data, license: '' }])),
   });
 }

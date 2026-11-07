@@ -1,14 +1,14 @@
 // Code spans (views of a line's glyphs, boxed on line metrics) and build-time
-// syntax tokens (tools/lib/tokenize.ts, painted by Code's `spans` option).
+// syntax tokens (tools/repo/lib/tokenize.ts, painted by Code's `spans` option).
 import { test } from 'node:test';
+import { Write } from '../src/extras.ts';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import {
-  Code, Scene, VMobject, Write, Transform, FadeOut, } from '../src/index.ts';
+import { Code, Scene, VMobject, Transform, FadeOut } from '../src/index.ts';
 import { NullSink, StringSink, SnapshotSink, renderAt, renderElements } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import type { ColorSpan, Box, Sink } from '../src/index.ts';
-import { tokenize, lex, shikiTokens, hasShiki, langOf, DARK } from '../tools/lib/tokenize.ts';
+import { tokenize, lex, shikiTokens, hasShiki, langOf, DARK } from '../tools/repo/lib/tokenize.ts';
 // Manim's values, which the package no longer exports.
 const GOLD = '#f0ac5f';
 const RED = '#fc6255';
@@ -236,9 +236,9 @@ test('tokenize() maps kinds to the palette, leaves punctuation uncoloured and me
   assert.throws(() => langOf('cobol'), /Unknown language/);
 });
 
-test('tools/tokens.ts prints the spans JSON for stdin', () => {
+test('tools/repo/tokens.ts prints the spans JSON for stdin', () => {
   const src = 'def f():\n    return 1  # one\n';
-  const r = spawnSync(process.execPath, ['tools/tokens.ts', '-', '--lang', 'python', '--engine', 'fallback'], { input: src, encoding: 'utf8' });
+  const r = spawnSync(process.execPath, ['tools/repo/tokens.ts', '-', '--lang', 'python', '--engine', 'fallback'], { input: src, encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
   assert.deepEqual(JSON.parse(r.stdout), tokenize(src, 'python', { engine: 'fallback' }));
   assert.match(r.stderr, /engine fallback/);

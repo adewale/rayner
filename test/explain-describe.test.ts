@@ -3,14 +3,15 @@ import assert from 'node:assert/strict';
 import { traceScene } from '../explain/testing.ts';
 import { describeExplainer, withSettings, scenariosOf, bindSnapshots } from '../explain/testing.ts';
 import type { ExplainerClass } from '../explain/index.ts';
-import { readSnapshots } from '../tools/lib/explain-project.ts';
+import { collectProject, readSnapshots } from '../tools/lib/explain-project.ts';
 import RingBuffer from '../scenes/explainers/ring-buffer/scene.ts';
 import OauthPkce from '../scenes/explainers/oauth-pkce/scene.ts';
 import { PALETTES } from '../explain/palettes.ts';
 import { idsOf, stepIdsOf } from './lib/steps.ts';
 
 test('describeExplainer gives every scenario and step: the words, the state the trace recorded and what each step changed', async () => {
-  const d = await describeExplainer(RingBuffer as ExplainerClass);
+  // As the tools describe it: collected, so its id is its folder's name.
+  const d = await describeExplainer((await collectProject('scenes/explainers/ring-buffer', { write: false })).Scene);
   assert.equal(d.schema, 1);
   assert.equal(d.id, 'ring-buffer');
   assert.deepEqual(d.scenarios.map((c) => c.values), scenariosOf(RingBuffer as ExplainerClass));

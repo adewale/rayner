@@ -1,5 +1,5 @@
-import { refuse } from '../../../src/index.ts';
-import type { Refusal } from '../../../src/index.ts';
+import { refuse } from '../../../explain/index.ts';
+import type { Refusal } from '../../../explain/index.ts';
 
 // A door that can be opened, closed, locked and unlocked: the model a machine drives. It is pure
 // and draws nothing, so its test can check every state and every refusal.

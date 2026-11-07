@@ -7,7 +7,7 @@ names, what each replaced, the decisions a domain-driven review made about them,
 considered and turned down.
 
 The pass that fixed these names started from collisions. Turning state into a picture was
-`render` in views, `draw` in `Follow` and in the scene library's step lists, and `build` in
+`render` in views, `draw` in a follow and in the scene library's step lists, and `build` in
 `view(build)`, while `render` also named the output pipeline and `draw` a pen animation.
 "Frame" meant the camera, an instant of a run and a step of the scene library. "Claim" meant a
 sentence backed by a test, a frame-level check and a subject the review looks for. Each is
@@ -30,7 +30,7 @@ One row per idea.
 | View | `view(scene, draw)`, `view.sync()` | A picture kept equal to `draw(scene.state)`; sync morphs it there. Every `View` is one: the constructor takes `(scene, draw)` | `View.render` (now `View.draw`), `view(build)`, `stateView` |
 | Staged steps | `stage.steps([...])` | A list of steps, each `{ id, title, line, caption, state, draw }`; each step's state becomes the model and its picture is drawn from it | `lesson()`, `readerFirst()`, `presentFrame()` and the three `*Frame` types in the scene library |
 | The phone's opening | **`s.opening(...)`**, a step's `opening` keys | The parts a caption compares, which the first close-up holds together; set per step | `s.reading(...)` and `reading` ("reading" sat beside the reader and its reader steps) |
-| Emphasis a scene draws itself | `s.emphasise(now)` | What the scene's own marks emphasise, read from state at each step: each mark with what it shows; the phone's tour visits new emphasis first | `emphasises(scene, now)` from `explain/look.ts`, which the package did not export |
+| Emphasis a scene draws itself | `emphasised(mobject, what)` | A mark the scene's own draw makes, tagged with what it shows where it is drawn; the phone's tour visits new emphasis first | `emphasises(scene, now)` from `explain/look.ts`, which the package did not export; `s.emphasise(now)`, a callback read from state beside the draw |
 | Identity | `key`, `find(key)`, `findAll(match)` | How a part is addressed and kept across morphs: the same key in two pictures is the same part | `Mobject.id`, now internal: the renderer's number |
 | What a part is for | `role` | A job many parts can share: the stage's `'paper'`, `'heading'` and `'chrome'`, a diagram's `'frame'`. Copies carry it; it is never an identity | Keys starting `__` (`__chrome`, `__heading`, `__paper`, `__frame`), which made a key double as a role and needed an exception in the one-key-one-part check |
 | Matching by key | `matchByKey()`, `match: 'key'` | Keyed parts pair with keyed parts | `match: 'keys'` |
@@ -42,11 +42,11 @@ One row per idea.
 | The reader's events | `sent` | The events a reader sent at a live step, in the URL beside `step` | |
 | Authored transition | `transition: { [event]: (t) => Animation }` | The motion for an event, built from `{ event, before, after, target, choreograph }` when its turn comes; the views then land in place on the pictures of `after` | Hand animation in ring-buffer and state-machine |
 | Authored transition parts | `choreograph(current, target)`: `morph`, `enter`, `leave`, `insert`, `own`, `rest` | One event's motion, part by part, by key | |
-| A sampled value | `Follow({ from, to, draw }, { targets })` | One number sampled between two ends and redrawn with `become` | |
+| A sampled value | `view.tween((t) => state)`; `c.follow({ from, to, draw }, { targets })` in a transition | A state, or one number, sampled between two ends and redrawn with `become` | |
 | Taking another's data in place | `become(other)` | Keeps identity and keys; refuses to drop a keyed child | |
 | Pen animation | `stage.sketch(m)` | Draw `m` stroke by stroke with a pen or pencil | `stage.draw(m)` |
 | 2D camera | `Frame`, `scene.frame` | The box of the scene that is on screen | |
-| 3D picture | `seenFrom(model, viewpoint)`, `depthOrder(picture)` in `rayner/drawing` | Draws a 3D model through a viewpoint, `{ kind, yaw, pitch }`, as keyed 2D pieces in an explicit depth order (far, body, near). The viewpoint is ordinary state turned by an ordinary `Follow`; Mercator and gnomonic maps are viewpoint kinds of the same model. Used by great-circle and henge. Not an engine type | |
+| 3D picture | `seenFrom(model, viewpoint)`, `depthOrder(picture)` in `rayner/geo` | Draws a 3D model through a viewpoint, `{ kind, yaw, pitch }`, as keyed 2D pieces in an explicit depth order (far, body, near). The viewpoint is ordinary state turned by a view's tween; Mercator and gnomonic maps are viewpoint kinds of the same model. Used by great-circle and henge. Not an engine type | |
 | Frame-level check | `addInvariant`, `InvariantSink` | A predicate checked on every frame; returns `true` when it held | Calling invariants "claims" |
 | Prose check | `meta.claims` | A sentence backed by a named test | |
 | Review subjects | `scene.review.json`'s `subjects` | What a caption names, for the reader review to find on screen | that file's `claims` |
@@ -82,27 +82,27 @@ everywhere. The review settled these:
 
 The renames came with refactors that make a name's promise checkable:
 
-- Staged steps are views of state. `stage.steps` gives each step's `draw` its state, and
-  `rayner check` redraws every step from the state its trace recorded and fails one whose picture
-  differs, or whose picture is the same whatever state it is drawn from. Constants computed once
+- Staged steps are views of state. `stage.steps` draws each step's picture as a view of its
+  state, and `rayner check` holds it to its draw as it holds every view: it fails one whose
+  picture differs from a fresh draw at its step's end, or is the same whatever state it is drawn from. Constants computed once
   per scenario, such as henge's model, pass: they are the same in both runs.
 - Refusal lives in `next`. There is no separate `allows`, since two functions could disagree about
   which events a state accepts.
 - A transition lands on the model's picture. It is optional per event; with one, the authored
   motion plays and the views then land in place on `draw(after)`, and `rayner check` fails a
   transition that ends anywhere else.
-- Keyed tables went in with python-dict as their first adopter, and bloom-filter is the second: its lookup rows are keyed by the name looked up and its sample rows by row length, so `bloom-pipeline:wolf:Filter` is wolf's answer in either scenario, and `test/learning-pictures.test.ts` reads each keyed cell against the model. Its resting and sampled frames hashed the same before and after. `seenFrom` went in with
+- Keyed tables went in with python-dict as their first adopter, and bloom-filter is the second: its lookup rows are keyed by the name looked up and its sample rows by row length, so `bloom-pipeline:wolf:Filter` is wolf's answer in either scenario, and `scenes/explainers/bloom-filter/scene.test.ts` reads each keyed cell against the model. Its resting and sampled frames hashed the same before and after. `seenFrom` went in with
   great-circle; henge is the second adopter. Henge's flat cross-section globes could not move to
   it unchanged, since they drew Earth's axis across an opaque disc and `seenFrom` hides what the
   body hides. They were replaced instead: two tilted 3D Earths with a translucent body, the axis
   dashed inside it (`hidden: 'dashed'`) and solid where it stands out of each pole (`'behind'`).
   Henge also draws New York's sky as a sphere, from outside (the dome) and from its centre (the
-  street, gnomonic), and turns the year with a Follow over the orbital longitude.
+  street, gnomonic), and turns the year with a view's tween over the orbital longitude.
 
 ## Names deliberately kept
 
 - `Frame`, because Manim authors know `camera.frame`.
-- `SetState`, `Follow`, `become` and `Transform`: animations named as verbs follow Manim's
+- `SetState`, `become` and `Transform`: animations named as verbs follow Manim's
   convention.
 - `keep`, `enter`, `focus`, `carry` and `opening`: stage verbs read well at their call sites.
 - `describe`, which already meant one thing everywhere: words for what is shown.
@@ -144,7 +144,7 @@ a failed check and a rewrite every time it is used. `Circumscribe` stays, becaus
   columns, would split checks and helpers that should apply to both. `Diagram.fromGraph` was
   not needed either: git-branches and exgit draw their graphs with the kit, and `Diagram.morph`
   already handles graph edits.
-- `stateView`, a readout of state keys. `StateReadout` in a `view` does the same.
+- `stateView`, a readout of state keys, and `StateReadout`. A `Card` without a panel in a `view` does the same.
 - `view(build)`, a view not made from state. It cannot be checked against the state, so the
   `View` constructor takes `(scene, draw)` and every View keeps a `draw` the checks can call
   again.

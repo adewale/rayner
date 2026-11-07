@@ -59,7 +59,7 @@ const bound = (S: import('../src/index.ts').SceneClass) => bindSnapshots(S, { [d
 const pointsOf = (mobs: Mobject[]) => mobs.flatMap((m) => m.family().flatMap((f) => f.pointArrays().map((a) => [...a])));
 const near = (a: readonly number[], b: readonly number[]) => a.every((v, i) => Math.abs(v - b[i]!) < 1e-6);
 
-test('focus with camera moves the camera, not the diagram; notes, marks, dims and walks work while zoomed', async () => {
+test('focus with camera moves the camera, not the diagram; a view’s notes, marks, dims and a walk work while zoomed', async () => {
   class Zoom extends Scene {
     override async construct() {
       const s = stage(this);
@@ -73,26 +73,41 @@ test('focus with camera moves the camera, not the diagram; notes, marks, dims an
       const b = d.get('B').box()!;
       assert.ok(b[0] >= view[0] && b[2] <= view[2] && b[1] >= view[1] && b[3] <= view[3], 'B is in view');
       assert.deepEqual(pointsOf(parts), before, 'no point moved');
-      // Emphasis while zoomed: it changes styles and adds marks, never part geometry.
-      await d.mark(['B']);
-      await d.dim(['A', 'B']);
-      const note = await d.note('B', 'here', { side: 'above' });
+      // Emphasis while zoomed, drawn by the diagram's view: it changes styles and adds notes, never part geometry.
+      this.shown.emphasis = true;
+      this.shown.walked = [];
+      const v = s.diagramView(d, (_st, sh) =>
+        sh.emphasis
+          ? {
+              marks: { B: d.accent, ...d.trail(sh.walked as [string, string][]) },
+              dim: ['A', 'B'],
+              notes: [{ id: 'B', text: 'here', side: 'above' }],
+            }
+          : {});
+      const note = this.find('note:B')!;
       assert.ok(note.box()![1] >= d.get('B').box()![3], 'the note sits beside its part');
-      await d.walk([['A', 'B']], { trail: true });
+      await d.walk([['A', 'B']]);
+      this.shown.walked = [['A', 'B']];
+      await this.play(v.sync({ match: 'key', staged: true }));
       assert.deepEqual(pointsOf(parts), before);
-      assert.ok(d.get('C').family()[1]!.style.opacity! < 1, 'C is dimmed');
+      const drawn = (id: string) => v.current.family().find((m) => m.key === id)!;
+      assert.ok(drawn('C').family()[1]!.style.opacity! < 1, 'C is dimmed');
+      assert.equal(drawn('edge:A->B#0').family()[1]!.style.stroke, d.accent, 'the walked link is marked travelled');
       // A focus frames the chosen parts' notes too.
       await d.focus(['B'], { camera: true });
       const tight = this.frame.box()!;
-      const nb = note.box()!;
+      const nb = this.find('note:B')!.box()!;
       assert.ok(nb[1] >= tight[1] && nb[3] <= tight[3], 'the note is in view');
+      // A mark says more than focus and wins.
+      assert.equal(d.describe().parts.find((p) => p.name === 'Beta')?.mark, 'marked');
       await d.focus('all');
       assert.ok(near(this.frame.box()!, HOME), 'all returns to the whole stage');
       assert.deepEqual(pointsOf(parts), before);
       assert.equal(d.describe().parts.some((p) => p.mark === 'focused'), false, 'nothing is in focus at home');
-      await d.unmark();
+      this.shown.emphasis = false;
+      await this.play(v.sync({ match: 'key', staged: true }));
       await d.focus(['C'], { camera: true });
-      // The description says what the camera is on, as a mark does; a mark says more and wins.
+      // The description says what the camera is on, as a mark does.
       assert.deepEqual(d.describe().parts.find((p) => p.name === 'Gamma')?.mark, 'focused');
       await s.clear();
       assert.ok(near(this.frame.box()!, HOME), 'clear() brings the camera home');

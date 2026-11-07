@@ -9,7 +9,7 @@ const run = promisify(execFile);
 test('CI reuses only a recent full PR campaign for the actual merged tree; absent proof and dispatches run full CI', async () => {
   const folder = await mkdtemp(join(tmpdir(), 'rayner-ci-policy-'));
   const repo = join(folder, 'repo'), bin = join(folder, 'bin'), apiFile = join(folder, 'api.json');
-  const scope = resolve('tools/ci-scope.ts');
+  const scope = resolve('tools/repo/ci-scope.ts');
   try {
     await mkdir(repo); await mkdir(bin);
     const git = async (...args: string[]) => (await run('git', args, {cwd: repo})).stdout.trim();

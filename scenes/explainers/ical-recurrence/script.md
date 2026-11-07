@@ -1,21 +1,25 @@
-# Why can a cancelled meeting remain in a guest's calendar?
+# Why can a cancelled meeting remain in a guest’s calendar?
 
-Alice cancels one meeting of her weekly stand-up. Her calendar shows a gap that week. Bob, who was invited to that one meeting, can still find it in his calendar, marked cancelled. Both calendars talk to the same server. Why do they disagree?
+- **Reader:** someone who uses a shared calendar, perhaps builds on CalDAV, and has seen a cancelled meeting linger for a guest; no knowledge of iCalendar's VEVENT, RRULE or iTIP is assumed.
+- **Answer:** a guest’s calendar keeps only the meetings it was sent, and on this server a cancellation marks the guest’s copy CANCELLED instead of deleting it
+- **Changed condition:** Alice's change (no other change, move the second meeting, skip Bob's meeting) and whose copy is inspected (Alice's or Bob's). Skipping Bob's meeting takes a week out of Alice's rule with EXDATE but leaves Bob's one meeting, marked CANCELLED; moving the second meeting changes Alice's object and leaves Bob's copy exactly as it was; Alice's copy holds a rule that Bob's never has.
+- **Reader's own work:** predict what Bob's calendar shows after Alice's change; switch the change and the copy; answer the check questions.
+- **Checked against:** sabre/vobject 4.5.7 and a Baïkal 0.10.1 server (sabre/dav 4.7.0). `model.test.ts` compares the model's validation, meeting starts and the guest's iTIP messages and copy with sabre/vobject's validate(), expand() and iTIP Broker (answers frozen in `fixtures/sabre.json` by `oracle/sabre.ts`, rerun in Docker when `SABRE_DOCKER=1`), compares each stored copy and the server's 415 refusals with what a Baïkal run stored and refused, and checks the weekly rules against RFC 5545's own example dates; `answers.ts` computes the check answers from the model.
+- **Leaves out:** time zones and daylight-saving changes, general recurrence expansion beyond a six-week UTC series, other servers and other calendar apps (an app may hide a cancelled meeting even though the stored copy keeps it). The stored-copy view is not sabre/vobject's expand() result, which drops a master-less override whose RECURRENCE-ID equals its DTSTART; that quirk is tested separately and does not delete the stored VEVENT.
 
-Start with how Alice's calendar stores the series. It shows six stand-ups but keeps one VEVENT, the iCalendar record for an event. DTSTART supplies the first start, Monday 2 November 2026 at 09:00 UTC. RRULE:FREQ=WEEKLY;COUNT=6 tells the calendar to generate six starts, counting that first one.
+## Check yourself
 
-Alice invites Bob to the third meeting only. The app needs to record something special about that occurrence without replacing the weekly rule, so it adds another VEVENT with the same UID, the series identifier. This record is an override. Its RECURRENCE-ID is 20261116T090000Z, the start the rule originally gave the third meeting, and it keeps naming that occurrence even if the meeting moves.
+1. Alice skips the fifth meeting, Monday 30 November, instead of Bob’s, by adding EXDATE:20261130T090000Z. How many meetings does her calendar show, and when is the last? What does Bob’s calendar show?
+   Alice’s shows five, the last still on Monday 7 December: COUNT=6 counts the excluded start, so the series does not run a week longer. Bob is still in the third meeting’s override, so any update the server sends him carries that override again, and his calendar keeps Monday 16 November, not cancelled.
+2. Alice moves the second meeting, which Bob does not attend. Before trying that setting: does Bob’s copy change, and why?
+   No. The iTIP REQUEST the server sends him holds only the VEVENTs he attends, the third meeting’s override, so his copy keeps that one VEVENT and never learns of the move.
+3. Bob’s calendar app wants to show him the rest of the stand-up series. Which lines would it need that his stored copy lacks?
+   The master’s DTSTART and RRULE. His copy holds one override and no masters, so it has no rule to generate the other weeks from; only the organiser’s object has one.
 
-Bob receives that override, not Alice's whole series. His calendar therefore holds a different object: one occurrence with a recurrence identifier, and no rule from which to generate the other five meetings.
+## Why this explainer
 
-Now Alice skips the third meeting. Her app excludes its start by adding EXDATE:20261116T090000Z to the master and removes the override from her stored object. COUNT stays at six, and the excluded start is one of those six, so Alice's calendar now shows five meetings, still ending on 7 December. What should happen to Bob's copy?
+The puzzle is a real one: two calendars on the same server disagree about a cancelled meeting. The tempting explanation is a sync bug. The real one is that a guest's calendar is not a replica of the organiser's series: it holds the occurrences it was sent, changed by the messages that follow. Alice can remove a meeting by excluding its start from her rule; Bob has no rule, only the occurrence, so the cancellation is applied to that.
 
-On the server shown, Baïkal, it stays. The server sends Bob an iTIP CANCEL, the scheduling message that calls a meeting off, and delivering it sets STATUS:CANCELLED on his VEVENT rather than deleting it. Alice could remove the meeting by excluding its start from her rule. Bob has no rule; he has only the occurrence he was sent, and the cancellation is applied to that.
+The steps build Alice's stored object line by line (DTSTART, RRULE with COUNT, then an override named by RECURRENCE-ID when she invites Bob to one meeting) so the reader has the vocabulary before the two copies diverge. The default follows Bob's copy after Alice skips his meeting, which is the surprise. The copy setting exposes the organiser's different object; the change setting contrasts cancellation with moving a meeting Bob does not attend, which shows the same principle without any cancellation at all. The side-by-side copies, lined up against the six weeks of Alice's rule, are the picture to remember: Alice's gap is an exclusion; Bob's empty weeks were never generated.
 
-Lay the two stored objects side by side and line their calendars up against the six weeks of Alice's rule. Alice's row has five meetings and a gap in the third week, where her own EXDATE takes the start out. Bob's row has one meeting, 16 November, marked cancelled, and five empty weeks. Nothing excluded those five: his copy holds no master and no RRULE, so nothing ever generated them.
-
-Move the second meeting instead. Alice's object gains an override for that occurrence, but Bob was not invited to it. The update sent to Bob contains only the meeting he attends, so his copy never learns of the move. A guest's calendar is not a replica of the organiser's series: it holds the occurrences it was sent, changed by the messages that follow.
-
-The storage rules allow this. Related VEVENTs share one UID, with at most one master and any number of overrides named by RECURRENCE-ID, and an override may be stored without its master, as Bob's is. Baïkal also refuses some objects the standard only discourages: a second master, or a second RRULE in one VEVENT, gets status 415.
-
-This account is one server's behaviour, sabre/dav 4.7.0 inside Baïkal, for a six-week series in UTC. Time zones, daylight-saving changes and other calendar apps are outside it, and an app may choose to hide cancelled meetings even though the stored copy keeps them.
+The schema and server-validation steps are details, not prerequisites for the cancellation result. They show that the storage rules allow a master-less copy, and that this server refuses a second master or second RRULE, stricter than RFC 5545's SHOULD NOT. The check answers state model results, and a guard in `scene.ts` fails the scene if the model stops giving them.

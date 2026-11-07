@@ -1,14 +1,15 @@
-import { frames as readerFrames } from '../lib/readers/tailwind-gamut.ts';
-import { Scene, Group, Rectangle, Text } from '../../../src/index.ts';
+import { frames as readerFrames, radar, sideLines, radarKey, CHROMA, SHARE, SIDE, SIZE } from './picture.ts';
+import type { Curve } from './picture.ts';
+import { Scene, Group, Text } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
-import { stage, settingsOf, REGIONS, mermaid } from '../../../explain/index.ts';
-import type { Diagram } from '../../../explain/index.ts';
-import { SHADES, cssMap, inside, rows, summarize, swatch } from '../lib/tailwind-gamut.ts';
-import type { Row, Shade } from '../lib/tailwind-gamut.ts';
+import { stage, settingsOf } from '../../../explain/index.ts';
+import type { Diagram, PictureNote, View } from '../../../explain/index.ts';
+import { SHADES, rows, summarize } from './model.ts';
+import type { Shade } from './model.ts';
 import { listed, percent } from '../lib/format.ts';
 type Side = 'above' | 'below' | 'left' | 'right';
 
-// Sources. Every number on screen comes from lib/tailwind-gamut.ts, which cites the lines it uses.
+// Sources. Every number on screen comes from model.ts, which cites the lines it uses.
 const THEME =
   'https://github.com/tailwindlabs/tailwindcss/blob/c2b24dd15fed1c59dd521bd86082f520c9f5ad0d/packages/tailwindcss/theme.css';
 const BLOG =
@@ -18,65 +19,10 @@ const CSS4 = 'https://github.com/w3c/csswg-drafts/blob/e1bd39185acd650512f82e1ee
 const STYLE = 'hand-drawn';
 type Screen = 'srgb' | 'p3';
 
-// Radar-beta with a ring label on each ring. A 290 px canvas (radius 89 px rather than 120) keeps the
-// spoke and ring labels at least 14 px on a 1280 px stage when the chart fills the `main` region; the
-// legend is drawn natively in the side column, at the reader's size.
-const HEAD = mermaid.frontMatter({ radar: { tickLabels: true, width: 290, height: 290 } });
-interface Curve {
-  id: 'srgb' | 'tw' | 'p3';
-  label: string;
-  values: readonly number[];
-}
-interface Scale {
-  min: number;
-  max: number;
-  ticks: number;
-}
-/** Absolute chroma, 0 at the centre, rings 0.05 apart. */
-const CHROMA: Scale = { min: 0, max: 0.35, ticks: 7 };
-/** Chroma as a percentage of an edge: 50 at the centre, rings 25 apart, so 100 is a ring. */
-const SHARE: Scale = { min: 50, max: 150, ticks: 4 };
-const radar = (all: readonly Row[], curves: readonly Curve[], scale: Scale) =>
-  [
-    HEAD,
-    'radar-beta',
-    `  axis ${all.map((r) => `${r.family}["${r.family} ${Math.round(r.h)}°"]`).join(', ')}`,
-    ...curves.map((c) => `  curve ${c.id}["${c.label}"]{${c.values.join(', ')}}`),
-    `  max ${scale.max}`,
-    `  min ${scale.min}`,
-    `  ticks ${scale.ticks}`,
-    '  graticule polygon',
-    '  showLegend false',
-  ].join('\n');
-
-// The radar fills `main`; the side column holds a card, a few lines and the key.
-const SIDE: Box = [REGIONS.side[0], REGIONS.side[1], REGIONS.side[2], 3.05];
-const SIZE = 0.24;
-/** Hand-drawn's first three series colours, as a reader would name them. */
-const COLOUR_NAME: Record<Curve['id'], string> = { srgb: 'dark grey', tw: 'blue', p3: 'lavender' };
-
 const pct = (v: number) => percent(v, { of: 100 });
-
-// The ending questions, from the model. Check 1: the default opening colour's mapped chroma, written back
-// at its original lightness and hue, still lies outside sRGB: the mapping moved lightness and hue too.
-const OPEN = summarize('500');
-const OPENING = swatch(OPEN.mostOfSrgb.family, '500');
-const OPEN_MAPPED = cssMap(OPENING.L, OPENING.C, OPENING.h, 'srgb');
-const OPEN_ROW = rows('500').find((r) => r.family === OPENING.family)!;
-if (inside(OPENING.L, OPEN_ROW.shown, OPENING.h, 'srgb')) throw new Error('The mapped chroma must not fit at the written lightness and hue');
-// Check 2: the raw and relative leaders differ at shade 500.
-const RAW = rows('500').find((r) => r.family === OPEN.furthest.family)!;
-if (OPEN.furthest.family === OPEN.mostOfSrgb.family || RAW.srgb <= OPEN_ROW.srgb) throw new Error('The raw leader must sit on a higher edge than the relative one');
-// Check 3: a family that fits at 500 need not fit at 700.
-const ROOMY = OPEN.leastOfSrgb.family;
-const ROOMY_700 = rows('700').find((r) => r.family === ROOMY)!;
-if (!ROOMY_700.outsideSrgb) throw new Error(`${ROOMY}-700 must lie outside sRGB`);
-const deg = (h: number) => `${h.toFixed(1)}°`;
 
 export default class TailwindGamutExplainer extends Scene {
   static meta = {
-    id: 'tailwind-gamut',
-    title: 'Will this Tailwind colour fit the display?',
     sources: [
       THEME + '#L10-L323',
       BLOG + '#L356-L366',
@@ -85,27 +31,11 @@ export default class TailwindGamutExplainer extends Scene {
       CSS4 + 'Overview.bs#L6383-L6609',
       'https://www.npmjs.com/package/colorjs.io/v/0.7.1',
     ],
-    // The script's answer and check questions (script.md); check holds a step (palette) to stating the answer.
-    answer: 'Most of these colours lie outside sRGB, so an sRGB screen shows them less vivid than written',
     // Sentences about everything one radar draws.
     claims: [
       { says: 'lie outside, and only', shown: true as const },
       { says: 'every colour past it shows', shown: true as const },
       { says: 'lies beyond sRGB’s on every spoke', shown: true as const },
-    ],
-    checks: [
-      {
-        question: `An sRGB screen paints ${OPENING.family}-500 with chroma ${OPEN_ROW.shown.toFixed(3)}. Suppose you write that chroma yourself, at ${OPENING.family}-500’s own lightness and hue: oklch(${(OPENING.L * 100).toFixed(1)}% ${OPEN_ROW.shown.toFixed(3)} ${OPENING.h}). Does it fit sRGB?`,
-        answer: `No. The sRGB edge at that lightness and hue is ${OPEN_ROW.srgb.toFixed(3)}, below ${OPEN_ROW.shown.toFixed(3)}. The mapped colour fits because the final clip also moved it, to lightness ${(OPEN_MAPPED.L * 100).toFixed(1)}% and hue ${deg(OPEN_MAPPED.h)}, where the edge is higher. Whether a chroma fits depends on the lightness and hue it comes with.`,
-      },
-      {
-        question: `In raw chroma, ${RAW.family}-500 is the 500 colour furthest past the sRGB edge. Why does the share view put ${OPENING.family}-500 first instead?`,
-        answer: `The edge sits at a different chroma on every spoke. ${RAW.family}-500 overshoots by ${OPEN.furthest.value.toFixed(3)} on an edge at ${RAW.srgb.toFixed(3)}; ${OPENING.family}’s edge is ${OPEN_ROW.srgb.toFixed(3)}, so its smaller overshoot is a larger share of it.`,
-      },
-      {
-        question: `${ROOMY}-500 has the most room of the 500 shades, at ${pct(OPEN.leastOfSrgb.value)} of its sRGB edge. Does that make ${ROOMY}-700 safe on an sRGB screen?`,
-        answer: `No: ${ROOMY}-700 asks for ${pct(ROOMY_700.ofSrgb)} of its edge, so an sRGB screen maps it. The darker shade has its own lightness and chroma, and the edge moves with lightness, so a family’s name says nothing about whether it fits.`,
-      },
     ],
   };
   static settings = [
@@ -139,57 +69,9 @@ export default class TailwindGamutExplainer extends Scene {
     const tw = `Tailwind ${shade}`;
 
     /** Lines of text wrapped to the side column, from `top` down. */
-    const lines = (texts: readonly string[], top: number, size = SIZE) => {
-      const made: Text[] = [];
-      let y = top - size * 0.6;
-      const width = SIDE[2] - SIDE[0] - 0.1;
-      for (const text of texts) {
-        let line = '';
-        const flush = () => {
-          made.push(new Text(line, { fontSize: size, color: ink, anchor: 'start' }).moveTo([SIDE[0], y], [-1, 0]));
-          y -= size * 1.4;
-          line = '';
-        };
-        for (const w of text.split(' ')) {
-          const next = line ? `${line} ${w}` : w;
-          if (line && new Text(next, { fontSize: size }).width() > width) flush();
-          line = line ? `${line} ${w}` : w;
-        }
-        flush();
-        y -= size * 0.5;
-      }
-      return { made, bottom: y };
-    };
+    const lines = (texts: readonly string[], top: number, size = SIZE) => sideLines(texts, top, ink, size);
     /** The key: one swatch per curve shown, in the curve's own colour, at the foot of the side column. */
-    const key = (d: Diagram, curves: readonly Curve[]) => {
-      const rowsOut: Group[] = [];
-      curves.forEach((c, i) => {
-        const fill =
-          d
-            .get(`curve:${c.id}`)
-            .family()
-            .map((m) => m.style.fill)
-            .find((f) => f && f !== 'none') ?? ink;
-        const y = SIDE[1] + 0.35 + (curves.length - 1 - i) * 0.42;
-        const swatch = new Rectangle({
-          width: 0.26,
-          height: 0.26,
-          fill,
-          fillOpacity: 0.6,
-          stroke: fill,
-          strokeWidth: 0.02,
-        }).moveTo([SIDE[0] + 0.13, y]);
-        const label = new Text(c.label, { fontSize: SIZE, color: ink, anchor: 'start' }).moveTo(
-          [SIDE[0] + 0.4, y],
-          [-1, 0],
-        );
-        rowsOut.push(new Group(swatch, label));
-      });
-      return {
-        mobs: rowsOut,
-        describe: `Key: ${curves.map((c) => `${COLOUR_NAME[c.id]}, ${c.label}`).join('; ')}`,
-      };
-    };
+    const key = (d: Diagram, curves: readonly Curve[]) => radarKey(d, curves, ink);
     /** A card at the top of the side column, lines under it, and the key at its foot, entering together. */
     const column = async (
       d: Diagram | null,
@@ -213,6 +95,25 @@ export default class TailwindGamutExplainer extends Scene {
      * names and ring values) or the notes so far; failing that, where it covers least.
      */
     const said: Box[] = [];
+    // The notes on the dots are how the radar is shown, not the model: they live in `shown`, the radar
+    // is shown by a view that draws them, and a note is `shown` changed and the view synced. For a
+    // reveal or a morph the live radar comes back.
+    const dotNotes = () => (this.shown.dotNotes ?? []) as PictureNote[];
+    let radarView: View | null = null;
+    const showNotes = async (notes: PictureNote[]) => {
+      this.shown.dotNotes = notes;
+      await this.play(radarView!.sync({ match: 'key', staged: true, runTime: 0.35 }));
+    };
+    /** The next step's slate: the notes leave `shown`, the live radar comes back, and the side column goes. */
+    const nextSlate = async (d: Diagram) => {
+      if (radarView) {
+        await showNotes([]);
+        s.liveDiagram(d);
+        radarView = null;
+      }
+      await s.clearOverlays();
+      said.length = 0;
+    };
     const onDot = async (d: Diagram, family: string, text: string) => {
       const i = all.findIndex((r) => r.family === family);
       const dot = d.get(`dot:tw:${i}`).box()!,
@@ -261,7 +162,8 @@ export default class TailwindGamutExplainer extends Scene {
       const sides = [...across, ...along];
       const best = sides.find((sd) => cost(sd) === 0) ?? sides.reduce((a, b) => (cost(b) < cost(a) ? b : a));
       said.push(boxAt(best));
-      await d.note(`dot:tw:${i}`, text, { side: best, size });
+      radarView ??= s.diagramView(d, (_st, sh) => ({ notes: (sh.dotNotes ?? []) as PictureNote[] }));
+      await showNotes([...dotNotes(), { id: `dot:tw:${i}`, text, side: best, size }]);
     };
 
     // ------------------------------------------------------------------ the opening
@@ -304,8 +206,7 @@ export default class TailwindGamutExplainer extends Scene {
       line: 'Predict: measured against its own spoke’s edge, which colour is furthest out?',
       caption: `Most of these colours lie outside sRGB, so an sRGB screen shows them less vivid than written. Tailwind’s own chroma for each colour is drawn over the edge: ${out} of ${n} lie outside, and only ${listed(sum.insideSrgb)} fit. At this scale the overshoot looks like a sliver; ${sum.furthest.family}-${shade}, the furthest out in raw chroma, is ${sum.furthest.value.toFixed(3)} past its edge. But each spoke’s edge sits at a different chroma. As a share of its own edge, which colour goes furthest?`,
     });
-    await s.clearOverlays();
-    said.length = 0;
+    await nextSlate(d);
     await d.reveal(['curve:tw']);
     await onDot(d, sum.furthest.family, `+${sum.furthest.value.toFixed(3)}`);
     await column(d, [], [`Inside sRGB: ${listed(sum.insideSrgb)}.`], [srgbCurve, twCurve]);
@@ -325,8 +226,7 @@ export default class TailwindGamutExplainer extends Scene {
         sum.mostOfSrgb.family === sum.furthest.family ? '' : `: its edge is lower than ${sum.furthest.family}’s, so a smaller overshoot is a larger share of it`
       }.${level.length ? ` ${listed(level)} ${level.length === 1 ? 'is' : 'are'} level with it to one decimal.` : ''} ${sum.leastOfSrgb.family} has the most room, at ${pct(sum.leastOfSrgb.value)}. The centre is now 50%, and the rings are 25 points apart.`,
     });
-    await s.clearOverlays();
-    said.length = 0;
+    await nextSlate(d);
     await d.morph(
       { source: radar(all, shareCurves, SHARE) },
       {
@@ -351,8 +251,7 @@ export default class TailwindGamutExplainer extends Scene {
       line: `Closest to the P3 edge: ${near.family}-${shade}, at ${pct(near.value)} of it.`,
       caption: `The Display P3 edge on the same scale lies beyond sRGB’s on every spoke, from ${pct(sum.p3OfSrgb.lo.value)} at ${sum.p3OfSrgb.lo.family} to ${pct(sum.p3OfSrgb.hi.value)} at ${sum.p3OfSrgb.hi.family}. All ${n} colours fit inside it. The closest is ${near.family}-${shade}, at ${pct(near.value)} of the P3 edge, ${near.spare.toFixed(3)} chroma short of it.`,
     });
-    await s.clearOverlays();
-    said.length = 0;
+    await nextSlate(d);
     await d.morph(
       { source: radar(all, withP3, SHARE) },
       { ops: [{ kind: 'add_curve', id: 'p3', label: p3Curve.label, values: [...p3Curve.values] }] },
@@ -386,8 +285,7 @@ export default class TailwindGamutExplainer extends Scene {
         line: `Chroma drops to the edge; ${lost.family}-${shade} loses most, ${lost.from.toFixed(3)} to ${lost.to.toFixed(3)}.`,
         caption: `CSS Color 4 says a colour outside the screen’s gamut must be mapped into it. Its binary search lowers chroma at fixed lightness and hue until clipping changes the colour by under 0.02, then clips; hue moves by up to ${sum.hueShift.value}°. All ${out} land on the edge. ${lost.family}-${shade} loses most chroma: ${lost.from.toFixed(3)} to ${lost.to.toFixed(3)}.`,
       });
-      await s.clearOverlays();
-      said.length = 0;
+      await nextSlate(d);
       await d.morph(
         { source: radar(all, [shareCurves[0]!, mapped, p3Curve], SHARE) },
         {
@@ -423,8 +321,7 @@ export default class TailwindGamutExplainer extends Scene {
         line: `Ring 100 is now the P3 edge; sRGB’s falls to ${pct(sum.srgbOfP3.lo.value)}–${pct(sum.srgbOfP3.hi.value)} of it.`,
         caption: `Now each spoke is measured against the Display P3 edge, the new 100 ring. CSS Color 4’s gamut mapping leaves a colour inside the screen’s gamut unchanged, so a P3 screen shows all ${n} as written. The sRGB edge falls to ${pct(sum.srgbOfP3.lo.value)}–${pct(sum.srgbOfP3.hi.value)} of P3’s; ${near.family} comes closest, at ${pct(near.value)}.`,
       });
-      await s.clearOverlays();
-      said.length = 0;
+      await nextSlate(d);
       await d.morph(
         { source: radar(all, p3Share, SHARE) },
         { ops: p3Share.map((c) => ({ kind: 'set_curve_values', id: c.id, values: [...c.values] })) },

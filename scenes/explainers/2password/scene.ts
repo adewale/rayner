@@ -1,6 +1,7 @@
-import { frames as readerFrames, ANSWER } from '../lib/readers/2password.ts';
+import { frames as readerFrames } from './picture.ts';
 import { Scene, Arrow, FadeIn, Create } from '../../../src/index.ts';
-import { stage, regionBox } from '../../../explain/index.ts';
+import { stage, regionBox, answerOf, view, CodeBlock } from '../../../explain/index.ts';
+import type { NoteSide } from '../../../explain/index.ts';
 import {
   ITEMS,
   SOURCE,
@@ -12,31 +13,15 @@ import {
   distance,
   matches,
   terms,
-} from '../lib/2password.ts';
+} from './model.ts';
 
 const STYLE = 'excalidraw';
 const QUERIES = ['cloud api', 'databse'] as const;
 const BOUNDARY = 'graph LR\nAgent[Agent] --> Find[2password find]\nFind --> Op[op CLI]\nOp --> Vault[1Password vault]';
 const pad = (v: unknown, n: number) => String(v).padEnd(n);
 
-/** The check questions' answers, from the same find: a query whose words are in no title. */
-const CHECK = (() => {
-  const query = 'cloud key',
-    result = find([query]);
-  if (result.matches.length || result.suggestions) throw new Error(`“${query}” should find nothing`);
-  const best = Math.max(...ITEMS.map((i) => closeness(terms(query), i.title)));
-  return { blind: { query, best: best.toFixed(3), calls: result.opCalls.length } };
-})();
-const match0 = (() => {
-  const m = find(['cloud api']).matches[0]!,
-    [vault, title, field] = m.ref.slice('op://'.length).split('/');
-  return { ref: m.ref, vault: vault!, title: title!, field: field! };
-})();
-
 export default class PasswordExplainer extends Scene {
   static meta = {
-    id: '2password',
-    title: 'Can an agent use a key it never sees?',
     sources: [
       `${SOURCE}/src/discover.ts`,
       `${SOURCE}/src/op.ts`,
@@ -44,28 +29,12 @@ export default class PasswordExplainer extends Scene {
       'https://developer.1password.com/docs/cli/secret-references/',
       'https://developer.1password.com/docs/service-accounts/use-with-1password-cli/',
     ],
-    // The script's answer and check questions (script.md); check holds reader-boundary to stating the answer.
-    answer: ANSWER,
     // Sentences that reach past the scenarios on screen, and what holds each.
     claims: [
-      { says: 'The agent handles only an op:// reference', test: 'test/explain-models.test.ts: 2password find returns references and no field value' },
-      { says: 'the agent searches titles, never values', test: 'test/explain-models.test.ts: compares queries with titles alone' },
+      { says: 'The agent handles only an op:// reference', test: 'model.test.ts: 2password find returns references and no field value' },
+      { says: 'the agent searches titles, never values', test: 'model.test.ts: compares queries with titles alone' },
       { says: 'contains every word of', shown: true as const },
       { says: 'every sample value is searched for in the output', shown: true as const },
-    ],
-    checks: [
-      {
-        question: `The agent searches for “${CHECK.blind.query}”, hoping to find the API key. What does find return, and why?`,
-        answer: `Nothing. No title contains “key”, so nothing matches, and no title is spelled close enough to be suggested (the closest scores ${CHECK.blind.best} against a cut-off of ${SUGGESTION_THRESHOLD}). find compares the query with titles only; it cannot know that ${match0.title} holds a key, and it makes ${CHECK.blind.calls} op call, the item list, without fetching any item.`,
-      },
-      {
-        question: 'The app prints API_KEY to stdout, and the agent reads stdout. Does passing a reference prevent that disclosure?',
-        answer: 'No. The app receives the resolved key and can print it. References keep field values out of find’s output and the launch request; they do not sandbox the app or redact its output.',
-      },
-      {
-        question: `The agent’s transcript, containing ${match0.ref}, is pasted into a team chat. What does the team learn, and can they read the key?`,
-        answer: `They learn names: a vault called ${match0.vault}, an item titled ${match0.title} and a field called ${match0.field}. Reading the value still needs an op session with access to that vault; the reference carries no permission. The names themselves can still be sensitive, since they say which vaults and items exist.`,
-      },
     ],
   };
   override async construct() {
@@ -76,7 +45,7 @@ export default class PasswordExplainer extends Scene {
       match = found.matches[0]!,
       suggestion = found.suggestions![0]!;
 
-    await s.steps(readerFrames(), { kind: 'short' });
+    await s.steps(readerFrames(answerOf(this)), { kind: 'short' });
     await this.step('boundary', {
       title: 'To pick a key, the agent searches titles, never values',
       line: `Predict: it asks for “${hitQuery}” and the typo “${missQuery}”. What comes back?`,
@@ -84,22 +53,57 @@ export default class PasswordExplainer extends Scene {
     });
     await s.clear();
     const boundary = await s.show({ source: BOUNDARY }, { box: 'top' });
-    await boundary.walk(
-      [
-        ['Agent', 'Find'],
-        ['Find', 'Op'],
-      ],
-      { trail: true },
-    );
+    // How the boundary diagram is shown, apart from its source: the hops walked and what stays undimmed.
+    // That is `shown`, not the model; its view draws it, and each change is a sync.
+    type BoundaryShown = { walked: [string, string][]; dim: string[] | null };
+    this.shown.boundary = { walked: [], dim: null } satisfies BoundaryShown;
+    const boundaryView = s.diagramView(boundary, (_st, sh) => {
+      const b = sh.boundary as BoundaryShown;
+      return { marks: boundary.trail(b.walked), dim: b.dim };
+    });
+    const showBoundary = async (change: Partial<BoundaryShown>) => {
+      this.shown.boundary = { ...(this.shown.boundary as BoundaryShown), ...change };
+      await this.play(boundaryView.sync({ match: 'key', staged: true }));
+    };
+    const handled: [string, string][] = [
+      ['Agent', 'Find'],
+      ['Find', 'Op'],
+    ];
+    await boundary.walk(handled);
+    await showBoundary({ walked: handled });
     const W = 14;
-    const listing = await s.code(
-      [
-        pad('title', W) + pad('category', 16) + 'vault',
-        ...ITEMS.map((i) => pad(i.title, W) + pad(i.category, 16) + i.vault),
-      ],
-      { at: [-5.5, -4.25, 5.5, -0.5], fontSize: 0.3 },
+    const cell = (query: string, title: string) => {
+      if (matches(query, title)) return 'match';
+      const missing = terms(query).filter((t) => !title.toLowerCase().includes(t));
+      return `no ${missing.join(', ')}`;
+    };
+    const spelled = (title: string) =>
+      closeness(terms(missQuery), title) >= SUGGESTION_THRESHOLD ? 'close: suggested' : 'not close';
+    // The listing is a view; which columns it shows (each item's category and vault, or what each query
+    // found) and the lines in focus are how the step shows the items, in `shown`.
+    type ListingShown = { columns: 'item' | 'queries'; focus: [number, number] };
+    const listingLines = (columns: ListingShown['columns']) =>
+      columns === 'item'
+        ? [pad('title', W) + pad('category', 16) + 'vault', ...ITEMS.map((i) => pad(i.title, W) + pad(i.category, 16) + i.vault)]
+        : [
+            pad('title', W) + pad(hitQuery, 16) + missQuery,
+            ...ITEMS.map((i) => pad(i.title, W) + pad(cell(hitQuery, i.title), 16) + spelled(i.title)),
+          ];
+    this.shown.listing = { columns: 'item', focus: [1, ITEMS.length] } satisfies ListingShown;
+    const listing = view(
+      this,
+      (_st, sh) => {
+        const l = sh.listing as ListingShown;
+        return new CodeBlock(this, s.palette, listingLines(l.columns), {
+          at: [-5.5, -4.25, 5.5, -0.5],
+          fontSize: 0.3,
+          focus: l.focus,
+          key: 'listing',
+        });
+      },
+      { place: false },
     );
-    await listing.focus([1, ITEMS.length]);
+    await s.enter(listing, { runTime: 0.4 });
 
     const near = ITEMS.find((i) => i.title === suggestion.title)!;
     const word = near.title.toLowerCase(),
@@ -110,19 +114,12 @@ export default class PasswordExplainer extends Scene {
       line: `${match.title} contains every word of “${hitQuery}”; ${near.title} is ${editWords} from “${missQuery}”.`,
       caption: `${match.title} contains every word of “${hitQuery}”, so it matches. No title contains “${missQuery}”, so find compares spellings instead: “${missQuery}” is ${editWords} from “${word}”, close enough that ${near.title} comes back as a suggestion. Both answers compare the query with titles; neither looks at a secret.`,
     });
-    await boundary.dim(['Agent', 'Find']);
-    const cell = (query: string, title: string) => {
-      if (matches(query, title)) return 'match';
-      const missing = terms(query).filter((t) => !title.toLowerCase().includes(t));
-      return `no ${missing.join(', ')}`;
-    };
-    const spelled = (title: string) =>
-      closeness(terms(missQuery), title) >= SUGGESTION_THRESHOLD ? 'close: suggested' : 'not close';
-    await listing.morph([
-      pad('title', W) + pad(hitQuery, 16) + missQuery,
-      ...ITEMS.map((i) => pad(i.title, W) + pad(cell(hitQuery, i.title), 16) + spelled(i.title)),
-    ]);
-    await listing.focus([1 + ITEMS.indexOf(ITEMS.find((i) => i.title === match.title)!), 1 + ITEMS.indexOf(near)]);
+    await showBoundary({ dim: ['Agent', 'Find'] });
+    this.shown.listing = {
+      columns: 'queries',
+      focus: [1 + ITEMS.indexOf(ITEMS.find((i) => i.title === match.title)!), 1 + ITEMS.indexOf(near)],
+    } satisfies ListingShown;
+    await this.play(listing.sync({ match: 'key', staged: true }));
     this.state.matches = Object.fromEntries(
       QUERIES.map((q) => [q, ITEMS.filter((i) => matches(q, i.title)).map((i) => i.title)]),
     );
@@ -156,14 +153,25 @@ export default class PasswordExplainer extends Scene {
       },
       { box: 'full' },
     );
-    await sequence.mark(['message:T->A#0']);
-    // What the two calls cost, said on op itself, and what the agent's reply holds, said on the reply.
-    await sequence.note(
-      'O',
-      `${found.opCalls.length} calls, ${approvals} approval${approvals === 1 ? '' : 's'}`,
-      { side: 'right' },
-    );
-    await sequence.note('message:T->A#0', `secret values: ${leaked || 'none'}`, { side: 'below' });
+    // The reply marked and the notes are how the sequence is shown, drawn by its view from `shown`.
+    type SequenceShown = { marked: string[]; notes: { id: string; text: string; side: NoteSide }[] };
+    this.shown.sequence = { marked: [], notes: [] } satisfies SequenceShown;
+    const sequenceView = s.diagramView(sequence, (_st, sh) => {
+      const q = sh.sequence as SequenceShown;
+      return {
+        marks: Object.fromEntries(q.marked.map((id) => [id, sequence.accent])),
+        notes: q.notes,
+      };
+    });
+    this.shown.sequence = {
+      marked: ['message:T->A#0'],
+      // What the two calls cost, said on op itself, and what the agent's reply holds, said on the reply.
+      notes: [
+        { id: 'O', text: `${found.opCalls.length} calls, ${approvals} approval${approvals === 1 ? '' : 's'}`, side: 'right' },
+        { id: 'message:T->A#0', text: `secret values: ${leaked || 'none'}`, side: 'below' },
+      ],
+    } satisfies SequenceShown;
+    await this.play(sequenceView.sync({ match: 'key', staged: true }));
     this.state.leaked = leaked;
 
     const ref = match.ref;
@@ -174,10 +182,20 @@ export default class PasswordExplainer extends Scene {
       caption: 'The agent passes the reference to run, and op resolves it as it starts the app: op’s environment holds the reference, the app’s holds the value. The agent’s request never contained the key, but the app can still print what it receives.',
     });
     await s.clear();
-    const command = await s.code([`2password run --env "API_KEY=${ref}" -- app`, `→ ${launched.argv.join(' ')}`], {
-      at: regionBox('top', { bottom: 1.2 }),
-      fontSize: 0.3,
-    });
+    // The command is a view; the line in focus is in `shown`.
+    this.shown.commandFocus = null;
+    const command = view(
+      this,
+      (_st, sh) =>
+        new CodeBlock(this, s.palette, [`2password run --env "API_KEY=${ref}" -- app`, `→ ${launched.argv.join(' ')}`], {
+          at: regionBox('top', { bottom: 1.2 }),
+          fontSize: 0.3,
+          focus: sh.commandFocus as number | null,
+          key: 'command',
+        }),
+      { place: false },
+    );
+    await s.enter(command, { runTime: 0.4 });
     const before = await s.code(
       Object.entries(launched.opEnv).map(([k, v]) => `${k}=${v}`),
       {
@@ -203,7 +221,8 @@ export default class PasswordExplainer extends Scene {
       new Create(s.keep(pass, { describe: 'An arrow from op’s environment to the app’s' })),
       new FadeIn(child),
     );
-    await command.focus(1);
+    this.shown.commandFocus = 1;
+    await this.play(command.sync({ match: 'key', staged: true }));
     this.state.argv = launched.argv;
     this.state.childEnv = launched.childEnv;
   }

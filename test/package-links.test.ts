@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';
 import { ROOT } from '../tools/lib/explain-project.ts';
 
@@ -42,4 +42,23 @@ test('every relative link in a shipped Markdown file points at a shipped file', 
   }
   assert.ok(checked > 20, `checked ${checked} links`);
   assert.deepEqual(dead, [], 'links that are dead in the installed package: ship the target, or link to the repository');
+});
+
+// A link to this repository's main branch is how a shipped file, or a reader's source list, points at
+// a file the package leaves out. After a file moves, such a link still resolves today and breaks once
+// the move is merged, so each must name a file in this checkout.
+test('every link to a file on the repository\'s main branch names a file in the checkout', () => {
+  const tracked = execFileSync('git', ['ls-files', '-z'], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 << 20 }).split('\0');
+  const link = /(?:github\.com\/adewale\/rayner\/(?:blob|tree)\/main|raw\.githubusercontent\.com\/adewale\/rayner\/main)\/([^\s)'"`#?<>\]]+)/g;
+  const dead: string[] = [];
+  let checked = 0;
+  for (const file of tracked.filter((f) => /\.(ts|md|json)$/.test(f) && existsSync(join(ROOT, f)))) {
+    for (const [, path] of readFileSync(join(ROOT, file), 'utf8').matchAll(link)) {
+      checked++;
+      const target = decodeURIComponent(path!.replace(/[.,;:]+$/, ''));
+      if (!existsSync(join(ROOT, target))) dead.push(`${file} → ${target}`);
+    }
+  }
+  assert.ok(checked > 20, `checked ${checked} links`);
+  assert.deepEqual(dead, [], 'links to files that are not in the checkout: point them at where the file is now');
 });

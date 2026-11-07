@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { TraceSink } from '../../src/trace.ts';
 import type { Scene, SceneClass, SceneState, Step } from '../../src/scene.ts';
 import type { Mobject } from '../../src/mobject.ts';
-import { viewMismatch } from '../../src/view.ts';
-import type { View } from '../../src/view.ts';
+import { viewMismatch } from '../../explain/view.ts';
+import type { View } from '../../explain/view.ts';
 
 /** A trace sink that also checks, at the end of every step, the View against the state just traced. */
 class ShownSink extends TraceSink {

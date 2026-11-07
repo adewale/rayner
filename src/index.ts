@@ -7,32 +7,24 @@
 export { Mobject, Group } from './mobject.ts';
 export type { Style, StyleRecord, Box, Updater, PathFunc, AnimateBuilder } from './mobject.ts';
 export { VMobject } from './vmobject.ts';
-export { Arc, ArcBetweenPoints, Arrow, Circle, CurvedArrow, Dot, Labeled, Line, Polygon, Rectangle, Square } from './shapes.ts';
-export type { RectangleOpts, SquareOpts, CircleOpts, DotOpts, ArrowOpts, ArcOpts, CurvedArrowOpts } from './shapes.ts';
-export { SurroundingRectangle, Underline, Cross, Brace, BraceLabel } from './shapes.ts';
-export type { SurroundingRectangleOpts, UnderlineOpts, CrossOpts, BraceOpts, BraceLabelOpts } from './shapes.ts';
+export { Arc, Arrow, Circle, CurvedArrow, Dot, Labeled, Line, Polygon, Rectangle } from './shapes.ts';
+export type { RectangleOpts, CircleOpts, DotOpts, ArrowOpts, ArcOpts, CurvedArrowOpts } from './shapes.ts';
+export { SurroundingRectangle, Cross, Brace, BraceLabel } from './shapes.ts';
+export type { SurroundingRectangleOpts, CrossOpts, BraceOpts, BraceLabelOpts } from './shapes.ts';
 export { Text, DecimalNumber, Code } from './text.ts';
 export type { TextOpts, DecimalNumberOpts, CodeOpts } from './text.ts';
 export type { CodeSpan, ColorSpan } from './text.ts';
-export { StateReadout } from './panels.ts';
-// Views: a picture rebuilt from state, changed by matching transforms (docs/VIEWS.md)
-export { View, view } from './view.ts';
-export type { ViewSync, ViewOpts, ViewPlace, ViewMatch, SyncOpts } from './view.ts';
 export { NumberLine, Axes } from './graphing.ts';
 export type { AxisRange, NumberLineOpts, AxisStyle, AxesOpts, PlotOpts, BarOpts, GuideLineOpts } from './graphing.ts';
 
 // Motion
-export { Animation, Transform, FadeIn, FadeOut, Create, Write, MoveAlongPath, AnimationGroup, LaggedStart } from './animation.ts';
-export type { AnimOpts, PlayOpts, Playable, ScheduledAnimation, TransformOpts, FadeOpts, MoveAlongPathOpts } from './animation.ts';
+export { Animation, Transform, FadeIn, FadeOut, Create, AnimationGroup, LaggedStart } from './animation.ts';
+export type { AnimOpts, PlayOpts, Playable, ScheduledAnimation, TransformOpts, FadeOpts } from './animation.ts';
 export { Circumscribe } from './animation.ts';
 export type { CircumscribeOpts } from './animation.ts';
-export { Restore, TransformFromCopy, Succession } from './animation.ts';
-export { GrowFromEdge, PulseAlongPath, SetState, Follow } from './animation.ts';
-export type { GrowFromEdgeOpts, FollowSpec, FollowOpts, SetStateOpts } from './animation.ts';
-export { Machine, refuse, isRefusal } from './machine.ts';
-export type { MachineSpec, Transition, Outcome, Refusal } from './machine.ts';
-export { choreograph } from './choreograph.ts';
-export type { Choreography } from './choreograph.ts';
+export { Succession } from './animation.ts';
+export { GrowFromEdge, PulseAlongPath } from './animation.ts';
+export type { GrowFromEdgeOpts } from './animation.ts';
 export { TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey } from './animation.ts';
 export type { MatchKey, MatchingOpts, TransformMatchingOpts, MatchSummary, MatchByKeyOpts } from './animation.ts';
 export { TransformDiff } from './animation.ts';

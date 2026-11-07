@@ -7,9 +7,22 @@ import { Group, Text, Rectangle, Circle, Line, Arrow } from '../src/index.ts';
 import type { Mobject, Vec, Box } from '../src/index.ts';
 import type { Stage } from './stage.ts';
 import { callout as calloutLook, dimension as dimensionLook, pin as pinLook, legend as legendLook } from './annotate.ts';
+import { emphasisSource } from './look.ts';
 import type { Side, LegendItem } from './annotate.ts';
 export type { LegendItem } from './annotate.ts';
 
+/**
+ * `m` marked as emphasis, with what it shows (`'ring: idle'`, `'outlined: push at slot 3'`): call
+ * it where a draw makes a mark, so the phone's close-ups and the descriptions find the mark in the
+ * picture itself, at whatever state it was drawn from. A part that does not change can be put on a
+ * step's close-up tour the same way, and `null` takes the mark off again. Returns `m`.
+ */
+export function emphasised<T extends Mobject>(m: T, what: string | null): T {
+  if (what === null) { delete (m as Partial<Record<typeof emphasisSource, unknown>>)[emphasisSource]; return m; }
+  // A method on the part, so a copy (a view's placed picture, say) reports itself, not the original.
+  Object.assign(m, { [emphasisSource](this: Mobject) { return [[this, what]] as const; } });
+  return m;
+}
 /** `m` with `key` set: the address matching (matchByKey), find(), invariants and reviews read. */
 export function keyed<T extends Mobject>(m: T, key: string): T {
   m.key = key;
@@ -326,4 +339,3 @@ export function legend(
   g.children.forEach((entry, i) => keyed(entry, `${key}:${items[i]!.label}`));
   return keyed(g, key);
 }
-export * from './seen-from.ts';

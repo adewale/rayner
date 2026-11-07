@@ -1,6 +1,6 @@
 import { Scene } from '../../../src/index.ts';
 import { stage } from '../../../explain/index.ts';
-import { journey, source } from '../../../scenes/explainers/lib/gnome-files.ts';
+import { journey, source } from '../../../scenes/explainers/gnome-files/model.ts';
 
 /**
  * P3's middle four tasks, all scored 5: a journey whose curve is flat. The gnome-files explainer now

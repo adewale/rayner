@@ -1,12 +1,9 @@
 // saveState/restore and Restore, TransformFromCopy, Succession: the end states
 // they promise, their timing against plain play() calls, and seek equality.
 import { test } from 'node:test';
+import { Square, Restore, TransformFromCopy } from '../src/extras.ts';
 import assert from 'node:assert/strict';
-import {
-  Scene, Mobject, Group, Rectangle, Circle, Square, Polygon, Text, Code,
-  Transform, FadeIn, FadeOut, Create, AnimationGroup, LaggedStart,
-  Restore, TransformFromCopy, Succession, TransformMatchingText,
-  } from '../src/index.ts';
+import { Scene, Mobject, Group, Rectangle, Circle, Polygon, Text, Code, Transform, FadeIn, FadeOut, Create, AnimationGroup, LaggedStart, Succession, TransformMatchingText } from '../src/index.ts';
 import { StringSink, SnapshotSink, renderAt, indexScene, toSvgString } from '../src/output.ts';
 import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
 import { Indicate, Flash } from './lib/transient.ts';

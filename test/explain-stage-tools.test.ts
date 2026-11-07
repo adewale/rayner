@@ -10,6 +10,7 @@ import type { Box, Mobject, Vec } from '../src/index.ts';
 import { stage } from '../explain/index.ts';
 import { oneStrokeEach } from '../explain/annotate.ts';
 import { restingTextProblems } from '../tools/lib/explain-check.ts';
+import { openingOf } from '../explain/look.ts';
 
 /** Run a scene, collecting its motion failures and a probe's readings after each frame. */
 async function run<T>(S: import('../src/index.ts').SceneClass, probe: (scene: Scene) => T) {
@@ -262,3 +263,24 @@ test("engine defaults take the stage's palette: an axis, outlines and text drawn
   await new S(new NullSink()).run();
   assert.deepEqual(seen, { axis: p.ink, label: p.ink, outline: accent, ring: accent, text: p.ink, given: '#123456' });
 });
+
+test('a kept opening holds its subjects through later steps; a step\'s own opening wins for that step; an empty kept call clears them', async () => {
+  const seen: string[][] = [];
+  class Kept extends Scene {
+    override async construct() {
+      const s = stage(this);
+      const tower = Object.assign(new Rectangle({ width: 2, height: 1 }), { key: 'tower' });
+      const note = Object.assign(new Text('note', { fontSize: 0.4 }).moveTo([3, 0]), { key: 'note' });
+      const at = () => seen.push(openingOf(this).map((m) => m.key ?? ''));
+      await this.step('a'); this.add(tower, note); s.opening(tower, { keep: true }); at();
+      await this.step('b'); at();
+      await this.step('c'); s.opening(note); at();
+      await this.step('d'); at();
+      await this.step('e'); s.opening({ keep: true }); at();
+      await this.step('f'); at();
+    }
+  }
+  await new Kept(new NullSink()).run();
+  assert.deepEqual(seen, [['tower'], ['tower'], ['note'], ['tower'], [], []]);
+});
+

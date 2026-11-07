@@ -3,7 +3,7 @@
 // One definition behind `rayner describe` and anything an agent imports; it runs the scene in
 // Node or a browser, with no Chromium, given the diagrams' pinned snapshots.
 import { renderAt, renderText } from '../src/output.ts';
-import { machinesOf } from '../src/testing.ts';
+import { machinesOf } from './machine.ts';
 import { traceRun } from '../src/trace.ts';
 import type { Scene, SceneState, Sink } from '../src/index.ts';
 import { scenariosOf, withSettings, scenarioName, bindSnapshots } from './settings.ts';
@@ -84,6 +84,8 @@ export interface ExplainerDescription {
   answer?: string;
   /** The questions a reader should be able to answer afterwards, with answers (`meta.checks`). */
   checks?: { question: string; answer: string }[];
+  /** What the model is checked against, from the script's intent header. */
+  checkedAgainst?: string;
   scenarios: ScenarioDescription[];
 }
 export interface DescribeOptions {
@@ -112,6 +114,7 @@ export async function describeExplainer(Scene: ExplainerClass, options: Describe
     title: meta.title ?? meta.id ?? '',
     lang: meta.lang ?? 'en',
     sources: [...(meta.sources ?? [])],
+    ...((meta as { checkedAgainst?: string }).checkedAgainst ? { checkedAgainst: (meta as { checkedAgainst?: string }).checkedAgainst } : {}),
     settings: (Scene.settings ?? []).map((s) => ({ ...s, options: s.options.map((o) => ({ ...o })) })),
     ...(meta.answer ? { answer: meta.answer } : {}),
     ...(meta.checks?.length ? { checks: meta.checks.map((c) => ({ question: c.question, answer: c.answer })) } : {}),

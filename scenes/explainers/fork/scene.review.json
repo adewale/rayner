@@ -1,38 +1,7 @@
 {
   "version": 2,
   "subjects": [
-    {
-      "step": "choice",
-      "opening": true,
-      "targets": [
-        {
-          "key": "fork-choice-scenarios"
-        },
-        {
-          "key": "fork-choice-fallback"
-        }
-      ]
-    },
-    {
-      "step": "scenarios",
-      "opening": true,
-      "targets": [
-        {
-          "key": "fork-scenarios"
-        },
-        {
-          "text": "Local"
-        },
-        {
-          "text": "Cluster"
-        },
-        {
-          "text": "scenario 1"
-        },
-        {
-          "text": "scenario 6"
-        }
-      ]
-    }
+    { "step": "choice", "opening": true, "targets": [{ "key": "fork-choice-scenarios" }, { "key": "fork-choice-fallback" }] },
+    { "step": "scenarios", "opening": true, "targets": [{ "key": "fork-scenarios" }, { "text": "Local" }, { "text": "Cluster" }, { "text": "scenario 1" }, { "text": "scenario 6" }] }
   ]
 }

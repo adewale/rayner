@@ -1,15 +1,23 @@
 # How many people make a shared birthday likely?
 
-A year has 365 days, so a shared birthday can seem to need a crowd. Here are twenty-three people. Before hunting through their dates, guess the chance that two share a birthday.
+- **Reader:** has heard of the birthday paradox, or guesses that a shared birthday needs a crowd of a hundred or more; can multiply chances but has not counted pairs.
+- **Answer:** A room of 23 people gives a better than even chance that two share a birthday, because 23 people make 253 pairs, each a chance to match
+- **Changed condition:** the size of the room. Ten people make 45 pairs and share a birthday 11.7% of the time, and the sampled room of ten has no shared date; twenty-three make 253 pairs, just over an even chance; forty make 780, 89.1%. A marked person's own chance stays far lower at every size.
+- **Reader's own work:** guess the chance for the room before searching its dates, and predict how many comparisons the whole room makes after seeing your own; choose a room of 10, 23 or 40; answer the check questions, which merge two rooms and shrink the calendar to 100 days.
+- **Checked against:** exhaustive enumeration of every birthday assignment for calendars of 1 to 5 days and rooms of 1 to 5 people, and exact fractions and the seeded samples from an independent CPython 3.12 script (`oracle/birthdays.py`, stored in `fixtures/birthdays.json`) for rooms of 10, 23, 40 and 50, both in `model.test.ts`; `scene.test.ts` also holds the answer's and check answers' numbers to the model.
+- **Leaves out:** leap day, twins and seasonal birth patterns: birthdays are independent and equally likely over 365 days. A sampled room shows matches but not their probability.
 
-This room has two matching pairs. That could be luck, but in a thousand simulated rooms about half have a match. The exact chance is just over fifty percent. How can twenty-three people offer so many chances?
+## Check yourself
 
-Mark one person as you. You can compare your birthday with those of the other twenty-two people. That gives only about a six percent chance of finding someone who shares yours. An even chance of that would take 253 other people.
+1. Two separate rooms each hold 23 people. When everyone joins one room, how many new pairs become possible, and why can’t you just add the two rooms’ match probabilities?
+   529 new pairs: each of the 23 people in one room can now match each of the 23 in the other. The combined room has 1,035 pairs, compared with 506 within the two separate rooms. Adding the old probabilities misses the cross-room pairs and counts overlapping match events twice.
+2. On a planet with 100 equally likely birthdays, would 23 people still be needed for a better than even chance of a shared birthday? Use the person-by-person calculation to find the smallest room.
+   No: 13 people suffice. Multiply the chances of avoiding earlier birthdays, 100/100 × 99/100 × … × 88/100, and subtract from 1: about 55.7%. With 12 people it is about 49.7%. A smaller calendar makes each new pair more likely to match.
 
-But a match in the room need not involve you. The second person can match the first; the third can match either of the first two; each newcomer pairs with everyone already there. Those comparisons fill a triangle: twenty-three people make 253 pairs. You needed 253 comparisons by yourself; a small room makes that many by sharing the comparisons among everyone. That is why a match somewhere is much more likely than a match with you.
+## Why this explainer
 
-The pairs grow much faster than the room. Ten people make 45 pairs and share a birthday 11.7 percent of the time; forty people make 780 pairs and share one 89.1 percent of the time. Doubling a room from five people to ten takes it from 10 pairs to 45, because the sixth person brings five new pairs, the seventh six, and so on up to the tenth's nine. More pairs give more opportunities to match, but a particular room can still have none: the room of ten on this page has no shared date.
+The surprise in the birthday problem comes from answering a different question: people think about a match with themselves, which does need 253 other people for an even chance. The explainer is built around that contrast. Marking one card as "you" and drawing your comparisons as a column, then filling in the triangle of every pair, lets the reader see that a room of 23 makes the same 253 comparisons by sharing them among everyone. Comparing the column with the triangle is the first and main explanation.
 
-For an exact probability, turn the question around: what would it take for nobody to match? The second person must avoid one date. If they succeed, the third must avoid two. Continue like this, multiplying each person's chance of missing the dates already taken. Subtract the resulting chance of no match from one. For twenty-three people, the result is about 50.7 percent.
+The room is a seeded sample so the reader has real dates to search, but a single room proves nothing about the chance, so the page says so and quotes the simulated and exact figures beside it. The setting is the room size because it changes the conclusion: ten people usually have no match, forty usually do.
 
-Treating all 253 pairs as independent gives a nearby estimate, 50.05 percent, but not the exact answer. That estimate is the chance you would have of sharing your own birthday with one of 253 other people: it treats the room's pairs as if they were your separate comparisons. They are not separate, because pairs can share people: if Ann matches Ben and Ben matches Cal, Ann must match Cal too. Counting people one at a time handles that dependence. This calculation assumes independent birthdays, each equally likely on a 365-day calendar; real births do not follow that ideal exactly.
+The exact person-by-person product and the independent-pair shortcut stay as optional details after the main story. The shortcut is close but not exact, and the reason, that pairs share people, is worth showing to a reader who wants it, without making every reader work through it.

@@ -17,12 +17,12 @@ test(
     const folder = await mkdtemp(join(tmpdir(), 'rayner-site-export-'));
     try {
       const built = join(folder, 'built');
-      await promisify(execFile)(process.execPath, [join(ROOT, 'tools/explain-demos.ts'), '--check', '--only', 'mr-cache,python-dict', '--out', built], {cwd: ROOT, maxBuffer: 4 * 1024 * 1024});
+      await promisify(execFile)(process.execPath, [join(ROOT, 'tools/repo/explain-demos.ts'), '--check', '--only', 'mr-cache,python-dict', '--out', built], {cwd: ROOT, maxBuffer: 4 * 1024 * 1024});
       assert.ok(!(await readdir(built)).includes('periodic-groups.html'), 'subset build needs no other scene pages');
       await promisify(execFile)(
         process.execPath,
         [
-          join(ROOT, 'tools/explain-site.ts'),
+          join(ROOT, 'tools/repo/explain-site.ts'),
           join(folder, 'export'),
           '--from', built,
           '--only',
@@ -69,7 +69,7 @@ test(
           !headers.includes('/projects/rayner/periodic-groups'),
       );
       await writeFile(join(built, 'mr-cache.html'), 'damaged selected page');
-      await assert.rejects(promisify(execFile)(process.execPath, [join(ROOT, 'tools/explain-site.ts'), join(folder, 'export'), '--from', built, '--only', 'mr-cache,python-dict'], {cwd: ROOT}), /Built output changed/);
+      await assert.rejects(promisify(execFile)(process.execPath, [join(ROOT, 'tools/repo/explain-site.ts'), join(folder, 'export'), '--from', built, '--only', 'mr-cache,python-dict'], {cwd: ROOT}), /Built output changed/);
       assert.equal(await readFile(join(site, 'mr-cache.html'), 'utf8'), page, 'failed export preserves the previous site');
     } finally {
       await rm(folder, { recursive: true, force: true });

@@ -9,9 +9,15 @@ import { copyFile, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { htmlEscape } from '../../explain/trace.ts';
 import { HOME, SHARE_META, SHARE_STEPS_META, shareable } from '../../app/embed-share.ts';
-import type { EmbedSize } from './explain-embed-size.ts';
 
 export { shareable };
+
+/** A framed page's measured heights at the three reading widths (tools/repo/lib/explain-embed-size.ts measures them). */
+export interface EmbedSize {
+  schema: 1;
+  aspect: '16/9';
+  heights: Record<'390' | '640' | '900', number>;
+}
 
 /**
  * A preview picture: the 960 × 540 still centred on a 1080 × 540 (2:1) canvas of the stage's

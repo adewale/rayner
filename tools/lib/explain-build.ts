@@ -9,7 +9,7 @@ import { pageSnapshots, packPageSnapshots } from './page-snapshots.ts';
 import { SnapshotSink, renderAt } from '../../src/output.ts';
 import { chromeFor, scenarioNameIn, changeText, descriptionLang } from '../../app/embed-strings.ts';
 import { restingTime, pictureHtml, htmlEscape, stepWords, watchedChanges, wordsHtml } from '../../explain/trace.ts';
-import { ROOT, engineAlias, defaultScenario, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';
+import { ROOT, LIB_ROOT, engineAlias, defaultScenario, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';
 import type { Project } from './explain-project.ts';
 import { pageFaces, letteringReport, useProjectLettering } from './explain-lettering.ts';
 import { letteringLicences, pageSnapshot } from './lettering.ts';
@@ -59,12 +59,14 @@ export async function buildExplainer(
   const soundImport=withAudio ? `import{mountAudio}from ${JSON.stringify(join(ROOT,'app/embed-audio.ts'))};` : '';
   const mount = `mountEmbed(root,Source,${payload}${withAudio?',mountAudio':''})`,
     lettered = project.lettering
-      ? `import{useLettering}from ${JSON.stringify(join(ROOT, 'src/lettering.ts'))};`
+      ? `import{useLettering}from ${JSON.stringify(join(LIB_ROOT, 'src/lettering.ts'))};`
       : '';
   const author = project.outlineLettering
-    ? `import Original from 'virtual:author';import{bindLettering}from ${JSON.stringify(join(ROOT, 'src/lettering-outlines.ts'))};const Source=bindLettering(Original,${JSON.stringify(await pageSnapshot(project.outlineLettering))});`
+    ? `import Original from 'virtual:author';import{bindLettering}from ${JSON.stringify(join(LIB_ROOT, 'src/lettering-outlines.ts'))};const Source=bindLettering(Original,${JSON.stringify(await pageSnapshot(project.outlineLettering))});`
     : `import Source from 'virtual:author';`;
-  const entry = `${author}import{mountEmbed}from ${JSON.stringify(join(ROOT, 'app/embed.ts'))};${soundImport}${lettered}${snapshotImport}const root=document.getElementById('content');(async()=>{${lettered ? `await useLettering(${JSON.stringify(pageFaces(project.lettering))});` : ''}await ${mount};root.dataset.ready='true'})().catch(error=>{console.error(error);const p=document.createElement('p');p.setAttribute('role','alert');p.textContent=${JSON.stringify(t.failed)};root.append(p)});`;
+  // The script's intent reaches the bundled scene as it reached the one the build ran.
+  const adopted = project.intent ? `Source.meta={...Source.meta,...${JSON.stringify(project.intent)}};` : '';
+  const entry = `${author}import{mountEmbed}from ${JSON.stringify(join(ROOT, 'app/embed.ts'))};${soundImport}${lettered}${snapshotImport}${adopted}const root=document.getElementById('content');(async()=>{${lettered ? `await useLettering(${JSON.stringify(pageFaces(project.lettering))});` : ''}await ${mount};root.dataset.ready='true'})().catch(error=>{console.error(error);const p=document.createElement('p');p.setAttribute('role','alert');p.textContent=${JSON.stringify(t.failed)};root.append(p)});`;
   const bundled = await build({
     stdin: { contents: entry, resolveDir: ROOT, sourcefile: 'explainer-entry.ts', loader: 'ts' },
     bundle: true,
@@ -86,7 +88,7 @@ export async function buildExplainer(
           }));
         },
       },
-      ...(!project.lettering && !project.outlineLettering ? [browserFonts(ROOT)] : []),
+      ...(!project.lettering && !project.outlineLettering ? [browserFonts(LIB_ROOT)] : []),
       engineAlias(false, !!project.outlineLettering),
     ],
     logLevel: 'silent',
@@ -97,7 +99,7 @@ export async function buildExplainer(
     )
   )
     throw new Error('Build-time diagram renderer leaked into browser artifact');
-  // Framed (specs/player-tile.md T4), the page draws only the tile. This runs before the body is
+  // Framed (player-tile T4), the page draws only the tile. This runs before the body is
   // laid out, so a frame never shows the padded page first; the CSP pins it by its own hash.
   const framedJs = "if(parent!==window)document.documentElement.dataset.framed=''";
   const js = scriptEscape(bundled.outputFiles[0]!.text),
@@ -141,7 +143,8 @@ export async function buildExplainer(
   const checks = (project.Scene.meta?.checks ?? [])
     .map((c) => `<li><p>${htmlEscape(c.question)}</p><details><summary>${htmlEscape(t.showAnswer)}</summary><p>${htmlEscape(c.answer)}</p></details></li>`)
     .join('');
-  const sources = (project.Scene.meta?.sources ?? [])
+  const checkedAgainst = (project.Scene.meta as { checkedAgainst?: string } | undefined)?.checkedAgainst;
+  const sources = (checkedAgainst ? `<li>${htmlEscape(t.checkedAgainst(checkedAgainst))}</li>` : '') + (project.Scene.meta?.sources ?? [])
     .map((url) => `<li><a href="${htmlEscape(url)}" target="_blank" rel="noopener">${htmlEscape(url)}</a></li>`)
     .join('');
   const notices = await Promise.all(
@@ -188,6 +191,8 @@ export async function buildLoader(out: string): Promise<void> {
     target: 'es2022',
     write: false,
     minify: true,
+    // The loader ships with the command and reaches the library's words by relative paths.
+    plugins: [engineAlias()],
   });
   await mkdir(dirname(resolve(out)), { recursive: true });
   await writeFile(out, result.outputFiles[0]!.text);

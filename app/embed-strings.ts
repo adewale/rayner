@@ -72,6 +72,8 @@ export interface Chrome {
   setting: (label: string, option: string) => string;
   transcript: string;
   sources: string;
+  /** What the explainer's model is checked against, from its script, first under Sources. */
+  checkedAgainst: (what: string) => string;
   /** Shown when the player cannot start, above the transcript. */
   failed: string;
   /** The quiet label before a step's changes to the state its author watches (`meta.watch`). */
@@ -166,6 +168,7 @@ const EN: Chrome = {
   setting: (label, option) => `${label}: ${option}`,
   transcript: 'Transcript',
   sources: 'Sources',
+  checkedAgainst: (what) => `The model is checked against: ${what}`,
   failed: 'The interactive player could not start. The transcript is available below.',
   changed: 'What changed',
   yes: wordsFor('en').yes,
@@ -181,9 +184,9 @@ const EN: Chrome = {
   checkYourself: 'Check yourself',
   checkHint: 'Answer each one before you open it.',
   showAnswer: 'Show the answer',
-  liveControls: 'Send events',
-  liveFromRest: 'Try it: send an event',
-  liveFromStart: 'Try it: send the events again, in your own order',
+  liveControls: 'Try it yourself',
+  liveFromRest: 'Try it yourself: carry on from this picture',
+  liveFromStart: 'Try it yourself, from the beginning',
   undo: 'Undo',
   reset: 'Reset',
   resetLabel: 'Reset: the step’s own picture',
@@ -194,7 +197,7 @@ const EN: Chrome = {
   resetSaid: 'Back to the step’s own picture.',
   sentFallback: (event, reason) => `This link’s event “${event}” cannot be sent there (${reason}), so the picture stops before it.`,
   notLive: 'This step has no events to send, so the link’s events are left out.',
-  liveEvents: (events, fromStart) => `Try it: ${fromStart ? 'from the start, send ' : 'send '}${events}.`,
+  liveEvents: (events, fromStart) => `Try it yourself: ${fromStart ? 'from the beginning, press ' : 'press '}${events}.`,
 };
 /** French typography: a narrow no-break space (U+202F) before : ; ! ? and inside « ». */
 const FR: Chrome = {
@@ -242,6 +245,7 @@ const FR: Chrome = {
   setting: (label, option) => `${label} : ${option}`,
   transcript: 'Transcription',
   sources: 'Sources',
+  checkedAgainst: (what) => `Le modèle est vérifié par\u202f: ${what}`,
   failed: 'Le lecteur interactif n’a pas pu démarrer. La transcription se trouve plus bas.',
   changed: 'Ce qui a changé',
   yes: wordsFor('fr').yes,
@@ -257,9 +261,9 @@ const FR: Chrome = {
   checkYourself: 'Vérifiez vos connaissances',
   checkHint: 'Répondez à chaque question avant d’ouvrir la réponse.',
   showAnswer: 'Voir la réponse',
-  liveControls: 'Envoyer des événements',
-  liveFromRest: 'À vous\u202f: envoyez un événement',
-  liveFromStart: 'À vous\u202f: renvoyez les événements, dans l’ordre de votre choix',
+  liveControls: 'À vous de jouer',
+  liveFromRest: 'À vous de jouer\u202f: continuez à partir de cette image',
+  liveFromStart: 'À vous de jouer, depuis le début',
   undo: 'Annuler',
   reset: 'Réinitialiser',
   resetLabel: 'Réinitialiser\u202f: l’image de l’étape',
@@ -270,7 +274,7 @@ const FR: Chrome = {
   resetSaid: 'Retour à l’image de l’étape.',
   sentFallback: (event, reason) => `L’événement «\u202f${event}\u202f» de ce lien ne peut pas être envoyé là (${reason})\u202f: l’image s’arrête avant lui.`,
   notLive: 'Cette étape n’a pas d’événements à envoyer\u202f: ceux du lien sont ignorés.',
-  liveEvents: (events, fromStart) => `À vous\u202f: ${fromStart ? 'depuis le début, envoyez ' : 'envoyez '}${events}.`,
+  liveEvents: (events, fromStart) => `À vous de jouer\u202f: ${fromStart ? 'depuis le début, appuyez sur ' : 'appuyez sur '}${events}.`,
 };
 export const CHROME: Readonly<Record<string, Chrome>> = { en: EN, fr: FR };
 

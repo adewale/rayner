@@ -461,6 +461,21 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   liveRow.append(liveLede, liveEvents, liveTools, liveSaid);
   liveRow.hidden = true;
   (changes ?? caption).after(liveRow);
+  // On a wide page the steps list is a rail beside the picture (placeRail), and the live row joins
+  // it, at its top: the reader presses an event and watches the picture change without scrolling,
+  // which under the caption at 1280 × 800 put the buttons below the fold. On a narrow page it stays
+  // under the caption. Run after placeRail, on the same changes.
+  const placeLive = () => {
+    const beside = steps.parentElement === railBody;
+    if (liveRow.parentElement === (beside ? railBody : words)) return;
+    const focused = liveRow.contains(document.activeElement) ? (document.activeElement as HTMLElement) : undefined;
+    if (beside) railBody.prepend(liveRow);
+    else (changes ?? caption).after(liveRow);
+    focused?.focus({preventScroll:true});
+  };
+  placeLive();
+  wide.addEventListener('change', placeLive);
+  if (floor) new ResizeObserver(() => requestAnimationFrame(placeLive)).observe(root);
   const narrow = () => stage.clientWidth > 0 && stage.clientWidth < NARROW_PX;
   // A narrow stage draws its pictures without the stage's heading (ReaderSink), so pictures
   // kept from the other width are stale when the stage crosses NARROW_PX (a phone turning):
@@ -532,6 +547,10 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     const activeTour = narrow() && multiple;
     views.hidden = !reserved;
     views.style.visibility = activeTour ? '' : 'hidden';
+    // A row kept in place for another step's tour still says how many views this step has, so the
+    // reader sees a labelled row rather than an unexplained gap; its count is not announced there.
+    viewCount.style.visibility = reserved && !activeTour ? 'visible' : '';
+    viewCount.toggleAttribute('aria-hidden', reserved && !activeTour);
     if (touring !== activeTour) {
       touring = activeTour;
       sayHint();
@@ -1449,7 +1468,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     for (const s of Source.settings ?? []) if (q.has(s.id)) request[s.id] = q.get(s.id)!;
     return { request, step: q.get('step') ?? undefined, sent: decodeLog(q.get(SENT)) };
   };
-  // A host page drives the player through the loader (specs/player-guidance.md G4): a step by name
+  // A host page drives the player through the loader (player-guidance G4): a step by name
   // and settings by id, validated as the URL's are (an undeclared id is ignored, as in a URL; an
   // unknown value falls back with the same notice). Given settings replace those of the scenario on
   // show; a request without a step keeps the step by name. It replaces the frame's history entry.

@@ -1,4 +1,5 @@
 import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, Create } from '../src/index.ts';
+import { View } from './view.ts';
 import { jsonObject } from '../src/json.ts';
 import type { Scene, Vec, Box, FadeOpts, Animation, SceneState, StepKind, SceneColors } from '../src/index.ts';
 import type { StepAudio } from './audio.ts';
@@ -6,14 +7,14 @@ import { dimension, pin, callout, legend, tool, Draw, oneStrokeEach } from './an
 import type { LegendItem } from './annotate.ts';
 import type { Side, ToolKind } from './annotate.ts';
 import { Diagram } from './diagrams.ts';
-import type { ShowOptions } from './diagrams.ts';
+import type { ShowOptions, PictureNote } from './diagrams.ts';
 import { Card, CodeBlock } from './panels.ts';
 import type { CardRow, CardOptions, CodeOptions } from './panels.ts';
 import { diagramsOf } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { Palette, DiagramSpec } from '../integrations/agentic-mermaid/snapshot.ts';
 import { palette } from './palettes.ts';
-import { soft, emphasis, good, bad, raised, rule, regionBox, opening, emphasises, partsSeen } from './look.ts';
-import type { Region, Emphasis } from './look.ts';
+import { soft, emphasis, good, bad, raised, rule, regionBox, opening, partsSeen } from './look.ts';
+import type { Region } from './look.ts';
 import { picture, shownNames } from './trace.ts';
 import { wordsOf, langOf } from './words.ts';
 import type { Seen } from './trace.ts';
@@ -86,15 +87,6 @@ export interface StagedStep<S extends object = Record<string, unknown>> {
 export const stagedStep = <S extends object>(step: StagedStep<S>): StagedStep => step as unknown as StagedStep;
 /** Options for `stage.steps`: `kind` puts every step on that path (default 'main'). */
 export interface StagedStepsOptions { kind?: StepKind }
-/** One staged step as `rayner check` redraws it: from the recorded state, compared with what was drawn. */
-export interface StagedRecord { step: string; kind: StepKind; redraw: (recorded: SceneState) => Mobject; drawn: string }
-const staged = new WeakMap<object, StagedRecord[]>();
-/** The steps `stage.steps` presented on a scene, in order: what `rayner check` redraws after a run. */
-export function stagedStepsOf(scene: Scene): StagedRecord[] {
-  let list = staged.get(scene);
-  if (!list) staged.set(scene, (list = []));
-  return list;
-}
 /** A picture's text and each part's box, rounded: what a redraw must reproduce. */
 export function pictureFingerprint(m: Mobject): string {
   const round = (v: number) => Math.round(v * 1000) / 1000;
@@ -138,9 +130,20 @@ const CONTENT: Box = [-7.55, -4.25, 7.55, 3.25];
 /** The camera's home box: the whole stage. */
 const HOME: Box = [-8, -4.5, 8, 4.5];
 
+/** What a diagram's view draws from the state (see diagramView): its marks, notes and the parts left undimmed, as `d.picture` takes them. */
+export interface DiagramPicture {
+  marks?: Readonly<Record<string, string | { color: string; as?: string }>>;
+  notes?: readonly PictureNote[];
+  dim?: readonly string[] | null;
+  prefix?: string;
+}
 export function stage(scene: Scene, options: StageOptions = {}) {
-  // Each caption owns its opening; a previous step's subjects must not leak.
-  scene.onStep(() => opening(scene));
+  // Each caption owns its opening; a previous step's subjects must not leak, unless opening(..., { keep: true })
+  // named them for every step that follows.
+  let kept: Mobject[] = [];
+  /** Each diagram shown by a view of the state (diagramView): the view and what it draws. */
+  const diagramViews = new Map<Diagram, { draw: (state: SceneState, shown: SceneState) => DiagramPicture; view: View }>();
+  scene.onStep(() => opening(scene, ...kept));
   const direction = layoutDirection(options);
   const physical = <T extends Vec | Box | StageRegion | undefined>(at: T): Exclude<T, 'start' | 'end'> | Region =>
     (at === 'start'
@@ -446,39 +449,84 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       await diagram.build(opts.build, opts.runTime);
       return diagram;
     },
-    /** Labelled values; `card.set({...})` updates them, `card.mark(row)` lights one. */
+    /**
+     * Show diagram `d` by a view: `draw(state, shown)` gives what it marks, its notes and what stays
+     * undimmed, as `d.picture` takes them, usually from `shown` (how the model is shown), and the view
+     * takes the live diagram's place. Change them in `this.shown` and play
+     * `view.sync({ match: 'key', staged: true })`; `rayner check` redraws the view at every step. For a
+     * morph, a reveal or a walk, hand the stage back with `liveDiagram(d)`, then call this again to
+     * show the diagram by its view once more.
+     */
+    diagramView(d: Diagram, draw: (state: SceneState, shown: SceneState) => DiagramPicture = () => ({})): View {
+      let shown = diagramViews.get(d);
+      if (!shown) {
+        const entry = { draw, view: null as unknown as View };
+        entry.view = new View(scene, (st, sh) => {
+          const p = entry.draw(st, sh);
+          return d.picture(p.marks ?? {}, { notes: p.notes ?? [], dim: p.dim ?? null, ...(p.prefix ? { prefix: p.prefix } : {}) });
+        }, { place: false });
+        diagramViews.set(d, (shown = entry));
+      } else {
+        shown.draw = draw;
+        // The live diagram may have changed (a morph): the view draws it as it is now.
+        shown.view.rebuild();
+      }
+      scene.add(shown.view);
+      scene.remove(d.root);
+      // The stage describes the diagram through the view that shows it, as it describes a live one;
+      // like a live diagram, the view is not an overlay, so clearOverlays leaves it.
+      d.showBy(shown.view);
+      return shown.view;
+    },
+    /** The live diagram back in its view's place, for a morph, a reveal or a walk (see diagramView). */
+    liveDiagram(d: Diagram): void {
+      const shown = diagramViews.get(d);
+      if (!shown) throw new Error('liveDiagram(): the diagram is not shown by a view (see diagramView)');
+      scene.add(d.root);
+      scene.remove(shown.view);
+      d.shownBy = null;
+    },
+    /**
+     * A card placed and laid out as `card` places one (`at: 'start' | 'end'` and its field direction
+     * follow the stage's direction), without entering it: for a view's draw, which builds the card
+     * from state at every sync.
+     */
+    cardPicture(rows: readonly CardRow[], opts: Omit<CardOptions, 'at'> & { at?: Vec | Box | StageRegion } = {}): Card {
+      return new Card(scene, colors, rows, { ...opts, at: physical(opts.at), direction: layoutDirection(opts, direction) });
+    },
+    /** Labelled values, entered: `cardPicture`'s card, faded in and kept. */
     async card(
       rows: readonly CardRow[],
       opts: Omit<CardOptions, 'at'> & { at?: Vec | Box | StageRegion } & Entry = {},
     ): Promise<Card> {
-      const cardDirection = layoutDirection(opts, direction);
       return enterPanel(
-        new Card(scene, colors, rows, { ...opts, at: physical(opts.at), direction: cardDirection }),
+        this.cardPicture(rows, opts),
         opts,
         { runTime: 0.35, shift: [0, -0.08] },
       );
     },
     /** Keep these subjects together in the reader's opening when they fit legibly.
-     * Other artwork remains available in the close-up tour. Call after step(). */
-    opening(...subjects: Mobject[]) {
+     * Other artwork remains available in the close-up tour. Call after step().
+     * With `{ keep: true }` last, they are the opening of this step and of every later one, until
+     * another kept opening replaces them (none clears them); a step's own opening still wins for
+     * that step. For a picture that stays on stage while the steps change it, such as a machine's view. */
+    opening(...args: Mobject[] | [...Mobject[], { keep: boolean }]) {
+      const last = args.at(-1);
+      const keep = !!last && !(last instanceof Mobject) && (last as { keep: boolean }).keep;
+      const subjects = (last && !(last instanceof Mobject) ? args.slice(0, -1) : args) as Mobject[];
+      if (keep) kept = [...subjects];
       opening(scene, ...subjects);
     },
-    /**
-     * Say what this scene's own marks emphasise, read from its state whenever asked: each
-     * part that shows emphasis, by key (`['ring:mark:3', 'outlined: push']`) or as the mobject,
-     * with what it shows there. The stage's helpers (cards, code,
-     * diagrams, notes) register theirs; a scene that draws its own marks registers them here.
-     * Call once; `now` is read at every step boundary and must draw nothing.
-     */
-    emphasise(now: () => Emphasis) {
-      emphasises(scene, now);
+    /** A code panel placed as `code` places one, without entering it: for a view's draw. */
+    codePicture(lines: readonly string[], opts: Omit<CodeOptions, 'at'> & { at?: Vec | Box | StageRegion } = {}): CodeBlock {
+      return new CodeBlock(scene, colors, lines, { ...opts, at: physical(opts.at) });
     },
-    /** Code on a panel; `code.focus(line)` keeps a bar on it. */
+    /** Code on a panel, entered: `codePicture`'s panel, faded in and kept. */
     async code(
       lines: readonly string[],
       opts: Omit<CodeOptions, 'at'> & { at?: Vec | Box | StageRegion } & Entry = {},
     ): Promise<CodeBlock> {
-      return enterPanel(new CodeBlock(scene, colors, lines, { ...opts, at: physical(opts.at) }), opts, {
+      return enterPanel(this.codePicture(lines, opts), opts, {
         runTime: 0.4,
       });
     },
@@ -504,11 +552,10 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       keepAll(mobs, { describe });
       if (mobs.length) await scene.play(...mobs.map((m) => new FadeIn(m, fade)));
     },
-    /** Fade out cards, code, kept objects and diagram notes, in one play. */
+    /** Fade out cards, code and kept objects, in one play. */
     async clearOverlays() {
       const present = new Set(scene.familyMembers());
-      const notes = [...diagrams].flatMap((d) => d.notes.splice(0).map((n) => n.mob));
-      const shown = [...overlays.keys(), ...notes].filter((g) => present.has(g));
+      const shown = [...overlays.keys()].filter((g) => present.has(g));
       if (shown.length) await scene.play(...shown.map((g) => new FadeOut(g, { runTime: 0.3 })));
       overlays.clear();
     },
@@ -647,8 +694,9 @@ export function stage(scene: Scene, options: StageOptions = {}) {
     },
     /**
      * Present steps in turn: each clears the stage, makes its model the scene's state, and fades in
-     * its picture, drawn from that model alone. `kind: 'short'` marks the steps as the reader's
-     * short path before the main one; each step's own `kind` overrides the list's.
+     * its picture, a view of that state: `rayner check` holds it to its draw as it holds every view.
+     * `kind: 'short'` marks the steps as the reader's short path before the main one; each step's
+     * own `kind` overrides the list's.
      */
     async steps<S extends object>(list: readonly StagedStep<S>[], { kind: listKind = 'main' }: StagedStepsOptions = {}): Promise<void> {
       for (const step of list) {
@@ -660,21 +708,19 @@ export function stage(scene: Scene, options: StageOptions = {}) {
         await this.clear({ runTime: 0.18 });
         const state = jsonObject(step.state as Record<string, unknown>, `step ${step.id} state`) as S;
         scene.state = { ...state } as SceneState;
-        const drawing = step.draw(state, this as StageApi);
-        if (kind === 'short') drawing.key = 'reader-picture';
-        stagedStepsOf(scene).push({
-          step: step.id,
-          kind,
-          redraw: (recorded) => step.draw(recorded as S, this as StageApi),
-          drawn: pictureFingerprint(drawing),
-        });
+        const picture = new View(scene, (st) => {
+          const drawn = step.draw(st as S, this as StageApi);
+          if (kind === 'short') drawn.key = 'reader-picture';
+          return drawn;
+        }, { place: false });
+        const drawing = picture.current;
         // What the step is about, when that is less than the whole drawing: a phone opens on it.
         const about = step.opening ? drawing.family().filter((m) => step.opening!.includes(m.key ?? '')) : [drawing];
         this.opening(...about);
         // Describe the drawn labels (or the step's own words for its picture), not the state object or the
         // authored caption; a part that describes itself is described by itself, so its text is not repeated.
         const words = partsSeen(drawing).words.filter(Boolean).join('. ');
-        await this.enter(drawing, { runTime: kind === 'short' ? 0.25 : 0.24, describe: step.describe ? step.describe(state) : words });
+        await this.enter(picture, { runTime: kind === 'short' ? 0.25 : 0.24, describe: step.describe ? step.describe(state) : words });
       }
     },
   };

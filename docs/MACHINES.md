@@ -1,3 +1,4 @@
+import { Machine } from 'rayner/explain';
 # Machines: a model driven by events
 
 A `Machine` is a scene's model driven by events. The scene replays events through it as one
@@ -8,12 +9,12 @@ where the machine last played the player gives the reader a button per event
 ## Making one
 
 `rayner init --machine <directory>` writes one to start from: a door that opens, closes, locks
-and unlocks, whose model refuses with reasons, with the model's test, a view of the state, a live
-last step and the review's subjects (`scenes/tutorial/door`). It passes `rayner check` and
+and unlocks. It has an intent script, a model that refuses with reasons and the model's test, a
+picture module that draws the state, a scene whose last step is live, and the review's subjects
+(`scenes/tutorial/door`). It passes `rayner check` and
 `rayner review` as written.
 
 ```ts
-import { Machine } from 'rayner';
 
 // In the model module: a new state, or refuse(reason) where the state refuses the event.
 //   if (!handled) return refuse(`no ${event} arrow leaves ${config.join(' or ')}, so the machine ignores ${event}`);
@@ -43,6 +44,7 @@ replayed machine therefore seeks, traces and records like any other play.
 | `labels` | A button's name for an event whose own name would not read well (default: the event) |
 | `next(state, event)` | The model's step, from the model module: a new state, or `refuse(reason)` when the state refuses the event, the reason in the reader's words (`undefined` refuses with no reason) |
 | `bound(state, event)` | Where the story stops though the model would go on: the reason, else `undefined` |
+| `end(state)` | Where the story ends: the reason when `state` is finished, else `undefined`. From a finished state every event the model would take is beyond the story with this reason, and its refusals stay refusals, so a live step that ends finished starts the reader from `start` |
 | `transition` | Authored motion per event ([below](#refused-events-bounds-and-authored-transitions)) |
 | `views` | The pictures synced after each event, each a [`view(scene, draw)`](VIEWS.md) |
 | `match` | How the views morph without an authored transition (default `matchByKey({ text: 'whole' })`: keyed parts keep their identity, and a keyed word that changes is replaced) |
@@ -56,7 +58,8 @@ state, a refusal with the reason `next` gave (`{ refused: reason }`, or `null` f
 story's bound. `model(state, event)` is what `next` alone says, the bound aside. `after(state,
 event)` is the next state or `undefined`. `reachable(from?)` lists every state reachable from `from` (default
 `start`), breadth first, each with the shortest events that reach it. `lastPlayedIn` is the step
-the machine last played in, and `playedUnder` what the scene showed (`scene.shown`) when it did.
+the machine last played in, and `playedUnder` what the scene showed (`scene.shown`) when it last played: what is shown may change
+between events (a guided tour moving a code panel's focus), and exploration draws every state under the last.
 
 Each event records `{ kind: 'event', event }` as it begins, followed by its views' match
 evidence, so a fidelity test can check the events a step replayed and the state it ended in
@@ -130,7 +133,8 @@ transition: {
 | `enter(key, { from?, create? })` | A part only the target has: faded in, drawn, or grown from a copy of the current part `from` |
 | `leave(key)` | A part only the current picture has fades out and leaves the picture |
 | `insert(key, like)` | An unseen copy of `like`, for the author to animate; it must end as the target part, or leave when the target has none (a token walking a link) |
-| `own(key)` | The author animates this current part (with `Follow`, say) and must end it as the target part |
+| `own(key)` | The author animates this current part (with `follow`, say) and must end it as the target part |
+| `follow(spec, { targets })` | Targets, by key or mobject, follow one number through the transition, each drawn afresh at every sampled value ([following one number](CHOREOGRAPHY.md#following-one-number)) |
 | `travel(key, token, path)` | A token passing along a path, which the target does not have (a message on its arrow, an event walking a link): returns `appear`, `move` and `leave` for the author to place beside other motion. state-machine, statecharts and oauth-pkce use it |
 | `rest()` | Every keyed part not yet handled: morphed, faded in or faded out |
 
@@ -231,7 +235,7 @@ which is the shrinking a generated-sequence check would otherwise need. `statech
 - **A large machine is sampled.** Exploration stops at `limit` states per origin, so
   ring-buffer's 256 states are a sample, and a reader can press their way to a ring no check drew.
   `describeExplainer` counts states from `start` only.
-- **The oracle is XState's explored graph.** `tools/oracle/statecharts.ts` records every
+- **The oracle is XState's explored graph.** `scenes/explainers/statecharts/oracle/statecharts.ts` records every
   configuration XState reaches and where every event leads, for every chart. The model is
   compared with that whole graph, and generated event sequences walk it too, so no XState
   install is needed in tests; regenerating the fixture needs the pinned release.
@@ -257,8 +261,9 @@ last step clears them). When two machines last play in one step, the one made la
 Three explainers' live steps leave their machine finished: token-bucket's client has sent all ten
 requests, both of latest-search's responses have landed, and oauth-pkce's sign-in has run to its
 end. When no event goes anywhere from the step's state, the reader's events start from the
-machine's `start` instead, and the line over the buttons says "send the events again, in your own
-order". The first event redraws the views at the start, in place, as exploration draws a state,
+machine's `start` instead, and the line over the buttons says "Try it yourself, from the beginning".
+A story that ends in a finished state (a tower carried to its last peg) says so with `end(state)`:
+the model's moves from that state are then past the story, so the reader starts again from `start`. The first event redraws the views at the start, in place, as exploration draws a state,
 and plays from there. Which of the two applies is a function of the step, so the URL does not say
 it (`logStart` in `app/embed-live.ts`).
 
@@ -280,7 +285,7 @@ takes is replayed, and a notice names the first event it refused or that is past
 stops. Each press, Undo and Reset adds a history entry, as a step does, so Back takes an event
 back. Copy link keeps the events; a share page, which shows a step's own picture, is used only
 when none were sent. Without JavaScript, the transcript lists under a live step the events a
-reader can send there: "Try it: send push, pop.", or "Try it: from the start, send AUTHORIZE…"
+reader can send there: "Try it yourself: press push, pop.", or "Try it yourself: from the beginning, press AUTHORIZE…"
 where the step leaves its machine finished.
 
 **How it is checked.** `test/browser/explain-live.test.ts` builds the nine pages and, at each
@@ -328,7 +333,7 @@ dropped, since its scene may have stopped part-way. `test/embed-live.test.ts` ch
 run's every frame is the fresh run's, and `test/browser/explain-live.test.ts` that pictures
 reached by pressing, now through held runs, are the ones a fresh load of the link draws.
 
-`node tools/live-cost.ts [--cpu 4]` measures it on the built pages: for each live step of the
+`node tools/repo/live-cost.ts [--cpu 4]` measures it on the built pages: for each live step of the
 default scenario it presses six events in Chromium at 1280 × 900 (after one unmeasured press),
 each press extending the log, with Reset where no event goes on, and times each from the click to
 the first new picture on the stage (the animation starting), to the landing, and to the landing
@@ -368,7 +373,7 @@ afresh (oauth-pkce's sign-in runs to its end first). Landing takes the event's o
 | `statecharts` | `parent`, `frother` | A chart's configuration and the boxes it is in | The chart's events, through the model's `send` (`drivenNext`); an event the configuration does not handle is refused, as SCXML discards it, naming the boxes without its arrow | The chart, its active boxes and the arrows they light | 5 and 9 configurations; every event authored: a token runs along the arrow of the state that handled it |
 | `ring-buffer` | `result` | `RingState`: the buffer, the last operation and its result, outlines, the tray, the next value | `push`, `pop`; a pop of an empty ring is refused, a push to a full one returns Full, and a push after the value 9 is past the story's bound | Slots, values, pointers, outlines, push(v), the next value, the tray; the readout and card values | 256 states sampled per scenario, every transition played |
 | `state-machine` | `terminal` | `SessionState`: the session, the last event and what it returned, the row read, the links travelled | `CONNECT`, `OPENED`, `ERROR`, `CLOSE` (none refused: a throw is the lesson) | The diagram with its trail (`Diagram.picture`), the ring, the lit row or throw; the card | All 21 states per scenario, every transition played |
-| `token-bucket` | `later` | `BucketState`: tokens, last refill and every call so far (arrival, 200 or 429, balance found and left) | `request`: the next of the client's ten scheduled requests arrives; the bucket refills on arrival, so there is no tick, and an eleventh request is past the story's bound | The bucket's level, the balance chart, the request boxes and the readout | 11 states per rate; a request's refill climb is one `Follow`, then a token leaves for its box or a 429 ring appears |
+| `token-bucket` | `later` | `BucketState`: tokens, last refill and every call so far (arrival, 200 or 429, balance found and left) | `request`: the next of the client's ten scheduled requests arrives; the bucket refills on arrival, so there is no tick, and an eleventh request is past the story's bound | The bucket's level, the balance chart, the request boxes and the readout | 11 states per rate; a request's refill climb is one `g.follow`, then a token leaves for its box or a 429 ring appears |
 | `monty-hall` | `choice` | `Round`: what the reader knows (the pick, the door opened and what it showed, stay or switch, where the car was shown) | `pick X`, `open X: goat` or `car`, `stay`, `switch`, `car behind X`; the rules refuse a second pick, the host opening your door or opening twice, the informed host opening the car, and a decision after the car is shown | The three doors | 46 rounds with the informed host, 52 with the random one; every round is a cell of the strip, with its winner |
 | `latest-search` | `overwrite`, `reader-guard` | `RaceState`: tickets, the event log, what the page shows and every write | `start A`, `start B`, `A lands`, `B lands` (B starts after A; a response lands once, after its search started) | The timeline: search bars, landings and the page's spans, a stale span outlined | 10 states per machine, unguarded and guarded: every interleaving; the guarded page never shows a stale result (an invariant), the unguarded one does after two orders |
 | `oauth-pkce` | `any-order` | `SignIn`: the request and its challenge, who holds the code, each app's answer, whether the code is spent | `AUTHORIZE`, `AUTHORIZE_S256`, `REDIRECT`, `INTERCEPT`, `CLIENT_REDEEMS`, `APP_REDEEMS`; a code is used once (RFC 6749 §4.1.2) | Three lifelines across the browser and TLS lanes, each message in its slot with a refusal's reason | 20 states; with a challenge the malicious app gets no token in any order (an invariant, and a deliberate defect that sends the real verifier fails it) |

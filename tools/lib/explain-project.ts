@@ -1,12 +1,13 @@
+import { adoptIntent, readIntent } from './explain-intent.ts';
 import {textContextOf} from '../../src/text-context.ts';
 import { offPage, prepareLettering as prepareOutlineLettering } from './lettering.ts';
-import { bindLettering, usesOutlineLettering, withSceneLettering } from '../../src/lettering-outlines.ts';
+import { usesOutlineLettering, withSceneLettering } from '../../src/lettering-outlines.ts';
 import type { LetteringSnapshot } from '../../src/lettering-outlines.ts';
 import { build } from 'esbuild';
 import type { Plugin } from 'esbuild';
-import { readFile, writeFile, mkdir, stat, readdir, rm, rename } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, stat, readdir, rm, rename, rmdir } from 'node:fs/promises';
 import { dirname, resolve, join, basename, relative, sep } from 'node:path';
-import { pathToFileURL, fileURLToPath } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
 import { createHash, randomUUID } from 'node:crypto';
 import { Scene } from '../../src/index.ts';
@@ -19,7 +20,7 @@ import { checkWatch } from '../../explain/trace.ts';
 import { checkScriptMeta } from '../../explain/script.ts';
 import { checkClaimsMeta } from '../../explain/claims.ts';
 import { takeMissingGlyphs } from '../../src/lettering.ts';
-import type { Machine } from '../../src/index.ts';
+import type { Machine } from '../../explain/index.ts';
 import type { Trace } from '../../explain/testing.ts';
 
 import { resolveSettings } from '../../explain/index.ts';
@@ -31,8 +32,9 @@ import { lostLabelWarnings } from './explain-warnings.ts';
 import { letteringRequest, prepareLettering, useProjectLettering } from './explain-lettering.ts';
 import type { Lettering } from './explain-lettering.ts';
 import { buildInputs } from './build-inputs.ts';
+import { COMPILED, LIB_ROOT, ROOT } from './roots.ts';
 
-export const ROOT = fileURLToPath(new URL('../../', import.meta.url));
+export { LIB_ROOT, ROOT };
 export const hash = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex');
 /**
  * Make bundled JavaScript safe inside an inline <script>. The HTML parser only
@@ -53,42 +55,50 @@ async function scenePath(input: string): Promise<string> {
   return file;
 }
 
-/** Force author, helper and player imports onto one engine, including compiled-scene reuse. */
-const legacySource = (source: string) => source
+/** src/index.ts without its optional lettering exports, so a page that asks for no lettering carries none of its code. */
+const withoutOptionalLettering = (source: string) => source
   .replace("import type { LetteringRequest } from '../src/lettering-outlines.ts';\n", '')
   .replace('; lettering?: LetteringRequest', '')
   .replace(/\n\/\/ Optional lettering: tree-shaken[\s\S]*?\/\/ End optional lettering\.\n/, '');
+/** Force author, helper and player imports onto one engine, including compiled-scene reuse. */
 export function engineAlias(node = false, outlines = false): Plugin {
   return {
     name: 'one-rayner-engine',
     setup(b) {
       if (!outlines) b.onLoad({ filter: /[/\\]src[/\\]index\.ts$/ }, async (args) => ({
-        contents: legacySource(await readFile(args.path, 'utf8')), loader: 'ts',
+        contents: withoutOptionalLettering(await readFile(args.path, 'utf8')), loader: 'ts',
       }));
       b.onResolve({ filter: /.*/ }, (args) => {
         let file: string | undefined;
-        if (args.path === 'rayner') file = join(ROOT, 'src/index.ts');
-        else if (args.path === 'rayner/explain') file = join(ROOT, 'explain/index.ts');
-        else if (args.path === 'rayner/drawing') file = join(ROOT, 'explain/drawing.ts');
-        else if (args.path === 'rayner/lettering') file = join(ROOT, 'src/lettering.ts');
-        else if (args.path === 'rayner/output') file = join(ROOT, 'src/output.ts');
-        else if (args.path === 'rayner/testing') file = join(ROOT, 'explain/testing.ts');
+        if (args.path === 'rayner') file = join(LIB_ROOT, 'src/index.ts');
+        else if (args.path === 'rayner/explain') file = join(LIB_ROOT, 'explain/index.ts');
+        else if (args.path === 'rayner/drawing') file = join(LIB_ROOT, 'explain/drawing.ts');
+        else if (args.path === 'rayner/geo') file = join(LIB_ROOT, 'explain/geo.ts');
+        else if (args.path === 'rayner/audio') file = join(LIB_ROOT, 'explain/score.ts');
+        else if (args.path === 'rayner/extras') file = join(LIB_ROOT, 'src/extras.ts');
+        else if (args.path === 'rayner/lettering') file = join(LIB_ROOT, 'src/lettering.ts');
+        else if (args.path === 'rayner/output') file = join(LIB_ROOT, 'src/output.ts');
+        else if (args.path === 'rayner/testing') file = join(LIB_ROOT, 'explain/testing.ts');
         else if (args.path.startsWith('.') || args.path.startsWith('/')) {
           const absolute = resolve(args.resolveDir, args.path);
           const compiled = absolute.match(/\/dist\/(src|explain|integrations\/agentic-mermaid)\/(.+)\.js$/);
-          if (compiled) file = join(ROOT, compiled[1]!, compiled[2]! + '.ts');
-          else if (
-            absolute.startsWith(join(ROOT, 'src') + '/') ||
-            absolute.startsWith(join(ROOT, 'explain') + '/') ||
-            absolute === join(ROOT, 'integrations/agentic-mermaid/snapshot.ts')
-          )
-            file = absolute;
+          if (compiled) file = join(LIB_ROOT, compiled[1]!, compiled[2]! + '.ts');
+          else
+            // The player (app/) ships with the command and reaches the engine by relative paths,
+            // so its imports land beside it; the engine itself is the library's.
+            for (const base of new Set([LIB_ROOT, ROOT])) {
+              const local = relative(base, absolute).split(sep).join('/');
+              if (local.startsWith('src/') || local.startsWith('explain/') || local === 'integrations/agentic-mermaid/snapshot.ts') {
+                file = join(LIB_ROOT, local);
+                break;
+              }
+            }
         }
         if (file) {
           if (!node) return { path: file };
           // The checkout runs source; the installed JavaScript CLI shares the compiled runtime.
-          const canonical = import.meta.url.endsWith('.js')
-            ? join(ROOT, 'dist', relative(ROOT, file).replace(/\.ts$/, '.js'))
+          const canonical = COMPILED
+            ? join(LIB_ROOT, 'dist', relative(LIB_ROOT, file).replace(/\.ts$/, '.js'))
             : file;
           return { path: pathToFileURL(canonical).href, external: true };
         }
@@ -98,24 +108,10 @@ export function engineAlias(node = false, outlines = false): Plugin {
   };
 }
 /**
- * The engine's fingerprint. src/lettering.ts counts only for an explainer that asks
- * for lettering: no other page carries it, and leaving it out keeps every other
- * explainer's receipts as they were.
+ * Bundle an author's module as the tools run a scene, with the engine one shared copy, and import
+ * it: its module, and the bundled code's hash with the checkout's and the author's folders left out.
  */
-async function engineHash(lettered: boolean): Promise<string> {
-  const inputs: string[] = [];
-  for (const folder of ['src', 'explain', 'integrations/agentic-mermaid'])
-    for (const name of (await readdir(join(ROOT, folder)))
-      .filter((n) => n.endsWith('.ts') && !['lettering-outlines.ts', 'math.ts', 'italic.ts'].includes(n) && (lettered || folder + '/' + n !== 'src/lettering.ts'))
-      .sort())
-      inputs.push(folder + '/' + name + '\n' + legacySource(await readFile(join(ROOT, folder, name), 'utf8')));
-  inputs.push(await readFile(join(ROOT, 'vendor/glyph.js'), 'utf8'));
-  return hash(inputs.join('\n'));
-}
-export async function loadScene(
-  file: string,
-): Promise<{ Scene: ExplainerClass; exportName: string; file: string; sourceHash: string; engineHash: string }> {
-  file = await scenePath(file);
+export async function importAuthored(file: string): Promise<{ module: Record<string, unknown>; sourceHash: string }> {
   const result = await build({
     entryPoints: [file],
     absWorkingDir: dirname(file),
@@ -127,12 +123,10 @@ export async function loadScene(
     plugins: [engineAlias(true)],
     logLevel: 'silent',
   });
-  // 'lantern:/' is an internal placeholder for the checkout path, kept from Lantern:
-  // it never reaches output, and renaming it would make every committed snapshot stale.
+  // The scene's code, whatever folders the checkout and the scene are in: engine imports are
+  // external, so their file URLs are the only paths in it.
   const code = result.outputFiles[0]!.text,
-    sourceHash = hash(
-      code.replaceAll(pathToFileURL(ROOT).href, 'lantern:/').replaceAll(dirname(file), '<author>'),
-    );
+    sourceHash = hash(code.replaceAll(pathToFileURL(LIB_ROOT).href, '<rayner>/').replaceAll(dirname(file), '<author>'));
   const folder = join(tmpdir(), 'rayner-explain');
   await mkdir(folder, { recursive: true });
   const output = join(folder, hash(code) + '.mjs');
@@ -142,7 +136,13 @@ export async function loadScene(
   const temporary = `${output}.${process.pid}.${randomUUID()}`;
   await writeFile(temporary, code);
   await rename(temporary, output);
-  const module = await import(pathToFileURL(output).href);
+  return { module: await import(pathToFileURL(output).href), sourceHash };
+}
+export async function loadScene(
+  file: string,
+): Promise<{ Scene: ExplainerClass; exportName: string; file: string; sourceHash: string }> {
+  file = await scenePath(file);
+  const { module, sourceHash } = await importAuthored(file);
   const choices = Object.values(module).filter(
     (value): value is ExplainerClass => typeof value === 'function' && value.prototype instanceof Scene,
   );
@@ -155,16 +155,7 @@ export async function loadScene(
         : null;
   if (!exportName) throw new Error('Export one Scene subclass (or a default Scene export)');
   const Explainer = module[exportName] as ExplainerClass;
-  const outlines = usesOutlineLettering(Explainer);
-  // A captured run must survive installing the package: the same engine imports
-  // resolve to src/*.ts in a checkout and dist/src/*.js in the compiled CLI.
-  // Preserve the historical fingerprint exactly for every existing plain scene.
-  const portableSourceHash = outlines ? hash(
-    code.replaceAll(pathToFileURL(ROOT).href, 'lantern:/').replaceAll(dirname(file), '<author>')
-      .replace(/lantern:\/dist\/(src|explain|integrations)\//g, 'lantern:/$1/')
-      .replace(/(lantern:\/(?:src|explain|integrations)\/[^"'\n]+)\.js(?=["'])/g, '$1.ts'),
-  ) : sourceHash;
-  return { Scene: Explainer, exportName, file, sourceHash: portableSourceHash, engineHash: await engineHash(outlines || letteringRequest(Explainer) !== undefined) };
+  return { Scene: Explainer, exportName, file, sourceHash };
 }
 export interface Project {
   Scene: ExplainerClass;
@@ -172,7 +163,6 @@ export interface Project {
   exportName: string;
   file: string;
   sourceHash: string;
-  engineHash: string;
   store: SnapshotStore;
   /** Each scenario: its scene, trace and final stage colours (absent without a stage). */
   scenarios: { values: Settings; Scene: ExplainerClass; trace: Trace; paper?: string; palette?: Palette; live?: Map<string, { index: number; machine: Machine<object, string> }> }[];
@@ -180,27 +170,18 @@ export interface Project {
   /** The faces cut for `static meta.lettering`; absent when the scene asks for none. */
   lettering?: Lettering;
   outlineLettering?: LetteringSnapshot;
+  /** What the scene took from its script's intent header, which the page's bundle takes too. */
+  intent?: ReturnType<typeof adoptIntent>;
 }
 
 /**
- * The capture code's fingerprint. Snapshots record it, so changing how diagrams
- * are captured or lowered (integrations/agentic-mermaid/build/) invalidates
- * every cached snapshot instead of silently serving old ones.
- */
-export const IMPORTER = await (async () => {
-  const dir = join(ROOT, 'integrations/agentic-mermaid/build');
-  const files = (await readdir(dir)).filter((n) => n.endsWith('.ts')).sort();
-  return hash((await Promise.all(files.map(async (n) => n + '\n' + (await readFile(join(dir, n), 'utf8'))))).join('\n')).slice(0, 16);
-})();
-/**
- * What an explainer's built files come from: the scene's code, the engine, the snapshot importer,
- * and a hash of every file in the scene's folder (its pinned snapshots, lettering and data), leaving
+ * What an explainer's built files come from: the scene's code and a hash of every file in the scene's folder (its pinned snapshots, lettering and data), leaving
  * out dotfiles and names ending in `~`, which editors and file browsers leave there. demos:build
  * records it in out/explainers/<id>/inputs.json, and site:export compares it with the checkout's.
- * The shared build fingerprint also covers player, tools, dependencies and notices.
+ * The shared build fingerprint covers the engine, the player, the tools, dependencies and notices.
  * Needs only `loadScene`, not a run.
  */
-export async function sceneInputs(p: { file: string; sourceHash: string; engineHash: string }, buildHash?: string): Promise<import('./explain-artifacts.ts').SceneInputs> {
+export async function sceneInputs(p: { file: string; sourceHash: string }, buildHash?: string): Promise<import('./explain-artifacts.ts').SceneInputs> {
   const folder = dirname(p.file),
     files: string[] = [];
   for (const entry of await readdir(folder, { recursive: true, withFileTypes: true })) {
@@ -208,7 +189,7 @@ export async function sceneInputs(p: { file: string; sourceHash: string; engineH
     if (entry.isFile() && !path.split(sep).some((part) => part.startsWith('.')) && !entry.name.endsWith('~'))
       files.push(path + '\n' + hash(await readFile(join(folder, path))));
   }
-  return { version: '2', sourceHash: p.sourceHash, engineHash: p.engineHash, importer: IMPORTER, files: hash(files.sort().join('\n')), buildHash: buildHash ?? (await buildInputs(ROOT)).hash };
+  return { version: '3', sourceHash: p.sourceHash, files: hash(files.sort().join('\n')), buildHash: buildHash ?? (await buildInputs(ROOT)).hash };
 }
 /** File name for one diagram's snapshot: a short hash of its cache key. */
 export const snapshotFileName = (key: string) => hash(key).slice(0, 16) + '.json';
@@ -233,7 +214,7 @@ export async function readSnapshots(base: string): Promise<SnapshotStore> {
   // Own data properties, so a key such as `__proto__` is a key like any other.
   const put = (key: string, value: unknown) =>
     Object.defineProperty(store, key, { value, enumerable: true, writable: true, configurable: true });
-  if (index?.version === 2 && index.importer === IMPORTER) {
+  if (index?.version === 2) {
     for (const [key, name] of Object.entries(isObject(index.diagrams) ? index.diagrams : {})) {
       // Only the file this key's name hashes to: an index entry cannot point outside the folder.
       if (name !== snapshotFileName(key)) continue;
@@ -244,10 +225,18 @@ export async function readSnapshots(base: string): Promise<SnapshotStore> {
   return store;
 }
 /** Write the store and delete files no diagram uses. */
-export async function writeSnapshots(base: string, store: SnapshotStore, sourceHash: string): Promise<void> {
+export async function writeSnapshots(base: string, store: SnapshotStore): Promise<void> {
   const folder = base + '.snapshots';
-  await mkdir(folder, { recursive: true });
   const keys = Object.keys(store).sort();
+  // A scene with no diagrams keeps no snapshots: its files go, and the folder once empty.
+  if (!keys.length) {
+    const entries = await readdir(folder, { withFileTypes: true }).catch(() => null);
+    if (!entries) return;
+    for (const entry of entries) if (entry.isFile()) await rm(join(folder, entry.name));
+    if (!(await readdir(folder)).length) await rmdir(folder);
+    return;
+  }
+  await mkdir(folder, { recursive: true });
   const names = Object.fromEntries(keys.map((key) => [key, snapshotFileName(key)]));
   for (const key of keys) {
     const path = join(folder, names[key]!),
@@ -260,9 +249,7 @@ export async function writeSnapshots(base: string, store: SnapshotStore, sourceH
     if (entry.isFile() && !keep.has(entry.name)) await rm(join(folder, entry.name));
   const index = json({
     version: 2,
-    importer: IMPORTER,
     renderer: RENDERER,
-    sourceHash,
     diagrams: names,
   });
   if ((await readFile(join(folder, 'index.json'), 'utf8').catch(() => null)) !== index)
@@ -274,9 +261,17 @@ export async function collectProject(
 ): Promise<Project> {
   const loaded = await loadScene(input);
   const { file } = loaded;
+  // A script with an intent header is the one home of the title, answer, checks and what the
+  // model is checked against (tools/lib/explain-intent.ts): the scene reads them as its own.
+  const scriptIntent = await readIntent(file);
+  const intent = scriptIntent ? adoptIntent(loaded.Scene as { meta?: Record<string, unknown> }, scriptIntent, file) : undefined;
+  // An explainer's id is its folder's name (or its file's, for a scene not named scene.ts), unless it declares one.
+  const ownMeta = (loaded.Scene as { meta?: Record<string, unknown> }).meta;
+  if (ownMeta?.id === undefined)
+    (loaded.Scene as { meta?: Record<string, unknown> }).meta = { ...ownMeta, id: basename(file) === 'scene.ts' ? basename(dirname(file)) : basename(file).replace(/\.[^.]+$/, '') };
   const outlineRequested = usesOutlineLettering(loaded.Scene);
   const outline = outlineRequested
-    ? await prepareOutlineLettering(loaded.Scene, file, loaded.sourceHash, captureLettering, write) : undefined;
+    ? await prepareOutlineLettering(loaded.Scene, file, captureLettering, write) : undefined;
   const Source = outline?.Scene ?? loaded.Scene;
   const request = outlineRequested ? undefined : letteringRequest(Source);
   const subsetMetrics = request ? hash(JSON.stringify([request, ...(await Promise.all(
@@ -350,7 +345,7 @@ export async function collectProject(
         async () => {
           const counted = edits;
           for (const values of scenariosOf(Source)) {
-            const scene = await new (withSettings(bindSnapshots(Source, resolver), values))(new NullSink(), {
+            await new (withSettings(bindSnapshots(Source, resolver), values))(new NullSink(), {
               skipUntil: Infinity,
             }).run();
           }
@@ -412,8 +407,8 @@ export async function collectProject(
     checkScriptMeta(Source.meta);
     checkClaimsMeta(Source.meta);
     await outline?.finish();
-    if (write) await writeSnapshots(base, store, loaded.sourceHash);
-    return { ...loaded, Scene: Source, store, scenarios, edits, ...(lettering ? { lettering } : {}), ...(outline ? { outlineLettering: outline.snapshot } : {}) };
+    if (write) await writeSnapshots(base, store);
+    return { ...loaded, Scene: Source, store, scenarios, edits, ...(lettering ? { lettering } : {}), ...(outline ? { outlineLettering: outline.snapshot } : {}), ...(intent ? { intent } : {}) };
   } finally {
     await builder?.close();
     await naturalBuilder?.close();
@@ -430,7 +425,6 @@ export const baseReceipt = (p: Project) => ({
   version: 1,
   scene: sceneSlug(p),
   sourceHash: p.sourceHash,
-  engineHash: p.engineHash,
   engine: 'lantern@2c7bad5+explainer',
   agenticMermaid: RENDERER.split('@')[1],
   snapshotHashes: Object.values(p.store).map((s) => hash(JSON.stringify(s))),

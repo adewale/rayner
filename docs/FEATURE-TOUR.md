@@ -13,8 +13,8 @@ A recipe is an excerpt. The tour's [runnable source](https://github.com/adewale/
 | Choose `feature=` | Code the recipe shows | Further options |
 | --- | --- | --- |
 | `steps`, `settings` | `this.step`, `s.enter`, `static settings`, `settingsOf(this)` | [Scene](REFERENCE.md#scene), [settings](REFERENCE.md#settings) |
-| `diagram` | `s.show({source})`, `d.walk(..., {trail: true})` | [Diagram actions and the 15 families](REFERENCE.md#diagrams) |
-| `code`, `code-diff` | `s.code`, `block.focus`, `block.morph` | [Code spans](CODE.md), [native diff](MATCHING.md#diff-driven) |
+| `diagram` | `s.show({source})`, `d.walk(...)`, `s.diagramView(d, ...)` with `d.trail(...)` | [Diagram actions and the 15 families](REFERENCE.md#diagrams) |
+| `code`, `code-diff` | `view` of `CodeBlock` / `s.codePicture` with `focus` and `added` | [Code spans](CODE.md), [native diff](MATCHING.md#diff-driven) |
 | `diff` | `parseUnifiedDiff`, `TransformDiff({hunks})`, `diffLines` | [Diff-driven](MATCHING.md#diff-driven) |
 | `animation`, `matching`, `keys`, `restore`, `copy` | `Transform`, `TransformMatchingText`, `TransformMatching({key: matchByKey()})`, `saveState` / `Restore`, `TransformFromCopy` | [Matching](MATCHING.md), [sequencing and copies](ANIMATIONS.md) |
 | `write`, `arc`, `rates` | `Write`, `ArcBetweenPoints`, `MoveAlongPath`, `rateFunc: smooth`, `rushInto`, `rushFrom`, `thereAndBack` | [Animations](ANIMATIONS.md), [choreography](CHOREOGRAPHY.md) |
@@ -24,7 +24,7 @@ A recipe is an excerpt. The tour's [runnable source](https://github.com/adewale/
 | `state` | `this.state`, `view(this, ...)`, `label.sync()` | [State views and fidelity checks](VIEWS.md) |
 | `direction`, `palette` | `stage(this, {direction:'rtl'})`, card at `start`, `stage(this, {palette: palette('nord')})` | [Logical layout](REFERENCE.md#spatial-direction), [stage options](REFERENCE.md#stage) |
 | `math` | `lettering: {math: true}`, `MathTex` | [Maths](REFERENCE.md#maths) |
-| `globe` | `seenFrom`, `between`, `Follow` | [3D](REFERENCE.md#3d-seenfrommodel-viewpoint), [Follow](CHOREOGRAPHY.md#follow) |
+| `globe` | `seenFrom`, `between`, `view.tween` | [3D](REFERENCE.md#3d-seenfrommodel-viewpoint), [following one number](CHOREOGRAPHY.md#following-one-number) |
 
 When you copy a recipe, copy the before panel's job too. A step whose motion is the point should leave something that shows where it started, the way each result here leaves the circle beside the square.
 

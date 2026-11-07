@@ -3,10 +3,11 @@
 // which test/lib/view-fidelity.ts compares the picture with (a render that
 // pairs a label with the wrong field agrees with itself).
 import { test } from 'node:test';
+import type { View } from '../explain/index.ts';
 import assert from 'node:assert/strict';
 import { Scene } from '../src/index.ts';
 import { TraceSink, loadFonts } from '../explain/testing.ts';
-import type { SceneClass, SceneState, Step, View } from '../src/index.ts';
+import type { SceneClass, SceneState, Step } from '../src/index.ts';
 import { withSettings } from '../explain/testing.ts';
 import RingBufferExplainer from '../scenes/explainers/ring-buffer/scene.ts';
 import TokenBucketExplainer from '../scenes/explainers/token-bucket/scene.ts';
@@ -76,7 +77,7 @@ test('token-bucket: reader labels and comparison marks pair balances, refill tim
       const { tokens, lastRefill, allowed, rejected } = state as { tokens: number; lastRefill: number; allowed: number; rejected: string[] };
       assert.deepEqual(
         shown,
-        ['Tokens left', tenths(tokens), 'Last refill (s)', tenths(lastRefill), 'Accepted', String(allowed), 'Rejected', rejected.length ? rejected.join(', ') : 'none'],
+        ['Bucket balance', 'Tokens left', tenths(tokens), 'Last refill (s)', tenths(lastRefill), 'Accepted', String(allowed), 'Rejected', rejected.length ? rejected.join(', ') : 'none'],
         `rate ${rate}, step "${step}"`,
       );
     }

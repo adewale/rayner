@@ -1,6 +1,6 @@
 # Several drawings following the same parameter
 
-**Status: built as one exported animation, [`Follow`](CHOREOGRAPHY.md#follow).** This
+**Status: built as a view's tween and a transition's follow ([following one number](CHOREOGRAPHY.md#following-one-number)).** This
 note records the survey, taken on 2026-11-03 across all 40 explainers, that fixed its
 size, and the larger design it turned down. The [continuous recipe](../recipes/continuous.ts)
 shows the same idea written by hand as an ordinary `Animation`.
@@ -29,13 +29,13 @@ updater stops a seek from skipping (`Scene.hasUpdaters()`), so any animation who
   while the gauge waited at the previous level and jumped in the spend member, so
   gauge and chart disagreed during refill. The between-call balance,
   `min(capacity, previous + elapsed × rate)`, has a corner at the cap, so an endpoint
-  `Transform` of the gauge would also have been wrong when it fills. A `Follow` over
+  `Transform` of the gauge would also have been wrong when it fills. A follow over
   the elapsed time now writes the gauge level and the climb's drawn share from that
   formula. Every resting picture is unchanged.
 - **`ring-buffer` changed too.** A `Transform` moved the head and tail pointers along
   a chord between slots, so mid-move an arrow was inside its ring. The survey had
   counted a pointer as a discrete index; the motion between two indexes is a
-  continuous angle, and `Follow` now draws each pointer afresh at each sampled angle.
+  continuous angle, and a follow now draws each pointer afresh at each sampled angle.
 - **`seasons` has nothing to migrate.** No step varies a day; every Earth is a static
   drawing, and a day-driven interval would be new content. No scene interpolates two
   opposite points on a circle; the orbit exists only in the recipe.
@@ -45,7 +45,7 @@ updater stops a seek from skipping (`Scene.hasUpdaters()`), so any animation who
 
 ## What was built
 
-`Follow` samples one number, draws the picture at it and writes that picture into the
+A follow samples one number, draws the picture at it and writes that picture into the
 mobjects it names, with `become`. The engine changes beside the class were `targets()`,
 which every animation reports and `play()` admits and checks, and `Mobject.become`.
 That is the smallest shape that composes with what exists: the model stays an ordinary

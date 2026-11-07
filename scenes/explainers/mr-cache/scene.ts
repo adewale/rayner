@@ -1,11 +1,7 @@
-import { frames as readerFrames, ANSWER } from '../lib/readers/mr-cache.ts';
 import {
   Scene,
   Code,
-  Text,
-  Rectangle,
   Group,
-  Arrow,
   Create,
   FadeIn,
   FadeOut,
@@ -15,11 +11,12 @@ import {
   Circumscribe,
 } from '../../../src/index.ts';
 import type { Box, Mobject } from '../../../src/index.ts';
-import { stage, settingsOf } from '../../../explain/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import { stage, settingsOf, answerOf } from '../../../explain/index.ts';
+import type { NoteSide } from '../../../explain/index.ts';
 // The merge request: the two texts TransformDiff animates, which
-// test/explain-fidelity.test.ts holds to the real git diff.
+// fidelity.ts holds to the real git diff.
 import { BEFORE_CODE, AFTER_CODE, BEFORE_SPANS, AFTER_SPANS } from './code.ts';
+import { frames as readerFrames, panel, inWords, linesBox, lineBar, drawRequestPaths } from './picture.ts';
 
 const STYLE = 'hand-drawn';
 const BEFORE = 'graph LR\nRequest[Request] --> H[Handler]\nH --> D1[(D1)]';
@@ -54,89 +51,18 @@ const CODE_BOX: Box = [-7.55, -4.25, 3.35, -0.65],
 const ADDED = '#2ea043',
   CHANGED = '#bf8700';
 
-/**
- * A code panel in the stage's colours, laid out as the helpers' CodeBlock lays
- * one out, but with the native Code left on the scene by itself so
- * TransformDiff can morph it. Centred in `box`, never above its top; or with
- * `pin`, its top-left corner there.
- */
-function panel(s: Stage, code: Code, box: Box, title: string, pin?: readonly [left: number, top: number]) {
-  const pad = 0.3,
-    width = code.width() + 2 * pad + 0.1,
-    height = code.height() + 2 * pad + 0.42;
-  const cx = pin ? pin[0] + width / 2 : (box[0] + box[2]) / 2,
-    cy = pin ? pin[1] - height / 2 : Math.min(box[3] - height / 2, (box[1] + box[3]) / 2);
-  const rect = new Rectangle({
-    width,
-    height,
-    cornerRadius: 0.1,
-    fill: s.raised,
-    stroke: s.rule,
-    strokeWidth: 0.016,
-  }).moveTo([cx, cy]);
-  code.moveTo([cx, cy - 0.21]);
-  const label = new Text(title, { fontSize: 0.2, color: s.soft, anchor: 'start' }).moveTo(
-    [cx - width / 2 + pad, cy + height / 2 - 0.3],
-    [-1, 0],
-  );
-  return { rect, label };
-}
-
-/** In words, a code panel as a reader sees it: its title and every line. */
-const inWords = (title: string, code: Code) =>
-  `Code “${title}”, ${code.lines.length} lines: ${code.lines.map((l, i) => `${i + 1}: ${l.text.trim()}`).join(' · ')}`;
-
-/** Lines a..b of a code block, the block's full width. */
-function linesBox(code: Code, a: number, b: number): Box {
-  const all = code.box()!,
-    top = code.lines[a]!.box()!,
-    bottom = code.lines[b]!.box()!;
-  return [all[0], bottom[1], all[2], top[3]];
-}
-
-/** A tinted bar behind line i of a code block, as wide as its panel. */
-function lineBar(code: Code, rect: Rectangle, i: number, color: string): Rectangle {
-  const lines = code.lines,
-    pitch = Math.abs(lines[1]!.anchorPoint()[1] - lines[0]!.anchorPoint()[1]);
-  return new Rectangle({
-    width: rect.width() - 0.14,
-    height: pitch,
-    cornerRadius: 0.05,
-    fill: color,
-    fillOpacity: 0.2,
-    stroke: 'none',
-  }).moveTo([rect.center()[0], lines[i]!.anchorPoint()[1]]);
-}
-
 export default class CacheMRExplainer extends Scene {
   static meta = {
-    id: 'mr-cache',
-    title: 'What does a cache hit save?',
     sources: [
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/mr-cache.ts',
       'https://developers.cloudflare.com/kv/api/read-key-value-pairs/',
     ],
     watch: { databaseReads: 'Database reads', request: 'Request', reads: 'D1 reads' },
-    answer: ANSWER,
     // Each speaks of the code drawn in its own step.
     claims: [
       { says: 'Before: every request reads D1', shown: true as const },
       { says: 'every lookup is a database read', shown: true as const },
       { says: 'so only a miss reaches D1', shown: true as const },
-    ],
-    checks: [
-      {
-        question: 'Nine of ten requests for one user are hits. How many database reads do those ten requests make, against how many before the change?',
-        answer: 'One, the miss that filled the cache, against ten. Each hit returns from KV without reaching D1.',
-      },
-      {
-        question: 'A nightly job looks up every user exactly once. What does the cache do to its database reads, and to its total work?',
-        answer: 'Every lookup misses, so the job still makes one database read per user, as before, and each lookup adds a KV read and a KV write. The cache saves nothing here and costs two extra operations a user.',
-      },
-      {
-        question: 'For a user who does not exist, the query returns null. What happens on the next lookup for that user, and which line decides it?',
-        answer: 'It misses again and reads D1 again. The put stores the text null; get with "json" parses it back to null, and line 3, if (hit), treats null as no saved value. A missing user is never answered from the cache.',
-      },
     ],
   };
   static settings = [
@@ -154,7 +80,7 @@ export default class CacheMRExplainer extends Scene {
     const which = settingsOf(this).request as 'hit' | 'miss',
       s = stage(this, { headingSize: 0.6, style: STYLE });
 
-    await s.steps(readerFrames(which), { kind: 'short' });
+    await s.steps(readerFrames(which, answerOf(this)), { kind: 'short' });
     await this.step('before', {
       kind: 'detail',
       title: 'Before: every request reads D1',
@@ -164,6 +90,20 @@ export default class CacheMRExplainer extends Scene {
     });
     await s.clear();
     const flow = await s.show({ source: BEFORE }, { box: 'top' });
+    // How the flow diagram is shown, apart from its source: the hops walked, its notes and what stays
+    // undimmed. That is `shown`, not the model; its view draws it, and each change is a sync.
+    type FlowState = { walked: [string, string][]; notes: { id: string; text: string; side: NoteSide }[]; dim: string[] | null };
+    const flowState = () => this.shown.flow as FlowState;
+    const drawFlow = (_st: object, sh: object) => {
+      const f = (sh as { flow: FlowState }).flow;
+      return { marks: flow.trail(f.walked), notes: f.notes, dim: f.dim };
+    };
+    const showFlow = async (change: Partial<FlowState>, runTime = 0.45) => {
+      this.shown.flow = { ...flowState(), ...change };
+      await this.play(flowView.sync({ match: 'key', staged: true, runTime }));
+    };
+    this.shown.flow = { walked: [], notes: [], dim: null } satisfies FlowState;
+    let flowView = s.diagramView(flow, drawFlow);
     const colors = s.palette,
       hot = s.emphasis;
     const before = new Code(BEFORE_CODE, { fontSize: FONT, color: colors.ink, spans: BEFORE_SPANS }),
@@ -180,13 +120,12 @@ export default class CacheMRExplainer extends Scene {
     s.keep(shown.rect, shown.label, before, { describe: panelWords });
     // Three objects on the scene, not a group: TransformDiff replaces the Code by itself.
     await this.play(...[shown.rect, shown.label, before].map((m) => new FadeIn(m, { runTime: 0.4 })));
-    await flow.walk(
-      [
-        ['Request', 'H'],
-        ['H', 'D1'],
-      ],
-      { trail: true },
-    );
+    const handled: [string, string][] = [
+      ['Request', 'H'],
+      ['H', 'D1'],
+    ];
+    await flow.walk(handled);
+    await showFlow({ walked: handled });
     const outline = { buff: 0.06, cornerRadius: 0.06, stroke: hot, strokeWidth: 0.03 };
     const query = s.keep(new SurroundingRectangle(linesBox(before, 1, 1), outline), {
       describe: 'Line 2, the D1 query, outlined',
@@ -201,19 +140,18 @@ export default class CacheMRExplainer extends Scene {
       caption:
         'The first line stays and the closing brace moves down to make room. The old return keeps its D1 call inside const row = await, and the added lines grow in. The outlined lines check KV first, so only a miss reaches D1, and the row is then written to KV for 300 seconds.',
     });
-    await flow.clearNotes();
-    await flow.unmark();
+    await showFlow({ walked: [], notes: [] });
     await this.play(new FadeOut(query, { runTime: 0.3 }));
     s.keep(merged.rect, after, { describe: panelWords });
     // The diff drives the morph: unchanged lines travel whole, the rewritten
     // return keeps its shared tokens, added lines grow in. The hunks are
-    // recorded in the trace, where test/explain-fidelity.test.ts holds them to
+    // recorded in the trace, where fidelity.ts holds them to
     // the real git CLI.
     const diff = new TransformDiff(before, after, { runTime: 1.6 });
     await this.play(diff, new Transform(shown.rect, merged.rect, { replace: true, runTime: 1.6 }));
     held = after;
     // What each line did, from the transform's own plan.
-    const { same, changed, removed, added } = diff.plan;
+    const { changed, removed, added } = diff.plan;
     const bars = new Group(
       ...changed.map(([, j]) => lineBar(after, merged.rect, j, CHANGED)),
       ...added.map((j) => lineBar(after, merged.rect, j, ADDED)),
@@ -271,8 +209,10 @@ export default class CacheMRExplainer extends Scene {
     });
     // The diff's bars and what they said go; the diagram takes the same edit.
     await this.play(...[bars, lookup.outline, ...said].map((m) => new FadeOut(m, { runTime: 0.4 })));
+    s.liveDiagram(flow);
     await flow.morph({ source: AFTER }, { ops: OPS });
-    await flow.note('KV', 'TTL 300 s', { side: 'above' });
+    flowView = s.diagramView(flow, drawFlow);
+    await showFlow({ notes: [{ id: 'KV', text: 'TTL 300 s', side: 'above' }] });
     this.state.databaseReads = 'misses only';
 
     await this.step('request', {
@@ -291,61 +231,22 @@ export default class CacheMRExplainer extends Scene {
           : 'Walked through the edited diagram and code, the miss finds nothing at line 3 and runs on: line 4 reads D1 as before the change, line 5 writes the row to KV for 300 seconds, and line 6 returns it. A later lookup for the same user can take the hit row until that entry expires, although KV can take 60 seconds or longer to show a new write in other locations.',
     });
     const path = PATH[which];
-    await flow.clearNotes();
-    await flow.dim([...new Set(path.flat())]);
-    await flow.walk(path, { trail: true });
+    await showFlow({ notes: [], dim: [...new Set(path.flat())] });
+    await flow.walk(path);
+    await showFlow({ walked: path.map(([a, b]) => [a, b] as [string, string]) });
     // A hit runs the lookup and returns; a miss runs the lookup too, then the lines outlined here.
     const [a, b] = which === 'hit' ? [1, 2] : [3, 5];
     const ran = s.keep(new SurroundingRectangle(linesBox(after, a, b), outline), {
       describe: `Lines ${a + 1} to ${b + 1}, ${which === 'hit' ? 'the ones this request runs' : 'the ones only a miss runs'}, outlined`,
     });
     await this.play(new Create(ran, { runTime: 0.5 }));
-    await flow.note('D1', which === 'hit' ? '0 reads' : '1 read', {
-      side: 'below',
-    });
+    await showFlow({ notes: [{ id: 'D1', text: which === 'hit' ? '0 reads' : '1 read', side: 'below' }] });
     this.state.request = which;
     this.state.reads = which === 'hit' ? 0 : 1;
     // Keep the comparison together. The preceding walk follows the captured
     // program path; its result now replaces the detailed diagram/code view.
     await s.clear();
-    const result = new Group();
-    for (const [kind, y] of [
-      ['hit', 1.5],
-      ['miss', -1.8],
-    ] as const) {
-      const selected = kind === which;
-      const color = selected ? s.emphasis : s.palette.ink;
-      const row = new Group(
-        new Rectangle({
-          width: 14.4,
-          height: 2.9,
-          cornerRadius: 0.12,
-          stroke: selected ? color : s.soft,
-          strokeWidth: selected ? 0.05 : 0.015,
-        }).moveTo([0, y]),
-      );
-      row.add(new Text(kind, { fontSize: 0.75, color, weight: selected ? 'bold' : 'normal' }).moveTo([-6.0, y]));
-      const node = (name: string, x: number, width: number) => {
-        row.add(
-          new Rectangle({ width, height: 1.0, cornerRadius: 0.1, stroke: color, strokeWidth: 0.025 }).moveTo([x, y]),
-          new Text(name, { fontSize: 0.7, color }).moveTo([x, y]),
-        );
-      };
-      node('KV', -3.3, 2.0);
-      node('Reply', 4.6, 2.6);
-      if (kind === 'miss') node('D1', 0.4, 1.8);
-      const arrow = (from: number, to: number) =>
-        row.add(new Arrow([from, y], [to, y], { stroke: color, strokeWidth: 0.04, tipLength: 0.16, tipWidth: 0.16 }));
-      if (kind === 'hit') arrow(-2.3, 3.3);
-      else {
-        arrow(-2.3, -0.5);
-        arrow(1.3, 3.3);
-      }
-      row.add(new Text(kind === 'hit' ? '0 D1 reads' : '1 D1 read', { fontSize: 0.7, color }).moveTo([0.4, y - 0.95]));
-      if (kind === 'miss') row.add(new Text('300 s', { fontSize: 0.7, color }).moveTo([-3.3, y - 0.95]));
-      row.key = `result:${kind}`;
-      result.add(row);
-    }
+    const result = drawRequestPaths(which, { emphasis: s.emphasis, ink: s.palette.ink, soft: s.soft });
     await s.enter(result, {
       describe: `Two request paths, ${which} highlighted: hit goes from KV to Reply with 0 D1 reads; miss goes from KV through D1 to Reply with 1 D1 read and caches the row for 300 seconds.`,
     });

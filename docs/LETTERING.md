@@ -47,21 +47,21 @@ npm run rayner -- build path/to/scene.ts --out out/example.html
 
 On macOS, install Python with `brew install python@3.12`, create the environment with `python3.12 -m venv`, and also set `PYFTSUBSET` to the environment's `bin/pyftsubset`. An existing TeX installation finds Latin Modern Math with `kpsewhich latinmodern-math.otf`; its SHA-256 must match the original release.
 
-In an author project with the package installed, keep the environment and fonts in your own `out/` directory:
+In an author project, capture comes with `rayner-cli` (the library, `rayner`, only replays snapshots). Keep the environment and fonts in your own `out/` directory:
 
 ```sh
 python3 -m venv out/lettering-venv
-out/lettering-venv/bin/pip install -r node_modules/rayner/tools/lettering-requirements.txt
+out/lettering-venv/bin/pip install -r node_modules/rayner-cli/tools/lettering-requirements.txt
 export RAYNER_LETTERING_PYTHON="$PWD/out/lettering-venv/bin/python"
 export RAYNER_LETTERING_FONTS="$PWD/out/lettering-fonts"
-bash node_modules/rayner/tools/lettering-outline-fonts.sh
+bash node_modules/rayner-cli/tools/lettering-outline-fonts.sh
 npx rayner snapshots path/to/scene.ts
 npx rayner check path/to/scene.ts
 ```
 
 Commit `scene.lettering.json` beside the scene, as with diagram snapshots. Capture visits every scenario, including text built during replay and contact-sheet titles. HarfBuzz shapes each distinct string once at unit em, and each run keeps glyph IDs, logical source clusters, advances, offsets and outlines. The subset keeps the code points used plus their layout and glyph dependencies. Replacement faces also keep a bounded numeric alphabet for animated values, whose intermediate strings depend on the playback frame rate. Each requested font's licence travels with its subset into the page's licence block.
 
-`check`, `build` and `shots` require a fresh snapshot and never recapture silently; `preview` refreshes during authoring. Changing a caption, imported scene code, the request, the lettering builder, the embedded fallback fonts or the core shaping code invalidates the snapshot, and `snapshots` refreshes it. A cached snapshot's run structure and payload checksum are validated before drawing. Unrecorded prose fails closed, and seek and playback cannot start an unrecorded language scenario. Formatted numbers and known simple-script prefix and suffix templates replay through the glyph shaper with the requested subset, so counters work at any frame rate. A missing character in an unrequested script still fails, during capture too.
+`check`, `build` and `shots` require a fresh snapshot and never recapture silently; `preview` refreshes during authoring. A snapshot is stale when the scene draws a string it has no run for, which fails before anything is drawn and names the run, when the request changes, or when a different capture tool made it: the shaper script and its requirements, the vendored glyph and math shapers, the embedded fallback fonts, or the snapshot format. An edit that draws the same text, such as a caption or a change to Rayner's own code, keeps it. `snapshots` refreshes it, and CI captures every committed snapshot afresh and fails on any difference (`test/snapshot-capture.test.ts`). A cached snapshot's run structure is validated before drawing. Unrecorded prose fails closed, and seek and playback cannot start an unrecorded language scenario. Formatted numbers and known simple-script prefix and suffix templates replay through the glyph shaper with the requested subset, so counters work at any frame rate. A missing character in an unrequested script still fails, during capture too.
 
 `rayner check` reports `lettering.bytes` (the serialized snapshot payload), `lettering.pageBytes` (what the page's script carries of it), each face's binary subset size and the distinct run count. A page carries the request, the runs its scene draws and only the subsets its counters shape at runtime; hashes and licences stay in the snapshot, and each distinct licence notice joins the page's licence block once. Runs only the build draws, such as contact sheets' numbered titles, are listed in the snapshot's `offPage` and left out of the page. The snapshot and the page store each distinct glyph outline once (`outlines`, indexed by each glyph's `o`), because a wrapped caption is measured line by line and its glyphs recur in many runs. Subsets keep the layout features glyph's shaper applies when a counter replays (without ligatures for JetBrains Mono, which capture shapes as literal code) and no hinting. A cut's subset holds only the characters that cut drew, and a cut that drew nothing is left out. Receipts include `letteringHash`, and the snapshot records source, font and builder hashes.
 
@@ -168,6 +168,6 @@ The first command uses the committed Arabic, Devanagari, Hebrew, maths, serif, b
 
 ## Compatibility and build identity
 
-An explainer that requests nothing builds the same page and receipt as before lettering existed. The legacy engine fingerprint leaves out optional modules and type-only metadata to keep that true, and byte pins over the whole current catalog check it. Those pins are compatibility checks, not the list of page inputs: `tools/lib/build-inputs.ts` owns that list, including the player, build tools, dependencies and notices, and installed commands also count the compiled JavaScript they run. New producer files join the fingerprint automatically; documentation and generated checkout output do not change it.
+An explainer that requests nothing carries no lettering code: the build leaves the optional lettering exports out of its bundle, and `test/lettering.test.ts` checks the page. `tools/lib/build-inputs.ts` owns the list of page inputs, including the player, build tools, dependencies and notices, and installed commands also count the compiled JavaScript they run. New producer files join the fingerprint automatically; documentation and generated checkout output do not change it.
 
 Review changes to the compatibility entry point and its pins together with the rendered output. The subset and outline workflows keep their snapshot formats. Both public entry points export the complete `LetteringRequest` type; the subset implementation uses the narrower `SubsetLetteringRequest` internally.

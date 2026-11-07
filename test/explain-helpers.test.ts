@@ -11,7 +11,8 @@ import { stage, regionBox, REGIONS } from '../explain/index.ts';
 import { bindSnapshots } from '../explain/testing.ts';
 import { findingsOf, edgePartOf, diagramKey, snapshotResolver, useDiagrams, diagramsOf, RENDERER } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
-import { raised, rule, emphasis, soft, good, bad, dimOpacity } from '../explain/look.ts';
+import { raised, rule, emphasis, soft, good, bad, dimOpacity, seenSource } from '../explain/look.ts';
+import type { SeenSource } from '../explain/look.ts';
 import { PALETTES, palette } from '../explain/palettes.ts';
 import { Diagram } from '../explain/diagrams.ts';
 import { htmlEscape } from '../explain/trace.ts';
@@ -643,12 +644,12 @@ test('the regions meant to sit side by side never overlap', () => {
 
 test('the explain entry point exports exactly its documented names', async () => {
   assert.deepEqual(Object.keys(await import('../explain/index.ts')).sort(), [
-    'Card', 'CodeBlock', 'Diagram', 'REGIONS', 'diagramsOf', 'mermaid', 'palette', 'regionBox', 'resolveSettings', 'settingsOf', 'stage', 'stagedStep',
+    'Card', 'CodeBlock', 'Diagram', 'Machine', 'REGIONS', 'SetState', 'View', 'answerOf', 'choreograph', 'diagramsOf', 'isRefusal', 'mermaid', 'palette', 'refuse', 'regionBox', 'resolveSettings', 'settingsOf', 'stage', 'stagedStep', 'view',
   ]);
   // The tooling went to rayner/testing.
   assert.deepEqual(Object.keys(await import('../explain/testing.ts')).sort(), [
     'InvariantSink', 'MotionSink', 'TraceSink', 'analyzeMotion', 'bindSnapshots', 'describeExplainer', 'jsonObject', 'loadFonts',
-    'machinesOf', 'perf', 'scenarioName', 'scenariosOf', 'takeMissingGlyphs', 'traceScene', 'viewMismatch', 'withSettings',
+    'machinesOf', 'perf', 'scenarioName', 'scenariosOf', 'takeMissingGlyphs', 'traceScene', 'viewMismatch', 'withIntent', 'withSettings',
   ]);
 });
 
@@ -698,8 +699,8 @@ test('state diagrams name [*] dots by their state and region, count composites a
   assert.ok(!names(regions).some((n) => /__r\d|_start\b/.test(n)), 'no part falls back to a capture id');
 
   // Keeping the composite keeps what is drawn inside it; the outside state and its links fade.
-  await regions.dim(['on']);
-  const dimmed = new Set(regions.describe().parts.filter((p) => p.dimmed).map((p) => p.name));
+  const kept = regions.picture({}, { dim: ['on'] }) as unknown as SeenSource;
+  const dimmed = new Set(kept[seenSource]().parts.filter((p) => p.dimmed).map((p) => p.name));
   for (const name of ['off', 'start → off', 'on → off: POWER_OFF', 'off → on: POWER']) assert.ok(dimmed.has(name), `${name} fades`);
   for (const name of ['paused', 'muted', 'start of on, region 2', 'paused → playing: PLAY', 'unmuted → muted: MUTE'])
     assert.ok(!dimmed.has(name), `${name} stays`);

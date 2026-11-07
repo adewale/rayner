@@ -1,10 +1,19 @@
-# Releasing the npm package
+# Releasing the npm packages
 
-This is the maintainer's npm release procedure. [Publishing](PUBLISHING.md) covers an author's HTML pages.
+This is the maintainer's npm release procedure.
 
-`rayner@0.1.0` was published on 29 October 2026. Its npm archive and `v0.1.0` tag are immutable. Use a new version for changes; never repack or replace the first release to correct its old “unreleased” changelog heading.
+## Two packages
 
-## Validate the archive
+Each version is two npm packages, published together from this repository at one version:
+
+- **`rayner`**, the root `package.json`: the vocabulary and runtime that scenes and hosts import (`src/`, `explain/`, the diagram snapshot reader and lettering replay, their compiled `dist/`), the guides, the skill, the tutorial scenes and the recipes. It has no dependencies and no command.
+- **`rayner-cli`**, `cli/package.json`: the `rayner` command bundled into `dist/tools/`, the player (`app/`) it bundles into each page, diagram capture (bundled from `integrations/agentic-mermaid/build/`) and lettering capture (`tools/lettering.py`, its requirements, the outline font script, `vendor/glyph-math.js`, `vendor/lettering/`). It depends on `rayner` at exactly its own version and on esbuild, TypeScript, Agentic Mermaid, Playwright, svgpath and resvg, which the checkout installs as devDependencies at the same versions.
+
+`npm run build:cli` (also `cli/`'s prepack) builds `rayner-cli` into `cli/`; only `cli/package.json` and `cli/README.md` are sources there. The command reaches the library's compiled modules through `rayner/internal/*`, so it and the scenes it loads share one engine. Repository-only tooling is in `tools/repo/`; `test/package-boundary.test.ts` checks what each archive contains, that the versions agree, and that `rayner-cli` depends on exactly the packages its bundle imports. Before 0.2.0 there was one package, `rayner`, with the command in it. [Publishing](PUBLISHING.md) covers an author's HTML pages.
+
+`rayner@0.1.0` was published on 29 October 2026, before the split. Its npm archive and `v0.1.0` tag are immutable. Use a new version for changes; never repack or replace the first release to correct its old “unreleased” changelog heading.
+
+## Validate the archives
 
 Use Node 24 and a clean checkout of the release commit. Install the optional Chromium, Python and font dependencies listed in the CI workflow and [lettering guide](LETTERING.md), then run:
 
@@ -18,11 +27,11 @@ EXPLAIN_BROWSER=1 EXPLAIN_LETTERING=1 npm run release:check
 npm run demos:review
 ```
 
-`release:check` packs once, installs that tarball in a temporary author project, compiles the public TypeScript API and exercises the CLI. It checks committed Arabic, Devanagari, maths and replacement-face snapshots without Python or source fonts. With `EXPLAIN_LETTERING=1`, it also captures new Arabic and maths through the installed package. The browser flag checks installed diagram capture.
+`release:check` packs each package once. It installs the `rayner` tarball alone in a temporary project (it must bring no dependencies, no command and no capture code), then both tarballs in a temporary author project, compiles the public TypeScript API and exercises the CLI. It checks committed Arabic, Devanagari, maths and replacement-face snapshots without Python or source fonts. With `EXPLAIN_LETTERING=1`, it also captures new Arabic and maths through the installed package. The browser flag checks installed diagram capture.
 
-The command retains `out/release/rayner-<version>.tgz` and `manifest.json`, which records the archive's SHA-512 integrity, source commit, dirty-tree status, file list and gates run. A dirty checkout can be tested locally, but cannot be published by the workflow. Review the file list and licence notices. Do not repack after testing.
+The command retains `out/release/rayner-<version>.tgz`, `out/release/rayner-cli-<version>.tgz` and `manifest.json`, which records the version, source commit, dirty-tree status and gates run, and for each archive its SHA-512 integrity and file list. A dirty checkout can be tested locally, but cannot be published by the workflow. Review the file list and licence notices. Do not repack after testing.
 
-`pack:smoke -- --archive <path>` can retest an existing archive without packing again. In CI, all six compatibility lanes download the primary job’s candidate and use `pack:smoke -- --manifest out/release/manifest.json`. This checks the candidate’s source commit and SHA-512 before installation, then confirms the archive bytes after validation. Consumer installs compile no package source and download no fonts; capture and PNG dependencies are included.
+`pack:smoke -- --archive <rayner.tgz> --cli-archive <rayner-cli.tgz>` can retest existing archives without packing again. In CI, all six compatibility lanes download the primary job’s candidates and use `pack:smoke -- --manifest out/release/manifest.json`. This checks the candidates’ source commit and SHA-512 before installation, then confirms the archive bytes after validation. Consumer installs compile no package source and download no fonts; capture and PNG dependencies are included.
 
 The compatibility job checks Node 24 on macOS as well as Ubuntu, including an installed starter preview with the normal authoring dependencies. A configured matrix is not evidence of a successful Mac run: require both platforms to pass before tagging.
 
@@ -34,17 +43,18 @@ Before using `.github/workflows/publish.yml`:
 
 1. Require the nine CI contexts on main: `check`, `catalog`, `story` and the six minimum/current compatibility checks. All must run and pass on the release commit; the publishing dispatch always runs fresh CI, including when normal prose or identical-tree checks would skip work.
 2. The 0.1.0 manual publication completed package ownership bootstrap. Subsequent versions use npm trusted publishing for owner `adewale`, repository `rayner`, workflow `publish.yml`, environment `npm-publish`. Keep the npm account protected with 2FA; do not create a long-lived publishing token.
+   `rayner-cli` is a new package name: before its first release, the owner creates it on npm (a first manual publication, as for `rayner` 0.1.0, or npm's trusted-publisher setup for a package that does not exist yet, where offered) and configures the same trusted publisher for it. Until then the workflow publishes `rayner` and then fails on `rayner-cli`, leaving the draft release for the manual recovery below.
 3. The owner configured `npm-publish` with Ade as required reviewer, no admin bypass and a `v*` tag deployment policy. Self-review is allowed because Ade is the sole reviewer. Verify those settings before relying on them; naming an environment in YAML alone does not create its protections.
 
-Trusted publishing requires npm 11.5.1+; the workflow checks that floor and uses Node 24. Its publishing job alone gets `id-token: write`. The normal CI jobs have read-only repository access. The archive gate also runs on Node 24.0.0 to check the declared minimum; the full browser and capture gates run on the current Node 24 release. npm automatically generates provenance for trusted publishing; `repository.url` must match this public repository.
+Trusted publishing requires npm 11.5.1+; the workflow checks that floor and uses Node 24. Its publishing job alone gets `id-token: write`. The normal CI jobs have read-only repository access. The archive gate also runs on Node 24.0.0 to check the declared minimum; the full browser and capture gates run on the current Node 24 release. npm automatically generates provenance for trusted publishing; `repository.url` must match this public repository in both manifests (`cli/package.json` adds `directory: cli`).
 
 ## Publish a tested version
 
-Update the package and lockfile versions together and date the changelog entry. Merge and validate the release commit, then create its matching `v<version>` git tag. Dispatch **publish** on that tag with operation `publish`, selecting `next` for an initial candidate or `latest` for the default install. Approve its protected `npm-publish` deployment after reviewing the tested commit and archive.
+Update the version in `package.json`, `cli/package.json` (its own and its `rayner` dependency) and the lockfile together, and date the changelog entry. Merge and validate the release commit, then create its matching `v<version>` git tag. Dispatch **publish** on that tag with operation `publish`, selecting `next` for an initial candidate or `latest` for the default install. Approve its protected `npm-publish` deployment after reviewing the tested commit and archives.
 
-The workflow runs reusable CI, retains the exact tested archive for 90 days, waits for the protected environment, and downloads that archive into its publishing job. It verifies the tag, source SHA, clean checkout, package name, gates and integrity. It also refuses an existing npm version and an undated changelog entry. Before publishing, it uploads the tested tarball, manifest, served-story review, size/startup report and WebKit/Safari records to a draft GitHub Release. Every report must name the tagged source commit. It publishes that tarball directly, checks the registry serves the same integrity, then exposes the release. No second build occurs. GitHub Release assets have no Actions-artifact expiration.
+The workflow runs reusable CI, retains the exact tested archives for 90 days, waits for the protected environment, and downloads them into its publishing job. It verifies the tag, source SHA, clean checkout, both package names, gates and integrity. It also refuses a version npm already has for either package and an undated changelog entry. Before publishing, it uploads both tested tarballs, the manifest, served-story review, size/startup report and WebKit/Safari records to a draft GitHub Release. Every report must name the tagged source commit. It publishes `rayner` first, since `rayner-cli` depends on it, checks the registry serves the tested integrity, then does the same for `rayner-cli`, then exposes the release. No second build occurs. GitHub Release assets have no Actions-artifact expiration.
 
-If npm succeeds but final release promotion fails, inspect the draft, compare its manifest with `npm view rayner@<version> dist.integrity`, then expose that draft. Do not publish the version again. A failed npm publication leaves the draft and tested bytes available for inspection.
+If npm succeeds but final release promotion fails, inspect the draft, compare its manifest with `npm view rayner@<version> dist.integrity` and `npm view rayner-cli@<version> dist.integrity`, then expose that draft. Do not publish the version again. If npm accepted `rayner` but not `rayner-cli`, publish the draft's tested `rayner-cli` tarball by hand (`npm publish rayner-cli-<version>.tgz --tag <tag>`), check its integrity against the manifest, then expose the draft; a rerun of the workflow refuses, because `rayner` is already published. A failed npm publication leaves the draft and tested bytes available for inspection.
 
 ## Preserve an existing publication
 
@@ -54,11 +64,11 @@ For the manual 0.1.0 bootstrap, use the `archive` operation on a branch containi
 gh workflow run publish.yml --ref main -f operation=archive -f version=0.1.0
 ```
 
-The archive job checks out the existing version tag, downloads the original public npm tarball, checks its registry SHA-512, and runs the tagged installed-package gate with browser and lettering capture enabled. It preserves those exact bytes, a manifest and the validation log on GitHub Releases. This is explicitly retrospective validation, not original publication provenance. It does not call `npm publish`, move a tag, overwrite assets or alter an existing public release.
+The archive job checks out the existing version tag, downloads the original public npm tarball (both, `rayner` and `rayner-cli`, for a version whose tag has `cli/package.json`), checks each registry SHA-512, and runs the tagged installed-package gate with browser and lettering capture enabled. It preserves those exact bytes, a manifest and the validation log on GitHub Releases. This is explicitly retrospective validation, not original publication provenance. It does not call `npm publish`, move a tag, overwrite assets or alter an existing public release.
 
 The job reads every page of the release list, including drafts. It reuses a unique empty draft for the exact tag and refuses a public release, retained assets or duplicate matching records. A failed tag lookup is not permission to create another draft. If duplicate records exist, identify each record by its release ID and inspect its assets before deciding how to recover. Preserve the public release, original archive and tag; do not rerun archival to overwrite evidence or resolve an ambiguous record automatically.
 
-After publication, confirm the version and dist-tag with `npm view rayner version dist-tags dist.integrity --json`, and try installation in a fresh author project. For a candidate, ask an outside author to follow the tutorial before promoting it with `npm dist-tag add rayner@<version> latest`. The README's install section reads the same before and after publication, because npm shows the README from the archive and a published archive cannot change; do not add or remove an "unpublished" note around a release. A published name/version pair cannot be reused, so correct mistakes in a new version.
+After publication, confirm the version and dist-tag of each package with `npm view rayner version dist-tags dist.integrity --json` and the same for `rayner-cli`, and try installation in a fresh author project. For a candidate, ask an outside author to follow the tutorial before promoting both with `npm dist-tag add rayner@<version> latest` and `npm dist-tag add rayner-cli@<version> latest`. The README's install section reads the same before and after publication, because npm shows the README from the archive and a published archive cannot change; do not add or remove an "unpublished" note around a release. A published name/version pair cannot be reused, so correct mistakes in a new version.
 
 ## Prepare the website collection
 
@@ -71,7 +81,7 @@ A git tag, dated changelog or successful validation job records preparation. Con
 Keep the reviewed website export, including its `deployment.json` and private `_headers` file. After the website deployment completes, compare the public site with those local bytes:
 
 ```sh
-node tools/verify-live-site.ts ../website/site \
+node tools/repo/verify-live-site.ts ../website/site \
   --origin https://your.site --path /projects/rayner \
   --clean-urls --out out/live-site-verification.json
 ```

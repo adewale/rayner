@@ -1,6 +1,6 @@
 # Font measurement vectors
 
-Independent measurements of EB Garamond advances, taken by HarfBuzz over the original font bytes before subsetting (`test/lettering/oracle.py`), with each font file's SHA-256. The `font-metrics` fidelity test in `test/explain-fidelity.test.ts` compares the scene's natural-lettering widths with these numbers rather than with Rayner's own text measurement.
+Independent measurements of EB Garamond advances, taken by HarfBuzz over the original font bytes before subsetting (`test/lettering/oracle.py`), with each font file's SHA-256. The `font-metrics` fidelity check, `scenes/explainers/font-metrics/fidelity.ts`, compares the scene's natural-lettering widths with these numbers rather than with Rayner's own text measurement.
 
 - `font-vectors.json`: the advances of "Ink" and "Paper" in the regular cut.
 - `font-metrics-source-vectors.json`: one phrase's advance in each requested cut.

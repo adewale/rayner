@@ -1,9 +1,10 @@
-// Property tests for explain/panels.ts: CodeBlock (and the line matching its morph uses) and Card.
+// Property tests for explain/panels.ts: CodeBlock and Card, drawn from state and synced by a view.
 // Scenes use a NullSink and skip every frame, so a play costs its begin and
 // finish only. Counts: test/lib/pbt.ts (FULL=1 is 10x).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Text } from '../src/index.ts';
+import { Scene, Text, VMobject } from '../src/index.ts';
+import type { Mobject, TransformMatching } from '../src/index.ts';
 import { NullSink } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import type { Box, Vec } from '../src/index.ts';
@@ -13,6 +14,8 @@ import { REGIONS, emphasis, good, bad } from '../explain/look.ts';
 import type { Region } from '../explain/look.ts';
 import { fc, params } from './lib/pbt.ts';
 import { hexColor } from './lib/random-snapshot.ts';
+import { view } from '../explain/index.ts';
+import type { View } from '../explain/index.ts';
 
 await loadFonts();
 
@@ -39,15 +42,6 @@ const box: fc.Arbitrary<Box> = fc
 const point: fc.Arbitrary<Vec> = fc.tuple(fc.double({ min: -7, max: 7, noNaN: true }), fc.double({ min: -4, max: 4, noNaN: true }));
 const regionOf = (at: Box | Region): Box => (typeof at === 'string' ? [...REGIONS[at]] : at);
 const inside = (b: Box, r: Box) => b[0] >= r[0] - EPS && b[1] >= r[1] - EPS && b[2] <= r[2] + EPS && b[3] <= r[3] + EPS;
-
-/** An independent LCS length: the classic forward DP. */
-function lcs(a: readonly string[], b: readonly string[]): number {
-  const t = Array.from({ length: a.length + 1 }, () => new Array<number>(b.length + 1).fill(0));
-  for (let i = 1; i <= a.length; i++)
-    for (let j = 1; j <= b.length; j++)
-      t[i]![j] = a[i - 1] === b[j - 1] ? t[i - 1]![j - 1]! + 1 : Math.max(t[i - 1]![j]!, t[i]![j - 1]!);
-  return t[a.length]![b.length]!;
-}
 
 // ---- CodeBlock -----------------------------------------------------------------
 
@@ -91,28 +85,26 @@ test('a code block refuses a box too narrow for code', () => {
   );
 });
 
-test('a code block refuses empty code, and so does morph', async () => {
-  await fc.assert(
-    fc.asyncProperty(palette, lines(1), fc.option(placed, { nil: undefined }), async (colors, text, at) => {
+test('a code block refuses empty code', () => {
+  fc.assert(
+    fc.property(palette, fc.option(placed, { nil: undefined }), (colors, at) => {
       assert.throws(() => new CodeBlock(scene(), colors, [], at ? { at } : {}), /at least one line|no room for code/);
-      await assert.rejects(code(colors, text, at ? { at } : {}).morph([]), /at least one line/);
     }),
     params(),
   );
 });
 
-test('focus puts the bar over exactly the chosen lines, inside the block', async () => {
-  await fc.assert(
-    fc.asyncProperty(
+test('a block drawn with focus has the bar over exactly the chosen lines, inside the block', () => {
+  fc.assert(
+    fc.property(
       palette,
       lines(1).chain((code) =>
         fc.tuple(fc.constant(code), fc.nat({ max: code.length - 1 }), fc.nat({ max: code.length - 1 })),
       ),
       fc.option(placed, { nil: undefined }),
-      async (colors, [text, x, y], at) => {
-        const block = code(colors, text, at ? { at } : {});
+      (colors, [text, x, y], at) => {
         const [a, b] = [Math.min(x, y), Math.max(x, y)];
-        await block.focus(a === b ? a : [a, b]);
+        const block = code(colors, text, { ...(at ? { at } : {}), focus: a === b ? a : [a, b] });
         const bar = block.bar.box()!;
         const row = (i: number) => block.code.lines[i]!.anchorPoint()[1];
         for (let i = 0; i < text.length; i++) {
@@ -121,15 +113,16 @@ test('focus puts the bar over exactly the chosen lines, inside the block', async
         }
         assert.equal(block.bar.parent, block);
         assert.equal(block.bar.style.opacity, 1);
+        assert.ok(block.children.indexOf(block.bar) < block.children.indexOf(block.code), 'the bar draws behind the code');
       },
     ),
     params(),
   );
 });
 
-test('focus rejects any line that is not an index into the code, with the documented error', async () => {
-  await fc.assert(
-    fc.asyncProperty(
+test('focus refuses any line that is not an index into the code, with the documented error', () => {
+  fc.assert(
+    fc.property(
       palette,
       lines(1),
       fc.oneof(
@@ -138,79 +131,106 @@ test('focus rejects any line that is not an index into the code, with the docume
         fc.integer({ min: 10, max: 1e6 }),
         fc.tuple(fc.integer({ min: -3, max: 12 }), fc.integer({ min: -3, max: 12 })),
       ),
-      async (colors, code, bad) => {
+      (colors, code, bad) => {
         const [a, b] = typeof bad === 'number' ? [bad, bad] : bad;
         fc.pre(!(Number.isInteger(a) && Number.isInteger(b) && a >= 0 && b < code.length && a <= b));
-        const block = new CodeBlock(scene(), colors, code);
-        await assert.rejects(block.focus(bad as number), /No code lines/);
+        assert.throws(() => new CodeBlock(scene(), colors, code, { focus: bad as number }), /No code lines/);
       },
     ),
     params(),
   );
 });
 
-const morphCase = fc.record({
+/** Play a keyed, staged sync of `v`, as a view of state is synced; the matching it played, or null when the picture did not change. */
+async function keyedSync(sc: Scene, v: View): Promise<TransformMatching | null> {
+  const sync = v.sync({ match: 'key', staged: true });
+  await sc.play(sync);
+  return sync.inner as TransformMatching | null;
+}
+/** The member of `among` that `part` is, or is inside. */
+const within = (part: Mobject, among: ReadonlySet<Mobject>): Mobject | null => {
+  for (let m: Mobject | null = part; m; m = m.parent) if (among.has(m)) return m;
+  return null;
+};
+/** Whether a Text draws anything a matching can pair (an empty or blank line draws nothing); ask before a sync fades it. */
+const draws = (t: Text) => t.family().some((m) => m instanceof VMobject && (m.style.opacity ?? 1) > 0 && m.hasPoints());
+/**
+ * Which of `old`'s texts the matching kept (their glyphs paired, each with a glyph of a new text that
+ * `partner` accepts) and which it faded (their glyphs removed). A picture that did not change kept all.
+ */
+function keptAndFaded(matching: TransformMatching | null, old: readonly Text[], now: readonly Text[], partner: (was: Text, is: Text) => boolean) {
+  const olds = new Set<Mobject>(old), news = new Set<Mobject>(now);
+  if (!matching) return { kept: new Set(old), faded: new Set<Text>() };
+  const kept = new Set<Text>(), faded = new Set<Text>();
+  for (const [a, b] of matching.pairs) {
+    const was = within(a, olds) as Text | null;
+    if (!was) continue;
+    const is = within(b, news) as Text | null;
+    assert.ok(is && partner(was, is), `"${was.text}" paired with ${is ? `"${is.text}"` : 'nothing it can be'}`);
+    kept.add(was);
+  }
+  for (const a of matching.removed) {
+    const was = within(a, olds) as Text | null;
+    if (was) faded.add(was);
+  }
+  for (const t of kept) assert.ok(!faded.has(t), `"${t.text}" both kept and faded`);
+  return { kept, faded };
+}
+
+const syncCase = fc.record({
   colors: palette,
   before: lines(1),
   after: lines(1),
   at: fc.option(placed, { nil: undefined }),
-  markAdded: fc.boolean(),
   focus: fc.option(fc.nat(), { nil: undefined }),
   knobs,
 });
 type Of<A> = A extends fc.Arbitrary<infer T> ? T : never;
-async function morphed({ colors, before, after, at, markAdded, focus, knobs: k }: Of<typeof morphCase>) {
-  const block = code(colors, before, { ...(at ? { at } : {}), ...k });
-  const s = block.scene;
-  s.add(block);
-  if (focus != null) await block.focus(focus % before.length);
-  const old = [...block.code.lines];
-  const top = block.panel.box()![3],
-    centre = block.panel.center()[0];
-  await block.morph(after, { markAdded });
-  return { s, block, old, top, centre };
+/** A keyed code block drawn by a view from `before`, then synced to `after` (focused on a line, if `focus`). */
+async function synced({ colors, before, after, at, focus, knobs: k }: Of<typeof syncCase>) {
+  const opts = { ...(at ? { at } : {}), ...k };
+  // Refused for want of room: the documented refusal, and no case.
+  code(colors, before, opts);
+  code(colors, after, opts);
+  const sc = scene();
+  let state: { lines: string[]; focus: number | null } = { lines: before, focus: null };
+  const v = view(sc, () => new CodeBlock(sc, colors, state.lines, { ...opts, focus: state.focus, key: 'code' }), { place: false });
+  sc.add(v);
+  const old = v.current, drawn = new Set(old.code.lines.filter(draws));
+  state = { lines: after, focus: focus == null ? null : focus % after.length };
+  const matching = await keyedSync(sc, v);
+  return { sc, v, old, drawn, block: v.current, matching };
 }
+const counts = (xs: readonly string[]) => xs.reduce((m, x) => m.set(x, (m.get(x) ?? 0) + 1), new Map<string, number>());
 
-test('morph turns the code into the next lines, keeping as many line objects as any pairing of equal lines can', async () => {
+test('a keyed sync turns the code into the next lines, pairing each line with one of the same text and fading only the lines left over', async () => {
   await fc.assert(
-    fc.asyncProperty(morphCase, async (c) => {
-      const { block, old } = await morphed(c);
+    fc.asyncProperty(syncCase, async (c) => {
+      const { block, old, drawn: drawable, matching } = await synced(c);
       // Text.text keeps the source line (including tabs); only glyph layout expands tab stops.
-      const [a, b] = [c.before, c.after];
-      assert.deepEqual(block.code.lines.map((l) => l.text), b);
-      // A kept line keeps its text and its order among the kept: the pairs form a common subsequence...
-      const kept = block.code.lines.map((l, j) => [j, old.indexOf(l)] as const).filter(([, i]) => i >= 0);
-      for (const [j, i] of kept) assert.equal(a[i], b[j], `line ${j} kept old line ${i}`);
-      for (let k = 1; k < kept.length; k++) assert.ok(kept[k]![1] > kept[k - 1]![1], JSON.stringify(kept));
-      // ...and a longest one, so the fewest lines fade.
-      assert.equal(kept.length, lcs(a, b));
-      assert.equal(block.marks.length, c.markAdded ? b.length - kept.length : 0);
+      assert.deepEqual(block.code.lines.map((l) => l.text), c.after);
+      const { kept, faded } = keptAndFaded(matching, old.code.lines, block.code.lines, (was, is) => was.text === is.text);
+      // Of each text, as many lines stay as both sides have; the rest of the old ones fade.
+      const [a, b] = [counts(c.before), counts(c.after)];
+      for (const [text, n] of a) {
+        const drawn = old.code.lines.filter((l) => l.text === text && drawable.has(l));
+        if (!drawn.length) continue;
+        const stay = Math.min(n, b.get(text) ?? 0);
+        assert.equal(drawn.filter((l) => kept.has(l)).length, stay, `lines "${text}" kept`);
+        assert.equal(drawn.filter((l) => faded.has(l)).length, n - stay, `lines "${text}" faded`);
+      }
     }),
     params(300),
   );
 });
 
-test('scale probe: morphing 600 lines of code pairs its repeated lines quickly', async () => {
-  const a = Array.from({ length: 600 }, (_, i) => `line ${i % 37}`),
-    b = Array.from({ length: 600 }, (_, i) => `line ${(i * 7) % 37}`);
-  const s = scene();
-  const block = new CodeBlock(s, { paper: '#000000', ink: '#ffffff', accent: '#ff8800', muted: '#888888' }, a);
-  s.add(block);
-  const old = new Set(block.code.lines);
-  const t = performance.now();
-  await block.morph(b);
-  assert.equal(block.code.lines.filter((l) => old.has(l)).length, lcs(a, b));
-  assert.ok(performance.now() - t < 10_000);
-});
-
-test('morph leaves no departed line on stage', async () => {
+test('after a keyed sync no departed line is on stage, and the block shows exactly its lines', async () => {
   await fc.assert(
-    fc.asyncProperty(morphCase, async (c) => {
-      const { s, block, old } = await morphed(c);
-      const present = new Set(s.familyMembers());
-      const kept = new Set(block.code.lines);
-      assert.deepEqual(old.filter((l) => !kept.has(l) && present.has(l)).map((l) => l.text), []);
-      const shown = s.familyMembers().filter((m): m is Text => m instanceof Text && m.parent === block.code);
+    fc.asyncProperty(syncCase, async (c) => {
+      const { sc, block, old } = await synced(c);
+      const present = new Set(sc.familyMembers());
+      assert.deepEqual(old.code.lines.filter((l) => present.has(l)).map((l) => l.text), []);
+      const shown = sc.familyMembers().filter((m): m is Text => m instanceof Text && m.parent === block.code);
       // By identity: a deep diff of mobjects runs away on failure.
       assert.ok(shown.length === block.code.lines.length && shown.every((t, i) => t === block.code.lines[i]), 'the block shows exactly its lines');
     }),
@@ -218,75 +238,50 @@ test('morph leaves no departed line on stage', async () => {
   );
 });
 
-test('a morphed block stays inside the region it was placed in', async () => {
+test('after a keyed sync, the focus is as on a fresh block: the bar is the block’s, over the line, behind the code', async () => {
   await fc.assert(
-    fc.asyncProperty(morphCase.filter((c) => c.at != null), async (c) => {
-      const r = regionOf(c.at!);
-      // A region shorter than the morphed block bounds only its width (see the next property).
-      const natural = code(c.colors, c.after, c.knobs).panel.box()!;
-      fc.pre(r[3] - r[1] >= natural[3] - natural[1]);
-      const { block } = await morphed(c);
-      const b = block.panel.box()!;
-      assert.ok(inside([b[0], Math.max(b[1], r[1]), b[2], b[3]], r) && b[1] >= r[1] - EPS, `${b} outside ${r}`);
-    }),
-    params(300),
-  );
-});
-
-test('a morphed block stays within its region\'s width with finite bounds, whatever the region', async () => {
-  await fc.assert(
-    fc.asyncProperty(morphCase, async (c) => {
-      const { block } = await morphed(c);
-      const b = block.panel.box()!,
-        r = regionOf(c.at ?? 'full');
-      assert.ok(b[0] >= r[0] - EPS && b[2] <= r[2] + EPS, `${b} outside ${r} horizontally`);
-      assert.ok(b.every(Number.isFinite));
-    }),
-    params(300),
-  );
-});
-
-test('a titled block keeps its title inside the panel and above the code after morph', async () => {
-  await fc.assert(
-    fc.asyncProperty(morphCase.filter((c) => !!c.knobs.title?.trim()), async (c) => {
-      const { block } = await morphed(c);
-      const head = block.children.find((m): m is Text => m instanceof Text && m.text === c.knobs.title)!;
-      const h = head.box()!,
-        p = block.panel.box()!,
-        code = block.code.box();
-      assert.ok(h[0] >= p[0] - EPS && h[2] <= p[2] + EPS && h[3] <= p[3] + EPS, `title ${h} outside panel ${p}`);
-      if (code) assert.ok(h[1] >= code[3] - 0.05, `title ${h} over code ${code}`);
-    }),
-    params(300),
-  );
-});
-
-test('a morphed block keeps its top and centre unless its region made it move', async () => {
-  await fc.assert(
-    fc.asyncProperty(morphCase, async (c) => {
-      const { block, top, centre } = await morphed(c);
-      const b = block.panel.box()!,
-        placed = regionOf(c.at ?? 'full');
-      // Vertically the bound is the region, or the stage for a region shorter than a line.
-      const r: Box = placed[3] - placed[1] >= 1 ? placed : [placed[0], REGIONS.full[1], placed[2], REGIONS.full[3]];
-      if (b[1] > r[1] + EPS) assert.ok(Math.abs(b[3] - top) < EPS, `top ${top} -> ${b[3]}`);
-      if (b[0] > r[0] + EPS && b[2] < r[2] - EPS) assert.ok(Math.abs(block.panel.center()[0] - centre) < EPS, 'centre moved');
-    }),
-    params(300),
-  );
-});
-
-test('after morph, focus works as on a fresh block: the bar is the block’s, over the line', async () => {
-  await fc.assert(
-    fc.asyncProperty(morphCase, fc.nat(), async (c, k) => {
-      const { block } = await morphed(c);
-      const i = k % c.after.length;
-      await block.focus(i);
-      assert.equal(block.bar.parent, block, 'the focus bar still belongs to the block');
+    fc.asyncProperty(syncCase, async (c) => {
+      const { block } = await synced(c);
+      assert.equal(block.bar.parent, block, 'the focus bar belongs to the block');
+      assert.ok(block.children.indexOf(block.bar) < block.children.indexOf(block.code), 'the bar draws behind the code');
+      if (c.focus == null) return assert.equal(block.bar.style.opacity, 0);
+      const i = c.focus % c.after.length;
       const bar = block.bar.box()!,
         y = block.code.lines[i]!.anchorPoint()[1];
+      assert.equal(block.bar.style.opacity, 1);
       assert.ok(y > bar[1] && y < bar[3]);
-      assert.ok(block.children.indexOf(block.bar) < block.children.indexOf(block.code), 'the bar draws behind the code');
+    }),
+    params(300),
+  );
+});
+
+test('scale probe: a keyed sync of 600 lines of code pairs its repeated lines quickly', async () => {
+  const a = Array.from({ length: 600 }, (_, i) => `line ${i % 37}`),
+    b = Array.from({ length: 600 }, (_, i) => `line ${(i * 7) % 37}`);
+  const colors = { paper: '#000000', ink: '#ffffff', accent: '#ff8800', muted: '#888888' };
+  const sc = scene();
+  let now = a;
+  const v = view(sc, () => new CodeBlock(sc, colors, now, { key: 'code' }), { place: false });
+  sc.add(v);
+  const old = v.current;
+  const t = performance.now();
+  now = b;
+  const { kept } = keptAndFaded(await keyedSync(sc, v), old.code.lines, v.current.code.lines, (was, is) => was.text === is.text);
+  const [ca, cb] = [counts(a), counts(b)];
+  assert.equal(kept.size, [...ca].reduce((n, [text, k]) => n + Math.min(k, cb.get(text) ?? 0), 0));
+  assert.ok(performance.now() - t < 10_000);
+});
+
+test('a titled block keeps its title inside the panel and above the code', () => {
+  fc.assert(
+    fc.property(palette, lines(1), fc.option(placed, { nil: undefined }), knobs.filter((k) => !!k.title?.trim()), (colors, text, at, k) => {
+      const block = code(colors, text, { ...(at ? { at } : {}), ...k });
+      const head = block.children.find((m): m is Text => m instanceof Text && m.text === k.title)!;
+      const h = head.box()!,
+        p = block.panel.box()!,
+        lines = block.code.box();
+      assert.ok(h[0] >= p[0] - EPS && h[2] <= p[2] + EPS && h[3] <= p[3] + EPS, `title ${h} outside panel ${p}`);
+      if (lines) assert.ok(h[1] >= lines[3] - 0.05, `title ${h} over code ${lines}`);
     }),
     params(300),
   );
@@ -311,16 +306,25 @@ test('diff marks one bar per +/- line, green for added and red for removed', () 
   );
 });
 
-test('clearMarks removes every mark from the block', async () => {
+test('a block drawn with added lines bars exactly those, in the added colour, and a keyed sync to a state without them takes the bars off the stage', async () => {
   await fc.assert(
-    fc.asyncProperty(palette, fc.array(line.map((l) => '+ ' + l), { minLength: 1, maxLength: 6 }), async (colors, code) => {
-      const s = scene();
-      const block = new CodeBlock(s, colors, code, { diff: true });
-      s.add(block);
-      const marks = [...block.marks];
-      await block.clearMarks();
-      assert.equal(block.marks.length, 0);
-      assert.ok(marks.every((m) => !block.children.includes(m.mob)));
+    fc.asyncProperty(palette, lines(1).chain((code) => fc.tuple(fc.constant(code), fc.subarray(code.map((_, i) => i), { minLength: 1 }))), async (colors, [code, added]) => {
+      const sc = scene();
+      let state: number[] = added;
+      const v = view(sc, () => new CodeBlock(sc, colors, code, { added: state, key: 'code' }), { place: false });
+      sc.add(v);
+      const block = v.current;
+      assert.deepEqual(block.marks.map((m) => [m.line, m.kind]).sort(), added.map((i) => [i, 'added']).sort());
+      for (const m of block.marks) {
+        const y = block.code.lines[m.line]!.anchorPoint()[1], b = m.mob.box()!;
+        assert.ok(y > b[1] && y < b[3], `the bar for line ${m.line} is on it`);
+        assert.ok(m.mob.family().some((part) => part.style.fill === good(colors) && (part.style.fillOpacity ?? 1) === 1), 'a solid gutter edge');
+      }
+      state = [];
+      await keyedSync(sc, v);
+      assert.equal(v.current.marks.length, 0);
+      const present = new Set(sc.familyMembers());
+      assert.ok(block.marks.every((m) => !present.has(m.mob)), 'no bar is left on stage');
     }),
     params(),
   );
@@ -443,15 +447,15 @@ test('a card too narrow for any row is refused', () => {
   );
 });
 
-test('a repeated row label draws every row, but set and mark refuse it as ambiguous', async () => {
-  await fc.assert(
-    fc.asyncProperty(palette, rows, fc.nat(), value, fc.boolean(), async (colors, r, k, v, viaMark) => {
+test('a repeated row label draws every row, but lit refuses it as ambiguous', () => {
+  fc.assert(
+    fc.property(palette, rows, fc.nat(), value, (colors, r, k, v) => {
       const label = r[k % r.length]![0];
       const dup = [...r, [label, v] as const];
       const s = scene();
       const card = new Card(s, colors, dup, { width: 12 });
       assert.equal(card.family().filter((m) => m instanceof Text && m.parent === card).length, 2 * dup.length);
-      await assert.rejects(viaMark ? card.mark(label) : card.set(Object.fromEntries([[label, 'x']])), /not unique/);
+      assert.throws(() => new Card(s, colors, dup, { width: 12, lit: label }), /not unique/);
     }),
     params(),
   );
@@ -459,83 +463,69 @@ test('a repeated row label draws every row, but set and mark refuse it as ambigu
 
 const changesFor = (r: readonly (readonly [string, unknown])[]) =>
   fc.subarray(r.map(([l]) => l)).chain((ls) => fc.tuple(...ls.map(() => value)).map((vs) => Object.fromEntries(ls.map((l, i) => [l, vs[i]]))));
+/** A keyed card drawn by a view from the case's rows, then synced to the rows with `changes` applied. */
+async function syncedCard(c: Of<typeof cardCase>, changes: Record<string, unknown>) {
+  const made = card(c);
+  const opts = { ...(c.at ? { at: c.at } : {}), ...(c.width != null ? { width: c.width } : {}), ...(c.title ? { title: c.title } : {}), ...(c.fontSize != null ? { fontSize: c.fontSize } : {}), ...(c.direction ? { direction: c.direction } : {}), align: c.align, key: 'card' };
+  const sc = made.s;
+  sc.remove(made.k);
+  let now: readonly CardRow[] = c.rows;
+  const v = view(sc, () => new Card(sc, c.colors, now, opts), { place: false });
+  sc.add(v);
+  const old = v.current, drawn = new Set([...old.values.values()].filter(draws));
+  now = c.rows.map(([l, v]) => [l, Object.hasOwn(changes, l) ? changes[l] : v] as const);
+  const matching = await keyedSync(sc, v);
+  return { s: sc, old, drawn, k: v.current, matching };
+}
 
-test('set shows each new value and leaves unchanged rows alone', async () => {
+test('a keyed sync shows each new value, keeps every unchanged value and fades only the changed ones', async () => {
   await fc.assert(
     fc.asyncProperty(fittingCardCase.chain((c) => fc.tuple(fc.constant(c), changesFor(c.rows))), async ([c, changes]) => {
-      const made = card(c);
-      const { s, k } = made;
-      const before = new Map([...k.values].map(([l, t]) => [l, t]));
-      await k.set(changes);
+      const { old, drawn, k, matching } = await syncedCard(c, changes);
+      const row = (card: Card, t: Mobject) => [...card.values].find(([, v]) => v === t)![0];
+      const { kept, faded } = keptAndFaded(matching, [...old.values.values()], [...k.values.values()], (was, is) => row(old, was) === row(k, is) && was.text === is.text);
       for (const [l] of c.rows) {
-        const expected = Object.hasOwn(changes, l) ? String(changes[l]) : before.get(l)!.text;
+        const before = old.values.get(l)!;
+        const expected = Object.hasOwn(changes, l) ? String(changes[l]) : before.text;
         assert.equal(k.values.get(l)!.text, expected);
-        if (before.get(l)!.text === expected) assert.equal(k.values.get(l), before.get(l), `${l} did not move`);
+        if (!drawn.has(before)) continue;
+        if (before.text === expected) assert.ok(kept.has(before), `${l} stays`);
+        else assert.ok(faded.has(before), `${l} fades out as its new value comes in`);
       }
-      void s;
     }),
     params(300),
   );
 });
 
-test('after set, each row shows exactly one value, inside the card', async () => {
+test('after a keyed sync, each row shows exactly one value, inside the card', async () => {
   await fc.assert(
     fc.asyncProperty(fittingCardCase.chain((c) => fc.tuple(fc.constant(c), changesFor(c.rows))), async ([c, changes]) => {
-      const made = card(c);
-      const { s, k } = made;
-      const before = [...k.values.values()];
-      await k.set(changes);
+      const { s, old, k } = await syncedCard(c, changes);
       const now = [...k.values.values()];
       const present = new Set(s.familyMembers());
       assert.equal(now.filter((t) => present.has(t)).length, c.rows.length);
-      assert.deepEqual(before.filter((t) => !now.includes(t) && present.has(t)), [], 'replaced values leave the stage');
+      // A picture that did not change stays (the view keeps it); a changed one leaves the stage.
+      if (old !== k) assert.deepEqual([...old.values.values()].filter((t) => present.has(t)), [], 'the old picture’s values leave the stage');
       rowsInside(k);
     }),
     params(300),
   );
 });
 
-test('set with an unknown row changes nothing and plays nothing', async () => {
+test('a card drawn lit, synced from row to row, lights each row; drawn unlit, it hides the bar', async () => {
   await fc.assert(
-    fc.asyncProperty(fittingCardCase.chain((c) => fc.tuple(fc.constant(c), changesFor(c.rows))), label, value, async ([c, changes], extra, v) => {
-      fc.pre(!c.rows.some(([l]) => l === extra));
+    fc.asyncProperty(fittingCardCase.chain((c) => fc.tuple(fc.constant(c), fc.array(fc.option(fc.constantFrom(...c.rows.map(([l]) => l))), { minLength: 1, maxLength: 5 }))), async ([c, lit]) => {
       const made = card(c);
-      const { s, k } = made;
-      const children = [...k.children],
-        values = [...k.values],
-        looks = JSON.stringify(k.family().map((m) => m.style)),
-        clock = [s.time, s.frameCount];
-      await assert.rejects(k.set({ ...changes, ...Object.fromEntries([[extra, v]]) }), /No card row/);
-      // Compared by identity: a deep diff of mobjects (parent links and all) runs away on failure.
-      const same = <T>(a: readonly T[], b: readonly T[]) => a.length === b.length && a.every((x, i) => x === b[i]);
-      assert.ok(same(k.children, children), 'no row was added or removed');
-      assert.ok(same([...k.values].flat(), values.flat()), 'every row keeps its value object');
-      assert.equal(JSON.stringify(k.family().map((m) => m.style)), looks);
-      assert.deepEqual([s.time, s.frameCount], clock, 'no time passed: nothing played');
-    }),
-    params(300),
-  );
-});
-
-test('a faded card stays faded when a value changes', async () => {
-  await fc.assert(
-    fc.asyncProperty(fittingCardCase.chain((c) => fc.tuple(fc.constant(c), changesFor(c.rows))), fc.double({ min: 0, max: 1, noNaN: true }), async ([c, changes], o) => {
-      const made = card(c);
-      for (const m of made.k.family()) m.style.opacity = o;
-      await made.k.set(changes);
-      for (const v of made.k.values.values()) assert.equal(v.style.opacity, o);
-    }),
-    params(300),
-  );
-});
-
-test('mark lights the row and stays; mark(null) hides the bar', async () => {
-  await fc.assert(
-    fc.asyncProperty(fittingCardCase.chain((c) => fc.tuple(fc.constant(c), fc.array(fc.option(fc.constantFrom(...c.rows.map(([l]) => l))), { minLength: 1, maxLength: 5 }))), async ([c, marks]) => {
-      const made = card(c);
-      const { k } = made;
-      for (const l of marks) {
-        await k.mark(l);
+      const opts = { ...(c.at ? { at: c.at } : {}), ...(c.width != null ? { width: c.width } : {}), ...(c.title ? { title: c.title } : {}), ...(c.fontSize != null ? { fontSize: c.fontSize } : {}), ...(c.direction ? { direction: c.direction } : {}), align: c.align, key: 'card' };
+      const sc = made.s;
+      sc.remove(made.k);
+      let row: string | null = null;
+      const v = view(sc, () => new Card(sc, c.colors, c.rows, { ...opts, lit: row }), { place: false });
+      sc.add(v);
+      for (const l of lit) {
+        row = l;
+        await keyedSync(sc, v);
+        const k = v.current;
         if (l == null) assert.equal(k.bar.style.opacity, 0);
         else {
           assert.equal(k.bar.style.opacity, 1);
@@ -626,23 +616,34 @@ test('a columned card keeps every heading, label and value inside it, each colum
   );
 });
 
-test('a columned card is described by row and column, and set takes one value per column', async () => {
+test('a columned card is described by row and column, and a keyed sync changes one column and keeps the others', async () => {
   await fc.assert(
     fc.asyncProperty(columnCase.filter((c) => c.columns.length > 1 && c.rows.some((r) => r.length > 2)), value, async (c, v) => {
-      const k = columned(c), n = c.columns.length;
+      const k = columned(c);
       const row = c.rows.find((r) => r.length > 2)!, l = row[0];
       const names = k.describe().parts.map((p) => p.name);
       c.columns.forEach((col, j) => assert.ok(names.includes(`${l} (${col}): ${String(row[j + 1])}`)));
-      const before = [...k.cells.get(l)!];
+      // The same card drawn by a view, its first column of that row changed by the state.
+      const sc = scene();
+      const options = { columns: c.columns, direction: c.direction, ...(c.width != null ? { width: c.width } : {}), key: 'card' };
+      let now = c.rows;
+      const view_ = view(sc, () => new Card(sc, c.colors, now, options), { place: false });
+      sc.add(view_);
+      const old = view_.current, drawn = new Set(old.cells.get(l)!.filter(draws));
       const next = c.columns.map((_, j) => (j === 0 ? v : row[j + 1]));
-      await k.set({ [l]: next });
-      k.cells.get(l)!.forEach((cell, j) => {
+      now = c.rows.map((r) => (r === row ? ([l, ...next] as unknown as CardRow) : r));
+      const matching = await keyedSync(sc, view_);
+      const synced = view_.current;
+      const before = old.cells.get(l)!, after = synced.cells.get(l)!;
+      const column = (card: Card, t: Text) => card.cells.get(l)!.indexOf(t);
+      const { kept, faded } = keptAndFaded(matching, before, after, (was, is) => column(old, was) === column(synced, is) && was.text === is.text);
+      after.forEach((cell, j) => {
         assert.equal(cell.text, String(next[j]));
-        if (String(next[j]) === before[j]!.text) assert.equal(cell, before[j], `column ${j} did not move`);
+        if (!drawn.has(before[j]!)) return;
+        if (String(next[j]) === before[j]!.text) assert.ok(kept.has(before[j]!), `column ${j} stays`);
+        else assert.ok(faded.has(before[j]!), `column ${j} fades out as its new value comes in`);
       });
-      assert.equal(k.values.get(l), k.cells.get(l)!.at(-1));
-      await assert.rejects(k.set({ [l]: v }), /set it to an array of/);
-      await assert.rejects(k.set({ [l]: Array(n + 1).fill(v) }), /set it to an array of/);
+      assert.equal(synced.values.get(l), after.at(-1));
     }),
     params(),
   );
@@ -653,30 +654,6 @@ test('a row whose value count matches neither one nor the columns is refused', (
   assert.throws(() => new Card(scene(), { paper: '#fff', ink: '#000', accent: '#00f', muted: '#888' }, [['Hits', 1, 2]], { columns: ['A', 'B', 'C'] }), /2 values for 3 columns/);
   const spanning = new Card(scene(), { paper: '#fff', ink: '#000', accent: '#00f', muted: '#888' }, [['Requests', 'A B C'], ['Hits', 0, 3]], { columns: ['LRU', 'MRU'] });
   assert.deepEqual(spanning.describe().parts.map((p) => p.name), ['Requests: A B C', 'Hits (LRU): 0', 'Hits (MRU): 3']);
-});
-
-test('a card or code panel a view draws refuses to change in place, and says to draw it from state', async () => {
-  const { view, Group } = await import('../src/index.ts');
-  const colors = { paper: '#ffffff', ink: '#111111', accent: '#0055cc', muted: '#666666' };
-  const sc = scene();
-  sc.state = { row: 'Hits' };
-  const cards = view(sc, (st) => new Card(sc, colors, [['Hits', 1], ['Misses', 2]], { lit: (st as { row: string }).row }));
-  const code = view(sc, () => new CodeBlock(sc, colors, ['a = 1', 'b = 2']));
-  const inside = view(sc, () => new Group(new CodeBlock(sc, colors, ['c = 3'])));
-  sc.add(cards, code, inside);
-  const card = cards.current as Card, panel = code.current as CodeBlock, nested = inside.current.children[0] as CodeBlock;
-  await assert.rejects(card.mark('Misses'), /card\.mark\(\) changes a Card that a view draws.*\{ lit, litAs \}/);
-  await assert.rejects(card.set({ Hits: 3 }), /card\.set\(\) changes a Card that a view draws.*view\.sync\(\)/);
-  await assert.rejects(panel.focus(1), /code\.focus\(\) changes a CodeBlock that a view draws.*\{ focus, focusAs \}/);
-  await assert.rejects(panel.morph(['a = 2']), /code\.morph\(\) changes a CodeBlock that a view draws/);
-  await assert.rejects(panel.clearMarks(), /code\.clearMarks\(\) changes a CodeBlock that a view draws/);
-  await assert.rejects(nested.focus(0), /code\.focus\(\) changes a CodeBlock that a view draws/, 'inside a view’s picture too');
-  // Not drawn by a view: the imperative route works as before.
-  const loose = new Card(sc, colors, [['Hits', 1]]);
-  sc.add(loose);
-  await loose.mark('Hits');
-  await loose.set({ Hits: 2 });
-  assert.equal(loose.values.get('Hits')!.text, '2');
 });
 
 test('the stage’s card and code panel are new Card and new CodeBlock, entered: the same picture and words', async () => {

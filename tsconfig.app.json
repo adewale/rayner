@@ -8,6 +8,7 @@
     "tsBuildInfoFile": "node_modules/.cache/tsc/app.tsbuildinfo"
   },
   "include": ["app/**/*.ts", "scenes/**/*.ts"],
-  // Tests beside a scene run in Node; tsconfig.node.json checks them.
-  "exclude": ["scenes/**/*.test.ts"]
+  // A folder's tests, fidelity checks and oracles, and the shared property-test settings, run in Node;
+  // tsconfig.node.json checks them.
+  "exclude": ["scenes/**/*.test.ts", "scenes/**/fidelity.ts", "scenes/**/oracle/**", "scenes/explainers/lib/pbt.ts"]
 }

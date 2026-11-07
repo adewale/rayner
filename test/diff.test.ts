@@ -342,7 +342,9 @@ test('every matching transform records its counts when it begins in a scene', as
 
 test('every animation that decides something records it as it begins: nested in groups and successions, in begin order', async () => {
   await loadFonts();
-  const { view, Follow, Succession, AnimationGroup, Dot, linear } = await import('../src/index.ts');
+  const { Succession, AnimationGroup, Dot, linear } = await import('../src/index.ts');
+  const { view } = await import('../explain/index.ts');
+  const { Follow } = await import('../explain/state.ts');
   const s = await new (class extends Scene<{ word: string }> {
     override state = { word: 'cache' };
     override async construct() {

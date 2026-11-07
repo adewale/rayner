@@ -1,10 +1,11 @@
-import { Scene, Transform, AnimationGroup, Succession, Cross, Machine, choreograph, view, rushInto } from '../../../src/index.ts';
-import type { Mobject, ScheduledAnimation, Choreography, View, Transition, SceneState } from '../../../src/index.ts';
-import { stage, settingsOf } from '../../../explain/index.ts';
-import { story, ANSWER, raceTimeline, raceTracks, raceWords, tickX, trackY } from '../lib/readers/latest-search.ts';
-import type { RaceStep } from '../lib/readers/latest-search.ts';
-import { raceStart, raceNext, raceShowsStale, RACE_EVENTS } from '../lib/latest-search.ts';
-import type { CompletionOrder, RaceState, RaceEvent } from '../lib/latest-search.ts';
+import { Scene, Transform, AnimationGroup, Succession, Cross, rushInto } from '../../../src/index.ts';
+import type { Choreography, View, Transition } from '../../../explain/index.ts';
+import type { ScheduledAnimation, SceneState } from '../../../src/index.ts';
+import { stage, settingsOf, answerOf, Machine, view } from '../../../explain/index.ts';
+import { story, raceTimeline, raceTracks, raceWords, tickX, trackY } from './picture.ts';
+import type { RaceStep } from './picture.ts';
+import { raceStart, raceNext, raceShowsStale, RACE_EVENTS } from './model.ts';
+import type { CompletionOrder, RaceState, RaceEvent } from './model.ts';
 
 // The story (script.md): the race without a guard first, then the ticket as its fix. Search A is
 // the keystroke "ca", search B the latest keystroke "cat". The two timelines that show the page are
@@ -12,29 +13,15 @@ import type { CompletionOrder, RaceState, RaceEvent } from '../lib/latest-search
 // createSearch runs, so `rayner check` explores every interleaving under each rule.
 export default class LatestSearchExplainer extends Scene {
   static meta = {
-    id: 'latest-search',
-    title: 'Why can an older search replace the latest result?',
     sources: [
-      'https://github.com/adewale/rayner/blob/main/scenes/explainers/lib/latest-search.ts',
+      'https://github.com/adewale/rayner/blob/main/scenes/explainers/latest-search/model.ts',
       'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/then',
     ],
-    // check holds the overwrite step to stating the answer, in both completion orders.
-    answer: ANSWER,
     // Three requests, finishing newest first: only the newest ticket publishes, and the two older ones stay stale.
     claims: [
-      { says: 'publish only the latest', test: 'test/explain-latest-search.test.ts: tickets distinguish repeated query text' },
-      { says: 'publish it only if its ticket is still the latest', test: 'test/explain-latest-search.test.ts: tickets distinguish repeated query text' },
-      { says: 'makes every older ticket stale', test: 'test/explain-latest-search.test.ts: tickets distinguish repeated query text' },
-    ],
-    checks: [
-      {
-        question: 'The user types “ca”, then “cat”, then “ca” again, starting requests with tickets 1, 2 and 3. Request 3 finishes first; request 1 finishes last. Should request 1 be published because its query text matches the current input?',
-        answer: 'No. The current request is ticket 3. Ticket 1 is an older request even though its text is also “ca”; it may contain older data. Compare request tickets, not query strings, and leave request 3’s result on the page.',
-      },
-      {
-        question: 'Suppose the newest request fails, then an older successful request arrives. Does the ticket guard publish the older result as a fallback?',
-        answer: 'No. Its ticket is still stale. The guard enforces which request may publish; it does not choose a fallback or handle the newest request’s error. An application needs an explicit error or fallback policy.',
-      },
+      { says: 'publish only the latest', test: 'model.test.ts: tickets distinguish repeated query text' },
+      { says: 'publish it only if its ticket is still the latest', test: 'model.test.ts: tickets distinguish repeated query text' },
+      { says: 'makes every older ticket stale', test: 'model.test.ts: tickets distinguish repeated query text' },
     ],
   };
   static settings = [
@@ -51,7 +38,7 @@ export default class LatestSearchExplainer extends Scene {
   override async construct() {
     const order = settingsOf(this).order as CompletionOrder;
     const s = stage(this, { style: 'github-dark', headingSize: 0.6 });
-    const { race, overwrite, middle, guard, events } = await story(order);
+    const { race, overwrite, middle, guard, events } = await story(order, answerOf(this));
     const isRace = (st: object): st is RaceState => 'log' in st && 'guarded' in st;
 
     // Checked on every frame by rayner check, and on every explored state and transition: under the
@@ -121,19 +108,6 @@ export default class LatestSearchExplainer extends Scene {
       return { timeline, machine };
     };
     const off = raceMachine(false), on = raceMachine(true);
-    // What a timeline marks, as emphasis the phone's close-ups visit first and review holds to the
-    // caption: each page span outlined in red, a stale result on the page. Read from state.
-    s.emphasise(() => {
-      const st = this.state as object;
-      if (!isRace(st)) return [];
-      const v = st.guarded ? on.timeline : off.timeline, out: [Mobject, string][] = [];
-      for (const track of raceTracks(st))
-        track.page.forEach((span, j) => {
-          const m = span.stale ? v.current.find(`${track.key}:span:${j}`) : undefined;
-          if (m) out.push([m, `${track.name}: stale ${span.shown}`]);
-        });
-      return out;
-    });
     /** A step whose timeline a machine plays: the race starts empty and the scenario's events play through it. */
     const played = async (words: RaceStep, { timeline, machine }: { timeline: View; machine: Machine<RaceState, RaceEvent> }, guarded: boolean) => {
       await this.step(words.id, { title: words.title, line: words.line, caption: words.caption, kind: 'short' });

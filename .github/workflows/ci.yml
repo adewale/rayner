@@ -34,11 +34,11 @@ jobs:
       - id: scope
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node tools/ci-scope.ts
+        run: node tools/repo/ci-scope.ts
       - if: steps.scope.outputs.prose == 'true'
         run: |
           npm ci
-          node --test test/explain-onboarding.test.ts test/explain-tutorial.test.ts
+          node --test test/explain-onboarding.test.ts test/explain-tutorial.test.ts scenes/tutorial/*/model.test.ts
 
   check:
     needs: scope
@@ -57,6 +57,14 @@ jobs:
           cache: npm
       - run: npm ci
       # diagram capture and the embed tests run in headless Chromium (tools/lib/browser.ts)
+      # The browser is cached by lockfile; --with-deps still installs the system libraries it needs.
+      - name: Keep browsers in a cached folder
+        shell: bash
+        run: echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/ms-playwright" >> "$GITHUB_ENV"
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - run: npx playwright-core install --with-deps --only-shell chromium
       - run: |
           sudo apt-get update
@@ -66,13 +74,13 @@ jobs:
           bash tools/lettering-outline-fonts.sh
           echo "RAYNER_LETTERING_PYTHON=$PWD/out/lettering-venv/bin/python" >> "$GITHUB_ENV"
       - name: Check lettering capture and playback
-        run: EXPLAIN_LETTERING=1 EXPLAIN_BROWSER=1 node tools/ci-tests.ts --test --test-reporter=spec test/diagram-natural-lettering.test.ts test/lettering-cache.test.ts test/lettering-outlines.test.ts test/lettering-styles.test.ts test/lettering-rtl.test.ts test/lettering-*-audit.test.ts
+        run: EXPLAIN_LETTERING=1 EXPLAIN_BROWSER=1 node tools/repo/ci-tests.ts --test --test-reporter=spec test/diagram-natural-lettering.test.ts test/lettering-cache.test.ts test/lettering-outlines.test.ts test/lettering-styles.test.ts test/lettering-rtl.test.ts test/lettering-*-audit.test.ts test/snapshot-capture.test.ts
       - run: npm run check          # tsc -b over every project (emits dist/); compile a TS consumer against it
-      - run: FULL=1 node tools/ci-tests.ts --expose-gc --test test/*.test.ts test/browser/*.test.ts # full properties, independent oracles and raster boundaries
+      - run: FULL=1 node tools/repo/ci-tests.ts --expose-gc --test test/*.test.ts test/browser/*.test.ts scenes/*/*/*.test.ts # full properties, independent oracles and raster boundaries
       # Product gates reuse this job and its Chromium installation; no scheduled lane.
       - run: |
-          node tools/ci-tests.ts "$(command -v npm)" run test:embeds
-      - run: EXPLAIN_BROWSER=1 EXPLAIN_LETTERING=1 npm run release:check  # retain the exact tested archive
+          node tools/repo/ci-tests.ts "$(command -v npm)" run test:embeds
+      - run: EXPLAIN_BROWSER=1 EXPLAIN_LETTERING=1 npm run release:check  # retain the exact tested archives, rayner and rayner-cli
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: rayner-package-${{ github.sha }}
@@ -97,9 +105,17 @@ jobs:
           check-latest: true
           cache: npm
       - run: npm ci
+      # The browser is cached by lockfile; --with-deps still installs the system libraries it needs.
+      - name: Keep browsers in a cached folder
+        shell: bash
+        run: echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/ms-playwright" >> "$GITHUB_ENV"
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - run: npx playwright-core install --with-deps --only-shell chromium
-      - run: node tools/ci-tests.ts "$(command -v npm)" run demos:check
-      - run: node tools/ci-tests.ts "$(command -v npm)" run check:budgets
+      - run: node tools/repo/ci-tests.ts "$(command -v npm)" run demos:check
+      - run: node tools/repo/ci-tests.ts "$(command -v npm)" run check:budgets
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: rayner-catalog-${{ github.sha }}
@@ -134,12 +150,20 @@ jobs:
           check-latest: true
           cache: npm
       - run: npm ci
+      # The browser is cached by lockfile; --with-deps still installs the system libraries it needs.
+      - name: Keep browsers in a cached folder
+        shell: bash
+        run: echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/ms-playwright" >> "$GITHUB_ENV"
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - run: npx playwright-core install --with-deps --only-shell chromium
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: rayner-catalog-${{ github.sha }}
           path: out/explainers/
-      - run: node tools/ci-tests.ts "$(command -v npm)" run demos:review -- --shard ${{ matrix.part }}/3
+      - run: node tools/repo/ci-tests.ts "$(command -v npm)" run demos:review -- --shard ${{ matrix.part }}/3
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -194,7 +218,7 @@ jobs:
           merge-multiple: true
           path: out/
       - if: needs.scope.outputs.full == 'true'
-        run: node tools/explain-review-merge.ts
+        run: node tools/repo/explain-review-merge.ts
       - if: needs.scope.outputs.full == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -243,26 +267,34 @@ jobs:
           check-latest: ${{ matrix.node == '24' }}
           cache: npm
       - run: npm ci
+      # The browser is cached by lockfile; --with-deps still installs the system libraries it needs.
+      - name: Keep browsers in a cached folder
+        shell: bash
+        run: echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/ms-playwright" >> "$GITHUB_ENV"
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - run: npx playwright-core install --with-deps --only-shell chromium
       # Pure engine/property assertions have one full owner above. The minimum
       # Node lane retains standard tests and installed browser smoke for API/warning drift.
       - if: matrix.os == 'ubuntu-24.04' && matrix.node == '24.0.0'
-        run: npm run check && node tools/ci-tests.ts --expose-gc --test test/*.test.ts test/browser/*.test.ts
+        run: npm run check && node tools/repo/ci-tests.ts --expose-gc --test test/*.test.ts test/browser/*.test.ts scenes/*/*/*.test.ts
       - if: matrix.os == 'ubuntu-24.04' && matrix.node == '24.0.0'
-        run: EXPLAIN_BROWSER=1 node tools/ci-tests.ts --test test/explain-cli.test.ts test/browser/explain-review-scene.test.ts
+        run: EXPLAIN_BROWSER=1 node tools/repo/ci-tests.ts --test test/explain-cli.test.ts test/browser/explain-review-scene.test.ts
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: rayner-package-${{ github.sha }}
           path: out/release/
       - run: EXPLAIN_BROWSER=1 npm run pack:smoke -- --manifest out/release/manifest.json
-        # Install the exact primary candidate on Linux and both Mac architectures.
+        # Install the exact primary candidates (rayner, then both) on Linux and both Mac architectures.
       # Real browser diversity replaces four duplicate Chromium/property runs.
       - if: matrix.os == 'macos-26' && matrix.node == '24'
         run: npx playwright-core install webkit
       - if: matrix.os == 'macos-26' && matrix.node == '24'
         run: sudo /usr/bin/safaridriver --enable
       - if: matrix.os == 'macos-26' && matrix.node == '24'
-        run: EXPLAIN_WEBKIT=1 EXPLAIN_SAFARI=1 node tools/ci-tests.ts --test test/reader-cross-browser.test.ts
+        run: EXPLAIN_WEBKIT=1 EXPLAIN_SAFARI=1 node tools/repo/ci-tests.ts --test test/reader-cross-browser.test.ts
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: matrix.os == 'macos-26' && matrix.node == '24' && always()
         with:

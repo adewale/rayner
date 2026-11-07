@@ -14,10 +14,11 @@ import { Text, Group, Rectangle } from '../src/index.ts';
 import { loadFonts } from '../explain/testing.ts';
 import type { Mobject } from '../src/index.ts';
 import { restingTextProblems, lintConstruct } from '../tools/lib/explain-check.ts';
-import { readSnapshots, writeSnapshots, snapshotFileName, scriptEscape, IMPORTER } from '../tools/lib/explain-project.ts';
+import { readSnapshots, writeSnapshots, snapshotFileName, scriptEscape } from '../tools/lib/explain-project.ts';
 import { diagramKey } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { SnapshotStore } from '../explain/index.ts';
 import { fc, params } from './lib/pbt.ts';
+import { existsSync } from 'node:fs';
 
 await loadFonts();
 
@@ -213,7 +214,7 @@ test('writeSnapshots then readSnapshots gives back the store, any keys included'
   await fc.assert(
     fc.asyncProperty(store, async (s) =>
       folder(async (base) => {
-        await writeSnapshots(base, s, 'h');
+        await writeSnapshots(base, s);
         assert.deepEqual(ownEntries(await readSnapshots(base)), ownEntries(s));
       }),
     ),
@@ -225,11 +226,13 @@ test('the written folder is index.json plus one file per diagram, whatever was t
   await fc.assert(
     fc.asyncProperty(store, store, fc.array(fc.stringMatching(/^[a-z0-9]{1,8}\.json$/), { maxLength: 3 }), async (first, s, stray) =>
       folder(async (base) => {
-        await writeSnapshots(base, first, 'h');
+        await writeSnapshots(base, first);
+        await mkdir(base + '.snapshots', { recursive: true });
         for (const name of stray) await writeFile(join(base + '.snapshots', name), '{}');
         await mkdir(join(base + '.snapshots', 'kept-folder'), { recursive: true });
-        await writeSnapshots(base, s, 'h');
-        assert.deepEqual((await readdir(base + '.snapshots')).sort(), ['index.json', 'kept-folder', ...Object.keys(s).map(snapshotFileName)].sort());
+        await writeSnapshots(base, s);
+        // No diagrams, no index: the folder keeps only what is not a stale snapshot.
+        assert.deepEqual((await readdir(base + '.snapshots')).sort(), [...(Object.keys(s).length ? ['index.json'] : []), 'kept-folder', ...Object.keys(s).map(snapshotFileName)].sort());
       }),
     ),
     params(FS),
@@ -239,8 +242,8 @@ test('the written folder is index.json plus one file per diagram, whatever was t
 test('the same store writes the same bytes, in whatever order its keys were added', async () => {
   const written = (st: SnapshotStore) =>
     folder(async (b) => {
-      await writeSnapshots(b, st, 'h');
-      const names = (await readdir(b + '.snapshots')).sort();
+      await writeSnapshots(b, st);
+      const names = (await readdir(b + '.snapshots').catch(() => [] as string[])).sort();
       return Promise.all(names.map(async (n) => [n, await readFile(join(b + '.snapshots', n), 'utf8')]));
     });
   await fc.assert(
@@ -257,7 +260,7 @@ test('changing one diagram rewrites one file; rewriting the same store rewrites 
   await fc.assert(
     fc.asyncProperty(store.filter((s) => Object.keys(s).length > 0), fc.nat(), snapshotValue, fc.boolean(), async (s, k, value, same) =>
       folder(async (base) => {
-        await writeSnapshots(base, s, 'h');
+        await writeSnapshots(base, s);
         const dir = base + '.snapshots';
         const old = new Date(1_000_000);
         for (const n of await readdir(dir)) await utimes(join(dir, n), old, old);
@@ -265,7 +268,7 @@ test('changing one diagram rewrites one file; rewriting the same store rewrites 
         const next: Record<string, unknown> = { ...s };
         Object.defineProperty(next, key, { value: same ? s[key] : value, enumerable: true, writable: true, configurable: true });
         const changed = JSON.stringify(s[key]) !== JSON.stringify(next[key]);
-        await writeSnapshots(base, next as SnapshotStore, 'h');
+        await writeSnapshots(base, next as SnapshotStore);
         const touched = [];
         for (const n of await readdir(dir)) if ((await stat(join(dir, n))).mtimeMs !== old.getTime()) touched.push(n);
         assert.deepEqual(touched, changed ? [snapshotFileName(key)] : []);
@@ -281,7 +284,7 @@ test('a damaged or hostile cache index reads as an object holding only what it m
       folder(async (base) => {
         await writeFile(join(base, '..', 'outside.json'), JSON.stringify({ secret: true }));
         await mkdir(base + '.snapshots', { recursive: true });
-        const index = { version: 2, importer: IMPORTER, diagrams: diagrams && typeof diagrams === 'object' && !Array.isArray(diagrams) ? { ...diagrams, [name]: '../outside.json' } : diagrams };
+        const index = { version: 2, diagrams: diagrams && typeof diagrams === 'object' && !Array.isArray(diagrams) ? { ...diagrams, [name]: '../outside.json' } : diagrams };
         await writeFile(join(base + '.snapshots', 'index.json'), JSON.stringify(index));
         const read = await readSnapshots(base);
         assert.ok(read && typeof read === 'object' && !Array.isArray(read));
@@ -296,7 +299,7 @@ test('a corrupt diagram file fails the read loudly rather than vanishing from th
   await fc.assert(
     fc.asyncProperty(store.filter((s) => Object.keys(s).length > 0), fc.nat(), fc.string().filter((t) => { try { JSON.parse(t); return false; } catch { return true; } }), async (s, k, junk) =>
       folder(async (base) => {
-        await writeSnapshots(base, s, 'h');
+        await writeSnapshots(base, s);
         const key = Object.keys(s)[k % Object.keys(s).length]!;
         await writeFile(join(base + '.snapshots', snapshotFileName(key)), junk);
         await assert.rejects(readSnapshots(base), SyntaxError);
@@ -475,3 +478,15 @@ test('scriptEscape keeps what bundled code does', () => {
 test('scale probe: scriptEscape on 5.6 MB of </script and <!-- leaves neither', () => {
   assert.doesNotMatch(scriptEscape('</script><!-- '.repeat(400_000)), /<\/script|<!--/i);
 });
+
+test('a scene with no diagrams keeps no snapshot folder, and loses a stale one', async () => {
+  await folder(async (base) => {
+    await writeSnapshots(base, {});
+    assert.equal(existsSync(base + '.snapshots'), false);
+    await mkdir(base + '.snapshots');
+    await writeFile(join(base + '.snapshots', 'index.json'), '{"version":2,"diagrams":{}}');
+    await writeSnapshots(base, {});
+    assert.equal(existsSync(base + '.snapshots'), false);
+  });
+});
+

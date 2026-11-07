@@ -2,7 +2,8 @@
   "file": "vendor/glyph.js",
   "bytes": 338176,
   "sha256": "ee2e084bcf145b1dc47386413d6d2273445f57bd657a3ae6cbe3c7564a6a900a",
+  "upstream": "https://github.com/ivarvong/glyph",
+  "upstreamRevision": "6398654dfda7d5a91763e3ef07369b9a9d8e3b2b",
   "introduced": "56a6fc5c0ed7edaa462fff0ce093d8dfc76a8273",
-  "upstreamRevision": null,
-  "note": "The existing Lantern bundle is byte-identical to its pin in merged PR #4. The bundle contains no glyph source revision; introduced records the Lantern commit that added it. Review the source and checksum when rebuilding."
+  "note": "glyph at 6398654, the revision vendor/glyph-math.js is built from. Every function in the bundle matches that commit's source once esbuild's renames (tag to tag3) are normalised. The two tables it inlines, woff2/src/brotli-data.js and shape/src/ccc-data.js, are not committed upstream: glyph's scripts/fetch.js --runtime generates them from pinned brotli, HarfBuzz and Unicode 15.1.0 sources and checks them against scripts/manifest.js. They have not been regenerated and compared here, so the tables are recorded by this bundle's checksum alone. introduced is the Lantern commit that added the bundle."
 }

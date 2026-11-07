@@ -1,437 +1,86 @@
 {
   "names": {
     "rayner": {
-      "Animation": {
-        "reason": "used"
-      },
-      "AnimationGroup": {
-        "reason": "used"
-      },
-      "Arc": {
-        "reason": "used"
-      },
-      "ArcBetweenPoints": {
-        "reason": "used"
-      },
-      "Arrow": {
-        "reason": "used"
-      },
-      "Axes": {
-        "reason": "used"
-      },
-      "Brace": {
-        "reason": "used"
-      },
-      "BraceLabel": {
-        "reason": "used"
-      },
-      "Circle": {
-        "reason": "used"
-      },
-      "Circumscribe": {
-        "reason": "used"
-      },
-      "Code": {
-        "reason": "used"
-      },
-      "Create": {
-        "reason": "used"
-      },
-      "Cross": {
-        "reason": "used"
-      },
-      "CurvedArrow": {
-        "reason": "used"
-      },
-      "DecimalNumber": {
-        "reason": "used"
-      },
-      "Dot": {
-        "reason": "used"
-      },
-      "FadeIn": {
-        "reason": "used"
-      },
-      "FadeOut": {
-        "reason": "used"
-      },
-      "Follow": {
-        "reason": "used",
-        "check": "Seek: a seeked frame that differs from the played one fails, so a Follow must draw from its sampled value alone"
-      },
       "Frame": {
-        "reason": "taught",
         "guide": "docs/CAMERA.md#what-it-is",
         "test": "test/camera.test.ts"
       },
-      "Group": {
-        "reason": "used"
-      },
-      "GrowFromEdge": {
-        "reason": "used"
-      },
-      "ItalicText": {
-        "reason": "used"
-      },
-      "Labeled": {
-        "reason": "used"
-      },
-      "LaggedStart": {
-        "reason": "used"
-      },
-      "Line": {
-        "reason": "used"
-      },
-      "Machine": {
-        "reason": "used",
-        "check": "Machines: every state its events reach is drawn and fails if it collides, has a label under 14 px, has no description, does not show its state or is described like another"
-      },
       "MathTex": {
-        "reason": "used",
         "check": "Glyphs: a formula the lettering snapshot does not hold fails every command"
       },
       "Mobject": {
-        "reason": "used",
         "check": "Keys: two parts on the stage with one key at the end of a step fail"
       },
-      "MoveAlongPath": {
-        "reason": "used"
-      },
-      "NumberLine": {
-        "reason": "used"
-      },
-      "Polygon": {
-        "reason": "used"
-      },
-      "PulseAlongPath": {
-        "reason": "used"
-      },
-      "Rectangle": {
-        "reason": "used"
-      },
-      "Restore": {
-        "reason": "used"
-      },
       "Scene": {
-        "reason": "used",
         "check": "Seek, Trace, Hold: every scenario is played and seeked; a seeked frame or trace that differs from the played one, or a picture that changes after its caption's hold begins, fails"
       },
-      "SetState": {
-        "reason": "used"
-      },
-      "Square": {
-        "reason": "used"
-      },
-      "StateReadout": {
-        "reason": "used"
-      },
-      "Succession": {
-        "reason": "used"
-      },
-      "SurroundingRectangle": {
-        "reason": "used"
-      },
       "Text": {
-        "reason": "used",
         "check": "Text, Legibility, Glyphs: native text that overlaps other text, reads under 14 px at 1280 px, or has characters the fonts cannot draw fails"
       },
       "Transform": {
-        "reason": "used",
         "check": "Motion: a part that pops, cuts in or out, or teleports fails"
       },
-      "TransformDiff": {
-        "reason": "used"
-      },
-      "TransformFromCopy": {
-        "reason": "used"
-      },
-      "TransformMatching": {
-        "reason": "used"
-      },
       "TransformMatchingShapes": {
-        "reason": "used",
         "check": "Motion: a part that pops, cuts in or out, or teleports fails"
       },
       "TransformMatchingText": {
-        "reason": "used",
         "check": "Motion: a part that pops, cuts in or out, or teleports fails"
       },
-      "Underline": {
-        "reason": "used"
-      },
-      "VMobject": {
-        "reason": "used"
-      },
-      "View": {
-        "reason": "used",
-        "check": "Views: at the end of every step, a view whose words, parts, boxes or opacity differ from a fresh draw of the state, placed where a sync would put it, fails"
-      },
-      "Write": {
-        "reason": "used"
-      },
-      "choreograph": {
-        "reason": "used",
-        "check": "Machines: an authored transition that breaks an invariant on the way, or does not end on the pictures of the state it reaches, fails"
-      },
-      "diffLines": {
-        "reason": "used"
-      },
-      "isRefusal": {
-        "reason": "used"
-      },
-      "lerpColor": {
-        "reason": "used"
-      },
-      "linear": {
-        "reason": "used"
-      },
       "matchByKey": {
-        "reason": "used",
         "check": "Keys: two parts on the stage with one key at the end of a step fail"
-      },
-      "parseUnifiedDiff": {
-        "reason": "used"
-      },
-      "refuse": {
-        "reason": "used",
-        "check": "Machines: a bound that stops an event the model refuses anyway fails"
-      },
-      "rushFrom": {
-        "reason": "used"
-      },
-      "rushInto": {
-        "reason": "used"
-      },
-      "shaperFor": {
-        "reason": "used"
-      },
-      "smooth": {
-        "reason": "used"
-      },
-      "thereAndBack": {
-        "reason": "used"
-      },
-      "view": {
-        "reason": "used",
-        "check": "Views: at the end of every step, a view whose words, parts, boxes or opacity differ from a fresh draw of the state, placed where a sync would put it, fails"
       }
     },
     "rayner/explain": {
       "Card": {
-        "reason": "used",
         "check": "Views: a card drawn from state is compared part by part, its lit row included, with a fresh draw"
       },
       "CodeBlock": {
-        "reason": "used",
         "check": "Views: a code panel drawn from state is compared part by part, its focus bar included, with a fresh draw"
       },
       "Diagram": {
-        "reason": "used",
         "check": "Routes over labels, Legibility: an imported connector over label ink, or an imported label under 14 px in its viewport, fails"
       },
-      "REGIONS": {
-        "reason": "used"
-      },
-      "diagramsOf": {
-        "reason": "used"
-      },
-      "mermaid": {
-        "reason": "used"
-      },
-      "palette": {
-        "reason": "used"
-      },
-      "regionBox": {
-        "reason": "used"
-      },
-      "resolveSettings": {
-        "reason": "used"
-      },
-      "settingsOf": {
-        "reason": "used"
-      },
       "stage": {
-        "reason": "used",
         "check": "Words, Step change: a kept drawing with no text and no describe, or a step whose resting picture equals the previous step's, fails"
       },
       "stagedStep": {
-        "reason": "used",
-        "check": "Staged steps: a step redrawn from the state its trace recorded that differs, or whose draw ignores its state, fails"
+        "check": "Views: each step's picture is a view of its state, so a step whose picture differs from a fresh draw of its state, or whose draw ignores its state, fails"
+      },
+      "Machine": {
+        "check": "Machines: every state its events reach is drawn and fails if it collides, has a label under 14 px, has no description, does not show its state or is described like another"
+      },
+      "View": {
+        "check": "Views: at the end of every step, a view whose words, parts, boxes or opacity differ from a fresh draw of the state, placed where a sync would put it, fails"
+      },
+      "choreograph": {
+        "guide": "docs/MACHINES.md#refused-events-bounds-and-authored-transitions",
+        "test": "test/choreograph.test.ts",
+        "check": "Machines: an authored transition that breaks an invariant on the way, or does not end on the pictures of the state it reaches, fails"
+      },
+      "refuse": {
+        "check": "Machines: a bound that stops an event the model refuses anyway fails"
+      },
+      "view": {
+        "check": "Views: at the end of every step, a view whose words, parts, boxes or opacity differ from a fresh draw of the state, placed where a sync would put it, fails"
       }
     },
     "rayner/drawing": {
-      "bars": {
-        "reason": "used"
-      },
-      "between": {
-        "reason": "used"
-      },
-      "callout": {
-        "reason": "used"
-      },
-      "circleOn": {
-        "reason": "used"
-      },
-      "depthOrder": {
-        "reason": "used",
-        "check": "Invariants: registered with addInvariant, it fails on the first frame that draws a piece out of depth order"
-      },
-      "dimension": {
-        "reason": "used"
-      },
-      "dot": {
-        "reason": "used"
-      },
-      "flow": {
-        "reason": "used"
-      },
-      "greatArc": {
-        "reason": "used"
-      },
       "keyed": {
-        "reason": "used",
         "check": "Keys: two parts on the stage with one key at the end of a step fail"
       },
       "keyedParts": {
-        "reason": "used",
         "check": "Keys: two parts on the stage with one key at the end of a step fail"
-      },
-      "label": {
-        "reason": "used"
-      },
-      "latLon": {
-        "reason": "used"
       },
       "legend": {
-        "reason": "used",
         "check": "Looks: a caption or line naming a colour or pattern that no word on the stage says fails; a legend that keys the look answers it"
       },
-      "pin": {
-        "reason": "used"
-      },
-      "project": {
-        "reason": "used"
-      },
-      "seenFrom": {
-        "reason": "used"
-      },
-      "seenPictures": {
-        "reason": "used"
-      },
-      "segment": {
-        "reason": "used"
-      },
-      "stat": {
-        "reason": "used"
-      },
       "table": {
-        "reason": "used",
         "check": "Keys: two parts on the stage with one key at the end of a step fail"
-      },
-      "tile": {
-        "reason": "used"
-      },
-      "toLatLon": {
-        "reason": "used"
       }
     },
-    "rayner/lettering": {
-      "takeLetteringUse": {
-        "reason": "tooling"
-      },
-      "takeMissingGlyphs": {
-        "reason": "tooling"
-      },
-      "useLettering": {
-        "reason": "tooling"
-      }
-    },
-    "rayner/output": {
-      "DomSink": {
-        "reason": "tooling"
-      },
-      "NullSink": {
-        "reason": "tooling"
-      },
-      "SeekSink": {
-        "reason": "tooling"
-      },
-      "SnapshotSink": {
-        "reason": "tooling"
-      },
-      "StopScene": {
-        "reason": "tooling"
-      },
-      "StringSink": {
-        "reason": "tooling"
-      },
-      "indexScene": {
-        "reason": "tooling"
-      },
-      "renderAt": {
-        "reason": "tooling"
-      },
-      "renderElements": {
-        "reason": "tooling"
-      },
-      "renderText": {
-        "reason": "tooling"
-      },
-      "stepTime": {
-        "reason": "tooling"
-      },
-      "toSvgString": {
-        "reason": "tooling"
-      }
-    },
-    "rayner/testing": {
-      "InvariantSink": {
-        "reason": "tooling"
-      },
-      "MotionSink": {
-        "reason": "tooling"
-      },
-      "TraceSink": {
-        "reason": "tooling"
-      },
-      "analyzeMotion": {
-        "reason": "tooling"
-      },
-      "bindSnapshots": {
-        "reason": "tooling"
-      },
-      "describeExplainer": {
-        "reason": "tooling"
-      },
-      "jsonObject": {
-        "reason": "tooling"
-      },
-      "loadFonts": {
-        "reason": "tooling"
-      },
-      "machinesOf": {
-        "reason": "tooling"
-      },
-      "perf": {
-        "reason": "tooling"
-      },
-      "scenarioName": {
-        "reason": "tooling"
-      },
-      "scenariosOf": {
-        "reason": "tooling"
-      },
-      "takeMissingGlyphs": {
-        "reason": "tooling"
-      },
-      "traceScene": {
-        "reason": "tooling"
-      },
-      "viewMismatch": {
-        "reason": "tooling"
-      },
-      "withSettings": {
-        "reason": "tooling"
+    "rayner/geo": {
+      "depthOrder": {
+        "check": "Invariants: registered with addInvariant, it fails on the first frame that draws a piece out of depth order"
       }
     }
   },
@@ -576,7 +225,7 @@
     },
     {
       "feature": "Parts of a line of code",
-      "uses": "`code.span`, `code.token`, `code.lineSpan`; `new Code(lines, { spans })` with spans from `tools/tokens.ts`",
+      "uses": "`code.span`, `code.token`, `code.lineSpan`; `new Code(lines, { spans })` with spans from `tools/repo/tokens.ts`",
       "guide": "[Code](CODE.md)",
       "items": [
         {
@@ -674,15 +323,16 @@
     {
       "explaining": "A data structure changing step by step",
       "start": "`ring-buffer`",
-      "shows": "No diagram: native shapes drawn as views of `scene.state`, a `Machine` of push and pop, each event's motion authored with `choreograph`, `Follow` for the pointers",
+      "shows": "No diagram: native shapes drawn as views of `scene.state`, a `Machine` of push and pop, each event's motion authored with the transition's `t.choreograph`, `c.follow` for the pointers",
       "scenes": [
         "ring-buffer"
       ],
       "names": [
-        "Machine",
-        "choreograph",
-        "Follow"
-      ]
+        "Machine"
+      ],
+      "patterns": {
+        "c.follow": "\\.follow\\("
+      }
     },
     {
       "explaining": "A state machine",
@@ -730,15 +380,17 @@
     {
       "explaining": "A rate or a model's numbers over time",
       "start": "`token-bucket`, `seasons`",
-      "shows": "`token-bucket`: `Axes`, `lineGraph`, `Follow` for the gauge and the line from one elapsed time; `seasons`: `Axes.plot`; a setting that reruns the model",
+      "shows": "`token-bucket`: `Axes`, `lineGraph`, `g.follow` for the gauge and the line from one elapsed time; `seasons`: `Axes.plot`; a setting that reruns the model",
       "scenes": [
         "token-bucket",
         "seasons"
       ],
       "names": [
-        "Axes",
-        "Follow"
-      ]
+        "Axes"
+      ],
+      "patterns": {
+        "g.follow": "\\.follow\\("
+      }
     },
     {
       "explaining": "Identity, hashing or text that changes",

@@ -3,14 +3,14 @@
 // anchor, registers no updater (so seeks skip its frames), and the picture at
 // every step is what the state renders (the fidelity helper).
 import { test } from 'node:test';
+import { Square } from '../src/extras.ts';
+import type { ViewSync } from '../explain/index.ts';
+import { view, View, Card, palette } from '../explain/index.ts';
 import assert from 'node:assert/strict';
-import {
-  Scene, Group, Text, DecimalNumber, Rectangle, Square, Circle, Animation, FadeIn, Succession, StateReadout,
-  view, View,
-} from '../src/index.ts';
+import { Scene, Group, Text, DecimalNumber, Rectangle, Circle, Animation, FadeIn, Succession } from '../src/index.ts';
 import { StringSink, SnapshotSink, renderAt } from '../src/output.ts';
 import { MotionSink, analyzeMotion, perf, loadFonts, viewMismatch } from '../explain/testing.ts';
-import type { Mobject, Sink, SceneState, ViewSync } from '../src/index.ts';
+import type { Mobject, Sink, SceneState } from '../src/index.ts';
 import { assertViewFollowsState } from './lib/view-fidelity.ts';
 import type { Vec } from '../src/index.ts';
 // Manim's values, which the package no longer exports.
@@ -232,38 +232,29 @@ test('placement: a moved and scaled View stays moved and scaled; place: false le
   assert.throws(() => bad.sync().begin(), /build a new one each time/);
 });
 
-test('a StateReadout copy() names its own value Texts', () => {
-  const r = new StateReadout([['n', 1], ['m', 'x']]);
-  const c = r.copy();
-  assert.equal(c.values.n, c.children[1]);
-  assert.equal(c.values.m, c.children[3]);
-  assert.notEqual(c.values.n, r.values.n);
-  assert.equal(c.values.m!.text, 'x');
-  assert.deepEqual(Object.keys(c.values), ['n', 'm']);
-});
-
-test('a StateReadout view of the scene\'s state keeps its keys put as values grow', async () => {
+test('a card view of the scene\'s state keeps its labels put as values change', async () => {
   class Counter extends Scene {
-    rv?: View<StateReadout>;
+    rv?: View<Card>;
     override async construct(): Promise<void> {
       this.state = { tokens: 10, responses: [] as number[] };
       const text = (v: unknown) => (typeof v === 'string' ? v : JSON.stringify(v));
-      const rv = (this.rv = view(this, (st) => new StateReadout((['tokens', 'responses'] as const).map((k) => [k, text(st[k])] as const), { at: [-3, 1], shaping: this.textShaping }), { place: 'left' }));
+      const colors = palette('github-dark');
+      const rv = (this.rv = view(this, (st) => new Card(this, colors, (['tokens', 'responses'] as const).map((k) => [k, text(st[k])] as const), { at: [-3, 1], width: 4, panel: false, key: 'readout' }), { place: false }));
       await this.step('show');
       await this.play(new FadeIn(rv));
       for (const [i, code] of [200, 200, 429].entries()) {
         await this.step(`req-${i}`);
         (this.state.responses as number[]).push(code);
         this.state.tokens = Math.max(0, 1 - i);
-        await this.play(rv.sync(), { runTime: 0.5 });
+        await this.play(rv.sync({ match: 'key', staged: true }), { runTime: 0.5 });
       }
     }
   }
   const s = await new Counter(new StringSink()).run();
-  const keys = () => s.rv!.current.children.filter((c, i) => i % 2 === 0) as Text[];
   assert.deepEqual(s.rv!.texts, ['tokens', '0', 'responses', '[200,200,429]']);
-  const first = new StateReadout([['tokens', '10'], ['responses', '[]']], { at: [-3, 1] });
-  keys().forEach((k, i) => assert.ok(Math.abs(k.frameBox[2]! - (first.children[2 * i] as Text).frameBox[2]!) < 1e-5, 'key right edge held'));
+  const first = new Card(s, palette('github-dark'), [['tokens', '10'], ['responses', '[]']], { at: [-3, 1], width: 4, panel: false });
+  for (const key of ['tokens', 'responses'])
+    assert.ok(Math.abs(s.rv!.current.labels.get(key)!.frameBox[0]! - first.labels.get(key)!.frameBox[0]!) < 1e-5, 'label left edge held');
   assert.equal(await assertViewFollowsState(Counter, (sc) => (sc as Counter).rv), 4);
   const sink = new MotionSink();
   await new Counter(sink).run();

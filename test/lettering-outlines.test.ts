@@ -39,13 +39,16 @@ for (const id of ids) test(`${id}: committed snapshots pass seek, motion, bare r
   } finally { await rm(out, { recursive: true, force: true }); }
 });
 
-test('caption edits invalidate lettering snapshots before drawing; absent runs fail closed', async () => {
+test('an edit that draws no new text keeps the snapshot; drawn text it lacks fails before drawing, naming the run', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'lettering-stale-'));
   try {
     const source = await readFile(join(fixtures, 'arabic/scene.ts'), 'utf8');
-    await writeFile(join(dir, 'scene.ts'), source.replace('caption: "Arabic"', 'caption: "Changed caption"'));
     await copyFile(join(fixtures, 'arabic/scene.lettering.json'), join(dir, 'scene.lettering.json'));
-    await assert.rejects(collectProject(dir, { write: false }), /stale lettering snapshot/);
+    // The caption is the page's HTML, not outlines: the snapshot still has every run the scene draws.
+    await writeFile(join(dir, 'scene.ts'), source.replace('caption: "Arabic"', 'caption: "Changed caption"'));
+    assert.ok((await collectProject(dir, { write: false })).outlineLettering);
+    await writeFile(join(dir, 'scene.ts'), source.replace('"السَّلَامُ عَلَيْكُمْ"', '"مرحبا"'));
+    await assert.rejects(collectProject(dir, { write: false }), /no run for "مرحبا" \(sans\); run rayner snapshots/);
     const s = await snapshot('arabic');
     assert.throws(() => snapshotProvider(s).shape('sans', 'مرحبا', 1, () => { throw new Error('fallback bypassed'); }), /no run/);
   } finally { await rm(dir, { recursive: true, force: true }); }

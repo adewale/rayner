@@ -1,13 +1,14 @@
 // Machines: a model driven by events as an ordinary schedule, and rayner check's exploration of
 // every state the events reach.
 import { test } from 'node:test';
+import type { Transition, View, ViewSync } from '../explain/index.ts';
 import assert from 'node:assert/strict';
-import { Scene, Text, Group, Rectangle, SetState, Machine, refuse, isRefusal, view, Transform, AnimationGroup, TransformMatching, matchByKey } from '../src/index.ts';
+import { Scene, Text, Group, Rectangle, Transform, AnimationGroup, TransformMatching, matchByKey } from '../src/index.ts';
 import { NullSink, StringSink, SnapshotSink, renderAt } from '../src/output.ts';
 import { machinesOf, TraceSink, traceScene, loadFonts } from '../explain/testing.ts';
-import type { Transition, View, ViewSync } from '../src/index.ts';
-import { stage } from '../explain/index.ts';
+import { stage, SetState, Machine, refuse, isRefusal, view } from '../explain/index.ts';
 import { exploreMachines } from '../tools/lib/explain-check.ts';
+import { logStart } from '../app/embed-live.ts';
 
 await loadFonts();
 
@@ -251,7 +252,7 @@ test('deliberate defect: a transition that breaks an invariant on the way fails,
   assert.ok(explored!.problems.some((p) => /^UP: the invariant "the box stays on screen" fails 50% through the transition/.test(p)), JSON.stringify(explored!.problems));
 });
 
-test('a machine plays under one shown: it records it, refuses another, and exploration draws its states under it', async () => {
+test('what is shown may change between a machine\'s events; exploration draws its states under the last', async () => {
   class Shown extends Scene<Lamp> {
     machine!: Machine<Lamp, 'UP' | 'OFF'>;
     override state = { level: 0 };
@@ -268,22 +269,24 @@ test('a machine plays under one shown: it records it, refuses another, and explo
       this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [picture], runTime: 0.3 });
       this.shown = { room: 'kitchen' };
       await this.step('press');
-      await this.play(this.machine.replay(['UP', 'UP']));
-      // Afterwards the scene shows another room; the machine's states were seen in the kitchen.
+      await this.play(this.machine.send('UP'));
+      // A guided tour moves what is shown between events (a code panel's focus, say).
       this.shown = { room: 'study' };
+      await this.play(this.machine.send('UP'));
+      // Afterwards the scene shows another room without playing the machine there.
+      this.shown = { room: 'hall' };
       await this.play(picture.sync({ runTime: 0.2 }));
-      await assert.rejects(this.play(this.machine.send('OFF')), /plays under shown \{"room":"study"\}, but this machine played under \{"room":"kitchen"\}/);
     }
   }
   const scene = await new Shown(new NullSink()).run() as Shown;
-  assert.deepEqual(scene.machine.playedUnder, { room: 'kitchen' });
+  assert.deepEqual(scene.machine.playedUnder, { room: 'study' });
   const [explored] = await exploreMachines(scene);
   assert.deepEqual(explored!.problems, []);
   assert.equal(explored!.states, 3);
-  // The states were drawn in the kitchen, where the machine played, not the study the run ended in.
-  assert.match(scene.machine.spec.views[0]!.texts.join(' '), /kitchen lamp/);
+  // The states were drawn in the study, where the machine last played, not the hall the run ended in.
+  assert.match(scene.machine.spec.views[0]!.texts.join(' '), /study lamp/);
   // Exploration put back what the run left shown.
-  assert.deepEqual(scene.shown, { room: 'study' });
+  assert.deepEqual(scene.shown, { room: 'hall' });
 });
 
 test('exploration checks a machine on the stage where it last played, not the stage the run ends with', async () => {
@@ -383,6 +386,34 @@ test('a bound stops the story where the model would go on; check fails a bound t
   const free = bounded(() => undefined);
   const lamp = await new free(new NullSink()).run();
   assert.deepEqual(lamp.machine.outcome({ level: 2 }, 'UP'), { refused: 'the lamp is already bright' });
+});
+
+test('end finishes the story at a state: the model\'s moves from it are beyond the story, its refusals stay refusals', async () => {
+  // UP is refused at bright; this story ends once the lamp is bright.
+  const nextUp = (s: Lamp, e: 'UP' | 'OFF') => (e === 'UP' && s.level === 2 ? refuse(`the lamp is already ${LEVELS[s.level]}`) : next(s, e));
+  class Ends extends Scene<Lamp> {
+    machine!: Machine<Lamp, 'UP' | 'OFF'>;
+    override state = { level: 0 };
+    override async construct() {
+      const s = stage(this);
+      const picture = view(this, (st: Lamp) => Object.assign(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), { key: 'lamp' }));
+      s.keep(picture, { describe: () => picture.texts.join(' ') });
+      this.add(picture);
+      this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next: nextUp, views: [picture],
+        end: (st) => (st.level === 2 ? 'the lamp is bright' : undefined) });
+      await this.step('press');
+      await this.play(this.machine.replay(['UP', 'UP']));
+    }
+  }
+  const ends = await new Ends(new NullSink()).run();
+  assert.deepEqual(ends.machine.outcome({ level: 2 }, 'OFF'), { beyond: 'the lamp is bright' });
+  assert.deepEqual(ends.machine.outcome({ level: 2 }, 'UP'), { refused: 'the lamp is already bright' });
+  assert.deepEqual(ends.machine.outcome({ level: 1 }, 'UP'), { next: { level: 2 } });
+  assert.deepEqual(ends.machine.reachable().map((r) => r.state.level), [0, 1, 2]);
+  assert.deepEqual((await exploreMachines(ends))[0]!.problems, []);
+  // A live step that ends finished starts the reader's events from the machine's start.
+  assert.deepEqual(logStart(ends.machine as never, { level: 2 }), { from: 'start', state: { level: 0 } });
+  assert.throws(() => new Machine<Lamp, 'UP' | 'OFF'>(ends, { start: { level: 0 }, events: ['UP'], next, views: [], end: 'bright' as never }), /end is a function of the state/);
 });
 
 test('exploration also walks the states a reader reaches from the live step, not only from the start', async () => {

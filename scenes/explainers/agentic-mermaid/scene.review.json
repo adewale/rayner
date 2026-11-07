@@ -1,23 +1,6 @@
 {
   "version": 2,
   "subjects": [
-    {
-      "step": "meaning",
-      "opening": true,
-      "targets": [
-        {
-          "key": "mermaid-report-wrong"
-        },
-        {
-          "key": "mermaid-report-right"
-        },
-        {
-          "text": "yes to Database"
-        },
-        {
-          "text": "yes to Reply"
-        }
-      ]
-    }
+    { "step": "meaning", "opening": true, "targets": [{ "key": "mermaid-report-wrong" }, { "key": "mermaid-report-right" }, { "text": "yes to Database" }, { "text": "yes to Reply" }] }
   ]
 }

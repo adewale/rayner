@@ -21,9 +21,8 @@
  * close-up's zoom then multiplies the camera's, and Whole picture is the author's frame.
  */
 import type { Box, Mobject, Scene, SceneClass, Sink } from '../src/index.ts';
-import { Text } from '../src/index.ts';
 import { labelOf, readingLabelSize } from '../explain/diagrams.ts';
-import { emphasisOf, openingOf } from '../explain/look.ts';
+import { emphasisOf, newlyEmphasised, openingOf } from '../explain/look.ts';
 import { isHeading } from '../explain/stage.ts';
 import { IDENTITY, ZOOM_MAX, clampZoom } from './embed-zoom.ts';
 import type { Zoom } from './embed-zoom.ts';
@@ -325,7 +324,7 @@ export async function stepLayouts(Scene: SceneClass): Promise<Map<string, StepLa
     async stepEnd(scene, step) {
       // New emphasis: an object that shows emphasis now and did not when the step began, or showed another row, line or colour.
       const now = emphasisOf(scene),
-        fresh = new Set([...now].filter(([m, what]) => was.get(m) !== what).map(([m]) => m));
+        fresh = new Set(newlyEmphasised(now, was).keys());
       was = now;
       const leaves = leavesOf(scene, fresh),
         view = viewOf(scene);

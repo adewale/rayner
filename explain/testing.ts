@@ -7,3 +7,6 @@ export * from '../src/testing.ts';
 export { describeExplainer } from './describe.ts';
 export type { ExplainerDescription, ScenarioDescription, StepDescription, DescribeOptions } from './describe.ts';
 export { scenariosOf, scenarioName, withSettings, bindSnapshots } from './settings.ts';
+export { withIntent } from './intent.ts';
+export { viewMismatch } from './view.ts';
+export { machinesOf } from './machine.ts';

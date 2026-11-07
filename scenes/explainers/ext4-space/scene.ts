@@ -1,17 +1,14 @@
-import { Scene, view } from '../../../src/index.ts';
-import type { Box, View } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, mermaid } from '../../../explain/index.ts';
-import type { Diagram, CardRow, CardOptions } from '../../../explain/index.ts';
+import { Scene, FadeOut } from '../../../src/index.ts';
+import type { Box } from '../../../src/index.ts';
+import { stage, settingsOf, regionBox, Card, mermaid, answerOf, view } from '../../../explain/index.ts';
+import type { Diagram, CardRow, CardOptions, View } from '../../../explain/index.ts';
 import {
   BLOCK,
-  BLOCKS_PER_GROUP,
   DEFAULT_RESERVE,
-  GiB,
   INODE_SIZE,
   JOURNAL_STEPS,
   RESERVES,
   SIZES,
-  TiB,
   bytesOf,
   count,
   journalBlocks,
@@ -20,17 +17,19 @@ import {
   space,
   times,
   wholePie,
-} from '../lib/ext4-space.ts';
-import type { Size, Slice, Space, WholeStage } from '../lib/ext4-space.ts';
+} from './model.ts';
+import type { Size, Slice, Space, WholeStage } from './model.ts';
 
-// Sources: e2fsprogs at tag v1.47.3 and Linux at tag v6.8; lines are quoted in lib/ext4-space.ts and
-// test/explain-ext4-space.test.ts, which also freezes mkfs.ext4 1.47.3 runs and a mounted kernel's statfs.
+// Sources: e2fsprogs at tag v1.47.3 and Linux at tag v6.8; lines are quoted in model.ts and
+// model.test.ts, which also freezes mkfs.ext4 1.47.3 runs and a mounted kernel's statfs.
 const E2FS = 'https://github.com/tytso/e2fsprogs/blob/v1.47.3/';
 const LINUX = 'https://github.com/torvalds/linux/blob/v6.8/fs/ext4/';
 const STYLE = 'github-light';
 
 // Slice colours by name. A pie's colours go by slice position and a morph keeps its config, so each
-// pie's config lists the colours of the slices it will ever have, in order.
+// pie's config lists the colours of the slices it will ever have, in order. The whole-disk pies keep the
+// root reserve, the kernel's reserve and the metadata in their own colours, so free-but-reserved blocks
+// never read as occupied ones; the metadata-only pie has a different whole and its own component colours.
 const COLORS: Record<string, string> = {
   'Inode tables': '#8250df',
   Journal: '#bf8700',
@@ -56,29 +55,6 @@ const pie = (names: readonly string[], title: string, slices: readonly Slice[]) 
   });
 
 const SIZE = 0.34;
-/** Root reserve over metadata on each of the scene's disks, at the default 5%. */
-const RATIOS = (Object.keys(SIZES) as Size[]).map((k) => {
-  const x = space(SIZES[k].bytes, DEFAULT_RESERVE);
-  return (x.root / x.layout.metadata).toFixed(1);
-});
-/**
- * The script's one-sentence answer (script.md); the reserve step's caption states it. It names its
- * disks: at 2 GiB, a measured size, the reserve falls just short of the metadata (check 1).
- */
-const ANSWER = `Much of it is free space held back for root: the default 5% reserve is ${RATIOS.slice(0, -1).join(', ')} and ${RATIOS.at(-1)} times all the metadata on the ${(Object.keys(SIZES) as Size[]).map((k) => SIZES[k].label).join(', ').replace(/, ([^,]*)$/, ' and $1')} disks`;
-
-// Check 1: doubling 1 GiB to 2 GiB also doubles the journal, and the 5% reserve falls just short.
-const TWO = space(2 * GiB, DEFAULT_RESERVE),
-  ONE = space(GiB, DEFAULT_RESERVE);
-if (TWO.root >= TWO.layout.metadata || TWO.layout.journal !== 2 * ONE.layout.journal) throw new Error('At 2 GiB the reserve must fall short of the metadata, with twice the journal');
-// Check 2: 4 TiB is the first size of the big type, with half the inodes per byte of a disk 128 MiB smaller.
-const BELOW = space(4 * TiB - BLOCKS_PER_GROUP * BLOCK, DEFAULT_RESERVE),
-  BIG = space(4 * TiB, DEFAULT_RESERVE);
-if (BELOW.layout.type !== 'default' || BIG.layout.type !== 'big' || BIG.layout.metadata >= BELOW.layout.metadata) throw new Error('4 TiB must be big, with less metadata than the disk below it');
-// Check 3: -m 0 on the 1 TiB disk frees the root reserve and nothing else.
-const T5 = space(TiB, DEFAULT_RESERVE),
-  T0 = space(TiB, 0);
-if (T0.users - T5.users !== T5.root || T0.layout.metadata !== T5.layout.metadata) throw new Error('-m 0 must free exactly the root reserve');
 // The pie on the left, a card on the right: wider than the 'side' region so that 13-digit counts
 // fit beside their labels at full size.
 const PIE: Box = [-7.55, -4.25, 1.05, 3.25];
@@ -100,8 +76,6 @@ const CARD: Box = [1.35, -4.25, 7.55, 3.25];
 
 export default class Ext4SpaceExplainer extends Scene {
   static meta = {
-    id: 'ext4-space',
-    title: 'Where does an empty ext4 filesystem’s space go?',
     sources: [
       E2FS + 'misc/mke2fs.conf.in#L1-L29',
       E2FS + 'misc/mke2fs.c#L1433-L1443',
@@ -124,28 +98,12 @@ export default class Ext4SpaceExplainer extends Scene {
       LINUX + 'super.c#L6807-L6829',
       LINUX + 'balloc.c#L620-L666',
     ],
-    // The script's answer and check questions (script.md); check holds a step (reserve) to stating the answer.
-    answer: ANSWER,
     // Sentences that reach past what one step draws, and the test that holds each.
     claims: [
       { says: 'users can write only', shown: true as const },
-      { says: 'two bitmaps in every group', test: 'test/explain-ext4-space.test.ts: the model gives dumpe2fs’s counts for every measured size and reserve' },
-      { says: 'Every group has two bitmaps', test: 'test/explain-ext4-space.test.ts: the model gives dumpe2fs’s counts for every measured size and reserve' },
-      { says: 'only the kernel’s', test: 'test/explain-ext4-space.test.ts: the model gives the mounted kernel’s statfs' },
-    ],
-    checks: [
-      {
-        question: `On the 1 GiB disk the default reserve just covers the metadata. Going to 2 GiB doubles the reserve, and also doubles the journal, from ${bytesOf(ONE.layout.journal)} to ${bytesOf(TWO.layout.journal)}. Does the 5% reserve still cover all the metadata?`,
-        answer: `No, it falls just short: ${count(TWO.root)} reserved blocks against ${count(TWO.layout.metadata)} of metadata, ${(TWO.root / TWO.layout.metadata).toFixed(3)} times. The journal is most of the metadata on a disk this small, so doubling it grows the metadata about as fast as the 5% reserve. These are the counts a recorded mkfs.ext4 1.47.3 run at 2 GiB gives.`,
-      },
-      {
-        question: 'At 4 TiB mke2fs switches to its big type, with one inode per 32 KiB of disk instead of 16 KiB. How does a 4 TiB disk’s metadata compare with that of a disk 128 MiB smaller?',
-        answer: `The bigger disk has less. Its inode tables are about half the size, so its metadata is ${count(BIG.layout.metadata)} blocks against ${count(BELOW.layout.metadata)}, and users can write ${bytesOf(BIG.users - BELOW.users)} more although the disk grew by only 128 MiB.`,
-      },
-      {
-        question: 'An administrator runs tune2fs -m 0 on the 1 TiB disk to reclaim the filesystem’s overhead. What do users get back, and what stays?',
-        answer: `They get back the root reserve, ${count(T5.root)} blocks or ${bytesOf(T5.root)}, which was free all along. The ${count(T5.layout.metadata)} blocks of inode tables, journal and other metadata stay, and so do the kernel’s ${count(T0.kernel)}.`,
-      },
+      { says: 'two bitmaps in every group', test: 'model.test.ts: the model gives dumpe2fs’s counts for every measured size and reserve' },
+      { says: 'Every group has two bitmaps', test: 'model.test.ts: the model gives dumpe2fs’s counts for every measured size and reserve' },
+      { says: 'only the kernel’s', test: 'model.test.ts: the model gives the mounted kernel’s statfs' },
     ],
   };
   static settings = [
@@ -167,6 +125,7 @@ export default class Ext4SpaceExplainer extends Scene {
   ];
 
   override async construct() {
+    const answer = answerOf(this);
     const values = settingsOf(this);
     const size = values.size as Size,
       m = Number(values.reserve);
@@ -193,6 +152,18 @@ export default class Ext4SpaceExplainer extends Scene {
       return card.current;
     };
     const st = () => this.state as unknown as Ext4State;
+    // How a pie is shown apart from its slices, the slice it marks, is in `shown` under the pie's name.
+    type Marks = Record<string, { color: string; as: string }>;
+    /** Diagram `d` shown by a view of `shown[name]`, its marks. */
+    const pieView = (d: Diagram, name: string) => {
+      this.shown = { ...this.shown, [name]: {} };
+      return s.diagramView(d, (_st, sh) => ({ marks: sh[name] as Marks }));
+    };
+    /** Pie `name` marks these slices (in the pie's accent, as d.mark marks them), and nothing else. */
+    const markSlices = async (v: View, d: Diagram, name: string, ids: string[], as: string) => {
+      this.shown = { ...this.shown, [name]: Object.fromEntries(ids.map((id) => [id, { color: d.accent, as }])) };
+      await this.play(v.sync({ match: 'key', staged: true, runTime: 0.45 }));
+    };
     /** The disk's blocks, from what the opening records. */
     const ofDisk = (state: Ext4State, n: number) => percent(n, state.df.blocks);
     this.state.disk = { size, label: name, reserve: m };
@@ -254,7 +225,7 @@ export default class Ext4SpaceExplainer extends Scene {
       title: `Answer: 5% is held back for root, ${ratio} all the metadata`,
       line: `Predict: what fills the ${count(l.metadata)} blocks of metadata?`,
       // mke2fs.c:2375-2378, 2832-2833; mke2fs.8.in:637-644; Linux super.c:4255-4283, balloc.c:620-665.
-      caption: `${ANSWER}. Without -m, mke2fs reserves 5% of the blocks for root, ${count(sp.root)} here, held back for privileged use. Those blocks can still be free: the reserve changes who may fill them, not whether metadata occupies them. The metadata, the filesystem’s own structures, is ${count(l.metadata)} blocks, ${of(l.metadata)}, and once mounted the kernel holds back ${count(sp.kernel)} more${
+      caption: `${answer}. Without -m, mke2fs reserves 5% of the blocks for root, ${count(sp.root)} here, held back for privileged use. Those blocks can still be free: the reserve changes who may fill them, not whether metadata occupies them. The metadata, the filesystem’s own structures, is ${count(l.metadata)} blocks, ${of(l.metadata)}, and once mounted the kernel holds back ${count(sp.kernel)} more${
         kernelDrawn ? '' : `, ${of(sp.kernel)}, too thin to draw`
       }. Free blocks less both reserves is what ordinary users can write. Lowering the root reserve can change that availability without removing a single metadata block.`,
     });
@@ -280,7 +251,7 @@ export default class Ext4SpaceExplainer extends Scene {
         ],
       },
     );
-    await d3.mark(['slice:Root reserve'], { as: 'the answer' });
+    await markSlices(pieView(d3, 'answer'), d3, 'answer', ['slice:Root reserve'], 'the answer');
     await enterCard(
       cardOf(
         (st) => [
@@ -324,9 +295,9 @@ export default class Ext4SpaceExplainer extends Scene {
       },
       { box: PIE },
     );
-    await d2.mark(['slice:Inode tables'], { as: 'this step' });
-    await enterCard(
-      cardOf(
+    const d2View = pieView(d2, 'metadata');
+    await markSlices(d2View, d2, 'metadata', ['slice:Inode tables'], 'this step');
+    const inodeCard = cardOf(
         (st) => [
           ['Size type', st.inodes.type],
           ['One inode per', `${st.inodes.inodeRatio / 1024} KiB`],
@@ -336,8 +307,8 @@ export default class Ext4SpaceExplainer extends Scene {
           ['Of the disk', ofDisk(st, st.inodes.inodeTables)],
         ],
         { at: CARD, fontSize: SIZE, title: 'Inode tables' },
-      ),
-    );
+      );
+    await enterCard(inodeCard);
 
     // ------------------------------------------------------------------ journal
     await this.step('journal', {
@@ -351,19 +322,32 @@ export default class Ext4SpaceExplainer extends Scene {
         l.journal,
       )} blocks, ${bytesOf(l.journal)}: ${ofMeta(l.journal)} of the metadata and ${of(l.journal)} of the disk.`,
     });
-    await s.clearOverlays();
-    await d2.unmark();
-    await d2.mark(['slice:Journal'], { as: 'this step' });
+    // The last card goes (the pie, shown by its view, stays), and the pie marks this step's slice.
+    await this.play(new FadeOut(inodeCard, { runTime: 0.3 }));
+    await markSlices(d2View, d2, 'metadata', ['slice:Journal'], 'this step');
     // The table's rows from the model: each step's first disk size and its journal.
     const steps = JOURNAL_STEPS.map((b) => [`From ${bytesOf(b)}`, bytesOf(journalBlocks(b))] as [string, string]);
     this.state.journal = { journal: l.journal };
-    // The table is the same in every scenario; its marked row is the step this disk's blocks reach.
-    const journalCard = await s.card(steps, { at: CARD, fontSize: SIZE, title: 'Journal by disk size' });
+    // The table is the same in every scenario; its lit row, in `shown`, is the step this disk's blocks reach.
+    const journalCard = view(
+      this,
+      (state, sh) =>
+        new Card(this, s.palette, steps, {
+          at: CARD,
+          fontSize: SIZE,
+          title: 'Journal by disk size',
+          lit: (sh.journalRow ?? null) as string | null,
+          litAs: (state as unknown as Ext4State).disk.label,
+          key: 'journal',
+        }),
+      { place: false },
+    );
+    await enterCard(journalCard);
     const row = steps.filter((_, i) => JOURNAL_STEPS[i]! <= st().df.blocks).at(-1)!;
-    await journalCard.mark(row[0], { as: st().disk.label });
+    this.shown = { ...this.shown, journalRow: row[0] };
+    await this.play(journalCard.sync({ match: 'key', staged: true, runTime: 0.4 }));
 
     // ------------------------------------------------------------------ the rest
-    const perCopy = 1 + l.descBlocks + l.reservedGdt;
     await this.step('other', {
       title: `The other ${count(l.other)} blocks: copies, bitmaps and the first files`,
       line: `Superblock copies in ${l.superGroups} of ${count(l.groups)} groups; two bitmaps in every group.`,
@@ -374,9 +358,8 @@ export default class Ext4SpaceExplainer extends Scene {
         l.files.resize + l.files.journalTree > 1 ? 'two index blocks' : 'an index block'
       } take ${l.filesTotal} blocks.`,
     });
-    await s.clearOverlays();
-    await d2.unmark();
-    await d2.mark(['slice:Other metadata'], { as: 'this step' });
+    await this.play(new FadeOut(journalCard, { runTime: 0.3 }));
+    await markSlices(d2View, d2, 'metadata', ['slice:Other metadata'], 'this step');
     // The descriptor blocks in each copy, which the card's "Blocks a copy" row adds up.
     this.state.descBlocks = l.descBlocks;
     this.state.other = {
@@ -435,7 +418,7 @@ export default class Ext4SpaceExplainer extends Scene {
               { kind: 'set_slice_value', label: 'Root reserve', value: chosen.root },
             ];
       await whole3.morph({ source: whole(chosen, 'users') }, { ops });
-      await whole3.mark(['slice:Users can write'], { as: 'changed' });
+      await markSlices(pieView(whole3, 'chosen'), whole3, 'chosen', ['slice:Users can write'], 'changed');
       this.state.chosen = {
         percent: m,
         root: chosen.root,

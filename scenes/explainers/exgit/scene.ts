@@ -1,23 +1,13 @@
-import type { Evidence, Box, Mobject, Vec, View } from '../../../src/index.ts';
-import {
-  Scene,
-  Text,
-  Rectangle,
-  Arrow,
-  Group,
-  FadeIn,
-  FadeOut,
-  BraceLabel,
-  view,
-} from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, CodeBlock } from '../../../explain/index.ts';
-import type { Diagram, NoteSide } from '../../../explain/index.ts';
-import { Repo, AUTHOR, parseTree } from '../lib/git.ts';
-import { keyed } from '../lib/lesson-drawing.ts';
-import { objectLines, reachable, secondCommit } from './objects.ts';
+import type { Evidence, Box } from '../../../src/index.ts';
+import { Scene, FadeIn, FadeOut } from '../../../src/index.ts';
+import { stage, settingsOf, regionBox, answerOf, view } from '../../../explain/index.ts';
+import type { CodeBlock, Diagram, NoteSide, View } from '../../../explain/index.ts';
+import { Repo, AUTHOR, parseTree } from './model.ts';
+import { objectLines, reachable } from './objects.ts';
+import { short, blobCells, blobIdRow, rowWords, codePanel, hashArrow, abbrevBrace, commitRows, sharedBlob, idLabel, changedId, pairCounts } from './picture.ts';
+import type { RowState } from './picture.ts';
 
 const STYLE = 'catppuccin-mocha';
-const short = (id: string) => id.slice(0, 7);
 const DIAGRAM = regionBox('top', { bottom: -0.85 }),
   BOTTOM = regionBox('bottom', { top: -1.1 }),
   LEFT = regionBox('bottom', { top: -1.1, right: -0.15 }),
@@ -32,10 +22,14 @@ const treeOf = (repo: Repo, id: string): TreeState => ({
 });
 /** A tree's bytes as listed on stage: its header, its entries (mode, name, a zero byte, the id in hex), then its own id. */
 const treeLines = (tree: TreeState, id: string) => [`header  ${tree.header}`, ...tree.entries.map((e) => `${e.mode} ${e.name}\\0 ${e.id}`), `sha1    ${id}`];
-/** One commit's row as the steps record it: the commit, its tree and parents, and each entry's blob and text. */
-interface RowState { label: string; commit: string; tree: string; parents: string[]; entries: { file: string; blob: string; text: string }[] }
 type Tone = 'emphasis';
 /** What the steps record: the model's ids and objects, and what the pictures mark. */
+/** How the model is shown, apart from it: each code panel's focus, the diagram's marks and its notes. */
+interface GitShown {
+  focus?: Record<string, [number, number]>;
+  diagram: { source: string; marks: { part: string; tone: Tone; as: string }[] };
+  notes: { id: string; part: string; text: string; side: NoteSide }[];
+}
 interface GitState {
   hello: string;
   blob: { id: string; bytes: number[]; header: number };
@@ -45,9 +39,6 @@ interface GitState {
   c2: string;
   trees: Record<string, TreeState>;
   commits: Record<string, string[]>;
-  focus?: Record<string, [number, number]>;
-  diagram: { source: string; marks: { part: string; tone: Tone; as: string }[] };
-  notes: { id: string; part: string; text: string; side: NoteSide }[];
   rows: { commits: RowState[]; shared: string | null };
   samePlace: { tree: number; commit: number };
   paired: { tree: number; commit: number };
@@ -60,49 +51,17 @@ const lastMatches = (scene: Scene, n: number): Evidence[] => {
 };
 /** In how many of the 40 positions two ids hold the same hex digit. */
 const samePlace = (a: string, b: string) => [...a].filter((c, i) => b[i] === c).length;
-/** How a byte reads in a cell: printable, or its escape. */
-const glyph = (b: number) => (b === 0 ? '\\0' : b === 10 ? '\\n' : b === 32 ? 'sp' : String.fromCharCode(b));
 
-/** The script's one-sentence answer (meta.answer), which the change step states. */
-const ANSWER = 'Git writes only the objects whose bytes are new, and names unchanged content again by its id';
-/** The check questions' commits, from the same model: a rename and a copy of hello.txt after commit one. */
-const RENAMED = secondCommit('rename'),
-  COPIED = secondCommit('copy');
-/** What a commit wrote, in words: "a tree and a commit". */
-const kinds = (c: ReturnType<typeof secondCommit>) => {
-  const types = c.written.map((id) => c.repo.objects[id]!.type);
-  return ['blob', 'tree', 'commit']
-    .filter((k) => types.includes(k))
-    .map((k) => `a ${k}`)
-    .join(' and ');
-};
 
 export default class GitExplainer extends Scene {
   static meta = {
-    id: 'exgit',
-    title: 'What does Git store when a file changes?',
     sources: [
       'https://git-scm.com/book/en/v2/Git-Internals-Git-Objects',
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/lib/gitmodel.ts',
     ],
-    answer: ANSWER,
-    checks: [
-      {
-        question: 'Starting again from commit one, a commit renames hello.txt to greeting.txt and changes nothing else. Which new objects does Git write, and why is no blob among them?',
-        answer: `${RENAMED.written.length} objects, ${kinds(RENAMED)}. The name lives in the tree’s bytes, so the tree changes, and so does the commit that names it. The file’s bytes are unchanged, so its id is still ${short(RENAMED.hello)} and the new tree names the stored blob.`,
-      },
-      {
-        question: 'Starting again from commit one, a commit adds copy.txt containing exactly hello and a newline. How many new blobs does Git write?',
-        answer: `None. Its bytes hash to ${short(COPIED.hello)}, which is already stored, so the new tree lists both names against that one blob. The commit writes ${COPIED.written.length} objects, ${kinds(COPIED)}.`,
-      },
-      {
-        question: 'Two people on different machines each commit a file containing hello and a newline. Do their blobs have the same id? Do their commits?',
-        answer: `The blobs do: both are ${short(COPIED.hello)}, because a blob’s id depends only on its bytes. Commits match only if all their bytes match, including the tree, the parents, the author and committer lines with their timestamps, and the message, so in practice they differ.`,
-      },
-    ],
     claims: [
-      { says: 'Git writes only the objects whose bytes are new', test: 'test/explain-exgit.test.ts: Git writes only the objects whose bytes are new' },
-      { says: 'Changed bytes change every id above them', test: 'test/explain-exgit.test.ts: Git writes only the objects whose bytes are new' },
+      { says: 'Git writes only the objects whose bytes are new', test: 'model.test.ts: Git writes only the objects whose bytes are new' },
+      { says: 'Changed bytes change every id above them', test: 'model.test.ts: Git writes only the objects whose bytes are new' },
     ],
   };
   static settings = [
@@ -117,27 +76,30 @@ export default class GitExplainer extends Scene {
     },
   ];
   override async construct() {
+    const answer = answerOf(this);
     const which = settingsOf(this).change,
       add = which === 'add',
       repo = new Repo(),
       s = stage(this, { headingSize: 0.6, style: STYLE }),
       ink = s.palette.ink,
-      accent = s.emphasis;
+      accent = s.emphasis,
+      colours = { ink, soft: s.soft, accent };
     const st = () => this.state as unknown as GitState;
+    const sh = () => this.shown as unknown as GitShown;
     /**
      * A code view: the lines `lines(state)` gives, laid out as s.code lays them out, with its bar on the
-     * focus the state records for `name`. The panel describes itself and says what it emphasises.
+     * focus `shown` records for `name`. The panel describes itself and says what it emphasises.
      */
     const codeView = (name: string, at: Box, lines: (g: GitState) => string[]) => {
-      const draw = (state: object) => {
+      const draw = (state: object, shown: object) => {
         const g = state as unknown as GitState,
-          focus = g.focus?.[name];
-        return keyed(new CodeBlock(this, s.palette, lines(g), { at, ...(focus ? { focus } : {}) }), `exgit-${name}`);
+          focus = (shown as Partial<GitShown>).focus?.[name];
+        return codePanel(this, s.palette, name, lines(g), at, focus);
       };
       return { v: view(this, draw, { place: false }) };
     };
     const focus = async (code: { v: View }, name: string, lines: readonly [number, number]) => {
-      this.state.focus = { ...(st().focus ?? {}), [name]: lines };
+      this.shown.focus = { ...(sh().focus ?? {}), [name]: lines };
       await this.play(code.v.sync({ match: 'index', runTime: 0.4 }));
     };
 
@@ -157,42 +119,8 @@ export default class GitExplainer extends Scene {
     this.state.hello = hello;
     // The bytes Git hashes: the header's and the content's, and the id they hash to.
     this.state.blob = { id: hello, bytes: all, header: header.length };
-    const cell = 0.98,
-      gap = 0.1,
-      cellY = 0.5;
-    /** The blob's cells, from the bytes the state records: `part` is the header's or the content's, with its label over it. */
-    const cellsOf = (part: 'header' | 'content') => (state: object) => {
-      const { bytes, header: n } = (state as unknown as GitState).blob;
-      const x0 = -((bytes.length - 1) * (cell + gap)) / 2;
-      const cells = bytes.map((b, i) => {
-        const isHead = i < n;
-        const box = new Rectangle({
-          width: cell,
-          height: 0.9,
-          cornerRadius: 0.08,
-          fill: isHead ? accent : ink,
-          fillOpacity: 0.1,
-          stroke: isHead ? accent : s.soft,
-          strokeWidth: 0.02,
-        });
-        const ch = new Text(glyph(b), { fontSize: 0.36, font: 'mono', color: isHead ? accent : ink });
-        const hex = new Text(b.toString(16).padStart(2, '0'), { fontSize: 0.22, font: 'mono', color: s.soft });
-        const x = x0 + i * (cell + gap);
-        box.moveTo([x, cellY]);
-        ch.moveTo([x, cellY]);
-        hex.moveTo([x, cellY - 0.72]);
-        return new Group(box, ch, hex);
-      });
-      const g = new Group(...(part === 'header' ? cells.slice(0, n) : cells.slice(n)));
-      const color = part === 'header' ? accent : ink;
-      const [a, , b] = g.box()!;
-      const t = new Text(part, { fontSize: 0.26, color });
-      t.moveTo([(a + b) / 2, cellY + 0.85]);
-      const rule = new Rectangle({ width: b - a, height: 0.03, fill: color, stroke: 'none' }).moveTo([(a + b) / 2, cellY + 0.58]);
-      return keyed(new Group(g, new Group(t, rule)), `exgit-${part}`);
-    };
-    const body = view(this, cellsOf('content'), { place: false }),
-      head = view(this, cellsOf('header'), { place: false });
+    const body = view(this, (state) => blobCells((state as unknown as GitState).blob, 'content', colours), { place: false }),
+      head = view(this, (state) => blobCells((state as unknown as GitState).blob, 'header', colours), { place: false });
     const blobOf = () => st().blob;
     await s.enter(body, {
       runTime: 0.5,
@@ -206,31 +134,12 @@ export default class GitExplainer extends Scene {
         return `The header bytes “${words}” and a zero byte, in front of the content`;
       },
     });
-    const arrow = new Arrow([0, cellY - 1.1], [0, cellY - 2.05], { stroke: s.soft, strokeWidth: 0.03, tipLength: 0.2 });
-    const how = new Text('SHA-1', { fontSize: 0.24, color: s.soft, anchor: 'start' }).moveTo([0.3, cellY - 1.57], [-1, 0]);
-    /** The blob's id, its first seven digits highlighted, from the state. */
-    const idRowOf = (state: object) => {
-      const id = (state as unknown as GitState).blob.id;
-      const idHead = new Text(short(id), { fontSize: 0.42, font: 'mono', color: accent, weight: 'bold' }),
-        idTail = new Text(id.slice(7), { fontSize: 0.42, font: 'mono', color: ink });
-      const idRow = new Group(idHead, idTail);
-      idTail.nextTo(idHead, [1, 0], 0.02);
-      idRow.moveTo([0, cellY - 2.65]);
-      return { idRow, idHead };
-    };
-    const idView = view(this, (state) => keyed(idRowOf(state).idRow, 'exgit-blob-id'), { place: false });
+    const { arrow, how } = hashArrow(s.soft);
+    const idView = view(this, (state) => blobIdRow((state as unknown as GitState).blob.id, colours), { place: false });
     await s.enter(arrow, how, { runTime: 0.4, describe: 'An arrow labelled SHA-1 from the bytes to their id' });
     await s.enter(idView, { runTime: 0.6, describe: () => `The blob id ${blobOf().id}, its first seven digits highlighted` });
     // The short name every later picture uses is this prefix of the real id.
-    const abbrev = view(
-      this,
-      (state) => {
-        const { idHead } = idRowOf(state);
-        const id = (state as unknown as GitState).blob.id;
-        return keyed(new BraceLabel(idHead, `${short(id)} names it from here on`, [0, -1], { fontSize: 0.26, color: s.soft, buff: 0.06, labelBuff: 0.12 }), 'exgit-abbrev');
-      },
-      { place: false },
-    );
+    const abbrev = view(this, (state) => abbrevBrace((state as unknown as GitState).blob.id, colours), { place: false });
     await s.enter(abbrev, {
       runTime: 0.4,
       describe: () => `A brace under the first seven digits, ${short(blobOf().id)}: the name later pictures give the blob`,
@@ -241,16 +150,15 @@ export default class GitExplainer extends Scene {
     // with the marks the state records, and the live diagram, off the stage, keeps its geometry and description.
     let d: Diagram;
     const colorOf: Record<Tone, string> = { emphasis: accent };
-    const picture = (state: object) => {
-      const g = (state as unknown as GitState).diagram;
+    const picture = (_state: object, shown: object) => {
+      const g = (shown as GitShown).diagram;
       if (d.spec.source !== g.source) throw new Error('The diagram on show is not the one the state records');
       return d.picture(Object.fromEntries(g.marks.map((m) => [m.part, { color: colorOf[m.tone], as: m.as }])));
     };
     let diagramView: View | undefined;
-    s.emphasise(() => (st().diagram?.marks ?? []).map((m) => [m.part, `mark ${colorOf[m.tone]} ${m.as}`] as [string, string]));
     /** The view takes the live diagram's place: the same picture, now drawn from the state, and described as the diagram with its marks and notes. */
     const adopt = () => {
-      this.state.diagram = { source: d.spec.source!, marks: [] };
+      this.shown.diagram = { source: d.spec.source!, marks: [] };
       if (diagramView) diagramView.rebuild();
       else diagramView = view(this, picture, { place: false });
       this.add(diagramView);
@@ -258,19 +166,19 @@ export default class GitExplainer extends Scene {
       d.showBy(diagramView);
       s.keep(diagramView);
     };
-    const mark = async (marks: GitState['diagram']['marks'], runTime = 0.45) => {
-      this.state.diagram = { ...st().diagram, marks };
+    const mark = async (marks: GitShown['diagram']['marks'], runTime = 0.45) => {
+      this.shown.diagram = { ...sh().diagram, marks };
       await this.play(diagramView!.sync({ match: 'index', runTime }));
     };
     // Notes beside the diagram's parts, each its own view of the state, as Diagram.note draws and places one;
     // each describes itself and says what it emphasises.
     const notes = new Map<string, View>();
-    const notePicture = (id: string) => (state: object) => {
-      const n = (state as unknown as GitState).notes.find((x) => x.id === id)!;
+    const notePicture = (id: string) => (_state: object, shown: object) => {
+      const n = (shown as GitShown).notes.find((x) => x.id === id)!;
       return d.notePicture(n.part, n.text, { side: n.side, color: accent, key: `exgit-note:${id}` });
     };
     const note = async (id: string, part: string, text: string, side: NoteSide) => {
-      this.state.notes = [...(st().notes ?? []), { id, part, text, side }];
+      this.shown.notes = [...(sh().notes ?? []), { id, part, text, side }];
       const v = view(this, notePicture(id), { place: false });
       notes.set(id, v);
       await s.enter(v, { runTime: 0.35, shift: [0, -0.06] });
@@ -278,9 +186,9 @@ export default class GitExplainer extends Scene {
     /** The marks go and the notes fade, then the live diagram, back in the view's place, morphs to `next`. */
     const morph = async (next: string) => {
       const going = [...notes.values()];
-      if (going.length || st().diagram.marks.length) {
-        this.state.diagram = { ...st().diagram, marks: [] };
-        this.state.notes = [];
+      if (going.length || sh().diagram.marks.length) {
+        this.shown.diagram = { ...sh().diagram, marks: [] };
+        this.shown.notes = [];
         notes.clear();
         await this.play(diagramView!.sync({ match: 'index', runTime: 0.4 }), ...going.map((v) => new FadeOut(v, { runTime: 0.4 })));
       }
@@ -289,7 +197,7 @@ export default class GitExplainer extends Scene {
       await d.morph({ source: next });
       adopt();
     };
-    const walk = async (hops: [string, string][], trail: GitState['diagram']['marks']) => {
+    const walk = async (hops: [string, string][], trail: GitShown['diagram']['marks']) => {
       await d.walk(hops);
       await mark(trail);
     };
@@ -361,7 +269,7 @@ export default class GitExplainer extends Scene {
       line: add
         ? `${written} new objects: world’s blob, tree two and commit two.`
         : 'Changed bytes change every id above them.',
-      caption: add ? `${ANSWER}. The new tree adds world.txt while naming hello’s original blob again. It needs a new tree, world’s blob and a new commit, but the two snapshots share hello’s unchanged content.` : `${ANSWER}. Editing hello changes its blob’s bytes and id. That id changes the tree’s bytes, and the changed tree id changes the commit. The old objects remain intact; the new commit’s parent reference leads back to the earlier history.`,
+      caption: add ? `${answer}. The new tree adds world.txt while naming hello’s original blob again. It needs a new tree, world’s blob and a new commit, but the two snapshots share hello’s unchanged content.` : `${answer}. Editing hello changes its blob’s bytes and id. That id changes the tree’s bytes, and the changed tree id changes the commit. The old objects remain intact; the new commit’s parent reference leads back to the earlier history.`,
     });
     const B2 = `New["blob<br/>${short(nextBlob)}"]`,
       T2 = `T2["tree ${short(t2)}<br/>${add ? 'hello.txt, world.txt' : 'hello.txt'}"]`,
@@ -372,48 +280,12 @@ export default class GitExplainer extends Scene {
       (add ? `T2 --> Hello\nT2 --> New` : `T2 --> New`);
     const CHANGE = `graph LR\nMain([main])\n${objects}\nMain --> C1`;
     Object.assign(this.state, { nextBlob, t2, c2 });
-    this.state.focus = {};
+    this.shown.focus = {};
     await this.play(new FadeOut(commitCode.v, { runTime: 0.3 }));
     await morph(CHANGE);
     await note('parent', 'edge:C2->C1#0', 'parent', 'below');
     // Below the graph, each commit's row as native boxes with the model's ids:
     // the commit, then its tree holding each entry's blob, as the state records them from the stored bytes.
-    /** An object as a box: its kind and short id, then lines of what it holds. */
-    const objectBox = (kind: string, id: string, lines: readonly string[], width: number, height: number, stroke: string) => {
-      const rect = new Rectangle({ width, height, cornerRadius: 0.08, fill: ink, fillOpacity: 0.06, stroke, strokeWidth: 0.024 });
-      const top = (0.3 + lines.length * 0.28) / 2;
-      const headText = new Text(`${kind} ${short(id)}`, { fontSize: 0.21, font: 'mono', color: ink, weight: 'bold' });
-      headText.moveTo([0, top - 0.12]);
-      const rows = lines.map((l, i) => new Text(l, { fontSize: 0.19, font: 'mono', color: s.soft }).moveTo([0, top - 0.42 - i * 0.28]));
-      return new Group(rect, headText, ...rows);
-    };
-    const ROW_H = 1.2,
-      ENTRY_W = 3.62,
-      TREE_LEFT = -1.75;
-    const ROW_Y = [-1.7, -3.1];
-    /** One commit's row, from the state's record of it. `lit` outlines a blob in the emphasis colour; `skip` leaves it out, to arrive by copy. */
-    const commitRow = (row: RowState, y: number, { lit, skip }: { lit?: string | null; skip?: string | null } = {}) => {
-      const keyOf = (file: string) => `exgit-${row.label.replace(' ', '-')}:${file}`;
-      const name = new Text(row.label, { fontSize: 0.22, color: s.soft, anchor: 'end' }).moveTo([TREE_LEFT - 2.9, y], [1, 0]);
-      const commitBox = objectBox('commit', row.commit, [`tree ${short(row.tree)}`, ...row.parents.map((p) => `parent ${short(p)}`)], 2.5, ROW_H, s.soft).moveTo([TREE_LEFT - 1.45, y]);
-      const width = row.entries.length * ENTRY_W + 0.15;
-      const treeBox = new Rectangle({ width, height: ROW_H, cornerRadius: 0.08, fill: ink, fillOpacity: 0.03, stroke: s.soft, strokeWidth: 0.024 }).moveTo([TREE_LEFT + width / 2, y]);
-      const treeHead = new Text(`tree ${short(row.tree)}`, { fontSize: 0.21, font: 'mono', color: ink, weight: 'bold', anchor: 'start' }).moveTo([TREE_LEFT + 0.2, y + ROW_H / 2 - 0.25], [-1, 0]);
-      const parts: Mobject[] = [name, commitBox, treeBox, treeHead];
-      const blobs = new Map<string, Group>();
-      row.entries.forEach(({ file, blob, text }, k) => {
-        const x = TREE_LEFT + 0.2 + k * ENTRY_W,
-          by = y - 0.17;
-        parts.push(new Text(file, { fontSize: 0.19, font: 'mono', color: s.soft, anchor: 'start' }).moveTo([x, by], [-1, 0]));
-        const box = objectBox('blob', blob, [JSON.stringify(text)], 2.15, 0.66, file === lit ? accent : s.soft);
-        blobs.set(file, keyed(box.moveTo([x + 1.27 + 2.15 / 2, by]), keyOf(file)));
-        if (file !== skip) parts.push(box);
-      });
-      return { row: new Group(...parts), blobs };
-    };
-    /** A commit's row in words, from the same record the boxes show. */
-    const rowWords = (row: RowState) =>
-      `${row.label}: commit ${short(row.commit)} names tree ${short(row.tree)}, which lists ${row.entries.map((e) => `${e.file} as blob ${short(e.blob)}`).join(' and ')}`;
     const rowOf = (label: string, commit: string): RowState => {
       const text = objectLines(repo, commit),
         tree = text.find((l) => l.startsWith('tree '))!.slice(5);
@@ -428,14 +300,7 @@ export default class GitExplainer extends Scene {
     const shared = add ? 'hello.txt' : null;
     // The rows the state records: commit one's alone, then both, with the blob they share outlined in each.
     this.state.rows = { commits: [rowOf('commit one', c1)], shared: null };
-    const rows = view(
-      this,
-      (state) => {
-        const r = (state as unknown as GitState).rows;
-        return keyed(new Group(...r.commits.map((row, i) => commitRow(row, ROW_Y[i]!, { lit: r.shared, skip: i ? r.shared : null }).row)), 'exgit-rows');
-      },
-      { place: false },
-    );
+    const rows = view(this, (state) => commitRows((state as unknown as GitState).rows, colours), { place: false });
     const rowsInWords = () => {
       const r = st().rows;
       return r.commits.length === 1
@@ -462,15 +327,7 @@ export default class GitExplainer extends Scene {
       // Tree two names the very object tree one names: the same box moves across, id and all.
       // Drawn first over commit one's box, then in tree two's row: a copy of the box, moved across.
       this.shown.copied = false;
-      same = view(
-        this,
-        (state, shown) => {
-          const r = (state as unknown as GitState).rows;
-          const row = shown.copied ? 1 : 0;
-          return keyed(commitRow(r.commits[row]!, ROW_Y[row]!, { lit: r.shared, skip: r.shared }).blobs.get(r.shared!)!, 'exgit-shared-blob');
-        },
-        { place: false },
-      );
+      same = view(this, (state, shown) => sharedBlob((state as unknown as GitState).rows, shown.copied ? 1 : 0, colours), { place: false });
       s.keep(same, { describe: rowsInWords });
       this.add(same);
       this.shown.copied = true;
@@ -514,7 +371,7 @@ export default class GitExplainer extends Scene {
     this.state.samePlace = inPlace;
     // Everything but the diagram goes: the rows, the shared blob and the notes.
     const leaving = [rows, ...(same ? [same] : []), ...notes.values()];
-    this.state.notes = [];
+    this.shown.notes = [];
     notes.clear();
     await this.play(...leaving.map((m) => new FadeOut(m, { runTime: 0.3 })));
     this.state.commits = { ...st().commits, [c2]: objectLines(repo, c2) };
@@ -526,14 +383,7 @@ export default class GitExplainer extends Scene {
     // first, so a paired digit may fly in from another column; the coloured digits are the
     // ones equal place for place, which the morph does not single out.
     const idX = RIGHT[0] + 0.3,
-      label = (text: string, y: number) => new Text(text, { fontSize: 0.22, color: s.soft, anchor: 'start' }).moveTo([idX, y], [-1, 0]),
-      /** An id in mono, with the digits it shares, place for place, with `other` in the emphasis colour. */
-      hex = (id: string, other: string, y: number, color: string) => {
-        const t = new Text(id, { fontSize: 0.2, font: 'mono', color, anchor: 'start' }).moveTo([idX + 1.45, y], [-1, 0]);
-        if (t.children.length !== id.length) throw new Error('Expected one glyph per hex digit');
-        t.children.forEach((g, i) => id[i] === other[i] && g.setFill(accent));
-        return t;
-      };
+      label = (text: string, y: number) => idLabel(text, idX, y, s.soft);
     const idLabels = [label('Ids that changed, old above new', -1.35), label('tree one', -1.8), label('tree two', -2.1), label('commit one', -2.6), label('commit two', -2.9)];
     /** One id of the state, old or new, coloured where it agrees with the other place for place. */
     const idView2 = (kind: 'tree' | 'commit', age: 'old' | 'new') =>
@@ -542,10 +392,7 @@ export default class GitExplainer extends Scene {
         (state, shown) => {
           const g = state as unknown as GitState;
           const [old, now] = kind === 'tree' ? [g.t1, g.t2] : [g.c1, g.c2];
-          const y = { tree: { old: -1.8, new: -2.1 }, commit: { old: -2.6, new: -2.9 } }[kind][age];
-          // The new id is first a copy of the old one, in its place, until the morph has changed it.
-          if (age === 'new' && !shown.idsChanged) return keyed(hex(old, now, y + 0.3, s.soft), `exgit-id:${kind}:${age}`);
-          return keyed(age === 'old' ? hex(old, now, y, s.soft) : hex(now, old, y, ink), `exgit-id:${kind}:${age}`);
+          return changedId({ old, now }, kind, age, !!shown.idsChanged, idX, colours);
         },
         { place: false },
       );
@@ -568,10 +415,7 @@ export default class GitExplainer extends Scene {
       this,
       (state) => {
         const g = state as unknown as GitState;
-        return new Group(
-          label(`Paired with an equal digit anywhere: tree ${g.paired.tree}, commit ${g.paired.commit} of 40`, -3.4),
-          label(`Same digit in the same place, coloured: tree ${g.samePlace.tree}, commit ${g.samePlace.commit} of 40`, -3.8),
-        );
+        return pairCounts(g.paired, g.samePlace, idX, s.soft);
       },
       { place: false },
     );

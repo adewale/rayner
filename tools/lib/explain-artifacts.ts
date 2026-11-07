@@ -3,7 +3,7 @@ import {jsonObject} from '../../src/json.ts';
 import type {NarrowOpeningObligation} from './explain-review-plan.ts';
 
 export interface SceneInputs {
-  version: '2'; sourceHash: string; engineHash: string; importer: string; files: string; buildHash: string;
+  version: '3'; sourceHash: string; files: string; buildHash: string;
 }
 export interface CatalogTotals { explainers: number; scenarios: number; diagrams: number; styles: number; families: number }
 export interface CatalogEntry { id: string; step?: string; settings?: Record<string, string>; label?: string }
@@ -24,7 +24,7 @@ export interface CatalogScene {
 export interface Catalog { version: 2; product: CatalogProduct; totals: CatalogTotals; scenes: CatalogScene[] }
 export interface EvidenceScene {
   id: string; scenarios: Record<string, string>[]; diagrams: number; styles: string[]; families: string[];
-  title?: string; lang?: string; entry?: SceneEntry; sourceHash?: string; engineHash?: string; snapshotHashes?: string[];
+  title?: string; lang?: string; entry?: SceneEntry; sourceHash?: string; snapshotHashes?: string[];
   narrowOpenings?: {settings: Record<string, string>; steps: NarrowOpeningObligation[]}[];
 }
 export interface CatalogEvidence { version: 2; checked: boolean; totals: CatalogTotals; scenes: EvidenceScene[] }
@@ -67,7 +67,7 @@ export function catalogEvidence(value: unknown): CatalogEvidence {
       throw new Error('Invalid evidence scene');
     ids.add(scene.id);
     if (scene.entry !== undefined && !entry(scene.entry)) throw new Error('Invalid evidence entry');
-    if (['title','lang','sourceHash','engineHash'].some(key => scene[key] !== undefined && typeof scene[key] !== 'string') ||
+    if (['title','lang','sourceHash'].some(key => scene[key] !== undefined && typeof scene[key] !== 'string') ||
         (scene.snapshotHashes !== undefined && !strings(scene.snapshotHashes))) throw new Error('Invalid evidence metadata');
     if (scene.narrowOpenings !== undefined) {
       if (!Array.isArray(scene.narrowOpenings)) throw new Error('Invalid opening inventory');
@@ -84,7 +84,7 @@ export function catalogEvidence(value: unknown): CatalogEvidence {
   return value as unknown as CatalogEvidence;
 }
 export function sceneInputs(value: unknown): SceneInputs {
-  if (!object(value) || value.version !== '2' || !['sourceHash','engineHash','importer','files','buildHash'].every(key => typeof value[key] === 'string' && (key === 'importer' ? /^[a-f0-9]{16}$/ : /^[a-f0-9]{64}$/).test(value[key])))
+  if (!object(value) || value.version !== '3' || !['sourceHash','files','buildHash'].every(key => typeof value[key] === 'string' && /^[a-f0-9]{64}$/.test(value[key])))
     throw new Error('Invalid scene inputs artifact');
   return value as unknown as SceneInputs;
 }

@@ -1,8 +1,6 @@
 {
   "version": 2,
-  "importer": "a766bb6141ca6fb0",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "87a37fb7eedcbe172b592adf0c7827928d4a31ebeb68fd60a7d634519a358429",
   "diagrams": {
     "[\"journey\\n  section Menu structure\\n    5 Change the sort order: 5: P3\\n    6 Grid view to list view: 5: P3\\n  section List view layout\\n    11 New folder in list view: 5: P3\\n  section Search\\n    10 Search with filters: 5: P3\",\"github-light\"]": "df2a4ade4a1ed1e9.json"
   }

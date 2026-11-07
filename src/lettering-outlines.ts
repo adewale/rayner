@@ -1,14 +1,14 @@
 // Optional outline snapshots. This module has no installation side effects: a
 // page without lettering never imports a provider or carries a lettering store.
 import type { SceneClass } from './scene.ts';
-import { loadFonts, shapeChain, embeddedShaperFor } from './fonts.ts';
+import { shapeChain, embeddedShaperFor } from './fonts.ts';
 import type { FontName, Shaper } from './fonts.ts';
 import { loadFont } from '../vendor/glyph.js';
 import type { Font, Run, Segment } from '../vendor/glyph.js';
 import { SANS, MONO, FALLBACK } from './font-data.ts';
 import { Text, CodeSpan } from './text.ts';
-import type { Style, Box } from './mobject.ts';
-import {bindTextContext, textContextOf, withTextContext} from './text-context.ts';
+import type { Box } from './mobject.ts';
+import {bindTextContext, withTextContext} from './text-context.ts';
 import type {TextShaping} from './text-context.ts';
 
 /** Real cuts an explainer can ask for, instead of the stroked faux bold and no italic. */
@@ -29,8 +29,13 @@ export type LetteringCut = '' | 'bold' | 'italic' | 'bold-italic';
  */
 export const cutFace = (name: string, cut: LetteringCut): string => cut ? name + '/' + cut : name;
 export interface LetteringSnapshot {
-  version: 1;
-  sourceHash: string;
+  /** The snapshot format: raise it when what a stored field means changes. */
+  version: 2;
+  /**
+   * The capture tool's fingerprint: its Python, requirements, vendored shapers and fallback font
+   * bytes, which decide every stored outline. Rayner's own code is not in it: a change there that
+   * asks for a different run finds it missing, and capture tests compare fresh runs with stored ones.
+   */
   builderHash: string;
   request: LetteringRequest;
   /** Unit-em runs; clusters count source code points, including for RTL runs. */
@@ -39,7 +44,6 @@ export interface LetteringSnapshot {
   shaper: string;
   /** Original font bytes used by natural diagram metrics; subsets alone cannot identify them. */
   fontInputs?: Record<string, string>;
-  payloadHash?: string;
   /**
    * Run keys only the build draws (contact-sheet titles and the
    * wrapping that measures them), which a page leaves out. Absent when there are none.

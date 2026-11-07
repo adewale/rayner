@@ -2,6 +2,8 @@
 
 Three animations from manim's set. Each fixes its endpoints when it begins, so a
 seek renders the byte-identical frame a full run produces (`test/anim-utils.test.ts`).
+`Restore` and `TransformFromCopy` are conveniences, imported from `rayner/extras`: each is a
+`Transform` (to the saved look, or of a copy). `Succession` is in `rayner`.
 [Reusable choreography](CHOREOGRAPHY.md) covers the animations extracted from the
 example collection.
 

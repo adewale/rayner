@@ -22,10 +22,8 @@ test('story review requires copied card, focus and diff highlights without anoth
   const fixture = (missing: boolean) => class Copied extends Scene {
     override async construct() {
       await this.step('copied');
-      const card = new Card(this, palette('nord'), [['Count', 1]]);
-      const code = new CodeBlock(this, palette('nord'), ['+ added', '- removed'], {diff: true});
-      await card.mark('Count', {runTime: 0});
-      await code.focus(0, {runTime: 0});
+      const card = new Card(this, palette('nord'), [['Count', 1]], {lit: 'Count'});
+      const code = new CodeBlock(this, palette('nord'), ['+ added', '- removed'], {diff: true, focus: 0});
       this.clear();
       const copies = new Group(card, code).copy();
       const [copiedCard, copiedCode] = copies.children as [Card, CodeBlock];

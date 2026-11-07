@@ -3,18 +3,14 @@
 // into a test against Lantern. Every test names the upstream issue or pull
 // request it comes from. Properties use fast-check; counts: test/lib/pbt.ts.
 import { test } from 'node:test';
+import { Square, Write, MoveAlongPath } from '../src/extras.ts';
 import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
-import {
-  Scene, Group, VMobject, Rectangle, Circle, Square, Line, Dot, Arc, Polygon, Text, Code, DecimalNumber,
-  Transform, FadeIn, FadeOut, Create, Write, MoveAlongPath, AnimationGroup, LaggedStart,
-  linear, smooth, rushInto, rushFrom, thereAndBack,
-  shaperFor,
-} from '../src/index.ts';
+import { Scene, Group, VMobject, Rectangle, Circle, Line, Dot, Arc, Text, Code, DecimalNumber, Transform, FadeIn, FadeOut, Create, AnimationGroup, LaggedStart, linear, smooth, rushInto, rushFrom, thereAndBack, shaperFor } from '../src/index.ts';
 import { StringSink, NullSink, toSvgString, renderElements, renderAt, indexScene } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { Indicate } from './lib/transient.ts';
-import type { Mobject, Sink, Vec, RateFunc, Animation, Style } from '../src/index.ts';
+import type { Mobject, Sink, RateFunc, Style } from '../src/index.ts';
 
 await loadFonts();
 

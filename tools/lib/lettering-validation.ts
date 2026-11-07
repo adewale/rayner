@@ -8,8 +8,8 @@ const digest = (value: unknown): value is string => typeof value === 'string' &&
 
 export function validateLetteringSnapshot(value: unknown): asserts value is LetteringSnapshot {
   const fail = (part: string): never => { throw new Error(`Invalid lettering snapshot ${part}; run rayner snapshots to rebuild it`); };
-  if (!object(value) || value.version !== 1 || !digest(value.sourceHash) || !digest(value.builderHash) ||
-      !digest(value.payloadHash) || !object(value.request) || !object(value.runs) || !object(value.faces) || typeof value.shaper !== 'string') fail('header');
+  if (!object(value) || value.version !== 2 || !digest(value.builderHash) ||
+      !object(value.request) || !object(value.runs) || !object(value.faces) || typeof value.shaper !== 'string') fail('header');
   const snapshot = value as Record<string, unknown> & { runs: Record<string, unknown>; faces: Record<string, unknown> };
   if (snapshot.fontInputs !== undefined && (!object(snapshot.fontInputs) ||
       !Object.keys(snapshot.fontInputs).length || !Object.values(snapshot.fontInputs).every(digest))) fail('font inputs');

@@ -1,9 +1,14 @@
-import { Scene, Group, view } from '../../../src/index.ts';
-import type { Box, Mobject, View } from '../../../src/index.ts';
-import { stage, settingsOf, REGIONS, regionBox, CodeBlock } from '../../../explain/index.ts';
-import type { Diagram, NoteSide } from '../../../explain/index.ts';
-import { keyed } from '../lib/lesson-drawing.ts';
+import { Scene, Group } from '../../../src/index.ts';
+import type { Box, Mobject } from '../../../src/index.ts';
+import { stage, settingsOf, REGIONS, regionBox, CodeBlock, answerOf, view } from '../../../explain/index.ts';
+import type { Diagram, NoteSide, View } from '../../../explain/index.ts';
+import { keyed } from '../../../explain/drawing.ts';
 import { stagedStep } from '../../../explain/index.ts';
+// This explainer has no model of its own: its reports are agentic-mermaid 0.5.1's, for small three-node
+// flowcharts, captured with each diagram's snapshot (the broken source's is written below). It does not
+// establish what Mermaid implementations in general accept, and it does not implement the cache-specific
+// check the ending describes. DECISION_BRANCH_UNLABELED applies to a decision with two or more exits, not to
+// every edge; edge names carry an occurrence count because parallel edges can share endpoints.
 const STYLE = 'blueprint';
 const BAD = 'graph LR\nA{Cached} --> B[Reply]\nA --> C[Database]';
 const GOOD = 'graph LR\nA{Cached} -->|yes| B[Reply]\nA -->|no| C[Database]';
@@ -26,7 +31,7 @@ export const BROKEN: Record<Edit, string> = Object.fromEntries(
 ) as Record<Edit, string>;
 /**
  * What the pinned verifier, agentic-mermaid 0.5.1, returns for every BROKEN source. A diagram that fails verify
- * cannot be captured, so this report is written here, and test/explain-real.test.ts runs verifyMermaid on each
+ * cannot be captured, so this report is written here, and scene.test.ts runs verifyMermaid on each
  * BROKEN source and requires exactly this.
  */
 export const BROKEN_REPORT = {
@@ -43,8 +48,6 @@ const SIDE = REGIONS.side,
 const REPORT_X = SIDE[0],
   REPORT_SIZE = 0.42;
 /** The script's one-sentence answer, stated in the verify step of every scenario. */
-const ANSWER =
-  'Verify fails a diagram that Agentic Mermaid’s renderer cannot draw, warns about structural gaps such as an unlabelled branch out of a decision, and leaves what the labels mean unchecked';
 /** How Agentic Mermaid names an edge, said in the first step whose findings or edits name one. */
 const NAMING =
   'Agentic Mermaid names an edge by its two ends and a count: A->C#0 is the first edge from A, Cached, to C, Database.';
@@ -59,46 +62,18 @@ type Slot = 'main' | 'wrong' | 'right' | 'history';
 /** A note beside a part of a diagram, as Diagram.note places one. */
 interface NoteState { part: string; text: string; side: NoteSide; size?: number }
 /** A diagram as a step records it: which source is drawn, which parts are marked and how, and its notes. */
-interface DiagramState { source: string; marks: { part: string; tone: Tone; as: string }[]; notes: NoteState[] }
+/** How a slot's diagram is shown, apart from its source (which is the model): what it marks and its notes. */
+interface DiagramState { marks: { part: string; tone: Tone; as: string }[]; notes: NoteState[] }
 /** The verifier's report on a diagram, from its pinned snapshot. */
 interface Report { ok: boolean; warnings: { code: string; edge: string; part: string }[]; taskCorrectness: string }
 
+// scene.test.ts runs the pinned verifier on each check question's diagram.
 export default class MermaidExplainer extends Scene {
   static meta = {
-    id: 'agentic-mermaid',
-    title: 'What does a Mermaid verifier check?',
     sources: [
       'https://github.com/adewale/agentic-mermaid',
       'https://www.npmjs.com/package/agentic-mermaid/v/0.5.1',
       'https://github.com/adewale/agentic-mermaid/blob/main/AGENT_NATIVE.md',
-    ],
-    // The script's answer and check questions (script.md); the verify step states the answer in every scenario.
-    // test/explain-real.test.ts runs the pinned verifier on each check's diagram.
-    answer: ANSWER,
-    checks: [
-      {
-        question:
-          'The agent writes the second edge as A -->|no| D, and D appears nowhere else in the source. What does verify(flow) report?',
-        answer:
-          'ok: true and no warnings. Mermaid creates D where it is first used, as a rectangle labelled D, so the diagram draws and both exits of the decision carry labels. That the agent meant Database is the kind of thing verify leaves unchecked.',
-      },
-      {
-        question:
-          'Starting from the right diagram, the agent adds a second, unlabelled edge from Cached to Database: A --> C. Which edge does the warning name?',
-        answer:
-          'A->C#1. It is the second edge from A to C, so its count is 1, while the labelled edge to Database keeps A->C#0. One DECISION_BRANCH_UNLABELED warning, and ok stays true.',
-      },
-      {
-        question: 'Draw Cached as a rectangle, A[Cached], and leave both edges unlabelled. Does the verifier warn?',
-        answer:
-          'No: ok: true with no warnings. DECISION_BRANCH_UNLABELED is about the exits of a decision diamond, and a rectangle is not a decision, so there is nothing for it to flag.',
-      },
-      {
-        question:
-          'The agent deletes the whole line for the edge to Database and leaves the edge to Reply unlabelled: A{Cached} --> B[Reply]. How many warnings?',
-        answer:
-          'None: ok: true with no warnings. The warning is for a decision with two or more exits, and Cached now has one, so its one unlabelled exit is not flagged.',
-      },
     ],
   };
   static settings = [
@@ -114,6 +89,7 @@ export default class MermaidExplainer extends Scene {
     },
   ];
   override async construct() {
+    const answer = answerOf(this);
     const edit = settingsOf(this).edit as Edit,
       missing = edit === 'missing',
       swapped = edit === 'swapped',
@@ -139,51 +115,36 @@ export default class MermaidExplainer extends Scene {
     // it from the state (which source, which parts are marked, which notes it carries) and the live
     // diagram leaves the stage, still the source of geometry, of walks and of the diagram's description.
     const live = new Map<Slot, Diagram>();
-    const diagramOf = (slot: Slot, st: DiagramState) => {
-      const d = live.get(slot);
-      if (!d || d.spec.source !== st.source) throw new Error(`The ${slot} diagram on show is not the one the state records`);
-      return d;
-    };
-    /** The diagram in `slot` as the state records it, its notes beside it; `prefix` keeps two diagrams' part keys apart. */
-    const diagramPicture = (slot: Slot, prefix: string) => (state: object) => {
-      const st = (state as { diagrams: Partial<Record<Slot, DiagramState>> }).diagrams[slot]!;
-      const d = diagramOf(slot, st);
-      const art = d.picture(Object.fromEntries(st.marks.map((m) => [m.part, { color: colors[m.tone], as: m.as }])), {
+    /** What the diagram in `slot` shows: its marks and notes from `shown`, its source checked against the model's; `prefix` keeps two diagrams' part keys apart. */
+    const diagramPicture = (slot: Slot, prefix: string) => (state: object, shown: object) => {
+      const d = live.get(slot), source = (state as { sources: Partial<Record<Slot, string>> }).sources[slot];
+      if (!d || d.spec.source !== source) throw new Error(`The ${slot} diagram on show is not the one the state records`);
+      const st = (shown as { diagrams: Partial<Record<Slot, DiagramState>> }).diagrams[slot]!;
+      return {
+        marks: Object.fromEntries(st.marks.map((m) => [m.part, { color: colors[m.tone], as: m.as }])),
         notes: st.notes.map((n) => ({ id: n.part, text: n.text, side: n.side, ...(n.size ? { size: n.size } : {}) })),
         prefix,
-      });
-      return st.notes.length ? art : new Group(art);
+      };
     };
-    // What the views mark, read from state: each marked part by its key. Each note says what it emphasises itself.
+    // Each slot's view prefixes its keys, so two pictures of one diagram can share the stage; what each marks is its picture's emphasis.
     const PREFIX: Record<Slot, string> = { main: '', wrong: 'wrong:', right: 'right:', history: '' };
-    s.emphasise(() => {
-      const all = (this.state as { diagrams?: Partial<Record<Slot, DiagramState>> }).diagrams ?? {};
-      return Object.entries(all).flatMap(([slot, st]) => {
-        const prefix = PREFIX[slot as Slot];
-        return st!.marks.map((m): [string, string] => [prefix + m.part, `mark ${colors[m.tone]} ${m.as}`]);
-      });
-    });
     /** Show a diagram in a slot, built in, then hand it to a view of the state. The view starts as the built picture. */
     const show = async (slot: Slot, source: string, box: Box | 'main' | 'full') => {
       const d = await s.show({ source }, { box });
       live.set(slot, d);
       return d;
     };
-    const adopt = (slot: Slot, state: Omit<DiagramState, 'source'> = { marks: [], notes: [] }) => {
+    /** The diagram in `slot` shown by its view: its source in the model, its marks and notes (none yet) in `shown`. */
+    const adopt = (slot: Slot, shownNow: DiagramState = { marks: [], notes: [] }) => {
       const d = live.get(slot)!;
-      this.state.diagrams = { ...((this.state.diagrams as object) ?? {}), [slot]: { source: d.spec.source!, ...state } };
-      const v = view(this, diagramPicture(slot, PREFIX[slot]), { place: false });
-      this.add(v);
-      this.remove(d.root);
-      d.showBy(v);
-      // Described as the diagram, with the marks and notes the state records.
-      s.keep(v);
-      return v;
+      this.state.sources = { ...((this.state.sources as object) ?? {}), [slot]: d.spec.source! };
+      this.shown.diagrams = { ...((this.shown.diagrams as object) ?? {}), [slot]: shownNow };
+      return s.diagramView(d, diagramPicture(slot, PREFIX[slot]));
     };
-    /** Change what a diagram's state records, and play its view's change. */
-    const restyle = async (v: View, slot: Slot, change: Partial<Omit<DiagramState, 'source'>>, runTime = 0.45) => {
-      const all = this.state.diagrams as Partial<Record<Slot, DiagramState>>;
-      this.state.diagrams = { ...all, [slot]: { ...all[slot]!, ...change } };
+    /** Change how a diagram is shown, and play its view's change. */
+    const restyle = async (v: View, slot: Slot, change: Partial<DiagramState>, runTime = 0.45) => {
+      const all = this.shown.diagrams as Partial<Record<Slot, DiagramState>>;
+      this.shown.diagrams = { ...all, [slot]: { ...all[slot]!, ...change } };
       await this.play(v.sync({ match: 'key', runTime }));
     };
     /** The verifier's own scope line, read from the snapshot of a diagram. */
@@ -228,7 +189,7 @@ export default class MermaidExplainer extends Scene {
     const main = adopt('main');
     // The source beside it, near the top of the side, leaving room under it for the report the next step adds.
     const sourceAt = (st: object) => {
-      const source = block((st as { diagrams: Record<Slot, DiagramState> }).diagrams.main.source.split('\n'));
+      const source = block((st as { sources: Record<Slot, string> }).sources.main!.split('\n'));
       return source.moveTo([SIDE[0], SIDE[3] - 0.5], [-1, 1]);
     };
     const sourcePanel = view(this, (st) => keyed(sourceAt(st), 'mermaid-source'), { place: false });
@@ -241,7 +202,7 @@ export default class MermaidExplainer extends Scene {
         : swapped
           ? 'The dot follows the yes edge as drawn: from Cached to Database.'
           : 'Would the report change if the labels were the wrong way round?',
-      caption: missing ? `${UNLABELED}. ${NAMING} Warnings identify missing structural information while ok stays true. ${ANSWER}.` : swapped ? `The source renders and both exits of the decision carry labels, so the report has no warnings, even though its yes path reaches Database. Its last line, taskCorrectness: not-checked, marks where the check stops. ${ANSWER}. The next two steps show the failure and the warning.` : `The source renders and both decision exits carry labels, so the report has no warnings. That does not prove that the labels express the right behavior. ${ANSWER}. Would reversed labels get a different report?`,
+      caption: missing ? `${UNLABELED}. ${NAMING} Warnings identify missing structural information while ok stays true. ${answer}.` : swapped ? `The source renders and both exits of the decision carry labels, so the report has no warnings, even though its yes path reaches Database. Its last line, taskCorrectness: not-checked, marks where the check stops. ${answer}. The next two steps show the failure and the warning.` : `The source renders and both decision exits carry labels, so the report has no warnings. That does not prove that the labels express the right behavior. ${answer}. Would reversed labels get a different report?`,
     });
     const d = live.get('main')!;
     const verified = reportOf(d);
@@ -363,9 +324,12 @@ export default class MermaidExplainer extends Scene {
       caption: swapped ? 'Two set_label edits, each naming one edge, put yes on the path to Reply and no on the path to Database. The corrected diagram sits below the backwards one, and both reports say ok: true with no warnings. Following yes out of Cached tells them apart: a hit reaches Database above and Reply below. A check that a cache hit reaches Reply without querying Database would catch the backwards one; this page describes that missing check rather than implementing it.' : `${missing ? 'Two further set_label edits' : `${NAMING} A set_label edit changes the label on one named edge; two of them`} reverse the behavior in the upper diagram: a hit now follows yes to Database, while in the lower one it still reaches Reply. Both reports say ok: true with no warnings. Both drawings meet the same structural rules, so those rules cannot tell which one performs the cache’s job; following the yes path can.`,
     });
     await s.clear();
-    for (const stale of ['diagrams', 'column', 'ops', 'rerun', 'report', 'flaggedWarnings']) delete this.state[stale];
+    for (const stale of ['sources', 'column', 'ops', 'rerun', 'report', 'flaggedWarnings']) delete this.state[stale];
+    delete this.shown.diagrams;
     // The wrong diagram above and the right one below, each with its report beside it. The scenario's own edit makes
     // one from the other: the swapped scenario repairs the unlabelled diagram, the others swap the right one's labels.
+    // Where a cache hit goes is read from each drawn snapshot (the edge labelled yes, and the node at its end); the
+    // reports beside them are the pinned verifier's findings for the same sources.
     const rows = {
       wrong: regionBox('full', { right: REPORT_X - 0.4, bottom: -0.2 }),
       right: regionBox('full', { right: REPORT_X - 0.4, top: -0.8 }),
@@ -435,7 +399,8 @@ export default class MermaidExplainer extends Scene {
       caption: `The history keeps source, edit and checked snapshot as separate commits. The snapshot records what this renderer drew and the findings it returned, including taskCorrectness: not-checked. Committing a clean report keeps that evidence; it does not widen what the verifier checked.`,
     });
     await s.clear();
-    delete this.state.diagrams;
+    delete this.state.sources;
+    delete this.shown.diagrams;
     this.state.finalWarnings = committed.warnings.length;
     await show('history', 'gitGraph TB:\n commit id: "source"\n commit id: "typed edit"\n commit id: "checked snapshot"', 'full');
     const history = adopt('history');

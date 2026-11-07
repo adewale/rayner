@@ -8,7 +8,6 @@ import { mkdtemp, readFile, writeFile, rm, copyFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { Scene, Text, ItalicText, MathTex, shaperFor } from '../src/index.ts';
 import { NullSink } from '../src/output.ts';
@@ -26,7 +25,6 @@ const fixture = join(ROOT, 'test/lettering/styles');
 const folder = await mkdtemp(join(tmpdir(), 'rayner-lettering-styles-'));
 after(() => rm(folder, { recursive: true, force: true }));
 const stored = async (): Promise<LetteringSnapshot> => unpackLettering(JSON.parse(await readFile(join(fixture, 'scene.lettering.json'), 'utf8')));
-const sha = (value: string) => createHash('sha256').update(value).digest('hex');
 
 /** The scene's only Text, built under `snapshot`. */
 async function built(snapshot: LetteringSnapshot, make: () => Text): Promise<Text> {
@@ -129,12 +127,11 @@ test('only OFL and Apache-2.0 faces pass, at capture and in every build from a s
   assert.equal(licenceOf('Apache License\nVersion 2.0, January 2004\nhttp://www.apache.org/licenses/'), 'Apache-2.0');
   assert.equal(licenceOf('Copyright Example Foundry. All rights reserved.'), undefined);
   assert.equal(licenceOf(await readFile(join(ROOT, 'vendor/licenses/LatinModernMath-GUST.txt'), 'utf8')), undefined);
-  // A snapshot whose face says otherwise fails, with its checksum made right so the licence is the cause
+  // A snapshot whose face says otherwise fails
   const dir = await mkdtemp(join(folder, 'licence-'));
   await copyFile(join(fixture, 'scene.ts'), join(dir, 'scene.ts'));
   const s = await stored();
   s.faces['inter/bold']!.license = 'Copyright Example Foundry. All rights reserved.';
-  s.payloadHash = sha(JSON.stringify({ ...s, payloadHash: undefined }));
   assert.throws(() => validateLetteringSnapshot(s), /inter\/bold is not under the OFL or Apache-2.0/);
   await writeFile(join(dir, 'scene.lettering.json'), JSON.stringify(s, null, 2) + '\n');
   await assert.rejects(collectProject(dir, { write: false }), /not under the OFL or Apache-2.0/);

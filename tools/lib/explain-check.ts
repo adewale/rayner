@@ -4,20 +4,19 @@ import { captionLookProblems } from '../../explain/caption-looks.ts';
 import { describesItself, seenSource } from '../../explain/look.ts';
 import { restingRouteProblems } from './explain-layout.ts';
 import { letteringWeight, pageSnapshot } from './lettering.ts';
-import { isHeading, stagedStepsOf, pictureFingerprint } from '../../explain/stage.ts';
+import { isHeading } from '../../explain/stage.ts';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { build } from 'esbuild';
 import ts from 'typescript';
-import {
-  Text,
-  View,
-} from '../../src/index.ts';
+import { Text } from '../../src/index.ts';
+import { View } from '../../explain/index.ts';
 import { SnapshotSink, renderAt, toSvgString, renderText, NullSink } from '../../src/output.ts';
 import { MotionSink, InvariantSink, machinesOf, viewMismatch, jsonObject, analyzeMotion, traceScene } from '../../explain/testing.ts';
-import { ROOT, engineAlias, sceneSlug } from './explain-project.ts';
+import { LIB_ROOT, engineAlias, importAuthored, sceneSlug } from './explain-project.ts';
+import { checkedAgainstFiles, compareAnswers, runModelTest } from './explain-evidence.ts';
 import { scenarioName } from '../../explain/testing.ts';
 import { restingFrame, restingTime, undescribed, watchedChanges } from '../../explain/trace.ts';
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
@@ -281,14 +280,33 @@ export class KeySink implements Sink {
 export class ViewSink implements Sink {
   readonly problems: string[] = [];
   checked = 0;
+  /** Views some step's end has shown to depend on their state (see viewIgnoresState). */
+  private readonly proven = new Set<View>();
+  /** Views no step has shown to yet, each named by the first step that showed it. */
+  private readonly unproven = new Map<View, { name: string; others: number }>();
+  /** Each step's state so far: the other states a view first seen now is drawn from. */
+  private readonly states: Record<string, unknown>[] = [];
   async frame(): Promise<void> {}
   async stepEnd(scene: Scene, step: Step): Promise<void> {
+    this.states.push(structuredClone(scene.state));
     for (const m of scene.familyMembers()) {
       if (!(m instanceof View)) continue;
       this.checked++;
       const mismatch = viewMismatch(m, scene.state, { shown: scene.shown }) ?? viewGeometryMismatch(m, scene);
       if (mismatch) this.problems.push(`step "${step.name}": ${m.key ?? 'a view'}: ${mismatch}`);
+      // Asked at each step's end that shows the view, while the scene is as the step left it (a draw
+      // may read live parts of the scene), until one shows the picture depends on the state: a list
+      // that is empty at first and grows later shows it only later.
+      if (this.proven.has(m)) continue;
+      const others = viewIgnoresState(m, scene.state, scene.shown, this.states);
+      if (others === null) { this.proven.add(m); this.unproven.delete(m); }
+      else if (!this.unproven.has(m)) this.unproven.set(m, { name: `step "${step.name}": ${m.key ?? 'a view'}`, others });
     }
+  }
+  /** After the run: the views whose draw never depended on their state, at any step that showed them. */
+  get ignoring(): string[] { return [...this.unproven.values()].map((u) => u.name); }
+  ignoringProblems(): string[] {
+    return [...this.unproven.values()].map((u) => `${u.name}: its draw ignores its state; its picture is the same drawn from ${u.others} different states, so it can disagree with the state the step records`);
   }
 }
 
@@ -556,47 +574,36 @@ function perturbed(value: unknown): unknown {
 }
 
 /**
- * Every step `stage.steps` presented, redrawn after the run from the state its trace recorded and
- * compared with the picture drawn then (text and every part's box). A step whose draw reads
- * anything but its own state, such as a variable a later step changed, draws something else now
- * and is named here.
+ * A view, drawn from states that differ from the one it shows: its state with every value changed,
+ * the empty state, the states of the steps so far, and what is shown with every value changed (ViewSink asks at
+ * each step's end that shows the view, until one finds that it depends). A view whose picture is the same for all of them, and whose draw
+ * throws for none, does not read its state, so it can disagree with the state its steps record:
+ * this returns how many states drew that same picture, and ViewSink names the view in `ignoring`
+ * and in `problems`. A draw that throws on a different state has read it, so a throw counts as
+ * depending on it; otherwise this returns null.
  *
- * The redraw alone passes a draw that ignores its state and draws from constants it captured, so
- * the picture could disagree with the state the step records. Each step is therefore also drawn
- * from states that differ from its own: its state with every value changed, the empty state, and
- * the other steps' recorded states. A draw whose picture is the same for all of them, and throws
- * for none, does not read its state, and its step is named in `ignoring` and in `problems`. A
- * draw that throws on a different state has read it, so a throw counts as depending on it.
- *
- * The rule: a step whose recorded state is empty is exempt (there is nothing to read, and nothing
- * for the picture to disagree with); any other step's picture must depend on its state. A state
- * that changes nothing in the picture is a value the reader is told about but never shown, so it
- * either reaches the picture or leaves the state.
+ * The rule: a view first seen with an empty state is exempt (there is nothing to read, and nothing
+ * for the picture to disagree with); any other view's picture must depend on the state. A state
+ * that changes nothing in a picture is a value the reader is told about but never shown, so it
+ * either reaches the picture or leaves the state. (The redraw itself, that a view shows what its
+ * draw makes of each step's state, is ViewSink's.)
  */
-export function redrawStagedSteps(scene: Scene, trace: { steps: readonly { step: string; after?: Record<string, unknown> }[] }): { redrawn: number; problems: string[]; ignoring: string[] } {
-  const problems: string[] = [];
-  const ignoring: string[] = [];
-  const records = stagedStepsOf(scene);
-  const recorded = records.map((r) => trace.steps.find((s) => s.step === r.step)?.after);
-  records.forEach((record, i) => {
-    const after = recorded[i];
-    if (!after) { problems.push(`step "${record.step}": no recorded state to redraw it from`); return; }
-    if (pictureFingerprint(record.redraw(after)) !== record.drawn)
-      problems.push(`step "${record.step}": its picture differs when drawn again from the state it recorded; its draw reads something other than its state`);
-    if (!Object.keys(after).length) return;
-    const own = JSON.stringify(after);
-    const drawn = pictureDetail(record.redraw(after));
-    const others = [perturbed(after), {}, ...recorded.filter((s): s is Record<string, unknown> => !!s)]
-      .filter((s, j, all) => JSON.stringify(s) !== own && all.findIndex((t) => JSON.stringify(t) === JSON.stringify(s)) === j);
-    const depends = others.some((state) => {
-      try { return pictureDetail(record.redraw(state as Record<string, unknown>)) !== drawn; } catch { return true; }
-    });
-    if (!depends) {
-      ignoring.push(record.step);
-      problems.push(`step "${record.step}": its draw ignores its state; its picture is the same drawn from ${others.length} different states, so it can disagree with the state the step records`);
-    }
-  });
-  return { redrawn: records.length, problems, ignoring };
+export function viewIgnoresState(view: View, state: Record<string, unknown>, shown: Record<string, unknown>, states: readonly Record<string, unknown>[]): number | null {
+  if (!Object.keys(state).length) return null;
+  const own = JSON.stringify(state);
+  const drawn = pictureDetail(view.draw(state, shown));
+  const others = [perturbed(state), {}, ...states]
+    .filter((s, j, all) => JSON.stringify(s) !== own && all.findIndex((t) => JSON.stringify(t) === JSON.stringify(s)) === j);
+  const differs = (st: Record<string, unknown>, sh: Record<string, unknown>) => {
+    try { return pictureDetail(view.draw(st, sh)) !== drawn; } catch { return true; }
+  };
+  // A view draws the model and what is shown apart from it; a picture that follows what is shown
+  // (a phase, a highlight) reads its inputs too.
+  const depends = others.some((other) => differs(other as Record<string, unknown>, shown)) ||
+    (Object.keys(shown).length > 0 && differs(state, perturbed(shown) as Record<string, unknown>));
+  // A draw may keep what it last drew (its words, say): leave it as the step drew it.
+  view.draw(state, shown);
+  return depends ? null : others.length;
 }
 
 
@@ -659,6 +666,13 @@ export async function checkProject(project: Project, out: string): Promise<Recor
   const lint = lintConstruct(await readFile(project.file, 'utf8'));
   assert.deepEqual(lint, [], lint.join('\n'));
   await mkdir(out, { recursive: true });
+  // The folder's own evidence first: a scene drawn from a model its test refuses shows nothing true.
+  const model = await runModelTest(project.file);
+  assert.ok(!model?.failed.length, `The model test fails (${model?.file}): ${model?.failed.join('; ')}`);
+  const answers = await compareAnswers(project.file, project.Scene.meta, async (file) => (await importAuthored(file)).module);
+  assert.deepEqual(answers?.problems ?? [], [], `script.md disagrees with answers.ts (${answers?.file}): ${answers?.problems.join('; ')}`);
+  const checkedAgainst = await checkedAgainstFiles(project.file, (project.Scene.meta as { checkedAgainst?: unknown } | undefined)?.checkedAgainst);
+  assert.deepEqual(checkedAgainst?.problems ?? [], [], `script.md's Checked against names files that are not there: ${checkedAgainst?.problems.join('; ')}`);
   await useProjectLettering(project);
   const scenarios = [];
   // The lettering the page carries, once for every scenario: the bare runtime below runs it
@@ -732,20 +746,14 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       return renderAt(v.Scene, restingTime(s, v.trace.fps), new NullSink());
     });
     assert.deepEqual(
-      views.problems.slice(0, 5),
+      [...views.problems, ...views.ignoringProblems()].slice(0, 5),
       [],
-      `Views ${where}: at the end of a step, a view must show what its draw makes of the step's state (the first five)`,
+      `Views ${where}: at the end of a step, a view must show what its draw makes of the step's state, and that picture must depend on the state (the first five)`,
     );
     assert.deepEqual(
       keys.problems.slice(0, 5),
       [],
       `Keys ${where}: at the end of a step, a key names one mobject on the stage, so find, transforms and the close-up mean one part (the first five)`,
-    );
-    const staged = redrawStagedSteps(ran, v.trace);
-    assert.deepEqual(
-      staged.problems.slice(0, 5),
-      [],
-      `Staged steps ${where}: a step's picture must be a function of the state it records (the first five)`,
     );
     assert.deepEqual(
       machines.flatMap((s) => s.problems).slice(0, 5),
@@ -795,13 +803,13 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     // A lettered explainer's bare runtime puts its faces in place first, as its page does.
     const lettered = project.lettering
       ? [
-          `import{useLettering}from ${JSON.stringify(join(ROOT, 'src/lettering.ts'))};`,
+          `import{useLettering}from ${JSON.stringify(join(LIB_ROOT, 'src/lettering.ts'))};`,
           `await useLettering(${JSON.stringify(pageFaces(project.lettering))});`,
         ]
       : ['', ''];
-    const contents = `${project.outlineLettering ? `import{bindLettering}from ${JSON.stringify(join(ROOT, 'src/lettering-outlines.ts'))};` : ''}import * as author from ${JSON.stringify(project.file)};import{bindSnapshots,withSettings}from ${JSON.stringify(join(ROOT, 'explain/settings.ts'))};import{NullSink,toSvgString}from ${JSON.stringify(join(ROOT, 'src/output.ts'))};${lettered[0]}const Source=author[${JSON.stringify(project.exportName)}];export async function run(){${lettered[1]}const Lettered=${project.outlineLettering ? `bindLettering(Source,${shipped})` : 'Source'};const C=withSettings(bindSnapshots(Lettered,${JSON.stringify(project.store)}),${JSON.stringify(v.values)});const s=await new C(new NullSink(),{skipUntil:Infinity}).run();return{steps:s.steps.map(s=>s.name),state:s.describe(),svg:toSvgString(s)}}`;
+    const contents = `${project.outlineLettering ? `import{bindLettering}from ${JSON.stringify(join(LIB_ROOT, 'src/lettering-outlines.ts'))};` : ''}import * as author from ${JSON.stringify(project.file)};import{bindSnapshots,withSettings}from ${JSON.stringify(join(LIB_ROOT, 'explain/settings.ts'))};import{NullSink,toSvgString}from ${JSON.stringify(join(LIB_ROOT, 'src/output.ts'))};${lettered[0]}const Source=author[${JSON.stringify(project.exportName)}];${project.intent ? `Source.meta={...Source.meta,...${JSON.stringify(project.intent)}};` : ''}export async function run(){${lettered[1]}const Lettered=${project.outlineLettering ? `bindLettering(Source,${shipped})` : 'Source'};const C=withSettings(bindSnapshots(Lettered,${JSON.stringify(project.store)}),${JSON.stringify(v.values)});const s=await new C(new NullSink(),{skipUntil:Infinity}).run();return{steps:s.steps.map(s=>s.name),state:s.describe(),svg:toSvgString(s)}}`;
     const b = await build({
-      stdin: { contents, resolveDir: ROOT, loader: 'ts' },
+      stdin: { contents, resolveDir: LIB_ROOT, loader: 'ts' },
       bundle: true,
       format: 'iife',
       globalName: 'bare',
@@ -835,8 +843,6 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       invariants: Object.fromEntries(invariants.held),
       // Each machine's events and how many states they reach, every one drawn and checked.
       ...(machines.length ? { machines: machines.map(({ events, states, sampled }) => ({ events, states, ...(sampled ? { sampled } : {}) })) } : {}),
-      // How many stage.steps pictures were redrawn from their recorded state and matched.
-      ...(staged.redrawn ? { redrawn: staged.redrawn } : {}),
       // How many view pictures, step by step, were compared with what their draw makes of the step's state.
       ...(views.checked ? { viewsChecked: views.checked } : {}),
       labels: labels.size,
@@ -870,10 +876,18 @@ export async function checkProject(project: Project, out: string): Promise<Recor
   const claimProblems = await declaredClaimProblems(
     checkClaimsMeta(project.Scene.meta),
     scenarios.flatMap((v) => v.claims.stated),
+    process.cwd(),
+    dirname(project.file),
   );
   assert.deepEqual(claimProblems, [], `Claims: ${claimProblems.join('; ')}`);
   const report = {
     scene: sceneSlug(project),
+    // The model test beside the scene (model.test.ts), run with node:test: how many tests ran and passed, and any skipped.
+    ...(model ? { model: { file: model.file, tests: model.tests, passed: model.passed, ...(model.skipped ? { skipped: model.skipped } : {}) } } : {}),
+    // The script's answer and check answers that answers.ts computes from the model, each equal to script.md's.
+    ...(answers ? { answers: { file: answers.file, compared: answers.compared } } : {}),
+    // The files the script's Checked against line names in backticks, each one in the explainer's folder.
+    ...(checkedAgainst?.files.length ? { checkedAgainst: checkedAgainst.files } : {}),
     scenarios,
     diagrams: Object.keys(project.store).length,
     replayedEdits: project.edits,
@@ -887,9 +901,10 @@ export async function checkProject(project: Project, out: string): Promise<Recor
 
 /**
  * What is wrong with a scene's declared claims: one no scenario states, or one whose test file is not
- * there or holds no test whose name contains the given part.
+ * there or holds no test whose name contains the given part. A test file is looked for in the scene's
+ * `folder` first (`model.test.ts: …`), then from `directory`, where the command was run.
  */
-export async function declaredClaimProblems(claims: readonly { says: string; test?: string; shown?: true }[], stated: readonly string[], directory = process.cwd()): Promise<string[]> {
+export async function declaredClaimProblems(claims: readonly { says: string; test?: string; shown?: true }[], stated: readonly string[], directory = process.cwd(), folder?: string): Promise<string[]> {
   const problems: string[] = [];
   const files = new Map<string, string[] | null>();
   for (const c of claims) {
@@ -899,7 +914,9 @@ export async function declaredClaimProblems(claims: readonly { says: string; tes
       file = c.test.slice(0, at),
       name = c.test.slice(at + 2);
     if (!files.has(file)) {
-      const source = await readFile(resolve(directory, file), 'utf8').catch(() => null);
+      const source =
+        (folder === undefined ? null : await readFile(resolve(folder, file), 'utf8').catch(() => null)) ??
+        (await readFile(resolve(directory, file), 'utf8').catch(() => null));
       files.set(file, source === null ? null : testNames(source));
     }
     const names = files.get(file);

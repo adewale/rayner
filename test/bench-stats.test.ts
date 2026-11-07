@@ -1,10 +1,10 @@
-// The decisions behind `npm run bench` (tools/lib/bench-stats.ts): the browser half only
+// The decisions behind `npm run bench` (tools/repo/lib/bench-stats.ts): the browser half only
 // records timestamps, so whether a change fails the gate is decided here.
 // Counts: test/lib/pbt.ts (FULL=1 is 10x).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
-import { MIN_PAIRS, PAIRS, blocking, compare, longestGap, median, order, verdict, worstShift } from '../tools/lib/bench-stats.ts';
+import { MIN_PAIRS, PAIRS, blocking, compare, longestGap, median, order, verdict, worstShift } from '../tools/repo/lib/bench-stats.ts';
 
 const rule = { rel: 0.1, floor: 50 };
 const ms = fc.integer({ min: 0, max: 5000 });

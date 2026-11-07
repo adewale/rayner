@@ -22,17 +22,18 @@ const NB = ' ';
 // One scene per language: a setting, a card (so each step has a generated description) and a caption.
 const scene = (lang: string, label: string, caption: string) =>
   `import{Scene}from'rayner';import{stage,settingsOf}from'rayner/explain';export default class L extends Scene{static meta={id:'lang-${lang}',title:'${label}',lang:'${lang}',sources:['https://example.com/source']};static settings=[{id:'n',label:'${label}',default:'1',options:[{value:'1',label:'1'},{value:'2',label:'2'}]}];async construct(){const s=stage(this);await this.step('one',{title:'${label}',caption:'${caption}'});await s.card([['${label}',settingsOf(this).n]]);}}`;
-// A French scene that uses every kind of generated words: a flowchart marked, noted, walked with
-// and without a trail and dimmed; a titled card with a lit row; code with a diff and a focus; a
-// chart with two bar series and two lines; kept text with no describe.
+// A French scene that uses every kind of generated words: a flowchart shown by its view, marked,
+// noted, walked with and without a trail drawn and dimmed; a titled card with a lit row; code with a
+// diff and a focus; a chart with two bar series and two lines; kept text with no describe.
 const rich = `import{Scene,Text}from'rayner';import{stage}from'rayner/explain';export default class R extends Scene{static meta={id:'riche',title:'Riche',lang:'fr'};async construct(){const s=stage(this);
 await this.step('flux',{title:'Flux',caption:'Le revenu passe par le barème.'});
 const d=await s.show({source:'graph LR\\nA["Revenu"] --> B["Barème"]\\nB --> C["Impôt"]'},{box:[-8,0,8,3.4]});
-await d.mark(['A']);await d.note('C','plafond');
-const c=await s.card([['Parts','2'],['Quotient','15 000 €']],{title:'Foyer',at:[-4,-2]});await c.mark('Parts');
+this.shown.trail=[];this.shown.keep=null;
+const v=s.diagramView(d,(st,sh)=>({marks:{A:d.accent,...d.trail(sh.trail)},notes:[{id:'C',text:'plafond'}],dim:sh.keep}));
+await s.card([['Parts','2'],['Quotient','15 000 €']],{title:'Foyer',at:[-4,-2],lit:'Parts'});
 await this.step('trajet',{title:'Trajet',caption:'Le revenu va au barème.'});
-await d.walk([['A','B']],{trail:true});await d.dim(['A','B']);
-const k=await s.code(['+ seuil: 11600','+ plafond: 1807','- seuil: 11497','taux: 11 %'],{diff:true,title:'barème',at:[4,-2]});await k.focus(3);
+await d.walk([['A','B']]);this.shown.trail=[['A','B']];this.shown.keep=['A','B'];await this.play(v.sync({match:'key',staged:true}));
+await s.code(['+ seuil: 11600','+ plafond: 1807','- seuil: 11497','taux: 11 %'],{diff:true,title:'barème',at:[4,-2],focus:3});
 await this.step('chemin',{title:'Chemin',caption:'Puis à l’impôt.'});
 await d.walk([['B','C']]);
 await this.step('graphique',{title:'Graphique',caption:'Les montants par mois.'});
@@ -112,7 +113,7 @@ test('page words come from a table by primary language, English when there is no
   assert.equal(chromeFor('fr').stepOf(3, 4, 'Titre'), `Étape 3 sur 4${NB}: Titre`);
   assert.equal(chromeFor('en').allSteps(4), 'All 4 steps');
   assert.equal(chromeFor('fr').allSteps(4), 'Les 4 étapes');
-  // The footer's mark and way out of a frame (specs/player-tile.md T7); "Rayner" is a name, never translated.
+  // The footer's mark and way out of a frame (player-tile T7); "Rayner" is a name, never translated.
   assert.equal(chromeFor('en').madeWith, 'Made with Rayner');
   assert.equal(chromeFor('fr').madeWith, 'Réalisé avec Rayner');
   assert.equal(chromeFor('en').open, 'Open the explainer');
@@ -418,7 +419,7 @@ test(
           notice: document.querySelector('.notice')?.textContent,
         }));
       };
-      // Each language's scene has one step, so the reader opens at the end: Next is Start again (specs/player-guidance.md G2).
+      // Each language's scene has one step, so the reader opens at the end: Next is Start again (player-guidance G2).
       const fr = await read('fr');
       assert.deepEqual(
         { ...fr, picture: undefined },

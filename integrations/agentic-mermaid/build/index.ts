@@ -2,7 +2,6 @@ import { parseRegisteredMermaid } from 'agentic-mermaid';
 import type { SceneNode } from 'agentic-mermaid';
 import type { TextMeasurementProfile } from 'agentic-mermaid';
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
 import { SANS, MONO, FALLBACK } from '../../../src/font-data.ts';
 import { loadFonts } from '../../../src/fonts.ts';
 import type {TextShaping} from '../../../src/text-context.ts';
@@ -21,20 +20,6 @@ import type {
   SnapshotPart,
   ChartData,
 } from '../snapshot.ts';
-
-// Both installed packages and checkouts ship these TypeScript inputs. Reading
-// those sources keeps a checkout's capture identity portable to the compiled
-// CLI, while changes to the metric/lowering algorithm invalidate old geometry.
-// build-cli.ts bundles this build-only module into dist/tools/*.js; tsc does
-// not emit a separate dist/integrations/.../build module.
-const policyRoot = new URL(import.meta.url.endsWith('.js') ? '../../' : '../../../', import.meta.url);
-const metricPolicy = createHash('sha256').update((await Promise.all([
-  'src/text.ts', 'src/text-context.ts', 'src/fonts.ts', 'src/lettering.ts', 'src/lettering-outlines.ts', 'src/italic.ts', 'vendor/glyph.js',
-  'integrations/agentic-mermaid/text.ts',
-  'integrations/agentic-mermaid/build/index.ts',
-  'integrations/agentic-mermaid/build/capture.ts',
-  'integrations/agentic-mermaid/build/read-svg.ts',
-].map(async (file) => file + '\n' + await readFile(new URL(file, policyRoot), 'utf8')))).join('\n')).digest('hex');
 
 export function replayMorph(
   before: DiagramSpec,
@@ -72,9 +57,12 @@ function chartOf(spec: DiagramSpec): { chart?: ChartData } {
 
 export interface NaturalMeasurementOptions { shaping?: TextShaping; measurementHash?: string; styles?: readonly string[] }
 export function naturalMeasurementIdentity({ measurementHash, styles = [] }: NaturalMeasurementOptions = {}) {
-  // Include the capture policy as well as actual face bytes in the host identity.
+  // What decides a natural label's measured width: the identity's format (raise the version when
+  // what it covers changes), the renderer release, the embedded faces' bytes and the measured faces
+  // (measurementHash, which for requested lettering covers the shaper too). Rayner's own code is not
+  // hashed here; CI recaptures every committed snapshot and compares (test/snapshot-capture.test.ts).
   const metrics = createHash('sha256').update(JSON.stringify([
-    'rayner-natural-labels-v1', metricPolicy, RENDERER,
+    'rayner-natural-labels-v2', RENDERER,
     createHash('sha256').update(JSON.stringify([SANS, MONO, FALLBACK])).digest('hex'),
     measurementHash,
     styles,

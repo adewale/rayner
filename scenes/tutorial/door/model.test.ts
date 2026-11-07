@@ -1,6 +1,6 @@
 import test from 'node:test';
+import { isRefusal } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
-import { isRefusal } from '../../../src/index.ts';
 import { DOOR_EVENTS, doorNext, doorStart, type Door, type DoorEvent } from './model.ts';
 
 /** What `event` does to a door in state `door`: the door it leaves, or the reason it is refused. */

@@ -4,7 +4,7 @@ A readout, a counter or a status line should show the program's state. A `View`
 draws that picture from the state, so the two cannot drift apart:
 
 ```ts
-import { Scene, Text, FadeIn, view } from 'rayner';
+import { Scene, Text, FadeIn } from 'rayner';
 
 class Ring extends Scene {
   override async construct() {
@@ -43,7 +43,11 @@ A play with a sync in it therefore skips like any other during a seek, and lands
 on the byte-identical frame a full run renders, mid-sync included
 (`test/view.test.ts`). A sync morphs between two endpoint pictures; it does not
 evaluate the model between them. For a value that should be sampled along the
-way, use [`Follow`](CHOREOGRAPHY.md#follow).
+way, tween the state: `view.tween((t) => stateAt(t), opts)` sets the scene's state
+to `stateAt(t)` at every frame, `t` from 0 to 1 at the eased alpha, and writes the
+view's draw of it into the picture, so the picture is that draw at every frame and
+the play ends with the state at `stateAt(1)` ([following one
+number](CHOREOGRAPHY.md#following-one-number)).
 
 ## API
 
@@ -149,14 +153,15 @@ state is caught the same way: the redraw disagrees with what was shown.
 
 ## Cards, code, annotations and notes from state
 
-The stage's helpers enter and animate: `card.mark`, `code.focus`, `s.callout` and `d.note`
-each play. A draw is synchronous and builds its picture whole, so each of them has a builder
-a draw can call, which puts the mark in the picture and lets the part describe itself. The
-imperative helpers refuse a picture a view draws (`card.mark` on a card in a view's picture,
-`d.mark` on a diagram a view shows by its picture), so a drawn picture is marked one way, from state:
+A card, a code panel, a diagram's marks and notes, and an annotation are never changed in
+place: a picture that changes is drawn by a view, and what it marks comes from the state, or
+from `shown` when it is presentation rather than model. A draw is synchronous and builds its
+picture whole, so each has a builder a draw can call, which puts the mark in the picture and
+lets the part describe itself. The stage's `s.card`, `s.code` and `s.callout` enter the same
+pictures for a part that does not change.
 
 ```ts
-import { Card, CodeBlock } from 'rayner/explain';
+import { Card, CodeBlock, view } from 'rayner/explain';
 import { callout } from 'rayner/drawing';
 
 // A marked card: the row the state names is lit, and the description says so.
@@ -171,16 +176,29 @@ const program = view(this, (st) => {
   return new Group(code, callout(s, line, `returns ${st.passes}`, { side: 'right', color: st.passes ? s.good : s.bad }));
 }, { place: false });
 
-// A diagram note, placed as d.note places one, from the state's words.
+// A diagram note, placed as a diagram picture places one, from the state's words.
 const note = view(this, (st) => d.notePicture('Capture', `${st.families} families`, { side: 'below' }), { place: false });
 
 // The whole diagram with its marks and notes, keyed apart from a second picture of the same diagram.
 const wrong = view(this, (st) => d.picture(marksOf(st), { notes: notesOf(st), prefix: 'wrong:' }), { place: false });
+
+// The usual form: the stage shows the diagram by a view of what `shown` marks.
+this.shown.flow = { marked: [], walked: [] };
+const flow = s.diagramView(d, (_st, sh) => {
+  const f = sh.flow as { marked: string[]; walked: [string, string][] };
+  return { marks: { ...d.trail(f.walked), ...Object.fromEntries(f.marked.map((id) => [id, { color: s.bad, as: 'rejected' }])) } };
+});
+this.shown.flow = { marked: ['Reject'], walked: [] };
+await this.play(flow.sync({ match: 'key', staged: true }));
 ```
 
-- **Marks are part of the picture.** `lit` and `focus` put the card's or panel's bar where
-  `mark` and `focus` leave it; unlit, the bar is there and hidden, so a sync from unlit to lit
-  morphs one family shape. A staged step's redraw from its recorded state draws the bar again,
+A diagram shown by a view keeps its live parts off the stage. For a `reveal`, `walk`, `morph` or
+`focus`, which move the live parts, hand the stage back with `s.liveDiagram(d)` first and show
+it by its view again afterwards; a walk's token travels the same routes the picture draws.
+
+- **Marks are part of the picture.** `lit` and `focus` put the card's or panel's bar on its
+  row or lines; unlit, the bar is there and hidden, so a sync from unlit to lit morphs one
+  family shape. A staged step's redraw from its recorded state draws the bar again,
   so `rayner check` compares it with what was drawn. The view check compares text, so it covers a
   mark through the description rather than the bar's place.
 - **Parts describe themselves.** A card, a code panel, a note, a dimension line and a pin say
@@ -190,12 +208,11 @@ const wrong = view(this, (st) => d.picture(marksOf(st), { notes: notesOf(st), pr
 - **A diagram picture is described as the diagram.** While a view shows a picture (after
   `d.showBy(view)`), the stage describes the diagram as the picture shows it, in the live
   diagram's words: each note drawn with `notePicture` or `notes`, each mark given as
-  `{ color, as }` by its word, and dimmed parts said so. `exgit` reads exactly as it did when it
-  marked and noted the live diagram.
-- **They say what they emphasise.** A lit row, a focused line and a note report themselves to
-  the phone's close-ups as `mark` and `focus` do, so a scene that draws them needs no
-  `s.emphasise`. Marks on a diagram picture still need one, since the picture copies the
-  diagram's look and not its words.
+  `{ color, as }` by its word, and dimmed parts said so.
+- **They say what they emphasise.** A lit row, a focused line or diff bar, a diagram
+  picture's marks and a note report themselves to the phone's close-ups, by key, so a redrawn
+  mark at the same place with the same words is not new emphasis. A mark the scene draws
+  itself says so with `emphasised(mobject, what)` from `rayner/drawing`, in the draw.
 - **Two pictures of one diagram.** Every part of a diagram picture is keyed by its id, so two
   on the stage at once would give one key to two parts. `prefix` puts a word before every key in
   the picture, the frame's too; marks, notes and dimming still
@@ -206,37 +223,11 @@ const wrong = view(this, (st) => d.picture(marksOf(st), { notes: notesOf(st), pr
 
 ## Other readouts
 
-- **`StateReadout`** keeps its fixed layout of `Text` slots and is not built on
-  View; its `values` read its children, so a `copy()` names its own `Text`s.
-  Lantern's scenes at the fork base address those slots by index, which a View's
-  swap would break ([upstream](UPSTREAM.md)). For a new scene, draw the readout in
-  a view: `view(this, (s) => new StateReadout([['tokens', s.tokens]]), { place: 'left' })`.
-  Left placement holds the longest key's left edge, so the keys stay put while
-  values grow. `StateReadout` draws grey keys and white values, which suit a dark
-  stage; on another palette, recolour the rows in `draw`, as the ring buffer does
-  for dusk.
+- **A readout of state is a card.** `new Card(this, s.palette, rows, { key, panel: false })`
+  in a view writes values inside a drawing without a panel (`ring-buffer`, `token-bucket`);
+  synced with `match: 'key', staged: true`, a changed value fades across and an unchanged one
+  stays. Give it `width` so its labels keep their places as values grow.
 - **`DecimalNumber`** in a view with the default `'text'` morphs digit by digit:
   unchanged digits stay and changed digits fade across. With
   `sync({ match: 'index' })` its own interpolation runs, and the number counts
   through the values in between (`0 -> 5 -> 10`).
-- **The explainer layer's `Card.set`** compares each row's string and crossfades a
-  changed row's new `Text` in. A card can instead make its values a view, as the
-  ring buffer does; a changed row then morphs glyph by glyph, and
-  `match: () => undefined` restores the crossfade. `Card` itself has not moved to
-  views, because that would change every card's frames.
-
-## In the explainers
-
-- [state-machine](https://github.com/adewale/rayner/blob/main/scenes/explainers/state-machine/scene.ts) draws its whole session
-  `Card` in a view, beside views of the diagram, the ring on the current state and the
-  reducer; [ring-buffer](https://github.com/adewale/rayner/blob/main/scenes/explainers/ring-buffer/scene.ts) keeps a card's
-  panel and labels and makes the ring, the head, tail and length readout, and the
-  card's values views; [token-bucket](https://github.com/adewale/rayner/blob/main/scenes/explainers/token-bucket/scene.ts)
-  draws its gauge, chart, request chips and readout as views.
-  `test/explain-models.test.ts` runs `assertViewFollowsState` on the state-machine
-  card, the three ring-buffer views and the token-bucket readout at every step of
-  every scenario.
-- A state that changes several times inside one play needs each change at its turn,
-  or every sync would draw the last state. [`SetState`](CHOREOGRAPHY.md#setstate)
-  is that member, and a [`Machine`](MACHINES.md) builds each event from a `SetState`
-  and its views' syncs; all three scenes above are machines.
