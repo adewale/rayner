@@ -596,7 +596,7 @@ export class Mobject {
    * parent and updaters (manim's `become`): with the same family shape each member takes its
    * counterpart's data, so children keep their identities too. With a different shape the
    * children are replaced, which is refused when any of them carries a key. `other` is not
-   * changed. Follow writes each frame's drawing into its targets this way.
+   * changed. A sampled animation can write each frame's drawing into its targets this way.
    */
   become(other: Mobject): this {
     if (this.sameShapeAs(other)) {

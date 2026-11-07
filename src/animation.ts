@@ -74,7 +74,7 @@ abstract class AnimationTiming {
    * What this animation decided when it began, for the step's trace: read once, right
    * after begin(), and recorded with Scene.record. null (the default) records nothing.
    * Matching transforms report what they paired, TransformDiff the hunks it animated,
-   * a View's sync what its morph paired, Follow the interval it sampled.
+   * a sampled animation the interval it sampled.
    */
   evidence(): Evidence | null { return null; }
 }

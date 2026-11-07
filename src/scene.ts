@@ -368,8 +368,8 @@ export class Scene<S extends object = SceneState> {
    * `{ kind, ...data }` is appended to the step's `evidence` (and to the
    * scene's, which also keeps what happens before the first step). play()
    * records each animation's `evidence()` as it begins: what a matching
-   * transform or a View's sync paired, the hunks TransformDiff animated, the
-   * interval a Follow sampled.
+   * transform paired, the hunks TransformDiff animated, the interval a sampled
+   * animation sampled.
    * Unlike `state`, evidence is what the animation did, not what the program
    * is: it lets a test check the picture against an outside oracle. Copied
    * as JSON when recorded.
