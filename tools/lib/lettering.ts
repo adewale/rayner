@@ -5,7 +5,6 @@ import { readFileSync } from 'node:fs';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { execFileSync } from 'node:child_process';
 import { resolve, join, dirname } from 'node:path';
-import { createHash } from 'node:crypto';
 import { loadFont } from '../../vendor/glyph.js';
 import { SANS, MONO, FALLBACK } from '../../src/font-data.ts';
 import { embeddedFaces } from '../../src/fonts.ts';
@@ -15,10 +14,11 @@ import type { ExplainerClass } from '../../explain/settings.ts';
 import type { Run } from '../../vendor/glyph.js';
 import { licenceOf, validateLetteringSnapshot } from './lettering-validation.ts';
 import { LIB_ROOT, ROOT } from './roots.ts';
+import { sha256 } from './hash.ts';
 
 // The capture's files ship with the command (ROOT); the shaper and fallback faces it replays with, with the library.
 const root = ROOT;
-const hash = (s: string | Uint8Array) => createHash('sha256').update(s).digest('hex');
+const hash = sha256;
 const json = (x: unknown) => JSON.stringify(x, null, 2) + '\n';
 /**
  * The faces a scene may ask for, each cut as a file in the font cache that

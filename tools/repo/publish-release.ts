@@ -2,10 +2,10 @@
 // Called only by the protected npm-publish job after the reusable CI workflow succeeds.
 // Publishes the two tested archives, rayner then rayner-cli (which depends on it), at one version.
 import { readFile, writeFile } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { basename, join } from 'node:path';
 import assert from 'node:assert/strict';
+import { integrity } from '../lib/hash.ts';
 
 const directory = 'out/release';
 const manifest = JSON.parse(await readFile(join(directory, 'manifest.json'), 'utf8'));
@@ -21,7 +21,7 @@ assert.ok(['next', 'latest'].includes(process.env.NPM_DIST_TAG ?? ''), 'choose n
 const packages = manifest.packages as { name: string; filename: string; integrity: string }[];
 for (const p of packages) {
   assert.equal(basename(p.filename), p.filename);
-  assert.equal('sha512-' + createHash('sha512').update(await readFile(join(directory, p.filename))).digest('base64'), p.integrity, `the ${p.name} archive changed after validation`);
+  assert.equal(integrity(await readFile(join(directory, p.filename))), p.integrity, `the ${p.name} archive changed after validation`);
 }
 const npmVersion = execFileSync('npm', ['--version'], { encoding: 'utf8' }).trim().split('.').map(Number);
 assert.ok(npmVersion[0]! > 11 || npmVersion[0] === 11 && (npmVersion[1]! > 5 || npmVersion[1] === 5 && npmVersion[2]! >= 1), 'trusted publishing requires npm >=11.5.1');

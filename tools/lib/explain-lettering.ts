@@ -9,13 +9,12 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { createHash } from 'node:crypto';
 import { LETTERING_SCRIPTS, useLettering, takeLetteringUse } from '../../src/lettering.ts';
 import type { SubsetLetteringRequest, LetteringScript, LetteringFaces } from '../../src/lettering.ts';
 import type { FontName } from '../../src/index.ts';
 import { ROOT } from './roots.ts';
+import { sha256 } from './hash.ts';
 
-const sha256 = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex');
 
 /** Code point ranges per script. Keep in step with tools/repo/lettering-fonts.sh, which cuts the sources to them. */
 export const SCRIPTS: Record<LetteringScript, readonly (readonly [number, number])[]> = {

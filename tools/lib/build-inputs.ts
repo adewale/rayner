@@ -1,8 +1,8 @@
-import { createHash } from 'node:crypto';
-import { readFile, readdir } from 'node:fs/promises';
-import { dirname, join, relative, resolve, sep } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { dirname, join, resolve, sep } from 'node:path';
 import ts from 'typescript';
 import { COMPILED, LIB_ROOT, ROOT } from './roots.ts';
+import { listTree, relativePosix, sha256 } from './hash.ts';
 
 // Runtime assets are deliberately broad; Node tools follow the actual producer
 // imports. A reviewer, benchmark or release-script edit does not change a page.
@@ -14,14 +14,11 @@ export async function buildInputs(root: string, library = resolve(root) === reso
   // Each input by its name: the command's files by their path in it, the library's (when it is
   // another package, as for the installed command) under rayner/.
   const files = new Map<string, string>();
-  const add = (base: string, prefix: string, file: string) => files.set(prefix + relative(base, file).split(sep).join('/'), file);
+  const add = (base: string, prefix: string, file: string) => files.set(prefix + relativePosix(base, file), file);
   const scan = async (base: string, prefix: string, entries: string[], directories: string[]) => {
     for (const name of entries) add(base, prefix, join(base, name));
     for (const directory of directories) {
-      const found = await readdir(join(base, directory), { recursive: true, withFileTypes: true }).catch((error: NodeJS.ErrnoException) => {
-        if (error.code === 'ENOENT') return [];
-        throw error;
-      });
+      const found = await listTree(join(base, directory), { optional: true });
       for (const entry of found) if (entry.isFile()) add(base, prefix, join(entry.parentPath, entry.name));
     }
   };
@@ -68,7 +65,7 @@ export async function buildInputs(root: string, library = resolve(root) === reso
     catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
   }
   const inputs = await Promise.all([...files].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(async ([file, path]) => ({
-    file, sha256: createHash('sha256').update(await readFile(path)).digest('hex'),
+    file, sha256: sha256(await readFile(path)),
   })));
-  return { version: 1, inputs, hash: createHash('sha256').update(JSON.stringify(inputs)).digest('hex') };
+  return { version: 1, inputs, hash: sha256(JSON.stringify(inputs)) };
 }

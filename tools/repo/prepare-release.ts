@@ -5,9 +5,9 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { ROOT } from '../lib/explain-project.ts';
+import { integrity as integrityOf } from '../lib/hash.ts';
 
 const run = promisify(execFile);
 const sourceCommit = (await run('git', ['rev-parse', 'HEAD'], { cwd: ROOT })).stdout.trim();
@@ -28,7 +28,7 @@ for (const [name, folder] of [['rayner', '.'], ['rayner-cli', 'cli']] as const) 
 }
 const [library, command] = packages as [Packed, Packed];
 assert.equal(command.version, library.version, 'rayner and rayner-cli share one version');
-const integrity = async (packed: Packed) => 'sha512-' + createHash('sha512').update(await readFile(join(directory, packed.filename))).digest('base64');
+const integrity = async (packed: Packed) => integrityOf(await readFile(join(directory, packed.filename)));
 for (const packed of packages) assert.equal(await integrity(packed), packed.integrity);
 const result = await run(process.execPath, [join(ROOT, 'tools/repo/explain-package-smoke.ts'), '--archive', join(directory, library.filename), '--cli-archive', join(directory, command.filename)], { cwd: ROOT, maxBuffer: 4 * 1024 * 1024 });
 process.stdout.write(result.stdout);

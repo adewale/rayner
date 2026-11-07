@@ -2,7 +2,6 @@
 // Chromium surrogate on localhost, never a claim about a physical phone.
 import assert from 'node:assert/strict';
 import {readFile, mkdir, writeFile} from 'node:fs/promises';
-import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {cpus} from 'node:os';
 import {join} from 'node:path';
@@ -12,6 +11,7 @@ import {measure} from './lib/bench-measure.ts';
 import {median} from './lib/bench-stats.ts';
 import {buildInputs} from '../lib/build-inputs.ts';
 import {pageSize, PAGE_BUDGET} from '../lib/page-budget.ts';
+import { sha256 } from '../lib/hash.ts';
 
 const root = 'out/explainers', cpu = 4, repetitions = 3, readyLimitMs = 8000;
 const current = await buildInputs(process.cwd());
@@ -25,7 +25,7 @@ try {
     assert.equal(inputs.buildHash, current.hash, `${id}: run demos:check after changing build inputs`);
     const html = await readFile(join(root, id + '.html'), 'utf8');
     const receipt = JSON.parse(await readFile(join(root, id + '.html.receipt.json'), 'utf8'));
-    assert.equal(createHash('sha256').update(html).digest('hex'), receipt.artifactHash);
+    assert.equal(sha256(html), receipt.artifactHash);
     const samples = [];
     for (let i = 0; i < repetitions; i++) samples.push(await measure(browser, `${server.url}/${id}.html`, {cpu, readMs: 50}));
     const medianReadyMs = median(samples.map(s => s.ready));

@@ -9,10 +9,10 @@ import { existsSync } from 'node:fs';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { ROOT } from '../lib/explain-project.ts';
 import { entryPoints, packageImports } from '../lib/entry-points.ts';
+import { integrity as integrityOf } from '../lib/hash.ts';
 const run = promisify(execFile),
   folder = await mkdtemp(join(tmpdir(), 'rayner-package-'));
 /** The two packages, in install order: the library, then the command that depends on it. */
@@ -43,7 +43,7 @@ try {
     }
   }
   const [archive, cliArchive] = archives as [string, string];
-  const integrity = async (file: string) => 'sha512-' + createHash('sha512').update(await readFile(file)).digest('base64');
+  const integrity = async (file: string) => integrityOf(await readFile(file));
   const checkCandidate = async (when: string) => {
     if (candidate) for (const [i, file] of archives.entries()) assert.equal(await integrity(file), candidate.packages[i]!.integrity, `candidate archive integrity mismatch${when}`);
   };

@@ -15,7 +15,6 @@
 // reader opens with a disclosure on the way to the last step may push what is below it.
 import { execFileSync } from 'node:child_process';
 import { mkdtemp, rm, readFile, lstat, readlink, mkdir, writeFile } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
 import { EXPLAINERS } from '../../scenes/explainers/catalog.ts';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -25,6 +24,7 @@ import { measure } from './lib/bench-measure.ts';
 import type { Sample } from './lib/bench-measure.ts';
 import { MIN_PAIRS, compare, order, verdict, worstShift } from './lib/bench-stats.ts';
 import type { Comparison, Rule } from './lib/bench-stats.ts';
+import { sha256 } from '../lib/hash.ts';
 
 const { values: flags } = parseArgs({
   options: {
@@ -74,7 +74,7 @@ try {
   // BASE gets its own locked dependencies, including dependency-changing revisions.
   execFileSync('npm', ['ci', '--no-audit', '--no-fund'], { cwd: worktree, stdio: ['ignore', 'ignore', 'inherit'] });
   const urls = { base: '', head: '' };
-  const digest = (v: string | Buffer) => createHash('sha256').update(v).digest('hex');
+  const digest = sha256;
   const artifacts: Record<string, Record<string, string>> = { base: {}, head: {} };
   const locks: Record<string, string> = {};
   const packages: Record<string, string> = {};

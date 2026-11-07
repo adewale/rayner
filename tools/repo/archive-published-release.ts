@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
 import {mkdir, readFile, writeFile} from 'node:fs/promises';
 import {existsSync} from 'node:fs';
-import {createHash} from 'node:crypto';
 import {basename, join, resolve} from 'node:path';
+import { integrity as integrityOf } from '../lib/hash.ts';
 
 const version = process.env.ARCHIVE_VERSION ?? '';
 assert.match(version, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
@@ -34,7 +34,7 @@ for (const name of names) {
   const [packed] = JSON.parse(run('npm', ['pack', `${name}@${version}`, '--ignore-scripts', '--json', '--pack-destination', directory]));
   assert.equal(basename(packed.filename), packed.filename);
   const archive = join(directory, packed.filename);
-  const integrity = 'sha512-' + createHash('sha512').update(await readFile(archive)).digest('base64');
+  const integrity = integrityOf(await readFile(archive));
   assert.equal(integrity, registry.integrity, `retain the original npm bytes of ${name}`);
   archives.push({name, filename: packed.filename, archive, integrity, registry});
 }
@@ -43,7 +43,7 @@ const smoke = ['tools/repo/explain-package-smoke.ts', 'tools/explain-package-smo
 assert.ok(smoke, 'the tagged source has no package smoke');
 const output = run(process.execPath, [smoke, '--archive', archives[0]!.archive, ...(split ? ['--cli-archive', archives[1]!.archive] : [])]);
 process.stdout.write(output);
-for (const a of archives) assert.equal('sha512-' + createHash('sha512').update(await readFile(a.archive)).digest('base64'), a.integrity);
+for (const a of archives) assert.equal(integrityOf(await readFile(a.archive)), a.integrity);
 assert.equal(run('git', ['status', '--porcelain']).trim(), '');
 const validationLog = join(directory, 'package-validation.log');
 await writeFile(validationLog, output);

@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
-import { readFile, readdir } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
-import { join, relative, sep } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import {catalogEvidence} from './explain-artifacts.ts';
 import { buildInputs } from './build-inputs.ts';
 import { COMPILED } from './roots.ts';
 import { READ_PX } from '../../app/embed-closeup.ts';
+import { listTree, relativePosix, sha256 } from './hash.ts';
 
 /** A planned label can round a few millionths of a CSS pixel in the browser's SVG matrix. */
 export function readableOpeningLabel(pixels: number | null | undefined): boolean {
@@ -167,7 +167,7 @@ export async function readStoryPlan(directory: string, expectedScenes?: readonly
       }),
     );
   }
-  return { scenes: catalog.scenes.map(scene => scene.id), scenarios, catalogHash: createHash('sha256').update(raw).digest('hex') };
+  return { scenes: catalog.scenes.map(scene => scene.id), scenarios, catalogHash: sha256(raw) };
 }
 export async function reviewCodeHash(root: string, buildHash?: string) {
   const files = [
@@ -185,35 +185,26 @@ export async function reviewCodeHash(root: string, buildHash?: string) {
   if (COMPILED) {
     // Installed tools are bundled; individual source module paths do not exist.
     files.length = 0;
-    for (const entry of await readdir(join(root, 'dist/tools'), { recursive: true, withFileTypes: true }))
-      if (entry.isFile()) files.push(relative(root, join(entry.parentPath, entry.name)).split(sep).join('/'));
+    for (const entry of await listTree(join(root, 'dist/tools')))
+      if (entry.isFile()) files.push(relativePosix(root, join(entry.parentPath, entry.name)));
   }
   // Companion claims are review inputs even though they do not change the
   // runtime scene or catalog evidence. Old shards must not vouch for new claims.
   const sceneRoot = join(root, 'scenes/explainers');
-  const entries = await readdir(sceneRoot, { recursive: true, withFileTypes: true }).catch(
-    (error: NodeJS.ErrnoException) => {
-      if (error.code === 'ENOENT') return [];
-      throw error;
-    },
-  );
+  const entries = await listTree(sceneRoot, { optional: true });
   for (const entry of entries)
     if ((entry.isFile() || entry.isSymbolicLink()) && entry.name.endsWith('.review.json'))
-      files.push('scenes/explainers/' + relative(sceneRoot, join(entry.parentPath, entry.name)).split(sep).join('/'));
+      files.push('scenes/explainers/' + relativePosix(sceneRoot, join(entry.parentPath, entry.name)));
   const inputs = await Promise.all(
     files.sort().map(async (file) => ({
       file,
-      sha256: createHash('sha256')
-        .update(await readFile(join(root, file)))
-        .digest('hex'),
+      sha256: sha256(await readFile(join(root, file))),
     })),
   );
   // The caption inventory does not change for player-only edits. Bind the same
   // complete runtime/build inputs as the artifacts so old shards cannot vouch
   // for changed CSS, player helpers or page generation.
-  return createHash('sha256')
-    .update(JSON.stringify({ inputs, buildHash: buildHash ?? (await buildInputs(root)).hash }))
-    .digest('hex');
+  return sha256(JSON.stringify({ inputs, buildHash: buildHash ?? (await buildInputs(root)).hash }));
 }
 export function validateReviewedScenarios(actual: ReviewedScenario[], expected: PlannedScenario[]) {
   assert.deepEqual(

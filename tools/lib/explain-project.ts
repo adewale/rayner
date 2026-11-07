@@ -9,7 +9,7 @@ import { readFile, writeFile, mkdir, stat, readdir, rm, rename, rmdir } from 'no
 import { dirname, resolve, join, basename, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { Scene } from '../../src/index.ts';
 import { NullSink } from '../../src/output.ts';
 import { machinesOf } from '../../explain/testing.ts';
@@ -34,9 +34,11 @@ import type { Lettering } from './explain-lettering.ts';
 import { buildInputs } from './build-inputs.ts';
 import { COMPILED, LIB_ROOT, ROOT } from './roots.ts';
 import { entryPoints } from './entry-points.ts';
+import { listTree, relativePosix, sha256 } from './hash.ts';
 
 export { LIB_ROOT, ROOT };
-export const hash = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex');
+/** SHA-256, hex (tools/lib/hash.ts). */
+export const hash = sha256;
 /**
  * Make bundled JavaScript safe inside an inline <script>. The HTML parser only
  * reacts to `</script` and `<!--`, so only those change. Escaping every `</`
@@ -81,7 +83,7 @@ export function engineAlias(node = false, outlines = false): Plugin {
             // The player (app/) ships with the command and reaches the engine by relative paths,
             // so its imports land beside it; the engine itself is the library's.
             for (const base of new Set([LIB_ROOT, ROOT])) {
-              const local = relative(base, absolute).split(sep).join('/');
+              const local = relativePosix(base, absolute);
               if (local.startsWith('src/') || local.startsWith('explain/') || local === 'integrations/agentic-mermaid/snapshot.ts') {
                 file = join(LIB_ROOT, local);
                 break;
@@ -178,7 +180,7 @@ export interface Project {
 export async function sceneInputs(p: { file: string; sourceHash: string }, buildHash?: string): Promise<import('./explain-artifacts.ts').SceneInputs> {
   const folder = dirname(p.file),
     files: string[] = [];
-  for (const entry of await readdir(folder, { recursive: true, withFileTypes: true })) {
+  for (const entry of await listTree(folder)) {
     const path = relative(folder, join(entry.parentPath, entry.name));
     if (entry.isFile() && !path.split(sep).some((part) => part.startsWith('.')) && !entry.name.endsWith('~'))
       files.push(path + '\n' + hash(await readFile(join(folder, path))));

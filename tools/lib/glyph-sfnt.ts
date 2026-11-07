@@ -1,7 +1,7 @@
-import { createHash } from 'node:crypto';
+import { sha256 as sha256Of } from './hash.ts';
 /** Remove only the pinned WOFF2 decoder; glyph parsing and shaping stay unchanged. */
 export function sfntSource(source: string, sha256: string): string {
-  if (createHash('sha256').update(source).digest('hex') !== sha256)
+  if (sha256Of(source) !== sha256)
     throw new Error('Review the full glyph bundle pin before deriving its SFNT loader');
   for (const part of ['brotli: jsBrotli, ...ports', 'brotli: autoBrotli, ...ports']) {
     if (source.split(part).length !== 2) throw new Error(`The pinned glyph loader changed: ${part}`);
