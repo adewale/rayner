@@ -53,13 +53,13 @@ function code(colors: Of<typeof palette>, text: string[], opts: Record<string, u
   } catch (error) {
     assert.match((error as Error).message, /no room for code/);
     const at = opts.at as Box;
-    assert.ok(at[2] - at[0] - 0.7 < ((opts.fontSize as number) ?? 0.25));
+    assert.ok(at[2] - at[0] - 0.7 < ((opts.size as number) ?? 0.25));
     fc.pre(false);
     throw error;
   }
 }
 /** CodeBlock's other knobs: font size and an optional title. */
-const knobs = fc.record({ fontSize: fc.double({ min: 0.08, max: 0.5, noNaN: true }), title: fc.option(fc.string({ maxLength: 16 }), { nil: undefined }) }, { requiredKeys: [] });
+const knobs = fc.record({ size: fc.double({ min: 0.08, max: 0.5, noNaN: true }), title: fc.option(fc.string({ maxLength: 16 }), { nil: undefined }) }, { requiredKeys: [] });
 
 test('a code block placed in a box fits its width and never rises above its top', () => {
   fc.assert(
@@ -348,7 +348,7 @@ const cardCase = fc.record({
 });
 const card = (c: Of<typeof cardCase>) => {
   const s = scene();
-  const k = new Card(s, c.colors, c.rows, { ...(c.at ? { at: c.at } : {}), ...(c.width != null ? { width: c.width } : {}), ...(c.title ? { title: c.title } : {}), ...(c.fontSize != null ? { fontSize: c.fontSize } : {}), ...(c.direction ? { direction: c.direction } : {}), align: c.align });
+  const k = new Card(s, c.colors, c.rows, { ...(c.at ? { at: c.at } : {}), ...(c.width != null ? { width: c.width } : {}), ...(c.title ? { title: c.title } : {}), ...(c.fontSize != null ? { size: c.fontSize } : {}), ...(c.direction ? { direction: c.direction } : {}), align: c.align });
   s.add(k);
   return { s, k };
 };
@@ -466,7 +466,7 @@ const changesFor = (r: readonly (readonly [string, unknown])[]) =>
 /** A keyed card drawn by a view from the case's rows, then synced to the rows with `changes` applied. */
 async function syncedCard(c: Of<typeof cardCase>, changes: Record<string, unknown>) {
   const made = card(c);
-  const opts = { ...(c.at ? { at: c.at } : {}), ...(c.width != null ? { width: c.width } : {}), ...(c.title ? { title: c.title } : {}), ...(c.fontSize != null ? { fontSize: c.fontSize } : {}), ...(c.direction ? { direction: c.direction } : {}), align: c.align, key: 'card' };
+  const opts = { ...(c.at ? { at: c.at } : {}), ...(c.width != null ? { width: c.width } : {}), ...(c.title ? { title: c.title } : {}), ...(c.fontSize != null ? { size: c.fontSize } : {}), ...(c.direction ? { direction: c.direction } : {}), align: c.align, key: 'card' };
   const sc = made.s;
   sc.remove(made.k);
   let now: readonly CardRow[] = c.rows;
@@ -516,7 +516,7 @@ test('a card drawn lit, synced from row to row, lights each row; drawn unlit, it
   await fc.assert(
     fc.asyncProperty(fittingCardCase.chain((c) => fc.tuple(fc.constant(c), fc.array(fc.option(fc.constantFrom(...c.rows.map(([l]) => l))), { minLength: 1, maxLength: 5 }))), async ([c, lit]) => {
       const made = card(c);
-      const opts = { ...(c.at ? { at: c.at } : {}), ...(c.width != null ? { width: c.width } : {}), ...(c.title ? { title: c.title } : {}), ...(c.fontSize != null ? { fontSize: c.fontSize } : {}), ...(c.direction ? { direction: c.direction } : {}), align: c.align, key: 'card' };
+      const opts = { ...(c.at ? { at: c.at } : {}), ...(c.width != null ? { width: c.width } : {}), ...(c.title ? { title: c.title } : {}), ...(c.fontSize != null ? { size: c.fontSize } : {}), ...(c.direction ? { direction: c.direction } : {}), align: c.align, key: 'card' };
       const sc = made.s;
       sc.remove(made.k);
       let row: string | null = null;
