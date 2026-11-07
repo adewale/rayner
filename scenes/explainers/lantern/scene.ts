@@ -3,7 +3,7 @@ import { toSvgString, renderAt, StringSink } from '../../../src/output.ts';
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
 import { stage, regionBox, settingsOf, answerOf, view } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
-import type { Diagram, PictureNote, View } from '../../../explain/index.ts';
+import type { Diagram, PictureNote } from '../../../explain/index.ts';
 import { START, END, tiny, timelinePicture, checkPicture, playedLabel, seekedLabel, playedPicture, seekPicture, rulerPicture, sinkNote } from './picture.ts';
 import type { Motion, TinyFrame, Still, Seek, TimelineState, CheckState } from './picture.ts';
 const STYLE = 'hand-drawn';
@@ -387,7 +387,7 @@ export default class LanternExplainer extends Scene {
       const c = sh.classes as ClassesShown;
       return { marks: classes.trail(c.walked), notes: c.notes, dim: c.dim };
     };
-    let classesView: View = s.diagramView(classes, drawClasses);
+    const classesView = s.diagramView(classes, drawClasses);
     const showClasses = async (change: Partial<ClassesShown>) => {
       this.shown.classes = { ...(this.shown.classes as ClassesShown), ...change };
       await this.play(classesView.sync({ match: 'key', staged: true }));
@@ -410,12 +410,8 @@ export default class LanternExplainer extends Scene {
       line: `At t = ${SEEK_T} s the blend is halfway, however many frames ran before.`,
       caption: `begin() copies the starting object. Each frame blends that copy with a fixed end by an amount set only by how far through its run time the animation is. Halfway through the duration therefore means halfway between the endpoints. In contrast, dot.shift(step) adds to the position accumulated by earlier frames.`,
     });
-    // The trail leaves first; the live diagram stands in while the overlays clear, so the view, which
-    // the stage keeps with its overlays, does not fade with them.
-    await showClasses({ walked: [] });
-    s.liveDiagram(classes);
     await s.clearOverlays();
-    classesView = s.diagramView(classes, drawClasses);
+    await showClasses({ walked: [] });
     await showClasses({ notes: [{ id: 'Animation', text: 'endpoints fixed at begin()', side: 'below' }] });
     const fixed = classesView.current.family().find((m) => m.key === 'note:Animation')!;
     const anim = classes.get('Animation').box()!,
