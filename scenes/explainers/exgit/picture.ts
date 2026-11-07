@@ -107,7 +107,7 @@ export const rowWords = (row: RowState) =>
 
 /** A code panel keyed `exgit-<name>`, laid out as s.code lays one out, its bar on `focus` when given. */
 export const codePanel = (scene: Scene, palette: Palette, name: string, lines: string[], at: Box, focus?: [number, number]) =>
-  keyed(new CodeBlock(scene, palette, lines, { at, ...(focus ? { focus } : {}) }), `exgit-${name}`);
+  new CodeBlock(scene, palette, lines, { at, ...(focus ? { focus } : {}), key: `exgit-${name}` });
 
 /** The arrow from the blob's bytes down to their id, labelled SHA-1. */
 export function hashArrow(soft: string): { arrow: Arrow; how: Text } {

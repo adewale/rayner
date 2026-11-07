@@ -531,9 +531,9 @@ export default class TrafficPolicyExplainer extends Scene {
           ['Second hop', inN(parse(st.hops[p]))],
           ['Pod sees', p === 'local' ? 'client address' : 'node address'],
         ],
-        { at: box, align: 'top', fontSize: SIZE, title: POLICY[p] },
+        { at: box, align: 'top', fontSize: SIZE, title: POLICY[p], key: `traffic-compare:${p}` },
+        // Its rows keyed by label, not by index as the key option keys them: scene.review.json targets these.
         (card) => {
-          card.key = `traffic-compare:${p}`;
           card.values.get('Second hop')!.key = `${card.key}:hop`;
           card.values.get('Pod sees')!.key = `${card.key}:source`;
           for (const [label, value] of card.values)

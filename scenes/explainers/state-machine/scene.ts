@@ -69,6 +69,8 @@ export default class StateMachineExplainer extends Scene {
       this,
       (st) => {
         const panel = new CodeBlock(this, s.palette, REDUCER, { at: CODE, fontSize: 0.195, focus: st.event == null ? [1, 4] : null, key: 'code' });
+        // The table's rows and the throw are keyed by what they mean, not by their text as the key option
+        // keys them: scene.review.json and the embed tests target these keys.
         ['idle:CONNECT', 'connecting:OPENED', 'connecting:ERROR', 'open:CLOSE'].forEach((row, i) => {
           panel.code.lines[i + 1]!.key = `reducer:${row}`;
         });

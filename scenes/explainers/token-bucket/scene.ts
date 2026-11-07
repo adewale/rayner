@@ -210,6 +210,8 @@ export default class TokenBucketExplainer extends Scene {
           ...focusOf(st as unknown as BucketState),
           key: 'code',
         });
+        // The min(5, …) line keyed by what it is, not by its text as the key option keys it:
+        // scene.review.json and the embed tests target it.
         panel.code.lines[1]!.key = 'balance:cap';
         return panel;
       },
