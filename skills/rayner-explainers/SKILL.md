@@ -15,7 +15,7 @@ This skill says what a finished explainer must achieve and how each part is chec
 
 An explainer is three files, each with one job:
 
-- **`script.md`: the intent, for the author.** What the explainer must achieve: the reader's question, who the reader is, the answer, the condition whose change the reader should be able to predict, what the reader will do themselves, what the model is checked against and what it leaves out, and the questions a reader should be able to answer afterwards. Then the author's reasons in their own words. It is not the explanation; the scene is. Rayner reads only the `#` question, the **Answer** and **Checked against** lines and `## Check yourself`; the other labelled lines (**Reader**, **Changed condition**, **Reader's own work**, **Leaves out**) are for the author and a reviewer, and no check requires them.
+- **`script.md`: the intent, for the author.** What the explainer must achieve: the reader's question, who the reader is, the answer, the condition whose change the reader should be able to predict, what the reader will do themselves, what the model is checked against and what it leaves out, and the questions a reader should be able to answer afterwards. Then the author's reasons in their own words. It is not the explanation; the scene is. Rayner reads only its intent header ([rules](../../docs/REFERENCE.md#scene)); the other labelled lines (**Reader**, **Changed condition**, **Reader's own work**, **Leaves out**) are for the author and a reviewer, and no check requires them.
 - **`model.ts`: the system's constraints.** What the system allows, what each action does, and why it refuses one, with its tests against whatever the system can be checked against. Its limits are stated beside the constraints they qualify.
 - **`scene.ts`: how the system is explained.** The steps, their words, which states and events each step shows, the settings and the live step. How one state looks goes in a picture module (`picture.ts`), so the scene reads as the explanation: a picture function builds and returns the parts, taking whatever it needs (the state, the palette, axes, positions, a seeded generator), and the scene keeps when and how they appear (entering, camera moves, plays, callouts and marks on the returned parts).
 
@@ -38,25 +38,7 @@ The answer still comes early, as the payoff of the first concrete problem, withi
 - **Check questions.** Ask the reader to explain the mechanism or transfer it to an unseen condition. Avoid definitions alone and recall of seeded dates or labels. An expert may answer without the lesson; that does not invalidate the exercise. Evidence of learning needs newcomers, their prior knowledge, and their reasoning before and after reading.
 - **Test it alone.** Read the scene's steps back as a newcomer would: does each make the next feel inevitable, and could they answer the script's check questions?
 
-The script starts with an intent header, which Rayner reads: its `#` heading is the reader's question and the page's title, its labelled lines say the rest, and `## Check yourself` lists each question with its answer indented under it.
-
-```md
-# How few moves can carry a tower to another peg?
-
-- **Reader:** knows the rules, has never asked why the answer is seven.
-- **Answer:** the smaller tower moves twice and the largest disk once.
-- **Changed condition:** four disks: 15 moves, and disk 1's first move flips from C to B.
-- **Reader's own work:** predict the count; at the end, try to beat seven.
-- **Checked against:** a search of every arrangement of three, four and five disks, in `model.test.ts`.
-- **Leaves out:** more than three pegs.
-
-## Check yourself
-
-1. How few moves carry five disks?
-   31: the four-disk tower moves twice, and disk 5 once.
-```
-
-The header is the one home of the title, the answer (which `rayner check` requires some step to state), the check questions (which the player asks after the last step) and what the model is checked against (which the page shows under Sources); a scene that declares one of them too is refused. **Answer** and **Checked against** are required. An answer or check answer that comes from the model belongs in `answers.ts` beside the script too, as a function of the model (``export const checks = { 1: () => `…${solve(5).length}…` }``); `rayner check` fails when the script's text and the model's differ. Below the header the script is the author's own prose: why this example, what the reader should take away, what was tried and dropped. There is no word quota, and it does not have to read as the page reads. Every explainer in `scenes/explainers/` and `scenes/tutorial/` is written this way; `scenes/tutorial/hanoi` is the smallest complete example.
+The script starts with an intent header, which Rayner reads: the `#` question, the labelled lines and `## Check yourself`. [The reference's Scene section](../../docs/REFERENCE.md#scene) gives its rules (which lines are required, what each becomes, that a scene declaring them too is refused, and how `answers.ts` computes an answer from the model so `rayner check` fails when the two differ). [`scenes/tutorial/hanoi/script.md`](../../scenes/tutorial/hanoi/script.md) is the smallest complete script; the README prints it, and a test keeps that copy equal to the file. Below the header the script is the author's own prose: why this example, what the reader should take away, what was tried and dropped. There is no word quota, and it does not have to read as the page reads. Every explainer in `scenes/explainers/` and `scenes/tutorial/` is written this way.
 
 Before drawing, check the causal links: what observation needs explaining, what rule makes the result follow, and what changed condition would alter it? Explain a prerequisite or name it as an input. A chart built from a rule does not derive that rule; a trusted calculation does not explain its mechanism. Use a second viewpoint when the current one cannot show the relationship the prose asks the reader to infer. The script decides what the explainer says; the model and its tests decide whether it is true.
 
@@ -116,9 +98,9 @@ A good live step, the step where the machine last plays:
 
 ## Loop
 
-Commands are `rayner <command>`, from the `rayner-cli` package (install it beside `rayner`: `npm install --save-dev rayner rayner-cli`; scenes import only `rayner`), or `npm run rayner -- <command>` in a checkout; `rayner --help` prints the install lines for capture and PNG output.
+Commands are `rayner <command>`, from the `rayner-cli` package (install it beside `rayner`: `npm install --save-dev rayner rayner-cli`; scenes import only `rayner`), or `npm run rayner -- <command>` in a checkout; `rayner --help` prints the commands, the options and how to install Chromium for diagram capture.
 
-1. `rayner init <directory>` writes the tutorial's explainer: `script.md`, `scene.ts`, the model `model.ts` and its test `model.test.ts`; `rayner init --machine <directory>` writes a [machine](#which-way-to-step) explainer instead, with `scene.review.json`. Rewrite the script first: its `#` question, **Answer**, **Checked against** and `## Check yourself` become the page's title, answer, what the model is checked against, and check questions, and Rayner refuses a scene that declares them too. Keep one default-exported `Scene` subclass with static `meta` (sources, and `lang` if not English; the id is the folder's name) and, if a second scenario teaches something, static `settings`.
+1. `rayner init <directory>` writes the tutorial's explainer: `script.md`, `scene.ts`, the model `model.ts` and its test `model.test.ts`; `rayner init --machine <directory>` writes a [machine](#which-way-to-step) explainer instead, with `scene.review.json`. Rewrite the script first; its [intent header](../../docs/REFERENCE.md#scene) becomes the page's title, answer, check questions and what the model is checked against. Keep one default-exported `Scene` subclass with static `meta` (sources, and `lang` if not English; the id is the folder's name) and, if a second scenario teaches something, static `settings`.
 2. `rayner preview scene.ts --watch` while you work; `see` and `describe` give any step as text and JSON when you need to read it without a browser.
 3. `rayner check scene.ts` until it passes. It runs the folder's `model.test.ts` first and fails, naming the failing tests, when the model test does.
 4. `rayner review scene.ts --out public/<id>.html` when the scene settles. It checks every scenario, reviews the served page at phone and desktop widths, and keeps that exact page with its receipt. Look at its screenshots.
@@ -161,7 +143,7 @@ A state machine, statechart or graph is usually best as a Mermaid `stateDiagram-
 
 The scene asks the model; it never states an answer it did not get from one. This is the check that matters most, and the one no other tool gives you. These steps apply when you write or change a model; a change to layout, captions or publishing needs none of them.
 
-1. Put the model in its own module, with no drawing in it. Each explainer's folder holds its own: `scenes/explainers/<id>/model.ts`, with its picture module beside it; only formatting helpers several explainers share live in `scenes/explainers/lib/`. An explainer that reuses another's model imports its inputs too, never a copy of them, so the two cannot drift; and its notes claim no reuse the code does not do.
+1. Put the model in its own module, with no drawing in it. Each explainer's folder holds its own: `scenes/explainers/<id>/model.ts`, with its picture module beside it; only what several explainers share lives in `scenes/explainers/lib/`: formatting helpers (`format.ts`) and the property tests' shared settings (`pbt.ts`). An explainer that reuses another's model imports its inputs too, never a copy of them, so the two cannot drift; and its notes claim no reuse the code does not do.
 2. Check the model against its source: run the real program or library, or use its published test vectors, and pin the version you ran in the `meta.sources` links (`isdigit` links CPython at tag `v3.15.1`). If you cannot run the source, pin exactly what you relied on instead (the tagged source file, the RFC section or the published test vectors) and say in your report that you read it but did not run it. Never leave a placeholder where a pin belongs.
 3. At each step, record the model's values on `this.state` (`isdigit` sets `this.state.outcome = run.outcome` from the model's run; a step in `s.steps` records its `state`). What is shown that is not the model, such as which picture a phase shows, goes on `this.shown`.
 4. Add a test that runs every scenario and asserts each step's state equals the model. Keep the evidence in the explainer's folder: the model's own test in `model.test.ts` (which `rayner check` runs), oracles in `oracle/` and what they recorded in `fixtures/`, and name those files in backticks in the script's **Checked against** line, which `rayner check` requires to be there. In this repository, the step-state check is the folder's `fidelity.ts`, using `assertStepState(trace, step, { … })`, called from `test/explain-fidelity.test.ts`; scene and picture assertions go in `scene.test.ts`, and a picture built with `view` adds `assertViewFollowsState` there. Make the test fail first: break the model and watch it go red.
@@ -185,7 +167,7 @@ These are how the engine works, not advice; breaking one breaks the build or the
 - Finish every change before a step's last `play()` ends: the picture must not move during the caption hold.
 - Walks use real links; a missing link is a bug in the diagram or the model, never a reason to draw a shortcut.
 - Morphs with `ops` must reproduce the next diagram through Agentic Mermaid's mutation replay. Without `ops`, call it a visual transition.
-- A setting may change diagrams, captions, numbers and which steps exist; keep the palette fixed. A scene may have at most 64 scenarios.
+- A setting may change diagrams, captions, numbers and which steps exist; keep the palette fixed. A scene may have at most 64 scenarios, and its page must fit [the page budget](../../docs/REFERENCE.md#page).
 - Default lettering is embedded Inter and JetBrains Mono. Other scripts, replacement faces, real bold and italic, and maths need a `lettering` request in `static meta` and committed snapshots; unsupported or unrequested characters fail the build. See [Lettering on request](https://github.com/adewale/rayner/blob/main/docs/LETTERING.md) and REFERENCE, Maths.
 - Arabic or Hebrew text sets its own reading direction; `stage` and card `direction` choose spatial order; set a diagram's flow in its Mermaid source.
 

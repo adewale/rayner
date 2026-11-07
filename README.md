@@ -226,7 +226,7 @@ Scenes are ordinary TypeScript classes. Reader settings are finite choices, with
 - Diagram labels fit captured widths by default. Opt into [`lettering: 'natural'`](docs/LETTERING.md#diagram-measurements) to measure the requested face before layout. A diagram style does not implicitly select its font.
 - Player controls and generated picture descriptions are available in English and French. Other caption languages retain English controls and descriptions.
 - Phones use close-ups and a **Next view** tour. Review the opening and the whole tour so the caption’s subject remains visible.
-- Builds enforce 1.5 MiB raw HTML and 450 KiB gzip page budgets. Diagram snapshots expand through the browser’s native `DecompressionStream` API; the transcript remains readable without JavaScript. Split a scene or reduce its scenarios when it exceeds a budget.
+- Builds enforce 1.5 MiB raw HTML and 450 KiB gzip page budgets, and a scene has at most 64 scenarios ([the page](docs/REFERENCE.md#page)). Diagram snapshots expand through the browser’s native `DecompressionStream` API; the transcript remains readable without JavaScript.
 - The example models are small and cited. They have not had subject-expert review.
 
 ## Contributing
