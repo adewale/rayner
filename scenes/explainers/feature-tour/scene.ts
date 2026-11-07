@@ -112,14 +112,17 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     title: 'Morph edited code by its surviving lines',
     result: 'count += 1 edited to count += 2, the new line marked',
     code: [
-      'const block = await s.code([',
-      "  'let count = 0;', 'count += 1;'",
-      "], {at: 'top'});",
-      "await block.morph(['let count = 0;',",
-      "  'count += 2;'], {markAdded: true});",
+      'const block = view(this, (st) =>',
+      '  s.codePicture(st.lines, {at: AFTER,',
+      "   added: st.added, key: 'block'}),",
+      '  {place: false});',
+      'await s.enter(block);',
+      "this.state.lines = ['let count = 0;', 'count += 2;'];",
+      'this.state.added = [1];',
+      "await this.play(block.sync({match: 'key', staged: true}));",
     ],
-    recipe: "block.morph turns the panel into a new list of lines and keeps the lines both versions share in place; markAdded: true marks what the edit introduced.",
-    caption: "let count = 0 stays where it was, and count += 2 replaces the old increment and carries the mark. The mark labels the current line; it is not a history of earlier edits. The panel on the left is a separate drawing of the version before the morph.",
+    recipe: "A view draws the lines in this.state as a code panel. Syncing after an edit keeps each line both versions share, paired by its text; added lists the lines the edit introduced, which carry the mark.",
+    caption: "let count = 0 stays where it was, and count += 2 replaces the old increment and carries the mark. The mark labels the current line; it is not a history of earlier edits. The panel on the left is a separate drawing of the version before the edit.",
     point: 'Only count += 2 carries the added mark; let count = 0 kept its place.',
   },
   animation: {
@@ -507,7 +510,7 @@ const PREDICT: Record<Feature, string> = {
   settings: 'Predict: which scenario is this page showing, and how many did the build make?',
   diagram: 'Predict: once the walk ends, what stays on the flowchart?',
   code: 'Predict: once the focus ends, is any line still marked?',
-  'code-diff': 'Predict: after the morph, which line carries the added mark?',
+  'code-diff': 'Predict: after the edit, which line carries the added mark?',
   animation: 'Predict: opened from a link, do these lines leave the circle, the square or both?',
   matching: 'Predict: from cache miss to cache hit, which letters move rather than fade?',
   restore: 'Predict: opened from a link, would these lines show that the circle ever moved?',
@@ -712,8 +715,18 @@ export default class FeatureTour extends Scene {
     } else if (feature === 'code-diff') {
       await panels([], 'count += 1');
       await s.code(['let count = 0;', 'count += 1;'], { at: BEFORE, fontSize: 0.36 });
-      const block = await s.code(['let count = 0;', 'count += 1;'], { at: AFTER, fontSize: 0.5 });
-      await block.morph(['let count = 0;', 'count += 2;'], { markAdded: true });
+      // The code is the model here (this.state); the panel is a view of it, and marks what the edit added.
+      this.state.lines = ['let count = 0;', 'count += 1;'];
+      this.state.added = [];
+      const block = view(
+        this,
+        (st) => s.codePicture(st.lines as string[], { at: AFTER, fontSize: 0.5, added: st.added as number[], key: 'block' }),
+        { place: false },
+      );
+      await s.enter(block, { runTime: 0.4 });
+      this.state.lines = ['let count = 0;', 'count += 2;'];
+      this.state.added = [1];
+      await this.play(block.sync({ match: 'key', staged: true }));
     } else if (feature === 'animation') {
       await panels(
         [new Circle({ radius: 0.8, stroke: accent, strokeWidth: 0.06 }).moveTo([bx, by])],

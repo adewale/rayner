@@ -445,8 +445,9 @@ export interface CodeOptions {
   focusAs?: string;
   /**
    * Key the panel and its parts under this name, for a panel drawn in a view: `view.sync({ match:
-   * 'key', staged: true })` then moves the focus bar as `focus` did, keeps the lines that stay, and
-   * fades a changed line out as its replacement fades in. A line already keyed keeps its key.
+   * 'key', staged: true })` then moves the focus bar, keeps each line that stays (paired by its
+   * text, wherever it moves), fades a changed line out as its replacement fades in, and brings in
+   * the `added` bars. A line already keyed keeps its key.
    */
   key?: string;
 }
@@ -551,8 +552,16 @@ export class CodeBlock extends Group {
       this.panel.key = `${k}:panel`;
       this.bar.key = `${k}:bar`;
       this.code.key ??= `${k}:code`;
-      this.code.lines.forEach((line, i) => (line.key ??= `${k}:line:${i}:${line.text}`));
-      this.marks.forEach((m) => (m.mob.key ??= `${k}:mark:${m.line}:${m.kind}`));
+      // A line is keyed by its text and which occurrence of that text it is, so a line that moves
+      // (one inserted above it) pairs with itself, and its added or removed bar moves with it.
+      const seen = new Map<string, number>();
+      const lineKeys = this.code.lines.map((line) => {
+        const n = (seen.get(line.text) ?? 0) + 1;
+        seen.set(line.text, n);
+        return `${line.text}#${n}`;
+      });
+      this.code.lines.forEach((line, i) => (line.key ??= `${k}:line:${lineKeys[i]}`));
+      this.marks.forEach((m) => (m.mob.key ??= `${k}:mark:${lineKeys[m.line]}:${m.kind}`));
     }
   }
 
