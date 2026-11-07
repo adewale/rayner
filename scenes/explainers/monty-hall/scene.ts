@@ -4,7 +4,7 @@ import type { ScheduledAnimation, Mobject, MatchKey } from '../../../src/index.t
 import { stage, settingsOf, Machine, view } from '../../../explain/index.ts';
 import { monty, montyExample, threeDoorWorlds, threeDoorCells, oddsAfter, roundStart, roundNext, roundDoor, roundResult, ROUND_EVENTS } from './model.ts';
 import type { Host, Opener, Round, RoundEvent } from './model.ts';
-import { label, tile, stat, keyed } from '../../../explain/drawing.ts';
+import { label, tile, stat, keyed, emphasised } from '../../../explain/drawing.ts';
 import { door, X0, X1, F, SLOT, NAME, HEADS, ALONE, left, strip, heads, type Cell } from './picture.ts';
 import { percent } from '../lib/format.ts';
 
@@ -200,23 +200,22 @@ export default class MontyHall extends Scene {
     // Which picture is shown (`shown.phase`) is not part of the model: the round, the host and the odds are.
     const start = roundStart(host);
     const roundOf = (st: object) => ('pick' in st ? (st as unknown as Round) : start);
-    const main = view(this, (st, sh) => keyed(picture((sh as { phase?: Phase }).phase ?? 'choice', roundOf(st)), 'monty-picture'), {
-      place: false,
-    });
+    // What the round marks is emphasis the phone's close-ups visit first and review holds to the
+    // caption: your door, and the door the host opened, while the round plays (the prediction asks
+    // about the same doors; its caption is the question, so it marks nothing new).
+    const main = view(this, (st, sh) => {
+      const phase = (sh as { phase?: Phase }).phase ?? 'choice', r = roundOf(st);
+      const drawn = keyed(picture(phase, r), 'monty-picture');
+      if (phase === 'choice') {
+        const yours = roundDoor(r), mine = yours === null ? undefined : drawn.find(`door-${yours}`);
+        if (mine) emphasised(mine, `your door: ${door(yours!)}`);
+        const opened = r.opened === null ? undefined : drawn.find(`door-${r.opened}`);
+        if (opened) emphasised(opened, `opened: ${door(r.opened!)}, ${r.shows}`);
+      }
+      return drawn;
+    }, { place: false });
     const shown = (next: Phase) => { this.shown = { phase: next }; };
     const describe = { describe: () => words.join('. ') };
-    // What the round marks, as emphasis the phone's close-ups visit first and
-    // review holds to the caption: your door, and the door the host opened, while the round plays (the
-    // prediction asks about the same doors; its caption is the question, so it marks nothing new). Read from state.
-    s.emphasise(() => {
-      const phase = (this.shown as { phase?: Phase }).phase;
-      if (phase !== 'choice') return [];
-      const r = roundOf(this.state), yours = roundDoor(r);
-      return [
-        ...(yours === null ? [] : [[`door-${yours}`, `your door: ${door(yours)}`] as const]),
-        ...(r.opened === null ? [] : [[`door-${r.opened}`, `opened: ${door(r.opened)}, ${r.shows}`] as const]),
-      ];
-    });
     const fresh = async (next: Phase) => {
       await s.clear({ runTime: 0.3 });
       shown(next);
