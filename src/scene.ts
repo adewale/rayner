@@ -158,7 +158,7 @@ export class Scene<S extends object = SceneState> {
   /**
    * The camera: which box of the scene is on screen (see frame.ts). Held here,
    * not in `mobjects`: it is never drawn, and every walk over `mobjects`
-   * (renderers, verifiers, clear(), scenes' own bookkeeping) stays camera-free.
+   * (renderers, verifiers, removeAll(), scenes' own bookkeeping) stays camera-free.
    * play() animates it like any mobject; beginAnimations() just never adds it.
    */
   frame: Frame;
@@ -459,7 +459,8 @@ export class Scene<S extends object = SceneState> {
     this.mobjects = admitRoots(this.mobjects, mobs, true);
     return this;
   }
-  clear(): this { this.mobjects = []; return this; }
+  /** @internal Empty the drawn list at once, unanimated: for tools and tests (a stage's `s.clear()` fades everything out). */
+  removeAll(): this { this.mobjects = []; return this; }
 
   // ---- frame loop --------------------------------------------------------
 

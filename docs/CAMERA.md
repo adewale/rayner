@@ -18,7 +18,7 @@ units. That has three consequences:
   whether the camera is home or zoomed in.
 
 It lives on the scene, not in `scene.mobjects`, so walks over the drawn list (renderers,
-verifiers, `clear()`, a scene's own bookkeeping) never meet it, although `play()` animates
+verifiers, a scene's own bookkeeping) never meet it, although `play()` animates
 it like anything else.
 
 ## Moving it
