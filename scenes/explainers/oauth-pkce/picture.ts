@@ -1,7 +1,7 @@
 import { Group, Rectangle, Text, Arrow, Line } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import type { stage } from '../../../explain/index.ts';
-import { keyedParts } from '../../../explain/drawing.ts';
+import { keyedParts, emphasised } from '../../../explain/drawing.ts';
 import { listed } from '../lib/format.ts';
 import type { Message, LaneMessage, SignIn, SignInEvent } from './model.ts';
 
@@ -116,6 +116,11 @@ export function signInPicture(st: SignIn, s: ReturnType<typeof stage>): Group {
     pieces.slice(1).forEach((p, i) => p.nextTo(pieces[i]!, [1, 0], 0.12));
     const label = new Group(new Group(...pieces).moveTo([(X[from] + X[to]) / 2, y + 0.32]));
     if (words.why) label.add(new Text(words.why, { fontSize: 0.26, color: s.bad }).moveTo([(X[from] + X[to]) / 2, y - 0.32]));
+    // Each server answer is emphasis the phone's close-ups visit first and review holds to the caption.
+    if (id === 'client-answer' || id === 'app-answer') {
+      const who = id === 'app-answer' ? 'app' : 'client';
+      emphasised(label, `${who === 'app' ? 'malicious app' : 'client'}: ${st[who].answer}`);
+    }
     add(label, `sign-in:label:${id}`);
   }
   return group();
