@@ -13,6 +13,7 @@ import { pathToFileURL } from 'node:url';
 import { ROOT } from '../lib/explain-project.ts';
 import { entryPoints, packageImports } from '../lib/entry-points.ts';
 import { integrity as integrityOf } from '../lib/hash.ts';
+import { typeCheckAuthored } from './lib/authored-types.ts';
 
 /** Poll `predicate` every 100 ms for up to 30 s, failing with `message` after; `meanwhile` asserts what must hold while it waits. */
 async function waitUntil(predicate: () => boolean, message: () => string, meanwhile: () => void = () => {}): Promise<void> {
@@ -73,6 +74,15 @@ try {
   assert.equal(library.bin, undefined, 'the rayner command ships in rayner-cli');
   for (const entry of entryPoints(ROOT).keys())
     await run(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(entry)})`], { cwd: alone });
+  // Nothing else: the compiled modules behind the entry points are not importable, by an export
+  // pattern or by the private specifier rayner-cli's own resolve hook answers (tools/installed.ts).
+  const unreachable = async (cwd: string) => {
+    for (const [specifier, code] of [['rayner/internal/src/scene.js', 'ERR_PACKAGE_PATH_NOT_EXPORTED'], ['rayner/dist/src/scene.js', 'ERR_PACKAGE_PATH_NOT_EXPORTED'], ['#rayner/src/scene.js', 'ERR_PACKAGE_IMPORT_NOT_DEFINED']] as const) {
+      const tried = await run(process.execPath, ['--input-type=module', '-e', `try{await import(${JSON.stringify(specifier)});console.log('imported')}catch(e){console.log(e.code)}`], { cwd });
+      assert.equal(tried.stdout.trim(), code, `an outside project imports ${specifier}`);
+    }
+  };
+  await unreachable(alone);
   // Capture and the command stay out of the library: no tools, player, Python, capture code or typesetter.
   for (const file of ['tools', 'app', 'dist/tools', 'integrations/agentic-mermaid/build', 'dist/integrations/agentic-mermaid/build', 'vendor/glyph-math.js', 'dist/vendor/glyph-math.js', 'vendor/lettering'])
     assert.ok(!existsSync(join(alone, 'node_modules/rayner', file)), `rayner ships ${file}`);
@@ -118,9 +128,15 @@ try {
     const names = await run(process.execPath, ['--input-type=module', '-e', `const k = await import('${entry}'); console.log(Object.keys(k).sort().join(','))`], { cwd: folder });
     assert.equal(names.stdout.trim(), Object.keys(await import(pathToFileURL(join(ROOT, source)).href)).sort().join(','), entry);
   }
+  // With the command installed beside it too, which reaches the compiled modules through its own hook.
+  await unreachable(folder);
   await copyFile(join(ROOT, 'test/consumer/consumer.ts'), join(folder, 'consumer.ts'));
   await copyFile(join(ROOT, 'test/consumer/tsconfig.json'), join(folder, 'tsconfig.json'));
   await run(join(folder, 'node_modules/.bin/tsc'), ['-p', 'tsconfig.json'], { cwd: folder });
+  // Every explainer and recipe, its engine imports rewritten to the entry points, type-checks against
+  // the packed declarations, where @internal members are left out.
+  const authored = await typeCheckAuthored(ROOT, folder, join(folder, 'node_modules/.bin/tsc'));
+  assert.ok(authored.scenes > 100 && authored.recipes >= 5, `type-checked only ${authored.scenes} scene files and ${authored.recipes} recipes`);
 
   await run(process.execPath, [cli, 'init', 'first'], { cwd: folder });
   // The starter is the tutorial's LRU/MRU explainer. Its model test runs as the tutorial says,
@@ -393,7 +409,7 @@ try {
   assert.match(walked, /^After A B C D, request: C D C D · rest: .+\n  changed: .*\bHits\b/m);
 
   console.log(
-    'Package gate passed: rayner alone with no dependencies; both tested archives installed with diagram and PNG authoring, installed TypeScript consumer, executable JS bin, external native author, settings, checks, see, build, optional score audio, describeExplainer and its REFERENCE example, notices, lettering on request, one compiled engine' +
+    'Package gate passed: rayner alone with no dependencies, its entry points the only modules it exports; both tested archives installed with diagram and PNG authoring, installed TypeScript consumer, every explainer and recipe type-checked against the packed declarations, executable JS bin, external native author, settings, checks, see, build, optional score audio, describeExplainer and its REFERENCE example, notices, lettering on request, one compiled engine' +
       (process.env.EXPLAIN_LETTERING === '1' ? ', installed Arabic and maths capture' : '') +
       (process.env.EXPLAIN_BROWSER ? ', installed diagram capture' : '') +
       '.',
