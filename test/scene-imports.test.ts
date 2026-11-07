@@ -16,14 +16,11 @@ import ts from 'typescript';
 
 const ROOT = resolve(import.meta.dirname, '..');
 
-const INTERNAL = './internal/*';
 /** The entry points, from package.json "exports": each subpath's types file, as the source it is built from. */
 function entryPoints(): Map<string, string> {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { exports: Record<string, { types: string }> };
   const out = new Map<string, string>();
   for (const [subpath, target] of Object.entries(pkg.exports)) {
-    // rayner-cli's door into the compiled modules, not an entry point (docs/ENGINE.md, "Public names").
-    if (subpath === INTERNAL) continue;
     const source = target.types.replace(/^\.\/dist\//, '').replace(/\.d\.ts$/, '.ts');
     out.set(source, subpath === '.' ? 'rayner' : `rayner/${subpath.slice(2)}`);
   }
@@ -94,8 +91,7 @@ test('the entry points are the documented package exports', () => {
     [...ENTRY].sort(),
     [
       ['explain/drawing.ts', 'rayner/drawing'], ['explain/geo.ts', 'rayner/geo'], ['explain/index.ts', 'rayner/explain'], ['explain/score.ts', 'rayner/audio'],
-      ['explain/testing.ts', 'rayner/testing'], ['src/extras.ts', 'rayner/extras'], ['src/index.ts', 'rayner'], ['src/lettering.ts', 'rayner/lettering'],
-      ['src/output.ts', 'rayner/output'],
+      ['explain/testing.ts', 'rayner/testing'], ['src/extras.ts', 'rayner/extras'], ['src/index.ts', 'rayner'], ['src/output.ts', 'rayner/output'],
     ],
   );
 });
@@ -130,7 +126,7 @@ test('the rule rejects an internal module, a package name and a dynamic import, 
     "import { Scene } from '../../../src/index.ts';",
     "import { stage, Card } from '../../../explain/index.ts';",
     "import { table } from '../../../explain/drawing.ts';",
-    "import type { LetteringRequest } from '../../../src/lettering.ts';",
+    "import type { LetteringRequest } from '../../../src/index.ts';",
     "import { renderAt } from '../../../src/output.ts';",
     "import { model } from '../lib/model.ts';",
     "import { readFile } from 'node:fs/promises';",

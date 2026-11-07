@@ -1,5 +1,6 @@
 // Lettering on request: scripts an explainer asks for with `static meta.lettering`,
-// beyond what the embedded faces in font-data.ts hold.
+// beyond what the embedded faces in font-data.ts hold. Internal: a scene names only the
+// LetteringRequest type, which `rayner` exports; the build and the page call this module by path.
 //
 //   static meta = { id: 'alphabet', title: 'Αλφάβητο', lettering: { scripts: ['Grek'] } satisfies LetteringRequest };
 //
@@ -23,8 +24,6 @@ export interface SubsetLetteringRequest {
   /** Scripts whose letters the explainer draws. They need no shaping beyond what `glyph` does for Latin. */
   scripts: readonly LetteringScript[];
 }
-/** The complete public request; plain Latin/Greek/Cyrillic still use the subset workflow. */
-export type { LetteringRequest } from './lettering-outlines.ts';
 /** The faces a page carries for its request: one WOFF2 subset, base64, per family that draws requested letters. */
 export type LetteringFaces = Readonly<Partial<Record<FontName, string>>>;
 
@@ -43,7 +42,7 @@ let current = '';
  * family each came from, so the build learns which face drew which letters.
  * A string with an undrawable character is also given to `plain`, the embedded
  * shaper, so the engine's own takeMissingGlyphs fails on it too: it then names
- * every character the embedded faces lack, and takeMissingGlyphs here names
+ * every character the embedded faces lack, and takeLetteringMissing names
  * only the ones the requested faces lack as well.
  */
 function shaper(chain: readonly Font[], key: FontName, requested: ReadonlyMap<Font, FontName>, plain: Shaper): Shaper {
@@ -109,7 +108,7 @@ export async function useLettering(faces: LetteringFaces | null): Promise<void> 
  * engine's takeMissingGlyphs reports it, but naming for a lettered string only
  * the characters no face, requested or embedded, has; clears both records.
  */
-export function takeMissingGlyphs(): Map<string, string> {
+export function takeLetteringMissing(): Map<string, string> {
   const out = takeEmbeddedMissing();
   for (const [text, chars] of missing) out.set(text, chars);
   missing.clear();

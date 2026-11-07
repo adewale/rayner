@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { takeMissingGlyphs } from '../src/lettering.ts';
+import { takeLetteringMissing } from '../src/lettering.ts';
 import { collectProject, ROOT } from '../tools/lib/explain-project.ts';
 import { contactSheet } from '../tools/lib/explain-shots.ts';
 import { validateLetteringSnapshot } from '../tools/lib/lettering-validation.ts';
@@ -56,10 +56,10 @@ for (const explicit of [false, true]) test(`numbered contact-sheet titles captur
     const p = await collectProject(folder, { captureLettering: true, write: false });
     const key = JSON.stringify(['sans', '1. السَّلَامُ عَلَيْكُمْ', false]);
     assert.ok(p.outlineLettering?.runs[key]);
-    takeMissingGlyphs();
+    takeLetteringMissing();
     const output = join(folder, 'sheet.png');
     await contactSheet(p, output);
-    assert.deepEqual([...takeMissingGlyphs()], [], 'the numbered title must not silently lose glyphs');
+    assert.deepEqual([...takeLetteringMissing()], [], 'the numbered title must not silently lose glyphs');
     assert.equal((await readFile(output)).subarray(1, 4).toString(), 'PNG');
   } finally { await rm(folder, { recursive: true, force: true }); }
 });

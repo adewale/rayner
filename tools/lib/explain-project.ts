@@ -19,7 +19,7 @@ import { paperOf, paletteOf } from '../../explain/stage.ts';
 import { checkWatch } from '../../explain/trace.ts';
 import { checkScriptMeta } from '../../explain/script.ts';
 import { checkClaimsMeta } from '../../explain/claims.ts';
-import { takeMissingGlyphs } from '../../src/lettering.ts';
+import { takeLetteringMissing } from '../../src/lettering.ts';
 import type { Machine } from '../../explain/index.ts';
 import type { Trace } from '../../explain/testing.ts';
 
@@ -346,7 +346,7 @@ export async function collectProject(
             }).run();
           }
           edits = counted;
-          takeMissingGlyphs();
+          takeLetteringMissing();
         },
         { write },
       );
@@ -360,12 +360,12 @@ export async function collectProject(
       // Text the embedded fonts cannot draw shows as nothing: name it by scenario and step, then fail.
       let step = '(before the first step)';
       const blanks = () => {
-        for (const [text, chars] of takeMissingGlyphs())
+        for (const [text, chars] of takeLetteringMissing())
           undrawable.push(
             `${scenarioName(Source, values) || 'The scene'}, step ${step}: "${text}" has ${[...chars].map((c) => `${c} (U+${c.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')})`).join(', ')}`,
           );
       };
-      takeMissingGlyphs();
+      takeLetteringMissing();
       collect.onStep((s) => {
         blanks();
         step = s.name;

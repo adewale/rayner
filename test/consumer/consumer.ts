@@ -39,7 +39,7 @@ const middleC: ScoreNote = {midi: 60, at: 0, duration: 1};
 const scoreClip: AudioClip = {id: 'a', label: 'Middle C', bpm: 96, beats: 4, notes: [middleC]};
 const stepScore: StepAudio = {clips: [scoreClip]};
 void stepScore;
-import type { LetteringRequest } from 'rayner/lettering';
+import type { LetteringRequest } from 'rayner';
 
 // Both public entrypoints accept the complete request, including outline lettering.
 const requestedLettering: LetteringRequest = { scripts: ['Arab'], styles: ['bold'], math: true };

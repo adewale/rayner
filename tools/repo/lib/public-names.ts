@@ -3,13 +3,15 @@
 //
 //   used      an explainer, a tutorial scene or a recipe imports it and uses it, found from their
 //             imports. Nothing is written down.
-//   tooling   it lives in rayner/output, rayner/testing or rayner/lettering, for an author's tests and
-//             tools, a host page, or the build and the page (a scene imports only lettering's types).
+//   tooling   it lives in rayner/output or rayner/testing, and test/public-names.json says who outside
+//             a scene uses it and for what (`tooling`): an author's tests and tools, or a host page.
+//             Every name in those two entry points needs this written reason, and no other name may
+//             have one: living in a tooling entry point is not by itself a reason to be public.
 //   taught    a guide section teaches it and a test runs it. test/public-names.json names both, and
-//             both must exist and mention the name: the one reason that has to be written down.
+//             both must exist and mention the name.
 //
-// So the ledger lists only names that say something no import can: a `guide` and `test`, or a `check`,
-// what `rayner check` verifies about the name, led by the check's name in the
+// So the ledger lists only names that say something no import can: a `tooling` reason, a `guide` and
+// `test`, or a `check`, what `rayner check` verifies about the name, led by the check's name in the
 // reference's Checks table ("Views: ..."). The same file holds the rows of the reference's engine
 // features table and the skill's examples table, which are rendered from it, with their "used by"
 // computed from the same usage, so neither can go stale (test/public-names.test.ts).
@@ -23,8 +25,11 @@ import { ROOT } from '../../lib/roots.ts';
 export { ROOT };
 export const LEDGER = 'test/public-names.json';
 
-/** What the ledger says about a name: where it is taught (a guide section and a test), and what check verifies it. */
-export interface NameEntry { guide?: string; test?: string; check?: string }
+/**
+ * What the ledger says about a name: who uses it as tooling and for what (only in a tooling entry
+ * point), where it is taught (a guide section and a test), and what check verifies it.
+ */
+export interface NameEntry { tooling?: string; guide?: string; test?: string; check?: string }
 
 /** One thing a feature row lists: an exported name, or a member or option found by a pattern in the scene's code. */
 export interface FeatureItem { name?: string; label?: string; pattern?: string }
@@ -46,8 +51,8 @@ export interface Ledger {
   examples: ExampleRow[];
 }
 
-/** The tooling entry points: a name in one of them is public as author tooling, and only there. */
-export const TOOLING = new Set(['rayner/output', 'rayner/testing', 'rayner/lettering']);
+/** The tooling entry points: each name in one of them is public as tooling only with a written reason, and only there. */
+export const TOOLING = new Set(['rayner/output', 'rayner/testing']);
 
 export function readLedger(root = ROOT): Ledger {
   return JSON.parse(readFileSync(join(root, LEDGER), 'utf8')) as Ledger;
@@ -220,9 +225,9 @@ export function checkNames(root = ROOT): Set<string> {
 
 const word = (name: string) => new RegExp(`(?<![\\w$])${name.replace(/[$]/g, '\\$')}(?![\\w$])`);
 
-/** Why `name` in `entry` is public: tooling, used (by whom), taught, or nothing. */
+/** Why `name` in `entry` is public: tooling (with its written reason), used (by whom), taught, or nothing. */
 export function reasonOf(ledger: Ledger, u: Usage, entry: string, name: string): string {
-  if (TOOLING.has(entry)) return 'tooling';
+  if (TOOLING.has(entry)) return ledger.names[entry]?.[name]?.tooling?.trim() ? 'tooling' : 'NONE';
   if (usersOf(u, name, entry).length) return 'used';
   return ledger.names[entry]?.[name]?.guide ? 'taught' : 'NONE';
 }
@@ -235,14 +240,20 @@ export async function problems(ledger: Ledger, root = ROOT, u: Usage = usage(roo
   for (const [entry, names] of exported)
     for (const name of names)
       if (reasonOf(ledger, u, entry, name) === 'NONE')
-        out.push(`${name} (${entry}) has no reason to be public: no explainer, tutorial scene or recipe uses it, and ${LEDGER} names no guide and test that teach it`);
+        out.push(TOOLING.has(entry)
+          ? `${name} (${entry}) has no reason to be public: ${entry} is tooling, and ${LEDGER} gives it no tooling reason (who uses it outside a scene, and for what)`
+          : `${name} (${entry}) has no reason to be public: no explainer, tutorial scene or recipe uses it, and ${LEDGER} names no guide and test that teach it`);
   for (const [entry, names] of Object.entries(ledger.names)) {
     if (!exported.has(entry)) { out.push(`${LEDGER} lists ${entry}, which is not an entry point`); continue; }
     for (const [name, r] of Object.entries(names)) {
       const at = `${name} (${entry})`;
       if (!exported.get(entry)!.includes(name)) { out.push(`${at} is in ${LEDGER} but ${entry} does not export it`); continue; }
-      // Who uses a name is computed, never written down: an entry says where it is taught and what checks it.
-      for (const key of Object.keys(r)) if (!['guide', 'test', 'check'].includes(key)) out.push(`${at}: ${key} is not part of a ledger entry (guide, test, check)`);
+      // Who uses a name is computed, never written down: an entry says why tooling is public, where it is taught and what checks it.
+      for (const key of Object.keys(r)) if (!['tooling', 'guide', 'test', 'check'].includes(key)) out.push(`${at}: ${key} is not part of a ledger entry (tooling, guide, test, check)`);
+      if (r.tooling !== undefined && !TOOLING.has(entry))
+        out.push(`${at}: only a name in ${[...TOOLING].join(' or ')} is tooling; a name in ${entry} is used by a scene or taught`);
+      else if (r.tooling !== undefined && r.tooling.trim().split(/\s+/).length < 4)
+        out.push(`${at}: its tooling reason must say who uses it outside a scene, and for what`);
       if ((r.guide === undefined) !== (r.test === undefined)) out.push(`${at}: a name is taught by a guide section and a test, both`);
       if (r.guide !== undefined && r.test !== undefined) {
         const [doc, anchor] = r.guide.split('#') as [string, string | undefined];
