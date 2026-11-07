@@ -1,4 +1,4 @@
-import { Scene, ItalicText, Group } from '../../../src/index.ts';
+import { Scene, ItalicText } from '../../../src/index.ts';
 import { stage, settingsOf, view } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
 import { SAMPLE, GAP, drawLayout, drawAdvance, drawRulers, drawCuts } from './picture.ts';
@@ -147,13 +147,25 @@ export default class FontMetrics extends Scene {
     });
     await s.clear();
     const d = await s.show(widths === 'natural' ? { source: DIAGRAM, lettering: 'natural' } : { source: DIAGRAM });
-    // Each word's stretch, from the width the captured layout recorded for it, goes into the state
-    // first, and the notes say what the state holds. A note is placed by the diagram itself, so it is
-    // added here rather than drawn by a view.
+    // Each word's stretch, from the width the captured layout recorded for it, goes into the state,
+    // and the notes say what the state holds: the diagram is shown by a view that draws a note under
+    // each word from the stretch the state records (none until it is recorded).
     const WORDS = [
       ['A', 'Ink'],
       ['B', 'Paper'],
     ] as const;
+    const dv = s.diagramView(d, (st) => {
+      const stretch = (st.stretch ?? {}) as Record<string, number>;
+      return {
+        notes: WORDS.filter(([, text]) => text in stretch).map(([id, text]) => ({
+          id,
+          text: `stretched ×${stretch[text]!.toFixed(3)}`,
+          side: 'below' as const,
+          color: s.emphasis,
+          size: 0.66,
+        })),
+      };
+    });
     this.state.stretch = Object.fromEntries(
       WORDS.map(([, text]) => {
         const run = d.snapshot.parts.flatMap((p) => p.shapes).find((sh) => sh.textRun?.text === text)!.textRun!;
@@ -161,10 +173,8 @@ export default class FontMetrics extends Scene {
         return [text, (run.width ?? natural) / natural];
       }),
     );
-    const stretch = this.state.stretch as Record<string, number>,
-      annotations: Group[] = [];
-    for (const [id, text] of WORDS)
-      annotations.push(await d.note(id, `stretched ×${stretch[text]!.toFixed(3)}`, { side: 'below', color: s.emphasis, size: 0.66 }));
-    s.opening(d.get('A'), d.get('B'), d.get('edge:A->B#0'), ...annotations);
+    await this.play(dv.sync({ match: 'key', staged: true, runTime: 0.35 }));
+    const subjects = new Set(['A', 'B', 'edge:A->B#0', 'note:A', 'note:B']);
+    s.opening(...dv.current.family().filter((m) => subjects.has(m.key ?? '')));
   }
 }
