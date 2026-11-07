@@ -229,10 +229,11 @@ class Pulse extends Animation {
 
 type Door = { door: 'open' | 'closed' };
 type DoorEvent = 'open' | 'close';
-const doorNext = (state: Door, event: DoorEvent): Door | Refusal =>
-  event === 'open' ? (state.door === 'open' ? refuse('the door is open already') : { door: 'open' }) : state.door === 'closed' ? refuse('the door is closed already') : { door: 'closed' };
+const doorNext = <S extends Door>(state: S, event: DoorEvent): S | Refusal =>
+  event === 'open' ? (state.door === 'open' ? refuse('the door is open already') : { ...state, door: 'open' }) : state.door === 'closed' ? refuse('the door is closed already') : { ...state, door: 'closed' };
+type CollectionModel = Door & { phase: string; count: number };
 
-export class Collection extends Scene<{ door: 'open' | 'closed'; phase: string; count: number }> {
+export class Collection extends Scene<CollectionModel> {
   static meta = { id: 'collection', title: 'What the collection uses', answer: 'Every part of it.' };
   static settings = [{ id: 'case', label: 'Case', default: 'a', options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }] }];
   override state = { door: 'open' as 'open' | 'closed', phase: 'start', count: 0 };
@@ -280,9 +281,9 @@ export class Collection extends Scene<{ door: 'open' | 'closed'; phase: string; 
 
     await this.step('door', { title: 'A machine', caption: 'Open and close the door.' });
     const door = view(this, (st) => keyed(new Text(st.door === 'open' ? 'Open' : 'Closed', { color: s.palette.ink }), 'door'));
-    const machine = new Machine<Door, DoorEvent>(this, {
-      start: { door: 'open' }, events: ['open', 'close'], next: doorNext, views: [door],
-      transition: { close: (t: Transition<Door, DoorEvent>) => { const c: Choreography = t.choreograph(door); return c.morph('door', { rateFunc: rushFrom }); } },
+    const machine = new Machine<CollectionModel, DoorEvent>(this, {
+      start: { door: 'open', phase: 'start', count: 0 }, events: ['open', 'close'], next: doorNext, views: [door],
+      transition: { close: (t: Transition<CollectionModel, DoorEvent>) => { const c: Choreography = t.choreograph(door); return c.morph('door', { rateFunc: rushFrom }); } },
     });
     await s.enter(door);
     await this.play(machine.send('close'));
