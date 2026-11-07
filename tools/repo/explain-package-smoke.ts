@@ -13,6 +13,16 @@ import { pathToFileURL } from 'node:url';
 import { ROOT } from '../lib/explain-project.ts';
 import { entryPoints, packageImports } from '../lib/entry-points.ts';
 import { integrity as integrityOf } from '../lib/hash.ts';
+
+/** Poll `predicate` every 100 ms for up to 30 s, failing with `message` after; `meanwhile` asserts what must hold while it waits. */
+async function waitUntil(predicate: () => boolean, message: () => string, meanwhile: () => void = () => {}): Promise<void> {
+  const until = Date.now() + 30_000;
+  while (!predicate()) {
+    meanwhile();
+    assert.ok(Date.now() < until, message());
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+}
 const run = promisify(execFile),
   folder = await mkdtemp(join(tmpdir(), 'rayner-package-'));
 /** The two packages, in install order: the library, then the command that depends on it. */
@@ -166,11 +176,7 @@ try {
       const source = join(folder, 'first/scene.ts');
       await writeFile(source, (await readFile(source, 'utf8')).replace('so all four repeats miss.', 'so every repeat misses.'));
       // Wait for the watch rebuild before reload; this also covers macOS fs.watch.
-      const deadline = Date.now() + 30_000;
-      while (!log.includes('Rebuilt')) {
-        assert.ok(Date.now() < deadline, `Installed watch rebuild timed out: ${log}`);
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
+      await waitUntil(() => log.includes('Rebuilt'), () => `Installed watch rebuild timed out: ${log}`);
       await page.reload();
       await page.waitForSelector('[data-ready=true]');
       assert.match(await page.locator('.caption').innerText(), /every repeat misses/);
@@ -325,15 +331,10 @@ try {
       let log = '';
       preview.stdout.on('data', data => { log += String(data); });
       preview.stderr.on('data', data => { log += String(data); });
-      const waitFor = async (predicate: () => boolean) => {
-        const until = Date.now() + 30_000;
-        while (!predicate()) {
-          assert.equal(preview.exitCode, null, log);
-          assert.ok(!log.includes('still serving the last good build'), log);
-          assert.ok(Date.now() < until, log);
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-      };
+      const waitFor = (predicate: () => boolean) => waitUntil(predicate, () => log, () => {
+        assert.equal(preview.exitCode, null, log);
+        assert.ok(!log.includes('still serving the last good build'), log);
+      });
       let browser: Awaited<ReturnType<typeof import('../lib/browser.ts').launch>> | undefined;
       try {
         await waitFor(() => /Preview http:\/\/127\.0\.0\.1:\d+/.test(log));
