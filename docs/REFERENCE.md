@@ -315,7 +315,7 @@ Stage coordinates are 16 × 9 with the origin at the centre and y up. The headin
 | `top` | `[-7.55, -0.35, 7.55, 3.25]` |
 | `bottom` | `[-7.55, -4.25, 7.55, -0.65]` |
 
-`regionBox(region, { left, right, top, bottom })` returns a copy with those edges moved: `regionBox('top', { bottom: 1 })` is a shorter top, `regionBox('full', { left: -2.75 })` a column on the right. `REGIONS` holds the boxes.
+`regionBox(region)` returns a fresh copy of a region's box, and `regionBox(region, { left, right, top, bottom })` one with those edges moved: `regionBox('top', { bottom: 1 })` is a shorter top, `regionBox('full', { left: -2.75 })` a column on the right.
 
 Logical aliases work in `s.card` and `s.code` placement, `s.show`'s box and `s.carry`'s destination. The exported `StageRegion` type includes them. `regionBox`, direct panel constructors and physical names such as `left`, `right`, `main` and `side` keep fixed coordinates. Numeric points and boxes also stay fixed. A card's own direction override changes its fields; the stage's direction still resolves its region. `Text.anchor: 'start'` remains the physical left edge of its advance box.
 

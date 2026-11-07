@@ -34,6 +34,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `rayner init` writes the tutorial's LRU/MRU explainer with its script, model and model test. [Tutorial](docs/TUTORIAL.md#2-generate-the-explainer)
 - `rayner init --machine` writes a machine explainer (a door that locks): a model that refuses with reasons, its test, a live step and review subjects. It passes `check` and `review` as written.
 - `stage(this)` adds the paper, a heading that follows each step, and helpers for diagrams, cards, code panels, notes, dimensions, pins, callouts and the camera. [Stage](docs/REFERENCE.md#stage)
+- A stage region is named (`at: 'main'`) or given as a box with `regionBox('side', { top: 3.05 })`, which returns the region's box with any edge moved. The `REGIONS` table is not exported. [Regions](docs/REFERENCE.md#regions)
 - `s.steps([...])` presents a list of steps, each drawn by `draw(state, s)` from its own state.
 - `s.sketch` draws a path stroke by stroke with a pen or pencil.
 - The collection's explainers use only what the package exports, and a test fails any scene that imports anything else, so an outside author can write what they write.

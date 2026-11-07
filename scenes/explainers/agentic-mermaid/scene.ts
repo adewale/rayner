@@ -1,6 +1,6 @@
 import { Scene, Group } from '../../../src/index.ts';
 import type { Box, Mobject } from '../../../src/index.ts';
-import { stage, settingsOf, REGIONS, regionBox, CodeBlock, answerOf, view } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, CodeBlock, answerOf, view } from '../../../explain/index.ts';
 import type { Diagram, NoteSide, View } from '../../../explain/index.ts';
 import { keyed } from '../../../explain/drawing.ts';
 import { stagedStep } from '../../../explain/index.ts';
@@ -42,7 +42,7 @@ export const BROKEN_REPORT = {
   ],
   checks: { renderability: 'failed', taskCorrectness: 'not-checked' },
 } as const;
-const SIDE = REGIONS.side,
+const SIDE = regionBox('side'),
   GAP = 0.3;
 /** Where the meaning step's reports start, and their type size: each report sits beside its own diagram. */
 const REPORT_X = SIDE[0],
@@ -240,7 +240,7 @@ export default class MermaidExplainer extends Scene {
     // A source the renderer cannot draw: its text, the pinned verifier's report on it, the line that breaks it.
     const brokenPicture = (st: { broken: typeof BROKEN_REPORT & { source: string } }) => {
       // The line that breaks it in focus.
-      const source = block(st.broken.source.split('\n'), 0.42, REGIONS.main, 2);
+      const source = block(st.broken.source.split('\n'), 0.42, regionBox('main'), 2);
       const report = block([
         `verify(flow).ok: ${st.broken.ok}`,
         `warnings: ${st.broken.warnings.length}`,

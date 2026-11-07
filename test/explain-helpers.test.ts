@@ -7,7 +7,8 @@ import assert from 'node:assert/strict';
 import { Scene } from '../src/index.ts';
 import { NullSink } from '../src/output.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
-import { stage, regionBox, REGIONS } from '../explain/index.ts';
+import { stage, regionBox } from '../explain/index.ts';
+import { REGIONS } from '../explain/look.ts';
 import { bindSnapshots } from '../explain/testing.ts';
 import { findingsOf, edgePartOf, diagramKey, snapshotResolver, useDiagrams, diagramsOf, RENDERER } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
@@ -644,7 +645,7 @@ test('the regions meant to sit side by side never overlap', () => {
 
 test('the explain entry point exports exactly its documented names', async () => {
   assert.deepEqual(Object.keys(await import('../explain/index.ts')).sort(), [
-    'Card', 'CodeBlock', 'Diagram', 'Machine', 'REGIONS', 'SetState', 'View', 'answerOf', 'choreograph', 'diagramsOf', 'isRefusal', 'mermaid', 'palette', 'refuse', 'regionBox', 'resolveSettings', 'settingsOf', 'stage', 'stagedStep', 'view',
+    'Card', 'CodeBlock', 'Diagram', 'Machine', 'SetState', 'View', 'answerOf', 'choreograph', 'diagramsOf', 'isRefusal', 'mermaid', 'palette', 'refuse', 'regionBox', 'resolveSettings', 'settingsOf', 'stage', 'stagedStep', 'view',
   ]);
   // The tooling went to rayner/testing.
   assert.deepEqual(Object.keys(await import('../explain/testing.ts')).sort(), [

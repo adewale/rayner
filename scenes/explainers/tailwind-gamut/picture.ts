@@ -4,7 +4,7 @@ import { rows, summarize, cssMap, linearRgb, THEME_LINES } from './model.ts';
 import type { Row, Shade, Space } from './model.ts';
 import { label } from '../../../explain/drawing.ts';
 import type { StagedStep, Diagram } from '../../../explain/index.ts';
-import { REGIONS, mermaid } from '../../../explain/index.ts';
+import { mermaid, regionBox } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
 
 /** The colour an sRGB screen paints for `written`, as #rrggbb, after CSS Color 4's gamut mapping. */
@@ -113,7 +113,7 @@ export const radar = (all: readonly Row[], curves: readonly Curve[], scale: Scal
   ].join('\n');
 
 // The radar fills `main`; the side column holds a card, a few lines and the key.
-export const SIDE: Box = [REGIONS.side[0], REGIONS.side[1], REGIONS.side[2], 3.05];
+export const SIDE: Box = regionBox('side', { top: 3.05 });
 export const SIZE = 0.24;
 /** Hand-drawn's first three series colours, as a reader would name them. */
 const COLOUR_NAME: Record<Curve['id'], string> = { srgb: 'dark grey', tw: 'blue', p3: 'lavender' };
