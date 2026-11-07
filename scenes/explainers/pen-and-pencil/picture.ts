@@ -118,8 +118,8 @@ export function frames(stage: Stage, seed: number, opts?: StagedStepsOptions): P
           ...laid.map((b) => path([...boxPolygon(b), boxPolygon(b)[0]!], DASHED, 0.03, 0.8, '0.12 0.1')),
           ...freeInk(st.seeds.first).map((l) => path(l, GREY, 0.045, 0.9)),
           ...freeInk(st.seeds.second).map((l) => path(l, s.look.ink, 0.045)),
-          ...NAMES.map((n, i) => label(n, (laid[i]![0] + laid[i]![2]) / 2, (laid[i]![1] + laid[i]![3]) / 2, s.look.ink, 0.42)),
-          label(`Up to ${Math.max(...st.apart).toFixed(2)} units apart: the boxes moved`, 0, -2.3, s.look.ink, 0.56),
+          ...NAMES.map((n, i) => label(s, n, { at: [(laid[i]![0] + laid[i]![2]) / 2, (laid[i]![1] + laid[i]![3]) / 2], size: 0.42 })),
+          label(s, `Up to ${Math.max(...st.apart).toFixed(2)} units apart: the boxes moved`, { at: [0, -2.3], size: 0.56 }),
         ),
     },
     {
@@ -143,10 +143,10 @@ export function frames(stage: Stage, seed: number, opts?: StagedStepsOptions): P
           lens,
           ...lensed(ink.first).map((r) => path(r, GREY, 0.07, 0.8)),
           ...lensed(ink.second).map((r) => path(r, s.look.ink, 0.035)),
-          label('Blue: the route the layout fixed', 0, 2.55, s.look.ink, 0.62),
+          label(s, 'Blue: the route the layout fixed', { at: [0, 2.55], size: 0.62 }),
           // Above the gap between the route's two upper corners, clear of the band.
-          label(`×${ZOOM}: ${far.d.toFixed(3)} apart`, INSET[0], 1.72, s.look.ink, 0.62),
-          label(`Two drawings, within ${st.stray.toFixed(3)} units of it`, 0, -2.9, s.look.ink, 0.62),
+          label(s, `×${ZOOM}: ${far.d.toFixed(3)} apart`, { at: [INSET[0], 1.72], size: 0.62 }),
+          label(s, `Two drawings, within ${st.stray.toFixed(3)} units of it`, { at: [0, -2.9], size: 0.62 }),
         );
       },
     },
@@ -156,7 +156,6 @@ export function frames(stage: Stage, seed: number, opts?: StagedStepsOptions): P
 // The real timeline's marks, read back from the laid-out diagram, and the polylines every plate stroke is drawn as.
 export type Pathed = Mobject & { subpaths: Float32Array[] };
 export const pathed = (m: Mobject): m is Pathed => Array.isArray((m as Pathed).subpaths) && m.hasPoints();
-const hasText = (m: Mobject) => typeof (m as { text?: unknown }).text === 'string';
 
 /** Points along one subpath of a captured path, eight per cubic. */
 function samples(m: Pathed, i: number): Pt[] {
@@ -170,9 +169,8 @@ function samples(m: Pathed, i: number): Pt[] {
 const lines = (m: Pathed) => m.subpaths.map((_, i) => samples(m, i));
 /** One timeline period read back as marks: its label box, marker, string and event tag. */
 export function anatomy(d: Diagram, i: number) {
-  const kids = d.get(`period:period-${i}`).children;
-  const texts = kids.filter(hasText).sort((a, b) => b.box()![1] - a.box()![1]);
-  const paths = kids.filter((m): m is Pathed => !hasText(m) && pathed(m));
+  const texts = d.labels(`period:period-${i}`).sort((a, b) => b.box()![1] - a.box()![1]);
+  const paths: Pathed[] = d.shapes(`period:period-${i}`).filter((m) => pathed(m));
   const outlined = paths.filter((m) => m.style.fill === 'none' || !m.style.fillOpacity);
   const boxes = outlined.filter((m) => m.subpaths.length === 4).sort((a, b) => b.box()![1] - a.box()![1]);
   // The string is the narrower single outline, the ring the wider; the dot is the smallest fill.
@@ -186,13 +184,13 @@ export function anatomy(d: Diagram, i: number) {
       box: boxes[0]!.box()! as Box,
       sides: lines(boxes[0]!),
       label: texts[0]!.box()! as Box,
-      text: (texts[0] as unknown as { text: string }).text,
+      text: texts[0]!.text,
     },
     event: {
       box: boxes[1]!.box()! as Box,
       sides: lines(boxes[1]!),
       label: texts[1]!.box()! as Box,
-      text: (texts[1] as unknown as { text: string }).text,
+      text: texts[1]!.text,
     },
     ring: lines(ring)[0]!,
     string: lines(string)[0]!,

@@ -21,7 +21,8 @@ export const seasonsOf = (street: Street) => SEASONS[street];
 const STREET_NAME: Record<Street, string> = { manhattan: '42nd Street: about 29° north of west', west: 'A street pointing due west' };
 
 const rad = Math.PI / 180;
-const words = (text: string, x: number, y: number, color = INK, size = 0.58) => label(text, x, y, color, size);
+/** Words at (x, y) on stage `s`, in INK at the picture's size unless told otherwise. */
+const writer = (s: Stage) => (text: string, x: number, y: number, color = INK, size = 0.58) => label(s, text, { at: [x, y], color, size });
 const line = (a: Vec, b: Vec, color = MUTED, width = 0.035) => new Line(a, b, { stroke: color, strokeWidth: width });
 function path(points: Vec[], color: string, width = 0.07) {
   const p = new VMobject({ stroke: color, strokeWidth: width, fill: 'none' });
@@ -51,11 +52,13 @@ function streetView(half: boolean, paper: string, cx = 0, scale = 1, cy = 0) {
 
 /** The opening picture: the street seen from its middle, the full Sun between its walls, and the street's name. */
 export function drawStreet(st: { street: Street }, s: Stage): Group {
+  const words = writer(s);
   return tagged(new Group(streetView(false, s.look.paper), words(STREET_NAME[st.street], 0, -3.7)), 'henge-street');
 }
 
 /** The year's sunset directions against the street; with `crossings`, the days the curve crosses it. */
-export function annual(st: { bearing: number; street: Street; annual: { longitude: number; azimuth: number }[]; crossings?: number[] }): Group {
+export function annual(st: { bearing: number; street: Street; annual: { longitude: number; azimuth: number }[]; crossings?: number[] }, s: Stage): Group {
+  const words = writer(s);
   const manhattan = st.street === 'manhattan', seasonNames = seasonsOf(st.street);
   const x = (longitude: number) => -6 + longitude / 360 * 12;
   const y = (bearing: number) => (bearing - 270) / 35 * 2.35;
@@ -80,7 +83,8 @@ export function annual(st: { bearing: number; street: Street; annual: { longitud
 
 /** Overhead, north up: a schematic grid turned to the street's bearing, and the Sun's direction at sunset and sunrise
  *  on the first alignment day. East is +x, north is +y; an azimuth points along (sin az, cos az). */
-export function overhead({ bearing, street: which, alignment }: { bearing: number; street: Street; alignment: Model['alignment'] }): Group {
+export function overhead({ bearing, street: which, alignment }: { bearing: number; street: Street; alignment: Model['alignment'] }, s: Stage): Group {
+  const words = writer(s);
   const manhattan = which === 'manhattan';
   const dir = (az: number): Vec => [Math.sin(az * rad), Math.cos(az * rad)];
   const o: Vec = [0, -0.5];
@@ -128,6 +132,7 @@ export function overhead({ bearing, street: which, alignment }: { bearing: numbe
 
 /** Half Sun and full Sun side by side, each centred down the street, and the order each season brings them in. */
 export function disc({ street }: { street: Street }, s: Stage): Group {
+  const words = writer(s);
   const seasonNames = seasonsOf(street);
   return tagged(new Group(
     streetView(true, s.look.paper, -3.5, 0.5, 0.5), streetView(false, s.look.paper, 3.5, 0.5, 0.5),

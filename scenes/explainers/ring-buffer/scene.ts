@@ -1,6 +1,6 @@
 import { Scene, AnimationGroup, Succession, Text, Group, FadeIn, Transform, linear } from '../../../src/index.ts';
 import type { View, Choreography } from '../../../explain/index.ts';
-import type { ScheduledAnimation, Vec, Mobject } from '../../../src/index.ts';
+import type { ScheduledAnimation, Vec, Mobject, Arrow } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Card, CodeBlock, Machine, view } from '../../../explain/index.ts';
 import { ringStory, ringStart, ringNext } from './model.ts';
 import type { RingState, RingEvent } from './model.ts';
@@ -90,14 +90,14 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
     s.keep(ring, { describe: ringWords });
     // Checked on every frame by rayner check: a pointer moving between slots goes round the ring,
     // never across it, so its arrow always starts on the pointers' circle.
-    const arrowBase = (ptr: Mobject) => ptr.children[0]!.children[0]!.pointArrays()[0]!;
-    const pointerRadius = Math.hypot(arrowBase(pointer(look, 'head', 0))[0]! - C[0], arrowBase(pointer(look, 'head', 0))[1]! - C[1]);
+    const arrowBase = (ptr: Mobject, name: 'head' | 'tail') => (ptr.find(`ring:pointer:${name}:arrow`) as Arrow).line.start();
+    const pointerRadius = Math.hypot(arrowBase(pointer(look, 'head', 0), 'head')[0] - C[0], arrowBase(pointer(look, 'head', 0), 'head')[1] - C[1]);
     this.addInvariant('pointers stay on their circle', (scene) => {
       let checked = false;
-      for (const name of ['head', 'tail']) {
+      for (const name of ['head', 'tail'] as const) {
         const ptr = scene.find(`ring:pointer:${name}`);
         if (!ptr) continue;
-        const [x, y] = arrowBase(ptr), r = Math.hypot(x! - C[0], y! - C[1]);
+        const [x, y] = arrowBase(ptr, name), r = Math.hypot(x - C[0], y - C[1]);
         if (Math.abs(r - pointerRadius) > 1e-3) return `the ${name} arrow starts ${r.toFixed(3)} from the centre, not ${pointerRadius.toFixed(3)}`;
         checked = true;
       }

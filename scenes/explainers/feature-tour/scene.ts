@@ -384,8 +384,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     result: 'A B C, then C A B with each tile moved whole',
     code: [
       'const row = (ids: string[]) => new Group(...ids.map(',
-      '  (id, i) => tile(id, i * 1.6, 0, 1.2, 1.2, s,',
-      '    {key: `tile:${id}`})));',
+      '  (id, i) => tile(s, id, {at: [i * 1.6, 0],',
+      '    width: 1.2, height: 1.2, key: `tile:${id}`})));',
       "const before = row(['A', 'B', 'C']);",
       'await s.enter(before);',
       "const after = row(['C', 'A', 'B']);",
@@ -976,7 +976,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
       s.keep(result, { describe: 'After: a circle beside the square, morphed from its copy' });
     } else if (feature === 'keys') {
       const row = (ids: string[], x: number, size: number, prefix: string) =>
-        new Group(...ids.map((id, i) => tile(id, x + (i - 1) * size * 1.35, by, size, size, s, { key: `${prefix}tile:${id}`, size: size * 0.55 })));
+        new Group(...ids.map((id, i) => tile(s, id, { at: [x + (i - 1) * size * 1.35, by], width: size, height: size, key: `${prefix}tile:${id}`, size: size * 0.55 })));
       await panels([row(['A', 'B', 'C'], bx, 1, 'before:')], 'the tiles in the order A, B, C');
       const before = row(['A', 'B', 'C'], ax, 1.4, '');
       await s.enter(before);

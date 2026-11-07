@@ -181,20 +181,23 @@ export function drawingKit(scene: Scene) {
   const s = stage(scene);
   const spread: TableColumns = { left: -6, right: 6 };
   const parts = [
-    label('hit', 0, 0, s.look.ink), tile('D1', 0, 0, 2, 1, s, { active: true, key: 'db' }),
-    table(['Key', 'Slot'], [['a', 1]], s, { xs: spread }), table(['Key'], [['a']], s, { xs: { left: 0, gap: 1 } }),
-    flow(s, ['Request', 'Cache', 'Database']), bars(s, [{ label: 'reads', value: 1, display: '1' }], 2),
-    stat(s, 'Reads', 1, 0, 0, 'reads'), segment([0, 0], [1, 1], s.look.soft), dot('A', 0, 0, s),
+    label(s, 'hit', { at: [0, 1], color: s.look.ink, key: 'hit' }), tile(s, 'D1', { width: 2, height: 1, active: true, key: 'db' }),
+    table(s, ['Key', 'Slot'], [['a', 1]], { columns: spread, key: 'slots' }), table(s, ['Key'], [['a']], { columns: { left: 0, gap: 1 }, at: [0, -1], key: 'keys' }),
+    flow(s, ['Request', 'Cache', 'Database'], { key: 'request' }), bars(s, [{ label: 'reads', value: 1, display: '1' }], 2, { at: [0, -2], key: 'reads' }),
+    stat(s, 'Reads', 1, { at: [3, 0], key: 'read-count' }), segment(s, [0, 0], [1, 1], { color: s.look.soft, strokeWidth: 0.03 }), dot(s, 'A', { at: [-3, 0], active: true }),
   ];
   // @ts-expect-error a table's columns are centres or an edge with a right edge or a gap
-  table(['Key'], [['a']], s, { xs: { right: 2 } });
-  return parts;
+  table(s, ['Key'], [['a']], { columns: { right: 2 }, key: 'bad' });
+  // @ts-expect-error a flow's parts are keyed, so it needs a key
+  flow(s, ['Request']);
+  const kept = tile(s, 'D2', { width: 2, height: 1, key: 'db2' }).find('db2:label');
+  return [...parts, kept];
 }
 
 // What the collection writes, an outside author can write: emphasis a scene draws itself, a card
 // rebuilt inside a view, a diagram laid out before it is drawn, and colours mixed from the palette.
 import { Card, Diagram, diagramsOf } from 'rayner/explain';
-import type { DiagramResolver } from 'rayner/explain';
+import type { DiagramResolver, Look } from 'rayner/explain';
 import { emphasised } from 'rayner/drawing';
 import { lerpColor } from 'rayner';
 export async function publicCollection(scene: Scene): Promise<void> {
@@ -205,7 +208,10 @@ export async function publicCollection(scene: Scene): Promise<void> {
   const spec: DiagramSpec = { source: 'graph LR\nA --> B' };
   const resolver: DiagramResolver = diagramsOf(scene);
   const plan = new Diagram(scene, spec, await resolver.diagram(spec), { box: 'main' });
-  void [panel, plan.get('A')];
+  // A diagram part's shapes and labels, addressed by the part's id rather than by child index.
+  const outline = plan.shapes('A')[0], words: string | undefined = plan.labels('A')[0]?.text;
+  const look: Look = s.look;
+  void [panel, plan.get('A'), outline, words, look.muted, s.backdrop, plan.emphasis];
 }
 
 // The rest of what the collection's scenes import, and the members they use, written as an outside
@@ -273,7 +279,7 @@ export class Collection extends Scene<CollectionModel> {
       callout(s, square, 'a unit square', { side: 'right', key: 'note' }),
       dimension(s, [-0.5, -0.8], [0.5, -0.8], '1', { key: 'width' }),
       pin(s, [0, 0], { label: 'centre', key: 'centre' }),
-      legend(s, [{ label: 'square', fill: s.look.ink }], { at: [3, 2] }),
+      legend(s, [{ label: 'square', fill: s.look.ink }], { at: [3, 2], stack: 'row', key: 'legend' }),
     );
     await s.focus(square, { margin: 0.6 });
     await s.focus('all');

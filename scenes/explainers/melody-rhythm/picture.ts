@@ -33,23 +33,21 @@ export function scorePicture(s: Stage, clips: AudioClip[], look: Look = {}) {
   clips.forEach((clip, lane) => {
     const base = lane === 0 ? 0.25 : -2.5,
       top = base + 1.5;
-    const row = new Group(label(lane === 0 ? 'A' : 'B', -7.05, base + 0.7, s.look.ink, 0.7));
+    const row = new Group(label(s, lane === 0 ? 'A' : 'B', { at: [-7.05, base + 0.7], size: 0.7 }));
     row.key = `score-${clip.id}`;
     if (!look.bare)
     for (let beat = 0; beat <= 8; beat++)
       row.add(
-        segment(
-          [X0 + beat * DX, base - 0.3],
-          [X0 + beat * DX, top + 0.25],
-          beat === 4 || look.pulse ? s.look.emphasis : s.look.soft,
-          beat === 4 ? 0.04 : look.pulse ? 0.035 : 0.012,
-        ),
+        segment(s, [X0 + beat * DX, base - 0.3], [X0 + beat * DX, top + 0.25], {
+          color: beat === 4 || look.pulse ? s.look.emphasis : s.look.soft,
+          strokeWidth: beat === 4 ? 0.04 : look.pulse ? 0.035 : 0.012,
+        }),
       );
     if (lane === 0 && !look.bare)
       for (let beat = 0; beat < 8; beat++) {
         const strong = look.accent && beat % 4 === 0;
         row.add(
-          label(String((beat % 4) + 1), X0 + beat * DX, top + 0.8, strong ? s.look.emphasis : s.look.soft, strong ? 0.95 : 0.7, `beat-${beat}`),
+          label(s, String((beat % 4) + 1), { at: [X0 + beat * DX, top + 0.8], color: strong ? s.look.emphasis : s.look.soft, size: strong ? 0.95 : 0.7, key: `beat-${beat}` }),
         );
       }
     clip.notes.forEach((note, i) => {
@@ -64,7 +62,7 @@ export function scorePicture(s: Stage, clips: AudioClip[], look: Look = {}) {
         stroke: marked ? s.look.bad : s.look.emphasis,
         strokeWidth: marked || lit ? 0.065 : 0.03,
       }).moveTo([x, y]);
-      const g = new Group(rect, label(NOTE_NAMES[note.midi]!, x, y, s.look.ink, 0.7));
+      const g = new Group(rect, label(s, NOTE_NAMES[note.midi]!, { at: [x, y], size: 0.7 }));
       g.key = `note-${clip.id}-${i}`;
       row.add(g);
       if (look.onsets) {
@@ -81,7 +79,7 @@ export function scorePicture(s: Stage, clips: AudioClip[], look: Look = {}) {
   });
   // One footer line for every step, clear of B's notes and of its onset dots.
   const y = -3.75;
-  if (look.footer) figure.add(label(look.footer, 0.6, y, s.look.soft, 0.66, 'score-footer'));
-  else figure.add(label('Bar 1: four beats', -2.7, y, s.look.soft, 0.7), label('Bar 2: four beats', 4.0, y, s.look.soft, 0.7));
+  if (look.footer) figure.add(label(s, look.footer, { at: [0.6, y], color: s.look.soft, size: 0.66, key: 'score-footer' }));
+  else figure.add(label(s, 'Bar 1: four beats', { at: [-2.7, y], color: s.look.soft, size: 0.7 }), label(s, 'Bar 2: four beats', { at: [4.0, y], color: s.look.soft, size: 0.7 }));
   return figure;
 }

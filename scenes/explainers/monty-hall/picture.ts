@@ -77,7 +77,7 @@ export const heads = (s: Stage, y: number) =>
           b = a + 2 * SIX - 0.24,
           r = y - 0.36;
         return [
-          label(`Car behind ${door(i)}`, (a + b) / 2, y, s.look.soft, F),
+          label(s, `Car behind ${door(i)}`, { at: [(a + b) / 2, y], color: s.look.soft, size: F }),
           new Line([a, r], [b, r], { stroke: s.look.soft, strokeWidth: 0.025 }),
           new Line([a, r], [a, r + 0.14], { stroke: s.look.soft, strokeWidth: 0.025 }),
           new Line([b, r], [b, r + 0.14], { stroke: s.look.soft, strokeWidth: 0.025 }),

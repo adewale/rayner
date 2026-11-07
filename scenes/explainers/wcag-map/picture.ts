@@ -40,12 +40,12 @@ function lists(st: Lists, s: Stage) {
     const at = cols.flatMap((c, i) => (c.level === l ? [i] : []));
     const a = x(at[0]!) - pitch / 2,
       b = x(at.at(-1)!) + pitch / 2;
-    g.add(new Line([a, 1.75], [b, 1.75], { stroke: s.look.ink, strokeWidth: 0.03 }), label(l, (a + b) / 2, 2.25, s.look.ink, 0.6));
+    g.add(new Line([a, 1.75], [b, 1.75], { stroke: s.look.ink, strokeWidth: 0.03 }), label(s, l, { at: [(a + b) / 2, 2.25] }));
   }
-  g.add(label('Criteria', 6.45, 2.25, s.look.ink, 0.6));
+  g.add(label(s, 'Criteria', { at: [6.45, 2.25] }));
   VERSIONS.forEach((v, r) => {
     const y = rowY(r);
-    g.add(label(v, -5.85, y, s.look.ink, 0.62), label(st.totals[r]!, 6.45, y, s.look.ink, 0.62));
+    g.add(label(s, v, { at: [-5.85, y], size: 0.62 }), label(s, st.totals[r]!, { at: [6.45, y], size: 0.62 }));
     cols.forEach((c, i) => {
       if (st.rows[v]!.includes(c.num))
         g.add(
@@ -62,11 +62,11 @@ function lists(st: Lists, s: Stage) {
   const below = rowY(VERSIONS.length - 1) - 0.4;
   g.add(
     new Line([x(parsing), below - 0.05], [x(parsing), below - 0.55], { stroke: s.look.bad, strokeWidth: 0.03 }),
-    label('4.1.1 Parsing', x(parsing), below - 0.95, s.look.bad, 0.6),
+    label(s, '4.1.1 Parsing', { at: [x(parsing), below - 0.95], color: s.look.bad }),
   );
   // The key: each cell's colour names the version that added its criterion, and the dashed outline the gap 2.2 left.
   // The strip carries its own key so the colours read with the caption hidden.
-  const lead = label('Added in', 0, 0, s.look.ink, 0.6).moveTo([0, 0], [-1, 0]);
+  const lead = label(s, 'Added in').moveTo([0, 0], [-1, 0]);
   const swatches = legend(
     s,
     [
@@ -76,7 +76,7 @@ function lists(st: Lists, s: Stage) {
       { label: 'Removed', fill: s.look.bad },
       { label: 'Gap', fill: 'none', stroke: s.look.bad, dashed: true },
     ],
-    { size: 0.6, direction: 'row', gap: 0.18, key: 'versions-legend' },
+    { size: 0.6, stack: 'row', gap: 0.18, key: 'versions-legend' },
   );
   swatches.moveTo([lead.width() + 0.24, 0], [-1, 0]);
   const key = new Group(lead, swatches);
@@ -114,10 +114,10 @@ export function frames(stage: Stage, level: Level, guideline: string, answer: st
       state: { level, focusRequired: focus, buttons, focused: 'Pay' },
       draw: (st, s) =>
         new Group(
-          label('No visible focus', 0, 2.5, s.look.soft, 0.7),
-          ...st.buttons.map((b) => tile(b, at(b, st.buttons), 1.3, 5, 1, s)),
-          label(`Visible focus on ${st.focused}`, 0, -0.2, s.look.ink, 0.7),
-          ...st.buttons.map((b) => tile(b, at(b, st.buttons), -1.5, 5, 1, s)),
+          label(s, 'No visible focus', { at: [0, 2.5], color: s.look.soft, size: 0.7 }),
+          ...st.buttons.map((b) => tile(s, b, { at: [at(b, st.buttons), 1.3], width: 5, height: 1 })),
+          label(s, `Visible focus on ${st.focused}`, { at: [0, -0.2], size: 0.7 }),
+          ...st.buttons.map((b) => tile(s, b, { at: [at(b, st.buttons), -1.5], width: 5, height: 1 })),
           new Rectangle({ width: 5.45, height: 1.45, fill: 'none', stroke: s.look.emphasis, strokeWidth: 0.09 }).moveTo([
             at(st.focused, st.buttons), -1.5,
           ]),
@@ -137,12 +137,7 @@ export function frames(stage: Stage, level: Level, guideline: string, answer: st
         levels: LEVELS.map((l, i) => ({ level: l, includes: LEVELS.slice(0, i + 1).join(' + '), total: tally('2.2', l).total })),
       },
       draw: (st, s) =>
-        table(
-          ['Level', 'Includes', 'WCAG 2.2'],
-          st.levels.map((r) => [r.level, r.includes, r.total]),
-          s,
-          { xs: [-5, -0.8, 5.4], y: 2.6, gap: 1.5 },
-        ),
+        table(s, ['Level', 'Includes', 'WCAG 2.2'], st.levels.map((r) => [r.level, r.includes, r.total]), { key: 'comparison', columns: [-5, -0.8, 5.4], gap: 1.5, at: [0, 2.6] }),
     },
     {
       id: 'reader-versions',

@@ -61,13 +61,13 @@ export function frames(stage: Stage, shade: Shade, screen: Space, opts?: StagedS
         }
         g.add(
           new Rectangle({ width: w, height: h, fill: st.preview, stroke: s.look.soft, strokeWidth: 0.03 }).moveTo([right, y]),
-          label('As written', left, y + h / 2 + 0.5, s.look.ink, 0.66),
-          label('On an sRGB screen', right, y + h / 2 + 0.5, s.look.ink, 0.66),
-          label(st.writtenAs.slice(0, split), left, y - h / 2 - 0.5, s.look.ink, 0.66),
-          label(st.writtenAs.slice(split + 1), left, y - h / 2 - 1.3, s.look.ink, 0.66),
-          label(st.preview, right, y - h / 2 - 0.5, s.look.ink, 0.66),
-          label(`Chroma ${st.written.toFixed(3)}`, left, y - h / 2 - 2.35, s.look.emphasis, 0.66),
-          label(`Chroma ${st.shown.toFixed(3)}`, right, y - h / 2 - 2.35, s.look.emphasis, 0.66),
+          label(s, 'As written', { at: [left, y + h / 2 + 0.5], size: 0.66 }),
+          label(s, 'On an sRGB screen', { at: [right, y + h / 2 + 0.5], size: 0.66 }),
+          label(s, st.writtenAs.slice(0, split), { at: [left, y - h / 2 - 0.5], size: 0.66 }),
+          label(s, st.writtenAs.slice(split + 1), { at: [left, y - h / 2 - 1.3], size: 0.66 }),
+          label(s, st.preview, { at: [right, y - h / 2 - 0.5], size: 0.66 }),
+          label(s, `Chroma ${st.written.toFixed(3)}`, { at: [left, y - h / 2 - 2.35], color: s.look.emphasis, size: 0.66 }),
+          label(s, `Chroma ${st.shown.toFixed(3)}`, { at: [right, y - h / 2 - 2.35], color: s.look.emphasis, size: 0.66 }),
         );
         return g;
       },

@@ -1,6 +1,6 @@
-import { Scene, Group, Dot, FadeIn, AnimationGroup, Succession, matchByKey } from '../../../src/index.ts';
+import { Scene, Group, Dot, FadeIn, AnimationGroup, Succession, matchByKey, CurvedArrow } from '../../../src/index.ts';
 import type { Transition } from '../../../explain/index.ts';
-import type { MatchKey, Box, VMobject } from '../../../src/index.ts';
+import type { MatchKey, Box, Mobject, Arrow } from '../../../src/index.ts';
 import { stage, regionBox, view, having, Machine } from '../../../explain/index.ts';
 import { CONTROLS, RUNS, player, coffee, coffeeWithFrother, flatten, run, activeStates, chartCounts, flatCounts, send, drivenStart, drivenNext, events as chartEvents } from './model.ts';
 import type { StateNode, Driven } from './model.ts';
@@ -104,6 +104,8 @@ export default class Statecharts extends Scene<Model, Shown> {
     /** The boxes the picture draws green for a state: the parent step follows the configuration, the frother step every box it is in. */
     const followed = (st: Driven) => (this.shown.phase === 'parent' ? st.config : st.current);
     /** The arrow an event takes: the transition written on the state that handled it (its own, or its parent's), keyed as coffeePicture keys it. */
+    /** The line an arrow of the chart is drawn along: a straight arrow's line, a curved one's arc. */
+    const shaft = (arrow: Mobject) => (arrow instanceof CurvedArrow ? arrow.arc : (arrow as Arrow).line);
     const arrowFor = (chart: StateNode, from: string, event: string) => {
       const find = (n: StateNode): StateNode | undefined => (n.id === from ? n : (n.children ?? []).map(find).find(Boolean));
       const to = find(chart)!.on![event]!;
@@ -131,7 +133,7 @@ export default class Statecharts extends Scene<Model, Shown> {
               const leaving = was.filter((id) => !now.includes(id)), entering = now.filter((id) => !was.includes(id));
               // One token per state that handled the event, travelling its arrow.
               const walks = send(chart, before.config, event).sources.map((from, i) =>
-                c.travel(`walk:token:${i}`, new Dot({ radius: 0.11, color: s.look.emphasis }), c.from(arrowFor(chart, from, event)).children[0] as VMobject, { appear: 0.35, move: 0.8, leave: 0.25 }));
+                c.travel(`walk:token:${i}`, new Dot({ radius: 0.11, color: s.look.emphasis }), shaft(c.from(arrowFor(chart, from, event))), { appear: 0.35, move: 0.8, leave: 0.25 }));
               return new Succession([
                 new AnimationGroup([...leaving.map((id) => c.morph(`c:${id}`, { runTime: 0.35 })), ...walks.map((w) => w.appear)]),
                 new AnimationGroup(walks.map((w) => w.move)),

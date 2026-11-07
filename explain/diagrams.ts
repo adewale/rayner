@@ -45,6 +45,9 @@ interface Part {
   info: SnapshotPart;
   mob: Group;
   route?: VMobject;
+  /** The part's own drawn shapes and labels, in drawing order (see Diagram.shapes and Diagram.labels). */
+  shapes: VMobject[];
+  labels: ImportedLabel[];
 }
 export type NoteSide = 'above' | 'below' | 'left' | 'right';
 /** What a picture of a diagram shows besides its parts: its marks with their words, and the parts dimming keeps. */
@@ -457,6 +460,7 @@ export class Diagram {
       mob.key = info.id === '__frame' ? this.frameKey : info.id;
       if (info.id === '__frame') mob.role = 'frame';
       if (info.from != null && info.to != null) Object.assign(mob, { [connectorPart]: true });
+      const shapes: VMobject[] = [], labels: ImportedLabel[] = [];
       for (const shape of info.shapes) {
         const paths = shape.textRun ? outlineText(shape.textRun, shape.style, scene.textShaping) : [new VMobject(shape.style)];
         if (!shape.textRun) {
@@ -466,6 +470,8 @@ export class Diagram {
         // A text run is one label of many outlines: it moves and checks as a unit.
         const drawn = shape.text != null ? new ImportedLabel(paths, shape, scene.textShaping) : paths[0]!;
         if (shape.textRun) drawn.mergeLeaves = true;
+        if (drawn instanceof ImportedLabel) labels.push(drawn);
+        else shapes.push(drawn);
         mob.add(drawn);
       }
       // Connector lettering needs a paper gap, not just an outline around each
@@ -495,7 +501,7 @@ export class Diagram {
         for (const p of info.route.slice(1)) route.addLineTo(p);
         mob.add(route);
       }
-      this.parts.set(info.id, { info, mob, ...(route ? { route } : {}) });
+      this.parts.set(info.id, { info, mob, shapes, labels, ...(route ? { route } : {}) });
       this.root.add(mob);
     }
     // Some renderer labels overhang the declared SVG canvas (notably XY ticks).
@@ -571,9 +577,23 @@ export class Diagram {
     );
   }
   get(id: string): Group {
+    return this.part(id).mob;
+  }
+  /**
+   * Part `id`'s own drawn shapes, in drawing order: a node's outline, a link's line and arrowhead, a
+   * task's bar. Its labels, the plates behind them, its route and the parts it owns are not among them.
+   */
+  shapes(id: string): VMobject[] {
+    return [...this.part(id).shapes];
+  }
+  /** Part `id`'s own labels, in drawing order, each with the `text` it reads. */
+  labels(id: string): (Mobject & { readonly text: string })[] {
+    return [...this.part(id).labels];
+  }
+  private part(id: string): Part {
     const part = this.find(id);
     if (!part) throw new Error(`No diagram mark ${id}. Available: ${[...this.parts.keys()].join(', ')}`);
-    return part.mob;
+    return part;
   }
   /** The top-level part an id belongs to (an owned label resolves to its owner); throws for an unknown id. */
   private top(id: string): string {

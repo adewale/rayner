@@ -6,7 +6,8 @@ import { center, unionBoxes } from '../src/box.ts';
 import { STAGE_BOX, atHome } from '../src/svg.ts';
 import { isDetail, teaching } from './script.ts';
 import type { StepAudio } from './audio.ts';
-import { dimension, pin, callout, legend, tool, Draw, oneStrokeEach } from './annotate.ts';
+import { tool, Draw, oneStrokeEach } from './annotate.ts';
+import * as kit from './drawing.ts';
 import type { LegendItem } from './annotate.ts';
 import type { Side, ToolKind } from './annotate.ts';
 import { Diagram } from './diagrams.ts';
@@ -343,8 +344,8 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     for (const m of mobs) overlays.set(m, say);
   };
   /**
-   * Annotations are sized for the screen: made in home coordinates from the points the camera
-   * shows, then mapped into the world as the heading is, so a zoomed camera shows them at size.
+   * Annotations are sized for the screen: the kit builds each in home coordinates from the points the
+   * camera shows, then it is mapped into the world as the heading is, so a zoomed camera shows it at size.
    */
   const toScreen = (p: Vec): Vec => [(p[0] - view.shift[0]) / view.k, (p[1] - view.shift[1]) / view.k];
   function onScreen<T extends Mobject>(m: T): T {
@@ -601,46 +602,37 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       } else target.moveTo(to as Vec);
       await scene.play(new Transform(m, target, { runTime }));
     },
-    /** A dimension line from `a` to `b` with `label`, set off by `offset`; drawn in, and kept. */
-    async dimension(a: Vec, b: Vec, label: string, opts: { offset?: number; color?: string; size?: number } = {}) {
-      const g = onScreen(
-        dimension(toScreen(a), toScreen(b), label, {
-          color: opts.color ?? emphasis(colors),
-          background: colors.paper, shaping: scene.textShaping,
-          ...opts,
-        }),
-      );
+    /** A dimension line from `a` to `b` with `label`, set off by `offset`: the kit's `dimension`, sized for the screen, drawn in and kept. */
+    async dimension(a: Vec, b: Vec, label: string, opts: { offset?: number; color?: string; size?: number; key?: string } = {}): Promise<Group> {
+      const g = onScreen(kit.dimension(this, toScreen(a), toScreen(b), label, opts));
       // The line describes itself.
       keepAll([g], {});
       await scene.play(new Create(g, { runTime: 0.6, lagRatio: 0.1 }));
       return g;
     },
-    /** A pin stuck in at `at`, with an optional label; drawn in, and kept. */
-    async pin(at: Vec, opts: { label?: string; color?: string; size?: number; side?: 'left' | 'right' } = {}) {
-      const g = onScreen(pin(toScreen(at), {shaping: scene.textShaping, color: opts.color ?? emphasis(colors), ...opts }));
+    /** A pin stuck in at `point`, with an optional label: the kit's `pin`, sized for the screen, drawn in and kept. */
+    async pin(point: Vec, opts: { label?: string; color?: string; size?: number; side?: 'left' | 'right'; key?: string } = {}): Promise<Group> {
+      const g = onScreen(kit.pin(this, toScreen(point), opts));
       keepAll([g], {});
       await scene.play(new FadeIn(g, { runTime: 0.4, shift: [0, -0.15] }));
       return g;
     },
     /**
-     * A key of swatches and their meanings, its first entry starting at `at` (the swatch's left edge, on the entry's centre line); faded in and kept.
-     * The kit's `legend` builds the same picture for a draw. It describes itself as its swatch→meaning pairs.
+     * A key of swatches and their meanings, its first entry starting at `at` (the swatch's left edge, on the entry's centre line):
+     * the kit's `legend`, sized for the screen, faded in and kept. It describes itself as its swatch→meaning pairs.
      */
-    async legend(items: readonly LegendItem[], opts: { at?: Vec; size?: number; direction?: 'column' | 'row'; gap?: number; key?: string } = {}) {
-      const { key = 'legend', at = [0, 0], ...look } = opts;
-      const g = onScreen(legend(items, { ink: colors.ink, shaping: scene.textShaping, at: toScreen(at), ...look }));
-      g.children.forEach((entry, i) => (entry.key = `${key}:${items[i]!.label}`));
-      g.key = key;
+    async legend(items: readonly LegendItem[], opts: { at?: Vec; size?: number; stack?: 'column' | 'row'; gap?: number; key: string }): Promise<Group> {
+      const g = onScreen(kit.legend(this, items, { ...opts, at: toScreen(opts.at ?? [0, 0]) }));
       keepAll([g], {});
       await scene.play(new FadeIn(g, { runTime: 0.4 }));
       return g;
     },
-    /** Words beside a target with a leader line to it; drawn in, and kept. */
+    /** Words beside a target with a leader line to it: the kit's `callout`, sized for the screen, drawn in and kept. */
     async callout(
       target: Vec | Box | Mobject,
       text: string,
-      opts: { side?: Side; gap?: number; color?: string; size?: number } = {},
-    ) {
+      opts: { side?: Side; gap?: number; color?: string; size?: number; key?: string } = {},
+    ): Promise<Group> {
       const box = Array.isArray(target)
         ? target.length === 2
           ? ([...target, ...target] as Box)
@@ -648,9 +640,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
         : (target as Mobject).box();
       if (!box) throw new Error('callout(): the target has no extent');
       const [a, b] = [toScreen([box[0], box[1]]), toScreen([box[2], box[3]])];
-      const g = onScreen(
-        callout([a[0], a[1], b[0], b[1]], text, { color: opts.color ?? colors.ink, background: colors.paper, shaping: scene.textShaping, ...opts }),
-      );
+      const g = onScreen(kit.callout(this, [a[0], a[1], b[0], b[1]], text, opts));
       keepAll([g], {});
       await scene.play(new Create(g, { runTime: 0.6, lagRatio: 0.15 }));
       return g;

@@ -12,7 +12,7 @@ test('rayner/drawing exports exactly the kit, and package.json publishes it', ()
   assert.deepEqual(exports['./drawing'], { types: './dist/explain/drawing.d.ts', default: './dist/explain/drawing.js' });
 });
 
-test('keyed sets a key and returns the mobject; segment and dot take keys like the rest of the kit', async () => {
+test('keyed sets a key and returns the mobject; segment and dot take keys like the rest of the kit, and a keyed composite keys its parts', async () => {
   const { Scene, Circle } = await import('../src/index.ts'); const { NullSink } = await import('../src/output.ts'); const { loadFonts } = await import('../explain/testing.ts');
   await loadFonts();
   const { stage } = await import('../explain/index.ts');
@@ -20,9 +20,31 @@ test('keyed sets a key and returns the mobject; segment and dot take keys like t
   const c = new Circle();
   assert.equal(drawing.keyed(c, 'sun'), c);
   assert.equal(c.key, 'sun');
-  assert.equal(drawing.segment([0, 0], [1, 0], s.look.soft, 0.04, 'axis').key, 'axis');
-  assert.equal(drawing.dot('A', 0, 0, s, false, 'node:A').key, 'node:A');
-  assert.equal(drawing.dot('A', 0, 0, s).key, undefined);
+  assert.equal(drawing.segment(s, [0, 0], [1, 0], { color: s.look.soft, key: 'axis' }).key, 'axis');
+  const node = drawing.dot(s, 'A', { key: 'node:A' });
+  assert.equal(node.key, 'node:A');
+  assert.deepEqual(node.children.map((m) => m.key), ['node:A:circle', 'node:A:label']);
+  const plain = drawing.dot(s, 'A');
+  assert.equal(plain.key, undefined);
+  assert.ok(plain.family().every((m) => m.key === undefined), 'an unkeyed picture keys none of its parts');
+  const box = drawing.tile(s, 'x', { at: [1, 2], width: 2, height: 1, key: 'slot' });
+  assert.deepEqual(box.children.map((m) => m.key), ['slot:box', 'slot:label']);
+  assert.deepEqual(box.find('slot:box')!.center(), [1, 2]);
+  const big = drawing.stat(s, 'Reads', 3, { at: [2, 0], key: 'reads' });
+  assert.deepEqual(big.children.map((m) => m.key), ['reads:title', 'reads:value']);
+  assert.ok(Math.abs(big.find('reads:value')!.center()[0] - 2) < 1e-9);
+  // `at` moves a whole layout: a flow's row, bars, a table's columns and header row.
+  const row = drawing.flow(s, ['a', 'b'], { key: 'f' }), shifted = drawing.flow(s, ['a', 'b'], { at: [1, 0], key: 'f' });
+  assert.deepEqual(row.family().map((m) => m.key).filter(Boolean), ['f', 'f:0', 'f:0:box', 'f:0:label', 'f:1', 'f:1:box', 'f:1:label', 'f:1:arrow']);
+  const dx = shifted.box()![0] - row.box()![0], dy = shifted.box()![1] - row.box()![1];
+  assert.ok(Math.abs(dx - 1) < 1e-9 && Math.abs(dy + 1) < 1e-9);
+  const chart = drawing.bars(s, [{ label: 'a', value: 1, display: '1' }], 2, { at: [1, 0], key: 'b' });
+  assert.deepEqual(chart.children.map((m) => m.key), ['b:0:label', 'b:0:track', 'b:0:bar', 'b:0:value']);
+  assert.ok(Math.abs(chart.find('b:0:label')!.box()![0] + 3) < 1e-9, 'the label starts at x − 4');
+  const t = drawing.table(s, ['A'], [['x']], { columns: [0], at: [2, 1], key: 't' });
+  assert.ok(Math.abs(t.find('t:head:A')!.center()[0] - 2) < 1e-6 && Math.abs(t.find('t:head:A')!.center()[1] - 1) < 1e-6);
+  // Kit text takes the scene's shaping, as the scene's own text does.
+  assert.equal(drawing.label(s, 'x').shaping, s.scene.text('x').shaping);
 });
 
 test('keyedParts keys each part in order, groups them, and refuses a key used twice', async () => {
@@ -49,8 +71,10 @@ test('callout, dimension and pin build the pictures s.callout, s.dimension and s
   assert.equal(points(built), points(await s.callout(target, 'here', { side: 'above', gap: 0.3 })));
   const line = drawing.dimension(s, [0, 0], [2, 0], '2 units', { offset: -0.4 });
   assert.equal(points(line), points(await s.dimension([0, 0], [2, 0], '2 units', { offset: -0.4 })));
-  const stuck = drawing.pin(s, [3, 1], { label: 'centre' });
+  assert.deepEqual(built.children.map((m) => m.key), ['note:line', 'note:dot', 'note:backing', 'note:text']);
+  const stuck = drawing.pin(s, [3, 1], { label: 'centre', key: 'stuck' });
   assert.equal(points(stuck), points(await s.pin([3, 1], { label: 'centre' })));
+  assert.deepEqual(stuck.children.map((m) => m.key), ['stuck:needle', 'stuck:head', 'stuck:label']);
   // A callout is described by its words; a dimension line and a pin say what they are.
   assert.equal(describesItself(built), false);
   assert.ok(describesItself(line) && describesItself(stuck));
@@ -58,9 +82,9 @@ test('callout, dimension and pin build the pictures s.callout, s.dimension and s
   assert.equal((stuck as unknown as Record<symbol, () => { what: string }>)[seenSource]!().what, 'A pin marked “centre”');
   assert.equal(drawing.pin(s, [0, 0]).key, undefined);
   // side: 'left' puts the label's end beside the head instead of its start, mirrored about the needle.
-  const left = drawing.pin(s, [3, 1], { label: 'centre', side: 'left' });
+  const left = drawing.pin(s, [3, 1], { label: 'centre', side: 'left', key: 'left' });
   assert.equal(points(left), points(await s.pin([3, 1], { label: 'centre', side: 'left' })));
-  const [rightLabel, leftLabel] = [stuck, left].map((g) => g.children.at(-1)!.box()!) as [Box, Box];
+  const [rightLabel, leftLabel] = [stuck.find('stuck:label')!, left.find('left:label')!].map((m) => m.box()!) as [Box, Box];
   assert.ok(leftLabel[2] < 3 && rightLabel[0] > 3, 'the left label ends before the needle; the right one starts after it');
   assert.ok(Math.abs((3 - leftLabel[2]) - (rightLabel[0] - 3)) < 1e-6, 'both labels stand off the needle by the same gap');
 });
@@ -84,18 +108,19 @@ test('legend draws swatches with words, keyed by label, describes itself as its 
     'Key: purple fill, cat’s bits; dashed blue line, the browser; dashed red outline, removed',
   );
   // A column steps down from its first entry, which starts at `at`, the swatch centred on that line; a row steps right.
-  const swatch = key.children[0]!.children[0]!.box()!;
+  assert.deepEqual(key.find('k:cat’s bits')!.children.map((c) => c.key), ['k:cat’s bits:swatch', 'k:cat’s bits:text']);
+  const swatch = key.find('k:cat’s bits:swatch')!.box()!;
   assert.ok(Math.abs(swatch[0] + 6) < 1e-6 && Math.abs((swatch[1] + swatch[3]) / 2 - 3) < 1e-6);
   const tops = key.children.map((c) => c.box()![3]);
   assert.ok(tops[0]! > tops[1]! && tops[1]! > tops[2]!);
-  const row = drawing.legend(s, items, { direction: 'row' });
+  const row = drawing.legend(s, items, { stack: 'row', key: 'row' });
   const lefts = row.children.map((c) => c.box()![0]);
   assert.ok(lefts[0]! < lefts[1]! && lefts[1]! < lefts[2]!);
   // The words are in the stage's ink, the dash on the swatch.
   assert.ok(key.family().some((m) => m.style.dashArray));
   const points = (m: import('../src/index.ts').Mobject) => JSON.stringify(m.family().map((x) => [x.constructor.name, x.box(), x.style, x.key]));
   assert.equal(points(key), points(await s.legend(items, { at: [-6, 3], key: 'k' })));
-  assert.throws(() => drawing.legend(s, []), /at least one entry/);
-  assert.throws(() => drawing.legend(s, [items[0]!, items[0]!]), /two entries say "cat’s bits"/);
-  assert.throws(() => drawing.legend(s, [{ label: 'nothing' }]), /needs a fill or a stroke/);
+  assert.throws(() => drawing.legend(s, [], { key: 'k' }), /at least one entry/);
+  assert.throws(() => drawing.legend(s, [items[0]!, items[0]!], { key: 'k' }), /two entries say "cat’s bits"/);
+  assert.throws(() => drawing.legend(s, [{ label: 'nothing' }], { key: 'k' }), /needs a fill or a stroke/);
 });

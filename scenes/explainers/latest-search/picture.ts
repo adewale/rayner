@@ -49,7 +49,7 @@ const keyed = <M extends Mobject>(m: M, key: string): M => Object.assign(m, { ke
  * so a machine's transition can move each.
  */
 export function timeline(s: Stage, lifetimes: readonly Life[], tracks: readonly Track[], now: number): Group {
-  const rowLabel = (text: string, y: number, color = s.look.ink) => label(text, 0, 0, color, 0.62).moveTo([ROW_LABEL_X, y], [-1, 0]);
+  const rowLabel = (text: string, y: number, color = s.look.ink) => label(s, text, { color, size: 0.62 }).moveTo([ROW_LABEL_X, y], [-1, 0]);
   const parts: Mobject[] = [];
   for (const { query, start, land } of lifetimes) {
     const y = barY(query),
@@ -67,7 +67,7 @@ export function timeline(s: Stage, lifetimes: readonly Life[], tracks: readonly 
     keyed(
       new Group(
         new Arrow([tickX(0), axisY], [RIGHT_EDGE, axisY], { stroke: s.look.soft, strokeWidth: 0.03, tipLength: 0.2, tipWidth: 0.16 }),
-        label('time', 0, 0, s.look.soft, 0.62).moveTo([RIGHT_EDGE, axisY - 0.4], [1, 0]),
+        label(s, 'time', { color: s.look.soft, size: 0.62 }).moveTo([RIGHT_EDGE, axisY - 0.4], [1, 0]),
       ),
       'timeline-axis',
     ),
@@ -96,7 +96,7 @@ export function timeline(s: Stage, lifetimes: readonly Life[], tracks: readonly 
         keyed(
           new Group(
             new Rectangle({ width: b - a, height: 0.9, fill: s.look.paper, stroke: stale ? s.look.bad : s.look.soft, strokeWidth: stale ? 0.055 : 0.025 }).moveTo([(a + b) / 2, y]),
-            label(shown ? q(shown) : 'nothing', (a + end) / 2, y, stale ? s.look.bad : shown ? s.look.ink : s.look.soft, 0.62),
+            label(s, shown ? q(shown) : 'nothing', { at: [(a + end) / 2, y], color: stale ? s.look.bad : shown ? s.look.ink : s.look.soft, size: 0.62 }),
           ),
           `${key}:span:${j}`,
         ),
@@ -182,13 +182,13 @@ export async function story(order: CompletionOrder, answer: string): Promise<{ r
       state: { query, ticket, latest, accepted, off: off.snapshots[i + 1]!, on: on.snapshots[i + 1]! },
       draw: (st, s) =>
         new Group(
-          tile(`${q(st.query)}: ticket ${st.ticket}`, -4, 2, 5.4, 1.2, s),
-          tile(`latest = ${st.latest}`, 4, 2, 5.4, 1.2, s),
-          label(st.accepted ? '=' : '≠', 0, 2, st.accepted ? s.look.good : s.look.bad, 1),
-          label(st.accepted ? `Publish ${q(st.query)}` : `Drop ${q(st.query)}`, 0, 0.5, st.accepted ? s.look.good : s.look.bad, 0.8),
+          tile(s, `${q(st.query)}: ticket ${st.ticket}`, { at: [-4, 2], width: 5.4, height: 1.2 }),
+          tile(s, `latest = ${st.latest}`, { at: [4, 2], width: 5.4, height: 1.2 }),
+          label(s, st.accepted ? '=' : '≠', { at: [0, 2], color: st.accepted ? s.look.good : s.look.bad, size: 1 }),
+          label(s, st.accepted ? `Publish ${q(st.query)}` : `Drop ${q(st.query)}`, { at: [0, 0.5], color: st.accepted ? s.look.good : s.look.bad, size: 0.8 }),
           new Code([CHECK], { fontSize: CODE_SIZE, color: s.look.ink }).moveTo([0, -1.35]),
           // What each rule leaves on the page after this result, from the model's two runs.
-          label(`Page now: ${q(st.on.shown)} with the guard, ${q(st.off.shown)} without`, 0, -3.05, s.look.ink, 0.62, 'page-now'),
+          label(s, `Page now: ${q(st.on.shown)} with the guard, ${q(st.off.shown)} without`, { at: [0, -3.05], size: 0.62, key: 'page-now' }),
         ),
     };
   });
@@ -209,7 +209,7 @@ export async function story(order: CompletionOrder, answer: string): Promise<{ r
       draw: (st, s) =>
         new Group(
           ...timeline(s, st.lifetimes, [], 3).children,
-          label(`The user wants ${q('B')}`, 0, -2.0, s.look.emphasis, 0.75, 'timeline-wants'),
+          label(s, `The user wants ${q('B')}`, { at: [0, -2.0], color: s.look.emphasis, size: 0.75, key: 'timeline-wants' }),
         ),
     },
     overwrite: {
@@ -234,9 +234,9 @@ export async function story(order: CompletionOrder, answer: string): Promise<{ r
       state: { tickets: { A: TICKET.A, B: TICKET.B }, latest },
       draw: (st, s) =>
         new Group(
-          tile(`${q('A')}: ticket ${st.tickets.A}`, -4, 2, 5.4, 1.2, s),
-          tile(`${q('B')}: ticket ${st.tickets.B}`, 4, 2, 5.4, 1.2, s, { active: true }),
-          label(`latest = ${st.latest}`, 0, 0.5, s.look.emphasis, 0.8),
+          tile(s, `${q('A')}: ticket ${st.tickets.A}`, { at: [-4, 2], width: 5.4, height: 1.2 }),
+          tile(s, `${q('B')}: ticket ${st.tickets.B}`, { at: [4, 2], width: 5.4, height: 1.2, active: true }),
+          label(s, `latest = ${st.latest}`, { at: [0, 0.5], color: s.look.emphasis, size: 0.8 }),
           new Code(['// when a search starts', 'const ticket = ++latest', '// when its result lands', CHECK], {
             fontSize: CODE_SIZE,
             color: s.look.ink,

@@ -516,7 +516,7 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
         { label: 'not read', fill: 'none', stroke: s.look.soft, dashed: true },
         { label: 'trusted by position', fill: 'none', stroke: s.look.emphasis, dashed: true },
       ],
-      { at: [-7.4, -3.72], size: 0.26, direction: 'row', gap: 0.5, key: 'routes-legend' },
+      { at: [-7.4, -3.72], size: 0.26, stack: 'row', gap: 0.5, key: 'routes-legend' },
     );
     s.opening(this.find('routes-positions')!);
 

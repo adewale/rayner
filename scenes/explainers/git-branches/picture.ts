@@ -33,7 +33,7 @@ export function picture(s: Stage, frame: GitFrame, note: string) {
         ),
       );
     }
-  for (const c of frame.commits) graph.add(dot(c.id, ...AT[c.id]!, s, c.id === frame.current));
+  for (const c of frame.commits) graph.add(dot(s, c.id, { at: AT[c.id]!, active: c.id === frame.current }));
   const branches = new Map<string, string[]>();
   for (const [name, id] of [
     ['feature', frame.feature],
@@ -59,11 +59,7 @@ export function picture(s: Stage, frame: GitFrame, note: string) {
   for (const id of unreachable(frame)) place(id, ['no branch'], true);
   for (const t of tags)
     graph.add(
-      tile(t.name, (t.box[0] + t.box[2]) / 2, (t.box[1] + t.box[3]) / 2, t.box[2] - t.box[0], TAG_H, s, {
-        active: t.name === frame.head,
-        bad: t.bad,
-        size: SIZE,
-      }),
+      tile(s, t.name, { at: [(t.box[0] + t.box[2]) / 2, (t.box[1] + t.box[3]) / 2], width: t.box[2] - t.box[0], height: TAG_H, active: t.name === frame.head, bad: t.bad, size: SIZE }),
     );
   // HEAD points at the branch it names: beside that tag, toward the side with room.
   const named = tags.find((t) => t.name === frame.head)!.box,
@@ -86,14 +82,14 @@ export function picture(s: Stage, frame: GitFrame, note: string) {
     graph,
     head,
     table(
+      s,
       ['File', 'Working contents'],
       [
         ['colour.txt', files.colour],
         ['title.txt', files.title ?? 'absent'],
       ],
-      s,
-      { xs: [-3.3, 2.3], y: -1.55, gap: 0.75, key: 'git-files', size: SIZE },
+      { columns: [-3.3, 2.3], at: [0, -1.55], gap: 0.75, key: 'git-files', size: SIZE },
     ),
-    label(note, 0, -3.95, s.look.soft, SIZE),
+    label(s, note, { at: [0, -3.95], color: s.look.soft, size: SIZE }),
   );
 }

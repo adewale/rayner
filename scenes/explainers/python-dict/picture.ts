@@ -2,7 +2,7 @@ import { Group, Rectangle, CurvedArrow } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { EMPTY, DELETED } from './model.ts';
 import type { DictTable, DictLookup, DictState } from './model.ts';
-import { keyed, label, tile, table } from '../../../explain/drawing.ts';
+import { label, tile, table } from '../../../explain/drawing.ts';
 
 // How the dict explainer draws one state: the eight-slot index, the entry table (or the keys'
 // hashes) and the lookup panel, with the last search drawn as hops along the slot row.
@@ -92,7 +92,7 @@ function hops(s: Stage, path: DictLookup) {
 /**
  * The index, the entries (or the hashes) and the panel. Every part a step changes is keyed, so the machine's keyed
  * morph keeps each slot and each entry row the same part from state to state: slot i is `slot-i` with its entry
- * `slot-i:entry`, an entry row is `dict-entries:e<i>` (its cells `dict-entries:e<i>:Key` and so on), and a hash row
+ * `slot-i:label`, an entry row is `dict-entries:e<i>` (its cells `dict-entries:e<i>:Key` and so on), and a hash row
  * is `dict-hashes:k<key>`. A deletion's D, and the entry's dashes, replace what was there in place.
  */
 export function picture(s: Stage, v: View) {
@@ -100,26 +100,28 @@ export function picture(s: Stage, v: View) {
   const slots = new Group(
     ...v.dict.indices.flatMap((entry, i) => {
       const x = slotX(i);
-      const slot = tile(entry === EMPTY ? '–' : entry === DELETED ? 'D' : entry, x, SLOT_Y, 1.55, SLOT_H, s, {
+      const slot = tile(s, entry === EMPTY ? '–' : entry === DELETED ? 'D' : entry, {
+        at: [x, SLOT_Y],
+        width: 1.55,
+        height: SLOT_H,
         active: !!v.path?.slots.includes(i) || !!v.lit?.includes(i),
         // The never-used slot where a search stops is the evidence that its key is absent.
         bad: v.bad.includes(i) || i === stop,
         key: `slot-${i}`,
         size: 0.66,
       });
-      keyed(slot.children[1]!, `slot-${i}:entry`);
-      return [label(i, x, SLOT_Y + 0.72, s.look.soft, 0.66), slot];
+      return [label(s, i, { at: [x, SLOT_Y + 0.72], color: s.look.soft, size: 0.66 }), slot];
     }),
   );
   slots.key = 'dict-index';
-  const note = label(v.note, 0, -3.8, s.look.ink, 0.62);
+  const note = label(s, v.note, { at: [0, -3.8], size: 0.62 });
   if (v.hashes) {
     const heads = ['Key', 'Hash', 'In binary', 'Start slot'],
       rows = v.hashes.map((h) => ({ key: `k${h.key}`, cells: [h.key, h.hash, h.hash.toString(2).padStart(5, '0'), h.slot] }));
     return new Group(
       slots,
       // The hash table spans the slot row, edge to edge.
-      table(heads, rows, s, { xs: { left: LEFT + 0.2, right: RIGHT - 0.2 }, y: TOP, gap: 0.85, key: 'dict-hashes', size: 0.66 }),
+      table(s, heads, rows, { columns: { left: LEFT + 0.2, right: RIGHT - 0.2 }, gap: 0.85, key: 'dict-hashes', size: 0.66, at: [0, TOP] }),
       note,
     );
   }
@@ -128,13 +130,7 @@ export function picture(s: Stage, v: View) {
   const heads = ['Entry', 'Key', 'Value'],
     rows = v.dict.entries.map((e, i) => ({ key: `e${i}`, cells: [i, e.key ?? '–', e.value ?? '–'] })),
     rowY = (r: number) => TOP - r * 0.85;
-  const entries = table(heads, rows, s, {
-    xs: { left: LEFT + 0.2, right: slotX(3) + HALF - 0.6 },
-    y: rowY(0),
-    gap: 0.85,
-    key: 'dict-entries',
-    size: 0.66,
-  });
+  const entries = table(s, heads, rows, { columns: { left: LEFT + 0.2, right: slotX(3) + HALF - 0.6 }, gap: 0.85, key: 'dict-entries', size: 0.66, at: [0, rowY(0)] });
   const panelX = (slotX(4) - HALF + RIGHT) / 2,
     outcome = v.found === null ? s.look.ink : v.found ? s.look.good : s.look.bad;
   const result = new Group(
@@ -146,9 +142,9 @@ export function picture(s: Stage, v: View) {
       stroke: v.found === null ? s.look.soft : outcome,
       strokeWidth: 0.03,
     }).moveTo([panelX, TOP - 1.15]),
-    label(v.ask, panelX, TOP - 0.03, s.look.ink, 0.8, 'dict-result:ask'),
-    label(v.middle, panelX, TOP - 1.15, s.look.soft, 0.66, 'dict-result:middle'),
-    label(v.outcome, panelX, TOP - 2.27, outcome, 0.8, 'dict-result:outcome'),
+    label(s, v.ask, { at: [panelX, TOP - 0.03], size: 0.8, key: 'dict-result:ask' }),
+    label(s, v.middle, { at: [panelX, TOP - 1.15], color: s.look.soft, size: 0.66, key: 'dict-result:middle' }),
+    label(s, v.outcome, { at: [panelX, TOP - 2.27], color: outcome, size: 0.8, key: 'dict-result:outcome' }),
   );
   result.key = 'dict-result';
   return new Group(slots, ...(v.path ? [hops(s, v.path)] : []), entries, result, note);

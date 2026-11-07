@@ -567,9 +567,9 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
     const margin = await s.show({ source: windows }, { box: 'full' });
     await diagramOf(margin, 'retry').show({ marked: [`task:${rule}`] });
     // Each retry window says what it leaves, just left of its bar, in the row it belongs to.
-    // A task's first child is its bar; its row label travels with it.
-    const bar = (r: Rule) => margin.get(`task:${r}`).children[0]!.box()!;
-    const chartLeft = margin.get('task:life').children[0]!.box()![0];
+    // A task's first shape is its bar; its row label travels with it.
+    const bar = (r: Rule) => margin.shapes(`task:${r}`)[0]!.box()!;
+    const chartLeft = margin.shapes('task:life')[0]!.box()![0];
     // Left of the bar when the row has room for the words, otherwise under the chart.
     const say = (r: Rule, text: string) => {
       const b = bar(r),

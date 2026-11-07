@@ -78,9 +78,9 @@ export function frames(p: Participant): [StagedStep<TaskFrame>, StagedStep<Sampl
       state: { participant: p, task: n, location: locations[n]! },
       draw: (st, s) =>
         new Group(
-          flow(s, st.location),
-          label('Task: ' + (st.task === 1 ? 'Change icon size' : task(st.task).name), 0, -1.5, s.look.ink, 0.75),
-          label(`${st.participant} could not complete it`, 0, -3, s.look.bad, 0.7),
+          flow(s, st.location, { key: 'reader-flow' }),
+          label(s, 'Task: ' + (st.task === 1 ? 'Change icon size' : task(st.task).name), { at: [0, -1.5], size: 0.75 }),
+          label(s, `${st.participant} could not complete it`, { at: [0, -3], color: s.look.bad, size: 0.7 }),
         ),
     },
     {
@@ -108,8 +108,8 @@ export function frames(p: Participant): [StagedStep<TaskFrame>, StagedStep<Sampl
                 stroke: s.look.ink,
                 strokeWidth: 0.03,
               }).moveTo([x, y]),
-              label(q, x, y, color === 'black' ? '#ffffff' : '#151515', 0.8),
-              ...outcomeLines[color].map((line, row) => label(line, x, y - 1 - row * 0.72, s.look.ink, 0.65)),
+              label(s, q, { at: [x, y], color: color === 'black' ? '#ffffff' : '#151515', size: 0.8 }),
+              ...outcomeLines[color].map((line, row) => label(s, line, { at: [x, y - 1 - row * 0.72], size: 0.65 })),
             );
             outcome.key = `outcome:${q}`;
             return outcome;

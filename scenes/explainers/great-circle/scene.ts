@@ -86,10 +86,10 @@ export default class GreatCircle extends Scene<GlobeState & { turn: { from: numb
     const before = [
       { id: 'question', title: 'Why does a flight from London to Los Angeles pass over Greenland?', line: 'Predict: which line is shorter, the bent one or the ruler’s?',
         caption: 'Open the seat-back map on a flight from London to Los Angeles. The line it draws leaves Heathrow heading north-west, climbs past the southern tip of Greenland, crosses Hudson Bay and only then turns south toward California. Los Angeles is far to the south of London, yet the plane goes north. Lay a ruler across the same map from Heathrow to LAX and you get a tidy line heading west-south-west across the Atlantic. Which route is shorter?',
-        state: { viewpoint: MERCATOR, route: L }, draw: (st: MapState) => mercator(st, false), opening: ['map'] },
+        state: { viewpoint: MERCATOR, route: L }, draw: (st: MapState, s: Stage) => mercator(st, s, false), opening: ['map'] },
       { id: 'shorter', title: `Answer: the bent line, by ${tens(L.extraKm)} km`, line: 'Red: the plane’s route. Blue dashed: the ruler’s line.',
         caption: `The bent one, by a long way: ${tens(L.km)} kilometres against ${tens(L.rhumbKm)}. The ruler’s line is about ${tens(L.extraKm)} kilometres longer. ${answer}. On the globe the shortest route lies along the circle that a flat plane cuts when it passes through both cities and the centre of the Earth. Look at that circle from inside its plane and it is a straight line.`,
-        state: { viewpoint: MERCATOR, route: L }, draw: (st: MapState) => mercator(st, true) },
+        state: { viewpoint: MERCATOR, route: L }, draw: (st: MapState, s: Stage) => mercator(st, s, true) },
       { id: 'stretch', title: 'Mercator’s map stretches the north sideways', line: 'Each bar is 1,000 km of the same parallel.',
         caption: `This kind of map, Mercator’s, stretches every place sideways so that compass directions stay true, and the farther from the equator, the more it stretches: about ${L.stretch.from.toFixed(1)} times at London’s latitude, about twice where the route crosses Greenland. The Earth is narrower up there, so a route that goes north takes a shortcut, and the map draws that narrow part widest, so the shortcut looks like a detour. The ruler’s line keeps one compass heading: easy to steer, longer to fly.`,
         state: { viewpoint: MERCATOR, route: L, km: 1000, stretch: L.stretch }, draw: stretched },
@@ -113,7 +113,7 @@ export default class GreatCircle extends Scene<GlobeState & { turn: { from: numb
         state: { viewpoint: GNOMONIC, routes: [L, M] }, draw: gnomonic, opening: ['gnomonic:seen'] },
       { id: 'limits', title: 'The shortcut over Greenland is the shortest way on a round Earth', line: `${tens(L.km)} km on a sphere of radius ${grouped(RADIUS_KM)} km.`,
         caption: 'The plane flies the great circle because on a round Earth it is the shortest way, and the map draws it bent because a flat map has to stretch a round world. Real flights leave the great circle to ride or avoid the jet stream, to stay within reach of airports and out of closed airspace, and the Earth’s slightly flattened shape changes these distances by a fraction of a per cent. The shortcut over Greenland survives all of them.',
-        state: { viewpoint: MERCATOR, route: L }, draw: (st: MapState) => mercator(st, true) },
+        state: { viewpoint: MERCATOR, route: L }, draw: (st: MapState, s: Stage) => mercator(st, s, true) },
     ];
 
     // Held on every frame by rayner check, the turn included: nothing behind the globe is drawn in

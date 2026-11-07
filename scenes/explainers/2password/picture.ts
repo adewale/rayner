@@ -19,10 +19,10 @@ export function frames(stage: Stage, answer: string, opts?: StagedStepsOptions):
       state: { needs: 'API_KEY', agentHasValue: false },
       draw: (st, s) =>
         new Group(
-          flow(s, ['Agent', '?', 'Application']),
+          flow(s, ['Agent', '?', 'Application'], { key: 'reader-flow' }),
           // As large as the tiles' names and no wider than the tiles, so a phone opens on all of it.
-          label(`needs ${st.needs}`, 4.8, -0.3, s.look.ink, 0.62),
-          ...(st.agentHasValue ? [] : [label('must not read', -4.8, -0.3, s.look.bad, 0.62), label('the value', -4.8, -1.15, s.look.bad, 0.62)]),
+          label(s, `needs ${st.needs}`, { at: [4.8, -0.3], size: 0.62 }),
+          ...(st.agentHasValue ? [] : [label(s, 'must not read', { at: [-4.8, -0.3], color: s.look.bad, size: 0.62 }), label(s, 'the value', { at: [-4.8, -1.15], color: s.look.bad, size: 0.62 })]),
         ),
     },
     {
@@ -33,10 +33,10 @@ export function frames(stage: Stage, answer: string, opts?: StagedStepsOptions):
       state: { ref, agentHasValue: false, childHasValue: !!launched.childEnv.API_KEY },
       draw: (st, s) =>
         new Group(
-          flow(s, ['Agent', 'op CLI', 'Application']),
-          label('op:// reference', -2.6, 2.25, s.look.emphasis, 0.65),
-          ...(st.childHasValue ? [label('secret value', 2.6, 2.25, s.look.emphasis, 0.65)] : []),
-          label(st.ref, 0, -1.6, s.look.ink, 0.62),
+          flow(s, ['Agent', 'op CLI', 'Application'], { key: 'reader-flow' }),
+          label(s, 'op:// reference', { at: [-2.6, 2.25], color: s.look.emphasis, size: 0.65 }),
+          ...(st.childHasValue ? [label(s, 'secret value', { at: [2.6, 2.25], color: s.look.emphasis, size: 0.65 })] : []),
+          label(s, st.ref, { at: [0, -1.6], size: 0.62 }),
         ),
     },
   ], opts);

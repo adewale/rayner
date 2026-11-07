@@ -36,9 +36,9 @@ export function frames(font: FontName): [StagedStep<WidthState>, StagedStep<Shap
           text.key = `word:${f}`;
           g.add(
             text,
-            label(name(f), -6.5, y + 1.1, s.look.ink, 0.65).moveTo([-6.5, y + 1.1], [-1, 0]),
+            label(s, name(f), { at: [-6.5, y + 1.1], size: 0.65 }).moveTo([-6.5, y + 1.1], [-1, 0]),
             new Line([-6.5, y - 0.8], [-6.5 + w, y - 0.8], { stroke: s.look.emphasis, strokeWidth: 0.05 }),
-            label(w.toFixed(2), 5.5, y - 0.8, s.look.ink, 0.7).moveTo([5.5, y - 0.8], [1, 0]),
+            label(s, w.toFixed(2), { at: [5.5, y - 0.8], size: 0.7 }).moveTo([5.5, y - 0.8], [1, 0]),
           );
         });
         return g;
@@ -69,8 +69,8 @@ export function frames(font: FontName): [StagedStep<WidthState>, StagedStep<Shap
           g.add(
             cell,
             t,
-            label(name(f), x, -2.3, s.look.ink, 0.65),
-            label(`advance ${st.l[f].toFixed(3)}`, x, -3.1, s.look.emphasis, 0.6),
+            label(s, name(f), { at: [x, -2.3], size: 0.65 }),
+            label(s, `advance ${st.l[f].toFixed(3)}`, { at: [x, -3.1], color: s.look.emphasis }),
           );
         });
         return g;

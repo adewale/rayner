@@ -32,11 +32,11 @@ export function frames(s: Stage, answer: string, opts?: StagedStepsOptions): Pro
       state: { file: run.shell.fs['shout.txt']!, stdout: run.stdout, startingCat: old },
       draw: (st, s) =>
         new Group(
-          flow(s, ['echo hello', `tr → ${st.file.trim()}`, 'shout.txt']),
-          label('hello', -2.55, 2.25, s.look.emphasis, 0.65),
-          label(st.file.trim(), 2.55, 2.25, s.look.emphasis, 0.65),
-          label('cat shout.txt on the starting shell:', 0, -1.15, s.look.ink, 0.62),
-          label(prints(st.startingCat), 0, -2.05, s.look.bad, 0.7),
+          flow(s, ['echo hello', `tr → ${st.file.trim()}`, 'shout.txt'], { key: 'reader-flow' }),
+          label(s, 'hello', { at: [-2.55, 2.25], color: s.look.emphasis, size: 0.65 }),
+          label(s, st.file.trim(), { at: [2.55, 2.25], color: s.look.emphasis, size: 0.65 }),
+          label(s, 'cat shout.txt on the starting shell:', { at: [0, -1.15], size: 0.62 }),
+          label(s, prints(st.startingCat), { at: [0, -2.05], color: s.look.bad, size: 0.7 }),
         ),
     },
     {
@@ -47,13 +47,13 @@ export function frames(s: Stage, answer: string, opts?: StagedStepsOptions): Pro
       state: { old, next, file: run.shell.fs['shout.txt']! },
       draw: (st, s) =>
         table(
+          s,
           ['Shell', 'shout.txt', 'cat prints'],
           [
             ['original', 'missing', st.old.trim() || 'nothing'],
             ['returned', st.file.trim(), st.next.trim()],
           ],
-          s,
-          { xs: [-5, 0, 5], y: 2, gap: 1.6 },
+          { key: 'comparison', columns: [-5, 0, 5], at: [0, 2], gap: 1.6 },
         ),
     },
   ], opts);

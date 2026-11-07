@@ -1,7 +1,7 @@
 import { Group, Arrow, Circle, Text, SurroundingRectangle, Cross } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import { keyedParts } from '../../../explain/drawing.ts';
-import { label, tile, emphasised } from '../../../explain/drawing.ts';
+import { keyed, label, tile, emphasised } from '../../../explain/drawing.ts';
 import type { Stage, StagedStepsOptions, Look } from '../../../explain/index.ts';
 import type { RingState } from './model.ts';
 
@@ -37,13 +37,13 @@ export function frames(stage: Stage, opts?: StagedStepsOptions): Promise<void> {
         const g = new Group();
         st.before.forEach((v, i) =>
           g.add(
-            tile(v, x(i), TOP, W, H, s, { size: 0.7, key: `array:${i}`, bad: i === 0 }),
-            label(`slot ${i}`, x(i), TOP + 0.95, s.look.soft, 0.5),
+            tile(s, v, { at: [x(i), TOP], width: W, height: H, size: 0.7, key: `array:${i}`, bad: i === 0 }),
+            label(s, `slot ${i}`, { at: [x(i), TOP + 0.95], color: s.look.soft, size: 0.5 }),
           ),
         );
         st.before.forEach((_, i) => {
           const v = st.after[i];
-          g.add(tile(v ?? 'empty', x(i), BOTTOM, W, H, s, { size: v == null ? 0.5 : 0.7, key: `array-after:${i}` }));
+          g.add(tile(s, v ?? 'empty', { at: [x(i), BOTTOM], width: W, height: H, size: v == null ? 0.5 : 0.7, key: `array-after:${i}` }));
         });
         // One arrow per value shift moves: slot i + 1 to slot i.
         for (let i = 0; i < st.moved; i++)
@@ -56,7 +56,7 @@ export function frames(stage: Stage, opts?: StagedStepsOptions): Promise<void> {
             }),
           );
         g.add(
-          label(`pop() returned ${st.popped} and moved ${st.moved} values`, 0, -2.75, s.look.bad, 0.58, 'shift-result'),
+          label(s, `pop() returned ${st.popped} and moved ${st.moved} values`, { at: [0, -2.75], color: s.look.bad, size: 0.58, key: 'shift-result' }),
         );
         return g;
       },
@@ -130,7 +130,7 @@ export const pointerAt = (k: Ink, name: 'head' | 'tail', at: number) => {
     polar(a + (name === 'head' ? 0.06 : -0.06), R + 1.42),
   );
   return new Group(
-    new Arrow(start, end, { stroke: color, strokeWidth: 0.035, tipLength: 0.16, tipWidth: 0.14 }),
+    keyed(new Arrow(start, end, { stroke: color, strokeWidth: 0.035, tipLength: 0.16, tipWidth: 0.14 }), `ring:pointer:${name}:arrow`),
     label,
   );
 };

@@ -22,10 +22,10 @@ export function frames(stage: Stage, which: string, answer: string, opts?: Stage
       state: { event, next },
       draw: (st, s) =>
         new Group(
-          flow(s, ['idle', 'connecting', st.next]),
-          label('CONNECT', -2.55, 2.25, s.look.emphasis, 0.65),
-          label(st.event, 2.55, 2.25, s.look.emphasis, 0.65),
-          label('Current state + event → next state', 0, -1.8, s.look.ink, 0.7),
+          flow(s, ['idle', 'connecting', st.next], { key: 'reader-flow' }),
+          label(s, 'CONNECT', { at: [-2.55, 2.25], color: s.look.emphasis, size: 0.65 }),
+          label(s, st.event, { at: [2.55, 2.25], color: s.look.emphasis, size: 0.65 }),
+          label(s, 'Current state + event → next state', { at: [0, -1.8], size: 0.7 }),
         ),
     },
     {
@@ -37,14 +37,14 @@ export function frames(stage: Stage, which: string, answer: string, opts?: Stage
       state: { state: closed, event: 'OPENED', result: rejected, via: which === 'success' ? 'CLOSE' : event },
       draw: (st, s) =>
         new Group(
-          label(`${st.via} → ${st.state}`, 0, 2.65, s.look.ink, 0.7),
-          tile(st.state, -4.7, 1, 3.8, 1.3, s, { active: true }),
-          tile(st.event, 0, 1, 3.8, 1.3, s),
+          label(s, `${st.via} → ${st.state}`, { at: [0, 2.65], size: 0.7 }),
+          tile(s, st.state, { at: [-4.7, 1], width: 3.8, height: 1.3, active: true }),
+          tile(s, st.event, { at: [0, 1], width: 3.8, height: 1.3 }),
           // The rejected event leaves the state where it was.
-          tile(st.result.state ?? st.state, 4.7, 1, 3.8, 1.3, s, { active: true }),
-          label('×', 2.35, 1, s.look.bad, 1),
-          label(st.result.error!, 0, -1.4, s.look.bad, 0.8, 'rejection'),
-          label(`State stays ${st.state}`, 0, -2.8, s.look.ink, 0.7),
+          tile(s, st.result.state ?? st.state, { at: [4.7, 1], width: 3.8, height: 1.3, active: true }),
+          label(s, '×', { at: [2.35, 1], color: s.look.bad, size: 1 }),
+          label(s, st.result.error!, { at: [0, -1.4], color: s.look.bad, size: 0.8, key: 'rejection' }),
+          label(s, `State stays ${st.state}`, { at: [0, -2.8], size: 0.7 }),
         ),
     },
   ], opts);

@@ -130,9 +130,8 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
         r = month === 'June' ? now().june : now().december!;
       const { mid, gap } = daylightAnchor(S);
       const callout = await s.callout(mid, `${hours(r.daylight)} of daylight`, {
-        side: 'below', gap, color: SUN, size: 0.28,
+        side: 'below', gap, color: SUN, size: 0.28, key: `${S.month.toLowerCase()}-daylight-callout`,
       });
-      callout.key = `${S.month.toLowerCase()}-daylight-callout`;
       if (r.altitude <= 0) {
         const below = belowHorizonNote(callout, r.altitude, soft);
         callout.add(below);
@@ -173,7 +172,7 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
     await s.carry(sun, [0, CY]);
     const J = solstice('June');
     s.keep(J.globe, { describe: J.describe.drawn });
-    const small = tilt.june.children[0]!.center();
+    const small = tilt.june.find('orbit-earth:June')!.center();
     await this.play(
       new FadeOut(tilt.june, { shift: [JUNE_C[0] - small[0], JUNE_C[1] - small[1]], scale: 2, runTime: 0.8 }),
       new FadeIn(J.globe, { scale: 0.25, runTime: 0.8 }),

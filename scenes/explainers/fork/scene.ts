@@ -254,10 +254,10 @@ export default class ForkExplainer extends Scene<ForkState, ForkShown> {
         // A row per pod placement and a column per policy, each cell the scenario that combination makes.
         draw: ({ scenarios: { policies, pods } }, st) =>
           table(
+            st,
             ['Pods per node', ...policies],
             pods.map((placement, r) => [placement.replaceAll('-', ', '), ...policies.map((_, p) => `scenario ${r * policies.length + p + 1}`)]),
-            st,
-            { xs: [-5, 0, 5], y: 2.2, gap: 1.45, key: 'fork-scenarios' },
+            { columns: [-5, 0, 5], at: [0, 2.2], gap: 1.45, key: 'fork-scenarios' },
           ),
         opening: ['fork-scenarios'],
       },
