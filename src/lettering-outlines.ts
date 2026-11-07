@@ -7,6 +7,7 @@ import type { Font, Run, Segment } from '../vendor/glyph.js';
 import { Text, CodeSpan } from './text.ts';
 import type { Box } from './mobject.ts';
 import {bindTextContext, withTextContext} from './text-context.ts';
+import { LETTERING_SCRIPTS } from './lettering.ts';
 import type {TextShaping} from './text-context.ts';
 
 /** Real cuts an explainer can ask for, instead of the stroked faux bold and no italic. */
@@ -165,7 +166,7 @@ interface ReplayState {
 const replays = new WeakMap<LetteringSnapshot, ReplayState>();
 export const scriptFaceNames: Readonly<Record<string, string>> = {
   Arab: 'noto-naskh-arabic', Deva: 'noto-sans-devanagari', Hebr: 'noto-sans-hebrew',
-  Hani: 'noto-sans-sc', Latn: 'inter', Grek: 'inter', Cyrl: 'inter',
+  Hani: 'noto-sans-sc', ...Object.fromEntries(LETTERING_SCRIPTS.map((script) => [script, 'inter'])),
 };
 /** The registry face a family's cuts come from when the request names none. */
 export const defaultCutFace: Readonly<Record<FontName, string>> = { sans: 'inter', mono: 'jetbrains-mono' };
@@ -389,5 +390,5 @@ export function bindLettering(Source: SceneClass, provider: LetteringProvider | 
 export function usesOutlineLettering(Source: object): boolean {
   const r = letteringOf(Source);
   return !!r && (Object.hasOwn(r, 'faces') || Object.hasOwn(r, 'math') || Object.hasOwn(r, 'styles') ||
-    (Array.isArray(r.scripts) && r.scripts.some((s) => !['Latn', 'Grek', 'Cyrl'].includes(s))));
+    (Array.isArray(r.scripts) && r.scripts.some((s) => !(LETTERING_SCRIPTS as readonly string[]).includes(s))));
 }

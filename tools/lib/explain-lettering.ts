@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
-import { useLettering, takeLetteringUse } from '../../src/lettering.ts';
+import { LETTERING_SCRIPTS, useLettering, takeLetteringUse } from '../../src/lettering.ts';
 import type { SubsetLetteringRequest, LetteringScript, LetteringFaces } from '../../src/lettering.ts';
 import type { FontName } from '../../src/index.ts';
 
@@ -52,7 +52,7 @@ export interface Lettering {
 export function letteringRequest(Scene: { meta?: object }): SubsetLetteringRequest | undefined {
   const value = (Scene.meta as { lettering?: unknown } | undefined)?.lettering;
   if (value === undefined) return undefined;
-  const known = Object.keys(SCRIPTS);
+  const known: readonly string[] = LETTERING_SCRIPTS;
   const fail = (why: string) => {
     throw new Error(`meta.lettering ${why}. Ask for { scripts: [...] } with some of ${known.join(', ')}`);
   };

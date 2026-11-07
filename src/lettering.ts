@@ -16,8 +16,13 @@ import { ATTACHED, decodeFont, embeddedChain, embeddedFaces, loadFonts, memoShap
 import type { FontName, Shaper } from './fonts.ts';
 import {setDefaultTextContext} from './text-context.ts';
 
+/**
+ * Writing systems the subset workflow cuts from the lettering faces, by ISO 15924
+ * code: `Latn` is Latin beyond Latin-1. Any other script uses outline snapshots.
+ */
+export const LETTERING_SCRIPTS = ['Latn', 'Grek', 'Cyrl'] as const;
 /** Writing systems an explainer can ask for, by ISO 15924 code. `Latn` is Latin beyond Latin-1. */
-export type LetteringScript = 'Latn' | 'Grek' | 'Cyrl';
+export type LetteringScript = typeof LETTERING_SCRIPTS[number];
 /** What `static meta.lettering` asks for. */
 export interface SubsetLetteringRequest {
   /** Scripts whose letters the explainer draws. They need no shaping beyond what `glyph` does for Latin. */
