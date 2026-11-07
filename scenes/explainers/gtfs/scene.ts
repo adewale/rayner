@@ -2,7 +2,6 @@ import { Scene } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf, Card, CodeBlock, mermaid, answerOf, view } from '../../../explain/index.ts';
 import type { Diagram, View } from '../../../explain/index.ts';
-import { wordsOf } from '../../../explain/words.ts';
 import { stagedStep } from '../../../explain/index.ts';
 import { SAMPLE_FEED } from './feed.ts';
 import {
@@ -174,12 +173,12 @@ export default class GtfsExplainer extends Scene {
 
     // The ER diagram's marked joins are how it is shown, not the model: they live in `shown`, and a
     // diagram is shown by a view that marks the links `shown` names, in its accent, said by its word
-    // (a mark's own word when it names none). A focus moves the live diagram, so the marks leave
+    // (“marked”, a mark's own word, when it names none). A focus moves the live diagram, so the marks leave
     // `shown`, the live diagram is moved, and the view comes back.
     type ErMarks = { marked: string[]; as: string | null };
     const drawEr = (d: Diagram) => (_st: object, sh: Record<string, unknown>) => {
       const { marked, as } = sh.er as ErMarks;
-      return { marks: Object.fromEntries(marked.map((id) => [id, { color: d.accent, as: as ?? wordsOf(this).marked }])) };
+      return { marks: Object.fromEntries(marked.map((id) => [id, { color: d.accent, as: as ?? 'marked' }])) };
     };
     const markEr = async (v: View, marks: ErMarks) => {
       this.shown.er = marks;
