@@ -60,3 +60,12 @@ Browser tests live in `test/browser/`; `test:embeds` discovers every test there.
 CI runs the full campaign for code, fixtures, workflow changes, executable documentation, unknown paths and explicit dispatches. Prose-only changes on PRs and main run the onboarding and tutorial assertions plus whitespace checks. The required `story` job rejects a failed scope decision. A main push may reuse a successful same-repository PR campaign from the last 24 hours only when all nine protected owners ran successfully, the archive records the same Node version and clean checkout, and the tested synthetic merge has exactly the same Git tree as main. Missing or expired proof runs full CI. Release dispatches always run fresh validation and produce their own artifacts.
 
 `test/statecharts.test.ts` compares the statecharts model with XState; `tools/oracle/statecharts.ts` says how to regenerate its fixture.
+
+Snapshot indexes record the source revision at the last changed diagram capture.
+A source-only refactor does not rewrite that provenance. `snapshot-freshness.test.ts`
+executes every current scenario and compares its required diagram store with the
+committed store; changed, missing or unused diagram inputs require review and
+recapture. Source/engine hashes still invalidate live build caches. Outline/font
+capture identity and the rendered story, raster and semantic gates remain separate.
+The tile contrast keeper is `test/browser/embed-tint.test.ts`: it reads computed
+colors from the shipped stylesheet and calculates WCAG ratios independently.
