@@ -3,6 +3,7 @@ import { renderAt, SeekSink } from '../src/output.ts';
 import { traceRun } from '../src/trace.ts';
 import type { Trace } from '../src/testing.ts';
 import { StopScene } from '../src/output.ts';
+import { isHex } from '../src/color.ts';
 import { resolveSettings } from '../explain/index.ts';
 import { bindSnapshots, withSettings } from '../explain/settings.ts';
 import type { ExplainerClass, Settings, SnapshotStore } from '../explain/index.ts';
@@ -597,7 +598,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
    */
   const sinkOptions = (at: Entry, realtime: boolean) => ({
     realtime,
-    ...(at.paper && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(at.paper) ? { background: at.paper } : {}),
+    ...(isHex(at.paper) ? { background: at.paper } : {}),
   });
   const zoom = new StageZoom(
     stage,

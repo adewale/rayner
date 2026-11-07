@@ -6,6 +6,7 @@ import { Group, Line, Circle, Rectangle, Polygon, Text, Create, VMobject } from 
 import type { Mobject, Vec, Box } from '../src/index.ts';
 import { center, overlaps, pointsBox } from '../src/box.ts';
 import { paintsFill } from '../src/mobject.ts';
+import { isHex, parseColor } from '../src/color.ts';
 import { selfDescribed } from './look.ts';
 
 const paperFor = (text: Text, fill: string): Rectangle => new Rectangle({
@@ -307,10 +308,9 @@ export interface LegendItem {
  * caption's "purple fill" finds the swatch that keys it.
  */
 export function colourName(hex: string): string {
-  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m) return 'coloured';
-  const h6 = m[1]!.length === 3 ? [...m[1]!].map((c) => c + c).join('') : m[1]!;
-  const [r, g, b] = [0, 2, 4].map((i) => parseInt(h6.slice(i, i + 2), 16) / 255) as [number, number, number];
+  const trimmed = hex.trim();
+  if (!isHex(trimmed)) return 'coloured';
+  const [r, g, b] = parseColor(trimmed)!.map((v) => v / 255) as [number, number, number];
   const max = Math.max(r, g, b),
     min = Math.min(r, g, b),
     l = (max + min) / 2,

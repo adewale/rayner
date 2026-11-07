@@ -7,6 +7,7 @@ import type { PathData } from './vmobject.ts';
 import type { Box, Mobject, StyleRecord } from './mobject.ts';
 import type { Scene, Sink } from './scene.ts';
 import { perf } from './perf.ts';
+import { isHex } from './color.ts';
 
 export const FRAME = { w: 16, h: 9 } as const;
 /** SVG user units per scene unit: lengths are emitted as integers (see VMobject.formatPathD). */
@@ -406,7 +407,7 @@ export interface SvgOptions {
 export function toSvgString(scene: Scene, { width = 1280, background = scene.colors.paper, cull = false }: SvgOptions = {}): string {
   if (typeof width !== 'number' || !Number.isSafeInteger(width) || width < 1)
     throw new TypeError('svg width must be a positive safe integer');
-  if (typeof background !== 'string' || !/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(background))
+  if (!isHex(background))
     throw new TypeError('svg background must be a #rgb or #rrggbb colour');
   const hex = background.slice(1).toLowerCase();
   background = '#' + (hex.length === 3 ? [...hex].map((ch) => ch + ch).join('') : hex);

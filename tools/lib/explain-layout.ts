@@ -5,6 +5,7 @@ import { ArcBetweenPoints } from '../../src/extras.ts';
 import { renderElements } from '../../src/output.ts';
 import type { Box, Mobject, Scene, Vec } from '../../src/index.ts';
 import { contains, intersect, nonempty, pad, pointsBox } from '../../src/box.ts';
+import { isHex } from '../../src/color.ts';
 import { isDiagramConnector, labelOf } from '../../explain/diagrams.ts';
 import { isFurniture, isHeading } from '../../explain/stage.ts';
 
@@ -16,9 +17,7 @@ function visible(m: Mobject): boolean {
 function paintAlpha(paint: string): number | undefined {
   const p = paint.trim().toLowerCase();
   if (p === 'none' || p === 'transparent') return 0;
-  if (/^#[\da-f]{3}$|^#[\da-f]{6}$/.test(p)) return 1;
-  if (/^#[\da-f]{4}$/.test(p)) return parseInt(p[4]!, 16) / 15;
-  if (/^#[\da-f]{8}$/.test(p)) return parseInt(p.slice(7), 16) / 255;
+  if (isHex(p, { alpha: true })) return p.length === 5 ? parseInt(p[4]!, 16) / 15 : p.length === 9 ? parseInt(p.slice(7), 16) / 255 : 1;
   const color = /^(?:rgba?|hsla?)\((.*)\)$/.exec(p);
   if (!color) return undefined;
   const parts = color[1]!.split(',');
@@ -28,7 +27,7 @@ function paintAlpha(paint: string): number | undefined {
 }
 function opaque(m: Mobject): boolean {
   for (let a: Mobject | null = m; a; a = a.parent) if (a.style.opacity !== 1) return false;
-  return m.style.fillOpacity === 1 && /^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(m.style.fill);
+  return m.style.fillOpacity === 1 && isHex(m.style.fill);
 }
 function textAncestor(m: Mobject | null): boolean {
   for (let a: Mobject | null = m; a; a = a.parent) if (labelOf(a)) return true;

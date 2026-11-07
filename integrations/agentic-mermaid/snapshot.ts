@@ -1,5 +1,6 @@
 import type { Style } from '../../src/mobject.ts';
 import type { Scene } from '../../src/scene.ts';
+import { isHex } from '../../src/color.ts';
 
 export interface DiagramSpec {
   source: string;
@@ -124,9 +125,7 @@ function validateSnapshot(value: DiagramSnapshot): void {
   const finite = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
   // Points are stored as float32: a coordinate must stay finite there too.
   const point = (n: unknown): n is number => finite(n) && Number.isFinite(Math.fround(n));
-  const color = (v: unknown) =>
-    typeof v === 'string' &&
-    (v === 'none' || /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v));
+  const color = (v: unknown) => v === 'none' || isHex(v, { alpha: true });
   if (
     !value ||
     value.version !== 1 ||
