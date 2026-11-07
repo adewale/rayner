@@ -33,6 +33,7 @@ import { letteringRequest, prepareLettering, useProjectLettering } from './expla
 import type { Lettering } from './explain-lettering.ts';
 import { buildInputs } from './build-inputs.ts';
 import { COMPILED, LIB_ROOT, ROOT } from './roots.ts';
+import { entryPoints } from './entry-points.ts';
 
 export { LIB_ROOT, ROOT };
 export const hash = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex');
@@ -70,15 +71,8 @@ export function engineAlias(node = false, outlines = false): Plugin {
       }));
       b.onResolve({ filter: /.*/ }, (args) => {
         let file: string | undefined;
-        if (args.path === 'rayner') file = join(LIB_ROOT, 'src/index.ts');
-        else if (args.path === 'rayner/explain') file = join(LIB_ROOT, 'explain/index.ts');
-        else if (args.path === 'rayner/drawing') file = join(LIB_ROOT, 'explain/drawing.ts');
-        else if (args.path === 'rayner/geo') file = join(LIB_ROOT, 'explain/geo.ts');
-        else if (args.path === 'rayner/audio') file = join(LIB_ROOT, 'explain/score.ts');
-        else if (args.path === 'rayner/extras') file = join(LIB_ROOT, 'src/extras.ts');
-        else if (args.path === 'rayner/lettering') file = join(LIB_ROOT, 'src/lettering.ts');
-        else if (args.path === 'rayner/output') file = join(LIB_ROOT, 'src/output.ts');
-        else if (args.path === 'rayner/testing') file = join(LIB_ROOT, 'explain/testing.ts');
+        const entry = entryPoints().get(args.path);
+        if (entry) file = join(LIB_ROOT, entry + '.ts');
         else if (args.path.startsWith('.') || args.path.startsWith('/')) {
           const absolute = resolve(args.resolveDir, args.path);
           const compiled = absolute.match(/\/dist\/(src|explain|integrations\/agentic-mermaid)\/(.+)\.js$/);

@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { ROOT } from '../lib/explain-project.ts';
+import { entryPoints, packageImports } from '../lib/entry-points.ts';
 const run = promisify(execFile),
   folder = await mkdtemp(join(tmpdir(), 'rayner-package-'));
 /** The two packages, in install order: the library, then the command that depends on it. */
@@ -60,7 +61,7 @@ try {
   assert.equal(library.version, version);
   assert.equal(library.dependencies, undefined, 'rayner has no runtime dependencies');
   assert.equal(library.bin, undefined, 'the rayner command ships in rayner-cli');
-  for (const entry of ['rayner', 'rayner/explain', 'rayner/drawing', 'rayner/geo', 'rayner/audio', 'rayner/extras', 'rayner/lettering', 'rayner/output', 'rayner/testing'])
+  for (const entry of entryPoints(ROOT).keys())
     await run(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(entry)})`], { cwd: alone });
   // Capture and the command stay out of the library: no tools, player, Python, capture code or typesetter.
   for (const file of ['tools', 'app', 'dist/tools', 'integrations/agentic-mermaid/build', 'dist/integrations/agentic-mermaid/build', 'vendor/glyph-math.js', 'dist/vendor/glyph-math.js', 'vendor/lettering'])
@@ -242,10 +243,7 @@ try {
   await mkdir(join(folder, 'greek'));
   await writeFile(
     join(folder, 'greek/scene.ts'),
-    (await readFile(join(fixture, 'scene.ts'), 'utf8'))
-      .replace("'../../../src/index.ts'", "'rayner'")
-      .replace("'../../../explain/index.ts'", "'rayner/explain'")
-      .replace("'../../../src/lettering.ts'", "'rayner/lettering'"),
+    packageImports(await readFile(join(fixture, 'scene.ts'), 'utf8'), ROOT),
   );
   await copyFile(join(fixture, 'scene.lettering.json'), join(folder, 'greek/scene.lettering.json'));
   await run(process.execPath, [cli, 'build', 'greek', '--out', 'public/greek.html'], {
@@ -269,11 +267,7 @@ try {
   // model and picture modules). Engine imports use the installed package; other imports keep
   // their relative paths, so a dependency outside the explainer's folder still fails.
   const copyAuthorSource = async (source: string, target: string) => {
-    const code = (await readFile(source, 'utf8')).replace(
-      /(['"])(?:\.\.\/)+(src\/index|src\/output|src\/extras|explain\/index|explain\/drawing|explain\/geo|explain\/score)\.ts\1/g,
-      (_match, quote: string, area: string) =>
-        `${quote}${({ 'src/index': 'rayner', 'src/output': 'rayner/output', 'src/extras': 'rayner/extras', 'explain/index': 'rayner/explain', 'explain/drawing': 'rayner/drawing', 'explain/geo': 'rayner/geo', 'explain/score': 'rayner/audio' } as Record<string, string>)[area]}${quote}`,
-    );
+    const code = packageImports(await readFile(source, 'utf8'), ROOT);
     await writeFile(target, code);
   };
   for (const [name, source] of replayFixtures) {

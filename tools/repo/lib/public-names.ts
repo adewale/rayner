@@ -17,6 +17,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
+import { entryPoints as libraryEntryPoints } from '../../lib/entry-points.ts';
 
 export const ROOT = resolve(import.meta.dirname, '../../..');
 export const LEDGER = 'test/public-names.json';
@@ -53,12 +54,7 @@ export function readLedger(root = ROOT): Ledger {
 
 /** The entry points, from package.json "exports": the package name of each, and the source it is built from. */
 export function entryPoints(root = ROOT): Map<string, string> {
-  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { exports: Record<string, { types: string }> };
-  const out = new Map<string, string>();
-  for (const [subpath, target] of Object.entries(pkg.exports))
-    // rayner-cli's door into the compiled modules, not an entry point (docs/ENGINE.md, "Public names").
-    if (subpath !== './internal/*') out.set(subpath === '.' ? 'rayner' : `rayner/${subpath.slice(2)}`, target.types.replace(/^\.\/dist\//, '').replace(/\.d\.ts$/, '.ts'));
-  return out;
+  return new Map([...libraryEntryPoints(root)].map(([name, module]) => [name, module + '.ts']));
 }
 
 /** Every value each entry point exports, by package name. */

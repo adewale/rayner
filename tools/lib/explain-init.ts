@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import { LIB_ROOT } from './roots.ts';
+import { packageImports as toPackageImports } from './entry-points.ts';
 
 /** `rayner init` writes the tutorial's explainer (docs/TUTORIAL.md): its script, scene, model and the model's test. */
 export const STARTER = join(LIB_ROOT, 'scenes/tutorial/lru-mru');
@@ -14,11 +15,4 @@ export const MACHINE_STARTER = join(LIB_ROOT, 'scenes/tutorial/door');
 export const MACHINE_STARTER_FILES = ['script.md', 'scene.ts', 'picture.ts', 'model.ts', 'model.test.ts', 'scene.review.json'] as const;
 
 /** A starter file as an author's project holds it: the repository's engine imports become the package's. */
-export const packageImports = (source: string) =>
-  source
-    .replaceAll("from '../../../src/index.ts'", "from 'rayner'")
-    .replaceAll("from '../../../explain/index.ts'", "from 'rayner/explain'")
-    .replaceAll("from '../../../explain/drawing.ts'", "from 'rayner/drawing'")
-    .replaceAll("from '../../../explain/geo.ts'", "from 'rayner/geo'")
-    .replaceAll("from '../../../explain/score.ts'", "from 'rayner/audio'")
-    .replaceAll("from '../../../src/extras.ts'", "from 'rayner/extras'");
+export const packageImports = (source: string): string => toPackageImports(source);
