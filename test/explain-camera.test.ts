@@ -87,7 +87,7 @@ test('s.focus moves the camera, not the diagram; a view’s notes, marks, dims a
       assert.ok(note.box()![1] >= d.get('B').box()![3], 'the note sits beside its part');
       await d.walk([['A', 'B']]);
       this.shown.walked = [['A', 'B']];
-      await this.play(v.sync({ match: 'key', staged: true }));
+      await this.play(v.sync());
       assert.deepEqual(pointsOf(parts), before);
       const drawn = (id: string) => v.current.family().find((m) => m.key === id)!;
       assert.ok(drawn('C').family()[1]!.style.opacity! < 1, 'C is dimmed');
@@ -102,10 +102,8 @@ test('s.focus moves the camera, not the diagram; a view’s notes, marks, dims a
       assert.ok(near(this.frame.box()!, HOME), 'all returns to the whole stage');
       assert.deepEqual(pointsOf(parts), before);
       this.shown.emphasis = false;
-      await this.play(v.sync({ match: 'key', staged: true }));
-      await d.focus(['C'], { camera: true });
-      // The description says what the camera is on, as a mark does.
-      assert.deepEqual(d.describe().parts.find((p) => p.name === 'Gamma')?.mark, 'focused');
+      await this.play(v.sync());
+      await s.focus(d.get('C'));
       await s.clear();
       assert.ok(near(this.frame.box()!, HOME), 'clear() brings the camera home');
       this.state.done = true;

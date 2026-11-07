@@ -64,7 +64,7 @@ export default class PasswordExplainer extends Scene {
     });
     const showBoundary = async (change: Partial<BoundaryShown>) => {
       this.shown.boundary = { ...(this.shown.boundary as BoundaryShown), ...change };
-      await this.play(boundaryView.sync({ match: 'key', staged: true }));
+      await this.play(boundaryView.sync());
     };
     const handled: [string, string][] = [
       ['Agent', 'Find'],
@@ -120,7 +120,7 @@ export default class PasswordExplainer extends Scene {
       columns: 'queries',
       focus: [1 + ITEMS.indexOf(ITEMS.find((i) => i.title === match.title)!), 1 + ITEMS.indexOf(near)],
     } satisfies ListingShown;
-    await this.play(listing.sync({ match: 'key', staged: true }));
+    await this.play(listing.sync());
     this.state.matches = Object.fromEntries(
       QUERIES.map((q) => [q, ITEMS.filter((i) => matches(q, i.title)).map((i) => i.title)]),
     );
@@ -172,7 +172,7 @@ export default class PasswordExplainer extends Scene {
         { id: 'message:T->A#0', text: `secret values: ${leaked || 'none'}`, side: 'below' },
       ],
     } satisfies SequenceShown;
-    await this.play(sequenceView.sync({ match: 'key', staged: true }));
+    await this.play(sequenceView.sync());
     this.state.leaked = leaked;
 
     const ref = match.ref;
@@ -223,7 +223,7 @@ export default class PasswordExplainer extends Scene {
       new FadeIn(child),
     );
     this.shown.commandFocus = 1;
-    await this.play(command.sync({ match: 'key', staged: true }));
+    await this.play(command.sync());
     this.state.argv = launched.argv;
     this.state.childEnv = launched.childEnv;
   }

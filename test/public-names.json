@@ -101,10 +101,6 @@
         },
         {
           "name": "matchByKey"
-        },
-        {
-          "label": "match: 'key'",
-          "pattern": "match:\\s*'key'"
         }
       ]
     },
@@ -405,7 +401,7 @@
     {
       "explaining": "Keyed cells or nodes rearranged between pictures of the same state",
       "start": "`periodic-groups`",
-      "shows": "`view(...).sync({ match: 'key' })`; `matchByKey({ fallback })` for unkeyed parts that should stay put, `{ text: 'whole' }` when a relabelled part is a new thing (`statecharts`); `find(key)` to address a part",
+      "shows": "`view(...).sync()`, which matches by key; `matchByKey({ fallback })` for unkeyed parts that should stay put, `{ text: 'whole' }` when a relabelled part is a new thing (`statecharts`); `find(key)` to address a part",
       "scenes": [
         "periodic-groups"
       ],

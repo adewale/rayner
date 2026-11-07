@@ -176,7 +176,7 @@ export default class LatestSearchExplainer extends Scene {
     this.state = snapshot(1);
     await this.play(chart.sync({ match: 'index', runTime: 0.55 }));
     this.shown.codeFocus = { focus: [4, 5], focusAs: 'guard' };
-    await this.play(code.sync({ match: 'key', staged: true, runTime: 0.4 }));
+    await this.play(code.sync({ runTime: 0.4 }));
 
     const last = run.snapshots[2]!;
     await this.step('second', {
@@ -204,6 +204,6 @@ export default class LatestSearchExplainer extends Scene {
           : 'The same two promises resolve older A, then latest B. Both policies end on B. The guard still ignores A while B is pending, rather than briefly showing the older result. This models a page update, not request cancellation.',
     });
     this.state = snapshot(2, true);
-    await this.play(chart.sync({ match: 'text', runTime: 0.55 }));
+    await this.play(chart.sync({ match: 'text', staged: false, runTime: 0.55 }));
   }
 }

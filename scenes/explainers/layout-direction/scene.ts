@@ -109,7 +109,7 @@ export default class LayoutDirectionExplainer extends Scene {
     });
     this.state.field = 456;
     this.shown.lit = 'Field';
-    await this.play(start.sync({ match: 'key', staged: true }), end.sync({ match: 'key', staged: true }));
+    await this.play(start.sync(), end.sync());
     s.opening(start, end);
     this.state.cards = { start: layoutOf(start.current), end: layoutOf(end.current) };
 

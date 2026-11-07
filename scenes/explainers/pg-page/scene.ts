@@ -337,7 +337,7 @@ export default class PgPageExplainer extends Scene {
       marks: Object.fromEntries((sh.pie as { marked: string[] }).marked.map((id) => [id, { color: whyPie.accent, as: 'too small for another row' }])),
     }));
     this.shown.pie = { marked: ['slice:Free space'] };
-    await this.play(pieView.sync({ match: 'key', staged: true, runTime: 0.45 }));
+    await this.play(pieView.sync({ runTime: 0.45 }));
     // The arithmetic, from the full page's row count, the row's cost and what the why step records.
     const why = cardOf(
       (state) => [

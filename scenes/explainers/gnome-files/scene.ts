@@ -209,6 +209,6 @@ export default class GnomeFilesExplainer extends Scene {
       ),
     }));
     this.state.journey = shown.map((n) => [n, scoreOf(n, p)]);
-    await this.play(journeyView.sync({ match: 'key', staged: true, runTime: 0.45 }));
+    await this.play(journeyView.sync({ runTime: 0.45 }));
   }
 }

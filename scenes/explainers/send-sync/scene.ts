@@ -135,7 +135,7 @@ export default class SendSyncExplainer extends Scene {
         };
       }
       this.shown.chart = { ...(this.shown.chart as ChartShown), ...change };
-      await this.play(chartView.view.sync({ match: 'key', staged: true }));
+      await this.play(chartView.view.sync());
     };
     /** The live chart back in its view's place, its note and mark gone from `shown` first. */
     const liveChart = async (of: Diagram) => {
@@ -165,7 +165,7 @@ export default class SendSyncExplainer extends Scene {
     };
     const focusCode = async (panel: View, name: string, focus: CodeFocus) => {
       this.shown[name] = focus;
-      await this.play(panel.sync({ match: 'key', staged: true }));
+      await this.play(panel.sync());
     };
     /** A point's two answers, said on the point, with the column's words and the map beside the chart. */
     const tell = async (

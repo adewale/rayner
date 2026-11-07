@@ -33,7 +33,7 @@ this.shown.trail=[];this.shown.keep=null;
 const v=s.diagramView(d,(st,sh)=>({marks:{A:d.accent,...d.trail(sh.trail)},notes:[{id:'C',text:'plafond'}],dim:sh.keep}));
 await s.card([['Parts','2'],['Quotient','15 000 €']],{title:'Foyer',at:[-4,-2],lit:'Parts'});
 await this.step('trajet',{title:'Trajet',caption:'Le revenu va au barème.'});
-await d.walk([['A','B']]);this.shown.trail=[['A','B']];this.shown.keep=['A','B'];await this.play(v.sync({match:'key',staged:true}));
+await d.walk([['A','B']]);this.shown.trail=[['A','B']];this.shown.keep=['A','B'];await this.play(v.sync());
 await s.code(['+ seuil: 11600','+ plafond: 1807','- seuil: 11497','taux: 11 %'],{diff:true,title:'barème',at:[4,-2],focus:3});
 await this.step('chemin',{title:'Chemin',caption:'Puis à l’impôt.'});
 await d.walk([['B','C']]);

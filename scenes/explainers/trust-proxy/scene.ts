@@ -253,7 +253,7 @@ export default class TrustProxyExplainer extends Scene {
     let netView = s.diagramView(d, drawNet);
     const showNet = async (change: Partial<NetShown>) => {
       this.shown.network = { ...(this.shown.network as NetShown), ...change };
-      await this.play(netView.sync({ match: 'key', staged: true }));
+      await this.play(netView.sync());
     };
     /** The network hidden: its view fades with what it marks, and that leaves `shown`. */
     const hideNet = async () => {
@@ -411,9 +411,9 @@ export default class TrustProxyExplainer extends Scene {
     s.keep(result, { describe: () => outcomeWords(this.state.outcome as Outcome, (this.state.sender as { name: string }).name) });
     await this.play(new FadeIn(order), new FadeIn(result));
     this.state.marked = 'order';
-    await this.play(order.sync({ runTime: 0.4 }));
+    await this.play(order.sync({ match: 'text', staged: false, runTime: 0.4 }));
     this.state.marked = 'result';
-    await this.play(result.sync({ runTime: 0.4 }));
+    await this.play(result.sync({ match: 'text', staged: false, runTime: 0.4 }));
 
     // ------------------------------------------------------------------ routes
     // The same attacker on both routes, each address tied to its source by the route (positions() in the
@@ -565,7 +565,7 @@ export default class TrustProxyExplainer extends Scene {
       compile: { lines: trustKey === 'list' ? [0, 5] : 2, as: 'this setting' },
       loop: { lines: [2, 5], as: 'stops at the first untrusted address' },
     } satisfies TrustCodeShown;
-    await this.play(compile.sync({ match: 'key', staged: true }), loop.sync({ match: 'key', staged: true }));
+    await this.play(compile.sync(), loop.sync());
     this.state.trust = TRUST_CODE[trustKey];
 
     // ------------------------------------------------------------------ requests
@@ -638,7 +638,7 @@ export default class TrustProxyExplainer extends Scene {
     );
     for (const k of REQUEST_KEYS.keys()) {
       this.state.columnsMarked = k + 1;
-      await this.play(requestColumns.sync({ runTime: 0.4 }));
+      await this.play(requestColumns.sync({ match: 'text', staged: false, runTime: 0.4 }));
     }
 
     // ------------------------------------------------------------------ why

@@ -162,7 +162,7 @@ export default class Ext4SpaceExplainer extends Scene {
     /** Pie `name` marks these slices, in the pie's accent, and nothing else. */
     const markSlices = async (v: View, d: Diagram, name: string, ids: string[], as: string) => {
       this.shown = { ...this.shown, [name]: Object.fromEntries(ids.map((id) => [id, { color: d.accent, as }])) };
-      await this.play(v.sync({ match: 'key', staged: true, runTime: 0.45 }));
+      await this.play(v.sync({ runTime: 0.45 }));
     };
     /** The disk's blocks, from what the opening records. */
     const ofDisk = (state: Ext4State, n: number) => percent(n, state.df.blocks);
@@ -345,7 +345,7 @@ export default class Ext4SpaceExplainer extends Scene {
     await enterCard(journalCard);
     const row = steps.filter((_, i) => JOURNAL_STEPS[i]! <= st().df.blocks).at(-1)!;
     this.shown = { ...this.shown, journalRow: row[0] };
-    await this.play(journalCard.sync({ match: 'key', staged: true, runTime: 0.4 }));
+    await this.play(journalCard.sync({ runTime: 0.4 }));
 
     // ------------------------------------------------------------------ the rest
     await this.step('other', {

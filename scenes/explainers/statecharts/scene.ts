@@ -96,7 +96,7 @@ export default class Statecharts extends Scene {
     };
     const morph = async (next: Phase) => {
       show(next);
-      await this.play(main.sync({ match: byKey, runTime: 1.2 }));
+      await this.play(main.sync({ match: byKey, staged: false, runTime: 1.2 }));
     };
     // The two charts a reader could drive, as Machines: each event is the model's send(), and
     // rayner check draws every configuration the events reach. The parent step replays a brew
@@ -151,7 +151,7 @@ export default class Statecharts extends Scene {
     const replay = async (machine: typeof brew, phase: 'parent' | 'frother', events: readonly string[]) => {
       show(phase);
       this.state = machine.spec.start;
-      await this.play(main.sync({ match: byKey, runTime: 1.2 }));
+      await this.play(main.sync({ match: byKey, staged: false, runTime: 1.2 }));
       await this.play(machine.replay(events));
     };
 

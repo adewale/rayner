@@ -102,7 +102,7 @@ export default class TailwindGamutExplainer extends Scene {
     let radarView: View | null = null;
     const showNotes = async (notes: PictureNote[]) => {
       this.shown.dotNotes = notes;
-      await this.play(radarView!.sync({ match: 'key', staged: true, runTime: 0.35 }));
+      await this.play(radarView!.sync({ runTime: 0.35 }));
     };
     /** The next step's slate: the notes leave `shown`, the live radar comes back, and the side column goes. */
     const nextSlate = async (d: Diagram) => {

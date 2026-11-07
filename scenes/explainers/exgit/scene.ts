@@ -311,7 +311,7 @@ export default class GitExplainer extends Scene {
     await s.enter(rows, { runTime: 0.5, describe: rowsInWords });
     // Redrawn with commit two's row under it, morphed by shape: what is the same stays, the rest grows in.
     this.state.rows = { commits: [rowOf('commit one', c1), rowOf('commit two', c2)], shared };
-    await this.play(rows.sync({ match: 'shapes', runTime: 1.2 }));
+    await this.play(rows.sync({ match: 'shapes', staged: false, runTime: 1.2 }));
     const [grown] = lastMatches(this, 1);
     if (grown!.removed !== 0 || grown!.morphed !== 0) throw new Error('The morph did not keep commit one’s row whole');
     // The diagram's marks come first, so commit one's redrawn row has settled before anything copies from it.
@@ -407,7 +407,7 @@ export default class GitExplainer extends Scene {
     });
     this.add(ids.treeNew, ids.commitNew);
     this.shown.idsChanged = true;
-    await this.play(ids.treeNew.sync({ match: 'text', runTime: 1.5 }), ids.commitNew.sync({ match: 'text', runTime: 1.5 }));
+    await this.play(ids.treeNew.sync({ match: 'text', staged: false, runTime: 1.5 }), ids.commitNew.sync({ match: 'text', staged: false, runTime: 1.5 }));
     const [treeMatch, commitMatch] = lastMatches(this, 2);
     // What the two morphs paired, recorded with what the coloured digits show.
     this.state.paired = { tree: treeMatch!.matched as number, commit: commitMatch!.matched as number };

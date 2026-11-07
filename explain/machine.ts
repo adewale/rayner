@@ -230,7 +230,7 @@ export class Machine<S extends object, E extends string> {
           new Landing(this.scene, views),
         ])
         // No authored motion: each view's keyed morph, staged, so what goes is gone before what comes appears.
-        : new AnimationGroup(views.map((v) => v.sync({ match, runTime, staged: true }))),
+        : new AnimationGroup(views.map((v) => v.sync({ match, runTime }))),
     ]);
   }
 

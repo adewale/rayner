@@ -2,7 +2,7 @@
 //
 //   const readout = view(this, (s) => new Text(`len ${s.len}  head ${s.head}`), { place: 'left' });
 //   this.state.len++;
-//   await this.play(readout.sync());     // rebuilt from the state as it is now, morphed into place
+//   await this.play(readout.sync({ match: 'text' }));  // rebuilt from the state as it is now, morphed into place
 //
 // manim's always_redraw idea in the engine's endpoint-based form. A View is a
 // Group with one child, the current picture. sync() is an animation: when the
@@ -43,9 +43,12 @@ export interface SyncOpts {
   runTime?: number;
   rateFunc?: RateFunc;
   lagRatio?: number;
-  /** Default: 'text' when either picture contains a Text, else 'index'. */
+  /**
+   * Default 'key': parts pair by the keys the picture gives them. A key sync whose pictures carry
+   * no keys below their roots is refused; key the parts, or say 'text', 'shapes' or 'index'.
+   */
   match?: ViewMatch;
-  /** Parts that go fade out over the first half and parts that come fade in over the second, so the two never overlap (not for 'index'). Default false. */
+  /** Parts that go fade out over the first half and parts that come fade in over the second, so the two never overlap. Default true, for every match; 'index' has no parts that go or come. */
   staged?: boolean;
 }
 
@@ -171,7 +174,7 @@ export class View<M extends Mobject = Mobject> extends Group {
  */
 export class ViewSync<M extends Mobject = Mobject> extends Animation {
   view: View<M>;
-  match: ViewMatch | undefined;
+  match: ViewMatch;
   staged: boolean;
   /** Set by begin(): the morph from the current picture to the built one, or null when nothing changed. */
   inner!: Animation | null;
@@ -180,7 +183,7 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
   private previousSize!: [number, number];
   private previousScale!: number;
 
-  constructor(v: View<M>, { match, staged = false, ...opts }: SyncOpts = {}) {
+  constructor(v: View<M>, { match = 'key', staged = true, ...opts }: SyncOpts = {}) {
     super(v, opts);
     this.view = v; this.match = match; this.staged = staged;
   }
@@ -191,7 +194,8 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
     this.previousScale = v.scaleK;
     const next = v.fit(fresh(v.build(), old));
     if (samePicture(old, next)) { this.inner = null; this.next = null; return; }
-    const match = this.match ?? (hasText(old) || hasText(next) ? 'text' : 'index');
+    const match = this.match;
+    if (match === 'key' && !keyed(old) && !keyed(next)) throw new Error(`view.sync(): ${v.key !== undefined ? `the view ${v.key}'s` : 'the'} pictures carry no keys below their roots, so key matching pairs nothing; give the draw's parts keys (a card's or panel's \`key\` option, or \`part.key = '…'\`), or pass { match: 'text' }, 'shapes' or 'index'`);
     // replace: false everywhere: the View, not the scene, takes the new picture (see finish)
     const staged = this.staged;
     const inner: Animation = match === 'text' ? new TransformMatchingText(old, next, { replace: false, staged })
@@ -280,7 +284,8 @@ function fresh<M extends Mobject>(m: M, old: Mobject | null): M {
   return m;
 }
 
-function hasText(m: Mobject): boolean { return m.family().some((x) => x instanceof Text); }
+/** Whether any part below `m` carries a key: what matchByKey pairs by (the root's own key is not read). */
+function keyed(m: Mobject): boolean { return m.family().some((x) => x !== m && x.key !== undefined); }
 
 /**
  * Layout box: a Text's advance box (not its ink, so the box does not change

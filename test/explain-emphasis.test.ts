@@ -94,7 +94,7 @@ test('a view’s note follows its part through enlarge; clear() leaves paper and
       await this.step('one');
       const d = await s.show(spec);
       const v = s.diagramView(d, () => ({ notes: [{ id: 'C', text: 'here', side: 'above' }] }));
-      const sync = () => this.play(v.sync({ match: 'key', staged: true }));
+      const sync = () => this.play(v.sync());
       const note = () => this.find('note:C')!;
       const gap = () => note().center()[0] - d.get('C').center()[0];
       assert.ok(Math.abs(gap()) < 1e-6);

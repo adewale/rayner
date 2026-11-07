@@ -179,9 +179,9 @@ export default class RingBufferExplainer extends Scene {
 
     // The reader could press push or pop; each press is one model step, its motion authored below.
     // A transition morphs the ring's parts in turn; anything it does not name lands at the end.
-    const fields = () => together([readout.sync({ match: 'key', staged: true, runTime: 0.45 }), results.sync({ runTime: 0.45 }), card.sync({ match: 'key', staged: true, runTime: 0.45 })]);
+    const fields = () => together([readout.sync({ runTime: 0.45 }), results.sync({ match: 'text', staged: false, runTime: 0.45 }), card.sync({ runTime: 0.45 })]);
     /** The code's focus moves to the lines this operation runs, as it begins. */
-    const focus = () => code.sync({ match: 'key', staged: true, runTime: 0.4 });
+    const focus = () => code.sync({ runTime: 0.4 });
     /** One angle drives a pointer round the ring, the short way, drawn afresh at each sampled angle. */
     const turn = (c: Choreography, name: 'head' | 'tail', from: number, to: number) => {
       const a0 = angle(from), a1 = a0 + turnBetween(from, to);

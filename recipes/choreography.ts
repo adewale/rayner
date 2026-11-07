@@ -16,8 +16,8 @@ export default class ChoreographyScene extends Scene<{count: number}> {
 
     await this.step('model-samples');
     await this.play(new Succession([
-      new SetState(this, { count: 3 }), readout.sync({ match: 'key', staged: true, runTime: 0.4 }),
-      new SetState(this, { count: 9 }), readout.sync({ match: 'key', staged: true, runTime: 0.4 }),
+      new SetState(this, { count: 3 }), readout.sync({ runTime: 0.4 }),
+      new SetState(this, { count: 9 }), readout.sync({ runTime: 0.4 }),
     ]));
     await this.step('result', { caption: 'The bar grew from its baseline, the token passed along the route, and each readout followed its own state update.' });
     await this.wait(0.2);

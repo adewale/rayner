@@ -222,7 +222,7 @@ export default class QuotientFamilialExplainer extends Scene {
     });
     const showFlow = async (change: Partial<FlowShown>) => {
       this.shown.flow = { ...flowOf(this.shown), ...change };
-      await this.play(flowView.sync({ match: 'key', staged: true }));
+      await this.play(flowView.sync());
     };
     /** The pipeline's hops walked, the token first, then the trail they leave added to the state. */
     const walkFlow = async (hops: [string, string][], change: Partial<FlowShown> = {}, parallel = false) => {
@@ -240,7 +240,7 @@ export default class QuotientFamilialExplainer extends Scene {
       }));
       return async (marked: string[]) => {
         this.shown[name] = marked;
-        await this.play(v.sync({ match: 'key', staged: true }));
+        await this.play(v.sync());
       };
     };
     /** A chart hidden: its view fades with its marks, and they leave `shown`. */
@@ -614,7 +614,7 @@ export default class QuotientFamilialExplainer extends Scene {
     );
     await s.enter(code, { runTime: 0.4 });
     this.shown.bareme = 2025;
-    await this.play(code.sync({ match: 'key', staged: true, runTime: 0.9 }));
+    await this.play(code.sync({ runTime: 0.9 }));
     this.state.impot2025 = r25.impot;
     // The thresholds, rates and parameters are the same in every scenario; the household's tax is its state.
     await enterCard(

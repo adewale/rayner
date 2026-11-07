@@ -98,8 +98,8 @@ export class Tour extends Scene {
     const code = new Code(['let n = 1;']);
     await this.play(this.frame.animate.fit(code, fit));
     const frame: Frame = this.frame;
-    const readout: View<Card> = view(this, (s) => new Card(this, palette('github-dark'), [['n', s.n]], { panel: false }), { place: false });
-    const sync: SyncOpts = { match: 'text', runTime: 0.5 };
+    const readout: View<Card> = view(this, (s) => new Card(this, palette('github-dark'), [['n', s.n]], { panel: false, key: 'n' }), { place: false });
+    const sync: SyncOpts = { runTime: 0.5 };
     this.state = { n: 2 };
     const syncing: ViewSync<Card> = readout.sync(sync);
     await this.play(syncing);

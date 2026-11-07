@@ -180,7 +180,7 @@ export default class GtfsExplainer extends Scene {
     };
     const markEr = async (v: View, marks: ErMarks) => {
       this.shown.er = marks;
-      await this.play(v.sync({ match: 'key', staged: true }));
+      await this.play(v.sync());
     };
 
     // ------------------------------------------------------------------ day-before
@@ -347,7 +347,7 @@ export default class GtfsExplainer extends Scene {
       lines: removed.length ? exceptionLine : [2, calendar.length],
       as: removed.length ? 'applies on this date' : 'decides this date',
     } satisfies TablesFocus;
-    await this.play(tables.sync({ match: 'key', staged: true }));
+    await this.play(tables.sync());
     this.state.today = today;
     // Each service's verdict for the date, and the trips that run: the date and trips are the day step's, still in the state.
     const verdicts = view(

@@ -173,7 +173,7 @@ export default class FontMetrics extends Scene {
         return [text, (run.width ?? natural) / natural];
       }),
     );
-    await this.play(dv.sync({ match: 'key', staged: true, runTime: 0.35 }));
+    await this.play(dv.sync({ runTime: 0.35 }));
     const subjects = new Set(['A', 'B', 'edge:A->B#0', 'note:A', 'note:B']);
     s.opening(...dv.current.family().filter((m) => subjects.has(m.key ?? '')));
   }

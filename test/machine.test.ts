@@ -111,7 +111,7 @@ test('without an authored transition, the views morph by key, staged: what goes 
   assert.ok(seen(inner.fadesOut) === 0 && seen(inner.fadesIn) > 0, 'three quarters: the new word coming');
   sync.finish();
   assert.deepEqual(lamp.texts, ['lamp dim']);
-  // Unstaged (a view's own sync), both fade at once.
+  // Unstaged (`staged: false`), both fade at once.
   const plain = new TransformMatching(lamp.current, lamp.placed({ level: 2 }), { key: matchByKey({ text: 'whole' }), replace: false });
   plain.begin();
   plain.interpolate(0.25);

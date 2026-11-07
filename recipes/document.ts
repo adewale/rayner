@@ -32,7 +32,7 @@ export function requestScene(input: RequestInput) {
       this.state.destination = route({ cached });
       const next = new Text(this.state.destination, { fontSize: 0.3 }).moveTo(destination.label!);
       // Semantic state is assigned; the picture is derived from that state.
-      await this.play(new Transform(destination.label!, next), readout.sync({ match: 'key', staged: true }), new Circumscribe(code.lines[cached ? 0 : 1]!, { keep: true }), { runTime: 0.5 });
+      await this.play(new Transform(destination.label!, next), readout.sync(), new Circumscribe(code.lines[cached ? 0 : 1]!, { keep: true }), { runTime: 0.5 });
       this.record('route', { cached, destination: this.state.destination });
       await this.step('result', { caption: `The request uses the ${this.state.destination}.` });
       await this.wait(0.2);

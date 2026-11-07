@@ -145,7 +145,7 @@ export default class MermaidExplainer extends Scene {
     const restyle = async (v: View, slot: Slot, change: Partial<DiagramState>, runTime = 0.45) => {
       const all = this.shown.diagrams as Partial<Record<Slot, DiagramState>>;
       this.shown.diagrams = { ...all, [slot]: { ...all[slot]!, ...change } };
-      await this.play(v.sync({ match: 'key', runTime }));
+      await this.play(v.sync({ staged: false, runTime }));
     };
     /** The verifier's own scope line, read from the snapshot of a diagram. */
     const scope = (d: Diagram) => {

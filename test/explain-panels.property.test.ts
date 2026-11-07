@@ -143,7 +143,7 @@ test('focus refuses any line that is not an index into the code, with the docume
 
 /** Play a keyed, staged sync of `v`, as a view of state is synced; the matching it played, or null when the picture did not change. */
 async function keyedSync(sc: Scene, v: View): Promise<TransformMatching | null> {
-  const sync = v.sync({ match: 'key', staged: true });
+  const sync = v.sync();
   await sc.play(sync);
   return sync.inner as TransformMatching | null;
 }

@@ -54,7 +54,7 @@ export default class BashExplainer extends Scene {
     const shownOf = <T>(name: string) => this.shown[name] as T;
     const show = async (v: View, name: string, value: unknown, runTime = 0.45) => {
       this.shown = { ...this.shown, [name]: value };
-      await this.play(v.sync({ match: 'key', staged: true, runTime }));
+      await this.play(v.sync({ runTime }));
     };
     /** A code panel as s.code draws it, its focus bar on `shown[name]`. */
     const codePanel = async (lines: readonly string[], opts: { at: Box | 'side'; fontSize: number }, name: string) => {
@@ -188,7 +188,7 @@ export default class BashExplainer extends Scene {
     });
     // The code panel goes, and the diagram's notes and trail with it; the live diagram takes the edit.
     this.shown = { ...this.shown, flow: PLAIN };
-    await this.play(flowView.sync({ match: 'key', staged: true, runTime: 0.3 }), new FadeOut(loop, { runTime: 0.3 }));
+    await this.play(flowView.sync({ runTime: 0.3 }), new FadeOut(loop, { runTime: 0.3 }));
     s.liveDiagram(flow);
     await flow.morph({
       source: `graph LR\nInput[empty stdin] --> Echo[echo hello]\nEcho --> Tr[tr a-z A-Z]\nTr --> File[${FILE}]`,

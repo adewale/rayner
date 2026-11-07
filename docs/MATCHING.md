@@ -71,8 +71,8 @@ picture works this way). Pass a
 fallback to keep unkeyed parts that are the same thing in the same place
 (`periodic-groups` keys them by their words or size and position). The root's
 own key, and keys above it, are never read: they would make every part one
-component and reduce the morph to matching by index. `View.sync({ match: 'key' })`
-is `matchByKey()` with the defaults ([views](VIEWS.md#match)), and it is how a
+component and reduce the morph to matching by index. `View.sync()` matches by
+`matchByKey()` with the defaults ([views](VIEWS.md#match)), and it is how a
 [machine](MACHINES.md)'s views morph unless the machine says otherwise, so the
 parts that stay through an event keep their identity.
 
@@ -105,10 +105,10 @@ parts that stay through an event keep their identity.
 - `staged: true` takes the unmatched parts in turn instead of together: the
   source's shrink and fade over the first half, the target's grow and fade in
   over the second, while matched parts morph throughout. A word and the word
-  that replaces it in the same place never overlap. A machine's views morph
-  this way when an event has no authored transition
-  ([machines](MACHINES.md#the-default-transition)); `view.sync({ staged: true })`
-  asks for it anywhere else.
+  that replaces it in the same place never overlap. A view's sync morphs this
+  way unless it says `staged: false` ([views](VIEWS.md#match)), and so do a
+  machine's views when an event has no authored transition
+  ([machines](MACHINES.md#the-default-transition)).
 
 New parts live in the source while the animation plays: copies of them are
 added to the source's line their target line corresponds to, or to a bare copy

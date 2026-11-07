@@ -225,7 +225,7 @@ export default class MontyHall extends Scene {
     };
     const morph = async (next: Phase, runTime = 1.1) => {
       shown(next);
-      await this.play(main.sync({ match: byKey, runTime }));
+      await this.play(main.sync({ match: byKey, staged: false, runTime }));
     };
     const at = (id: Phase, state: Record<string, unknown>) => {
       this.state = JSON.parse(JSON.stringify(state));

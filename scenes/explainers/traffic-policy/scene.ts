@@ -208,7 +208,7 @@ export default class TrafficPolicyExplainer extends Scene {
     const showCluster = async (change: Partial<ClusterShown>) => {
       clusterView ??= s.diagramView(d, drawCluster(d));
       this.shown.cluster = { ...(this.shown.cluster as ClusterShown), ...change };
-      await this.play(clusterView.sync({ match: 'key', staged: true }));
+      await this.play(clusterView.sync());
     };
     const nextSlate = async () => {
       await s.clearOverlays();

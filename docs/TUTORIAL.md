@@ -180,7 +180,7 @@ export default class LruMru extends Scene {
     const show = async (n: number, lit: string | null = null) => {
       this.state = shown(n);
       this.shown = { lit };
-      await this.play(card.sync({ match: 'key', staged: true }));
+      await this.play(card.sync());
     };
 
     await this.step('full', { title: 'Same items, same order', line: 'A, B and C missed and filled all three slots.', caption: 'Both caches have seen the same three requests, so both hold C, B, A from newest to oldest. The next request, D, misses in both and forces each policy to evict one item.' });

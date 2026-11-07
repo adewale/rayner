@@ -358,7 +358,7 @@ test('every animation that decides something records it as it begins: nested in 
       await this.play(new AnimationGroup([
         new TransformMatchingText(new Text('ab'), new Text('abc')),
         new Succession([
-          readout.sync({ runTime: 0.2 }),
+          readout.sync({ match: 'text', runTime: 0.2 }),
           new Follow({ from: 1, to: 2, draw: (x) => new Dot().moveTo([x, 0]) }, { targets: [dot], runTime: 0.2, rateFunc: linear }),
           plain.sync({ runTime: 0.2, match: 'index' }),
         ]),

@@ -142,9 +142,9 @@ export default class PeriodicGroupsExplainer extends Scene {
     this.table = table;
     this.notes = notes;
     s.keep(table, notes, { describe: () => sayPeriodic(this.state, followed) });
-    const redraw = (runTime: number) => table.sync({ runTime, match: samePlace });
+    const redraw = (runTime: number) => table.sync({ runTime, match: samePlace, staged: false });
     const both = (runTime: number) =>
-      new AnimationGroup([redraw(runTime), notes.sync({ runTime, match: samePlace })], { rateFunc: linear });
+      new AnimationGroup([redraw(runTime), notes.sync({ runTime, match: samePlace, staged: false })], { rateFunc: linear });
     await this.play(new FadeIn(table), new FadeIn(notes), { runTime: 0.8 });
 
     // ---- 2. fill: every electron in order, the runs laid side by side in rows -------------

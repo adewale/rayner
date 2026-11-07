@@ -85,7 +85,7 @@ export default class OAuthExplainer extends Scene {
     const diagramOf = (d: Diagram, name: string) => s.diagramView(d, (_st, sh) => sh[name] as Shown);
     const shows = async (v: View, name: string, change: Partial<Shown>) => {
       this.shown[name] = { ...(this.shown[name] as Shown), ...change };
-      await this.play(v.sync({ match: 'key', staged: true, runTime: 0.45 }));
+      await this.play(v.sync({ runTime: 0.45 }));
     };
     this.shown.theft = NOTHING_SHOWN;
     const theftView = diagramOf(theft, 'theft');
@@ -141,11 +141,11 @@ export default class OAuthExplainer extends Scene {
     ];
     await derive.walk(hops);
     this.shown.derive = { ...derived(), walked: hops };
-    await this.play(deriveView.sync({ match: 'key', staged: true, runTime: 0.45 }));
+    await this.play(deriveView.sync({ runTime: 0.45 }));
     this.shown.derive = { ...derived(), marked: true };
-    await this.play(deriveView.sync({ match: 'key', staged: true, runTime: 0.45 }));
+    await this.play(deriveView.sync({ runTime: 0.45 }));
     this.shown.derive = { ...derived(), lit: 'code_challenge' };
-    await this.play(values.sync({ match: 'key', staged: true, runTime: 0.4 }));
+    await this.play(values.sync({ runTime: 0.4 }));
     this.state = { verifier: VERIFIER, challenge };
 
     const flow = pkceFlow(attacker, VERIFIER, GUESS),

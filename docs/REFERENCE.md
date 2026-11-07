@@ -140,8 +140,8 @@ With neither `style` nor `palette`, the stage adopts the first diagram's palette
 | Member | What it does |
 | --- | --- |
 | `s.show(spec, { box, build, runTime })` | Draw a diagram and build it in; returns a `Diagram` |
-| `s.diagramView(d, (state, shown) => ({ marks, notes, dim, prefix }))` | Show diagram `d` by a view that draws its marks, notes and dimming from state, usually from `shown` ([below](#diagrams)); returns the `View`. Change `this.shown` and play `view.sync({ match: 'key', staged: true })` |
-| `s.liveDiagram(d)` | Hand the stage back to the live diagram, for a `reveal`, `morph` or `focus` (a `walk` runs over the view); call `s.diagramView(d, draw)` again afterwards |
+| `s.diagramView(d, (state, shown) => ({ marks, notes, dim, prefix }))` | Show diagram `d` by a view that draws its marks, notes and dimming from state, usually from `shown` ([below](#diagrams)); returns the `View`. Change `this.shown` and play `view.sync()` |
+| `s.liveDiagram(d)` | Hand the stage back to the live diagram, for a `reveal`, `morph` or `enlarge` (a `walk` runs over the view); call `s.diagramView(d, draw)` again afterwards |
 | `s.card(rows, { at, align, width, title, columns, fontSize, direction, lit, litAs, key, panel, enter })` | Labelled values; returns a `Card`. `columns` puts values side by side under headings; `direction` overrides the stage's field order; `lit` puts a bar on a row |
 | `s.cardPicture(rows, options)` | The same card, placed and laid out as `s.card` does, without entering it: for a view's draw ([below](#card-and-codeblock)) |
 | `s.code(lines, { at, align, fontSize, title, diff, added, focus, focusAs, width, fitHeight, key, enter })` | Code on a panel; returns a `CodeBlock`. With `diff`, lines starting `+ ` or `- ` are marked added or removed; `focus` puts a bar on lines |
@@ -198,7 +198,7 @@ A card or code panel is a picture of values: it is built once, with what it mark
 | `lit`, `litAs` | A card's bar on one row, and the word the description gives it, such as `'rejected'` |
 | `focus`, `focusAs` | A code panel's bar on zero-based line `i`, or lines `[a, b]` inclusive, and its word |
 | `diff`, `added` | Added and removed bars: from lines that start `+ ` or `- `, or `added` for the indices an edit introduced |
-| `key` | Key the card or panel and its parts under this name, so `view.sync({ match: 'key', staged: true })` changes it in place: an unchanged value or line stays, a changed one fades out as its replacement fades in, and the bar moves. A card's value is keyed with its text; a line is keyed by its text and which occurrence of that text it is, so a line that moves pairs with itself |
+| `key` | Key the card or panel and its parts under this name, so `view.sync()` changes it in place: an unchanged value or line stays, a changed one fades out as its replacement fades in, and the bar moves. A card's value is keyed with its text; a line is keyed by its text and which occurrence of that text it is, so a line that moves pairs with itself |
 | `width`, `fitHeight` | A fixed width, so a panel drawn from state keeps its size as its values or lines change; in a box, shrink code to fit the box's height too |
 | `panel: false` | A card with no panel or padding, for values written inside a drawing (`ring-buffer`'s head, tail and length inside its ring; `token-bucket`'s balance) |
 
@@ -210,7 +210,7 @@ this.shown.focus = null;
 const block = view(this, (_st, sh) => s.codePicture(SOURCE, { at: 'main', focus: sh.focus as number | null, focusAs: 'update', key: 'block' }), { place: false });
 await s.enter(block);
 this.shown.focus = 1;
-await this.play(block.sync({ match: 'key', staged: true }));
+await this.play(block.sync());
 ```
 
 An edit to code is the same: put the lines in the state, with `added` for what the edit introduced, and sync (`feature-tour`'s code edit).
@@ -244,7 +244,7 @@ A row gives one value per column, or one value that spans them all (Requests abo
 | `legend(s, items, { at, size, direction, gap, key })` | Swatches with words: each item `{ label, fill?, stroke?, dashed?, name? }` is a filled square, a short line or an outlined square (`fill: 'none'`), then its label in the stage's ink. Entries stack (`direction: 'column'`) or sit in a row, the first starting at `at`. Keyed `key`, each entry `key:<label>`; a repeated label or an entry with no swatch is refused. Describes itself as its pairs, “Key: purple fill, cat’s bits; dashed blue line, the browser”, naming each colour by its nearest plain name (`colourName`) or the item's `name`, so a caption's colour word is said on the stage (`bloom-filter`, `wcag-map`, `trust-proxy`) |
 | `pin(s, at, { label, color, size, side, key })` | `s.pin`'s picture. Describes itself, “A pin marked …”. `great-circle` pins its two cities on the globe |
 
-**Keyed cells.** A table keys every part, so the same row in two pictures is the same part and a keyed morph (`match: 'key'`) or `choreograph` keeps it wherever it moves:
+**Keyed cells.** A table keys every part, so the same row in two pictures is the same part and a keyed morph (a view's `sync()`, which matches by key) or `choreograph` keeps it wherever it moves:
 
 | Part | Key |
 | --- | --- |
@@ -407,7 +407,7 @@ These are the engine's own features, imported from `rayner` (views, machines, `S
 <!-- generated from test/public-names.json by `node tools/repo/public-names.ts --write`: engine features -->
 | Feature | What a scene uses | Guide | Used by |
 | --- | --- | --- | --- |
-| Matching transforms | `TransformMatchingText`, `TransformMatchingShapes` (`shapeKey()`), `TransformMatching` with your own key or `matchByKey()` (keyed components); `summary()`, `pairs`, `removed`, `added` | [Matching](MATCHING.md) | `TransformMatchingText`: `feature-tour`; `TransformMatchingShapes`: `glyph`; `TransformMatching`: `feature-tour`; `matchByKey`: `feature-tour`, `monty-hall`, `periodic-groups`, `python-dict`, `statecharts`; `match: 'key'`: `2password`, `agentic-mermaid`, `cert-renewal`, `ext4-space`, `feature-tour`, `font-metrics`, `fork`, `gnome-files`, `gtfs`, `ical-recurrence`, `just-bash`, `lantern`, `layout-direction`, `mr-cache`, `oauth-pkce`, `pen-and-pencil`, `pg-page`, `quotient-familial`, `ring-buffer`, `send-sync`, `tailwind-gamut`, `traffic-policy`, `trust-proxy`, `tutorial/lru-mru`, `wcag-map` |
+| Matching transforms | `TransformMatchingText`, `TransformMatchingShapes` (`shapeKey()`), `TransformMatching` with your own key or `matchByKey()` (keyed components); `summary()`, `pairs`, `removed`, `added` | [Matching](MATCHING.md) | `TransformMatchingText`: `feature-tour`; `TransformMatchingShapes`: `glyph`; `TransformMatching`: `feature-tour`; `matchByKey`: `feature-tour`, `monty-hall`, `periodic-groups`, `python-dict`, `statecharts` |
 | Diff-driven code morph | `new TransformDiff(before, after, { hunks })` and its `plan`; `diffLines`, `parseUnifiedDiff` for hunks | [Diff-driven](MATCHING.md#diff-driven) | `TransformDiff`: `feature-tour`, `mr-cache`; `diffLines`: `feature-tour`, `ical-recurrence`; `parseUnifiedDiff`: `feature-tour`; no explainer yet: `hunks` |
 | Camera | `this.frame.animate.fit(...)`, `.reset()`; `s.focus` | [Camera](CAMERA.md) | `s.focus`: `feature-tour`, `lantern`, `pen-and-pencil`, `seasons`; no explainer yet: `this.frame.animate` |
 | Emphasis that stays | `SurroundingRectangle`, `Underline`, `Cross`, `Brace`, `BraceLabel`, `Circumscribe({ keep: true })` | [Emphasis](EMPHASIS.md) | `SurroundingRectangle`: `glyph`, `mr-cache`, `ring-buffer`, `state-machine`; `Underline`: `feature-tour`; `Cross`: `fork`, `latest-search`, `ring-buffer`, `token-bucket`; `Brace`: `feature-tour`; `BraceLabel`: `exgit`, `glyph`; `Circumscribe`: `feature-tour`, `mr-cache`; `putAtTip()`: `feature-tour`; no explainer yet: `tip()` |
