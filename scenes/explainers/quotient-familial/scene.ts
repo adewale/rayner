@@ -614,7 +614,7 @@ export default class QuotientFamilialExplainer extends Scene<QfState, QfShown> {
     // The thresholds file is a view: which year's file it shows is in `shown.bareme`, and the lines the
     // 2025 revision adds are marked added. Both years take the 2024 file's width, with the code at the
     // panel's left padding, and the panel keys each line by its text, so a line both years share stays.
-    const yamlOpts = { at: regionBox('full', { right: 0.2 }), align: 'top', fontSize: 0.21, fitHeight: true } as const;
+    const yamlOpts = { at: regionBox('full', { right: 0.2 }), align: 'top', size: 0.21, fitHeight: true } as const;
     this.shown.bareme = 2024;
     const baremeView = view(
       this,

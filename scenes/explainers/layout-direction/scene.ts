@@ -8,7 +8,7 @@ const ROWS: [string, number][] = [['Field', 123]];
 const START = { at: 'start' } as const;
 const END = { at: 'end', direction: 'ltr' } as const;
 // The code panel leaves out the cards' width, font size and titles: they affect neither placement nor field order.
-const CARD = { width: 7.2, fontSize: 0.8, enter: false } as const;
+const CARD = { width: 7.2, size: 0.8, enter: false } as const;
 
 // This explainer has no model of its own: every card is the engine's own s.card, placed by the stage, and
 // the state records where each one landed, measured from the card. Its limit: Latin labels and digits only.

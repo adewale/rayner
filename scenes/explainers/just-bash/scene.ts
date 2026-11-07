@@ -69,7 +69,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
       await this.play(v.sync({ runTime }));
     };
     /** A code panel as s.code draws it, its lit bar on `shown[name]`. */
-    const codePanel = async (lines: readonly string[], opts: { at: Box | 'side'; fontSize: number }, name: CodeName) => {
+    const codePanel = async (lines: readonly string[], opts: { at: Box | 'side'; size: number }, name: CodeName) => {
       const v = view(this, (_st, sh) => code(s, lines, { ...opts, lit: sh[name] == null ? null : { lines: sh[name] }, key: name }), { place: false });
       await s.enter(v, { runTime: 0.4 });
       return v;
@@ -121,7 +121,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
         'exec(shell, pipeline, redirect)',
         '  → { shell, stdout }',
       ],
-      { at: BOTTOM, fontSize: 0.3 },
+      { at: BOTTOM, size: 0.3 },
       'api',
     );
     await focus(api, 'api', 0);
@@ -146,7 +146,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
       ['exec(shell,', '  [["echo", "hello"],', '   ["tr", "a-z", "A-Z"]],', `  "${FILE}")`],
       {
         at: 'side',
-        fontSize: 0.3,
+        size: 0.3,
       },
       'call',
     );
@@ -178,7 +178,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
         '  echo: stdout = args + "\\n"',
         '  tr:   stdout = upper(stdout)',
       ],
-      { at: BOTTOM, fontSize: 0.3 },
+      { at: BOTTOM, size: 0.3 },
       'loop',
     );
     await focus(loop, 'loop', 0);
@@ -265,7 +265,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
         'else if (name === "cat") …',
         'else throw Error("Unknown model command")',
       ],
-      { at: BOTTOM, fontSize: 0.3 },
+      { at: BOTTOM, size: 0.3 },
       'dispatch',
     );
     await walked(policy, policyView, 'policy', [

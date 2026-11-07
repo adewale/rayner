@@ -415,7 +415,7 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
     const order = cardView((st) => readingRows(readOf(st)), (st) => ({
       at: regionBox(FULL, { right: 1.2, top: 2.6 }),
       align: 'top',
-      fontSize: BIG,
+      size: BIG,
       title: 'Addresses in the order Express reads them',
       ...(st.marked ? { lit: { row: answerLabel(readOf(st)), as: 'req.ip' } } : {}),
     }));

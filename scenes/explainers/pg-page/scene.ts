@@ -367,7 +367,7 @@ export default class PgPageExplainer extends Scene<PgState, PgShown> {
         ['Next tuple, unrounded', `${state.why.unrounded}`],
         ['Next tuple, rounded up', `${state.why.needs}`],
       ],
-      (state) => ({ at: RIGHT, fontSize: SIZE, title: `Why ${state.full.rows} rows` }),
+      (state) => ({ at: RIGHT, size: SIZE, title: `Why ${state.full.rows} rows` }),
     );
     await enterCard(why);
 
@@ -393,7 +393,7 @@ export default class PgPageExplainer extends Scene<PgState, PgShown> {
           ([k, x]) => [COLUMNS[k].label, `${x.perRow} bytes a row, ${x.rows} a page, ${x.pages} pages`] as [string, string],
         ),
       (state) => ({
-        at: regionBox('full', { top: 2.6, bottom: -3.6 }), fontSize: 0.42, title: '10 000 rows',
+        at: regionBox('full', { top: 2.6, bottom: -3.6 }), size: 0.42, title: '10 000 rows',
         lit: { row: COLUMNS[state.column].label, as: 'this scenario' },
       }),
     );

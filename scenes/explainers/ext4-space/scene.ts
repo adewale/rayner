@@ -453,7 +453,7 @@ export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
             ['Of the disk', ofDisk(st, st.chosen.users)],
             ['Gained', bytesOf(st.chosen.gained)],
           ],
-          (st) => ({ at: CARD, fontSize: SIZE, title: `mkfs.ext4 -m ${st.chosen.percent}` }),
+          (st) => ({ at: CARD, size: SIZE, title: `mkfs.ext4 -m ${st.chosen.percent}` }),
         ),
       );
     }
@@ -486,7 +486,7 @@ export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
           }),
         (st) => ({
           at: regionBox('full', { top: 2.6, bottom: -3.6 }),
-          fontSize: 0.42,
+          size: 0.42,
           title: `mkfs.ext4 -m ${st.disk.reserve}, shares of each disk`,
           lit: { row: st.disk.label, as: 'this scenario' },
         }),

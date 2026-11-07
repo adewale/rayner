@@ -151,7 +151,7 @@ export default class IcalRecurrenceExplainer extends Scene<IcalState, IcalShown>
     this.state.series = { vevents: SERIES.length, meetings: expand(SERIES).map((m) => m.start), components: SERIES };
     /** The object as it stands: the change's, else the invitation's, else the series'. */
     const stored = (st: IcalState) => (st.change ?? st.invite ?? having(st, 'series').series).components;
-    const codeOpts = { at: CODE, align: 'top', fontSize: CODE_SIZE, title: 'Alice’s stored object, some lines left out', fitHeight: true } as const;
+    const codeOpts = { at: CODE, align: 'top', size: CODE_SIZE, title: 'Alice’s stored object, some lines left out', fitHeight: true } as const;
     const naturalWidth = (vs: readonly VEvent[]) => code(s, lines(vs), codeOpts).panel.width();
     // The widest of the objects shown so far: the panel widens for wider lines and then stays wide.
     const widthFor = (st: IcalState) =>

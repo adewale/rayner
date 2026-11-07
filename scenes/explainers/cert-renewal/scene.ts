@@ -306,7 +306,7 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
     });
     await s.clear();
     const chart = await s.show({ source: oneRenewal }, { box: regionBox('top', { bottom: -0.25 }) });
-    const codeOpts = { at: regionBox('full', { top: -0.35 }), fontSize: 0.2, fitHeight: true } as const;
+    const codeOpts = { at: regionBox('full', { top: -0.35 }), size: 0.2, fitHeight: true } as const;
     this.shown.code = { version: 'old', focus: [2, 3] } satisfies CodeShown;
     const codeView = view(
       this,
