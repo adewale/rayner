@@ -67,6 +67,8 @@ Every way to change the picture changes the state and lets the views draw it. Th
 | Move a value continuously, the picture right at every frame | `v.tween((t) => stateAt(t))` | A sync morphs between two endpoint pictures; a tween sets the state at every frame and redraws, so a dot on a circle stays on it ([following one number](CHOREOGRAPHY.md#following-one-number)). great-circle, henge |
 | Author an event's motion part by part | The transition's `t.choreograph(v)`, and `c.follow` for parts that follow one number | It names the keyed parts of the view's picture now and of its picture of the next state, animates them in your order, and `rest()` lands the parts no call named, so the transition still ends on the state's picture ([authored transitions](MACHINES.md#refused-events-bounds-and-authored-transitions)) |
 
+Stage and diagram [actions](REFERENCE.md#actions) join a play or a schedule the same way: `this.play(v.sync(), d.walk(hops))` plays a sync beside a walk, and a `Succession` can hold an action between two syncs. Unlike a sync, an action is decided when it is called, not at its turn, so what it shows does not follow a `SetState` before it in the schedule: draw state in a view.
+
 The first two rows do one job in two spellings. A loop of assignments and plays, `this.state = next; await this.play(v.sync())`, gives the same states, pictures and words as one play of a `Succession` of `SetState` and sync pairs; only the step's timing differs by the rounding of each play to whole frames. `SetState` does a job of its own inside a schedule that is built before it plays, as a machine's events are.
 
 ## API

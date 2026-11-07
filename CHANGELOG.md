@@ -55,6 +55,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `GrowFromEdge` grows bars and `PulseAlongPath` sends tokens along routes.
 - Mermaid diagrams in all 15 Agentic Mermaid families are captured at build time and animated by part id with `reveal`, `walk`, `enlarge` and `morph`; their marks, notes and dimming are drawn from state by `d.picture`. [Diagrams](docs/REFERENCE.md#diagrams)
 - `d.enlarge(ids, { zoom })` enlarges parts of a diagram inside its own box, and `d.enlarge('all')` puts the artwork back; it was `d.focus`, a word the camera's `s.focus` also uses.
+- The stage's verbs that animate (`s.show`, `s.card`, `s.code`, `s.note`, `s.enter`, `s.clear`, `s.clearOverlays`, `s.focus`, `s.carry`, `s.sketch`, `s.dimension`, `s.legend`, `s.pin` and `s.callout`) and a diagram's `reveal`, `walk`, `enlarge`, `morph` and `hide` return an action (`Action<T>`): awaited, it plays itself, one play per beat; handed to `play()`, a `Succession` or a group, it plays there, so `this.play(s.focus(box), d.walk(hops))` moves the camera while a token travels. Its `value` is the card, panel or diagram it gives. An action plays once, and a step that ends with an action made in it and never played fails. [Actions](docs/REFERENCE.md#actions)
 - A morph can carry its edits (`ops`), which the build replays through Agentic Mermaid and checks against the target source.
 - `mermaid.pie(slices, options)` and `mermaid.frontMatter(config)` in `rayner/explain` build Mermaid source from typed values.
 - `mermaid.pie` and `mermaid.frontMatter` refuse a zero or negative slice, a repeated label, an empty title or an empty config at the call, naming the value.
@@ -215,6 +216,7 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
 - `edgePartOf` and `stagedStepsOf` are internal; use `d.findings()` and `d.link()`. `findingsOf` is `diagramFindings` in `rayner/testing`, for a pinned snapshot read without its diagram.
 - `ViewSync` is exported as a type only: `view.sync()` makes one.
 - The diagram camera move (`d.focus(ids, { camera: true, also })`) is gone: `s.focus` moves the camera.
+- `s.focus`'s `with` option is gone: play the other animations in the same play, `this.play(s.focus(box), new FadeIn(m, { runTime: 0.9 }))`.
 - The free `choreograph(current, target)` is not exported: a transition's `t.choreograph(view)` is the one form.
 - `Card` and `CodeBlock` are exported as types only, and their constructors are internal: the drawing kit's `card(s, rows, opts)` and `code(s, lines, opts)` build them, in the stage's direction and regions, which `new Card(scene, palette, …)` ignored. `s.cardPicture` and `s.codePicture` are gone; a view's draw calls the kit.
 - A card's `lit` and `litAs` are one option, `lit: { row, as }`; a code panel's `focus` and `focusAs` are `lit: { lines, as }`; `emphasised(m, what)` names its words `as`. The words a description and the phone read are unchanged.

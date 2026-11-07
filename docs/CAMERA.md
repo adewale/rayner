@@ -102,7 +102,9 @@ so a camera that glides past a small label does not make it read
 
 - [seasons](https://github.com/adewale/rayner/blob/main/scenes/explainers/seasons/scene.ts), "noon": the stage's `s.focus(box, { exact: true })`
   onto a box the scene computes, a 2× zoom onto the noon angle with labels sized for the zoomed
-  view, and `s.focus('all')` at the start of the next step. The stage keeps the heading and its
+  view, played in one play with the fades of what the close-up leaves out
+  (`this.play(s.focus(box, { exact: true, runTime: 1.2 }), new FadeOut(sun, { runTime: 1.2 }))`),
+  and `s.focus('all')` at the start of the next step. The stage keeps the heading and its
   line on screen over a paper band while the camera is away, so the box keeps the band's strip
   free of content.
 - [lantern](https://github.com/adewale/rayner/blob/main/scenes/explainers/lantern/scene.ts), "begin": `s.focus(box, { exact: true })` onto
