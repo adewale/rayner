@@ -4,6 +4,7 @@ import { jsonObject } from '../src/json.ts';
 import type { Scene, Vec, Box, FadeOpts, Animation, SceneState, StepKind, SceneColors } from '../src/index.ts';
 import { center, unionBoxes } from '../src/box.ts';
 import { STAGE_BOX, atHome } from '../src/svg.ts';
+import { isDetail, teaching } from './script.ts';
 import type { StepAudio } from './audio.ts';
 import { dimension, pin, callout, legend, tool, Draw, oneStrokeEach } from './annotate.ts';
 import type { LegendItem } from './annotate.ts';
@@ -289,7 +290,8 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       setHeading(
         typeof s.meta.title === 'string' ? s.meta.title : '',
         typeof s.meta.line === 'string' ? s.meta.line.trim() : '',
-        numbered && s.meta.kind !== 'detail' ? scene.steps.filter((step) => step.meta.kind !== 'detail').length : null,
+        // The step's own number: teaching steps so far, itself included (the scene has pushed it).
+        numbered && !isDetail(s) ? teaching(scene.steps).length : null,
         s.name,
       ),
     );

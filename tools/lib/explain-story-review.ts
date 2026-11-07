@@ -17,6 +17,7 @@ import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
 import { isFurniture, isHeading } from '../../explain/stage.ts';
 import { NARROW_PX } from '../../app/embed-closeup.ts';
 import { stepWords } from '../../explain/trace.ts';
+import { offPath } from '../../explain/script.ts';
 import type { Project } from './explain-project.ts';
 import { join } from 'node:path';
 import { rasterize } from './explain-raster.ts';
@@ -638,9 +639,8 @@ export async function narrowOpeningPlan(
     Object.entries(c.settings ?? {}).every(([key, value]) => scenario.values[key] === value),
   );
   const source = frames ?? (await storyFrames(scenario.Scene, applicable));
-  const hasMain = scenario.trace.steps.some((step) => step.meta.kind !== 'detail');
-  return scenario.trace.steps.map((step) => {
-    if (step.meta.kind === 'detail' && hasMain) return { step: step.step, reviewed: false, reason: 'detail-step' };
+  return scenario.trace.steps.map((step, index) => {
+    if (offPath(scenario.trace.steps, index)) return { step: step.step, reviewed: false, reason: 'detail-step' };
     const targets = [
       ...new Set(
         applicable

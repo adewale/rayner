@@ -7,6 +7,7 @@ import { EXPLAINERS, PRODUCT, SHOWCASE } from '../../scenes/explainers/catalog.t
 import { collectProject, defaultScenario, ROOT, baseReceipt, sceneInputs } from '../lib/explain-project.ts';
 import { describeProject, checkBuilt } from './lib/explain-site-describe.ts';
 import { restingTime, htmlEscape, pictureSummary, stepWords } from '../../explain/trace.ts';
+import { teaching } from '../../explain/script.ts';
 import { buildExplainer, buildLoader } from '../lib/explain-build.ts';
 import { stillPng } from '../lib/explain-shots.ts';
 import { checkProject } from '../lib/explain-check.ts';
@@ -68,7 +69,7 @@ for (const item of items) {
   );
   // Export renders cards for selected public teaching steps; collection checks need only metadata.
   await mkdir(join(directory, item.id), { recursive: true });
-  const pictured = scenario.trace.steps.filter((x) => x.meta.kind !== 'detail' && shareable(x.step));
+  const pictured = teaching(scenario.trace.steps).filter((x) => shareable(x.step));
   const share: ShareManifest = {
     id: item.id,
     title: project.Scene.meta?.title ?? item.id,
@@ -110,7 +111,7 @@ for (const item of items) {
     styles: [...new Set(Object.values(project.store).map((s) => s.spec.style ?? 'default'))],
     families: [...new Set(Object.values(project.store).map((s) => s.family))],
     entry: {
-      step: scenario.trace.steps.find((step) => step.meta.kind !== 'detail')?.step ?? scenario.trace.steps[0]!.step,
+      step: teaching(scenario.trace.steps)[0]!.step,
       settings: scenario.values,
     },
     sourceHash: project.sourceHash,

@@ -29,6 +29,7 @@ import { cardPng } from '../lib/explain-shots.ts';
 import { useProjectLettering } from '../lib/explain-lettering.ts';
 import { galleryPage } from './lib/explain-gallery.ts';
 import { restingTime } from '../../explain/trace.ts';
+import { offPath } from '../../explain/script.ts';
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -110,8 +111,8 @@ try {
     const scenario = defaultScenario(project);
     await useProjectLettering(project);
     for (const s of share.steps) {
-      const step = scenario.trace.steps.find((step) => step.step === s.step);
-      if (!step || step.meta.kind === 'detail') throw new Error(`Invalid public step: ${id}/${s.step}`);
+      const index = scenario.trace.steps.findIndex((step) => step.step === s.step), step = scenario.trace.steps[index];
+      if (!step || offPath(scenario.trace.steps, index)) throw new Error(`Invalid public step: ${id}/${s.step}`);
       await writeFile(
         join(target, id, s.step + '.png'),
         await cardPng(scenario.Scene, restingTime(step, scenario.trace.fps)),

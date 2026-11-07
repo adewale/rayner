@@ -13,6 +13,7 @@ import { launch } from '../lib/browser.ts';
 import { collectProject, sceneInputs, ROOT } from '../lib/explain-project.ts';
 import { serve } from '../lib/explain-serve.ts';
 import { chromeFor } from '../../app/embed-strings.ts';
+import { teaching as teachingSteps } from '../../explain/script.ts';
 import { EXPLAINERS, PRODUCT } from '../../scenes/explainers/catalog.ts';
 import {
   reviewScope,
@@ -86,7 +87,7 @@ try {
       const directory = join(review, 'story', entry.id, String(index));
       await mkdir(directory, { recursive: true });
       const t = chromeFor(project.Scene.meta?.lang);
-      const teaching = scenario.trace.steps.some(s => s.meta.kind !== 'detail') ? scenario.trace.steps.filter(s => s.meta.kind !== 'detail') : scenario.trace.steps;
+      const teaching = teachingSteps(scenario.trace.steps);
       const steps = await reviewStoryScenario(
         page,
         `${base}/${entry.id}.html`,

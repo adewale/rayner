@@ -20,6 +20,7 @@ import type { StepLayout } from './embed-closeup.ts';
 import { changeText, chromeFor, descriptionsLang, settingsProblem } from './embed-strings.ts';
 import { HOME, SHARE_META, SHARE_STEPS_META, shareable } from './embed-share.ts';
 import { storyIndices, adjacentStep } from './embed-steps.ts';
+import { offPath } from '../explain/script.ts';
 import { SENT, acceptedLog, decodeLog, encodeLog, liveSteps, logStart, outcomes, pictureChange, runLive } from './embed-live.ts';
 import type { Live, LiveDraw, LiveRun, LiveSession, LogStart } from './embed-live.ts';
 
@@ -654,9 +655,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   }
   const mainIndices = () => storyIndices(trace.steps);
   const firstMain = () => mainIndices()[0] ?? 0;
-  function isDetail(index: number) {
-    return trace.steps[index]?.meta.kind === 'detail' && trace.steps.some(step => step.meta.kind !== 'detail');
-  }
+  const isDetail = (index: number) => offPath(trace.steps, index);
   function chrome() {
     const step = currentStep(),
       words = stepWords(step);
