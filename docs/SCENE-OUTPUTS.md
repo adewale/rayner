@@ -113,7 +113,9 @@ The helper implementing this is internal, not a package export. Check the chosen
 step exists before sampling.
 
 `renderAt` samples the first frame at or after the requested time, on the scene's
-fixed frame grid. A time past the end returns the final frame. `traceScene` records
+fixed frame grid. A time past the end returns the final frame. It runs the scene into a
+`SeekSink(target, t, { stopAfterFirst })`, which hands its target only the frames from `t` on
+(`forwarded` counts them) and, with `stopAfterFirst`, stops the run after the first. `traceScene` records
 the model before and after each step and what was shown at its end, not every
 intermediate value; call `scene.stateJson()` at chosen sample times for those.
 
@@ -123,7 +125,7 @@ For all SVG frames:
 import { StringSink } from 'rayner/output';
 const all = new StringSink();
 await new Request(all, { fps: 30 }).run();
-// all.frames contains SVG strings in frame order; it retains the whole run.
+// all.frames contains SVG strings in frame order; it retains the whole run. all.last() is the final one.
 ```
 
 Use `SnapshotSink` for a single retained frame or implement `Sink.frame` to stream
@@ -140,6 +142,11 @@ const container = document.querySelector('#diagram');
 if (!container) throw new Error('Missing diagram container');
 await new Request(new DomSink(container)).run();
 ```
+
+By default the sink plays in real time (`realtime: true`): when the page falls more than a
+frame behind, it drops that frame's DOM patch rather than slow the clock, counting it in
+`dropped`, but never goes longer than `maxFreezeMs` (100) without a patch. `{ realtime: false }`
+patches every frame as fast as the scene runs.
 
 This runs the raw scene, without the reader's Next and Previous controls, scenario
 selection, transcript or deep links; for those, use `rayner build` and the

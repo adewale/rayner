@@ -110,7 +110,7 @@ The great-circle explainer turns its globe this way, and the henge explainer run
 year and lowers its camera.
 
 Parts of an authored transition follow with `c.follow(spec, opts)` on the
-transition's choreography:
+transition's choreography, `spec` a `FollowSpec`, `{ from, to, draw }`:
 
 ```ts
 const refill = c.follow(

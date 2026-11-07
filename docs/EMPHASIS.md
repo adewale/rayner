@@ -90,7 +90,8 @@ await this.play(new Create(new SurroundingRectangle(span, { buff: 0.06, cornerRa
 await this.play(new Create(new BraceLabel(span, 'the retry loop', [1, 0], { fontSize: 0.22 })));
 ```
 
-`Code.highlight(i)` is a filled bar behind one line, for the line about to run;
+`Code.highlight(i)` is a filled bar behind one line, for the line about to run, centred
+on `code.lineCenter(i)`, the point a bar for line `i` sits at;
 an outline or brace points at a span while the caption says something about it.
 A card's or code panel's `lit` option, a diagram picture's marks and `d.notePicture` build
 on the same idea for explainers, drawn from state by a [view](VIEWS.md).

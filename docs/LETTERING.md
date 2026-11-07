@@ -128,7 +128,7 @@ this.add(new ItalicText('Italic'));                         // the Italic cut
 this.add(new ItalicText('Both', { weight: 'bold' }));       // the Bold Italic cut
 ```
 
-- With `'bold'`, every bold Text in the explainer draws its face's Bold cut, the stage heading and panel titles included. Without it, bold stays faux.
+- `styles` lists `LetteringStyle`s, `'bold'` and `'italic'`. With `'bold'`, every bold Text in the explainer draws its face's Bold cut, the stage heading and panel titles included. Without it, bold stays faux.
 - `ItalicText` is a `Text` in the Italic cut. It fails the build unless `styles` includes `'italic'`; there is no faux italic. With both styles, `weight: 'bold'` gives Bold Italic.
 - The cuts come from the family's face: the requested `faces.sans` or `faces.mono`, else the full releases of Inter for `sans` and JetBrains Mono for `mono`. A requested face without the cut fails capture, naming it: `noto-sans-hebrew` has no italic.
 - Scripts follow the nearest cut their face has. Noto Naskh Arabic, Noto Sans Devanagari and Noto Sans Hebrew have Bold cuts and no italic, so italic text in them draws upright and bold italic draws bold. Noto Sans SC has no Bold cut in the registry, so bold Chinese fails capture, naming that face. Symbols and numerals that only the embedded Noto fallbacks draw stay at their one weight.

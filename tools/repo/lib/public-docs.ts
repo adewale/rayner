@@ -28,7 +28,76 @@ export interface PublicName {
  * public or waits for a decision (docs/ENGINE.md, "Public names"). A name here that the guides do
  * document, or that is no longer public, fails the test, so the list cannot go stale.
  */
-export const UNDOCUMENTED: Record<string, string> = {};
+export const UNDOCUMENTED: Record<string, string> = {
+  'Mobject.pointArrays (rayner)': "The renderer's and the bounds' own data, which a scene never reads: should be @internal.",
+  'Mobject.boundingPointArrays (rayner)': "The renderer's and the bounds' own data, which a scene never reads: should be @internal.",
+  'VMobject.pointArrays (rayner)': "The renderer's and the bounds' own data, which a scene never reads: should be @internal.",
+  'Text.pointArrays (rayner)': "The renderer's and the bounds' own data, which a scene never reads: should be @internal.",
+  'Frame.pointArrays (rayner)': "The renderer's and the bounds' own data, which a scene never reads: should be @internal.",
+  'Text.frameBox (rayner)': "The renderer's and the bounds' own data, which a scene never reads: should be @internal.",
+  'VMobject.pathData (rayner)': "The renderer's and the bounds' own data, which a scene never reads: should be @internal.",
+  'VMobject.toPathD (rayner)': "The renderer's and the bounds' own data, which a scene never reads: should be @internal.",
+  'VMobject.roundedRelative (rayner)': "The renderer's and the bounds' own data, which a scene never reads: should be @internal.",
+  'VMobject.splitCurve (rayner)': "How a morph aligns two families' points, which the transforms do for a scene: should be @internal.",
+  'VMobject.insertNCurves (rayner)': "How a morph aligns two families' points, which the transforms do for a scene: should be @internal.",
+  'Animation.zipFamilies (rayner)': "How a morph aligns two families' points, which the transforms do for a scene: should be @internal.",
+  'Animation.starting (rayner)': "How a morph aligns two families' points, which the transforms do for a scene: should be @internal.",
+  'Animation.slots (rayner)': "How a morph aligns two families' points, which the transforms do for a scene: should be @internal.",
+  'Animation.allMobjects (rayner)': "How a morph aligns two families' points, which the transforms do for a scene: should be @internal.",
+  'Animation.subAlpha (rayner)': "How a morph aligns two families' points, which the transforms do for a scene: should be @internal.",
+  'Animation.paints (rayner)': "How a morph aligns two families' points, which the transforms do for a scene: should be @internal.",
+  'Transform.ownsTarget (rayner)': "How a morph aligns two families' points, which the transforms do for a scene: should be @internal.",
+  'Transform.sameStructure (rayner)': "How a morph aligns two families' points, which the transforms do for a scene: should be @internal.",
+  'Transform.targetCopy (rayner)': "How a morph aligns two families' points, which the transforms do for a scene: should be @internal.",
+  'Transform.paints (rayner)': "How a morph aligns two families' points, which the transforms do for a scene: should be @internal.",
+  'Transform.allMobjects (rayner)': "How a morph aligns two families' points, which the transforms do for a scene: should be @internal.",
+  'TransformMatching.paints (rayner)': "How a morph aligns two families' points, which the transforms do for a scene: should be @internal.",
+  'Animation.interpolateSubmobject (rayner)': "A per-submobject hook of Manim's that the engine's own animations override and no recipe or explainer does: protected, or documented for custom animations, is a decision for later.",
+  'Transform.interpolateSubmobject (rayner)': "A per-submobject hook of Manim's that the engine's own animations override and no recipe or explainer does: protected, or documented for custom animations, is a decision for later.",
+  'Create.interpolateSubmobject (rayner)': "A per-submobject hook of Manim's that the engine's own animations override and no recipe or explainer does: protected, or documented for custom animations, is a decision for later.",
+  'Animation.setOptions (rayner)': "play()'s machinery: it applies a play's options with setOptions and awaits ready before it begins; a scene passes options to play() instead. Should be @internal.",
+  'Animation.ready (rayner)': "play()'s machinery: it applies a play's options with setOptions and awaits ready before it begins; a scene passes options to play() instead. Should be @internal.",
+  'AnimationGroup.setOptions (rayner)': "play()'s machinery: it applies a play's options with setOptions and awaits ready before it begins; a scene passes options to play() instead. Should be @internal.",
+  'AnimationGroup.ready (rayner)': "play()'s machinery: it applies a play's options with setOptions and awaits ready before it begins; a scene passes options to play() instead. Should be @internal.",
+  'Succession.setOptions (rayner)': "play()'s machinery: it applies a play's options with setOptions and awaits ready before it begins; a scene passes options to play() instead. Should be @internal.",
+  'Action.setOptions (rayner/explain)': "play()'s machinery: it applies a play's options with setOptions and awaits ready before it begins; a scene passes options to play() instead. Should be @internal.",
+  'Action.ready (rayner/explain)': "play()'s machinery: it applies a play's options with setOptions and awaits ready before it begins; a scene passes options to play() instead. Should be @internal.",
+  'AnimationGroup.animations (rayner)': "A group's schedule, which play() lays out from the members a scene gave it: should be @internal.",
+  'AnimationGroup.timings (rayner)': "A group's schedule, which play() lays out from the members a scene gave it: should be @internal.",
+  'AnimationGroup.maxEnd (rayner)': "A group's schedule, which play() lays out from the members a scene gave it: should be @internal.",
+  'Arrow.opts (rayner)': "A constructor's option, or a value derived from one, kept for the object's own use; the option itself is documented: should be private or @internal.",
+  'StringSink.opts (rayner/output)': "A constructor's option, or a value derived from one, kept for the object's own use; the option itself is documented: should be private or @internal.",
+  'SnapshotSink.opts (rayner/output)': "A constructor's option, or a value derived from one, kept for the object's own use; the option itself is documented: should be private or @internal.",
+  'FadeIn.shiftVec (rayner)': "A constructor's option, or a value derived from one, kept for the object's own use; the option itself is documented: should be private or @internal.",
+  'FadeIn.scaleFrom (rayner)': "A constructor's option, or a value derived from one, kept for the object's own use; the option itself is documented: should be private or @internal.",
+  'FadeIn.mobjectStart (rayner)': "A constructor's option, or a value derived from one, kept for the object's own use; the option itself is documented: should be private or @internal.",
+  'FadeOut.shiftVec (rayner)': "A constructor's option, or a value derived from one, kept for the object's own use; the option itself is documented: should be private or @internal.",
+  'FadeOut.scaleTo (rayner)': "A constructor's option, or a value derived from one, kept for the object's own use; the option itself is documented: should be private or @internal.",
+  'Create.borderWidth (rayner)': "A constructor's option, or a value derived from one, kept for the object's own use; the option itself is documented: should be private or @internal.",
+  'Create.BORDER (rayner)': "A constructor's option, or a value derived from one, kept for the object's own use; the option itself is documented: should be private or @internal.",
+  'Circumscribe.baseOpacity (rayner)': "A constructor's option, or a value derived from one, kept for the object's own use; the option itself is documented: should be private or @internal.",
+  'GrowFromEdge.axis (rayner)': "A constructor's option, or a value derived from one, kept for the object's own use; the option itself is documented: should be private or @internal.",
+  'PulseAlongPath.sourcePath (rayner)': "A constructor's option, or a value derived from one, kept for the object's own use; the option itself is documented: should be private or @internal.",
+  'TransformDiff.given (rayner)': "A constructor's option, or a value derived from one, kept for the object's own use; the option itself is documented: should be private or @internal.",
+  'Transform.pathFunc (rayner)': "A constructor's option, or a value derived from one, kept for the object's own use; the option itself is documented: should be private or @internal.",
+  'TransformMatching.pathFunc (rayner)': "A constructor's option, or a value derived from one, kept for the object's own use; the option itself is documented: should be private or @internal.",
+  'NumberLine.tipIdx (rayner)': "A constructor's option, or a value derived from one, kept for the object's own use; the option itself is documented: should be private or @internal.",
+  'Mobject.updaters (rayner)': 'The list addUpdater fills and clearUpdaters empties, which are its API: should be @internal.',
+  'Text.clusterMatching (rayner)': "Matching's hook into requested lettering, which the matching transforms read: should be @internal.",
+  'Text.clusterKey (rayner)': "Matching's hook into requested lettering, which the matching transforms read: should be @internal.",
+  'TransformMatching.moves (rayner)': 'The plan begin() makes; summary(), pairs, removed and added report it to a scene: should be @internal.',
+  'TransformMatching.fadesOut (rayner)': 'The plan begin() makes; summary(), pairs, removed and added report it to a scene: should be @internal.',
+  'TransformMatching.touched (rayner)': 'The plan begin() makes; summary(), pairs, removed and added report it to a scene: should be @internal.',
+  'TransformFromCopy.takeCopy (rayner/extras)': "TransformFromCopy's own copy, made when it begins: should be private.",
+  'DomSink.doc (rayner/output)': "The live sink's DOM plumbing, which the player's sink (app/embed-zoom.ts) builds on: should be protected or @internal.",
+  'DomSink.NS (rayner/output)': "The live sink's DOM plumbing, which the player's sink (app/embed-zoom.ts) builds on: should be protected or @internal.",
+  'DomSink.lastPatch (rayner/output)': "The live sink's DOM plumbing, which the player's sink (app/embed-zoom.ts) builds on: should be protected or @internal.",
+  'DomSink.apply (rayner/output)': "The live sink's DOM plumbing, which the player's sink (app/embed-zoom.ts) builds on: should be protected or @internal.",
+  'LetteringSnapshot (rayner)': 'The wire format of scene.lettering.json, which only the build and the page read; a scene names only LetteringRequest. Should be internal.',
+  'PackedLetteringSnapshot (rayner)': 'The wire format of scene.lettering.json, which only the build and the page read; a scene names only LetteringRequest. Should be internal.',
+  'StoredLetteringSnapshot (rayner)': 'The wire format of scene.lettering.json, which only the build and the page read; a scene names only LetteringRequest. Should be internal.',
+  'Outcome (rayner/explain)': 'The type of Machine.outcome, which is internal; no scene names it. Should be internal.',
+};
 
 const internal = (d: ts.Node): boolean => ts.getJSDocTags(d).some((t) => t.tagName.text === 'internal');
 const hidden = (d: ts.Declaration): boolean => {
@@ -153,12 +222,19 @@ export function docsCode(root = ROOT): string {
   const dir = join(root, 'docs');
   const out: string[] = [];
   for (const file of readdirSync(dir).filter((f) => f.endsWith('.md')).sort()) {
-    let fenced = false;
+    // A code span may run across the lines of one paragraph, so spans are read a paragraph at a time.
+    let fenced = false, paragraph: string[] = [];
+    const spans = () => {
+      for (const [, , span] of paragraph.join(' ').matchAll(/(`+)(.+?)\1(?!`)/g)) out.push(span!.trim());
+      paragraph = [];
+    };
     for (const line of readFileSync(join(dir, file), 'utf8').split('\n')) {
-      if (/^\s*```/.test(line)) { fenced = !fenced; continue; }
-      if (fenced) { out.push(line); continue; }
-      for (const [, , span] of line.matchAll(/(`+)(.+?)\1(?!`)/g)) out.push(span!.trim());
+      if (/^\s*```/.test(line)) { spans(); fenced = !fenced; continue; }
+      if (fenced) out.push(line);
+      else if (!line.trim() || /^\s*([-*|#]|\d+\.)/.test(line)) { spans(); paragraph.push(line); }
+      else paragraph.push(line);
     }
+    spans();
   }
   return out.join('\n');
 }
