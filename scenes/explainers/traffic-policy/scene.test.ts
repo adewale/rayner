@@ -1,4 +1,6 @@
 import { test } from 'node:test';
+import { seenSource } from '../../../explain/look.ts';
+import type { SeenSource } from '../../../explain/look.ts';
 import assert from 'node:assert/strict';
 import { Scene } from '../../../src/index.ts';
 import { NullSink } from '../../../src/output.ts';
@@ -48,18 +50,19 @@ test('an architecture diagram counts services and edges, names edges by their se
   assert.ok(names.indexOf('Load balancer') < names.indexOf('Load balancer → Node 1 · 10.240.0.1'));
 });
 
-test('architecture services answer to their bare ids in walk, dim and mark', async () => {
+test('architecture services answer to their bare ids in walk and in a picture\'s dim and marks', async () => {
   const d = await shown(withHop());
   await d.walk([
     ['lb', 'k3'],
     ['k3', 'd'],
   ]);
-  await d.dim(['lb', 'k3']);
   // The edge between two kept services stays undimmed; one to a dimmed pod does not.
-  const parts = d.describe().parts;
+  const dimmed = d.picture({}, { dim: ['lb', 'k3'] });
+  const parts = (dimmed as unknown as SeenSource)[seenSource]().parts;
   assert.equal(parts.find((p) => p.name === 'Load balancer → Node 3 · 10.240.0.3')?.dimmed, undefined);
   assert.equal(parts.find((p) => p.name === 'Node 3 · 10.240.0.3 → Pod d')?.dimmed, true);
-  await d.mark(['group:n3', 'k3'], { as: 'fails the health check' });
+  const marked = d.picture({ 'group:n3': { color: '#ff0000', as: 'fails the health check' }, k3: { color: '#ff0000', as: 'fails the health check' } });
+  assert.equal((marked as unknown as SeenSource)[seenSource]().parts.find((p) => p.name === 'Node 3 · 10.240.0.3')?.mark, 'fails the health check');
   assert.equal(d.get('k3'), d.get('service:k3'));
 });
 

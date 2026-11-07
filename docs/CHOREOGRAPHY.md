@@ -84,17 +84,20 @@ the animation begins does not change this traversal.
 The token is removed by default. Cleanup restores its authored opacity so it can
 be reused, retaining the position it reached. With `remover: false` it stays in the
 scene at the invisible end of the pulse. It is not a persistent indication for a
-resting picture: leave a mark or diagram trail when the reader needs that evidence.
+resting picture: draw a mark, or a diagram picture's `trail`, when the reader needs that evidence.
 No adjacency assertion or walk record is implied by moving along an arbitrary path.
 
 ## SetState
 
 ```ts
-import { Succession, StateReadout } from 'rayner';
-const readout = view(this, (s) => new StateReadout([['count', s.count]]), { place: 'left' });
+import { Succession } from 'rayner';
+import { Card, palette, SetState, view } from 'rayner/explain';
+const colors = palette('github-dark');
+const readout = view(this, (s) => new Card(this, colors, [['count', s.count]], { panel: false, key: 'readout' }), { place: false });
+const sync = () => readout.sync({ match: 'key', staged: true });
 await this.play(new Succession([
-  new SetState(this, { count: 3 }), readout.sync(),
-  new SetState(this, { count: 9 }), readout.sync(),
+  new SetState(this, { count: 3 }), sync(),
+  new SetState(this, { count: 9 }), sync(),
 ]));
 ```
 

@@ -37,7 +37,7 @@ Lantern supplies the execution and rendering model. Agentic Mermaid supplies lay
 | --- | --- | --- |
 | Scene authoring | `Scene` classes with `step()`, `play()`, captions and state | Templates, examples, documentation; static `meta` and `settings` as registration conventions |
 | Animation engine | Mobjects, animations, deterministic frames and seeking | Semantics preserved; general fixes listed in [upstream](../docs/UPSTREAM.md). The helpers run groups on linear time, because easing compounds in nested groups |
-| Explanation helpers | `title`, `CodePanel` and `StateReadout` | Replaced by `explain/`: the stage, diagrams, cards, code panels and settings. Of the panels only `StateReadout` remains in the engine, because `stateView` builds one |
+| Explanation helpers | `title`, `CodePanel` and `StateReadout` | Replaced by `explain/`: the stage, diagrams, cards, code panels and settings. `StateReadout`, the last of them, became a `Card` without a panel |
 | Diagrams | `flowchart()` and Lantern's own Mermaid layout | Replaced by Agentic Mermaid capture, which honours its styles across families |
 | Player | `app/player.ts` | Replaced by the embed player (`app/embed.ts`): stepper first, scenarios, zoom, accessibility |
 | Builds | Bundled HTML | External scenes, snapshot build, portable pages, receipts |

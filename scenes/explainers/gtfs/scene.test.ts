@@ -82,18 +82,21 @@ test('an ER relationship’s markers and label background belong to it: the labe
   // No marker or background is a part of its own: the description and dimming see the relationship.
   const top = [...d.parts.values()].filter((p) => !p.info.owner).map((p) => p.info.id);
   assert.deepEqual(top.filter((id) => /^(card|rel-label):/.test(id)), []);
+  // A picture of the diagram copies it member for member: a part's drawing is at the part's index.
+  const live = d.root.family();
+  const drawn = (picture: { family(): ReturnType<typeof d.root.family> }, x: string) =>
+    d.get(x).family().filter((m) => !m.children.length).map((m) => picture.family()[live.indexOf(m)]!);
   // Marking a relationship colours its markers too; its label keeps its ink.
   const id = 'rel:TRIP-STOP_TIME#0';
-  const marker = d.get('card:TRIP-STOP_TIME#0:2').family().filter((m) => !m.children.length);
-  const ink = d.get('rel-label:TRIP-STOP_TIME#0').family().filter((m) => !m.children.length).map((m) => m.style.fill);
-  await d.mark([id], { color: '#ff0000' });
-  assert.ok(marker.every((m) => m.style.stroke === '#ff0000'));
-  assert.deepEqual(d.get('rel-label:TRIP-STOP_TIME#0').family().filter((m) => !m.children.length).map((m) => m.style.fill), ink);
+  const marked = d.picture({ [id]: '#ff0000' });
+  assert.ok(drawn(marked, 'card:TRIP-STOP_TIME#0:2').every((m) => m.style.stroke === '#ff0000'));
+  const ink = (picture: Parameters<typeof drawn>[0]) => drawn(picture, 'rel-label:TRIP-STOP_TIME#0').map((m) => m.style.fill);
+  assert.deepEqual(ink(marked), ink(d.picture({})));
   // Dimming every part but two entities keeps the relationship between them, markers included.
-  const opacity = (x: string) => d.get(x).family().map((m) => m.style.opacity ?? 1);
-  const [kept, faded] = [opacity(id), opacity('rel:ROUTE-TRIP#0')];
-  await d.dim(['entity:TRIP', 'entity:STOP_TIME']);
-  assert.deepEqual(opacity(id), kept);
+  const opacity = (picture: Parameters<typeof drawn>[0], x: string) => drawn(picture, x).map((m) => m.style.opacity ?? 1);
+  const plain = d.picture({}), dimmed = d.picture({}, { dim: ['entity:TRIP', 'entity:STOP_TIME'] });
+  assert.deepEqual(opacity(dimmed, id), opacity(plain, id));
+  const faded = opacity(plain, 'rel:ROUTE-TRIP#0');
   // (A link's invisible route path stays at opacity 0.)
-  assert.ok(opacity('rel:ROUTE-TRIP#0').every((o, i) => (faded[i] ? o < faded[i]! : o === 0)));
+  assert.ok(opacity(dimmed, 'rel:ROUTE-TRIP#0').every((o, i) => (faded[i] ? o < faded[i]! : o === 0)));
 });

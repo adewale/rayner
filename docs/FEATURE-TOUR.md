@@ -13,8 +13,8 @@ A recipe is an excerpt. The tour's [runnable source](https://github.com/adewale/
 | Choose `feature=` | Code the recipe shows | Further options |
 | --- | --- | --- |
 | `steps`, `settings` | `this.step`, `s.enter`, `static settings`, `settingsOf(this)` | [Scene](REFERENCE.md#scene), [settings](REFERENCE.md#settings) |
-| `diagram` | `s.show({source})`, `d.walk(..., {trail: true})` | [Diagram actions and the 15 families](REFERENCE.md#diagrams) |
-| `code`, `code-diff` | `s.code`, `block.focus`, `block.morph` | [Code spans](CODE.md), [native diff](MATCHING.md#diff-driven) |
+| `diagram` | `s.show({source})`, `d.walk(...)`, `s.diagramView(d, ...)` with `d.trail(...)` | [Diagram actions and the 15 families](REFERENCE.md#diagrams) |
+| `code`, `code-diff` | `view` of `CodeBlock` / `s.codePicture` with `focus` and `added` | [Code spans](CODE.md), [native diff](MATCHING.md#diff-driven) |
 | `diff` | `parseUnifiedDiff`, `TransformDiff({hunks})`, `diffLines` | [Diff-driven](MATCHING.md#diff-driven) |
 | `animation`, `matching`, `keys`, `restore`, `copy` | `Transform`, `TransformMatchingText`, `TransformMatching({key: matchByKey()})`, `saveState` / `Restore`, `TransformFromCopy` | [Matching](MATCHING.md), [sequencing and copies](ANIMATIONS.md) |
 | `write`, `arc`, `rates` | `Write`, `ArcBetweenPoints`, `MoveAlongPath`, `rateFunc: smooth`, `rushInto`, `rushFrom`, `thereAndBack` | [Animations](ANIMATIONS.md), [choreography](CHOREOGRAPHY.md) |
