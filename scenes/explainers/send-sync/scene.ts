@@ -1,6 +1,6 @@
 import { Scene, Group } from '../../../src/index.ts';
-import { stage, settingsOf, Card, answerOf, view } from '../../../explain/index.ts';
-import type { Diagram } from '../../../explain/index.ts';
+import { stage, settingsOf, Card, CodeBlock, answerOf, view } from '../../../explain/index.ts';
+import type { Diagram, PictureNote, View } from '../../../explain/index.ts';
 import { SINGLES, WRAPS, OPENING, OPENING_TYPE, build, nameOf, isSend, isSync, quadrantOf, threads } from './model.ts';
 import type { Inner, Wrapper, Quadrant, Layer } from './model.ts';
 import { SIZE, SPOT, QUADRANT, chart, LEFT, RIGHT, ZOOM, valueName, columnLines, quadrantMap } from './picture.ts';
@@ -117,6 +117,56 @@ export default class SendSyncExplainer extends Scene {
       const map = view(this, (state) => quadrantMap((state as unknown as SendSyncState).here, { ink, paper: s.palette.paper, emphasis: s.emphasis, soft: s.soft }), { place: false });
       await s.enter(map, { describe: () => `Map of the four quadrants, “${QUADRANT[st().here]}” filled` });
     };
+    // How the chart in view is shown, apart from its source: the note on its point and the point
+    // marked. That is `shown`, not the model; the chart is shown by a view that draws it, and each
+    // change is a sync. A reveal, a morph or a focus takes the live chart, with `shown` plain.
+    type ChartShown = { notes: PictureNote[]; marks: Record<string, { color: string; as: string }> };
+    const PLAIN: ChartShown = { notes: [], marks: {} };
+    let chartView: { of: Diagram; view: View } | null = null;
+    const showChart = async (of: Diagram, change: Partial<ChartShown>) => {
+      if (chartView?.of !== of) {
+        this.shown.chart = PLAIN;
+        chartView = {
+          of,
+          view: s.diagramView(of, (_st, sh) => {
+            const c = sh.chart as ChartShown;
+            return { marks: c.marks, notes: c.notes };
+          }),
+        };
+      }
+      this.shown.chart = { ...(this.shown.chart as ChartShown), ...change };
+      await this.play(chartView.view.sync({ match: 'key', staged: true }));
+    };
+    /** The live chart back in its view's place, its note and mark gone from `shown` first. */
+    const liveChart = async (of: Diagram) => {
+      if (chartView?.of !== of) return;
+      await showChart(of, PLAIN);
+      s.liveDiagram(of);
+      chartView = null;
+    };
+    /** A code panel drawn from a view: the lines in focus, and their word, are `shown[name]`. */
+    type CodeFocus = { lines: [number, number]; as: string } | null;
+    const codePanel = (name: string, code: readonly string[], at: [number, number, number, number]) => {
+      this.shown[name] = null satisfies CodeFocus;
+      return view(
+        this,
+        (_st, sh) => {
+          const focus = sh[name] as CodeFocus;
+          return new CodeBlock(this, s.palette, code, {
+            at,
+            fontSize: SIZE,
+            focus: focus?.lines ?? null,
+            ...(focus ? { focusAs: focus.as } : {}),
+            key: name,
+          });
+        },
+        { place: false },
+      );
+    };
+    const focusCode = async (panel: View, name: string, focus: CodeFocus) => {
+      this.shown[name] = focus;
+      await this.play(panel.sync({ match: 'key', staged: true }));
+    };
     /** A point's two answers, said on the point, with the column's words and the map beside the chart. */
     const tell = async (
       chartOf: Diagram,
@@ -127,10 +177,7 @@ export default class SendSyncExplainer extends Scene {
       // Words drawn from the state are a view of it; fixed words are just words.
       words: readonly string[] | ((st: SendSyncState) => readonly string[]),
     ) => {
-      await chartOf.note(`point:${point}:label`, `Send: ${yesNo(send)}, Sync: ${yesNo(sync)}`, {
-        side: 'below',
-        size: SIZE,
-      });
+      await showChart(chartOf, { notes: [{ id: `point:${point}:label`, text: `Send: ${yesNo(send)}, Sync: ${yesNo(sync)}`, side: 'below', size: SIZE }] });
       await s.enter(typeof words === 'function'
         ? view(this, (state) => new Group(...lines(words(state as unknown as SendSyncState), RIGHT[3])), { place: false })
         : new Group(...lines(words, RIGHT[3])));
@@ -152,7 +199,8 @@ export default class SendSyncExplainer extends Scene {
       // model.test.ts.
       caption: `x is an Arc, the pointer the standard library provides for sharing one value between threads; here it holds a Cell<i32>. thread::spawn runs a closure on a new thread, and move hands x to that closure. rustc refuses with error E0277, and the error names two traits: Sync, which Cell<i32> lacks, and Send, which ${arcCell.name} needed for the move.`,
     });
-    const opener = await s.code(
+    const opener = codePanel(
+      'opener',
       [
         ...OPENING,
         // rustc's lines, wrapped to the reader's size.
@@ -163,9 +211,10 @@ export default class SendSyncExplainer extends Scene {
         '= note: required for `Arc<Cell<i32>>` to',
         '        implement `Send`',
       ],
-      { at: [-7.8, -3.6, 7.8, 2.75], fontSize: SIZE },
+      [-7.8, -3.6, 7.8, 2.75],
     );
-    await opener.focus([4, 7], { as: 'the two traits' });
+    await s.enter(opener, { runTime: 0.4 });
+    await focusCode(opener, 'opener', { lines: [4, 7], as: 'the two traits' });
     this.state.opening = openRun;
 
     // ------------------------------------------------------------------ the two questions
@@ -248,6 +297,7 @@ export default class SendSyncExplainer extends Scene {
       if (prepare) await prepare();
       else await s.clearOverlays();
       const chartOf = d;
+      await liveChart(chartOf);
       await chartOf.reveal([`point:${p.name}`, `point:${p.name}:label`]);
       await chartOf.focus([`plate:${p.q}`], { zoom: ZOOM });
       await tell(chartOf, p.name, p.send, p.sync, p.q, [
@@ -322,7 +372,8 @@ export default class SendSyncExplainer extends Scene {
         'A Mutex lets one thread at a time use the value inside, behind its lock, so Mutex<T> needs only T: Send, and is then Sync as well: the lock supplies the synchronisation Cell lacks. Arc<T>, as before, needs T to be both. The lines omit ?Sized and the allocator. The setting picks the type built next, from the inside out.',
     });
     await s.clear();
-    const code = await s.code(
+    const code = codePanel(
+      'rules',
       [
         '// alloc/src/sync.rs:284, 286',
         'unsafe impl<T: Send + Sync> Send for Arc<T> {}',
@@ -331,9 +382,11 @@ export default class SendSyncExplainer extends Scene {
         'unsafe impl<T: Send> Send for Mutex<T> {}',
         'unsafe impl<T: Send> Sync for Mutex<T> {}',
       ],
-      { at: [-7.8, -2.6, 7.8, 3.05], fontSize: SIZE },
+      [-7.8, -2.6, 7.8, 3.05],
     );
-    await code.focus(wrapper === 'arc' ? [1, 2] : wrapper === 'mutex' ? [4, 5] : [1, 5], {
+    await s.enter(code, { runTime: 0.4 });
+    await focusCode(code, 'rules', {
+      lines: wrapper === 'arc' ? [1, 2] : wrapper === 'mutex' ? [4, 5] : [1, 5],
       as: wrapper === 'arc-mutex' ? 'both wrappers' : 'this wrapper',
     });
     await s.note(`Highlighted: the rules for ${WRAPPER_LABEL[wrapper]}`, { at: [0, -3.4], size: SIZE });
@@ -369,6 +422,7 @@ export default class SendSyncExplainer extends Scene {
       const from = i === 1 ? was.name : valueName(was.name),
         to = valueName(now.name);
       points = [{ name: to, q: was.quadrant }];
+      await liveChart(q);
       await q.morph({ source: chart(points) }, { ops: [{ kind: 'rename_point', from, to }] });
       if (moved) {
         points = [{ name: to, q: now.quadrant }];
@@ -412,9 +466,9 @@ export default class SendSyncExplainer extends Scene {
       } for x: ${run.name}.${inner === 'cell' && both ? ' The opening’s Cell can cross once a Mutex guards it.' : ''}`,
     });
     await s.clearOverlays();
-    await q!.mark([`point:${valueName(run.name)}`], {
-      color: both ? s.good : s.bad,
-      as: both ? 'accepted' : 'rejected',
+    await showChart(q!, {
+      notes: [],
+      marks: { [`point:${valueName(run.name)}`]: { color: both ? s.good : s.bad, as: both ? 'accepted' : 'rejected' } },
     });
     this.state.threads = run;
     await column(
