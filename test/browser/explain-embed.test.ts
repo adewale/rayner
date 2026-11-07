@@ -16,6 +16,7 @@ import { publishedPage } from '../../tools/lib/explain-share.ts';
 import { fc, params } from '../lib/pbt.ts';
 import { resolveSettings } from '../../explain/index.ts';
 import type { Settings } from '../../explain/index.ts';
+import { settingsProblem } from '../../explain/settings.ts';
 import { pictureHtml, pictureSummary, stepWords } from '../../explain/trace.ts';
 import { NARROW_PX, READ_PX, closeUps, labelsToRead, stageScale, stepLayouts, toView, viewBox } from '../../app/embed-closeup.ts';
 import type { StepLayout } from '../../app/embed-closeup.ts';
@@ -1815,7 +1816,7 @@ function resolveLoad(p: Project, request: Record<string, string>, step: string |
     values = resolveSettings(p.Scene, request);
   } catch (error) {
     values = resolveSettings(p.Scene);
-    notices.push(`${(error as Error).message}. Showing the default scenario.`);
+    notices.push(chromeFor('en').fallback(settingsProblem(error)));
   }
   const list = stepsOf(p, values);
   let found = step ? list.findIndex((s) => s.step === step) : teachingSteps(list)[0]!;

@@ -159,7 +159,8 @@ export function drawChoice(choice: Choice, c: Ink): Group {
   );
   redirect.key = 'fork-choice-fallback';
   const refusal = new Group(
-    new Text(String(refusedLink.refused), { fontSize: 0.28, color: c.bad }).moveTo([0, slotY - H / 2 - 0.4]),
+    // Rayner's refusal says this at length (the caption quotes it); the picture keeps it short.
+    new Text(`“${refusedLink.asked}” is not an option`, { fontSize: 0.28, color: c.bad }).moveTo([0, slotY - H / 2 - 0.4]),
     new Text('so the page opens the default scenario', { fontSize: 0.28, color: c.emphasis }).moveTo([0, slotY - H / 2 - 0.8]),
   );
   return new Group(heading, scenarios, tag, four, unknown, redirect, refusal);
