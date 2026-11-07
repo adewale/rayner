@@ -16,8 +16,10 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `rayner check` fails a view whose draw never depends on its state (or on what is shown) at any step that shows it. [Checks](docs/REFERENCE.md#checks)
 - `emphasised(m, what)` in `rayner/drawing` marks a part as emphasis where it is drawn, so the close-up tour and the descriptions find it in the picture; a diagram's picture reports its own marks the same way.
 - `s.diagramView(d, draw)` shows a diagram by a view of the state (its marks, notes and dimming, as `d.picture` takes them); `s.liveDiagram(d)` hands back for a morph, reveal or walk. `d.trail(hops)` gives a walk's trail as marks. mr-cache is converted.
-- `new CodeBlock(..., { key })` keys a code panel's parts, so a panel drawn in a view moves its focus bar by key.
-- `new Card(..., { key })` keys a card's parts, so a card drawn in a view syncs by key as `set` and `mark` changed it. The tutorial's card is a view of its state.
+- A picture is never changed in place. Cards, code panels and diagrams that change are drawn by views from the state (the model) and `scene.shown` (how it is shown), and synced by key. Removed: `Diagram.mark`, `unmark`, `dim`, `note`, `clearNotes` and `walk`'s `trail`; `Card.set` and `mark`; `CodeBlock.focus`, `morph` and `clearMarks`; `s.emphasise`; and the engine's `StateReadout`. [Card and CodeBlock](docs/REFERENCE.md#card-and-codeblock), [views](docs/VIEWS.md#cards-code-annotations-and-notes-from-state)
+- Cards and code panels take their marks as options: `lit`, `litAs`; `focus`, `focusAs`, `added`; `width` and `fitHeight` keep a panel's size; `key` keys their parts, so a sync keeps what stays, fades a changed value or line across and moves the bar. A code line is keyed by its text, so a line that moves pairs with itself. `panel: false` gives a card with no panel, which is how a readout of state is drawn. `s.cardPicture` and `s.codePicture` build them placed as the stage places them, for a view's draw.
+- What is shown may change between a machine's events (a guided tour moving a code panel's focus); exploration and the live player draw under what the machine last played under.
+- The phone's close-ups count a mark redrawn at the same keyed place with the same words as the same emphasis, not new.
 - Views, `Machine`, `SetState` and `choreograph` moved from `src/` to `explain/` and are imported from `rayner/explain`; `src/` is the engine taken from Lantern.
 - Three opt-in entry points: `rayner/geo` (`seenFrom` and the globe, out of `rayner/drawing`), `rayner/audio` (the score types) and `rayner/extras` (`Write`, `TransformFromCopy`, `Restore`, `MoveAlongPath`, `ArcBetweenPoints`, `Square`, `Underline`, out of `rayner`).
 - `view.tween((t) => state)` moves the state through time and redraws the view at every frame; `c.follow(spec, { targets })` does the same for parts of an authored transition. `Follow` is no longer exported.
@@ -36,7 +38,6 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `s.steps([...])` presents a list of steps, each drawn by `draw(state, s)` from its own state.
 - `s.sketch` draws a path stroke by stroke with a pen or pencil.
 - The collection's explainers use only what the package exports, and a test fails any scene that imports anything else, so an outside author can write what they write.
-- `s.emphasise(now)` says what a scene's own marks emphasise, for the phone's close-ups. [Phone opening](docs/REFERENCE.md#the-phones-opening-emphasis-and-review-subjects)
 - `s.raised` and `s.rule` are the panel colours, and `lerpColor` mixes two colours.
 - `new Card(scene, s.palette, rows)` builds a card inside a view without entering it.
 - `diagramsOf(scene)` lays out a diagram, so `new Diagram(...)` can be measured before anything is drawn.
