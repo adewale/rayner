@@ -1,6 +1,7 @@
 import { frames as readerFrames } from './picture.ts';
 import { Scene } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf } from '../../../explain/index.ts';
+import type { NoteSide } from '../../../explain/index.ts';
 import {
   GUIDELINES,
   LEVELS,
@@ -177,6 +178,38 @@ export default class WcagMapExplainer extends Scene {
     let topics = mapTopics('2.0', level);
     const d = await s.show({ source: source(topics) }, { box: 'full' });
     this.state.v20 = t20;
+    // How the map is shown, apart from its source: each group of marked topics with its colour (the
+    // accent, green or red) and word, its notes and what stays undimmed. That is `shown`, not the model;
+    // its view draws it, and each change is a sync. A morph hands the live map back and starts it plain.
+    type Tone = 'accent' | 'good' | 'bad';
+    type MapShown = {
+      marked: { ids: string[]; tone: Tone; as: string }[];
+      notes: { id: string; text: string; side: NoteSide }[];
+      dim: string[] | null;
+    };
+    const plain: MapShown = { marked: [], notes: [], dim: null };
+    const toneColor = (tone: Tone) => (tone === 'good' ? s.good : tone === 'bad' ? s.bad : d.accent);
+    const drawMap = (_st: Record<string, unknown>, sh: Record<string, unknown>) => {
+      const m = sh.map as MapShown;
+      return {
+        marks: Object.fromEntries(m.marked.flatMap((g) => g.ids.map((id) => [id, { color: toneColor(g.tone), as: g.as }]))),
+        notes: m.notes,
+        dim: m.dim,
+      };
+    };
+    this.shown.map = plain;
+    let mapView = s.diagramView(d, drawMap);
+    const showMap = async (change: Partial<MapShown>) => {
+      this.shown.map = { ...(this.shown.map as MapShown), ...change };
+      await this.play(mapView.sync({ match: 'key', staged: true }));
+    };
+    /** The map morphed to `next`: its marks go first, as the morph took them, then it is shown by its view again. */
+    const morphMap = async (...args: Parameters<typeof d.morph>) => {
+      if (JSON.stringify(this.shown.map) !== JSON.stringify(plain)) await showMap(plain);
+      s.liveDiagram(d);
+      await d.morph(...args);
+      mapView = s.diagramView(d, drawMap);
+    };
 
     // ------------------------------------------------------------------ 2.1
     const c21 = change('2.0', '2.1', level);
@@ -190,12 +223,9 @@ export default class WcagMapExplainer extends Scene {
       caption: `WCAG 2.1 (${PUBLISHED['2.1']}) keeps all of 2.0 and adds ${c21.addedAll} criteria${ofThem(c21.added.length, c21.addedAll, level)}. They land in the ${gained21.length} marked guidelines; ${fresh.num} ${fresh.name}, new under ${nameOfPrinciple(principleOf(fresh.num))}, holds ${t21.guidelines[fresh.num]} of them.`,
     });
     const next21 = mapTopics('2.1', level);
-    await d.morph({ source: source(next21) }, { ops: edits(topics, next21) });
+    await morphMap({ source: source(next21) }, { ops: edits(topics, next21) });
     topics = next21;
-    await d.mark(
-      gained21.map((g) => gid(g.num)),
-      { as: 'gained criteria in 2.1' },
-    );
+    await showMap({ marked: [{ ids: gained21.map((g) => gid(g.num)), tone: 'accent', as: 'gained criteria in 2.1' }] });
     this.state.v21 = { tally: t21, change: c21 };
 
     // ------------------------------------------------------------------ 2.2
@@ -213,16 +243,14 @@ export default class WcagMapExplainer extends Scene {
       caption: `WCAG 2.2 (${PUBLISHED['2.2']}) adds ${c22.addedAll} criteria${ofThem(c22.added.length, c22.addedAll, level)}, under ${where}. It also removes 4.1.1 Parsing, so guideline 4.1 drops from ${t21.guidelines['4.1']} to ${t22.guidelines['4.1']}. Since 2.0, ${most.length === 1 ? `${most[0]!.name} has gained the most at level ${level}, from ${t20.principles[most[0]!.num]} to ${t22.principles[most[0]!.num]}` : `${listed(most.map((p) => p.name))} have gained the most at level ${level}, ${top} each`}.`,
     });
     const next22 = mapTopics('2.2', level);
-    await d.morph({ source: source(next22) }, { ops: edits(topics, next22) });
+    await morphMap({ source: source(next22) }, { ops: edits(topics, next22) });
     topics = next22;
-    await d.mark(
-      gained22.map((g) => gid(g.num)),
-      { color: s.good, as: 'gained criteria in 2.2' },
-    );
-    await d.mark(
-      lost22.map((g) => gid(g.num)),
-      { color: s.bad, as: 'lost a criterion in 2.2' },
-    );
+    await showMap({
+      marked: [
+        { ids: gained22.map((g) => gid(g.num)), tone: 'good', as: 'gained criteria in 2.2' },
+        { ids: lost22.map((g) => gid(g.num)), tone: 'bad', as: 'lost a criterion in 2.2' },
+      ],
+    });
     this.state.v22 = { tally: t22, change: c22 };
 
     // ------------------------------------------------------------------ Parsing
@@ -234,8 +262,7 @@ export default class WcagMapExplainer extends Scene {
       caption:
         '4.1.1 asked for well-formed markup: complete start and end tags, correct nesting, no duplicate attributes, unique ids. W3C’s note says assistive technology no longer needs to parse HTML directly, so those problems are gone or covered by other criteria. Anyone held by policy to 2.0 or 2.1 may still need to test and report it.',
     });
-    await d.dim(['root', pid('4'), gid('4.1')]);
-    await d.note(gid('4.1'), '4.1.1 Parsing removed', { side: 'below' });
+    await showMap({ dim: ['root', pid('4'), gid('4.1')], notes: [{ id: gid('4.1'), text: '4.1.1 Parsing removed', side: 'below' }] });
     this.state.removed = c22.removed;
 
     // ------------------------------------------------------------------ one guideline
@@ -269,10 +296,14 @@ export default class WcagMapExplainer extends Scene {
           : 'Every one dates from 2.0.'
       }${gone.length ? ` 4.1.1 Parsing is marked as removed, and not counted.` : ''}`,
     });
-    await d.morph({ source: source(openTopics(open, level)) });
-    await d.mark(by('2.1').map(cid), { as: 'added in 2.1' });
-    await d.mark(by('2.2').map(cid), { color: s.good, as: 'added in 2.2' });
-    if (gone.length) await d.mark(gone.map(cid), { color: s.bad, as: 'removed in 2.2' });
+    await morphMap({ source: source(openTopics(open, level)) });
+    await showMap({
+      marked: [
+        { ids: by('2.1').map(cid), tone: 'accent', as: 'added in 2.1' },
+        { ids: by('2.2').map(cid), tone: 'good', as: 'added in 2.2' },
+        { ids: gone.map(cid), tone: 'bad', as: 'removed in 2.2' },
+      ],
+    });
     this.state.opened = shown.map((c: Criterion) => ({
       num: c.num,
       level: c.level,

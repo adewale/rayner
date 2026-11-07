@@ -1,7 +1,7 @@
 import { Scene, Group, Text } from '../../../src/index.ts';
 import type { Box, MatchKey, Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, Card, CodeBlock, answerOf, view } from '../../../explain/index.ts';
-import type { Diagram, Stage } from '../../../explain/index.ts';
+import type { Diagram, Stage, NoteSide, DiagramPicture } from '../../../explain/index.ts';
 import {
   DTSTART,
   GUEST_MEETING,
@@ -266,7 +266,22 @@ export default class IcalRecurrenceExplainer extends Scene {
       await s.clear();
       const drawn = await s.show({ source: erSource('rfc') }, { box: FULL });
       this.state.schema = { relations: schema('rfc') };
+      // How the schema is shown, apart from its source: its notes and what stays undimmed. That is
+      // `shown`, not the model; its view draws it, and each change is a sync.
+      this.shown.er = plainEr;
+      erView = s.diagramView(drawn, drawEr);
       return drawn;
+    };
+    type ErShown = { notes: { id: string; text: string; side: NoteSide }[]; dim: string[] | null };
+    const plainEr: ErShown = { notes: [], dim: null };
+    const drawEr = (_st: Record<string, unknown>, sh: Record<string, unknown>): DiagramPicture => {
+      const e = sh.er as ErShown;
+      return { notes: e.notes, dim: e.dim };
+    };
+    let erView: ReturnType<typeof s.diagramView> | undefined;
+    const showEr = async (change: Partial<ErShown>) => {
+      this.shown.er = { ...(this.shown.er as ErShown), ...change };
+      await this.play(erView!.sync({ match: 'key', staged: true }));
     };
 
     // ------------------------------------------------------------------ copy
@@ -293,13 +308,17 @@ export default class IcalRecurrenceExplainer extends Scene {
         ...(n.exdates ? ['entity:EXDATE'] : []),
       ];
       this.state.copy = copyState;
-      await er.dim(present);
       const count = (k: number, word: string) =>
         k ? plural(k, word).replace(/^one /, '1 ').replace(/^two /, '2 ') : `no ${word}`;
-      await er.note('entity:MASTER', count(n.masters, 'master'), { side: 'above' });
-      await er.note('entity:OVERRIDE', count(n.overrides, 'override'), { side: 'above' });
-      await er.note('entity:RRULE', count(n.rrules, 'RRULE'), { side: 'above' });
-      await er.note('entity:EXDATE', count(n.exdates, 'EXDATE'), { side: 'above' });
+      await showEr({
+        dim: present,
+        notes: [
+          { id: 'entity:MASTER', text: count(n.masters, 'master'), side: 'above' },
+          { id: 'entity:OVERRIDE', text: count(n.overrides, 'override'), side: 'above' },
+          { id: 'entity:RRULE', text: count(n.rrules, 'RRULE'), side: 'above' },
+          { id: 'entity:EXDATE', text: count(n.exdates, 'EXDATE'), side: 'above' },
+        ],
+      });
     } else {
       const [first, second] = bob.messages;
       /** Bob's stored object and the meetings his calendar shows, drawn from the step's state alone. */
@@ -379,13 +398,17 @@ export default class IcalRecurrenceExplainer extends Scene {
         label: 'repeats by',
       },
     ] as const;
-    if (copy === 'organiser') {
-      await er.clearNotes();
-      await er.dim(null);
-    }
+    // The notes and dimming go first, as the morph took them; the live schema takes the edit, then its view shows it again.
+    if (copy === 'organiser') await showEr(plainEr);
+    s.liveDiagram(er);
     await er.morph({ source: erSource('sabre') }, { ops });
-    await er.note('entity:MASTER', 'a second one: 415', { side: 'above' });
-    await er.note('entity:RRULE', 'a second one: 415', { side: 'above' });
+    erView = s.diagramView(er, drawEr);
+    await showEr({
+      notes: [
+        { id: 'entity:MASTER', text: 'a second one: 415', side: 'above' },
+        { id: 'entity:RRULE', text: 'a second one: 415', side: 'above' },
+      ],
+    });
     this.state.server = { relations: schema('sabre'), refused };
   }
 }
