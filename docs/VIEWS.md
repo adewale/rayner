@@ -5,16 +5,19 @@ draws that picture from the state, so the two cannot drift apart:
 
 ```ts
 import { Scene, Text, FadeIn } from 'rayner';
+import { view } from 'rayner/explain';
+import type { View } from 'rayner/explain';
 
-class Ring extends Scene {
+class Ring extends Scene<{ len: number; head: number }> {
+  readout!: View<Text>;                    // kept on the scene, so a test can reach it
   override async construct() {
     this.state = { len: 0, head: 0 };
-    const readout = view(this, (s) => new Text(`len ${s.len}  head ${s.head}`, { font: 'mono' }), { place: 'left' });
-    await this.play(new FadeIn(readout));
+    this.readout = view(this, (s) => new Text(`len ${s.len}  head ${s.head}`, { font: 'mono' }), { place: 'left' });
+    await this.play(new FadeIn(this.readout));
 
     await this.step('push-a');
-    this.state.len = 1;                    // the program changes
-    await this.play(readout.sync());       // the picture follows: 'len 0' -> 'len 1', the rest stays still
+    this.state.len = 1;                         // the program changes
+    await this.play(this.readout.sync());       // the picture follows: 'len 0' -> 'len 1', the rest stays still
   }
 }
 ```
@@ -58,7 +61,14 @@ view.current            // the picture on screen (the View's one child)
 view.texts              // the strings it shows, in family order
 view.sync({ runTime, rateFunc, lagRatio, match, staged }?)   // an Animation: play it, compose it; staged: what goes leaves before what comes
 view.rebuild()          // rebuild now, unanimated: for a View not on screen yet
+view.tween((t) => state, { runTime, rateFunc }?)   // an Animation: the state at t, drawn at every frame (above)
+view.placed(state, shown?)   // the picture of `state`, placed where a sync would put it now, not taken: what a transition morphs into
+view.fit(picture)       // scale and move a freshly drawn picture to where the current one is (see Placement)
+view.swap(picture)      // make `picture` the View's child in place of the current one, unanimated
 ```
+
+`fit` and `swap` are the two halves of `rebuild()`, which a sync also ends with; a scene
+rarely calls them itself.
 
 Most draws read only the model, `state`. A picture that depends on which of several
 pictures is showing, which is not part of the model, reads it from `shown`, the
@@ -166,7 +176,7 @@ import { callout } from 'rayner/drawing';
 
 // A marked card: the row the state names is lit, and the description says so.
 const counts = view(this, (st) =>
-  new Card(this, s.palette, rows(st), { at: box, lit: st.chosen, litAs: 'this check' }), { place: false });
+  new Card(this, s.palette, rows(st), { at: box, lit: st.chosen as string, litAs: 'this check' }), { place: false });
 await s.enter(counts);                      // no describe: the card describes itself, its lit row too
 
 // A focused code panel, and a callout beside the focused line, from the same state.
@@ -209,10 +219,10 @@ it by its view again afterwards; a walk's token travels the same routes the pict
   `d.showBy(view)`), the stage describes the diagram as the picture shows it, in the live
   diagram's words: each note drawn with `notePicture` or `notes`, each mark given as
   `{ color, as }` by its word, and dimmed parts said so.
-- **They say what they emphasise.** A lit row, a focused line or diff bar, a diagram
-  picture's marks and a note report themselves to the phone's close-ups, by key, so a redrawn
-  mark at the same place with the same words is not new emphasis. A mark the scene draws
-  itself says so with `emphasised(mobject, what)` from `rayner/drawing`, in the draw.
+- **They say what they emphasise** to the phone's close-ups, by key, so a redrawn mark at the
+  same place with the same words is not new emphasis. [The reference says what counts as
+  emphasis](REFERENCE.md#the-phones-opening-emphasis-and-review-subjects), and how a scene
+  marks its own drawing with `emphasised(mobject, what)`.
 - **Two pictures of one diagram.** Every part of a diagram picture is keyed by its id, so two
   on the stage at once would give one key to two parts. `prefix` puts a word before every key in
   the picture, the frame's too; marks, notes and dimming still

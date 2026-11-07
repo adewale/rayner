@@ -76,7 +76,7 @@ is strongest halfway along. Child opacity ratios are preserved; existing dimming
 is not overwritten with full strength. Applying an easing also changes that pulse's
 timing; the default is linear.
 
-Options are `MoveAlongPathOpts`. With the default `fromCurrent: true`, any initial
+Options are `MoveAlongPathOpts`, a type exported only from `rayner/extras` (beside `MoveAlongPath`), though `PulseAlongPath` itself is in `rayner`. With the default `fromCurrent: true`, any initial
 offset from the route is blended away rather than snapping on the first frame.
 Use `fromCurrent: false` to start exactly on the route. A live route edited after
 the animation begins does not change this traversal.
@@ -156,7 +156,7 @@ Parts of an authored transition follow with `c.follow(spec, opts)` on the
 transition's choreography:
 
 ```ts
-const refill = g.follow(
+const refill = c.follow(
   { from: prev.at, to: call.at, draw: (t) => [fill(balanceAt(t)), climbTo(axes, climbed, t)] },
   { targets: [level, rise], runTime: REFILL_S },
 );

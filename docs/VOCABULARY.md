@@ -41,7 +41,7 @@ One row per idea.
 | Live step | the step a machine last played in (`lastPlayedIn`) | Where the player gives the reader a button per event, and where `rayner check` explores the machine | |
 | The reader's events | `sent` | The events a reader sent at a live step, in the URL beside `step` | |
 | Authored transition | `transition: { [event]: (t) => Animation }` | The motion for an event, built from `{ event, before, after, target, choreograph }` when its turn comes; the views then land in place on the pictures of `after` | Hand animation in ring-buffer and state-machine |
-| Authored transition parts | `choreograph(current, target)`: `morph`, `enter`, `leave`, `insert`, `own`, `rest` | One event's motion, part by part, by key | |
+| Authored transition parts | `choreograph(current, target)`: `morph`, `enter`, `leave`, `insert`, `own`, `follow`, `travel`, `rest`; `from`, `to`, `has` and `keys` read the two pictures | One event's motion, part by part, by key ([the calls](MACHINES.md#refused-events-bounds-and-authored-transitions)) | |
 | A sampled value | `view.tween((t) => state)`; `c.follow({ from, to, draw }, { targets })` in a transition | A state, or one number, sampled between two ends and redrawn with `become` | |
 | Taking another's data in place | `become(other)` | Keeps identity and keys; refuses to drop a keyed child | |
 | Pen animation | `stage.sketch(m)` | Draw `m` stroke by stroke with a pen or pencil | `stage.draw(m)` |
@@ -53,7 +53,7 @@ One row per idea.
 | Records | trace, evidence, receipt | What each step showed, what an animation decided, what a build produced ([defined in the engine map](ENGINE.md#correctness-by-construction)) | |
 | Words for a picture | `describe` | The same word on the stage, on `Diagram`, in `describeExplainer` and `rayner describe` | |
 | Tables | `table(headers, rows, s, { key })`, rows `{ key, cells }` | The drawing kit's `table()`, with keyed cells: `key:row:column`, each row `key:row`, the header row `key:head`. A row's own `key` (or its index) is its identity, so a moved row is the same part; a duplicated row key or header is refused. Adopted by python-dict (entries keyed `e0`, `e1`, ...) and bloom-filter (lookups keyed by name, sample rows by row length) | A second table primitive |
-| Graphs | `Diagram` | Captured from Mermaid; `walk`, `mark` and `morph` | A separate `Graph` type |
+| Graphs | `Diagram` | Captured from Mermaid; `walk`, `morph` and `picture` (its marks, notes and dimming, drawn from state) | A separate `Graph` type |
 
 "Frame" still means two things: the 2D camera and an instant of a run. Manim has the same
 overlap (`camera.frame` and frame rate), and context separates them. The step-list meaning is
@@ -114,11 +114,10 @@ The renames came with refactors that make a name's promise checkable:
 - `GrowFromEdge` and `PulseAlongPath`. They are stock animation vocabulary with a documented
   recipe, and adopter counts are the wrong test for a stock animation.
 
-`Indicate` and `Flash` were kept on the same grounds until 0.2.0, and cut then. Each is emphasis
-that has faded by the step's resting picture, so a step it was all that changed fails `rayner check`. In a namespace that
-agents mostly write, a name that invites what the checks reject is worse than no name: it costs
-a failed check and a rewrite every time it is used. `Circumscribe` stays, because it can `keep`.
-`MathTex`'s alias `Math` went too, since importing it hides JavaScript's `Math`.
+`Indicate` and `Flash` were kept on the same grounds until 0.2.0, and cut then, with `MathTex`'s
+alias `Math` ([the changelog lists what 0.2.0 removed](../CHANGELOG.md#removed-from-the-public-api)).
+A mark that fades before the resting picture invites what the checks reject, and in a namespace
+agents mostly write, such a name is worse than none. `Circumscribe` stays, because it can `keep`.
 
 ## Not chosen, and why
 
@@ -150,8 +149,9 @@ a failed check and a rewrite every time it is used. `Circumscribe` stays, becaus
   again.
 - `events` → `commands`. Statecharts and XState, the explainers' own domain, say events, and a
   refused event never reaches the trace.
-- `view` → `projection`, `Follow` → `Sweep` (two adopters and a recipe already used the name),
-  and `evidence` → `decisions` (only checks read it).
+- `view` → `projection`, a transition's `follow` → `sweep` (its adopters, ring-buffer and
+  token-bucket, and the choreography guide already used the name), and `evidence` → `decisions`
+  (only checks read it).
 
 Deferred: `{ cue }` for narration belongs with video export (issue #7). Lighting, shading and
 depth of field for 3D: nothing the scripts argue needs them.

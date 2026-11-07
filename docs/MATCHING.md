@@ -253,8 +253,9 @@ the glyph and git explainers put on screen.
 - [`scenes/explainers/mr-cache/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/mr-cache/scene.ts): `TransformDiff`
   on coloured `Code`, with tinted bars placed from `diff.plan`.
 - [`scenes/explainers/glyph/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/glyph/scene.ts): `TransformMatchingShapes`
-  pairing glyphs by outline across sizes and fonts, and `TransformMatchingText`
-  for a text diff, with lines drawn between `pairs` and counts from `summary()`.
-- [`scenes/explainers/exgit/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/exgit/scene.ts): `TransformMatchingShapes`
-  keeping one row whole while another grows in, and `TransformMatchingText`
-  morphing old git ids into new, with counts read from `scene.evidence`.
+  pairing glyphs by outline across sizes and fonts, with lines drawn between `pairs`
+  and counts from `summary()`. It uses no `TransformMatchingText`.
+- [`scenes/explainers/exgit/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/exgit/scene.ts): no matching transform of its
+  own. Its views sync by shape (`match: 'shapes'`, keeping one row whole while another grows in)
+  and by index, and the counts it shows are read from the match evidence those syncs record
+  in `scene.evidence`.

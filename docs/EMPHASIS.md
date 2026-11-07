@@ -30,7 +30,7 @@ build a new one.
 | `new Brace(t, direction, { buff, depth, sharpness })` | this span, as a whole | the scene's ink, `buff` 0.1, `depth` 0.2 |
 | `new BraceLabel(t, text, direction, { fontSize, color, buff, labelBuff })` | this span is _n_ | a Brace and a Text beyond its tip |
 
-All take the usual style fields (`stroke`, `strokeWidth`, `fill`, ...). A colour left out is the scene's for that role ([default colours](ENGINE-FUNDAMENTALS.md#geometry-and-paint)): on a stage, its palette's. Draw order
+`Underline` is imported from `rayner/extras`, the rest from `rayner`. All take the usual style fields (`stroke`, `strokeWidth`, `fill`, ...). A colour left out is the scene's for that role ([default colours](ENGINE-FUNDAMENTALS.md#geometry-and-paint)): on a stage, its palette's. Draw order
 is chosen for `Create`. The rectangle starts at its top-left corner and goes
 clockwise. The underline runs left to right. The cross draws upper-left to
 lower-right first. A brace runs from one end, through the tip, to the other.
@@ -62,7 +62,7 @@ frame shows it. That also means the step's last frame differs from the previous
 step's, which `rayner check` requires. Remove it later with
 `new FadeOut(c.outline)`.
 
-Options: `color` (yellow), `shape` (`'rect'`, or `'circle'` through the box's
+Options: `color` (the scene's accent), `shape` (`'rect'`, or `'circle'` through the box's
 corners plus `buff`), `buff` (0.15), `strokeWidth`, `cornerRadius`, `keep`,
 `fadeOut`, `runTime` (1). A circle around a long, flat target is large, so use
 `'circle'` for compact targets and `'rect'` for lines of text.
@@ -92,8 +92,8 @@ await this.play(new Create(new BraceLabel(span, 'the retry loop', [1, 0], { font
 
 `Code.highlight(i)` is a filled bar behind one line, for the line about to run;
 an outline or brace points at a span while the caption says something about it.
-The stage's `CodeBlock.focus` and the diagram helpers `note` and `mark` build on
-the same idea for explainers.
+A code panel's `focus` option, a diagram picture's marks and `d.notePicture` build
+on the same idea for explainers, drawn from state by a [view](VIEWS.md).
 
 ## In the explainers
 
@@ -104,7 +104,7 @@ the same idea for explainers.
   [ring-buffer](https://github.com/adewale/rayner/blob/main/scenes/explainers/ring-buffer/scene.ts) (the slot an operation touched).
 - `Circumscribe({ keep: true })`: [mr-cache](https://github.com/adewale/rayner/blob/main/scenes/explainers/mr-cache/scene.ts) (the KV lookup)
   and the feature tour's `emphasis` scenario.
-- `Underline`: [glyph](https://github.com/adewale/rayner/blob/main/scenes/explainers/glyph/scene.ts) (the letter it then draws large as outlines).
+- `Underline` (from `rayner/extras`): the feature tour's `underline` scenario only.
 - `Cross`: [ring-buffer](https://github.com/adewale/rayner/blob/main/scenes/explainers/ring-buffer/scene.ts), on a refused value, and
   [latest-search](https://github.com/adewale/rayner/blob/main/scenes/explainers/latest-search/scene.ts), on a response the guard drops. On one flat
   line of code a `Cross` reads as a strikethrough rather than an X.

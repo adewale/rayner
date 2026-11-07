@@ -1,4 +1,3 @@
-import { Machine } from 'rayner/explain';
 # Machines: a model driven by events
 
 A `Machine` is a scene's model driven by events. The scene replays events through it as one
@@ -15,6 +14,7 @@ picture module that draws the state, a scene whose last step is live, and the re
 `rayner review` as written.
 
 ```ts
+import { Machine } from 'rayner/explain';
 
 // In the model module: a new state, or refuse(reason) where the state refuses the event.
 //   if (!handled) return refuse(`no ${event} arrow leaves ${config.join(' or ')}, so the machine ignores ${event}`);
@@ -24,7 +24,7 @@ const machine = new Machine(this, {
   events: events(chart),                  // one button each in the player
   next: (state, event) => machineAt(send(chart, state.config, event).config), // the tested model
   views: [main],                          // pictures of this.state, synced after each event
-  match: matchByKey({ text: 'whole' }),   // keyed parts keep their identity (default 'key')
+  match: matchByKey({ text: 'whole' }),   // keyed parts keep their identity (the default)
 });
 this.state = machine.spec.start;
 await this.play(machine.replay(['POWER_ON', 'START', 'FROTH']));
@@ -57,7 +57,10 @@ default) and refuses to play from any other, so a replay cannot drift from the m
 state, a refusal with the reason `next` gave (`{ refused: reason }`, or `null` for none), or the
 story's bound. `model(state, event)` is what `next` alone says, the bound aside. `after(state,
 event)` is the next state or `undefined`. `reachable(from?)` lists every state reachable from `from` (default
-`start`), breadth first, each with the shortest events that reach it. `lastPlayedIn` is the step
+`start`), breadth first, each with the shortest events that reach it. `transitionFor(event, before,
+after)` builds the `{ event, before, after, target, choreograph }` an authored transition is given
+([below](#refused-events-bounds-and-authored-transitions)), with each view's target placed where it
+will land; `rayner check` calls it to play every transition from every state it explores. `lastPlayedIn` is the step
 the machine last played in, and `playedUnder` what the scene showed (`scene.shown`) when it last played: what is shown may change
 between events (a guided tour moving a code panel's focus), and exploration draws every state under the last.
 
@@ -78,7 +81,7 @@ every state under it.
 
 `next` returns `refuse(reason)` when a state refuses an event, with the reason in the reader's
 words: `refuse('the ring is empty, so pop has no value to take')`. `refuse` is a small value from
-`rayner`, and `isRefusal(value)` tells one apart from a state. Exploration does not follow it, the
+`rayner/explain`, and `isRefusal(value)` tells one apart from a state. Exploration does not follow it, the
 player dims the event's button and says the reason, and `send` refuses it before anything plays,
 naming the reason. `undefined` is still a refusal, with no reason: the player then says "Not
 possible here". There is no separate list of allowed events and no separate reason function: the
@@ -301,21 +304,13 @@ step, the kept prefix, the URL round trip, where the log starts, and that a log'
 same however it is reached, animated or not.
 
 `rayner review` and the catalog review (`npm run demos:review`, three shards in CI) also open the
-live states, by their links, at 390 and 1180 px ([reader review](REFERENCE.md#reader-review)).
-At each live step they visit every state one press from where the reader's events start, however
-many (two to five here); then, breadth first, the states further on until six; and the farthest
-state the machine reaches as the sixth, each by its shortest events. The pictures one press away
-are the ones every reader who touches a button sees; breadth first keeps each link the shortest
-that reaches its state, so a failure names the fewest events; and the farthest state is where a
-story's machine ends up (a full ring, the tenth request, both responses landed), the picture most
-likely to crowd. Exploration has already drawn every reachable state in Node; this is the served
-page's evidence for a bounded sample. There the review checks what applies of a resting step (the
-caption, no overflow, no console errors, the stage painting exactly the records the state draws,
-and the reader's views showing what the events newly emphasised, else the artwork they changed,
-whole and unclipped), that the buttons are what `outcome` gives, that every label the whole
-picture paints reads at least 14 px as at a 1280 px stage, measured from the served page's own
-transform, and that at 390 px every label of what the events changed reads at least 12 px in the
-whole picture or one of the step's close-ups. For the nine machines that is 107 states over 21 live steps and every scenario, 214
+live states by their links, at 390 and 1180 px, and check each as they check a resting step;
+[reader review](REFERENCE.md#reader-review) says which states they visit and what they check. The
+pictures one press away are the ones every reader who touches a button sees; breadth first keeps
+each link the shortest that reaches its state, so a failure names the fewest events; and the
+farthest state is where a story's machine ends up (a full ring, the tenth request, both responses
+landed), the picture most likely to crowd. Exploration has already drawn every reachable state in
+Node; this is the served page's evidence for a bounded sample. For the nine machines that is 107 states over 21 live steps and every scenario, 214
 visits: the catalog review of those nine explainers took 7 min 13 s, 181 s of it the live states
 (about a minute for each of CI's three shards), and ring-buffer's `rayner review` went from 44 s
 to 75 s. The first state at each width opens as a fresh load of its link and the rest through the

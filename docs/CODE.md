@@ -93,7 +93,7 @@ node tools/repo/tokens.ts <file | -> [--lang ts|js|python|bash|elixir] [--theme 
 prints the spans as a JSON array, one span per line, to paste into a scene. The language defaults to the file extension; stdin needs `--lang`.
 The engine used goes to stderr. From code, the module `tools/repo/lib/tokenize.ts`
 exports `tokenize(source, lang, { engine, palette })`, which returns the same
-`ColorSpan[]` (the `rayner` CLI can call it at build time). The module's `lex()` and `shikiTokens()`
+`ColorSpan[]`. The module's `lex()` and `shikiTokens()`
 return the classified tokens (`keyword`, `string`, `comment`, `number`,
 `function`, `punctuation`) before colouring.
 

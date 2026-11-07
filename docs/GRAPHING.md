@@ -14,7 +14,7 @@ The seasons explainer computes daylight with `sunlight(latitude, declination)` i
 `scenes/explainers/seasons/model.ts`. Here the scene plots that same function:
 
 ```ts
-import { Scene, Axes, Create, Transform, FadeIn } from '../../../src/index.ts';
+import { Scene, Axes, Create, Transform, FadeIn } from 'rayner';
 import { sunlight, daylightYear } from './model.ts';
 
 const MONTHS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
@@ -91,7 +91,7 @@ move the axes first, then build graphs and add them yourself.
 | `verticalLine(x, { from?, to? })` / `horizontalLine(y, { from?, to? })` | `Line` guide; defaults to the full range of the other axis |
 | `areaUnder(fn, [a, b], { samples, color, fillOpacity })` | closed `VMobject` between the curve and y = 0 |
 
-A colour left out is the scene's for that role ([default colours](ENGINE-FUNDAMENTALS.md#geometry-and-paint)): lines, ticks and labels without a `stroke` take its ink, plotted data without a `color` its accent, and guide lines its soft colour. On a stage these are the palette's, so an axis drawn without a stroke reads on any paper.
+A colour left out is the scene's for that role, so on a stage an axis drawn without a stroke reads on any paper ([default colours](ENGINE-FUNDAMENTALS.md#geometry-and-paint) says which part takes which).
 
 ### Plot
 

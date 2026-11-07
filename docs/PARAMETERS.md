@@ -1,7 +1,7 @@
 # Several drawings following the same parameter
 
 **Status: built as a view's tween and a transition's follow ([following one number](CHOREOGRAPHY.md#following-one-number)).** This
-note records the survey, taken on 2026-11-03 across all 40 explainers, that fixed its
+note records the survey, taken on 2026-11-03 across the 40 explainers the collection then held (a dated survey figure, not a current count), that fixed its
 size, and the larger design it turned down. The [continuous recipe](../recipes/continuous.ts)
 shows the same idea written by hand as an ordinary `Animation`.
 
@@ -52,7 +52,7 @@ That is the smallest shape that composes with what exists: the model stays an or
 tested function, the animation is one member among `Transform`s in an `AnimationGroup`
 or `Succession`, and because the writers are declared and each frame is a pure
 function of alpha, identity, ownership and seeking still hold when it is combined with
-the rest. [Reusable choreography](CHOREOGRAPHY.md#follow) documents its contract.
+the rest. [Reusable choreography](CHOREOGRAPHY.md#following-one-number) documents its contract.
 
 ## What is deliberately not built
 

@@ -90,7 +90,8 @@ whose member brings an updater matches the full run").
 
 - `saveState`/`Restore`: the [feature tour](https://github.com/adewale/rayner/blob/main/scenes/explainers/feature-tour/scene.ts)'s
   `restore` scenario moves a circle and restores it.
-- `TransformFromCopy`: [exgit](https://github.com/adewale/rayner/blob/main/scenes/explainers/exgit/scene.ts) sends the shared blob to tree two.
+- `TransformFromCopy`: only the [feature tour](https://github.com/adewale/rayner/blob/main/scenes/explainers/feature-tour/scene.ts)'s
+  `copy` scenario.
 - `Succession`: [state-machine](https://github.com/adewale/rayner/blob/main/scenes/explainers/state-machine/scene.ts),
   [token-bucket](https://github.com/adewale/rayner/blob/main/scenes/explainers/token-bucket/scene.ts) and
   [ring-buffer](https://github.com/adewale/rayner/blob/main/scenes/explainers/ring-buffer/scene.ts) build each event's authored

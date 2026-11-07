@@ -23,7 +23,8 @@ node node_modules/rayner/dist/recipes/render.js --out out/recipes
 Packages built from this source include the recipes; older releases may not. The
 installed runner is compiled JavaScript, because Node does not strip TypeScript inside
 `node_modules`; copy the `recipes/*.ts` sources into your project to edit them. They
-import only from `rayner`. `npm run check` type-checks them, the standard tests run
+import only from the public entry points (`rayner`, `rayner/explain`, `rayner/output` and
+`rayner/testing`). `npm run check` type-checks them, the standard tests run
 them, and `npm run pack:smoke` runs them from a fresh install. Their output is raw
 engine content, not a checked explainer.
 
