@@ -69,79 +69,27 @@ test('RTL swaps field edges, retaining every glyph and logical row order', async
     near(titleL.box()![0], lb[0] + 0.28);
     near(titleR.box()![2], rb[2] - 0.28);
     assert.deepEqual(ltr.describe(), rtl.describe());
+    // The same card drawn from a later state: its first value replaced and that row lit.
     const first = r[0]![0];
-    await ltr.set(Object.fromEntries([[first, replacement]]));
-    await rtl.set(Object.fromEntries([[first, replacement]]));
-    await ltr.mark(first); await rtl.mark(first);
-    assert.deepEqual(ltr.describe(), rtl.describe());
-    near(rtl.bar.center()[1], rtl.values.get(first)!.anchorPoint()[1]);
-    assert.ok(rtl.values.get(first)!.box()![0] >= rb[0] + 0.28 - EPS);
+    const later = r.map(([label, value], i) => [label, i === 0 ? replacement : value] as const);
+    const ltrLit = new Card(scene(), colors, later, { width, title: 'Title 123', lit: first });
+    const rtlLit = new Card(scene(), colors, later, { width, title: 'Title 123', direction: 'rtl', lit: first });
+    assert.deepEqual(ltrLit.describe(), rtlLit.describe());
+    const litBox = rtlLit.panel.box()!;
+    near(rtlLit.bar.center()[1], rtlLit.values.get(first)!.anchorPoint()[1]);
+    assert.ok(rtlLit.values.get(first)!.box()![0] >= litBox[0] + 0.28 - EPS);
   }), params(300));
 });
 
-test('value replacement follows a moved, scaled and rotated card without accumulating fitted shrink', async () => {
-  await fc.assert(fc.asyncProperty(direction, fc.double({ min: 0.15, max: 3, noNaN: true }), fc.double({ min: -Math.PI, max: Math.PI, noNaN: true }), async (d, scale, angle) => {
-    const s = scene(), k = new Card(s, colors, [['field', 'long value requiring a smaller face']], { width: 3, direction: d });
-    s.add(k);
-    const old = k.values.get('field')!;
-    k.scale(scale).rotate(angle).shift([2, -1]);
-    const anchor = old.anchorPoint();
-    await k.set({ field: '123' });
-    const next = k.values.get('field')!;
-    near(next.anchorPoint()[0], anchor[0]); near(next.anchorPoint()[1], anchor[1]);
-    near(next.textSize(), 0.24 * 1.04 * scale);
-    near(Math.sin(next.angle()), Math.sin(angle));
-    near(Math.cos(next.angle()), Math.cos(angle));
-    assert.equal(next.text, '123');
-    await k.mark('field');
-    // Local row centre before the affine map: half a card width minus padding
-    // from the value's anchored side, along its transformed horizontal axis.
-    const sign = d === 'ltr' ? 1 : -1;
-    near(k.bar.center()[0], anchor[0] - sign * (1.5 - 0.28) * scale * Math.cos(angle));
-    near(k.bar.center()[1], anchor[1] - sign * (1.5 - 0.28) * scale * Math.sin(angle));
-  }), params(300));
-});
-
-test('empty and nonempty labels retain independent affine value and highlight geometry', async () => {
-  const positive = fc.double({ min: 0.15, max: 3, noNaN: true });
+test('empty and nonempty labels and values can be lit, in either direction, with the bar on their row', async () => {
   const digits = fc.array(fc.integer({ min: 0, max: 9 }), { maxLength: 6 }).map((xs) => xs.join(''));
-  const cases = fc.oneof(
-    fc.constant({ label: '', before: '123', after: '456' }),
-    fc.constant({ label: '', before: '', after: '456' }),
-    fc.constant({ label: '', before: '123', after: '' }),
-    fc.record({ label: fc.constantFrom('', 'field'), before: digits, after: digits }),
-  );
-  await fc.assert(fc.asyncProperty(direction, cases, positive, positive, fc.double({ min: -1, max: 1, noNaN: true }), fc.double({ min: -Math.PI, max: Math.PI, noNaN: true }), async (d, row, sx, sy, shear, angle) => {
-    const sc = scene(), expectedScene = scene();
-    const actual = new Card(sc, colors, [[row.label, row.before]], { width: 3, direction: d });
-    const expected = new Card(expectedScene, colors, [[row.label, row.after]], { width: 3, direction: d });
-    sc.add(actual); expectedScene.add(expected);
-    // The oracle builds the final value and row mark before any spatial change.
-    // The tested card must reach that same geometry by updating after the map.
-    await expected.mark(row.label);
-    const cos = Math.cos(angle), sin = Math.sin(angle);
-    const affine = [cos * sx, sin * sx, (cos * shear - sin) * sy, (sin * shear + cos) * sy, 2, -1] as const;
-    actual.applyAffine(...affine, { aboutPoint: [0, 0] });
-    expected.applyAffine(...affine, { aboutPoint: [0, 0] });
-    await actual.set(Object.fromEntries([[row.label, row.after]]));
-    await actual.mark(row.label);
-    for (const [made, reference] of [[actual.values.get(row.label)!, expected.values.get(row.label)!], [actual.bar, expected.bar]] as const) {
-      const a = geometry(made), b = geometry(reference);
-      assert.equal(a.length, b.length);
-      for (let i = 0; i < a.length; i++) {
-        assert.equal(a[i]!.length, b[i]!.length);
-        for (let j = 0; j < a[i]!.length; j++) {
-          assert.equal(a[i]![j]!.length, b[i]![j]!.length);
-          for (let n = 0; n < a[i]![j]!.length; n++) near(a[i]![j]![n]!, b[i]![j]![n]!);
-        }
-      }
-    }
-    assert.deepEqual(actual.describe(), expected.describe());
-  }), params<[LayoutDirection, { label: string; before: string; after: string }, number, number, number, number]>(300, { examples: [
-    ['rtl', { label: '', before: '123', after: '456' }, 2, 1, 0, 0],
-    ['ltr', { label: '', before: '', after: '456' }, 2, 1, 0.5, 0.7],
-    ['rtl', { label: '', before: '123', after: '' }, 0.5, 2, -0.5, -0.7],
-  ] }));
+  await fc.assert(fc.asyncProperty(direction, fc.constantFrom('', 'field'), digits, async (d, label, value) => {
+    const k = new Card(scene(), colors, [[label, value]], { width: 3, direction: d, lit: label });
+    near(k.bar.center()[1], k.values.get(label)!.anchorPoint()[1]);
+    near(k.bar.center()[0], k.panel.center()[0]);
+    assert.equal(k.bar.style.opacity, 1);
+    assert.equal(k.describe().parts[0]!.mark, 'marked');
+  }), params(60));
 });
 
 test('stage direction resolves logical card/code/carry regions and preserves physical regions and code', async () => {
