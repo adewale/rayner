@@ -20,6 +20,7 @@ import type { StoryFrame, StoryMemory, StoryView } from './explain-story-review.
 import type { Project } from './explain-project.ts';
 import { LIVE_STATES, readableOpeningLabel } from './explain-review-plan.ts';
 import type { LiveStateReview } from './explain-review-plan.ts';
+import { stepQuery } from '../../explain/settings.ts';
 
 type AnyMachine = Machine<object, string>;
 type Scenario = Project['scenarios'][number];
@@ -155,7 +156,7 @@ export async function reviewLiveStates(
     await page.setViewportSize(viewport);
     for (const [n, subject] of subjects.entries()) {
       const name = `${subject.step} after [${subject.sent.join(', ')}]`, where = `${name} at ${viewport.width}px`;
-      const log = encodeLog(subject.sent), link = `${url}?${new URLSearchParams({ ...scenario.values, step: subject.step })}&${SENT}=${log}`;
+      const log = encodeLog(subject.sent), link = `${url}?${stepQuery(scenario.values, subject.step)}&${SENT}=${log}`;
       // The first state at each width opens as a fresh load of its link; the rest are reached
       // through the history, as Back and Forward reach them, which draws the same picture
       // (explain-live.test.ts compares a fresh load with presses) at a third of the time.

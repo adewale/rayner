@@ -18,6 +18,8 @@ import { isFurniture, isHeading } from '../../explain/stage.ts';
 import { NARROW_PX } from '../../app/embed-closeup.ts';
 import { stepWords } from '../../explain/trace.ts';
 import { offPath } from '../../explain/script.ts';
+import { stepQuery } from '../../explain/settings.ts';
+import { STEP_TYPE } from '../../app/embed-protocol.ts';
 import type { Project } from './explain-project.ts';
 import { join } from 'node:path';
 import { rasterize } from './explain-raster.ts';
@@ -881,7 +883,7 @@ async function reviewNarrowOpening(
   frame: StoryFrame,
 ): Promise<NarrowOpeningReview> {
   await page.setViewportSize({ width: 320, height: 568 });
-  await page.goto(`${url}?${new URLSearchParams({ ...scenario.values, step })}`);
+  await page.goto(`${url}?${stepQuery(scenario.values, step)}`);
   await page.waitForSelector('[data-ready=true]');
   await page.waitForFunction(
     (name) =>
@@ -942,13 +944,13 @@ export async function reviewStoryScenario(
 ) {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   if (!initialized.has(page)) {
-    await page.addInitScript(() => {
+    await page.addInitScript((type) => {
       const w = window as unknown as { raynerReviewStep: string | null };
       w.raynerReviewStep = null;
-      document.addEventListener('rayner:step', (e) => {
+      document.addEventListener(type, (e) => {
         w.raynerReviewStep = (e as CustomEvent).detail.step;
       });
-    });
+    }, STEP_TYPE);
     initialized.add(page);
   }
   const applicable = declared.filter((c) => Object.entries(c.settings ?? {}).every(([k, v]) => scenario.values[k] === v));
@@ -972,7 +974,7 @@ export async function reviewStoryScenario(
   ]) {
     await page.setViewportSize(viewport);
     for (const [index, step] of scenario.trace.steps.entries()) {
-      const query = new URLSearchParams({ ...scenario.values, step: step.step });
+      const query = stepQuery(scenario.values, step.step);
       // Start each width as a fresh reader. Then use the real step buttons:
       // Next view preserves automatic following, and each step must reset its
       // tour to the opening. This also exercises retained/restored DOM frames.

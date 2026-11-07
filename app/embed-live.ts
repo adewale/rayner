@@ -9,11 +9,12 @@ import { NullSink, StopScene } from '../src/output.ts';
 import { machinesOf } from '../explain/machine.ts';
 import type { Scene, SceneClass, SceneState, Sink } from '../src/index.ts';
 import type { Machine } from '../explain/machine.ts';
+import { PAGE_QUERY } from '../explain/settings.ts';
 
 type AnyMachine = Machine<object, string>;
 
-/** The URL key that holds the reader's events, beside `step` (explain/settings.ts reserves it). */
-export const SENT = 'sent';
+/** The URL key that holds the reader's events, beside `step` (explain/settings.ts PAGE_QUERY). */
+export const SENT = PAGE_QUERY.sent;
 
 /** A step where the reader can drive a machine: the machine's place in `machinesOf(scene)`, and the machine. */
 export interface Live {

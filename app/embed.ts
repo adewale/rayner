@@ -5,12 +5,12 @@ import type { Trace } from '../src/testing.ts';
 import { StopScene } from '../src/output.ts';
 import { isHex } from '../src/color.ts';
 import { resolveSettings } from '../explain/index.ts';
-import { bindSnapshots, withSettings } from '../explain/settings.ts';
+import { PAGE_QUERY, bindSnapshots, stepQuery, withSettings } from '../explain/settings.ts';
 import type { ExplainerClass, Settings, SnapshotStore } from '../explain/index.ts';
 import { restingTime, pictureChange, pictureHtml, pictureSummary, stepWords, watchedChanges } from '../explain/trace.ts';
 import { playerProperties } from './embed-style.ts';
 import { paletteOf, paperOf } from '../explain/stage.ts';
-import { connectHost, reportHeight } from './embed-protocol.ts';
+import { STEP_TYPE, connectHost, reportHeight } from './embed-protocol.ts';
 import { icon } from './embed-icons.ts';
 import type { IconName } from './embed-icons.ts';
 import { ReaderSink, ReaderView, StageZoom, stageSize } from './embed-zoom.ts';
@@ -58,8 +58,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   // built page's first script says so before the body is laid out; this keeps it so for a page
   // mounted some other way.
   if (window.parent !== window) document.documentElement.dataset.framed = '';
-  document.documentElement.dataset.theme = ['light', 'dark'].includes(params.get('theme') ?? '')
-    ? params.get('theme')!
+  document.documentElement.dataset.theme = ['light', 'dark'].includes(params.get(PAGE_QUERY.theme) ?? '')
+    ? params.get(PAGE_QUERY.theme)!
     : 'auto';
   const Bound = bindSnapshots(Source, snapshots);
   // The page's own words in the scene's language; so are the generated descriptions, where
@@ -313,7 +313,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   player.append(head, frame, stepper, words, notice, transcript, foot, summary, ledeRuler);
   // A frame the loader sizes to its content has no viewport height to fit: the card takes
   // the page's width, and the host page scrolls (embed.css, --player-reserve).
-  const sizedToContent = window.parent !== window && params.has('parentOrigin');
+  const sizedToContent = window.parent !== window && params.has(PAGE_QUERY.parentOrigin);
   if (sizedToContent) {
     root.style.setProperty('--player-reserve', '0px');
     // The frame's height follows the content, so a narrow stage's height must not follow the frame's.
@@ -403,7 +403,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   if (floor) new ResizeObserver(() => requestAnimationFrame(placeRail)).observe(root);
   transcript.addEventListener('click', (e) => {
     const a = (e.target as Element).closest<HTMLAnchorElement>('section a'),
-      step = a && new URLSearchParams(a.search).get('step');
+      step = a && new URLSearchParams(a.search).get(PAGE_QUERY.step);
     if (!step) return;
     e.preventDefault();
     if (scenarioPhase.kind === 'ready') void show(scenarioPhase.entry.trace.steps.findIndex((s) => s.step === step));
@@ -641,9 +641,9 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   function urlFor(withoutParent = false): URL {
     const url = new URL(location.href);
     for (const [key, value] of Object.entries(values)) url.searchParams.set(key, value);
-    url.searchParams.set('step', currentStep().step);
+    url.searchParams.set(PAGE_QUERY.step, currentStep().step);
     url.searchParams.delete(SENT);
-    if (withoutParent) url.searchParams.delete('parentOrigin');
+    if (withoutParent) url.searchParams.delete(PAGE_QUERY.parentOrigin);
     if (sent.length) url.search = `${url.search ? `${url.search}&` : '?'}${SENT}=${encodeLog(sent)}`;
     return url;
   }
@@ -862,7 +862,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     if (target) zoom.to(target);
     else zoom.apply();
     root.classList.remove('loading');
-    yield* wait(Promise.resolve(document.dispatchEvent(new CustomEvent('rayner:step', { detail: { step: step.step, settings: values } }))));
+    yield* wait(Promise.resolve(document.dispatchEvent(new CustomEvent(STEP_TYPE, { detail: { step: step.step, settings: values } }))));
     toHost({ step: step.step, index: selected, total: stepCount(), settings: { ...values } });
     primeNext(at);
   }
@@ -1345,7 +1345,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         b.addEventListener('click', () => void (i !== selected ? show(i) : isPlaying() && animate()));
         li.append(b); return li;
       }));
-      const shown = new URLSearchParams(values).toString();
+      const shown = stepQuery(values);
       for (const section of transcript.querySelectorAll<HTMLElement>('section')) section.hidden = section.dataset.scenario !== shown;
       shownScenario = shown;
       reserve();
@@ -1466,7 +1466,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     const q = new URLSearchParams(location.search);
     const request: Record<string, string> = {};
     for (const s of Source.settings ?? []) if (q.has(s.id)) request[s.id] = q.get(s.id)!;
-    return { request, step: q.get('step') ?? undefined, sent: decodeLog(q.get(SENT)) };
+    return { request, step: q.get(PAGE_QUERY.step) ?? undefined, sent: decodeLog(q.get(SENT)) };
   };
   // A host page drives the player through the loader (player-guidance G4): a step by name
   // and settings by id, validated as the URL's are (an undeclared id is ignored, as in a URL; an

@@ -18,6 +18,7 @@ import { RTL_SCRIPTS } from '../../src/lettering-outlines.ts';
 import { playerCss } from '../../app/embed-style.ts';
 import {stepAudio} from '../../explain/audio.ts';
 import { logStart, outcomes, runLive } from '../../app/embed-live.ts';
+import { stepQuery } from '../../explain/settings.ts';
 
 /**
  * A page whose lettering asks for a right-to-left script sets the direction of
@@ -116,10 +117,10 @@ export async function buildExplainer(
   }));
   const transcript = project.scenarios
     .map(({ values, trace }, n) => {
-      const key = new URLSearchParams(values).toString(),
+      const key = stepQuery(values),
         name = scenarioNameIn(lang, project.Scene, values);
       const steps = trace.steps.map((s, i) => {
-        const href = `?${key ? key + '&' : ''}${new URLSearchParams({ step: s.step })}`,
+        const href = `?${stepQuery(values, s.step)}`,
           shows = pictureHtml(s.shown, trace.steps[i - 1]?.shown),
           words = stepWords(s),
           changes = watchedChanges(s, project.Scene.meta?.watch, lang).map((c) => changeText(t, c));

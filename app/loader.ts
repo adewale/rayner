@@ -1,4 +1,4 @@
-import { exactHttpOrigin, gotoMessage, resizeHeight, stepDetail } from './embed-protocol.ts';
+import { STEP_TYPE, exactHttpOrigin, gotoMessage, resizeHeight, stepDetail } from './embed-protocol.ts';
 import type { StepDetail } from './embed-protocol.ts';
 import { chromeFor } from './embed-strings.ts';
 
@@ -36,7 +36,7 @@ export function mountExplainer(
     if (height != null) frame.style.height = `${height}px`;
     const detail = stepDetail(event, origin, frame.contentWindow);
     if (detail) {
-      frame.dispatchEvent(new CustomEvent('rayner:step', { bubbles: true, detail }));
+      frame.dispatchEvent(new CustomEvent(STEP_TYPE, { bubbles: true, detail }));
       options.onStep?.(detail);
     }
   };

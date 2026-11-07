@@ -118,12 +118,12 @@ export function reportHeight(root: HTMLElement): () => void {
   // measure whenever the player settles on a step, and once the page has loaded.
   const observer = new ResizeObserver(measure);
   observer.observe(root);
-  document.addEventListener('rayner:step', measure);
+  document.addEventListener(STEP_TYPE, measure);
   window.addEventListener('load', measure);
   measure();
   return () => {
     observer.disconnect();
-    document.removeEventListener('rayner:step', measure);
+    document.removeEventListener(STEP_TYPE, measure);
     window.removeEventListener('load', measure);
   };
 }
