@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 (unreleased)
+## 0.2.0 (2026-11-06)
 
 Rayner turns a tested TypeScript model into a step-through explanation a reader can drive, published as one portable HTML page. This is the first release meant for authors (0.1.0 and 0.1.1 were previews); it requires Node 24 or later, authoring targets Ubuntu and macOS, and diagram capture needs Chromium. Start with [the tutorial](docs/TUTORIAL.md); [the reference](docs/REFERENCE.md) covers the API and the command line, and [upstream](docs/UPSTREAM.md) records what changed from Ivar Vong's Lantern, which Rayner forks.
 
@@ -223,7 +223,7 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
 
 ## 0.1.1 (2026-10-29)
 
-A preview release, superseded by 0.2.0.
+A preview release, superseded by 0.2.0. It was tagged in git and never published to npm.
 
 - Put step captions next to their pictures. Hide Next view and its instructions when a step has only one view.
 - Refresh phone tour controls after a viewport resize while preserving the reader’s current zoom and step.

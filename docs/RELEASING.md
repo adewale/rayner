@@ -35,7 +35,7 @@ The command retains `out/release/rayner-<version>.tgz`, `out/release/rayner-cli-
 
 The compatibility job checks Node 24 on macOS as well as Ubuntu, including an installed starter preview with the normal authoring dependencies. A configured matrix is not evidence of a successful Mac run: require both platforms to pass before tagging.
 
-Video export is deferred to 0.3 in [PR #36](https://github.com/adewale/rayner/pull/36). It is absent from the 0.1 CLI and archive.
+Video export is deferred to 0.3 in [PR #36](https://github.com/adewale/rayner/pull/36). It is absent from the 0.2 CLI and archive.
 
 ## Enable publishing
 
@@ -89,7 +89,5 @@ node tools/repo/verify-live-site.ts ../website/site \
 Use `--clean-urls` when the host serves reader URLs with and without `.html`. The verifier first checks the local manifest, inventory and hashes, then requires the deployed manifest and every public file to match. It checks response media types for the exported HTML, JavaScript, JSON, PNG, CSS, SVG and text assets; unknown extensions require an explicit verifier update. Textual assets must not declare a charset incompatible with UTF-8. HTML, JavaScript and CSS must allow inline rendering. It checks the actual reader CSP, cache and framing headers against `_headers`, which is host configuration and need not be publicly served. The stable loader URL must revalidate, with no positive shared-cache freshness or stale-while-revalidate window. Requests have bounded concurrency, timeout and response lengths; redirects must stay on the supplied origin. `--concurrency` and `--timeout` adjust the defaults of eight requests and 30 seconds per request.
 
 Keep the receipt outside the reviewed site tree. After validating the arguments and checking that output boundary, the verifier removes an earlier receipt at the same path before checking local or deployed content. It writes a new receipt only after all checks pass. An invalid command line leaves existing files alone. Retain the receipt with the reviewed export and deployment commit. These transport checks supplement the browser, story and startup reports; they do not claim a physical iPhone test or prove reader interaction by themselves.
-
-[Issue #48](https://github.com/adewale/rayner/issues/48) remains open until the requested-face example is deployed and verified on the public catalog. A merged example, prepared export or approved publishing configuration alone does not meet that criterion.
 
 Sources: [npm publish](https://docs.npmjs.com/cli/v11/commands/npm-publish), [trusted publishing](https://docs.npmjs.com/trusted-publishers), [provenance](https://docs.npmjs.com/generating-provenance-statements).
