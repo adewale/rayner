@@ -35,7 +35,6 @@ test('rendered tile text meets contrast requirements for every palette and expli
             for (const [name, palette] of Object.entries(PALETTES)) {
               const colors = await page.evaluate(paper => {
                 const tile = document.querySelector<HTMLElement>('.tile')!;
-                tile.style.setProperty('--paper', paper);
                 // Avoid observing an in-progress transition while varying palettes.
                 tile.style.transition = 'none';
                 const rgba = (value: string) => {
@@ -43,11 +42,28 @@ test('rendered tile text meets contrast requirements for every palette and expli
                   const ctx = canvas.getContext('2d')!; ctx.fillStyle = value; ctx.fillRect(0, 0, 1, 1);
                   return Array.from(ctx.getImageData(0, 0, 1, 1).data).slice(0, 3);
                 };
-                return {background: rgba(getComputedStyle(tile).backgroundColor),
+                // The unconfigured tile is the actual untinted surface. This observes
+                // the public component instead of depending on its private token names.
+                tile.style.removeProperty('--paper');
+                const surface = rgba(getComputedStyle(tile).backgroundColor);
+                tile.style.setProperty('--paper', paper);
+                return {surface, paper: rgba(paper), background: rgba(getComputedStyle(tile).backgroundColor),
                   fg: rgba(getComputedStyle(tile.querySelector('p')!).color),
                   muted: rgba(getComputedStyle(tile.querySelector('.live-lede')!).color),
                   accent: rgba(getComputedStyle(tile.querySelector('a')!).color)};
               }, palette.paper);
+              const spread = colors.paper.map((channel, i) => channel - colors.surface[i]!);
+              const tint = colors.background.map((channel, i) => channel - colors.surface[i]!);
+              for (let i = 0; i < 3; i++) {
+                // One 8-bit channel of raster rounding is permitted. The design's
+                // visible tint may move at most 10% toward the scenario paper.
+                assert.ok(Math.abs(tint[i]!) <= Math.abs(spread[i]!) * .1 + 1,
+                  `${name}/${theme}: tile tint exceeds the 10% design ceiling`);
+                assert.ok(tint[i]! * Math.sign(spread[i]!) >= -1,
+                  `${name}/${theme}: tint moves away from scenario paper`);
+              }
+              if (spread.some(channel => Math.abs(channel) >= 20))
+                assert.ok(tint.some(channel => channel !== 0), `${name}/${theme}: the scenario tint disappeared`);
               for (const [role, minimum] of Object.entries(MINIMUM) as [keyof typeof MINIMUM, number][]) {
                 const ratio = contrast(colors[role], colors.background);
                 assert.ok(ratio >= minimum, `${name}/${theme}/${explicit ? 'explicit' : 'system'} ${role}: ${ratio.toFixed(2)}:1 < ${minimum}:1`);
