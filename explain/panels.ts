@@ -127,6 +127,8 @@ export class Card extends Group {
     this.colors = colors;
     this.title = options.title;
     const size = (this.fontSize = options.fontSize ?? 0.24);
+    // Without a panel there is nothing to pad: the rows sit at the card's edges.
+    const pad = options.panel === false ? 0.04 : PAD;
     // A label may repeat (a card can list parts by kind), but then it names no single row.
     const names = rows.map(([l]) => l);
     this.repeated = new Set(names.filter((l, i) => names.indexOf(l) !== i));
@@ -158,27 +160,27 @@ export class Card extends Group {
         n ? across - gap + size * 2.5 : 0,
         ...rows.map((_, i) => labels[i]!.width() + size * 2.5 + (n > 1 && !spans(i) ? across - gap : cells[i]![0]!.width())),
       ) +
-      2 * PAD;
+      2 * pad;
     const width = Math.min(options.width ?? Math.max(3.2, natural), cap);
     const pitch = size * ROW;
-    const height = (rows.length + (n ? 1 : 0) + (titleText ? 1.15 : 0)) * pitch + 2 * PAD - size * 0.55;
+    const height = (rows.length + (n ? 1 : 0) + (titleText ? 1.15 : 0)) * pitch + 2 * pad - size * 0.55;
     this.panel = options.panel === false
       ? new Rectangle({ width, height, cornerRadius: 0.1, fill: raised(colors), fillOpacity: 0, stroke: 'none' })
       : panelRect(colors, width, height);
     this.bar = tint(emphasis(colors), width - 0.12, pitch * 0.92).setOpacity(0);
     this.add(this.panel, this.bar);
-    const left = edge * (-width / 2 + PAD);
-    this.valueEdge = edge * (width / 2 - PAD);
-    let y = height / 2 - PAD - size * 0.5;
+    const left = edge * (-width / 2 + pad);
+    this.valueEdge = edge * (width / 2 - pad);
+    let y = height / 2 - pad - size * 0.5;
     if (titleText) {
       // A title wider than a capped card shrinks to fit, as values do.
-      const room = width - 2 * PAD;
+      const room = width - 2 * pad;
       if (titleText.width() > room && room > 0) titleText.scale(room / titleText.width());
       titleText.moveTo([left, y], [-edge, 0]);
       this.add(titleText);
       y -= pitch * 1.15;
     }
-    this.maxValue = width - 2 * PAD - size * 1.5;
+    this.maxValue = width - 2 * pad - size * 1.5;
     // Room for at least a glyph's width beside its label; less than that cannot hold a row.
     if (!(this.maxValue >= size)) throw new Error(`A card ${width.toFixed(2)} wide has no room for its rows`);
     // Labels keep their natural width and columns get the rest of the row. When that is
@@ -195,7 +197,7 @@ export class Card extends Group {
     const columnWidth = naturalColumns.map((w) => least + (w - least) * k + spare);
     this.columnRoom = columnWidth.map((w) => w - gap);
     // Column j's values end where the columns after it begin.
-    const columnEdge = columnWidth.map((_, j) => edge * (width / 2 - PAD - columnWidth.slice(j + 1).reduce((a, b) => a + b, 0)));
+    const columnEdge = columnWidth.map((_, j) => edge * (width / 2 - pad - columnWidth.slice(j + 1).reduce((a, b) => a + b, 0)));
     const columnsAcross = columnWidth.reduce((a, b) => a + b, 0) - gap;
     let headed = !n;
     rows.forEach(([label], i) => {

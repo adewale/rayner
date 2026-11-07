@@ -1,6 +1,7 @@
-import { Axes, Circle, Cross, Group, Rectangle, Text, StateReadout } from '../../../src/index.ts';
-import type { Mobject, SceneState, Vec } from '../../../src/index.ts';
-import type { CodeBlock } from '../../../explain/index.ts';
+import { Axes, Circle, Cross, Group, Rectangle, Text } from '../../../src/index.ts';
+import type { Mobject, Scene, SceneState, Vec } from '../../../src/index.ts';
+import { Card } from '../../../explain/index.ts';
+import type { CodeBlock, Palette } from '../../../explain/index.ts';
 import { keyedParts } from '../../../explain/drawing.ts';
 import type { BucketCall as Call, BucketState } from './model.ts';
 
@@ -233,27 +234,26 @@ export function climbTo(axes: Axes, points: [number, number][], t: number, color
 export const drawChips = (st: BucketState, count: number, colours: Ink) =>
   new Group(...Array.from({ length: count }, (_, i) => drawRequest(i, st.calls[i]?.ok ?? null, colours)));
 
-/** The state readout, each value written by `format`; the balance row keyed so a phone can find it. */
-export function drawReadout(state: SceneState, format: (v: unknown) => string) {
-  const rows = new StateReadout(
+/**
+ * The bucket's balance, each value written by `format`: a card without a panel under the code,
+ * its balance row keyed so a phone can find it.
+ */
+export function drawReadout(scene: Scene, colors: Palette, state: SceneState, format: (v: unknown) => string) {
+  const card = new Card(
+    scene,
+    colors,
     [
       ['Tokens left', format(state.tokens)],
       ['Last refill (s)', format(state.lastRefill)],
       ['Accepted', format(state.allowed)],
       ['Rejected', format(state.rejected)],
     ],
-    {
-      fontSize: 0.26,
-      gap: 0.42,
-      at: [4.9, -2.78],
-    },
+    { title: 'Bucket balance', fontSize: 0.22, at: [3.3, -4.45, 6.6, -2.3], align: 'top', panel: false },
   );
-  rows.children[0]!.key = 'balance:label';
-  rows.values['Tokens left']!.key = 'balance:value';
-  return rows;
+  card.labels.get('Tokens left')!.key = 'balance:label';
+  card.values.get('Tokens left')!.key = 'balance:value';
+  return card;
 }
-/** The readout's heading. */
-export const drawReadoutTitle = ({ soft }: Pick<Ink, 'soft'>) => new Text('Bucket balance', { fontSize: 0.2, color: soft }).moveTo([3.3, -2.4], [-1, 0]);
 
 /** The focus bar's place on lines a..b, as CodeBlock.focus draws it, for use inside a Succession. */
 export function barAt(code: CodeBlock, [a, b]: readonly [number, number]) {
