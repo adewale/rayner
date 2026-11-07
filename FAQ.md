@@ -14,11 +14,11 @@ They need a static host and nothing else. `rayner build` writes one HTML file ho
 
 ## Why are diagrams captured at build time instead of drawn in the browser?
 
-So the page carries no diagram renderer. Rayner renders each Mermaid diagram with [Agentic Mermaid](https://github.com/adewale/agentic-mermaid) in Chromium while building, checks the capture against the renderer's own output, and commits the result to `scene.snapshots/`. The browser only replays that geometry, decompressing it with its native `DecompressionStream`. A later build reuses the snapshot until the diagram's source or the capture code changes.
+So the page carries no diagram renderer. Rayner renders each Mermaid diagram with [Agentic Mermaid](https://github.com/adewale/agentic-mermaid) in Chromium while building, checks the capture against the renderer's own output, and commits the result to `scene.snapshots/`. The browser only replays that geometry, decompressing it with its native `DecompressionStream`. A later build reuses the snapshot until the diagram's spec (its source, style or lettering) or the Agentic Mermaid release changes; a change to Rayner's own code does not recapture it ([snapshots](docs/REFERENCE.md#snapshots)).
 
 ## How many scenarios can one explainer have?
 
-At most 64, and every combination of settings is built ahead of time, so each scenario adds to the page. A page must stay under 1.5 MiB of HTML and 450 KiB gzipped; when a scene goes over, split it or cut scenarios. Spend them on scenarios that change the conclusion: a scenario that only recolours the picture still costs page size.
+At most 64, and every combination of settings is built ahead of time, so each scenario adds to the page. A page must stay under 1.5 MiB of HTML and 450 KiB gzipped ([the page](docs/REFERENCE.md#page)); when a scene goes over, split it or cut scenarios. Spend them on scenarios that change the conclusion: a scenario that only recolours the picture still costs page size.
 
 ## Can I embed an explainer in another page?
 

@@ -12,19 +12,18 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - The page shows what the model is checked against under Sources.
 - `answerOf(this)` in `rayner/explain` reads the script's answer, so a caption that states it keeps no copy. `withIntent(Scene, scriptText)` in `rayner/testing` adopts a script for a test that runs a scene directly.
 - `meta.id` defaults to the scene's folder name (or its file's name when the file is not `scene.ts`).
-- Each `s.steps` picture is a view of its step's state, so `rayner check` holds it to its draw as it holds every view; the separate staged-step check is gone.
 - `rayner check` fails a view whose draw never depends on its state (or on what is shown) at any step that shows it. [Checks](docs/REFERENCE.md#checks)
 - `emphasised(m, what)` in `rayner/drawing` marks a part as emphasis where it is drawn, so the close-up tour and the descriptions find it in the picture; a diagram's picture reports its own marks the same way.
 - `s.diagramView(d, draw)` shows a diagram by a view of the state (its marks, notes and dimming, as `d.picture` takes them); `s.liveDiagram(d)` hands back for a morph, reveal or walk. `d.trail(hops)` gives a walk's trail as marks. mr-cache is converted.
 - A picture is never changed in place. Cards, code panels and diagrams that change are drawn by views from the state (the model) and `scene.shown` (how it is shown), and synced by key. Removed: `Diagram.mark`, `unmark`, `dim`, `note`, `clearNotes` and `walk`'s `trail`; `Card.set` and `mark`; `CodeBlock.focus`, `morph` and `clearMarks`; `s.emphasise`; and the engine's `StateReadout`. [Card and CodeBlock](docs/REFERENCE.md#card-and-codeblock), [views](docs/VIEWS.md#cards-code-annotations-and-notes-from-state)
-- Cards and code panels take their marks as options: `lit`, `litAs`; `focus`, `focusAs`, `added`; `width` and `fitHeight` keep a panel's size; `key` keys their parts, so a sync keeps what stays, fades a changed value or line across and moves the bar. A code line is keyed by its text, so a line that moves pairs with itself. `panel: false` gives a card with no panel, which is how a readout of state is drawn. `s.cardPicture` and `s.codePicture` build them placed as the stage places them, for a view's draw.
+- Cards and code panels take their marks as options: `lit`, `litAs`; `focus`, `focusAs`, `added`; `width` and `fitHeight` keep a panel's size; `key` keys their parts, so a sync keeps what stays, fades a changed value or line across and moves the bar. A code line is keyed by its text, so a line that moves pairs with itself. `panel: false` gives a card with no panel, which is how a readout of state is drawn. A card or panel carries its bar from the start, so a view or staged step draws the mark from state, described and emphasised. `s.cardPicture` and `s.codePicture` build them placed as the stage places them, for a view's draw.
 - What is shown may change between a machine's events (a guided tour moving a code panel's focus); exploration and the live player draw under what the machine last played under.
 - The phone's close-ups count a mark redrawn at the same keyed place with the same words as the same emphasis, not new.
 - Views, `Machine`, `SetState` and `choreograph` moved from `src/` to `explain/` and are imported from `rayner/explain`; `src/` is the engine taken from Lantern.
 - Three opt-in entry points: `rayner/geo` (`seenFrom` and the globe, out of `rayner/drawing`), `rayner/audio` (the score types) and `rayner/extras` (`Write`, `TransformFromCopy`, `Restore`, `MoveAlongPath`, `ArcBetweenPoints`, `Square`, `Underline`, out of `rayner`).
 - `view.tween((t) => state)` moves the state through time and redraws the view at every frame; `c.follow(spec, { targets })` does the same for parts of an authored transition. `Follow` is no longer exported.
 - Every folder in `scenes/explainers/` now holds its own `script.md`, `scene.ts`, `model.ts` (where it has a model) and `picture.ts` (where its drawing is worth separating).
-- Models and pictures moved out of `scenes/explainers/lib/`, which keeps only the shared `format.ts`. `notes.md` files are folded into the script, the model and the picture module.
+- Models and pictures moved out of `scenes/explainers/lib/`, which keeps only the shared `format.ts` and `pbt.ts`. `notes.md` files are folded into the script, the model and the picture module.
 - An explainer is a `Scene` subclass with named steps. Each step has a title, a short `line` drawn under it on the picture and a caption under the stage, and holds until the caption could be read.
 - `static settings` declares the reader's choices, and every scenario (one value for every setting) is built ahead of time. [Settings](docs/REFERENCE.md#settings)
 - A step's `kind: 'short' | 'main' | 'detail'` puts it on the reader's short path, in the story, or under Details and sources.
@@ -43,14 +42,13 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `diagramsOf(scene)` lays out a diagram, so `new Diagram(...)` can be measured before anything is drawn.
 - A picture that should follow the model is a `view(scene, draw)`, and `view.sync()` morphs it to the current state. [Views](docs/VIEWS.md#api)
 - Parts with the same `key` are the same part across morphs (`matchByKey`, `match: 'key'`), and `find(key)` and `findAll` address them. [Matching](docs/MATCHING.md#which-key)
-- `SetState` adopts a model state at its place in a schedule, and `Follow` redraws several drawings from one sampled number. [Choreography](docs/CHOREOGRAPHY.md)
+- `SetState` adopts a model state at its place in a schedule. [Choreography](docs/CHOREOGRAPHY.md)
 - `become` takes another mobject's data in place, keeping its identity.
 - `GrowFromEdge` grows bars and `PulseAlongPath` sends tokens along routes.
-- Mermaid diagrams in all 15 Agentic Mermaid families are captured at build time and animated by part id: `reveal`, `walk`, `mark`, `dim`, `note`, `focus` and `morph`. [Diagrams](docs/REFERENCE.md#diagrams)
+- Mermaid diagrams in all 15 Agentic Mermaid families are captured at build time and animated by part id with `reveal`, `walk`, `focus` and `morph`; their marks, notes and dimming are drawn from state by `d.picture`. [Diagrams](docs/REFERENCE.md#diagrams)
 - A morph can carry its edits (`ops`), which the build replays through Agentic Mermaid and checks against the target source.
 - `mermaid.pie(slices, options)` and `mermaid.frontMatter(config)` in `rayner/explain` build Mermaid source from typed values.
 - `mermaid.pie` and `mermaid.frontMatter` refuse a zero or negative slice, a repeated label, an empty title or an empty config at the call, naming the value.
-- A card built with `lit` and a code panel built with `focus` (`focusAs`, `litAs` for the word) carry their bar from the start, so a view or staged step draws the mark from state, described and emphasised.
 - A colour left out is the scene's: `scene.colors` (paper, ink, soft, accent, bad), which a stage sets from its palette. Without a stage a scene draws dark ink on white paper.
 - Text, lines, arrows and axes drawn without a colour take the ink, guide lines the soft colour, `SurroundingRectangle`, `Circumscribe` and plotted data the accent, and `Cross` the colour for rejected.
 - Those defaults were Manim's white, yellow and red, made for a black background; the scene's colours read on any paper.
@@ -59,9 +57,6 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - The stage's paper, heading and chrome have the roles `'paper'`, `'heading'` and `'chrome'` instead of the keys `__paper`, `__heading` and `__chrome`.
 - A diagram's frame has the role `'frame'` and a key of its own diagram's instead of `__frame`, so two diagrams on one stage have two frames and a diagram picture's `prefix` covers every key.
 - `rayner check` holds every key to one part, with no exception.
-- A card or code panel a view draws refuses `set`, `mark`, `focus`, `morph` and `clearMarks`. A change made in place was lost at the view's next sync.
-- A diagram shown by its picture refuses `mark`, `unmark`, `dim`, `note` and a `walk` that leaves a trail.
-- Each of these refusals says to put the change in the state and draw it (`lit`, `focus`, `d.picture`). [Views](docs/VIEWS.md#cards-code-annotations-and-notes-from-state)
 - `callout`, `dimension` and `pin` in `rayner/drawing` build the annotations that `s.callout`, `s.dimension` and `s.pin` draw in, for a draw to build from state.
 - `pin` takes `side: 'left'` to put its label left of the head.
 - `legend(s, items)` in `rayner/drawing`, and `s.legend`, draw a key of swatches (fill, line, outline, dashed or not) with their meanings, keyed, in the stage's ink.
@@ -69,7 +64,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `rayner check` fails a step whose caption or line names a colour or a pattern (dashed, dotted) that no word on the stage says, so a resting picture teaches with its caption hidden.
 - A legend, a label or a line that keys the look (`Red: the route.`) answers that check.
 - `d.picture(marks, { notes, dim, prefix })` draws a diagram's notes and dimming from state and prefixes its keys, so two pictures of one diagram can share the stage.
-- `d.notePicture` builds one note as `d.note` places it.
+- `d.notePicture` builds one note, placed as a diagram picture places its notes, for a view's draw.
 - A diagram shown by its picture is described as the picture shows it, with marks named by `{ color, as }`, notes and dimming.
 - A card, a code panel, a diagram note, a dimension line or a pin describes itself wherever it is drawn, including a view's current picture and a staged step. A `describe` speaks for the rest.
 - A staged step's `describe(state)` says what its picture shows when its meaning is geometry rather than labels.
@@ -138,8 +133,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `rayner check` fails a picture that changes after its caption's hold begins, and a direct link that draws differently from playing to the step.
 - `rayner check` fails colliding text, connectors over labels, labels under 14 px on a 1280 px stage, and a kept drawing with no description.
 - `rayner check` fails a character the fonts cannot draw, a declared answer no step states, and awaited animations inside `try`/`catch`.
-- `rayner check` redraws every `s.steps` step from the state its trace recorded and fails a step whose picture differs.
-- It also fails a step whose `draw` ignores its state and draws the same picture from any state.
+- Each `s.steps` picture is a view of its step's state, so `rayner check` redraws it from the state its trace recorded, as it does every view, and fails a step whose picture differs or whose `draw` draws the same picture from any state; the separate staged-step check is gone.
 - `rayner check` explores every machine on the stage where the machine last played, from its start and from the state the reader finds there. [What check does](docs/MACHINES.md#what-check-does-with-a-machine)
 - Exploration fails a reachable state that collides, shows a small label, has no description, does not show its state or is described like another.
 - `rayner check` plays every authored transition, checking the invariants on the way, and fails one that does not land on the model's picture.
@@ -162,7 +156,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - A `table()` row given as `{ key, cells }` keeps its identity wherever it moves, and a duplicated row key or header is refused by name. python-dict and bloom-filter key their rows.
 - `seenFrom(model, viewpoint)` draws a 3D model on a sphere through an orthographic, perspective, gnomonic or Mercator viewpoint. [3D](docs/REFERENCE.md#3d-seenfrommodel-viewpoint)
 - `seenFrom` draws keyed 2D pieces in an explicit depth order, and `depthOrder` is an invariant that checks that order on every frame.
-- A camera move is a `Follow` over the viewpoint. The great-circle explainer draws its globe and both maps from one model.
+- A camera move is a `view.tween` over the viewpoint. The great-circle explainer draws its globe and both maps from one model.
 - A stage can run right to left (`direction: 'rtl'`): cards and logical regions mirror, and text keeps its own reading direction. [Spatial direction](docs/REFERENCE.md#spatial-direction)
 
 ### Tooling and publishing
@@ -179,7 +173,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - A lettering snapshot is recaptured when it lacks a drawn run, or when its format or capture tool (shaper, requirements, vendored shapers, fallback fonts) changes.
 - `test/snapshot-capture.test.ts` captures every committed snapshot afresh in CI and fails on any difference.
 - `scene.snapshots/index.json` drops `sourceHash` and `importer`.
-- `scene.lettering.json` is version 2, without `sourceHash` or `payloadHash`.
+- The outline workflow's `scene.lettering.json` is version 2, without `sourceHash` or `payloadHash`; the subset workflow's is still version 1.
 - `inputs.json` beside a built page is version 3, without `engineHash` or `importer`, which its `buildHash` already covers.
 - `npm run bench` compares reader timings between two revisions in Chromium and reports a small sample as inconclusive.
 - The engine works without the page: [engine fundamentals](docs/ENGINE-FUNDAMENTALS.md), the runnable [extension recipes](docs/EXTENDING.md) and [scene outputs](docs/SCENE-OUTPUTS.md) cover frames, text and traces from native scenes.
