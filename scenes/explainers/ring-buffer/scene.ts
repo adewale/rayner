@@ -90,15 +90,6 @@ export default class RingBufferExplainer extends Scene {
     this.state = { ...start } as unknown as SceneState;
     const ring = (this.ring = view(this, (st) => ringPicture(st as unknown as RingState), { place: false }));
     s.keep(ring, { describe: ringWords });
-    // What the ring marks, as emphasis the phone's close-ups visit first and review holds to the
-    // caption: each outlined slot, and the value the tray took last. Read from state.
-    s.emphasise(() => {
-      const st = this.state as unknown as RingState, last = (st.tray?.values.length ?? 0) - 1;
-      return [
-        ...st.marks.map((m) => [`ring:mark:${m.slot}`, `outlined: ${m.kind} at slot ${m.slot}`] as const),
-        ...(last >= 0 ? [[`ring:tray:${last}`, `${st.tray!.label} ${st.tray!.values[last]}`] as const] : []),
-      ];
-    });
     // Checked on every frame by rayner check: a pointer moving between slots goes round the ring,
     // never across it, so its arrow always starts on the pointers' circle.
     const arrowBase = (ptr: Mobject) => ptr.children[0]!.children[0]!.pointArrays()[0]!;

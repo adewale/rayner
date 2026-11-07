@@ -216,9 +216,6 @@ export default class OAuthExplainer extends Scene {
       const attack = [caught!, guess!, refused!];
       // The server's check, said where it happens: the guess as sent, then the answer.
       await revealMarked(attack, s.bad, 'attack', say(refused!, `S256(guess) = ${prefix(bad)} ≠ ${prefix(challenge)}`, s.bad));
-      // A phone opens on the attack. The view redraws every mark at each sync, so the marks kept from
-      // earlier steps would count as new beside it; the opening says which are this step's.
-      s.opening(...attack.map((id) => seqView!.current.find(id)!));
     }
 
     await this.step('exchange', {
