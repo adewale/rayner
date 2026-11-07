@@ -234,6 +234,32 @@ export default class TrustProxyExplainer extends Scene {
     });
     await s.clear();
     const d = await s.show({ source: NETWORK }, { box: DIAGRAM });
+    // How the network is shown, apart from its source: the hops walked, each group of marked parts with
+    // its colour (good or bad) and word, and what stays undimmed. That is `shown`, not the model; its view
+    // draws it, and each change is a sync.
+    type NetShown = { walked: [string, string][]; marked: { ids: string[]; tone: 'good' | 'bad'; as: string }[]; dim: string[] | null };
+    const plainNet: NetShown = { walked: [], marked: [], dim: null };
+    const drawNet = (_st: Record<string, unknown>, sh: Record<string, unknown>) => {
+      const n = sh.network as NetShown;
+      return {
+        marks: {
+          ...d.trail(n.walked),
+          ...Object.fromEntries(n.marked.flatMap((g) => g.ids.map((id) => [id, { color: g.tone === 'good' ? s.good : s.bad, as: g.as }]))),
+        },
+        dim: n.dim,
+      };
+    };
+    this.shown.network = plainNet;
+    let netView = s.diagramView(d, drawNet);
+    const showNet = async (change: Partial<NetShown>) => {
+      this.shown.network = { ...(this.shown.network as NetShown), ...change };
+      await this.play(netView.sync({ match: 'key', staged: true }));
+    };
+    /** The network hidden: its view fades with what it marks, and that leaves `shown`. */
+    const hideNet = async () => {
+      await d.hide();
+      this.shown.network = plainNet;
+    };
     // `setting`: the scenario's trust setting and request, which the second card names.
     this.state.addresses = { ...ADDR };
     this.state.setting = { trust: trustKey, request: reqKey };
@@ -291,7 +317,8 @@ export default class TrustProxyExplainer extends Scene {
         }`,
     });
     await s.clearOverlays();
-    await d.walk(PATH[reqKey], { trail: true });
+    await d.walk(PATH[reqKey]);
+    await showNet({ walked: PATH[reqKey] });
     this.state.arrivals = hops.map((h) => [h.at.id, h.socket, h.xff]);
     // Each machine on the path with the header it receives; the last is Express, whose socket address closes the card.
     const received = cardView(
@@ -343,7 +370,7 @@ export default class TrustProxyExplainer extends Scene {
         : `Express trusts ${count(trusted.length, 'address')}, then stops at the next.`,
       caption: `Express reads the addresses from its own connection outward: the socket address, then X-Forwarded-For from right to left. It skips each address it trusts, and ${scriptAnswer}. ${why} ${stop} ${verdict}${forgedUnread ? ` Express never reads ${ADDR.forged}.` : ''}`,
     });
-    await d.hide();
+    await hideNet();
     await s.clearOverlays();
     // `sender` and `outcome`: who sent the request and whose address req.ip turns out to be, which the result card says.
     this.state.read = reading.map((r) => [r.addr, r.verdict]);
@@ -489,31 +516,58 @@ export default class TrustProxyExplainer extends Scene {
     await s.clearOverlays();
     const left = regionBox(FULL, { right: -0.1 }),
       right = regionBox(FULL, { left: 0.1 });
-    const compile = await s.code(COMPILE[trustKey === 'true' || trustKey === 'list' ? trustKey : 'number'], {
-      at: left,
-      align: 'top',
-      fontSize: 0.3,
-      title: 'express 5.3.0, lib/utils.js, compileTrust',
-      enter: false,
-    });
-    const loop = await s.code(
-      [
-        '// alladdrs',
-        'var addrs = forwarded(req)',
-        'for (var i = 0; i < addrs.length - 1; i++) {',
-        '  if (trust(addrs[i], i)) continue',
-        '  addrs.length = i + 1',
-        '}',
-        'return addrs',
-        '// proxyaddr',
-        'var addrs = alladdrs(req, trust)',
-        'var addr = addrs[addrs.length - 1]',
-      ],
-      { at: right, align: 'top', fontSize: 0.3, title: 'proxy-addr 2.0.8, index.js', enter: false },
+    // The two code panels are views; the lines each focuses, and what the description calls them, are in
+    // `shown.trustCode` (none as they come in).
+    type Focus = { lines: number | [number, number]; as: string } | null;
+    type TrustCodeShown = { compile: Focus; loop: Focus };
+    const focusOf = (f: Focus) => (f ? { focus: f.lines, focusAs: f.as } : {});
+    this.shown.trustCode = { compile: null, loop: null } satisfies TrustCodeShown;
+    const compile = view(
+      this,
+      (_st, sh) =>
+        s.codePicture(COMPILE[trustKey === 'true' || trustKey === 'list' ? trustKey : 'number'], {
+          at: left,
+          align: 'top',
+          fontSize: 0.3,
+          title: 'express 5.3.0, lib/utils.js, compileTrust',
+          ...focusOf((sh.trustCode as TrustCodeShown).compile),
+          key: 'compile',
+        }),
+      { place: false },
+    );
+    const loop = view(
+      this,
+      (_st, sh) =>
+        s.codePicture(
+          [
+            '// alladdrs',
+            'var addrs = forwarded(req)',
+            'for (var i = 0; i < addrs.length - 1; i++) {',
+            '  if (trust(addrs[i], i)) continue',
+            '  addrs.length = i + 1',
+            '}',
+            'return addrs',
+            '// proxyaddr',
+            'var addrs = alladdrs(req, trust)',
+            'var addr = addrs[addrs.length - 1]',
+          ],
+          {
+            at: right,
+            align: 'top',
+            fontSize: 0.3,
+            title: 'proxy-addr 2.0.8, index.js',
+            ...focusOf((sh.trustCode as TrustCodeShown).loop),
+            key: 'loop',
+          },
+        ),
+      { place: false },
     );
     await s.enter(compile, loop);
-    await compile.focus(trustKey === 'list' ? [0, 5] : 2, { as: 'this setting' });
-    await loop.focus([2, 5], { as: 'stops at the first untrusted address' });
+    this.shown.trustCode = {
+      compile: { lines: trustKey === 'list' ? [0, 5] : 2, as: 'this setting' },
+      loop: { lines: [2, 5], as: 'stops at the first untrusted address' },
+    } satisfies TrustCodeShown;
+    await this.play(compile.sync({ match: 'key', staged: true }), loop.sync({ match: 'key', staged: true }));
     this.state.trust = TRUST_CODE[trustKey];
 
     // ------------------------------------------------------------------ requests
@@ -622,18 +676,23 @@ export default class TrustProxyExplainer extends Scene {
               : `The path through the CDN has two proxies; the path that skips it has one. Counting two trusted addresses on the short path trusts the attacker’s own address, and the next address is the one the attacker wrote. Express’s guide warns about this, quoted below.`,
     });
     await s.clearOverlays();
+    s.liveDiagram(d);
     await d.reveal('rest');
-    if (trustKey === 'list') {
-      await d.mark(['service:edge', 'service:balancer'], { color: s.good, as: 'trusted by address' });
-      await d.mark(['service:attacker'], { color: s.bad, as: 'not trusted' });
-    } else if (trustKey === 'true') {
-      await d.mark(['service:attacker'], { color: s.bad, as: 'writes the left-most entry' });
-    } else if (trustKey === '1') {
-      await d.mark(['service:edge'], { color: s.bad, as: 'req.ip for every request through the CDN' });
-    } else {
-      await d.dim(['attacker', 'balancer', 'express']);
-      await d.mark(['edge:attacker->balancer#0'], { color: s.bad, as: 'one proxy fewer' });
-    }
+    netView = s.diagramView(d, drawNet);
+    await showNet(
+      trustKey === 'list'
+        ? {
+            marked: [
+              { ids: ['service:edge', 'service:balancer'], tone: 'good', as: 'trusted by address' },
+              { ids: ['service:attacker'], tone: 'bad', as: 'not trusted' },
+            ],
+          }
+        : trustKey === 'true'
+          ? { marked: [{ ids: ['service:attacker'], tone: 'bad', as: 'writes the left-most entry' }] }
+          : trustKey === '1'
+            ? { marked: [{ ids: ['service:edge'], tone: 'bad', as: 'req.ip for every request through the CDN' }] }
+            : { dim: ['attacker', 'balancer', 'express'], marked: [{ ids: ['edge:attacker->balancer#0'], tone: 'bad', as: 'one proxy fewer' }] },
+    );
     const quote = wrap(QUOTE[trustKey], [BELOW[0] + 0.3, BELOW[3] - 0.1], BELOW[2] - BELOW[0] - 0.6, 0.28, ink);
     const cite = new Text(
       `Express guide, “Express behind proxies”, the ${trustKey === 'true' ? 'Boolean' : trustKey === 'list' ? 'IP addresses' : 'Number'} setting`,
@@ -660,9 +719,7 @@ export default class TrustProxyExplainer extends Scene {
           : `It gives the real sender for all three requests, where ${setting(trustKey)} gets ${numberWord(wrong.length)} wrong. The list is safe as long as each trusted range holds your proxies and no other machine.`),
     });
     await s.clearOverlays();
-    await d.unmark();
-    await d.dim(null);
-    await d.mark(['service:edge', 'service:balancer'], { color: s.good, as: 'trusted by address' });
+    await showNet({ dim: null, marked: [{ ids: ['service:edge', 'service:balancer'], tone: 'good', as: 'trusted by address' }] });
     // `compareOutcomes`: whether each of the six answers is the real sender, which the cards mark right or wrong.
     this.state.compare = Object.fromEntries(
       [trustKey, other].map((t) => [t, Object.fromEntries(REQUEST_KEYS.map((q) => [q, TABLE[t][q].ip]))]),
@@ -696,7 +753,8 @@ export default class TrustProxyExplainer extends Scene {
     const a = side(0, regionBox(BELOW, { right: -0.1 }), 'ranges-current'),
       b = side(1, regionBox(BELOW, { left: 0.1 }), 'ranges-alternative');
     await enterViews([a, b]);
-    s.opening(a.current, b.current, d.get('service:edge'), d.get('service:balancer'));
+    // The network's view draws its parts under the diagram's keys.
+    s.opening(a.current, b.current, this.find('service:edge')!, this.find('service:balancer')!);
 
     // ------------------------------------------------------------------ table
     const rights = TRUST_KEYS.map((t) => REQUEST_KEYS.filter((q) => TABLE[t][q].outcome === 'sender').length);
@@ -709,7 +767,7 @@ export default class TrustProxyExplainer extends Scene {
       caption: `Each row is a setting and each column a request; green marks the real sender’s address. Out of three requests, true gets ${rights[0]} right, 1 gets ${rights[1]}, 2 gets ${rights[2]} and the address list gets ${rights[3]}. This scenario, ${TRUST_LABEL[trustKey]} with ${lowerFirst(REQUEST_LABEL[reqKey])}, is outlined.`,
     });
     await s.clearOverlays();
-    await d.hide();
+    await hideNet();
     // `tableAnswers`: whose address each of the twelve is, which colours and labels each cell.
     this.state.table = Object.fromEntries(TRUST_KEYS.map((t) => [t, REQUEST_KEYS.map((q) => TABLE[t][q].ip)]));
     this.state.tableAnswers = Object.fromEntries(
