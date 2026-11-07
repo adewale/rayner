@@ -147,7 +147,7 @@ export interface LiveSession {
  * The run stops in the live step as soon as its picture stops changing: at the end of the play or
  * wait that reaches the step's hold (or its end), or as the step ends. Code a scene runs between
  * its last play and its next step never runs, so it cannot change the stage the reader drives.
- * The machine plays under what the scene showed when it played (`playedUnder`), as exploration
+ * The machine plays under what the scene showed when it last played (`playedUnder`), as exploration
  * draws it. A log the machine does not accept throws, as `send` does.
  */
 export async function runLive(

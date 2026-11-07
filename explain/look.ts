@@ -111,6 +111,27 @@ export function emphasisOf(scene: Scene): Map<Mobject, string> {
   return out;
 }
 
+/**
+ * Where a part showing emphasis sits, so a redrawn picture's part counts as the same one: its
+ * keys from the outermost keyed ancestor down when it is keyed, else the object itself.
+ */
+function emphasisAddress(m: Mobject): Mobject | string {
+  if (m.key === undefined) return m;
+  const keys: string[] = [];
+  for (let x: Mobject | null = m; x; x = x.parent) if (x.key !== undefined) keys.unshift(x.key);
+  return keys.join(' / ');
+}
+/**
+ * What `now` emphasises that `was` did not: a part that shows emphasis now and did not before,
+ * or showed another row, line or colour. A view that redraws a kept mark makes a new object
+ * at the same address with the same words, which is not new emphasis.
+ */
+export function newlyEmphasised(now: ReadonlyMap<Mobject, string>, was: ReadonlyMap<Mobject, string>): Map<Mobject, string> {
+  const before = new Map<Mobject | string, string>();
+  for (const [m, what] of was) before.set(emphasisAddress(m), what);
+  return new Map([...now].filter(([m, what]) => was.get(m) !== what && before.get(emphasisAddress(m)) !== what));
+}
+
 const openingSubjects = new WeakMap<Scene, readonly Mobject[]>();
 /** The objects a reader must compare together before exploring the details.
  * This selects an opening; it neither removes artwork nor changes its scale. */

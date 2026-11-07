@@ -8,7 +8,7 @@ import { VMobject } from '../../src/index.ts';
 import { renderElements } from '../../src/output.ts';
 import type { Scene, SceneClass, Mobject } from '../../src/index.ts';
 import type { ElementRecord } from '../../src/output.ts';
-import { emphasisOf } from '../../explain/look.ts';
+import { emphasisOf, newlyEmphasised } from '../../explain/look.ts';
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
 import { isHeading } from '../../explain/stage.ts';
 import { NARROW_PX } from '../../app/embed-closeup.ts';
@@ -400,11 +400,10 @@ export async function storyFrame(
       ...(clipShapes ? { partial, required: true } : {}),
     });
   };
-  for (const [m, what] of now)
-    if (previous.emphasis.get(m) !== what) {
-      assert.ok(members.includes(m), `${name}: newly emphasised ${m.key ?? what} is absent from the stage`);
-      add(`emphasis: ${m.key ?? what}`, [m], false, false, false, true);
-    }
+  for (const [m, what] of newlyEmphasised(now, previous.emphasis)) {
+    assert.ok(members.includes(m), `${name}: newly emphasised ${m.key ?? what} is absent from the stage`);
+    add(`emphasis: ${m.key ?? what}`, [m], false, false, false, true);
+  }
   const paint = paintOf(records, realInk);
   const added = new Set<Mobject>();
   // Declared intent takes priority over unrelated context that a rebuild

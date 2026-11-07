@@ -58,7 +58,8 @@ state, a refusal with the reason `next` gave (`{ refused: reason }`, or `null` f
 story's bound. `model(state, event)` is what `next` alone says, the bound aside. `after(state,
 event)` is the next state or `undefined`. `reachable(from?)` lists every state reachable from `from` (default
 `start`), breadth first, each with the shortest events that reach it. `lastPlayedIn` is the step
-the machine last played in, and `playedUnder` what the scene showed (`scene.shown`) when it did.
+the machine last played in, and `playedUnder` what the scene showed (`scene.shown`) when it last played: what is shown may change
+between events (a guided tour moving a code panel's focus), and exploration draws every state under the last.
 
 Each event records `{ kind: 'event', event }` as it begins, followed by its views' match
 evidence, so a fidelity test can check the events a step replayed and the state it ended in
