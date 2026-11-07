@@ -131,7 +131,7 @@ Each explainer in [`scenes/explainers/`](https://github.com/adewale/rayner/blob/
 | Records, schedules or shares | `gtfs` (ER, gantt), `pg-page` (pie), `cert-renewal` (timeline) | Diagram families beyond flowcharts |
 | A subject in another language | `quotient-familial` | `meta.lang: 'fr'`; descriptions in French |
 | A drawing made by hand, values said on it | `pen-and-pencil` | `s.sketch` with a pen and pencil, `s.focus` on the camera, `s.carry`, `s.dimension` and `s.callout` instead of cards |
-| A claim about viewpoint or projection | `great-circle` | `seenFrom` and a turned model in the drawing kit: 3D earns its place when the claim is about how a thing looks from somewhere (a straight line on a globe is curved on the map). Otherwise a 2D section in the right plane reads better, as `seasons` draws the Sun's rays |
+| A claim about viewpoint or projection | `great-circle` | `seenFrom` and a turned model from `rayner/geo`: 3D earns its place when the claim is about how a thing looks from somewhere (a straight line on a globe is curved on the map). Otherwise a 2D section in the right plane reads better, as `seasons` draws the Sun's rays |
 | A requested face in text and diagrams | `font-metrics` | EB Garamond, real cuts and `lettering: 'natural'` diagram measurements |
 | Sound compared with a visible score | `melody-rhythm` | Optional `step.audio`, two piano rolls from the played notes, an unchanged-timing control; see [score audio](../../docs/REFERENCE.md#optional-score-audio) |
 | Explicit panel placement and field order | `layout-direction` | RTL `start`/`end` placement, a card's LTR override and updates that keep their columns |

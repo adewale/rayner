@@ -461,7 +461,7 @@
     {
       "explaining": "A claim about viewpoint or projection",
       "start": "`great-circle`",
-      "shows": "`seenFrom` and a turned model in the drawing kit: 3D earns its place when the claim is about how a thing looks from somewhere (a straight line on a globe is curved on the map). Otherwise a 2D section in the right plane reads better, as `seasons` draws the Sun's rays",
+      "shows": "`seenFrom` and a turned model from `rayner/geo`: 3D earns its place when the claim is about how a thing looks from somewhere (a straight line on a globe is curved on the map). Otherwise a 2D section in the right plane reads better, as `seasons` draws the Sun's rays",
       "scenes": [
         "great-circle"
       ],
