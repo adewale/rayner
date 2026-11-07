@@ -8,7 +8,7 @@ import { Text, CodeSpan } from './text.ts';
 import type { Box } from './mobject.ts';
 import { unionBoxes } from './box.ts';
 import {bindTextContext, withTextContext} from './text-context.ts';
-import { LETTERING_SCRIPTS } from './lettering.ts';
+import { LETTERING_SCRIPTS } from './lettering-scripts.ts';
 import type {TextShaping} from './text-context.ts';
 
 /** Real cuts an explainer can ask for, instead of the stroked faux bold and no italic. */

@@ -209,7 +209,7 @@ test('match: index morphs by position (a DecimalNumber counts), shapes and keys 
   assert.deepEqual(ks.summary(), { matched: 2, morphed: 0, removed: 0, added: 0 });
 });
 
-test('placement: a moved and scaled View stays moved and scaled; place: false leaves it to build()', () => {
+test('placement: a moved and scaled View stays moved and scaled; place: false leaves it to draw()', () => {
   const st = { s: 'ab' };
   const v = view(held(st), () => new Text(st.s, { fontSize: 0.4 }), { place: 'right' });
   v.scale(0.5).moveTo([3, -2]);
@@ -229,7 +229,7 @@ test('placement: a moved and scaled View stays moved and scaled; place: false le
   // A picture build() hands back twice cannot morph into itself
   const fixed = new Text('same');
   const bad = view(held(), () => fixed);
-  assert.throws(() => bad.sync().begin(), /build a new one each time/);
+  assert.throws(() => bad.sync().begin(), /draw a new one each time/);
 });
 
 test('a card view of the scene\'s state keeps its labels put as values change', async () => {
