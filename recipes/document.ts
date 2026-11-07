@@ -1,7 +1,7 @@
 // The native-scene equivalent of Lantern's nodes/code/state/steps document.
 // Imports are public package imports, so this also runs from an installed archive.
-import { Scene, Rectangle, Labeled, Text, Code, Arrow, FadeIn, Create, Transform, Circumscribe, StateReadout } from 'rayner';
-import { view } from 'rayner/explain';
+import { Scene, Rectangle, Labeled, Text, Code, Arrow, FadeIn, Create, Transform, Circumscribe } from 'rayner';
+import { view, Card, palette } from 'rayner/explain';
 import { jsonObject } from 'rayner/testing';
 
 export interface RequestInput { cached: boolean }
@@ -23,7 +23,8 @@ export function requestScene(input: RequestInput) {
       const destination = new Labeled(new Rectangle({ width: 2.4, height: 1 }), new Text('Pending', { fontSize: 0.3 })).moveTo([1, 1]);
       const edge = new Arrow([-2.7, 1], [-0.3, 1]);
       const code = new Code(['if (cached) return cache;', 'return database;'], { fontSize: 0.28 }).moveTo([-2, -1]);
-      const readout = view(this, (s) => new StateReadout([['cached', s.cached], ['destination', s.destination]], { at: [3, -1.5] }), { place: 'left' });
+      const colors = palette('github-dark');
+      const readout = view(this, (s) => new Card(this, colors, [['cached', s.cached], ['destination', s.destination]], { at: [3.6, -1.8], panel: false, key: 'readout' }), { place: false });
       await this.step('intro', { caption: 'A request can use a cached result or read the database.' });
       await this.play(new FadeIn(request), new FadeIn(destination), new Create(edge), new FadeIn(code), new FadeIn(readout), { runTime: 0.4 });
 
@@ -31,7 +32,7 @@ export function requestScene(input: RequestInput) {
       this.state.destination = route({ cached });
       const next = new Text(this.state.destination, { fontSize: 0.3 }).moveTo(destination.label!);
       // Semantic state is assigned; the picture is derived from that state.
-      await this.play(new Transform(destination.label!, next), readout.sync(), new Circumscribe(code.lines[cached ? 0 : 1]!, { keep: true }), { runTime: 0.5 });
+      await this.play(new Transform(destination.label!, next), readout.sync({ match: 'key', staged: true }), new Circumscribe(code.lines[cached ? 0 : 1]!, { keep: true }), { runTime: 0.5 });
       this.record('route', { cached, destination: this.state.destination });
       await this.step('result', { caption: `The request uses the ${this.state.destination}.` });
       await this.wait(0.2);

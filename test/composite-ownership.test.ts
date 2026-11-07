@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Scene, Group, Code, StateReadout} from '../src/index.ts';
+import {Scene, Group, Code} from '../src/index.ts';
 import { NullSink } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import {Card, CodeBlock} from '../explain/panels.ts';
@@ -57,14 +57,13 @@ test('code composites rebind named lines, marks and panels when copied and resto
   assert.ok(code.family().includes(code.lines[0]!));
 });
 
-test('a copied StateReadout owns its key index and exposes prototype-sensitive labels as own values', async () => {
+test('a copied Card owns its rows and names prototype-sensitive labels as ordinary rows', async () => {
   await loadFonts();
-  const original = new StateReadout([['__proto__', 1], ['constructor', 2]]), copy = original.copy();
-  assert.notEqual(copy.keys, original.keys);
-  for (const key of original.keys) {
-    assert.ok(Object.hasOwn(copy.values, key));
-    assert.notEqual(copy.values[key], original.values[key]);
-    assert.ok(copy.family().includes(copy.values[key]!));
+  const scene = new Scene(new NullSink());
+  const original = new Card(scene, palette('nord'), [['__proto__', 1], ['constructor', 2]]), copy = original.copy();
+  for (const key of ['__proto__', 'constructor']) {
+    assert.notEqual(copy.values.get(key), original.values.get(key));
+    assert.ok(copy.family().includes(copy.values.get(key)!));
   }
 });
 
@@ -99,14 +98,14 @@ test('live copied panels expose inherited highlights without registering tempora
   assert.equal(emphasisOf(scene).size, 0);
 });
 
-test('repeated readout labels preserve last-value lookup for ordinary and prototype-sensitive keys', async () => {
+test('repeated card labels keep last-value lookup for ordinary and prototype-sensitive keys', async () => {
   await loadFonts();
+  const scene = new Scene(new NullSink());
   fc.assert(fc.property(fc.constantFrom('same', '__proto__', 'constructor'), fc.integer(), fc.integer(), (key, first, last) => {
-    const readout = new StateReadout([[key, first], [key, last]]), copy = readout.copy();
-    assert.equal(readout.values[key]!.text, String(last));
-    assert.equal(copy.values[key]!.text, String(last));
-    assert.equal(copy.values[key], copy.children[3]);
-    assert.notEqual(copy.values[key], readout.values[key]);
-    assert.ok(Object.hasOwn(copy.values, key));
+    const card = new Card(scene, palette('nord'), [[key, first], [key, last]]), copy = card.copy();
+    assert.equal(card.values.get(key)!.text, String(last));
+    assert.equal(copy.values.get(key)!.text, String(last));
+    assert.ok(copy.family().includes(copy.values.get(key)!));
+    assert.notEqual(copy.values.get(key), card.values.get(key));
   }), params(24));
 });
