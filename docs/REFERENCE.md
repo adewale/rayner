@@ -148,7 +148,7 @@ With neither `style` nor `palette`, the stage adopts the first diagram's palette
 | `s.codePicture(lines, options)` | The same panel without entering it: for a view's draw |
 | `s.note(text, { at, size })` | One line of secondary text, default at `[0, -3.9]` |
 | `s.enter(...mobs, { describe, ...fadeOptions })` | Keep native objects and fade them in together, in one play |
-| `s.keep(...mobs, { describe })` | Keep native objects without animating them; returns the first |
+| `s.keep(...mobs, { describe })` | Register objects for description and for `s.clear`, without adding or animating them (add them with `this.add` or a play); returns the first |
 | `s.clearOverlays()` | Fade out cards, code, the stage's notes and kept objects; a diagram, and a view that shows one, stay |
 | `s.clear({ runTime })` | Fade out everything except paper and heading, and bring the camera home, in one play |
 | `s.focus(target \| 'all', { margin, runTime, exact, with })` | Move the camera so a mobject, mobjects or a box fill the stage below the heading, with `margin`; `'all'` goes home. Never zooms out past the stage or shows beyond its edges. `exact: true` takes a 16:9 box as the view as it is; `with` plays other animations in the same play |
@@ -156,7 +156,7 @@ With neither `style` nor `palette`, the stage adopts the first diagram's palette
 | `s.sketch(m, { tool, color, runTime, describe })` | Draw `m` stroke by stroke at an even speed with a `'pen'` or `'pencil'` riding the tip (`false` for none), and keep it. Between strokes the tool travels at drawing speed, so it never jumps. `m` must not be on stage yet |
 | `s.steps(steps, { kind }?)` | Present steps in turn. Each step is `{ id, title, line, caption, state, draw, describe?, audio?, kind?, opening? }`: it clears the stage, makes `state` the scene's model, and fades in `draw(state, s)` as a view of that state, described by its words, or by `describe(state)` for a picture whose meaning is its geometry; a part that describes itself (a card, code, a note, a dimension line) is described by itself either way. A `draw` must read its state and nothing a different step changes, and `rayner check` holds it to both ([staged steps](#checks)). `opening` lists keys of the parts a phone opens on ([below](#the-phones-opening-emphasis-and-review-subjects)); without it the whole drawing is the opening's subject. A list takes one state type; `stagedStep(step)` (from `rayner/explain`) types one step's state for a list whose steps' states differ |
 | `s.opening(...subjects, { keep }?)` | Name the mobjects a phone's opening close-up should hold together this step ([below](#the-phones-opening-emphasis-and-review-subjects)); with `{ keep: true }` last, for this step and every later one until another kept opening replaces them (none clears them), though a step's own `s.opening` still wins for that step |
-| `s.dimension(a, b, label, { offset, color, size })` | A dimension line from `a` to `b` with ticks, arrowheads and `label`, set off by `offset`; drawn in and kept. The drawing kit's `dimension` builds the same picture for a draw |
+| `s.dimension(a, b, label, { offset, color, size })` | A dimension line from `a` to `b` with ticks, arrowheads and `label`, set off by `offset`; drawn in and kept. The drawing kit's `dimension` builds the same picture for a draw, with the camera at home; the stage's annotations are sized for the screen when the camera has moved |
 | `s.legend(items, { at, size, direction, gap, key })` | A key of swatches and their meanings, drawn in and kept; the kit's `legend` for a draw |
 | `s.pin(at, { label, color, size, side })` | A pin stuck in at `at`, with an optional label to the head's `side` (`'right'` by default, or `'left'`); the kit's `pin` for a draw |
 | `s.callout(target, text, { side, gap, color, size })` | Words beside a point, box or mobject, with a leader line ending in a dot on its nearest edge; the kit's `callout` for a draw |
@@ -225,7 +225,7 @@ A row gives one value per column, or one value that spans them all (Requests abo
 
 ### Drawing kit
 
-`rayner/drawing` draws the parts explanations keep needing, as ordinary mobjects coloured from a stage's palette. Each returns a keyed Group or mobject, so `matchByKey`, `find`, invariants and reviews can address its parts; nothing here animates or reads scene state.
+`rayner/drawing` draws the parts explanations keep needing, as ordinary mobjects coloured from a stage's palette. Each returns a Group or mobject keyed by the `key` you give it, so `matchByKey`, `find`, invariants and reviews can address its parts (`table`, `flow`, `bars` and `legend` have default keys, so a second one on a stage needs its own); nothing here animates or reads scene state.
 
 | Function | Draws |
 | --- | --- |
@@ -488,7 +488,7 @@ for (const c of d.scenarios)
 
 ## Testing and tooling API
 
-The package has an entry point per audience. A scene is written with `rayner` (the engine), `rayner/explain` (the stage, diagrams, cards, settings, and pictures of state: views, machines, `SetState` and `choreograph`), `rayner/drawing` (the kit) and, when it asks for lettering, `rayner/lettering`. Three entry points are opt in: `rayner/geo` (`seenFrom` and the globe), `rayner/audio` (the score types for a step's `audio`) and `rayner/extras` (`Write`, `TransformFromCopy`, `Restore`, `MoveAlongPath`, `ArcBetweenPoints`, `Square` and `Underline`: Manim's conveniences, each a shorthand for something in `rayner`, kept for ported scenes and the feature tour). `rayner/output` draws a scene's frames outside the built page, for a host page or a tool. `rayner/testing` is for an author's tests, scripts and tools, and `rayner` itself is built on it; no scene may import it (`test/scene-imports.test.ts`). Both are public, and kept stable like the drawing API.
+The package has an entry point per audience. A scene is written with `rayner` (the engine), `rayner/explain` (the stage, diagrams, cards, settings, and pictures of state: views, machines, `SetState` and `choreograph`), `rayner/drawing` (the kit) and, when it asks for lettering, `rayner/lettering`. Three entry points are opt in: `rayner/geo` (`seenFrom` and the globe), `rayner/audio` (the score types for a step's `audio`) and `rayner/extras` (`Write`, `TransformFromCopy`, `Restore`, `MoveAlongPath`, `ArcBetweenPoints`, `Square` and `Underline`: Manim's conveniences, each a shorthand for something in `rayner`, kept for ported scenes and the feature tour). `rayner/output` draws a scene's frames outside the built page, for a host page or a tool. `rayner/testing` is for an author's tests, scripts and tools, and the `rayner` command is built on it; no scene may import it (`test/scene-imports.test.ts`). Both are public, and kept stable like the drawing API.
 
 | Export | From | What it is for | Guide |
 | --- | --- | --- | --- |

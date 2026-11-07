@@ -64,7 +64,7 @@ A review on 2026-11-03 found that 34 of the 40 explainers then in the collection
 
 The package has an entry point per audience. A scene is written with `rayner`, `rayner/explain`, `rayner/drawing` and the `LetteringRequest` type from `rayner/lettering`, and opts in to `rayner/geo` (3D and the globe), `rayner/audio` (a step's score) and `rayner/extras` (Manim's conveniences, each a shorthand for something in `rayner`). `rayner/output` draws a scene's frames outside the built page, for a host page or a tool, and `rayner/testing` holds what an author's tests and tools use; no scene may import it ([the reference lists both](REFERENCE.md#testing-and-tooling-api)).
 
-The package has no dependencies; the `rayner` command is the separate `rayner-cli` package, at the same version. That command shares the library's compiled modules with the scenes it loads, through `rayner/internal/*` (the files under `dist/`). It is not an entry point: it has no types and no reason to be public, may change in any release, and the public-names rule below does not count it.
+The package has no dependencies; the `rayner` command is the separate `rayner-cli` package, at the same version. That command shares the library's compiled modules with the scenes it loads, through `rayner/internal/*` (the files under `dist/`). It is not an entry point: it ships with the compiled declarations, so an outside project could type-check against it, but it has no reason to be public, may change in any release, and the public-names rule below does not count it.
 
 Every value an entry point exports needs a reason to be public. Rayner computes it where it can, so [`test/public-names.json`](https://github.com/adewale/rayner/blob/main/test/public-names.json) lists only what no import can show:
 
