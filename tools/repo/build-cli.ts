@@ -10,7 +10,7 @@ import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { realpathSync } from 'node:fs';
 
-import { ROOT } from '../lib/roots.ts';
+import { ROOT, LIBRARY } from '../lib/roots.ts';
 import { relativePosix } from '../lib/hash.ts';
 export { ROOT };
 /** What rayner-cli ships beside its bundle, as paths in this repository and in the package. */
@@ -36,7 +36,8 @@ export async function buildCli(out = join(ROOT, 'cli')): Promise<Metafile> {
   await mkdir(out, { recursive: true });
   if (out !== join(ROOT, 'cli')) for (const file of ['package.json', 'README.md']) await copyFile(join(ROOT, 'cli', file), join(out, file));
   const result = await build({
-    entryPoints: [join(ROOT, 'tools/explain.ts')],
+    // tools/installed.ts registers the hook that resolves LIBRARY, then loads the command.
+    entryPoints: [{ in: join(ROOT, 'tools/installed.ts'), out: 'explain' }],
     absWorkingDir: ROOT,
     outdir: join(out, 'dist/tools'),
     bundle: true,
@@ -52,10 +53,10 @@ export async function buildCli(out = join(ROOT, 'cli')): Promise<Metafile> {
         name: 'one-compiled-runtime',
         setup(b) {
           // The command and the scenes it loads share the library's compiled modules (one engine),
-          // reached through rayner's internal entry: the same files `rayner` itself loads.
+          // reached by the private specifier LIBRARY: the same files `rayner` itself loads.
           b.onResolve({ filter: /^\.?\.?\// }, (args) => {
             const name = relativePosix(ROOT, resolve(args.resolveDir, args.path));
-            if (libraryModule(name)) return { path: 'rayner/internal/' + name.replace(/\.ts$/, '.js'), external: true };
+            if (libraryModule(name)) return { path: LIBRARY + name.replace(/\.ts$/, '.js'), external: true };
             return undefined;
           });
         },

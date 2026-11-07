@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { loadFonts } from '../../../explain/testing.ts';
 import { Scene } from '../../../src/index.ts';
 import { NullSink } from '../../../src/output.ts';
-import { Diagram } from '../../../explain/diagrams.ts';
+import { Diagram } from '../../../explain/index.ts';
 import type { DiagramSnapshot } from '../../../explain/index.ts';
 import { readSnapshots } from '../../../tools/lib/explain-project.ts';
 import { GROUPS, PARTICIPANTS, gaveUp, journey, source } from './model.ts';

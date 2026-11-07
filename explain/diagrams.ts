@@ -301,7 +301,8 @@ class ImportedLabel extends Group implements LabelInfo {
   override pointArrays(): Float32Array[] { return [this.basis]; }
   override boundingPointArrays(): Float32Array[] { return []; }
   override pointKind(): string { return 'imported-label-basis'; }
-  override copyData(src: Mobject): void { this.basis = new Float32Array((src as ImportedLabel).basis); }
+  protected override copyData(src: Mobject): void { this.basis = new Float32Array((src as ImportedLabel).basis); }
+  /** @internal */
   override matchingFrameFor(source: Mobject): Mobject {
     if (!(source instanceof Text)) return this;
     if (!(source.run.fontSize > 0 && Number.isFinite(source.run.fontSize))) return this;
@@ -312,6 +313,7 @@ class ImportedLabel extends Group implements LabelInfo {
     frame.invalidateBox();
     return frame;
   }
+  /** @internal */
   override interpolateData(a: Mobject, b: Mobject, alpha: number, pathFunc: PathFunc | null): void {
     super.interpolateData(a, b, alpha, pathFunc);
     if (a instanceof ImportedLabel && (b instanceof ImportedLabel || b instanceof Text)) {
@@ -411,8 +413,11 @@ export class Diagram {
    */
   private frameKey: string;
   parts = new Map<string, Part>();
+  /** The top-level parts revealed so far, to read: reveal and hide change it. */
   visible = new Set<string>();
+  /** The top-level parts in reading order, to read: what reveal brings in next. */
   order: string[];
+  /** @internal The box the diagram was laid out in. */
   frameBox: Box;
   accent: string;
   private home = new Group();
@@ -590,6 +595,7 @@ export class Diagram {
     this.root.add(dot);
     return dot;
   }
+  /** @internal Build the diagram in: its scaffolding, then with 'all' the rest in reading order (s.show's `build` option). */
   async build(mode: 'all' | 'frame' = 'all', runTime = 0.65): Promise<this> {
     this.attach();
     await this.reveal(this.order.filter((id) => isScaffold(this.parts.get(id)!.info)), { runTime });
@@ -886,12 +892,16 @@ export class Diagram {
       fam.forEach((m, i) => (m.style = { ...styles[i]! } as typeof m.style));
     }
   }
-  /** A picture drawn from this diagram (see picture()) that shows it while the live diagram is off the stage. */
+  /** @internal A picture drawn from this diagram (see picture()) that shows it while the live diagram is off the stage. */
   shownBy: Mobject | null = null;
   /** Say that `picture` shows this diagram: the stage describes the diagram while it is on stage. */
   showBy(picture: Mobject): this {
     this.shownBy = picture;
     return this;
+  }
+  /** @internal The live diagram is back on the stage: no picture shows it any more (the stage's liveDiagram). */
+  unshow(): void {
+    this.shownBy = null;
   }
   /**
    * The marks a walk's trail leaves along these hops, for a picture drawn from state (see picture,
@@ -1251,7 +1261,7 @@ export class Diagram {
     if (shown.length) await this.scene.play(...shown.map((m) => new FadeOut(m, { runTime: 0.4 })));
     this.forget();
   }
-  /** Reset to unrevealed and unemphasised, without animating (the stage has faded it). */
+  /** @internal Reset to unrevealed and unemphasised, without animating (the stage has faded it). */
   forget(): void {
     this.plain();
     this.restyle(this.base.keys());

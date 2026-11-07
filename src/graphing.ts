@@ -216,8 +216,8 @@ export class Axes extends Group {
   /** The x and y values where the axes cross. */
   crossX: number;
   crossY: number;
-  xLabelIdx: number;
-  yLabelIdx: number;
+  private xLabelIdx: number;
+  private yLabelIdx: number;
 
   constructor({
     xRange = [0, 10, 1], yRange = [0, 5, 1], width = 8, height = 4.5, axisStyle = {}, xAxisStyle = {}, yAxisStyle = {},

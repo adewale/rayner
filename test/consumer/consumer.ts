@@ -39,7 +39,7 @@ const middleC: ScoreNote = {midi: 60, at: 0, duration: 1};
 const scoreClip: AudioClip = {id: 'a', label: 'Middle C', bpm: 96, beats: 4, notes: [middleC]};
 const stepScore: StepAudio = {clips: [scoreClip]};
 void stepScore;
-import type { LetteringRequest } from 'rayner/lettering';
+import type { LetteringRequest } from 'rayner';
 
 // Both public entrypoints accept the complete request, including outline lettering.
 const requestedLettering: LetteringRequest = { scripts: ['Arab'], styles: ['bold'], math: true };
@@ -198,9 +198,151 @@ export async function publicCollection(scene: Scene): Promise<void> {
   const s = stage(scene);
   s.keep(emphasised(new SurroundingRectangle(new Text('slot')), 'outlined: the full slot'));
   const panel = new Rectangle({ fill: s.raised, stroke: s.rule }).setFill(lerpColor(s.palette.paper, s.palette.accent, 0.36));
-  view(scene, () => new Card(scene, s.palette, [['State', 'idle']], { width: 4 }), { place: false });
+  view(scene, (state) => new Card(scene, s.palette, [['State', String(state.phase ?? 'idle')]], { width: 4 }), { place: false });
   const spec: DiagramSpec = { source: 'graph LR\nA --> B' };
   const resolver: DiagramResolver = diagramsOf(scene);
   const plan = new Diagram(scene, spec, await resolver.diagram(spec), { box: 'main' });
   void [panel, plan.get('A')];
+}
+
+// The rest of what the collection's scenes import, and the members they use, written as an outside
+// author writes them. Every view draws from its state.
+import { Group, Mobject, VMobject, Circle, Polygon, Arc, Cross, CurvedArrow, BraceLabel, DecimalNumber, ItalicText, FadeOut, LaggedStart, Animation, TransformMatchingShapes, matchByKey, linear, smooth, rushInto, rushFrom, thereAndBack, shaperFor } from 'rayner';
+import type { Box, Vec, SceneState, ScheduledAnimation, MatchKey, FadeOpts, FontName, SceneClass, Sink, Style } from 'rayner';
+import { callout, dimension, pin, legend, keyed, keyedParts } from 'rayner/drawing';
+import { CodeBlock, Machine, refuse, isRefusal, answerOf, settingsOf, resolveSettings, regionBox, mermaid } from 'rayner/explain';
+import type { Refusal, Transition, Choreography, CardOptions, CardRow, NoteSide, PictureNote, DiagramPicture, Palette, Stage, ExplainerClass } from 'rayner/explain';
+import { Write, MoveAlongPath, Square, Underline, ArcBetweenPoints } from 'rayner/extras';
+import { seenFrom, seenPictures, depthOrder, latLon, toLatLon, greatArc, circleOn, between, project } from 'rayner/geo';
+import type { Model3D, Part, Seen, SeenOptions, SeenPicture, Vec3, Viewpoint } from 'rayner/geo';
+import { NullSink, indexScene, stepTime, renderText, toSvgString } from 'rayner/output';
+import { InvariantSink } from 'rayner/testing';
+import type { InvariantFailure } from 'rayner/testing';
+
+/** A custom animation: it overrides the public hooks, as a recipe's does. */
+class Pulse extends Animation {
+  override interpolate(alpha: number): void { this.mobject.setOpacity(0.5 + 0.5 * thereAndBack(alpha)); }
+}
+
+type Door = { door: 'open' | 'closed' };
+type DoorEvent = 'open' | 'close';
+const doorNext = (state: Door, event: DoorEvent): Door | Refusal =>
+  event === 'open' ? (state.door === 'open' ? refuse('the door is open already') : { door: 'open' }) : state.door === 'closed' ? refuse('the door is closed already') : { door: 'closed' };
+
+export class Collection extends Scene<{ door: 'open' | 'closed'; phase: string; count: number }> {
+  static meta = { id: 'collection', title: 'What the collection uses', answer: 'Every part of it.' };
+  static settings = [{ id: 'case', label: 'Case', default: 'a', options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }] }];
+  override state = { door: 'open' as 'open' | 'closed', phase: 'start', count: 0 };
+  override async construct() {
+    const s: Stage = stage(this);
+    const values = settingsOf(this);
+    const resolved = resolveSettings(Collection as unknown as ExplainerClass, values);
+    const answer: string = answerOf(this);
+    await this.step('shapes', { title: 'Shapes', caption: `${answer} ${resolved.case}` });
+    const box: Box = regionBox('main', { top: 3 });
+    const at: Vec = [box[0], box[3]];
+    const parts = keyedParts();
+    const ring = parts.add(new Circle({ radius: 0.4, stroke: s.palette.ink }), 'ring');
+    parts.add(new Polygon([[0, 0], [1, 0], [0, 1]], { stroke: s.soft }), 'triangle');
+    parts.add(new Arc({ radius: 0.5, angle: Math.PI }), 'arc');
+    parts.add(new Cross(ring), 'cross');
+    parts.add(new CurvedArrow([0, 0], [1, 1]), 'curve');
+    parts.add(new BraceLabel(ring, 'r', [0, -1]), 'brace');
+    parts.add(new DecimalNumber(3.14, { decimals: 2 }), 'pi');
+    parts.add(new ItalicText('aside'), 'aside');
+    const picture: Group = parts.group();
+    const shapes: Mobject[] = picture.children;
+    const path: VMobject = new Circle({ radius: 1 });
+    const style: Style = { stroke: s.emphasis };
+    path.setStyle(style);
+    const fade: FadeOpts = { shift: [0, 0.2], rateFunc: smooth };
+    await s.enter(keyed(picture, 'shapes'));
+    const all: ScheduledAnimation[] = [new LaggedStart(shapes.map((m) => new Pulse(m, { rateFunc: linear }))), new MoveAlongPath(new Dot(), path, { rateFunc: rushInto })];
+    await this.play(...all);
+    await this.play(new FadeOut(picture, fade), new Write(new Text('done')), new ArcBetweenPoints(at, [0, 0]).animate.shift([0, 1]));
+    await s.clear();
+
+    await this.step('kit', { title: 'The kit', caption: 'A callout, a dimension, a pin and a legend.' });
+    const square = new Square({ side: 1 });
+    await s.enter(
+      square, new Underline(square),
+      callout(s, square, 'a unit square', { side: 'right', key: 'note' }),
+      dimension(s, [-0.5, -0.8], [0.5, -0.8], '1', { key: 'width' }),
+      pin(s, [0, 0], { label: 'centre', key: 'centre' }),
+      legend(s, [{ label: 'square', fill: s.palette.ink }], { at: [3, 2] }),
+    );
+    await s.focus(square, { margin: 0.6 });
+    await s.focus('all');
+    await s.clear();
+
+    await this.step('door', { title: 'A machine', caption: 'Open and close the door.' });
+    const door = view(this, (st) => keyed(new Text(st.door === 'open' ? 'Open' : 'Closed', { color: s.palette.ink }), 'door'));
+    const machine = new Machine<Door, DoorEvent>(this, {
+      start: { door: 'open' }, events: ['open', 'close'], next: doorNext, views: [door],
+      transition: { close: (t: Transition<Door, DoorEvent>) => { const c: Choreography = t.choreograph(door); return c.morph('door', { rateFunc: rushFrom }); } },
+    });
+    await s.enter(door);
+    await this.play(machine.send('close'));
+    await this.play(machine.replay(['open', 'close']));
+    const refused = doorNext({ door: 'closed' }, 'close');
+    this.state.phase = isRefusal(refused) ? refused.reason : 'moved';
+
+    await this.step('code', { title: 'Code', caption: 'A code panel and a card, drawn from the state.' });
+    const panel: CodeBlock = await s.code(['let n = 0;', 'n += 1;'], { focus: 1 });
+    const rows: CardRow[] = [['Count', 0]], opts: CardOptions = { width: 3 };
+    const count = view(this, (st) => new Card(this, s.palette, [['Count', st.count]], opts), { place: false });
+    await s.enter(count);
+    this.state.count = rows.length;
+    await this.play(count.sync(), new TransformMatchingShapes(new Text('n'), new Text('n + 1'), { runTime: 0.5 }));
+    void panel.marks;
+
+    await this.step('diagram', { title: 'A diagram', caption: 'A diagram drawn from the state.' });
+    const d = await s.show({ source: mermaid.frontMatter({ theme: 'base' }) + 'graph LR\nA --> B' }, { box: 'main' });
+    const side: NoteSide = 'above';
+    const notes: PictureNote[] = [{ id: 'A', text: 'start', side }];
+    const shown = s.diagramView(d, (st): DiagramPicture => ({ marks: st.phase === 'moved' ? { A: s.emphasis } : {}, notes }));
+    this.state.phase = 'moved';
+    await this.play(shown.sync());
+    const marked: Mobject = d.picture({ A: { color: s.emphasis, as: 'the start' } });
+    void [marked, d.order, d.visible.size, d.snapshot.parts.length];
+    s.liveDiagram(d);
+  }
+}
+
+export async function globe(scene: Scene): Promise<number> {
+  const viewpoint: Viewpoint = { kind: 'orthographic', yaw: 10, pitch: 20 };
+  const london: Vec3 = latLon(51.5, -0.1), tokyo: Vec3 = latLon(35.7, 139.7);
+  const parts: Part[] = [
+    { kind: 'path', key: 'route', lines: [greatArc(london, tokyo)], color: '#d9480f' },
+    { kind: 'path', key: 'equator', lines: [circleOn([0, 0, 1], 90)], color: '#888888' },
+    { kind: 'point', key: 'london', at: london, color: '#000000' },
+  ];
+  const model: Model3D = { body: { radius: 1, fill: '#eeeeee', stroke: '#333333' }, parts };
+  const options: SeenOptions = { scale: 2, key: 'globe' };
+  const turned = between(viewpoint, { ...viewpoint, yaw: 40 }, 0.5);
+  const picture = seenFrom(model, turned, options);
+  scene.add(picture);
+  const drawn: SeenPicture[] = seenPictures(picture).map((g) => (g as Group & { seenPicture: SeenPicture }).seenPicture);
+  const seen = (picture.children[0] as Mobject & { seen?: Seen }).seen;
+  const order = depthOrder(picture);
+  const { at } = project(tokyo, turned, 1, options);
+  return drawn.length + (seen ? 1 : 0) + (order === true ? 1 : 0) + at[0] + toLatLon(tokyo).lat;
+}
+
+export async function hostPage(Explainer: SceneClass): Promise<string> {
+  const index = await indexScene(Explainer);
+  const time = stepTime(index, 'door') ?? 0;
+  const sink: Sink = new NullSink();
+  const scene = new Explainer(sink);
+  await scene.run();
+  const invariants = new InvariantSink();
+  const failures: InvariantFailure[] = invariants.failures;
+  const key: MatchKey = matchByKey({ text: 'whole' });
+  const state: SceneState = scene.state;
+  const font: FontName = 'mono';
+  return `${time} ${renderText(scene).length} ${toSvgString(scene).length} ${failures.length} ${key(scene.mobjects[0]!, scene.mobjects[0]!)} ${Object.keys(state)} ${shaperFor(font)('x', 1).width}`;
+}
+
+export function colours(palette: Palette): string {
+  return palette.ink;
 }

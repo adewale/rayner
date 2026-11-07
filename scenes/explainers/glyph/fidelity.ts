@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import type { Trace } from '../../../src/trace.ts';
+import type { Trace } from '../../../explain/testing.ts';
 import { Text } from '../../../src/index.ts';
 import type { VMobject } from '../../../src/index.ts';
 import { loadFonts } from '../../../explain/testing.ts';

@@ -42,10 +42,9 @@ transform matrix whose effect an inspector must reconstruct.
 
 `VMobject.startNewPath(point)`, `addLineTo(point)`, `addCubic(handle1, handle2, end)`
 and `closePath()` build paths, and `setPolygon(corners)` builds a closed polygon.
-Use them rather than writing a point buffer yourself, because they keep the geometry
-caches current. Code that mutates a point buffer in place must call both
-`touchPoints()` on the object whose points changed, which bumps the render-cache
-version, and `invalidateBox()`, which drops the cached layout bounds.
+Use them, or the transforms above, rather than writing a point buffer yourself: they
+keep the render cache and the cached layout bounds current, and a buffer written in
+place leaves both stale.
 
 Style includes fill, stroke, their opacity and width, overall opacity, and optional
 SVG paint details such as dashes and joins. `setFill`, `setStroke` and `setOpacity`
@@ -86,9 +85,10 @@ domain has identities.
 `copy()` clones the tree with its geometry, style and keys (a copy is a new
 object that still answers to the same key), and clears updaters and saved state. A custom composite should expose its
 parts through getters into its own children, as [StatusBadge](../recipes/extensions.ts)
-does. If it stores named child references, implement `rebindReferences(source, map)`
-so the clone names its children, not the original's. Use `copyData(source)` for
-additional mutable data that the base class cannot copy itself.
+does. If it stores named child references, override the protected hook
+`rebindReferences(source, map)` so the clone names its children, not the original's.
+Override `copyData(source)`, also protected, for additional mutable data that the base
+class cannot copy itself.
 
 `saveState()` stores a copy. `restore()` restores immediately; `Restore`
 (`rayner/extras`) does it as an animation. A generic transform can align or replace child structure, so retain

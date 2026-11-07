@@ -1,5 +1,5 @@
-// The subset lettering's writing systems, kept out of src/lettering.ts so they are not part of
-// `rayner/lettering`: the outline lettering and the CLI read them, scenes name them in meta.
+// The subset lettering's writing systems, kept out of src/lettering.ts so the outline lettering
+// reads them without loading the subset workflow: the CLI reads them too, scenes name them in meta.
 
 /**
  * Writing systems the subset workflow cuts from the lettering faces, by ISO 15924

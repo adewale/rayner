@@ -38,7 +38,7 @@ export class Frame extends Mobject {
   }
 
   override pointArrays(): Float32Array[] { return [this.corners]; }
-  override copyData(src: Mobject): void { this.corners = new Float32Array((src as Frame).corners); }
+  protected override copyData(src: Mobject): void { this.corners = new Float32Array((src as Frame).corners); }
 
   /** Magnification: 1 for the full 16-wide frame, 2 when half as wide. */
   get zoom(): number { return FRAME.w / this.width(); }

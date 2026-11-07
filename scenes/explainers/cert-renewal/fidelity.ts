@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import type { Trace } from '../../../src/trace.ts';
+import type { Trace } from '../../../explain/testing.ts';
 import { assertStepState } from '../../../test/lib/explainer-state.ts';
 import { BR_PHASES, EMISSION, FIXED_INTERVAL, LE_DATES, LIFETIMES, LIMIT, ariSummary, dueOffset, simulate, summarize, windowFor } from './model.ts';
 import type { LifetimeKey, Rule } from './model.ts';

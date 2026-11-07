@@ -100,8 +100,8 @@ export class Line extends VMobject {
  * The type parameters say what the parts are (`Labeled<Rectangle, Text>`).
  */
 export class Labeled<S extends Mobject = Mobject, L extends Mobject = Mobject> extends Group {
-  shapeIdx: number;
-  labelIdx: number;
+  private shapeIdx: number;
+  private labelIdx: number;
 
   /** center: put the label on the shape's center */
   constructor(shape: S | null, label: L | null, { center = true }: { center?: boolean } = {}) {

@@ -53,16 +53,16 @@ replayed machine therefore seeks, traces and records like any other play.
 
 `machine.send(event, from?)` builds one event's schedule for one state (the scene's state by
 default) and refuses to play from any other, so a replay cannot drift from the model.
-`replay(events, from?)` chains them. `outcome(state, event)` says what an event does: the next
-state, a refusal with the reason `next` gave (`{ refused: reason }`, or `null` for none), or the
-story's bound. `model(state, event)` is what `next` alone says, the bound aside. `after(state,
-event)` is the next state or `undefined`. `reachable(from?)` lists every state reachable from `from` (default
-`start`), breadth first, each with the shortest events that reach it. `transitionFor(event, before,
-after)` builds the `{ event, before, after, target, choreograph }` an authored transition is given
-([below](#refused-events-bounds-and-authored-transitions)), with each view's target placed where it
-will land; `rayner check` calls it to play every transition from every state it explores. `lastPlayedIn` is the step
-the machine last played in, and `playedUnder` what the scene showed (`scene.shown`) when it last played: what is shown may change
-between events (a guided tour moving a code panel's focus), and exploration draws every state under the last.
+`replay(events, from?)` chains them. Those two are what a scene calls. `lastPlayedIn` is the step
+the machine last played in.
+
+`rayner check` and the player read the rest from the spec. What an event does from a state is the
+next state, a refusal with the reason `next` gave, or the story's bound. Exploration visits every
+state reachable from `start`, breadth first, each by the shortest events that reach it, and plays
+every transition from every state it visits, with each view's target placed where it will land
+([below](#refused-events-bounds-and-authored-transitions)). It draws every state under what the scene
+showed (`scene.shown`) when the machine last played: what is shown may change between events (a
+guided tour moving a code panel's focus).
 
 Each event records `{ kind: 'event', event }` as it begins, followed by its views' match
 evidence, so a fidelity test can check the events a step replayed and the state it ended in

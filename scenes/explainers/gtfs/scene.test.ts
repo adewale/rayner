@@ -4,7 +4,7 @@ import { loadFonts } from '../../../explain/testing.ts';
 import { fc, params } from '../../../test/lib/pbt.ts';
 import { Scene } from '../../../src/index.ts';
 import { NullSink } from '../../../src/output.ts';
-import { Diagram } from '../../../explain/diagrams.ts';
+import { Diagram } from '../../../explain/index.ts';
 import { readSnapshots } from '../../../tools/lib/explain-project.ts';
 import { replayMorph } from '../../../integrations/agentic-mermaid/build/index.ts';
 import { SAMPLE_FEED } from './feed.ts';

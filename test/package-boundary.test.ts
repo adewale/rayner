@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { builtinModules } from 'node:module';
 import { ROOT, buildCli, CLI_FILES, libraryModule } from '../tools/repo/build-cli.ts';
+import { LIBRARY } from '../tools/lib/roots.ts';
 
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const packed = (cwd: string): string[] =>
@@ -24,6 +25,8 @@ test('rayner ships the vocabulary and runtime, with no dependencies, no command 
   const pkg = await json(join(ROOT, 'package.json'));
   assert.equal(pkg.name, 'rayner');
   for (const field of ['dependencies', 'optionalDependencies', 'peerDependencies', 'bin']) assert.equal(pkg[field], undefined, `rayner has no ${field}`);
+  // Its entry points are the only modules an outside project can import: no pattern exposes the rest of dist/.
+  assert.deepEqual(Object.keys(pkg.exports).filter((subpath) => subpath.includes('*')), [], 'rayner exports its entry points only');
   const files = packed(ROOT);
   const leaked = files.filter((f) =>
     REPO_ONLY.test(f) || /^(?:tools\/|app\/|dist\/tools\/|dist\/app\/)/.test(f) || /(?:^|\/)agentic-mermaid\/build\//.test(f) ||
@@ -50,15 +53,16 @@ test('rayner-cli is the command at the library\'s version, depending on exactly 
     for (const output of Object.values(meta.outputs))
       for (const { path, external: outside } of output.imports) {
         if (!outside || path.startsWith('node:') || builtinModules.includes(path) || path.startsWith('./')) continue;
-        if (path.startsWith('rayner/internal/')) internal.add(path.slice('rayner/internal/'.length));
+        if (path.startsWith(LIBRARY)) internal.add(path.slice(LIBRARY.length));
         else external.add(path.startsWith('@') ? path.split('/').slice(0, 2).join('/') : path.split('/')[0]!);
       }
     assert.deepEqual([...external].sort(), Object.keys(tools).sort(), 'cli/package.json lists what the command imports');
-    // The engine comes from the installed library, by modules the library compiles and ships.
+    // The engine comes from the installed library, by modules the library compiles and ships, through
+    // the private specifier the command's own resolve hook answers (tools/installed.ts), not an export.
     assert.ok(internal.size > 10);
     for (const file of internal) {
       const source = file.replace(/\.js$/, '.ts');
-      assert.ok(libraryModule(source) && existsSync(join(ROOT, source)), `rayner/internal/${file} is a library module`);
+      assert.ok(libraryModule(source) && existsSync(join(ROOT, source)), `${LIBRARY}${file} is a library module`);
     }
     const inputs = Object.keys(meta.inputs);
     assert.deepEqual(inputs.filter((f) => libraryModule(f)), [], 'the command bundles no copy of the library');

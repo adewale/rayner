@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {pictureHtml} from '../../../explain/trace.ts';
-import type { Trace } from '../../../src/trace.ts';
+import type { Trace } from '../../../explain/testing.ts';
 import { assertStepState } from '../../../test/lib/explainer-state.ts';
 import { SINGLES, WRAPS, build, nameOf, isSend, isSync, threads } from './model.ts';
 import type { Inner, Wrapper } from './model.ts';

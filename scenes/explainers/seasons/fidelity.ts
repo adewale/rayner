@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import type { Trace } from '../../../src/trace.ts';
+import type { Trace } from '../../../explain/testing.ts';
 import { Scene, Text } from '../../../src/index.ts';
 import type { Sink } from '../../../src/index.ts';
 import { pictureHtml } from '../../../explain/trace.ts';

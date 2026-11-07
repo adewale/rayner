@@ -8,8 +8,7 @@ import { LIB_ROOT } from './roots.ts';
 const read = new Map<string, ReadonlyMap<string, string>>();
 /**
  * Each entry point's package name ('rayner', 'rayner/explain', ...) and the module it is built from,
- * without its extension ('src/index', 'explain/index', ...), in "exports" order. `./internal/*` is
- * rayner-cli's door into the compiled modules, not an entry point (docs/ENGINE.md, "Public names").
+ * without its extension ('src/index', 'explain/index', ...), in "exports" order.
  */
 export function entryPoints(root = LIB_ROOT): ReadonlyMap<string, string> {
   let out = read.get(root);
@@ -17,7 +16,7 @@ export function entryPoints(root = LIB_ROOT): ReadonlyMap<string, string> {
     const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { exports: Record<string, string | { types: string }> };
     const map = new Map<string, string>();
     for (const [subpath, target] of Object.entries(pkg.exports))
-      if (subpath !== './internal/*' && typeof target === 'object')
+      if (typeof target === 'object')
         map.set(subpath === '.' ? 'rayner' : `rayner/${subpath.slice(2)}`, target.types.replace(/^\.\/dist\//, '').replace(/\.d\.ts$/, ''));
     read.set(root, (out = map));
   }

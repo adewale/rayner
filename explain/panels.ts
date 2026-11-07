@@ -94,8 +94,7 @@ function place(panel: Group, at: Vec | Box, height: number, align: 'center' | 't
  * lit, so the resting frame of a step shows what changed.
  */
 export class Card extends Group {
-  readonly scene: Scene;
-  readonly colors: Palette;
+  private readonly scene: Scene;
   /** Each row's value; for a row with a value per column, its last column's. */
   readonly values = new Map<string, Text>();
   /** Each row's values, one per column (or one that spans them). */
@@ -104,8 +103,8 @@ export class Card extends Group {
   readonly columns: readonly string[];
   readonly fontSize: number;
   readonly direction: LayoutDirection;
-  panel: Rectangle;
-  bar: Rectangle;
+  readonly panel: Rectangle;
+  readonly bar: Rectangle;
   private valueEdge: number;
   private maxValue: number;
   /** The row `mark` lit and its word, for the description. */
@@ -124,7 +123,6 @@ export class Card extends Group {
     const labelAnchor = edge === 1 ? 'start' : 'end';
     const valueAnchor = edge === 1 ? 'end' : 'start';
     this.scene = scene;
-    this.colors = colors;
     this.title = options.title;
     const size = (this.fontSize = options.fontSize ?? 0.24);
     // Without a panel there is nothing to pad: the rows sit at the card's edges.
@@ -265,7 +263,7 @@ export class Card extends Group {
   }
   [seenSource](): Seen { return this.describe(); }
 
-  override rebindReferences(source: Mobject, copies: ReadonlyMap<Mobject, Mobject>): void {
+  protected override rebindReferences(source: Mobject, copies: ReadonlyMap<Mobject, Mobject>): void {
     const from = source as Card;
     const text = (m: Text) => (copies.get(m) ?? m) as Text;
     const cells = new Map(from.rows.map(row => [row.cells, row.cells.map(text)]));
@@ -345,13 +343,13 @@ interface LineMark {
  * it was put. A native Group around the engine's `Code`.
  */
 export class CodeBlock extends Group {
-  readonly scene: Scene;
+  private readonly scene: Scene;
   readonly code: Code;
   readonly panel: Rectangle;
   readonly bar: Rectangle;
-  readonly colors: Palette;
+  private readonly colors: Palette;
   /** Added/removed bars behind lines (from `diff`, or `added`). */
-  marks: LineMark[] = [];
+  readonly marks: readonly LineMark[];
   private focused: { lines: readonly [number, number]; as: string } | null = null;
   private fontSize: number;
   private scaled = 1;
@@ -399,18 +397,20 @@ export class CodeBlock extends Group {
     if (head) head.moveTo([-width / 2 + pad, height / 2 - 0.3], [-1, 0]);
     this.bar = tint(emphasis(colors), width - 0.14, 0.1).setOpacity(0);
     this.add(this.panel);
+    const marks: LineMark[] = [];
+    this.marks = marks;
     if (options.diff)
       lines.forEach((line, i) => {
         if (!/^[+-] /.test(line)) return;
         const mark = this.lineMark(i, line[0] === '+' ? 'added' : 'removed');
-        this.marks.push(mark);
+        marks.push(mark);
         this.add(mark.mob);
       });
     for (const i of options.added ?? []) {
       if (!Number.isInteger(i) || i < 0 || i >= lines.length) throw new Error(`added: line ${i} is not a line of this panel`);
       if (this.marks.some((m) => m.line === i)) continue;
       const mark = this.lineMark(i, 'added');
-      this.marks.push(mark);
+      marks.push(mark);
       this.add(mark.mob);
     }
     this.add(this.bar, this.code);
@@ -462,14 +462,14 @@ export class CodeBlock extends Group {
     ];
   }
 
-  override rebindReferences(source: Mobject, copies: ReadonlyMap<Mobject, Mobject>): void {
+  protected override rebindReferences(source: Mobject, copies: ReadonlyMap<Mobject, Mobject>): void {
     const from = source as CodeBlock;
     Object.assign(this, {
       code: copies.get(from.code) ?? from.code,
       panel: copies.get(from.panel) ?? from.panel,
       bar: copies.get(from.bar) ?? from.bar,
+      marks: from.marks.map(mark => ({...mark, mob: (copies.get(mark.mob) ?? mark.mob) as Rectangle})),
     });
-    this.marks = from.marks.map(mark => ({...mark, mob: (copies.get(mark.mob) ?? mark.mob) as Rectangle}));
   }
 
   /** The lines as a reader sees them, with the focused, added and removed ones named. */

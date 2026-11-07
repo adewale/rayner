@@ -17,7 +17,7 @@ import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
 import { shaperFor } from '../src/index.ts';
 import { SnapshotSink, renderAt } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
-import { useLettering, takeMissingGlyphs } from '../src/lettering.ts';
+import { useLettering, takeLetteringMissing } from '../src/lettering.ts';
 import { takeMissingGlyphs as takeEmbeddedMissing } from '../explain/testing.ts';
 import { loadFont } from '../vendor/glyph.js';
 import { restingTime } from '../explain/trace.ts';
@@ -94,7 +94,7 @@ test('an explainer that asks for Greek still fails on a Cyrillic letter, naming 
   // And after that failure the embedded faces are back for whatever builds next
   await collectProject(join(ROOT, 'scenes/explainers/seasons'), { write: false });
   shaperFor('sans')('ж', 1);
-  assert.deepEqual([...takeMissingGlyphs()], [['ж', 'ж']]);
+  assert.deepEqual([...takeLetteringMissing()], [['ж', 'ж']]);
 });
 
 test('the legacy subset request parser rejects unsupported fields and scripts', () => {
@@ -156,7 +156,7 @@ test('a lettered page embeds only the requested faces, cut to the letters it dra
 test('a lettered explainer draws its Greek as outlines, and without its faces the same Greek is missing', async () => {
   const project = await collectProject(FIXTURE, { write: false });
   await useProjectLettering(project);
-  takeMissingGlyphs();
+  takeLetteringMissing();
   for (const [font, text] of [
     ['sans', 'Ελληνικά'],
     ['mono', 'αβγ'],
@@ -169,7 +169,7 @@ test('a lettered explainer draws its Greek as outlines, and without its faces th
       assert.ok(g.path.length > 2, `${font} ${text}: an outline`);
     }
   }
-  assert.deepEqual([...takeMissingGlyphs()], []);
+  assert.deepEqual([...takeLetteringMissing()], []);
   // The poster is the resting picture of the first step, drawn with those outlines
   const v = defaultScenario(project, { word: 'phos' });
   const step = v.trace.steps.find((s) => s.step === 'code')!;
@@ -178,7 +178,7 @@ test('a lettered explainer draws its Greek as outlines, and without its faces th
   const lettered = sink.svg;
   await useLettering(null);
   assert.ok(shaperFor('mono')('αβγ', 1).glyphs.every((g) => g.gid === 0));
-  assert.deepEqual([...takeMissingGlyphs()], [['αβγ', 'αβγ']]);
+  assert.deepEqual([...takeLetteringMissing()], [['αβγ', 'αβγ']]);
   const bare = new SnapshotSink();
   await renderAt(v.Scene, restingTime(step, v.trace.fps), bare);
   assert.notEqual(bare.svg, lettered, 'the Greek outlines are what the lettering added');
@@ -195,9 +195,9 @@ test('a lettered explainer passes every check, its bare runtime included, and re
 test('a requested face records only the glyphs absent from every available face', async () => {
   const project = await collectProject(FIXTURE, { write: false });
   await useProjectLettering(project);
-  takeMissingGlyphs();
+  takeLetteringMissing();
   shaperFor('sans')('λж', 1);
   assert.deepEqual([...takeEmbeddedMissing()], [['λж', 'λж']], 'the engine names all the embedded faces lack');
   shaperFor('sans')('λж', 1);
-  assert.deepEqual([...takeMissingGlyphs()], [['λж', 'ж']], 'lettering names only what no face has');
+  assert.deepEqual([...takeLetteringMissing()], [['λж', 'ж']], 'lettering names only what no face has');
 });

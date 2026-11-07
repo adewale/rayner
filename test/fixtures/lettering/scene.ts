@@ -3,7 +3,7 @@
 // Its cut faces are pinned beside it in scene.lettering.json.
 import { Scene, Text } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
-import type { LetteringRequest } from '../../../src/lettering.ts';
+import type { LetteringRequest } from '../../../src/index.ts';
 
 const WORDS: Record<string, { word: string; meaning: string }> = {
   logos: { word: 'λόγος', meaning: 'word' },

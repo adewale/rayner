@@ -198,11 +198,8 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     }
   }
 }
-if (
-  process.argv[1] &&
-  existsSync(process.argv[1]) &&
-  import.meta.url === pathToFileURL(realpathSync(resolve(process.argv[1]))).href
-)
+/** Run the command line, reporting a failure on stderr with exit code 1 (tools/installed.ts runs it in the installed command). */
+export const run = (): Promise<void> =>
   main().catch((error) => {
     // Diagnose an incomplete authoring install with the pinned dependency versions.
     const missing = error.code === 'ERR_MODULE_NOT_FOUND' && /Cannot find package '([^']+)'/.exec(error.message)?.[1];
@@ -214,3 +211,9 @@ if (
     );
     process.exitCode = 1;
   });
+if (
+  process.argv[1] &&
+  existsSync(process.argv[1]) &&
+  import.meta.url === pathToFileURL(realpathSync(resolve(process.argv[1]))).href
+)
+  void run();

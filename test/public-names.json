@@ -77,6 +77,97 @@
       "depthOrder": {
         "check": "Invariants: registered with addInvariant, it fails on the first frame that draws a piece out of depth order"
       }
+    },
+    "rayner/output": {
+      "DomSink": {
+        "tooling": "a host page that plays a scene into its own live SVG element, as the player's zoom view does (docs/SCENE-OUTPUTS.md)"
+      },
+      "NullSink": {
+        "tooling": "a test or tool that runs a scene for its state, steps or invariants and draws nothing (the recipes, rayner check)"
+      },
+      "SeekSink": {
+        "tooling": "a host page or tool that seeks a scene to one time without drawing the frames before it, as the player does"
+      },
+      "SnapshotSink": {
+        "tooling": "a tool that keeps one SVG frame at a chosen time, such as a contact sheet or a page's still (the render recipe)"
+      },
+      "StopScene": {
+        "tooling": "a host page or tool with its own sink, which throws it to stop a run and must rethrow it from a catch"
+      },
+      "StringSink": {
+        "tooling": "a tool that collects every frame of a run as SVG strings (the render recipe)"
+      },
+      "indexScene": {
+        "tooling": "a host page or tool that lists a scene's steps with their start and end times before seeking (the render recipe)"
+      },
+      "renderAt": {
+        "tooling": "a host page or tool that draws the scene at one time or step as SVG (the render and document recipes)"
+      },
+      "renderElements": {
+        "tooling": "a tool that reads a frame as element records, with each part's box, paint and text (the render recipe)"
+      },
+      "renderText": {
+        "tooling": "a tool or test that prints a frame as a text drawing, for a terminal or a reviewer (the render recipe)"
+      },
+      "stepTime": {
+        "tooling": "a host page or tool that finds the time a named step starts or rests at (the render recipe)"
+      },
+      "toSvgString": {
+        "tooling": "a host page or tool that serializes the scene's current picture as one SVG document"
+      }
+    },
+    "rayner/testing": {
+      "InvariantSink": {
+        "tooling": "an author's test that checks every frame of a run against the scene's invariants (the invariants recipe)"
+      },
+      "MotionSink": {
+        "tooling": "an author's test that records every frame's motion events, to look for pops, cuts and teleports"
+      },
+      "TraceSink": {
+        "tooling": "an author's test or tool that records each step's timing, state and evidence while it runs a scene its own way"
+      },
+      "analyzeMotion": {
+        "tooling": "an author's test that reads recorded motion for pops, cuts and teleports, as rayner check does"
+      },
+      "bindSnapshots": {
+        "tooling": "an author's test or tool that runs a scene with diagrams outside the command, from its pinned snapshots"
+      },
+      "describeExplainer": {
+        "tooling": "an author's tool or agent that reads the explainer as one JSON object: scenarios, steps, state and pictures in words"
+      },
+      "jsonObject": {
+        "tooling": "an author's test or tool that validates and clones state under the trace's JSON rules (the document recipe)"
+      },
+      "loadFonts": {
+        "tooling": "an author's test or tool that draws text outside a scene's run, and so loads the embedded fonts first"
+      },
+      "machinesOf": {
+        "tooling": "an author's test that drives or explores a scene's machines from outside the scene"
+      },
+      "perf": {
+        "tooling": "an author profiling a scene or a tool: counters, spans and a trace-event export"
+      },
+      "scenarioName": {
+        "tooling": "an author's test or tool that names a scenario the way the command and the player do"
+      },
+      "scenariosOf": {
+        "tooling": "an author's test or tool that runs every scenario of a scene's settings"
+      },
+      "takeMissingGlyphs": {
+        "tooling": "an author's test or tool that draws text outside the command and fails on characters drawn with no glyph"
+      },
+      "traceScene": {
+        "tooling": "an author's test that compares a run's steps and state with the model (the render and document recipes)"
+      },
+      "viewMismatch": {
+        "tooling": "an author's test that asks whether a view shows the state it claims, as the Views check does"
+      },
+      "withIntent": {
+        "tooling": "an author's test that runs a scene directly with its script's intent adopted, as the command runs it"
+      },
+      "withSettings": {
+        "tooling": "an author's test or tool that runs a scene in one scenario of its settings"
+      }
     }
   },
   "features": [

@@ -32,3 +32,11 @@ function libraryRoot(): string {
 }
 /** The library's files: src/, explain/, integrations/agentic-mermaid/*.ts, vendor/glyph.js and dist/. */
 export const LIB_ROOT = libraryRoot();
+/**
+ * The installed command's private specifier for the library's compiled modules: '#rayner/src/scene.js'
+ * is LIB_ROOT/dist/src/scene.js. tools/repo/build-cli.ts writes it for every library module the
+ * command imports, and tools/installed.ts resolves it, for the command's own modules only, so the
+ * command and the scenes it loads (which import `rayner`, LIB_ROOT/dist/src/index.js) share one
+ * engine. The package exports none of these files: an outside project reaches the entry points only.
+ */
+export const LIBRARY = '#rayner/';

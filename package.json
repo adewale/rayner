@@ -62,10 +62,6 @@
       "types": "./dist/src/extras.d.ts",
       "default": "./dist/src/extras.js"
     },
-    "./lettering": {
-      "types": "./dist/src/lettering.d.ts",
-      "default": "./dist/src/lettering.js"
-    },
     "./output": {
       "types": "./dist/src/output.d.ts",
       "default": "./dist/src/output.js"
@@ -73,8 +69,7 @@
     "./testing": {
       "types": "./dist/explain/testing.d.ts",
       "default": "./dist/explain/testing.js"
-    },
-    "./internal/*": "./dist/*"
+    }
   },
   "author": "Ade Oshineye (https://github.com/adewale)",
   "license": "MIT",

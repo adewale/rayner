@@ -58,16 +58,16 @@ export interface SyncOpts {
  * (and its parent) through every sync: only its child is swapped.
  */
 export class View<M extends Mobject = Mobject> extends Group {
-  /** Makes the picture from the scene's state as it is when called. Called at construction and at each sync's begin(). */
+  /** @internal Makes the picture from the scene's state as it is when called. Called at construction and at each sync's begin(). */
   build: () => M;
   /** The picture as a function of the model and what is shown: what the fidelity checks and machine exploration call. */
   draw: (state: SceneState, shown: SceneState) => M;
   /** The scene whose `shown` a placed or rebuilt picture reads. */
   private host: Scene<any>;
   place: ViewPlace | false;
-  /** Unplaced build size [w, h] used as the scale basis; a returning sync restores the retained picture’s basis. */
+  /** @internal Unplaced build size [w, h] used as the scale basis; a returning sync restores the retained picture’s basis. */
   builtSize: [number, number];
-  /** The scale the last sync applied: kept while the measured one only differs from it in the last bits. */
+  /** @internal The scale the last sync applied: kept while the measured one only differs from it in the last bits. */
   scaleK: number;
 
   /**
@@ -113,7 +113,7 @@ export class View<M extends Mobject = Mobject> extends Group {
   }
 
   /**
-   * The picture of `state` (with what the scene shows now), placed where a sync or rebuild would
+   * @internal The picture of `state` (with what the scene shows now), placed where a sync or rebuild would
    * put it now, without taking it: what an authored transition morphs into, so it ends where the
    * View will land.
    */
@@ -132,7 +132,7 @@ export class View<M extends Mobject = Mobject> extends Group {
   }
 
   /**
-   * Scale and move a freshly built picture to where the current one is: same
+   * @internal Scale and move a freshly built picture to where the current one is: same
    * anchor point, and the scale the View has been given since the last build
    * (uniform scale only; a rotation is not carried). Records its built size.
    */
@@ -155,7 +155,7 @@ export class View<M extends Mobject = Mobject> extends Group {
     return next;
   }
 
-  /** Make `next` the picture, in the old one's place among the children. */
+  /** @internal Make `next` the picture, in the old one's place among the children. */
   swap(next: M): void {
     const old = this.current;
     if (old === next) return;
@@ -176,10 +176,10 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
   view: View<M>;
   match: ViewMatch;
   staged: boolean;
-  /** Set by begin(): the morph from the current picture to the built one, or null when nothing changed. */
+  /** @internal Set by begin(): the morph from the current picture to the built one, or null when nothing changed. */
   inner!: Animation | null;
   /** Set by begin(): the built, placed picture, swapped in at finish(). */
-  next!: M | null;
+  private next!: M | null;
   private previousSize!: [number, number];
   private previousScale!: number;
 

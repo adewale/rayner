@@ -183,7 +183,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - Repository-only tooling (site export, gallery, catalog, release, bench, CI scope, vendoring) moved to `tools/repo/`; no package ships it.
 - Rayner is two packages: `rayner`, the vocabulary and runtime, with no dependencies, and `rayner-cli`, the `rayner` command, at the same version. Install both. [Quick start](README.md#quick-start)
 - `rayner-cli` holds the player, diagram capture and lettering capture (its Python, requirements, font script and maths typesetter); `rayner` keeps only what replays their snapshots.
-- A release publishes and retains both archives; `npm run pack:smoke` installs both, and `rayner` alone. [Releasing](docs/RELEASING.md)
+- A release publishes and retains both archives; `npm run pack:smoke` installs both, and `rayner` alone, and type-checks every explainer and recipe against the packed declarations. [Releasing](docs/RELEASING.md)
 
 ### Removed from the public API
 
@@ -208,6 +208,16 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
 - The diagram camera move (`d.focus(ids, { camera: true, also })`) is gone: `s.focus` moves the camera.
 - The free `choreograph(current, target)` is not exported: a transition's `t.choreograph(view)` is the one form.
 - `Scene.clear()` is the internal `Scene.removeAll()`. A scene clears the stage with `s.clear()`, which fades.
+- The package exports its entry points only. `rayner/internal/*`, which exposed every compiled module, is gone; `rayner-cli` reaches the library's compiled modules through a resolve hook of its own.
+- `rayner/lettering` is gone: import the `LetteringRequest` type from `rayner`. Its functions, which only the build and a lettered page call, are internal.
+- Class members that are implementation details are `private`, `protected` or `@internal`, and the published declarations leave the internal ones out:
+  - `Mobject`'s caches and alignment (`_bbox`, `_pv`, `_mrec`, `_colors`, `mergeLeaves`, `invalidateBox`, `touchPoints`, `interpolateData`, `alignData`, `alignFamily`, `matchingFrameFor`) are internal. Its subclass hooks `rebindReferences`, `copyData`, `afterPointsChanged`, `pushIntoChildren` and `nullCopy` are `protected`, as is `Animation.createStartingMobject`; `Animation.cleanUpFromScene` is internal.
+  - `Scene`'s `sink`, `skipUntil`, `emitFrame`, `beginAnimations` and `hasUpdaters` are internal, and `current` is private: read `currentStep`.
+  - `View`'s `placed`, `fit`, `swap`, `build`, `builtSize` and `scaleK`, and `ViewSync`'s `inner` and `next`, are internal.
+  - `Machine`'s `outcome`, `model`, `after`, `reachable`, `transitionFor` and `playedUnder`, which `rayner check` and the player use, are internal; a scene calls `send` and `replay`.
+  - `Diagram`'s `build`, `forget`, `shownBy` and `frameBox` are internal; `s.show`'s `build` option builds a diagram in.
+  - `Card` and `CodeBlock` keep their scene and colours private, `Card.panel` and `Card.bar` are readonly, as `CodeBlock`'s are, and `CodeBlock.marks` is a readonly list.
+  - `Labeled`'s and `Axes`' child indexes are private: read `shape`, `label`, `xLabel` and `yLabel`.
 
 ### Known limits
 

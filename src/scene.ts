@@ -138,14 +138,16 @@ function admitRoots(current: readonly Mobject[], incoming: readonly Mobject[], b
 }
 
 export class Scene<S extends object = SceneState> {
+  /** @internal Where frames and step boundaries go (the constructor's sink). */
   sink: Sink;
   fps: number;
+  /** @internal Frames that end before this time are counted, not rendered (the `skipUntil` option). */
   skipUntil: number;
   mobjects: Mobject[];
   time: number;
   frameCount: number;
   steps: Step[];
-  current: Step | null;
+  private current: Step | null;
   /** The model: what the explanation is about (a bucket's tokens, a statechart's configuration). JSON. */
   state: {[K in keyof S]: S[K]};
   /**
@@ -211,10 +213,10 @@ export class Scene<S extends object = SceneState> {
   }
 
   /** Rethrow a stop a sink already raised: nothing reaches the sink after it. */
-  throwIfStopped(): void { if (this.stopped) throw new StopScene(); }
+  private throwIfStopped(): void { if (this.stopped) throw new StopScene(); }
 
   /** Call the sink; a StopScene it throws stops the scene for good (see `stopped`). */
-  async toSink(call: () => Promise<void> | undefined): Promise<void> {
+  private async toSink(call: () => Promise<void> | undefined): Promise<void> {
     try { await call(); } catch (e) { if (e instanceof StopScene) this.stopped = true; throw e; }
   }
 
@@ -307,6 +309,7 @@ export class Scene<S extends object = SceneState> {
   /** Words per minute a caption is read at; a step lasts at least that long. */
   static captionWpm = 160;
 
+  /** End the running step now, with its caption hold, as the next step() would: for a step whose words report its timing. */
   async endCurrentStep(): Promise<void> {
     const s = this.current;
     if (!s) return;
@@ -329,6 +332,7 @@ export class Scene<S extends object = SceneState> {
     await this.toSink(() => this.sink.stepEnd?.(this, s));
   }
 
+  /** @internal Whether any mobject on stage, or the camera, has an updater: then a seek cannot skip frames. */
   hasUpdaters(): boolean {
     for (const top of this.mobjects) for (const m of top.family()) if (m.updaters.length) return true;
     // Camera: an updater on the frame (follow a dot) integrates over frames too
@@ -470,6 +474,7 @@ export class Scene<S extends object = SceneState> {
     this.time = this.frameCount / this.fps;
   }
 
+  /** @internal Advance one frame and hand it to the sink, unless it ends before skipUntil. */
   async emitFrame(dt: number): Promise<void> {
     this.throwIfStopped();
     this.tick();
@@ -529,6 +534,7 @@ export class Scene<S extends object = SceneState> {
     perf.span('anim.finish', () => { for (const a of anims) { a.finish(); a.cleanUpFromScene(this); } });
   }
 
+  /** @internal Begin animations as play() does: successions bound, copies taken, then each begun. */
   beginAnimations(anims: readonly Animation[]): void {
     bindSuccessions(anims, this); // a Succession begins its members here, one by one, as their turns come; groups record their members' evidence
     takeCopies(anims); // every TransformFromCopy copies its source before anything in the play begins

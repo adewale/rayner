@@ -131,14 +131,15 @@ export class Mobject {
   parent: Mobject | null;
   style: StyleRecord;
   updaters: Updater[];
+  /** @internal The cached bounding box; invalidateBox() clears it up the parent chain. */
   _bbox: Box | null;
   // Assigned lazily (first touchPoints, first merged render, Text): `declare` keeps
   // them off instances until then, exactly as the untyped code did.
-  /** Points version: bumped by touchPoints(), keyed on by render caches. */
+  /** @internal Points version: bumped by touchPoints(), keyed on by render caches. */
   declare _pv?: number;
-  /** Merged-record cache for mergeLeaves groups, owned by svg.ts. */
+  /** @internal Merged-record cache for mergeLeaves groups, owned by svg.ts. */
   declare _mrec?: MergedCache;
-  /** Render a group of same-styled leaves as one element (Text sets this). */
+  /** @internal Render a group of same-styled leaves as one element (Text sets this). */
   declare mergeLeaves?: boolean;
   /** Fixed world-coordinate paint viewport, inherited by descendants; does not change geometry. */
   declare clipBox?: Box;
@@ -153,7 +154,7 @@ export class Mobject {
    * field drops its mark at once.
    */
   declare defaultColors?: Partial<Record<'fill' | 'stroke', ColorRole>>;
-  /** The scene colours this mobject took when it entered a scene: what a child added later, or a picture it becomes, takes. */
+  /** @internal The scene colours this mobject took when it entered a scene: what a child added later, or a picture it becomes, takes. */
   declare _colors?: Readonly<SceneColors>;
 
   constructor(style: Style = {}) {
@@ -174,7 +175,7 @@ export class Mobject {
   /** Geometry contributing to layout bounds. Transform-only metadata can opt
    * out here while still following affine maps and animation in pointArrays(). */
   boundingPointArrays(): Float32Array[] { return this.pointArrays(); }
-  /** Frame-only adapter for matching transforms. A target with different
+  /** @internal Frame-only adapter for matching transforms. A target with different
    * metric units can supply a compatible frame without changing drawn parts. */
   matchingFrameFor(_source: Mobject): Mobject { return this; }
   /**
@@ -255,13 +256,14 @@ export class Mobject {
 
   /** Rebind a composite's named child references after copying or restoring its tree.
    * References outside the copied tree (for example its Scene) remain shared. */
-  rebindReferences(_source: Mobject, _copies: ReadonlyMap<Mobject, Mobject>): void {}
+  protected rebindReferences(_source: Mobject, _copies: ReadonlyMap<Mobject, Mobject>): void {}
 
   /** Deep-copy point data from `src`. Subclasses override. */
-  copyData(_src: Mobject): void {}
+  protected copyData(_src: Mobject): void {}
 
   // ---- bounding box ------------------------------------------------------
 
+  /** @internal Clear the cached box of this mobject and its ancestors, after a change to its points or children. */
   invalidateBox(): void {
     let m: Mobject | null = this;
     while (m) { m._bbox = null; m = m.parent; }
@@ -318,10 +320,10 @@ export class Mobject {
   }
 
   /** Hook for subclasses whose derived data depends on points (e.g. Text font size). */
-  afterPointsChanged(): void {}
+  protected afterPointsChanged(): void {}
 
   /**
-   * Every in-place write to point arrays must end here. It bumps the points
+   * @internal Every in-place write to point arrays must end here. It bumps the points
    * version that render caches key on (array replacement is caught by array
    * identity instead).
    */
@@ -496,7 +498,7 @@ export class Mobject {
   }
 
   /**
-   * Blend point arrays, index by index. An array with no counterpart in `b`
+   * @internal Blend point arrays, index by index. An array with no counterpart in `b`
    * (a path morphing into a group, which has no points of its own, or into a
    * Text, whose own array is its advance box) collapses toward b's center,
    * as in manim: the shape shrinks away while b's children grow out of the
@@ -531,6 +533,7 @@ export class Mobject {
     this.touchPoints();
   }
 
+  /** @internal Give this family and `other`'s the same shape, child for child, before a transform interpolates them. */
   alignFamily(other: Mobject): void {
     // A container opposite a path that draws: the path moves into a first child of its own,
     // so the container's children morph into it (manim's null_point_align). Left where it
@@ -550,7 +553,7 @@ export class Mobject {
   }
 
   /** Move this path's own curves into a new first child, leaving it a container (manim's push_self_into_submobjects). */
-  pushIntoChildren(): void {
+  protected pushIntoChildren(): void {
     const kids = this.children;
     this.children = [];
     const self = this.copy();
@@ -564,11 +567,11 @@ export class Mobject {
     this.invalidateBox();
   }
 
-  /** Align own point data with `other`. Subclasses override. */
+  /** @internal Align own point data with `other`. Subclasses override. */
   alignData(_other: Mobject): void {}
 
   /** A copy with all points collapsed onto `point`, and invisible. */
-  nullCopy(point: Readonly<Vec>): this {
+  protected nullCopy(point: Readonly<Vec>): this {
     const c = this.copy();
     for (const m of c.family()) {
       for (const a of m.pointArrays()) for (let i = 0; i < a.length; i += 2) { a[i] = point[0]; a[i + 1] = point[1]; }
@@ -740,7 +743,8 @@ export function adoptState(m: Mobject, state: Mobject, keep: ReadonlySet<string>
     m.children = fresh.children;
     for (const c of m.children) c.parent = m;
   }
-  for (const [to, from] of pairs) to.rebindReferences(from, own);
+  // A protected hook, reached from this helper of restore() and become() by element access.
+  for (const [to, from] of pairs) to['rebindReferences'](from, own);
   // What it took keeps the colours this mobject took from its scene.
   if (m._colors) paintDefaults(m, m._colors);
   m.invalidateBox();

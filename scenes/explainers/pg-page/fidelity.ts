@@ -1,4 +1,4 @@
-import type { Trace } from '../../../src/trace.ts';
+import type { Trace } from '../../../explain/testing.ts';
 import { assertStepState } from '../../../test/lib/explainer-state.ts';
 import { BLCKSZ, LINE_POINTER, PAGE_HEADER, SWAP, TEXT_CHARS, scenarioOf } from './model.ts';
 import type { Column } from './model.ts';

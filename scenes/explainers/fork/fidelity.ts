@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import type { Trace } from '../../../src/trace.ts';
+import type { Trace } from '../../../explain/testing.ts';
 import { Scene } from '../../../src/index.ts';
-import { resolveSettings } from '../../../explain/settings.ts';
+import { resolveSettings } from '../../../explain/index.ts';
 import { VOCABULARY } from '../../../explain/words.ts';
 import { collectProject } from '../../../tools/lib/explain-project.ts';
 import { assertStepState } from '../../../test/lib/explainer-state.ts';
