@@ -1,4 +1,4 @@
-import { Scene, AnimationGroup, Succession, Text, Group, FadeIn, Transform, StateReadout, linear } from '../../../src/index.ts';
+import { Scene, AnimationGroup, Succession, Text, Group, FadeIn, Transform, linear } from '../../../src/index.ts';
 import type { View, Choreography } from '../../../explain/index.ts';
 import type { ScheduledAnimation, Vec, Mobject, SceneState } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Card, CodeBlock, Machine, view } from '../../../explain/index.ts';
@@ -108,17 +108,13 @@ export default class RingBufferExplainer extends Scene {
     // The buffer's own fields, rebuilt from this.state at every sync.
     const readout = (this.readout = view(
       this,
-      (st) => {
-        const r = new StateReadout(
-          (['head', 'tail', 'length'] as const).map((k) => [k, st[k]] as const),
-          { fontSize: 0.26, at: [C[0] + 0.32, C[1] + 0.4], gap: 0.4 },
-        );
-        r.children.forEach((t, i) => t.setFill(i % 2 ? ink : soft));
-        return r;
-      },
+      (st) => new Card(this, s.palette, (['head', 'tail', 'length'] as const).map((k) => [k, st[k]] as const), {
+        fontSize: 0.24, at: [C[0], C[1] + 0.1], width: 1.9, panel: false, key: 'readout',
+      }),
       { place: false },
     ));
-    s.keep(readout, { describe: ringWords });
+    // The fields card describes itself.
+    s.keep(readout);
     await this.play(new FadeIn(ring));
     await this.play(new FadeIn(readout));
     // The card keeps its panel, title and labels; a View holds its values. The card is drawn from
@@ -183,7 +179,7 @@ export default class RingBufferExplainer extends Scene {
 
     // The reader could press push or pop; each press is one model step, its motion authored below.
     // A transition morphs the ring's parts in turn; anything it does not name lands at the end.
-    const fields = () => together([readout.sync({ runTime: 0.45 }), results.sync({ runTime: 0.45 }), card.sync({ match: 'key', staged: true, runTime: 0.45 })]);
+    const fields = () => together([readout.sync({ match: 'key', staged: true, runTime: 0.45 }), results.sync({ runTime: 0.45 }), card.sync({ match: 'key', staged: true, runTime: 0.45 })]);
     /** The code's focus moves to the lines this operation runs, as it begins. */
     const focus = () => code.sync({ match: 'key', staged: true, runTime: 0.4 });
     /** One angle drives a pointer round the ring, the short way, drawn afresh at each sampled angle. */

@@ -1,5 +1,5 @@
 import { Scene, FadeIn, Create, Transform, AnimationGroup, Succession, rushFrom, thereAndBack } from '../../../src/index.ts';
-import type { View } from '../../../explain/index.ts';
+import type { View, Card } from '../../../explain/index.ts';
 import type { ScheduledAnimation as Animation, SceneState, VMobject } from '../../../src/index.ts';
 import { stage, settingsOf, Machine, view, CodeBlock } from '../../../explain/index.ts';
 import { TokenBucket, bucketStart, bucketRequest } from './model.ts';
@@ -7,7 +7,7 @@ import type { BucketCall as Call, BucketState } from './model.ts';
 import { listed } from '../lib/format.ts';
 import {
   CHIP_Y, SHELL_X, barAt, cappedAt as capAt, chipX, climb, climbTo, coin, drawArrivals, drawAxes, drawBucketLabel, drawChart, drawChips, drawComparison,
-  drawGauge, drawLevel, drawReadout, drawReadoutTitle, drawShell, fmt, levelY, missingRing, name, startOf,
+  drawGauge, drawLevel, drawReadout, drawShell, fmt, levelY, missingRing, name, startOf,
 } from './picture.ts';
 
 // Six at once, three within the next second, then one after a four-second quiet spell:
@@ -181,13 +181,10 @@ export default class TokenBucketExplainer extends Scene {
     const gauge = view(this, (st) => gaugePicture(st as unknown as BucketState), { place: false });
     const chart = view(this, (st) => chartPicture(st as unknown as BucketState), { place: false });
     const chips = view(this, (st) => chipsPicture(st as unknown as BucketState), { place: false });
-    const readout = view(this, (state) => drawReadout(state, formatState));
+    // The balance card describes itself, its values as the readout writes them.
+    const readout = view(this, (state) => drawReadout(this, s.palette, state, formatState), { place: false });
     this.readout = readout;
-    const readoutTitle = drawReadoutTitle(colours);
-    s.keep(readout, readoutTitle, {
-      describe: () =>
-        `Bucket balance: ${formatState(this.state.tokens)} tokens left, last refill at ${formatState(this.state.lastRefill)} seconds, ${formatState(this.state.allowed)} accepted; rejected requests: ${formatState(this.state.rejected)}`,
-    });
+    s.keep(readout);
     await s.enter(shell, gauge, bucketLabel, { describe: gaugeSays });
     s.keep(axes, { describe: chartSays });
     await this.play(new Create(axes), { runTime: 2 });
@@ -220,7 +217,7 @@ export default class TokenBucketExplainer extends Scene {
     );
     const codeLines = () => (code.current as CodeBlock).code.lines;
     await s.enter(code, { runTime: 0.4 });
-    await this.play(new FadeIn(readout), new FadeIn(readoutTitle));
+    await this.play(new FadeIn(readout));
 
     // ---------------------------------------- the machine: one request at a time
     // Each request is one call of allow() on the model, at the time the schedule gives it. The
@@ -367,7 +364,7 @@ export default class TokenBucketExplainer extends Scene {
         s.opening(...['balance:refill:R7', 'balance:found:R7', 'balance:spend:R7', 'balance:found:R7:value', 'balance:tag:R6'].flatMap((k) => chart.current.find(k) ?? []));
       if (index === 2)
         s.opening(codeLines()[1]!, part(chips, 'request:R9'), part(chips, 'request:R10'), times[8]!, times[9]!, names[8]!, names[9]!,
-          readout.current.children[0]!, readout.current.values['Tokens left']!,
+          (readout.current as Card).labels.get('Tokens left')!, (readout.current as Card).values.get('Tokens left')!,
           ...['balance:refill:R10', 'balance:found:R10', 'balance:spend:R10', 'balance:cap:note'].flatMap((k) => chart.current.find(k) ?? []));
     }
 
