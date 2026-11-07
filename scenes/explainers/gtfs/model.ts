@@ -23,6 +23,8 @@
 //        at the first stop in the trip"), headway_secs.
 //   667  exact_times: "0 or empty - Frequency-based trips."
 
+import { listed, upperFirst } from '../lib/format.ts';
+
 /** One row of a CSV table, by column name. */
 export type Row = Readonly<Record<string, string>>;
 
@@ -105,8 +107,7 @@ export function addDays(date: GtfsDate, n: number): GtfsDate {
 /** "Monday 4 June 2007". */
 export function longDate(date: GtfsDate): string {
   const d = new Date(utc(date));
-  const day = weekday(date);
-  return `${day[0]!.toUpperCase()}${day.slice(1)} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  return `${upperFirst(weekday(date))} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 /** "4 June". */
 export function shortDate(date: GtfsDate): string {
@@ -335,7 +336,7 @@ export function stopDay(feed: Feed, stopId: string, date: GtfsDate, options: { b
 /** "every 30 min", "every 10 or 30 min". */
 export function headwayWords(bands: readonly Band[]): string {
   const mins = [...new Set(bands.map((b) => b.headwaySecs / 60))].sort((a, b) => a - b);
-  return `every ${mins.length > 1 ? mins.slice(0, -1).join(', ') + ' or ' + mins.at(-1) : mins[0]} min`;
+  return `every ${listed(mins, { or: true })} min`;
 }
 /** A Gantt task's words: the trip_id and its route, its headways if it repeats, and "(no service)" on a day it does not run. */
 export function taskLabel(feed: Feed, span: TripSpan, runs: boolean): string {

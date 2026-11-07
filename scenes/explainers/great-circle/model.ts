@@ -7,6 +7,7 @@
 // not flown tracks, which leave them for winds, ETOPS reach and closed airspace. Land is Natural Earth
 // 1:110m (land.ts): coarse enough that only which landmass a route crosses is held, not where the coast is.
 import { LAND, LANDMASS } from './land.ts';
+import { grouped } from '../lib/format.ts';
 
 /** The Earth's mean radius (IUGG), the sphere every figure here is computed on. */
 export const RADIUS_KM = 6371;
@@ -132,4 +133,4 @@ export type Route = ReturnType<typeof route>;
 export const london = () => route('LHR', 'LAX');
 export const madrid = () => route('MAD', 'JFK');
 /** Rounded as the script says them: kilometres to the nearest ten, degrees to the nearest whole. */
-export const tens = (km: number) => (Math.round(km / 10) * 10).toLocaleString('en-GB');
+export const tens = (km: number) => grouped(Math.round(km / 10) * 10);

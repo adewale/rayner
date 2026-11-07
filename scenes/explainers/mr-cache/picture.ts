@@ -3,11 +3,11 @@ import type { Box, Code } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { flow, label } from '../../../explain/drawing.ts';
 import type { StagedStep } from '../../../explain/index.ts';
+import { counted } from '../lib/format.ts';
 import { stagedStep } from '../../../explain/index.ts';
 
 
 export function frames(which: 'hit' | 'miss', answer: string): StagedStep[] {
-  const reads = (n: number) => (n === 1 ? 'one database read' : `${n} database reads`);
   return [
     stagedStep({
       id: 'reader-request',
@@ -19,7 +19,7 @@ export function frames(which: 'hit' | 'miss', answer: string): StagedStep[] {
       draw: (st, s) =>
         new Group(
           flow(s, ['Request', 'Database', 'Response']),
-          label(`Before: ${reads(st.beforeReads)}`, 0, -1.4, s.palette.ink, 0.8),
+          label(`Before: ${counted(st.beforeReads, 'database read', { words: true })}`, 0, -1.4, s.palette.ink, 0.8),
         ),
     }),
     stagedStep({

@@ -16,8 +16,9 @@ import {
   windowFor,
 } from './model.ts';
 import type { LifetimeKey, Rule } from './model.ts';
-import { days, drawAxis, drawMargin, drawStrip, marginWords, named, ofLife, percent, stamp } from './picture.ts';
+import { days, drawAxis, drawMargin, drawStrip, marginWords, named, ofLife, pct, stamp } from './picture.ts';
 import type { MarginRow, YearRun } from './picture.ts';
+import { listed, upperFirst } from '../lib/format.ts';
 
 const STYLE = 'excalidraw';
 const RULES: Record<Rule, { name: string; short: string }> = {
@@ -133,7 +134,6 @@ const gantt = (sections: [string, Bar[]][], axis: string) =>
 /** "day 30.5", or "hour 84" for certificates shorter than ten days. */
 const at = (hours: number, short: boolean) => (short ? `hour ${Math.round(hours)}` : `day ${days(hours)}`);
 const length = (hours: number, short: boolean) => (short ? `${Math.round(hours)} hours` : `${days(hours)} days`);
-const upper = (t: string) => t[0]!.toUpperCase() + t.slice(1);
 
 
 export default class CertRenewalExplainer extends Scene {
@@ -323,16 +323,16 @@ export default class CertRenewalExplainer extends Scene {
     const fixedHere = rows.at(-1)!,
       renewsHere = summarize('fixed30', key).renewsAt;
     const lifeLeft = (share: number) =>
-      Math.abs(share - 1 / 3) < 1e-9 ? 'a third' : Math.abs(share - 2 / 3) < 1e-9 ? 'two thirds' : percent(share);
+      Math.abs(share - 1 / 3) < 1e-9 ? 'a third' : Math.abs(share - 2 / 3) < 1e-9 ? 'two thirds' : pct(share);
     await this.step('margin', {
       title:
         fixedHere.due < 0
           ? `Answer: 30 days before expiry is ${days(-fixedHere.due)} days before issue`
-          : `Answer: 30 days before expiry is day ${days(fixedHere.due)}, ${percent(1 - fixedHere.share)} of the way through`,
+          : `Answer: 30 days before expiry is day ${days(fixedHere.due)}, ${pct(1 - fixedHere.share)} of the way through`,
       line:
         fixedHere.due < 0
           ? `So it is due from issue, and the first run, at hour ${renewsHere}, renews it.`
-          : `The rule counts 30 days back from expiry: ${percent(fixedHere.share)} of a ${adjective} life.`,
+          : `The rule counts 30 days back from expiry: ${pct(fixedHere.share)} of a ${adjective} life.`,
       caption: `Each bar is one certificate, from issue to expiry, drawn to one time scale and lined up at expiry. The highlighted line is the 30-day test: renew once expiry is less than 30 days away. The tick at the start of each 30-day bracket marks where that test starts to pass: 30 days before the right-hand end of each bar. On a 90-day certificate that is day ${days(rows[0]!.due)}, with ${lifeLeft(rows[0]!.share)} of its life left. ${
         key === '90d'
           ? 'A ninety-day lifetime is what the 30-day margin was written for.'
@@ -393,8 +393,8 @@ export default class CertRenewalExplainer extends Scene {
     await this.step('new-rule', {
       title: `Certbot 4.1 renews ${short ? 'half way' : 'two thirds of the way'} through a ${adjective} certificate`,
       line: both
-        ? `${upper(share)} of ${life.label} is ${at(byRule.fraction.due, short)}, where the 30-day rule renews too.`
-        : `${upper(share)} of ${life.label} is ${at(byRule.fraction.due, short)}${byRun}; the 30-day rule renews at ${at(byRule.fixed30.renewsAt, short)}.`,
+        ? `${upperFirst(share)} of ${life.label} is ${at(byRule.fraction.due, short)}, where the 30-day rule renews too.`
+        : `${upperFirst(share)} of ${life.label} is ${at(byRule.fraction.due, short)}${byRun}; the 30-day rule renews at ${at(byRule.fixed30.renewsAt, short)}.`,
       caption: `Certbot 4.1 changed the rule: ${answer}. With renew_before_expiry unset, it renews two thirds of the way through, or half way under ten days, unless the CA sends an ARI answer, a renewal window of its own (RFC 9773). A fraction scales with the lifetime; a fixed number of days does not. ${payoff}`,
     });
     // The margin picture gives way to the replacements each rule makes, in the chart's place above the code.
@@ -524,7 +524,7 @@ export default class CertRenewalExplainer extends Scene {
         : `Room for ${mine.retries} twice-daily runs; ${RULES[other].short} leaves ${length(theirs.slack, short)}.`,
       caption: limited
         ? `Let’s Encrypt allows ${LIMIT.burst} certificates for the same names in 7 days and gives one back every ${EMISSION} hours. After ${perWindow(rule).issued.filter((t) => t < mine.firstRefused!).length - 1} renewals the run at hour ${mine.firstRefused} is refused; in 365 days ${mine.refusedPerYear} runs are refused and ${mine.renewalsPerYear} renew.`
-        : `When a renewal falls due the certificate still has ${length(mine.slack, short)} to run, time for ${mine.retries} twice-daily runs to try again if the CA or the challenge fails. ${upper(RULES[other].short)} leaves ${length(theirs.slack, short)}${theirs.firstRefused != null ? `, but renews at every run until Let’s Encrypt refuses it at hour ${theirs.firstRefused}` : ''}.`,
+        : `When a renewal falls due the certificate still has ${length(mine.slack, short)} to run, time for ${mine.retries} twice-daily runs to try again if the CA or the challenge fails. ${upperFirst(RULES[other].short)} leaves ${length(theirs.slack, short)}${theirs.firstRefused != null ? `, but renews at every run until Let’s Encrypt refuses it at hour ${theirs.firstRefused}` : ''}.`,
     });
     await s.clear();
     const windows = gantt(
@@ -618,10 +618,9 @@ export default class CertRenewalExplainer extends Scene {
     // The window and the runs come from Boulder's RenewalInfoSimple and Certbot's draw (lib/cert-renewal.ts).
     const ari = ariSummary(rule, key),
       when = (h: number) => (short ? `hour ${h.toFixed(1)}` : `day ${days(h)}`),
-      pct = (p: number) => (p < 0.005 ? 'under 1%' : `${Math.round(p * 100)}%`),
-      runList = ari.runs.map((r) => `${at(r.at, short)} (${pct(r.p)})`),
-      listed =
-        runList.length > 1 ? `${runList.slice(0, -1).join(', ')} or ${runList[runList.length - 1]}` : runList[0]!;
+      chance = (p: number) => (p < 0.005 ? 'under 1%' : pct(p)),
+      runList = ari.runs.map((r) => `${at(r.at, short)} (${chance(r.p)})`),
+      runs = listed(runList, { or: true });
     // Under the 30-day rule a set renew_before_expiry can fire before the window opens.
     const settingFirst = rule === 'fixed30' && ari.runs.length === 1 && ari.runs[0]!.at + BACKDATE < ari.start;
     const [fewest, most] = ari.perYear,
@@ -638,7 +637,7 @@ export default class CertRenewalExplainer extends Scene {
           ? `The 30-day setting still renews on its own, at ${at(ari.runs[0]!.at, short)}, before the window opens, so the answer changes nothing until the setting is removed.`
           : ari.runs.length === 1 && ari.runs[0]!.at + BACKDATE >= ari.end
             ? `No run falls inside it, so the first run after it, at ${at(ari.runs[0]!.at, short)}, renews.`
-            : `Each run draws a random time in it and renews once that time has passed: ${listed}.`
+            : `Each run draws a random time in it and renews once that time has passed: ${runs}.`
       }`,
     });
     await s.clear();

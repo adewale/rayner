@@ -168,4 +168,3 @@ export const COUNTS = { isdecimal: 770, isdigit: 898, isnumeric: 2023, int: 770 
 /** How many characters each predicate accepts that int() rejects, alone. */
 export const accepts = (p: Predicate): number => COUNTS[p] - COUNTS.int;
 /** 2023 → "2,023". */
-export const grouped = (n: number): string => String(n).replace(/\B(?=(\d{3})+$)/g, ',');

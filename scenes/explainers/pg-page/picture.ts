@@ -3,6 +3,7 @@ import type { Box, Vec } from '../../../src/index.ts';
 import { keyed } from '../../../explain/drawing.ts';
 import { BLCKSZ, LINE_POINTER, PAGE_HEADER, TUPLE_HEADER } from './model.ts';
 import type { Column, Scenario, Tuple } from './model.ts';
+import { counted } from '../lib/format.ts';
 
 // Slice colours, in slice order, so the byte grid and the pie use the same ones.
 export const COLORS = {
@@ -86,7 +87,7 @@ export function drawKey(x: TupleState, kx: number, ky: number, { ink }: { ink: s
   return (
     [
       [COLORS.headers, `header, ${TUPLE_HEADER} bytes`],
-      [COLORS.padding, `padding, ${x.padding} byte${x.padding === 1 ? '' : 's'}`],
+      [COLORS.padding, `padding, ${counted(x.padding, 'byte')}`],
       [COLORS.data, `${textual(x.column) ? 'values' : 'value'}, ${x.data} bytes`],
     ] as const
   ).map(([color, words], row) => {

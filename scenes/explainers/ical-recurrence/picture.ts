@@ -2,14 +2,12 @@ import { Group, Rectangle, Text } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { DTSTART, GUEST, MOVED_FROM, MASTER, counts, expand, occurrences, parseRule, short } from './model.ts';
 import type { Change, VEvent, Week } from './model.ts';
-import { numberWord } from '../lib/format.ts';
+import { counted } from '../lib/format.ts';
 
 // How the explainer's lists and the copies picture look, drawn from the model's VEVENTs alone.
 
 export const RULE_STARTS = occurrences(DTSTART, parseRule(MASTER.rrules[0]!));
 export const week = (slot: string) => `Week ${RULE_STARTS.indexOf(slot) + 1}`;
-export const plural = (n: number, word: string) => `${numberWord(n)} ${word}${n === 1 ? '' : 's'}`;
-export const upperFirst = (t: string) => t[0]!.toUpperCase() + t.slice(1);
 
 /**
  * Alice's meeting list, one row per week of the rule: the start her calendar shows, with what makes
@@ -100,7 +98,7 @@ export const copiesPicture = (st: { copies: CopiesState }, s: Stage) => {
   const strip = (c: CopyState, name: string, top: number) => {
     const shown = expand(c.components);
     const n = c.weeks.filter((w) => w !== 'excluded' && w !== 'absent').length;
-    const parts: (Text | Rectangle)[] = [text(`${name}: ${plural(n, 'meeting')}`, WEEK, pal.ink, [-3.6, top], 'start', 'bold')];
+    const parts: (Text | Rectangle)[] = [text(`${name}: ${counted(n, 'meeting', { words: true })}`, WEEK, pal.ink, [-3.6, top], 'start', 'bold')];
     const cell = 1.14,
       gap = 0.06;
     c.weeks.forEach((w, i) => {

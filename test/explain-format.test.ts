@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { listed, numberWord, percent } from '../scenes/explainers/lib/format.ts';
+import { counted, grouped, listed, numberWord, ordinal, percent, upperFirst } from '../scenes/explainers/lib/format.ts';
 
 test('listed joins English lists with commas and a final "and", without a serial comma', () => {
   assert.equal(listed([]), '');
@@ -10,13 +10,45 @@ test('listed joins English lists with commas and a final "and", without a serial
   assert.equal(listed([3, 5, 9, 12]), '3, 5, 9 and 12');
 });
 
-test('numberWord writes one to ten as words, the chosen word for zero, and numerals otherwise', () => {
+test('listed joins with "or" on request', () => {
+  assert.equal(listed([], { or: true }), '');
+  assert.equal(listed(['A'], { or: true }), 'A');
+  assert.equal(listed(['A', 'B'], { or: true }), 'A or B');
+  assert.equal(listed([10, 20, 30], { or: true }), '10, 20 or 30');
+});
+
+test('numberWord writes one to twelve as words, the chosen word for zero, and numerals otherwise', () => {
   assert.equal(numberWord(0), 'no');
   assert.equal(numberWord(0, { zero: 'none' }), 'none');
-  assert.deepEqual([1, 2, 3, 4, 5, 6, 10].map((n) => numberWord(n)), ['one', 'two', 'three', 'four', 'five', 'six', 'ten']);
-  assert.equal(numberWord(11), '11');
+  assert.deepEqual([1, 2, 3, 4, 5, 6, 10, 11, 12].map((n) => numberWord(n)), ['one', 'two', 'three', 'four', 'five', 'six', 'ten', 'eleven', 'twelve']);
+  assert.equal(numberWord(13), '13');
   assert.equal(numberWord(2.5), '2.5');
   assert.equal(numberWord(-1), '-1');
+  assert.equal(numberWord(3, { capital: true }), 'Three');
+  assert.equal(numberWord(0, { zero: 'no one', capital: true }), 'No one');
+  assert.equal(numberWord(14, { capital: true }), '14');
+});
+
+test('counted pairs a count with its noun, plural unless the count is 1', () => {
+  assert.equal(counted(1, 'edit'), '1 edit');
+  assert.equal(counted(0, 'edit'), '0 edits');
+  assert.equal(counted(3, 'local pod'), '3 local pods');
+  assert.equal(counted(2, 'child', { plural: 'children' }), '2 children');
+  assert.equal(counted(1, 'meeting', { words: true }), 'one meeting');
+  assert.equal(counted(0, 'meeting', { words: true }), 'no meetings');
+  assert.equal(counted(0, 'read', { words: true, zero: 'none' }), 'none reads');
+  assert.equal(counted(1, 'token', { digits: 1 }), '1.0 token');
+  assert.equal(counted(0.5, 'token', { digits: 1 }), '0.5 tokens');
+});
+
+test('grouped puts a comma between groups of three digits', () => {
+  assert.deepEqual([0, 770, 1000, 2023, 6371, 1234567, -1234, 1234.5].map(grouped), ['0', '770', '1,000', '2,023', '6,371', '1,234,567', '-1,234', '1,234.5']);
+});
+
+test('upperFirst and ordinal', () => {
+  assert.equal(upperFirst('monday'), 'Monday');
+  assert.equal(upperFirst(''), '');
+  assert.deepEqual([1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 101, 111, 112].map(ordinal), ['1st', '2nd', '3rd', '4th', '11th', '12th', '13th', '21st', '22nd', '23rd', '101st', '111th', '112th']);
 });
 
 test('percent reads fractions, parts of a whole and values already in percent', () => {

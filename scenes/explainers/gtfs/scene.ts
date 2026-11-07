@@ -23,8 +23,8 @@ import {
   weekGrid,
 } from './model.ts';
 import type { Band, Cell, GtfsDate, Row, ServiceDay } from './model.ts';
-import { drawColumn, drawWeek, departuresPicture, stopNameIn, upper } from './picture.ts';
-import { listed } from '../lib/format.ts';
+import { drawColumn, drawWeek, departuresPicture, stopNameIn } from './picture.ts';
+import { listed, numberWord, upperFirst } from '../lib/format.ts';
 
 // Sources, all at google/transit commit 3c9e7b9: the GTFS Schedule reference (lines quoted in
 // ./model.ts and below) and its sample feed, whose files are copied in ./sample-feed-1.
@@ -103,8 +103,6 @@ type StopKey = keyof typeof STOPS;
 const stopName = (id: string) => stopNameIn(FEED, id);
 const route = (id: string) => FEED.routes.find((r) => r.route_id === id)!;
 const tripsOf = (serviceId: string) => FEED.trips.filter((t) => t.service_id === serviceId);
-const number = (n: number) =>
-  ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven'][n] ?? String(n);
 
 /** What one service's calendar rows say for a date, in a few words. */
 function verdict(s: ServiceDay, date: GtfsDate): string {
@@ -221,11 +219,11 @@ export default class GtfsExplainer extends Scene {
         : `Predict: all ${FEED.routes.length} routes are still in routes.txt. Why does none run?`,
       caption: `The date is now ${shortDate(date)}. The route list has not changed, but the active trips have: ${
         started.length
-          ? `${number(started.length)} trips under ${listed(services2(started))} start, on route${routesOf(started).length > 1 ? 's' : ''} ${listed(routesOf(started))}.`
+          ? `${numberWord(started.length)} trips under ${listed(services2(started))} start, on route${routesOf(started).length > 1 ? 's' : ''} ${listed(routesOf(started))}.`
           : ''
       }${
         stopped.length
-          ? `${started.length ? ' ' + upper(number(stopped.length)) : number(stopped.length)} trips under ${listed(services2(stopped))} stop.${tripsToday.length ? '' : ` All ${FEED.routes.length} routes are still in routes.txt, and none has a trip running: a rider asking for today’s departures gets nothing.`}`
+          ? `${started.length ? ' ' + numberWord(stopped.length, { capital: true }) : numberWord(stopped.length)} trips under ${listed(services2(stopped))} stop.${tripsToday.length ? '' : ` All ${FEED.routes.length} routes are still in routes.txt, and none has a trip running: a rider asking for today’s departures gets nothing.`}`
           : ''
       } To see why, follow one trip, AB1, from its route to its dates.`,
     });
@@ -320,7 +318,7 @@ export default class GtfsExplainer extends Scene {
         )
         .join(
           '; ',
-        )}. So ${tripsToday.length === 0 ? `none of the ${FEED.trips.length} trips runs` : tripsToday.length === FEED.trips.length ? `all ${FEED.trips.length} trips run` : `${number(tripsToday.length)} of the ${FEED.trips.length} trips run`}.`,
+        )}. So ${tripsToday.length === 0 ? `none of the ${FEED.trips.length} trips runs` : tripsToday.length === FEED.trips.length ? `all ${FEED.trips.length} trips run` : `${numberWord(tripsToday.length)} of the ${FEED.trips.length} trips run`}.`,
     });
     await s.clear();
     const calendar = SAMPLE_FEED['calendar.txt']!.split('\n'),
@@ -375,14 +373,14 @@ export default class GtfsExplainer extends Scene {
     const col = grid.dates.indexOf(date);
     const empties = grid.dates.filter((_, i) => grid.trips[i] === 0);
     const pattern = (cells: readonly Cell[]) => {
-      const days = grid.dates.filter((_, i) => cells[i] !== 'off').map((d) => upper(weekday(d)));
+      const days = grid.dates.filter((_, i) => cells[i] !== 'off').map((d) => upperFirst(weekday(d)));
       return days.length === 7 ? 'every day' : days.length ? listed(days) : 'no day';
     };
     const removedCells = grid.services.flatMap((x) =>
       grid.dates.flatMap((d, i) => (x.cells[i] === 'removed' ? [{ serviceId: x.serviceId, date: d }] : [])),
     );
     const runningHere = grid.services.filter((x) => x.cells[col] === 'runs').map((x) => x.serviceId);
-    const emptyWords = empties.length === 1 ? `${longDate(empties[0]!)} is the week’s one empty column` : empties.length ? `the week has ${number(empties.length)} empty columns` : 'no column of the week is empty';
+    const emptyWords = empties.length === 1 ? `${longDate(empties[0]!)} is the week’s one empty column` : empties.length ? `the week has ${numberWord(empties.length)} empty columns` : 'no column of the week is empty';
     // A staged step: the stage is cleared and the grid drawn from `week` and `date`, the date it frames.
     // A phone opens on the date asked about, with its neighbours either side as room allows.
     await s.steps([
@@ -391,13 +389,13 @@ export default class GtfsExplainer extends Scene {
       title:
         grid.trips[col] === 0 && empties.length === 1
           ? `${longDate(date)} is the week’s one empty column`
-          : `${upper(weekday(date))} ${shortDate(date)} has ${runningHere.length === grid.services.length ? 'every service' : listed(runningHere)}; ${emptyWords.replace(/ is the week’s one empty column$/, ' is the empty one')}`,
+          : `${upperFirst(weekday(date))} ${shortDate(date)} has ${runningHere.length === grid.services.length ? 'every service' : listed(runningHere)}; ${emptyWords.replace(/ is the week’s one empty column$/, ' is the empty one')}`,
       line: 'Filled: the service runs. Dashed: calendar_dates.txt removes it. Blank: not that weekday.',
       caption:
         `Each row is a service and each column a date, ${longDate(grid.dates[0]!)} to ${longDate(grid.dates[6]!)}; the number under a column counts the trips that run that day. ` +
         `${listed(grid.services.map((x) => `${x.serviceId}’s weekly pattern covers ${pattern(x.cells)}`))}. ` +
         (removedCells.length
-          ? `${upper(number(removedCells.length))} calendar_dates.txt row${removedCells.length > 1 ? 's' : ''}, ${listed(removedCells.map((r) => `${r.serviceId},${r.date},2`))}, ${removedCells.length > 1 ? 'empty' : 'empties'} ${listed(removedCells.map((r) => `${r.serviceId}’s ${upper(weekday(r.date))} cell`))}. `
+          ? `${numberWord(removedCells.length, { capital: true })} calendar_dates.txt row${removedCells.length > 1 ? 's' : ''}, ${listed(removedCells.map((r) => `${r.serviceId},${r.date},2`))}, ${removedCells.length > 1 ? 'empty' : 'empties'} ${listed(removedCells.map((r) => `${r.serviceId}’s ${upperFirst(weekday(r.date))} cell`))}. `
           : '') +
         (empties.length === 1
           ? `With no other service on that weekday, ${shortDate(empties[0]!)}’s column is empty: 0 trips. `
@@ -467,8 +465,8 @@ export default class GtfsExplainer extends Scene {
       title: !leaving.length
         ? `Nothing leaves ${name} on ${shortDate(date)}`
         : at.headways.length && !at.departures.length
-          ? `${upper(number(at.headways.length))} frequency trips leave ${name} on ${shortDate(date)}`
-          : `${upper(number(at.departures.length))} departure${at.departures.length > 1 ? 's' : ''} from ${name} on ${shortDate(date)}`,
+          ? `${numberWord(at.headways.length, { capital: true })} frequency trips leave ${name} on ${shortDate(date)}`
+          : `${numberWord(at.departures.length, { capital: true })} departure${at.departures.length > 1 ? 's' : ''} from ${name} on ${shortDate(date)}`,
       line: !leaving.length
         ? removedBy.length
           ? 'The card shows what calendar.txt alone would have sent from here.'
@@ -481,7 +479,7 @@ export default class GtfsExplainer extends Scene {
       caption: !leaving.length
         ? `A departure is a stop_times row at the stop that is not its trip’s last. On ${shortDate(date)} no trip runs, so no row counts.${
             removedBy.length
-              ? ` The card lists what calendar.txt alone would have sent from ${name} on a ${upper(day)}, each marked removed.`
+              ? ` The card lists what calendar.txt alone would have sent from ${name} on a ${upperFirst(day)}, each marked removed.`
               : ''
           }`
         : at.headways.length

@@ -1,6 +1,7 @@
 import { keyed } from '../../../explain/drawing.ts';
 import { Rectangle, Text, Group, Circle, Cross, Line, Arrow } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
+import { counted } from '../lib/format.ts';
 
 /** The stage's colours these pictures are drawn in. */
 export type Ink = { ink: string; soft: string; good: string; bad: string; emphasis: string };
@@ -19,7 +20,7 @@ export interface Choice {
 }
 /** The 'fork' step on the page: seconds moving, seconds still, and the words its caption holds. */
 export interface Timing { motion: number; held: number; words: number }
-export const perSecond = (r: number) => `${r} token${r === 1 ? '' : 's'} a second`;
+export const perSecond = (r: number) => `${counted(r, 'token')} a second`;
 
 // The rows of answers: a column per request, R10's last, and a row per rate.
 const pitch = 0.82,

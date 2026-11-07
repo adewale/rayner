@@ -25,8 +25,8 @@ import {
 } from './model.ts';
 import type { Change, Copy, VEvent } from './model.ts';
 import { stagedStep } from '../../../explain/index.ts';
-import { numberWord } from '../lib/format.ts';
-import { RULE_STARTS, week, plural, upperFirst, rows, guestRows, day, copiesPicture } from './picture.ts';
+import { counted, numberWord, upperFirst } from '../lib/format.ts';
+import { RULE_STARTS, week, rows, guestRows, day, copiesPicture } from './picture.ts';
 import type { CopiesState } from './picture.ts';
 
 // Sources: RFC 5545 and RFC 4791 (sections and lines are quoted in model.ts), and
@@ -280,7 +280,7 @@ export default class IcalRecurrenceExplainer extends Scene {
           change === 'skip'
             ? `The same cancellation reaches two different objects. Alice’s holds the master, whose RRULE gives six weeks, so her app takes the third out with EXDATE:${GUEST_MEETING}, leaving ${numberWord(meetingsA)} meetings. Bob’s holds the override for ${day(GUEST_MEETING)} and no master. His other five weeks are empty because nothing in his copy generates them, and the iTIP ${sent.at(-1)} marks the one VEVENT he has STATUS:CANCELLED.`
             : change === 'move'
-              ? `Alice’s object now holds the master and ${plural(na.overrides, 'override')}: the one that invited Bob, and a new one that moves the second meeting to ${short(MOVED_TO)}. Bob’s holds the one override he attends and no master. The iTIP ${sent.at(-1)} the server sends him carries that override again, so his calendar shows the third week and nothing of the move.`
+              ? `Alice’s object now holds the master and ${counted(na.overrides, 'override', { words: true })}: the one that invited Bob, and a new one that moves the second meeting to ${short(MOVED_TO)}. Bob’s holds the one override he attends and no master. The iTIP ${sent.at(-1)} the server sends him carries that override again, so his calendar shows the third week and nothing of the move.`
               : `Alice’s object holds the master, whose RRULE gives all six weeks, and the override that puts Bob in the third. Bob’s holds that override and no master, so his calendar shows the third week and no other.`,
         state,
         draw: copiesPicture,
@@ -326,15 +326,15 @@ export default class IcalRecurrenceExplainer extends Scene {
     const mine = copyOf(change, copy),
       n = counts(mine),
       bob = guestCopy(change);
-    const parts = `${n.masters ? `one master with ${plural(n.rrules, 'RRULE')} and ${plural(n.exdates, 'EXDATE')}` : 'no master'}, and ${plural(n.overrides, 'override')}`;
+    const parts = `${n.masters ? `one master with ${counted(n.rrules, 'RRULE', { words: true })} and ${counted(n.exdates, 'EXDATE', { words: true })}` : 'no master'}, and ${counted(n.overrides, 'override', { words: true })}`;
     // `components`: the VEVENTs the copy holds, which Bob's stored object lists.
     const copyState = { copy, stored: counts(mine), meetings: expand(mine).map((m) => [m.start, m.cancelled] as const), components: mine };
     let er: Diagram | undefined;
     if (copy === 'organiser') {
       er = await schemaStep();
       await this.step('copy', {
-        title: `Alice’s copy: ${plural(n.vevents, 'VEVENT')}, one UID`,
-        line: `${n.masters ? 'One master' : 'No master'} and ${plural(n.overrides, 'override')}; her calendar shows ${numberWord(expand(mine).length)} meetings.`,
+        title: `Alice’s copy: ${counted(n.vevents, 'VEVENT', { words: true })}, one UID`,
+        line: `${n.masters ? 'One master' : 'No master'} and ${counted(n.overrides, 'override', { words: true })}; her calendar shows ${numberWord(expand(mine).length)} meetings.`,
         caption: `The server stores Alice’s object as her app saved it: ${parts}, ${n.vevents > 1 ? 'all ' : ''}with UID standup. The notes on the schema count each part, and parts her copy lacks are dimmed. Bob’s copy is different: ${answer}.`,
       });
       const present = [
@@ -346,7 +346,7 @@ export default class IcalRecurrenceExplainer extends Scene {
       ];
       this.state.copy = copyState;
       const count = (k: number, word: string) =>
-        k ? plural(k, word).replace(/^one /, '1 ').replace(/^two /, '2 ') : `no ${word}`;
+        k ? counted(k, word, { words: true }).replace(/^one /, '1 ').replace(/^two /, '2 ') : `no ${word}`;
       await showEr({
         dim: present,
         notes: [
@@ -396,7 +396,7 @@ export default class IcalRecurrenceExplainer extends Scene {
             ? `${upperFirst(answer)}. Bob is now in no meeting, so the server, Baïkal running sabre/dav, sends him an iTIP CANCEL, the scheduling message that calls a meeting off. Delivering it sets STATUS:CANCELLED on the one VEVENT he holds. Alice’s calendar no longer has a third meeting, because she excluded its start from her rule; Bob had no rule to exclude it from, so his copy still contains ${long(GUEST_MEETING)}, marked cancelled.`
             : change === 'move'
               ? `${upperFirst(answer)}. Saving the move sends Bob an iTIP REQUEST, a scheduling message carrying a meeting’s details, but the server, Baïkal running sabre/dav, puts in it only the VEVENTs Bob attends: the third meeting’s override again. His copy still holds that one VEVENT, and the moved Tuesday meeting never appears in it.`
-              : `${upperFirst(answer)}. The invitation reached Bob as an iTIP REQUEST, a scheduling message carrying a meeting’s details, holding only the VEVENTs he attends. The server stored it as it came: the third meeting’s override, with RECURRENCE-ID and no master, which RFC 4791 allows. His stored copy contains ${plural(expand(mine).length, 'meeting')} and no rule to generate the others.`,
+              : `${upperFirst(answer)}. The invitation reached Bob as an iTIP REQUEST, a scheduling message carrying a meeting’s details, holding only the VEVENTs he attends. The server stored it as it came: the third meeting’s override, with RECURRENCE-ID and no master, which RFC 4791 allows. His stored copy contains ${counted(expand(mine).length, 'meeting', { words: true })} and no rule to generate the others.`,
         state: { copy: copyState, messages: [first, second].filter(Boolean).map((m) => m!.method) },
         draw: bobsCopy,
       });

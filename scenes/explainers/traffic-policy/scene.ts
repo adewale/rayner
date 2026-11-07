@@ -24,6 +24,7 @@ import {
 import type { PlacementKey, Policy, Q } from './model.ts';
 import { NODES, POLICY, parse, flowPanel } from './picture.ts';
 import type { FlowState } from './picture.ts';
+import { counted, listed, numberWord } from '../lib/format.ts';
 
 // Sources: kubernetes/kubernetes at tag v1.37.1 and kubernetes/website at commit 0c2509f; the lines each
 // claim rests on are quoted in model.ts and beside the steps below.
@@ -32,7 +33,6 @@ const WEB = 'https://github.com/kubernetes/website/blob/0c2509f55f9de644acef9232
 
 // excalidraw was tried first: its hatched fills, recoloured and thickened by a mark, hid the marked labels.
 const STYLE = 'github-light';
-const NAMES = ['one', 'two', 'three', 'four', 'five', 'six'];
 
 /**
  * The cluster as an architecture diagram: the load balancer under three node groups, each node's address
@@ -71,23 +71,11 @@ const hopTarget = (counts: readonly number[]) =>
     .filter((p) => p.node === 1)
     .at(-1)!.id;
 
-const named = (n: number) => NAMES[n - 1] ?? String(n);
-const podList = (ids: readonly string[]) =>
-  ids.length === 1 ? `pod ${ids[0]}` : `pods ${ids.slice(0, -1).join(', ')} and ${ids.at(-1)}`;
-const nodeList = (nodes: readonly number[]) =>
-  nodes.length === 1
-    ? NODES[nodes[0]!]!
-    : `${nodes
-        .slice(0, -1)
-        .map((j) => NODES[j])
-        .join(', ')} and ${NODES[nodes.at(-1)!]}`;
+const podList = (ids: readonly string[]) => (ids.length === 1 ? `pod ${ids[0]}` : `pods ${listed(ids)}`);
+const nodeList = (nodes: readonly number[]) => listed(nodes.map((j) => NODES[j]!));
 /** "Node 1 runs 3 pods, Node 2 runs 1 and Node 3 runs none." */
-const placementWords = (counts: readonly number[]) => {
-  const parts = counts.map(
-    (n, j) => `${NODES[j]} runs ${n === 0 ? 'none' : j === 0 ? `${n} pod${n === 1 ? '' : 's'}` : n}`,
-  );
-  return `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;
-};
+const placementWords = (counts: readonly number[]) =>
+  listed(counts.map((n, j) => `${NODES[j]} runs ${n === 0 ? 'none' : j === 0 ? counted(n, 'pod') : n}`));
 /** "1 in 4" for a fraction. */
 const inN = (x: Q) => (x[0] === 0 ? 'none' : x[0] === x[1] ? 'all' : `${x[0]} in ${x[1]}`);
 /** Pods grouped by share, largest share first: [[share, ids], ...]. */
@@ -364,7 +352,7 @@ export default class TrafficPolicyExplainer extends Scene {
         });
       // Each node's health check answer, said under the node.
       await showCluster({
-        notes: counts.map((c, j) => below(`k${j + 1}`, `${passes(counts, 'local', j) ? '200' : '503'}, ${c} local pod${c === 1 ? '' : 's'}`)),
+        notes: counts.map((c, j) => below(`k${j + 1}`, `${passes(counts, 'local', j) ? '200' : '503'}, ${counted(c, 'local pod')}`)),
       });
       this.state.passes = counts.map((_, j) => passes(counts, 'local', j));
 
@@ -397,7 +385,7 @@ export default class TrafficPolicyExplainer extends Scene {
                       : [
                           c === 1
                             ? `${NODES[j]} sends all of its ${frac(node[j]!)} to pod ${pods.find((p) => p.node === j)!.id}`
-                            : `${NODES[j]} splits its ${frac(node[j]!)} ${named(c)} ways`,
+                            : `${NODES[j]} splits its ${frac(node[j]!)} ${numberWord(c)} ways`,
                         ],
                   )
                   .join('; ')) +
@@ -425,9 +413,9 @@ export default class TrafficPolicyExplainer extends Scene {
         ? [`${NODES[j]} gets no band`]
         : c === 1
           ? [`${NODES[j]} hands its whole ${frac(localNode[j]!)} to pod ${pods.find((p) => p.node === j)!.id}`]
-          : [`${NODES[j]} cuts its ${frac(localNode[j]!)} into ${named(c)} bands of ${frac(shares(counts, 'local')[pods.find((p) => p.node === j)!.id]!)}`],
+          : [`${NODES[j]} cuts its ${frac(localNode[j]!)} into ${numberWord(c)} bands of ${frac(shares(counts, 'local')[pods.find((p) => p.node === j)!.id]!)}`],
     );
-    const cutWords = localCuts.length > 1 ? `${localCuts.slice(0, -1).join(', ')} and ${localCuts.at(-1)}` : localCuts[0]!;
+    const cutWords = listed(localCuts);
     await this.step('flow', {
       title: lUneven
         ? `Under Local, ${NODES[fedBy(lHigh[1][0]!)]}’s whole ${frac(localNode[fedBy(lHigh[1][0]!)]!)} flows into pod ${lHigh[1][0]}`
@@ -435,7 +423,7 @@ export default class TrafficPolicyExplainer extends Scene {
       line: 'Band width is share of requests; colour is the node a request enters.',
       caption:
         `Each band is as wide as its share of the outside requests and takes the colour of the node it enters. The load balancer makes the first cut, by node; each node’s rules make the second, among the pods they list. ` +
-        `Under Cluster each node’s ${frac(clusterNode[0]!)} fans out to all ${n} pods, so every pod bar collects ${named(counts.length)} colours and ends at ${frac(q(1, n))}. ` +
+        `Under Cluster each node’s ${frac(clusterNode[0]!)} fans out to all ${n} pods, so every pod bar collects ${numberWord(counts.length)} colours and ends at ${frac(q(1, n))}. ` +
         `Under Local ${cutWords}` +
         (lUneven
           ? `, so pod ${lHigh[1][0]}’s bar ends ${value(lHigh[0]) / value(lLowest[0])} times as wide as pod ${lLowest[1][0]}’s.`

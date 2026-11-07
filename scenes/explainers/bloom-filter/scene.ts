@@ -3,14 +3,13 @@ import { settingsOf, stage } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { bloomStory, locations, saturation } from './model.ts';
 import { label } from '../../../explain/drawing.ts';
-import { drawBits, drawPipeline, takenLabel, thousands } from './picture.ts';
-import { listed, numberWord, percent } from '../lib/format.ts';
+import { drawBits, drawPipeline, takenLabel } from './picture.ts';
+import { counted, grouped, listed, numberWord, ordinal, percent } from '../lib/format.ts';
 
 // Two decimals under 1%, so a rate of a few in a thousand does not read 0.0%.
 const pct = (x: number) => percent(x, { under1: { digits: 2 } });
 
 const count = (n: number) => numberWord(n, { zero: 'none' });
-const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th')}`;
 
 export default class BloomFilter extends Scene {
   static meta = {
@@ -121,9 +120,9 @@ export default class BloomFilter extends Scene {
       },
       {
         id: 'pipeline',
-        title: `The filter skips ${count(skipped)} read${skipped === 1 ? '' : 's'} and wastes ${count(wasted)}`,
-        line: `Over ${thousands(m.sampleSize)} untaken names, ${pct(s16.sampleFalsePositives / s16.sampleSize)} pass at 16 bits and ${pct(s32.sampleFalsePositives / s32.sampleSize)} at 32.`,
-        caption: `The upper table follows each lookup: a 0 skips the database; maybe sends the question on. An untaken name gets through only when all three of its bits are already set. A longer row leaves more empty positions, making that harder. The lower table tries both rows on the same ${thousands(m.sampleSize)} untaken names: fewer pass the larger row, so fewer reads are wasted. These are measured results for this sample and these hashes.`,
+        title: `The filter skips ${counted(skipped, 'read', { words: true, zero: 'none' })} and wastes ${count(wasted)}`,
+        line: `Over ${grouped(m.sampleSize)} untaken names, ${pct(s16.sampleFalsePositives / s16.sampleSize)} pass at 16 bits and ${pct(s32.sampleFalsePositives / s32.sampleSize)} at 32.`,
+        caption: `The upper table follows each lookup: a 0 skips the database; maybe sends the question on. An untaken name gets through only when all three of its bits are already set. A longer row leaves more empty positions, making that harder. The lower table tries both rows on the same ${grouped(m.sampleSize)} untaken names: fewer pass the larger row, so fewer reads are wasted. These are measured results for this sample and these hashes.`,
       },
       {
         id: 'full',

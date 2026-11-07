@@ -7,13 +7,12 @@ import { Card } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { clock, headwayWords, shortDate, stopTimesOf, weekday } from './model.ts';
 import type { Feed, GtfsDate, StopDay, WeekGrid } from './model.ts';
-import { listed } from '../lib/format.ts';
+import { listed, upperFirst } from '../lib/format.ts';
 
 /** The words' column: the right of the stage, beside the diagram on the left. */
 const RIGHT: Box = [2.05, -4.25, 7.55, 3.05];
 const SIZE = 0.26;
 
-export const upper = (t: string) => t[0]!.toUpperCase() + t.slice(1);
 /** A stop's name without the feed's " (Demo)". */
 export const stopNameIn = (feed: Feed, id: string) => feed.stops.find((s) => s.stop_id === id)!.stop_name!.replace(/ \(Demo\)$/, '');
 
@@ -85,7 +84,7 @@ export function drawWeek(st: { week: WeekGrid; date: GtfsDate }, s: Stage): Grou
   const dayColumn = (i: number) => {
     const d = g.dates[i]!;
     const column = new Group(
-      words(upper(weekday(d)).slice(0, 3), { bold: i === at }).moveTo([colX(i), TOP + 0.72]),
+      words(upperFirst(weekday(d)).slice(0, 3), { bold: i === at }).moveTo([colX(i), TOP + 0.72]),
       words(shortDate(d)).moveTo([colX(i), TOP + 0.3]),
       ...g.services.map((_, r) => cellOf(r, i)),
       words(String(g.trips[i]), { size: 0.34, bold: true }).moveTo([colX(i), totalY]),

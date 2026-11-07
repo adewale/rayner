@@ -285,8 +285,6 @@ export function wholePie(sp: Space, stage: WholeStage): Slice[] {
 }
 
 // ---------------------------------------------------------------- words
-/** 268435456 -> "268,435,456". */
-export const count = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 /** A share of a whole: one decimal from 1% up, two significant digits under it (0.40%, 0.014%). */
 export const percent = (part: number, whole: number): string => formatPercent(part, { of: whole, under1: { significant: 2 } });
 /** Blocks of 4 KiB in the largest whole binary unit: 262144 -> "1 GiB", 4096 -> "16 MiB". */

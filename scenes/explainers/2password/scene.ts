@@ -14,6 +14,7 @@ import {
   matches,
   terms,
 } from './model.ts';
+import { counted } from '../lib/format.ts';
 
 const STYLE = 'excalidraw';
 const QUERIES = ['cloud api', 'databse'] as const;
@@ -108,7 +109,7 @@ export default class PasswordExplainer extends Scene {
     const near = ITEMS.find((i) => i.title === suggestion.title)!;
     const word = near.title.toLowerCase(),
       edits = distance(missQuery, word),
-      editWords = `${edits} edit${edits === 1 ? '' : 's'}`;
+      editWords = counted(edits, 'edit');
     await this.step('match', {
       title: `Answer: a match for “${hitQuery}”, a suggestion for “${missQuery}”`,
       line: `${match.title} contains every word of “${hitQuery}”; ${near.title} is ${editWords} from “${missQuery}”.`,
@@ -167,7 +168,7 @@ export default class PasswordExplainer extends Scene {
       marked: ['message:T->A#0'],
       // What the two calls cost, said on op itself, and what the agent's reply holds, said on the reply.
       notes: [
-        { id: 'O', text: `${found.opCalls.length} calls, ${approvals} approval${approvals === 1 ? '' : 's'}`, side: 'right' },
+        { id: 'O', text: `${found.opCalls.length} calls, ${counted(approvals, 'approval')}`, side: 'right' },
         { id: 'message:T->A#0', text: `secret values: ${leaked || 'none'}`, side: 'below' },
       ],
     } satisfies SequenceShown;

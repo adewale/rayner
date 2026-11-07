@@ -10,7 +10,6 @@ import {
   RESERVES,
   SIZES,
   bytesOf,
-  count,
   journalBlocks,
   metadataPie,
   percent,
@@ -18,6 +17,7 @@ import {
   times,
   wholePie,
 } from './model.ts';
+import { grouped } from '../lib/format.ts';
 import type { Size, Slice, Space, WholeStage } from './model.ts';
 
 // Sources: e2fsprogs at tag v1.47.3 and Linux at tag v6.8; lines are quoted in model.ts and
@@ -200,7 +200,7 @@ export default class Ext4SpaceExplainer extends Scene {
       title: `A new ${name} disk: users can write only ${of(sp.users)} of it`,
       line: `Predict: no file is written yet. Where did ${size === '1g' ? bytesOf(gone) : gib(gone)} go?`,
       // Linux super.c:6807-6831 ext4_statfs; measured with statfs on the mounted filesystem.
-      caption: `We ran mkfs.ext4 1.47.3 with no options on an empty ${name} disk, ${count(l.blocks)} blocks of ${BLOCK} bytes, mounted it and asked the kernel’s statfs, which df reads. A user other than root can write ${count(sp.users)} blocks, which df shows as Avail: ${of(sp.users)} of the disk. The other ${count(gone)} blocks, ${of(gone)}, are unavailable to this writer before any user files are added. Does unavailable mean already occupied?`,
+      caption: `We ran mkfs.ext4 1.47.3 with no options on an empty ${name} disk, ${grouped(l.blocks)} blocks of ${BLOCK} bytes, mounted it and asked the kernel’s statfs, which df reads. A user other than root can write ${grouped(sp.users)} blocks, which df shows as Avail: ${of(sp.users)} of the disk. The other ${grouped(gone)} blocks, ${of(gone)}, are unavailable to this writer before any user files are added. Does unavailable mean already occupied?`,
     });
     await s.clear();
     this.state.df = { blocks: l.blocks, users: sp.users, gone, pie: openPie };
@@ -209,10 +209,10 @@ export default class Ext4SpaceExplainer extends Scene {
     await enterCard(
       cardOf(
         (st) => [
-          ['Disk', `${st.disk.label}, ${count(st.df.blocks)} blocks`],
-          ['df Avail', `${count(st.df.users)} blocks`],
+          ['Disk', `${st.disk.label}, ${grouped(st.df.blocks)} blocks`],
+          ['df Avail', `${grouped(st.df.users)} blocks`],
           ['Users can write', ofDisk(st, st.df.users)],
-          ['Not available', `${count(st.df.gone)} blocks`],
+          ['Not available', `${grouped(st.df.gone)} blocks`],
         ],
         { at: CARD, fontSize: SIZE, title: 'statfs after mkfs.ext4' },
       ),
@@ -223,9 +223,9 @@ export default class Ext4SpaceExplainer extends Scene {
     const ratio = times(sp.root, l.metadata);
     await this.step('reserve', {
       title: `Answer: 5% is held back for root, ${ratio} all the metadata`,
-      line: `Predict: what fills the ${count(l.metadata)} blocks of metadata?`,
+      line: `Predict: what fills the ${grouped(l.metadata)} blocks of metadata?`,
       // mke2fs.c:2375-2378, 2832-2833; mke2fs.8.in:637-644; Linux super.c:4255-4283, balloc.c:620-665.
-      caption: `${answer}. Without -m, mke2fs reserves 5% of the blocks for root, ${count(sp.root)} here, held back for privileged use. Those blocks can still be free: the reserve changes who may fill them, not whether metadata occupies them. The metadata, the filesystem’s own structures, is ${count(l.metadata)} blocks, ${of(l.metadata)}, and once mounted the kernel holds back ${count(sp.kernel)} more${
+      caption: `${answer}. Without -m, mke2fs reserves 5% of the blocks for root, ${grouped(sp.root)} here, held back for privileged use. Those blocks can still be free: the reserve changes who may fill them, not whether metadata occupies them. The metadata, the filesystem’s own structures, is ${grouped(l.metadata)} blocks, ${of(l.metadata)}, and once mounted the kernel holds back ${grouped(sp.kernel)} more${
         kernelDrawn ? '' : `, ${of(sp.kernel)}, too thin to draw`
       }. Free blocks less both reserves is what ordinary users can write. Lowering the root reserve can change that availability without removing a single metadata block.`,
     });
@@ -255,12 +255,12 @@ export default class Ext4SpaceExplainer extends Scene {
     await enterCard(
       cardOf(
         (st) => [
-          ['Blocks', count(st.df.blocks)],
-          ['Metadata', `- ${count(st.reserve.metadata)}`],
-          ['Free', count(st.reserve.free)],
-          ['Root, 5%', `- ${count(st.reserve.root)}`],
-          ['Kernel', `- ${count(st.reserve.kernel)}`],
-          ['Users can write', count(st.reserve.users)],
+          ['Blocks', grouped(st.df.blocks)],
+          ['Metadata', `- ${grouped(st.reserve.metadata)}`],
+          ['Free', grouped(st.reserve.free)],
+          ['Root, 5%', `- ${grouped(st.reserve.root)}`],
+          ['Kernel', `- ${grouped(st.reserve.kernel)}`],
+          ['Users can write', grouped(st.reserve.users)],
           ['Root / metadata', times(st.reserve.root, st.reserve.metadata)],
         ],
         { at: CARD, fontSize: SIZE, title: 'Where the blocks go' },
@@ -271,11 +271,11 @@ export default class Ext4SpaceExplainer extends Scene {
     const perInode = l.inodeRatio / 1024;
     await this.step('inodes', {
       title: `Inode tables are ${ofMeta(l.inodeTables)} of the metadata`,
-      line: `One ${INODE_SIZE}-byte inode per ${perInode} KiB of disk: ${count(l.inodes)} inodes.`,
+      line: `One ${INODE_SIZE}-byte inode per ${perInode} KiB of disk: ${grouped(l.inodes)} inodes.`,
       // mke2fs.c:1433-1443 size types; mke2fs.conf.in:7, 24-29 inode_ratio; mke2fs.c:2811-2812.
-      caption: `This pie’s whole is the ${count(l.metadata)} metadata blocks. An inode records one file, so mke2fs sets aside a fixed number up front, by the disk’s size type: one inode per 16 KiB of disk for the default type, 512 MiB to under 4 TiB; per 32 KiB for big, under 16 TiB; and per 64 KiB for huge, above that. ${name}, of the ${l.type} type, gets ${count(
+      caption: `This pie’s whole is the ${grouped(l.metadata)} metadata blocks. An inode records one file, so mke2fs sets aside a fixed number up front, by the disk’s size type: one inode per 16 KiB of disk for the default type, 512 MiB to under 4 TiB; per 32 KiB for big, under 16 TiB; and per 64 KiB for huge, above that. ${name}, of the ${l.type} type, gets ${grouped(
         l.inodes,
-      )} inodes of ${INODE_SIZE} bytes, in tables set aside now: ${count(l.inodeTables)} blocks, ${of(l.inodeTables)} of the disk.`,
+      )} inodes of ${INODE_SIZE} bytes, in tables set aside now: ${grouped(l.inodeTables)} blocks, ${of(l.inodeTables)} of the disk.`,
     });
     await s.clear();
     this.state.inodes = {
@@ -289,7 +289,7 @@ export default class Ext4SpaceExplainer extends Scene {
       {
         source: pie(
           ['Inode tables', 'Journal', 'Other metadata'],
-          `The ${count(st().reserve.metadata)} metadata blocks`,
+          `The ${grouped(st().reserve.metadata)} metadata blocks`,
           st().inodes.pie,
         ),
       },
@@ -301,9 +301,9 @@ export default class Ext4SpaceExplainer extends Scene {
         (st) => [
           ['Size type', st.inodes.type],
           ['One inode per', `${st.inodes.inodeRatio / 1024} KiB`],
-          ['Inodes', count(st.inodes.inodes)],
+          ['Inodes', grouped(st.inodes.inodes)],
           ['Bytes each', `${INODE_SIZE}`],
-          ['Blocks', count(st.inodes.inodeTables)],
+          ['Blocks', grouped(st.inodes.inodeTables)],
           ['Of the disk', ofDisk(st, st.inodes.inodeTables)],
         ],
         { at: CARD, fontSize: SIZE, title: 'Inode tables' },
@@ -318,7 +318,7 @@ export default class Ext4SpaceExplainer extends Scene {
           : `The journal is ${bytesOf(l.journal)}, ${ofMeta(l.journal)} of the metadata`,
       line: `It doubles with disk size from 16 MiB to 1 GiB; here ${of(l.journal)} of the disk.`,
       // mkjournal.c:359-378.
-      caption: `mke2fs sizes the journal in steps of disk size, doubling from 16 MiB at 128 MiB to 1 GiB at 128 GiB, and no larger after that. ${name} gets ${count(
+      caption: `mke2fs sizes the journal in steps of disk size, doubling from 16 MiB at 128 MiB to 1 GiB at 128 GiB, and no larger after that. ${name} gets ${grouped(
         l.journal,
       )} blocks, ${bytesOf(l.journal)}: ${ofMeta(l.journal)} of the metadata and ${of(l.journal)} of the disk.`,
     });
@@ -349,10 +349,10 @@ export default class Ext4SpaceExplainer extends Scene {
 
     // ------------------------------------------------------------------ the rest
     await this.step('other', {
-      title: `The other ${count(l.other)} blocks: copies, bitmaps and the first files`,
-      line: `Superblock copies in ${l.superGroups} of ${count(l.groups)} groups; two bitmaps in every group.`,
+      title: `The other ${grouped(l.other)} blocks: copies, bitmaps and the first files`,
+      line: `Superblock copies in ${l.superGroups} of ${grouped(l.groups)} groups; two bitmaps in every group.`,
       // closefs.c:23-55 (sparse_super); initialize.c:58-86 (reserved GDT); mke2fs.c:475-555, 3656-3667.
-      caption: `Group 0, group 1 and groups that are powers of 3, 5 or 7 keep a copy of the superblock and group descriptors: ${l.superGroups} of ${count(
+      caption: `Group 0, group 1 and groups that are powers of 3, 5 or 7 keep a copy of the superblock and group descriptors: ${l.superGroups} of ${grouped(
         l.groups,
       )} groups${l.reservedGdt ? `, each with ${l.reservedGdt} spare descriptor blocks for growing the filesystem` : ''}. Every group has two bitmaps. The root directory, lost+found, the orphan file and ${
         l.files.resize + l.files.journalTree > 1 ? 'two index blocks' : 'an index block'
@@ -376,10 +376,10 @@ export default class Ext4SpaceExplainer extends Scene {
         (st) => [
           ['Groups with copies', `${st.other.superGroups}`],
           ['Blocks a copy', st.other.reservedGdt ? `1 + ${st.descBlocks} + ${st.other.reservedGdt}` : `1 + ${st.descBlocks}`],
-          ['All copies', count(st.other.superCopies)],
-          ['Bitmaps', count(st.other.bitmaps)],
-          ['First files', count(st.other.files)],
-          ['Other metadata', count(st.other.other)],
+          ['All copies', grouped(st.other.superCopies)],
+          ['Bitmaps', grouped(st.other.bitmaps)],
+          ['First files', grouped(st.other.files)],
+          ['Other metadata', grouped(st.other.other)],
           ['Of the disk', ofDisk(st, st.other.other)],
         ],
         { at: CARD, fontSize: SIZE, title: 'Other metadata' },
@@ -393,15 +393,15 @@ export default class Ext4SpaceExplainer extends Scene {
           title: `With -m ${m}, users can write ${of(chosen.users)}`,
         line:
           m === 0
-            ? `Only the kernel’s ${count(chosen.kernel)} blocks are held back; users gain ${bytesOf(gained)}.`
-            : `Root keeps ${count(chosen.root)} blocks; users gain ${bytesOf(gained)}.`,
+            ? `Only the kernel’s ${grouped(chosen.kernel)} blocks are held back; users gain ${bytesOf(gained)}.`
+            : `Root keeps ${grouped(chosen.root)} blocks; users gain ${bytesOf(gained)}.`,
         // mke2fs.c:1905-1907 reads -m; mke2fs.c:2832-2833; tune2fs.8.in:475-477 for tune2fs -m.
         caption:
           m === 0
-            ? `mkfs.ext4 -m 0 reserves nothing for root, so only the kernel’s ${count(chosen.kernel)} blocks are held back. Users can write ${count(
+            ? `mkfs.ext4 -m 0 reserves nothing for root, so only the kernel’s ${grouped(chosen.kernel)} blocks are held back. Users can write ${grouped(
                 chosen.users,
-              )} blocks, ${count(gained)} more than at the default, ${bytesOf(gained)}. Root then gets no more room than other users.`
-            : `mkfs.ext4 -m ${m} reserves ${m}% for root: ${count(chosen.root)} blocks. Users can write ${count(chosen.users)} blocks, ${count(
+              )} blocks, ${grouped(gained)} more than at the default, ${bytesOf(gained)}. Root then gets no more room than other users.`
+            : `mkfs.ext4 -m ${m} reserves ${m}% for root: ${grouped(chosen.root)} blocks. Users can write ${grouped(chosen.users)} blocks, ${grouped(
                 gained,
               )} more than at the default, ${bytesOf(gained)}. tune2fs -m changes the reserve later without reformatting.`,
       });
@@ -431,9 +431,9 @@ export default class Ext4SpaceExplainer extends Scene {
       await enterCard(
         cardOf(
           (st) => [
-            [`Root, ${st.chosen.percent}%`, count(st.chosen.root)],
-            ['Kernel', count(st.chosenKernel)],
-            ['Users', count(st.chosen.users)],
+            [`Root, ${st.chosen.percent}%`, grouped(st.chosen.root)],
+            ['Kernel', grouped(st.chosenKernel)],
+            ['Users', grouped(st.chosen.users)],
             ['Of the disk', ofDisk(st, st.chosen.users)],
             ['Gained', bytesOf(st.chosen.gained)],
           ],

@@ -16,9 +16,9 @@ import {
   intOf,
   guarded,
   accepts,
-  grouped,
   valueOf,
 } from './model.ts';
+import { grouped } from '../lib/format.ts';
 import type { Char, CharId, Predicate } from './model.ts';
 import { SIZE, drawLineup, drawSets } from './picture.ts';
 

@@ -4,7 +4,7 @@ import type { StagedStep } from '../../../explain/index.ts';
 import { birthdayStory } from './model.ts';
 import { drawDays, drawEstimate, pairGrid, room } from './picture.ts';
 import { stagedStep } from '../../../explain/index.ts';
-import { listed, numberWord, percent } from '../lib/format.ts';
+import { grouped, listed, numberWord, percent } from '../lib/format.ts';
 
 const pct2 = (p: number) => percent(p, { digits: 2 });
 
@@ -70,7 +70,7 @@ export default class BirthdayParadox extends Scene {
               ? `The outlined cards repeat ${listed(shared)}, each on ${numberWord(m.shared[0]!.people)} cards. `
               : `The outlined cards repeat dates: ${listed(m.shared.map((d) => `${d.date} is on ${numberWord(d.people)} cards`))}. `
             : ''
-        }${m.chance < 0.4 ? `Most rooms of ${n} have no match` : m.chance < 0.6 ? `About half of all rooms of ${n} have a match` : `Most rooms of ${n} have a match`}: of ${m.sample.trials.toLocaleString('en')} random rooms, ${m.sample.matched} had a shared birthday, and the exact chance is ${percent(m.chance)}. ${answer}. The next steps count those pairs.`,
+        }${m.chance < 0.4 ? `Most rooms of ${n} have no match` : m.chance < 0.6 ? `About half of all rooms of ${n} have a match` : `Most rooms of ${n} have a match`}: of ${grouped(m.sample.trials)} random rooms, ${m.sample.matched} had a shared birthday, and the exact chance is ${percent(m.chance)}. ${answer}. The next steps count those pairs.`,
         // `days` and `dates`: the room's cards, as the room step recorded them.
         state: {
           people: n,
