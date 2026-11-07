@@ -95,10 +95,9 @@ export default class SendSyncExplainer extends Scene<SendSyncState, SendSyncShow
     const wrapper = values.wrapper as Wrapper,
       inner = values.inner as Inner;
     const s = stage(this, { style: 'hand-drawn', headingSize: 0.6 });
-    const ink = s.palette.ink;
 
     /** Lines of text at the reader's size, wrapped to the right column, from `top` down. */
-    const lines = (rows: readonly (string | { text: string; head: true })[], top: number) => columnLines(rows, top, { ink, emphasis: s.emphasis });
+    const lines = (rows: readonly (string | { text: string; head: true })[], top: number) => columnLines(rows, top, s.look);
     /** A card at the top of the right column, drawn from the state by `rows`: a view check holds to it. */
     const column = async (rows: (st: SendSyncState) => readonly (readonly [string, string])[], title?: string) => {
       const v = view(
@@ -107,7 +106,7 @@ export default class SendSyncExplainer extends Scene<SendSyncState, SendSyncShow
           const c = card(s, rows(state), {
             at: RIGHT,
             align: 'top',
-            fontSize: SIZE,
+            size: SIZE,
             ...(title ? { title } : {}),
           });
           // Left-aligned with the column's lines.
@@ -126,7 +125,7 @@ export default class SendSyncExplainer extends Scene<SendSyncState, SendSyncShow
      */
     const locator = async (here: Quadrant) => {
       this.state.here = here;
-      const map = view(this, (state) => quadrantMap(having(state, 'here').here, { ink, paper: s.palette.paper, emphasis: s.emphasis, soft: s.soft }), { place: false });
+      const map = view(this, (state) => quadrantMap(having(state, 'here').here, s.look), { place: false });
       await s.enter(map, { describe: () => `Map of the four quadrants, “${QUADRANT[having(this.state, 'here').here]}” filled` });
     };
     // How the chart in view is shown, apart from its source: the note on its point and the point
@@ -163,7 +162,7 @@ export default class SendSyncExplainer extends Scene<SendSyncState, SendSyncShow
         (_st, sh) => {
           return code(s, source, {
             at,
-            fontSize: SIZE,
+            size: SIZE,
             lit: sh[name] ?? null,
             key: name,
           });
@@ -476,7 +475,7 @@ export default class SendSyncExplainer extends Scene<SendSyncState, SendSyncShow
     await s.clearOverlays();
     await showChart(q!, {
       notes: [],
-      marks: { [`point:${valueName(run.name)}`]: { color: both ? s.good : s.bad, as: both ? 'accepted' : 'rejected' } },
+      marks: { [`point:${valueName(run.name)}`]: { color: both ? s.look.good : s.look.bad, as: both ? 'accepted' : 'rejected' } },
     });
     this.state.threads = run;
     await column(

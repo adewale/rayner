@@ -346,12 +346,14 @@ export function drawOrbit({ ink, soft, muted }: Ink) {
     const e = TILT * RAD,
       r = 0.44,
       len = 0.74;
+    const globe = new Circle({
+      radius: r,
+      fill: bright ? LIT_EARTH : EARTH,
+      stroke: 'none',
+    }).moveTo([x, y]);
+    globe.key = `orbit-earth:${name}`;
     const g = new Group(
-      new Circle({
-        radius: r,
-        fill: bright ? LIT_EARTH : EARTH,
-        stroke: 'none',
-      }).moveTo([x, y]),
+      globe,
       new Line([x + len * Math.sin(e), y - len * Math.cos(e)], [x - len * Math.sin(e), y + len * Math.cos(e)], {
         stroke: AXIS,
         strokeWidth: 0.04,
@@ -399,9 +401,9 @@ export function daylightAnchor(S: ReturnType<typeof drawSeason>) {
   return { mid, gap: mid[1] - (CY - R - 0.3) };
 }
 
-/** A line said under a callout's value, in the Sun's colour. */
+/** A line said under a keyed callout's words, in the Sun's colour. */
 const underCallout = (callout: Mobject, text: string, soft: string) => {
-  const under = callout.children.at(-1)!.center();
+  const under = callout.find(`${callout.key}:text`)!.center();
   return labeller(soft)(text, [under[0], under[1] - 0.44], {
     size: 0.28,
     color: SUN,
@@ -564,7 +566,7 @@ export function drawLatitudeCircles(places: readonly { name: string; lat: number
 export const tableBox = (center: Vec): Box => [center[0] - 2.8, -4.2, center[0] + 2.8, CY - R - 0.2];
 /** One solstice's daylight at each place, with the observed place's row lit. */
 export const drawDaylightTable = (s: Stage, rows: [string, string][], title: string, box: Box, lit: string) =>
-  card(s, rows, { at: box, title, fontSize: 0.27, align: 'top', direction: 'ltr', lit: { row: lit } });
+  card(s, rows, { at: box, title, size: 0.27, align: 'top', direction: 'ltr', lit: { row: lit } });
 
 // ------------------------------------------------------------------ the year chart
 export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -661,12 +663,9 @@ export function drawLevels(axes: Axes, days: readonly number[], shortest: number
 /** 15 January, the first month's sample day (x = 0.5), marked on the chart at its `value`. */
 export function drawJanuaryMarker(axes: Axes, value: number) {
   const jan = axes.c2p(0.5, value);
-  const marker = new Group(
-    axes.verticalLine(0.5, { stroke: SUN, strokeWidth: 0.025, dashArray: '0.1 0.08' }),
-    new Dot({ radius: 0.09, color: SUN }).moveTo(jan),
-  );
-  marker.children[1]!.key = 'january-point';
-  return marker;
+  const point = new Dot({ radius: 0.09, color: SUN }).moveTo(jan);
+  point.key = 'january-point';
+  return new Group(axes.verticalLine(0.5, { stroke: SUN, strokeWidth: 0.025, dashArray: '0.1 0.08' }), point);
 }
 
 /**
@@ -694,16 +693,17 @@ export function drawMirror(
   if (lat !== 0) {
     other = axes.plot(daylightAt(-lat), { samples: 145, color: MIRROR, strokeWidth: 0.035 });
     other.key = 'mirror-daylight-curve';
+    const point = new Dot({ radius: 0.09, color: MIRROR }).moveTo(axes.c2p(0.5, mirrorJanuary));
+    point.key = 'mirror-january-point';
     second.add(
       other,
-      new Dot({ radius: 0.09, color: MIRROR }).moveTo(axes.c2p(0.5, mirrorJanuary)),
+      point,
       label(latitudeName(-lat), [end(-lat)[0] + 0.15, end(-lat)[1]], {
         size: 0.2,
         color: MIRROR,
         edge: [-1, 0],
       }),
     );
-    second.children[2]!.key = 'mirror-january-point';
   }
   return { own, second, other };
 }

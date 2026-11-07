@@ -58,8 +58,8 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
   };
   override async construct() {
     const s = stage(this, { headingSize: 0.6, style: STYLE }),
-      ink = s.palette.ink,
-      accent = s.emphasis;
+      ink = s.look.ink,
+      accent = s.look.emphasis;
     const old: Shell = { fs: {}, steps: 0 };
     // How each picture is shown, apart from the model: a code panel's focus, a diagram's marks and
     // notes, a card's lit row. That is `shown`, under each picture's name; views draw it.
@@ -112,7 +112,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
       ['>', 'redirect'],
       [FILE, 'file'],
     ];
-    const { line, roles } = commandLine(parts, ink, accent, s.soft);
+    const { line, roles } = commandLine(parts, ink, accent, s.look.soft);
     await s.enter(line, { runTime: 0.5 });
     await s.enter(roles, { runTime: 0.5 });
     const api = await codePanel(
@@ -150,7 +150,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
       },
       'call',
     );
-    await showDiagram(astView, 'ast', () => ({ marks: { Echo: { color: ast.accent, as: MARKED }, Tr: { color: ast.accent, as: MARKED } } }));
+    await showDiagram(astView, 'ast', () => ({ marks: { Echo: { color: ast.emphasis, as: MARKED }, Tr: { color: ast.emphasis, as: MARKED } } }));
     await focus(call, 'call', [1, 2]);
     await noted(astView, 'ast', { id: 'Redirect', text: 'not a command', side: 'below' });
     // ── reduce: stdout threads through the builtins ─────────────────────
@@ -212,7 +212,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
         ['files', files(having(st, 'oldShell').oldShell)],
         ['steps run', having(st, 'oldShell').oldShell.steps],
       ],
-      { at: BOTTOM_LEFT, align: 'top', title: 'Original shell', fontSize: 0.3, width: 5.2 },
+      { at: BOTTOM_LEFT, align: 'top', title: 'Original shell', size: 0.3, width: 5.2 },
       'before',
     );
     // The returned shell's card starts as the copy exec makes, then shows what the redirect wrote.
@@ -233,7 +233,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
               ['stdout', q(afterTr)],
             ];
       },
-      { at: BOTTOM_RIGHT, align: 'top', title: 'Returned shell', fontSize: 0.3, width: 5.2 },
+      { at: BOTTOM_RIGHT, align: 'top', title: 'Returned shell', size: 0.3, width: 5.2 },
       'after',
     );
     await show(after, 'written', true);
@@ -280,7 +280,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
         .join(' · '),
       side: 'above',
     });
-    await walked(policy, policyView, 'policy', [['Builtin', 'Error']], s.bad);
+    await walked(policy, policyView, 'policy', [['Builtin', 'Error']], s.look.bad);
     await noted(policyView, 'policy', {
       id: 'Error',
       text: found
@@ -304,7 +304,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
     await s.clear();
     await s.code([`exec(${'returned'}, [["cat", "${FILE}"]])`], {
       at: regionBox('top', { bottom: 1.6 }),
-      fontSize: 0.4,
+      size: 0.4,
     });
     const shellRows = (sh: Shell, out: string): CardRow[] => [
       ['files', files(sh)],
@@ -313,9 +313,9 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
     ];
     const oldResult = other.stdout,
       newResult = result.stdout;
-    const oldCard = await s.card(shellRows(old, oldResult), { at: regionBox('left', { top: 1.3 }), title: 'Original shell', fontSize: 0.32 });
+    const oldCard = await s.card(shellRows(old, oldResult), { at: regionBox('left', { top: 1.3 }), title: 'Original shell', size: 0.32 });
     // The returned shell's card is the one cat reads: its cat stdout row lights, from `shown`.
-    const newCard = await cardView(() => shellRows(run.shell, newResult), { at: regionBox('right', { top: 1.3 }), title: 'Returned shell', fontSize: 0.32 }, 'picked');
+    const newCard = await cardView(() => shellRows(run.shell, newResult), { at: regionBox('right', { top: 1.3 }), title: 'Returned shell', size: 0.32 }, 'picked');
     await this.play(new Transform(oldCard, faded(oldCard), { runTime: 0.4 }));
     await show(newCard, 'picked', 'cat stdout', 0.4);
     this.state.cat = result.stdout;
@@ -359,7 +359,7 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
             `exec(s0, [["cat", "${FILE}"]]).stdout   // ${q(viaOld)}`,
             `s0.fs                               // ${JSON.stringify(old.fs)}`,
           ],
-          { at: BOTTOM, fontSize: 0.3, lit: sh.story == null ? null : { lines: sh.story }, key: 'story' },
+          { at: BOTTOM, size: 0.3, lit: sh.story == null ? null : { lines: sh.story }, key: 'story' },
         ),
       { place: false },
     );

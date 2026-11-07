@@ -94,7 +94,7 @@ export default class LatestSearchExplainer extends Scene<ChartState, { codeFocus
     });
     await s.clear();
     this.state = snapshot(0);
-    const colors = s.palette;
+    const colors = s.look;
     // The reference axes and key never rebuild during a state change. Only
     // the plotted result and its readout belong to the state-driven View.
     const axes = new Axes({
@@ -136,9 +136,9 @@ export default class LatestSearchExplainer extends Scene<ChartState, { codeFocus
         };
         if (state.compare) {
           const both = having(state, 'unguardedHistory', 'guardedHistory');
-          line(both.unguardedHistory, s.bad);
-          line(both.guardedHistory, s.good);
-        } else line(state.history, colors.accent);
+          line(both.unguardedHistory, s.look.bad);
+          line(both.guardedHistory, s.look.good);
+        } else line(state.history, colors.emphasis);
         const label = (text: string, x: number, y: number, size = 0.4) =>
           picture.add(new Text(text, { fontSize: size, color: colors.ink }).moveTo([x, y]));
         if (state.compare) {
@@ -167,7 +167,7 @@ export default class LatestSearchExplainer extends Scene<ChartState, { codeFocus
     this.shown.codeFocus = { lines: [2, 2], as: 'ticket' };
     const codeView = view(
       this,
-      (_st, sh) => code(s, SEARCH_CODE, { at: [0.7, -3.35, 7.55, 2.6], fontSize: 0.34, lit: having(sh, 'codeFocus').codeFocus, key: 'code' }),
+      (_st, sh) => code(s, SEARCH_CODE, { at: [0.7, -3.35, 7.55, 2.6], size: 0.34, lit: having(sh, 'codeFocus').codeFocus, key: 'code' }),
       { place: false },
     );
     await s.enter(codeView, { runTime: 0.4 });

@@ -114,10 +114,10 @@ export default class MermaidExplainer extends Scene<MermaidState, MermaidShown> 
       s = stage(this, { headingSize: 0.6, style: STYLE });
     const first = FIRST[edit],
       broken = BROKEN[edit];
-    const colors: Record<Tone, string> = { emphasis: s.emphasis, bad: s.bad, good: s.good };
+    const colors: Record<Tone, string> = { emphasis: s.look.emphasis, bad: s.look.bad, good: s.look.good };
     /** A code panel; `lit` puts its bar on line i or lines [a, b]. */
     const block = (lines: readonly string[], fontSize = 0.3, at: Box = SIDE, lit?: number | [number, number]) =>
-      code(s, lines, { at, fontSize, ...(lit != null ? { lit: { lines: lit } } : {}) });
+      code(s, lines, { at, size: fontSize, ...(lit != null ? { lit: { lines: lit } } : {}) });
     /** Side panels share one left edge and one gap, stacked and centred beside the diagram. */
     const stack = (...panels: Mobject[]) => {
       const total = panels.reduce((h, p) => h + p.height(), 0) + GAP * (panels.length - 1);
@@ -266,7 +266,7 @@ export default class MermaidExplainer extends Scene<MermaidState, MermaidShown> 
         `renderability: ${st.broken.checks.renderability}`,
         `taskCorrectness: ${st.broken.checks.taskCorrectness}`,
       ]);
-      const note = this.text('The renderer cannot draw this source: no picture', { fontSize: 0.28, color: s.soft }).moveTo([-3.2, -2.6]);
+      const note = this.text('The renderer cannot draw this source: no picture', { fontSize: 0.28, color: s.look.soft }).moveTo([-3.2, -2.6]);
       return new Group(source, ...stack(report), note);
     };
     await s.steps([

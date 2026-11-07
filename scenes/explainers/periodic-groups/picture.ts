@@ -11,6 +11,7 @@ import type { Mobject, Vec, MatchKey } from '../../../src/index.ts';
 import { POSITIONS, NAMES, CAPACITY, predicted } from './model.ts';
 import type { Block, Symbol, Subshell, Position } from './model.ts';
 import { listed as list } from '../lib/format.ts';
+import { keyed } from '../../../explain/drawing.ts';
 
 // The table: 18 numbered columns, 7 periods, the f block's two rows below.
 const PITCH_X = 0.82,
@@ -359,15 +360,13 @@ export function drawNotes(state: PeriodicState, { z, group, members, jumps, fami
           stroke: hot ? BLOCK[m.block] : INK,
           strokeWidth: 0.03,
         }).moveTo([x, 1.1]),
-        new Text(m.symbol, { fontSize: 0.72, color: ink, weight: 'bold' }).moveTo([x, 1.5]),
-        new Text(String(m.z), { fontSize: 0.6, font: 'mono', color: hot ? PAPER : BLOCK[m.block] }).moveTo([
-          x,
-          0.65,
-        ]),
+        keyed(new Text(m.symbol, { fontSize: 0.72, color: ink, weight: 'bold' }).moveTo([x, 1.5]), `periodic-member:${m.symbol}:symbol`),
+        keyed(
+          new Text(String(m.z), { fontSize: 0.6, font: 'mono', color: hot ? PAPER : BLOCK[m.block] }).moveTo([x, 0.65]),
+          `periodic-member:${m.symbol}:atomic-number`,
+        ),
       );
       cell.key = `periodic-member:${m.symbol}`;
-      cell.children[1]!.key = `${cell.key}:symbol`;
-      cell.children[2]!.key = `${cell.key}:atomic-number`;
       picture.add(cell);
       if (i > 0) {
         const jump = new Text(`+${jumps[i - 1]}`, { fontSize: 0.62, font: 'mono', color: INK }).moveTo([

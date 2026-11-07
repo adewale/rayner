@@ -1,6 +1,6 @@
 import { Group, Rectangle, Text, Code } from '../src/index.ts';
 import type { Scene, Vec, Box, Mobject } from '../src/index.ts';
-import type { Palette } from '../integrations/agentic-mermaid/snapshot.ts';
+import type { Palette } from '../src/color.ts';
 import { soft, raised, rule, boxCenter, emphasis, good, bad, regionBox, emphasisSource, seenSource } from './look.ts';
 import type { Region, Emphasis } from './look.ts';
 import type { Seen } from './trace.ts';
@@ -27,7 +27,7 @@ export interface CardOptions {
    * column, or one value that spans them all.
    */
   columns?: readonly string[];
-  fontSize?: number;
+  size?: number;
   /**
    * Field arrangement only: RTL puts labels on the right and values on the left. By default the
    * stage's direction.
@@ -106,7 +106,7 @@ export class Card extends Group {
   readonly cells = new Map<string, Text[]>();
   readonly labels = new Map<string, Text>();
   readonly columns: readonly string[];
-  readonly fontSize: number;
+  readonly size: number;
   readonly direction: LayoutDirection;
   readonly panel: Rectangle;
   readonly bar: Rectangle;
@@ -130,7 +130,7 @@ export class Card extends Group {
     const valueAnchor = edge === 1 ? 'end' : 'start';
     this.scene = scene;
     this.title = options.title;
-    const size = (this.fontSize = options.fontSize ?? 0.24);
+    const size = (this.size = options.size ?? 0.24);
     // Without a panel there is nothing to pad: the rows sit at the card's edges.
     const pad = options.panel === false ? 0.04 : PAD;
     // A label may repeat (a card can list parts by kind), but then it names no single row.
@@ -312,7 +312,7 @@ export interface CodeOptions {
   /** As for cards: a centre point, or a region/box to centre in (`'start'` and `'end'` follow the stage's direction). */
   at?: Vec | Box | Region | 'start' | 'end';
   align?: 'center' | 'top';
-  fontSize?: number;
+  size?: number;
   title?: string;
   /** Lines beginning `+ ` or `- ` get added/removed bars (the marker is kept). */
   diff?: boolean;
@@ -366,7 +366,7 @@ export class CodeBlock extends Group {
     super();
     this.scene = scene;
     this.colors = colors;
-    const fontSize = (this.fontSize = options.fontSize ?? 0.25);
+    const fontSize = (this.fontSize = options.size ?? 0.25);
     if (!lines.length) throw new Error('A code block needs at least one line');
     this.code = new Code(lines, {fontSize, color: colors.ink, shaping: scene.textShaping});
     const at = typeof options.at === 'string' ? regionBox(options.at) : (options.at ?? [0, 0]);

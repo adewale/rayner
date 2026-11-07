@@ -195,12 +195,12 @@ export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
 
     /** The right column as a view of the step's state: check compares its words with the state at each step's end. */
     const column = async (rows: (st: GtfsState) => readonly (string | { head: string })[]) => {
-      await s.enter(view(this, (st) => drawColumn(rows(st), { ink: s.palette.ink, emphasis: s.emphasis }), { place: false }));
+      await s.enter(view(this, (st) => drawColumn(rows(st), s.look), { place: false }));
     };
 
     const drawEr = (d: Diagram) => (_st: GtfsState, sh: GtfsShown) => {
       const { marked, as } = having(sh, 'er').er;
-      return { marks: Object.fromEntries(marked.map((id) => [id, as ? { color: d.accent, as } : d.accent])) };
+      return { marks: Object.fromEntries(marked.map((id) => [id, as ? { color: d.emphasis, as } : d.emphasis])) };
     };
     const markEr = async (v: View, marks: ErMarks) => {
       this.shown.er = marks;
@@ -354,7 +354,7 @@ export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
         const focus = having(sh, 'tablesFocus').tablesFocus;
         return code(s, ['# calendar.txt', ...calendar, '# calendar_dates.txt', ...exceptions], {
           at: [-7.55, -0.6, 7.55, 3.1],
-          fontSize: 0.2,
+          size: 0.2,
           lit: focus,
           key: 'tables',
         });
@@ -380,7 +380,7 @@ export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
             ...having(st, 'today').today.map((x) => [x.serviceId, verdict(x, on)] as [string, string]),
             ['Trips that run', `${trips.length} of ${FEED.trips.length}`],
           ],
-          { at: [-7.55, -4.25, 7.55, -0.85], width: 10.5, fontSize: 0.28 },
+          { at: [-7.55, -4.25, 7.55, -0.85], width: 10.5, size: 0.28 },
         );
       },
       { place: false },

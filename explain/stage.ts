@@ -6,7 +6,8 @@ import { center, unionBoxes } from '../src/box.ts';
 import { STAGE_BOX, atHome } from '../src/svg.ts';
 import { isDetail, teaching } from './script.ts';
 import type { StepAudio } from './audio.ts';
-import { dimension, pin, callout, legend, tool, Draw, oneStrokeEach } from './annotate.ts';
+import { tool, Draw, oneStrokeEach } from './annotate.ts';
+import * as kit from './drawing.ts';
 import type { LegendItem } from './annotate.ts';
 import type { Side, ToolKind } from './annotate.ts';
 import { Diagram } from './diagrams.ts';
@@ -14,10 +15,11 @@ import type { ShowOptions, PictureNote } from './diagrams.ts';
 import type { Card, CodeBlock, CardRow, CardOptions, CodeOptions } from './panels.ts';
 import { card, code } from './drawing.ts';
 import { diagramsOf } from '../integrations/agentic-mermaid/snapshot.ts';
-import type { Palette, DiagramSpec } from '../integrations/agentic-mermaid/snapshot.ts';
+import type { DiagramSpec } from '../integrations/agentic-mermaid/snapshot.ts';
+import type { Palette } from '../src/color.ts';
 import { palette } from './palettes.ts';
-import { soft, emphasis, good, bad, raised, rule, regionBox, opening, partsSeen, REGIONS } from './look.ts';
-import type { Region } from './look.ts';
+import { soft, emphasis, bad, lookOf, bindStagePalette, regionBox, opening, partsSeen, REGIONS } from './look.ts';
+import type { Region, Look } from './look.ts';
 import { picture, shownNames } from './trace.ts';
 import { wordsOf, langOf } from './words.ts';
 import type { Seen } from './trace.ts';
@@ -104,27 +106,27 @@ export function isHeading(m: Mobject): boolean {
   return false;
 }
 /**
- * Stage furniture: the paper, or part of the heading (isHeading), or inside one of them; with
+ * Stage furniture: the backdrop, or part of the heading (isHeading), or inside one of them; with
  * `frame`, a diagram's frame (role `'frame'`) too. It frames every step and says nothing about
  * where to look, so the close-ups, the review and the layout checks leave it out.
  */
 export function isFurniture(m: Mobject, { frame = false }: { frame?: boolean } = {}): boolean {
-  for (let x: Mobject | null = m; x; x = x.parent) if (x.role === 'paper' || (frame && x.role === 'frame')) return true;
+  for (let x: Mobject | null = m; x; x = x.parent) if (x.role === 'backdrop' || (frame && x.role === 'frame')) return true;
   return isHeading(m);
 }
-/** The stage's paper (role `'paper'`), or undefined for a scene drawn without a stage. */
-export const paperPart = (scene: Scene): Mobject | undefined => scene.mobjects.find((m) => m.role === 'paper');
+/** The stage's backdrop (role `'backdrop'`), or undefined for a scene drawn without a stage. */
+export const backdropOf = (scene: Scene): Mobject | undefined => scene.mobjects.find((m) => m.role === 'backdrop');
 /**
- * The colour of the stage's paper (its palette's `paper`) as `scene` has it, or undefined
- * for a scene drawn without a stage. Player palette cues are opt-in through `meta.player`.
+ * The colour of the stage's paper (its look's `paper`, the backdrop's fill) as `scene` has it, or
+ * undefined for a scene drawn without a stage. Player palette cues are opt-in through `meta.player`.
  */
-export const paperOf = (scene: Scene): string | undefined => paperPart(scene)?.style.fill;
+export const paperOf = (scene: Scene): string | undefined => backdropOf(scene)?.style.fill;
 const stagePalettes = new WeakMap<Scene, () => Palette>();
 /** The stage's final palette, including a palette adopted from a diagram. */
 export const paletteOf = (scene: Scene): Palette | undefined => stagePalettes.get(scene)?.();
 const isOptions = (v: unknown): v is object => !!v && !(v instanceof Mobject);
-/** The colours engine defaults take on a stage with this palette: ink and the stage's soft, emphasis and rejected colours. */
-export const sceneColors = (p: Palette): SceneColors => ({ paper: p.paper, ink: p.ink, soft: soft(p), accent: emphasis(p), bad: bad(p) });
+/** The colours engine defaults take on a stage with this palette: its look's paper, ink, soft, emphasis and bad. */
+export const sceneColors = (p: Palette): SceneColors => ({ paper: p.paper, ink: p.ink, soft: soft(p), emphasis: emphasis(p), bad: bad(p) });
 const HEADING_Y = 3.8;
 /** With a line under it, the heading moves up to make room. */
 const HEADING_Y_WITH_LINE = 3.98;
@@ -161,12 +163,15 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
   const adopt = !options.palette && !options.style;
   let colors = options.palette ?? palette(options.style ?? 'nord');
   stagePalettes.set(scene, () => ({ ...colors }));
+  /** The look of the palette as it is now: computed again only when a colour of it changes. */
+  const paletteKey = (p: Palette) => `${p.paper} ${p.ink} ${p.accent} ${p.muted}`;
+  let looked = { from: paletteKey(colors), look: lookOf(colors) };
   // Engine defaults (a Text with no colour, an Axes, a SurroundingRectangle) take the stage's palette.
   scene.colors = sceneColors(colors);
   const mode = options.heading ?? 'step';
-  const paper = new Rectangle({ width: 16, height: 9, fill: colors.paper, stroke: 'none' });
-  paper.role = 'paper';
-  scene.add(paper);
+  const backdrop = new Rectangle({ width: 16, height: 9, fill: colors.paper, stroke: 'none' });
+  backdrop.role = 'backdrop';
+  scene.add(backdrop);
   const numbered = options.numbered ?? mode === 'step';
   const headingSize = options.headingSize ?? 0.36;
   /**
@@ -333,8 +338,8 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     for (const m of mobs) overlays.set(m, say);
   };
   /**
-   * Annotations are sized for the screen: made in home coordinates from the points the camera
-   * shows, then mapped into the world as the heading is, so a zoomed camera shows them at size.
+   * Annotations are sized for the screen: the kit builds each in home coordinates from the points the
+   * camera shows, then it is mapped into the world as the heading is, so a zoomed camera shows it at size.
    */
   const toScreen = (p: Vec): Vec => [(p[0] - view.shift[0]) / view.k, (p[1] - view.shift[1]) / view.k];
   function onScreen<T extends Mobject>(m: T): T {
@@ -391,37 +396,19 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     return panel;
   }
 
-  return {
+  const api = {
     scene,
-    paper,
+    backdrop,
     get heading() {
       return heading;
     },
-    get palette() {
-      return colors;
-    },
-    /** The colour helpers use for emphasis; use it for native emphasis too. */
-    get emphasis() {
-      return emphasis(colors);
-    },
-    /** Secondary text colour that still reads on the paper. */
-    get soft() {
-      return soft(colors);
-    },
-    /** Outcome colours that read on the paper: accepted, passed (`good`) and rejected, failed (`bad`). */
-    get good() {
-      return good(colors);
-    },
-    get bad() {
-      return bad(colors);
-    },
-    /** A panel surface one shade off the paper. */
-    get raised() {
-      return raised(colors);
-    },
-    /** A hairline colour that separates without shouting. */
-    get rule() {
-      return rule(colors);
+    /**
+     * The colours to draw with, each reading on the stage's paper: paper, ink, soft, emphasis,
+     * good, bad, raised, rule and muted (see Look). The stage's helpers colour from the same look.
+     */
+    get look(): Look {
+      if (looked.from !== paletteKey(colors)) looked = { from: paletteKey(colors), look: lookOf(colors) };
+      return looked.look;
     },
     async show(spec: DiagramSpec, opts: Omit<ShowOptions, 'box'> & { box?: Box | StageRegion } = {}): Promise<Diagram> {
       if (options.style && spec.style == null) spec = { ...spec, style: options.style };
@@ -429,7 +416,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       if (adopt) {
         colors = snapshot.palette;
         scene.colors = sceneColors(colors);
-        paper.setFill(colors.paper);
+        backdrop.setFill(colors.paper);
         heading.setFill(colors.ink);
         band.setFill(colors.paper);
         home.get(band)!.setFill(colors.paper);
@@ -552,11 +539,11 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       overlays.clear();
     },
     /**
-     * Fade everything but paper and heading in one play: a clean slate for the
+     * Fade everything but the backdrop and heading in one play: a clean slate for the
      * next idea. A camera moved by `focus` glides home in the same play.
      */
     async clear({ runTime = 0.4 } = {}) {
-      const gone = scene.mobjects.filter((m) => m !== paper && m !== heading && m !== band && !chrome.includes(m));
+      const gone = scene.mobjects.filter((m) => m !== backdrop && m !== heading && m !== band && !chrome.includes(m));
       const anims: Animation[] = gone.map((m) => new FadeOut(m, { runTime }));
       if (!atHome(scene.frame.box()!)) anims.push(...cameraTo([...STAGE_BOX], runTime));
       if (anims.length) await scene.play(...anims);
@@ -600,46 +587,37 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       } else target.moveTo(to as Vec);
       await scene.play(new Transform(m, target, { runTime }));
     },
-    /** A dimension line from `a` to `b` with `label`, set off by `offset`; drawn in, and kept. */
-    async dimension(a: Vec, b: Vec, label: string, opts: { offset?: number; color?: string; size?: number } = {}) {
-      const g = onScreen(
-        dimension(toScreen(a), toScreen(b), label, {
-          color: opts.color ?? emphasis(colors),
-          background: colors.paper, shaping: scene.textShaping,
-          ...opts,
-        }),
-      );
+    /** A dimension line from `a` to `b` with `label`, set off by `offset`: the kit's `dimension`, sized for the screen, drawn in and kept. */
+    async dimension(a: Vec, b: Vec, label: string, opts: { offset?: number; color?: string; size?: number; key?: string } = {}): Promise<Group> {
+      const g = onScreen(kit.dimension(this, toScreen(a), toScreen(b), label, opts));
       // The line describes itself.
       keepAll([g], {});
       await scene.play(new Create(g, { runTime: 0.6, lagRatio: 0.1 }));
       return g;
     },
-    /** A pin stuck in at `at`, with an optional label; drawn in, and kept. */
-    async pin(at: Vec, opts: { label?: string; color?: string; size?: number; side?: 'left' | 'right' } = {}) {
-      const g = onScreen(pin(toScreen(at), {shaping: scene.textShaping, color: opts.color ?? emphasis(colors), ...opts }));
+    /** A pin stuck in at `point`, with an optional label: the kit's `pin`, sized for the screen, drawn in and kept. */
+    async pin(point: Vec, opts: { label?: string; color?: string; size?: number; side?: 'left' | 'right'; key?: string } = {}): Promise<Group> {
+      const g = onScreen(kit.pin(this, toScreen(point), opts));
       keepAll([g], {});
       await scene.play(new FadeIn(g, { runTime: 0.4, shift: [0, -0.15] }));
       return g;
     },
     /**
-     * A key of swatches and their meanings, its first entry starting at `at` (the swatch's left edge, on the entry's centre line); faded in and kept.
-     * The kit's `legend` builds the same picture for a draw. It describes itself as its swatch→meaning pairs.
+     * A key of swatches and their meanings, its first entry starting at `at` (the swatch's left edge, on the entry's centre line):
+     * the kit's `legend`, sized for the screen, faded in and kept. It describes itself as its swatch→meaning pairs.
      */
-    async legend(items: readonly LegendItem[], opts: { at?: Vec; size?: number; direction?: 'column' | 'row'; gap?: number; key?: string } = {}) {
-      const { key = 'legend', at = [0, 0], ...look } = opts;
-      const g = onScreen(legend(items, { ink: colors.ink, shaping: scene.textShaping, at: toScreen(at), ...look }));
-      g.children.forEach((entry, i) => (entry.key = `${key}:${items[i]!.label}`));
-      g.key = key;
+    async legend(items: readonly LegendItem[], opts: { at?: Vec; size?: number; stack?: 'column' | 'row'; gap?: number; key: string }): Promise<Group> {
+      const g = onScreen(kit.legend(this, items, { ...opts, at: toScreen(opts.at ?? [0, 0]) }));
       keepAll([g], {});
       await scene.play(new FadeIn(g, { runTime: 0.4 }));
       return g;
     },
-    /** Words beside a target with a leader line to it; drawn in, and kept. */
+    /** Words beside a target with a leader line to it: the kit's `callout`, sized for the screen, drawn in and kept. */
     async callout(
       target: Vec | Box | Mobject,
       text: string,
-      opts: { side?: Side; gap?: number; color?: string; size?: number } = {},
-    ) {
+      opts: { side?: Side; gap?: number; color?: string; size?: number; key?: string } = {},
+    ): Promise<Group> {
       const box = Array.isArray(target)
         ? target.length === 2
           ? ([...target, ...target] as Box)
@@ -647,9 +625,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
         : (target as Mobject).box();
       if (!box) throw new Error('callout(): the target has no extent');
       const [a, b] = [toScreen([box[0], box[1]]), toScreen([box[2], box[3]])];
-      const g = onScreen(
-        callout([a[0], a[1], b[0], b[1]], text, { color: opts.color ?? colors.ink, background: colors.paper, shaping: scene.textShaping, ...opts }),
-      );
+      const g = onScreen(kit.callout(this, [a[0], a[1], b[0], b[1]], text, opts));
       keepAll([g], {});
       await scene.play(new Create(g, { runTime: 0.6, lagRatio: 0.15 }));
       return g;
@@ -719,6 +695,8 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       }
     },
   };
+  bindStagePalette(api, () => colors);
+  return api;
 }
 /** The stage on a `Scene<S, Sh>`; a bare `Stage` is the stage on any scene, as kit functions take it. */
 export type Stage<S extends object = any, Sh extends object = any> = ReturnType<typeof stage<S, Sh>>;

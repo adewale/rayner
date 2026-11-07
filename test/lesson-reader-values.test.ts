@@ -19,11 +19,7 @@ test('comparison bars preserve a common scale, exact ends and an empty zero', ()
       (scale, raw) => {
         const values = raw.map((n) => n % (scale + 1)),
           s = stage(new Scene(new NullSink())),
-          g = bars(
-            s,
-            values.map((v, i) => ({ label: `row ${i}`, value: v, display: String(v) })),
-            scale,
-          );
+          g = bars(s, values.map((v, i) => ({ label: `row ${i}`, value: v, display: String(v) })), scale, { key: 'reader-bars' });
         const fills = g.children.filter((m): m is Rectangle => m instanceof Rectangle && m.style.stroke === 'none');
         assert.equal(fills.length, values.filter((v) => v > 0).length, 'zero must not acquire a decorative stub');
         // Rectangle paths use Float32 coordinates; allow less than 0.001 CSS px at 1280.

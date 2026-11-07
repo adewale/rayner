@@ -119,7 +119,7 @@ export default class Roots extends Scene<{}, {}> {
   override async construct() {
     const s = stage(this);
     await this.step('formula', { title: 'Two roots', caption: 'Both roots of a quadratic, from its three coefficients.' });
-    const roots = new MathTex('x=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}', { display: true, fontSize: 0.6, color: s.palette.ink });
+    const roots = new MathTex('x=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}', { display: true, fontSize: 0.6, color: s.look.ink });
     await s.enter(roots, { describe: 'x equals minus b, plus or minus the square root of b squared minus 4 a c, all over 2 a.' });
   }
 }
@@ -157,13 +157,13 @@ import { stage } from 'rayner/explain';
 const s = stage(this, { style: 'nord' });
 ```
 
-`stage(scene, options)` adds the paper and a heading that follows each step's `title`: a circled step number, the title, and the step's `line` under it. The heading draws over everything, and while the camera is away from home it stays put on screen at its size, over a paper band that zoomed content passes under.
+`stage(scene, options)` adds the backdrop (the rectangle the stage is drawn on, in its look's `paper`) and a heading that follows each step's `title`: a circled step number, the title, and the step's `line` under it. The heading draws over everything, and while the camera is away from home it stays put on screen at its size, over a paper band that zoomed content passes under.
 
 | Option | Effect |
 | --- | --- |
 | `style` | An Agentic Mermaid style: the stage's palette, and the style of every diagram that names none |
 | `direction` | `'ltr'` (default) or `'rtl'`: card field order and the physical halves named by `start`/`end` |
-| `palette` | Colours for the stage, for example `palette('dusk')` in a scene with no diagrams |
+| `palette` | A `Palette` for the stage, for example `palette('dusk')` in a scene with no diagrams |
 | `heading` | `'step'` (default), a fixed string, or `false` for no heading |
 | `headingSize` | The heading's font size, 0.36 by default; at 0.5 it reads at about 12 px on a 390 px page without a close-up |
 | `numbered` | A circled step number before the title; on by default when the heading follows the steps |
@@ -175,34 +175,47 @@ With neither `style` nor `palette`, the stage adopts the first diagram's palette
 | `s.show(spec, { box, build, runTime })` | Draw a diagram and build it in; returns a `Diagram` |
 | `s.diagramView(d, (state, shown) => ({ marks, notes, dim, prefix }))` | Show diagram `d` by a view that draws its marks, notes and dimming from state, usually from `shown` ([below](#diagrams)), both typed from the scene; returns the `View`. Change `this.shown` and play `view.sync()` |
 | `s.liveDiagram(d)` | Hand the stage back to the live diagram, for a `reveal`, `morph` or `enlarge` (a `walk` runs over the view); call `s.diagramView(d, draw)` again afterwards |
-| `s.card(rows, { at, align, width, title, columns, fontSize, direction, lit, key, panel, enter })` | Labelled values: the drawing kit's `card(s, rows, options)`, faded in and kept; returns the `Card`. `columns` puts values side by side under headings; `direction` overrides the stage's field order; `lit: { row, as }` puts a bar on a row ([below](#card-and-codeblock)) |
-| `s.code(lines, { at, align, fontSize, title, diff, added, lit, width, fitHeight, key, enter })` | Code on a panel: the kit's `code(s, lines, options)`, faded in and kept; returns the `CodeBlock`. With `diff`, lines starting `+ ` or `- ` are marked added or removed; `lit: { lines, as }` puts a bar on lines |
+| `s.card(rows, { at, align, width, title, columns, size, direction, lit, key, panel, enter })` | Labelled values: the drawing kit's `card(s, rows, options)`, faded in and kept; returns the `Card`. `columns` puts values side by side under headings; `direction` overrides the stage's field order; `lit: { row, as }` puts a bar on a row ([below](#card-and-codeblock)) |
+| `s.code(lines, { at, align, size, title, diff, added, lit, width, fitHeight, key, enter })` | Code on a panel: the kit's `code(s, lines, options)`, faded in and kept; returns the `CodeBlock`. With `diff`, lines starting `+ ` or `- ` are marked added or removed; `lit: { lines, as }` puts a bar on lines |
 | `s.direction` | `'ltr'` or `'rtl'`, from the `direction` option: where `start` and `end` fall, and the field order of the stage's cards |
 | `s.note(text, { at, size })` | One line of secondary text, default at `[0, -3.9]` |
 | `s.enter(...mobs, { describe, ...fadeOptions })` | Keep native objects and fade them in together, in one play |
 | `s.keep(...mobs, { describe })` | Register objects for description and for `s.clear`, without adding or animating them (add them with `this.add` or a play); returns the first |
 | `s.clearOverlays()` | Fade out cards, code, the stage's notes and kept objects; a diagram, and a view that shows one, stay |
-| `s.clear({ runTime })` | Fade out everything except paper and heading, and bring the camera home, in one play |
+| `s.clear({ runTime })` | Fade out everything except the backdrop and heading, and bring the camera home, in one play |
 | `s.focus(target \| 'all', { margin, runTime, exact, with })` | Move the camera so a mobject, mobjects or a box fill the stage below the heading, with `margin`; `'all'` goes home. Never zooms out past the stage or shows beyond its edges. `exact: true` takes a 16:9 box as the view as it is; `with` plays other animations in the same play |
 | `s.carry(m, to, { runTime })` | Glide a kept object to a point, or into a box or region it is shrunk to fit (never enlarged): carry an idea on instead of clearing it |
 | `s.sketch(m, { tool, color, runTime, describe })` | Draw `m` stroke by stroke at an even speed with a `'pen'` or `'pencil'` riding the tip (`false` for none), and keep it. Between strokes the tool travels at drawing speed, so it never jumps. `m` must not be on stage yet |
 | `s.steps(steps, { kind }?)` | Present steps in turn. Each step is `{ id, title, line, caption, state, draw, describe?, audio?, kind?, opening? }`: it clears the stage, makes `state` the scene's model, and fades in `draw(state, s)` as a view of that state, described by its words, or by `describe(state)` for a picture whose meaning is its geometry; a part that describes itself (a card, code, a note, a dimension line) is described by itself either way. A `draw` must read its state and nothing a different step changes, and `rayner check` holds it to both ([staged steps](#checks)). `opening` lists keys of the parts a phone opens on ([below](#the-phones-opening-emphasis-and-review-subjects)); without it the whole drawing is the opening's subject. Each step is typed by its own `state`, so one list holds steps whose states differ ([typed state](#typed-state-and-shown)) |
 | `s.opening(...subjects, { keep }?)` | Name the mobjects a phone's opening close-up should hold together this step ([below](#the-phones-opening-emphasis-and-review-subjects)); with `{ keep: true }` last, for this step and every later one until another kept opening replaces them (none clears them), though a step's own `s.opening` still wins for that step |
-| `s.dimension(a, b, label, { offset, color, size })` | A dimension line from `a` to `b` with ticks, arrowheads and `label`, set off by `offset`; drawn in and kept. The drawing kit's `dimension` builds the same picture for a draw, with the camera at home; the stage's annotations are sized for the screen when the camera has moved |
-| `s.legend(items, { at, size, direction, gap, key })` | A key of swatches and their meanings, drawn in and kept; the kit's `legend` for a draw |
-| `s.pin(at, { label, color, size, side })` | A pin stuck in at `at`, with an optional label to the head's `side` (`'right'` by default, or `'left'`); the kit's `pin` for a draw |
-| `s.callout(target, text, { side, gap, color, size })` | Words beside a point, box or mobject, with a leader line ending in a dot on its nearest edge; the kit's `callout` for a draw |
-| `s.emphasis`, `s.soft`, `s.good`, `s.bad` | Colours that read on this paper: emphasis, secondary text, accepted, rejected |
-| `s.raised`, `s.rule` | A panel surface one shade off the paper, and a hairline that separates; the colours of the stage's own card and code panels |
-| `s.palette`, `s.paper`, `s.heading` | The current palette, paper rectangle and heading text |
+| `s.dimension(a, b, label, { offset, color, size, key })` | The kit's [`dimension`](#drawing-kit), sized for the screen, drawn in and kept: a dimension line from `a` to `b` with ticks, arrowheads and `label`, set off by `offset` |
+| `s.legend(items, { at, size, stack, gap, key })` | The kit's `legend`, sized for the screen, faded in and kept: a key of swatches and their meanings |
+| `s.pin(point, { label, color, size, side, key })` | The kit's `pin`, sized for the screen, faded in and kept: a pin stuck in at `point`, with an optional label to the head's `side` (`'right'` by default, or `'left'`) |
+| `s.callout(target, text, { side, gap, color, size, key })` | The kit's `callout`, sized for the screen, drawn in and kept: words beside a point, box or mobject, with a leader line ending in a dot on its nearest edge |
+| `s.look` | The colours to draw with, each reading on this paper ([colours](#colours)) |
+| `s.backdrop`, `s.heading` | The backdrop rectangle and the heading text |
 
-Annotations say a value where it is. Prefer a dimension, pin or callout on the drawing to a card beside it, and `carry` to `clear` when the next step builds on this one.
+Annotations say a value where it is. Prefer a dimension, pin or callout on the drawing to a card beside it, and `carry` to `clear` when the next step builds on this one. One function makes each annotation: the kit's builds the picture in world coordinates, for a view's or a staged step's draw; the stage verb builds it with that function from the points the camera shows and maps it to the screen, so it keeps its size on screen while the camera is away. With the camera at home both give the same picture.
 
 `{ enter: false }` creates a card or code panel without playing it, so `s.enter(card, code)` can bring several in together.
 
 `describe` says in words what kept objects show together: a sentence, or a function for a drawing that changes. Without it, the description lists their visible text, and `check` fails a kept drawing that has no text. Either way, a part that describes itself is described by its own words wherever it sits, a view's current picture included: a card or code panel as the stage describes one it entered, its lit row or lines with their word; a diagram note; a dimension line or pin. So a view of a card needs no `describe`, and one given says what else the view shows.
 
-Emphasis is the style's accent, or orange for styles whose accent is grey or near-black (hand-drawn, pen-and-ink, blueprint). `s.soft` keeps at least 4.5:1 contrast with the paper.
+### Colours
+
+A palette is the input: a named style's four colours (`paper`, `ink`, `accent`, `muted`), which `palette(name)` returns, the stage's `style` or `palette` option chooses, and a diagram's snapshot carries. The look is what a scene draws with: `s.look` derives from the palette the colours that read on its paper, and the stage's own helpers colour from the same look.
+
+| `s.look.` | Colour |
+| --- | --- |
+| `paper` | The paper, the backdrop's fill |
+| `ink` | Text and lines |
+| `soft` | Secondary text: ink pulled toward the paper, never below 4.5:1 against it |
+| `emphasis` | Emphasis: trails, marks, lit rows and lines, plotted data. The style's accent, or orange for styles whose accent is grey or near-black (hand-drawn, pen-and-ink, blueprint) |
+| `good`, `bad` | Outcomes: accepted or passed, rejected or failed |
+| `raised`, `rule` | A panel surface one shade off the paper, and a hairline that separates; the colours of the stage's own card and code panels |
+| `muted` | The style's faint colour, for guides, axes and tracks that are not read as text |
+
+A colour name means one colour everywhere: a diagram's `d.emphasis` and the engine's `scene.colors.emphasis` (what an outline or plotted data drawn without a colour takes) are the look's `emphasis`. The look is frozen; a stage that adopts its first diagram's palette has a new look from then on, so read `s.look` where a picture is drawn rather than keeping an earlier one.
 
 ### The phone's opening, emphasis and review subjects
 
@@ -258,26 +271,33 @@ A row gives one value per column, or one value that spans them all (Requests abo
 
 ### Drawing kit
 
-`rayner/drawing` draws the parts explanations keep needing, as ordinary mobjects coloured from a stage's palette. Each returns a Group or mobject keyed by the `key` you give it, so `matchByKey`, `find`, invariants and reviews can address its parts (`table`, `flow`, `bars` and `legend` have default keys, so a second one on a stage needs its own); nothing here animates or reads scene state.
+`rayner/drawing` draws the parts explanations keep needing, as ordinary mobjects coloured from a stage's look; nothing here animates or reads scene state. Every function has the same shape:
 
-| Function | Draws |
-| --- | --- |
-| `keyed(m, key)` | Sets `m.key` and returns `m`, for any mobject a scene draws itself |
-| `keyedParts()` | A picture built from keyed parts: `add(m, key)` keys `m`, keeps it in order and returns it, `group()` returns the parts as one Group. A key added twice is refused at the `add` that repeats it |
-| `emphasised(m, as)` | Marks `m` as emphasis, `as` the words for what it shows (`'outlined: the full slot'`), so the phone's tour and the descriptions find the mark where it is drawn; `null` takes the mark off. Returns `m` ([emphasis](#the-phones-opening-emphasis-and-review-subjects)) |
-| `label(text, x, y, color, size?, key?)` | A centred line of text |
-| `tile(text, x, y, width, height, s, { active?, bad?, key?, size? })` | A labelled box, emphasised or marked bad |
-| `segment(a, b, color, width?, key?)`, `dot(text, x, y, s, active?, key?)` | A stroke; a labelled circle |
-| `table(headers, rows, s, { xs, y, gap, key, size })` | Bold headers over rows; text columns start-aligned, numeric ones end-aligned, a rule spanning exactly the columns. `xs` is column centres, `{ left, right }` to spread the measured columns between two edges, or `{ left, gap }` to set them a gap apart; the group's box is the table's measured extent. A row is an array of cells or `{ key, cells }`; every part is keyed (below) |
-| `stat(s, title, value, x, y, key)` | A title over a large value |
-| `flow(s, names, { y, key })` | Named steps in boxes of one size joined by arrows; long names wrap; each box keyed `key:i` |
-| `bars(s, rows, maximum, { key, y })` | Bars on one scale with aligned starts, labels keyed `key:i:label` and values `key:i:value` |
-| `callout(s, target, text, { side, gap, color, size, key })` | `s.callout`'s picture, without drawing it in: words beside a point, box or mobject with a leader line, on the stage's paper. Described by its words |
-| `dimension(s, a, b, label, { offset, color, size, key })` | `s.dimension`'s picture: a dimension line in the stage's emphasis. Describes itself, “A dimension line marked …” |
-| `legend(s, items, { at, size, direction, gap, key })` | Swatches with words: each item `{ label, fill?, stroke?, dashed?, name? }` is a filled square, a short line or an outlined square (`fill: 'none'`), then its label in the stage's ink. Entries stack (`direction: 'column'`) or sit in a row, the first starting at `at`. Keyed `key`, each entry `key:<label>`; a repeated label or an entry with no swatch is refused. Describes itself as its pairs, “Key: purple fill, cat’s bits; dashed blue line, the browser”, naming each colour by its nearest plain name (`colourName`) or the item's `name`, so a caption's colour word is said on the stage (`bloom-filter`, `wcag-map`, `trust-proxy`) |
-| `pin(s, at, { label, color, size, side, key })` | `s.pin`'s picture. Describes itself, “A pin marked …”. `great-circle` pins its two cities on the globe |
-| `card(s, rows, { at, align, width, title, columns, fontSize, direction, lit, key, panel })` | `s.card`'s picture: labelled values on a panel, for a view's draw ([card and code](#card-and-codeblock)). `at: 'start' \| 'end'` and the field order follow the stage's direction. Describes itself, its lit row with its word |
-| `code(s, lines, { at, align, fontSize, title, diff, added, lit, width, fitHeight, key })` | `s.code`'s picture: code on a panel, one string per line. `at: 'start' \| 'end'` follows the stage's direction. Describes itself, its lit, added and removed lines with their words |
+- the stage `s` first, for its look and its text shaping (all kit text is made with the scene's shaping, as `this.text` makes it);
+- then what the picture shows, positionally: its text, rows or items, and what it measures or points at (a callout's target, a dimension's ends, a pin's point);
+- then one options object: `at` is where the picture stands, `size` its text size, `key` its address.
+
+A function whose parts are keyed (`table`, `stat`, `flow`, `bars`, `legend`) requires `key`, so two of one kind on a stage never collide. The others take `key` optionally, and key their parts only when given it. A keyed picture keys its parts under its own key, so a scene addresses a part by key (`find`, matching, a choreography's `c.from`), never by a child index.
+
+| Function | Draws | Keyed parts |
+| --- | --- | --- |
+| `keyed(m, key)` | Sets `m.key` and returns `m`, for any mobject a scene draws itself | |
+| `keyedParts()` | A picture built from keyed parts: `add(m, key)` keys `m`, keeps it in order and returns it, `group()` returns the parts as one Group. A key added twice is refused at the `add` that repeats it | |
+| `emphasised(m, as)` | Marks `m` as emphasis, `as` the words for what it shows (`'outlined: the full slot'`), so the phone's tour and the descriptions find the mark where it is drawn; `null` takes the mark off. Returns `m` ([emphasis](#the-phones-opening-emphasis-and-review-subjects)) | |
+| `label(s, text, { at, color, size, key })` | A centred line of text at `at`, in the look's ink unless given a `color` | |
+| `tile(s, text, { at, width, height, active, bad, size, key })` | A labelled box centred at `at`: soft, emphasised when `active`, red when `bad` | `key:box`, `key:label` |
+| `segment(s, a, b, { color, strokeWidth, key })` | A stroke from `a` to `b` | |
+| `dot(s, text, { at, active, key })` | A labelled circle | `key:circle`, `key:label` |
+| `table(s, headers, rows, { key, columns, at, gap, size })` | Bold headers over rows; text columns start-aligned, numeric ones end-aligned, a rule spanning exactly the columns. `columns` is column centres, `{ left, right }` to spread the measured columns between two edges, or `{ left, gap }` to set them a gap apart; `at`'s x shifts them and its y is the header row's; the group's box is the table's measured extent. A row is an array of cells or `{ key, cells }` | below |
+| `stat(s, title, value, { at, key })` | A title over a large value | `key:title`, `key:value` |
+| `flow(s, names, { at, key })` | Named steps in boxes of one size, on a row centred at `at`, joined by arrows; long names wrap | each box `key:i` (`key:i:box`, `key:i:label`, a wrapped name's lines `key:i:label:j`), the arrow into it `key:i:arrow` |
+| `bars(s, rows, maximum, { at, key })` | Bars on one scale with aligned starts; `at` is the first row's centre line, its x shifting the layout (at 0 the bars start at x = −4) | `key:i:label`, `key:i:track`, `key:i:bar`, `key:i:value` |
+| `callout(s, target, text, { side, gap, color, size, key })` | `s.callout`'s picture: words beside a point, box or mobject with a leader line, on the stage's paper. Described by its words | `key:line`, `key:dot`, `key:backing`, `key:text` |
+| `dimension(s, a, b, label, { offset, color, size, key })` | `s.dimension`'s picture: a dimension line in the look's emphasis. Describes itself, “A dimension line marked …” | `key:extension:start`, `key:extension:end`, `key:line`, `key:arrow:start`, `key:arrow:end`, `key:backing`, `key:text` |
+| `pin(s, point, { label, color, size, side, key })` | `s.pin`'s picture. Describes itself, “A pin marked …”. `great-circle` pins its two cities on the globe | `key:needle`, `key:head`, `key:label` |
+| `legend(s, items, { at, size, stack, gap, key })` | Swatches with words: each item `{ label, fill?, stroke?, dashed?, name? }` is a filled square, a short line or an outlined square (`fill: 'none'`), then its label in the look's ink. Entries stack in a column (`stack: 'column'`, the default) or sit in a row (`'row'`), the first starting at `at`. A repeated label or an entry with no swatch is refused. Describes itself as its pairs, “Key: purple fill, cat’s bits; dashed blue line, the browser”, naming each colour by its nearest plain name or the item's `name`, so a caption's colour word is said on the stage (`bloom-filter`, `wcag-map`, `trust-proxy`) | each entry `key:<label>`, its swatch `key:<label>:swatch` and words `key:<label>:text` |
+| `card(s, rows, { at, align, width, title, columns, size, direction, lit, key, panel })` | `s.card`'s picture: labelled values on a panel, for a view's draw ([card and code](#card-and-codeblock)). `at: 'start' \| 'end'` and the field order follow the stage's direction. Describes itself, its lit row with its word | | |
+| `code(s, lines, { at, align, size, title, diff, added, lit, width, fitHeight, key })` | `s.code`'s picture: code on a panel, one string per line. `at: 'start' \| 'end'` follows the stage's direction. Describes itself, its lit, added and removed lines with their words | | |
 
 **Keyed cells.** A table keys every part, so the same row in two pictures is the same part and a keyed morph (a view's `sync()`, which matches by key) or a transition's `t.choreograph(view)` keeps it wherever it moves:
 
@@ -292,7 +312,7 @@ A column is named by its header. A row is named by its own `key` when given as `
 
 ```ts
 const rows = dict.entries.map((e, i) => ({ key: `e${i}`, cells: [i, e.key ?? '–', e.value ?? '–'] }));
-table(['Entry', 'Key', 'Value'], rows, s, { key: 'dict-entries' }); // dict-entries:e0:Key is entry 0's key, in every picture
+table(s, ['Entry', 'Key', 'Value'], rows, { key: 'dict-entries' }); // dict-entries:e0:Key is entry 0's key, in every picture
 ```
 
 The collection's scenes import the same functions through `explain/drawing.ts`.
@@ -391,6 +411,8 @@ To measure a diagram before anything is drawn, lay it out without `s.show`: `new
 | `d.morph(next, { ops })` | Same-id parts move, arrivals fade in, departures fade out; the walk and enlargement reset |
 | `d.hide()` | Fade the diagram out; `reveal` can bring parts back |
 | `d.get(id)` | A part as a native `Group` |
+| `d.shapes(id)`, `d.labels(id)` | A part's own drawn shapes in drawing order (a node's outline, a link's line and arrowhead, a task's bar), without its labels, the plates behind them or the parts it owns; and its own labels, each with the `text` it reads. Address a part's pieces through these, not through `d.get(id).children` (`cert-renewal` places a callout by a task's bar, `pen-and-pencil` reads a period's marks) |
+| `d.emphasis` | The diagram's emphasis colour, as the stage's `s.look.emphasis` for its style: what `trail`, notes and walks colour with by default |
 | `d.snapshot` | The captured snapshot the diagram is drawn from, to read and not change: its `parts`, each with its shapes and text runs, and Agentic Mermaid's `findings` (`agentic-mermaid` reads the verifier's report, `font-metrics` a label's captured run) |
 | `d.findings()` | The verifier's warnings, each with the `part` it names |
 | `d.describe()` | What a reader is told of the diagram as it is shown now: what it is and how big, then each shown part by its words in reading order, with its emphasis and notes (`{ what, parts, blank? }`, where `blank` lists drawn parts with no words). The stage's description and `describeExplainer`'s `picture` use it |

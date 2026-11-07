@@ -81,8 +81,8 @@ class Nudge extends Animation {
 }
 
 /** A tiny native scene, run inside this one: a box grows, and a dot crosses a track. */
-function demoScene(ink: string, accent: string, soft: string, motion: Motion, nudges: Nudge[]) {
-  const parts = tiny(ink, accent, soft);
+function demoScene(ink: string, emphasis: string, soft: string, motion: Motion, nudges: Nudge[]) {
+  const parts = tiny(ink, emphasis, soft);
   return class SeekDemo extends Scene<{}, {}> {
     override async construct() {
       const box = parts.box(3, 2.4, [-4.5, 1.6]);
@@ -124,9 +124,9 @@ function fingerprint(text: string): string {
  * SEEK_T, as renderAt makes a still; and seeked to every other frame, as rayner check seeks, to
  * compare each with the played frame.
  */
-async function runDemo(ink: string, accent: string, soft: string, motion: Motion) {
+async function runDemo(ink: string, emphasis: string, soft: string, motion: Motion) {
   const nudges: Nudge[] = [];
-  const Demo = demoScene(ink, accent, soft, motion, nudges);
+  const Demo = demoScene(ink, emphasis, soft, motion, nudges);
   const frames: string[] = [];
   /** The dot's x at each frame, played and seeked: what the timeline step plots. */
   const playedX: number[] = [],
@@ -251,15 +251,15 @@ export default class LanternExplainer extends Scene<LanternState, LanternShown> 
     const answer = answerOf(this);
     const motion = settingsOf(this).motion as Motion;
     const s = stage(this, { headingSize: 0.6, style: STYLE });
-    const ink = s.palette.ink,
-      accent = s.emphasis,
-      soft = s.soft;
-    const c = { ink, accent, soft, good: s.good, bad: s.bad };
+    const ink = s.look.ink,
+      emphasis = s.look.emphasis,
+      soft = s.look.soft;
+    const c = s.look;
 
     // The tiny scene with both kinds of motion: this scenario's, and the other one the last step compares.
     const runs = {
-      blend: await runDemo(ink, accent, soft, 'blend'),
-      nudge: await runDemo(ink, accent, soft, 'nudge'),
+      blend: await runDemo(ink, emphasis, soft, 'blend'),
+      nudge: await runDemo(ink, emphasis, soft, 'nudge'),
     };
     const run = runs[motion];
     const match = run.played === run.seeked;
@@ -433,7 +433,7 @@ export default class LanternExplainer extends Scene<LanternState, LanternShown> 
         '// the nudge, each frame:',
         '  dot.shift(step)',
       ],
-      { at: [anim[2] + 0.25, anim[1], anim[2] + 4.2, mob[3]], fontSize: 0.19 },
+      { at: [anim[2] + 0.25, anim[1], anim[2] + 4.2, mob[3]], size: 0.19 },
     );
     // Scene and Sink fade, so nothing behind the heading competes with it once the camera moves in.
     await showClasses({ dim: ['Mobject', 'Animation'] });

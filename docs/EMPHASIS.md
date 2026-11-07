@@ -24,7 +24,7 @@ build a new one.
 
 | Shape | Says | Defaults |
 | --- | --- | --- |
-| `new SurroundingRectangle(t, { buff, cornerRadius })` | this one | the scene's accent stroke, no fill, `buff` 0.15 |
+| `new SurroundingRectangle(t, { buff, cornerRadius })` | this one | the scene's emphasis colour as its stroke, no fill, `buff` 0.15 |
 | `new Underline(t, { buff })` | this word, this value | the scene's ink, `buff` 0.1 below the bottom edge |
 | `new Cross(t, { scale })` | not this, removed, rejected | the scene's `bad` colour, stroke 0.06, both diagonals of the box |
 | `new Brace(t, direction, { buff, depth, sharpness })` | this span, as a whole | the scene's ink, `buff` 0.1, `depth` 0.2 |
@@ -62,7 +62,7 @@ frame shows it. That also means the step's last frame differs from the previous
 step's, which `rayner check` requires. Remove it later with
 `new FadeOut(c.outline)`.
 
-Options: `color` (the scene's accent), `shape` (`'rect'`, or `'circle'` through the box's
+Options: `color` (the scene's emphasis colour), `shape` (`'rect'`, or `'circle'` through the box's
 corners plus `buff`), `buff` (0.15), `strokeWidth`, `cornerRadius`, `keep`,
 `fadeOut`, `runTime` (1). A circle around a long, flat target is large, so use
 `'circle'` for compact targets and `'rect'` for lines of text.

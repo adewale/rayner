@@ -59,7 +59,7 @@ export function drawWeek(st: { week: WeekGrid; date: GtfsDate }, s: Stage): Grou
   const rowY = (r: number) => TOP - r * (CH + 0.12) - CH / 2;
   const colX = (i: number) => GX0 + i * CW + CW / 2;
   const words = (t: string, opts: { color?: string; size?: number; bold?: boolean } = {}) =>
-    new Text(t, { fontSize: opts.size ?? 0.28, color: opts.color ?? s.palette.ink, weight: opts.bold ? 'bold' : 'normal' });
+    new Text(t, { fontSize: opts.size ?? 0.28, color: opts.color ?? s.look.ink, weight: opts.bold ? 'bold' : 'normal' });
   const cellOf = (r: number, i: number) => {
     const x = g.services[r]!,
       kind = x.cells[i]!,
@@ -74,7 +74,7 @@ export function drawWeek(st: { week: WeekGrid; date: GtfsDate }, s: Stage): Grou
     }).moveTo(where);
     if (kind === 'removed') frame.style.dashArray = '0.12 0.08';
     const cell = new Group(frame);
-    if (kind === 'runs') cell.add(words(x.serviceId, { color: s.palette.paper, bold: true }).moveTo(where));
+    if (kind === 'runs') cell.add(words(x.serviceId, { color: s.look.paper, bold: true }).moveTo(where));
     if (kind === 'removed')
       cell.add(words(x.serviceId, { color }).moveTo([where[0], where[1] + 0.16]), words('removed', { color }).moveTo([where[0], where[1] - 0.18]));
     cell.key = `gtfs-week:${x.serviceId}:${g.dates[i]}`;
@@ -98,7 +98,7 @@ export function drawWeek(st: { week: WeekGrid; date: GtfsDate }, s: Stage): Grou
     frameBottom = totalY - 0.25;
   if (at >= 0)
     columns[at]!.add(
-      new Rectangle({ width: CW, height: frameTop - frameBottom, fill: 'none', stroke: s.emphasis, strokeWidth: 0.05 }).moveTo([
+      new Rectangle({ width: CW, height: frameTop - frameBottom, fill: 'none', stroke: s.look.emphasis, strokeWidth: 0.05 }).moveTo([
         colX(at),
         (frameTop + frameBottom) / 2,
       ]),
@@ -161,7 +161,7 @@ export function departuresPicture(feed: Feed) {
       {
         at: [-7.55, -4.0, 7.55, 3.0],
         width: 11,
-        fontSize: 0.3,
+        size: 0.3,
         title: going ? `Leaving ${stop}, ${shortDate(on)}` : `What calendar.txt alone would send, ${shortDate(on)}`,
       },
     );

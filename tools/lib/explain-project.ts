@@ -14,7 +14,7 @@ import { Scene } from '../../src/index.ts';
 import { NullSink } from '../../src/output.ts';
 import { machinesOf } from '../../explain/testing.ts';
 import { traceRun } from '../../src/trace.ts';
-import type { Palette } from '../../integrations/agentic-mermaid/snapshot.ts';
+import type { Palette } from '../../src/color.ts';
 import { paperOf, paletteOf } from '../../explain/stage.ts';
 import { checkWatch } from '../../explain/trace.ts';
 import { readSnapshotStore } from '../../explain/project.ts';

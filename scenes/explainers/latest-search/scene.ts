@@ -74,8 +74,8 @@ export default class LatestSearchExplainer extends Scene<RaceState, {}> {
           settle.push(c.morph(`${track.key}:span:${j - 1}`, { runTime: 0.6 }), c.enter(`${track.key}:span:${j}`, {}, { runTime: 0.6 }), c.leave(key, { runTime: 0.6 }));
         } else {
           // Dropped: the guard crosses the response out at the page's edge, and the page stays as it was.
-          const cross = c.insert(`dropped:${track.key}`, new Cross(top, { stroke: s.bad, strokeWidth: 0.05, scale: 1.4 }));
-          settle.push(new Succession([new Transform(cross, new Cross(top, { stroke: s.bad, strokeWidth: 0.05, scale: 1.4 }), { runTime: 0.3 }), together([c.leave(key, { runTime: 0.3 }), c.leave(`dropped:${track.key}`, { runTime: 0.3 })])]));
+          const cross = c.insert(`dropped:${track.key}`, new Cross(top, { stroke: s.look.bad, strokeWidth: 0.05, scale: 1.4 }));
+          settle.push(new Succession([new Transform(cross, new Cross(top, { stroke: s.look.bad, strokeWidth: 0.05, scale: 1.4 }), { runTime: 0.3 }), together([c.leave(key, { runTime: 0.3 }), c.leave(`dropped:${track.key}`, { runTime: 0.3 })])]));
         }
       });
       return new Succession([reach, drop, together(arrive), together([...settle, c.rest({ runTime: 0.6 })])]);

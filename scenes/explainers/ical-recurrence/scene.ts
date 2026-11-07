@@ -189,7 +189,7 @@ export default class IcalRecurrenceExplainer extends Scene<IcalState, IcalShown>
           at: LIST,
           align: 'top',
           width: LIST_WIDTH,
-          fontSize: LIST_SIZE,
+          size: LIST_SIZE,
           title: 'Meetings Alice’s calendar shows',
           lit: mark ?? null,
         });
@@ -375,14 +375,14 @@ export default class IcalRecurrenceExplainer extends Scene<IcalState, IcalShown>
           code(s, lines(st.copy.components), {
             at: CODE,
             align: 'top',
-            fontSize: CODE_SIZE,
+            size: CODE_SIZE,
             title: 'Bob’s stored object, some lines left out',
           }),
           card(s, guestRows(st.copy.meetings), {
             at: LIST,
             align: 'top',
             width: LIST_WIDTH,
-            fontSize: LIST_SIZE,
+            size: LIST_SIZE,
             title: 'Meetings Bob’s calendar shows',
           }),
         );

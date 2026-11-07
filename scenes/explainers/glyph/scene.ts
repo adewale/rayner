@@ -67,9 +67,9 @@ export default class GlyphExplainer extends Scene<GlyphState, { lit?: string }> 
     const font = settingsOf(this).font as FontName,
       other: FontName = font === 'sans' ? 'mono' : 'sans',
       s = stage(this, { style: STYLE, headingSize: 0.6 }),
-      ink = s.palette.ink,
-      hot = s.emphasis,
-      soft = s.soft;
+      ink = s.look.ink,
+      hot = s.look.emphasis,
+      soft = s.look.soft;
     const mine = shape(font, WORD),
       theirs = shape(other, WORD);
     const [widthFrame, shapeFrame] = readerFrames(font);

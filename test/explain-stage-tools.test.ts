@@ -51,7 +51,7 @@ test('a step line sits under a numbered title; a line too wide for one line fail
       assert.ok(line.box()![1] >= 3.25);
       // The heading and its parts draw over anything added later.
       this.add(new Rectangle({ width: 2, height: 2 }));
-      assert.ok(this.mobjects.indexOf(s.heading) > this.mobjects.findIndex((m) => m instanceof Rectangle && m.key == null && m !== s.paper));
+      assert.ok(this.mobjects.indexOf(s.heading) > this.mobjects.findIndex((m) => m instanceof Rectangle && m.key == null && m !== s.backdrop));
     }
   }
   await new Lined(new NullSink()).run();
@@ -166,7 +166,7 @@ test('draw: the tool rides the tip without jumps, leaves no trace, and the drawi
   assert.deepEqual(events, [], JSON.stringify(events.slice(0, 3)));
   // The tool is gone when the play ends: nothing but the strokes, paper and heading parts remain.
   const stageFurniture = (m: Mobject) => {
-    for (let a: Mobject | null = m; a; a = a.parent) if (a.role === 'paper' || a.role === 'heading' || a.role === 'chrome') return true;
+    for (let a: Mobject | null = m; a; a = a.parent) if (a.role === 'backdrop' || a.role === 'heading' || a.role === 'chrome') return true;
     return false;
   };
   const filled = scene
@@ -241,8 +241,8 @@ test("engine defaults take the stage's palette: an axis, outlines and text drawn
   const { Axes, Circumscribe, SurroundingRectangle } = await import('../src/index.ts');
   const { palette } = await import('../explain/index.ts');
   const { sceneColors } = await import('../explain/stage.ts');
-  const p = palette('pen-and-ink'), accent = sceneColors(p).accent;
-  assert.notEqual(accent, p.ink, 'the roles differ on this palette, so the test can tell them apart');
+  const p = palette('pen-and-ink'), emphasis = sceneColors(p).emphasis;
+  assert.notEqual(emphasis, p.ink, 'the roles differ on this palette, so the test can tell them apart');
   let seen: Record<string, string | undefined> = {};
   class S extends Scene {
     override async construct() {
@@ -261,7 +261,7 @@ test("engine defaults take the stage's palette: an axis, outlines and text drawn
     }
   }
   await new S(new NullSink()).run();
-  assert.deepEqual(seen, { axis: p.ink, label: p.ink, outline: accent, ring: accent, text: p.ink, given: '#123456' });
+  assert.deepEqual(seen, { axis: p.ink, label: p.ink, outline: emphasis, ring: emphasis, text: p.ink, given: '#123456' });
 });
 
 test('a kept opening holds its subjects through later steps; a step\'s own opening wins for that step; an empty kept call clears them', async () => {

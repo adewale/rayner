@@ -27,13 +27,27 @@ export interface AnnotationLook {
   size?: number;
   /** Opaque paper behind an annotation, when it sits over other artwork. */
   background?: string;
+  /** The annotation's key; its parts are keyed under it (`key:text` and so on). Unkeyed without it. */
+  key?: string;
 }
+/** `m` keyed `key:part` when the annotation has a key. */
+const part = <T extends Mobject>(m: T, key: string | undefined, name: string): T => {
+  if (key !== undefined) m.key = `${key}:${name}`;
+  return m;
+};
+/** `g` keyed `key` when given. */
+const whole = <T extends Mobject>(g: T, key: string | undefined): T => {
+  if (key !== undefined) g.key = key;
+  return g;
+};
 
 /**
  * A dimension line between `a` and `b`, set off to one side by `offset` (positive: to the left
- * of a→b), with ticks at both ends and `label` at its middle, outside the line.
+ * of a→b), with ticks at both ends and `label` at its middle, outside the line. Its parts:
+ * `key:extension:start` and `key:extension:end`, `key:line`, `key:arrow:start` and `key:arrow:end`,
+ * `key:backing` (with a background) and `key:text`.
  */
-export function dimension(a: Vec, b: Vec, label: string, { color, background, size = 0.24, shaping, offset = 0.3 }: AnnotationLook & { offset?: number }): Group {
+export function dimension(a: Vec, b: Vec, label: string, { color, background, size = 0.24, shaping, offset = 0.3, key }: AnnotationLook & { offset?: number }): Group {
   const d = unit(sub(b, a)),
     n: Vec = [-d[1], d[0]];
   const o: Vec = [n[0] * offset, n[1] * offset];
@@ -42,32 +56,35 @@ export function dimension(a: Vec, b: Vec, label: string, { color, background, si
   const tick = 0.09,
     w = 0.02;
   const g = new Group(
-    new Line(a, [p[0] + n[0] * tick * Math.sign(offset || 1), p[1] + n[1] * tick * Math.sign(offset || 1)], { stroke: color, strokeWidth: w * 0.7, strokeOpacity: 0.7 }),
-    new Line(b, [q[0] + n[0] * tick * Math.sign(offset || 1), q[1] + n[1] * tick * Math.sign(offset || 1)], { stroke: color, strokeWidth: w * 0.7, strokeOpacity: 0.7 }),
-    new Line(p, q, { stroke: color, strokeWidth: w }),
-    new Polygon([p, [p[0] + d[0] * 0.14 + n[0] * 0.05, p[1] + d[1] * 0.14 + n[1] * 0.05], [p[0] + d[0] * 0.14 - n[0] * 0.05, p[1] + d[1] * 0.14 - n[1] * 0.05]], { fill: color, stroke: 'none' }),
-    new Polygon([q, [q[0] - d[0] * 0.14 + n[0] * 0.05, q[1] - d[1] * 0.14 + n[1] * 0.05], [q[0] - d[0] * 0.14 - n[0] * 0.05, q[1] - d[1] * 0.14 - n[1] * 0.05]], { fill: color, stroke: 'none' }),
+    part(new Line(a, [p[0] + n[0] * tick * Math.sign(offset || 1), p[1] + n[1] * tick * Math.sign(offset || 1)], { stroke: color, strokeWidth: w * 0.7, strokeOpacity: 0.7 }), key, 'extension:start'),
+    part(new Line(b, [q[0] + n[0] * tick * Math.sign(offset || 1), q[1] + n[1] * tick * Math.sign(offset || 1)], { stroke: color, strokeWidth: w * 0.7, strokeOpacity: 0.7 }), key, 'extension:end'),
+    part(new Line(p, q, { stroke: color, strokeWidth: w }), key, 'line'),
+    part(new Polygon([p, [p[0] + d[0] * 0.14 + n[0] * 0.05, p[1] + d[1] * 0.14 + n[1] * 0.05], [p[0] + d[0] * 0.14 - n[0] * 0.05, p[1] + d[1] * 0.14 - n[1] * 0.05]], { fill: color, stroke: 'none' }), key, 'arrow:start'),
+    part(new Polygon([q, [q[0] - d[0] * 0.14 + n[0] * 0.05, q[1] - d[1] * 0.14 + n[1] * 0.05], [q[0] - d[0] * 0.14 - n[0] * 0.05, q[1] - d[1] * 0.14 - n[1] * 0.05]], { fill: color, stroke: 'none' }), key, 'arrow:end'),
   );
-  const t = new Text(label, { fontSize: size, color, shaping });
+  const t = part(new Text(label, { fontSize: size, color, shaping }), key, 'text');
   const mid: Vec = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2],
     side = Math.sign(offset || 1),
     gap = 0.08 + (Math.abs(n[0]) * t.width() + Math.abs(n[1]) * t.height()) / 2;
   t.moveTo([mid[0] + n[0] * side * gap, mid[1] + n[1] * side * gap]);
-  if (background) g.add(paperFor(t, background));
+  if (background) g.add(part(paperFor(t, background), key, 'backing'));
   g.add(t);
-  return selfDescribed(g, () => ({ what: `A dimension line marked “${label}”`, parts: [] }));
+  return selfDescribed(whole(g, key), () => ({ what: `A dimension line marked “${label}”`, parts: [] }));
 }
 
-/** A pin stuck in at `at`: a round head above it on a short needle, and an optional label beside the head, on its `side` (right by default). */
-export function pin(at: Vec, { color, size = 0.24, shaping, label, side = 'right' }: AnnotationLook & { label?: string; side?: 'left' | 'right' }): Group {
+/**
+ * A pin stuck in at `at`: a round head above it on a short needle, and an optional label beside the
+ * head, on its `side` (right by default). Its parts: `key:needle`, `key:head` and `key:label`.
+ */
+export function pin(at: Vec, { color, size = 0.24, shaping, label, side = 'right', key }: AnnotationLook & { label?: string; side?: 'left' | 'right' }): Group {
   const head: Vec = [at[0], at[1] + 0.32];
   const g = new Group(
-    new Line(at, [head[0], head[1] - 0.07], { stroke: color, strokeWidth: 0.025 }),
-    new Circle({ radius: 0.075, fill: color, fillOpacity: 1, stroke: 'none' }).moveTo(head),
+    part(new Line(at, [head[0], head[1] - 0.07], { stroke: color, strokeWidth: 0.025 }), key, 'needle'),
+    part(new Circle({ radius: 0.075, fill: color, fillOpacity: 1, stroke: 'none' }).moveTo(head), key, 'head'),
   );
   const out = side === 'left' ? -1 : 1;
-  if (label) g.add(new Text(label, { fontSize: size, color, anchor: side === 'left' ? 'end' : 'start', shaping }).moveTo([head[0] + out * 0.14, head[1]], [-out, 0]));
-  return selfDescribed(g, () => ({ what: label ? `A pin marked “${label}”` : 'A pin', parts: [] }));
+  if (label) g.add(part(new Text(label, { fontSize: size, color, anchor: side === 'left' ? 'end' : 'start', shaping }).moveTo([head[0] + out * 0.14, head[1]], [-out, 0]), key, 'label'));
+  return selfDescribed(whole(g, key), () => ({ what: label ? `A pin marked “${label}”` : 'A pin', parts: [] }));
 }
 
 export type Side = 'above' | 'below' | 'left' | 'right';
@@ -80,16 +97,17 @@ const boxOf = (target: Vec | Box | Mobject): Box => {
 
 /**
  * Text beside a target (a point, a box or a mobject) with a leader line from the text to the
- * target's nearest edge, ending in a dot. `gap` is how far the text stands off the target.
+ * target's nearest edge, ending in a dot. `gap` is how far the text stands off the target. Its
+ * parts: `key:line`, `key:dot`, `key:backing` (with a background) and `key:text`.
  */
 export function callout(
   target: Vec | Box | Mobject,
   text: string,
-  { color, background, size = 0.24, shaping, side = 'right', gap = 0.55 }: AnnotationLook & { side?: Side; gap?: number },
+  { color, background, size = 0.24, shaping, side = 'right', gap = 0.55, key }: AnnotationLook & { side?: Side; gap?: number },
 ): Group {
   const b = boxOf(target),
     [cx, cy] = center(b);
-  const t = new Text(text, { fontSize: size, color, shaping });
+  const t = part(new Text(text, { fontSize: size, color, shaping }), key, 'text');
   const edge: Vec = side === 'right' ? [b[2], cy] : side === 'left' ? [b[0], cy] : side === 'above' ? [cx, b[3]] : [cx, b[1]];
   const dir: Vec = side === 'right' ? [1, 0] : side === 'left' ? [-1, 0] : side === 'above' ? [0, 1] : [0, -1];
   const textAt: Vec = [
@@ -98,11 +116,14 @@ export function callout(
   ];
   t.moveTo(textAt);
   const from: Vec = [edge[0] + dir[0] * (gap - 0.08), edge[1] + dir[1] * (gap - 0.08)];
-  return new Group(
-    new Line(from, edge, { stroke: color, strokeWidth: 0.02 }),
-    new Circle({ radius: 0.04, fill: color, fillOpacity: 1, stroke: 'none' }).moveTo(edge),
-    ...(background ? [paperFor(t, background)] : []),
-    t,
+  return whole(
+    new Group(
+      part(new Line(from, edge, { stroke: color, strokeWidth: 0.02 }), key, 'line'),
+      part(new Circle({ radius: 0.04, fill: color, fillOpacity: 1, stroke: 'none' }).moveTo(edge), key, 'dot'),
+      ...(background ? [part(paperFor(t, background), key, 'backing')] : []),
+      t,
+    ),
+    key,
   );
 }
 
@@ -297,7 +318,7 @@ export interface LegendItem {
   stroke?: string;
   /** Draw the line or outline dashed. */
   dashed?: boolean;
-  /** The colour's name in words, when the nearest plain name (`colourName`) is not the one the captions use. */
+  /** The colour's name in words, when the nearest plain name (`colorName`) is not the one the captions use. */
   name?: string;
 }
 
@@ -307,7 +328,7 @@ export interface LegendItem {
  * yellow, green, teal, blue, purple or pink. A legend says its swatches with these words, so a
  * caption's "purple fill" finds the swatch that keys it.
  */
-export function colourName(hex: string): string {
+export function colorName(hex: string): string {
   const trimmed = hex.trim();
   if (!isHex(trimmed)) return 'coloured';
   const [r, g, b] = parseColor(trimmed)!.map((v) => v / 255) as [number, number, number];
@@ -331,9 +352,9 @@ export function colourName(hex: string): string {
 
 /** How a legend says one swatch: "purple fill", "dashed red line", "green fill with a dashed outline". */
 export function swatchWords(item: LegendItem): string {
-  const name = (c: string) => item.name ?? colourName(c);
+  const name = (c: string) => item.name ?? colorName(c);
   if (item.fill === 'none' && item.stroke) return `${item.dashed ? 'dashed ' : ''}${name(item.stroke)} outline`;
-  if (item.fill && item.stroke) return `${name(item.fill)} fill with a ${item.dashed ? 'dashed ' : ''}${colourName(item.stroke)} outline`;
+  if (item.fill && item.stroke) return `${name(item.fill)} fill with a ${item.dashed ? 'dashed ' : ''}${colorName(item.stroke)} outline`;
   if (item.fill) return `${name(item.fill)} fill`;
   if (item.stroke) return `${item.dashed ? 'dashed ' : ''}${name(item.stroke)} line`;
   throw new Error(`legend: the entry "${item.label}" needs a fill or a stroke for its swatch`);
@@ -346,10 +367,12 @@ export interface LegendLook {
   size?: number;
   /** Where the first entry starts: its swatch's left edge, on the entry's centre line. */
   at?: Vec;
-  /** Entries stacked (`column`, the default) or side by side (`row`). */
-  direction?: 'column' | 'row';
+  /** Entries stacked in a column (the default) or side by side in a row. */
+  stack?: 'column' | 'row';
   /** Space between entries: from one entry's top to the next in a column, between entries in a row. */
   gap?: number;
+  /** The legend's key: each entry is keyed `key:<label>`, its swatch `key:<label>:swatch` and its words `key:<label>:text`. */
+  key?: string;
 }
 
 /**
@@ -357,7 +380,7 @@ export interface LegendLook {
  * describes itself as its swatch→meaning pairs ("Key: purple fill, cat’s bits; dashed blue line,
  * the browser"), so the words a caption uses for a colour or a dash are on the stage too.
  */
-export function legend(items: readonly LegendItem[], { ink, shaping, size = 0.3, at = [0, 0], direction = 'column', gap }: LegendLook): Group {
+export function legend(items: readonly LegendItem[], { ink, shaping, size = 0.3, at = [0, 0], stack = 'column', gap, key }: LegendLook): Group {
   if (!items.length) throw new Error('legend: a legend needs at least one entry');
   const labels = new Set<string>();
   for (const item of items) {
@@ -368,7 +391,7 @@ export function legend(items: readonly LegendItem[], { ink, shaping, size = 0.3,
   }
   const side = size * 0.9,
     long = size * 1.8,
-    step = gap ?? (direction === 'row' ? size * 1.2 : size * 1.6);
+    step = gap ?? (stack === 'row' ? size * 1.2 : size * 1.6);
   const g = new Group();
   let x = at[0],
     y = at[1];
@@ -387,9 +410,10 @@ export function legend(items: readonly LegendItem[], { ink, shaping, size = 0.3,
         }).moveTo([x + side / 2, cy])
       : new Line([x, cy], [x + long, cy], { stroke: item.stroke!, strokeWidth: 0.05, ...(item.dashed ? { dashArray: '0.12 0.07' } : {}) });
     const text = new Text(item.label, { fontSize: size, color: ink, anchor: 'start', shaping }).moveTo([x + width + size * 0.45, cy], [-1, 0]);
-    g.add(new Group(swatch, text));
-    if (direction === 'row') x = text.box()![2] + step;
+    const entry = key === undefined ? undefined : `${key}:${item.label}`;
+    g.add(whole(new Group(part(swatch, entry, 'swatch'), part(text, entry, 'text')), entry));
+    if (stack === 'row') x = text.box()![2] + step;
     else y -= step;
   }
-  return selfDescribed(g, () => ({ what: `Key: ${items.map((item) => `${swatchWords(item)}, ${item.label}`).join('; ')}`, parts: [] }));
+  return selfDescribed(whole(g, key), () => ({ what: `Key: ${items.map((item) => `${swatchWords(item)}, ${item.label}`).join('; ')}`, parts: [] }));
 }

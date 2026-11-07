@@ -79,7 +79,7 @@ export default class TailwindGamutExplainer extends Scene<GamutState, { dotNotes
     const all = rows(shade),
       sum = summarize(shade);
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
-    const ink = s.palette.ink;
+    const ink = s.look.ink;
     const n = sum.count,
       out = sum.outsideSrgb.length;
     const tw = `Tailwind ${shade}`;
@@ -95,7 +95,7 @@ export default class TailwindGamutExplainer extends Scene<GamutState, { dotNotes
       texts: readonly string[],
       curves: readonly Curve[] = [],
     ) => {
-      const c = card.length ? await s.card(card, { at: SIDE, align: 'top', fontSize: SIZE, enter: false }) : null;
+      const c = card.length ? await s.card(card, { at: SIDE, align: 'top', size: SIZE, enter: false }) : null;
       if (c) c.shift([SIDE[0] - c.box()![0], 0]);
       const { made } = lines(texts, SIDE[3] - (c ? c.height() + 0.3 : 0));
       if (c || made.length) await s.enter(...(c ? [c] : []), ...made);

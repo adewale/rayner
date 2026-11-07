@@ -107,10 +107,10 @@ test('a view’s note follows its part through enlarge; clear() leaves paper and
       assert.ok(Math.abs(gap()) < 1e-6 && note().center()[1] > d.get('C').box()![3]);
       await s.card([['k', 1]]);
       await s.clear();
-      // Paper, the heading's band (invisible at home) and the heading stay.
+      // The backdrop, the heading's band (invisible at home) and the heading stay.
       assert.deepEqual(
         this.mobjects.map((m) => m.role),
-        ['paper', 'chrome', 'heading'],
+        ['backdrop', 'chrome', 'heading'],
       );
       await d.reveal(['A']);
       assert.ok(this.familyMembers().includes(d.get('A')));
@@ -164,7 +164,7 @@ test('descriptions read chart values as written, name marks by their word, and r
       const s = stage(this);
       await this.step('chart');
       const d = await s.show(chartSpec);
-      s.diagramView(d, () => ({ marks: { 'bar:0:R2': { color: d.accent, as: 'rejected' } }, notes: [{ id: 'bar:0:R1', text: 'full' }] }));
+      s.diagramView(d, () => ({ marks: { 'bar:0:R2': { color: d.emphasis, as: 'rejected' } }, notes: [{ id: 'bar:0:R1', text: 'full' }] }));
       await this.step('drawing');
       await s.enter(new Rectangle({ width: 1, height: 1 }).moveTo([5, 2]));
       await this.step('faint');

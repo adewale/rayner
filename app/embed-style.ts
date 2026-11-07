@@ -1,5 +1,5 @@
 import type { ExplainerClass } from '../explain/settings.ts';
-import type { Palette } from '../integrations/agentic-mermaid/snapshot.ts';
+import type { Palette } from '../src/color.ts';
 import { contrastRatio, isHex } from '../src/color.ts';
 
 type Cues = NonNullable<NonNullable<ExplainerClass['meta']>['player']>;

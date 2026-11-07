@@ -18,14 +18,14 @@ const fillOf = (name: string) => lerpColor(PAPER, OWNER[name]!, 0.36);
  */
 export function takenLabel(s: Stage, size: number, full: boolean, stored: readonly string[]): Group {
   const SIZE = 0.66;
-  const lead = new Text(stored.length ? 'Taken:' : 'Taken: cat, dog. Not yet in the filter', { fontSize: SIZE, color: s.palette.ink });
+  const lead = new Text(stored.length ? 'Taken:' : 'Taken: cat, dog. Not yet in the filter', { fontSize: SIZE, color: s.look.ink });
   const entry = (owner: string, label: string) => ({ label, fill: fillOf(owner), stroke: OWNER[owner]!, name: OWNER_NAME[owner]! });
   const items = !stored.length
     ? []
     : full
       ? [entry('cat', 'cat'), entry('dog', 'dog'), entry('more', `${stored.length - 2} more`)]
       : stored.map((name) => entry(name, `${name} (${locations(name, size).join(', ')})`));
-  const key = items.length ? legend(s, items, { size: SIZE, direction: 'row', gap: 0.36, key: 'bloom-key' }) : null;
+  const key = items.length ? legend(s, items, { size: SIZE, stack: 'row', gap: 0.36, key: 'bloom-key' }) : null;
   // The lead and the legend in one centred row over the bits.
   const gap = 0.36,
     width = lead.width() + (key ? gap + key.width() : 0);
@@ -58,7 +58,7 @@ export function drawBits(
     positionGap = 0.4;
   const bitTile = (j: number, bit: number, x: number, y: number, setBy: readonly string[], { active = false, bad = false } = {}) => {
     const part = W / Math.max(1, setBy.length);
-    const color = bad ? s.bad : active ? s.emphasis : s.soft;
+    const color = bad ? s.look.bad : active ? s.look.emphasis : s.look.soft;
     const g = new Group(
       ...setBy.map((name, k) =>
         new Rectangle({ width: part, height: H, fill: fillOf(name), fillOpacity: 1, stroke: 'none' }).moveTo([
@@ -70,8 +70,8 @@ export function drawBits(
         x,
         y,
       ]),
-      label(String(j), x, y + H / 2 + positionGap, s.soft, 0.66),
-      label(String(bit), x, y, bad ? s.bad : s.palette.ink, size === 16 ? 0.9 : 0.74),
+      label(s, String(j), { at: [x, y + H / 2 + positionGap], color: s.look.soft, size: 0.66 }),
+      label(s, String(bit), { at: [x, y], color: bad ? s.look.bad : s.look.ink, size: size === 16 ? 0.9 : 0.74 }),
     );
     g.key = `bit-${j}`;
     return g;
@@ -109,9 +109,9 @@ export function drawPipeline(
   const TABLE = 0.7,
     COLUMN_GAP = 1.1,
     READS_GAP = 1.4;
-  const reads = stat(s, 'Reads', `${st.exactLookups} of ${st.queries.length}`, 0, 0, 'bloom-checks').scale(7 / 6);
+  const reads = stat(s, 'Reads', `${st.exactLookups} of ${st.queries.length}`, { key: 'bloom-checks' }).scale(7 / 6);
   // The lookups and the read count beside them, centred together; the sample shares their left edge.
-  const top = table(lookups.headers, lookups.rows, s, { xs: { left: 0, gap: COLUMN_GAP }, y: 2.6, gap: 0.98, key: 'bloom-pipeline', size: TABLE });
+  const top = table(s, lookups.headers, lookups.rows, { columns: { left: 0, gap: COLUMN_GAP }, gap: 0.98, key: 'bloom-pipeline', size: TABLE, at: [0, 2.6] });
   // The read count sits level with the lookups' rows, centred on them.
   reads.moveTo([top.width() + READS_GAP, 0.64], [-1, 0]);
   const LEFT = -(top.width() + READS_GAP + reads.width()) / 2;
@@ -120,6 +120,6 @@ export function drawPipeline(
   return new Group(
     top,
     reads,
-    table(sample.headers, sample.rows, s, { xs: { left: LEFT, gap: COLUMN_GAP }, y: -1.75, gap: 0.98, key: 'bloom-sample', size: TABLE }),
+    table(s, sample.headers, sample.rows, { columns: { left: LEFT, gap: COLUMN_GAP }, gap: 0.98, key: 'bloom-sample', size: TABLE, at: [0, -1.75] }),
   );
 }

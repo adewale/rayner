@@ -173,7 +173,7 @@ export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
     };
     /** Pie `name` marks these slices, in the pie's accent, and nothing else. */
     const markSlices = async (v: View, d: Diagram, name: PieName, ids: string[], as: string) => {
-      this.shown = { ...this.shown, [name]: Object.fromEntries(ids.map((id) => [id, { color: d.accent, as }])) };
+      this.shown = { ...this.shown, [name]: Object.fromEntries(ids.map((id) => [id, { color: d.emphasis, as }])) };
       await this.play(v.sync({ runTime: 0.45 }));
     };
     /** The disk's blocks, from what the opening records. */
@@ -227,7 +227,7 @@ export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
           ['Users can write', ofDisk(st, st.df.users)],
           ['Not available', `${grouped(st.df.gone)} blocks`],
         ],
-        { at: CARD, fontSize: SIZE, title: 'statfs after mkfs.ext4' },
+        { at: CARD, size: SIZE, title: 'statfs after mkfs.ext4' },
       ),
     );
 
@@ -277,7 +277,7 @@ export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
           ['Users can write', grouped(st.reserve.users)],
           ['Root / metadata', times(st.reserve.root, st.reserve.metadata)],
         ],
-        { at: CARD, fontSize: SIZE, title: 'Where the blocks go' },
+        { at: CARD, size: SIZE, title: 'Where the blocks go' },
       ),
     );
 
@@ -321,7 +321,7 @@ export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
           ['Blocks', grouped(st.inodes.inodeTables)],
           ['Of the disk', ofDisk(st, st.inodes.inodeTables)],
         ],
-        { at: CARD, fontSize: SIZE, title: 'Inode tables' },
+        { at: CARD, size: SIZE, title: 'Inode tables' },
       );
     await enterCard(inodeCard);
 
@@ -349,7 +349,7 @@ export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
       (state, sh) =>
         card(s, steps, {
           at: CARD,
-          fontSize: SIZE,
+          size: SIZE,
           title: 'Journal by disk size',
           lit: sh.journalRow == null ? null : { row: sh.journalRow, as: having(state, 'disk').disk.label },
           key: 'journal',
@@ -397,7 +397,7 @@ export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
           ['Other metadata', grouped(st.other.other)],
           ['Of the disk', ofDisk(st, st.other.other)],
         ],
-        { at: CARD, fontSize: SIZE, title: 'Other metadata' },
+        { at: CARD, size: SIZE, title: 'Other metadata' },
       ),
     );
 

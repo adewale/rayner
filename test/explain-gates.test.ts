@@ -120,7 +120,7 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
   },
   {
     gate: 'step change: a step that ends on the same picture',
-    source: `import{Scene,Text,FadeIn}from'rayner';import{stage}from'rayner/explain';export default class Same extends Scene{async construct(){const s=stage(this);await this.step('one',{title:'One'});await this.play(new FadeIn(new Text('hello',{color:s.palette.ink})));await this.step('two',{title:'Two',caption:'Nothing new is drawn.'});await this.wait(.5);}}`,
+    source: `import{Scene,Text,FadeIn}from'rayner';import{stage}from'rayner/explain';export default class Same extends Scene{async construct(){const s=stage(this);await this.step('one',{title:'One'});await this.play(new FadeIn(new Text('hello',{color:s.look.ink})));await this.step('two',{title:'Two',caption:'Nothing new is drawn.'});await this.wait(.5);}}`,
     message: /Each step must change the picture[^]*two/,
   },
   {
@@ -229,7 +229,7 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
   {
     // The caption keys a colour the stage never names: hidden, the caption takes the key with it.
     gate: 'a caption names a colour no word on the stage says',
-    source: scene(`await this.step('one',{caption:'The red dot is the answer.'});await s.enter(new Dot({color:s.bad}),{describe:'A dot'});`),
+    source: scene(`await this.step('one',{caption:'The red dot is the answer.'});await s.enter(new Dot({color:s.look.bad}),{describe:'A dot'});`),
     message: /Captions name a look the stage does not in the scene: one: the caption names “red”/,
   },
   {

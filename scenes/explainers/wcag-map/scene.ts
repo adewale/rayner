@@ -197,7 +197,7 @@ export default class WcagMapExplainer extends Scene<WcagState, { map?: MapShown 
     const d = await s.show({ source: source(topics) }, { box: 'full' });
     this.state.v20 = t20;
     const plain: MapShown = { marked: [], notes: [], dim: null };
-    const toneColor = (tone: Tone) => (tone === 'good' ? s.good : tone === 'bad' ? s.bad : d.accent);
+    const toneColor = (tone: Tone) => (tone === 'good' ? s.look.good : tone === 'bad' ? s.look.bad : d.emphasis);
     const drawMap = (_st: WcagState, sh: { map?: MapShown }) => {
       const m = having(sh, 'map').map;
       return {

@@ -144,28 +144,31 @@ export default class MontyHall extends Scene<MontyState, { phase?: Phase }> {
       words = [roundWords(r)];
       return new Group(
         ...[0, 1, 2].flatMap((i) => [
-          label(door(i), DOOR_X(i), 2.7, s.soft, 0.64, `monty-letter-${i}`),
-          tile(i === r.opened ? r.shows! : revealed ? (i === r.car ? 'car' : 'goat') : '?', DOOR_X(i), DOOR_Y, 3.5, 2.5, s, {
+          label(s, door(i), { at: [DOOR_X(i), 2.7], color: s.look.soft, size: 0.64, key: `monty-letter-${i}` }),
+          tile(s, i === r.opened ? r.shows! : revealed ? (i === r.car ? 'car' : 'goat') : '?', {
+            at: [DOOR_X(i), DOOR_Y],
+            width: 3.5,
+            height: 2.5,
             active: i === yours,
             bad: i === r.opened && r.shows === 'car',
             size: 0.8,
             key: `door-${i}`,
           }),
         ]),
-        label(said, 0, -1.25, s.palette.ink, 0.62, 'monty-said'),
+        label(s, said, { at: [0, -1.25], size: 0.62, key: 'monty-said' }),
         // The size of the lines around it: a phone's close-up is set by the line that changes, the result.
-        label(rule, 0, -2.45, s.soft, 0.62, 'monty-rule'),
-        label(outcome, 0, -3.65, s.palette.ink, 0.62, 'monty-result'),
+        label(s, rule, { at: [0, -2.45], color: s.look.soft, size: 0.62, key: 'monty-rule' }),
+        label(s, outcome, { at: [0, -3.65], size: 0.62, key: 'monty-result' }),
       );
     };
     /** Switching's chance for a host, right of his name: over every round, or (as) over the rounds left after the seen goat. */
     const readout = (y: number, chance: number, key: string) =>
-      keyed(new Text(`switch wins ${percent(chance)}`, { fontSize: F, color: s.palette.ink }).moveTo([X1, y], [1, 0]), key);
-    const titleOf = (h: Host, y: number) => left(HOST[h], X0, y, h === host ? s.emphasis : s.palette.ink, F, `monty-name-${h}`);
+      keyed(new Text(`switch wins ${percent(chance)}`, { fontSize: F, color: s.look.ink }).moveTo([X1, y], [1, 0]), key);
+    const titleOf = (h: Host, y: number) => left(HOST[h], X0, y, h === host ? s.look.emphasis : s.look.ink, F, `monty-name-${h}`);
     const describeStrip = (h: Host, list: readonly Cell[], dim: (c: Cell) => boolean = () => false) =>
       `${HOST[h]}: ` +
       list.map((c) => `car behind ${c.prize}, he opens ${c.opened}: ${c.shows}, ${c.stay === 'ends' ? 'game over' : c.stay === 'win' ? 'staying wins' : 'switching wins'}, ${c.sixths} sixth${c.sixths > 1 ? 's' : ''}${dim(c) ? ' (greyed)' : ''}`).join('; ');
-    const cellKey = (y: number) => label(KEY, 0, y, s.soft, F, 'monty-key');
+    const cellKey = (y: number) => label(s, KEY, { at: [0, y], color: s.look.soft, size: F, key: 'monty-key' });
 
     /**
      * The picture for a phase: the round (the model) while the doors show, else a function of what is
@@ -190,8 +193,8 @@ export default class MontyHall extends Scene<MontyState, { phase?: Phase }> {
             cellKey(y - NAME),
             ...(phase === 'odds'
               ? [
-                  stat(s, 'Stay', percent(seen[host].stayChance), -3.25, -2.85, 'monty-stay'),
-                  stat(s, 'Switch', percent(seen[host].switchChance), 3.25, -2.85, 'monty-switch'),
+                  stat(s, 'Stay', percent(seen[host].stayChance), { at: [-3.25, -2.85], key: 'monty-stay' }),
+                  stat(s, 'Switch', percent(seen[host].switchChance), { at: [3.25, -2.85], key: 'monty-switch' }),
                 ]
               : []),
           );
@@ -295,7 +298,7 @@ export default class MontyHall extends Scene<MontyState, { phase?: Phase }> {
               const { before, after } = t, c = t.choreograph(main);
               const from = roundDoor(round(before))!,
                 to = roundDoor(round(after))!;
-              const outline = c.from(`door-${from}`).children[0]!;
+              const outline = c.from(`door-${from}`).find(`door-${from}:box`)!;
               const at = (i: number, lift: number) => outline.copy().moveTo([DOOR_X(i), DOOR_Y + lift]);
               const yours = c.insert('monty-yours', outline);
               return new Succession([

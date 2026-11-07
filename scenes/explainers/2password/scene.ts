@@ -60,7 +60,7 @@ export default class PasswordExplainer extends Scene<PasswordState, PasswordShow
   };
   override async construct() {
     const s = stage(this, { headingSize: 0.6, style: STYLE }),
-      hot = s.emphasis;
+      hot = s.look.emphasis;
     const found = find(QUERIES),
       [hitQuery, missQuery] = QUERIES,
       match = found.matches[0]!,
@@ -111,7 +111,7 @@ export default class PasswordExplainer extends Scene<PasswordState, PasswordShow
         const l = having(sh, 'listing').listing;
         return code(s, listingLines(l.columns), {
           at: [-5.5, -4.25, 5.5, -0.5],
-          fontSize: 0.3,
+          size: 0.3,
           lit: { lines: l.focus },
           key: 'listing',
         });
@@ -172,7 +172,7 @@ export default class PasswordExplainer extends Scene<PasswordState, PasswordShow
     const sequenceView = s.diagramView(sequence, (_st, sh) => {
       const q = having(sh, 'sequence').sequence;
       return {
-        marks: Object.fromEntries(q.marked.map((id) => [id, sequence.accent])),
+        marks: Object.fromEntries(q.marked.map((id) => [id, sequence.emphasis])),
         notes: q.notes,
       };
     });
@@ -202,7 +202,7 @@ export default class PasswordExplainer extends Scene<PasswordState, PasswordShow
       (_st, sh) =>
         code(s, [`2password run --env "API_KEY=${ref}" -- app`, `→ ${launched.argv.join(' ')}`], {
           at: regionBox('top', { bottom: 1.2 }),
-          fontSize: 0.3,
+          size: 0.3,
           lit: sh.commandFocus == null ? null : { lines: sh.commandFocus },
           key: 'command',
         }),
@@ -214,13 +214,13 @@ export default class PasswordExplainer extends Scene<PasswordState, PasswordShow
       {
         at: regionBox('full', { right: -0.75, top: 0.7 }),
         title: "op's environment",
-        fontSize: 0.26,
+        size: 0.26,
         enter: false,
       },
     );
     const child = await s.code(
       Object.entries(launched.childEnv).map(([k, v]) => `${k}=${v}`),
-      { at: regionBox('full', { left: 0.75, top: 0.7 }), title: "app's environment", fontSize: 0.26, enter: false },
+      { at: regionBox('full', { left: 0.75, top: 0.7 }), title: "app's environment", size: 0.26, enter: false },
     );
     const yArrow = (before.panel.box()![1] + before.panel.box()![3]) / 2;
     const pass = new Arrow([before.panel.box()![2] + 0.1, yArrow], [child.panel.box()![0] - 0.1, yArrow], {

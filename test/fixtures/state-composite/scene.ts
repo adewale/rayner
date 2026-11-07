@@ -37,7 +37,7 @@ export default class StateComposite extends Scene {
     const s = stage(this, { headingSize: 0.54 });
     await this.step('composite', { title: 'A composite state', caption: 'One POWER_OFF arrow leaves on.' });
     const d = await s.show({ source: COMPOSITE }, { box: 'full' });
-    s.diagramView(d, () => ({ marks: { brewing: { color: d.accent, as: 'current' } } }));
+    s.diagramView(d, () => ({ marks: { brewing: { color: d.emphasis, as: 'current' } } }));
     await this.step('regions', { title: 'Two regions', caption: 'Each region is in one state at once.' });
     await s.clear();
     const r = await s.show({ source: REGIONS }, { box: 'full' });

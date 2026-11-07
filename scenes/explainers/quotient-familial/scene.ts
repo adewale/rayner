@@ -222,7 +222,7 @@ export default class QuotientFamilialExplainer extends Scene<QfState, QfShown> {
     const sous = (id: string, texte: (st: QfState) => string) => {
       const b = flow.get(id).box()!,
         bas = flow.get('REF').box()![1] - 0.4;
-      return calloutOf((st) => callout(s, b, texte(st), { side: 'below', gap: b[1] - bas, size: 0.32, color: s.emphasis }));
+      return calloutOf((st) => callout(s, b, texte(st), { side: 'below', gap: b[1] - bas, size: 0.32, color: s.look.emphasis }));
     };
     this.state = { rni, enfants };
     const flowOf = (sh: QfShown) => having(sh, 'flow').flow;
@@ -230,7 +230,7 @@ export default class QuotientFamilialExplainer extends Scene<QfState, QfShown> {
     const flowView = s.diagramView(flow, (_st, sh) => {
       const f = flowOf(sh);
       return {
-        marks: { ...flow.trail(f.walked), ...Object.fromEntries(f.current.map((id) => [id, { color: flow.accent, as: 'étape en cours' }])) },
+        marks: { ...flow.trail(f.walked), ...Object.fromEntries(f.current.map((id) => [id, { color: flow.emphasis, as: 'étape en cours' }])) },
         dim: f.dim,
       };
     });
@@ -250,7 +250,7 @@ export default class QuotientFamilialExplainer extends Scene<QfState, QfShown> {
     const chartView = (d: Diagram, name: 'barsMarked' | 'capMarked', as: string) => {
       this.shown[name] = [];
       const v = s.diagramView(d, (_st, sh) => ({
-        marks: Object.fromEntries(having(sh, name)[name].map((id) => [id, { color: d.accent, as }])),
+        marks: Object.fromEntries(having(sh, name)[name].map((id) => [id, { color: d.emphasis, as }])),
       }));
       return async (marked: string[]) => {
         this.shown[name] = marked;
@@ -392,8 +392,8 @@ export default class QuotientFamilialExplainer extends Scene<QfState, QfShown> {
       (state) => {
         const st = having(state, 'tranches', 'parts', 'quotient');
         return new Group(
-          drawRegle(st, 'entier', `Revenu entier, ${rniTexteDe(st.rni)}`, -1.5, s.palette),
-          drawRegle(st, 'parts', `Par parts, ${partsTexte(st.parts)} × ${eur2(st.quotient)}`, -2.95, s.palette),
+          drawRegle(st, 'entier', `Revenu entier, ${rniTexteDe(st.rni)}`, -1.5, s.look),
+          drawRegle(st, 'parts', `Par parts, ${partsTexte(st.parts)} × ${eur2(st.quotient)}`, -2.95, s.look),
         );
       },
       { place: false },

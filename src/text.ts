@@ -389,10 +389,10 @@ export class Code extends Group {
   protected override rebindReferences(source: Mobject, copies: ReadonlyMap<Mobject, Mobject>): void {
     this.lines = (source as Code).lines.map(line => (copies.get(line) ?? line) as Text);
   }
-  /** A translucent bar behind line `i`, as wide as the block: the scene's accent unless given a colour. */
+  /** A translucent bar behind line `i`, as wide as the block: the scene's emphasis colour unless given a colour. */
   highlight(i: number, color?: string): Rectangle {
-    const r = new Rectangle({ width: this.width() + 0.3, height: this.lines[i]!.height() * 1.45, cornerRadius: 0.06, fill: color ?? NEUTRAL_COLORS.accent, fillOpacity: 0.18, stroke: 'none' });
-    if (color === undefined) followScene(r, { fill: 'accent' });
+    const r = new Rectangle({ width: this.width() + 0.3, height: this.lines[i]!.height() * 1.45, cornerRadius: 0.06, fill: color ?? NEUTRAL_COLORS.emphasis, fillOpacity: 0.18, stroke: 'none' });
+    if (color === undefined) followScene(r, { fill: 'emphasis' });
     return r.moveTo(this.lineCenter(i));
   }
   /** Where a highlight bar for line `i` sits. */

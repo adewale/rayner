@@ -1,6 +1,6 @@
 import { Scene, AnimationGroup, Succession, Text, Group, FadeIn, Transform, linear } from '../../../src/index.ts';
 import type { View, Choreography, CodeOptions } from '../../../explain/index.ts';
-import type { ScheduledAnimation, Vec, Mobject } from '../../../src/index.ts';
+import type { ScheduledAnimation, Vec, Mobject, Arrow } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Machine, view } from '../../../explain/index.ts';
 import { card, code } from '../../../explain/drawing.ts';
 import { ringStory, ringStart, ringNext } from './model.ts';
@@ -68,11 +68,9 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
   override async construct() {
     const which = settingsOf(this).operations!,
       s = stage(this, { headingSize: 0.6, style: 'dusk' }),
-      ink = s.palette.ink,
-      soft = s.soft,
-      head = s.emphasis;
+      ink = s.look.ink;
 
-    const look: Ink = { ink, soft, paper: s.palette.paper, head, bad: s.bad };
+    const look: Ink = s.look;
     const ringPicture = (st: RingState) => drawRing(st, look);
     // What the ring shows, in words.
     const ringWords = () => sayRing(this.state);
@@ -93,14 +91,14 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
     s.keep(ring, { describe: ringWords });
     // Checked on every frame by rayner check: a pointer moving between slots goes round the ring,
     // never across it, so its arrow always starts on the pointers' circle.
-    const arrowBase = (ptr: Mobject) => ptr.children[0]!.children[0]!.pointArrays()[0]!;
-    const pointerRadius = Math.hypot(arrowBase(pointer(look, 'head', 0))[0]! - C[0], arrowBase(pointer(look, 'head', 0))[1]! - C[1]);
+    const arrowBase = (ptr: Mobject, name: 'head' | 'tail') => (ptr.find(`ring:pointer:${name}:arrow`) as Arrow).line.start();
+    const pointerRadius = Math.hypot(arrowBase(pointer(look, 'head', 0), 'head')[0] - C[0], arrowBase(pointer(look, 'head', 0), 'head')[1] - C[1]);
     this.addInvariant('pointers stay on their circle', (scene) => {
       let checked = false;
-      for (const name of ['head', 'tail']) {
+      for (const name of ['head', 'tail'] as const) {
         const ptr = scene.find(`ring:pointer:${name}`);
         if (!ptr) continue;
-        const [x, y] = arrowBase(ptr), r = Math.hypot(x! - C[0], y! - C[1]);
+        const [x, y] = arrowBase(ptr, name), r = Math.hypot(x - C[0], y - C[1]);
         if (Math.abs(r - pointerRadius) > 1e-3) return `the ${name} arrow starts ${r.toFixed(3)} from the centre, not ${pointerRadius.toFixed(3)}`;
         checked = true;
       }
@@ -110,7 +108,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
     const readout = (this.readout = view(
       this,
       (st) => card(s, (['head', 'tail', 'length'] as const).map((k) => [k, st[k]] as const), {
-        fontSize: 0.24, at: [C[0], C[1] + 0.1], width: 1.9, panel: false, key: 'readout',
+        size: 0.24, at: [C[0], C[1] + 0.1], width: 1.9, panel: false, key: 'readout',
       }),
       { place: false },
     ));
@@ -127,7 +125,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
           ['Operation', '–'],
           ['Result', '–'],
         ],
-        { at: regionBox('full', { left: -0.25, bottom: 1.0 }), width: 7.4, fontSize: 0.27, lit: lit == null ? null : { row: lit }, key: 'card' },
+        { at: regionBox('full', { left: -0.25, bottom: 1.0 }), width: 7.4, size: 0.27, lit: lit == null ? null : { row: lit }, key: 'card' },
       );
     const placeholders = blankCard(null);
     const rows = (['Operation', 'Result'] as const).map((label) => ({ label, at: placeholders.values.get(label)!.anchorPoint() }));
@@ -174,7 +172,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
     const litOf = (st: RingState): CodeOptions['lit'] =>
       st.error != null ? { lines: 1 } : st.operation === 'pop' ? { lines: [8, 12] } : st.operation != null ? { lines: [2, 4] } : null;
     const codeAt = regionBox('full', { left: -0.25, top: resultCard.box()![1] - 0.25 });
-    const codePanel = (this.code = view(this, (st) => code(s, CODE, { at: codeAt, fontSize: 0.2, lit: litOf(st), key: 'code' }), { place: false }));
+    const codePanel = (this.code = view(this, (st) => code(s, CODE, { at: codeAt, size: 0.2, lit: litOf(st), key: 'code' }), { place: false }));
     await s.enter(codePanel, { runTime: 0.4 });
 
     // The reader could press push or pop; each press is one model step, its motion authored below.

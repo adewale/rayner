@@ -59,8 +59,8 @@ function stateBox(s: Stage, f: Fit, key: string, center: Vec, size: Vec, words: 
       width: size[0] * f.k,
       height: size[1] * f.k,
       cornerRadius: 0.14 * f.k,
-      fill: s.palette.paper,
-      stroke: followed ? s.good : s.soft,
+      fill: s.look.paper,
+      stroke: followed ? s.look.good : s.look.soft,
       strokeWidth: (followed ? 0.06 : 0.026) * f.k,
       ...(dashed ? { dashArray: `${0.12 * f.k} ${0.09 * f.k}` } : {}),
     }).moveTo(f.at(center)),
@@ -68,7 +68,7 @@ function stateBox(s: Stage, f: Fit, key: string, center: Vec, size: Vec, words: 
   );
   const gap = words.length > 1 ? 0.22 : 0;
   const texts = words.map((w, i) =>
-    keyed(new Text(w.text, { fontSize: F * f.k, color: dashed ? s.soft : s.palette.ink }).moveTo(f.at([center[0], center[1] + gap * (i ? -1 : 1)])), w.key),
+    keyed(new Text(w.text, { fontSize: F * f.k, color: dashed ? s.look.soft : s.look.ink }).moveTo(f.at([center[0], center[1] + gap * (i ? -1 : 1)])), w.key),
   );
   return [box, ...texts];
 }
@@ -77,7 +77,7 @@ function start(s: Stage, f: Fit, key: string, target: Place, from: 'left' | 'abo
   const edge: Vec = from === 'left' ? [target.center[0] - target.size[0] / 2 - 0.07, target.center[1]] : [target.center[0], target.center[1] + target.size[1] / 2 + 0.07];
   const dot: Vec = from === 'left' ? [edge[0] - 0.62, edge[1]] : [edge[0], edge[1] + 0.62];
   return [
-    keyed(new Circle({ radius: 0.09 * f.k, fill: s.palette.ink, stroke: 'none' }).moveTo(f.at(dot)), key),
+    keyed(new Circle({ radius: 0.09 * f.k, fill: s.look.ink, stroke: 'none' }).moveTo(f.at(dot)), key),
     keyed(new Arrow(f.at([dot[0] + (from === 'left' ? 0.1 : 0), dot[1] - (from === 'left' ? 0 : 0.1)]), f.at(edge), arrowStyle(s, f, false)), `${key}|arrow`),
   ];
 }
@@ -86,7 +86,7 @@ function exit(center: Vec, half: Vec, from: Vec, dir: Vec): Vec {
   const t = Math.min(...[0, 1].map((i) => (dir[i] === 0 ? Infinity : ((dir[i]! > 0 ? center[i]! + half[i]! : center[i]! - half[i]!) - from[i]!) / dir[i]!)));
   return [from[0] + dir[0] * t, from[1] + dir[1] * t];
 }
-const arrowStyle = (s: Stage, f: Fit, lit: boolean) => ({ stroke: lit ? s.emphasis : s.soft, strokeWidth: (lit ? 0.05 : 0.028) * f.k, tipLength: 0.2 * f.k, tipWidth: 0.17 * f.k });
+const arrowStyle = (s: Stage, f: Fit, lit: boolean) => ({ stroke: lit ? s.look.emphasis : s.look.soft, strokeWidth: (lit ? 0.05 : 0.028) * f.k, tipLength: 0.2 * f.k, tipWidth: 0.17 * f.k });
 /**
  * A straight arrow between two boxes. A pair (one each way) is offset to the right of travel, so the
  * two never overlap, with each label further out on its own side; a single arrow's label goes on `side`.
@@ -102,7 +102,7 @@ function straight(s: Stage, f: Fit, key: string, a: Place, b: Place, label: stri
   const start = exit(a.center, half(a), shift(a.center), dir),
     end = exit(b.center, half(b), shift(b.center), [-dir[0], -dir[1]]);
   const arrow = keyed(new Arrow(f.at(start), f.at(end), arrowStyle(s, f, lit)), key);
-  const text = keyed(new Text(label, { fontSize: L * f.k, color: lit ? s.emphasis : s.soft }), `${key}|label`);
+  const text = keyed(new Text(label, { fontSize: L * f.k, color: lit ? s.look.emphasis : s.look.soft }), `${key}|label`);
   const out: Vec = paired ? right : [right[0] * side, right[1] * side];
   const reach = Math.abs(out[0]) * (text.width() / f.k / 2) + Math.abs(out[1]) * (L * 0.4) + 0.12 + off;
   const mid: Vec = [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2];
@@ -118,13 +118,13 @@ function curved(s: Stage, f: Fit, key: string, start: Vec, end: Vec, angle: numb
     sag = r * (1 - Math.cos(angle / 2)),
     n: Vec = [(chord[1] / d) * Math.sign(angle), (-chord[0] / d) * Math.sign(angle)];
   const apex: Vec = [(start[0] + end[0]) / 2 + n[0] * sag, (start[1] + end[1]) / 2 + n[1] * sag];
-  const text = keyed(new Text(label, { fontSize: L * f.k, color: lit ? s.emphasis : s.soft }), `${key}|label`);
+  const text = keyed(new Text(label, { fontSize: L * f.k, color: lit ? s.look.emphasis : s.look.soft }), `${key}|label`);
   const reach = 0.2 + Math.abs(n[0]) * (text.width() / f.k / 2) + Math.abs(n[1]) * (L * 0.4);
   text.moveTo(f.at([apex[0] + n[0] * reach, apex[1] + n[1] * reach]));
   return [arrow, text];
 }
 const note = (s: Stage, f: Fit, bounds: Box, text: string) =>
-  keyed(new Text(text, { fontSize: L * f.k, color: s.soft }).moveTo(f.at([(bounds[0] + bounds[2]) / 2, bounds[1] + 0.22])), 'note');
+  keyed(new Text(text, { fontSize: L * f.k, color: s.look.soft }).moveTo(f.at([(bounds[0] + bounds[2]) / 2, bounds[1] + 0.22])), 'note');
 const counted = (n: { states: number; transitions: number }) => `${n.states} boxes · ${n.transitions} transitions`;
 const flatLabel = (chart: StateNode, flat: FlatMachine, name: string) => (name === flat.initial ? 'off' : wordsOf(chart, flat.configurations[name]!).join(' · '));
 
@@ -191,12 +191,12 @@ export function chartPicture(s: Stage, source: StateNode, kind: ChartKind, f: Fi
   const chart = kind === 'boxed' ? boxed(source) : source;
   const box = (key: string, b: Box, followed: boolean, r = 0.2) =>
     keyed(
-      new Rectangle({ width: (b[2] - b[0]) * f.k, height: (b[3] - b[1]) * f.k, cornerRadius: r * f.k, fill: 'none', stroke: followed ? s.good : s.soft, strokeWidth: (followed ? 0.06 : 0.03) * f.k }).moveTo(
+      new Rectangle({ width: (b[2] - b[0]) * f.k, height: (b[3] - b[1]) * f.k, cornerRadius: r * f.k, fill: 'none', stroke: followed ? s.look.good : s.look.soft, strokeWidth: (followed ? 0.06 : 0.03) * f.k }).moveTo(
         f.at([(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]),
       ),
       key,
     );
-  parts.push(box('r:on', CHART.on, look.follow.includes('on')), keyed(new Text('on', { fontSize: F * f.k, color: s.palette.ink }).moveTo(f.at([CHART.on[0] + 0.45, CHART.on[3] - 0.3])), 'r:on|w'));
+  parts.push(box('r:on', CHART.on, look.follow.includes('on')), keyed(new Text('on', { fontSize: F * f.k, color: s.look.ink }).moveTo(f.at([CHART.on[0] + 0.45, CHART.on[3] - 0.3])), 'r:on|w'));
   parts.push(...stateBox(s, f, 'r:off', CHART.off, OFF_BOX, [{ key: 'r:off|w', text: 'off' }], look.follow.includes('off')));
   words.push(`on${look.follow.includes('on') ? ' (followed)' : ''}`, `off${look.follow.includes('off') ? ' (followed)' : ''}`);
   // POWER, written once on on: a pair between off and the top of the box.
@@ -206,7 +206,7 @@ export function chartPicture(s: Stage, source: StateNode, kind: ChartKind, f: Fi
       x = CHART.off[0] + dx,
       top = CHART.off[1] - OFF_BOX[1] / 2 - 0.07,
       bottom = CHART.on[3] + 0.07;
-    const label = keyed(new Text('POWER', { fontSize: L * f.k, color: lit ? s.emphasis : s.soft }), `${key}|label`);
+    const label = keyed(new Text('POWER', { fontSize: L * f.k, color: lit ? s.look.emphasis : s.look.soft }), `${key}|label`);
     label.moveTo(f.at([x + (up ? 1 : -1) * (label.width() / f.k / 2 + 0.14), (top + bottom) / 2]));
     parts.push(keyed(new Arrow(f.at([x, up ? bottom : top]), f.at([x, up ? top : bottom]), arrowStyle(s, f, lit)), key), label);
     words.push(`${up ? 'on → off' : 'off → on'}: POWER${lit ? ' (marked)' : ''}`);
@@ -243,9 +243,9 @@ export function chartPicture(s: Stage, source: StateNode, kind: ChartKind, f: Fi
         wordKeys.set(id, [{ key: `r:word:${from[id]![1]}`, text: id }]);
       }),
     );
-    parts.push(keyed(new Line(f.at([0, CHART.on[3] - 0.1]), f.at([0, CHART.on[1] + 0.1]), { stroke: s.soft, strokeWidth: 0.026 * f.k, dashArray: `${0.14 * f.k} ${0.1 * f.k}` }), 'r:divider'));
+    parts.push(keyed(new Line(f.at([0, CHART.on[3] - 0.1]), f.at([0, CHART.on[1] + 0.1]), { stroke: s.look.soft, strokeWidth: 0.026 * f.k, dashArray: `${0.14 * f.k} ${0.1 * f.k}` }), 'r:divider'));
     for (const [i, c] of [PLAYBACK, VOLUME].entries()) {
-      parts.push(keyed(new Text(c.region, { fontSize: L * f.k, color: s.soft }).moveTo(f.at([x[i]!, CHART.on[1] + 0.32])), `r:region:${c.region}`));
+      parts.push(keyed(new Text(c.region, { fontSize: L * f.k, color: s.look.soft }).moveTo(f.at([x[i]!, CHART.on[1] + 0.32])), `r:region:${c.region}`));
       words.push(`region ${c.region}`);
     }
   }
@@ -324,23 +324,23 @@ export function coffeePicture(s: Stage, f: Fit, mode: CoffeeMode, look: Look, di
     const followed = look.follow.includes('on');
     parts.push(
       keyed(
-        new Rectangle({ width: lay.onPlace.size[0] * f.k, height: lay.onPlace.size[1] * f.k, cornerRadius: 0.2 * f.k, fill: 'none', stroke: followed ? s.good : s.soft, strokeWidth: (followed ? 0.06 : 0.03) * f.k }).moveTo(f.at(lay.onPlace.center)),
+        new Rectangle({ width: lay.onPlace.size[0] * f.k, height: lay.onPlace.size[1] * f.k, cornerRadius: 0.2 * f.k, fill: 'none', stroke: followed ? s.look.good : s.look.soft, strokeWidth: (followed ? 0.06 : 0.03) * f.k }).moveTo(f.at(lay.onPlace.center)),
         'c:on',
       ),
-      keyed(new Text('on', { fontSize: F * f.k, color: s.palette.ink }).moveTo(f.at([lay.on[0] + 0.42, lay.on[3] - 0.32])), 'c:on|w'),
+      keyed(new Text('on', { fontSize: F * f.k, color: s.look.ink }).moveTo(f.at([lay.on[0] + 0.42, lay.on[3] - 0.32])), 'c:on|w'),
     );
     words.push(`on, a box holding ${Object.keys(COFFEE.ys).join(', ')}${mode === 'frother' ? ' and the frother' : ''}${followed ? ' (current)' : ''}`);
   }
   if (mode === 'frother') {
-    parts.push(keyed(new Line(f.at([-0.6, lay.on[3] - 0.15]), f.at([-0.6, lay.on[1] + 0.15]), { stroke: s.soft, strokeWidth: 0.026 * f.k, dashArray: `${0.14 * f.k} ${0.1 * f.k}` }), 'c:divider'));
+    parts.push(keyed(new Line(f.at([-0.6, lay.on[3] - 0.15]), f.at([-0.6, lay.on[1] + 0.15]), { stroke: s.look.soft, strokeWidth: 0.026 * f.k, dashArray: `${0.14 * f.k} ${0.1 * f.k}` }), 'c:divider'));
     for (const [text, x] of [['brewing cycle', -3.3], ['frother', COFFEE.frotherX]] as const)
-      parts.push(keyed(new Text(text, { fontSize: L * f.k, color: s.soft }).moveTo(f.at([x, lay.on[1] + 0.3])), `c:region:${text}`));
+      parts.push(keyed(new Text(text, { fontSize: L * f.k, color: s.look.soft }).moveTo(f.at([x, lay.on[1] + 0.3])), `c:region:${text}`));
     words.push('a dashed line splits on into two regions: the brewing cycle and the frother');
   }
   if (mode === 'question') {
     parts.push(
-      keyed(new Text('new: a frother', { fontSize: F * f.k, color: s.emphasis }).moveTo(f.at([frotherX, 3.1])), 'c:new'),
-      keyed(new Text('any time the machine is on', { fontSize: L * f.k, color: s.emphasis }).moveTo(f.at([frotherX, 2.62])), 'c:new2'),
+      keyed(new Text('new: a frother', { fontSize: F * f.k, color: s.look.emphasis }).moveTo(f.at([frotherX, 3.1])), 'c:new'),
+      keyed(new Text('any time the machine is on', { fontSize: L * f.k, color: s.look.emphasis }).moveTo(f.at([frotherX, 2.62])), 'c:new2'),
     );
     words.push('new: a frother, still or frothing, any time the machine is on; where it goes is the question');
   }
@@ -402,7 +402,7 @@ export function coffeePicture(s: Stage, f: Fit, mode: CoffeeMode, look: Look, di
       const [x1, x2] = t.to === 'off' ? [left, right] : [right, left];
       parts.push(keyed(new Arrow(f.at([x1, y]), f.at([x2, y]), arrowStyle(s, f, lit)), key));
       const below = paired && t.from === 'off';
-      parts.push(keyed(new Text(t.event, { fontSize: L * f.k, color: lit ? s.emphasis : s.soft }).moveTo(f.at([(left + right) / 2, y + (below ? -0.27 : 0.27)])), `${key}|label`));
+      parts.push(keyed(new Text(t.event, { fontSize: L * f.k, color: lit ? s.look.emphasis : s.look.soft }).moveTo(f.at([(left + right) / 2, y + (below ? -0.27 : 0.27)])), `${key}|label`));
     } else {
       const paired = arrows.some((u) => u.from === t.to && u.to === t.from);
       parts.push(...straight(s, f, key, a, b, t.event, paired, lit, -1));
@@ -416,8 +416,8 @@ export function coffeePicture(s: Stage, f: Fit, mode: CoffeeMode, look: Look, di
       right = lay.off.center[0] - lay.off.size[0] / 2 - 0.07,
       key = `c:arrow:${FORGOT}:POWER_OFF:off`;
     parts.push(
-      keyed(new Line(f.at([left, y]), f.at([right, y]), { stroke: s.bad, strokeWidth: 0.04 * f.k, dashArray: `${0.12 * f.k} ${0.1 * f.k}` }), key),
-      keyed(new Text('no POWER_OFF', { fontSize: L * f.k, color: s.bad, weight: 'bold' }).moveTo(f.at([(left + right) / 2, y + 0.27])), `${key}|label`),
+      keyed(new Line(f.at([left, y]), f.at([right, y]), { stroke: s.look.bad, strokeWidth: 0.04 * f.k, dashArray: `${0.12 * f.k} ${0.1 * f.k}` }), key),
+      keyed(new Text('no POWER_OFF', { fontSize: L * f.k, color: s.look.bad, weight: 'bold' }).moveTo(f.at([(left + right) / 2, y + 0.27])), `${key}|label`),
     );
     words.push(`${FORGOT} → off: POWER_OFF missing (marked)`);
   }
@@ -425,7 +425,7 @@ export function coffeePicture(s: Stage, f: Fit, mode: CoffeeMode, look: Look, di
     // Who answers POWER_OFF while brewing: brewing first, then its parent.
     const lines = ['POWER_OFF while brewing (green):', '1. brewing: no POWER_OFF', '2. its parent on: has it → off'];
     lines.forEach((text, i) =>
-      parts.push(keyed(new Text(text, { fontSize: L * f.k, color: i ? s.palette.ink : s.soft }).moveTo(f.at([2.35, -0.95 - i * 0.55])), `c:dispatch:${i}`)),
+      parts.push(keyed(new Text(text, { fontSize: L * f.k, color: i ? s.look.ink : s.look.soft }).moveTo(f.at([2.35, -0.95 - i * 0.55])), `c:dispatch:${i}`)),
     );
     words.push(...lines);
   }
@@ -451,24 +451,24 @@ export function tracePicture(s: Stage, f: Fit): Drawn {
     top = 2.3,
     gap = 0.85;
   const parts: Mobject[] = ['event', 'statechart: a state per region', 'flat machine: one state', ''].map((h, i) =>
-    keyed(new Text(h, { fontSize: L * f.k, color: s.soft }).moveTo(f.at([xs[i]!, top])), `t:head:${i}`),
+    keyed(new Text(h, { fontSize: L * f.k, color: s.look.soft }).moveTo(f.at([xs[i]!, top])), `t:head:${i}`),
   );
   const words: string[] = [];
   rows.forEach((r, i) => {
     const y = top - (i + 1) * gap,
       same = flatName(r.chart) === r.flat;
     parts.push(
-      keyed(new Text(r.event, { fontSize: F * f.k, color: s.palette.ink, font: 'mono' }).moveTo(f.at([xs[0]!, y])), `t:${i}:0`),
-      keyed(new Text(r.chart.join(' + '), { fontSize: F * f.k, color: s.palette.ink }).moveTo(f.at([xs[1]!, y])), `t:${i}:1`),
-      keyed(new Text(label(r.flat), { fontSize: F * f.k, color: s.palette.ink }).moveTo(f.at([xs[2]!, y])), `t:${i}:2`),
-      keyed(new Text(same ? 'same' : 'differs', { fontSize: F * f.k, color: same ? s.good : s.bad }).moveTo(f.at([xs[3]!, y])), `t:${i}:3`),
+      keyed(new Text(r.event, { fontSize: F * f.k, color: s.look.ink, font: 'mono' }).moveTo(f.at([xs[0]!, y])), `t:${i}:0`),
+      keyed(new Text(r.chart.join(' + '), { fontSize: F * f.k, color: s.look.ink }).moveTo(f.at([xs[1]!, y])), `t:${i}:1`),
+      keyed(new Text(label(r.flat), { fontSize: F * f.k, color: s.look.ink }).moveTo(f.at([xs[2]!, y])), `t:${i}:2`),
+      keyed(new Text(same ? 'same' : 'differs', { fontSize: F * f.k, color: same ? s.look.good : s.look.bad }).moveTo(f.at([xs[3]!, y])), `t:${i}:3`),
     );
     words.push(`${r.event}: statechart ${r.chart.join(' + ')}, flat ${label(r.flat)}, ${same ? 'same' : 'differs'}`);
   });
   const fc = flatCounts(flat),
     cc = chartCounts(chart);
   const tail = [`Flat: ${counted(fc)}    Statechart: ${counted(cc)}`, 'At run time both are in one combination; regions shrink only the drawing'];
-  tail.forEach((t, i) => parts.push(keyed(new Text(t, { fontSize: L * f.k, color: s.soft }).moveTo(f.at([0, top - rows.length * gap - 0.85 - i * 0.48])), `t:tail:${i}`)));
+  tail.forEach((t, i) => parts.push(keyed(new Text(t, { fontSize: L * f.k, color: s.look.soft }).moveTo(f.at([0, top - rows.length * gap - 0.85 - i * 0.48])), `t:tail:${i}`)));
   return { group: new Group(...parts), words: [...words, ...tail] };
 }
 // The table's extent, header to the last line under it, in its own units.

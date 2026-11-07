@@ -90,9 +90,8 @@ export default class GitExplainer extends Scene<GitState, GitShown> {
       add = which === 'add',
       repo = new Repo(),
       s = stage(this, { headingSize: 0.6, style: STYLE }),
-      ink = s.palette.ink,
-      accent = s.emphasis,
-      colours = { ink, soft: s.soft, accent };
+      emphasis = s.look.emphasis,
+      colours = s.look;
     /**
      * A code view: the lines `lines(state)` gives, laid out as s.code lays them out, with its bar on the
      * focus `shown` records for `name`. The panel describes itself and says what it emphasises.
@@ -140,7 +139,7 @@ export default class GitExplainer extends Scene<GitState, GitShown> {
         return `The header bytes “${words}” and a zero byte, in front of the content`;
       },
     });
-    const { arrow, how } = hashArrow(s.soft);
+    const { arrow, how } = hashArrow(s.look.soft);
     const idView = view(this, (state) => blobIdRow(having(state, 'blob').blob.id, colours), { place: false });
     await s.enter(arrow, how, { runTime: 0.4, describe: 'An arrow labelled SHA-1 from the bytes to their id' });
     await s.enter(idView, { runTime: 0.6, describe: () => `The blob id ${blobOf().id}, its first seven digits highlighted` });
@@ -155,7 +154,7 @@ export default class GitExplainer extends Scene<GitState, GitShown> {
     // from its pinned snapshot by the live diagram, which builds and morphs it; between morphs a view draws it
     // with the marks the state records, and the live diagram, off the stage, keeps its geometry and description.
     let d: Diagram;
-    const colorOf: Record<Tone, string> = { emphasis: accent };
+    const colorOf: Record<Tone, string> = { emphasis };
     const picture = (_state: GitState, shown: GitShown) => {
       const g = having(shown, 'diagram').diagram;
       if (d.spec.source !== g.source) throw new Error('The diagram on show is not the one the state records');
@@ -181,7 +180,7 @@ export default class GitExplainer extends Scene<GitState, GitShown> {
     const notes = new Map<string, View>();
     const notePicture = (id: string) => (_state: GitState, shown: GitShown) => {
       const n = having(shown, 'notes').notes.find((x) => x.id === id)!;
-      return d.notePicture(n.part, n.text, { side: n.side, color: accent, key: `exgit-note:${id}` });
+      return d.notePicture(n.part, n.text, { side: n.side, color: emphasis, key: `exgit-note:${id}` });
     };
     const note = async (id: string, part: string, text: string, side: NoteSide) => {
       this.shown.notes = [...(this.shown.notes ?? []), { id, part, text, side }];
@@ -398,7 +397,7 @@ export default class GitExplainer extends Scene<GitState, GitShown> {
     // first, so a paired digit may fly in from another column; the coloured digits are the
     // ones equal place for place, which the morph does not single out.
     const idX = RIGHT[0] + 0.3,
-      label = (text: string, y: number) => idLabel(text, idX, y, s.soft);
+      label = (text: string, y: number) => idLabel(text, idX, y, s.look.soft);
     const idLabels = [label('Ids that changed, old above new', -1.35), label('tree one', -1.8), label('tree two', -2.1), label('commit one', -2.6), label('commit two', -2.9)];
     /** One id of the state, old or new, coloured where it agrees with the other place for place. */
     const idView2 = (kind: 'tree' | 'commit', age: 'old' | 'new') =>
@@ -430,7 +429,7 @@ export default class GitExplainer extends Scene<GitState, GitShown> {
       this,
       (state) => {
         const g = having(state, 'paired', 'samePlace');
-        return pairCounts(g.paired, g.samePlace, idX, s.soft);
+        return pairCounts(g.paired, g.samePlace, idX, s.look.soft);
       },
       { place: false },
     );

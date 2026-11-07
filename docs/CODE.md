@@ -27,13 +27,13 @@ columns it takes, and a character outside the BMP is two
 A `CodeSpan` is a `Group` whose children are the line's live glyphs: not
 copies, and not re-parented (they stay children of the line). So:
 
-- `span.setFill(s.emphasis)` recolours the text on screen.
+- `span.setFill(s.look.emphasis)` recolours the text on screen.
 - `span.box()`, `center()`, `top()`... are where the text is now, after any
   shift or scale of the block. A `Rectangle` or brace built from `span.box()`
   lands on the real glyphs.
 - `span.shift(...)` moves the real glyphs and invalidates the line's and the
   block's boxes.
-- `span.animate.setFill(s.bad)` records the calls and plays them as a Transform
+- `span.animate.setFill(s.look.bad)` records the calls and plays them as a Transform
   of the span's *line* to a copy of the line with the same span changed. The
   span never joins the scene. Two spans of one line can't animate in the same
   `play()` (both would drive the line); recolour a `code.copy()` and Transform

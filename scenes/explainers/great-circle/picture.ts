@@ -74,9 +74,9 @@ const GNOMON: SeenOptions = { at: [-3.8, -0.5], scale: 2.75 };
 /** Label sizes: large enough to read at 12 px on a phone in a step's opening view. */
 const NAME = 0.68, NUMBER = 0.68;
 /** A name beside a point, drawn from the same viewpoint; transparent where the point is out of sight. */
-function nameAt(text: string, p: Place, vp: Viewpoint, o: SeenOptions, offset: Vec, anchor: -1 | 0 | 1, color = INK, key?: string, size = NAME): Text {
+function nameAt(s: Stage, text: string, p: Place, vp: Viewpoint, o: SeenOptions, offset: Vec, anchor: -1 | 0 | 1, color = INK, key?: string, size = NAME): Text {
   const { at, seen } = project(at3(p), vp, 1, o);
-  const t = label(text, 0, 0, color, size, key).moveTo([at[0] + offset[0], at[1] + offset[1]], [anchor, 0]);
+  const t = label(s, text, { color, size, key }).moveTo([at[0] + offset[0], at[1] + offset[1]], [anchor, 0]);
   if (!seen) t.setOpacity(0);
   return t;
 }
@@ -88,36 +88,36 @@ const frameOf = (o: SeenOptions) => {
 };
 export interface MapState { viewpoint: Viewpoint; route: Route }
 /** Mercator's map with the seat-back route and the ruler's line; numbers when the step gives them. */
-export function mercator(st: MapState, numbers: boolean, extra: Part[] = []): Group {
+export function mercator(st: MapState, s: Stage, numbers: boolean, extra: Part[] = []): Group {
   const r = st.route;
   const map = seenFrom(model([...grid(15), land, ruler(r), arc(r), ...extra, city(r.from), city(r.to)]), st.viewpoint, { ...NORTH_MAP, key: 'map' });
   const g = new Group(frameOf(NORTH_MAP), map,
-    nameAt(r.from.city, r.from, st.viewpoint, NORTH_MAP, [-0.25, -0.62], 0),
-    nameAt(r.to.city, r.to, st.viewpoint, NORTH_MAP, [0.2, -0.4], -1));
+    nameAt(s, r.from.city, r.from, st.viewpoint, NORTH_MAP, [-0.25, -0.62], 0),
+    nameAt(s, r.to.city, r.to, st.viewpoint, NORTH_MAP, [0.2, -0.4], -1));
   if (numbers) {
     const top = project(at3(r.top), st.viewpoint, 1, NORTH_MAP).at;
-    g.add(keyed(new Group(label(`String: ${tens(r.km)} km`, top[0], top[1] + 0.55, ROUTE, NUMBER)), 'label:route'),
-      keyed(new Group(label(`Ruler: ${tens(r.rhumbKm)} km`, 1.2, -2.15, RULER, NUMBER)), 'label:ruler'));
+    g.add(keyed(new Group(label(s, `String: ${tens(r.km)} km`, { at: [top[0], top[1] + 0.55], color: ROUTE, size: NUMBER })), 'label:route'),
+      keyed(new Group(label(s, `Ruler: ${tens(r.rhumbKm)} km`, { at: [1.2, -2.15], color: RULER, size: NUMBER })), 'label:ruler'));
   }
   return keyed(g, 'mercator');
 }
 interface StretchState extends MapState { stretch: { from: number; top: number }; km: number }
 /** The same 1,000 km of a parallel at the equator, at London and at the route's top, measured on the map. */
-export function stretched(st: StretchState): Group {
+export function stretched(st: StretchState, s: Stage): Group {
   const r = st.route;
   const span = (lat: number, lon: number, key: string): Part => {
     const half = (st.km / 2 / (RADIUS_KM * Math.cos(lat * D))) / D;
     return { kind: 'path', key, lines: [range(-1, 1, 0.1).map((t) => latLon(lat, lon + half * t))], color: INK, width: 0.09 };
   };
-  const g = mercator(st, false, [span(r.from.lat, r.from.lon - 24, 'stretch:from'), span(r.top.lat, r.top.lon, 'stretch:top')]);
+  const g = mercator(st, s, false, [span(r.from.lat, r.from.lon - 24, 'stretch:from'), span(r.top.lat, r.top.lon, 'stretch:top')]);
   const at = (p: Place) => project(at3(p), st.viewpoint, 1, NORTH_MAP).at;
   const a = at({ lat: r.from.lat, lon: r.from.lon - 24 }), b = at(r.top);
   const unit = (st.km / RADIUS_KM) * NORTH_MAP.scale!; // 1,000 km of the equator, at the map's scale
-  g.add(keyed(new Group(label(`×${st.stretch.from.toFixed(1)}`, a[0], a[1] + 0.45, INK, NUMBER)), 'label:stretch-from'),
-    keyed(new Group(label(`×${st.stretch.top.toFixed(1)}`, b[0], b[1] + 0.45, INK, NUMBER)), 'label:stretch-top'),
+  g.add(keyed(new Group(label(s, `×${st.stretch.from.toFixed(1)}`, { at: [a[0], a[1] + 0.45], color: INK, size: NUMBER })), 'label:stretch-from'),
+    keyed(new Group(label(s, `×${st.stretch.top.toFixed(1)}`, { at: [b[0], b[1] + 0.45], color: INK, size: NUMBER })), 'label:stretch-top'),
     keyed(new Group(
       new Rectangle({ width: unit, height: 0.09, fill: INK, stroke: 'none' }).moveTo([-5.5 + unit / 2, 2.45]),
-      label(`×1: ${grouped(st.km)} km at the equator`, 0, 0, INK, NAME).moveTo([-5.5 + unit + 0.2, 2.45], [-1, 0]),
+      label(s, `×1: ${grouped(st.km)} km at the equator`, { color: INK, size: NAME }).moveTo([-5.5 + unit + 0.2, 2.45], [-1, 0]),
     ), 'label:equator-scale'));
   return g;
 }
@@ -138,29 +138,29 @@ export function globe(st: GlobeState, s: Stage, { sheet = true, top = false, equ
   const g = new Group(seenFrom(model(parts), vp, { ...GLOBE, key: 'globe:seen' }),
     pinned(r.from, 'right', 'name:from'),
     pinned(r.to, 'left', 'name:to'));
-  if (top) g.add(nameAt(`${Math.round(r.top.lat)}° N`, r.top, vp, GLOBE, [0, 0.42], 0, ROUTE, 'name:top', NUMBER));
+  if (top) g.add(nameAt(s, `${Math.round(r.top.lat)}° N`, r.top, vp, GLOBE, [0, 0.42], 0, ROUTE, 'name:top', NUMBER));
   return keyed(g, 'globe');
 }
 interface MadridState { viewpoint: Viewpoint; route: Route; westKm: number }
 /** Madrid to New York: the great circle against the line of latitude, a smaller circle. */
-export function westward(st: MadridState): Group {
+export function westward(st: MadridState, s: Stage): Group {
   const r = st.route, vp = st.viewpoint;
   const parallel: Part = { kind: 'path', key: 'parallel', lines: [circleOn([0, 0, 1], 90 - r.from.lat)], closed: true, color: RULER, width: 0.025, hidden: 'dashed' };
   const west: Part = { kind: 'path', key: `ruler:${r.from.code}-${r.to.code}`, lines: [rhumbLine(r.from, r.to, 120).map((p) => at3(p))], color: RULER, width: 0.06, dashArray: '0.16 0.1' };
   const at = WEST_GLOBE;
   const g = new Group(seenFrom(model([...grid(30, 0), land, equator, parallel, west, circleOf(r), arc(r), city(r.from), city(r.to)]), vp, { ...at, key: 'globe:seen' }),
-    nameAt(r.from.city, r.from, vp, at, [0.2, -0.42], 0, INK, 'name:from'),
-    nameAt(r.to.city, r.to, vp, at, [-0.2, -0.42], 0, INK, 'name:to'),
-    nameAt(`${Math.round(r.top.lat)}° N`, r.top, vp, at, [0, 0.45], 0, ROUTE, 'name:top', NUMBER),
+    nameAt(s, r.from.city, r.from, vp, at, [0.2, -0.42], 0, INK, 'name:from'),
+    nameAt(s, r.to.city, r.to, vp, at, [-0.2, -0.42], 0, INK, 'name:to'),
+    nameAt(s, `${Math.round(r.top.lat)}° N`, r.top, vp, at, [0, 0.45], 0, ROUTE, 'name:top', NUMBER),
     keyed(new Group(
-      label(`Red: ${tens(r.km)} km`, 0, 0, ROUTE, NUMBER).moveTo([2.4, -1.6], [-1, 0]),
-      label(`Blue: ${tens(st.westKm)} km`, 0, 0, RULER, NUMBER).moveTo([2.4, -2.5], [-1, 0]),
+      label(s, `Red: ${tens(r.km)} km`, { color: ROUTE, size: NUMBER }).moveTo([2.4, -1.6], [-1, 0]),
+      label(s, `Blue: ${tens(st.westKm)} km`, { color: RULER, size: NUMBER }).moveTo([2.4, -2.5], [-1, 0]),
     ), 'legend'));
   return keyed(g, 'globe');
 }
 interface GnomonicState { viewpoint: Viewpoint; routes: Route[] }
 /** The gnomonic map: the eye at the Earth's centre, every great circle a straight line. */
-export function gnomonic(st: GnomonicState): Group {
+export function gnomonic(st: GnomonicState, s: Stage): Group {
   const vp = st.viewpoint;
   const parts: Part[] = [...grid(15), land];
   for (const r of st.routes) parts.push(ruler(r), arc(r));
@@ -169,15 +169,15 @@ export function gnomonic(st: GnomonicState): Group {
   const g = new Group(new Circle({ radius, fill: OCEAN, stroke: SOFT, strokeWidth: 0.025 }).moveTo(GNOMON.at!),
     seenFrom(model(parts), vp, { ...GNOMON, key: 'gnomonic:seen' }));
   const offsets: Record<string, [Vec, -1 | 0 | 1]> = { LHR: [[0.18, 0.28], -1], LAX: [[0.1, 0.4], -1], MAD: [[0.18, -0.3], -1], JFK: [[0.1, -0.4], -1] };
-  for (const r of st.routes) for (const c of [r.from, r.to]) g.add(nameAt(c.city, c, vp, GNOMON, offsets[c.code]![0], offsets[c.code]![1], INK, `name:${c.code}`));
+  for (const r of st.routes) for (const c of [r.from, r.to]) g.add(nameAt(s, c.city, c, vp, GNOMON, offsets[c.code]![0], offsets[c.code]![1], INK, `name:${c.code}`));
   g.add(keyed(new Group(...([['Red: great circles', ROUTE], ['Blue: ruler lines', RULER]] as const)
-    .map(([text, color], i) => label(text, 0, 0, color, NAME).moveTo([0.6, -2.4 - i * 0.9], [-1, 0]))), 'legend'));
+    .map(([text, color], i) => label(s, text, { color, size: NAME }).moveTo([0.6, -2.4 - i * 0.9], [-1, 0]))), 'legend'));
   return keyed(g, 'gnomonic');
 }
 export interface Pair { from: Place & { code: string; city: string }; to: Place & { code: string; city: string }; km: number; rhumbKm: number }
 interface EquatorState { viewpoint: Viewpoint; pairs: Pair[] }
 /** Two routes Mercator's ruler gets right: one along the equator, one due north. */
-export function onEquator(st: EquatorState): Group {
+export function onEquator(st: EquatorState, s: Stage): Group {
   const parts: Part[] = [...grid(15), land, { ...equator, hidden: undefined }];
   for (const p of st.pairs) parts.push(arc(p), ruler(p), city(p.from), city(p.to));
   const g = new Group(frameOf(EQUATOR_MAP), seenFrom(model(parts), st.viewpoint, { ...EQUATOR_MAP, key: 'map' }));
@@ -185,9 +185,9 @@ export function onEquator(st: EquatorState): Group {
     // Along the equator: names and length above the line. Running north: beside it.
     const along = p.from.lat === p.to.lat;
     const [offset, anchor]: [Vec, -1 | 0] = along ? [[0, 0.4], 0] : [[0.25, 0], -1];
-    g.add(nameAt(p.from.city, p.from, st.viewpoint, EQUATOR_MAP, offset, anchor, INK, `name:${p.from.code}`),
-      nameAt(p.to.city, p.to, st.viewpoint, EQUATOR_MAP, offset, anchor, INK, `name:${p.to.code}`),
-      nameAt(`${tens(p.km)} km either way`, middleOf(p), st.viewpoint, EQUATOR_MAP, along ? [0, -0.45] : [-0.25, -1.6], along ? 0 : 1, INK, `label:pair:${i}`, NUMBER));
+    g.add(nameAt(s, p.from.city, p.from, st.viewpoint, EQUATOR_MAP, offset, anchor, INK, `name:${p.from.code}`),
+      nameAt(s, p.to.city, p.to, st.viewpoint, EQUATOR_MAP, offset, anchor, INK, `name:${p.to.code}`),
+      nameAt(s, `${tens(p.km)} km either way`, middleOf(p), st.viewpoint, EQUATOR_MAP, along ? [0, -0.45] : [-0.25, -1.6], along ? 0 : 1, INK, `label:pair:${i}`, NUMBER));
   });
   return keyed(g, 'mercator');
 }

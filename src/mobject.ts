@@ -121,8 +121,8 @@ export class Mobject {
    */
   key: string | undefined;
   /**
-   * What the part is for, to whatever drew it, apart from which part it is: the stage's paper
-   * (`'paper'`), its heading (`'heading'`) and the number, line and band around it (`'chrome'`), a
+   * What the part is for, to whatever drew it, apart from which part it is: the stage's backdrop
+   * (`'backdrop'`), its heading (`'heading'`) and the number, line and band around it (`'chrome'`), a
    * diagram's frame (`'frame'`). Many parts may share a role, so it is never an identity: `find`
    * and matching read `key`. Copies carry it, and `become` keeps the part's own.
    */
@@ -148,7 +148,7 @@ export class Mobject {
   /**
    * The style fields that still hold an engine default, and the scene colour each takes: a
    * `Text` built without a `color` has `{ fill: 'ink' }`, a `SurroundingRectangle` without a
-   * `stroke` has `{ stroke: 'accent' }`. When the mobject first enters a scene (`scene.add`, a play
+   * `stroke` has `{ stroke: 'emphasis' }`. When the mobject first enters a scene (`scene.add`, a play
    * that targets it, or a parent already in one), each field still holding the neutral value
    * takes the scene's colour for its role (`scene.colors`), and the mark is dropped. Setting a
    * field drops its mark at once.

@@ -216,7 +216,7 @@ await s.enter(counts);                      // no describe: the card describes i
 const program = view(this, (st) => {
   const panel = code(s, lines(st), { at: box, lit: { lines: st.passes ? [1, 2] : 1, as: 'run' } });
   const line = panel.code.lines[1]!.box()!;
-  return new Group(panel, callout(s, line, `returns ${st.passes}`, { side: 'right', color: st.passes ? s.good : s.bad }));
+  return new Group(panel, callout(s, line, `returns ${st.passes}`, { side: 'right', color: st.passes ? s.look.good : s.look.bad }));
 }, { place: false });
 
 // A diagram note, placed as a diagram picture places one, from the state's words.
@@ -230,7 +230,7 @@ const wrong = view(this, (st) => d.picture(marksOf(st), { notes: notesOf(st), pr
 this.shown.flow = { marked: [], walked: [] };
 const flow = s.diagramView(d, (_st, sh) => {
   const f = having(sh, 'flow').flow;
-  return { marks: { ...d.trail(f.walked), ...Object.fromEntries(f.marked.map((id) => [id, { color: s.bad, as: 'rejected' }])) } };
+  return { marks: { ...d.trail(f.walked), ...Object.fromEntries(f.marked.map((id) => [id, { color: s.look.bad, as: 'rejected' }])) } };
 });
 this.shown.flow = { marked: ['Reject'], walked: [] };
 await this.play(flow.sync());

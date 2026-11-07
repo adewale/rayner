@@ -42,8 +42,10 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `s.steps([...])` presents a list of steps, each drawn by `draw(state, s)` from its own state and typed by it, so one list holds steps whose states differ.
 - `s.sketch` draws a path stroke by stroke with a pen or pencil.
 - The collection's explainers use only what the package exports, and a test fails any scene that imports anything else, so an outside author can write what they write.
-- `s.raised` and `s.rule` are the panel colours, and `lerpColor` mixes two colours.
 - The drawing kit's `card(s, rows, opts)` and `code(s, lines, opts)` build a card or code panel for a view's draw, in the stage's colours and placed as the stage places it: `at: 'start' | 'end'` and a card's field order follow the stage's direction (`s.direction`). `s.card` and `s.code` build with them and enter the panel. [Card and CodeBlock](docs/REFERENCE.md#card-and-codeblock)
+- `s.look` holds the colours a scene draws with, each reading on the stage's paper: `paper`, `ink`, `soft`, `emphasis`, `good`, `bad`, `raised` and `rule` (the panel colours) and `muted`. A palette (`palette(name)`, the `Palette` type) is the named style a stage is built from, not what a scene draws with. `lerpColor` mixes two colours. [Colours](docs/REFERENCE.md#colours)
+- A colour name means one colour: the emphasis colour is `emphasis` in `s.look`, in `scene.colors` and on a diagram (`d.emphasis`).
+- `s.backdrop` is the rectangle the stage is drawn on; "paper" names only its colour.
 - `diagramsOf(scene)` lays out a diagram, so `new Diagram(...)` can be measured before anything is drawn.
 - A picture that should follow the model is a `view(scene, draw)`, and `view.sync()` morphs it to the current state. [Views](docs/VIEWS.md#api)
 - `view.sync()` matches parts by key and stages the change by default: what goes fades out before what comes fades in. `staged` defaults to `true` for every `match`; `staged: false` fades both at once. A key sync whose pictures carry no keys is refused with the fix: key the parts, or say `match: 'text'`, `'shapes'` or `'index'`. [Views](docs/VIEWS.md#match)
@@ -56,17 +58,17 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - A morph can carry its edits (`ops`), which the build replays through Agentic Mermaid and checks against the target source.
 - `mermaid.pie(slices, options)` and `mermaid.frontMatter(config)` in `rayner/explain` build Mermaid source from typed values.
 - `mermaid.pie` and `mermaid.frontMatter` refuse a zero or negative slice, a repeated label, an empty title or an empty config at the call, naming the value.
-- A colour left out is the scene's: `scene.colors` (paper, ink, soft, accent, bad), which a stage sets from its palette. Without a stage a scene draws dark ink on white paper.
-- Text, lines, arrows and axes drawn without a colour take the ink, guide lines the soft colour, `SurroundingRectangle`, `Circumscribe` and plotted data the accent, and `Cross` the colour for rejected.
+- A colour left out is the scene's: `scene.colors` (paper, ink, soft, emphasis, bad), which a stage sets from its look. Without a stage a scene draws dark ink on white paper.
+- Text, lines, arrows and axes drawn without a colour take the ink, guide lines the soft colour, `SurroundingRectangle`, `Circumscribe` and plotted data the emphasis colour, and `Cross` the colour for rejected.
 - Those defaults were Manim's white, yellow and red, made for a black background; the scene's colours read on any paper.
 - The SVG sinks' background is the scene's paper. It was `#1a1a1a`.
 - `Mobject.role` says what a part is for, apart from its identity.
-- The stage's paper, heading and chrome have the roles `'paper'`, `'heading'` and `'chrome'` instead of the keys `__paper`, `__heading` and `__chrome`.
+- The stage's backdrop, heading and chrome have the roles `'backdrop'`, `'heading'` and `'chrome'` instead of the keys `__paper`, `__heading` and `__chrome`.
 - A diagram's frame has the role `'frame'` and a key of its own diagram's instead of `__frame`, so two diagrams on one stage have two frames and a diagram picture's `prefix` covers every key.
 - `rayner check` holds every key to one part, with no exception.
-- `callout`, `dimension` and `pin` in `rayner/drawing` build the annotations that `s.callout`, `s.dimension` and `s.pin` draw in, for a draw to build from state.
+- `callout`, `dimension`, `pin` and `legend` in `rayner/drawing` build the annotations, for a draw to build from state; `s.callout`, `s.dimension`, `s.pin` and `s.legend` build them with the same functions from the points the camera shows, so they keep their size on screen while the camera is away, and draw them in.
 - `pin` takes `side: 'left'` to put its label left of the head.
-- `legend(s, items)` in `rayner/drawing`, and `s.legend`, draw a key of swatches (fill, line, outline, dashed or not) with their meanings, keyed, in the stage's ink.
+- `legend(s, items, { key })` in `rayner/drawing`, and `s.legend`, draw a key of swatches (fill, line, outline, dashed or not) with their meanings, keyed, in the stage's ink, stacked in a column or a row (`stack`).
 - A legend describes itself as its colour→meaning pairs, naming each colour.
 - `rayner check` fails a step whose caption or line names a colour or a pattern (dashed, dotted) that no word on the stage says, so a resting picture teaches with its caption hidden.
 - A legend, a label or a line that keys the look (`Red: the route.`) answers that check.
@@ -158,6 +160,8 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 ### Drawing kit and 3D
 
 - `rayner/drawing` draws the parts explanations keep needing as ordinary keyed mobjects: `keyed`, `label`, `tile`, `segment`, `dot`, `table`, `stat`, `flow`, `bars`, and the card and code panel the stage enters, `card` and `code`. [Drawing kit](docs/REFERENCE.md#drawing-kit)
+- Every kit function takes the stage first, its content next and one options object: `at` places the picture, `size` is its text size and `key` its address. `table`, `stat`, `flow`, `bars` and `legend` require a `key`, so two of one kind on a stage cannot collide. Kit text is made with the scene's shaping. The card and code panels take `size` as well; only the engine's `Text` and `Code` keep `fontSize`.
+- A keyed kit picture keys its parts under its key (a tile's `key:box` and `key:label`, a callout's `key:line`, `key:dot` and `key:text`, a flow's arrows), and `d.shapes(id)` and `d.labels(id)` give a diagram part's own shapes and labels, so no scene reaches into a picture by child index.
 - `table()` measures its columns and keys every part: the header row, each header, each row, each cell (`key:<row>:<header>`) and the rule.
 - A `table()` row given as `{ key, cells }` keeps its identity wherever it moves, and a duplicated row key or header is refused by name. python-dict and bloom-filter key their rows.
 - `seenFrom(model, viewpoint)` draws a 3D model on a sphere through an orthographic, perspective, gnomonic or Mercator viewpoint. [3D](docs/REFERENCE.md#3d-seenfrommodel-viewpoint)
@@ -197,7 +201,7 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
 - The vector helpers `add`, `sub`, `mul`, `dot`, `norm`, `normalize`, `lerp`, `rotate` and `angleOf` are internal. The `Vec` type stays.
 - The nine direction constants (`ORIGIN`, `UP`, `DOWN`, `LEFT`, `RIGHT`, `UL`, `UR`, `DL`, `DR`) are gone: write the vector, `[0, -1]` for `DOWN`.
 - The fourteen Manim colours (`WHITE`, `BLACK`, `GREY`, `GREY_D`, `BLUE`, `BLUE_D`, `TEAL`, `GREEN`, `YELLOW`, `GOLD`, `RED`, `MAROON`, `PURPLE`, `ORANGE`) are gone.
-- In place of a Manim colour, colour from the stage (`s.palette`, `s.emphasis`, `s.bad`) or write the hex value.
+- In place of a Manim colour, colour from the stage's look (`s.look.emphasis`, `s.look.bad`) or write the hex value.
 - `easeInQuad`, `easeOutQuad`, `easeOutBack` and `wiggle` are gone; any `(t) => number` is a rate function.
 - `tokenize`, `diffTokens` and `hunkHeader` are internal; `diffLines` and `parseUnifiedDiff` still make hunks for `TransformDiff`.
 - `Indicate` and `Flash` are gone: each mark had faded by the step's resting picture, and `rayner check` fails a step whose resting picture is the step before's.

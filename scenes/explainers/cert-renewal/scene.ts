@@ -227,7 +227,7 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
       life = LIFETIMES[key],
       short = key === '160h',
       s = stage(this, { style: STYLE, headingSize: 0.6 }),
-      colours = { ink: s.palette.ink, emphasis: s.emphasis, bad: s.bad, soft: s.soft };
+      colours = s.look;
     /** A card drawn from the step's state, brought in as `s.card` brings one in; its words are the card's own. */
     const cardOf = async (rowsOf: (st: CertState) => CardRow[], opts: CardOptions) => {
       const v = view(this, (st) => card(s, rowsOf(st), opts), { place: false });
@@ -240,7 +240,7 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
       const v = s.diagramView(d, (_st, sh) => {
         const f = having(sh, name)[name];
         return {
-          marks: Object.fromEntries(f.marked.map((id) => [id, { color: d.accent, as: 'the chosen rule' }])),
+          marks: Object.fromEntries(f.marked.map((id) => [id, { color: d.emphasis, as: 'the chosen rule' }])),
           notes: f.notes,
           dim: f.dim,
         };
@@ -568,9 +568,9 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
     const margin = await s.show({ source: windows }, { box: 'full' });
     await diagramOf(margin, 'retry').show({ marked: [`task:${rule}`] });
     // Each retry window says what it leaves, just left of its bar, in the row it belongs to.
-    // A task's first child is its bar; its row label travels with it.
-    const bar = (r: Rule) => margin.get(`task:${r}`).children[0]!.box()!;
-    const chartLeft = margin.get('task:life').children[0]!.box()![0];
+    // A task's first shape is its bar; its row label travels with it.
+    const bar = (r: Rule) => margin.shapes(`task:${r}`)[0]!.box()!;
+    const chartLeft = margin.shapes('task:life')[0]!.box()![0];
     // Left of the bar when the row has room for the words, otherwise under the chart.
     const say = (r: Rule, text: string) => {
       const b = bar(r),
@@ -579,8 +579,8 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
         b,
         text,
         room
-          ? { side: 'left', gap: 0.2, color: s.emphasis, size: 0.22 }
-          : { side: 'below', gap: 0.8, color: s.emphasis, size: 0.22 },
+          ? { side: 'left', gap: 0.2, color: s.look.emphasis, size: 0.22 }
+          : { side: 'below', gap: 0.8, color: s.look.emphasis, size: 0.22 },
       );
     };
     // Renewing at every run, the 30-day rule's window is the whole life, so its words go under the chart.
@@ -595,7 +595,7 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
         {
           side: 'below',
           gap: 0.8,
-          color: s.emphasis,
+          color: s.look.emphasis,
           size: 0.22,
         },
       );
@@ -620,7 +620,7 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
       caption: `Boulder skips the ${LIMIT.burst}-in-7-days check only for an order that names the certificate it replaces and arrives inside that certificate’s ARI window. Certbot 5.8’s order carries identifiers and a profile and names no predecessor, so its renewals are checked. The renewal window and this exemption are different: following the window does not itself name the replaced certificate. A refused order costs nothing; an issued certificate takes a token.`,
     });
     await s.clear();
-    await s.code(EXEMPT_CODE, { at: regionBox('full', { bottom: -1.3 }), fontSize: 0.22 });
+    await s.code(EXEMPT_CODE, { at: regionBox('full', { bottom: -1.3 }), size: 0.22 });
     this.state.replaces = { replacesSent: false, burst: LIMIT.burst, emissionHours: EMISSION };
     await cardOf(
       (st) => {
@@ -669,7 +669,7 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
         const f = having(sh, 'ariFocus').ariFocus;
         return code(s, ARI_CODE, {
           at: regionBox('full', { bottom: -1.0 }),
-          fontSize: 0.22,
+          size: 0.22,
           lit: f,
           key: 'ari',
         });

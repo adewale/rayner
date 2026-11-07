@@ -73,9 +73,8 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
     const key = settingsOf(this).place!,
       place = PLACES[key]!,
       s = stage(this, { headingSize: 0.6, style: 'tokyo-night' });
-    const ink = s.palette.ink,
-      soft = s.soft;
-    const colours = { ink, soft, muted: s.palette.muted };
+    const soft = s.look.soft;
+    const colours = s.look;
 
     // ------------------------------------------------------------- nearest
     // The common guess, as a prediction: if nearness made summer, the north would be nearest in July.
@@ -131,9 +130,8 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
         r = month === 'June' ? now().june : now().december!;
       const { mid, gap } = daylightAnchor(S);
       const callout = await s.callout(mid, `${hours(r.daylight)} of daylight`, {
-        side: 'below', gap, color: SUN, size: 0.28,
+        side: 'below', gap, color: SUN, size: 0.28, key: `${S.month.toLowerCase()}-daylight-callout`,
       });
-      callout.key = `${S.month.toLowerCase()}-daylight-callout`;
       if (r.altitude <= 0) {
         const below = belowHorizonNote(callout, r.altitude, soft);
         callout.add(below);
@@ -174,7 +172,7 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
     await s.carry(sun, [0, CY]);
     const J = solstice('June');
     s.keep(J.globe, { describe: J.describe.drawn });
-    const small = tilt.june.children[0]!.center();
+    const small = tilt.june.find('orbit-earth:June')!.center();
     await this.play(
       new FadeOut(tilt.june, { shift: [JUNE_C[0] - small[0], JUNE_C[1] - small[1]], scale: 2, runTime: 0.8 }),
       new FadeIn(J.globe, { scale: 0.25, runTime: 0.8 }),
@@ -502,7 +500,7 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
     });
     // The January values, said beside their dots on tags that read over the curves: a view of the
     // state's daylight and its mirror.
-    const tags = view(this, (st) => drawTags(st, axes, s.palette.paper), { place: false });
+    const tags = view(this, (st) => drawTags(st, axes, s.look.paper), { place: false });
     await s.enter(tags, {
       describe: () => {
         const st = now(),

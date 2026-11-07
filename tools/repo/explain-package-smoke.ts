@@ -209,7 +209,7 @@ try {
     }
   }
   // Use native objects only, so this distribution smoke needs no browser.
-  const native = `import{Scene,Text,FadeIn}from'rayner';import{stage,settingsOf}from'rayner/explain';export default class Outside extends Scene{static meta={id:'outside',title:'An outside author'};static settings=[{id:'case',label:'Case',default:'a',options:[{value:'a',label:'A'},{value:'b',label:'B'}]}];async construct(){const s=stage(this);await this.step('one',{title:'First step',caption:'A native scene outside the checkout.'});await this.play(new FadeIn(new Text(settingsOf(this).case,{color:s.palette.ink})));}}`;
+  const native = `import{Scene,Text,FadeIn}from'rayner';import{stage,settingsOf}from'rayner/explain';export default class Outside extends Scene{static meta={id:'outside',title:'An outside author'};static settings=[{id:'case',label:'Case',default:'a',options:[{value:'a',label:'A'},{value:'b',label:'B'}]}];async construct(){const s=stage(this);await this.step('one',{title:'First step',caption:'A native scene outside the checkout.'});await this.play(new FadeIn(new Text(settingsOf(this).case,{color:s.look.ink})));}}`;
   // This author keeps the title in the scene, so the starter's script.md (its other home) goes.
   await rm(join(folder, 'first/script.md'));
   await writeFile(join(folder, 'first/scene.ts'), native);
@@ -329,7 +329,7 @@ try {
   if (process.env.EXPLAIN_LETTERING === '1') {
     const target = join(folder, 'captured-lettering');
     await mkdir(target);
-    await writeFile(join(target, 'scene.ts'), `import{Scene,Text,MathTex}from'rayner';import{stage}from'rayner/explain';export default class L extends Scene{static meta={id:'captured-lettering',title:'Captured lettering',lettering:{scripts:['Arab'],math:true}};async construct(){const s=stage(this,{heading:false});await this.step('arabic',{caption:'Arabic'});await s.enter(new Text('السَّلَامُ عَلَيْكُمْ',{color:s.palette.ink}));await this.step('math',{caption:'Maths'});await s.clear();await s.enter(new MathTex('\\\\frac{1}{2}+x^2',{color:s.palette.ink}));}}`);
+    await writeFile(join(target, 'scene.ts'), `import{Scene,Text,MathTex}from'rayner';import{stage}from'rayner/explain';export default class L extends Scene{static meta={id:'captured-lettering',title:'Captured lettering',lettering:{scripts:['Arab'],math:true}};async construct(){const s=stage(this,{heading:false});await this.step('arabic',{caption:'Arabic'});await s.enter(new Text('السَّلَامُ عَلَيْكُمْ',{color:s.look.ink}));await this.step('math',{caption:'Maths'});await s.clear();await s.enter(new MathTex('\\\\frac{1}{2}+x^2',{color:s.look.ink}));}}`);
     await run(bin, ['snapshots', target, '--refresh'], {
       cwd: folder,
       env: { ...process.env, RAYNER_LETTERING_FONTS: process.env.RAYNER_LETTERING_FONTS ?? join(ROOT, 'out/lettering-fonts') },

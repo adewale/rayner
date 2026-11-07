@@ -182,26 +182,29 @@ export function drawingKit(scene: Scene) {
   const s = stage(scene);
   const spread: TableColumns = { left: -6, right: 6 };
   const parts = [
-    label('hit', 0, 0, s.palette.ink), tile('D1', 0, 0, 2, 1, s, { active: true, key: 'db' }),
-    table(['Key', 'Slot'], [['a', 1]], s, { xs: spread }), table(['Key'], [['a']], s, { xs: { left: 0, gap: 1 } }),
-    flow(s, ['Request', 'Cache', 'Database']), bars(s, [{ label: 'reads', value: 1, display: '1' }], 2),
-    stat(s, 'Reads', 1, 0, 0, 'reads'), segment([0, 0], [1, 1], s.soft), dot('A', 0, 0, s),
+    label(s, 'hit', { at: [0, 1], color: s.look.ink, key: 'hit' }), tile(s, 'D1', { width: 2, height: 1, active: true, key: 'db' }),
+    table(s, ['Key', 'Slot'], [['a', 1]], { columns: spread, key: 'slots' }), table(s, ['Key'], [['a']], { columns: { left: 0, gap: 1 }, at: [0, -1], key: 'keys' }),
+    flow(s, ['Request', 'Cache', 'Database'], { key: 'request' }), bars(s, [{ label: 'reads', value: 1, display: '1' }], 2, { at: [0, -2], key: 'reads' }),
+    stat(s, 'Reads', 1, { at: [3, 0], key: 'read-count' }), segment(s, [0, 0], [1, 1], { color: s.look.soft, strokeWidth: 0.03 }), dot(s, 'A', { at: [-3, 0], active: true }),
   ];
   // @ts-expect-error a table's columns are centres or an edge with a right edge or a gap
-  table(['Key'], [['a']], s, { xs: { right: 2 } });
-  return parts;
+  table(s, ['Key'], [['a']], { columns: { right: 2 }, key: 'bad' });
+  // @ts-expect-error a flow's parts are keyed, so it needs a key
+  flow(s, ['Request']);
+  const kept = tile(s, 'D2', { width: 2, height: 1, key: 'db2' }).find('db2:label');
+  return [...parts, kept];
 }
 
 // What the collection writes, an outside author can write: emphasis a scene draws itself, a card
 // and code rebuilt inside a view, a diagram laid out before it is drawn, and colours mixed from the palette.
 import { Diagram, diagramsOf } from 'rayner/explain';
-import type { DiagramResolver, Card, CodeBlock, CodeOptions } from 'rayner/explain';
+import type { DiagramResolver, Card, CodeBlock, CodeOptions, Look } from 'rayner/explain';
 import { emphasised, card, code } from 'rayner/drawing';
 import { lerpColor } from 'rayner';
 export async function publicCollection(scene: Scene): Promise<void> {
   const s = stage(scene);
   s.keep(emphasised(new SurroundingRectangle(new Text('slot')), 'outlined: the full slot'));
-  const panel = new Rectangle({ fill: s.raised, stroke: s.rule }).setFill(lerpColor(s.palette.paper, s.palette.accent, 0.36));
+  const panel = new Rectangle({ fill: s.look.raised, stroke: s.look.rule }).setFill(lerpColor(s.look.paper, s.look.emphasis, 0.36));
   view(scene, (state) => card(s, [['State', String(state.phase ?? 'idle')]], { width: 4, at: 'start', lit: { row: 'State', as: 'now' } }), { place: false });
   const lit: CodeOptions['lit'] = { lines: [0, 1], as: 'run' };
   const listing: View<CodeBlock> = view(scene, () => code(s, ['let a = 1;', 'a += 1;'], { at: 'end', lit }), { place: false });
@@ -213,7 +216,10 @@ export async function publicCollection(scene: Scene): Promise<void> {
   const spec: DiagramSpec = { source: 'graph LR\nA --> B' };
   const resolver: DiagramResolver = diagramsOf(scene);
   const plan = new Diagram(scene, spec, await resolver.diagram(spec), { box: 'main' });
-  void [panel, plan.get('A')];
+  // A diagram part's shapes and labels, addressed by the part's id rather than by child index.
+  const outline = plan.shapes('A')[0], words: string | undefined = plan.labels('A')[0]?.text;
+  const look: Look = s.look;
+  void [panel, plan.get('A'), outline, words, look.muted, s.backdrop, plan.emphasis];
 }
 
 // The rest of what the collection's scenes import, and the members they use, written as an outside
@@ -254,8 +260,8 @@ export class Collection extends Scene<CollectionModel> {
     const box: Box = regionBox('main', { top: 3 });
     const at: Vec = [box[0], box[3]];
     const parts = keyedParts();
-    const ring = parts.add(new Circle({ radius: 0.4, stroke: s.palette.ink }), 'ring');
-    parts.add(new Polygon([[0, 0], [1, 0], [0, 1]], { stroke: s.soft }), 'triangle');
+    const ring = parts.add(new Circle({ radius: 0.4, stroke: s.look.ink }), 'ring');
+    parts.add(new Polygon([[0, 0], [1, 0], [0, 1]], { stroke: s.look.soft }), 'triangle');
     parts.add(new Arc({ radius: 0.5, angle: Math.PI }), 'arc');
     parts.add(new Cross(ring), 'cross');
     parts.add(new CurvedArrow([0, 0], [1, 1]), 'curve');
@@ -265,7 +271,7 @@ export class Collection extends Scene<CollectionModel> {
     const picture: Group = parts.group();
     const shapes: Mobject[] = picture.children;
     const path: VMobject = new Circle({ radius: 1 });
-    const style: Style = { stroke: s.emphasis };
+    const style: Style = { stroke: s.look.emphasis };
     path.setStyle(style);
     const fade: FadeOpts = { shift: [0, 0.2], rateFunc: smooth };
     await s.enter(keyed(picture, 'shapes'));
@@ -281,14 +287,14 @@ export class Collection extends Scene<CollectionModel> {
       callout(s, square, 'a unit square', { side: 'right', key: 'note' }),
       dimension(s, [-0.5, -0.8], [0.5, -0.8], '1', { key: 'width' }),
       pin(s, [0, 0], { label: 'centre', key: 'centre' }),
-      legend(s, [{ label: 'square', fill: s.palette.ink }], { at: [3, 2] }),
+      legend(s, [{ label: 'square', fill: s.look.ink }], { at: [3, 2], stack: 'row', key: 'legend' }),
     );
     await s.focus(square, { margin: 0.6 });
     await s.focus('all');
     await s.clear();
 
     await this.step('door', { title: 'A machine', caption: 'Open and close the door.' });
-    const door = view(this, (st) => keyed(new Text(st.door === 'open' ? 'Open' : 'Closed', { color: s.palette.ink }), 'door'));
+    const door = view(this, (st) => keyed(new Text(st.door === 'open' ? 'Open' : 'Closed', { color: s.look.ink }), 'door'));
     const machine = new Machine<CollectionModel, DoorEvent>(this, {
       start: { door: 'open', phase: 'start', count: 0 }, events: ['open', 'close'], next: doorNext, views: [door],
       transition: { close: (t: Transition<CollectionModel, DoorEvent>) => { const c: Choreography = t.choreograph(door); return c.morph('door', { rateFunc: rushFrom }); } },
@@ -312,10 +318,10 @@ export class Collection extends Scene<CollectionModel> {
     const d = await s.show({ source: mermaid.frontMatter({ theme: 'base' }) + 'graph LR\nA --> B' }, { box: 'main' });
     const side: NoteSide = 'above';
     const notes: PictureNote[] = [{ id: 'A', text: 'start', side }];
-    const shown = s.diagramView(d, (st): DiagramPicture => ({ marks: st.phase === 'moved' ? { A: s.emphasis } : {}, notes }));
+    const shown = s.diagramView(d, (st): DiagramPicture => ({ marks: st.phase === 'moved' ? { A: s.look.emphasis } : {}, notes }));
     this.state.phase = 'moved';
     await this.play(shown.sync());
-    const marked: Mobject = d.picture({ A: { color: s.emphasis, as: 'the start' } });
+    const marked: Mobject = d.picture({ A: { color: s.look.emphasis, as: 'the start' } });
     void [marked, d.order, d.visible.size, d.snapshot.parts.length];
     s.liveDiagram(d);
   }

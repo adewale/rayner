@@ -72,7 +72,7 @@ export default class LayoutDirectionExplainer extends Scene<LayoutState, { lit?:
               `s.card(rows, { at: '${st.end.at}',`,
               `               direction: '${st.end.direction}' })`,
             ],
-            { at: 'full', fontSize: 0.56 },
+            { at: 'full', size: 0.56 },
           ),
       },
     ]);

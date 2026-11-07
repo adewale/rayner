@@ -17,8 +17,8 @@ export function frames(stage: Stage, which: 'hit' | 'miss', answer: string, opts
       state: { request: which, beforeReads: 1, afterReads: which === 'hit' ? 0 : 1 },
       draw: (st, s) =>
         new Group(
-          flow(s, ['Request', 'Database', 'Response']),
-          label(`Before: ${counted(st.beforeReads, 'database read', { words: true })}`, 0, -1.4, s.palette.ink, 0.8),
+          flow(s, ['Request', 'Database', 'Response'], { key: 'reader-flow' }),
+          label(s, `Before: ${counted(st.beforeReads, 'database read', { words: true })}`, { at: [0, -1.4], size: 0.8 }),
         ),
     },
     {
@@ -32,12 +32,9 @@ export function frames(stage: Stage, which: 'hit' | 'miss', answer: string, opts
       state: { request: which, reads: which === 'hit' ? 0 : 1 },
       draw: (st, s) =>
         new Group(
-          flow(
-            s,
-            st.request === 'hit' ? ['Request', 'KV hit', 'Response'] : ['KV miss', 'Database', 'KV write', 'Response'],
-          ),
-          label(`Database reads: ${st.reads}`, 0, -1.4, s.palette.ink, 0.85),
-          label(st.request === 'hit' ? 'Saved value returned' : 'Fetched value saved and returned', 0, -3, s.soft, 0.7),
+          flow(s, st.request === 'hit' ? ['Request', 'KV hit', 'Response'] : ['KV miss', 'Database', 'KV write', 'Response'], { key: 'reader-flow' }),
+          label(s, `Database reads: ${st.reads}`, { at: [0, -1.4], size: 0.85 }),
+          label(s, st.request === 'hit' ? 'Saved value returned' : 'Fetched value saved and returned', { at: [0, -3], color: s.look.soft, size: 0.7 }),
         ),
     },
   ], opts);
@@ -59,12 +56,12 @@ export function panel(s: Stage, code: Code, box: Box, title: string, pin?: reado
     width,
     height,
     cornerRadius: 0.1,
-    fill: s.raised,
-    stroke: s.rule,
+    fill: s.look.raised,
+    stroke: s.look.rule,
     strokeWidth: 0.016,
   }).moveTo([cx, cy]);
   code.moveTo([cx, cy - 0.21]);
-  const label = new Text(title, { fontSize: 0.2, color: s.soft, anchor: 'start' }).moveTo(
+  const label = new Text(title, { fontSize: 0.2, color: s.look.soft, anchor: 'start' }).moveTo(
     [cx - width / 2 + pad, cy + height / 2 - 0.3],
     [-1, 0],
   );

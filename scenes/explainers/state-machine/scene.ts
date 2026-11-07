@@ -69,7 +69,7 @@ export default class StateMachineExplainer extends Scene<SessionState, {}> {
     const codeView = view(
       this,
       (st) => {
-        const panel = code(s, REDUCER, { at: CODE, fontSize: 0.195, lit: st.event == null ? { lines: [1, 4] } : null, key: 'code' });
+        const panel = code(s, REDUCER, { at: CODE, size: 0.195, lit: st.event == null ? { lines: [1, 4] } : null, key: 'code' });
         // The table's rows and the throw are keyed by what they mean, not by their text as the key option
         // keys them: scene.review.json and the embed tests target these keys.
         ['idle:CONNECT', 'connecting:OPENED', 'connecting:ERROR', 'open:CLOSE'].forEach((row, i) => {

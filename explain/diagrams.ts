@@ -45,6 +45,9 @@ interface Part {
   info: SnapshotPart;
   mob: Group;
   route?: VMobject;
+  /** The part's own drawn shapes and labels, in drawing order (see Diagram.shapes and Diagram.labels). */
+  shapes: VMobject[];
+  labels: ImportedLabel[];
 }
 export type NoteSide = 'above' | 'below' | 'left' | 'right';
 /** What a picture of a diagram shows besides its parts: its marks with their words, and the parts dimming keeps. */
@@ -419,7 +422,8 @@ export class Diagram {
   order: string[];
   /** @internal The box the diagram was laid out in. */
   frameBox: Box;
-  accent: string;
+  /** The diagram's emphasis colour: its style's accent when that has a hue, else a warm orange, as the stage's `look.emphasis`. */
+  emphasis: string;
   private home = new Group();
   /** Unemphasised styles of each top-level part's family, at the home frame (captured when built). */
   private base = new Map<string, Style[]>();
@@ -447,7 +451,7 @@ export class Diagram {
     this.snapshot = snapshot;
     this.frameBox = box;
     this.root.clipBox = [...box];
-    this.accent = emphasis(snapshot.palette);
+    this.emphasis = emphasis(snapshot.palette);
     this.dimmed = dimOpacity(snapshot.palette);
     emphasises(scene, () => this.emphasised());
     for (const info of partsOf(snapshot)) {
@@ -456,6 +460,7 @@ export class Diagram {
       mob.key = info.id === '__frame' ? this.frameKey : info.id;
       if (info.id === '__frame') mob.role = 'frame';
       if (info.from != null && info.to != null) Object.assign(mob, { [connectorPart]: true });
+      const shapes: VMobject[] = [], labels: ImportedLabel[] = [];
       for (const shape of info.shapes) {
         const paths = shape.textRun ? outlineText(shape.textRun, shape.style, scene.textShaping) : [new VMobject(shape.style)];
         if (!shape.textRun) {
@@ -465,6 +470,8 @@ export class Diagram {
         // A text run is one label of many outlines: it moves and checks as a unit.
         const drawn = shape.text != null ? new ImportedLabel(paths, shape, scene.textShaping) : paths[0]!;
         if (shape.textRun) drawn.mergeLeaves = true;
+        if (drawn instanceof ImportedLabel) labels.push(drawn);
+        else shapes.push(drawn);
         mob.add(drawn);
       }
       // Connector lettering needs a paper gap, not just an outline around each
@@ -494,7 +501,7 @@ export class Diagram {
         for (const p of info.route.slice(1)) route.addLineTo(p);
         mob.add(route);
       }
-      this.parts.set(info.id, { info, mob, ...(route ? { route } : {}) });
+      this.parts.set(info.id, { info, mob, shapes, labels, ...(route ? { route } : {}) });
       this.root.add(mob);
     }
     // Some renderer labels overhang the declared SVG canvas (notably XY ticks).
@@ -570,9 +577,23 @@ export class Diagram {
     );
   }
   get(id: string): Group {
+    return this.part(id).mob;
+  }
+  /**
+   * Part `id`'s own drawn shapes, in drawing order: a node's outline, a link's line and arrowhead, a
+   * task's bar. Its labels, the plates behind them, its route and the parts it owns are not among them.
+   */
+  shapes(id: string): VMobject[] {
+    return [...this.part(id).shapes];
+  }
+  /** Part `id`'s own labels, in drawing order, each with the `text` it reads. */
+  labels(id: string): (Mobject & { readonly text: string })[] {
+    return [...this.part(id).labels];
+  }
+  private part(id: string): Part {
     const part = this.find(id);
     if (!part) throw new Error(`No diagram mark ${id}. Available: ${[...this.parts.keys()].join(', ')}`);
-    return part.mob;
+    return part;
   }
   /** The top-level part an id belongs to (an owned label resolves to its owner); throws for an unknown id. */
   private top(id: string): string {
@@ -619,7 +640,7 @@ export class Diagram {
         for (const child of this.parts.values()) if (child.info.owner === id) this.visible.add(child.info.id);
         this.root.add(p.mob);
         if (p.info.role === 'message' && p.info.from && p.info.to && p.route) {
-          const token = this.token(p.route, this.accent);
+          const token = this.token(p.route, this.emphasis);
           messages.push(p);
           return new AnimationGroup(
             [
@@ -905,9 +926,9 @@ export class Diagram {
   }
   /**
    * The marks a walk's trail leaves along these hops, for a picture drawn from state (see picture,
-   * and stage.diagramView): each link travelled, in `color` (the diagram's accent), said as travelled.
+   * and stage.diagramView): each link travelled, in `color` (the diagram's emphasis colour), said as travelled.
    */
-  trail(hops: readonly (readonly [string, string])[], color: string = this.accent): Record<string, { color: string; as: string }> {
+  trail(hops: readonly (readonly [string, string])[], color: string = this.emphasis): Record<string, { color: string; as: string }> {
     return Object.fromEntries(hops.map(([from, to]) => [this.link(from, to).id, { color, as: wordsOf(this.scene).travelled }]));
   }
   /** The link from `from` to `to`, its endpoints resolved as walk resolves them: its id, its part and its route. */
@@ -1009,7 +1030,7 @@ export class Diagram {
   notePicture(
     id: string,
     text: string,
-    { side = 'above', color = this.accent, size = 0.22, key = `note:${id}` }: { side?: NoteSide; color?: string; size?: number; key?: string } = {},
+    { side = 'above', color = this.emphasis, size = 0.22, key = `note:${id}` }: { side?: NoteSide; color?: string; size?: number; key?: string } = {},
   ): Group {
     const g = this.noteLook(text, color, size);
     g.moveTo(notePosition(g, this.get(id).box()!, side, this.frameBox));
@@ -1067,7 +1088,7 @@ export class Diagram {
     hops: readonly (readonly [string, string])[],
     {
       runTime = 0.8,
-      color = this.accent,
+      color = this.emphasis,
       parallel = false,
     }: { runTime?: number; color?: string; parallel?: boolean } = {},
   ): Promise<void> {
@@ -1235,7 +1256,7 @@ export class Diagram {
     this.spec = next;
     this.snapshot = snapshot;
     // A new style brings its own emphasis colour and dimming.
-    this.accent = target.accent;
+    this.emphasis = target.emphasis;
     this.dimmed = target.dimmed;
     this.base = target.base;
     this.zoom = 1;

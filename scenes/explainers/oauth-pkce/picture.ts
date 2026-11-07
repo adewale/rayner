@@ -40,7 +40,7 @@ const LABEL = 0.3;
 type Tone = 'challenge' | 'code' | 'ink' | 'good' | 'bad';
 type Piece = readonly [string, Tone];
 const toneColor = (tone: Tone, s: Stage) =>
-  ({ challenge: CHALLENGE, code: CODE, ink: s.palette.ink, good: s.good, bad: s.bad })[tone];
+  ({ challenge: CHALLENGE, code: CODE, ink: s.look.ink, good: s.look.good, bad: s.look.bad })[tone];
 
 /** What each message says in the state it is drawn from (pieces of text and their tones), and why an answer was refused. */
 function messageWords(id: MessageId, st: SignIn): { pieces: Piece[]; why?: string } | null {
@@ -73,8 +73,8 @@ function notes(st: SignIn): Partial<Record<keyof typeof X, string>> {
 }
 /** A dot in the colour of what a message carries: the challenge, the code, or the answer's outcome. */
 export function tokenColor(id: MessageId, st: SignIn, s: Stage): string {
-  if (id === 'authorize') return st.challenge !== null ? CHALLENGE : s.palette.ink;
-  if (id.endsWith('answer')) return st[id.startsWith('app') ? 'app' : 'client'].answer === 'Access token' ? s.good : s.bad;
+  if (id === 'authorize') return st.challenge !== null ? CHALLENGE : s.look.ink;
+  if (id.endsWith('answer')) return st[id.startsWith('app') ? 'app' : 'client'].answer === 'Access token' ? s.look.good : s.look.bad;
   return CODE;
 }
 
@@ -84,7 +84,7 @@ export function tokenColor(id: MessageId, st: SignIn, s: Stage): string {
  * carries above it (a refusal's reason under it), and notes under the client and the server. Every part is keyed.
  */
 export function signInPicture(st: SignIn, s: Stage): Group {
-  const ink = s.palette.ink, { add, group } = keyedParts();
+  const ink = s.look.ink, { add, group } = keyedParts();
   const band = (lane: 'browser' | 'tls', top: number, bottom: number, color: string, title: readonly [string, string]) => {
     const rect = new Rectangle({ width: 15.0, height: top - bottom, cornerRadius: 0.12, fill: color, fillOpacity: 0.07, stroke: color, strokeWidth: 0.04 }).moveTo([0, (top + bottom) / 2]);
     if (lane === 'browser') rect.style.dashArray = '0.2 0.12';
@@ -95,15 +95,15 @@ export function signInPicture(st: SignIn, s: Stage): Group {
       new Text(title[1], { fontSize: 0.26, color }).moveTo([-6.15, mid - 0.18]),
     ), `sign-in:band:${lane}`);
   };
-  band('browser', 1.75, -0.5, s.bad, ['Browser', 'others can read']);
-  band('tls', -0.7, -3.75, s.good, ['TLS', 'each app’s own']);
+  band('browser', 1.75, -0.5, s.look.bad, ['Browser', 'others can read']);
+  band('tls', -0.7, -3.75, s.look.good, ['TLS', 'each app’s own']);
   for (const p of ['C', 'S', 'M'] as const)
     add(new Group(
       new Text(PARTY[p], { fontSize: 0.36, color: ink }).moveTo([X[p], 2.95]),
-      new Line([X[p], 2.2], [X[p], -3.85], { stroke: s.soft, strokeWidth: 0.04 }),
+      new Line([X[p], 2.2], [X[p], -3.85], { stroke: s.look.soft, strokeWidth: 0.04 }),
     ), `sign-in:party:${p}`);
   for (const [p, text] of Object.entries(notes(st)) as [keyof typeof X, string][])
-    add(new Text(text, { fontSize: 0.26, color: s.soft }).moveTo([X[p], 2.5]), `sign-in:note:${p}:${text}`);
+    add(new Text(text, { fontSize: 0.26, color: s.look.soft }).moveTo([X[p], 2.5]), `sign-in:note:${p}:${text}`);
   for (const id of Object.keys(ROUTE) as MessageId[]) {
     const words = messageWords(id, st);
     if (!words) continue;
@@ -115,7 +115,7 @@ export function signInPicture(st: SignIn, s: Stage): Group {
     const pieces = words.pieces.map(([text, tone]) => new Text(text, { fontSize: LABEL, color: toneColor(tone, s) }));
     pieces.slice(1).forEach((p, i) => p.nextTo(pieces[i]!, [1, 0], 0.12));
     const label = new Group(new Group(...pieces).moveTo([(X[from] + X[to]) / 2, y + 0.32]));
-    if (words.why) label.add(new Text(words.why, { fontSize: 0.26, color: s.bad }).moveTo([(X[from] + X[to]) / 2, y - 0.32]));
+    if (words.why) label.add(new Text(words.why, { fontSize: 0.26, color: s.look.bad }).moveTo([(X[from] + X[to]) / 2, y - 0.32]));
     // Each server answer is emphasis the phone's close-ups visit first and review holds to the caption.
     if (id === 'client-answer' || id === 'app-answer') {
       const who = id === 'app-answer' ? 'app' : 'client';
@@ -160,7 +160,7 @@ export function channelMap(map: Record<Message['channel'], LaneMessage[]>, s: St
     HEIGHT = 2.5,
     GAP = 0.2,
     TOP = 1.8,
-    ink = s.palette.ink;
+    ink = s.look.ink;
   const label = (text: string, color: string, size = SIZE) => new Text(text, { fontSize: size, color });
   /** A message's parameter names in a row, each in its own colour, joined by plus signs. */
   const carried = (m: LaneMessage, color: string) => {
@@ -199,11 +199,11 @@ export function channelMap(map: Record<Message['channel'], LaneMessage[]>, s: St
     return g;
   };
   const party = (name: string, x: number) =>
-    new Group(label(name, ink).moveTo([x, TOP + 0.42]), new Line([x, TOP + 0.12], [x, TOP - 2 * HEIGHT - GAP - 0.1], { stroke: s.soft, strokeWidth: 0.04 }));
+    new Group(label(name, ink).moveTo([x, TOP + 0.42]), new Line([x, TOP + 0.12], [x, TOP - 2 * HEIGHT - GAP - 0.1], { stroke: s.look.soft, strokeWidth: 0.04 }));
   return [
     party(NAMES.C!, -END),
     party(NAMES.S!, END),
-    lane('pkce-lane-browser', map.browser, TOP, s.bad, ['Browser and redirect:', 'other apps can read it'], true),
-    lane('pkce-lane-tls', map.tls, TOP - HEIGHT - GAP, s.good, ['The client’s own TLS', 'to the token endpoint'], false),
+    lane('pkce-lane-browser', map.browser, TOP, s.look.bad, ['Browser and redirect:', 'other apps can read it'], true),
+    lane('pkce-lane-tls', map.tls, TOP - HEIGHT - GAP, s.look.good, ['The client’s own TLS', 'to the token endpoint'], false),
   ];
 }

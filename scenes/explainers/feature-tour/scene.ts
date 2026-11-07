@@ -174,7 +174,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       "const target = new Text('42');",
       'await s.enter(target);',
       'const circle = new Circumscribe(target,',
-      '  {keep: true, color: s.emphasis});',
+      '  {keep: true, color: s.look.emphasis});',
       's.keep(circle.outline,',
       "  {describe: 'Box round 42'});",
       'await this.play(circle);',
@@ -285,7 +285,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       '  new Text(v).moveTo([i * 1.5, 0]));',
       'await s.enter(...values);',
       'const mark = new Underline(values[1],',
-      '  {stroke: s.emphasis});',
+      '  {stroke: s.look.emphasis});',
       "await s.enter(mark, {describe: '42 underlined'});",
     ],
     recipe: 'Underline draws a stroke just under its target’s box, left to right. The other values are not touched.',
@@ -298,8 +298,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     code: [
       'const line = new NumberLine({range: [0, 10, 2],',
       '  length: 8, includeNumbers: true,',
-      '  stroke: s.soft, labelColor: s.palette.ink});',
-      'const at = new Dot({color: s.emphasis})',
+      '  stroke: s.look.soft, labelColor: s.look.ink});',
+      'const at = new Dot({color: s.look.emphasis})',
       '  .moveTo(line.n2p(7));',
       "await s.enter(line, at, {describe: '7 on 0 to 10'});",
     ],
@@ -342,8 +342,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     result: 'A token at the start, then at the end of its curved route',
     code: [
       'const route = new ArcBetweenPoints([-3, 0], [3, 0],',
-      '  {angle: Math.PI / 2, stroke: s.soft});',
-      'const token = new Dot({color: s.emphasis})',
+      '  {angle: Math.PI / 2, stroke: s.look.soft});',
+      'const token = new Dot({color: s.look.emphasis})',
       '  .moveTo([-3, 0]);',
       "await s.enter(route, token, {describe: 'A route'});",
       'await this.play(new MoveAlongPath(token, route));',
@@ -384,8 +384,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     result: 'A B C, then C A B with each tile moved whole',
     code: [
       'const row = (ids: string[]) => new Group(...ids.map(',
-      '  (id, i) => tile(id, i * 1.6, 0, 1.2, 1.2, s,',
-      '    {key: `tile:${id}`})));',
+      '  (id, i) => tile(s, id, {at: [i * 1.6, 0],',
+      '    width: 1.2, height: 1.2, key: `tile:${id}`})));',
       "const before = row(['A', 'B', 'C']);",
       'await s.enter(before);',
       "const after = row(['C', 'A', 'B']);",
@@ -446,12 +446,12 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     code: [
       'const s = stage(this,',
       "  {palette: palette('nord')});",
-      "await s.card([['Paper', s.palette.paper],",
-      "  ['Ink', s.palette.ink],",
-      "  ['Emphasis', s.emphasis]]);",
+      "await s.card([['Paper', s.look.paper],",
+      "  ['Ink', s.look.ink],",
+      "  ['Emphasis', s.look.emphasis]]);",
     ],
-    recipe: 'palette(\'nord\') gives the stage a named palette of paper, ink and accent. The stage’s helpers colour from it, and s.palette, s.emphasis and s.soft hand the same colours to what you draw.',
-    caption: 'One option recoloured the paper, the heading and the card, and the card lists the colours s.palette gave it, so a drawing coloured from s.palette follows a change of palette and keeps its contrast. The panel on the left is a separate drawing in github-dark, this tour’s usual palette.',
+    recipe: 'palette(\'nord\') gives the stage a named palette of paper, ink and accent. The stage’s helpers colour from its look, and s.look hands the same colours to what you draw.',
+    caption: 'One option recoloured the paper, the heading and the card, and the card lists the colours s.look gave it, so a drawing coloured from s.look follows a change of palette and keeps its contrast. The panel on the left is a separate drawing in github-dark, this tour’s usual palette.',
     point: 'Paper, heading and card all took nord’s colours from one option.',
   },
   globe: {
@@ -642,9 +642,9 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
       numbered: false,
       ...(feature === 'direction' ? { direction: 'rtl' as const } : {}),
     });
-    const ink = s.palette.ink,
-      accent = s.emphasis,
-      soft = s.soft;
+    const ink = s.look.ink,
+      accent = s.look.emphasis,
+      soft = s.look.soft;
 
     // 1. The author's question, and the few lines that answer it.
     await this.step('recipe', {
@@ -652,7 +652,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
       line: PREDICT[feature],
       caption: `${answer}. ${example.recipe}`,
     });
-    await s.code(example.code, { at: 'full', fontSize: 0.6, fitHeight: true });
+    await s.code(example.code, { at: 'full', size: 0.6, fitHeight: true });
     this.state.feature = feature;
     this.shown.phase = 'recipe';
 
@@ -691,8 +691,8 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
     } else if (feature === 'settings') {
       const options = FeatureTour.settings[0]!;
       await panels([], `the default scenario, feature = ${options.default}`);
-      await s.card([['Default scenario', options.default]], { at: BEFORE, fontSize: 0.45 });
-      await s.card([['This scenario', feature], ['Scenarios built', String(options.options.length)]], { at: AFTER, fontSize: 0.55 });
+      await s.card([['Default scenario', options.default]], { at: BEFORE, size: 0.45 });
+      await s.card([['This scenario', feature], ['Scenarios built', String(options.options.length)]], { at: AFTER, size: 0.55 });
     } else if (feature === 'diagram') {
       // One live diagram; the before panel is a picture of it, its keys prefixed so each key names one part.
       const d = await s.show({ source: 'graph LR\nA[Start] --> B[Finish]' }, { box: AFTER });
@@ -719,12 +719,12 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
       await this.play(v.sync());
     } else if (feature === 'code') {
       await panels([], 'the two lines, nothing marked');
-      await s.code(['let count = 0;', 'count += 1;'], { at: BEFORE, fontSize: 0.36 });
+      await s.code(['let count = 0;', 'count += 1;'], { at: BEFORE, size: 0.36 });
       // The lit line is how the panel is shown (this.shown); the panel is a view of it.
       this.shown.lit = null;
       const block = view(
         this,
-        (_st, sh) => code(s, ['let count = 0;', 'count += 1;'], { at: AFTER, fontSize: 0.45, lit: sh.lit ?? null, key: 'block' }),
+        (_st, sh) => code(s, ['let count = 0;', 'count += 1;'], { at: AFTER, size: 0.45, lit: sh.lit ?? null, key: 'block' }),
         { place: false },
       );
       await s.enter(block, { runTime: 0.4 });
@@ -732,7 +732,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
       await this.play(block.sync());
     } else if (feature === 'code-diff') {
       await panels([], 'count += 1');
-      await s.code(['let count = 0;', 'count += 1;'], { at: BEFORE, fontSize: 0.36 });
+      await s.code(['let count = 0;', 'count += 1;'], { at: BEFORE, size: 0.36 });
       // The code is the model here (this.state); the panel is a view of it, and marks what the edit added.
       this.state.lines = ['let count = 0;', 'count += 1;'];
       this.state.added = [];
@@ -740,7 +740,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
         this,
         (state) => {
           const st = having(state, 'lines', 'added');
-          return code(s, st.lines, { at: AFTER, fontSize: 0.5, added: st.added, key: 'block' });
+          return code(s, st.lines, { at: AFTER, size: 0.5, added: st.added, key: 'block' });
         },
         { place: false },
       );
@@ -842,7 +842,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
       await panels([], 'the model’s three values as numbers');
       await s.card(
         data.map(([x, y]) => [`x = ${x}`, `y = ${y}`]),
-        { at: BEFORE, fontSize: 0.45 },
+        { at: BEFORE, size: 0.45 },
       );
       const axes = new Axes({
         xRange: [0, 2, 1],
@@ -886,7 +886,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
         new Text('Before: start in a left-to-right stage', { fontSize: 0.34, color: soft }).moveTo([-4, 1.2]),
         { describe: 'Before: an outline on the left, where start is in a left-to-right stage' },
       );
-      await s.card([['Count', 3]], { at: 'start', direction: 'ltr', width: 6.8, fontSize: 0.65 });
+      await s.card([['Count', 3]], { at: 'start', direction: 'ltr', width: 6.8, size: 0.65 });
       await s.enter(new Text('After: start in this right-to-left stage', { fontSize: 0.34, color: soft }).moveTo([4, -2.8]));
     } else if (feature === 'drawing') {
       await panels(
@@ -976,7 +976,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
       s.keep(result, { describe: 'After: a circle beside the square, morphed from its copy' });
     } else if (feature === 'keys') {
       const row = (ids: string[], x: number, size: number, prefix: string) =>
-        new Group(...ids.map((id, i) => tile(id, x + (i - 1) * size * 1.35, by, size, size, s, { key: `${prefix}tile:${id}`, size: size * 0.55 })));
+        new Group(...ids.map((id, i) => tile(s, id, { at: [x + (i - 1) * size * 1.35, by], width: size, height: size, key: `${prefix}tile:${id}`, size: size * 0.55 })));
       await panels([row(['A', 'B', 'C'], bx, 1, 'before:')], 'the tiles in the order A, B, C');
       const before = row(['A', 'B', 'C'], ax, 1.4, '');
       await s.enter(before);
@@ -1050,7 +1050,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
         { label: 'MRU', value: 1, display: '1 hit' },
       ];
       await panels([], 'the counts as numbers');
-      await s.card(rows.map((r) => [r.label, r.display]), { at: BEFORE, fontSize: 0.45 });
+      await s.card(rows.map((r) => [r.label, r.display]), { at: BEFORE, size: 0.45 });
       const chart = bars(s, rows, 4, { key: 'hits' });
       chart.scale(0.62).moveTo([ax, ay]);
       await s.enter(chart, { describe: 'After: two bars on one scale of 4, LRU at 3 hits and MRU at 1 hit, a third as long' });
@@ -1066,16 +1066,16 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
       );
       await s.card(
         [
-          ['Paper', s.palette.paper],
-          ['Ink', s.palette.ink],
-          ['Emphasis', s.emphasis],
+          ['Paper', s.look.paper],
+          ['Ink', s.look.ink],
+          ['Emphasis', s.look.emphasis],
         ],
-        { at: AFTER, fontSize: 0.55, title: "palette('nord')" },
+        { at: AFTER, size: 0.55, title: "palette('nord')" },
       );
     } else {
       // A globe: London and two great circles, seen from one viewpoint and turned to another by a view's tween.
       const model = {
-        body: { radius: 1, fill: s.palette.paper, stroke: soft, strokeWidth: 0.03 },
+        body: { radius: 1, fill: s.look.paper, stroke: soft, strokeWidth: 0.03 },
         parts: [
           { kind: 'path' as const, key: 'globe:equator', lines: [circleOn([0, 0, 1], 90)], closed: true, color: soft, width: 0.025 },
           { kind: 'path' as const, key: 'globe:meridian', lines: [circleOn(latLon(0, 90), 90)], closed: true, color: soft, width: 0.025 },

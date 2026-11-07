@@ -11,7 +11,7 @@ example collection.
 
 ```ts
 box.saveState();
-await this.play(box.animate.setFill(s.bad).scale(1.5));
+await this.play(box.animate.setFill(s.look.bad).scale(1.5));
 await this.play(new Restore(box));        // back to the saved look, animated
 ```
 
@@ -33,7 +33,7 @@ carry it: a copy is a new mobject with no history.
 ## TransformFromCopy: derive one thing from another
 
 ```ts
-await this.play(new TransformFromCopy(formula, result), formula.animate.setFill(s.soft));
+await this.play(new TransformFromCopy(formula, result), formula.animate.setFill(s.look.soft));
 ```
 
 A copy of `formula` morphs into `result`. `formula` stays where it is, unchanged, and

@@ -79,7 +79,7 @@ test('a code block refuses a box too narrow for code', () => {
   fc.assert(
     fc.property(palette, lines(1), box, fc.double({ min: 0.08, max: 0.5, noNaN: true }), (colors, code, at, fontSize) => {
       fc.pre(at[2] - at[0] - 0.7 < fontSize);
-      assert.throws(() => new CodeBlock(scene(), colors, code, { at, fontSize }), /no room for code/);
+      assert.throws(() => new CodeBlock(scene(), colors, code, { at, size: fontSize }), /no room for code/);
     }),
     params(),
   );
@@ -567,7 +567,7 @@ test('uncapped columned cards keep headings at their authored size with single-v
       fc.double({ min: 0.08, max: 0.5, noNaN: true }),
       (colors, columns, direction, fontSize) => {
         // One column also has one value per row; neither shape may discard its heading's width.
-        const k = new Card(scene(), colors, [['Requests', 'A B C']], { columns, direction, fontSize });
+        const k = new Card(scene(), colors, [['Requests', 'A B C']], { columns, direction, size: fontSize });
         const data = new Set([...k.labels.values(), ...[...k.cells.values()].flat()]);
         const headings = k.children.filter((m): m is Text => m instanceof Text && !data.has(m));
         assert.deepEqual(headings.map((h) => h.text), columns);

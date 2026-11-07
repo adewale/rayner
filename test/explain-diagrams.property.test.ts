@@ -599,7 +599,7 @@ test('morph hands over to the next diagram: every part shown, at its fresh place
         assert.equal(looks(d), looks(fresh));
         for (const id of tops(d)) assert.deepEqual(d.get(id).box(), fresh.get(id).box(), id);
         // The next style brings its own emphasis colour.
-        assert.equal(d.accent, emphasis(next.palette));
+        assert.equal(d.emphasis, emphasis(next.palette));
       },
     ),
     params(300),
@@ -722,7 +722,7 @@ test('scale probe: a diagram of 1,800 parts with 600 outlined labels builds, is 
   assert.ok(uniqueIds(s) && s.parts.length === 1800);
   const t = performance.now();
   const { scene, d } = await shown(s);
-  const picture = d.picture({ n1: d.accent, n2: d.accent, ...d.trail([['n0', 'n1']]) }, { dim: ['n1'], notes: [{ id: 'n3', text: 'here' }] });
+  const picture = d.picture({ n1: d.emphasis, n2: d.emphasis, ...d.trail([['n0', 'n1']]) }, { dim: ['n1'], notes: [{ id: 'n3', text: 'here' }] });
   await d.enlarge(['n5']);
   await d.enlarge('all');
   await d.walk([['n0', 'n1']]);

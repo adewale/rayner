@@ -198,8 +198,8 @@ export default class BloomFilter extends Scene<{}, {}> {
             return new Group(
               grid,
               takenLabel(s, st.size, i === FULL, st.stored),
-              label(queryText, 0, -2.85, s.soft, 0.66, 'bloom-query'),
-              label(answerText, 0, -3.7, s.palette.ink, 0.66, 'bloom-answer'),
+              label(s, queryText, { at: [0, -2.85], color: s.look.soft, size: 0.66, key: 'bloom-query' }),
+              label(s, answerText, { at: [0, -3.7], size: 0.66, key: 'bloom-answer' }),
             );
           },
         };

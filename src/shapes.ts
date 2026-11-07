@@ -236,14 +236,14 @@ export interface SurroundingRectangleOpts extends Style { buff?: number; cornerR
 
 /**
  * A rectangle around a mobject's box (or a Box), `buff` out on every side.
- * Stroked in the scene's accent unless given a `stroke`, no fill. Drawn like Rectangle, from the top-left corner
+ * Stroked in the scene's emphasis colour unless given a `stroke`, no fill. Drawn like Rectangle, from the top-left corner
  * clockwise, so Create sweeps along the top first.
  */
 export class SurroundingRectangle extends Rectangle {
   constructor(target: Mobject | Box, { buff = 0.15, cornerRadius = 0, ...style }: SurroundingRectangleOpts = {}) {
     const b = boxOf(target);
-    super({ width: b[2] - b[0] + 2 * buff, height: b[3] - b[1] + 2 * buff, cornerRadius, stroke: NEUTRAL_COLORS.accent, fill: 'none', ...style });
-    if (style.stroke === undefined) followScene(this, { stroke: 'accent' });
+    super({ width: b[2] - b[0] + 2 * buff, height: b[3] - b[1] + 2 * buff, cornerRadius, stroke: NEUTRAL_COLORS.emphasis, fill: 'none', ...style });
+    if (style.stroke === undefined) followScene(this, { stroke: 'emphasis' });
     this.shift(center(b));
   }
 }

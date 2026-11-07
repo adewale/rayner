@@ -52,7 +52,7 @@ export default class LruMru extends Scene<CardState, { lit: string | null }> {
         ['Newest first', ...st['Newest first']],
         ['Evicted', ...st.Evicted],
         ['Hits', ...st.Hits],
-      ], { columns: ['LRU', 'MRU'], width: 6.8, fontSize: 0.3, lit: sh.lit === null ? null : { row: sh.lit }, key: 'cache' });
+      ], { columns: ['LRU', 'MRU'], width: 6.8, size: 0.3, lit: sh.lit === null ? null : { row: sh.lit }, key: 'cache' });
     }, { place: false });
     await s.enter(cache, { runTime: 0.35 });
 

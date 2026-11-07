@@ -59,7 +59,7 @@ test('a stage with no style takes its first diagram’s paper; hidden parts stay
       const s = stage(this);
       await this.step('frame');
       const d = await s.show(spec, { build: 'frame' });
-      assert.equal(s.paper.style.fill, '#123456');
+      assert.equal(s.backdrop.style.fill, '#123456');
       // The camera can frame a part that is not drawn yet without drawing it.
       await d.enlarge(['A']);
       assert.ok(!this.familyMembers().some((m) => m.key === 'A'));
