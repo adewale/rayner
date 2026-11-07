@@ -6,6 +6,8 @@ import assert from 'node:assert/strict';
 import type { Page } from 'playwright-core';
 import { VMobject } from '../../src/index.ts';
 import { renderElements } from '../../src/output.ts';
+import { UNITS, clipPathOf, serializeElement, userBox } from '../../src/svg.ts';
+import type { Box } from '../../src/index.ts';
 import { intersect, nonempty, pad, pointsBox, unionBoxes } from '../../src/box.ts';
 import { paints } from '../../src/mobject.ts';
 import type { Scene, SceneClass, Mobject } from '../../src/index.ts';
@@ -77,10 +79,7 @@ function paintBounds(record: ElementRecord): Rect | null {
     ty = record.ty ?? 0;
   const bounds: Rect | null = path && pad([path[0] + tx, path[1] + ty, path[2] + tx, path[3] + ty], extent);
   let result = bounds && nonempty(bounds) ? bounds : null;
-  if (bounds && record.clipBox) {
-    const [x0, y0, x1, y1] = record.clipBox;
-    result = intersect(bounds, [x0 * 1000, -y1 * 1000, x1 * 1000, -y0 * 1000]);
-  }
+  if (bounds && record.clipBox) result = intersect(bounds, userBox(record.clipBox));
   paintBoundsCache.set(record, result);
   return result;
 }
@@ -101,16 +100,15 @@ async function changedComposite(
   const scale = Math.min(1280 / (camera[2] - camera[0]), 720 / (camera[3] - camera[1]));
   const width = Math.max(1, Math.ceil((bounds[2] - bounds[0]) * scale));
   const height = Math.max(1, Math.ceil((bounds[3] - bounds[1]) * scale));
-  const escape = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
   const svg = (paints: readonly StoryPaint[]) => {
     const paths: string[] = [], clips = new Map<string, string>();
     for (const { record: r, bounds: b } of paints) {
       if (!b || !intersect(b, bounds)) continue;
       if (r.clipBox) {
-        const id = r.attrs['clip-path']!.slice(5, -1), [x0, y0, x1, y1] = r.clipBox;
-        clips.set(id, `<clipPath id="${escape(id)}" clipPathUnits="userSpaceOnUse"><rect x="${Math.round(x0 * 1000)}" y="${Math.round(-y1 * 1000)}" width="${Math.round((x1 - x0) * 1000)}" height="${Math.round((y1 - y0) * 1000)}"/></clipPath>`);
+        const clip = clipPathOf(r.clipBox);
+        clips.set(clip.id, clip.svg);
       }
-      paths.push(`<path${Object.entries(r.attrs).map(([k, v]) => ` ${k}="${escape(v)}"`).join('')}${r.transform ? ` transform="${escape(r.transform)}"` : ''}/>`);
+      paths.push(serializeElement(r));
     }
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${bounds[0]} ${bounds[1]} ${bounds[2] - bounds[0]} ${bounds[3] - bounds[1]}"><defs>${[...clips.values()].join('')}</defs>${paths.join('')}</svg>`;
   };
@@ -392,9 +390,7 @@ export async function storyFrame(
   // Declared intent takes priority over unrelated context that a rebuild
   // happens to replace or move. With no primary subject, inspect new art.
   const hasPrimary = targets.length > 0 || declared.length > 0;
-  const [x0, y0, x1, y1] = scene.frame.box()!;
-  const changed = hasPrimary ? new Set<number>() : await changedPaint(previous.paint, paint,
-    [x0 * 1000, -y1 * 1000, x1 * 1000, -y0 * 1000]);
+  const changed = hasPrimary ? new Set<number>() : await changedPaint(previous.paint, paint, userBox(scene.frame.box()!));
   for (const [index, r] of (hasPrimary ? [] : records).entries()) {
     if (!changed.has(index) || Number(r.attrs.opacity ?? 1) < 0.95) continue;
     const m = byId.get(r.id);
@@ -460,7 +456,7 @@ export function covered(target: Rect, views: readonly Rect[]): boolean {
 export async function inspectStoryFrame(page: Page, frame: StoryFrame) {
   const width = await page.locator('.stage').evaluate((stage) => stage.clientWidth);
   const slots = elementSlots(frame, width);
-  return page.locator('.stage svg:not(.leaving)').evaluate((node, { expected, slots }) => {
+  return page.locator('.stage svg:not(.leaving)').evaluate((node, { expected, slots, authorBox, units }) => {
     const svg = node as SVGSVGElement,
       stage = svg.parentElement!.getBoundingClientRect();
     const painted = [...svg.children].filter((e) => e.tagName.toLowerCase() !== 'defs') as SVGGraphicsElement[];
@@ -484,13 +480,7 @@ export async function inspectStoryFrame(page: Page, frame: StoryFrame) {
         throw new Error(`painted record ${i} differs from the resting scene`);
     }
     const rect = (r: DOMRect): [number, number, number, number] => [r.left, r.top, r.right, r.bottom];
-    const camera = expected.camera;
-    const author: [number, number, number, number] = [
-      camera[0]! * 1000,
-      -camera[3]! * 1000,
-      camera[2]! * 1000,
-      -camera[1]! * 1000,
-    ];
+    const author = authorBox;
     const points = (b: number[], matrix: DOMMatrix) => [
       new DOMPoint(b[0], b[1]).matrixTransform(matrix),
       new DOMPoint(b[2], b[3]).matrixTransform(matrix),
@@ -629,12 +619,12 @@ export async function inspectStoryFrame(page: Page, frame: StoryFrame) {
           const x = m.a * m.a + m.b * m.b,
             y = m.c * m.c + m.d * m.d;
           const largest = Math.sqrt((x + y + Math.hypot(x - y, 2 * (m.a * m.c + m.b * m.d))) / 2);
-          return largest ? (Math.abs(m.a * m.d - m.b * m.c) / largest) * 1000 : 0;
+          return largest ? (Math.abs(m.a * m.d - m.b * m.c) / largest) * units : 0;
         })(),
       };
     });
     return { viewport, ink, stage: rect(stage), viewBox: svg.getAttribute('viewBox') };
-  }, { expected: frame, slots });
+  }, { expected: frame, slots, authorBox: userBox(frame.camera as Box), units: UNITS });
 }
 
 /** Build-time obligations come from authored main/detail metadata and the
@@ -687,9 +677,7 @@ export function verifyStoryTargets(
       // The obligation comes from the authored frame, never from a possibly
       // damaged live clip. Each stop contributes only its actual shown ink.
       const authoredClip = frame.records[index]!.clipBox;
-      const expectedClip: Rect = authoredClip
-        ? [authoredClip[0] * 1000, -authoredClip[3] * 1000, authoredClip[2] * 1000, -authoredClip[1] * 1000]
-        : (original.author as Rect);
+      const expectedClip: Rect = authoredClip ? userBox(authoredClip) : (original.author as Rect);
       const clippedBox = bounded ? intersect(original.box as Rect, expectedClip) : null;
       const box = bounded ? clippedBox && intersect(clippedBox, original.author as Rect) : (original.box as Rect);
       if (!box) continue; // context outside an authored viewport is not newly shown ink

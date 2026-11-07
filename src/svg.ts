@@ -13,6 +13,8 @@ export const FRAME = { w: 16, h: 9 } as const;
 export const UNITS = 1000;
 /** A length in integer user units. */
 const len = (x: number): string => '' + Math.round(x * UNITS);
+/** A world box in user units, [left, top, right, bottom] with y down, unrounded: what the SVG draws it as. */
+export const userBox = (b: Readonly<Box>): Box => [b[0] * UNITS, -b[3] * UNITS, b[2] * UNITS, -b[1] * UNITS];
 /** A world box as a user-unit rect [x, y, width, height]: model y is up, SVG y is down, so y flips here. */
 const userRect = (b: Readonly<Box>): string[] => [len(b[0]), len(-b[3]), len(b[2] - b[0]), len(b[3] - b[1])];
 /** Camera: the viewBox is the scene's frame box (16 × 9 at the origin unless the camera moved). */
@@ -146,6 +148,12 @@ function clipFor(box: Box, parent?: Box): Clip {
   const coords = userRect(box);
   return {box, id: 'rayner-clip-' + coords.join('_'), attrs: {x:coords[0]!,y:coords[1]!,width:coords[2]!,height:coords[3]!}};
 }
+const serializeClip = (c: Clip): string => `<clipPath id="${c.id}" clipPathUnits="userSpaceOnUse"><rect${serializeAttrs(c.attrs)}/></clipPath>`;
+/** The `<clipPath>` a record clipped to `clipBox` (ElementRecord.clipBox) refers to, as toSvgString writes it. */
+export const clipPathOf = (clipBox: Box): { id: string; svg: string } => {
+  const c = clipFor(clipBox);
+  return { id: c.id, svg: serializeClip(c) };
+};
 const clippedRecords = new WeakMap<ElementRecord, {id:string; rec:ElementRecord}>();
 function clippedRecord(rec: ElementRecord, clip: Clip): ElementRecord {
   const cached = clippedRecords.get(rec);
@@ -380,7 +388,8 @@ function serializeAttrs(attrs: Attrs): string {
   }
   return s;
 }
-function serializeElement(el: ElementRecord): string {
+/** One element record as SVG markup, as toSvgString writes it. */
+export function serializeElement(el: ElementRecord): string {
   const t = el.transform ? ` transform="${esc(el.transform)}"` : '';
   return `<${el.tag}${t}${serializeAttrs(el.attrs)}` + (el.text == null ? '/>' : `>${esc(el.text)}</${el.tag}>`);
 }
@@ -410,7 +419,7 @@ export function toSvgString(scene: Scene, { width = 1280, background = scene.col
   const end = perf.begin('render.serialize');
   const parts = [s];
   const clips = clipsOf(els);
-  if (clips.length) parts.push('<defs>',...clips.map((c)=>`<clipPath id="${c.id}" clipPathUnits="userSpaceOnUse"><rect${serializeAttrs(c.attrs)}/></clipPath>`),'</defs>');
+  if (clips.length) parts.push('<defs>',...clips.map(serializeClip),'</defs>');
   for (const el of els) parts.push(el.svg ??= serializeElement(el));
   parts.push('</svg>');
   end();
