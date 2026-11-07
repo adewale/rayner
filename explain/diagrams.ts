@@ -46,7 +46,12 @@ interface Part {
 }
 export type NoteSide = 'above' | 'below' | 'left' | 'right';
 /** What a picture of a diagram shows besides its parts: its marks with their words, and the parts dimming keeps. */
-interface PictureShows { marks: ReadonlyMap<string, { color: string; as: string }>; kept: ReadonlySet<string> | null }
+interface PictureShows {
+  marks: ReadonlyMap<string, { color: string; as: string }>;
+  kept: ReadonlySet<string> | null;
+  /** False for a picture describing itself apart from the diagram (a second copy, say): the live walk is not its. */
+  walk?: boolean;
+}
 const pictureShows = Symbol('pictureShows');
 /** A note in a diagram's picture: beside part `id`, as `note(id, text, { side, color, size })` draws it. */
 export interface PictureNote { id: string; text: string; side?: NoteSide; color?: string; size?: number }
@@ -802,7 +807,7 @@ export class Diagram {
     const walked = this.walked;
     const focused = this.inFocus();
     const trailed = walked?.edges.every((id) => marks.get(id)?.as === w.travelled);
-    if (walked && walked.step === step && !walked.trail && !trailed) parts.push({ name: walked.hops.join(', '), mark: w.path });
+    if (walked && walked.step === step && !walked.trail && !trailed && as?.walk !== false) parts.push({ name: walked.hops.join(', '), mark: w.path });
     // Live notes sit in the root: a picture that shows the diagram has its own, drawn from state.
     if (!as) for (const n of this.notes) parts.push({ name: w.beside(n.text, this.nameOf(n.id)), mark: w.note });
     // Notes drawn from state, in the order the stage draws them; ones no longer on stage are forgotten.
@@ -1009,7 +1014,7 @@ export class Diagram {
       return key === undefined ? [] : [[prefix + key, m.as ? `mark ${m.color} ${m.as}` : `mark ${m.color}`]];
     });
     // Described with the diagram while it shows it; on its own, as the diagram it pictures.
-    return selfDescribed(pictured, () => (this.shows(pictured) ? { what: '', parts: [] } : this.describe({ marks: said, kept })), () => emphasis);
+    return selfDescribed(pictured, () => (this.shows(pictured) ? { what: '', parts: [] } : this.describe({ marks: said, kept, walk: false })), () => emphasis);
   }
   /** Whether the stage describes this diagram now: its root, or the picture that shows it, is on stage. */
   private described(): boolean {
