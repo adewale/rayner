@@ -130,14 +130,16 @@ export default class GlyphExplainer extends Scene {
       glyphs: measured.children.length,
       gains: Object.fromEntries(groups.map(([name, is]) => [name, +sum(is).toFixed(3)])),
     };
-    // The card is a view of the state: the gains by group, and the group it lights.
-    this.state = { ...measuring, lit: named(stems) };
-    const card = view(this, (st) => {
-      const c = st as typeof measuring & { lit: string | null };
+    // The card is a view: the gains by group are the model's (this.state), and the group it lights is
+    // how the step shows them (this.shown).
+    this.state = { ...measuring };
+    this.shown.lit = named(stems);
+    const card = view(this, (st, sh) => {
+      const c = st as typeof measuring;
       const drawn = new Card(this, s.palette, Object.entries(c.gains).map(([name, gain]) => [name, signed(gain)]), {
         at: [-4.6, -4.25, 4.6, -1.3],
         title: `${NAME.mono} − ${NAME.sans}: +${total.toFixed(2)} units`,
-        lit: c.lit,
+        lit: (sh as { lit: string | null }).lit,
         key: 'gains',
       });
       drawn.bar.style.fill = hot;
@@ -155,6 +157,8 @@ export default class GlyphExplainer extends Scene {
       caption: `Rayner’s shape matcher, TransformMatchingShapes, compares outlines after removing position and size. The ${SMALL * 100}% copy keeps those paths, so all ${measured.children.length} of its glyphs pair with the originals; the space has no outline to pair. In this phrase the other font changes the paths: none pairs across the fonts. A character name identifies a letter, not a particular outline.`,
     });
     await s.clear();
+    // The card has gone, and the row it lit with it.
+    delete this.shown.lit;
     const row = letterRow(font, wide, ink);
     await s.enter(row, { runTime: 0.5 });
     const { smaller, across } = letterTargets(row, font, other, SMALL, wide, ink, hot);

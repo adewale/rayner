@@ -212,12 +212,13 @@ export default class PenAndPencil extends Scene {
     const corner = await s.code(WORLD.split('\n'), { at: [-7.55, 1.5, -2.95, 2.75], fontSize: 0.3, enter: false });
     await s.enter(corner);
     const d = await s.show({ source: WORLD }, { box: CHART_BOX });
-    // What the layout shows besides its source is state: the period it marks as measured. Its view draws it.
-    this.state.layout = { marked: [] };
-    const layoutView = s.diagramView(d, (st) => ({
-      marks: Object.fromEntries((st.layout as { marked: string[] }).marked.map((id) => [id, { color: d.accent, as: 'measured' }])),
+    // How the layout is shown, apart from its source: the period it marks as measured. That is
+    // `shown`, not the model; its view draws it.
+    this.shown.layout = { marked: [] };
+    const layoutView = s.diagramView(d, (_st, sh) => ({
+      marks: Object.fromEntries((sh.layout as { marked: string[] }).marked.map((id) => [id, { color: d.accent, as: 'measured' }])),
     }));
-    this.state.layout = { marked: [`period:period-${FOCUS}`] };
+    this.shown.layout = { marked: [`period:period-${FOCUS}`] };
     await this.play(layoutView.sync({ match: 'key', staged: true, runTime: 0.45 }));
     const [ex0, ey0, ex1] = focus.event.box;
     const width = await s.dimension([ex0, ey0], [ex1, ey0], `${fmt(ex1 - ex0, 2)} units`, { offset: -0.3 });
@@ -228,12 +229,12 @@ export default class PenAndPencil extends Scene {
       caption: `Agentic Mermaid lays the real timeline out first, sizing each box from its words’ measured widths. The construction pencil traces those fixed outlines, and the ink then follows them. These marks separate where the chart belongs from how its strokes look; they are the same in both drawings. The ${wordCount} words have places to fit before either drawing begins.`,
     });
     await drop(width);
-    // The mark goes with the state, then the live diagram takes the view's place to fade.
-    this.state.layout = { marked: [] };
+    // The mark goes first, then the live diagram takes the view's place to fade.
+    this.shown.layout = { marked: [] };
     await this.play(layoutView.sync({ match: 'key', staged: true, runTime: 0.3 }));
     s.liveDiagram(d);
     await d.hide();
-    delete this.state.layout;
+    delete this.shown.layout;
     const traced = await s.sketch(construction, {
       tool: 'pencil',
       color: CONSTRUCTION,
