@@ -59,8 +59,6 @@ interface PgState {
   tuples: [TupleState, TupleState];
   full: { rows: number; share: Share };
   why: { used: number; free: number; lower: number; upper: number; heapFree: number; needs: number; unrounded: number };
-  /** The pie's slices marked in the why step. */
-  pie: { marked: string[] };
   compare: Record<Column, { perRow: number; rows: number; pages: number }>;
 }
 
@@ -331,13 +329,14 @@ export default class PgPageExplainer extends Scene {
     await s.clear();
     this.state.why = { used, free: p.free, lower: p.lower, upper: p.upper, heapFree: p.heapFree, needs: t.stored, unrounded: t.lpLen };
     d = await s.show({ source: fullPie() }, { box: PIE_BOX });
-    // What the pie shows besides its source is state: the slices it marks. Its view draws them.
+    // How the pie is shown, apart from its source: the slices it marks. That is `shown`, not the
+    // model; its view draws them.
     const whyPie = d;
-    this.state.pie = { marked: [] };
-    const pieView = s.diagramView(whyPie, (state) => ({
-      marks: Object.fromEntries((state as unknown as PgState).pie.marked.map((id) => [id, { color: whyPie.accent, as: 'too small for another row' }])),
+    this.shown.pie = { marked: [] };
+    const pieView = s.diagramView(whyPie, (_state, sh) => ({
+      marks: Object.fromEntries((sh.pie as { marked: string[] }).marked.map((id) => [id, { color: whyPie.accent, as: 'too small for another row' }])),
     }));
-    this.state.pie = { marked: ['slice:Free space'] };
+    this.shown.pie = { marked: ['slice:Free space'] };
     await this.play(pieView.sync({ match: 'key', staged: true, runTime: 0.45 }));
     // The arithmetic, from the full page's row count, the row's cost and what the why step records.
     const why = cardOf(
@@ -363,6 +362,8 @@ export default class PgPageExplainer extends Scene {
       caption: `Each line is a table of 10 000 rows, as measured on Postgres 18.6. int4 and int8 rows both take ${i4.tuple.perRow} bytes, so both tables take ${i4.pagesFor10000} pages. Put an ${TEXT_CHARS}-character text column after the integer and the padding is used up differently: the int8 table takes ${i8t.pagesFor10000} pages to the int4 table’s ${i4t.pagesFor10000}. Whether a narrower type saves space depends on where the 8-byte boundaries fall.`,
     });
     await s.clear();
+    // The pie has gone, and the slice it marked with it.
+    delete this.shown.pie;
     this.state.compare = Object.fromEntries(
       all.map((x) => [x.column, { perRow: x.tuple.perRow, rows: x.page.rows, pages: x.pagesFor10000 }]),
     );
