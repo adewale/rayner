@@ -1,4 +1,4 @@
-// The script's check answers, computed from the model: rayner check holds script.md's to these.
+// The answers to the script's reader questions, computed from the model: rayner check holds script.md's to these.
 import { exec } from './model.ts';
 import type { Shell } from './model.ts';
 
@@ -19,7 +19,7 @@ try {
 }
 const CHECK = { branch: { second: files(second) }, plain: { stdout: plain.stdout, files: files(plain.shell) }, ls };
 
-export const checks = {
+export const questions = {
   1: () =>
     `The second result holds ${CHECK.branch.second} and nothing else. a.txt is in the first result, because the second command started from the empty shell, which never received the first write.`,
   2: () =>

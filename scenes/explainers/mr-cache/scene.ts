@@ -101,7 +101,7 @@ export default class CacheMRExplainer extends Scene {
     };
     const showFlow = async (change: Partial<FlowState>, runTime = 0.45) => {
       this.shown.flow = { ...flowState(), ...change };
-      await this.play(flowView.sync({ match: 'key', staged: true, runTime }));
+      await this.play(flowView.sync({ runTime }));
     };
     this.shown.flow = { walked: [], notes: [], dim: null } satisfies FlowState;
     let flowView = s.diagramView(flow, drawFlow);

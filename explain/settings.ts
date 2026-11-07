@@ -41,11 +41,11 @@ export type ExplainerClass = SceneClass & {
      */
     answer?: string;
     /**
-     * Questions a reader should be able to answer afterwards, each with its answer (at most six). The
-     * player asks them after the last step, with each answer behind a disclosure; the transcript and
-     * `describeExplainer` carry them too.
+     * Questions a reader should be able to answer afterwards, each with its answer (at most six): the
+     * script's `## Check yourself` list. The player asks them after the last step, with each answer
+     * behind a disclosure; the transcript and `describeExplainer` carry them too.
      */
-    checks?: readonly { question: string; answer: string }[];
+    questions?: readonly { question: string; answer: string }[];
     /**
      * Claims that reach beyond the scenarios shown (a sentence with "every", "never", "only" and the like),
      * each with the test that holds it: `says` is a phrase of the sentence, `test` is

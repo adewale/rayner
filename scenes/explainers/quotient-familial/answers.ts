@@ -1,4 +1,4 @@
-// The script's answer and check answers, computed from the model: rayner check holds script.md's to these.
+// The script's answer and the answers to its reader questions, computed from the model: rayner check holds script.md's to these.
 import { BAREME, NNBSP, PARAMS, euros, impot, partsTexte, pourcent, tranche } from './model.ts';
 
 const nb = NNBSP,
@@ -6,7 +6,7 @@ const nb = NNBSP,
   pv = `${nb};`;
 const eur2 = (x: number) => euros(x, 2);
 const tauxTexte = (q: number) => pourcent(BAREME[2024][tranche(q)]!.rate);
-/** The households the check answers compare: the default, one child at 30 000 € and 150 000 €, and no child at 30 000 €. */
+/** The households the answers compare: the default, one child at 30 000 € and 150 000 €, and no child at 30 000 €. */
 export const DEFAUT = impot(65673.88, 1),
   UN30 = impot(30000, 1),
   UN150 = impot(150000, 1),
@@ -17,7 +17,7 @@ export const DEFAUT = impot(65673.88, 1),
 export const answer = () =>
   `Diviser change l’impôt parce que le barème est progressif${deux} chaque part repart du bas du barème, donc moins d’euros atteignent les tranches les plus taxées que sur le revenu entier`;
 
-export const checks = {
+export const questions = {
   1: () => ({
     question: `Si l’impôt prenait ${pourcent(PLAT)} de chaque euro, sans tranches, un enfant de plus changerait-il l’impôt du couple à ${eur2(65673.88)}${nb}? Pourquoi${nb}?`,
     answer: `Non${deux} ${pourcent(PLAT)} × (${eur2(65673.88)} ÷ ${partsTexte(DEFAUT.parts)}) × ${partsTexte(DEFAUT.parts)} = ${pourcent(PLAT)} × ${eur2(65673.88)} = ${eur2(PLAT * 65673.88)}, quel que soit le nombre de parts. Diviser ne change l’impôt que parce que le taux monte avec le revenu${deux} avec un seul taux, aucune part ne fait redescendre d’euros vers un taux plus bas.`,

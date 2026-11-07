@@ -1,4 +1,4 @@
-// The script's check answers, computed from the model: rayner check holds script.md's to these.
+// The answers to the script's reader questions, computed from the model: rayner check holds script.md's to these.
 import { frac, nodeShares, ruleShares, rules, shares, value } from './model.ts';
 
 const FOUR_ONE = shares([4, 1, 0], 'local'),
@@ -10,7 +10,7 @@ const EVEN4 = [0, 1, 2, 3, 4]
   .filter((c) => new Set(Object.values(shares(c, 'local')).map(frac)).size === 1);
 const EVEN4_SHAPES = [...new Set(EVEN4.map((c) => [...c].sort((a, b) => b - a).join(', ')))];
 
-export const checks = {
+export const questions = {
   1: () =>
     `Node 3 fails the health check, so Node 1 and Node 2 get ${frac(FOUR_ONE_NODES[0]!)} each. Node 2’s one pod keeps all of its ${frac(FOUR_ONE_NODES[1]!)}; Node 1 splits its ${frac(FOUR_ONE_NODES[0]!)} four ways, ${frac(FOUR_ONE.a!)} each. The lone pod gets ${value(FOUR_ONE.e!) / value(FOUR_ONE.a!)} times as many requests.`,
   2: () =>

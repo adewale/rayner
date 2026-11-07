@@ -13,7 +13,7 @@ const width = (font: 'sans' | 'mono', text: string) => shaperFor(font)(text, SIZ
 
 test('glyph: the check answers’ widths are the shapers’ own', async () => {
   await loadFonts();
-  const answers = explainerMeta(GlyphExplainer, 'scenes/explainers/glyph').checks!.map((c) => c.answer).join(' ');
+  const answers = explainerMeta(GlyphExplainer, 'scenes/explainers/glyph').questions!.map((c) => c.answer).join(' ');
   // “illicit” and “mammoth”: seven cells each in JetBrains Mono; thin stems against wide m’s in Inter.
   for (const word of ['illicit', 'mammoth']) assert.equal(width('mono', word).toFixed(2), '3.78');
   assert.equal(width('sans', 'illicit').toFixed(2), '1.90');

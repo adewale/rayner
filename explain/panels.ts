@@ -37,8 +37,8 @@ export interface CardOptions {
   /** The word the description gives the lit row (default "marked", in the scene's language), such as `'rejected'`. */
   litAs?: string;
   /**
-   * Key the card and its parts under this name, for a card drawn in a view: `view.sync({ match:
-   * 'key', staged: true })` then changes it in place. Each value's key includes its text, so an
+   * Key the card and its parts under this name, for a card drawn in a view: `view.sync()` then changes it
+   * in place. Each value's key includes its text, so an
    * unchanged value stays put, a changed one fades out as its replacement fades in, and the bar
    * moves to the lit row.
    */
@@ -326,8 +326,8 @@ export interface CodeOptions {
   /** The word the description gives the focused lines (default "focused", in the scene's language). */
   focusAs?: string;
   /**
-   * Key the panel and its parts under this name, for a panel drawn in a view: `view.sync({ match:
-   * 'key', staged: true })` then moves the focus bar, keeps each line that stays (paired by its
+   * Key the panel and its parts under this name, for a panel drawn in a view: `view.sync()` then moves the
+   * focus bar, keeps each line that stays (paired by its
    * text, wherever it moves), fades a changed line out as its replacement fades in, and brings in
    * the `added` bars. A line already keyed keeps its key.
    */

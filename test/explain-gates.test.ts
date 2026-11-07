@@ -51,7 +51,7 @@ test('numerals outside Latin draw from the fallback faces and pass every gate, i
   assert.equal((report.scenarios as unknown[]).length, 1);
 });
 
-// A diagram whose label B is readable only in mid-sweep: focus(['B']) zooms to it, focus('all') ends the step with it at 4 px.
+// A diagram whose label B is readable only in mid-sweep: enlarge(['B']) zooms to it, enlarge('all') ends the step with it at 4 px.
 const spec = { source: 'graph LR\nA -->|hello| B', style: 'nord' };
 function smallLabel(): DiagramSnapshot {
   const shape = (x: number) => square(x, { fill: '#fff', stroke: '#000' });
@@ -155,7 +155,7 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
   },
   {
     gate: 'imported legibility: a label readable only mid-sweep',
-    source: `import{Scene}from'rayner';import{stage}from'rayner/explain';export default class Camera extends Scene{async construct(){const s=stage(this);await this.step('one',{caption:'Read the label.'});const d=await s.show(${JSON.stringify(spec)});await d.focus(['B']);await this.wait(.5);await d.focus('all');await this.wait(.5);}}`,
+    source: `import{Scene}from'rayner';import{stage}from'rayner/explain';export default class Camera extends Scene{async construct(){const s=stage(this);await this.step('one',{caption:'Read the label.'});const d=await s.show(${JSON.stringify(spec)});await d.enlarge(['B']);await this.wait(.5);await d.enlarge('all');await this.wait(.5);}}`,
     snapshots: () => ({ [diagramKey(spec)]: smallLabel() }),
     message: /Imported labels need a readable completed-step view/,
   },

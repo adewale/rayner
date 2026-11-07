@@ -40,7 +40,7 @@ Each explainer folder (`scenes/explainers/<id>/`, `scenes/tutorial/<id>/`) holds
 | File | Owns | Run by |
 | --- | --- | --- |
 | `model.test.ts` | The model against its source: vectors, real-program answers, exhaustive searches and properties. It imports only the folder's files, `scenes/explainers/lib/` (including `pbt.ts`, the seeded fast-check settings) and the public entry points, `rayner/testing` among them | `rayner check`, first; `npm test` |
-| `answers.ts` | The script's answer and check answers, computed from the model; the facts their words take as given are in `model.test.ts` | `rayner check`; `test/explain-script-answers.test.ts` for the whole collection |
+| `answers.ts` | The script's answer and its reader questions' answers, computed from the model; the facts their words take as given are in `model.test.ts` | `rayner check`; `test/explain-script-answers.test.ts` for the whole collection |
 | `scene.test.ts` | Assertions on the scene and its pictures: views against state, captured diagrams, the story's steps. It may use `test/lib/` and the tools | `npm test` |
 | `fidelity.ts` | Every authored scenario's step state against the program the explainer explains, as `check(trace, values, run)` | `test/explain-fidelity.test.ts`, which collects each explainer once |
 | `oracle/` | The independent program that produced a fixture, run by hand; each writes beside itself | by hand, or its `--check` |

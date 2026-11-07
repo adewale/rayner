@@ -383,7 +383,7 @@ test('a step records what it emphasised with the helpers, and only that step', a
       this.state.first = 1;
       this.shown.lit = null;
       this.shown.focus = null;
-      const sync = (v: View) => this.play(v.sync({ match: 'key', staged: true }));
+      const sync = (v: View) => this.play(v.sync());
       await this.step('card');
       this.shown.lit = 'third';
       const card = view(this, (st, sh) =>

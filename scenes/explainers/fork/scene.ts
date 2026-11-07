@@ -163,7 +163,7 @@ export default class ForkExplainer extends Scene {
     this.state.unbuilt = { rate: UNBUILT, r10: slow.ok ? 200 : 429, found: Number(slow.found.toFixed(2)) };
     this.state.runs = [...sentenceState().runs, runOf(UNBUILT, false)];
     // The question mark goes and the row of answers comes in under the offered rates.
-    await this.play(unbuiltRow.sync({ match: 'key', runTime: 0.6 }));
+    await this.play(unbuiltRow.sync({ staged: false, runTime: 0.6 }));
 
     // 3. Why no reader meets that row: a link picks one of the scenarios the build made, or gets the default.
     const resolver = { settings: [RATE_SETTING] } as unknown as ExplainerClass;
@@ -214,7 +214,7 @@ export default class ForkExplainer extends Scene {
       marks: Object.fromEntries(sh.lanternMarked ? [['Worker', { color: s.emphasis, as: 'renders on request' }]] : []),
     }));
     this.shown.lanternMarked = true;
-    await this.play(lanternView.sync({ match: 'key', staged: true, runTime: 0.45 }));
+    await this.play(lanternView.sync({ runTime: 0.45 }));
     // What the Worker did, beside it: GET /frame.svg?scene=&step= or &t=, rendered when asked.
     const worker = lantern.get('Worker').box()!;
     await s.enter(
@@ -275,7 +275,7 @@ export default class ForkExplainer extends Scene {
     let flowView: View = s.diagramView(flow, drawFlow(flow));
     const showFlow = async (change: Partial<FlowShown>, runTime = 0.45) => {
       this.shown.flow = { ...(this.shown.flow as FlowShown), ...change };
-      await this.play(flowView.sync({ match: 'key', staged: true, runTime }));
+      await this.play(flowView.sync({ runTime }));
     };
     await showFlow({ deleted: GONE });
     await showFlow({ deleted: [] }, 0.35);
@@ -307,7 +307,7 @@ export default class ForkExplainer extends Scene {
     this.shown.flow = { ...(this.shown.flow as FlowShown), walked: path, notes: [{ id: 'Page', text: 'no diagram renderer', side: 'above' }] };
     await this.play(
       new FadeIn(familiesNote, { runTime: 0.35, shift: [0, -0.06] }),
-      flowView.sync({ match: 'key', staged: true, runTime: 0.35 }),
+      flowView.sync({ runTime: 0.35 }),
     );
 
     // A detail after the ending: the page holds each resting picture for its caption. It reads the
@@ -326,7 +326,7 @@ export default class ForkExplainer extends Scene {
     await s.clearOverlays();
     await showFlow({ walked: [], notes: [] });
     s.liveDiagram(flow);
-    await flow.focus(['Clock', 'Page', 'Frames', 'Image', 'Check'], { zoom: 0.95 });
+    await flow.enlarge(['Clock', 'Page', 'Frames', 'Image', 'Check'], { zoom: 0.95 });
     flowView = s.diagramView(flow, drawFlow(flow));
     await showFlow({ dim: ['Clock', 'Frames', 'Image'] });
     this.state.timing = { motion: Number(motion.toFixed(2)), held: Number(held.toFixed(2)), words };

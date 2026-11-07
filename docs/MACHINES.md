@@ -107,7 +107,7 @@ it (token-bucket's client sends ten requests). Exploration does not follow it ei
 player says the story stops there rather than that the model refuses. A bound only bounds:
 `rayner check` fails one placed on an event the model refuses anyway, since that is a refusal.
 
-An event may have authored motion instead of the keyed morph. `choreograph(current, target)`
+An event may have authored motion instead of the keyed morph. The transition's `t.choreograph(view)`
 names the keyed parts of a view's picture and of its target, and each call animates some of
 them in the author's order; `rest()` lands every part no call named, so a transition that
 forgets a part still ends on the target. From `ring-buffer`, with the refused push left out:
@@ -171,7 +171,7 @@ ring-buffer with its transitions taken out, under three defaults:
   found", and "pear is still stored, in entry 1." and "Slot 0 has never been used…", on top of
   each other, half faded, for about a third of the press; ring-buffer's operation card showed
   "push 7" and "pop" overlapping, and its head, tail and length values sat on each other.
-- **`choreograph(view.current, target).rest()`, staged** (what goes fades out, what persists
+- **`t.choreograph(view).rest()`, staged** (what goes fades out, what persists
   morphs, what comes fades in). A keyed part that persists morphs whole, so a cell whose word
   changed morphed "KeyError" into "not found" letter shape by letter shape, unreadable for most of
   the press. Worse, `rest()` sees only keyed parts: python-dict's note and ring-buffer's readouts

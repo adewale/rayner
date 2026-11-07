@@ -36,7 +36,7 @@ Write the plan before any code (principle 1). The plan is the explainer's script
 - **Reader:** a developer choosing a replacement policy who assumes recently used data is always worth keeping.
 - **Answer:** LRU evicts the item used longest ago
 - **Changed condition:** the last four of eight requests through three slots. After A B C D, repeating A B C D gives LRU 0 hits and MRU 3; changing them to C D C D gives LRU 4 and MRU 0. The first four requests, and so the first eviction, are the same in both.
-- **Reader's own work:** predict which item each policy evicts when D arrives; switch the requests between A B C D again and C D C D; answer the check questions.
+- **Reader's own work:** predict which item each policy evicts when D arrives; switch the requests between A B C D again and C D C D; answer the reader questions.
 - **Checked against:** the worked LRU and MRU examples in Wikipedia's "Cache replacement policies", in `model.test.ts`; Chou and DeWitt (VLDB 1985) for when MRU suits a file scanned over and over.
 - **Leaves out:** the cost of tracking recency, latency, and random access, where Chou and DeWitt report that the choice is immaterial; the hit counts are for eight requests through three slots.
 
@@ -180,7 +180,7 @@ export default class LruMru extends Scene {
     const show = async (n: number, lit: string | null = null) => {
       this.state = shown(n);
       this.shown = { lit };
-      await this.play(card.sync({ match: 'key', staged: true }));
+      await this.play(card.sync());
     };
 
     await this.step('full', { title: 'Same items, same order', line: 'A, B and C missed and filled all three slots.', caption: 'Both caches have seen the same three requests, so both hold C, B, A from newest to oldest. The next request, D, misses in both and forces each policy to evict one item.' });
@@ -224,7 +224,7 @@ export default class LruMru extends Scene {
 
 Read it from the top:
 
-- `static meta` holds the sources the model was checked against. The id, which names the output files, is the folder's name, and the title, answer and check questions come from the script's header.
+- `static meta` holds the sources the model was checked against. The id, which names the output files, is the folder's name, and the title, answer and reader questions come from the script's header (the questions from its `## Check yourself` list).
 - `static settings` declares one setting with two options. Each option is a scenario: the reader can switch between them, and `check` and `review` visit both. Both scenarios send A B C D first, then either repeat the loop or alternate C and D.
 - `trace` asks the model once per scenario. Every value on the card comes from it: `shown(n)` turns the trace into what the card shows after the first `n` requests.
 - The card is a view of the state: `view(this, draw)` builds a `Card` from `this.state` whenever the state changes, and `show(n, lit)` puts the values after `n` requests (and the row to light) in the state and plays `card.sync(...)`. So the card cannot drift from the state that tests and `rayner describe` read, and `check` redraws it from that state at every step. The card's `key` lets the sync change only what changed: a new value fades in where the old one fades out, and the bar moves to the lit row.

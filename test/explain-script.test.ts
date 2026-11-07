@@ -1,7 +1,7 @@
-// The script gate: meta.answer stated by some teaching step, where reported; meta.checks well formed (explain/script.ts).
+// The script gate: meta.answer stated by some teaching step, where reported; meta.questions well formed (explain/script.ts).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { answerStep, checkScriptMeta, normalise, scriptReport, CHECKS_MAX } from '../explain/script.ts';
+import { answerStep, checkScriptMeta, normalise, scriptReport, QUESTIONS_MAX } from '../explain/script.ts';
 
 const step = (name: string, meta: Record<string, unknown>) => ({ step: name, meta });
 const steps = [
@@ -24,9 +24,9 @@ test('reference steps are not teaching steps: the answer is counted among the st
 });
 
 test('the gate fails an answer no step states, reports where a stated one first appears, and reports what is undeclared', () => {
-  assert.deepEqual(scriptReport({ answer: 'LRU evicts the item used longest ago', checks: [{ question: 'Q?', answer: 'A.' }] }, steps), {
+  assert.deepEqual(scriptReport({ answer: 'LRU evicts the item used longest ago', questions: [{ question: 'Q?', answer: 'A.' }] }, steps), {
     answer: { step: 'rule', at: 2 },
-    checks: 1,
+    questions: 1,
     missing: [],
     problems: [],
   });
@@ -34,16 +34,16 @@ test('the gate fails an answer no step states, reports where a stated one first 
   const late = scriptReport({ answer: 'And so on' }, steps);
   assert.deepEqual(late.problems, []);
   assert.deepEqual(late.answer, { step: 'more', at: 3 });
-  assert.deepEqual(late.missing, ['checks']);
+  assert.deepEqual(late.missing, ['questions']);
   assert.match(scriptReport({ answer: 'Never said' }, steps).problems[0]!, /No step states meta.answer/);
-  assert.deepEqual(scriptReport(undefined, steps), { checks: 0, missing: ['answer', 'checks'], problems: [] });
+  assert.deepEqual(scriptReport(undefined, steps), { questions: 0, missing: ['answer', 'questions'], problems: [] });
 });
 
 test('malformed script meta is refused', () => {
   assert.throws(() => checkScriptMeta({ answer: ' ' }), /meta.answer/);
-  assert.throws(() => checkScriptMeta({ checks: [] }), /list of/);
-  assert.throws(() => checkScriptMeta({ checks: [{ question: 'Q?' }] }), /has no answer/);
-  assert.throws(() => checkScriptMeta({ checks: [{ answer: 'A' }] }), /has no question/);
-  assert.throws(() => checkScriptMeta({ checks: Array.from({ length: CHECKS_MAX + 1 }, () => ({ question: 'Q', answer: 'A' })) }), /at most/);
-  assert.doesNotThrow(() => checkScriptMeta({ answer: 'Yes.', checks: [{ question: 'Q?', answer: 'A.' }] }));
+  assert.throws(() => checkScriptMeta({ questions: [] }), /list of/);
+  assert.throws(() => checkScriptMeta({ questions: [{ question: 'Q?' }] }), /has no answer/);
+  assert.throws(() => checkScriptMeta({ questions: [{ answer: 'A' }] }), /has no question/);
+  assert.throws(() => checkScriptMeta({ questions: Array.from({ length: QUESTIONS_MAX + 1 }, () => ({ question: 'Q', answer: 'A' })) }), /at most/);
+  assert.doesNotThrow(() => checkScriptMeta({ answer: 'Yes.', questions: [{ question: 'Q?', answer: 'A.' }] }));
 });

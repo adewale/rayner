@@ -1,8 +1,8 @@
-// The script's check answers, computed from the model: rayner check holds script.md's to these.
+// The answers to the script's reader questions, computed from the model: rayner check holds script.md's to these.
 import { FROTHER, RUNS, chartCounts, coffee, coffeeWithFrother, flatCounts, flatten, run } from './model.ts';
 import type { StateNode } from './model.ts';
 
-// The check questions' machines, as the scene built them: no step draws them.
+// The reader questions' machines, as the scene built them: no step draws them.
 const atomic = (id: string, on?: Record<string, string>): StateNode => ({ id, type: 'atomic', ...(on ? { on } : {}) });
 const frotherRegion = (): StateNode => ({
   id: FROTHER.region,
@@ -26,7 +26,7 @@ const CHECKS = {
   again: run(coffeeWithFrother(), [...RUNS.frother, 'POWER_ON']).at(-1)!.config,
 };
 
-export const checks = {
+export const questions = {
   1: () =>
     `Outside on, beside the whole machine: since the frother works whether the machine is off or on, it becomes a region next to the off-and-on machine, and the statechart’s top level splits in two. Flat, every one of the machine’s ${CHECKS.machine} states pairs with still or frothing, off included: ${CHECKS.outside.states} states where the frother inside on needed ${CHECKS.inside.states}.`,
   2: () =>

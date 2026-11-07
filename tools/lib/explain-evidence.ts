@@ -1,5 +1,5 @@
 // An explainer folder's own evidence, which `rayner check` holds the scene to before anything else:
-// the model's test (model.test.ts), the check answers computed from the model (answers.ts) and the
+// the model's test (model.test.ts), the reader questions' answers computed from the model (answers.ts) and the
 // files the script's Checked against line names. See docs/REFERENCE.md, "Checks".
 import { spawn } from 'node:child_process';
 import { access } from 'node:fs/promises';
@@ -88,12 +88,12 @@ export async function runModelTest(sceneFile: string): Promise<ModelTestReport |
   return { file: shown.startsWith('..') ? file : shown, tests: results.length, passed: results.filter((r) => r.passed).length, skipped: ended.length - results.length, failed };
 }
 
-/** A check as answers.ts computes it: its answer, or its question, its answer or both. */
+/** A reader question as answers.ts computes it: its answer, or its question, its answer or both. */
 type Computed = string | { question?: string; answer?: string };
-/** What answers.ts exports: the script's answer, and check answers by 1-based number or by question. */
+/** What answers.ts exports: the script's answer, and the reader questions' answers by 1-based number or by question. */
 export interface AnswersModule {
   answer?: () => string;
-  checks?: Record<string, () => Computed>;
+  questions?: Record<string, () => Computed>;
 }
 export interface AnswersReport {
   file: string;
@@ -103,12 +103,12 @@ export interface AnswersReport {
 }
 
 /**
- * Hold the script's answer and check answers to those `answers.ts` computes from the model, compared
+ * Hold the script's answer and its reader questions' answers to those `answers.ts` computes from the model, compared
  * as the answer gate compares (explain/script.ts normalise). `load` imports answers.ts.
  */
 export async function compareAnswers(
   sceneFile: string,
-  meta: { answer?: unknown; checks?: unknown } | undefined,
+  meta: { answer?: unknown; questions?: unknown } | undefined,
   load: (file: string) => Promise<Record<string, unknown>>,
 ): Promise<AnswersReport | undefined> {
   const file = join(dirname(sceneFile), 'answers.ts');
@@ -117,8 +117,8 @@ export async function compareAnswers(
   const shown = relative(process.cwd(), file) || file;
   const problems: string[] = [];
   let compared = 0;
-  if (module.answer === undefined && module.checks === undefined)
-    problems.push('answers.ts exports neither answer nor checks');
+  if (module.answer === undefined && module.questions === undefined)
+    problems.push('answers.ts exports neither answer nor questions');
   const differs = (what: string, script: string, model: string) =>
     problems.push(`${what}: script.md says "${script}", the model gives "${model}"`);
   if (module.answer !== undefined) {
@@ -130,28 +130,28 @@ export async function compareAnswers(
       else if (normalise(meta.answer) !== normalise(model)) differs('The answer', meta.answer, model);
     }
   }
-  const checks = (Array.isArray(meta?.checks) ? meta.checks : []) as { question: string; answer: string }[];
-  for (const [key, compute] of Object.entries(module.checks ?? {})) {
+  const questions = (Array.isArray(meta?.questions) ? meta.questions : []) as { question: string; answer: string }[];
+  for (const [key, compute] of Object.entries(module.questions ?? {})) {
     if (typeof compute !== 'function') {
-      problems.push(`answers.ts: checks[${JSON.stringify(key)}] must be a function of the model`);
+      problems.push(`answers.ts: questions[${JSON.stringify(key)}] must be a function of the model`);
       continue;
     }
     // A number is the question's place in ## Check yourself, from 1; any other key is the question itself.
-    const at = /^[1-9]\d*$/.test(key) ? Number(key) - 1 : checks.findIndex((c) => normalise(c.question) === normalise(key));
-    const check = checks[at];
-    if (!check) {
-      problems.push(/^\d+$/.test(key) ? `answers.ts computes check ${key}, and the script asks ${checks.length}` : `answers.ts computes the answer to "${key}", and the script asks no such question`);
+    const at = /^[1-9]\d*$/.test(key) ? Number(key) - 1 : questions.findIndex((c) => normalise(c.question) === normalise(key));
+    const asked = questions[at];
+    if (!asked) {
+      problems.push(/^\d+$/.test(key) ? `answers.ts computes question ${key}, and the script asks ${questions.length}` : `answers.ts computes the answer to "${key}", and the script asks no such question`);
       continue;
     }
     compared++;
     const computed = compute();
     const model = typeof computed === 'string' ? { answer: computed } : computed;
     if (typeof model.question !== 'string' && typeof model.answer !== 'string') {
-      problems.push(`answers.ts: check ${at + 1} gives neither a question nor an answer`);
+      problems.push(`answers.ts: question ${at + 1} gives neither a question nor an answer`);
       continue;
     }
-    if (typeof model.question === 'string' && normalise(check.question) !== normalise(model.question)) differs(`Check ${at + 1}'s question`, check.question, model.question);
-    if (typeof model.answer === 'string' && normalise(check.answer) !== normalise(model.answer)) differs(`Check ${at + 1} ("${check.question}")`, check.answer, model.answer);
+    if (typeof model.question === 'string' && normalise(asked.question) !== normalise(model.question)) differs(`Question ${at + 1}`, asked.question, model.question);
+    if (typeof model.answer === 'string' && normalise(asked.answer) !== normalise(model.answer)) differs(`The answer to question ${at + 1} ("${asked.question}")`, asked.answer, model.answer);
   }
   return { file: shown, compared, problems };
 }

@@ -208,7 +208,7 @@ export default class TrafficPolicyExplainer extends Scene {
     const showCluster = async (change: Partial<ClusterShown>) => {
       clusterView ??= s.diagramView(d, drawCluster(d));
       this.shown.cluster = { ...(this.shown.cluster as ClusterShown), ...change };
-      await this.play(clusterView.sync({ match: 'key', staged: true }));
+      await this.play(clusterView.sync());
     };
     const nextSlate = async () => {
       await s.clearOverlays();
@@ -345,7 +345,7 @@ export default class TrafficPolicyExplainer extends Scene {
       });
       await nextSlate();
       liveCluster();
-      await d.focus('all');
+      await d.enlarge('all');
       if (failing.length)
         await showCluster({
           marks: Object.fromEntries(failing.flatMap((j) => [groups[j]!, `k${j + 1}`]).map((id) => [id, { color: s.bad, as: 'fails the health check' }])),
@@ -395,7 +395,7 @@ export default class TrafficPolicyExplainer extends Scene {
     });
     await nextSlate();
     liveCluster();
-    await d.focus('all');
+    await d.enlarge('all');
     await showCluster({ notes: ids.map((id) => above(id, percent(share[id]!))) });
     this.state.shares = Object.fromEntries(ids.map((id) => [id, frac(share[id]!)]));
 

@@ -1,4 +1,4 @@
-// The script's check answers, computed from the model: rayner check holds script.md's to these.
+// The answers to the script's reader questions, computed from the model: rayner check holds script.md's to these.
 import { secondCommit } from './objects.ts';
 
 const short = (id: string) => id.slice(0, 7);
@@ -12,7 +12,7 @@ const kinds = (c: ReturnType<typeof secondCommit>) => {
     .join(' and ');
 };
 
-export const checks = {
+export const questions = {
   1: () =>
     `${RENAMED.written.length} objects, ${kinds(RENAMED)}. The name lives in the tree’s bytes, so the tree changes, and so does the commit that names it. The file’s bytes are unchanged, so its id is still ${short(RENAMED.hello)} and the new tree names the stored blob.`,
   2: () =>

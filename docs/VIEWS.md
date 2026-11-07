@@ -17,7 +17,7 @@ class Ring extends Scene<{ len: number; head: number }> {
 
     await this.step('push-a');
     this.state.len = 1;                         // the program changes
-    await this.play(this.readout.sync());       // the picture follows: 'len 0' -> 'len 1', the rest stays still
+    await this.play(this.readout.sync({ match: 'text' }));   // the picture follows: 'len 0' -> 'len 1', the rest stays still
   }
 }
 ```
@@ -59,7 +59,7 @@ view(scene: Scene<S>, draw: (state: S, shown) => M, opts?): View<M>   // draw(sc
 
 view.current            // the picture on screen (the View's one child)
 view.texts              // the strings it shows, in family order
-view.sync({ runTime, rateFunc, lagRatio, match, staged }?)   // an Animation: play it, compose it; staged: what goes leaves before what comes
+view.sync({ runTime, rateFunc, lagRatio, match, staged }?)   // an Animation: play it, compose it; by key and staged unless told otherwise
 view.rebuild()          // rebuild now, unanimated: for a View not on screen yet
 view.tween((t) => state, { runTime, rateFunc }?)   // an Animation: the state at t, drawn at every frame (above)
 view.placed(state, shown?)   // the picture of `state`, placed where a sync would put it now, not taken: what a transition morphs into
@@ -78,7 +78,7 @@ scene's `this.shown`.
   sync only swaps its child, so the View stays in the scene and in any Group
   that holds it. References to the *old picture* go stale; take `view.current` again.
 - **Composable.** `sync()` is an `Animation`, so
-  `this.play(readout.sync(), token.animate.shift([1, 0]))` works, and so does a
+  `this.play(readout.sync({ match: 'text' }), token.animate.shift([1, 0]))` works, and so does a
   `Succession`, `AnimationGroup` or `LaggedStart` that contains it.
 - **Built at its turn.** Because `draw` runs at `begin()`, a sync created
   before a state change still shows the state at play time, and a sync inside a
@@ -93,11 +93,21 @@ scene's `this.shown`.
 
 | `match` | morphs with | good for |
 |---|---|---|
-| `'text'` (default when either picture contains a `Text`) | `TransformMatchingText` | readouts, code: unchanged characters stay where they are |
-| `'index'` (default otherwise) | `Transform`, family position by position | geometry whose structure persists (bars, a gauge); `DecimalNumber` counting |
+| `'key'` (default) | `TransformMatching` with `matchByKey()` | pictures whose containers carry `key`s: a keyed card, panel, cell or node keeps its identity wherever it moves, its parts morph inside it, unkeyed parts fade ([matching](MATCHING.md#keyed-components)) |
+| `'text'` | `TransformMatchingText` | a bare `Text` readout, code without keys: unchanged characters stay where they are |
+| `'index'` | `Transform`, family position by position | geometry whose structure persists (bars, a gauge); `DecimalNumber` counting |
 | `'shapes'` | `TransformMatchingShapes` | pictures whose parts come and go |
-| `'key'` | `TransformMatching` with `matchByKey()` | pictures whose containers carry `key`s: a keyed cell or node keeps its identity wherever it moves, its parts morph inside it, unkeyed parts fade ([matching](MATCHING.md#keyed-components)) |
 | a `MatchKey` function | `TransformMatching` with that key | identity you know: a node id, a colour; `matchByKey({ fallback })` to keep unkeyed parts too, `matchByKey({ text: 'whole' })` when a keyed word's change is a new identity |
+
+A key sync whose two pictures carry no keys below their roots would pair nothing, so `begin()`
+throws and names the fix: key the draw's parts (a card's or panel's `key` option, or `part.key`),
+or say `match: 'text'`, `'shapes'` or `'index'`. A bare `Text` is such a picture: the key of a
+picture's root is not read, and its glyphs carry none.
+
+`staged` (default `true`, for every `match`) takes the parts that go and the parts that come in
+turn: the old ones fade out over the first half and the new ones fade in over the second, so a
+word and its replacement never overlap. `staged: false` fades both at once, while the matched parts
+morph. A sync by `'index'` has no parts that go or come, so `staged` changes nothing for it.
 
 Once the play has begun, `sync.summary()` reports what a matching transform paired
 (`{ matched, morphed, removed, added }`); it is `null` for `'index'` and for a
@@ -199,11 +209,11 @@ const flow = s.diagramView(d, (_st, sh) => {
   return { marks: { ...d.trail(f.walked), ...Object.fromEntries(f.marked.map((id) => [id, { color: s.bad, as: 'rejected' }])) } };
 });
 this.shown.flow = { marked: ['Reject'], walked: [] };
-await this.play(flow.sync({ match: 'key', staged: true }));
+await this.play(flow.sync());
 ```
 
 A diagram shown by a view keeps its live parts off the stage. For a `reveal`, `walk`, `morph` or
-`focus`, which move the live parts, hand the stage back with `s.liveDiagram(d)` first and show
+`enlarge`, which move the live parts, hand the stage back with `s.liveDiagram(d)` first and show
 it by its view again afterwards; a walk's token travels the same routes the picture draws.
 
 - **Marks are part of the picture.** `lit` and `focus` put the card's or panel's bar on its
@@ -235,9 +245,9 @@ it by its view again afterwards; a walk's token travels the same routes the pict
 
 - **A readout of state is a card.** `new Card(this, s.palette, rows, { key, panel: false })`
   in a view writes values inside a drawing without a panel (`ring-buffer`, `token-bucket`);
-  synced with `match: 'key', staged: true`, a changed value fades across and an unchanged one
+  synced with the default keyed, staged sync, a changed value fades across and an unchanged one
   stays. Give it `width` so its labels keep their places as values grow.
-- **`DecimalNumber`** in a view with the default `'text'` morphs digit by digit:
+- **`DecimalNumber`** in a view with `match: 'text'` morphs digit by digit:
   unchanged digits stay and changed digits fade across. With
   `sync({ match: 'index' })` its own interpolation runs, and the number counts
   through the values in between (`0 -> 5 -> 10`).

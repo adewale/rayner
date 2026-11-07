@@ -91,11 +91,11 @@ export interface Chrome {
   hintTouch: string;
   /** A rail entry for a step the reader has not reached: its title stays hidden until then. */
   notYet: (i: number) => string;
-  /** The heading over the scene's check questions after the last step, and in the transcript. */
+  /** The heading over the scene's reader questions after the last step, and in the transcript. */
   checkYourself: string;
-  /** Under the check questions' heading: answer before opening. */
-  checkHint: string;
-  /** The disclosure that holds a check question's answer. */
+  /** Under the reader questions' heading: answer before opening. */
+  questionsHint: string;
+  /** The disclosure that holds a reader question's answer. */
   showAnswer: string;
   /** Accessible name of a live step's event buttons (docs/MACHINES.md, "The player"). */
   liveControls: string;
@@ -178,7 +178,7 @@ const EN: Chrome = {
   hintTouch: 'Tap a segment to jump; tap the current one to finish it',
   notYet: (i) => `Step ${i}`,
   checkYourself: 'Check yourself',
-  checkHint: 'Answer each one before you open it.',
+  questionsHint: 'Answer each one before you open it.',
   showAnswer: 'Show the answer',
   liveControls: 'Try it yourself',
   liveFromRest: 'Try it yourself: carry on from this picture',
@@ -255,7 +255,7 @@ const FR: Chrome = {
   hintTouch: 'Touchez un segment pour y aller\u202f; touchez celui en cours pour le terminer',
   notYet: (i) => `Étape ${i}`,
   checkYourself: 'Vérifiez vos connaissances',
-  checkHint: 'Répondez à chaque question avant d’ouvrir la réponse.',
+  questionsHint: 'Répondez à chaque question avant d’ouvrir la réponse.',
   showAnswer: 'Voir la réponse',
   liveControls: 'À vous de jouer',
   liveFromRest: 'À vous de jouer\u202f: continuez à partir de cette image',

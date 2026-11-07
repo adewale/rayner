@@ -1,16 +1,16 @@
-// The script's check answers, computed from the model: rayner check holds script.md's to these.
+// The answers to the script's reader questions, computed from the model: rayner check holds script.md's to these.
 import { ADDR, TRUSTED_RANGES, TRUST_CODE, reqIp } from './model.ts';
 
-/** The first check's request: two made-up entries, straight to the load balancer. */
+/** The first question's request: two made-up entries, straight to the load balancer. */
 export const TWO_FORGED = `5.6.7.8, ${ADDR.forged}`,
   TWO_FORGED_XFF = `${TWO_FORGED}, ${ADDR.attacker}`,
   TWO_FORGED_IP = { 2: reqIp(ADDR.balancer, TWO_FORGED_XFF, 2), true: reqIp(ADDR.balancer, TWO_FORGED_XFF, true) };
-/** The second check's firewall, a third proxy in front of the CDN. */
+/** The second question's firewall, a third proxy in front of the CDN. */
 export const WAF = '100.64.0.20',
   WAF_XFF = `${ADDR.client}, ${WAF}, ${ADDR.edge}`,
   WAF_LIST_IP = reqIp(ADDR.balancer, WAF_XFF, [...TRUSTED_RANGES, WAF]);
 
-export const checks = {
+export const questions = {
   1: () => ({
     question: `The attacker skips the CDN again, but writes two made-up entries: X-Forwarded-For: ${TWO_FORGED}. Which address becomes req.ip with trust proxy 2, and which with true?`,
     answer: `With 2, ${TWO_FORGED_IP[2]}: Express trusts the load balancer and the attacker’s real address by position, then stops at the next entry, the made-up one nearest to it. With true, ${TWO_FORGED_IP.true}: every address is trusted, so Express reaches the far end of the list and takes it without a test. Either way the attacker chose req.ip.`,

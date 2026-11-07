@@ -155,7 +155,7 @@ export default class IcalRecurrenceExplainer extends Scene {
       diffLines(before, next).flatMap((h) => Array.from({ length: h.newLines }, (_, k) => h.newStart - 1 + k));
     const showStored = async (change: StoredShown) => {
       this.shown.stored = change;
-      await this.play(code.sync({ match: 'key', staged: true }));
+      await this.play(code.sync());
     };
     await s.enter(code, { runTime: 0.4 });
     // `shown.listMark`: the meeting the list lights and what the description calls it, or none.
@@ -186,7 +186,7 @@ export default class IcalRecurrenceExplainer extends Scene {
     this.state.invite = { stored: counts(INVITED), meetings: expand(INVITED).map((m) => m.start), components: INVITED };
     await showStored({ added: addedLines(lines(SERIES), lines(INVITED)), focus: null });
     this.shown.listMark = { row: week(GUEST_MEETING), as: 'the override' };
-    await this.play(list.sync({ runTime: 0.45, match: sameWords }));
+    await this.play(list.sync({ runTime: 0.45, match: sameWords, staged: false }));
 
     // ------------------------------------------------------------------ change
     const moved = expand(after).find((m) => m.slot === MOVED_FROM)!;
@@ -223,11 +223,11 @@ export default class IcalRecurrenceExplainer extends Scene {
     if (change === 'none') {
       await showStored({ added: [], focus: [0, 4], focusAs: 'the master' });
       this.shown.listMark = null;
-      await this.play(list.sync({ runTime: 0.3, match: sameWords }));
+      await this.play(list.sync({ runTime: 0.3, match: sameWords, staged: false }));
     } else {
       await showStored({ added: addedLines(lines(INVITED), lines(after)), focus: null });
       this.shown.listMark = { row: week(change === 'move' ? MOVED_FROM : GUEST_MEETING), as: change === 'move' ? 'moved' : 'skipped' };
-      await this.play(list.sync({ runTime: 0.45, match: sameWords }));
+      await this.play(list.sync({ runTime: 0.45, match: sameWords, staged: false }));
     }
 
     // ------------------------------------------------------------------ copies
@@ -308,7 +308,7 @@ export default class IcalRecurrenceExplainer extends Scene {
     let erView: ReturnType<typeof s.diagramView> | undefined;
     const showEr = async (change: Partial<ErShown>) => {
       this.shown.er = { ...(this.shown.er as ErShown), ...change };
-      await this.play(erView!.sync({ match: 'key', staged: true }));
+      await this.play(erView!.sync());
     };
 
     // ------------------------------------------------------------------ copy

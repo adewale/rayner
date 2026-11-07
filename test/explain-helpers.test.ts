@@ -7,7 +7,8 @@ import assert from 'node:assert/strict';
 import { Scene } from '../src/index.ts';
 import { NullSink } from '../src/output.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
-import { stage, regionBox, REGIONS } from '../explain/index.ts';
+import { stage, regionBox } from '../explain/index.ts';
+import { REGIONS } from '../explain/look.ts';
 import { bindSnapshots } from '../explain/testing.ts';
 import { findingsOf, edgePartOf, diagramKey, snapshotResolver, useDiagrams, diagramsOf, RENDERER } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
@@ -60,7 +61,7 @@ test('a stage with no style takes its first diagram’s paper; hidden parts stay
       const d = await s.show(spec, { build: 'frame' });
       assert.equal(s.paper.style.fill, '#123456');
       // The camera can frame a part that is not drawn yet without drawing it.
-      await d.focus(['A']);
+      await d.enlarge(['A']);
       assert.ok(!this.familyMembers().some((m) => m.key === 'A'));
       await d.reveal(['A', 'B', 'edge:A->B#0']);
       assert.equal(d.get('edge-label:A->B#0').parent, d.get('edge:A->B#0'), 'a link carries the label it owns');
@@ -257,7 +258,7 @@ test('whatever the validator accepts, a Diagram can draw and describe without in
       const scene = new Scene(new NullSink(), { skipUntil: Infinity });
       const d = new Diagram(scene, ok.spec, ok, { box: 'side' });
       await d.build();
-      await d.focus('all');
+      await d.enlarge('all');
       for (const p of d.describe().parts) assert.equal(typeof p.name, 'string');
       for (const p of d.parts.values())
         for (const m of p.mob.family()) {
@@ -299,7 +300,7 @@ test('a canvas so large the diagram fits to a point still draws finite points (C
   const ok = await snapshotResolver({ [diagramKey(s.spec)]: s }).diagram(s.spec);
   const d = new Diagram(new Scene(new NullSink(), { skipUntil: Infinity }), ok.spec, ok, { box: 'side' });
   await d.build();
-  await d.focus('all');
+  await d.enlarge('all');
   for (const p of d.parts.values()) for (const m of p.mob.family()) for (const a of m.pointArrays()) assert.ok(a.every(Number.isFinite));
 });
 
@@ -644,7 +645,7 @@ test('the regions meant to sit side by side never overlap', () => {
 
 test('the explain entry point exports exactly its documented names', async () => {
   assert.deepEqual(Object.keys(await import('../explain/index.ts')).sort(), [
-    'Card', 'CodeBlock', 'Diagram', 'Machine', 'REGIONS', 'SetState', 'View', 'answerOf', 'choreograph', 'diagramsOf', 'isRefusal', 'mermaid', 'palette', 'refuse', 'regionBox', 'resolveSettings', 'settingsOf', 'stage', 'stagedStep', 'view',
+    'Card', 'CodeBlock', 'Diagram', 'Machine', 'SetState', 'View', 'answerOf', 'diagramsOf', 'isRefusal', 'mermaid', 'palette', 'refuse', 'regionBox', 'resolveSettings', 'settingsOf', 'stage', 'stagedStep', 'view',
   ]);
   // The tooling went to rayner/testing.
   assert.deepEqual(Object.keys(await import('../explain/testing.ts')).sort(), [

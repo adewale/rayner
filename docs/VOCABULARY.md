@@ -23,6 +23,7 @@ One row per idea.
 | Model state | `scene.state` | JSON only; the domain (a bucket's tokens, a statechart's configuration) and nothing about how it is shown; a step records it as `before` and `after` | |
 | What is shown | `scene.shown` | JSON; which picture a phase shows, and the stage's description of its picture; a view's draw may read it, a machine never changes it; the trace records it as `shown` | `phase` and `reader` inside `scene.state` |
 | Step | `scene.step(id, meta)` | A stop with a title, line and caption | |
+| Reader questions | `meta.questions`, the script's `## Check yourself` list | The questions the player asks after the last step, each answer behind a disclosure; "check" is kept for verification | `meta.checks` |
 | Step kind | `kind: 'short' \| 'main' \| 'detail'` | Which path a step is on: the reader's short path, the story, or a detail players skip | `reader: true`, `detail: true` |
 | Scenario | `scenario`, `scenariosOf`, `scenarios` | One value for every setting | `variant`, `variantsOf`, `variants`, and `case`, `casesOf`, `cases` (`case` is reserved in JavaScript) |
 | Picture | a `Mobject` tree | What a frame shows | |
@@ -33,7 +34,8 @@ One row per idea.
 | Emphasis a scene draws itself | `emphasised(mobject, what)` | A mark the scene's own draw makes, tagged with what it shows where it is drawn; the phone's tour visits new emphasis first | `emphasises(scene, now)` from `explain/look.ts`, which the package did not export; `s.emphasise(now)`, a callback read from state beside the draw |
 | Identity | `key`, `find(key)`, `findAll(match)` | How a part is addressed and kept across morphs: the same key in two pictures is the same part | `Mobject.id`, now internal: the renderer's number |
 | What a part is for | `role` | A job many parts can share: the stage's `'paper'`, `'heading'` and `'chrome'`, a diagram's `'frame'`. Copies carry it; it is never an identity | Keys starting `__` (`__chrome`, `__heading`, `__paper`, `__frame`), which made a key double as a role and needed an exception in the one-key-one-part check |
-| Matching by key | `matchByKey()`, `match: 'key'` | Keyed parts pair with keyed parts | `match: 'keys'` |
+| Matching by key | `matchByKey()`, `match: 'key'` | Keyed parts pair with keyed parts; a view's `sync()` matches this way, staged, unless told otherwise | `match: 'keys'` |
+| Enlarging diagram artwork | `d.enlarge(ids \| 'all')` | The diagram's parts scaled up inside its own box; the camera does not move (`s.focus` moves it) | `d.focus` |
 | A state change | `SetState(scene, next, { event })` | A model step at its place in a schedule | |
 | Event-driven model | `Machine`, `machinesOf(scene)` | `start`, `events`, `next`, `views`; `send`, `replay`, `outcome`, `reachable` | `Session`, `sessionsOf`; describe's `sessions` field (now `machines`) |
 | Refused event | `next` returns `refuse(reason)`, the reason in the reader's words (`undefined` refuses with none) | Which buttons a reader cannot press in a state, and why; one function, so the buttons, their reasons and the model cannot disagree | A refused event returning the same state; `why(state, event)`, a reason in a function of its own |
@@ -41,7 +43,7 @@ One row per idea.
 | Live step | the step a machine last played in (`lastPlayedIn`) | Where the player gives the reader a button per event, and where `rayner check` explores the machine | |
 | The reader's events | `sent` | The events a reader sent at a live step, in the URL beside `step` | |
 | Authored transition | `transition: { [event]: (t) => Animation }` | The motion for an event, built from `{ event, before, after, target, choreograph }` when its turn comes; the views then land in place on the pictures of `after` | Hand animation in ring-buffer and state-machine |
-| Authored transition parts | `choreograph(current, target)`: `morph`, `enter`, `leave`, `insert`, `own`, `follow`, `travel`, `rest`; `from`, `to`, `has` and `keys` read the two pictures | One event's motion, part by part, by key ([the calls](MACHINES.md#refused-events-bounds-and-authored-transitions)) | |
+| Authored transition parts | `t.choreograph(view)`: `morph`, `enter`, `leave`, `insert`, `own`, `follow`, `travel`, `rest`; `from`, `to`, `has` and `keys` read the two pictures | One event's motion, part by part, by key ([the calls](MACHINES.md#refused-events-bounds-and-authored-transitions)) | |
 | A sampled value | `view.tween((t) => state)`; `c.follow({ from, to, draw }, { targets })` in a transition | A state, or one number, sampled between two ends and redrawn with `become` | |
 | Taking another's data in place | `become(other)` | Keeps identity and keys; refuses to drop a keyed child | |
 | Pen animation | `stage.sketch(m)` | Draw `m` stroke by stroke with a pen or pencil | `stage.draw(m)` |

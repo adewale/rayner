@@ -50,7 +50,7 @@ class Ring extends Scene {
       await this.step(name);
       mutate();
       if (skip) { await this.wait(1); return; }
-      const s = readout.sync();
+      const s = readout.sync({ match: 'text', staged: false });
       this.syncs[name] = s;
       await this.play(s);
       const f = readout.current.frameBox;
@@ -67,7 +67,7 @@ class Ring extends Scene {
     // Built at its turn: the state the Mutate before it leaves, not the state now
     const box = new Square({ side: 0.5 }).moveTo([4, -2]);
     await this.play(new FadeIn(box), { runTime: 0.5 });
-    const seq = new Succession([box.animate.shift(RIGHT), readout.sync(), new Mutate(() => { this.state.head = 2; this.state.len = 9; }), readout.sync()]);
+    const seq = new Succession([box.animate.shift(RIGHT), readout.sync({ match: 'text', staged: false }), new Mutate(() => { this.state.head = 2; this.state.len = 9; }), readout.sync({ match: 'text', staged: false })]);
     this.state.len = 11;
     await this.play(seq);
     await this.wait(0.5);
@@ -113,7 +113,7 @@ test('sync() inside a Succession builds from the state at its turn, not at const
         return new Text(String(state.n));
       });
       this.add(v);
-      const seq = new Succession([v.sync(), new Mutate(() => { this.state.n = 2; }), v.sync()]);
+      const seq = new Succession([v.sync({ match: 'text' }), new Mutate(() => { this.state.n = 2; }), v.sync({ match: 'text' })]);
       assert.deepEqual(seen, [0], 'creating syncs does not build their targets');
       this.state.n = 1;
       await this.play(seq);
@@ -193,8 +193,8 @@ test('match: index morphs by position (a DecimalNumber counts), shapes and keys 
   assert.deepEqual(sh.summary(), { matched: 2, morphed: 0, removed: 0, added: 1 });
   assert.notEqual(g.current, before);
   assert.equal(g.current.children.length, 3);
-  // Default for a picture without text: by index
-  const ix = g.sync();
+  // By index
+  const ix = g.sync({ match: 'index' });
   kids = 2;
   ix.begin(); ix.finish();
   assert.equal(ix.summary(), null);
@@ -209,13 +209,29 @@ test('match: index morphs by position (a DecimalNumber counts), shapes and keys 
   assert.deepEqual(ks.summary(), { matched: 2, morphed: 0, removed: 0, added: 0 });
 });
 
+test('sync() matches by key, staged, and refuses pictures that carry no keys', () => {
+  let n = 1;
+  const keyed = view(held(), () => new Group(...Array.from({ length: n }, (_, i) => { const sq = new Square({ side: 0.4 }).shift([i, 0]); sq.key = `cell-${i}`; return sq; })));
+  n = 2;
+  const sync = keyed.sync();
+  assert.equal(sync.match, 'key');
+  assert.equal(sync.staged, true);
+  sync.begin(); sync.finish();
+  assert.deepEqual(sync.summary(), { matched: 1, morphed: 0, removed: 0, added: 1 });
+  assert.equal(keyed.sync({ match: 'text' }).staged, true, 'staged is the default for every match');
+
+  const plain = view(held(), () => new Group(...Array.from({ length: n }, (_, i) => new Square({ side: 0.4 }).shift([i, 0]))));
+  n = 3;
+  assert.throws(() => plain.sync().begin(), /carry no keys below their roots.*\{ match: 'text' \}, 'shapes' or 'index'/);
+});
+
 test('placement: a moved and scaled View stays moved and scaled; place: false leaves it to draw()', () => {
   const st = { s: 'ab' };
   const v = view(held(st), () => new Text(st.s, { fontSize: 0.4 }), { place: 'right' });
   v.scale(0.5).moveTo([3, -2]);
   const right = v.current.frameBox[2]!, h = v.current.height();
   st.s = 'abcdef';
-  const s = v.sync(); s.begin(); s.finish();
+  const s = v.sync({ match: 'text' }); s.begin(); s.finish();
   assert.ok(Math.abs(v.current.frameBox[2]! - right) < 1e-5, 'right edge held');
   assert.ok(Math.abs(v.current.height() - h) < 1e-5, 'half size held');
   assert.equal(v.current.text, 'abcdef');
@@ -246,7 +262,7 @@ test('a card view of the scene\'s state keeps its labels put as values change', 
         await this.step(`req-${i}`);
         (this.state.responses as number[]).push(code);
         this.state.tokens = Math.max(0, 1 - i);
-        await this.play(rv.sync({ match: 'key', staged: true }), { runTime: 0.5 });
+        await this.play(rv.sync(), { runTime: 0.5 });
       }
     }
   }
@@ -268,7 +284,7 @@ test('a returning sync preserves inherited scale for the next rebuild or sync', 
     v.scale(2);
     const original = v.current;
     side = 3;
-    const back = v.sync({ rateFunc: () => 0 });
+    const back = v.sync({ match: 'index', rateFunc: () => 0 });
     back.begin(); back.interpolate(0); back.finish();
     assert.equal(v.current, original, 'a returning rate keeps the original picture');
     assert.equal(v.current.width(), 2);
@@ -276,7 +292,7 @@ test('a returning sync preserves inherited scale for the next rebuild or sync', 
     side = 4;
     if (next === 'rebuild') v.rebuild();
     else {
-      const sync = v.sync();
+      const sync = v.sync({ match: 'index' });
       sync.begin(); sync.interpolate(1); sync.finish();
     }
     assert.equal(v.current.width(), 8, `${next} inherits the original scale`);
@@ -294,7 +310,7 @@ test('rayner check names a view whose picture lags the state at the end of a ste
       this.add(readout);
       await this.step('one');
       this.state = { n: 2 };
-      if (sync) await this.play(readout.sync({ runTime: 0.2 }));
+      if (sync) await this.play(readout.sync({ match: 'text', runTime: 0.2 }));
       await this.step('two');
     }
   };
@@ -318,7 +334,7 @@ test('rayner check names a view whose words match its state but whose marks do n
       this.add(card);
       await this.step('one');
       if (byHand) card.current.children[1]!.shift([0, -0.5]);
-      else { this.state = { lit: 1 }; await this.play(card.sync({ runTime: 0.2 })); }
+      else { this.state = { lit: 1 }; await this.play(card.sync({ match: 'text', runTime: 0.2 })); }
     }
   };
   for (const byHand of [false, true]) {

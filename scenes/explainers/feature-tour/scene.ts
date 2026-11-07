@@ -85,7 +85,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       '  ({marks: d.trail(sh.walked)}));',
       "await d.walk([['A', 'B']]);",
       "this.shown.walked = [['A', 'B']];",
-      "await this.play(v.sync({match: 'key', staged: true}));",
+      "await this.play(v.sync());",
     ],
     recipe: "s.show draws a diagram from geometry captured at build time. d.walk sends a token along an edge that exists in the diagram, here Start → Finish; the walked edge is then recorded in this.shown, and the diagram’s view draws it as a trail.",
     caption: "The trail stays on Start → Finish after the token has gone, so the route can be inspected at rest, and it follows the captured edge rather than a shortcut. The unmarked copy on the left is a separate drawing of the flowchart before the walk.",
@@ -102,7 +102,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       "   key: 'block'}), {place: false});",
       'await s.enter(block);',
       'this.shown.focus = 1;',
-      "await this.play(block.sync({match: 'key', staged: true}));",
+      "await this.play(block.sync());",
     ],
     recipe: "A view draws the lines as a code panel, its focus from this.shown, which says how the scene is shown. Setting focus to 1 and syncing points at the line with index 1, the second, and focusAs: 'update' says why.",
     caption: "The update bar stays on count += 1 after the focus finishes, which ties the caption to the line it explains. The plain copy on the left is a separate drawing of the panel before the focus.",
@@ -119,7 +119,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       'await s.enter(block);',
       "this.state.lines = ['let count = 0;', 'count += 2;'];",
       'this.state.added = [1];',
-      "await this.play(block.sync({match: 'key', staged: true}));",
+      "await this.play(block.sync());",
     ],
     recipe: "A view draws the lines in this.state as a code panel. Syncing after an edit keeps each line both versions share, paired by its text; added lists the lines the edit introduced, which carry the mark.",
     caption: "let count = 0 stays where it was, and count += 2 replaces the old increment and carries the mark. The mark labels the current line; it is not a history of earlier edits. The panel on the left is a separate drawing of the version before the edit.",
@@ -220,7 +220,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       '    {fontSize: 1}));',
       "await s.enter(label, {describe: 'Count'});",
       'this.state.count = 1;',
-      'await this.play(label.sync());',
+      "await this.play(label.sync({match: 'text'}));",
     ],
     recipe: "this.state holds values the model decides. view builds a label from that state, and label.sync() rebuilds the label after the state changes.",
     caption: "Setting count alone changes nothing on screen; sync rebuilt the label from count, so the label and the recorded state both read 1. The 0 on the left is a separate drawing of the view before the change.",
@@ -634,7 +634,7 @@ export default class FeatureTour extends Scene {
       line: PREDICT[feature],
       caption: `${answer}. ${example.recipe}`,
     });
-    await s.code(example.code, { at: 'full', fontSize: 0.6 });
+    await s.code(example.code, { at: 'full', fontSize: 0.6, fitHeight: true });
     this.state.feature = feature;
     this.shown.phase = 'recipe';
 
@@ -698,7 +698,7 @@ export default class FeatureTour extends Scene {
       const v = s.diagramView(d, (_st, sh) => ({ marks: d.trail(sh.walked as [string, string][]) }));
       await d.walk([['A', 'B']]);
       this.shown.walked = [['A', 'B']];
-      await this.play(v.sync({ match: 'key', staged: true }));
+      await this.play(v.sync());
     } else if (feature === 'code') {
       await panels([], 'the two lines, nothing marked');
       await s.code(['let count = 0;', 'count += 1;'], { at: BEFORE, fontSize: 0.36 });
@@ -711,7 +711,7 @@ export default class FeatureTour extends Scene {
       );
       await s.enter(block, { runTime: 0.4 });
       this.shown.focus = 1;
-      await this.play(block.sync({ match: 'key', staged: true }));
+      await this.play(block.sync());
     } else if (feature === 'code-diff') {
       await panels([], 'count += 1');
       await s.code(['let count = 0;', 'count += 1;'], { at: BEFORE, fontSize: 0.36 });
@@ -726,7 +726,7 @@ export default class FeatureTour extends Scene {
       await s.enter(block, { runTime: 0.4 });
       this.state.lines = ['let count = 0;', 'count += 2;'];
       this.state.added = [1];
-      await this.play(block.sync({ match: 'key', staged: true }));
+      await this.play(block.sync());
     } else if (feature === 'animation') {
       await panels(
         [new Circle({ radius: 0.8, stroke: accent, strokeWidth: 0.06 }).moveTo([bx, by])],
@@ -850,7 +850,7 @@ export default class FeatureTour extends Scene {
       );
       await s.enter(label, { describe: () => `Recorded count: ${String(this.state.count)}` });
       this.state.count = 1;
-      await this.play(label.sync());
+      await this.play(label.sync({ match: 'text' }));
       await s.enter(new Text('state.count = 1', { fontSize: 0.34, font: 'mono', color: soft }).moveTo([ax, ay - 1.3]));
     } else if (feature === 'annotations') {
       await panels([new Circle({ radius: 0.6, stroke: accent, strokeWidth: 0.05 }).moveTo([bx, by])], 'a circle, nothing named');

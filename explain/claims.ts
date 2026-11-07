@@ -3,7 +3,7 @@ import { normalise } from './script.ts';
 
 /** Optional evidence links and editorial lint over step titles, lines and captions.
  * Matching a phrase to a named test is not proof of truth or of what that test asserts.
- * Stage labels and check answers need separate review. See docs/REFERENCE.md, meta.claims.
+ * Stage labels and the reader questions' answers need separate review. See docs/REFERENCE.md, meta.claims.
  */
 export interface Claim {
   /** A phrase of the sentence the claim backs, matched as a reader reads it (case and quotes ignored). */

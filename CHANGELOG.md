@@ -8,7 +8,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 
 - An explainer is three files: `script.md` states the intent for its author, `model.ts` expresses the system's constraints, and `scene.ts` explains the system, with a picture module for how a state looks.
 - A script's intent header (`# question`, labelled lines such as **Answer** and **Checked against**, and `## Check yourself`) is read as the scene's metadata. [Reference](docs/REFERENCE.md#scene)
-- The intent header is the one home of the title, answer, check questions and what the model is checked against. A scene that declares them too is refused.
+- The intent header is the one home of the title, answer, reader questions and what the model is checked against. A scene that declares them too is refused.
 - The page shows what the model is checked against under Sources.
 - `answerOf(this)` in `rayner/explain` reads the script's answer, so a caption that states it keeps no copy. `withIntent(Scene, scriptText)` in `rayner/testing` adopts a script for a test that runs a scene directly.
 - `meta.id` defaults to the scene's folder name (or its file's name when the file is not `scene.ts`).
@@ -19,7 +19,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - Cards and code panels take their marks as options: `lit`, `litAs`; `focus`, `focusAs`, `added`; `width` and `fitHeight` keep a panel's size; `key` keys their parts, so a sync keeps what stays, fades a changed value or line across and moves the bar. A code line is keyed by its text, so a line that moves pairs with itself. `panel: false` gives a card with no panel, which is how a readout of state is drawn. A card or panel carries its bar from the start, so a view or staged step draws the mark from state, described and emphasised. `s.cardPicture` and `s.codePicture` build them placed as the stage places them, for a view's draw.
 - What is shown may change between a machine's events (a guided tour moving a code panel's focus); exploration and the live player draw under what the machine last played under.
 - The phone's close-ups count a mark redrawn at the same keyed place with the same words as the same emphasis, not new.
-- Views, `Machine`, `SetState` and `choreograph` moved from `src/` to `explain/` and are imported from `rayner/explain`; `src/` is the engine taken from Lantern.
+- Views, `Machine`, `SetState` and choreography moved from `src/` to `explain/` and are imported from `rayner/explain`; `src/` is the engine taken from Lantern.
 - Three opt-in entry points: `rayner/geo` (`seenFrom` and the globe, out of `rayner/drawing`), `rayner/audio` (the score types) and `rayner/extras` (`Write`, `TransformFromCopy`, `Restore`, `MoveAlongPath`, `ArcBetweenPoints`, `Square`, `Underline`, out of `rayner`).
 - `view.tween((t) => state)` moves the state through time and redraws the view at every frame; `c.follow(spec, { targets })` does the same for parts of an authored transition. `Follow` is no longer exported.
 - Every folder in `scenes/explainers/` now holds its own `script.md`, `scene.ts`, `model.ts` (where it has a model) and `picture.ts` (where its drawing is worth separating).
@@ -29,11 +29,12 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - A step's `kind: 'short' | 'main' | 'detail'` puts it on the reader's short path, in the story, or under Details and sources.
 - `scene.state` holds the model as plain JSON and `scene.shown` holds what is shown apart from it. The trace records both at every step.
 - Functions, class instances, cycles and non-finite numbers in `scene.state` or `scene.shown` are refused with a field path.
-- `meta.answer` is the explanation's one-sentence answer, which some step must state. `meta.checks` are the questions the player asks after the last step.
+- `meta.answer` is the explanation's one-sentence answer, which some step must state. `meta.questions` are the reader questions the player asks after the last step: the script's `## Check yourself` list. `describeExplainer` and `rayner describe` give them as `questions`, and `answers.ts` computes their answers as `questions`.
 - `meta.watch` names the state a reader should follow, and the player shows each step's changes to it ("Tokens left: 5 → 0").
 - `rayner init` writes the tutorial's LRU/MRU explainer with its script, model and model test. [Tutorial](docs/TUTORIAL.md#2-generate-the-explainer)
 - `rayner init --machine` writes a machine explainer (a door that locks): a model that refuses with reasons, its test, a live step and review subjects. It passes `check` and `review` as written.
 - `stage(this)` adds the paper, a heading that follows each step, and helpers for diagrams, cards, code panels, notes, dimensions, pins, callouts and the camera. [Stage](docs/REFERENCE.md#stage)
+- A stage region is named (`at: 'main'`) or given as a box with `regionBox('side', { top: 3.05 })`, which returns the region's box with any edge moved. The `REGIONS` table is not exported. [Regions](docs/REFERENCE.md#regions)
 - `s.steps([...])` presents a list of steps, each drawn by `draw(state, s)` from its own state.
 - `s.sketch` draws a path stroke by stroke with a pen or pencil.
 - The collection's explainers use only what the package exports, and a test fails any scene that imports anything else, so an outside author can write what they write.
@@ -41,11 +42,13 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `new Card(scene, s.palette, rows)` builds a card inside a view without entering it.
 - `diagramsOf(scene)` lays out a diagram, so `new Diagram(...)` can be measured before anything is drawn.
 - A picture that should follow the model is a `view(scene, draw)`, and `view.sync()` morphs it to the current state. [Views](docs/VIEWS.md#api)
+- `view.sync()` matches parts by key and stages the change by default: what goes fades out before what comes fades in. `staged` defaults to `true` for every `match`; `staged: false` fades both at once. A key sync whose pictures carry no keys is refused with the fix: key the parts, or say `match: 'text'`, `'shapes'` or `'index'`. [Views](docs/VIEWS.md#match)
 - Parts with the same `key` are the same part across morphs (`matchByKey`, `match: 'key'`), and `find(key)` and `findAll` address them. [Matching](docs/MATCHING.md#which-key)
 - `SetState` adopts a model state at its place in a schedule. [Choreography](docs/CHOREOGRAPHY.md)
 - `become` takes another mobject's data in place, keeping its identity.
 - `GrowFromEdge` grows bars and `PulseAlongPath` sends tokens along routes.
-- Mermaid diagrams in all 15 Agentic Mermaid families are captured at build time and animated by part id with `reveal`, `walk`, `focus` and `morph`; their marks, notes and dimming are drawn from state by `d.picture`. [Diagrams](docs/REFERENCE.md#diagrams)
+- Mermaid diagrams in all 15 Agentic Mermaid families are captured at build time and animated by part id with `reveal`, `walk`, `enlarge` and `morph`; their marks, notes and dimming are drawn from state by `d.picture`. [Diagrams](docs/REFERENCE.md#diagrams)
+- `d.enlarge(ids, { zoom })` enlarges parts of a diagram inside its own box, and `d.enlarge('all')` puts the artwork back; it was `d.focus`, a word the camera's `s.focus` and a code panel's focus bar also use.
 - A morph can carry its edits (`ops`), which the build replays through Agentic Mermaid and checks against the target source.
 - `mermaid.pie(slices, options)` and `mermaid.frontMatter(config)` in `rayner/explain` build Mermaid source from typed values.
 - `mermaid.pie` and `mermaid.frontMatter` refuse a zero or negative slice, a repeated label, an empty title or an empty config at the call, naming the value.
@@ -89,9 +92,9 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `outcome(state, event)` says what an event does.
 - `reachable(from)` lists every state reachable from a starting point, breadth first, with the shortest events that reach it.
 - An event without authored motion morphs each view to the new state by key, staged, so a word and the word replacing it never overlap. [Default transition](docs/MACHINES.md#the-default-transition)
-- `view.sync({ staged: true })` and the matching transforms' `staged` option stage a morph the same way anywhere.
+- A view's `sync()` stages its morph the same way by default, and the matching transforms' `staged` option stages one anywhere.
 - An event can have authored motion: its `transition` is built from the states either side when its turn comes. The views then land on the model's picture of the new state.
-- `choreograph(current, target)` morphs, brings in and takes out keyed parts in the author's order, landing whatever it does not name.
+- A transition's `t.choreograph(view)` morphs, brings in and takes out keyed parts in the author's order, landing whatever it does not name.
 - Nine of the collection's explainers are machines: statecharts, ring-buffer, state-machine, token-bucket, monty-hall, latest-search, oauth-pkce, just-bash and python-dict. [Nine machines](docs/MACHINES.md#nine-machines)
 - The statecharts machine covers both charts and is checked against XState's explored graph. python-dict's deletions and lookups are two machines on keyed tables.
 - Invariants hold each machine's claims through every reachable state: the guarded search page never shows a stale result, and with PKCE the malicious app never gets a token.
@@ -112,7 +115,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - On pages at least 1100 px wide the tile has a steps rail beside it.
 - The step bar counts teaching steps and names a step only once the reader has reached it, so a later "Answer: …" cannot give an earlier question away.
 - Next stays in place however long the caption is.
-- After the last step the player asks the check questions, each answer behind a disclosure.
+- After the last step the player asks the reader questions, each answer behind a disclosure.
 - At a live step, the step where a machine last played, the reader drives the machine: one button per event, then Undo and Reset. [The player](docs/MACHINES.md#the-player)
 - An event the model refuses, or one past where the story stops, stays focusable with `aria-disabled` and says why.
 - The events sit in the URL as `sent=`, so a link reopens the same picture, and Back takes an event back.
@@ -145,7 +148,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `scene.review.json` declares subjects from the caption's meaning, and `--out page.html` saves the exact page the review checked.
 - `meta.claims` links a sentence to a named `node:test` declaration and checks that the test exists; it does not run the test or establish what it asserts.
 - `rayner check` runs the `model.test.ts` beside the scene first and fails, naming each failing test; the report records `model: { file, tests, passed }`, and `skipped` when some were.
-- An explainer's `answers.ts` computes its script's answer and check answers from the model; `rayner check` fails when `script.md` says otherwise, and reports `answers: { file, compared }`.
+- An explainer's `answers.ts` computes its script's answer and its reader questions' answers from the model; `rayner check` fails when `script.md` says otherwise, and reports `answers: { file, compared }`.
 - `rayner check` fails a path in backticks in the script's Checked against line that is not in the explainer's folder, and reports them as `checkedAgainst`.
 - A claim's test is looked for in the scene's folder first, so `meta.claims` can name `model.test.ts: …`.
 
@@ -202,6 +205,9 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
 - `describeExplainer`, `scenariosOf`, `scenarioName`, `withSettings` and `bindSnapshots` moved from `rayner/explain` to `rayner/testing`.
 - `findingsOf`, `edgePartOf` and `stagedStepsOf` are internal; use `d.findings()` and `d.link()`.
 - `ViewSync` is exported as a type only: `view.sync()` makes one.
+- The diagram camera move (`d.focus(ids, { camera: true, also })`) is gone: `s.focus` moves the camera.
+- The free `choreograph(current, target)` is not exported: a transition's `t.choreograph(view)` is the one form.
+- `Scene.clear()` is the internal `Scene.removeAll()`. A scene clears the stage with `s.clear()`, which fades.
 
 ### Known limits
 

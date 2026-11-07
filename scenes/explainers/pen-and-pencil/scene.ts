@@ -219,7 +219,7 @@ export default class PenAndPencil extends Scene {
       marks: Object.fromEntries((sh.layout as { marked: string[] }).marked.map((id) => [id, { color: d.accent, as: 'measured' }])),
     }));
     this.shown.layout = { marked: [`period:period-${FOCUS}`] };
-    await this.play(layoutView.sync({ match: 'key', staged: true, runTime: 0.45 }));
+    await this.play(layoutView.sync({ runTime: 0.45 }));
     const [ex0, ey0, ex1] = focus.event.box;
     const width = await s.dimension([ex0, ey0], [ex1, ey0], `${fmt(ex1 - ex0, 2)} units`, { offset: -0.3 });
 
@@ -231,7 +231,7 @@ export default class PenAndPencil extends Scene {
     await drop(width);
     // The mark goes first, then the diagram fades; hide fades the view that shows it.
     this.shown.layout = { marked: [] };
-    await this.play(layoutView.sync({ match: 'key', staged: true, runTime: 0.3 }));
+    await this.play(layoutView.sync({ runTime: 0.3 }));
     await d.hide();
     delete this.shown.layout;
     const traced = await s.sketch(construction, {

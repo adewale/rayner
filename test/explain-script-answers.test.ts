@@ -6,7 +6,7 @@ import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
 import { parseIntent, intentMeta } from '../tools/lib/explain-intent.ts';
 import { compareAnswers } from '../tools/lib/explain-evidence.ts';
 
-// Each explainer's answer and check answers were once computed from its model inside the scene's static
+// Each explainer's answer and its reader questions' answers were once computed from its model inside the scene's static
 // meta; they now live as fixed text in script.md, and the explainer's answers.ts recomputes them from the
 // model, with the expressions the scene used before the move (commit 8ed1dbbd). rayner check holds the
 // script to answers.ts; this test does the same for the whole collection without running a scene. The
@@ -27,7 +27,7 @@ test('the explainers that compute their script’s answers from the model are th
 });
 
 for (const [id, compared] of Object.entries(COMPARED))
-  test(`${id}: script.md’s answer and check answers are what answers.ts computes from the model`, async () => {
+  test(`${id}: script.md’s answer and reader questions’ answers are what answers.ts computes from the model`, async () => {
     const dir = `scenes/explainers/${id}`,
       file = join(dir, 'script.md');
     const intent = parseIntent(readFileSync(file, 'utf8'), file);

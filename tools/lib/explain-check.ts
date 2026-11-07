@@ -823,7 +823,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       // What a reader sees: the labels at 1280 px, and on a 390 px phone in each step's close-up.
       legibility: legibilityReport([...labels.values(), ...staticLabels.values()]),
       // The script gate (explain/script.ts): a declared meta.answer stated by some step (where, reported), and how many
-      // check questions the page asks. Undeclared parts are reported as missing.
+      // reader questions the page asks. Undeclared parts are reported as missing.
       script,
       // Sentences with scope words, the declared claim (meta.claims) backing each, and the code names
       // reaching the steps' words (explain/claims.ts). Reported, not gated; see claimProblems below.
@@ -857,7 +857,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     scene: sceneSlug(project),
     // The model test beside the scene (model.test.ts), run with node:test: how many tests ran and passed, and any skipped.
     ...(model ? { model: { file: model.file, tests: model.tests, passed: model.passed, ...(model.skipped ? { skipped: model.skipped } : {}) } } : {}),
-    // The script's answer and check answers that answers.ts computes from the model, each equal to script.md's.
+    // The script's answer and its reader questions' answers that answers.ts computes from the model, each equal to script.md's.
     ...(answers ? { answers: { file: answers.file, compared: answers.compared } } : {}),
     // The files the script's Checked against line names in backticks, each one in the explainer's folder.
     ...(checkedAgainst?.files.length ? { checkedAgainst: checkedAgainst.files } : {}),

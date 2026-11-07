@@ -224,7 +224,7 @@ export default class CertRenewalExplainer extends Scene {
         view: v,
         show: async (change: Partial<DiagramShown>) => {
           this.shown[name] = { ...(this.shown[name] as DiagramShown), ...change };
-          await this.play(v.sync({ match: 'key', staged: true }));
+          await this.play(v.sync());
         },
       };
     };
@@ -303,7 +303,7 @@ export default class CertRenewalExplainer extends Scene {
     );
     const showCode = async (change: CodeShown) => {
       this.shown.code = change;
-      await this.play(code.sync({ match: 'key', staged: true }));
+      await this.play(code.sync());
     };
     await s.enter(code, { runTime: 0.4 });
     const chartView = diagramOf(chart, 'chart');

@@ -399,7 +399,7 @@ export async function collectProject(
       throw new Error(`The embedded fonts cannot draw these characters:\n${[...new Set(undrawable)].join('\n')}`);
     // The state readers follow must be state the scene keeps, in some step of some scenario.
     checkWatch(Source.meta?.watch, scenarios.flatMap((v) => v.trace.steps));
-    // The script's answer and check questions must be usable before any scenario is checked against them.
+    // The script's answer and reader questions must be usable before any scenario is checked against them.
     checkScriptMeta(Source.meta);
     checkClaimsMeta(Source.meta);
     await outline?.finish();

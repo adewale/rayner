@@ -201,7 +201,7 @@ export default class WcagMapExplainer extends Scene {
     let mapView = s.diagramView(d, drawMap);
     const showMap = async (change: Partial<MapShown>) => {
       this.shown.map = { ...(this.shown.map as MapShown), ...change };
-      await this.play(mapView.sync({ match: 'key', staged: true }));
+      await this.play(mapView.sync());
     };
     /** The map morphed to `next`: its marks go first, since the live map the morph moves shows none, then it is shown by its view again. */
     const morphMap = async (...args: Parameters<typeof d.morph>) => {

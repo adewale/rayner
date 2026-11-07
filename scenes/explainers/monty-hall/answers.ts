@@ -1,10 +1,10 @@
-// The script's check answers, computed from the model: rayner check holds script.md's to these.
+// The answers to the script's reader questions, computed from the model: rayner check holds script.md's to these.
 import { percent } from '../lib/format.ts';
 import { oddsAfter } from './model.ts';
 
 const PRIOR = [4, 3, 3];
 
-export const checks = {
+export const questions = {
   1: () =>
     `${percent(oddsAfter(0, 'coin', 'B').switchChance)}. His strip is the random host’s, cell for cell: with the car behind B or C, he opens each unchosen door half the time, so one of the two sixths in each wrong-pick third shows the car. He knows where the car is, but his rule gives each round the random host’s chance, and those chances set the odds.`,
   2: () =>

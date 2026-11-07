@@ -24,7 +24,7 @@ test('story review requires copied card, focus and diff highlights without anoth
       await this.step('copied');
       const card = new Card(this, palette('nord'), [['Count', 1]], {lit: 'Count'});
       const code = new CodeBlock(this, palette('nord'), ['+ added', '- removed'], {diff: true, focus: 0});
-      this.clear();
+      this.removeAll();
       const copies = new Group(card, code).copy();
       const [copiedCard, copiedCode] = copies.children as [Card, CodeBlock];
       const bars = [copiedCard.bar, copiedCode.bar, ...copiedCode.marks.map(m => m.mob)];

@@ -30,7 +30,7 @@ const run = (rate: number, times = TIMES, capacity = 5) => {
 };
 
 test('token-bucket: the script\'s check answers are the model\'s, word for word', () => {
-  const [bigger, steady, moved] = explainerMeta(TokenBucketExplainer, 'scenes/explainers/token-bucket').checks!.map((c) => c.answer);
+  const [bigger, steady, moved] = explainerMeta(TokenBucketExplainer, 'scenes/explainers/token-bucket').questions!.map((c) => c.answer);
   // As the scene wrote them before they moved to script.md, rebuilt from the model now.
   const perSecond = (r: number) => `${r} token${r > 1 ? 's' : ''} a second`;
   const say = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));

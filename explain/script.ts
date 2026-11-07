@@ -2,12 +2,12 @@ import { stepWords } from './trace.ts';
 
 /**
  * The script a scene is written from, as far as tools can hold it to it: `meta.answer`, the one
- * sentence that answers the reader's question, and `meta.checks`, the questions a reader should be
- * able to answer afterwards. See skills/rayner-explainers/SKILL.md, "Script first".
+ * sentence that answers the reader's question, and `meta.questions`, the questions a reader should
+ * be able to answer afterwards. See skills/rayner-explainers/SKILL.md, "Script first".
  */
 export interface ScriptMeta {
   answer?: unknown;
-  checks?: unknown;
+  questions?: unknown;
 }
 /**
  * The explainer's one-sentence answer, as its script's intent header states it (Rayner adopts it as
@@ -19,23 +19,23 @@ export function answerOf(scene: object): string {
     throw new Error(`${scene.constructor.name} has no answer: write it in script.md's intent header (- **Answer:** …), or in static meta.answer`);
   return answer;
 }
-/** The most check questions a scene may ask: more is a test, not a check. */
-export const CHECKS_MAX = 6;
+/** The most reader questions a scene may ask: more is a test, not a recap. */
+export const QUESTIONS_MAX = 6;
 
-/** Refuse an `answer` or `checks` that cannot work: wrong types, empty text, or too many questions. */
+/** Refuse an `answer` or `questions` that cannot work: wrong types, empty text, or too many questions. */
 export function checkScriptMeta(meta: ScriptMeta | undefined): void {
   if (meta?.answer !== undefined && (typeof meta.answer !== 'string' || !meta.answer.trim()))
     throw new Error('meta.answer must be the one sentence that answers the reader’s question');
-  if (meta?.checks === undefined) return;
-  if (!Array.isArray(meta.checks) || !meta.checks.length)
-    throw new Error('meta.checks must be a list of { question, answer }');
-  if (meta.checks.length > CHECKS_MAX)
-    throw new Error(`meta.checks asks ${meta.checks.length} questions; at most ${CHECKS_MAX}`);
-  for (const [i, c] of meta.checks.entries()) {
+  if (meta?.questions === undefined) return;
+  if (!Array.isArray(meta.questions) || !meta.questions.length)
+    throw new Error('meta.questions must be a list of { question, answer }');
+  if (meta.questions.length > QUESTIONS_MAX)
+    throw new Error(`meta.questions asks ${meta.questions.length} questions; at most ${QUESTIONS_MAX}`);
+  for (const [i, c] of meta.questions.entries()) {
     const q = (c as { question?: unknown })?.question,
       a = (c as { answer?: unknown })?.answer;
-    if (typeof q !== 'string' || !q.trim()) throw new Error(`meta.checks[${i}] has no question`);
-    if (typeof a !== 'string' || !a.trim()) throw new Error(`meta.checks[${i}] ("${q}") has no answer`);
+    if (typeof q !== 'string' || !q.trim()) throw new Error(`meta.questions[${i}] has no question`);
+    if (typeof a !== 'string' || !a.trim()) throw new Error(`meta.questions[${i}] ("${q}") has no answer`);
   }
 }
 
@@ -88,10 +88,10 @@ export function answerStep(answer: string, steps: readonly Step[]): { step: stri
 export interface ScriptReport {
   /** The teaching step that first states `meta.answer` (1-based), or null when no step does. */
   answer?: { step: string; at: number } | null;
-  /** How many check questions the page asks after its last step. */
-  checks: number;
-  /** What the scene's script leaves undeclared: `answer`, `checks`. */
-  missing: ('answer' | 'checks')[];
+  /** How many reader questions the page asks after its last step. */
+  questions: number;
+  /** What the scene's script leaves undeclared: `answer`, `questions`. */
+  missing: ('answer' | 'questions')[];
   /** Why the scenario fails the script gate; empty when it passes. */
   problems: string[];
 }
@@ -99,7 +99,7 @@ export interface ScriptReport {
  * The script gate for one scenario: some teaching step must state a declared answer. Where it first
  * does is reported (`answer.at`), not gated: whether it arrives before the explanation elaborates
  * is a reader's judgement, and a fixed step number would only stand in for it. An undeclared
- * answer or check list is reported as missing, not failed, so older scenes still check; new
+ * answer or question list is reported as missing, not failed, so older scenes still check; new
  * scenes start with both (`rayner init`).
  */
 export function scriptReport(meta: ScriptMeta | undefined, steps: readonly Step[]): ScriptReport {
@@ -111,7 +111,7 @@ export function scriptReport(meta: ScriptMeta | undefined, steps: readonly Step[
     found = answerStep(meta.answer, steps);
     if (!found) problems.push(`No step states meta.answer ("${meta.answer}"); put it in a title, line or caption, before the explanation elaborates`);
   } else missing.push('answer');
-  const checks = Array.isArray(meta?.checks) ? meta.checks.length : 0;
-  if (!checks) missing.push('checks');
-  return { ...(found === undefined ? {} : { answer: found }), checks, missing, problems };
+  const questions = Array.isArray(meta?.questions) ? meta.questions.length : 0;
+  if (!questions) missing.push('questions');
+  return { ...(found === undefined ? {} : { answer: found }), questions, missing, problems };
 }

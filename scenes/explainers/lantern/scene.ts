@@ -361,7 +361,7 @@ export default class LanternExplainer extends Scene {
     ];
     await flow.walk(paced, { parallel: true });
     this.shown.flowWalked = paced;
-    await this.play(flowView.sync({ match: 'key', staged: true }));
+    await this.play(flowView.sync());
     // Frame times from the scene's own fps; two sinks pace the same frames differently.
     this.state.frameAtSeek = run.seekAt;
     this.state.ruler = { fps: this.fps, times: Array.from({ length: 9 }, (_, n) => (n * 1000) / this.fps) };
@@ -390,7 +390,7 @@ export default class LanternExplainer extends Scene {
     const classesView = s.diagramView(classes, drawClasses);
     const showClasses = async (change: Partial<ClassesShown>) => {
       this.shown.classes = { ...(this.shown.classes as ClassesShown), ...change };
-      await this.play(classesView.sync({ match: 'key', staged: true }));
+      await this.play(classesView.sync());
     };
     for (const hop of [
       ['Scene', 'Mobject'],

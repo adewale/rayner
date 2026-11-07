@@ -94,7 +94,7 @@ import { Succession } from 'rayner';
 import { Card, palette, SetState, view } from 'rayner/explain';
 const colors = palette('github-dark');
 const readout = view(this, (s) => new Card(this, colors, [['count', s.count]], { panel: false, key: 'readout' }), { place: false });
-const sync = () => readout.sync({ match: 'key', staged: true });
+const sync = () => readout.sync();
 await this.play(new Succession([
   new SetState(this, { count: 3 }), sync(),
   new SetState(this, { count: 9 }), sync(),

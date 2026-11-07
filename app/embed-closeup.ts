@@ -15,7 +15,7 @@
  * is the size the player draws.
  *
  * A close-up is the reader's zoom, and it sits on top of the author's camera
- * (`scene.frame`, which `d.focus()` moves). So a layout is recorded as the camera
+ * (`scene.frame`, which `s.focus()` moves). So a layout is recorded as the camera
  * shows it: in the 16 × 9 units of the camera's view, centred on the origin, with
  * label sizes multiplied by the camera's zoom. At home those are stage units. A
  * close-up's zoom then multiplies the camera's, and Whole picture is the author's frame.

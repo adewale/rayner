@@ -245,14 +245,14 @@ test('nested replacement preserves earlier siblings, retained old objects and ba
   assert.equal(old.parent, null);
   assert.equal(a.parent, parent);
   const x = new Square(), y = new Square(), second = new Group(x, y);
-  s.clear().add(second);
+  s.removeAll().add(second);
   s.replace(x, x, y);
   assert.deepEqual(second.children, [x, y]);
   assert.equal(x.parent, second);
   assert.equal(y.parent, second);
   const replacement = new Square(), source = new Group(replacement), targetOld = new Square();
   const target = new Group(targetOld);
-  s.clear().add(target).replace(targetOld, replacement);
+  s.removeAll().add(target).replace(targetOld, replacement);
   assert.deepEqual(source.children, [], 'an off-screen source parent releases the replacement');
   assert.equal(replacement.parent, target);
   s.add(source);
