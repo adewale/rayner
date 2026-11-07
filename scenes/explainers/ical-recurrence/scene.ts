@@ -120,16 +120,54 @@ export default class IcalRecurrenceExplainer extends Scene {
       caption: `Alice cancels one meeting of her weekly stand-up. Bob, invited to that meeting alone, can still find it in his calendar, marked cancelled. To see why, start with how Alice’s app stores the series: as one VEVENT, the iCalendar record for an event. DTSTART is the first meeting, ${long(DTSTART)} 2026 at 09:00 UTC. RRULE repeats it weekly, and COUNT=6 stops after six meetings, with DTSTART counting as the first. The list shows the meetings a calendar computes from those two lines.`,
     });
     await s.clear();
-    const code: CodeBlock = await s.code(lines(SERIES), {
-      at: CODE,
-      align: 'top',
-      fontSize: CODE_SIZE,
-      title: 'Alice’s stored object, some lines left out',
-    });
     // `components`: the VEVENTs Alice's object holds after each step, which her meeting list is computed from.
     this.state.series = { vevents: SERIES.length, meetings: expand(SERIES).map((m) => m.start), components: SERIES };
     /** The object as it stands: the change's, else the invitation's, else the series'. */
     const stored = (st: Record<string, unknown>) => ((st.change ?? st.invite ?? st.series) as { components: VEvent[] }).components;
+    // Alice's stored object is a view: its lines are the model's VEVENTs; the lines each edit added and
+    // the lines in focus are how the step shows them, in `shown.stored`. The panel keeps the widest width
+    // it has had, as a morph kept it, and keys each line by its text, so a line that stays glides to its row.
+    type StoredShown = { added: number[]; focus: [number, number] | null; focusAs?: string };
+    const codeOpts = { at: CODE, align: 'top', fontSize: CODE_SIZE, title: 'Alice’s stored object, some lines left out', fitHeight: true } as const;
+    const naturalWidth = (vs: readonly VEvent[]) => s.codePicture(lines(vs), codeOpts).panel.width();
+    // The widest of the objects shown so far: a morph widened the panel for wider lines and kept it wide.
+    const widthFor = (st: Record<string, unknown>) =>
+      Math.max(...[SERIES, ...(st.invite || st.change ? [INVITED] : []), ...(st.change ? [stored(st)] : [])].map(naturalWidth));
+    this.shown.stored = { added: [], focus: null } satisfies StoredShown;
+    const code = view(
+      this,
+      (st, sh) => {
+        const shownCode = sh.stored as StoredShown;
+        const panel = s.codePicture(lines(stored(st)), {
+          ...codeOpts,
+          width: widthFor(st),
+          added: shownCode.added,
+          focus: shownCode.focus,
+          ...(shownCode.focusAs ? { focusAs: shownCode.focusAs } : {}),
+          key: 'stored',
+        });
+        return panel;
+      },
+      { place: false },
+    );
+    /** The lines of `next` a morph from `before` marks added: those outside their longest common run of equal lines. */
+    const addedLines = (before: readonly string[], next: readonly string[]) => {
+      const table = Array.from({ length: before.length + 1 }, () => new Array<number>(next.length + 1).fill(0));
+      for (let i = before.length - 1; i >= 0; i--)
+        for (let j = next.length - 1; j >= 0; j--)
+          table[i]![j] = before[i] === next[j] ? table[i + 1]![j + 1]! + 1 : Math.max(table[i + 1]![j]!, table[i]![j + 1]!);
+      const kept = new Set<number>();
+      for (let i = 0, j = 0; i < before.length && j < next.length; )
+        if (before[i] === next[j]) kept.add(j++), i++;
+        else if (table[i + 1]![j]! >= table[i]![j + 1]!) i++;
+        else j++;
+      return next.map((_, j) => j).filter((j) => !kept.has(j));
+    };
+    const showStored = async (change: StoredShown) => {
+      this.shown.stored = change;
+      await this.play(code.sync({ match: 'key', staged: true }));
+    };
+    await s.enter(code, { runTime: 0.4 });
     // `shown.listMark`: the meeting the list lights and what the description calls it, or none.
     const list = view(
       this,
@@ -155,8 +193,8 @@ export default class IcalRecurrenceExplainer extends Scene {
       // RFC 5545 §3.8.4.4, lines 6294–6306: UID names the set, RECURRENCE-ID one instance, by its original start.
       caption: `Alice invites Bob to the third meeting only. The app keeps the first VEVENT as it was and adds a second with the same UID, an override. Its RECURRENCE-ID, ${GUEST_MEETING}, is the start the rule gave that meeting, kept even if the meeting moves. Bob is sent this override and nothing else. His copy has one occurrence, not the master rule that generates Alice’s whole series.`,
     });
-    await code.morph(lines(INVITED), { markAdded: true });
     this.state.invite = { stored: counts(INVITED), meetings: expand(INVITED).map((m) => m.start), components: INVITED };
+    await showStored({ added: addedLines(lines(SERIES), lines(INVITED)), focus: null });
     this.shown.listMark = { row: week(GUEST_MEETING), as: 'the override' };
     await this.play(list.sync({ runTime: 0.45, match: sameWords }));
 
@@ -193,12 +231,11 @@ export default class IcalRecurrenceExplainer extends Scene {
       components: after,
     };
     if (change === 'none') {
-      await code.clearMarks();
-      await code.focus([0, 4], { as: 'the master' });
+      await showStored({ added: [], focus: [0, 4], focusAs: 'the master' });
       this.shown.listMark = null;
       await this.play(list.sync({ runTime: 0.3, match: sameWords }));
     } else {
-      await code.morph(lines(after), { markAdded: true });
+      await showStored({ added: addedLines(lines(INVITED), lines(after)), focus: null });
       this.shown.listMark = { row: week(change === 'move' ? MOVED_FROM : GUEST_MEETING), as: change === 'move' ? 'moved' : 'skipped' };
       await this.play(list.sync({ runTime: 0.45, match: sameWords }));
     }

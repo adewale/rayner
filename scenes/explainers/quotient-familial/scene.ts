@@ -1,7 +1,7 @@
 import { Scene, Group, Create } from '../../../src/index.ts';
 import { callout } from '../../../explain/drawing.ts';
 import { stage, settingsOf, regionBox, Card, mermaid, view } from '../../../explain/index.ts';
-import type { CardRow, CardOptions, View } from '../../../explain/index.ts';
+import type { CardRow, CardOptions, View, Diagram } from '../../../explain/index.ts';
 import { impot, bareme, tranche, repartition, BAREME, PARAMS, euros, pourcent, partsTexte, NNBSP } from './model.ts';
 import type { Impot } from './model.ts';
 import { drawRegle } from './picture.ts';
@@ -207,8 +207,48 @@ export default class QuotientFamilialExplainer extends Scene {
         bas = flow.get('REF').box()![1] - 0.4;
       return calloutOf((st) => callout(s, b, texte(st as Record<string, number>), { side: 'below', gap: b[1] - bas, size: 0.32, color: s.emphasis }));
     };
-    await flow.mark(['RNI'], { as: 'étape en cours' });
     this.state = { rni, enfants };
+    // How the pipeline is shown, apart from its source: the step in progress, the hops walked and what
+    // stays undimmed. That is `shown`, not the model; its view draws it, and each change is a sync.
+    type FlowShown = { current: string[]; walked: [string, string][]; dim: string[] | null };
+    const flowOf = (sh: Record<string, unknown>) => sh.flow as FlowShown;
+    this.shown.flow = { current: [], walked: [], dim: null } satisfies FlowShown;
+    const flowView = s.diagramView(flow, (_st, sh) => {
+      const f = flowOf(sh);
+      return {
+        marks: { ...flow.trail(f.walked), ...Object.fromEntries(f.current.map((id) => [id, { color: flow.accent, as: 'étape en cours' }])) },
+        dim: f.dim,
+      };
+    });
+    const showFlow = async (change: Partial<FlowShown>) => {
+      this.shown.flow = { ...flowOf(this.shown), ...change };
+      await this.play(flowView.sync({ match: 'key', staged: true }));
+    };
+    /** The pipeline's hops walked, the token first, then the trail they leave added to the state. */
+    const walkFlow = async (hops: [string, string][], change: Partial<FlowShown> = {}, parallel = false) => {
+      await flow.walk(hops, { parallel });
+      await showFlow({ ...change, walked: [...(change.walked ?? flowOf(this.shown).walked), ...hops] });
+    };
+    /**
+     * A chart shown by a view of its marks (`name` in `shown`), each said by `as`; returns what marks
+     * parts. Made as soon as the chart is shown, so what is drawn over the chart stays over it.
+     */
+    const chartView = (d: Diagram, name: string, as: string) => {
+      this.shown[name] = [];
+      const v = s.diagramView(d, (_st, sh) => ({
+        marks: Object.fromEntries((sh[name] as string[]).map((id) => [id, { color: d.accent, as }])),
+      }));
+      return async (marked: string[]) => {
+        this.shown[name] = marked;
+        await this.play(v.sync({ match: 'key', staged: true }));
+      };
+    };
+    /** A chart hidden: its view fades with its marks, and they leave `shown`. */
+    const hideChart = async (d: Diagram, name: string) => {
+      await d.hide();
+      this.shown[name] = [];
+    };
+    await showFlow({ current: ['RNI'] });
     await enterCard(
       cardOf(
         (st) => [
@@ -245,8 +285,7 @@ export default class QuotientFamilialExplainer extends Scene {
         ` Ce nombre sert deux fois${deux} on divise le revenu par lui, puis on multiplie l’impôt par lui.`,
     });
     await s.clearOverlays();
-    await flow.unmark();
-    await flow.mark(['QUOT'], { as: 'étape en cours' });
+    await showFlow({ current: ['QUOT'] });
     this.state.parts = r.parts;
     await sous(
       'QUOT',
@@ -262,8 +301,7 @@ export default class QuotientFamilialExplainer extends Scene {
       caption: `Le barème s’applique au revenu d’une seule part, le quotient${deux} ${rniTexte} ÷ ${partsTexte(r.parts)} = ${eur2(r.quotient)}. Plus le foyer a de parts, plus ce quotient est bas, et plus il reste dans les tranches du bas.`,
     });
     await s.clearOverlays();
-    await flow.unmark();
-    await flow.walk([['RNI', 'QUOT']], { trail: true });
+    await walkFlow([['RNI', 'QUOT']], { current: [], walked: [] });
     this.state.quotient = r.quotient;
     await sous('QUOT', (st) => `${rniTexte} ÷ ${partsTexte(st.parts!)} = ${eur2(st.quotient!)}`);
 
@@ -288,8 +326,7 @@ export default class QuotientFamilialExplainer extends Scene {
           : `Le barème découpe le quotient en tranches, et chaque taux ne frappe que les euros de sa tranche. Ce quotient de ${eur2(r.quotient)} reste dans la première, taxée à 0${nb}%. Aucune barre ne monte et l’impôt d’une part est nul${pv} les parts des enfants ont fait descendre le quotient sous ${euros(BAREME[2024][1]!.from)}.`,
     });
     await s.clearOverlays();
-    await flow.unmark();
-    await flow.walk([['QUOT', 'BAR']], { trail: true });
+    await walkFlow([['QUOT', 'BAR']], { current: [], walked: [] });
     const bars = await s.show(
       {
         source: chart({
@@ -302,6 +339,7 @@ export default class QuotientFamilialExplainer extends Scene {
       },
       { box: BELOW },
     );
+    const markBars = chartView(bars, 'barsMarked', 'dernière tranche du quotient');
     // Each tranche the quotient reaches says its tax over its own bar.
     for (const [i, x] of b.slices.entries())
       if (x.base > 0)
@@ -309,7 +347,7 @@ export default class QuotientFamilialExplainer extends Scene {
     // The quotient's top tranche, not the household's taux marginal: when the plafond binds, OpenFisca's
     // ir_taux_marginal is the two-part calculation's, which can be higher. The default couple's quotient is
     // in the 11 % tranche while its taux marginal is 30 % (model.test.ts holds both).
-    await bars.mark([`bar:0:${pourcent(top.rate)}`], { as: 'dernière tranche du quotient' });
+    await markBars([`bar:0:${pourcent(top.rate)}`]);
     this.state.parPart = r.parPart;
     this.state.tranche = top.rate;
     this.state.tauxMoyenPart = moyen;
@@ -329,8 +367,8 @@ export default class QuotientFamilialExplainer extends Scene {
         `Les euros qui manquent en haut descendent dans les tranches moins taxées${deux} ${eur2(rep[0]!.parts)} à 0${nb}% au lieu de ${eur2(rep[0]!.entier)}.`,
     });
     await s.clearOverlays();
-    await bars.hide();
-    await flow.unmark();
+    await hideChart(bars, 'barsMarked');
+    await showFlow({ current: [], walked: [] });
     // Two rulers on one scale of euros, each cut at the barème's thresholds and coloured by rate.
     this.state.tranches = rep;
     // Both rulers are one view of the tranches, the income, its parts and its quotient.
@@ -365,9 +403,8 @@ export default class QuotientFamilialExplainer extends Scene {
       caption: `${REPONSE}. Sur le revenu entier, ${rniTexte} monte jusqu’à la tranche à ${tauxTexte(rni)} et paierait ${eur2(enGros)}${deux} c’est la ligne. Par parts, chaque quotient de ${eur2(r.quotient)} s’arrête à la tranche à ${tauxTexte(r.quotient)}, et ${eur2(r.parPart)} × ${partsTexte(r.parts)} = ${eur2(r.brut)}${deux} ce sont les barres.`,
     });
     await s.clearOverlays();
-    await flow.unmark();
-    await flow.dim(['RNI', 'QUOT', 'BAR', 'FOIS']);
-    await flow.walk([['BAR', 'FOIS']], { trail: true });
+    await showFlow({ current: [], walked: [], dim: ['RNI', 'QUOT', 'BAR', 'FOIS'] });
+    await walkFlow([['BAR', 'FOIS']]);
     this.state.brut = r.brut;
     await sous('FOIS', (st) => `${eur2(st.parPart!)} × ${partsTexte(st.parts!)} = ${eur2(st.brut!)}`);
     // Tranche by tranche: the parts' tax (bars) against the barème on the whole income (line).
@@ -401,8 +438,8 @@ export default class QuotientFamilialExplainer extends Scene {
     });
     await s.clearOverlays();
     await entier.hide();
-    await flow.dim(['RNI', 'REF', 'QUOT', 'BAR', 'FOIS', 'PLAF']);
-    await flow.walk([['RNI', 'REF']], { trail: true });
+    await showFlow({ dim: ['RNI', 'REF', 'QUOT', 'BAR', 'FOIS', 'PLAF'] });
+    await walkFlow([['RNI', 'REF']]);
     this.state.sansEnfants = r.sansEnfants;
     this.state.avantage = r.avantage;
     await enterCard(
@@ -444,13 +481,14 @@ export default class QuotientFamilialExplainer extends Scene {
               : `Ici l’impôt sur ${partsTexte(r.parts)} parts, ${eur2(r.brut)}, est retenu.`)),
     });
     await s.clearOverlays();
-    await flow.dim(['REF', 'FOIS', 'PLAF']);
-    await flow.walk(
+    await showFlow({ dim: ['REF', 'FOIS', 'PLAF'] });
+    await walkFlow(
       [
         ['FOIS', 'PLAF'],
         ['REF', 'PLAF'],
       ],
-      { parallel: true, trail: true },
+      {},
+      true,
     );
     const cap = await s.show(
       {
@@ -467,7 +505,7 @@ export default class QuotientFamilialExplainer extends Scene {
     );
     // The y-axis title names the bars and the line, so the renderer's legend ("Bar 1", "Line 1") stays out.
     await cap.reveal(cap.order.filter((id) => id !== 'legend' && !cap.visible.has(id)));
-    await cap.mark([`bar:0:${COUNTS[enfants]}`], { as: 'ce foyer' });
+    await chartView(cap, 'capMarked', 'ce foyer')([`bar:0:${COUNTS[enfants]}`]);
     this.state.plafond = r.plafond;
     this.state.plafonne = r.plafonne;
     this.state.plafQf = r.plafQf;
@@ -508,15 +546,12 @@ export default class QuotientFamilialExplainer extends Scene {
       } Le tableau donne l’impôt de ce revenu pour chaque nombre d’enfants.`,
     });
     await s.clearOverlays();
-    await cap.hide();
-    await flow.dim(['PLAF', 'DEC', 'IMP']);
-    await flow.walk(
-      [
-        ['PLAF', 'DEC'],
-        ['DEC', 'IMP'],
-      ],
-      { trail: true },
-    );
+    await hideChart(cap, 'capMarked');
+    await showFlow({ dim: ['PLAF', 'DEC', 'IMP'] });
+    await walkFlow([
+      ['PLAF', 'DEC'],
+      ['DEC', 'IMP'],
+    ]);
     this.state.decote = r.decoteGain;
     this.state.impot = r.impot;
     this.state.parEnfants = tous.map((t) => t.impot);
@@ -557,12 +592,29 @@ export default class QuotientFamilialExplainer extends Scene {
       caption: `Pour les revenus 2025, les seuils du barème montent mais les taux ne changent pas. Le fichier du barème ajoute à chaque seuil une valeur pour 2025. Avec aussi le plafond (${euros(PARAMS[2025].plafond)}) et la décote (${euros(PARAMS[2025].decoteSeuil)}) de 2025, le même revenu paierait ${r25.impot === r.impot ? `le même impôt, ${euros(r.impot)}` : `${euros(r25.impot)} au lieu de ${euros(r.impot)}`}.`,
     });
     await s.clear();
-    const code = await s.code(yaml(2024), {
-      at: regionBox('full', { right: 0.2 }),
-      align: 'top',
-      fontSize: 0.21,
-    });
-    await code.morph(yaml(2025), { markAdded: true });
+    // The thresholds file is a view: which year's file it shows is in `shown.bareme`, and the lines the
+    // 2025 revision adds are marked added. It keeps the 2024 file's width, as a morph kept it, with the
+    // code at the panel's left padding, and keys each line by its text, so a line both years share stays.
+    const yamlOpts = { at: regionBox('full', { right: 0.2 }), align: 'top', fontSize: 0.21, fitHeight: true } as const;
+    this.shown.bareme = 2024;
+    const code = view(
+      this,
+      (_st, sh) => {
+        const year = sh.bareme as 2024 | 2025,
+          lines = yaml(year);
+        const panel = s.codePicture(lines, {
+          ...yamlOpts,
+          width: s.codePicture(yaml(2024), yamlOpts).panel.width(),
+          added: year === 2025 ? lines.flatMap((l, i) => (l === '    2025-01-01:' ? [i, i + 1] : [])) : [],
+          key: 'bareme',
+        });
+        return panel;
+      },
+      { place: false },
+    );
+    await s.enter(code, { runTime: 0.4 });
+    this.shown.bareme = 2025;
+    await this.play(code.sync({ match: 'key', staged: true, runTime: 0.9 }));
     this.state.impot2025 = r25.impot;
     // The thresholds, rates and parameters are the same in every scenario; the household's tax is its state.
     await enterCard(
