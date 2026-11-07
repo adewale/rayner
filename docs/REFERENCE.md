@@ -536,10 +536,35 @@ The package has an entry point per audience. A scene is written with `rayner` (t
 | `scenariosOf`, `withSettings`, `scenarioName` | `rayner/testing` | Every scenario, a class bound to one, and its name | [Settings](#settings) |
 | `withIntent` | `rayner/testing` | A scene class with its script's intent adopted, for a test that runs it directly | [Scene](#scene) |
 | `bindSnapshots` | `rayner/testing` | Run a scene with diagrams outside the CLI, from its pinned snapshots | [Describe](#describe) |
+| `loadProject`, `loadSnapshots` | `rayner/testing` | An explainer loaded from its folder, as the command runs it: its script's intent, its pinned snapshots and every scenario's trace; or its pinned snapshots alone | [An explainer's test](#an-explainers-test) |
+| `pictureWordsAt` | `rayner/testing` | A step's picture in words, as the stage's description, the player's list and the page's transcript say it | [An explainer's test](#an-explainers-test) |
+| `diagramFindings` | `rayner/testing` | A pinned snapshot's verifier warnings, each with the part it names, as `d.findings()` gives them | [Diagrams](#diagrams) |
 
 `shaperFor` stays in `rayner`, and `refuse` and `isRefusal` (a model's refusal of an event, [machines](MACHINES.md#refused-events-bounds-and-authored-transitions)), `settingsOf` and `resolveSettings` in `rayner/explain`, since models and scenes call them.
 
 The collection's own tests show each in use: `test/lib/explainer-state.ts` compares a trace with a model, and `test/lib/view-fidelity.ts` compares a view with the traced state at every step.
+
+### An explainer's test
+
+An explainer's `scene.test.ts` loads it from its folder and reads each scenario's trace:
+
+```ts
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { loadProject, pictureWordsAt } from 'rayner/testing';
+import Explainer from './scene.ts';
+
+test('every scenario says what the model computed', async () => {
+  const project = await loadProject(Explainer, import.meta.dirname);
+  for (const { values, trace } of project.scenarios) assert.ok(trace.steps.length > 0, JSON.stringify(values));
+  const { trace } = project.scenario();
+  assert.match(pictureWordsAt(trace, trace.steps[0]!.step).full, /\S/);
+});
+```
+
+`loadProject(Scene, where)` takes the scene class and its file, or the folder holding `scene.ts`. It adopts the intent of the `script.md` beside the scene, gives the scene its folder's name as `meta.id` when it declares none, reads `scene.snapshots/`, and traces every scenario in `scenariosOf` order against those snapshots. It returns `{ Scene, snapshots, scenarios, scenario(values?) }`: each scenario is `{ values, Scene, trace }`, its `Scene` bound to its values and the snapshots, and `scenario(values)` is the scenario those values choose with every other setting at its default, as a page link chooses one. It captures nothing: a diagram with no pinned snapshot fails, so run `rayner snapshots` first. It runs none of the checks, which are `rayner check`'s. It cuts no lettering, so it refuses a scene with `meta.lettering`, which only the command can run. `loadSnapshots(where)` reads the pinned snapshots alone, for a test that builds or inspects one diagram. Both read files, so they run under Node.
+
+`pictureWordsAt(trace, step)` gives the picture at the end of the named step in words, as `{ summary, full, transcript }`: `summary` is the stage's accessible description (what is shown, what is emphasised, what is new), `full` is everything shown as the player lists it, each thing's emphasised parts first, and `transcript` is `full` as the page's transcript reads it, where a thing whose parts are as in the previous step lists only its emphasis. Each is plain text. A step name the trace does not have throws.
 
 ## Snapshots
 

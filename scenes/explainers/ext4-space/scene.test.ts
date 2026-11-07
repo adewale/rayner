@@ -2,13 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene } from '../../../src/index.ts';
 import { NullSink } from '../../../src/output.ts';
-import { loadFonts } from '../../../explain/testing.ts';
+import { loadFonts, loadSnapshots } from '../../../explain/testing.ts';
 import { Diagram } from '../../../explain/index.ts';
 import type { DiagramSnapshot } from '../../../explain/index.ts';
-import { readSnapshots } from '../../../tools/lib/explain-project.ts';
 import { TiB, space } from './model.ts';
 
-const store = await readSnapshots('scenes/explainers/ext4-space/scene');
+const store = await loadSnapshots('scenes/explainers/ext4-space');
 
 async function described(text: string) {
   const s = Object.values(store).find((x): x is DiagramSnapshot => x.family === 'pie' && x.spec.source.includes(text));

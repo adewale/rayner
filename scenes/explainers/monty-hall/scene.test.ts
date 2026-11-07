@@ -1,10 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { collectProject } from '../../../tools/lib/explain-project.ts';
+import { loadProject } from '../../../explain/testing.ts';
+import MontyHall from './scene.ts';
 import { Text, Rectangle } from '../../../src/index.ts';
 
 test('Monty Hall paints every round at its chance and the host-conditioned percentages beside the correct strategies in every scenario', async () => {
-  const project = await collectProject('scenes/explainers/monty-hall', { write: false });
+  const project = await loadProject(MontyHall, 'scenes/explainers/monty-hall');
   // Two host rules; the first pick is A (the strategy setting went with the step that played one round out, and the
   // first-pick setting, which only relabelled the doors, is gone).
   assert.equal(project.scenarios.length, 2);

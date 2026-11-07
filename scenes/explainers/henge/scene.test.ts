@@ -4,10 +4,10 @@ import { depthOrder, project } from '../../../explain/geo.ts';
 import type { View } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
 import { declination, sunset, henge, TILT, LATITUDE } from './model.ts';
-import { collectProject, defaultScenario } from '../../../tools/lib/explain-project.ts';
+import Henge from './scene.ts';
 import { check as checkHengeScene } from './fidelity.ts';
 import { Scene, Transform } from '../../../src/index.ts';
-import { loadFonts } from '../../../explain/testing.ts';
+import { loadFonts, loadProject } from '../../../explain/testing.ts';
 import type { Mobject, VMobject, Sink } from '../../../src/index.ts';
 import { azAlt, sunsetOf, dome, year, crossedBy, look, lookView, globes } from './sky.ts';
 import { assertViewFollowsState } from '../../../test/lib/view-fidelity.ts';
@@ -40,7 +40,7 @@ const sink: Sink = { async frame() {} };
 const bare = () => new (class extends Scene { override async construct() {} })(sink);
 
 test('Henge both street scenarios expose their geometry at all eight resting steps', async () => {
-  const project=await collectProject('scenes/explainers/henge',{write:false});
+  const project=await loadProject(Henge,'scenes/explainers/henge');
   assert.equal(project.scenarios.length,2);
   assert.deepEqual(project.scenarios.map(scenario => scenario.values.street).sort(), ['manhattan', 'west']);
   for (const scenario of project.scenarios) {
@@ -143,8 +143,7 @@ test('Henge globes: the gold arc of New York’s daily circle is exactly its sun
 });
 
 test('Henge the year and the camera are views of their step’s state', async () => {
-  const project = await collectProject('scenes/explainers/henge', { write: false });
-  const { Scene: S } = defaultScenario(project);
+  const { Scene: S } = (await loadProject(Henge, 'scenes/explainers/henge')).scenario();
   for (const key of ['henge-year', 'henge-look']) {
     let found: View | undefined;
     const checked = await assertViewFollowsState(S, (scene) => {

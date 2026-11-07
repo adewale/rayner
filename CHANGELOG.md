@@ -168,6 +168,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - The `rayner` command initialises, previews (with `--watch`), captures snapshots, checks, reviews, builds, draws contact sheets and describes a scene. [Command line](docs/REFERENCE.md#command-line)
 - `rayner describe` prints every scenario and step as JSON: the state, what changed, the invariants, the machines, and the picture in words and as text. [Describe](docs/REFERENCE.md#describe)
 - `rayner see` prints one step for a person at a terminal, and `describeExplainer` gives a script the same object.
+- `rayner/testing` loads an explainer for an author's test: `loadProject(Scene, folder)` adopts its script's intent, reads its pinned snapshots and traces every scenario; `loadSnapshots(folder)` reads the snapshots alone; `pictureWordsAt(trace, step)` gives a step's picture in words; and `diagramFindings(snapshot)` a pinned snapshot's verifier warnings. The collection's scene tests use them. [An explainer's test](docs/REFERENCE.md#an-explainers-test)
 - `npm run site:export` publishes the built pages with their descriptions and `llms.txt`. [Publishing](docs/PUBLISHING.md#export-the-collection)
 - The export adds a share page and preview image per step, Open Graph and Twitter tags, oEmbed responses, known embed heights and response headers.
 - Each build writes a receipt of its inputs and a header recipe whose CSP pins the page's inline script and style.
@@ -204,7 +205,7 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
 - The sinks `StringSink`, `SnapshotSink`, `DomSink`, `SeekSink` and `NullSink` moved to `rayner/output`.
 - Author tooling moved from `rayner` to `rayner/testing`: `traceScene`, `TraceSink`, `MotionSink`, `analyzeMotion`, `InvariantSink`, `viewMismatch`, `machinesOf`, `jsonObject`, `loadFonts`, `takeMissingGlyphs` and `perf`.
 - `describeExplainer`, `scenariosOf`, `scenarioName`, `withSettings` and `bindSnapshots` moved from `rayner/explain` to `rayner/testing`.
-- `findingsOf`, `edgePartOf` and `stagedStepsOf` are internal; use `d.findings()` and `d.link()`.
+- `edgePartOf` and `stagedStepsOf` are internal; use `d.findings()` and `d.link()`. `findingsOf` is `diagramFindings` in `rayner/testing`, for a pinned snapshot read without its diagram.
 - `ViewSync` is exported as a type only: `view.sync()` makes one.
 - The diagram camera move (`d.focus(ids, { camera: true, also })`) is gone: `s.focus` moves the camera.
 - The free `choreograph(current, target)` is not exported: a transition's `t.choreograph(view)` is the one form.

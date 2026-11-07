@@ -1,11 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadFonts } from '../../../explain/testing.ts';
+import { loadFonts, loadSnapshots } from '../../../explain/testing.ts';
 import { Scene } from '../../../src/index.ts';
 import { NullSink } from '../../../src/output.ts';
 import { Diagram } from '../../../explain/index.ts';
 import type { DiagramSnapshot } from '../../../explain/index.ts';
-import { readSnapshots } from '../../../tools/lib/explain-project.ts';
 import { GROUPS, PARTICIPANTS, gaveUp, journey, source } from './model.ts';
 import type { Participant } from './model.ts';
 
@@ -14,7 +13,7 @@ await loadFonts();
 
 const NB = '\u202f';
 
-const store = await readSnapshots('scenes/explainers/gnome-files/scene');
+const store = await loadSnapshots('scenes/explainers/gnome-files');
 
 /** The group the scene's one journey shows: the one holding the participant's first give-up. */
 const shownGroup = (p: Participant) => GROUPS.findIndex((g) => g.includes(gaveUp(p)[0]!));
@@ -26,7 +25,7 @@ const pinned = (p: Participant, g: number): DiagramSnapshot => {
 };
 
 // No participant's first four tasks score the same throughout, so a fixture pins P3's middle four, all 5.
-const flatStore = await readSnapshots('test/fixtures/journey-flat/scene');
+const flatStore = await loadSnapshots('test/fixtures/journey-flat');
 
 /** How P1's first four tasks, the journey the scene shows by default, are described part by part. */
 const PARTS_P1 = [

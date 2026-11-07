@@ -8,14 +8,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene } from '../src/index.ts';
 import { NullSink } from '../src/output.ts';
-import { loadFonts } from '../explain/testing.ts';
+import { diagramFindings, loadFonts, loadProject, loadSnapshots, pictureWordsAt } from '../explain/testing.ts';
 import type { Mobject } from '../src/index.ts';
 import { Diagram } from '../explain/diagrams.ts';
 import { dimOpacity } from '../explain/look.ts';
-import { findingsOf } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
-import { pictureSummary, pictureHtml } from '../explain/trace.ts';
-import { collectProject, readSnapshots } from '../tools/lib/explain-project.ts';
 import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
 
 await loadFonts();
@@ -23,7 +20,7 @@ await loadFonts();
 const corpus: { id: string; s: DiagramSnapshot }[] = [];
 
 for (const { id } of EXPLAINERS)
-  for (const s of Object.values(await readSnapshots(`scenes/explainers/${id}/scene`))) corpus.push({ id, s });
+  for (const s of Object.values(await loadSnapshots(`scenes/explainers/${id}`))) corpus.push({ id, s });
 
 const where = ({ id, s }: (typeof corpus)[number]) => `${id}: ${s.spec.source.split('\n')[0]}`;
 
@@ -109,20 +106,20 @@ test('a diagram is described by the counts its source declares, and bare names n
 test('the current verifier’s raw warnings name captured edge parts per endpoint pair', async () => {
   const s = pinned('agentic-mermaid', 'A{Cached} --> B[Reply]');
   assert.deepEqual(s.findings.warnings.map((w) => w.edge), ['A->B#0', 'A->C#0']);
-  assert.deepEqual(findingsOf(s).map((f) => f.part), ['edge:A->B#0', 'edge:A->C#0']);
-  assert.deepEqual((await shown(s)).findings(), findingsOf(s));
+  assert.deepEqual(diagramFindings(s).map((f) => f.part), ['edge:A->B#0', 'edge:A->C#0']);
+  assert.deepEqual((await shown(s)).findings(), diagramFindings(s));
 });
 
-/** Each step's state in an explainer's default scenario, by step name. */
+/** Each step's picture in words in an explainer's first scenario, by step name. */
 async function steps(id: string) {
-  const project = await collectProject(`scenes/explainers/${id}`, { write: false });
-  const trace = project.scenarios[0]!.trace;
-  return new Map(trace.steps.map((s, i) => [s.step, { after: s.after, shown: s.shown, before: trace.steps[i - 1]?.shown }]));
+  const { default: Explainer } = await import(`../scenes/explainers/${id}/scene.ts`);
+  const { trace } = (await loadProject(Explainer, `scenes/explainers/${id}`)).scenarios[0]!;
+  return new Map(trace.steps.map((s) => [s.step, pictureWordsAt(trace, s.step)]));
 }
 
 test('shipped explainers describe their steps: chart values, marks, focus, walks and what is new', async () => {
   const bucket = await steps('token-bucket');
-  const summary = (name: string) => pictureSummary(bucket.get(name)!.shown);
+  const summary = (name: string) => bucket.get(name)!.summary;
   // The run is a native chart drawn from the same allow() calls that move the gauge
   assert.match(summary('later'), /A chart of the balance over time: it climbs at 1 a second between calls and drops one token for each 200\./);
   assert.match(summary('trace'), /1 \/ s: R6, R7 and R9 get 429/);
@@ -132,11 +129,11 @@ test('shipped explainers describe their steps: chart values, marks, focus, walks
   assert.match(summary('burst'), /R6 at 0\.0 is under the one-token line and got 429/);
   // A step that changes only emphasis lists the rest as it was.
   const refill = bucket.get('refill')!;
-  assert.match(pictureHtml(refill.shown, refill.before), /the rest as in the previous step/);
-  assert.doesNotMatch(pictureHtml(refill.shown), /the rest as in the previous step/);
+  assert.match(refill.transcript, /the rest as in the previous step/);
+  assert.doesNotMatch(refill.full, /the rest as in the previous step/);
 
   const machine = await steps('state-machine');
-  const connect = pictureSummary(machine.get('connect')!.shown);
+  const connect = machine.get('connect')!.summary;
   assert.match(connect, /^State diagram: 4 states, 4 transitions; /);
   // The trail is the machine's: its picture of the diagram draws the travelled link as a trail, and
   // the diagram says it once, among its marks.
@@ -148,7 +145,7 @@ test('shipped explainers describe their steps: chart values, marks, focus, walks
 
   const pkce = await steps('oauth-pkce');
   // Only the first message is revealed, and what it carries is a note on it.
-  const authorize = pictureSummary(pkce.get('authorize')!.shown);
+  const authorize = pkce.get('authorize')!.summary;
   assert.match(authorize, /^Sequence diagram: 3 participants, 1 message\. /);
   assert.match(authorize, /Note: “challenge \+ S256; verifier not sent” beside Client → Auth server/);
 });

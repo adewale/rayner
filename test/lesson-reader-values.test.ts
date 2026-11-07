@@ -2,11 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Text, Rectangle } from '../src/index.ts';
 import { NullSink } from '../src/output.ts';
-import { loadFonts } from '../explain/testing.ts';
+import { loadFonts, loadProject } from '../explain/testing.ts';
 import { stage } from '../explain/index.ts';
-import { collectProject } from '../tools/lib/explain-project.ts';
 import { fc, params } from './lib/pbt.ts';
 import { bars } from '../explain/drawing.ts';
+
+/** Explainer `id` of the collection, loaded as an author's test loads it. */
+const loaded = async (id: string) => loadProject((await import(`../scenes/explainers/${id}/scene.ts`)).default, `scenes/explainers/${id}`);
 await loadFonts();
 
 test('comparison bars preserve a common scale, exact ends and an empty zero', () => {
@@ -37,8 +39,8 @@ test('comparison bars preserve a common scale, exact ends and an empty zero', ()
 });
 
 test('token introductions and the ring’s fill and result steps draw the independently expected balances, responses and slot values in every scenario', async () => {
-  const token = await collectProject('scenes/explainers/token-bucket', { write: false }),
-    ring = await collectProject('scenes/explainers/ring-buffer', { write: false });
+  const token = await loaded('token-bucket'),
+    ring = await loaded('ring-buffer');
   assert.equal(token.scenarios.length, 3);
   assert.equal(ring.scenarios.length, 2);
   let frames = 0;
@@ -123,7 +125,7 @@ test('token introductions and the ring’s fill and result steps draw the indepe
 });
 
 test('GTFS departures preserve fixed departures and frequency patterns across all six source-feed scenarios', async () => {
-  const p = await collectProject('scenes/explainers/gtfs', { write: false });
+  const p = await loaded('gtfs');
   assert.equal(p.scenarios.length, 6);
   let checked = 0;
   for (const v of p.scenarios)
@@ -160,7 +162,7 @@ test('GTFS departures preserve fixed departures and frequency patterns across al
 });
 
 test('the occupied-date picture contains 365 days and the independently expected excluded set in every scenario', async () => {
-  const p = await collectProject('scenes/explainers/birthday-paradox', { write: false });
+  const p = await loaded('birthday-paradox');
   assert.equal(p.scenarios.length, 3);
   let checked = 0;
   for (const v of p.scenarios)
@@ -186,7 +188,7 @@ test('the occupied-date picture contains 365 days and the independently expected
 });
 
 test('the complete annual daylight picture labels its fixed zero, twelve and twenty-four-hour scale at every latitude', async () => {
-  const p = await collectProject('scenes/explainers/seasons', { write: false });
+  const p = await loaded('seasons');
   assert.equal(p.scenarios.length, 4);
   let checked = 0;
   for (const v of p.scenarios)
@@ -213,7 +215,7 @@ test('the complete annual daylight picture labels its fixed zero, twelve and twe
 
 test('the ext4 reserve comparison actually changes reserve and preserves the metadata allocation', async () => {
   const { space, SIZES } = await import('../scenes/explainers/ext4-space/model.ts');
-  const p = await collectProject('scenes/explainers/ext4-space', { write: false });
+  const p = await loaded('ext4-space');
   // The 1 TiB disk formatted with -m 1, against the default -m 5 the story walks first.
   const v = p.scenarios.find((x) => x.values.size === '1t' && x.values.reserve === '1');
   assert.ok(v);
@@ -262,7 +264,7 @@ test('traffic comparisons draw each source pod share without attributing the ing
       ['c / N3', '33.3%', '33.3%'],
     ],
   } as const;
-  const p = await collectProject('scenes/explainers/traffic-policy', { write: false });
+  const p = await loaded('traffic-policy');
   assert.equal(p.scenarios.length, 6);
   let checked = 0;
   for (const v of p.scenarios)

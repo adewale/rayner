@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict';
+import { pictureWordsAt } from '../../../explain/testing.ts';
 import type { Trace } from '../../../explain/testing.ts';
 import { Scene, Text } from '../../../src/index.ts';
 import type { Sink } from '../../../src/index.ts';
-import { pictureHtml } from '../../../explain/trace.ts';
 import { assertStepState } from '../../../test/lib/explainer-state.ts';
-import { textOf } from '../../../test/lib/fidelity.ts';
 import type { FidelityRun } from '../../../test/lib/fidelity.ts';
 import { sunlight, noonShare, noonPatch, sunDistance, daylightYear } from './model.ts';
 
@@ -82,7 +81,7 @@ async function seasonsArithmetic(
   assert.equal(Math.sin(((90 - Math.abs(lat - decl)) * Math.PI) / 180).toFixed(2), sine[2], sines[0]!);
   assert.equal((90 - Math.abs(lat - decl)).toFixed(1), sine[1], sines[0]!);
   // The describe says the same formula.
-  const noon = textOf(pictureHtml(trace.steps.find((s) => s.step === 'noon')!.shown));
+  const noon = pictureWordsAt(trace, 'noon').full;
   assert.ok(noon.includes(formulas[0]!), noon);
 
   // The side-by-side beams: each patch length printed under its beam, and the share per m² under it, is
@@ -100,7 +99,7 @@ async function seasonsArithmetic(
   }
 
   const yearStep = trace.steps.find((s) => s.step === 'year')!,
-    year = textOf(pictureHtml(yearStep.shown));
+    year = pictureWordsAt(trace, 'year').full;
   // The solstice values as the chart labels them at their dots.
   const row = (name: string) => {
     const r = new RegExp(`${name} ([\\d.]+) h`).exec(year);

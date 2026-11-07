@@ -1,9 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { traceScene } from '../explain/testing.ts';
-import { describeExplainer, withSettings, scenariosOf, bindSnapshots } from '../explain/testing.ts';
+import { describeExplainer, withSettings, scenariosOf, bindSnapshots, loadProject, loadSnapshots } from '../explain/testing.ts';
 import type { ExplainerClass } from '../explain/index.ts';
-import { collectProject, readSnapshots } from '../tools/lib/explain-project.ts';
 import RingBuffer from '../scenes/explainers/ring-buffer/scene.ts';
 import OauthPkce from '../scenes/explainers/oauth-pkce/scene.ts';
 import { PALETTES } from '../explain/palettes.ts';
@@ -11,7 +10,7 @@ import { idsOf, stepIdsOf } from './lib/steps.ts';
 
 test('describeExplainer gives every scenario and step: the words, the state the trace recorded and what each step changed', async () => {
   // As the tools describe it: collected, so its id is its folder's name.
-  const d = await describeExplainer((await collectProject('scenes/explainers/ring-buffer', { write: false })).Scene);
+  const d = await describeExplainer((await loadProject(RingBuffer, 'scenes/explainers/ring-buffer')).Scene);
   assert.equal(d.schema, 1);
   assert.equal(d.id, 'ring-buffer');
   assert.deepEqual(d.scenarios.map((c) => c.values), scenariosOf(RingBuffer as ExplainerClass));
@@ -56,7 +55,7 @@ test('describeExplainer gives every scenario and step: the words, the state the 
 });
 
 test('a scene with diagrams describes from its pinned snapshots, scenario by scenario, and fails without them', async () => {
-  const snapshots = await readSnapshots('scenes/explainers/oauth-pkce/scene');
+  const snapshots = await loadSnapshots('scenes/explainers/oauth-pkce');
   const d = await describeExplainer(OauthPkce as ExplainerClass, { snapshots, drawings: false });
   assert.deepEqual(d.settings.map((s) => s.id), ['attacker']);
   assert.equal(d.scenarios.length, 2);

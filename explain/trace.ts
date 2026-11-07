@@ -306,3 +306,29 @@ export function pictureHtml(state: unknown, previous?: unknown): string {
  * Empty when everything on the stage is described; `rayner check` fails a step otherwise.
  */
 export const undescribed = (state: unknown): string[] => pictureOf(state)?.undescribed ?? [];
+/** A step's picture in words, as each reading surface says it (`pictureWordsAt`). */
+export interface PictureWords {
+  /** Two or three short sentences: what is shown, what is emphasised and what is new; the stage's accessible description. */
+  summary: string;
+  /** Everything shown, each thing's emphasised parts first, as the player's picture list reads; plain text. */
+  full: string;
+  /** As `full`, except that a thing whose parts are as in the previous step lists only its emphasis, as the page's transcript reads. */
+  transcript: string;
+}
+/**
+ * The picture in words at the end of the step named `step`, from a trace (`traceScene`, or a
+ * scenario of `loadProject`): what a reader who cannot see the stage is told about it.
+ */
+export function pictureWordsAt(trace: { steps: readonly Pick<StepRecord, 'step' | 'shown'>[] }, step: string): PictureWords {
+  const i = trace.steps.findIndex((s) => s.step === step);
+  if (i < 0) throw new Error(`No step "${step}" in the trace: ${trace.steps.map((s) => s.step).join(', ')}`);
+  const { shown } = trace.steps[i]!,
+    previous = trace.steps[i - 1]?.shown;
+  const text = (html: string) =>
+    html
+      .replace(/<li>/g, ' ')
+      .replace(/<\/?(?:ul|li)>/g, '')
+      .replace(/&(?:amp|lt|gt|quot|#39);/g, (e) => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" })[e]!)
+      .trim();
+  return { summary: pictureSummary(shown), full: text(pictureHtml(shown)), transcript: text(pictureHtml(shown, previous)) };
+}

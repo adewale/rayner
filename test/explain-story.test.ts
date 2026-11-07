@@ -5,7 +5,10 @@ import { Resvg } from '@resvg/resvg-js';
 import { toSvgString } from '../src/output.ts';
 import { labelOf } from '../explain/diagrams.ts';
 import { toView } from '../app/embed-closeup.ts';
-import { collectProject } from '../tools/lib/explain-project.ts';
+import { loadProject } from '../explain/testing.ts';
+
+/** Explainer `id` of the collection, loaded as an author's test loads it. */
+const loaded = async (id: string) => loadProject((await import(`../scenes/explainers/${id}/scene.ts`)).default, `scenes/explainers/${id}`);
 
 test('route and chart annotations leave the expected paper visible behind their lettering', async () => {
   const cases: [string, string, string[], Record<string, string>, number[]][] = [
@@ -16,7 +19,7 @@ test('route and chart annotations leave the expected paper visible behind their 
     ['seasons', 'distance', ['0.0 h'], {place: 'tromso'}, [26, 27, 38]],
   ];
   for (const [id, stepName, words, settings, paper] of cases) {
-    const project = await collectProject(`scenes/explainers/${id}`, { write: false });
+    const project = await loaded(id);
     const scenarios = project.scenarios.filter((v) => Object.entries(settings).every(([k, value]) => v.values[k] === value));
     assert.ok(scenarios.length > 0, `${id}: the named scenario must exist`);
     for (const scenario of scenarios) {

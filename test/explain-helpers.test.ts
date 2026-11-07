@@ -9,8 +9,8 @@ import { NullSink } from '../src/output.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
 import { stage, regionBox } from '../explain/index.ts';
 import { REGIONS } from '../explain/look.ts';
-import { bindSnapshots } from '../explain/testing.ts';
-import { findingsOf, edgePartOf, diagramKey, snapshotResolver, useDiagrams, diagramsOf, RENDERER } from '../integrations/agentic-mermaid/snapshot.ts';
+import { bindSnapshots, diagramFindings, loadProject, loadSnapshots, pictureWordsAt } from '../explain/testing.ts';
+import { edgePartOf, diagramKey, snapshotResolver, useDiagrams, diagramsOf, RENDERER } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { raised, rule, emphasis, soft, good, bad, dimOpacity, seenSource } from '../explain/look.ts';
 import type { SeenSource } from '../explain/look.ts';
@@ -422,7 +422,7 @@ test('current producer warnings name multigraph parts per pair regardless of glo
     const current: DiagramSnapshot = { ...s, renderer: RENDERER };
     for (const id of ids) assert.equal(edgePartOf(current, id.slice('edge:'.length)), id);
     const warnings = ids.map((id) => ({ code: 'DECISION_BRANCH_UNLABELED', edge: id.slice('edge:'.length) }));
-    assert.deepEqual(findingsOf({ ...current, findings: { ...current.findings, warnings } }).map((w) => w.part), ids);
+    assert.deepEqual(diagramFindings({ ...current, findings: { ...current.findings, warnings } }).map((w) => w.part), ids);
     assert.equal(edgePartOf(current, 'missing->edge#0'), undefined);
     const authored = { ...current, parts: current.parts.map((p, i) => ({ ...p, id: `edge:authored_${i}` })) };
     authored.parts.forEach((p) => assert.equal(edgePartOf(authored, p.id.slice('edge:'.length)), p.id));
@@ -441,7 +441,7 @@ test('edgePartOf finds nothing for a name whose index or endpoints do not match 
   );
 });
 
-test('findingsOf keeps each warning, gives the part its edge names (never a stale one), and copies rather than mutates', () => {
+test('diagramFindings keeps each warning, gives the part its edge names (never a stale one), and copies rather than mutates', () => {
   fc.assert(
     fc.property(
       multigraph.chain((m) =>
@@ -464,7 +464,7 @@ test('findingsOf keeps each warning, gives the part its edge names (never a stal
         const warnings = written.map((w) => (typeof w.edge === 'number' ? { ...w, edge: `${edges[w.edge]!.from}->${edges[w.edge]!.to}#${w.edge}` } : w));
         const snap = { ...s, findings: { ...(s.findings as object), warnings } } as DiagramSnapshot;
         const before = JSON.stringify(warnings);
-        const out = findingsOf(snap);
+        const out = diagramFindings(snap);
         assert.equal(out.length, warnings.length);
         out.forEach((f, i) => {
           const { part: _stale, ...rest } = warnings[i]!;
@@ -488,7 +488,7 @@ test('scale probe: keys, validation and edge lookup on very large inputs', { tim
   assert.equal(await snapshotResolver({ [diagramKey(huge.spec)]: huge }).diagram(huge.spec), huge);
   const edges = Array.from({ length: 100_000 }, (_, i) => ({ from: 'n' + (i % 100), to: 'n' + ((i * 7) % 100) }));
   const g = { parts: [], findings: { layout: { edges }, warnings: Array.from({ length: 200 }, (_, i) => ({ code: 'W', edge: `${edges[i * 400]!.from}->${edges[i * 400]!.to}#${i * 400}` })) } } as unknown as DiagramSnapshot;
-  assert.equal(findingsOf(g).length, 200);
+  assert.equal(diagramFindings(g).length, 200);
   assert.equal(htmlEscape('<&>"\''.repeat(1_000_000)).length, 1_000_000 * (4 + 5 + 4 + 6 + 5));
 });
 
@@ -649,9 +649,19 @@ test('the explain entry point exports exactly its documented names', async () =>
   ]);
   // The tooling went to rayner/testing.
   assert.deepEqual(Object.keys(await import('../explain/testing.ts')).sort(), [
-    'InvariantSink', 'MotionSink', 'TraceSink', 'analyzeMotion', 'bindSnapshots', 'describeExplainer', 'jsonObject', 'loadFonts',
-    'machinesOf', 'perf', 'scenarioName', 'scenariosOf', 'takeMissingGlyphs', 'traceScene', 'viewMismatch', 'withIntent', 'withSettings',
+    'InvariantSink', 'MotionSink', 'TraceSink', 'analyzeMotion', 'bindSnapshots', 'describeExplainer', 'diagramFindings', 'jsonObject', 'loadFonts',
+    'loadProject', 'loadSnapshots', 'machinesOf', 'perf', 'pictureWordsAt', 'scenarioName', 'scenariosOf', 'takeMissingGlyphs', 'traceScene', 'viewMismatch', 'withIntent', 'withSettings',
   ]);
+});
+
+test('the testing helpers name a missing step, refuse a scene with lettering, and find no snapshots where none are pinned', async () => {
+  const trace = { steps: [{ step: 'first' }, { step: 'second' }] };
+  assert.throws(() => pictureWordsAt(trace, 'third'), /No step "third" in the trace: first, second/);
+  assert.deepEqual(pictureWordsAt(trace, 'second'), { summary: '', full: '', transcript: '' });
+  const Lettered = class extends Scene {};
+  (Lettered as { meta?: object }).meta = { lettering: {} };
+  await assert.rejects(loadProject(Lettered, 'test/fixtures/lettered'), /test\/fixtures\/lettered\/scene\.ts: the scene asks for lettering/);
+  assert.deepEqual(await loadSnapshots('test/fixtures/no-such-explainer'), {});
 });
 
 // ---- explain/trace.ts ------------------------------------------------------------
@@ -672,10 +682,9 @@ test('htmlEscape output has no markup characters and decodes back to the text', 
 // ---- state diagrams: composites and regions ---------------------------------------
 
 test('state diagrams name [*] dots by their state and region, count composites as states, and dim keeps a composite whole', async () => {
-  const { readSnapshots } = await import('../tools/lib/explain-project.ts');
   const { COMPOSITE, REGIONS } = await import('./fixtures/state-composite/scene.ts');
   const { wordsFor } = await import('../explain/words.ts');
-  const store = await readSnapshots('test/fixtures/state-composite/scene');
+  const store = await loadSnapshots('test/fixtures/state-composite');
   const draw = async (source: string) => {
     const captured = Object.values(store).find((s) => s.spec.source === source);
     assert.ok(captured, 'the fixture snapshot is captured');

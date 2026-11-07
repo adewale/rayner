@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {pictureHtml} from '../../../explain/trace.ts';
+import { pictureWordsAt } from '../../../explain/testing.ts';
 import type { Trace } from '../../../explain/testing.ts';
 import { assertStepState } from '../../../test/lib/explainer-state.ts';
 import { SINGLES, WRAPS, build, nameOf, isSend, isSync, threads } from './model.ts';
@@ -27,7 +27,7 @@ export function check(trace: Trace, values: Record<string, string>): void {
   // The input type's two answers are said on its point where it is placed (once, among the
   // single types), and the built type's on its point in the last wrapper step.
   const said = (step: string, send: boolean, sync: boolean) => {
-    const text = pictureHtml(trace.steps.find((s) => s.step === step)!.shown);
+    const text = pictureWordsAt(trace, step).full;
     assert.ok(text.includes(`Send: ${send ? 'yes' : 'no'}, Sync: ${sync ? 'yes' : 'no'}`), `${step}: ${text}`);
   };
   said(({ i32: 'i32', cell: 'cell', rc: 'rc' } as const)[inner], layers[0]!.send, layers[0]!.sync);

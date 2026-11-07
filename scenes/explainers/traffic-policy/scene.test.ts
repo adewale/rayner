@@ -4,12 +4,11 @@ import type { SeenSource } from '../../../explain/look.ts';
 import assert from 'node:assert/strict';
 import { Scene } from '../../../src/index.ts';
 import { NullSink } from '../../../src/output.ts';
-import { loadFonts } from '../../../explain/testing.ts';
+import { loadFonts, loadSnapshots } from '../../../explain/testing.ts';
 import { Diagram } from '../../../explain/index.ts';
 import type { DiagramSnapshot } from '../../../explain/index.ts';
-import { readSnapshots } from '../../../tools/lib/explain-project.ts';
 
-const store = await readSnapshots('scenes/explainers/traffic-policy/scene');
+const store = await loadSnapshots('scenes/explainers/traffic-policy');
 
 const arch = (text: string): DiagramSnapshot => {
   const s = Object.values(store).find((x) => x.family === 'architecture' && x.spec.source.includes(text));

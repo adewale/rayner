@@ -6,12 +6,14 @@ import {inflateSnapshots} from '../app/embed-snapshots.ts';
 import {gzipSync} from 'node:zlib';
 import type {SnapshotStore} from '../integrations/agentic-mermaid/snapshot.ts';
 import {fc, params} from './lib/pbt.ts';
-import {collectProject} from '../tools/lib/explain-project.ts';
-import { bindSnapshots } from '../explain/testing.ts';
+import { bindSnapshots, loadProject } from '../explain/testing.ts';
 import { toSvgString } from '../src/output.ts';
 import type {SceneClass} from '../src/index.ts';
 
 import { fixture } from './lib/page-snapshot-fixture.ts';
+
+/** Explainer `id` of the collection, loaded as an author's test loads it. */
+const loaded = async (id: string) => loadProject((await import(`../scenes/explainers/${id}/scene.ts`)).default, `scenes/explainers/${id}`);
 
 test('page path compaction preserves exact float32 bytes through JSON, including signed underflow', () => {
   const check = (points: number[]) => {
@@ -108,8 +110,8 @@ test('compacted real flowchart, timeline and XY snapshots render byte-identical 
     return result;
   };
   for (const id of ['mr-cache', 'cert-renewal', 'tailwind-gamut']) {
-    const project = await collectProject(`scenes/explainers/${id}`, {write: false});
-    const compact = pageSnapshots(project.store);
+    const project = await loaded(id);
+    const compact = pageSnapshots(project.snapshots);
     const Source = project.scenarios[0]!.Scene;
     const original = await frames(Source);
     assert.ok(original.length >= 3, 'compare every resting picture, not an empty render');

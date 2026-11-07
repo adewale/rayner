@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import type { View } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
-import { loadFonts, withSettings } from '../../../explain/testing.ts';
-import { collectProject } from '../../../tools/lib/explain-project.ts';
+import { loadFonts, loadProject, withSettings } from '../../../explain/testing.ts';
+import LatestSearch from './scene.ts';
 import { assertStepState } from '../../../test/lib/explainer-state.ts';
 import { assertViewFollowsState } from '../../../test/lib/view-fidelity.ts';
 import LatestSearchExplainer from './fixtures/latest-search-view.ts';
@@ -10,7 +10,7 @@ import { runSearch, raceReplay, raceLifetimes, racePage } from './model.ts';
 import type { RaceEvent, RaceState } from './model.ts';
 
 test('all four reference chart scenarios derive their final chart and caption from the real promise result', async () => {
-  const project = await collectProject('scenes/explainers/latest-search/fixtures/latest-search-view.ts', { write: false });
+  const project = await loadProject(LatestSearchExplainer, 'scenes/explainers/latest-search/fixtures/latest-search-view.ts');
   assert.equal(project.scenarios.length, 4);
   for (const { values, trace } of project.scenarios) {
     const guard = values.guard === 'on';
@@ -42,7 +42,7 @@ test('the chart/view on every scenario follows the state recorded at each restin
 });
 
 test('the public story compares both rules and shows each ticket decision in both finish orders', async () => {
-  const p = await collectProject('scenes/explainers/latest-search', {write:false});
+  const p = await loadProject(LatestSearch, 'scenes/explainers/latest-search');
   assert.equal(p.scenarios.length,2);
   for(const v of p.scenarios){
     assert.deepEqual(v.trace.steps.map(s=>s.step),['race','overwrite','tickets','reader-first','reader-ticket','reader-guard']);

@@ -20,13 +20,3 @@ export interface FidelityRun {
 /** An explainer's fidelity check: every step's state against the program it explains, for one scenario. */
 export type FidelityCheck = (trace: Trace, values: Record<string, string>, run: FidelityRun) => void | Promise<void>;
 
-/** A picture description's text, without its markup. */
-export function textOf(html: string): string {
-  return html
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&');
-}

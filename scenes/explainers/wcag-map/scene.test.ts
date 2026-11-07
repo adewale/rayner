@@ -1,10 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { collectProject } from '../../../tools/lib/explain-project.ts';
+import { loadProject } from '../../../explain/testing.ts';
+import WcagMap from './scene.ts';
 import { PRINCIPLES, guidelinesIn } from './model.ts';
 
 test('every authored scenario is collected, and the mind map reads as its outline', async () => {
-  const project = await collectProject('scenes/explainers/wcag-map', { write: false });
+  const project = await loadProject(WcagMap, 'scenes/explainers/wcag-map');
   assert.equal(project.scenarios.length, 12);
   // Step-state fidelity for every scenario lives in fidelity.ts.
   // The description lists a mind map's topics depth first, each principle followed by its own

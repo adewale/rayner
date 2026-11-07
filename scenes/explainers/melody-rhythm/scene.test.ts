@@ -4,7 +4,7 @@ import { phrase, musicStory, beatMs } from './model.ts';
 import MelodyRhythm from './scene.ts';
 import { stepAudio } from '../../../explain/audio.ts';
 import { explainerMeta } from '../../../tools/lib/explain-intent.ts';
-import { collectProject } from '../../../tools/lib/explain-project.ts';
+import { loadProject } from '../../../explain/testing.ts';
 import { Text, Rectangle } from '../../../src/index.ts';
 
 test('the music comparison preserves pitches and total beats while moving exactly two starts and durations',()=>{
@@ -53,7 +53,7 @@ test('the music comparison preserves pitches and total beats while moving exactl
 });
 
 test('both piano rolls put every played pitch, onset and duration at its stated score coordinates', async () => {
-  const p = await collectProject('scenes/explainers/melody-rhythm', { write: false });
+  const p = await loadProject(MelodyRhythm, 'scenes/explainers/melody-rhythm');
   // Two versions of B; the tempo setting, which changed no picture's notes, is gone.
   assert.equal(p.scenarios.length, 2);
   let pictures = 0,

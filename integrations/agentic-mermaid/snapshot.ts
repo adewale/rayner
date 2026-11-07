@@ -300,8 +300,11 @@ export function edgePartOf(snapshot: DiagramSnapshot, edgeName: string): string 
   const part = `edge:${edge.from}->${edge.to}#${nth}`;
   return snapshot.parts.some((p) => p.id === part) ? part : undefined;
 }
-/** The snapshot's verifier warnings, each with the `part` its edge names (see `edgePartOf`). */
-export function findingsOf(snapshot: DiagramSnapshot): Finding[] {
+/**
+ * A captured diagram's verifier warnings, each with the `part` its edge names (see `edgePartOf`):
+ * what `d.findings()` gives, for a pinned snapshot read without building its diagram.
+ */
+export function diagramFindings(snapshot: DiagramSnapshot): Finding[] {
   // `part` is always derived here, never carried over.
   return snapshot.findings.warnings.map(({ part: _stale, ...warning }) => {
     const part = warning.edge != null ? edgePartOf(snapshot, warning.edge) : undefined;
