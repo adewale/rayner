@@ -5,10 +5,10 @@
 // (which resolves immediately). The loop itself uses a fixed dt, so output is
 // deterministic regardless of sink.
 
-import { prepareAnimation, AnimationGroup } from './animation.ts';
+import { prepareAnimation, AnimationGroup, animationName } from './animation.ts';
 import { Succession, bindSuccessions, takeCopies, recordEvidence } from './animation.ts';
 import type { ScheduledAnimation as Animation, Playable, PlayOpts } from './animation.ts';
-import { paintDefaults } from './mobject.ts';
+import { paintDefaults, mobjectName } from './mobject.ts';
 import type { Mobject } from './mobject.ts';
 import { NEUTRAL_COLORS } from './color.ts';
 import type { SceneColors } from './color.ts';
@@ -17,7 +17,7 @@ import {Text} from './text.ts';
 import type {TextOpts} from './text.ts';
 import {textContextOf, withTextContext} from './text-context.ts';
 import { loadFonts } from './fonts.ts';
-import {jsonObject} from './json.ts';
+import {cloneJson} from './json.ts';
 import type {JsonObject} from './json.ts';
 import { Frame } from './frame.ts';
 
@@ -111,8 +111,7 @@ function assertDisjoint(anims: readonly Animation[]): void {
     for (const m of driven(a)) {
       const other = seen.get(m);
       if (other && other !== a) {
-        const name = (x: Animation) => `${x.constructor.name}(${!(x instanceof AnimationGroup) ? `${x.mobject.constructor.name}#${x.mobject.id}` : '...'})`;
-        throw new Error(`play(): ${name(other)} and ${name(a)} both animate ${m.constructor.name}#${m.id}; one play() can drive a mobject only once (sequence them, or combine into one Transform)`);
+        throw new Error(`this.play(): ${animationName(other)} and ${animationName(a)} both animate ${mobjectName(m)}; one play can drive a mobject only once, so sequence them, or combine them into one Transform`);
       }
       seen.set(m, a);
     }
@@ -268,9 +267,9 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    * and so checks nothing between them. Names are unique per scene; returns a remover.
    */
   addInvariant(name: string, check: Invariant): () => void {
-    if (typeof name !== 'string' || !name.trim()) throw new TypeError('An invariant needs a name');
-    if (typeof check !== 'function') throw new TypeError(`Invariant ${name}: check must be a function of the scene`);
-    if (this.invariants.has(name)) throw new Error(`Invariant ${name} is already registered`);
+    if (typeof name !== 'string' || !name.trim()) throw new TypeError('this.addInvariant(): an invariant needs a name');
+    if (typeof check !== 'function') throw new TypeError(`this.addInvariant(): the check of ${JSON.stringify(name)} must be a function of the scene`);
+    if (this.invariants.has(name)) throw new Error(`this.addInvariant(): ${JSON.stringify(name)} is already registered; give each invariant its own name`);
     this.invariants.set(name, check);
     return () => { if (this.invariants.get(name) === check) this.invariants.delete(name); };
   }
@@ -304,9 +303,9 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    * traces and tests address. `meta` is free-form and travels with the trace.
    */
   async step(name: string, meta: StepMeta = {}): Promise<Step> {
-    if (typeof meta === 'function') throw new TypeError('step(name, fn) is gone: call `await this.step(name)` where the step begins');
-    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) throw new TypeError('step metadata must be an object');
-    if (meta.caption !== undefined && typeof meta.caption !== 'string') throw new TypeError(`step ${name}: caption must be a string`);
+    if (typeof meta === 'function') throw new TypeError('this.step(): it takes a name and metadata, not a function; call `await this.step(name)` where the step begins');
+    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) throw new TypeError('this.step(): the metadata must be an object');
+    if (meta.caption !== undefined && typeof meta.caption !== 'string') throw new TypeError(`this.step(): the caption of step ${JSON.stringify(name)} must be a string`);
     this.throwIfStopped();
     await this.endCurrentStep();
     const s: Step = { name, path: name, t0: this.time, frame0: this.frameCount, t1: null, frame1: null, meta, evidence: [] };
@@ -367,14 +366,14 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   shownJson(): JsonObject { return this.json(this.shown, 'shown'); }
 
   private json(base: object, into: JsonInto): JsonObject {
-    const state = jsonObject(base, `scene.${into}`);
+    const state = cloneJson(base, `this.${into}`, `this.${into}`);
     for (const { part, into: where } of this.jsonParts) {
       if (where !== into) continue;
       const extra: unknown = part();
       if (!extra || typeof extra !== 'object' || Array.isArray(extra))
-        throw new TypeError('An addJson part must return a JSON object');
+        throw new TypeError('this.addJson(): a part must return a JSON object');
       // Define own keys, so a key such as "__proto__" is copied, not used as a prototype.
-      for (const [k, value] of Object.entries(jsonObject(extra, 'scene addJson part')))
+      for (const [k, value] of Object.entries(cloneJson(extra, 'this.addJson()', 'the part')))
         Object.defineProperty(state, k, { value, enumerable: true, writable: true, configurable: true });
     }
     return state;
@@ -392,9 +391,9 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    * as JSON when recorded.
    */
   record(kind: string, data: Record<string, unknown> & {kind?: never} = {}): void {
-    if (typeof kind !== 'string' || !kind.trim()) throw new TypeError('Evidence kind must be a nonempty string');
-    const payload = jsonObject(data, 'scene evidence');
-    if (Object.hasOwn(payload, 'kind')) throw new TypeError('Evidence data must not override kind');
+    if (typeof kind !== 'string' || !kind.trim()) throw new TypeError('this.record(): kind must be a nonempty string');
+    const payload = cloneJson(data, 'this.record()', 'data');
+    if (Object.hasOwn(payload, 'kind')) throw new TypeError('this.record(): data must not have its own kind; the first argument is the kind');
     const e: Evidence = {kind, ...payload};
     this.evidence.push(e);
     this.current?.evidence?.push(e);
@@ -443,7 +442,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     replacements = admitRoots([], replacements);
     const parent = this.mobjects.includes(old) ? null : this.familyMembers().find((m) => m.children.includes(old)) ?? null;
     if (parent && replacements.some((m) => m.family().includes(parent)))
-      throw new Error('replace() cannot insert an ancestor into its descendant');
+      throw new Error('this.replace(): a replacement cannot be an ancestor of the parent it goes into');
     const covered = new Set(replacements.flatMap((m) => m.family()));
     this.mobjects = this.mobjects.filter((m) => m === old || !covered.has(m));
     if (parent && !this.mobjects.includes(old)) {
@@ -506,7 +505,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     // An .animate builder is never the options: its prototype is not Object.prototype (Mobject.animate)
     const isOpts = last && Object.getPrototypeOf(last) === Object.prototype;
     const opts = (isOpts ? list.pop() : {}) as PlayOpts;
-    const anims = list.map(prepareAnimation);
+    const anims = list.map((x) => prepareAnimation(x));
     // What some animation reads before it can begin (a diagram's layout): wait for it, once, here.
     const waits = anims.flatMap(function pending(a: Animation): Promise<unknown>[] {
       const r = a.ready();

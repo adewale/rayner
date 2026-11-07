@@ -7,7 +7,7 @@ import { Animation } from '../src/animation.ts';
 import type { AnimOpts } from '../src/animation.ts';
 import { Group, Mobject as MobjectClass } from '../src/mobject.ts';
 import type { Mobject } from '../src/mobject.ts';
-import { jsonObject } from '../src/json.ts';
+import { cloneJson } from '../src/json.ts';
 import type { JsonObject } from '../src/json.ts';
 import type { Scene, SceneState, Evidence } from '../src/scene.ts';
 
@@ -33,9 +33,9 @@ export class SetState<S extends object = SceneState> extends Animation {
   private readonly update: ((current: S) => S) | null;
 
   constructor(host: Scene<S, any>, next: NoInfer<S> | ((current: NoInfer<S>) => NoInfer<S>), { event }: SetStateOpts = {}) {
-    if (event !== undefined && (typeof event !== 'string' || !event.trim())) throw new TypeError('SetState event must be a nonempty string');
+    if (event !== undefined && (typeof event !== 'string' || !event.trim())) throw new TypeError('machine.send(): an event must be a nonempty string');
     const update = typeof next === 'function' ? (next as (current: S) => S) : null;
-    const snapshot = update ? null : jsonObject(next, 'SetState state');
+    const snapshot = update ? null : cloneJson(next, 'machine.send()', 'state');
     let target = stateTargets.get(host);
     if (!target) { target = new Group(); stateTargets.set(host, target); }
     super(target, { runTime: 0, remover: true });
@@ -47,9 +47,9 @@ export class SetState<S extends object = SceneState> extends Animation {
 
   override begin(): void {
     const next = this.update
-      ? this.update(jsonObject(this.host.state, 'SetState current state') as S)
+      ? this.update(cloneJson(this.host.state, 'machine.send()', 'this.state') as S)
       : this.snapshot;
-    this.host.state = jsonObject(next, 'SetState state') as Scene<S, any>['state'];
+    this.host.state = cloneJson(next, 'machine.send()', this.event === undefined ? 'state' : `next(state, ${JSON.stringify(this.event)})`) as Scene<S, any>['state'];
     super.begin();
   }
 
@@ -93,11 +93,11 @@ export class Follow extends Animation {
 
   constructor(spec: FollowSpec, { targets, ...opts }: FollowOpts) {
     if (!Array.isArray(targets) || !targets.length || !targets.every((m) => m instanceof MobjectClass))
-      throw new TypeError('Follow needs the mobjects draw() redraws: targets: [a, b, ...]');
-    if (!Number.isFinite(spec.to)) throw new RangeError(`Follow: to must be a finite number, not ${String(spec.to)}`);
-    if (typeof spec.from !== 'function' && !Number.isFinite(spec.from)) throw new RangeError(`Follow: from must be a finite number or a function, not ${String(spec.from)}`);
-    if (typeof spec.draw !== 'function') throw new TypeError('Follow: draw must be a function of the value');
-    if (new Set(targets).size !== targets.length) throw new TypeError('Follow: each target once');
+      throw new TypeError('c.follow(): it needs the mobjects draw() redraws, targets: [a, b, ...]');
+    if (!Number.isFinite(spec.to)) throw new RangeError(`c.follow(): to must be a finite number, not ${String(spec.to)}`);
+    if (typeof spec.from !== 'function' && !Number.isFinite(spec.from)) throw new RangeError(`c.follow(): from must be a finite number or a function, not ${String(spec.from)}`);
+    if (typeof spec.draw !== 'function') throw new TypeError('c.follow(): draw must be a function of the value');
+    if (new Set(targets).size !== targets.length) throw new Error('c.follow(): a target is listed twice; list each target once');
     super(targets[0]!, opts);
     this.spec = spec;
     this.written = [...targets];
@@ -112,7 +112,7 @@ export class Follow extends Animation {
 
   override begin(): void {
     const from = typeof this.spec.from === 'function' ? this.spec.from() : this.spec.from;
-    if (!Number.isFinite(from)) throw new RangeError(`Follow: from() must return a finite number, not ${String(from)}`);
+    if (!Number.isFinite(from)) throw new RangeError(`c.follow(): from() must return a finite number, not ${String(from)}`);
     this.start = from;
     this.interpolate(0);
   }
@@ -126,11 +126,11 @@ export class Follow extends Animation {
     const drawn = this.spec.draw(this.valueAt(alpha));
     const pictures = drawn instanceof MobjectClass ? [drawn] : drawn;
     if (pictures.length !== this.written.length)
-      throw new TypeError(`Follow: draw returned ${pictures.length} pictures for ${this.written.length} targets`);
+      throw new TypeError(`c.follow(): draw returned ${pictures.length} pictures for ${this.written.length} targets; return one per target, in order`);
     pictures.forEach((picture, i) => {
       const target = this.written[i]!;
       if (pictures.indexOf(picture) !== i || this.written.includes(picture))
-        throw new TypeError('Follow: draw must return fresh mobjects, one per target, not a target itself');
+        throw new Error('c.follow(): draw returned a target itself; return fresh mobjects, one per target');
       target.become(picture);
     });
     for (const m of this.written) m.invalidateBox();

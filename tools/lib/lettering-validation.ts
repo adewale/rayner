@@ -7,7 +7,7 @@ const finite = (value: unknown): value is number => typeof value === 'number' &&
 const digest = (value: unknown): value is string => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 
 export function validateLetteringSnapshot(value: unknown): asserts value is LetteringSnapshot {
-  const fail = (part: string): never => { throw new Error(`Invalid lettering snapshot ${part}; run rayner snapshots to rebuild it`); };
+  const fail = (part: string): never => { throw new Error(`scene.lettering.json: its ${part} is invalid; run rayner snapshots to rebuild it`); };
   if (!object(value) || value.version !== 2 || !digest(value.builderHash) ||
       !object(value.request) || !object(value.runs) || !object(value.faces) || typeof value.shaper !== 'string') fail('header');
   const snapshot = value as Record<string, unknown> & { runs: Record<string, unknown>; faces: Record<string, unknown> };
@@ -47,7 +47,7 @@ export function validateLetteringSnapshot(value: unknown): asserts value is Lett
     // Latin Modern Math (GUST Font License) is the one face outside the rule, for Math.
     const gust = name === 'latin-modern-math' && /GUST Font License/.test(String((value as { license: string }).license));
     if (!gust && !licenceOf(String((value as { license: string }).license)))
-      throw new Error(`Lettering face ${name} is not under the OFL or Apache-2.0; only those may be embedded`);
+      throw new Error(`meta.lettering: the face ${name} is not under the OFL or Apache-2.0, and only those may be embedded; ask for another face`);
   }
 }
 

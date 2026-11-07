@@ -175,12 +175,12 @@ test('a keyed table names each part by row and column, and a keyed morph pairs a
 
 test('a table refuses two rows with one key, a row keyed as its own head or rule, and two columns with one header', () => {
   const s = stage(new Scene(new NullSink()));
-  assert.throws(() => table(s, ['Key'], [{ key: 'a', cells: ['x'] }, { key: 'a', cells: ['y'] }], { key: 'dup' }), /^Error: table dup: two rows are keyed "a"; a row's key is its identity/);
+  assert.throws(() => table(s, ['Key'], [{ key: 'a', cells: ['x'] }, { key: 'a', cells: ['y'] }], { key: 'dup' }), /^Error: table\(\): the table "dup" has two rows keyed "a"; a row's key is its identity/);
   // A bare row is keyed by its index, so it collides with a keyed row that takes the same name.
-  assert.throws(() => table(s, ['Key'], [['x'], { key: '0', cells: ['y'] }], { key: 'comparison' }), /table comparison: two rows are keyed "0"/);
+  assert.throws(() => table(s, ['Key'], [['x'], { key: '0', cells: ['y'] }], { key: 'comparison' }), /table\(\): the table "comparison" has two rows keyed "0"/);
   for (const reserved of ['head', 'rule'])
-    assert.throws(() => table(s, ['Key'], [{ key: reserved, cells: ['x'] }], { key: 't' }), new RegExp(`table t: a row cannot be keyed "${reserved}"`));
-  assert.throws(() => table(s, ['Key', 'Key'], [['x', 'y']], { key: 't' }), /table t: two columns are headed "Key"/);
+    assert.throws(() => table(s, ['Key'], [{ key: reserved, cells: ['x'] }], { key: 't' }), new RegExp(`table\\(\\): a row of the table "t" cannot be keyed "${reserved}"`));
+  assert.throws(() => table(s, ['Key', 'Key'], [['x', 'y']], { key: 't' }), /table\(\): the table "t" has two columns headed "Key"/);
   // Distinct keys in any order are accepted, and each row keeps its own.
   const ok = table(s, ['Key'], [{ key: 'b', cells: ['y'] }, ['x'], { key: 'a', cells: ['z'] }], { key: 't' });
   assert.deepEqual(ok.children.slice(2).map((r) => r.key), ['t:b', 't:1', 't:a']);

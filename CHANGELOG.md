@@ -49,7 +49,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `s.look` holds the colours a scene draws with, each reading on the stage's paper: `paper`, `ink`, `soft`, `emphasis`, `good`, `bad`, `raised` and `rule` (the panel colours) and `muted`. A palette (`palette(name)`, the `Palette` type) is the named style a stage is built from, not what a scene draws with. `lerpColor` mixes two colours. [Colours](docs/REFERENCE.md#colours)
 - A colour name means one colour: the emphasis colour is `emphasis` in `s.look`, in `scene.colors` and on a diagram (`d.emphasis`).
 - `s.backdrop` is the rectangle the stage is drawn on; "paper" names only its colour.
-- `diagramsOf(scene)` lays out a diagram, so `new Diagram(...)` can be measured before anything is drawn.
+- `diagramResolverOf(scene)` returns the scene's diagram resolver, whose `diagram(spec)` lays out a diagram, so `new Diagram(...)` can be measured before anything is drawn.
 - A picture that should follow the model is a `view(scene, draw)`, and `view.sync()` morphs it to the current state. [Views](docs/VIEWS.md#api)
 - `view.sync()` matches parts by key and stages the change by default: what goes fades out before what comes fades in. `staged` defaults to `true` for every `match`; `staged: false` fades both at once. A key sync whose pictures carry no keys is refused with the fix: key the parts, or say `match: 'text'`, `'shapes'` or `'index'`. [Views](docs/VIEWS.md#match)
 - Parts with the same `key` are the same part across morphs (`matchByKey`, `match: 'key'`), and `find(key)` and `findAll` address them. [Matching](docs/MATCHING.md#which-key)
@@ -118,6 +118,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - The transcript says "press" for an event, where it said "send".
 - On a phone, a view row kept in place for another step's tour shows its view count instead of an empty gap.
 - A hidden Try button is no longer painted or focusable.
+- The notice for an unknown setting or option names it in the reader's words, in English as in French: “The setting “Speed” has no option “9”.”
 - `build` writes one self-contained page per explainer: every scenario, a poster, a transcript, sources and licence notices.
 - A built page makes no network requests, uses no storage, and must fit in 1.5 MiB of HTML and 450 KiB gzipped.
 - The explainer is one tile: the title and scenario picker over the stage, then the stepper row, the step's words and the transcript. [The tile](docs/REFERENCE.md#the-tile)
@@ -175,6 +176,8 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 
 ### Tooling and publishing
 
+- Every public name is documented: `test/public-names.test.ts` fails when no guide in `docs/` names an exported value or type, a public member of an exported class or a stage member, apart from a listed few with no author purpose, and `node tools/repo/public-names.ts --docs` lists the surface. [Public names](docs/ENGINE.md#public-names)
+- Every error an author can see starts with the call that failed (`card():`, `s.card():`, `new NumberLine():`, `meta.watch:`), says what is wrong in one sentence with no final full stop, ends with the fix when it is known, is a `TypeError` for a wrong type or shape and a `RangeError` for a value out of range, and names a mobject by its key, text or kind, never its internal id. `test/error-messages.test.ts` holds the library to it. [Error messages](docs/ENGINE.md#error-messages)
 - The `rayner` command initialises, previews (with `--watch`), captures snapshots, checks, reviews, builds, draws contact sheets and describes a scene. [Command line](docs/REFERENCE.md#command-line)
 - `rayner describe` prints every scenario and step as JSON: the state, what changed, the invariants, the machines, and the picture in words and as text. [Describe](docs/REFERENCE.md#describe)
 - `rayner see` prints one step for a person at a terminal, and `describeExplainer` gives a script the same object.

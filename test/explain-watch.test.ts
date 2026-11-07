@@ -120,14 +120,14 @@ test('checkWatch refuses a watch that cannot work and names the problem', () => 
   const steps = [{ before: {}, after: { tokens: 5 } }, { before: { tokens: 5 }, after: { tokens: 0, gone: 1 } }];
   checkWatch(undefined, steps);
   checkWatch({ tokens: 'Tokens', gone: 'Gone' }, steps);
-  assert.throws(() => checkWatch({ nope: 'Nope' }, steps), /meta\.watch names "nope", which is never in the scene's state/);
-  assert.throws(() => checkWatch({ tokens: '   ' }, steps), /meta\.watch gives "tokens" an empty label/);
+  assert.throws(() => checkWatch({ nope: 'Nope' }, steps), /meta\.watch: it names "nope", which is never in the scene's state/);
+  assert.throws(() => checkWatch({ tokens: '   ' }, steps), /meta\.watch: it gives "tokens" an empty label/);
   assert.throws(() => checkWatch({ tokens: 5 }, steps), /an empty label/);
-  assert.throws(() => checkWatch({ '': 'Empty' }, steps), /meta\.watch has an empty key/);
+  assert.throws(() => checkWatch({ '': 'Empty' }, steps), /meta\.watch: it has an empty key/);
   assert.throws(() => checkWatch(['tokens'], steps), /must be a record/);
   assert.throws(() => checkWatch('tokens', steps), /must be a record/);
   const nine = Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`k${i}`, `K${i}`]));
-  assert.throws(() => checkWatch(nine, [{ before: {}, after: nine }]), /names 9 keys; at most 8/);
+  assert.throws(() => checkWatch(nine, [{ before: {}, after: nine }]), /it names 9 keys; name at most 8/);
   const eight = Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`k${i}`, `K${i}`]));
   checkWatch(eight, [{ before: {}, after: eight }]);
 });
@@ -142,8 +142,8 @@ async function collect(name: string, watch: string) {
 }
 
 test('collection refuses an unknown watched key, naming it, and accepts a key present in only one scenario', async () => {
-  await assert.rejects(collect('unknown', `{count:'Count',missing:'Missing'}`), /meta\.watch names "missing", which is never in the scene's state at any step of any scenario/);
-  await assert.rejects(collect('blank', `{count:' '}`), /meta\.watch gives "count" an empty label/);
+  await assert.rejects(collect('unknown', `{count:'Count',missing:'Missing'}`), /meta\.watch: it names "missing", which is never in the scene's state at any step of any scenario/);
+  await assert.rejects(collect('blank', `{count:' '}`), /meta\.watch: it gives "count" an empty label/);
   const p = await collect('ok', `{count:'Count',only:'Only'}`);
   assert.deepEqual(p.Scene.meta?.watch, { count: 'Count', only: 'Only' });
 });

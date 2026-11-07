@@ -91,7 +91,7 @@ export type Side = 'above' | 'below' | 'left' | 'right';
 const boxOf = (target: Vec | Box | Mobject): Box => {
   if (Array.isArray(target)) return (target.length === 2 ? [target[0], target[1], target[0], target[1]] : target) as Box;
   const b = (target as Mobject).box();
-  if (!b) throw new Error('callout(): the target has no extent');
+  if (!b) throw new Error('callout(): the target has no extent; give a point, a box or a mobject that is drawn');
   return b;
 };
 
@@ -156,7 +156,7 @@ const traceable = (m: Mobject): m is VMobject => m instanceof VMobject && m.hasP
  * drawing speed (1 by default: any faster and the motion check sees the tool jump). The tool fades in and out over the first and last quarter second.
  * `subject` is what is drawn; `pen` is the tool, which is removed when the play ends.
  */
-export class Draw extends Create {
+export class Sketch extends Create {
   subject: Mobject;
   pen: Mobject | null;
   travel: number;
@@ -351,13 +351,13 @@ export function colorName(hex: string): string {
 }
 
 /** How a legend says one swatch: "purple fill", "dashed red line", "green fill with a dashed outline". */
-export function swatchWords(item: LegendItem): string {
+export function swatchWords(item: LegendItem, api = 'legend()'): string {
   const name = (c: string) => item.name ?? colorName(c);
   if (item.fill === 'none' && item.stroke) return `${item.dashed ? 'dashed ' : ''}${name(item.stroke)} outline`;
   if (item.fill && item.stroke) return `${name(item.fill)} fill with a ${item.dashed ? 'dashed ' : ''}${colorName(item.stroke)} outline`;
   if (item.fill) return `${name(item.fill)} fill`;
   if (item.stroke) return `${item.dashed ? 'dashed ' : ''}${name(item.stroke)} line`;
-  throw new Error(`legend: the entry "${item.label}" needs a fill or a stroke for its swatch`);
+  throw new TypeError(`${api}: the entry ${JSON.stringify(item.label)} needs a fill or a stroke for its swatch`);
 }
 
 export interface LegendLook {
@@ -373,6 +373,8 @@ export interface LegendLook {
   gap?: number;
   /** The legend's key: each entry is keyed `key:<label>`, its swatch `key:<label>:swatch` and its words `key:<label>:text`. */
   key?: string;
+  /** The call an error names: the kit's `legend()` or the stage's `s.legend()`. */
+  api?: string;
 }
 
 /**
@@ -380,14 +382,14 @@ export interface LegendLook {
  * describes itself as its swatch→meaning pairs ("Key: purple fill, cat’s bits; dashed blue line,
  * the browser"), so the words a caption uses for a colour or a dash are on the stage too.
  */
-export function legend(items: readonly LegendItem[], { ink, shaping, size = 0.3, at = [0, 0], stack = 'column', gap, key }: LegendLook): Group {
-  if (!items.length) throw new Error('legend: a legend needs at least one entry');
+export function legend(items: readonly LegendItem[], { ink, shaping, size = 0.3, at = [0, 0], stack = 'column', gap, key, api = 'legend()' }: LegendLook): Group {
+  if (!items.length) throw new Error(`${api}: a legend needs at least one entry`);
   const labels = new Set<string>();
   for (const item of items) {
-    if (!item.label.trim()) throw new Error('legend: every entry needs words for what its swatch means');
-    if (labels.has(item.label)) throw new Error(`legend: two entries say "${item.label}"; each swatch needs its own meaning`);
+    if (!item.label.trim()) throw new TypeError(`${api}: every entry needs words for what its swatch means`);
+    if (labels.has(item.label)) throw new Error(`${api}: two entries say ${JSON.stringify(item.label)}; each swatch needs its own meaning`);
     labels.add(item.label);
-    swatchWords(item);
+    swatchWords(item, api);
   }
   const side = size * 0.9,
     long = size * 1.8,

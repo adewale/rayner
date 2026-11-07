@@ -122,7 +122,7 @@ test('real natural captures preserve explicit direction, and reject stale cached
         const run = damaged.parts.flatMap((p) => p.shapes).find((s) => s.textRun)!.textRun!;
         if (value === undefined) delete run[field];
         else Object.assign(run, { [field]: value });
-        await assert.rejects(snapshotResolver({ [diagramKey(spec)]: damaged }).diagram(spec), /Invalid diagram snapshot/);
+        await assert.rejects(snapshotResolver({ [diagramKey(spec)]: damaged }).diagram(spec), /scene\.snapshots: a diagram snapshot is invalid/);
       }
       const stale = await snapshotBuilder({ [diagramKey(spec)]: snapshot }, { measurementHash: 'changed source-font bytes' });
       try { await assert.rejects(stale.diagram(spec), /Stale natural diagram font metrics/); }

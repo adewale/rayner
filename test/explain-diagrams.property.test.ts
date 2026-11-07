@@ -317,8 +317,8 @@ test('walk rejects a hop that is not a link before anything moves or is recorded
         const before = looks(d),
           built = walks(scene).length;
         const bad = [...path.slice(0, at), [from, to] as [string, string], ...path.slice(at)];
-        await assert.rejects(async () => d.walk(bad), /is not a real link/);
-        assert.throws(() => d.trail(bad), /is not a real link/);
+        await assert.rejects(async () => d.walk(bad), /d\.walk\(\): .* is not a link of this diagram/);
+        assert.throws(() => d.trail(bad), /d\.link\(\): .* is not a link of this diagram/);
         assert.equal(walks(scene).length, built);
         assert.equal(looks(d), before);
       },
@@ -543,7 +543,7 @@ test('get finds every part by its id and rejects names that are not parts', asyn
       for (const p of s.parts) assert.equal(d.get(p.id), d.parts.get(p.id)!.mob);
       // A participant's or a class's bare name names its part.
       for (const [bare, id] of planOf(s).names) if (!s.parts.some((p) => p.id === bare)) assert.equal(d.get(bare), d.get(id));
-      if (!named(s, name)) assert.throws(() => d.get(name), /No diagram mark/);
+      if (!named(s, name)) assert.throws(() => d.get(name), /d\.get\(\): the diagram has no part/);
     }),
     params(),
   );
@@ -573,7 +573,7 @@ test('reveal rejects a count that is not a non-negative integer, revealing nothi
       async (s, n) => {
         const { d } = await shown(s, 'full', 'frame');
         const before = [...d.visible];
-        await assert.rejects(async () => d.reveal(n), /non-negative integer/);
+        await assert.rejects(async () => d.reveal(n), /d\.reveal\(\): a count of parts must be a whole number, 0 or more/);
         assert.deepEqual([...d.visible], before);
       },
     ),
@@ -677,7 +677,7 @@ test('a picture refuses to mark, dim to or note an unknown part, and changes not
           how === 'marks' ? d.picture(Object.fromEntries(bad.map((id) => [id, '#ff0000'])))
           : how === 'dim' ? d.picture({}, { dim: bad })
           : d.picture({}, { notes: bad.map((id) => ({ id, text: 'n' })) }),
-        /No diagram mark/,
+        /d\.picture\(\): the diagram has no part/,
       );
       assert.equal(looks(d), before);
     }),

@@ -28,7 +28,9 @@ so changing the sink changes the output and leaves the scene alone.
 The shapes are `Line`, `Arrow`, `CurvedArrow`, `Arc` (`{ center, radius, startAngle, angle }`,
 radians counterclockwise), `Circle`, `Dot`, `Rectangle` and `Polygon` (`new Polygon(corners,
 style)`, closed), with `Labeled` to put a label on one; the emphasis shapes are in
-[Emphasis](EMPHASIS.md).
+[Emphasis](EMPHASIS.md). `line.putStartAndEndOn(a, b)` moves a `Line`'s or an `Arrow`'s
+ends to two points, its tip following, so a drawing whose ends come from a model is
+redrawn in place.
 
 The drawing area is 16 × 9 scene units, centred on `[0, 0]`, with positive y up.
 An output width changes pixel size, not those coordinates. A `Box` is
@@ -44,11 +46,29 @@ transform matrix whose effect an inspector must reconstruct.
 and `closePath()` build paths, and `setPolygon(corners)` builds a closed polygon.
 Use them, or the transforms above, rather than writing a point buffer yourself: they
 keep the render cache and the cached layout bounds current, and a buffer written in
-place leaves both stale.
+place leaves both stale. A shape of your own builds its points in `initPoints()`,
+which its constructor calls.
+
+A path is `subpaths`, one `Float32Array` of cubic Bézier points per subpath (its
+start, then three points per curve), with `closed` saying which are closed; read
+them, and change them with the methods above. `hasPoints()` says whether a mobject
+has points of its own, as a Group does not. To walk a path: `numCurves(i?)` counts
+the curves of subpath `i` or of the whole path, `pointOnCurve(i, c, t)` is the point
+at parameter `t` on curve `c`, `curveLength(i, c)` and `arcLength()` measure a curve
+and the whole path, `curveParamAt(i, c, s)` is the parameter a length `s` along a
+curve reaches, and `pointFromProportion(t)` is the point a fraction `t` of the path's
+length along it, which `MoveAlongPath` (`rayner/extras`) and the stage's sketch travel by.
+
+`applyPointsFunction(fn)` maps every point of the family through `fn([x, y])`, and
+`applyAffine(a, b, c, d, e, f)` applies the affine map `[a c; b d]p + [e f]` without
+allocating per point; both work about the box's centre unless given `aboutPoint` or
+`aboutEdge`. `boxPoint(direction)` is a point of the bounding box: `[0, 0]` its
+centre, `[1, 1]` its upper right.
 
 Style includes fill, stroke, their opacity and width, overall opacity, and optional
 SVG paint details such as dashes and joins. `setFill`, `setStroke` and `setOpacity`
-update it. `Create` and `Write` (`rayner/extras`) use the transient `drawFraction` to reveal a path.
+update it; `setStyle(style)` sets several fields at once, and `setColor(c)` sets fill
+and stroke to one colour. `Create` and `Write` (`rayner/extras`) use the transient `drawFraction` to reveal a path.
 Changing `style` or point arrays behind the supported methods risks stale caches.
 
 A colour left out takes the scene's. `scene.colors` holds five (`paper`, `ink`, `soft`,
@@ -64,9 +84,19 @@ paper, and the SVG sinks draw `paper` behind the frame unless given a `backgroun
 (Manim's `interpolate_color`), for a colour between two of the look's.
 
 Common layout operations are `nextTo`, `alignTo`, `arrange`, `moveTo`, `setWidth`
-and `setHeight`. Bounds describe geometry only; clipping, paint order and stroke
+and `setHeight`; `arrangeInGrid(cols, { buff })` lays the children out row by row,
+`cols` to a row, each centred in a cell as wide as the widest and as tall as the
+tallest. Bounds describe geometry only; clipping, paint order and stroke
 also decide what collides on screen, which is why `rayner check` measures painted
 labels separately.
+
+A `Text`'s `advance()` is its exact advance width and `textSize()` the size it is
+drawn at now, after any scaling. `shapeRun(text, size)` shapes a string with the
+text's own shaping and returns the run, `{ glyphs, width, ascent, descent }`, as
+`font-metrics` reads it. `tabWidth` is the tab stop a text's tabs are laid out to,
+which `Code` sets. A `DecimalNumber` shows `value` with `decimals` places between
+`prefix` and `suffix`; `setValue(v)` redraws it in place for a new value, and
+`DecimalNumber.format(v, decimals, prefix, suffix)` is the string it would show.
 
 ## Ownership, identity and copying
 
@@ -74,7 +104,11 @@ labels separately.
 parent. A scene admits one root per subtree, so admitting a parent never paints a
 child twice. `Scene.add`, `remove`, `replace`, `bringToFront` and `bringToBack`
 control membership and draw order. The structure is a tree: do not insert a child
-twice or make a cycle.
+twice or make a cycle. `scene.familyMembers()` lists every mobject on the stage and
+each of its descendants, root by root, for a test or a check that looks for a part.
+`sameShapeAs(other, points?)` says whether two families have the same shape, every
+member of one class with as many children, and with `points` the same point counts:
+what `become` keeps identities through.
 
 A part's identity is its `key`, an optional name you give it: `find(key)`,
 `findAll`, keyed matching, invariants and reviews all address parts by key. A
@@ -120,7 +154,8 @@ Earlier members of a `Succession` may change them. Define intermediate geometry
 from that captured start and alpha rather than adding a per-frame displacement.
 [FollowAngle](../recipes/continuous.ts) demonstrates the extension contract.
 
-The default frame rate is 30. Time comes from the frame count. Sinks can wait for
+The default frame rate is 30. Time comes from the frame count: `scene.frameCount` is the
+frames emitted so far, and `scene.time` the seconds they make. Sinks can wait for
 browser display or return immediately offline, but cannot change the model's time
 step. Exact comparisons are within the chosen frame grid, not arbitrary subframe
 timestamps.
@@ -161,7 +196,8 @@ too: a [view](VIEWS.md) ties a picture to the state it was drawn from.
 ## Updaters, derived pictures and seeking
 
 `mobject.addUpdater((object, dt) => ...)` runs before a rendered frame. Camera
-updaters run after ordinary objects. Clear registrations with `clearUpdaters()`
+updaters run after ordinary objects. `mobject.update(dt)` runs the updaters of a mobject and
+its descendants once, as the scene does before each frame. Clear registrations with `clearUpdaters()`
 when they are no longer needed. An updater that integrates `velocity * dt` depends
 on previous frames. The engine conservatively replays any play or wait with active
 updaters, including an updater that merely reads the current value.

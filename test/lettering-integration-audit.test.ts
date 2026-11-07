@@ -28,7 +28,7 @@ test('damaged cached outline data is refused', async () => {
     const run = Object.values(snapshot.runs).find((r: unknown) => (r as { glyphs: unknown[] }).glyphs.length) as { glyphs: { path: unknown[] }[] };
     run.glyphs[0]!.path = [{ tag: 'LineTo', x: 'broken', y: 0 }];
     await writeFile(join(folder, 'scene.lettering.json'), JSON.stringify(snapshot));
-    await assert.rejects(collectProject(folder, { write: false }), /Invalid lettering snapshot outline/);
+    await assert.rejects(collectProject(folder, { write: false }), /scene\.lettering\.json: its outline is invalid/);
   } finally { await rm(folder, { recursive: true, force: true }); }
 });
 
@@ -45,7 +45,7 @@ test('a cached snapshot rejects a glyph cluster one past the source', async () =
     )! as [string, { glyphs: { cluster: number }[] }];
     run.glyphs[0]!.cluster = [...JSON.parse(key)[1]].length;
     await writeFile(file, JSON.stringify(snapshot));
-    await assert.rejects(collectProject(folder, { write: false }), /^Error: Invalid lettering snapshot glyph;/);
+    await assert.rejects(collectProject(folder, { write: false }), /^Error: scene\.lettering\.json: its glyph is invalid;/);
   } finally { await rm(folder, { recursive: true, force: true }); }
 });
 
@@ -115,14 +115,14 @@ test('serialized snapshot schema rejects source indices outside code-point bound
     const text = '𐐀' + suffix, length = [...text].length;
     const cluster = below ? -1 - offset : length + offset;
     const snapshot = schemaSnapshot(text, 'sans', { width: 1, ascent: 1, descent: 0, glyphs: [oneGlyph(cluster)] });
-    assert.throws(() => validateLetteringSnapshot(snapshot), /^Error: Invalid lettering snapshot glyph;/);
+    assert.throws(() => validateLetteringSnapshot(snapshot), /^Error: scene\.lettering\.json: its glyph is invalid;/);
   }), params());
 });
 
 test('serialized snapshot schema rejects non-finite run metrics before drawing', () => {
   fc.assert(fc.property(validSchema, fc.constantFrom('width', 'ascent', 'descent', 's'), fc.constantFrom(NaN, Infinity, -Infinity), (snapshot, key, value) => {
     singleRun(snapshot)[key] = value;
-    assert.throws(() => validateLetteringSnapshot(snapshot), /^Error: Invalid lettering snapshot run metrics;/);
+    assert.throws(() => validateLetteringSnapshot(snapshot), /^Error: scene\.lettering\.json: its run metrics is invalid;/);
   }), params());
 });
 
@@ -138,7 +138,7 @@ test('serialized snapshot schema rejects malformed outline commands', () => {
     const glyph = oneGlyph();
     glyph.path = [path as Segment];
     const snapshot = schemaSnapshot('x', 'mono', { width: 1, ascent: 1, descent: 0, glyphs: [glyph] });
-    assert.throws(() => validateLetteringSnapshot(snapshot), /^Error: Invalid lettering snapshot outline;/);
+    assert.throws(() => validateLetteringSnapshot(snapshot), /^Error: scene\.lettering\.json: its outline is invalid;/);
   }), params());
 });
 
@@ -148,7 +148,7 @@ test('serialized snapshot schema rejects malformed run keys', () => {
       : kind === 'display' ? JSON.stringify(['sans', text, 'false']) : JSON.stringify(['sans', text]);
     const snapshot = schemaSnapshot('', 'sans', { width: 0, ascent: 1, descent: 0, glyphs: [] });
     snapshot.runs = { [key]: singleRun(snapshot) };
-    assert.throws(() => validateLetteringSnapshot(snapshot), /^Error: Invalid lettering snapshot run key;/);
+    assert.throws(() => validateLetteringSnapshot(snapshot), /^Error: scene\.lettering\.json: its run key is invalid;/);
   }), params());
 });
 
@@ -163,7 +163,7 @@ for (const { name, text, font, glyphs } of [
   const run = { width: text ? 1 : 0, ascent: 1, descent: 0, glyphs };
   validateLetteringSnapshot(schemaSnapshot(text, font, run));
   const bad = schemaSnapshot(text, font, { ...run, glyphs: [...glyphs, oneGlyph([...text].length)] });
-  assert.throws(() => validateLetteringSnapshot(bad), /^Error: Invalid lettering snapshot glyph;/);
+  assert.throws(() => validateLetteringSnapshot(bad), /^Error: scene\.lettering\.json: its glyph is invalid;/);
 });
 
 test('serialized snapshot source bounds handle one large run without recursive traversal', () => {
@@ -172,5 +172,5 @@ test('serialized snapshot source bounds handle one large run without recursive t
   const snapshot = schemaSnapshot('𐐀'.repeat(count), 'mono', { width: count, ascent: 1, descent: 0, glyphs });
   validateLetteringSnapshot(snapshot);
   glyphs[count - 1]!.cluster = count;
-  assert.throws(() => validateLetteringSnapshot(snapshot), /^Error: Invalid lettering snapshot glyph;/);
+  assert.throws(() => validateLetteringSnapshot(snapshot), /^Error: scene\.lettering\.json: its glyph is invalid;/);
 });

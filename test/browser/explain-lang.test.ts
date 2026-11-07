@@ -148,7 +148,7 @@ test('French chrome follows French typography: a narrow no-break space before : 
   }
 });
 
-test('the invalid-settings notice names the problem in the page’s language; English says what the validator says', () => {
+test('the invalid-settings notice names the problem in the page’s language, in the reader’s words, not the validator’s', () => {
   const { Scene } = built.fr.project;
   const problem = (values: Record<string, string>) => {
     try {
@@ -165,7 +165,11 @@ test('the invalid-settings notice names the problem in the page’s language; En
   assert.deepEqual(unknown.problem, { kind: 'setting', id: 'x' });
   // The validator checks declared settings first; so does the notice.
   assert.equal(both.problem.kind, 'option');
-  for (const p of [option, unknown, both]) assert.equal(chromeFor('en').fallback(p.problem), `${p.error}. Showing the default scenario.`);
+  // The validator's message is for the author (resolveSettings(): ...); the notice says the same in the reader's words.
+  for (const p of [option, unknown, both]) assert.match(p.error, /^resolveSettings\(\): /);
+  assert.equal(chromeFor('en').fallback(option.problem), 'The setting “Enfants à charge” has no option “9”. Showing the default scenario.');
+  assert.equal(chromeFor('en').fallback(unknown.problem), 'This explanation has no setting “x”. Showing the default scenario.');
+  assert.equal(chromeFor('en').fallback({ kind: 'other', message: 'static settings: they make 99 scenarios, more than 64' }), 'static settings: they make 99 scenarios, more than 64. Showing the default scenario.');
   assert.equal(
     chromeFor('fr').fallback(option.problem),
     `Le réglage «${NB}Enfants à charge${NB}» n’a pas d’option «${NB}9${NB}». Le scénario par défaut est affiché.`,
@@ -463,7 +467,7 @@ test(
           notice: undefined,
         },
       );
-      assert.equal((await read('en', '?n=9')).notice, 'Unknown n option: 9. Showing the default scenario.');
+      assert.equal((await read('en', '?n=9')).notice, 'The setting “Children” has no option “9”. Showing the default scenario.');
     } finally {
       try { await browser?.close(); }
       finally { server.close(); }

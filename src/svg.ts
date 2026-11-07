@@ -141,7 +141,7 @@ function renderElementsImpl(scene: Scene, relative: boolean, cull: boolean, widt
 interface Clip { box: Box; id: string; attrs: Attrs }
 function clipFor(box: Box, parent?: Box): Clip {
   if (box.length !== 4 || !box.every(Number.isFinite) || box[0] > box[2] || box[1] > box[3])
-    throw new RangeError('clipBox must be a finite ordered world-coordinate box');
+    throw new RangeError('m.clipBox: it must be a finite, ordered box in world coordinates, [minX, minY, maxX, maxY]');
   if (parent) {
     const x = Math.max(box[0], parent[0]), y = Math.max(box[1], parent[1]);
     box = [x, y, Math.max(x, Math.min(box[2], parent[2])), Math.max(y, Math.min(box[3], parent[3]))];
@@ -406,9 +406,9 @@ export interface SvgOptions {
 
 export function toSvgString(scene: Scene, { width = 1280, background = scene.colors.paper, cull = false }: SvgOptions = {}): string {
   if (typeof width !== 'number' || !Number.isSafeInteger(width) || width < 1)
-    throw new TypeError('svg width must be a positive safe integer');
+    throw new TypeError('toSvgString(): width must be a positive safe integer');
   if (!isHex(background))
-    throw new TypeError('svg background must be a #rgb or #rrggbb colour');
+    throw new TypeError('toSvgString(): background must be a #rgb or #rrggbb colour');
   const hex = background.slice(1).toLowerCase();
   background = '#' + (hex.length === 3 ? [...hex].map((ch) => ch + ch).join('') : hex);
   const height = Number((BigInt(width) * BigInt(FRAME.h) + BigInt(FRAME.w / 2)) / BigInt(FRAME.w));

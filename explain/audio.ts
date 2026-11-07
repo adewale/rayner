@@ -9,7 +9,7 @@ export interface StepAudio {clips: readonly AudioClip[]}
 /** Validate the serialized authoring boundary before a build or playback. */
 export function stepAudio(value: unknown): StepAudio | null {
   if (value === undefined) return null;
-  const fail=(): never=>{throw new Error('Invalid step audio: use up to four labelled clips, 40–240 BPM, at most 64 beats and 256 bounded MIDI notes');};
+  const fail=(): never=>{throw new TypeError('this.step(): its audio is invalid; use one to four labelled clips with distinct lowercase ids, 40–240 BPM, at most 64 beats and 256 MIDI notes that end within the clip');};
   if (!value || typeof value !== 'object' || !Array.isArray((value as StepAudio).clips)) return fail();
   const clips=(value as StepAudio).clips;
   if (!clips.length || clips.length>4) return fail();

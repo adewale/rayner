@@ -12,21 +12,21 @@ const RESERVED = /^(?:true|false|yes|no|on|off|null|~|[-+]?(?:\d[\d_]*)?\.?\d+(?
 
 function yamlScalar(value: string | number | boolean, path: string): string {
   if (typeof value === 'number') {
-    if (!Number.isFinite(value)) throw new Error(`frontMatter: ${path} is ${value}; a config value must be a finite number`);
+    if (!Number.isFinite(value)) throw new RangeError(`mermaid.frontMatter(): ${path} is ${value}; a config value must be a finite number`);
     return String(value);
   }
   if (typeof value === 'boolean') return String(value);
-  if (/[\n\r]/.test(value)) throw new Error(`frontMatter: ${path} spans lines; a config value must be one line`);
+  if (/[\n\r]/.test(value)) throw new RangeError(`mermaid.frontMatter(): ${path} spans lines; a config value must be one line`);
   // A colour such as #8250df would start a YAML comment unquoted, so anything not plain is quoted.
   return PLAIN.test(value) && !RESERVED.test(value) ? value : `'${value.replace(/'/g, "''")}'`;
 }
 
 function yamlLines(map: { readonly [key: string]: FrontMatterValue }, indent: string, path: string): string[] {
   const keys = Object.keys(map);
-  if (!keys.length) throw new Error(`frontMatter: ${path || 'config'} is empty; leave the key out instead`);
+  if (!keys.length) throw new Error(`mermaid.frontMatter(): ${path || 'config'} is empty; leave the key out instead`);
   return keys.flatMap((key) => {
     const at = path ? `${path}.${key}` : key;
-    if (!KEY.test(key)) throw new Error(`frontMatter: "${at}" is not a config key Mermaid reads`);
+    if (!KEY.test(key)) throw new TypeError(`mermaid.frontMatter(): ${JSON.stringify(at)} is not a config key Mermaid reads`);
     const value = map[key]!;
     return typeof value === 'object'
       ? [`${indent}${key}:`, ...yamlLines(value, `${indent}  `, at)]
@@ -67,16 +67,16 @@ export interface PieOptions {
  * that is empty, holds a double quote or repeats another, and an empty title are refused too.
  */
 export function pie(slices: readonly PieSlice[], { title, showData = false, config }: PieOptions = {}): string {
-  if (!slices.length) throw new Error('pie: a pie needs at least one slice');
+  if (!slices.length) throw new Error('mermaid.pie(): a pie needs at least one slice');
   const seen = new Set<string>();
   for (const { label, value } of slices) {
-    if (!label.trim() || /["\n\r]/.test(label)) throw new Error(`pie: the slice label ${JSON.stringify(label)} must be one line of text without double quotes`);
-    if (seen.has(label)) throw new Error(`pie: two slices are labelled "${label}"; Mermaid keeps one`);
+    if (!label.trim() || /["\n\r]/.test(label)) throw new RangeError(`mermaid.pie(): the slice label ${JSON.stringify(label)} must be one line of text without double quotes`);
+    if (seen.has(label)) throw new Error(`mermaid.pie(): two slices are labelled ${JSON.stringify(label)}, and Mermaid keeps one; give each slice its own label`);
     seen.add(label);
     if (!(Number.isFinite(value) && value > 0))
-      throw new Error(`pie: the slice "${label}" is ${value}; Mermaid draws only positive slices, so leave it out of the pie`);
+      throw new RangeError(`mermaid.pie(): the slice ${JSON.stringify(label)} is ${value}; Mermaid draws only positive slices, so leave it out of the pie`);
   }
-  if (title !== undefined && (!title.trim() || /[\n\r]/.test(title))) throw new Error('pie: a title must be one line of text; leave it out for none');
+  if (title !== undefined && (!title.trim() || /[\n\r]/.test(title))) throw new RangeError('mermaid.pie(): a title must be one line of text; leave it out for none');
   return (
     (config ? `${frontMatter(config)}\n` : '') +
     `pie${showData ? ' showData' : ''}\n` +

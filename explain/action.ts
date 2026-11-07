@@ -80,7 +80,7 @@ function track(scene: Scene<any, any>, action: Action<unknown>): void {
         left.clear();
         const step = scene.currentStep ? ` in step "${scene.currentStep.name}"` : ' before the first step';
         throw new Error(
-          `${names.join(', ')} ${names.length > 1 ? 'were' : 'was'} made${step} but never played: ` +
+          `${names.join(', ')}: ${names.length > 1 ? 'they were' : 'it was'} made${step} but never played; ` +
             'await an action, or hand it to play(), or to a Succession or group that plays, before its step ends',
         );
       }
@@ -174,7 +174,7 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
   /** What awaiting it gives. Set when the action is made (`s.show`'s diagram: once it begins). */
   get value(): T {
     if (this.#failed) throw this.#error;
-    if (!this.#plan) throw new Error(`${this.name}: what it gives is known once it begins`);
+    if (!this.#plan) throw new Error(`${this.name}: what it gives is known once it begins; read its value after a play has begun it, or await it`);
     return this.#plan.value;
   }
 
@@ -182,7 +182,7 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
   #start(how: 'awaited' | 'composed'): void {
     if (this.#played)
       throw new Error(
-        `${this.name} has already played${this.#played === 'composed' ? ' in a play' : ''}: an action plays once, so call it again to play it again` +
+        `${this.name}: it has already played${this.#played === 'composed' ? ' in a play' : ''}; an action plays once, so call it again to play it again` +
           (this.#played === 'composed' && how === 'awaited' ? ', and read what it gave from its value' : ''),
       );
     this.#played = how;

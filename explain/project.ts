@@ -57,9 +57,9 @@ export async function loadProject(Explainer: SceneClass, where: string): Promise
     read = nodeReader(),
     file = sceneFile(where);
   // A misspelt meta key is refused, as collection refuses it.
-  try { checkExplainerMeta(Scene.meta); } catch (e) { throw new Error(`${file}: ${(e as Error).message}`); }
+  try { checkExplainerMeta(Scene.meta); } catch (e) { throw new TypeError(`loadProject(): ${file}: ${(e as Error).message}`); }
   if (Scene.meta?.lettering !== undefined)
-    throw new Error(`${file}: the scene asks for lettering (meta.lettering), which the rayner command cuts; loadProject runs scenes in the embedded fonts only`);
+    throw new Error(`loadProject(): ${file} asks for lettering (meta.lettering), which the rayner command cuts; loadProject runs scenes in the embedded fonts only, so test this scene with rayner check`);
   const folder = file.replace(/[^/\\]*$/, ''),
     script = await read(folder + 'script.md');
   if (script !== null) withIntent(Scene as { meta?: Record<string, unknown> }, script, folder + 'script.md');
@@ -80,7 +80,7 @@ export async function loadProject(Explainer: SceneClass, where: string): Promise
     scenario(values = {}) {
       const want = resolveSettings(Scene, values);
       const found = scenarios.find((v) => Object.keys(want).every((key) => v.values[key] === want[key]));
-      if (!found) throw new Error(`No scenario has ${JSON.stringify(want)}`);
+      if (!found) throw new RangeError(`project.scenario(): no scenario has ${JSON.stringify(want)}`);
       return found;
     },
   };
@@ -123,7 +123,7 @@ function nodeReader(): (path: string) => Promise<string | null> {
   type Fs = { readFile(path: string, encoding: 'utf8'): Promise<string> };
   const node = (globalThis as { process?: { getBuiltinModule?(id: string): unknown } }).process;
   const fs = node?.getBuiltinModule?.('node:fs/promises') as Fs | undefined;
-  if (!fs) throw new Error('loadProject and loadSnapshots read files from disk: run them under Node');
+  if (!fs) throw new Error('loadProject(): it reads files from disk, as loadSnapshots() does; run it under Node');
   return (path) =>
     fs.readFile(path, 'utf8').catch((error: { code?: string }) => {
       if (error?.code === 'ENOENT') return null;

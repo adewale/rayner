@@ -129,17 +129,17 @@ test('a packed snapshot unpacks only whole: every glyph names a stored outline a
   assert.deepEqual(unpackLettering(original), copy);
   const junk = raw();
   junk.outlines!.push([{ tag: 'MoveTo', x: 0, y: 0 }]);
-  assert.throws(() => unpackLettering(junk), /Invalid lettering snapshot outlines/);
+  assert.throws(() => unpackLettering(junk), /scene\.lettering\.json: its outlines are invalid/);
   const bad = raw();
   (Object.values(bad.runs)[0]!.glyphs[0] as unknown as { o: number }).o = 1e9;
-  assert.throws(() => unpackLettering(bad), /Invalid lettering snapshot outlines/);
+  assert.throws(() => unpackLettering(bad), /scene\.lettering\.json: its outlines are invalid/);
   // On disk, a damaged table names the file to rebuild
   const dir = await mkdtemp(join(folder, 'packed-'));
   await writeFile(join(dir, 'scene.ts'), await readFile(join(ROOT, 'test/lettering/hebrew/scene.ts'), 'utf8'));
   await writeFile(join(dir, 'scene.lettering.json'), JSON.stringify(junk));
-  await assert.rejects(collectProject(dir, { write: false }), /Invalid lettering snapshot outlines; run rayner snapshots .*scene\.ts/);
+  await assert.rejects(collectProject(dir, { write: false }), /scene\.lettering\.json: its outlines are invalid; run rayner snapshots .*scene\.ts/);
   await writeFile(join(dir, 'scene.lettering.json'), 'null');
-  await assert.rejects(collectProject(dir, { write: false }), /Missing or stale lettering snapshot/);
+  await assert.rejects(collectProject(dir, { write: false }), /scene\.lettering\.json: it is missing or stale/);
 });
 
 const capture = process.env.EXPLAIN_LETTERING === '1';

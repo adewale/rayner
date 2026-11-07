@@ -5,7 +5,7 @@
 import { smooth, linear, clip } from './rate.ts';
 import type { RateFunc } from './rate.ts';
 import type { Mobject, PathFunc, AnimateBuilderBase } from './mobject.ts';
-import { Group, adoptState, followScene } from './mobject.ts';
+import { Group, adoptState, followScene, mobjectName } from './mobject.ts';
 import type { VMobject } from './vmobject.ts';
 import type { Scene } from './scene.ts';
 import * as V from './vec.ts';
@@ -350,9 +350,9 @@ export class GrowFromEdge extends FadeIn {
   constructor(mobject: Mobject, edge: Readonly<Vec> = [0, -1], { initialScale = 0.001, ...opts }: GrowFromEdgeOpts = {}) {
     if (!Array.isArray(edge) || edge.length !== 2 || !Number.isFinite(edge[0]) || !Number.isFinite(edge[1]) ||
       Math.abs(edge[0]) + Math.abs(edge[1]) !== 1 || (edge[0] !== 0 && edge[1] !== 0))
-      throw new TypeError('GrowFromEdge edge must be one unit step along an axis: [0, 1], [0, -1], [-1, 0] or [1, 0]');
+      throw new TypeError('new GrowFromEdge(): the edge must be one unit step along an axis: [0, 1], [0, -1], [-1, 0] or [1, 0]');
     if (!Number.isFinite(initialScale) || initialScale < 0 || initialScale > 1)
-      throw new RangeError('GrowFromEdge initialScale must be finite and in [0, 1]');
+      throw new RangeError('new GrowFromEdge(): initialScale must be a number from 0 to 1');
     super(mobject, opts);
     this.edge = [edge[0], edge[1]]; this.axis = edge[0] === 0 ? 1 : 0; this.initialScale = initialScale;
   }
@@ -509,11 +509,19 @@ function isAnimateBuilder(x: unknown): x is AnimateBuilderBase {
   return !!x && !!(x as Partial<AnimateBuilderBase>)._isAnimateBuilder;
 }
 
+/** How an error names an animation: an action by its call (`s.card()`), any other by its kind. */
+export function animationName(a: object): string {
+  const name = (a as { name?: unknown }).name;
+  if (typeof name === 'string' && name) return name;
+  const kind = a.constructor.name;
+  return `${/^[AEIOU]/.test(kind) ? 'an' : 'a'} ${kind}`;
+}
+
 /** Normalize play() arguments: builders become Transforms. */
-export function prepareAnimation(x: unknown): ScheduledAnimation {
+export function prepareAnimation(x: unknown, api = 'this.play()'): ScheduledAnimation {
   if (isAnimateBuilder(x)) return fromAnimateBuilder(x);
   if (x instanceof AnimationTiming) return x as ScheduledAnimation;
-  throw new Error('play() expects Animations or mobject.animate builders');
+  throw new TypeError(`${api}: it takes animations and mobject.animate builders; pass an Animation, an action, or m.animate`);
 }
 
 export interface MoveAlongPathOpts extends AnimOpts { fromCurrent?: boolean }
@@ -686,7 +694,7 @@ export class Circumscribe extends Animation {
 
 /** The circle Circumscribe draws: centered on the box, through its corners, buff out. From 3 o'clock, clockwise (see Circle). */
 function circleAround(target: Mobject | Box, buff: number, style: { stroke?: string; strokeWidth?: number } = {}): Circle {
-  const b = boxOf(target);
+  const b = boxOf(target, 'new Circumscribe()');
   const radius = Math.hypot(b[2] - b[0], b[3] - b[1]) / 2 + buff;
   return new Circle({ radius, fill: 'none', ...style }).shift(center(b));
 }
@@ -712,7 +720,7 @@ export class Restore extends Transform {
 
   override begin(): void {
     const saved = this.mobject.saved;
-    if (!saved) throw new Error(`Restore: ${this.mobject.constructor.name}#${this.mobject.id} has no saved state; call saveState() first`);
+    if (!saved) throw new Error(`new Restore(): ${mobjectName(this.mobject)} has no saved state; call m.saveState() first`);
     this.state = saved;
     // A fresh copy is this animation's alone; it needs no alignment if nothing structural changed since the save
     this.target = saved.copy(); this.ownsTarget = true; this.sameStructure = this.mobject.sameShapeAs(saved, true);
@@ -798,7 +806,7 @@ export class Succession extends AnimationGroup {
 
   /** Members join `scene` (set by play(), see bindSuccessions) as they begin, as each would in a play of its own. */
   constructor(animations: Playable[], opts: AnimOpts = {}) {
-    super(animations.map((x) => isAnimateBuilder(x) ? new BuiltTransform(x) : prepareAnimation(x)), { rateFunc: linear, ...opts, lagRatio: 1 });
+    super(animations.map((x) => isAnimateBuilder(x) ? new BuiltTransform(x) : prepareAnimation(x, 'new Succession()')), { rateFunc: linear, ...opts, lagRatio: 1 });
     this.active = -1;
   }
 
@@ -866,7 +874,7 @@ export function bindSuccessions(anims: readonly ScheduledAnimation[], scene: Sce
   for (const a of anims) {
     // A scene-bound animation (one that changes its scene's state, such as a machine's change of state) names its scene as `host`.
     const host = (a as { host?: unknown }).host;
-    if (host && host !== scene) throw new Error(`${a.constructor.name} must play on the scene it belongs to`);
+    if (host && host !== scene) throw new Error(`this.play(): ${animationName(a)} belongs to another scene; play it on the scene it was made for`);
     if (!(a instanceof AnimationGroup)) continue;
     a.scene = scene;
     bindSuccessions(a.animations, scene);
@@ -1513,7 +1521,7 @@ const PAIR_RATIO = 0.5;
 /** Read hunks against the two texts: which lines stay, pair, go, come. Throws where they disagree. */
 function planLines(hunks: readonly Hunk[], a: readonly string[], b: readonly string[]): LinePlan {
   const plan: LinePlan = { same: [], changed: [], removed: [], added: [] };
-  const fail = (msg: string): never => { throw new Error(`TransformDiff: ${msg}; the hunks do not describe these two texts`); };
+  const fail = (msg: string): never => { throw new Error(`new TransformDiff(): ${msg}; the hunks do not describe these two texts`); };
   const show = (side: string, k: number, text: string | undefined) => `${side} line ${k + 1} is ${text === undefined ? 'past the end' : JSON.stringify(text)}`;
   const same = (i: number, j: number, where: string): void => {
     if (a[i] === undefined || a[i] !== b[j]) fail(`${where}, ${show('before', i, a[i])} but ${show('after', j, b[j])}`);

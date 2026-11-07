@@ -68,7 +68,7 @@ test('a scene with diagrams describes from its pinned snapshots, scenario by sce
   // Same answer as binding the snapshots by hand.
   const trace = await traceScene(withSettings(bindSnapshots(OauthPkce as ExplainerClass, snapshots), d.scenarios[0]!.values));
   assert.deepEqual(d.scenarios[0]!.steps.map((s) => s.step), trace.steps.map((s) => s.step));
-  await assert.rejects(describeExplainer(OauthPkce as ExplainerClass, { drawings: false }), /^Error: No diagram snapshots are bound to this scene:/);
+  await assert.rejects(describeExplainer(OauthPkce as ExplainerClass, { drawings: false }), /^Error: s\.show\(\): no diagram snapshots are bound to this scene;/);
 });
 
 test("drawings: a step's name draws that step only, as drawing every step draws it", async () => {

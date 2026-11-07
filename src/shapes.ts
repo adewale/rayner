@@ -2,7 +2,7 @@ import type {TextShaping} from './text-context.ts';
 // Shapes: VMobjects built from cubic Béziers (Rectangle, Circle, Arc, Line, ...),
 // and small groups with named parts (Arrow, CurvedArrow, Labeled).
 import { VMobject } from './vmobject.ts';
-import { Group, followScene } from './mobject.ts';
+import { Group, followScene, mobjectName } from './mobject.ts';
 import type { Mobject, Style } from './mobject.ts';
 import * as V from './vec.ts';
 import type { Vec } from './vec.ts';
@@ -225,10 +225,10 @@ export class CurvedArrow extends Group {
 // the lines, which would take them from their parent.
 
 /** A box for a matcher to fit: a mobject's as it is now, or a Box as given. Internal (Circumscribe uses it too). */
-export function boxOf(target: Mobject | Box): Box {
+export function boxOf(target: Mobject | Box, api: string): Box {
   if (Array.isArray(target)) return [...target];
   const b = target.box();
-  if (!b) throw new Error(`${target.constructor.name}#${target.id} has no points to fit a shape to`);
+  if (!b) throw new Error(`${api}: ${mobjectName(target)} has no points to fit a shape to`);
   return b;
 }
 
@@ -241,7 +241,7 @@ export interface SurroundingRectangleOpts extends Style { buff?: number; cornerR
  */
 export class SurroundingRectangle extends Rectangle {
   constructor(target: Mobject | Box, { buff = 0.15, cornerRadius = 0, ...style }: SurroundingRectangleOpts = {}) {
-    const b = boxOf(target);
+    const b = boxOf(target, 'new SurroundingRectangle()');
     super({ width: b[2] - b[0] + 2 * buff, height: b[3] - b[1] + 2 * buff, cornerRadius, stroke: NEUTRAL_COLORS.emphasis, fill: 'none', ...style });
     if (style.stroke === undefined) followScene(this, { stroke: 'emphasis' });
     this.shift(center(b));
@@ -253,7 +253,7 @@ export interface UnderlineOpts extends Style { buff?: number }
 /** A line along the bottom of a mobject's box (or a Box), `buff` below it, drawn left to right. */
 export class Underline extends Line {
   constructor(target: Mobject | Box, { buff = 0.1, ...style }: UnderlineOpts = {}) {
-    const b = boxOf(target), y = b[1] - buff;
+    const b = boxOf(target, 'new Underline()'), y = b[1] - buff;
     super([b[0], y], [b[2], y], style);
   }
 }
@@ -270,7 +270,7 @@ export class Cross extends VMobject {
   constructor(target: Mobject | Box, { scale = 1, ...style }: CrossOpts = {}) {
     super({ stroke: NEUTRAL_COLORS.bad, strokeWidth: 0.06, fill: 'none', ...style });
     if (style.stroke === undefined) followScene(this, { stroke: 'bad' });
-    const b = boxOf(target);
+    const b = boxOf(target, 'new Cross()');
     const [cx, cy] = center(b);
     const w = (b[2] - b[0]) / 2 * scale, h = (b[3] - b[1]) / 2 * scale;
     this.startNewPath([cx - w, cy + h]); this.addLineTo([cx + w, cy - h]);
@@ -305,7 +305,7 @@ export interface BraceOpts extends Style {
 export class Brace extends VMobject {
   constructor(target: Mobject | Box, direction: Readonly<Vec> = [0, -1], { buff = 0.1, sharpness = 2, depth = 0.2, ...style }: BraceOpts = {}) {
     super({ fill: 'none', ...style });
-    const b = boxOf(target);
+    const b = boxOf(target, 'new Brace()');
     const d = V.normalize(direction);
     // The turn taking DOWN onto d; snapped so axis directions stay exact
     const angle = V.angleOf(d) + Math.PI / 2;

@@ -54,7 +54,7 @@ export interface CardOptions {
   panel?: boolean;
 }
 /** A panel's options with its place resolved: a point, a box or a physical region. */
-type PlacedOptions<T extends { at?: unknown }> = Omit<T, 'at'> & { at?: Vec | Box | Region };
+type PlacedOptions<T extends { at?: unknown }> = Omit<T, 'at'> & { at?: Vec | Box | Region; api?: string };
 const ROW = 1.9; // row pitch, in font sizes
 /** Shrink a value towards its anchored edge, never mirroring it. */
 function fitValue(value: Text, room: number, edge: -1 | 1 = 1): void {
@@ -100,6 +100,8 @@ function place(panel: Group, at: Vec | Box, height: number, align: 'center' | 't
  */
 export class Card extends Group {
   private readonly scene: Scene;
+  /** The call an error names: the kit's `card()` or the stage's `s.card()`. */
+  private readonly api: string;
   /** Each row's value; for a row with a value per column, its last column's. */
   readonly values = new Map<string, Text>();
   /** Each row's values, one per column (or one that spans them). */
@@ -124,7 +126,8 @@ export class Card extends Group {
   /** @internal The kit's `card(s, rows, opts)` builds a card on a stage. */
   constructor(scene: Scene, colors: Palette, rows: readonly CardRow[], options: PlacedOptions<CardOptions> = {}) {
     super();
-    this.direction = layoutDirection(options);
+    const api = (this.api = options.api ?? 'card()');
+    this.direction = layoutDirection(options, 'ltr', api);
     const edge = this.direction === 'ltr' ? 1 : -1;
     const labelAnchor = edge === 1 ? 'start' : 'end';
     const valueAnchor = edge === 1 ? 'end' : 'start';
@@ -138,10 +141,10 @@ export class Card extends Group {
     this.repeated = new Set(names.filter((l, i) => names.indexOf(l) !== i));
     this.columns = options.columns ?? [];
     const n = this.columns.length;
-    if (options.columns && !n) throw new Error('A card with columns needs at least one column');
+    if (options.columns && !n) throw new Error(`${api}: a card with columns needs at least one column`);
     for (const [label, ...vs] of rows)
       if (vs.length !== 1 && vs.length !== n)
-        throw new Error(n ? `Card row ${label} has ${vs.length} values for ${n} columns: give one per column, or one to span them` : `Card row ${label} has ${vs.length} values; pass columns to show more than one`);
+        throw new TypeError(n ? `${api}: the row ${JSON.stringify(label)} has ${vs.length} values for ${n} columns; give one per column, or one to span them` : `${api}: the row ${JSON.stringify(label)} has ${vs.length} values; pass columns to show more than one`);
     const valueText = (v: unknown) => this.scene.text(String(v), { fontSize: size * 1.04, font: 'mono', color: colors.ink, anchor: valueAnchor });
     const labels = rows.map(([l]) => this.scene.text(l, { fontSize: size, color: soft(colors), anchor: labelAnchor }));
     const cells = rows.map(([, ...vs]) => vs.map(valueText));
@@ -186,7 +189,7 @@ export class Card extends Group {
     }
     this.maxValue = width - 2 * pad - size * 1.5;
     // Room for at least a glyph's width beside its label; less than that cannot hold a row.
-    if (!(this.maxValue >= size)) throw new Error(`A card ${width.toFixed(2)} wide has no room for its rows`);
+    if (!(this.maxValue >= size)) throw new RangeError(`${api}: a card ${width.toFixed(2)} wide has no room for its rows; make it wider, or its text smaller`);
     // Labels keep their natural width and columns get the rest of the row. When that is
     // less than the columns' natural width, each column squeezes towards a glyph and its
     // gap, taking room from the labels only down to a quarter of the row; a card that
@@ -194,7 +197,7 @@ export class Card extends Group {
     const columnLabels = Math.max(0, ...rows.map((_, i) => (n > 1 && !spans(i) ? labels[i]!.width() : 0)));
     const avail = Math.max(this.maxValue - columnLabels, Math.min(across - gap, this.maxValue * 0.75));
     const least = size + gap, extra = naturalColumns.reduce((a, w) => a + w - least, 0);
-    if (n && avail < n * least - gap) throw new Error(`A card ${width.toFixed(2)} wide has no room for its rows`);
+    if (n && avail < n * least - gap) throw new RangeError(`${api}: a card ${width.toFixed(2)} wide has no room for its rows; make it wider, or its text smaller`);
     const k = extra > 0 ? Math.min(1, (avail - (n * least - gap)) / extra) : 1;
     // Spare width goes to the columns, evenly, so later and longer values keep room.
     const spare = Math.max(0, avail + gap - across) / (n || 1);
@@ -299,9 +302,9 @@ export class Card extends Group {
   }
 
   private row(label: string): { label: string; cells: Text[]; labelWidth: number } {
-    if (this.repeated.has(label)) throw new Error(`Card row ${label} is not unique: lit needs a label that names one row`);
+    if (this.repeated.has(label)) throw new Error(`${this.api}: lit names the row ${JSON.stringify(label)}, which is not unique; lit needs a label that names one row`);
     const r = this.rows.find((r) => r.label === label);
-    if (!r) throw new Error(`No card row ${label}. Rows: ${[...this.values.keys()].join(', ')}`);
+    if (!r) throw new RangeError(`${this.api}: lit names no row of the card, ${JSON.stringify(label)}; its rows are ${[...this.values.keys()].join(', ')}`);
     return r;
   }
 
@@ -350,6 +353,8 @@ interface LineMark {
  */
 export class CodeBlock extends Group {
   private readonly scene: Scene;
+  /** The call an error names: the kit's `code()` or the stage's `s.code()`. */
+  private readonly api: string;
   readonly code: Code;
   readonly panel: Rectangle;
   readonly bar: Rectangle;
@@ -364,10 +369,11 @@ export class CodeBlock extends Group {
   /** @internal The kit's `code(s, source, opts)` builds a code panel on a stage. */
   constructor(scene: Scene, colors: Palette, lines: readonly string[], options: PlacedOptions<CodeOptions> = {}) {
     super();
+    const api = (this.api = options.api ?? 'code()');
     this.scene = scene;
     this.colors = colors;
     const fontSize = (this.fontSize = options.size ?? 0.25);
-    if (!lines.length) throw new Error('A code block needs at least one line');
+    if (!lines.length) throw new Error(`${api}: a code panel needs at least one line`);
     this.code = new Code(lines, {fontSize, color: colors.ink, shaping: scene.textShaping});
     const at = typeof options.at === 'string' ? regionBox(options.at) : (options.at ?? [0, 0]);
     const box = at.length === 4 ? (at as Box) : null;
@@ -379,7 +385,7 @@ export class CodeBlock extends Group {
     if (box) {
       const room = (options.width ?? box[2] - box[0]) - 0.7;
       // Room for at least a glyph's width of code beside the padding.
-      if (!(room >= fontSize)) throw new Error(`A box ${(box[2] - box[0]).toFixed(2)} wide has no room for code`);
+      if (!(room >= fontSize)) throw new RangeError(`${api}: a box ${(box[2] - box[0]).toFixed(2)} wide has no room for code; give a wider box`);
       if (this.code.width() > room) {
         this.scaled = room / this.code.width();
         this.code.scale(this.scaled);
@@ -414,7 +420,7 @@ export class CodeBlock extends Group {
         this.add(mark.mob);
       });
     for (const i of options.added ?? []) {
-      if (!Number.isInteger(i) || i < 0 || i >= lines.length) throw new Error(`added: line ${i} is not a line of this panel`);
+      if (!Number.isInteger(i) || i < 0 || i >= lines.length) throw new RangeError(`${api}: added names line ${i}, which is not a line of this panel`);
       if (this.marks.some((m) => m.line === i)) continue;
       const mark = this.lineMark(i, 'added');
       marks.push(mark);
@@ -457,7 +463,7 @@ export class CodeBlock extends Group {
   private lines(lines: number | readonly [number, number]): [number, number] {
     const [a, b] = typeof lines === 'number' ? [lines, lines] : lines;
     if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b >= this.code.lines.length || a > b)
-      throw new Error(`No code lines ${a}..${b}`);
+      throw new RangeError(`${this.api}: lit names lines ${a}..${b}, which are not lines of this panel; its lines are 0..${this.code.lines.length - 1}`);
     return [a, b];
   }
 

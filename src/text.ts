@@ -169,8 +169,8 @@ export class Text extends Group {
   /** Shape with this object's own service, including after its originating run ends. */
   shapeRun(text: string, size: number): Run {
     if (this.shaping) return this.shaping.shape(this, text, size);
-    if (this.italic) throw new Error("ItalicText needs static meta.lettering.styles to include 'italic' and a fresh lettering snapshot");
-    if (this.formula) throw new Error('MathTex requires meta.lettering.math and a fresh lettering snapshot');
+    if (this.italic) throw new Error("new ItalicText(): it needs meta.lettering.styles to include 'italic', and a fresh lettering snapshot (rayner snapshots)");
+    if (this.formula) throw new Error('new MathTex(): it needs meta.lettering.math, and a fresh lettering snapshot (rayner snapshots)');
     return embeddedShaperFor(this.font)(text, size);
   }
   get clusterMatching(): boolean { return !!this.shaping?.clusterKey && !this.formula; }
@@ -333,7 +333,7 @@ const graphemes = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segme
  * letter takes one). `width` must be a positive integer.
  */
 function expandTabs(line: string, width = 4): { text: string; source: number[] } {
-  if (!Number.isInteger(width) || width < 1) throw new RangeError(`tabWidth must be a positive integer, not ${width}`);
+  if (!Number.isInteger(width) || width < 1) throw new RangeError(`new Text(): tabWidth must be a positive integer, not ${width}`);
   let out = '', col = 0, at = 0;
   const source: number[] = [];
   const units = graphemes ? Array.from(graphemes.segment(line), (g) => g.segment) : Array.from(line);
@@ -406,9 +406,9 @@ export class Code extends Group {
    */
   span(line: number, from: number, to: number): CodeSpan {
     const t = this.lines[line];
-    if (!t) throw new RangeError(`Code has no line ${line} (it has ${this.lines.length})`);
+    if (!t) throw new RangeError(`code.span(): there is no line ${line}; the code has ${this.lines.length}, from 0`);
     if (!(Number.isInteger(from) && Number.isInteger(to) && from >= 0 && from <= to && to <= t.text.length))
-      throw new RangeError(`span ${from}..${to} is outside line ${line} (length ${t.text.length}): ${JSON.stringify(t.text)}`);
+      throw new RangeError(`code.span(): ${from}..${to} is outside line ${line}, which is ${t.text.length} long: ${JSON.stringify(t.text)}`);
     return new CodeSpan(t, line, from, to);
   }
   /** The span of the `nth` (from 0) occurrence of `text` on line `line`, counting non-overlapping matches. */
@@ -417,7 +417,7 @@ export class Code extends Group {
     let at = -1;
     for (let k = 0, from = 0; k <= nth; k++, from = at + Math.max(1, text.length)) {
       at = text ? src.indexOf(text, from) : -1;
-      if (at < 0) throw new RangeError(`No ${JSON.stringify(text)} #${nth} on line ${line}: ${JSON.stringify(src)}`);
+      if (at < 0) throw new RangeError(`code.token(): line ${line} has no occurrence ${nth} of ${JSON.stringify(text)}, counting from 0: ${JSON.stringify(src)}`);
     }
     return this.span(line, at, at + text.length);
   }
@@ -475,7 +475,7 @@ export class CodeSpan extends Group {
 
   /** Advance cells by line metrics, unioned with ink; computed afresh, never cached (the glyphs aren't ours to watch). */
   override box(): Box {
-    if (this.stale) throw new Error(`Stale span ${this.from}..${this.to} of line ${this.line}: the line is now ${JSON.stringify(this.owner.text)}; take a new span`);
+    if (this.stale) throw new Error(`code.span(): the span ${this.from}..${this.to} of line ${this.line} is stale, since the line is now ${JSON.stringify(this.owner.text)}; take a new span`);
     const shapedBox = this.owner.shaping?.spanBox?.(this);
     if (shapedBox) return shapedBox;
     // Shaped as build() shapes it (tabs expanded), clusters mapped back to source indices

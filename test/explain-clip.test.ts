@@ -44,7 +44,7 @@ test('nested viewport clips affect paint, not geometry, and survive translated p
   assert.deepEqual(after.clipBox, [0, -0.5, 1, 0.5]);
   assert.notEqual(before, after);
   outer.clipBox[2] = NaN;
-  assert.throws(() => renderElements(scene), /finite ordered/);
+  assert.throws(() => renderElements(scene), /m\.clipBox: it must be a finite, ordered box/);
 });
 test('seeking through a fixed viewport is byte-identical to playing it', async () => {
   class Moving extends Scene {

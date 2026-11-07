@@ -212,7 +212,7 @@ what each line did (`same`, `changed`, `removed`, `added`, by index).
 ### Hunks are the truth
 
 `hunks` (unified-diff shape: `oldStart`, `oldLines`, `newStart`, `newLines`,
-then `ops` and `lines`, one per line of the hunk: `'='` context, `'-'`, `'+'`)
+then `ops` and `lines`, one per line of the hunk, each op a `DiffOp`: `'='` context, `'-'`, `'+'`)
 default to `diffLines(before, after)`: a line LCS with the common head and tail
 trimmed, deletions before insertions, no context. On an edit with one minimal
 diff that is exactly what git prints (`test/diff.test.ts` holds it to

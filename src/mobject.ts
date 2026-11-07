@@ -600,7 +600,7 @@ export class Mobject {
    * state stays, so restore() can run again.
    */
   restore(): this {
-    if (!this.saved) throw new Error(`restore(): ${this.constructor.name}#${this.id} has no saved state; call saveState() first`);
+    if (!this.saved) throw new Error(`m.restore(): ${mobjectName(this)} has no saved state; call m.saveState() first`);
     adoptState(this, this.saved);
     return this;
   }
@@ -622,7 +622,7 @@ export class Mobject {
     // readout); otherwise a keyed part would silently vanish, so it is refused.
     const keyed = this.family().slice(1).find((m) => m.key !== undefined);
     if (keyed)
-      throw new TypeError(`become(): ${this.constructor.name}#${this.id} and ${other.constructor.name}#${other.id} have different family shapes, and ${keyed.key} would be lost; morph between them with a Transform instead`);
+      throw new TypeError(`m.become(): ${mobjectName(this)} and ${mobjectName(other)} have different family shapes, and the part keyed ${JSON.stringify(keyed.key)} would be lost; morph between them with a Transform instead`);
     const fresh = other.copy();
     adoptState(this, fresh, KEEP_ON_BECOME);
     for (const c of this.children) c.parent = null;
@@ -699,7 +699,7 @@ for (const name of ['box', 'center', 'width', 'height', 'left', 'right', 'top', 
   const method = Mobject.prototype[name];
   Object.defineProperty(Mobject.prototype, name, {
     get() { return method; },
-    set() { throw new TypeError(`Mobject.${name} is a method; store your reference under another name (e.g. .rect, .label)`); },
+    set() { throw new TypeError(`m.${name}: it is a method of every mobject, so it cannot hold a value; store your reference under another name, such as .rect or .label`); },
   });
 }
 
@@ -792,4 +792,16 @@ export function animateBuilderBase<M extends Mobject>(mobject: M, buildTarget: (
 /** A mobject with no points of its own; a container. */
 export class Group extends Mobject {
   constructor(...mobs: Mobject[]) { super(); this.add(...mobs); }
+}
+
+/**
+ * How an error names a mobject: by its key, else by its text, else by its kind; never by its id,
+ * which is the renderer's number and not part of the published types (docs/ENGINE.md, "Error messages").
+ */
+export function mobjectName(m: Mobject): string {
+  const kind = m.constructor.name;
+  if (m.key !== undefined) return `the ${kind} keyed ${JSON.stringify(m.key)}`;
+  const text = (m as { text?: unknown }).text;
+  if (typeof text === 'string' && text) return `the ${kind} ${JSON.stringify(text.length > 32 ? text.slice(0, 31) + '…' : text)}`;
+  return `${/^[AEIOU]/.test(kind) ? 'an' : 'a'} ${kind}`;
 }

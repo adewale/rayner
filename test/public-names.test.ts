@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs';
 import { relative } from 'node:path';
 import { ROOT, problems, readLedger, rendered, usage } from '../tools/repo/lib/public-names.ts';
 import type { Ledger } from '../tools/repo/lib/public-names.ts';
+import { UNDOCUMENTED, docsProblems, docsReport, documented } from '../tools/repo/lib/public-docs.ts';
 
 const u = usage();
 const ledger = readLedger();
@@ -62,4 +63,31 @@ test('the tables cannot claim what their scenes do not do', async () => {
   const usersOfDiff = /`TransformDiff`: [^;|]*`mr-cache`/;
   assert.match(before.get(reference)!, usersOfDiff);
   assert.doesNotMatch(after.get(reference)!, usersOfDiff);
+});
+
+// Every public name documented (docs/ENGINE.md, "Public names"): every exported value and type, every
+// public member of an exported class and the stage's members, each named in docs/ or listed, with why,
+// among the names that have no author purpose (tools/repo/lib/public-docs.ts).
+const docs = docsReport();
+
+test('every public value, type and member is documented in docs/, or listed as having no author purpose', () => {
+  assert.ok(docs.rows.filter((r) => r.kind === 'member' && r.name.startsWith('Stage.')).length > 20, 'the stage’s members are part of the surface');
+  assert.ok(docs.rows.some((r) => r.name === 'View.sync') && docs.rows.some((r) => r.name === 'Card.describe'), 'class members, type-only classes included');
+  assert.ok(!docs.rows.some((r) => r.name === 'View.placed' || r.name === 'Mobject.id'), '@internal and hidden members are not public');
+  assert.deepEqual(docsProblems(docs), []);
+});
+
+test('the docs check rejects a public name no guide names, and a stale entry among the undocumented', () => {
+  const missing = { ...docs, rows: docs.rows.map((r) => (r.name === 'having' ? { ...r, documented: false } : r)) };
+  assert.match(docsProblems(missing).join('\n'), /having \(rayner\/explain\) is public but no guide in docs\/ names it/);
+  assert.match(docsProblems(docs, { ...UNDOCUMENTED, 'having (rayner/explain)': 'x' }).join('\n'), /having \(rayner\/explain\) is listed as undocumented but a guide documents it/);
+  assert.match(docsProblems(docs, { ...UNDOCUMENTED, 'Gone (rayner)': 'x' }).join('\n'), /Gone \(rayner\) is listed as undocumented but is not public/);
+  // The rules: a value or type by its name in code, a type by a documented signature, a member by `.name` or a span it leads.
+  const n = (kind: 'value' | 'type' | 'member', name: string) => ({ entry: 'rayner', kind, name });
+  assert.ok(documented(n('value', 'card'), 'card(s, rows)', new Set()));
+  assert.ok(!documented(n('value', 'card'), 'cards and a scorecard', new Set()));
+  assert.ok(documented(n('type', 'CardOptions'), 'card(s, rows)', new Set(['CardOptions'])));
+  assert.ok(documented(n('member', 'View.sync'), 'view.sync({ match })', new Set()));
+  assert.ok(documented(n('member', 'InvariantSink.held'), 'failures\nheld', new Set()));
+  assert.ok(!documented(n('member', 'View.sync'), 'synced', new Set()));
 });

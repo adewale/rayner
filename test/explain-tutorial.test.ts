@@ -54,7 +54,7 @@ test('`rayner init --machine` writes the machine starter, and `rayner check` pas
     assert.deepEqual(scenario.machines, [{ events: ['open', 'close', 'lock', 'unlock'], states: 3 }]);
     assert.deepEqual(scenario.claims.scope, [], 'no sweeping sentence goes unbacked');
     // An option for init alone.
-    assert.throws(() => execFileSync(process.execPath, ['tools/explain.ts', 'check', join(dir, 'scene.ts'), '--machine'], { stdio: 'pipe' }), /--machine is for init/);
+    assert.throws(() => execFileSync(process.execPath, ['tools/explain.ts', 'check', join(dir, 'scene.ts'), '--machine'], { stdio: 'pipe' }), /--machine is an option of rayner init alone/);
   } finally {
     await rm(folder, { recursive: true, force: true });
   }

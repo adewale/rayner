@@ -49,7 +49,7 @@ export const SVG_PX_PER_UNIT = 100;
 /** The renderer every snapshot was captured with; receipts and indexes name it from here. */
 export const RENDERER = 'agentic-mermaid@0.5.1';
 /** The one remedy for a missing, stale or damaged snapshot. */
-const RECAPTURE = 'Run `rayner snapshots <scene> --refresh`.';
+const RECAPTURE = 'run `rayner snapshots <scene> --refresh`';
 export interface DiagramSnapshot {
   version: 1;
   renderer: typeof RENDERER;
@@ -88,7 +88,7 @@ export interface DiagramResolver {
 const resolvers = new WeakMap<Scene, DiagramResolver>();
 export function diagramKey(spec: DiagramSpec): string {
   if (spec.lettering !== undefined && spec.lettering !== 'natural')
-    throw new Error("Diagram lettering must be 'natural' when provided");
+    throw new RangeError("s.show(): a diagram's lettering must be 'natural' when given");
   return JSON.stringify([
     spec.source.replace(/\r\n/g, '\n').trim(),
     // An empty style renders as the default (capture passes no style), so it is the default's key.
@@ -100,14 +100,18 @@ export function useDiagrams(scene: Scene, resolver: DiagramResolver): void {
   resolvers.set(scene, resolver);
 }
 /**
- * The scene's diagram snapshots: `await diagramsOf(scene).diagram(spec)` is the laid-out diagram
+ * The scene's diagram snapshots: `await diagramResolverOf(scene).diagram(spec)` is the laid-out diagram
  * for `spec`, so `new Diagram(scene, spec, snapshot, { box })` can be measured before anything is
  * drawn (`s.show` does both and builds the diagram in).
  */
-export function diagramsOf(scene: Scene): DiagramResolver {
+export function diagramResolverOf(scene: Scene): DiagramResolver {
+  return resolverOf(scene, 'diagramResolverOf()');
+}
+/** The scene's diagram resolver, for the library's own callers: an error names `api`, the call the author made. */
+export function resolverOf(scene: Scene, api: string): DiagramResolver {
   const resolver = resolvers.get(scene);
   if (!resolver)
-    throw new Error('No diagram snapshots are bound to this scene: run it through the rayner CLI, or bind them with bindSnapshots().');
+    throw new Error(`${api}: no diagram snapshots are bound to this scene; run it through the rayner command, or bind them with bindSnapshots()`);
   return resolver;
 }
 /** Snapshots already validated: a store is checked once, not on every resolve. */
@@ -115,7 +119,7 @@ const valid = new WeakSet<DiagramSnapshot>();
 function validateSnapshot(value: DiagramSnapshot): void {
   if (valid.has(value)) return;
   const invalid = () => {
-    throw new Error(`Invalid diagram snapshot. ${RECAPTURE}`);
+    throw new Error(`scene.snapshots: a diagram snapshot is invalid; ${RECAPTURE}`);
   };
   const finite = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
   // Points are stored as float32: a coordinate must stay finite there too.
@@ -252,11 +256,11 @@ export function snapshotResolver(store: SnapshotStore): DiagramResolver {
       const value = store[diagramKey(spec)];
       if (!value)
         throw new Error(
-          `Missing diagram snapshot for "${spec.source.trim().split('\n')[0]}" (${spec.style ?? 'default'}). ${RECAPTURE}`,
+          `scene.snapshots: there is no snapshot of ${JSON.stringify(spec.source.trim().split('\n')[0])} (${spec.style ?? 'default'}); ${RECAPTURE}`,
         );
       validateSnapshot(value);
       if (diagramKey(value.spec) !== diagramKey(spec))
-        throw new Error(`Snapshot source does not match its key. ${RECAPTURE}`);
+        throw new Error(`scene.snapshots: a snapshot's source does not match its key; ${RECAPTURE}`);
       return value;
     },
   };

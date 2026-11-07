@@ -22,13 +22,13 @@ test('state and evidence refuse silent data loss and cycles with a useful field 
   assert.deepEqual(scene.stateJson(), {count: 1});
   for (const bad of [NaN, Infinity, -Infinity, ()=>1, Symbol('x'), 1n, new Date(), new Map(), new Set(), {[Symbol('key')]: 1}, [undefined], Array(1)]) {
     assert.throws(() => jsonObject({answer: bad}), /state.answer/);
-    assert.throws(() => scene.record('example', {answer: bad}), /scene evidence.answer/);
+    assert.throws(() => scene.record('example', {answer: bad}), /this\.record\(\): data\.answer[.\w\[\]]* must/);
     assert.equal(scene.evidence.length, 0);
   }
-  assert.throws(() => scene.record('example', {kind: 4} as never), /must not override kind/);
+  assert.throws(() => scene.record('example', {kind: 4} as never), /data must not have its own kind/);
   assert.throws(() => scene.record(4 as never), /kind must be/);
   for (const bad of [null, 4, Symbol('data'), ()=>1, [], new Date()])
-    assert.throws(() => scene.record('example', bad as never), /scene evidence must/);
+    assert.throws(() => scene.record('example', bad as never), /this\.record\(\): data must/);
   assert.equal(scene.evidence.length, 0);
   const cyclic: Record<string, unknown> = {}; cyclic.self = cyclic;
   assert.throws(() => jsonObject(cyclic), /state.self/);
@@ -36,7 +36,7 @@ test('state and evidence refuse silent data loss and cycles with a useful field 
 test('a caption that is not a string fails before the existing step is ended; other fields are the layer above\'s', async () => {
   const scene = new Scene(new NullSink());
   await scene.step('first');
-  await assert.rejects(scene.step('bad', {caption: 4} as never), /step bad: caption must be a string/);
+  await assert.rejects(scene.step('bad', {caption: 4} as never), /this\.step\(\): the caption of step "bad" must be a string/);
   assert.equal(scene.steps.length, 1);
   assert.equal(scene.currentStep?.name, 'first');
 });

@@ -80,7 +80,7 @@ export class NumberLine extends Group {
   }: NumberLineOpts) {
     super();
     const [min, max, step = 1] = range;
-    if (!(max > min) || !(step > 0)) throw new RangeError(`NumberLine: range [${min}, ${max}, ${step}] needs max > min and step > 0`);
+    if (!(max > min) || !(step > 0)) throw new RangeError(`new NumberLine(): the range [${min}, ${max}, ${step}] needs max > min and step > 0`);
     this.min = min; this.max = max; this.step = step;
     // Without a stroke the lines take the scene's ink (a Mobject's default stroke), and so do the tip and labels.
     const lineStyle: Style = { strokeWidth: 0.03, ...style, fill: 'none' };
@@ -372,7 +372,7 @@ export class Axes extends Group {
     const n = Math.max(2, Math.round(samples));
     const run = Array.from({ length: n }, (_, i): [number, number] => {
       const x = i === n - 1 ? b : a + (b - a) * i / (n - 1), y = fn(x);
-      if (!Number.isFinite(y)) throw new RangeError(`areaUnder: fn(${x}) is ${y}`);
+      if (!Number.isFinite(y)) throw new RangeError(`axes.areaUnder(): fn(${x}) is ${y}; the function must be finite across the interval`);
       return [x, y];
     });
     const m = accented(new VMobject({ fill: color ?? NEUTRAL_COLORS.emphasis, fillOpacity, stroke: 'none', ...style }), color ?? style.fill, 'fill');

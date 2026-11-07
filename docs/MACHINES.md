@@ -88,7 +88,7 @@ every state under it.
 
 `next` returns `refuse(reason)` when a state refuses an event, with the reason in the reader's
 words: `refuse('the ring is empty, so pop has no value to take')`. `refuse` is a small value from
-`rayner/explain`, and `isRefusal(value)` tells one apart from a state. Exploration does not follow it, the
+`rayner/explain`, and `isRefusal(value)` tells one apart from a state; a `Refusal`'s `reason` is the words it was given, which a model's test reads (`next.reason`). Exploration does not follow it, the
 player dims the event's button and says the reason, and `send` refuses it before anything plays,
 naming the reason. `undefined` is still a refusal, with no reason: the player then says "Not
 possible here". There is no separate list of allowed events and no separate reason function: the
@@ -148,9 +148,9 @@ transition: {
 | `travel(key, token, path)` | A token passing along a path, which the target does not have (a message on its arrow, an event walking a link): returns `appear`, `move` and `leave` for the author to place beside other motion. state-machine, statecharts and oauth-pkce use it |
 | `rest()` | Every keyed part not yet handled: morphed, faded in or faded out |
 
-`from(key)`, `to(key)`, `has(key, side?)` and `keys(side)` read the two pictures without animating.
+`from(key)`, `to(key)`, `has(key, side?)` and `keys(side)` read the two pictures without animating. `t.choreograph(view)` returns a `Choreography`, the type a helper that builds part of a transition takes (`ring-buffer`'s `arrive(c, …)`).
 
-A transition is built from `{ event, before, after, target(view), choreograph(view) }` when its
+A transition, typed `Transition<State, Event>` from `rayner/explain`, is built from `{ event, before, after, target(view), choreograph(view) }` when its
 turn comes, from the pictures on screen then, and begun through the scene, so a part that fades
 out leaves the picture. A part may leave and enter again, which replaces it in place. A part
 brought in is in the picture from the start but unseen, and joins when its turn comes, so

@@ -30,7 +30,7 @@ export function bytesOf(b64: string): Uint8Array {
 /** Decode base64 font data; `label` names it when it cannot be decoded. */
 export async function decodeFont(b64: string, label: string): Promise<Font> {
   const r = await loadFont(bytesOf(b64));
-  if (r.tag !== 'Ok') throw new Error(`${label}: ${JSON.stringify(r.error)}`);
+  if (r.tag !== 'Ok') throw new Error(`${label} cannot be decoded: ${JSON.stringify(r.error)}`);
   return r.value;
 }
 
@@ -49,7 +49,7 @@ export function embeddedFaces(): Promise<EmbeddedFaces> {
       const r = await loadFont(bytesOf(b64));
       if (r.tag === 'Ok') fallback.push(r.value);
     }
-    return { sans: await decodeFont(SANS, 'sans'), mono: await decodeFont(MONO, 'mono'), fallback };
+    return { sans: await decodeFont(SANS, 'loadFonts(): the embedded sans face'), mono: await decodeFont(MONO, 'loadFonts(): the embedded mono face'), fallback };
   })();
 }
 /**
@@ -105,11 +105,11 @@ export function loadFonts(): Promise<Readonly<Record<FontName, Shaper>>> {
 export function shaperFor(font: FontName): Shaper { return compatibilityShapers?.[font] ?? embeddedShaperFor(font); }
 
 export function embeddedShaperFor(font: FontName): Shaper {
-  if (!shapers) throw new Error('Fonts are not loaded: await loadFonts() first (Scene.run() does this for scenes)');
+  if (!shapers) throw new Error('new Text(): the fonts are not loaded; await loadFonts() first (Scene.run() does this for a scene)');
   switch (font) {
     case 'sans': return shapers.sans;
     case 'mono': return shapers.mono;
-    default: throw new Error("Unknown font: use 'sans' or 'mono'");
+    default: throw new RangeError(`shaperFor(): ${typeof font === 'string' ? JSON.stringify(font) : `a ${typeof font}`} is not a font; use 'sans' or 'mono'`);
   }
 }
 
@@ -125,7 +125,7 @@ export const ATTACHED = /^[\p{M}\u200C\u200D\uFE00-\uFE0F\u{E0100}-\u{E01EF}]$/u
 export function shapeChain(chain: readonly Font[], key: string, text: string, size: number): Run {
   const shape = (font: Font, t: string): Run => {
     const r = run(font, key, t, size);
-    if (r.tag !== 'Ok') throw new Error('shape: ' + JSON.stringify(r.error));
+    if (r.tag !== 'Ok') throw new Error(`new Text(): the shaper failed on ${JSON.stringify(t)}: ${JSON.stringify(r.error)}`);
     return r.value;
   };
   const first = shape(chain[0]!, text);

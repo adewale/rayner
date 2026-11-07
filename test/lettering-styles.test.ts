@@ -79,9 +79,9 @@ test('ItalicText draws the Italic and Bold Italic cuts; Arabic in it stays uprig
 test('ItalicText fails the build unless the scene asked for italic', async () => {
   const s = await stored();
   await loadFonts();
-  assert.throws(() => new ItalicText('x'), /ItalicText needs static meta.lettering.styles to include 'italic'/);
+  assert.throws(() => new ItalicText('x'), /new ItalicText\(\): it needs meta\.lettering\.styles to include 'italic'/);
   const boldOnly = { ...s, request: { ...s.request, styles: ['bold'] as const } };
-  await assert.rejects(built(boldOnly, () => new ItalicText('Italic')), /ItalicText needs/);
+  await assert.rejects(built(boldOnly, () => new ItalicText('Italic')), /new ItalicText\(\): it needs/);
 });
 
 test('a bold count replays its intermediate values in the Bold cut', async () => {
@@ -116,7 +116,7 @@ test('the styles fixture passes check, and its page carries only the cuts it dec
 
 test('requests name real styles only', () => {
   assert.throws(() => validateLettering({ styles: [] }), /non-empty/);
-  assert.throws(() => validateLettering({ styles: ['oblique' as 'bold'] }), /Unknown lettering style: oblique/);
+  assert.throws(() => validateLettering({ styles: ['oblique' as 'bold'] }), /meta\.lettering: "oblique" is not a style/);
   assert.throws(() => validateLettering({ styles: ['bold', 'bold'] }), /twice/);
   validateLettering({ styles: ['bold', 'italic'], faces: { sans: 'eb-garamond', mono: 'jetbrains-mono' } });
 });

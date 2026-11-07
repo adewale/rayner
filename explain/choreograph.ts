@@ -38,7 +38,7 @@ function keyedParts(picture: Mobject): Map<string, Mobject> {
   const out = new Map<string, Mobject>();
   const walk = (m: Mobject) => {
     for (const c of m.children) {
-      if (c.key !== undefined) { if (out.has(c.key)) throw new Error(`choreograph: two parts are keyed ${c.key}`); out.set(c.key, c); }
+      if (c.key !== undefined) { if (out.has(c.key)) throw new Error(`t.choreograph(): two parts of one picture are keyed ${JSON.stringify(c.key)}; give each part its own key`); out.set(c.key, c); }
       else walk(c);
     }
   };
@@ -94,24 +94,24 @@ export function choreograph(current: Mobject, target: Mobject): Choreography {
   const done = new Set<string>(), left = new Set<string>(), passing = new Set<string>();
   // A part that has left may enter again, once: replacing a part in place with a new one.
   const claim = (key: string, entering = false) => {
-    if (done.has(key) && !(entering && left.has(key))) throw new Error(`choreograph: ${key} is already animated`);
+    if (done.has(key) && !(entering && left.has(key))) throw new Error(`t.choreograph(): ${JSON.stringify(key)} is already animated; name each part in one call`);
     if (entering) left.delete(key);
     done.add(key);
   };
   const from = (key: string) => {
     const m = now.get(key);
-    if (!m) throw new Error(`choreograph: the current picture has no part keyed ${key}`);
+    if (!m) throw new RangeError(`t.choreograph(): the current picture has no part keyed ${JSON.stringify(key)}`);
     return m;
   };
   const to = (key: string) => {
     const m = want.get(key);
-    if (!m) throw new Error(`choreograph: the target picture has no part keyed ${key}`);
+    if (!m) throw new RangeError(`t.choreograph(): the target picture has no part keyed ${JSON.stringify(key)}`);
     return m;
   };
   /** A copy of `like` as the part `key`, in the picture from now on but unseen; its saved state is how it was made. */
   const make = (key: string, like: Mobject) => {
     claim(key, true);
-    if (now.has(key)) throw new Error(`choreograph: ${key} is already in the current picture; morph it`);
+    if (now.has(key)) throw new Error(`t.choreograph(): ${JSON.stringify(key)} is already in the current picture; morph it`);
     const part = like.copy();
     part.key = key;
     part.saveState();
@@ -163,7 +163,7 @@ export function choreograph(current: Mobject, target: Mobject): Choreography {
       return new Follow(spec, { ...opts, targets: targets.map((t) => (typeof t === 'string' ? self.own(t) : t)) });
     },
     travel(key, token, path, { appear = 0.15, move = 0.7, leave = 0.2 } = {}) {
-      if (want.has(key)) throw new Error(`choreograph: ${key} is in the target picture; a travelling token passes through`);
+      if (want.has(key)) throw new Error(`t.choreograph(): ${JSON.stringify(key)} is in the target picture, and a travelling token only passes through; travel a key the target does not have`);
       const start = path.pointFromProportion(0);
       const part = insert(key, token.copy().moveTo(start));
       return {

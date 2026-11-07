@@ -21,13 +21,13 @@ function libraryRoot(): string {
   try {
     entry = fileURLToPath(import.meta.resolve('rayner'));
   } catch {
-    throw new Error(`rayner-cli ${cliManifest.version} needs the rayner package: npm install --save-dev rayner@${cliManifest.version}`);
+    throw new Error(`rayner-cli ${cliManifest.version} needs the rayner package; npm install --save-dev rayner@${cliManifest.version}`);
   }
   // `rayner` is dist/src/index.js inside the package.
   const root = resolve(dirname(entry), '../..');
   const { version } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { version: string };
   if (version !== cliManifest.version)
-    throw new Error(`rayner-cli ${cliManifest.version} needs rayner ${cliManifest.version}, found ${version}: npm install --save-dev rayner@${cliManifest.version}`);
+    throw new Error(`rayner-cli ${cliManifest.version} needs rayner ${cliManifest.version}, and found ${version}; npm install --save-dev rayner@${cliManifest.version}`);
   return root;
 }
 /** The library's files: src/, explain/, integrations/agentic-mermaid/*.ts, vendor/glyph.js and dist/. */

@@ -224,7 +224,7 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
   {
     gate: 'duplicate step names',
     source: `import{Scene}from'rayner';export default class Bad extends Scene{async construct(){await this.step('same');await this.wait(.5);await this.step('same');await this.wait(.5);}}`,
-    message: /Duplicate step names/,
+    message: /this\.step\(\): two steps of the scenario \{\} share a name/,
   },
   {
     // The caption keys a colour the stage never names: hidden, the caption takes the key with it.
@@ -235,23 +235,23 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
   {
     gate: 'a step kind that is not short, main or detail',
     source: scene(`await this.step('one',{caption:'A label.',kind:'details'});${label('hello')}`),
-    message: /step one: kind must be 'short', 'main' or 'detail'/,
+    message: /this\.step\(\): the kind of step "one" must be 'short', 'main' or 'detail'/,
   },
   {
     // Built by a function, where the ExplainerMeta type does not reach: collection still refuses the key.
     gate: 'an unknown meta key',
     source: scene(`await this.step('one',{caption:'A label.'});${label('hello')}`, `const meta=()=>({title:'T',soruces:[]});`, 'static meta=meta();'),
-    message: /scene\.ts: Unknown meta key "soruces": meta takes id, title,/,
+    message: /scene\.ts: static meta: "soruces" is not a key it takes; it takes id, title,/,
   },
   {
     gate: 'a scenario with no steps',
     source: `import{Scene,Dot,FadeIn}from'rayner';export default class Bad extends Scene{async construct(){await this.play(new FadeIn(new Dot()));}}`,
-    message: /Each scenario needs non-empty named steps/,
+    message: /this\.step\(\): the scenario \{\} has no step, or a step with an empty name/,
   },
   {
     gate: 'one scene export',
     source: `import{Scene}from'rayner';export class A extends Scene{async construct(){await this.step('a');await this.wait(.5)}}export class B extends Scene{async construct(){await this.step('b');await this.wait(.5)}}`,
-    message: /Export one Scene subclass/,
+    message: /scene\.ts: it must export one Scene subclass, or a Scene as its default export/,
   },
 ];
 for (const { gate, source, message, snapshots } of gates)
@@ -329,6 +329,6 @@ test('the build makes every combination of options a scenario, rayner check test
   const report = await checkProject(project, join(dir, 'checks'));
   assert.deepEqual((report.scenarios as { settings: Record<string, string> }[]).map((v) => v.settings), combos);
   // A value no option lists is refused, so no request reaches a scenario the build did not make.
-  assert.throws(() => resolveSettings(project.Scene, { motion: 'spring' }), /Unknown .* option/);
-  assert.throws(() => resolveSettings(project.Scene, { size: '0.1' }), /Unknown .* option/);
+  assert.throws(() => resolveSettings(project.Scene, { motion: 'spring' }), /resolveSettings\(\): "spring" is not an option of the setting "motion"/);
+  assert.throws(() => resolveSettings(project.Scene, { size: '0.1' }), /resolveSettings\(\): "0\.1" is not an option of the setting "size"/);
 });

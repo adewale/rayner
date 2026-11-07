@@ -127,6 +127,9 @@ finds those frames. `token-bucket` and `ring-buffer` declare invariants of this 
 receives every frame of a full run, reads the scene, and hands the frame on to an inner
 sink, so several checks share one run. `rayner check` composes it with its motion and
 legibility sampling this way. A seek skips frames, so run invariants over a full run.
+After the run, `failures` lists each failure as an `InvariantFailure`, `{ invariant, step,
+frame, t, message }`; `checked` and `held` count, per invariant, the frames it ran on and the
+frames it held on; and `vacuous()` names the invariants that ran and never held.
 
 ## Consume a scene in another application
 

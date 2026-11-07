@@ -55,9 +55,9 @@ export function parseIntent(text: string, where = 'script.md'): Intent | null {
   if (!('Answer' in fields)) return null;
   const missing = REQUIRED.filter((label) => !fields[label]?.trim());
   if (!question) missing.unshift('the # question' as never);
-  if (missing.length) throw new Error(`${where}: the intent header has no ${missing.join(', ')}`);
+  if (missing.length) throw new Error(`${where}: the intent header has no ${missing.join(', ')}; write each as a labelled line, - **Answer:** …`);
   const questions = items.map((c) => ({ question: c.question, answer: c.answer.join(' ') }));
-  for (const c of questions) if (!c.answer) throw new Error(`${where}: the question "${c.question}" has no answer under it`);
+  for (const c of questions) if (!c.answer) throw new Error(`${where}: the question ${JSON.stringify(c.question)} has no answer under it; write its answer on the indented lines below it`);
   return { question, fields, questions };
 }
 
@@ -82,7 +82,7 @@ export function adoptIntent(Scene: { meta?: Record<string, unknown> }, intent: I
   const own = declared.get(Scene);
   const meta = intentMeta(intent);
   const twice = Object.keys(meta).filter((k) => own?.[k] !== undefined);
-  if (twice.length) throw new Error(`${where}: ${twice.join(', ')} declared in both script.md and the scene; the script's intent is their one home`);
+  if (twice.length) throw new Error(`${where}: ${twice.join(', ')} ${twice.length > 1 ? 'are' : 'is'} declared in both script.md and the scene; the script's intent is their one home, so take ${twice.length > 1 ? 'them' : 'it'} out of the scene's meta`);
   Scene.meta = { ...own, ...meta };
   return meta;
 }

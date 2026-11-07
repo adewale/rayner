@@ -16,7 +16,7 @@ export interface ScriptMeta {
 export function answerOf(scene: object): string {
   const answer = (scene.constructor as { meta?: ScriptMeta }).meta?.answer;
   if (typeof answer !== 'string' || !answer.trim())
-    throw new Error(`${scene.constructor.name} has no answer: write it in script.md's intent header (- **Answer:** …), or in static meta.answer`);
+    throw new Error(`answerOf(): ${scene.constructor.name} has no answer; write it in script.md's intent header (- **Answer:** …), or in meta.answer`);
   return answer;
 }
 /** The most reader questions a scene may ask: more is a test, not a recap. */
@@ -25,17 +25,17 @@ export const QUESTIONS_MAX = 6;
 /** Refuse an `answer` or `questions` that cannot work: wrong types, empty text, or too many questions. */
 export function checkScriptMeta(meta: ScriptMeta | undefined): void {
   if (meta?.answer !== undefined && (typeof meta.answer !== 'string' || !meta.answer.trim()))
-    throw new Error('meta.answer must be the one sentence that answers the reader’s question');
+    throw new TypeError('meta.answer: it must be the one sentence that answers the reader’s question');
   if (meta?.questions === undefined) return;
   if (!Array.isArray(meta.questions) || !meta.questions.length)
-    throw new Error('meta.questions must be a list of { question, answer }');
+    throw new TypeError('meta.questions: it must be a list of { question, answer }');
   if (meta.questions.length > QUESTIONS_MAX)
-    throw new Error(`meta.questions asks ${meta.questions.length} questions; at most ${QUESTIONS_MAX}`);
+    throw new RangeError(`meta.questions: it asks ${meta.questions.length} questions; ask at most ${QUESTIONS_MAX}`);
   for (const [i, c] of meta.questions.entries()) {
     const q = (c as { question?: unknown })?.question,
       a = (c as { answer?: unknown })?.answer;
-    if (typeof q !== 'string' || !q.trim()) throw new Error(`meta.questions[${i}] has no question`);
-    if (typeof a !== 'string' || !a.trim()) throw new Error(`meta.questions[${i}] ("${q}") has no answer`);
+    if (typeof q !== 'string' || !q.trim()) throw new TypeError(`meta.questions: entry ${i} has no question`);
+    if (typeof a !== 'string' || !a.trim()) throw new TypeError(`meta.questions: entry ${i} (${JSON.stringify(q)}) has no answer`);
   }
 }
 
@@ -74,9 +74,9 @@ const KINDS: readonly unknown[] = ['short', 'main', 'detail'] satisfies StepKind
 export function checkStepMeta(steps: readonly { step: string; meta: Readonly<Record<string, unknown>> }[]): void {
   for (const { step, meta } of steps) {
     for (const key of ['title', 'line'] as const)
-      if (meta[key] !== undefined && typeof meta[key] !== 'string') throw new TypeError(`step ${step}: ${key} must be a string`);
-    if (meta.kind !== undefined && !KINDS.includes(meta.kind)) throw new TypeError(`step ${step}: kind must be 'short', 'main' or 'detail'`);
-    if ('detail' in meta || 'reader' in meta) throw new TypeError(`step ${step}: say kind: 'detail' or kind: 'short'`);
+      if (meta[key] !== undefined && typeof meta[key] !== 'string') throw new TypeError(`this.step(): the ${key} of step ${JSON.stringify(step)} must be a string`);
+    if (meta.kind !== undefined && !KINDS.includes(meta.kind)) throw new RangeError(`this.step(): the kind of step ${JSON.stringify(step)} must be 'short', 'main' or 'detail'`);
+    if ('detail' in meta || 'reader' in meta) throw new TypeError(`this.step(): step ${JSON.stringify(step)} has ${'detail' in meta ? 'detail' : 'reader'}, which this.step() does not take; say kind: 'detail' or kind: 'short'`);
   }
 }
 

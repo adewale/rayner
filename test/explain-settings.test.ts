@@ -90,7 +90,7 @@ test('resolveSettings refuses an unknown setting id', () => {
   fc.assert(
     fc.property(declared, fc.string(), fc.string(), ([settings, values], id, value) => {
       fc.pre(!settings.some((s) => s.id === id));
-      assert.throws(() => resolveSettings(classOf(settings), { ...values, ...Object.fromEntries([[id, value]]) }), /Unknown setting/);
+      assert.throws(() => resolveSettings(classOf(settings), { ...values, ...Object.fromEntries([[id, value]]) }), /resolveSettings\(\): the scene has no setting/);
     }),
     params(),
   );
@@ -101,7 +101,7 @@ test('resolveSettings refuses a value that is not one of the options', () => {
     fc.property(declarations.filter((d) => d.length > 0), fc.nat(), fc.string(), (settings, k, value) => {
       const s = settings[k % settings.length]!;
       fc.pre(!s.options.some((o) => o.value === value));
-      assert.throws(() => resolveSettings(classOf(settings), Object.fromEntries([[s.id, value]])), /Unknown .* option/);
+      assert.throws(() => resolveSettings(classOf(settings), Object.fromEntries([[s.id, value]])), /resolveSettings\(\): .* is not an option of the setting/);
     }),
     params(),
   );
@@ -119,7 +119,7 @@ test('declarations with an invalid, reserved or duplicate id, or bad options, ar
     fc.property(declarations, broken, fc.nat(), (good, bad, at) => {
       const all = [...good.filter((g) => !bad.some((b) => b.id === g.id))];
       all.splice(at % (all.length + 1), 0, ...bad);
-      assert.throws(() => resolveSettings(classOf(all)), /Invalid/);
+      assert.throws(() => resolveSettings(classOf(all)), /^Error: static settings: /);
     }),
     params(),
   );
@@ -151,7 +151,7 @@ test('scenariosOf refuses exactly when the product exceeds the limit', () => {
     fc.property(declarations, fc.oneof(fc.nat({ max: 300 }), fc.constantFrom(NaN, Infinity, -1, 0)), (settings, limit) => {
       const S = classOf(settings);
       if (product(settings) <= limit) assert.equal(scenariosOf(S, limit).length, product(settings));
-      else assert.throws(() => scenariosOf(S, limit), /exceed/);
+      else assert.throws(() => scenariosOf(S, limit), /^RangeError: static settings: they make \d+ scenarios, more than/);
     }),
     params(),
   );
@@ -206,11 +206,11 @@ test('static meta takes the keys ExplainerMeta names, and refuses any other, nam
   checkExplainerMeta({});
   // Built apart from the declaration, where the type does not reach: the check still names the key.
   const built = (): object => ({ title: 'A', soruces: ['https://example.com'] });
-  assert.throws(() => checkExplainerMeta(built()), /^TypeError: Unknown meta key "soruces": meta takes id, title, lang, sources, lettering, textContext, scenarioNavigation, player, watch, answer, questions, checkedAgainst, claims$/);
-  assert.throws(() => checkExplainerMeta({ titel: 'A', lnag: 'fr' }), /Unknown meta keys "titel", "lnag"/);
-  assert.throws(() => checkExplainerMeta({ player: { acent: true } }), /^TypeError: Unknown meta.player key "acent": meta.player takes accent, paper, corners, minStageWidth, outline$/);
-  for (const bad of [null, 4, 'meta', []]) assert.throws(() => checkExplainerMeta(bad), /static meta must be an object/);
-  assert.throws(() => checkExplainerMeta({ player: true }), /meta.player must be an object/);
+  assert.throws(() => checkExplainerMeta(built()), /^TypeError: static meta: "soruces" is not a key it takes; it takes id, title, lang, sources, lettering, textContext, scenarioNavigation, player, watch, answer, questions, checkedAgainst, claims$/);
+  assert.throws(() => checkExplainerMeta({ titel: 'A', lnag: 'fr' }), /static meta: "titel", "lnag" are not keys it takes/);
+  assert.throws(() => checkExplainerMeta({ player: { acent: true } }), /^TypeError: meta\.player: "acent" is not a key it takes; it takes accent, paper, corners, minStageWidth, outline$/);
+  for (const bad of [null, 4, 'meta', []]) assert.throws(() => checkExplainerMeta(bad), /static meta: it must be an object/);
+  assert.throws(() => checkExplainerMeta({ player: true }), /meta\.player: it must be an object/);
   // A key inherited through the prototype is not the scene's: only own keys are read.
   checkExplainerMeta(Object.create({ titel: 'A' }));
 });

@@ -146,26 +146,26 @@ test('direction rejects malformed, boxed, inherited and coercing values before d
   const cases: unknown[] = [null, 0, 1, false, '', 'RTL', 'auto', 'constructor', '__proto__', new String('rtl'), coercing, [], {}];
   for (const direction of cases) {
     const sc = scene();
-    assert.throws(() => stage(sc, { direction } as StageOptions), /Layout direction must/);
+    assert.throws(() => stage(sc, { direction } as StageOptions), /^(TypeError|RangeError): stage\(\): (the options|direction) must/);
     assert.equal(sc.mobjects.length, 0);
-    assert.throws(() => card(stage(scene(), { heading: false }), [['field', '123']], { direction } as CardOptions), /Layout direction must/);
+    assert.throws(() => card(stage(scene(), { heading: false }), [['field', '123']], { direction } as CardOptions), /^(TypeError|RangeError): card\(\): (the options|direction) must/);
     const s = stage(sc, { heading: false });
     const count = sc.familyMembers().length, time = sc.time;
-    await assert.rejects(async () => s.card([['field', '123']], { direction } as CardOptions), /Layout direction must/);
+    await assert.rejects(async () => s.card([['field', '123']], { direction } as CardOptions), /^(TypeError|RangeError): s\.card\(\): (the options|direction) must/);
     assert.equal(sc.familyMembers().length, count); assert.equal(sc.time, time);
   }
   for (const options of [Object.create({ direction: 'rtl' }), Object.create({ direction: coercing })]) {
-    assert.throws(() => stage(scene(), options), /must be an own option/);
-    assert.throws(() => card(stage(scene()), [['field', '123']], options), /must be an own option/);
-    await assert.rejects(async () => stage(scene()).card([['field', '123']], options), /must be an own option/);
+    assert.throws(() => stage(scene(), options), /stage\(\): direction must be the options' own property, not inherited/);
+    assert.throws(() => card(stage(scene()), [['field', '123']], options), /card\(\): direction must be the options' own property/);
+    await assert.rejects(async () => stage(scene()).card([['field', '123']], options), /s\.card\(\): direction must be the options' own property/);
   }
   const getter = Object.defineProperty({}, 'direction', { get() { coerced++; return 'rtl'; } });
-  assert.throws(() => stage(scene(), getter), /must be a data option/);
-  assert.throws(() => card(stage(scene()), [['field', '123']], getter), /must be a data option/);
-  await assert.rejects(async () => stage(scene()).card([['field', '123']], getter), /must be a data option/);
+  assert.throws(() => stage(scene(), getter), /stage\(\): direction must be a plain value, not a getter/);
+  assert.throws(() => card(stage(scene()), [['field', '123']], getter), /card\(\): direction must be a plain value/);
+  await assert.rejects(async () => stage(scene()).card([['field', '123']], getter), /s\.card\(\): direction must be a plain value/);
   for (const malformed of [null, 1, false, 'rtl', []]) {
-    assert.throws(() => stage(scene(), malformed as StageOptions), /Layout options must be an object/);
-    assert.throws(() => card(stage(scene()), [['field', '123']], malformed as CardOptions), /Layout options must be an object/);
+    assert.throws(() => stage(scene(), malformed as StageOptions), /^TypeError: stage\(\): the options must be an object/);
+    assert.throws(() => card(stage(scene()), [['field', '123']], malformed as CardOptions), /^TypeError: card\(\): the options must be an object/);
   }
   assert.equal(coerced, 0);
 });

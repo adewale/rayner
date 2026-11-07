@@ -21,7 +21,7 @@ export function replayMorphExplained(before: DiagramSpec, after: DiagramSpec, op
       if (!result.ok) throw error;
       model = result.value;
     }
-    throw new Error(`${error.message}: ${morphDifference(model, target.value, serializeMermaid(model), serializeMermaid(target.value))}`);
+    throw new Error(`d.morph(): ${error.message}: ${morphDifference(model, target.value, serializeMermaid(model), serializeMermaid(target.value))}`);
   }
 }
 
