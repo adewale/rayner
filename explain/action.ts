@@ -206,7 +206,7 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
 
   /** @internal Decided now, if it was not when made: what it reads is ready, and the play that holds it is beginning. */
   override settle(): void {
-    if (!this.#settled) throw new Error(`${this.name}: played before what it reads was ready; play() waits for that, so hand it to play()`);
+    if (!this.#settled) throw new Error(`${this.name}: played before what it reads was ready, as in a machine's transition, which is made as its beat begins; make it before the play, which waits for it`);
     this.#planned();
   }
 
@@ -218,7 +218,7 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
   /** Composed: begun by a play, or by the Succession or group that holds it. */
   override begin(): void {
     this.#start('composed');
-    if (!this.#settled) throw new Error(`${this.name}: begun before what it reads was ready; play() waits for that, so hand it to play()`);
+    if (!this.#settled) throw new Error(`${this.name}: begun before what it reads was ready, as in a machine's transition, which is made as its beat begins; make it before the play, which waits for it`);
     this.#planned().start?.();
     super.begin();
   }

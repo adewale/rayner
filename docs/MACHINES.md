@@ -252,6 +252,10 @@ which is the shrinking a generated-sequence check would otherwise need. `statech
   compared with that whole graph, and generated event sequences walk it too, so no XState
   install is needed in tests; regenerating the fixture needs the pinned release.
 - **A state is compared as JSON.** Two states equal as JSON are one state.
+- **A transition holds no action that waits.** A transition's animation is made as its event's
+  beat begins, after `play()` has waited for what its animations read. An action that must wait
+  first, `s.show` of a diagram not yet laid out or `d.morph` to a picture not yet built, throws
+  there; show the diagram in the step, before the machine plays, and let the views draw it.
 
 ## The player
 

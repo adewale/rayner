@@ -159,3 +159,22 @@ test('an action’s errors surface when it plays, awaited or composed, not when 
   assert.equal((scene.stateJson().walks as unknown[]).length, 1);
   await assert.rejects(scene.play(s.focus([])), /nothing to look at/);
 });
+
+test('an action that waits, made in a machine transition, is refused with where to make it', async () => {
+  const { Machine } = await import('../explain/machine.ts');
+  const { view } = await import('../explain/view.ts');
+  const { Action } = await import('../explain/action.ts');
+  // A late action whose `ready` is pending, as s.show's is while it reads a diagram's layout.
+  const waiting = (scene: InstanceType<typeof Scene>) => new Action(scene, 's.show()', () => ({ value: undefined, beats: [{ runTime: 0.2, play: () => [new FadeIn(new Circle(), { runTime: 0.2 })] }] }), { ready: new Promise((r) => setTimeout(r, 5)), late: true });
+  class InTransition extends Scene<{ n: number }> {
+    override async construct() {
+      this.state = { n: 0 };
+      const v = view(this, (s: { n: number }) => new Circle({ radius: 0.5 + s.n / 10 }));
+      const m = new Machine(this, { start: { n: 0 }, events: ['UP'], next: (s) => ({ n: s.n + 1 }), views: [v], transition: { UP: () => waiting(this) } });
+      await this.step('a');
+      this.add(v);
+      await this.play(m.send('UP'));
+    }
+  }
+  await assert.rejects(new InTransition(new NullSink()).run(), /^Error: s\.show\(\): begun before what it reads was ready, as in a machine's transition, which is made as its beat begins; make it before the play, which waits for it$/);
+});
