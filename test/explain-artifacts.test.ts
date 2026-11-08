@@ -20,10 +20,10 @@ test('catalog and evidence readers validate known fields before returning typed 
     // An id the page-id rule refuses: capitals and _, or a Windows device name.
     (v: typeof c) => {v.scenes[0]!.id = 'My_Scene';},
     (v: typeof c) => {v.scenes[0]!.id = 'nul';},
-  ]) {const bad = structuredClone(c); defect(bad); assert.throws(() => catalog(bad), /Invalid catalog/);}
+  ]) {const bad = structuredClone(c); defect(bad); assert.throws(() => catalog(bad), /^Error: catalog\(\): /);}
   // Two pages with one id: the reason is named.
   const twice = structuredClone(c); twice.scenes.push(twice.scenes[0]!);
-  assert.throws(() => catalog(twice), /^Error: Invalid catalog artifact: site: the page id "example" is listed twice/);
+  assert.throws(() => catalog(twice), /^Error: catalog\(\): the page id "example" is listed twice/);
   for (const defect of [
     (v: typeof e) => {v.checked = 'yes' as never;},
     (v: typeof e) => {v.scenes[0]!.scenarios[0]!.case = 2 as never;},
@@ -31,14 +31,14 @@ test('catalog and evidence readers validate known fields before returning typed 
     (v: typeof e) => {v.scenes[0]!.narrowOpenings[0]!.steps[0]!.reviewed = 'yes' as never;},
     (v: typeof e) => {v.scenes[0]!.id = 'My_Scene';},
     (v: typeof e) => {v.scenes[0]!.id = 'COM1';},
-  ]) {const bad = structuredClone(e); defect(bad); assert.throws(() => catalogEvidence(bad), /Invalid/);}
+  ]) {const bad = structuredClone(e); defect(bad); assert.throws(() => catalogEvidence(bad), /^Error: catalogEvidence\(\): /);}
 });
 test('scene input records require their declared format and actual digest strings', () => {
   const value = {version: '3', sourceHash: 'a'.repeat(64), files: 'd'.repeat(64), buildHash: 'e'.repeat(64)};
   assert.deepEqual(sceneInputs(value), value);
   for (const key of Object.keys(value)) {
     const bad = {...value, [key]: key === 'version' ? '2' : 'not-a-digest'};
-    assert.throws(() => sceneInputs(bad), /Invalid scene inputs/);
+    assert.throws(() => sceneInputs(bad), /^Error: sceneInputs\(\): the scene inputs artifact does not match its version 3 format/);
   }
 });
 test('every place that holds a page id holds it to one rule: what loadProject takes, the catalog and the evidence take', async () => {

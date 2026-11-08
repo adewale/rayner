@@ -1,6 +1,6 @@
 // The convention for error messages an author can see (docs/ENGINE.md, "Error messages"), held
 // mechanically over the library: every `new Error(`, `new TypeError(` and `new RangeError(` in
-// src/, explain/ and diagram replay. A message starts with the API the author called and a colon,
+// src/, explain/, the player (app/) and diagram replay. A message starts with the API the author called and a colon,
 // ends without a full stop, and never names a mobject by its internal id. A prefix the code
 // computes, such as the call an action was made by or the file a script was read from, is allowed
 // only where ALLOWED lists that expression and says what it holds.
@@ -11,7 +11,7 @@ import { join, relative, resolve } from 'node:path';
 import ts from 'typescript';
 
 const ROOT = resolve(import.meta.dirname, '..');
-const SCANNED = ['src', 'explain', 'integrations/agentic-mermaid/snapshot.ts', 'integrations/agentic-mermaid/text.ts'];
+const SCANNED = ['src', 'explain', 'app', 'integrations/agentic-mermaid/snapshot.ts', 'integrations/agentic-mermaid/text.ts'];
 
 /**
  * The static prefixes: a call, `card()`, `s.card()`, `keyedParts().add()`; a constructor,
