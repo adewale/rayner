@@ -20,7 +20,6 @@ import { loadFonts } from '../explain/testing.ts';
 import { useLettering, takeLetteringMissing } from '../src/lettering.ts';
 import { takeMissingGlyphs as takeEmbeddedMissing } from '../explain/testing.ts';
 import { loadFont } from '../vendor/glyph.js';
-import { restingTime } from '../explain/trace.ts';
 
 const folder = await mkdtemp(join(tmpdir(), 'rayner-lettering-'));
 after(() => rm(folder, { recursive: true, force: true }));
@@ -75,7 +74,7 @@ test('useLettering with the faces in place, or none in place, does nothing', asy
 
 // Fail closed: a script nobody asked for fails every command, as it did before lettering existed.
 const scene = (meta: string, text: string) =>
-  `import{Scene,Text}from'rayner';import{stage}from'rayner/explain';export default class L extends Scene{static meta={${meta}};async construct(){stage(this);await this.step('one',{title:'One'});this.add(new Text(${JSON.stringify(text)}));}}`;
+  `import{Scene,Text,FadeIn}from'rayner';import{stage}from'rayner/explain';export default class L extends Scene{static meta={${meta}};async construct(){stage(this);await this.step('one',{title:'One'});await this.play(new FadeIn(new Text(${JSON.stringify(text)})));}}`;
 async function collectSource(name: string, source: string) {
   const file = join(folder, name + '.ts');
   await writeFile(file, source);
@@ -174,13 +173,13 @@ test('a lettered explainer draws its Greek as outlines, and without its faces th
   const v = defaultScenario(project, { word: 'phos' });
   const step = v.trace.steps.find((s) => s.step === 'code')!;
   const sink = new SnapshotSink();
-  await renderAt(v.Scene, restingTime(step, v.trace.fps), sink);
+  await renderAt(v.Scene, step.restFrame! / v.trace.fps, sink);
   const lettered = sink.svg;
   await useLettering(null);
   assert.ok(shaperFor('mono')('αβγ', 1).glyphs.every((g) => g.gid === 0));
   assert.deepEqual([...takeLetteringMissing()], [['αβγ', 'αβγ']]);
   const bare = new SnapshotSink();
-  await renderAt(v.Scene, restingTime(step, v.trace.fps), bare);
+  await renderAt(v.Scene, step.restFrame! / v.trace.fps, bare);
   assert.notEqual(bare.svg, lettered, 'the Greek outlines are what the lettering added');
 });
 

@@ -58,6 +58,8 @@ class BeatPlay extends AnimationGroup {
     super.cleanUpFromScene(scene);
     this.beat.after?.();
   }
+  /** @internal Its animations are made when its turn comes; its run time was planned. */
+  override settle(): void {}
 }
 
 /** The actions each scene has made that have not begun to play: each must, by the end of its step. */
@@ -73,19 +75,23 @@ function track(scene: Scene<any, any>, action: Action<unknown>): void {
   if (!waiting) {
     const left = (waiting = new Set());
     unplayed.set(scene, left);
-    const endStep = scene.endCurrentStep.bind(scene);
-    scene.endCurrentStep = async () => {
-      if (left.size && !scene.stopped) {
-        const names = [...left].map((a) => a.name);
-        left.clear();
-        const step = scene.currentStep ? ` in step "${scene.currentStep.name}"` : ' before the first step';
-        throw new Error(
-          `${names.join(', ')}: ${names.length > 1 ? 'they were' : 'it was'} made${step} but never played; ` +
-            'await an action, or hand it to play(), or to a Succession or group that plays, before its step ends',
-        );
-      }
-      await endStep();
+    const refuse = (where: string) => {
+      if (!left.size) return;
+      const names = [...left].map((a) => a.name);
+      left.clear();
+      throw new Error(
+        `${names.join(', ')}: ${names.length > 1 ? 'they were' : 'it was'} made ${where} but never played; ` +
+          'await an action, or hand it to play(), or to a Succession or group that plays, before its step ends',
+      );
     };
+    // Made before any step: refused as the first step begins. Made in a step: refused as it ends.
+    if (!scene.currentStep) {
+      const off = scene.onStep(() => {
+        off();
+        refuse('before the first step');
+      });
+    }
+    scene.onStepEnd((step) => refuse(`in step "${step.name}"`));
   }
   waiting.add(action);
 }
@@ -121,9 +127,9 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
   #ended: boolean;
 
   /**
-   * @internal `make` decides the action when it is called, or with `late` when it begins (after
-   * `ready`, which a play waits for): then its run time is known only once it has begun, so it
-   * plays in play() or awaited, never inside a Succession or group built before.
+   * @internal `make` decides the action when it is called, or with `late` once `ready` has settled
+   * and the play that holds it begins (a play waits for `ready`, a group's members' included): its
+   * run time is known from then, so it plays awaited, in play(), or inside a Succession or group.
    */
   constructor(scene: Scene<any, any>, name: string, make: () => Plan<T>, { ready, late = false }: { ready?: Promise<unknown>; late?: boolean } = {}) {
     let plan: Plan<T> | null = null, failed = false, error: unknown = null;
@@ -155,26 +161,13 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
     this.#result = null;
     this.#stretched = false;
     this.#ended = false;
-    if (late) {
-      let runTime = 0;
-      Object.defineProperty(this, 'runTime', {
-        get: () => {
-          if (!this.#plan && !this.#failed)
-            throw new Error(`${name}: how long it takes is known once it begins, so play it in play() or await it, not inside a Succession or group`);
-          return runTime;
-        },
-        set: (v: number) => { runTime = v; },
-        configurable: true,
-        enumerable: true,
-      });
-    }
     track(scene, this as Action<unknown>);
   }
 
-  /** What awaiting it gives. Set when the action is made (`s.show`'s diagram: once it begins). */
+  /** What awaiting it gives. Set when the action is made (`s.show`'s diagram: once the play that holds it begins). */
   get value(): T {
     if (this.#failed) throw this.#error;
-    if (!this.#plan) throw new Error(`${this.name}: what it gives is known once it begins; read its value after a play has begun it, or await it`);
+    if (!this.#plan) throw new Error(`${this.name}: what it gives is known once the play that holds it begins; read its value after that, or await it`);
     return this.#plan.value;
   }
 
@@ -209,6 +202,12 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
 
   /** @internal */ override ready(): Promise<unknown> | null {
     return this.#settled ? null : this.#waiting;
+  }
+
+  /** @internal Decided now, if it was not when made: what it reads is ready, and the play that holds it is beginning. */
+  override settle(): void {
+    if (!this.#settled) throw new Error(`${this.name}: played before what it reads was ready; play() waits for that, so hand it to play()`);
+    this.#planned();
   }
 
   /** @internal */ override setOptions(opts: PlayOpts = {}): this {

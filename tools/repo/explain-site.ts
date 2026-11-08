@@ -24,10 +24,9 @@ import { buildInputs } from '../lib/build-inputs.ts';
 import { checkBuiltOutput } from './lib/explain-built-files.ts';
 import {readArtifact, catalog as parseCatalog, catalogEvidence} from '../lib/explain-artifacts.ts';
 import { isWholeCollection, onlyIds, selectExport } from './lib/explain-export-selection.ts';
-import { cardPng } from '../lib/explain-shots.ts';
+import { restingCardPngs } from '../lib/explain-shots.ts';
 import { useProjectLettering } from '../lib/explain-lettering.ts';
 import { galleryPage, galleryTokens } from './lib/explain-gallery.ts';
-import { restingTime } from '../../explain/trace.ts';
 import { offPath } from '../../explain/script.ts';
 import { exists, listTree, posixPath, readOptional, sha256 } from '../lib/hash.ts';
 
@@ -108,10 +107,11 @@ try {
     for (const s of share.steps) {
       const index = scenario.trace.steps.findIndex((step) => step.step === s.step), step = scenario.trace.steps[index];
       if (!step || offPath(scenario.trace.steps, index)) throw new Error(`Invalid public step: ${id}/${s.step}`);
-      await writeFile(
-        join(target, id, s.step + '.png'),
-        await cardPng(scenario.Scene, restingTime(step, scenario.trace.fps)),
-      );
+    }
+    // Every shared step's card from one run of the scene.
+    const cards = await restingCardPngs(scenario.Scene, new Set(share.steps.map((s) => s.step)));
+    for (const s of share.steps) {
+      await writeFile(join(target, id, s.step + '.png'), cards.get(s.step)!);
       if (origin) await writeFile(join(target, id, s.step + '.html'), sharePage(share, s, origin, path));
       shared++;
     }

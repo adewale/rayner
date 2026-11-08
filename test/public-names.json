@@ -12,7 +12,7 @@
         "check": "Keys: two parts on the stage with one key at the end of a step fail"
       },
       "Scene": {
-        "check": "Seek, Trace, Hold: every scenario is played and seeked; a seeked frame or trace that differs from the played one, or a picture that changes after its caption's hold begins, fails"
+        "check": "Seek, Trace, Hold, Landing: every scenario is played and seeked; a seeked frame or trace that differs from the played one, a picture that changes after its caption's hold begins, or a step that ends on a different picture from its last frame, fails"
       },
       "Text": {
         "check": "Text, Legibility, Glyphs: native text that overlaps other text, reads under 14 px at 1280 px, or has characters the fonts cannot draw fails"

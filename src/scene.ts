@@ -6,7 +6,7 @@
 // deterministic regardless of sink.
 
 import { prepareAnimation, AnimationGroup, animationName } from './animation.ts';
-import { Succession, bindSuccessions, takeCopies, recordEvidence } from './animation.ts';
+import { Succession, bindSuccessions, takeCopies, recordEvidence, assertTime } from './animation.ts';
 import type { ScheduledAnimation as Animation, Playable, PlayOpts } from './animation.ts';
 import { paintDefaults, mobjectName } from './mobject.ts';
 import type { Mobject } from './mobject.ts';
@@ -24,7 +24,7 @@ import { Frame } from './frame.ts';
 /**
  * Thrown by a sink to end the run early (seeking). Once a sink throws it, the
  * scene is stopped for good: a construct() that catches it anyway cannot emit
- * another frame (see Scene.stopped).
+ * another frame (see Scene.phase).
  */
 export class StopScene extends Error {}
 
@@ -48,6 +48,19 @@ export interface Step {
   frame1: number | null;
   /** When the caption-reading hold began, if the step needed one. Players stop here; timed playback continues to t1. */
   hold?: number;
+  /**
+   * The frame the step's picture stops changing on, set as the step ends: where its caption hold
+   * begins, or its rest frame when it holds for no caption. The frames after it, to `restFrame`,
+   * show the same picture. Players stop here.
+   */
+  holdFrame: number | null;
+  /**
+   * The step's resting frame, set as it ends: its last (`frame1`), which a link to the step shows
+   * and every check judges. A step that drew no frame of its own rests on the frame before it,
+   * the step before's, so collecting an explainer refuses one.
+   */
+  restFrame: number | null;
+  /** A copy of the metadata `this.step()` was given, as JSON. */
   meta: StepMeta;
   /**
    * What happened during the step, as recorded by Scene.record() (in order).
@@ -91,6 +104,47 @@ export type SceneState = Record<string, unknown>;
 /** Where an addJson part goes: into stateJson(), the model's JSON, or into shownJson(), what is shown. */
 export type JsonInto = 'state' | 'shown';
 
+/**
+ * What a scene is doing (`Scene.phase`): `idle` between calls, `playing` in play(), `waiting` in
+ * wait(), `ending-step` while step() (or the end of the scene) closes the running step and
+ * `beginning-step` while it opens the next, and `stopped` for good once a sink has stopped the run.
+ * One runs at a time: play(), wait() and step() refuse to start while another has not finished,
+ * except from a step listener (onStep, onStepEnd), which may play and wait in the step.
+ */
+export type ScenePhase = 'idle' | 'playing' | 'waiting' | 'ending-step' | 'beginning-step' | 'stopped';
+
+/** Who a refusal names, for each phase another call can find the scene in. */
+const RUNNING: Record<Exclude<ScenePhase, 'idle' | 'stopped'>, string> = {
+  playing: 'a play()',
+  waiting: 'a wait()',
+  'ending-step': 'a step()',
+  'beginning-step': 'a step()',
+};
+
+/** Scripts written without spaces between words: a caption in them is counted by letters. */
+const UNSPACED = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}\p{Script=Tibetan}]/u;
+/** Letters of a script without spaces that read as one word, as a reader's pace goes: about 240 Han characters a minute at 160 words. */
+const LETTERS_PER_WORD = 1.5;
+
+/**
+ * How many words a caption is, for its reading time. Words are what whitespace separates, except in
+ * scripts written without spaces (Chinese, Japanese, Thai, Lao, Khmer, Myanmar, Tibetan), where every
+ * LETTERS_PER_WORD of their letters (grapheme clusters, by Intl.Segmenter) count as a word, and a token is always at least one. Grapheme clusters
+ * follow fixed Unicode rules, so Node and every browser count alike; a dictionary's word breaks would not.
+ */
+export function captionWords(caption: string): number {
+  let words = 0;
+  for (const token of caption.trim().split(/\s+/)) {
+    if (!token) continue;
+    if (!UNSPACED.test(token)) { words++; continue; }
+    let unspaced = 0;
+    for (const { segment } of new Intl.Segmenter('und', { granularity: 'grapheme' }).segment(token)) if (UNSPACED.test(segment)) unspaced++;
+    // A token is at least a word: a lone character (a numeral, `int('三')`) reads as one.
+    words += Math.max(1, unspaced / LETTERS_PER_WORD);
+  }
+  return words;
+}
+
 /** A scene class, as traceScene(), renderAt() and the registries take it. */
 export type SceneClass = new (sink: Sink, opts?: SceneOptions) => Scene;
 
@@ -101,13 +155,29 @@ export type SceneClass = new (sink: Sink, opts?: SceneOptions) => Scene;
  * AnimationGroup) are checked through their members.
  */
 function assertDisjoint(anims: readonly Animation[]): void {
+  assertOnce(anims);
+  assertDisjointOnce(anims);
+}
+
+/** One instance listed twice in a play (beside itself, or in a group too) would begin twice. */
+function assertOnce(anims: readonly Animation[]): void {
+  const listed = new Set<Animation>();
+  const visit = (a: Animation): void => {
+    if (listed.has(a)) throw new Error(`this.play(): ${animationName(a)} is listed twice in one play; an animation plays once, so make another for the second`);
+    listed.add(a);
+    if (a instanceof AnimationGroup) a.animations.forEach(visit);
+  };
+  anims.forEach(visit);
+}
+
+function assertDisjointOnce(anims: readonly Animation[]): void {
   const seen = new Map<Mobject, Animation>();
   // A Succession's members run one at a time, so they may share mobjects with each
   // other (each is checked on its own below), but not with anything beside them.
   const leaves = (a: Animation): Animation[] => (a instanceof AnimationGroup && !(a instanceof Succession) ? a.animations.flatMap(leaves) : [a]);
   const driven = (a: Animation): Mobject[] => (a instanceof Succession ? a.animations.flatMap(leaves).flatMap(driven) : a.targets().flatMap(m => m.family()));
   for (const a of anims.flatMap(leaves)) {
-    if (a instanceof Succession) for (const member of a.animations) assertDisjoint([member]);
+    if (a instanceof Succession) for (const member of a.animations) assertDisjointOnce([member]);
     for (const m of driven(a)) {
       const other = seen.get(m);
       if (other && other !== a) {
@@ -131,6 +201,13 @@ function admitRoots(current: readonly Mobject[], incoming: readonly Mobject[], b
     for (const member of family) owner.set(member, m);
   }
   return roots;
+}
+
+/** Refuse metadata step() cannot keep: not an object, or a caption that is not a string. */
+function checkMeta(name: string, meta: unknown): asserts meta is StepMeta {
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) throw new TypeError(`this.step(): the metadata of step ${JSON.stringify(name)} must be an object, or a function of the step before that returns one`);
+  const caption = (meta as StepMeta).caption;
+  if (caption !== undefined && typeof caption !== 'string') throw new TypeError(`this.step(): the caption of step ${JSON.stringify(name)} must be a string`);
 }
 
 declare const sceneTypes: unique symbol;
@@ -180,14 +257,18 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    */
   frame: Frame;
   /**
-   * Set when a sink throws StopScene. From then on play(), wait(), step() and
-   * emitFrame() rethrow it at once, so a construct() that swallows the stop in
-   * a broad catch cannot emit frames after it (a seeked frame would differ from
-   * the played one). run() still ends quietly.
+   * What the scene is doing now (see ScenePhase). `stopped` once a sink throws StopScene: from
+   * then on play(), wait(), step() and emitFrame() rethrow it at once, so a construct() that
+   * swallows the stop in a broad catch cannot emit frames after it (a seeked frame would differ
+   * from the played one). run() still ends quietly.
    */
-  stopped: boolean;
+  get phase(): ScenePhase { return this.#phase; }
+  #phase: ScenePhase;
+  /** How many step listeners are running: a play, wait or step they make runs inside the call that dispatched them. */
+  #listening: number;
   // One entry per registration, so each remover removes exactly its own.
   private stepListeners: Array<{ listener: (step: Step) => unknown; on: boolean }>;
+  private stepEndListeners: Array<{ listener: (step: Step) => unknown; on: boolean }>;
   private jsonParts: Array<{ part: () => SceneState; into: JsonInto }>;
   /** Named invariants of the picture, checked on every frame of a full run by an InvariantSink (see addInvariant). */
   readonly invariants: Map<string, Invariant>;
@@ -206,6 +287,9 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    * active updaters are never skipped: updaters integrate over frames.
    */
   constructor(sink: Sink, { fps = 30, skipUntil = 0 }: SceneOptions = {}) {
+    // Times are kept to 1 ms in a trace: up to 240 fps, half a frame is longer, so a rounded time still finds its frame.
+    if (typeof fps !== 'number' || !(fps > 0 && fps <= 240)) throw new RangeError(`new Scene(): fps is ${String(fps)}; give a number above 0 and at most 240`);
+    if (typeof skipUntil !== 'number' || Number.isNaN(skipUntil)) throw new RangeError(`new Scene(): skipUntil is ${String(skipUntil)}; give a time in seconds, or Infinity to skip every frame`);
     this.sink = sink;
     this.fps = fps;
     this.skipUntil = skipUntil;
@@ -220,30 +304,73 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     this.shown = {} as Sh;
     this.evidence = [];
     this.frame = new Frame();
-    this.stopped = false;
+    this.#phase = 'idle';
+    this.#listening = 0;
     this.stepListeners = [];
+    this.stepEndListeners = [];
     this.jsonParts = [];
     this.invariants = new Map();
     this.colors = NEUTRAL_COLORS;
   }
 
   /** Rethrow a stop a sink already raised: nothing reaches the sink after it. */
-  private throwIfStopped(): void { if (this.stopped) throw new StopScene(); }
+  private throwIfStopped(): void { if (this.#phase === 'stopped') throw new StopScene(); }
 
-  /** Call the sink; a StopScene it throws stops the scene for good (see `stopped`). */
+  /** Call the sink; a StopScene it throws stops the scene for good (see `phase`). */
   private async toSink(call: () => Promise<void> | undefined): Promise<void> {
-    try { await call(); } catch (e) { if (e instanceof StopScene) this.stopped = true; throw e; }
+    try { await call(); } catch (e) { if (e instanceof StopScene) this.#phase = 'stopped'; throw e; }
+  }
+
+  /**
+   * Run `body` as `phase`: refused while another play, wait or step runs, unless a step listener
+   * makes the call; the phase before it comes back when it ends (unless the run has stopped).
+   */
+  async #exclusive<T>(phase: ScenePhase, api: string, body: () => Promise<T>): Promise<T> {
+    this.throwIfStopped();
+    const was = this.#phase;
+    if (was !== 'idle' && !this.#listening)
+      throw new Error(`${api}: ${RUNNING[was as keyof typeof RUNNING]} is still running; await each play(), wait() and step() before the next`);
+    const listening = this.#listening;
+    this.#phase = phase;
+    this.#listening = 0;
+    try { return await body(); }
+    finally {
+      this.#listening = listening;
+      if (this.#phase !== 'stopped') this.#phase = was;
+    }
+  }
+
+  /** Run the listeners of `list` registered now, minus any removed meanwhile, each free to play and wait in the step. */
+  async #dispatch(list: Array<{ listener: (step: Step) => unknown; on: boolean }>, s: Step): Promise<void> {
+    for (const entry of list.slice()) {
+      if (!entry.on) continue;
+      this.#listening++;
+      try { await entry.listener(s); } finally { this.#listening--; }
+    }
   }
 
   /**
    * Run `listener` each time a step begins, after the sink hears about it.
    * Helpers use it (a stage that shows the step's title) instead of wrapping
-   * step(). Returns a function that removes the listener.
+   * step(). The listener may play and wait: that motion opens the step.
+   * Returns a function that removes the listener.
    */
   onStep(listener: (step: Step) => unknown): () => void {
     const entry = { listener, on: true };
     this.stepListeners.push(entry);
     return () => { entry.on = false; this.stepListeners = this.stepListeners.filter((e) => e !== entry); };
+  }
+
+  /**
+   * Run `listener` each time a step is about to end (at the next step() or the end of the scene),
+   * while it is still `currentStep` and before its caption hold. Helpers use it instead of
+   * wrapping step(): one that refuses to let the step end throws, one that adds to the step plays
+   * or waits, and that motion is part of the step. Returns a function that removes the listener.
+   */
+  onStepEnd(listener: (step: Step) => unknown): () => void {
+    const entry = { listener, on: true };
+    this.stepEndListeners.push(entry);
+    return () => { entry.on = false; this.stepEndListeners = this.stepEndListeners.filter((e) => e !== entry); };
   }
 
   /**
@@ -287,7 +414,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
         await loadFonts();
         await this.toSink(() => this.sink.frame(this, 0));
         await this.construct();
-        await this.endCurrentStep();
+        await this.#exclusive('ending-step', 'this.construct()', () => this.#endStep());
       } catch (e) { if (!(e instanceof StopScene)) throw e; }
       return this;
     });
@@ -300,53 +427,77 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    *   await this.play(...);
    *
    * Names are stable tokens ("push-wrap"): they are what ?step= deep links,
-   * traces and tests address. `meta` is free-form and travels with the trace.
+   * traces and tests address. `meta` is free-form JSON and travels with the trace; it is copied
+   * when the step begins, so a later change to the object changes nothing recorded. Given a
+   * function, step() first ends the running step (with its caption hold) and calls it with that
+   * closed step, or null before the first: for words that report the step before's timing.
    */
-  async step(name: string, meta: StepMeta = {}): Promise<Step> {
-    if (typeof meta === 'function') throw new TypeError('this.step(): it takes a name and metadata, not a function; call `await this.step(name)` where the step begins');
-    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) throw new TypeError('this.step(): the metadata must be an object');
-    if (meta.caption !== undefined && typeof meta.caption !== 'string') throw new TypeError(`this.step(): the caption of step ${JSON.stringify(name)} must be a string`);
-    this.throwIfStopped();
-    await this.endCurrentStep();
-    const s: Step = { name, path: name, t0: this.time, frame0: this.frameCount, t1: null, frame1: null, meta, evidence: [] };
-    this.steps.push(s);
-    this.current = s;
-    await this.toSink(() => this.sink.stepBegin?.(this, s));
-    // The listeners registered when the step began, minus any removed meanwhile; one added
-    // during this dispatch first hears the next step.
-    for (const entry of this.stepListeners.slice()) if (entry.on) await entry.listener(s);
-    return s;
+  async step(name: string, meta: StepMeta | ((closed: Step | null) => StepMeta) = {}): Promise<Step> {
+    if (typeof name !== 'string') throw new TypeError('this.step(): its name must be a string');
+    if (typeof meta !== 'function') checkMeta(name, meta);
+    return this.#exclusive('ending-step', 'this.step()', async () => {
+      await this.#endStep();
+      const given = typeof meta === 'function' ? meta(this.steps.at(-1) ?? null) : meta;
+      if (typeof meta === 'function') checkMeta(name, given);
+      const copy = cloneJson(given, 'this.step()', 'its metadata') as StepMeta;
+      this.#phase = 'beginning-step';
+      const s: Step = { name, path: name, t0: this.time, frame0: this.frameCount, t1: null, frame1: null, holdFrame: null, restFrame: null, meta: copy, evidence: [] };
+      this.steps.push(s);
+      this.current = s;
+      await this.toSink(() => this.sink.stepBegin?.(this, s));
+      // The listeners registered when the step began, minus any removed meanwhile; one added
+      // during this dispatch first hears the next step.
+      await this.#dispatch(this.stepListeners, s);
+      return s;
+    });
   }
 
-  /** Words per minute a caption is read at; a step lasts at least that long. */
+  /**
+   * Words per minute a caption is read at; a step lasts at least that long. Read from the scene's
+   * own class, so a subclass may set its own rate (`static captionWpm = 120`).
+   */
   static captionWpm = 160;
 
-  /** End the running step now, with its caption hold, as the next step() would: for a step whose words report its timing. */
-  async endCurrentStep(): Promise<void> {
+  /**
+   * End the running step, as the next step() or the end of the scene does: its end listeners,
+   * then its caption hold, then its end.
+   */
+  async #endStep(): Promise<void> {
     const s = this.current;
     if (!s) return;
     this.throwIfStopped();
+    await this.#dispatch(this.stepEndListeners, s);
     // A captioned step holds until its caption could have been read or spoken,
     // so narration (or a reader) never runs past the picture it describes.
-    const caption = s.meta?.caption;
+    s.holdFrame = this.frameCount;
+    const caption = s.meta.caption;
     if (typeof caption === 'string') {
-      const words = caption.trim() ? caption.trim().split(/\s+/).length : 0;
-      const need = words / Scene.captionWpm * 60;
+      const wpm = (this.constructor as typeof Scene).captionWpm;
+      const need = captionWords(caption) / wpm * 60;
       const left = need - (this.time - s.t0);
       if (left > 1e-9) {
         s.hold = this.time;
         // Whole frames, rounded up: the step lasts at least the reading time, never half a frame less.
-        await this.wait(Math.ceil(left * this.fps - 1e-6) / this.fps);
+        await this.#frames(Math.ceil(left * this.fps - 1e-6));
       }
     }
-    this.current = null;
-    s.t1 = this.time; s.frame1 = this.frameCount;
+    s.t1 = this.time; s.frame1 = this.frameCount; s.restFrame = this.frameCount;
+    // The sink hears the end with the step still current, the scene as its resting frame showed it.
     await this.toSink(() => this.sink.stepEnd?.(this, s));
+    this.current = null;
+  }
+
+  /**
+   * @internal End the running step now, as the next step() would. For tools and tests: a scene
+   * whose words report the step before's timing passes step() a function instead.
+   */
+  async endCurrentStep(): Promise<void> {
+    await this.#exclusive('ending-step', 'this.endCurrentStep()', () => this.#endStep());
   }
 
   /** @internal Whether any mobject on stage, or the camera, has an updater: then a seek cannot skip frames. */
   hasUpdaters(): boolean {
-    for (const top of this.mobjects) for (const m of top.family()) if (m.updaters.length) return true;
+    for (const top of this.mobjects) if (top.hasUpdaters()) return true;
     // Camera: an updater on the frame (follow a dot) integrates over frames too
     return this.frame.updaters.length > 0;
   }
@@ -499,22 +650,25 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
 
   /** Play animations together; a trailing plain object is options: { runTime, rateFunc, lagRatio }. */
   async play(...args: Playable[] | [...Playable[], PlayOpts]): Promise<void> {
-    this.throwIfStopped(); // before begin(): a stopped scene changes nothing more
+    // Refused before begin(): a stopped scene, or one still in another call, changes nothing more
+    return this.#exclusive('playing', 'this.play()', () => this.#play(args));
+  }
+
+  async #play(args: Playable[] | [...Playable[], PlayOpts]): Promise<void> {
     const list: unknown[] = [...args];
     const last = list[list.length - 1];
     // An .animate builder is never the options: its prototype is not Object.prototype (Mobject.animate)
     const isOpts = last && Object.getPrototypeOf(last) === Object.prototype;
     const opts = (isOpts ? list.pop() : {}) as PlayOpts;
     const anims = list.map((x) => prepareAnimation(x));
-    // What some animation reads before it can begin (a diagram's layout): wait for it, once, here.
-    const waits = anims.flatMap(function pending(a: Animation): Promise<unknown>[] {
-      const r = a.ready();
-      return [...(r ? [r] : []), ...(a instanceof AnimationGroup ? a.animations.flatMap(pending) : [])];
-    });
+    // What some animation reads before it can begin (a diagram's layout), a group's members' included: wait for it, once, here.
+    const waits = anims.map((a) => a.ready()).filter((r) => r !== null);
     if (waits.length) {
       await Promise.all(waits);
       this.throwIfStopped();
     }
+    // Then every run time is known: a group lays out its members' times now.
+    for (const a of anims) a.settle();
     for (const a of anims) a.setOptions(opts);
     assertDisjoint(anims);
     perf.span('anim.begin', () => this.beginAnimations(anims));
@@ -585,10 +739,15 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     }
   }
 
+  /** Hold the picture for `seconds` (rounded to whole frames); updaters keep running. */
   async wait(seconds = 1): Promise<void> {
-    this.throwIfStopped();
+    assertTime('this.wait()', 'the time', seconds);
+    return this.#exclusive('waiting', 'this.wait()', () => this.#frames(Math.round(seconds * this.fps)));
+  }
+
+  /** Emit `n` frames, skipping those that end before skipUntil, as wait() and the caption hold do. */
+  async #frames(n: number): Promise<void> {
     const dt = 1 / this.fps;
-    const n = Math.round(seconds * this.fps);
     let canSkip = this.skipUntil > this.time && !this.hasUpdaters();
     for (let f = 0; f < n; f++) {
       // As in play: skipUntil raised during the wait skips from here.

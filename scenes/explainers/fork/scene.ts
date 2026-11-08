@@ -1,6 +1,7 @@
 import { table } from '../../../explain/drawing.ts';
 import { answerOf, view, having } from '../../../explain/index.ts';
 import { Scene, Text, FadeIn } from '../../../src/index.ts';
+import type { Step } from '../../../src/index.ts';
 import { stage, regionBox, resolveSettings } from '../../../explain/index.ts';
 import type { ExplainerClass, Diagram, PictureNote, View, ExplainerMeta } from '../../../explain/index.ts';
 import { TokenBucket } from '../token-bucket/model.ts';
@@ -321,19 +322,24 @@ export default class ForkExplainer extends Scene<ForkState, ForkShown> {
       flowView.sync({ runTime: 0.35 }),
     );
 
-    // A detail after the ending: the page holds each resting picture for its caption. It reads the
-    // timing of the 'fork' step, so that step ends here, holding for its caption as any step does.
-    await this.endCurrentStep();
+    // A detail after the ending: the page holds each resting picture for its caption. Its words read
+    // the timing of the 'fork' step, so they are a function of that step, closed with its hold.
+    const phases = (fork: Step) => ({
+      motion: (fork.hold ?? fork.t1!) - fork.t0,
+      held: fork.hold == null ? 0 : fork.t1! - fork.hold,
+    });
+    await this.step('timing', (fork) => {
+      const { motion, held } = phases(fork!);
+      return {
+        kind: 'detail',
+        title: 'The page holds each resting picture for its caption',
+        line: `Moving ${motion.toFixed(1)} s, then still for ${held.toFixed(1)} s.`,
+        caption: `The scene clock reserves reading time after motion. This caption needs ${(motion + held).toFixed(1)} seconds at ${Scene.captionWpm} words a minute; the ${motion.toFixed(1)}-second animation leaves ${held.toFixed(1)} seconds at rest. The caption therefore does not have to compete with a still-changing picture.`,
+      };
+    });
     const shown = this.steps.find((st) => st.name === 'fork')!;
     const words = String(shown.meta.caption).trim().split(/\s+/).length;
-    const motion = (shown.hold ?? shown.t1!) - shown.t0,
-      held = shown.hold == null ? 0 : shown.t1! - shown.hold;
-    await this.step('timing', {
-      kind: 'detail',
-      title: 'The page holds each resting picture for its caption',
-      line: `Moving ${motion.toFixed(1)} s, then still for ${held.toFixed(1)} s.`,
-      caption: `The scene clock reserves reading time after motion. This caption needs ${(motion + held).toFixed(1)} seconds at ${Scene.captionWpm} words a minute; the ${motion.toFixed(1)}-second animation leaves ${held.toFixed(1)} seconds at rest. The caption therefore does not have to compete with a still-changing picture.`,
-    });
+    const { motion, held } = phases(shown);
     await s.clearOverlays();
     await showFlow({ walked: [], notes: [] });
     s.liveDiagram(flow);

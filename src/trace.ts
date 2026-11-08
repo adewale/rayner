@@ -20,6 +20,10 @@ export interface StepRecord<S extends object = SceneState, Sh extends object = S
   t1?: number; frame1?: number;
   /** When the caption-reading hold began, if there was one. */
   hold?: number;
+  /** The frame the step's picture stops changing on: where its hold begins, else its rest frame (Step.holdFrame). */
+  holdFrame?: number;
+  /** The step's resting frame, its last: what a link shows and the checks judge (Step.restFrame). */
+  restFrame?: number;
   meta: StepMeta;
   /** The model when the step began and when it ended (Scene.stateJson). */
   before: S;
@@ -50,32 +54,40 @@ export type TraceOf<C> = 0 extends 1 & C ? Trace
   : (C extends abstract new (...args: never) => infer I ? I : C) extends Scene<infer S, infer Sh> ? Trace<Jsonified<S>, string extends keyof Sh ? Jsonified<Sh> : Jsonified<Sh> & SceneState>
   : Trace;
 
-type TraceEvent =
-  | { step: string; phase: 'begin'; t: number; frame: number; meta: StepMeta; state: SceneState }
-  | { step: string; phase: 'end'; t: number; frame: number; state: SceneState; shown: SceneState; hold?: number; evidence: Evidence[] };
+/**
+ * Called as each step ends, with the scene showing the step's resting picture: its last frame, after
+ * its last play has landed (`rayner check` holds that the two are the same picture). Whatever reads
+ * a picture of every step reads it here, from one run, instead of seeking to each step.
+ */
+export type AtRest = (scene: Scene, step: Step) => unknown;
 
 export class TraceSink implements Sink {
-  /** @internal */ events: TraceEvent[];
-  constructor() { this.events = []; }
+  /** @internal Each step's record, in order; a step's end completes the record its beginning made. */
+  records: StepRecord[];
+  /** @internal The record of each step begun, by the scene's own Step. */
+  private readonly of: Map<Step, StepRecord>;
+  /** @internal */ private readonly atRest: AtRest | undefined;
+  constructor(atRest?: AtRest) { this.records = []; this.of = new Map(); this.atRest = atRest; }
   async frame(): Promise<void> {}
   async stepBegin(scene: Scene, s: Step): Promise<void> {
-    this.events.push({ step: s.path, phase: 'begin', t: round(scene.time), frame: scene.frameCount, meta: s.meta, state: scene.stateJson() });
+    const record: StepRecord = { step: s.path, t0: round(scene.time), frame0: scene.frameCount, meta: s.meta, before: scene.stateJson() };
+    this.records.push(record);
+    this.of.set(s, record);
   }
   async stepEnd(scene: Scene, s: Step): Promise<void> {
-    this.events.push({ step: s.path, phase: 'end', t: round(scene.time), frame: scene.frameCount, state: scene.stateJson(), shown: scene.shownJson(), ...(s.hold != null ? { hold: round(s.hold) } : {}), evidence: s.evidence?.slice() ?? [] });
+    const record = this.of.get(s);
+    if (!record) return;
+    record.t1 = round(scene.time); record.frame1 = scene.frameCount;
+    if (s.hold != null) record.hold = round(s.hold);
+    record.holdFrame = s.holdFrame!; record.restFrame = s.restFrame!;
+    record.after = scene.stateJson();
+    const shown = scene.shownJson();
+    if (Object.keys(shown).length) record.shown = shown;
+    if (s.evidence?.length) record.evidence = s.evidence.slice();
+    await this.atRest?.(scene, s);
   }
-  /** Compact form: one entry per step with begin/end state. */
-  steps(): StepRecord[] {
-    const out: StepRecord[] = [];
-    for (const e of this.events) {
-      if (e.phase === 'begin') out.push({ step: e.step, t0: e.t, frame0: e.frame, meta: e.meta, before: e.state });
-      else {
-        const s = out.findLast((x) => x.step === e.step && x.t1 == null);
-        if (s) { s.t1 = e.t; s.frame1 = e.frame; if (e.hold != null) s.hold = e.hold; s.after = e.state; if (Object.keys(e.shown).length) s.shown = e.shown; if (e.evidence.length) s.evidence = e.evidence; }
-      }
-    }
-    return out;
-  }
+  /** One entry per step with its begin and end state. */
+  steps(): StepRecord[] { return this.records; }
 }
 
 const round = (x: number): number => Math.round(x * 1000) / 1000;
@@ -88,9 +100,12 @@ export async function traceScene<C extends SceneClass>(SceneClass: C, opts: Scen
   return (await traceRun(SceneClass, opts)).trace as TraceOf<C>;
 }
 
-/** traceScene, with the scene as the run left it, for a caller that reads its final state too. */
-export async function traceRun(SceneClass: SceneClass, opts: SceneOptions = {}): Promise<{ trace: Trace; scene: Scene }> {
-  const sink = new TraceSink();
+/**
+ * traceScene, with the scene as the run left it, for a caller that reads its final state too; and,
+ * with `atRest`, each step's resting picture from the same run.
+ */
+export async function traceRun(SceneClass: SceneClass, opts: SceneOptions = {}, atRest?: AtRest): Promise<{ trace: Trace; scene: Scene }> {
+  const sink = new TraceSink(atRest);
   const scene = new SceneClass(sink, { skipUntil: Infinity, ...opts });
   await scene.run();
   return { trace: { fps: scene.fps, duration: round(scene.time), frames: scene.frameCount, steps: sink.steps() }, scene };

@@ -2,10 +2,12 @@ import {textContextOf} from '../../src/text-context.ts';
 import { writeFile, mkdir } from 'node:fs/promises';
 import { basename, dirname, extname, join, resolve } from 'node:path';
 import { Scene, Text } from '../../src/index.ts';
-import { NullSink, SnapshotSink, renderAt } from '../../src/output.ts';
+import type { Step } from '../../src/index.ts';
+import { NullSink, SnapshotSink, renderAt, toSvgString } from '../../src/output.ts';
+import { traceRun } from '../../src/trace.ts';
 import { rasterize, band } from './explain-raster.ts';
 import { defaultScenario } from './explain-project.ts';
-import { restingTime, stepWords } from '../../explain/trace.ts';
+import { stepWords } from '../../explain/trace.ts';
 import { paperOf } from '../../explain/stage.ts';
 import { isHex } from '../../src/color.ts';
 import type { Project } from './explain-project.ts';
@@ -15,21 +17,42 @@ import { palettePng } from './explain-palette.ts';
 import { withSceneLettering } from '../../src/lettering-outlines.ts';
 
 /**
- * A scene's picture at `time` as PNG, `width` pixels wide. Culled: resvg 2.6.2 aborts on a
- * fading element the camera has left outside the view, which a zoomed camera leaves often.
+ * Each step's resting picture as `draw` makes it from the scene, every one from one run of `Source`
+ * (see AtRest in src/trace.ts), keyed by step; only the steps in `only`, when given.
  */
-export async function stillPng(Source: Project['Scene'], time: number, width: number): Promise<Buffer> {
-  const sink = new SnapshotSink({ width, cull: true });
-  await renderAt(Source, time, sink);
-  return (await rasterize(sink.svg)).asPng();
+export async function restingPictures<T>(Source: Project['Scene'], draw: (scene: Scene, step: Step) => T, only?: ReadonlySet<string>): Promise<Map<string, T>> {
+  const out = new Map<string, T>();
+  await traceRun(Source, {}, (scene, step) => {
+    if (!only || only.has(step.path)) out.set(step.path, draw(scene, step));
+  });
+  return out;
 }
 
-/** The latest frame, and the stage's paper colour (explain/stage.ts) in it. */
+/**
+ * A scene's picture as an SVG for a PNG, `width` pixels wide. Culled: resvg 2.6.2 aborts on a
+ * fading element the camera has left outside the view, which a zoomed camera leaves often.
+ */
+const stillSvg = (scene: Scene, width: number) => toSvgString(scene, { width, cull: true });
+
+/** Each step's resting picture as PNG, `width` pixels wide, from one run (see restingPictures). */
+export async function restingPngs(Source: Project['Scene'], width: number, only?: ReadonlySet<string>): Promise<Map<string, Buffer>> {
+  const svgs = await restingPictures(Source, (scene) => stillSvg(scene, width), only);
+  const out = new Map<string, Buffer>();
+  for (const [step, svg] of svgs) out.set(step, (await rasterize(svg)).asPng());
+  return out;
+}
+
+/** The scene drawn for a link-preview picture: its SVG, CARD.inner pixels wide, and the stage's paper colour (explain/stage.ts). */
+const cardDrawing = (scene: Scene) => ({
+  svg: toSvgString(scene, { width: CARD.inner, cull: true, background: CARD.background }),
+  paper: paperOf(scene),
+});
+
+/** The latest frame drawn as a card's picture (cardDrawing). */
 class CardSink extends SnapshotSink {
   paper: string | undefined;
   override async frame(scene: Scene): Promise<void> {
-    await super.frame(scene);
-    this.paper = paperOf(scene);
+    ({ svg: this.svg, paper: this.paper } = cardDrawing(scene));
   }
 }
 
@@ -41,12 +64,17 @@ class CardSink extends SnapshotSink {
  * bottom, where many steps have labels, and cutting the side bands loses nothing.
  */
 export async function cardPicture(Source: Project['Scene'], time: number) {
-  const sink = new CardSink({ width: CARD.inner, cull: true, background: CARD.background });
+  const sink = new CardSink();
   await renderAt(Source, time, sink);
+  return cardRaster(sink);
+}
+
+/** A card's picture (cardDrawing) centred on its canvas, rasterized. */
+function cardRaster(drawn: { svg: string; paper: string | undefined }) {
   const x = (CARD.width - CARD.inner) / 2,
-    fill = isHex(sink.paper, { alpha: true }) ? sink.paper : CARD.background,
-    inner = sink.svg.replace(/^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" /, `<svg x="${x}" `);
-  if (inner === sink.svg) throw new Error('cardPicture: unexpected SVG root');
+    fill = isHex(drawn.paper, { alpha: true }) ? drawn.paper : CARD.background,
+    inner = drawn.svg.replace(/^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" /, `<svg x="${x}" `);
+  if (inner === drawn.svg) throw new Error('cardPicture: unexpected SVG root');
   return rasterize(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${CARD.width}" height="${CARD.height}"><rect width="${CARD.width}" height="${CARD.height}" fill="${fill}"/>${inner}</svg>`,
   );
@@ -59,6 +87,17 @@ export async function cardPicture(Source: Project['Scene'], time: number) {
 export async function cardPng(Source: Project['Scene'], time: number): Promise<Buffer> {
   const picture = await cardPicture(Source, time);
   return palettePng(picture.pixels, picture.width, picture.height);
+}
+
+/** Each step's link-preview picture as a palette PNG (cardPng), every one from one run (see restingPictures). */
+export async function restingCardPngs(Source: Project['Scene'], only?: ReadonlySet<string>): Promise<Map<string, Buffer>> {
+  const drawn = await restingPictures(Source, cardDrawing, only);
+  const out = new Map<string, Buffer>();
+  for (const [step, d] of drawn) {
+    const picture = await cardRaster(d);
+    out.set(step, palettePng(picture.pixels, picture.width, picture.height));
+  }
+  return out;
 }
 
 export async function contactSheet(
@@ -74,9 +113,11 @@ export async function contactSheet(
     h = 400,
     rows = Math.ceil(steps.length / cols);
   const tiles = [];
+  // Every step's picture from one run of the scene.
+  const pngs = await restingPngs(v.Scene, w);
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i]!,
-      png = await stillPng(v.Scene, restingTime(step, v.trace.fps), w);
+      png = pngs.get(step.step)!;
     const labelSvg = await withSceneLettering(v.Scene, async () => {
       const labelScene = new Scene(new NullSink()),
         label = new Text(`${i + 1}. ${stepWords(step).title}`, {

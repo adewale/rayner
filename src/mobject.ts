@@ -662,7 +662,15 @@ export class Mobject {
     return this;
   }
   clearUpdaters(): this { this.updaters = []; return this; }
+  /** @internal Whether this mobject or any descendant has an updater, walked without building the family. */
+  hasUpdaters(): boolean {
+    if (this.updaters.length) return true;
+    for (const c of this.children) if (c.hasUpdaters()) return true;
+    return false;
+  }
   update(dt: number): this {
+    // Most of the stage has no updater: then nothing to run, and no family to build each frame.
+    if (!this.hasUpdaters()) return this;
     for (const m of this.family()) for (const u of m.updaters) u(m, dt);
     return this;
   }

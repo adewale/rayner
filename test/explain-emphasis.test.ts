@@ -17,7 +17,7 @@ import type { SnapshotPart } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { Mobject } from '../src/index.ts';
 import type { Picture } from '../explain/trace.ts';
 import { fixedSnapshot, square } from './lib/random-snapshot.ts';
-import { pictureSummary, pictureHtml, undescribed, picture, shownNames, restingTime, restingFrame } from '../explain/trace.ts';
+import { pictureSummary, pictureHtml, undescribed, picture, shownNames } from '../explain/trace.ts';
 
 const spec = { source: 'graph LR\nA --> B\nB --> C', style: 'nord' };
 const PAPER = '#123456',
@@ -144,10 +144,10 @@ test('the time a player, poster or screenshot shows for a step renders that step
   }).run();
   for (const step of trace.steps) {
     // The resting frame is the last one the step draws: everything it played has arrived.
-    assert.equal(restingFrame(step), step.frame1, step.step);
+    assert.equal(step.restFrame!, step.frame1, step.step);
     const sink = new SnapshotSink();
-    await renderAt(Ends, restingTime(step, trace.fps), sink);
-    assert.equal(sink.svg, played.get(restingFrame(step)), `${step.step} rests on its final frame`);
+    await renderAt(Ends, step.restFrame! / trace.fps, sink);
+    assert.equal(sink.svg, played.get(step.restFrame!), `${step.step} rests on its final frame`);
   }
 });
 

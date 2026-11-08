@@ -15,11 +15,12 @@ import ts from 'typescript';
 import { Text } from '../../src/index.ts';
 import { View } from '../../explain/index.ts';
 import { SnapshotSink, renderAt, toSvgString, renderText, NullSink } from '../../src/output.ts';
+import { renderElements, serializeElement } from '../../src/svg.ts';
 import { MotionSink, InvariantSink, machinesOf, viewMismatch, jsonObject, analyzeMotion, traceScene } from '../../explain/testing.ts';
 import { LIB_ROOT, engineAlias, importAuthored, sceneSlug } from './explain-project.ts';
 import { checkedAgainstFiles, compareAnswers, runModelTest } from './explain-evidence.ts';
 import { scenarioName } from '../../explain/testing.ts';
-import { restingFrame, restingTime, undescribed, watchedChanges } from '../../explain/trace.ts';
+import { undescribed, watchedChanges } from '../../explain/trace.ts';
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
 import { closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '../../app/embed-closeup.ts';
 import type { Box, Mobject, Scene, Sink, Step } from '../../src/index.ts';
@@ -312,18 +313,46 @@ function viewGeometryMismatch(v: View, scene: Scene): string | null {
   return `the view's part ${i} is ${shows[i] ?? 'missing'}, the state draws ${draws[i] ?? 'nothing there'} (${shows.length} parts shown, ${draws.length} drawn)`;
 }
 
+/**
+ * A frame as the parts toSvgString joins: the camera's box and paper, then each element's string
+ * and clip. Each element's string is memoised on its mobject while it is unchanged, so comparing
+ * two frames part by part costs no SVG document; the verdict is toSvgString's.
+ */
+function frameParts(scene: Scene): string[] {
+  const parts = [`${scene.frame.box()!.join(' ')} ${scene.colors.paper}`];
+  for (const el of renderElements(scene)) parts.push(el.svg ??= serializeElement(el), el.clipBox?.join(' ') ?? '');
+  return parts;
+}
+const sameParts = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((p, i) => p === b[i]);
+
 /** The caption hold: a step whose picture changes after its hold begins is `moved`. */
 export class HoldSink implements Sink {
   readonly holds: readonly { step: string; from: number; to: number }[];
-  readonly held = new Map<string, string>();
+  readonly held = new Map<string, string[]>();
   readonly moved = new Set<string>();
   constructor(holds: readonly { step: string; from: number; to: number }[]) { this.holds = holds; }
   async frame(scene: Scene, dt: number): Promise<void> {
     const hold = dt ? this.holds.find((h) => scene.frameCount >= h.from && scene.frameCount <= h.to) : undefined;
-    if (!hold) return;
-    const svg = toSvgString(scene);
-    if (scene.frameCount === hold.from) this.held.set(hold.step, svg);
-    else if (svg !== this.held.get(hold.step)) this.moved.add(hold.step);
+    if (!hold || this.moved.has(hold.step)) return;
+    const parts = frameParts(scene);
+    if (scene.frameCount === hold.from) this.held.set(hold.step, parts);
+    else if (!sameParts(parts, this.held.get(hold.step) ?? [])) this.moved.add(hold.step);
+  }
+}
+
+/**
+ * finish() lands where the last frame drew: as each step ends, after its last play has finished
+ * and left the stage, the picture must be its resting frame's, which a link shows and the checks
+ * judge, and which describe and the shots draw as the step ends. A step that differs is `landed`
+ * elsewhere. Reads the played frames FrameCaptureSink kept, so it comes after it.
+ */
+export class LandingSink implements Sink {
+  readonly played: ReadonlyMap<number, string>;
+  readonly landed: string[] = [];
+  constructor(played: ReadonlyMap<number, string>) { this.played = played; }
+  async frame(): Promise<void> {}
+  async stepEnd(scene: Scene, step: Step): Promise<void> {
+    if (toSvgString(scene) !== this.played.get(step.restFrame!)) this.landed.push(step.name);
   }
 }
 
@@ -661,16 +690,19 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     // The scene's own invariants of the picture (Scene.addInvariant), checked on every frame of this full run.
     const invariants = new InvariantSink();
     const motion = new MotionSink();
-    // Each played frame at two points per step, compared below with what a seek renders there.
+    // Each played frame at three points per step, compared below with what a seek renders there: its
+    // middle, the frame before its last, and its resting frame, the one a link to it shows.
     const capture = new FrameCaptureSink(
       new Set(
         v.trace.steps.flatMap((s) => [
-          s.frame0 + Math.max(1, Math.floor(((s.frame1 ?? s.frame0 + 1) - s.frame0) / 2)),
-          Math.max(s.frame0 + 1, (s.frame1 ?? s.frame0 + 1) - 1),
+          s.frame0 + Math.max(1, Math.floor((s.restFrame! - s.frame0) / 2)),
+          Math.max(s.frame0 + 1, s.restFrame! - 1),
+          s.restFrame!,
         ]),
       ),
     );
-    const completedFrames = new Set(v.trace.steps.map(restingFrame));
+    const landing = new LandingSink(capture.frames);
+    const completedFrames = new Set(v.trace.steps.map((s) => s.restFrame!));
     // Each resting frame's close-ups on the phone, worked out as the player works them out.
     const layouts = await stepLayouts(v.Scene);
     const legibility = new LegibilitySink(
@@ -679,12 +711,12 @@ export async function checkProject(project: Project, out: string): Promise<Recor
         v.trace.steps.map((s) => {
           const tour = closeUps(layouts.get(s.step), PHONE_W, PHONE_H);
           return [
-            restingFrame(s),
+            s.restFrame!,
             { k: tour[0]!.k, views: tour.map((z) => ({ k: z.k, box: viewBox(z, PHONE_W, PHONE_H) })) },
           ] as const;
         }),
       ),
-      new Map(v.trace.steps.map((s) => [restingFrame(s), s.step] as const)),
+      new Map(v.trace.steps.map((s) => [s.restFrame!, s.step] as const)),
       stageScale(PHONE_W, PHONE_H).s,
     );
     const restingSink = new RestingSink(completedFrames);
@@ -693,16 +725,12 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     // nothing may change after it. A play lands after its last frame is drawn (a morph gets its
     // paths' own structure back), so the first held frame is the resting picture, as in render.
     const holdSink = new HoldSink(
-      v.trace.steps.flatMap((s) =>
-        s.hold == null
-          ? []
-          : [{ step: s.step, from: Math.round(s.hold * v.trace.fps) + 1, to: s.frame1 ?? v.trace.frames }],
-      ),
+      v.trace.steps.flatMap((s) => (s.holdFrame! < s.restFrame! ? [{ step: s.step, from: s.holdFrame! + 1, to: s.restFrame! }] : [])),
     );
     // One full run feeds every check, each a sink of its own, in this order.
     const views = new ViewSink();
     const keys = new KeySink();
-    const ran = await new v.Scene(new FanSink([invariants, motion, holdSink, capture, restingSink, legibility, views, keys, looks])).run();
+    const ran = await new v.Scene(new FanSink([invariants, motion, holdSink, capture, landing, restingSink, legibility, views, keys, looks])).run();
     const { frames } = capture,
       { moved } = holdSink,
       { resting, restingText, collisions } = restingSink,
@@ -722,7 +750,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     // Each machine is explored on the stage where it last played: the scene run again to that step's resting picture.
     const machines = await exploreMachines(ran, async (step) => {
       const s = v.trace.steps.find((x) => x.step === step)!;
-      return renderAt(v.Scene, restingTime(s, v.trace.fps), new NullSink());
+      return renderAt(v.Scene, s.restFrame! / v.trace.fps, new NullSink());
     });
     assert.deepEqual(
       [...views.problems, ...views.ignoringProblems()].slice(0, 5),
@@ -744,6 +772,11 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       [],
       `The picture changes after the caption hold begins, where the player stops; finish every change before the step's last play() ends ${where}`,
     );
+    assert.deepEqual(
+      landing.landed.slice(0, 5),
+      [],
+      `These steps end on a different picture from their last frame ${where}: an animation's finish() must land where its last frame drew, since a link, describe and the shots show the step as it ends (the first five)`,
+    );
     for (const [frame, svg] of frames) {
       const sink = new SnapshotSink();
       await renderAt(v.Scene, frame / v.trace.fps, sink);
@@ -752,7 +785,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     const skipped = await traceScene(v.Scene, { skipUntil: 0 });
     assert.deepEqual(skipped, v.trace, `Skipped and played traces differ ${where}`);
     const still = v.trace.steps.filter(
-      (step, i) => i > 0 && resting.get(restingFrame(step)) === resting.get(restingFrame(v.trace.steps[i - 1]!)),
+      (step, i) => i > 0 && resting.get(step.restFrame!) === resting.get(v.trace.steps[i - 1]!.restFrame!),
     );
     assert.deepEqual(
       still.map((s) => s.step),
@@ -841,7 +874,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
         : {}),
       // Each step's resting frame as text, so an author can read it without a browser.
       restingFrames: Object.fromEntries(
-        v.trace.steps.map((step) => [step.step, restingText.get(restingFrame(step)) ?? '']),
+        v.trace.steps.map((step) => [step.step, restingText.get(step.restFrame!) ?? '']),
       ),
     });
   }

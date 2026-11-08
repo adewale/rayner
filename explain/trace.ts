@@ -22,11 +22,6 @@ export function recordWalk(scene: Scene, walk: WalkRecord): void {
   scene.state.walks = log.map((entry) => ({ ...entry }));
 }
 
-type Timed = Pick<StepRecord, 't0' | 't1' | 'frame0' | 'frame1'>;
-/** A step's resting frame, the last it draws: what a reader looks at while reading its caption. */
-export const restingFrame = (s: Timed) => Math.max(s.frame0 + 1, s.frame1 ?? s.frame0 + 1);
-/** A time inside the resting frame (half a frame before the step ends), for renderAt. */
-export const restingTime = (s: Timed, fps: number) => Math.max(s.t0, (s.t1 ?? s.t0) - 0.5 / fps);
 
 /** A part of something on the stage, as a reader would name it, with its emphasis. */
 export interface DescriptionPart {

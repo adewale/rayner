@@ -6,10 +6,10 @@ import { parseArgs } from 'node:util';
 import { EXPLAINERS, PRODUCT } from '../../scenes/explainers/catalog.ts';
 import { collectProject, defaultScenario, ROOT, baseReceipt, sceneInputs } from '../lib/explain-project.ts';
 import { describeProject, checkBuilt } from './lib/explain-site-describe.ts';
-import { restingTime, htmlEscape, pictureSummary, stepWords } from '../../explain/trace.ts';
+import { htmlEscape, pictureSummary, stepWords } from '../../explain/trace.ts';
 import { teaching } from '../../explain/script.ts';
 import { buildExplainer, buildLoader } from '../lib/explain-build.ts';
-import { stillPng } from '../lib/explain-shots.ts';
+import { restingPngs } from '../lib/explain-shots.ts';
 import { checkProject } from '../lib/explain-check.ts';
 import { shareable } from '../lib/explain-share.ts';
 import { useProjectLettering } from '../lib/explain-lettering.ts';
@@ -65,7 +65,7 @@ for (const item of items) {
     step = scenario.trace.steps.find((s) => s.step === item.step) ?? scenario.trace.steps[0]!;
   await writeFile(
     join(directory, item.id + '.png'),
-    await stillPng(scenario.Scene, restingTime(step, scenario.trace.fps), 960),
+    (await restingPngs(scenario.Scene, 960, new Set([step.step]))).get(step.step)!,
   );
   // Export renders cards for selected public teaching steps; collection checks need only metadata.
   await mkdir(join(directory, item.id), { recursive: true });

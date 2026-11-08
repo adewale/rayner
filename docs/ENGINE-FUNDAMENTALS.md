@@ -161,20 +161,37 @@ scene and allows one writer each. `evidence()` is what it records as it begins, 
 Ordinary transforms capture endpoints at `begin()` and interpolate
 between them. The scene applies the rate function before calling `interpolate`;
 a custom animation must not apply it twice. Its `finish()` lands at the rate
-function's endpoint, which need not be 1 (`thereAndBack` returns to the start).
+function's endpoint, which need not be 1 (`thereAndBack` returns to the start),
+and must land where its last frame drew: `rayner check` compares each step's
+picture as it ends with its last frame.
+
+An animation's `phase`, an `AnimationPhase`, is `'idle'` until it begins, `'begun'`
+while it plays and `'finished'` once it has landed. A second `begin()` while begun
+throws, and so do `interpolate()` and `finish()` before `begin()`; a finished animation
+may begin again. The guards wrap whatever `begin`, `interpolate` and `finish` a subclass
+defines, so a custom animation keeps them without calling anything. A run time and a lag
+ratio are finite and not negative, given to the constructor or to `play()`.
 
 Use one `play(a, b)` for simultaneous operations, `Succession` for sequential
-operations and `AnimationGroup`/`LaggedStart` for grouped schedules. Never await two
-concurrent `Scene.play()` calls: there is one scene clock. Two simultaneous
-animations may not drive the same mobject or an ancestor and its descendant.
-`Scene.play()` checks and rejects that conflict.
+operations and `AnimationGroup`/`LaggedStart` for grouped schedules. There is one scene
+clock, so one `play()`, `wait()` or `step()` runs at a time, and one started while
+another runs throws (`scene.phase` says which runs). Two simultaneous
+animations may not drive the same mobject or an ancestor and its descendant, and one
+animation may not be listed twice. `Scene.play()` checks and rejects both. A `Succession`'s
+time only runs forward, since a finished member does not run again: it refuses a rate
+function that falls anywhere, given to it or to `play()`, and throws if a group around
+it runs its time backwards. A group exposes its members' `ready()`, so `play()` waits for
+what any of them reads before it begins, and lays out its members' times as the play
+begins.
 
 Capture starting values when an animation **begins**, not when it is constructed.
 Earlier members of a `Succession` may change them. Define intermediate geometry
 from that captured start and alpha rather than adding a per-frame displacement.
 [FollowAngle](../recipes/continuous.ts) demonstrates the extension contract.
 
-The default frame rate, `scene.fps`, is 30. Time comes from the frame count: `scene.frameCount` is the
+The default frame rate, `scene.fps`, is 30, and the constructor refuses one outside
+(0, 240]: a trace keeps times to 1 ms, and up to 240 fps that still finds the frame.
+`wait(seconds)` refuses a time that is not finite or is negative. Time comes from the frame count: `scene.frameCount` is the
 frames emitted so far, and `scene.time` the seconds they make. Sinks can wait for
 browser display or return immediately offline, but cannot change the model's time
 step. Exact comparisons are within the chosen frame grid, not arbitrary subframe
@@ -185,8 +202,15 @@ timestamps.
 `await this.step(name, metadata)` closes the previous step and begins the next.
 Names are stable, unique URL identifiers. `title`, `line`, `caption` and `kind`
 (`'short'`, `'main'` or `'detail'`) mean something to the reader; other metadata
-can describe the model's inputs. A caption extends its step until it could be read,
-so the step's resting picture, its last frame, can differ from its first.
+can describe the model's inputs. Metadata is copied as JSON when the step begins;
+given a function, `step()` calls it with the step it has just closed. A caption extends
+its step until it could be read, so the step's resting picture, its last frame, can differ
+from its first. Each step draws at least one frame of its own, and records as it ends its
+`holdFrame`, where its picture stops changing, and its `restFrame`, its last frame;
+players stop at the first and links show the second. `TraceSink` copies both into the
+trace, and `traceRun`'s `AtRest` callback (`src/trace.ts`) hands the scene, showing each
+step's resting picture, to the tools that draw every step, so `rayner describe`, the
+contact sheet and the site's cards run each scene once.
 
 `this.state` is the model: what the subject program is doing, and nothing about
 how it is shown. Use `Scene<MyState>` for typed access. `this.shown` holds what is
@@ -206,9 +230,11 @@ animation's `evidence()` is recorded as it begins: a matching transform records
 `{ kind: 'match', … }` and `TransformDiff` `{ kind: 'diff', … }`
 ([matching](MATCHING.md#evidence)), a view's sync its morph's counts with the view's
 key as `view`, a follow or a view's tween its interval and targets, and a machine's event
-`{ kind: 'event', event }`. `onStep` and `addJson` are the extension hooks,
+`{ kind: 'event', event }`. `onStep`, `onStepEnd` and `addJson` are the extension hooks,
 and each returns its own remover; do not replace the scene's methods to attach
-helpers.
+helpers. A step listener may play and wait inside the step: `onStep`'s as the step
+begins, `onStepEnd`'s as it is about to end, before its caption hold; one that throws
+stops the step from ending (an action never played does, in `rayner/explain`).
 
 A trace records what an author declared; it does not prove the declaration true.
 Compare it with an independently checked program, and check the values on screen
@@ -221,7 +247,15 @@ updaters run after ordinary objects. `m.update(dt)` runs the updaters of a mobje
 its descendants once, as the scene does before each frame. Clear registrations with `m.clearUpdaters()`
 when they are no longer needed. An updater that integrates `velocity * dt` depends
 on previous frames. The engine conservatively replays any play or wait with active
-updaters, including an updater that merely reads the current value.
+updaters, including an updater that merely reads the current value. A frame with no
+updater on stage walks the tree without building a family list.
+
+Updaters are exempt from the one-writer rule. They run after the frame's animations
+have interpolated, so on a mobject both drive, whatever the updater writes wins for
+that frame and the animation keeps the rest: a label that follows a dot by an updater
+can still fade in, the fade writing its opacity and the updater its place. An updater
+that writes what an animation writes overrides it silently, so give a moving part one
+of the two.
 
 `view(scene, draw).sync()` registers no updater: it rebuilds a target from state
 when its play begins and morphs to it. That suits discrete updates; it does not
@@ -235,7 +269,7 @@ precompiled timeline.
 A sink stops a seek with `StopScene` (`rayner/output`). Do not catch animation errors broadly in
 `construct()`: catching that signal can allow author code to mutate the stopped
 scene. Handle known model errors before animating. The engine limits the damage:
-a `StopScene` from a sink sets `scene.stopped`, and from then on `play()`, `wait()`,
+a `StopScene` from a sink sets `scene.phase` to `'stopped'`, and from then on `play()`, `wait()`,
 `step()` and every frame rethrow it before doing anything, so a swallowed stop emits
 no further frame. Plain code between the catch and the next scene call (a `shift()`,
 a write to `this.state`) still runs, which is why `rayner check` fails the pattern.

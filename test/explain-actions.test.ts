@@ -78,12 +78,29 @@ test('actions play together in one play: a camera move beside a walk, and a valu
 test('s.show composes in play(), which waits for the layout it reads, and gives its diagram once it begins', async () => {
   const { scene, s } = setUp();
   const shown = s.show(spec);
-  assert.throws(() => shown.value, /once it begins/);
-  assert.throws(() => new Succession([shown]), /known once it begins, so play it in play\(\) or await it/);
+  assert.throws(() => shown.value, /once the play that holds it begins/);
   const box = new Rectangle({ width: 1, height: 1 });
   await scene.play(shown, s.enter(box));
   assert.ok(shown.value instanceof Diagram);
   assert.ok(scene.mobjects.includes(shown.value.root) && shown.value.visible.has('B'));
+});
+
+test('s.show composes inside a Succession or group: the play waits for its layout, then lays out its turn', async () => {
+  // In a Succession built before its layout is read: the box enters, then the diagram builds, one play of their summed time.
+  const a = setUp();
+  const box = new Rectangle({ width: 1, height: 1 });
+  const shown = a.s.show(spec);
+  const inTurn = new Succession([a.s.enter(box, { runTime: 0.5 }), shown]);
+  const start = a.scene.frameCount;
+  await a.scene.play(inTurn);
+  assert.ok(shown.runTime > 0, 'its run time is known once the play began');
+  assert.equal(a.scene.frameCount - start, Math.round((0.5 + shown.runTime) * a.scene.fps), 'the entry, then the build, in one play');
+  assert.ok(shown.value instanceof Diagram && a.scene.mobjects.includes(shown.value.root));
+  // Nested in a group inside a Succession: the group's members' layout is waited for too.
+  const b = setUp();
+  const nested = b.s.show(spec);
+  await b.scene.play(new Succession([new AnimationGroup([nested, b.s.enter(new Circle({ radius: 0.2 }))])]));
+  assert.ok(nested.value instanceof Diagram && b.scene.mobjects.includes(nested.value.root));
 });
 
 test('an action plays once: a second play, or awaiting one that played in a play, is refused', async () => {
@@ -96,9 +113,10 @@ test('an action plays once: a second play, or awaiting one that played in a play
   const value = await card;
   assert.equal(await card, value, 'awaiting it again gives the same card, without a second play');
   await assert.rejects(scene.play(card), /s\.card\(\): it has already played; an action plays once/);
-  // A Succession that holds it twice plays it once, then refuses.
+  // A Succession that holds it twice is refused before either plays.
   const pin = s.pin([0, 0]);
-  await assert.rejects(scene.play(new Succession([pin, pin])), /s\.pin\(\): it has already played/);
+  await assert.rejects(scene.play(new Succession([pin, pin])), /this\.play\(\): s\.pin\(\) is listed twice in one play/);
+  await scene.play(pin);
 });
 
 test('an action made but never played fails its step, and the scene at its end', async () => {

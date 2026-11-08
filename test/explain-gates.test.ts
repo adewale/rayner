@@ -244,6 +244,17 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
     message: /scene\.ts: static meta: "soruces" is not a key it takes; it takes id, title,/,
   },
   {
+    gate: 'a step that draws no frame of its own',
+    source: `import{Scene}from'rayner';export default class Bad extends Scene{async construct(){await this.step('one');await this.wait(.5);await this.step('empty');await this.step('three');await this.wait(.5);}}`,
+    message: /this\.step\(\): step "empty" of the scenario \{\} draws no frame of its own, so it shows the step before's picture/,
+  },
+  {
+    // finish() recolours the box after the last frame drew it: a link, describe and the shots would show another picture.
+    gate: 'a step that ends on a different picture from its last frame',
+    source: `import{Scene,Rectangle,Animation}from'rayner';import{stage}from'rayner/explain';class Recolour extends Animation{override finish(){super.finish();this.mobject.setFill('#ff0000',1);}}export default class Bad extends Scene{async construct(){const s=stage(this);await this.step('one');await this.play(new Recolour(new Rectangle({width:1,height:1})));await this.step('two');await this.wait(.5);}}`,
+    message: /These steps end on a different picture from their last frame in the scene/,
+  },
+  {
     gate: 'a scenario with no steps',
     source: `import{Scene,Dot,FadeIn}from'rayner';export default class Bad extends Scene{async construct(){await this.play(new FadeIn(new Dot()));}}`,
     message: /this\.step\(\): the scenario \{\} has no step, or a step with an empty name/,
@@ -310,11 +321,11 @@ const scenariosScene = (nudgeIn?: { motion: string; size: string }) =>
   `const nudge=${nudgeIn ? `v.motion===${JSON.stringify(nudgeIn.motion)}&&v.size===${JSON.stringify(nudgeIn.size)}` : 'false'};` +
   `await this.play(nudge?new Nudge(d):d.animate.moveTo([0,-2]),{runTime:1});}}`;
 
-test('rayner check seeks two frames in each step of every scenario: a nudge each frame in one scenario’s last step fails it with a seek mismatch naming that scenario', async () => {
+test('rayner check seeks three frames in each step of every scenario: a nudge each frame in one scenario’s last step fails it with a seek mismatch naming that scenario', async () => {
   const clean = await checked(await write(scenariosScene()));
   const scenarios = clean.scenarios as { settings: Record<string, string>; steps: number; seekFrames: number }[];
   assert.equal(scenarios.length, 6);
-  for (const v of scenarios) assert.equal(v.seekFrames, 2 * v.steps, JSON.stringify(v.settings));
+  for (const v of scenarios) assert.equal(v.seekFrames, 3 * v.steps, JSON.stringify(v.settings));
   // The last scenario built, and the last step in it: a check that stopped short of either would pass.
   await assert.rejects(checked(await write(scenariosScene({ motion: 'nudge', size: 'large' }))), /Seek mismatch at frame \d+ in Motion: Nudge · Size: Large$/m);
   await assert.rejects(checked(await write(scenariosScene({ motion: 'blend', size: 'mid' }))), /Seek mismatch at frame \d+ in Motion: Blend · Size: Mid$/m);

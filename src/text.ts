@@ -292,12 +292,12 @@ export class DecimalNumber extends Text {
     return this.setText(DecimalNumber.format(v, this.decimals, this.prefix, this.suffix));
   }
   override interpolate(a: Mobject, b: Mobject, alpha: number, pathFunc?: PathFunc | null): this {
-    // Alignment pairs family members by index, so either side may be another
-    // class; its `value` is then undefined and the plain blend runs
+    // Alignment pairs family members by index, so either side may be another class (a Text, a
+    // shape): the value blends only between two numbers, and anything else takes the plain blend.
     const va = (a as Partial<Pick<DecimalNumber, 'value'>>).value, vb = (b as Partial<Pick<DecimalNumber, 'value'>>).value;
-    if (va === vb) return super.interpolate(a, b, alpha, pathFunc);
+    if (typeof va !== 'number' || typeof vb !== 'number' || va === vb) return super.interpolate(a, b, alpha, pathFunc);
     Mobject.prototype.interpolate.call(this, a, b, alpha, pathFunc);
-    return this.setValue(va! + (vb! - va!) * alpha);
+    return this.setValue(va + (vb - va) * alpha);
   }
 }
 
