@@ -287,6 +287,29 @@ test('a family stays a tree: add refuses the mobject itself or an ancestor, and 
   assert.deepEqual(g1.children, []);
 });
 
+test('the children and the parent live outside the mobject: no write to it changes them, and one that shadows them is refused where family() walks (A12)', () => {
+  const a = new Group(), b = new Group(), c = new Square();
+  a.add(b);
+  // The deliberate defects: a write to the old private field, and to the same name by element access.
+  (b as unknown as { _children: unknown })._children = [a];
+  (b as unknown as Record<string, unknown>)['_parent'] = c;
+  assert.deepEqual(b.children, [], 'the write is an unrelated field');
+  assert.equal(b.parent, a);
+  assert.deepEqual(a.family(), [a, b], 'no cycle, so family() ends');
+  // A property defined on the mobject itself would hide the real children from their readers.
+  Object.defineProperty(a, 'children', { value: [b, c] });
+  assert.throws(() => a.family(), /^TypeError: m\.children: a Group defines children on itself, which hides its real children; change them with add, insert, remove or replaceChild$/);
+  assert.throws(() => a.box(), /m\.children: a Group defines children on itself/);
+  Object.defineProperty(c, 'parent', { value: a });
+  assert.throws(() => c.family(), /^TypeError: m\.parent: a Square defines parent on itself, which hides its real parent; change it with add, insert, remove or replaceChild$/);
+  // Copies, which are made without the constructor, have their own children and parent.
+  const g = new Group(new Square(), new Square());
+  const copy = g.copy();
+  assert.equal(copy.children.length, 2);
+  assert.ok(copy.children.every((k) => k.parent === copy));
+  assert.ok(Object.isFrozen(copy.children));
+});
+
 test('no public path makes the mobject tree a cycle, or lets a parent and its children disagree (invariant row 8)', () => {
   // A deliberate defect first: the children are read-only, at runtime too, so a cast cannot push
   // the ancestor in that b.children.push(a) once did without a check.

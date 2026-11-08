@@ -4,7 +4,7 @@
 // and the timeline's preconditions (fps, run times, lag ratios, waits, steps that draw a frame).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Circle, Rectangle, FadeIn, FadeOut, Create, AnimationGroup, Succession, Transform, DecimalNumber, Text } from '../src/index.ts';
+import { Scene, Circle, Rectangle, FadeIn, FadeOut, Create, AnimationGroup, Succession, Transform, DecimalNumber, Text, Group } from '../src/index.ts';
 import { thereAndBack } from '../src/rate.ts';
 import { NullSink, SnapshotSink, renderFrame, StopScene } from '../src/output.ts';
 import { traceScene } from '../src/testing.ts';
@@ -96,17 +96,68 @@ test('an animation that overrides begin(), interpolate() or finish() itself is r
     override begin(): void { super.doBegin(); }
   }
   assert.throws(() => new Override(new Circle()), /new Override\(\): it overrides begin\(\), which keeps the animation's phase; override doBegin\(\) instead/);
-  // As a class field: refused at the first guarded call it reaches,
-  // not with a misleading "has not begun".
+  // As a class field: refused before the play begins anything, not with a misleading "has not begun".
   class Field extends FadeIn {
     override begin = (): void => {};
   }
   const scene = new Scene(new NullSink());
-  await assert.rejects(scene.play(new Field(new Circle())), /animation\.interpolate\(\): a Field defines begin on itself, a class field or an assignment, which skips the phase it keeps; override doBegin\(\) instead/);
+  await assert.rejects(scene.play(new Field(new Circle())), /this\.play\(\): a Field replaces begin\(\), which keeps the animation's phase; override doBegin\(\) instead/);
   // Assigned after construction: refused at the next begin.
   const assigned = new FadeIn(new Circle());
   Object.assign(assigned, { finish() {} });
-  assert.throws(() => assigned.begin(), /animation\.begin\(\): a FadeIn defines finish on itself/);
+  assert.throws(() => assigned.begin(), /animation\.begin\(\): a FadeIn replaces finish\(\)/);
+});
+
+test('an animation that replaces every guarded call, or redefines a checked accessor, is refused where every play and group member passes (A11)', async () => {
+  const circle = (): Circle => new Circle();
+  // All three as class fields: no guarded call is ever reached, so the play itself refuses it.
+  class AllFields extends FadeIn {
+    override begin = (): void => {};
+    override interpolate = (_alpha: number): void => {};
+    override finish = (): void => {};
+  }
+  const scene = new Scene(new NullSink());
+  const all = new AllFields(circle());
+  await assert.rejects(scene.play(all), /this\.play\(\): an AllFields replaces begin\(\)/);
+  assert.equal(all.phase, 'idle');
+  // As a member of a group: the group refuses it before calling its begin.
+  await assert.rejects(scene.play(new AnimationGroup([new FadeIn(circle()), new AllFields(circle())])), /animation\.begin\(\): an AllFields replaces begin\(\)/);
+  // A prototype patched after the class's first instance was made, on the class or on a base.
+  class Late extends FadeIn {}
+  new Late(circle());
+  const lateProto = Late.prototype as unknown as { begin?: () => void };
+  lateProto.begin = () => {};
+  try { await assert.rejects(scene.play(new Late(circle())), /a Late replaces begin\(\)/); }
+  finally { delete lateProto.begin; }
+  // An intermediate prototype (Transform's, under FadeIn), patched after FadeIn was checked.
+  new FadeIn(circle());
+  const transformProto = Object.getPrototypeOf(FadeIn.prototype) as { finish?: unknown };
+  transformProto.finish = () => {};
+  try { await assert.rejects(scene.play(new FadeIn(circle())), /a FadeIn replaces finish\(\)/); }
+  finally { delete transformProto.finish; }
+  // A swapped prototype.
+  const swapped = new FadeIn(circle());
+  Object.setPrototypeOf(swapped, Object.create(FadeIn.prototype, { interpolate: { value: () => {} } }));
+  await assert.rejects(scene.play(swapped), /a FadeIn replaces interpolate\(\)/);
+  // runTime, lagRatio and phase defined on the instance, or overridden on a prototype.
+  const timed = new FadeIn(circle());
+  Object.defineProperty(timed, 'runTime', { value: 1e9 });
+  await assert.rejects(scene.play(timed), /this\.play\(\): a FadeIn redefines runTime, which the engine keeps checked; set it through its accessor, or pass it as an option/);
+  const lagged = new FadeIn(circle());
+  Object.defineProperty(lagged, 'lagRatio', { value: Number.NaN });
+  await assert.rejects(scene.play(lagged), /redefines lagRatio/);
+  const idle = new FadeIn(circle());
+  Object.defineProperty(idle, 'phase', { get: () => 'idle' });
+  await assert.rejects(scene.play(idle), /a FadeIn redefines phase, which the engine keeps checked; begin\(\), interpolate\(\) and finish\(\) set it/);
+  class Forever extends FadeIn {
+    override get runTime(): number { return Number.POSITIVE_INFINITY; }
+    override set runTime(_value: number) {}
+  }
+  await assert.rejects(scene.play(new Forever(circle())), /a Forever redefines runTime/);
+  // Nothing began: the scene draws the next play as usual.
+  assert.equal(scene.frameCount, 0);
+  await scene.play(new FadeIn(circle()));
+  assert.equal(scene.frameCount, 30);
 });
 
 test('a group whose member throws as it begins lands the members it began, and can begin again (N6)', async () => {
@@ -155,6 +206,80 @@ test('a play whose animation throws as it begins lands the ones begun before it,
   assert.equal(shown.phase, 'finished', 'the landed FadeIn plays again');
 });
 
+test('a play that fails after it has begun lands everything it began, and begins nothing more: none is left begun (A1)', async () => {
+  // A Succession member that throws as its turn comes, half way through the play.
+  let fail = true;
+  class Flaky extends FadeIn {
+    protected override doBegin(): void {
+      if (fail) throw new Error('flaky at its turn');
+      super.doBegin();
+    }
+  }
+  const scene = new Scene(new NullSink());
+  const c = new Circle(), r = new Rectangle(), q = new Circle(), later = new FadeIn(new Circle());
+  const side = new FadeIn(c, { runTime: 2 }), first = new FadeIn(r), bad = new Flaky(q);
+  const sq = new Succession([first, bad, later]);
+  await assert.rejects(scene.play(side, sq), /flaky at its turn/);
+  assert.deepEqual([side.phase, sq.phase, first.phase, bad.phase, later.phase], ['finished', 'finished', 'finished', 'idle', 'idle'], 'what began landed; what came after never began');
+  assert.equal(c.style.opacity, 1, 'landed where its play would have');
+  assert.equal(scene.phase, 'idle');
+  fail = false;
+  await scene.play(side);
+  assert.equal(side.phase, 'finished', 'it plays again');
+  await scene.play(new Succession([new FadeOut(r), bad, later]));
+  assert.deepEqual([bad.phase, later.phase], ['finished', 'finished']);
+
+  // A frame that throws: the sink fails on the fifth frame.
+  let frames = 0;
+  const failing = new Scene({ frame: async () => { if (++frames === 5) throw new Error('the sink failed'); } });
+  const a = new FadeIn(new Circle()), b = new Succession([new FadeIn(new Rectangle()), new FadeIn(new Circle())]);
+  await assert.rejects(failing.play(a, b), /the sink failed/);
+  assert.deepEqual([a.phase, b.phase], ['finished', 'finished']);
+  assert.equal(failing.phase, 'idle');
+  await failing.play(a, b);
+  assert.deepEqual([a.phase, b.phase], ['finished', 'finished'], 'both play again');
+
+  // A stop is no failure: the scene is stopped for good, and the picture stays as the stopping frame drew it.
+  const fading = new Circle();
+  const stopped = new Scene({ frame: async (sc) => { if (sc.frameCount === 10) throw new StopScene(); } });
+  const stopping = new FadeIn(fading);
+  await assert.rejects(stopped.play(stopping), StopScene);
+  assert.equal(stopped.phase, 'stopped');
+  assert.ok(fading.style.opacity! < 1, 'not landed');
+});
+
+test('a Succession runs its members one after another: its lagRatio stays 1 (A9)', async () => {
+  const sq = new Succession([new FadeIn(new Circle()), new FadeIn(new Rectangle())]);
+  assert.throws(() => { sq.lagRatio = 0; }, /^RangeError: animation\.lagRatio: a Succession runs its members one after another, so its lagRatio is 1, not 0; stagger them in a LaggedStart or an AnimationGroup instead$/);
+  sq.lagRatio = 1;
+  const scene = new Scene(new NullSink());
+  await scene.play(sq);
+  assert.equal(scene.frameCount, 60, 'two seconds, one member after the other');
+});
+
+test('an animation\'s run time and lag ratio are fixed while it plays (A10)', async () => {
+  const a = new FadeIn(new Circle());
+  const changes: Array<() => void> = [() => { a.runTime = 10; }, () => { a.lagRatio = 0.5; }];
+  for (const change of changes) {
+    let thrown: unknown;
+    const scene = new Scene({ frame: async (sc) => { if (sc.frameCount === 5) try { change(); } catch (e) { thrown = e; } } });
+    await scene.play(a);
+    assert.match(String(thrown), /^Error: animation\.(runTime|lagRatio): a FadeIn is playing, and its play fixed its frames from its (runTime|lagRatio); change it before it begins, or after it finishes$/);
+    assert.equal(a.runTime, 1, 'unchanged');
+    assert.equal(scene.frameCount, 30);
+  }
+  a.runTime = 0.5;
+  assert.equal(a.runTime, 0.5, 'finished, it takes a new run time');
+});
+
+test('a play with nothing to play is refused, not drawn as a silent frame (A20)', async () => {
+  const scene = new Scene(new NullSink());
+  await assert.rejects(scene.play(), /^Error: this\.play\(\): it was given no animation; give it one or more, or hold the picture with this\.wait\(\)$/);
+  await assert.rejects(scene.play({ runTime: 3 }), /^Error: this\.play\(\): it was given no animation, only options; give it one or more/);
+  assert.equal(scene.frameCount, 0);
+  assert.equal(scene.phase, 'idle');
+});
+
 test('a mobject kept on top stays last in drawing order through every add, bringToBack and replace, while on stage', () => {
   const scene = new Scene(new NullSink());
   const top = new Rectangle(), band = new Rectangle(), a = new Circle(), b = new Circle(), c = new Circle();
@@ -177,6 +302,31 @@ test('a mobject kept on top stays last in drawing order through every add, bring
   unkeep();
   scene.add(b);
   assert.deepEqual(scene.mobjects, [c, a, band, top, b], 'released, they are ordinary roots again');
+});
+
+test('what is kept on top stays on top inside a group added later, and after a direct write to the drawn list, before anything is drawn (A13)', async () => {
+  const top = new Rectangle(), a = new Circle(), b = new Circle();
+  let drawn: string[] = [];
+  const name = (m: unknown): string => (m === top ? 'top' : m === a ? 'a' : m === b ? 'b' : 'group');
+  const scene = new Scene({ frame: async (sc) => { drawn = sc.mobjects.map(name); } });
+  scene.add(top);
+  scene.keepOnTop(top);
+  // Wrapped in a group added later: the group, the root that holds it, stays last.
+  const group = new Group(top);
+  scene.add(a, group);
+  scene.add(b);
+  assert.deepEqual(scene.mobjects.map(name), ['a', 'b', 'group']);
+  // A direct write to the drawn list is raised again before the next frame.
+  scene.mobjects = [group, a];
+  await scene.wait(1 / 30);
+  assert.deepEqual(drawn, ['a', 'group']);
+  // And before a step boundary the sink hears.
+  scene.mobjects.push(b);
+  let atStep: string[] = [];
+  const stepping = { frame: async () => {}, stepBegin: async (sc: Scene) => { atStep = sc.mobjects.map(name); } };
+  scene.sink = stepping;
+  await scene.step('s');
+  assert.deepEqual(atStep, ['a', 'b', 'group']);
 });
 
 test('a run told where to stop stops for good as that step ends: after its end listeners, its caption hold and the code after its last play', async () => {
@@ -448,6 +598,25 @@ test('step metadata is copied as JSON when the step begins: a later change rewri
   await assert.rejects(new NotObject(new NullSink()).run(), /this\.step\(\): the metadata of step "one" must be an object, or a function of the step before that returns one/);
 });
 
+test('a step\'s recorded metadata is frozen: a write to it after the step began is refused, and changes neither its caption nor its hold (A15)', async () => {
+  let refused: unknown;
+  class Writes extends Scene {
+    override async construct() {
+      await this.step('a', { caption: 'one', more: { list: [1] } });
+      await this.wait(0.1);
+      const meta = this.currentStep!.meta as { caption?: string; more: { list: number[] } };
+      try { meta.caption = 'one two three four five six seven eight nine ten eleven twelve'; } catch (e) { refused = e; }
+      assert.throws(() => meta.more.list.push(2), TypeError, 'frozen deeply');
+      await this.step('b');
+      await this.wait(0.1);
+    }
+  }
+  const trace = await traceScene(Writes);
+  assert.ok(refused instanceof TypeError, 'the write throws');
+  assert.deepEqual(trace.steps[0]!.meta, { caption: 'one', more: { list: [1] } });
+  assert.ok(trace.steps[0]!.frame1 < 30, 'the hold is the reading time of one word');
+});
+
 test('step metadata given as a value or as a function is refused at the same point: once the step before has ended and held', async () => {
   const at = async (meta: unknown): Promise<number> => {
     let frames = 0;
@@ -605,6 +774,15 @@ test('a scene runs once, a step listener begins no step, and a listener leaves n
     }
   }
   await assert.rejects(new Fired(new NullSink()).run(), /^Error: this\.onStep\(\): a listener of step "a" returned with a play\(\) or wait\(\) still running; await each play\(\) and wait\(\) it makes$/);
+  // The same from an end listener names the call it was registered with.
+  class FiredAtEnd extends Scene {
+    override async construct() {
+      const c = new Circle();
+      this.onStepEnd(() => { void this.play(new FadeIn(c, { runTime: 0.5 })).catch(() => {}); });
+      await this.step('a', {}); await this.wait(0.2);
+    }
+  }
+  await assert.rejects(new FiredAtEnd(new NullSink()).run(), /^Error: this\.onStepEnd\(\): a listener of step "a" returned with a play\(\) or wait\(\) still running/);
 
   // A listener that awaits its play is the intended use, and plays in the step.
   class Awaited extends Scene {

@@ -110,20 +110,24 @@ function serially<T>(work: () => Promise<T>): Promise<T> {
   return mine;
 }
 
-/** The faces in place now, as given: what withLettering() puts back. */
+/** The faces in place now, as given: what withLettering() puts back. Set once a selection has taken effect, so one that fails leaves the faces before it named. */
 let inPlace: LetteringFaces | null = null;
 
-/** Put `faces` in place (see useLettering), now: callers take turns through serially(). */
+/**
+ * Put `faces` in place (see useLettering), now: callers take turns through serially(). A selection
+ * whose faces cannot be decoded throws and changes nothing: the faces before it stay in place, and
+ * stay what withLettering() puts back.
+ */
 async function select(faces: LetteringFaces | null): Promise<void> {
   const key = faces && (faces.sans || faces.mono) ? JSON.stringify([faces.sans ?? '', faces.mono ?? '']) : '';
-  inPlace = key ? faces : null;
-  if (key === current) return;
+  if (key === current) { inPlace = key ? faces : null; return; }
   const shapers = await loadFonts();
   embedded ??= { ...shapers };
   if (!key) {
     setDefaultShapers(undefined);
     setDefaultTextContext(undefined);
     current = '';
+    inPlace = null;
     return;
   }
   const base = await embeddedFaces();
@@ -137,6 +141,7 @@ async function select(faces: LetteringFaces | null): Promise<void> {
   setDefaultShapers(selected);
   setDefaultTextContext({shape: (owner, text, size) => selected[owner.font](text, size)});
   current = key;
+  inPlace = faces;
 }
 
 /**
