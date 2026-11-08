@@ -84,6 +84,7 @@ test('skip time has two writers, the scene option and the sink, and each must be
   await assert.rejects(plays(new Skips(-0.5)), /^RangeError: sink\.skipUntil: the Skips's is -0\.5;/);
   await assert.rejects(plays(new Skips('5')), /^TypeError: sink\.skipUntil: the Skips's is string;/);
   await assert.rejects(plays({ skipUntil: NaN, async frame() {} } as unknown as NullSink), /^RangeError: sink\.skipUntil: the sink's is NaN;/);
+  await assert.rejects(plays(Object.assign(Object.create(null), { skipUntil: -1, async frame() {} })), /^RangeError: sink\.skipUntil: the sink's is -1;/);
   // A time, 0 or Infinity is taken.
   for (const t of [0, 0.4, Infinity]) assert.ok(await plays(new Skips(t)));
   // renderFrame skips by its own sink's time, with no setter on the scene.

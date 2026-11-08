@@ -289,7 +289,8 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     if (own === undefined) return this.#skipUntil;
     const wrong = notSkipTime(own);
     if (wrong) {
-      const name = this.sink.constructor === Object ? "the sink's" : `the ${this.sink.constructor.name}'s`;
+      const kind = (this.sink as { constructor?: { name?: string } }).constructor;
+      const name = !kind?.name || kind === Object ? "the sink's" : `the ${kind.name}'s`;
       if (wrong.kind === 'type') throw new TypeError(`sink.skipUntil: ${name} is ${wrong.said}; give a time in seconds, 0 or more, or Infinity to skip every frame`);
       throw new RangeError(`sink.skipUntil: ${name} is ${wrong.said}; give a time in seconds, 0 or more, or Infinity to skip every frame`);
     }
