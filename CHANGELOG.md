@@ -167,6 +167,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `this.step(name, (before) => meta)` takes its metadata from a function of the step it closes, for words that report that step's timing (fork). Step metadata is copied as JSON when the step begins.
 - `loadProject` and the `rayner` command refuse a step that draws no frame of its own, since it would show the step before's picture, and hold every scenario to the same step-name rules.
 - `rayner describe`, the contact sheet, the site's cards and the demos' posters draw every step's resting picture from one run of the scene instead of a seek per step.
+- `rayner check` reads every step's resting picture as the step ends, as describe and the shots do; its landing check holds that picture to the step's last played frame.
 - An animation has a `phase` (an `AnimationPhase`: idle, begun or finished). A second `begin()` while begun, and `interpolate()` or `finish()` before `begin()`, throw; one animation listed twice in a play is refused, where it used to begin twice and leave its mobject invisible.
 - `fps` must be above 0 and at most 240; run times, lag ratios and `wait()` times must be finite and not negative.
 - A `Succession` or group exposes its members' `ready()` and lays out their times as the play begins, so `s.show` composes inside a `Succession` or group. A `Succession` refuses a rate function that runs its time backwards.
