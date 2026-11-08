@@ -191,6 +191,52 @@ test('two diagram resolutions in flight start one builder of each kind, and clos
   assert.equal(closed, 3);
 });
 
+test('preview --watch adopts script.md afresh on every rebuild: a changed line, a removed question and a removed intent header all show', async () => {
+  const { watchAndRebuild } = await import('../tools/explain.ts');
+  const folder = await mkdtemp(join(tmpdir(), 'rayner-watch-intent-'));
+  const log = console.log, error = console.error;
+  console.log = () => {};
+  const errors: unknown[] = [];
+  console.error = (e: unknown) => { errors.push(e); };
+  // The scene's code never changes, so every rebuild loads the same module and the same class.
+  await writeFile(join(folder, 'scene.ts'), `import{Scene,Text}from'rayner';import{stage}from'rayner/explain';export default class Watched extends Scene{static meta={sources:[{label:'own',url:'https://example.org'}]};async construct(){const s=stage(this);await this.step('one',{caption:'A label.'});await s.enter(new Text('hi',{fontSize:.4}),{describe:'hi'});}}`);
+  const script = (question: string, answer: string, check = '') => `# ${question}\n\n- **Answer:** ${answer}.\n- **Checked against:** a test.\n${check}`;
+  await writeFile(join(folder, 'script.md'), script('Why?', 'because', '\n## Check yourself\n\n1. Really?\n   Yes.\n'));
+  let seen: { meta: Record<string, unknown> | undefined; Scene: unknown }[] = [], built: (() => void) | undefined;
+  const watching = watchAndRebuild(folder, join(folder, 'page.html'), async () => {
+    const project = await collectProject(folder, { write: false });
+    seen.push({ meta: { ...project.Scene.meta }, Scene: project.Scene });
+    built?.();
+    return 'Rebuilt';
+  });
+  /** Save script.md and wait for the watcher's rebuild. */
+  const save = async (text: string) => {
+    const rebuilt = new Promise<void>((r) => (built = r));
+    await writeFile(join(folder, 'script.md'), text);
+    await Promise.race([rebuilt, new Promise((_, no) => setTimeout(() => no(new Error('script.md did not rebuild')), 10000))]);
+    await watching.run();
+    return seen.at(-1)!.meta!;
+  };
+  try {
+    await watching.run();
+    const own = { sources: [{ label: 'own', url: 'https://example.org' }], id: folder.split('/').at(-1) };
+    assert.deepEqual(seen[0]!.meta, { ...own, title: 'Why?', answer: 'because', questions: [{ question: 'Really?', answer: 'Yes.' }], checkedAgainst: 'a test.' });
+    // A changed answer and a removed question: the next rebuild has the new answer and no questions.
+    assert.deepEqual(await save(script('Why not?', 'since')), { ...own, title: 'Why not?', answer: 'since', checkedAgainst: 'a test.' });
+    // No intent header any more: what the last adoption put in goes, and the scene's own meta stays.
+    assert.deepEqual(await save('# Notes\n\nJust prose for the author.\n'), own);
+    // And back: adopted again.
+    assert.equal((await save(script('Why?', 'because')))['title'], 'Why?');
+    assert.equal(new Set(seen.map((s) => s.Scene)).size, 1, 'every rebuild used the same scene class');
+    assert.deepEqual(errors, []);
+  } finally {
+    watching.watcher.close();
+    console.log = log;
+    console.error = error;
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
 test('preview --watch rebuilds at most once more for saves made during a rebuild, and on script.md', async () => {
   const { watchAndRebuild } = await import('../tools/explain.ts');
   const folder = await mkdtemp(join(tmpdir(), 'rayner-watch-'));

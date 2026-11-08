@@ -243,7 +243,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - A release publishes and retains both archives; `npm run pack:smoke` installs both, and `rayner` alone, and type-checks every explainer and recipe against the packed declarations. [Releasing](docs/RELEASING.md)
 - Every `rayner` command starts without loading the TypeScript compiler, which only the build fingerprint uses: `rayner version` takes about 0.3 s and 105 MB, where it took 0.7 s and 165 MB.
 - `rayner check` keeps each scenario's motion samples in columns of numbers: seasons' check peaks near 470 MB, where it peaked near 800 MB, with the same motion findings.
-- `rayner preview --watch` rebuilds when `script.md` changes too, and runs one rebuild at a time: saves made during a rebuild start one more when it ends, not one each.
+- `rayner preview --watch` rebuilds when `script.md` changes too, and runs one rebuild at a time: saves made during a rebuild start one more when it ends, not one each. Each rebuild adopts the script afresh: a script that loses its intent header drops the title, answer, questions and checked-against line it gave.
 - Diagram capture starts one Chromium per kind of diagram lettering however many diagrams wait for it, and closes each.
 - A page whose scenarios make no diagram carries no diagram code (`rayner check` fails a diagram only a reader's event draws), and every page's style is minified: lru-mru's page is 203 KB gzipped, where it was 216 KB. [What a page leaves out](docs/ENGINE.md#what-a-page-leaves-out)
 - The SVG writer writes a straight segment as `L`, where it wrote a cubic, in the poster and on the live stage alike: font-metrics' page is 16 KB smaller gzipped, lru-mru's 2.6 KB.

@@ -1,4 +1,5 @@
-import { adoptIntent, readIntent } from './explain-intent.ts';
+import { adoptScript } from './explain-intent.ts';
+import type { adoptIntent } from './explain-intent.ts';
 import {textContextOf} from '../../src/text-context.ts';
 import { offPage, prepareLettering as prepareOutlineLettering } from './lettering.ts';
 import { usesOutlineLettering, withSceneLettering } from '../../src/lettering-outlines.ts';
@@ -250,9 +251,9 @@ export async function collectProject(
   // A misspelt meta key would be ignored: refuse any key ExplainerMeta does not name, before anything runs.
   try { checkExplainerMeta(loaded.Scene.meta); } catch (e) { throw new Error(`${file}: ${(e as Error).message}`); }
   // A script with an intent header is the one home of the title, answer, questions and what the
-  // model is checked against (tools/lib/explain-intent.ts): the scene reads them as its own.
-  const scriptIntent = await readIntent(file);
-  const intent = scriptIntent ? adoptIntent(loaded.Scene as { meta?: Record<string, unknown> }, scriptIntent, file) : undefined;
+  // model is checked against (tools/lib/explain-intent.ts): the scene reads them as its own,
+  // adopted afresh on every collection, so a rebuild follows the script as it is now.
+  const intent = await adoptScript(loaded.Scene as { meta?: Record<string, unknown> }, file);
   // An explainer's id is its folder's name (or its file's, for a scene not named scene.ts), unless it declares one.
   const ownMeta = (loaded.Scene as { meta?: Record<string, unknown> }).meta;
   if (ownMeta?.id === undefined)
