@@ -1,5 +1,6 @@
-import { build } from 'esbuild';
+import { build, transform } from 'esbuild';
 import { browserFonts } from './explain-browser-fonts.ts';
+import { showsDiagrams, withoutDiagramCode } from './explain-diagram-code.ts';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -83,6 +84,7 @@ export async function buildExplainer(
         },
       },
       ...(!project.lettering && !project.outlineLettering ? [browserFonts(LIB_ROOT)] : []),
+      ...(showsDiagrams(project) ? [] : [withoutDiagramCode()]),
       engineAlias(false, !!project.outlineLettering),
     ],
     logLevel: 'silent',
@@ -96,9 +98,10 @@ export async function buildExplainer(
   // Framed (player-tile T4), the page draws only the tile. This runs before the body is
   // laid out, so a frame never shows the padded page first; the CSP pins it by its own hash.
   const framedJs = "if(parent!==window)document.documentElement.dataset.framed=''";
+  // The page's style, minified as its script is.
   const js = scriptEscape(bundled.outputFiles[0]!.text),
-    css = (await readFile(join(ROOT, 'app/embed.css'), 'utf8')) + (rightToLeftPage(project) ? RTL_CSS : '') +
-      (withAudio ? '\n'+await readFile(join(ROOT,'app/embed-audio.css'),'utf8') : '') + playerCss(project.Scene.meta?.player, v.palette);
+    css = await minifyCss((await readFile(join(ROOT, 'app/embed.css'), 'utf8')) + (rightToLeftPage(project) ? RTL_CSS : '') +
+      (withAudio ? '\n'+await readFile(join(ROOT,'app/embed-audio.css'),'utf8') : '') + playerCss(project.Scene.meta?.player, v.palette));
   // Every scenario, every step: a link to it, its caption, what it changed of the state the author
   // watches (meta.watch) and what its resting picture shows.
   // The player shows the current scenario's section; without JavaScript every scenario shows.
@@ -175,6 +178,8 @@ export async function buildExplainer(
   await writeFile(out + '.headers.json', JSON.stringify(receipt.headers, null, 2) + '\n');
   return { html, receipt };
 }
+/** CSS as the page ships it: esbuild's minifier, with no trailing newline. */
+export const minifyCss = async (css: string) => (await transform(css, { loader: 'css', minify: true })).code.trimEnd();
 export async function buildLoader(out: string): Promise<void> {
   const result = await build({
     entryPoints: [join(ROOT, 'app/loader.ts')],

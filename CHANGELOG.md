@@ -204,6 +204,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `rayner check` keeps each scenario's motion samples in columns of numbers: seasons' check peaks near 470 MB, where it peaked near 800 MB, with the same motion findings.
 - `rayner preview --watch` rebuilds when `script.md` changes too, and runs one rebuild at a time: saves made during a rebuild start one more when it ends, not one each.
 - Diagram capture starts one Chromium per kind of diagram lettering however many diagrams wait for it, and closes each.
+- A page whose scenarios show no diagram carries no diagram code, and every page's style is minified: lru-mru's page is 203 KB gzipped, where it was 216 KB. [What a page leaves out](docs/ENGINE.md#what-a-page-leaves-out)
 
 ### Removed from the public API
 

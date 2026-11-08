@@ -138,3 +138,7 @@ The fork deleted Lantern's Mermaid flowchart layout and its JSON document format
 Ordinary pages use SFNT copies of the embedded Inter, JetBrains Mono and Noto subsets: the same glyphs and metrics, without the WOFF2 Brotli decoder. Authoring, and pages that request lettering, keep the full loader. `test/browser-fonts.test.ts` compares both loaders over fixed fallback examples and generated strings.
 
 `npm run fonts` regenerates both. To rebuild only the browser copies from the committed subsets, run `node tools/repo/fonts-sfnt.ts` with fonttools and brotli installed in Python (`RAYNER_LETTERING_PYTHON` selects the interpreter); the tool checks the original shaper pin first. No Python runs when an author builds a page.
+
+## What a page leaves out
+
+A page whose scenarios show no diagram carries no diagram code: the build answers every import of `explain/diagrams.ts` with a stand-in (`tools/lib/explain-diagram-code.ts`) that keeps the label helpers the close-ups read and whose `Diagram` throws if it is ever reached, so `Diagram` and the Mermaid replay drop out of the bundle. The project decides it: some scenario resolved a diagram snapshot. The page's style is minified, as its script is. `test/page-size.test.ts` holds both.
