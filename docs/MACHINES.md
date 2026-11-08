@@ -80,9 +80,10 @@ checks the events and each final configuration against the XState fixture.
 **Views read the state, and nothing else that changes.** Exploration redraws each state after
 the run, so a picture that also read a variable outside the state would be drawn wrongly. Every
 `View` is made from `(scene, draw)`, and a draw may read `scene.shown` as well: which picture a
-phase shows belongs there, not in the model. A machine never changes `shown`. It records what
-was shown when it first played and refuses to play under anything else, and exploration draws
-every state under it.
+phase shows belongs there, not in the model. A machine never changes `shown`, but what is shown
+may change between its events (a guided tour moving a code panel's lit line). It records what was
+shown each time it plays, and exploration and the live player draw every state under what was
+shown when it last played.
 
 ## Refused events, bounds and authored transitions
 
