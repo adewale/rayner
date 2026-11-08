@@ -11,6 +11,10 @@ import vm from 'node:vm';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { build } from 'esbuild';
+import type { Plugin } from 'esbuild';
+import { browserFonts } from './explain-browser-fonts.ts';
+import { showsDiagrams, withoutDiagramCode } from './explain-diagram-code.ts';
+import type { Settings } from '../../explain/settings.ts';
 import ts from 'typescript';
 import { Text } from '../../src/index.ts';
 import { View } from '../../explain/index.ts';
@@ -642,6 +646,32 @@ function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>
   return problems;
 }
 
+/**
+ * The bare runtime of a project: its scene entry bundled once, as the page bundles it (the page's
+ * SFNT font path, and no diagram code when no scenario shows a diagram), for a neutral platform with
+ * no DOM. Each call runs one scenario in a fresh VM context, so no state crosses scenarios.
+ */
+export async function bareRuntime(project: Project, plugins: Plugin[] = []): Promise<(values: Settings) => Promise<{ trace: unknown; svg: string }>> {
+  const contents = await sceneEntry(project, { target: 'bare' });
+  const b = await build({
+    stdin: { contents, resolveDir: LIB_ROOT, loader: 'ts' },
+    bundle: true,
+    format: 'iife',
+    globalName: 'bare',
+    platform: 'neutral',
+    target: 'es2022',
+    write: false,
+    plugins: [...plugins, browserFonts(LIB_ROOT), ...(showsDiagrams(project) ? [] : [withoutDiagramCode()]), engineAlias(false, !!project.outlineLettering)],
+    logLevel: 'silent',
+  });
+  const script = new vm.Script(b.outputFiles[0]!.text + ';globalThis.result=bare.run(globalThis.values)');
+  return async (values) => {
+    const context = vm.createContext({ TextEncoder, TextDecoder, atob, values: JSON.parse(JSON.stringify(values)) });
+    script.runInContext(context);
+    return JSON.parse(JSON.stringify(await context.result));
+  };
+}
+
 /** Run every check on every scenario; write the report to `out`/report.json and return it. */
 export async function checkProject(project: Project, out: string): Promise<Record<string, unknown>> {
   const lint = lintConstruct(await readFile(project.file, 'utf8'));
@@ -656,6 +686,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
   assert.deepEqual(checkedAgainst?.problems ?? [], [], `script.md's Checked against names files that are not there: ${checkedAgainst?.problems.join('; ')}`);
   await useProjectLettering(project);
   const scenarios = [];
+  let runBare: ReturnType<typeof bareRuntime> | undefined;
   for (const v of project.scenarios) {
     const where = `in ${scenarioName(project.Scene, v.values) || 'the scene'}`;
     // The scene's own invariants of the picture (Scene.addInvariant), checked on every frame of this full run.
@@ -703,6 +734,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     const views = new ViewSink();
     const keys = new KeySink();
     const ran = await new v.Scene(new FanSink([invariants, motion, holdSink, capture, restingSink, legibility, views, keys, looks])).run();
+    // The last frame, before exploring machines moves the scene.
+    const finalSvg = toSvgString(ran);
     const { frames } = capture,
       { moved } = holdSink,
       { resting, restingText, collisions } = restingSink,
@@ -779,30 +812,13 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     assert.deepEqual(small, [], `Labels never reach ${MIN_PX}px at 1280px stage ${where}: ${JSON.stringify(small)}`);
     const blank = v.trace.steps.flatMap((s) => undescribed(s.shown).map((m) => `${s.step}: ${m}`));
     assert.deepEqual(blank, [], `Every drawing needs words for readers who cannot see it ${where}`);
-    // The bare runtime runs what the page ships: its lettering, faces and snapshots (sceneEntry).
-    const contents = await sceneEntry(project, { target: 'bare', values: v.values });
-    const b = await build({
-      stdin: { contents, resolveDir: LIB_ROOT, loader: 'ts' },
-      bundle: true,
-      format: 'iife',
-      globalName: 'bare',
-      platform: 'neutral',
-      target: 'es2022',
-      write: false,
-      plugins: [engineAlias(false, !!project.outlineLettering)],
-      logLevel: 'silent',
-    });
-    const context = vm.createContext({ TextEncoder, TextDecoder, atob });
-    vm.runInContext(b.outputFiles[0]!.text + ';globalThis.result=bare.run()', context);
-    const result = await context.result;
-    const bare = `The bare runtime (no DOM, no Node) disagrees with the trace ${where}`;
-    assert.deepEqual(
-      JSON.parse(JSON.stringify(result.steps)),
-      v.trace.steps.map((s) => s.step),
-      bare,
-    );
-    assert.deepEqual(JSON.parse(JSON.stringify(result.state)), v.trace.steps.at(-1)!.after, bare);
-    assert.ok(result.svg.includes('<path'), bare);
+    // The bare runtime runs what the page ships (its lettering, faces and snapshots, through the page's
+    // font path and diagram code) in a context of its own, and must reproduce the Node trace: every
+    // step's times, hold, state and what it shows, and the last frame.
+    const bare = await (await (runBare ??= bareRuntime(project)))(v.values);
+    const disagrees = `The bare runtime (no DOM, no Node) disagrees with the trace ${where}`;
+    assert.deepEqual(bare.trace, JSON.parse(JSON.stringify(v.trace)), disagrees);
+    assert.equal(bare.svg, finalSvg, `${disagrees}: its last frame draws differently`);
     const script = scriptReport(project.Scene.meta, v.trace.steps);
     assert.deepEqual(script.problems, [], `Script ${where}: ${script.problems.join('; ')}`);
     scenarios.push({

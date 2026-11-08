@@ -4,7 +4,6 @@
 // scene the page ships: the same class, intent, lettering and snapshots.
 import { join } from 'node:path';
 import type { Project } from './explain-project.ts';
-import type { Settings } from '../../explain/settings.ts';
 import type { LetteringSnapshot, PackedLetteringSnapshot } from '../../src/lettering-outlines.ts';
 import type { SnapshotStore } from '../../integrations/agentic-mermaid/snapshot.ts';
 import { pageSnapshot } from './lettering.ts';
@@ -23,10 +22,13 @@ export interface PageEntry {
   /** What the page says when mounting fails, in its language. */
   failed: string;
 }
-/** The bare runtime: exports run(), which plays one scenario to its end and returns its steps, state and last frame. */
+/**
+ * The bare runtime: exports run(values), which plays the scenario those settings choose to its end,
+ * as the trace does (skipping), and returns its trace and its last frame as SVG. One bundle serves
+ * every scenario.
+ */
 export interface BareEntry {
   target: 'bare';
-  values: Settings;
 }
 
 const shippedLettering = new WeakMap<LetteringSnapshot, Promise<PackedLetteringSnapshot>>();
@@ -45,6 +47,7 @@ function shippedOutlines(project: Project): Promise<PackedLetteringSnapshot> | u
   if (!outline) shippedLettering.set(project.outlineLettering, (outline = pageSnapshot(project.outlineLettering)));
   return outline;
 }
+
 /**
  * The entry for `target`. The author's class takes the script's intent first, as the tools
  * adopted it (collectProject ran adoptIntent, which checks that the scene does not declare
@@ -68,5 +71,5 @@ export async function sceneEntry(project: Project, entry: PageEntry | BareEntry)
   const source = author + letteringImport + adopted + bound;
   if (entry.target === 'page')
     return `${source}import{mountEmbed}from ${JSON.stringify(join(ROOT, 'app/embed.ts'))};${entry.imports}const root=document.getElementById('content');(async()=>{${ready}await mountEmbed(root,Source,${entry.snapshots}${entry.audio ? ',mountAudio' : ''});root.dataset.ready='true'})().catch(error=>{console.error(error);const p=document.createElement('p');p.setAttribute('role','alert');p.textContent=${JSON.stringify(entry.failed)};root.append(p)});`;
-  return `${source}import{bindSnapshots,withSettings}from ${lib('explain/settings.ts')};import{NullSink,toSvgString}from ${lib('src/output.ts')};export async function run(){${ready}const C=withSettings(bindSnapshots(Source,${JSON.stringify(shippedStore(project.store))}),${JSON.stringify(entry.values)});const s=await new C(new NullSink(),{skipUntil:Infinity}).run();return{steps:s.steps.map(s=>s.name),state:s.stateJson(),svg:toSvgString(s)}}`;
+  return `${source}import{bindSnapshots,withSettings}from ${lib('explain/settings.ts')};import{toSvgString}from ${lib('src/output.ts')};import{traceRun}from ${lib('src/trace.ts')};const Bound=bindSnapshots(Source,${JSON.stringify(shippedStore(project.store))});export async function run(values){${ready}const{trace,scene}=await traceRun(withSettings(Bound,values));return{trace,svg:toSvgString(scene)}}`;
 }
