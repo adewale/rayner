@@ -176,7 +176,7 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
 /**
  * The animation sync() returns. Everything is decided in begin(): build(),
  * placing, the matcher and its endpoints. Each frame is the inner
- * transform's pure function of alpha; finish() lands it and swaps the built
+ * transform's pure function of alpha; finish() finishes it and swaps the built
  * picture in, so the View holds exactly what build() made (its `text` too).
  */
 export class ViewSync<M extends Mobject = Mobject> extends Animation {
@@ -220,7 +220,8 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
   protected override doFinish(): void {
     if (!this.inner) return;
     const end = this.rateFunc(1);
-    this.inner.interpolate(end);
+    // The morph lands where this sync's last frame drew it, and ends finished, as one the scene began would.
+    this.inner.finish(end);
     // Landed on the new picture: hand over to it (a matching transform leaves faded
     // parts inside the old one, a Transform leaves it aligned). A rate function that
     // comes back leaves the old picture: the View did not sync.
@@ -269,7 +270,8 @@ class ViewTween<S extends object, Sh extends object> extends Animation {
   /** alpha already passed through this tween's rateFunc by the scene. */
   protected override doInterpolate(alpha: number): void { this.begun().interpolate(alpha); }
 
-  protected override doFinish(alpha: number = this.rateFunc(1)): void { this.begun().interpolate(alpha); }
+  /** The Follow lands where this tween's last frame drew it, and ends finished. */
+  protected override doFinish(alpha: number = this.rateFunc(1)): void { this.begun().finish(alpha); }
 
   override evidence(): Evidence | null { return this.follow?.evidence() ?? null; }
 
