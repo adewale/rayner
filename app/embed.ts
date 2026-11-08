@@ -1058,7 +1058,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     const sink = new ReaderSink(container, sinkOptions(at, false), readerView, scope.signal, narrow);
     const drawn: Promise<SceneStateLike | undefined> = log.length && now
       ? liveRun(at, now, log, { sink }, scope).then((run) => run.shown as SceneStateLike)
-      : renderFrame(at.Scene, step.frame1!, sink).then(() => undefined);
+      : renderFrame(at.Scene, step.frame1, sink).then(() => undefined);
     return drawn.then((shown) => {
       pictures.set(key, { nodes: clones(container.childNodes), ...(shown ? { shown } : {}) });
       return shown;
@@ -1278,7 +1278,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         frame0: step.frame0,
         // Stop when the picture stops: the reader sets the pace instead of waiting through the caption-reading hold.
         still: stillFrame(step),
-        frame1: step.frame1!,
+        frame1: step.frame1,
         container,
         /** Frames drawn so far: the first is drawn at dt 0, as the picture the step starts from. */
         drawn: 0,

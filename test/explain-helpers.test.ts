@@ -4,7 +4,8 @@
 // explain/look.ts, and the HTML escaping in explain/trace.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene } from '../src/index.ts';
+import { Scene, Rectangle } from '../src/index.ts';
+import type { Text } from '../src/index.ts';
 import { NullSink } from '../src/output.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
 import { stage, regionBox } from '../explain/index.ts';
@@ -73,8 +74,8 @@ test('a stage with no style takes its first diagram’s paper; hidden parts stay
     }
   }
   const trace = await traceScene(bindSnapshots(Demo, { [diagramKey(spec)]: fixture() }));
-  assert.deepEqual(trace.steps[0]!.after!.walks, [{ step: 'frame', from: 'A', to: 'B', edge: 'edge:A->B#0' }]);
-  assert.equal(trace.steps[0]!.after!.answer, 42);
+  assert.deepEqual(trace.steps[0]!.after.walks, [{ step: 'frame', from: 'A', to: 'B', edge: 'edge:A->B#0' }]);
+  assert.equal(trace.steps[0]!.after.answer, 42);
   // A scene's own walks key is refused, at the walk or when a later state brings one, not replaced.
   class Own extends Scene {
     override state = { walks: 'mine' };
@@ -180,6 +181,43 @@ test('a diagram’s presentation is one value, the view a live diagram replaced 
   await new (bindSnapshots(Presented, { [diagramKey(spec)]: fixture(), [diagramKey(next)]: after }))(new NullSink()).run();
 });
 
+test('a diagram\'s presentation changes only through its calls: a root taken off is not described, and one put back beside its view is refused', async () => {
+  const twice = /^Error: d\.root: it is on the stage while a view shows the diagram, so each of its keys is drawn twice; take it off, or call s\.liveDiagram\(d\) to show the live diagram in the view's place$/;
+  const beside = /^Error: d\.root: it is on the stage beside the view it replaced, so each of its keys is drawn twice; take the view off, or call s\.diagramView\(d\) to show the diagram by it again$/;
+  class ByHand extends Scene {
+    override async construct() {
+      const s = stage(this);
+      await this.step('one');
+      const d = await s.show(spec, { build: 'all' });
+      // d.root cannot be replaced, so the group the diagram keeps is the one on stage.
+      assert.throws(() => { (d as unknown as { root: unknown }).root = d.root.copy(); }, TypeError);
+      // Taken off by hand, the live diagram keeps its presentation and is not described until it is back.
+      this.remove(d.root);
+      assert.deepEqual(d.presentation, { kind: 'live', replaced: null });
+      assert.equal(d.described(), false);
+      this.add(d.root);
+      assert.equal(d.described(), true);
+      // Put on by hand while a view shows the diagram: refused when the stage next describes it.
+      const v = s.diagramView(d);
+      this.add(d.root);
+      assert.throws(() => d.described(), twice);
+      this.remove(d.root);
+      assert.equal(d.described(), true);
+      // The view it replaced, put back beside the live diagram: refused too.
+      s.liveDiagram(d);
+      this.add(v);
+      assert.throws(() => d.described(), beside);
+      this.remove(v);
+      assert.equal(d.described(), true);
+      // Left on stage at a step's end, the stage's description refuses it.
+      s.diagramView(d);
+      this.add(d.root);
+      await this.step('two');
+    }
+  }
+  await assert.rejects(new (bindSnapshots(ByHand, { [diagramKey(spec)]: fixture() }))(new NullSink()).run(), twice);
+});
+
 test('stage() runs once per scene: a second call is refused', async () => {
   class Twice extends Scene {
     override async construct() {
@@ -193,6 +231,72 @@ test('stage() runs once per scene: a second call is refused', async () => {
   await new Twice(new NullSink()).run();
   // Each scene has its own stage.
   await new Twice(new NullSink()).run();
+});
+
+test('a stage() that throws on its options leaves the scene as it was, free to have a stage', async () => {
+  const scene = new Scene(new NullSink());
+  const listeners = () => (scene as unknown as { stepListeners: unknown[] }).stepListeners.length;
+  for (const options of [{ direction: 'sideways' }, { style: 'no-such-style' }] as const) {
+    assert.throws(() => stage(scene, options as never), /^RangeError: (stage|palette)\(\): /);
+    assert.equal(listeners(), 0, `${JSON.stringify(options)}: no step listener`);
+    assert.equal(scene.mobjects.length, 0, `${JSON.stringify(options)}: no backdrop or heading`);
+    assert.equal(paletteOf(scene), undefined);
+  }
+  // The retry is the scene's one stage: its listeners once, its backdrop once.
+  const s = stage(scene);
+  assert.equal(listeners(), 3);
+  assert.equal(scene.mobjects.filter((m) => m.role === 'backdrop').length, 1);
+  assert.ok(s.heading);
+  assert.throws(() => stage(scene), /the scene has a stage already/);
+});
+
+test('withoutHeading draws with the heading off the stage, and puts the list back however the draw ends', async () => {
+  const { withoutHeading, isHeading } = await import('../explain/stage.ts');
+  const scene = new Scene(new NullSink());
+  stage(scene, { heading: 'A title' });
+  const all = scene.mobjects;
+  assert.ok(all.some(isHeading));
+  const seen = withoutHeading(scene, () => scene.mobjects.filter(isHeading).length);
+  assert.equal(seen, 0);
+  assert.equal(scene.mobjects, all);
+  assert.equal(await withoutHeading(scene, async () => { await Promise.resolve(); return scene.mobjects.some(isHeading); }), false);
+  assert.equal(scene.mobjects, all);
+  assert.throws(() => withoutHeading(scene, () => { throw new Error('drawn wrong'); }), /drawn wrong/);
+  assert.equal(scene.mobjects, all);
+  await assert.rejects(withoutHeading(scene, async () => { throw new Error('drawn wrong'); }), /drawn wrong/);
+  assert.equal(scene.mobjects, all);
+});
+
+test('the old heading stays on top until it has faded out: what its play adds draws under it', async () => {
+  const { isHeading } = await import('../explain/stage.ts');
+  const over: string[] = [];
+  let added: Rectangle | null = null;
+  class Retitled extends Scene {
+    override async construct() {
+      const s = stage(this);
+      await this.step('one', { title: 'The first title' });
+      // An updater that adds a mobject during the next heading's fade, as anything added in that play would be.
+      const ticker = new Rectangle({ width: 0.1, height: 0.1 });
+      ticker.addUpdater(() => {
+        if (!added && this.currentStep?.name === 'two') this.add((added = new Rectangle({ width: 16, height: 9 })));
+      });
+      this.add(ticker);
+      await this.wait(0.2);
+      void s;
+      await this.step('two', { title: 'The second title' });
+      await this.wait(0.2);
+    }
+  }
+  const watch = {
+    async frame(scene: Scene) {
+      if (!added || !scene.mobjects.includes(added)) return;
+      const at = scene.mobjects.indexOf(added);
+      for (const [i, m] of scene.mobjects.entries()) if (isHeading(m) && i < at) over.push(`frame ${scene.frameCount}: ${(m as Text).text ?? m.role}`);
+    },
+  };
+  await new Retitled(watch).run();
+  assert.ok(added, 'the updater added its rectangle during the fade');
+  assert.deepEqual(over, [], 'no part of a heading, old or new, draws under what the fade\'s play added');
 });
 
 // ---- integrations/agentic-mermaid/snapshot.ts ------------------------------------
@@ -786,7 +890,7 @@ test('loadProject draws a scene\'s lettering from the scene.lettering.json besid
   // Outline lettering: font-metrics' italic and its Garamond measurements need its snapshot, which the class alone lacks.
   await assert.rejects(traceScene(FontMetrics), /new ItalicText\(\): it needs meta\.lettering\.styles/);
   const metrics = await loadProject(FontMetrics, 'scenes/explainers/font-metrics');
-  const { layout } = metrics.scenario().trace.steps.find((s) => s.step === 'layout')!.after!;
+  const { layout } = metrics.scenario().trace.steps.find((s) => s.step === 'layout')!.after;
   assert.ok(layout.actual < layout.wrong, `Garamond ${layout.actual} is narrower than JetBrains Mono ${layout.wrong}`);
   // Subset lettering: the pinned Greek cuts draw every Greek letter during the runs, and the embedded faces, which draw none, return after.
   takeMissingGlyphs();

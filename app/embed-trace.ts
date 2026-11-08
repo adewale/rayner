@@ -17,7 +17,7 @@ export type WatchedState = { readonly [watchedOnly]: true };
 /** One step of a `PlayerTrace`: its name, timing, words and what it showed, and its watched state before and after. */
 export type PlayerStep = Pick<StepRecord, 'step' | 't0' | 'frame0' | 't1' | 'frame1' | 'hold' | 'holdFrame' | 'meta' | 'shown'> & {
   before: WatchedState;
-  after?: WatchedState;
+  after: WatchedState;
 };
 
 /** A trace as the player reads it (`playerTrace`): a `Trace` whose steps keep only their watched state and no evidence. */
@@ -40,20 +40,18 @@ export function playerTrace(trace: Trace, watch: Readonly<Record<string, string>
   return {
     fps, duration, frames,
     steps: trace.steps.map(({ step, t0, frame0, t1, frame1, hold, holdFrame, meta, shown, before, after }) => ({
-      step, t0, frame0,
-      ...(t1 !== undefined ? { t1 } : {}),
-      ...(frame1 !== undefined ? { frame1 } : {}),
+      step, t0, frame0, t1, frame1,
       ...(hold !== undefined ? { hold } : {}),
       ...(holdFrame !== undefined ? { holdFrame } : {}),
       meta,
       ...(shown !== undefined ? { shown } : {}),
       before: keep(before),
-      ...(after !== undefined ? { after: keep(after) } : {}),
+      after: keep(after),
     })),
   };
 }
 
 /** What `step` changed of its watched state, as `watchedChanges` says it. */
 export function playerChanges(step: PlayerStep, watch: Readonly<Record<string, string>> | undefined, lang = 'en'): WatchedChange[] {
-  return watchedChanges(step as unknown as { before: SceneState; after?: SceneState }, watch, lang);
+  return watchedChanges(step as unknown as { before: SceneState; after: SceneState }, watch, lang);
 }

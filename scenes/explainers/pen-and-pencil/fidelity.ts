@@ -7,7 +7,7 @@ import { WORLD, TITLE, HAND, timelineFacts, hershey } from './model.ts';
 export function check(trace: Trace): void {
   const facts = timelineFacts(WORLD);
   assertStepState(trace, 'text', { periods: facts.length });
-  const after = (step: string) => trace.steps.find((s) => s.step === step)!.after!;
+  const after = (step: string) => trace.steps.find((s) => s.step === step)!.after;
   const marks = after('marks').marks as { words: number };
   assert.equal(marks.words, facts.reduce((n, f) => n + 1 + f.events.length, 0));
   const strayBound = HAND.tremor * Math.SQRT2 * 2;

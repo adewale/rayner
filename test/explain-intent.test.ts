@@ -2,7 +2,7 @@
 // answer, reader questions and what its model is checked against.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseIntent, adoptIntent } from '../tools/lib/explain-intent.ts';
@@ -54,6 +54,41 @@ test('the scene takes the intent as its own metadata, and a part declared in bot
   // A scene module loaded once is collected many times in one process: adopting again is not declaring twice.
   adoptIntent(Scene, parseIntent(SCRIPT)!, 'lamp');
   assert.equal(Scene.meta.answer, 'the second press only dims it');
+});
+
+test('every adoption starts from the declared metadata: withIntent and loadProject drop a removed header\'s keys, as the command does (A19)', async () => {
+  const { withIntent } = await import('../explain/testing.ts');
+  const { loadProject } = await import('../explain/project.ts');
+  const { Scene } = await import('../src/index.ts');
+  const Lamp = { meta: { id: 'lamp' } as Record<string, unknown> };
+  withIntent(Lamp, SCRIPT);
+  assert.equal(Lamp.meta.answer, 'the second press only dims it');
+  // Reader prose, with no intent header: the scene's metadata is what it declares again.
+  withIntent(Lamp, '# Lamps\n\nA story about lamps.\n');
+  assert.deepEqual(Lamp.meta, { id: 'lamp' });
+  adoptIntent(Lamp, parseIntent(SCRIPT), 'lamp');
+  assert.equal(adoptIntent(Lamp, null, 'lamp'), undefined);
+  assert.deepEqual(Lamp.meta, { id: 'lamp' });
+  // loadProject, run twice on one class in one process while its script loses its header.
+  class Dim extends Scene {
+    override async construct() { await this.step('one', { caption: 'The lamp.' }); }
+  }
+  const root = await mkdtemp(join(tmpdir(), 'rayner-intent-load-')), folder = join(root, 'lamp');
+  try {
+    await mkdir(folder);
+    await writeFile(join(folder, 'script.md'), SCRIPT);
+    const first = await loadProject(Dim, folder);
+    assert.equal(first.Scene.meta?.answer, 'the second press only dims it');
+    await writeFile(join(folder, 'script.md'), '# Lamps\n\nA story about lamps.\n');
+    const second = await loadProject(Dim, folder);
+    assert.equal(second.Scene.meta?.answer, undefined, 'the removed header took its answer with it');
+    assert.equal(second.Scene.meta?.title, undefined);
+    assert.equal(second.Scene.meta?.id, 'lamp', 'the id loadProject gives it is given again');
+    await rm(join(folder, 'script.md'));
+    assert.equal((await loadProject(Dim, folder)).Scene.meta?.answer, undefined);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test('Hanoi\'s scene declares no title, answer or questions, and its page shows the script\'s', async () => {

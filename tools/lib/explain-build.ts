@@ -49,7 +49,7 @@ export async function buildExplainer(
   for(const scenario of project.scenarios) for(const step of scenario.trace.steps)
     if(stepAudio(step.meta.audio)) withAudio=true;
   const sink = new SnapshotSink();
-  await renderFrame(v.Scene, first.frame1!, sink);
+  await renderFrame(v.Scene, first.frame1, sink);
   // A page that asked for lettering puts its faces in place before the player shapes anything.
   // Every other page's entry is as it was: it never imports src/lettering.ts.
   const snapshots = shippedStore(project.store);

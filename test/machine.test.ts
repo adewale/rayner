@@ -529,7 +529,7 @@ test('the live player and check start a live step after its end listeners: a lis
   // Before, the player stopped at the still frame, before the listener played OFF, at dim.
   assert.deepEqual([run.rest, press.after], [{ level: 0 }, { level: 0 }]);
   const link = new SnapshotSink();
-  await renderFrame(Lamp, press.frame1!, link);
+  await renderFrame(Lamp, press.frame1, link);
   const player = new SnapshotSink();
   await player.frame(run.scene);
   assert.equal(player.svg, link.svg, 'the player starts from the picture a link to the step shows');

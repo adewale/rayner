@@ -13,7 +13,7 @@ export async function check(trace: TraceOf<typeof FeatureTour>, values: Record<s
   if (values.feature === 'state') assertStepState(trace, 'result', { count: 1 });
   // The camera scenario says how much of the 16-unit stage its closer view frames.
   if (values.feature === 'camera') {
-    const { camera } = having(trace.steps.find((s) => s.step === 'result')!.after!, 'camera');
+    const { camera } = having(trace.steps.find((s) => s.step === 'result')!.after, 'camera');
     assert.equal(camera.before, 16);
     assert.ok(camera.after > 1.2 && camera.after < 8, `the view frames ${camera.after} units`);
   }

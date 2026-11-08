@@ -9,7 +9,7 @@ import { DomSink } from '../src/output.ts';
 import { VIEWBOX } from '../src/svg.ts';
 import type { Scene } from '../src/index.ts';
 import type { ElementRecord } from '../src/output.ts';
-import { isHeading } from '../explain/stage.ts';
+import { withoutHeading } from '../explain/stage.ts';
 /** A zoom: scale `k` about the stage's top-left corner, then a pan of (x, y) stage pixels. */
 export interface Zoom {
   k: number;
@@ -166,13 +166,7 @@ export class ReaderSink extends DomSink {
   override async frame(scene: Scene, dt = 0): Promise<void> {
     if (!this.withoutHeading()) return super.frame(scene, dt);
     // The scene waits for its sink, so its objects stay put while this frame is drawn without them.
-    const all = scene.mobjects;
-    scene.mobjects = all.filter((m) => !isHeading(m));
-    try {
-      await super.frame(scene, dt);
-    } finally {
-      scene.mobjects = all;
-    }
+    await withoutHeading(scene, () => super.frame(scene, dt));
   }
   override apply(els: readonly ElementRecord[], viewBox?: string): void {
     // DomSink can wake from its browser clock after this step was left.

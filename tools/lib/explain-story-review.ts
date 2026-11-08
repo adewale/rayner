@@ -8,6 +8,7 @@ import { VMobject } from '../../src/index.ts';
 import { renderElements } from '../../src/output.ts';
 import { clipPathOf, serializeElement, userBox } from '../../src/svg.ts';
 import { UNITS } from '../../src/units.ts';
+import { dryRun } from '../../src/timeline.ts';
 import type { Box } from '../../src/index.ts';
 import { intersect, nonempty, pad, pointsBox, unionBoxes } from '../../src/box.ts';
 import { paints } from '../../src/mobject.ts';
@@ -287,17 +288,14 @@ export async function storyFrames(
   // Keep ordered occurrences: redraws may change ids without changing the picture,
   // but a reordered layer or another copy can change what the reader sees.
   let memory: StoryMemory = { emphasis: new Map(), paint: [] };
-  await new Source(
-    {
-      async frame() {},
-      async stepEnd(scene, step) {
-        const next = await storyFrame(scene, step.name, memory, declared.filter((c) => c.step === step.name));
-        memory = next.memory;
-        frames.set(step.name, next.frame);
-      },
+  await dryRun(Source, {
+    async frame() {},
+    async stepEnd(scene, step) {
+      const next = await storyFrame(scene, step.name, memory, declared.filter((c) => c.step === step.name));
+      memory = next.memory;
+      frames.set(step.name, next.frame);
     },
-    { skipUntil: Infinity },
-  ).run();
+  });
   for (const c of declared) assert.ok(frames.has(c.step), `story entry names missing step ${c.step}`);
   return frames;
 }

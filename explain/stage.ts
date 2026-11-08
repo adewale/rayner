@@ -110,6 +110,23 @@ export function isHeading(m: Mobject): boolean {
   return false;
 }
 /**
+ * What `draw` returns, with the heading (isHeading) off the stage while it runs: the stage's
+ * top-level list is put back as it was once `draw` returns, or once the promise it returns settles.
+ * The checks, the player's close-ups and the text drawing agents read draw a step's picture without
+ * the heading that names the step this way. The scene must not change its list meanwhile: a sink
+ * draws while the scene waits for it.
+ */
+export function withoutHeading<T>(scene: Scene<any, any>, draw: () => T): T {
+  const all = scene.mobjects;
+  scene.mobjects = all.filter((m) => !isHeading(m));
+  const back = () => { scene.mobjects = all; };
+  let drawn: T;
+  try { drawn = draw(); } catch (e) { back(); throw e; }
+  if (drawn instanceof Promise) return drawn.finally(back) as T;
+  back();
+  return drawn;
+}
+/**
  * Stage furniture: the backdrop, or part of the heading (isHeading), or inside one of them; with
  * `frame`, a diagram's frame (role `'frame'`) too. It frames every step and says nothing about
  * where to look, so the close-ups, the review and the layout checks leave it out.
@@ -158,28 +175,16 @@ export interface DiagramPicture {
 export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, options: StageOptions = {}) {
   // A second stage would add a second backdrop, heading and step listeners over the first.
   if (staged.has(scene)) throw new Error('stage(): the scene has a stage already; call stage(this) once and keep what it returns');
-  // Each caption owns its opening; a previous step's subjects must not leak, unless opening(..., { keep: true })
-  // named them for every step that follows.
-  let kept: Mobject[] = [];
-  /** What each view diagramView made draws: diagramView again with another draw replaces it. */
-  const viewDraws = new WeakMap<View<Mobject, S, Sh>, { draw: (state: S, shown: Sh) => DiagramPicture }>();
-  scene.onStep(() => opening(scene, ...kept));
+  // The options are checked, and the backdrop and first heading made, before the stage touches the
+  // scene: a stage() that throws here leaves it as it was, without a stage and free to have one.
+  // From `staged.add` on, the scene has its stage.
   const direction = layoutDirection(options, 'ltr', 'stage()');
-  const physical = <T extends Vec | Box | StageRegion | undefined>(at: T): Exclude<T, 'start' | 'end'> | Region =>
-    physicalAt(at, direction) as Exclude<T, 'start' | 'end'> | Region;
   // Without a style or palette, the stage adopts the first diagram's palette, and only the first's.
   let adopt = !options.palette && !options.style;
   let colors = options.palette ?? palette(options.style ?? 'nord');
-  stagePalettes.set(scene, () => ({ ...colors }));
-  /** The look of the palette as it is now: computed again only when a colour of it changes. */
-  const paletteKey = (p: Palette) => `${p.paper} ${p.ink} ${p.accent} ${p.muted}`;
-  let looked = { from: paletteKey(colors), look: lookOf(colors) };
-  // Engine defaults (a Text with no colour, an Axes, a SurroundingRectangle) take the stage's palette.
-  scene.colors = sceneColors(colors);
   const mode = options.heading ?? 'step';
   const backdrop = new Rectangle({ width: FRAME.w, height: FRAME.h, fill: colors.paper, stroke: 'none' });
   backdrop.role = 'backdrop';
-  scene.add(backdrop);
   const numbered = options.numbered ?? mode === 'step';
   const headingSize = options.headingSize ?? 0.36;
   /**
@@ -223,6 +228,22 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     return { heading: t, chrome: parts };
   };
   const first = makeChrome(typeof mode === 'string' && mode !== 'step' ? mode : '', '', null, '');
+  staged.add(scene);
+  // Each caption owns its opening; a previous step's subjects must not leak, unless opening(..., { keep: true })
+  // named them for every step that follows.
+  let kept: Mobject[] = [];
+  /** What each view diagramView made draws: diagramView again with another draw replaces it. */
+  const viewDraws = new WeakMap<View<Mobject, S, Sh>, { draw: (state: S, shown: Sh) => DiagramPicture }>();
+  scene.onStep(() => opening(scene, ...kept));
+  const physical = <T extends Vec | Box | StageRegion | undefined>(at: T): Exclude<T, 'start' | 'end'> | Region =>
+    physicalAt(at, direction) as Exclude<T, 'start' | 'end'> | Region;
+  stagePalettes.set(scene, () => ({ ...colors }));
+  /** The look of the palette as it is now: computed again only when a colour of it changes. */
+  const paletteKey = (p: Palette) => `${p.paper} ${p.ink} ${p.accent} ${p.muted}`;
+  let looked = { from: paletteKey(colors), look: lookOf(colors) };
+  // Engine defaults (a Text with no colour, an Axes, a SurroundingRectangle) take the stage's palette.
+  scene.colors = sceneColors(colors);
+  scene.add(backdrop);
   let heading = first.heading;
   let chrome: Mobject[] = [];
   /**
@@ -293,10 +314,15 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     for (const m of [heading, ...chrome]) home.delete(m);
     heading = next.heading;
     chrome = next.chrome;
-    unkeepHeading();
+    // The old heading stays on top until it has faded out: something added in the same play draws under it, as under the new one.
+    const unkeepOld = unkeepHeading;
     unkeepHeading = scene.keepOnTop(heading, ...chrome);
     if (!text) scene.add(heading);
-    if (anims.length) await scene.play(...anims);
+    try {
+      if (anims.length) await scene.play(...anims);
+    } finally {
+      unkeepOld();
+    }
   }
   // Follow step titles (and lines) without asking authors to repeat them.
   if (mode === 'step')
@@ -776,8 +802,6 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     },
   };
   bindStagePalette(api, () => colors);
-  // Options refused above leave the scene without a stage, free to have one.
-  staged.add(scene);
   return api;
 }
 /** The stage on a `Scene<S, Sh>`; a bare `Stage` is the stage on any scene, as kit functions take it. */

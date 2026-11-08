@@ -91,10 +91,10 @@ test('loadProject holds every scenario to the step rules the command holds', asy
     static meta = { id: 'still' };
     override async construct() { await this.step('one', { caption: 'One.' }); await this.step('empty'); await this.step('two', { caption: 'Two.' }); }
   }
-  await assert.rejects(loadProject(Still, 'test/fixtures/no-such-explainer'), /^Error: this\.step\(\): step "empty" of the scenario \{\} draws no frame of its own/);
+  await assert.rejects(loadProject(Still, 'test/fixtures/no-such-explainer'), /^Error: loadProject\(\): step "empty" of the scenario \{\} draws no frame of its own/);
   class Twice extends Scene {
     static meta = { id: 'twice' };
     override async construct() { await this.step('Push', { caption: 'One.' }); await this.step('push', { caption: 'Two.' }); }
   }
-  await assert.rejects(loadProject(Twice, 'test/fixtures/no-such-explainer'), /share the name "push", ignoring case/);
+  await assert.rejects(loadProject(Twice, 'test/fixtures/no-such-explainer'), /^Error: loadProject\(\): two steps of the scenario \{\} share the name "push", ignoring case/);
 });

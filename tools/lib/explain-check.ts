@@ -5,7 +5,7 @@ import { describesItself, seenSource } from '../../explain/look.ts';
 import { restingRouteProblems } from './explain-layout.ts';
 import { letteringWeight } from './lettering.ts';
 import { sceneEntry } from './scene-entry.ts';
-import { isHeading } from '../../explain/stage.ts';
+import { isHeading, withoutHeading } from '../../explain/stage.ts';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
@@ -385,10 +385,7 @@ export class RestingSink implements Sink {
   async frame(): Promise<void> {}
   async stepEnd(scene: Scene, step: Step): Promise<void> {
     // The resting picture of a step, without the heading (number, title, line) that names it.
-    const all = scene.mobjects;
-    scene.mobjects = all.filter((m) => !isHeading(m));
-    this.resting.set(step.path, toSvgString(scene));
-    scene.mobjects = all;
+    this.resting.set(step.path, withoutHeading(scene, () => toSvgString(scene)));
     this.restingText.set(step.path, renderText(scene));
     this.collisions.push(
       ...[...restingTextProblems(scene), ...restingRouteProblems(scene)].map((p) => `${step.name}: ${p}`),
@@ -735,9 +732,9 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     const capture = new FrameCaptureSink(
       new Set(
         v.trace.steps.flatMap((s) => [
-          s.frame0 + Math.max(1, Math.floor((s.frame1! - s.frame0) / 2)),
-          Math.max(s.frame0 + 1, s.frame1! - 1),
-          s.frame1!,
+          s.frame0 + Math.max(1, Math.floor((s.frame1 - s.frame0) / 2)),
+          Math.max(s.frame0 + 1, s.frame1 - 1),
+          s.frame1,
         ]),
       ),
     );
@@ -762,7 +759,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     // nothing may change after it. A play lands after its last frame is drawn (a morph gets its
     // paths' own structure back), so the first held frame is the resting picture, as in render.
     const holdSink = new HoldSink(
-      v.trace.steps.flatMap((s) => (s.holdFrame != null ? [{ step: s.step, from: s.holdFrame + 1, to: s.frame1! }] : [])),
+      v.trace.steps.flatMap((s) => (s.holdFrame != null ? [{ step: s.step, from: s.holdFrame + 1, to: s.frame1 }] : [])),
     );
     // One full run feeds every check, each a sink of its own, in this order: the step's resting
     // picture is read as the step ends, landing first, before views and keys redraw anything.

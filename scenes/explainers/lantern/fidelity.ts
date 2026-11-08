@@ -15,7 +15,7 @@ export async function check(trace: Trace, values: Record<string, string>, { walk
   const nudge = values.motion === 'nudge';
   assertStepState(trace, 'seek', {
     seek: {
-      ...(trace.steps.find((s) => s.step === 'seek')!.after!.seek as object),
+      ...(trace.steps.find((s) => s.step === 'seek')!.after.seek as object),
       motion: values.motion,
       match: !nudge,
       playedMoves: nudge ? 15 : 0,

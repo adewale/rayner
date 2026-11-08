@@ -17,8 +17,9 @@ import { dryRun } from './timeline.ts';
  */
 export interface StepRecord<S extends object = SceneState, Sh extends object = SceneState> {
   step: string;
+  /** When the step began and ended, in seconds and frames (Step's `t0`, `frame0`, `t1` and `frame1`); a trace holds only steps that ended. */
   t0: number; frame0: number;
-  t1?: number; frame1?: number;
+  t1: number; frame1: number;
   /** When the caption-reading hold began, if there was one. */
   hold?: number;
   /** The frame the caption hold began on, with `hold` (Step.holdFrame). */
@@ -26,7 +27,7 @@ export interface StepRecord<S extends object = SceneState, Sh extends object = S
   meta: StepMeta;
   /** The model when the step began and when it ended (Scene.stateJson). */
   before: S;
-  after?: S;
+  after: S;
   /** What was shown when the step ended, apart from the model (Scene.shownJson); absent when nothing was. */
   shown?: Sh;
   /** What the step recorded with Scene.record(), when it recorded anything. */
@@ -62,30 +63,34 @@ export type TraceOf<C> = 0 extends 1 & C ? Trace
 export type AtRest = (scene: Scene, step: Step) => unknown;
 
 export class TraceSink implements Sink {
-  /** @internal Each step's record, in order; a step's end completes the record its beginning made. */
+  /** @internal Each ended step's record, in order: steps follow one another, so they end in the order they began. */
   records: StepRecord[];
-  /** @internal The record of each step begun, by the scene's own Step. */
-  private readonly of: Map<Step, StepRecord>;
+  /** @internal What each step begun and not yet ended recorded as it began, by the scene's own Step. */
+  private readonly begun: Map<Step, Pick<StepRecord, 'step' | 't0' | 'frame0' | 'meta' | 'before'>>;
   /** @internal */ private readonly atRest: AtRest | undefined;
-  constructor(atRest?: AtRest) { this.records = []; this.of = new Map(); this.atRest = atRest; }
+  constructor(atRest?: AtRest) { this.records = []; this.begun = new Map(); this.atRest = atRest; }
   async frame(): Promise<void> {}
   async stepBegin(scene: Scene, s: Step): Promise<void> {
-    const record: StepRecord = { step: s.path, t0: round(scene.time), frame0: scene.frameCount, meta: s.meta, before: scene.stateJson() };
-    this.records.push(record);
-    this.of.set(s, record);
+    this.begun.set(s, { step: s.path, t0: round(scene.time), frame0: scene.frameCount, meta: s.meta, before: scene.stateJson() });
   }
   async stepEnd(scene: Scene, s: Step): Promise<void> {
-    const record = this.of.get(s);
-    if (!record) return;
-    record.t1 = round(scene.time); record.frame1 = scene.frameCount;
-    if (s.hold != null) { record.hold = round(s.hold); record.holdFrame = s.holdFrame!; }
-    record.after = scene.stateJson();
-    const shown = scene.shownJson();
-    if (Object.keys(shown).length) record.shown = shown;
-    if (s.evidence?.length) record.evidence = s.evidence.slice();
+    const begun = this.begun.get(s);
+    if (!begun) return;
+    this.begun.delete(s);
+    // The keys in the order a trace has always written them: what began, then how it ended.
+    const after = scene.stateJson(), shown = scene.shownJson();
+    const record: StepRecord = {
+      ...begun,
+      t1: round(scene.time), frame1: scene.frameCount,
+      ...(s.hold != null && s.holdFrame != null ? { hold: round(s.hold), holdFrame: s.holdFrame } : {}),
+      after,
+      ...(Object.keys(shown).length ? { shown } : {}),
+      ...(s.evidence?.length ? { evidence: s.evidence.slice() } : {}),
+    };
+    this.records.push(record);
     await this.atRest?.(scene, s);
   }
-  /** One entry per step with its begin and end state. */
+  /** One entry per step that ended, with its begin and end state. */
   steps(): StepRecord[] { return this.records; }
 }
 

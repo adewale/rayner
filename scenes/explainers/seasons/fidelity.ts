@@ -20,7 +20,7 @@ export async function check(trace: TraceOf<typeof SeasonsExplainer>, values: Rec
   assertStepState(trace, 'december', { noonShare: { june: noonShare(lat, 23.44), december: noonShare(lat, -23.44) } });
   // The ground each 1 m noon beam lands on, drawn side by side; null where the noon Sun is down (Tromsø's December).
   assertStepState(trace, 'spread', { patch: { june: noonPatch(lat, 23.44), december: noonPatch(lat, -23.44) } });
-  assert.equal(lat === 69.65, having(trace.steps.find((s) => s.step === 'spread')!.after!, 'patch').patch.december === null);
+  assert.equal(lat === 69.65, having(trace.steps.find((s) => s.step === 'spread')!.after, 'patch').patch.december === null);
   const orbit = Array.from({ length: 365 }, (_, d) => sunDistance(d));
   assertStepState(trace, 'distance', { distance: { nearest: Math.min(...orbit), farthest: Math.max(...orbit) } });
   // The first check question: London's December-solstice noon share, 26% at average distance, is about 27% once
@@ -54,7 +54,7 @@ export async function check(trace: TraceOf<typeof SeasonsExplainer>, values: Rec
     polarDay: days.filter((h) => h === 24).length,
     polarNight: days.filter((h) => h === 0).length,
   });
-  if (lat === 69.65) assert.ok(having(trace.steps.find((s) => s.step === 'year')!.after!, 'polarDay').polarDay > 50);
+  if (lat === 69.65) assert.ok(having(trace.steps.find((s) => s.step === 'year')!.after, 'polarDay').polarDay > 50);
   await seasonsArithmetic(trace, scenario.Scene);
 }
 

@@ -12,7 +12,7 @@ export function check(trace:Trace,values:Record<string,string>) {
   assertSteps(trace,['choice','predict','rounds','odds','worlds']);
   for(const step of trace.steps) {
     // Which picture is showing is not part of the model; monty-hall names it in shown.
-    assert.equal(step.after!.phase,undefined,`monty-hall/${step.step}: no phase in the model`);
+    assert.equal(step.after.phase,undefined,`monty-hall/${step.step}: no phase in the model`);
     assert.equal(step.shown?.phase,step.step,`monty-hall/${step.step}: shown names the picture`);
   }
   const host=values.host as Host,choice=0,example=montyExample(choice,'switch');

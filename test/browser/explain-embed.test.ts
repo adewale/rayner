@@ -761,7 +761,7 @@ test('arrow keys inside the step bar move the step and the focus', options, asyn
 test('pressing the current segment while a step plays rests the picture', options, async () => {
   const p = projects.get('mr-cache')!,
     step = p.scenarios.find((v) => v.values.request === 'hit')!.trace.steps[1]!,
-    motion = (step.hold ?? step.t1!) - step.t0;
+    motion = (step.hold ?? step.t1) - step.t0;
   assert.equal(step.step, 'reader-outcome');
   await readerContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'no-preference' }, async context => {
 
