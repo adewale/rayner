@@ -5,6 +5,7 @@
 import { join } from 'node:path';
 import type { Project } from './explain-project.ts';
 import type { ShippedScenario } from '../../app/embed.ts';
+import { playerTrace } from '../../app/embed-trace.ts';
 import type { LetteringSnapshot, PackedLetteringSnapshot } from '../../src/lettering-outlines.ts';
 import type { SnapshotStore } from '../../integrations/agentic-mermaid/snapshot.ts';
 import { pageSnapshot } from './lettering.ts';
@@ -53,23 +54,16 @@ function shippedOutlines(project: Project): Promise<PackedLetteringSnapshot> | u
 
 /**
  * What the page ships of a scenario the build traced: its settings, its trace as the player reads
- * it, the stage's palette and paper, and each live step's machine by its place. The player reads a
- * step's state only for the changes it shows (`meta.watch`), so each step's state before and after
- * keeps only the watched keys (none without `meta.watch`), and the evidence only `rayner check`
- * reads is left out: a scene whose state holds a drawing's points would otherwise ship them all.
- * The page's own run of the scenario must give the same trace: `rayner check` runs the page's
- * entry in its bare runtime and compares that run with the build's trace.
+ * it (`playerTrace`: each step's state keeps only the watched keys, and no evidence, as every
+ * scenario the page runs itself), the stage's palette and paper, and each live step's machine by
+ * its place. The page's own run of the scenario must give the same trace: `rayner check` runs the
+ * page's entry in its bare runtime and compares that run with the build's trace.
  */
 export function shippedScenario(project: Project, scenario: Project['scenarios'][number]): ShippedScenario {
-  const { values, trace, palette, paper, live } = scenario,
-    watched = Object.keys(project.Scene.meta?.watch ?? {});
-  const keep = (state: Record<string, unknown> | undefined) => state && Object.fromEntries(watched.filter((key) => Object.hasOwn(state, key)).map((key) => [key, state[key]]));
+  const { values, trace, palette, paper, live } = scenario;
   return {
     values,
-    trace: {
-      ...trace,
-      steps: trace.steps.map(({ evidence: _, before, after, ...step }) => ({ ...step, ...(watched.length ? { before: keep(before)!, ...(after ? { after: keep(after) } : {}) } : { before: {} }) })),
-    },
+    trace: playerTrace(trace, project.Scene.meta?.watch),
     ...(palette ? { palette } : {}),
     ...(paper ? { paper } : {}),
     live: [...(live ?? [])].map(([step, { index, identity }]) => [step, { index, identity }]),
