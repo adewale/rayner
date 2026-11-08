@@ -11,6 +11,7 @@ import type { ColorRole, SceneColors } from './color.ts';
 import { perf } from './perf.ts';
 import { center, pointsBox } from './box.ts';
 import type { Box } from './box.ts';
+import { FRAME } from './units.ts';
 import type { MergedCache } from './svg.ts';
 
 let nextId = 1;
@@ -414,7 +415,7 @@ export class Mobject {
     return this.shift([direction[0] ? tp[0] - mp[0] : 0, direction[1] ? tp[1] - mp[1] : 0]);
   }
 
-  toEdge(direction: Readonly<Vec>, buff = 0.5, frame: { w: number; h: number } = { w: 16, h: 9 }): this {
+  toEdge(direction: Readonly<Vec>, buff = 0.5, frame: { w: number; h: number } = FRAME): this {
     const edge: Vec = [direction[0] * frame.w / 2, direction[1] * frame.h / 2];
     const mine = this.boxPoint(direction);
     const s = V.sub(edge, mine);

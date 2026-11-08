@@ -2,6 +2,7 @@ import type { LetteringRequest } from '../src/lettering-outlines.ts';
 import type { Scene, SceneClass } from '../src/index.ts';
 import { useDiagrams, snapshotResolver } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { SnapshotStore, DiagramResolver } from '../integrations/agentic-mermaid/snapshot.ts';
+import { PAGE_QUERY } from './page-query.ts';
 
 export interface Setting {
   id: string;
@@ -121,12 +122,6 @@ export function checkExplainerMeta(meta: unknown): void {
 }
 /** Settings bound by `withSettings`, per bound class: visible from the first line of any constructor. */
 const bound = new WeakMap<object, Settings>();
-/**
- * The query keys a page reads itself, beside its settings: the step, the events a reader sent
- * at a live step (app/embed-live.ts), the embedding host's origin and the theme. No setting may
- * take one as its id.
- */
-export const PAGE_QUERY = { step: 'step', sent: 'sent', parentOrigin: 'parentOrigin', theme: 'theme' } as const;
 const reserved = new Set<string>(Object.values(PAGE_QUERY));
 /** A page's query for a scenario's `values` at `step` (the scenario's first step without one), without the `?`. */
 export const stepQuery = (values: Readonly<Record<string, string>>, step?: string): string =>

@@ -7,7 +7,7 @@
 
 import { Mobject } from './mobject.ts';
 import type { Box } from './mobject.ts';
-import { FRAME, STAGE_BOX } from './svg.ts';
+import { FRAME, STAGE_BOX } from './units.ts';
 import { center } from './box.ts';
 
 export interface FrameFitOpts {

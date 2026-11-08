@@ -244,6 +244,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - The SVG writer writes a straight segment as `L`, where it wrote a cubic, in the poster and on the live stage alike: font-metrics' page is 16 KB smaller gzipped, lru-mru's 2.6 KB.
 - No page ships the shaper's Brotli decoder: every page uses the SFNT faces, and the build converts a lettered page's WOFF2 cuts and subsets to SFNT. feature-tour's page is 259 KB gzipped, where it was 319 KB; font-metrics' 316 KB, where it was 390 KB. [Embedded browser fonts](docs/ENGINE.md#embedded-browser-fonts)
 - `rayner check`'s bare runtime bundles the scene once per explainer, as the page bundles it (its SFNT faces and its diagram code), runs each scenario in a fresh context, and fails a trace whose steps differ in time, hold, state or what they show, or a last frame drawn differently; it compared only step names, the final state and that something was drawn.
+- The frame, its home box and the SVG units come from `src/units.ts`, the page's query keys from `explain/page-query.ts`, and a scene's default id from `sceneIdOf`, where the stage, the player, the check and the host loader each wrote their own copy; a machine's landing lasts one of the scene's frames, not a fixed 1/30 s. [Layers](docs/ENGINE.md#layers)
 
 ### Removed from the public API
 

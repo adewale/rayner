@@ -1,6 +1,7 @@
 import { STEP_TYPE, exactHttpOrigin, gotoMessage, resizeHeight, stepDetail } from './embed-protocol.ts';
 import type { StepDetail } from './embed-protocol.ts';
 import { chromeFor } from './embed-strings.ts';
+import { PAGE_QUERY } from '../explain/page-query.ts';
 
 /**
  * Optional host-side convenience. Never required by the artifact itself. It adds the iframe and
@@ -20,10 +21,10 @@ export function mountExplainer(
   const url = new URL(src, document.baseURI);
   const origin = exactHttpOrigin(url.origin);
   if (!origin) throw new Error('Auto-sizing requires an HTTP(S) artifact URL');
-  url.searchParams.set('parentOrigin', location.origin);
+  url.searchParams.set(PAGE_QUERY.parentOrigin, location.origin);
   // The frame is transparent; Chromium paints an opaque canvas under a cross-origin frame whose
   // colour scheme differs from its host's, so 'auto' means the host page's scheme, not the device's.
-  url.searchParams.set('theme', options.theme && options.theme !== 'auto' ? options.theme : hostScheme());
+  url.searchParams.set(PAGE_QUERY.theme, options.theme && options.theme !== 'auto' ? options.theme : hostScheme());
   const frame = document.createElement('iframe');
   frame.title = options.title;
   frame.loading = 'lazy';

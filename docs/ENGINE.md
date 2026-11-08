@@ -47,7 +47,7 @@ The code is a stack, and each layer imports only the layers under it. From the b
 | --- | --- | --- |
 | Engine | `src/` | Nothing else in the repository but the vendored shaper, `vendor/glyph.js` |
 | Diagram replay | `integrations/agentic-mermaid/snapshot.ts` and `text.ts`: snapshot types, keys, validation and findings, and a captured label's text | The engine |
-| Explain core | `explain/`: `view.ts`, `state.ts`, `machine.ts`, `choreograph.ts` (views, machines and state); `action.ts` (what a stage or diagram action returns); `look.ts`, `palettes.ts`, `layout-direction.ts` (the look); `words.ts`, `trace.ts`, `script.ts`, `claims.ts`, `caption-looks.ts` (words); `settings.ts`, `intent.ts`, `mermaid.ts`, `audio.ts`, `score.ts` | The engine and diagram replay |
+| Explain core | `explain/`: `view.ts`, `state.ts`, `machine.ts`, `choreograph.ts` (views, machines and state); `action.ts` (what a stage or diagram action returns); `look.ts`, `palettes.ts`, `layout-direction.ts` (the look); `words.ts`, `trace.ts`, `script.ts`, `claims.ts`, `caption-looks.ts` (words); `settings.ts`, `page-query.ts`, `intent.ts`, `mermaid.ts`, `audio.ts`, `score.ts` | The engine and diagram replay |
 | Diagrams and panels | `explain/diagrams.ts`, `explain/panels.ts` | The core, diagram replay and the engine |
 | Drawing kit | `explain/drawing.ts`, `explain/annotate.ts`, `explain/geo.ts`, `explain/seen-from.ts` | Diagrams and panels, the core and the engine |
 | Stage | `explain/stage.ts`, and `explain/index.ts`, the `rayner/explain` entry point | Every layer above |
@@ -56,6 +56,8 @@ The code is a stack, and each layer imports only the layers under it. From the b
 | Command and tools | `tools/` (the command, `rayner-cli`), `integrations/agentic-mermaid/build/` (diagram capture, which the command runs), `tools/repo/` (repository only) | Anything; the command imports nothing repository-only |
 
 An entry point re-exports from its own layer and the layers under it. The library (the first seven layers) imports no package and no Node module, which is how `rayner` has no dependencies and runs in a page; `loadProject` and `loadSnapshots` in `rayner/testing` read files through `process.getBuiltinModule` when they are called, so they alone need Node. The player imports only the library. Diagram replay sits under the explain core, not beside the command: the core's settings bind snapshots through it, the diagrams and the stage read its snapshot types, and what the page replays needs nothing from capture. `test/layers.test.ts` holds these rules for the engine, diagram replay, every module under `explain/` (the test reads the table above, so a new module must be placed in one of its rows, and a row may name only modules that exist) and the player. `test/package-boundary.test.ts` holds the command to its bundle and the library to its entry points, and `test/scene-imports.test.ts` holds scenes to the entry points.
+
+A constant more than one layer needs has one source, a module that imports nothing: the frame, its home box and the SVG units per scene unit in `src/units.ts`, and the query keys a page reads itself in `explain/page-query.ts`, which the host loader reads without pulling in explainer code. A scene's default id is `sceneIdOf` in `explain/project.ts`, which `loadProject` and the command share. `test/constants.test.ts` searches the layers for copies.
 
 Where the code departs from the stack:
 

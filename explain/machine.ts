@@ -310,22 +310,19 @@ class WhenItsTurnComes extends Animation {
   override evidence(): Evidence | null { return this.made?.evidence() ?? null; }
 }
 
-/** How long the views take to land after an authored transition: one frame's worth. */
-const LAND = 1 / 30;
-
 /**
  * The views take the pictures of the state reached, with no motion: an authored transition already
  * brought what is on screen there (rayner check holds it to that). Each keyed part takes its drawn
  * counterpart's data in place (a morphed Text gets its new string) and the parts go back into the
  * drawn picture's stacking order, so every part keeps its identity for the next event. A picture
  * whose parts do not line up by key (one unkeyed, or a key two siblings share) is swapped for the
- * drawn one instead.
+ * drawn one instead. The landing lasts one of the scene's frames.
  */
 class Landing extends Animation {
   views: readonly View[];
   scene: Scene<any>;
   constructor(scene: Scene<any>, views: readonly View[]) {
-    super(views[0] ?? new Group(), { runTime: LAND, rateFunc: linear });
+    super(views[0] ?? new Group(), { runTime: 1 / scene.fps, rateFunc: linear });
     this.scene = scene; this.views = views;
   }
   override begin(): void {}

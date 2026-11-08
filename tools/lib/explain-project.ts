@@ -6,7 +6,7 @@ import type { LetteringSnapshot } from '../../src/lettering-outlines.ts';
 import { build } from 'esbuild';
 import type { Plugin } from 'esbuild';
 import { readFile, writeFile, mkdir, stat, readdir, rm, rename, rmdir } from 'node:fs/promises';
-import { dirname, resolve, join, basename, relative, sep } from 'node:path';
+import { dirname, resolve, join, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -17,7 +17,7 @@ import { traceRun } from '../../src/trace.ts';
 import type { Palette } from '../../src/color.ts';
 import { paperOf, paletteOf } from '../../explain/stage.ts';
 import { checkWatch } from '../../explain/trace.ts';
-import { readSnapshotStore } from '../../explain/project.ts';
+import { readSnapshotStore, sceneIdOf } from '../../explain/project.ts';
 import { checkScriptMeta, checkStepMeta } from '../../explain/script.ts';
 import { checkExplainerMeta } from '../../explain/settings.ts';
 import { checkClaimsMeta } from '../../explain/claims.ts';
@@ -253,7 +253,7 @@ export async function collectProject(
   // An explainer's id is its folder's name (or its file's, for a scene not named scene.ts), unless it declares one.
   const ownMeta = (loaded.Scene as { meta?: Record<string, unknown> }).meta;
   if (ownMeta?.id === undefined)
-    (loaded.Scene as { meta?: Record<string, unknown> }).meta = { ...ownMeta, id: basename(file) === 'scene.ts' ? basename(dirname(file)) : basename(file).replace(/\.[^.]+$/, '') };
+    (loaded.Scene as { meta?: Record<string, unknown> }).meta = { ...ownMeta, id: sceneIdOf(file) };
   const outlineRequested = usesOutlineLettering(loaded.Scene);
   const outline = outlineRequested
     ? await prepareOutlineLettering(loaded.Scene, file, captureLettering, write) : undefined;
@@ -425,7 +425,7 @@ export function defaultScenario(project: Project, values: Settings = {}) {
   const want = resolveSettings(project.Scene, values);
   return project.scenarios.find((v) => Object.keys(want).every((key) => v.values[key] === want[key]))!;
 }
-export const sceneSlug = (p: Project) => p.Scene.meta?.id ?? basename(p.file).replace(/\.[^.]+$/, '');
+export const sceneSlug = (p: Project) => p.Scene.meta?.id ?? sceneIdOf(p.file);
 /** The fields every page receipt carries: what was built, from which sources. */
 export const baseReceipt = (p: Project) => ({
   version: 1,

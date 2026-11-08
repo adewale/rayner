@@ -70,9 +70,8 @@ export async function loadProject<C extends SceneClass>(Explainer: C, where: str
   const folder = file.replace(/[^/\\]*$/, ''),
     script = await read(folder + 'script.md');
   if (script !== null) withIntent(Scene as { meta?: Record<string, unknown> }, script, folder + 'script.md');
-  // Its id is its folder's name (or its file's, for a scene not named scene.ts) unless it declares one, as the command has it.
-  const fileName = file.slice(folder.length),
-    id = fileName === 'scene.ts' ? folder.replace(/[/\\]+$/, '').replace(/^.*[/\\]/, '') : fileName.replace(/\.[^.]+$/, '');
+  // Its id is sceneIdOf(file) unless it declares one, as the command has it.
+  const id = sceneIdOf(file);
   if (Scene.meta?.id === undefined && id) Scene.meta = { ...Scene.meta, id };
   const snapshots = await readSnapshotStore((name) => read(`${baseOf(file)}.snapshots/${name}`));
   const { Lettered, faces } = await pinnedLettering(Scene, file, read);
@@ -100,6 +99,15 @@ export async function loadProject<C extends SceneClass>(Explainer: C, where: str
   };
   // Each trace holds the states the scene class declares, which stateJson() validated as JSON.
   return project as ProjectOf<C>;
+}
+
+/**
+ * A scene's id when its meta declares none: its folder's name for a file named scene.ts, else its
+ * file's name without the extension. loadProject and the rayner command both name a scene by it.
+ */
+export function sceneIdOf(file: string): string {
+  const parts = file.split(/[/\\]+/).filter(Boolean), name = parts.at(-1) ?? '';
+  return name === 'scene.ts' ? parts.at(-2) ?? '' : name.replace(/\.[^.]+$/, '');
 }
 
 /**

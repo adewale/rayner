@@ -27,7 +27,7 @@ import { copiedFrom } from './animation.ts';
 import type { Box, HasText, Mobject } from './mobject.ts';
 import { mobjectName, paintsFill, paintsStroke } from './mobject.ts';
 import type { Scene, Sink, Step } from './scene.ts';
-import { FRAME } from './svg.ts';
+import { FRAME } from './units.ts';
 import { pad } from './box.ts';
 
 /** Thresholds for analyzeMotion(); see DEFAULTS. */
