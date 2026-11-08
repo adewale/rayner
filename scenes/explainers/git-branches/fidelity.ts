@@ -12,7 +12,7 @@ export function check(trace:Trace,values:Record<string,string>) {
   assertSteps(trace,values.history==='diverged'?['question','lost','merge','countercase']:['question','merge','countercase']);
   for(const step of trace.steps) {
     // Which picture is showing is not part of the model.
-    assert.equal(step.after!.phase,undefined,`git-branches/${step.step}: no phase in the model`);
+    assert.equal(step.after.phase,undefined,`git-branches/${step.step}: no phase in the model`);
   }
   const advanced=values.history==='diverged',frames=gitStory(advanced);
   // The opening question shows the history just before the merge (the old main and predict steps);

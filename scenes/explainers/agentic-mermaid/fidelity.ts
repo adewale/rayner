@@ -8,7 +8,7 @@ import type { FidelityRun } from '../../../test/lib/fidelity.ts';
 
 /** Each authored scenario's steps against the program the explainer explains. */
 export async function check(trace: TraceOf<typeof MermaidExplainer>, values: Record<string, string>, { scenario }: FidelityRun): Promise<void> {
-  const { warnings } = having(trace.steps.find((s) => s.step === 'verify')!.after!, 'warnings');
+  const { warnings } = having(trace.steps.find((s) => s.step === 'verify')!.after, 'warnings');
   assert.equal(warnings.length, values.edit === 'missing' ? 2 : 0);
   // The swapped labels draw the wrong diagram and the verifier still finds nothing.
   assertStepState(trace, 'meaning', { swappedWarnings: 0 });

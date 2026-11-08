@@ -137,7 +137,7 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
     steps: StepDescription[] = [];
   for (const s of trace.steps) {
     const before = s.before,
-      after = s.after ?? {},
+      after = s.after,
       shown = withoutPicture(s.shown),
       changed: StepDescription['changed'] = {};
     for (const k of new Set([...Object.keys(before), ...Object.keys(after)]))
@@ -150,7 +150,7 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
       line: words.line,
       caption: words.caption,
       start: s.t0,
-      end: s.t1 ?? trace.duration,
+      end: s.t1,
       ...(s.hold == null ? {} : { hold: s.hold }),
       state: after,
       ...(Object.keys(shown).length ? { shown } : {}),

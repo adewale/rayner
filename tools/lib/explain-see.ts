@@ -50,7 +50,7 @@ export async function seeStep(project: Project, v: Scenario, step?: string): Pro
 export async function stepSvg(v: Scenario, step?: string): Promise<string> {
   const s = step == null ? v.trace.steps.at(-1)! : v.trace.steps.find((x) => x.step === step)!;
   const sink: Sink = { async frame() {} };
-  const scene: Scene = await renderFrame(v.Scene, s.frame1!, sink);
+  const scene: Scene = await renderFrame(v.Scene, s.frame1, sink);
   scene.mobjects = scene.mobjects.filter((m) => !isHeading(m));
   return toSvgString(scene);
 }

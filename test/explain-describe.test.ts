@@ -27,7 +27,7 @@ test('describeExplainer gives every scenario and step: the words, the state the 
       assert.equal(s.title, t.meta.title);
       assert.equal(s.line, t.meta.line ?? '', `${s.step}: the line under the title`);
       assert.equal(s.caption, t.meta.caption);
-      const state = t.after ?? {}, picture = t.shown?.picture;
+      const state = t.after, picture = t.shown?.picture;
       assert.deepEqual(s.state, state, `${s.step}: state is the trace's model; the picture is traced as shown`);
       assert.ok(picture === undefined || s.picture.length > 0, `${s.step}: the picture in words`);
       const before = t.before;

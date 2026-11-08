@@ -40,9 +40,10 @@ export interface StepMeta {
 
 /**
  * The frame a step's picture stops changing on: where its caption hold begins, else its last
- * frame, `frame1`, which a link to the step shows and every check judges. Players stop here.
+ * frame, `frame1`, which a link to the step shows and every check judges. Players stop here. A
+ * step still running (a live Step, whose `frame1` is null) has not stopped: Infinity.
  */
-export const stillFrame = (step: { holdFrame?: number | null; frame1?: number | null }): number => step.holdFrame ?? step.frame1!;
+export const stillFrame = (step: { holdFrame?: number | null; frame1?: number | null }): number => step.holdFrame ?? step.frame1 ?? Infinity;
 
 /** A named step: from `step()` to the next step or the end of the scene. */
 export interface Step {

@@ -19,7 +19,7 @@ class ShownSink extends TraceSink {
     const draw = this.draw ?? v.draw;
     // The state this step's trace entry records as `after`
     const end = this.records.at(-1)!;
-    this.checks.push({ mismatch: viewMismatch(v, end.after!, { shown: end.shown ?? {}, draw }) });
+    this.checks.push({ mismatch: viewMismatch(v, end.after, { shown: end.shown ?? {}, draw }) });
   }
 }
 

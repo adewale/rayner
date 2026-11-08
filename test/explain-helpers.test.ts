@@ -73,8 +73,8 @@ test('a stage with no style takes its first diagram’s paper; hidden parts stay
     }
   }
   const trace = await traceScene(bindSnapshots(Demo, { [diagramKey(spec)]: fixture() }));
-  assert.deepEqual(trace.steps[0]!.after!.walks, [{ step: 'frame', from: 'A', to: 'B', edge: 'edge:A->B#0' }]);
-  assert.equal(trace.steps[0]!.after!.answer, 42);
+  assert.deepEqual(trace.steps[0]!.after.walks, [{ step: 'frame', from: 'A', to: 'B', edge: 'edge:A->B#0' }]);
+  assert.equal(trace.steps[0]!.after.answer, 42);
   // A scene's own walks key is refused, at the walk or when a later state brings one, not replaced.
   class Own extends Scene {
     override state = { walks: 'mine' };
@@ -786,7 +786,7 @@ test('loadProject draws a scene\'s lettering from the scene.lettering.json besid
   // Outline lettering: font-metrics' italic and its Garamond measurements need its snapshot, which the class alone lacks.
   await assert.rejects(traceScene(FontMetrics), /new ItalicText\(\): it needs meta\.lettering\.styles/);
   const metrics = await loadProject(FontMetrics, 'scenes/explainers/font-metrics');
-  const { layout } = metrics.scenario().trace.steps.find((s) => s.step === 'layout')!.after!;
+  const { layout } = metrics.scenario().trace.steps.find((s) => s.step === 'layout')!.after;
   assert.ok(layout.actual < layout.wrong, `Garamond ${layout.actual} is narrower than JetBrains Mono ${layout.wrong}`);
   // Subset lettering: the pinned Greek cuts draw every Greek letter during the runs, and the embedded faces, which draw none, return after.
   takeMissingGlyphs();

@@ -25,7 +25,7 @@ const colours = (rgba: Uint8Array) => {
 const project = await collectProject('scenes/explainers/wcag-map', { write: false }),
   scenario = defaultScenario(project),
   step = scenario.trace.steps.find((s) => s.step === 'open')!,
-  picture = await cardPicture(scenario.Scene, step.frame1!);
+  picture = await cardPicture(scenario.Scene, step.frame1);
 
 // Over all 175 step pictures, no channel of any pixel moved more than 11 levels (of 255); most
 // moved 2 or fewer. 16 leaves room for a scene change without letting a real regression through:
@@ -48,7 +48,7 @@ test('a step picture as a palette PNG: the same bytes every time, under 60% of t
 });
 
 test('demos:build writes the step pictures as palette PNGs', async () => {
-  const png = await cardPng(scenario.Scene, step.frame1!);
+  const png = await cardPng(scenario.Scene, step.frame1);
   assert.equal(png[25], 3, 'PNG colour type 3: palette');
   assert.deepEqual(png, palettePng(picture.pixels, picture.width, picture.height));
 });

@@ -357,7 +357,7 @@ test('exploration checks a machine on the stage where it last played, not the st
   const trace = await traceScene(Cleared);
   const [explored] = await exploreMachines(ran, async (step) => {
     const s = trace.steps.find((x) => x.step === step)!;
-    return renderFrame(Cleared, s.frame1!, new NullSink());
+    return renderFrame(Cleared, s.frame1, new NullSink());
   });
   assert.deepEqual(explored!.problems, []);
   assert.equal(explored!.states, 3);
@@ -476,7 +476,7 @@ test('exploration also walks the states a reader reaches from the live step, not
   const trace = await traceScene(FromStep);
   const stageOf = async (step: string) => {
     const s = trace.steps.find((x) => x.step === step)!;
-    return renderFrame(FromStep, s.frame1!, new NullSink());
+    return renderFrame(FromStep, s.frame1, new NullSink());
   };
   const [explored] = await exploreMachines(ran, stageOf);
   assert.ok(explored!.problems.some((p) => /^from the state at "press", at the start: “lamp dim” is .* px/.test(p)), JSON.stringify(explored!.problems));

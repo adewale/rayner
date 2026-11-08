@@ -335,7 +335,7 @@ test('each step records its hold and rest frames exactly, and the trace carries 
   const trace = await traceScene(Timed);
   const [held, unheld] = trace.steps;
   assert.equal(held!.holdFrame, 15);
-  assert.ok(held!.frame1! > held!.holdFrame!);
+  assert.ok(held!.frame1 > held!.holdFrame!);
   assert.equal(stillFrame(held!), held!.holdFrame);
   // With no hold there is no hold frame, and the picture stops on the last frame.
   assert.equal(unheld!.hold, undefined);
@@ -348,8 +348,8 @@ test('each step records its hold and rest frames exactly, and the trace carries 
   await new Timed({ async frame(scene) { await full.frame(scene); frames[scene.frameCount] = full.svg; } }).run();
   for (const s of trace.steps) {
     const sink = new SnapshotSink();
-    await renderFrame(Timed, s.frame1!, sink);
-    assert.equal(sink.svg, frames[s.frame1!], s.step);
+    await renderFrame(Timed, s.frame1, sink);
+    assert.equal(sink.svg, frames[s.frame1], s.step);
   }
 });
 
@@ -367,7 +367,7 @@ test('a step that draws no frame of its own rests on the frame it began (collect
   assert.equal(nothing.frame1, nothing.frame0);
   assert.equal(nothing.frame1, trace.steps[0]!.frame1, 'the step before\'s last frame');
   // A caption alone holds, so the step draws its own frames.
-  assert.ok(trace.steps[2]!.frame1! > trace.steps[2]!.frame0);
+  assert.ok(trace.steps[2]!.frame1 > trace.steps[2]!.frame0);
 });
 
 // ---- step metadata ---------------------------------------------------------
