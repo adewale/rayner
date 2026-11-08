@@ -11,6 +11,7 @@ import * as V from './vec.ts';
 import type { Vec } from './vec.ts';
 import { perf } from './perf.ts';
 import { center, pointsBox } from './box.ts';
+import { UNITS } from './units.ts';
 import type { AttrsCache } from './svg.ts';
 
 /** SVG path data: `d` relative to (tx, ty), or absolute with a zero translation. */
@@ -352,7 +353,7 @@ export class VMobject extends Mobject {
    * @internal
    */
   roundedRelative(): RoundedPath {
-    const k = 1000;
+    const k = UNITS;
     const first = this.subpaths.find((a) => a.length >= 2);
     const x0 = first ? first[0]! : 0, y0 = first ? first[1]! : 0;
     const tx = Math.round(x0 * k), ty = Math.round(-y0 * k);

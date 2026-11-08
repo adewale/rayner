@@ -8,10 +8,8 @@ import type { Box, Mobject, StyleRecord } from './mobject.ts';
 import type { Scene, Sink } from './scene.ts';
 import { perf } from './perf.ts';
 import { isHex } from './color.ts';
+import { FRAME, STAGE_BOX, UNITS } from './units.ts';
 
-export const FRAME = { w: 16, h: 9 } as const;
-/** SVG user units per scene unit: lengths are emitted as integers (see VMobject.formatPathD). */
-export const UNITS = 1000;
 /** A length in integer user units. */
 const len = (x: number): string => '' + Math.round(x * UNITS);
 /** A world box in user units, [left, top, right, bottom] with y down, unrounded: what the SVG draws it as. */
@@ -20,8 +18,6 @@ export const userBox = (b: Readonly<Box>): Box => [b[0] * UNITS, -b[3] * UNITS, 
 const userRect = (b: Readonly<Box>): string[] => [len(b[0]), len(-b[3]), len(b[2] - b[0]), len(b[3] - b[1])];
 /** Camera: the viewBox is the scene's frame box (16 × 9 at the origin unless the camera moved). */
 const viewBoxOf = (scene: Scene): string => userRect(scene.frame.box()!).join(' ');
-/** The camera's home box: the whole 16 × 9 stage, centred on the origin, in scene units. */
-export const STAGE_BOX: Readonly<Box> = [-FRAME.w / 2, -FRAME.h / 2, FRAME.w / 2, FRAME.h / 2];
 /** The camera's home viewBox: the whole stage, in user units. */
 export const VIEWBOX = userRect(STAGE_BOX).join(' ');
 /** Whether a camera box is the home box, to within float noise from an animated camera. */

@@ -30,7 +30,8 @@ import { closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '..
 import type { Box, Mobject, Scene, Sink, Step } from '../../src/index.ts';
 import { contains, intersect, nonempty, overlaps } from '../../src/box.ts';
 import { paints } from '../../src/mobject.ts';
-import { STAGE_BOX, atHome, viewOf } from '../../src/svg.ts';
+import { atHome, viewOf } from '../../src/svg.ts';
+import { FRAME, STAGE_BOX } from '../../src/units.ts';
 import type { Project } from './explain-project.ts';
 import { letteringReport, useProjectLettering } from './explain-lettering.ts';
 import { MIN_PX, PHONE_VIEWPORT, STAGE_PX_PER_UNIT } from './review-sizes.ts';
@@ -75,7 +76,6 @@ export function lintConstruct(source: string): string[] {
   return errors;
 }
 export { MIN_PX };
-const FRAME = STAGE_BOX;
 /** Anything with a camera: a Scene, or a test's stand-in. Without one, the view is the whole stage. */
 interface Viewed {
   familyMembers(): Mobject[];
@@ -160,7 +160,7 @@ export function restingTextProblems(scene: Viewed): string[] {
       if (overlaps(t.box, c.box, { touching: false }))
         problems.push(`"${t.text}" runs into the heading's "${c.text}"`);
   for (const t of texts)
-    if (t.native && !contains(FRAME, t.box))
+    if (t.native && !contains(STAGE_BOX, t.box))
       problems.push(`"${t.text}" crosses the stage edge`);
   const area = (b: Box) => Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]);
   for (let i = 0; i < texts.length; i++)
@@ -181,7 +181,7 @@ export function restingTextProblems(scene: Viewed): string[] {
  */
 const PHONE_PAGE = PHONE_VIEWPORT.width,
   PHONE_W = PHONE_PAGE - 32,
-  PHONE_H = PHONE_W * 9 / 16;
+  PHONE_H = PHONE_W * FRAME.h / FRAME.w;
 /** One label across a scenario: its largest size at 1280 px, and in the phone's close-ups at rest. */
 interface LabelSizes {
   text: string;

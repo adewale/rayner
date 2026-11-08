@@ -1,6 +1,6 @@
 import { toSvgString } from '../../src/output.ts';
 import type { Scene } from '../../src/index.ts';
-import { FRAME } from '../../src/svg.ts';
+import { FRAME } from '../../src/units.ts';
 import { cliManifest } from './roots.ts';
 
 /** Package ranges, so a missing package's error gives the install line the help gives. */

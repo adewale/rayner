@@ -24,7 +24,8 @@
 import type { Box, Mobject, Scene, SceneClass, Sink } from '../src/index.ts';
 import { center, intersect, overlaps, pad, unionBoxes } from '../src/box.ts';
 import { paints, paintsStroke } from '../src/mobject.ts';
-import { STAGE_BOX, viewOf } from '../src/svg.ts';
+import { viewOf } from '../src/svg.ts';
+import { FRAME, STAGE_BOX } from '../src/units.ts';
 import { labelOf, readingLabelSize } from '../explain/diagrams.ts';
 import { emphasisOf, newlyEmphasised, openingOf } from '../explain/look.ts';
 import { isFurniture, isHeading } from '../explain/stage.ts';
@@ -45,7 +46,6 @@ export const NARROW_PX = 600;
 export const NARROW_ASPECT = 5 / 4;
 /** Room left around the changed region, in stage units, so a mark's outline is not cut. */
 const PAD = 0.2;
-const FRAME = STAGE_BOX;
 
 /** A label on the stage: where it is and its font size, in stage units. */
 export interface LayoutLabel {
@@ -359,14 +359,14 @@ export function layoutSink(): { sink: LayoutSink; layouts: Map<string, StepLayou
 
 /** How the stage draws the author's 16 × 9 view at 1×: px per view unit and the offset of its top-left corner (the SVG letterboxes). */
 export function stageScale(w: number, h: number) {
-  const s = Math.min(w / 16, h / 9);
-  return { s, ox: (w - 16 * s) / 2, oy: (h - 9 * s) / 2 };
+  const s = Math.min(w / FRAME.w, h / FRAME.h);
+  return { s, ox: (w - FRAME.w * s) / 2, oy: (h - FRAME.h * s) / 2 };
 }
 /** The part of the author's view a zoom shows on a `w`×`h` stage, in its units (stage units when the camera is home). */
 export function viewBox(z: Zoom, w: number, h: number): Box {
   const { s, ox, oy } = stageScale(w, h);
-  const x = (px: number) => (px / z.k - z.x / z.k - ox) / s - 8,
-    y = (py: number) => 4.5 - (py / z.k - z.y / z.k - oy) / s;
+  const x = (px: number) => STAGE_BOX[0] + (px / z.k - z.x / z.k - ox) / s,
+    y = (py: number) => STAGE_BOX[3] - (py / z.k - z.y / z.k - oy) / s;
   return [x(0), y(h), x(w), y(0)];
 }
 /** The labels a close-up reads at: those in or touching a changed part, else every label. */
@@ -382,7 +382,7 @@ export function labelsToRead(layout: StepLayout): LayoutLabel[] {
  * to right, overlapping evenly, the way a comic reader's guided view crosses a big panel.
  * Views stay inside `bounds` where they fit it, so a close-up never cuts the heading.
  */
-export function tourRegions(parts: readonly Box[], vw: number, vh: number, bounds: Readonly<Box> = FRAME): Box[] {
+export function tourRegions(parts: readonly Box[], vw: number, vh: number, bounds: Readonly<Box> = STAGE_BOX): Box[] {
   const groups: Box[] = [];
   let group: Box | null = null;
   // Room around each part, but never so much that a part which fits a view no longer does.
@@ -418,8 +418,8 @@ export function tourRegions(parts: readonly Box[], vw: number, vh: number, bound
         // under the drawing: lift it until it shows the frame's top, heading and all.
         const x = inside(left, vw, bounds[0], bounds[2]),
           y =
-            vh >= FRAME[3] - FRAME[1] - 1e-9
-              ? Math.max(bottom, FRAME[3] - vh)
+            vh >= STAGE_BOX[3] - STAGE_BOX[1] - 1e-9
+              ? Math.max(bottom, STAGE_BOX[3] - vh)
               : inside(bottom, vh, bounds[1], bounds[3]);
         views.push([x, y, x + vw, y + vh]);
       }
@@ -469,21 +469,21 @@ export function closeUps(layout: StepLayout | undefined, w: number, h: number, m
   const smallest = Math.min(...read.map((l) => l.size));
   const reading = Math.min(max, Math.max(1, READ_PX / (smallest * s)));
   if (reading < 1 + 1e-9) return whole;
-  const bounds = FRAME,
+  const bounds = STAGE_BOX,
     painted = layout.painted ?? layout.parts,
     k = reading;
   const vw = w / (k * s),
     vh = h / (k * s);
   // Centre the full picture in any dimension where it fits; otherwise put the
   // region's top-left corner at the stage's top-left before clamping.
-  const fitsTall = k * 9 * s <= h + 1e-9,
-    fitsWide = k * 16 * s <= w + 1e-9;
+  const fitsTall = k * FRAME.h * s <= h + 1e-9,
+    fitsWide = k * FRAME.w * s <= w + 1e-9;
   const zoomOn = ([left, , , top]: Box) =>
     clampZoom(
       {
         k,
-        x: fitsWide ? (w - k * 16 * s) / 2 - k * ox : -k * (ox + (left + 8) * s),
-        y: fitsTall ? (h - k * 9 * s) / 2 - k * oy : -k * (oy + (4.5 - top) * s),
+        x: fitsWide ? (w - k * FRAME.w * s) / 2 - k * ox : -k * (ox + (left - STAGE_BOX[0]) * s),
+        y: fitsTall ? (h - k * FRAME.h * s) / 2 - k * oy : -k * (oy + (STAGE_BOX[3] - top) * s),
       },
       w,
       h,
@@ -542,14 +542,14 @@ export function closeUps(layout: StepLayout | undefined, w: number, h: number, m
     (starts.some(([x, y]) => inside(x, y, v.box)) ? first : rest).push(v.zoom);
   const opening: Zoom[] = [];
   if (layout.opening) {
-    const box = meet(pad(layout.opening.box, PAD), FRAME) ?? layout.opening.box,
+    const box = meet(pad(layout.opening.box, PAD), STAGE_BOX) ?? layout.opening.box,
       size = layout.opening.labels.length ? Math.min(...layout.opening.labels.map((l) => l.size)) : Infinity,
       minimum = Math.max(1, READ_PX / (size * s)),
       fit = Math.min(w / ((box[2] - box[0]) * s), h / ((box[3] - box[1]) * s));
     if (minimum <= Math.min(max, fit) + 1e-9) {
       const [cx, cy] = center(box),
-        x = ox + (cx + 8) * s,
-        y = oy + (4.5 - cy) * s,
+        x = ox + (cx - STAGE_BOX[0]) * s,
+        y = oy + (STAGE_BOX[3] - cy) * s,
         zoom = clampZoom({ k: minimum, x: w / 2 - minimum * x, y: h / 2 - minimum * y }, w, h, max),
         shown = viewBox(zoom, w, h);
       if (inside(box[0], box[1], shown) && inside(box[2], box[3], shown)) opening.push(zoom);

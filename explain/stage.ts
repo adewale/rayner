@@ -3,7 +3,8 @@ import { View } from './view.ts';
 import { cloneJson } from '../src/json.ts';
 import type { Scene, Vec, Box, FadeOpts, Animation, SceneColors } from '../src/index.ts';
 import { center, unionBoxes } from '../src/box.ts';
-import { STAGE_BOX, atHome } from '../src/svg.ts';
+import { atHome } from '../src/svg.ts';
+import { FRAME, STAGE_BOX } from '../src/units.ts';
 import { isDetail, teaching } from './script.ts';
 import type { StepKind } from './script.ts';
 import type { StepAudio } from './audio.ts';
@@ -176,7 +177,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
   // Engine defaults (a Text with no colour, an Axes, a SurroundingRectangle) take the stage's palette.
   scene.colors = sceneColors(colors);
   const mode = options.heading ?? 'step';
-  const backdrop = new Rectangle({ width: 16, height: 9, fill: colors.paper, stroke: 'none' });
+  const backdrop = new Rectangle({ width: FRAME.w, height: FRAME.h, fill: colors.paper, stroke: 'none' });
   backdrop.role = 'backdrop';
   scene.add(backdrop);
   const numbered = options.numbered ?? mode === 'step';
@@ -228,9 +229,9 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
    * A paper band behind the heading. Invisible at home, where content keeps below the heading;
    * while the camera is away, zoomed content passes under it instead of through the title.
    */
-  const band = new Rectangle({ width: 16, height: 4.5 - CONTENT[3], fill: colors.paper, stroke: 'none' }).moveTo([
+  const band = new Rectangle({ width: FRAME.w, height: STAGE_BOX[3] - CONTENT[3], fill: colors.paper, stroke: 'none' }).moveTo([
     0,
-    (4.5 + CONTENT[3]) / 2,
+    (STAGE_BOX[3] + CONTENT[3]) / 2,
   ]);
   band.style.opacity = 0;
   band.role = 'chrome';
@@ -388,11 +389,11 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     );
     const cc = center(CONTENT),
       tc = center(b);
-    const hw = 8 / z,
-      hh = 4.5 / z;
+    const hw = FRAME.w / 2 / z,
+      hh = FRAME.h / 2 / z;
     // Put the target's centre where the content area's centre is on screen, then keep the view on the stage.
-    const cx = Math.min(8 - hw, Math.max(-8 + hw, tc[0] - cc[0] / z)),
-      cy = Math.min(4.5 - hh, Math.max(-4.5 + hh, tc[1] - cc[1] / z));
+    const cx = Math.min(STAGE_BOX[2] - hw, Math.max(STAGE_BOX[0] + hw, tc[0] - cc[0] / z)),
+      cy = Math.min(STAGE_BOX[3] - hh, Math.max(STAGE_BOX[1] + hh, tc[1] - cc[1] / z));
     return [cx - hw, cy - hh, cx + hw, cy + hh];
   }
   /**

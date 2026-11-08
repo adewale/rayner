@@ -7,7 +7,9 @@ import type { SceneClass, SceneOptions, Sink } from '../src/index.ts';
 import { StopScene } from '../src/output.ts';
 import { isHex } from '../src/color.ts';
 import { resolveSettings } from '../explain/index.ts';
-import { PAGE_QUERY, bindSnapshots, settingsProblem, stepQuery, withSettings } from '../explain/settings.ts';
+import { bindSnapshots, settingsProblem, stepQuery, withSettings } from '../explain/settings.ts';
+import { PAGE_QUERY } from '../explain/page-query.ts';
+import { STAGE_BOX } from '../src/units.ts';
 import type { ExplainerClass, Settings, SnapshotStore } from '../explain/index.ts';
 import { pictureChange, pictureHtml, pictureSummary, stepWords, watchedChanges } from '../explain/trace.ts';
 import { playerProperties } from './embed-style.ts';
@@ -647,7 +649,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       const { s, ox, oy } = stageScale(w, h);
       const parts = (shownLayout?.parts ?? []).map((b) => {
         const part = el('span', undefined, 'part');
-        place(part, (ox + (b[0] + 8) * s) / w, (oy + (4.5 - b[3]) * s) / h, ((b[2] - b[0]) * s) / w, ((b[3] - b[1]) * s) / h);
+        place(part, (ox + (b[0] - STAGE_BOX[0]) * s) / w, (oy + (STAGE_BOX[3] - b[3]) * s) / h, ((b[2] - b[0]) * s) / w, ((b[3] - b[1]) * s) / h);
         return part;
       });
       map.replaceChildren(...parts, view);

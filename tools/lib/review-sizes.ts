@@ -1,6 +1,6 @@
 // The sizes `rayner check` and the served-page review read at: one place for the stage width
 // labels are measured at, the legibility floor, the review's viewports and the embed widths.
-import { FRAME } from '../../src/svg.ts';
+import { FRAME } from '../../src/units.ts';
 
 /** The stage width, in CSS px, at which a label's size is measured. */
 export const STAGE_PX = 1280;

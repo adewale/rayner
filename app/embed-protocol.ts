@@ -1,3 +1,4 @@
+import { PAGE_QUERY } from '../explain/page-query.ts';
 export const RESIZE_TYPE = 'rayner:resize',
   STEP_TYPE = 'rayner:step',
   GOTO_TYPE = 'rayner:goto';
@@ -92,7 +93,7 @@ export function resizeHeight(
  * returns the function that reports a settled step to it. Anywhere else it does neither.
  */
 export function connectHost(go: (request: GotoRequest) => void): (detail: StepDetail) => void {
-  const origin = exactHttpOrigin(new URLSearchParams(location.search).get('parentOrigin'));
+  const origin = exactHttpOrigin(new URLSearchParams(location.search).get(PAGE_QUERY.parentOrigin));
   if (window.parent === window || !origin) return () => {};
   window.addEventListener('message', (event) => {
     const request = gotoRequest(event, origin, window.parent);
@@ -101,7 +102,7 @@ export function connectHost(go: (request: GotoRequest) => void): (detail: StepDe
   return (detail) => parent.postMessage(stepMessage(detail), origin);
 }
 export function reportHeight(root: HTMLElement): () => void {
-  const origin = exactHttpOrigin(new URLSearchParams(location.search).get('parentOrigin'));
+  const origin = exactHttpOrigin(new URLSearchParams(location.search).get(PAGE_QUERY.parentOrigin));
   if (window.parent === window || !origin) return () => {};
   let last = 0;
   const measure = () => {
