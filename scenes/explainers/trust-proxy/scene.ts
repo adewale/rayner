@@ -701,7 +701,7 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
               : `The path through the CDN has two proxies; the path that skips it has one. Counting two trusted addresses on the short path trusts the attacker’s own address, and the next address is the one the attacker wrote. Express’s guide warns about this, quoted below.`,
     });
     await s.clearOverlays();
-    s.liveDiagram(d);
+    // Hidden since the read step, the diagram is detached: the reveal brings its live parts back.
     await d.reveal('rest');
     netView = s.diagramView(d, drawNet);
     await showNet(

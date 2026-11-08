@@ -175,6 +175,7 @@ These are how the engine works, not advice; breaking one breaks the build or the
 - Finish every change before a step's last `play()` ends: the picture must not move during the caption hold.
 - Walks use real links; a missing link is a bug in the diagram or the model, never a reason to draw a shortcut.
 - Morphs with `ops` must reproduce the next diagram through Agentic Mermaid's mutation replay. Without `ops`, call it a visual transition.
+- A diagram shown by a view (`s.diagramView`) refuses a reveal, enlargement or morph: call `s.liveDiagram(d)` first, then `s.diagramView(d, draw)` again to show it by its view once more.
 - A setting may change diagrams, captions, numbers and which steps exist; keep the palette fixed. A scene may have at most 64 scenarios, and its page must fit [the page budget](../../docs/REFERENCE.md#page).
 - Default lettering is embedded Inter and JetBrains Mono. Other scripts, replacement faces, real bold and italic, and maths need a `lettering` request in `static meta` and committed snapshots; unsupported or unrequested characters fail the build. See [Lettering on request](https://github.com/adewale/rayner/blob/main/docs/LETTERING.md) and REFERENCE, Maths.
 - Arabic or Hebrew text sets its own reading direction; `stage` and card `direction` choose spatial order; set a diagram's flow in its Mermaid source.

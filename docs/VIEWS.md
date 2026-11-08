@@ -248,9 +248,10 @@ this.shown.flow = { marked: ['Reject'], walked: [] };
 await this.play(flow.sync());
 ```
 
-A diagram shown by a view keeps its live parts off the stage. For a `reveal`, `walk`, `morph` or
-`enlarge`, which move the live parts, hand the stage back with `s.liveDiagram(d)` first and show
-it by its view again afterwards; a walk's token travels the same routes the picture draws.
+A diagram shown by a view keeps its live parts off the stage (its `d.presentation` is
+`{ kind: 'viewed', view }`). A `reveal`, `morph` or `enlarge` moves the live parts, so it refuses a
+viewed diagram: hand the stage back with `s.liveDiagram(d)` first and call `s.diagramView` again
+afterwards, which shows it by the same view. A walk runs over the view as it is; its token travels the same routes the picture draws.
 
 - **Marks are part of the picture.** `lit` puts the card's or panel's bar on its row
   (`{ row, as }`) or lines (`{ lines, as }`), `as` the word its description gives them; unlit, the bar is there and hidden, so a sync from unlit to lit morphs one
@@ -262,7 +263,7 @@ it by its view again afterwards; a walk's token travels the same routes the pict
   picture. A `describe` on `s.keep`, `s.enter` or a staged step speaks for the rest of the
   picture, not for those parts, so it never repeats a card.
 - **A diagram picture is described as the diagram.** While a view shows a picture (after
-  `d.showBy(view)`), the stage describes the diagram as the picture shows it, in the live
+  `s.diagramView`, or `d.showBy(view)` for a view of the scene's own), the stage describes the diagram as the picture shows it, in the live
   diagram's words: each note drawn with `notePicture` or `notes`, each mark given as
   `{ color, as }` by its word, and dimmed parts said so.
 - **They say what they emphasise** to the phone's close-ups, by key, so a redrawn mark at the

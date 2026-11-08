@@ -93,17 +93,21 @@ test('a view’s note follows its part through enlarge; clear() leaves paper and
       const s = stage(this);
       await this.step('one');
       const d = await s.show(spec);
-      const v = s.diagramView(d, () => ({ notes: [{ id: 'C', text: 'here', side: 'above' }] }));
-      const sync = () => this.play(v.sync());
+      const draw = () => ({ notes: [{ id: 'C', text: 'here', side: 'above' as const }] });
+      s.diagramView(d, draw);
       const note = () => this.find('note:C')!;
       const gap = () => note().center()[0] - d.get('C').center()[0];
       assert.ok(Math.abs(gap()) < 1e-6);
+      // An enlargement moves the live parts: the live diagram takes the view's place first.
+      await assert.rejects(async () => await d.enlarge(['A']), /^Error: d\.enlarge\(\): the diagram is shown by a view, so its live parts are off the stage; call s\.liveDiagram\(d\) first$/);
+      s.liveDiagram(d);
       await d.enlarge(['A']);
-      await sync();
+      s.diagramView(d, draw);
       // Centred over C again, unless the frame's edge holds it back.
       assert.ok(Math.abs(gap()) < 1e-6 || note().center()[0] >= d.frameBox[2] - note().width() / 2 - 0.06);
+      s.liveDiagram(d);
       await d.enlarge('all');
-      await sync();
+      s.diagramView(d, draw);
       assert.ok(Math.abs(gap()) < 1e-6 && note().center()[1] > d.get('C').box()![3]);
       await s.card([['k', 1]]);
       await s.clear();

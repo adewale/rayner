@@ -160,8 +160,8 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
   // Each caption owns its opening; a previous step's subjects must not leak, unless opening(..., { keep: true })
   // named them for every step that follows.
   let kept: Mobject[] = [];
-  /** Each diagram shown by a view of the state (diagramView): the view and what it draws. */
-  const diagramViews = new Map<Diagram, { draw: (state: S, shown: Sh) => DiagramPicture; view: View<Mobject, S, Sh> }>();
+  /** What each view diagramView made draws: diagramView again with another draw replaces it. */
+  const viewDraws = new WeakMap<View<Mobject, S, Sh>, { draw: (state: S, shown: Sh) => DiagramPicture }>();
   scene.onStep(() => opening(scene, ...kept));
   const direction = layoutDirection(options, 'ltr', 'stage()');
   const physical = <T extends Vec | Box | StageRegion | undefined>(at: T): Exclude<T, 'start' | 'end'> | Region =>
@@ -323,7 +323,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     const w = wordsOf(scene);
     const present = new Set(scene.familyMembers());
     const seen: Description[] = [];
-    for (const d of diagrams) if (present.has(d.root) || (d.shownBy && present.has(d.shownBy))) seen.push(d.describe());
+    for (const d of diagrams) if (d.described()) seen.push(d.describe());
     const told = new Set<() => string>();
     const labels: string[] = [];
     let blank = 0;
@@ -480,37 +480,41 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
      * undimmed, as `d.picture` takes them, usually from `shown` (how the model is shown), and the view
      * takes the live diagram's place. Change them in `this.shown` and play
      * `view.sync()`; `rayner check` redraws the view at every step. A walk
-     * runs over the view as it is. For a morph, a reveal or an enlargement, hand the stage back with `liveDiagram(d)`,
-     * then call this again to show the diagram by its view once more.
+     * runs over the view as it is. A morph, a reveal or an enlargement refuses a diagram a view shows: hand
+     * the stage back with `liveDiagram(d)` first, then call this again to show the diagram by its view once
+     * more. Called again while its view shows `d`, or after `liveDiagram(d)`, it gives that view, redrawn
+     * with the new draw; after `d.hide()` or `s.clear()` it makes a new one.
      */
     diagramView(d: Diagram, draw: (state: S, shown: Sh) => DiagramPicture = () => ({})): View<Mobject, S, Sh> {
-      let shown = diagramViews.get(d);
-      if (!shown) {
-        const entry = { draw, view: null as unknown as View<Mobject, S, Sh> };
-        entry.view = new View<Mobject, S, Sh>(scene, (st, sh) => {
-          const p = entry.draw(st, sh);
-          return d.picture(p.marks ?? {}, { notes: p.notes ?? [], dim: p.dim ?? null, ...(p.prefix ? { prefix: p.prefix } : {}) });
-        }, { place: false });
-        diagramViews.set(d, (shown = entry));
-      } else {
-        shown.draw = draw;
-        // The live diagram may have changed (a morph): the view draws it as it is now.
-        shown.view.rebuild();
+      const p = d.presentation;
+      // Shown by a view this stage made, or live in that view's place since s.liveDiagram: that view
+      // takes the new draw and draws the diagram as it is now (after a morph, say).
+      const own = p.kind === 'viewed' ? p.view : d.replaced();
+      const was = own instanceof View ? (own as View<Mobject, S, Sh>) : null;
+      const drawing = was && viewDraws.get(was);
+      if (was && drawing) {
+        drawing.draw = draw;
+        was.rebuild();
+        scene.add(was);
+        if (p.kind !== 'viewed') d.showBy(was);
+        return was;
       }
-      scene.add(shown.view);
-      scene.remove(d.root);
+      if (p.kind === 'viewed') throw new Error("s.diagramView(): the diagram is shown by a view of the scene's own; call s.liveDiagram(d) first");
+      const entry = { draw };
+      const v = new View<Mobject, S, Sh>(scene, (st, sh) => {
+        const pic = entry.draw(st, sh);
+        return d.picture(pic.marks ?? {}, { notes: pic.notes ?? [], dim: pic.dim ?? null, ...(pic.prefix ? { prefix: pic.prefix } : {}) });
+      }, { place: false });
+      viewDraws.set(v, entry);
+      scene.add(v);
       // The stage describes the diagram through the view that shows it, as it describes a live one;
       // like a live diagram, the view is not an overlay, so clearOverlays leaves it.
-      d.showBy(shown.view);
-      return shown.view;
+      d.showBy(v);
+      return v;
     },
     /** The live diagram back in its view's place, for a morph, a reveal or an enlargement (see diagramView). */
     liveDiagram(d: Diagram): void {
-      const shown = diagramViews.get(d);
-      if (!shown) throw new Error('s.liveDiagram(): the diagram is not shown by a view; show it with s.diagramView(d, draw) first');
-      scene.add(d.root);
-      scene.remove(shown.view);
-      d.unshow();
+      d.showLive();
     },
     /**
      * The stage's direction: where the logical regions `'start'` and `'end'` fall, and the field

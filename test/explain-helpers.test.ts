@@ -98,6 +98,60 @@ test('a stage with no style adopts only its first diagram’s palette: a second 
   await new (bindSnapshots(Two, { [diagramKey(spec)]: fixture(), [diagramKey(other)]: second }))(new NullSink()).run();
 });
 
+test('a diagram’s presentation is one value: diagramView, liveDiagram, hide and clear set it, and a viewed diagram refuses a reveal, enlargement or morph', async () => {
+  const next = { source: 'graph LR\nA --> B\nB --> C', style: 'nord' };
+  const after = fixedSnapshot(next, fixture().parts.filter((p) => p.id !== '__frame'), { palette: fixture().palette });
+  const refused = (api: string) => new RegExp(`^Error: ${api.replace(/[.()]/g, '\\$&')}: the diagram is shown by a view, so its live parts are off the stage; call s\\.liveDiagram\\(d\\) first$`);
+  class Presented extends Scene {
+    override async construct() {
+      const s = stage(this);
+      await this.step('one');
+      const d = await s.show(spec, { build: 'frame' });
+      assert.deepEqual(d.presentation, { kind: 'live' });
+      const v = s.diagramView(d, () => ({ marks: { A: d.emphasis } }));
+      assert.deepEqual(d.presentation, { kind: 'viewed', view: v });
+      assert.ok(this.mobjects.includes(v) && !this.mobjects.includes(d.root), 'the view takes the live diagram’s place');
+      // Showing it by a view again redraws that view with the new draw.
+      assert.equal(s.diagramView(d, () => ({})), v);
+      await assert.rejects(async () => await d.reveal(['A']), refused('d.reveal()'));
+      await assert.rejects(async () => await d.enlarge(['A']), refused('d.enlarge()'));
+      await assert.rejects(async () => await d.morph(next), refused('d.morph()'));
+      assert.ok(!this.familyMembers().includes(d.get('A')), 'no refused call put a live part beside the view');
+      s.liveDiagram(d);
+      assert.deepEqual(d.presentation, { kind: 'live' });
+      assert.ok(!this.mobjects.includes(v) && this.mobjects.includes(d.root));
+      assert.throws(() => s.liveDiagram(d), /^Error: s\.liveDiagram\(\): the diagram is not shown by a view; show it with s\.diagramView\(d, draw\) first$/);
+      await d.reveal(['A']);
+      // Shown by a view again, it is the view it handed back from, drawing the diagram as it is now.
+      assert.equal(s.diagramView(d), v);
+      assert.deepEqual(d.presentation, { kind: 'viewed', view: v });
+      assert.ok(this.mobjects.includes(v) && !this.mobjects.includes(d.root));
+      s.liveDiagram(d);
+      // A view of the scene's own shows it too; the stage hands back to the live diagram from it as well.
+      const own = d.picture();
+      this.add(own);
+      d.showBy(own);
+      assert.throws(() => s.diagramView(d), /^Error: s\.diagramView\(\): the diagram is shown by a view of the scene's own; call s\.liveDiagram\(d\) first$/);
+      s.liveDiagram(d);
+      assert.ok(!this.mobjects.includes(own));
+      // hide fades the view and detaches the diagram; so does clear.
+      const w = s.diagramView(d);
+      assert.notEqual(w, v, 'a view of its own replaced the stage’s, so the stage makes a new one');
+      await d.hide();
+      assert.deepEqual(d.presentation, { kind: 'detached' });
+      assert.ok(!this.familyMembers().includes(w) && !this.mobjects.includes(d.root));
+      await d.reveal(['A']);
+      assert.notEqual(s.diagramView(d), w, 'after a hide the diagram starts afresh, with a new view');
+      await s.clear();
+      assert.deepEqual(d.presentation, { kind: 'detached' });
+      await d.morph(next);
+      assert.deepEqual(d.presentation, { kind: 'live' });
+      this.state.done = true;
+    }
+  }
+  await new (bindSnapshots(Presented, { [diagramKey(spec)]: fixture(), [diagramKey(next)]: after }))(new NullSink()).run();
+});
+
 test('stage() runs once per scene: a second call is refused', async () => {
   class Twice extends Scene {
     override async construct() {

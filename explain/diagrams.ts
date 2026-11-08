@@ -62,6 +62,23 @@ interface PictureShows {
 const pictureShows = Symbol('pictureShows');
 /** A note in a diagram's picture: a short label beside part `id`, at a readable size whatever the diagram's scale. */
 export interface PictureNote { id: string; text: string; side?: NoteSide; color?: string; size?: number }
+/**
+ * How a diagram is on the stage now: not at all (`detached`, before it is built and after `d.hide()` or
+ * `s.clear()`), as its live parts (`live`), or by a view that draws a picture of it while the live
+ * diagram is off the stage (`viewed`, set by `s.diagramView` or `d.showBy`).
+ */
+export type DiagramPresentation =
+  | { readonly kind: 'detached' }
+  | { readonly kind: 'live' }
+  | { readonly kind: 'viewed'; readonly view: Mobject };
+const DETACHED: DiagramPresentation = Object.freeze({ kind: 'detached' });
+const LIVE: DiagramPresentation = Object.freeze({ kind: 'live' });
+/** Whether `m` is on `scene`: its outermost ancestor is one of the scene's top-level mobjects. */
+const onStage = (scene: Scene, m: Mobject): boolean => {
+  let top = m;
+  while (top.parent) top = top.parent;
+  return scene.mobjects.includes(top);
+};
 const connectorPart = Symbol('diagram connector part');
 /** Whether a drawn path belongs to a diagram connector (not a glyph or node). */
 export function isDiagramConnector(m: Mobject): boolean {
@@ -608,9 +625,20 @@ export class Diagram {
   private end(id: string): string {
     return this.find(id) ? this.top(id, 'd.link()') : id;
   }
-  /** Put the root on stage. Hidden marks are never added: opacity on a Group does not mask its descendants in the engine. */
-  private attach(): void {
+  /** Put the root on stage: the diagram is live. Hidden marks are never added: opacity on a Group does not mask its descendants in the engine. */
+  private attach(api: string): void {
+    this.mustBeLive(api);
     if (!this.scene.mobjects.includes(this.root)) this.scene.add(this.root);
+    this.presented = LIVE;
+  }
+  /**
+   * A call that moves the live parts (a reveal, an enlargement, a morph) refuses a diagram a view
+   * shows: the parts it moves are off the stage, and bringing them back beside the view would put
+   * every key on stage twice.
+   */
+  private mustBeLive(api: string): void {
+    if (this.presented.kind === 'viewed')
+      throw new Error(`${api}: the diagram is shown by a view, so its live parts are off the stage; call s.liveDiagram(d) first`);
   }
   /** A route token at the start of a link. */
   private token(route: VMobject, color: string): Dot {
@@ -626,11 +654,14 @@ export class Diagram {
   buildPlan(mode: 'all' | 'frame' = 'all', runTime = 0.65): Plan<this> {
     const scaffold = this.revealBeat(this.order.filter((id) => isScaffold(this.parts.get(id)!.info)), runTime, 'd.build()');
     const rest = mode === 'all' ? [this.revealBeat('rest', runTime, 'd.build()', new Set(scaffold.arriving)).beat] : [];
-    return { value: this, start: () => this.attach(), beats: [scaffold.beat, ...rest] };
+    return { value: this, start: () => this.attach('d.build()'), beats: [scaffold.beat, ...rest] };
   }
   /** Bring in the next `n` parts in reading order, named parts, or the rest, in one play. */
   reveal(which: number | readonly string[] | 'rest', { runTime = 0.65 } = {}): Action {
-    return new Action(this.scene, 'd.reveal()', () => ({ value: undefined, beats: [this.revealBeat(which, runTime, 'd.reveal()').beat] }));
+    return new Action(this.scene, 'd.reveal()', () => {
+      this.mustBeLive('d.reveal()');
+      return { value: undefined, beats: [this.revealBeat(which, runTime, 'd.reveal()').beat] };
+    });
   }
   /**
    * A reveal's play, decided now: the parts that arrive (pending now, and not in `coming`, which
@@ -656,7 +687,7 @@ export class Diagram {
       const anims = arriving.map((id) => {
           const p = this.parts.get(id)!;
           this.visible.add(id);
-          this.attach();
+          this.attach(name);
           for (const child of this.parts.values()) if (child.info.owner === id) this.visible.add(child.info.id);
           this.root.add(p.mob);
           if (p.info.role === 'message' && p.info.from && p.info.to && p.route) {
@@ -786,12 +817,12 @@ export class Diagram {
   }
   /** What the diagram emphasises now, for the player's phone close-ups (`emphasises` in look.ts). */
   private emphasised(): [Mobject | string, string][] {
-    // While a view shows the diagram and the live one is off the stage, a part is named by its key,
+    // While a view shows the diagram, the live one is off the stage: a part is named by its key,
     // which names the view's copy of it on the stage.
-    const live = this.scene.familyMembers().includes(this.root);
+    const viewed = this.presented.kind === 'viewed';
     const part = (id: string): Mobject | string | undefined => {
       const mob = this.parts.get(id)?.mob;
-      return mob && !live ? mob.key : mob;
+      return mob && viewed ? mob.key : mob;
     };
     // Marks and notes are drawn in a picture (see picture), which says what it emphasises itself.
     return (this.focused ?? []).flatMap((id): [Mobject | string, string][] => (part(id) ? [[part(id)!, 'focus']] : []));
@@ -936,16 +967,39 @@ export class Diagram {
       fam.forEach((m, i) => (m.style = { ...styles[i]! } as typeof m.style));
     }
   }
-  /** @internal A picture drawn from this diagram (see picture()) that shows it while the live diagram is off the stage. */
-  shownBy: Mobject | null = null;
-  /** Say that `picture` shows this diagram: the stage describes the diagram while it is on stage. */
-  showBy(picture: Mobject): this {
-    this.shownBy = picture;
+  /** How the diagram is on the stage now: detached, live, or viewed by a view (see DiagramPresentation). */
+  private presented: DiagramPresentation = DETACHED;
+  /** The view the live diagram last took the place of, until a hide or clear: the stage shows the diagram by it again. */
+  private retired: Mobject | null = null;
+  get presentation(): DiagramPresentation {
+    return this.presented;
+  }
+  /**
+   * Show this diagram by `view`, a picture drawn from it (see picture()) that the scene shows: the
+   * live diagram leaves the stage, and the stage describes the diagram as the view shows it.
+   * `s.diagramView` calls it; a scene that draws its own view calls it after adding the view.
+   * A reveal, an enlargement or a morph then needs `s.liveDiagram(d)` first.
+   */
+  showBy(view: Mobject): this {
+    if (view === this.root) throw new Error('d.showBy(): the live diagram cannot be its own view; give the view that draws a picture of it');
+    this.scene.remove(this.root);
+    this.presented = { kind: 'viewed', view };
+    this.retired = null;
     return this;
   }
-  /** @internal The live diagram is back on the stage: no picture shows it any more (the stage's liveDiagram). */
-  unshow(): void {
-    this.shownBy = null;
+  /** @internal The live diagram back on the stage in its view's place (the stage's liveDiagram); gives the view it replaces. */
+  showLive(): Mobject {
+    const p = this.presented;
+    if (p.kind !== 'viewed') throw new Error('s.liveDiagram(): the diagram is not shown by a view; show it with s.diagramView(d, draw) first');
+    this.scene.remove(p.view);
+    this.scene.add(this.root);
+    this.presented = LIVE;
+    this.retired = p.view;
+    return p.view;
+  }
+  /** @internal The view the live diagram took the place of (s.liveDiagram), while it is live; null after a hide or clear. */
+  replaced(): Mobject | null {
+    return this.presented.kind === 'live' ? this.retired : null;
   }
   /**
    * The marks a walk's trail leaves along these hops, for a picture drawn from state (see picture,
@@ -1026,21 +1080,23 @@ export class Diagram {
       () => emphasis,
     );
   }
-  /** Whether the stage describes this diagram now: its root, or the picture that shows it, is on stage. */
-  private described(): boolean {
-    const present = new Set(this.scene.familyMembers());
-    return present.has(this.root) || (!!this.shownBy && present.has(this.shownBy));
+  /** @internal Whether the stage describes this diagram now: it is live, or viewed by a view that is on stage. */
+  described(): boolean {
+    const p = this.presented;
+    return p.kind === 'live' ? onStage(this.scene, this.root) : p.kind === 'viewed' && onStage(this.scene, p.view);
   }
-  /** Whether `m` is, or is inside, what shows this diagram, while that is on stage. */
+  /** Whether `m` is, or is inside, the view that shows this diagram, while that is on stage. */
   private shows(m: Mobject): boolean {
-    if (!this.shownBy || !this.described()) return false;
-    for (let x: Mobject | null = m; x; x = x.parent) if (x === this.shownBy) return true;
+    const p = this.presented;
+    if (p.kind !== 'viewed' || !onStage(this.scene, p.view)) return false;
+    for (let x: Mobject | null = m; x; x = x.parent) if (x === p.view) return true;
     return false;
   }
-  /** The picture of this diagram that shows it now, when the live diagram is off the stage: what it marks and dims. */
+  /** The picture of this diagram that shows it now, when a view shows it: what it marks and dims. */
   private shown(): PictureShows | null {
-    if (!this.shownBy || this.scene.familyMembers().includes(this.root)) return null;
-    for (const m of this.shownBy.family()) {
+    const p = this.presented;
+    if (p.kind !== 'viewed') return null;
+    for (const m of p.view.family()) {
       const shows = (m as Mobject & { [pictureShows]?: PictureShows })[pictureShows];
       if (shows) return shows;
     }
@@ -1199,32 +1255,22 @@ export class Diagram {
   }
   /** An enlargement, decided now; the parts move, and hidden ones jump, when it plays. */
   private enlargePlan(ids: readonly string[] | 'all', zoom: number, runTime: number): Plan<void> {
+    this.mustBeLive('d.enlarge()');
     if (!(zoom > 0 && Number.isFinite(zoom))) throw new RangeError(`d.enlarge(): zoom must be a positive number, not ${zoom}`);
-    const mobs = [...this.parts.values()].filter((p) => !p.info.owner).map((p) => p.mob);
-    const whole = new Group(...mobs.map((m) => m.copy()));
+    const mobs = this.topMobs();
     // Whether the play has anything to show: a shown part moves (partMoves moves hidden ones at once).
     const shows = mobs.some((m) => this.visible.has(this.partIds.get(m)!));
     if (ids === 'all') {
-      // Apply one global affine map from current full diagram bounds to its authored frame.
-      const home = this.home.box(),
-        now = whole.box();
-      // The map is uniform, so either extent gives k; the longer one is measured more precisely
-      // (a thin diagram's short side is mostly float32 rounding once zoomed).
-      const wide = !!home && home[2] - home[0] >= home[3] - home[1];
-      const k = !home || !now ? NaN : wide ? (home[2] - home[0]) / (now[2] - now[0]) : (home[3] - home[1]) / (now[3] - now[1]);
-      // Nothing drawn, or a diagram fitted down to a point (an absurd canvas size): no extent to restore.
-      const restore = Number.isFinite(k) && k > 0;
-      const a: Vec = restore ? [(now![0] + now![2]) / 2, (now![1] + now![3]) / 2] : [0, 0],
-        b: Vec = restore ? [(home![0] + home![2]) / 2, (home![1] + home![3]) / 2] : [0, 0];
+      const back = this.homeward(mobs);
       return {
         value: undefined,
         beats: [{
-          runTime: restore && shows ? runTime : 0,
+          runTime: back && shows ? runTime : 0,
           play: () => {
             this.focused = null;
-            return restore ? this.partMoves(mobs, (m) => moved(m, k, a, b), runTime) : [];
+            return back ? this.partMoves(mobs, (m) => moved(m, back.k, back.from, back.to), runTime) : [];
           },
-          after: () => { if (restore) this.rezoom(1); },
+          after: () => { if (back) this.rezoom(1); },
         }],
       };
     }
@@ -1252,6 +1298,38 @@ export class Diagram {
       }],
     };
   }
+  /** The top-level parts' mobjects. */
+  private topMobs(): Group[] {
+    return [...this.parts.values()].filter((p) => !p.info.owner).map((p) => p.mob);
+  }
+  /**
+   * The move that puts the diagram's own view back home: one uniform map from the parts' bounds now
+   * to the authored frame, or null when there is no extent to restore.
+   */
+  private homeward(mobs: Group[]): { k: number; from: Vec; to: Vec } | null {
+    const home = this.home.box(),
+      now = new Group(...mobs.map((m) => m.copy())).box();
+    if (!home || !now) return null;
+    // The map is uniform, so either extent gives k; the longer one is measured more precisely
+    // (a thin diagram's short side is mostly float32 rounding once zoomed).
+    const wide = home[2] - home[0] >= home[3] - home[1];
+    const k = wide ? (home[2] - home[0]) / (now[2] - now[0]) : (home[3] - home[1]) / (now[3] - now[1]);
+    // A diagram fitted down to a point (an absurd canvas size) has no extent to restore.
+    if (!(Number.isFinite(k) && k > 0)) return null;
+    return { k, from: [(now[0] + now[2]) / 2, (now[1] + now[3]) / 2], to: [(home[0] + home[2]) / 2, (home[1] + home[3]) / 2] };
+  }
+  /** Undo an enlargement at once, without animating: every part back in the authored frame, at zoom 1. */
+  private unzoom(): void {
+    if (this.zoom === 1) return;
+    const mobs = this.topMobs(), back = this.homeward(mobs);
+    if (back)
+      for (const m of mobs) {
+        const jump = new Transform(m, moved(m, back.k, back.from, back.to));
+        jump.begin();
+        jump.finish();
+      }
+    this.zoom = 1;
+  }
   /**
    * The diagram's view has moved: re-derive every look from the home styles at the new zoom (the move
    * already animated it), so a look depends only on zoom, never on the order
@@ -1270,6 +1348,7 @@ export class Diagram {
     next: DiagramSpec,
     { ops, runTime = 1.1 }: { ops?: readonly MutationOp[]; runTime?: number } = {},
   ): Action {
+    this.mustBeLive('d.morph()');
     if (next.style == null && this.spec.style != null) next = { ...next, style: this.spec.style };
     // The next diagram's layout is read now; a play waits for it.
     const before = this.spec, spec = next;
@@ -1285,6 +1364,7 @@ export class Diagram {
       beats: [{
         runTime,
         play: () => {
+          this.mustBeLive('d.morph()');
           target = new Diagram(this.scene, spec, snapshot!, { box: this.frameBox });
           // The frame keeps its key through the morph.
           const frame = target.parts.get('__frame');
@@ -1312,6 +1392,7 @@ export class Diagram {
         target.root.add(p.mob);
       }
     this.scene.add(target.root);
+    this.presented = LIVE;
     this.parts = target.parts;
     this.partIds = target.partIds;
     this.order = target.order;
@@ -1335,11 +1416,10 @@ export class Diagram {
   /** Fade the whole diagram out. `reveal` can bring parts back. */
   hide(): Action {
     return new Action(this.scene, 'd.hide()', () => {
-      // Shown by a view (stage.diagramView), with the live diagram off the stage: the view fades, as
-      // the live parts would.
-      const view = this.shownBy;
-      const shown = view && !this.scene.familyMembers().includes(this.root) && this.scene.familyMembers().includes(view)
-        ? [view]
+      // Shown by a view, with the live diagram off the stage: the view fades, as the live parts would.
+      const p = this.presented;
+      const shown = p.kind === 'viewed'
+        ? (onStage(this.scene, p.view) ? [p.view] : [])
         : [...this.visible].filter((id) => !this.parts.get(id)!.info.owner).map((id) => this.parts.get(id)!.mob);
       return {
         value: undefined,
@@ -1348,13 +1428,22 @@ export class Diagram {
       };
     });
   }
-  /** @internal Reset to unrevealed and unemphasised, without animating (the stage has faded it). */
+  /**
+   * @internal Reset to unrevealed, unemphasised and detached, without animating (the stage has faded
+   * it): no view shows it, its notes are forgotten, and an enlargement is undone.
+   */
   forget(): void {
     this.plain();
+    this.unzoom();
     this.restyle(this.base.keys());
     this.visible.clear();
+    this.drawnNotes.clear();
     for (const child of [...this.root.children]) this.root.remove(child);
     // Off stage, so the description stops naming it; `reveal` attaches it again.
+    const p = this.presented;
+    if (p.kind === 'viewed') this.scene.remove(p.view);
     this.scene.remove(this.root);
+    this.presented = DETACHED;
+    this.retired = null;
   }
 }

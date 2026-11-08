@@ -158,17 +158,13 @@ export default class GitExplainer extends Scene<GitState, GitShown> {
     const picture = (_state: GitState, shown: GitShown) => {
       const g = having(shown, 'diagram').diagram;
       if (d.spec.source !== g.source) throw new Error('The diagram on show is not the one the state records');
-      return d.picture(Object.fromEntries(g.marks.map((m) => [m.part, { color: colorOf[m.tone], as: m.as }])));
+      return { marks: Object.fromEntries(g.marks.map((m) => [m.part, { color: colorOf[m.tone], as: m.as }])) };
     };
     let diagramView: View | undefined;
     /** The view takes the live diagram's place: the same picture, now drawn from the state, and described as the diagram with its marks and notes. */
     const adopt = () => {
       this.shown.diagram = { source: d.spec.source!, marks: [] };
-      if (diagramView) diagramView.rebuild();
-      else diagramView = view(this, picture, { place: false });
-      this.add(diagramView);
-      this.remove(d.root);
-      d.showBy(diagramView);
+      diagramView = s.diagramView(d, picture);
       s.keep(diagramView);
     };
     const mark = async (marks: NonNullable<GitShown['diagram']>['marks'], runTime = 0.45) => {
@@ -197,8 +193,7 @@ export default class GitExplainer extends Scene<GitState, GitShown> {
         notes.clear();
         await this.play(diagramView!.sync({ match: 'index', runTime: 0.4 }), ...going.map((v) => new FadeOut(v, { runTime: 0.4 })));
       }
-      this.add(d.root);
-      this.remove(diagramView!);
+      s.liveDiagram(d);
       await d.morph({ source: next });
       adopt();
     };
