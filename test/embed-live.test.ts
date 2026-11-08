@@ -220,7 +220,7 @@ function fakeSession(log: string[], { busy = false } = {}) {
   return s as typeof s & LiveSession;
 }
 
-test('the exploration: one transition for send, undo, reset, link, held and leave, which keeps a held run only while it can play the next event', () => {
+test('the exploration: one transition for send, undo, reset, link, held and leave, which keeps a held run only while it can play the next event, at its own step', () => {
   const now = { step: 'press' };
   const none: Exploration<typeof now> = { kind: 'none' };
   const linked = explore(none, { kind: 'link', now, log: ['UP'] });
@@ -233,14 +233,23 @@ test('the exploration: one transition for send, undo, reset, link, held and leav
 
   // A run held at the log's picture is taken; one held for another log is not.
   const held = fakeSession(['UP']);
-  const holding = exploreAndClose(linked, { kind: 'held', session: held });
+  const holding = exploreAndClose(linked, { kind: 'held', now, session: held });
   assert.equal(holding.kind === 'live' && holding.session, held);
   const stale = fakeSession(['UP', 'DOWN']);
-  assert.equal(exploreAndClose(holding, { kind: 'held', session: stale }), holding);
+  assert.equal(exploreAndClose(holding, { kind: 'held', now, session: stale }), holding);
   assert.equal(stale.closed, 1, 'a run held for a log no longer on show is closed, not kept');
   const orphan = fakeSession([]);
-  assert.equal(exploreAndClose(none, { kind: 'held', session: orphan }), none);
+  assert.equal(exploreAndClose(none, { kind: 'held', now, session: orphan }), none);
   assert.equal(orphan.closed, 1, 'a run that arrives when nothing is live is closed');
+  // A run held at another step is not taken, even when its log matches the one on show: the reader
+  // moved from step A to step B, both with nothing sent, and A's run arrives late.
+  const a = { step: 'a' }, b = { step: 'b' };
+  const atB = explore({ kind: 'none' } as Exploration<typeof a>, { kind: 'link', now: b, log: [] });
+  const late = fakeSession([]);
+  assert.equal(exploreAndClose(atB, { kind: 'held', now: a, session: late }), atB);
+  assert.equal(late.closed, 1, 'a run held for another step is closed, not kept');
+  const ours = fakeSession([]);
+  assert.equal((exploreAndClose(atB, { kind: 'held', now: b, session: ours }) as { session: unknown }).session, ours);
 
   // A send keeps an idle run at the log before the event: it plays the event from there.
   const sent = exploreAndClose(holding, { kind: 'send', event: 'DOWN' });
@@ -282,7 +291,7 @@ test('leaving a live step lets its held run end: the scene paused in the step fi
   }
   const run = await runLive(Watched, press, liveSteps(await new Lamp(new NullSink()).run()).get('press')!, ['UP'], { keep: true });
   const live = exploreAndClose({ kind: 'none' } as Exploration<string>, { kind: 'link', now: 'press', log: ['UP'] });
-  const holding = exploreAndClose(live, { kind: 'held', session: run.session! });
+  const holding = exploreAndClose(live, { kind: 'held', now: 'press', session: run.session! });
   await new Promise((r) => setTimeout(r, 20));
   assert.equal(ended, false, 'held: the run waits in the step');
   exploreAndClose(holding, { kind: 'leave' });

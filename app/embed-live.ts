@@ -297,15 +297,15 @@ export type Exploration<N> = { kind: 'none' } | { kind: 'live'; now: N; log: rea
 /**
  * What changes the exploration: the reader sends an event, takes the last one back (`undo`), takes
  * them all back (`reset`), a step opens live with a log (`link`, a link's kept events or none),
- * a run is held at the log's picture (`held`), or the reader leaves the step (`leave`: another
- * step, Next, another scenario).
+ * a run is held at the log's picture of the step it ran to (`held`, with that step's `now`), or the
+ * reader leaves the step (`leave`: another step, Next, another scenario).
  */
 export type ExploreAction<N> =
   | { kind: 'send'; event: string }
   | { kind: 'undo' }
   | { kind: 'reset' }
   | { kind: 'link'; now: N; log: readonly string[] }
-  | { kind: 'held'; session: LiveSession }
+  | { kind: 'held'; now: N; session: LiveSession }
   | { kind: 'leave' };
 
 const sameLog = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((e, i) => e === b[i]);
@@ -314,7 +314,8 @@ const sameLog = (a: readonly string[], b: readonly string[]) => a.length === b.l
  * The exploration after `action`. A held run stays only while it can play the reader's next event:
  * a send keeps it when it is idle at the log before the event, and every other change drops it
  * (Undo and Reset go back past its picture; a send while it still plays, an animated landing cut
- * short, starts a fresh run). A run held for a log other than the one on show is not taken.
+ * short, starts a fresh run). A run held for another step than the one live (`now`, compared by
+ * identity), or for a log other than the one on show, is not taken.
  * Sending, Undo and Reset when nothing is live, and Undo and Reset with nothing sent, change nothing.
  */
 export function explore<N>(live: Exploration<N>, action: ExploreAction<N>): Exploration<N> {
@@ -336,7 +337,7 @@ export function explore<N>(live: Exploration<N>, action: ExploreAction<N>): Expl
     case 'reset':
       return live.log.length ? { ...live, log: [], session: null } : live;
     case 'held':
-      return action.session.open && sameLog(action.session.log, live.log) ? { ...live, session: action.session } : live;
+      return action.now === live.now && action.session.open && sameLog(action.session.log, live.log) ? { ...live, session: action.session } : live;
   }
 }
 

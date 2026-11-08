@@ -143,6 +143,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - The events sit in the URL as `sent=`, so a link reopens the same picture, and Back takes an event back.
 - A polite status line says what each event changed.
 - Leaving a live step closes the run held for the reader's next press, and the player keeps the eight resting pictures it drew most recently, so a long exploration holds bounded memory. [The player](docs/MACHINES.md#the-player)
+- A run held for the reader's next press names the step it ran to; the player takes it only at that step, and closes one that arrives for another step or another log.
 - The page carries its default scenario's trace, so the player shows it without running the scene first; another scenario runs once, for its trace and its phone close-ups together. [Page](docs/REFERENCE.md#page)
 - A scenario whose run throws in the page leaves the stage usable: the player keeps the scenario it had and says so.
 - On a phone the stage is taller than 16:9.

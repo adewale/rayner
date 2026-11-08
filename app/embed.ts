@@ -1076,7 +1076,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     return runLive(at.Scene, now.step, now.live, log, { ...draw, from: now.base.from, keep: true }).then((run) => {
       if (run.session) {
         if (scope.signal.aborted) run.session.close();
-        else explored({ kind: 'held', session: run.session });
+        else explored({ kind: 'held', now, session: run.session });
       }
       return run;
     });
