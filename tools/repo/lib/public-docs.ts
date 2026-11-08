@@ -3,13 +3,18 @@
 // members; a name is documented when the guides in docs/ name it in code:
 //
 //   a value or a type   its name, as a word, in a code span or block;
-//   a type              or in the signature of a documented function, constructor or member (a
-//                       parameter's or the result's type), which an editor shows wherever it is called;
-//   a member            `.name` (`s.card`, `view.sync`), or a span that starts with it (`name(` or `name`).
+//   an options bag      or, for a type named `...Opts` or `...Options`, the signature of a documented
+//                       function, constructor or member that takes or returns it, which an editor shows
+//                       wherever it is called;
+//   a member            `.name` or a span that starts with it (`name(` or `name`), in a section (the text
+//                       under one heading) that also names its owner class in code, or `r.name` for one
+//                       of the receivers the guides write for its owner (RECEIVERS: `s.card`, `d.walk`).
 //
-// A member is matched by name, so one documented on another class counts: the check is loose by
-// design, and catches a name no guide mentions at all. UNDOCUMENTED lists the public names that
-// have no author purpose and are left for a decision rather than documented.
+// A member that overrides an exported ancestor's is the ancestor's name, not one of its own
+// (`FadeOut.begin` is `Animation.begin`), and one that implements an exported interface's is the
+// interface's (`NullSink.frame` is `Sink.frame`).
+// UNDOCUMENTED lists the public names that have no author purpose and are left for a decision rather
+// than documented.
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import ts from 'typescript';
@@ -30,6 +35,16 @@ export interface PublicName {
  * test, so the list cannot go stale.
  */
 export const UNDOCUMENTED: Record<string, string> = {};
+
+/**
+ * The receivers the guides write for an owner's members, as the error-message prefixes do
+ * (docs/ENGINE.md, "Error messages"): `s.card` is the stage's `card` wherever it is shown.
+ */
+export const RECEIVERS: Record<string, readonly string[]> = {
+  Stage: ['s'], Diagram: ['d'], View: ['view'], Machine: ['machine'], Mobject: ['m'], Code: ['code'],
+};
+/** A type that may be documented by a documented signature alone: an options bag. */
+export const optionsBag = (name: string): boolean => /(Opts|Options)$/.test(name);
 
 const internal = (d: ts.Node): boolean => ts.getJSDocTags(d).some((t) => t.tagName.text === 'internal');
 const hidden = (d: ts.Declaration): boolean => {
@@ -94,6 +109,16 @@ export function publicSurface(root = ROOT): Surface {
     for (const t of signatureNames(d)) s.add(t);
     signatures.set(name, s);
   };
+  const implementedBy = (decl: ts.ClassDeclaration, name: string) => {
+    for (const t of decl.heritageClauses?.find((h) => h.token === ts.SyntaxKind.ImplementsKeyword)?.types ?? []) {
+      const symbol = checker.getSymbolAtLocation(t.expression);
+      const resolved = symbol && (symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol);
+      const entry = resolved && exportedBy(checker, program, entries, resolved);
+      const member = entry && resolved.members?.get(ts.escapeLeadingUnderscores(name))?.declarations?.[0];
+      if (member) return { entry, owner: resolved.name, member };
+    }
+    return undefined;
+  };
   for (const [entry, file] of entries) {
     const module = checker.getSymbolAtLocation(program.getSourceFile(file)!)!;
     for (const exported of checker.getExportsOfModule(module)) {
@@ -110,8 +135,11 @@ export function publicSurface(root = ROOT): Surface {
         const exportedClasses = new Set(checker.getExportsOfModule(module).map((e) => (e.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(e) : e)));
         while (decl) {
           for (const m of decl.members) {
-            if (!m.name || ts.isConstructorDeclaration(m) || hidden(m) || internal(m)) continue;
-            addMember(entry, exported.name, m.name.getText(), m);
+            if (!m.name || ts.isConstructorDeclaration(m) || hidden(m) || internal(m) || overridesPublic(checker, decl, m)) continue;
+            // A member that implements an exported interface's is the interface's: NullSink's frame is Sink.frame.
+            const implemented = implementedBy(decl, m.name.getText());
+            if (implemented) addMember(implemented.entry, implemented.owner, m.name.getText(), implemented.member);
+            else addMember(entry, exported.name, m.name.getText(), m);
           }
           const base = decl.heritageClauses?.find((h) => h.token === ts.SyntaxKind.ExtendsKeyword)?.types[0];
           const baseSymbol = base && checker.getSymbolAtLocation(base.expression);
@@ -133,53 +161,78 @@ export function publicSurface(root = ROOT): Surface {
   }
   return { names, signatures };
 }
+/** Whether `m` overrides a public member of an ancestor: then it is the ancestor's name, not its own. */
+function overridesPublic(checker: ts.TypeChecker, decl: ts.ClassDeclaration, m: ts.ClassElement): boolean {
+  if (!(ts.getCombinedModifierFlags(m as ts.Declaration) & ts.ModifierFlags.Override)) return false;
+  const base = decl.heritageClauses?.find((h) => h.token === ts.SyntaxKind.ExtendsKeyword)?.types[0];
+  if (!base) return false;
+  const inherited = checker.getTypeAtLocation(base).getProperty(m.name!.getText());
+  return !!inherited?.declarations?.some((d) => !hidden(d) && !internal(d));
+}
 function isTypeOnlyExport(symbol: ts.Symbol): boolean {
   return (symbol.declarations ?? []).some((d) => ts.isExportSpecifier(d) && (d.isTypeOnly || d.parent.parent.isTypeOnly));
 }
-const exportedAnywhere = new WeakMap<ts.Program, Set<ts.Symbol>>();
-function allExported(checker: ts.TypeChecker, program: ts.Program, entries: readonly (readonly [string, string])[], symbol: ts.Symbol): boolean {
+const exportedAnywhere = new WeakMap<ts.Program, Map<ts.Symbol, string>>();
+/** The entry point that exports `symbol` first, or undefined when none does. */
+function exportedBy(checker: ts.TypeChecker, program: ts.Program, entries: readonly (readonly [string, string])[], symbol: ts.Symbol): string | undefined {
   let all = exportedAnywhere.get(program);
   if (!all) {
-    all = new Set();
-    for (const [, file] of entries)
-      for (const e of checker.getExportsOfModule(checker.getSymbolAtLocation(program.getSourceFile(file)!)!))
-        all.add(e.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(e) : e);
+    all = new Map();
+    for (const [entry, file] of entries)
+      for (const e of checker.getExportsOfModule(checker.getSymbolAtLocation(program.getSourceFile(file)!)!)) {
+        const target = e.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(e) : e;
+        if (!all.has(target)) all.set(target, entry);
+      }
     exportedAnywhere.set(program, all);
   }
-  return all.has(symbol);
+  return all.get(symbol);
 }
+const allExported = (checker: ts.TypeChecker, program: ts.Program, entries: readonly (readonly [string, string])[], symbol: ts.Symbol): boolean =>
+  exportedBy(checker, program, entries, symbol) !== undefined;
 
-/** The code in the guides: every inline code span and fenced block of docs/*.md, one per line. */
-export function docsCode(root = ROOT): string {
+/**
+ * The code in the guides, a section at a time: every inline code span and fenced block of docs/*.md,
+ * one per line, for the text under each heading down to the next heading of any level.
+ */
+export function docsCode(root = ROOT): string[] {
   const dir = join(root, 'docs');
   const out: string[] = [];
   for (const file of readdirSync(dir).filter((f) => f.endsWith('.md')).sort()) {
     // A code span may run across the lines of one paragraph, so spans are read a paragraph at a time.
-    let fenced = false, paragraph: string[] = [];
+    let fenced = false, paragraph: string[] = [], section: string[] = [];
     const spans = () => {
-      for (const [, , span] of paragraph.join(' ').matchAll(/(`+)(.+?)\1(?!`)/g)) out.push(span!.trim());
+      for (const [, , span] of paragraph.join(' ').matchAll(/(`+)(.+?)\1(?!`)/g)) section.push(span!.trim());
       paragraph = [];
     };
+    const end = () => { spans(); out.push(section.join('\n')); section = []; };
     for (const line of readFileSync(join(dir, file), 'utf8').split('\n')) {
       if (/^\s*```/.test(line)) { spans(); fenced = !fenced; continue; }
-      if (fenced) out.push(line);
+      if (fenced) section.push(line);
+      else if (/^#{1,6} /.test(line)) { end(); paragraph.push(line); }
       else if (!line.trim() || /^\s*([-*|#]|\d+\.)/.test(line)) { spans(); paragraph.push(line); }
       else paragraph.push(line);
     }
-    spans();
+    end();
   }
-  return out.join('\n');
+  return out;
 }
 
 const escape = (s: string) => s.replace(/[$]/g, '\\$');
-/** Whether the guides document `n`, by the rules at the top of this file. */
-export function documented(n: PublicName, code: string, documentedTypes: ReadonlySet<string>): boolean {
+const word = (name: string) => new RegExp(`(?<![\\w$])${escape(name)}(?![\\w$])`);
+/**
+ * Whether the guides document `n`, by the rules at the top of this file. `code` is the guides' code a
+ * section at a time (one string is one section); `shown` holds the options bags documented signatures show.
+ */
+export function documented(n: PublicName, code: string | readonly string[], shown: ReadonlySet<string>): boolean {
+  const sections = typeof code === 'string' ? [code] : code;
   if (n.kind === 'member') {
-    const member = escape(n.name.slice(n.name.indexOf('.') + 1));
-    return new RegExp(`\\.${member}(?![\\w$])|(^|\\n)${member}(?![\\w$])`).test(code);
+    const owner = n.name.slice(0, n.name.indexOf('.')), member = escape(n.name.slice(n.name.indexOf('.') + 1));
+    const shows = new RegExp(`\\.${member}(?![\\w$])|(^|\\n)${member}(?![\\w$])`), names = word(owner);
+    const receivers = RECEIVERS[owner] && new RegExp(`(?<![\\w$])(${RECEIVERS[owner]!.join('|')})\\.${member}(?![\\w$])`);
+    return sections.some((c) => (shows.test(c) && names.test(c)) || !!receivers?.test(c));
   }
-  if (new RegExp(`(?<![\\w$])${escape(n.name)}(?![\\w$])`).test(code)) return true;
-  return n.kind === 'type' && documentedTypes.has(n.name);
+  if (sections.some((c) => word(n.name).test(c))) return true;
+  return n.kind === 'type' && optionsBag(n.name) && shown.has(n.name);
 }
 
 export interface DocsReport {
@@ -191,7 +244,7 @@ export interface DocsReport {
 export function docsReport(root = ROOT): DocsReport {
   const surface = publicSurface(root);
   const code = docsCode(root);
-  // A documented value's or member's signature documents the types it shows.
+  // A documented value's or member's signature documents the options bags it shows.
   const direct = surface.names.filter((n) => documented(n, code, new Set()));
   const shown = new Set<string>();
   for (const n of direct) if (n.kind !== 'type') for (const t of surface.signatures.get(n.name) ?? []) shown.add(t);

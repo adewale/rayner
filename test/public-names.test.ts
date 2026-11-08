@@ -74,6 +74,8 @@ test('every public value, type and member is documented in docs/, or listed as h
   assert.ok(docs.rows.filter((r) => r.kind === 'member' && r.name.startsWith('Stage.')).length > 20, 'the stage’s members are part of the surface');
   assert.ok(docs.rows.some((r) => r.name === 'View.sync') && docs.rows.some((r) => r.name === 'Card.describe'), 'class members, type-only classes included');
   assert.ok(!docs.rows.some((r) => r.name === 'View.placed' || r.name === 'Mobject.id'), '@internal and hidden members are not public');
+  assert.ok(docs.rows.some((r) => r.name === 'Sink.frame') && !docs.rows.some((r) => r.name === 'NullSink.frame'), 'a member that implements an exported interface’s is the interface’s');
+  assert.ok(docs.rows.some((r) => r.name === 'Animation.begin') && !docs.rows.some((r) => r.name === 'FadeOut.begin'), 'an override is its ancestor’s name, not its own');
   assert.deepEqual(docsProblems(docs), []);
 });
 
@@ -82,12 +84,19 @@ test('the docs check rejects a public name no guide names, and a stale entry amo
   assert.match(docsProblems(missing).join('\n'), /having \(rayner\/explain\) is public but no guide in docs\/ names it/);
   assert.match(docsProblems(docs, { ...UNDOCUMENTED, 'having (rayner/explain)': 'x' }).join('\n'), /having \(rayner\/explain\) is listed as undocumented but a guide documents it/);
   assert.match(docsProblems(docs, { ...UNDOCUMENTED, 'Gone (rayner)': 'x' }).join('\n'), /Gone \(rayner\) is listed as undocumented but is not public/);
-  // The rules: a value or type by its name in code, a type by a documented signature, a member by `.name` or a span it leads.
+  // The rules: a value or type by its name in code, an options bag by a documented signature, a member by `.name` or a
+  // span it leads in a section that names its owner, or by `r.name` for one of its owner's receivers.
   const n = (kind: 'value' | 'type' | 'member', name: string) => ({ entry: 'rayner', kind, name });
   assert.ok(documented(n('value', 'card'), 'card(s, rows)', new Set()));
   assert.ok(!documented(n('value', 'card'), 'cards and a scorecard', new Set()));
   assert.ok(documented(n('type', 'CardOptions'), 'card(s, rows)', new Set(['CardOptions'])));
+  assert.ok(!documented(n('type', 'Having'), 'having(st, k)', new Set(['Having'])), 'only an options bag is documented by a signature');
   assert.ok(documented(n('member', 'View.sync'), 'view.sync({ match })', new Set()));
-  assert.ok(documented(n('member', 'InvariantSink.held'), 'failures\nheld', new Set()));
+  assert.ok(documented(n('member', 'InvariantSink.held'), 'InvariantSink\nfailures\nheld', new Set()));
   assert.ok(!documented(n('member', 'View.sync'), 'synced', new Set()));
+  // A member of the same name on another class is a coincidence: Line.start is not machine.spec.start, and
+  // InvariantSink.inner is not a sync's inner where another section names InvariantSink.
+  assert.ok(!documented(n('member', 'Line.start'), 'machine.spec.start', new Set()));
+  assert.ok(!documented(n('member', 'InvariantSink.inner'), ['InvariantSink\nfailures', 'sync.inner'], new Set()));
+  assert.ok(documented(n('member', 'Line.start'), ['Line\nline.start()'], new Set()));
 });
