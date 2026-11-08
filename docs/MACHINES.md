@@ -160,6 +160,12 @@ takes its drawn counterpart's data in place, in the drawn stacking order: nothin
 every part keeps its identity for the next event. A view whose parts do not line up one to one
 by key (a part with no key, or a key two siblings share) is redrawn from the state instead.
 
+A transition may return an action that waits for what it reads, as `s.show` of a diagram not laid
+out yet or `d.morph` does: its turn comes mid-play, after `play()` has waited for everything it was
+given, so the play waits again there, before its next frame, and the frames are those of an
+action that waited for nothing. What a transition makes is held to one writer per mobject against
+everything else the play drives as it begins.
+
 ## The default transition
 
 An event with no authored transition morphs each view to the picture of the state it reaches, by
@@ -252,10 +258,6 @@ which is the shrinking a generated-sequence check would otherwise need. `statech
   compared with that whole graph, and generated event sequences walk it too, so no XState
   install is needed in tests; regenerating the fixture needs the pinned release.
 - **A state is compared as JSON.** Two states equal as JSON are one state.
-- **A transition holds no action that waits.** A transition's animation is made as its event's
-  beat begins, after `play()` has waited for what its animations read. An action that must wait
-  first, `s.show` of a diagram not yet laid out or `d.morph` to a picture not yet built, throws
-  there; show the diagram in the step, before the machine plays, and let the views draw it.
 
 ## The player
 

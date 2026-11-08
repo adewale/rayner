@@ -14,7 +14,7 @@ import { paints } from '../../src/mobject.ts';
 import type { Scene, SceneClass, Mobject } from '../../src/index.ts';
 import type { ElementRecord } from '../../src/output.ts';
 import { emphasisOf, newlyEmphasised } from '../../explain/look.ts';
-import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
+import { labelOf, readingLabelSize } from '../../explain/labels.ts';
 import { isFurniture, isHeading } from '../../explain/stage.ts';
 import { NARROW_PX } from '../../app/embed-closeup.ts';
 import { stepWords } from '../../explain/trace.ts';

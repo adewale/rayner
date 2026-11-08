@@ -283,3 +283,33 @@ test('resting text is judged in the camera view: cut by its edge fails, wholly o
   scene.frame.fit([-1, -1, 1, 1], { margin: 0.2 });
   assert.equal(toSvgString(scene), zoomed);
 });
+
+test('one camera zoom: the stage pins its heading by the zoom the close-ups read, for a box out of 16:9 too', async () => {
+  const { zoomOf } = await import('../src/units.ts');
+  const { isHeading } = await import('../explain/stage.ts');
+  assert.equal(zoomOf(HOME), 1);
+  assert.equal(zoomOf([-2, -1.125, 2, 1.125]), 4, 'a 16:9 box: width and height agree');
+  assert.equal(zoomOf([-1, -2, 1, 2]), 9 / 4, 'a tall box: its height sets the scale');
+  assert.equal(zoomOf([-4, -1, 4, 1]), 2, 'a wide box: its width sets the scale');
+  // s.focus with an exact box out of 16:9: the heading must stay where it is on screen, as the
+  // close-ups map the world into the camera's view (toView, by zoomOf).
+  for (const box of [[-1, -2, 1, 2], [-4, -1, 4, 1]] as Box[]) {
+    let home: Box[] = [], away: Box[] = [], view: Box = HOME;
+    class Tall extends Scene {
+      override async construct() {
+        const s = stage(this);
+        await this.step('one', { title: 'A heading' } as never);
+        const heading = () => this.mobjects.filter((m) => isHeading(m) && m.role === 'heading').map((m) => m.box()!);
+        home = heading();
+        await s.focus(box, { exact: true });
+        view = this.frame.box()!;
+        away = heading().map((b) => toView(b, view));
+        this.state.done = true;
+      }
+    }
+    await new Tall(new NullSink()).run();
+    assert.ok(home.length > 0);
+    assert.notDeepEqual(view, HOME);
+    assert.ok(home.every((b, i) => b.every((v, k) => Math.abs(v - away[i]![k]!) < 1e-3)), `${JSON.stringify(box)}: the heading moved on screen, ${JSON.stringify(home)} to ${JSON.stringify(away)}`);
+  }
+});

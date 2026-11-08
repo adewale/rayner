@@ -4,7 +4,7 @@
 // run the same beats, with the same side effects at the same moments between them.
 
 import { AnimationGroup, Succession, linear } from '../src/index.ts';
-import type { Scene, ScheduledAnimation, PlayOpts } from '../src/index.ts';
+import type { Scene, ScheduledAnimation, Mobject } from '../src/index.ts';
 
 /**
  * One play of an action: its run time, fixed when the action is made, and what it does when its
@@ -34,32 +34,87 @@ function checkTime(action: string, beat: Beat, made: readonly ScheduledAnimation
 }
 
 /**
+ * @internal An animation whose members are made when its turn comes in a play: an action's beat,
+ * or a machine's transition, made from the pictures on screen then. Until then it stands for the
+ * mobjects it declares it writes. As it begins it makes its members; once what they read is ready
+ * (the play waits for that before its next frame, see Scene.whenReady) they are settled, laid out
+ * in its run time, and begun through the scene, which checks them against everything else the
+ * play drives. `by` names what made them, as messages do.
+ */
+export abstract class MadeAtTurn extends AnimationGroup {
+  readonly by: string;
+  readonly #declared: readonly Mobject[];
+  /** Its members: not made before it begins, waiting for what they read (with the alpha a frame gave it meanwhile), or begun. */
+  #turn: { made: 'not yet' } | { made: 'waiting'; at: number | null } | { made: 'begun' } = { made: 'not yet' };
+
+  constructor(by: string, runTime: number, declared: readonly Mobject[] = []) {
+    super([], { runTime, rateFunc: linear });
+    this.by = by;
+    this.#declared = declared;
+  }
+  /** Its members, made as its turn comes. */
+  protected abstract make(): ScheduledAnimation[];
+  /** Each member's start and end in its own time, once settled; it may refuse members that do not fit. All of it by default. */
+  protected slots(made: readonly ScheduledAnimation[]): Array<[number, number]> {
+    return made.map(() => [0, 1]);
+  }
+  protected override doBegin(): void {
+    const scene = this.scene;
+    if (!scene) throw new Error(`${this.by}: play it on the scene it belongs to`);
+    this.animations = [];
+    const made = this.make();
+    this.#turn = { made: 'waiting', at: null };
+    scene.whenReady(made, this.by, () => {
+      for (const a of made) a.settle();
+      this.timings = this.slots(made);
+      this.maxEnd = Math.max(0, ...this.timings.map(([, end]) => end));
+      this.animations = made;
+      const turn = this.#turn;
+      this.#turn = { made: 'begun' };
+      scene.beginAnimations(made, this.by);
+      // Begun after the play waited: it takes the frame it was given while it waited.
+      if (turn.made === 'waiting' && turn.at !== null) super.doInterpolate(turn.at);
+    });
+  }
+  protected override doInterpolate(alpha: number): void {
+    const turn = this.#turn;
+    if (turn.made === 'waiting') this.#turn = { made: 'waiting', at: alpha };
+    else super.doInterpolate(alpha);
+  }
+  protected override doFinish(alpha?: number): void {
+    if (this.#turn.made === 'waiting') throw new Error(`${this.by}: its turn came as its play ended, where nothing can wait for what it reads; give it a run time`);
+    super.doFinish(alpha);
+  }
+  /** Before its members are made, what it declares; then theirs. */
+  override targets(): Mobject[] {
+    return this.#turn.made === 'begun' ? super.targets() : [...this.#declared];
+  }
+  /** @internal Its members are made when its turn comes; its run time was planned. */
+  override settle(): void {}
+}
+
+/**
  * A beat as a member of its action's Succession: made when its turn comes, then begun through the
  * scene as a play begins its animations; `after` runs once they are cleaned up, as it does after a play.
  */
-class BeatPlay extends AnimationGroup {
+class BeatPlay extends MadeAtTurn {
   readonly beat: Beat;
-  readonly action: string;
   constructor(beat: Beat, action: string) {
-    super([], { runTime: beat.runTime, rateFunc: linear });
+    super(action, beat.runTime);
     this.beat = beat;
-    this.action = action;
   }
-  protected override doBegin(): void {
-    if (!this.scene) throw new Error(`${this.action}: play it on the scene it belongs to`);
-    const made = this.beat.play();
-    checkTime(this.action, this.beat, made);
-    this.animations = made;
-    this.timings = made.map((a) => [0, a.runTime]);
-    this.maxEnd = Math.max(0, ...made.map((a) => a.runTime));
-    this.scene.beginAnimations(made);
+  protected override make(): ScheduledAnimation[] {
+    return this.beat.play();
+  }
+  /** Each animation from the beat's start, for its own run time, which must be the beat's planned one. */
+  protected override slots(made: readonly ScheduledAnimation[]): Array<[number, number]> {
+    checkTime(this.by, this.beat, made);
+    return made.map((a) => [0, a.runTime]);
   }
   override cleanUpFromScene(scene: Scene): void {
     super.cleanUpFromScene(scene);
     this.beat.after?.();
   }
-  /** @internal Its animations are made when its turn comes; its run time was planned. */
-  override settle(): void {}
 }
 
 /** The actions each scene has made that have not begun to play: each must, by the end of its step. */
@@ -96,6 +151,28 @@ function track(scene: Scene<any, any>, action: Action<unknown>): void {
   waiting.add(action);
 }
 
+/** What deciding an action gave: its plan, or the error deciding it (or reading what it reads) threw; null until a late action is decided. */
+type Decision<T> = { plan: Plan<T> } | { error: unknown } | null;
+
+/**
+ * Where an action is in its life, as one value: each change is made in one place below.
+ *
+ * - `reading`: made, not played, and what it reads is not ready (`ready` has not settled).
+ * - `ready`: made, not played, and what it reads is ready; a late action is decided as it begins.
+ * - `awaited`: awaited, and playing itself beat by beat; `run` is what awaiting it gives.
+ * - `composed`: begun by a play, or by the Succession or group that holds it.
+ * - `ended`: its last beat has played and its `end` has run, after it was awaited or composed.
+ *
+ * Before it plays it may be `reading`, then `ready`; it plays once, awaited or composed, then ends.
+ * A refused begin (what it reads not ready, or deciding it failed) leaves it as it was.
+ */
+type ActionState<T> =
+  | { phase: 'reading'; decision: Decision<T> }
+  | { phase: 'ready'; decision: Decision<T> }
+  | { phase: 'awaited'; decision: Decision<T>; run: Promise<T> }
+  | { phase: 'composed'; plan: Plan<T> }
+  | { phase: 'ended'; plan: Plan<T>; run: Promise<T> | null };
+
 /**
  * What a stage or diagram action returns: an animation that is also a promise of what the action
  * gives (`T`: the card, the diagram, or nothing).
@@ -115,143 +192,156 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
   readonly name: string;
   /** @internal The scene it plays on: a play on another scene refuses it. */
   readonly host: Scene<any, any>;
-  #make: () => Plan<T>;
-  #plan: Plan<T> | null;
-  #failed: boolean;
-  #error: unknown;
-  #waiting: Promise<void> | null;
-  #settled: boolean;
-  #played: 'awaited' | 'composed' | null;
-  #result: Promise<T> | null;
-  #stretched: boolean;
-  #ended: boolean;
+  /** What decides it: what it gives and its beats. */
+  readonly #make: () => Plan<T>;
+  /** Settles once what it reads is ready, recording a failure as its decision; null when it reads nothing. */
+  readonly #waiting: Promise<void> | null;
+  #state: ActionState<T>;
 
   /**
    * @internal `make` decides the action when it is called, or with `late` once `ready` has settled
-   * and the play that holds it begins (a play waits for `ready`, a group's members' included): its
-   * run time is known from then, so it plays awaited, in play(), or inside a Succession or group.
+   * and the play that holds it begins (a play waits for `ready`, a group's members' included, and
+   * so does a play for what is made at its turn there): its run time is known from then, so it
+   * plays awaited, in play(), or inside a Succession, a group or a machine's transition.
    */
   constructor(scene: Scene<any, any>, name: string, make: () => Plan<T>, { ready, late = false }: { ready?: Promise<unknown>; late?: boolean } = {}) {
-    let plan: Plan<T> | null = null, failed = false, error: unknown = null;
+    let decision: Decision<T> = null;
     if (!late)
       try {
-        plan = make();
-      } catch (e) {
-        failed = true;
-        error = e;
+        decision = { plan: make() };
+      } catch (error) {
+        decision = { error };
       }
-    super(plan ? plan.beats.map((b) => new BeatPlay(b, name)) : []);
+    super(decision && 'plan' in decision ? decision.plan.beats.map((b) => new BeatPlay(b, name)) : []);
     this.name = name;
     this.host = scene;
     this.#make = make;
-    this.#plan = plan;
-    this.#failed = failed;
-    this.#error = error;
-    this.#settled = !ready;
+    this.#state = { phase: ready ? 'reading' : 'ready', decision };
     this.#waiting = ready
       ? ready.then(
-          () => { this.#settled = true; },
-          (e: unknown) => {
-            this.#settled = true;
-            if (!this.#failed) [this.#failed, this.#error] = [true, e];
+          () => {
+            if (this.#state.phase === 'reading') this.#state = { phase: 'ready', decision: this.#state.decision };
+          },
+          (error: unknown) => {
+            const s = this.#state;
+            if (s.phase === 'reading') this.#state = { phase: 'ready', decision: s.decision && 'error' in s.decision ? s.decision : { error } };
+            else if (s.phase === 'awaited' && !(s.decision && 'error' in s.decision)) this.#state = { ...s, decision: { error } };
           },
         )
       : null;
-    this.#played = null;
-    this.#result = null;
-    this.#stretched = false;
-    this.#ended = false;
     track(scene, this as Action<unknown>);
   }
 
   /** What awaiting it gives. Set when the action is made (`s.show`'s diagram: once the play that holds it begins). */
   get value(): T {
-    if (this.#failed) throw this.#error;
-    if (!this.#plan) throw new Error(`${this.name}: what it gives is known once the play that holds it begins; read its value after that, or await it`);
-    return this.#plan.value;
+    const s = this.#state;
+    const decision: Decision<T> = 'plan' in s ? { plan: s.plan } : s.decision;
+    if (decision && 'error' in decision) throw decision.error;
+    if (!decision) throw new Error(`${this.name}: what it gives is known once the play that holds it begins; read its value after that, or await it`);
+    return decision.plan.value;
   }
 
-  /** It plays once, awaited or composed: mark which, or refuse a second play. */
-  #start(how: 'awaited' | 'composed'): void {
-    if (this.#played)
-      throw new Error(
-        `${this.name}: it has already played${this.#played === 'composed' ? ' in a play' : ''}; an action plays once, so call it again to play it again` +
-          (this.#played === 'composed' && how === 'awaited' ? ', and read what it gave from its value' : ''),
-      );
-    this.#played = how;
-    unplayed.get(this.host)?.delete(this as Action<unknown>);
+  /** The refusal of a second play, after it played `how`, for a play `now`. */
+  #playedAlready(how: 'awaited' | 'composed', now: 'awaited' | 'composed'): Error {
+    return new Error(
+      `${this.name}: it has already played${how === 'composed' ? ' in a play' : ''}; an action plays once, so call it again to play it again` +
+        (how === 'composed' && now === 'awaited' ? ', and read what it gave from its value' : ''),
+    );
   }
 
-  /** The plan, made now for a late action, and its beats laid out as this Succession's members. */
-  #planned(): Plan<T> {
-    if (this.#failed) throw this.#error;
-    if (this.#plan) return this.#plan;
-    const plan = this.#make();
-    this.#plan = plan;
+  /** How it played, once it has: awaited or composed; null before. */
+  #played(): 'awaited' | 'composed' | null {
+    const s = this.#state;
+    return s.phase === 'awaited' ? 'awaited' : s.phase === 'composed' ? 'composed' : s.phase === 'ended' ? (s.run ? 'awaited' : 'composed') : null;
+  }
+
+  /**
+   * Its plan, deciding a late action now (once what it reads is ready), its beats laid out as this
+   * Succession's members; throws what deciding it threw. Called from `ready`, before it begins, or `awaited`.
+   */
+  #decide(): Plan<T> {
+    const s = this.#state;
+    if (s.phase === 'composed' || s.phase === 'ended') return s.plan;
+    if (s.decision) {
+      if ('error' in s.decision) throw s.decision.error;
+      return s.decision.plan;
+    }
+    let plan: Plan<T>;
+    try {
+      plan = this.#make();
+    } catch (error) {
+      this.#state = { ...s, decision: { error } };
+      throw error;
+    }
+    this.#state = { ...s, decision: { plan } };
     this.animations = plan.beats.map((b) => new BeatPlay(b, this.name));
-    let start = 0;
-    this.timings = this.animations.map((a) => {
-      const slot: [number, number] = [start, start + a.runTime];
-      start += a.runTime;
-      return slot;
-    });
-    this.maxEnd = start;
-    if (!this.#stretched) this.runTime = this.maxEnd;
+    // Laid out as a Succession lays out its members; a run time given to play() is kept.
+    super.settle();
     return plan;
   }
 
   /** @internal */ override ready(): Promise<unknown> | null {
-    return this.#settled ? null : this.#waiting;
+    return this.#state.phase === 'reading' ? this.#waiting : null;
   }
 
   /** @internal Decided now, if it was not when made: what it reads is ready, and the play that holds it is beginning. */
   override settle(): void {
-    if (!this.#settled) throw new Error(`${this.name}: played before what it reads was ready, as in a machine's transition, which is made as its beat begins; make it before the play, which waits for it`);
-    this.#planned();
+    const s = this.#state;
+    if (s.phase === 'reading') throw new Error(`${this.name}: played before what it reads was ready; hand it to play(), or to a Succession or group that plays, which waits for it`);
+    if (s.phase === 'ready') this.#decide();
   }
 
-  /** @internal */ override setOptions(opts: PlayOpts = {}): this {
-    if (opts.runTime != null) this.#stretched = true;
-    return super.setOptions(opts);
-  }
-
-  /** Composed: begun by a play, or by the Succession or group that holds it. */
+  /** Composed: begun by a play, or by the Succession or group that holds it. A refused begin leaves it unplayed. */
   protected override doBegin(): void {
-    this.#start('composed');
-    if (!this.#settled) throw new Error(`${this.name}: begun before what it reads was ready, as in a machine's transition, which is made as its beat begins; make it before the play, which waits for it`);
-    this.#planned().start?.();
+    const s = this.#state;
+    const how = this.#played();
+    if (how) throw this.#playedAlready(how, 'composed');
+    if (s.phase === 'reading') throw new Error(`${this.name}: begun before what it reads was ready; hand it to play(), or to a Succession or group that plays, which waits for it`);
+    const plan = this.#decide();
+    this.#state = { phase: 'composed', plan };
+    unplayed.get(this.host)?.delete(this as Action<unknown>);
+    plan.start?.();
     super.doBegin();
   }
 
   protected override doFinish(): void {
     super.doFinish();
-    if (this.#ended) return;
-    this.#ended = true;
-    this.#plan?.end?.();
+    const s = this.#state;
+    if (s.phase !== 'composed') return;
+    this.#state = { phase: 'ended', plan: s.plan, run: null };
+    s.plan.end?.();
   }
 
-  /** Awaited: play each beat in a play of its own, then give the value. */
-  async #run(): Promise<T> {
-    this.#start('awaited');
-    if (this.#waiting) await this.#waiting;
-    const plan = this.#planned();
-    plan.start?.();
-    for (const beat of plan.beats) {
-      const made = beat.play();
-      checkTime(this.name, beat, made);
-      if (made.length) await this.host.play(...made);
-      beat.after?.();
-    }
-    this.#ended = true;
-    plan.end?.();
-    return plan.value;
+  /** Awaited: play each beat in a play of its own, then give the value. Once awaited, awaiting it again gives the same. */
+  #awaited(): Promise<T> {
+    const s = this.#state;
+    if (s.phase === 'awaited' || (s.phase === 'ended' && s.run)) return s.run!;
+    if (s.phase !== 'reading' && s.phase !== 'ready') return Promise.reject(this.#playedAlready(this.#played()!, 'awaited'));
+    // It starts after this state is set (an await, of what it reads or of nothing), so it ends after it too.
+    let run!: Promise<T>;
+    run = (async () => {
+      await this.#waiting;
+      const plan = this.#decide();
+      plan.start?.();
+      for (const beat of plan.beats) {
+        const made = beat.play();
+        checkTime(this.name, beat, made);
+        if (made.length) await this.host.play(...made);
+        beat.after?.();
+      }
+      this.#state = { phase: 'ended', plan, run };
+      plan.end?.();
+      return plan.value;
+    })();
+    this.#state = { phase: 'awaited', decision: s.decision, run };
+    unplayed.get(this.host)?.delete(this as Action<unknown>);
+    return run;
   }
 
   then<R1 = T, R2 = never>(
     onfulfilled?: ((value: T) => R1 | PromiseLike<R1>) | null,
     onrejected?: ((reason: unknown) => R2 | PromiseLike<R2>) | null,
   ): Promise<R1 | R2> {
-    this.#result ??= this.#run();
-    return this.#result.then(onfulfilled, onrejected);
+    return this.#awaited().then(onfulfilled, onrejected);
   }
 }

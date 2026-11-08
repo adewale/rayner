@@ -1,8 +1,8 @@
 // Diagram code only where it is used. A page whose scene shows no diagram in any scenario
 // carries none of explain/diagrams.ts's Diagram, nor the Mermaid replay it draws with: the
 // build answers every import of explain/diagrams.ts with a stand-in whose Diagram throws if
-// it is ever reached, and which takes the helpers the player reads for every picture (the
-// words and size of a label) from the real module, so the bundler keeps only those.
+// it is ever reached. The helpers the player reads for every picture (the words and size of a
+// label) live in explain/labels.ts, which the player imports itself.
 import type { Plugin } from 'esbuild';
 import { join, resolve } from 'node:path';
 import type { Project } from './explain-project.ts';
@@ -15,8 +15,6 @@ export const showsDiagrams = (project: Pick<Project, 'store' | 'diagrams'>) => p
 /** The message the stand-in's Diagram throws with. */
 export const NO_DIAGRAM_CODE =
   'new Diagram(): this page was built without diagram code, because no scenario made a diagram when it was built; build the page again from a scene that shows it';
-
-const REAL = 'rayner-diagrams-real';
 
 /** The esbuild plugin that leaves diagram code out of a page whose project shows no diagram. */
 export function withoutDiagramCode(root = LIB_ROOT): Plugin {
@@ -32,10 +30,8 @@ export function withoutDiagramCode(root = LIB_ROOT): Plugin {
         const here = [LIB_ROOT, ROOT, root].some((base) => ['explain/diagrams.ts', 'dist/explain/diagrams.js'].includes(relativePosix(base, path)));
         return here ? { path: file, namespace: 'without-diagram-code' } : undefined;
       });
-      b.onResolve({ filter: new RegExp(`^${REAL}$`) }, () => ({ path: file }));
       b.onLoad({ filter: /.*/, namespace: 'without-diagram-code' }, () => ({
-        contents: `export { labelOf, readingLabelSize } from '${REAL}';
-export class Diagram { constructor() { throw new Error(${JSON.stringify(NO_DIAGRAM_CODE)}); } }`,
+        contents: `export class Diagram { constructor() { throw new Error(${JSON.stringify(NO_DIAGRAM_CODE)}); } }`,
         resolveDir: root,
         loader: 'ts',
       }));

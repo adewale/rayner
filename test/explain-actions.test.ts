@@ -160,21 +160,122 @@ test('an action’s errors surface when it plays, awaited or composed, not when 
   await assert.rejects(scene.play(s.focus([])), /nothing to look at/);
 });
 
-test('an action that waits, made in a machine transition, is refused with where to make it', async () => {
+test('an action that waits, made in a machine transition, plays there: the play waits for it as its turn comes, and draws the same frames', async () => {
   const { Machine } = await import('../explain/machine.ts');
   const { view } = await import('../explain/view.ts');
   const { Action } = await import('../explain/action.ts');
-  // A late action whose `ready` is pending, as s.show's is while it reads a diagram's layout.
-  const waiting = (scene: InstanceType<typeof Scene>) => new Action(scene, 's.show()', () => ({ value: undefined, beats: [{ runTime: 0.2, play: () => [new FadeIn(new Circle(), { runTime: 0.2 })] }] }), { ready: new Promise((r) => setTimeout(r, 5)), late: true });
-  class InTransition extends Scene<{ n: number }> {
-    override async construct() {
-      this.state = { n: 0 };
-      const v = view(this, (s: { n: number }) => new Circle({ radius: 0.5 + s.n / 10 }));
-      const m = new Machine(this, { start: { n: 0 }, events: ['UP'], next: (s) => ({ n: s.n + 1 }), views: [v], transition: { UP: () => waiting(this) } });
-      await this.step('a');
-      this.add(v);
-      await this.play(m.send('UP'));
+  const { StringSink } = await import('../src/svg.ts');
+  // A late action, waiting on `ready` as s.show does while it reads a diagram's layout, or the same action reading nothing.
+  const fade = (scene: InstanceType<typeof Scene>, n: number, waits: boolean) =>
+    new Action(scene, 's.show()', () => ({ value: undefined, beats: [{ runTime: 0.2, play: () => [new FadeIn(new Circle({ radius: 0.2 }).moveTo([n, -2]), { runTime: 0.2 })] }] }),
+      waits ? { ready: new Promise((r) => setTimeout(r, 5)), late: true } : {});
+  const run = async (waits: boolean) => {
+    class InTransition extends Scene<{ n: number }> {
+      override async construct() {
+        this.state = { n: 0 };
+        const v = view(this, (s: { n: number }) => new Circle({ radius: 0.5 + s.n / 10 }));
+        // The second event's transition is made only once the first has landed, mid-play: the play waits for it there.
+        const m = new Machine(this, { start: { n: 0 }, events: ['UP'], next: (s) => ({ n: s.n + 1 }), views: [v], transition: { UP: (t) => fade(this, t.after.n, waits) } });
+        await this.step('a');
+        this.add(v);
+        await this.play(m.replay(['UP', 'UP']));
+      }
     }
-  }
-  await assert.rejects(new InTransition(new NullSink()).run(), /^Error: s\.show\(\): begun before what it reads was ready, as in a machine's transition, which is made as its beat begins; make it before the play, which waits for it$/);
+    const sink = new StringSink();
+    const scene = new InTransition(sink);
+    await scene.run();
+    return { frames: sink.frames, n: scene.state.n };
+  };
+  const waiting = await run(true), immediate = await run(false);
+  assert.equal(waiting.n, 2);
+  assert.ok(waiting.frames.length > 0);
+  assert.deepEqual(waiting.frames, immediate.frames, 'waiting changes nothing the frames show');
+
+  // A real s.show, reading its diagram's layout, as a transition.
+  const { scene: bare, s } = setUp();
+  const scene = bare as unknown as Scene<{ n: number }>;
+  const v = view(scene, (st: { n: number }) => new Circle({ radius: 0.5 + st.n / 10 }));
+  scene.state = { n: 0 };
+  let shown: ReturnType<typeof s.show> | null = null;
+  const m = new Machine(scene, { start: { n: 0 }, events: ['UP'], next: (st: { n: number }) => ({ n: st.n + 1 }), views: [v], transition: { UP: () => (shown = s.show(spec)) } });
+  scene.add(v);
+  await scene.play(m.send('UP'));
+  assert.ok(shown!.value instanceof Diagram && scene.mobjects.includes(shown!.value.root));
+});
+
+test('what an action or a machine transition makes as its turn comes has one writer per mobject too, checked against what else the play drives then', async () => {
+  const { Action } = await import('../explain/action.ts');
+  const { Machine } = await import('../explain/machine.ts');
+  const { view } = await import('../explain/view.ts');
+  const { FadeOut, Transform } = await import('../src/index.ts');
+  const { scene } = setUp();
+  const fadeIn = (c: Circle, runTime = 1) => new Action(scene, 'x()', () => ({ value: undefined, beats: [{ runTime, play: () => [new FadeIn(c, { runTime })] }] }));
+  // The seeded defect: a beat fades in the circle a FadeOut beside it in the same play fades out.
+  // Without the check, the play is accepted and whichever writes last wins.
+  const c = new Circle();
+  const beside = fadeIn(c);
+  await assert.rejects(scene.play(beside, new FadeOut(c)), /^Error: this\.play\(\): a FadeOut and a FadeIn, made by x\(\) as its turn came, both animate a Circle; one play can drive a mobject only once, so sequence them, or combine them into one Transform$/);
+  // Begun later, at its turn in a Succession beside the beat: refused as it begins.
+  const d = new Circle(), later = fadeIn(d);
+  await assert.rejects(scene.play(later, new Succession([new FadeIn(new Circle(), { runTime: 0.5 }), new FadeOut(d, { runTime: 0.5 })])), /a FadeIn and a FadeOut both animate a Circle/);
+  // Two animations one beat makes, on one mobject.
+  const e = new Circle();
+  const twice = new Action(scene, 'y()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => [new FadeIn(e), new FadeOut(e)] }] }));
+  await assert.rejects(scene.play(twice), /^Error: this\.play\(\): a FadeIn and a FadeOut both animate a Circle/);
+  // A machine's transition, made at its turn, against an animation beside the machine.
+  const counting = scene as unknown as Scene<{ n: number }>;
+  counting.state = { n: 0 };
+  const v = view(counting, (st: { n: number }) => new Circle({ radius: 0.5 + st.n / 10 }));
+  scene.add(v);
+  const ring = new Circle({ radius: 2 });
+  scene.add(ring);
+  const m = new Machine(counting, { start: { n: 0 }, events: ['UP'], next: (st: { n: number }) => ({ n: st.n + 1 }), views: [v], transition: { UP: () => new AnimationGroup([v.sync(), new Transform(ring, new Circle({ radius: 1 }))]) } });
+  await assert.rejects(scene.play(m.send('UP'), new FadeOut(ring)), /made by machine\.send\(\): the transition for UP as its turn came, both animate a Circle/);
+  // Sequenced, the same writers are fine: the beat, then the FadeOut.
+  const f = new Circle();
+  await scene.play(new Succession([fadeIn(f), new FadeOut(f)]));
+  assert.ok(!scene.familyMembers().includes(f), 'faded in, then out');
+});
+
+test('an action’s life: a begin refused while what it reads is not ready, or because deciding it failed, leaves it unplayed', async () => {
+  const { Action } = await import('../explain/action.ts');
+  const { scene } = setUp();
+  const circle = new Circle();
+  let open!: () => void;
+  const ready = new Promise<void>((r) => (open = r));
+  const late = new Action(scene, 'z()', () => ({ value: 7, beats: [{ runTime: 0.2, play: () => [new FadeIn(circle, { runTime: 0.2 })] }] }), { ready, late: true });
+  // Reading: its value is not known, and a begin outside a play, which waits for nothing, is refused.
+  assert.throws(() => late.value, /^Error: z\(\): what it gives is known once the play that holds it begins/);
+  assert.throws(() => late.begin(), /^Error: z\(\): begun before what it reads was ready; hand it to play\(\), or to a Succession or group that plays, which waits for it$/);
+  assert.throws(() => late.settle(), /^Error: z\(\): played before what it reads was ready/);
+  assert.equal(late.phase, 'idle');
+  // Ready, it plays in a play: the refused begin did not mark it played.
+  open();
+  await scene.play(late);
+  assert.equal(late.value, 7);
+  assert.equal(circle.style.opacity, 1);
+  // Ended: a second play is refused, as is awaiting it.
+  await assert.rejects(scene.play(late), /z\(\): it has already played in a play/);
+  await assert.rejects(async () => late, /z\(\): it has already played in a play; [^]*read what it gave from its value$/);
+
+  // Deciding it failed: each play throws that error, and none marks it played.
+  let tries = 0;
+  const broken = new Action(scene, 'w()', () => { tries++; throw new RangeError('w(): nothing to do'); });
+  assert.equal(tries, 1, 'decided when it is made');
+  await assert.rejects(scene.play(broken), /^RangeError: w\(\): nothing to do$/);
+  await assert.rejects(scene.play(broken), /^RangeError: w\(\): nothing to do$/);
+  assert.throws(() => broken.value, /^RangeError: w\(\): nothing to do$/);
+  await assert.rejects(async () => broken, /^RangeError: w\(\): nothing to do$/);
+  // Awaited, it was played, so a play now is refused as a second play.
+  await assert.rejects(scene.play(broken), /w\(\): it has already played; an action plays once/);
+  assert.equal(tries, 1, 'decided once');
+
+  // What it reads failing is its error, when deciding it did not fail first.
+  const unreadable = new Action(scene, 'u()', () => ({ value: undefined, beats: [] }), { ready: Promise.reject(new Error('u(): the layout could not be read')), late: true });
+  await assert.rejects(scene.play(unreadable), /^Error: u\(\): the layout could not be read$/);
+  // Awaited: it plays itself beat by beat, then ends; awaiting it again gives the same value.
+  const awaited = new Action(scene, 'v()', () => ({ value: 'done', beats: [{ runTime: 0.1, play: () => [new FadeIn(new Circle(), { runTime: 0.1 })] }] }));
+  assert.equal(await awaited, 'done');
+  assert.equal(await awaited, 'done');
+  await assert.rejects(scene.play(awaited), /v\(\): it has already played; an action plays once/);
 });

@@ -124,7 +124,7 @@ test('a stage with no style adopts only its first diagram’s palette: a second 
   await new (bindSnapshots(Two, { [diagramKey(spec)]: fixture(), [diagramKey(other)]: second }))(new NullSink()).run();
 });
 
-test('a diagram’s presentation is one value: diagramView, liveDiagram, hide and clear set it, and a viewed diagram refuses a reveal, enlargement or morph', async () => {
+test('a diagram’s presentation is one value, the view a live diagram replaced included: diagramView, liveDiagram, hide and clear set it, and a viewed diagram refuses a reveal, enlargement or morph', async () => {
   const next = { source: 'graph LR\nA --> B\nB --> C', style: 'nord' };
   const after = fixedSnapshot(next, fixture().parts.filter((p) => p.id !== '__frame'), { palette: fixture().palette });
   const refused = (api: string) => new RegExp(`^Error: ${api.replace(/[.()]/g, '\\$&')}: the diagram is shown by a view, so its live parts are off the stage; call s\\.liveDiagram\\(d\\) first$`);
@@ -133,7 +133,7 @@ test('a diagram’s presentation is one value: diagramView, liveDiagram, hide an
       const s = stage(this);
       await this.step('one');
       const d = await s.show(spec, { build: 'frame' });
-      assert.deepEqual(d.presentation, { kind: 'live' });
+      assert.deepEqual(d.presentation, { kind: 'live', replaced: null });
       const v = s.diagramView(d, () => ({ marks: { A: d.emphasis } }));
       assert.deepEqual(d.presentation, { kind: 'viewed', view: v });
       assert.ok(this.mobjects.includes(v) && !this.mobjects.includes(d.root), 'the view takes the live diagram’s place');
@@ -144,10 +144,11 @@ test('a diagram’s presentation is one value: diagramView, liveDiagram, hide an
       await assert.rejects(async () => await d.morph(next), refused('d.morph()'));
       assert.ok(!this.familyMembers().includes(d.get('A')), 'no refused call put a live part beside the view');
       s.liveDiagram(d);
-      assert.deepEqual(d.presentation, { kind: 'live' });
+      assert.deepEqual(d.presentation, { kind: 'live', replaced: v });
       assert.ok(!this.mobjects.includes(v) && this.mobjects.includes(d.root));
       assert.throws(() => s.liveDiagram(d), /^Error: s\.liveDiagram\(\): the diagram is not shown by a view; show it with s\.diagramView\(d, draw\) first$/);
       await d.reveal(['A']);
+      assert.deepEqual(d.presentation, { kind: 'live', replaced: v }, 'a reveal keeps the view it replaced');
       // Shown by a view again, it is the view it handed back from, drawing the diagram as it is now.
       assert.equal(s.diagramView(d), v);
       assert.deepEqual(d.presentation, { kind: 'viewed', view: v });
@@ -159,6 +160,7 @@ test('a diagram’s presentation is one value: diagramView, liveDiagram, hide an
       d.showBy(own);
       assert.throws(() => s.diagramView(d), /^Error: s\.diagramView\(\): the diagram is shown by a view of the scene's own; call s\.liveDiagram\(d\) first$/);
       s.liveDiagram(d);
+      assert.deepEqual(d.presentation, { kind: 'live', replaced: own });
       assert.ok(!this.mobjects.includes(own));
       // hide fades the view and detaches the diagram; so does clear.
       const w = s.diagramView(d);
@@ -171,7 +173,7 @@ test('a diagram’s presentation is one value: diagramView, liveDiagram, hide an
       await s.clear();
       assert.deepEqual(d.presentation, { kind: 'detached' });
       await d.morph(next);
-      assert.deepEqual(d.presentation, { kind: 'live' });
+      assert.deepEqual(d.presentation, { kind: 'live', replaced: null });
       this.state.done = true;
     }
   }

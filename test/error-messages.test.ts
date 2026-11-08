@@ -24,13 +24,16 @@ const PREFIX = /^(new [A-Z]\w*\(\)|static (meta|settings)|scene\.(snapshots|lett
 const ALLOWED: Record<string, Record<string, string>> = {
   'src/json.ts': { api: 'the call cloneJson was given by its caller' },
   'src/animation.ts': { api: "the call that took the animations or the time, 'this.play()', 'new Succession()' or 'new FadeIn()'" },
-  'src/scene.ts': { api: "the scene's call that found another running, 'this.play()', 'this.wait()', 'this.step()' or 'this.construct()'" },
+  'src/scene.ts': {
+    api: "the scene's call that found another running, 'this.play()', 'this.wait()', 'this.step()' or 'this.construct()'",
+    by: "what made the animations at their turn in a play, 's.show()' or 'machine.send(): the transition for UP'",
+  },
   'src/shapes.ts': { api: "the constructor boxOf's caller names" },
   'src/fonts.ts': { label: "decodeFont's subject, which its caller names with a prefix ('loadFonts(): the embedded sans face')" },
   'src/mobject.ts': { 'm.${name}': 'the method of every mobject that was assigned to, m.box', api: "the call that changes the children, 'm.add()', 'm.insert()' or 'm.replaceChild()'" },
   'explain/action.ts': {
     action: "the action's call, 's.card()'",
-    'this.action': "the action's call, 's.card()'",
+    'this.by': "what made the animations at their turn: the action's call, 's.card()', or 'machine.send(): the transition for UP'",
     'this.name': "the action's call, 's.card()'",
     "names.join(', ')": "the calls of the actions never played, 's.card(), d.walk()'",
   },

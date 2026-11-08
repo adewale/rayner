@@ -388,3 +388,31 @@ test('having narrows a state to the shapes that hold its keys and throws on a st
   assert.deepEqual(having(shown, 'flow').flow.walked, ['a']);
   assert.throws(() => having(shown, 'flow', 'lit'), /reads a state with lit/);
 });
+
+test('a view measures a fresh picture without changing itself, and records its fit only once it takes the picture', async () => {
+  const { thereAndBack } = await import('../src/index.ts');
+  const { NullSink } = await import('../src/output.ts');
+  const scene = new Scene<{ w: number }>(new NullSink());
+  scene.state = { w: 1 };
+  const v = view(scene, (st: { w: number }) => new Rectangle({ width: st.w, height: 1 }));
+  scene.add(v);
+  v.scale(2);
+  const fit = () => JSON.stringify([v.builtSize, v.scaleK]);
+  const before = fit();
+  scene.state = { w: 3 };
+  // Measured for a transition's target: placed at the view's scale, and the view unchanged.
+  const placed = v.placed(scene.state);
+  assert.ok(Math.abs(placed.height() - 2) < 1e-6 && Math.abs(placed.width() - 6) < 1e-6);
+  assert.equal(fit(), before, 'placed() only measures');
+  // A sync whose rate function comes back keeps the picture on screen, and its fit.
+  await scene.play(v.sync({ match: 'index', rateFunc: thereAndBack }));
+  assert.equal(fit(), before, 'a sync that lands back records nothing');
+  // Taken, the picture's fit is recorded: its built size, and the scale it was given.
+  await scene.play(v.sync({ match: 'index' }));
+  assert.deepEqual(v.builtSize, [3, 1]);
+  assert.ok(Math.abs(v.scaleK - 2) < 1e-6);
+  scene.state = { w: 2 };
+  v.rebuild();
+  assert.deepEqual(v.builtSize, [2, 1]);
+  assert.ok(Math.abs(v.current.width() - 4) < 1e-6, 'a rebuild keeps the scale the view was given');
+});

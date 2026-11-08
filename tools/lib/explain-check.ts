@@ -26,8 +26,10 @@ import { LIB_ROOT, engineAlias, importAuthored, sceneSlug } from './explain-proj
 import { checkedAgainstFiles, compareAnswers, runModelTest } from './explain-evidence.ts';
 import { scenarioName } from '../../explain/testing.ts';
 import { undescribed, watchedChanges } from '../../explain/trace.ts';
-import { diagramsMade, labelOf, readingLabelSize } from '../../explain/diagrams.ts';
-import { closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '../../app/embed-closeup.ts';
+import { diagramsMade } from '../../explain/diagrams.ts';
+import { labelOf, readingLabelSize } from '../../explain/labels.ts';
+import { closeUps, stageScale, stepLayouts, toView, viewBox } from '../../app/embed-closeup.ts';
+import { zoomOf } from '../../src/units.ts';
 import type { Box, Mobject, Scene, Sink, Step } from '../../src/index.ts';
 import { contains, intersect, nonempty, overlaps } from '../../src/box.ts';
 import { paints } from '../../src/mobject.ts';
@@ -91,7 +93,7 @@ interface Viewed {
  */
 export function labelPx(m: Mobject, scene: Pick<Viewed, 'frame'>): number | null {
   const size = readingLabelSize(m);
-  return size == null ? null : size * STAGE_PX_PER_UNIT * viewZoom(viewOf(scene));
+  return size == null ? null : size * STAGE_PX_PER_UNIT * zoomOf(viewOf(scene));
 }
 /**
  * `box` cut down to every clip around `m`: the part of it that is drawn (a diagram clips
@@ -561,7 +563,7 @@ export async function exploreMachines(
       if (!picture?.entries?.some((e) => e.what?.trim())) problems.push(`${at}: the picture has no description`);
       else if (said.has(words)) problems.push(`${at}: the picture is described exactly as ${said.get(words)}, a different state`);
       else said.set(words, at);
-      problems.push(...transitionProblems(host, machine, state, path, origin));
+      problems.push(...await transitionProblems(host, machine, state, path, origin));
     }
     host.shown = shownThen;
     explored.push({ events: [...machine.spec.events], states: reached.length, sampled: fromStart.length >= machine.spec.limit || fromStep.length >= machine.spec.limit, problems });
@@ -630,7 +632,7 @@ export function viewIgnoresState(view: View, state: Record<string, unknown>, sho
  */
 const marksOf = (svg: string) => svg.split('/>').sort().join('/>');
 
-function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[], origin = ''): string[] {
+async function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[], origin = ''): Promise<string[]> {
   const problems: string[] = [];
   const { views, transition, events } = machine.spec;
   for (const event of events) {
@@ -650,6 +652,9 @@ function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>
     scene.state = jsonObject(state, 'machine state');
     for (const v of views) v.rebuild();
     const motion = authored(machine.transitionFor(event, state, after));
+    // As in a play: what it reads (a diagram's layout) is ready, then its run time is settled.
+    await motion.ready();
+    motion.settle();
     // As in a play: the event's SetState has already moved the scene to `after` when its transition
     // begins, so a sync inside the transition draws the state reached.
     scene.state = jsonObject(after, 'machine state');

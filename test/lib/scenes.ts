@@ -7,7 +7,7 @@ import { Write, MoveAlongPath } from '../../src/extras.ts';
 import { Scene, Rectangle, Circle, Arrow, Line, Dot, Text, Code, DecimalNumber, FadeIn, FadeOut, Create, Transform, LaggedStart } from '../../src/index.ts';
 import { Indicate } from './transient.ts';
 import type { Box, Mobject, SceneClass } from '../../src/index.ts';
-import { labelOf } from '../../explain/diagrams.ts';
+import { labelOf } from '../../explain/labels.ts';
 import { Card } from '../../explain/panels.ts';
 import { toView } from '../../app/embed-closeup.ts';
 import { EXPLAINERS } from '../../scenes/explainers/catalog.ts';
