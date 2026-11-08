@@ -6,7 +6,7 @@
 // carries it too; steps that recorded none have no `evidence` key, so their
 // traces hash as they did before the channel existed.
 
-import type { Evidence, Scene, SceneClass, SceneOptions, SceneState, Sink, Step, StepMeta } from './scene.ts';
+import type { EndedStep, Evidence, Scene, SceneClass, SceneOptions, SceneState, Sink, Step, StepMeta } from './scene.ts';
 import type { Jsonified } from './json.ts';
 import { dryRun } from './timeline.ts';
 
@@ -24,7 +24,8 @@ export interface StepRecord<S extends object = SceneState, Sh extends object = S
   hold?: number;
   /** The frame the caption hold began on, with `hold` (Step.holdFrame). */
   holdFrame?: number;
-  meta: StepMeta;
+  /** The step's metadata: the frozen copy the step began with (Step.meta). */
+  readonly meta: Readonly<StepMeta>;
   /** The model when the step began and when it ended (Scene.stateJson). */
   before: S;
   after: S;
@@ -60,7 +61,7 @@ export type TraceOf<C> = 0 extends 1 & C ? Trace
  * its last play has landed (`rayner check` holds that the two are the same picture). Whatever reads
  * a picture of every step reads it here, from one run, instead of seeking to each step.
  */
-export type AtRest = (scene: Scene, step: Step) => unknown;
+export type AtRest = (scene: Scene, step: EndedStep) => unknown;
 
 export class TraceSink implements Sink {
   /** @internal Each ended step's record, in order: steps follow one another, so they end in the order they began. */
@@ -73,7 +74,7 @@ export class TraceSink implements Sink {
   async stepBegin(scene: Scene, s: Step): Promise<void> {
     this.begun.set(s, { step: s.path, t0: round(scene.time), frame0: scene.frameCount, meta: s.meta, before: scene.stateJson() });
   }
-  async stepEnd(scene: Scene, s: Step): Promise<void> {
+  async stepEnd(scene: Scene, s: EndedStep): Promise<void> {
     const begun = this.begun.get(s);
     if (!begun) return;
     this.begun.delete(s);

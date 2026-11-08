@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { Scene } from '../src/index.ts';
 import { bindSnapshots, loadProject, traceScene, withSettings } from '../explain/testing.ts';
 import type { Jsonified, StepRecord, Trace, TraceOf } from '../explain/testing.ts';
-import type { SceneState } from '../src/index.ts';
+import type { EndedStep, SceneState, Step } from '../src/index.ts';
 import LatestSearch from '../scenes/explainers/latest-search/scene.ts';
 
 type Same<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -90,9 +90,17 @@ test('a trace holds ended steps only, so each one\'s end, last frame and state a
   same<StepRecord['t1'], number>(true);
   same<StepRecord['frame1'], number>(true);
   same<StepRecord['after'], SceneState>(true);
-  // @ts-expect-error the live Step marks a step not yet ended with null; a record never does
+  // @ts-expect-error a running Step marks a step not yet ended with null; a record never does
   same<StepRecord['frame1'], number | null>(true);
+  // An EndedStep is a Step whose end is set: what a sink's stepEnd and a metadata function are given.
+  same<EndedStep['t1'], number>(true);
+  same<EndedStep['frame1'], number>(true);
+  same<Step['frame1'], number | null>(true);
   const trace = await traceScene(Typed);
+  // A record's metadata is the frozen copy the step began with, and typed read-only.
+  const meta = trace.steps[0]!.meta;
+  // @ts-expect-error read-only, as it is frozen
+  assert.throws(() => { meta.caption = 'changed'; }, TypeError);
   for (const s of trace.steps) assert.ok(Number.isInteger(s.frame1) && typeof s.t1 === 'number' && typeof s.after === 'object', s.step);
   // A run stopped inside a step leaves that step out: it never ended, so it has no record to give.
   class Stopped extends Scene {

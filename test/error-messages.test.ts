@@ -23,17 +23,20 @@ const PREFIX = /^(new [A-Z]\w*\(\)|static (meta|settings)|scene\.(snapshots|lett
 /** Computed prefixes, by file and the expression that opens the message: what each one holds. */
 const ALLOWED: Record<string, Record<string, string>> = {
   'src/json.ts': { api: 'the call cloneJson was given by its caller' },
-  'src/animation.ts': { api: "the call that took the animations or the time, 'this.play()', 'new Succession()' or 'new FadeIn()', or that began one, 'this.play()' or 'animation.begin()'" },
+  'src/animation.ts': {
+    api: "the call that took the animations or the time, 'this.play()', 'new Succession()' or 'new FadeIn()', or that began one, 'this.play()' or 'animation.begin()'",
+    call: "the call what is made at its turn belongs to, 's.card()' or 'machine.send(\"UP\")'",
+    'this.by.call': 'the same, kept on the animation',
+  },
   'src/scene.ts': {
     api: "the scene's call that found another running, 'this.play()', 'this.wait()', 'this.step()' or 'this.construct()'; or the registration of a listener that left a play running, 'this.onStep()' or 'this.onStepEnd()'",
-    by: "what made or began the animations at their turn in a play, 's.show()', a machine's transition, 'machine.send(\"UP\")', or 'new Succession()'",
+    call: "the call that made or began the animations at their turn in a play, 's.show()', a machine's transition, 'machine.send(\"UP\")', or 'new Succession()'",
   },
   'src/shapes.ts': { api: "the constructor boxOf's caller names" },
   'src/fonts.ts': { label: "decodeFont's subject, which its caller names with a prefix ('loadFonts(): the embedded sans face')" },
   'src/mobject.ts': { 'm.${name}': 'the method of every mobject that was assigned to, m.box; or the property a mobject defined on itself, m.children or m.parent', api: "the call that changes the children, 'm.add()', 'm.insert()' or 'm.replaceChild()'" },
   'explain/action.ts': {
     action: "the action's call, 's.card()'",
-    'this.by': "what made the animations at their turn: the action's call, 's.card()', or a machine's transition, 'machine.send(\"UP\")', the call with the event sent",
     'this.name': "the action's call, 's.card()'",
     "names.join(', ')": "the calls of the actions never played, 's.card(), d.walk()'",
   },

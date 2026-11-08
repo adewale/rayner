@@ -187,13 +187,13 @@ export async function runLive(
     for (const [i, event] of log.entries()) {
       if (animate && i === log.length - 1) {
         out.draw(animate);
-        await animate.frame(at, 0);
+        await at.drawFrame(animate);
         onStart?.();
       }
       await at.play(machine.send(event));
     }
     const drawn = animate ?? sink;
-    if (drawn) await drawn.frame(at, 0);
+    if (drawn) await at.drawFrame(drawn);
     result = { scene: at, machine, rest, shown: at.shownJson() };
     if (explore) {
       try { await explore(at, machine, (to) => out.draw(to)); } finally { out.draw(undefined); }
@@ -212,12 +212,12 @@ export async function runLive(
         // As a fresh run plays a log's last event: animated from the picture now, or skipped, then drawn.
         out.draw(draw.animate);
         if (draw.animate) {
-          await draw.animate.frame(at, 0);
+          await at.drawFrame(draw.animate);
           draw.onStart?.();
         }
         await at.play(machine.send(event));
         const landing = draw.animate ?? draw.sink;
-        if (landing) await landing.frame(at, 0);
+        if (landing) await at.drawFrame(landing);
         command.done({ scene: at, machine, rest, shown: at.shownJson() });
       } catch (error) {
         command.failed(error);

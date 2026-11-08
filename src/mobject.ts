@@ -27,14 +27,25 @@ const kids = (m: Mobject): readonly Mobject[] => childrenOf.get(m) ?? NO_CHILDRE
 const parentIn = (m: Mobject): Mobject | null => parentOf.get(m) ?? null;
 const setParent = (m: Mobject, p: Mobject | null): void => { if (p) parentOf.set(m, p); else parentOf.delete(m); };
 
+/** Prototypes already found to leave `children` and `parent` to Mobject (see refuseShadow). */
+const plainPrototypes = new WeakSet<object>();
+
 /**
- * Refuse a mobject that defines `children` or `parent` on itself (Object.defineProperty, a class
- * field in plain JavaScript): the property would hide the real ones from every reader of it, while
- * family() and box() read the real ones. Checked wherever family() walks.
+ * Refuse a mobject whose `children` or `parent` is not Mobject's: defined on itself
+ * (Object.defineProperty, a class field in plain JavaScript) or on a subclass's prototype (a getter
+ * that overrides them). The property would hide the real ones from every reader of it, while
+ * family() and box() read the real ones. Checked wherever family() walks; a prototype is checked
+ * the first time one of its mobjects is walked, so one patched after that is not seen.
  */
 function refuseShadow(m: Mobject): void {
   for (const name of ['children', 'parent'] as const)
     if (Object.hasOwn(m, name)) throw new TypeError(`m.${name}: ${mobjectName(m)} defines ${name} on itself, which hides its real ${name}; change ${name === 'children' ? 'them' : 'it'} with add, insert, remove or replaceChild`);
+  const proto = Object.getPrototypeOf(m) as object;
+  if (plainPrototypes.has(proto)) return;
+  for (let p: object | null = proto; p && p !== Mobject.prototype; p = Object.getPrototypeOf(p) as object | null)
+    for (const name of ['children', 'parent'] as const)
+      if (Object.hasOwn(p, name)) throw new TypeError(`m.${name}: ${mobjectName(m)} overrides ${name} in its class, which hides its real ${name}; change ${name === 'children' ? 'them' : 'it'} with add, insert, remove or replaceChild`);
+  plainPrototypes.add(proto);
 }
 let nextId = 1;
 
@@ -354,7 +365,12 @@ export class Mobject {
 
   // ---- bounding box ------------------------------------------------------
 
-  /** @internal Clear the cached box of this mobject and its ancestors, after a change to its points or children. */
+  /**
+   * Clear the cached box (see box()) of this mobject and its ancestors. The engine's own methods
+   * that change points or children (transforms, add and remove, become, an animation's frame) clear
+   * it themselves; code that changes points another way calls this after: an animation's own
+   * doInterpolate, or a custom mobject that assigns new point arrays (a path's `subpaths`).
+   */
   invalidateBox(): void {
     let m: Mobject | null = this;
     while (m) { m._bbox = null; m = m.parent; }
@@ -903,5 +919,15 @@ export function mobjectName(m: Mobject): string {
   if (m.key !== undefined) return `the ${kind} keyed ${JSON.stringify(m.key)}`;
   const text = (m as { text?: unknown }).text;
   if (typeof text === 'string' && text) return `the ${kind} ${JSON.stringify(text.length > 32 ? text.slice(0, 31) + '…' : text)}`;
-  return `${/^[AEIOU]/.test(kind) ? 'an' : 'a'} ${kind}`;
+  return withArticle(kind);
+}
+
+/**
+ * @internal A class name with its indefinite article, chosen by how the name is read: a name read
+ * letter by letter (one letter, or capitals such as `SVG`) by the sound of its first letter, `an F`,
+ * `an SVGPath`, `a UI`; a word by its first letter, `an Arrow`, `a Circle`.
+ */
+export function withArticle(kind: string): string {
+  const spelt = /^[A-Z](?![a-z])/.test(kind);
+  return `${(spelt ? /^[AEFHILMNORSX]/ : /^[AEIOU]/).test(kind) ? 'an' : 'a'} ${kind}`;
 }

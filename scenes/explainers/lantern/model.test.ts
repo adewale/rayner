@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { Scene, Rectangle, Dot, Circle, Group, FadeIn, Transform, smooth } from '../../../src/index.ts';
 import { StringSink, SnapshotSink, NullSink, SeekSink, DomSink, StopScene, renderAt, toSvgString } from '../../../src/output.ts';
 import { TraceSink, MotionSink } from '../../../explain/testing.ts';
-import type { Mobject, Sink, Step, Vec } from '../../../src/index.ts';
+import type { EndedStep, Mobject, Sink, Step, Vec } from '../../../src/index.ts';
 
 const FPS = 30;
 
@@ -133,7 +133,7 @@ test('sinks only read a frame: after each of Rayner’s sinks takes it, the scen
           seen[s.frameCount] = toSvgString(s);
         },
         async stepBegin(s: Scene, st: Step) { await guard(s, () => inner.stepBegin?.(s, st), 'stepBegin'); },
-        async stepEnd(s: Scene, st: Step) { await guard(s, () => inner.stepEnd?.(s, st), 'stepEnd'); },
+        async stepEnd(s: Scene, st: EndedStep) { await guard(s, () => inner.stepEnd?.(s, st), 'stepEnd'); },
       }).run();
     } catch (e) {
       if (!(e instanceof StopScene)) throw e;

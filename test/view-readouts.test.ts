@@ -7,7 +7,7 @@ import type { View } from '../explain/index.ts';
 import assert from 'node:assert/strict';
 import { Scene } from '../src/index.ts';
 import { TraceSink, loadFonts } from '../explain/testing.ts';
-import type { SceneClass, SceneState, Step } from '../src/index.ts';
+import type { EndedStep, SceneClass, SceneState } from '../src/index.ts';
 import { withSettings } from '../explain/testing.ts';
 import RingBufferExplainer from '../scenes/explainers/ring-buffer/scene.ts';
 import TokenBucketExplainer from '../scenes/explainers/token-bucket/scene.ts';
@@ -19,7 +19,7 @@ Scene.captionWpm = Infinity;
 async function readoutAtSteps(S: SceneClass): Promise<Array<{ step: string; state: SceneState; shown: string[] | null; marks: string[] }>> {
   const out: Array<{ step: string; state: SceneState; shown: string[] | null; marks: string[] }> = [];
   class Sink extends TraceSink {
-    override async stepEnd(scene: Scene, s: Step): Promise<void> {
+    override async stepEnd(scene: Scene, s: EndedStep): Promise<void> {
       await super.stepEnd(scene, s);
       const v = (scene as unknown as { readout?: View | null }).readout;
       if (scene instanceof TokenBucketExplainer) {

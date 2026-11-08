@@ -136,7 +136,8 @@ await new Request(all, { fps: 30 }).run();
 
 Use `SnapshotSink` for a single retained frame or implement `Sink.frame` to stream
 frames rather than retaining a large sequence in memory. Forward `stepBegin` and
-`stepEnd` too when composing a sink that needs step notifications. A sink that draws only from
+`stepEnd` too when composing a sink that needs step notifications; `stepEnd` is handed an
+`EndedStep`, whose `t1` and `frame1` are numbers. A sink that draws only from
 some time on says so with `skipUntil`: frames that end before it are counted, not drawn, as with
 the scene's own `skipUntil` option (the scene skips a frame either asks to), and the sink may move
 it between plays. These are the only two ways to skip frames. Each is a time in seconds, 0 or more,

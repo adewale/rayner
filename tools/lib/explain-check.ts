@@ -33,7 +33,7 @@ import type { LiveExplore } from '../../explain/live.ts';
 import { labelOf, readingLabelSize } from '../../explain/labels.ts';
 import { closeUps, stageScale, stepLayouts, toView, viewBox } from '../../app/embed-closeup.ts';
 import { zoomOf } from '../../src/units.ts';
-import type { Box, Mobject, Scene, SceneClass, Sink, Step } from '../../src/index.ts';
+import type { Box, EndedStep, Mobject, Scene, SceneClass, Sink, Step } from '../../src/index.ts';
 import { contains, intersect, nonempty, overlaps } from '../../src/box.ts';
 import { paints } from '../../src/mobject.ts';
 import { atHome, viewOf } from '../../src/svg.ts';
@@ -241,7 +241,7 @@ export class FanSink implements Sink {
   constructor(sinks: readonly Sink[]) { this.sinks = sinks; }
   async frame(scene: Scene, dt: number): Promise<void> { for (const s of this.sinks) await s.frame(scene, dt); }
   async stepBegin(scene: Scene, step: Step): Promise<void> { for (const s of this.sinks) await s.stepBegin?.(scene, step); }
-  async stepEnd(scene: Scene, step: Step): Promise<void> { for (const s of this.sinks) await s.stepEnd?.(scene, step); }
+  async stepEnd(scene: Scene, step: EndedStep): Promise<void> { for (const s of this.sinks) await s.stepEnd?.(scene, step); }
 }
 
 /**
@@ -364,8 +364,8 @@ export class LandingSink implements Sink {
   readonly landed: string[] = [];
   constructor(played: ReadonlyMap<number, string>) { this.played = played; }
   async frame(): Promise<void> {}
-  async stepEnd(scene: Scene, step: Step): Promise<void> {
-    if (toSvgString(scene) !== this.played.get(step.frame1!)) this.landed.push(step.name);
+  async stepEnd(scene: Scene, step: EndedStep): Promise<void> {
+    if (toSvgString(scene) !== this.played.get(step.frame1)) this.landed.push(step.name);
   }
 }
 

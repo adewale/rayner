@@ -4,7 +4,7 @@
 // and records like any other play, and the same `next` and views a reader would drive
 // can be explored state by state by `rayner check`. See docs/MACHINES.md.
 
-import { Animation, AnimationGroup, Succession, matchByKey } from '../src/animation.ts';
+import { Animation, AnimationGroup, MadeAtTurn, Succession, matchByKey } from '../src/animation.ts';
 import { SetState } from './state.ts';
 import { canonicalJson } from '../src/json.ts';
 import { identifierRule, isIdentifier } from './settings.ts';
@@ -17,7 +17,6 @@ import { choreograph } from './choreograph.ts';
 import type { Choreography } from './choreograph.ts';
 import type { SceneState } from '../src/scene.ts';
 import type { ScheduledAnimation } from '../src/animation.ts';
-import { MadeAtTurn } from './action.ts';
 
 export interface MachineSpec<S extends object, E extends string> {
   /** Where the machine starts: what `reachable()` explores from. The scene need not be in it yet. */
@@ -310,7 +309,7 @@ export class Machine<S extends object, E extends string> {
 class WhenItsTurnComes extends MadeAtTurn {
   readonly #make: () => Animation | AnimationGroup;
   constructor(event: string, make: () => Animation | AnimationGroup, declared: readonly Mobject[], runTime: number) {
-    super(`machine.send(${JSON.stringify(event)})`, runTime, declared);
+    super({ call: `machine.send(${JSON.stringify(event)})`, subject: 'the transition' }, runTime, declared);
     this.#make = make;
   }
   protected override make(): ScheduledAnimation[] {

@@ -69,7 +69,10 @@ length along it, which `MoveAlongPath` (`rayner/extras`) and the stage's sketch 
 `applyAffine(a, b, c, d, e, f)` applies the affine map `[a c; b d]p + [e f]` without
 allocating per point; both work about the box's centre unless given `aboutPoint` or
 `aboutEdge`. `box()` is the family's bounding box, a `Box`, or null when nothing in it
-has points. `boxPoint(direction)` is a point of that box: `[0, 0]` its centre, `[1, 1]`
+has points. It is cached; every engine method that changes points or children clears the
+cache, and code that changes points another way, an animation's own `doInterpolate` or a
+custom mobject that assigns new point arrays, calls `invalidateBox()` after, which clears the
+mobject's cache and its ancestors'. `boxPoint(direction)` is a point of that box: `[0, 0]` its centre, `[1, 1]`
 its upper right; `center()`, `top()`, `bottom()`, `left()` and `right()` are five of them,
 and `width()` and `height()` its size.
 
@@ -118,14 +121,18 @@ mobject's `children` and `parent` are read-only, so these methods and `group.rem
 are the only ways to change a family, and each keeps every child's `parent` and the cached
 box in step. Both are held outside the mobject, so no write to the mobject, from plain
 JavaScript or through a cast, changes them; a `children` or `parent` defined on the mobject
-itself (`Object.defineProperty`) would hide them from whatever reads the property, so
-`family()`, and so `box()`, refuses a mobject that has one. Code that reads `m.children` before
-any `family()` would still see such a property. `family()` is the mobject and every descendant, depth first. A scene admits one root per subtree, so admitting a parent never paints a
+itself (`Object.defineProperty`), or a getter for either in a subclass, would hide them from
+whatever reads the property, so `family()`, and so `box()`, refuses a mobject that has one. Code
+that reads `m.children` before any `family()` would still see such a property, and a class's
+prototype is checked the first time one of its mobjects is walked, so one patched after that, from
+plain JavaScript, is not seen. `family()` is the mobject and every descendant, depth first. A scene admits one root per subtree, so admitting a parent never paints a
 child twice. `Scene.add`, `remove`, `replace`, `bringToFront` and `bringToBack`
 control membership and draw order; what the stage keeps over everything else (its heading,
 band, step number and line) stays last through each of them: the root that holds it, which is
 the group around it once one wraps it, is moved last, and that is done again before every frame
-and step boundary the sink sees, after a direct write to `scene.mobjects` too. The structure is a tree: `add`, `insert` and
+and step boundary the scene hands its sink, and before a frame drawn outside the frame loop
+(`renderAt` and `renderFrame` past the end, the live player's landing frames), after a direct
+write to `scene.mobjects` too. A sink handed the scene by other code reads the list as it stands. The structure is a tree: `add`, `insert` and
 `replaceChild` refuse the mobject itself or one of its ancestors, which would make a cycle,
 and `group.remove(child)` takes out only the group's own children, leaving a mobject in
 another group where it is. `scene.familyMembers()` lists every mobject on the stage and
@@ -184,31 +191,36 @@ returns to the start), and must land where its last frame drew: `rayner check` c
 each step's picture as it ends with its last frame.
 
 An animation's `phase`, an `AnimationPhase`, is `'idle'` until it begins, `'begun'`
-while it plays and `'finished'` once it has landed. A second `begin()` while begun
-throws, and so do `interpolate()` and `finish()` before `begin()`; a finished animation
+while it plays, `'landing'` once its play has finished it while members of it still begin
+and finish in turn (a `Succession` whose member waits, as below, or a group holding one), and
+`'finished'` once it has landed, every member with it. A second `begin()` while begun or
+landing throws, and so do `interpolate()` and `finish()` before `begin()`; a finished animation
 may begin again. The guards are the public calls themselves, on `Animation` and
 `AnimationGroup`, so every caller goes through them (the scene, a group, a `Succession`,
 an animation that drives another) and a hook keeps them in whatever form it is written,
-a method or a class field. An animation whose `begin`, `interpolate` or `finish` is not the
-engine's is refused, and so is one that redefines `phase`, `runTime` or `lagRatio`: as a
-method in a subclass when its first instance is made, and in every form (a subclass's
-method or accessor, a class field, an assignment, `Object.defineProperty`, a prototype
-patched after the first instance, a swapped prototype) where every play and every group
-member passes before it begins: `Scene.play`, a group's begin, and `begin()` itself. Two
-ways round the guard remain, both open only to plain JavaScript or a cast: calling a
-protected hook (`doInterpolate`) directly, and patching a lifecycle call in while the
-animation plays.
+a method or a class field. An animation whose `begin`, `interpolate`, `finish` or `land` (the
+landing after a failure, below, whose hook is `doLand`) is not the engine's is refused, and so
+is one that redefines `phase`, `runTime` or `lagRatio`, or answers `waiting()` (whether a play
+and a `Succession` wait for it) other than as the engine's groups do: as a method in a subclass
+when its first instance is made, and in every form (a subclass's method or accessor, a class
+field, an assignment, `Object.defineProperty`, a prototype patched after the first instance, a
+swapped prototype) where every play and every group member passes before it begins:
+`Scene.play`, a group's begin, a `Succession`'s for each member at its turn (with a scene or
+without one), and `begin()` itself. Two ways round the guard remain, both open only to plain
+JavaScript or a cast: calling a protected hook (`doInterpolate`) directly, and patching a
+lifecycle call in while the animation plays.
 
 A play that fails leaves no animation begun. When an animation throws as it begins, a
 group lands the members it began before the one that threw, and `play()` lands the
-animations before it. When the play fails after it has begun (a `Succession`'s member that
+animations before it; so does a list begun at its turn inside the play (what a beat or a
+transition makes, a `Succession`'s member), and then what made the list has made nothing. When the play fails after it has begun (a `Succession`'s member that
 throws at its turn, something made at its turn whose read fails or that the one-writer
 check refuses, a frame or a sink that throws), `play()` lands every animation it was
 given. Landing finishes what has begun, as the end of its play would, and begins nothing
 more: a `Succession`'s later members never begin, and an action is abandoned, its running
 beat landing (with its `after`, if its animations had begun) while no later beat is made
-and its `end` does not run. Each landed animation can play again; an action, which plays
-once, cannot. A stop is not a failure: a scene stopped by its sink (`StopScene`) is stopped
+and its `end` does not run; the action is then abandoned, and awaiting it, or playing it again,
+throws. Each landed animation can play again; an action, which plays once, cannot. A stop is not a failure: a scene stopped by its sink (`StopScene`) is stopped
 for good, and its picture stays as the stopping frame drew it.
 
 A run time and a lag ratio are finite and not negative, given to the constructor, to
@@ -234,7 +246,10 @@ read something not ready yet: the play waits for it there, before drawing its ne
 frames are the same as if it had waited for nothing. What begins at its turn (a `Succession`'s
 member, what a beat or a transition makes) begins in turn order, whether or not something
 waits: once one waits, whatever comes after it in the frame waits behind it, so the drawing
-order and the recorded evidence follow the turns. A `Succession` whose member waits begins
+order and the recorded evidence follow the turns. That holds for an animation begun beside
+one that waits, too, listed after it in a play, a group, or a group that is a `Succession`'s
+member: it begins with the play or the group, and joins the stage and records its evidence
+in its turn, after what the waiting one made. A `Succession` whose member waits begins
 nothing after it until that member has begun, so a waiting member shorter than a frame still
 plays, begun and then landed within its frame, with its side effects in their order, and a
 waiting last member of no run time begins and lands as the play finishes.
@@ -259,16 +274,21 @@ Names are stable, unique URL identifiers. `title`, `line`, `caption` and `kind`
 (`'short'`, `'main'` or `'detail'`) mean something to the reader; other metadata
 can describe the model's inputs. Metadata is copied as JSON when the step begins, and the
 copy, `currentStep.meta`, is frozen deeply, so a write to it throws rather than change the
-caption, its hold or the trace; given a function, `step()` calls it with the step it has just closed. A caption extends
+caption, its hold or the trace (the language's own `TypeError`, which names the property; see
+[error messages](ENGINE.md#error-messages)); given a function, `step()` calls it with the step it has just closed. A caption extends
 its step until it could be read, so the step's resting picture, its last frame, can differ
 from its first. Each step draws at least one frame of its own (`loadProject` and the command
 refuse one that does not). Each moment is recorded as a time and a frame: `hold` and
 `holdFrame` where a caption hold begins, and `t1` and `frame1` where the step ends;
-timed playback stops at `stillFrame(step)`, the hold frame or else the last, and links show
+the player, playing one step, stops at `stillFrame(step)`, the hold frame or else the last,
+while a continuous render of the scene plays on through the hold to `t1`, and links show
 `frame1`. The still frame and `frame1` show one picture, but code after the step's last play
 and its end listeners can still change the state between them, so a step's state is read at
 its end, as the trace's `after` records it: the live player and `rayner check`'s exploration of
-a machine start there (`Scene.stopAt`, which stops a run as a named step ends). The
+a machine start there (`Scene.stopAt`, which stops a run as a named step ends, for good, even
+when its callback throws). A step that has ended is an `EndedStep`, whose `t1` and `frame1`
+are numbers: what a sink's `stepEnd` hears, what a metadata function is given and what
+`AtRest` sees; a running `Step`'s are null. The
 [vocabulary](VOCABULARY.md) names these moments. `TraceSink` copies them into the trace as each step ends, so every step of a trace has its end (a run stopped inside a step leaves that step out), and `traceRun`'s `AtRest` callback (`src/trace.ts`) hands the scene, showing each
 step's resting picture, to the tools that draw every step, so `rayner describe`, the
 contact sheet and the site's cards run each scene once.
