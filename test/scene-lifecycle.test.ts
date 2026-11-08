@@ -10,6 +10,8 @@ import { NullSink, SnapshotSink, renderFrame, StopScene } from '../src/output.ts
 import { traceScene } from '../src/testing.ts';
 import { captionWords, stillFrame } from '../src/scene.ts';
 import type { Step } from '../src/index.ts';
+import { MadeAtTurn, animationName } from '../src/animation.ts';
+import type { ScheduledAnimation } from '../src/animation.ts';
 import { loadFonts } from '../explain/testing.ts';
 
 await loadFonts();
@@ -246,6 +248,151 @@ test('a play that fails after it has begun lands everything it began, and begins
   await assert.rejects(stopped.play(stopping), StopScene);
   assert.equal(stopped.phase, 'stopped');
   assert.ok(fading.style.opacity! < 1, 'not landed');
+});
+
+/** What is made at its turn, as an action's beat or a machine's transition is: `make` gives it, as `x()`'s part. */
+class MadeLater extends MadeAtTurn {
+  readonly made: () => ScheduledAnimation[];
+  constructor(made: () => ScheduledAnimation[], runTime = 1) { super({ call: 'x()', subject: 'its part' }, runTime); this.made = made; }
+  protected override make(): ScheduledAnimation[] { return this.made(); }
+}
+class Boom extends FadeIn { protected override doBegin(): void { throw new Error('boom'); } }
+
+test('what is made at its turn lands what it began when a later one throws as it begins, as a play begins and at a Succession member\'s turn (B1)', async () => {
+  // As the play begins: the FadeIn made first lands; nothing is left begun, and it can play again.
+  const scene = new Scene(new NullSink());
+  const c = new Circle();
+  let fade!: FadeIn;
+  const first = new MadeLater(() => [fade = new FadeIn(c), new Boom(new Rectangle())]);
+  await assert.rejects(scene.play(first), /^Error: boom$/);
+  assert.deepEqual([first.phase, fade.phase], ['idle', 'finished']);
+  assert.equal(c.style.opacity, 1, 'landed where its play would have');
+  await scene.play(new FadeOut(c));
+  await scene.play(fade);
+  assert.equal(fade.phase, 'finished', 'the same instance plays again');
+  // At a Succession member's turn, half way through the play.
+  const d = new Circle();
+  let late!: FadeIn;
+  const turn = new MadeLater(() => [late = new FadeIn(d), new Boom(new Rectangle())]);
+  const sq = new Succession([new FadeIn(new Circle(), { runTime: 0.5 }), turn]);
+  await assert.rejects(scene.play(sq), /^Error: boom$/);
+  assert.deepEqual([sq.phase, turn.phase, late.phase], ['finished', 'idle', 'finished'], 'it threw as it began, so it never began');
+  assert.equal(d.style.opacity, 1);
+  assert.equal(scene.phase, 'idle');
+  // The list on its own, begun as a play begins it: the one begun first lands.
+  const alone = new FadeIn(new Circle());
+  assert.throws(() => scene.beginAnimations([alone, new Boom(new Rectangle())]), /^Error: boom$/);
+  assert.equal(alone.phase, 'finished');
+});
+
+test('what is made at its turn is checked under the call it belongs to, and named with the article its name is read with', async () => {
+  class F extends FadeIn { override begin = (): void => {}; }
+  class AllFields extends FadeIn { override begin = (): void => {}; }
+  const scene = new Scene(new NullSink());
+  await assert.rejects(scene.play(new MadeLater(() => [new AllFields(new Circle())])), /^TypeError: x\(\): an AllFields replaces begin\(\), which keeps the animation's phase; override doBegin\(\) instead$/);
+  await assert.rejects(scene.play(new F(new Circle())), /^TypeError: this\.play\(\): an F replaces begin\(\)/);
+  assert.deepEqual([new FadeIn(new Circle()), new Create(new Circle()), new Succession([])].map(animationName), ['a FadeIn', 'a Create', 'a Succession']);
+  class U extends FadeIn {}
+  class SVGFade extends FadeIn {}
+  class Undo extends FadeIn {}
+  assert.deepEqual([new U(new Circle()), new SVGFade(new Circle()), new Undo(new Circle())].map(animationName), ['a U', 'an SVGFade', 'an Undo']);
+  // Finished while what it made still waits: refused under its call, naming it once.
+  const waiting = new MadeLater(() => [new (class extends FadeIn { override ready() { return new Promise(() => {}); } })(new Circle())]);
+  waiting.scene = scene;
+  assert.throws(() => waiting.begin(), /^Error: x\(\): what its part made waits for what it reads, and only a play can wait for that; play it with this\.play\(\)$/);
+});
+
+test('a Succession driven without a scene checks each member as it begins, as a group does (#9)', () => {
+  class F extends FadeIn { override begin = (): void => {}; }
+  for (const G of [AnimationGroup, Succession]) {
+    const g = new G([new FadeIn(new Circle(), { runTime: 0.5 }), new F(new Circle())]);
+    assert.throws(() => { g.begin(); g.interpolate(0.9); g.finish(); }, /^TypeError: animation\.begin\(\): an F replaces begin\(\)/, G.name);
+  }
+  // Without a scene, a normal Succession still runs its members one after another.
+  const a = new FadeIn(new Circle(), { runTime: 0.5 }), b = new FadeIn(new Circle(), { runTime: 0.5 });
+  const sq = new Succession([a, b]);
+  sq.begin(); sq.interpolate(0.75); sq.finish();
+  assert.deepEqual([sq.phase, a.phase, b.phase], ['finished', 'finished', 'finished']);
+});
+
+test('a Succession finished by its play while a member waits is landing, not finished, until that member has landed (#2)', async () => {
+  // Its last member, of no run time, waits for what it reads as the play finishes.
+  let read!: () => void;
+  // Asked first as the play begins, which finds nothing to wait for; then at its turn, which waits.
+  let asked = 0;
+  class Reads extends FadeIn { override ready(): Promise<unknown> | null { return ++asked === 2 ? new Promise<void>((r) => (read = r)) : null; } }
+  const scene = new Scene(new NullSink());
+  const w = new Reads(new Circle(), { runTime: 0 });
+  const sq = new Succession([new FadeIn(new Circle(), { runTime: 0.1 }), w]), group = new AnimationGroup([sq]);
+  const played = scene.play(group);
+  while (!read) await new Promise((r) => setTimeout(r));
+  assert.deepEqual([group.phase, sq.phase, w.phase], ['landing', 'landing', 'idle'], 'its play finished it, and the group around it; its last member has not begun');
+  assert.throws(() => sq.begin(), /^Error: animation\.begin\(\): a Succession has already begun, and its members still finish in turn; an animation plays in one place at a time/);
+  assert.throws(() => { sq.runTime = 3; }, /is playing, and its play fixed its frames from its runTime/);
+  read();
+  await played;
+  assert.deepEqual([group.phase, sq.phase, w.phase], ['finished', 'finished', 'finished']);
+});
+
+test('the landing after a failure and waiting() are the engine\'s own: an animation or class that replaces either is refused, and so is a mobject class that overrides children or parent (B6)', async () => {
+  const scene = new Scene(new NullSink());
+  const landless = new FadeIn(new Circle());
+  (landless as unknown as { land: () => void }).land = () => {};
+  await assert.rejects(scene.play(landless, new Boom(new Circle())), /^TypeError: this\.play\(\): a FadeIn replaces land\(\), which keeps the animation's phase; override doLand\(\) instead$/);
+  assert.equal(landless.phase, 'idle', 'refused before it began, so nothing is left begun');
+  const holds = new FadeIn(new Circle());
+  (holds as unknown as { waiting: () => boolean }).waiting = () => true;
+  await assert.rejects(scene.play(holds), /^TypeError: this\.play\(\): a FadeIn replaces waiting\(\), which tells a play and a Succession whether to wait for it; only the engine's groups answer it, so leave it to them$/);
+  class Holds extends FadeIn { override waiting(): boolean { return true; } }
+  await assert.rejects(scene.play(new AnimationGroup([new Holds(new Circle())])), /^TypeError: animation\.begin\(\): a Holds replaces waiting\(\)/);
+  class Lands extends FadeIn { override land(): void {} }
+  assert.throws(() => new Lands(new Circle()), /^TypeError: new Lands\(\): it overrides land\(\), which keeps the animation's phase; override doLand\(\) instead$/);
+  // A children getter on a subclass would hide the real children from its readers: family() refuses it.
+  class Liar extends Group { override get children(): readonly Circle[] { return []; } }
+  const liar = new Liar(new Circle());
+  assert.throws(() => liar.family(), /^TypeError: m\.children: a Liar overrides children in its class, which hides its real children; change them with add, insert, remove or replaceChild$/);
+  class Orphan extends Circle { override get parent(): null { return null; } }
+  assert.throws(() => new Group(new Orphan()).family(), /^TypeError: m\.parent: an Orphan overrides parent in its class/);
+  assert.equal(new Group(new Circle(), new Group(new Rectangle())).family().length, 4, 'an ordinary family walks as before');
+});
+
+test('a stop\'s callback that throws still stops the run for good (B3)', async () => {
+  class Short extends Scene {
+    override async construct() {
+      await this.step('one');
+      await this.play(new FadeIn(new Circle()), { runTime: 0.2 });
+      await this.step('two');
+      await this.play(new FadeIn(new Circle()), { runTime: 0.2 });
+    }
+  }
+  const scene = new Short(new NullSink());
+  scene.stopAt('one', () => { throw new Error('the log was refused'); });
+  await assert.rejects(scene.run(), /^Error: the log was refused$/);
+  assert.equal(scene.phase, 'stopped');
+  assert.equal(scene.currentStep?.name, 'one');
+  await assert.rejects(scene.play(new FadeIn(new Circle())), StopScene);
+});
+
+test('a frame drawn outside the loop raises what is kept on top first: renderFrame past the end, and drawFrame (B4)', async () => {
+  const top = new Rectangle(), a = new Circle();
+  const name = (m: unknown): string => (m === top ? 'top' : m === a ? 'a' : '?');
+  class Kept extends Scene {
+    override async construct() {
+      this.add(top);
+      this.keepOnTop(top);
+      await this.play(new FadeIn(a));
+      // A direct write after the last play: no later frame of the loop raises it.
+      this.mobjects = [top, a];
+    }
+  }
+  let drawn: string[] = [];
+  await renderFrame(Kept, 10_000, { frame: async (sc) => { drawn = sc.mobjects.map(name); } });
+  assert.deepEqual(drawn, ['a', 'top']);
+  const scene = new Kept(new NullSink());
+  await scene.run();
+  assert.deepEqual(scene.mobjects.map(name), ['top', 'a'], 'the write stands until something draws');
+  await scene.drawFrame({ frame: async (sc, dt) => { drawn = [...sc.mobjects.map(name), String(dt)]; } });
+  assert.deepEqual(drawn, ['a', 'top', '0']);
 });
 
 test('a Succession runs its members one after another: its lagRatio stays 1 (A9)', async () => {

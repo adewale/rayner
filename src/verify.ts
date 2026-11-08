@@ -26,7 +26,7 @@ import { VMobject } from './vmobject.ts';
 import { copiedFrom } from './animation.ts';
 import type { Box, HasText, Mobject } from './mobject.ts';
 import { mobjectName, paintsFill, paintsStroke } from './mobject.ts';
-import type { Scene, Sink, Step } from './scene.ts';
+import type { EndedStep, Scene, Sink, Step } from './scene.ts';
 import { FRAME } from './units.ts';
 import { pad } from './box.ts';
 
@@ -378,5 +378,5 @@ export class InvariantSink implements Sink {
     await this.inner?.frame(scene, dt);
   }
   async stepBegin(scene: Scene, step: Step): Promise<void> { await this.inner?.stepBegin?.(scene, step); }
-  async stepEnd(scene: Scene, step: Step): Promise<void> { await this.inner?.stepEnd?.(scene, step); }
+  async stepEnd(scene: Scene, step: EndedStep): Promise<void> { await this.inner?.stepEnd?.(scene, step); }
 }

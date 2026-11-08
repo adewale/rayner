@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { TraceSink } from '../../src/trace.ts';
-import type { Scene, SceneClass, SceneState, Step } from '../../src/scene.ts';
+import type { EndedStep, Scene, SceneClass, SceneState } from '../../src/scene.ts';
 import type { Mobject } from '../../src/mobject.ts';
 import { viewMismatch } from '../../explain/view.ts';
 import type { View } from '../../explain/view.ts';
@@ -12,7 +12,7 @@ class ShownSink extends TraceSink {
   pick: (scene: Scene) => View | null | undefined;
   draw?: (state: SceneState, shown: SceneState) => Mobject;
   constructor(pick: (scene: Scene) => View | null | undefined, draw?: (state: SceneState, shown: SceneState) => Mobject) { super(); this.pick = pick; this.draw = draw; }
-  override async stepEnd(scene: Scene, s: Step): Promise<void> {
+  override async stepEnd(scene: Scene, s: EndedStep): Promise<void> {
     await super.stepEnd(scene, s);
     const v = this.pick(scene);
     if (!v) { this.checks.push(null); return; }

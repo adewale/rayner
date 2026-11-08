@@ -1,7 +1,7 @@
 import { table } from '../../../explain/drawing.ts';
 import { answerOf, view, having } from '../../../explain/index.ts';
 import { Scene, Text, FadeIn, captionWords } from '../../../src/index.ts';
-import type { Step } from '../../../src/index.ts';
+import type { EndedStep } from '../../../src/index.ts';
 import { stage, regionBox, resolveSettings } from '../../../explain/index.ts';
 import type { ExplainerClass, Diagram, PictureNote, View, ExplainerMeta } from '../../../explain/index.ts';
 import { TokenBucket } from '../token-bucket/model.ts';
@@ -324,12 +324,17 @@ export default class ForkExplainer extends Scene<ForkState, ForkShown> {
 
     // A detail after the ending: the page holds each resting picture for its caption. Its words read
     // the timing of the 'fork' step, so they are a function of that step, closed with its hold.
-    const phases = (fork: Step) => ({
-      motion: (fork.hold ?? fork.t1!) - fork.t0,
-      held: fork.hold == null ? 0 : fork.t1! - fork.hold,
+    const phases = (fork: EndedStep) => ({
+      motion: (fork.hold ?? fork.t1) - fork.t0,
+      held: fork.hold == null ? 0 : fork.t1 - fork.hold,
+      // Counted as the hold counts them, so the timeline and the hold agree.
+      words: captionWords(String(fork.meta.caption)),
     });
+    let timing = { motion: 0, held: 0, words: 0 };
+    // The step this detail closes is 'fork'.
     await this.step('timing', (fork) => {
-      const { motion, held } = phases(fork!);
+      if (fork) timing = phases(fork);
+      const { motion, held } = timing;
       return {
         kind: 'detail',
         title: 'The page holds each resting picture for its caption',
@@ -337,10 +342,7 @@ export default class ForkExplainer extends Scene<ForkState, ForkShown> {
         caption: `The scene clock reserves reading time after motion. This caption needs ${(motion + held).toFixed(1)} seconds at ${Scene.captionWpm} words a minute; the ${motion.toFixed(1)}-second animation leaves ${held.toFixed(1)} seconds at rest. The caption therefore does not have to compete with a still-changing picture.`,
       };
     });
-    const shown = this.steps.find((st) => st.name === 'fork')!;
-    // Counted as the hold counts them, so the timeline and the hold agree.
-    const words = captionWords(String(shown.meta.caption));
-    const { motion, held } = phases(shown);
+    const { motion, held, words } = timing;
     await s.clearOverlays();
     await showFlow({ walked: [], notes: [] });
     s.liveDiagram(flow);
