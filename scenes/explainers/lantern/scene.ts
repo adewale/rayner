@@ -227,8 +227,8 @@ export default class LanternExplainer extends Scene<LanternState, LanternShown> 
         test: 'model.test.ts: an animation blends its start and end by its elapsed share of its run time alone',
       },
       {
-        says: 'in every step of every scenario it seeks one frame midway and one just before the step ends',
-        test: 'test/explain-gates.test.ts: rayner check seeks two frames in each step of every scenario',
+        says: 'in every step of every scenario it seeks three frames: one midway, then its second-last and its last',
+        test: 'test/explain-gates.test.ts: rayner check seeks three frames in each step of every scenario',
       },
       {
         says: 'in a scene with updaters, a still computes every frame before t',
@@ -460,7 +460,7 @@ export default class LanternExplainer extends Scene<LanternState, LanternShown> 
         id: 'check',
         title: `Seeked frame by frame: ${count('blend')} of ${total} match with blending, ${count('nudge')} with the nudge`,
         line: 'rayner check fails a page on the first seeked frame that differs from playback.',
-        caption: `The strips compare each of those ${total} stills with its played frame, the whole SVG, box and dot together. Blending agrees throughout; the nudge first differs at frame ${firstMiss}. rayner check samples less: in every step of every scenario it seeks one frame midway and one just before the step ends. A mismatch fails the check, but agreement at those two times proves nothing about the times between them. An updater follows a different path: in a scene with updaters, a still computes every frame before t.`,
+        caption: `The strips compare each of those ${total} stills with its played frame, the whole SVG, box and dot together. Blending agrees throughout; the nudge first differs at frame ${firstMiss}. rayner check samples less: in every step of every scenario it seeks three frames: one midway, then its second-last and its last. A mismatch fails the check, but agreement at those three times proves nothing about the times between them. An updater follows a different path: in a scene with updaters, a still computes every frame before t.`,
         state: {
           check: { frames: total, matched: { blend: count('blend'), nudge: count('nudge') } },
           // Whether each frame's still is the played frame, for both kinds of motion: the cells.
