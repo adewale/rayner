@@ -14,6 +14,7 @@ import { LETTERING_SCRIPTS } from '../../src/lettering-scripts.ts';
 import type { SubsetLetteringRequest, LetteringScript, LetteringFaces } from '../../src/lettering.ts';
 import type { FontName } from '../../src/index.ts';
 import { ROOT } from './roots.ts';
+import { sfntBase64 } from './woff2.ts';
 import { sha256 } from './hash.ts';
 
 
@@ -70,11 +71,19 @@ const inScripts = (scripts: readonly LetteringScript[], cp: number) =>
   scripts.some((s) => SCRIPTS[s].some(([from, to]) => cp >= from && cp <= to));
 const hex = (cp: number) => cp.toString(16).toUpperCase().padStart(4, '0');
 
-/** The page's faces for useLettering(). */
-export const pageFaces = (l: Lettering | undefined): LetteringFaces | null =>
+/** The cuts for useLettering(), as committed: WOFF2. */
+const cutFaces = (l: Lettering | undefined): LetteringFaces | null =>
   l ? Object.fromEntries(FAMILIES.flatMap((f) => (l.faces[f] ? [[f, l.faces[f].woff2]] : []))) : null;
+/**
+ * The page's faces for useLettering(): the cuts as SFNT, which the page's shaper reads without
+ * a Brotli decoder (tools/lib/woff2.ts).
+ */
+export const pageFaces = (l: Lettering | undefined): LetteringFaces | null => {
+  const faces = cutFaces(l);
+  return faces && Object.fromEntries(Object.entries(faces).map(([family, data]) => [family, sfntBase64(data!)]));
+};
 /** Put the project's lettering in place for what draws it next, or the embedded faces alone. */
-export const useProjectLettering = (p: { lettering?: Lettering }) => useLettering(pageFaces(p.lettering));
+export const useProjectLettering = (p: { lettering?: Lettering }) => useLettering(cutFaces(p.lettering));
 
 /** The size report: for the receipt and the check report of a lettered explainer only. */
 export function letteringReport(l: Lettering) {
@@ -89,8 +98,8 @@ export function letteringReport(l: Lettering) {
   return {
     scripts: l.scripts,
     faces,
-    // The faces as the page holds them: base64 in its script
-    pageBytes: FAMILIES.reduce((n, f) => n + (l.faces[f]?.woff2.length ?? 0), 0),
+    // The faces as the page holds them: SFNT, base64 in its script
+    pageBytes: Object.values(pageFaces(l) ?? {}).reduce((n, data) => n + data!.length, 0),
   };
 }
 

@@ -206,6 +206,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - Diagram capture starts one Chromium per kind of diagram lettering however many diagrams wait for it, and closes each.
 - A page whose scenarios show no diagram carries no diagram code, and every page's style is minified: lru-mru's page is 203 KB gzipped, where it was 216 KB. [What a page leaves out](docs/ENGINE.md#what-a-page-leaves-out)
 - The SVG writer writes a straight segment as `L`, where it wrote a cubic, in the poster and on the live stage alike: font-metrics' page is 16 KB smaller gzipped, lru-mru's 2.6 KB.
+- No page ships the shaper's Brotli decoder: every page uses the SFNT faces, and the build converts a lettered page's WOFF2 cuts and subsets to SFNT. feature-tour's page is 259 KB gzipped, where it was 319 KB; font-metrics' 316 KB, where it was 390 KB. [Embedded browser fonts](docs/ENGINE.md#embedded-browser-fonts)
 
 ### Removed from the public API
 

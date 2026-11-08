@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { pageSize } from './page-budget.ts';
 import { packPageSnapshots } from './page-snapshots.ts';
-import { decodesFaces, sceneEntry, shippedStore } from './scene-entry.ts';
+import { sceneEntry, shippedStore } from './scene-entry.ts';
 import { SnapshotSink, renderAt } from '../../src/output.ts';
 import { chromeFor, scenarioNameIn, changeText, descriptionLang } from '../../app/embed-strings.ts';
 import { restingTime, pictureHtml, htmlEscape, stepWords, watchedChanges, wordsHtml } from '../../explain/trace.ts';
@@ -83,8 +83,9 @@ export async function buildExplainer(
           }));
         },
       },
-      // The embedded faces as SFNT, and the shaper without its WOFF2 decoder, unless the page decodes faces of its own.
-      ...(await decodesFaces(project) ? [] : [browserFonts(LIB_ROOT)]),
+      // The embedded faces as SFNT, and the shaper without its Brotli decoder: the faces a page
+      // decodes of its own (lettering cuts and subsets) are SFNT too (sceneEntry).
+      browserFonts(LIB_ROOT),
       ...(showsDiagrams(project) ? [] : [withoutDiagramCode()]),
       engineAlias(false, !!project.outlineLettering),
     ],

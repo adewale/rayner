@@ -1,5 +1,6 @@
 // Node-only preparation. Optional dependencies are needed only to refresh a
 // lettering snapshot; check/build from a fresh snapshot need none of them.
+import { sfntBase64 } from './woff2.ts';
 import { readFile, writeFile, mkdir, mkdtemp, rename, rm } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { AsyncLocalStorage } from 'node:async_hooks';
@@ -366,7 +367,8 @@ export async function pageSnapshot(snapshot: LetteringSnapshot): Promise<PackedL
   await snapshotProvider({ ...snapshot, runs, faces }).prepare!();
   return packLettering({
     version: 3, builderHash: '', request: snapshot.request, runs, shaper: '',
-    faces: Object.fromEntries([...used].sort().map((name) => [name, { hash: '', data: snapshot.faces[name]!.data, license: '' }])),
+    // As SFNT, which the page's shaper reads without a Brotli decoder (woff2.ts).
+    faces: Object.fromEntries([...used].sort().map((name) => [name, { hash: '', data: sfntBase64(snapshot.faces[name]!.data), license: '' }])),
   });
 }
 /** The face licences a lettered page adds to its licence block: each distinct notice once. */

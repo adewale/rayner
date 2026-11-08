@@ -46,14 +46,6 @@ function shippedOutlines(project: Project): Promise<PackedLetteringSnapshot> | u
   return outline;
 }
 /**
- * Whether the page decodes a font of its own at run time: a subset-lettered scene's cuts, or the
- * faces outline lettering shapes counters with. A page that decodes none needs only the embedded faces.
- */
-export async function decodesFaces(project: Project): Promise<boolean> {
-  return !!project.lettering || Object.keys((await shippedOutlines(project))?.faces ?? {}).length > 0;
-}
-
-/**
  * The entry for `target`. The author's class takes the script's intent first, as the tools
  * adopted it (collectProject ran adoptIntent, which checks that the scene does not declare
  * the same parts, and kept its result as project.intent: the entry applies that result, so
