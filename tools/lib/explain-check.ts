@@ -18,7 +18,7 @@ import type { Settings } from '../../explain/settings.ts';
 import ts from 'typescript';
 import { Text } from '../../src/index.ts';
 import { View } from '../../explain/index.ts';
-import { SnapshotSink, renderFrame, toSvgString, renderText } from '../../src/output.ts';
+import { SnapshotSink, renderFrame, toSvgString } from '../../src/output.ts';
 import { renderElements, serializeElement } from '../../src/svg.ts';
 import { MotionSink, InvariantSink, machinesOf, viewMismatch, jsonObject, analyzeMotion, traceScene } from '../../explain/testing.ts';
 import { canonicalJson } from '../../src/json.ts';
@@ -27,6 +27,7 @@ import { checkedAgainstFiles, compareAnswers, runModelTest } from './explain-evi
 import { scenarioName } from '../../explain/testing.ts';
 import { undescribed, watchedChanges } from '../../explain/trace.ts';
 import { diagramsOn } from '../../explain/diagrams.ts';
+import { restingDrawing } from '../../explain/describe.ts';
 import { LiveSink, liveMachine, runLive } from '../../explain/live.ts';
 import type { LiveExplore } from '../../explain/live.ts';
 import { labelOf, readingLabelSize } from '../../explain/labels.ts';
@@ -378,7 +379,7 @@ export class FrameCaptureSink implements Sink {
   }
 }
 
-/** Each step's resting picture, by step: its SVG without the heading, its text drawing, and its text and route collisions. */
+/** Each step's resting picture, by step: its SVG and its text drawing, both without the heading, and its text and route collisions. */
 export class RestingSink implements Sink {
   readonly resting = new Map<string, string>();
   readonly restingText = new Map<string, string>();
@@ -387,7 +388,8 @@ export class RestingSink implements Sink {
   async stepEnd(scene: Scene, step: Step): Promise<void> {
     // The resting picture of a step, without the heading (number, title, line) that names it.
     this.resting.set(step.path, withoutHeading(scene, () => toSvgString(scene)));
-    this.restingText.set(step.path, renderText(scene));
+    // Drawn as describe draws it, without the heading too (restingDrawing).
+    this.restingText.set(step.path, restingDrawing(scene));
     this.collisions.push(
       ...[...restingTextProblems(scene), ...restingRouteProblems(scene)].map((p) => `${step.name}: ${p}`),
     );
@@ -907,7 +909,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
             }),
           }
         : {}),
-      // Each step's resting frame as text, so an author can read it without a browser.
+      // Each step's resting frame as text, so an author can read it without a browser: the drawing
+      // describe gives (restingDrawing), without the heading that names the step.
       restingFrames: Object.fromEntries(
         v.trace.steps.map((step) => [step.step, restingText.get(step.step) ?? '']),
       ),
