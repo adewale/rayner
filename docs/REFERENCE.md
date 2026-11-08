@@ -171,6 +171,8 @@ const s = stage(this, { style: 'nord' });
 | `headingSize` | The heading's font size, 0.36 by default; at 0.5 it reads at about 12 px on a 390 px page without a close-up |
 | `numbered` | A circled step number before the title; on by default when the heading follows the steps |
 
+`stage()` checks every option before it touches the scene, and refuses a key it does not take, a palette that is not four hex colours (`#rgb` or `#rrggbb`), a heading that is not `'step'`, a string or `false`, a heading size that is not a number above 0, and a `numbered` that is not `true` or `false`; the scene is then left without a stage, free to have one.
+
 With neither `style` nor `palette`, the stage adopts the first diagram's palette. Later diagrams keep their own colours and leave the backdrop, heading and engine defaults as the first one set them.
 
 | Member | What it does |
