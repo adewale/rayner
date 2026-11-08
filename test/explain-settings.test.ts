@@ -6,7 +6,8 @@ import { traceScene } from '../explain/testing.ts';
 import { resolveSettings, settingsOf } from '../explain/index.ts';
 import { scenariosOf, withSettings, scenarioName } from '../explain/testing.ts';
 import type { Setting, ExplainerMeta, ExplainerClass } from '../explain/index.ts';
-import { checkExplainerMeta } from '../explain/settings.ts';
+import { checkExplainerMeta, isIdentifier } from '../explain/settings.ts';
+import { shareable } from '../app/embed-share.ts';
 import { fc, params } from './lib/pbt.ts';
 
 class Example extends Scene {
@@ -213,6 +214,25 @@ test('static meta takes the keys ExplainerMeta names, and refuses any other, nam
   assert.throws(() => checkExplainerMeta({ player: true }), /meta\.player: it must be an object/);
   // A key inherited through the prototype is not the scene's: only own keys are read.
   checkExplainerMeta(Object.create({ titel: 'A' }));
+});
+
+test('one validator for the names a link carries or a file is named by: events, meta.id and shareable steps', () => {
+  // An event: any words without a comma, since a link joins the events a reader sent with commas.
+  for (const ok of ['push', 'start A', 'A lands', 'Lamp lit', 'é:1']) assert.ok(isIdentifier('event', ok), ok);
+  for (const bad of ['', '  ', 'a,b', 3]) assert.ok(!isIdentifier('event', bad), JSON.stringify(bad));
+  // meta.id: one safe path segment.
+  for (const ok of ['seasons', 'lru-mru', 'a_1', '2password']) assert.ok(isIdentifier('id', ok), ok);
+  for (const bad of ['', '../x', 'a/b', '.hidden', 'a b', 'x.html', '-x', 'é']) assert.ok(!isIdentifier('id', bad), bad);
+  // A step with a share page: letters, digits, - and _.
+  for (const ok of ['push', 'Push-2', 'a_b']) assert.ok(isIdentifier('step', ok), ok);
+  for (const bad of ['', 'a b', 'a/b', 'é']) assert.ok(!isIdentifier('step', bad), bad);
+  // The player's share check and the site's are this validator.
+  for (const name of ['push', 'a b', '../x']) assert.equal(shareable(name), isIdentifier('step', name));
+  // meta.id is checked with the rest of static meta.
+  assert.throws(() => checkExplainerMeta({ id: '../escape' }), /^RangeError: meta\.id: "\.\.\/escape" is not a page id; an id is one path segment of letters, digits, - and _, starting with a letter or digit, as it names the page's files$/);
+  assert.throws(() => checkExplainerMeta({ id: 'a/b' }), /^RangeError: meta\.id: "a\/b" is not a page id/);
+  assert.throws(() => checkExplainerMeta({ id: 7 }), /^TypeError: meta\.id: it must be a string$/);
+  checkExplainerMeta({ id: 'seasons' });
 });
 
 test('every explainer and tutorial scene declares a static meta that collection takes', async () => {

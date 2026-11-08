@@ -12,6 +12,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - The page shows what the model is checked against under Sources.
 - `answerOf(this)` in `rayner/explain` reads the script's answer, so a caption that states it keeps no copy. `withIntent(Scene, scriptText)` in `rayner/testing` adopts a script for a test that runs a scene directly.
 - `meta.id` defaults to the scene's folder name (or its file's name when the file is not `scene.ts`).
+- A declared `meta.id` must be one path segment of letters, digits, `-` and `_`, and step names must be unique ignoring case, so no page or share page is written outside its folder or over another.
 - `static meta` has a type, `ExplainerMeta` (with `PlayerMeta` for `meta.player`), exported from `rayner/explain`: `static meta = { … } satisfies ExplainerMeta`. Collection and `loadProject` refuse a meta key it does not name, and a `player` key `PlayerMeta` does not, naming the key and the keys it takes. Every explainer and tutorial scene declares its meta this way.
 - `rayner check` fails a view whose draw never depends on its state (or on what is shown) at any step that shows it. [Checks](docs/REFERENCE.md#checks)
 - `emphasised(m, what)` in `rayner/drawing` marks a part as emphasis where it is drawn, so the close-up tour and the descriptions find it in the picture; a diagram's picture reports its own marks the same way.
@@ -100,6 +101,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - Every value on screen comes from a model the scene imports, and the model's tests compare it with the real thing.
 - The collection's models are compared with CPython, Git, rustc, Go's rate limiter, XState, ERFA, Python's `unicodedata` and others, against frozen answers, so the tests run without those tools installed.
 - A `Machine` drives a model with events. Its spec gives `start`, `events`, `next(state, event)`, `bound`, button `labels` and the views drawn from the state. [Machines](docs/MACHINES.md#making-one)
+- A machine refuses an empty event name or one with a comma, which a shared link, joining the reader's events with commas, would split. One validator (`isIdentifier` in `explain/settings.ts`) holds the names a link carries or a file is named by: events, `meta.id` and the step names that get share pages.
 - `next` returns `refuse(reason)` for an event the state refuses, the reason in the reader's words, or `undefined` for a refusal with no reason.
 - `bound` says where the story stops though the model would go on.
 - `replay` plays events as one schedule, which seeks and traces like any other play and records each event.

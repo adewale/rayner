@@ -9,7 +9,7 @@ import { machinesOf, TraceSink, traceScene, loadFonts } from '../explain/testing
 import { stage, Machine, refuse, isRefusal, view } from '../explain/index.ts';
 import { SetState } from '../explain/state.ts';
 import { exploreMachines } from '../tools/lib/explain-check.ts';
-import { logStart } from '../app/embed-live.ts';
+import { decodeLog, encodeLog, logStart } from '../app/embed-live.ts';
 
 await loadFonts();
 
@@ -186,6 +186,21 @@ function litLamp(transition: (t: Transition<Lamp, 'UP' | 'OFF'>, lamp: View) => 
 }
 /** UP morphs the picture into the picture of the state it reaches. */
 const morphUp = (t: Transition<Lamp, 'UP' | 'OFF'>, lamp: View) => new Transform(lamp.current, t.target(lamp));
+
+test('a machine refuses an event name a link cannot carry: empty, or with a comma, which a shared link would split', () => {
+  const scene = new Scene<Lamp>(new NullSink());
+  const spec = { start: { level: 0 }, next: (s: Lamp) => s, views: [] };
+  assert.throws(() => new Machine(scene, { ...spec, events: ['a,b'] }), /^RangeError: new Machine\(\): "a,b" is not an event name; an event is words with no comma, as a link joins the events a reader sent with commas$/);
+  assert.throws(() => new Machine(scene, { ...spec, events: ['UP', ''] }), /^RangeError: new Machine\(\): "" is not an event name/);
+  assert.throws(() => new Machine(scene, { ...spec, events: [' '] }), /is not an event name/);
+  assert.throws(() => new Machine(scene, { ...spec, events: [1 as unknown as string] }), /^TypeError: new Machine\(\): an event must be a string, not 1$/);
+  // The defect it closes: a comma in an event comes back from a link as two events.
+  const viaLink = (log: readonly string[]) => decodeLog(new URLSearchParams(`sent=${encodeLog(log)}`).get('sent'));
+  assert.deepEqual(viaLink(['a,b']), ['a', 'b']);
+  // Events with spaces and colons still travel.
+  const words = new Machine(scene, { ...spec, events: ['start A', 'A lands', 'x:1'] });
+  assert.deepEqual(viaLink(words.spec.events), ['start A', 'A lands', 'x:1']);
+});
 
 test('a refused event: next says undefined, exploration does not follow it, and sending it is refused before anything plays', async () => {
   const ran = await new (litLamp(morphUp))(new NullSink()).run();

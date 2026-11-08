@@ -7,6 +7,7 @@
 import { Animation, AnimationGroup, Succession, matchByKey } from '../src/animation.ts';
 import { SetState } from './state.ts';
 import { canonicalJson } from '../src/json.ts';
+import { identifierRule, isIdentifier } from './settings.ts';
 import { Group } from '../src/mobject.ts';
 import { linear } from '../src/rate.ts';
 import type { Scene } from '../src/scene.ts';
@@ -130,6 +131,10 @@ export class Machine<S extends object, E extends string> {
 
   constructor(scene: Scene<S, any>, spec: MachineSpec<S, E>) {
     if (!spec.events.length) throw new TypeError('new Machine(): it needs at least one event');
+    for (const event of spec.events) {
+      if (typeof event !== 'string') throw new TypeError(`new Machine(): an event must be a string, not ${JSON.stringify(event)}`);
+      if (!isIdentifier('event', event)) throw new RangeError(`new Machine(): ${JSON.stringify(event)} is not an event name; an event is ${identifierRule('event')}`);
+    }
     if (new Set(spec.events).size !== spec.events.length) throw new Error('new Machine(): an event is listed twice; list each event once');
     if (typeof spec.next !== 'function') throw new TypeError('new Machine(): it needs next(state, event)');
     if ('why' in spec) throw new TypeError('new Machine(): it takes no why(state, event); return refuse(reason) from next where the model refuses an event');

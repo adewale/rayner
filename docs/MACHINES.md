@@ -42,7 +42,7 @@ event reached. A replayed machine therefore seeks, traces and records like any o
 | Spec field | What it says |
 | --- | --- |
 | `start` | Where exploration starts; the scene need not be in it yet |
-| `events` | Every event, in the order the player shows them; distinct and at least one |
+| `events` | Every event, in the order the player shows them; distinct and at least one. An event is words with no comma, since a link joins the events a reader sent with commas |
 | `labels` | A button's name for an event whose own name would not read well (default: the event) |
 | `next(state, event)` | The model's step, from the model module: a new state, or `refuse(reason)` when the state refuses the event, the reason in the reader's words (`undefined` refuses with no reason) |
 | `bound(state, event)` | Where the story stops though the model would go on: the reason, else `undefined` |

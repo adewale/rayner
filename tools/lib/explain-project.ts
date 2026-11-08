@@ -367,8 +367,10 @@ export async function collectProject(
         names = trace.steps.map((s) => s.step);
       if (!names.length || names.some((name) => !name.trim()))
         throw new Error(`this.step(): the scenario ${JSON.stringify(values)} has no step, or a step with an empty name; every scenario needs named steps`);
-      if (new Set(names).size !== names.length)
-        throw new Error(`this.step(): two steps of the scenario ${JSON.stringify(values)} share a name; name each step once, so each has its own link`);
+      // Case folded: a share page is a file named by its step, and Push and push are one file on macOS and Windows.
+      const folded = names.map((name) => name.toLowerCase()), twice = names.find((_, i) => folded.indexOf(folded[i]!) !== i);
+      if (twice !== undefined)
+        throw new Error(`this.step(): two steps of the scenario ${JSON.stringify(values)} share the name ${JSON.stringify(twice)}, ignoring case; name each step once, so each has its own link and share page`);
       // The page never draws these (offPage): they stay out of what it carries
       if (outline) await withSceneLettering(Bound, () => offPage(async () => {
         const { Text } = await import('../../src/index.ts');
