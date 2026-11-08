@@ -10,7 +10,7 @@ import { withLettering } from '../src/lettering.ts';
 import type { LetteringFaces } from '../src/lettering.ts';
 import { traceScene } from '../src/trace.ts';
 import type { Trace, TraceOf } from '../src/trace.ts';
-import { withIntent } from './intent.ts';
+import { adoptIntent, parseIntent } from './intent.ts';
 import { bindSnapshots, checkExplainerMeta, identifierRule, isIdentifier, resolveSettings, scenariosOf, withSettings } from './settings.ts';
 import type { ExplainerClass, Settings } from './settings.ts';
 
@@ -69,14 +69,17 @@ export async function loadProject<C extends SceneClass>(Explainer: C, where: str
   try { checkExplainerMeta(Scene.meta); } catch (e) { throw new TypeError(`loadProject(): ${file}: ${(e as Error).message}`); }
   const folder = file.replace(/[^/\\]*$/, ''),
     script = await read(folder + 'script.md');
-  if (script !== null) withIntent(Scene as { meta?: Record<string, unknown> }, script, folder + 'script.md');
+  // Adopted afresh, as the command adopts it: a header removed since an earlier load takes its keys with it.
+  adoptIntent(Scene as { meta?: Record<string, unknown> }, script === null ? null : parseIntent(script, folder + 'script.md'), folder + 'script.md');
   // Its id is sceneIdOf(file) unless it declares one, as the command has it.
   if (Scene.meta?.id === undefined) Scene.meta = { ...Scene.meta, id: sceneIdOf(file) };
   const snapshots = await readSnapshotStore((name) => read(`${baseOf(file)}.snapshots/${name}`));
   const { Lettered, faces } = await pinnedLettering(Scene, file, read);
   const scenarios: LoadedScenario[] = [];
-  // Subset lettering is the fonts' (useLettering), as on the page, for the scenarios' runs only;
-  // another loadProject overlapping this one waits its turn, so each traces with its own faces.
+  // Subset lettering is the fonts' (useLettering), as on the page, for the scenarios' runs only, and
+  // a scene with none traces with the embedded faces alone. Either way the runs take their turn
+  // (withLettering): another loadProject or lettered run overlapping this one waits, so each traces
+  // with its own faces.
   const traceAll = async () => {
     for (const values of scenariosOf(Lettered)) {
       const Bound = withSettings(bindSnapshots(Lettered, snapshots), values);
@@ -85,7 +88,7 @@ export async function loadProject<C extends SceneClass>(Explainer: C, where: str
       scenarios.push({ values, Scene: Bound, trace });
     }
   };
-  await (faces ? withLettering(faces, traceAll) : traceAll());
+  await withLettering(faces ?? null, traceAll);
   const project: LoadedProject = {
     Scene: Lettered,
     snapshots,

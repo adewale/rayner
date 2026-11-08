@@ -73,30 +73,36 @@ export function intentMeta(intent: Intent): { title: string; answer: string; que
 
 /**
  * Put the intent into the scene's metadata, so check, describe, build and review read it as they
- * read a scene's own. Each part has one home: a scene that also declares one throws.
+ * read a scene's own. Each part has one home: a scene that also declares one throws. A loaded scene
+ * module is shared within a process, so every adoption starts from the scene's own metadata, as
+ * declared before its first adoption, not from an earlier adoption's result: a changed or removed
+ * line is not kept. Given null (a script with no intent header, or none at all), it takes out what
+ * an earlier adoption put in and returns undefined.
  */
-export function adoptIntent(Scene: { meta?: Record<string, unknown> }, intent: Intent, where: string): ReturnType<typeof intentMeta> {
-  // A loaded scene module is shared within a process, so a second adoption starts from the
-  // scene's own metadata, as declared, not from the first adoption's result.
+export function adoptIntent(Scene: { meta?: Record<string, unknown> }, intent: Intent | null, where: string): ReturnType<typeof intentMeta> | undefined {
   if (!declared.has(Scene)) declared.set(Scene, Scene.meta);
   const own = declared.get(Scene);
+  if (!intent) {
+    if (Scene.meta !== own) Scene.meta = own;
+    return undefined;
+  }
   const meta = intentMeta(intent);
   const twice = Object.keys(meta).filter((k) => own?.[k] !== undefined);
   if (twice.length) throw new Error(`${where}: ${twice.join(', ')} ${twice.length > 1 ? 'are' : 'is'} declared in both script.md and the scene; the script's intent is their one home, so take ${twice.length > 1 ? 'them' : 'it'} out of the scene's meta`);
   Scene.meta = { ...own, ...meta };
   return meta;
 }
-/** Each adopted scene's metadata as the scene itself declares it. */
+/** Each scene's metadata as the scene itself declares it, recorded at its first adoption: the one record adoptIntent starts from. */
 const declared = new WeakMap<object, Record<string, unknown> | undefined>();
 
 
 /**
  * A scene class that a test runs directly, with its script's intent adopted as the tools adopt it, so
  * `answerOf` and the page's metadata work the same: `withIntent(MyScene, readFileSync('script.md', 'utf8'))`.
- * A script with no intent header changes nothing. Returns the class.
+ * Each call adopts afresh (see adoptIntent): a script with no intent header takes out what an
+ * earlier adoption put in. Returns the class.
  */
 export function withIntent<S extends { meta?: Record<string, unknown> }>(Scene: S, script: string, where = 'script.md'): S {
-  const intent = parseIntent(script, where);
-  if (intent) adoptIntent(Scene, intent, where);
+  adoptIntent(Scene, parseIntent(script, where), where);
   return Scene;
 }

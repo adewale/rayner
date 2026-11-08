@@ -99,6 +99,32 @@ test('lettering callers take turns: overlapping runs each see their own faces, a
   await useLettering(null);
 });
 
+test('a loadProject with no lettering takes its turn too: overlapping a lettered run, it traces with the embedded faces (A3)', async () => {
+  const { loadProject } = await import('../explain/project.ts');
+  const { Scene } = await import('../src/index.ts');
+  await useLettering(null);
+  const faces = pageFaces((await collectProject(FIXTURE, { write: false })).lettering);
+  await useLettering(null);
+  const seen: boolean[] = [];
+  class Plain extends Scene {
+    static meta = { id: 'plain' };
+    override async construct() {
+      await this.step('one', { caption: 'Plain words.' });
+      for (let i = 0; i < 4; i++) {
+        seen.push(shaperFor('sans') !== embedded.sans);
+        await new Promise((r) => setTimeout(r, 10));
+        await this.wait(0.1);
+      }
+    }
+  }
+  // A lettered run in progress when the unlettered load begins: the load waits for it.
+  const lettered = withLettering(faces, () => new Promise((r) => setTimeout(r, 150)));
+  await new Promise((r) => setTimeout(r, 20));
+  await Promise.all([lettered, loadProject(Plain, join(folder, 'plain'))]);
+  assert.deepEqual(seen, [false, false, false, false], 'every run of the plain scene saw the embedded faces');
+  assert.equal(shaperFor('sans'), embedded.sans);
+});
+
 // Fail closed: a script nobody asked for fails every command, as it did before lettering existed.
 const scene = (meta: string, text: string) =>
   `import{Scene,Text,FadeIn}from'rayner';import{stage}from'rayner/explain';export default class L extends Scene{static meta={${meta}};async construct(){stage(this);await this.step('one',{title:'One'});await this.play(new FadeIn(new Text(${JSON.stringify(text)})));}}`;
