@@ -77,5 +77,22 @@ test('a scene with no meta.id is named by one rule: its folder for scene.ts, els
   assert.equal(sceneIdOf('recipes/extensions.ts'), 'extensions');
   assert.equal(sceneIdOf('/abs/dir/scene.ts'), 'dir');
   // The command's own rule once read the file's name alone: scene.ts would have named every explainer "scene".
-  assert.notEqual(sceneIdOf('a/b/scene.ts'), 'scene');
+  assert.notEqual(sceneIdOf('a/b/scene.ts'), 'scene');  // A name that is not a page id is refused, as such a meta.id is: a defect the rule must reject.
+  assert.throws(() => sceneIdOf('scenes/My Scene/scene.ts'), /^RangeError: meta\.id: the scene has none, and its folder name "My Scene" is not a page id; give it a meta\.id, or rename it/);
+  for (const file of ['a/b.c.ts', 'a/.ts', 'scene.ts']) assert.throws(() => sceneIdOf(file), /is not a page id/, file);
+});
+
+test('loadProject holds every scenario to the step rules the command holds', async () => {
+  const { loadProject } = await import('../explain/project.ts');
+  const { Scene } = await import('../src/index.ts');
+  class Still extends Scene {
+    static meta = { id: 'still' };
+    override async construct() { await this.step('one', { caption: 'One.' }); await this.step('empty'); await this.step('two', { caption: 'Two.' }); }
+  }
+  await assert.rejects(loadProject(Still, 'test/fixtures/no-such-explainer'), /^Error: this\.step\(\): step "empty" of the scenario \{\} draws no frame of its own/);
+  class Twice extends Scene {
+    static meta = { id: 'twice' };
+    override async construct() { await this.step('Push', { caption: 'One.' }); await this.step('push', { caption: 'Two.' }); }
+  }
+  await assert.rejects(loadProject(Twice, 'test/fixtures/no-such-explainer'), /share the name "push", ignoring case/);
 });

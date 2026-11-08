@@ -210,7 +210,8 @@ Names are stable, unique URL identifiers. `title`, `line`, `caption` and `kind`
 can describe the model's inputs. Metadata is copied as JSON when the step begins;
 given a function, `step()` calls it with the step it has just closed. A caption extends
 its step until it could be read, so the step's resting picture, its last frame, can differ
-from its first. Each step draws at least one frame of its own, and records as it ends its
+from its first. Each step draws at least one frame of its own (`loadProject` and the command
+refuse one that does not), and records as it ends its
 `holdFrame`, where its picture stops changing, and its `restFrame`, its last frame;
 players stop at the first and links show the second. `TraceSink` copies both into the
 trace, and `traceRun`'s `AtRest` callback (`src/trace.ts`) hands the scene, showing each

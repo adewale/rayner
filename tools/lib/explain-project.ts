@@ -18,7 +18,7 @@ import { traceRun } from '../../src/trace.ts';
 import type { Palette } from '../../src/color.ts';
 import { paperOf, paletteOf } from '../../explain/stage.ts';
 import { checkWatch } from '../../explain/trace.ts';
-import { readSnapshotStore, sceneIdOf } from '../../explain/project.ts';
+import { checkScenarioSteps, readSnapshotStore, sceneIdOf } from '../../explain/project.ts';
 import { checkScriptMeta, checkStepMeta } from '../../explain/script.ts';
 import { checkExplainerMeta } from '../../explain/settings.ts';
 import { checkClaimsMeta } from '../../explain/claims.ts';
@@ -357,18 +357,8 @@ export async function collectProject(
       blanks();
       const Bound = withSettings(bindSnapshots(Source, store), values);
       const { trace, scene: ran } = await traceRun(Bound),
-        paper = paperOf(ran),
-        names = trace.steps.map((s) => s.step);
-      if (!names.length || names.some((name) => !name.trim()))
-        throw new Error(`this.step(): the scenario ${JSON.stringify(values)} has no step, or a step with an empty name; every scenario needs named steps`);
-      // Case folded: a share page is a file named by its step, and Push and push are one file on macOS and Windows.
-      const folded = names.map((name) => name.toLowerCase()), twice = names.find((_, i) => folded.indexOf(folded[i]!) !== i);
-      if (twice !== undefined)
-        throw new Error(`this.step(): two steps of the scenario ${JSON.stringify(values)} share the name ${JSON.stringify(twice)}, ignoring case; name each step once, so each has its own link and share page`);
-      // A step that draws no frame rests on the step before's last frame: a link would show that picture, the checks judge the next step's.
-      const still = trace.steps.find((s) => s.restFrame === s.frame0);
-      if (still)
-        throw new Error(`this.step(): step ${JSON.stringify(still.step)} of the scenario ${JSON.stringify(values)} draws no frame of its own, so it shows the step before's picture; play or wait in it, or give it a caption to hold`);
+        paper = paperOf(ran);
+      checkScenarioSteps(trace, values);
       // The page never draws these (offPage): they stay out of what it carries
       if (outline) await withSceneLettering(Bound, () => offPage(async () => {
         const { Text } = await import('../../src/index.ts');

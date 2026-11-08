@@ -11,7 +11,7 @@ import type { LetteringFaces } from '../src/lettering.ts';
 import { traceScene } from '../src/trace.ts';
 import type { Trace, TraceOf } from '../src/trace.ts';
 import { withIntent } from './intent.ts';
-import { bindSnapshots, checkExplainerMeta, resolveSettings, scenariosOf, withSettings } from './settings.ts';
+import { bindSnapshots, checkExplainerMeta, identifierRule, isIdentifier, resolveSettings, scenariosOf, withSettings } from './settings.ts';
 import type { ExplainerClass, Settings } from './settings.ts';
 
 /**
@@ -71,8 +71,7 @@ export async function loadProject<C extends SceneClass>(Explainer: C, where: str
     script = await read(folder + 'script.md');
   if (script !== null) withIntent(Scene as { meta?: Record<string, unknown> }, script, folder + 'script.md');
   // Its id is sceneIdOf(file) unless it declares one, as the command has it.
-  const id = sceneIdOf(file);
-  if (Scene.meta?.id === undefined && id) Scene.meta = { ...Scene.meta, id };
+  if (Scene.meta?.id === undefined) Scene.meta = { ...Scene.meta, id: sceneIdOf(file) };
   const snapshots = await readSnapshotStore((name) => read(`${baseOf(file)}.snapshots/${name}`));
   const { Lettered, faces } = await pinnedLettering(Scene, file, read);
   const scenarios: LoadedScenario[] = [];
@@ -81,7 +80,9 @@ export async function loadProject<C extends SceneClass>(Explainer: C, where: str
   try {
     for (const values of scenariosOf(Lettered)) {
       const Bound = withSettings(bindSnapshots(Lettered, snapshots), values);
-      scenarios.push({ values, Scene: Bound, trace: await traceScene(Bound) });
+      const trace = await traceScene(Bound);
+      checkScenarioSteps(trace, values);
+      scenarios.push({ values, Scene: Bound, trace });
     }
   } finally {
     if (faces) await useLettering(null);
@@ -102,12 +103,35 @@ export async function loadProject<C extends SceneClass>(Explainer: C, where: str
 }
 
 /**
+ * What every scenario's steps must be, which loadProject and the rayner command both hold: at least
+ * one, each named, the names unique ignoring case (a share page is a file named by its step, and
+ * Push and push are one file on macOS and Windows), and each drawing a frame of its own. A step
+ * that draws none rests on the step before's last frame: a link would show that picture while the
+ * checks judge the next step's.
+ */
+export function checkScenarioSteps(trace: Pick<Trace, 'steps'>, values: Readonly<Record<string, string>>): void {
+  const names = trace.steps.map((s) => s.step);
+  if (!names.length || names.some((name) => !name.trim()))
+    throw new Error(`this.step(): the scenario ${JSON.stringify(values)} has no step, or a step with an empty name; every scenario needs named steps`);
+  const folded = names.map((name) => name.toLowerCase()), twice = names.find((_, i) => folded.indexOf(folded[i]!) !== i);
+  if (twice !== undefined)
+    throw new Error(`this.step(): two steps of the scenario ${JSON.stringify(values)} share the name ${JSON.stringify(twice)}, ignoring case; name each step once, so each has its own link and share page`);
+  const still = trace.steps.find((s) => s.restFrame === s.frame0);
+  if (still)
+    throw new Error(`this.step(): step ${JSON.stringify(still.step)} of the scenario ${JSON.stringify(values)} draws no frame of its own, so it shows the step before's picture; play or wait in it, or give it a caption to hold`);
+}
+
+/**
  * A scene's id when its meta declares none: its folder's name for a file named scene.ts, else its
- * file's name without the extension. loadProject and the rayner command both name a scene by it.
+ * file's name without the extension. loadProject and the rayner command both name a scene by it,
+ * and refuse a name that is not a page id, as they refuse such a `meta.id`.
  */
 export function sceneIdOf(file: string): string {
   const parts = file.split(/[/\\]+/).filter(Boolean), name = parts.at(-1) ?? '';
-  return name === 'scene.ts' ? parts.at(-2) ?? '' : name.replace(/\.[^.]+$/, '');
+  const id = name === 'scene.ts' ? parts.at(-2) ?? '' : name.replace(/\.[^.]+$/, '');
+  if (!isIdentifier('id', id))
+    throw new RangeError(`meta.id: the scene has none, and its ${name === 'scene.ts' ? 'folder' : 'file'} name ${JSON.stringify(id)} is not a page id; give it a meta.id, or rename it, since an id is ${identifierRule('id')}`);
+  return id;
 }
 
 /**
