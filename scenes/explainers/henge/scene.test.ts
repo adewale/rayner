@@ -1,5 +1,5 @@
 import { test } from 'node:test';
-import type { Seen } from '../../../explain/geo.ts';
+import type { SeenPiece } from '../../../explain/geo.ts';
 import { depthOrder, project } from '../../../explain/geo.ts';
 import type { View } from '../../../explain/index.ts';
 import { stage } from '../../../explain/index.ts';
@@ -17,7 +17,7 @@ const close = (a: number, b: number, tolerance = 1e-10) => assert.ok(Math.abs(a 
 
 const dayOf = (longitude: number) => { const d = sunset(declination(longitude)); return { declination: d.declination, hourAngle: d.hourAngle, azimuth: d.azimuth }; };
 
-type Piece = Mobject & { seen?: Seen };
+type Piece = Mobject & { seen?: SeenPiece };
 
 const piece = (g: Mobject, key: string) => g.family().find((m) => m.key === key) as Piece | undefined;
 

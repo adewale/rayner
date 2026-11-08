@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { pictureWordsAt } from '../../../explain/testing.ts';
-import type { Trace } from '../../../explain/testing.ts';
+import type { TraceOf } from '../../../explain/testing.ts';
+import { having } from '../../../explain/index.ts';
+import type FontMetrics from './scene.ts';
 import { assertSteps } from '../../../test/lib/steps.ts';
 import type { FidelityRun } from '../../../test/lib/fidelity.ts';
 
 /** Each authored scenario's steps against the program the explainer explains. */
-export async function check(trace: Trace, values: Record<string, string>, { scenario, project }: FidelityRun): Promise<void> {
+export async function check(trace: TraceOf<typeof FontMetrics>, values: Record<string, string>, { scenario, project }: FidelityRun): Promise<void> {
   // Independent uharfbuzz runs over @fontsource/eb-garamond@5.3.0's
   // original latin WOFF2 files, before subsetting or snapshot capture.
   const em = {Regular: 4.901, Bold: 5.386, Italic: 4.71};
@@ -15,7 +17,7 @@ export async function check(trace: Trace, values: Record<string, string>, { scen
   assert.ok(Math.abs(Number(trace.steps.find(s => s.step === 'advance')!.after!.advance) - em.Regular * 0.9) < 1e-6);
   // The first check reverses the opening: measured in Garamond, drawn in JetBrains Mono (12 cells of 0.54),
   // the marker 0.5 after the measured width lands 1.57 before the drawn phrase ends.
-  const layout = trace.steps.find(s => s.step === 'layout')!.after!.layout as { wrong: number; actual: number };
+  const layout = trace.steps.find(s => s.step === 'layout')!.after!.layout;
   assert.ok(Math.abs(layout.wrong - 12 * 0.54) < 1e-5 && Math.abs(layout.actual - em.Regular * 0.9) < 1e-6);
   const overlap = (layout.wrong - (layout.actual + 0.5)).toFixed(2);
   assert.equal(overlap, '1.57');
@@ -24,7 +26,7 @@ export async function check(trace: Trace, values: Record<string, string>, { scen
   // phrase's start: JetBrains Mono's 12 cells of 0.54 and Garamond's own advances. Every Garamond advance is
   // narrower than the cell, so the gap between matching stops grows at each glyph, ending at the opening's
   // 2.07; the marker sits 0.5 past the Mono ruler's end, where the opening's upper row put it.
-  const rulers = trace.steps.find(s => s.step === 'rulers')!.after!.rulers as { measured: number[]; drawn: number[]; markers: { measured: number; drawn: number } };
+  const rulers = trace.steps.find(s => s.step === 'rulers')!.after!.rulers;
   assert.equal(rulers.measured.length, 13);
   assert.equal(rulers.drawn.length, 13);
   rulers.measured.forEach((x, i) => assert.ok(Math.abs(x - i * 0.54) < 1e-5, `Mono stop ${i}: ${x}`));
@@ -35,7 +37,7 @@ export async function check(trace: Trace, values: Record<string, string>, { scen
   assert.ok(Math.abs(rulers.markers.measured - (layout.wrong + 0.5)) < 1e-5 && Math.abs(rulers.markers.drawn - (layout.actual + 0.5)) < 1e-5);
   assertSteps(trace, ['rulers', 'cuts']);
   const expected = Object.fromEntries(Object.entries(em).map(([cut, width]) => [cut, width * 0.9]));
-  const actual = trace.steps.find(s => s.step === 'cuts')!.after!.advances as Record<string, number>;
+  const actual = trace.steps.find(s => s.step === 'cuts')!.after!.advances;
   assert.deepEqual(Object.keys(actual), Object.keys(expected));
   for (const [cut, advance] of Object.entries(expected)) assert.ok(Math.abs(actual[cut]! - advance) < 1e-6, `${cut}: raw-font advance ${advance}, scene ${actual[cut]}`);
   const shown = pictureWordsAt(trace, 'cuts').full;
@@ -61,7 +63,7 @@ export async function check(trace: Trace, values: Record<string, string>, { scen
   }
   // The step's notes say each word's stretch: none when measured, more than none from Inter estimates,
   // each the recorded width over the source-font advance at the run's size.
-  const stretch = trace.steps.find(s => s.step === 'diagram')!.after!.stretch as Record<string, number>;
+  const { stretch } = having(trace.steps.find(s => s.step === 'diagram')!.after!, 'stretch');
   const diagramShown = pictureWordsAt(trace, 'diagram').full;
   for (const run of values.widths === 'natural' ? runs : runsOf(recorded)) {
     const k = run.width! / (diagramEm[run.text]! * run.size);

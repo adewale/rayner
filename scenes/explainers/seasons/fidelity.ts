@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { pictureWordsAt } from '../../../explain/testing.ts';
-import type { Trace } from '../../../explain/testing.ts';
+import type { TraceOf } from '../../../explain/testing.ts';
+import { having } from '../../../explain/index.ts';
+import type SeasonsExplainer from './scene.ts';
 import { Scene, Text } from '../../../src/index.ts';
 import type { Sink } from '../../../src/index.ts';
 import { assertStepState } from '../../../test/lib/explainer-state.ts';
@@ -8,7 +10,7 @@ import type { FidelityRun } from '../../../test/lib/fidelity.ts';
 import { sunlight, noonShare, noonPatch, sunDistance, daylightYear } from './model.ts';
 
 /** Each authored scenario's steps against the program the explainer explains. */
-export async function check(trace: Trace, values: Record<string, string>, { scenario }: FidelityRun): Promise<void> {
+export async function check(trace: TraceOf<typeof SeasonsExplainer>, values: Record<string, string>, { scenario }: FidelityRun): Promise<void> {
   const lat = ({ tromso: 69.65, london: 51.5, quito: 0, sydney: -33.87 } as Record<string, number>)[
     values.place!
   ]!;
@@ -18,7 +20,7 @@ export async function check(trace: Trace, values: Record<string, string>, { scen
   assertStepState(trace, 'december', { noonShare: { june: noonShare(lat, 23.44), december: noonShare(lat, -23.44) } });
   // The ground each 1 m noon beam lands on, drawn side by side; null where the noon Sun is down (Tromsø's December).
   assertStepState(trace, 'spread', { patch: { june: noonPatch(lat, 23.44), december: noonPatch(lat, -23.44) } });
-  assert.equal(lat === 69.65, (trace.steps.find((s) => s.step === 'spread')!.after!.patch as { december: number | null }).december === null);
+  assert.equal(lat === 69.65, having(trace.steps.find((s) => s.step === 'spread')!.after!, 'patch').patch.december === null);
   const orbit = Array.from({ length: 365 }, (_, d) => sunDistance(d));
   assertStepState(trace, 'distance', { distance: { nearest: Math.min(...orbit), farthest: Math.max(...orbit) } });
   // The first check question: London's December-solstice noon share, 26% at average distance, is about 27% once
@@ -52,7 +54,7 @@ export async function check(trace: Trace, values: Record<string, string>, { scen
     polarDay: days.filter((h) => h === 24).length,
     polarNight: days.filter((h) => h === 0).length,
   });
-  if (lat === 69.65) assert.ok((trace.steps.find((s) => s.step === 'year')!.after!.polarDay as number) > 50);
+  if (lat === 69.65) assert.ok(having(trace.steps.find((s) => s.step === 'year')!.after!, 'polarDay').polarDay > 50);
   await seasonsArithmetic(trace, scenario.Scene);
 }
 

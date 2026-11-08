@@ -38,7 +38,7 @@ test('stage.steps records each state, draws it as a view of that state, and ever
   const { scene, trace, checked, problems } = await run(() => [1, 2, 3].map((n) => step(`s${n}`, n, (st, s) => words(s, st.n))));
   // The model is the step's state and nothing else: which picture is showing is not part of it.
   assert.deepEqual(trace.steps.map((s) => s.after), [{ n: 1 }, { n: 2 }, { n: 3 }]);
-  assert.ok(trace.steps.every((s) => (s.shown as { picture?: unknown }).picture), 'what the stage shows is traced apart, as shown');
+  assert.ok(trace.steps.every((s) => s.shown?.picture), 'what the stage shows is traced apart, as shown');
   assert.deepEqual({ checked, problems }, { checked: 3, problems: [] });
   // The shown picture is the step's drawing, described by its words.
   const shown = scene.mobjects.flatMap((m) => m.family()).filter((m): m is Text => m instanceof Text).map((t) => t.text);

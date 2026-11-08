@@ -171,6 +171,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - A `table()` row given as `{ key, cells }` keeps its identity wherever it moves, and a duplicated row key or header is refused by name. python-dict and bloom-filter key their rows.
 - `seenFrom(model, viewpoint)` draws a 3D model on a sphere through an orthographic, perspective, gnomonic or Mercator viewpoint. [3D](docs/REFERENCE.md#3d-seenfrommodel-viewpoint)
 - `seenFrom` draws keyed 2D pieces in an explicit depth order, and `depthOrder` is an invariant that checks that order on every frame.
+- Each piece `seenFrom` draws records a `SeenPiece` (its part, layer and model lines), beside the `SeenPicture` the drawing records; `seenPictures(m)` finds the drawings.
 - A camera move is a `view.tween` over the viewpoint. The great-circle explainer draws its globe and both maps from one model.
 - A stage can run right to left (`direction: 'rtl'`): cards and logical regions mirror, and text keeps its own reading direction. [Spatial direction](docs/REFERENCE.md#spatial-direction)
 
@@ -182,6 +183,8 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `rayner describe` prints every scenario and step as JSON: the state, what changed, the invariants, the machines, and the picture in words and as text. [Describe](docs/REFERENCE.md#describe)
 - `rayner see` prints one step for a person at a terminal, and `describeExplainer` gives a script the same object.
 - `rayner/testing` loads an explainer for an author's test: `loadProject(Scene, folder)` adopts its script's intent, reads its pinned snapshots and traces every scenario; `loadSnapshots(folder)` reads the snapshots alone; `pictureWordsAt(trace, step)` gives a step's picture in words; and `diagramFindings(snapshot)` a pinned snapshot's verifier warnings. The collection's scene tests use them. [An explainer's test](docs/REFERENCE.md#an-explainers-test)
+- `loadProject` draws a scene's lettering from the `scene.lettering.json` beside it, as its page does, and refuses lettering with no snapshot, or one pinned for another request, saying to run `rayner snapshots`. font-metrics' scene test uses it.
+- Traces are typed from the scene class: `traceScene(Explainer)` returns a `TraceOf<typeof Explainer>`, whose states are `Jsonified<S>` of the scene's `Scene<S, Sh>`, and `loadProject`, `LoadedProject` and `LoadedScenario` carry the same types. `withSettings`, `bindSnapshots` and `bindLettering` return the class typed as the one they bind. latest-search declares the union of its staged and machine states, and its tests and several fidelity checks read state without casts. [Typed traces](docs/REFERENCE.md#typed-traces)
 - `npm run site:export` publishes the built pages with their descriptions and `llms.txt`. [Publishing](docs/PUBLISHING.md#export-the-collection)
 - The export adds a share page and preview image per step, Open Graph and Twitter tags, oEmbed responses, known embed heights and response headers.
 - Each build writes a receipt of its inputs and a header recipe whose CSP pins the page's inline script and style.

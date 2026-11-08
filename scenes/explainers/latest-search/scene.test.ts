@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import type { View } from '../../../explain/index.ts';
+import { having } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
 import { loadFonts, loadProject, withSettings } from '../../../explain/testing.ts';
 import LatestSearch from './scene.ts';
@@ -7,7 +8,7 @@ import { assertStepState } from '../../../test/lib/explainer-state.ts';
 import { assertViewFollowsState } from '../../../test/lib/view-fidelity.ts';
 import LatestSearchExplainer from './fixtures/latest-search-view.ts';
 import { runSearch, raceReplay, raceLifetimes, racePage } from './model.ts';
-import type { RaceEvent, RaceState } from './model.ts';
+import type { RaceEvent } from './model.ts';
 
 test('all four reference chart scenarios derive their final chart and caption from the real promise result', async () => {
   const project = await loadProject(LatestSearchExplainer, 'scenes/explainers/latest-search/fixtures/latest-search-view.ts');
@@ -51,9 +52,9 @@ test('the public story compares both rules and shows each ticket decision in bot
     // The overwrite and last steps are the race machines' states after the scenario's events: A and B start, then
     // the two landings in the completion order. Each machine's run matches the real promises' run.
     const events:RaceEvent[]=['start A','start B',...(order==='new-first'?['B lands','A lands'] as const:['A lands','B lands'] as const)];
-    const result=v.trace.steps.at(-1)!.after! as unknown as RaceState;
+    const result=having(v.trace.steps.at(-1)!.after!,'log','guarded');
     assert.deepEqual(result,raceReplay(true,events));
-    const overwrite=v.trace.steps.find(s=>s.step==='overwrite')!.after! as unknown as RaceState;
+    const overwrite=having(v.trace.steps.find(s=>s.step==='overwrite')!.after!,'log','guarded');
     assert.deepEqual(overwrite,raceReplay(false,events));
     for(const [st,run] of [[overwrite,off],[result,on]] as const) {
       assert.equal(st.page,run.snapshots.at(-1)!.shown);
@@ -66,7 +67,7 @@ test('the public story compares both rules and shows each ticket decision in bot
     assert.deepEqual(on.lifetimes,off.lifetimes);
     assert.deepEqual(v.trace.steps.find(s=>s.step==='race')!.after!,{order,completion:off.snapshots.slice(1).map(x=>x.completed.at(-1)),lifetimes:off.lifetimes});
     for(const step of v.trace.steps.filter(s=>s.step==='reader-first'||s.step==='reader-ticket')){
-      const r=step.after! as {ticket:number;latest:number;accepted:boolean};
+      const r=having(step.after!,'ticket','accepted');
       assert.equal(r.latest,2);assert.equal(r.accepted,r.ticket===2);
     }
   }

@@ -3,30 +3,39 @@
 // capturing, cutting lettering or checking. The snapshot folder's format is read here once, and
 // the command's tools (tools/lib/explain-project.ts) read it through readSnapshotStore too.
 import type { SnapshotStore } from '../integrations/agentic-mermaid/snapshot.ts';
-import type { SceneClass } from '../src/scene.ts';
+import type { SceneClass, SceneState } from '../src/scene.ts';
+import { bindLettering, letteringOf, usesOutlineLettering } from '../src/lettering-outlines.ts';
+import type { StoredLetteringSnapshot } from '../src/lettering-outlines.ts';
+import { useLettering } from '../src/lettering.ts';
+import type { LetteringFaces } from '../src/lettering.ts';
 import { traceScene } from '../src/trace.ts';
-import type { Trace } from '../src/trace.ts';
+import type { Trace, TraceOf } from '../src/trace.ts';
 import { withIntent } from './intent.ts';
 import { bindSnapshots, checkExplainerMeta, resolveSettings, scenariosOf, withSettings } from './settings.ts';
 import type { ExplainerClass, Settings } from './settings.ts';
 
-/** One scenario of a loaded explainer: its setting values, the scene bound to them and its snapshots, and its trace. */
-export interface LoadedScenario {
+/**
+ * One scenario of a loaded explainer: its setting values, the scene bound to them and its
+ * snapshots, and its trace, whose states are typed `S` and `Sh` as Trace's are.
+ */
+export interface LoadedScenario<S extends object = SceneState, Sh extends object = SceneState> {
   values: Settings;
   Scene: ExplainerClass;
-  trace: Trace;
+  trace: Trace<S, Sh>;
 }
-/** An explainer as `loadProject` loads it. */
-export interface LoadedProject {
+/** An explainer as `loadProject` loads it, its traces typed `S` and `Sh` as Trace's are. */
+export interface LoadedProject<S extends object = SceneState, Sh extends object = SceneState> {
   /** The scene class, with the intent of the script beside it adopted. */
   Scene: ExplainerClass;
   /** The pinned diagram snapshots from `scene.snapshots/` (empty for a scene with no diagrams). */
   snapshots: SnapshotStore;
   /** Every scenario of the scene's settings, in `scenariosOf` order. */
-  scenarios: LoadedScenario[];
+  scenarios: LoadedScenario<S, Sh>[];
   /** The scenario these values choose, every other setting at its default, as a page link chooses one. */
-  scenario(values?: Settings): LoadedScenario;
+  scenario(values?: Settings): LoadedScenario<S, Sh>;
 }
+/** The project loadProject loads for scene class `C`, typed from the `Scene<S, Sh>` it extends. */
+type ProjectOf<C> = TraceOf<C> extends Trace<infer S, infer Sh> ? LoadedProject<S, Sh> : never;
 
 /**
  * The pinned diagram snapshots of the scene at `where`: a scene file, or a folder holding
@@ -43,23 +52,21 @@ export async function loadSnapshots(where: string): Promise<SnapshotStore> {
  * its scene class: refuse a `meta` key ExplainerMeta does not name, as collection does, adopt the
  * intent of the `script.md` beside it, give it its folder's name as
  * `meta.id` when it declares none, read its pinned snapshots, and
- * trace every scenario against them, as `rayner check` and `rayner describe` run it. A diagram
- * with no pinned snapshot fails: run `rayner snapshots` first. It captures nothing, cuts no
- * lettering (a scene with `meta.lettering` is loaded by the command, not here) and runs none of
- * the checks. Runs under Node.
+ * trace every scenario against them, as `rayner check` and `rayner describe` run it. A scene
+ * with `meta.lettering` draws from the `scene.lettering.json` beside it, as its page does. A
+ * diagram with no pinned snapshot fails, and so does lettering with none: run `rayner snapshots`
+ * first. It captures nothing, cuts no lettering and runs none of the checks. Runs under Node.
  *
  *     import Explainer from './scene.ts';
  *     const project = await loadProject(Explainer, import.meta.dirname);
  *     for (const { values, trace } of project.scenarios) check(trace, values);
  */
-export async function loadProject(Explainer: SceneClass, where: string): Promise<LoadedProject> {
+export async function loadProject<C extends SceneClass>(Explainer: C, where: string): Promise<ProjectOf<C>> {
   const Scene = Explainer as ExplainerClass,
     read = nodeReader(),
     file = sceneFile(where);
   // A misspelt meta key is refused, as collection refuses it.
   try { checkExplainerMeta(Scene.meta); } catch (e) { throw new TypeError(`loadProject(): ${file}: ${(e as Error).message}`); }
-  if (Scene.meta?.lettering !== undefined)
-    throw new Error(`loadProject(): ${file} asks for lettering (meta.lettering), which the rayner command cuts; loadProject runs scenes in the embedded fonts only, so test this scene with rayner check`);
   const folder = file.replace(/[^/\\]*$/, ''),
     script = await read(folder + 'script.md');
   if (script !== null) withIntent(Scene as { meta?: Record<string, unknown> }, script, folder + 'script.md');
@@ -68,13 +75,20 @@ export async function loadProject(Explainer: SceneClass, where: string): Promise
     id = fileName === 'scene.ts' ? folder.replace(/[/\\]+$/, '').replace(/^.*[/\\]/, '') : fileName.replace(/\.[^.]+$/, '');
   if (Scene.meta?.id === undefined && id) Scene.meta = { ...Scene.meta, id };
   const snapshots = await readSnapshotStore((name) => read(`${baseOf(file)}.snapshots/${name}`));
+  const { Lettered, faces } = await pinnedLettering(Scene, file, read);
   const scenarios: LoadedScenario[] = [];
-  for (const values of scenariosOf(Scene)) {
-    const Bound = withSettings(bindSnapshots(Scene, snapshots), values);
-    scenarios.push({ values, Scene: Bound, trace: await traceScene(Bound) });
+  // Subset lettering is the fonts' (useLettering), as on the page, for the scenarios' runs only.
+  if (faces) await useLettering(faces);
+  try {
+    for (const values of scenariosOf(Lettered)) {
+      const Bound = withSettings(bindSnapshots(Lettered, snapshots), values);
+      scenarios.push({ values, Scene: Bound, trace: await traceScene(Bound) });
+    }
+  } finally {
+    if (faces) await useLettering(null);
   }
-  return {
-    Scene,
+  const project: LoadedProject = {
+    Scene: Lettered,
     snapshots,
     scenarios,
     scenario(values = {}) {
@@ -84,6 +98,35 @@ export async function loadProject(Explainer: SceneClass, where: string): Promise
       return found;
     },
   };
+  // Each trace holds the states the scene class declares, which stateJson() validated as JSON.
+  return project as ProjectOf<C>;
+}
+
+/**
+ * The scene with the lettering pinned in the `scene.lettering.json` beside it, as its page draws
+ * it: outline lettering (faces, styles, maths, or a script the subset faces lack) is bound to the
+ * class from the snapshot, and subset lettering gives the faces to put in place. A scene that asks
+ * for none is returned as it is. A missing or stale file throws: the rayner command writes it.
+ */
+async function pinnedLettering(Scene: ExplainerClass, file: string, read: (path: string) => Promise<string | null>): Promise<{ Lettered: ExplainerClass; faces?: LetteringFaces }> {
+  const request = letteringOf(Scene);
+  if (request === undefined) return { Lettered: Scene };
+  const text = await read(`${baseOf(file)}.lettering.json`);
+  if (text === null) throw new Error(`loadProject(): ${file} asks for lettering (meta.lettering) and has no scene.lettering.json beside it; run rayner snapshots ${file}`);
+  const stale = () => new Error(`scene.lettering.json: it does not hold the lettering ${file} asks for; run rayner snapshots ${file}`);
+  let pinned: { version?: unknown; request?: unknown; scripts?: unknown; faces?: Record<string, { woff2?: unknown }> };
+  try { pinned = JSON.parse(text); } catch { throw stale(); }
+  if (usesOutlineLettering(Scene)) {
+    // The snapshot the page binds: a run it lacks throws when the scene draws it.
+    if (pinned?.version !== 2 || JSON.stringify(pinned.request) !== JSON.stringify(request)) throw stale();
+    return { Lettered: bindLettering(Scene, pinned as StoredLetteringSnapshot) };
+  }
+  if (pinned?.version !== 1 || JSON.stringify(pinned.scripts) !== JSON.stringify(request.scripts)) throw stale();
+  const face = (family: 'sans' | 'mono') => {
+    const woff2 = pinned.faces?.[family]?.woff2;
+    return typeof woff2 === 'string' ? { [family]: woff2 } : {};
+  };
+  return { Lettered: Scene, faces: { ...face('sans'), ...face('mono') } };
 }
 
 /**

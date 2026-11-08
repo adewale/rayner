@@ -27,7 +27,7 @@ export async function check(trace: Trace, values: Record<string, string>, { scen
   const bucketProject = await loadProject(TokenBucketScene, 'scenes/explainers/token-bucket');
   const offered = bucketProject.scenarios.map((v) => ({
     rate: Number(v.values.rate),
-    r10: (v.trace.steps.find((s) => s.step === 'trace')!.after!.responses as number[])[9],
+    r10: v.trace.steps.find((s) => s.step === 'trace')!.after!.responses[9],
   }));
   assertStepState(trace, 'sentence', { offered: offered.sort((a, b) => a.rate - b.rate) });
   for (const v of bucketProject.scenarios)

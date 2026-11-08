@@ -374,11 +374,11 @@ export function textShaping(provider: LetteringProvider): TextShaping {
 export function withSceneLettering<T>(Source: object, work: () => Promise<T>): Promise<T> {
   return withTextContext(Source, work);
 }
-export function bindLettering(Source: SceneClass, provider: LetteringProvider | StoredLetteringSnapshot,
-  {explicit = (Source as {meta?: {textContext?: string}}).meta?.textContext === 'explicit'}: {explicit?: boolean} = {}): SceneClass {
-  const Bound = class extends Source {};
+export function bindLettering<C extends SceneClass>(Source: C, provider: LetteringProvider | StoredLetteringSnapshot,
+  {explicit = (Source as {meta?: {textContext?: string}}).meta?.textContext === 'explicit'}: {explicit?: boolean} = {}): C {
+  const Bound = class extends (Source as SceneClass) {};
   bindTextContext(Bound, textShaping('version' in provider ? snapshotProvider(provider) : provider), explicit);
-  return Bound;
+  return Bound as C;
 }
 
 /** Keep the existing Latin/Greek/Cyrillic subset workflow unless more is requested. */

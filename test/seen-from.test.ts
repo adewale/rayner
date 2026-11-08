@@ -1,5 +1,5 @@
 import { test } from 'node:test';
-import type { Model3D, Part, Viewpoint, Vec3, Seen } from '../explain/geo.ts';
+import type { Model3D, Part, Viewpoint, Vec3, SeenPiece } from '../explain/geo.ts';
 import { seenFrom, depthOrder, project, latLon, circleOn, greatArc, between } from '../explain/geo.ts';
 import assert from 'node:assert/strict';
 import { Scene, Transform, VMobject, Dot } from '../src/index.ts';
@@ -20,7 +20,7 @@ const parts: Part[] = [
 ];
 const model: Model3D = { body: { radius: 1, fill: '#eef', stroke: '#000', key: 'body' }, parts };
 const ortho = (yaw: number, pitch: number): Viewpoint => ({ kind: 'orthographic', yaw, pitch });
-const seen = (m: Mobject) => (m as Mobject & { seen: Seen }).seen;
+const seen = (m: Mobject) => (m as Mobject & { seen: SeenPiece }).seen;
 const points = (m: Mobject) => (m as VMobject).subpaths.flatMap((a) => Array.from({ length: (a.length - 2) / 6 + 1 }, (_, i) => [a[6 * i]!, a[6 * i + 1]!]));
 const viewpoints = fc.record({ yaw: fc.double({ min: -180, max: 180, noNaN: true }), pitch: fc.double({ min: -89, max: 89, noNaN: true }) });
 

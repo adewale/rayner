@@ -1,20 +1,21 @@
 import assert from 'node:assert/strict';
-import type { Trace } from '../../../explain/testing.ts';
+import type { TraceOf } from '../../../explain/testing.ts';
+import { having } from '../../../explain/index.ts';
 import { assertStepState } from '../../../test/lib/explainer-state.ts';
 import { raceLifetimes, racePage, raceReplay } from './model.ts';
 import type { RaceState } from './model.ts';
+import type LatestSearchExplainer from './scene.ts';
 
 /** Each authored scenario's steps against the program the explainer explains. */
-export async function check(trace: Trace, values: Record<string, string>): Promise<void> {
+export async function check(trace: TraceOf<typeof LatestSearchExplainer>, values: Record<string, string>): Promise<void> {
   // Independent expectation for the two controlled completions: when B
   // finishes first the unguarded old A overwrites it; when A finishes
   // first the guarded page stays empty until the latest B arrives.
   const newFirst = values.order === 'new-first', first = newFirst ? 'B' : 'A';
-  const reading = (step: string) => trace.steps.find(s => s.step === step)!.after! as {
-    query: string; ticket: number; latest: number; accepted: boolean;
-    off: {shown: string | null; completed: string[]; writes: string[]} | {shown: string | null; completed: string[]; writes: string[]}[];
-    on: {shown: string | null; completed: string[]; writes: string[]} | {shown: string | null; completed: string[]; writes: string[]}[];
-  };
+  const after = (step: string) => trace.steps.find(s => s.step === step)!.after!;
+  // A decision's state (its ticket against the latest), and a race machine's.
+  const reading = (step: string) => having(after(step), 'query', 'ticket');
+  const race = (step: string) => having(after(step), 'log', 'guarded');
   for (const [id, query] of [['reader-first', first], ['reader-ticket', newFirst ? 'A' : 'B']] as const) {
     const r = reading(id);
     assert.equal(r.query, query);
@@ -23,11 +24,10 @@ export async function check(trace: Trace, values: Record<string, string>): Promi
     assert.equal(r.accepted, query === 'B');
   }
   const before = reading('reader-first');
-  assert.equal((before.off as {shown:unknown}).shown, first);
-  assert.equal((before.on as {shown:unknown}).shown, newFirst ? 'B' : null);
+  assert.equal(before.off.shown, first);
+  assert.equal(before.on.shown, newFirst ? 'B' : null);
   // The overwrite and last steps are the race machines' states: the unguarded race, then the guarded one,
   // after the same events (A starts, B starts, then the landings in the completion order).
-  const race = (step: string) => trace.steps.find(s => s.step === step)!.after! as unknown as RaceState;
   const off = race('overwrite'), on = race('reader-guard');
   assert.equal(off.guarded, false);assert.equal(on.guarded, true);
   assert.deepEqual(off.log, ['start A', 'start B', `${first} lands`, `${newFirst ? 'A' : 'B'} lands`]);
