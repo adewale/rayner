@@ -853,11 +853,16 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       measureHead();
     }
     for (let pass = 0; pass < 3; pass++) {
-      if (!reserveOnce()) return;
+      if (!reserveOnce()) break;
       const width = lede.clientWidth;
       measureHead();
-      if (lede.clientWidth === width) return;
+      if (lede.clientWidth === width) break;
     }
+    // The heights written here cap a narrow stage (embed.css). The stage may have been fitted, and
+    // its close-ups planned, at a size it held only while they were stale: a stage that turned
+    // narrow under the heights measured at the wide width, then shrank back here within the same
+    // frame, so its ResizeObserver never reports the size it settles at.
+    zoom.refit();
   }
   function reserveOnce(): boolean {
     player.classList.toggle('narrow', narrow());

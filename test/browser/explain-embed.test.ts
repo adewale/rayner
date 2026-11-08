@@ -2500,6 +2500,24 @@ test('crossing the narrow width redraws the resting picture in place, including 
     assert.ok(model.redraws >= 1, 'the stage crossed NARROW_PX at least once');
   });
 });
+test('turning narrow again plans the close-up tour for the size the stage settles at, as a fresh load at that size does', options, async () => {
+  // Found by the property test (seed -1591536521): at 632 × 697 the stage is wide and the
+  // heading's reserved heights are measured at that width. Narrowing to 252 px turns the stage
+  // narrow under those stale heights, so for part of a frame its cap lets it be 140 px tall; the
+  // re-measure later in that frame brings it back to 124 px, the size the ResizeObserver last
+  // reported, so it never reports it again. The tour must still be planned for 124 px (15 views),
+  // not the 140 px it held mid-frame (12), and match what a fresh load at 252 × 683 offers.
+  let fresh = '';
+  await withPlayer('oauth-pkce', {values: [undefined], viewport: {width: 252, height: 683}}, async (_model, real) => {
+    fresh = await real.page.locator('.view-controls > span').innerText();
+  });
+  await withPlayer('oauth-pkce', {
+    values: [undefined], viewport: {width: 200, height: 400},
+  }, async (model, real) => {
+    await fc.asyncModelRun(() => ({model, real}), [Resize(632, 697), Resize(252, 683)]);
+    assert.equal(await real.page.locator('.view-controls > span').innerText(), fresh, 'the resized stage offers the views a fresh load does');
+  });
+});
 test('Next view uses each detail view’s scale after a comparison opening', options, async () => {
   // Explicit comparison labels and a smaller implementation note require different
   // scales regardless of incidental wording or heading placement in a subject lesson.

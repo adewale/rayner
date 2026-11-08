@@ -156,6 +156,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - The stage's camera and the close-ups read one zoom, `zoomOf(box)` in `src/units.ts`, set by the tighter side of a box out of 16:9, so `s.focus(box, { exact: true })` with such a box keeps the heading where it is on screen.
 - On a phone each step opens on a close-up of what it changed, or of the subjects `s.opening(...)` names, zoomed so its labels read at 12 px.
 - Next view tours the step's other close-ups, starting with what the step newly emphasised.
+- A page narrowed onto a phone width plans the close-ups for the stage's final size, so it offers the same views as a fresh load at that size.
 - Pinch and drag zoom up to 6× and keep the drawing sharp.
 - Arrow keys step from the moment the page loads. [Controls](docs/REFERENCE.md#controls-and-accessibility)
 - The stage has a one-sentence description, and "What the picture shows" opens the full one.

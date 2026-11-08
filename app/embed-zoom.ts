@@ -269,6 +269,18 @@ export class StageZoom {
   }
   private size: [number, number] | null = null;
 
+  /**
+   * Fit again if the stage is no longer the size the zoom was last fitted at. The ResizeObserver
+   * only reports a size that differs from the one it last reported, so a size the stage held only
+   * in the middle of a frame (layout written after `apply` read it, and written back before the
+   * frame ended) is never reported again: whoever writes that layout calls this once it is final.
+   */
+  refit(): void {
+    if (!this.size) return;
+    const [w, h] = stageSize(this.stage);
+    if (w > 0 && h > 0 && (this.size[0] !== w || this.size[1] !== h)) this.apply();
+  }
+
   /** Adopt an already clamped zoom, then paint. */
   private set(z: Zoom, glide = false): void {
     this.k = z.k;
