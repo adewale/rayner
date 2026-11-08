@@ -1,6 +1,6 @@
 // The stage's geometry, in the one module every layer reads it from. The frame is 16 × 9 scene
 // units centred on the origin, with y up; SVG writes UNITS integer user units per scene unit.
-// This module imports nothing, so the engine, the player and the tools can all depend on it.
+// This module imports only a type, so the engine, the player and the tools can all depend on it.
 
 import type { Box } from './box.ts';
 

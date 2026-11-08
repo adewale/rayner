@@ -266,7 +266,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     const b = scene.frame.box() ?? [...STAGE_BOX] as Box;
     if (aimed && b.every((v, i) => Math.abs(v - aimed!.box[i]!) < 1e-4)) return aimed.map;
     if (atHome(b)) return HOME;
-    return { k: (b[2] - b[0]) / 16, shift: center(b) };
+    return { k: (b[2] - b[0]) / FRAME.w, shift: center(b) };
   };
   const pinned = (m: Mobject, v: CameraMap) => {
     const at = home.get(m)!.copy();
@@ -402,7 +402,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
    * interpolate together exactly.
    */
   function cameraTo(box: Box, runTime: number): Animation[] {
-    const k = (box[2] - box[0]) / 16,
+    const k = (box[2] - box[0]) / FRAME.w,
       next = { k, shift: center(box) };
     const anims: Animation[] = [new Transform(scene.frame, scene.frame.copy().fit(box, { margin: 0 }), { runTime })];
     for (const m of [heading, ...chrome]) if (home.has(m)) anims.push(new Transform(m, pinned(m, next), { runTime }));

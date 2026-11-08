@@ -5,6 +5,7 @@
 import type { Browser } from 'playwright-core';
 import type { EmbedSize } from '../../lib/explain-share.ts';
 import { EMBED_WIDTHS } from '../../lib/review-sizes.ts';
+import { FRAME } from '../../../src/units.ts';
 export type { EmbedSize };
 
 export { EMBED_WIDTHS };
@@ -13,7 +14,7 @@ export { EMBED_WIDTHS };
  * The least a framed page can be at `width`: the 16:9 stage, plus the stepper row (61 px). The header,
  * the words, the rows and the footer all add to it, so a measured height at or under it is wrong.
  */
-export const embedFloor = (width: number) => (width * 9) / 16 + 61;
+export const embedFloor = (width: number) => (width * FRAME.h) / FRAME.w + 61;
 
 /** The problems with an embed.json's content, or none. */
 export function embedSizeProblems(size: unknown): string[] {

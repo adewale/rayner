@@ -138,7 +138,7 @@ export function toView(box: Box, view: Box): Box {
  * centred (an SVG viewBox meets its viewport), so a view out of 16:9 is letterboxed
  * and the tighter side sets the scale. 1 at home.
  */
-export const viewZoom = (view: Box): number => Math.min(16 / (view[2] - view[0]), 9 / (view[3] - view[1]));
+export const viewZoom = (view: Box): number => Math.min(FRAME.w / (view[2] - view[0]), FRAME.h / (view[3] - view[1]));
 
 /** The drawn leaves of the resting picture; those under an object in `fresh` show the step's new emphasis. */
 function leavesOf(scene: Scene, fresh: ReadonlySet<Mobject> = new Set()): Leaf[] {

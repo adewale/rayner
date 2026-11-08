@@ -24,9 +24,9 @@ const files = LAYERS.flatMap((layer) => sources(join(ROOT, layer))).map((path) =
 
 /** Lines that copy a constant instead of importing it, with the module that owns it. */
 const COPIES: { owner: string; pattern: RegExp; what: string }[] = [
-  { owner: 'src/units.ts', pattern: /\{\s*w:\s*16,\s*h:\s*9\s*\}|width:\s*16,\s*height:\s*9\b|\/\s*16,\s*h\s*\/\s*9\b|\*\s*9\s*\/\s*16\b/, what: 'the 16 × 9 frame' },
+  { owner: 'src/units.ts', pattern: /\{\s*w:\s*16,\s*h:\s*9\s*\}|width:\s*16,\s*height:\s*9\b|\(\w+\[2\]\s*-\s*\w+\[0\]\)\s*\/\s*16\b|\b16\s*\/\s*\(|\b9\s*\/\s*\(|\/\s*16,\s*h\s*\/\s*9\b|\*\s*9\)?\s*\/\s*16\b/, what: 'the 16 × 9 frame' },
   { owner: 'src/units.ts', pattern: /\bconst\s+\w+\s*=\s*1000\s*;/, what: 'the user units per scene unit' },
-  { owner: 'explain/page-query.ts', pattern: /(?:get|set|has|delete)\('(?:step|sent|parentOrigin|theme)'/, what: 'a page query key' },
+  { owner: 'explain/page-query.ts', pattern: /(?:get|set|has|delete)\('(?:step|sent|parentOrigin|theme)'|[?&](?:step|sent|parentOrigin|theme)=/, what: 'a page query key' },
   { owner: 'explain/machine.ts', pattern: /runTime:\s*1\s*\/\s*30\b/, what: 'a frame time that ignores the scene’s fps' },
 ];
 
@@ -38,14 +38,17 @@ test('each shared constant is written once, in the module that owns it', () => {
       text.split('\n').forEach((line, i) => { if (pattern.test(line) && !line.trimStart().startsWith('//') && !line.trimStart().startsWith('*')) found.push(`${path}:${i + 1}: ${what}: ${line.trim()}`); });
     }
   }
-  // readerShellProblems runs in the served page from its source text, so it cannot import PAGE_QUERY.
-  assert.deepEqual(found.filter((f) => !f.startsWith('tools/lib/explain-reader-shell.ts:')), []);
+  // readerShellProblems runs in the served page from its source text, so it cannot import PAGE_QUERY;
+  // the package smoke test opens the URL a reader types, written out as the reader writes it.
+  const exempt = ['tools/lib/explain-reader-shell.ts:', 'tools/repo/explain-package-smoke.ts:'];
+  assert.deepEqual(found.filter((f) => !exempt.some((e) => f.startsWith(e))), []);
 });
 
 test('the copy search finds a copy: a defect it must reject', () => {
-  const planted = "const k = 1000;\nurl.searchParams.set('theme', 'dark');\nnew Rectangle({ width: 16, height: 9 });";
+  const planted = "const k = 1000;\nurl.searchParams.set('theme', 'dark');\nnew Rectangle({ width: 16, height: 9 });\nconst zoom = (b[2] - b[0]) / 16;\nconst link = `${id}?step=${name}`;";
   const hits = COPIES.filter(({ pattern }) => planted.split('\n').some((line) => pattern.test(line))).map((c) => c.what);
   assert.deepEqual(hits, ['the 16 × 9 frame', 'the user units per scene unit', 'a page query key']);
+  for (const line of ['const zoom = (b[2] - b[0]) / 16;', 'const link = `${id}?step=${name}`;']) assert.ok(COPIES.some(({ pattern }) => pattern.test(line)), line);
 });
 
 test('the frame, its home box and the units agree', () => {

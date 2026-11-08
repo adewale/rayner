@@ -8,6 +8,7 @@
 import { copyFile, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { htmlEscape } from '../../explain/trace.ts';
+import { PAGE_QUERY } from '../../explain/page-query.ts';
 import { HOME, SHARE_META, SHARE_STEPS_META, shareable } from '../../app/embed-share.ts';
 import type { EmbedWidth } from './review-sizes.ts';
 
@@ -102,13 +103,13 @@ const card = (m: ShareManifest, s: ShareStep, origin: string, title: string, url
 export function sharePage(m: ShareManifest, s: ShareStep, origin: string, path: string): string {
   const base = folder(origin, path),
     url = `${base}/${m.id}/${s.step}`,
-    player = `${path.replace(/\/$/, '')}/${m.id}?step=${encodeURIComponent(s.step)}`,
+    player = `${path.replace(/\/$/, '')}/${m.id}?${PAGE_QUERY.step}=${encodeURIComponent(s.step)}`,
     title = `${s.title} · ${m.title}`,
     a = htmlEscape;
   return `<!doctype html>
 <html lang="${a(m.lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${a(title)}</title>
-<link rel="canonical" href="${a(base + '/' + m.id + '?step=' + encodeURIComponent(s.step))}">
+<link rel="canonical" href="${a(`${base}/${m.id}?${PAGE_QUERY.step}=${encodeURIComponent(s.step)}`)}">
 ${cardTags(card(m, s, origin, title, url, path))}
 <meta http-equiv="refresh" content="0; url=${a(player)}">
 </head><body><p><a href="${a(player)}">${a(title)}</a></p></body></html>
@@ -159,7 +160,7 @@ export function oembed(m: { id: string; title: string }, size: EmbedSize, thumbn
     thumbnail_height: thumbnail.height,
     width: 640,
     height,
-    html: `<iframe src="${a(`${base}/${m.id}.html?theme=light`)}" title="${a(m.title)}" width="640" height="${height}" style="border:0;border-radius:12px;display:block;max-width:100%" allow="fullscreen" loading="lazy"></iframe>`,
+    html: `<iframe src="${a(`${base}/${m.id}.html?${PAGE_QUERY.theme}=light`)}" title="${a(m.title)}" width="640" height="${height}" style="border:0;border-radius:12px;display:block;max-width:100%" allow="fullscreen" loading="lazy"></iframe>`,
     cache_age: 86400,
   };
 }

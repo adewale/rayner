@@ -1,6 +1,5 @@
 // The query keys a page reads itself, beside its settings, in the one module that names them. The
-// player, the host loader and the tools all import it; it imports nothing, so a host script that
-// only adds an iframe pulls in no explainer code.
+// player, the host loader, the resize protocol and the share pages all import it; it imports nothing.
 
 /**
  * The step, the events a reader sent at a live step (app/embed-live.ts), the embedding host's
