@@ -20,7 +20,8 @@ import { collectProject } from '../lib/explain-project.ts';
 import { buildExplainer } from '../lib/explain-build.ts';
 import { serve } from '../lib/explain-serve.ts';
 import { launch } from '../lib/browser.ts';
-import { SENT, acceptedLog, encodeLog, logStart, outcomes, runLive } from '../../app/embed-live.ts';
+import { SENT, acceptedLog, encodeLog, outcomes } from '../../app/embed-live.ts';
+import { logStart, runLive } from '../../explain/live.ts';
 import { stepQuery } from '../../explain/settings.ts';
 import { median } from './lib/bench-stats.ts';
 
@@ -68,8 +69,7 @@ try {
     const server = await serve(folder, 0, `${id}.html`);
     const scenario = project.scenarios[0]!;
     for (const [step, live] of scenario.live ?? []) {
-      const times = scenario.trace.steps.find((s) => s.step === step)!;
-      const base = logStart(live.machine, (await runLive(scenario.Scene, times, live, [])).rest);
+      const base = logStart(live.machine, (await runLive(scenario.Scene, step, live, [])).rest);
       if (!base) continue;
       // The presses: each extends the log, so no picture is one the page drew before (it keeps those),
       // with the events the model takes from the state reached, in turn; where none goes on, Reset
@@ -88,7 +88,7 @@ try {
       const node: number[] = [];
       for (const [i, log] of walk.entries()) {
         const t0 = performance.now();
-        await runLive(scenario.Scene, times, live, log, { from: base.from });
+        await runLive(scenario.Scene, step, live, log, { from: base.from });
         if (i) node.push(performance.now() - t0);
       }
       const measured: Record<'motion' | 'reduce', { start: number[]; landed: number[] }> = { motion: { start: [], landed: [] }, reduce: { start: [], landed: [] } };

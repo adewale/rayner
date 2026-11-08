@@ -81,14 +81,20 @@ const PLAYER_KEYS: { readonly [K in keyof Required<PlayerMeta>]: true } = { acce
 const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 /** The names that travel in a link or name a file. */
 export type IdentifierKind = 'event' | 'id' | 'step';
+/**
+ * The names Windows reserves for devices, in any case and with any extension: a file or folder so
+ * named cannot be written there, so a page or share page named by one could not be copied to it.
+ */
+const DEVICE_NAME = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])$/i;
 /** Each kind of name, and the rule it keeps. */
 const IDENTIFIERS: Readonly<Record<IdentifierKind, { valid: (name: string) => boolean; rule: string }>> = {
   // A link lists the events a reader sent joined by commas (app/embed-live.ts encodeLog).
   event: { valid: (name) => name.trim() !== '' && !name.includes(','), rule: 'words with no comma, as a link joins the events a reader sent with commas' },
-  // It names the page's files: <id>.html and the folder of its share pages.
-  id: { valid: (name) => /^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(name), rule: 'one path segment of letters, digits, - and _, starting with a letter or digit, as it names the page\'s files' },
+  // It names the page's files, <id>.html, <id>.png and the folder of its share pages, and the site's
+  // catalog and evidence, which hold it to this same rule: lower case, so no two differ only in case.
+  id: { valid: (name) => /^[a-z0-9][a-z0-9-]*$/.test(name) && !DEVICE_NAME.test(name), rule: 'one path segment of lowercase letters, digits and -, starting with a letter or digit, and not a name Windows keeps for a device (con, nul, com1 and the like), as it names the page\'s files' },
   // A step so named has a share page, <id>/<step>.html; any other keeps its query link.
-  step: { valid: (name) => /^[A-Za-z0-9_-]+$/.test(name), rule: 'letters, digits, - and _, as it names its share page' },
+  step: { valid: (name) => /^[A-Za-z0-9_-]+$/.test(name) && !DEVICE_NAME.test(name), rule: 'letters, digits, - and _, and not a name Windows keeps for a device (con, nul, com1 and the like), as it names its share page' },
 };
 /**
  * Whether `name` is a name of this kind that can travel in a link or name a file: a machine's event

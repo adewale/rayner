@@ -264,8 +264,12 @@ its step until it could be read, so the step's resting picture, its last frame, 
 from its first. Each step draws at least one frame of its own (`loadProject` and the command
 refuse one that does not). Each moment is recorded as a time and a frame: `hold` and
 `holdFrame` where a caption hold begins, and `t1` and `frame1` where the step ends;
-players stop at `stillFrame(step)`, the hold frame or else the last, and links show
-`frame1`. `TraceSink` copies them into the trace, and `traceRun`'s `AtRest` callback (`src/trace.ts`) hands the scene, showing each
+timed playback stops at `stillFrame(step)`, the hold frame or else the last, and links show
+`frame1`. The still frame and `frame1` show one picture, but code after the step's last play
+and its end listeners can still change the state between them, so a step's state is read at
+its end, as the trace's `after` records it: the live player and `rayner check`'s exploration of
+a machine start there (`Scene.stopAt`, which stops a run as a named step ends). The
+[vocabulary](VOCABULARY.md) names these moments. `TraceSink` copies them into the trace, and `traceRun`'s `AtRest` callback (`src/trace.ts`) hands the scene, showing each
 step's resting picture, to the tools that draw every step, so `rayner describe`, the
 contact sheet and the site's cards run each scene once.
 

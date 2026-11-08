@@ -80,6 +80,8 @@ test('a scene with no meta.id is named by one rule: its folder for scene.ts, els
   assert.notEqual(sceneIdOf('a/b/scene.ts'), 'scene');  // A name that is not a page id is refused, as such a meta.id is: a defect the rule must reject.
   assert.throws(() => sceneIdOf('scenes/My Scene/scene.ts'), /^RangeError: meta\.id: the scene has none, and its folder name "My Scene" is not a page id; give it a meta\.id, or rename it/);
   for (const file of ['a/b.c.ts', 'a/.ts', 'scene.ts']) assert.throws(() => sceneIdOf(file), /is not a page id/, file);
+  // A folder name the site's evidence would refuse (capitals, _) or Windows cannot write (con) is refused here, by the one rule.
+  for (const file of ['a/My_Scene/scene.ts', 'a/Push/scene.ts', 'a/con/scene.ts', 'a/b/Scene.ts']) assert.throws(() => sceneIdOf(file), /is not a page id/, file);
 });
 
 test('loadProject holds every scenario to the step rules the command holds', async () => {

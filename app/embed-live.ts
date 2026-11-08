@@ -1,47 +1,19 @@
-// The live machine: a reader's events, sent to a scene's machine at the step it last played in.
+// The live machine in the player: a reader's events, as the page's buttons offer them, its link
+// writes them, and its exploration holds them.
 //
 // No DOM here, so Node runs it as the page does. The reader's state is the log of events they
-// sent; a picture of it is the scene run again to the live step's resting picture, then the log
-// played through `machine.send`, so a frame is still a function of time and a link with the log
-// reopens the same picture. See docs/MACHINES.md, "The player".
+// sent; a picture of it is the scene run again to the live step's end, then the log played through
+// `machine.send` (`runLive` in explain/live.ts, which the command runs too), so a frame is still a
+// function of time and a link with the log reopens the same picture. See docs/MACHINES.md, "The player".
 
-import { NullSink } from '../src/output.ts';
-import { machinesOf } from '../explain/machine.ts';
-import type { Scene, SceneClass, SceneState, Sink } from '../src/index.ts';
 import type { Machine } from '../explain/machine.ts';
+import type { LiveSession } from '../explain/live.ts';
 import { PAGE_QUERY } from '../explain/page-query.ts';
-import { canonicalJson } from '../src/json.ts';
 
 type AnyMachine = Machine<object, string>;
 
 /** The URL key that holds the reader's events, beside `step` (explain/page-query.ts). */
 export const SENT = PAGE_QUERY.sent;
-
-/**
- * Which machine is live at a step, as JSON: its place in `machinesOf(scene)` and its identity (its
- * events, start and views' keys). The build ships the default scenario's places to the page.
- */
-export interface LivePlace {
-  index: number;
-  identity: string;
-}
-/** A step where the reader can drive a machine: its place, and the machine. */
-export interface Live extends LivePlace {
-  machine: AnyMachine;
-}
-
-/**
- * Where a scene's machines are live: each machine, with its place in `machinesOf(scene)`, by the
- * step it last played in (`lastPlayedIn`), which is the stage `rayner check` explores it on. A
- * machine that never played is live nowhere; when two machines last played in one step, the later
- * one made is live there.
- */
-export function liveSteps(scene: Scene<any>): Map<string, Live> {
-  const live = new Map<string, Live>();
-  for (const [index, machine] of machinesOf(scene).entries())
-    if (machine.lastPlayedIn !== null) live.set(machine.lastPlayedIn, { index, identity: machine.identity, machine });
-  return live;
-}
 
 /** What one event does from a state, for a button: its kind and the reason the reader is told. */
 export type EventOutcome = { event: string; label: string; kind: 'next' } | { event: string; label: string; kind: 'refused' | 'beyond'; reason: string | null };
@@ -89,185 +61,6 @@ export function encodeLog(log: readonly string[]): string {
 export function decodeLog(value: string | null): string[] {
   return value ? value.split(',') : [];
 }
-
-/**
- * Where a reader's log starts: where the step leaves the machine (`rest`), or, when no event can
- * go anywhere from there (the step played every event the story has), the machine's own start,
- * so the reader can send the events again in their own order.
- */
-export type LogStart = 'rest' | 'start';
-/** Where the log starts for a machine whose state at the step's resting picture is `rest`; null when no event goes anywhere from either. */
-export function logStart(machine: AnyMachine, rest: object): { from: LogStart; state: object } | null {
-  const moves = (state: object) => machine.spec.events.some((e) => 'next' in machine.outcome(state, e));
-  if (moves(rest)) return { from: 'rest', state: rest };
-  const start = JSON.parse(JSON.stringify(machine.spec.start)) as object;
-  return moves(start) ? { from: 'start', state: start } : null;
-}
-
-/** The step a live run stops in: its name, and its frames, from which `stillFrame` says where its picture stops changing. */
-export interface LiveStepTimes {
-  step: string;
-  holdFrame?: number;
-  frame1?: number;
-}
-
-export interface LiveRun {
-  scene: Scene<any>;
-  machine: AnyMachine;
-  /** The scene's state at the step's resting picture (JSON). */
-  rest: object;
-  /** What the scene shows after the log (`shownJson()`), for the stage's description. */
-  shown: SceneState;
-  /** With `keep`, the run held at this picture, to play the reader's next event from it. */
-  session?: LiveSession;
-}
-
-/** How a kept run's next event is drawn: as `runLive` draws a log's last event. */
-export interface LiveDraw {
-  sink?: Sink;
-  animate?: Sink;
-  onStart?: () => void;
-}
-/**
- * A live run held at the picture its log lands on (`runLive` with `keep`). `send` plays one more
- * event from there, as a fresh run of the longer log would play its last event, without running
- * the scene to the step again. A send that fails (a sink aborted mid-play, say) closes the
- * session, since its scene may have stopped part-way; start a fresh run then.
- */
-export interface LiveSession {
-  /** The events played so far, from where the log starts. */
-  readonly log: readonly string[];
-  /** False once closed or failed. */
-  readonly open: boolean;
-  /** True while a send plays. */
-  readonly busy: boolean;
-  send(event: string, draw?: LiveDraw): Promise<LiveRun>;
-  close(): void;
-}
-
-/**
- * Run `Source` to the resting picture of `step`, where the machine at `place` is live, then play `log`
- * through `machine.send` (from the machine's start, its views redrawn there, when `from` is
- * 'start' and the log is not empty), every frame skipped; `sink` then draws the picture the log lands on.
- * With `animate`, the last event plays through that sink instead, frame by frame from the picture
- * before it (drawn at dt 0, after which `onStart` is called), and then lands. `onRest` sees the
- * scene at the step's resting picture, before any event (the review compares a state with it).
- * With `keep`, the run is held at the picture the log lands on, as the result's `session`.
- *
- * The run stops in the live step as soon as its picture stops changing: at the end of the play or
- * wait that reaches the step's hold (or its end), or as the step ends (`Scene.stopAt`), and the
- * scene is then stopped for good (`phase` is `'stopped'`). Code a scene runs between its last play
- * and its next step never runs, so it cannot change the stage the reader drives.
- * The machine is the run's machine at `place.index`, refused unless it has `place.identity`, so the
- * reader never drives another. It plays under what the scene showed when it last played
- * (`playedUnder`), as exploration draws it. A log the machine
- * does not accept throws, as `send` does.
- */
-export async function runLive(
-  Source: SceneClass,
-  times: LiveStepTimes,
-  place: LivePlace,
-  log: readonly string[],
-  { sink, animate, onStart, onRest, from = 'rest', keep = false }: LiveDraw & { onRest?: (scene: Scene<any>) => void; from?: LogStart; keep?: boolean } = {},
-): Promise<LiveRun> {
-  const end = times.holdFrame ?? times.frame1 ?? Infinity;
-  let result: LiveRun | undefined;
-  // A kept run waits in the step for the next event; `wake` hands it one, or null to stop.
-  type Command = { event: string; draw: LiveDraw; done: (run: LiveRun) => void; failed: (error: unknown) => void };
-  let wake: ((command: Command | null) => void) | null = null, held!: () => void;
-  const holding = new Promise<void>((resolve) => (held = resolve));
-  // Run there as a seek does, every frame skipped; the scene stops itself where the step's picture is
-  // still, and plays the log there (see Scene.stopAt).
-  const scene = new (Source as unknown as new (sink: Sink, opts?: { skipUntil?: number }) => Scene<any>)(new NullSink(), { skipUntil: Infinity });
-  scene.stopAt(times.step, end, async (at) => {
-    const machine = machinesOf(at)[place.index];
-    if (!machine || machine.identity !== place.identity)
-      throw new Error(`new Machine(): the run to ${JSON.stringify(times.step)} made different machines; a scene must make the same machines on every run`);
-    if (machine.playedUnder && canonicalJson(machine.playedUnder) !== canonicalJson(at.shown)) at.shown = machine.playedUnder;
-    const rest = JSON.parse(JSON.stringify(at.state)) as object;
-    onRest?.(at);
-    // From the machine's start: its views redrawn there, in place, as exploration draws a state.
-    if (from === 'start' && log.length) {
-      at.state = JSON.parse(JSON.stringify(machine.spec.start)) as object;
-      for (const view of machine.spec.views) view.rebuild();
-    }
-    for (const [i, event] of log.entries()) {
-      if (animate && i === log.length - 1) {
-        at.sink = animate;
-        at.skipUntil = 0;
-        await animate.frame(at, 0);
-        onStart?.();
-      }
-      await at.play(machine.send(event));
-    }
-    const drawn = animate ?? sink;
-    if (drawn) await drawn.frame(at, 0);
-    result = { scene: at, machine, rest, shown: at.shownJson() };
-    if (!keep) return;
-    const kept = (result.session = session(log));
-    // A session closed while it played lets the run end once that play is done.
-    while (kept.open) {
-      const command = await new Promise<Command | null>((resolve) => {
-        wake = resolve;
-        held();
-      });
-      if (!command) break;
-      const { event, draw } = command;
-      try {
-        // As a fresh run plays a log's last event: animated from the picture now, or skipped, then drawn.
-        if (draw.animate) {
-          at.sink = draw.animate;
-          at.skipUntil = 0;
-          await draw.animate.frame(at, 0);
-          draw.onStart?.();
-        } else {
-          at.sink = new NullSink();
-          at.skipUntil = Infinity;
-        }
-        await at.play(machine.send(event));
-        const landing = draw.animate ?? draw.sink;
-        if (landing) await landing.frame(at, 0);
-        command.done({ scene: at, machine, rest, shown: at.shownJson() });
-      } catch (error) {
-        command.failed(error);
-        break;
-      }
-    }
-  });
-  function session(played: readonly string[]): LiveSession {
-    const s = {
-      log: [...played] as readonly string[],
-      open: true,
-      busy: false,
-      send(event: string, draw: LiveDraw = {}): Promise<LiveRun> {
-        if (!s.open || s.busy || !wake) return Promise.reject(new Error('This live session is closed or busy; start a fresh run'));
-        s.busy = true;
-        const go = wake;
-        wake = null;
-        return new Promise<LiveRun>((done, failed) => go({ event, draw, done, failed })).then(
-          (run) => { s.busy = false; s.log = [...s.log, event]; return run; },
-          (error: unknown) => { s.busy = false; s.open = false; throw error; },
-        );
-      },
-      close() {
-        s.open = false;
-        const go = wake;
-        wake = null;
-        go?.(null);
-      },
-    };
-    return s;
-  }
-  const running = scene.run();
-  if (keep) {
-    // The run stays in the step; it is enough that it got there.
-    void running.catch(() => {});
-    await Promise.race([holding, running]);
-  } else await running;
-  if (!result) throw new Error(`The scene never reached the step "${times.step}"`);
-  return result;
-}
-
 
 /**
  * The reader's exploration of the step on show: none, or live at a step (`now`: the step, its

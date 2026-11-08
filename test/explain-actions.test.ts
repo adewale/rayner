@@ -409,3 +409,15 @@ test('a beat that waits and is shorter than a frame still plays, held and then l
   assert.ok(scene.mobjects.includes(f));
   assert.equal(f.style.opacity, 1);
 });
+
+test('the diagrams a scene made are counted on that scene, so another run in the same process never changes what a page needs', async () => {
+  const { diagramsOn } = await import('../explain/diagrams.ts');
+  const a = setUp(), b = setUp();
+  assert.deepEqual([diagramsOn(a.scene), diagramsOn(b.scene)], [0, 0]);
+  await a.s.show(spec, { build: 'frame' });
+  // Before, one counter for the whole process: b's collection, running meanwhile, would have seen a's diagram.
+  assert.deepEqual([diagramsOn(a.scene), diagramsOn(b.scene)], [1, 0]);
+  await b.s.show(spec, { build: 'frame' });
+  await b.s.show(spec, { build: 'frame', box: 'left' });
+  assert.deepEqual([diagramsOn(a.scene), diagramsOn(b.scene)], [1, 2]);
+});

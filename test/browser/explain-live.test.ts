@@ -13,8 +13,9 @@ import type { Project } from '../../tools/lib/explain-project.ts';
 import { buildExplainer } from '../../tools/lib/explain-build.ts';
 import { serve } from '../../tools/lib/explain-serve.ts';
 import { launch } from '../../tools/lib/browser.ts';
-import { SENT, acceptedLog, decodeLog, encodeLog, logStart, outcomes, runLive } from '../../app/embed-live.ts';
-import type { Live } from '../../app/embed-live.ts';
+import { SENT, acceptedLog, decodeLog, encodeLog, outcomes } from '../../app/embed-live.ts';
+import { logStart, runLive } from '../../explain/live.ts';
+import type { Live } from '../../explain/live.ts';
 import { chromeFor } from '../../app/embed-strings.ts';
 
 const enabled = !!process.env.EXPLAIN_BROWSER;
@@ -46,8 +47,7 @@ before(async () => {
     const scenario = project.scenarios[0]!;
     assert.ok(scenario.live?.size, `${id}: its default scenario has a live step`);
     for (const [step, live] of scenario.live!) {
-      const times = scenario.trace.steps.find((s) => s.step === step)!;
-      const base = logStart(live.machine, (await runLive(scenario.Scene, times, live, [])).rest);
+      const base = logStart(live.machine, (await runLive(scenario.Scene, step, live, [])).rest);
       assert.ok(base, `${id} ${step}: some event goes somewhere`);
       subjects.push({ id, file, values: scenario.values, step, live, base });
     }
