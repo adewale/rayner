@@ -173,6 +173,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `DecimalNumber` blends its value only with another number: transformed into a `Text`, it ends as that text instead of `NaN`.
 - `Scene.captionWpm` is read from the scene's own class, and a caption in a script written without spaces counts every one and a half letters as a word instead of the whole caption as one. `captionWords(caption)` in `rayner` is that count, for words that report a caption's length (fork's timing step). [Reference](docs/REFERENCE.md#scene)
 - A frame with no updater on stage no longer builds a family list per top-level mobject.
+- `indexScene` and `traceScene` read one dry run, and an index's steps are the scene's own `Step` records, evidence included, rather than copies of some of their fields.
 
 ### Checks
 

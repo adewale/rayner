@@ -8,6 +8,7 @@
 
 import type { Evidence, Scene, SceneClass, SceneOptions, SceneState, Sink, Step, StepMeta } from './scene.ts';
 import type { Jsonified } from './json.ts';
+import { dryRun } from './timeline.ts';
 
 /**
  * One step of a trace: what traceScene() returns per step. `S` and `Sh` are the types of the model
@@ -104,7 +105,6 @@ export async function traceScene<C extends SceneClass>(SceneClass: C, opts: Scen
  */
 export async function traceRun(SceneClass: SceneClass, opts: SceneOptions = {}, atRest?: AtRest): Promise<{ trace: Trace; scene: Scene }> {
   const sink = new TraceSink(atRest);
-  const scene = new SceneClass(sink, { skipUntil: Infinity, ...opts });
-  await scene.run();
+  const scene = await dryRun(SceneClass, sink, opts);
   return { trace: { fps: scene.fps, duration: round(scene.time), frames: scene.frameCount, steps: sink.steps() }, scene };
 }

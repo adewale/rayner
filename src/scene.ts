@@ -63,7 +63,7 @@ export interface Step {
   meta: StepMeta;
   /**
    * What happened during the step, as recorded by Scene.record() (in order).
-   * Scene.step() always sets it; a step rebuilt elsewhere (an index) may not.
+   * Scene.step() always sets it.
    */
   evidence?: Evidence[];
 }

@@ -37,7 +37,7 @@ export class SeekSink implements Sink {
   async stepEnd(scene: Scene, s: Step): Promise<void> { if (scene.time + 1e-9 >= this.t) await this.target.stepEnd?.(scene, s); }
 }
 
-/** A scene's steps and length, from a dry run. */
+/** A scene's steps and length, from a dry run: the steps are the scene's own records (see Step). */
 export interface SceneIndex {
   fps: number;
   duration: number;
@@ -45,17 +45,21 @@ export interface SceneIndex {
   steps: Step[];
 }
 
+/**
+ * @internal Run a scene with every frame skipped, handing step boundaries to `sink`: the one dry run an
+ * index and a trace (traceRun) are both read from. Nothing reads frames, and the state at a step
+ * boundary is exact (see SceneOptions.skipUntil).
+ */
+export async function dryRun(SceneClass: SceneClass, sink: Sink, opts: SceneOptions = {}): Promise<Scene> {
+  const scene = new SceneClass(sink, { skipUntil: Infinity, ...opts });
+  await scene.run();
+  return scene;
+}
+
 /** Dry-run a scene to learn its steps and duration. */
 export async function indexScene(SceneClass: SceneClass, opts: SceneOptions = {}): Promise<SceneIndex> {
-  // Nothing reads frames here, so skip all of them (state at step boundaries is exact)
-  const scene = new SceneClass(new NullSink(), { skipUntil: Infinity, ...opts });
-  await scene.run();
-  return {
-    fps: scene.fps,
-    duration: scene.time,
-    frames: scene.frameCount,
-    steps: scene.steps.map(({ name, path, t0, t1, frame0, frame1, hold, holdFrame, meta }) => ({ name, path, t0, t1, frame0, frame1, ...(hold == null ? {} : { hold, holdFrame }), meta })),
-  };
+  const scene = await dryRun(SceneClass, new NullSink(), opts);
+  return { fps: scene.fps, duration: scene.time, frames: scene.frameCount, steps: scene.steps };
 }
 
 /** Resolve a step name (or path) to its start time, or null. */
