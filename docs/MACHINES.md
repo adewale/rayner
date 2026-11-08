@@ -331,7 +331,14 @@ reader's last log (`runLive` with `keep`, its `session`), and a press that exten
 event plays only the new event from the held picture, exactly as a fresh run of the longer log
 plays its last event. The first press at a step, Undo, Reset, Back and a link run afresh, and the
 run they make is held in its turn. A held run whose play was cut short (a press during a play) is
-dropped, since its scene may have stopped part-way. `test/embed-live.test.ts` checks that a held
+dropped, since its scene may have stopped part-way; so is the run held when the reader presses
+Undo or Reset, even mid-play, since its picture is past the log they go back to. Leaving the step
+(another step, Next, another scenario) closes the held run, so its scene, paused in the step, is
+freed. The player keeps the eight resting pictures it drew most recently, steps and live states
+together, so Back and a repeated log draw nothing and a long exploration holds a bounded number of
+pictures. One value holds the exploration (`Exploration` in `app/embed-live.ts`: none, or live at
+a step with its log and held run), and one transition (`explore`) changes it for a press, Undo,
+Reset, a link, a held run and leaving; a run that arrives for a log no longer on show is closed, not held. `test/embed-live.test.ts` checks that a held
 run's every frame is the fresh run's, and `test/browser/explain-live.test.ts` that pictures
 reached by pressing, now through held runs, are the ones a fresh load of the link draws.
 

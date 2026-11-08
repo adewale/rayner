@@ -1532,11 +1532,16 @@ test(
       assert.ok(near(await painted(), tour[0]!), `opens on the first close-up ${JSON.stringify(tour[0])}`);
       const smallest = Math.min(...labelsToRead(layout).map((l) => l.size));
       assert.ok(smallest * stageScale(size.w, size.h).s * tour[0]!.k >= READ_PX - 1e-6, 'labels near the change read at 12 px');
+      // The map's part spans are drawn once for the step at this size: a zoom moves only the view.
+      const parts = page.locator('.overview .part');
+      assert.equal(await parts.count(), layout.parts.length, 'one span per changed part');
+      await parts.evaluateAll((spans) => spans.forEach((span) => span.setAttribute('data-kept', '')));
       for (let i = 1; i <= tour.length; i++) {
         await page.locator('.overview').click();
         const want = tour[i % tour.length]!;
         await until(async () => near(zoomOf(await paintedView(page)), want), `close-up ${i}`);
       }
+      assert.equal(await page.locator('.overview .part[data-kept]').count(), layout.parts.length, 'the zooms kept the part spans');
       // Whole picture shows the author's frame, and keeps it for the next steps; Close-up brings the close-ups back.
       await page.getByRole('button', { name: 'Whole picture' }).click();
       await until(async () => zoomOf(await paintedView(page)) === null, 'Whole picture');
@@ -2913,8 +2918,10 @@ test(
 const earlyControls = (page: Page, actions: string[]) => page.addInitScript((actions: string[]) => {
   const w = window as unknown as { __early: number };
   w.__early = 0;
+  // The stepper's primary button, by its place: on a link to the last step it is already Start again
+  // when the player builds it, since a shipped scenario shows its step at once.
   const observer = new MutationObserver(() => {
-    if (!document.querySelector('button[aria-label="Next step"]')) return;
+    if (!document.querySelector('.stepper button.primary')) return;
     observer.disconnect();
     for (const a of actions) {
       const b = document.querySelector<HTMLButtonElement>(`button[aria-label="${a}"]`);

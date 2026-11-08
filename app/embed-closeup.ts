@@ -10,8 +10,9 @@
  * can still pan, zoom, or go back to the whole picture.
  *
  * `stepLayouts` runs a scene once and records, for each step, where its picture
- * changed and every visible label's size; `closeUps` turns one step's layout into the
- * zooms for a stage of a given size. `rayner check` uses both, so its phone number
+ * changed and every visible label's size (`layoutSink` records the same beside
+ * another sink's run); `closeUps` turns one step's layout into the zooms for a
+ * stage of a given size. `rayner check` uses both, so its phone number
  * is the size the player draws.
  *
  * A close-up is the reader's zoom, and it sits on top of the author's camera
@@ -305,10 +306,21 @@ export const focusOf = (layout: StepLayout): Box | null => unionBoxes(layout.par
  * seen through the camera where the step leaves it.
  */
 export async function stepLayouts(Scene: SceneClass): Promise<Map<string, StepLayout>> {
+  const { sink, layouts } = layoutSink();
+  await new Scene(sink, { skipUntil: Infinity }).run();
+  return layouts;
+}
+/** A sink that records at each step's end. */
+export type LayoutSink = Sink & Required<Pick<Sink, 'stepEnd'>>;
+/**
+ * The sink `stepLayouts` runs a scene with, and the layouts it fills, one per step as each step
+ * ends. The player puts it beside the trace's sink, so one run of a scenario gives both.
+ */
+export function layoutSink(): { sink: LayoutSink; layouts: Map<string, StepLayout> } {
   const layouts = new Map<string, StepLayout>();
   let before: Leaf[] = [],
     was = new Map<Mobject, string>();
-  const sink: Sink = {
+  const sink: LayoutSink = {
     async frame() {},
     async stepEnd(scene, step) {
       // New emphasis: an object that shows emphasis now and did not when the step began, or showed another row, line or colour.
@@ -342,8 +354,7 @@ export async function stepLayouts(Scene: SceneClass): Promise<Map<string, StepLa
       before = leaves;
     },
   };
-  await new Scene(sink, { skipUntil: Infinity }).run();
-  return layouts;
+  return { sink, layouts };
 }
 
 /** How the stage draws the author's 16 × 9 view at 1×: px per view unit and the offset of its top-left corner (the SVG letterboxes). */

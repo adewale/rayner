@@ -62,6 +62,8 @@ export interface Chrome {
   noStep: (step: string) => string;
   /** A notice when the URL's settings are invalid. */
   fallback: (problem: SettingsProblem) => string;
+  /** A notice when the scenario the reader chose could not be shown, so the player keeps the one it had. */
+  scenarioFailed: string;
   /** The stage's accessible name: the explainer's title, the step's, and the line under it. */
   stageLabel: (title: string, step: string, line: string) => string;
   /** "Label: option", the way a scenario is named in headings. */
@@ -160,6 +162,7 @@ const EN: Chrome = {
   noStep: (step) => `This scenario has no “${step}” step, so it opens at the first step.`,
   fallback: (p) =>
     `${p.kind === 'option' ? `The setting “${p.label}” has no option “${p.value}”` : p.kind === 'setting' ? `This explanation has no setting “${p.id}”` : p.message}. Showing the default scenario.`,
+  scenarioFailed: 'That scenario could not be shown, so the player keeps the one it had.',
   stageLabel: (title, step, line) => `${title}: ${step}${line ? ` — ${line}` : ''}`,
   setting: (label, option) => `${label}: ${option}`,
   transcript: 'Transcript',
@@ -237,6 +240,7 @@ const FR: Chrome = {
           ? `Cette explication n’a pas de réglage « ${p.id} »`
           : 'Les réglages de l’adresse ne sont pas valides'
     }. Le scénario par défaut est affiché.`,
+  scenarioFailed: 'Ce scénario n’a pas pu être affiché\u202f: le lecteur garde le précédent.',
   stageLabel: (title, step, line) => `${title} : ${step}${line ? ` — ${line}` : ''}`,
   setting: (label, option) => `${label} : ${option}`,
   transcript: 'Transcription',

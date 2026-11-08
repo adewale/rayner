@@ -174,6 +174,51 @@ test('a button that disagrees with outcome fails the check (a deliberate defect)
   }
 });
 
+test('Undo, Reset or another press during an animated landing lands where a fresh load of the URL does', options, async () => {
+  const s = subjects.find((x) => x.id === 'ring-buffer')!;
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } }),
+    fresh = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  /** An event the machine takes after `log`. */
+  const nextAfter = (log: string[]) => outcomes(s.live.machine, acceptedLog(s.live.machine, s.base.state, log).states.at(-1)!).find((o) => o.kind === 'next')!.event;
+  const event = nextAfter([]);
+  /** The stage at rest on `log`, a moment later still, and the picture a fresh load of that link draws. */
+  const same = async (log: string[], why: string) => {
+    await landed(page, log);
+    assert.deepEqual(decodeLog(new URL(page.url()).searchParams.get(SENT)), log, why);
+    const now = await picture(page);
+    // A landing cut short must not put its picture on the stage afterwards.
+    await page.waitForTimeout(600);
+    assert.equal(await picture(page), now, `${why}: the stage changed after it landed`);
+    await fresh.goto(urlOf(s, log));
+    await fresh.waitForSelector('[data-ready=true]');
+    await landed(fresh, log);
+    assert.equal(now, await picture(fresh), `${why}: a fresh load draws another picture`);
+  };
+  try {
+    await page.goto(urlOf(s, []));
+    await page.waitForSelector('[data-ready=true]');
+    await landed(page, []);
+    const landing = () => page.locator('.stage[aria-busy]').count();
+    for (const control of ['Undo', 'Reset']) {
+      await page.click(`.live-events button[data-event="${event}"]`);
+      assert.equal(await landing(), 1, 'the press is still landing');
+      await page.click(`.live-tools button:text-is("${control}")`);
+      await same([], `${control} during the landing`);
+    }
+    const second = nextAfter([event]);
+    await page.click(`.live-events button[data-event="${event}"]`);
+    assert.equal(await landing(), 1, 'the press is still landing');
+    await page.click(`.live-events button[data-event="${second}"]`);
+    await same([event, second], 'a press during the landing');
+    const third = nextAfter([event, second]);
+    await page.click(`.live-events button[data-event="${third}"]`);
+    await same([event, second, third], 'a press after it, from the run held there');
+  } finally {
+    await page.close();
+    await fresh.close();
+  }
+});
+
 test('the keyboard sends events, refused events say why, a bad link falls back with a notice, and Back undoes an event', options, async () => {
   const s = subjects.find((x) => x.id === 'statecharts' && x.step === 'parent')!;
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });

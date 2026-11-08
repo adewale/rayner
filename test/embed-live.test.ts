@@ -8,7 +8,9 @@ import { NullSink, StringSink } from '../src/output.ts';
 import { loadFonts, traceScene } from '../explain/testing.ts';
 import type { Sink } from '../src/index.ts';
 import { stage, Machine, refuse, view } from '../explain/index.ts';
-import { acceptedLog, decodeLog, encodeLog, liveSteps, logStart, outcomes, runLive } from '../app/embed-live.ts';
+import { acceptedLog, decodeLog, encodeLog, explore, exploreAndClose, liveSteps, logStart, outcomes, runLive } from '../app/embed-live.ts';
+import type { Exploration, LiveSession } from '../app/embed-live.ts';
+import { Lru } from '../app/embed-lru.ts';
 import { pictureChange } from '../explain/trace.ts';
 
 await loadFonts();
@@ -56,8 +58,7 @@ test('a machine is live at the step it last played in, and nowhere before it pla
   const ran = await new Lamp(new NullSink()).run();
   const live = liveSteps(ran);
   assert.deepEqual([...live.keys()], ['press']);
-  assert.equal(live.get('press')!.index, 0);
-  assert.equal(live.get('press')!.machine, ran.machine);
+  assert.equal(live.get('press'), 0);
   assert.deepEqual([...liveSteps(new Scene(new NullSink())).keys()], []);
 });
 
@@ -208,4 +209,105 @@ test('an event is announced by what it changed of the picture', () => {
   // In the picture's language: French sets a no-break space before the semicolon between things.
   const fr = (...entries: object[]) => ({ picture: { entries, lang: 'fr' } });
   assert.equal(pictureChange(fr({ what: 'Une lampe', items: ['x'] }, { what: 'Du code', items: ['y'] }), fr()), 'Une lampe\u202f; Du code');
+});
+
+/** A held run as the player sees it: its log, whether it is open or playing, and whether it was closed. */
+function fakeSession(log: string[], { busy = false } = {}) {
+  const s = { log, open: true, busy, closed: 0, send: () => Promise.reject(new Error('not played')), close() { s.open = false; s.closed++; } };
+  return s as typeof s & LiveSession;
+}
+
+test('the exploration: one transition for send, undo, reset, link, held and leave, which keeps a held run only while it can play the next event', () => {
+  const now = { step: 'press' };
+  const none: Exploration<typeof now> = { kind: 'none' };
+  const linked = explore(none, { kind: 'link', now, log: ['UP'] });
+  assert.deepEqual(linked, { kind: 'live', now, log: ['UP'], session: null });
+  // Sending, Undo and Reset change nothing when no step is live, and Undo and Reset nothing with nothing sent.
+  for (const action of [{ kind: 'send', event: 'UP' }, { kind: 'undo' }, { kind: 'reset' }] as const) assert.equal(explore(none, action), none);
+  const empty = explore(none, { kind: 'link', now, log: [] });
+  assert.equal(explore(empty, { kind: 'undo' }), empty);
+  assert.equal(explore(empty, { kind: 'reset' }), empty);
+
+  // A run held at the log's picture is taken; one held for another log is not.
+  const held = fakeSession(['UP']);
+  const holding = exploreAndClose(linked, { kind: 'held', session: held });
+  assert.equal(holding.kind === 'live' && holding.session, held);
+  const stale = fakeSession(['UP', 'DOWN']);
+  assert.equal(exploreAndClose(holding, { kind: 'held', session: stale }), holding);
+  assert.equal(stale.closed, 1, 'a run held for a log no longer on show is closed, not kept');
+  const orphan = fakeSession([]);
+  assert.equal(exploreAndClose(none, { kind: 'held', session: orphan }), none);
+  assert.equal(orphan.closed, 1, 'a run that arrives when nothing is live is closed');
+
+  // A send keeps an idle run at the log before the event: it plays the event from there.
+  const sent = exploreAndClose(holding, { kind: 'send', event: 'DOWN' });
+  assert.deepEqual(sent, { kind: 'live', now, log: ['UP', 'DOWN'], session: held });
+  assert.equal(held.closed, 0);
+  // A send while the run still plays (an animated landing cut short) drops it, closed.
+  const playing = fakeSession(['UP'], { busy: true });
+  const cut = exploreAndClose({ kind: 'live', now, log: ['UP'], session: playing }, { kind: 'send', event: 'DOWN' });
+  assert.deepEqual(cut, { kind: 'live', now, log: ['UP', 'DOWN'], session: null });
+  assert.equal(playing.closed, 1);
+  // A run whose picture is behind the log (a landing drawn from the kept pictures) cannot play the next event.
+  const behind = fakeSession(['UP']);
+  assert.equal((exploreAndClose({ kind: 'live', now, log: ['UP', 'DOWN'], session: behind }, { kind: 'send', event: 'UP' }) as { session: unknown }).session, null);
+  assert.equal(behind.closed, 1);
+
+  // Undo and Reset go back past the held picture, even while it plays: the run is closed.
+  for (const action of [{ kind: 'undo' }, { kind: 'reset' }] as const) {
+    const run = fakeSession(['UP', 'DOWN'], { busy: true });
+    const after = exploreAndClose({ kind: 'live', now, log: ['UP', 'DOWN'], session: run }, action);
+    assert.deepEqual(after, { kind: 'live', now, log: action.kind === 'undo' ? ['UP'] : [], session: null });
+    assert.equal(run.closed, 1, `${action.kind} closes the run`);
+  }
+  // Leaving the step, and a link to another log, close the held run.
+  for (const action of [{ kind: 'leave' }, { kind: 'link', now, log: [] }] as const) {
+    const run = fakeSession(['UP']);
+    exploreAndClose({ kind: 'live', now, log: ['UP'], session: run }, action);
+    assert.equal(run.closed, 1, `${action.kind} closes the run`);
+  }
+});
+
+test('leaving a live step lets its held run end: the scene paused in the step finishes', async () => {
+  const Lamp = lampScene();
+  const press = (await traceScene(Lamp)).steps.find((s) => s.step === 'press')!;
+  let ended = false;
+  class Watched extends Lamp {
+    override async run() {
+      try { return await super.run(); } finally { ended = true; }
+    }
+  }
+  const run = await runLive(Watched, press, 0, ['UP'], { keep: true });
+  const live = exploreAndClose({ kind: 'none' } as Exploration<string>, { kind: 'link', now: 'press', log: ['UP'] });
+  const holding = exploreAndClose(live, { kind: 'held', session: run.session! });
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(ended, false, 'held: the run waits in the step');
+  exploreAndClose(holding, { kind: 'leave' });
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(ended, true, 'left: the run ended');
+  assert.equal(run.session!.open, false);
+});
+
+test('the kept pictures hold the most recently used eight, dropping the oldest', () => {
+  const lru = new Lru<string, number>(3);
+  lru.set('a', 1);
+  lru.set('b', 2);
+  lru.set('c', 3);
+  assert.equal(lru.get('a'), 1, 'reading makes an entry the newest');
+  lru.set('d', 4);
+  assert.deepEqual(lru.keys(), ['c', 'a', 'd'], 'b, the least recently used, went');
+  lru.set('c', 5);
+  assert.deepEqual(lru.keys(), ['a', 'd', 'c']);
+  assert.equal(lru.get('b'), undefined);
+  lru.clear();
+  assert.deepEqual(lru.keys(), []);
+  assert.throws(() => new Lru(0), /new Lru\(\): size 0 is not a positive integer/);
+  // However many pictures a reader visits, the player holds at most eight.
+  fc.assert(fc.property(fc.array(fc.integer({ min: 0, max: 30 }), { maxLength: 80 }), (visits) => {
+    const kept = new Lru<number, number>(8);
+    for (const v of visits) if (kept.get(v) === undefined) kept.set(v, v);
+    assert.ok(kept.keys().length <= 8);
+    const recent = [...new Set([...visits].reverse())].slice(0, 8);
+    assert.deepEqual(new Set(kept.keys()), new Set(recent));
+  }));
 });
