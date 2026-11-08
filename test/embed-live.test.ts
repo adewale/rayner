@@ -12,7 +12,6 @@ import { acceptedLog, decodeLog, encodeLog, explore, exploreAndClose, liveSteps,
 import type { Exploration, LiveSession } from '../app/embed-live.ts';
 import { Lru } from '../app/embed-lru.ts';
 import { pictureChange } from '../explain/trace.ts';
-import { machinesOf } from '../explain/machine.ts';
 
 await loadFonts();
 
@@ -59,7 +58,8 @@ test('a machine is live at the step it last played in, and nowhere before it pla
   const ran = await new Lamp(new NullSink()).run();
   const live = liveSteps(ran);
   assert.deepEqual([...live.keys()], ['press']);
-  assert.equal(live.get('press'), 0);
+  assert.equal(live.get('press')!.index, 0);
+  assert.equal(live.get('press')!.identity, live.get('press')!.machine.identity);
   assert.deepEqual([...liveSteps(new Scene(new NullSink())).keys()], []);
 });
 
@@ -154,8 +154,8 @@ test('a live run stops at the step’s resting picture, plays the log there, and
   assert.deepEqual(fromStart.scene.state, { level: 1 });
   assert.deepEqual(fromStart.rest, { level: 1 });
   // A log the machine does not take throws, as send does.
-  await assert.rejects(runLive(Lamp, press, 0, ['UP', 'UP', 'UP']), /refused/);
-  await assert.rejects(runLive(Lamp, { step: 'nowhere', holdFrame: 30 }, 0, []), /never reached/);
+  await assert.rejects(runLive(Lamp, press, at, ['UP', 'UP', 'UP']), /refused/);
+  await assert.rejects(runLive(Lamp, { step: 'nowhere', holdFrame: 30 }, at, []), /never reached/);
 });
 
 test('a kept run plays the next event from its picture, landing where a fresh run of the longer log lands', async () => {
@@ -280,7 +280,7 @@ test('leaving a live step lets its held run end: the scene paused in the step fi
       try { return await super.run(); } finally { ended = true; }
     }
   }
-  const run = await runLive(Watched, press, 0, ['UP'], { keep: true });
+  const run = await runLive(Watched, press, liveSteps(await new Lamp(new NullSink()).run()).get('press')!, ['UP'], { keep: true });
   const live = exploreAndClose({ kind: 'none' } as Exploration<string>, { kind: 'link', now: 'press', log: ['UP'] });
   const holding = exploreAndClose(live, { kind: 'held', session: run.session! });
   await new Promise((r) => setTimeout(r, 20));
@@ -333,9 +333,7 @@ test('a live run drives the same machine it was given: same events in the same o
   const trace = await traceScene(Swapping);
   const press = trace.steps.find((s) => s.step === 'press')!;
   runs = 0;
-  const ran = await new Swapping(new NullSink()).run();
-  const index = liveSteps(ran).get('press')!;
-  const at = { index, machine: machinesOf(ran)[index]! };
+  const at = liveSteps(await new Swapping(new NullSink()).run()).get('press')!;
   await assert.rejects(runLive(Swapping, press, at, []), /^Error: new Machine\(\): the run to "press" made different machines; a scene must make the same machines on every run$/);
   // The next run makes the first order again: the same machine, which plays.
   assert.deepEqual((await runLive(Swapping, press, at, ['UP'])).rest, { level: 1 });

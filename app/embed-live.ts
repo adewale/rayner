@@ -17,23 +17,29 @@ type AnyMachine = Machine<object, string>;
 /** The URL key that holds the reader's events, beside `step` (explain/page-query.ts). */
 export const SENT = PAGE_QUERY.sent;
 
-/** A step where the reader can drive a machine: the machine's place in `machinesOf(scene)`, and the machine. */
-export interface Live {
+/**
+ * Which machine is live at a step, as JSON: its place in `machinesOf(scene)` and its identity (its
+ * events, start and views' keys). The build ships the default scenario's places to the page.
+ */
+export interface LivePlace {
   index: number;
+  identity: string;
+}
+/** A step where the reader can drive a machine: its place, and the machine. */
+export interface Live extends LivePlace {
   machine: AnyMachine;
 }
 
 /**
- * Where a scene's machines are live: each machine's place in `machinesOf(scene)`, by the step it
- * last played in (`lastPlayedIn`), which is the stage `rayner check` explores it on. A machine that
- * never played is live nowhere; when two machines last played in one step, the later one made is
- * live there. The places are JSON, so the build ships the default scenario's to the page; the
- * machine itself comes from the run that reaches the step (`runLive`'s `machine`).
+ * Where a scene's machines are live: each machine, with its place in `machinesOf(scene)`, by the
+ * step it last played in (`lastPlayedIn`), which is the stage `rayner check` explores it on. A
+ * machine that never played is live nowhere; when two machines last played in one step, the later
+ * one made is live there.
  */
-export function liveSteps(scene: Scene<any>): Map<string, number> {
-  const live = new Map<string, number>();
+export function liveSteps(scene: Scene<any>): Map<string, Live> {
+  const live = new Map<string, Live>();
   for (const [index, machine] of machinesOf(scene).entries())
-    if (machine.lastPlayedIn !== null) live.set(machine.lastPlayedIn, index);
+    if (machine.lastPlayedIn !== null) live.set(machine.lastPlayedIn, { index, identity: machine.identity, machine });
   return live;
 }
 
@@ -139,7 +145,7 @@ export interface LiveSession {
 }
 
 /**
- * Run `Source` to the resting picture of `step`, where `live` (a machine, or its index) is live, then play `log`
+ * Run `Source` to the resting picture of `step`, where the machine at `place` is live, then play `log`
  * through `machine.send` (from the machine's start, its views redrawn there, when `from` is
  * 'start' and the log is not empty), every frame skipped; `sink` then draws the picture the log lands on.
  * With `animate`, the last event plays through that sink instead, frame by frame from the picture
@@ -150,16 +156,15 @@ export interface LiveSession {
  * The run stops in the live step as soon as its picture stops changing: at the end of the play or
  * wait that reaches the step's hold (or its end), or as the step ends. Code a scene runs between
  * its last play and its next step never runs, so it cannot change the stage the reader drives.
- * The machine is the run's machine at `live.index`, refused unless it is the same machine (its
- * events, start and views' keys), so the reader never drives another; given only an index, the
- * run's machine there is the one it reports, for the first run of a page that shipped none. It plays under what the
- * scene showed when it last played (`playedUnder`), as exploration draws it. A log the machine
+ * The machine is the run's machine at `place.index`, refused unless it has `place.identity`, so the
+ * reader never drives another. It plays under what the scene showed when it last played
+ * (`playedUnder`), as exploration draws it. A log the machine
  * does not accept throws, as `send` does.
  */
 export async function runLive(
   Source: SceneClass,
   times: LiveStepTimes,
-  live: Live | number,
+  place: LivePlace,
   log: readonly string[],
   { sink, animate, onStart, onRest, from = 'rest', keep = false }: LiveDraw & { onRest?: (scene: Scene<any>) => void; from?: LogStart; keep?: boolean } = {},
 ): Promise<LiveRun> {
@@ -179,8 +184,8 @@ export async function runLive(
     }
     async reach(): Promise<void> {
       this.reached = true;
-      const machine = machinesOf(this)[typeof live === 'number' ? live : live.index];
-      if (!machine || (typeof live !== 'number' && machine.identity !== live.machine.identity))
+      const machine = machinesOf(this)[place.index];
+      if (!machine || machine.identity !== place.identity)
         throw new Error(`new Machine(): the run to ${JSON.stringify(times.step)} made different machines; a scene must make the same machines on every run`);
       if (machine.playedUnder && canonicalJson(machine.playedUnder) !== canonicalJson(this.shown)) this.shown = machine.playedUnder;
       const rest = JSON.parse(JSON.stringify(this.state)) as object;

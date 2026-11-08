@@ -72,7 +72,7 @@ export function shippedScenario(project: Project, scenario: Project['scenarios']
     },
     ...(palette ? { palette } : {}),
     ...(paper ? { paper } : {}),
-    live: [...(live ?? [])].map(([step, { index }]) => [step, index]),
+    live: [...(live ?? [])].map(([step, { index, identity }]) => [step, { index, identity }]),
   };
 }
 

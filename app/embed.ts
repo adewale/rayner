@@ -28,7 +28,7 @@ import { HOME, SHARE_META, SHARE_STEPS_META, shareable } from './embed-share.ts'
 import { storyIndices, adjacentStep } from './embed-steps.ts';
 import { offPath } from '../explain/script.ts';
 import { SENT, acceptedLog, decodeLog, encodeLog, exploreAndClose, liveSteps, logStart, outcomes, runLive } from './embed-live.ts';
-import type { Exploration, ExploreAction, Live, LiveDraw, LiveRun, LogStart } from './embed-live.ts';
+import type { Exploration, ExploreAction, Live, LiveDraw, LivePlace, LiveRun, LogStart } from './embed-live.ts';
 
 /**
  * The default scenario as the build traced it: its settings, its trace as the player reads it
@@ -42,7 +42,7 @@ export interface ShippedScenario {
   trace: Trace;
   palette?: Palette;
   paper?: string;
-  live: [step: string, machine: number][];
+  live: [step: string, place: LivePlace][];
 }
 /** How many resting pictures the player keeps, steps and live states together, the most recent first. */
 export const KEPT_PICTURES = 8;
@@ -125,7 +125,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
    * from the scenario's run, or worked out the first time a narrow stage needs them (`laid` once there).
    */
   type Entry = { key: string; Scene: ExplainerClass; trace: Trace; palette?: Palette; paper?: string;
-    live: Map<string, number>; bases: Map<string, Promise<LiveNow | null>>;
+    live: Map<string, LivePlace>; bases: Map<string, Promise<LiveNow | null>>;
     layouts?: Promise<Map<string, StepLayout>>; laid?: Map<string, StepLayout> };
   type SceneStateLike = Record<string, unknown>;
   type ScenarioHistory = {kind:'keep-step' | 'step'; name:string | undefined} | {kind:'first'};
@@ -1022,13 +1022,13 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
    * event moves. Worked out once per step, by running the scene to it: the machine is that run's.
    */
   function liveAt(at: Entry, step: Trace['steps'][number]): Promise<LiveNow | null> {
-    const index = at.live.get(step.step);
-    if (index === undefined) return Promise.resolve(null);
+    const place = at.live.get(step.step);
+    if (place === undefined) return Promise.resolve(null);
     let found = at.bases.get(step.step);
     if (!found) {
-      found = runLive(at.Scene, step, index, []).then((run) => {
+      found = runLive(at.Scene, step, place, []).then((run) => {
         const base = logStart(run.machine, run.rest);
-        return base ? { step, live: { index, machine: run.machine }, base } : null;
+        return base ? { step, live: { index: place.index, identity: place.identity, machine: run.machine }, base } : null;
       }, (error: unknown) => {
         console.error(error);
         return null;

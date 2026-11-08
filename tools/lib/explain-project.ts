@@ -12,7 +12,8 @@ import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { Scene } from '../../src/index.ts';
 import { NullSink } from '../../src/output.ts';
-import { machinesOf } from '../../explain/testing.ts';
+import { liveSteps } from '../../app/embed-live.ts';
+import type { Live } from '../../app/embed-live.ts';
 import { traceRun } from '../../src/trace.ts';
 import type { Palette } from '../../src/color.ts';
 import { paperOf, paletteOf } from '../../explain/stage.ts';
@@ -22,7 +23,6 @@ import { checkScriptMeta, checkStepMeta } from '../../explain/script.ts';
 import { checkExplainerMeta } from '../../explain/settings.ts';
 import { checkClaimsMeta } from '../../explain/claims.ts';
 import { takeLetteringMissing } from '../../src/lettering.ts';
-import type { Machine } from '../../explain/index.ts';
 import type { Trace } from '../../explain/testing.ts';
 
 import { resolveSettings } from '../../explain/index.ts';
@@ -163,7 +163,7 @@ export interface Project {
   sourceHash: string;
   store: SnapshotStore;
   /** Each scenario: its scene, trace and final stage colours (absent without a stage). */
-  scenarios: { values: Settings; Scene: ExplainerClass; trace: Trace; paper?: string; palette?: Palette; live?: Map<string, { index: number; machine: Machine<object, string> }> }[];
+  scenarios: { values: Settings; Scene: ExplainerClass; trace: Trace; paper?: string; palette?: Palette; live?: Map<string, Live> }[];
   edits: number;
   /** The faces cut for `static meta.lettering`; absent when the scene asks for none. */
   lettering?: Lettering;
@@ -379,9 +379,7 @@ export async function collectProject(
         }
       }));
       // The steps a reader can drive a machine at (app/embed-live.ts): the page's transcript lists their events.
-      // Each machine at the step it last played in (as liveSteps in app/embed-live.ts finds them; a later machine wins a step).
-      const live = new Map<string, { index: number; machine: Machine<object, string> }>();
-      for (const [index, machine] of machinesOf(ran).entries()) if (machine.lastPlayedIn !== null) live.set(machine.lastPlayedIn, { index, machine });
+      const live = liveSteps(ran);
       scenarios.push({ values, Scene: Bound, trace, palette: paletteOf(ran), ...(paper ? { paper } : {}), ...(live.size ? { live } : {}) });
     }
     if (undrawable.length)
