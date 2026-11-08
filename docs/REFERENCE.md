@@ -728,7 +728,7 @@ The collection's reviewer (`npm run demos:review`) reads each scene's `scene.rev
 | `--refresh` | all but `init` | Recapture every diagram |
 | `--scenario id=value` | `shots`, `see` | One scenario; repeat for several settings |
 | `--port <n>` | `preview` | Default 5174 |
-| `--watch` | `preview` | Rebuild the page when a `.ts`, `.mts`, `.js` or `.mjs` file beside the scene changes; reload the browser to see it. It does not react to `script.md`: rerun `preview` after editing the script |
+| `--watch` | `preview` | Rebuild the page when a `.ts`, `.mts`, `.js` or `.mjs` file beside the scene, or its `script.md`, changes; reload the browser to see it. One rebuild runs at a time: saves made while it runs start one more when it ends |
 | `--subjects <file>` | `review` | Read the [review subjects](#reader-review) from this file instead of `scene.review.json` |
 | `--machine` | `init` | Write the machine starter instead of the tutorial's explainer |
 
