@@ -297,13 +297,7 @@ export function oneStrokeEach(m: Mobject): Mobject {
   if (m instanceof VMobject) return split(m) ?? m;
   for (const child of [...m.children]) {
     const next = oneStrokeEach(child);
-    if (next !== child) {
-      const at = m.children.indexOf(child);
-      m.children.splice(at, 1, next);
-      next.parent = m;
-      child.parent = null;
-      m.invalidateBox();
-    }
+    if (next !== child) m.replaceChild(child, next);
   }
   return m;
 }

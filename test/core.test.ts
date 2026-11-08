@@ -286,3 +286,49 @@ test('a family stays a tree: add refuses the mobject itself or an ancestor, and 
   assert.equal(x.parent, null);
   assert.deepEqual(g1.children, []);
 });
+
+test('no public path makes the mobject tree a cycle, or lets a parent and its children disagree (invariant row 8)', () => {
+  // A deliberate defect first: the children are read-only, at runtime too, so a cast cannot push
+  // the ancestor in that b.children.push(a) once did without a check.
+  const a = new Group(), b = new Group();
+  a.add(b);
+  assert.throws(() => (b.children as Group[]).push(a), TypeError);
+  assert.throws(() => { (a as unknown as { parent: unknown }).parent = b; }, TypeError);
+  assert.deepEqual(b.children, []);
+  assert.throws(() => b.insert(0, a), /^Error: m\.insert\(\): a Group contains the mobject it is added to, so the family would be a cycle/);
+  assert.throws(() => b.insert(5, new Square()), /^RangeError: m\.insert\(\): the index is 5; give a whole number from 0 to 0/);
+  const s = new Square();
+  b.add(s);
+  assert.throws(() => b.replaceChild(s, a), /^Error: m\.replaceChild\(\): a Group contains the mobject it is added to/);
+  assert.throws(() => a.replaceChild(s, new Square()), /^Error: m\.replaceChild\(\): a Square is not a child of a Group; replace one of its children/);
+
+  // Every public way to change a family, in random order on a small pool, some refused: after each,
+  // the tree is acyclic, each child names its holder as parent, and each parent holds its child.
+  type Op = { kind: 'add' | 'insert' | 'remove' | 'replaceChild' | 'sceneReplace'; at: number; to: number; with: number[]; index: number };
+  const op: fc.Arbitrary<Op> = fc.record({
+    kind: fc.constantFrom('add' as const, 'insert' as const, 'remove' as const, 'replaceChild' as const, 'sceneReplace' as const),
+    at: fc.integer({ min: 0, max: 5 }), to: fc.integer({ min: 0, max: 5 }),
+    with: fc.array(fc.integer({ min: 0, max: 5 }), { maxLength: 3 }), index: fc.integer({ min: 0, max: 3 }),
+  });
+  fc.assert(fc.property(fc.array(op, { maxLength: 25 }), (ops) => {
+    const pool = [new Group(), new Group(), new Group(), new Square(), new Square().shift([2, 0]), new Group()];
+    const scene = new Scene(new NullSink()).add(pool[0]!);
+    for (const o of ops) {
+      const at = pool[o.at]!, to = pool[o.to]!, others = o.with.map((i) => pool[i]!);
+      try {
+        if (o.kind === 'add') at.add(to, ...others);
+        else if (o.kind === 'insert') at.insert(o.index, to, ...others);
+        else if (o.kind === 'remove') at.remove(to, ...others);
+        else if (o.kind === 'replaceChild') at.replaceChild(to, ...others);
+        else scene.replace(to, ...others);
+      } catch (e) { assert.match(String(e), /would be a cycle|is not a child|the index is|cannot be an ancestor/); }
+      for (const m of pool) {
+        const seen = new Set<unknown>();
+        for (let p: typeof m | null = m; p; p = p.parent) { assert.ok(!seen.has(p), 'no cycle through parents'); seen.add(p); }
+        assert.equal(new Set(m.family()).size, m.family().length, 'no member twice in a family');
+        for (const c of m.children) assert.equal(c.parent, m, 'a child names its holder');
+        if (m.parent) assert.ok(m.parent.children.includes(m), 'a parent holds its child');
+      }
+    }
+  }), params(500));
+});

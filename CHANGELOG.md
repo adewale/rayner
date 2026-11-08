@@ -288,6 +288,7 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
   - `LetteringSnapshot`, `PackedLetteringSnapshot`, `StoredLetteringSnapshot` and `Outcome` are no longer exported.
   - Run-time state with no author purpose is internal: `Mobject.saved` (`restore()` and `Restore` read it), `Frame.corners` (read `box()`), `Text.run`, `Animation.families`, `MoveAlongPath.offset`, `Succession.active` and `advance`, `TransformMatching.fadesIn` and `frames`, `DomSink.nodes`, `anchor` and `patch` (a `DomSink` with `realtime: false` draws every frame at once), `TraceSink.records` (read `steps()`) and `MotionSink.frames` and `labels` (hand the sink to `analyzeMotion`).
   - `analyzeMotion` names a leaf by its key, else its text, else its kind, inside the nearest keyed or lettered ancestor, never by the renderer's id.
+  - A mobject's `children` is a read-only list and its `parent` is read-only. `add`, the new `insert(index, ...mobs)` and `replaceChild(old, ...replacements)`, and `remove` are the ways to change a family; each keeps every child's `parent` and the cached box in step and refuses a cycle, which pushing into `children` could make. [Fundamentals](docs/ENGINE-FUNDAMENTALS.md#ownership-identity-and-copying)
   - `Scene.stopped` is gone: read `scene.phase === 'stopped'`. `Scene.endCurrentStep` is gone: pass `step()` a function of the step it closes. `restingFrame` and `restingTime` in `explain/trace.ts` are gone: read a step's `frame1`.
 
 ### Known limits

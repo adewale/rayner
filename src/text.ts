@@ -11,7 +11,7 @@
 // 10.0 -> 9.0 stays put at its left edge. Fonts are loaded by Scene.run();
 // outside a scene, await loadFonts() first.
 
-import { Mobject, Group, animateBuilderBase, followScene, paintDefaults } from './mobject.ts';
+import { Mobject, Group, animateBuilderBase, followScene } from './mobject.ts';
 import type { Style, PathFunc } from './mobject.ts';
 import type { Box, AnimateBuilder, AnimateBuilderBase } from './mobject.ts';
 import { VMobject } from './vmobject.ts';
@@ -150,17 +150,16 @@ export class Text extends Group {
     if (this.shaping?.realBold?.(this)) style = {...style, stroke: 'none', strokeWidth: 0};
     this.run = { width: run.width, ascent: run.ascent, descent: run.descent, fontSize };
     const scale = run.s ?? fontSize / 1000;
-    for (const c of this.children) c.parent = null;
-    this.children = [];
+    const glyphs: Glyph[] = [];
     for (const g of run.glyphs) {
       if (!g.path?.length) continue;
       const gl = new Glyph(g.path, g.s ?? scale, g.x + g.dx, g.dy, { ...style });
       if (defaults) gl.defaultColors = { ...defaults }; else delete gl.defaultColors;
-      if (this._colors) paintDefaults(gl, this._colors);
       gl.cluster = this.formula ? undefined : source(g.cluster);
-      gl.parent = this;
-      this.children.push(gl);
+      glyphs.push(gl);
     }
+    // The new glyphs take this text's scene colours as they join it (see Mobject.add).
+    this.remove(...this.children).add(...glyphs);
     // The advance box travels with the glyphs as a point array of its own, so
     // box()/left() are typographic extents (leading spaces count), not ink.
     this.frameBox = new Float32Array([0, -run.descent, run.width, run.ascent, 0, run.ascent, run.width, -run.descent]);
@@ -468,7 +467,7 @@ export class CodeSpan extends Group {
     super();
     this.owner = owner; this.line = line; this.from = from; this.to = to;
     this.lineText = owner.text;
-    this.children = owner.children.filter((g) => g instanceof Glyph && g.cluster != null && g.cluster >= from && g.cluster < to);
+    this.borrow(owner.children.filter((g) => g instanceof Glyph && g.cluster != null && g.cluster >= from && g.cluster < to));
   }
 
   /** The source text the span covers. */

@@ -160,10 +160,8 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
   swap(next: M): void {
     const old = this.current;
     if (old === next) return;
-    if (old) old.parent = null;
-    this.children = [next];
-    next.parent = this;
-    this.invalidateBox();
+    this.remove(...this.children);
+    this.add(next);
   }
 }
 

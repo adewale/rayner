@@ -622,20 +622,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     const covered = new Set(replacements.flatMap((m) => m.family()));
     this.mobjects = this.mobjects.filter((m) => m === old || !covered.has(m));
     if (parent && !this.mobjects.includes(old)) {
-      // Work from the original neighbours. Detaching an earlier sibling
-      // changes indices, and retaining old among the replacements must keep
-      // its backlink rather than detach it after insertion.
-      const original = [...parent.children], at = original.indexOf(old);
-      for (const r of replacements) {
-        const other = r.parent !== parent ? r.parent : null;
-        other?.remove(r);
-        r.parent = parent;
-      }
-      const before = original.slice(0, at).filter((m) => !covered.has(m));
-      const after = original.slice(at + 1).filter((m) => !covered.has(m));
-      parent.children = [...before, ...replacements, ...after];
-      if (!covered.has(old)) old.parent = null;
-      parent.invalidateBox();
+      parent.replaceChild(old, ...replacements);
       return this;
     }
     const i = this.mobjects.indexOf(old);

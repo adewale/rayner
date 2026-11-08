@@ -111,13 +111,17 @@ which `Code` sets. A `DecimalNumber` shows `value` with `decimals` places betwee
 
 ## Ownership, identity and copying
 
-`group.add(child)` moves the child into that group, detaching it from its old
-parent. A mobject's `parent` is the group it is in, or null, and `family()` is the
-mobject and every descendant, depth first. A scene admits one root per subtree, so admitting a parent never paints a
+`group.add(child)` moves the child into that group, last on top, detaching it from its old
+parent; `group.insert(index, child)` puts it at `index` instead (`0` draws it under the rest),
+and `group.replaceChild(old, ...replacements)` puts replacements where `old` stands. A
+mobject's `children` and `parent` are read-only, so these methods and `group.remove(child)`
+are the only ways to change a family, and each keeps every child's `parent` and the cached
+box in step. `family()` is the mobject and every descendant, depth first. A scene admits one root per subtree, so admitting a parent never paints a
 child twice. `Scene.add`, `remove`, `replace`, `bringToFront` and `bringToBack`
-control membership and draw order. The structure is a tree: `add` refuses the mobject itself
-or one of its ancestors, which would make a cycle, and `group.remove(child)` takes out only
-the group's own children, leaving a mobject in another group where it is. `scene.familyMembers()` lists every mobject on the stage and
+control membership and draw order. The structure is a tree: `add`, `insert` and
+`replaceChild` refuse the mobject itself or one of its ancestors, which would make a cycle,
+and `group.remove(child)` takes out only the group's own children, leaving a mobject in
+another group where it is. `scene.familyMembers()` lists every mobject on the stage and
 each of its descendants, root by root, for a test or a check that looks for a part.
 `sameShapeAs(other, points?)` says whether two families have the same shape, every
 member of one class with as many children, and with `points` the same point counts:

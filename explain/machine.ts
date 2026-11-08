@@ -338,7 +338,7 @@ class Landing extends Animation {
       // Kept parts in the drawn order, then the whole picture takes the drawing: the parts keep
       // their identities, and the root takes its own fields too (a card's lit row, a code
       // panel's focus, what it says it emphasises), not just its children's.
-      current.children = drawn.children.map((d) => byKey.get(d.key)!);
+      current.add(...drawn.children.map((d) => byKey.get(d.key)!));
       current.invalidateBox();
       if (current.sameShapeAs(drawn)) current.become(drawn);
       else { for (const d of drawn.children) byKey.get(d.key)!.become(d); current.invalidateBox(); }

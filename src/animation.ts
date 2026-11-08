@@ -1413,11 +1413,7 @@ function frameOf(m: Mobject, root: Mobject): Mobject {
 }
 
 /** A copy of `m` without its children: matching moves parts one by one. */
-function bare<M extends Mobject>(m: M): M {
-  const kids = m.children;
-  m.children = [];
-  try { return m.copy(); } finally { m.children = kids; }
-}
+function bare<M extends Mobject>(m: M): M { return m.copyAlone(); }
 
 /** Box of a mobject's own points (not its children's), or null. */
 function ownBox(m: Mobject): Box | null { return pointsBox(m.boundingPointArrays()); }
