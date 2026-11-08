@@ -53,7 +53,11 @@ which its constructor calls.
 
 A path is `subpaths`, one `Float32Array` of cubic Bézier points per subpath (its
 start, then three points per curve), with `closed` saying which are closed; read
-them, and change them with the methods above. `hasPoints()` says whether a mobject
+them, and change them with the methods above. Each of those methods ends a write to the
+arrays in place by bumping the points' version, which the renderer's path-data cache
+keys on, so a write that goes round them would draw the old path;
+`test/path-cache.test.ts` writes through every one and compares the cached path with
+one computed afresh. `hasPoints()` says whether a mobject
 has points of its own, as a Group does not. To walk a path: `numCurves(i?)` counts
 the curves of subpath `i` or of the whole path, `pointOnCurve(i, c, t)` is the point
 at parameter `t` on curve `c`, `curveLength(i, c)` and `arcLength()` measure a curve
