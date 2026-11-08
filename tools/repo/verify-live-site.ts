@@ -6,6 +6,7 @@ import {readFile, readdir, realpath, lstat, mkdir, rm, writeFile} from 'node:fs/
 import {dirname, extname, join, relative, resolve, sep} from 'node:path';
 import {parseArgs} from 'node:util';
 import { byCodeUnit, posixPath, sha256 } from '../lib/hash.ts';
+import { isIdentifier } from '../../explain/settings.ts';
 
 type FilePin = {path: string; sha256: string; bytes: number};
 const mediaTypes: Record<string, string[]> = {
@@ -108,7 +109,7 @@ async function main() {
   assert.ok(catalog.version === 2 && Array.isArray(catalog.scenes) && catalog.scenes.length, 'invalid catalog');
   const ids = new Set<string>();
   for (const scene of catalog.scenes) {
-    assert.match(scene.id, /^[a-z0-9-]+$/, 'invalid catalog id');
+    assert.ok(isIdentifier('id', scene.id), 'invalid catalog id');
     assert.ok(!ids.has(scene.id) && Number.isSafeInteger(scene.scenarios) && scene.scenarios > 0, 'duplicate catalog id or invalid scenario count');
     assert.ok(pins.has(`${prefix}/${scene.id}.html`), `missing reviewed reader: ${scene.id}`);
     ids.add(scene.id);
