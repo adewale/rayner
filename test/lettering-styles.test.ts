@@ -2,6 +2,7 @@
 // face's Bold cut instead of a stroked Regular, ItalicText draws the Italic cut, and both are
 // shaped at build time into the outline snapshot like any other requested lettering. A scene
 // that asks for neither keeps the faux bold, byte for byte (test/lettering-outlines.test.ts).
+import { sfntBase64 } from '../tools/lib/woff2.ts';
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, writeFile, rm, copyFile } from 'node:fs/promises';
@@ -105,8 +106,10 @@ test('the styles fixture passes check, and its page carries only the cuts it dec
   // The bold counter shapes in the Bold cut at runtime, so the page needs that subset, and so
   // does the bold "const x = 1;", a numeric template; nothing shapes in the italic cut there,
   // so its outlines are in the runs and its subset stays out.
-  assert.ok(html.includes(s.faces['inter/bold']!.data.slice(0, 200)));
-  assert.ok(!html.includes(s.faces['inter/italic']!.data.slice(0, 200)));
+  // The page carries its subsets as SFNT (tools/lib/woff2.ts), not as the committed WOFF2.
+  assert.ok(html.includes(sfntBase64(s.faces['inter/bold']!.data).slice(0, 200)));
+  assert.ok(!html.includes(s.faces['inter/bold']!.data.slice(0, 200)));
+  assert.ok(!html.includes(sfntBase64(s.faces['inter/italic']!.data).slice(0, 200)));
   assert.deepEqual(Object.keys((await pageSnapshot(s)).faces), ['inter/bold', 'jetbrains-mono/bold', 'noto-naskh-arabic/bold']);
   // Each distinct licence once: Inter, JetBrains Mono and Noto are three notices for six faces
   assert.equal(letteringLicences(s).length, 3);

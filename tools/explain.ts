@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { realpathSync, existsSync } from 'node:fs';
+import { realpathSync, existsSync, watch } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -173,30 +173,50 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     console.log(
       `Preview ${url}/ (Ctrl-C to stop; ${flags.watch ? 'rebuilds on save' : 'rerun after edits, or pass --watch'})`,
     );
-    if (flags.watch) {
-      // Rebuild when anything beside the scene changes; keep serving the last good build on error.
-      const { watch } = await import('node:fs');
-      let timer: ReturnType<typeof setTimeout> | undefined,
-        running = Promise.resolve();
-      watch(dirname(project.file), { recursive: true }, (_, name) => {
-        // Source edits only: the rebuild's own outputs (page, sheet, snapshots) must not retrigger it.
-        if (!name || !/\.(ts|mts|js|mjs)$/.test(name) || /\.snapshots(\/|\.json$)/.test(name)) return;
-        if (resolve(dirname(project.file), name) === resolve(out)) return;
-        clearTimeout(timer);
-        timer = setTimeout(() => {
-          running = running.then(async () => {
-            try {
-              const next = await collectProject(input!, collection);
-              await buildExplainer(next, out);
-              console.log(`Rebuilt ${slug}: ${next.scenarios.length} scenarios`);
-            } catch (error) {
-              console.error(`rayner: ${(error as Error).message} (still serving the last good build)`);
-            }
-          });
-        }, 200);
+    if (flags.watch)
+      watchAndRebuild(dirname(project.file), out, async () => {
+        const next = await collectProject(input, collection);
+        await buildExplainer(next, out);
+        return `Rebuilt ${slug}: ${next.scenarios.length} scenarios`;
       });
-    }
   }
+}
+/**
+ * `preview --watch`: rebuild the page when a source file beside the scene or its script.md changes,
+ * and keep serving the last good build on error. One rebuild runs at a time; saves made while it
+ * runs mark it dirty, and it runs once more when it ends, however many saves there were.
+ */
+export function watchAndRebuild(folder: string, out: string, rebuild: () => Promise<string>) {
+  let phase: 'idle' | 'building' | 'dirty' = 'idle',
+    loop: Promise<void> = Promise.resolve(),
+    timer: ReturnType<typeof setTimeout> | undefined;
+  /** Start a rebuild, or mark the one running dirty; resolves when the page is current. */
+  const run = (): Promise<void> => {
+    if (phase !== 'idle') {
+      phase = 'dirty';
+      return loop;
+    }
+    loop = (async () => {
+      do {
+        phase = 'building';
+        try {
+          console.log(await rebuild());
+        } catch (error) {
+          console.error(`rayner: ${(error as Error).message} (still serving the last good build)`);
+        }
+      } while ((phase as string) === 'dirty');
+      phase = 'idle';
+    })();
+    return loop;
+  };
+  const watcher = watch(folder, { recursive: true }, (_, name) => {
+    // Sources and the script only: the rebuild's own outputs (page, sheet, snapshots) must not retrigger it.
+    if (!name || !(/\.(ts|mts|js|mjs)$/.test(name) || basename(name) === 'script.md') || /\.snapshots(\/|\.json$)/.test(name)) return;
+    if (resolve(folder, name) === resolve(out)) return;
+    clearTimeout(timer);
+    timer = setTimeout(run, 200);
+  });
+  return { watcher, run };
 }
 /** Run the command line, reporting a failure on stderr with exit code 1 (tools/installed.ts runs it in the installed command). */
 export const run = (): Promise<void> =>

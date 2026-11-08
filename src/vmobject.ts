@@ -429,7 +429,23 @@ function distributeCurves(lengths: readonly number[], n: number): number[] {
   return counts;
 }
 
-/** Integer-to-string is far cheaper than float-to-string (no shortest-digits search). */
+/**
+ * Whether the cubic from the point at `o - 2` through the controls at `o` and `o + 2` to `o + 4` is
+ * a straight segment drawn at even speed: each control within one unit (10^-3) of its third of the
+ * chord, as a line's controls are once all four points are rounded. Such a cubic is written `L`.
+ */
+function straight(ints: Int32Array, o: number): boolean {
+  for (let axis = 0; axis < 2; axis++) {
+    const a = ints[o - 2 + axis]!, b = ints[o + 4 + axis]!;
+    if (Math.abs(3 * ints[o + axis]! - 2 * a - b) > 3 || Math.abs(3 * ints[o + 2 + axis]! - a - 2 * b) > 3) return false;
+  }
+  return true;
+}
+
+/**
+ * Integer-to-string is far cheaper than float-to-string (no shortest-digits search). Straight
+ * segments (most of a picture's panels, rules, arrows and boxes) are written as `L`, the rest `C`.
+ */
 function formatInts(ints: Int32Array, lens: Int32Array, closed: readonly boolean[]): string {
   let d = '', r = 0;
   for (let i = 0; i < lens.length; i++) {
@@ -438,7 +454,9 @@ function formatInts(ints: Int32Array, lens: Int32Array, closed: readonly boolean
     d += 'M' + ints[r] + ' ' + ints[r + 1];
     for (let j = 2; j + 5 < n; j += 6) {
       const o = r + j;
-      d += 'C' + ints[o] + ' ' + ints[o + 1] + ' ' + ints[o + 2] + ' ' + ints[o + 3] + ' ' + ints[o + 4] + ' ' + ints[o + 5];
+      d += straight(ints, o)
+        ? 'L' + ints[o + 4] + ' ' + ints[o + 5]
+        : 'C' + ints[o] + ' ' + ints[o + 1] + ' ' + ints[o + 2] + ' ' + ints[o + 3] + ' ' + ints[o + 4] + ' ' + ints[o + 5];
     }
     if (closed[i]) d += 'Z';
     r += n;

@@ -133,7 +133,7 @@ const watch = async (body: (s: Scene) => Promise<void>): Promise<{ sink: MotionS
 };
 
 /** The outline's sampled alpha, frame by frame (0 where it was not drawn). */
-const alphas = (sink: MotionSink, m: Mobject): number[] => sink.frames.map((f) => f.leaves.get(m.id)?.a ?? 0);
+const alphas = (sink: MotionSink, m: Mobject): number[] => Array.from({ length: sink.frames.length }, (_, f) => sink.frames.leaves(f).get(m.id)?.a ?? 0);
 
 test('Create draws braces and brace labels in without jumps', async () => {
   const { events } = await watch(async (s) => {

@@ -169,3 +169,58 @@ test('lettering errors name the rayner capture command', async () => {
     assert.doesNotMatch(result.stderr, /run explain snapshots/);
   } finally { await rm(folder, { recursive: true, force: true }); }
 });
+
+test('two diagram resolutions in flight start one builder of each kind, and close closes every one that started', async () => {
+  const { diagramBuilders } = await import('../tools/lib/explain-project.ts');
+  const builders = diagramBuilders<{ close(): Promise<void> }>();
+  let started = 0, closed = 0, release!: () => void;
+  const gate = new Promise<void>((r) => (release = r));
+  const start = async () => { started++; await gate; return { close: async () => { closed++; } }; };
+  const both = Promise.all([builders.get(false, start), builders.get(false, start), builders.get(true, start), builders.get(true, start)]);
+  release();
+  const [a, b, c, d] = await both;
+  assert.equal(started, 2, 'one start per kind, however many resolutions wait for it');
+  assert.ok(a === b && c === d && a !== c);
+  await builders.close();
+  assert.equal(closed, 2);
+  // A builder that failed to start is left to the resolution that asked for it; the others still close.
+  const failing = diagramBuilders<{ close(): Promise<void> }>();
+  await assert.rejects(failing.get(true, async () => { throw new Error('no browser'); }), /no browser/);
+  await failing.get(false, start);
+  await failing.close();
+  assert.equal(closed, 3);
+});
+
+test('preview --watch rebuilds at most once more for saves made during a rebuild, and on script.md', async () => {
+  const { watchAndRebuild } = await import('../tools/explain.ts');
+  const folder = await mkdtemp(join(tmpdir(), 'rayner-watch-'));
+  const log = console.log;
+  console.log = () => {};
+  let builds = 0, release!: () => void, built!: () => void;
+  let gate = new Promise<void>((r) => (release = r));
+  const watching = watchAndRebuild(folder, join(folder, 'page.html'), async () => {
+    builds++;
+    built?.();
+    await gate;
+    return 'Rebuilt';
+  });
+  try {
+    const first = watching.run();
+    // Five saves while the first rebuild runs: one more rebuild, not five.
+    for (let i = 0; i < 5; i++) void watching.run();
+    release();
+    await first;
+    assert.equal(builds, 2);
+    // An edit to the script rebuilds, as an edit to the scene does; the built page does not.
+    gate = Promise.resolve();
+    const rebuilt = new Promise<void>((r) => (built = r));
+    await writeFile(join(folder, 'page.html'), 'output');
+    await writeFile(join(folder, 'script.md'), '# Why?\n');
+    await Promise.race([rebuilt, new Promise((_, no) => setTimeout(() => no(new Error('script.md did not rebuild')), 5000))]);
+    assert.equal(builds, 3);
+  } finally {
+    watching.watcher.close();
+    console.log = log;
+    await rm(folder, { recursive: true, force: true });
+  }
+});

@@ -95,3 +95,29 @@ const seeded: Array<[string, (s: Scene) => Promise<void>, string[]]> = [
   }, ['handoff']],
 ];
 for (const [name, body, kinds] of seeded) test(`flags it: ${name}`, async () => assert.deepEqual(await run(body), kinds));
+
+test('MotionSink keeps one sample per drawn leaf and frame in columns, and analyses them as sampled', async () => {
+  const sink = new MotionSink();
+  const s = new Scene(sink, { fps: 30 });
+  let shapes = 0;
+  s.construct = async function (this: Scene) {
+    const many = Array.from({ length: 40 }, (_, i) => new Rectangle({ width: 0.2, height: 0.2 }).shift([i * 0.3 - 6, 0]));
+    shapes = many.length;
+    this.add(...many);
+    await this.wait(1);
+    many[3]!.shift([4, 0]);                             // no animation: a teleport on the next frame
+    await this.wait(0.2);
+  };
+  await s.run();
+  const F = sink.frames;
+  // Columns, not an object per leaf: 40 samples a frame, each a few numbers.
+  // The scene's first frame is drawn before construct adds anything; every later one holds the 40.
+  const counts = Array.from({ length: F.length }, (_, f) => F.leaves(f).size);
+  assert.deepEqual(counts, [0, ...Array(F.length - 1).fill(shapes)]);
+  assert.equal(F.size, shapes * (F.length - 1));
+  assert.ok(F.box instanceof Float64Array && F.alpha instanceof Float64Array && F.id instanceof Int32Array);
+  const events = analyzeMotion(sink);
+  assert.deepEqual(events.map((e) => e.kind), ['teleport']);
+  assert.equal(events[0]!.what, 'a Rectangle');
+  assert.ok(Math.abs(events[0]!.t - 1) < 0.05, `the teleport is when the shape moved, not at ${events[0]!.t}`);
+});

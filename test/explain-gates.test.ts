@@ -102,6 +102,18 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
     message: /The bare runtime \(no DOM, no Node\) disagrees with the trace/,
   },
   {
+    // Same steps and state; only the time the second step ends differs.
+    gate: 'bare runtime: a step that lasts longer outside Node',
+    source: scene(`await this.step('one');${label('hello')}await this.step('two');${label('world', '[0,-2]')}await this.wait(typeof process==='object'?1:2);`),
+    message: /The bare runtime \(no DOM, no Node\) disagrees with the trace/,
+  },
+  {
+    // Same trace; only the last frame's words differ.
+    gate: 'bare runtime: a last frame drawn differently outside Node',
+    source: scene(`await this.step('one');${label('hello')}await this.step('two');await s.enter(new Text(typeof process==='object'?'node':'bare',{fontSize:.4}).moveTo([0,-2]),{describe:'where it runs'});`),
+    message: /The bare runtime \(no DOM, no Node\) disagrees with the trace .*: its last frame draws differently/,
+  },
+  {
     gate: 'motion: a text removed without an animation',
     source: scene(`await this.step('one');const t=new Text('hello',{fontSize:.4});await s.enter(t,{describe:'hello'});await this.step('two');this.remove(t);${label('bye', '[0,-2]')}`),
     message: /Motion failures .*cut-out/,

@@ -216,7 +216,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - A lettering snapshot is recaptured when it lacks a drawn run, or when its format or capture tool (shaper, requirements, vendored shapers, fallback fonts) changes.
 - `test/snapshot-capture.test.ts` captures every committed snapshot afresh in CI and fails on any difference.
 - `scene.snapshots/index.json` drops `sourceHash` and `importer`.
-- The outline workflow's `scene.lettering.json` is version 2, without `sourceHash` or `payloadHash`; the subset workflow's is still version 1.
+- The outline workflow's `scene.lettering.json` is version 3, without `sourceHash` or `payloadHash`, and stores each outline as path data (`"M0.5-0.25L…Z"`) where version 2 stored segment objects: committed snapshots are about 45% smaller, and font-metrics' page 12 KB smaller gzipped. The subset workflow's is still version 1.
 - `inputs.json` beside a built page is version 3, without `engineHash` or `importer`, which its `buildHash` already covers.
 - `npm run bench` compares reader timings between two revisions in Chromium and reports a small sample as inconclusive.
 - The engine works without the page: [engine fundamentals](docs/ENGINE-FUNDAMENTALS.md), the runnable [extension recipes](docs/EXTENDING.md) and [scene outputs](docs/SCENE-OUTPUTS.md) cover frames, text and traces from native scenes.
@@ -225,6 +225,14 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - Rayner is two packages: `rayner`, the vocabulary and runtime, with no dependencies, and `rayner-cli`, the `rayner` command, at the same version. Install both. [Quick start](README.md#quick-start)
 - `rayner-cli` holds the player, diagram capture and lettering capture (its Python, requirements, font script and maths typesetter); `rayner` keeps only what replays their snapshots.
 - A release publishes and retains both archives; `npm run pack:smoke` installs both, and `rayner` alone, and type-checks every explainer and recipe against the packed declarations. [Releasing](docs/RELEASING.md)
+- Every `rayner` command starts without loading the TypeScript compiler, which only the build fingerprint uses: `rayner version` takes about 0.3 s and 105 MB, where it took 0.7 s and 165 MB.
+- `rayner check` keeps each scenario's motion samples in columns of numbers: seasons' check peaks near 470 MB, where it peaked near 800 MB, with the same motion findings.
+- `rayner preview --watch` rebuilds when `script.md` changes too, and runs one rebuild at a time: saves made during a rebuild start one more when it ends, not one each.
+- Diagram capture starts one Chromium per kind of diagram lettering however many diagrams wait for it, and closes each.
+- A page whose scenarios show no diagram carries no diagram code, and every page's style is minified: lru-mru's page is 203 KB gzipped, where it was 216 KB. [What a page leaves out](docs/ENGINE.md#what-a-page-leaves-out)
+- The SVG writer writes a straight segment as `L`, where it wrote a cubic, in the poster and on the live stage alike: font-metrics' page is 16 KB smaller gzipped, lru-mru's 2.6 KB.
+- No page ships the shaper's Brotli decoder: every page uses the SFNT faces, and the build converts a lettered page's WOFF2 cuts and subsets to SFNT. feature-tour's page is 259 KB gzipped, where it was 319 KB; font-metrics' 316 KB, where it was 390 KB. [Embedded browser fonts](docs/ENGINE.md#embedded-browser-fonts)
+- `rayner check`'s bare runtime bundles the scene once per explainer, as the page bundles it (its SFNT faces and its diagram code), runs each scenario in a fresh context, and fails a trace whose steps differ in time, hold, state or what they show, or a last frame drawn differently; it compared only step names, the final state and that something was drawn.
 
 ### Removed from the public API
 

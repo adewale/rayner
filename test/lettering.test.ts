@@ -11,7 +11,7 @@ import { collectProject, defaultScenario, ROOT, loadScene } from '../tools/lib/e
 import type { Project } from '../tools/lib/explain-project.ts';
 import { buildExplainer } from '../tools/lib/explain-build.ts';
 import { checkProject } from '../tools/lib/explain-check.ts';
-import { SCRIPTS, letteringRequest, useProjectLettering } from '../tools/lib/explain-lettering.ts';
+import { SCRIPTS, letteringRequest, pageFaces, useProjectLettering } from '../tools/lib/explain-lettering.ts';
 import type { LetteringFace } from '../tools/lib/explain-lettering.ts';
 import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
 import { shaperFor } from '../src/index.ts';
@@ -129,7 +129,8 @@ test('a lettered page embeds only the requested faces, cut to the letters it dra
   for (const family of ['sans', 'mono'] as const) {
     const face: LetteringFace = project.lettering!.faces[family]!;
     assert.equal(face.woff2, pinned.faces[family].woff2, `${family}: the pinned cut`);
-    assert.ok(html.includes(face.woff2), `${family}: the page carries the cut`);
+    assert.ok(html.includes(pageFaces(project.lettering)![family]!), `${family}: the page carries the cut, as SFNT`);
+    assert.ok(!html.includes(face.woff2), `${family}: and not its WOFF2`);
     assert.ok(!html.includes(sources[family]), `${family}: and not the whole source face`);
     // Every character the cut maps, read from its own cmap
     const font = await loadFont(Buffer.from(face.woff2, 'base64'));
@@ -145,11 +146,11 @@ test('a lettered page embeds only the requested faces, cut to the letters it dra
   assert.deepEqual(report.scripts, ['Grek']);
   assert.equal(report.faces.sans!.characters, EXPECTED.sans.length);
   assert.equal(report.faces.mono!.characters, EXPECTED.mono.length);
-  assert.equal(
-    report.pageBytes,
-    project.lettering!.faces.sans!.woff2.length + project.lettering!.faces.mono!.woff2.length,
-  );
-  assert.ok(report.pageBytes < 12_000, `${report.pageBytes} bytes for two dozen letters`);
+  // The page carries the cuts as SFNT, base64, which its shaper reads without a Brotli decoder.
+  const faces = pageFaces(project.lettering)!;
+  assert.equal(report.pageBytes, faces.sans!.length + faces.mono!.length);
+  for (const data of [faces.sans!, faces.mono!]) assert.notEqual(Buffer.from(data, 'base64').toString('latin1', 0, 4), 'wOF2');
+  assert.ok(report.pageBytes < 16_000, `${report.pageBytes} bytes for two dozen letters`);
 });
 
 test('a lettered explainer draws its Greek as outlines, and without its faces the same Greek is missing', async () => {

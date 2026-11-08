@@ -266,10 +266,7 @@ export async function collectProject(
   const base = file.replace(/\.[^.]+$/, '');
   const previous: SnapshotStore = refresh ? {} : await readSnapshots(base);
   // Lazy: native scenes never require Agentic Mermaid or Chromium.
-  let builder:
-    | Awaited<ReturnType<typeof import('../../integrations/agentic-mermaid/build/index.ts').snapshotBuilder>>
-    | undefined;
-  let naturalBuilder: typeof builder;
+  const builders = diagramBuilders<Awaited<ReturnType<typeof import('../../integrations/agentic-mermaid/build/index.ts').snapshotBuilder>>>();
   const store: SnapshotStore = {};
   let edits = 0;
   const warned = new Set<string>();
@@ -300,13 +297,10 @@ export async function collectProject(
         store[key] = previous[key];
         return inspect(previous[key]);
       }
-      let active = spec.lettering === 'natural' ? naturalBuilder : builder;
-      if (!active) {
+      const active = await builders.get(spec.lettering === 'natural', async () => {
         const { snapshotBuilder } = await import('../../integrations/agentic-mermaid/build/index.ts');
-        active = await snapshotBuilder(previous, metricOptions);
-        if (spec.lettering === 'natural') naturalBuilder = active;
-        else builder = active;
-      }
+        return snapshotBuilder(previous, metricOptions);
+      });
       const result = await active.diagram(spec);
       store[key] = result;
       return inspect(result);
@@ -401,9 +395,28 @@ export async function collectProject(
     if (write) await writeSnapshots(base, store);
     return { ...loaded, Scene: Source, store, scenarios, edits, ...(lettering ? { lettering } : {}), ...(outline ? { outlineLettering: outline.snapshot } : {}), ...(intent ? { intent } : {}) };
   } finally {
-    await builder?.close();
-    await naturalBuilder?.close();
+    await builders.close();
   }
+}
+/**
+ * A project's two diagram builders (natural lettering or not), each started once, on the first
+ * resolution that needs it: a second resolution in flight waits for the same start instead of
+ * launching another browser. `close()` closes every builder that started, after waiting for any
+ * still starting.
+ */
+export function diagramBuilders<B extends { close(): Promise<void> }>() {
+  const started = new Map<boolean, Promise<B>>();
+  return {
+    get(natural: boolean, start: () => Promise<B>): Promise<B> {
+      let builder = started.get(natural);
+      if (!builder) started.set(natural, (builder = start()));
+      return builder;
+    },
+    async close(): Promise<void> {
+      // A builder that failed to start has nothing to close; its failure is the resolution's to report.
+      await Promise.all([...started.values()].map((builder) => builder.then((b) => b.close(), () => undefined)));
+    },
+  };
 }
 /** The default scenario, or the scenario these values choose with every other setting at its default, as a URL does. */
 export function defaultScenario(project: Project, values: Settings = {}) {

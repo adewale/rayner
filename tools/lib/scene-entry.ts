@@ -5,7 +5,6 @@
 import { join } from 'node:path';
 import type { Project } from './explain-project.ts';
 import type { ShippedScenario } from '../../app/embed.ts';
-import type { Settings } from '../../explain/settings.ts';
 import type { LetteringSnapshot, PackedLetteringSnapshot } from '../../src/lettering-outlines.ts';
 import type { SnapshotStore } from '../../integrations/agentic-mermaid/snapshot.ts';
 import { pageSnapshot } from './lettering.ts';
@@ -26,10 +25,13 @@ export interface PageEntry {
   /** The default scenario as the build traced it (shippedScenario), so the page shows it without running it first. */
   shipped: ShippedScenario;
 }
-/** The bare runtime: exports run(), which plays one scenario to its end and returns its steps, state and last frame. */
+/**
+ * The bare runtime: exports run(values), which plays the scenario those settings choose to its end,
+ * as the trace does (skipping), and returns its trace and its last frame as SVG. One bundle serves
+ * every scenario.
+ */
 export interface BareEntry {
   target: 'bare';
-  values: Settings;
 }
 
 const shippedLettering = new WeakMap<LetteringSnapshot, Promise<PackedLetteringSnapshot>>();
@@ -39,6 +41,14 @@ export function shippedStore(store: SnapshotStore): SnapshotStore {
   let out = shippedSnapshots.get(store);
   if (!out) shippedSnapshots.set(store, (out = pageSnapshots(store)));
   return out;
+}
+
+/** The outline lettering a page ships (pageSnapshot), computed once per snapshot. */
+function shippedOutlines(project: Project): Promise<PackedLetteringSnapshot> | undefined {
+  if (!project.outlineLettering) return undefined;
+  let outline = shippedLettering.get(project.outlineLettering);
+  if (!outline) shippedLettering.set(project.outlineLettering, (outline = pageSnapshot(project.outlineLettering)));
+  return outline;
 }
 
 /**
@@ -75,11 +85,7 @@ export function shippedScenario(project: Project, scenario: Project['scenarios']
  */
 export async function sceneEntry(project: Project, entry: PageEntry | BareEntry): Promise<string> {
   const lib = (path: string) => JSON.stringify(join(LIB_ROOT, path));
-  let outline: Promise<PackedLetteringSnapshot> | undefined;
-  if (project.outlineLettering) {
-    outline = shippedLettering.get(project.outlineLettering);
-    if (!outline) shippedLettering.set(project.outlineLettering, (outline = pageSnapshot(project.outlineLettering)));
-  }
+  const outline = shippedOutlines(project);
   const author = entry.target === 'page'
     ? `import Original from 'virtual:author';`
     : `import * as authored from ${JSON.stringify(project.file)};const Original=authored[${JSON.stringify(project.exportName)}];`;
@@ -93,5 +99,5 @@ export async function sceneEntry(project: Project, entry: PageEntry | BareEntry)
   const source = author + letteringImport + adopted + bound;
   if (entry.target === 'page')
     return `${source}import{mountEmbed}from ${JSON.stringify(join(ROOT, 'app/embed.ts'))};${entry.imports}const root=document.getElementById('content');(async()=>{${ready}await mountEmbed(root,Source,${entry.snapshots},{${entry.audio ? 'audio:mountAudio,' : ''}shipped:${JSON.stringify(entry.shipped)}});root.dataset.ready='true'})().catch(error=>{console.error(error);const p=document.createElement('p');p.setAttribute('role','alert');p.textContent=${JSON.stringify(entry.failed)};root.append(p)});`;
-  return `${source}import{bindSnapshots,withSettings}from ${lib('explain/settings.ts')};import{NullSink,toSvgString}from ${lib('src/output.ts')};export async function run(){${ready}const C=withSettings(bindSnapshots(Source,${JSON.stringify(shippedStore(project.store))}),${JSON.stringify(entry.values)});const s=await new C(new NullSink(),{skipUntil:Infinity}).run();return{steps:s.steps.map(s=>s.name),state:s.stateJson(),svg:toSvgString(s)}}`;
+  return `${source}import{bindSnapshots,withSettings}from ${lib('explain/settings.ts')};import{toSvgString}from ${lib('src/output.ts')};import{traceRun}from ${lib('src/trace.ts')};const Bound=bindSnapshots(Source,${JSON.stringify(shippedStore(project.store))});export async function run(values){${ready}const{trace,scene}=await traceRun(withSettings(Bound,values));return{trace,svg:toSvgString(scene)}}`;
 }

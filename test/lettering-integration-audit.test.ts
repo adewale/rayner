@@ -71,7 +71,7 @@ const digest = (value: string) => createHash('sha256').update(value).digest('hex
 type SchemaFont = 'math' | `${'sans' | 'mono'}${'' | '/bold' | '/italic' | '/bold-italic'}`;
 function schemaSnapshot(text: string, font: SchemaFont, run: Run, display = false): LetteringSnapshot {
   const snapshot: LetteringSnapshot = {
-    version: 2, builderHash: digest('schema builder'),
+    version: 3, builderHash: digest('schema builder'),
     request: {}, runs: { [JSON.stringify([font, text, display])]: run }, faces: {}, shaper: 'schema contract',
   };
   return snapshot;

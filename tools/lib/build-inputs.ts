@@ -1,6 +1,5 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
-import ts from 'typescript';
 import { COMPILED, LIB_ROOT, ROOT } from './roots.ts';
 import { listTree, relativePosix, sha256 } from './hash.ts';
 
@@ -28,6 +27,9 @@ export async function buildInputs(root: string, library = resolve(root) === reso
     await scan(root, '', ['package.json', 'LICENSE'], ['app', 'integrations', 'vendor', ...(compiled ? ['dist/tools'] : [])]);
     await scan(library, 'rayner/', ['package.json', 'LICENSE'], [...runtime, ...built]);
   }
+  // Loaded here, not at the top: every command imports this module, and only the checkout's
+  // fingerprint parses imports, so the compiler (0.4 s and 60 MB to load) stays out of the rest.
+  const { default: ts } = await import('typescript');
   const visited = new Set<string>();
   const visit = async (file: string): Promise<void> => {
     if (visited.has(file)) return;
@@ -40,7 +42,7 @@ export async function buildInputs(root: string, library = resolve(root) === reso
     add(root, '', file);
     const imports: string[] = [];
     const ast = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
-    const walk = (node: ts.Node) => {
+    const walk = (node: import('typescript').Node) => {
       if (ts.isImportDeclaration(node) && !node.importClause?.isTypeOnly && ts.isStringLiteral(node.moduleSpecifier)) {
         const clause = node.importClause;
         const bindings = clause?.namedBindings;

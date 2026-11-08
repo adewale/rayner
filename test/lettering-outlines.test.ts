@@ -143,3 +143,25 @@ test('requested pages run offline in Chromium without errors or network requests
     }
   } finally { await browser.close(); await rm(dir, { recursive: true, force: true }); }
 });
+
+test('a snapshot stores each outline as path data that reads back to the same segments', async () => {
+  const { outlinePath, outlineSegments, packLettering } = await import('../src/lettering-outlines.ts');
+  const { fc, params } = await import('./lib/pbt.ts');
+  const n = fc.double({ noNaN: true, noDefaultInfinity: true, min: -1e6, max: 1e6 }).map((x) => (Object.is(x, -0) ? 0 : x));
+  const segment = fc.oneof(
+    fc.record({ tag: fc.constantFrom('MoveTo' as const, 'LineTo' as const), x: n, y: n }),
+    fc.record({ tag: fc.constant('QuadTo' as const), x1: n, y1: n, x: n, y: n }),
+    fc.record({ tag: fc.constant('CubicTo' as const), x1: n, y1: n, x2: n, y2: n, x: n, y: n }),
+    fc.constant({ tag: 'Close' as const }),
+  );
+  fc.assert(fc.property(fc.array(segment.map((s) => ({ ...s })), { maxLength: 20 }), (path) => {
+    assert.deepEqual(outlineSegments(outlinePath(path)), path);
+  }), params(500));
+  assert.equal(outlinePath([{ tag: 'MoveTo', x: 0.5, y: -0.25 }, { tag: 'LineTo', x: 1e-7, y: 2 }, { tag: 'Close' }]), 'M0.5-0.25L1e-7 2Z');
+  // A committed snapshot's outlines are path data, each distinct outline once.
+  const stored = JSON.parse(await readFile(join(ROOT, 'test/lettering/math/scene.lettering.json'), 'utf8'));
+  assert.equal(stored.version, 3);
+  assert.ok(stored.outlines.every((d: unknown) => typeof d === 'string' && outlineSegments(d)));
+  assert.equal(new Set(stored.outlines).size, stored.outlines.length);
+  assert.deepEqual(packLettering(unpackLettering(stored)), stored);
+});
