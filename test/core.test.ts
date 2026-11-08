@@ -82,7 +82,7 @@ test('y is up in the model and flipped once, in path data; angles turn countercl
   assert.deepEqual(r.center(), [0, 1]);
   assert.ok(r.top()[1] > r.bottom()[1], 'top() is the larger y');
   const d = new Line([0, 0], [0, 1]).toPathD();
-  assert.match(d, /^M0 0C0 -333 0 -667 0 -1000$/, 'y = 1 is written as SVG y = -1000 (above center)');
+  assert.match(d, /^M0 0L0 -1000$/, 'y = 1 is written as SVG y = -1000 (above center), and a straight segment as L');
 });
 
 test('ArcBetweenPoints hits both endpoints and bulges to the signed side', async () => {

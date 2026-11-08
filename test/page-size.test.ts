@@ -8,6 +8,7 @@ import { build } from 'esbuild';
 import { collectProject, engineAlias, ROOT } from '../tools/lib/explain-project.ts';
 import { buildExplainer, minifyCss } from '../tools/lib/explain-build.ts';
 import { NO_DIAGRAM_CODE, withoutDiagramCode } from '../tools/lib/explain-diagram-code.ts';
+import { Circle, Line, Rectangle, VMobject } from '../src/index.ts';
 
 /** A string only explain/diagrams.ts's Diagram class holds. */
 const DIAGRAM_ONLY = 'is not a link of this diagram';
@@ -70,4 +71,17 @@ test('the page style is minified CSS that keeps every rule', async () => {
   } finally {
     await rm(out, { recursive: true, force: true });
   }
+});
+
+test('the SVG writer writes a straight segment as L and a curve as C', () => {
+  assert.equal(new Line([0, 0], [2, 1]).toPathD(), 'M0 0L2000 -1000');
+  assert.match(new Rectangle({ width: 2, height: 1 }).toPathD(), /^M[-\d]+ [-\d]+(L[-\d]+ [-\d]+){4}Z$/);
+  assert.match(new Circle().toPathD(), /^M[-\d]+ [-\d]+(C[-\d]+ [-\d]+ [-\d]+ [-\d]+ [-\d]+ [-\d]+)+Z$/);
+  // Controls within a thousandth of the chord's thirds are a line; two thousandths off is a curve.
+  const cubic = (dy: number) => {
+    return new VMobject().startNewPath([0, 0]).addCubic([1, dy], [2, 0], [3, 0]).toPathD();
+  };
+  assert.equal(cubic(0), 'M0 0L3000 0');
+  assert.equal(cubic(0.001), 'M0 0L3000 0');
+  assert.equal(cubic(0.002), 'M0 0C1000 -2 2000 0 3000 0');
 });

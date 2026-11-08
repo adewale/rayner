@@ -305,8 +305,10 @@ test('transform: a path paired with something that draws nothing (a group, a Tex
     const dst = flip ? new Group(new Text(b), new Square()) : new Group(new Circle(), new Text(b));
     const { scene } = await film(async (s) => { s.add(src); await s.play(new Transform(src, dst)); });
     for (const el of renderElements(scene)) {
+      // The path's points, whether written as cubics (C) or straight segments (L): one point is a dot.
       const nums = (el.attrs.d ?? '').split(/[^-\d]+/).filter(Boolean);
-      assert.ok(new Set(nums).size > 2 || el.attrs.stroke === 'none' || el.attrs['stroke-width'] === '0', `zero-extent stroked path ${el.attrs.d}`);
+      const points = new Set(nums.flatMap((x, i) => (i % 2 ? [] : [`${x} ${nums[i + 1]}`])));
+      assert.ok(points.size > 1 || el.attrs.stroke === 'none' || el.attrs['stroke-width'] === '0', `zero-extent stroked path ${el.attrs.d}`);
     }
   }), params(40));
 });

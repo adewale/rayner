@@ -205,6 +205,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `rayner preview --watch` rebuilds when `script.md` changes too, and runs one rebuild at a time: saves made during a rebuild start one more when it ends, not one each.
 - Diagram capture starts one Chromium per kind of diagram lettering however many diagrams wait for it, and closes each.
 - A page whose scenarios show no diagram carries no diagram code, and every page's style is minified: lru-mru's page is 203 KB gzipped, where it was 216 KB. [What a page leaves out](docs/ENGINE.md#what-a-page-leaves-out)
+- The SVG writer writes a straight segment as `L`, where it wrote a cubic, in the poster and on the live stage alike: font-metrics' page is 16 KB smaller gzipped, lru-mru's 2.6 KB.
 
 ### Removed from the public API
 
