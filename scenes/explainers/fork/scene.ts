@@ -1,6 +1,6 @@
 import { table } from '../../../explain/drawing.ts';
 import { answerOf, view, having } from '../../../explain/index.ts';
-import { Scene, Text, FadeIn } from '../../../src/index.ts';
+import { Scene, Text, FadeIn, captionWords } from '../../../src/index.ts';
 import type { Step } from '../../../src/index.ts';
 import { stage, regionBox, resolveSettings } from '../../../explain/index.ts';
 import type { ExplainerClass, Diagram, PictureNote, View, ExplainerMeta } from '../../../explain/index.ts';
@@ -338,7 +338,8 @@ export default class ForkExplainer extends Scene<ForkState, ForkShown> {
       };
     });
     const shown = this.steps.find((st) => st.name === 'fork')!;
-    const words = String(shown.meta.caption).trim().split(/\s+/).length;
+    // Counted as the hold counts them, so the timeline and the hold agree.
+    const words = captionWords(String(shown.meta.caption));
     const { motion, held } = phases(shown);
     await s.clearOverlays();
     await showFlow({ walked: [], notes: [] });

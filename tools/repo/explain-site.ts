@@ -10,20 +10,21 @@
 // llms.txt at the site root (tools/repo/lib/explain-site-describe.ts). Each page's known framed heights go
 // beside it as <id>.embed.json; with --origin, also an oEmbed response, <id>.oembed.json, named by a
 // discovery link in the page. Fails, before writing anything, if
-// demos:build has not run since a scene, its folder or the engine changed.
+// demos:build has not run since a scene, its folder or the engine changed, if two page ids are
+// equal ignoring case, or if a scene's meta.id is not its catalog id.
 import { copyFile, mkdir, readFile, writeFile, mkdtemp, rename, rm } from 'node:fs/promises';
 import { sharePage, publishedPage, checkCards, writeEmbedFiles } from '../lib/explain-share.ts';
 import type { ShareManifest } from '../lib/explain-share.ts';
 import { join, resolve, dirname } from 'node:path';
 import { parseArgs } from 'node:util';
 import { EXPLAINERS } from '../../scenes/explainers/catalog.ts';
-import { ROOT, collectProject, defaultScenario } from '../lib/explain-project.ts';
+import { ROOT, collectProject, defaultScenario, sceneSlug } from '../lib/explain-project.ts';
 import { writeDescriptions, checkBuilt } from './lib/explain-site-describe.ts';
 import { replaceHeaderBlocks } from './lib/site-headers.ts';
 import { buildInputs } from '../lib/build-inputs.ts';
 import { checkBuiltOutput } from './lib/explain-built-files.ts';
 import {readArtifact, catalog as parseCatalog, catalogEvidence} from '../lib/explain-artifacts.ts';
-import { isWholeCollection, onlyIds, selectExport } from './lib/explain-export-selection.ts';
+import { checkPageId, isWholeCollection, onlyIds, selectExport } from './lib/explain-export-selection.ts';
 import { restingCardPngs } from '../lib/explain-shots.ts';
 import { useProjectLettering } from '../lib/explain-lettering.ts';
 import { galleryPage, galleryTokens } from './lib/explain-gallery.ts';
@@ -102,6 +103,7 @@ try {
     await writeEmbedFiles(target, built, share, origin, path);
     await mkdir(join(target, id), { recursive: true });
     const project = await collectProject(join(ROOT, 'scenes/explainers', id), { write: false });
+    checkPageId(id, sceneSlug(project));
     const scenario = defaultScenario(project);
     await useProjectLettering(project);
     for (const s of share.steps) {

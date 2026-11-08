@@ -45,12 +45,12 @@ export class SetState<S extends object = SceneState> extends Animation {
     this.update = update;
   }
 
-  override begin(): void {
+  protected override doBegin(): void {
     const next = this.update
       ? this.update(cloneJson(this.host.state, 'machine.send()', 'this.state') as S)
       : this.snapshot;
     this.host.state = cloneJson(next, 'machine.send()', this.event === undefined ? 'state' : `next(state, ${JSON.stringify(this.event)})`) as Scene<S, any>['state'];
-    super.begin();
+    super.doBegin();
   }
 
   /** `{ kind: 'event', event }` when an event set the state; nothing otherwise. */
@@ -110,7 +110,7 @@ export class Follow extends Animation {
     return { kind: 'follow', from: this.start, to: this.spec.to, targets: this.written.map((m) => m.key ?? m.constructor.name) };
   }
 
-  override begin(): void {
+  protected override doBegin(): void {
     const from = typeof this.spec.from === 'function' ? this.spec.from() : this.spec.from;
     if (!Number.isFinite(from)) throw new RangeError(`c.follow(): from() must return a finite number, not ${String(from)}`);
     this.start = from;
@@ -122,7 +122,7 @@ export class Follow extends Animation {
     return alpha <= 0 ? this.start : alpha >= 1 ? this.spec.to : this.start + (this.spec.to - this.start) * alpha;
   }
 
-  override interpolate(alpha: number): void {
+  protected override doInterpolate(alpha: number): void {
     const drawn = this.spec.draw(this.valueAt(alpha));
     const pictures = drawn instanceof MobjectClass ? [drawn] : drawn;
     if (pictures.length !== this.written.length)

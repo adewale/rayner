@@ -1,7 +1,6 @@
 import { StateScope, wait } from './embed-scope.ts';
-import { renderAt, SeekSink } from '../src/output.ts';
+import { renderFrame } from '../src/output.ts';
 import { traceRun } from '../src/trace.ts';
-import type { Trace } from '../src/testing.ts';
 import type { Palette } from '../src/color.ts';
 import type { SceneClass, SceneOptions, Sink } from '../src/index.ts';
 import { stillFrame } from '../src/scene.ts';
@@ -13,7 +12,9 @@ import { bindSnapshots, settingsProblem, stepQuery, withSettings } from '../expl
 import { PAGE_QUERY } from '../explain/page-query.ts';
 import { STAGE_BOX } from '../src/units.ts';
 import type { ExplainerClass, Settings, SnapshotStore } from '../explain/index.ts';
-import { pictureChange, pictureHtml, pictureSummary, stepWords, watchedChanges } from '../explain/trace.ts';
+import { pictureChange, pictureHtml, pictureSummary, stepWords } from '../explain/trace.ts';
+import { playerChanges, playerTrace } from './embed-trace.ts';
+import type { PlayerStep, PlayerTrace } from './embed-trace.ts';
 import { playerProperties } from './embed-style.ts';
 import { paletteOf, paperOf } from '../explain/stage.ts';
 import { STEP_TYPE, connectHost, reportHeight } from './embed-protocol.ts';
@@ -33,14 +34,14 @@ import type { Exploration, ExploreAction, Live, LiveDraw, LivePlace, LiveRun, Lo
 
 /**
  * The default scenario as the build traced it: its settings, its trace as the player reads it
- * (each step's state only for the watched keys, `shippedScenario` in tools/lib/scene-entry.ts),
+ * (`playerTrace`: each step's state only for the watched keys, as every scenario the page runs),
  * the stage's palette and paper when it ends, and each live step's machine by its place in
  * `machinesOf` (`liveSteps`).
  * The page shows it without running the scene first; another scenario runs once when it is chosen.
  */
 export interface ShippedScenario {
   values: Settings;
-  trace: Trace;
+  trace: PlayerTrace;
   palette?: Palette;
   paper?: string;
   live: [step: string, place: LivePlace][];
@@ -111,21 +112,21 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   const lang = Source.meta?.lang ?? 'en',
     t = chromeFor(lang);
   let values: Settings,
-    trace: Trace,
+    trace: PlayerTrace,
     wanted: Settings | undefined,
     selected = 0,
     // On a narrow stage, whether each step opens on its close-up; Whole picture turns it off, Close-up on.
     follow = true;
   type Base = { from: LogStart; state: object };
   /** A live step: the step, its machine, and where its log starts. */
-  type LiveNow = { step: Trace['steps'][number]; live: Live; base: Base };
+  type LiveNow = { step: PlayerStep; live: Live; base: Base };
   /**
    * A scenario the player can show. `key` is its settings as JSON. `live`: the steps where the
    * reader can drive a machine, each with the machine's place in `machinesOf`; `bases`: each
    * one's machine and where its log starts, worked out once. `layouts`: the close-ups' layouts,
    * from the scenario's run, or worked out the first time a narrow stage needs them (`laid` once there).
    */
-  type Entry = { key: string; Scene: ExplainerClass; trace: Trace; palette?: Palette; paper?: string;
+  type Entry = { key: string; Scene: ExplainerClass; trace: PlayerTrace; palette?: Palette; paper?: string;
     live: Map<string, LivePlace>; bases: Map<string, Promise<LiveNow | null>>;
     layouts?: Promise<Map<string, StepLayout>>; laid?: Map<string, StepLayout> };
   type SceneStateLike = Record<string, unknown>;
@@ -147,7 +148,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   /** Resting pictures, by scenario, step and the reader's events there: the SVG and what the scene then shows. */
   const pictures = new Lru<string, { nodes: Node[]; shown?: SceneStateLike }>(KEPT_PICTURES);
   // As JSON, so no step name or event can make two keys one.
-  const pictureKey = (at: Entry, step: Trace['steps'][number], log: readonly string[]) => JSON.stringify([at.key, step.step, log]);
+  const pictureKey = (at: Entry, step: PlayerStep, log: readonly string[]) => JSON.stringify([at.key, step.step, log]);
   // The reader's exploration of the step on show: the events sent there (the log the URL's `sent`
   // holds), that step's machine, and the run held at their picture. Only `explored` changes it.
   let live: Exploration<LiveNow> = { kind: 'none' };
@@ -304,8 +305,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     changes = watch ? el('p', undefined, 'changes') : undefined;
   if (changes) changes.hidden = true;
   /** Fill `row` with step `s`'s watched changes: the quiet label, then "Label: before → after" each. */
-  const fillChanges = (row: HTMLElement, s: Trace['steps'][number]) => {
-    const said = watchedChanges(s, watch, lang).map((c) => changeText(t, c));
+  const fillChanges = (row: HTMLElement, s: PlayerStep) => {
+    const said = playerChanges(s, watch, lang).map((c) => changeText(t, c));
     row.hidden = !said.length;
     // Spaces between the items keep them apart for assistive technology; flex layout drops them.
     row.replaceChildren(...(said.length ? [el('span', t.changed), ...said.flatMap((c) => [' ', el('span', c, 'change')])] : []));
@@ -778,7 +779,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   }
   /** The resting picture in words: the step's, or what the scene shows after the reader's events (`shown`). */
   let describedShown: unknown;
-  function describePicture(step: Trace['steps'][number], shown?: SceneStateLike) {
+  function describePicture(step: PlayerStep, shown?: SceneStateLike) {
     const said = describedShown = shown ?? step.shown;
     summary.textContent = pictureSummary(said);
     picture.innerHTML = pictureHtml(said);
@@ -895,7 +896,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   /** The stepper row at its widest: Start again, Try beside it when it is in the row, and Back when
    *  the scenario has details. When the tools do not fit beside that, they take their own line on every
    *  step; the row keeps that scenario's height, so no step wraps it differently or moves what follows. */
-  function reserveStepper(steps: Trace['steps']) {
+  function reserveStepper(steps: PlayerStep[]) {
     const saved = { face, tryHidden: tryScenario.hidden, tryText: tryScenario.textContent, backHidden: backToStory.hidden };
     endControls(true, tryLabel());
     tryScenario.hidden = tryScenario.parentElement !== stepper || !firstSetting;
@@ -921,7 +922,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
    * them out the first time a narrow stage needs them. A wide stage has no tour, so it waits for
    * no layouts: it uses them when they are there, and turning narrow adopts them (drawOverview).
    */
-  function framing(step: Trace['steps'][number], scope: StateScope, at: Entry) {
+  function framing(step: PlayerStep, scope: StateScope, at: Entry) {
     return scope.run(function* () {
       shownLayout = undefined;
       scenarioLayouts = undefined;
@@ -957,7 +958,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       drawOverview();
     });
   }
-  function* settle(step: Trace['steps'][number], target: Zoom | null, at: Entry, scope: StateScope) {
+  function* settle(step: PlayerStep, target: Zoom | null, at: Entry, scope: StateScope) {
     sound?.set(step.meta.audio);
     if (target) zoom.to(target);
     else zoom.apply();
@@ -1023,7 +1024,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
    * The machine live at `step` and where its log starts, or null: a step with no machine, or one no
    * event moves. Worked out once per step, by running the scene to it: the machine is that run's.
    */
-  function liveAt(at: Entry, step: Trace['steps'][number]): Promise<LiveNow | null> {
+  function liveAt(at: Entry, step: PlayerStep): Promise<LiveNow | null> {
     const place = at.live.get(step.step);
     if (place === undefined) return Promise.resolve(null);
     let found = at.bases.get(step.step);
@@ -1045,7 +1046,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
    * drawn as it always was; with one, the scene run to that picture and the log played on it, every
    * frame skipped. Resolves to what the scene then shows, for the picture's description.
    */
-  function restingPicture(at: Entry, step: Trace['steps'][number], now: LiveNow | null, log: readonly string[], container: HTMLElement, scope: StateScope): Promise<SceneStateLike | undefined> {
+  function restingPicture(at: Entry, step: PlayerStep, now: LiveNow | null, log: readonly string[], container: HTMLElement, scope: StateScope): Promise<SceneStateLike | undefined> {
     const key = pictureKey(at, step, log),
       kept = pictures.get(key);
     if (kept) {
@@ -1055,7 +1056,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     const sink = new ReaderSink(container, sinkOptions(at, false), readerView, scope.signal, narrow);
     const drawn: Promise<SceneStateLike | undefined> = log.length && now
       ? liveRun(at, now, log, { sink }, scope).then((run) => run.shown as SceneStateLike)
-      : renderAt(at.Scene, step.frame1! / at.trace.fps, sink).then(() => undefined);
+      : renderFrame(at.Scene, step.frame1!, sink).then(() => undefined);
     return drawn.then((shown) => {
       pictures.set(key, { nodes: clones(container.childNodes), ...(shown ? { shown } : {}) });
       return shown;
@@ -1076,7 +1077,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     return runLive(at.Scene, now.step, now.live, log, { ...draw, from: now.base.from, keep: true }).then((run) => {
       if (run.session) {
         if (scope.signal.aborted) run.session.close();
-        else explored({ kind: 'held', session: run.session });
+        else explored({ kind: 'held', now, session: run.session });
       }
       return run;
     });
@@ -1259,7 +1260,9 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   /**
    * Run the scene to a step's first frame and wait there. Released, it plays the step until
    * the hold, then runs on undrawn to the step's resting frame (the one a link to it shows)
-   * and draws that; `done` says whether it got there.
+   * and draws that; `done` says whether it got there. The step's frames are found by number:
+   * the first drawn is `frame0`, the picture the step starts from, at dt 0, and every frame
+   * before it is skipped.
    */
   function prepare(at: Entry, first: number): Run {
     let run!: Run;
@@ -1270,13 +1273,13 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         sink = new ReaderSink(container, sinkOptions(at, true), readerView, scope.signal, narrow);
       return {
         index, scope, sink,
-        start: step.t0,
         frame0: step.frame0,
         // Stop when the picture stops: the reader sets the pace instead of waiting through the caption-reading hold.
         still: stillFrame(step),
         frame1: step.frame1!,
         container,
-        seek: new SeekSink(sink, step.t0),
+        /** Frames drawn so far: the first is drawn at dt 0, as the picture the step starts from. */
+        drawn: 0,
       };
     };
     let aim = aimAt(first), release!: Run['release'];
@@ -1303,7 +1306,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       },
       async frame(scene, dt) {
         aim.scope.signal.throwIfAborted();
-        if (scene.time + 1e-9 < aim.start) return;
+        if (scene.frameCount < aim.frame0) return;
         if (dt === 0 && scene.mobjects.length === 0) return;
         const go = await ready;
         if (!go) throw new StopScene();
@@ -1315,18 +1318,20 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
             finish(true);
             throw new StopScene();
           }
-          yield* wait(aim.seek.frame(scene, dt));
+          yield* wait(aim.sink.frame(scene, aim.drawn++ ? dt : 0));
           attach(go);
           playback = {kind:'playing', scope:go.scope, run};
           fill(aim.index, (scene.frameCount - aim.frame0) / (aim.still - aim.frame0));
         });
       },
-    }, { skipUntil: aim.start });
+    });
+    // Frames before the step's are skipped, by the scene's own clock.
+    runner.skipUntil = aim.frame0 / runner.fps;
     const done = runner.run().then(() => { finish(false); return result; });
     const follow = () => {
       if (playback.kind !== 'playing' || !stage.contains(aim.sink.svg) || aim.index + 1 >= at.trace.steps.length) return false;
       aim = aimAt(aim.index + 1);
-      runner.skipUntil = aim.start;
+      runner.skipUntil = aim.frame0 / runner.fps;
       ready = gate();
       return true;
     };
@@ -1383,13 +1388,14 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     });
   }
   /**
-   * A scenario's one run: its trace, the close-ups' layouts beside it (`layoutSink`), and from the
+   * A scenario's one run: its trace as the player reads it (`playerTrace`, the shape the shipped
+   * scenario's has), the close-ups' layouts beside it (`layoutSink`), and from the
    * scene as the run leaves it, the stage's palette and paper and where its machines are live.
    */
   async function scenarioRun(key: string, Scene: ExplainerClass): Promise<Entry> {
     const { sink, layouts } = layoutSink();
     const { trace, scene } = await traceRun(feeding(Scene, sink));
-    return { key, Scene, trace, palette: paletteOf(scene), paper: paperOf(scene), live: liveSteps(scene), bases: new Map(), layouts: Promise.resolve(layouts), laid: layouts };
+    return { key, Scene, trace: playerTrace(trace, Source.meta?.watch), palette: paletteOf(scene), paper: paperOf(scene), live: liveSteps(scene), bases: new Map(), layouts: Promise.resolve(layouts), laid: layouts };
   }
   /**
    * Show a scenario. Until its trace is ready the player keeps showing (and linking to) the

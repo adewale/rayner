@@ -30,7 +30,7 @@ const ALLOWED: Record<string, Record<string, string>> = {
   },
   'src/shapes.ts': { api: "the constructor boxOf's caller names" },
   'src/fonts.ts': { label: "decodeFont's subject, which its caller names with a prefix ('loadFonts(): the embedded sans face')" },
-  'src/mobject.ts': { 'm.${name}': 'the method of every mobject that was assigned to, m.box' },
+  'src/mobject.ts': { 'm.${name}': 'the method of every mobject that was assigned to, m.box', api: "the call that changes the children, 'm.add()', 'm.insert()' or 'm.replaceChild()'" },
   'explain/action.ts': {
     action: "the action's call, 's.card()'",
     'this.by': "what made the animations at their turn: the action's call, 's.card()', or 'machine.send(): the transition for UP'",

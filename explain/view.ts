@@ -168,10 +168,8 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
   swap(next: M): void {
     const old = this.current;
     if (old === next) return;
-    if (old) old.parent = null;
-    this.children = [next];
-    next.parent = this;
-    this.invalidateBox();
+    this.remove(...this.children);
+    this.add(next);
   }
 }
 
@@ -197,7 +195,7 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
     this.view = v; this.match = match; this.staged = staged;
   }
 
-  override begin(): void {
+  protected override doBegin(): void {
     const v = this.view, old = v.current;
     const { picture: next, fit } = v.measure(fresh(v.build(), old));
     this.fit = fit;
@@ -217,9 +215,9 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
   }
 
   /** alpha already passed through this sync's rateFunc by the scene. */
-  override interpolate(alpha: number): void { this.inner?.interpolate(alpha); }
+  protected override doInterpolate(alpha: number): void { this.inner?.interpolate(alpha); }
 
-  override finish(): void {
+  protected override doFinish(): void {
     if (!this.inner) return;
     const end = this.rateFunc(1);
     this.inner.interpolate(end);
@@ -262,16 +260,16 @@ class ViewTween<S extends object, Sh extends object> extends Animation {
   /** The picture on screen now: what this writes once it begins. */
   override targets(): Mobject[] { return [this.follow ? this.mobject : this.view.current]; }
 
-  override begin(): void {
+  protected override doBegin(): void {
     this.mobject = this.view.current;
     this.follow = new Follow({ from: 0, to: 1, draw: this.draw }, { targets: [this.mobject] });
     this.follow.begin();
   }
 
   /** alpha already passed through this tween's rateFunc by the scene. */
-  override interpolate(alpha: number): void { this.begun().interpolate(alpha); }
+  protected override doInterpolate(alpha: number): void { this.begun().interpolate(alpha); }
 
-  override finish(alpha: number = this.rateFunc(1)): void { this.begun().interpolate(alpha); }
+  protected override doFinish(alpha: number = this.rateFunc(1)): void { this.begun().interpolate(alpha); }
 
   override evidence(): Evidence | null { return this.follow?.evidence() ?? null; }
 

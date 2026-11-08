@@ -281,7 +281,7 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
   {
     // finish() recolours the box after the last frame drew it: a link, describe and the shots would show another picture.
     gate: 'a step that ends on a different picture from its last frame',
-    source: `import{Scene,Rectangle,Animation}from'rayner';import{stage}from'rayner/explain';class Recolour extends Animation{override finish(){super.finish();this.mobject.setFill('#ff0000',1);}}export default class Bad extends Scene{async construct(){const s=stage(this);await this.step('one');await this.play(new Recolour(new Rectangle({width:1,height:1})));await this.step('two');await this.wait(.5);}}`,
+    source: `import{Scene,Rectangle,Animation}from'rayner';import{stage}from'rayner/explain';class Recolour extends Animation{override doFinish(){super.doFinish();this.mobject.setFill('#ff0000',1);}}export default class Bad extends Scene{async construct(){const s=stage(this);await this.step('one');await this.play(new Recolour(new Rectangle({width:1,height:1})));await this.step('two');await this.wait(.5);}}`,
     message: /These steps end on a different picture from their last frame in the scene/,
   },
   {
@@ -340,7 +340,7 @@ test('rayner check exits 1 and names the failing gate on stderr', async () => {
 // step moves its dot by a nudge each frame instead of by blending, as the lantern explainer's tiny scene does.
 const CASES_HEAD = `import{Scene,Text,Dot,Animation}from'rayner';import{stage,settingsOf}from'rayner/explain';`;
 const scenariosScene = (nudgeIn?: { motion: string; size: string }) =>
-  `${CASES_HEAD}class Nudge extends Animation{constructor(m){super(m,{runTime:1});this.live=false}begin(){super.begin();this.live=true}interpolate(){if(this.live)this.mobject.shift([0.1,0])}finish(){}}` +
+  `${CASES_HEAD}class Nudge extends Animation{constructor(m){super(m,{runTime:1});this.live=false}doBegin(){super.doBegin();this.live=true}doInterpolate(){if(this.live)this.mobject.shift([0.1,0])}doFinish(){}}` +
   `export default class Scenarios extends Scene{static settings=[` +
   `{id:'motion',label:'Motion',default:'blend',options:[{value:'blend',label:'Blend'},{value:'nudge',label:'Nudge'}]},` +
   `{id:'size',label:'Size',default:'small',options:[{value:'small',label:'Small'},{value:'mid',label:'Mid'},{value:'large',label:'Large'}]}];` +

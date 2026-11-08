@@ -67,17 +67,17 @@ class Nudge extends Animation {
     super(mobject, { runTime: MOVE_TIME });
     this.by = by;
   }
-  override begin(): void {
-    super.begin(); // begin() calls interpolate(0) once; that call is not a frame
+  protected override doBegin(): void {
+    super.doBegin(); // begin() calls interpolate(0) once; that call is not a frame
     this.live = true;
   }
-  override interpolate(_alpha: number): void {
+  protected override doInterpolate(_alpha: number): void {
     if (!this.live) return;
     this.mobject.shift(this.by);
     this.moves++;
   }
   // No last step at the end: the frames already made every move there is.
-  override finish(): void {}
+  protected override doFinish(): void {}
 }
 
 /** A tiny native scene, run inside this one: a box grows, and a dot crosses a track. */

@@ -36,11 +36,11 @@ test('route and chart annotations leave the expected paper visible behind their 
           const opaque = labels.map((m) => m.family().every((f) => f.style.opacity >= 0.95));
           for (const [, full] of opaque.entries()) if (!full)
             assert.ok(id === 'mr-cache' && stepName === 'request', 'only the deliberately dimmed cache diagram uses the light-context bound');
-          const children = labels.map((m) => m.children);
-          labels.forEach((m) => { m.children = []; });
+          const children = labels.map((m) => [...m.children]);
+          labels.forEach((m) => m.remove(...m.children));
           let svg: string;
           try { svg = toSvgString(scene, { width: 1280 }); }
-          finally { labels.forEach((m, i) => { m.children = children[i]!; }); }
+          finally { labels.forEach((m, i) => m.add(...children[i]!)); }
           const image = new Resvg(svg, { font: { loadSystemFonts: false } }).render();
           const pixels = image.pixels;
           if (id === 'lantern') {

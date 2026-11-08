@@ -5,7 +5,7 @@
 // played through `machine.send`, so a frame is still a function of time and a link with the log
 // reopens the same picture. See docs/MACHINES.md, "The player".
 
-import { NullSink, StopScene } from '../src/output.ts';
+import { NullSink } from '../src/output.ts';
 import { machinesOf } from '../explain/machine.ts';
 import type { Scene, SceneClass, SceneState, Sink } from '../src/index.ts';
 import type { Machine } from '../explain/machine.ts';
@@ -155,8 +155,9 @@ export interface LiveSession {
  * With `keep`, the run is held at the picture the log lands on, as the result's `session`.
  *
  * The run stops in the live step as soon as its picture stops changing: at the end of the play or
- * wait that reaches the step's hold (or its end), or as the step ends. Code a scene runs between
- * its last play and its next step never runs, so it cannot change the stage the reader drives.
+ * wait that reaches the step's hold (or its end), or as the step ends (`Scene.stopAt`), and the
+ * scene is then stopped for good (`phase` is `'stopped'`). Code a scene runs between its last play
+ * and its next step never runs, so it cannot change the stage the reader drives.
  * The machine is the run's machine at `place.index`, refused unless it has `place.identity`, so the
  * reader never drives another. It plays under what the scene showed when it last played
  * (`playedUnder`), as exploration draws it. A log the machine
@@ -175,83 +176,64 @@ export async function runLive(
   type Command = { event: string; draw: LiveDraw; done: (run: LiveRun) => void; failed: (error: unknown) => void };
   let wake: ((command: Command | null) => void) | null = null, held!: () => void;
   const holding = new Promise<void>((resolve) => (held = resolve));
-  const Base = Source as unknown as new (sink: Sink, opts?: { skipUntil?: number }) => Scene<any>;
-  class Reaching extends Base {
-    reached = false;
-    constructor(sink: Sink, opts?: { skipUntil?: number }) {
-      super(sink, opts);
-      // A step ends with its picture still: the run stops there if no play or wait got it there first.
-      this.onStepEnd((s) => (!this.reached && s.path === times.step ? this.reach() : undefined));
+  // Run there as a seek does, every frame skipped; the scene stops itself where the step's picture is
+  // still, and plays the log there (see Scene.stopAt).
+  const scene = new (Source as unknown as new (sink: Sink, opts?: { skipUntil?: number }) => Scene<any>)(new NullSink(), { skipUntil: Infinity });
+  scene.stopAt(times.step, end, async (at) => {
+    const machine = machinesOf(at)[place.index];
+    if (!machine || machine.identity !== place.identity)
+      throw new Error(`new Machine(): the run to ${JSON.stringify(times.step)} made different machines; a scene must make the same machines on every run`);
+    if (machine.playedUnder && canonicalJson(machine.playedUnder) !== canonicalJson(at.shown)) at.shown = machine.playedUnder;
+    const rest = JSON.parse(JSON.stringify(at.state)) as object;
+    onRest?.(at);
+    // From the machine's start: its views redrawn there, in place, as exploration draws a state.
+    if (from === 'start' && log.length) {
+      at.state = JSON.parse(JSON.stringify(machine.spec.start)) as object;
+      for (const view of machine.spec.views) view.rebuild();
     }
-    async reach(): Promise<void> {
-      this.reached = true;
-      const machine = machinesOf(this)[place.index];
-      if (!machine || machine.identity !== place.identity)
-        throw new Error(`new Machine(): the run to ${JSON.stringify(times.step)} made different machines; a scene must make the same machines on every run`);
-      if (machine.playedUnder && canonicalJson(machine.playedUnder) !== canonicalJson(this.shown)) this.shown = machine.playedUnder;
-      const rest = JSON.parse(JSON.stringify(this.state)) as object;
-      onRest?.(this);
-      // From the machine's start: its views redrawn there, in place, as exploration draws a state.
-      if (from === 'start' && log.length) {
-        this.state = JSON.parse(JSON.stringify(machine.spec.start)) as object;
-        for (const view of machine.spec.views) view.rebuild();
+    for (const [i, event] of log.entries()) {
+      if (animate && i === log.length - 1) {
+        at.sink = animate;
+        at.skipUntil = 0;
+        await animate.frame(at, 0);
+        onStart?.();
       }
-      for (const [i, event] of log.entries()) {
-        if (animate && i === log.length - 1) {
-          this.sink = animate;
-          this.skipUntil = 0;
-          await animate.frame(this, 0);
-          onStart?.();
+      await at.play(machine.send(event));
+    }
+    const drawn = animate ?? sink;
+    if (drawn) await drawn.frame(at, 0);
+    result = { scene: at, machine, rest, shown: at.shownJson() };
+    if (!keep) return;
+    const kept = (result.session = session(log));
+    // A session closed while it played lets the run end once that play is done.
+    while (kept.open) {
+      const command = await new Promise<Command | null>((resolve) => {
+        wake = resolve;
+        held();
+      });
+      if (!command) break;
+      const { event, draw } = command;
+      try {
+        // As a fresh run plays a log's last event: animated from the picture now, or skipped, then drawn.
+        if (draw.animate) {
+          at.sink = draw.animate;
+          at.skipUntil = 0;
+          await draw.animate.frame(at, 0);
+          draw.onStart?.();
+        } else {
+          at.sink = new NullSink();
+          at.skipUntil = Infinity;
         }
-        await this.play(machine.send(event));
+        await at.play(machine.send(event));
+        const landing = draw.animate ?? draw.sink;
+        if (landing) await landing.frame(at, 0);
+        command.done({ scene: at, machine, rest, shown: at.shownJson() });
+      } catch (error) {
+        command.failed(error);
+        break;
       }
-      const drawn = animate ?? sink;
-      if (drawn) await drawn.frame(this, 0);
-      result = { scene: this, machine, rest, shown: this.shownJson() };
-      if (!keep) throw new StopScene();
-      const kept = (result.session = session(log));
-      // A session closed while it played lets the run end once that play is done.
-      while (kept.open) {
-        const command = await new Promise<Command | null>((resolve) => {
-          wake = resolve;
-          held();
-        });
-        if (!command) break;
-        const { event, draw } = command;
-        try {
-          // As a fresh run plays a log's last event: animated from the picture now, or skipped, then drawn.
-          if (draw.animate) {
-            this.sink = draw.animate;
-            this.skipUntil = 0;
-            await draw.animate.frame(this, 0);
-            draw.onStart?.();
-          } else {
-            this.sink = new NullSink();
-            this.skipUntil = Infinity;
-          }
-          await this.play(machine.send(event));
-          const landing = draw.animate ?? draw.sink;
-          if (landing) await landing.frame(this, 0);
-          command.done({ scene: this, machine, rest, shown: this.shownJson() });
-        } catch (error) {
-          command.failed(error);
-          break;
-        }
-      }
-      throw new StopScene();
     }
-    private due(): boolean {
-      return !this.reached && this.currentStep?.path === times.step && this.frameCount >= end;
-    }
-    override async play(...args: Parameters<Scene['play']>): Promise<void> {
-      await super.play(...args);
-      if (this.due()) await this.reach();
-    }
-    override async wait(seconds?: number): Promise<void> {
-      await super.wait(seconds);
-      if (this.due()) await this.reach();
-    }
-  }
+  });
   function session(played: readonly string[]): LiveSession {
     const s = {
       log: [...played] as readonly string[],
@@ -276,7 +258,7 @@ export async function runLive(
     };
     return s;
   }
-  const running = new Reaching(new NullSink(), { skipUntil: Infinity }).run();
+  const running = scene.run();
   if (keep) {
     // The run stays in the step; it is enough that it got there.
     void running.catch(() => {});
@@ -297,15 +279,15 @@ export type Exploration<N> = { kind: 'none' } | { kind: 'live'; now: N; log: rea
 /**
  * What changes the exploration: the reader sends an event, takes the last one back (`undo`), takes
  * them all back (`reset`), a step opens live with a log (`link`, a link's kept events or none),
- * a run is held at the log's picture (`held`), or the reader leaves the step (`leave`: another
- * step, Next, another scenario).
+ * a run is held at the log's picture of the step it ran to (`held`, with that step's `now`), or the
+ * reader leaves the step (`leave`: another step, Next, another scenario).
  */
 export type ExploreAction<N> =
   | { kind: 'send'; event: string }
   | { kind: 'undo' }
   | { kind: 'reset' }
   | { kind: 'link'; now: N; log: readonly string[] }
-  | { kind: 'held'; session: LiveSession }
+  | { kind: 'held'; now: N; session: LiveSession }
   | { kind: 'leave' };
 
 const sameLog = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((e, i) => e === b[i]);
@@ -314,7 +296,8 @@ const sameLog = (a: readonly string[], b: readonly string[]) => a.length === b.l
  * The exploration after `action`. A held run stays only while it can play the reader's next event:
  * a send keeps it when it is idle at the log before the event, and every other change drops it
  * (Undo and Reset go back past its picture; a send while it still plays, an animated landing cut
- * short, starts a fresh run). A run held for a log other than the one on show is not taken.
+ * short, starts a fresh run). A run held for another step than the one live (`now`, compared by
+ * identity), or for a log other than the one on show, is not taken.
  * Sending, Undo and Reset when nothing is live, and Undo and Reset with nothing sent, change nothing.
  */
 export function explore<N>(live: Exploration<N>, action: ExploreAction<N>): Exploration<N> {
@@ -336,7 +319,7 @@ export function explore<N>(live: Exploration<N>, action: ExploreAction<N>): Expl
     case 'reset':
       return live.log.length ? { ...live, log: [], session: null } : live;
     case 'held':
-      return action.session.open && sameLog(action.session.log, live.log) ? { ...live, session: action.session } : live;
+      return action.now === live.now && action.session.open && sameLog(action.session.log, live.log) ? { ...live, session: action.session } : live;
   }
 }
 

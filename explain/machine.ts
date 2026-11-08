@@ -320,9 +320,9 @@ class Landing extends Animation {
     super(views[0] ?? new Group(), { runTime: 1 / scene.fps, rateFunc: linear });
     this.scene = scene; this.views = views;
   }
-  override begin(): void {}
-  override interpolate(): void {}
-  override finish(): void {
+  protected override doBegin(): void {}
+  protected override doInterpolate(): void {}
+  protected override doFinish(): void {
     for (const v of this.views) {
       const drawn = v.placed(this.scene.state), current = v.current;
       const byKey = new Map(current.children.map((c) => [c.key, c] as const));
@@ -333,7 +333,7 @@ class Landing extends Animation {
       // Kept parts in the drawn order, then the whole picture takes the drawing: the parts keep
       // their identities, and the root takes its own fields too (a card's lit row, a code
       // panel's focus, what it says it emphasises), not just its children's.
-      current.children = drawn.children.map((d) => byKey.get(d.key)!);
+      current.add(...drawn.children.map((d) => byKey.get(d.key)!));
       current.invalidateBox();
       if (current.sameShapeAs(drawn)) current.become(drawn);
       else { for (const d of drawn.children) byKey.get(d.key)!.become(d); current.invalidateBox(); }

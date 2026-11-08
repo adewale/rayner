@@ -18,7 +18,7 @@ import type { Settings } from '../../explain/settings.ts';
 import ts from 'typescript';
 import { Text } from '../../src/index.ts';
 import { View } from '../../explain/index.ts';
-import { SnapshotSink, renderAt, toSvgString, renderText, NullSink } from '../../src/output.ts';
+import { SnapshotSink, renderFrame, toSvgString, renderText, NullSink } from '../../src/output.ts';
 import { renderElements, serializeElement } from '../../src/svg.ts';
 import { MotionSink, InvariantSink, machinesOf, viewMismatch, jsonObject, analyzeMotion, traceScene } from '../../explain/testing.ts';
 import { canonicalJson } from '../../src/json.ts';
@@ -228,6 +228,9 @@ function legibilityReport(records: LabelSizes[]) {
 // `rayner check` plays each scenario once and hands every frame to these, through FanSink, as
 // InvariantSink and MotionSink are handed it. Each reads the scene and keeps what its check
 // needs; a scene's `mobjects` changed to read a frame are put back before the next sink runs.
+// A sink that reads a step's resting picture reads it in `stepEnd`, as each step ends, the way
+// describe and the shots read it (AtRest in src/trace.ts); LandingSink holds that picture to the
+// step's last played frame, which the frame-numbered sinks (HoldSink, FrameCaptureSink) read.
 
 /** Hands each frame, and each step's beginning and end, to every sink in turn. */
 export class FanSink implements Sink {
@@ -373,40 +376,35 @@ export class FrameCaptureSink implements Sink {
   }
 }
 
-/** Each step's resting picture: its SVG without the heading, its text drawing, and its text and route collisions. */
+/** Each step's resting picture, by step: its SVG without the heading, its text drawing, and its text and route collisions. */
 export class RestingSink implements Sink {
-  readonly completed: ReadonlySet<number>;
-  readonly resting = new Map<number, string>();
-  readonly restingText = new Map<number, string>();
+  readonly resting = new Map<string, string>();
+  readonly restingText = new Map<string, string>();
   readonly collisions: string[] = [];
-  constructor(completed: ReadonlySet<number>) { this.completed = completed; }
-  async frame(scene: Scene): Promise<void> {
-    if (!this.completed.has(scene.frameCount)) return;
+  async frame(): Promise<void> {}
+  async stepEnd(scene: Scene, step: Step): Promise<void> {
     // The resting picture of a step, without the heading (number, title, line) that names it.
     const all = scene.mobjects;
     scene.mobjects = all.filter((m) => !isHeading(m));
-    this.resting.set(scene.frameCount, toSvgString(scene));
+    this.resting.set(step.path, toSvgString(scene));
     scene.mobjects = all;
-    this.restingText.set(scene.frameCount, renderText(scene));
+    this.restingText.set(step.path, renderText(scene));
     this.collisions.push(
-      ...[...restingTextProblems(scene), ...restingRouteProblems(scene)].map((p) => `${scene.currentStep?.name}: ${p}`),
+      ...[...restingTextProblems(scene), ...restingRouteProblems(scene)].map((p) => `${step.name}: ${p}`),
     );
   }
 }
 
 /**
- * At each resting frame, the colours and line styles the step's caption and line name that no word
+ * At each step's resting picture, the colours and line styles the step's caption and line name that no word
  * on the stage names (explain/caption-looks.ts). The stage's words are its visible text, diagram
  * labels and the words of every part that describes itself, a legend's swatches included; not a
  * `describe`, which only a screen reader hears.
  */
 export class LookWordsSink implements Sink {
-  readonly completed: ReadonlySet<number>;
   readonly problems: string[] = [];
-  constructor(completed: ReadonlySet<number>) { this.completed = completed; }
-  async frame(scene: Scene): Promise<void> {
-    const step = scene.currentStep;
-    if (!this.completed.has(scene.frameCount) || !step) return;
+  async frame(): Promise<void> {}
+  async stepEnd(scene: Scene, step: Step): Promise<void> {
     const words: string[] = [];
     const heading = new Set(scene.mobjects.filter(isHeading).flatMap((m) => m.family()));
     for (const m of scene.familyMembers()) {
@@ -425,31 +423,23 @@ export class LookWordsSink implements Sink {
 
 /**
  * Every label's largest readable size: at 1280 px in any frame, and on the phone in each
- * resting frame's close-ups. Native labels are kept by object, so a small label is not
+ * step's resting picture's close-ups. Native labels are kept by object, so a small label is not
  * excused by a larger one with the same words; imported labels by their keyed owner.
  */
 export class LegibilitySink implements Sink {
   readonly labels = new Map<Mobject, LabelSizes>();
   readonly staticLabels = new Map<string, LabelSizes>();
-  readonly completedFrames: ReadonlySet<number>;
-  readonly phoneViews: ReadonlyMap<number, { k: number; views: { k: number; box: Box }[] }>;
-  readonly stepAt: ReadonlyMap<number, string>;
+  /** Each step's close-ups on the phone, by step. */
+  readonly phoneViews: ReadonlyMap<string, { k: number; views: { k: number; box: Box }[] }>;
   readonly phoneUnit: number;
-  constructor(
-    completedFrames: ReadonlySet<number>,
-    phoneViews: ReadonlyMap<number, { k: number; views: { k: number; box: Box }[] }>,
-    stepAt: ReadonlyMap<number, string>,
-    phoneUnit: number,
-  ) {
-    this.completedFrames = completedFrames;
+  constructor(phoneViews: ReadonlyMap<string, { k: number; views: { k: number; box: Box }[] }>, phoneUnit: number) {
     this.phoneViews = phoneViews;
-    this.stepAt = stepAt;
     this.phoneUnit = phoneUnit;
   }
 
   /**
-   * Record a label readable in this frame: at 1280 px always, and on the phone when the
-   * frame is a resting one. `px` is already on screen (world size × the author's camera
+   * Record a label readable in this picture: at 1280 px always, and on the phone when it is
+   * step `step`'s resting picture. `px` is already on screen (world size × the author's camera
    * zoom); the phone's close-up is the reader's zoom over that view, so the two multiply.
    * `box` is in the camera's view units, where close-ups are worked out.
    *
@@ -459,9 +449,9 @@ export class LegibilitySink implements Sink {
    * the player sets the step's number, title and line as page text under the stepper row.
    * It is still measured at 1280 px, where the stage draws it.
    */
-  private seen(record: LabelSizes, px: number, box: Box | null, frame: number, chrome = false): void {
+  private seen(record: LabelSizes, px: number, box: Box | null, step: string | undefined, chrome = false): void {
     record.px = Math.max(record.px, px);
-    const close = this.phoneViews.get(frame);
+    const close = step === undefined ? undefined : this.phoneViews.get(step);
     if (!close) return;
     const inside = (v: Box) => !!box && contains(v, box, 1e-6);
     if (chrome) return;
@@ -472,17 +462,23 @@ export class LegibilitySink implements Sink {
     const size = (px / STAGE_PX_PER_UNIT) * this.phoneUnit * k;
     if (size > record.phone) {
       record.phone = size;
-      record.phoneStep = this.stepAt.get(frame);
+      record.phoneStep = step;
     }
     if (complete.length) record.inView = true;
   }
 
-  async frame(scene: Scene): Promise<void> {
+  /** A frame on the way: a camera gliding past does not make a label read (see `measure`). */
+  async frame(scene: Scene): Promise<void> { this.measure(scene, false); }
+  /** A step's resting picture, as the step ends: measured in full, and on the phone in its close-ups. */
+  async stepEnd(scene: Scene, step: Step): Promise<void> { this.measure(scene, true, step.path); }
+  /** A resting picture that belongs to no step (a state a machine reaches): measured in full, not on the phone. */
+  resting(scene: Scene): void { this.measure(scene, true); }
+
+  private measure(scene: Scene, completed: boolean, step?: string): void {
     // Sizes on screen: world size times the camera's zoom, inside the camera's view
     // cut by every clip; boxes for the phone's close-ups in the view's own units.
     const view = viewOf(scene);
     const shown = (b: Box | null) => (b ? toView(b, view) : null);
-    const completed = this.completedFrames.has(scene.frameCount);
     for (const m of scene.familyMembers()) {
       const label = labelOf(m);
       if (!label?.text.trim()) continue;
@@ -497,13 +493,13 @@ export class LegibilitySink implements Sink {
         const key = `${owner?.key ?? text}@${label.fontSize.toPrecision(5)}`;
         if (!this.staticLabels.has(key)) this.staticLabels.set(key, { text, px: 0, phone: 0, inView: false });
         const record = this.staticLabels.get(key)!;
-        if (completed && readable(m, (owner ?? m).box(), viewport)) this.seen(record, px, shown(m.box()), scene.frameCount);
+        if (completed && readable(m, (owner ?? m).box(), viewport)) this.seen(record, px, shown(m.box()), step);
       } else {
         if (!this.labels.has(m)) this.labels.set(m, { text, px: 0, phone: 0, inView: false });
         // A camera gliding past does not make a label read: between completed frames a
         // label counts at no more than its size with the camera home.
         const credited = completed ? px : Math.min(px, readingLabelSize(m)! * STAGE_PX_PER_UNIT);
-        if (readable(m, m.box(), viewport)) this.seen(this.labels.get(m)!, credited, shown(m.box()), scene.frameCount, isHeading(m));
+        if (readable(m, m.box(), viewport)) this.seen(this.labels.get(m)!, credited, shown(m.box()), completed ? step : undefined, isHeading(m));
       }
     }
   }
@@ -525,7 +521,7 @@ export async function exploreMachines(
   const explored = [];
   for (const [index, live] of machinesOf(scene).entries()) {
     // The stage the reader saw the machine on: the run again, to the resting picture of the step it
-    // last played in (a frame is a function of time, so this is that picture exactly), rather than
+    // last played in (a frame is a function of its number, so this is that picture exactly), rather than
     // the stage the run ends with, which may have cleared its views away.
     const host = stageOf && live.lastPlayedIn ? await stageOf(live.lastPlayedIn) : scene;
     const machine = host === scene ? live : machinesOf(host)[index];
@@ -558,8 +554,8 @@ export async function exploreMachines(
       problems.push(...[...restingTextProblems(host), ...restingRouteProblems(host)].map((p) => `${at}: ${p}`));
       // Each label this state shows, at the size a 1280 px stage draws it; one not shown (outside
       // the view, clipped or transparent) is never measured and stays at 0.
-      const sizes = new LegibilitySink(new Set([host.frameCount]), new Map(), new Map(), 0);
-      await sizes.frame(host);
+      const sizes = new LegibilitySink(new Map(), 0);
+      sizes.resting(host);
       for (const r of [...sizes.labels.values(), ...sizes.staticLabels.values()])
         if (r.px > 0 && r.px < MIN_PX) problems.push(`${at}: “${r.text}” is ${r.px.toFixed(1)} px at a 1280 px stage, under ${MIN_PX}`);
       const picture = host.shownJson().picture as { entries?: { what?: string; items?: string[] }[] } | undefined;
@@ -739,35 +735,33 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       ),
     );
     const landing = new LandingSink(capture.frames);
-    const completedFrames = new Set(v.trace.steps.map((s) => s.frame1!));
-    // Each resting frame's close-ups on the phone, worked out as the player works them out.
+    // Each step's close-ups on the phone, worked out as the player works them out.
     const layouts = await stepLayouts(v.Scene);
     const legibility = new LegibilitySink(
-      completedFrames,
       new Map(
         v.trace.steps.map((s) => {
           const tour = closeUps(layouts.get(s.step), PHONE_W, PHONE_H);
           return [
-            s.frame1!,
+            s.step,
             { k: tour[0]!.k, views: tour.map((z) => ({ k: z.k, box: viewBox(z, PHONE_W, PHONE_H) })) },
           ] as const;
         }),
       ),
-      new Map(v.trace.steps.map((s) => [s.frame1!, s.step] as const)),
       stageScale(PHONE_W, PHONE_H).s,
     );
-    const restingSink = new RestingSink(completedFrames);
-    const looks = new LookWordsSink(completedFrames);
+    const restingSink = new RestingSink();
+    const looks = new LookWordsSink();
     // The caption hold: the player stops where it begins and the film holds the picture there, so
     // nothing may change after it. A play lands after its last frame is drawn (a morph gets its
     // paths' own structure back), so the first held frame is the resting picture, as in render.
     const holdSink = new HoldSink(
       v.trace.steps.flatMap((s) => (s.holdFrame != null ? [{ step: s.step, from: s.holdFrame + 1, to: s.frame1! }] : [])),
     );
-    // One full run feeds every check, each a sink of its own, in this order.
+    // One full run feeds every check, each a sink of its own, in this order: the step's resting
+    // picture is read as the step ends, landing first, before views and keys redraw anything.
     const views = new ViewSink();
     const keys = new KeySink();
-    const ran = await new v.Scene(new FanSink([invariants, motion, holdSink, capture, landing, restingSink, legibility, views, keys, looks])).run();
+    const ran = await new v.Scene(new FanSink([invariants, motion, holdSink, capture, landing, restingSink, legibility, looks, views, keys])).run();
     // The last frame, before exploring machines moves the scene.
     const finalSvg = toSvgString(ran);
     const { frames } = capture,
@@ -790,7 +784,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     const diagramsBefore = diagramsMade();
     const machines = await exploreMachines(ran, async (step) => {
       const s = v.trace.steps.find((x) => x.step === step)!;
-      return renderAt(v.Scene, s.frame1! / v.trace.fps, new NullSink());
+      return renderFrame(v.Scene, s.frame1!, new NullSink());
     });
     assert.ok(
       showsDiagrams(project) || diagramsMade() === diagramsBefore,
@@ -823,13 +817,13 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     );
     for (const [frame, svg] of frames) {
       const sink = new SnapshotSink();
-      await renderAt(v.Scene, frame / v.trace.fps, sink);
+      await renderFrame(v.Scene, frame, sink);
       assert.equal(sink.svg, svg, `Seek mismatch at frame ${frame} ${where}`);
     }
     const skipped = await traceScene(v.Scene, { skipUntil: 0 });
     assert.deepEqual(skipped, v.trace, `Skipped and played traces differ ${where}`);
     const still = v.trace.steps.filter(
-      (step, i) => i > 0 && resting.get(step.frame1!) === resting.get(v.trace.steps[i - 1]!.frame1!),
+      (step, i) => i > 0 && resting.get(step.step) === resting.get(v.trace.steps[i - 1]!.step),
     );
     assert.deepEqual(
       still.map((s) => s.step),
@@ -901,7 +895,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
         : {}),
       // Each step's resting frame as text, so an author can read it without a browser.
       restingFrames: Object.fromEntries(
-        v.trace.steps.map((step) => [step.step, restingText.get(step.frame1!) ?? '']),
+        v.trace.steps.map((step) => [step.step, restingText.get(step.step) ?? '']),
       ),
     });
   }

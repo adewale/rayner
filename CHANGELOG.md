@@ -13,6 +13,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `answerOf(this)` in `rayner/explain` reads the script's answer, so a caption that states it keeps no copy. `withIntent(Scene, scriptText)` in `rayner/testing` adopts a script for a test that runs a scene directly.
 - `meta.id` defaults to the scene's folder name (or its file's name when the file is not `scene.ts`).
 - A declared `meta.id` must be one path segment of letters, digits, `-` and `_`, and step names must be unique ignoring case, so no page or share page is written outside its folder or over another.
+- `demos:build` and `site:export` refuse two explainers whose page ids are equal ignoring case, and a scene whose `meta.id` is not its catalog id, so no page in a site is written over another. [Publishing](docs/PUBLISHING.md)
 - `static meta` has a type, `ExplainerMeta` (with `PlayerMeta` for `meta.player`), exported from `rayner/explain`: `static meta = { … } satisfies ExplainerMeta`. Collection and `loadProject` refuse a meta key it does not name, and a `player` key `PlayerMeta` does not, naming the key and the keys it takes. Every explainer and tutorial scene declares its meta this way.
 - `rayner check` fails a view whose draw never depends on its state (or on what is shown) at any step that shows it. [Checks](docs/REFERENCE.md#checks)
 - `emphasised(m, what)` in `rayner/drawing` marks a part as emphasis where it is drawn, so the close-up tour and the descriptions find it in the picture; a diagram's picture reports its own marks the same way.
@@ -144,7 +145,9 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - The events sit in the URL as `sent=`, so a link reopens the same picture, and Back takes an event back.
 - A polite status line says what each event changed.
 - Leaving a live step closes the run held for the reader's next press, and the player keeps the eight resting pictures it drew most recently, so a long exploration holds bounded memory. [The player](docs/MACHINES.md#the-player)
+- A run held for the reader's next press names the step it ran to; the player takes it only at that step, and closes one that arrives for another step or another log.
 - The page carries its default scenario's trace, so the player shows it without running the scene first; another scenario runs once, for its trace and its phone close-ups together. [Page](docs/REFERENCE.md#page)
+- Every trace the player holds, shipped or run in the page, keeps of each step's state only the watched keys and no evidence (`PlayerTrace`), and the player's code can read that state only as watched changes.
 - A scenario whose run throws in the page leaves the stage usable: the player keeps the scenario it had and says so.
 - On a phone the stage is taller than 16:9.
 - The stage's camera and the close-ups read one zoom, `zoomOf(box)` in `src/units.ts`, set by the tighter side of a box out of 16:9, so `s.focus(box, { exact: true })` with such a box keeps the heading where it is on screen.
@@ -160,18 +163,25 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 ### The scene's timeline
 
 - One `play()`, `wait()` or `step()` runs at a time: one started while another runs throws, telling the author to await it, so two plays cannot interleave their frames and an unawaited step cannot record steps out of order. `scene.phase` (a `ScenePhase`) says what the scene is doing, `'stopped'` once a sink has stopped the run. A step listener may still play and wait inside its step. [Reference](docs/REFERENCE.md#scene)
-- `scene.onStepEnd(listener)` runs as each step is about to end, before its caption hold. The unplayed-action check uses it instead of replacing `endCurrentStep`, and the live player's run uses it to stop at a step with no play or wait at its hold; that run still wraps `play` and `wait` to stop at the one that reaches it.
+- `scene.onStepEnd(listener)` runs as each step is about to end, before its caption hold. The unplayed-action check uses it instead of replacing `endCurrentStep`.
+- The live player's run stops the scene where the live step's picture is still, with the engine's own stop (after the play or wait that reaches that frame, or as the step ends), instead of a subclass that wrapped `play` and `wait`. The scene is then stopped for good (`scene.phase` is `'stopped'`), so a `construct()` that catches the stop cannot run on.
+- The stage keeps its heading, band, step number and line drawn last through the engine's top layer, instead of replacing the scene's `add`.
 - A step records its caption hold's frame, `holdFrame`, beside its time, `hold`, as it records `frame0` and `frame1` beside `t0` and `t1`; `stillFrame(step)` is where its picture stops changing. The player, the live player, `rayner check` and the tools read these frames instead of working them out from rounded times.
-- `this.step(name, (before) => meta)` takes its metadata from a function of the step it closes, for words that report that step's timing (fork). Step metadata is copied as JSON when the step begins.
+- `renderFrame(SceneClass, frame, sink)` in `rayner/output` draws one frame by its number, so `renderFrame(Scene, step.frame1, sink)` is a step's resting picture. The player, the build's poster, `rayner see`, the link-preview cards and `rayner check`'s seeks draw a step's frame this way, and the player finds where a step's play starts by its `frame0`, never by converting a frame to a time. [Scene outputs](docs/SCENE-OUTPUTS.md#time-and-step-semantics)
+- `this.step(name, (before) => meta)` takes its metadata from a function of the step it closes, for words that report that step's timing (fork). Step metadata is copied as JSON when the step begins, and checked, in either form, once the step before has ended.
 - `loadProject` and the `rayner` command refuse a step that draws no frame of its own, since it would show the step before's picture, and hold every scenario to the same step-name rules.
 - `rayner describe`, the contact sheet, the site's cards and the demos' posters draw every step's resting picture from one run of the scene instead of a seek per step.
 - What begins later in a play is held to one writer per mobject as it begins, against everything else the play drives then: a `Succession`'s member at its turn, and what an action's beat or a machine's transition makes. An action's beat that fades in the circle a `FadeOut` beside it fades out is refused, as the same pair in one `play()` is.
+- `rayner check` reads every step's resting picture as the step ends, as describe and the shots do; its landing check holds that picture to the step's last played frame.
 - An animation has a `phase` (an `AnimationPhase`: idle, begun or finished). A second `begin()` while begun, and `interpolate()` or `finish()` before `begin()`, throw; one animation listed twice in a play is refused, where it used to begin twice and leave its mobject invisible.
-- `fps` must be above 0 and at most 240; run times, lag ratios and `wait()` times must be finite and not negative.
+- A custom animation overrides the protected hooks `doBegin()`, `doInterpolate(alpha)` and `doFinish(alpha)`; `begin()`, `interpolate()` and `finish()` keep the phase around them for every caller, whether a hook is a method or a class field. A subclass that overrides `begin`, `interpolate` or `finish` itself is refused. [Fundamentals](docs/ENGINE-FUNDAMENTALS.md)
+- A group whose member throws as it begins, and a play whose animation does, land what they had begun, so no animation is left begun and each can play again.
+- `fps` must be above 0 and at most 240; run times, lag ratios and `wait()` times must be finite and not negative, and an animation's `runTime` and `lagRatio` are checked whenever they are set.
 - A `Succession` or group exposes its members' `ready()` and lays out their times as the play begins, so `s.show` composes inside a `Succession` or group. A `Succession` refuses a rate function that runs its time backwards.
 - `DecimalNumber` blends its value only with another number: transformed into a `Text`, it ends as that text instead of `NaN`.
-- `Scene.captionWpm` is read from the scene's own class, and a caption in a script written without spaces counts every one and a half letters as a word instead of the whole caption as one.
+- `Scene.captionWpm` is read from the scene's own class, and a caption in a script written without spaces counts every one and a half letters as a word instead of the whole caption as one. `captionWords(caption)` in `rayner` is that count, for words that report a caption's length (fork's timing step). [Reference](docs/REFERENCE.md#scene)
 - A frame with no updater on stage no longer builds a family list per top-level mobject.
+- `indexScene` and `traceScene` read one dry run, and an index's steps are the scene's own `Step` records, evidence included, rather than copies of some of their fields.
 
 ### Checks
 
@@ -219,7 +229,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `rayner describe` prints every scenario and step as JSON: the state, what changed, the invariants, the machines, and the picture in words and as text. [Describe](docs/REFERENCE.md#describe)
 - `rayner see` prints one step for a person at a terminal, and `describeExplainer` gives a script the same object.
 - `rayner/testing` loads an explainer for an author's test: `loadProject(Scene, folder)` adopts its script's intent, reads its pinned snapshots and traces every scenario; `loadSnapshots(folder)` reads the snapshots alone; `pictureWordsAt(trace, step)` gives a step's picture in words; and `diagramFindings(snapshot)` a pinned snapshot's verifier warnings. The collection's scene tests use them. [An explainer's test](docs/REFERENCE.md#an-explainers-test)
-- `loadProject` draws a scene's lettering from the `scene.lettering.json` beside it, as its page does, and refuses lettering with no snapshot, or one pinned for another request, saying to run `rayner snapshots`. font-metrics' scene test uses it.
+- `loadProject` draws a scene's lettering from the `scene.lettering.json` beside it, as its page does, and refuses lettering with no snapshot, or one pinned for another request, saying to run `rayner snapshots`. font-metrics' scene test uses it. Two `loadProject` calls that overlap take turns with the lettering, so each traces its scenarios with its own faces, and puts back the faces in place before it.
 - Traces are typed from the scene class: `traceScene(Explainer)` returns a `TraceOf<typeof Explainer>`, whose states are `Jsonified<S>` of the scene's `Scene<S, Sh>`, and `loadProject`, `LoadedProject` and `LoadedScenario` carry the same types. `withSettings`, `bindSnapshots` and `bindLettering` return the class typed as the one they bind. latest-search declares the union of its staged and machine states, and its tests and several fidelity checks read state without casts. [Typed traces](docs/REFERENCE.md#typed-traces)
 - `npm run site:export` publishes the built pages with their descriptions and `llms.txt`. [Publishing](docs/PUBLISHING.md#export-the-collection)
 - The export adds a share page and preview image per step, Open Graph and Twitter tags, oEmbed responses, known embed heights and response headers.
@@ -241,7 +251,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - A release publishes and retains both archives; `npm run pack:smoke` installs both, and `rayner` alone, and type-checks every explainer and recipe against the packed declarations. [Releasing](docs/RELEASING.md)
 - Every `rayner` command starts without loading the TypeScript compiler, which only the build fingerprint uses: `rayner version` takes about 0.3 s and 105 MB, where it took 0.7 s and 165 MB.
 - `rayner check` keeps each scenario's motion samples in columns of numbers: seasons' check peaks near 470 MB, where it peaked near 800 MB, with the same motion findings.
-- `rayner preview --watch` rebuilds when `script.md` changes too, and runs one rebuild at a time: saves made during a rebuild start one more when it ends, not one each.
+- `rayner preview --watch` rebuilds when `script.md` changes too, and runs one rebuild at a time: saves made during a rebuild start one more when it ends, not one each. Each rebuild adopts the script afresh: a script that loses its intent header drops the title, answer, questions and checked-against line it gave.
 - Diagram capture starts one Chromium per kind of diagram lettering however many diagrams wait for it, and closes each.
 - A page whose scenarios make no diagram carries no diagram code (`rayner check` fails a diagram only a reader's event draws): the build swaps `explain/diagrams.ts` for a stand-in `Diagram` alone, since the label helpers the player reads are in `explain/labels.ts`. Every page's style is minified: lru-mru's page is 203 KB gzipped, where it was 216 KB. [What a page leaves out](docs/ENGINE.md#what-a-page-leaves-out)
 - The SVG writer writes a straight segment as `L`, where it wrote a cubic, in the poster and on the live stage alike: font-metrics' page is 16 KB smaller gzipped, lru-mru's 2.6 KB.
@@ -289,6 +299,7 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
   - `LetteringSnapshot`, `PackedLetteringSnapshot`, `StoredLetteringSnapshot` and `Outcome` are no longer exported.
   - Run-time state with no author purpose is internal: `Mobject.saved` (`restore()` and `Restore` read it), `Frame.corners` (read `box()`), `Text.run`, `Animation.families`, `MoveAlongPath.offset`, `Succession.active` and `advance`, `TransformMatching.fadesIn` and `frames`, `DomSink.nodes`, `anchor` and `patch` (a `DomSink` with `realtime: false` draws every frame at once), `TraceSink.records` (read `steps()`) and `MotionSink.frames` and `labels` (hand the sink to `analyzeMotion`).
   - `analyzeMotion` names a leaf by its key, else its text, else its kind, inside the nearest keyed or lettered ancestor, never by the renderer's id.
+  - A mobject's `children` is a read-only list and its `parent` is read-only. `add`, the new `insert(index, ...mobs)` and `replaceChild(old, ...replacements)`, and `remove` are the ways to change a family; each keeps every child's `parent` and the cached box in step and refuses a cycle, which pushing into `children` could make. [Fundamentals](docs/ENGINE-FUNDAMENTALS.md#ownership-identity-and-copying)
   - `Scene.stopped` is gone: read `scene.phase === 'stopped'`. `Scene.endCurrentStep` is gone: pass `step()` a function of the step it closes. `restingFrame` and `restingTime` in `explain/trace.ts` are gone: read a step's `frame1`.
 
 ### Known limits

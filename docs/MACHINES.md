@@ -349,7 +349,8 @@ freed. The player keeps the eight resting pictures it drew most recently, steps 
 together, so Back and a repeated log draw nothing and a long exploration holds a bounded number of
 pictures. One value holds the exploration (`Exploration` in `app/embed-live.ts`: none, or live at
 a step with its log and held run), and one transition (`explore`) changes it for a press, Undo,
-Reset, a link, a held run and leaving; a run that arrives for a log no longer on show is closed, not held. `test/embed-live.test.ts` checks that a held
+Reset, a link, a held run and leaving. A held run names the step it ran to, and one that arrives
+for another step than the one live, or for a log no longer on show, is closed, not held. `test/embed-live.test.ts` checks that a held
 run's every frame is the fresh run's, and `test/browser/explain-live.test.ts` that pictures
 reached by pressing, now through held runs, are the ones a fresh load of the link draws.
 

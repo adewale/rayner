@@ -242,16 +242,8 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     [band, band.copy()],
   ]);
   /** The heading, its band, number and line draw last, over anything added after them. */
-  const onTop = () => {
-    const top = [band, heading, ...chrome].filter((m) => scene.mobjects.includes(m));
-    scene.mobjects = [...scene.mobjects.filter((m) => !top.includes(m)), ...top];
-  };
-  const add = scene.add.bind(scene);
-  scene.add = (...mobs: Mobject[]) => {
-    add(...mobs);
-    onTop();
-    return scene;
-  };
+  scene.keepOnTop(band);
+  let unkeepHeading = scene.keepOnTop(heading);
   /** A camera map from home to the world: world = shift + k × home. */
   type CameraMap = { k: number; shift: Vec };
   const HOME: CameraMap = { k: 1, shift: [0, 0] };
@@ -301,6 +293,8 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     for (const m of [heading, ...chrome]) home.delete(m);
     heading = next.heading;
     chrome = next.chrome;
+    unkeepHeading();
+    unkeepHeading = scene.keepOnTop(heading, ...chrome);
     if (!text) scene.add(heading);
     if (anims.length) await scene.play(...anims);
   }

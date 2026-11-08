@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { Square } from '../src/extras.ts';
 import assert from 'node:assert/strict';
 import { Scene, Group, Text, Code, Circle, Rectangle, Polygon, Line, Arc, Labeled, Arrow, VMobject, FadeIn, Transform, LaggedStart, TransformMatching, TransformMatchingShapes, TransformMatchingText } from '../src/index.ts';
-import { StringSink, SnapshotSink, renderAt } from '../src/output.ts';
+import { StringSink, SnapshotSink, renderFrame } from '../src/output.ts';
 import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
 import type { Mobject, Vec } from '../src/index.ts';
 import { drawsFrom as rng } from './lib/random-scene.ts';
@@ -231,11 +231,11 @@ test('seeking into a matching transform renders the frame a full run renders', a
   const full = new StringSink();
   await new MatchingScene(full).run();
   assert.equal(full.frames.length, 271);
-  // Frame k is at k / 30 s. The transforms run over frames 31-60, 91-135, 166-195
+  // The transforms run over frames 31-60, 91-135, 166-195
   // and 226-255: seek before, into (first, early, middle, last frame) and after each
   for (const k of [0, 15, 31, 38, 45, 60, 75, 91, 100, 113, 135, 150, 166, 172, 181, 195, 210, 226, 233, 241, 255, 270]) {
     const snap = new SnapshotSink();
-    await renderAt(MatchingScene, k / 30, snap);
+    await renderFrame(MatchingScene, k, snap);
     assert.equal(snap.svg, full.frames[k], `frame ${k}`);
   }
 });

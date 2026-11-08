@@ -403,10 +403,7 @@ export class Diagram {
             fill: snapshot.palette.paper, stroke: 'none',
           }).moveTo(center(b));
           // Keep the plate with the label through reveals, dimming and focus.
-          const i = mob.children.indexOf(label);
-          mob.add(paper);
-          mob.children.splice(mob.children.indexOf(paper), 1);
-          mob.children.splice(i, 0, paper);
+          mob.insert(mob.children.indexOf(label), paper);
         }
       }
       let route: VMobject | undefined;
@@ -612,7 +609,7 @@ export class Diagram {
       // route tokens (and notes) stay above artwork; the sort is stable among them.
       const rank = new Map(this.snapshot.parts.map((p, i) => [p.id, i]));
       const at = (m: Mobject) => rank.get(this.partIds.get(m)!) ?? this.snapshot.parts.length;
-      this.root.children.sort((a, b) => at(a) - at(b));
+      this.root.add(...[...this.root.children].sort((a, b) => at(a) - at(b)));
       return [new AnimationGroup(anims, { lagRatio: 0.12, rateFunc: linear })];
     };
     const after = () => {

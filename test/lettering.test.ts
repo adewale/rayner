@@ -15,9 +15,9 @@ import { SCRIPTS, letteringRequest, pageFaces, useProjectLettering } from '../to
 import type { LetteringFace } from '../tools/lib/explain-lettering.ts';
 import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
 import { shaperFor } from '../src/index.ts';
-import { SnapshotSink, renderAt } from '../src/output.ts';
+import { SnapshotSink, renderFrame } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
-import { useLettering, takeLetteringMissing } from '../src/lettering.ts';
+import { useLettering, withLettering, takeLetteringMissing } from '../src/lettering.ts';
 import { takeMissingGlyphs as takeEmbeddedMissing } from '../explain/testing.ts';
 import { loadFont } from '../vendor/glyph.js';
 
@@ -70,6 +70,33 @@ test('useLettering with the faces in place, or none in place, does nothing', asy
   await useLettering(null);
   await useLettering(null);
   assert.equal(shaperFor('sans'), embedded.sans);
+});
+
+test('lettering callers take turns: overlapping runs each see their own faces, and the last useLettering call wins (N13)', async () => {
+  await useLettering(null);
+  const faces = pageFaces((await collectProject(FIXTURE, { write: false })).lettering);
+  await useLettering(null);
+  const lettered = () => shaperFor('sans') !== embedded.sans;
+  const seen: string[] = [];
+  const run = (label: string) => async () => {
+    seen.push(`${label} begins ${lettered()}`);
+    await new Promise((r) => setTimeout(r, 20));
+    seen.push(`${label} ends ${lettered()}`);
+    return label;
+  };
+  // Two overlapping runs, as two loadProject calls in one file make: the second waits for the first.
+  assert.deepEqual(await Promise.all([withLettering(faces, run('a')), withLettering(null, run('b')), withLettering(faces, run('c'))]), ['a', 'b', 'c']);
+  assert.deepEqual(seen, ['a begins true', 'a ends true', 'b begins false', 'b ends false', 'c begins true', 'c ends true']);
+  assert.equal(shaperFor('sans'), embedded.sans, 'each run put back the faces in place before it');
+  // A run that throws still puts them back, and the next caller still gets its turn.
+  await assert.rejects(withLettering(faces, async () => { throw new Error('the run failed'); }), /the run failed/);
+  assert.equal(shaperFor('sans'), embedded.sans);
+  // The faces take time to decode, null none: the call made last is the one in place, not the one done last.
+  await Promise.all([useLettering(faces), useLettering(null)]);
+  assert.equal(shaperFor('sans'), embedded.sans, 'null, the later call, wins');
+  await Promise.all([useLettering(null), useLettering(faces)]);
+  assert.ok(lettered(), 'the faces, the later call, win');
+  await useLettering(null);
 });
 
 // Fail closed: a script nobody asked for fails every command, as it did before lettering existed.
@@ -174,13 +201,13 @@ test('a lettered explainer draws its Greek as outlines, and without its faces th
   const v = defaultScenario(project, { word: 'phos' });
   const step = v.trace.steps.find((s) => s.step === 'code')!;
   const sink = new SnapshotSink();
-  await renderAt(v.Scene, step.frame1! / v.trace.fps, sink);
+  await renderFrame(v.Scene, step.frame1!, sink);
   const lettered = sink.svg;
   await useLettering(null);
   assert.ok(shaperFor('mono')('αβγ', 1).glyphs.every((g) => g.gid === 0));
   assert.deepEqual([...takeLetteringMissing()], [['αβγ', 'αβγ']]);
   const bare = new SnapshotSink();
-  await renderAt(v.Scene, step.frame1! / v.trace.fps, bare);
+  await renderFrame(v.Scene, step.frame1!, bare);
   assert.notEqual(bare.svg, lettered, 'the Greek outlines are what the lettering added');
 });
 

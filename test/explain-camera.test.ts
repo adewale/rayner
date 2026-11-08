@@ -8,7 +8,7 @@ import {
   Transform,
   Succession,
   } from '../src/index.ts';
-import { NullSink, StringSink, renderAt, toSvgString } from '../src/output.ts';
+import { NullSink, StringSink, renderFrame, toSvgString } from '../src/output.ts';
 import { MotionSink, analyzeMotion } from '../explain/testing.ts';
 import type { Box, Mobject } from '../src/index.ts';
 import { stage } from '../explain/index.ts';
@@ -239,7 +239,7 @@ test('a scene that focuses twice seeks to the same SVG and moves without telepor
   assert.ok(views.size > 10, 'the viewBox animates');
   for (const frame of [5, 30, 45, 60, 75, sink.frames.length - 1]) {
     const at = new StringSink();
-    await renderAt(Bound, frame / 30, at);
+    await renderFrame(Bound, frame, at);
     assert.equal(at.last(), sink.frames[frame], `seek to frame ${frame}`);
   }
 });

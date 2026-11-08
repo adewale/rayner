@@ -78,9 +78,45 @@ function shaper(chain: readonly Font[], key: FontName, requested: ReadonlyMap<Fo
  * requested face before sans: a character the embedded faces draw is drawn as
  * before. Call it before anything shapes text; Text built earlier keeps the
  * outlines it has. Calling it again with the same faces does nothing.
+ *
+ * Calls take effect one at a time, in the order they were made, whatever each takes to decode its
+ * faces: the last call's faces are the ones in place once every call has settled. A call made while
+ * withLettering() runs waits until that run is over.
  */
-export async function useLettering(faces: LetteringFaces | null): Promise<void> {
+export function useLettering(faces: LetteringFaces | null): Promise<void> {
+  return serially(() => select(faces));
+}
+
+/**
+ * Run `run` with `faces` in place, and put back the faces in place before it once it settles: for a
+ * caller that traces scenes with an explainer's lettering, as loadProject and the build do. Runs and
+ * useLettering() calls take turns, in the order they were made, so two overlapping callers each see
+ * their own faces for the whole of their run. `run` must not call useLettering() or withLettering()
+ * itself: that call would wait for the run it is in.
+ */
+export function withLettering<T>(faces: LetteringFaces | null, run: () => Promise<T>): Promise<T> {
+  return serially(async () => {
+    const before = inPlace;
+    await select(faces);
+    try { return await run(); } finally { await select(before); }
+  });
+}
+
+/** Every useLettering() and withLettering(), chained in call order: each starts once those before it settle. */
+let turns: Promise<unknown> = Promise.resolve();
+function serially<T>(work: () => Promise<T>): Promise<T> {
+  const mine = turns.then(work);
+  turns = mine.catch(() => {});
+  return mine;
+}
+
+/** The faces in place now, as given: what withLettering() puts back. */
+let inPlace: LetteringFaces | null = null;
+
+/** Put `faces` in place (see useLettering), now: callers take turns through serially(). */
+async function select(faces: LetteringFaces | null): Promise<void> {
   const key = faces && (faces.sans || faces.mono) ? JSON.stringify([faces.sans ?? '', faces.mono ?? '']) : '';
+  inPlace = key ? faces : null;
   if (key === current) return;
   const shapers = await loadFonts();
   embedded ??= { ...shapers };

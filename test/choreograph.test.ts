@@ -102,9 +102,13 @@ test('travel: a token appears at the path start, moves along it, and leaves; the
     const part = cur.children.find((m) => m.key === 'token')!;
     // Unseen until its turn, then carried from one end of the path to the other.
     assert.ok(part.family().every((m) => m.style.opacity === 0));
-    const watch = (anim: Animation, into: 'appeared' | 'moved') => Object.assign(anim, {
-      finish: ((orig) => function (this: Animation) { orig.call(this); seen[into] = [...part.center()]; })(anim.finish),
-    });
+    // Its landing hook, wrapped on the instance: finish() still keeps the phase around it.
+    const watch = (anim: Animation, into: 'appeared' | 'moved'): Animation => {
+      const hooks = anim as unknown as { doFinish(alpha?: number): void };
+      const orig = hooks.doFinish;
+      hooks.doFinish = function (this: Animation, alpha?: number) { orig.call(this, alpha); seen[into] = [...part.center()]; };
+      return anim;
+    };
     return new Succession([watch(t.appear, 'appeared'), watch(t.move, 'moved'), t.leave, c.rest({ runTime: 0.2 })]);
   });
   assert.deepEqual(seen.appeared!.map((v) => Math.round(v * 1e6) / 1e6), [-3, -1]);

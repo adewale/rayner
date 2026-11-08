@@ -4,7 +4,7 @@
 // describeExplainer's description of the scenario, so `see` and `describe` cannot disagree.
 import { isHeading } from '../../explain/stage.ts';
 import { writeFile } from 'node:fs/promises';
-import { renderAt, toSvgString } from '../../src/output.ts';
+import { renderFrame, toSvgString } from '../../src/output.ts';
 import type { Scene, Sink } from '../../src/index.ts';
 import { describeScenario } from '../../explain/describe.ts';
 import type { ScenarioDescription } from '../../explain/describe.ts';
@@ -46,11 +46,11 @@ export async function seeStep(project: Project, v: Scenario, step?: string): Pro
   return seeText(project.Scene.meta?.id ?? 'scene', described, step);
 }
 
-/** The step's resting picture as SVG, at the time the description draws it, heading left out as `check` draws it. */
+/** The step's resting picture as SVG, at the frame the description draws it, heading left out as `check` draws it. */
 export async function stepSvg(v: Scenario, step?: string): Promise<string> {
   const s = step == null ? v.trace.steps.at(-1)! : v.trace.steps.find((x) => x.step === step)!;
   const sink: Sink = { async frame() {} };
-  const scene: Scene = await renderAt(v.Scene, s.frame1! / v.trace.fps, sink);
+  const scene: Scene = await renderFrame(v.Scene, s.frame1!, sink);
   scene.mobjects = scene.mobjects.filter((m) => !isHeading(m));
   return toSvgString(scene);
 }

@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Rectangle, Text, FadeIn } from '../src/index.ts';
-import { NullSink, SnapshotSink, renderAt, toSvgString } from '../src/output.ts';
+import { NullSink, SnapshotSink, renderFrame, toSvgString } from '../src/output.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
 import { stage } from '../explain/index.ts';
 import { bindSnapshots } from '../explain/testing.ts';
@@ -145,7 +145,7 @@ test('the time a player, poster or screenshot shows for a step renders that step
   for (const step of trace.steps) {
     // The resting frame is the last one the step draws: everything it played has arrived.
     const sink = new SnapshotSink();
-    await renderAt(Ends, step.frame1! / trace.fps, sink);
+    await renderFrame(Ends, step.frame1!, sink);
     assert.equal(sink.svg, played.get(step.frame1!), `${step.step} rests on its final frame`);
   }
 });

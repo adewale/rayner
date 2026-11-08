@@ -75,7 +75,7 @@ The dot is at the top of the circle and the number reads 1.57, because the recip
 evaluates the orbit throughout the motion; interpolating the two opposite endpoint
 pictures would put the dot through the centre.
 
-`FollowAngle` captures the initial value in `begin()`, makes an immutable sample
+`FollowAngle` captures the initial value in `doBegin()`, makes an immutable sample
 from alpha, applies absolute updates and publishes that sample as scene state.
 It registers no updater. Its animation target is the whole dependent group, so
 the existing `play()` overlap checker rejects another simultaneous animation of
@@ -88,12 +88,12 @@ distribution and adding another dependent readout. Keep these constraints:
    previously drawn point as a model input.
 2. Write only the animation's owned subtree. Its callback may publish the same
    sample to state but must not secretly animate another object.
-3. Capture changing endpoints at `begin()`. Never use ambient time, unseeded random
+3. Capture changing endpoints in `doBegin()`. Never use ambient time, unseeded random
    values or mutable external inputs to decide intermediate geometry.
 4. Stay inside the model's domain. This recipe's angle is in `[0, pi]`, and its
    rate function must stay in `[0, 1]`; overshooting easings are refused by the
    model's domain check.
-5. Land in `finish()` where the last frame drew. `rayner check` compares each step's
+5. Land in `doFinish()` where the last frame drew. `rayner check` compares each step's
    picture as it ends, after its last play has finished, with its resting frame,
    since `rayner describe` and the shots draw the step as it ends.
 

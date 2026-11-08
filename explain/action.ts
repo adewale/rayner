@@ -58,7 +58,7 @@ export abstract class MadeAtTurn extends AnimationGroup {
   protected slots(made: readonly ScheduledAnimation[]): Array<[number, number]> {
     return made.map(() => [0, 1]);
   }
-  override begin(): void {
+  protected override doBegin(): void {
     const scene = this.scene;
     if (!scene) throw new Error(`${this.by}: play it on the scene it belongs to`);
     this.animations = [];
@@ -73,17 +73,17 @@ export abstract class MadeAtTurn extends AnimationGroup {
       this.#turn = { made: 'begun' };
       scene.beginAnimations(made, this.by);
       // Begun after the play waited: it takes the frame it was given while it waited.
-      if (turn.made === 'waiting' && turn.at !== null) super.interpolate(turn.at);
+      if (turn.made === 'waiting' && turn.at !== null) super.doInterpolate(turn.at);
     });
   }
-  override interpolate(alpha: number): void {
+  protected override doInterpolate(alpha: number): void {
     const turn = this.#turn;
     if (turn.made === 'waiting') this.#turn = { made: 'waiting', at: alpha };
-    else super.interpolate(alpha);
+    else super.doInterpolate(alpha);
   }
-  override finish(alpha?: number): void {
+  protected override doFinish(alpha?: number): void {
     if (this.#turn.made === 'waiting') throw new Error(`${this.by}: its turn came as its play ended, where nothing can wait for what it reads; give it a run time`);
-    super.finish(alpha);
+    super.doFinish(alpha);
   }
   /** Before its members are made, what it declares; then theirs. */
   override targets(): Mobject[] {
@@ -292,7 +292,7 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
   }
 
   /** Composed: begun by a play, or by the Succession or group that holds it. A refused begin leaves it unplayed. */
-  override begin(): void {
+  protected override doBegin(): void {
     const s = this.#state;
     const how = this.#played();
     if (how) throw this.#playedAlready(how, 'composed');
@@ -301,11 +301,11 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
     this.#state = { phase: 'composed', plan };
     unplayed.get(this.host)?.delete(this as Action<unknown>);
     plan.start?.();
-    super.begin();
+    super.doBegin();
   }
 
-  override finish(): void {
-    super.finish();
+  protected override doFinish(): void {
+    super.doFinish();
     const s = this.#state;
     if (s.phase !== 'composed') return;
     this.#state = { phase: 'ended', plan: s.plan, run: null };
