@@ -92,15 +92,15 @@ test('packed transport rejects invalid references and malformed dictionary entri
     const payload = packPageSnapshots(fixture([0, 1]));
     payload.paths = [[0, 1]];
     payload.store.diagram!.parts[0]!.shapes[0]!.subpaths = [ref as number];
-    assert.throws(() => decodeSnapshotPayload(payload), /Invalid packed diagram snapshots/);
+    assert.throws(() => decodeSnapshotPayload(payload), /^Error: decodeSnapshotPayload\(\): the packed diagram snapshots do not match the rayner-paths-v1 format/);
   }
   for (const paths of [null, {}, [null], [[Infinity]], [['1']], [[{}]], Array(1), [Array(2)]]) {
-    assert.throws(() => decodeSnapshotPayload({format: 'rayner-paths-v1', paths, store: {}}), /Invalid packed diagram snapshots/);
+    assert.throws(() => decodeSnapshotPayload({format: 'rayner-paths-v1', paths, store: {}}), /^Error: decodeSnapshotPayload\(\): the packed diagram snapshots do not match the rayner-paths-v1 format/);
   }
-  assert.throws(() => decodeSnapshotPayload({format: 'rayner-paths-v2', paths: [], store: {}}), /Invalid packed diagram snapshots/);
+  assert.throws(() => decodeSnapshotPayload({format: 'rayner-paths-v2', paths: [], store: {}}), /^Error: decodeSnapshotPayload\(\): the packed diagram snapshots do not match the rayner-paths-v1 format/);
   const sparse = packPageSnapshots(fixture([0, 1]));
   sparse.store.diagram!.parts[0]!.shapes[0]!.subpaths = Array(1);
-  assert.throws(() => decodeSnapshotPayload(sparse), /Invalid packed diagram snapshots/);
+  assert.throws(() => decodeSnapshotPayload(sparse), /^Error: decodeSnapshotPayload\(\): the packed diagram snapshots do not match the rayner-paths-v1 format/);
 });
 
 test('compacted real flowchart, timeline and XY snapshots render byte-identical resting SVGs', async () => {

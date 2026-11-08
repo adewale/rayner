@@ -10,7 +10,7 @@ import { machinesOf } from '../../explain/testing.ts';
 import type { Scene, Sink } from '../../src/index.ts';
 import type { Machine } from '../../explain/index.ts';
 import { SENT, acceptedLog, encodeLog, outcomes } from '../../app/embed-live.ts';
-import { logStart, runLive } from '../../explain/live.ts';
+import { liveBase, runLive } from '../../explain/live.ts';
 import type { LogStart } from '../../explain/live.ts';
 import { chromeFor } from '../../app/embed-strings.ts';
 import { READ_PX } from '../../app/embed-closeup.ts';
@@ -87,7 +87,7 @@ export async function liveSubjects(scenario: Scenario, lang?: string): Promise<L
   const subjects: LiveSubject[] = [];
   for (const [step, live] of scenario.live ?? []) {
     assert.ok(scenario.trace.steps.some((s) => s.step === step), `live step ${step} is not in the trace`);
-    const base = logStart(live.machine, (await runLive(scenario.Scene, step, live, [])).rest);
+    const { base } = await liveBase(scenario.Scene, step, live);
     if (!base) continue;
     for (const sent of liveVisits(live.machine, base.state)) {
       const name = `${step} after [${sent.join(', ')}]`;

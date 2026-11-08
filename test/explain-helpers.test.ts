@@ -182,8 +182,9 @@ test('a diagram’s presentation is one value, the view a live diagram replaced 
 });
 
 test('a diagram\'s presentation changes only through its calls: a root taken off is not described, and one put back beside its view is refused', async () => {
-  const twice = /^Error: d\.root: it is on the stage while a view shows the diagram, so each of its keys is drawn twice; take it off, or call s\.liveDiagram\(d\) to show the live diagram in the view's place$/;
-  const beside = /^Error: d\.root: it is on the stage beside the view it replaced, so each of its keys is drawn twice; take the view off, or call s\.diagramView\(d\) to show the diagram by it again$/;
+  // Named by the call whose step's description refuses it, not by the property.
+  const twice = /^Error: this\.step\(\): the diagram's root is on the stage while a view shows the diagram, so each of its keys is drawn twice; take it off, or call s\.liveDiagram\(d\) to show the live diagram in the view's place$/;
+  const beside = /^Error: this\.step\(\): the diagram's root is on the stage beside the view it replaced, so each of its keys is drawn twice; take the view off, or call s\.diagramView\(d\) to show the diagram by it again$/;
   class ByHand extends Scene {
     override async construct() {
       const s = stage(this);
@@ -236,12 +237,37 @@ test('stage() runs once per scene: a second call is refused', async () => {
 test('a stage() that throws on its options leaves the scene as it was, free to have a stage', async () => {
   const scene = new Scene(new NullSink());
   const listeners = () => (scene as unknown as { stepListeners: unknown[] }).stepListeners.length;
-  for (const options of [{ direction: 'sideways' }, { style: 'no-such-style' }] as const) {
-    assert.throws(() => stage(scene, options as never), /^RangeError: (stage|palette)\(\): /);
+  const nord = { paper: '#2e3440', ink: '#d8dee9', accent: '#88c0d0', muted: '#616e88' };
+  // Each option is checked: before, a malformed palette, heading size, numbering or heading staged
+  // without a word, and `heading: 42` staged with no step headings at all.
+  const defects: [unknown, RegExp][] = [
+    [{ direction: 'sideways' }, /^RangeError: stage\(\): /],
+    [{ style: 'no-such-style' }, /^RangeError: palette\(\): /],
+    [{ palette: {} }, /^TypeError: stage\(\): the palette has no paper, ink, accent, muted; give \{ paper, ink, accent, muted \}, each a hex colour$/],
+    [{ palette: { ...nord, paper: 'notacolour' } }, /^RangeError: stage\(\): the palette's paper is "notacolour", not a hex colour; give #rgb or #rrggbb, such as '#2e3440'$/],
+    [{ palette: { ...nord, ink: 7 } }, /^TypeError: stage\(\): the palette's ink is number;/],
+    [{ palette: { ...nord, emphasis: '#fff' } }, /^TypeError: stage\(\): the palette takes no "emphasis";/],
+    [{ palette: 'nord' }, /^TypeError: stage\(\): the palette is "nord"; give \{ paper, ink, accent, muted \}, each a hex colour, or a style's, palette\('nord'\)$/],
+    [{ headingSize: NaN }, /^RangeError: stage\(\): headingSize is NaN; give a font size in scene units above 0, such as 0\.5$/],
+    [{ headingSize: -1 }, /^RangeError: stage\(\): headingSize is -1;/],
+    [{ headingSize: 0 }, /^RangeError: stage\(\): headingSize is 0;/],
+    [{ headingSize: Infinity }, /^RangeError: stage\(\): headingSize is Infinity;/],
+    [{ headingSize: '0.5' }, /^TypeError: stage\(\): headingSize is string;/],
+    [{ numbered: 'yes' }, /^TypeError: stage\(\): numbered is "yes"; give true or false$/],
+    [{ heading: 42 }, /^TypeError: stage\(\): the heading is 42; give 'step' to follow each step's title, words to fix it, or false for none$/],
+    [{ heading: true }, /^TypeError: stage\(\): the heading is true;/],
+    [{ headingsize: 0.5 }, /^TypeError: stage\(\): it takes no option "headingsize"; the options are direction, style, palette, heading, headingSize, numbered$/],
+    [null, /^TypeError: stage\(\): the options must be an object/],
+  ];
+  for (const [options, refused] of defects) {
+    assert.throws(() => stage(scene, options as never), refused, JSON.stringify(options));
     assert.equal(listeners(), 0, `${JSON.stringify(options)}: no step listener`);
     assert.equal(scene.mobjects.length, 0, `${JSON.stringify(options)}: no backdrop or heading`);
     assert.equal(paletteOf(scene), undefined);
   }
+  // What the options allow still stages: each on a fresh scene.
+  for (const options of [{ palette: nord, headingSize: 0.5, numbered: false, heading: 'A title' }, { palette: { ...nord, paper: '#fff' }, heading: false as const }, { heading: 'step', numbered: true }])
+    assert.ok(stage(new Scene(new NullSink()), options), JSON.stringify(options));
   // The retry is the scene's one stage: its listeners once, its backdrop once.
   const s = stage(scene);
   assert.equal(listeners(), 3);

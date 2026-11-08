@@ -21,7 +21,7 @@ import { buildExplainer } from '../lib/explain-build.ts';
 import { serve } from '../lib/explain-serve.ts';
 import { launch } from '../lib/browser.ts';
 import { SENT, acceptedLog, encodeLog, outcomes } from '../../app/embed-live.ts';
-import { logStart, runLive } from '../../explain/live.ts';
+import { liveBase, runLive } from '../../explain/live.ts';
 import { stepQuery } from '../../explain/settings.ts';
 import { median } from './lib/bench-stats.ts';
 
@@ -69,7 +69,7 @@ try {
     const server = await serve(folder, 0, `${id}.html`);
     const scenario = project.scenarios[0]!;
     for (const [step, live] of scenario.live ?? []) {
-      const base = logStart(live.machine, (await runLive(scenario.Scene, step, live, [])).rest);
+      const { base } = await liveBase(scenario.Scene, step, live);
       if (!base) continue;
       // The presses: each extends the log, so no picture is one the page drew before (it keeps those),
       // with the events the model takes from the state reached, in turn; where none goes on, Reset

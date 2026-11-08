@@ -18,7 +18,7 @@ import type { Settings } from '../../explain/settings.ts';
 import ts from 'typescript';
 import { Text } from '../../src/index.ts';
 import { View } from '../../explain/index.ts';
-import { SnapshotSink, renderFrame, toSvgString, renderText } from '../../src/output.ts';
+import { SnapshotSink, renderFrame, toSvgString } from '../../src/output.ts';
 import { renderElements, serializeElement } from '../../src/svg.ts';
 import { MotionSink, InvariantSink, machinesOf, viewMismatch, jsonObject, analyzeMotion, traceScene } from '../../explain/testing.ts';
 import { canonicalJson } from '../../src/json.ts';
@@ -27,7 +27,9 @@ import { checkedAgainstFiles, compareAnswers, runModelTest } from './explain-evi
 import { scenarioName } from '../../explain/testing.ts';
 import { undescribed, watchedChanges } from '../../explain/trace.ts';
 import { diagramsOn } from '../../explain/diagrams.ts';
-import { runLive } from '../../explain/live.ts';
+import { restingDrawing } from '../../explain/describe.ts';
+import { LiveSink, liveMachine, runLive } from '../../explain/live.ts';
+import type { LiveExplore } from '../../explain/live.ts';
 import { labelOf, readingLabelSize } from '../../explain/labels.ts';
 import { closeUps, stageScale, stepLayouts, toView, viewBox } from '../../app/embed-closeup.ts';
 import { zoomOf } from '../../src/units.ts';
@@ -377,7 +379,7 @@ export class FrameCaptureSink implements Sink {
   }
 }
 
-/** Each step's resting picture, by step: its SVG without the heading, its text drawing, and its text and route collisions. */
+/** Each step's resting picture, by step: its SVG and its text drawing, both without the heading, and its text and route collisions. */
 export class RestingSink implements Sink {
   readonly resting = new Map<string, string>();
   readonly restingText = new Map<string, string>();
@@ -386,7 +388,8 @@ export class RestingSink implements Sink {
   async stepEnd(scene: Scene, step: Step): Promise<void> {
     // The resting picture of a step, without the heading (number, title, line) that names it.
     this.resting.set(step.path, withoutHeading(scene, () => toSvgString(scene)));
-    this.restingText.set(step.path, renderText(scene));
+    // Drawn as describe draws it, without the heading too (restingDrawing).
+    this.restingText.set(step.path, restingDrawing(scene));
     this.collisions.push(
       ...[...restingTextProblems(scene), ...restingRouteProblems(scene)].map((p) => `${step.name}: ${p}`),
     );
@@ -505,74 +508,87 @@ export class LegibilitySink implements Sink {
 
 /**
  * Every state a scene's machines (src/machine.ts) reach, breadth first from each one's start,
- * redrawn after the run and checked as a resting picture is: no text collisions or routes
- * over labels, every label it shows at least MIN_PX at a 1280 px stage (measured by the same
- * LegibilitySink a run uses), a description, a picture that follows the state (viewMismatch,
- * for views of the scene's state), and a description no other reachable state shares, so a
- * reader, or a screen reader, can tell them apart. A problem is named by the shortest events
- * reaching it. Phone close-ups are not worked out for explored states.
+ * redrawn and checked as a resting picture is: no text collisions or routes over labels, every
+ * label it shows at least MIN_PX at a 1280 px stage (measured by the same LegibilitySink a run
+ * uses), a description, a picture that follows the state (viewMismatch, for views of the scene's
+ * state), and a description no other reachable state shares, so a reader, or a screen reader, can
+ * tell them apart. A problem is named by the shortest events reaching it. Phone close-ups are not
+ * worked out for explored states.
  *
- * With `Source`, the scene's class, each machine is explored on the stage the reader drives it on:
- * `Source` run again to the end of the step it last played in, by the live player's own run
- * (`runLive`, which refuses a run that made a different machine there), so the state exploration
- * starts from is the one the reader's events start from. Without it, on `scene` as its run ended.
- * `diagrams` says whether exploring the machine made a diagram, which a page without diagram code
- * could not draw.
+ * Each machine of `scene` (a run of `Source`, the scene's class) is explored on the stage the reader
+ * drives it on: `Source` run again to the end of the step it last played in, by the live player's
+ * own run (`runLive`, which refuses a run that made a different machine there), and explored there,
+ * while that scene can still play, so the state exploration starts from is the one the reader's
+ * events start from, and each transition plays in a play of its own, as a reader's event plays it.
+ * A machine that never played is explored on a fresh run of `Source` as it ends. `diagrams` says
+ * whether exploring the machine made a diagram, which a page without diagram code could not draw.
  */
 export async function exploreMachines(
   scene: Scene,
-  Source?: SceneClass,
+  Source: SceneClass,
 ): Promise<{ events: string[]; states: number; sampled: boolean; diagrams: boolean; problems: string[] }[]> {
   const explored = [];
-  for (const [index, live] of machinesOf(scene).entries()) {
+  for (const [index, made] of machinesOf(scene).entries()) {
+    const step = made.lastPlayedIn, place = { index, identity: made.identity };
+    let found: Awaited<ReturnType<typeof exploreMachines>>[number] | undefined;
+    const explore: LiveExplore = async (host, machine, draw) => { found = await exploreMachine(host, machine, step, draw); };
     // The stage the reader saw the machine on, rather than the stage the run ends with, which may
     // have cleared its views away.
-    const step = live.lastPlayedIn;
-    const host = Source && step !== null ? (await runLive(Source, step, { index, identity: live.identity }, [])).scene : scene;
-    const machine = host === scene ? live : machinesOf(host)[index]!;
-    const diagramsBefore = diagramsOn(host);
-    const problems: string[] = [];
-    const missing = machine.spec.views.filter((v) => !host.familyMembers().includes(v));
-    if (missing.length) problems.push(`its views ${missing.map((v) => v.key ?? v.constructor.name).join(', ')} are not on the stage where it last played, so its states cannot be checked there`);
-    // From the start, as exploration always has; and from the state the reader finds at the step
-    // where the machine is live, since the player lets the reader send events from there too.
-    const fromStart = machine.reachable().map((r) => ({ ...r, origin: '' }));
-    const seen = new Set(fromStart.map((r) => canonicalJson(r.state)));
-    const stepState = jsonObject(host.state, 'machine state') as object;
-    const answers = (() => { try { return machine.spec.events.some((e) => machine.after(stepState, e) !== undefined); } catch { return false; } })();
-    const fromStep = host === scene || seen.has(canonicalJson(stepState)) || !answers ? []
-      : machine.reachable(stepState).filter((r) => !seen.has(canonicalJson(r.state))).map((r) => ({ ...r, origin: `from the state at "${live.lastPlayedIn}", ` }));
-    const reached = [...fromStart, ...fromStep];
-    const shownThen = host.shown;
-    // Every state is drawn as the reader would have seen it: under what the scene showed while the machine played.
-    host.shown = machine.playedUnder ?? shownThen;
-    const said = new Map<string, string>();
-    for (const { state, path, origin } of reached) {
-      const at = origin + (path.length ? `after ${path.join(', ')}` : 'at the start');
-      host.state = jsonObject(state, 'machine state');
-      for (const view of machine.spec.views) {
-        view.rebuild();
-        const mismatch = viewMismatch(view, host.state, { shown: host.shown });
-        if (mismatch) problems.push(`${at}: ${mismatch}`);
-      }
-      problems.push(...[...restingTextProblems(host), ...restingRouteProblems(host)].map((p) => `${at}: ${p}`));
-      // Each label this state shows, at the size a 1280 px stage draws it; one not shown (outside
-      // the view, clipped or transparent) is never measured and stays at 0.
-      const sizes = new LegibilitySink(new Map(), 0);
-      sizes.resting(host);
-      for (const r of [...sizes.labels.values(), ...sizes.staticLabels.values()])
-        if (r.px > 0 && r.px < MIN_PX) problems.push(`${at}: “${r.text}” is ${r.px.toFixed(1)} px at a 1280 px stage, under ${MIN_PX}`);
-      const picture = host.shownJson().picture as { entries?: { what?: string; items?: string[] }[] } | undefined;
-      const words = JSON.stringify(picture?.entries ?? []);
-      if (!picture?.entries?.some((e) => e.what?.trim())) problems.push(`${at}: the picture has no description`);
-      else if (said.has(words)) problems.push(`${at}: the picture is described exactly as ${said.get(words)}, a different state`);
-      else said.set(words, at);
-      problems.push(...await transitionProblems(host, machine, state, path, origin));
+    if (step !== null) await runLive(Source, step, place, [], { explore });
+    else {
+      const out = new LiveSink();
+      const host = await new Source(out).run();
+      await explore(host, liveMachine(host, null, place), (to) => out.draw(to));
     }
-    host.shown = shownThen;
-    explored.push({ events: [...machine.spec.events], states: reached.length, sampled: fromStart.length >= machine.spec.limit || fromStep.length >= machine.spec.limit, diagrams: diagramsOn(host) > diagramsBefore, problems });
+    explored.push(found!);
   }
   return explored;
+}
+
+/** One machine explored on `host`, which may still play, as the step it last played in (`step`) ends, or as the run ends when it never played; `draw` routes the host's frames. */
+async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf>[number], step: string | null, draw: (to?: Sink) => void) {
+  const diagramsBefore = diagramsOn(host);
+  const problems: string[] = [];
+  const missing = machine.spec.views.filter((v) => !host.familyMembers().includes(v));
+  if (missing.length) problems.push(`its views ${missing.map((v) => v.key ?? v.constructor.name).join(', ')} are not on the stage where it last played, so its states cannot be checked there`);
+  // From the start, as exploration always has; and from the state the reader finds at the step
+  // where the machine is live, since the player lets the reader send events from there too.
+  const fromStart = machine.reachable().map((r) => ({ ...r, origin: '' }));
+  const seen = new Set(fromStart.map((r) => canonicalJson(r.state)));
+  const stepState = jsonObject(host.state, 'machine state') as object;
+  const answers = (() => { try { return machine.spec.events.some((e) => machine.after(stepState, e) !== undefined); } catch { return false; } })();
+  const fromStep = step === null || seen.has(canonicalJson(stepState)) || !answers ? []
+    : machine.reachable(stepState).filter((r) => !seen.has(canonicalJson(r.state))).map((r) => ({ ...r, origin: `from the state at "${step}", ` }));
+  const reached = [...fromStart, ...fromStep];
+  const shownThen = host.shown;
+  // Every state is drawn as the reader would have seen it: under what the scene showed while the machine played.
+  host.shown = machine.playedUnder ?? shownThen;
+  const said = new Map<string, string>();
+  for (const { state, path, origin } of reached) {
+    const at = origin + (path.length ? `after ${path.join(', ')}` : 'at the start');
+    host.state = jsonObject(state, 'machine state');
+    for (const view of machine.spec.views) {
+      view.rebuild();
+      const mismatch = viewMismatch(view, host.state, { shown: host.shown });
+      if (mismatch) problems.push(`${at}: ${mismatch}`);
+    }
+    problems.push(...[...restingTextProblems(host), ...restingRouteProblems(host)].map((p) => `${at}: ${p}`));
+    // Each label this state shows, at the size a 1280 px stage draws it; one not shown (outside
+    // the view, clipped or transparent) is never measured and stays at 0.
+    const sizes = new LegibilitySink(new Map(), 0);
+    sizes.resting(host);
+    for (const r of [...sizes.labels.values(), ...sizes.staticLabels.values()])
+      if (r.px > 0 && r.px < MIN_PX) problems.push(`${at}: “${r.text}” is ${r.px.toFixed(1)} px at a 1280 px stage, under ${MIN_PX}`);
+    const picture = host.shownJson().picture as { entries?: { what?: string; items?: string[] }[] } | undefined;
+    const words = JSON.stringify(picture?.entries ?? []);
+    if (!picture?.entries?.some((e) => e.what?.trim())) problems.push(`${at}: the picture has no description`);
+    else if (said.has(words)) problems.push(`${at}: the picture is described exactly as ${said.get(words)}, a different state`);
+    else said.set(words, at);
+    problems.push(...await transitionProblems(host, machine, state, path, origin, draw));
+  }
+  host.shown = shownThen;
+  const sampled = fromStart.length >= machine.spec.limit || fromStep.length >= machine.spec.limit;
+  return { events: [...machine.spec.events], states: reached.length, sampled, diagrams: diagramsOn(host) > diagramsBefore, problems };
 }
 
 /** A picture in full for telling two drawings apart: each part's kind, key, text, box and style. */
@@ -625,28 +641,30 @@ export function viewIgnoresState(view: View, state: Record<string, unknown>, sho
 
 
 /**
- * Each authored transition from `state`, played through on the explored scene: every invariant
- * is checked a quarter, half, three quarters and all the way through, and when it ends the views
- * must show the pictures of the state it reaches, as rendered, so the landing sync moves nothing.
- */
-/**
  * A rendered frame's marks in any stacking order: a part a transition brought in is added last,
  * so it may sit above parts it sits below in the target picture; the landing puts it back a frame
  * later. Every mark must still be there, drawn the same.
  */
 const marksOf = (svg: string) => svg.split('/>').sort().join('/>');
 
-async function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[], origin = ''): Promise<string[]> {
+/**
+ * Each authored transition from `state`, played on the explored scene as a reader's event plays it:
+ * the event's state change first, then the transition in a play of its own (`machine.transitionPlay`),
+ * made when its turn comes and waiting, as the play lets it, for what it reads. Every invariant is
+ * checked on every frame it draws (an InvariantSink, through `draw`), and when it ends the views must
+ * show the pictures of the state it reaches, as rendered, so the landing sync moves nothing.
+ */
+async function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[], origin: string, draw: (to?: Sink) => void): Promise<string[]> {
   const problems: string[] = [];
-  const { views, transition, events } = machine.spec;
+  const { views, events } = machine.spec;
   for (const event of events) {
     // A bound only bounds: an event it stops that the model refuses anyway is a refusal.
     const bound = machine.spec.bound?.(state, event);
     if (bound !== undefined && 'refused' in machine.model(state, event))
       problems.push(`${origin}${path.length ? `after ${path.join(', ')}, ` : ''}${event}: the bound says "${bound}", but the model refuses it anyway; it is a refusal, not where the story stops`);
-    const authored = transition?.[event];
-    const after = authored && machine.after(state, event);
-    if (!authored || after === undefined) continue;
+    const after = machine.after(state, event);
+    const motion = after === undefined ? null : machine.transitionPlay(event, state, after);
+    if (!motion) continue;
     const at = `${origin}${path.length ? `after ${path.join(', ')}, ` : ''}${event}`;
     // What the reader should see when it ends: the views rebuilt for `after` where they stand
     // now (a rebuilt picture keeps its place), before the transition can move them.
@@ -655,23 +673,21 @@ async function transitionProblems(scene: Scene, machine: ReturnType<typeof machi
     const expected = marksOf(toSvgString(scene));
     scene.state = jsonObject(state, 'machine state');
     for (const v of views) v.rebuild();
-    const motion = authored(machine.transitionFor(event, state, after));
-    // As in a play: what it reads (a diagram's layout) is ready, then its run time is settled.
-    await motion.ready();
-    motion.settle();
-    // As in a play: the event's SetState has already moved the scene to `after` when its transition
+    // As in a send: the event's SetState has already moved the scene to `after` when its transition
     // begins, so a sync inside the transition draws the state reached.
     scene.state = jsonObject(after, 'machine state');
-    scene.beginAnimations([motion]);
-    for (const alpha of [0.25, 0.5, 0.75, 1]) {
-      motion.interpolate(motion.rateFunc(alpha));
-      for (const [name, check] of scene.invariants) {
-        const said = check(scene);
-        if (typeof said === 'string') problems.push(`${at}: the invariant "${name}" fails ${alpha * 100}% through the transition: ${said}`);
-      }
+    const frames = new InvariantSink();
+    const t0 = scene.time;
+    draw(frames);
+    try { await scene.play(motion); } finally { draw(); }
+    // Each invariant's first failing frame, by how far through the transition it is.
+    const failed = new Set<string>();
+    for (const f of frames.failures) {
+      if (failed.has(f.invariant)) continue;
+      failed.add(f.invariant);
+      const through = Math.round(((f.t - t0) / (motion.runTime || 1)) * 100);
+      problems.push(`${at}: the invariant "${f.invariant}" fails ${through}% through the transition: ${f.message}`);
     }
-    motion.finish();
-    motion.cleanUpFromScene(scene);
     // Compared as rendered marks, since a morph lands glyphs without retyping a Text. A transition that
     // ends elsewhere would leave the views there: their next rebuild keeps the place it left them.
     if (marksOf(toSvgString(scene)) !== expected) problems.push(`${at}: the transition ends somewhere other than the picture of the state it reaches`);
@@ -893,7 +909,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
             }),
           }
         : {}),
-      // Each step's resting frame as text, so an author can read it without a browser.
+      // Each step's resting frame as text, so an author can read it without a browser: the drawing
+      // describe gives (restingDrawing), without the heading that names the step.
       restingFrames: Object.fromEntries(
         v.trace.steps.map((step) => [step.step, restingText.get(step.step) ?? '']),
       ),

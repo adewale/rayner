@@ -31,7 +31,7 @@ import { storyIndices, adjacentStep } from './embed-steps.ts';
 import { offPath } from '../explain/script.ts';
 import { SENT, acceptedLog, decodeLog, encodeLog, exploreAndClose, outcomes } from './embed-live.ts';
 import type { Exploration, ExploreAction } from './embed-live.ts';
-import { liveSteps, logStart, runLive } from '../explain/live.ts';
+import { liveBase, liveSteps, runLive } from '../explain/live.ts';
 import type { Live, LiveDraw, LivePlace, LiveRun, LogStart } from '../explain/live.ts';
 
 /**
@@ -1031,13 +1031,13 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     if (place === undefined) return Promise.resolve(null);
     let found = at.bases.get(step.step);
     if (!found) {
-      found = runLive(at.Scene, step.step, place, []).then((run) => {
-        const base = logStart(run.machine, run.rest);
-        return base ? { step, live: { index: place.index, identity: place.identity, machine: run.machine }, base } : null;
-      }, (error: unknown) => {
-        console.error(error);
-        return null;
-      });
+      found = liveBase(at.Scene, step.step, place).then(
+        ({ machine, base }) => (base ? { step, live: { index: place.index, identity: place.identity, machine }, base } : null),
+        (error: unknown) => {
+          console.error(error);
+          return null;
+        },
+      );
       at.bases.set(step.step, found);
     }
     return found;
@@ -1302,6 +1302,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       if (!attached && go.target) go.scope.frame(() => zoom.to(go.target!, true));
     };
     const runner = new at.Scene({
+      // Frames before the step it is headed for are skipped, by the scene's own clock; follow() moves it on.
+      get skipUntil(): number { return aim.frame0 / runner.fps; },
       async stepBegin() {
         aim.scope.signal.throwIfAborted();
         if (playback.kind === 'primed') await new Promise(r => setTimeout(r));
@@ -1327,13 +1329,10 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         });
       },
     });
-    // Frames before the step's are skipped, by the scene's own clock.
-    runner.skipUntil = aim.frame0 / runner.fps;
     const done = runner.run().then(() => { finish(false); return result; });
     const follow = () => {
       if (playback.kind !== 'playing' || !stage.contains(aim.sink.svg) || aim.index + 1 >= at.trace.steps.length) return false;
       aim = aimAt(aim.index + 1);
-      runner.skipUntil = aim.frame0 / runner.fps;
       ready = gate();
       return true;
     };

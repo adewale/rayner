@@ -207,7 +207,8 @@ machine that wants other motion authors a `transition`.
 
 After each scenario runs, `rayner check` runs the scene again to the end of the step each machine
 last played in, the stage the reader saw it on, by the player's own run (`runLive`), and explores
-there. A machine whose
+there, while that run can still play. A machine that never played is explored on a fresh run of
+the scene as it ends. A machine whose
 views are not on that stage is reported, since its states could not be checked. Exploration
 visits every state breadth first from `start`. When the machine's state at that step is not one
 of those and some event moves it, exploration also visits every state reachable from there, since
@@ -221,9 +222,12 @@ picture, and fails if it
 - is described exactly as another reachable state is, so neither a reader nor a screen
   reader could tell them apart.
 
-From every state it reaches, exploration plays every authored transition, checks each invariant
-a quarter, half, three quarters and all the way through, and requires the transition to end on
-the pictures of the state it reaches, compared as rendered, so the landing moves nothing. A
+From every state it reaches, exploration plays every authored transition as a reader's event
+plays it: the state moves to the one the event reaches, then the transition plays in a play of its
+own, made when its turn comes and waiting, as any play lets it, for what it reads (a diagram's
+layout). Each invariant is checked on every frame it draws, and the first frame one fails on is
+reported by how far through the transition it is. The transition must end on the pictures of the
+state it reaches, compared as rendered, so the landing moves nothing. A
 transition that ended elsewhere would leave the view there for good, since a rebuilt picture
 keeps its place.
 
@@ -284,7 +288,9 @@ machine's `start` instead, and the line over the buttons says "Try it yourself, 
 A story that ends in a finished state (a tower carried to its last peg) says so with `end(state)`:
 the model's moves from that state are then past the story, so the reader starts again from `start`. The first event redraws the views at the start, in place, as exploration draws a state,
 and plays from there. Which of the two applies is a function of the step, so the URL does not say
-it (`logStart` in `explain/live.ts`).
+it (`logStart` in `explain/live.ts`). The player, the build's transcript, the served review and the
+cost measurement all find it one way, `liveBase`: the scene run to the step's end, then `logStart`
+of the run's machine there.
 
 **The events are the reader's state, and sit in the URL.** A press appends the event to a log,
 written beside the step as `sent=push,push,pop` (commas between events, a space as `+`, a colon

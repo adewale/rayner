@@ -45,10 +45,10 @@ export function liveSteps(scene: Scene<any>): Map<string, Live> {
  * a scene must make the same machines on every run, or the reader would drive another machine than
  * the one the page was built for and check explored.
  */
-export function liveMachine(scene: Scene<any>, step: string, place: LivePlace): AnyMachine {
+export function liveMachine(scene: Scene<any>, step: string | null, place: LivePlace): AnyMachine {
   const machine = machinesOf(scene)[place.index];
   if (!machine || machine.identity !== place.identity)
-    throw new Error(`runLive(): the run to ${JSON.stringify(step)} made different machines; a scene must make the same machines on every run`);
+    throw new Error(`runLive(): the run${step === null ? '' : ` to ${JSON.stringify(step)}`} made different machines; a scene must make the same machines on every run`);
   return machine;
 }
 
@@ -65,6 +65,24 @@ export function logStart(machine: AnyMachine, rest: object): { from: LogStart; s
   const start = JSON.parse(JSON.stringify(machine.spec.start)) as object;
   return moves(start) ? { from: 'start', state: start } : null;
 }
+
+/**
+ * Where a reader's log starts at `step`, where the machine at `place` is live: `Source` run to the
+ * step's end (`runLive`, with no log), and `logStart` of the run's machine there. `base` is null when
+ * no event moves the machine from either. The player, the build, the review and the cost
+ * measurement all start the reader here.
+ */
+export async function liveBase(Source: SceneClass, step: string, place: LivePlace): Promise<{ machine: AnyMachine; base: { from: LogStart; state: object } | null }> {
+  const { machine, rest } = await runLive(Source, step, place, []);
+  return { machine, base: logStart(machine, rest) };
+}
+
+/**
+ * What `explore` is handed at the live step's end (`runLive` with `explore`): the scene, which may
+ * still play there, the live machine, and `draw`, which hands the frames that follow to a sink,
+ * every one drawn, or with none skips them again.
+ */
+export type LiveExplore = (scene: Scene<any>, machine: AnyMachine, draw: (to?: Sink) => void) => Promise<void>;
 
 export interface LiveRun {
   scene: Scene<any>;
@@ -105,8 +123,9 @@ export interface LiveSession {
  * (`skipUntil`, which the scene reads) until an event is to be animated, then hands that event's
  * frames to the sink that animates it. So the run switches what is drawn without writing the
  * scene's own sink or skip time. Step boundaries are not passed on: the run stops as its step ends.
+ * `rayner check` draws through one too, to play the transitions of a machine that never played.
  */
-class LiveSink implements Sink {
+export class LiveSink implements Sink {
   skipUntil = Infinity;
   private to: Sink | null = null;
   /** Hand the frames that follow to `to`, every one drawn; or, with none, skip them. */
@@ -135,13 +154,16 @@ class LiveSink implements Sink {
  * (`liveMachine`), so the reader never drives another. It plays under what the scene showed when it
  * last played (`playedUnder`), as exploration draws it. A log the machine does not accept throws, as
  * `send` does.
+ * With `explore`, the run calls it there once the log has played and been drawn, before a kept run
+ * holds (see LiveExplore): `rayner check` explores the machine in it, playing each transition in a
+ * play of the scene, as a reader's event plays.
  */
 export async function runLive(
   Source: SceneClass,
   step: string,
   place: LivePlace,
   log: readonly string[],
-  { sink, animate, onStart, onRest, from = 'rest', keep = false }: LiveDraw & { onRest?: (scene: Scene<any>) => void; from?: LogStart; keep?: boolean } = {},
+  { sink, animate, onStart, onRest, from = 'rest', keep = false, explore }: LiveDraw & { onRest?: (scene: Scene<any>) => void; from?: LogStart; keep?: boolean; explore?: LiveExplore } = {},
 ): Promise<LiveRun> {
   let result: LiveRun | undefined;
   // A kept run waits in the step for the next event; `wake` hands it one, or null to stop.
@@ -173,6 +195,9 @@ export async function runLive(
     const drawn = animate ?? sink;
     if (drawn) await drawn.frame(at, 0);
     result = { scene: at, machine, rest, shown: at.shownJson() };
+    if (explore) {
+      try { await explore(at, machine, (to) => out.draw(to)); } finally { out.draw(undefined); }
+    }
     if (!keep) return;
     const kept = (result.session = session(log));
     // A session closed while it played lets the run end once that play is done.

@@ -120,7 +120,7 @@ test('perspective: the limb is smaller than the sphere, and a point beyond the h
 
 test('between turns yaw the short way and keeps the kind', () => {
   assert.deepEqual(between(ortho(170, 0), ortho(-170, 20), 0.5), ortho(180, 10));
-  assert.throws(() => between(ortho(0, 0), { kind: 'gnomonic', yaw: 0, pitch: 0 }, 0.5), /nothing in between/);
+  assert.throws(() => between(ortho(0, 0), { kind: 'gnomonic', yaw: 0, pitch: 0 }, 0.5), /^Error: between\(\): an orthographic and a gnomonic viewpoint have nothing in between;/);
 });
 
 // The deliberate defect: a viewpoint change that reaches a picture without redrawing it. What was

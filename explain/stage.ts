@@ -20,6 +20,7 @@ import type { Card, CodeBlock, CardRow, CardOptions, CodeOptions } from './panel
 import { card, code } from './drawing.ts';
 import { resolverOf } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { DiagramSpec, DiagramSnapshot } from '../integrations/agentic-mermaid/snapshot.ts';
+import { isHex } from '../src/color.ts';
 import type { Palette } from '../src/color.ts';
 import { palette } from './palettes.ts';
 import { soft, emphasis, bad, lookOf, bindStagePalette, regionBox, opening, partsSeen, REGIONS } from './look.ts';
@@ -167,6 +168,40 @@ export interface DiagramPicture {
   dim?: readonly string[] | null;
   prefix?: string;
 }
+const STAGE_OPTIONS = ['direction', 'style', 'palette', 'heading', 'headingSize', 'numbered'] as const;
+const PALETTE_KEYS = ['paper', 'ink', 'accent', 'muted'] as const;
+/**
+ * Every option stage() takes, checked before the stage touches the scene: only the keys it takes,
+ * a palette of four hex colours, a heading that is 'step', words or false, a heading size above 0,
+ * and `numbered` true or false. (The options' shape and direction are checked by layoutDirection,
+ * first, and the style where it is read.)
+ */
+function checkStageOptions(options: StageOptions): void {
+  const unknown = Object.keys(options).filter((k) => !(STAGE_OPTIONS as readonly string[]).includes(k));
+  if (unknown.length) throw new TypeError(`stage(): it takes no option ${unknown.map((k) => JSON.stringify(k)).join(', ')}; the options are ${STAGE_OPTIONS.join(', ')}`);
+  const { palette: p, heading, headingSize, numbered } = options;
+  if (p !== undefined) {
+    if (typeof p !== 'object' || p === null) throw new TypeError(`stage(): the palette is ${JSON.stringify(p) ?? typeof p}; give { paper, ink, accent, muted }, each a hex colour, or a style's, palette('nord')`);
+    const missing = PALETTE_KEYS.filter((k) => !(k in p));
+    if (missing.length) throw new TypeError(`stage(): the palette has no ${missing.join(', ')}; give { paper, ink, accent, muted }, each a hex colour`);
+    const extra = Object.keys(p).filter((k) => !(PALETTE_KEYS as readonly string[]).includes(k));
+    if (extra.length) throw new TypeError(`stage(): the palette takes no ${extra.map((k) => JSON.stringify(k)).join(', ')}; give { paper, ink, accent, muted }, each a hex colour`);
+    for (const k of PALETTE_KEYS) {
+      const c: unknown = p[k];
+      if (typeof c !== 'string') throw new TypeError(`stage(): the palette's ${k} is ${typeof c}; give a hex colour, such as '#2e3440'`);
+      if (!isHex(c)) throw new RangeError(`stage(): the palette's ${k} is ${JSON.stringify(c)}, not a hex colour; give #rgb or #rrggbb, such as '#2e3440'`);
+    }
+  }
+  if (heading !== undefined && heading !== false && typeof heading !== 'string')
+    throw new TypeError(`stage(): the heading is ${JSON.stringify(heading) ?? typeof heading}; give 'step' to follow each step's title, words to fix it, or false for none`);
+  if (headingSize !== undefined) {
+    if (typeof headingSize !== 'number') throw new TypeError(`stage(): headingSize is ${typeof headingSize}; give a font size in scene units above 0, such as 0.5`);
+    if (!(headingSize > 0 && Number.isFinite(headingSize))) throw new RangeError(`stage(): headingSize is ${String(headingSize)}; give a font size in scene units above 0, such as 0.5`);
+  }
+  if (numbered !== undefined && typeof numbered !== 'boolean')
+    throw new TypeError(`stage(): numbered is ${JSON.stringify(numbered) ?? typeof numbered}; give true or false`);
+}
+
 /**
  * The stage on `scene`: its palette, heading, regions, diagrams and panels, and the helpers that
  * enter, keep and clear what it shows. Typed from the scene (`Scene<S, Sh>`), so the draws it takes
@@ -179,6 +214,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
   // scene: a stage() that throws here leaves it as it was, without a stage and free to have one.
   // From `staged.add` on, the scene has its stage.
   const direction = layoutDirection(options, 'ltr', 'stage()');
+  checkStageOptions(options);
   // Without a style or palette, the stage adopts the first diagram's palette, and only the first's.
   let adopt = !options.palette && !options.style;
   let colors = options.palette ?? palette(options.style ?? 'nord');

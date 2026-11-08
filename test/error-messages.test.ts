@@ -1,6 +1,6 @@
 // The convention for error messages an author can see (docs/ENGINE.md, "Error messages"), held
 // mechanically over the library: every `new Error(`, `new TypeError(` and `new RangeError(` in
-// src/, explain/ and diagram replay. A message starts with the API the author called and a colon,
+// src/, explain/, the player (app/) and diagram replay. A message starts with the API the author called and a colon,
 // ends without a full stop, and never names a mobject by its internal id. A prefix the code
 // computes, such as the call an action was made by or the file a script was read from, is allowed
 // only where ALLOWED lists that expression and says what it holds.
@@ -11,7 +11,7 @@ import { join, relative, resolve } from 'node:path';
 import ts from 'typescript';
 
 const ROOT = resolve(import.meta.dirname, '..');
-const SCANNED = ['src', 'explain', 'integrations/agentic-mermaid/snapshot.ts', 'integrations/agentic-mermaid/text.ts'];
+const SCANNED = ['src', 'explain', 'app', 'integrations/agentic-mermaid/snapshot.ts', 'integrations/agentic-mermaid/text.ts'];
 
 /**
  * The static prefixes: a call, `card()`, `s.card()`, `keyedParts().add()`; a constructor,
@@ -26,14 +26,14 @@ const ALLOWED: Record<string, Record<string, string>> = {
   'src/animation.ts': { api: "the call that took the animations or the time, 'this.play()', 'new Succession()' or 'new FadeIn()', or that began one, 'this.play()' or 'animation.begin()'" },
   'src/scene.ts': {
     api: "the scene's call that found another running, 'this.play()', 'this.wait()', 'this.step()' or 'this.construct()'; or the registration of a listener that left a play running, 'this.onStep()' or 'this.onStepEnd()'",
-    by: "what made or began the animations at their turn in a play, 's.show()', 'machine.send(): the transition for UP' or 'new Succession()'",
+    by: "what made or began the animations at their turn in a play, 's.show()', a machine's transition, 'machine.send(\"UP\")', or 'new Succession()'",
   },
   'src/shapes.ts': { api: "the constructor boxOf's caller names" },
   'src/fonts.ts': { label: "decodeFont's subject, which its caller names with a prefix ('loadFonts(): the embedded sans face')" },
   'src/mobject.ts': { 'm.${name}': 'the method of every mobject that was assigned to, m.box; or the property a mobject defined on itself, m.children or m.parent', api: "the call that changes the children, 'm.add()', 'm.insert()' or 'm.replaceChild()'" },
   'explain/action.ts': {
     action: "the action's call, 's.card()'",
-    'this.by': "what made the animations at their turn: the action's call, 's.card()', or 'machine.send(): the transition for UP'",
+    'this.by': "what made the animations at their turn: the action's call, 's.card()', or a machine's transition, 'machine.send(\"UP\")', the call with the event sent",
     'this.name': "the action's call, 's.card()'",
     "names.join(', ')": "the calls of the actions never played, 's.card(), d.walk()'",
   },

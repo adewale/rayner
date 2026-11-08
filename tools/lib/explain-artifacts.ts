@@ -56,7 +56,7 @@ export function uniquePageIds(ids: readonly string[]): void {
 
 /** Validate serialized producer boundaries once; consumers use the same contracts. */
 export function catalog(value: unknown): Catalog {
-  const fail = (): never => {throw new Error('Invalid catalog artifact');};
+  const fail = (): never => {throw new Error('catalog(): the catalog artifact does not match its version 2 format; write it again with the site build');};
   if (!object(value) || value.version !== 2 || !totals(value.totals) || !object(value.product) ||
       !object(value.product.entry) || typeof value.product.entry.id !== 'string' || !Array.isArray(value.scenes)) return fail();
   for (const key of ['home','summary','audience','description','requirements','tutorial','reference','skill'])
@@ -72,29 +72,29 @@ export function catalog(value: unknown): Catalog {
         (scene.tier !== undefined && scene.tier !== 'showcase' && scene.tier !== 'gallery' && scene.tier !== 'coverage') || (scene.entry !== undefined && !entry(scene.entry))) return fail();
   }
   try { uniquePageIds(value.scenes.map((scene) => (scene as {id: string}).id)); }
-  catch (error) { throw new Error(`Invalid catalog artifact: ${(error as Error).message}`); }
+  catch (error) { throw new Error(`catalog(): ${(error as Error).message.replace(/^site: /, '')}`); }
   return value as unknown as Catalog;
 }
 export function catalogEvidence(value: unknown): CatalogEvidence {
   if (!object(value) || value.version !== 2 || typeof value.checked !== 'boolean' || !totals(value.totals) || !Array.isArray(value.scenes))
-    throw new Error('Invalid evidence artifact');
+    throw new Error('catalogEvidence(): the evidence artifact does not match its version 2 format; write it again with rayner check');
   const ids = new Set<string>();
   for (const scene of value.scenes) {
     if (!object(scene) || !isIdentifier('id', scene.id) || ids.has(scene.id) ||
         !Array.isArray(scene.scenarios) || !scene.scenarios.every(stringMap) || !count(scene.diagrams) || !strings(scene.styles) || !strings(scene.families))
-      throw new Error('Invalid evidence scene');
+      throw new Error('catalogEvidence(): a scene of the evidence artifact does not match its format; write it again with rayner check');
     ids.add(scene.id);
-    if (scene.entry !== undefined && !entry(scene.entry)) throw new Error('Invalid evidence entry');
+    if (scene.entry !== undefined && !entry(scene.entry)) throw new Error('catalogEvidence(): a scene\'s entry in the evidence artifact does not match its format; write it again with rayner check');
     if (['title','lang','sourceHash'].some(key => scene[key] !== undefined && typeof scene[key] !== 'string') ||
-        (scene.snapshotHashes !== undefined && !strings(scene.snapshotHashes))) throw new Error('Invalid evidence metadata');
+        (scene.snapshotHashes !== undefined && !strings(scene.snapshotHashes))) throw new Error('catalogEvidence(): a scene\'s metadata in the evidence artifact does not match its format; write it again with rayner check');
     if (scene.narrowOpenings !== undefined) {
-      if (!Array.isArray(scene.narrowOpenings)) throw new Error('Invalid opening inventory');
+      if (!Array.isArray(scene.narrowOpenings)) throw new Error('catalogEvidence(): a scene\'s narrowOpenings in the evidence artifact is not a list; write it again with rayner check');
       for (const opening of scene.narrowOpenings) {
-        if (!object(opening) || !stringMap(opening.settings) || !Array.isArray(opening.steps)) throw new Error('Invalid opening scenario');
+        if (!object(opening) || !stringMap(opening.settings) || !Array.isArray(opening.steps)) throw new Error('catalogEvidence(): a scenario of narrowOpenings in the evidence artifact does not match its format; write it again with rayner check');
         for (const step of opening.steps) {
           if (!object(step) || typeof step.step !== 'string' || typeof step.reviewed !== 'boolean' ||
               (step.reviewed ? !strings(step.targets) || !step.targets.length || !strings(step.labels)
-                : step.reason !== 'detail-step' && step.reason !== 'no-opening-subject')) throw new Error('Invalid opening obligation');
+                : step.reason !== 'detail-step' && step.reason !== 'no-opening-subject')) throw new Error('catalogEvidence(): a step of narrowOpenings in the evidence artifact does not match its format; write it again with rayner check');
         }
       }
     }
@@ -103,7 +103,7 @@ export function catalogEvidence(value: unknown): CatalogEvidence {
 }
 export function sceneInputs(value: unknown): SceneInputs {
   if (!object(value) || value.version !== '3' || !['sourceHash','files','buildHash'].every(key => typeof value[key] === 'string' && /^[a-f0-9]{64}$/.test(value[key])))
-    throw new Error('Invalid scene inputs artifact');
+    throw new Error('sceneInputs(): the scene inputs artifact does not match its version 3 format; write it again with rayner build');
   return value as unknown as SceneInputs;
 }
 export async function readArtifact<T>(file: string, parse: (value: unknown) => T): Promise<T> {

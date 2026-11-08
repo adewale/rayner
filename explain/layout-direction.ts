@@ -12,7 +12,7 @@ export function layoutDirection(options: { direction?: LayoutDirection }, fallba
   if (!('value' in property)) throw new TypeError(`${api}: direction must be a plain value, not a getter`);
   const direction: unknown = property.value;
   if (direction === undefined) return fallback;
-  if (direction !== 'ltr' && direction !== 'rtl') throw new RangeError(`${api}: direction must be 'ltr' or 'rtl', not ${typeof direction === 'string' ? JSON.stringify(direction) : direction === null ? 'null' : `a ${typeof direction}`}`);
+  if (direction !== 'ltr' && direction !== 'rtl') throw new RangeError(`${api}: direction must be 'ltr' or 'rtl', not ${typeof direction === 'string' ? JSON.stringify(direction) : direction === null ? 'null' : `${/^[aeiou]/.test(typeof direction) ? 'an' : 'a'} ${typeof direction}`}`);
   return direction;
 }
 
