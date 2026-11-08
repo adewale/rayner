@@ -118,7 +118,8 @@ mobject's `children` and `parent` are read-only, so these methods and `group.rem
 are the only ways to change a family, and each keeps every child's `parent` and the cached
 box in step. `family()` is the mobject and every descendant, depth first. A scene admits one root per subtree, so admitting a parent never paints a
 child twice. `Scene.add`, `remove`, `replace`, `bringToFront` and `bringToBack`
-control membership and draw order. The structure is a tree: `add`, `insert` and
+control membership and draw order; what the stage keeps over everything else (its heading,
+band, step number and line) stays last through each of them. The structure is a tree: `add`, `insert` and
 `replaceChild` refuse the mobject itself or one of its ancestors, which would make a cycle,
 and `group.remove(child)` takes out only the group's own children, leaving a mobject in
 another group where it is. `scene.familyMembers()` lists every mobject on the stage and

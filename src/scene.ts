@@ -269,6 +269,10 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   #running: number;
   /** Whether run() has been called: a scene runs once. */
   #ran: boolean;
+  /** Mobjects kept last in drawing order while on stage (see keepOnTop), in the order kept. */
+  #onTop: Mobject[] = [];
+  /** Where the run stops early (see stopAt), or null. */
+  #stop: { path: string; frame: number; at: (scene: Scene<any, any>) => unknown; reached: boolean } | null = null;
   // One entry per registration, so each remover removes exactly its own.
   private stepListeners: Array<{ listener: (step: Step) => unknown; on: boolean }>;
   private stepEndListeners: Array<{ listener: (step: Step) => unknown; on: boolean }>;
@@ -390,6 +394,31 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   }
 
   /**
+   * @internal Stop the run where the step `path` reaches `frame` (its still frame, from a run
+   * before): as the play or wait that reaches it in that step returns, or, when none does, as the
+   * step ends, before its end listeners and caption hold. `at(scene)` runs there and may play and
+   * wait; then the scene stops for good, as a sink's StopScene stops it (`phase` is `'stopped'`),
+   * so construct() never continues and code it runs after that play never runs. The live player
+   * runs a scene to a step's picture this way, and plays the reader's events in `at`.
+   */
+  stopAt(path: string, frame: number, at: (scene: this) => unknown): void {
+    if (this.#ran) throw new Error('this.stopAt(): the scene has begun its run; say where it stops before run()');
+    this.#stop = { path, frame, at: at as (scene: Scene<any, any>) => unknown, reached: false };
+  }
+
+  /** Stop here if the run has reached where stopAt() said: at a step's end, or after a play or wait at its frame. */
+  async #stopIfReached(ending: boolean): Promise<void> {
+    const stop = this.#stop;
+    if (!stop || stop.reached || this.current?.path !== stop.path || (!ending && this.frameCount < stop.frame)) return;
+    stop.reached = true;
+    // Free to play and wait, as a step listener is, whatever call it stops in.
+    this.#listening++;
+    try { await stop.at(this); } finally { this.#listening--; }
+    this.#phase = 'stopped';
+    throw new StopScene();
+  }
+
+  /**
    * Merge `part()`'s JSON into every stateJson() (`into: 'state'`, the default), so helper
    * evidence such as recorded walks survives an author replacing `this.state`; or into every
    * shownJson() (`'shown'`), for what a helper says the stage shows. Returns a remover. A part's
@@ -488,6 +517,8 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     const s = this.current;
     if (!s) return;
     this.throwIfStopped();
+    // A step that ends before any play or wait reached its stop frame: its picture is still now.
+    await this.#stopIfReached(true);
     await this.#dispatch(this.stepEndListeners, s);
     // A captioned step holds until its caption could have been read or spoken,
     // so narration (or a reader) never runs past the picture it describes.
@@ -595,7 +626,29 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     for (const m of mobs) paintDefaults(m, this.colors);
     // Re-adding a root moves it last; a child of a visible parent is a no-op.
     this.mobjects = admitRoots(this.mobjects, mobs);
+    this.#raiseTop();
     return this;
+  }
+
+  /**
+   * @internal Keep `mobs` drawn last, over anything added after them, in the order given (one kept
+   * already moves last among them): whenever one is on stage, each add, bringToFront, bringToBack
+   * and replace leaves it at the end of `mobjects`. Keeping does not add it. Returns a function that
+   * stops keeping them. The stage keeps its heading, band, step number and line on top this way.
+   */
+  keepOnTop(...mobs: Mobject[]): () => void {
+    this.#onTop = [...this.#onTop.filter((m) => !mobs.includes(m)), ...mobs];
+    this.#raiseTop();
+    return () => { this.#onTop = this.#onTop.filter((m) => !mobs.includes(m)); };
+  }
+
+  /** Move the kept mobjects that are on stage (see keepOnTop) to the end of the drawn list, in the order kept. */
+  #raiseTop(): void {
+    if (!this.#onTop.length) return;
+    const top = this.#onTop.filter((m) => this.mobjects.includes(m));
+    if (!top.length || top.every((m, i) => this.mobjects[this.mobjects.length - top.length + i] === m)) return;
+    const kept = new Set(top);
+    this.mobjects = [...this.mobjects.filter((m) => !kept.has(m)), ...top];
   }
 
   /**
@@ -629,6 +682,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     if (i < 0) { this.add(...replacements); return this; }
     for (const m of replacements) m.parent?.remove(m);
     this.mobjects.splice(i, 1, ...replacements);
+    this.#raiseTop();
     return this;
   }
 
@@ -636,6 +690,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   bringToBack(...mobs: Mobject[]): this {
     for (const m of mobs) paintDefaults(m, this.colors);
     this.mobjects = admitRoots(this.mobjects, mobs, true);
+    this.#raiseTop();
     return this;
   }
   /** @internal Empty the drawn list at once, unanimated: for tools and tests (a stage's `s.clear()` fades everything out). */
@@ -663,7 +718,8 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   /** Play animations together; a trailing plain object is options: { runTime, rateFunc, lagRatio }. */
   async play(...args: Playable[] | [...Playable[], PlayOpts]): Promise<void> {
     // Refused before begin(): a stopped scene, or one still in another call, changes nothing more
-    return this.#exclusive('playing', 'this.play()', () => this.#play(args));
+    await this.#exclusive('playing', 'this.play()', () => this.#play(args));
+    await this.#stopIfReached(false);
   }
 
   async #play(args: Playable[] | [...Playable[], PlayOpts]): Promise<void> {
@@ -757,7 +813,8 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   /** Hold the picture for `seconds` (rounded to whole frames); updaters keep running. */
   async wait(seconds = 1): Promise<void> {
     assertTime('this.wait()', 'the time', seconds);
-    return this.#exclusive('waiting', 'this.wait()', () => this.#frames(Math.round(seconds * this.fps)));
+    await this.#exclusive('waiting', 'this.wait()', () => this.#frames(Math.round(seconds * this.fps)));
+    await this.#stopIfReached(false);
   }
 
   /** Emit `n` frames, skipping those that end before skipUntil, as wait() and the caption hold do. */

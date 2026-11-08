@@ -130,6 +130,17 @@ test('a live run stops at the step’s resting picture, plays the log there, and
   const empty = await runLive(Lamp, press, at, []);
   assert.deepEqual(empty.rest, { level: 1 });
   assert.equal(ranAfter, 0, 'the run stopped as the step came to rest');
+  assert.equal(empty.scene.phase, 'stopped', 'the scene is stopped, not merely abandoned');
+  // A construct that swallows the stop cannot run on to the next step's code (N10).
+  let after = 0;
+  class Swallowing extends lampScene() {
+    override async construct() {
+      try { await super.construct(); } catch { after++; await this.wait(1).catch(() => {}); after++; }
+    }
+  }
+  const swallowed = await runLive(Swallowing, press, at, []);
+  assert.equal(swallowed.scene.phase, 'stopped');
+  assert.equal(swallowed.scene.frameCount, empty.scene.frameCount, 'no frame after the stop');
   const a = new StringSink(), b = new StringSink();
   const one = await runLive(Lamp, press, at, ['UP', 'DOWN', 'UP'], { sink: a });
   await runLive(Lamp, press, at, ['UP', 'DOWN', 'UP'], { sink: b });

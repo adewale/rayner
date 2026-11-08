@@ -155,6 +155,62 @@ test('a play whose animation throws as it begins lands the ones begun before it,
   assert.equal(shown.phase, 'finished', 'the landed FadeIn plays again');
 });
 
+test('a mobject kept on top stays last in drawing order through every add, bringToBack and replace, while on stage', () => {
+  const scene = new Scene(new NullSink());
+  const top = new Rectangle(), band = new Rectangle(), a = new Circle(), b = new Circle(), c = new Circle();
+  scene.add(a, band, top);
+  const unkeep = scene.keepOnTop(band, top);
+  scene.add(b);
+  assert.deepEqual(scene.mobjects, [a, b, band, top]);
+  scene.bringToFront(a);
+  assert.deepEqual(scene.mobjects, [b, a, band, top]);
+  scene.bringToBack(top);
+  assert.deepEqual(scene.mobjects, [b, a, band, top], 'kept on top even when sent back');
+  scene.replace(a, c);
+  assert.deepEqual(scene.mobjects, [b, c, band, top]);
+  // Keeping does not add; one taken off the stage is skipped until it comes back.
+  scene.remove(band);
+  scene.add(a);
+  assert.deepEqual(scene.mobjects, [b, c, a, top]);
+  scene.add(band);
+  assert.deepEqual(scene.mobjects, [b, c, a, band, top], 'in the order kept');
+  unkeep();
+  scene.add(b);
+  assert.deepEqual(scene.mobjects, [c, a, band, top, b], 'released, they are ordinary roots again');
+});
+
+test('a run told where to stop stops there for good: after the play that reaches the frame, or as the step ends', async () => {
+  let after = 0;
+  class Story extends Scene {
+    override async construct() {
+      await this.step('one');
+      await this.play(new FadeIn(new Circle()), { runTime: 0.5 });
+      await this.step('two');
+      await this.play(new FadeIn(new Rectangle()), { runTime: 0.5 });
+      after++;
+      await this.play(new FadeIn(new Circle({ radius: 0.2 })), { runTime: 0.5 });
+      await this.step('three');
+      after++;
+    }
+  }
+  // At the frame a play in the step reaches: the code after that play never runs.
+  const scene = new Story(new NullSink());
+  let at: number | undefined;
+  scene.stopAt('two', 30, async (s) => { at = s.frameCount; await s.wait(0.1); });
+  await scene.run();
+  assert.equal(at, 30);
+  assert.equal(after, 0);
+  assert.equal(scene.phase, 'stopped');
+  assert.equal(scene.frameCount, 33, 'what the stop played, and nothing after it');
+  await assert.rejects(scene.play(new FadeIn(new Circle())), StopScene);
+  // A frame past every play in the step: it stops as the step ends.
+  const ending = new Story(new NullSink());
+  ending.stopAt('two', 1000, (s) => { at = s.frameCount; });
+  await ending.run();
+  assert.deepEqual([at, after, ending.phase], [45, 1, 'stopped']);
+  assert.throws(() => ending.stopAt('one', 0, () => {}), /this\.stopAt\(\): the scene has begun its run; say where it stops before run\(\)/);
+});
+
 // ---- the scene's phase -----------------------------------------------------
 
 test('two plays started together are refused, not interleaved: await each', async () => {
