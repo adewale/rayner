@@ -236,13 +236,13 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
   {
     gate: 'duplicate step names',
     source: `import{Scene}from'rayner';export default class Bad extends Scene{async construct(){await this.step('same');await this.wait(.5);await this.step('same');await this.wait(.5);}}`,
-    message: /this\.step\(\): two steps of the scenario \{\} share the name "same", ignoring case/,
+    message: /scene\.ts: two steps of the scenario \{\} share the name "same", ignoring case/,
   },
   {
     // Push and push would write one share page on macOS and Windows.
     gate: 'step names that differ only in case',
     source: `import{Scene}from'rayner';export default class Bad extends Scene{async construct(){await this.step('Push');await this.wait(.5);await this.step('push');await this.wait(.5);}}`,
-    message: /this\.step\(\): two steps of the scenario \{\} share the name "push", ignoring case; name each step once, so each has its own link and share page/,
+    message: /scene\.ts: two steps of the scenario \{\} share the name "push", ignoring case; name each step once, so each has its own link and share page/,
   },
   {
     gate: 'a meta.id that is not one path segment',
@@ -276,7 +276,7 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
   {
     gate: 'a step that draws no frame of its own',
     source: `import{Scene}from'rayner';export default class Bad extends Scene{async construct(){await this.step('one');await this.wait(.5);await this.step('empty');await this.step('three');await this.wait(.5);}}`,
-    message: /this\.step\(\): step "empty" of the scenario \{\} draws no frame of its own, so it shows the step before's picture/,
+    message: /scene\.ts: step "empty" of the scenario \{\} draws no frame of its own, so it shows the step before's picture/,
   },
   {
     // finish() recolours the box after the last frame drew it: a link, describe and the shots would show another picture.
@@ -287,7 +287,7 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
   {
     gate: 'a scenario with no steps',
     source: `import{Scene,Dot,FadeIn}from'rayner';export default class Bad extends Scene{async construct(){await this.play(new FadeIn(new Dot()));}}`,
-    message: /this\.step\(\): the scenario \{\} has no step, or a step with an empty name/,
+    message: /scene\.ts: the scenario \{\} has no step, or a step with an empty name/,
   },
   {
     gate: 'one scene export',

@@ -42,6 +42,7 @@ const ALLOWED: Record<string, Record<string, string>> = {
   'explain/intent.ts': { where: "the script's file, 'script.md' or its path" },
   'explain/layout-direction.ts': { api: "the call whose options hold the direction, 'stage()', 'card()' or 's.card()'" },
   'explain/look.ts': { api: "the kit function given something other than a stage, 'card()' or 'code()'" },
+  'explain/project.ts': { api: "the call that collected a scenario's steps, 'loadProject()', or the scene's file when the rayner command collects them" },
   'explain/panels.ts': { api: "'card()' or 'code()', or 's.card()' or 's.code()' when the stage builds it", 'this.api': 'the same, kept on the panel' },
   'explain/seen-from.ts': { api: "the geo function called, 'seenFrom()', 'project()' or 'depthOrder()'" },
   'explain/settings.ts': { where: "the declaration, 'static meta' or 'meta.player'" },

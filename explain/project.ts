@@ -81,7 +81,7 @@ export async function loadProject<C extends SceneClass>(Explainer: C, where: str
     for (const values of scenariosOf(Lettered)) {
       const Bound = withSettings(bindSnapshots(Lettered, snapshots), values);
       const trace = await traceScene(Bound);
-      checkScenarioSteps(trace, values);
+      checkScenarioSteps(trace, values, 'loadProject()');
       scenarios.push({ values, Scene: Bound, trace });
     }
   };
@@ -105,19 +105,20 @@ export async function loadProject<C extends SceneClass>(Explainer: C, where: str
  * What every scenario's steps must be, which loadProject and the rayner command both hold: at least
  * one, each named, the names unique ignoring case (a share page is a file named by its step, and
  * Push and push are one file on macOS and Windows), and each drawing a frame of its own. A step
- * that draws none rests on the step before's last frame: a link would show that picture while the
- * checks judge the next step's.
+ * that draws none rests on the step before's last frame, the same frame a link and the checks
+ * would show for it, so it would show the step before's picture. `api` is the call that collected
+ * the steps, and the prefix of what it throws: `loadProject()`, or the scene's file for the command.
  */
-export function checkScenarioSteps(trace: Pick<Trace, 'steps'>, values: Readonly<Record<string, string>>): void {
+export function checkScenarioSteps(trace: Pick<Trace, 'steps'>, values: Readonly<Record<string, string>>, api: string): void {
   const names = trace.steps.map((s) => s.step);
   if (!names.length || names.some((name) => !name.trim()))
-    throw new Error(`this.step(): the scenario ${JSON.stringify(values)} has no step, or a step with an empty name; every scenario needs named steps`);
+    throw new Error(`${api}: the scenario ${JSON.stringify(values)} has no step, or a step with an empty name; every scenario needs named steps`);
   const folded = names.map((name) => name.toLowerCase()), twice = names.find((_, i) => folded.indexOf(folded[i]!) !== i);
   if (twice !== undefined)
-    throw new Error(`this.step(): two steps of the scenario ${JSON.stringify(values)} share the name ${JSON.stringify(twice)}, ignoring case; name each step once, so each has its own link and share page`);
+    throw new Error(`${api}: two steps of the scenario ${JSON.stringify(values)} share the name ${JSON.stringify(twice)}, ignoring case; name each step once, so each has its own link and share page`);
   const still = trace.steps.find((s) => s.frame1 === s.frame0);
   if (still)
-    throw new Error(`this.step(): step ${JSON.stringify(still.step)} of the scenario ${JSON.stringify(values)} draws no frame of its own, so it shows the step before's picture; play or wait in it, or give it a caption to hold`);
+    throw new Error(`${api}: step ${JSON.stringify(still.step)} of the scenario ${JSON.stringify(values)} draws no frame of its own, so it shows the step before's picture; play or wait in it, or give it a caption to hold`);
 }
 
 /**

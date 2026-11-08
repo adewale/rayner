@@ -363,7 +363,7 @@ export async function collectProject(
       const Bound = withSettings(bindSnapshots(Source, store), values);
       const { trace, scene: ran } = await traceRun(Bound),
         paper = paperOf(ran);
-      checkScenarioSteps(trace, values);
+      checkScenarioSteps(trace, values, file);
       // The page never draws these (offPage): they stay out of what it carries
       if (outline) await withSceneLettering(Bound, () => offPage(async () => {
         const { Text } = await import('../../src/index.ts');
