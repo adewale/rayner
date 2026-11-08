@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { useLettering, takeLetteringUse } from '../../src/lettering.ts';
+import { useLettering, withLettering, takeLetteringUse } from '../../src/lettering.ts';
 import { LETTERING_SCRIPTS } from '../../src/lettering-scripts.ts';
 import { SUBSET_LETTERING_VERSION } from '../../src/lettering-outlines.ts';
 import type { SubsetLetteringRequest, LetteringScript, LetteringFaces } from '../../src/lettering.ts';
@@ -120,13 +120,10 @@ export async function prepareLettering(
   const sources = Object.fromEntries(
     await Promise.all(FAMILIES.map(async (f) => [f, await readFile(join(ROOT, SOURCES[f].file))] as const)),
   ) as Record<FontName, Buffer>;
-  await useLettering({ sans: sources.sans.toString('base64'), mono: sources.mono.toString('base64') });
-  takeLetteringUse();
-  try {
+  await withLettering({ sans: sources.sans.toString('base64'), mono: sources.mono.toString('base64') }, async () => {
+    takeLetteringUse();
     await draw();
-  } finally {
-    await useLettering(null);
-  }
+  });
   const use = takeLetteringUse();
   const pinFile = base + '.lettering.json';
   const pinned = await readFile(pinFile, 'utf8').then(

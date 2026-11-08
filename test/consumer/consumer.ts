@@ -235,7 +235,7 @@ import type { InvariantFailure } from 'rayner/testing';
 
 /** A custom animation: it overrides the public hooks, as a recipe's does. */
 class Pulse extends Animation {
-  override interpolate(alpha: number): void { this.mobject.setOpacity(0.5 + 0.5 * thereAndBack(alpha)); }
+  protected override doInterpolate(alpha: number): void { this.mobject.setOpacity(0.5 + 0.5 * thereAndBack(alpha)); }
 }
 
 type Door = { door: 'open' | 'closed' };
@@ -277,7 +277,7 @@ export class Collection extends Scene<CollectionModel> {
     parts.add(new DecimalNumber(3.14, { decimals: 2 }), 'pi');
     parts.add(new ItalicText('aside'), 'aside');
     const picture: Group = parts.group();
-    const shapes: Mobject[] = picture.children;
+    const shapes: readonly Mobject[] = picture.children;
     const path: VMobject = new Circle({ radius: 1 });
     const style: Style = { stroke: s.look.emphasis };
     path.setStyle(style);

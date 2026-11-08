@@ -73,7 +73,7 @@ test('Axes: when zero is outside a range, the axes cross at the range end', () =
 });
 
 test('Axes drop a crossing label only where the other axis runs through it', () => {
-  const texts = (g: { children: unknown[] }) => g.children.map((t) => (t as Text).text);
+  const texts = (g: { children: readonly unknown[] }) => g.children.map((t) => (t as Text).text);
   const corner = new Axes({ xRange: [0, 3, 1], yRange: [0, 2, 1], axisStyle: { includeNumbers: true } });
   assert.deepEqual(texts(corner.xAxis.numbers), ['0', '1', '2', '3'], 'axes meet at a corner: both zeros stay');
   assert.deepEqual(texts(corner.yAxis.numbers), ['0', '1', '2']);

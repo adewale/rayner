@@ -72,8 +72,7 @@ test('Henge dome and year are drawn in depth order at every longitude; a day cir
   hidden.seen!.layer = 'surface';
   seen.remove(hidden);
   const body = seen.children.findIndex((m) => m.key === 'henge-dome:body');
-  seen.children.splice(body + 1, 0, hidden);
-  hidden.parent = seen;
+  seen.insert(body + 1, hidden);
   assert.match(depthOrder(picture) as string, /^henge-dome:june:day is drawn in front from orthographic .*, but part of it is on the far side of the body/);
 });
 

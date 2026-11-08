@@ -26,9 +26,9 @@ class Joining extends Animation {
     super(part, { runTime: inner.runTime, rateFunc: (t) => t });
     this.inner = inner;
   }
-  override begin(): void { this.mobject.restore(); this.inner.begin(); }
-  override interpolate(alpha: number): void { this.inner.interpolate(this.inner.rateFunc(alpha)); }
-  override finish(): void { this.inner.finish(); }
+  protected override doBegin(): void { this.mobject.restore(); this.inner.begin(); }
+  protected override doInterpolate(alpha: number): void { this.inner.interpolate(this.inner.rateFunc(alpha)); }
+  protected override doFinish(): void { this.inner.finish(); }
   override cleanUpFromScene(scene: Parameters<Animation['cleanUpFromScene']>[0]): void { this.inner.cleanUpFromScene(scene); }
   override targets(): Mobject[] { return this.inner.targets(); }
 }

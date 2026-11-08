@@ -45,7 +45,7 @@ class BeatPlay extends AnimationGroup {
     this.beat = beat;
     this.action = action;
   }
-  override begin(): void {
+  protected override doBegin(): void {
     if (!this.scene) throw new Error(`${this.action}: play it on the scene it belongs to`);
     const made = this.beat.play();
     checkTime(this.action, this.beat, made);
@@ -216,15 +216,15 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
   }
 
   /** Composed: begun by a play, or by the Succession or group that holds it. */
-  override begin(): void {
+  protected override doBegin(): void {
     this.#start('composed');
     if (!this.#settled) throw new Error(`${this.name}: begun before what it reads was ready, as in a machine's transition, which is made as its beat begins; make it before the play, which waits for it`);
     this.#planned().start?.();
-    super.begin();
+    super.doBegin();
   }
 
-  override finish(): void {
-    super.finish();
+  protected override doFinish(): void {
+    super.doFinish();
     if (this.#ended) return;
     this.#ended = true;
     this.#plan?.end?.();

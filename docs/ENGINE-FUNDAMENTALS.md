@@ -111,13 +111,18 @@ which `Code` sets. A `DecimalNumber` shows `value` with `decimals` places betwee
 
 ## Ownership, identity and copying
 
-`group.add(child)` moves the child into that group, detaching it from its old
-parent. A mobject's `parent` is the group it is in, or null, and `family()` is the
-mobject and every descendant, depth first. A scene admits one root per subtree, so admitting a parent never paints a
+`group.add(child)` moves the child into that group, last on top, detaching it from its old
+parent; `group.insert(index, child)` puts it at `index` instead (`0` draws it under the rest),
+and `group.replaceChild(old, ...replacements)` puts replacements where `old` stands. A
+mobject's `children` and `parent` are read-only, so these methods and `group.remove(child)`
+are the only ways to change a family, and each keeps every child's `parent` and the cached
+box in step. `family()` is the mobject and every descendant, depth first. A scene admits one root per subtree, so admitting a parent never paints a
 child twice. `Scene.add`, `remove`, `replace`, `bringToFront` and `bringToBack`
-control membership and draw order. The structure is a tree: `add` refuses the mobject itself
-or one of its ancestors, which would make a cycle, and `group.remove(child)` takes out only
-the group's own children, leaving a mobject in another group where it is. `scene.familyMembers()` lists every mobject on the stage and
+control membership and draw order; what the stage keeps over everything else (its heading,
+band, step number and line) stays last through each of them. The structure is a tree: `add`, `insert` and
+`replaceChild` refuse the mobject itself or one of its ancestors, which would make a cycle,
+and `group.remove(child)` takes out only the group's own children, leaving a mobject in
+another group where it is. `scene.familyMembers()` lists every mobject on the stage and
 each of its descendants, root by root, for a test or a check that looks for a part.
 `sameShapeAs(other, points?)` says whether two families have the same shape, every
 member of one class with as many children, and with `points` the same point counts:
@@ -163,19 +168,30 @@ A custom animation extends `Animation`. Its `mobject` is what it animates, and `
 and `remover` are its timing options, as on an `AnimationGroup`. `targets()` lists the
 mobjects it writes, its `mobject` unless it says otherwise: what `play()` admits to the
 scene and allows one writer each. `evidence()` is what it records as it begins, or null.
-Ordinary transforms capture endpoints at `begin()` and interpolate
-between them. The scene applies the rate function before calling `interpolate`;
-a custom animation must not apply it twice. Its `finish()` lands at the rate
-function's endpoint, which need not be 1 (`thereAndBack` returns to the start),
-and must land where its last frame drew: `rayner check` compares each step's
-picture as it ends with its last frame.
+The scene calls an animation's `begin()`, `interpolate(alpha)` and `finish()`; a custom
+animation overrides their protected hooks, `doBegin()`, `doInterpolate(alpha)` and
+`doFinish(alpha)`, and calls `super.doBegin()` where it extends one. Ordinary transforms
+capture endpoints in `doBegin()` and interpolate between them. The scene applies the rate
+function before calling `interpolate`; a custom animation must not apply it twice. Its
+`doFinish()` lands at the rate function's endpoint, which need not be 1 (`thereAndBack`
+returns to the start), and must land where its last frame drew: `rayner check` compares
+each step's picture as it ends with its last frame.
 
 An animation's `phase`, an `AnimationPhase`, is `'idle'` until it begins, `'begun'`
 while it plays and `'finished'` once it has landed. A second `begin()` while begun
 throws, and so do `interpolate()` and `finish()` before `begin()`; a finished animation
-may begin again. The guards wrap whatever `begin`, `interpolate` and `finish` a subclass
-defines, so a custom animation keeps them without calling anything. A run time and a lag
-ratio are finite and not negative, given to the constructor or to `play()`.
+may begin again. The guards are the public calls themselves, on `Animation` and
+`AnimationGroup`, so every caller goes through them (the scene, a group, a `Succession`,
+an animation that drives another) and a hook keeps them in whatever form it is written,
+a method or a class field. A subclass that overrides `begin`, `interpolate` or `finish`
+itself is refused: as a method when the first one is made, and as a class field or an
+assignment at the next guarded call.
+
+When an animation throws as it begins, nothing it shares a begin with is left begun: a
+group lands the members it began before the one that threw, and `play()` lands the
+animations before it, each finishing and cleaning up as the end of its play would, so
+each can play again. A run time and a lag ratio are finite and not negative, given to
+the constructor, to `play()` or set on the animation (`a.runTime = 2`).
 
 Use one `play(a, b)` for simultaneous operations, `Succession` for sequential
 operations and `AnimationGroup`/`LaggedStart` for grouped schedules. There is one scene

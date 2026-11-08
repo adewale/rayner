@@ -33,12 +33,13 @@ test('state and evidence refuse silent data loss and cycles with a useful field 
   const cyclic: Record<string, unknown> = {}; cyclic.self = cyclic;
   assert.throws(() => jsonObject(cyclic), /state.self/);
 });
-test('a caption that is not a string fails before the existing step is ended; other fields are the layer above\'s', async () => {
+test('a caption that is not a string fails once the step before has ended, before the step begins; other fields are the layer above\'s', async () => {
   const scene = new Scene(new NullSink());
   await scene.step('first');
   await assert.rejects(scene.step('bad', {caption: 4} as never), /this\.step\(\): the caption of step "bad" must be a string/);
-  assert.equal(scene.steps.length, 1);
-  assert.equal(scene.currentStep?.name, 'first');
+  assert.equal(scene.steps.length, 1, 'the bad step never began');
+  assert.notEqual(scene.steps[0]!.frame1, null, 'the step before it ended, as it does for metadata given by a function');
+  assert.equal(scene.currentStep, null);
 });
 
 test('JSON arrays refuse subclasses, inherited entries and iterator substitution', () => {

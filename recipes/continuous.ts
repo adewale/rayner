@@ -32,12 +32,12 @@ export class FollowAngle extends Animation {
     super(rig.root, opts);
     this.rig = rig; this.target = target; this.publish = publish;
   }
-  override begin(): void {
+  protected override doBegin(): void {
     // Capture when this play begins, including when nested in Succession.
     this.from = this.rig.angle;
-    super.begin();
+    super.doBegin();
   }
-  override interpolate(alpha: number): void {
+  protected override doInterpolate(alpha: number): void {
     const angle = alpha === 0 ? this.from : alpha === 1 ? this.target : this.from + (this.target - this.from) * alpha;
     const sample = orbit(angle);
     this.rig.angle = sample.angle;

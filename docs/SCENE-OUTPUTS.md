@@ -95,7 +95,7 @@ captions and explanatory descriptions in its transcript.
 | Text at a time | `renderText` on that sampled scene | `/text` |
 | Element records | `renderElements`, one `ElementRecord` per drawn element | `/elements.json` |
 | Full step/state trace | `traceScene` | `/trace.json` |
-| Step timing and duration | `indexScene`, a `SceneIndex` (`{ fps, duration, frames, steps }`) | `/index.json` |
+| Step timing and duration | `indexScene`, a `SceneIndex` (`{ fps, duration, frames, steps }`, whose steps are the scene's own `Step` records, from the dry run `traceScene` is read from too) | `/index.json` |
 | Every SVG frame | `new SceneClass(new StringSink()).run()`; read sink's `frames` | frame-sequence rendering (`/render`) |
 
 These are capability correspondences, not restored HTTP routes or wire schemas.

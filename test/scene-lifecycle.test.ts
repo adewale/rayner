@@ -52,9 +52,9 @@ test('an animation begins once at a time, and interpolates and finishes only onc
 test('a begin() that throws leaves the animation idle, to begin again', () => {
   let fail = true;
   class Flaky extends FadeIn {
-    override begin(): void {
+    protected override doBegin(): void {
       if (fail) throw new Error('flaky');
-      super.begin();
+      super.doBegin();
     }
   }
   const a = new Flaky(new Circle());
@@ -63,6 +63,152 @@ test('a begin() that throws leaves the animation idle, to begin again', () => {
   fail = false;
   a.begin();
   assert.equal(a.phase, 'begun');
+});
+
+test('the phase is kept by begin(), interpolate() and finish() themselves, whatever form the hooks take (N5)', () => {
+  // A hook written as a class field is still called through the guard.
+  class FieldHook extends FadeIn {
+    begun = 0;
+    protected override doBegin = (): void => { this.begun++; super.doBegin(); };
+  }
+  const a = new FieldHook(new Circle());
+  assert.throws(() => a.interpolate(0.5), /animation\.interpolate\(\): a FieldHook has not begun/);
+  a.begin();
+  assert.equal(a.phase, 'begun');
+  assert.throws(() => a.begin(), /animation\.begin\(\): a FieldHook has already begun/);
+  a.interpolate(0.5);
+  a.finish();
+  assert.equal(a.phase, 'finished');
+  assert.equal(a.begun, 1);
+  // A hook patched on the prototype after construction reaches instances made before it.
+  const made = new FadeIn(new Circle());
+  const proto = FadeIn.prototype as unknown as { doBegin(): void };
+  const original = proto.doBegin;
+  let hits = 0;
+  proto.doBegin = function (this: FadeIn) { hits++; original.call(this); };
+  try { made.begin(); } finally { proto.doBegin = original; }
+  assert.equal(hits, 1);
+});
+
+test('an animation that overrides begin(), interpolate() or finish() itself is refused: it would skip the phase (N5)', async () => {
+  // As a method: refused when the first one is made.
+  class Override extends FadeIn {
+    override begin(): void { super.doBegin(); }
+  }
+  assert.throws(() => new Override(new Circle()), /new Override\(\): it overrides begin\(\), which keeps the animation's phase; override doBegin\(\) instead/);
+  // As a class field: refused at the first guarded call it reaches,
+  // not with a misleading "has not begun".
+  class Field extends FadeIn {
+    override begin = (): void => {};
+  }
+  const scene = new Scene(new NullSink());
+  await assert.rejects(scene.play(new Field(new Circle())), /animation\.interpolate\(\): a Field defines begin on itself, a class field or an assignment, which skips the phase it keeps; override doBegin\(\) instead/);
+  // Assigned after construction: refused at the next begin.
+  const assigned = new FadeIn(new Circle());
+  Object.assign(assigned, { finish() {} });
+  assert.throws(() => assigned.begin(), /animation\.begin\(\): a FadeIn defines finish on itself/);
+});
+
+test('a group whose member throws as it begins lands the members it began, and can begin again (N6)', async () => {
+  let fail = true;
+  class Flaky extends FadeIn {
+    protected override doBegin(): void {
+      if (fail) throw new Error('flaky');
+      super.doBegin();
+    }
+  }
+  const circle = new Circle();
+  const first = new FadeIn(circle), second = new Flaky(new Rectangle());
+  const group = new AnimationGroup([first, second]);
+  assert.throws(() => group.begin(), /flaky/);
+  assert.equal(group.phase, 'idle');
+  assert.equal(first.phase, 'finished', 'the member begun first is not left begun');
+  assert.equal(circle.style.opacity, 1, 'it landed where its play would have');
+  fail = false;
+  const scene = new Scene(new NullSink());
+  await scene.play(group);
+  assert.deepEqual([group.phase, first.phase, second.phase], ['finished', 'finished', 'finished']);
+});
+
+test('a play whose animation throws as it begins lands the ones begun before it, which can play again (N6)', async () => {
+  let fail = true;
+  class Flaky extends FadeIn {
+    protected override doBegin(): void {
+      if (fail) throw new Error('flaky');
+      super.doBegin();
+    }
+  }
+  const scene = new Scene(new NullSink());
+  const box = new Rectangle();
+  scene.add(box);
+  const circle = new Circle();
+  const shown = new FadeIn(circle), moved = new Transform(box, new Rectangle({ width: 3 })), bad = new Flaky(new Circle());
+  await assert.rejects(scene.play(shown, moved, bad), /flaky/);
+  assert.deepEqual([shown.phase, moved.phase, bad.phase], ['finished', 'finished', 'idle']);
+  assert.equal(circle.style.opacity, 1);
+  assert.equal(scene.phase, 'idle');
+  assert.equal(scene.frameCount, 0, 'no frame was drawn');
+  fail = false;
+  await scene.play(new FadeOut(circle), bad);
+  assert.equal(bad.phase, 'finished');
+  await scene.play(shown);
+  assert.equal(shown.phase, 'finished', 'the landed FadeIn plays again');
+});
+
+test('a mobject kept on top stays last in drawing order through every add, bringToBack and replace, while on stage', () => {
+  const scene = new Scene(new NullSink());
+  const top = new Rectangle(), band = new Rectangle(), a = new Circle(), b = new Circle(), c = new Circle();
+  scene.add(a, band, top);
+  const unkeep = scene.keepOnTop(band, top);
+  scene.add(b);
+  assert.deepEqual(scene.mobjects, [a, b, band, top]);
+  scene.bringToFront(a);
+  assert.deepEqual(scene.mobjects, [b, a, band, top]);
+  scene.bringToBack(top);
+  assert.deepEqual(scene.mobjects, [b, a, band, top], 'kept on top even when sent back');
+  scene.replace(a, c);
+  assert.deepEqual(scene.mobjects, [b, c, band, top]);
+  // Keeping does not add; one taken off the stage is skipped until it comes back.
+  scene.remove(band);
+  scene.add(a);
+  assert.deepEqual(scene.mobjects, [b, c, a, top]);
+  scene.add(band);
+  assert.deepEqual(scene.mobjects, [b, c, a, band, top], 'in the order kept');
+  unkeep();
+  scene.add(b);
+  assert.deepEqual(scene.mobjects, [c, a, band, top, b], 'released, they are ordinary roots again');
+});
+
+test('a run told where to stop stops there for good: after the play that reaches the frame, or as the step ends', async () => {
+  let after = 0;
+  class Story extends Scene {
+    override async construct() {
+      await this.step('one');
+      await this.play(new FadeIn(new Circle()), { runTime: 0.5 });
+      await this.step('two');
+      await this.play(new FadeIn(new Rectangle()), { runTime: 0.5 });
+      after++;
+      await this.play(new FadeIn(new Circle({ radius: 0.2 })), { runTime: 0.5 });
+      await this.step('three');
+      after++;
+    }
+  }
+  // At the frame a play in the step reaches: the code after that play never runs.
+  const scene = new Story(new NullSink());
+  let at: number | undefined;
+  scene.stopAt('two', 30, async (s) => { at = s.frameCount; await s.wait(0.1); });
+  await scene.run();
+  assert.equal(at, 30);
+  assert.equal(after, 0);
+  assert.equal(scene.phase, 'stopped');
+  assert.equal(scene.frameCount, 33, 'what the stop played, and nothing after it');
+  await assert.rejects(scene.play(new FadeIn(new Circle())), StopScene);
+  // A frame past every play in the step: it stops as the step ends.
+  const ending = new Story(new NullSink());
+  ending.stopAt('two', 1000, (s) => { at = s.frameCount; });
+  await ending.run();
+  assert.deepEqual([at, after, ending.phase], [45, 1, 'stopped']);
+  assert.throws(() => ending.stopAt('one', 0, () => {}), /this\.stopAt\(\): the scene has begun its run; say where it stops before run\(\)/);
 });
 
 // ---- the scene's phase -----------------------------------------------------
@@ -265,6 +411,25 @@ test('step metadata is copied as JSON when the step begins: a later change rewri
   await assert.rejects(new NotObject(new NullSink()).run(), /this\.step\(\): the metadata of step "one" must be an object, or a function of the step before that returns one/);
 });
 
+test('step metadata given as a value or as a function is refused at the same point: once the step before has ended and held', async () => {
+  const at = async (meta: unknown): Promise<number> => {
+    let frames = 0;
+    class Bad extends Scene {
+      override async construct() {
+        await this.step('one', { caption: 'A caption long enough to hold the step for a while.' });
+        await this.wait(0.1);
+        await this.step('two', meta as never);
+      }
+    }
+    const sink = { frame: async () => { frames++; } };
+    await assert.rejects(new Bad(sink).run(), /this\.step\(\): the caption of step "two" must be a string/);
+    return frames;
+  };
+  const asValue = await at({ caption: 3 }), asFunction = await at(() => ({ caption: 3 }));
+  assert.equal(asValue, asFunction, 'both fail on the same frame');
+  assert.ok(asValue > 4, `${asValue} frames: the step before held for its caption first`);
+});
+
 // ---- timeline gates --------------------------------------------------------
 
 test('fps must be above 0 and at most 240, where a trace time rounded to 1 ms still finds its frame', () => {
@@ -284,6 +449,14 @@ test('run times, lag ratios and waits are finite and not negative', async () => 
   await assert.rejects(scene.play(new FadeIn(new Circle()), { runTime: Infinity }), /this\.play\(\): its runTime is Infinity/);
   await assert.rejects(scene.play(new FadeIn(new Circle()), { lagRatio: NaN }), /this\.play\(\): its lagRatio is NaN/);
   for (const t of [NaN, Infinity, -0.5]) await assert.rejects(scene.wait(t), /this\.wait\(\): the time is .*; give a finite number from 0/, String(t));
+  // Set after construction too: a run time of NaN would play no frames and land silently.
+  const late = new FadeIn(new Circle());
+  for (const runTime of [NaN, Infinity, -1]) assert.throws(() => { late.runTime = runTime; }, /animation\.runTime: the runTime of a FadeIn is .*; give a finite number from 0/, String(runTime));
+  assert.throws(() => { late.lagRatio = NaN; }, /animation\.lagRatio: the lagRatio of a FadeIn is NaN/);
+  late.runTime = 0.5;
+  assert.equal(late.runTime, 0.5);
+  const group = new AnimationGroup([new FadeIn(new Circle())]);
+  assert.throws(() => { group.runTime = NaN; }, /animation\.runTime: the runTime of an AnimationGroup is NaN/);
   assert.equal(scene.phase, 'idle', 'a refused call leaves the scene as it was');
 });
 

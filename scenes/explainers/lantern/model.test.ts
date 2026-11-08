@@ -63,18 +63,18 @@ function fakeDocument() {
 class Probe extends Transform {
   scene: Scene | null = null;
   calls: { frame: number; alpha: number }[] = [];
-  override begin(): void {
-    super.begin();
+  protected override doBegin(): void {
+    super.doBegin();
     this.calls.length = 0; // begin() interpolates once at 0; that is not a frame
   }
-  override interpolate(alpha: number): void {
-    super.interpolate(alpha);
+  protected override doInterpolate(alpha: number): void {
+    super.doInterpolate(alpha);
     if (this.scene) this.calls.push({ frame: this.scene.frameCount + 1, alpha });
   }
   // finish() lands on the end once more after the last frame; that is not a frame either.
-  override finish(alpha?: number): void {
+  protected override doFinish(alpha?: number): void {
     this.scene = null;
-    super.finish(alpha);
+    super.doFinish(alpha);
   }
 }
 

@@ -302,9 +302,9 @@ class WhenItsTurnComes extends Animation {
   }
   // Begun through the scene, as play() begins anything: a Succession in it then cleans up each
   // member as it finishes (a part faded out leaves the picture), and its evidence is recorded.
-  override begin(): void { this.made = this.make(); this.scene.beginAnimations([this.made]); }
-  override interpolate(alpha: number): void { if (this.made) this.made.interpolate(this.made.rateFunc(alpha)); }
-  override finish(): void { this.made?.finish(); }
+  protected override doBegin(): void { this.made = this.make(); this.scene.beginAnimations([this.made]); }
+  protected override doInterpolate(alpha: number): void { if (this.made) this.made.interpolate(this.made.rateFunc(alpha)); }
+  protected override doFinish(): void { this.made?.finish(); }
   override cleanUpFromScene(scene: Parameters<Animation['cleanUpFromScene']>[0]): void { this.made?.cleanUpFromScene(scene); }
   override targets(): Mobject[] { return this.made ? this.made.targets() : this.declared; }
   override evidence(): Evidence | null { return this.made?.evidence() ?? null; }
@@ -325,9 +325,9 @@ class Landing extends Animation {
     super(views[0] ?? new Group(), { runTime: 1 / scene.fps, rateFunc: linear });
     this.scene = scene; this.views = views;
   }
-  override begin(): void {}
-  override interpolate(): void {}
-  override finish(): void {
+  protected override doBegin(): void {}
+  protected override doInterpolate(): void {}
+  protected override doFinish(): void {
     for (const v of this.views) {
       const drawn = v.placed(this.scene.state), current = v.current;
       const byKey = new Map(current.children.map((c) => [c.key, c] as const));
@@ -338,7 +338,7 @@ class Landing extends Animation {
       // Kept parts in the drawn order, then the whole picture takes the drawing: the parts keep
       // their identities, and the root takes its own fields too (a card's lit row, a code
       // panel's focus, what it says it emphasises), not just its children's.
-      current.children = drawn.children.map((d) => byKey.get(d.key)!);
+      current.add(...drawn.children.map((d) => byKey.get(d.key)!));
       current.invalidateBox();
       if (current.sameShapeAs(drawn)) current.become(drawn);
       else { for (const d of drawn.children) byKey.get(d.key)!.become(d); current.invalidateBox(); }

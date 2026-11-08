@@ -100,7 +100,7 @@ test('PulseAlongPath evaluates the route and opacity from alpha, keeps family op
 
 test('PulseAlongPath preserves the old message-token frames and restores authored opacity after removal', async () => {
   class OldToken extends MoveAlongPath {
-    override interpolate(alpha: number) { super.interpolate(alpha); this.mobject.setOpacity(Math.sin(Math.PI * alpha)); }
+    protected override doInterpolate(alpha: number) { super.doInterpolate(alpha); this.mobject.setOpacity(Math.sin(Math.PI * alpha)); }
   }
   const run = async (modern: boolean) => {
     const sink = new StringSink();
