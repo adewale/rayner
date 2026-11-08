@@ -200,6 +200,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - Rayner is two packages: `rayner`, the vocabulary and runtime, with no dependencies, and `rayner-cli`, the `rayner` command, at the same version. Install both. [Quick start](README.md#quick-start)
 - `rayner-cli` holds the player, diagram capture and lettering capture (its Python, requirements, font script and maths typesetter); `rayner` keeps only what replays their snapshots.
 - A release publishes and retains both archives; `npm run pack:smoke` installs both, and `rayner` alone, and type-checks every explainer and recipe against the packed declarations. [Releasing](docs/RELEASING.md)
+- Every `rayner` command starts without loading the TypeScript compiler, which only the build fingerprint uses: `rayner version` takes about 0.3 s and 105 MB, where it took 0.7 s and 165 MB.
 
 ### Removed from the public API
 

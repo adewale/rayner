@@ -39,3 +39,18 @@ test('artifact identity changes for reader, builder, dependency and notice edits
     assert.notEqual((await buildInputs(root)).hash, withHelper, 'new transitive producer dependencies count automatically');
   } finally { await rm(root, { recursive: true, force: true }); }
 });
+
+test('the command line loads the TypeScript compiler only when a fingerprint parses imports', async () => {
+  const { execFileSync } = await import('node:child_process');
+  // Every command imports these modules; only buildInputs() needs the compiler.
+  const probe = `import { registerHooks } from 'node:module';
+let loaded = 0;
+registerHooks({ resolve(spec, context, next) { if (spec === 'typescript') loaded++; return next(spec, context); } });
+await import('./tools/explain.ts');
+const before = loaded;
+const { buildInputs } = await import('./tools/lib/build-inputs.ts');
+await buildInputs('.');
+console.log(JSON.stringify([before, loaded > 0]));`;
+  const out = execFileSync(process.execPath, ['--input-type=module', '-e', probe], { cwd: join(import.meta.dirname, '..'), encoding: 'utf8' });
+  assert.deepEqual(JSON.parse(out), [0, true]);
+});
