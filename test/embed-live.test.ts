@@ -152,7 +152,7 @@ test('a live run stops at the step’s resting picture, plays the log there, and
   assert.deepEqual(fromStart.rest, { level: 1 });
   // A log the machine does not take throws, as send does.
   await assert.rejects(runLive(Lamp, press, 0, ['UP', 'UP', 'UP']), /refused/);
-  await assert.rejects(runLive(Lamp, { step: 'nowhere', t1: 1 }, 0, []), /never reached/);
+  await assert.rejects(runLive(Lamp, { step: 'nowhere', holdFrame: 30 }, 0, []), /never reached/);
 });
 
 test('a kept run plays the next event from its picture, landing where a fresh run of the longer log lands', async () => {

@@ -147,6 +147,7 @@ test('SetState copies validated input, replaces rather than merges, and gives ev
   assert.equal(change.runTime, 0); assert.equal(change.mobject.hasPoints(), false);
   input.count = 90; input.nested.values[0] = 90;
   change.begin(); assert.deepEqual(host.state, { count: 3, nested: { values: [1, 2] } });
+  change.finish();
   host.state.nested!.values[0] = 80;
   change.begin(); assert.deepEqual(host.state, { count: 3, nested: { values: [1, 2] } });
   new SetState(host, { count: 5 }).begin(); assert.deepEqual(host.state, { count: 5 });

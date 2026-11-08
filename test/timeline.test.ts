@@ -43,7 +43,7 @@ test('a swallowed StopScene cannot emit frames: a seek still renders the played 
     const counting = { async frame(scene: Scene, dt: number) { forwarded++; await snap.frame(scene); void dt; } };
     const scene = await renderAt(Swallows, t, counting);
     assert.equal(forwarded, 1, `one frame reaches the sink at t=${t}`);
-    assert.ok(scene.stopped);
+    assert.equal(scene.phase, 'stopped');
     assert.equal(snap.svg, full.frames[Math.round(t * scene.fps)], `frame at t=${t}`);
   }
 });
@@ -54,7 +54,7 @@ test('after a stop, play(), wait() and step() reject at once without reaching th
   const scene = new Swallows(sink);
   await scene.run();
   assert.equal(calls, 3);
-  assert.ok(scene.stopped);
+  assert.equal(scene.phase, 'stopped');
   const box = new Rectangle();
   const before = scene.time;
   await assert.rejects(scene.play(new FadeIn(box)), StopScene);

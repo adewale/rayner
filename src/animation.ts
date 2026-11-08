@@ -49,19 +49,61 @@ function lagSlots(rows: readonly FamilyRow[]): { index: Int32Array; count: numbe
   return { index, count };
 }
 
+/**
+ * @internal Refuse a time that is not a finite number from 0 to `max`: NaN plays no frames and lands
+ * silently, Infinity never ends.
+ */
+export function assertTime(api: string, what: string, value: unknown, max = Infinity): void {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > max)
+    throw new RangeError(`${api}: ${what} is ${typeof value === 'number' ? String(value) : typeof value}; give a finite number from 0${max === Infinity ? '' : ` to ${max}`}`);
+}
+
+/**
+ * Where an animation is in its life: `idle` until it begins, `begun` while it plays, `finished`
+ * once it has landed. It interpolates and finishes only while begun, and begins only when not begun;
+ * a finished animation may begin again (play it once more).
+ */
+export type AnimationPhase = 'idle' | 'begun' | 'finished';
+
 /** Shared scheduling contract for a drawable animation or a group of animations. */
 abstract class AnimationTiming {
   runTime: number;
   rateFunc: RateFunc;
   lagRatio: number;
   remover: boolean;
+  /** Where it is in its life (see AnimationPhase): set by begin() and finish(). */
+  get phase(): AnimationPhase { return this.#phase; }
+  #phase: AnimationPhase = 'idle';
   constructor({runTime = 1, rateFunc = smooth, lagRatio = 0, remover = false}: AnimOpts = {}) {
+    assertTime(`new ${new.target.name}()`, 'its runTime', runTime);
+    assertTime(`new ${new.target.name}()`, 'its lagRatio', lagRatio);
     this.runTime = runTime; this.rateFunc = rateFunc; this.lagRatio = lagRatio; this.remover = remover;
+    // The phase is kept here, around whatever begin(), interpolate() and finish() the subclass defines:
+    // a call from outside goes through these guards, a subclass's super call does not.
+    const begin = this.begin, interpolate = this.interpolate, finish = this.finish;
+    const guarded = {
+      begin: (): void => {
+        if (this.#phase === 'begun') throw new Error(`animation.begin(): ${animationName(this)} has already begun; an animation plays in one place at a time, so make another for the second`);
+        const was = this.#phase;
+        this.#phase = 'begun';
+        try { begin.call(this); } catch (e) { this.#phase = was; throw e; }
+      },
+      interpolate: (alpha: number): void => {
+        if (this.#phase !== 'begun') throw new Error(`animation.interpolate(): ${animationName(this)} ${this.#phase === 'idle' ? 'has not begun' : 'has finished'}; begin() it first`);
+        interpolate.call(this, alpha);
+      },
+      finish: (alpha?: number): void => {
+        if (this.#phase !== 'begun') throw new Error(`animation.finish(): ${animationName(this)} ${this.#phase === 'idle' ? 'has not begun' : 'has already finished'}; begin() it first`);
+        finish.call(this, alpha);
+        this.#phase = 'finished';
+      },
+    };
+    for (const [name, value] of Object.entries(guarded)) Object.defineProperty(this, name, { value, writable: true, configurable: true });
   }
   /** @internal */ setOptions({ runTime, rateFunc, lagRatio }: PlayOpts = {}): this {
-    if (runTime != null) this.runTime = runTime;
+    if (runTime != null) { assertTime('this.play()', 'its runTime', runTime); this.runTime = runTime; }
     if (rateFunc != null) this.rateFunc = rateFunc;
-    if (lagRatio != null) this.lagRatio = lagRatio;
+    if (lagRatio != null) { assertTime('this.play()', 'its lagRatio', lagRatio); this.lagRatio = lagRatio; }
     return this;
   }
 
@@ -85,6 +127,12 @@ abstract class AnimationTiming {
    * rayner/explain's `s.show` and `d.morph` read a diagram's layout first.
    */
   /** @internal */ ready(): Promise<unknown> | null { return null; }
+  /**
+   * @internal Fix the run time, once what it reads is ready (see ready()) and before it begins:
+   * play() settles its animations, and a group its members, then lays out their times. Nothing
+   * to do for an animation whose run time is known when it is made.
+   */
+  settle(): void {}
 }
 
 /**
@@ -469,6 +517,17 @@ export class AnimationGroup extends AnimationTiming {
   }
   /** The scene the play runs on, set by play() (see bindSuccessions): members record their evidence to it as they begin. */
   scene: Scene | null = null;
+  /** @internal What every member waits for before it can begin: a play waits for all of it. */
+  override ready(): Promise<unknown> | null {
+    const waits = this.animations.map((a) => a.ready()).filter((r): r is Promise<unknown> => r !== null);
+    return waits.length ? Promise.all(waits) : null;
+  }
+  /** @internal Settle the members, then lay out their times again: a member may know its run time only now. */
+  override settle(): void {
+    for (const a of this.animations) a.settle();
+    this.layOut();
+    if (!this.ownRunTime) this.runTime = this.maxEnd;
+  }
   override begin(): void {
     for (const a of this.animations) {
       a.begin();
@@ -808,14 +867,22 @@ export class Succession extends AnimationGroup {
   /** Members join `scene` (set by play(), see bindSuccessions) as they begin, as each would in a play of its own. */
   constructor(animations: Playable[], opts: AnimOpts = {}) {
     super(animations.map((x) => isAnimateBuilder(x) ? new BuiltTransform(x) : prepareAnimation(x, 'new Succession()')), { rateFunc: linear, ...opts, lagRatio: 1 });
+    if (opts.rateFunc) assertForward('new Succession()', opts.rateFunc);
     this.active = -1;
   }
 
   /** Members run one after another: a lagRatio passed to play() is ignored (runTime and rateFunc apply). @internal */
-  override setOptions({ lagRatio: _, ...opts }: PlayOpts = {}): this { return super.setOptions(opts); }
+  override setOptions({ lagRatio: _, ...opts }: PlayOpts = {}): this {
+    if (opts.rateFunc) assertForward('this.play()', opts.rateFunc);
+    return super.setOptions(opts);
+  }
+
+  /** The time its last frame reached: a frame before it would need finished members to run again. */
+  #reached = 0;
 
   override begin(): void {
     this.active = -1;
+    this.#reached = 0;
     this.advance();
   }
 
@@ -830,6 +897,9 @@ export class Succession extends AnimationGroup {
 
   override interpolate(alpha: number): void {
     const t = alpha * this.maxEnd;
+    if (t < this.#reached - 1e-9)
+      throw new Error(`new Succession(): its time ran backwards, from ${this.#reached} s to ${t} s, and a finished member cannot run again; give it, and any group around it, a rate function that never decreases`);
+    this.#reached = t;
     // A frame exactly on a boundary shows the earlier member's end, as its play's last frame does
     while (this.active + 1 < this.animations.length && t > this.timings[this.active + 1]![0]) this.advance();
     const a = this.animations[this.active];
@@ -849,6 +919,19 @@ export class Succession extends AnimationGroup {
   /** Members join the scene as they begin; these are the ones that have. */
   override get mobjects(): Mobject[] {
     return this.animations.slice(0, this.active + 1).flatMap((a) => a instanceof AnimationGroup ? a.mobjects : [a.mobject]).filter(Boolean);
+  }
+}
+
+/**
+ * Refuse a rate function that runs time backwards anywhere (thereAndBack, wiggle): a Succession's
+ * finished members do not run again. Sampled at 240 points, finer than a second at most fps.
+ */
+function assertForward(api: string, rateFunc: RateFunc): void {
+  let last = rateFunc(0);
+  for (let i = 1; i <= 240; i++) {
+    const v = rateFunc(i / 240);
+    if (v < last - 1e-9) throw new RangeError(`${api}: a Succession's rate function must never decrease, and this one falls from ${last.toFixed(3)} to ${v.toFixed(3)} at ${(i / 240).toFixed(3)}; give one such as linear or smooth, and run a there-and-back motion as its own play`);
+    last = v;
   }
 }
 

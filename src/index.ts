@@ -19,7 +19,7 @@ export type { AxisRange, NumberLineOpts, AxisStyle, AxesOpts, PlotOpts, BarOpts,
 
 // Motion
 export { Animation, Transform, FadeIn, FadeOut, Create, AnimationGroup, LaggedStart } from './animation.ts';
-export type { AnimOpts, PlayOpts, Playable, ScheduledAnimation, TransformOpts, FadeOpts } from './animation.ts';
+export type { AnimOpts, PlayOpts, Playable, ScheduledAnimation, TransformOpts, FadeOpts, AnimationPhase } from './animation.ts';
 export { Circumscribe } from './animation.ts';
 export type { CircumscribeOpts } from './animation.ts';
 export { Succession } from './animation.ts';
@@ -35,7 +35,7 @@ export { linear, smooth, rushInto, rushFrom, thereAndBack } from './rate.ts';
 export type { RateFunc } from './rate.ts';
 export { Scene } from './scene.ts';
 export type { Sink, Step, StepMeta, SceneOptions, SceneState, SceneClass } from './scene.ts';
-export type { Evidence, Invariant } from './scene.ts';
+export type { Evidence, Invariant, ScenePhase } from './scene.ts';
 // Camera: scene.frame, a box the sinks use as the viewBox
 export { Frame } from './frame.ts';
 export type { FrameFitOpts } from './frame.ts';

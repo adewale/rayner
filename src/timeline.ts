@@ -54,7 +54,7 @@ export async function indexScene(SceneClass: SceneClass, opts: SceneOptions = {}
     fps: scene.fps,
     duration: scene.time,
     frames: scene.frameCount,
-    steps: scene.steps.map(({ name, path, t0, t1, frame0, frame1, meta }) => ({ name, path, t0, t1, frame0, frame1, meta })),
+    steps: scene.steps.map(({ name, path, t0, t1, frame0, frame1, holdFrame, restFrame, meta }) => ({ name, path, t0, t1, frame0, frame1, holdFrame, restFrame, meta })),
   };
 }
 

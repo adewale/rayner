@@ -95,11 +95,10 @@ export function logStart(machine: AnyMachine, rest: object): { from: LogStart; s
   return moves(start) ? { from: 'start', state: start } : null;
 }
 
-/** The step a live run stops in: its name, and when its picture stops changing (`hold`, else its end). */
+/** The step a live run stops in: its name, and the frame its picture stops changing on (its trace's `holdFrame`). */
 export interface LiveStepTimes {
   step: string;
-  t1?: number | null;
-  hold?: number | null;
+  holdFrame?: number;
 }
 
 export interface LiveRun {
@@ -158,7 +157,7 @@ export async function runLive(
   log: readonly string[],
   { sink, animate, onStart, onRest, from = 'rest', keep = false }: LiveDraw & { onRest?: (scene: Scene<any>) => void; from?: LogStart; keep?: boolean } = {},
 ): Promise<LiveRun> {
-  const end = times.hold ?? times.t1 ?? Infinity;
+  const end = times.holdFrame ?? Infinity;
   let result: LiveRun | undefined;
   // A kept run waits in the step for the next event; `wake` hands it one, or null to stop.
   type Command = { event: string; draw: LiveDraw; done: (run: LiveRun) => void; failed: (error: unknown) => void };
@@ -167,6 +166,11 @@ export async function runLive(
   const Base = Source as unknown as new (sink: Sink, opts?: { skipUntil?: number }) => Scene<any>;
   class Live extends Base {
     reached = false;
+    constructor(sink: Sink, opts?: { skipUntil?: number }) {
+      super(sink, opts);
+      // A step ends with its picture still: the run stops there if no play or wait got it there first.
+      this.onStepEnd((s) => (!this.reached && s.path === times.step ? this.reach() : undefined));
+    }
     async reach(): Promise<void> {
       this.reached = true;
       const machine = machinesOf(this)[index];
@@ -224,8 +228,7 @@ export async function runLive(
       throw new StopScene();
     }
     private due(): boolean {
-      // Within half a frame: a trace rounds its times.
-      return !this.reached && this.currentStep?.path === times.step && this.time + 0.5 / this.fps >= end;
+      return !this.reached && this.currentStep?.path === times.step && this.frameCount >= end;
     }
     override async play(...args: Parameters<Scene['play']>): Promise<void> {
       await super.play(...args);
@@ -234,10 +237,6 @@ export async function runLive(
     override async wait(seconds?: number): Promise<void> {
       await super.wait(seconds);
       if (this.due()) await this.reach();
-    }
-    override async endCurrentStep(): Promise<void> {
-      if (!this.reached && this.currentStep?.path === times.step) await this.reach();
-      return super.endCurrentStep();
     }
   }
   function session(played: readonly string[]): LiveSession {

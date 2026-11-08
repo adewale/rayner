@@ -33,7 +33,7 @@ async function readoutAtSteps(S: SceneClass): Promise<Array<{ step: string; stat
           }
         }
       }
-      out.push({ step: s.path, state: this.events.at(-1)!.state, shown: v ? v.texts : null,
+      out.push({ step: s.path, state: this.records.at(-1)!.after!, shown: v ? v.texts : null,
         marks: v ? v.family().map(m => m.key).filter((key): key is string => !!key?.startsWith('result:')) : [] });
     }
   }
