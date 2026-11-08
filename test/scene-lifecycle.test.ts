@@ -362,3 +362,47 @@ test('a frame with no updater on stage builds no family to look for one', async 
   await scene.wait(1);
   assert.equal(ran, 30);
 });
+
+test('a scene runs once, a step listener begins no step, and a listener leaves no play running', async () => {
+  const { Scene, Circle, FadeIn } = await import('../src/index.ts');
+  const { NullSink } = await import('../src/output.ts');
+  class One extends Scene { override async construct() { await this.step('a', {}); await this.wait(0.1); } }
+  const once = new One(new NullSink());
+  await once.run();
+  await assert.rejects(once.run(), /^Error: this\.run\(\): the scene has run already; make a new scene for another run$/);
+
+  // From onStep, a step would draw no frame; from onStepEnd it would end itself again without end.
+  for (const on of ['onStep', 'onStepEnd'] as const) {
+    class Nested extends Scene {
+      override async construct() {
+        let fired = false;
+        this[on](async () => { if (!fired) { fired = true; await this.step('inner', {}); } });
+        await this.step('a', {}); await this.wait(0.1); await this.step('b', {}); await this.wait(0.1);
+      }
+    }
+    await assert.rejects(new Nested(new NullSink()).run(), /^Error: this\.step\(\): a step listener began step "inner"; a listener may play and wait in its step/, on);
+  }
+
+  // A listener that fires a play without awaiting it: the next play would interleave frames with it.
+  class Fired extends Scene {
+    override async construct() {
+      const c = new Circle();
+      this.onStep(() => { void this.play(new FadeIn(c, { runTime: 0.5 })).catch(() => {}); });
+      await this.step('a', {}); await this.wait(0.2);
+    }
+  }
+  await assert.rejects(new Fired(new NullSink()).run(), /^Error: this\.onStep\(\): a listener of step "a" returned with a play\(\) or wait\(\) still running; await each play\(\) and wait\(\) it makes$/);
+
+  // A listener that awaits its play is the intended use, and plays in the step.
+  class Awaited extends Scene {
+    override async construct() {
+      const c = new Circle();
+      this.onStep(async () => { await this.play(new FadeIn(c, { runTime: 0.2 })); });
+      await this.step('a', {}); await this.wait(0.1);
+    }
+  }
+  await new Awaited(new NullSink()).run();
+
+  assert.throws(() => new One(new NullSink(), { fps: '30' as unknown as number }), /^TypeError: new Scene\(\): fps is string/);
+  assert.throws(() => new One(new NullSink(), { fps: 0 }), /^RangeError: new Scene\(\): fps is 0/);
+});

@@ -47,11 +47,12 @@ export interface Trace<S extends object = SceneState, Sh extends object = SceneS
  * traceScene() returns for it, and what a test handed such a trace declares,
  * `trace: TraceOf<typeof Explainer>`. Its states are `Jsonified<S>`; what is shown is
  * `Jsonified<Sh>` with whatever helpers add to it (the stage's `picture`), so a key `Sh` does not
- * name reads as `unknown` (a shown type that is already a JSON record is taken as it is). An
- * untyped scene, or `any`, gives a plain Trace.
+ * name reads as `unknown` (a shown type that is already a JSON record is taken as it is). The state
+ * keeps the one key a helper writes there, `walks` (recordWalk), as `unknown`. An untyped scene, or
+ * `any`, gives a plain Trace.
  */
 export type TraceOf<C> = 0 extends 1 & C ? Trace
-  : (C extends abstract new (...args: never) => infer I ? I : C) extends Scene<infer S, infer Sh> ? Trace<Jsonified<S>, string extends keyof Sh ? Jsonified<Sh> : Jsonified<Sh> & SceneState>
+  : (C extends abstract new (...args: never) => infer I ? I : C) extends Scene<infer S, infer Sh> ? Trace<string extends keyof S ? Jsonified<S> : Jsonified<S> & { walks?: unknown }, string extends keyof Sh ? Jsonified<Sh> : Jsonified<Sh> & SceneState>
   : Trace;
 
 /**

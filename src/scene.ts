@@ -264,8 +264,12 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    */
   get phase(): ScenePhase { return this.#phase; }
   #phase: ScenePhase;
-  /** How many step listeners are running: a play, wait or step they make runs inside the call that dispatched them. */
+  /** How many step listeners are running: a play or wait they make runs inside the call that dispatched them. */
   #listening: number;
+  /** How many play(), wait() and step() calls are running, nested ones included. */
+  #running: number;
+  /** Whether run() has been called: a scene runs once. */
+  #ran: boolean;
   // One entry per registration, so each remover removes exactly its own.
   private stepListeners: Array<{ listener: (step: Step) => unknown; on: boolean }>;
   private stepEndListeners: Array<{ listener: (step: Step) => unknown; on: boolean }>;
@@ -288,8 +292,10 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    */
   constructor(sink: Sink, { fps = 30, skipUntil = 0 }: SceneOptions = {}) {
     // Times are kept to 1 ms in a trace: up to 240 fps, half a frame is longer, so a rounded time still finds its frame.
-    if (typeof fps !== 'number' || !(fps > 0 && fps <= 240)) throw new RangeError(`new Scene(): fps is ${String(fps)}; give a number above 0 and at most 240`);
-    if (typeof skipUntil !== 'number' || Number.isNaN(skipUntil)) throw new RangeError(`new Scene(): skipUntil is ${String(skipUntil)}; give a time in seconds, or Infinity to skip every frame`);
+    if (typeof fps !== 'number') throw new TypeError(`new Scene(): fps is ${typeof fps}; give a number above 0 and at most 240`);
+    if (!(fps > 0 && fps <= 240)) throw new RangeError(`new Scene(): fps is ${String(fps)}; give a number above 0 and at most 240`);
+    if (typeof skipUntil !== 'number') throw new TypeError(`new Scene(): skipUntil is ${typeof skipUntil}; give a time in seconds, or Infinity to skip every frame`);
+    if (Number.isNaN(skipUntil)) throw new RangeError(`new Scene(): skipUntil is ${String(skipUntil)}; give a time in seconds, or Infinity to skip every frame`);
     this.sink = sink;
     this.fps = fps;
     this.skipUntil = skipUntil;
@@ -306,6 +312,8 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     this.frame = new Frame();
     this.#phase = 'idle';
     this.#listening = 0;
+    this.#running = 0;
+    this.#ran = false;
     this.stepListeners = [];
     this.stepEndListeners = [];
     this.jsonParts = [];
@@ -333,19 +341,28 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     const listening = this.#listening;
     this.#phase = phase;
     this.#listening = 0;
+    this.#running++;
     try { return await body(); }
     finally {
+      this.#running--;
       this.#listening = listening;
       if (this.#phase !== 'stopped') this.#phase = was;
     }
   }
 
-  /** Run the listeners of `list` registered now, minus any removed meanwhile, each free to play and wait in the step. */
+  /**
+   * Run the listeners of `list` registered now, minus any removed meanwhile, each free to play and
+   * wait in the step. A listener that returns with a play or wait it made still running is refused:
+   * the next call would interleave its frames with that one's.
+   */
   async #dispatch(list: Array<{ listener: (step: Step) => unknown; on: boolean }>, s: Step): Promise<void> {
     for (const entry of list.slice()) {
       if (!entry.on) continue;
+      const running = this.#running;
       this.#listening++;
       try { await entry.listener(s); } finally { this.#listening--; }
+      if (this.#running !== running)
+        throw new Error(`this.onStep(): a listener of step ${JSON.stringify(s.path)} returned with a play() or wait() still running; await each play() and wait() it makes`);
     }
   }
 
@@ -411,6 +428,8 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   text(value: string, opts: TextOpts = {}): Text { return new Text(value, {...opts, shaping: opts.shaping ?? this.textShaping}); }
 
   async run(): Promise<this> {
+    if (this.#ran) throw new Error('this.run(): the scene has run already; make a new scene for another run');
+    this.#ran = true;
     return withTextContext(this.constructor, async () => {
       try {
         await loadFonts();
@@ -436,6 +455,8 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    */
   async step(name: string, meta: StepMeta | ((closed: Step | null) => StepMeta) = {}): Promise<Step> {
     if (typeof name !== 'string') throw new TypeError('this.step(): its name must be a string');
+    if (this.#listening)
+      throw new Error(`this.step(): a step listener began step ${JSON.stringify(name)}; a listener may play and wait in its step, so begin the next step from construct()`);
     if (typeof meta !== 'function') checkMeta(name, meta);
     return this.#exclusive('ending-step', 'this.step()', async () => {
       await this.#endStep();
@@ -487,14 +508,6 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     // The sink hears the end with the step still current, the scene as its resting frame showed it.
     await this.toSink(() => this.sink.stepEnd?.(this, s));
     this.current = null;
-  }
-
-  /**
-   * @internal End the running step now, as the next step() would. For tools and tests: a scene
-   * whose words report the step before's timing passes step() a function instead.
-   */
-  async endCurrentStep(): Promise<void> {
-    await this.#exclusive('ending-step', 'this.endCurrentStep()', () => this.#endStep());
   }
 
   /** @internal Whether any mobject on stage, or the camera, has an updater: then a seek cannot skip frames. */

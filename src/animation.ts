@@ -54,8 +54,9 @@ function lagSlots(rows: readonly FamilyRow[]): { index: Int32Array; count: numbe
  * silently, Infinity never ends.
  */
 export function assertTime(api: string, what: string, value: unknown, max = Infinity): void {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > max)
-    throw new RangeError(`${api}: ${what} is ${typeof value === 'number' ? String(value) : typeof value}; give a finite number from 0${max === Infinity ? '' : ` to ${max}`}`);
+  if (typeof value !== 'number') throw new TypeError(`${api}: ${what} is ${typeof value}; give a finite number from 0${max === Infinity ? '' : ` to ${max}`}`);
+  if (!Number.isFinite(value) || value < 0 || value > max)
+    throw new RangeError(`${api}: ${what} is ${String(value)}; give a finite number from 0${max === Infinity ? '' : ` to ${max}`}`);
 }
 
 /**

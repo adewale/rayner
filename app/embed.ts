@@ -140,12 +140,13 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   const interactive = () => started && scenarioPhase.kind !== 'loading';
   const cache = new Map<string, Entry>();
   if (shipped) {
-    const values = resolveSettings(Source, shipped.values), key = JSON.stringify(values);
+    const values = resolveSettings(Source, shipped.values), key = canonicalJson(values);
     cache.set(key, { key, Scene: withSettings(Bound, values), trace: shipped.trace, palette: shipped.palette, paper: shipped.paper, live: new Map(shipped.live), bases: new Map() });
   }
   /** Resting pictures, by scenario, step and the reader's events there: the SVG and what the scene then shows. */
   const pictures = new Lru<string, { nodes: Node[]; shown?: SceneStateLike }>(KEPT_PICTURES);
-  const pictureKey = (at: Entry, step: Trace['steps'][number], log: readonly string[]) => [at.key, step.step, ...log].join('\n');
+  // As JSON, so no step name or event can make two keys one.
+  const pictureKey = (at: Entry, step: Trace['steps'][number], log: readonly string[]) => JSON.stringify([at.key, step.step, log]);
   // The reader's exploration of the step on show: the events sent there (the log the URL's `sent`
   // holds), that step's machine, and the run held at their picture. Only `explored` changes it.
   let live: Exploration<LiveNow> = { kind: 'none' };
@@ -1415,7 +1416,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       }
       wanted = next;
       for (const [id, inputs] of choices) for (const input of inputs) input.checked = input.value === next[id];
-      const key = JSON.stringify(next);
+      const key = canonicalJson(next);
       let entry = cache.get(key);
       if (!entry) {
         try {
@@ -1430,7 +1431,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       const name = history.kind === 'first' ? undefined : history.name;
       scenarioPhase = { kind: 'ready',entry };
       // Zoom keeps its place across steps, including Back and Forward within a scenario.
-      const changed = !values || JSON.stringify(values) !== key;
+      const changed = !values || canonicalJson(values) !== key;
       values = next;
       wanted = undefined;
       trace = entry.trace;
@@ -1486,7 +1487,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   function* keepShown(error: unknown) {
     root.classList.remove('loading');
     wanted = undefined;
-    const shown = values && cache.get(JSON.stringify(values));
+    const shown = values && cache.get(canonicalJson(values));
     if (!shown) {
       scenarioPhase = { kind: 'failed', error };
       return;

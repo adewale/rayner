@@ -42,12 +42,15 @@ test('Jsonified maps a JSON-safe type to itself, and what the JSON copy refuses 
 });
 
 test('traceScene types every state from the scene class, and an untyped scene gives a plain Trace', async () => {
-  same<TraceOf<typeof Typed>, Trace<Jsonified<Model>, Jsonified<{ lit?: string }> & Record<string, unknown>>>(true);
+  same<TraceOf<typeof Typed>, Trace<Jsonified<Model> & { walks?: unknown }, Jsonified<{ lit?: string }> & Record<string, unknown>>>(true);
   same<TraceOf<typeof Untyped>, Trace>(true);
   same<TraceOf<any>, Trace>(true);
   const trace = await traceScene(Typed);
   const after = trace.steps[0]!.after!;
   const count: number = after.count;
+  // recordWalk writes `walks` into the state: a test reads it without a cast, as unknown.
+  const walks: unknown = after.walks;
+  void walks;
   assert.equal(count, 2);
   assert.equal(trace.steps[0]!.before.count, 1);
   // @ts-expect-error a key the model does not name

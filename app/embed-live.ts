@@ -175,7 +175,7 @@ export async function runLive(
   let wake: ((command: Command | null) => void) | null = null, held!: () => void;
   const holding = new Promise<void>((resolve) => (held = resolve));
   const Base = Source as unknown as new (sink: Sink, opts?: { skipUntil?: number }) => Scene<any>;
-  class Live extends Base {
+  class Reaching extends Base {
     reached = false;
     constructor(sink: Sink, opts?: { skipUntil?: number }) {
       super(sink, opts);
@@ -275,7 +275,7 @@ export async function runLive(
     };
     return s;
   }
-  const running = new Live(new NullSink(), { skipUntil: Infinity }).run();
+  const running = new Reaching(new NullSink(), { skipUntil: Infinity }).run();
   if (keep) {
     // The run stays in the step; it is enough that it got there.
     void running.catch(() => {});
