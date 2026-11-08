@@ -107,10 +107,10 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
    * and keep the family shape the view's draw gives (as a Follow's draw does).
    */
   tween(stateAt: (t: number) => S, opts: AnimOpts = {}): Animation {
-    return new Follow({ from: 0, to: 1, draw: (t) => {
+    return new ViewTween<S, Sh>(this, (t) => {
       this.host.state = cloneJson(stateAt(t), 'view.tween()', 'stateAt(t)') as Scene<S, Sh>['state'];
       return this.placed(this.host.state);
-    } }, { ...opts, targets: [this.current] });
+    }, opts);
   }
 
   /**
@@ -234,6 +234,48 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
   override evidence(): Evidence | null {
     const e = this.inner?.evidence() ?? null;
     return e && this.view.key !== undefined ? { ...e, view: this.view.key } : e;
+  }
+}
+
+/**
+ * The animation tween() returns: a Follow of the view's draw over t from 0 to 1, writing into the
+ * picture on screen when it begins, not when it was made. In `new Succession([view.sync(), view.tween(f)])`
+ * the sync swaps in a new picture first, and the tween draws into that one.
+ */
+class ViewTween<S extends object, Sh extends object> extends Animation {
+  private readonly view: View<Mobject, S, Sh>;
+  private readonly draw: (t: number) => Mobject;
+  /** Set by begin(): the Follow that writes the picture on screen then. */
+  private follow: Follow | null = null;
+
+  constructor(view: View<Mobject, S, Sh>, draw: (t: number) => Mobject, opts: AnimOpts) {
+    super(view.current, opts);
+    this.view = view;
+    this.draw = draw;
+  }
+
+  /** The picture on screen now: what this writes once it begins. */
+  override targets(): Mobject[] { return [this.follow ? this.mobject : this.view.current]; }
+
+  override begin(): void {
+    this.mobject = this.view.current;
+    this.follow = new Follow({ from: 0, to: 1, draw: this.draw }, { targets: [this.mobject] });
+    this.follow.begin();
+  }
+
+  /** alpha already passed through this tween's rateFunc by the scene. */
+  override interpolate(alpha: number): void { this.begun().interpolate(alpha); }
+
+  override finish(alpha: number = this.rateFunc(1)): void { this.begun().interpolate(alpha); }
+
+  override evidence(): Evidence | null { return this.follow?.evidence() ?? null; }
+
+  /** @internal */
+  override cleanUpFromScene(scene: Scene): void { if (this.remover) scene.remove(this.mobject); }
+
+  private begun(): Follow {
+    if (!this.follow) throw new Error('view.tween(): it has not begun; play it with this.play()');
+    return this.follow;
   }
 }
 

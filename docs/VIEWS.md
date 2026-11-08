@@ -52,7 +52,9 @@ way, tween the state: `view.tween((t) => stateAt(t), opts)` sets the scene's sta
 to `stateAt(t)` at every frame, `t` from 0 to 1 at the eased alpha, and writes the
 view's draw of it into the picture, so the picture is that draw at every frame and
 the play ends with the state at `stateAt(1)` ([following one
-number](CHOREOGRAPHY.md#following-one-number)).
+number](CHOREOGRAPHY.md#following-one-number)). Like a sync, a tween takes the picture on screen
+when it begins, not when it is made, so in `new Succession([view.sync(), view.tween(f)])` it draws
+into the picture the sync swapped in.
 
 ## Changing what is shown
 

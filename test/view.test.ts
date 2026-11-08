@@ -125,6 +125,27 @@ test('sync() inside a Succession builds from the state at its turn, not at const
   assert.deepEqual(seen, [0, 1, 2]);
 });
 
+test('tween() writes into the picture on screen when it begins: after a sync in the same Succession, the synced one', async () => {
+  let before: Mobject | null = null;
+  class Tweened extends Scene<{ n: number }, {}> {
+    override async construct() {
+      this.state = { n: 0 };
+      const v = view(this, (st) => new Rectangle({ width: 1 + st.n, height: 1 }), { place: false });
+      this.add(v);
+      before = v.current;
+      this.state.n = 1;
+      // Both are made before either plays: the tween's target is the picture the sync swaps in.
+      await this.play(new Succession([v.sync({ match: 'index', runTime: 0.2 }), v.tween((t) => ({ n: 1 + t }), { runTime: 0.2 })]));
+      assert.notEqual(v.current, before, 'the sync swapped in a new picture');
+      assert.ok(Math.abs(v.current.width() - 3) < 1e-6, `the picture on screen is ${v.current.width()} wide, not the tween's 3`);
+      assert.ok(Math.abs(before.width() - 2) < 1e-6, 'the picture the sync replaced is left as the sync left it');
+      assert.equal(this.state.n, 2);
+    }
+  }
+  await new Tweened(new StringSink()).run();
+  assert.ok(before);
+});
+
 test('no updaters: seeking skips the frames of plays with syncs, and renders the frame a full run renders', async () => {
   // No updater at any frame
   let frames = 0;
