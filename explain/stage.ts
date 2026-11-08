@@ -251,9 +251,23 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     onTop();
     return scene;
   };
-  /** The camera's map from home to the world: world = shift + k × home. */
-  let view = { k: 1, shift: [0, 0] as Vec };
-  const pinned = (m: Mobject, v = view) => {
+  /** A camera map from home to the world: world = shift + k × home. */
+  type CameraMap = { k: number; shift: Vec };
+  const HOME: CameraMap = { k: 1, shift: [0, 0] };
+  /** The box the stage last moved the camera to, with its map computed exactly from that box. */
+  let aimed: { box: Box; map: CameraMap } | null = null;
+  /**
+   * The camera's map now, from the box `scene.frame` shows, so a camera the scene moved itself (a
+   * Transform of `this.frame`) is followed too. Where the frame is the box the stage moved it to, the
+   * map is the one computed from that box, free of the frame's float32 rounding.
+   */
+  const camera = (): CameraMap => {
+    const b = scene.frame.box() ?? [...STAGE_BOX] as Box;
+    if (aimed && b.every((v, i) => Math.abs(v - aimed!.box[i]!) < 1e-4)) return aimed.map;
+    if (atHome(b)) return HOME;
+    return { k: (b[2] - b[0]) / 16, shift: center(b) };
+  };
+  const pinned = (m: Mobject, v: CameraMap) => {
     const at = home.get(m)!.copy();
     at.scale(v.k, { aboutPoint: [0, 0] });
     for (const x of at.family()) if (x.style.strokeWidth) x.style.strokeWidth *= v.k;
@@ -269,6 +283,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       now = [next.heading.text, ...next.chrome.map((c) => (c as { text?: string }).text ?? '')].join('|');
     if (was === now && chrome.length === next.chrome.length) return;
     // Away from home, the new heading arrives where the camera shows the old one.
+    const view = camera();
     for (const m of [next.heading, ...next.chrome]) {
       home.set(m, m.copy());
       if (view.k === 1 && !view.shift[0] && !view.shift[1]) continue;
@@ -348,8 +363,8 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
    * Annotations are sized for the screen: the kit builds each in home coordinates from the points the
    * camera shows, then it is mapped into the world as the heading is, so a zoomed camera shows it at size.
    */
-  const toScreen = (p: Vec): Vec => [(p[0] - view.shift[0]) / view.k, (p[1] - view.shift[1]) / view.k];
-  function onScreen<T extends Mobject>(m: T): T {
+  const toScreen = (p: Vec, view: CameraMap): Vec => [(p[0] - view.shift[0]) / view.k, (p[1] - view.shift[1]) / view.k];
+  function onScreen<T extends Mobject>(m: T, view: CameraMap): T {
     if (view.k === 1 && !view.shift[0] && !view.shift[1]) return m;
     m.scale(view.k, { aboutPoint: [0, 0] });
     for (const x of m.family()) if (x.style.strokeWidth) x.style.strokeWidth *= view.k;
@@ -394,7 +409,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     const banded = pinned(band, next);
     banded.style.opacity = away ? 0.94 : 0;
     anims.push(new Transform(band, banded, { runTime }));
-    view = next;
+    aimed = { box: [...box] as Box, map: next };
     return anims;
   }
   /** An action of the stage's (see Action): it is decided now and plays when awaited or composed. */
@@ -649,14 +664,16 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     dimension(a: Vec, b: Vec, label: string, opts: { offset?: number; color?: string; size?: number; key?: string } = {}): Action<Group> {
       return act('s.dimension()', () => {
         // The line describes itself.
-        const g = onScreen(kit.dimension(this, toScreen(a), toScreen(b), label, opts));
+        const view = camera();
+        const g = onScreen(kit.dimension(this, toScreen(a, view), toScreen(b, view), label, opts), view);
         return drawIn(g, 0.6, () => new Create(g, { runTime: 0.6, lagRatio: 0.1 }));
       });
     },
     /** A pin stuck in at `point`, with an optional label: the kit's `pin`, sized for the screen, drawn in and kept. */
     pin(point: Vec, opts: { label?: string; color?: string; size?: number; side?: 'left' | 'right'; key?: string } = {}): Action<Group> {
       return act('s.pin()', () => {
-        const g = onScreen(kit.pin(this, toScreen(point), opts));
+        const view = camera();
+        const g = onScreen(kit.pin(this, toScreen(point, view), opts), view);
         return drawIn(g, 0.4, () => new FadeIn(g, { runTime: 0.4, shift: [0, -0.15] }));
       });
     },
@@ -666,7 +683,8 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
      */
     legend(items: readonly LegendItem[], opts: { at?: Vec; size?: number; stack?: 'column' | 'row'; gap?: number; key: string }): Action<Group> {
       return act('s.legend()', () => {
-        const g = onScreen(kit.legend(this, items, { ...opts, at: toScreen(opts.at ?? [0, 0]), api: 's.legend()' } as typeof opts));
+        const view = camera();
+        const g = onScreen(kit.legend(this, items, { ...opts, at: toScreen(opts.at ?? [0, 0], view), api: 's.legend()' } as typeof opts), view);
         return drawIn(g, 0.4, () => new FadeIn(g, { runTime: 0.4 }));
       });
     },
@@ -683,8 +701,9 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
             : (target as Box)
           : (target as Mobject).box();
         if (!box) throw new Error('s.callout(): the target has no extent; give a point, a box or a mobject that is drawn');
-        const [a, b] = [toScreen([box[0], box[1]]), toScreen([box[2], box[3]])];
-        const g = onScreen(kit.callout(this, [a[0], a[1], b[0], b[1]], text, opts));
+        const view = camera();
+        const [a, b] = [toScreen([box[0], box[1]], view), toScreen([box[2], box[3]], view)];
+        const g = onScreen(kit.callout(this, [a[0], a[1], b[0], b[1]], text, opts), view);
         return drawIn(g, 0.6, () => new Create(g, { runTime: 0.6, lagRatio: 0.15 }));
       });
     },
@@ -710,8 +729,9 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
           : null;
         if (t) {
           // The tool is sized to the stage, as the camera shows it.
-          t.scale(view.k, { aboutPoint: [0, 0] });
-          for (const x of t.family()) if (x.style.strokeWidth) x.style.strokeWidth *= view.k;
+          const { k } = camera();
+          t.scale(k, { aboutPoint: [0, 0] });
+          for (const x of t.family()) if (x.style.strokeWidth) x.style.strokeWidth *= k;
         }
         return {
           value: strokes,
