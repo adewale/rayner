@@ -517,9 +517,10 @@ export async function exploreMachines(
 ): Promise<{ events: string[]; states: number; sampled: boolean; problems: string[] }[]> {
   const explored = [];
   for (const [index, live] of machinesOf(scene).entries()) {
-    // The stage the reader saw the machine on: the run again, to the resting picture of the step it
-    // last played in (a frame is a function of its number, so this is that picture exactly), rather than
-    // the stage the run ends with, which may have cleared its views away.
+    // The stage the reader saw the machine on: the run again, to the resting frame of the step it
+    // last played in (a frame is a function of its number, so this is the same picture, though not
+    // always the same state: code after the step's last play has run here only when the step holds
+    // for its caption), rather than the stage the run ends with, which may have cleared its views away.
     const host = stageOf && live.lastPlayedIn ? await stageOf(live.lastPlayedIn) : scene;
     const machine = host === scene ? live : machinesOf(host)[index];
     if (!machine || machine.identity !== live.identity)

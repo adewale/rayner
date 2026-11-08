@@ -233,7 +233,7 @@ from its first. Each step draws at least one frame of its own (`loadProject` and
 refuse one that does not). Each moment is recorded as a time and a frame: `hold` and
 `holdFrame` where a caption hold begins, and `t1` and `frame1` where the step ends;
 players stop at `stillFrame(step)`, the hold frame or else the last, and links show
-`frame1`. `TraceSink` copies them into the trace, and `traceRun`'s `AtRest` callback (`src/trace.ts`) hands the scene, showing each
+`frame1`. `TraceSink` copies them into the trace as each step ends, so every step of a trace has its end (a run stopped inside a step leaves that step out), and `traceRun`'s `AtRest` callback (`src/trace.ts`) hands the scene, showing each
 step's resting picture, to the tools that draw every step, so `rayner describe`, the
 contact sheet and the site's cards run each scene once.
 
