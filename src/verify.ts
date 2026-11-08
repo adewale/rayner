@@ -48,8 +48,89 @@ export interface MotionOptions {
  * merged run like a Text are its glyphs) and, for a leaf of a
  * TransformFromCopy's copy, `from`: the id of the source leaf it copies.
  */
-export interface LeafSample { cx: number; cy: number; w: number; h: number; a: number; box: Box; look?: string[]; from?: number }
-export interface MotionFrame { t: number; step: string | null; leaves: Map<number, LeafSample> }
+interface LeafSample { cx: number; cy: number; w: number; h: number; a: number; box: Box; look?: string[]; from?: number }
+
+/**
+ * @internal Every frame's leaf samples, in columns: a run of seasons samples about 300,000 leaves,
+ * which as one object each held over 100 MB. Frame f's samples are the indices from `start[f]` to
+ * `start[f + 1]`; each sample is a leaf id, its screen box and its alpha, and the samples of a frame
+ * in which some leaf appears also carry a look (and a copied leaf its source) in `looks` and `from`.
+ */
+export class MotionSamples {
+  /** Frames sampled. */
+  length = 0;
+  readonly t: number[] = [];
+  readonly step: (string | null)[] = [];
+  /** Samples stored. */
+  size = 0;
+  start = new Int32Array(1024);
+  id = new Int32Array(4096);
+  box = new Float64Array(4 * 4096);
+  alpha = new Float64Array(4096);
+  readonly looks = new Map<number, string[]>();
+  readonly from = new Map<number, number>();
+  /** Each part's look once: a leaf keeps its look from frame to frame, and a path's look is long. */
+  readonly parts = new Map<string, string>();
+  /** Open a frame; its samples follow with add(). */
+  frame(t: number, step: string | null): void {
+    if (this.length + 2 > this.start.length) this.start = grow(this.start, this.start.length * 2);
+    this.t.push(t);
+    this.step.push(step);
+    this.start[this.length] = this.size;
+    this.length++;
+    this.start[this.length] = this.size;
+  }
+  /** Add a sample to the frame opened last; returns its index. */
+  add(id: number, b: Box, a: number): number {
+    const i = this.size;
+    if (i === this.id.length) {
+      // Half again each time: what stays unused is at most a third of what is held.
+      const n = Math.ceil(1.5 * i);
+      this.id = grow(this.id, n);
+      this.box = grow(this.box, 4 * n);
+      this.alpha = grow(this.alpha, n);
+    }
+    this.id[i] = id;
+    this.size++;
+    this.start[this.length] = this.size;
+    this.put(i, b, a);
+    return i;
+  }
+  /** Replace sample `i`'s box and alpha. */
+  put(i: number, b: Box, a: number): void {
+    this.box.set(b, 4 * i);
+    this.alpha[i] = a;
+  }
+  /** Give sample `i` a look, sharing each part's string with every sample that has it. */
+  look(i: number, look: readonly string[]): void {
+    this.looks.set(i, look.map((part) => {
+      const known = this.parts.get(part);
+      if (known !== undefined) return known;
+      this.parts.set(part, part);
+      return part;
+    }));
+  }
+  /** Sample `i` as an object: its box, center, size and alpha computed as they were sampled. */
+  sample(i: number): LeafSample {
+    const k = 4 * i, b: Box = [this.box[k]!, this.box[k + 1]!, this.box[k + 2]!, this.box[k + 3]!];
+    const s: LeafSample = { cx: (b[0] + b[2]) / 2, cy: (b[1] + b[3]) / 2, w: b[2] - b[0], h: b[3] - b[1], a: this.alpha[i]!, box: b };
+    const look = this.looks.get(i), from = this.from.get(i);
+    if (look) s.look = look;
+    if (from !== undefined) s.from = from;
+    return s;
+  }
+  /** Frame f's samples, by leaf id. */
+  leaves(f: number): Map<number, LeafSample> {
+    const leaves = new Map<number, LeafSample>();
+    for (let i = this.start[f]!, end = this.start[f + 1]!; i < end; i++) leaves.set(this.id[i]!, this.sample(i));
+    return leaves;
+  }
+}
+function grow<T extends Int32Array | Float64Array>(array: T, length: number): T {
+  const larger = new (array.constructor as new (n: number) => T)(length);
+  larger.set(array);
+  return larger;
+}
 
 export type MotionKind = 'teleport' | 'resize' | 'pop' | 'cut-in' | 'cut-out' | 'flicker' | 'handoff';
 export interface MotionEvent { kind: MotionKind; frame: number; t: number; step: string | null; what: string; magnitude: number; detail: string }
@@ -102,13 +183,16 @@ function describeLeaf(m: Mobject): string {
 
 export class MotionSink implements Sink {
   /** @internal Each frame's leaf samples, keyed by the renderer's id; analyzeMotion reads them. */
-  frames: MotionFrame[];
+  frames: MotionSamples;
   /** @internal Each sampled leaf's name, keyed by the renderer's id; analyzeMotion reports with them. */
   labels: Map<number, string>;
-  constructor() { this.frames = []; this.labels = new Map(); }
+  /** @internal The leaves sampled in the last frame, each by its sample's index. */
+  last: Map<number, number> | null;
+  constructor() { this.frames = new MotionSamples(); this.labels = new Map(); this.last = null; }
   async frame(scene: Scene): Promise<void> {
-    const f = new Map<number, LeafSample>();
-    const sampled: Array<[LeafSample, Mobject, boolean]> = [];
+    const F = this.frames, seen = new Map<number, number>();
+    const sampled: Array<[number, Mobject, boolean]> = [];
+    F.frame(scene.time, scene.currentStep?.path ?? null);
     // Camera: sample in screen space, in scene units of the default 16-wide frame
     // (exactly world space when the camera is home), so thresholds mean what a
     // reader sees; a camera jump moves every leaf at once.
@@ -124,9 +208,13 @@ export class MotionSink implements Sink {
         if (a > 0.02) {
           const w = m.box(), b = w && screen(w);
           if (b) {
-            const s: LeafSample = { cx: (b[0] + b[2]) / 2, cy: (b[1] + b[3]) / 2, w: b[2] - b[0], h: b[3] - b[1], a, box: b };
-            f.set(m.id, s);
-            sampled.push([s, m, unit]);
+            // One sample per leaf and frame: a leaf reached twice keeps its first place and its last sample.
+            const at = seen.get(m.id);
+            if (at !== undefined) F.put(at, b, a);
+            else {
+              seen.set(m.id, F.add(m.id, b, a));
+              sampled.push([seen.get(m.id)!, m, unit]);
+            }
             if (!this.labels.has(m.id)) this.labels.set(m.id, describeLeaf(m));
           }
         }
@@ -135,15 +223,15 @@ export class MotionSink implements Sink {
     };
     for (const top of scene.mobjects) walk(top);
     // Looks are for telling a copy over its source from a new shape, so only frames where a leaf appears need them
-    const last = this.frames.at(-1)?.leaves;
+    const last = this.last;
     if (last && sampled.some(([, m]) => !last.has(m.id))) {
-      for (const [s, m, unit] of sampled) {
-        s.look = lookOf(m, unit);
+      for (const [i, m, unit] of sampled) {
+        F.look(i, lookOf(m, unit));
         const src = copiedFrom.get(m);
-        if (src) s.from = src.id;
+        if (src) F.from.set(i, src.id);
       }
     }
-    this.frames.push({ t: scene.time, step: scene.currentStep?.path ?? null, leaves: f });
+    this.last = seen;
   }
 }
 
@@ -160,27 +248,36 @@ const iou = (a0: Box, b0: Box): number => {
 export function analyzeMotion(sink: MotionSink, opts: MotionOptions = {}): MotionEvent[] {
   const o = { ...DEFAULTS, ...opts };
   const F = sink.frames;
+  // The frames around the one analysed, as objects: two before it, and those a flicker looks ahead to.
+  const window = new Map<number, Map<number, LeafSample>>();
+  const leaves = (f: number): Map<number, LeafSample> | undefined => {
+    if (f < 0 || f >= F.length) return undefined;
+    let found = window.get(f);
+    if (!found) window.set(f, (found = F.leaves(f)));
+    return found;
+  };
   const events: MotionEvent[] = [];
   const ev = (kind: MotionKind, f: number, id: number, magnitude: number, detail = '') =>
-    events.push({ kind, frame: f, t: +F[f]!.t.toFixed(3), step: F[f]!.step, what: sink.labels.get(id) ?? 'a leaf', magnitude: +magnitude.toFixed(3), detail });
+    events.push({ kind, frame: f, t: +F.t[f]!.toFixed(3), step: F.step[f] ?? null, what: sink.labels.get(id) ?? 'a leaf', magnitude: +magnitude.toFixed(3), detail });
 
   const disp = (f: number, id: number): number => {
-    const a = F[f - 1]?.leaves.get(id), b = F[f]?.leaves.get(id);
+    const a = leaves(f - 1)?.get(id), b = leaves(f)?.get(id);
     return a && b ? Math.hypot(b.cx - a.cx, b.cy - a.cy) : 0;
   };
   const dsize = (f: number, id: number): number => {
-    const a = F[f - 1]?.leaves.get(id), b = F[f]?.leaves.get(id);
+    const a = leaves(f - 1)?.get(id), b = leaves(f)?.get(id);
     if (!a || !b) return 0;
     const rel = (x: number, y: number) => (Math.max(x, y) < 0.05 ? 0 : Math.abs(y - x) / Math.max(x, y));
     return Math.max(rel(a.w, b.w), rel(a.h, b.h));
   };
   const dalpha = (f: number, id: number): number => {
-    const a = F[f - 1]?.leaves.get(id), b = F[f]?.leaves.get(id);
+    const a = leaves(f - 1)?.get(id), b = leaves(f)?.get(id);
     return a && b ? Math.abs(b.a - a.a) : 0;
   };
 
   for (let f = 1; f < F.length; f++) {
-    const prev = F[f - 1]!.leaves, cur = F[f]!.leaves;
+    window.delete(f - 3);
+    const prev = leaves(f - 1)!, cur = leaves(f)!;
     const cutIns: Array<[number, LeafSample]> = [], cutOuts: Array<[number, LeafSample]> = [];
     for (const [id, s] of cur) {
       const p = prev.get(id);
@@ -215,7 +312,7 @@ export function analyzeMotion(sink: MotionSink, opts: MotionOptions = {}): Motio
       }
       // Gone: flicker if it comes back soon, else a hard cut
       let back = 0;
-      for (let k = f + 1; k < Math.min(F.length, f + 1 + o.flickerFrames); k++) if (F[k]!.leaves.has(oid)) { back = k; break; }
+      for (let k = f + 1; k < Math.min(F.length, f + 1 + o.flickerFrames); k++) if (leaves(k)!.has(oid)) { back = k; break; }
       if (back) ev('flicker', f, oid, back - f, `hidden for ${back - f} frame(s)`);
       else ev('cut-out', f, oid, op.a, `vanished at alpha ${op.a.toFixed(2)}`);
     }
