@@ -288,7 +288,9 @@ machine's `start` instead, and the line over the buttons says "Try it yourself, 
 A story that ends in a finished state (a tower carried to its last peg) says so with `end(state)`:
 the model's moves from that state are then past the story, so the reader starts again from `start`. The first event redraws the views at the start, in place, as exploration draws a state,
 and plays from there. Which of the two applies is a function of the step, so the URL does not say
-it (`logStart` in `explain/live.ts`).
+it (`logStart` in `explain/live.ts`). The player, the build's transcript, the served review and the
+cost measurement all find it one way, `liveBase`: the scene run to the step's end, then `logStart`
+of the run's machine there.
 
 **The events are the reader's state, and sit in the URL.** A press appends the event to a log,
 written beside the step as `sent=push,push,pop` (commas between events, a space as `+`, a colon

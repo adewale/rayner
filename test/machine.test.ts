@@ -11,7 +11,7 @@ import { stage, Machine, refuse, isRefusal, view } from '../explain/index.ts';
 import { SetState } from '../explain/state.ts';
 import { exploreMachines } from '../tools/lib/explain-check.ts';
 import { decodeLog, encodeLog } from '../app/embed-live.ts';
-import { logStart, runLive } from '../explain/live.ts';
+import { liveBase, logStart, runLive } from '../explain/live.ts';
 
 await loadFonts();
 
@@ -558,6 +558,10 @@ test('the live player and check start a live step from one state, the step\'s en
     assert.deepEqual(run.rest, { level: 0 });
     assert.deepEqual(press.after, run.rest);
     assert.deepEqual(logStart(machine!, run.rest), { from: 'rest', state: { level: 0 } });
+    // The one helper the player, the build, the review and the cost measurement start the reader from.
+    const started = await liveBase(Lamp, 'press', { index: 0, identity: machine!.identity });
+    assert.deepEqual(started.base, { from: 'rest', state: { level: 0 } });
+    assert.equal(started.machine.identity, machine!.identity);
     // Check explores from that state: the small label is reached only from off.
     const [explored] = await exploreMachines(ran, Lamp);
     assert.ok(explored!.problems.some((p) => /^from the state at "press", at the start: “lamp off” is .* px/.test(p)), JSON.stringify(explored!.problems));

@@ -31,7 +31,7 @@ import { storyIndices, adjacentStep } from './embed-steps.ts';
 import { offPath } from '../explain/script.ts';
 import { SENT, acceptedLog, decodeLog, encodeLog, exploreAndClose, outcomes } from './embed-live.ts';
 import type { Exploration, ExploreAction } from './embed-live.ts';
-import { liveSteps, logStart, runLive } from '../explain/live.ts';
+import { liveBase, liveSteps, runLive } from '../explain/live.ts';
 import type { Live, LiveDraw, LivePlace, LiveRun, LogStart } from '../explain/live.ts';
 
 /**
@@ -1031,13 +1031,13 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     if (place === undefined) return Promise.resolve(null);
     let found = at.bases.get(step.step);
     if (!found) {
-      found = runLive(at.Scene, step.step, place, []).then((run) => {
-        const base = logStart(run.machine, run.rest);
-        return base ? { step, live: { index: place.index, identity: place.identity, machine: run.machine }, base } : null;
-      }, (error: unknown) => {
-        console.error(error);
-        return null;
-      });
+      found = liveBase(at.Scene, step.step, place).then(
+        ({ machine, base }) => (base ? { step, live: { index: place.index, identity: place.identity, machine }, base } : null),
+        (error: unknown) => {
+          console.error(error);
+          return null;
+        },
+      );
       at.bases.set(step.step, found);
     }
     return found;
