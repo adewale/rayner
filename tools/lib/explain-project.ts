@@ -14,9 +14,9 @@ import { randomUUID } from 'node:crypto';
 import { Scene } from '../../src/index.ts';
 import { NullSink } from '../../src/output.ts';
 import { dryRun } from '../../src/timeline.ts';
-import { diagramsMade } from '../../explain/diagrams.ts';
-import { liveSteps } from '../../app/embed-live.ts';
-import type { Live } from '../../app/embed-live.ts';
+import { diagramsOn } from '../../explain/diagrams.ts';
+import { liveSteps } from '../../explain/live.ts';
+import type { Live } from '../../explain/live.ts';
 import { traceRun } from '../../src/trace.ts';
 import type { Palette } from '../../src/color.ts';
 import { paperOf, paletteOf } from '../../explain/stage.ts';
@@ -273,7 +273,8 @@ export async function collectProject(
   // Lazy: native scenes never require Agentic Mermaid or Chromium.
   const builders = diagramBuilders<Awaited<ReturnType<typeof import('../../integrations/agentic-mermaid/build/index.ts').snapshotBuilder>>>();
   const store: SnapshotStore = {};
-  const diagramsBefore = diagramsMade();
+  // Every scene this collection runs: its page needs diagram code when one of them made a diagram.
+  const ran: Scene[] = [];
   let edits = 0;
   const warned = new Set<string>();
   const inspect = (snapshot: SnapshotStore[string]) => {
@@ -329,7 +330,7 @@ export async function collectProject(
         request,
         async () => {
           const counted = edits;
-          for (const values of scenariosOf(Source)) await dryRun(withSettings(bindSnapshots(Source, resolver), values), new NullSink());
+          for (const values of scenariosOf(Source)) ran.push(await dryRun(withSettings(bindSnapshots(Source, resolver), values), new NullSink()));
           edits = counted;
           takeLetteringMissing();
         },
@@ -355,11 +356,12 @@ export async function collectProject(
         blanks();
         step = s.name;
       });
-      await collect.run();
+      ran.push(await collect.run());
       blanks();
       const Bound = withSettings(bindSnapshots(Source, store), values);
-      const { trace, scene: ran } = await traceRun(Bound),
-        paper = paperOf(ran);
+      const { trace, scene: traced } = await traceRun(Bound),
+        paper = paperOf(traced);
+      ran.push(traced);
       checkScenarioSteps(trace, values, file);
       // The page never draws these (offPage): they stay out of what it carries
       if (outline) await withSceneLettering(Bound, () => offPage(async () => {
@@ -370,9 +372,9 @@ export async function collectProject(
           new Text(`${i + 1}. ${String(s.meta.title ?? s.step)}`, {shaping: textContextOf(Bound)});
         }
       }));
-      // The steps a reader can drive a machine at (app/embed-live.ts): the page's transcript lists their events.
-      const live = liveSteps(ran);
-      scenarios.push({ values, Scene: Bound, trace, palette: paletteOf(ran), ...(paper ? { paper } : {}), ...(live.size ? { live } : {}) });
+      // The steps a reader can drive a machine at (explain/live.ts): the page's transcript lists their events.
+      const live = liveSteps(traced);
+      scenarios.push({ values, Scene: Bound, trace, palette: paletteOf(traced), ...(paper ? { paper } : {}), ...(live.size ? { live } : {}) });
     }
     if (undrawable.length)
       throw new Error(`new Text(): the embedded fonts cannot draw these characters; ask for their script in meta.lettering, or write others:\n${[...new Set(undrawable)].join('\n')}`);
@@ -385,7 +387,7 @@ export async function collectProject(
     checkClaimsMeta(Source.meta);
     await outline?.finish();
     if (write) await writeSnapshots(base, store);
-    return { ...loaded, Scene: Source, store, diagrams: diagramsMade() > diagramsBefore, scenarios, edits, ...(lettering ? { lettering } : {}), ...(outline ? { outlineLettering: outline.snapshot } : {}), ...(intent ? { intent } : {}) };
+    return { ...loaded, Scene: Source, store, diagrams: ran.some((scene) => diagramsOn(scene) > 0), scenarios, edits, ...(lettering ? { lettering } : {}), ...(outline ? { outlineLettering: outline.snapshot } : {}), ...(intent ? { intent } : {}) };
   } finally {
     await builders.close();
   }

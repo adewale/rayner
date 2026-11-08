@@ -1,15 +1,17 @@
-// The live machine's logic, as the player runs it (app/embed-live.ts): where a machine is live,
-// which of a link's events are kept, how the log sits in a URL, and the picture a log lands on.
+// The live machine's logic, as the player runs it (explain/live.ts and app/embed-live.ts): where a
+// machine is live, which of a link's events are kept, how the log sits in a URL, and the picture a log lands on.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
 import { Scene, Text, Group, Rectangle } from '../src/index.ts';
 import { NullSink, StringSink } from '../src/output.ts';
-import { loadFonts, traceScene } from '../explain/testing.ts';
+import { loadFonts } from '../explain/testing.ts';
 import type { Sink } from '../src/index.ts';
 import { stage, Machine, refuse, view } from '../explain/index.ts';
-import { acceptedLog, decodeLog, encodeLog, explore, exploreAndClose, liveSteps, logStart, outcomes, runLive } from '../app/embed-live.ts';
-import type { Exploration, LiveSession } from '../app/embed-live.ts';
+import { acceptedLog, decodeLog, encodeLog, explore, exploreAndClose, outcomes } from '../app/embed-live.ts';
+import type { Exploration } from '../app/embed-live.ts';
+import { liveSteps, logStart, runLive } from '../explain/live.ts';
+import type { LiveSession } from '../explain/live.ts';
 import { Lru } from '../app/embed-lru.ts';
 import { pictureChange } from '../explain/trace.ts';
 
@@ -119,17 +121,17 @@ test('the log starts where the step leaves the machine, or at its start when no 
 /** The picture `sink` holds now, as SVG. */
 const svgOf = (sink: StringSink) => (sink as unknown as { frames: string[] }).frames.at(-1)!;
 
-test('a live run stops at the step’s resting picture, plays the log there, and is a function of the log', async () => {
-  // Code the scene runs between its last play and its next step must not reach the reader's stage.
+test('a live run stops as the step ends, plays the log there, and is a function of the log', async () => {
+  // Code the scene runs between its last play and its next step runs, as the trace records the step; the next step's never does.
   let ranAfter = 0;
   const Lamp = lampScene({ after: () => { ranAfter++; } });
-  const trace = await traceScene(Lamp);
   const at = liveSteps(await new Lamp(new NullSink()).run()).get('press')!;
   ranAfter = 0;
-  const press = trace.steps.find((s) => s.step === 'press')!;
+  const press = 'press';
   const empty = await runLive(Lamp, press, at, []);
   assert.deepEqual(empty.rest, { level: 1 });
-  assert.equal(ranAfter, 0, 'the run stopped as the step came to rest');
+  assert.equal(ranAfter, 1, 'the run stopped as the step ended, after the code that follows its last play');
+  assert.equal(empty.scene.currentStep?.name, 'press', 'and before the next step began');
   assert.equal(empty.scene.phase, 'stopped', 'the scene is stopped, not merely abandoned');
   // A construct that swallows the stop cannot run on to the next step's code (N10).
   let after = 0;
@@ -166,16 +168,17 @@ test('a live run stops at the step’s resting picture, plays the log there, and
   assert.deepEqual(fromStart.rest, { level: 1 });
   // A log the machine does not take throws, as send does.
   await assert.rejects(runLive(Lamp, press, at, ['UP', 'UP', 'UP']), /refused/);
-  await assert.rejects(runLive(Lamp, { step: 'nowhere', holdFrame: 30 }, at, []), /never reached/);
+  await assert.rejects(runLive(Lamp, 'nowhere', at, []), /^RangeError: runLive\(\): the scene never reached the step "nowhere"; give a step the scene's run reaches$/);
 });
 
 test('a kept run plays the next event from its picture, landing where a fresh run of the longer log lands', async () => {
   let ranAfter = 0;
   const Lamp = lampScene({ after: () => { ranAfter++; } });
-  const press = (await traceScene(Lamp)).steps.find((s) => s.step === 'press')!;
+  const press = 'press';
   const at = liveSteps(await new Lamp(new NullSink()).run()).get('press')!;
   ranAfter = 0;
   const kept = await runLive(Lamp, press, at, ['UP'], { keep: true });
+  assert.equal(ranAfter, 1, 'the run reached the end of the step');
   const session = kept.session!;
   assert.deepEqual([session.log, session.open, session.busy], [['UP'], true, false]);
   // Skipped, then drawn: the picture of the fresh run of the same log.
@@ -195,11 +198,11 @@ test('a kept run plays the next event from its picture, landing where a fresh ru
   assert.equal(animated.frames[0], svgOf(a), 'the animation starts from the picture the session held');
   assert.deepEqual(animated.frames, freshAnimated.frames, 'every frame is the fresh run’s');
   assert.match(JSON.stringify(up.shown), /lamp bright/);
-  assert.equal(ranAfter, 0, 'a kept run stays in the step');
+  assert.equal(up.scene.currentStep?.name, 'press', 'a kept run stays in the step');
   // A refused event fails the send and closes the session; so does close().
   await assert.rejects(session.send('UP'), /refused/);
   assert.equal(session.open, false);
-  await assert.rejects(session.send('DOWN'), /closed or busy/);
+  await assert.rejects(session.send('DOWN'), /^Error: session\.send\(\): this live session is closed or busy; start a fresh run$/);
   const other = (await runLive(Lamp, press, at, [], { keep: true })).session!;
   other.close();
   assert.equal(other.open, false);
@@ -293,7 +296,7 @@ test('the exploration: one transition for send, undo, reset, link, held and leav
 
 test('leaving a live step lets its held run end: the scene paused in the step finishes', async () => {
   const Lamp = lampScene();
-  const press = (await traceScene(Lamp)).steps.find((s) => s.step === 'press')!;
+  const press = 'press';
   let ended = false;
   class Watched extends Lamp {
     override async run() {
@@ -350,11 +353,10 @@ test('a live run drives the same machine it was given: same events in the same o
       await this.play(machine.replay(['UP']));
     }
   }
-  const trace = await traceScene(Swapping);
-  const press = trace.steps.find((s) => s.step === 'press')!;
+  const press = 'press';
   runs = 0;
   const at = liveSteps(await new Swapping(new NullSink()).run()).get('press')!;
-  await assert.rejects(runLive(Swapping, press, at, []), /^Error: new Machine\(\): the run to "press" made different machines; a scene must make the same machines on every run$/);
+  await assert.rejects(runLive(Swapping, press, at, []), /^Error: runLive\(\): the run to "press" made different machines; a scene must make the same machines on every run$/);
   // The next run makes the first order again: the same machine, which plays.
   assert.deepEqual((await runLive(Swapping, press, at, ['UP'])).rest, { level: 1 });
   // Identity reads events in order, the start and the views' keys.

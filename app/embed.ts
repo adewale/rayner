@@ -29,8 +29,10 @@ import { changeText, chromeFor, descriptionsLang } from './embed-strings.ts';
 import { HOME, SHARE_META, SHARE_STEPS_META, shareable } from './embed-share.ts';
 import { storyIndices, adjacentStep } from './embed-steps.ts';
 import { offPath } from '../explain/script.ts';
-import { SENT, acceptedLog, decodeLog, encodeLog, exploreAndClose, liveSteps, logStart, outcomes, runLive } from './embed-live.ts';
-import type { Exploration, ExploreAction, Live, LiveDraw, LivePlace, LiveRun, LogStart } from './embed-live.ts';
+import { SENT, acceptedLog, decodeLog, encodeLog, exploreAndClose, outcomes } from './embed-live.ts';
+import type { Exploration, ExploreAction } from './embed-live.ts';
+import { liveSteps, logStart, runLive } from '../explain/live.ts';
+import type { Live, LiveDraw, LivePlace, LiveRun, LogStart } from '../explain/live.ts';
 
 /**
  * The default scenario as the build traced it: its settings, its trace as the player reads it
@@ -1029,7 +1031,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     if (place === undefined) return Promise.resolve(null);
     let found = at.bases.get(step.step);
     if (!found) {
-      found = runLive(at.Scene, step, place, []).then((run) => {
+      found = runLive(at.Scene, step.step, place, []).then((run) => {
         const base = logStart(run.machine, run.rest);
         return base ? { step, live: { index: place.index, identity: place.identity, machine: run.machine }, base } : null;
       }, (error: unknown) => {
@@ -1074,7 +1076,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     const s = live.kind === 'live' && live.now === now ? live.session : null;
     if (s && s.open && !s.busy && log.length === s.log.length + 1 && s.log.every((e, i) => e === log[i]))
       return s.send(log.at(-1)!, draw);
-    return runLive(at.Scene, now.step, now.live, log, { ...draw, from: now.base.from, keep: true }).then((run) => {
+    return runLive(at.Scene, now.step.step, now.live, log, { ...draw, from: now.base.from, keep: true }).then((run) => {
       if (run.session) {
         if (scope.signal.aborted) run.session.close();
         else explored({ kind: 'held', now, session: run.session });

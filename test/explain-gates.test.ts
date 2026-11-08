@@ -247,7 +247,7 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
   {
     gate: 'a meta.id that is not one path segment',
     source: `import{Scene}from'rayner';export default class Bad extends Scene{static meta={id:'../escape'};async construct(){await this.step('one');await this.wait(.5);}}`,
-    message: /meta\.id: "\.\.\/escape" is not a page id; an id is one path segment of letters, digits, - and _/,
+    message: /meta\.id: "\.\.\/escape" is not a page id; an id is one path segment of lowercase letters, digits and -/,
   },
   {
     // The caption keys a colour the stage never names: hidden, the caption takes the key with it.

@@ -193,7 +193,9 @@ test('two diagram resolutions in flight start one builder of each kind, and clos
 
 test('preview --watch adopts script.md afresh on every rebuild: a changed line, a removed question and a removed intent header all show', async () => {
   const { watchAndRebuild } = await import('../tools/explain.ts');
-  const folder = await mkdtemp(join(tmpdir(), 'rayner-watch-intent-'));
+  // A folder named as a page id is (lower case), since the scene declares none.
+  const folder = join(await mkdtemp(join(tmpdir(), 'rayner-watch-intent-')), 'watched');
+  await mkdir(folder);
   const log = console.log, error = console.error;
   console.log = () => {};
   const errors: unknown[] = [];
@@ -233,7 +235,7 @@ test('preview --watch adopts script.md afresh on every rebuild: a changed line, 
     watching.watcher.close();
     console.log = log;
     console.error = error;
-    await rm(folder, { recursive: true, force: true });
+    await rm(join(folder, '..'), { recursive: true, force: true });
   }
 });
 

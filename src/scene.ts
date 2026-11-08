@@ -40,8 +40,10 @@ export interface StepMeta {
 
 /**
  * The frame a step's picture stops changing on: where its caption hold begins, else its last
- * frame, `frame1`, which a link to the step shows and every check judges. Players stop here. A
- * step still running (a live Step, whose `frame1` is null) has not stopped: Infinity.
+ * frame, `frame1`, which a link to the step shows and every check judges. Timed playback stops
+ * here. The state can still change after it (code after the step's last play, an end listener):
+ * a step's state is read as it ends (the trace's `after`, `stopAt`). A step still running (a live
+ * Step, whose `frame1` is null) has not stopped: Infinity.
  */
 export const stillFrame = (step: { holdFrame?: number | null; frame1?: number | null }): number => step.holdFrame ?? step.frame1 ?? Infinity;
 
@@ -90,6 +92,12 @@ export interface Sink {
   frame(scene: Scene, dt: number): Promise<void>;
   stepBegin?(scene: Scene, step: Step): Promise<void>;
   stepEnd?(scene: Scene, step: Step): Promise<void>;
+  /**
+   * Frames that end before this time are counted, not rendered, as those before the scene's own
+   * `skipUntil` are: a sink that draws only from some point says so here, and may move it between
+   * plays (the live player's sink skips to a step, then draws a reader's event frame by frame).
+   */
+  readonly skipUntil?: number;
 }
 
 export interface SceneOptions {
@@ -257,8 +265,13 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   /** @internal Where frames and step boundaries go (the constructor's sink). */
   sink: Sink;
   fps: number;
-  /** @internal Frames that end before this time are counted, not rendered (the `skipUntil` option). */
-  skipUntil: number;
+  /**
+   * @internal Frames that end before this time are counted, not rendered: the `skipUntil` option,
+   * or the sink's own `skipUntil` when that is later.
+   */
+  get skipUntil(): number { return Math.max(this.#skipUntil, this.sink.skipUntil ?? -Infinity); }
+  set skipUntil(t: number) { this.#skipUntil = t; }
+  #skipUntil = 0;
   mobjects: Mobject[];
   time: number;
   frameCount: number;
@@ -307,7 +320,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   /** Mobjects kept last in drawing order while on stage (see keepOnTop), in the order kept. */
   #onTop: Mobject[] = [];
   /** Where the run stops early (see stopAt), or null. */
-  #stop: { path: string; frame: number; at: (scene: Scene<any, any>) => unknown; reached: boolean } | null = null;
+  #stop: { path: string; at: (scene: Scene<any, any>) => unknown; reached: boolean } | null = null;
   // One entry per registration, so each remover removes exactly its own.
   private stepListeners: Array<{ listener: (step: Step) => unknown; on: boolean }>;
   private stepEndListeners: Array<{ listener: (step: Step) => unknown; on: boolean }>;
@@ -429,27 +442,34 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   }
 
   /**
-   * @internal Stop the run where the step `path` reaches `frame` (its still frame, from a run
-   * before): as the play or wait that reaches it in that step returns, or, when none does, as the
-   * step ends, before its end listeners and caption hold. `at(scene)` runs there and may play and
-   * wait; then the scene stops for good, as a sink's StopScene stops it (`phase` is `'stopped'`),
-   * so construct() never continues and code it runs after that play never runs. The live player
-   * runs a scene to a step's picture this way, and plays the reader's events in `at`.
+   * @internal Stop the run as the step `path` ends: after its end listeners and its caption hold,
+   * once the sink has heard the end, with the step still current. The scene is then as the trace
+   * records the step (`after`) and as a link to the step shows it: code the scene runs after the
+   * step's last play has run. `at(scene)` runs there and may play and wait, as a step listener may,
+   * and is held to the same rule: one that returns with a play or wait still running is refused.
+   * Then the scene stops for good, as a sink's StopScene stops it (`phase` is `'stopped'`), so
+   * construct() never continues. A step the run never reaches ends the run as usual, and `at` never
+   * runs. The live player runs a scene to a step this way, and plays the reader's events in `at`;
+   * check explores a machine from the same point.
    */
-  stopAt(path: string, frame: number, at: (scene: this) => unknown): void {
+  stopAt(path: string, at: (scene: this) => unknown): void {
     if (this.#ran) throw new Error('this.stopAt(): the scene has begun its run; say where it stops before run()');
-    this.#stop = { path, frame, at: at as (scene: Scene<any, any>) => unknown, reached: false };
+    this.#stop = { path, at: at as (scene: Scene<any, any>) => unknown, reached: false };
   }
 
-  /** Stop here if the run has reached where stopAt() said: at a step's end, or after a play or wait at its frame. */
-  async #stopIfReached(ending: boolean): Promise<void> {
+  /** Stop here if the step that is ending is the one stopAt() named: run its callback, then stop for good. */
+  async #stopIfReached(): Promise<void> {
     const stop = this.#stop;
-    if (!stop || stop.reached || this.current?.path !== stop.path || (!ending && this.frameCount < stop.frame)) return;
+    if (!stop || stop.reached || this.current?.path !== stop.path) return;
     stop.reached = true;
-    // Free to play and wait, as a step listener is, whatever call it stops in.
+    const running = this.#running;
+    // Free to play and wait, as a step listener is.
     this.#listening++;
     try { await stop.at(this); } finally { this.#listening--; }
     this.#phase = 'stopped';
+    // A play it left running would tick on after the stop: refused, as a listener's is.
+    if (this.#running !== running)
+      throw new Error(`this.stopAt(): its callback at step ${JSON.stringify(stop.path)} returned with a play() or wait() still running; await each play() and wait() it makes`);
     throw new StopScene();
   }
 
@@ -554,8 +574,6 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     const s = this.current;
     if (!s) return;
     this.throwIfStopped();
-    // A step that ends before any play or wait reached its stop frame: its picture is still now.
-    await this.#stopIfReached(true);
     await this.#dispatch(this.stepEndListeners, s);
     // A captioned step holds until its caption could have been read or spoken,
     // so narration (or a reader) never runs past the picture it describes.
@@ -574,6 +592,8 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     s.t1 = this.time; s.frame1 = this.frameCount;
     // The sink hears the end with the step still current, the scene as its resting frame showed it.
     await this.toSink(() => this.sink.stepEnd?.(this, s));
+    // Where stopAt() stops: the step as it ends, its end heard.
+    await this.#stopIfReached();
     this.current = null;
   }
 
@@ -735,8 +755,12 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
 
   // ---- frame loop --------------------------------------------------------
 
-  /** Count a frame. The clock is derived from the count, so it never drifts the way a running sum of dt does. */
+  /**
+   * Count a frame. The clock is derived from the count, so it never drifts the way a running sum of
+   * dt does. A stopped scene counts none, skipped or drawn: a play left running when it stopped ends there.
+   */
   private tick(): void {
+    this.throwIfStopped();
     this.frameCount++;
     this.time = this.frameCount / this.fps;
   }
@@ -756,7 +780,6 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   async play(...args: Playable[] | [...Playable[], PlayOpts]): Promise<void> {
     // Refused before begin(): a stopped scene, or one still in another call, changes nothing more
     await this.#exclusive('playing', 'this.play()', () => this.#play(args));
-    await this.#stopIfReached(false);
   }
 
   async #play(args: Playable[] | [...Playable[], PlayOpts]): Promise<void> {
@@ -890,7 +913,6 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   async wait(seconds = 1): Promise<void> {
     assertTime('this.wait()', 'the time', seconds);
     await this.#exclusive('waiting', 'this.wait()', () => this.#frames(Math.round(seconds * this.fps)));
-    await this.#stopIfReached(false);
   }
 
   /** Emit `n` frames, skipping those that end before skipUntil, as wait() and the caption hold do. */
