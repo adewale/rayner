@@ -111,9 +111,10 @@ export async function buildExplainer(
   // agent, can try there, from where the step leaves the machine (or from its start, when it is finished there).
   const liveLines = await Promise.all(project.scenarios.map(async ({ Scene, trace, live }) => {
     const lines = new Map<string, string>();
-    for (const [step, { index, machine }] of live ?? []) {
+    for (const [step, at] of live ?? []) {
+      const { machine } = at;
       const times = trace.steps.find((s) => s.step === step);
-      const base = times && logStart(machine, (await runLive(Scene, times, index, [])).rest);
+      const base = times && logStart(machine, (await runLive(Scene, times, at, [])).rest);
       if (!base) continue;
       const events = outcomes(machine, base.state).filter((o) => o.kind === 'next').map((o) => o.label);
       lines.set(step, t.liveEvents(events.join(', '), base.from === 'start'));

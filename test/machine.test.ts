@@ -9,7 +9,7 @@ import { machinesOf, TraceSink, traceScene, loadFonts } from '../explain/testing
 import { stage, Machine, refuse, isRefusal, view } from '../explain/index.ts';
 import { SetState } from '../explain/state.ts';
 import { exploreMachines } from '../tools/lib/explain-check.ts';
-import { logStart } from '../app/embed-live.ts';
+import { decodeLog, encodeLog, logStart } from '../app/embed-live.ts';
 
 await loadFonts();
 
@@ -128,6 +128,13 @@ test('reachable states are found breadth first, each with its shortest events, u
   ]);
   const capped = new Machine<Lamp, 'UP' | 'OFF'>(ran, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [], limit: 2 });
   assert.equal(capped.reachable().length, 2);
+  // A state built with its keys in another order is the same state, reached once.
+  type Pair = { a: number; b: number };
+  const flip = new Machine<Pair, 'FLIP' | 'BACK'>(ran as unknown as Scene<Pair>, {
+    start: { a: 0, b: 0 }, events: ['FLIP', 'BACK'], views: [],
+    next: (s, e) => (e === 'FLIP' ? { b: 1 - s.b, a: s.a } : { a: s.a, b: 1 - s.b }),
+  });
+  assert.deepEqual(flip.reachable().map((r) => r.path), [[], ['FLIP']]);
 });
 
 test('rayner check draws every reachable state: a picture that cannot tell two states apart fails, named by its shortest events', async () => {
@@ -180,6 +187,21 @@ function litLamp(transition: (t: Transition<Lamp, 'UP' | 'OFF'>, lamp: View) => 
 /** UP morphs the picture into the picture of the state it reaches. */
 const morphUp = (t: Transition<Lamp, 'UP' | 'OFF'>, lamp: View) => new Transform(lamp.current, t.target(lamp));
 
+test('a machine refuses an event name a link cannot carry: empty, or with a comma, which a shared link would split', () => {
+  const scene = new Scene<Lamp>(new NullSink());
+  const spec = { start: { level: 0 }, next: (s: Lamp) => s, views: [] };
+  assert.throws(() => new Machine(scene, { ...spec, events: ['a,b'] }), /^RangeError: new Machine\(\): "a,b" is not an event name; an event is words with no comma, as a link joins the events a reader sent with commas$/);
+  assert.throws(() => new Machine(scene, { ...spec, events: ['UP', ''] }), /^RangeError: new Machine\(\): "" is not an event name/);
+  assert.throws(() => new Machine(scene, { ...spec, events: [' '] }), /is not an event name/);
+  assert.throws(() => new Machine(scene, { ...spec, events: [1 as unknown as string] }), /^TypeError: new Machine\(\): an event must be a string, not 1$/);
+  // The defect it closes: a comma in an event comes back from a link as two events.
+  const viaLink = (log: readonly string[]) => decodeLog(new URLSearchParams(`sent=${encodeLog(log)}`).get('sent'));
+  assert.deepEqual(viaLink(['a,b']), ['a', 'b']);
+  // Events with spaces and colons still travel.
+  const words = new Machine(scene, { ...spec, events: ['start A', 'A lands', 'x:1'] });
+  assert.deepEqual(viaLink(words.spec.events), ['start A', 'A lands', 'x:1']);
+});
+
 test('a refused event: next says undefined, exploration does not follow it, and sending it is refused before anything plays', async () => {
   const ran = await new (litLamp(morphUp))(new NullSink()).run();
   assert.equal(ran.machine.after({ level: 2 }, 'UP'), undefined);
@@ -224,6 +246,21 @@ test('a schedule built for one state refuses to play from another', async () => 
     }
   }
   await assert.rejects(new Stale(new NullSink()).run(), /UP was built for \{"level":0\} but plays from \{"level":2\}/);
+  // The same state with its keys in another order is the state it was built for.
+  type Pair = { a: number; b: number };
+  class Reordered extends Scene<Pair> {
+    override state = { a: 1, b: 2 };
+    override async construct() {
+      const picture = view(this, (st: Pair) => new Text(`a ${st.a} b ${st.b}`));
+      this.add(picture);
+      const machine = new Machine<Pair, 'UP'>(this, { start: { a: 1, b: 2 }, events: ['UP'], next: (s) => ({ a: s.a + 1, b: s.b }), views: [picture] });
+      const built = machine.send('UP');
+      this.state = { b: 2, a: 1 };
+      await this.step('reordered');
+      await this.play(built);
+    }
+  }
+  assert.deepEqual((await new Reordered(new NullSink()).run()).state, { a: 2, b: 2 });
 });
 
 test('an authored transition plays, the views land on the state it reaches, and rayner check plays every reachable one', async () => {
@@ -443,4 +480,57 @@ test('exploration also walks the states a reader reaches from the live step, not
   };
   const [explored] = await exploreMachines(ran, stageOf);
   assert.ok(explored!.problems.some((p) => /^from the state at "press", at the start: “lamp dim” is .* px/.test(p)), JSON.stringify(explored!.problems));
+});
+
+test('an authored transition lands a picture whose parts repeat a key by redrawing it, never by drawing one part twice', async () => {
+  // Two parts share the key "part": a landing that matched by key would put the second part in both places.
+  type N = { n: number };
+  class Repeated extends Scene<N> {
+    pair!: View;
+    override state = { n: 0 };
+    override async construct() {
+      this.pair = view(this, (st: N) => {
+        const a = Object.assign(new Text(`a${st.n}`, { fontSize: 0.5 }).shift([-2, 0]), { key: 'part' });
+        const b = Object.assign(new Text(`b${st.n}`, { fontSize: 0.5 }).shift([2, 0]), { key: 'part' });
+        return Object.assign(new Group(a, b), { key: 'pair' });
+      });
+      this.add(this.pair);
+      const machine = new Machine<N, 'UP'>(this, {
+        start: { n: 0 }, events: ['UP'], next: (s) => ({ n: s.n + 1 }), views: [this.pair], runTime: 0.2,
+        transition: { UP: (t) => new Transform(this.pair.current, t.target(this.pair)) },
+      });
+      await this.step('up');
+      await this.play(machine.replay(['UP', 'UP']));
+    }
+  }
+  const ran = await new Repeated(new NullSink()).run() as Repeated;
+  const parts = ran.pair.current.children;
+  assert.equal(new Set(parts).size, 2, 'two distinct parts');
+  assert.deepEqual(ran.pair.texts, ['a2', 'b2']);
+  assert.deepEqual(parts.map((p) => Math.sign(p.center()[0])), [-1, 1]);
+});
+
+test('exploration refuses a run to the live step that made a different machine at the same place: events swapped, or another start', async () => {
+  const made = (events: ('UP' | 'OFF')[], start: Lamp) => class extends Scene<Lamp> {
+    override state = { level: 0 };
+    override async construct() {
+      const s = stage(this);
+      const picture = view(this, (st: Lamp) => Object.assign(new Group(new Rectangle({ width: 4, height: 1.2 }), Object.assign(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), { key: 'lamp:word' })), { key: 'lamp' }));
+      s.keep(picture, { describe: () => picture.texts.join(' ') });
+      this.add(picture);
+      const machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start, events, next, views: [picture], runTime: 0.3 });
+      await this.step('press');
+      await this.play(machine.send('UP'));
+    }
+  };
+  const ran = await new (made(['UP', 'OFF'], { level: 0 }))(new NullSink()).run();
+  // Before, only the events were compared: two machines with the same events made in the other order, or a
+  // machine with another start, passed as the same machine.
+  for (const other of [made(['OFF', 'UP'], { level: 0 }), made(['UP', 'OFF'], { level: 1 })]) {
+    const host = await new other(new NullSink()).run();
+    await assert.rejects(exploreMachines(ran, async () => host), /new Machine\(\): the run to "press" made different machines/);
+  }
+  const same = await new (made(['UP', 'OFF'], { level: 0 }))(new NullSink()).run();
+  const [explored] = await exploreMachines(ran, async () => same);
+  assert.deepEqual(explored!.problems, []);
 });

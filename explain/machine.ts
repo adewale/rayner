@@ -6,6 +6,8 @@
 
 import { Animation, AnimationGroup, Succession, matchByKey } from '../src/animation.ts';
 import { SetState } from './state.ts';
+import { canonicalJson } from '../src/json.ts';
+import { identifierRule, isIdentifier } from './settings.ts';
 import { Group } from '../src/mobject.ts';
 import { linear } from '../src/rate.ts';
 import type { Scene } from '../src/scene.ts';
@@ -129,6 +131,10 @@ export class Machine<S extends object, E extends string> {
 
   constructor(scene: Scene<S, any>, spec: MachineSpec<S, E>) {
     if (!spec.events.length) throw new TypeError('new Machine(): it needs at least one event');
+    for (const event of spec.events) {
+      if (typeof event !== 'string') throw new TypeError(`new Machine(): an event must be a string, not ${JSON.stringify(event)}`);
+      if (!isIdentifier('event', event)) throw new RangeError(`new Machine(): ${JSON.stringify(event)} is not an event name; an event is ${identifierRule('event')}`);
+    }
     if (new Set(spec.events).size !== spec.events.length) throw new Error('new Machine(): an event is listed twice; list each event once');
     if (typeof spec.next !== 'function') throw new TypeError('new Machine(): it needs next(state, event)');
     if ('why' in spec) throw new TypeError('new Machine(): it takes no why(state, event); return refuse(reason) from next where the model refuses an event');
@@ -157,6 +163,15 @@ export class Machine<S extends object, E extends string> {
    * stage the reader saw the machine on, not on whatever the run ends with.
    */
   get lastPlayedIn(): string | null { return this.playedInStep; }
+
+  /**
+   * @internal What identifies this machine across runs of its scene, beside its place in
+   * `machinesOf(scene)`: its events, its start and its views' keys, as canonical JSON. Two
+   * machines with the same events in another order, or another start, are different machines.
+   */
+  get identity(): string {
+    return canonicalJson({ events: this.spec.events, start: this.spec.start, views: this.spec.views.map((v) => v.key ?? null) });
+  }
 
   /**
    * @internal What `event` does from `state`: the next state; or, refused by the model, its reason (what
@@ -214,10 +229,10 @@ export class Machine<S extends object, E extends string> {
     const { views, match } = this.spec;
     const runTime = typeof this.spec.runTime === 'function' ? this.spec.runTime({ event, before, after }) : this.spec.runTime;
     const authored = this.spec.transition?.[event];
-    const built = JSON.stringify(before);
+    const built = canonicalJson(before);
     return new Succession([
       new SetState(this.scene, (current) => {
-        if (JSON.stringify(current) !== built) throw new Error(`machine.send(): ${String(event)} was built for ${built} but plays from ${JSON.stringify(current)}; send it when the state it plays from is the state now`);
+        if (canonicalJson(current) !== built) throw new Error(`machine.send(): ${String(event)} was built for ${JSON.stringify(before)} but plays from ${JSON.stringify(current)}; send it when the state it plays from is the state now`);
         this.shownWhenPlayed = JSON.stringify(this.scene.shown);
         this.playedInStep = this.scene.currentStep?.path ?? null;
         return after;
@@ -247,18 +262,18 @@ export class Machine<S extends object, E extends string> {
   /**
    * @internal Every state reachable from `from` (default: the start), breadth first, with the shortest
    * events that reach it (so a state that fails a check is reported by its shortest way there),
-   * up to `limit` states. States are compared as JSON, as traces compare them.
+   * up to `limit` states. States are compared as JSON, whatever the order of their keys.
    */
   reachable(from: S = this.spec.start): { state: S; path: E[] }[] {
     const start = from;
-    const seen = new Map<string, { state: S; path: E[] }>([[JSON.stringify(start), { state: start, path: [] }]]);
+    const seen = new Map<string, { state: S; path: E[] }>([[canonicalJson(start), { state: start, path: [] }]]);
     const queue = [...seen.values()];
     while (queue.length && seen.size < this.spec.limit) {
       const { state, path } = queue.shift()!;
       for (const event of this.spec.events) {
         const next = this.after(state, event);
         if (next === undefined) continue;
-        const key = JSON.stringify(next);
+        const key = canonicalJson(next);
         if (seen.has(key)) continue;
         const entry = { state: next, path: [...path, event] };
         seen.set(key, entry);
@@ -303,7 +318,8 @@ const LAND = 1 / 30;
  * brought what is on screen there (rayner check holds it to that). Each keyed part takes its drawn
  * counterpart's data in place (a morphed Text gets its new string) and the parts go back into the
  * drawn picture's stacking order, so every part keeps its identity for the next event. A picture
- * whose parts do not line up by key is swapped for the drawn one instead.
+ * whose parts do not line up by key (one unkeyed, or a key two siblings share) is swapped for the
+ * drawn one instead.
  */
 class Landing extends Animation {
   views: readonly View[];
@@ -318,7 +334,9 @@ class Landing extends Animation {
     for (const v of this.views) {
       const drawn = v.placed(this.scene.state), current = v.current;
       const byKey = new Map(current.children.map((c) => [c.key, c] as const));
-      const lines = drawn.children.length === current.children.length && drawn.children.every((d) => d.key !== undefined && byKey.get(d.key)?.sameShapeAs(d));
+      // Parts line up when every key names one part on each side: a key two siblings share names neither.
+      const lines = byKey.size === current.children.length && new Set(drawn.children.map((d) => d.key)).size === drawn.children.length &&
+        drawn.children.length === current.children.length && drawn.children.every((d) => d.key !== undefined && byKey.get(d.key)?.sameShapeAs(d));
       if (!lines) { v.rebuild(); continue; }
       // Kept parts in the drawn order, then the whole picture takes the drawing: the parts keep
       // their identities, and the root takes its own fields too (a card's lit row, a code

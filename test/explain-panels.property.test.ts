@@ -456,6 +456,10 @@ test('a repeated row label draws every row, but lit refuses it as ambiguous', ()
       const card = new Card(s, colors, dup, { width: 12 });
       assert.equal(card.family().filter((m) => m instanceof Text && m.parent === card).length, 2 * dup.length);
       assert.throws(() => new Card(s, colors, dup, { width: 12, lit: { row: label } }), /not unique/);
+      // Keyed, every row's label takes its own row's key: none is left unkeyed and none keyed twice.
+      const keyed = new Card(s, colors, dup, { width: 12, key: 'c' });
+      const labelKeys = keyed.family().filter((m) => m.key?.match(/^c:row:\d+$/)).map((m) => m.key);
+      assert.deepEqual(labelKeys, dup.map((_, i) => `c:row:${i}`));
     }),
     params(),
   );

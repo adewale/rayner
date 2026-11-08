@@ -6,6 +6,7 @@ import type { Palette } from '../src/color.ts';
 import type { SceneClass, SceneOptions, Sink } from '../src/index.ts';
 import { StopScene } from '../src/output.ts';
 import { isHex } from '../src/color.ts';
+import { canonicalJson } from '../src/json.ts';
 import { resolveSettings } from '../explain/index.ts';
 import { PAGE_QUERY, bindSnapshots, settingsProblem, stepQuery, withSettings } from '../explain/settings.ts';
 import type { ExplainerClass, Settings, SnapshotStore } from '../explain/index.ts';
@@ -1068,7 +1069,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     const s = live.kind === 'live' && live.now === now ? live.session : null;
     if (s && s.open && !s.busy && log.length === s.log.length + 1 && s.log.every((e, i) => e === log[i]))
       return s.send(log.at(-1)!, draw);
-    return runLive(at.Scene, now.step, now.live.index, log, { ...draw, from: now.base.from, keep: true }).then((run) => {
+    return runLive(at.Scene, now.step, now.live, log, { ...draw, from: now.base.from, keep: true }).then((run) => {
       if (run.session) {
         if (scope.signal.aborted) run.session.close();
         else explored({ kind: 'held', session: run.session });
@@ -1559,7 +1560,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     const url = urlFor(true);
     // A share page shows a step's own picture, so a link with the reader's events is the page's own.
     const step = currentStep().step,
-      share = shared && !sentLog().length && shareable(step) && (!sharedSteps || sharedSteps.includes(step)) && JSON.stringify(values) === JSON.stringify(resolveSettings(Source)) ? shared + step : url.href;
+      share = shared && !sentLog().length && shareable(step) && (!sharedSteps || sharedSteps.includes(step)) && canonicalJson(values) === canonicalJson(resolveSettings(Source)) ? shared + step : url.href;
     try {
       await navigator.clipboard.writeText(share);
       notice.textContent = t.copied;

@@ -10,6 +10,7 @@ import { machinesOf } from '../explain/machine.ts';
 import type { Scene, SceneClass, SceneState, Sink } from '../src/index.ts';
 import type { Machine } from '../explain/machine.ts';
 import { PAGE_QUERY } from '../explain/settings.ts';
+import { canonicalJson } from '../src/json.ts';
 
 type AnyMachine = Machine<object, string>;
 
@@ -138,7 +139,7 @@ export interface LiveSession {
 }
 
 /**
- * Run `Source` to the resting picture of `step`, where machine `index` is live, then play `log`
+ * Run `Source` to the resting picture of `step`, where `live` (a machine, or its index) is live, then play `log`
  * through `machine.send` (from the machine's start, its views redrawn there, when `from` is
  * 'start' and the log is not empty), every frame skipped; `sink` then draws the picture the log lands on.
  * With `animate`, the last event plays through that sink instead, frame by frame from the picture
@@ -149,13 +150,16 @@ export interface LiveSession {
  * The run stops in the live step as soon as its picture stops changing: at the end of the play or
  * wait that reaches the step's hold (or its end), or as the step ends. Code a scene runs between
  * its last play and its next step never runs, so it cannot change the stage the reader drives.
- * The machine plays under what the scene showed when it last played (`playedUnder`), as exploration
- * draws it. A log the machine does not accept throws, as `send` does.
+ * The machine is the run's machine at `live.index`, refused unless it is the same machine (its
+ * events, start and views' keys), so the reader never drives another; given only an index, the
+ * run's machine there is the one it reports, for the first run of a page that shipped none. It plays under what the
+ * scene showed when it last played (`playedUnder`), as exploration draws it. A log the machine
+ * does not accept throws, as `send` does.
  */
 export async function runLive(
   Source: SceneClass,
   times: LiveStepTimes,
-  index: number,
+  live: Live | number,
   log: readonly string[],
   { sink, animate, onStart, onRest, from = 'rest', keep = false }: LiveDraw & { onRest?: (scene: Scene<any>) => void; from?: LogStart; keep?: boolean } = {},
 ): Promise<LiveRun> {
@@ -175,9 +179,10 @@ export async function runLive(
     }
     async reach(): Promise<void> {
       this.reached = true;
-      const machine = machinesOf(this)[index];
-      if (!machine) throw new Error(`No machine ${index} was made by the step "${times.step}"; a scene must make the same machines each run`);
-      if (machine.playedUnder && JSON.stringify(machine.playedUnder) !== JSON.stringify(this.shown)) this.shown = machine.playedUnder;
+      const machine = machinesOf(this)[typeof live === 'number' ? live : live.index];
+      if (!machine || (typeof live !== 'number' && machine.identity !== live.machine.identity))
+        throw new Error(`new Machine(): the run to ${JSON.stringify(times.step)} made different machines; a scene must make the same machines on every run`);
+      if (machine.playedUnder && canonicalJson(machine.playedUnder) !== canonicalJson(this.shown)) this.shown = machine.playedUnder;
       const rest = JSON.parse(JSON.stringify(this.state)) as object;
       onRest?.(this);
       // From the machine's start: its views redrawn there, in place, as exploration draws a state.

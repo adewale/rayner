@@ -236,7 +236,18 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
   {
     gate: 'duplicate step names',
     source: `import{Scene}from'rayner';export default class Bad extends Scene{async construct(){await this.step('same');await this.wait(.5);await this.step('same');await this.wait(.5);}}`,
-    message: /this\.step\(\): two steps of the scenario \{\} share a name/,
+    message: /this\.step\(\): two steps of the scenario \{\} share the name "same", ignoring case/,
+  },
+  {
+    // Push and push would write one share page on macOS and Windows.
+    gate: 'step names that differ only in case',
+    source: `import{Scene}from'rayner';export default class Bad extends Scene{async construct(){await this.step('Push');await this.wait(.5);await this.step('push');await this.wait(.5);}}`,
+    message: /this\.step\(\): two steps of the scenario \{\} share the name "push", ignoring case; name each step once, so each has its own link and share page/,
+  },
+  {
+    gate: 'a meta.id that is not one path segment',
+    source: `import{Scene}from'rayner';export default class Bad extends Scene{static meta={id:'../escape'};async construct(){await this.step('one');await this.wait(.5);}}`,
+    message: /meta\.id: "\.\.\/escape" is not a page id; an id is one path segment of letters, digits, - and _/,
   },
   {
     // The caption keys a colour the stage never names: hidden, the caption takes the key with it.

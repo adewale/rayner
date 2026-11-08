@@ -258,3 +258,31 @@ test('nested replacement preserves earlier siblings, retained old objects and ba
   s.add(source);
   assert.equal(renderElements(s).filter((r) => r.id === replacement.id).length, 1);
 });
+
+test('a family stays a tree: add refuses the mobject itself or an ancestor, and remove releases only its own children', () => {
+  // Before the guard, b.add(a) under a.add(b) made a cycle that hung the next box invalidation.
+  const a = new Group(), b = new Group(), c = new Square();
+  a.add(b); b.add(c);
+  assert.throws(() => b.add(a), /^Error: m\.add\(\): a Group contains the mobject it is added to, so the family would be a cycle; add it to a mobject outside it$/);
+  assert.throws(() => c.add(a), /m\.add\(\): a Group contains the mobject it is added to/);
+  assert.throws(() => a.add(a), /^Error: m\.add\(\): a Group is the mobject it is added to/);
+  // A refused add changes nothing, even after children listed before the one refused.
+  const d = new Square();
+  assert.throws(() => b.add(d, a));
+  assert.deepEqual(b.children, [c]);
+  assert.equal(d.parent, null);
+  assert.deepEqual(a.family(), [a, b, c]);
+  assert.ok(a.box(), 'the box of a refused family is still measured');
+
+  // remove() on another group leaves the child with its real parent, whose box still follows it.
+  const x = new Square({ side: 1 }), g1 = new Group(x), g2 = new Group(new Square());
+  assert.equal(g1.box()![2], 0.5);
+  g2.remove(x);
+  assert.equal(x.parent, g1);
+  assert.deepEqual(g1.children, [x]);
+  x.shift([3, 0]);
+  assert.equal(g1.box()![2], 3.5, 'the moved child invalidates its parent\'s box');
+  g1.remove(x);
+  assert.equal(x.parent, null);
+  assert.deepEqual(g1.children, []);
+});

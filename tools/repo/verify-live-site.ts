@@ -5,7 +5,7 @@ import {createHash} from 'node:crypto';
 import {readFile, readdir, realpath, lstat, mkdir, rm, writeFile} from 'node:fs/promises';
 import {dirname, extname, join, relative, resolve, sep} from 'node:path';
 import {parseArgs} from 'node:util';
-import { posixPath, sha256 } from '../lib/hash.ts';
+import { byCodeUnit, posixPath, sha256 } from '../lib/hash.ts';
 
 type FilePin = {path: string; sha256: string; bytes: number};
 const mediaTypes: Record<string, string[]> = {
@@ -194,7 +194,7 @@ async function main() {
     }));
   } finally { controller.abort(); }
   assert.equal(results.length, files.length);
-  const report = {version: 1, origin: origin.origin, path: prefix, checkedAt: new Date().toISOString(), manifestSha256: sha256(manifestBytes), publicFiles: pins.size - 1, cleanReaderRoutes: values['clean-urls'] ? ids.size : 0, privateFiles: ['/_headers: checked through actual reader response headers'], results: results.sort((a, b) => a.path.localeCompare(b.path))};
+  const report = {version: 1, origin: origin.origin, path: prefix, checkedAt: new Date().toISOString(), manifestSha256: sha256(manifestBytes), publicFiles: pins.size - 1, cleanReaderRoutes: values['clean-urls'] ? ids.size : 0, privateFiles: ['/_headers: checked through actual reader response headers'], results: results.sort((a, b) => byCodeUnit(a.path, b.path))};
   if (output) { await mkdir(dirname(output), {recursive: true}); await writeFile(output, JSON.stringify(report, null, 2) + '\n'); }
   console.log(`Verified ${report.publicFiles} public files and ${report.cleanReaderRoutes} clean reader routes against the reviewed export; media types, reader headers and loader revalidation passed. Browser interaction requires its separate review.`);
 }

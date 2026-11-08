@@ -1,6 +1,7 @@
 // Cached lettering is executable drawing data. Reject damaged snapshots before
 // they reach Text, the browser, or an image renderer, even if their metadata is fresh.
 import type { LetteringSnapshot } from '../../src/lettering-outlines.ts';
+import { LETTERING_VERSION } from '../../src/lettering-outlines.ts';
 
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
@@ -8,7 +9,7 @@ const digest = (value: unknown): value is string => typeof value === 'string' &&
 
 export function validateLetteringSnapshot(value: unknown): asserts value is LetteringSnapshot {
   const fail = (part: string): never => { throw new Error(`scene.lettering.json: its ${part} is invalid; run rayner snapshots to rebuild it`); };
-  if (!object(value) || value.version !== 3 || !digest(value.builderHash) ||
+  if (!object(value) || value.version !== LETTERING_VERSION || !digest(value.builderHash) ||
       !object(value.request) || !object(value.runs) || !object(value.faces) || typeof value.shaper !== 'string') fail('header');
   const snapshot = value as Record<string, unknown> & { runs: Record<string, unknown>; faces: Record<string, unknown> };
   if (snapshot.fontInputs !== undefined && (!object(snapshot.fontInputs) ||

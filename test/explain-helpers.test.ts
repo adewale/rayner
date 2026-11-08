@@ -75,6 +75,30 @@ test('a stage with no style takes its first diagram’s paper; hidden parts stay
   const trace = await traceScene(bindSnapshots(Demo, { [diagramKey(spec)]: fixture() }));
   assert.deepEqual(trace.steps[0]!.after!.walks, [{ step: 'frame', from: 'A', to: 'B', edge: 'edge:A->B#0' }]);
   assert.equal(trace.steps[0]!.after!.answer, 42);
+  // A scene's own walks key is refused, at the walk or when a later state brings one, not replaced.
+  class Own extends Scene {
+    override state = { walks: 'mine' };
+    override async construct() {
+      const s = stage(this);
+      await this.step('frame');
+      const d = await s.show(spec, { build: 'frame' });
+      await d.reveal(['A', 'B', 'edge:A->B#0']);
+      await d.walk([['A', 'B']]);
+    }
+  }
+  await assert.rejects(traceScene(bindSnapshots(Own, { [diagramKey(spec)]: fixture() })), /^Error: this\.state: its own walks key would be replaced by the walks a diagram records there; rename the scene's key$/);
+  class Later extends Scene {
+    override async construct() {
+      const s = stage(this);
+      await this.step('frame');
+      const d = await s.show(spec, { build: 'frame' });
+      await d.reveal(['A', 'B', 'edge:A->B#0']);
+      await d.walk([['A', 'B']]);
+      this.state = { walks: 'mine' };
+      await this.step('after');
+    }
+  }
+  await assert.rejects(traceScene(bindSnapshots(Later, { [diagramKey(spec)]: fixture() })), /^Error: this\.state: the key "walks" is also written by a helper/);
 });
 
 test('a stage with no style adopts only its first diagram’s palette: a second diagram in another style recolours nothing', async () => {

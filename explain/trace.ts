@@ -1,6 +1,7 @@
 import type { Scene, SceneState } from '../src/index.ts';
 import type { StepRecord } from '../src/testing.ts';
-import { wordsFor, describedIn, markHeading } from './words.ts';
+import { canonicalJson } from '../src/json.ts';
+import { wordsFor, describedIn, markHeading, writeNumber } from './words.ts';
 import type { Words } from './words.ts';
 interface WalkRecord {
   step?: string;
@@ -9,9 +10,15 @@ interface WalkRecord {
   edge: string;
 }
 const logs = new WeakMap<Scene, WalkRecord[]>();
-/** Keep helper evidence even when an author replaces the program-state object. */
+/**
+ * Keep helper evidence even when an author replaces the program-state object. The state's `walks`
+ * key is reserved for it: a scene's own `walks` is refused rather than replaced.
+ */
 export function recordWalk(scene: Scene, walk: WalkRecord): void {
   let log = logs.get(scene);
+  const own = (scene.state as Record<string, unknown>).walks;
+  if (own !== undefined && (!log || canonicalJson(own) !== canonicalJson(log)))
+    throw new Error('this.state: its own walks key would be replaced by the walks a diagram records there; rename the scene\'s key');
   if (!log) {
     log = [];
     logs.set(scene, log);
@@ -87,18 +94,8 @@ export interface WatchedChange {
   before?: string;
   after?: string;
 }
-const numberFormats = new Map<string, Intl.NumberFormat>();
 function sayOne(v: unknown, lang: string): string | null {
-  if (typeof v === 'number') {
-    let f = numberFormats.get(lang);
-    if (!f) {
-      const options = { maximumFractionDigits: 2 };
-      // A tag Intl refuses still gets its numbers, written as English writes them.
-      try { f = new Intl.NumberFormat(lang, options); } catch { f = new Intl.NumberFormat('en', options); }
-      numberFormats.set(lang, f);
-    }
-    return f.format(v);
-  }
+  if (typeof v === 'number') return writeNumber(v, lang, 2);
   if (typeof v === 'string') {
     const chars = [...v];
     return chars.length > 24 ? chars.slice(0, 23).join('') + '…' : v;
@@ -107,7 +104,8 @@ function sayOne(v: unknown, lang: string): string | null {
   return null;
 }
 /**
- * A watched state value as a reader reads it: a number in the scene's language, a string cut to 24
+ * A watched state value as a reader reads it: a number as the scene's description language writes
+ * it (`writeNumber`, two decimals at most), a string cut to 24
  * characters, yes or no, or up to four such items and how many more; '' when it has no value (null,
  * absent or an empty list); null when it cannot be said briefly (an object, a list of objects).
  */
@@ -120,7 +118,7 @@ export function watchedValue(v: unknown, lang = 'en'): string | null {
 }
 /**
  * What a step changed of the state its author names for readers (`meta.watch`, key to label): each
- * watched key whose JSON differs between the step's start and end, in `watch` order, at most four.
+ * watched key whose JSON differs (whatever the order of its keys) between the step's start and end, in `watch` order, at most four.
  * A key whose value cannot be said briefly is skipped and its name pushed to `unformatted`; one that
  * reads the same before and after (0.001 and 0.002 both read 0) is no change to a reader. The player,
  * the page's transcript, `describeExplainer` and `rayner check` all read changes here.
@@ -135,7 +133,7 @@ export function watchedChanges(
   for (const [key, label] of Object.entries(watch ?? {})) {
     const was = step.before?.[key],
       is = step.after?.[key];
-    if (JSON.stringify(was) === JSON.stringify(is)) continue;
+    if (canonicalJson(was) === canonicalJson(is)) continue;
     const before = watchedValue(was, lang),
       after = watchedValue(is, lang);
     if (before == null || after == null) unformatted?.push(key);

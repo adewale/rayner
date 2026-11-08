@@ -69,7 +69,7 @@ try {
     const scenario = project.scenarios[0]!;
     for (const [step, live] of scenario.live ?? []) {
       const times = scenario.trace.steps.find((s) => s.step === step)!;
-      const base = logStart(live.machine, (await runLive(scenario.Scene, times, live.index, [])).rest);
+      const base = logStart(live.machine, (await runLive(scenario.Scene, times, live, [])).rest);
       if (!base) continue;
       // The presses: each extends the log, so no picture is one the page drew before (it keeps those),
       // with the events the model takes from the state reached, in turn; where none goes on, Reset
@@ -88,7 +88,7 @@ try {
       const node: number[] = [];
       for (const [i, log] of walk.entries()) {
         const t0 = performance.now();
-        await runLive(scenario.Scene, times, live.index, log, { from: base.from });
+        await runLive(scenario.Scene, times, live, log, { from: base.from });
         if (i) node.push(performance.now() - t0);
       }
       const measured: Record<'motion' | 'reduce', { start: number[]; landed: number[] }> = { motion: { start: [], landed: [] }, reduce: { start: [], landed: [] } };

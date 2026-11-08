@@ -9,13 +9,13 @@ import { resolve, join, dirname } from 'node:path';
 import { loadFont } from '../../vendor/glyph.js';
 import { SANS, MONO, FALLBACK } from '../../src/font-data.ts';
 import { embeddedFaces } from '../../src/fonts.ts';
-import { bindLettering, cutFace, defaultCutFace, letteringOf, packLettering, unpackLettering, numericAlphabet, requestCuts, runKey, scaledRun, scriptCuts, scriptFaceNames, snapshotProvider, usesLettering } from '../../src/lettering-outlines.ts';
+import { LETTERING_VERSION, bindLettering, cutFace, defaultCutFace, letteringOf, packLettering, unpackLettering, numericAlphabet, requestCuts, runKey, scaledRun, scriptCuts, scriptFaceNames, snapshotProvider, usesLettering } from '../../src/lettering-outlines.ts';
 import type { LetteringCut, PackedLetteringSnapshot, StoredLetteringSnapshot, LetteringSnapshot, LetteringProvider, LetteringRequest } from '../../src/lettering-outlines.ts';
 import type { ExplainerClass } from '../../explain/settings.ts';
 import type { Run } from '../../vendor/glyph.js';
 import { licenceOf, validateLetteringSnapshot } from './lettering-validation.ts';
 import { LIB_ROOT, ROOT } from './roots.ts';
-import { sha256 } from './hash.ts';
+import { byCodeUnit, sha256 } from './hash.ts';
 
 // The capture's files ship with the command (ROOT); the shaper and fallback faces it replays with, with the library.
 const root = ROOT;
@@ -99,6 +99,16 @@ function python(request: object): unknown {
     throw new Error(`meta.lettering: refreshing its snapshot needs fonttools, brotli, uharfbuzz and python-bidi in Python; ${stderr ?? String(error)}`);
   }
 }
+/**
+ * A record with its keys in code-unit order: how a snapshot stores its runs and font inputs, so the
+ * file and the hashes taken over it are the same on every machine, whatever its locale.
+ */
+export function inKeyOrder<T>(record: Record<string, T>): Record<string, T> {
+  const out: Record<string, T> = {};
+  for (const [k, v] of Object.entries(record).sort(([a], [b]) => byCodeUnit(a, b)))
+    Object.defineProperty(out, k, { value: v, enumerable: true, writable: true, configurable: true });
+  return out;
+}
 export interface PreparedLettering {
   Scene: ExplainerClass;
   snapshot: LetteringSnapshot;
@@ -127,7 +137,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
       try { snapshot = unpackLettering(raw as LetteringSnapshot); }
       catch (e) { throw new Error(`${(e as Error).message.replace(/; run rayner snapshots.*$/, '')}; run rayner snapshots ${file}`); }
     }
-    if (!snapshot || snapshot.version !== 3 || snapshot.builderHash !== builderHash || json(snapshot.request) !== json(request))
+    if (!snapshot || snapshot.version !== LETTERING_VERSION || snapshot.builderHash !== builderHash || json(snapshot.request) !== json(request))
       throw new Error(`scene.lettering.json: it is missing or stale; run rayner snapshots ${file}`);
     validateLetteringSnapshot(snapshot);
     return { Scene: bindLettering(Source, snapshot), snapshot,
@@ -205,7 +215,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
   }
   const embedded = await embeddedFaces();
   const coverage = [embedded.sans, embedded.mono, ...embedded.fallback];
-  const snapshot: LetteringSnapshot = { version: 3, builderHash, request, runs: {}, faces: {}, shaper: 'uharfbuzz+python-bidi/fonttools; glyph-math@6398654' };
+  const snapshot: LetteringSnapshot = { version: LETTERING_VERSION, builderHash, request, runs: {}, faces: {}, shaper: 'uharfbuzz+python-bidi/fonttools; glyph-math@6398654' };
   const used = new Set<number>();
   const usedMath = new Set<number>();
   let mathFont: Awaited<ReturnType<typeof loadFont>> | undefined;
@@ -291,7 +301,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
       // probes may draw a cut that the scene has not visited yet.
       for (const family of ['sans', 'mono'] as const)
         for (const cut of ['', ...requestCuts(request)] as LetteringCut[]) chainOf(family, cut);
-      snapshot.fontInputs = Object.fromEntries([...fonts].sort(([a], [b]) => a.localeCompare(b)).map(([name, face]) => [name, face.hash]));
+      snapshot.fontInputs = inKeyOrder(Object.fromEntries([...fonts].map(([name, face]) => [name, face.hash])));
       return hash(JSON.stringify([snapshot.builderHash, snapshot.shaper, snapshot.request, snapshot.fontInputs]));
     },
     async finish() {
@@ -311,8 +321,8 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
         const data = python({ command: 'subset', font: face.file, codepoints: [...points].sort((a, b) => a - b), gids: name === 'latin-modern-math' ? [...usedMath] : [], features: subsetFeatures(name) }) as string;
         snapshot.faces[name] = { hash: face.hash, data, license: face.license };
       }
-      // Stable run order, regardless of which case first visits a string.
-      snapshot.runs = Object.fromEntries(Object.entries(snapshot.runs).sort(([a], [b]) => a.localeCompare(b)));
+      // Stable run order, regardless of which case first visits a string or the machine's locale.
+      snapshot.runs = inKeyOrder(snapshot.runs);
       const off = Object.keys(snapshot.runs).filter((key) => offPageOnly.has(key) && !onPage.has(key));
       if (off.length) snapshot.offPage = off;
       replay = snapshotProvider(snapshot);
@@ -366,7 +376,7 @@ export async function pageSnapshot(snapshot: LetteringSnapshot): Promise<PackedL
   const runs = Object.fromEntries(Object.entries(snapshot.runs).filter(([key]) => !off.has(key)));
   await snapshotProvider({ ...snapshot, runs, faces }).prepare!();
   return packLettering({
-    version: 3, builderHash: '', request: snapshot.request, runs, shaper: '',
+    version: LETTERING_VERSION, builderHash: '', request: snapshot.request, runs, shaper: '',
     // As SFNT, which the page's shaper reads without a Brotli decoder (woff2.ts).
     faces: Object.fromEntries([...used].sort().map((name) => [name, { hash: '', data: sfntBase64(snapshot.faces[name]!.data), license: '' }])),
   });

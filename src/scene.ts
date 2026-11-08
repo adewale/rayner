@@ -17,7 +17,7 @@ import {Text} from './text.ts';
 import type {TextOpts} from './text.ts';
 import {textContextOf, withTextContext} from './text-context.ts';
 import { loadFonts } from './fonts.ts';
-import {cloneJson} from './json.ts';
+import {canonicalJson, cloneJson} from './json.ts';
 import type {JsonObject} from './json.ts';
 import { Frame } from './frame.ts';
 
@@ -376,7 +376,9 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   /**
    * Merge `part()`'s JSON into every stateJson() (`into: 'state'`, the default), so helper
    * evidence such as recorded walks survives an author replacing `this.state`; or into every
-   * shownJson() (`'shown'`), for what a helper says the stage shows. Returns a remover.
+   * shownJson() (`'shown'`), for what a helper says the stage shows. Returns a remover. A part's
+   * key may repeat one the state (or another part) has only with the same value: a collision
+   * throws when the JSON is read, so an author's key is never silently replaced.
    */
   addJson(part: () => SceneState, into: JsonInto = 'state'): () => void {
     const entry = { part, into };
@@ -518,14 +520,25 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
 
   private json(base: object, into: JsonInto): JsonObject {
     const state = cloneJson(base, `this.${into}`, `this.${into}`);
+    const fromParts = new Set<string>();
     for (const { part, into: where } of this.jsonParts) {
       if (where !== into) continue;
       const extra: unknown = part();
       if (!extra || typeof extra !== 'object' || Array.isArray(extra))
         throw new TypeError('this.addJson(): a part must return a JSON object');
-      // Define own keys, so a key such as "__proto__" is copied, not used as a prototype.
-      for (const [k, value] of Object.entries(cloneJson(extra, 'this.addJson()', 'the part')))
+      for (const [k, value] of Object.entries(cloneJson(extra, 'this.addJson()', 'the part'))) {
+        // A part may restate a key with the value already there (a helper that also keeps its
+        // key in the state), never replace one: the author's key would vanish from every trace.
+        if (Object.hasOwn(state, k) && canonicalJson(state[k]) !== canonicalJson(value))
+          throw new Error(fromParts.has(k)
+            ? `this.addJson(): two parts write the key ${JSON.stringify(k)} into this.${into} with different values; give each part its own keys`
+            : into === 'state'
+              ? `this.state: the key ${JSON.stringify(k)} is also written by a helper, with another value; rename the scene's key, as a helper's keys (walks in the state, picture in what is shown) are reserved`
+              : `this.shown: the key ${JSON.stringify(k)} is also written by a helper, with another value; rename the scene's key, as a helper's keys (walks in the state, picture in what is shown) are reserved`);
+        fromParts.add(k);
+        // Define own keys, so a key such as "__proto__" is copied, not used as a prototype.
         Object.defineProperty(state, k, { value, enumerable: true, writable: true, configurable: true });
+      }
     }
     return state;
   }

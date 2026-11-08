@@ -60,3 +60,19 @@ export function cloneJson(value: unknown, api: string, name: string, where = '')
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${api}: ${name} must be a JSON object${where}`);
   return clone(value, name) as JsonObject;
 }
+
+/**
+ * `value` as JSON text with each object's keys in code-unit order, so two equal JSON values
+ * give the same text whatever order their keys were written in. Every comparison and
+ * deduplication of JSON values uses it; output keeps the author's order.
+ */
+export function canonicalJson(value: unknown): string {
+  return JSON.stringify(value, (_key, v: unknown) => {
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return v;
+    const sorted: Record<string, unknown> = {};
+    // Own keys defined, not assigned, so a key such as "__proto__" stays a key.
+    for (const k of Object.keys(v).sort())
+      Object.defineProperty(sorted, k, { value: (v as Record<string, unknown>)[k], enumerable: true, writable: true, configurable: true });
+    return sorted;
+  });
+}

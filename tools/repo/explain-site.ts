@@ -28,7 +28,7 @@ import { restingCardPngs } from '../lib/explain-shots.ts';
 import { useProjectLettering } from '../lib/explain-lettering.ts';
 import { galleryPage, galleryTokens } from './lib/explain-gallery.ts';
 import { offPath } from '../../explain/script.ts';
-import { exists, listTree, posixPath, readOptional, sha256 } from '../lib/hash.ts';
+import { byCodeUnit, exists, listTree, posixPath, readOptional, sha256 } from '../lib/hash.ts';
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -169,7 +169,7 @@ try {
       {
         version: 1,
         build: inputs,
-        files: manifestFiles.sort((a, b) => a.path.localeCompare(b.path)),
+        files: manifestFiles.sort((a, b) => byCodeUnit(a.path, b.path)),
       },
       null,
       2,

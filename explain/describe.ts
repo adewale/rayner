@@ -5,6 +5,7 @@
 import { renderText } from '../src/output.ts';
 import { machinesOf } from './machine.ts';
 import { traceRun } from '../src/trace.ts';
+import { canonicalJson } from '../src/json.ts';
 import type { Scene, SceneState } from '../src/index.ts';
 import { scenariosOf, withSettings, scenarioName, bindSnapshots } from './settings.ts';
 import type { ExplainerClass, Setting, Settings } from './settings.ts';
@@ -101,7 +102,7 @@ export interface DescribeOptions {
 const PICTURE = 'picture';
 const withoutPicture = (state: SceneState = {}): SceneState =>
   Object.fromEntries(Object.entries(state).filter(([k]) => k !== PICTURE));
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+const same = (a: unknown, b: unknown) => canonicalJson(a) === canonicalJson(b);
 
 /** What `Scene` explains, every scenario and step, in one JSON-safe object. */
 export async function describeExplainer(Scene: ExplainerClass, options: DescribeOptions = {}): Promise<ExplainerDescription> {

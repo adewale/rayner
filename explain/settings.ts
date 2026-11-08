@@ -24,7 +24,7 @@ export interface PlayerMeta { accent?: boolean; paper?: boolean; corners?: 'roun
  * `checkedAgainst`; a scene with one declares none of those four itself.
  */
 export interface ExplainerMeta {
-  /** Names the output files; the scene's folder name (or its file's, for a scene not named scene.ts) unless declared. */
+  /** Names the output files; the scene's folder name (or its file's, for a scene not named scene.ts) unless declared. One path segment: letters, digits, - and _. */
   id?: string;
   /** The page title. */
   title?: string;
@@ -78,10 +78,31 @@ const META_KEYS: { readonly [K in keyof Required<ExplainerMeta>]: true } = {
 };
 const PLAYER_KEYS: { readonly [K in keyof Required<PlayerMeta>]: true } = { accent: true, paper: true, corners: true, minStageWidth: true, outline: true };
 const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+/** The names that travel in a link or name a file. */
+export type IdentifierKind = 'event' | 'id' | 'step';
+/** Each kind of name, and the rule it keeps. */
+const IDENTIFIERS: Readonly<Record<IdentifierKind, { valid: (name: string) => boolean; rule: string }>> = {
+  // A link lists the events a reader sent joined by commas (app/embed-live.ts encodeLog).
+  event: { valid: (name) => name.trim() !== '' && !name.includes(','), rule: 'words with no comma, as a link joins the events a reader sent with commas' },
+  // It names the page's files: <id>.html and the folder of its share pages.
+  id: { valid: (name) => /^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(name), rule: 'one path segment of letters, digits, - and _, starting with a letter or digit, as it names the page\'s files' },
+  // A step so named has a share page, <id>/<step>.html; any other keeps its query link.
+  step: { valid: (name) => /^[A-Za-z0-9_-]+$/.test(name), rule: 'letters, digits, - and _, as it names its share page' },
+};
+/**
+ * Whether `name` is a name of this kind that can travel in a link or name a file: a machine's event
+ * (words with no comma), a scene's `meta.id` (one safe path segment), or a step name a share page
+ * can be named by. One validator for the three, so the player, the command and the site agree.
+ */
+export const isIdentifier = (kind: IdentifierKind, name: unknown): name is string => typeof name === 'string' && IDENTIFIERS[kind].valid(name);
+/** The rule a name of this kind keeps, for an error message. */
+export const identifierRule = (kind: IdentifierKind): string => IDENTIFIERS[kind].rule;
+
 /**
  * Refuse `static meta` keys that ExplainerMeta does not name, and `meta.player` keys that PlayerMeta
- * does not, naming the key and the known keys. The type catches a misspelt key in a literal written
- * at the declaration; this catches it however the object was built.
+ * does not, naming the key and the known keys, and a `meta.id` that is not one safe path segment.
+ * The type catches a misspelt key in a literal written at the declaration; this catches it however
+ * the object was built.
  */
 export function checkExplainerMeta(meta: unknown): void {
   if (meta === undefined) return;
@@ -92,6 +113,8 @@ export function checkExplainerMeta(meta: unknown): void {
       throw new TypeError(`${where}: ${extra.map((k) => JSON.stringify(k)).join(', ')} ${extra.length > 1 ? 'are not keys' : 'is not a key'} it takes; it takes ${Object.keys(keys).join(', ')}`);
   };
   unknown(META_KEYS, meta, 'static meta');
+  if (meta.id !== undefined && typeof meta.id !== 'string') throw new TypeError('meta.id: it must be a string');
+  if (meta.id !== undefined && !isIdentifier('id', meta.id)) throw new RangeError(`meta.id: ${JSON.stringify(meta.id)} is not a page id; an id is ${identifierRule('id')}`);
   if (meta.player === undefined) return;
   if (!isRecord(meta.player)) throw new TypeError('meta.player: it must be an object');
   unknown(PLAYER_KEYS, meta.player, 'meta.player');

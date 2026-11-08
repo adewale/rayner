@@ -1,9 +1,10 @@
 // The layers of the code and the direction of their imports (docs/ENGINE.md, "Layers"): each layer
 // imports only the layers under it. This holds the rules the code keeps today. The one import the
 // section records as a departure, the kit naming the stage's type, is allowed here as exactly that
-// and no wider. Every module under explain/ is placed in a layer, so a new one must be placed
-// before the rules can judge it. Of a step's metadata the engine types and reads only its caption,
-// as the section records; the explainer layer declares the rest.
+// and no wider. Every module under explain/ is placed in a layer by the section's table, which this
+// test reads, so a new one must be placed in the doc before the rules can judge it. Of a step's
+// metadata the engine types and reads only its caption, as the section records; the explainer layer
+// declares the rest.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -12,18 +13,27 @@ import ts from 'typescript';
 
 const ROOT = resolve(import.meta.dirname, '..');
 
-/** The explainer layer's modules, by layer, from the bottom. */
-const EXPLAIN: Record<string, readonly string[]> = {
-  core: [
-    'action.ts', 'audio.ts', 'caption-looks.ts', 'choreograph.ts', 'claims.ts', 'intent.ts', 'layout-direction.ts', 'look.ts', 'machine.ts',
-    'mermaid.ts', 'palettes.ts', 'score.ts', 'script.ts', 'settings.ts', 'state.ts', 'trace.ts', 'view.ts', 'words.ts',
-  ],
-  diagrams: ['diagrams.ts', 'panels.ts'],
-  kit: ['annotate.ts', 'drawing.ts', 'geo.ts', 'seen-from.ts'],
-  stage: ['stage.ts', 'index.ts'],
-  tooling: ['describe.ts', 'project.ts', 'testing.ts'],
-};
 const ORDER = ['core', 'diagrams', 'kit', 'stage', 'tooling'] as const;
+/** The rows of ENGINE.md's layer table that place explain/ modules, by layer. */
+const ROWS: Record<(typeof ORDER)[number], string> = { core: 'Explain core', diagrams: 'Diagrams and panels', kit: 'Drawing kit', stage: 'Stage', tooling: 'Author tooling' };
+
+/**
+ * The layer table in ENGINE.md's "Layers" section: each row's layer and its modules, every
+ * `explain/…` or bare `….ts` name in backticks in its Modules cell (a bare name is under explain/,
+ * as the core row writes them after `explain/`:), in the table's order.
+ */
+function layerTable(markdown: string): { layer: string; modules: string[] }[] {
+  const section = markdown.split(/^## /m).find((s) => s.startsWith('Layers\n'));
+  if (!section) throw new Error('ENGINE.md has no "## Layers" section');
+  return section.split('\n').filter((line) => /^\| [^-|]/.test(line)).slice(1).map((line) => {
+    const [layer = '', modules = ''] = line.split(/(?<!\\)\|/).slice(1).map((cell) => cell.trim());
+    const names = [...modules.matchAll(/`([^`]+\.ts)`/g)].map((m) => m[1]!);
+    return { layer, modules: names.filter((n) => !n.includes('/') || n.startsWith('explain/')).map((n) => n.replace(/^explain\//, '')) };
+  });
+}
+const TABLE = layerTable(readFileSync(join(ROOT, 'docs/ENGINE.md'), 'utf8'));
+/** The explainer layer's modules, by layer, from the bottom, as ENGINE.md's table places them. */
+const EXPLAIN = Object.fromEntries(ORDER.map((l) => [l, TABLE.find((r) => r.layer === ROWS[l])?.modules ?? []])) as Record<string, readonly string[]>;
 
 interface Import { from: string; to: string; type: boolean }
 
@@ -77,10 +87,25 @@ const RULES: Record<string, (i: Import) => boolean> = {
 };
 const broken = (rule: string, imports: Import[]) => imports.filter(RULES[rule]!).map(show);
 
-test('every module under explain/ is placed in one layer', () => {
-  const placed = Object.values(EXPLAIN).flat();
-  assert.deepEqual(sources('explain').map((f) => f.slice('explain/'.length)).filter((f) => !placed.includes(f)), [], 'place the module in a layer above');
+test('ENGINE.md\'s layer table places every module under explain/ in one layer, and names only modules that exist', () => {
+  // The rows this test reads are the table's, in its order from the bottom.
+  const rows = TABLE.map((r) => r.layer);
+  assert.deepEqual(ORDER.map((l) => rows.indexOf(ROWS[l])), [...ORDER.map((l) => rows.indexOf(ROWS[l]))].sort((a, b) => a - b), 'the explain rows in the order of the layers');
+  for (const l of ORDER) assert.ok(rows.includes(ROWS[l]), `the table has a row "${ROWS[l]}"`);
+  const placed = Object.values(EXPLAIN).flat(), present = sources('explain').map((f) => f.slice('explain/'.length));
+  assert.deepEqual(present.filter((f) => !placed.includes(f)), [], 'place the module in a row of the table in docs/ENGINE.md');
+  assert.deepEqual(placed.filter((f) => !present.includes(f)), [], 'the table names only modules that exist');
   assert.deepEqual(placed.filter((f, i) => placed.indexOf(f) !== i), [], 'a module is in one layer');
+});
+
+test('the table is read as written: a module left out of it, or placed twice, is caught', () => {
+  const doc = readFileSync(join(ROOT, 'docs/ENGINE.md'), 'utf8');
+  const core = (md: string) => layerTable(md).find((r) => r.layer === 'Explain core')!.modules;
+  assert.ok(core(doc).includes('machine.ts') && core(doc).includes('view.ts'));
+  assert.ok(!core(doc.replace('`machine.ts`, ', '')).includes('machine.ts'), 'a module dropped from the doc is no longer placed');
+  const twice = layerTable(doc.replace('`explain/panels.ts` |', '`explain/panels.ts`, `view.ts` |')).flatMap((r) => r.modules);
+  assert.ok(twice.filter((m) => m === 'view.ts').length === 2, 'a module written in two rows is read twice');
+  assert.deepEqual(layerTable(doc).find((r) => r.layer === 'Author tooling')!.modules, ['describe.ts', 'project.ts', 'testing.ts'], 'the engine\'s src/testing.ts is not an explain module');
 });
 
 test('the engine imports nothing outside src/ but its vendored shaper', () => {

@@ -53,7 +53,11 @@ which its constructor calls.
 
 A path is `subpaths`, one `Float32Array` of cubic Bézier points per subpath (its
 start, then three points per curve), with `closed` saying which are closed; read
-them, and change them with the methods above. `hasPoints()` says whether a mobject
+them, and change them with the methods above. Each of those methods ends a write to the
+arrays in place by bumping the points' version, which the renderer's path-data cache
+keys on, so a write that goes round them would draw the old path;
+`test/path-cache.test.ts` writes through every one and compares the cached path with
+one computed afresh. `hasPoints()` says whether a mobject
 has points of its own, as a Group does not. To walk a path: `numCurves(i?)` counts
 the curves of subpath `i` or of the whole path, `pointOnCurve(i, c, t)` is the point
 at parameter `t` on curve `c`, `curveLength(i, c)` and `arcLength()` measure a curve
@@ -111,8 +115,9 @@ which `Code` sets. A `DecimalNumber` shows `value` with `decimals` places betwee
 parent. A mobject's `parent` is the group it is in, or null, and `family()` is the
 mobject and every descendant, depth first. A scene admits one root per subtree, so admitting a parent never paints a
 child twice. `Scene.add`, `remove`, `replace`, `bringToFront` and `bringToBack`
-control membership and draw order. The structure is a tree: do not insert a child
-twice or make a cycle. `scene.familyMembers()` lists every mobject on the stage and
+control membership and draw order. The structure is a tree: `add` refuses the mobject itself
+or one of its ancestors, which would make a cycle, and `group.remove(child)` takes out only
+the group's own children, leaving a mobject in another group where it is. `scene.familyMembers()` lists every mobject on the stage and
 each of its descendants, root by root, for a test or a check that looks for a part.
 `sameShapeAs(other, points?)` says whether two families have the same shape, every
 member of one class with as many children, and with `points` the same point counts:
@@ -218,8 +223,12 @@ shown apart from the model, such as which of several pictures a phase shows; a
 view's `draw` may read it, and a machine never changes it. `stateJson()` copies
 the model as JSON, with the parts helpers add with `addJson(fn)`; `shownJson()` copies
 `shown`, with the parts added with `addJson(fn, 'shown')`, such as the stage's
-description of its picture. The trace records the model as `before` and `after`
-and the second as `shown`. Both accept plain JSON and finite numbers, and refuse
+description of its picture. A part never replaces a key: one it writes that the
+model, what is shown or another part already has with another value throws when the
+JSON is read. So a helper's keys are reserved, `walks` in the state (a diagram's
+recorded walks) and `picture` in what is shown (the stage's description), and a
+scene that names its own `walks` is refused rather than overwritten. The trace
+records the model as `before` and `after` and the second as `shown`. Both accept plain JSON and finite numbers, and refuse
 functions, class instances, cycles and non-finite values; shapes belong in the
 scene tree.
 

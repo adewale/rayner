@@ -42,7 +42,7 @@ event reached. A replayed machine therefore seeks, traces and records like any o
 | Spec field | What it says |
 | --- | --- |
 | `start` | Where exploration starts; the scene need not be in it yet |
-| `events` | Every event, in the order the player shows them; distinct and at least one |
+| `events` | Every event, in the order the player shows them; distinct and at least one. An event is words with no comma, since a link joins the events a reader sent with commas |
 | `labels` | A button's name for an event whose own name would not read well (default: the event) |
 | `next(state, event)` | The model's step, from the model module: a new state, or `refuse(reason)` when the state refuses the event, the reason in the reader's words (`undefined` refuses with no reason) |
 | `bound(state, event)` | Where the story stops though the model would go on: the reason, else `undefined` |
@@ -80,9 +80,10 @@ checks the events and each final configuration against the XState fixture.
 **Views read the state, and nothing else that changes.** Exploration redraws each state after
 the run, so a picture that also read a variable outside the state would be drawn wrongly. Every
 `View` is made from `(scene, draw)`, and a draw may read `scene.shown` as well: which picture a
-phase shows belongs there, not in the model. A machine never changes `shown`. It records what
-was shown when it first played and refuses to play under anything else, and exploration draws
-every state under it.
+phase shows belongs there, not in the model. A machine never changes `shown`, but what is shown
+may change between its events (a guided tour moving a code panel's lit line). It records what was
+shown each time it plays, and exploration and the live player draw every state under what was
+shown when it last played.
 
 ## Refused events, bounds and authored transitions
 
@@ -156,7 +157,8 @@ out leaves the picture. A part may leave and enter again, which replaces it in p
 brought in is in the picture from the start but unseen, and joins when its turn comes, so
 `play()` never takes it for a new mobject. When the transition ends, each keyed part of each view
 takes its drawn counterpart's data in place, in the drawn stacking order: nothing moves, and
-every part keeps its identity for the next event.
+every part keeps its identity for the next event. A view whose parts do not line up one to one
+by key (a part with no key, or a key two siblings share) is redrawn from the state instead.
 
 ## The default transition
 
@@ -287,8 +289,11 @@ load of the URL runs the same, all skipped, so a link reopens the same picture, 
 its guarantee: a frame is a function of time and of the log. The run stops in the live step as soon
 as its picture stops changing (at the end of the play or wait that reaches the step's hold, or as
 the step ends), so code a scene runs between its last play and its next step never reaches the
-reader's stage. The machine plays under what the scene showed when it played, as exploration draws
-it.
+reader's stage. The machine plays under what the scene showed when it last played, as exploration
+draws it. The run's machine is found by its place among the scene's machines and must be the same
+machine, its events in order, its start and its views' keys, or the run is refused; `rayner check`
+holds the run that explores a machine at its live step to the same rule, so neither drives another
+machine that happens to sit at the same place.
 
 A link's events are checked against the machine before anything is drawn: the longest prefix it
 takes is replayed, and a notice names the first event it refused or that is past where the story

@@ -325,21 +325,24 @@ export interface CodeOpts {
   spans?: ReadonlyArray<ColorSpan>;
 }
 
-const graphemes = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter() : null;
+// Grapheme clusters are not tailored by locale; the locale is named so no machine's default decides.
+const graphemes = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter('en', { granularity: 'grapheme' }) : null;
 
 /**
  * `line` with each tab replaced by the spaces up to the next multiple of `width` columns,
  * and for each code point of the result the UTF-16 index in `line` it came from (a tab's
  * spaces all come from the tab). A column is a grapheme (an accent combined with its
- * letter takes one). `width` must be a positive integer.
+ * letter takes one). `width` must be a positive integer; without one, tabs stay tabs and
+ * only the map is made. Text's layout and its lettering runs (src/lettering-outlines.ts)
+ * both shape this form, so their clusters agree.
  */
-function expandTabs(line: string, width = 4): { text: string; source: number[] } {
-  if (!Number.isInteger(width) || width < 1) throw new RangeError(`new Text(): tabWidth must be a positive integer, not ${width}`);
+export function expandTabs(line: string, width?: number): { text: string; source: number[] } {
+  if (width !== undefined && (!Number.isInteger(width) || width < 1)) throw new RangeError(`new Text(): tabWidth must be a positive integer, not ${width}`);
   let out = '', col = 0, at = 0;
   const source: number[] = [];
   const units = graphemes ? Array.from(graphemes.segment(line), (g) => g.segment) : Array.from(line);
   for (const ch of units) {
-    if (ch === '\t') {
+    if (ch === '\t' && width !== undefined) {
       const n = width - (col % width);
       out += ' '.repeat(n); col += n;
       for (let k = 0; k < n; k++) source.push(at);

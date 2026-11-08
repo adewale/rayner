@@ -12,6 +12,7 @@ import { acceptedLog, decodeLog, encodeLog, explore, exploreAndClose, liveSteps,
 import type { Exploration, LiveSession } from '../app/embed-live.ts';
 import { Lru } from '../app/embed-lru.ts';
 import { pictureChange } from '../explain/trace.ts';
+import { machinesOf } from '../explain/machine.ts';
 
 await loadFonts();
 
@@ -123,14 +124,15 @@ test('a live run stops at the step’s resting picture, plays the log there, and
   let ranAfter = 0;
   const Lamp = lampScene({ after: () => { ranAfter++; } });
   const trace = await traceScene(Lamp);
+  const at = liveSteps(await new Lamp(new NullSink()).run()).get('press')!;
   ranAfter = 0;
   const press = trace.steps.find((s) => s.step === 'press')!;
-  const empty = await runLive(Lamp, press, 0, []);
+  const empty = await runLive(Lamp, press, at, []);
   assert.deepEqual(empty.rest, { level: 1 });
   assert.equal(ranAfter, 0, 'the run stopped as the step came to rest');
   const a = new StringSink(), b = new StringSink();
-  const one = await runLive(Lamp, press, 0, ['UP', 'DOWN', 'UP'], { sink: a });
-  await runLive(Lamp, press, 0, ['UP', 'DOWN', 'UP'], { sink: b });
+  const one = await runLive(Lamp, press, at, ['UP', 'DOWN', 'UP'], { sink: a });
+  await runLive(Lamp, press, at, ['UP', 'DOWN', 'UP'], { sink: b });
   assert.deepEqual(one.scene.state, { level: 2 });
   assert.equal(svgOf(a), svgOf(b), 'the same log draws the same picture');
   assert.match(JSON.stringify(one.shown), /lamp bright/);
@@ -139,16 +141,16 @@ test('a live run stops at the step’s resting picture, plays the log there, and
   let started = 0;
   const animated = new StringSink();
   const counting: Sink = { frame: async (scene, dt) => { frames.push(String(dt)); return animated.frame(scene); } };
-  await runLive(Lamp, press, 0, ['UP', 'DOWN', 'UP'], { animate: counting, onStart: () => { started = frames.length; } });
+  await runLive(Lamp, press, at, ['UP', 'DOWN', 'UP'], { animate: counting, onStart: () => { started = frames.length; } });
   assert.equal(started, 1, 'onStart follows the first frame, the picture before the last event');
   assert.ok(frames.length >= 9, `${frames.length} frames: the last event's 0.3 s played`);
   assert.equal(svgOf(animated), svgOf(a), 'an animated landing is the picture a fresh run draws');
   const before = new StringSink();
-  await runLive(Lamp, press, 0, ['UP', 'DOWN'], { sink: before });
+  await runLive(Lamp, press, at, ['UP', 'DOWN'], { sink: before });
   assert.equal(animated.frames[0], svgOf(before), 'the animation starts from the picture the log before it lands on');
   assert.notEqual(svgOf(before), svgOf(a));
   // From the machine's start, the views are redrawn there first.
-  const fromStart = await runLive(Lamp, press, 0, ['UP'], { from: 'start' });
+  const fromStart = await runLive(Lamp, press, at, ['UP'], { from: 'start' });
   assert.deepEqual(fromStart.scene.state, { level: 1 });
   assert.deepEqual(fromStart.rest, { level: 1 });
   // A log the machine does not take throws, as send does.
@@ -160,14 +162,15 @@ test('a kept run plays the next event from its picture, landing where a fresh ru
   let ranAfter = 0;
   const Lamp = lampScene({ after: () => { ranAfter++; } });
   const press = (await traceScene(Lamp)).steps.find((s) => s.step === 'press')!;
+  const at = liveSteps(await new Lamp(new NullSink()).run()).get('press')!;
   ranAfter = 0;
-  const kept = await runLive(Lamp, press, 0, ['UP'], { keep: true });
+  const kept = await runLive(Lamp, press, at, ['UP'], { keep: true });
   const session = kept.session!;
   assert.deepEqual([session.log, session.open, session.busy], [['UP'], true, false]);
   // Skipped, then drawn: the picture of the fresh run of the same log.
   const a = new StringSink(), fresh = new StringSink();
   const down = await session.send('DOWN', { sink: a });
-  await runLive(Lamp, press, 0, ['UP', 'DOWN'], { sink: fresh });
+  await runLive(Lamp, press, at, ['UP', 'DOWN'], { sink: fresh });
   assert.deepEqual(down.scene.state, { level: 1 });
   assert.equal(svgOf(a), svgOf(fresh));
   assert.deepEqual(session.log, ['UP', 'DOWN']);
@@ -176,7 +179,7 @@ test('a kept run plays the next event from its picture, landing where a fresh ru
   let started = 0;
   const counting: Sink = { frame: async (scene, dt) => { frames.push(String(dt)); return animated.frame(scene); } };
   const up = await session.send('UP', { animate: counting, onStart: () => { started = frames.length; } });
-  await runLive(Lamp, press, 0, ['UP', 'DOWN', 'UP'], { animate: freshAnimated });
+  await runLive(Lamp, press, at, ['UP', 'DOWN', 'UP'], { animate: freshAnimated });
   assert.equal(started, 1);
   assert.equal(animated.frames[0], svgOf(a), 'the animation starts from the picture the session held');
   assert.deepEqual(animated.frames, freshAnimated.frames, 'every frame is the fresh run’s');
@@ -186,12 +189,12 @@ test('a kept run plays the next event from its picture, landing where a fresh ru
   await assert.rejects(session.send('UP'), /refused/);
   assert.equal(session.open, false);
   await assert.rejects(session.send('DOWN'), /closed or busy/);
-  const other = (await runLive(Lamp, press, 0, [], { keep: true })).session!;
+  const other = (await runLive(Lamp, press, at, [], { keep: true })).session!;
   other.close();
   assert.equal(other.open, false);
   await assert.rejects(other.send('UP'), /closed or busy/);
   // One event at a time.
-  const third = (await runLive(Lamp, press, 0, [], { keep: true })).session!;
+  const third = (await runLive(Lamp, press, at, [], { keep: true })).session!;
   const first = third.send('UP');
   await assert.rejects(third.send('DOWN'), /closed or busy/);
   await first;
@@ -310,4 +313,38 @@ test('the kept pictures hold the most recently used eight, dropping the oldest',
     const recent = [...new Set([...visits].reverse())].slice(0, 8);
     assert.deepEqual(new Set(kept.keys()), new Set(recent));
   }));
+});
+
+test('a live run drives the same machine it was given: same events in the same order, same start, same views, or it is refused', async () => {
+  // A scene whose machine's events swap order on every run: the same index names another machine.
+  // Before, the player took whatever machine the index named.
+  let runs = 0;
+  class Swapping extends Scene<Lamp> {
+    override state = { level: 0 };
+    override async construct() {
+      const picture = view(this, (st: Lamp) => Object.assign(new Group(Object.assign(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), { key: 'lamp:word' })), { key: 'lamp' }));
+      this.add(picture);
+      const events: Press[] = runs++ % 2 ? ['DOWN', 'UP'] : ['UP', 'DOWN'];
+      const machine = new Machine<Lamp, Press>(this, { start: { level: 0 }, events, views: [picture], runTime: 0.2, next: (st, e) => ({ level: e === 'UP' ? Math.min(2, st.level + 1) : Math.max(0, st.level - 1) }) });
+      await this.step('press', { caption: 'Press.' });
+      await this.play(machine.replay(['UP']));
+    }
+  }
+  const trace = await traceScene(Swapping);
+  const press = trace.steps.find((s) => s.step === 'press')!;
+  runs = 0;
+  const ran = await new Swapping(new NullSink()).run();
+  const index = liveSteps(ran).get('press')!;
+  const at = { index, machine: machinesOf(ran)[index]! };
+  await assert.rejects(runLive(Swapping, press, at, []), /^Error: new Machine\(\): the run to "press" made different machines; a scene must make the same machines on every run$/);
+  // The next run makes the first order again: the same machine, which plays.
+  assert.deepEqual((await runLive(Swapping, press, at, ['UP'])).rest, { level: 1 });
+  // Identity reads events in order, the start and the views' keys.
+  const scene = new Scene<Lamp>(new NullSink());
+  const spec = { start: { level: 0 }, next: (s: Lamp) => s, views: [] };
+  const id = (o: object) => new Machine(scene, { ...spec, events: ['UP', 'DOWN'], ...o }).identity;
+  assert.equal(id({}), id({}));
+  assert.notEqual(id({}), id({ events: ['DOWN', 'UP'] }));
+  assert.notEqual(id({}), id({ start: { level: 1 } }));
+  assert.equal(id({ start: { level: 0, x: 1 } }), id({ start: { x: 1, level: 0 } }), 'a start written in another key order is the same start');
 });
