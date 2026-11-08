@@ -126,7 +126,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
       try { snapshot = unpackLettering(raw as LetteringSnapshot); }
       catch (e) { throw new Error(`${(e as Error).message.replace(/; run rayner snapshots.*$/, '')}; run rayner snapshots ${file}`); }
     }
-    if (!snapshot || snapshot.version !== 2 || snapshot.builderHash !== builderHash || json(snapshot.request) !== json(request))
+    if (!snapshot || snapshot.version !== 3 || snapshot.builderHash !== builderHash || json(snapshot.request) !== json(request))
       throw new Error(`scene.lettering.json: it is missing or stale; run rayner snapshots ${file}`);
     validateLetteringSnapshot(snapshot);
     return { Scene: bindLettering(Source, snapshot), snapshot,
@@ -204,7 +204,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
   }
   const embedded = await embeddedFaces();
   const coverage = [embedded.sans, embedded.mono, ...embedded.fallback];
-  const snapshot: LetteringSnapshot = { version: 2, builderHash, request, runs: {}, faces: {}, shaper: 'uharfbuzz+python-bidi/fonttools; glyph-math@6398654' };
+  const snapshot: LetteringSnapshot = { version: 3, builderHash, request, runs: {}, faces: {}, shaper: 'uharfbuzz+python-bidi/fonttools; glyph-math@6398654' };
   const used = new Set<number>();
   const usedMath = new Set<number>();
   let mathFont: Awaited<ReturnType<typeof loadFont>> | undefined;
@@ -365,7 +365,7 @@ export async function pageSnapshot(snapshot: LetteringSnapshot): Promise<PackedL
   const runs = Object.fromEntries(Object.entries(snapshot.runs).filter(([key]) => !off.has(key)));
   await snapshotProvider({ ...snapshot, runs, faces }).prepare!();
   return packLettering({
-    version: 2, builderHash: '', request: snapshot.request, runs, shaper: '',
+    version: 3, builderHash: '', request: snapshot.request, runs, shaper: '',
     faces: Object.fromEntries([...used].sort().map((name) => [name, { hash: '', data: snapshot.faces[name]!.data, license: '' }])),
   });
 }

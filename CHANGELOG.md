@@ -191,7 +191,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - A lettering snapshot is recaptured when it lacks a drawn run, or when its format or capture tool (shaper, requirements, vendored shapers, fallback fonts) changes.
 - `test/snapshot-capture.test.ts` captures every committed snapshot afresh in CI and fails on any difference.
 - `scene.snapshots/index.json` drops `sourceHash` and `importer`.
-- The outline workflow's `scene.lettering.json` is version 2, without `sourceHash` or `payloadHash`; the subset workflow's is still version 1.
+- The outline workflow's `scene.lettering.json` is version 3, without `sourceHash` or `payloadHash`, and stores each outline as path data (`"M0.5-0.25L…Z"`) where version 2 stored segment objects: committed snapshots are about 45% smaller, and font-metrics' page 12 KB smaller gzipped. The subset workflow's is still version 1.
 - `inputs.json` beside a built page is version 3, without `engineHash` or `importer`, which its `buildHash` already covers.
 - `npm run bench` compares reader timings between two revisions in Chromium and reports a small sample as inconclusive.
 - The engine works without the page: [engine fundamentals](docs/ENGINE-FUNDAMENTALS.md), the runnable [extension recipes](docs/EXTENDING.md) and [scene outputs](docs/SCENE-OUTPUTS.md) cover frames, text and traces from native scenes.

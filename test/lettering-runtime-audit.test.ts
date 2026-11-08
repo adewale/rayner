@@ -17,7 +17,7 @@ import type { Run } from '../vendor/glyph.js';
 import { shapeChain } from '../src/fonts.ts';
 
 function snapshot(request: LetteringSnapshot['request'], runs: Record<string, Run>): LetteringSnapshot {
-  return { version: 2, builderHash: '', request, runs, faces: {}, shaper: 'runtime-audit' };
+  return { version: 3, builderHash: '', request, runs, faces: {}, shaper: 'runtime-audit' };
 }
 function deferred() {
   let resolve!: () => void;

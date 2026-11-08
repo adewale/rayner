@@ -30,7 +30,7 @@ export type LetteringCut = '' | 'bold' | 'italic' | 'bold-italic';
 export const cutFace = (name: string, cut: LetteringCut): string => cut ? name + '/' + cut : name;
 export interface LetteringSnapshot {
   /** The snapshot format: raise it when what a stored field means changes. */
-  version: 2;
+  version: 3;
   /**
    * The capture tool's fingerprint: its Python, requirements, vendored shapers and fallback font
    * bytes, which decide every stored outline. Rayner's own code is not in it: a change there that
@@ -50,15 +50,49 @@ export interface LetteringSnapshot {
    */
   offPage?: string[];
   /**
-   * Packed form only (packLettering): each distinct glyph outline once. A packed
-   * glyph has `o`, its outline's index here, in place of `path`.
+   * Packed form only (packLettering): each distinct glyph outline once, as path
+   * data (outlinePath). A packed glyph has `o`, its outline's index here, in place of `path`.
    */
   outlines?: never;
 }
 
 export interface PackedLetteringSnapshot extends Omit<LetteringSnapshot, 'runs' | 'outlines'> {
   runs: Record<string, Omit<Run, 'glyphs'> & {glyphs: (Omit<Run['glyphs'][number], 'path'> & {o: number})[]}>;
-  outlines: Segment[][];
+  outlines: string[];
+}
+
+const COMMANDS = { MoveTo: 'M', LineTo: 'L', QuadTo: 'Q', CubicTo: 'C', Close: 'Z' } as const;
+/**
+ * An outline as SVG-like path data, in unit em, y up: `M`, `L`, `Q`, `C` and `Z`, each followed by
+ * its coordinates in the order the segment holds them, written as JavaScript writes a number, so
+ * outlineSegments reads back the same numbers.
+ */
+export function outlinePath(path: readonly Segment[]): string {
+  let d = '';
+  for (const s of path) {
+    const numbers = s.tag === 'Close' ? [] : s.tag === 'CubicTo' ? [s.x1, s.y1, s.x2, s.y2, s.x, s.y] : s.tag === 'QuadTo' ? [s.x1, s.y1, s.x, s.y] : [s.x, s.y];
+    d += COMMANDS[s.tag];
+    for (let i = 0; i < numbers.length; i++) {
+      const n = String(numbers[i]);
+      d += (i && n[0] !== '-' ? ' ' : '') + n;
+    }
+  }
+  return d;
+}
+/** The segments of path data outlinePath wrote; undefined for anything else. */
+export function outlineSegments(d: string): Segment[] | undefined {
+  const tokens = d.match(/[MLQCZ]|-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/g) ?? [];
+  if (tokens.join('').length !== d.replace(/ /g, '').length) return undefined;
+  const path: Segment[] = [];
+  for (let i = 0; i < tokens.length;) {
+    const command = tokens[i++]!, count = command === 'Z' ? 0 : command === 'C' ? 6 : command === 'Q' ? 4 : command === 'M' || command === 'L' ? 2 : -1;
+    if (count < 0) return undefined;
+    const n = tokens.slice(i, (i += count)).map(Number);
+    if (n.length !== count || n.some((x) => !Number.isFinite(x))) return undefined;
+    path.push(command === 'Z' ? { tag: 'Close' } : command === 'C' ? { tag: 'CubicTo', x1: n[0]!, y1: n[1]!, x2: n[2]!, y2: n[3]!, x: n[4]!, y: n[5]! }
+      : command === 'Q' ? { tag: 'QuadTo', x1: n[0]!, y1: n[1]!, x: n[2]!, y: n[3]! } : { tag: command === 'M' ? 'MoveTo' : 'LineTo', x: n[0]!, y: n[1]! });
+  }
+  return path;
 }
 export type StoredLetteringSnapshot = LetteringSnapshot | PackedLetteringSnapshot;
 
@@ -68,12 +102,12 @@ export type StoredLetteringSnapshot = LetteringSnapshot | PackedLetteringSnapsho
  * by line, so its glyphs recur in many runs; packing stores each outline once.
  */
 export function packLettering(snapshot: LetteringSnapshot): PackedLetteringSnapshot {
-  const outlines: Segment[][] = [], index = new Map<string, number>();
+  const outlines: string[] = [], index = new Map<string, number>();
   const runs = Object.fromEntries(Object.entries(snapshot.runs).map(([key, run]) => [key, {
     ...run, glyphs: run.glyphs.map(({ path, ...glyph }) => {
-      const id = JSON.stringify(path);
-      let o = index.get(id);
-      if (o === undefined) { index.set(id, o = outlines.length); outlines.push(path); }
+      const d = outlinePath(path);
+      let o = index.get(d);
+      if (o === undefined) { index.set(d, o = outlines.length); outlines.push(d); }
       return { ...glyph, o };
     }),
   }]));
@@ -89,7 +123,9 @@ export function unpackLettering(snapshot: StoredLetteringSnapshot): LetteringSna
   const outlines = snapshot.outlines;
   if (outlines === undefined) return snapshot;
   const fail = (): never => { throw new Error('scene.lettering.json: its outlines are invalid; run rayner snapshots to rebuild it'); };
-  if (!Array.isArray(outlines) || !outlines.every(Array.isArray) || !snapshot.runs || typeof snapshot.runs !== 'object') fail();
+  if (!Array.isArray(outlines) || !snapshot.runs || typeof snapshot.runs !== 'object') fail();
+  // Each outline read once: the glyphs that share it share its segments.
+  const paths = outlines.map((d) => (typeof d === 'string' ? outlineSegments(d) : undefined) ?? fail());
   const used = new Set<number>();
   const runs: LetteringSnapshot['runs'] = {};
   for (const [key, run] of Object.entries(snapshot.runs)) {
@@ -97,7 +133,7 @@ export function unpackLettering(snapshot: StoredLetteringSnapshot): LetteringSna
     runs[key] = { ...run, glyphs: run.glyphs.map(({ o, ...glyph }) => {
       if (!Number.isInteger(o) || !(o! >= 0 && o! < outlines.length)) fail();
       used.add(o!);
-      return { ...glyph, path: outlines[o!] as Run['glyphs'][number]['path'] };
+      return { ...glyph, path: paths[o!]! };
     }) };
   }
   if (used.size !== outlines.length) fail();

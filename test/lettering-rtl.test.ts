@@ -128,8 +128,14 @@ test('a packed snapshot unpacks only whole: every glyph names a stored outline a
   assert.ok(Array.isArray(original.outlines) && copy.outlines === undefined);
   assert.deepEqual(unpackLettering(original), copy);
   const junk = raw();
-  junk.outlines!.push([{ tag: 'MoveTo', x: 0, y: 0 }]);
+  junk.outlines!.push('M0 0');
   assert.throws(() => unpackLettering(junk), /scene\.lettering\.json: its outlines are invalid/);
+  // An outline is path data: segments, or anything else, are refused.
+  for (const outline of [[{ tag: 'MoveTo', x: 0, y: 0 }], 'M0', 'M0 0X1', 'M0 0L1 NaN', 'M0 0L1 1junk']) {
+    const wrong = raw();
+    (wrong.outlines as unknown[])[0] = outline;
+    assert.throws(() => unpackLettering(wrong), /scene\.lettering\.json: its outlines are invalid/, JSON.stringify(outline));
+  }
   const bad = raw();
   (Object.values(bad.runs)[0]!.glyphs[0] as unknown as { o: number }).o = 1e9;
   assert.throws(() => unpackLettering(bad), /scene\.lettering\.json: its outlines are invalid/);
