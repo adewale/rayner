@@ -181,6 +181,43 @@ test('a diagram’s presentation is one value, the view a live diagram replaced 
   await new (bindSnapshots(Presented, { [diagramKey(spec)]: fixture(), [diagramKey(next)]: after }))(new NullSink()).run();
 });
 
+test('a diagram\'s presentation changes only through its calls: a root taken off is not described, and one put back beside its view is refused', async () => {
+  const twice = /^Error: d\.root: it is on the stage while a view shows the diagram, so each of its keys is drawn twice; take it off, or call s\.liveDiagram\(d\) to show the live diagram in the view's place$/;
+  const beside = /^Error: d\.root: it is on the stage beside the view it replaced, so each of its keys is drawn twice; take the view off, or call s\.diagramView\(d\) to show the diagram by it again$/;
+  class ByHand extends Scene {
+    override async construct() {
+      const s = stage(this);
+      await this.step('one');
+      const d = await s.show(spec, { build: 'all' });
+      // d.root cannot be replaced, so the group the diagram keeps is the one on stage.
+      assert.throws(() => { (d as unknown as { root: unknown }).root = d.root.copy(); }, TypeError);
+      // Taken off by hand, the live diagram keeps its presentation and is not described until it is back.
+      this.remove(d.root);
+      assert.deepEqual(d.presentation, { kind: 'live', replaced: null });
+      assert.equal(d.described(), false);
+      this.add(d.root);
+      assert.equal(d.described(), true);
+      // Put on by hand while a view shows the diagram: refused when the stage next describes it.
+      const v = s.diagramView(d);
+      this.add(d.root);
+      assert.throws(() => d.described(), twice);
+      this.remove(d.root);
+      assert.equal(d.described(), true);
+      // The view it replaced, put back beside the live diagram: refused too.
+      s.liveDiagram(d);
+      this.add(v);
+      assert.throws(() => d.described(), beside);
+      this.remove(v);
+      assert.equal(d.described(), true);
+      // Left on stage at a step's end, the stage's description refuses it.
+      s.diagramView(d);
+      this.add(d.root);
+      await this.step('two');
+    }
+  }
+  await assert.rejects(new (bindSnapshots(ByHand, { [diagramKey(spec)]: fixture() }))(new NullSink()).run(), twice);
+});
+
 test('stage() runs once per scene: a second call is refused', async () => {
   class Twice extends Scene {
     override async construct() {
