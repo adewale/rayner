@@ -18,6 +18,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `s.diagramView(d, draw)` shows a diagram by a view of the state (its marks, notes and dimming, as `d.picture` takes them); `s.liveDiagram(d)` hands back for a morph, reveal or walk. `d.trail(hops)` gives a walk's trail as marks. mr-cache is converted.
 - A picture is never changed in place. Cards, code panels and diagrams that change are drawn by views from the state (the model) and `scene.shown` (how it is shown), and synced by key. Removed: `Diagram.mark`, `unmark`, `dim`, `note`, `clearNotes` and `walk`'s `trail`; `Card.set` and `mark`; `CodeBlock.focus`, `morph` and `clearMarks`; `s.emphasise`; and the engine's `StateReadout`. [Card and CodeBlock](docs/REFERENCE.md#card-and-codeblock), [views](docs/VIEWS.md#cards-code-annotations-and-notes-from-state)
 - Cards and code panels take their marks as options: `lit: { row, as }` on a card, `lit: { lines, as }` and `added` on a code panel; `width` and `fitHeight` keep a panel's size; `key` keys their parts, so a sync keeps what stays, fades a changed value or line across and moves the bar. A code line is keyed by its text, so a line that moves pairs with itself. `panel: false` gives a card with no panel, which is how a readout of state is drawn. A card or panel carries its bar from the start, so a view or staged step draws the mark from state, described and emphasised.
+- A keyed card keys each row's label by the row's place (`key:row:i`), so a repeated label keys every row once.
 - The word for what a mark says is `as` everywhere: a card's and a code panel's `lit`, a diagram mark's `{ color, as }`, and `emphasised(m, as)`. A code panel's highlighted lines are lit, so `focus` means only the camera.
 - What is shown may change between a machine's events (a guided tour moving a code panel's lit line); exploration and the live player draw under what the machine last played under.
 - The phone's close-ups count a mark redrawn at the same keyed place with the same words as the same emphasis, not new.
@@ -55,6 +56,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - Parts with the same `key` are the same part across morphs (`matchByKey`, `match: 'key'`), and `find(key)` and `findAll` address them. [Matching](docs/MATCHING.md#which-key)
 - A scene changes its state by assigning `this.state` and syncing its views; several model steps in a row are a loop of assignments and plays. `SetState` is not exported: a machine's events change the state at their turns in its schedule. [Changing what is shown](docs/VIEWS.md#changing-what-is-shown)
 - `become` takes another mobject's data in place, keeping its identity.
+- A mobject's family is a tree: `add` refuses the mobject itself or one of its ancestors, and `remove` takes out only its own children, leaving a mobject in another group where it is.
 - `GrowFromEdge` grows bars and `PulseAlongPath` sends tokens along routes.
 - Mermaid diagrams in all 15 Agentic Mermaid families are captured at build time and animated by part id with `reveal`, `walk`, `enlarge` and `morph`; their marks, notes and dimming are drawn from state by `d.picture`. [Diagrams](docs/REFERENCE.md#diagrams)
 - `d.enlarge(ids, { zoom })` enlarges parts of a diagram inside its own box, and `d.enlarge('all')` puts the artwork back; it was `d.focus`, a word the camera's `s.focus` also uses.
@@ -103,6 +105,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - An event without authored motion morphs each view to the new state by key, staged, so a word and the word replacing it never overlap. [Default transition](docs/MACHINES.md#the-default-transition)
 - A view's `sync()` stages its morph the same way by default, and the matching transforms' `staged` option stages one anywhere.
 - An event can have authored motion: its `transition` is built from the states either side when its turn comes. The views then land on the model's picture of the new state.
+- A view whose parts do not line up one to one by key when a transition lands (a part with no key, or a key two siblings share) is redrawn from the state, so no part is drawn twice.
 - A transition's `t.choreograph(view)` morphs, brings in and takes out keyed parts in the author's order, landing whatever it does not name.
 - Nine of the collection's explainers are machines: statecharts, ring-buffer, state-machine, token-bucket, monty-hall, latest-search, oauth-pkce, just-bash and python-dict. [Nine machines](docs/MACHINES.md#nine-machines)
 - The statecharts machine covers both charts and is checked against XState's explored graph. python-dict's deletions and lookups are two machines on keyed tables.

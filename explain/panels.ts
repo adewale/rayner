@@ -253,8 +253,9 @@ export class Card extends Group {
       this.bar.key = `${k}:bar`;
       if (titleText) titleText.key = `${k}:title`;
       headings.forEach((h, j) => (h.key = `${k}:column:${j}`));
+      // By row: a repeated label names no single row, so the label map holds only its last.
       this.rows.forEach((row, i) => {
-        this.labels.get(row.label)!.key = `${k}:row:${i}`;
+        labels[i]!.key = `${k}:row:${i}`;
         row.cells.forEach((c, j) => (c.key = `${k}:row:${i}:${j}:${c.text}`));
       });
     }

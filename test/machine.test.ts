@@ -444,3 +444,31 @@ test('exploration also walks the states a reader reaches from the live step, not
   const [explored] = await exploreMachines(ran, stageOf);
   assert.ok(explored!.problems.some((p) => /^from the state at "press", at the start: “lamp dim” is .* px/.test(p)), JSON.stringify(explored!.problems));
 });
+
+test('an authored transition lands a picture whose parts repeat a key by redrawing it, never by drawing one part twice', async () => {
+  // Two parts share the key "part": a landing that matched by key would put the second part in both places.
+  type N = { n: number };
+  class Repeated extends Scene<N> {
+    pair!: View;
+    override state = { n: 0 };
+    override async construct() {
+      this.pair = view(this, (st: N) => {
+        const a = Object.assign(new Text(`a${st.n}`, { fontSize: 0.5 }).shift([-2, 0]), { key: 'part' });
+        const b = Object.assign(new Text(`b${st.n}`, { fontSize: 0.5 }).shift([2, 0]), { key: 'part' });
+        return Object.assign(new Group(a, b), { key: 'pair' });
+      });
+      this.add(this.pair);
+      const machine = new Machine<N, 'UP'>(this, {
+        start: { n: 0 }, events: ['UP'], next: (s) => ({ n: s.n + 1 }), views: [this.pair], runTime: 0.2,
+        transition: { UP: (t) => new Transform(this.pair.current, t.target(this.pair)) },
+      });
+      await this.step('up');
+      await this.play(machine.replay(['UP', 'UP']));
+    }
+  }
+  const ran = await new Repeated(new NullSink()).run() as Repeated;
+  const parts = ran.pair.current.children;
+  assert.equal(new Set(parts).size, 2, 'two distinct parts');
+  assert.deepEqual(ran.pair.texts, ['a2', 'b2']);
+  assert.deepEqual(parts.map((p) => Math.sign(p.center()[0])), [-1, 1]);
+});

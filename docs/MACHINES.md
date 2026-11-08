@@ -156,7 +156,8 @@ out leaves the picture. A part may leave and enter again, which replaces it in p
 brought in is in the picture from the start but unseen, and joins when its turn comes, so
 `play()` never takes it for a new mobject. When the transition ends, each keyed part of each view
 takes its drawn counterpart's data in place, in the drawn stacking order: nothing moves, and
-every part keeps its identity for the next event.
+every part keeps its identity for the next event. A view whose parts do not line up one to one
+by key (a part with no key, or a key two siblings share) is redrawn from the state instead.
 
 ## The default transition
 

@@ -265,7 +265,7 @@ A card or code panel is a picture of values: it is built once, with what it mark
 | --- | --- |
 | `lit` | A card's bar on one row, `{ row, as }`, or a code panel's on zero-based line `i` or lines `[a, b]` inclusive, `{ lines, as }`. `as` is the word the description gives what is lit, such as `'rejected'`; without it a row is "marked" and lines are "focused", in the scene's language. `null` lights nothing |
 | `diff`, `added` | Added and removed bars: from lines that start `+ ` or `- `, or `added` for the indices an edit introduced |
-| `key` | Key the card or panel and its parts under this name, so `view.sync()` changes it in place: an unchanged value or line stays, a changed one fades out as its replacement fades in, and the bar moves. A card's value is keyed with its text; a line is keyed by its text and which occurrence of that text it is, so a line that moves pairs with itself |
+| `key` | Key the card or panel and its parts under this name, so `view.sync()` changes it in place: an unchanged value or line stays, a changed one fades out as its replacement fades in, and the bar moves. A card's row label is keyed by the row's place, so labels may repeat, and its value with its text; a line is keyed by its text and which occurrence of that text it is, so a line that moves pairs with itself |
 | `width`, `fitHeight` | A fixed width, so a panel drawn from state keeps its size as its values or lines change; in a box, shrink code to fit the box's height too |
 | `panel: false` | A card with no panel or padding, for values written inside a drawing (`ring-buffer`'s head, tail and length inside its ring; `token-bucket`'s balance) |
 

@@ -303,7 +303,8 @@ const LAND = 1 / 30;
  * brought what is on screen there (rayner check holds it to that). Each keyed part takes its drawn
  * counterpart's data in place (a morphed Text gets its new string) and the parts go back into the
  * drawn picture's stacking order, so every part keeps its identity for the next event. A picture
- * whose parts do not line up by key is swapped for the drawn one instead.
+ * whose parts do not line up by key (one unkeyed, or a key two siblings share) is swapped for the
+ * drawn one instead.
  */
 class Landing extends Animation {
   views: readonly View[];
@@ -318,7 +319,9 @@ class Landing extends Animation {
     for (const v of this.views) {
       const drawn = v.placed(this.scene.state), current = v.current;
       const byKey = new Map(current.children.map((c) => [c.key, c] as const));
-      const lines = drawn.children.length === current.children.length && drawn.children.every((d) => d.key !== undefined && byKey.get(d.key)?.sameShapeAs(d));
+      // Parts line up when every key names one part on each side: a key two siblings share names neither.
+      const lines = byKey.size === current.children.length && new Set(drawn.children.map((d) => d.key)).size === drawn.children.length &&
+        drawn.children.length === current.children.length && drawn.children.every((d) => d.key !== undefined && byKey.get(d.key)?.sameShapeAs(d));
       if (!lines) { v.rebuild(); continue; }
       // Kept parts in the drawn order, then the whole picture takes the drawing: the parts keep
       // their identities, and the root takes its own fields too (a card's lit row, a code

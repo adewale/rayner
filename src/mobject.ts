@@ -217,7 +217,15 @@ export class Mobject {
     return this.family().filter((m) => m.key !== undefined && test(m.key));
   }
 
+  /**
+   * Make each of `mobs` a child of this one, last on top, taking it from its old parent. Refuses
+   * this mobject itself and any of its ancestors, which would make the family a cycle.
+   */
   add(...mobs: Mobject[]): this {
+    for (const m of mobs) {
+      for (let p: Mobject | null = this; p; p = p.parent)
+        if (p === m) throw new Error(`m.add(): ${mobjectName(m)} ${m === this ? 'is the mobject it is added to' : 'contains the mobject it is added to'}, so the family would be a cycle; add it to a mobject outside it`);
+    }
     for (const m of mobs) {
       if (m.parent) m.parent.remove(m);
       m.parent = this;
@@ -228,9 +236,10 @@ export class Mobject {
     return this;
   }
 
+  /** Take each of `mobs` that is a child of this one out of it; any other is left where it is. */
   remove(...mobs: Mobject[]): this {
     this.children = this.children.filter((c) => !mobs.includes(c));
-    for (const m of mobs) m.parent = null;
+    for (const m of mobs) if (m.parent === this) m.parent = null;
     this.invalidateBox();
     return this;
   }
