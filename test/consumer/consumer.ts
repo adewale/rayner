@@ -228,7 +228,7 @@ import { Machine, refuse, isRefusal, answerOf, settingsOf, resolveSettings, regi
 import type { Refusal, Transition, Choreography, CardOptions, CardRow, NoteSide, PictureNote, DiagramPicture, Palette, Stage, ExplainerClass, ExplainerMeta, Setting, StepKind, Description } from 'rayner/explain';
 import { Write, MoveAlongPath, Square, Underline, ArcBetweenPoints } from 'rayner/extras';
 import { seenFrom, seenPictures, depthOrder, latLon, toLatLon, greatArc, circleOn, between, project } from 'rayner/geo';
-import type { Model3D, Part, Seen, SeenOptions, SeenPicture, Vec3, Viewpoint } from 'rayner/geo';
+import type { Model3D, Part, SeenPiece, SeenOptions, SeenPicture, Vec3, Viewpoint } from 'rayner/geo';
 import { NullSink, indexScene, stepTime, renderText, toSvgString } from 'rayner/output';
 import { InvariantSink } from 'rayner/testing';
 import type { InvariantFailure } from 'rayner/testing';
@@ -349,7 +349,7 @@ export async function globe(scene: Scene): Promise<number> {
   const picture = seenFrom(model, turned, options);
   scene.add(picture);
   const drawn: SeenPicture[] = seenPictures(picture).map((g) => (g as Group & { seenPicture: SeenPicture }).seenPicture);
-  const seen = (picture.children[0] as Mobject & { seen?: Seen }).seen;
+  const seen = (picture.children[0] as Mobject & { seen?: SeenPiece }).seen;
   const order = depthOrder(picture);
   const { at } = project(tokyo, turned, 1, options);
   return drawn.length + (seen ? 1 : 0) + (order === true ? 1 : 0) + at[0] + toLatLon(tokyo).lat;

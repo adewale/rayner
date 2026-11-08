@@ -171,6 +171,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - A `table()` row given as `{ key, cells }` keeps its identity wherever it moves, and a duplicated row key or header is refused by name. python-dict and bloom-filter key their rows.
 - `seenFrom(model, viewpoint)` draws a 3D model on a sphere through an orthographic, perspective, gnomonic or Mercator viewpoint. [3D](docs/REFERENCE.md#3d-seenfrommodel-viewpoint)
 - `seenFrom` draws keyed 2D pieces in an explicit depth order, and `depthOrder` is an invariant that checks that order on every frame.
+- Each piece `seenFrom` draws records a `SeenPiece` (its part, layer and model lines), beside the `SeenPicture` the drawing records; `seenPictures(m)` finds the drawings.
 - A camera move is a `view.tween` over the viewpoint. The great-circle explainer draws its globe and both maps from one model.
 - A stage can run right to left (`direction: 'rtl'`): cards and logical regions mirror, and text keeps its own reading direction. [Spatial direction](docs/REFERENCE.md#spatial-direction)
 

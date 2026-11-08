@@ -68,7 +68,7 @@ export interface SeenOptions { at?: Vec; scale?: number; window?: Box; key?: str
 
 export type Layer = 'far' | 'body' | 'surface' | 'above';
 /** What seenFrom records on each piece it draws, so depthOrder can check it: an own field, so Follow's become() carries it. */
-export interface Seen { part: string; layer: Layer; surface: boolean; lines: Vec3[][]; shown: boolean }
+export interface SeenPiece { part: string; layer: Layer; surface: boolean; lines: Vec3[][]; shown: boolean }
 /** What seenFrom records on the picture it returns. */
 export interface SeenPicture { viewpoint: Viewpoint; radius: number; at: Vec; scale: number; window?: Box }
 
@@ -361,7 +361,7 @@ function path(style: ConstructorParameters<typeof VMobject>[0], lines: Vec3[][],
   }
   return m;
 }
-function piece<M extends Mobject>(m: M, seen: Seen, key: string | undefined): M {
+function piece<M extends Mobject>(m: M, seen: SeenPiece, key: string | undefined): M {
   Object.assign(m, { seen });
   if (key !== undefined) m.key = key;
   return m;
@@ -443,7 +443,7 @@ export function seenFrom(model: Model3D, viewpoint: Viewpoint, options: SeenOpti
 }
 
 const RANK: Record<Layer, number> = { far: 0, body: 1, surface: 2, above: 3 };
-const seenOf = (m: Mobject) => (m as Mobject & { seen?: Seen }).seen;
+const seenOf = (m: Mobject) => (m as Mobject & { seen?: SeenPiece }).seen;
 /** The seenFrom pictures in `m`'s family (m included), outermost first. */
 export function seenPictures(m: Mobject): Group[] {
   return m.family().filter((x): x is Group => !!(x as Mobject & { seenPicture?: SeenPicture }).seenPicture);
