@@ -182,8 +182,9 @@ test('a diagram’s presentation is one value, the view a live diagram replaced 
 });
 
 test('a diagram\'s presentation changes only through its calls: a root taken off is not described, and one put back beside its view is refused', async () => {
-  const twice = /^Error: d\.root: it is on the stage while a view shows the diagram, so each of its keys is drawn twice; take it off, or call s\.liveDiagram\(d\) to show the live diagram in the view's place$/;
-  const beside = /^Error: d\.root: it is on the stage beside the view it replaced, so each of its keys is drawn twice; take the view off, or call s\.diagramView\(d\) to show the diagram by it again$/;
+  // Named by the call whose step's description refuses it, not by the property.
+  const twice = /^Error: this\.step\(\): the diagram's root is on the stage while a view shows the diagram, so each of its keys is drawn twice; take it off, or call s\.liveDiagram\(d\) to show the live diagram in the view's place$/;
+  const beside = /^Error: this\.step\(\): the diagram's root is on the stage beside the view it replaced, so each of its keys is drawn twice; take the view off, or call s\.diagramView\(d\) to show the diagram by it again$/;
   class ByHand extends Scene {
     override async construct() {
       const s = stage(this);
@@ -256,7 +257,7 @@ test('a stage() that throws on its options leaves the scene as it was, free to h
     [{ heading: 42 }, /^TypeError: stage\(\): the heading is 42; give 'step' to follow each step's title, words to fix it, or false for none$/],
     [{ heading: true }, /^TypeError: stage\(\): the heading is true;/],
     [{ headingsize: 0.5 }, /^TypeError: stage\(\): it takes no option "headingsize"; the options are direction, style, palette, heading, headingSize, numbered$/],
-    [null, /^TypeError: stage\(\): its options are null; give an object, such as \{ style: 'nord' \}$/],
+    [null, /^TypeError: stage\(\): the options must be an object/],
   ];
   for (const [options, refused] of defects) {
     assert.throws(() => stage(scene, options as never), refused, JSON.stringify(options));

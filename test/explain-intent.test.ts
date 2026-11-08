@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseIntent, adoptIntent } from '../tools/lib/explain-intent.ts';
+import { parseIntent, adoptIntent, adoptScript } from '../tools/lib/explain-intent.ts';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import { buildExplainer } from '../tools/lib/explain-build.ts';
 
@@ -86,6 +86,27 @@ test('every adoption starts from the declared metadata: withIntent and loadProje
     assert.equal(second.Scene.meta?.id, 'lamp', 'the id loadProject gives it is given again');
     await rm(join(folder, 'script.md'));
     assert.equal((await loadProject(Dim, folder)).Scene.meta?.answer, undefined);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('a part declared in both places is refused under the script\'s path, by the command and by loadProject alike', async () => {
+  const { loadProject } = await import('../explain/project.ts');
+  const { Scene } = await import('../src/index.ts');
+  const root = await mkdtemp(join(tmpdir(), 'rayner-intent-twice-')), folder = join(root, 'lamp');
+  try {
+    await mkdir(folder);
+    await writeFile(join(folder, 'script.md'), SCRIPT);
+    const twice = (where: string) => new RegExp(`^Error: ${where.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}: answer is declared in both script\\.md and the scene;`);
+    // Before, the command named the scene file and loadProject the script.
+    const Declared = { meta: { answer: 'twice' } as Record<string, unknown> };
+    await assert.rejects(adoptScript(Declared, join(folder, 'scene.ts')), twice(join(folder, 'script.md')));
+    class Lamp extends Scene {
+      static meta = { answer: 'twice' };
+      override async construct() { await this.step('one', { caption: 'The lamp.' }); }
+    }
+    await assert.rejects(loadProject(Lamp, folder), twice(join(folder, 'script.md')));
   } finally {
     await rm(root, { recursive: true, force: true });
   }

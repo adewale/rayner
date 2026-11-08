@@ -173,11 +173,10 @@ const PALETTE_KEYS = ['paper', 'ink', 'accent', 'muted'] as const;
 /**
  * Every option stage() takes, checked before the stage touches the scene: only the keys it takes,
  * a palette of four hex colours, a heading that is 'step', words or false, a heading size above 0,
- * and `numbered` true or false. (The direction and the style are checked where they are read.)
+ * and `numbered` true or false. (The options' shape and direction are checked by layoutDirection,
+ * first, and the style where it is read.)
  */
 function checkStageOptions(options: StageOptions): void {
-  if (typeof options !== 'object' || options === null || Array.isArray(options))
-    throw new TypeError(`stage(): its options are ${JSON.stringify(options) ?? typeof options}; give an object, such as { style: 'nord' }`);
   const unknown = Object.keys(options).filter((k) => !(STAGE_OPTIONS as readonly string[]).includes(k));
   if (unknown.length) throw new TypeError(`stage(): it takes no option ${unknown.map((k) => JSON.stringify(k)).join(', ')}; the options are ${STAGE_OPTIONS.join(', ')}`);
   const { palette: p, heading, headingSize, numbered } = options;
@@ -214,8 +213,8 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
   // The options are checked, and the backdrop and first heading made, before the stage touches the
   // scene: a stage() that throws here leaves it as it was, without a stage and free to have one.
   // From `staged.add` on, the scene has its stage.
-  checkStageOptions(options);
   const direction = layoutDirection(options, 'ltr', 'stage()');
+  checkStageOptions(options);
   // Without a style or palette, the stage adopts the first diagram's palette, and only the first's.
   let adopt = !options.palette && !options.style;
   let colors = options.palette ?? palette(options.style ?? 'nord');

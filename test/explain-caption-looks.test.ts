@@ -46,5 +46,7 @@ test('swatchWords says a fill, a line and an outline, dashed or not, with a name
   assert.equal(swatchWords({ label: 'browser', stroke: '#0969da', dashed: true }), 'dashed blue line');
   assert.equal(swatchWords({ label: 'gap', fill: 'none', stroke: '#cf222e', dashed: true }), 'dashed red outline');
   assert.equal(swatchWords({ label: 'dog', fill: '#e0d0b0', stroke: '#9a6700', name: 'brown' }), 'brown fill with a brown outline');
+  // The article follows the word after it.
+  assert.equal(swatchWords({ label: 'fox', fill: '#8250df', stroke: '#e8590c' }), 'purple fill with an orange outline');
   assert.throws(() => swatchWords({ label: 'nothing' }), /needs a fill or a stroke/);
 });

@@ -348,7 +348,10 @@ export function colorName(hex: string): string {
 export function swatchWords(item: LegendItem, api = 'legend()'): string {
   const name = (c: string) => item.name ?? colorName(c);
   if (item.fill === 'none' && item.stroke) return `${item.dashed ? 'dashed ' : ''}${name(item.stroke)} outline`;
-  if (item.fill && item.stroke) return `${name(item.fill)} fill with a ${item.dashed ? 'dashed ' : ''}${colorName(item.stroke)} outline`;
+  if (item.fill && item.stroke) {
+    const outline = `${item.dashed ? 'dashed ' : ''}${colorName(item.stroke)} outline`;
+    return `${name(item.fill)} fill with ${/^[aeiou]/.test(outline) ? 'an' : 'a'} ${outline}`;
+  }
   if (item.fill) return `${name(item.fill)} fill`;
   if (item.stroke) return `${item.dashed ? 'dashed ' : ''}${name(item.stroke)} line`;
   throw new TypeError(`${api}: the entry ${JSON.stringify(item.label)} needs a fill or a stroke for its swatch`);
