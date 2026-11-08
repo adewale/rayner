@@ -122,7 +122,7 @@ test('requested pages run offline in Chromium without errors or network requests
       const { html } = await buildExplainer(project, join(dir, id + '.html'));
       const scenario = defaultScenario(project);
       const first = scenario.trace.steps[0]!;
-      const scene = await renderFrame(scenario.Scene, first.frame1!, new SnapshotSink());
+      const scene = await renderFrame(scenario.Scene, first.frame1, new SnapshotSink());
       const expected = renderElements(scene, { relative: false })
         .filter((record) => record.tag === 'path').map((record) => String(record.attrs.d)).sort();
       assert.ok(expected.length > 0, `${id}: the source fixture draws outlines`);

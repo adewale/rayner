@@ -118,7 +118,7 @@ test('watchedChanges: keys whose JSON changed, in declaration order, at most fou
   // Unchanged values, unwatched keys and a scene with no watch show nothing.
   assert.deepEqual(watchedChanges({ before: { a: 1, z: 1 }, after: { a: 1, z: 2 } }, { a: 'A' }), []);
   assert.deepEqual(watchedChanges(step, undefined), []);
-  assert.deepEqual(watchedChanges({ before: { a: 1 } }, { a: 'A' }), [{ label: 'A', before: '1' }]);
+  assert.deepEqual(watchedChanges({ before: { a: 1 }, after: {} }, { a: 'A' }), [{ label: 'A', before: '1' }]);
   // Values that read the same are no change to a reader; nor is null to absent or [] to absent.
   assert.deepEqual(watchedChanges({ before: { a: 0.001, b: null, c: [] }, after: { a: 0.002 } }, { a: 'A', b: 'B', c: 'C' }), []);
   // An object is skipped and reported; the others still show.

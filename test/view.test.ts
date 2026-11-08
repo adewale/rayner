@@ -146,6 +146,38 @@ test('tween() writes into the picture on screen when it begins: after a sync in 
   assert.ok(before);
 });
 
+test('a sync and a tween finish the morph they begin: it ends finished, as an animation the scene began does', async () => {
+  const phases: Record<string, string> = {};
+  class Finished extends Scene<{ n: number }, {}> {
+    override async construct() {
+      this.state = { n: 0 };
+      const keyed = (st: { n: number }) => new Group(Object.assign(new Rectangle({ width: 1 + st.n, height: 1 }), { key: 'box' }), Object.assign(new Text(`n ${st.n}`, { fontSize: 0.4 }), { key: 'label' }));
+      const v = view(this, keyed, { place: false });
+      this.add(v);
+      for (const match of ['key', 'text', 'shapes', 'index'] as const) {
+        this.state.n++;
+        const sync = v.sync({ match, runTime: 0.2 });
+        await this.play(sync);
+        phases[match] = sync.inner!.phase;
+      }
+      // A rate function that comes back leaves the old picture, and still finishes the morph.
+      this.state.n++;
+      const back = v.sync({ runTime: 0.2, rateFunc: (t) => 4 * t * (1 - t) });
+      const kept = v.current;
+      await this.play(back);
+      assert.equal(v.current, kept, 'a sync whose rate comes back keeps the old picture');
+      phases.back = back.inner!.phase;
+      const w = view(this, (st) => new Rectangle({ width: 1 + st.n, height: 1 }), { place: false });
+      this.add(w);
+      const tween = w.tween((t) => ({ n: 9 + t }), { runTime: 0.2 });
+      await this.play(tween);
+      phases.tween = (tween as unknown as { follow: Animation }).follow.phase;
+    }
+  }
+  await new Finished(new StringSink()).run();
+  assert.deepEqual(phases, { key: 'finished', text: 'finished', shapes: 'finished', index: 'finished', back: 'finished', tween: 'finished' });
+});
+
 test('no updaters: seeking skips the frames of plays with syncs, and renders the frame a full run renders', async () => {
   // No updater at any frame
   let frames = 0;

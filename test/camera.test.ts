@@ -146,6 +146,18 @@ test('the camera is never drawn and never joins scene.mobjects; it plays like an
   assert.ok(Math.abs(s.frame.zoom - 4.5) < 1e-5, `fit the 2 × 2 square, height-bound: zoom ${s.frame.zoom}`);
 });
 
+test('the frame\'s zoom is the stage\'s (zoomOf): out of 16:9, the tighter side sets it', async () => {
+  const { zoomOf } = await import('../src/units.ts');
+  const s = new Scene(new NullSink());
+  assert.equal(s.frame.zoom, 1);
+  s.frame.scale(0.5);
+  assert.ok(Math.abs(s.frame.zoom - 2) < 1e-6);
+  // Half as wide and as high as it was: the width alone would say 4, but the stage letterboxes it at 2.
+  s.frame.stretch(0.5, 0);
+  assert.ok(Math.abs(s.frame.zoom - 2) < 1e-6, `zoom ${s.frame.zoom}`);
+  assert.equal(s.frame.zoom, zoomOf(s.frame.box()!));
+});
+
 test('an updater on the frame follows a moving mobject', async () => {
   const s = new Scene(new NullSink());
   let dot!: Dot;

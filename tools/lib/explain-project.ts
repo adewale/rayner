@@ -1,7 +1,7 @@
 import { adoptScript } from './explain-intent.ts';
 import type { adoptIntent } from './explain-intent.ts';
 import {textContextOf} from '../../src/text-context.ts';
-import { offPage, prepareLettering as prepareOutlineLettering } from './lettering.ts';
+import { canonicalRequest, offPage, prepareLettering as prepareOutlineLettering } from './lettering.ts';
 import { usesOutlineLettering, withSceneLettering } from '../../src/lettering-outlines.ts';
 import type { LetteringSnapshot } from '../../src/lettering-outlines.ts';
 import { build } from 'esbuild';
@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { Scene } from '../../src/index.ts';
 import { NullSink } from '../../src/output.ts';
+import { dryRun } from '../../src/timeline.ts';
 import { diagramsOn } from '../../explain/diagrams.ts';
 import { liveSteps } from '../../explain/live.ts';
 import type { Live } from '../../explain/live.ts';
@@ -263,7 +264,7 @@ export async function collectProject(
     ? await prepareOutlineLettering(loaded.Scene, file, captureLettering, write) : undefined;
   const Source = outline?.Scene ?? loaded.Scene;
   const request = outlineRequested ? undefined : letteringRequest(Source);
-  const subsetMetrics = request ? hash(JSON.stringify([request, ...(await Promise.all(
+  const subsetMetrics = request ? hash(JSON.stringify([canonicalRequest(request), ...(await Promise.all(
     ['inter.woff2', 'jetbrains-mono.woff2'].map(async (name) =>
       [name, hash(await readFile(join(ROOT, 'vendor/lettering', name)))]),
   ))])) : undefined;
@@ -329,11 +330,7 @@ export async function collectProject(
         request,
         async () => {
           const counted = edits;
-          for (const values of scenariosOf(Source)) {
-            ran.push(await new (withSettings(bindSnapshots(Source, resolver), values))(new NullSink(), {
-              skipUntil: Infinity,
-            }).run());
-          }
+          for (const values of scenariosOf(Source)) ran.push(await dryRun(withSettings(bindSnapshots(Source, resolver), values), new NullSink()));
           edits = counted;
           takeLetteringMissing();
         },
@@ -365,7 +362,7 @@ export async function collectProject(
       const { trace, scene: traced } = await traceRun(Bound),
         paper = paperOf(traced);
       ran.push(traced);
-      checkScenarioSteps(trace, values);
+      checkScenarioSteps(trace, values, file);
       // The page never draws these (offPage): they stay out of what it carries
       if (outline) await withSceneLettering(Bound, () => offPage(async () => {
         const { Text } = await import('../../src/index.ts');

@@ -66,6 +66,14 @@ export interface PictureNote { id: string; text: string; side?: NoteSide; color?
  * diagram is off the stage (`viewed`, set by `s.diagramView` or `d.showBy`). A live diagram that
  * took a view's place (`s.liveDiagram`) names that view as `replaced`, so the stage can show the
  * diagram by it again; otherwise `replaced` is null.
+ *
+ * The rule: only the diagram's and the stage's calls change it (`s.show`, a reveal, a morph,
+ * `d.hide`, `s.clear`, `s.diagramView`, `s.liveDiagram`, `d.showBy`), and `d.root` cannot be
+ * replaced. A scene may take the live root or the view off the stage itself (`this.remove`, a
+ * FadeOut): the presentation stays, and the stage describes the diagram again once it is back. A
+ * scene must not put on the stage what the presentation says is off it, the live root while a view
+ * shows the diagram, or the view it replaced beside a live diagram: each key would be drawn twice,
+ * and the stage refuses it when it next describes the diagram.
  */
 export type DiagramPresentation =
   | { readonly kind: 'detached' }
@@ -322,7 +330,13 @@ export class Diagram {
   readonly scene: Scene;
   spec: DiagramSpec;
   snapshot: DiagramSnapshot;
-  root = new Group();
+  /**
+   * The group that holds the diagram's artwork, which the diagram and the stage put on the stage
+   * and take off it (see DiagramPresentation). It cannot be replaced. A scene may take it off the
+   * stage itself; it may not put it on while a view shows the diagram.
+   */
+  get root(): Group { return this.#root; }
+  #root = new Group();
   /** Each part's id in the snapshot, by its mobject (a part's key is its id, but for the frame's). */
   private partIds = new WeakMap<Mobject, string>();
   /**
@@ -367,7 +381,7 @@ export class Diagram {
     this.spec = spec;
     this.snapshot = snapshot;
     this.frameBox = box;
-    this.root.clipBox = [...box];
+    this.#root.clipBox = [...box];
     this.emphasis = emphasis(snapshot.palette);
     this.dimmed = dimOpacity(snapshot.palette);
     emphasises(scene, () => this.emphasised());
@@ -416,25 +430,25 @@ export class Diagram {
         mob.add(route);
       }
       this.parts.set(info.id, { info, mob, shapes, labels, ...(route ? { route } : {}) });
-      this.root.add(mob);
+      this.#root.add(mob);
     }
     // Some renderer labels overhang the declared SVG canvas (notably XY ticks).
     // Fit all artwork as well as that canvas, rather than clipping those labels.
     const [w, h] = [snapshot.width / SVG_PX_PER_UNIT, snapshot.height / SVG_PX_PER_UNIT];
-    const artwork = this.root.box() ?? [0, -h, w, 0];
+    const artwork = this.#root.box() ?? [0, -h, w, 0];
     const bounds = unionBoxes([[0, -h, w, 0], artwork])!;
     const inset = Math.min(0.12, (box[2] - box[0]) / 20, (box[3] - box[1]) / 20);
     const k = Math.min(
       (box[2] - box[0] - 2 * inset) / (bounds[2] - bounds[0]),
       (box[3] - box[1] - 2 * inset) / (bounds[3] - bounds[1]),
     );
-    scaleArtwork(this.root, k);
+    scaleArtwork(this.#root, k);
     const [to, from] = [center(box), center(bounds)];
-    this.root.shift([to[0] - from[0] * k, to[1] - from[1] * k]);
-    this.home = this.root.copy();
+    this.#root.shift([to[0] - from[0] * k, to[1] - from[1] * k]);
+    this.home = this.#root.copy();
     for (const p of this.parts.values()) if (p.info.owner) this.parts.get(p.info.owner)!.mob.add(p.mob);
     // Hidden marks stay in the addressable map, not in the rendered tree.
-    for (const p of [...this.root.children]) this.root.remove(p);
+    for (const p of [...this.#root.children]) this.#root.remove(p);
     // Family reading: preserve message/task/commit order; graph nodes precede outgoing links.
     const all = [...this.parts.values()].filter((p) => !p.info.owner);
     const graph = ['flowchart', 'state', 'mindmap', 'class', 'architecture'].includes(snapshot.family);
@@ -523,7 +537,7 @@ export class Diagram {
   /** Put the root on stage: the diagram is live. Hidden marks are never added: opacity on a Group does not mask its descendants in the engine. */
   private attach(api: string): void {
     this.mustBeLive(api);
-    if (!this.scene.mobjects.includes(this.root)) this.scene.add(this.root);
+    if (!this.scene.mobjects.includes(this.#root)) this.scene.add(this.#root);
     this.goLive();
   }
   /** Live, if it was not: a diagram live already keeps the view it replaced. */
@@ -542,7 +556,7 @@ export class Diagram {
   /** A route token at the start of a link. */
   private token(route: VMobject, color: string): Dot {
     const dot = new Dot({ radius: TOKEN.radius, color }).moveTo(route.pointFromProportion(0));
-    this.root.add(dot);
+    this.#root.add(dot);
     return dot;
   }
   /** @internal Build the diagram in: its scaffolding, then with 'all' the rest in reading order (s.show's `build` option). */
@@ -588,7 +602,7 @@ export class Diagram {
           this.visible.add(id);
           this.attach(name);
           for (const child of this.parts.values()) if (child.info.owner === id) this.visible.add(child.info.id);
-          this.root.add(p.mob);
+          this.#root.add(p.mob);
           if (p.info.role === 'message' && p.info.from && p.info.to && p.route) {
             const token = this.token(p.route, this.emphasis);
             messages.push(p);
@@ -611,7 +625,7 @@ export class Diagram {
       // route tokens (and notes) stay above artwork; the sort is stable among them.
       const rank = new Map(this.snapshot.parts.map((p, i) => [p.id, i]));
       const at = (m: Mobject) => rank.get(this.partIds.get(m)!) ?? this.snapshot.parts.length;
-      this.root.add(...[...this.root.children].sort((a, b) => at(a) - at(b)));
+      this.#root.add(...[...this.#root.children].sort((a, b) => at(a) - at(b)));
       return [new AnimationGroup(anims, { lagRatio: 0.12, rateFunc: linear })];
     };
     const after = () => {
@@ -878,8 +892,8 @@ export class Diagram {
    * A reveal, an enlargement or a morph then needs `s.liveDiagram(d)` first.
    */
   showBy(view: Mobject): this {
-    if (view === this.root) throw new Error('d.showBy(): the live diagram cannot be its own view; give the view that draws a picture of it');
-    this.scene.remove(this.root);
+    if (view === this.#root) throw new Error('d.showBy(): the live diagram cannot be its own view; give the view that draws a picture of it');
+    this.scene.remove(this.#root);
     this.presented = { kind: 'viewed', view };
     return this;
   }
@@ -888,7 +902,7 @@ export class Diagram {
     const p = this.presented;
     if (p.kind !== 'viewed') throw new Error('s.liveDiagram(): the diagram is not shown by a view; show it with s.diagramView(d, draw) first');
     this.scene.remove(p.view);
-    this.scene.add(this.root);
+    this.scene.add(this.#root);
     this.presented = { kind: 'live', replaced: p.view };
     return p.view;
   }
@@ -929,8 +943,8 @@ export class Diagram {
     marks: Readonly<Record<string, string | { color: string; as?: string }>> = {},
     { notes = [], dim, prefix = '' }: { notes?: readonly PictureNote[]; dim?: readonly string[] | null; prefix?: string } = {},
   ): Group {
-    const copy = this.root.copy();
-    const live = this.root.family(), drawn = copy.family();
+    const copy = this.#root.copy();
+    const live = this.#root.family(), drawn = copy.family();
     const at = new Map(live.map((m, i) => [m, i] as const));
     // A mark given as a colour alone is said as marked, in the scene's language.
     const word = wordsOf(this.scene).marked;
@@ -979,7 +993,12 @@ export class Diagram {
    */
   described(): boolean {
     const p = this.presented;
-    return p.kind === 'live' ? onStage(this.scene, this.root) : p.kind === 'viewed' && onStage(this.scene, p.view);
+    // The one record of how the diagram is presented is `presented`; the scene's membership says only whether that is on stage now.
+    if (p.kind === 'viewed' && onStage(this.scene, this.#root))
+      throw new Error('d.root: it is on the stage while a view shows the diagram, so each of its keys is drawn twice; take it off, or call s.liveDiagram(d) to show the live diagram in the view\'s place');
+    if (p.kind === 'live' && p.replaced && onStage(this.scene, p.replaced) && onStage(this.scene, this.#root))
+      throw new Error('d.root: it is on the stage beside the view it replaced, so each of its keys is drawn twice; take the view off, or call s.diagramView(d) to show the diagram by it again');
+    return p.kind === 'live' ? onStage(this.scene, this.#root) : p.kind === 'viewed' && onStage(this.scene, p.view);
   }
   /** Whether `m` is, or is inside, the view that shows this diagram, while that is on stage. */
   private shows(m: Mobject): boolean {
@@ -1281,7 +1300,7 @@ export class Diagram {
   }
   /** Exact handoff to the freshly read tree a morph built, retaining semantic route references. */
   private takeOver(target: Diagram, next: DiagramSpec, snapshot: DiagramSnapshot): void {
-    this.scene.remove(this.root);
+    this.scene.remove(this.#root);
     for (const p of target.parts.values())
       if (!p.info.owner) {
         this.scene.remove(p.mob);
@@ -1292,7 +1311,7 @@ export class Diagram {
     this.parts = target.parts;
     this.partIds = target.partIds;
     this.order = target.order;
-    this.root = target.root;
+    this.#root = target.#root;
     this.home = target.home;
     this.visible = new Set(this.parts.keys());
     this.spec = next;
@@ -1334,11 +1353,11 @@ export class Diagram {
     this.restyle(this.base.keys());
     this.visible.clear();
     this.drawnNotes.clear();
-    for (const child of [...this.root.children]) this.root.remove(child);
+    for (const child of [...this.#root.children]) this.#root.remove(child);
     // Off stage, so the description stops naming it; `reveal` attaches it again.
     const p = this.presented;
     if (p.kind === 'viewed') this.scene.remove(p.view);
-    this.scene.remove(this.root);
+    this.scene.remove(this.#root);
     this.presented = DETACHED;
   }
 }

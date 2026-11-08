@@ -25,6 +25,7 @@ import type { Box, Mobject, Scene, SceneClass, Sink } from '../src/index.ts';
 import { center, intersect, overlaps, pad, unionBoxes } from '../src/box.ts';
 import { paints, paintsStroke } from '../src/mobject.ts';
 import { viewOf } from '../src/svg.ts';
+import { dryRun } from '../src/timeline.ts';
 import { FRAME, STAGE_BOX, zoomOf } from '../src/units.ts';
 import { labelOf, readingLabelSize } from '../explain/labels.ts';
 import { emphasisOf, newlyEmphasised, openingOf } from '../explain/look.ts';
@@ -301,7 +302,7 @@ export const focusOf = (layout: StepLayout): Box | null => unionBoxes(layout.par
  */
 export async function stepLayouts(Scene: SceneClass): Promise<Map<string, StepLayout>> {
   const { sink, layouts } = layoutSink();
-  await new Scene(sink, { skipUntil: Infinity }).run();
+  await dryRun(Scene, sink);
   return layouts;
 }
 /** A sink that records at each step's end. */

@@ -11,7 +11,7 @@ import { scenariosOf, withSettings, scenarioName, bindSnapshots } from './settin
 import type { ExplainerClass, Setting, Settings } from './settings.ts';
 import { pictureSummary, stepWords, watchedChanges } from './trace.ts';
 import type { WatchedChange } from './trace.ts';
-import { isHeading, paperOf } from './stage.ts';
+import { paperOf, withoutHeading } from './stage.ts';
 import type { SnapshotStore, DiagramResolver } from '../integrations/agentic-mermaid/snapshot.ts';
 
 /** One step of one scenario. Times are seconds on the scene's clock. */
@@ -137,7 +137,7 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
     steps: StepDescription[] = [];
   for (const s of trace.steps) {
     const before = s.before,
-      after = s.after ?? {},
+      after = s.after,
       shown = withoutPicture(s.shown),
       changed: StepDescription['changed'] = {};
     for (const k of new Set([...Object.keys(before), ...Object.keys(after)]))
@@ -150,7 +150,7 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
       line: words.line,
       caption: words.caption,
       start: s.t0,
-      end: s.t1 ?? trace.duration,
+      end: s.t1,
       ...(s.hold == null ? {} : { hold: s.hold }),
       state: after,
       ...(Object.keys(shown).length ? { shown } : {}),
@@ -188,7 +188,5 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
 
 /** The scene's picture now as text, without the heading that names the step, as `rayner check` draws it. */
 function drawing(scene: Scene): string {
-  const all = scene.mobjects;
-  scene.mobjects = all.filter((m) => !isHeading(m));
-  try { return renderText(scene); } finally { scene.mobjects = all; }
+  return withoutHeading(scene, () => renderText(scene));
 }

@@ -237,7 +237,7 @@ timed playback stops at `stillFrame(step)`, the hold frame or else the last, and
 and its end listeners can still change the state between them, so a step's state is read at
 its end, as the trace's `after` records it: the live player and `rayner check`'s exploration of
 a machine start there (`Scene.stopAt`, which stops a run as a named step ends). The
-[vocabulary](VOCABULARY.md) names these moments. `TraceSink` copies them into the trace, and `traceRun`'s `AtRest` callback (`src/trace.ts`) hands the scene, showing each
+[vocabulary](VOCABULARY.md) names these moments. `TraceSink` copies them into the trace as each step ends, so every step of a trace has its end (a run stopped inside a step leaves that step out), and `traceRun`'s `AtRest` callback (`src/trace.ts`) hands the scene, showing each
 step's resting picture, to the tools that draw every step, so `rayner describe`, the
 contact sheet and the site's cards run each scene once.
 

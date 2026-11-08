@@ -195,7 +195,7 @@ test('the page draws the same maths paths as Node at every step', { skip: !proce
     assert.equal(v.trace.steps.length, 4);
     for (const step of v.trace.steps) {
       // The step's resting picture as the build draws it in Node, as the player's DomSink writes it
-      const scene = await renderFrame(v.Scene, step.frame1!, new SnapshotSink());
+      const scene = await renderFrame(v.Scene, step.frame1, new SnapshotSink());
       const want = renderElements(scene, { relative: false }).filter((r) => r.tag === 'path').map((r) => String(r.attrs.d)).sort();
       const page = await browser.newPage();
       try {

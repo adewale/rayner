@@ -154,6 +154,7 @@ const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
   'AnimationGroup.settle': { files: ['explain/action.ts'], why: "an action's beats are a Succession's members" },
   'AnimationGroup.timings': { files: ['explain/action.ts'], why: "an action's beats are a Succession's members" },
   'AnimationTiming.settle': { files: ['explain/action.ts'], why: "an action's beats are a Succession's members" },
+  dryRun: { files: ['app/embed-closeup.ts'], why: "the close-ups read every step's layout from one dry run, as an index and a trace do" },
   'DomSink.apply': { files: ['app/embed-zoom.ts'], why: 'the close-up draws records without a frame' },
   'Mobject.boundingPointArrays': { files: ['explain/view.ts'], why: 'a view measures what it draws' },
   'Mobject.interpolateData': { files: ['explain/labels.ts'], why: 'a label interpolates its own data' },

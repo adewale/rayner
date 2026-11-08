@@ -10,7 +10,7 @@ import { withLettering } from '../src/lettering.ts';
 import type { LetteringFaces } from '../src/lettering.ts';
 import { traceScene } from '../src/trace.ts';
 import type { Trace, TraceOf } from '../src/trace.ts';
-import { withIntent } from './intent.ts';
+import { adoptIntent, parseIntent } from './intent.ts';
 import { bindSnapshots, checkExplainerMeta, identifierRule, isIdentifier, resolveSettings, scenariosOf, withSettings } from './settings.ts';
 import type { ExplainerClass, Settings } from './settings.ts';
 
@@ -69,23 +69,26 @@ export async function loadProject<C extends SceneClass>(Explainer: C, where: str
   try { checkExplainerMeta(Scene.meta); } catch (e) { throw new TypeError(`loadProject(): ${file}: ${(e as Error).message}`); }
   const folder = file.replace(/[^/\\]*$/, ''),
     script = await read(folder + 'script.md');
-  if (script !== null) withIntent(Scene as { meta?: Record<string, unknown> }, script, folder + 'script.md');
+  // Adopted afresh, as the command adopts it: a header removed since an earlier load takes its keys with it.
+  adoptIntent(Scene as { meta?: Record<string, unknown> }, script === null ? null : parseIntent(script, folder + 'script.md'), folder + 'script.md');
   // Its id is sceneIdOf(file) unless it declares one, as the command has it.
   if (Scene.meta?.id === undefined) Scene.meta = { ...Scene.meta, id: sceneIdOf(file) };
   const snapshots = await readSnapshotStore((name) => read(`${baseOf(file)}.snapshots/${name}`));
   const { Lettered, faces } = await pinnedLettering(Scene, file, read);
   const scenarios: LoadedScenario[] = [];
-  // Subset lettering is the fonts' (useLettering), as on the page, for the scenarios' runs only;
-  // another loadProject overlapping this one waits its turn, so each traces with its own faces.
+  // Subset lettering is the fonts' (useLettering), as on the page, for the scenarios' runs only, and
+  // a scene with none traces with the embedded faces alone. Either way the runs take their turn
+  // (withLettering): another loadProject or lettered run overlapping this one waits, so each traces
+  // with its own faces.
   const traceAll = async () => {
     for (const values of scenariosOf(Lettered)) {
       const Bound = withSettings(bindSnapshots(Lettered, snapshots), values);
       const trace = await traceScene(Bound);
-      checkScenarioSteps(trace, values);
+      checkScenarioSteps(trace, values, 'loadProject()');
       scenarios.push({ values, Scene: Bound, trace });
     }
   };
-  await (faces ? withLettering(faces, traceAll) : traceAll());
+  await withLettering(faces ?? null, traceAll);
   const project: LoadedProject = {
     Scene: Lettered,
     snapshots,
@@ -105,19 +108,20 @@ export async function loadProject<C extends SceneClass>(Explainer: C, where: str
  * What every scenario's steps must be, which loadProject and the rayner command both hold: at least
  * one, each named, the names unique ignoring case (a share page is a file named by its step, and
  * Push and push are one file on macOS and Windows), and each drawing a frame of its own. A step
- * that draws none rests on the step before's last frame: a link would show that picture while the
- * checks judge the next step's.
+ * that draws none rests on the step before's last frame, the same frame a link and the checks
+ * would show for it, so it would show the step before's picture. `api` is the call that collected
+ * the steps, and the prefix of what it throws: `loadProject()`, or the scene's file for the command.
  */
-export function checkScenarioSteps(trace: Pick<Trace, 'steps'>, values: Readonly<Record<string, string>>): void {
+export function checkScenarioSteps(trace: Pick<Trace, 'steps'>, values: Readonly<Record<string, string>>, api: string): void {
   const names = trace.steps.map((s) => s.step);
   if (!names.length || names.some((name) => !name.trim()))
-    throw new Error(`this.step(): the scenario ${JSON.stringify(values)} has no step, or a step with an empty name; every scenario needs named steps`);
+    throw new Error(`${api}: the scenario ${JSON.stringify(values)} has no step, or a step with an empty name; every scenario needs named steps`);
   const folded = names.map((name) => name.toLowerCase()), twice = names.find((_, i) => folded.indexOf(folded[i]!) !== i);
   if (twice !== undefined)
-    throw new Error(`this.step(): two steps of the scenario ${JSON.stringify(values)} share the name ${JSON.stringify(twice)}, ignoring case; name each step once, so each has its own link and share page`);
+    throw new Error(`${api}: two steps of the scenario ${JSON.stringify(values)} share the name ${JSON.stringify(twice)}, ignoring case; name each step once, so each has its own link and share page`);
   const still = trace.steps.find((s) => s.frame1 === s.frame0);
   if (still)
-    throw new Error(`this.step(): step ${JSON.stringify(still.step)} of the scenario ${JSON.stringify(values)} draws no frame of its own, so it shows the step before's picture; play or wait in it, or give it a caption to hold`);
+    throw new Error(`${api}: step ${JSON.stringify(still.step)} of the scenario ${JSON.stringify(values)} draws no frame of its own, so it shows the step before's picture; play or wait in it, or give it a caption to hold`);
 }
 
 /**

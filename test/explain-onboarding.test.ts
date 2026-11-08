@@ -25,7 +25,7 @@ test('every authoring feature offers a scenario with its user-side code before i
     const recipe = trace.steps[0]!, resultStep = trace.steps[1]!;
     assert.equal(recipe.shown!.phase, 'recipe');
     assert.equal(resultStep.shown!.phase, 'result');
-    assert.equal(resultStep.after!.feature, feature);
+    assert.equal(resultStep.after.feature, feature);
     const pictured = recipe.shown!.picture as { entries: { items?: string[] }[] };
     const lines = pictured.entries.flatMap(entry => entry.items ?? []);
     assert.deepEqual(lines.map(line => line.replace(/^\d+: /, '')), RECIPES[feature].code, feature);
@@ -36,6 +36,6 @@ test('every authoring feature offers a scenario with its user-side code before i
   assert.equal(EXPLAINERS.find(e => e.id === 'feature-tour')?.step, 'result');
   assert.equal((project.Scene.meta as { scenarioNavigation?: string }).scenarioNavigation, 'first', 'changing an authoring feature starts its recipe');
   const state = project.scenarios.find(v => v.values.feature === 'state')!;
-  assert.equal(state.trace.steps[1]!.after!.count, 1, 'the view scenario must update recorded state');
+  assert.equal(state.trace.steps[1]!.after.count, 1, 'the view scenario must update recorded state');
   assert.match(JSON.stringify(state.trace.steps[1]!.shown!.picture), /Recorded count: 1/);
 });

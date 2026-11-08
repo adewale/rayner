@@ -183,7 +183,7 @@ test('SetState sequences state-derived views at the correct turn and leaves no d
     const scene = await renderAt(Demo, time!, new SnapshotSink()); assert.equal(scene.state.count, expected);
   }
   const trace = await traceScene(Demo);
-  assert.equal(trace.steps[0]!.after!.count, 9);
+  assert.equal(trace.steps[0]!.after.count, 9);
   const full = new Demo(new NullSink()); await full.run();
   assert.equal(full.mobjects.filter((m) => !isFurniture(m)).length, 1, 'only the readout remains');
 });

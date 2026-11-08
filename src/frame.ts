@@ -7,7 +7,7 @@
 
 import { Mobject } from './mobject.ts';
 import type { Box } from './mobject.ts';
-import { FRAME, STAGE_BOX } from './units.ts';
+import { FRAME, STAGE_BOX, zoomOf } from './units.ts';
 import { center } from './box.ts';
 
 export interface FrameFitOpts {
@@ -40,8 +40,11 @@ export class Frame extends Mobject {
   /** @internal */ override pointArrays(): Float32Array[] { return [this.corners]; }
   protected override copyData(src: Mobject): void { this.corners = new Float32Array((src as Frame).corners); }
 
-  /** Magnification: 1 for the full 16-wide frame, 2 when half as wide. */
-  get zoom(): number { return FRAME.w / this.width(); }
+  /**
+   * Magnification, as the stage shows the box (zoomOf): 1 for the whole 16 × 9 frame, 2 when it
+   * shows half as wide and half as high. A box out of 16:9 is letterboxed, so its tighter side sets it.
+   */
+  get zoom(): number { return zoomOf(this.box() ?? STAGE_BOX); }
 
   /** The smallest 16:9 box that holds `target` (a mobject or a box) plus `margin` on every side, centered on it. */
   fit(target: Mobject | Readonly<Box>, { margin = 0.5 }: FrameFitOpts = {}): this {

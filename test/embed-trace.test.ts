@@ -38,7 +38,7 @@ test('the shipped scenario and a scenario the page runs give the player one trac
   for (const v of project.scenarios) {
     const full = v.trace as Trace;
     assert.ok(full.steps.some((s) => s.evidence?.length), 'the build\'s trace has evidence to leave out');
-    assert.ok(full.steps.some((s) => Object.hasOwn(s.after ?? {}, 'points')), 'and state the scene does not watch');
+    assert.ok(full.steps.some((s) => Object.hasOwn(s.after, 'points')), 'and state the scene does not watch');
     const shipped = shippedScenario(project, v).trace;
     // The page's own run of the scenario (its entry, in the bare runtime), as the player prunes it.
     const page = playerTrace((await run(v.values)).trace as Trace, watch);
@@ -57,7 +57,7 @@ test('a scene that watches nothing gives the player no state at all', () => {
 });
 
 test('the player cannot read a step\'s state except through its watched changes', () => {
-  const step = playerTrace({ fps: 30, duration: 0, frames: 0, steps: [{ step: 'a', t0: 0, frame0: 0, meta: {}, before: { x: 1 } }] }, { x: 'X' }).steps[0]! satisfies PlayerStep;
+  const step = playerTrace({ fps: 30, duration: 0, frames: 0, steps: [{ step: 'a', t0: 0, frame0: 0, t1: 0, frame1: 0, meta: {}, before: { x: 1 }, after: { x: 1 } }] }, { x: 'X' }).steps[0]! satisfies PlayerStep;
   // @ts-expect-error the watched state is opaque: a key is read through playerChanges, never directly
   assert.equal(step.before.x, 1);
 });

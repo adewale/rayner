@@ -12,7 +12,7 @@ export async function check(trace: TraceOf<typeof LatestSearchExplainer>, values
   // finishes first the unguarded old A overwrites it; when A finishes
   // first the guarded page stays empty until the latest B arrives.
   const newFirst = values.order === 'new-first', first = newFirst ? 'B' : 'A';
-  const after = (step: string) => trace.steps.find(s => s.step === step)!.after!;
+  const after = (step: string) => trace.steps.find(s => s.step === step)!.after;
   // A decision's state (its ticket against the latest), and a race machine's.
   const reading = (step: string) => having(after(step), 'query', 'ticket');
   const race = (step: string) => having(after(step), 'log', 'guarded');

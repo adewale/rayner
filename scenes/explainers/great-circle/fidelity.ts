@@ -12,7 +12,7 @@ export function check(trace: Trace, values: Record<string, string>): void {
   assertStepState(trace, 'stretch', { route: L, stretch: L.stretch, km: 1000 });
   assertStepState(trace, 'gnomonic', { routes: [L, M] });
   // The turn ends with the eye in the route's plane: the viewpoint faces the route's midpoint.
-  const turn = trace.steps.find((step) => step.step === 'turn')!.after! as { viewpoint: { kind: string; yaw: number; pitch: number } };
+  const turn = trace.steps.find((step) => step.step === 'turn')!.after as { viewpoint: { kind: string; yaw: number; pitch: number } };
   assert.equal(turn.viewpoint.kind, 'orthographic');
   assert.ok(Math.abs(haversine(L.from, { lat: turn.viewpoint.pitch, lon: turn.viewpoint.yaw }) - L.km / 2) < 1e-6);
   assert.ok(Math.abs(haversine(L.to, { lat: turn.viewpoint.pitch, lon: turn.viewpoint.yaw }) - L.km / 2) < 1e-6);
@@ -27,7 +27,7 @@ export function check(trace: Trace, values: Record<string, string>): void {
   }
   assert.equal(values.second, 'equator');
   // Where the ruler and the string are the same length.
-  const pairs = trace.steps.find((step) => step.step === 'another')!.after!.pairs as { from: { lat: number; lon: number }; to: { lat: number; lon: number }; km: number; rhumbKm: number }[];
+  const pairs = trace.steps.find((step) => step.step === 'another')!.after.pairs as { from: { lat: number; lon: number }; to: { lat: number; lon: number }; km: number; rhumbKm: number }[];
   assert.equal(pairs.length, 2);
   for (const p of pairs) {
     assert.equal(p.km, haversine(p.from, p.to));

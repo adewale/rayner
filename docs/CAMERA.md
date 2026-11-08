@@ -33,7 +33,7 @@ await this.play(this.frame.animate.reset());                     // back to the 
 |---|---|
 | `fit(target, { margin })` | the smallest 16:9 box holding `target` (a mobject or a `Box`) plus `margin` on every side (default 0.5), centered on it |
 | `reset()` | the default box: 16 × 9 at the origin |
-| `zoom` | magnification: 1 for the 16-wide frame, 2 when it is 8 wide |
+| `zoom` | magnification as the stage shows the box: 1 for the whole 16 × 9 frame, 2 when it is 8 × 4.5; a box out of 16:9 is letterboxed, so its tighter side sets it (the zoom `rayner check` measures labels with) |
 | `width()`, `height()`, `center()`, `box()` | as on any mobject |
 
 `fit`, `reset`, `scale` and `moveTo` keep the 16:9 aspect; `stretch` would not, and a

@@ -198,7 +198,7 @@ test('a run told where to stop stops for good as that step ends: after its end l
     }
   }
   const two = (await traceScene(Story)).steps.find((s) => s.step === 'two')!;
-  assert.ok(two.holdFrame! > two.frame0 + 30 && two.frame1! > two.holdFrame!, 'the step holds for its caption after the listener played');
+  assert.ok(two.holdFrame! > two.frame0 + 30 && two.frame1 > two.holdFrame!, 'the step holds for its caption after the listener played');
   after = 0;
   const scene = new Story(new NullSink());
   let at: { frame: number; x: number; on: number; step: string | undefined } | undefined;
@@ -212,7 +212,7 @@ test('a run told where to stop stops for good as that step ends: after its end l
   assert.deepEqual(two.after, { x: 1 });
   assert.equal(after, 1, 'the code after the step\'s last play ran; the next step\'s never does');
   assert.equal(scene.phase, 'stopped');
-  assert.equal(scene.frameCount, two.frame1! + 3, 'what the stop played, and nothing after it');
+  assert.equal(scene.frameCount, two.frame1 + 3, 'what the stop played, and nothing after it');
   await assert.rejects(scene.play(new FadeIn(new Circle())), StopScene);
   // A step the run never reaches: the run ends as usual, and the callback never runs.
   const never = new Story(new NullSink());
@@ -372,7 +372,7 @@ test('each step records its hold and rest frames exactly, and the trace carries 
   const trace = await traceScene(Timed);
   const [held, unheld] = trace.steps;
   assert.equal(held!.holdFrame, 15);
-  assert.ok(held!.frame1! > held!.holdFrame!);
+  assert.ok(held!.frame1 > held!.holdFrame!);
   assert.equal(stillFrame(held!), held!.holdFrame);
   // With no hold there is no hold frame, and the picture stops on the last frame.
   assert.equal(unheld!.hold, undefined);
@@ -385,8 +385,8 @@ test('each step records its hold and rest frames exactly, and the trace carries 
   await new Timed({ async frame(scene) { await full.frame(scene); frames[scene.frameCount] = full.svg; } }).run();
   for (const s of trace.steps) {
     const sink = new SnapshotSink();
-    await renderFrame(Timed, s.frame1!, sink);
-    assert.equal(sink.svg, frames[s.frame1!], s.step);
+    await renderFrame(Timed, s.frame1, sink);
+    assert.equal(sink.svg, frames[s.frame1], s.step);
   }
 });
 
@@ -404,7 +404,7 @@ test('a step that draws no frame of its own rests on the frame it began (collect
   assert.equal(nothing.frame1, nothing.frame0);
   assert.equal(nothing.frame1, trace.steps[0]!.frame1, 'the step before\'s last frame');
   // A caption alone holds, so the step draws its own frames.
-  assert.ok(trace.steps[2]!.frame1! > trace.steps[2]!.frame0);
+  assert.ok(trace.steps[2]!.frame1 > trace.steps[2]!.frame0);
 });
 
 // ---- step metadata ---------------------------------------------------------
