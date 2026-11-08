@@ -3,7 +3,8 @@
 import { test } from 'node:test';
 import type { Transition, View, ViewSync } from '../explain/index.ts';
 import assert from 'node:assert/strict';
-import { Scene, Text, Group, Rectangle, Transform, AnimationGroup, TransformMatching, matchByKey } from '../src/index.ts';
+import { Scene, Text, Group, Rectangle, Transform, Animation, AnimationGroup, Succession, TransformMatching, matchByKey } from '../src/index.ts';
+import type { Mobject } from '../src/index.ts';
 import { NullSink, StringSink, SnapshotSink, renderAt, renderFrame } from '../src/output.ts';
 import { machinesOf, TraceSink, traceScene, loadFonts } from '../explain/testing.ts';
 import { stage, Machine, refuse, isRefusal, view } from '../explain/index.ts';
@@ -139,9 +140,9 @@ test('reachable states are found breadth first, each with its shortest events, u
 });
 
 test('rayner check draws every reachable state: a picture that cannot tell two states apart fails, named by its shortest events', async () => {
-  const good = await exploreMachines(await new (lampScene())(new NullSink()).run());
+  const good = await exploreMachines(await new (lampScene())(new NullSink()).run(), lampScene());
   assert.deepEqual(good, [{ events: ['UP', 'OFF'], states: 3, sampled: false, diagrams: false, problems: [] }]);
-  const blind = await exploreMachines(await new (lampScene(true))(new NullSink()).run());
+  const blind = await exploreMachines(await new (lampScene(true))(new NullSink()).run(), lampScene(true));
   assert.deepEqual(blind[0]!.problems, [
     'after UP: the picture is described exactly as at the start, a different state',
     'after UP, UP: the picture is described exactly as at the start, a different state',
@@ -149,14 +150,15 @@ test('rayner check draws every reachable state: a picture that cannot tell two s
 });
 
 test('rayner check measures every label an explored state shows: one too small to read fails, named by its shortest events', async () => {
-  const [lamp] = await exploreMachines(await new (lampScene(false, 0.12))(new NullSink()).run());
+  const Small = lampScene(false, 0.12);
+  const [lamp] = await exploreMachines(await new Small(new NullSink()).run(), Small);
   assert.equal(lamp!.problems.length, 1, JSON.stringify(lamp!.problems));
   assert.match(lamp!.problems[0]!, /^after UP, UP: “lamp bright” is \d+(\.\d)? px at a 1280 px stage, under 14$/);
 });
 
 /** The lamp with an authored transition for UP, and (optionally) an invariant on the box. */
 /** A lamp whose UP has an authored transition, given the transition and the lamp's view. */
-function litLamp(transition: (t: Transition<Lamp, 'UP' | 'OFF'>, lamp: View) => import('../src/index.ts').Animation, invariant = false) {
+function litLamp(transition: (t: Transition<Lamp, 'UP' | 'OFF'>, lamp: View) => Animation | AnimationGroup, invariant = false) {
   const nextUp = (s: Lamp, e: 'UP' | 'OFF'): Lamp | undefined => (e === 'UP' && s.level === 2 ? undefined : next(s, e));
   return class LitLamp extends Scene<Lamp> {
     machine!: Machine<Lamp, 'UP' | 'OFF'>;
@@ -265,17 +267,51 @@ test('a schedule built for one state refuses to play from another', async () => 
 });
 
 test('an authored transition plays, the views land on the state it reaches, and rayner check plays every reachable one', async () => {
-  const ran = await new (litLamp(morphUp, true))(new NullSink()).run();
+  const Lit = litLamp(morphUp, true);
+  const ran = await new Lit(new NullSink()).run();
   assert.deepEqual(ran.state, { level: 0 });
   assert.deepEqual(ran.steps[0]!.evidence!.filter((e) => e.kind === 'event').map((e) => e.event), ['UP', 'UP', 'OFF']);
-  const [explored] = await exploreMachines(ran);
+  const [explored] = await exploreMachines(ran, Lit);
   assert.deepEqual(explored!.problems, []);
+});
+
+/**
+ * Holds its picture still, after waiting a moment at its turn for what it reads, as a member made at
+ * its turn waits for a diagram's layout: asked before its turn (as a play first asks), it has nothing
+ * to wait for yet, so only the running play can wait for it.
+ */
+class WaitsToRead extends Animation {
+  #asked = 0;
+  #read = false;
+  constructor(m: Mobject) { super(m, { runTime: 0.1 }); }
+  override ready(): Promise<unknown> | null {
+    if (this.#read || this.#asked++ === 0) return null;
+    return new Promise((done) => setTimeout(done, 5)).then(() => { this.#read = true; });
+  }
+  protected override doBegin(): void {}
+  protected override doInterpolate(): void {}
+  protected override doFinish(): void {}
+}
+
+test('rayner check plays a transition as the page plays it: one whose member waits for what it reads plays in both', async () => {
+  // The morph, then a member that waits at its turn: only a running play can wait for it.
+  const Waiting = litLamp((t, lamp) => new Succession([new Transform(lamp.current, t.target(lamp)), new WaitsToRead(lamp.current)]), true);
+  const ran = await new Waiting(new NullSink()).run();
+  assert.deepEqual(ran.steps[0]!.evidence!.filter((e) => e.kind === 'event').map((e) => e.event), ['UP', 'UP', 'OFF']);
+  // The page's own path: the run to the live step, then the reader's event sent there.
+  const [machine] = machinesOf(ran);
+  const live = await runLive(Waiting, 'press', { index: 0, identity: machine!.identity }, ['UP']);
+  assert.deepEqual(live.scene.state, { level: 1 });
+  const [explored] = await exploreMachines(ran, Waiting);
+  assert.deepEqual(explored!.problems, []);
+  assert.equal(explored!.states, 3);
 });
 
 test('deliberate defect: a transition that ends somewhere else fails, named by its shortest events and its event', async () => {
   // It morphs to the right picture two units to the right: the landing would leave the view there.
-  const ran = await new (litLamp((t, lamp) => new Transform(lamp.current, t.target(lamp).copy().shift([2, 0]))))(new NullSink()).run();
-  const [explored] = await exploreMachines(ran);
+  const Misplaced = litLamp((t, lamp) => new Transform(lamp.current, t.target(lamp).copy().shift([2, 0])));
+  const ran = await new Misplaced(new NullSink()).run();
+  const [explored] = await exploreMachines(ran, Misplaced);
   // Each misplaced landing also moves the view for good, so a later state can drift off the stage.
   for (const named of ['UP', 'after UP, UP'])
     assert.ok(explored!.problems.includes(`${named}: the transition ends somewhere other than the picture of the state it reaches`), JSON.stringify(explored!.problems));
@@ -287,8 +323,12 @@ test('deliberate defect: a transition that breaks an invariant on the way fails,
     const target = t.target(v);
     return new Transform(v.current, target, { pathFunc: (a, b, t) => a.map((x, i) => x + (b[i]! - x) * t + (i === 0 ? 30 * Math.sin(Math.PI * t) : 0)) as typeof a });
   };
-  const [explored] = await exploreMachines(await new (litLamp(swing, true))(new NullSink()).run());
-  assert.ok(explored!.problems.some((p) => /^UP: the invariant "the box stays on screen" fails 50% through the transition/.test(p)), JSON.stringify(explored!.problems));
+  const Swing = litLamp(swing, true);
+  const [explored] = await exploreMachines(await new Swing(new NullSink()).run(), Swing);
+  // Every frame the transition draws is checked: the first that fails is named, by how far through it is.
+  const failed = explored!.problems.filter((p) => p.startsWith('UP: the invariant'));
+  assert.equal(failed.length, 1, JSON.stringify(explored!.problems));
+  assert.match(failed[0]!, /^UP: the invariant "the box stays on screen" fails ([1-9]|[1-4]\d)% through the transition: the box spans /);
 });
 
 test('what is shown may change between a machine\'s events; exploration draws its states under the last', async () => {
@@ -299,7 +339,8 @@ test('what is shown may change between a machine\'s events; exploration draws it
       const s = stage(this);
       // Which room the lamp is in is what is shown, not part of the lamp's model.
       const picture = view(this, (st: Lamp, shown) => {
-        const word = new Text(`${String(shown.room ?? 'hall')} lamp ${LEVELS[st.level]}`, { fontSize: 0.5 });
+        // Too small to read in the hall: exploration drawing there would say so.
+        const word = new Text(`${String(shown.room ?? 'hall')} lamp ${LEVELS[st.level]}`, { fontSize: shown.room === 'hall' ? 0.08 : 0.5 });
         word.key = 'lamp:word';
         return Object.assign(new Group(new Rectangle({ width: 6, height: 1.2 }), word), { key: 'lamp' });
       });
@@ -319,17 +360,19 @@ test('what is shown may change between a machine\'s events; exploration draws it
   }
   const scene = await new Shown(new NullSink()).run() as Shown;
   assert.deepEqual(scene.machine.playedUnder, { room: 'study' });
-  const [explored] = await exploreMachines(scene);
+  // The states were drawn in the study, where the machine last played, not the hall the step ended in:
+  // no label is too small to read.
+  const [explored] = await exploreMachines(scene, Shown);
   assert.deepEqual(explored!.problems, []);
   assert.equal(explored!.states, 3);
-  // The states were drawn in the study, where the machine last played, not the hall the run ended in.
-  assert.match(scene.machine.spec.views[0]!.texts.join(' '), /study lamp/);
-  // Exploration put back what the run left shown.
+  // Exploration runs the scene again: the run it was given is left as it ended.
   assert.deepEqual(scene.shown, { room: 'hall' });
+  assert.match(scene.machine.spec.views[0]!.texts.join(' '), /hall lamp/);
 });
 
 test('exploration checks a machine on the stage where it last played, not the stage the run ends with', async () => {
-  class Cleared extends Scene<Lamp> {
+  /** The lamp, cleared away after its events: in a later step, or (`within`) in the step where it played. */
+  const cleared = (within: boolean) => class Cleared extends Scene<Lamp> {
     override state = { level: 0 };
     override async construct() {
       const s = stage(this);
@@ -344,16 +387,18 @@ test('exploration checks a machine on the stage where it last played, not the st
       await this.step('press', { caption: 'Press the switch.' });
       await this.play(machine.replay(['UP', 'UP']));
       // A later step clears the lamp away and shows something else.
-      await this.step('later', { caption: 'Something else.' });
+      if (!within) await this.step('later', { caption: 'Something else.' });
       await s.clear();
       await s.enter(new Text('the end', { fontSize: 0.5 }), { describe: 'The end' });
     }
-  }
+  };
+  // Cleared as the step where it played ends, the lamp is gone: exploration says so rather than checking nothing.
+  const Gone = cleared(true);
+  const [blind] = await exploreMachines(await new Gone(new NullSink()).run(), Gone);
+  assert.match(blind!.problems[0]!, /not on the stage where it last played/);
+  const Cleared = cleared(false);
   const ran = await new Cleared(new NullSink()).run();
   assert.equal(machinesOf(ran)[0]!.lastPlayedIn, 'press');
-  // On the final stage the lamp is gone: exploration says so rather than checking nothing.
-  const [blind] = await exploreMachines(ran);
-  assert.match(blind!.problems[0]!, /not on the stage where it last played/);
   // On the stage of the step where it played, every state is checked and passes.
   const [explored] = await exploreMachines(ran, Cleared);
   assert.deepEqual(explored!.problems, []);
@@ -411,11 +456,11 @@ test('a bound stops the story where the model would go on; check fails a bound t
   assert.deepEqual(story.machine.outcome({ level: 0 }, 'UP'), { next: { level: 1 } });
   assert.deepEqual(story.machine.reachable().map((r) => r.state.level), [0, 1]);
   assert.throws(() => story.machine.send('UP', { level: 1 }), /UP is beyond the story in \{"level":1\}: This story stops at dim/);
-  assert.deepEqual((await exploreMachines(story))[0]!.problems, []);
+  assert.deepEqual((await exploreMachines(story, Story))[0]!.problems, []);
   // A bound placed where the lamp refuses anyway (at bright) is a refusal mislabelled.
   const Wrong = bounded((st, e) => (e === 'UP' && st.level === 2 ? 'This story stops at bright' : undefined));
   const wrong = await new Wrong(new NullSink()).run();
-  assert.ok((await exploreMachines(wrong))[0]!.problems.some((p) => /after UP, UP, UP: the bound says "This story stops at bright", but the model refuses it anyway/.test(p)));
+  assert.ok((await exploreMachines(wrong, Wrong))[0]!.problems.some((p) => /after UP, UP, UP: the bound says "This story stops at bright", but the model refuses it anyway/.test(p)));
   // The model's own refusal carries its reason.
   assert.deepEqual(wrong.machine.outcome({ level: 2 }, 'UP'), { beyond: 'This story stops at bright' });
   const free = bounded(() => undefined);
@@ -445,7 +490,7 @@ test('end finishes the story at a state: the model\'s moves from it are beyond t
   assert.deepEqual(ends.machine.outcome({ level: 2 }, 'UP'), { refused: 'the lamp is already bright' });
   assert.deepEqual(ends.machine.outcome({ level: 1 }, 'UP'), { next: { level: 2 } });
   assert.deepEqual(ends.machine.reachable().map((r) => r.state.level), [0, 1, 2]);
-  assert.deepEqual((await exploreMachines(ends))[0]!.problems, []);
+  assert.deepEqual((await exploreMachines(ends, Ends))[0]!.problems, []);
   // A live step that ends finished starts the reader's events from the machine's start.
   assert.deepEqual(logStart(ends.machine as never, { level: 2 }), { from: 'start', state: { level: 0 } });
   assert.throws(() => new Machine<Lamp, 'UP' | 'OFF'>(ends, { start: { level: 0 }, events: ['UP'], next, views: [], end: 'bright' as never }), /new Machine\(\): end must be a function of the state/);

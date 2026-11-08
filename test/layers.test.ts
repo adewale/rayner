@@ -5,7 +5,7 @@
 // test reads, so a new one must be placed in the doc before the rules can judge it. Of a step's
 // metadata the engine types and reads only its caption, as the section records; the explainer layer
 // declares the rest. The command imports nothing repository-only. And the engine's @internal members
-// that the explainer layer and the player use are listed, so a new use across the layers is seen.
+// that the explainer layer, the player and the command use are listed, so a new use across the layers is seen.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -140,8 +140,8 @@ test('the command imports the library, the player, the diagram integration and i
 });
 
 /**
- * The engine's @internal members (src/) that the explainer layer and the player use, by member, with
- * the files that use each. They are an interface between the layers that the published types leave
+ * The engine's @internal members (src/) that the explainer layer, the player and the command (tools/)
+ * use, by member, with the files that use each. They are an interface between the layers that the published types leave
  * out, so each is listed here: a new use, by another file or of another member, fails the test until
  * it is added, with its reason.
  */
@@ -156,13 +156,15 @@ const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
   'AnimationGroup.timings': { files: ['explain/action.ts'], why: "an action's beats are a Succession's members" },
   'AnimationGroup.waiting': { files: ['explain/action.ts'], why: 'what is made at its turn holds its Succession while it waits' },
   'AnimationTiming.settle': { files: ['explain/action.ts'], why: "an action's beats are a Succession's members" },
-  dryRun: { files: ['app/embed-closeup.ts'], why: "the close-ups read every step's layout from one dry run, as an index and a trace do" },
+  dryRun: { files: ['app/embed-closeup.ts', 'tools/lib/explain-project.ts', 'tools/lib/explain-story-review.ts'], why: "the close-ups, the command's collection and the story review read each step from one dry run, as an index and a trace do" },
   'DomSink.apply': { files: ['app/embed-zoom.ts'], why: 'the close-up draws records without a frame' },
   'Mobject.boundingPointArrays': { files: ['explain/view.ts'], why: 'a view measures what it draws' },
+  'Mobject.id': { files: ['tools/lib/explain-layout.ts', 'tools/lib/explain-story-review.ts'], why: "the layout and story reviews match the renderer's records to their mobjects by the renderer's number" },
   'Mobject.interpolateData': { files: ['explain/labels.ts'], why: 'a label interpolates its own data' },
   'Mobject.invalidateBox': { files: ['explain/annotate.ts', 'explain/labels.ts', 'explain/machine.ts', 'explain/panels.ts', 'explain/state.ts'], why: 'what changes points in place clears the cached box' },
   'Mobject.mergeLeaves': { files: ['explain/diagrams.ts'], why: "a diagram's labels draw as one element" },
   'Mobject.pointArrays': { files: ['app/embed-closeup.ts', 'explain/view.ts'], why: 'a view and the close-ups measure points' },
+  'MotionSink.frames': { files: ['tools/lib/explain-check.ts'], why: 'check reports how many frames its motion check sampled' },
   'Scene.beginAnimations': { files: ['explain/action.ts'], why: 'what is made at its turn begins as a play begins it' },
   'Scene.keepOnTop': { files: ['explain/stage.ts'], why: 'the stage keeps its heading drawn last' },
   'Scene.skipUntil': { files: ['app/embed.ts'], why: "the player sends its runner on to a later step's frames" },
@@ -215,9 +217,9 @@ function internalUses(files: string[], seeded?: { file: string; text: string }):
   return { uses: Object.fromEntries(Object.entries(uses).sort(([a], [b]) => (a < b ? -1 : 1))), seededUses: at ? [...usedIn(at)].sort() : [] };
 }
 
-test('the engine\'s @internal members the explainer layer and the player use are exactly those listed, by the files listed', () => {
+test('the engine\'s @internal members the explainer layer, the player and the command use are exactly those listed, by the files listed', () => {
   // A seeded use of the scene's internal sink, from a file the list does not name, is read as one.
-  const { uses, seededUses } = internalUses([...sources('explain'), ...sources('app')], {
+  const { uses, seededUses } = internalUses([...sources('explain'), ...sources('app'), ...sources('tools')], {
     file: 'app/seeded-defect.ts',
     text: "import type { Scene } from '../src/scene.ts';\nexport const swap = (scene: Scene, other: Scene) => { scene.sink = other.sink; return scene.stopAt; };\n",
   });
