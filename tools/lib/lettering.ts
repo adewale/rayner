@@ -22,11 +22,11 @@ import { byCodeUnit, sha256 } from './hash.ts';
 const root = ROOT;
 const hash = sha256;
 /**
- * The cache key of what a lettering's measurements depend on: the hash of `parts` as canonical JSON
- * (canonicalJson), so a request is one key whatever order its keys were written in, as the pins
- * compare it (pinnedFor).
+ * A lettering request as a measurement cache key holds it: its keys in canonical order
+ * (canonicalJson), so one request is one key whatever order its keys were written in, as the pins
+ * compare it (pinnedFor). The rest of a key keeps the order it is stored in.
  */
-export const measurementKey = (...parts: unknown[]): string => hash(canonicalJson(parts));
+export const canonicalRequest = <T>(request: T): T => JSON.parse(canonicalJson(request)) as T;
 /**
  * The faces a scene may ask for, each cut as a file in the font cache that
  * tools/lettering-outline-fonts.sh fills, with the file holding its licence
@@ -149,7 +149,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
     return { Scene: bindLettering(Source, snapshot), snapshot,
       get measurementHash() {
         if (!snapshot.fontInputs) throw new Error(`scene.lettering.json: it has no natural diagram font identity; run rayner snapshots ${file}`);
-        return measurementKey(snapshot.builderHash, snapshot.shaper, snapshot.request, snapshot.fontInputs);
+        return hash(JSON.stringify([snapshot.builderHash, snapshot.shaper, canonicalRequest(snapshot.request), snapshot.fontInputs]));
       }, async finish() {} };
   }
   const folder = resolve(process.env.RAYNER_LETTERING_FONTS ?? join(root, 'out/lettering-fonts'));
@@ -308,7 +308,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
       for (const family of ['sans', 'mono'] as const)
         for (const cut of ['', ...requestCuts(request)] as LetteringCut[]) chainOf(family, cut);
       snapshot.fontInputs = inKeyOrder(Object.fromEntries([...fonts].map(([name, face]) => [name, face.hash])));
-      return measurementKey(snapshot.builderHash, snapshot.shaper, snapshot.request, snapshot.fontInputs);
+      return hash(JSON.stringify([snapshot.builderHash, snapshot.shaper, canonicalRequest(snapshot.request), snapshot.fontInputs]));
     },
     async finish() {
       for (const [name, face] of fonts) if (face.license) {

@@ -1,7 +1,7 @@
 import { adoptScript } from './explain-intent.ts';
 import type { adoptIntent } from './explain-intent.ts';
 import {textContextOf} from '../../src/text-context.ts';
-import { measurementKey, offPage, prepareLettering as prepareOutlineLettering } from './lettering.ts';
+import { canonicalRequest, offPage, prepareLettering as prepareOutlineLettering } from './lettering.ts';
 import { usesOutlineLettering, withSceneLettering } from '../../src/lettering-outlines.ts';
 import type { LetteringSnapshot } from '../../src/lettering-outlines.ts';
 import { build } from 'esbuild';
@@ -264,10 +264,10 @@ export async function collectProject(
     ? await prepareOutlineLettering(loaded.Scene, file, captureLettering, write) : undefined;
   const Source = outline?.Scene ?? loaded.Scene;
   const request = outlineRequested ? undefined : letteringRequest(Source);
-  const subsetMetrics = request ? measurementKey(request, ...(await Promise.all(
+  const subsetMetrics = request ? hash(JSON.stringify([canonicalRequest(request), ...(await Promise.all(
     ['inter.woff2', 'jetbrains-mono.woff2'].map(async (name) =>
       [name, hash(await readFile(join(ROOT, 'vendor/lettering', name)))]),
-  ))) : undefined;
+  ))])) : undefined;
   const base = file.replace(/\.[^.]+$/, '');
   const previous: SnapshotStore = refresh ? {} : await readSnapshots(base);
   // Lazy: native scenes never require Agentic Mermaid or Chromium.
