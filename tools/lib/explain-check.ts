@@ -26,7 +26,7 @@ import { LIB_ROOT, engineAlias, importAuthored, sceneSlug } from './explain-proj
 import { checkedAgainstFiles, compareAnswers, runModelTest } from './explain-evidence.ts';
 import { scenarioName } from '../../explain/testing.ts';
 import { undescribed, watchedChanges } from '../../explain/trace.ts';
-import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
+import { diagramsMade, labelOf, readingLabelSize } from '../../explain/diagrams.ts';
 import { closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '../../app/embed-closeup.ts';
 import type { Box, Mobject, Scene, Sink, Step } from '../../src/index.ts';
 import { contains, intersect, nonempty, overlaps } from '../../src/box.ts';
@@ -782,10 +782,15 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       `Invariants never held ${where}: each ran but found nothing to check on every frame (a key it reads may be misspelt)`,
     );
     // Each machine is explored on the stage where it last played: the scene run again to that step's resting picture.
+    const diagramsBefore = diagramsMade();
     const machines = await exploreMachines(ran, async (step) => {
       const s = v.trace.steps.find((x) => x.step === step)!;
       return renderAt(v.Scene, s.restFrame! / v.trace.fps, new NullSink());
     });
+    assert.ok(
+      showsDiagrams(project) || diagramsMade() === diagramsBefore,
+      `Diagrams ${where}: a reader's event draws a diagram no scenario draws, so the page, built without diagram code, cannot draw it; draw the diagram in a scenario too`,
+    );
     assert.deepEqual(
       [...views.problems, ...views.ignoringProblems()].slice(0, 5),
       [],

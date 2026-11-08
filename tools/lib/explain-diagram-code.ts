@@ -9,12 +9,12 @@ import type { Project } from './explain-project.ts';
 import { LIB_ROOT, ROOT } from './roots.ts';
 import { relativePosix } from './hash.ts';
 
-/** Whether a project's page needs diagram code: some scenario resolved a diagram. */
-export const showsDiagrams = (project: Pick<Project, 'store'>) => Object.keys(project.store).length > 0;
+/** Whether a project's page needs diagram code: some scenario made a diagram, or resolved a snapshot for one. */
+export const showsDiagrams = (project: Pick<Project, 'store' | 'diagrams'>) => project.diagrams || Object.keys(project.store).length > 0;
 
 /** The message the stand-in's Diagram throws with. */
 export const NO_DIAGRAM_CODE =
-  'new Diagram(): this page was built without diagram code, because no scenario showed a diagram when it was built; build the page again from a scene that shows it';
+  'new Diagram(): this page was built without diagram code, because no scenario made a diagram when it was built; build the page again from a scene that shows it';
 
 const REAL = 'rayner-diagrams-real';
 

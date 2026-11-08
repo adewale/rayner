@@ -414,6 +414,14 @@ function scaleArtwork(mob: Mobject, k: number, at: Vec = [0, 0]): void {
   mob.scale(k, { aboutPoint: at });
   for (const m of mob.family()) scaleStyle(m.style, k);
 }
+let made = 0;
+/**
+ * @internal How many diagrams this process has made: the command compares the count around a
+ * project's runs to know whether its page needs diagram code, wherever the diagrams' snapshots
+ * came from.
+ */
+export const diagramsMade = (): number => made;
+
 /** A copy of `m` scaled by k about `from`, then moved so `from` lands on `to`: one move of the diagram's own view. */
 function moved(m: Group, k: number, from: Vec, to: Vec): Group {
   const target = m.copy();
@@ -463,6 +471,7 @@ export class Diagram {
     snapshot: DiagramSnapshot,
     { box: where = 'full' }: ShowOptions = {},
   ) {
+    made++;
     const box = regionBox(where);
     this.scene = scene;
     this.frameKey = `frame:${diagramKey(spec)}`;

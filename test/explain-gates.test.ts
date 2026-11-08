@@ -267,6 +267,13 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
     message: /scene\.ts: static meta: "soruces" is not a key it takes; it takes id, title,/,
   },
   {
+    // The authored run never draws the diagram (the box grows to 2 wide); a reader's second press does,
+    // so the page, built without diagram code since no scenario made a diagram, could not draw it.
+    gate: "a diagram only a reader's event draws",
+    source: `import{Scene,Rectangle}from'rayner';import{stage,Machine,view,Diagram}from'rayner/explain';const snap=${JSON.stringify(smallLabel())};export default class Reader extends Scene{async construct(){const s=stage(this);this.state={n:0};const v=view(this,(st)=>st.n>1?new Diagram(this,snap.spec,snap).root:Object.assign(new Rectangle({width:1+st.n,height:1}),{key:'box'}));const m=new Machine(this,{start:{n:0},events:['UP'],next:(st)=>({n:Math.min(2,st.n+1)}),views:[v]});await this.step('one',{caption:'Press up.'});await s.enter(v,{describe:'box'});await this.play(m.replay(['UP']));}}`,
+    message: /Diagrams .*: a reader's event draws a diagram no scenario draws, so the page, built without diagram code, cannot draw it; draw the diagram in a scenario too/,
+  },
+  {
     gate: 'a step that draws no frame of its own',
     source: `import{Scene}from'rayner';export default class Bad extends Scene{async construct(){await this.step('one');await this.wait(.5);await this.step('empty');await this.step('three');await this.wait(.5);}}`,
     message: /this\.step\(\): step "empty" of the scenario \{\} draws no frame of its own, so it shows the step before's picture/,

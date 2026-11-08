@@ -16,9 +16,11 @@ const DIAGRAM_ONLY = 'is not a link of this diagram';
 test('a page carries diagram code only when some scenario shows a diagram', async () => {
   const out = await mkdtemp(join(tmpdir(), 'rayner-page-size-'));
   try {
-    for (const [scene, diagrams] of [['scenes/tutorial/lru-mru/scene.ts', false], ['scenes/explainers/agentic-mermaid/scene.ts', true]] as const) {
+    // The imported-reading fixture makes its diagram from a snapshot it imports itself, so the store
+    // stays empty: the page needs diagram code all the same, as the diagrams it made say.
+    for (const [scene, diagrams] of [['scenes/tutorial/lru-mru/scene.ts', false], ['scenes/explainers/agentic-mermaid/scene.ts', true], ['test/fixtures/imported-reading/scene.ts', true]] as const) {
       const project = await collectProject(join(ROOT, scene), { write: false });
-      assert.equal(Object.keys(project.store).length > 0, diagrams, scene);
+      assert.equal(project.diagrams, diagrams, scene);
       const { html } = await buildExplainer(project, join(out, 'page.html'));
       assert.equal(html.includes(DIAGRAM_ONLY), diagrams, `${scene} ${diagrams ? 'needs' : 'must not carry'} the Diagram class`);
     }

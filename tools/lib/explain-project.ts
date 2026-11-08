@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { Scene } from '../../src/index.ts';
 import { NullSink } from '../../src/output.ts';
+import { diagramsMade } from '../../explain/diagrams.ts';
 import { liveSteps } from '../../app/embed-live.ts';
 import type { Live } from '../../app/embed-live.ts';
 import { traceRun } from '../../src/trace.ts';
@@ -162,6 +163,8 @@ export interface Project {
   file: string;
   sourceHash: string;
   store: SnapshotStore;
+  /** Whether a scenario made a diagram, from the store or from a snapshot of its own: the page then carries diagram code. */
+  diagrams: boolean;
   /** Each scenario: its scene, trace and final stage colours (absent without a stage). */
   scenarios: { values: Settings; Scene: ExplainerClass; trace: Trace; paper?: string; palette?: Palette; live?: Map<string, Live> }[];
   edits: number;
@@ -268,6 +271,7 @@ export async function collectProject(
   // Lazy: native scenes never require Agentic Mermaid or Chromium.
   const builders = diagramBuilders<Awaited<ReturnType<typeof import('../../integrations/agentic-mermaid/build/index.ts').snapshotBuilder>>>();
   const store: SnapshotStore = {};
+  const diagramsBefore = diagramsMade();
   let edits = 0;
   const warned = new Set<string>();
   const inspect = (snapshot: SnapshotStore[string]) => {
@@ -383,7 +387,7 @@ export async function collectProject(
     checkClaimsMeta(Source.meta);
     await outline?.finish();
     if (write) await writeSnapshots(base, store);
-    return { ...loaded, Scene: Source, store, scenarios, edits, ...(lettering ? { lettering } : {}), ...(outline ? { outlineLettering: outline.snapshot } : {}), ...(intent ? { intent } : {}) };
+    return { ...loaded, Scene: Source, store, diagrams: diagramsMade() > diagramsBefore, scenarios, edits, ...(lettering ? { lettering } : {}), ...(outline ? { outlineLettering: outline.snapshot } : {}), ...(intent ? { intent } : {}) };
   } finally {
     await builders.close();
   }
