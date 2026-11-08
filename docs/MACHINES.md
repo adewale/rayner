@@ -53,7 +53,7 @@ event reached. A replayed machine therefore seeks, traces and records like any o
 | `runTime` | Each event's morph or transition in seconds (default 0.6), or a function of `{ event, before, after }` |
 | `limit` | The most states exploration visits from one origin (default 256) |
 
-The machine's state is the scene's model: `new Machine(this, spec)` on a `Scene<S, Sh>` types
+The machine's state is the scene's model: `new Machine(this, spec)` on a `Scene<S, Sh>`, its `spec` a `MachineSpec<S, E>` for events `E`, types
 `start`, `next`, `bound`, `end`, the transitions and the views by `S`. A scene whose machine drives
 one phase of a state that changes shape ([typed state](REFERENCE.md#typed-state-and-shown)) narrows in
 `next` and in its transitions: `next: (st, e) => roundNext(having(st, 'pick'), e)`.

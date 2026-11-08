@@ -29,7 +29,7 @@ await this.play(this.frame.animate.scale(0.5).moveTo(dot));      // twice as clo
 await this.play(this.frame.animate.reset());                     // back to the whole frame
 ```
 
-| | |
+| `Frame` | |
 |---|---|
 | `fit(target, { margin })` | the smallest 16:9 box holding `target` (a mobject or a `Box`) plus `margin` on every side (default 0.5), centered on it |
 | `reset()` | the default box: 16 × 9 at the origin |

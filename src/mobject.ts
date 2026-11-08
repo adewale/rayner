@@ -143,7 +143,7 @@ export class Mobject {
   declare mergeLeaves?: boolean;
   /** Fixed world-coordinate paint viewport, inherited by descendants; does not change geometry. */
   declare clipBox?: Box;
-  /** The state saveState() stored, for restore() and Restore. Copies do not carry it. */
+  /** @internal The state saveState() stored, for restore() and Restore. Copies do not carry it. */
   declare saved?: Mobject;
   /**
    * The style fields that still hold an engine default, and the scene colour each takes: a

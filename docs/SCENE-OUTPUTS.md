@@ -93,9 +93,9 @@ captions and explanatory descriptions in its transcript.
 | --- | --- | --- |
 | One SVG | `renderAt` into `SnapshotSink` | `/frame.svg` |
 | Text at a time | `renderText` on that sampled scene | `/text` |
-| Element records | `renderElements` | `/elements.json` |
+| Element records | `renderElements`, one `ElementRecord` per drawn element | `/elements.json` |
 | Full step/state trace | `traceScene` | `/trace.json` |
-| Step timing and duration | `indexScene` | `/index.json` |
+| Step timing and duration | `indexScene`, a `SceneIndex` (`{ fps, duration, frames, steps }`) | `/index.json` |
 | Every SVG frame | `new SceneClass(new StringSink()).run()`; read sink's `frames` | frame-sequence rendering (`/render`) |
 
 These are capability correspondences, not restored HTTP routes or wire schemas.
@@ -114,10 +114,12 @@ step exists before sampling.
 
 `renderAt` samples the first frame at or after the requested time, on the scene's
 fixed frame grid. A time past the end returns the final frame. It runs the scene into a
-`SeekSink(target, t, { stopAfterFirst })`, which hands its target only the frames from `t` on
-(`forwarded` counts them) and, with `stopAfterFirst`, stops the run after the first. `traceScene` records
-the model before and after each step and what was shown at its end, not every
-intermediate value; call `scene.stateJson()` at chosen sample times for those.
+`SeekSink(target, t, { stopAfterFirst })`, which hands its `target` only the frames from `t` on
+(`forwarded` counts them) and, with `stopAfterFirst`, stops the run after the first. `traceScene` returns a `Trace`,
+`{ fps, duration, frames, steps }`, recording the model before and after each step and what was shown at its end, not every
+intermediate value; call `scene.stateJson()` at chosen sample times for those. It runs the
+scene into a `TraceSink`, whose `steps()` are those records: hand one to a run of your own to
+trace it beside other output.
 
 For all SVG frames:
 
@@ -134,7 +136,7 @@ frames rather than retaining a large sequence in memory. Forward `stepBegin` and
 
 ## Live browser output and publication
 
-In a browser module, pass a container element to `DomSink`, which appends its own SVG:
+In a browser module, pass a container element to `DomSink`, which appends its own SVG element, its `svg`:
 
 ```ts
 import { DomSink } from 'rayner/output';

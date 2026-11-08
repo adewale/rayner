@@ -30,7 +30,9 @@ radians counterclockwise), `Circle`, `Dot`, `Rectangle` and `Polygon` (`new Poly
 style)`, closed), with `Labeled` to put a label on one; the emphasis shapes are in
 [Emphasis](EMPHASIS.md). `line.putStartAndEndOn(a, b)` moves a `Line`'s or an `Arrow`'s
 ends to two points, its tip following, so a drawing whose ends come from a model is
-redrawn in place.
+redrawn in place. `line.start()` and `line.end()` are a `Line`'s ends. An `Arrow` is its
+`line` and its `tip`, a `CurvedArrow` its `arc` and its `tip`, and a `Labeled` its `shape`
+(the label, when it has no shape) and its `label`, so a scene can colour or place one piece.
 
 The drawing area is 16 × 9 scene units, centred on `[0, 0]`, with positive y up.
 An output width changes pixel size, not those coordinates. A `Box` is
@@ -38,8 +40,8 @@ An output width changes pixel size, not those coordinates. A `Box` is
 
 ## Geometry and paint
 
-Points are world coordinates stored in `Float32Array`s. `shift`, `scale`, `rotate`
-and `moveTo` change the points of the whole family. There is no separate model
+Points are world coordinates stored in `Float32Array`s. A `Mobject`'s `shift`, `scale`,
+`rotate`, `stretch(k, axis)` and `moveTo` change the points of the whole family. There is no separate model
 transform matrix whose effect an inspector must reconstruct.
 
 `VMobject.startNewPath(point)`, `addLineTo(point)`, `addCubic(handle1, handle2, end)`
@@ -62,18 +64,21 @@ length along it, which `MoveAlongPath` (`rayner/extras`) and the stage's sketch 
 `applyPointsFunction(fn)` maps every point of the family through `fn([x, y])`, and
 `applyAffine(a, b, c, d, e, f)` applies the affine map `[a c; b d]p + [e f]` without
 allocating per point; both work about the box's centre unless given `aboutPoint` or
-`aboutEdge`. `boxPoint(direction)` is a point of the bounding box: `[0, 0]` its
-centre, `[1, 1]` its upper right.
+`aboutEdge`. `box()` is the family's bounding box, a `Box`, or null when nothing in it
+has points. `boxPoint(direction)` is a point of that box: `[0, 0]` its centre, `[1, 1]`
+its upper right; `center()`, `top()`, `bottom()`, `left()` and `right()` are five of them,
+and `width()` and `height()` its size.
 
 Style includes fill, stroke, their opacity and width, overall opacity, and optional
-SVG paint details such as dashes and joins. `setFill`, `setStroke` and `setOpacity`
+SVG paint details such as dashes and joins. A mobject's `style` is a `StyleRecord`: its
+`Style` with every field filled in but those paint details and `drawFraction`. `setFill`, `setStroke` and `setOpacity`
 update it; `setStyle(style)` sets several fields at once, and `setColor(c)` sets fill
 and stroke to one colour. `Create` and `Write` (`rayner/extras`) use the transient `drawFraction` to reveal a path.
 Changing `style` or point arrays behind the supported methods risks stale caches.
 
 A colour left out takes the scene's. `scene.colors` holds five (`paper`, `ink`, `soft`,
 `emphasis`, `bad`), and a part built without a colour is marked with the role it takes
-(`defaultColors`): text, lines, arrows and axes take `ink`, guide lines and a readout's keys
+(`defaultColors`, each a `ColorRole`): text, lines, arrows and axes take `ink`, guide lines and a readout's keys
 `soft`, `SurroundingRectangle`, `Circumscribe` and plotted data `emphasis`, and `Cross` `bad`.
 When the part first enters the scene (`scene.add`, a play that draws it or morphs toward it, or
 a parent already on stage), each field still holding its default takes the scene's colour, and a
@@ -84,7 +89,7 @@ paper, and the SVG sinks draw `paper` behind the frame unless given a `backgroun
 (Manim's `interpolate_color`), for a colour between two of the look's.
 
 Common layout operations are `nextTo`, `alignTo`, `arrange`, `moveTo`, `setWidth`
-and `setHeight`; `arrangeInGrid(cols, { buff })` lays the children out row by row,
+and `setHeight`, and `toEdge(direction, buff)` puts a mobject against an edge of the frame; `arrangeInGrid(cols, { buff })` lays the children out row by row,
 `cols` to a row, each centred in a cell as wide as the widest and as tall as the
 tallest. Bounds describe geometry only; clipping, paint order and stroke
 also decide what collides on screen, which is why `rayner check` measures painted
@@ -93,7 +98,9 @@ labels separately.
 A `Text`'s `advance()` is its exact advance width and `textSize()` the size it is
 drawn at now, after any scaling. `shapeRun(text, size)` shapes a string with the
 text's own shaping and returns the run, `{ glyphs, width, ascent, descent }`, as
-`font-metrics` reads it. `tabWidth` is the tab stop a text's tabs are laid out to,
+`font-metrics` reads it. `angle()` is the angle the text has been turned through, in radians,
+`italic` whether it was made italic, `font` its `FontName` (`'sans'` or `'mono'`), and
+`shaping` the `TextShaping` it was made with: the scene's, when `this.text` made it. `tabWidth` is the tab stop a text's tabs are laid out to,
 which `Code` sets. A `DecimalNumber` shows `value` with `decimals` places between
 `prefix` and `suffix`; `setValue(v)` redraws it in place for a new value, and
 `DecimalNumber.format(v, decimals, prefix, suffix)` is the string it would show.
@@ -101,7 +108,8 @@ which `Code` sets. A `DecimalNumber` shows `value` with `decimals` places betwee
 ## Ownership, identity and copying
 
 `group.add(child)` moves the child into that group, detaching it from its old
-parent. A scene admits one root per subtree, so admitting a parent never paints a
+parent. A mobject's `parent` is the group it is in, or null, and `family()` is the
+mobject and every descendant, depth first. A scene admits one root per subtree, so admitting a parent never paints a
 child twice. `Scene.add`, `remove`, `replace`, `bringToFront` and `bringToBack`
 control membership and draw order. The structure is a tree: do not insert a child
 twice or make a cycle. `scene.familyMembers()` lists every mobject on the stage and
@@ -137,8 +145,20 @@ await this.play(box.animate.shift([2, 0]).setFill('#58c4dd'));
 await this.play(new Transform(box, target));
 ```
 
-An `.animate` builder records chainable methods and constructs a target when the
-play begins. Ordinary transforms capture endpoints at `begin()` and interpolate
+`play()` takes `Playable`s: an `Animation`, an `AnimationGroup` (either is a
+`ScheduledAnimation`), or a `.animate` builder, an `AnimateBuilder`, which records
+chainable methods and constructs a target when the play begins.
+`new Transform(m, target, { pathFunc, replace })` morphs `m` into its `target`: each frame
+sets it between the two with `m.interpolate(start, end, alpha, pathFunc)`, each point
+travelling by a `PathFunc` (a straight line by default), and with `replace: true` the scene
+holds `target` in `m`'s place afterwards.
+
+A custom animation extends `Animation`. Its `mobject` is what it animates, and `runTime`,
+`rateFunc` (a `RateFunc`, from the fraction of the run time elapsed to progress), `lagRatio`
+and `remover` are its timing options, as on an `AnimationGroup`. `targets()` lists the
+mobjects it writes, its `mobject` unless it says otherwise: what `play()` admits to the
+scene and allows one writer each. `evidence()` is what it records as it begins, or null.
+Ordinary transforms capture endpoints at `begin()` and interpolate
 between them. The scene applies the rate function before calling `interpolate`;
 a custom animation must not apply it twice. Its `finish()` lands at the rate
 function's endpoint, which need not be 1 (`thereAndBack` returns to the start).
@@ -154,7 +174,7 @@ Earlier members of a `Succession` may change them. Define intermediate geometry
 from that captured start and alpha rather than adding a per-frame displacement.
 [FollowAngle](../recipes/continuous.ts) demonstrates the extension contract.
 
-The default frame rate is 30. Time comes from the frame count: `scene.frameCount` is the
+The default frame rate, `scene.fps`, is 30. Time comes from the frame count: `scene.frameCount` is the
 frames emitted so far, and `scene.time` the seconds they make. Sinks can wait for
 browser display or return immediately offline, but cannot change the model's time
 step. Exact comparisons are within the chosen frame grid, not arbitrary subframe
@@ -180,7 +200,8 @@ functions, class instances, cycles and non-finite values; shapes belong in the
 scene tree.
 
 Evidence is what an animation or operation did, attached to the step it happened
-in, apart from the model. `this.record(kind, data)` adds a record, and every
+in, apart from the model. `this.record(kind, data)` adds a record, an `Evidence`
+(`{ kind, ...data }`), and every
 animation's `evidence()` is recorded as it begins: a matching transform records
 `{ kind: 'match', … }` and `TransformDiff` `{ kind: 'diff', … }`
 ([matching](MATCHING.md#evidence)), a view's sync its morph's counts with the view's
@@ -195,9 +216,9 @@ too: a [view](VIEWS.md) ties a picture to the state it was drawn from.
 
 ## Updaters, derived pictures and seeking
 
-`mobject.addUpdater((object, dt) => ...)` runs before a rendered frame. Camera
-updaters run after ordinary objects. `mobject.update(dt)` runs the updaters of a mobject and
-its descendants once, as the scene does before each frame. Clear registrations with `clearUpdaters()`
+`m.addUpdater((object, dt) => ...)` registers an `Updater`, which runs before a rendered frame. Camera
+updaters run after ordinary objects. `m.update(dt)` runs the updaters of a mobject and
+its descendants once, as the scene does before each frame. Clear registrations with `m.clearUpdaters()`
 when they are no longer needed. An updater that integrates `velocity * dt` depends
 on previous frames. The engine conservatively replays any play or wait with active
 updaters, including an updater that merely reads the current value.
@@ -230,6 +251,8 @@ fonts; [requested lettering](LETTERING.md) adds scripts and maths through snapsh
 geometry and replay, motion continuity, readable served paint, or whether readers
 understand. A pass on one says nothing about the others. `MotionSink` and
 `analyzeMotion` (`rayner/testing`) inspect sampled motion; they judge neither the editing nor the maths.
+`analyzeMotion(sink, options)` returns a `MotionEvent` for each teleport, resize, pop, cut,
+flicker or handoff in the frames a `MotionSink` sampled: `{ kind, frame, t, step, what, magnitude, detail }`.
 
 For profiling, `perf.enable()` (`perf` is in `rayner/testing`) starts counters and spans, `perf.report()` explains
 where measured work went, and `perf.chromeTrace()` returns trace-event JSON for a

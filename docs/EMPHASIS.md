@@ -69,7 +69,7 @@ corners plus `buff`), `buff` (0.15), `strokeWidth`, `cornerRadius`, `keep`,
 
 The animation's mobject is the outline itself, which is how `play()` adds it to
 the scene. The outline exists from construction, so a scene can keep a reference
-to it, and it is refitted to the target's box when the play starts. Constructing
+to it, and it is refitted to its `target`'s box when the play starts. Constructing
 the animation early and then moving the target still circles the target where it
 ends up. The draw-in is a `drawFraction` reveal, like `Create`, and the fade is an
 opacity ramp, so the motion verifier sees no pop or cut. At run times below about

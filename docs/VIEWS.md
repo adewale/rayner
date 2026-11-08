@@ -98,7 +98,7 @@ scene's `this.shown`.
 A scene whose state changes shape by phase declares the shapes, as a union or as one
 record with optional parts, and a draw of one phase narrows to its shape:
 `view(this, (st) => year(having(st, 'longitude')))`. `having` returns the state typed
-as the shapes that hold those keys, optional parts made present, and throws for a state
+as the shapes that hold those keys, optional parts made present (a `Having<S, K>`), and throws for a state
 that lacks one. `rayner check` draws every view from other steps' states as well as its
 own ([below](#the-fidelity-check-the-picture-side)), and a draw that throws on a state of
 another shape has read its state, so the check counts it as depending on it. The same
@@ -139,9 +139,11 @@ turn: the old ones fade out over the first half and the new ones fade in over th
 word and its replacement never overlap. `staged: false` fades both at once, while the matched parts
 morph. A sync by `'index'` has no parts that go or come, so `staged` changes nothing for it.
 
-Once the play has begun, `sync.summary()` reports what a matching transform paired
-(`{ matched, morphed, removed, added }`); it is `null` for `'index'` and for a
-no-op. `sync.inner` is the transform itself. The sync records the same counts as
+`view.sync()` returns a `ViewSync`, the `Animation` that plays the morph; its `view`,
+`match` (a `ViewMatch`) and `staged` are what it was given. Once the play has begun,
+its `summary()` reports what a matching transform paired (a `MatchSummary`,
+`{ matched, morphed, removed, added }`); it is `null` for `'index'` and for a
+no-op. The sync records the same counts as
 evidence, with the View's key as `view` when it has one.
 
 ### A picture that did not change
@@ -161,8 +163,8 @@ picture, and the View does not swap; the fidelity check below reports that step.
 A rebuilt picture goes where the old one was, so a readout whose text grows does
 not drift. This is `Text.setText`'s anchor rule applied to any picture:
 
-- `place: 'left' | 'center' | 'right'` (default `'center'`; a readout wants
-  `'left'`) is the point held still: the left edge, centre or right edge of the
+- `place: 'left' | 'center' | 'right'` (a `ViewPlace`; default `'center'`, and a readout wants
+  `'left'`), kept as `view.place`, is the point held still: the left edge, centre or right edge of the
   picture's layout box, at its vertical middle. The layout box counts each `Text`
   by its advance box rather than its ink, as `setText` does, so the anchor does
   not depend on which letters the text holds.

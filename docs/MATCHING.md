@@ -78,6 +78,8 @@ parts that stay through an event keep their identity.
 
 ## How parts pair
 
+A `TransformMatching` and its two variants pair parts this way:
+
 - A key that occurs once on each side pairs outright.
 - A key that repeats pairs so the total squared distance travelled is least.
   A row of equal boxes that moves as a whole keeps its order; nearest-first
@@ -100,7 +102,7 @@ parts that stay through an event keep their identity.
   piece for the motion verifier (`test/matching-motion.test.ts`). With a
   `lagRatio` above about 0.25 and large rearrangements, matched glyphs that
   cross a line can still report a teleport in a few frames.
-- `fadeMismatches: false` morphs the unmatched parts into each other instead,
+- `fadeMismatches: false` (a `TransformMatching` option) morphs the unmatched parts into each other instead,
   by index, as manim's `transform_mismatches` does; only the surplus fades.
 - `staged: true` takes the unmatched parts in turn instead of together: the
   source's shrink and fade over the first half, the target's grow and fade in
@@ -119,12 +121,12 @@ faded parts left in it invisible, new copies attached, its `text` unchanged.
 
 ## What it reports
 
-After `begin()` (that is, once played):
+After `begin()` (that is, once played), a `TransformMatching` reports what it did
+with the parts of its source and its `target`:
 
-- `summary()`: `{ matched, morphed, removed, added }`, counts.
+- `summary()`: a `MatchSummary`, `{ matched, morphed, removed, added }`, counts.
 - `pairs`, `morphed`: `[sourcePart, targetPart]` in source order; `removed`:
-  source parts; `added`: target parts (the originals; their copies are
-  `fadesIn[i].sub`).
+  source parts; `added`: target parts (the originals, not the copies that fade in).
 
 Every part of either side is in exactly one of these. Invisible parts
 (opacity 0, such as what an earlier transform left behind) take no part.
@@ -207,11 +209,11 @@ await this.play(new TransformDiff(before, after, { hunks: parseUnifiedDiff(patch
 
 It is a `TransformMatching` whose key is that pairing: `pairs`, `removed`,
 `added`, `summary()`, `replace` and seeking work as above, and `plan` says
-what each line did (`same`, `changed`, `removed`, `added`, by index).
+what each line did, a `LinePlan` (`same`, `changed`, `removed`, `added`, by index).
 
 ### Hunks are the truth
 
-`hunks` (unified-diff shape: `oldStart`, `oldLines`, `newStart`, `newLines`,
+`hunks`, each a `Hunk` (unified-diff shape: `oldStart`, `oldLines`, `newStart`, `newLines`,
 then `ops` and `lines`, one per line of the hunk, each op a `DiffOp`: `'='` context, `'-'`, `'+'`)
 default to `diffLines(before, after)`: a line LCS with the common head and tail
 trimmed, deletions before insertions, no context. On an edit with one minimal

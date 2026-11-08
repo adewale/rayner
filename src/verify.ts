@@ -100,8 +100,8 @@ function describeLeaf(m: Mobject): string {
 }
 
 export class MotionSink implements Sink {
-  frames: MotionFrame[];
-  labels: Map<number, string>;
+  /** @internal */ frames: MotionFrame[];
+  /** @internal */ labels: Map<number, string>;
   constructor() { this.frames = []; this.labels = new Map(); }
   async frame(scene: Scene): Promise<void> {
     const f = new Map<number, LeafSample>();

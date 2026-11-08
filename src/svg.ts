@@ -465,9 +465,9 @@ export class DomSink implements Sink {
   /** @internal */ doc: Document;
   svg: SVGSVGElement;
   /** @internal */ NS: 'http://www.w3.org/2000/svg';
-  nodes: Map<number, DomNode>;
+  /** @internal */ nodes: Map<number, DomNode>;
   realtime: boolean;
-  anchor: number | null;
+  /** @internal */ anchor: number | null;
   /** @internal */ lastPatch: number;
   dropped: number;
   maxFreezeMs: number;
@@ -525,6 +525,7 @@ export class DomSink implements Sink {
     }
   }
 
+  /** @internal Draw the scene's frame now, unpaced. */
   patch(scene: Scene): void {
     if (this.background === undefined && this.svg.style.background !== scene.colors.paper) this.svg.style.background = scene.colors.paper;
     // Absolute path data: measured faster for live DOM patching than translate + relative

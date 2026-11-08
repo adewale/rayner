@@ -112,7 +112,7 @@ export class Text extends Group {
   anchor: 'start' | 'middle' | 'end';
   /** Tab stops every this many columns, or undefined: see TextOpts. `text` keeps the tabs, and so do glyph clusters: they index `text`. */
   tabWidth: number | undefined;
-  // Set by build(), which the constructor calls
+  /** @internal Set by build(), which the constructor calls. */
   run!: RunMetrics;
   /**
    * The advance box as a point array of its corners, bottom-left, top-right,
