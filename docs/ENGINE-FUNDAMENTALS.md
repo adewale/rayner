@@ -163,19 +163,30 @@ A custom animation extends `Animation`. Its `mobject` is what it animates, and `
 and `remover` are its timing options, as on an `AnimationGroup`. `targets()` lists the
 mobjects it writes, its `mobject` unless it says otherwise: what `play()` admits to the
 scene and allows one writer each. `evidence()` is what it records as it begins, or null.
-Ordinary transforms capture endpoints at `begin()` and interpolate
-between them. The scene applies the rate function before calling `interpolate`;
-a custom animation must not apply it twice. Its `finish()` lands at the rate
-function's endpoint, which need not be 1 (`thereAndBack` returns to the start),
-and must land where its last frame drew: `rayner check` compares each step's
-picture as it ends with its last frame.
+The scene calls an animation's `begin()`, `interpolate(alpha)` and `finish()`; a custom
+animation overrides their protected hooks, `doBegin()`, `doInterpolate(alpha)` and
+`doFinish(alpha)`, and calls `super.doBegin()` where it extends one. Ordinary transforms
+capture endpoints in `doBegin()` and interpolate between them. The scene applies the rate
+function before calling `interpolate`; a custom animation must not apply it twice. Its
+`doFinish()` lands at the rate function's endpoint, which need not be 1 (`thereAndBack`
+returns to the start), and must land where its last frame drew: `rayner check` compares
+each step's picture as it ends with its last frame.
 
 An animation's `phase`, an `AnimationPhase`, is `'idle'` until it begins, `'begun'`
 while it plays and `'finished'` once it has landed. A second `begin()` while begun
 throws, and so do `interpolate()` and `finish()` before `begin()`; a finished animation
-may begin again. The guards wrap whatever `begin`, `interpolate` and `finish` a subclass
-defines, so a custom animation keeps them without calling anything. A run time and a lag
-ratio are finite and not negative, given to the constructor or to `play()`.
+may begin again. The guards are the public calls themselves, on `Animation` and
+`AnimationGroup`, so every caller goes through them (the scene, a group, a `Succession`,
+an animation that drives another) and a hook keeps them in whatever form it is written,
+a method or a class field. A subclass that overrides `begin`, `interpolate` or `finish`
+itself is refused: as a method when the first one is made, and as a class field or an
+assignment at the next guarded call.
+
+When an animation throws as it begins, nothing it shares a begin with is left begun: a
+group lands the members it began before the one that threw, and `play()` lands the
+animations before it, each finishing and cleaning up as the end of its play would, so
+each can play again. A run time and a lag ratio are finite and not negative, given to
+the constructor, to `play()` or set on the animation (`a.runTime = 2`).
 
 Use one `play(a, b)` for simultaneous operations, `Succession` for sequential
 operations and `AnimationGroup`/`LaggedStart` for grouped schedules. There is one scene

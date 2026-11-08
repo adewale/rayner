@@ -172,8 +172,8 @@ export class Sketch extends Create {
     this.pen = pen;
     this.travel = travel;
   }
-  override begin(): void {
-    super.begin();
+  protected override doBegin(): void {
+    super.doBegin();
     const subjectLeaves = new Set(this.subject.family());
     const strokes: { row: number; length: number; start: Vec; end: Vec }[] = [];
     this.families.forEach((row: Row, i: number) => {
@@ -225,8 +225,8 @@ export class Sketch extends Create {
     this.total = Math.max(at, 1e-6);
     this.interpolate(0);
   }
-  override interpolate(alpha: number): void {
-    if (!this.plan) return super.interpolate(alpha);
+  protected override doInterpolate(alpha: number): void {
+    if (!this.plan) return super.doInterpolate(alpha);
     const distance = alpha * this.total;
     const rowAlpha = new Map<number, number>();
     for (const p of this.plan) for (const row of p.rows) rowAlpha.set(row, Math.min(1, Math.max(0, (distance - p.from) / (p.to - p.from))));

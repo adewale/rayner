@@ -235,7 +235,7 @@ import type { InvariantFailure } from 'rayner/testing';
 
 /** A custom animation: it overrides the public hooks, as a recipe's does. */
 class Pulse extends Animation {
-  override interpolate(alpha: number): void { this.mobject.setOpacity(0.5 + 0.5 * thereAndBack(alpha)); }
+  protected override doInterpolate(alpha: number): void { this.mobject.setOpacity(0.5 + 0.5 * thereAndBack(alpha)); }
 }
 
 type Door = { door: 'open' | 'closed' };

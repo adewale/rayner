@@ -15,14 +15,14 @@ export class Indicate extends Transform {
     super(mobject, mobject, { rateFunc: thereAndBack, ...opts });
     this.scaleFactor = scaleFactor; this.color = color;
   }
-  override begin(): void {
+  protected override doBegin(): void {
     const t = this.mobject.copy().scale(this.scaleFactor);
     for (const m of t.family()) {
       if (m.style.stroke !== 'none') m.style.stroke = this.color;
       if (m.style.fill !== 'none') m.style.fill = this.color;
     }
     this.target = t; this.ownsTarget = true; this.sameStructure = true;
-    super.begin();
+    super.doBegin();
   }
 }
 

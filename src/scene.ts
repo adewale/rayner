@@ -6,7 +6,7 @@
 // deterministic regardless of sink.
 
 import { prepareAnimation, AnimationGroup, animationName } from './animation.ts';
-import { Succession, bindSuccessions, takeCopies, recordEvidence, assertTime } from './animation.ts';
+import { Succession, bindSuccessions, takeCopies, recordEvidence, assertTime, landBegun } from './animation.ts';
 import type { ScheduledAnimation as Animation, Playable, PlayOpts } from './animation.ts';
 import { paintDefaults, mobjectName } from './mobject.ts';
 import type { Mobject } from './mobject.ts';
@@ -696,7 +696,10 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     for (const a of anims) a.settle();
     for (const a of anims) a.setOptions(opts);
     assertDisjoint(anims);
-    perf.span('anim.begin', () => this.beginAnimations(anims));
+    // One that throws as it begins leaves none of the others begun: those it began first land.
+    const idle = anims.filter((a) => a.phase !== 'begun');
+    try { perf.span('anim.begin', () => this.beginAnimations(anims)); }
+    catch (e) { landBegun(idle, this); throw e; }
     const runTime = Math.max(...anims.map((a) => a.runTime));
     const dt = 1 / this.fps;
     const n = Math.max(1, Math.round(runTime * this.fps));

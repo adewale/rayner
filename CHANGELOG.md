@@ -164,7 +164,9 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `loadProject` and the `rayner` command refuse a step that draws no frame of its own, since it would show the step before's picture, and hold every scenario to the same step-name rules.
 - `rayner describe`, the contact sheet, the site's cards and the demos' posters draw every step's resting picture from one run of the scene instead of a seek per step.
 - An animation has a `phase` (an `AnimationPhase`: idle, begun or finished). A second `begin()` while begun, and `interpolate()` or `finish()` before `begin()`, throw; one animation listed twice in a play is refused, where it used to begin twice and leave its mobject invisible.
-- `fps` must be above 0 and at most 240; run times, lag ratios and `wait()` times must be finite and not negative.
+- A custom animation overrides the protected hooks `doBegin()`, `doInterpolate(alpha)` and `doFinish(alpha)`; `begin()`, `interpolate()` and `finish()` keep the phase around them for every caller, whether a hook is a method or a class field. A subclass that overrides `begin`, `interpolate` or `finish` itself is refused. [Fundamentals](docs/ENGINE-FUNDAMENTALS.md)
+- A group whose member throws as it begins, and a play whose animation does, land what they had begun, so no animation is left begun and each can play again.
+- `fps` must be above 0 and at most 240; run times, lag ratios and `wait()` times must be finite and not negative, and an animation's `runTime` and `lagRatio` are checked whenever they are set.
 - A `Succession` or group exposes its members' `ready()` and lays out their times as the play begins, so `s.show` composes inside a `Succession` or group. A `Succession` refuses a rate function that runs its time backwards.
 - `DecimalNumber` blends its value only with another number: transformed into a `Text`, it ends as that text instead of `NaN`.
 - `Scene.captionWpm` is read from the scene's own class, and a caption in a script written without spaces counts every one and a half letters as a word instead of the whole caption as one.

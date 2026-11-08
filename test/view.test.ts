@@ -27,7 +27,7 @@ Scene.captionWpm = Infinity;
 class Mutate extends Animation {
   fn: () => void;
   constructor(fn: () => void) { super(new Group(), { runTime: 0.5 }); this.fn = fn; }
-  override begin(): void { this.fn(); super.begin(); }
+  protected override doBegin(): void { this.fn(); super.doBegin(); }
 }
 
 const readoutOf = (s: SceneState) => new Text(`len ${s.len}  head ${s.head}`, { font: 'mono', fontSize: 0.4 });

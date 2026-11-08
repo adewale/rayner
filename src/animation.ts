@@ -66,51 +66,101 @@ export function assertTime(api: string, what: string, value: unknown, max = Infi
  */
 export type AnimationPhase = 'idle' | 'begun' | 'finished';
 
-/** Shared scheduling contract for a drawable animation or a group of animations. */
+/** The calls that keep an animation's phase, and the hooks a subclass overrides for each. */
+const LIFECYCLE = { begin: 'doBegin', interpolate: 'doInterpolate', finish: 'doFinish' } as const;
+/** Animation classes already checked for an override of a lifecycle call (see AnimationTiming's constructor). */
+const checkedClasses = new WeakSet<Function>();
+
+/**
+ * Shared scheduling contract for a drawable animation or a group of animations.
+ *
+ * `begin()`, `interpolate()` and `finish()` keep the phase (see AnimationPhase), and each calls
+ * its protected hook, `doBegin()`, `doInterpolate()` and `doFinish()`, which a subclass
+ * overrides. Every caller, the scene, a group or another animation, goes through the guarded
+ * call; a subclass's `super.doBegin()` does not. A subclass that overrides a guarded call itself,
+ * as a method, a class field or an assignment, is refused.
+ */
 abstract class AnimationTiming {
-  runTime: number;
+  #runTime!: number;
+  #lagRatio!: number;
   rateFunc: RateFunc;
-  lagRatio: number;
   remover: boolean;
   /** Where it is in its life (see AnimationPhase): set by begin() and finish(). */
   get phase(): AnimationPhase { return this.#phase; }
   #phase: AnimationPhase = 'idle';
   constructor({runTime = 1, rateFunc = smooth, lagRatio = 0, remover = false}: AnimOpts = {}) {
-    assertTime(`new ${new.target.name}()`, 'its runTime', runTime);
-    assertTime(`new ${new.target.name}()`, 'its lagRatio', lagRatio);
-    this.runTime = runTime; this.rateFunc = rateFunc; this.lagRatio = lagRatio; this.remover = remover;
-    // The phase is kept here, around whatever begin(), interpolate() and finish() the subclass defines:
-    // a call from outside goes through these guards, a subclass's super call does not.
-    const begin = this.begin, interpolate = this.interpolate, finish = this.finish;
-    const guarded = {
-      begin: (): void => {
-        if (this.#phase === 'begun') throw new Error(`animation.begin(): ${animationName(this)} has already begun; an animation plays in one place at a time, so make another for the second`);
-        const was = this.#phase;
-        this.#phase = 'begun';
-        try { begin.call(this); } catch (e) { this.#phase = was; throw e; }
-      },
-      interpolate: (alpha: number): void => {
-        if (this.#phase !== 'begun') throw new Error(`animation.interpolate(): ${animationName(this)} ${this.#phase === 'idle' ? 'has not begun' : 'has finished'}; begin() it first`);
-        interpolate.call(this, alpha);
-      },
-      finish: (alpha?: number): void => {
-        if (this.#phase !== 'begun') throw new Error(`animation.finish(): ${animationName(this)} ${this.#phase === 'idle' ? 'has not begun' : 'has already finished'}; begin() it first`);
-        finish.call(this, alpha);
-        this.#phase = 'finished';
-      },
-    };
-    for (const [name, value] of Object.entries(guarded)) Object.defineProperty(this, name, { value, writable: true, configurable: true });
+    const api = `new ${new.target.name}()`;
+    if (!checkedClasses.has(new.target)) {
+      for (let p = new.target.prototype; p !== AnimationTiming.prototype; p = Object.getPrototypeOf(p))
+        for (const [call, hook] of Object.entries(LIFECYCLE))
+          if (Object.hasOwn(p, call)) throw new TypeError(`${api}: it overrides ${call}(), which keeps the animation's phase; override ${hook}() instead`);
+      checkedClasses.add(new.target);
+    }
+    assertTime(api, 'its runTime', runTime);
+    assertTime(api, 'its lagRatio', lagRatio);
+    this.#runTime = runTime; this.#lagRatio = lagRatio; this.rateFunc = rateFunc; this.remover = remover;
   }
+  /** Seconds the animation runs: finite and not negative, checked on every set. */
+  get runTime(): number { return this.#runTime; }
+  set runTime(value: number) { assertTime('animation.runTime', `the runTime of ${animationName(this)}`, value); this.#runTime = value; }
+  /** 0: members (or rows) move together; 1: one after another. Finite and not negative, checked on every set. */
+  get lagRatio(): number { return this.#lagRatio; }
+  set lagRatio(value: number) { assertTime('animation.lagRatio', `the lagRatio of ${animationName(this)}`, value); this.#lagRatio = value; }
   /** @internal */ setOptions({ runTime, rateFunc, lagRatio }: PlayOpts = {}): this {
-    if (runTime != null) { assertTime('this.play()', 'its runTime', runTime); this.runTime = runTime; }
+    if (runTime != null) { assertTime('this.play()', 'its runTime', runTime); this.#runTime = runTime; }
     if (rateFunc != null) this.rateFunc = rateFunc;
-    if (lagRatio != null) { assertTime('this.play()', 'its lagRatio', lagRatio); this.lagRatio = lagRatio; }
+    if (lagRatio != null) { assertTime('this.play()', 'its lagRatio', lagRatio); this.#lagRatio = lagRatio; }
     return this;
   }
 
-  abstract begin(): void;
-  abstract interpolate(alpha: number): void;
-  abstract finish(alpha?: number): void;
+  /** A guarded call or hook assigned on the instance (a class field, Object.assign) would skip or replace the guard. */
+  #refuseOwnLifecycle(api: string): void {
+    for (const [call, hook] of Object.entries(LIFECYCLE))
+      if (Object.hasOwn(this, call)) throw new TypeError(`${api}: ${animationName(this)} defines ${call} on itself, a class field or an assignment, which skips the phase it keeps; override ${hook}() instead`);
+  }
+
+  /** Begin: fix the endpoints (see doBegin). Refused while begun; a doBegin() that throws leaves the phase as it was. */
+  begin(): void {
+    this.#refuseOwnLifecycle('animation.begin()');
+    if (this.#phase === 'begun') throw new Error(`animation.begin(): ${animationName(this)} has already begun; an animation plays in one place at a time, so make another for the second`);
+    const was = this.#phase;
+    this.#phase = 'begun';
+    try { this.doBegin(); } catch (e) { this.#phase = was; throw e; }
+  }
+  /** Draw the frame at `alpha`, already passed through rateFunc by the caller (see doInterpolate). Only while begun. */
+  interpolate(alpha: number): void {
+    if (this.#phase !== 'begun') {
+      this.#refuseOwnLifecycle('animation.interpolate()');
+      throw new Error(`animation.interpolate(): ${animationName(this)} ${this.#phase === 'idle' ? 'has not begun' : 'has finished'}; begin() it first`);
+    }
+    this.doInterpolate(alpha);
+  }
+  /** Land, at rateFunc(1) unless given another alpha (see doFinish). Only while begun; then finished. */
+  finish(alpha?: number): void {
+    this.#refuseOwnLifecycle('animation.finish()');
+    if (this.#phase !== 'begun') throw new Error(`animation.finish(): ${animationName(this)} ${this.#phase === 'idle' ? 'has not begun' : 'has already finished'}; begin() it first`);
+    this.doFinish(alpha);
+    this.#phase = 'finished';
+  }
+
+  /**
+   * @internal Land after a begin elsewhere failed (see landBegun): finish() and clean up from
+   * `scene`, as the end of a play would. It ends finished even if its landing throws, which is
+   * dropped: the begin's own error is the one to report.
+   */
+  land(scene: Scene | null): void {
+    if (this.#phase !== 'begun') return;
+    try { this.finish(); if (scene) this.cleanUpFromScene(scene); }
+    catch { /* the failed begin's error is reported instead */ }
+    finally { this.#phase = 'finished'; }
+  }
+
+  /** Called by begin(): fix the endpoints. Copies live here, never in the constructor. */
+  protected abstract doBegin(): void;
+  /** Called by interpolate() with alpha already passed through rateFunc: a pure function of alpha over the endpoints. */
+  protected abstract doInterpolate(alpha: number): void;
+  /** Called by finish(): land where the last frame drew, at `alpha` (rateFunc(1) when not given). */
+  protected abstract doFinish(alpha?: number): void;
   /** @internal Remove what the animation took off the stage, after it finished. */
   abstract cleanUpFromScene(scene: Scene): void;
   /** The mobjects this animation writes: what play() admits to the scene and allows one writer each. */
@@ -150,6 +200,16 @@ export function recordEvidence(a: ScheduledAnimation, scene: Scene | null): void
 }
 export type ScheduledAnimation = Animation | AnimationGroup;
 
+/**
+ * @internal Land the animations a failed begin left begun, last begun first: each finishes and
+ * cleans up as the end of its play would, so none is left begun and each may begin again. A group
+ * whose member throws lands the members before it; play() lands the animations before the one
+ * that threw.
+ */
+export function landBegun(begun: readonly ScheduledAnimation[], scene: Scene | null): void {
+  for (const a of [...begun].reverse()) a.land(scene);
+}
+
 export class Animation extends AnimationTiming {
   mobject: Mobject;
   /** @internal */ starting!: Mobject;
@@ -164,7 +224,7 @@ export class Animation extends AnimationTiming {
    */
   paints(): Mobject[] { return this.targets(); }
   /** Called when play starts. Copies live here, never in the constructor. */
-  override begin(): void {
+  protected override doBegin(): void {
     this.starting = this.createStartingMobject();
     this.families = this.zipFamilies();
     this.slots = lagSlots(this.families);
@@ -186,13 +246,13 @@ export class Animation extends AnimationTiming {
    * Lands on rateFunc(1): for a there-and-back rate function that is the start.
    * A group passes the alpha its own timeline lands each member on instead.
    */
-  override finish(alpha: number = this.rateFunc(1)): void { this.interpolate(alpha); }
+  protected override doFinish(alpha: number = this.rateFunc(1)): void { this.interpolate(alpha); }
 
   /** @internal */
   override cleanUpFromScene(scene: Scene): void { if (this.remover) scene.remove(this.mobject); }
 
   /** alpha already passed through rateFunc by the scene. */
-  override interpolate(alpha: number): void {
+  protected override doInterpolate(alpha: number): void {
     const n = this.families.length, { index, count } = this.slots;
     for (let i = 0; i < n; i++) {
       const slot = index[i]!;
@@ -253,7 +313,7 @@ export class Transform extends Animation {
 
   /** @internal */ override paints(): Mobject[] { return [this.mobject, this.target]; }
 
-  override begin(): void {
+  protected override doBegin(): void {
     // An animation that built its own target (FadeIn, .animate) hands it
     // over as is: nothing else holds it, so copying it again is pure cost. And a
     // target that is a copy of the mobject needs no alignment: same structure.
@@ -270,7 +330,7 @@ export class Transform extends Animation {
       }
       for (let i = 0; i < from.length; i++) from[i]!.alignData(to[i]!);
     }
-    super.begin();
+    super.doBegin();
   }
 
   /**
@@ -279,9 +339,9 @@ export class Transform extends Animation {
    * structure back: the same geometry, with no zero-length subpaths left over
    * (a stroked one draws a dot with round caps).
    */
-  override finish(alpha?: number): void {
+  protected override doFinish(alpha?: number): void {
     const a = alpha ?? this.rateFunc(1);
-    super.finish(a);
+    super.doFinish(a);
     const shapes = this.shapes;
     if (!shapes || (a !== 1 && a !== 0)) return;
     const unrestored: FamilyRow[] = [];
@@ -347,7 +407,7 @@ export class FadeIn extends Transform {
     super(mobject, mobject, opts);
     this.shiftVec = shift; this.scaleFrom = scale;
   }
-  override begin(): void {
+  protected override doBegin(): void {
     // Start state: invisible, displaced; end state: the mobject as it is.
     this.target = this.mobject.copy(); this.ownsTarget = true; this.sameStructure = true;
     const start = this.mobject.copy();
@@ -355,7 +415,7 @@ export class FadeIn extends Transform {
     if (this.shiftVec) start.shift(V.mul(this.shiftVec, -1));
     if (this.scaleFrom !== 1) start.scale(this.scaleFrom);
     this.mobjectStart = start;
-    super.begin();
+    super.doBegin();
   }
   protected override createStartingMobject(): Mobject { return this.mobjectStart; }
 }
@@ -368,20 +428,20 @@ export class FadeOut extends Transform {
     super(mobject, mobject, { remover: true, ...opts });
     this.shiftVec = shift; this.scaleTo = scale;
   }
-  override begin(): void {
+  protected override doBegin(): void {
     const end = this.mobject.copy();
     for (const m of end.family()) m.style.opacity = 0;
     if (this.shiftVec) end.shift(this.shiftVec);
     if (this.scaleTo !== 1) end.scale(this.scaleTo);
     this.target = end; this.ownsTarget = true; this.sameStructure = true;
-    super.begin();
+    super.doBegin();
   }
-  override finish(alpha?: number): void {
+  protected override doFinish(alpha?: number): void {
     // Removed: restore so the mobject can be shown again later, where it was, at its size
     // and opacity (manim's FadeOut also interpolates back to 0 once removed). Kept on
     // screen (remover: false): land, and give back only the opacity, as before.
-    if (this.remover) { super.finish(0); return; }
-    super.finish(alpha);
+    if (this.remover) { super.doFinish(0); return; }
+    super.doFinish(alpha);
     for (const [m, start] of this.families) m!.style.opacity = start!.style.opacity;
   }
 }
@@ -433,9 +493,9 @@ export class Create extends Animation {
   static BORDER = 0.012;
   /** Per-row border widths, fixed at begin(): a glyph's border scales with its text's current size. */
   private borders = new Map<Mobject, number>();
-  override begin(): void {
+  protected override doBegin(): void {
     this.borders.clear();
-    super.begin();
+    super.doBegin();
   }
   private border(sub: Mobject): number {
     if (!this.autoBorder) return this.borderWidth;
@@ -463,8 +523,8 @@ export class Create extends Animation {
       s.strokeOpacity = s0.fillOpacity;
     }
   }
-  override finish(alpha?: number): void {
-    super.finish(alpha);
+  protected override doFinish(alpha?: number): void {
+    super.doFinish(alpha);
     for (const [sub, start] of this.families as Array<[Mobject, Mobject]>) {
       delete sub.style.drawFraction;
       // Restore the temporary border to what the shape had
@@ -529,14 +589,19 @@ export class AnimationGroup extends AnimationTiming {
     this.layOut();
     if (!this.ownRunTime) this.runTime = this.maxEnd;
   }
-  override begin(): void {
-    for (const a of this.animations) {
-      a.begin();
-      recordEvidence(a, this.scene);
-    }
+  /** Members begin in order; when one throws, those already begun land (see landBegun), so each can begin again. */
+  protected override doBegin(): void {
+    const begun: ScheduledAnimation[] = [];
+    try {
+      for (const a of this.animations) {
+        a.begin();
+        begun.push(a);
+        recordEvidence(a, this.scene);
+      }
+    } catch (e) { landBegun(begun, this.scene); throw e; }
   }
   /** Each member lands where the group's own timeline puts it at rateFunc(1) (a there-and-back group ends at the start). */
-  override finish(alpha: number = this.rateFunc(1)): void {
+  protected override doFinish(alpha: number = this.rateFunc(1)): void {
     this.animations.forEach((a, i) => a.finish(a.rateFunc(this.memberTime(alpha, i))));
   }
   /** @internal */
@@ -549,7 +614,7 @@ export class AnimationGroup extends AnimationTiming {
     return clip((t - s) / (e - s), 0, 1);
   }
   /** Receives raw time fraction (scene applies this.rateFunc first). */
-  override interpolate(alpha: number): void {
+  protected override doInterpolate(alpha: number): void {
     this.animations.forEach((a, i) => a.interpolate(a.rateFunc(this.memberTime(alpha, i))));
   }
   /** A group has no mobject; nested groups contribute their leaf members. */
@@ -603,12 +668,12 @@ export class MoveAlongPath extends Animation {
   constructor(mobject: Mobject, path: VMobject, { fromCurrent = true, ...opts }: MoveAlongPathOpts = {}) {
     super(mobject, opts); this.path = path; this.fromCurrent = fromCurrent;
   }
-  override begin(): void {
+  protected override doBegin(): void {
     const c = this.mobject.center(), p0 = this.path.pointFromProportion(0);
     this.offset = this.fromCurrent ? [c[0] - p0[0], c[1] - p0[1]] : [0, 0];
-    super.begin();
+    super.doBegin();
   }
-  override interpolate(alpha: number): void {
+  protected override doInterpolate(alpha: number): void {
     const p = this.path.pointFromProportion(alpha);
     const k = 1 - alpha;
     // Pure in alpha: every frame is the starting copy translated, never the previous
@@ -639,14 +704,14 @@ export class PulseAlongPath extends MoveAlongPath {
     this.sourcePath = path;
   }
 
-  override begin(): void {
+  protected override doBegin(): void {
     // The path, like the starting geometry, is fixed when the play begins.
     this.path = this.sourcePath.copy();
-    super.begin();
+    super.doBegin();
   }
 
-  override interpolate(alpha: number): void {
-    super.interpolate(alpha);
+  protected override doInterpolate(alpha: number): void {
+    super.doInterpolate(alpha);
     const opacity = Math.sin(Math.PI * alpha);
     for (const [sub, start] of this.families) sub!.style.opacity = start!.style.opacity * opacity;
   }
@@ -719,7 +784,7 @@ export class Circumscribe extends Animation {
   /** The outline this animation draws: on screen from begin(), and afterwards if `keep`. */
   get outline(): VMobject { return this.mobject as VMobject; }
 
-  override begin(): void {
+  protected override doBegin(): void {
     // Refit to where the target is now; the points are this play's fixed endpoint
     const o = this.outline;
     const fresh = this.shape === 'circle'
@@ -728,11 +793,11 @@ export class Circumscribe extends Animation {
     o.subpaths = fresh.subpaths; o.closed = fresh.closed;
     o.touchPoints(); o.invalidateBox();
     this.baseOpacity = o.style.opacity;
-    super.begin();
+    super.doBegin();
   }
 
   /** Style only, from alpha alone: the points were fixed at begin(). */
-  override interpolate(alpha: number): void {
+  protected override doInterpolate(alpha: number): void {
     const s = this.outline.style;
     const drawn = smooth(alpha / CIRCUMSCRIBE_DRAWN);
     const gone = this.keep ? 0 : smooth((alpha - CIRCUMSCRIBE_DRAWN) / (1 - CIRCUMSCRIBE_DRAWN));
@@ -741,8 +806,8 @@ export class Circumscribe extends Animation {
     s.opacity = s.drawFraction > 0 ? this.baseOpacity * (this.fadeOut ? 1 - gone : 1) : 0;
   }
 
-  override finish(): void {
-    super.finish();
+  protected override doFinish(): void {
+    super.doFinish();
     const s = this.outline.style;
     if (!this.keep) {
       // Leaving the scene: restore it so the outline can be shown again
@@ -779,17 +844,17 @@ export class Restore extends Transform {
 
   constructor(mobject: Mobject, opts: Omit<TransformOpts, 'replace'> = {}) { super(mobject, mobject, opts); }
 
-  override begin(): void {
+  protected override doBegin(): void {
     const saved = this.mobject.saved;
     if (!saved) throw new Error(`new Restore(): ${mobjectName(this.mobject)} has no saved state; call m.saveState() first`);
     this.state = saved;
     // A fresh copy is this animation's alone; it needs no alignment if nothing structural changed since the save
     this.target = saved.copy(); this.ownsTarget = true; this.sameStructure = this.mobject.sameShapeAs(saved, true);
-    super.begin();
+    super.doBegin();
   }
 
-  override finish(): void {
-    super.finish();
+  protected override doFinish(): void {
+    super.doFinish();
     // Alignment may have subdivided curves or added null children on the way: land
     // on the saved data itself. Same picture, exact data.
     if (this.rateFunc(1) === 1) adoptState(this.mobject, this.state);
@@ -825,10 +890,10 @@ export class TransformFromCopy extends Transform {
     this.taken.family().forEach((m, i) => { if (from[i]) copiedFrom.set(m, from[i]); });
   }
 
-  override begin(): void {
+  protected override doBegin(): void {
     this.takeCopy();
     this.mobject = this.taken!; this.taken = null;
-    super.begin();
+    super.doBegin();
   }
 }
 
@@ -881,7 +946,7 @@ export class Succession extends AnimationGroup {
   /** The time its last frame reached: a frame before it would need finished members to run again. */
   #reached = 0;
 
-  override begin(): void {
+  protected override doBegin(): void {
     this.active = -1;
     this.#reached = 0;
     this.advance();
@@ -896,7 +961,7 @@ export class Succession extends AnimationGroup {
     if (next) { if (scene) scene.beginAnimations([next]); else next.begin(); }
   }
 
-  override interpolate(alpha: number): void {
+  protected override doInterpolate(alpha: number): void {
     const t = alpha * this.maxEnd;
     if (t < this.#reached - 1e-9)
       throw new Error(`new Succession(): its time ran backwards, from ${this.#reached} s to ${t} s, and a finished member cannot run again; give it, and any group around it, a rate function that never decreases`);
@@ -910,7 +975,7 @@ export class Succession extends AnimationGroup {
   }
 
   /** Every member still to come begins and finishes in turn, then the last one finishes. */
-  override finish(): void {
+  protected override doFinish(): void {
     while (this.active < this.animations.length) this.advance();
   }
 
@@ -944,9 +1009,9 @@ function assertForward(api: string, rateFunc: RateFunc): void {
 class BuiltTransform extends Transform {
   builder: AnimateBuilderBase;
   constructor(builder: AnimateBuilderBase) { super(builder.mobject, builder.mobject); this.builder = builder; }
-  override begin(): void {
+  protected override doBegin(): void {
     this.target = this.builder.buildTarget(); this.ownsTarget = true;
-    super.begin();
+    super.doBegin();
   }
 }
 
@@ -1121,7 +1186,7 @@ export class TransformMatching extends Animation {
   /** What play() records once this has begun: the counts, as `match` evidence. */
   override evidence(): Evidence { return { kind: 'match', ...this.summary() }; }
 
-  override begin(): void {
+  protected override doBegin(): void {
     const src = this.mobject, tgt = this.target;
     const sParts = partsOf(src), tParts = partsOf(tgt);
     // Containers with points of their own (Text, whose advance box is a point
@@ -1222,7 +1287,7 @@ export class TransformMatching extends Animation {
     this.interpolate(0);
   }
 
-  override interpolate(alpha: number): void {
+  protected override doInterpolate(alpha: number): void {
     const n = this.moves.length + this.fadesOut.length + this.fadesIn.length;
     let i = 0;
     for (const { sub, start, end } of this.moves) sub.interpolate(start, end, this.subAlpha(alpha, i++, n), this.pathFunc);
@@ -1273,7 +1338,7 @@ export class TransformMatchingShapes extends TransformMatching {
 export class TransformMatchingText extends TransformMatching {
   constructor(mobject: Mobject, target: Mobject, opts: MatchingOpts = {}) { super(mobject, target, { ordered: true, ...opts, key: textKeyOf }); }
 
-  override begin(): void {
+  protected override doBegin(): void {
     const plain = this.key;
     const texts = [...this.mobject.family(), ...this.target.family()].filter(m => 'text' in m && m.children.length > 0);
     type ClusterText = Mobject & {clusterMatching?: boolean; clusterKey?: (cluster: number) => string | undefined};
@@ -1282,7 +1347,7 @@ export class TransformMatchingText extends TransformMatching {
         const cluster = (part as Mobject & {cluster?: number}).cluster;
         return cluster == null ? plain(part, root) : (part.parent as ClusterText | null)?.clusterKey?.(cluster) ?? plain(part, root);
       };
-    try { super.begin(); } finally { this.key = plain; }
+    try { super.doBegin(); } finally { this.key = plain; }
     fadeInsideLines(this, true);
   }
 }
@@ -1561,7 +1626,7 @@ export class TransformDiff extends TransformMatching {
     this.keys = keys;
   }
 
-  override begin(): void {
+  protected override doBegin(): void {
     const a = this.before.lines.map((t) => t.text), b = this.after.lines.map((t) => t.text);
     this.hunks = this.given ? this.given.map((h) => ({ ...h, ops: [...h.ops], lines: [...h.lines] })) : diffLines(a, b);
     this.plan = planLines(this.hunks, a, b);
@@ -1579,7 +1644,7 @@ export class TransformDiff extends TransformMatching {
     for (const [i, j] of this.plan.changed) {
       for (const t of diffTokens(a[i]!, b[j]!)) if (t.op === '=') pair(this.before.span(i, ...t.a), this.after.span(j, ...t.b));
     }
-    super.begin();
+    super.doBegin();
     // A rewritten line that grows past its old ends (`return x` -> `const y = await x`)
     // would start its new glyphs, carried back with the line, beyond the old
     // line, and end its removed ones beyond the new: they start (and end) inside
