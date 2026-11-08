@@ -182,12 +182,15 @@ operations and `AnimationGroup`/`LaggedStart` for grouped schedules. There is on
 clock, so one `play()`, `wait()` or `step()` runs at a time, and one started while
 another runs throws (`scene.phase` says which runs). Two simultaneous
 animations may not drive the same mobject or an ancestor and its descendant, and one
-animation may not be listed twice. `Scene.play()` checks and rejects both. A `Succession`'s
+animation may not be listed twice. `Scene.play()` checks and rejects both, as it begins and
+again for whatever begins later in it, a `Succession`'s member at its turn included. A `Succession`'s
 time only runs forward, since a finished member does not run again: it refuses a rate
 function that falls anywhere, given to it or to `play()`, and throws if a group around
 it runs its time backwards. A group exposes its members' `ready()`, so `play()` waits for
 what any of them reads before it begins, and lays out its members' times as the play
-begins.
+begins. What is made only when its turn comes, a machine's transition or an action's beat, may
+read something not ready yet: the play waits for it there, before drawing its next frame, so the
+frames are the same as if it had waited for nothing.
 
 Capture starting values when an animation **begins**, not when it is constructed.
 Earlier members of a `Succession` may change them. Define intermediate geometry

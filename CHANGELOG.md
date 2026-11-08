@@ -114,6 +114,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - An event without authored motion morphs each view to the new state by key, staged, so a word and the word replacing it never overlap. [Default transition](docs/MACHINES.md#the-default-transition)
 - A view's `sync()` stages its morph the same way by default, and the matching transforms' `staged` option stages one anywhere.
 - An event can have authored motion: its `transition` is built from the states either side when its turn comes. The views then land on the model's picture of the new state.
+- A transition may return an action that waits for what it reads, `s.show` of a diagram not laid out yet or `d.morph`: the play waits for it as its turn comes, before its next frame, and draws the frames an action that waited for nothing would.
 - A view whose parts do not line up one to one by key when a transition lands (a part with no key, or a key two siblings share) is redrawn from the state, so no part is drawn twice.
 - A transition's `t.choreograph(view)` morphs, brings in and takes out keyed parts in the author's order, landing whatever it does not name.
 - Nine of the collection's explainers are machines: statecharts, ring-buffer, state-machine, token-bucket, monty-hall, latest-search, oauth-pkce, just-bash and python-dict. [Nine machines](docs/MACHINES.md#nine-machines)
@@ -163,6 +164,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `this.step(name, (before) => meta)` takes its metadata from a function of the step it closes, for words that report that step's timing (fork). Step metadata is copied as JSON when the step begins.
 - `loadProject` and the `rayner` command refuse a step that draws no frame of its own, since it would show the step before's picture, and hold every scenario to the same step-name rules.
 - `rayner describe`, the contact sheet, the site's cards and the demos' posters draw every step's resting picture from one run of the scene instead of a seek per step.
+- What begins later in a play is held to one writer per mobject as it begins, against everything else the play drives then: a `Succession`'s member at its turn, and what an action's beat or a machine's transition makes. An action's beat that fades in the circle a `FadeOut` beside it fades out is refused, as the same pair in one `play()` is.
 - An animation has a `phase` (an `AnimationPhase`: idle, begun or finished). A second `begin()` while begun, and `interpolate()` or `finish()` before `begin()`, throw; one animation listed twice in a play is refused, where it used to begin twice and leave its mobject invisible.
 - `fps` must be above 0 and at most 240; run times, lag ratios and `wait()` times must be finite and not negative.
 - A `Succession` or group exposes its members' `ready()` and lays out their times as the play begins, so `s.show` composes inside a `Succession` or group. A `Succession` refuses a rate function that runs its time backwards.

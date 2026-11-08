@@ -169,22 +169,52 @@ function assertOnce(anims: readonly Animation[]): void {
   anims.forEach(visit);
 }
 
+/**
+ * The animations a group plays together, down to the ones that drive mobjects. A group whose
+ * members are made when its turn comes (an action's beat, a machine's transition) stands for
+ * itself until then, with the targets it declares.
+ */
+const leaves = (a: Animation): Animation[] => (a instanceof AnimationGroup && !(a instanceof Succession) && a.animations.length ? a.animations.flatMap(leaves) : [a]);
+/** The mobjects an animation drives, each family member counted: a Succession's members' together. */
+const driven = (a: Animation): Mobject[] => (a instanceof Succession ? a.animations.flatMap(leaves).flatMap(driven) : a.targets().flatMap(m => m.family()));
+const twoWriters = (other: Animation, a: Animation, m: Mobject, by?: string): Error =>
+  new Error(`this.play(): ${animationName(other)} and ${animationName(a)}${by ? `, made by ${by} as its turn came,` : ''} both animate ${mobjectName(m)}; one play can drive a mobject only once, so sequence them, or combine them into one Transform`);
+
 function assertDisjointOnce(anims: readonly Animation[]): void {
   const seen = new Map<Mobject, Animation>();
   // A Succession's members run one at a time, so they may share mobjects with each
   // other (each is checked on its own below), but not with anything beside them.
-  const leaves = (a: Animation): Animation[] => (a instanceof AnimationGroup && !(a instanceof Succession) ? a.animations.flatMap(leaves) : [a]);
-  const driven = (a: Animation): Mobject[] => (a instanceof Succession ? a.animations.flatMap(leaves).flatMap(driven) : a.targets().flatMap(m => m.family()));
   for (const a of anims.flatMap(leaves)) {
     if (a instanceof Succession) for (const member of a.animations) assertDisjointOnce([member]);
     for (const m of driven(a)) {
       const other = seen.get(m);
-      if (other && other !== a) {
-        throw new Error(`this.play(): ${animationName(other)} and ${animationName(a)} both animate ${mobjectName(m)}; one play can drive a mobject only once, so sequence them, or combine them into one Transform`);
-      }
+      if (other && other !== a) throw twoWriters(other, a, m);
       seen.set(m, a);
     }
   }
+}
+
+/**
+ * Animations begun after their play began (a Succession's member at its turn, what an action's
+ * beat or a machine's transition makes then) against what else the play drives now: everything
+ * in it but these, a Succession only by its running member. `by` names what made them.
+ */
+function assertDisjointInPlay(playing: readonly Animation[], begun: readonly Animation[], by?: string): void {
+  const skip = new Set(begun), now = new Map<Mobject, Animation>();
+  const visit = (a: Animation): void => {
+    if (skip.has(a)) return;
+    if (a instanceof Succession) {
+      const running = a.animations[a.active];
+      if (running) visit(running);
+    } else if (a instanceof AnimationGroup && a.animations.length) a.animations.forEach(visit);
+    else for (const m of driven(a)) now.set(m, a);
+  };
+  playing.forEach(visit);
+  for (const a of begun.flatMap(leaves))
+    for (const m of driven(a)) {
+      const other = now.get(m);
+      if (other) throw twoWriters(other, a, m, by);
+    }
 }
 
 /** Maintain one root per subtree while preserving the requested draw order. */
@@ -269,6 +299,10 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   #running: number;
   /** Whether run() has been called: a scene runs once. */
   #ran: boolean;
+  /** What the running play() was given: what an animation begun later in it is checked against. */
+  #playing: readonly Animation[] = [];
+  /** What was made at its turn in the running play and waits for what it reads: begun before the next frame. */
+  #held: { ready: Promise<unknown>; begin: () => void }[] = [];
   // One entry per registration, so each remover removes exactly its own.
   private stepListeners: Array<{ listener: (step: Step) => unknown; on: boolean }>;
   private stepEndListeners: Array<{ listener: (step: Step) => unknown; on: boolean }>;
@@ -696,7 +730,10 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     for (const a of anims) a.settle();
     for (const a of anims) a.setOptions(opts);
     assertDisjoint(anims);
+    this.#playing = anims;
+    this.#held = [];
     perf.span('anim.begin', () => this.beginAnimations(anims));
+    if (this.#held.length) await this.#beginHeld();
     const runTime = Math.max(...anims.map((a) => a.runTime));
     const dt = 1 / this.fps;
     const n = Math.max(1, Math.round(runTime * this.fps));
@@ -707,12 +744,16 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     const sequenced = anims.some(function holds(a: Animation): boolean {
       return a instanceof Succession || (a instanceof AnimationGroup && a.animations.some(holds));
     });
-    const interpolate = (t: number): void => perf.span('interpolate', () => {
-      for (const a of anims) {
-        const alpha = a.runTime > 0 ? Math.min(t / a.runTime, 1) : 1;
-        a.interpolate(a.rateFunc(alpha));
-      }
-    });
+    const interpolate = async (t: number): Promise<void> => {
+      perf.span('interpolate', () => {
+        for (const a of anims) {
+          const alpha = a.runTime > 0 ? Math.min(t / a.runTime, 1) : 1;
+          a.interpolate(a.rateFunc(alpha));
+        }
+      });
+      // What began at its turn in this frame and waits for what it reads begins before the frame is drawn.
+      if (this.#held.length) await this.#beginHeld();
+    };
     let skipped = 0;
     for (let f = 1; f <= n; f++) {
       // The last frame draws the finished animation even when runTime·fps rounded down.
@@ -724,18 +765,50 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
       // Same comparison SeekSink uses to drop a frame, so the first frame shown is identical
       if (canSkip && this.time + dt + 1e-9 < this.skipUntil) {
         if (!sequenced) { this.tick(); skipped++; continue; }
-        interpolate(t);
+        await interpolate(t);
         if (!this.hasUpdaters()) { this.tick(); skipped++; continue; }
         canSkip = false;
-      } else interpolate(t);
+      } else await interpolate(t);
       await this.emitFrame(dt);
     }
     perf.count('frames skipped', skipped);
     perf.span('anim.finish', () => { for (const a of anims) { a.finish(); a.cleanUpFromScene(this); } });
   }
 
-  /** @internal Begin animations as play() does: successions bound, copies taken, then each begun. */
-  beginAnimations(anims: readonly Animation[]): void {
+  /**
+   * @internal Run `begin` once what `anims` read is ready (see Animation.ready): now when nothing
+   * waits; otherwise in the running play, which waits for it before its next frame. For what is
+   * made when its turn comes in a play (an action's beat, a machine's transition), after the play
+   * has waited for everything it was given.
+   */
+  whenReady(anims: readonly Animation[], by: string, begin: () => void): void {
+    const waits = anims.map((a) => a.ready()).filter((r) => r !== null);
+    if (!waits.length) return begin();
+    if (this.#phase !== 'playing') throw new Error(`${by}: what it made waits for what it reads, and only a play can wait for that; play it with this.play()`);
+    this.#held.push({ ready: Promise.all(waits), begin });
+  }
+
+  /** Begin what waited at its turn, once what it reads is ready; what that begins may wait in turn. */
+  async #beginHeld(): Promise<void> {
+    while (this.#held.length) {
+      const held = this.#held.splice(0);
+      await Promise.all(held.map((h) => h.ready));
+      this.throwIfStopped();
+      for (const h of held) h.begin();
+    }
+  }
+
+  /**
+   * @internal Begin animations as play() does: successions bound, copies taken, then each begun.
+   * Begun later in a running play (a Succession's member at its turn, or what an action's beat or a
+   * machine's transition makes then, `by` naming it), they are checked first against what else
+   * the play drives now: one writer per mobject holds for the whole play.
+   */
+  beginAnimations(anims: readonly Animation[], by?: string): void {
+    if (this.#phase === 'playing' && anims !== this.#playing) {
+      if (by) assertDisjoint(anims);
+      assertDisjointInPlay(this.#playing, anims, by);
+    }
     bindSuccessions(anims, this); // a Succession begins its members here, one by one, as their turns come; groups record their members' evidence
     takeCopies(anims); // every TransformFromCopy copies its source before anything in the play begins
     const present = new Set(this.familyMembers());

@@ -15,7 +15,9 @@ import type { View, ViewMatch } from './view.ts';
 import type { Mobject } from '../src/mobject.ts';
 import { choreograph } from './choreograph.ts';
 import type { Choreography } from './choreograph.ts';
-import type { Evidence, SceneState } from '../src/scene.ts';
+import type { SceneState } from '../src/scene.ts';
+import type { ScheduledAnimation } from '../src/animation.ts';
+import { MadeAtTurn } from './action.ts';
 
 export interface MachineSpec<S extends object, E extends string> {
   /** Where the machine starts: what `reachable()` explores from. The scene need not be in it yet. */
@@ -241,7 +243,7 @@ export class Machine<S extends object, E extends string> {
         // The transition's motion, then the views take the pictures of `after`: a sync that moves
         // nothing when the transition ended where the model says (rayner check holds it to that).
         ? new Succession([
-          new WhenItsTurnComes(this.scene, () => authored(this.transitionFor(event, before, after)), views, runTime),
+          new WhenItsTurnComes(String(event), () => authored(this.transitionFor(event, before, after)), views, runTime),
           new Landing(this.scene, views),
         ])
         // No authored motion: each view's keyed morph, staged, so what goes is gone before what comes appears.
@@ -286,28 +288,21 @@ export class Machine<S extends object, E extends string> {
 }
 
 /**
- * An animation made when it begins, from the pictures on screen then: a transition in a replay
- * starts from the pictures the event before it landed on, which do not exist when the replay is
- * built. Before it begins it declares the views as what it writes; it plays over `runTime`, with
- * the made animation's own easing.
+ * The transition, made when its turn comes from the pictures on screen then: a transition in a
+ * replay starts from the pictures the event before it landed on, which do not exist when the
+ * replay is built. Before it begins it declares the views as what it writes. What it makes may
+ * wait for what it reads (`s.show` of a diagram not laid out yet, `d.morph`): the play waits for
+ * that before its next frame. It plays over `runTime`, with the made animation's own easing.
  */
-class WhenItsTurnComes extends Animation {
-  make: () => Animation | AnimationGroup;
-  declared: Mobject[];
-  made: Animation | AnimationGroup | null;
-  scene: Scene<any>;
-  constructor(scene: Scene<any>, make: () => Animation | AnimationGroup, declared: readonly Mobject[], runTime: number) {
-    super(declared[0] ?? new Group(), { runTime, rateFunc: linear });
-    this.scene = scene; this.make = make; this.declared = [...declared]; this.made = null;
+class WhenItsTurnComes extends MadeAtTurn {
+  readonly #make: () => Animation | AnimationGroup;
+  constructor(event: string, make: () => Animation | AnimationGroup, declared: readonly Mobject[], runTime: number) {
+    super(`machine.send(): the transition for ${event}`, runTime, declared);
+    this.#make = make;
   }
-  // Begun through the scene, as play() begins anything: a Succession in it then cleans up each
-  // member as it finishes (a part faded out leaves the picture), and its evidence is recorded.
-  override begin(): void { this.made = this.make(); this.scene.beginAnimations([this.made]); }
-  override interpolate(alpha: number): void { if (this.made) this.made.interpolate(this.made.rateFunc(alpha)); }
-  override finish(): void { this.made?.finish(); }
-  override cleanUpFromScene(scene: Parameters<Animation['cleanUpFromScene']>[0]): void { this.made?.cleanUpFromScene(scene); }
-  override targets(): Mobject[] { return this.made ? this.made.targets() : this.declared; }
-  override evidence(): Evidence | null { return this.made?.evidence() ?? null; }
+  protected override make(): ScheduledAnimation[] {
+    return [this.#make()];
+  }
 }
 
 /**
