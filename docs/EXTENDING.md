@@ -93,6 +93,9 @@ distribution and adding another dependent readout. Keep these constraints:
 4. Stay inside the model's domain. This recipe's angle is in `[0, pi]`, and its
    rate function must stay in `[0, 1]`; overshooting easings are refused by the
    model's domain check.
+5. Land in `finish()` where the last frame drew. `rayner check` compares each step's
+   picture as it ends, after its last play has finished, with its resting frame,
+   since `rayner describe` and the shots draw the step as it ends.
 
 The recipe fixes drawing coordinates at construction, so shifting, scaling or
 rotating the dependent group does not survive the next sample; a camera move is

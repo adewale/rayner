@@ -168,7 +168,10 @@ await this.play(new Succession([d.reveal(['cache']), s.callout(d.get('cache'), '
 An action is decided when it is called and does its side effects (keeping a panel,
 recording a walk) when it plays, between its animations as an awaited one does. Its
 beats run in turn inside the play, as a `Succession`'s members do. It plays once, and
-a step that ends with an action made in it and never played fails.
+a step that ends with an action made in it and never played fails. `s.show` is decided
+once the diagram's layout is read: `play()` waits for that, through any `Succession` or
+group, and each group lays out its members' times when the play begins, so
+`new Succession([s.enter(title), s.show(spec)])` builds the diagram after the title.
 
 ## Composition and verification
 

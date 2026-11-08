@@ -140,6 +140,21 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - A loader embeds the page in an iframe that resizes to its content, and host and page exchange step and goto messages. [Embedding](docs/REFERENCE.md#embedding)
 - An explainer can opt into checked palette colours, square corners and a minimum stage width.
 
+### The scene's timeline
+
+- One `play()`, `wait()` or `step()` runs at a time: one started while another runs throws, telling the author to await it, so two plays cannot interleave their frames and an unawaited step cannot record steps out of order. `scene.phase` (a `ScenePhase`) says what the scene is doing, `'stopped'` once a sink has stopped the run. A step listener may still play and wait inside its step. [Reference](docs/REFERENCE.md#scene)
+- `scene.onStepEnd(listener)` runs as each step is about to end, before its caption hold. The unplayed-action check and the live player's run use it instead of replacing the scene's methods.
+- Each step records `holdFrame`, the frame its picture stops changing on, and `restFrame`, its resting frame; the trace carries both, and the player, the live player, `rayner check` and the tools read them instead of working the frames out from rounded times.
+- `this.step(name, (before) => meta)` takes its metadata from a function of the step it closes, for words that report that step's timing (fork). Step metadata is copied as JSON when the step begins.
+- A step that draws no frame of its own throws, since it would show the step before's picture.
+- `rayner describe`, the contact sheet, the site's cards and the demos' posters draw every step's resting picture from one run of the scene instead of a seek per step.
+- An animation has a `phase` (an `AnimationPhase`: idle, begun or finished). A second `begin()` while begun, and `interpolate()` or `finish()` before `begin()`, throw; one animation listed twice in a play is refused, where it used to begin twice and leave its mobject invisible.
+- `fps` must be above 0 and at most 240; run times, lag ratios and `wait()` times must be finite and not negative.
+- A `Succession` or group exposes its members' `ready()` and lays out their times as the play begins, so `s.show` composes inside a `Succession` or group. A `Succession` refuses a rate function that runs its time backwards.
+- `DecimalNumber` blends its value only with another number: transformed into a `Text`, it ends as that text instead of `NaN`.
+- `Scene.captionWpm` is read from the scene's own class, and a caption in a script written without spaces counts every one and a half letters as a word instead of the whole caption as one.
+- A frame with no updater on stage no longer builds a family list per top-level mobject.
+
 ### Checks
 
 - `rayner check` runs every scenario and fails on motion that pops, cuts or teleports. [Checks](docs/REFERENCE.md#checks)
@@ -157,6 +172,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - At each resting step the review checks the painted subjects, complete close-up tours, overflow, console errors and outside connections.
 - `scene.review.json` declares subjects from the caption's meaning, and `--out page.html` saves the exact page the review checked.
 - `meta.claims` links a sentence to a named `node:test` declaration and checks that the test exists; it does not run the test or establish what it asserts.
+- `rayner check` seeks to each step's resting frame as well as two frames before it, and fails a step whose picture as it ends, after its last play has landed, differs from its resting frame. The caption-hold check compares each frame's memoised element strings instead of building an SVG document per frame.
 - `rayner check` runs the `model.test.ts` beside the scene first and fails, naming each failing test; the report records `model: { file, tests, passed }`, and `skipped` when some were.
 - An explainer's `answers.ts` computes its script's answer and its reader questions' answers from the model; `rayner check` fails when `script.md` says otherwise, and reports `answers: { file, compared }`.
 - `rayner check` fails a path in backticks in the script's Checked against line that is not in the explainer's folder, and reports them as `checkedAgainst`.
@@ -239,8 +255,9 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
   - `Labeled`'s and `Axes`' child indexes are private: read `shape`, `label`, `xLabel` and `yLabel`.
   - The renderer's point buffers and path data (`pointArrays`, `boundingPointArrays`, `pathData`, `toPathD`, `roundedRelative`, `Text.frameBox`), a morph's alignment (`splitCurve`, `insertNCurves`, `zipFamilies`, `starting`, `slots`, `allMobjects`, `subAlpha`, `paints`, and `Transform`'s `ownsTarget`, `sameStructure` and `targetCopy`), `play()`'s `setOptions` and `ready`, `AnimationGroup`'s schedule, the animations' stored options, `Mobject.updaters`, `Text`'s cluster matching, `TransformMatching`'s plan and `DomSink`'s DOM plumbing are internal. `interpolateSubmobject` is `protected`.
   - `LetteringSnapshot`, `PackedLetteringSnapshot`, `StoredLetteringSnapshot` and `Outcome` are no longer exported.
-  - Run-time state with no author purpose is internal: `Mobject.saved` (`restore()` and `Restore` read it), `Frame.corners` (read `box()`), `Text.run`, `Animation.families`, `MoveAlongPath.offset`, `Succession.active` and `advance`, `TransformMatching.fadesIn` and `frames`, `DomSink.nodes`, `anchor` and `patch` (a `DomSink` with `realtime: false` draws every frame at once), `TraceSink.events` (read `steps()`) and `MotionSink.frames` and `labels` (hand the sink to `analyzeMotion`).
+  - Run-time state with no author purpose is internal: `Mobject.saved` (`restore()` and `Restore` read it), `Frame.corners` (read `box()`), `Text.run`, `Animation.families`, `MoveAlongPath.offset`, `Succession.active` and `advance`, `TransformMatching.fadesIn` and `frames`, `DomSink.nodes`, `anchor` and `patch` (a `DomSink` with `realtime: false` draws every frame at once), `TraceSink.records` (read `steps()`), `Scene.endCurrentStep` (pass `step()` a function of the step it closes) and `MotionSink.frames` and `labels` (hand the sink to `analyzeMotion`).
   - `analyzeMotion` names a leaf by its key, else its text, else its kind, inside the nearest keyed or lettered ancestor, never by the renderer's id.
+  - `Scene.stopped` is gone: read `scene.phase === 'stopped'`. `restingFrame` and `restingTime` in `explain/trace.ts` are gone: read a step's `restFrame`.
 
 ### Known limits
 
