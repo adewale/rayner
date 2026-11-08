@@ -16,6 +16,26 @@ import type { MergedCache } from './svg.ts';
 
 /** The children of a mobject with none: frozen, as every children list is, so a cast cannot push into it. */
 const NO_CHILDREN: readonly Mobject[] = Object.freeze([]);
+/**
+ * Each mobject's children and parent, kept in this module rather than on the mobject, so no write to
+ * a mobject (a cast, plain JavaScript, Object.assign) can change them: only add, insert, remove and
+ * replaceChild, and the engine's own copies, which keep the two in step and refuse a cycle.
+ */
+const childrenOf = new WeakMap<Mobject, readonly Mobject[]>();
+const parentOf = new WeakMap<Mobject, Mobject>();
+const kids = (m: Mobject): readonly Mobject[] => childrenOf.get(m) ?? NO_CHILDREN;
+const parentIn = (m: Mobject): Mobject | null => parentOf.get(m) ?? null;
+const setParent = (m: Mobject, p: Mobject | null): void => { if (p) parentOf.set(m, p); else parentOf.delete(m); };
+
+/**
+ * Refuse a mobject that defines `children` or `parent` on itself (Object.defineProperty, a class
+ * field in plain JavaScript): the property would hide the real ones from every reader of it, while
+ * family() and box() read the real ones. Checked wherever family() walks.
+ */
+function refuseShadow(m: Mobject): void {
+  for (const name of ['children', 'parent'] as const)
+    if (Object.hasOwn(m, name)) throw new TypeError(`m.${name}: ${mobjectName(m)} defines ${name} on itself, which hides its real ${name}; change ${name === 'children' ? 'them' : 'it'} with add, insert, remove or replaceChild`);
+}
 let nextId = 1;
 
 const COLOR_KEYS = new Set(['fill', 'stroke']);
@@ -130,10 +150,6 @@ export class Mobject {
    * and matching read `key`. Copies carry it, and `become` keeps the part's own.
    */
   role: string | undefined;
-  /** @internal The children, in drawing order: changed only through add, insert, remove and replaceChild, which keep `parent` in step. */
-  private _children: readonly Mobject[];
-  /** @internal The mobject whose children hold this one. */
-  private _parent: Mobject | null;
   style: StyleRecord;
   /** @internal */ updaters: Updater[];
   /** @internal The cached bounding box; invalidateBox() clears it up the parent chain. */
@@ -166,8 +182,6 @@ export class Mobject {
     this.id = nextId++;
     this.key = undefined;
     this.role = undefined;
-    this._children = NO_CHILDREN;
-    this._parent = null;
     this.style = { ...DEFAULT_STYLE, ...style };
     this.updaters = [];
     this._bbox = null;
@@ -176,11 +190,12 @@ export class Mobject {
   /**
    * The children, in drawing order (last on top). Read-only: change them with `add`, `insert`,
    * `remove` and `replaceChild`, which keep each child's `parent` and the cached box in step and
-   * refuse a cycle.
+   * refuse a cycle. The list is frozen and held outside the mobject, so no write to the mobject
+   * changes it; a `children` defined on the mobject itself is refused where family() walks.
    */
-  get children(): readonly Mobject[] { return this._children; }
+  get children(): readonly Mobject[] { return kids(this); }
   /** The mobject this one is a child of, or null. Read-only: set by adding this one to another. */
-  get parent(): Mobject | null { return this._parent; }
+  get parent(): Mobject | null { return parentIn(this); }
 
   // ---- data --------------------------------------------------------------
 
@@ -206,8 +221,9 @@ export class Mobject {
   /** This mobject and every descendant, depth first. Pass `out` to append. */
   family(out: Mobject[] = []): Mobject[] {
     perf.count('family()');
+    refuseShadow(this);
     out.push(this);
-    for (const c of this.children) c.family(out);
+    for (const c of kids(this)) c.family(out);
     return out;
   }
 
@@ -218,7 +234,7 @@ export class Mobject {
    */
   find(key: string): Mobject | undefined {
     if (this.key === key) return this;
-    for (const c of this.children) {
+    for (const c of kids(this)) {
       const found = c.find(key);
       if (found) return found;
     }
@@ -250,14 +266,14 @@ export class Mobject {
   private put(api: string, index: number | null, mobs: readonly Mobject[]): this {
     this.refuseCycle(api, mobs);
     const moving = new Set(mobs);
-    const staying = this._children.filter((c) => !moving.has(c));
+    const staying = kids(this).filter((c) => !moving.has(c));
     index ??= staying.length;
     if (!Number.isInteger(index) || index < 0 || index > staying.length)
       throw new RangeError(`${api}: the index is ${String(index)}; give a whole number from 0 to ${staying.length}, the children it keeps`);
-    for (const m of mobs) if (m._parent && m._parent !== this) m._parent.remove(m);
-    this._children = Object.freeze([...staying.slice(0, index), ...moving, ...staying.slice(index)]);
+    for (const m of mobs) { const was = parentIn(m); if (was && was !== this) was.remove(m); }
+    childrenOf.set(this, Object.freeze([...staying.slice(0, index), ...moving, ...staying.slice(index)]));
     for (const m of moving) {
-      m._parent = this;
+      setParent(m, this);
       if (this._colors) paintDefaults(m, this._colors);
     }
     this.invalidateBox();
@@ -266,10 +282,10 @@ export class Mobject {
 
   /** Take each of `mobs` that is a child of this one out of it; any other is left where it is. */
   remove(...mobs: Mobject[]): this {
-    const gone = new Set(mobs.filter((m) => m._parent === this));
+    const gone = new Set(mobs.filter((m) => parentIn(m) === this));
     if (!gone.size) return this;
-    this._children = Object.freeze(this._children.filter((c) => !gone.has(c)));
-    for (const m of gone) m._parent = null;
+    childrenOf.set(this, Object.freeze(kids(this).filter((c) => !gone.has(c))));
+    for (const m of gone) setParent(m, null);
     this.invalidateBox();
     return this;
   }
@@ -280,9 +296,9 @@ export class Mobject {
    * refuses.
    */
   replaceChild(old: Mobject, ...replacements: Mobject[]): this {
-    if (old._parent !== this) throw new Error(`m.replaceChild(): ${mobjectName(old)} is not a child of ${mobjectName(this)}; replace one of its children`);
+    if (parentIn(old) !== this) throw new Error(`m.replaceChild(): ${mobjectName(old)} is not a child of ${mobjectName(this)}; replace one of its children`);
     this.refuseCycle('m.replaceChild()', replacements);
-    const at = this._children.filter((c) => c === old || !replacements.includes(c)).indexOf(old);
+    const at = kids(this).filter((c) => c === old || !replacements.includes(c)).indexOf(old);
     if (!replacements.includes(old)) this.remove(old);
     return this.put('m.replaceChild()', at, replacements);
   }
@@ -290,7 +306,7 @@ export class Mobject {
   /** Refuse to take this mobject or one of its ancestors as a child: the family would be a cycle. */
   private refuseCycle(api: string, mobs: readonly Mobject[]): void {
     for (const m of mobs) {
-      for (let p: Mobject | null = this; p; p = p._parent)
+      for (let p: Mobject | null = this; p; p = parentIn(p))
         if (p === m) throw new Error(`${api}: ${mobjectName(m)} ${m === this ? 'is the mobject it is added to' : 'contains the mobject it is added to'}, so the family would be a cycle; add it to a mobject outside it`);
     }
   }
@@ -299,13 +315,13 @@ export class Mobject {
    * @internal Hold `parts` as children that belong to another mobject: their parent stays theirs, and
    * this one only groups them for measuring and pointing (a code span's glyphs, owned by its line).
    */
-  protected borrow(parts: readonly Mobject[]): void { this._children = Object.freeze([...parts]); this.invalidateBox(); }
+  protected borrow(parts: readonly Mobject[]): void { childrenOf.set(this, Object.freeze([...parts])); this.invalidateBox(); }
 
   /** @internal A copy of this mobject alone, without its children: its own points and style. */
   copyAlone(): this {
-    const kids = this._children;
-    this._children = NO_CHILDREN;
-    try { return this.copy(); } finally { this._children = kids; }
+    const own = kids(this);
+    childrenOf.delete(this);
+    try { return this.copy(); } finally { childrenOf.set(this, own); }
   }
 
   copy(): this {
@@ -313,7 +329,7 @@ export class Mobject {
     const c = Object.create(Object.getPrototypeOf(this)) as this;
     Object.assign(c, this);
     c.id = nextId++;
-    c._parent = null;
+    setParent(c, null);
     c.style = { ...this.style };
     if (this.defaultColors) c.defaultColors = { ...this.defaultColors };
     if (this.clipBox) c.clipBox = [...this.clipBox];
@@ -321,7 +337,7 @@ export class Mobject {
     c._bbox = null;
     if (this.saved) delete c.saved; // a copy is a new mobject: it has no saved state of its own
     c.copyData(this);
-    c._children = Object.freeze(this._children.map((ch) => { const cc = ch.copy(); cc._parent = c; return cc; }));
+    childrenOf.set(c, Object.freeze(kids(this).map((ch) => { const cc = ch.copy(); setParent(cc, c); return cc; })));
     if (this.rebindReferences !== Mobject.prototype.rebindReferences) {
       const originals = this.family(), clones = c.family();
       c.rebindReferences(this, new Map(originals.map((m, i) => [m, clones[i]!])));
@@ -614,17 +630,17 @@ export class Mobject {
     // so the container's children morph into it (manim's null_point_align). Left where it
     // was, it would sit opposite something that draws nothing and end up not drawn at all.
     if (this.pointKind() !== 'path' && other.pointKind() === 'path' && other.hasPoints()) other.pushIntoChildren();
-    const n = Math.max(this._children.length, other._children.length);
+    const n = Math.max(kids(this).length, kids(other).length);
     for (const [m, o] of [[this, other], [other, this]] as const) {
-      while (m._children.length < n) {
+      while (kids(m).length < n) {
         // A null child: a point-collapsed copy of the counterpart, so it
         // grows out of / shrinks into something sensible.
-        const src = o._children[m._children.length] ?? m;
+        const src = kids(o)[kids(m).length] ?? m;
         const nul = src.nullCopy(m.center());
-        m._children = Object.freeze([...m._children, nul]); nul._parent = m;
+        childrenOf.set(m, Object.freeze([...kids(m), nul])); setParent(nul, m);
       }
     }
-    for (let i = 0; i < n; i++) this._children[i]!.alignFamily(other._children[i]!);
+    for (let i = 0; i < n; i++) kids(this)[i]!.alignFamily(kids(other)[i]!);
   }
 
   /** Move this path's own curves into a new first child, leaving it a container (manim's push_self_into_submobjects). */
@@ -634,8 +650,8 @@ export class Mobject {
     const path = this as unknown as { subpaths: Float32Array[]; closed: boolean[] };
     path.subpaths = []; path.closed = [];
     this.touchPoints();
-    self._parent = this;
-    this._children = Object.freeze([self, ...this._children]);
+    setParent(self, this);
+    childrenOf.set(this, Object.freeze([self, ...kids(this)]));
     this.invalidateBox();
   }
 
@@ -789,10 +805,10 @@ const KEEP_ON_BECOME = new Set([...KEEP_ON_RESTORE, 'key', 'role']);
 
 /** Give `m` the children of `from`, a copy made for it, in place of its own, which leave it. */
 function takeChildren(m: Mobject, from: Mobject): void {
-  for (const c of m['_children']) c['_parent'] = null;
-  m['_children'] = from['_children'];
-  from['_children'] = NO_CHILDREN;
-  for (const c of m['_children']) c['_parent'] = m;
+  for (const c of kids(m)) setParent(c, null);
+  childrenOf.set(m, kids(from));
+  childrenOf.delete(from);
+  for (const c of kids(m)) setParent(c, m);
 }
 
 /** An object's own enumerable fields, symbols included: what Object.assign (and so copy()) carries. */
