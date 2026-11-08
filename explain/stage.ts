@@ -125,6 +125,8 @@ export const backdropOf = (scene: Scene): Mobject | undefined => scene.mobjects.
  */
 export const paperOf = (scene: Scene): string | undefined => backdropOf(scene)?.style.fill;
 const stagePalettes = new WeakMap<Scene, () => Palette>();
+/** The scenes that have a stage: stage() runs once per scene. */
+const staged = new WeakSet<Scene<any, any>>();
 /** The stage's final palette, including a palette adopted from a diagram. */
 export const paletteOf = (scene: Scene): Palette | undefined => stagePalettes.get(scene)?.();
 const isOptions = (v: unknown): v is object => !!v && !(v instanceof Mobject);
@@ -153,6 +155,8 @@ export interface DiagramPicture {
  * (`diagramView`'s) read the scene's model and shown types.
  */
 export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, options: StageOptions = {}) {
+  // A second stage would add a second backdrop, heading and step listeners over the first.
+  if (staged.has(scene)) throw new Error('stage(): the scene has a stage already; call stage(this) once and keep what it returns');
   // Each caption owns its opening; a previous step's subjects must not leak, unless opening(..., { keep: true })
   // named them for every step that follows.
   let kept: Mobject[] = [];
@@ -162,8 +166,8 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
   const direction = layoutDirection(options, 'ltr', 'stage()');
   const physical = <T extends Vec | Box | StageRegion | undefined>(at: T): Exclude<T, 'start' | 'end'> | Region =>
     physicalAt(at, direction) as Exclude<T, 'start' | 'end'> | Region;
-  // Without a style or palette, the stage adopts the first diagram's palette.
-  const adopt = !options.palette && !options.style;
+  // Without a style or palette, the stage adopts the first diagram's palette, and only the first's.
+  let adopt = !options.palette && !options.style;
   let colors = options.palette ?? palette(options.style ?? 'nord');
   stagePalettes.set(scene, () => ({ ...colors }));
   /** The look of the palette as it is now: computed again only when a colour of it changes. */
@@ -436,6 +440,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       return act('s.show()', () => {
         const read = snapshot!;
         if (adopt) {
+          adopt = false;
           colors = read.palette;
           scene.colors = sceneColors(colors);
           backdrop.setFill(colors.paper);
@@ -752,6 +757,8 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     },
   };
   bindStagePalette(api, () => colors);
+  // Options refused above leave the scene without a stage, free to have one.
+  staged.add(scene);
   return api;
 }
 /** The stage on a `Scene<S, Sh>`; a bare `Stage` is the stage on any scene, as kit functions take it. */

@@ -8,6 +8,7 @@ import { Scene } from '../src/index.ts';
 import { NullSink } from '../src/output.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
 import { stage, regionBox } from '../explain/index.ts';
+import { paletteOf } from '../explain/stage.ts';
 import { REGIONS } from '../explain/look.ts';
 import { bindSnapshots, diagramFindings, loadProject, loadSnapshots, pictureWordsAt } from '../explain/testing.ts';
 import { edgePartOf, diagramKey, snapshotResolver, useDiagrams, diagramResolverOf, RENDERER } from '../integrations/agentic-mermaid/snapshot.ts';
@@ -72,6 +73,44 @@ test('a stage with no style takes its first diagram’s paper; hidden parts stay
   const trace = await traceScene(bindSnapshots(Demo, { [diagramKey(spec)]: fixture() }));
   assert.deepEqual(trace.steps[0]!.after!.walks, [{ step: 'frame', from: 'A', to: 'B', edge: 'edge:A->B#0' }]);
   assert.equal(trace.steps[0]!.after!.answer, 42);
+});
+
+test('a stage with no style adopts only its first diagram’s palette: a second diagram in another style recolours nothing', async () => {
+  const other = { source: 'graph LR\nC --> D', style: 'dusk' };
+  const second = fixedSnapshot(other, [{ id: 'C', role: 'node', kind: 'shape', shapes: [square(0, { fill: '#fff', stroke: '#000' })] }], {
+    palette: { paper: '#fafafa', ink: '#111111', accent: '#0000ff', muted: '#bbbbbb' },
+  });
+  class Two extends Scene {
+    override async construct() {
+      const s = stage(this);
+      await this.step('one', { title: 'Two diagrams' });
+      await s.show(spec, { box: 'left' });
+      const adopted = { paper: s.backdrop.style.fill, heading: s.heading.style.fill, colors: { ...this.colors }, palette: paletteOf(this) };
+      assert.equal(adopted.paper, '#123456');
+      await s.show(other, { box: 'right' });
+      assert.equal(s.backdrop.style.fill, adopted.paper, 'the backdrop keeps the first diagram’s paper');
+      assert.equal(s.heading.style.fill, adopted.heading, 'the heading keeps its ink');
+      assert.deepEqual(this.colors, adopted.colors, 'engine defaults keep the first palette');
+      assert.deepEqual(paletteOf(this), adopted.palette);
+      this.state.done = true;
+    }
+  }
+  await new (bindSnapshots(Two, { [diagramKey(spec)]: fixture(), [diagramKey(other)]: second }))(new NullSink()).run();
+});
+
+test('stage() runs once per scene: a second call is refused', async () => {
+  class Twice extends Scene {
+    override async construct() {
+      stage(this);
+      // A second stage would add a second backdrop, heading and step listeners.
+      assert.throws(() => stage(this), /^Error: stage\(\): the scene has a stage already; call stage\(this\) once and keep what it returns$/);
+      assert.equal(this.mobjects.filter((m) => m.role === 'backdrop').length, 1);
+      this.state.done = true;
+    }
+  }
+  await new Twice(new NullSink()).run();
+  // Each scene has its own stage.
+  await new Twice(new NullSink()).run();
 });
 
 // ---- integrations/agentic-mermaid/snapshot.ts ------------------------------------

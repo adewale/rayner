@@ -158,7 +158,7 @@ import { stage } from 'rayner/explain';
 const s = stage(this, { style: 'nord' });
 ```
 
-`stage(scene, options)` adds the backdrop (the rectangle the stage is drawn on, in its look's `paper`) and a heading that follows each step's `title`: a circled step number, the title, and the step's `line` under it. The heading draws over everything, and while the camera is away from home it stays put on screen at its size, over a paper band that zoomed content passes under.
+`stage(scene, options)` adds the backdrop (the rectangle the stage is drawn on, in its look's `paper`) and a heading that follows each step's `title`: a circled step number, the title, and the step's `line` under it. The heading draws over everything, and while the camera is away from home it stays put on screen at its size, over a paper band that zoomed content passes under. A scene has one stage: call `stage(this)` once and keep what it returns, since a second call throws.
 
 | Option | Effect |
 | --- | --- |
@@ -169,7 +169,7 @@ const s = stage(this, { style: 'nord' });
 | `headingSize` | The heading's font size, 0.36 by default; at 0.5 it reads at about 12 px on a 390 px page without a close-up |
 | `numbered` | A circled step number before the title; on by default when the heading follows the steps |
 
-With neither `style` nor `palette`, the stage adopts the first diagram's palette.
+With neither `style` nor `palette`, the stage adopts the first diagram's palette. Later diagrams keep their own colours and leave the backdrop, heading and engine defaults as the first one set them.
 
 | Member | What it does |
 | --- | --- |
