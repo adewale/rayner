@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Circle, Rectangle, FadeIn, FadeOut, Create, AnimationGroup, Succession, Transform, DecimalNumber, Text } from '../src/index.ts';
 import { thereAndBack } from '../src/rate.ts';
-import { NullSink, SnapshotSink, renderAt, StopScene } from '../src/output.ts';
+import { NullSink, SnapshotSink, renderFrame, StopScene } from '../src/output.ts';
 import { traceScene } from '../src/testing.ts';
 import { captionWords, stillFrame } from '../src/scene.ts';
 import type { Step } from '../src/index.ts';
@@ -202,7 +202,7 @@ test('each step records its hold and rest frames exactly, and the trace carries 
   await new Timed({ async frame(scene) { await full.frame(scene); frames[scene.frameCount] = full.svg; } }).run();
   for (const s of trace.steps) {
     const sink = new SnapshotSink();
-    await renderAt(Timed, s.frame1! / trace.fps, sink);
+    await renderFrame(Timed, s.frame1!, sink);
     assert.equal(sink.svg, frames[s.frame1!], s.step);
   }
 });

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { Scene, Rectangle, FadeIn } from '../src/index.ts';
-import { SnapshotSink, StringSink, indexScene, stepTime, renderAt, renderText, StopScene } from '../src/output.ts';
+import { NullSink, SnapshotSink, StringSink, indexScene, stepTime, renderAt, renderFrame, renderText, StopScene } from '../src/output.ts';
 import { traceScene } from '../explain/testing.ts';
 import { Fixture } from './lib/scenes.ts';
 
@@ -88,4 +88,28 @@ test('skipUntil raised mid-run: the first frame drawn at or after it is the fram
       await renderAt(Fixture, target, seek);
       assert.equal(drawn, seek.svg, `raised at ${raise.toFixed(2)} s to ${target.toFixed(2)} s`);
     }
+});
+
+// A step's resting picture is reached by its frame number, as the trace records it, never by a
+// rounded time: renderFrame(Scene, step.frame1, sink).
+test('renderFrame draws the frame a step records by its number: the frame a seek to its time draws, past the end the last', async () => {
+  const full = new StringSink(); await new Fixture(full).run();
+  const ix = await indexScene(Fixture);
+  for (const k of [0, 1, 2, 17, Math.floor(ix.frames / 2), ix.frames - 1, ix.frames, ix.frames + 10]) {
+    const byFrame = new SnapshotSink(), byTime = new SnapshotSink();
+    const scene = await renderFrame(Fixture, k, byFrame);
+    await renderAt(Fixture, k / ix.fps, byTime);
+    assert.equal(byFrame.svg, byTime.svg, `frame ${k}`);
+    assert.equal(scene.frameCount, Math.min(k, ix.frames), `frame ${k} lands on its count`);
+  }
+  for (const s of ix.steps) {
+    const sink = new SnapshotSink();
+    await renderFrame(Fixture, s.frame1!, sink);
+    assert.equal(sink.svg, full.frames[s.frame1!], `${s.path}'s resting frame`);
+  }
+  // The frame number is the scene's own: a class that runs at 60 fps is sought at 60 fps.
+  class Fast extends Fixture { constructor(sink: ConstructorParameters<typeof Fixture>[0]) { super(sink, { fps: 60 }); } }
+  assert.equal((await renderFrame(Fast, 45, new NullSink())).frameCount, 45);
+  for (const bad of [-1, 1.5, NaN]) await assert.rejects(renderFrame(Fixture, bad, new NullSink()), /^RangeError: renderFrame\(\): the frame is .*; give a whole frame number, 0 or more$/);
+  await assert.rejects(renderFrame(Fixture, '3' as never, new NullSink()), /^TypeError: renderFrame\(\): the frame is string/);
 });

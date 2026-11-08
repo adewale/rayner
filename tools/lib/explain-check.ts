@@ -18,7 +18,7 @@ import type { Settings } from '../../explain/settings.ts';
 import ts from 'typescript';
 import { Text } from '../../src/index.ts';
 import { View } from '../../explain/index.ts';
-import { SnapshotSink, renderAt, toSvgString, renderText, NullSink } from '../../src/output.ts';
+import { SnapshotSink, renderFrame, toSvgString, renderText, NullSink } from '../../src/output.ts';
 import { renderElements, serializeElement } from '../../src/svg.ts';
 import { MotionSink, InvariantSink, machinesOf, viewMismatch, jsonObject, analyzeMotion, traceScene } from '../../explain/testing.ts';
 import { canonicalJson } from '../../src/json.ts';
@@ -523,7 +523,7 @@ export async function exploreMachines(
   const explored = [];
   for (const [index, live] of machinesOf(scene).entries()) {
     // The stage the reader saw the machine on: the run again, to the resting picture of the step it
-    // last played in (a frame is a function of time, so this is that picture exactly), rather than
+    // last played in (a frame is a function of its number, so this is that picture exactly), rather than
     // the stage the run ends with, which may have cleared its views away.
     const host = stageOf && live.lastPlayedIn ? await stageOf(live.lastPlayedIn) : scene;
     const machine = host === scene ? live : machinesOf(host)[index];
@@ -785,7 +785,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     const diagramsBefore = diagramsMade();
     const machines = await exploreMachines(ran, async (step) => {
       const s = v.trace.steps.find((x) => x.step === step)!;
-      return renderAt(v.Scene, s.frame1! / v.trace.fps, new NullSink());
+      return renderFrame(v.Scene, s.frame1!, new NullSink());
     });
     assert.ok(
       showsDiagrams(project) || diagramsMade() === diagramsBefore,
@@ -818,7 +818,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     );
     for (const [frame, svg] of frames) {
       const sink = new SnapshotSink();
-      await renderAt(v.Scene, frame / v.trace.fps, sink);
+      await renderFrame(v.Scene, frame, sink);
       assert.equal(sink.svg, svg, `Seek mismatch at frame ${frame} ${where}`);
     }
     const skipped = await traceScene(v.Scene, { skipUntil: 0 });

@@ -9,7 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Text, Code, VMobject, TransformMatchingText } from '../src/index.ts';
-import { StringSink, SnapshotSink, renderAt } from '../src/output.ts';
+import { StringSink, SnapshotSink, renderFrame } from '../src/output.ts';
 import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
 import type { Mobject, Vec } from '../src/index.ts';
 import { fc, params } from './lib/pbt.ts';
@@ -154,7 +154,7 @@ test('seeking into a lagged text morph renders the frame a full run renders', as
   await new S(full).run();
   for (const k of [0, 1, 5, 12, 18, 24, 30, 31, full.frames.length - 1]) {
     const snap = new SnapshotSink();
-    await renderAt(S, k / 30, snap);
+    await renderFrame(S, k, snap);
     assert.equal(snap.svg, full.frames[k], `frame ${k}`);
   }
 });
@@ -183,7 +183,7 @@ test('property: text morph replay agrees across lag ratios up to one', async () 
     const full = new StringSink();
     await new S(full).run();
     const snap = new SnapshotSink();
-    await renderAt(S, k / 30, snap);
+    await renderFrame(S, k, snap);
     assert.equal(snap.svg, full.frames[k], `lag ${lag}, frame ${k}`);
   }), params(100));
 });

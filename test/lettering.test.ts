@@ -15,7 +15,7 @@ import { SCRIPTS, letteringRequest, pageFaces, useProjectLettering } from '../to
 import type { LetteringFace } from '../tools/lib/explain-lettering.ts';
 import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
 import { shaperFor } from '../src/index.ts';
-import { SnapshotSink, renderAt } from '../src/output.ts';
+import { SnapshotSink, renderFrame } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { useLettering, takeLetteringMissing } from '../src/lettering.ts';
 import { takeMissingGlyphs as takeEmbeddedMissing } from '../explain/testing.ts';
@@ -174,13 +174,13 @@ test('a lettered explainer draws its Greek as outlines, and without its faces th
   const v = defaultScenario(project, { word: 'phos' });
   const step = v.trace.steps.find((s) => s.step === 'code')!;
   const sink = new SnapshotSink();
-  await renderAt(v.Scene, step.frame1! / v.trace.fps, sink);
+  await renderFrame(v.Scene, step.frame1!, sink);
   const lettered = sink.svg;
   await useLettering(null);
   assert.ok(shaperFor('mono')('αβγ', 1).glyphs.every((g) => g.gid === 0));
   assert.deepEqual([...takeLetteringMissing()], [['αβγ', 'αβγ']]);
   const bare = new SnapshotSink();
-  await renderAt(v.Scene, step.frame1! / v.trace.fps, bare);
+  await renderFrame(v.Scene, step.frame1!, bare);
   assert.notEqual(bare.svg, lettered, 'the Greek outlines are what the lettering added');
 });
 

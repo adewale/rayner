@@ -103,6 +103,9 @@
       "renderAt": {
         "tooling": "a host page or tool that draws the scene at one time or step as SVG (the render and document recipes)"
       },
+      "renderFrame": {
+        "tooling": "a host page or tool that draws a step's resting picture, or any frame, by the frame number a trace records (the player, the build's poster and rayner check's seeks)"
+      },
       "renderElements": {
         "tooling": "a tool that reads a frame as element records, with each part's box, paint and text (the render recipe)"
       },

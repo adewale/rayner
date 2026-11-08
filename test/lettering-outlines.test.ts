@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { Scene, Text } from '../src/index.ts';
-import { NullSink, SnapshotSink, renderAt, renderElements, toSvgString } from '../src/output.ts';
+import { NullSink, SnapshotSink, renderFrame, renderElements, toSvgString } from '../src/output.ts';
 import { runKey, bindLettering, snapshotProvider, unpackLettering } from '../src/lettering-outlines.ts';
 import type { LetteringSnapshot } from '../src/lettering-outlines.ts';
 import { collectProject, defaultScenario, ROOT } from '../tools/lib/explain-project.ts';
@@ -122,7 +122,7 @@ test('requested pages run offline in Chromium without errors or network requests
       const { html } = await buildExplainer(project, join(dir, id + '.html'));
       const scenario = defaultScenario(project);
       const first = scenario.trace.steps[0]!;
-      const scene = await renderAt(scenario.Scene, first.frame1! / scenario.trace.fps, new SnapshotSink());
+      const scene = await renderFrame(scenario.Scene, first.frame1!, new SnapshotSink());
       const expected = renderElements(scene, { relative: false })
         .filter((record) => record.tag === 'path').map((record) => String(record.attrs.d)).sort();
       assert.ok(expected.length > 0, `${id}: the source fixture draws outlines`);

@@ -180,7 +180,7 @@ test('a preview picture is the 16:9 still on a 2:1 canvas of the stage\'s paper 
       await this.play(new FadeIn(new Text('one')));
     }
   }
-  const png = await cardPng(Card, 1);
+  const png = await cardPng(Card, 30);
   assert.deepEqual(pngSize(png), { width: CARD.width, height: CARD.height });
   // The bands are the paper's colour, as the still's own edge is: a 2:1 crop shows no seam.
   const { pixels } = await rasterize(`<svg xmlns="http://www.w3.org/2000/svg" width="${CARD.width}" height="${CARD.height}"><image width="${CARD.width}" height="${CARD.height}" href="data:image/png;base64,${png.toString('base64')}"/></svg>`);

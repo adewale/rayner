@@ -1,5 +1,5 @@
 import { StateScope, wait } from './embed-scope.ts';
-import { renderAt, SeekSink } from '../src/output.ts';
+import { renderFrame } from '../src/output.ts';
 import { traceRun } from '../src/trace.ts';
 import type { Palette } from '../src/color.ts';
 import type { SceneClass, SceneOptions, Sink } from '../src/index.ts';
@@ -1056,7 +1056,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     const sink = new ReaderSink(container, sinkOptions(at, false), readerView, scope.signal, narrow);
     const drawn: Promise<SceneStateLike | undefined> = log.length && now
       ? liveRun(at, now, log, { sink }, scope).then((run) => run.shown as SceneStateLike)
-      : renderAt(at.Scene, step.frame1! / at.trace.fps, sink).then(() => undefined);
+      : renderFrame(at.Scene, step.frame1!, sink).then(() => undefined);
     return drawn.then((shown) => {
       pictures.set(key, { nodes: clones(container.childNodes), ...(shown ? { shown } : {}) });
       return shown;
@@ -1260,7 +1260,9 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   /**
    * Run the scene to a step's first frame and wait there. Released, it plays the step until
    * the hold, then runs on undrawn to the step's resting frame (the one a link to it shows)
-   * and draws that; `done` says whether it got there.
+   * and draws that; `done` says whether it got there. The step's frames are found by number:
+   * the first drawn is `frame0`, the picture the step starts from, at dt 0, and every frame
+   * before it is skipped.
    */
   function prepare(at: Entry, first: number): Run {
     let run!: Run;
@@ -1271,13 +1273,13 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         sink = new ReaderSink(container, sinkOptions(at, true), readerView, scope.signal, narrow);
       return {
         index, scope, sink,
-        start: step.t0,
         frame0: step.frame0,
         // Stop when the picture stops: the reader sets the pace instead of waiting through the caption-reading hold.
         still: stillFrame(step),
         frame1: step.frame1!,
         container,
-        seek: new SeekSink(sink, step.t0),
+        /** Frames drawn so far: the first is drawn at dt 0, as the picture the step starts from. */
+        drawn: 0,
       };
     };
     let aim = aimAt(first), release!: Run['release'];
@@ -1304,7 +1306,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       },
       async frame(scene, dt) {
         aim.scope.signal.throwIfAborted();
-        if (scene.time + 1e-9 < aim.start) return;
+        if (scene.frameCount < aim.frame0) return;
         if (dt === 0 && scene.mobjects.length === 0) return;
         const go = await ready;
         if (!go) throw new StopScene();
@@ -1316,18 +1318,20 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
             finish(true);
             throw new StopScene();
           }
-          yield* wait(aim.seek.frame(scene, dt));
+          yield* wait(aim.sink.frame(scene, aim.drawn++ ? dt : 0));
           attach(go);
           playback = {kind:'playing', scope:go.scope, run};
           fill(aim.index, (scene.frameCount - aim.frame0) / (aim.still - aim.frame0));
         });
       },
-    }, { skipUntil: aim.start });
+    });
+    // Frames before the step's are skipped, by the scene's own clock.
+    runner.skipUntil = aim.frame0 / runner.fps;
     const done = runner.run().then(() => { finish(false); return result; });
     const follow = () => {
       if (playback.kind !== 'playing' || !stage.contains(aim.sink.svg) || aim.index + 1 >= at.trace.steps.length) return false;
       aim = aimAt(aim.index + 1);
-      runner.skipUntil = aim.start;
+      runner.skipUntil = aim.frame0 / runner.fps;
       ready = gate();
       return true;
     };

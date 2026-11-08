@@ -91,7 +91,7 @@ captions and explanatory descriptions in its transcript.
 
 | Requested result | API | Former Lantern service equivalent |
 | --- | --- | --- |
-| One SVG | `renderAt` into `SnapshotSink` | `/frame.svg` |
+| One SVG | `renderAt` (at a time) or `renderFrame` (at a frame, such as a step's `frame1`) into `SnapshotSink` | `/frame.svg` |
 | Text at a time | `renderText` on that sampled scene | `/text` |
 | Element records | `renderElements`, one `ElementRecord` per drawn element | `/elements.json` |
 | Full step/state trace | `traceScene` | `/trace.json` |
@@ -107,10 +107,14 @@ scene-document endpoint. The Node runner's filesystem code is not Worker code.
 
 `stepTime` returns a step's **start**, not its final resting picture. In the example,
 the `result` step follows the completed decision, so its start already shows the
-answer. For a trace record `record`, sample the last frame with
-`Math.max(record.t0, (record.t1 ?? record.t0) - 0.5 / trace.fps)`.
-The helper implementing this is internal, not a package export. Check the chosen
-step exists before sampling.
+answer. A step's resting picture is its last frame, which its record names by number:
+`renderFrame(SceneClass, record.frame1, sink)` draws it, for a trace record or a
+`SceneIndex` step alike. Check the chosen step exists before drawing it.
+
+`renderFrame` draws one frame by its number, the `frameCount` the scene reaches as it
+draws it, as a step's `frame0`, `frame1` and `holdFrame` record; a number past the end
+draws the final frame. It skips the frames before it as `renderAt` does, and never
+finds a frame by a rounded time.
 
 `renderAt` samples the first frame at or after the requested time, on the scene's
 fixed frame grid. A time past the end returns the final frame. It runs the scene into a

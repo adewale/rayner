@@ -72,3 +72,37 @@ export async function renderAt(SceneClass: SceneClass, t: number, sink: Sink, op
   if (seek.forwarded === 0) await sink.frame(scene, 0); // t past the end: final frame
   return scene;
 }
+
+/**
+ * Render exactly frame `frame` through `sink`: the frame a scene's `frameCount` reaches as it draws
+ * it, as a step's `frame0`, `frame1` and `holdFrame` record, so `renderFrame(Scene, step.frame1, sink)`
+ * draws the step's resting picture. Frames before it are counted, not drawn; past the end, the
+ * final frame is drawn. The frame is found by its number, never by a rounded time.
+ */
+export async function renderFrame(SceneClass: SceneClass, frame: number, sink: Sink, opts: SceneOptions = {}): Promise<Scene> {
+  if (typeof frame !== 'number') throw new TypeError(`renderFrame(): the frame is ${typeof frame}; give a frame number, 0 or more`);
+  if (!Number.isInteger(frame) || frame < 0) throw new RangeError(`renderFrame(): the frame is ${String(frame)}; give a whole frame number, 0 or more`);
+  const seek = new FrameSeek(sink, frame);
+  const scene = new SceneClass(seek, opts);
+  // Frames that end before this one are skipped, by the scene's own clock (its fps is known only now).
+  scene.skipUntil = frame / scene.fps;
+  await scene.run();
+  if (!seek.forwarded) await sink.frame(scene, 0); // past the end: final frame
+  return scene;
+}
+
+/** Forwards frame `at` (by `frameCount`) and the step boundaries from it on, then stops the run, as SeekSink does by time. */
+class FrameSeek implements Sink {
+  readonly target: Sink;
+  readonly at: number;
+  forwarded = false;
+  constructor(target: Sink, at: number) { this.target = target; this.at = at; }
+  async frame(scene: Scene): Promise<void> {
+    if (scene.frameCount < this.at) return;
+    await this.target.frame(scene, 0);
+    this.forwarded = true;
+    throw new StopScene();
+  }
+  async stepBegin(scene: Scene, s: Step): Promise<void> { if (scene.frameCount >= this.at) await this.target.stepBegin?.(scene, s); }
+  async stepEnd(scene: Scene, s: Step): Promise<void> { if (scene.frameCount >= this.at) await this.target.stepEnd?.(scene, s); }
+}

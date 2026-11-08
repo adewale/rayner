@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { Square, Underline } from '../src/extras.ts';
 import assert from 'node:assert/strict';
 import { Scene, Rectangle, Text, Code, Create, FadeOut, Circumscribe, SurroundingRectangle, Cross, Brace, BraceLabel, VMobject } from '../src/index.ts';
-import { StringSink, SnapshotSink, renderAt } from '../src/output.ts';
+import { StringSink, SnapshotSink, renderFrame } from '../src/output.ts';
 import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
 import type { Box, Mobject, Vec } from '../src/index.ts';
 // Manim's values, which the package no longer exports.
@@ -251,7 +251,7 @@ test('seeking into and past Circumscribe renders the frame a full run produces',
   // hand-over to fading, mid fade, the pulse's end, mid keep, held, mid retract, mid fade-out, the end
   for (const k of [7, 20, 25, 30, 45, 61, 75, 100, full.frames.length - 1]) {
     const snap = new SnapshotSink();
-    await renderAt(EmphasisScene, k / 30, snap);
+    await renderFrame(EmphasisScene, k, snap);
     assert.equal(snap.svg, full.frames[k], `frame ${k}`);
   }
 });
