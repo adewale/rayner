@@ -205,8 +205,9 @@ machine that wants other motion authors a `transition`.
 
 ## What check does with a machine
 
-After each scenario runs, `rayner check` runs the scene again to the resting picture of the step
-each machine last played in, the stage the reader saw it on, and explores there. A machine whose
+After each scenario runs, `rayner check` runs the scene again to the end of the step each machine
+last played in, the stage the reader saw it on, by the player's own run (`runLive`), and explores
+there. A machine whose
 views are not on that stage is reported, since its states could not be checked. Exploration
 visits every state breadth first from `start`. When the machine's state at that step is not one
 of those and some event moves it, exploration also visits every state reachable from there, since

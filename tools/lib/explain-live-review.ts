@@ -76,7 +76,7 @@ export interface LiveSubject {
 
 /**
  * Every live state of `scenario` to visit (liveVisits), each with the picture the page must paint:
- * the scene run to the live step's resting picture and the events played (runLive, as the page
+ * the scene run to the live step's end and the events played (runLive, as the page
  * runs it), read as a resting step is read, with what the events newly emphasised, else the
  * artwork they changed, compared with the step's own picture. An event that leaves the stage as
  * it was is reviewed on the machine's views. A step whose machine no event moves has no buttons
