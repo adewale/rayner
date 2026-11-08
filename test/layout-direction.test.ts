@@ -161,6 +161,9 @@ test('direction rejects malformed, boxed, inherited and coercing values before d
   }
   const getter = Object.defineProperty({}, 'direction', { get() { coerced++; return 'rtl'; } });
   assert.throws(() => stage(scene(), getter), /stage\(\): direction must be a plain value, not a getter/);
+  // A value of the wrong type is named with the article its type takes.
+  assert.throws(() => stage(scene(), { direction: {} as never }), /^RangeError: stage\(\): direction must be 'ltr' or 'rtl', not an object$/);
+  assert.throws(() => stage(scene(), { direction: 7 as never }), /^RangeError: stage\(\): direction must be 'ltr' or 'rtl', not a number$/);
   assert.throws(() => card(stage(scene()), [['field', '123']], getter), /card\(\): direction must be a plain value/);
   await assert.rejects(async () => stage(scene()).card([['field', '123']], getter), /s\.card\(\): direction must be a plain value/);
   for (const malformed of [null, 1, false, 'rtl', []]) {

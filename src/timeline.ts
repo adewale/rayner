@@ -89,18 +89,24 @@ export async function renderFrame(SceneClass: SceneClass, frame: number, sink: S
   const seek = new FrameSeek(sink, frame);
   const scene = new SceneClass(seek, opts);
   // Frames that end before this one are skipped, by the scene's own clock (its fps is known only now).
-  scene.skipUntil = frame / scene.fps;
+  seek.fps = scene.fps;
   await scene.run();
   if (!seek.forwarded) await scene.drawFrame(sink); // past the end: final frame
   return scene;
 }
 
-/** Forwards frame `at` (by `frameCount`) and the step boundaries from it on, then stops the run, as SeekSink does by time. */
+/**
+ * Forwards frame `at` (by `frameCount`) and the step boundaries from it on, then stops the run, as
+ * SeekSink does by time. Frames that end before it are skipped, by the scene's clock, once `fps`
+ * says what it runs at.
+ */
 class FrameSeek implements Sink {
   readonly target: Sink;
   readonly at: number;
   forwarded = false;
+  fps: number | null = null;
   constructor(target: Sink, at: number) { this.target = target; this.at = at; }
+  get skipUntil(): number { return this.fps === null ? 0 : this.at / this.fps; }
   async frame(scene: Scene): Promise<void> {
     if (scene.frameCount < this.at) return;
     await this.target.frame(scene, 0);

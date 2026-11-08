@@ -228,8 +228,7 @@ export class Machine<S extends object, E extends string> {
     if ('refused' in o) throw new RangeError(`machine.send(): ${String(event)} is refused in ${JSON.stringify(before)}${o.refused ? `: ${o.refused}` : ''}`);
     const after = o.next;
     const { views, match } = this.spec;
-    const runTime = typeof this.spec.runTime === 'function' ? this.spec.runTime({ event, before, after }) : this.spec.runTime;
-    const authored = this.spec.transition?.[event];
+    const transition = this.transitionPlay(event, before, after);
     const built = canonicalJson(before);
     return new Succession([
       new SetState(this.scene, (current) => {
@@ -238,16 +237,30 @@ export class Machine<S extends object, E extends string> {
         this.playedInStep = this.scene.currentStep?.path ?? null;
         return after;
       }, { event }),
-      authored
+      transition
         // The transition's motion, then the views take the pictures of `after`: a sync that moves
         // nothing when the transition ended where the model says (rayner check holds it to that).
-        ? new Succession([
-          new WhenItsTurnComes(String(event), () => authored(this.transitionFor(event, before, after)), views, runTime),
-          new Landing(this.scene, views),
-        ])
+        ? new Succession([transition, new Landing(this.scene, views)])
         // No authored motion: each view's keyed morph, staged, so what goes is gone before what comes appears.
-        : new AnimationGroup(views.map((v) => v.sync({ match, runTime }))),
+        : new AnimationGroup(views.map((v) => v.sync({ match, runTime: this.runTimeOf(event, before, after) }))),
     ]);
+  }
+
+  /** The run time of `event` from `before` to `after`: the spec's, or what its function gives. */
+  private runTimeOf(event: E, before: S, after: S): number {
+    return typeof this.spec.runTime === 'function' ? this.spec.runTime({ event, before, after }) : this.spec.runTime;
+  }
+
+  /**
+   * @internal The authored transition for `event` from `before` to `after` as `send` plays it, without
+   * the event's state change before it or the landing after it: made from the pictures on screen
+   * when its turn comes in a play, over the event's run time. Null when the event has no authored
+   * transition. `rayner check` plays each one this way, in a play of the explored scene.
+   */
+  transitionPlay(event: E, before: S, after: S): ScheduledAnimation | null {
+    const authored = this.spec.transition?.[event];
+    if (!authored) return null;
+    return new WhenItsTurnComes(String(event), () => authored(this.transitionFor(event, before, after)), this.spec.views, this.runTimeOf(event, before, after));
   }
 
   /** Events in turn, each from where the last left the state (default start: the scene's state now). */
@@ -296,7 +309,7 @@ export class Machine<S extends object, E extends string> {
 class WhenItsTurnComes extends MadeAtTurn {
   readonly #make: () => Animation | AnimationGroup;
   constructor(event: string, make: () => Animation | AnimationGroup, declared: readonly Mobject[], runTime: number) {
-    super({ call: 'machine.send()', subject: `the transition for ${event}` }, runTime, declared);
+    super({ call: `machine.send(${JSON.stringify(event)})`, subject: 'the transition' }, runTime, declared);
     this.#make = make;
   }
   protected override make(): ScheduledAnimation[] {

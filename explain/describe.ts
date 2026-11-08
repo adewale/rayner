@@ -131,7 +131,7 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
     // Each step's picture as text, drawn as the step ends: every one from the run that traces it.
     drawings = new Map<string, string>(),
     { trace, scene } = await traceRun(Bound, {}, (ran, step) => {
-      if (draw === true || draw === step.path) drawings.set(step.path, drawing(ran));
+      if (draw === true || draw === step.path) drawings.set(step.path, restingDrawing(ran));
     }),
     paper = paperOf(scene),
     steps: StepDescription[] = [];
@@ -186,7 +186,12 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
   };
 }
 
-/** The scene's picture now as text, without the heading that names the step, as `rayner check` draws it. */
-function drawing(scene: Scene): string {
+/**
+ * A step's resting picture as text: the scene as the step ends, drawn without the heading (number,
+ * title, line) that names the step, since whoever reads the drawing has the step's title and line
+ * beside it. The one text drawing of a resting picture: `describe`'s `drawing` and `rayner check`'s
+ * `restingFrames` are both this.
+ */
+export function restingDrawing(scene: Scene): string {
   return withoutHeading(scene, () => renderText(scene));
 }

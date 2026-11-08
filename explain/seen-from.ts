@@ -116,7 +116,8 @@ export function circleOn(pole: Vec3, angle: number, radius = 1, step = 2): Vec3[
 }
 /** The viewpoint a fraction `t` of the way from a to b (same kind): yaw turns the short way. */
 export function between(a: Viewpoint, b: Viewpoint, t: number): Viewpoint {
-  if (a.kind !== b.kind) throw new Error(`between(): a ${a.kind} and a ${b.kind} viewpoint have nothing in between; give two viewpoints of one kind`);
+  const an = (kind: string) => `${/^[aeiou]/.test(kind) ? 'an' : 'a'} ${kind}`;
+  if (a.kind !== b.kind) throw new Error(`between(): ${an(a.kind)} and ${an(b.kind)} viewpoint have nothing in between; give two viewpoints of one kind`);
   if (t <= 0) return a;
   if (t >= 1) return b;
   const v: Viewpoint = { kind: a.kind, yaw: a.yaw + wrap(b.yaw - a.yaw) * t, pitch: a.pitch + (b.pitch - a.pitch) * t };

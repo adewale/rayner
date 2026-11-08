@@ -67,6 +67,31 @@ test('after a stop, play(), wait() and step() reject at once without reaching th
 
 // The player sends a playing run on to a later step by raising its skipUntil mid-play; from
 // there it must skip exactly as a seek does, so the next frame drawn is the seek's frame.
+test('skip time has two writers, the scene option and the sink, and each must be a time: NaN, a negative time or a non-number is refused', async () => {
+  // The option, as the scene is made.
+  assert.throws(() => new Scene(new NullSink(), { skipUntil: NaN }), /^RangeError: new Scene\(\): skipUntil is NaN; give a time in seconds, 0 or more, or Infinity to skip every frame$/);
+  assert.throws(() => new Scene(new NullSink(), { skipUntil: -1 }), /^RangeError: new Scene\(\): skipUntil is -1;/);
+  assert.throws(() => new Scene(new NullSink(), { skipUntil: '5' as never }), /^TypeError: new Scene\(\): skipUntil is string;/);
+  // The sink's, where every play reads it. Before, NaN turned skipping off without a word.
+  class Skips extends NullSink {
+    readonly skipUntil: unknown;
+    constructor(skipUntil: unknown) { super(); this.skipUntil = skipUntil; }
+  }
+  const plays = (sink: NullSink) => new (class extends Scene {
+    override async construct() { await this.play(new FadeIn(new Rectangle())); }
+  })(sink).run();
+  await assert.rejects(plays(new Skips(NaN)), /^RangeError: sink\.skipUntil: the Skips's is NaN; give a time in seconds, 0 or more, or Infinity to skip every frame$/);
+  await assert.rejects(plays(new Skips(-0.5)), /^RangeError: sink\.skipUntil: the Skips's is -0\.5;/);
+  await assert.rejects(plays(new Skips('5')), /^TypeError: sink\.skipUntil: the Skips's is string;/);
+  await assert.rejects(plays({ skipUntil: NaN, async frame() {} } as unknown as NullSink), /^RangeError: sink\.skipUntil: the sink's is NaN;/);
+  await assert.rejects(plays(Object.assign(Object.create(null), { skipUntil: -1, async frame() {} })), /^RangeError: sink\.skipUntil: the sink's is -1;/);
+  // A time, 0 or Infinity is taken.
+  for (const t of [0, 0.4, Infinity]) assert.ok(await plays(new Skips(t)));
+  // renderFrame skips by its own sink's time, with no setter on the scene.
+  const scene = new Scene(new NullSink());
+  assert.ok(!Object.getOwnPropertyDescriptor(Scene.prototype, 'skipUntil')?.set && 'skipUntil' in scene);
+});
+
 test('skipUntil raised mid-run: the first frame drawn at or after it is the frame a seek there draws', async () => {
   const ix = await indexScene(Fixture);
   const times = [0.1, 0.35, 0.8, 1.3, 2, 2.9].map((f) => f * (ix.duration / 3));
@@ -74,9 +99,11 @@ test('skipUntil raised mid-run: the first frame drawn at or after it is the fram
     for (const target of times.filter((t) => t > raise + 0.2)) {
       let drawn: string | undefined;
       const snap = new SnapshotSink();
+      // The sink moves its own skip time on mid-run, as the player's runner does for the next step.
       const sink = {
+        skipUntil: 0,
         async frame(scene: Scene) {
-          if (scene.time + 1e-9 >= raise && scene.skipUntil < target) scene.skipUntil = target;
+          if (scene.time + 1e-9 >= raise && sink.skipUntil < target) sink.skipUntil = target;
           if (scene.time + 1e-9 < target) return;
           await snap.frame(scene);
           drawn = snap.svg;

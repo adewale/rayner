@@ -140,7 +140,9 @@ frames rather than retaining a large sequence in memory. Forward `stepBegin` and
 `EndedStep`, whose `t1` and `frame1` are numbers. A sink that draws only from
 some time on says so with `skipUntil`: frames that end before it are counted, not drawn, as with
 the scene's own `skipUntil` option (the scene skips a frame either asks to), and the sink may move
-it between plays.
+it between plays. These are the only two ways to skip frames. Each is a time in seconds, 0 or more,
+or `Infinity` to skip every frame: the scene refuses any other option as it is made, and any other
+sink value (`NaN`, a negative time, a string) when a play or wait next reads it.
 
 ## Live browser output and publication
 

@@ -1238,9 +1238,9 @@ class BuiltTransform extends Transform {
 
 /** Who made what began at its turn, as messages name it: the call it belongs to, and what it is. */
 export interface MadeBy {
-  /** The call, as a message begins: `s.card()`, `machine.send()`, `new Succession()`. */
+  /** The call, as a message begins: `s.card()`, `machine.send("UP")`, `new Succession()`. */
   call: string;
-  /** What made it, as a message names it after the call: `its beat`, `the transition for UP`. */
+  /** What made it, as a message names it after the call: `a beat`, `the transition`. */
   subject: string;
 }
 

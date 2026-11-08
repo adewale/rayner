@@ -7,6 +7,7 @@ import RingBuffer from '../scenes/explainers/ring-buffer/scene.ts';
 import OauthPkce from '../scenes/explainers/oauth-pkce/scene.ts';
 import { PALETTES } from '../explain/palettes.ts';
 import { idsOf, stepIdsOf } from './lib/steps.ts';
+import { RestingSink } from '../tools/lib/explain-check.ts';
 
 test('describeExplainer gives every scenario and step: the words, the state the trace recorded and what each step changed', async () => {
   // As the tools describe it: collected, so its id is its folder's name.
@@ -52,6 +53,20 @@ test('describeExplainer gives every scenario and step: the words, the state the 
   assert.deepEqual(result.changed.tail, { before: 0, after: 2 });
   // JSON-safe: what an agent reads from a file is what the function returned.
   assert.deepEqual(JSON.parse(JSON.stringify(d)), d);
+});
+
+test('a step\'s resting picture has one text drawing: rayner check\'s restingFrames is describe\'s drawing, the heading left out of both', async () => {
+  const Bound = withSettings((await loadProject(RingBuffer, 'scenes/explainers/ring-buffer')).Scene, scenariosOf(RingBuffer as ExplainerClass)[0]!);
+  const d = await describeExplainer(Bound);
+  // As check reads it: a RestingSink on a full run.
+  const resting = new RestingSink();
+  await new Bound(resting).run();
+  const steps = d.scenarios[0]!.steps;
+  assert.ok(steps.length > 1);
+  for (const s of steps) {
+    assert.equal(resting.restingText.get(s.step), s.drawing, `${s.step}: check draws the step as describe does`);
+    assert.ok(!resting.restingText.get(s.step)!.includes(s.title), `${s.step}: the title is not in check's drawing`);
+  }
 });
 
 test('a scene with diagrams describes from its pinned snapshots, scenario by scenario, and fails without them', async () => {

@@ -993,11 +993,13 @@ export class Diagram {
    */
   described(): boolean {
     const p = this.presented;
+    // The stage describes the diagram as a step ends (the trace reads what it shows then) and as the
+    // next begins, so the refusal names this.step().
     // The one record of how the diagram is presented is `presented`; the scene's membership says only whether that is on stage now.
     if (p.kind === 'viewed' && onStage(this.scene, this.#root))
-      throw new Error('d.root: it is on the stage while a view shows the diagram, so each of its keys is drawn twice; take it off, or call s.liveDiagram(d) to show the live diagram in the view\'s place');
+      throw new Error(`this.step(): the diagram's root is on the stage while a view shows the diagram, so each of its keys is drawn twice; take it off, or call s.liveDiagram(d) to show the live diagram in the view's place`);
     if (p.kind === 'live' && p.replaced && onStage(this.scene, p.replaced) && onStage(this.scene, this.#root))
-      throw new Error('d.root: it is on the stage beside the view it replaced, so each of its keys is drawn twice; take the view off, or call s.diagramView(d) to show the diagram by it again');
+      throw new Error(`this.step(): the diagram's root is on the stage beside the view it replaced, so each of its keys is drawn twice; take the view off, or call s.diagramView(d) to show the diagram by it again`);
     return p.kind === 'live' ? onStage(this.scene, this.#root) : p.kind === 'viewed' && onStage(this.scene, p.view);
   }
   /** Whether `m` is, or is inside, the view that shows this diagram, while that is on stage. */

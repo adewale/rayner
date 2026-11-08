@@ -1,6 +1,6 @@
 // The convention for error messages an author can see (docs/ENGINE.md, "Error messages"), held
 // mechanically over the library: every `new Error(`, `new TypeError(` and `new RangeError(` in
-// src/, explain/ and diagram replay. A message starts with the API the author called and a colon,
+// src/, explain/, the player (app/) and diagram replay. A message starts with the API the author called and a colon,
 // ends without a full stop, and never names a mobject by its internal id. A prefix the code
 // computes, such as the call an action was made by or the file a script was read from, is allowed
 // only where ALLOWED lists that expression and says what it holds.
@@ -11,7 +11,7 @@ import { join, relative, resolve } from 'node:path';
 import ts from 'typescript';
 
 const ROOT = resolve(import.meta.dirname, '..');
-const SCANNED = ['src', 'explain', 'integrations/agentic-mermaid/snapshot.ts', 'integrations/agentic-mermaid/text.ts'];
+const SCANNED = ['src', 'explain', 'app', 'integrations/agentic-mermaid/snapshot.ts', 'integrations/agentic-mermaid/text.ts'];
 
 /**
  * The static prefixes: a call, `card()`, `s.card()`, `keyedParts().add()`; a constructor,
@@ -25,12 +25,12 @@ const ALLOWED: Record<string, Record<string, string>> = {
   'src/json.ts': { api: 'the call cloneJson was given by its caller' },
   'src/animation.ts': {
     api: "the call that took the animations or the time, 'this.play()', 'new Succession()' or 'new FadeIn()', or that began one, 'this.play()' or 'animation.begin()'",
-    call: "the call what is made at its turn belongs to, 's.card()' or 'machine.send()'",
+    call: "the call what is made at its turn belongs to, 's.card()' or 'machine.send(\"UP\")'",
     'this.by.call': 'the same, kept on the animation',
   },
   'src/scene.ts': {
     api: "the scene's call that found another running, 'this.play()', 'this.wait()', 'this.step()' or 'this.construct()'; or the registration of a listener that left a play running, 'this.onStep()' or 'this.onStepEnd()'",
-    call: "the call that made or began the animations at their turn in a play, 's.show()', 'machine.send()' or 'new Succession()'",
+    call: "the call that made or began the animations at their turn in a play, 's.show()', a machine's transition, 'machine.send(\"UP\")', or 'new Succession()'",
   },
   'src/shapes.ts': { api: "the constructor boxOf's caller names" },
   'src/fonts.ts': { label: "decodeFont's subject, which its caller names with a prefix ('loadFonts(): the embedded sans face')" },
