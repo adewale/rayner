@@ -925,7 +925,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     if (!live) return Promise.resolve(null);
     let base = at.bases.get(step.step);
     if (!base) {
-      base = runLive(at.Scene, step, live.index, []).then((run) => logStart(live.machine, run.rest), (error: unknown) => {
+      base = runLive(at.Scene, step, live, []).then((run) => logStart(live.machine, run.rest), (error: unknown) => {
         console.error(error);
         return null;
       });
@@ -968,7 +968,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     if (h && h.at === at && h.step === step.step && h.from === now.base.from && h.session.open && !h.session.busy &&
       log.length === h.session.log.length + 1 && h.session.log.every((e, i) => e === log[i]))
       return h.session.send(log.at(-1)!, draw);
-    return runLive(at.Scene, step, now.live.index, log, { ...draw, from: now.base.from, keep: true }).then((run) => {
+    return runLive(at.Scene, step, now.live, log, { ...draw, from: now.base.from, keep: true }).then((run) => {
       held?.session.close();
       held = run.session ? { at, step: step.step, from: now.base.from, session: run.session } : null;
       return run;

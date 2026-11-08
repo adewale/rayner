@@ -165,6 +165,15 @@ export class Machine<S extends object, E extends string> {
   get lastPlayedIn(): string | null { return this.playedInStep; }
 
   /**
+   * @internal What identifies this machine across runs of its scene, beside its place in
+   * `machinesOf(scene)`: its events, its start and its views' keys, as canonical JSON. Two
+   * machines with the same events in another order, or another start, are different machines.
+   */
+  get identity(): string {
+    return canonicalJson({ events: this.spec.events, start: this.spec.start, views: this.spec.views.map((v) => v.key ?? null) });
+  }
+
+  /**
    * @internal What `event` does from `state`: the next state; or, refused by the model, its reason (what
    * `refuse` was given, or null for `undefined`); or beyond the story, the bound's reason, or `end`'s
    * where the state is finished and the model would take the event. The bound is asked first, so

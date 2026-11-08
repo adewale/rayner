@@ -47,7 +47,7 @@ before(async () => {
     assert.ok(scenario.live?.size, `${id}: its default scenario has a live step`);
     for (const [step, live] of scenario.live!) {
       const times = scenario.trace.steps.find((s) => s.step === step)!;
-      const base = logStart(live.machine, (await runLive(scenario.Scene, times, live.index, [])).rest);
+      const base = logStart(live.machine, (await runLive(scenario.Scene, times, live, [])).rest);
       assert.ok(base, `${id} ${step}: some event goes somewhere`);
       subjects.push({ id, file, values: scenario.values, step, live, base });
     }

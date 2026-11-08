@@ -102,6 +102,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - The collection's models are compared with CPython, Git, rustc, Go's rate limiter, XState, ERFA, Python's `unicodedata` and others, against frozen answers, so the tests run without those tools installed.
 - A `Machine` drives a model with events. Its spec gives `start`, `events`, `next(state, event)`, `bound`, button `labels` and the views drawn from the state. [Machines](docs/MACHINES.md#making-one)
 - A machine refuses an empty event name or one with a comma, which a shared link, joining the reader's events with commas, would split. One validator (`isIdentifier` in `explain/settings.ts`) holds the names a link carries or a file is named by: events, `meta.id` and the step names that get share pages.
+- A machine is identified across runs by its events in order, its start and its views' keys, not by its place alone: `rayner check`'s exploration and the live player refuse a run to the live step that made a different machine there. `runLive` takes the `Live` it drives (`{ index, machine }`), not an index.
 - `next` returns `refuse(reason)` for an event the state refuses, the reason in the reader's words, or `undefined` for a refusal with no reason.
 - `bound` says where the story stops though the model would go on.
 - `replay` plays events as one schedule, which seeks and traces like any other play and records each event.

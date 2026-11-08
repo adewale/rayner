@@ -509,3 +509,28 @@ test('an authored transition lands a picture whose parts repeat a key by redrawi
   assert.deepEqual(ran.pair.texts, ['a2', 'b2']);
   assert.deepEqual(parts.map((p) => Math.sign(p.center()[0])), [-1, 1]);
 });
+
+test('exploration refuses a run to the live step that made a different machine at the same place: events swapped, or another start', async () => {
+  const made = (events: ('UP' | 'OFF')[], start: Lamp) => class extends Scene<Lamp> {
+    override state = { level: 0 };
+    override async construct() {
+      const s = stage(this);
+      const picture = view(this, (st: Lamp) => Object.assign(new Group(new Rectangle({ width: 4, height: 1.2 }), Object.assign(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), { key: 'lamp:word' })), { key: 'lamp' }));
+      s.keep(picture, { describe: () => picture.texts.join(' ') });
+      this.add(picture);
+      const machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start, events, next, views: [picture], runTime: 0.3 });
+      await this.step('press');
+      await this.play(machine.send('UP'));
+    }
+  };
+  const ran = await new (made(['UP', 'OFF'], { level: 0 }))(new NullSink()).run();
+  // Before, only the events were compared: two machines with the same events made in the other order, or a
+  // machine with another start, passed as the same machine.
+  for (const other of [made(['OFF', 'UP'], { level: 0 }), made(['UP', 'OFF'], { level: 1 })]) {
+    const host = await new other(new NullSink()).run();
+    await assert.rejects(exploreMachines(ran, async () => host), /new Machine\(\): the run to "press" made different machines/);
+  }
+  const same = await new (made(['UP', 'OFF'], { level: 0 }))(new NullSink()).run();
+  const [explored] = await exploreMachines(ran, async () => same);
+  assert.deepEqual(explored!.problems, []);
+});

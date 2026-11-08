@@ -289,8 +289,11 @@ load of the URL runs the same, all skipped, so a link reopens the same picture, 
 its guarantee: a frame is a function of time and of the log. The run stops in the live step as soon
 as its picture stops changing (at the end of the play or wait that reaches the step's hold, or as
 the step ends), so code a scene runs between its last play and its next step never reaches the
-reader's stage. The machine plays under what the scene showed when it played, as exploration draws
-it.
+reader's stage. The machine plays under what the scene showed when it last played, as exploration
+draws it. The run's machine is found by its place among the scene's machines and must be the same
+machine, its events in order, its start and its views' keys, or the run is refused; `rayner check`
+holds the run that explores a machine at its live step to the same rule, so neither drives another
+machine that happens to sit at the same place.
 
 A link's events are checked against the machine before anything is drawn: the longest prefix it
 takes is replayed, and a notice names the first event it refused or that is past where the story

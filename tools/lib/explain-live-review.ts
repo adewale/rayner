@@ -87,7 +87,7 @@ export async function liveSubjects(scenario: Scenario, lang?: string): Promise<L
   for (const [step, live] of scenario.live ?? []) {
     const times = scenario.trace.steps.find((s) => s.step === step);
     assert.ok(times, `live step ${step} is not in the trace`);
-    const base = logStart(live.machine, (await runLive(scenario.Scene, times, live.index, [])).rest);
+    const base = logStart(live.machine, (await runLive(scenario.Scene, times, live, [])).rest);
     if (!base) continue;
     for (const sent of liveVisits(live.machine, base.state)) {
       const name = `${step} after [${sent.join(', ')}]`;
@@ -98,7 +98,7 @@ export async function liveSubjects(scenario: Scenario, lang?: string): Promise<L
           frame = (await storyFrame(scene, name, memory!, [], views.map((v) => ({ name: `view: ${v.key ?? 'machine'}`, objects: [v] })))).frame;
         },
       };
-      await runLive(scenario.Scene, times, live.index, sent, { sink: capture, from: base.from, onRest: (scene) => (memory = storyMemory(scene)) });
+      await runLive(scenario.Scene, times, live, sent, { sink: capture, from: base.from, onRest: (scene) => (memory = storyMemory(scene)) });
       assert.ok(frame, `${name}: the run drew no picture`);
       const state = acceptedLog(live.machine, base.state, sent).states.at(-1)!;
       const buttons = outcomes(live.machine, state).map((o) => ({

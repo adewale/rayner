@@ -494,7 +494,7 @@ export async function exploreMachines(
     // the stage the run ends with, which may have cleared its views away.
     const host = stageOf && live.lastPlayedIn ? await stageOf(live.lastPlayedIn) : scene;
     const machine = host === scene ? live : machinesOf(host)[index];
-    if (!machine || JSON.stringify(machine.spec.events) !== JSON.stringify(live.spec.events))
+    if (!machine || machine.identity !== live.identity)
       throw new Error(`new Machine(): the run to ${JSON.stringify(live.lastPlayedIn)} made different machines; a scene must make the same machines on every run`);
     const problems: string[] = [];
     const missing = machine.spec.views.filter((v) => !host.familyMembers().includes(v));

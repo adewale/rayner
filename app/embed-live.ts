@@ -138,7 +138,7 @@ export interface LiveSession {
 }
 
 /**
- * Run `Source` to the resting picture of `step`, where machine `index` is live, then play `log`
+ * Run `Source` to the resting picture of `step`, where `live.machine` is live, then play `log`
  * through `machine.send` (from the machine's start, its views redrawn there, when `from` is
  * 'start' and the log is not empty), every frame skipped; `sink` then draws the picture the log lands on.
  * With `animate`, the last event plays through that sink instead, frame by frame from the picture
@@ -149,13 +149,15 @@ export interface LiveSession {
  * The run stops in the live step as soon as its picture stops changing: at the end of the play or
  * wait that reaches the step's hold (or its end), or as the step ends. Code a scene runs between
  * its last play and its next step never runs, so it cannot change the stage the reader drives.
- * The machine plays under what the scene showed when it last played (`playedUnder`), as exploration
- * draws it. A log the machine does not accept throws, as `send` does.
+ * The machine is the run's machine at `live.index`, refused unless it is the same machine (its
+ * events, start and views' keys), so the reader never drives another. It plays under what the
+ * scene showed when it last played (`playedUnder`), as exploration draws it. A log the machine
+ * does not accept throws, as `send` does.
  */
 export async function runLive(
   Source: SceneClass,
   times: LiveStepTimes,
-  index: number,
+  live: Live,
   log: readonly string[],
   { sink, animate, onStart, onRest, from = 'rest', keep = false }: LiveDraw & { onRest?: (scene: Scene<any>) => void; from?: LogStart; keep?: boolean } = {},
 ): Promise<LiveRun> {
@@ -170,8 +172,9 @@ export async function runLive(
     reached = false;
     async reach(): Promise<void> {
       this.reached = true;
-      const machine = machinesOf(this)[index];
-      if (!machine) throw new Error(`No machine ${index} was made by the step "${times.step}"; a scene must make the same machines each run`);
+      const machine = machinesOf(this)[live.index];
+      if (!machine || machine.identity !== live.machine.identity)
+        throw new Error(`new Machine(): the run to ${JSON.stringify(times.step)} made different machines; a scene must make the same machines on every run`);
       if (machine.playedUnder && canonicalJson(machine.playedUnder) !== canonicalJson(this.shown)) this.shown = machine.playedUnder;
       const rest = JSON.parse(JSON.stringify(this.state)) as object;
       onRest?.(this);
