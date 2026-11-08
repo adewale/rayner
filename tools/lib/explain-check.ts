@@ -16,6 +16,7 @@ import { Text } from '../../src/index.ts';
 import { View } from '../../explain/index.ts';
 import { SnapshotSink, renderAt, toSvgString, renderText, NullSink } from '../../src/output.ts';
 import { MotionSink, InvariantSink, machinesOf, viewMismatch, jsonObject, analyzeMotion, traceScene } from '../../explain/testing.ts';
+import { canonicalJson } from '../../src/json.ts';
 import { LIB_ROOT, engineAlias, importAuthored, sceneSlug } from './explain-project.ts';
 import { checkedAgainstFiles, compareAnswers, runModelTest } from './explain-evidence.ts';
 import { scenarioName } from '../../explain/testing.ts';
@@ -501,11 +502,11 @@ export async function exploreMachines(
     // From the start, as exploration always has; and from the state the reader finds at the step
     // where the machine is live, since the player lets the reader send events from there too.
     const fromStart = machine.reachable().map((r) => ({ ...r, origin: '' }));
-    const seen = new Set(fromStart.map((r) => JSON.stringify(r.state)));
+    const seen = new Set(fromStart.map((r) => canonicalJson(r.state)));
     const stepState = jsonObject(host.state, 'machine state') as object;
     const answers = (() => { try { return machine.spec.events.some((e) => machine.after(stepState, e) !== undefined); } catch { return false; } })();
-    const fromStep = host === scene || seen.has(JSON.stringify(stepState)) || !answers ? []
-      : machine.reachable(stepState).filter((r) => !seen.has(JSON.stringify(r.state))).map((r) => ({ ...r, origin: `from the state at "${live.lastPlayedIn}", ` }));
+    const fromStep = host === scene || seen.has(canonicalJson(stepState)) || !answers ? []
+      : machine.reachable(stepState).filter((r) => !seen.has(canonicalJson(r.state))).map((r) => ({ ...r, origin: `from the state at "${live.lastPlayedIn}", ` }));
     const reached = [...fromStart, ...fromStep];
     const shownThen = host.shown;
     // Every state is drawn as the reader would have seen it: under what the scene showed while the machine played.
@@ -571,10 +572,10 @@ function perturbed(value: unknown): unknown {
  */
 export function viewIgnoresState(view: View, state: Record<string, unknown>, shown: Record<string, unknown>, states: readonly Record<string, unknown>[]): number | null {
   if (!Object.keys(state).length) return null;
-  const own = JSON.stringify(state);
+  const own = canonicalJson(state);
   const drawn = pictureDetail(view.draw(state, shown));
   const others = [perturbed(state), {}, ...states]
-    .filter((s, j, all) => JSON.stringify(s) !== own && all.findIndex((t) => JSON.stringify(t) === JSON.stringify(s)) === j);
+    .filter((s, j, all) => canonicalJson(s) !== own && all.findIndex((t) => canonicalJson(t) === canonicalJson(s)) === j);
   const differs = (st: Record<string, unknown>, sh: Record<string, unknown>) => {
     try { return pictureDetail(view.draw(st, sh)) !== drawn; } catch { return true; }
   };

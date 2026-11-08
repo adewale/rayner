@@ -4,6 +4,7 @@ import { traceRun } from '../src/trace.ts';
 import type { Trace } from '../src/testing.ts';
 import { StopScene } from '../src/output.ts';
 import { isHex } from '../src/color.ts';
+import { canonicalJson } from '../src/json.ts';
 import { resolveSettings } from '../explain/index.ts';
 import { PAGE_QUERY, bindSnapshots, settingsProblem, stepQuery, withSettings } from '../explain/settings.ts';
 import type { ExplainerClass, Settings, SnapshotStore } from '../explain/index.ts';
@@ -1417,7 +1418,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     const url = urlFor(true);
     // A share page shows a step's own picture, so a link with the reader's events is the page's own.
     const step = currentStep().step,
-      share = shared && !sent.length && shareable(step) && (!sharedSteps || sharedSteps.includes(step)) && JSON.stringify(values) === JSON.stringify(resolveSettings(Source)) ? shared + step : url.href;
+      share = shared && !sent.length && shareable(step) && (!sharedSteps || sharedSteps.includes(step)) && canonicalJson(values) === canonicalJson(resolveSettings(Source)) ? shared + step : url.href;
     try {
       await navigator.clipboard.writeText(share);
       notice.textContent = t.copied;

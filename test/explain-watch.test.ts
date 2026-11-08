@@ -101,6 +101,10 @@ test('watchedChanges: keys whose JSON changed, in declaration order, at most fou
     { label: 'N', before: '1', after: '2' },
   ]);
   assert.deepEqual(unformatted, ['o']);
+  // An object whose keys were written in another order is unchanged: not a change, not unformatted.
+  const reordered: string[] = [];
+  assert.deepEqual(watchedChanges({ before: { o: { x: 1, y: 2 } }, after: { o: { y: 2, x: 1 } } }, { o: 'O' }, 'en', reordered), []);
+  assert.deepEqual(reordered, []);
 });
 
 test('a change reads "Label: before → after", "Label: after" or "Label: removed", with French typography in French', () => {

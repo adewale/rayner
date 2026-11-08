@@ -195,8 +195,12 @@ shown apart from the model, such as which of several pictures a phase shows; a
 view's `draw` may read it, and a machine never changes it. `stateJson()` copies
 the model as JSON, with the parts helpers add with `addJson(fn)`; `shownJson()` copies
 `shown`, with the parts added with `addJson(fn, 'shown')`, such as the stage's
-description of its picture. The trace records the model as `before` and `after`
-and the second as `shown`. Both accept plain JSON and finite numbers, and refuse
+description of its picture. A part never replaces a key: one it writes that the
+model, what is shown or another part already has with another value throws when the
+JSON is read. So a helper's keys are reserved, `walks` in the state (a diagram's
+recorded walks) and `picture` in what is shown (the stage's description), and a
+scene that names its own `walks` is refused rather than overwritten. The trace
+records the model as `before` and `after` and the second as `shown`. Both accept plain JSON and finite numbers, and refuse
 functions, class instances, cycles and non-finite values; shapes belong in the
 scene tree.
 

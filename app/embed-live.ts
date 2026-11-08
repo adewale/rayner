@@ -10,6 +10,7 @@ import { machinesOf } from '../explain/machine.ts';
 import type { Scene, SceneClass, SceneState, Sink } from '../src/index.ts';
 import type { Machine } from '../explain/machine.ts';
 import { PAGE_QUERY } from '../explain/settings.ts';
+import { canonicalJson } from '../src/json.ts';
 
 type AnyMachine = Machine<object, string>;
 
@@ -171,7 +172,7 @@ export async function runLive(
       this.reached = true;
       const machine = machinesOf(this)[index];
       if (!machine) throw new Error(`No machine ${index} was made by the step "${times.step}"; a scene must make the same machines each run`);
-      if (machine.playedUnder && JSON.stringify(machine.playedUnder) !== JSON.stringify(this.shown)) this.shown = machine.playedUnder;
+      if (machine.playedUnder && canonicalJson(machine.playedUnder) !== canonicalJson(this.shown)) this.shown = machine.playedUnder;
       const rest = JSON.parse(JSON.stringify(this.state)) as object;
       onRest?.(this);
       // From the machine's start: its views redrawn there, in place, as exploration draws a state.

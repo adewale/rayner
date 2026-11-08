@@ -6,6 +6,7 @@
 
 import { Animation, AnimationGroup, Succession, matchByKey } from '../src/animation.ts';
 import { SetState } from './state.ts';
+import { canonicalJson } from '../src/json.ts';
 import { Group } from '../src/mobject.ts';
 import { linear } from '../src/rate.ts';
 import type { Scene } from '../src/scene.ts';
@@ -214,10 +215,10 @@ export class Machine<S extends object, E extends string> {
     const { views, match } = this.spec;
     const runTime = typeof this.spec.runTime === 'function' ? this.spec.runTime({ event, before, after }) : this.spec.runTime;
     const authored = this.spec.transition?.[event];
-    const built = JSON.stringify(before);
+    const built = canonicalJson(before);
     return new Succession([
       new SetState(this.scene, (current) => {
-        if (JSON.stringify(current) !== built) throw new Error(`machine.send(): ${String(event)} was built for ${built} but plays from ${JSON.stringify(current)}; send it when the state it plays from is the state now`);
+        if (canonicalJson(current) !== built) throw new Error(`machine.send(): ${String(event)} was built for ${JSON.stringify(before)} but plays from ${JSON.stringify(current)}; send it when the state it plays from is the state now`);
         this.shownWhenPlayed = JSON.stringify(this.scene.shown);
         this.playedInStep = this.scene.currentStep?.path ?? null;
         return after;
@@ -247,18 +248,18 @@ export class Machine<S extends object, E extends string> {
   /**
    * @internal Every state reachable from `from` (default: the start), breadth first, with the shortest
    * events that reach it (so a state that fails a check is reported by its shortest way there),
-   * up to `limit` states. States are compared as JSON, as traces compare them.
+   * up to `limit` states. States are compared as JSON, whatever the order of their keys.
    */
   reachable(from: S = this.spec.start): { state: S; path: E[] }[] {
     const start = from;
-    const seen = new Map<string, { state: S; path: E[] }>([[JSON.stringify(start), { state: start, path: [] }]]);
+    const seen = new Map<string, { state: S; path: E[] }>([[canonicalJson(start), { state: start, path: [] }]]);
     const queue = [...seen.values()];
     while (queue.length && seen.size < this.spec.limit) {
       const { state, path } = queue.shift()!;
       for (const event of this.spec.events) {
         const next = this.after(state, event);
         if (next === undefined) continue;
-        const key = JSON.stringify(next);
+        const key = canonicalJson(next);
         if (seen.has(key)) continue;
         const entry = { state: next, path: [...path, event] };
         seen.set(key, entry);

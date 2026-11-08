@@ -128,6 +128,13 @@ test('reachable states are found breadth first, each with its shortest events, u
   ]);
   const capped = new Machine<Lamp, 'UP' | 'OFF'>(ran, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [], limit: 2 });
   assert.equal(capped.reachable().length, 2);
+  // A state built with its keys in another order is the same state, reached once.
+  type Pair = { a: number; b: number };
+  const flip = new Machine<Pair, 'FLIP' | 'BACK'>(ran as unknown as Scene<Pair>, {
+    start: { a: 0, b: 0 }, events: ['FLIP', 'BACK'], views: [],
+    next: (s, e) => (e === 'FLIP' ? { b: 1 - s.b, a: s.a } : { a: s.a, b: 1 - s.b }),
+  });
+  assert.deepEqual(flip.reachable().map((r) => r.path), [[], ['FLIP']]);
 });
 
 test('rayner check draws every reachable state: a picture that cannot tell two states apart fails, named by its shortest events', async () => {
@@ -224,6 +231,21 @@ test('a schedule built for one state refuses to play from another', async () => 
     }
   }
   await assert.rejects(new Stale(new NullSink()).run(), /UP was built for \{"level":0\} but plays from \{"level":2\}/);
+  // The same state with its keys in another order is the state it was built for.
+  type Pair = { a: number; b: number };
+  class Reordered extends Scene<Pair> {
+    override state = { a: 1, b: 2 };
+    override async construct() {
+      const picture = view(this, (st: Pair) => new Text(`a ${st.a} b ${st.b}`));
+      this.add(picture);
+      const machine = new Machine<Pair, 'UP'>(this, { start: { a: 1, b: 2 }, events: ['UP'], next: (s) => ({ a: s.a + 1, b: s.b }), views: [picture] });
+      const built = machine.send('UP');
+      this.state = { b: 2, a: 1 };
+      await this.step('reordered');
+      await this.play(built);
+    }
+  }
+  assert.deepEqual((await new Reordered(new NullSink()).run()).state, { a: 2, b: 2 });
 });
 
 test('an authored transition plays, the views land on the state it reaches, and rayner check plays every reachable one', async () => {
