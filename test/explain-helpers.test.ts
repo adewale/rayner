@@ -9,7 +9,9 @@ import { NullSink } from '../src/output.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
 import { stage, regionBox } from '../explain/index.ts';
 import { REGIONS } from '../explain/look.ts';
-import { bindSnapshots, diagramFindings, loadProject, loadSnapshots, pictureWordsAt } from '../explain/testing.ts';
+import { bindSnapshots, diagramFindings, loadProject, loadSnapshots, pictureWordsAt, takeMissingGlyphs, withSettings } from '../explain/testing.ts';
+import FontMetrics from '../scenes/explainers/font-metrics/scene.ts';
+import GreekLettering from './fixtures/lettering/scene.ts';
 import { edgePartOf, diagramKey, snapshotResolver, useDiagrams, diagramResolverOf, RENDERER } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { raised, rule, emphasis, soft, good, bad, dimOpacity, seenSource } from '../explain/look.ts';
@@ -654,14 +656,31 @@ test('the explain entry point exports exactly its documented names', async () =>
   ]);
 });
 
-test('the testing helpers name a missing step, refuse a scene with lettering, and find no snapshots where none are pinned', async () => {
+test('the testing helpers name a missing step, and find no snapshots where none are pinned', async () => {
   const trace = { steps: [{ step: 'first' }, { step: 'second' }] };
   assert.throws(() => pictureWordsAt(trace, 'third'), /pictureWordsAt\(\): the trace has no step "third"; its steps are first, second/);
   assert.deepEqual(pictureWordsAt(trace, 'second'), { summary: '', full: '', transcript: '' });
-  const Lettered = class extends Scene {};
-  (Lettered as { meta?: object }).meta = { lettering: {} };
-  await assert.rejects(loadProject(Lettered, 'test/fixtures/lettered'), /loadProject\(\): test\/fixtures\/lettered\/scene\.ts asks for lettering/);
   assert.deepEqual(await loadSnapshots('test/fixtures/no-such-explainer'), {});
+});
+
+test('loadProject draws a scene\'s lettering from the scene.lettering.json beside it, and refuses one missing or stale', async () => {
+  // Outline lettering: font-metrics' italic and its Garamond measurements need its snapshot, which the class alone lacks.
+  await assert.rejects(traceScene(FontMetrics), /new ItalicText\(\): it needs meta\.lettering\.styles/);
+  const metrics = await loadProject(FontMetrics, 'scenes/explainers/font-metrics');
+  const { layout } = metrics.scenario().trace.steps.find((s) => s.step === 'layout')!.after!;
+  assert.ok(layout.actual < layout.wrong, `Garamond ${layout.actual} is narrower than JetBrains Mono ${layout.wrong}`);
+  // Subset lettering: the pinned Greek cuts draw every Greek letter during the runs, and the embedded faces, which draw none, return after.
+  takeMissingGlyphs();
+  await loadProject(GreekLettering, 'test/fixtures/lettering');
+  assert.deepEqual([...takeMissingGlyphs().keys()], []);
+  await traceScene(withSettings(GreekLettering, {}));
+  assert.ok(takeMissingGlyphs().has('Ελληνικά'), 'the embedded faces are back after loadProject');
+  const asking = (lettering: object) => { const Lettered = class extends Scene {}; (Lettered as { meta?: object }).meta = { lettering }; return Lettered; };
+  await assert.rejects(loadProject(asking({ scripts: ['Grek'] }), 'test/fixtures/lettered'),
+    /^Error: loadProject\(\): test\/fixtures\/lettered\/scene\.ts asks for lettering \(meta\.lettering\) and has no scene\.lettering\.json beside it; run rayner snapshots test\/fixtures\/lettered\/scene\.ts$/);
+  // A snapshot pinned for another request: Cyrillic asked where Greek is cut, maths where faces and styles are.
+  await assert.rejects(loadProject(asking({ scripts: ['Cyrl'] }), 'test/fixtures/lettering'), /^Error: scene\.lettering\.json: it does not hold the lettering test\/fixtures\/lettering\/scene\.ts asks for; run rayner snapshots/);
+  await assert.rejects(loadProject(asking({ math: true }), 'scenes/explainers/font-metrics'), /^Error: scene\.lettering\.json: it does not hold the lettering/);
 });
 
 // ---- explain/trace.ts ------------------------------------------------------------

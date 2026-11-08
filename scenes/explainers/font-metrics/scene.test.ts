@@ -1,13 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-// The command's collector, not rayner/testing's loadProject: this scene asks for lettering, which only the command cuts.
-import { collectProject } from '../../../tools/lib/explain-project.ts';
+import { loadProject } from '../../../explain/testing.ts';
+import FontMetrics from './scene.ts';
 
 test('font metrics: every Garamond glyph in the phrase advances less than a JetBrains Mono cell', async () => {
-  const project = await collectProject('scenes/explainers/font-metrics', { write: false });
+  // Its lettering is replayed from the scene.lettering.json beside it, as the page draws it.
+  const project = await loadProject(FontMetrics, import.meta.dirname);
   for (const { trace } of project.scenarios) {
     const step = trace.steps.find((s) => s.step === 'rulers')!;
-    const { measured, drawn } = step.after!.rulers as { measured: number[]; drawn: number[] };
+    const { measured, drawn } = step.after!.rulers;
     const advances = (stops: number[]) => stops.slice(1).map((x, i) => x - stops[i]!);
     const cells = advances(measured),
       glyphs = advances(drawn);
