@@ -58,8 +58,7 @@ test('a machine is live at the step it last played in, and nowhere before it pla
   const ran = await new Lamp(new NullSink()).run();
   const live = liveSteps(ran);
   assert.deepEqual([...live.keys()], ['press']);
-  assert.equal(live.get('press')!.index, 0);
-  assert.equal(live.get('press')!.machine, ran.machine);
+  assert.equal(live.get('press'), 0);
   assert.deepEqual([...liveSteps(new Scene(new NullSink())).keys()], []);
 });
 

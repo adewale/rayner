@@ -9,6 +9,7 @@ import {collectProject} from '../../tools/lib/explain-project.ts';
 import {buildExplainer, buildLoader} from '../../tools/lib/explain-build.ts';
 import {serve} from '../../tools/lib/explain-serve.ts';
 import {launch} from '../../tools/lib/browser.ts';
+import {chromeFor} from '../../app/embed-strings.ts';
 
 const enabled=!!process.env.EXPLAIN_BROWSER;
 const options={skip:enabled?false:'set EXPLAIN_BROWSER=1 for loading and host transport checks'};
@@ -31,6 +32,19 @@ before(async()=>{
       }
     }`);
   await buildExplainer(await collectProject(fixture,{write:false}),join(folder,'probe.html'));
+  // A scene that counts, in the page, the runs that reach its end, and whose scenario c throws there on request.
+  const counted=join(folder,'counted');await mkdir(counted);
+  await writeFile(join(counted,'scene.ts'),`import{Scene,Text}from'rayner';import{settingsOf}from'rayner/explain';
+    export default class Counted extends Scene {
+      static settings=[{id:'mode',label:'Mode',default:'a',options:[{value:'a',label:'A'},{value:'b',label:'B'},{value:'c',label:'C'}]}];
+      async construct(){const mode=settingsOf(this).mode,page=typeof window==='undefined'?undefined:(window as any);
+        if(mode==='c'&&page?.failScenario)throw new Error('scenario c cannot run here');
+        await this.step('one',{title:'One',caption:'Scenario '+mode});this.add(new Text(mode));await this.wait(.1);
+        await this.step('two',{title:'Two',caption:'Scenario '+mode});this.add(new Text(mode+mode).shift([0,-1]));await this.wait(.1);
+        if(page)page.fullRuns=(page.fullRuns??0)+1;
+      }
+    }`);
+  await buildExplainer(await collectProject(counted,{write:false}),join(folder,'counted.html'));
   await buildLoader(join(folder,'loader.js'));
   server=await serve(folder,0,'host.html');
   await writeFile(join(folder,'host.html'),`<!doctype html><div id="reader"></div><script src="loader.js"></script><script>
@@ -124,3 +138,46 @@ test('a drag pauses during loading and its pointer release is still cleaned up',
   await page.mouse.move(next.x+next.width/2+60,next.y+next.height/2+30);await twoFrames(frame);
   assert.equal(await view(frame),released,'a pointer released during loading cannot become a ghost drag afterwards');
 }));
+
+/** A standalone page of the counting scene at `width`, with motion reduced (no step is run ahead). */
+async function counted(width:number,query:string,run:(page:Page)=>Promise<void>) {
+  const context=await browser.newContext({viewport:{width,height:900},reducedMotion:'reduce'});
+  const page=await context.newPage(),errors:string[]=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  try {
+    await page.goto(`${server.url}/counted.html${query}`);
+    await page.waitForSelector('[data-ready=true]');
+    await page.waitForFunction(()=>!document.querySelector('#content.loading')&&!!document.querySelector('.stage svg'));
+    await run(page);
+    assert.deepEqual(errors,[]);
+  } finally {await context.close();}
+}
+const fullRuns=(page:Page)=>page.evaluate(()=>(window as unknown as {fullRuns?:number}).fullRuns??0);
+const settled=(page:Page,mode:string,step='one')=>page.waitForFunction(({mode,step})=>{const q=new URLSearchParams(location.search);
+  return q.get('mode')===mode&&q.get('step')===step&&!document.querySelector('#content.loading')&&document.querySelector('.caption')?.textContent==='Scenario '+mode;},{mode,step});
+
+test('the default scenario opens from the build’s trace, and another scenario runs once, its close-ups from that run',options,async()=>{
+  await counted(1280,'',async(page)=>{
+    assert.equal(await fullRuns(page),0,'a wide page shows the shipped scenario without running the scene to its end');
+    await page.locator('.scenario label',{hasText:'B'}).click();await settled(page,'b');
+    assert.equal(await fullRuns(page),1,'scenario b: one run, for its trace and its layouts');
+    await page.locator('.scenario label',{hasText:'A'}).click();await settled(page,'a');
+    assert.equal(await fullRuns(page),1,'back to a: nothing runs to the end again');
+  });
+  // On a phone the close-ups need the layouts: one run for the shipped scenario, one (not two) for another.
+  await counted(390,'',async(page)=>{assert.equal(await fullRuns(page),1);});
+  await counted(390,'?mode=b',async(page)=>{assert.equal(await fullRuns(page),1);});
+});
+
+test('a scenario whose run throws leaves the stage usable: the player keeps the scenario it had and says so',options,async()=>{
+  await counted(1280,'?mode=b',async(page)=>{
+    await page.evaluate(()=>{(window as unknown as {failScenario:boolean}).failScenario=true;});
+    await page.locator('.scenario label',{hasText:'C'}).click();
+    await page.waitForFunction((words)=>document.querySelector('.notice')?.textContent===words,chromeFor('en').scenarioFailed);
+    assert.deepEqual(await page.evaluate(()=>({loading:!!document.querySelector('#content.loading'),chosen:document.querySelector<HTMLInputElement>('.scenario input:checked')?.value,
+      mode:new URLSearchParams(location.search).get('mode'),caption:document.querySelector('.caption')?.textContent})),{loading:false,chosen:'b',mode:'b',caption:'Scenario b'});
+    // Not blocked: Next moves on, and another scenario still loads.
+    await page.getByRole('button',{name:'Next step',exact:true}).click();await settled(page,'b','two');
+    await page.locator('.scenario label',{hasText:'A'}).click();await settled(page,'a','two');
+  });
+});

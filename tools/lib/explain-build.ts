@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { pageSize } from './page-budget.ts';
 import { packPageSnapshots } from './page-snapshots.ts';
-import { sceneEntry, shippedStore } from './scene-entry.ts';
+import { sceneEntry, shippedScenario, shippedStore } from './scene-entry.ts';
 import { SnapshotSink, renderAt } from '../../src/output.ts';
 import { chromeFor, scenarioNameIn, changeText, descriptionLang } from '../../app/embed-strings.ts';
 import { restingTime, pictureHtml, htmlEscape, stepWords, watchedChanges, wordsHtml } from '../../explain/trace.ts';
@@ -60,7 +60,7 @@ export async function buildExplainer(
   const snapshotImport = zipped ? `import{inflateSnapshots}from ${JSON.stringify(join(ROOT, 'app/embed-snapshots.ts'))};` : '';
   const soundImport=withAudio ? `import{mountAudio}from ${JSON.stringify(join(ROOT,'app/embed-audio.ts'))};` : '';
   // The script's intent reaches the bundled scene as it reached the one the build ran.
-  const entry = await sceneEntry(project, { target: 'page', snapshots: payload, imports: soundImport + snapshotImport, audio: withAudio, failed: t.failed });
+  const entry = await sceneEntry(project, { target: 'page', snapshots: payload, imports: soundImport + snapshotImport, audio: withAudio, failed: t.failed, shipped: shippedScenario(project, v) });
   const bundled = await build({
     stdin: { contents: entry, resolveDir: ROOT, sourcefile: 'explainer-entry.ts', loader: 'ts' },
     bundle: true,

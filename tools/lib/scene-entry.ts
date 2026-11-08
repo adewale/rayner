@@ -4,6 +4,7 @@
 // scene the page ships: the same class, intent, lettering and snapshots.
 import { join } from 'node:path';
 import type { Project } from './explain-project.ts';
+import type { ShippedScenario } from '../../app/embed.ts';
 import type { Settings } from '../../explain/settings.ts';
 import type { LetteringSnapshot, PackedLetteringSnapshot } from '../../src/lettering-outlines.ts';
 import type { SnapshotStore } from '../../integrations/agentic-mermaid/snapshot.ts';
@@ -22,6 +23,8 @@ export interface PageEntry {
   audio: boolean;
   /** What the page says when mounting fails, in its language. */
   failed: string;
+  /** The default scenario as the build traced it (shippedScenario), so the page shows it without running it first. */
+  shipped: ShippedScenario;
 }
 /** The bare runtime: exports run(), which plays one scenario to its end and returns its steps, state and last frame. */
 export interface BareEntry {
@@ -36,6 +39,31 @@ export function shippedStore(store: SnapshotStore): SnapshotStore {
   let out = shippedSnapshots.get(store);
   if (!out) shippedSnapshots.set(store, (out = pageSnapshots(store)));
   return out;
+}
+
+/**
+ * What the page ships of a scenario the build traced: its settings, its trace as the player reads
+ * it, the stage's palette and paper, and each live step's machine by its place. The player reads a
+ * step's state only for the changes it shows (`meta.watch`), so each step's state before and after
+ * keeps only the watched keys (none without `meta.watch`), and the evidence only `rayner check`
+ * reads is left out: a scene whose state holds a drawing's points would otherwise ship them all.
+ * The page's own run of the scenario must give the same trace: `rayner check` runs the page's
+ * entry in its bare runtime and compares that run with the build's trace.
+ */
+export function shippedScenario(project: Project, scenario: Project['scenarios'][number]): ShippedScenario {
+  const { values, trace, palette, paper, live } = scenario,
+    watched = Object.keys(project.Scene.meta?.watch ?? {});
+  const keep = (state: Record<string, unknown> | undefined) => state && Object.fromEntries(watched.filter((key) => Object.hasOwn(state, key)).map((key) => [key, state[key]]));
+  return {
+    values,
+    trace: {
+      ...trace,
+      steps: trace.steps.map(({ evidence: _, before, after, ...step }) => ({ ...step, ...(watched.length ? { before: keep(before)!, ...(after ? { after: keep(after) } : {}) } : { before: {} }) })),
+    },
+    ...(palette ? { palette } : {}),
+    ...(paper ? { paper } : {}),
+    live: [...(live ?? [])].map(([step, { index }]) => [step, index]),
+  };
 }
 
 /**
@@ -64,6 +92,6 @@ export async function sceneEntry(project: Project, entry: PageEntry | BareEntry)
     : ['', ''];
   const source = author + letteringImport + adopted + bound;
   if (entry.target === 'page')
-    return `${source}import{mountEmbed}from ${JSON.stringify(join(ROOT, 'app/embed.ts'))};${entry.imports}const root=document.getElementById('content');(async()=>{${ready}await mountEmbed(root,Source,${entry.snapshots}${entry.audio ? ',mountAudio' : ''});root.dataset.ready='true'})().catch(error=>{console.error(error);const p=document.createElement('p');p.setAttribute('role','alert');p.textContent=${JSON.stringify(entry.failed)};root.append(p)});`;
+    return `${source}import{mountEmbed}from ${JSON.stringify(join(ROOT, 'app/embed.ts'))};${entry.imports}const root=document.getElementById('content');(async()=>{${ready}await mountEmbed(root,Source,${entry.snapshots},{${entry.audio ? 'audio:mountAudio,' : ''}shipped:${JSON.stringify(entry.shipped)}});root.dataset.ready='true'})().catch(error=>{console.error(error);const p=document.createElement('p');p.setAttribute('role','alert');p.textContent=${JSON.stringify(entry.failed)};root.append(p)});`;
   return `${source}import{bindSnapshots,withSettings}from ${lib('explain/settings.ts')};import{NullSink,toSvgString}from ${lib('src/output.ts')};export async function run(){${ready}const C=withSettings(bindSnapshots(Source,${JSON.stringify(shippedStore(project.store))}),${JSON.stringify(entry.values)});const s=await new C(new NullSink(),{skipUntil:Infinity}).run();return{steps:s.steps.map(s=>s.name),state:s.stateJson(),svg:toSvgString(s)}}`;
 }

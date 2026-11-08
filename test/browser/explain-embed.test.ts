@@ -2918,8 +2918,10 @@ test(
 const earlyControls = (page: Page, actions: string[]) => page.addInitScript((actions: string[]) => {
   const w = window as unknown as { __early: number };
   w.__early = 0;
+  // The stepper's primary button, by its place: on a link to the last step it is already Start again
+  // when the player builds it, since a shipped scenario shows its step at once.
   const observer = new MutationObserver(() => {
-    if (!document.querySelector('button[aria-label="Next step"]')) return;
+    if (!document.querySelector('.stepper button.primary')) return;
     observer.disconnect();
     for (const a of actions) {
       const b = document.querySelector<HTMLButtonElement>(`button[aria-label="${a}"]`);

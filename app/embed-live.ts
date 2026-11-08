@@ -23,14 +23,16 @@ export interface Live {
 }
 
 /**
- * Where a scene's machines are live: each machine at the step it last played in (`lastPlayedIn`),
- * which is the stage `rayner check` explores it on. A machine that never played is live nowhere;
- * when two machines last played in one step, the later one made is live there.
+ * Where a scene's machines are live: each machine's place in `machinesOf(scene)`, by the step it
+ * last played in (`lastPlayedIn`), which is the stage `rayner check` explores it on. A machine that
+ * never played is live nowhere; when two machines last played in one step, the later one made is
+ * live there. The places are JSON, so the build ships the default scenario's to the page; the
+ * machine itself comes from the run that reaches the step (`runLive`'s `machine`).
  */
-export function liveSteps(scene: Scene<any>): Map<string, Live> {
-  const live = new Map<string, Live>();
+export function liveSteps(scene: Scene<any>): Map<string, number> {
+  const live = new Map<string, number>();
   for (const [index, machine] of machinesOf(scene).entries())
-    if (machine.lastPlayedIn !== null) live.set(machine.lastPlayedIn, { index, machine });
+    if (machine.lastPlayedIn !== null) live.set(machine.lastPlayedIn, index);
   return live;
 }
 
