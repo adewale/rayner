@@ -479,17 +479,19 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    * traces and tests address. `meta` is free-form JSON and travels with the trace; it is copied
    * when the step begins, so a later change to the object changes nothing recorded. Given a
    * function, step() first ends the running step (with its caption hold) and calls it with that
-   * closed step, or null before the first: for words that report the step before's timing.
+   * closed step, or null before the first: for words that report the step before's timing. Either
+   * form is checked at that point, once the running step has ended.
    */
   async step(name: string, meta: StepMeta | ((closed: Step | null) => StepMeta) = {}): Promise<Step> {
     if (typeof name !== 'string') throw new TypeError('this.step(): its name must be a string');
     if (this.#listening)
       throw new Error(`this.step(): a step listener began step ${JSON.stringify(name)}; a listener may play and wait in its step, so begin the next step from construct()`);
-    if (typeof meta !== 'function') checkMeta(name, meta);
     return this.#exclusive('ending-step', 'this.step()', async () => {
       await this.#endStep();
+      // Checked once the step before has ended, in either form: a function needs the closed step,
+      // so a value is held to the same point, and the same mistake fails on the same frame.
       const given = typeof meta === 'function' ? meta(this.steps.at(-1) ?? null) : meta;
-      if (typeof meta === 'function') checkMeta(name, given);
+      checkMeta(name, given);
       const copy = cloneJson(given, 'this.step()', 'its metadata') as StepMeta;
       this.#phase = 'beginning-step';
       const s: Step = { name, path: name, t0: this.time, frame0: this.frameCount, t1: null, frame1: null, meta: copy, evidence: [] };
