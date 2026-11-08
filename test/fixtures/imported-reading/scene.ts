@@ -1,6 +1,7 @@
 import { Scene } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
-import { Diagram, labelOf } from '../../../explain/diagrams.ts';
+import { Diagram } from '../../../explain/diagrams.ts';
+import { labelOf } from '../../../explain/labels.ts';
 import snapshot from '../../../scenes/explainers/font-metrics/scene.snapshots/4ee0d75a90dc9b78.json' with { type: 'json' };
 import type { DiagramSnapshot } from '../../../explain/index.ts';
 

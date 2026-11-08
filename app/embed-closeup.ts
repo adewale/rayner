@@ -25,8 +25,8 @@ import type { Box, Mobject, Scene, SceneClass, Sink } from '../src/index.ts';
 import { center, intersect, overlaps, pad, unionBoxes } from '../src/box.ts';
 import { paints, paintsStroke } from '../src/mobject.ts';
 import { viewOf } from '../src/svg.ts';
-import { FRAME, STAGE_BOX } from '../src/units.ts';
-import { labelOf, readingLabelSize } from '../explain/diagrams.ts';
+import { FRAME, STAGE_BOX, zoomOf } from '../src/units.ts';
+import { labelOf, readingLabelSize } from '../explain/labels.ts';
 import { emphasisOf, newlyEmphasised, openingOf } from '../explain/look.ts';
 import { isFurniture, isHeading } from '../explain/stage.ts';
 import { IDENTITY, ZOOM_MAX, clampZoom } from './embed-zoom.ts';
@@ -129,16 +129,10 @@ function hashShape(m: Mobject, box: Box): string {
  * The identity at home. `rayner check` maps its labels the same way (inView there).
  */
 export function toView(box: Box, view: Box): Box {
-  const z = viewZoom(view),
+  const z = zoomOf(view),
     [cx, cy] = center(view);
   return [(box[0] - cx) * z, (box[1] - cy) * z, (box[2] - cx) * z, (box[3] - cy) * z];
 }
-/**
- * The camera's zoom: stage units per world unit. The stage shows the view whole and
- * centred (an SVG viewBox meets its viewport), so a view out of 16:9 is letterboxed
- * and the tighter side sets the scale. 1 at home.
- */
-export const viewZoom = (view: Box): number => Math.min(FRAME.w / (view[2] - view[0]), FRAME.h / (view[3] - view[1]));
 
 /** The drawn leaves of the resting picture; those under an object in `fresh` show the step's new emphasis. */
 function leavesOf(scene: Scene, fresh: ReadonlySet<Mobject> = new Set()): Leaf[] {
@@ -196,7 +190,7 @@ function emphasised(leaves: readonly Leaf[]): {box: Box; painted: Box}[] {
 function labelsOf(scene: Scene, only?: ReadonlySet<Mobject>): LayoutLabel[] {
   const out: LayoutLabel[] = [];
   const view = viewOf(scene),
-    zoom = viewZoom(view);
+    zoom = zoomOf(view);
   const walk = (m: Mobject, opacity: number, clip: Box) => {
     const o = opacity * (m.style.opacity ?? 1);
     if (o < (only ? 0.05 : 0.25)) return;

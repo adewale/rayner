@@ -6,7 +6,8 @@ import { renderElements } from '../../src/output.ts';
 import type { Box, Mobject, Scene, Vec } from '../../src/index.ts';
 import { contains, intersect, nonempty, pad, pointsBox } from '../../src/box.ts';
 import { isHex } from '../../src/color.ts';
-import { isDiagramConnector, labelOf } from '../../explain/diagrams.ts';
+import { isDiagramConnector } from '../../explain/diagrams.ts';
+import { labelOf } from '../../explain/labels.ts';
 import { isFurniture, isHeading } from '../../explain/stage.ts';
 
 function visible(m: Mobject): boolean {

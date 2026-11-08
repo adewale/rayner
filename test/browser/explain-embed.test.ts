@@ -20,7 +20,7 @@ import { settingsProblem } from '../../explain/settings.ts';
 import { pictureHtml, pictureSummary, stepWords } from '../../explain/trace.ts';
 import { NARROW_PX, READ_PX, closeUps, labelsToRead, stageScale, stepLayouts, toView, viewBox } from '../../app/embed-closeup.ts';
 import type { StepLayout } from '../../app/embed-closeup.ts';
-import { labelOf } from '../../explain/diagrams.ts';
+import { labelOf } from '../../explain/labels.ts';
 import { labelsSaying, restingBox, wordsOutsideCards } from '../lib/scenes.ts';
 import type { Box } from '../../src/index.ts';
 import { chromeFor } from '../../app/embed-strings.ts';

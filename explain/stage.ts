@@ -4,7 +4,7 @@ import { cloneJson } from '../src/json.ts';
 import type { Scene, Vec, Box, FadeOpts, Animation, SceneColors } from '../src/index.ts';
 import { center, unionBoxes } from '../src/box.ts';
 import { atHome } from '../src/svg.ts';
-import { FRAME, STAGE_BOX } from '../src/units.ts';
+import { FRAME, STAGE_BOX, zoomOf } from '../src/units.ts';
 import { isDetail, teaching } from './script.ts';
 import type { StepKind } from './script.ts';
 import type { StepAudio } from './audio.ts';
@@ -266,7 +266,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     const b = scene.frame.box() ?? [...STAGE_BOX] as Box;
     if (aimed && b.every((v, i) => Math.abs(v - aimed!.box[i]!) < 1e-4)) return aimed.map;
     if (atHome(b)) return HOME;
-    return { k: (b[2] - b[0]) / FRAME.w, shift: center(b) };
+    return { k: 1 / zoomOf(b), shift: center(b) };
   };
   const pinned = (m: Mobject, v: CameraMap) => {
     const at = home.get(m)!.copy();
@@ -402,7 +402,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
    * interpolate together exactly.
    */
   function cameraTo(box: Box, runTime: number): Animation[] {
-    const k = (box[2] - box[0]) / FRAME.w,
+    const k = 1 / zoomOf(box),
       next = { k, shift: center(box) };
     const anims: Animation[] = [new Transform(scene.frame, scene.frame.copy().fit(box, { margin: 0 }), { runTime })];
     for (const m of [heading, ...chrome]) if (home.has(m)) anims.push(new Transform(m, pinned(m, next), { runTime }));
@@ -490,7 +490,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       const p = d.presentation;
       // Shown by a view this stage made, or live in that view's place since s.liveDiagram: that view
       // takes the new draw and draws the diagram as it is now (after a morph, say).
-      const own = p.kind === 'viewed' ? p.view : d.replaced();
+      const own = p.kind === 'viewed' ? p.view : p.kind === 'live' ? p.replaced : null;
       const was = own instanceof View ? (own as View<Mobject, S, Sh>) : null;
       const drawing = was && viewDraws.get(was);
       if (was && drawing) {

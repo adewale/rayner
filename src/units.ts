@@ -10,3 +10,10 @@ export const FRAME = { w: 16, h: 9 } as const;
 export const UNITS = 1000;
 /** The camera's home box: the whole 16 × 9 stage, centred on the origin, in scene units. */
 export const STAGE_BOX: Readonly<Box> = [-FRAME.w / 2, -FRAME.h / 2, FRAME.w / 2, FRAME.h / 2];
+/**
+ * The zoom of a camera showing `box`: stage units per world unit, 1 at home. The stage shows the
+ * box whole and centred (an SVG viewBox meets its viewport), so a box out of 16:9 is letterboxed
+ * and its tighter side sets the scale. The stage's camera, the player's close-ups and the checks
+ * all read it here.
+ */
+export const zoomOf = (box: Readonly<Box>): number => Math.min(FRAME.w / (box[2] - box[0]), FRAME.h / (box[3] - box[1]));

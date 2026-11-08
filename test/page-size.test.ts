@@ -29,11 +29,11 @@ test('a page carries diagram code only when some scenario shows a diagram', asyn
   }
 });
 
-test('a page built without diagram code says so if its scene reaches a diagram, and keeps the label helpers', async () => {
+test('a page built without diagram code says so if its scene reaches a diagram, and keeps the label helpers, which are a module of their own', async () => {
   const result = await build({
     stdin: {
       contents: `export { Diagram } from ${JSON.stringify(join(ROOT, 'explain/index.ts'))};
-export { labelOf, readingLabelSize } from ${JSON.stringify(join(ROOT, 'explain/diagrams.ts'))};`,
+export { labelOf, readingLabelSize } from ${JSON.stringify(join(ROOT, 'explain/labels.ts'))};`,
       resolveDir: ROOT,
       loader: 'ts',
     },

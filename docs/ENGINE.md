@@ -48,7 +48,7 @@ The code is a stack, and each layer imports only the layers under it. From the b
 | Engine | `src/` | Nothing else in the repository but the vendored shaper, `vendor/glyph.js` |
 | Diagram replay | `integrations/agentic-mermaid/snapshot.ts` and `text.ts`: snapshot types, keys, validation and findings, and a captured label's text | The engine |
 | Explain core | `explain/`: `view.ts`, `state.ts`, `machine.ts`, `choreograph.ts` (views, machines and state); `action.ts` (what a stage or diagram action returns); `look.ts`, `palettes.ts`, `layout-direction.ts` (the look); `words.ts`, `trace.ts`, `script.ts`, `claims.ts`, `caption-looks.ts` (words); `settings.ts`, `page-query.ts`, `intent.ts`, `mermaid.ts`, `audio.ts`, `score.ts` | The engine and diagram replay |
-| Diagrams and panels | `explain/diagrams.ts`, `explain/panels.ts` | The core, diagram replay and the engine |
+| Diagrams and panels | `explain/diagrams.ts`, `explain/labels.ts`, `explain/panels.ts` | The core, diagram replay and the engine |
 | Drawing kit | `explain/drawing.ts`, `explain/annotate.ts`, `explain/geo.ts`, `explain/seen-from.ts` | Diagrams and panels, the core and the engine |
 | Stage | `explain/stage.ts`, and `explain/index.ts`, the `rayner/explain` entry point | Every layer above |
 | Author tooling | `explain/describe.ts`, `explain/project.ts`, `explain/testing.ts` (with the engine's half, `src/testing.ts`) | The library |
@@ -147,4 +147,4 @@ Every page uses SFNT copies of the embedded Inter, JetBrains Mono and Noto subse
 
 ## What a page leaves out
 
-A page whose scenarios show no diagram carries no diagram code: the build answers every import of `explain/diagrams.ts` with a stand-in (`tools/lib/explain-diagram-code.ts`) that keeps the label helpers the close-ups read and whose `Diagram` throws if it is ever reached, so `Diagram` and the Mermaid replay drop out of the bundle. The project decides it: some scenario made a diagram, from the snapshot store or from a snapshot of its own. `rayner check` fails a diagram that only a reader's event at a live step draws, since such a page would carry no code to draw it. The page's style is minified, as its script is. `test/page-size.test.ts` holds both.
+A page whose scenarios show no diagram carries no diagram code: the build answers every import of `explain/diagrams.ts` with a stand-in (`tools/lib/explain-diagram-code.ts`) whose `Diagram` throws if it is ever reached, while the label helpers the close-ups and the checks read live in `explain/labels.ts`, which they import themselves, so `Diagram` and the Mermaid replay drop out of the bundle. The project decides it: some scenario made a diagram, from the snapshot store or from a snapshot of its own. `rayner check` fails a diagram that only a reader's event at a live step draws, since such a page would carry no code to draw it. The page's style is minified, as its script is. `test/page-size.test.ts` holds both.

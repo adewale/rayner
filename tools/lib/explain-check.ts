@@ -26,8 +26,10 @@ import { LIB_ROOT, engineAlias, importAuthored, sceneSlug } from './explain-proj
 import { checkedAgainstFiles, compareAnswers, runModelTest } from './explain-evidence.ts';
 import { scenarioName } from '../../explain/testing.ts';
 import { undescribed, watchedChanges } from '../../explain/trace.ts';
-import { diagramsMade, labelOf, readingLabelSize } from '../../explain/diagrams.ts';
-import { closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '../../app/embed-closeup.ts';
+import { diagramsMade } from '../../explain/diagrams.ts';
+import { labelOf, readingLabelSize } from '../../explain/labels.ts';
+import { closeUps, stageScale, stepLayouts, toView, viewBox } from '../../app/embed-closeup.ts';
+import { zoomOf } from '../../src/units.ts';
 import type { Box, Mobject, Scene, Sink, Step } from '../../src/index.ts';
 import { contains, intersect, nonempty, overlaps } from '../../src/box.ts';
 import { paints } from '../../src/mobject.ts';
@@ -91,7 +93,7 @@ interface Viewed {
  */
 export function labelPx(m: Mobject, scene: Pick<Viewed, 'frame'>): number | null {
   const size = readingLabelSize(m);
-  return size == null ? null : size * STAGE_PX_PER_UNIT * viewZoom(viewOf(scene));
+  return size == null ? null : size * STAGE_PX_PER_UNIT * zoomOf(viewOf(scene));
 }
 /**
  * `box` cut down to every clip around `m`: the part of it that is drawn (a diagram clips
