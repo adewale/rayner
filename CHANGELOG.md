@@ -171,7 +171,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `fps` must be above 0 and at most 240; run times, lag ratios and `wait()` times must be finite and not negative, and an animation's `runTime` and `lagRatio` are checked whenever they are set.
 - A `Succession` or group exposes its members' `ready()` and lays out their times as the play begins, so `s.show` composes inside a `Succession` or group. A `Succession` refuses a rate function that runs its time backwards.
 - `DecimalNumber` blends its value only with another number: transformed into a `Text`, it ends as that text instead of `NaN`.
-- `Scene.captionWpm` is read from the scene's own class, and a caption in a script written without spaces counts every one and a half letters as a word instead of the whole caption as one.
+- `Scene.captionWpm` is read from the scene's own class, and a caption in a script written without spaces counts every one and a half letters as a word instead of the whole caption as one. `captionWords(caption)` in `rayner` is that count, for words that report a caption's length (fork's timing step). [Reference](docs/REFERENCE.md#scene)
 - A frame with no updater on stage no longer builds a family list per top-level mobject.
 
 ### Checks
