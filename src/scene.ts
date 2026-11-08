@@ -6,7 +6,7 @@
 // deterministic regardless of sink.
 
 import { prepareAnimation, AnimationGroup, animationName } from './animation.ts';
-import { Succession, bindSuccessions, takeCopies, recordEvidence, assertTime, landBegun } from './animation.ts';
+import { Succession, bindSuccessions, takeCopies, recordEvidence, assertTime, landBegun, assertLifecycle } from './animation.ts';
 import type { ScheduledAnimation as Animation, Playable, PlayOpts } from './animation.ts';
 import { paintDefaults, mobjectName } from './mobject.ts';
 import type { Mobject } from './mobject.ts';
@@ -59,8 +59,8 @@ export interface Step {
    */
   hold?: number;
   holdFrame?: number;
-  /** A copy of the metadata `this.step()` was given, as JSON. */
-  meta: StepMeta;
+  /** A copy of the metadata `this.step()` was given, as JSON, frozen deeply: it cannot change once the step has begun. */
+  readonly meta: Readonly<StepMeta>;
   /**
    * What happened during the step, as recorded by Scene.record() (in order).
    * Scene.step() always sets it.
@@ -232,6 +232,12 @@ function admitRoots(current: readonly Mobject[], incoming: readonly Mobject[], b
   return roots;
 }
 
+/** `value` and everything in it, frozen: a step's metadata, once copied. */
+function deepFreeze<T extends object>(value: T): T {
+  for (const v of Object.values(value)) if (v && typeof v === 'object') deepFreeze(v);
+  return Object.freeze(value);
+}
+
 /** Refuse metadata step() cannot keep: not an object, or a caption that is not a string. */
 function checkMeta(name: string, meta: unknown): asserts meta is StepMeta {
   if (!meta || typeof meta !== 'object' || Array.isArray(meta)) throw new TypeError(`this.step(): the metadata of step ${JSON.stringify(name)} must be an object, or a function of the step before that returns one`);
@@ -363,6 +369,8 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
 
   /** Call the sink; a StopScene it throws stops the scene for good (see `phase`). */
   private async toSink(call: () => Promise<void> | undefined): Promise<void> {
+    // What is kept on top is raised before the sink sees the scene, whatever wrote the drawn list.
+    this.#raiseTop();
     try { await call(); } catch (e) { if (e instanceof StopScene) this.#phase = 'stopped'; throw e; }
   }
 
@@ -392,14 +400,14 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    * wait in the step. A listener that returns with a play or wait it made still running is refused:
    * the next call would interleave its frames with that one's.
    */
-  async #dispatch(list: Array<{ listener: (step: Step) => unknown; on: boolean }>, s: Step): Promise<void> {
+  async #dispatch(api: 'this.onStep()' | 'this.onStepEnd()', list: Array<{ listener: (step: Step) => unknown; on: boolean }>, s: Step): Promise<void> {
     for (const entry of list.slice()) {
       if (!entry.on) continue;
       const running = this.#running;
       this.#listening++;
       try { await entry.listener(s); } finally { this.#listening--; }
       if (this.#running !== running)
-        throw new Error(`this.onStep(): a listener of step ${JSON.stringify(s.path)} returned with a play() or wait() still running; await each play() and wait() it makes`);
+        throw new Error(`${api}: a listener of step ${JSON.stringify(s.path)} returned with a play() or wait() still running; await each play() and wait() it makes`);
     }
   }
 
@@ -511,7 +519,8 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    *
    * Names are stable tokens ("push-wrap"): they are what ?step= deep links,
    * traces and tests address. `meta` is free-form JSON and travels with the trace; it is copied
-   * when the step begins, so a later change to the object changes nothing recorded. Given a
+   * when the step begins, and the copy (`currentStep.meta`) is frozen, so neither a later change
+   * to the object given nor a write to the copy changes what is recorded. Given a
    * function, step() first ends the running step (with its caption hold) and calls it with that
    * closed step, or null before the first: for words that report the step before's timing. Either
    * form is checked at that point, once the running step has ended.
@@ -526,7 +535,8 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
       // so a value is held to the same point, and the same mistake fails on the same frame.
       const given = typeof meta === 'function' ? meta(this.steps.at(-1) ?? null) : meta;
       checkMeta(name, given);
-      const copy = cloneJson(given, 'this.step()', 'its metadata') as StepMeta;
+      // Frozen, deeply: what the trace records, and what the caption hold reads, cannot change after.
+      const copy = deepFreeze(cloneJson(given, 'this.step()', 'its metadata')) as StepMeta;
       this.#phase = 'beginning-step';
       const s: Step = { name, path: name, t0: this.time, frame0: this.frameCount, t1: null, frame1: null, meta: copy, evidence: [] };
       this.steps.push(s);
@@ -534,7 +544,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
       await this.toSink(() => this.sink.stepBegin?.(this, s));
       // The listeners registered when the step began, minus any removed meanwhile; one added
       // during this dispatch first hears the next step.
-      await this.#dispatch(this.stepListeners, s);
+      await this.#dispatch('this.onStep()', this.stepListeners, s);
       return s;
     });
   }
@@ -555,7 +565,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     this.throwIfStopped();
     // A step that ends before any play or wait reached its stop frame: its picture is still now.
     await this.#stopIfReached(true);
-    await this.#dispatch(this.stepEndListeners, s);
+    await this.#dispatch('this.onStepEnd()', this.stepEndListeners, s);
     // A captioned step holds until its caption could have been read or spoken,
     // so narration (or a reader) never runs past the picture it describes.
     const caption = s.meta.caption;
@@ -668,9 +678,12 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
 
   /**
    * @internal Keep `mobs` drawn last, over anything added after them, in the order given (one kept
-   * already moves last among them): whenever one is on stage, each add, bringToFront, bringToBack
-   * and replace leaves it at the end of `mobjects`. Keeping does not add it. Returns a function that
-   * stops keeping them. The stage keeps its heading, band, step number and line on top this way.
+   * already moves last among them). Whenever one is on stage, as a root or inside one, the root that
+   * holds it (its topmost ancestor on stage) stands at the end of `mobjects`: after each add,
+   * bringToFront, bringToBack and replace, and before every frame and step boundary the sink is
+   * handed, so a group added later that wraps it, or a direct write to `mobjects`, is raised again
+   * before anything is drawn. Keeping does not add it. Returns a function that stops keeping them.
+   * The stage keeps its heading, band, step number and line on top this way.
    */
   keepOnTop(...mobs: Mobject[]): () => void {
     this.#onTop = [...this.#onTop.filter((m) => !mobs.includes(m)), ...mobs];
@@ -678,10 +691,16 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     return () => { this.#onTop = this.#onTop.filter((m) => !mobs.includes(m)); };
   }
 
-  /** Move the kept mobjects that are on stage (see keepOnTop) to the end of the drawn list, in the order kept. */
+  /** Move the roots that hold kept mobjects (see keepOnTop) to the end of the drawn list, in the order kept. */
   #raiseTop(): void {
     if (!this.#onTop.length) return;
-    const top = this.#onTop.filter((m) => this.mobjects.includes(m));
+    const roots = new Set(this.mobjects), top: Mobject[] = [];
+    for (const m of this.#onTop) {
+      // The topmost of it and its ancestors that is on stage
+      let root: Mobject | undefined;
+      for (let p: Mobject | null = m; p; p = p.parent) if (roots.has(p)) root = p;
+      if (root && !top.includes(root)) top.push(root);
+    }
     if (!top.length || top.every((m, i) => this.mobjects[this.mobjects.length - top.length + i] === m)) return;
     const kept = new Set(top);
     this.mobjects = [...this.mobjects.filter((m) => !kept.has(m)), ...top];
@@ -765,6 +784,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     const isOpts = last && Object.getPrototypeOf(last) === Object.prototype;
     const opts = (isOpts ? list.pop() : {}) as PlayOpts;
     const anims = list.map((x) => prepareAnimation(x));
+    if (!anims.length) throw new Error(`this.play(): it was given no animation${isOpts ? ', only options' : ''}; give it one or more, or hold the picture with this.wait()`);
     // What some animation reads before it can begin (a diagram's layout), a group's members' included: wait for it, once, here.
     const waits = anims.map((a) => a.ready()).filter((r) => r !== null);
     if (waits.length) {
@@ -780,7 +800,21 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     // One that throws as it begins leaves none of the others begun: those it began first land.
     const idle = anims.filter((a) => a.phase !== 'begun');
     try { perf.span('anim.begin', () => this.beginAnimations(anims)); }
-    catch (e) { landBegun(idle, this); throw e; }
+    catch (e) { this.#held = []; landBegun(idle, this); throw e; }
+    // From here on, a failure (a member that throws at its turn, what was made at its turn failing to
+    // be ready or refused, a frame that throws) lands everything the play began, and nothing waiting
+    // begins: no animation is left begun. A stop is no failure: the scene is stopped for good, and
+    // the picture stays as the stopping frame drew it.
+    try { await this.#playFrames(anims); }
+    catch (e) {
+      this.#held = [];
+      if (!(e instanceof StopScene)) landBegun(anims, this);
+      throw e;
+    }
+  }
+
+  /** The frames of a play whose animations have begun, then their finish. */
+  async #playFrames(anims: readonly Animation[]): Promise<void> {
     if (this.#held.length) await this.#beginHeld();
     const runTime = Math.max(...anims.map((a) => a.runTime));
     const dt = 1 / this.fps;
@@ -821,28 +855,51 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     }
     perf.count('frames skipped', skipped);
     perf.span('anim.finish', () => { for (const a of anims) { a.finish(); a.cleanUpFromScene(this); } });
+    // What finishing began at its turn and waits (a last member of no run time, an action's last
+    // beat) begins and lands now, the members after it in turn.
+    if (this.#held.length) await this.#beginHeld();
   }
 
   /**
-   * @internal Run `begin` once what `anims` read is ready (see Animation.ready): now when nothing
-   * waits; otherwise in the running play, which waits for it before its next frame. For what is
-   * made when its turn comes in a play (an action's beat, a machine's transition), after the play
-   * has waited for everything it was given.
+   * @internal Run `begin` once what `anims` read is ready (see Animation.ready), in turn order: now
+   * when nothing waits and nothing begun or made earlier in this frame of the running play waits;
+   * otherwise in the running play, which waits for it, and begins what waited in the order the turns
+   * came, before its next frame. So whatever is begun at its turn joins the stage, and records its
+   * evidence, in turn order, whether or not something waits. For what is made when its turn comes in
+   * a play (an action's beat, a machine's transition) and a Succession's members, after the play has
+   * waited for everything it was given.
    */
   whenReady(anims: readonly Animation[], by: string, begin: () => void): void {
     const waits = anims.map((a) => a.ready()).filter((r) => r !== null);
-    if (!waits.length) return begin();
+    if (!waits.length && !this.#held.length) return begin();
     if (this.#phase !== 'playing') throw new Error(`${by}: what it made waits for what it reads, and only a play can wait for that; play it with this.play()`);
-    this.#held.push({ ready: Promise.all(waits), begin });
+    this.#hold(waits.length ? Promise.all(waits) : Promise.resolve(), begin);
   }
 
-  /** Begin what waited at its turn, once what it reads is ready; what that begins may wait in turn. */
+  /** @internal Run `then` in the running play once everything held in it so far has begun (see whenReady): a Succession carrying on after a member that waits. */
+  afterHeld(by: string, then: () => void): void {
+    if (this.#phase !== 'playing') throw new Error(`${by}: a member waits for what it reads, and only a play can wait for that; play it with this.play()`);
+    this.#hold(Promise.resolve(), then);
+  }
+
+  /** Hold `begin` until `ready` settles; a rejection is the play's error once it is awaited, never an unhandled one meanwhile. */
+  #hold(ready: Promise<unknown>, begin: () => void): void {
+    ready.catch(() => {});
+    this.#held.push({ ready, begin });
+  }
+
+  /**
+   * Begin what waited at its turn, in the order the turns came, each once what it reads is ready.
+   * What a begin begins or holds in turn comes before the turns after it.
+   */
   async #beginHeld(): Promise<void> {
     while (this.#held.length) {
-      const held = this.#held.splice(0);
-      await Promise.all(held.map((h) => h.ready));
+      const h = this.#held.shift()!;
+      await h.ready;
       this.throwIfStopped();
-      for (const h of held) h.begin();
+      const after = this.#held;
+      this.#held = [];
+      try { h.begin(); } finally { this.#held.push(...after); }
     }
   }
 
@@ -853,6 +910,8 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    * the play drives now: one writer per mobject holds for the whole play.
    */
   beginAnimations(anims: readonly Animation[], by?: string): void {
+    // Checked here as well as in begin(): an animation whose begin() is replaced never reaches its own check.
+    for (const a of anims) assertLifecycle(a, 'this.play()');
     if (this.#phase === 'playing' && anims !== this.#playing) {
       if (by) assertDisjoint(anims);
       assertDisjointInPlay(this.#playing, anims, by);

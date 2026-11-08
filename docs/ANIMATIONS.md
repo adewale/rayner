@@ -79,7 +79,13 @@ the `Succession`.
 Time through a `Succession` is linear by default; members ease with their own rate
 functions. A group rate function must not run time backwards. A `lagRatio` given to
 `play()` does not stagger a `Succession`: its members stay one after another
-(`test/anim-utils.test.ts`, "a lagRatio passed to play() leaves a Succession sequential").
+(`test/anim-utils.test.ts`, "a lagRatio passed to play() leaves a Succession sequential"),
+and setting its `lagRatio` to anything but 1 throws.
+
+A member begins at its turn, in turn order with whatever else begins at its turn in the same
+frame. One that waits for what it reads (an action's beat that shows a diagram) holds the
+`Succession`: the members after it begin once it has begun, so their side effects keep their
+order even when the waiting member is shorter than a frame.
 
 Seeking is exact through a `Succession` too. Its members begin, and add their mobjects,
 as it interpolates, so a seek into a play holding one still interpolates the frames it

@@ -279,3 +279,133 @@ test('an action’s life: a begin refused while what it reads is not ready, or b
   assert.equal(await awaited, 'done');
   await assert.rejects(scene.play(awaited), /v\(\): it has already played; an action plays once/);
 });
+
+/** A FadeIn that reads something first, as `s.show` reads a diagram's layout: its ready() is the promise given. */
+class Reads extends FadeIn {
+  readonly reading: Promise<unknown>;
+  constructor(m: Circle | Rectangle, reading: Promise<unknown>, opts: { runTime?: number } = {}) { super(m, opts); this.reading = reading; }
+  override ready(): Promise<unknown> { return this.reading; }
+}
+
+test('a play that fails at a turn made later lands what it began: a read that fails, or a refused writer (A1)', async () => {
+  const { Action } = await import('../explain/action.ts');
+  const { FadeOut } = await import('../src/index.ts');
+  const scene = new Scene(new NullSink());
+  // What a beat made waits for a read that fails, after the play has begun.
+  const first = new FadeIn(new Circle());
+  const failing = new Action(scene, 'a()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => [new Reads(new Rectangle(), Promise.reject(new Error('a(): the layout failed')))] }] }));
+  await assert.rejects(scene.play(first, failing), /^Error: a\(\): the layout failed$/);
+  assert.deepEqual([first.phase, failing.phase], ['finished', 'finished']);
+  assert.equal(scene.phase, 'idle');
+  await scene.play(first);
+  assert.equal(first.phase, 'finished', 'it plays again');
+  // What a beat made, once ready, writes a mobject a FadeOut beside it drives: refused as it begins.
+  const c = new Circle(), kept = new FadeIn(new Rectangle());
+  const writer = new Action(scene, 'b()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => [new Reads(c, Promise.resolve())] }] }));
+  await assert.rejects(scene.play(kept, writer, new FadeOut(c)), /made by b\(\) as its turn came, both animate a Circle/);
+  assert.deepEqual([kept.phase, writer.phase], ['finished', 'finished']);
+  await scene.play(kept);
+});
+
+test('a play that fails abandons a composed action: the beat that began lands with its after, and no later beat is made, nor its end run (A5)', async () => {
+  const { Action } = await import('../explain/action.ts');
+  class Boom extends FadeIn { protected override doBegin(): void { throw new Error('boom'); } }
+  const done: string[] = [];
+  const twoBeats = (scene: Scene) => new Action(scene, 'a()', () => ({
+    value: undefined,
+    start: () => done.push('start'),
+    beats: [
+      { runTime: 1, play: () => { done.push('make 1'); return [new FadeIn(new Circle())]; }, after: () => done.push('after 1') },
+      { runTime: 1, play: () => { done.push('make 2'); return [new FadeIn(new Circle())]; }, after: () => done.push('after 2') },
+    ],
+    end: () => done.push('end'),
+  }));
+  // Refused as the play begins: the first beat had begun, so it lands and runs its after.
+  const scene = new Scene(new NullSink());
+  const a = twoBeats(scene);
+  await assert.rejects(scene.play(a, new Boom(new Rectangle())), /boom/);
+  assert.deepEqual(done, ['start', 'make 1', 'after 1']);
+  assert.equal(scene.mobjects.length, 1, 'only the first beat\'s circle is on stage');
+  assert.equal(a.phase, 'finished');
+  await assert.rejects(scene.play(a), /a\(\): it has already played in a play/);
+  // Failing in the second beat's time: the second beat lands; there is no third, and the end never runs.
+  done.length = 0;
+  const other = new Scene(new NullSink());
+  const b = twoBeats(other);
+  await assert.rejects(other.play(b, new Succession([new FadeIn(new Circle(), { runTime: 1.5 }), new Boom(new Rectangle())])), /boom/);
+  assert.deepEqual(done, ['start', 'make 1', 'after 1', 'make 2', 'after 2']);
+});
+
+test('an action whose begin fails after it was decided stays unplayed: it plays again, and its step names it if it never does (A6)', async () => {
+  const { Action } = await import('../explain/action.ts');
+  // Its start throws once.
+  const scene = new Scene(new NullSink());
+  let starts = 0;
+  const flaky = new Action(scene, 'a()', () => ({ value: 1, start: () => { if (++starts === 1) throw new Error('a(): the start failed'); }, beats: [{ runTime: 0.5, play: () => [new FadeIn(new Circle(), { runTime: 0.5 })] }] }));
+  await assert.rejects(scene.play(flaky), /^Error: a\(\): the start failed$/);
+  assert.equal(flaky.phase, 'idle');
+  await scene.play(flaky);
+  assert.equal(flaky.phase, 'finished', 'played on the second try');
+  // Its first beat throws as it is made: never played, so the step's end names it.
+  class Story extends Scene {
+    override async construct() {
+      await this.step('a');
+      const broken = new Action(this, 'b()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => { throw new Error('b(): the beat failed'); } }] }));
+      await this.play(broken).catch(() => {});
+      await this.step('next');
+    }
+  }
+  await assert.rejects(new Story(new NullSink()).run(), /^Error: b\(\): it was made in step "a" but never played; await an action/);
+});
+
+test('what is made at its turn is drawn, and records its evidence, in turn order, whether or not something waits (A7)', async () => {
+  const { Action } = await import('../explain/action.ts');
+  const run = async (waits: 'none' | 'first' | 'second') => {
+    const c = new Circle(), d = new Rectangle();
+    const scene = new Scene(new NullSink());
+    const beat = (m: Circle | Rectangle, wait: boolean, kind: string) => new Action(scene, `${kind}()`, () => ({
+      value: undefined,
+      beats: [{ runTime: 1, play: () => { const a = wait ? new Reads(m, Promise.resolve()) : new FadeIn(m); a.evidence = () => ({ kind }); return [a]; } }],
+    }));
+    // Each in a Succession of its own, its turn half way through, in the same frame as the other's.
+    await scene.play(
+      new Succession([new FadeIn(new Circle({ radius: 0.1 }), { runTime: 0.5 }), beat(c, waits === 'first', 'c')]),
+      new Succession([new FadeIn(new Circle({ radius: 0.2 }), { runTime: 0.5 }), beat(d, waits === 'second', 'd')]),
+    );
+    return { drawn: scene.mobjects.filter((m) => m === c || m === d).map((m) => (m === c ? 'c' : 'd')).join(''), evidence: scene.evidence.map((e) => e.kind).join('') };
+  };
+  for (const waits of ['none', 'first', 'second'] as const) assert.deepEqual(await run(waits), { drawn: 'cd', evidence: 'cd' }, waits);
+  // At the play's start too: two actions handed to one play.
+  const c = new Circle(), d = new Rectangle();
+  const scene = new Scene(new NullSink());
+  const one = new Action(scene, 'c()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => [new Reads(c, Promise.resolve())] }] }));
+  const two = new Action(scene, 'd()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => [new FadeIn(d)] }] }));
+  await scene.play(one, two);
+  assert.deepEqual(scene.mobjects, [c, d]);
+});
+
+test('a beat that waits and is shorter than a frame still plays, held and then landed, its side effects in order; so does a last beat of no run time (A8)', async () => {
+  const { Action } = await import('../explain/action.ts');
+  const scene = new Scene(new NullSink());
+  const order: string[] = [];
+  const c = new Circle(), d = new Rectangle(), e = new Circle();
+  const beat = (name: string, runTime: number, made: () => FadeIn) => ({ runTime, play: () => { order.push(`make ${name}`); return [made()]; }, after: () => order.push(`after ${name}`) });
+  const a = new Action(scene, 'a()', () => ({
+    value: undefined,
+    beats: [
+      beat('1', 0.5, () => new FadeIn(e, { runTime: 0.5 })),
+      beat('2', 0.01, () => new Reads(c, new Promise((r) => setTimeout(r, 10)), { runTime: 0.01 })),
+      beat('3', 1, () => new FadeIn(d)),
+    ],
+  }));
+  await scene.play(a);
+  assert.deepEqual(order, ['make 1', 'after 1', 'make 2', 'after 2', 'make 3', 'after 3']);
+  assert.equal(c.style.opacity, 1, 'the short beat landed');
+  assert.equal(scene.frameCount, Math.round(1.51 * 30));
+  // A last beat of no run time that waits: it begins as the play finishes, and lands.
+  const f = new Circle();
+  const last = new Action(scene, 'b()', () => ({ value: undefined, beats: [{ runTime: 0.5, play: () => [new FadeIn(new Circle(), { runTime: 0.5 })] }, { runTime: 0, play: () => [new Reads(f, Promise.resolve(), { runTime: 0 })] }] }));
+  await scene.play(last);
+  assert.ok(scene.mobjects.includes(f));
+  assert.equal(f.style.opacity, 1);
+});

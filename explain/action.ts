@@ -39,7 +39,9 @@ function checkTime(action: string, beat: Beat, made: readonly ScheduledAnimation
  * mobjects it declares it writes. As it begins it makes its members; once what they read is ready
  * (the play waits for that before its next frame, see Scene.whenReady) they are settled, laid out
  * in its run time, and begun through the scene, which checks them against everything else the
- * play drives. `by` names what made them, as messages do.
+ * play drives. Until they have begun it waits (see waiting): a Succession that holds it begins
+ * nothing after it, so a beat shorter than a frame still plays, held and then landed. `by` names
+ * what made them, as messages do.
  */
 export abstract class MadeAtTurn extends AnimationGroup {
   readonly by: string;
@@ -58,32 +60,49 @@ export abstract class MadeAtTurn extends AnimationGroup {
   protected slots(made: readonly ScheduledAnimation[]): Array<[number, number]> {
     return made.map(() => [0, 1]);
   }
+  /** Whether its members have begun: what it made drew, and lands with it. */
+  protected get madeBegun(): boolean {
+    return this.#turn.made === 'begun';
+  }
   protected override doBegin(): void {
     const scene = this.scene;
     if (!scene) throw new Error(`${this.by}: play it on the scene it belongs to`);
     this.animations = [];
+    this.#turn = { made: 'not yet' };
     const made = this.make();
-    this.#turn = { made: 'waiting', at: null };
+    const turn: { made: 'waiting'; at: number | null } = { made: 'waiting', at: null };
+    this.#turn = turn;
     scene.whenReady(made, this.by, () => {
+      // Landed meanwhile, after a failure: what it made never begins.
+      if (this.#turn !== turn) return;
       for (const a of made) a.settle();
       this.timings = this.slots(made);
       this.maxEnd = Math.max(0, ...this.timings.map(([, end]) => end));
       this.animations = made;
-      const turn = this.#turn;
       this.#turn = { made: 'begun' };
       scene.beginAnimations(made, this.by);
       // Begun after the play waited: it takes the frame it was given while it waited.
-      if (turn.made === 'waiting' && turn.at !== null) super.doInterpolate(turn.at);
+      if (turn.at !== null) super.doInterpolate(turn.at);
     });
   }
   protected override doInterpolate(alpha: number): void {
     const turn = this.#turn;
-    if (turn.made === 'waiting') this.#turn = { made: 'waiting', at: alpha };
+    if (turn.made === 'waiting') turn.at = alpha;
     else super.doInterpolate(alpha);
   }
   protected override doFinish(alpha?: number): void {
-    if (this.#turn.made === 'waiting') throw new Error(`${this.by}: its turn came as its play ended, where nothing can wait for what it reads; give it a run time`);
+    // A play, a group and a Succession each wait for what it made before they finish it.
+    if (this.#turn.made === 'waiting') throw new Error(`${this.by}: it was finished while what it made still waited for what it reads; play it with this.play(), or in a Succession or group that plays, which wait for it`);
     super.doFinish(alpha);
+  }
+  /** @internal Whether what it made has yet to begin, or a member of it waits in turn. */
+  override waiting(): boolean {
+    return this.#turn.made === 'waiting' || super.waiting();
+  }
+  /** @internal After a failure: what it made lands if it has begun, and never begins if it has not. */
+  protected override doLand(scene: Scene | null): void {
+    this.#turn = { made: 'not yet' };
+    super.doLand(scene);
   }
   /** Before its members are made, what it declares; then theirs. */
   override targets(): Mobject[] {
@@ -114,6 +133,12 @@ class BeatPlay extends MadeAtTurn {
   override cleanUpFromScene(scene: Scene): void {
     super.cleanUpFromScene(scene);
     this.beat.after?.();
+  }
+  /** @internal After a failure: a beat whose animations began lands them and runs its `after`, as its play's end would; one still waiting runs nothing more. */
+  protected override doLand(scene: Scene | null): void {
+    const drew = this.madeBegun;
+    super.doLand(scene);
+    if (drew) this.beat.after?.();
   }
 }
 
@@ -161,10 +186,13 @@ type Decision<T> = { plan: Plan<T> } | { error: unknown } | null;
  * - `ready`: made, not played, and what it reads is ready; a late action is decided as it begins.
  * - `awaited`: awaited, and playing itself beat by beat; `run` is what awaiting it gives.
  * - `composed`: begun by a play, or by the Succession or group that holds it.
- * - `ended`: its last beat has played and its `end` has run, after it was awaited or composed.
+ * - `ended`: its last beat has played and its `end` has run, after it was awaited or composed; or
+ *   its play failed after it began, which abandoned it (see Action.doLand).
  *
  * Before it plays it may be `reading`, then `ready`; it plays once, awaited or composed, then ends.
- * A refused begin (what it reads not ready, or deciding it failed) leaves it as it was.
+ * A begin that fails leaves it as it was, unplayed, whatever failed: what it reads not ready,
+ * deciding it, its `start`, or its first beat's making or beginning. It can then play again, and
+ * its step's end names it if it never does. What a `start` that ran did stays done.
  */
 type ActionState<T> =
   | { phase: 'reading'; decision: Decision<T> }
@@ -291,25 +319,37 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
     if (s.phase === 'ready') this.#decide();
   }
 
-  /** Composed: begun by a play, or by the Succession or group that holds it. A refused begin leaves it unplayed. */
+  /** Composed: begun by a play, or by the Succession or group that holds it. A begin that fails leaves it unplayed. */
   protected override doBegin(): void {
     const s = this.#state;
     const how = this.#played();
     if (how) throw this.#playedAlready(how, 'composed');
     if (s.phase === 'reading') throw new Error(`${this.name}: begun before what it reads was ready; hand it to play(), or to a Succession or group that plays, which waits for it`);
     const plan = this.#decide();
-    this.#state = { phase: 'composed', plan };
-    unplayed.get(this.host)?.delete(this as Action<unknown>);
     plan.start?.();
     super.doBegin();
+    // Composed only once it has begun: a start or a first beat that throws leaves it unplayed.
+    this.#state = { phase: 'composed', plan };
+    unplayed.get(this.host)?.delete(this as Action<unknown>);
   }
 
-  protected override doFinish(): void {
-    super.doFinish();
+  /** Its last beat has finished and gone: its `end` runs. */
+  protected override ended(): void {
     const s = this.#state;
     if (s.phase !== 'composed') return;
     this.#state = { phase: 'ended', plan: s.plan, run: null };
     s.plan.end?.();
+  }
+
+  /**
+   * @internal Its play failed after it began: abandoned. The beat that has begun lands, and runs its
+   * `after` if its animations began; no later beat is made, and its `end` does not run. It has
+   * played, so it cannot play again.
+   */
+  protected override doLand(scene: Scene | null): void {
+    super.doLand(scene);
+    const s = this.#state;
+    if (s.phase === 'composed') this.#state = { phase: 'ended', plan: s.plan, run: null };
   }
 
   /** Awaited: play each beat in a play of its own, then give the value. Once awaited, awaiting it again gives the same. */

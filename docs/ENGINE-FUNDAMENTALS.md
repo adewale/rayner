@@ -116,10 +116,16 @@ parent; `group.insert(index, child)` puts it at `index` instead (`0` draws it un
 and `group.replaceChild(old, ...replacements)` puts replacements where `old` stands. A
 mobject's `children` and `parent` are read-only, so these methods and `group.remove(child)`
 are the only ways to change a family, and each keeps every child's `parent` and the cached
-box in step. `family()` is the mobject and every descendant, depth first. A scene admits one root per subtree, so admitting a parent never paints a
+box in step. Both are held outside the mobject, so no write to the mobject, from plain
+JavaScript or through a cast, changes them; a `children` or `parent` defined on the mobject
+itself (`Object.defineProperty`) would hide them from whatever reads the property, so
+`family()`, and so `box()`, refuses a mobject that has one. Code that reads `m.children` before
+any `family()` would still see such a property. `family()` is the mobject and every descendant, depth first. A scene admits one root per subtree, so admitting a parent never paints a
 child twice. `Scene.add`, `remove`, `replace`, `bringToFront` and `bringToBack`
 control membership and draw order; what the stage keeps over everything else (its heading,
-band, step number and line) stays last through each of them. The structure is a tree: `add`, `insert` and
+band, step number and line) stays last through each of them: the root that holds it, which is
+the group around it once one wraps it, is moved last, and that is done again before every frame
+and step boundary the sink sees, after a direct write to `scene.mobjects` too. The structure is a tree: `add`, `insert` and
 `replaceChild` refuse the mobject itself or one of its ancestors, which would make a cycle,
 and `group.remove(child)` takes out only the group's own children, leaving a mobject in
 another group where it is. `scene.familyMembers()` lists every mobject on the stage and
@@ -183,15 +189,34 @@ throws, and so do `interpolate()` and `finish()` before `begin()`; a finished an
 may begin again. The guards are the public calls themselves, on `Animation` and
 `AnimationGroup`, so every caller goes through them (the scene, a group, a `Succession`,
 an animation that drives another) and a hook keeps them in whatever form it is written,
-a method or a class field. A subclass that overrides `begin`, `interpolate` or `finish`
-itself is refused: as a method when the first one is made, and as a class field or an
-assignment at the next guarded call.
+a method or a class field. An animation whose `begin`, `interpolate` or `finish` is not the
+engine's is refused, and so is one that redefines `phase`, `runTime` or `lagRatio`: as a
+method in a subclass when its first instance is made, and in every form (a subclass's
+method or accessor, a class field, an assignment, `Object.defineProperty`, a prototype
+patched after the first instance, a swapped prototype) where every play and every group
+member passes before it begins: `Scene.play`, a group's begin, and `begin()` itself. Two
+ways round the guard remain, both open only to plain JavaScript or a cast: calling a
+protected hook (`doInterpolate`) directly, and patching a lifecycle call in while the
+animation plays.
 
-When an animation throws as it begins, nothing it shares a begin with is left begun: a
+A play that fails leaves no animation begun. When an animation throws as it begins, a
 group lands the members it began before the one that threw, and `play()` lands the
-animations before it, each finishing and cleaning up as the end of its play would, so
-each can play again. A run time and a lag ratio are finite and not negative, given to
-the constructor, to `play()` or set on the animation (`a.runTime = 2`).
+animations before it. When the play fails after it has begun (a `Succession`'s member that
+throws at its turn, something made at its turn whose read fails or that the one-writer
+check refuses, a frame or a sink that throws), `play()` lands every animation it was
+given. Landing finishes what has begun, as the end of its play would, and begins nothing
+more: a `Succession`'s later members never begin, and an action is abandoned, its running
+beat landing (with its `after`, if its animations had begun) while no later beat is made
+and its `end` does not run. Each landed animation can play again; an action, which plays
+once, cannot. A stop is not a failure: a scene stopped by its sink (`StopScene`) is stopped
+for good, and its picture stays as the stopping frame drew it.
+
+A run time and a lag ratio are finite and not negative, given to the constructor, to
+`play()` or set on the animation (`a.runTime = 2`), and fixed while it plays: a play counts
+its frames from them as it begins, so setting either on a begun animation throws. A
+`Succession`'s lag ratio is 1, since its members run one after another; setting another
+throws. A `play()` given no animation, with or without options, throws: `wait()` holds the
+picture.
 
 Use one `play(a, b)` for simultaneous operations, `Succession` for sequential
 operations and `AnimationGroup`/`LaggedStart` for grouped schedules. There is one scene
@@ -206,7 +231,13 @@ it runs its time backwards. A group exposes its members' `ready()`, so `play()` 
 what any of them reads before it begins, and lays out its members' times as the play
 begins. What is made only when its turn comes, a machine's transition or an action's beat, may
 read something not ready yet: the play waits for it there, before drawing its next frame, so the
-frames are the same as if it had waited for nothing.
+frames are the same as if it had waited for nothing. What begins at its turn (a `Succession`'s
+member, what a beat or a transition makes) begins in turn order, whether or not something
+waits: once one waits, whatever comes after it in the frame waits behind it, so the drawing
+order and the recorded evidence follow the turns. A `Succession` whose member waits begins
+nothing after it until that member has begun, so a waiting member shorter than a frame still
+plays, begun and then landed within its frame, with its side effects in their order, and a
+waiting last member of no run time begins and lands as the play finishes.
 
 Capture starting values when an animation **begins**, not when it is constructed.
 Earlier members of a `Succession` may change them. Define intermediate geometry
@@ -226,8 +257,9 @@ timestamps.
 `await this.step(name, metadata)` closes the previous step and begins the next.
 Names are stable, unique URL identifiers. `title`, `line`, `caption` and `kind`
 (`'short'`, `'main'` or `'detail'`) mean something to the reader; other metadata
-can describe the model's inputs. Metadata is copied as JSON when the step begins;
-given a function, `step()` calls it with the step it has just closed. A caption extends
+can describe the model's inputs. Metadata is copied as JSON when the step begins, and the
+copy, `currentStep.meta`, is frozen deeply, so a write to it throws rather than change the
+caption, its hold or the trace; given a function, `step()` calls it with the step it has just closed. A caption extends
 its step until it could be read, so the step's resting picture, its last frame, can differ
 from its first. Each step draws at least one frame of its own (`loadProject` and the command
 refuse one that does not). Each moment is recorded as a time and a frame: `hold` and
