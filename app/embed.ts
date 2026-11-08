@@ -1302,6 +1302,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       if (!attached && go.target) go.scope.frame(() => zoom.to(go.target!, true));
     };
     const runner = new at.Scene({
+      // Frames before the step it is headed for are skipped, by the scene's own clock; follow() moves it on.
+      get skipUntil(): number { return aim.frame0 / runner.fps; },
       async stepBegin() {
         aim.scope.signal.throwIfAborted();
         if (playback.kind === 'primed') await new Promise(r => setTimeout(r));
@@ -1327,13 +1329,10 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         });
       },
     });
-    // Frames before the step's are skipped, by the scene's own clock.
-    runner.skipUntil = aim.frame0 / runner.fps;
     const done = runner.run().then(() => { finish(false); return result; });
     const follow = () => {
       if (playback.kind !== 'playing' || !stage.contains(aim.sink.svg) || aim.index + 1 >= at.trace.steps.length) return false;
       aim = aimAt(aim.index + 1);
-      runner.skipUntil = aim.frame0 / runner.fps;
       ready = gate();
       return true;
     };

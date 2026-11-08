@@ -167,7 +167,6 @@ const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
   'MotionSink.frames': { files: ['tools/lib/explain-check.ts'], why: 'check reports how many frames its motion check sampled' },
   'Scene.beginAnimations': { files: ['explain/action.ts'], why: 'what is made at its turn begins as a play begins it' },
   'Scene.keepOnTop': { files: ['explain/stage.ts'], why: 'the stage keeps its heading drawn last' },
-  'Scene.skipUntil': { files: ['app/embed.ts'], why: "the player sends its runner on to a later step's frames" },
   'Scene.stopAt': { files: ['explain/live.ts'], why: 'the run to a live step stops as the step ends' },
   'Scene.whenReady': { files: ['explain/action.ts'], why: 'what is made at its turn waits for what it reads' },
   'Succession.doLand': { files: ['explain/action.ts'], why: 'an action is abandoned after a failed play' },

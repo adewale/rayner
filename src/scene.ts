@@ -95,15 +95,23 @@ export interface Sink {
   /**
    * Frames that end before this time are counted, not rendered, as those before the scene's own
    * `skipUntil` are: a sink that draws only from some point says so here, and may move it between
-   * plays (the live player's sink skips to a step, then draws a reader's event frame by frame).
+   * plays (the live player's sink skips to a step, then draws a reader's event frame by frame; the
+   * player's runner skips to the step it is headed for). A time in seconds, 0 or more, or Infinity;
+   * the scene refuses anything else when it next reads it, which every play and wait does.
    */
   readonly skipUntil?: number;
 }
 
 export interface SceneOptions {
   fps?: number;
-  /** Frames that end before this time are counted, not rendered (seeking). */
+  /** Frames that end before this time are counted, not rendered (seeking): seconds, 0 or more, or Infinity. */
   skipUntil?: number;
+}
+
+/** Why `value` is no skip time (seconds, 0 or more, or Infinity), or null when it is one. */
+function notSkipTime(value: unknown): { kind: 'type' | 'range'; said: string } | null {
+  if (typeof value !== 'number') return { kind: 'type', said: typeof value };
+  return Number.isNaN(value) || value < 0 ? { kind: 'range', said: String(value) } : null;
 }
 
 /** The author's mutable state; stateJson() validates and copies its JSON representation. */
@@ -273,11 +281,21 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   fps: number;
   /**
    * @internal Frames that end before this time are counted, not rendered: the `skipUntil` option,
-   * or the sink's own `skipUntil` when that is later.
+   * or the sink's own `skipUntil` when that is later. These are its only two writers. A sink's that
+   * is not a time (NaN, negative, not a number) is refused here, where every play and wait reads it.
    */
-  get skipUntil(): number { return Math.max(this.#skipUntil, this.sink.skipUntil ?? -Infinity); }
-  set skipUntil(t: number) { this.#skipUntil = t; }
-  #skipUntil = 0;
+  get skipUntil(): number {
+    const own = this.sink.skipUntil;
+    if (own === undefined) return this.#skipUntil;
+    const wrong = notSkipTime(own);
+    if (wrong) {
+      const name = this.sink.constructor === Object ? "the sink's" : `the ${this.sink.constructor.name}'s`;
+      if (wrong.kind === 'type') throw new TypeError(`sink.skipUntil: ${name} is ${wrong.said}; give a time in seconds, 0 or more, or Infinity to skip every frame`);
+      throw new RangeError(`sink.skipUntil: ${name} is ${wrong.said}; give a time in seconds, 0 or more, or Infinity to skip every frame`);
+    }
+    return Math.max(this.#skipUntil, own);
+  }
+  readonly #skipUntil: number;
   mobjects: Mobject[];
   time: number;
   frameCount: number;
@@ -351,11 +369,12 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     // Times are kept to 1 ms in a trace: up to 240 fps, half a frame is longer, so a rounded time still finds its frame.
     if (typeof fps !== 'number') throw new TypeError(`new Scene(): fps is ${typeof fps}; give a number above 0 and at most 240`);
     if (!(fps > 0 && fps <= 240)) throw new RangeError(`new Scene(): fps is ${String(fps)}; give a number above 0 and at most 240`);
-    if (typeof skipUntil !== 'number') throw new TypeError(`new Scene(): skipUntil is ${typeof skipUntil}; give a time in seconds, or Infinity to skip every frame`);
-    if (Number.isNaN(skipUntil)) throw new RangeError(`new Scene(): skipUntil is ${String(skipUntil)}; give a time in seconds, or Infinity to skip every frame`);
+    const wrong = notSkipTime(skipUntil);
+    if (wrong?.kind === 'type') throw new TypeError(`new Scene(): skipUntil is ${wrong.said}; give a time in seconds, 0 or more, or Infinity to skip every frame`);
+    if (wrong) throw new RangeError(`new Scene(): skipUntil is ${wrong.said}; give a time in seconds, 0 or more, or Infinity to skip every frame`);
     this.sink = sink;
     this.fps = fps;
-    this.skipUntil = skipUntil;
+    this.#skipUntil = skipUntil;
     this.mobjects = [];
     this.time = 0;
     this.frameCount = 0;
