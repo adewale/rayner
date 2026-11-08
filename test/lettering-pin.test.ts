@@ -18,3 +18,13 @@ test('a lettering pin holds the request it was made for, in any key order, and n
   assert.equal(pinnedFor({ version: SUBSET_LETTERING_VERSION, scripts: ['Grek'] }, scripts, false), false);
   assert.equal(pinnedFor({ version: LETTERING_VERSION, scripts: ['Grek', 'Cyrl'] }, scripts, false), false);
 });
+
+test('a lettering\'s measurement cache key is the same for one request in any key order, and differs for another', async () => {
+  const { measurementKey } = await import('../tools/lib/lettering.ts');
+  const fonts = { 'b.woff2': 'h2', 'a.woff2': 'h1' };
+  const key = measurementKey('builder', 'shaper', { faces: { sans: 'eb-garamond' }, styles: ['bold', 'italic'] }, fonts);
+  assert.equal(measurementKey('builder', 'shaper', { styles: ['bold', 'italic'], faces: { sans: 'eb-garamond' } }, { 'a.woff2': 'h1', 'b.woff2': 'h2' }), key);
+  // A different request, or the same styles in another order (a list keeps its order), is another key.
+  assert.notEqual(measurementKey('builder', 'shaper', { faces: { sans: 'eb-garamond' }, styles: ['italic', 'bold'] }, fonts), key);
+  assert.notEqual(measurementKey('builder', 'shaper', { faces: { sans: 'inter' }, styles: ['bold', 'italic'] }, fonts), key);
+});

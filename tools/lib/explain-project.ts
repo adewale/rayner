@@ -1,7 +1,7 @@
 import { adoptScript } from './explain-intent.ts';
 import type { adoptIntent } from './explain-intent.ts';
 import {textContextOf} from '../../src/text-context.ts';
-import { offPage, prepareLettering as prepareOutlineLettering } from './lettering.ts';
+import { measurementKey, offPage, prepareLettering as prepareOutlineLettering } from './lettering.ts';
 import { usesOutlineLettering, withSceneLettering } from '../../src/lettering-outlines.ts';
 import type { LetteringSnapshot } from '../../src/lettering-outlines.ts';
 import { build } from 'esbuild';
@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { Scene } from '../../src/index.ts';
 import { NullSink } from '../../src/output.ts';
+import { dryRun } from '../../src/timeline.ts';
 import { diagramsMade } from '../../explain/diagrams.ts';
 import { liveSteps } from '../../app/embed-live.ts';
 import type { Live } from '../../app/embed-live.ts';
@@ -263,10 +264,10 @@ export async function collectProject(
     ? await prepareOutlineLettering(loaded.Scene, file, captureLettering, write) : undefined;
   const Source = outline?.Scene ?? loaded.Scene;
   const request = outlineRequested ? undefined : letteringRequest(Source);
-  const subsetMetrics = request ? hash(JSON.stringify([request, ...(await Promise.all(
+  const subsetMetrics = request ? measurementKey(request, ...(await Promise.all(
     ['inter.woff2', 'jetbrains-mono.woff2'].map(async (name) =>
       [name, hash(await readFile(join(ROOT, 'vendor/lettering', name)))]),
-  ))])) : undefined;
+  ))) : undefined;
   const base = file.replace(/\.[^.]+$/, '');
   const previous: SnapshotStore = refresh ? {} : await readSnapshots(base);
   // Lazy: native scenes never require Agentic Mermaid or Chromium.
@@ -328,11 +329,7 @@ export async function collectProject(
         request,
         async () => {
           const counted = edits;
-          for (const values of scenariosOf(Source)) {
-            await new (withSettings(bindSnapshots(Source, resolver), values))(new NullSink(), {
-              skipUntil: Infinity,
-            }).run();
-          }
+          for (const values of scenariosOf(Source)) await dryRun(withSettings(bindSnapshots(Source, resolver), values), new NullSink());
           edits = counted;
           takeLetteringMissing();
         },

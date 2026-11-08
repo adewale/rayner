@@ -2,7 +2,7 @@
 // the picture as text, then the step's title, caption, what the picture shows in words, and what
 // the step changed in scene.state. Lantern's `npm run see`, for one scenario. Every word comes from
 // describeExplainer's description of the scenario, so `see` and `describe` cannot disagree.
-import { isHeading } from '../../explain/stage.ts';
+import { withoutHeading } from '../../explain/stage.ts';
 import { writeFile } from 'node:fs/promises';
 import { renderFrame, toSvgString } from '../../src/output.ts';
 import type { Scene, Sink } from '../../src/index.ts';
@@ -51,8 +51,7 @@ export async function stepSvg(v: Scenario, step?: string): Promise<string> {
   const s = step == null ? v.trace.steps.at(-1)! : v.trace.steps.find((x) => x.step === step)!;
   const sink: Sink = { async frame() {} };
   const scene: Scene = await renderFrame(v.Scene, s.frame1, sink);
-  scene.mobjects = scene.mobjects.filter((m) => !isHeading(m));
-  return toSvgString(scene);
+  return withoutHeading(scene, () => toSvgString(scene));
 }
 
 /** Print the step; with `svgOut`, also write its resting picture as SVG. */

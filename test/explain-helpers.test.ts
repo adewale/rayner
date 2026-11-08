@@ -4,7 +4,8 @@
 // explain/look.ts, and the HTML escaping in explain/trace.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene } from '../src/index.ts';
+import { Scene, Rectangle } from '../src/index.ts';
+import type { Text } from '../src/index.ts';
 import { NullSink } from '../src/output.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
 import { stage, regionBox } from '../explain/index.ts';
@@ -193,6 +194,72 @@ test('stage() runs once per scene: a second call is refused', async () => {
   await new Twice(new NullSink()).run();
   // Each scene has its own stage.
   await new Twice(new NullSink()).run();
+});
+
+test('a stage() that throws on its options leaves the scene as it was, free to have a stage', async () => {
+  const scene = new Scene(new NullSink());
+  const listeners = () => (scene as unknown as { stepListeners: unknown[] }).stepListeners.length;
+  for (const options of [{ direction: 'sideways' }, { style: 'no-such-style' }] as const) {
+    assert.throws(() => stage(scene, options as never), /^RangeError: (stage|palette)\(\): /);
+    assert.equal(listeners(), 0, `${JSON.stringify(options)}: no step listener`);
+    assert.equal(scene.mobjects.length, 0, `${JSON.stringify(options)}: no backdrop or heading`);
+    assert.equal(paletteOf(scene), undefined);
+  }
+  // The retry is the scene's one stage: its listeners once, its backdrop once.
+  const s = stage(scene);
+  assert.equal(listeners(), 3);
+  assert.equal(scene.mobjects.filter((m) => m.role === 'backdrop').length, 1);
+  assert.ok(s.heading);
+  assert.throws(() => stage(scene), /the scene has a stage already/);
+});
+
+test('withoutHeading draws with the heading off the stage, and puts the list back however the draw ends', async () => {
+  const { withoutHeading, isHeading } = await import('../explain/stage.ts');
+  const scene = new Scene(new NullSink());
+  stage(scene, { heading: 'A title' });
+  const all = scene.mobjects;
+  assert.ok(all.some(isHeading));
+  const seen = withoutHeading(scene, () => scene.mobjects.filter(isHeading).length);
+  assert.equal(seen, 0);
+  assert.equal(scene.mobjects, all);
+  assert.equal(await withoutHeading(scene, async () => { await Promise.resolve(); return scene.mobjects.some(isHeading); }), false);
+  assert.equal(scene.mobjects, all);
+  assert.throws(() => withoutHeading(scene, () => { throw new Error('drawn wrong'); }), /drawn wrong/);
+  assert.equal(scene.mobjects, all);
+  await assert.rejects(withoutHeading(scene, async () => { throw new Error('drawn wrong'); }), /drawn wrong/);
+  assert.equal(scene.mobjects, all);
+});
+
+test('the old heading stays on top until it has faded out: what its play adds draws under it', async () => {
+  const { isHeading } = await import('../explain/stage.ts');
+  const over: string[] = [];
+  let added: Rectangle | null = null;
+  class Retitled extends Scene {
+    override async construct() {
+      const s = stage(this);
+      await this.step('one', { title: 'The first title' });
+      // An updater that adds a mobject during the next heading's fade, as anything added in that play would be.
+      const ticker = new Rectangle({ width: 0.1, height: 0.1 });
+      ticker.addUpdater(() => {
+        if (!added && this.currentStep?.name === 'two') this.add((added = new Rectangle({ width: 16, height: 9 })));
+      });
+      this.add(ticker);
+      await this.wait(0.2);
+      void s;
+      await this.step('two', { title: 'The second title' });
+      await this.wait(0.2);
+    }
+  }
+  const watch = {
+    async frame(scene: Scene) {
+      if (!added || !scene.mobjects.includes(added)) return;
+      const at = scene.mobjects.indexOf(added);
+      for (const [i, m] of scene.mobjects.entries()) if (isHeading(m) && i < at) over.push(`frame ${scene.frameCount}: ${(m as Text).text ?? m.role}`);
+    },
+  };
+  await new Retitled(watch).run();
+  assert.ok(added, 'the updater added its rectangle during the fade');
+  assert.deepEqual(over, [], 'no part of a heading, old or new, draws under what the fade\'s play added');
 });
 
 // ---- integrations/agentic-mermaid/snapshot.ts ------------------------------------

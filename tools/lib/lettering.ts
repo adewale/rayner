@@ -9,6 +9,7 @@ import { resolve, join, dirname } from 'node:path';
 import { loadFont } from '../../vendor/glyph.js';
 import { SANS, MONO, FALLBACK } from '../../src/font-data.ts';
 import { embeddedFaces } from '../../src/fonts.ts';
+import { canonicalJson } from '../../src/json.ts';
 import { LETTERING_VERSION, pinnedFor, bindLettering, cutFace, defaultCutFace, letteringOf, packLettering, unpackLettering, numericAlphabet, requestCuts, runKey, scaledRun, scriptCuts, scriptFaceNames, snapshotProvider, usesLettering } from '../../src/lettering-outlines.ts';
 import type { LetteringCut, PackedLetteringSnapshot, StoredLetteringSnapshot, LetteringSnapshot, LetteringProvider, LetteringRequest } from '../../src/lettering-outlines.ts';
 import type { ExplainerClass } from '../../explain/settings.ts';
@@ -20,6 +21,12 @@ import { byCodeUnit, sha256 } from './hash.ts';
 // The capture's files ship with the command (ROOT); the shaper and fallback faces it replays with, with the library.
 const root = ROOT;
 const hash = sha256;
+/**
+ * The cache key of what a lettering's measurements depend on: the hash of `parts` as canonical JSON
+ * (canonicalJson), so a request is one key whatever order its keys were written in, as the pins
+ * compare it (pinnedFor).
+ */
+export const measurementKey = (...parts: unknown[]): string => hash(canonicalJson(parts));
 /**
  * The faces a scene may ask for, each cut as a file in the font cache that
  * tools/lettering-outline-fonts.sh fills, with the file holding its licence
@@ -142,7 +149,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
     return { Scene: bindLettering(Source, snapshot), snapshot,
       get measurementHash() {
         if (!snapshot.fontInputs) throw new Error(`scene.lettering.json: it has no natural diagram font identity; run rayner snapshots ${file}`);
-        return hash(JSON.stringify([snapshot.builderHash, snapshot.shaper, snapshot.request, snapshot.fontInputs]));
+        return measurementKey(snapshot.builderHash, snapshot.shaper, snapshot.request, snapshot.fontInputs);
       }, async finish() {} };
   }
   const folder = resolve(process.env.RAYNER_LETTERING_FONTS ?? join(root, 'out/lettering-fonts'));
@@ -301,7 +308,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
       for (const family of ['sans', 'mono'] as const)
         for (const cut of ['', ...requestCuts(request)] as LetteringCut[]) chainOf(family, cut);
       snapshot.fontInputs = inKeyOrder(Object.fromEntries([...fonts].map(([name, face]) => [name, face.hash])));
-      return hash(JSON.stringify([snapshot.builderHash, snapshot.shaper, snapshot.request, snapshot.fontInputs]));
+      return measurementKey(snapshot.builderHash, snapshot.shaper, snapshot.request, snapshot.fontInputs);
     },
     async finish() {
       for (const [name, face] of fonts) if (face.license) {

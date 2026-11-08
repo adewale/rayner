@@ -5,7 +5,7 @@ import { describesItself, seenSource } from '../../explain/look.ts';
 import { restingRouteProblems } from './explain-layout.ts';
 import { letteringWeight } from './lettering.ts';
 import { sceneEntry } from './scene-entry.ts';
-import { isHeading } from '../../explain/stage.ts';
+import { isHeading, withoutHeading } from '../../explain/stage.ts';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
@@ -384,10 +384,7 @@ export class RestingSink implements Sink {
   async frame(): Promise<void> {}
   async stepEnd(scene: Scene, step: Step): Promise<void> {
     // The resting picture of a step, without the heading (number, title, line) that names it.
-    const all = scene.mobjects;
-    scene.mobjects = all.filter((m) => !isHeading(m));
-    this.resting.set(step.path, toSvgString(scene));
-    scene.mobjects = all;
+    this.resting.set(step.path, withoutHeading(scene, () => toSvgString(scene)));
     this.restingText.set(step.path, renderText(scene));
     this.collisions.push(
       ...[...restingTextProblems(scene), ...restingRouteProblems(scene)].map((p) => `${step.name}: ${p}`),
