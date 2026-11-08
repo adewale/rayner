@@ -113,8 +113,9 @@ abstract class AnimationTiming {
     return this;
   }
 
-  /** A guarded call or hook assigned on the instance (a class field, Object.assign) would skip or replace the guard. */
+  /** A guarded call defined on the instance (a class field, Object.assign) would shadow the guard; a hook may be. */
   #refuseOwnLifecycle(api: string): void {
+    if (!Object.hasOwn(this, 'begin') && !Object.hasOwn(this, 'interpolate') && !Object.hasOwn(this, 'finish')) return;
     for (const [call, hook] of Object.entries(LIFECYCLE))
       if (Object.hasOwn(this, call)) throw new TypeError(`${api}: ${animationName(this)} defines ${call} on itself, a class field or an assignment, which skips the phase it keeps; override ${hook}() instead`);
   }

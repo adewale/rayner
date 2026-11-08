@@ -277,7 +277,7 @@ export class Collection extends Scene<CollectionModel> {
     parts.add(new DecimalNumber(3.14, { decimals: 2 }), 'pi');
     parts.add(new ItalicText('aside'), 'aside');
     const picture: Group = parts.group();
-    const shapes: Mobject[] = picture.children;
+    const shapes: readonly Mobject[] = picture.children;
     const path: VMobject = new Circle({ radius: 1 });
     const style: Style = { stroke: s.look.emphasis };
     path.setStyle(style);
