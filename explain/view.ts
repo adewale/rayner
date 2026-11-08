@@ -52,6 +52,9 @@ export interface SyncOpts {
   staged?: boolean;
 }
 
+/** What fitting a freshly built picture gives (see View.measure): its unplaced size, and the scale it was given. */
+interface ViewFit { size: [number, number]; scale: number }
+
 /**
  * A picture rebuilt from state. `current` is the picture on screen; the View
  * itself is what scenes hold, add, group and lay out, and it keeps its identity
@@ -66,7 +69,7 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
   /** The scene whose `shown` a placed or rebuilt picture reads. */
   private host: Scene<S, Sh>;
   place: ViewPlace | false;
-  /** @internal Unplaced build size [w, h] used as the scale basis; a returning sync restores the retained picture’s basis. */
+  /** @internal Unplaced build size [w, h] of the picture on screen, the scale basis: recorded when the View takes a picture (see commit). */
   builtSize: [number, number];
   /** @internal The scale the last sync applied: kept while the measured one only differs from it in the last bits. */
   scaleK: number;
@@ -119,41 +122,46 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
    * View will land.
    */
   placed(state: S, shown: Sh = this.host.shown): M {
-    const keep = [this.builtSize, this.scaleK] as const;
-    const next = this.fit(fresh(paintedFor(this.host, this.draw(state, shown)), this.current));
-    [this.builtSize, this.scaleK] = keep;
-    return next;
+    return this.measure(fresh(paintedFor(this.host, this.draw(state, shown)), this.current)).picture;
   }
 
   /** Rebuild now, without animating: for a View not on screen yet (on screen it would jump). */
   rebuild(): this {
-    const next = this.fit(fresh(this.build(), this.current));
-    this.swap(next);
+    const { picture, fit } = this.measure(fresh(this.build(), this.current));
+    this.commit(fit);
+    this.swap(picture);
     return this;
   }
 
   /**
-   * @internal Scale and move a freshly built picture to where the current one is: same
-   * anchor point, and the scale the View has been given since the last build
-   * (uniform scale only; a rotation is not carried). Records its built size.
+   * @internal Where a freshly built picture goes, without changing the View: `next` scaled and moved
+   * to where the current picture is (same anchor point, and the scale the View has been given
+   * since the last build; uniform scale only, a rotation is not carried), and the fit the View
+   * records once it takes the picture (see commit).
    */
-  fit(next: M): M {
+  measure(next: M): { picture: M; fit: ViewFit } {
     const size = layoutSize(next);
+    let scale = this.scaleK;
     if (this.place !== false) {
       const old = this.current, cur = layoutSize(old), was = this.builtSize;
       // Height decides (text keeps its height as it grows); width for a flat picture
-      const measured = was[1] > 1e-9 && cur[1] > 1e-9 ? cur[1] / was[1] : was[0] > 1e-9 && cur[0] > 1e-9 ? cur[0] / was[0] : this.scaleK;
+      const measured = was[1] > 1e-9 && cur[1] > 1e-9 ? cur[1] / was[1] : was[0] > 1e-9 && cur[0] > 1e-9 ? cur[0] / was[0] : scale;
       // A shift moves Float32 points by an ulp: only a real change of scale counts
-      if (Math.abs(measured - this.scaleK) > 1e-6 * this.scaleK) this.scaleK = measured;
+      if (Math.abs(measured - scale) > 1e-6 * scale) scale = measured;
       const at = anchorOf(old, this.place);
       if (at) {
-        if (this.scaleK !== 1) next.scale(this.scaleK, { aboutPoint: anchorOf(next, this.place) ?? [0, 0] });
+        if (scale !== 1) next.scale(scale, { aboutPoint: anchorOf(next, this.place) ?? [0, 0] });
         const now = anchorOf(next, this.place);
         if (now) next.shift([at[0] - now[0], at[1] - now[1]]);
       }
     }
-    this.builtSize = size;
-    return next;
+    return { picture: next, fit: { size, scale } };
+  }
+
+  /** @internal Record the fit of a measured picture the View takes: its built size, and the scale it was given. */
+  commit(fit: ViewFit): void {
+    this.builtSize = fit.size;
+    this.scaleK = fit.scale;
   }
 
   /** @internal Make `next` the picture, in the old one's place among the children. */
@@ -181,8 +189,8 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
   inner!: Animation | null;
   /** Set by begin(): the built, placed picture, swapped in at finish(). */
   private next!: M | null;
-  private previousSize!: [number, number];
-  private previousScale!: number;
+  /** Set by begin(): the built picture's fit, which the View records only once it takes the picture. */
+  private fit!: ViewFit;
 
   constructor(v: View<M, any, any>, { match = 'key', staged = true, ...opts }: SyncOpts = {}) {
     super(v, opts);
@@ -191,10 +199,9 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
 
   override begin(): void {
     const v = this.view, old = v.current;
-    this.previousSize = v.builtSize;
-    this.previousScale = v.scaleK;
-    const next = v.fit(fresh(v.build(), old));
-    if (samePicture(old, next)) { this.inner = null; this.next = null; return; }
+    const { picture: next, fit } = v.measure(fresh(v.build(), old));
+    this.fit = fit;
+    if (samePicture(old, next)) { v.commit(fit); this.inner = null; this.next = null; return; }
     const match = this.match;
     if (match === 'key' && !keyed(old) && !keyed(next)) throw new Error(`view.sync(): ${v.key !== undefined ? `the view ${JSON.stringify(v.key)}'s` : 'the'} pictures carry no keys below their roots, so key matching pairs nothing; give the draw's parts keys (a card's or panel's \`key\` option, or \`part.key = '…'\`), or pass { match: 'text' }, 'shapes' or 'index'`);
     // replace: false everywhere: the View, not the scene, takes the new picture (see finish)
@@ -219,11 +226,9 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
     // Landed on the new picture: hand over to it (a matching transform leaves faded
     // parts inside the old one, a Transform leaves it aligned). A rate function that
     // comes back leaves the old picture: the View did not sync.
-    if (end === 1) this.view.swap(this.next!);
-    else {
-      // The fitted target was discarded; keep the scale basis of the retained child.
-      this.view.builtSize = this.previousSize;
-      this.view.scaleK = this.previousScale;
+    if (end === 1) {
+      this.view.commit(this.fit);
+      this.view.swap(this.next!);
     }
   }
 
