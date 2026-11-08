@@ -3,30 +3,35 @@
 // capturing, cutting lettering or checking. The snapshot folder's format is read here once, and
 // the command's tools (tools/lib/explain-project.ts) read it through readSnapshotStore too.
 import type { SnapshotStore } from '../integrations/agentic-mermaid/snapshot.ts';
-import type { SceneClass } from '../src/scene.ts';
+import type { SceneClass, SceneState } from '../src/scene.ts';
 import { traceScene } from '../src/trace.ts';
-import type { Trace } from '../src/trace.ts';
+import type { Trace, TraceOf } from '../src/trace.ts';
 import { withIntent } from './intent.ts';
 import { bindSnapshots, checkExplainerMeta, resolveSettings, scenariosOf, withSettings } from './settings.ts';
 import type { ExplainerClass, Settings } from './settings.ts';
 
-/** One scenario of a loaded explainer: its setting values, the scene bound to them and its snapshots, and its trace. */
-export interface LoadedScenario {
+/**
+ * One scenario of a loaded explainer: its setting values, the scene bound to them and its
+ * snapshots, and its trace, whose states are typed `S` and `Sh` as Trace's are.
+ */
+export interface LoadedScenario<S extends object = SceneState, Sh extends object = SceneState> {
   values: Settings;
   Scene: ExplainerClass;
-  trace: Trace;
+  trace: Trace<S, Sh>;
 }
-/** An explainer as `loadProject` loads it. */
-export interface LoadedProject {
+/** An explainer as `loadProject` loads it, its traces typed `S` and `Sh` as Trace's are. */
+export interface LoadedProject<S extends object = SceneState, Sh extends object = SceneState> {
   /** The scene class, with the intent of the script beside it adopted. */
   Scene: ExplainerClass;
   /** The pinned diagram snapshots from `scene.snapshots/` (empty for a scene with no diagrams). */
   snapshots: SnapshotStore;
   /** Every scenario of the scene's settings, in `scenariosOf` order. */
-  scenarios: LoadedScenario[];
+  scenarios: LoadedScenario<S, Sh>[];
   /** The scenario these values choose, every other setting at its default, as a page link chooses one. */
-  scenario(values?: Settings): LoadedScenario;
+  scenario(values?: Settings): LoadedScenario<S, Sh>;
 }
+/** The project loadProject loads for scene class `C`, typed from the `Scene<S, Sh>` it extends. */
+type ProjectOf<C> = TraceOf<C> extends Trace<infer S, infer Sh> ? LoadedProject<S, Sh> : never;
 
 /**
  * The pinned diagram snapshots of the scene at `where`: a scene file, or a folder holding
@@ -52,7 +57,7 @@ export async function loadSnapshots(where: string): Promise<SnapshotStore> {
  *     const project = await loadProject(Explainer, import.meta.dirname);
  *     for (const { values, trace } of project.scenarios) check(trace, values);
  */
-export async function loadProject(Explainer: SceneClass, where: string): Promise<LoadedProject> {
+export async function loadProject<C extends SceneClass>(Explainer: C, where: string): Promise<ProjectOf<C>> {
   const Scene = Explainer as ExplainerClass,
     read = nodeReader(),
     file = sceneFile(where);
@@ -73,7 +78,7 @@ export async function loadProject(Explainer: SceneClass, where: string): Promise
     const Bound = withSettings(bindSnapshots(Scene, snapshots), values);
     scenarios.push({ values, Scene: Bound, trace: await traceScene(Bound) });
   }
-  return {
+  const project: LoadedProject = {
     Scene,
     snapshots,
     scenarios,
@@ -84,6 +89,8 @@ export async function loadProject(Explainer: SceneClass, where: string): Promise
       return found;
     },
   };
+  // Each trace holds the states the scene class declares, which stateJson() validated as JSON.
+  return project as ProjectOf<C>;
 }
 
 /**

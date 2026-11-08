@@ -7,9 +7,14 @@
 // traces hash as they did before the channel existed.
 
 import type { Evidence, Scene, SceneClass, SceneOptions, SceneState, Sink, Step, StepMeta } from './scene.ts';
+import type { Jsonified } from './json.ts';
 
-/** One step of a trace: what traceScene() returns per step. */
-export interface StepRecord {
+/**
+ * One step of a trace: what traceScene() returns per step. `S` and `Sh` are the types of the model
+ * and of what is shown as the trace records them: `Jsonified` of the scene's own (`Scene<S, Sh>`),
+ * which TraceOf gives. Untyped, both are JSON records.
+ */
+export interface StepRecord<S extends object = SceneState, Sh extends object = SceneState> {
   step: string;
   t0: number; frame0: number;
   t1?: number; frame1?: number;
@@ -17,21 +22,33 @@ export interface StepRecord {
   hold?: number;
   meta: StepMeta;
   /** The model when the step began and when it ended (Scene.stateJson). */
-  before: SceneState;
-  after?: SceneState;
+  before: S;
+  after?: S;
   /** What was shown when the step ended, apart from the model (Scene.shownJson); absent when nothing was. */
-  shown?: SceneState;
+  shown?: Sh;
   /** What the step recorded with Scene.record(), when it recorded anything. */
   evidence?: Evidence[];
 }
 
-/** A trace: the scene's timing and its state at every step boundary. */
-export interface Trace {
+/** A trace: the scene's timing and its state at every step boundary, typed as StepRecord is. */
+export interface Trace<S extends object = SceneState, Sh extends object = SceneState> {
   fps: number;
   duration: number;
   frames: number;
-  steps: StepRecord[];
+  steps: StepRecord<S, Sh>[];
 }
+
+/**
+ * The trace of a scene class (or of a scene), typed from the `Scene<S, Sh>` it extends: what
+ * traceScene() returns for it, and what a test handed such a trace declares,
+ * `trace: TraceOf<typeof Explainer>`. Its states are `Jsonified<S>`; what is shown is
+ * `Jsonified<Sh>` with whatever helpers add to it (the stage's `picture`), so a key `Sh` does not
+ * name reads as `unknown` (a shown type that is already a JSON record is taken as it is). An
+ * untyped scene, or `any`, gives a plain Trace.
+ */
+export type TraceOf<C> = 0 extends 1 & C ? Trace
+  : (C extends abstract new (...args: never) => infer I ? I : C) extends Scene<infer S, infer Sh> ? Trace<Jsonified<S>, string extends keyof Sh ? Jsonified<Sh> : Jsonified<Sh> & SceneState>
+  : Trace;
 
 type TraceEvent =
   | { step: string; phase: 'begin'; t: number; frame: number; meta: StepMeta; state: SceneState }
@@ -63,9 +80,12 @@ export class TraceSink implements Sink {
 
 const round = (x: number): number => Math.round(x * 1000) / 1000;
 
-/** Run a scene and return its trace: { fps, duration, frames, steps }. */
-export async function traceScene(SceneClass: SceneClass, opts: SceneOptions = {}): Promise<Trace> {
-  return (await traceRun(SceneClass, opts)).trace;
+/**
+ * Run a scene and return its trace: { fps, duration, frames, steps }, its states typed as the
+ * scene class declares them (TraceOf). stateJson() and shownJson() validate every state as JSON.
+ */
+export async function traceScene<C extends SceneClass>(SceneClass: C, opts: SceneOptions = {}): Promise<TraceOf<C>> {
+  return (await traceRun(SceneClass, opts)).trace as TraceOf<C>;
 }
 
 /** traceScene, with the scene as the run left it, for a caller that reads its final state too. */

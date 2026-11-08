@@ -153,12 +153,15 @@ export function settingsOf(scene: Scene): Settings {
   return resolveSettings(scene.constructor as ExplainerClass);
 }
 
-/** Bind without mutating the source class or sharing state between readers. */
-export function withSettings(Source: ExplainerClass, values: Settings = {}): ExplainerClass {
+/**
+ * Bind without mutating the source class or sharing state between readers. The bound class is
+ * typed as the source, so its trace is typed as the source's (TraceOf).
+ */
+export function withSettings<C extends ExplainerClass>(Source: C, values: Settings = {}): C {
   const settings = resolveSettings(Source, values);
-  const Bound = class extends Source {};
+  const Bound = class extends (Source as ExplainerClass) {};
   bound.set(Bound, settings);
-  return Bound;
+  return Bound as C;
 }
 
 /**
@@ -185,13 +188,16 @@ export function scenariosOf(Scene: ExplainerClass, limit = 64): Settings[] {
   return scenarios;
 }
 
-/** A subclass whose diagrams come from `source`: pinned snapshots, or a resolver that captures them. */
-export function bindSnapshots(Source: ExplainerClass, source: SnapshotStore | DiagramResolver): ExplainerClass {
+/**
+ * A subclass whose diagrams come from `source`: pinned snapshots, or a resolver that captures them.
+ * It is typed as the source, as withSettings' is.
+ */
+export function bindSnapshots<C extends ExplainerClass>(Source: C, source: SnapshotStore | DiagramResolver): C {
   const resolver = typeof source.diagram === 'function' ? (source as DiagramResolver) : snapshotResolver(source as SnapshotStore);
-  return class extends Source {
+  return class extends (Source as ExplainerClass) {
     constructor(...args: ConstructorParameters<SceneClass>) {
       super(...args);
       useDiagrams(this, resolver);
     }
-  };
+  } as C;
 }

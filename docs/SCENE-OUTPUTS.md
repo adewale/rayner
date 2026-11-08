@@ -116,7 +116,7 @@ step exists before sampling.
 fixed frame grid. A time past the end returns the final frame. It runs the scene into a
 `SeekSink(target, t, { stopAfterFirst })`, which hands its `target` only the frames from `t` on
 (`forwarded` counts them) and, with `stopAfterFirst`, stops the run after the first. `traceScene` returns a `Trace`,
-`{ fps, duration, frames, steps }`, recording the model before and after each step and what was shown at its end, not every
+`{ fps, duration, frames, steps }`, typed from the scene class ([typed traces](REFERENCE.md#typed-traces)), recording the model before and after each step and what was shown at its end, not every
 intermediate value; call `scene.stateJson()` at chosen sample times for those. It runs the
 scene into a `TraceSink`, whose `steps()` are those records: hand one to a run of your own to
 trace it beside other output.

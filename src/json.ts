@@ -2,6 +2,22 @@
 export type JsonValue = null | boolean | number | string | JsonValue[] | JsonObject;
 export interface JsonObject { [key: string]: JsonValue }
 
+/**
+ * `T` as `jsonObject()` copies it, and so as a trace records a scene's state: strings, numbers,
+ * booleans and null stay; arrays and objects map their items and fields; functions, symbols,
+ * bigints and undefined array items, which the copy refuses, are `never`. An object field that may
+ * be undefined stays so, since the copy omits it. A JSON-safe type (a scene's model, say) maps to
+ * itself, and `unknown` and `any` stay as they are.
+ */
+export type Jsonified<T> =
+  unknown extends T ? T
+  : T extends string | number | boolean | null ? T
+  : T extends readonly unknown[] ? { [K in keyof T]: Jsonified<T[K]> }
+  : T extends (...args: never) => unknown ? never
+  : T extends object ? { [K in keyof T]: JsonField<T[K]> }
+  : never;
+type JsonField<T> = T extends undefined ? undefined : Jsonified<T>;
+
 /** Clone JSON data without silently replacing invalid numbers or dropping functions.
  * Undefined object fields are omitted; undefined array items and holes are refused. `name` is
  * the value's name in an error message. */

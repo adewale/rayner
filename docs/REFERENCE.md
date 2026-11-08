@@ -80,7 +80,7 @@ export default class Bucket extends Scene<Tokens, { lit?: string | null }> {
 - The state starts empty (`{}`) until the scene sets it, so set it before a view reads it (or initialise it, `override state = …`).
 - A scene whose state changes shape by phase types it honestly: a union of the shapes (a discriminant such as `phase`, or keys only one shape has), or one record whose per-phase parts are optional. A draw of one phase narrows with a check of its own, or with `having(state, ...keys)` from `rayner/explain`, which returns the state typed as the shapes that hold those keys (optional parts made present) and throws a `TypeError` for a state that lacks one. The same works for an optional part of what is shown: `having(sh, 'flow').flow`. `rayner check` draws every view from other steps' states and counts a draw that throws on a state of another shape as one that reads its state ([checks](#checks)), so a narrowing that throws is what it expects.
 - A machine's state type is the scene's model type. A machine that drives one phase of a union narrows in `next` and in its transitions: `next: (st, e) => roundNext(having(st, 'pick'), e)`.
-- `s.steps([...])` types each step from its own `state`, so one list holds steps whose states differ. A step's state is the scene's state while the step shows, not the scene's declared model type: a scene that reads `this.state` after its steps sets it first. Write the list in the call, where each draw is typed; a list built elsewhere gives each step its type, `StagedStep<Shift>`, or (with named draw functions) is a tuple, `[...] as const`.
+- `s.steps([...])` types each step from its own `state`, so one list holds steps whose states differ. A step's state is the scene's state while the step shows, not the scene's declared model type: a scene that reads `this.state` after its steps sets it first. A trace types every step's state as the model type ([typed traces](#typed-traces)), so a scene whose tests read a staged step's state includes that state's shape in its model. Write the list in the call, where each draw is typed; a list built elsewhere gives each step its type, `StagedStep<Shift>`, or (with named draw functions) is a tuple, `[...] as const`.
 - Type a helper a draw calls with the model type, not `SceneState`: an interface is not assignable to a JSON record.
 - `settingsOf(this)` returns a `Settings`, `Readonly<Record<string, string>>`; TypeScript gives an instance no link to its class's `static settings`, so a setting's options are not in its type.
 - Which way to change the state (assign it and sync, a machine, `s.steps`, a tween or an authored transition) depends on when the change happens and what decides it: [changing what is shown](VIEWS.md#changing-what-is-shown) has the table.
@@ -579,7 +579,7 @@ The package has an entry point per audience. A scene is written with `rayner` (t
 | `renderAt`, `indexScene`, `stepTime`, `SeekSink`, `NullSink` | `rayner/output` | The scene at one time or step, without drawing the frames before it | [Scene outputs](SCENE-OUTPUTS.md#time-and-step-semantics) |
 | `SnapshotSink`, `StringSink`, `toSvgString`, `renderElements`, `renderText`, `DomSink` | `rayner/output` | One SVG frame, every frame, element records, a text drawing, the live DOM | [Scene outputs](SCENE-OUTPUTS.md#public-output-apis) |
 | `StopScene` | `rayner/output` | What a sink throws to stop a run (a seek does); a `catch` must rethrow it | [Fundamentals](ENGINE-FUNDAMENTALS.md#updaters-derived-pictures-and-seeking) |
-| `traceScene`, `TraceSink` | `rayner/testing` | Every step's timing, state before and after, `shown` and evidence, in one run | [Scene outputs](SCENE-OUTPUTS.md), [fundamentals](ENGINE-FUNDAMENTALS.md#steps-state-and-evidence) |
+| `traceScene`, `TraceSink` | `rayner/testing` | Every step's timing, state before and after, `shown` and evidence, in one run, typed from the scene class (`TraceOf`, `Jsonified`) | [Scene outputs](SCENE-OUTPUTS.md), [fundamentals](ENGINE-FUNDAMENTALS.md#steps-state-and-evidence), [typed traces](#typed-traces) |
 | `InvariantSink`, `MotionSink`, `analyzeMotion` | `rayner/testing` | Check every frame against the scene's invariants, and motion for pops, cuts and teleports, in a test | [Testing](TESTING.md), [invariants](EXTENDING.md#hold-an-invariant-on-every-frame) |
 | `viewMismatch`, `machinesOf` | `rayner/testing` | Whether a view shows the state it claims; a scene's machines, to drive or explore from a test | [Views](VIEWS.md), [machines](MACHINES.md) |
 | `loadFonts`, `takeMissingGlyphs` | `rayner/testing` | Load the embedded fonts before drawing text outside a scene's run; the characters drawn with no glyph | [Scene](#scene) |
@@ -589,7 +589,7 @@ The package has an entry point per audience. A scene is written with `rayner` (t
 | `scenariosOf`, `withSettings`, `scenarioName` | `rayner/testing` | Every scenario, a class bound to one, and its name | [Settings](#settings) |
 | `withIntent` | `rayner/testing` | A scene class with its script's intent adopted, for a test that runs it directly | [Scene](#scene) |
 | `bindSnapshots` | `rayner/testing` | Run a scene with diagrams outside the CLI, from its pinned snapshots | [Describe](#describe) |
-| `loadProject`, `loadSnapshots` | `rayner/testing` | An explainer loaded from its folder, as the command runs it: its script's intent, its pinned snapshots and every scenario's trace; or its pinned snapshots alone | [An explainer's test](#an-explainers-test) |
+| `loadProject`, `loadSnapshots` | `rayner/testing` | An explainer loaded from its folder, as the command runs it: its script's intent, its pinned snapshots and every scenario's typed trace; or its pinned snapshots alone | [An explainer's test](#an-explainers-test) |
 | `pictureWordsAt` | `rayner/testing` | A step's picture in words, as the stage's description, the player's list and the page's transcript say it | [An explainer's test](#an-explainers-test) |
 | `diagramFindings` | `rayner/testing` | A pinned snapshot's verifier warnings, each with the part it names, as `d.findings()` gives them | [Diagrams](#diagrams) |
 
@@ -616,6 +616,27 @@ test('every scenario says what the model computed', async () => {
 ```
 
 `loadProject(Scene, where)` takes the scene class and its file, or the folder holding `scene.ts`. It adopts the intent of the `script.md` beside the scene, gives the scene its folder's name as `meta.id` when it declares none, reads `scene.snapshots/`, and traces every scenario in `scenariosOf` order against those snapshots. It returns a `LoadedProject`, `{ Scene, snapshots, scenarios, scenario(values?) }`: each scenario is a `LoadedScenario`, `{ values, Scene, trace }`, its `Scene` bound to its values and the snapshots, and `scenario(values)` is the scenario those values choose with every other setting at its default, as a page link chooses one. It captures nothing: a diagram with no pinned snapshot fails, so run `rayner snapshots` first. It runs none of the checks, which are `rayner check`'s. It cuts no lettering, so it refuses a scene with `meta.lettering`, which only the command can run. `loadSnapshots(where)` reads the pinned snapshots alone, for a test that builds or inspects one diagram. Both read files, so they run under Node.
+
+#### Typed traces
+
+A trace is typed from the scene class: `traceScene(Explainer)` returns a `TraceOf<typeof Explainer>`, and `loadProject(Explainer, where)` a project whose every trace is one. For `class Explainer extends Scene<S, Sh>` that is a `Trace<Jsonified<S>, Jsonified<Sh> & SceneState>`, so `trace.steps[i].after` reads as the model type and `shown` as the shown type, with what helpers add to it (the stage's `picture`) as `unknown`. `Jsonified<T>` is `T` as the trace's JSON copy holds it: strings, numbers, booleans and null stay, arrays and objects map their items and fields, an object field that may be undefined stays optional, and functions, symbols and bigints are `never`. A JSON-safe model type maps to itself, so a trace's state goes wherever the model's type does. An untyped scene, or a class typed `any` (a dynamic import), gives a plain `Trace`, whose states are JSON records. `withSettings` and `bindSnapshots` return the class typed as the one they bind, so `traceScene(withSettings(Explainer, values))` is typed as well.
+
+```ts
+import { having } from 'rayner/explain';
+import { loadProject } from 'rayner/testing';
+import type { TraceOf } from 'rayner/testing';
+import Explainer from './scene.ts';
+
+/** A check handed a trace declares its type from the scene. */
+export function check(trace: TraceOf<typeof Explainer>) {
+  const { log } = having(trace.steps.at(-1)!.after!, 'log');   // the race's shape of a union model
+  return log;
+}
+const { trace } = (await loadProject(Explainer, import.meta.dirname)).scenario();
+check(trace);
+```
+
+A trace types every step's state as the scene's model. A step `s.steps` shows records its own state, which the model type covers only when the scene declares it: a union of its shapes, or one record whose per-step parts are optional ([typed state](#typed-state-and-shown)). A test reads a union's shape, or an optional part, with `having(state, ...keys)`, which throws for a state that lacks one. A test that reads a staged step's state outside the declared model reads a plain `Trace` instead.
 
 `pictureWordsAt(trace, step)` gives the picture at the end of the named step in words, as a `PictureWords`, `{ summary, full, transcript }`: `summary` is the stage's accessible description (what is shown, what is emphasised, what is new), `full` is everything shown as the player lists it, each thing's emphasised parts first, and `transcript` is `full` as the page's transcript reads it, where a thing whose parts are as in the previous step lists only its emphasis. Each is plain text. A step name the trace does not have throws.
 

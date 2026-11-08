@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import { pictureWordsAt } from '../../../explain/testing.ts';
-import type { Trace } from '../../../explain/testing.ts';
+import type { TraceOf } from '../../../explain/testing.ts';
+import { having } from '../../../explain/index.ts';
+import type MermaidExplainer from './scene.ts';
 import { assertStepState } from '../../../test/lib/explainer-state.ts';
 import type { FidelityRun } from '../../../test/lib/fidelity.ts';
 
 /** Each authored scenario's steps against the program the explainer explains. */
-export async function check(trace: Trace, values: Record<string, string>, { scenario }: FidelityRun): Promise<void> {
-  const warnings = trace.steps.find((s) => s.step === 'verify')!.after!.warnings as unknown[];
+export async function check(trace: TraceOf<typeof MermaidExplainer>, values: Record<string, string>, { scenario }: FidelityRun): Promise<void> {
+  const { warnings } = having(trace.steps.find((s) => s.step === 'verify')!.after!, 'warnings');
   assert.equal(warnings.length, values.edit === 'missing' ? 2 : 0);
   // The swapped labels draw the wrong diagram and the verifier still finds nothing.
   assertStepState(trace, 'meaning', { swappedWarnings: 0 });

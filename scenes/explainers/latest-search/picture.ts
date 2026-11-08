@@ -141,11 +141,13 @@ export function raceWords(st: RaceState): string {
 /** A step a machine plays: its words; its state and picture are the race's. */
 export interface RaceStep { id: string; title: string; line: string; caption: string }
 /** The opening race's state: the completion order and each search's lifetime. */
-type RaceIntro = { order: CompletionOrder; completion: Query[]; lifetimes: Lifetime[] };
+export type RaceIntro = { order: CompletionOrder; completion: Query[]; lifetimes: Lifetime[] };
 /** The tickets step's state: each search's ticket, and the latest. */
-type Tickets = { tickets: Record<Query, number>; latest: number };
+export type Tickets = { tickets: Record<Query, number>; latest: number };
 /** A decision's state: the result that lands, its ticket against the latest, and each rule's page after it. */
-type Decision = { query: Query; ticket: number; latest: number; accepted: boolean; off: SearchSnapshot; on: SearchSnapshot };
+export type Decision = { query: Query; ticket: number; latest: number; accepted: boolean; off: SearchSnapshot; on: SearchSnapshot };
+/** The scene's state at each step: a staged step's own, or the race a machine plays. */
+export type LatestSearchState = RaceIntro | RaceState | Tickets | Decision;
 
 /**
  * The story: the race (staged), the unguarded race played by its machine, the ticket and the two
