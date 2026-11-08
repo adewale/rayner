@@ -38,6 +38,21 @@ export function shippedStore(store: SnapshotStore): SnapshotStore {
   return out;
 }
 
+/** The outline lettering a page ships (pageSnapshot), computed once per snapshot. */
+function shippedOutlines(project: Project): Promise<PackedLetteringSnapshot> | undefined {
+  if (!project.outlineLettering) return undefined;
+  let outline = shippedLettering.get(project.outlineLettering);
+  if (!outline) shippedLettering.set(project.outlineLettering, (outline = pageSnapshot(project.outlineLettering)));
+  return outline;
+}
+/**
+ * Whether the page decodes a font of its own at run time: a subset-lettered scene's cuts, or the
+ * faces outline lettering shapes counters with. A page that decodes none needs only the embedded faces.
+ */
+export async function decodesFaces(project: Project): Promise<boolean> {
+  return !!project.lettering || Object.keys((await shippedOutlines(project))?.faces ?? {}).length > 0;
+}
+
 /**
  * The entry for `target`. The author's class takes the script's intent first, as the tools
  * adopted it (collectProject ran adoptIntent, which checks that the scene does not declare
@@ -47,11 +62,7 @@ export function shippedStore(store: SnapshotStore): SnapshotStore {
  */
 export async function sceneEntry(project: Project, entry: PageEntry | BareEntry): Promise<string> {
   const lib = (path: string) => JSON.stringify(join(LIB_ROOT, path));
-  let outline: Promise<PackedLetteringSnapshot> | undefined;
-  if (project.outlineLettering) {
-    outline = shippedLettering.get(project.outlineLettering);
-    if (!outline) shippedLettering.set(project.outlineLettering, (outline = pageSnapshot(project.outlineLettering)));
-  }
+  const outline = shippedOutlines(project);
   const author = entry.target === 'page'
     ? `import Original from 'virtual:author';`
     : `import * as authored from ${JSON.stringify(project.file)};const Original=authored[${JSON.stringify(project.exportName)}];`;

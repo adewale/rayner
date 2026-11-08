@@ -85,3 +85,16 @@ test('the SVG writer writes a straight segment as L and a curve as C', () => {
   assert.equal(cubic(0.001), 'M0 0L3000 0');
   assert.equal(cubic(0.002), 'M0 0C1000 -2 2000 0 3000 0');
 });
+
+test('a page whose lettering decodes no face of its own ships SFNT faces and no Brotli decoder', async () => {
+  const out = await mkdtemp(join(tmpdir(), 'rayner-page-fonts-'));
+  try {
+    // feature-tour asks for maths alone: outlines, and no face for the page to decode.
+    const project = await collectProject(join(ROOT, 'scenes/explainers/feature-tour/scene.ts'), { write: false });
+    assert.ok(project.outlineLettering);
+    const { html } = await buildExplainer(project, join(out, 'page.html'));
+    assert.ok(!html.includes('large-window brotli'), 'no Brotli decoder');
+  } finally {
+    await rm(out, { recursive: true, force: true });
+  }
+});
