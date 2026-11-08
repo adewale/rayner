@@ -8,7 +8,6 @@ import { renderAt, toSvgString } from '../../src/output.ts';
 import type { Scene, Sink } from '../../src/index.ts';
 import { describeScenario } from '../../explain/describe.ts';
 import type { ScenarioDescription } from '../../explain/describe.ts';
-import { restingTime } from '../../explain/trace.ts';
 import type { Project } from './explain-project.ts';
 
 type Scenario = Project['scenarios'][number];
@@ -51,7 +50,7 @@ export async function seeStep(project: Project, v: Scenario, step?: string): Pro
 export async function stepSvg(v: Scenario, step?: string): Promise<string> {
   const s = step == null ? v.trace.steps.at(-1)! : v.trace.steps.find((x) => x.step === step)!;
   const sink: Sink = { async frame() {} };
-  const scene: Scene = await renderAt(v.Scene, restingTime(s, v.trace.fps), sink);
+  const scene: Scene = await renderAt(v.Scene, s.restFrame! / v.trace.fps, sink);
   scene.mobjects = scene.mobjects.filter((m) => !isHeading(m));
   return toSvgString(scene);
 }

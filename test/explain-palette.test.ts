@@ -4,7 +4,6 @@ import { paletteOf, palettePng } from '../tools/lib/explain-palette.ts';
 import { cardPicture, cardPng } from '../tools/lib/explain-shots.ts';
 import { rasterize } from '../tools/lib/explain-raster.ts';
 import { collectProject, defaultScenario } from '../tools/lib/explain-project.ts';
-import { restingTime } from '../explain/trace.ts';
 
 /** A PNG's pixels as resvg decodes it, drawn 1:1. */
 async function decode(png: Buffer, width: number, height: number): Promise<Buffer> {
@@ -26,7 +25,7 @@ const colours = (rgba: Uint8Array) => {
 const project = await collectProject('scenes/explainers/wcag-map', { write: false }),
   scenario = defaultScenario(project),
   step = scenario.trace.steps.find((s) => s.step === 'open')!,
-  picture = await cardPicture(scenario.Scene, restingTime(step, scenario.trace.fps));
+  picture = await cardPicture(scenario.Scene, step.restFrame! / scenario.trace.fps);
 
 // Over all 175 step pictures, no channel of any pixel moved more than 11 levels (of 255); most
 // moved 2 or fewer. 16 leaves room for a scene change without letting a real regression through:
@@ -49,7 +48,7 @@ test('a step picture as a palette PNG: the same bytes every time, under 60% of t
 });
 
 test('demos:build writes the step pictures as palette PNGs', async () => {
-  const png = await cardPng(scenario.Scene, restingTime(step, scenario.trace.fps));
+  const png = await cardPng(scenario.Scene, step.restFrame! / scenario.trace.fps);
   assert.equal(png[25], 3, 'PNG colour type 3: palette');
   assert.deepEqual(png, palettePng(picture.pixels, picture.width, picture.height));
 });

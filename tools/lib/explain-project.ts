@@ -369,6 +369,10 @@ export async function collectProject(
         throw new Error(`this.step(): the scenario ${JSON.stringify(values)} has no step, or a step with an empty name; every scenario needs named steps`);
       if (new Set(names).size !== names.length)
         throw new Error(`this.step(): two steps of the scenario ${JSON.stringify(values)} share a name; name each step once, so each has its own link`);
+      // A step that draws no frame rests on the step before's last frame: a link would show that picture, the checks judge the next step's.
+      const still = trace.steps.find((s) => s.restFrame === s.frame0);
+      if (still)
+        throw new Error(`this.step(): step ${JSON.stringify(still.step)} of the scenario ${JSON.stringify(values)} draws no frame of its own, so it shows the step before's picture; play or wait in it, or give it a caption to hold`);
       // The page never draws these (offPage): they stay out of what it carries
       if (outline) await withSceneLettering(Bound, () => offPage(async () => {
         const { Text } = await import('../../src/index.ts');

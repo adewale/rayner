@@ -2,13 +2,13 @@
 // the state the scene recorded, what each step changed and its resting picture drawn as text.
 // One definition behind `rayner describe` and anything an agent imports; it runs the scene in
 // Node or a browser, with no Chromium, given the diagrams' pinned snapshots.
-import { renderAt, renderText } from '../src/output.ts';
+import { renderText } from '../src/output.ts';
 import { machinesOf } from './machine.ts';
 import { traceRun } from '../src/trace.ts';
-import type { Scene, SceneState, Sink } from '../src/index.ts';
+import type { Scene, SceneState } from '../src/index.ts';
 import { scenariosOf, withSettings, scenarioName, bindSnapshots } from './settings.ts';
 import type { ExplainerClass, Setting, Settings } from './settings.ts';
-import { pictureSummary, restingTime, stepWords, watchedChanges } from './trace.ts';
+import { pictureSummary, stepWords, watchedChanges } from './trace.ts';
 import type { WatchedChange } from './trace.ts';
 import { isHeading, paperOf } from './stage.ts';
 import type { SnapshotStore, DiagramResolver } from '../integrations/agentic-mermaid/snapshot.ts';
@@ -126,9 +126,13 @@ export async function describeExplainer(Scene: ExplainerClass, options: Describe
 export async function describeScenario(Scene: ExplainerClass, values: Settings, options: DescribeOptions = {}): Promise<ScenarioDescription> {
   const Source = options.snapshots ? bindSnapshots(Scene, options.snapshots) : Scene,
     Bound = withSettings(Source, values),
-    { trace, scene } = await traceRun(Bound),
-    paper = paperOf(scene),
     draw = options.drawings ?? true,
+    // Each step's picture as text, drawn as the step ends: every one from the run that traces it.
+    drawings = new Map<string, string>(),
+    { trace, scene } = await traceRun(Bound, {}, (ran, step) => {
+      if (draw === true || draw === step.path) drawings.set(step.path, drawing(ran));
+    }),
+    paper = paperOf(scene),
     steps: StepDescription[] = [];
   for (const s of trace.steps) {
     const before = s.before,
@@ -155,7 +159,8 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
     };
     const events = (s.evidence ?? []).filter((e) => e.kind === 'event').map((e) => String(e.event));
     if (events.length) d.events = events;
-    if (draw === true || draw === s.step) d.drawing = await drawing(Bound, restingTime(s, trace.fps));
+    const drawn = drawings.get(s.step);
+    if (drawn !== undefined) d.drawing = drawn;
     steps.push(d);
   }
   const invariants = [...scene.invariants.keys()];
@@ -180,10 +185,9 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
   };
 }
 
-/** The picture at `t` as text, without the heading that names the step, as `rayner check` draws it. */
-async function drawing(Bound: ExplainerClass, t: number): Promise<string> {
-  const sink: Sink = { async frame() {} };
-  const scene: Scene = await renderAt(Bound, t, sink);
-  scene.mobjects = scene.mobjects.filter((m) => !isHeading(m));
-  return renderText(scene);
+/** The scene's picture now as text, without the heading that names the step, as `rayner check` draws it. */
+function drawing(scene: Scene): string {
+  const all = scene.mobjects;
+  scene.mobjects = all.filter((m) => !isHeading(m));
+  try { return renderText(scene); } finally { scene.mobjects = all; }
 }
