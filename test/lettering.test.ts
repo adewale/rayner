@@ -174,13 +174,13 @@ test('a lettered explainer draws its Greek as outlines, and without its faces th
   const v = defaultScenario(project, { word: 'phos' });
   const step = v.trace.steps.find((s) => s.step === 'code')!;
   const sink = new SnapshotSink();
-  await renderAt(v.Scene, step.restFrame! / v.trace.fps, sink);
+  await renderAt(v.Scene, step.frame1! / v.trace.fps, sink);
   const lettered = sink.svg;
   await useLettering(null);
   assert.ok(shaperFor('mono')('αβγ', 1).glyphs.every((g) => g.gid === 0));
   assert.deepEqual([...takeLetteringMissing()], [['αβγ', 'αβγ']]);
   const bare = new SnapshotSink();
-  await renderAt(v.Scene, step.restFrame! / v.trace.fps, bare);
+  await renderAt(v.Scene, step.frame1! / v.trace.fps, bare);
   assert.notEqual(bare.svg, lettered, 'the Greek outlines are what the lettering added');
 });
 

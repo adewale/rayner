@@ -4,6 +4,7 @@ import { traceRun } from '../src/trace.ts';
 import type { Trace } from '../src/testing.ts';
 import type { Palette } from '../src/color.ts';
 import type { SceneClass, SceneOptions, Sink } from '../src/index.ts';
+import { stillFrame } from '../src/scene.ts';
 import { StopScene } from '../src/output.ts';
 import { isHex } from '../src/color.ts';
 import { canonicalJson } from '../src/json.ts';
@@ -1054,7 +1055,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     const sink = new ReaderSink(container, sinkOptions(at, false), readerView, scope.signal, narrow);
     const drawn: Promise<SceneStateLike | undefined> = log.length && now
       ? liveRun(at, now, log, { sink }, scope).then((run) => run.shown as SceneStateLike)
-      : renderAt(at.Scene, step.restFrame! / at.trace.fps, sink).then(() => undefined);
+      : renderAt(at.Scene, step.frame1! / at.trace.fps, sink).then(() => undefined);
     return drawn.then((shown) => {
       pictures.set(key, { nodes: clones(container.childNodes), ...(shown ? { shown } : {}) });
       return shown;
@@ -1272,8 +1273,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         start: step.t0,
         frame0: step.frame0,
         // Stop when the picture stops: the reader sets the pace instead of waiting through the caption-reading hold.
-        holdFrame: step.holdFrame!,
-        restFrame: step.restFrame!,
+        still: stillFrame(step),
+        frame1: step.frame1!,
         container,
         seek: new SeekSink(sink, step.t0),
       };
@@ -1307,8 +1308,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         const go = await ready;
         if (!go) throw new StopScene();
         return go.scope.run(function* () {
-          if (scene.frameCount > aim.holdFrame) {
-            if (scene.frameCount < aim.restFrame) return;
+          if (scene.frameCount > aim.still) {
+            if (scene.frameCount < aim.frame1) return;
             yield* wait(new ReaderSink(aim.container, sinkOptions(at, false), readerView, go.scope.signal, narrow).frame(scene, 0));
             attach(go, true);
             finish(true);
@@ -1317,7 +1318,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
           yield* wait(aim.seek.frame(scene, dt));
           attach(go);
           playback = {kind:'playing', scope:go.scope, run};
-          fill(aim.index, (scene.frameCount - aim.frame0) / (aim.holdFrame - aim.frame0));
+          fill(aim.index, (scene.frameCount - aim.frame0) / (aim.still - aim.frame0));
         });
       },
     }, { skipUntil: aim.start });

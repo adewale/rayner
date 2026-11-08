@@ -357,7 +357,7 @@ export class LandingSink implements Sink {
   constructor(played: ReadonlyMap<number, string>) { this.played = played; }
   async frame(): Promise<void> {}
   async stepEnd(scene: Scene, step: Step): Promise<void> {
-    if (toSvgString(scene) !== this.played.get(step.restFrame!)) this.landed.push(step.name);
+    if (toSvgString(scene) !== this.played.get(step.frame1!)) this.landed.push(step.name);
   }
 }
 
@@ -727,14 +727,14 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     const capture = new FrameCaptureSink(
       new Set(
         v.trace.steps.flatMap((s) => [
-          s.frame0 + Math.max(1, Math.floor((s.restFrame! - s.frame0) / 2)),
-          Math.max(s.frame0 + 1, s.restFrame! - 1),
-          s.restFrame!,
+          s.frame0 + Math.max(1, Math.floor((s.frame1! - s.frame0) / 2)),
+          Math.max(s.frame0 + 1, s.frame1! - 1),
+          s.frame1!,
         ]),
       ),
     );
     const landing = new LandingSink(capture.frames);
-    const completedFrames = new Set(v.trace.steps.map((s) => s.restFrame!));
+    const completedFrames = new Set(v.trace.steps.map((s) => s.frame1!));
     // Each resting frame's close-ups on the phone, worked out as the player works them out.
     const layouts = await stepLayouts(v.Scene);
     const legibility = new LegibilitySink(
@@ -743,12 +743,12 @@ export async function checkProject(project: Project, out: string): Promise<Recor
         v.trace.steps.map((s) => {
           const tour = closeUps(layouts.get(s.step), PHONE_W, PHONE_H);
           return [
-            s.restFrame!,
+            s.frame1!,
             { k: tour[0]!.k, views: tour.map((z) => ({ k: z.k, box: viewBox(z, PHONE_W, PHONE_H) })) },
           ] as const;
         }),
       ),
-      new Map(v.trace.steps.map((s) => [s.restFrame!, s.step] as const)),
+      new Map(v.trace.steps.map((s) => [s.frame1!, s.step] as const)),
       stageScale(PHONE_W, PHONE_H).s,
     );
     const restingSink = new RestingSink(completedFrames);
@@ -757,7 +757,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     // nothing may change after it. A play lands after its last frame is drawn (a morph gets its
     // paths' own structure back), so the first held frame is the resting picture, as in render.
     const holdSink = new HoldSink(
-      v.trace.steps.flatMap((s) => (s.holdFrame! < s.restFrame! ? [{ step: s.step, from: s.holdFrame! + 1, to: s.restFrame! }] : [])),
+      v.trace.steps.flatMap((s) => (s.holdFrame != null ? [{ step: s.step, from: s.holdFrame + 1, to: s.frame1! }] : [])),
     );
     // One full run feeds every check, each a sink of its own, in this order.
     const views = new ViewSink();
@@ -785,7 +785,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     const diagramsBefore = diagramsMade();
     const machines = await exploreMachines(ran, async (step) => {
       const s = v.trace.steps.find((x) => x.step === step)!;
-      return renderAt(v.Scene, s.restFrame! / v.trace.fps, new NullSink());
+      return renderAt(v.Scene, s.frame1! / v.trace.fps, new NullSink());
     });
     assert.ok(
       showsDiagrams(project) || diagramsMade() === diagramsBefore,
@@ -824,7 +824,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     const skipped = await traceScene(v.Scene, { skipUntil: 0 });
     assert.deepEqual(skipped, v.trace, `Skipped and played traces differ ${where}`);
     const still = v.trace.steps.filter(
-      (step, i) => i > 0 && resting.get(step.restFrame!) === resting.get(v.trace.steps[i - 1]!.restFrame!),
+      (step, i) => i > 0 && resting.get(step.frame1!) === resting.get(v.trace.steps[i - 1]!.frame1!),
     );
     assert.deepEqual(
       still.map((s) => s.step),
@@ -896,7 +896,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
         : {}),
       // Each step's resting frame as text, so an author can read it without a browser.
       restingFrames: Object.fromEntries(
-        v.trace.steps.map((step) => [step.step, restingText.get(step.restFrame!) ?? '']),
+        v.trace.steps.map((step) => [step.step, restingText.get(step.frame1!) ?? '']),
       ),
     });
   }

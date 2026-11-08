@@ -144,10 +144,9 @@ test('the time a player, poster or screenshot shows for a step renders that step
   }).run();
   for (const step of trace.steps) {
     // The resting frame is the last one the step draws: everything it played has arrived.
-    assert.equal(step.restFrame!, step.frame1, step.step);
     const sink = new SnapshotSink();
-    await renderAt(Ends, step.restFrame! / trace.fps, sink);
-    assert.equal(sink.svg, played.get(step.restFrame!), `${step.step} rests on its final frame`);
+    await renderAt(Ends, step.frame1! / trace.fps, sink);
+    assert.equal(sink.svg, played.get(step.frame1!), `${step.step} rests on its final frame`);
   }
 });
 

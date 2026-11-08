@@ -38,6 +38,12 @@ export interface StepMeta {
   [key: string]: unknown;
 }
 
+/**
+ * The frame a step's picture stops changing on: where its caption hold begins, else its last
+ * frame, `frame1`, which a link to the step shows and every check judges. Players stop here.
+ */
+export const stillFrame = (step: { holdFrame?: number | null; frame1?: number | null }): number => step.holdFrame ?? step.frame1!;
+
 /** A named step: from `step()` to the next step or the end of the scene. */
 export interface Step {
   name: string;
@@ -46,20 +52,13 @@ export interface Step {
   frame0: number;
   t1: number | null;
   frame1: number | null;
-  /** When the caption-reading hold began, if the step needed one. Players stop here; timed playback continues to t1. */
+  /**
+   * When the caption-reading hold began, and on which frame, if the step needed one. The frames
+   * from `holdFrame` to `frame1` show one picture; players stop at `holdFrame`, and timed playback
+   * continues to `t1`. `stillFrame(step)` is where the picture stops changing, held or not.
+   */
   hold?: number;
-  /**
-   * The frame the step's picture stops changing on, set as the step ends: where its caption hold
-   * begins, or its rest frame when it holds for no caption. The frames after it, to `restFrame`,
-   * show the same picture. Players stop here.
-   */
-  holdFrame: number | null;
-  /**
-   * The step's resting frame, set as it ends: its last (`frame1`), which a link to the step shows
-   * and every check judges. A step that drew no frame of its own rests on the frame before it,
-   * the step before's, so collecting an explainer refuses one.
-   */
-  restFrame: number | null;
+  holdFrame?: number;
   /** A copy of the metadata `this.step()` was given, as JSON. */
   meta: StepMeta;
   /**
@@ -464,7 +463,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
       if (typeof meta === 'function') checkMeta(name, given);
       const copy = cloneJson(given, 'this.step()', 'its metadata') as StepMeta;
       this.#phase = 'beginning-step';
-      const s: Step = { name, path: name, t0: this.time, frame0: this.frameCount, t1: null, frame1: null, holdFrame: null, restFrame: null, meta: copy, evidence: [] };
+      const s: Step = { name, path: name, t0: this.time, frame0: this.frameCount, t1: null, frame1: null, meta: copy, evidence: [] };
       this.steps.push(s);
       this.current = s;
       await this.toSink(() => this.sink.stepBegin?.(this, s));
@@ -492,7 +491,6 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     await this.#dispatch(this.stepEndListeners, s);
     // A captioned step holds until its caption could have been read or spoken,
     // so narration (or a reader) never runs past the picture it describes.
-    s.holdFrame = this.frameCount;
     const caption = s.meta.caption;
     if (typeof caption === 'string') {
       const wpm = (this.constructor as typeof Scene).captionWpm;
@@ -500,11 +498,12 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
       const left = need - (this.time - s.t0);
       if (left > 1e-9) {
         s.hold = this.time;
+        s.holdFrame = this.frameCount;
         // Whole frames, rounded up: the step lasts at least the reading time, never half a frame less.
         await this.#frames(Math.ceil(left * this.fps - 1e-6));
       }
     }
-    s.t1 = this.time; s.frame1 = this.frameCount; s.restFrame = this.frameCount;
+    s.t1 = this.time; s.frame1 = this.frameCount;
     // The sink hears the end with the step still current, the scene as its resting frame showed it.
     await this.toSink(() => this.sink.stepEnd?.(this, s));
     this.current = null;

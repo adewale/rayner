@@ -159,7 +159,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 
 - One `play()`, `wait()` or `step()` runs at a time: one started while another runs throws, telling the author to await it, so two plays cannot interleave their frames and an unawaited step cannot record steps out of order. `scene.phase` (a `ScenePhase`) says what the scene is doing, `'stopped'` once a sink has stopped the run. A step listener may still play and wait inside its step. [Reference](docs/REFERENCE.md#scene)
 - `scene.onStepEnd(listener)` runs as each step is about to end, before its caption hold. The unplayed-action check uses it instead of replacing `endCurrentStep`, and the live player's run uses it to stop at a step with no play or wait at its hold; that run still wraps `play` and `wait` to stop at the one that reaches it.
-- Each step records `holdFrame`, the frame its picture stops changing on, and `restFrame`, its resting frame; the trace carries both, and the player, the live player, `rayner check` and the tools read them instead of working the frames out from rounded times.
+- A step records its caption hold's frame, `holdFrame`, beside its time, `hold`, as it records `frame0` and `frame1` beside `t0` and `t1`; `stillFrame(step)` is where its picture stops changing. The player, the live player, `rayner check` and the tools read these frames instead of working them out from rounded times.
 - `this.step(name, (before) => meta)` takes its metadata from a function of the step it closes, for words that report that step's timing (fork). Step metadata is copied as JSON when the step begins.
 - `loadProject` and the `rayner` command refuse a step that draws no frame of its own, since it would show the step before's picture, and hold every scenario to the same step-name rules.
 - `rayner describe`, the contact sheet, the site's cards and the demos' posters draw every step's resting picture from one run of the scene instead of a seek per step.
@@ -286,7 +286,7 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
   - `LetteringSnapshot`, `PackedLetteringSnapshot`, `StoredLetteringSnapshot` and `Outcome` are no longer exported.
   - Run-time state with no author purpose is internal: `Mobject.saved` (`restore()` and `Restore` read it), `Frame.corners` (read `box()`), `Text.run`, `Animation.families`, `MoveAlongPath.offset`, `Succession.active` and `advance`, `TransformMatching.fadesIn` and `frames`, `DomSink.nodes`, `anchor` and `patch` (a `DomSink` with `realtime: false` draws every frame at once), `TraceSink.records` (read `steps()`) and `MotionSink.frames` and `labels` (hand the sink to `analyzeMotion`).
   - `analyzeMotion` names a leaf by its key, else its text, else its kind, inside the nearest keyed or lettered ancestor, never by the renderer's id.
-  - `Scene.stopped` is gone: read `scene.phase === 'stopped'`. `Scene.endCurrentStep` is gone: pass `step()` a function of the step it closes. `restingFrame` and `restingTime` in `explain/trace.ts` are gone: read a step's `restFrame`.
+  - `Scene.stopped` is gone: read `scene.phase === 'stopped'`. `Scene.endCurrentStep` is gone: pass `step()` a function of the step it closes. `restingFrame` and `restingTime` in `explain/trace.ts` are gone: read a step's `frame1`.
 
 ### Known limits
 

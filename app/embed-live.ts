@@ -104,10 +104,11 @@ export function logStart(machine: AnyMachine, rest: object): { from: LogStart; s
   return moves(start) ? { from: 'start', state: start } : null;
 }
 
-/** The step a live run stops in: its name, and the frame its picture stops changing on (its trace's `holdFrame`). */
+/** The step a live run stops in: its name, and its frames, from which `stillFrame` says where its picture stops changing. */
 export interface LiveStepTimes {
   step: string;
   holdFrame?: number;
+  frame1?: number;
 }
 
 export interface LiveRun {
@@ -168,7 +169,7 @@ export async function runLive(
   log: readonly string[],
   { sink, animate, onStart, onRest, from = 'rest', keep = false }: LiveDraw & { onRest?: (scene: Scene<any>) => void; from?: LogStart; keep?: boolean } = {},
 ): Promise<LiveRun> {
-  const end = times.holdFrame ?? Infinity;
+  const end = times.holdFrame ?? times.frame1 ?? Infinity;
   let result: LiveRun | undefined;
   // A kept run waits in the step for the next event; `wake` hands it one, or null to stop.
   type Command = { event: string; draw: LiveDraw; done: (run: LiveRun) => void; failed: (error: unknown) => void };

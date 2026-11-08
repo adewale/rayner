@@ -20,10 +20,8 @@ export interface StepRecord<S extends object = SceneState, Sh extends object = S
   t1?: number; frame1?: number;
   /** When the caption-reading hold began, if there was one. */
   hold?: number;
-  /** The frame the step's picture stops changing on: where its hold begins, else its rest frame (Step.holdFrame). */
+  /** The frame the caption hold began on, with `hold` (Step.holdFrame). */
   holdFrame?: number;
-  /** The step's resting frame, its last: what a link shows and the checks judge (Step.restFrame). */
-  restFrame?: number;
   meta: StepMeta;
   /** The model when the step began and when it ended (Scene.stateJson). */
   before: S;
@@ -79,8 +77,7 @@ export class TraceSink implements Sink {
     const record = this.of.get(s);
     if (!record) return;
     record.t1 = round(scene.time); record.frame1 = scene.frameCount;
-    if (s.hold != null) record.hold = round(s.hold);
-    record.holdFrame = s.holdFrame!; record.restFrame = s.restFrame!;
+    if (s.hold != null) { record.hold = round(s.hold); record.holdFrame = s.holdFrame!; }
     record.after = scene.stateJson();
     const shown = scene.shownJson();
     if (Object.keys(shown).length) record.shown = shown;

@@ -165,6 +165,9 @@
       "scenariosOf": {
         "tooling": "an author's test or tool that runs every scenario of a scene's settings"
       },
+      "stillFrame": {
+        "tooling": "an author's test that reads where a step's picture stops changing, held or not, from its trace"
+      },
       "takeMissingGlyphs": {
         "tooling": "an author's test or tool that draws text outside the command and fails on characters drawn with no glyph"
       },

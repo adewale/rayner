@@ -116,7 +116,7 @@ export function checkScenarioSteps(trace: Pick<Trace, 'steps'>, values: Readonly
   const folded = names.map((name) => name.toLowerCase()), twice = names.find((_, i) => folded.indexOf(folded[i]!) !== i);
   if (twice !== undefined)
     throw new Error(`this.step(): two steps of the scenario ${JSON.stringify(values)} share the name ${JSON.stringify(twice)}, ignoring case; name each step once, so each has its own link and share page`);
-  const still = trace.steps.find((s) => s.restFrame === s.frame0);
+  const still = trace.steps.find((s) => s.frame1 === s.frame0);
   if (still)
     throw new Error(`this.step(): step ${JSON.stringify(still.step)} of the scenario ${JSON.stringify(values)} draws no frame of its own, so it shows the step before's picture; play or wait in it, or give it a caption to hold`);
 }

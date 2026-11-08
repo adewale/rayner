@@ -46,7 +46,7 @@ test('the live stage of a lettered page draws the Greek outlines the build draws
   for (const word of ['logos', 'phos']) {
     // The first step's resting picture as the build draws it, with the lettering in place
     const v = defaultScenario(project, { word });
-    const scene = await renderAt(v.Scene, v.trace.steps[0]!.restFrame! / v.trace.fps, new SnapshotSink());
+    const scene = await renderAt(v.Scene, v.trace.steps[0]!.frame1! / v.trace.fps, new SnapshotSink());
     // As the player's DomSink draws it: absolute path data, a line of text one path
     const expected = renderElements(scene, { relative: false })
       .filter((r) => r.tag === 'path')
@@ -75,7 +75,7 @@ async function nodePaths(p: Project): Promise<string[][]> {
   const v = defaultScenario(p);
   const out: string[][] = [];
   for (const step of v.trace.steps) {
-    const scene = await renderAt(v.Scene, step.restFrame! / v.trace.fps, new SnapshotSink());
+    const scene = await renderAt(v.Scene, step.frame1! / v.trace.fps, new SnapshotSink());
     out.push(renderElements(scene, { relative: false }).filter((r) => r.tag === 'path').map((r) => String(r.attrs.d)).sort());
   }
   return out;
