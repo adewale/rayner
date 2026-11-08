@@ -6,7 +6,7 @@ import type { SnapshotStore } from '../integrations/agentic-mermaid/snapshot.ts'
 import type { SceneClass, SceneState } from '../src/scene.ts';
 import { bindLettering, letteringOf, pinnedFor, usesOutlineLettering } from '../src/lettering-outlines.ts';
 import type { StoredLetteringSnapshot } from '../src/lettering-outlines.ts';
-import { useLettering } from '../src/lettering.ts';
+import { withLettering } from '../src/lettering.ts';
 import type { LetteringFaces } from '../src/lettering.ts';
 import { traceScene } from '../src/trace.ts';
 import type { Trace, TraceOf } from '../src/trace.ts';
@@ -75,18 +75,17 @@ export async function loadProject<C extends SceneClass>(Explainer: C, where: str
   const snapshots = await readSnapshotStore((name) => read(`${baseOf(file)}.snapshots/${name}`));
   const { Lettered, faces } = await pinnedLettering(Scene, file, read);
   const scenarios: LoadedScenario[] = [];
-  // Subset lettering is the fonts' (useLettering), as on the page, for the scenarios' runs only.
-  if (faces) await useLettering(faces);
-  try {
+  // Subset lettering is the fonts' (useLettering), as on the page, for the scenarios' runs only;
+  // another loadProject overlapping this one waits its turn, so each traces with its own faces.
+  const traceAll = async () => {
     for (const values of scenariosOf(Lettered)) {
       const Bound = withSettings(bindSnapshots(Lettered, snapshots), values);
       const trace = await traceScene(Bound);
       checkScenarioSteps(trace, values);
       scenarios.push({ values, Scene: Bound, trace });
     }
-  } finally {
-    if (faces) await useLettering(null);
-  }
+  };
+  await (faces ? withLettering(faces, traceAll) : traceAll());
   const project: LoadedProject = {
     Scene: Lettered,
     snapshots,
