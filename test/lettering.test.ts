@@ -99,6 +99,16 @@ test('lettering callers take turns: overlapping runs each see their own faces, a
   await useLettering(null);
 });
 
+test('a selection whose faces cannot be decoded changes nothing, so the next run puts back the faces really in place (A4)', async () => {
+  await useLettering(null);
+  // The deliberate defect: a face that is not a font.
+  await assert.rejects(useLettering({ sans: 'bm90IGEgZm9udA==' }), /meta\.lettering: the sans cut cannot be decoded/);
+  assert.equal(shaperFor('sans'), embedded.sans, 'the embedded faces are still in place');
+  // The run succeeds, and puts back none: before, it re-selected the bad faces and rejected with their error.
+  assert.equal(await withLettering(null, async () => 42), 42);
+  assert.equal(shaperFor('sans'), embedded.sans);
+});
+
 // Fail closed: a script nobody asked for fails every command, as it did before lettering existed.
 const scene = (meta: string, text: string) =>
   `import{Scene,Text,FadeIn}from'rayner';import{stage}from'rayner/explain';export default class L extends Scene{static meta={${meta}};async construct(){stage(this);await this.step('one',{title:'One'});await this.play(new FadeIn(new Text(${JSON.stringify(text)})));}}`;
