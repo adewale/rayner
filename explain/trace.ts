@@ -1,7 +1,7 @@
 import type { Scene, SceneState } from '../src/index.ts';
 import type { StepRecord } from '../src/testing.ts';
 import { canonicalJson } from '../src/json.ts';
-import { wordsFor, describedIn, markHeading } from './words.ts';
+import { wordsFor, describedIn, markHeading, writeNumber } from './words.ts';
 import type { Words } from './words.ts';
 interface WalkRecord {
   step?: string;
@@ -99,18 +99,8 @@ export interface WatchedChange {
   before?: string;
   after?: string;
 }
-const numberFormats = new Map<string, Intl.NumberFormat>();
 function sayOne(v: unknown, lang: string): string | null {
-  if (typeof v === 'number') {
-    let f = numberFormats.get(lang);
-    if (!f) {
-      const options = { maximumFractionDigits: 2 };
-      // A tag Intl refuses still gets its numbers, written as English writes them.
-      try { f = new Intl.NumberFormat(lang, options); } catch { f = new Intl.NumberFormat('en', options); }
-      numberFormats.set(lang, f);
-    }
-    return f.format(v);
-  }
+  if (typeof v === 'number') return writeNumber(v, lang, 2);
   if (typeof v === 'string') {
     const chars = [...v];
     return chars.length > 24 ? chars.slice(0, 23).join('') + '…' : v;
@@ -119,7 +109,8 @@ function sayOne(v: unknown, lang: string): string | null {
   return null;
 }
 /**
- * A watched state value as a reader reads it: a number in the scene's language, a string cut to 24
+ * A watched state value as a reader reads it: a number as the scene's description language writes
+ * it (`writeNumber`, two decimals at most), a string cut to 24
  * characters, yes or no, or up to four such items and how many more; '' when it has no value (null,
  * absent or an empty list); null when it cannot be said briefly (an object, a list of objects).
  */

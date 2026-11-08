@@ -11,6 +11,9 @@ export const sha256 = (value: string | Uint8Array): string => createHash('sha256
 /** An npm archive's integrity: 'sha512-' and the SHA-512 of its bytes in base64. */
 export const integrity = (bytes: Uint8Array): string => 'sha512-' + createHash('sha512').update(bytes).digest('base64');
 /** A path with '/' between its parts, whatever the platform's separator. */
+/** Strings in UTF-16 code-unit order: the same on every machine, whatever its locale (localeCompare follows LANG). */
+export const byCodeUnit = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+
 export const posixPath = (path: string): string => path.split(sep).join('/');
 /** `to` relative to `from`, with '/' between its parts. */
 export const relativePosix = (from: string, to: string): string => posixPath(relative(from, to));

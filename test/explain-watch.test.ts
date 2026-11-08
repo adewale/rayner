@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fc, params } from './lib/pbt.ts';
 import { checkWatch, watchedChanges, watchedValue } from '../explain/trace.ts';
+import { writeNumber } from '../explain/words.ts';
 import { chromeFor, changeText } from '../app/embed-strings.ts';
 import { describeExplainer } from '../explain/testing.ts';
 import type { ExplainerClass } from '../explain/index.ts';
@@ -35,8 +36,14 @@ test('a watched value reads as a reader reads it: every kind of value, in Englis
   assert.equal(watchedValue(1234.5678, 'fr'), `1${NB}234,57`);
   assert.equal(watchedValue(65673.88, 'fr'), `65${NB}673,88`);
   assert.equal(watchedValue(2.5, 'fr'), '2,5');
-  // A tag Intl refuses still gets its number, as English writes it.
+  // A language with no description words here, or no language at all, gets its number as English writes it.
   assert.equal(watchedValue(1234.5, 'not a tag!'), '1,234.5');
+  assert.equal(watchedValue(1234.5, 'de'), '1,234.5');
+  assert.equal(watchedValue(-0.001), '0', 'a value that rounds to zero has no sign');
+  assert.equal(watchedValue(1.005), '1.01', 'rounded on the shortest decimal form, as written');
+  assert.equal(watchedValue(9.999), '10');
+  assert.equal(watchedValue(2.5e-7), '0');
+  assert.equal(watchedValue(1e21), '1,000,000,000,000,000,000,000');
   // Strings: as written up to 24 characters; longer ones end in an ellipsis at 24.
   assert.equal(watchedValue('every request'), 'every request');
   assert.equal(watchedValue('x'.repeat(24)), 'x'.repeat(24));
@@ -61,6 +68,25 @@ test('a watched value reads as a reader reads it: every kind of value, in Englis
   for (const v of [null, undefined, []]) assert.equal(watchedValue(v), '', JSON.stringify(v));
   // Anything else cannot be said briefly: null, and the key is skipped.
   for (const v of [{ a: 1 }, [{ a: 1 }], [[1]], [1, null], {}, [undefined]]) assert.equal(watchedValue(v), null, JSON.stringify(v));
+});
+
+test('writeNumber writes numbers as Intl does in Node for English and French, but from the repository\'s own table, the same in every engine', () => {
+  // Intl here is the oracle for the table; the browser's Intl, which writes French groups with
+  // another space in some engines, never runs, so a page and its transcript agree.
+  const number = fc.oneof(
+    fc.double({ noNaN: true, noDefaultInfinity: true }),
+    fc.integer({ min: -1e9, max: 1e9 }).map((k) => k / 1000),
+    fc.integer({ min: -1e7, max: 1e7 }).map((k) => k / 200),
+    fc.integer().map((k) => k * 1e12),
+  );
+  fc.assert(fc.property(number, fc.constantFrom('en', 'fr'), fc.nat({ max: 20 }), (n, lang, digits) => {
+    const intl = new Intl.NumberFormat(lang, { maximumFractionDigits: digits }).format(n);
+    // Intl writes "-0" for a negative value that rounds to zero; the repository writes "0".
+    assert.equal(writeNumber(n, lang, digits), intl === '-0' ? '0' : intl, `${n} in ${lang} with ${digits} decimals`);
+  }), params(2000));
+  assert.equal(writeNumber(1791.5, 'fr'), `1${NB}791,5`);
+  assert.equal(writeNumber(1791.5, 'fr-CA'), `1${NB}791,5`);
+  assert.equal(writeNumber(Infinity), 'Infinity');
 });
 
 test('a list of any length reads as at most four items, then the count of the rest', () => {

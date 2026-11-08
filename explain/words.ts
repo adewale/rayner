@@ -183,9 +183,43 @@ const a = (word: string) => (/^les /i.test(word) ? 'aux ' + word.slice(4) : /^le
 /** A French plural by the regular rules: -s, -x, -z stay; -au, -eau, -eu take -x; -al becomes -aux; others take -s. */
 const pluriel = (noun: string) =>
   /[sxz]$/.test(noun) ? noun : /(au|eu)$/.test(noun) ? noun + 'x' : /al$/.test(noun) ? noun.slice(0, -1) + 'ux' : noun + 's';
-let format: Intl.NumberFormat | undefined;
-/** A number as French writes it: 1 791,5. Made on first use, so a bundle that never describes skips it. */
-const nombre = (n: number) => (format ??= new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 20 })).format(n);
+/** How each description language writes a number: its decimal mark and what separates groups of three digits. */
+const NUMERALS: Readonly<Record<string, { decimal: string; group: string }>> = { en: { decimal: '.', group: ',' }, fr: { decimal: ',', group: NB } };
+/**
+ * `n` as the description language for `lang` writes it (English for a language with no words
+ * here): its digits grouped by three, with at most `fractionDigits` decimals, rounded half away
+ * from zero on the number's shortest decimal form, and trailing zeros dropped. 1234.567 is
+ * "1,234.57" in English and "1 234,57" in French with two decimals. The repository writes it
+ * rather than `Intl`, whose separators differ between Node and browsers, so a transcript and its
+ * page agree; a value that rounds to zero is "0", never "-0".
+ */
+export function writeNumber(n: number, lang = 'en', fractionDigits = 20): string {
+  if (!Number.isFinite(n)) return String(n);
+  const { decimal, group } = NUMERALS[describedIn(lang)]!;
+  // The shortest decimal form, as digits and where the point falls in them.
+  const [mantissa = '0', exponent = '0'] = Math.abs(n).toString().split('e');
+  const [whole = '0', fraction = ''] = mantissa.split('.');
+  let digits = whole + fraction, point = whole.length + Number(exponent);
+  if (point < 0) { digits = '0'.repeat(-point) + digits; point = 0; }
+  if (point > digits.length) digits += '0'.repeat(point - digits.length);
+  const keep = point + fractionDigits;
+  if (digits.length > keep) {
+    const up = digits[keep]! >= '5';
+    const kept = digits.slice(0, keep).split('');
+    if (up) {
+      let i = kept.length - 1;
+      for (; i >= 0 && kept[i] === '9'; i--) kept[i] = '0';
+      if (i >= 0) kept[i] = String(Number(kept[i]) + 1);
+      else { kept.unshift('1'); point++; }
+    }
+    digits = kept.join('');
+  }
+  const int = digits.slice(0, point).replace(/^0+(?=\d)/, '') || '0', frac = digits.slice(point).replace(/0+$/, '');
+  const sign = n < 0 && /[1-9]/.test(int + frac) ? '-' : '';
+  return sign + int.replace(/\B(?=(\d{3})+(?!\d))/g, group) + (frac ? decimal + frac : '');
+}
+/** A number as French writes it: 1 791,5. */
+const nombre = (n: number) => writeNumber(n, 'fr');
 
 const FR: Partial<Words> = {
   // Invariable where the part's gender is unknown: "en évidence", not "marqué(e)".

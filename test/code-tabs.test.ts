@@ -5,6 +5,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Code, Text, TransformDiff, TransformMatchingText } from '../src/index.ts';
 import { loadFonts } from '../explain/testing.ts';
+import { expandTabs } from '../src/text.ts';
+import { fc, params } from './lib/pbt.ts';
+import { readFileSync } from 'node:fs';
 import type { Box, Mobject } from '../src/index.ts';
 // Manim's values, which the package no longer exports.
 const RED = '#fc6255';
@@ -91,4 +94,32 @@ test('TransformMatchingText keys tabbed and astral glyphs by their own character
     assert.equal(m.summary().matched, n, `${JSON.stringify(a)} -> ${JSON.stringify(b)}`);
     for (const [s, t] of m.pairs) assert.equal(charOf(s), charOf(t));
   }
+});
+
+test('one tab expansion: tabs reach the next stop by grapheme, every code point maps back, and lettering runs shape the same form', () => {
+  const unit = fc.constantFrom('\t', 'a', 'é', 'e\u0301', '😀', ' ', '中');
+  fc.assert(fc.property(fc.array(unit, { maxLength: 12 }), fc.integer({ min: 1, max: 8 }), (units, width) => {
+    const line = units.join('');
+    const { text, source } = expandTabs(line, width);
+    assert.ok(!text.includes('\t'));
+    assert.equal(source.length, [...text].length, 'one source index per code point');
+    // A tab ends on a multiple of the width, counting graphemes before it.
+    let column = 0, out = 0;
+    for (const u of units) {
+      out += u === '\t' ? width - (column % width) : [...u].length;
+      column += u === '\t' ? width - (column % width) : 1;
+    }
+    assert.equal([...text].length, out);
+    // Each non-tab code point comes from the same character in the line.
+    [...text].forEach((cp, i) => { if (cp !== ' ' || line[source[i]!] !== '\t') assert.equal(String.fromCodePoint(line.codePointAt(source[i]!)!), cp); });
+    // Without a width, tabs stay and only the map is made.
+    const kept = expandTabs(line);
+    assert.equal(kept.text, line);
+    assert.equal(kept.source.length, [...line].length);
+  }), params());
+  assert.deepEqual(expandTabs('e\u0301\tx', 4), { text: 'e\u0301   x', source: [0, 1, 2, 2, 2, 3] });
+  // Lettering runs map their clusters through this function, not a copy of it.
+  const outlines = readFileSync(new URL('../src/lettering-outlines.ts', import.meta.url), 'utf8');
+  assert.match(outlines, /import \{[^}]*\bexpandTabs\b[^}]*\} from '\.\/text\.ts'/);
+  assert.doesNotMatch(outlines, /'\\t'|Intl\.Segmenter/, 'no tab stop or grapheme split of its own');
 });

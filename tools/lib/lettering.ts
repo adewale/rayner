@@ -14,7 +14,7 @@ import type { ExplainerClass } from '../../explain/settings.ts';
 import type { Run } from '../../vendor/glyph.js';
 import { licenceOf, validateLetteringSnapshot } from './lettering-validation.ts';
 import { LIB_ROOT, ROOT } from './roots.ts';
-import { sha256 } from './hash.ts';
+import { byCodeUnit, sha256 } from './hash.ts';
 
 // The capture's files ship with the command (ROOT); the shaper and fallback faces it replays with, with the library.
 const root = ROOT;
@@ -97,6 +97,16 @@ function python(request: object): unknown {
     const stderr = (error as { stderr?: string }).stderr;
     throw new Error(`meta.lettering: refreshing its snapshot needs fonttools, brotli, uharfbuzz and python-bidi in Python; ${stderr ?? String(error)}`);
   }
+}
+/**
+ * A record with its keys in code-unit order: how a snapshot stores its runs and font inputs, so the
+ * file and the hashes taken over it are the same on every machine, whatever its locale.
+ */
+export function inKeyOrder<T>(record: Record<string, T>): Record<string, T> {
+  const out: Record<string, T> = {};
+  for (const [k, v] of Object.entries(record).sort(([a], [b]) => byCodeUnit(a, b)))
+    Object.defineProperty(out, k, { value: v, enumerable: true, writable: true, configurable: true });
+  return out;
 }
 export interface PreparedLettering {
   Scene: ExplainerClass;
@@ -290,7 +300,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
       // probes may draw a cut that the scene has not visited yet.
       for (const family of ['sans', 'mono'] as const)
         for (const cut of ['', ...requestCuts(request)] as LetteringCut[]) chainOf(family, cut);
-      snapshot.fontInputs = Object.fromEntries([...fonts].sort(([a], [b]) => a.localeCompare(b)).map(([name, face]) => [name, face.hash]));
+      snapshot.fontInputs = inKeyOrder(Object.fromEntries([...fonts].map(([name, face]) => [name, face.hash])));
       return hash(JSON.stringify([snapshot.builderHash, snapshot.shaper, snapshot.request, snapshot.fontInputs]));
     },
     async finish() {
@@ -310,8 +320,8 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
         const data = python({ command: 'subset', font: face.file, codepoints: [...points].sort((a, b) => a - b), gids: name === 'latin-modern-math' ? [...usedMath] : [], features: subsetFeatures(name) }) as string;
         snapshot.faces[name] = { hash: face.hash, data, license: face.license };
       }
-      // Stable run order, regardless of which case first visits a string.
-      snapshot.runs = Object.fromEntries(Object.entries(snapshot.runs).sort(([a], [b]) => a.localeCompare(b)));
+      // Stable run order, regardless of which case first visits a string or the machine's locale.
+      snapshot.runs = inKeyOrder(snapshot.runs);
       const off = Object.keys(snapshot.runs).filter((key) => offPageOnly.has(key) && !onPage.has(key));
       if (off.length) snapshot.offPage = off;
       replay = snapshotProvider(snapshot);

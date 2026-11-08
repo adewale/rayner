@@ -4,7 +4,7 @@ import type { SceneClass } from './scene.ts';
 import { decodeFont, embeddedChain, embeddedFaces, embeddedShaperFor, memoShaper } from './fonts.ts';
 import type { FontName, ShapedRun, Shaper } from './fonts.ts';
 import type { Font, Run, Segment } from '../vendor/glyph.js';
-import { Text, CodeSpan } from './text.ts';
+import { Text, CodeSpan, expandTabs } from './text.ts';
 import type { Box } from './mobject.ts';
 import { unionBoxes } from './box.ts';
 import {bindTextContext, withTextContext} from './text-context.ts';
@@ -253,21 +253,7 @@ function cutOf(text: Text, provider: LetteringProvider): LetteringCut {
 }
 /** The source mapping used by Text: grapheme-based tab stops, code-point clusters. */
 function spanForm(text: Text): { shaped: string; source: number[] } {
-  const source: number[] = [];
-  let shaped = '', at = 0, column = 0;
-  const units = typeof Intl !== 'undefined' && Intl.Segmenter
-    ? [...new Intl.Segmenter().segment(text.text)].map((g) => g.segment) : [...text.text];
-  for (const unit of units) {
-    if (unit === '\t' && text.tabWidth != null) {
-      const count = text.tabWidth - column % text.tabWidth;
-      shaped += ' '.repeat(count);
-      for (let i = 0; i < count; i++) source.push(at);
-      column += count; at++;
-    } else {
-      shaped += unit; column++;
-      for (const ch of unit) { source.push(at); at += ch.length; }
-    }
-  }
+  const { text: shaped, source } = expandTabs(text.text, text.tabWidth);
   return { shaped, source };
 }
 

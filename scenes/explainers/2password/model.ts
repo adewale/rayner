@@ -88,7 +88,7 @@ export function find(queries: readonly string[], items: readonly Item[] = ITEMS)
       : items
           .map((item) => ({ item, score: closeness(terms(query), item.title) }))
           .filter(({ score }) => score >= SUGGESTION_THRESHOLD)
-          .toSorted((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title))
+          .toSorted((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title, 'en'))
           .slice(0, SUGGESTIONS_PER_MISS)
           .map(({ item }) => item);
     return { query, items: hits, suggested };
@@ -119,7 +119,7 @@ export function find(queries: readonly string[], items: readonly Item[] = ITEMS)
     fetched: fetched.map((item) => item.title),
     matches: [...found.values()]
       .map(({ queries: answered, ...m }) => (searches.length === 1 ? m : { ...m, queries: answered }))
-      .toSorted((a, b) => a.ref.localeCompare(b.ref)),
+      .toSorted((a, b) => a.ref.localeCompare(b.ref, 'en')),
     ...(suggestions.length ? { suggestions } : {}),
   };
 }
