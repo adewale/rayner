@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { Square, Restore, TransformFromCopy } from '../src/extras.ts';
 import assert from 'node:assert/strict';
 import { Scene, Mobject, Group, Rectangle, Circle, Polygon, Text, Code, Transform, FadeIn, FadeOut, Create, AnimationGroup, LaggedStart, Succession, TransformMatchingText } from '../src/index.ts';
-import { StringSink, SnapshotSink, renderAt, indexScene, toSvgString } from '../src/output.ts';
+import { StringSink, SnapshotSink, renderAt, indexScene, toSvgString, renderFrame } from '../src/output.ts';
 import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
 import { Indicate, Flash } from './lib/transient.ts';
 import type { SceneOptions, Sink } from '../src/index.ts';
@@ -260,7 +260,7 @@ test('seeking into a Succession whose member brings an updater matches the full 
   await new S(full).run();
   for (let i = 1; i < full.frames.length; i += 4) {
     const snap = new SnapshotSink();
-    const scene = await renderAt(S, i / 30, snap);
+    const scene = await renderFrame(S, i, snap);
     const k = Math.round(scene.time * scene.fps);
     assert.equal(snap.svg, full.frames[k], `seek to frame ${k}`);
   }

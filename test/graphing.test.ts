@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   NumberLine, Axes, VMobject, Rectangle, Text, Scene, Create, Transform, FadeIn,
   } from '../src/index.ts';
-import { StringSink, SnapshotSink, renderAt } from '../src/output.ts';
+import { StringSink, SnapshotSink, renderFrame } from '../src/output.ts';
 import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
 import { fc, params } from './lib/pbt.ts';
 import type { Vec } from '../src/index.ts';
@@ -201,7 +201,7 @@ test('seeking renders the identical frame a full run produces, mid-animation too
   // Mid Create(axes), mid Create(plot), mid FadeIn, mid sign-flip Transform, mid recolor, the end
   for (const frame of [17, 45, 79, 96, 110, 138, 168, full.frames.length - 1]) {
     const snap = new SnapshotSink();
-    await renderAt(ChartScene, frame / 30, snap, { fps: 30 });
+    await renderFrame(ChartScene, frame, snap, { fps: 30 });
     assert.equal(snap.svg, full.frames[frame], `frame ${frame}`);
   }
 });

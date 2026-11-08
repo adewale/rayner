@@ -13,6 +13,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `answerOf(this)` in `rayner/explain` reads the script's answer, so a caption that states it keeps no copy. `withIntent(Scene, scriptText)` in `rayner/testing` adopts a script for a test that runs a scene directly.
 - `meta.id` defaults to the scene's folder name (or its file's name when the file is not `scene.ts`).
 - A declared `meta.id` must be one path segment of letters, digits, `-` and `_`, and step names must be unique ignoring case, so no page or share page is written outside its folder or over another.
+- `demos:build` and `site:export` refuse two explainers whose page ids are equal ignoring case, and a scene whose `meta.id` is not its catalog id, so no page in a site is written over another. [Publishing](docs/PUBLISHING.md)
 - `static meta` has a type, `ExplainerMeta` (with `PlayerMeta` for `meta.player`), exported from `rayner/explain`: `static meta = { … } satisfies ExplainerMeta`. Collection and `loadProject` refuse a meta key it does not name, and a `player` key `PlayerMeta` does not, naming the key and the keys it takes. Every explainer and tutorial scene declares its meta this way.
 - `rayner check` fails a view whose draw never depends on its state (or on what is shown) at any step that shows it. [Checks](docs/REFERENCE.md#checks)
 - `emphasised(m, what)` in `rayner/drawing` marks a part as emphasis where it is drawn, so the close-up tour and the descriptions find it in the picture; a diagram's picture reports its own marks the same way.
@@ -143,7 +144,9 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - The events sit in the URL as `sent=`, so a link reopens the same picture, and Back takes an event back.
 - A polite status line says what each event changed.
 - Leaving a live step closes the run held for the reader's next press, and the player keeps the eight resting pictures it drew most recently, so a long exploration holds bounded memory. [The player](docs/MACHINES.md#the-player)
+- A run held for the reader's next press names the step it ran to; the player takes it only at that step, and closes one that arrives for another step or another log.
 - The page carries its default scenario's trace, so the player shows it without running the scene first; another scenario runs once, for its trace and its phone close-ups together. [Page](docs/REFERENCE.md#page)
+- Every trace the player holds, shipped or run in the page, keeps of each step's state only the watched keys and no evidence (`PlayerTrace`), and the player's code can read that state only as watched changes.
 - A scenario whose run throws in the page leaves the stage usable: the player keeps the scenario it had and says so.
 - On a phone the stage is taller than 16:9.
 - On a phone each step opens on a close-up of what it changed, or of the subjects `s.opening(...)` names, zoomed so its labels read at 12 px.
@@ -160,9 +163,11 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - One `play()`, `wait()` or `step()` runs at a time: one started while another runs throws, telling the author to await it, so two plays cannot interleave their frames and an unawaited step cannot record steps out of order. `scene.phase` (a `ScenePhase`) says what the scene is doing, `'stopped'` once a sink has stopped the run. A step listener may still play and wait inside its step. [Reference](docs/REFERENCE.md#scene)
 - `scene.onStepEnd(listener)` runs as each step is about to end, before its caption hold. The unplayed-action check uses it instead of replacing `endCurrentStep`, and the live player's run uses it to stop at a step with no play or wait at its hold; that run still wraps `play` and `wait` to stop at the one that reaches it.
 - A step records its caption hold's frame, `holdFrame`, beside its time, `hold`, as it records `frame0` and `frame1` beside `t0` and `t1`; `stillFrame(step)` is where its picture stops changing. The player, the live player, `rayner check` and the tools read these frames instead of working them out from rounded times.
+- `renderFrame(SceneClass, frame, sink)` in `rayner/output` draws one frame by its number, so `renderFrame(Scene, step.frame1, sink)` is a step's resting picture. The player, the build's poster, `rayner see`, the link-preview cards and `rayner check`'s seeks draw a step's frame this way, and the player finds where a step's play starts by its `frame0`, never by converting a frame to a time. [Scene outputs](docs/SCENE-OUTPUTS.md#time-and-step-semantics)
 - `this.step(name, (before) => meta)` takes its metadata from a function of the step it closes, for words that report that step's timing (fork). Step metadata is copied as JSON when the step begins.
 - `loadProject` and the `rayner` command refuse a step that draws no frame of its own, since it would show the step before's picture, and hold every scenario to the same step-name rules.
 - `rayner describe`, the contact sheet, the site's cards and the demos' posters draw every step's resting picture from one run of the scene instead of a seek per step.
+- `rayner check` reads every step's resting picture as the step ends, as describe and the shots do; its landing check holds that picture to the step's last played frame.
 - An animation has a `phase` (an `AnimationPhase`: idle, begun or finished). A second `begin()` while begun, and `interpolate()` or `finish()` before `begin()`, throw; one animation listed twice in a play is refused, where it used to begin twice and leave its mobject invisible.
 - `fps` must be above 0 and at most 240; run times, lag ratios and `wait()` times must be finite and not negative.
 - A `Succession` or group exposes its members' `ready()` and lays out their times as the play begins, so `s.show` composes inside a `Succession` or group. A `Succession` refuses a rate function that runs its time backwards.
@@ -238,7 +243,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - A release publishes and retains both archives; `npm run pack:smoke` installs both, and `rayner` alone, and type-checks every explainer and recipe against the packed declarations. [Releasing](docs/RELEASING.md)
 - Every `rayner` command starts without loading the TypeScript compiler, which only the build fingerprint uses: `rayner version` takes about 0.3 s and 105 MB, where it took 0.7 s and 165 MB.
 - `rayner check` keeps each scenario's motion samples in columns of numbers: seasons' check peaks near 470 MB, where it peaked near 800 MB, with the same motion findings.
-- `rayner preview --watch` rebuilds when `script.md` changes too, and runs one rebuild at a time: saves made during a rebuild start one more when it ends, not one each.
+- `rayner preview --watch` rebuilds when `script.md` changes too, and runs one rebuild at a time: saves made during a rebuild start one more when it ends, not one each. Each rebuild adopts the script afresh: a script that loses its intent header drops the title, answer, questions and checked-against line it gave.
 - Diagram capture starts one Chromium per kind of diagram lettering however many diagrams wait for it, and closes each.
 - A page whose scenarios make no diagram carries no diagram code (`rayner check` fails a diagram only a reader's event draws), and every page's style is minified: lru-mru's page is 203 KB gzipped, where it was 216 KB. [What a page leaves out](docs/ENGINE.md#what-a-page-leaves-out)
 - The SVG writer writes a straight segment as `L`, where it wrote a cubic, in the poster and on the live stage alike: font-metrics' page is 16 KB smaller gzipped, lru-mru's 2.6 KB.

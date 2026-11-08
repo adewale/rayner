@@ -9,7 +9,7 @@ import { view, View, having, stage } from '../explain/index.ts';
 import { card } from '../explain/drawing.ts';
 import assert from 'node:assert/strict';
 import { Scene, Group, Text, DecimalNumber, Rectangle, Circle, Animation, FadeIn, Succession } from '../src/index.ts';
-import { StringSink, SnapshotSink, renderAt } from '../src/output.ts';
+import { StringSink, SnapshotSink, renderFrame } from '../src/output.ts';
 import { MotionSink, analyzeMotion, perf, loadFonts, viewMismatch } from '../explain/testing.ts';
 import type { Mobject, Sink, SceneState } from '../src/index.ts';
 import { assertViewFollowsState } from './lib/view-fidelity.ts';
@@ -164,7 +164,7 @@ test('no updaters: seeking skips the frames of plays with syncs, and renders the
   for (const k of [...ks].sort((a, b) => a - b)) {
     const snap = new SnapshotSink();
     perf.enable();
-    try { await renderAt(Ring, k / 30, snap); } finally { perf.disable(); }
+    try { await renderFrame(Ring, k, snap); } finally { perf.disable(); }
     assert.equal(snap.svg, full.frames[k], `frame ${k}`);
     if (k > 30) assert.ok((perf.counters.get('frames skipped') ?? 0) > 0, `frame ${k}: the seek skipped frames`);
   }

@@ -12,7 +12,7 @@ import {
   Scene, Code, Text, FadeIn, LaggedStart, TransformDiff, TransformMatchingText, VMobject,
   diffLines, parseUnifiedDiff,
 } from '../src/index.ts';
-import { StringSink, SnapshotSink, renderAt, renderText, indexScene, stepTime } from '../src/output.ts';
+import { StringSink, SnapshotSink, renderAt, renderText, indexScene, stepTime, renderFrame } from '../src/output.ts';
 import { MotionSink, analyzeMotion, traceScene, loadFonts } from '../explain/testing.ts';
 import { diffTokens, tokenize, hunkHeader } from '../src/diff.ts';
 import type { Hunk, Mobject, Sink } from '../src/index.ts';
@@ -209,7 +209,7 @@ test('seeking into a TransformDiff renders the frame a full run renders', async 
     Math.round(g * 30) + 7, Math.round(g * 30) + 15, full.frames.length - 1];
   for (const k of ks) {
     const snap = new SnapshotSink();
-    await renderAt(DiffScene, k / 30, snap);
+    await renderFrame(DiffScene, k, snap);
     assert.equal(snap.svg, full.frames[k], `frame ${k}`);
   }
 });

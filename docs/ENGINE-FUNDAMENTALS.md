@@ -274,7 +274,9 @@ evaluate a relationship between the two endpoints, which a [view's tween](CHOREO
 `renderAt(SceneClass, time, sink)` (`rayner/output`) reruns the scene up to the first frame at or after
 the requested time (or the final frame if past the end), skipping the interpolations
 of plays without updaters. A seek is a replay with skipping, not an index into a
-precompiled timeline.
+precompiled timeline. `renderFrame(SceneClass, frame, sink)` reruns it to one frame by its
+number, the frame count a step records as `frame0`, `frame1` or `holdFrame`, so a step's resting
+picture is `renderFrame(SceneClass, step.frame1, sink)`, found without converting a frame to a time.
 
 A sink stops a seek with `StopScene` (`rayner/output`). Do not catch animation errors broadly in
 `construct()`: catching that signal can allow author code to mutate the stopped

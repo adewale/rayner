@@ -4,7 +4,7 @@ import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { EXPLAINERS, PRODUCT } from '../../scenes/explainers/catalog.ts';
-import { collectProject, defaultScenario, ROOT, baseReceipt, sceneInputs } from '../lib/explain-project.ts';
+import { collectProject, defaultScenario, ROOT, baseReceipt, sceneInputs, sceneSlug } from '../lib/explain-project.ts';
 import { describeProject, checkBuilt } from './lib/explain-site-describe.ts';
 import { htmlEscape, pictureSummary, stepWords } from '../../explain/trace.ts';
 import { teaching } from '../../explain/script.ts';
@@ -22,7 +22,7 @@ import { launch } from '../lib/browser.ts';
 import { reviewSubjects } from '../lib/explain-review-scene.ts';
 import { narrowOpeningPlan } from '../lib/explain-story-review.ts';
 import { buildInputs } from '../lib/build-inputs.ts';
-import { isWholeCollection, onlyIds, selectedIds, selectExport } from './lib/explain-export-selection.ts';
+import { checkPageId, isWholeCollection, onlyIds, selectedIds, selectExport } from './lib/explain-export-selection.ts';
 
 const { values } = parseArgs({ options: {
   check: { type: 'boolean' }, only: { type: 'string' }, entry: { type: 'string' }, out: { type: 'string' },
@@ -45,6 +45,7 @@ for (const item of items) {
   // so a build that stops part way leaves no record for site:export to trust.
   await rm(join(directory, item.id, 'inputs.json'), { force: true });
   const project = await collectProject(join(ROOT, 'scenes/explainers', item.id));
+  checkPageId(item.id, sceneSlug(project));
   // For agents: what site:export publishes as <id>.json, described right after the run, as
   // `rayner describe` does.
   const described = await describeProject(project);

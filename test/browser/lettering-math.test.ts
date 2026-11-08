@@ -11,7 +11,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { Scene, MathTex, TransformMatchingShapes, TransformMatchingText } from '../../src/index.ts';
-import { NullSink, SnapshotSink, renderAt, renderElements } from '../../src/output.ts';
+import { NullSink, SnapshotSink, renderFrame, renderElements } from '../../src/output.ts';
 import type { Mobject, VMobject } from '../../src/index.ts';
 import { bindLettering, snapshotProvider, unpackLettering } from '../../src/lettering-outlines.ts';
 import type { LetteringSnapshot } from '../../src/lettering-outlines.ts';
@@ -195,7 +195,7 @@ test('the page draws the same maths paths as Node at every step', { skip: !proce
     assert.equal(v.trace.steps.length, 4);
     for (const step of v.trace.steps) {
       // The step's resting picture as the build draws it in Node, as the player's DomSink writes it
-      const scene = await renderAt(v.Scene, step.frame1! / v.trace.fps, new SnapshotSink());
+      const scene = await renderFrame(v.Scene, step.frame1!, new SnapshotSink());
       const want = renderElements(scene, { relative: false }).filter((r) => r.tag === 'path').map((r) => String(r.attrs.d)).sort();
       const page = await browser.newPage();
       try {

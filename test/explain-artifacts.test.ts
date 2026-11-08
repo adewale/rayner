@@ -18,6 +18,9 @@ test('catalog and evidence readers validate known fields before returning typed 
     (v: typeof c) => {(v.scenes[0] as Record<string, unknown>).tier = 'featured';},
     (v: typeof c) => {v.totals.scenarios = NaN;},
   ]) {const bad = structuredClone(c); defect(bad); assert.throws(() => catalog(bad), /Invalid catalog/);}
+  // Two pages with one id: the reason is named.
+  const twice = structuredClone(c); twice.scenes.push(twice.scenes[0]!);
+  assert.throws(() => catalog(twice), /^Error: Invalid catalog artifact: site: the page id "example" is listed twice/);
   for (const defect of [
     (v: typeof e) => {v.checked = 'yes' as never;},
     (v: typeof e) => {v.scenes[0]!.scenarios[0]!.case = 2 as never;},

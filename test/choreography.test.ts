@@ -6,7 +6,7 @@ import { card } from '../explain/drawing.ts';
 import { isFurniture } from '../explain/stage.ts';
 import assert from 'node:assert/strict';
 import { Scene, Group, Rectangle, Circle, Dot, Line, Text, FadeIn, GrowFromEdge, PulseAlongPath, AnimationGroup, LaggedStart, Succession, linear } from '../src/index.ts';
-import { SnapshotSink, StringSink, NullSink, renderAt, toSvgString } from '../src/output.ts';
+import { SnapshotSink, StringSink, NullSink, renderAt, toSvgString, renderFrame } from '../src/output.ts';
 import { TraceSink, traceScene, loadFonts } from '../explain/testing.ts';
 import type { Mobject, Vec } from '../src/index.ts';
 import { fc, params } from './lib/pbt.ts';
@@ -214,7 +214,7 @@ test('extracted animations compose in nested schedules and preserve every seeked
   const sink = new StringSink(), played = new Demo(sink); await played.run();
   for (let frame = 0; frame < sink.frames.length; frame++) {
     const snapshot = new SnapshotSink();
-    await renderAt(Demo, frame / played.fps, snapshot);
+    await renderFrame(Demo, frame, snapshot);
     assert.equal(snapshot.svg, sink.frames[frame], `frame ${frame}`);
   }
   const fullTrace = new TraceSink(); await new Demo(fullTrace).run();
@@ -320,7 +320,7 @@ test('Follow admits its targets, removes them all as a remover, and seeks to the
   const fps = full.fps;
   for (const frame of [1, 3, Math.round(0.25 * fps), Math.round(0.5 * fps), sink.frames.length - 2]) {
     const snap = new SnapshotSink();
-    const scene = await renderAt(Orbit, frame / fps, snap);
+    const scene = await renderFrame(Orbit, frame, snap);
     assert.equal(snap.svg, sink.frames[Math.round(scene.time * scene.fps)], `frame ${frame}`);
   }
   // Mid-sweep the dot sits on the circle, where a morph between the two endpoint pictures would cut through its centre

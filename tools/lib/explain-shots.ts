@@ -3,7 +3,7 @@ import { writeFile, mkdir } from 'node:fs/promises';
 import { basename, dirname, extname, join, resolve } from 'node:path';
 import { Scene, Text } from '../../src/index.ts';
 import type { Step } from '../../src/index.ts';
-import { NullSink, SnapshotSink, renderAt, toSvgString } from '../../src/output.ts';
+import { NullSink, SnapshotSink, renderFrame, toSvgString } from '../../src/output.ts';
 import { traceRun } from '../../src/trace.ts';
 import { rasterize, band } from './explain-raster.ts';
 import { defaultScenario } from './explain-project.ts';
@@ -63,9 +63,9 @@ class CardSink extends SnapshotSink {
  * 2:1, and Facebook and LinkedIn at 1.91:1; a 16:9 picture cut to 2:1 would lose 30 px top and
  * bottom, where many steps have labels, and cutting the side bands loses nothing.
  */
-export async function cardPicture(Source: Project['Scene'], time: number) {
+export async function cardPicture(Source: Project['Scene'], frame: number) {
   const sink = new CardSink();
-  await renderAt(Source, time, sink);
+  await renderFrame(Source, frame, sink);
   return cardRaster(sink);
 }
 
@@ -84,8 +84,8 @@ function cardRaster(drawn: { svg: string; paper: string | undefined }) {
  * The link-preview picture as a palette PNG (tools/lib/explain-palette.ts): about a third of the
  * bytes of a full-colour PNG, each pixel within a few levels of the render.
  */
-export async function cardPng(Source: Project['Scene'], time: number): Promise<Buffer> {
-  const picture = await cardPicture(Source, time);
+export async function cardPng(Source: Project['Scene'], frame: number): Promise<Buffer> {
+  const picture = await cardPicture(Source, frame);
   return palettePng(picture.pixels, picture.width, picture.height);
 }
 

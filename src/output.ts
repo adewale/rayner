@@ -6,7 +6,7 @@
 export { toSvgString, renderElements, StringSink, SnapshotSink, DomSink } from './svg.ts';
 export type { ElementRecord, SvgOptions, RenderOptions } from './svg.ts';
 export { renderText } from './ascii.ts';
-export { NullSink, SeekSink, indexScene, stepTime, renderAt } from './timeline.ts';
+export { NullSink, SeekSink, indexScene, stepTime, renderAt, renderFrame } from './timeline.ts';
 export type { SceneIndex } from './timeline.ts';
 /** What a sink throws to stop a run (a seek past its time does): a catch must rethrow it. */
 export { StopScene } from './scene.ts';

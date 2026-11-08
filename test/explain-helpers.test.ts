@@ -769,7 +769,7 @@ test('the explain entry point exports exactly its documented names', async () =>
   // The tooling went to rayner/testing.
   assert.deepEqual(Object.keys(await import('../explain/testing.ts')).sort(), [
     'InvariantSink', 'MotionSink', 'TraceSink', 'analyzeMotion', 'bindSnapshots', 'describeExplainer', 'diagramFindings', 'jsonObject', 'loadFonts',
-    'loadProject', 'loadSnapshots', 'machinesOf', 'perf', 'pictureWordsAt', 'scenarioName', 'scenariosOf', 'takeMissingGlyphs', 'traceScene', 'viewMismatch', 'withIntent', 'withSettings',
+    'loadProject', 'loadSnapshots', 'machinesOf', 'perf', 'pictureWordsAt', 'scenarioName', 'scenariosOf', 'stillFrame', 'takeMissingGlyphs', 'traceScene', 'viewMismatch', 'withIntent', 'withSettings',
   ]);
 });
 

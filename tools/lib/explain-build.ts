@@ -8,7 +8,7 @@ import { gzipSync } from 'node:zlib';
 import { pageSize } from './page-budget.ts';
 import { packPageSnapshots } from './page-snapshots.ts';
 import { sceneEntry, shippedScenario, shippedStore } from './scene-entry.ts';
-import { SnapshotSink, renderAt } from '../../src/output.ts';
+import { SnapshotSink, renderFrame } from '../../src/output.ts';
 import { chromeFor, scenarioNameIn, changeText, descriptionLang } from '../../app/embed-strings.ts';
 import { pictureHtml, htmlEscape, stepWords, watchedChanges, wordsHtml } from '../../explain/trace.ts';
 import { ROOT, LIB_ROOT, engineAlias, defaultScenario, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';
@@ -48,7 +48,7 @@ export async function buildExplainer(
   for(const scenario of project.scenarios) for(const step of scenario.trace.steps)
     if(stepAudio(step.meta.audio)) withAudio=true;
   const sink = new SnapshotSink();
-  await renderAt(v.Scene, first.frame1! / v.trace.fps, sink);
+  await renderFrame(v.Scene, first.frame1!, sink);
   // A page that asked for lettering puts its faces in place before the player shapes anything.
   // Every other page's entry is as it was: it never imports src/lettering.ts.
   const snapshots = shippedStore(project.store);
