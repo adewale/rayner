@@ -4,7 +4,8 @@
 // and no wider. Every module under explain/ is placed in a layer by the section's table, which this
 // test reads, so a new one must be placed in the doc before the rules can judge it. Of a step's
 // metadata the engine types and reads only its caption, as the section records; the explainer layer
-// declares the rest.
+// declares the rest. The command imports nothing repository-only. And the engine's @internal members
+// that the explainer layer and the player use are listed, so a new use across the layers is seen.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -35,14 +36,15 @@ const TABLE = layerTable(readFileSync(join(ROOT, 'docs/ENGINE.md'), 'utf8'));
 /** The explainer layer's modules, by layer, from the bottom, as ENGINE.md's table places them. */
 const EXPLAIN = Object.fromEntries(ORDER.map((l) => [l, TABLE.find((r) => r.layer === ROWS[l])?.modules ?? []])) as Record<string, readonly string[]>;
 
-interface Import { from: string; to: string; type: boolean }
+/** An import: who imports what, whether only its types, and whether it names a file in the repository (a relative path) rather than a package. */
+interface Import { from: string; to: string; type: boolean; local: boolean }
 
 /** Every import and re-export a file makes, static or dynamic, resolved to a repository path when relative. */
 function importsOf(file: string): Import[] {
   const source = ts.createSourceFile(file, readFileSync(join(ROOT, file), 'utf8'), ts.ScriptTarget.Latest, true);
   const out: Import[] = [];
   const add = (spec: string, type: boolean) =>
-    out.push({ from: file, to: spec.startsWith('.') ? relative(ROOT, resolve(ROOT, dirname(file), spec)) : spec, type });
+    out.push({ from: file, to: spec.startsWith('.') ? relative(ROOT, resolve(ROOT, dirname(file), spec)) : spec, type, local: spec.startsWith('.') });
   const visit = (node: ts.Node): void => {
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
       const clause = node.importClause;
@@ -69,6 +71,8 @@ const importsIn = (...dirs: string[]) => dirs.flatMap(sources).flatMap(importsOf
 const show = (i: Import) => `${i.from} imports ${i.to}${i.type ? ' (type)' : ''}`;
 /** The library half of the diagram integration: what the page replays snapshots with. Its build/ half is capture, which the command runs. */
 const INTEGRATION = sources('integrations/agentic-mermaid').filter((f) => !f.includes('/build/'));
+/** The command's modules: tools/ but the repository-only tooling (tools/repo/) and the oracles (tools/oracle/). */
+const isCommand = (path: string) => path.startsWith('tools/') && !/^tools\/(repo|oracle)\//.test(path);
 const layerOf = (path: string) => (path.startsWith('explain/') ? ORDER.find((l) => EXPLAIN[l]!.includes(path.slice('explain/'.length))) : undefined);
 
 /** The rules, each true of an import that breaks it. */
@@ -84,6 +88,9 @@ const RULES: Record<string, (i: Import) => boolean> = {
     return ORDER.indexOf(to) > ORDER.indexOf(from);
   },
   player: (i) => i.from.startsWith('app/') && (!/^(src|explain|app|integrations\/agentic-mermaid)\//.test(i.to) || i.to.includes('/build/')),
+  // The command (tools/ but the repository's own tooling and oracles) ships as rayner-cli: it imports the library,
+  // the player, the diagram integration, the vendored shapers, its own modules and packages, never what stays in the repository.
+  command: (i) => isCommand(i.from) && i.local && !/^(src|explain|app|integrations\/agentic-mermaid|vendor)\//.test(i.to) && !(i.to.startsWith('tools/') && isCommand(i.to)),
 };
 const broken = (rule: string, imports: Import[]) => imports.filter(RULES[rule]!).map(show);
 
@@ -128,6 +135,94 @@ test('the player imports the library and nothing from the command, the tests, th
   assert.deepEqual(broken('player', importsIn('app')), []);
 });
 
+test('the command imports the library, the player, the diagram integration and its own modules, never repository-only code', () => {
+  assert.deepEqual(broken('command', importsIn('tools').filter((i) => isCommand(i.from))), []);
+});
+
+/**
+ * The engine's @internal members (src/) that the explainer layer and the player use, by member, with
+ * the files that use each. They are an interface between the layers that the published types leave
+ * out, so each is listed here: a new use, by another file or of another member, fails the test until
+ * it is added, with its reason.
+ */
+const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
+  'Animation.cleanUpFromScene': { files: ['explain/choreograph.ts'], why: 'a joined animation cleans up as the play would' },
+  'Animation.families': { files: ['explain/annotate.ts'], why: 'an annotation reads what an animation draws' },
+  'AnimationGroup.animations': { files: ['explain/action.ts'], why: "an action's beats are a Succession's members" },
+  'AnimationGroup.cleanUpFromScene': { files: ['explain/action.ts'], why: "an action's beats are a Succession's members" },
+  'AnimationGroup.maxEnd': { files: ['explain/action.ts'], why: "an action's beats are a Succession's members" },
+  'AnimationGroup.settle': { files: ['explain/action.ts'], why: "an action's beats are a Succession's members" },
+  'AnimationGroup.timings': { files: ['explain/action.ts'], why: "an action's beats are a Succession's members" },
+  'AnimationTiming.settle': { files: ['explain/action.ts'], why: "an action's beats are a Succession's members" },
+  'DomSink.apply': { files: ['app/embed-zoom.ts'], why: 'the close-up draws records without a frame' },
+  'Mobject.boundingPointArrays': { files: ['explain/view.ts'], why: 'a view measures what it draws' },
+  'Mobject.interpolateData': { files: ['explain/labels.ts'], why: 'a label interpolates its own data' },
+  'Mobject.invalidateBox': { files: ['explain/annotate.ts', 'explain/labels.ts', 'explain/machine.ts', 'explain/panels.ts', 'explain/state.ts'], why: 'what changes points in place clears the cached box' },
+  'Mobject.mergeLeaves': { files: ['explain/diagrams.ts'], why: "a diagram's labels draw as one element" },
+  'Mobject.pointArrays': { files: ['app/embed-closeup.ts', 'explain/view.ts'], why: 'a view and the close-ups measure points' },
+  'Scene.beginAnimations': { files: ['explain/action.ts'], why: 'what is made at its turn begins as a play begins it' },
+  'Scene.keepOnTop': { files: ['explain/stage.ts'], why: 'the stage keeps its heading drawn last' },
+  'Scene.skipUntil': { files: ['app/embed.ts'], why: "the player sends its runner on to a later step's frames" },
+  'Scene.stopAt': { files: ['explain/live.ts'], why: 'the run to a live step stops as the step ends' },
+  'Scene.whenReady': { files: ['explain/action.ts'], why: 'what is made at its turn waits for what it reads' },
+  'Text.frameBox': { files: ['explain/labels.ts'], why: "a label's size is its text's box" },
+  'Text.run': { files: ['explain/labels.ts'], why: "a label's words are its text's runs" },
+  'Transform.sameStructure': { files: ['explain/view.ts'], why: 'a view morphs a picture of the same structure' },
+};
+
+/**
+ * Each @internal member declared in src/ that `files` use, with the files that use it, read by the
+ * type checker (so a member is told from another of the same name). `seeded` adds a file that is not
+ * on disk, whose uses are returned on their own.
+ */
+function internalUses(files: string[], seeded?: { file: string; text: string }): { uses: Record<string, string[]>; seededUses: string[] } {
+  const options: ts.CompilerOptions = { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext, lib: ['lib.es2023.d.ts', 'lib.dom.d.ts'], types: [], allowImportingTsExtensions: true, noEmit: true, skipLibCheck: true, strict: true };
+  const host = ts.createCompilerHost(options);
+  const at = seeded && join(ROOT, seeded.file);
+  if (seeded) {
+    const { getSourceFile, fileExists, readFile } = host;
+    host.fileExists = (f) => f === at || fileExists(f);
+    host.readFile = (f) => (f === at ? seeded.text : readFile(f));
+    host.getSourceFile = (f, language, ...rest) => (f === at ? ts.createSourceFile(f, seeded.text, language) : getSourceFile(f, language, ...rest));
+  }
+  const program = ts.createProgram([...files.map((f) => join(ROOT, f)), ...(at ? [at] : [])], options, host);
+  const checker = program.getTypeChecker();
+  const internal = (d: ts.Declaration) => relative(ROOT, d.getSourceFile().fileName).startsWith('src/') && ts.getJSDocTags(d).some((t) => t.tagName.text === 'internal');
+  const nameOf = (d: ts.Declaration) => {
+    const own = (d as ts.NamedDeclaration).name?.getText() ?? '(anonymous)';
+    return (ts.isClassLike(d.parent) || ts.isInterfaceDeclaration(d.parent)) && d.parent.name ? `${d.parent.name.text}.${own}` : own;
+  };
+  const usedIn = (file: string): Set<string> => {
+    const out = new Set<string>();
+    const visit = (n: ts.Node): void => {
+      if (ts.isIdentifier(n)) {
+        let symbol = checker.getSymbolAtLocation(n);
+        if (symbol && symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol);
+        for (const d of symbol?.declarations ?? []) if (internal(d)) out.add(nameOf(d));
+      }
+      ts.forEachChild(n, visit);
+    };
+    visit(program.getSourceFile(file)!);
+    return out;
+  };
+  const uses: Record<string, string[]> = {};
+  for (const f of files) for (const member of usedIn(join(ROOT, f))) (uses[member] ??= []).push(f);
+  for (const list of Object.values(uses)) list.sort();
+  return { uses: Object.fromEntries(Object.entries(uses).sort(([a], [b]) => (a < b ? -1 : 1))), seededUses: at ? [...usedIn(at)].sort() : [] };
+}
+
+test('the engine\'s @internal members the explainer layer and the player use are exactly those listed, by the files listed', () => {
+  // A seeded use of the scene's internal sink, from a file the list does not name, is read as one.
+  const { uses, seededUses } = internalUses([...sources('explain'), ...sources('app')], {
+    file: 'app/seeded-defect.ts',
+    text: "import type { Scene } from '../src/scene.ts';\nexport const swap = (scene: Scene, other: Scene) => { scene.sink = other.sink; return scene.stopAt; };\n",
+  });
+  assert.deepEqual(seededUses, ['Scene.sink', 'Scene.stopAt'], 'the seeded file\'s uses are found by member, through a type');
+  const listed = Object.fromEntries(Object.entries(INTERNAL_USES).map(([member, { files }]) => [member, files]));
+  assert.deepEqual(uses, listed, 'list each new use of an engine @internal member in INTERNAL_USES, with its reason');
+  assert.ok(!('Scene.sink' in uses), 'no layer above the engine writes or reads the scene\'s sink');
+});
+
 test('the engine types and reads a step\'s caption only: its title, line and kind are declared by the explainer layer', () => {
   const fieldsOf = (file: string, declared: (n: ts.Node) => boolean) => {
     const source = ts.createSourceFile(file, readFileSync(join(ROOT, file), 'utf8'), ts.ScriptTarget.Latest, true);
@@ -148,12 +243,13 @@ test('the engine types and reads a step\'s caption only: its title, line and kin
 });
 
 test('each rule rejects a seeded break and allows what the layers allow', () => {
-  const at = (from: string, to: string, type = false): Import => ({ from, to, type });
+  const at = (from: string, to: string, type = false): Import => ({ from, to, type, local: !/^(node:|esbuild$)/.test(to) });
   const rejected = {
     engine: at('src/scene.ts', 'explain/stage.ts', true),
     integration: at('integrations/agentic-mermaid/snapshot.ts', 'explain/look.ts'),
     explain: at('explain/stage.ts', 'app/embed.ts'),
     player: at('app/embed.ts', 'tools/lib/browser.ts'),
+    command: at('tools/lib/explain-check.ts', 'tools/repo/lib/public-names.ts'),
   };
   for (const [rule, i] of Object.entries(rejected)) assert.ok(RULES[rule]!(i), `${rule}: ${show(i)}`);
   for (const i of [at('explain/look.ts', 'explain/stage.ts', true), at('explain/panels.ts', 'explain/stage.ts'), at('explain/drawing.ts', 'explain/stage.ts'),
@@ -163,4 +259,9 @@ test('each rule rejects a seeded break and allows what the layers allow', () => 
     at('explain/diagrams.ts', 'explain/look.ts')])
     assert.ok(!RULES.layers!(i), show(i));
   assert.ok(RULES.explain!(at('explain/diagrams.ts', 'integrations/agentic-mermaid/build/index.ts')), 'the capture half');
+  for (const i of [at('tools/explain.ts', 'test/lib/random-snapshot.ts'), at('tools/lib/explain-build.ts', 'tools/oracle/glyph-math.ts'), at('tools/lib/x.ts', 'scenes/explainers/catalog.ts'), at('tools/lib/x.ts', 'recipes/render.ts')])
+    assert.ok(RULES.command!(i), show(i));
+  for (const i of [at('tools/lib/explain-check.ts', 'app/embed-closeup.ts'), at('tools/lib/explain-check.ts', 'explain/live.ts'), at('tools/lib/x.ts', 'esbuild'), at('tools/lib/x.ts', 'node:fs'),
+    at('tools/lib/x.ts', 'vendor/glyph.js'), at('tools/explain.ts', 'tools/lib/explain-check.ts'), at('tools/repo/build-cli.ts', 'test/lib/x.ts')])
+    assert.ok(!RULES.command!(i), show(i));
 });

@@ -1,5 +1,6 @@
 import {readFile} from 'node:fs/promises';
 import {jsonObject} from '../../src/json.ts';
+import {isIdentifier} from '../../explain/settings.ts';
 import type {NarrowOpeningObligation} from './explain-review-plan.ts';
 
 export interface SceneInputs {
@@ -64,7 +65,7 @@ export function catalog(value: unknown): Catalog {
   if ((opening.step !== undefined && typeof opening.step !== 'string') || (opening.label !== undefined && typeof opening.label !== 'string') ||
       (opening.settings !== undefined && !stringMap(opening.settings))) return fail();
   for (const scene of value.scenes) {
-    if (!object(scene) || typeof scene.id !== 'string' || !/^[a-z0-9-]+$/.test(scene.id) || !count(scene.scenarios)) return fail();
+    if (!object(scene) || !isIdentifier('id', scene.id) || !count(scene.scenarios)) return fail();
     if (['title','lang','step'].some(key => scene[key] !== undefined && typeof scene[key] !== 'string') ||
         (scene.group !== undefined && scene.group !== 'topic' && scene.group !== 'toolchain') ||
         (scene.showcase !== undefined && typeof scene.showcase !== 'boolean') ||
@@ -79,7 +80,7 @@ export function catalogEvidence(value: unknown): CatalogEvidence {
     throw new Error('Invalid evidence artifact');
   const ids = new Set<string>();
   for (const scene of value.scenes) {
-    if (!object(scene) || typeof scene.id !== 'string' || !/^[a-z0-9-]+$/.test(scene.id) || ids.has(scene.id) ||
+    if (!object(scene) || !isIdentifier('id', scene.id) || ids.has(scene.id) ||
         !Array.isArray(scene.scenarios) || !scene.scenarios.every(stringMap) || !count(scene.diagrams) || !strings(scene.styles) || !strings(scene.families))
       throw new Error('Invalid evidence scene');
     ids.add(scene.id);

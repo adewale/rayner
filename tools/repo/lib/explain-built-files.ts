@@ -3,6 +3,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { sha256 } from '../../lib/hash.ts';
+import { isIdentifier } from '../../../explain/settings.ts';
 
 const rootFiles = ['loader.js', 'index.html', 'catalog.json', 'evidence.json'];
 const digest = sha256;
@@ -10,12 +11,12 @@ const digest = sha256;
 async function outputNames(dir: string, ids: readonly string[], collection: boolean): Promise<string[]> {
   const paths = [...rootFiles, ...(collection ? ['embed-lab.html'] : [])];
   for (const id of ids) {
-    if (!/^[a-z0-9-]+$/.test(id)) throw new Error(`Invalid explainer id: ${id}`);
+    if (!isIdentifier('id', id)) throw new Error(`Invalid explainer id: ${id}`);
     paths.push(`${id}.html`, `${id}.html.headers.json`, `${id}.png`, `${id}/inputs.json`, `${id}/describe.json`, `${id}/steps.json`, `${id}/embed.json`);
     const share = JSON.parse(await readFile(join(dir, id, 'steps.json'), 'utf8')) as { steps: { step: string }[] };
     if (!Array.isArray(share.steps)) throw new Error(`Invalid ${id}/steps.json`);
     for (const { step } of share.steps) {
-      if (!/^[A-Za-z0-9_-]+$/.test(step)) throw new Error(`Invalid shared step: ${id}/${step}`);
+      if (!isIdentifier('step', step)) throw new Error(`Invalid shared step: ${id}/${step}`);
       // Step cards are produced in the isolated export, not the checked collection.
     }
   }

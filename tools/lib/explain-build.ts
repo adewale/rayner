@@ -18,7 +18,8 @@ import { letteringLicences } from './lettering.ts';
 import { RTL_SCRIPTS } from '../../src/lettering-outlines.ts';
 import { playerCss } from '../../app/embed-style.ts';
 import {stepAudio} from '../../explain/audio.ts';
-import { logStart, outcomes, runLive } from '../../app/embed-live.ts';
+import { outcomes } from '../../app/embed-live.ts';
+import { logStart, runLive } from '../../explain/live.ts';
 import { stepQuery } from '../../explain/settings.ts';
 
 /**
@@ -113,8 +114,7 @@ export async function buildExplainer(
     const lines = new Map<string, string>();
     for (const [step, at] of live ?? []) {
       const { machine } = at;
-      const times = trace.steps.find((s) => s.step === step);
-      const base = times && logStart(machine, (await runLive(Scene, times, at, [])).rest);
+      const base = trace.steps.some((s) => s.step === step) && logStart(machine, (await runLive(Scene, step, at, [])).rest);
       if (!base) continue;
       const events = outcomes(machine, base.state).filter((o) => o.kind === 'next').map((o) => o.label);
       lines.set(step, t.liveEvents(events.join(', '), base.from === 'start'));
