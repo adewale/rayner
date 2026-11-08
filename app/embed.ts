@@ -399,8 +399,6 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     keepInRail();
   };
   placeRail();
-  wide.addEventListener('change', placeRail);
-  if (floor) new ResizeObserver(() => requestAnimationFrame(placeRail)).observe(root);
   transcript.addEventListener('click', (e) => {
     const a = (e.target as Element).closest<HTMLAnchorElement>('section a'),
       step = a && new URLSearchParams(a.search).get(PAGE_QUERY.step);
@@ -476,8 +474,13 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     focused?.focus({preventScroll:true});
   };
   placeLive();
-  wide.addEventListener('change', placeLive);
-  if (floor) new ResizeObserver(() => requestAnimationFrame(placeLive)).observe(root);
+  // One listener and one observer place both panes, the rail first: the live row follows it.
+  const placePanes = () => {
+    placeRail();
+    placeLive();
+  };
+  wide.addEventListener('change', placePanes);
+  if (floor) new ResizeObserver(() => requestAnimationFrame(placePanes)).observe(root);
   const narrow = () => stage.clientWidth > 0 && stage.clientWidth < NARROW_PX;
   // A narrow stage draws its pictures without the stage's heading (ReaderSink), so pictures
   // kept from the other width are stale when the stage crosses NARROW_PX (a phone turning):
@@ -533,6 +536,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   // zoom in. Whole picture opts out of that tour; manually zooming out from a
   // detail stop also returns to the whole frame until the tour is resumed.
   const showingWhole = () => zoom.k <= 1 && !(follow && tour[stop]?.k === 1);
+  // The map's part spans for the step's layout at the stage's size: a zoom or a pan moves only the view.
+  let spans: { layout: StepLayout | undefined; size: string } | undefined;
   function drawOverview() {
     refreshTour();
     const [w, h] = stageSize(stage),
@@ -569,13 +574,17 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     const place = (node: HTMLElement, left: number, top: number, width: number, height: number) =>
       Object.assign(node.style, { left: pc(left), top: pc(top), width: pc(width), height: pc(height) });
     place(view, -zoom.x / (zoom.k * w), -zoom.y / (zoom.k * h), 1 / zoom.k, 1 / zoom.k);
-    const { s, ox, oy } = stageScale(w, h);
-    const parts = (shownLayout?.parts ?? []).map((b) => {
-      const part = el('span', undefined, 'part');
-      place(part, (ox + (b[0] + 8) * s) / w, (oy + (4.5 - b[3]) * s) / h, ((b[2] - b[0]) * s) / w, ((b[3] - b[1]) * s) / h);
-      return part;
-    });
-    map.replaceChildren(...parts, view);
+    const size = `${w} ${h}`;
+    if (!spans || spans.layout !== shownLayout || spans.size !== size) {
+      spans = { layout: shownLayout, size };
+      const { s, ox, oy } = stageScale(w, h);
+      const parts = (shownLayout?.parts ?? []).map((b) => {
+        const part = el('span', undefined, 'part');
+        place(part, (ox + (b[0] + 8) * s) / w, (oy + (4.5 - b[3]) * s) / h, ((b[2] - b[0]) * s) / w, ((b[3] - b[1]) * s) / h);
+        return part;
+      });
+      map.replaceChildren(...parts, view);
+    }
   }
   overview.onclick = nextView.onclick = () => {
     // The stage may have changed size since the close-ups were last worked out (the header settles
