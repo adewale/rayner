@@ -111,7 +111,6 @@ export default class StateMachineExplainer extends Scene<SessionState, {}> {
     });
     await this.play(new FadeIn(readout, { runTime: 0.35, shift: [0, -0.08] }));
     this.add(diagram, reducer, ring);
-    this.remove(d.root);
     d.showBy(diagram);
     await this.play(new Create(ring.current.find(`session:ring:${start.session}`)!, { runTime: RING.runTime }));
 

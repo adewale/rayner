@@ -158,7 +158,7 @@ import { stage } from 'rayner/explain';
 const s = stage(this, { style: 'nord' });
 ```
 
-`stage(scene, options)` adds the backdrop (the rectangle the stage is drawn on, in its look's `paper`) and a heading that follows each step's `title`: a circled step number, the title, and the step's `line` under it. The heading draws over everything, and while the camera is away from home it stays put on screen at its size, over a paper band that zoomed content passes under.
+`stage(scene, options)` adds the backdrop (the rectangle the stage is drawn on, in its look's `paper`) and a heading that follows each step's `title`: a circled step number, the title, and the step's `line` under it. The heading draws over everything, and while the camera is away from home it stays put on screen at its size, over a paper band that zoomed content passes under. A scene has one stage: call `stage(this)` once and keep what it returns, since a second call throws.
 
 | Option | Effect |
 | --- | --- |
@@ -169,13 +169,13 @@ const s = stage(this, { style: 'nord' });
 | `headingSize` | The heading's font size, 0.36 by default; at 0.5 it reads at about 12 px on a 390 px page without a close-up |
 | `numbered` | A circled step number before the title; on by default when the heading follows the steps |
 
-With neither `style` nor `palette`, the stage adopts the first diagram's palette.
+With neither `style` nor `palette`, the stage adopts the first diagram's palette. Later diagrams keep their own colours and leave the backdrop, heading and engine defaults as the first one set them.
 
 | Member | What it does |
 | --- | --- |
 | `s.show(spec, { box, build, runTime })` | Draw a diagram (`spec` is a `DiagramSpec`, `{ source, style?, lettering? }`) and build it in; gives a `Diagram`, once it begins ([actions](#actions)) |
-| `s.diagramView(d, (state, shown) => ({ marks, notes, dim, prefix }))` | Show diagram `d` by a view that draws its marks, notes and dimming from state, usually from `shown` ([below](#diagrams)), both typed from the scene, and returns a `DiagramPicture`; `s.diagramView` returns the `View`. Change `this.shown` and play `view.sync()` |
-| `s.liveDiagram(d)` | Hand the stage back to the live diagram, for a `reveal`, `morph` or `enlarge` (a `walk` runs over the view); call `s.diagramView(d, draw)` again afterwards |
+| `s.diagramView(d, (state, shown) => ({ marks, notes, dim, prefix }))` | Show diagram `d` by a view that draws its marks, notes and dimming from state, usually from `shown` ([below](#diagrams)), both typed from the scene, and returns a `DiagramPicture`; `s.diagramView` returns the `View`, which takes the live diagram's place. Change `this.shown` and play `view.sync()`. Called again while that view shows `d`, or after `s.liveDiagram(d)`, it gives the same view, redrawn with the new draw; after `d.hide()` or `s.clear()`, a new one |
+| `s.liveDiagram(d)` | Hand the stage back to the live diagram, for a `reveal`, `morph` or `enlarge`, which a viewed diagram refuses (a `walk` runs over the view); call `s.diagramView(d, draw)` again afterwards to show it by that view once more |
 | `s.card(rows, { at, align, width, title, columns, size, direction, lit, key, panel, enter })` | Labelled values: the drawing kit's `card(s, rows, options)`, faded in and kept; gives the `Card`. `columns` puts values side by side under headings; `direction` overrides the stage's field order; `lit: { row, as }` puts a bar on a row ([below](#card-and-codeblock)) |
 | `s.code(lines, { at, align, size, title, diff, added, lit, width, fitHeight, key, enter })` | Code on a panel: the kit's `code(s, lines, options)`, faded in and kept; gives the `CodeBlock`. With `diff`, lines starting `+ ` or `- ` are marked added or removed; `lit: { lines, as }` puts a bar on lines |
 | `s.direction` | `'ltr'` or `'rtl'` (a `LayoutDirection`), from the `direction` option: where `start` and `end` fall, and the field order of the stage's cards |
@@ -197,7 +197,7 @@ With neither `style` nor `palette`, the stage adopts the first diagram's palette
 | `s.backdrop`, `s.heading` | The backdrop rectangle and the heading text |
 | `s.scene` | The scene the stage draws on. A drawing helper of your own that takes `s` first, as the kit's functions do, makes its text with `s.scene.text(...)`, so the text takes the scene's shaping |
 
-Annotations say a value where it is. Prefer a dimension, pin or callout on the drawing to a card beside it, and `carry` to `clear` when the next step builds on this one. One function makes each annotation: the kit's builds the picture in world coordinates, for a view's or a staged step's draw; the stage verb builds it with that function from the points the camera shows and maps it to the screen, so it keeps its size on screen while the camera is away. With the camera at home both give the same picture.
+Annotations say a value where it is. Prefer a dimension, pin or callout on the drawing to a card beside it, and `carry` to `clear` when the next step builds on this one. One function makes each annotation: the kit's builds the picture in world coordinates, for a view's or a staged step's draw; the stage verb builds it with that function from the points the camera shows and maps it to the screen, so it keeps its size on screen while the camera is away. With the camera at home both give the same picture. The camera is read from `this.frame` when the verb is called, so a camera the scene moved itself, with a Transform of `this.frame`, counts as one `s.focus` moved; a verb composed in one play after a `s.focus` is sized for the camera as it was when the verb was called.
 
 `{ enter: false }` keeps a card or code panel without playing it in, so `s.enter(card, code)` can bring several in together, in one fade.
 
@@ -431,10 +431,11 @@ To measure a diagram before anything is drawn, lay it out without `s.show`: `new
 | `d.picture(marks, { notes, dim, prefix })` | The diagram copied as it would be drawn with these marks, notes and dimming, for a view to draw from state (`s.diagramView` draws one). `marks` maps a part's id to a colour, or to `{ color, as }` to name the mark in the description; marked parts take the colour and thicker outlines, and labels keep their ink. `notes` are `PictureNote`s, `{ id, text, side?, color?, size? }`, short labels beside parts at a fixed readable size (`side`, a `NoteSide`, is `above`, `below`, `left` or `right`). `dim` lists the parts to keep: everything else fades, but links between kept parts, what a kept group draws inside it, and scaffolding stay, and dimmed parts keep 3:1 contrast with the paper. `prefix` goes before every key, so two pictures of one diagram can share the stage (`agentic-mermaid`, `feature-tour`). While the picture shows the diagram it is described as the diagram, marks, notes and dimming included, and it says what it marks is emphasis |
 | `d.trail(hops, color?)` | The marks a walk's path leaves, said as travelled, for a picture's `marks` |
 | `d.notePicture(id, text, { side, color, size, key })` | One note placed as a picture places it, for a view's draw (`exgit`, `fork`); keyed `note:<id>`. While the diagram is on stage the note is described among its parts, and otherwise by itself |
-| `d.link(from, to)`, `d.showBy(view)` | A link's id, part and route; and the view that shows the diagram, so the stage describes it while the live diagram is off the stage (`s.diagramView` calls it) |
+| `d.link(from, to)`, `d.showBy(view)` | A link's id, part and route; and show the diagram by `view`, a view of the scene's own already on stage: the live diagram leaves the stage, and the stage describes the diagram as the view shows it (`s.diagramView` calls it; `state-machine` draws its own) |
+| `d.presentation` | How the diagram is on the stage now, a `DiagramPresentation`: `{ kind: 'detached' }` before it is built and after `d.hide()` or `s.clear()`, `{ kind: 'live' }` while its live parts are on stage, or `{ kind: 'viewed', view }` while a view shows it (`s.diagramView` or `d.showBy`; `s.liveDiagram` hands back). `reveal`, `enlarge` and `morph` move the live parts, so a viewed diagram refuses them: call `s.liveDiagram(d)` first |
 | `d.enlarge(ids \| 'all', { zoom })` | Enlarge parts and their notes inside the diagram's own box (`zoom` above 1 goes closer), leaving what stands beside the box where it is; `'all'` puts the artwork back. The camera does not move: `s.focus` moves it. Enlarged parts are described as focused |
 | `d.morph(next, { ops })` | Same-id parts move, arrivals fade in, departures fade out; the walk and enlargement reset. `ops` are Agentic Mermaid's edits, each a `MutationOp` |
-| `d.hide()` | Fade the diagram out; `reveal` can bring parts back |
+| `d.hide()` | Fade the diagram out, or the view that shows it; the diagram is detached, unrevealed and at its home size, and `reveal` can bring parts back |
 | `d.get(id)` | A part as a native `Group` |
 | `d.shapes(id)`, `d.labels(id)` | A part's own drawn shapes in drawing order (a node's outline, a link's line and arrowhead, a task's bar), without its labels, the plates behind them or the parts it owns; and its own labels, each with the `text` it reads. Address a part's pieces through these, not through `d.get(id).children` (`cert-renewal` places a callout by a task's bar, `pen-and-pencil` reads a period's marks) |
 | `d.emphasis` | The diagram's emphasis colour, as the stage's `s.look.emphasis` for its style: what `trail`, notes and walks colour with by default |

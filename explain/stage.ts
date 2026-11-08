@@ -125,6 +125,8 @@ export const backdropOf = (scene: Scene): Mobject | undefined => scene.mobjects.
  */
 export const paperOf = (scene: Scene): string | undefined => backdropOf(scene)?.style.fill;
 const stagePalettes = new WeakMap<Scene, () => Palette>();
+/** The scenes that have a stage: stage() runs once per scene. */
+const staged = new WeakSet<Scene<any, any>>();
 /** The stage's final palette, including a palette adopted from a diagram. */
 export const paletteOf = (scene: Scene): Palette | undefined => stagePalettes.get(scene)?.();
 const isOptions = (v: unknown): v is object => !!v && !(v instanceof Mobject);
@@ -153,17 +155,19 @@ export interface DiagramPicture {
  * (`diagramView`'s) read the scene's model and shown types.
  */
 export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, options: StageOptions = {}) {
+  // A second stage would add a second backdrop, heading and step listeners over the first.
+  if (staged.has(scene)) throw new Error('stage(): the scene has a stage already; call stage(this) once and keep what it returns');
   // Each caption owns its opening; a previous step's subjects must not leak, unless opening(..., { keep: true })
   // named them for every step that follows.
   let kept: Mobject[] = [];
-  /** Each diagram shown by a view of the state (diagramView): the view and what it draws. */
-  const diagramViews = new Map<Diagram, { draw: (state: S, shown: Sh) => DiagramPicture; view: View<Mobject, S, Sh> }>();
+  /** What each view diagramView made draws: diagramView again with another draw replaces it. */
+  const viewDraws = new WeakMap<View<Mobject, S, Sh>, { draw: (state: S, shown: Sh) => DiagramPicture }>();
   scene.onStep(() => opening(scene, ...kept));
   const direction = layoutDirection(options, 'ltr', 'stage()');
   const physical = <T extends Vec | Box | StageRegion | undefined>(at: T): Exclude<T, 'start' | 'end'> | Region =>
     physicalAt(at, direction) as Exclude<T, 'start' | 'end'> | Region;
-  // Without a style or palette, the stage adopts the first diagram's palette.
-  const adopt = !options.palette && !options.style;
+  // Without a style or palette, the stage adopts the first diagram's palette, and only the first's.
+  let adopt = !options.palette && !options.style;
   let colors = options.palette ?? palette(options.style ?? 'nord');
   stagePalettes.set(scene, () => ({ ...colors }));
   /** The look of the palette as it is now: computed again only when a colour of it changes. */
@@ -247,9 +251,23 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     onTop();
     return scene;
   };
-  /** The camera's map from home to the world: world = shift + k × home. */
-  let view = { k: 1, shift: [0, 0] as Vec };
-  const pinned = (m: Mobject, v = view) => {
+  /** A camera map from home to the world: world = shift + k × home. */
+  type CameraMap = { k: number; shift: Vec };
+  const HOME: CameraMap = { k: 1, shift: [0, 0] };
+  /** The box the stage last moved the camera to, with its map computed exactly from that box. */
+  let aimed: { box: Box; map: CameraMap } | null = null;
+  /**
+   * The camera's map now, from the box `scene.frame` shows, so a camera the scene moved itself (a
+   * Transform of `this.frame`) is followed too. Where the frame is the box the stage moved it to, the
+   * map is the one computed from that box, free of the frame's float32 rounding.
+   */
+  const camera = (): CameraMap => {
+    const b = scene.frame.box() ?? [...STAGE_BOX] as Box;
+    if (aimed && b.every((v, i) => Math.abs(v - aimed!.box[i]!) < 1e-4)) return aimed.map;
+    if (atHome(b)) return HOME;
+    return { k: (b[2] - b[0]) / 16, shift: center(b) };
+  };
+  const pinned = (m: Mobject, v: CameraMap) => {
     const at = home.get(m)!.copy();
     at.scale(v.k, { aboutPoint: [0, 0] });
     for (const x of at.family()) if (x.style.strokeWidth) x.style.strokeWidth *= v.k;
@@ -265,6 +283,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       now = [next.heading.text, ...next.chrome.map((c) => (c as { text?: string }).text ?? '')].join('|');
     if (was === now && chrome.length === next.chrome.length) return;
     // Away from home, the new heading arrives where the camera shows the old one.
+    const view = camera();
     for (const m of [next.heading, ...next.chrome]) {
       home.set(m, m.copy());
       if (view.k === 1 && !view.shift[0] && !view.shift[1]) continue;
@@ -304,7 +323,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     const w = wordsOf(scene);
     const present = new Set(scene.familyMembers());
     const seen: Description[] = [];
-    for (const d of diagrams) if (present.has(d.root) || (d.shownBy && present.has(d.shownBy))) seen.push(d.describe());
+    for (const d of diagrams) if (d.described()) seen.push(d.describe());
     const told = new Set<() => string>();
     const labels: string[] = [];
     let blank = 0;
@@ -344,8 +363,8 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
    * Annotations are sized for the screen: the kit builds each in home coordinates from the points the
    * camera shows, then it is mapped into the world as the heading is, so a zoomed camera shows it at size.
    */
-  const toScreen = (p: Vec): Vec => [(p[0] - view.shift[0]) / view.k, (p[1] - view.shift[1]) / view.k];
-  function onScreen<T extends Mobject>(m: T): T {
+  const toScreen = (p: Vec, view: CameraMap): Vec => [(p[0] - view.shift[0]) / view.k, (p[1] - view.shift[1]) / view.k];
+  function onScreen<T extends Mobject>(m: T, view: CameraMap): T {
     if (view.k === 1 && !view.shift[0] && !view.shift[1]) return m;
     m.scale(view.k, { aboutPoint: [0, 0] });
     for (const x of m.family()) if (x.style.strokeWidth) x.style.strokeWidth *= view.k;
@@ -390,7 +409,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     const banded = pinned(band, next);
     banded.style.opacity = away ? 0.94 : 0;
     anims.push(new Transform(band, banded, { runTime }));
-    view = next;
+    aimed = { box: [...box] as Box, map: next };
     return anims;
   }
   /** An action of the stage's (see Action): it is decided now and plays when awaited or composed. */
@@ -436,6 +455,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       return act('s.show()', () => {
         const read = snapshot!;
         if (adopt) {
+          adopt = false;
           colors = read.palette;
           scene.colors = sceneColors(colors);
           backdrop.setFill(colors.paper);
@@ -460,37 +480,41 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
      * undimmed, as `d.picture` takes them, usually from `shown` (how the model is shown), and the view
      * takes the live diagram's place. Change them in `this.shown` and play
      * `view.sync()`; `rayner check` redraws the view at every step. A walk
-     * runs over the view as it is. For a morph, a reveal or an enlargement, hand the stage back with `liveDiagram(d)`,
-     * then call this again to show the diagram by its view once more.
+     * runs over the view as it is. A morph, a reveal or an enlargement refuses a diagram a view shows: hand
+     * the stage back with `liveDiagram(d)` first, then call this again to show the diagram by its view once
+     * more. Called again while its view shows `d`, or after `liveDiagram(d)`, it gives that view, redrawn
+     * with the new draw; after `d.hide()` or `s.clear()` it makes a new one.
      */
     diagramView(d: Diagram, draw: (state: S, shown: Sh) => DiagramPicture = () => ({})): View<Mobject, S, Sh> {
-      let shown = diagramViews.get(d);
-      if (!shown) {
-        const entry = { draw, view: null as unknown as View<Mobject, S, Sh> };
-        entry.view = new View<Mobject, S, Sh>(scene, (st, sh) => {
-          const p = entry.draw(st, sh);
-          return d.picture(p.marks ?? {}, { notes: p.notes ?? [], dim: p.dim ?? null, ...(p.prefix ? { prefix: p.prefix } : {}) });
-        }, { place: false });
-        diagramViews.set(d, (shown = entry));
-      } else {
-        shown.draw = draw;
-        // The live diagram may have changed (a morph): the view draws it as it is now.
-        shown.view.rebuild();
+      const p = d.presentation;
+      // Shown by a view this stage made, or live in that view's place since s.liveDiagram: that view
+      // takes the new draw and draws the diagram as it is now (after a morph, say).
+      const own = p.kind === 'viewed' ? p.view : d.replaced();
+      const was = own instanceof View ? (own as View<Mobject, S, Sh>) : null;
+      const drawing = was && viewDraws.get(was);
+      if (was && drawing) {
+        drawing.draw = draw;
+        was.rebuild();
+        scene.add(was);
+        if (p.kind !== 'viewed') d.showBy(was);
+        return was;
       }
-      scene.add(shown.view);
-      scene.remove(d.root);
+      if (p.kind === 'viewed') throw new Error("s.diagramView(): the diagram is shown by a view of the scene's own; call s.liveDiagram(d) first");
+      const entry = { draw };
+      const v = new View<Mobject, S, Sh>(scene, (st, sh) => {
+        const pic = entry.draw(st, sh);
+        return d.picture(pic.marks ?? {}, { notes: pic.notes ?? [], dim: pic.dim ?? null, ...(pic.prefix ? { prefix: pic.prefix } : {}) });
+      }, { place: false });
+      viewDraws.set(v, entry);
+      scene.add(v);
       // The stage describes the diagram through the view that shows it, as it describes a live one;
       // like a live diagram, the view is not an overlay, so clearOverlays leaves it.
-      d.showBy(shown.view);
-      return shown.view;
+      d.showBy(v);
+      return v;
     },
     /** The live diagram back in its view's place, for a morph, a reveal or an enlargement (see diagramView). */
     liveDiagram(d: Diagram): void {
-      const shown = diagramViews.get(d);
-      if (!shown) throw new Error('s.liveDiagram(): the diagram is not shown by a view; show it with s.diagramView(d, draw) first');
-      scene.add(d.root);
-      scene.remove(shown.view);
-      d.unshow();
+      d.showLive();
     },
     /**
      * The stage's direction: where the logical regions `'start'` and `'end'` fall, and the field
@@ -644,14 +668,16 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     dimension(a: Vec, b: Vec, label: string, opts: { offset?: number; color?: string; size?: number; key?: string } = {}): Action<Group> {
       return act('s.dimension()', () => {
         // The line describes itself.
-        const g = onScreen(kit.dimension(this, toScreen(a), toScreen(b), label, opts));
+        const view = camera();
+        const g = onScreen(kit.dimension(this, toScreen(a, view), toScreen(b, view), label, opts), view);
         return drawIn(g, 0.6, () => new Create(g, { runTime: 0.6, lagRatio: 0.1 }));
       });
     },
     /** A pin stuck in at `point`, with an optional label: the kit's `pin`, sized for the screen, drawn in and kept. */
     pin(point: Vec, opts: { label?: string; color?: string; size?: number; side?: 'left' | 'right'; key?: string } = {}): Action<Group> {
       return act('s.pin()', () => {
-        const g = onScreen(kit.pin(this, toScreen(point), opts));
+        const view = camera();
+        const g = onScreen(kit.pin(this, toScreen(point, view), opts), view);
         return drawIn(g, 0.4, () => new FadeIn(g, { runTime: 0.4, shift: [0, -0.15] }));
       });
     },
@@ -661,7 +687,8 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
      */
     legend(items: readonly LegendItem[], opts: { at?: Vec; size?: number; stack?: 'column' | 'row'; gap?: number; key: string }): Action<Group> {
       return act('s.legend()', () => {
-        const g = onScreen(kit.legend(this, items, { ...opts, at: toScreen(opts.at ?? [0, 0]), api: 's.legend()' } as typeof opts));
+        const view = camera();
+        const g = onScreen(kit.legend(this, items, { ...opts, at: toScreen(opts.at ?? [0, 0], view), api: 's.legend()' } as typeof opts), view);
         return drawIn(g, 0.4, () => new FadeIn(g, { runTime: 0.4 }));
       });
     },
@@ -678,8 +705,9 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
             : (target as Box)
           : (target as Mobject).box();
         if (!box) throw new Error('s.callout(): the target has no extent; give a point, a box or a mobject that is drawn');
-        const [a, b] = [toScreen([box[0], box[1]]), toScreen([box[2], box[3]])];
-        const g = onScreen(kit.callout(this, [a[0], a[1], b[0], b[1]], text, opts));
+        const view = camera();
+        const [a, b] = [toScreen([box[0], box[1]], view), toScreen([box[2], box[3]], view)];
+        const g = onScreen(kit.callout(this, [a[0], a[1], b[0], b[1]], text, opts), view);
         return drawIn(g, 0.6, () => new Create(g, { runTime: 0.6, lagRatio: 0.15 }));
       });
     },
@@ -705,8 +733,9 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
           : null;
         if (t) {
           // The tool is sized to the stage, as the camera shows it.
-          t.scale(view.k, { aboutPoint: [0, 0] });
-          for (const x of t.family()) if (x.style.strokeWidth) x.style.strokeWidth *= view.k;
+          const { k } = camera();
+          t.scale(k, { aboutPoint: [0, 0] });
+          for (const x of t.family()) if (x.style.strokeWidth) x.style.strokeWidth *= k;
         }
         return {
           value: strokes,
@@ -752,6 +781,8 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     },
   };
   bindStagePalette(api, () => colors);
+  // Options refused above leave the scene without a stage, free to have one.
+  staged.add(scene);
   return api;
 }
 /** The stage on a `Scene<S, Sh>`; a bare `Stage` is the stage on any scene, as kit functions take it. */

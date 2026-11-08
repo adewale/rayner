@@ -214,18 +214,27 @@ test('a picture’s dimming fades exactly the parts outside the kept set, the li
   );
 });
 
-test('forget, after any pictures, leaves every style as built and takes the diagram off the stage', async () => {
+test('forget, after any pictures and enlargements, leaves every style and place as built and takes the diagram off the stage', async () => {
   await fc.assert(
     fc.asyncProperty(
-      withPicks((ids) => ops(ids, false)),
+      withPicks((ids) => ops(ids, true)),
       async ([s, sequence]) => {
-        const { d } = await shown(s);
+        const { scene, d } = await shown(s);
         const before = looks(d);
+        const boxes = () => tops(d).map((id) => d.get(id).box()).filter((b): b is Box => !!b);
+        const home = boxes().length ? union(boxes()) : null;
         await apply(d, sequence);
         d.forget();
         assert.equal(looks(d), before);
         assert.equal(d.visible.size, 0);
         assert.equal(d.root.children.length, 0);
+        assert.equal(d.presentation.kind, 'detached');
+        assert.ok(!scene.mobjects.includes(d.root));
+        // An enlargement is undone: every part is back in the authored frame (to float32 rounding).
+        if (home) {
+          const eps = 1e-4 * Math.max(1, ...home.map(Math.abs));
+          union(boxes()).forEach((v, i) => assert.ok(Math.abs(v - home[i]!) <= eps, `${union(boxes())} vs ${home}`));
+        }
       },
     ),
     params(300),
@@ -241,15 +250,21 @@ test('hide fades out the picture that shows the diagram, its notes with it; reve
         const before = looks(d);
         // Shown by its picture, as stage.diagramView shows it.
         const picture = draw(d, p, noted.map((id) => ({ id, text: 'n' })));
-        scene.remove(d.root);
         scene.add(picture);
+        assert.equal(d.presentation.kind, 'live');
+        // showBy takes the live diagram off the stage.
         d.showBy(picture);
+        assert.deepEqual(d.presentation, { kind: 'viewed', view: picture });
+        assert.ok(!scene.mobjects.includes(d.root), 'the live diagram leaves the stage');
         await d.hide();
         const present = new Set(scene.familyMembers());
         assert.ok(tops(d).every((id) => !present.has(d.get(id))), 'no part left on stage');
         assert.ok(!present.has(picture), 'the picture and its notes are gone');
         assert.equal(looks(d), before);
+        assert.equal(d.presentation.kind, 'detached');
         await d.reveal('rest');
+        // A reveal that brings in a part puts the live diagram back on stage.
+        if (tops(d).length) assert.equal(d.presentation.kind, 'live');
         assert.equal(looks(d), looks((await shown(s)).d));
       },
     ),

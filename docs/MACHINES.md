@@ -414,8 +414,8 @@ Drawing each main picture from state can reach pictures the story never shows, a
 checks those too. In ring-buffer it found two states that differed only in the next value to be
 pushed and looked alike (the ring now shows "next N"), and a long tray running into the bottom
 pointers' labels. In latest-search it reached an order no scenario shows ("ca" answers before
-"cat" is typed). `state-machine`'s diagram is drawn by the view, so the live diagram leaves the
-stage; `Diagram.showBy(view)` keeps the stage describing it.
+"cat" is typed). `state-machine`'s diagram is drawn by the view: `Diagram.showBy(view)` takes the live diagram off
+the stage and keeps the stage describing it.
 
 ## Tried and not kept
 
