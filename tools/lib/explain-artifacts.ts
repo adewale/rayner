@@ -36,6 +36,23 @@ const strings = (value: unknown) => Array.isArray(value) && value.every(v => typ
 const entry = (value: unknown) => object(value) && typeof value.step === 'string' && stringMap(value.settings);
 const totals = (value: unknown) => object(value) && ['explainers','scenarios','diagrams','styles','families'].every(key => count(value[key]));
 
+/**
+ * Refuse a site whose pages share an id, ignoring case: a site writes each page as `<id>.html`
+ * beside the others (with `<id>.png`, `<id>.json` and a folder of share pages), and on a
+ * case-insensitive file system or host `Fork.html` is `fork.html`, so one page would replace the other.
+ */
+export function uniquePageIds(ids: readonly string[]): void {
+  const seen = new Map<string, string>();
+  for (const id of ids) {
+    const folded = id.toLowerCase(), other = seen.get(folded);
+    if (other !== undefined)
+      throw new Error(other === id
+        ? `site: the page id ${JSON.stringify(id)} is listed twice; list each explainer once`
+        : `site: the page ids ${JSON.stringify(other)} and ${JSON.stringify(id)} differ only in case, so one page would be written over the other; give one of them another id`);
+    seen.set(folded, id);
+  }
+}
+
 /** Validate serialized producer boundaries once; consumers use the same contracts. */
 export function catalog(value: unknown): Catalog {
   const fail = (): never => {throw new Error('Invalid catalog artifact');};
@@ -46,15 +63,15 @@ export function catalog(value: unknown): Catalog {
   const opening = value.product.entry;
   if ((opening.step !== undefined && typeof opening.step !== 'string') || (opening.label !== undefined && typeof opening.label !== 'string') ||
       (opening.settings !== undefined && !stringMap(opening.settings))) return fail();
-  const ids = new Set<string>();
   for (const scene of value.scenes) {
-    if (!object(scene) || typeof scene.id !== 'string' || !/^[a-z0-9-]+$/.test(scene.id) || ids.has(scene.id) || !count(scene.scenarios)) return fail();
-    ids.add(scene.id);
+    if (!object(scene) || typeof scene.id !== 'string' || !/^[a-z0-9-]+$/.test(scene.id) || !count(scene.scenarios)) return fail();
     if (['title','lang','step'].some(key => scene[key] !== undefined && typeof scene[key] !== 'string') ||
         (scene.group !== undefined && scene.group !== 'topic' && scene.group !== 'toolchain') ||
         (scene.showcase !== undefined && typeof scene.showcase !== 'boolean') ||
         (scene.tier !== undefined && scene.tier !== 'showcase' && scene.tier !== 'gallery' && scene.tier !== 'coverage') || (scene.entry !== undefined && !entry(scene.entry))) return fail();
   }
+  try { uniquePageIds(value.scenes.map((scene) => (scene as {id: string}).id)); }
+  catch (error) { throw new Error(`Invalid catalog artifact: ${(error as Error).message}`); }
   return value as unknown as Catalog;
 }
 export function catalogEvidence(value: unknown): CatalogEvidence {
