@@ -113,7 +113,7 @@ this.addInvariant('the dot stays on its circle', (scene) => {
 });
 ```
 
-A check reads the scene by key and changes nothing. It returns a message when the
+A check, an `Invariant`, reads the scene by key and changes nothing. It returns a message when the
 invariant fails, `true` when it held, and nothing when there was nothing to check on
 that frame. An invariant that never holds in a whole run tested nothing, so
 `rayner check` fails it, which keeps a misspelt key from passing. `rayner check` runs
@@ -124,12 +124,13 @@ between its two ends with `Transform`, it cuts through the centre, and the recip
 finds those frames. `token-bucket` and `ring-buffer` declare invariants of this kind.
 
 `InvariantSink` (`rayner/testing`) runs them, and it is the pattern for a check of your own: a sink
-receives every frame of a full run, reads the scene, and hands the frame on to an inner
+receives every frame of a full run, reads the scene, and hands the frame on to its `inner`
 sink, so several checks share one run. `rayner check` composes it with its motion and
 legibility sampling this way. A seek skips frames, so run invariants over a full run.
 After the run, `failures` lists each failure as an `InvariantFailure`, `{ invariant, step,
 frame, t, message }`; `checked` and `held` count, per invariant, the frames it ran on and the
-frames it held on; and `vacuous()` names the invariants that ran and never held.
+frames it held on; and `vacuous()` names the invariants that ran and never held. `check(scene)` runs every
+invariant once against the scene as it is, as each frame does.
 
 ## Consume a scene in another application
 

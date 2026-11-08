@@ -38,7 +38,7 @@ type TraceEvent =
   | { step: string; phase: 'end'; t: number; frame: number; state: SceneState; shown: SceneState; hold?: number; evidence: Evidence[] };
 
 export class TraceSink implements Sink {
-  events: TraceEvent[];
+  /** @internal */ events: TraceEvent[];
   constructor() { this.events = []; }
   async frame(): Promise<void> {}
   async stepBegin(scene: Scene, s: Step): Promise<void> {

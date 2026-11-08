@@ -176,7 +176,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 
 ### Tooling and publishing
 
-- Every public name is documented: `test/public-names.test.ts` fails when no guide in `docs/` names an exported value or type, a public member of an exported class or a stage member, apart from a listed few with no author purpose, and `node tools/repo/public-names.ts --docs` lists the surface. [Public names](docs/ENGINE.md#public-names)
+- Every public name is documented: `test/public-names.test.ts` fails when no guide in `docs/` names an exported value or type, a public member of an exported class or a stage member, and `node tools/repo/public-names.ts --docs` lists the surface. Only an options bag (`...Opts`, `...Options`) counts as documented by a documented signature that shows it; every other type is named in a guide. A member counts only in a section that also names its owner class, or written with its owner's receiver (`s.card`, `view.sync`). [Public names](docs/ENGINE.md#public-names)
 - Every error an author can see starts with the call that failed (`card():`, `s.card():`, `new NumberLine():`, `meta.watch:`), says what is wrong in one sentence with no final full stop, ends with the fix when it is known, is a `TypeError` for a wrong type or shape and a `RangeError` for a value out of range, and names a mobject by its key, text or kind, never its internal id. `test/error-messages.test.ts` holds the library to it. [Error messages](docs/ENGINE.md#error-messages)
 - The `rayner` command initialises, previews (with `--watch`), captures snapshots, checks, reviews, builds, draws contact sheets and describes a scene. [Command line](docs/REFERENCE.md#command-line)
 - `rayner describe` prints every scenario and step as JSON: the state, what changed, the invariants, the machines, and the picture in words and as text. [Describe](docs/REFERENCE.md#describe)
@@ -239,7 +239,8 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
   - `Labeled`'s and `Axes`' child indexes are private: read `shape`, `label`, `xLabel` and `yLabel`.
   - The renderer's point buffers and path data (`pointArrays`, `boundingPointArrays`, `pathData`, `toPathD`, `roundedRelative`, `Text.frameBox`), a morph's alignment (`splitCurve`, `insertNCurves`, `zipFamilies`, `starting`, `slots`, `allMobjects`, `subAlpha`, `paints`, and `Transform`'s `ownsTarget`, `sameStructure` and `targetCopy`), `play()`'s `setOptions` and `ready`, `AnimationGroup`'s schedule, the animations' stored options, `Mobject.updaters`, `Text`'s cluster matching, `TransformMatching`'s plan and `DomSink`'s DOM plumbing are internal. `interpolateSubmobject` is `protected`.
   - `LetteringSnapshot`, `PackedLetteringSnapshot`, `StoredLetteringSnapshot` and `Outcome` are no longer exported.
-  - `MotionSink`'s `frames` and `labels`, keyed by the renderer's ids, are internal; `analyzeMotion` names a leaf by its key, else its text, else its kind, inside the nearest keyed or lettered ancestor, never by an id.
+  - Run-time state with no author purpose is internal: `Mobject.saved` (`restore()` and `Restore` read it), `Frame.corners` (read `box()`), `Text.run`, `Animation.families`, `MoveAlongPath.offset`, `Succession.active` and `advance`, `TransformMatching.fadesIn` and `frames`, `DomSink.nodes`, `anchor` and `patch` (a `DomSink` with `realtime: false` draws every frame at once), `TraceSink.events` (read `steps()`) and `MotionSink.frames` and `labels` (hand the sink to `analyzeMotion`).
+  - `analyzeMotion` names a leaf by its key, else its text, else its kind, inside the nearest keyed or lettered ancestor, never by the renderer's id.
 
 ### Known limits
 

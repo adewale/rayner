@@ -15,7 +15,7 @@ await this.play(box.animate.setFill(s.look.bad).scale(1.5));
 await this.play(new Restore(box));        // back to the saved look, animated
 ```
 
-`saveState()` stores a deep copy on the mobject (`box.saved`). `restore()` returns to
+`saveState()` stores a deep copy on the mobject. `restore()` returns to
 it at once, `Restore` transforms back to it. After either, the mobject equals the saved
 state exactly: points, style, and fields such as a `Text`'s string. That holds even
 when the mobject changed shape on the way (morphed into a circle, which subdivides its
@@ -36,7 +36,7 @@ carry it: a copy is a new mobject with no history.
 await this.play(new TransformFromCopy(formula, result), formula.animate.setFill(s.look.soft));
 ```
 
-A copy of `formula` morphs into `result`. `formula` stays where it is, unchanged, and
+A copy of `formula`, the animation's `source`, morphs into `result`. `formula` stays where it is, unchanged, and
 the scene holds `result` at the end. The copy is taken before any animation in the play
 begins, so it is `formula` as the play found it whatever the argument order, and it is a
 different mobject from the source, so the source can be animated in the same play. With

@@ -29,7 +29,7 @@ const ASPECT = FRAME.w / FRAME.h;
  * Keep it 16:9: fit(), reset(), scale() and moveTo() do; stretch() would not.
  */
 export class Frame extends Mobject {
-  /** The visible box as a point array [x0, y0, x1, y1]. */
+  /** @internal The visible box as a point array [x0, y0, x1, y1]. */
   corners: Float32Array;
 
   constructor() {

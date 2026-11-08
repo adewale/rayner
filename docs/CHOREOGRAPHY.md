@@ -43,7 +43,7 @@ await this.play(new GrowFromEdge(task, [-1, 0], { runTime: 0.6 })); // right fro
 
 Signature: `new GrowFromEdge(mobject, edge = [0, -1], options?)`.
 
-The edge must be one unit step along an axis: `[0, 1]`, `[0, -1]`, `[-1, 0]` or `[1, 0]`. The corresponding edge of the
+The `edge` must be one unit step along an axis: `[0, 1]`, `[0, -1]`, `[-1, 0]` or `[1, 0]`. The corresponding edge of the
 current world-coordinate bounding box stays fixed and the perpendicular dimension
 keeps its size, so the growth is along one axis.
 Placement and authored paint/opacity are captured when the play begins. At its
@@ -69,7 +69,7 @@ Signature: `new PulseAlongPath(mobject, path, options?)`.
 
 At the play's beginning, capture the token geometry, each family member's authored
 opacity and a copy of the route. At eased progress `a`, position follows
-`MoveAlongPath` and opacity is the authored opacity times `sin(pi * a)`. The token
+`MoveAlongPath`, which moves its mobject along its `path` by `pointFromProportion`, and opacity is the authored opacity times `sin(pi * a)`. The token
 is strongest halfway along. Child opacity ratios are preserved; existing dimming
 is not overwritten with full strength. Applying an easing also changes that pulse's
 timing; the default is linear.

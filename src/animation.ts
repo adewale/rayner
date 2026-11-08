@@ -104,7 +104,7 @@ export type ScheduledAnimation = Animation | AnimationGroup;
 export class Animation extends AnimationTiming {
   mobject: Mobject;
   /** @internal */ starting!: Mobject;
-  families!: FamilyRow[];
+  /** @internal */ families!: FamilyRow[];
   /** @internal */ slots!: { index: Int32Array; count: number };
   constructor(mobject: Mobject, opts: AnimOpts = {}) { super(opts); this.mobject = mobject; }
   override targets(): Mobject[] { return [this.mobject]; }
@@ -537,7 +537,7 @@ export interface MoveAlongPathOpts extends AnimOpts { fromCurrent?: boolean }
 export class MoveAlongPath extends Animation {
   path: VMobject;
   fromCurrent: boolean;
-  /** Set by begin(). */
+  /** @internal Set by begin(). */
   offset!: Vec;
 
   constructor(mobject: Mobject, path: VMobject, { fromCurrent = true, ...opts }: MoveAlongPathOpts = {}) {
@@ -802,7 +802,7 @@ export function takeCopies(anims: readonly ScheduledAnimation[]): void {
  * rate functions, and a group rate function must not run time backwards.
  */
 export class Succession extends AnimationGroup {
-  /** Index of the member running now; earlier ones have finished. Set by begin(). */
+  /** @internal Index of the member running now; earlier ones have finished. Set by begin(). */
   active: number;
 
   /** Members join `scene` (set by play(), see bindSuccessions) as they begin, as each would in a play of its own. */
@@ -819,7 +819,7 @@ export class Succession extends AnimationGroup {
     this.advance();
   }
 
-  /** Finish the running member and begin the next, as the end of one play and the start of the next would. */
+  /** @internal Finish the running member and begin the next, as the end of one play and the start of the next would. */
   advance(): void {
     const scene = this.scene;
     const cur = this.animations[this.active];
@@ -1016,8 +1016,8 @@ export class TransformMatching extends Animation {
   // What interpolate() writes, fixed at begin(); readable for tests and tools
   /** @internal */ moves!: MoveRow[];
   /** @internal */ fadesOut!: FadeRow[];
-  fadesIn!: FadeRow[];
-  frames!: FrameRow[];
+  /** @internal */ fadesIn!: FadeRow[];
+  /** @internal */ frames!: FrameRow[];
   /** The source family after begin() attached the copies: whose boxes go stale each frame. @internal */
   touched!: Mobject[];
 
