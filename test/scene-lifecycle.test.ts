@@ -179,36 +179,73 @@ test('a mobject kept on top stays last in drawing order through every add, bring
   assert.deepEqual(scene.mobjects, [c, a, band, top, b], 'released, they are ordinary roots again');
 });
 
-test('a run told where to stop stops there for good: after the play that reaches the frame, or as the step ends', async () => {
+test('a run told where to stop stops for good as that step ends: after its end listeners, its caption hold and the code after its last play', async () => {
   let after = 0;
-  class Story extends Scene {
+  class Story extends Scene<{ x: number }> {
     override async construct() {
+      this.state = { x: 0 };
+      // An end listener that plays: its motion is part of the step, so the stop comes after it.
+      this.onStepEnd(async (s) => { if (s.name === 'two') await this.play(new FadeIn(new Rectangle({ width: 0.5 })), { runTime: 0.5 }); });
       await this.step('one');
       await this.play(new FadeIn(new Circle()), { runTime: 0.5 });
-      await this.step('two');
+      await this.step('two', { caption: 'A caption long enough to hold the step for a while after its plays end.' });
       await this.play(new FadeIn(new Rectangle()), { runTime: 0.5 });
       after++;
       await this.play(new FadeIn(new Circle({ radius: 0.2 })), { runTime: 0.5 });
+      this.state.x = 1;
       await this.step('three');
       after++;
     }
   }
-  // At the frame a play in the step reaches: the code after that play never runs.
+  const two = (await traceScene(Story)).steps.find((s) => s.step === 'two')!;
+  assert.ok(two.holdFrame! > two.frame0 + 30 && two.frame1! > two.holdFrame!, 'the step holds for its caption after the listener played');
+  after = 0;
   const scene = new Story(new NullSink());
-  let at: number | undefined;
-  scene.stopAt('two', 30, async (s) => { at = s.frameCount; await s.wait(0.1); });
+  let at: { frame: number; x: number; on: number; step: string | undefined } | undefined;
+  scene.stopAt('two', async (s) => {
+    at = { frame: s.frameCount, x: s.state.x, on: s.mobjects.length, step: s.currentStep?.name };
+    await s.wait(0.1);
+  });
   await scene.run();
-  assert.equal(at, 30);
-  assert.equal(after, 0);
+  // The step's end, as the trace records it: its last frame, its state after, the listener's rectangle on stage.
+  assert.deepEqual(at, { frame: two.frame1, x: 1, on: 4, step: 'two' });
+  assert.deepEqual(two.after, { x: 1 });
+  assert.equal(after, 1, 'the code after the step\'s last play ran; the next step\'s never does');
   assert.equal(scene.phase, 'stopped');
-  assert.equal(scene.frameCount, 33, 'what the stop played, and nothing after it');
+  assert.equal(scene.frameCount, two.frame1! + 3, 'what the stop played, and nothing after it');
   await assert.rejects(scene.play(new FadeIn(new Circle())), StopScene);
-  // A frame past every play in the step: it stops as the step ends.
-  const ending = new Story(new NullSink());
-  ending.stopAt('two', 1000, (s) => { at = s.frameCount; });
-  await ending.run();
-  assert.deepEqual([at, after, ending.phase], [45, 1, 'stopped']);
-  assert.throws(() => ending.stopAt('one', 0, () => {}), /this\.stopAt\(\): the scene has begun its run; say where it stops before run\(\)/);
+  // A step the run never reaches: the run ends as usual, and the callback never runs.
+  const never = new Story(new NullSink());
+  let ran = false;
+  never.stopAt('four', () => { ran = true; });
+  await never.run();
+  assert.deepEqual([ran, never.phase], [false, 'idle']);
+  assert.throws(() => never.stopAt('one', () => {}), /^Error: this\.stopAt\(\): the scene has begun its run; say where it stops before run\(\)$/);
+});
+
+test('a stop\'s callback is held to the listener rule: one that returns with a play still running is refused, and that play ticks no further', async () => {
+  class Short extends Scene {
+    override async construct() {
+      await this.step('one');
+      await this.play(new FadeIn(new Circle()), { runTime: 0.5 });
+    }
+  }
+  for (const skipUntil of [0, Infinity]) {
+    const scene = new Short(new NullSink(), { skipUntil });
+    let left: Promise<void> | undefined, frame = 0;
+    // A Succession interpolates through skipped frames, so even a skipped play is still running when the callback returns.
+    scene.stopAt('one', (s) => { frame = s.frameCount; left = s.play(new Succession([new FadeIn(new Rectangle()), new FadeIn(new Circle({ radius: 0.3 }))])); });
+    await assert.rejects(scene.run(), /^Error: this\.stopAt\(\): its callback at step "one" returned with a play\(\) or wait\(\) still running; await each play\(\) and wait\(\) it makes$/);
+    assert.equal(scene.phase, 'stopped');
+    // The play it left ends at its next frame, drawn or skipped, as any call on a stopped scene does.
+    await assert.rejects(left!, StopScene);
+    assert.ok(scene.frameCount <= frame + 1, `skipUntil ${skipUntil}: stopped at frame ${scene.frameCount}, the callback ran at ${frame}`);
+  }
+  // Awaited, the same play is allowed.
+  const fine = new Short(new NullSink());
+  fine.stopAt('one', async (s) => { await s.play(new FadeIn(new Rectangle())); });
+  await fine.run();
+  assert.equal(fine.phase, 'stopped');
 });
 
 // ---- the scene's phase -----------------------------------------------------

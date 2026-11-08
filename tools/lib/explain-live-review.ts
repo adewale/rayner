@@ -9,8 +9,9 @@ import type { Page } from 'playwright-core';
 import { machinesOf } from '../../explain/testing.ts';
 import type { Scene, Sink } from '../../src/index.ts';
 import type { Machine } from '../../explain/index.ts';
-import { SENT, acceptedLog, encodeLog, logStart, outcomes, runLive } from '../../app/embed-live.ts';
-import type { LogStart } from '../../app/embed-live.ts';
+import { SENT, acceptedLog, encodeLog, outcomes } from '../../app/embed-live.ts';
+import { logStart, runLive } from '../../explain/live.ts';
+import type { LogStart } from '../../explain/live.ts';
 import { chromeFor } from '../../app/embed-strings.ts';
 import { READ_PX } from '../../app/embed-closeup.ts';
 import { stepWords } from '../../explain/trace.ts';
@@ -85,9 +86,8 @@ export async function liveSubjects(scenario: Scenario, lang?: string): Promise<L
   const t = chromeFor(lang);
   const subjects: LiveSubject[] = [];
   for (const [step, live] of scenario.live ?? []) {
-    const times = scenario.trace.steps.find((s) => s.step === step);
-    assert.ok(times, `live step ${step} is not in the trace`);
-    const base = logStart(live.machine, (await runLive(scenario.Scene, times, live, [])).rest);
+    assert.ok(scenario.trace.steps.some((s) => s.step === step), `live step ${step} is not in the trace`);
+    const base = logStart(live.machine, (await runLive(scenario.Scene, step, live, [])).rest);
     if (!base) continue;
     for (const sent of liveVisits(live.machine, base.state)) {
       const name = `${step} after [${sent.join(', ')}]`;
@@ -98,7 +98,7 @@ export async function liveSubjects(scenario: Scenario, lang?: string): Promise<L
           frame = (await storyFrame(scene, name, memory!, [], views.map((v) => ({ name: `view: ${v.key ?? 'machine'}`, objects: [v] })))).frame;
         },
       };
-      await runLive(scenario.Scene, times, live, sent, { sink: capture, from: base.from, onRest: (scene) => (memory = storyMemory(scene)) });
+      await runLive(scenario.Scene, step, live, sent, { sink: capture, from: base.from, onRest: (scene) => (memory = storyMemory(scene)) });
       assert.ok(frame, `${name}: the run drew no picture`);
       const state = acceptedLog(live.machine, base.state, sent).states.at(-1)!;
       const buttons = outcomes(live.machine, state).map((o) => ({

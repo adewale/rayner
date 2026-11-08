@@ -9,7 +9,8 @@ import { machinesOf, TraceSink, traceScene, loadFonts } from '../explain/testing
 import { stage, Machine, refuse, isRefusal, view } from '../explain/index.ts';
 import { SetState } from '../explain/state.ts';
 import { exploreMachines } from '../tools/lib/explain-check.ts';
-import { decodeLog, encodeLog, logStart } from '../app/embed-live.ts';
+import { decodeLog, encodeLog } from '../app/embed-live.ts';
+import { logStart, runLive } from '../explain/live.ts';
 
 await loadFonts();
 
@@ -354,11 +355,7 @@ test('exploration checks a machine on the stage where it last played, not the st
   const [blind] = await exploreMachines(ran);
   assert.match(blind!.problems[0]!, /not on the stage where it last played/);
   // On the stage of the step where it played, every state is checked and passes.
-  const trace = await traceScene(Cleared);
-  const [explored] = await exploreMachines(ran, async (step) => {
-    const s = trace.steps.find((x) => x.step === step)!;
-    return renderFrame(Cleared, s.frame1!, new NullSink());
-  });
+  const [explored] = await exploreMachines(ran, Cleared);
   assert.deepEqual(explored!.problems, []);
   assert.equal(explored!.states, 3);
 });
@@ -473,13 +470,71 @@ test('exploration also walks the states a reader reaches from the live step, not
     }
   }
   const ran = await new FromStep(new NullSink()).run();
-  const trace = await traceScene(FromStep);
-  const stageOf = async (step: string) => {
-    const s = trace.steps.find((x) => x.step === step)!;
-    return renderFrame(FromStep, s.frame1!, new NullSink());
-  };
-  const [explored] = await exploreMachines(ran, stageOf);
+  const [explored] = await exploreMachines(ran, FromStep);
   assert.ok(explored!.problems.some((p) => /^from the state at "press", at the start: “lamp dim” is .* px/.test(p)), JSON.stringify(explored!.problems));
+});
+
+/**
+ * A lamp that starts bright, where UP and OFF are refused (OFF turns only dim off), so only a walk from the live step reaches off and dim; off's
+ * label is too small to read. The step plays UP from off (to dim), then `rest` moves it back to off: by code
+ * after its last play, or by an end listener's play. The reader starts from off, and only exploration from
+ * off finds the small label.
+ */
+function restingLamp(rest: 'code' | 'listener', caption?: string) {
+  return class RestingLamp extends Scene<Lamp> {
+    override state = { level: 0 };
+    override async construct() {
+      const s = stage(this);
+      const picture = view(this, (st: Lamp) => Object.assign(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: st.level === 0 ? 0.08 : 0.5 }), { key: 'lamp' }));
+      s.keep(picture, { describe: () => picture.texts.join(' ') });
+      this.add(picture);
+      const machine = new Machine<Lamp, 'UP' | 'OFF'>(this, {
+        start: { level: 2 }, events: ['UP', 'OFF'], views: [picture], runTime: 0.2,
+        next: (st, e) => (e === 'OFF' ? (st.level === 1 ? { level: 0 } : undefined) : st.level === 2 ? undefined : { level: st.level + 1 }),
+      });
+      if (rest === 'listener') this.onStepEnd(async (st) => { if (st.name === 'press') await this.play(machine.send('OFF')); });
+      await this.step('press', caption ? { caption } : {});
+      await this.play(machine.replay(['UP'], { level: 0 }));
+      if (rest === 'code') this.state = { level: 0 };
+    }
+  };
+}
+
+test('the live player and check start a live step from one state, the step\'s end: code after its last play included, held for a caption or not', async () => {
+  for (const caption of [undefined, 'A caption long enough to hold the step for a reading after its last play.']) {
+    const Lamp = restingLamp('code', caption);
+    const trace = await traceScene(Lamp);
+    const press = trace.steps.find((st) => st.step === 'press')!;
+    assert.equal(press.holdFrame != null, !!caption);
+    const ran = await new Lamp(new NullSink()).run();
+    const [machine] = machinesOf(ran);
+    const run = await runLive(Lamp, 'press', { index: 0, identity: machine!.identity }, []);
+    // The player's state is the trace's: before, it stopped at the still frame, before the code that sets off.
+    assert.deepEqual(run.rest, { level: 0 });
+    assert.deepEqual(press.after, run.rest);
+    assert.deepEqual(logStart(machine!, run.rest), { from: 'rest', state: { level: 0 } });
+    // Check explores from that state: the small label is reached only from off.
+    const [explored] = await exploreMachines(ran, Lamp);
+    assert.ok(explored!.problems.some((p) => /^from the state at "press", at the start: “lamp off” is .* px/.test(p)), JSON.stringify(explored!.problems));
+  }
+});
+
+test('the live player and check start a live step after its end listeners: a listener that plays moves the state both start from, and the picture a link shows', async () => {
+  const Lamp = restingLamp('listener');
+  const trace = await traceScene(Lamp);
+  const press = trace.steps.find((st) => st.step === 'press')!;
+  const ran = await new Lamp(new NullSink()).run();
+  const [machine] = machinesOf(ran);
+  const run = await runLive(Lamp, 'press', { index: 0, identity: machine!.identity }, []);
+  // Before, the player stopped at the still frame, before the listener played OFF, at dim.
+  assert.deepEqual([run.rest, press.after], [{ level: 0 }, { level: 0 }]);
+  const link = new SnapshotSink();
+  await renderFrame(Lamp, press.frame1!, link);
+  const player = new SnapshotSink();
+  await player.frame(run.scene);
+  assert.equal(player.svg, link.svg, 'the player starts from the picture a link to the step shows');
+  const [explored] = await exploreMachines(ran, Lamp);
+  assert.ok(explored!.problems.some((p) => /^from the state at "press", at the start: “lamp off” is .* px/.test(p)), JSON.stringify(explored!.problems));
 });
 
 test('an authored transition lands a picture whose parts repeat a key by redrawing it, never by drawing one part twice', async () => {
@@ -526,11 +581,9 @@ test('exploration refuses a run to the live step that made a different machine a
   const ran = await new (made(['UP', 'OFF'], { level: 0 }))(new NullSink()).run();
   // Before, only the events were compared: two machines with the same events made in the other order, or a
   // machine with another start, passed as the same machine.
-  for (const other of [made(['OFF', 'UP'], { level: 0 }), made(['UP', 'OFF'], { level: 1 })]) {
-    const host = await new other(new NullSink()).run();
-    await assert.rejects(exploreMachines(ran, async () => host), /new Machine\(\): the run to "press" made different machines/);
-  }
-  const same = await new (made(['UP', 'OFF'], { level: 0 }))(new NullSink()).run();
-  const [explored] = await exploreMachines(ran, async () => same);
+  // Exploration runs to the step as the player does, so the refusal is the player's own.
+  for (const other of [made(['OFF', 'UP'], { level: 0 }), made(['UP', 'OFF'], { level: 1 })])
+    await assert.rejects(exploreMachines(ran, other), /^Error: runLive\(\): the run to "press" made different machines; a scene must make the same machines on every run$/);
+  const [explored] = await exploreMachines(ran, made(['UP', 'OFF'], { level: 0 }));
   assert.deepEqual(explored!.problems, []);
 });

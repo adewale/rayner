@@ -14,8 +14,8 @@ import { randomUUID } from 'node:crypto';
 import { Scene } from '../../src/index.ts';
 import { NullSink } from '../../src/output.ts';
 import { diagramsMade } from '../../explain/diagrams.ts';
-import { liveSteps } from '../../app/embed-live.ts';
-import type { Live } from '../../app/embed-live.ts';
+import { liveSteps } from '../../explain/live.ts';
+import type { Live } from '../../explain/live.ts';
 import { traceRun } from '../../src/trace.ts';
 import type { Palette } from '../../src/color.ts';
 import { paperOf, paletteOf } from '../../explain/stage.ts';
@@ -361,8 +361,8 @@ export async function collectProject(
       await collect.run();
       blanks();
       const Bound = withSettings(bindSnapshots(Source, store), values);
-      const { trace, scene: ran } = await traceRun(Bound),
-        paper = paperOf(ran);
+      const { trace, scene: traced } = await traceRun(Bound),
+        paper = paperOf(traced);
       checkScenarioSteps(trace, values);
       // The page never draws these (offPage): they stay out of what it carries
       if (outline) await withSceneLettering(Bound, () => offPage(async () => {
@@ -373,9 +373,9 @@ export async function collectProject(
           new Text(`${i + 1}. ${String(s.meta.title ?? s.step)}`, {shaping: textContextOf(Bound)});
         }
       }));
-      // The steps a reader can drive a machine at (app/embed-live.ts): the page's transcript lists their events.
-      const live = liveSteps(ran);
-      scenarios.push({ values, Scene: Bound, trace, palette: paletteOf(ran), ...(paper ? { paper } : {}), ...(live.size ? { live } : {}) });
+      // The steps a reader can drive a machine at (explain/live.ts): the page's transcript lists their events.
+      const live = liveSteps(traced);
+      scenarios.push({ values, Scene: Bound, trace, palette: paletteOf(traced), ...(paper ? { paper } : {}), ...(live.size ? { live } : {}) });
     }
     if (undrawable.length)
       throw new Error(`new Text(): the embedded fonts cannot draw these characters; ask for their script in meta.lettering, or write others:\n${[...new Set(undrawable)].join('\n')}`);

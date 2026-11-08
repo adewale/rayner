@@ -18,7 +18,7 @@ import type { Settings } from '../../explain/settings.ts';
 import ts from 'typescript';
 import { Text } from '../../src/index.ts';
 import { View } from '../../explain/index.ts';
-import { SnapshotSink, renderFrame, toSvgString, renderText, NullSink } from '../../src/output.ts';
+import { SnapshotSink, renderFrame, toSvgString, renderText } from '../../src/output.ts';
 import { renderElements, serializeElement } from '../../src/svg.ts';
 import { MotionSink, InvariantSink, machinesOf, viewMismatch, jsonObject, analyzeMotion, traceScene } from '../../explain/testing.ts';
 import { canonicalJson } from '../../src/json.ts';
@@ -27,10 +27,11 @@ import { checkedAgainstFiles, compareAnswers, runModelTest } from './explain-evi
 import { scenarioName } from '../../explain/testing.ts';
 import { undescribed, watchedChanges } from '../../explain/trace.ts';
 import { diagramsMade } from '../../explain/diagrams.ts';
+import { runLive } from '../../explain/live.ts';
 import { labelOf, readingLabelSize } from '../../explain/labels.ts';
 import { closeUps, stageScale, stepLayouts, toView, viewBox } from '../../app/embed-closeup.ts';
 import { zoomOf } from '../../src/units.ts';
-import type { Box, Mobject, Scene, Sink, Step } from '../../src/index.ts';
+import type { Box, Mobject, Scene, SceneClass, Sink, Step } from '../../src/index.ts';
 import { contains, intersect, nonempty, overlaps } from '../../src/box.ts';
 import { paints } from '../../src/mobject.ts';
 import { atHome, viewOf } from '../../src/svg.ts';
@@ -513,20 +514,23 @@ export class LegibilitySink implements Sink {
  * for views of the scene's state), and a description no other reachable state shares, so a
  * reader, or a screen reader, can tell them apart. A problem is named by the shortest events
  * reaching it. Phone close-ups are not worked out for explored states.
+ *
+ * With `Source`, the scene's class, each machine is explored on the stage the reader drives it on:
+ * `Source` run again to the end of the step it last played in, by the live player's own run
+ * (`runLive`, which refuses a run that made a different machine there), so the state exploration
+ * starts from is the one the reader's events start from. Without it, on `scene` as its run ended.
  */
 export async function exploreMachines(
   scene: Scene,
-  stageOf?: (step: string) => Promise<Scene>,
+  Source?: SceneClass,
 ): Promise<{ events: string[]; states: number; sampled: boolean; problems: string[] }[]> {
   const explored = [];
   for (const [index, live] of machinesOf(scene).entries()) {
-    // The stage the reader saw the machine on: the run again, to the resting picture of the step it
-    // last played in (a frame is a function of its number, so this is that picture exactly), rather than
-    // the stage the run ends with, which may have cleared its views away.
-    const host = stageOf && live.lastPlayedIn ? await stageOf(live.lastPlayedIn) : scene;
-    const machine = host === scene ? live : machinesOf(host)[index];
-    if (!machine || machine.identity !== live.identity)
-      throw new Error(`new Machine(): the run to ${JSON.stringify(live.lastPlayedIn)} made different machines; a scene must make the same machines on every run`);
+    // The stage the reader saw the machine on, rather than the stage the run ends with, which may
+    // have cleared its views away.
+    const step = live.lastPlayedIn;
+    const host = Source && step !== null ? (await runLive(Source, step, { index, identity: live.identity }, [])).scene : scene;
+    const machine = host === scene ? live : machinesOf(host)[index]!;
     const problems: string[] = [];
     const missing = machine.spec.views.filter((v) => !host.familyMembers().includes(v));
     if (missing.length) problems.push(`its views ${missing.map((v) => v.key ?? v.constructor.name).join(', ')} are not on the stage where it last played, so its states cannot be checked there`);
@@ -780,12 +784,9 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       [],
       `Invariants never held ${where}: each ran but found nothing to check on every frame (a key it reads may be misspelt)`,
     );
-    // Each machine is explored on the stage where it last played: the scene run again to that step's resting picture.
+    // Each machine is explored on the stage where it last played: the scene run again to that step's end, as the player runs it.
     const diagramsBefore = diagramsMade();
-    const machines = await exploreMachines(ran, async (step) => {
-      const s = v.trace.steps.find((x) => x.step === step)!;
-      return renderFrame(v.Scene, s.frame1!, new NullSink());
-    });
+    const machines = await exploreMachines(ran, v.Scene);
     assert.ok(
       showsDiagrams(project) || diagramsMade() === diagramsBefore,
       `Diagrams ${where}: a reader's event draws a diagram no scenario draws, so the page, built without diagram code, cannot draw it; draw the diagram in a scenario too`,

@@ -275,7 +275,7 @@ exploration never checked, or one whose stage no longer holds the machine's view
 last step clears them). When two machines last play in one step, the one made later is live there.
 `describeExplainer` reports the step as each machine's `step`.
 
-**Where the reader starts.** Where the step leaves the machine: its state at the resting picture.
+**Where the reader starts.** Where the step leaves the machine: its state as the step ends, which the trace records as the step's `after`.
 Three explainers' live steps leave their machine finished: token-bucket's client has sent all ten
 requests, both of latest-search's responses have landed, and oauth-pkce's sign-in has run to its
 end. When no event goes anywhere from the step's state, the reader's events start from the
@@ -283,23 +283,25 @@ machine's `start` instead, and the line over the buttons says "Try it yourself, 
 A story that ends in a finished state (a tower carried to its last peg) says so with `end(state)`:
 the model's moves from that state are then past the story, so the reader starts again from `start`. The first event redraws the views at the start, in place, as exploration draws a state,
 and plays from there. Which of the two applies is a function of the step, so the URL does not say
-it (`logStart` in `app/embed-live.ts`).
+it (`logStart` in `explain/live.ts`).
 
 **The events are the reader's state, and sit in the URL.** A press appends the event to a log,
 written beside the step as `sent=push,push,pop` (commas between events, a space as `+`, a colon
 kept: `sent=open+B:+goat,stay`; `sent` is a reserved setting id). The picture of a log is the scene
-run again to the step's resting picture, then the log played through `machine.send` with every
-frame skipped (`runLive`); a press plays its last event frame by frame from the picture of the log
+run again to the step's end, then the log played through `machine.send` with every
+frame skipped (`runLive` in `explain/live.ts`); a press plays its last event frame by frame from the picture of the log
 before it, from a run held there when there is one ([what a press costs](#the-player)). A fresh
 load of the URL runs the same, all skipped, so a link reopens the same picture, and seeking keeps
-its guarantee: a frame is a function of time and of the log. The run stops in the live step as soon
-as its picture stops changing (at the end of the play or wait that reaches the step's hold, or as
-the step ends), so code a scene runs between its last play and its next step never reaches the
-reader's stage. The machine plays under what the scene showed when it last played, as exploration
+its guarantee: a frame is a function of time and of the log. The run stops as the live step ends
+(`Scene.stopAt`): after its end listeners, its caption hold and any code the scene runs after the
+step's last play, and before the next step begins. So the reader starts from the state the trace
+records as the step's `after`, on the step's resting picture, the one a link shows (check fails a
+picture that changes during the hold or after the step's last frame). The machine plays under what the scene showed when it last played, as exploration
 draws it. The run's machine is found by its place among the scene's machines and must be the same
-machine, its events in order, its start and its views' keys, or the run is refused; `rayner check`
-holds the run that explores a machine at its live step to the same rule, so neither drives another
-machine that happens to sit at the same place.
+machine, its events in order, its start and its views' keys, or the run is refused. `rayner check`
+explores a machine at its live step on the same run (`runLive` with no events), so it starts from
+the state the reader starts from and is held to the same rule: neither drives another machine that
+happens to sit at the same place.
 
 A link's events are checked against the machine before anything is drawn: the longest prefix it
 takes is replayed, and a notice names the first event it refused or that is past where the story
