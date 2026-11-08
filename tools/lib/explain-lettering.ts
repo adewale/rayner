@@ -11,6 +11,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { useLettering, takeLetteringUse } from '../../src/lettering.ts';
 import { LETTERING_SCRIPTS } from '../../src/lettering-scripts.ts';
+import { SUBSET_LETTERING_VERSION } from '../../src/lettering-outlines.ts';
 import type { SubsetLetteringRequest, LetteringScript, LetteringFaces } from '../../src/lettering.ts';
 import type { FontName } from '../../src/index.ts';
 import { ROOT } from './roots.ts';
@@ -139,13 +140,13 @@ export async function prepareLettering(
     if (!codePoints.length) continue;
     const list = codePoints.map(hex).join(' '),
       sourceHash = sha256(sources[family]);
-    const pin = pinned?.version === 1 ? pinned.faces?.[family] : undefined;
+    const pin = pinned?.version === SUBSET_LETTERING_VERSION ? pinned.faces?.[family] : undefined;
     const woff2 =
       pin?.sourceHash === sourceHash && pin.codePoints === list && pin.woff2 ? pin.woff2 : await cut(family, codePoints);
     faces[family] = { codePoints, woff2 };
     pins[family] = { source: SOURCES[family].file, sourceHash, codePoints: list, woff2 };
   }
-  const body = JSON.stringify({ version: 1, scripts: request.scripts, faces: pins }, null, 2) + '\n';
+  const body = JSON.stringify({ version: SUBSET_LETTERING_VERSION, scripts: request.scripts, faces: pins }, null, 2) + '\n';
   if (write && (await readFile(pinFile, 'utf8').catch(() => null)) !== body) await writeFile(pinFile, body);
   return { scripts: request.scripts, faces };
 }

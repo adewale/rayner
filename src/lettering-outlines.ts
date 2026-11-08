@@ -6,6 +6,7 @@ import type { FontName, ShapedRun, Shaper } from './fonts.ts';
 import type { Font, Run, Segment } from '../vendor/glyph.js';
 import { Text, CodeSpan, expandTabs } from './text.ts';
 import type { Box } from './mobject.ts';
+import { canonicalJson } from './json.ts';
 import { unionBoxes } from './box.ts';
 import {bindTextContext, withTextContext} from './text-context.ts';
 import { LETTERING_SCRIPTS } from './lettering-scripts.ts';
@@ -30,6 +31,21 @@ export type LetteringCut = '' | 'bold' | 'italic' | 'bold-italic';
 export const cutFace = (name: string, cut: LetteringCut): string => cut ? name + '/' + cut : name;
 /** The format of scene.lettering.json's outline snapshot: raise it when what a stored field means changes. */
 export const LETTERING_VERSION = 3;
+/** The format of scene.lettering.json's subset pin (the cut faces of `scripts` lettering). */
+export const SUBSET_LETTERING_VERSION = 1;
+/**
+ * Whether a stored scene.lettering.json was pinned for `request`: an outline snapshot of this
+ * version for the same request, or a subset pin of its version for the same scripts, compared as
+ * canonical JSON so key order does not matter. loadProject and the command both ask; the command
+ * also holds the builder's fingerprint.
+ */
+export function pinnedFor(pinned: unknown, request: LetteringRequest, outline: boolean): boolean {
+  const p = pinned as { version?: unknown; request?: unknown; scripts?: unknown } | null;
+  if (!p || typeof p !== 'object') return false;
+  return outline
+    ? p.version === LETTERING_VERSION && canonicalJson(p.request) === canonicalJson(request)
+    : p.version === SUBSET_LETTERING_VERSION && canonicalJson(p.scripts) === canonicalJson(request.scripts);
+}
 export interface LetteringSnapshot {
   /** The snapshot format (LETTERING_VERSION). */
   version: typeof LETTERING_VERSION;

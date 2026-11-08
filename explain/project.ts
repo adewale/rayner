@@ -4,7 +4,7 @@
 // the command's tools (tools/lib/explain-project.ts) read it through readSnapshotStore too.
 import type { SnapshotStore } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { SceneClass, SceneState } from '../src/scene.ts';
-import { LETTERING_VERSION, bindLettering, letteringOf, usesOutlineLettering } from '../src/lettering-outlines.ts';
+import { bindLettering, letteringOf, pinnedFor, usesOutlineLettering } from '../src/lettering-outlines.ts';
 import type { StoredLetteringSnapshot } from '../src/lettering-outlines.ts';
 import { useLettering } from '../src/lettering.ts';
 import type { LetteringFaces } from '../src/lettering.ts';
@@ -150,10 +150,10 @@ async function pinnedLettering(Scene: ExplainerClass, file: string, read: (path:
   try { pinned = JSON.parse(text); } catch { throw stale(); }
   if (usesOutlineLettering(Scene)) {
     // The snapshot the page binds: a run it lacks throws when the scene draws it.
-    if (pinned?.version !== LETTERING_VERSION || JSON.stringify(pinned.request) !== JSON.stringify(request)) throw stale();
+    if (!pinnedFor(pinned, request, true)) throw stale();
     return { Lettered: bindLettering(Scene, pinned as StoredLetteringSnapshot) };
   }
-  if (pinned?.version !== 1 || JSON.stringify(pinned.scripts) !== JSON.stringify(request.scripts)) throw stale();
+  if (!pinnedFor(pinned, request, false)) throw stale();
   const face = (family: 'sans' | 'mono') => {
     const woff2 = pinned.faces?.[family]?.woff2;
     return typeof woff2 === 'string' ? { [family]: woff2 } : {};

@@ -9,7 +9,7 @@ import { resolve, join, dirname } from 'node:path';
 import { loadFont } from '../../vendor/glyph.js';
 import { SANS, MONO, FALLBACK } from '../../src/font-data.ts';
 import { embeddedFaces } from '../../src/fonts.ts';
-import { LETTERING_VERSION, bindLettering, cutFace, defaultCutFace, letteringOf, packLettering, unpackLettering, numericAlphabet, requestCuts, runKey, scaledRun, scriptCuts, scriptFaceNames, snapshotProvider, usesLettering } from '../../src/lettering-outlines.ts';
+import { LETTERING_VERSION, pinnedFor, bindLettering, cutFace, defaultCutFace, letteringOf, packLettering, unpackLettering, numericAlphabet, requestCuts, runKey, scaledRun, scriptCuts, scriptFaceNames, snapshotProvider, usesLettering } from '../../src/lettering-outlines.ts';
 import type { LetteringCut, PackedLetteringSnapshot, StoredLetteringSnapshot, LetteringSnapshot, LetteringProvider, LetteringRequest } from '../../src/lettering-outlines.ts';
 import type { ExplainerClass } from '../../explain/settings.ts';
 import type { Run } from '../../vendor/glyph.js';
@@ -20,7 +20,6 @@ import { byCodeUnit, sha256 } from './hash.ts';
 // The capture's files ship with the command (ROOT); the shaper and fallback faces it replays with, with the library.
 const root = ROOT;
 const hash = sha256;
-const json = (x: unknown) => JSON.stringify(x, null, 2) + '\n';
 /**
  * The faces a scene may ask for, each cut as a file in the font cache that
  * tools/lettering-outline-fonts.sh fills, with the file holding its licence
@@ -137,7 +136,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
       try { snapshot = unpackLettering(raw as LetteringSnapshot); }
       catch (e) { throw new Error(`${(e as Error).message.replace(/; run rayner snapshots.*$/, '')}; run rayner snapshots ${file}`); }
     }
-    if (!snapshot || snapshot.version !== LETTERING_VERSION || snapshot.builderHash !== builderHash || json(snapshot.request) !== json(request))
+    if (!snapshot || snapshot.builderHash !== builderHash || !pinnedFor(snapshot, request, true))
       throw new Error(`scene.lettering.json: it is missing or stale; run rayner snapshots ${file}`);
     validateLetteringSnapshot(snapshot);
     return { Scene: bindLettering(Source, snapshot), snapshot,
