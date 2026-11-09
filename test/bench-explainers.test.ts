@@ -1,7 +1,7 @@
 // The explainer benchmark's blinding: deterministic per seed, every author once, one page of each method per pair.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import fc from 'fast-check';
+import { fc } from './lib/pbt.ts';
 import { blind } from '../tools/repo/bench-explainers.ts';
 
 test('a seed reproduces its blinding, and each pair holds one author with one page of each method', () => {

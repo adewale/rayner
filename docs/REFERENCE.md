@@ -912,7 +912,7 @@ The scripts below, and the tools under `tools/repo/` they run, belong to this re
 | `npm run fonts` | Regenerate `src/font-data.ts` from Inter, JetBrains Mono and the Noto numeral subsets, reproducibly (needs `fonttools` and `brotli`) |
 | `npm run fonts:lettering` | Regenerate `vendor/lettering/`, the Latin Extended, Greek and Cyrillic of the same Inter and JetBrains Mono that [lettering on request](#lettering-on-request) cuts from; leaves `src/font-data.ts` alone (needs `fonttools` and `brotli`) |
 
-Test environment: `FC_RUNS=n` sets the property cases, and `FC_SEED` with `FC_PATH` replays a fast-check failure. `UPDATE_GOLDEN=1` rewrites `test/golden-traces.json` after a deliberate change. `EXPLAIN_BROWSER=1` enables the browser tests. `test/explain-gates.test.ts` gives each check one seeded defect.
+Test environment: property tests draw from a committed seed ([testing](TESTING.md)); `FC_RUNS=n` sets their cases, `FC_SEED` draws from another seed, and `FC_SEED` with `FC_PATH` replays a fast-check failure. `UPDATE_GOLDEN=1` rewrites `test/golden-traces.json` after a deliberate change. `EXPLAIN_BROWSER=1` enables the browser tests. `test/explain-gates.test.ts` gives each check one seeded defect.
 
 Tests that hold a model to an outside tool compare against frozen answers, and also run the tool when it is present:
 

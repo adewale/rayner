@@ -2,7 +2,7 @@
 // machine is live, which of a link's events are kept, how the log sits in a URL, and the picture a log lands on.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import fc from 'fast-check';
+import { fc } from './lib/pbt.ts';
 import { Scene, Text, Group, Rectangle, keyed } from '../src/index.ts';
 import { NullSink, StringSink } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
