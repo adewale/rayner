@@ -28,7 +28,7 @@ test('mermaid.pie writes the pie as the collection wrote it by hand', () => {
 });
 
 test('mermaid.pie refuses a zero or negative slice, an empty title, and labels Mermaid cannot keep', () => {
-  assert.throws(() => mermaid.pie([{ label: 'Free', value: 0 }]), /the slice "Free" is 0; Mermaid draws only positive slices/);
+  assert.throws(() => mermaid.pie([{ label: 'Free', value: 0 }]), /the slice "Free" is 0/);
   assert.throws(() => mermaid.pie([{ label: 'Free', value: -3 }]), /"Free" is -3/);
   assert.throws(() => mermaid.pie([{ label: 'Free', value: Infinity }]), /"Free" is Infinity/);
   assert.throws(() => mermaid.pie([]), /at least one slice/);

@@ -75,14 +75,14 @@ test('a sentence with a scope word is reported, and backed only by a declared cl
 test('code names that reach the words are reported once, at the step that first uses them', () => {
   const r = claimsReport(undefined, [
     step('a', 'int() reads field 6, and the edge A->C#0 is unlabelled.', 'Why skipUntil matters'),
-    step('b', 'Again int() and decomposition_mapping, then `renderAt`.'),
+    step('b', 'Again int() and decomposition_mapping, then `renderFrame`.'),
   ]);
   assert.deepEqual(r.code, [
     { token: 'skipUntil', step: 'a' },
     { token: 'int()', step: 'a' },
     { token: 'A->C#0', step: 'a' },
     { token: 'decomposition_mapping', step: 'b' },
-    { token: '`renderAt`', step: 'b' },
+    { token: '`renderFrame`', step: 'b' },
   ]);
 });
 

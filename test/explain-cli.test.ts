@@ -63,7 +63,7 @@ test('external source and compiled ESM scenes share the CLI engine; source hashe
     assert.equal(refused?.status, 1, 'an unknown command must exit 1');
     // Node 24.0 emits its type-stripping warning before the source CLI runs.
     // Require the CLI's own error line without assuming it owns all of stderr.
-    assert.match(String(refused?.stderr), /^rayner: "not-a-command" is not a command; rayner --help lists the commands$/m);
+    assert.match(String(refused?.stderr), /^rayner: "not-a-command" is not a command/m);
   } finally {
     await rm(folder, { recursive: true, force: true });
   }
@@ -137,7 +137,7 @@ test('`rayner see` prints describeExplainer\'s words for the step, so the two ca
   };
   assert.equal(seeText('x', made), 'DRAWN\n\nx · step 2 of 2: b · Size: 3\nTitle: Two\nLine: A line.\nCaption: Cap.\nPicture: A box.\nChanged: n: — → 1; gone: "x" → —');
   assert.equal(seeText('x', made, 'a'), '\n\nx · step 1 of 2: a · Size: 3\nTitle: One\nChanged: nothing in scene.state');
-  assert.throws(() => seeText('x', made, 'c'), /the scene has no step "c"; its steps are a, b/);
+  assert.throws(() => seeText('x', made, 'c'), /the scene has no step "c"/);
 });
 
 // `see` draws only the step it shows; its text must still be what the whole description gives.

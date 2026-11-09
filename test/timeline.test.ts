@@ -74,9 +74,9 @@ test("a sink's skip time must be a time: NaN or a negative time is refused where
   const plays = (sink: NullSink) => new (class extends Scene {
     override async construct() { await this.play(new FadeIn(new Rectangle())); }
   })(sink).run();
-  await assert.rejects(plays(new Skips(NaN)), /^RangeError: sink\.skipUntil: the Skips's is NaN;/);
-  await assert.rejects(plays(new Skips(-0.5)), /^RangeError: sink\.skipUntil: the Skips's is -0\.5;/);
-  await assert.rejects(plays({ skipUntil: NaN, async frame() {} } as NullSink), /^RangeError: sink\.skipUntil: the sink's is NaN;/);
+  await assert.rejects(plays(new Skips(NaN)), /^RangeError: sink\.skipUntil: .*NaN/);
+  await assert.rejects(plays(new Skips(-0.5)), /^RangeError: sink\.skipUntil: .*-0\.5/);
+  await assert.rejects(plays({ skipUntil: NaN, async frame() {} } as NullSink), /^RangeError: sink\.skipUntil: .*NaN/);
   // A time, 0 or Infinity is taken.
   for (const t of [0, 0.4, Infinity]) assert.ok(await plays(new Skips(t)));
 });

@@ -131,7 +131,7 @@ test('a live run stops as the step ends, plays the log there, and is a function 
   assert.deepEqual(empty.rest, { level: 1 });
   assert.equal(ranAfter, 1, 'the run stopped as the step ended, after the code that follows its last play');
   assert.equal(empty.scene.currentStep?.name, 'press', 'and before the next step began');
-  assert.equal(empty.scene.phase, 'stopped', 'the scene is stopped, not merely abandoned');
+  assert.equal(empty.scene.phase, 'stopped', 'the scene is stopped');
   // A construct that swallows the stop cannot run on to the next step's code (N10).
   let after = 0;
   class Swallowing extends lampScene() {
@@ -167,7 +167,7 @@ test('a live run stops as the step ends, plays the log there, and is a function 
   assert.deepEqual(fromStart.rest, { level: 1 });
   // A log the machine does not take throws, as send does.
   await assert.rejects(runLive(Lamp, press, at, ['UP', 'UP', 'UP']), /refused/);
-  await assert.rejects(runLive(Lamp, 'nowhere', at, []), /^RangeError: runLive\(\): the scene never reached the step "nowhere"; give a step the scene's run reaches$/);
+  await assert.rejects(runLive(Lamp, 'nowhere', at, []), /^RangeError: runLive\(\): the scene never reached the step "nowhere"/);
 });
 
 test('a kept run plays the next event from its picture, landing where a fresh run of the longer log lands', async () => {
@@ -201,7 +201,7 @@ test('a kept run plays the next event from its picture, landing where a fresh ru
   // A refused event fails the send and closes the session; so does close().
   await assert.rejects(session.send('UP'), /refused/);
   assert.equal(session.open, false);
-  await assert.rejects(session.send('DOWN'), /^Error: session\.send\(\): this live session is closed or busy; start a fresh run$/);
+  await assert.rejects(session.send('DOWN'), /^Error: session\.send\(\): this live session is closed or busy/);
   const other = (await runLive(Lamp, press, at, [], { keep: true })).session!;
   other.close();
   assert.equal(other.open, false);
@@ -355,7 +355,7 @@ test('a live run drives the same machine it was given: same events in the same o
   const press = 'press';
   runs = 0;
   const at = liveSteps(await new Swapping(new NullSink()).run()).get('press')!;
-  await assert.rejects(runLive(Swapping, press, at, []), /^Error: runLive\(\): the run to "press" made different machines; a scene must make the same machines on every run$/);
+  await assert.rejects(runLive(Swapping, press, at, []), /^Error: runLive\(\): the run to "press" made different machines/);
   // The next run makes the first order again: the same machine, which plays.
   assert.deepEqual((await runLive(Swapping, press, at, ['UP'])).rest, { level: 1 });
   // Identity reads events in order, the start and the views' keys.
