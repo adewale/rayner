@@ -8,8 +8,8 @@ import {
   renderMermaidSVG,
 } from 'agentic-mermaid';
 import type { SceneDoc, SceneNode, StyleBackend, TextMeasurementProfile, RenderRequestReceipt } from 'agentic-mermaid';
-import type { DiagramSpec } from '../snapshot.ts';
-import type { Palette } from '../../../src/color.ts';
+import type { DiagramSpec } from '../../explain/diagram-snapshot.ts';
+import type { Palette } from '../../src/color.ts';
 
 export function capture(spec: DiagramSpec, textMeasurement?: TextMeasurementProfile): {
   svg: string;

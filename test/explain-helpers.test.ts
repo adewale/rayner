@@ -1,6 +1,6 @@
 // The explain package's own contracts that are not a Diagram's or a panel's:
 // the stage's palette and evidence, snapshot validation and resolution
-// (integrations/agentic-mermaid/snapshot.ts), the colours and regions in
+// (explain/diagram-snapshot.ts), the colours and regions in
 // explain/look.ts, and the HTML escaping in explain/trace.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,7 +14,7 @@ import { REGIONS } from '../explain/look.ts';
 import { bindSnapshots, diagramFindings, loadProject, loadSnapshots, pictureWordsAt, takeMissingGlyphs, withSettings } from '../explain/testing.ts';
 import FontMetrics from '../scenes/explainers/font-metrics/scene.ts';
 import GreekLettering from './fixtures/lettering/scene.ts';
-import { edgePartOf, diagramKey, snapshotResolver, useDiagrams, diagramResolverOf, RENDERER } from '../integrations/agentic-mermaid/snapshot.ts';
+import { edgePartOf, diagramKey, snapshotResolver, useDiagrams, diagramResolverOf, RENDERER } from '../explain/diagram-snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { raised, rule, emphasis, soft, good, bad, dimOpacity, seenSource } from '../explain/look.ts';
 import type { SeenSource } from '../explain/look.ts';
@@ -325,7 +325,7 @@ test('the old heading stays on top until it has faded out: what its play adds dr
   assert.deepEqual(over, [], 'no part of a heading, old or new, draws under what the fade\'s play added');
 });
 
-// ---- integrations/agentic-mermaid/snapshot.ts ------------------------------------
+// ---- explain/diagram-snapshot.ts -----------------------------------------------
 
 test('snapshot JSON with a corrupt point, paint, owner, path, size, finding or chart value is refused, as is one stored under another source', async () => {
   const good = fixture();

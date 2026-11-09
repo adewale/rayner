@@ -1,5 +1,5 @@
-import type { SnapshotStore } from '../../integrations/agentic-mermaid/snapshot.ts';
-import { RENDERER } from '../../integrations/agentic-mermaid/snapshot.ts';
+import type { SnapshotStore } from '../../explain/diagram-snapshot.ts';
+import { RENDERER } from '../../explain/diagram-snapshot.ts';
 
 export const fixture = (points: number[]): SnapshotStore => ({
   diagram: {version: 1, renderer: RENDERER, spec: {source: 'graph LR\nA[Example]'}, family: 'flowchart', width: 123.4567890123, height: 100,

@@ -11,7 +11,7 @@ import { join, relative, resolve } from 'node:path';
 import ts from 'typescript';
 
 const ROOT = resolve(import.meta.dirname, '..');
-const SCANNED = ['src', 'explain', 'app', 'integrations/agentic-mermaid/snapshot.ts', 'integrations/agentic-mermaid/text.ts'];
+const SCANNED = ['src', 'explain', 'app'];
 
 /**
  * The static prefixes: a call, `card()`, `s.card()`, `keyedParts().add()`; a constructor,
@@ -49,7 +49,7 @@ const ALLOWED: Record<string, Record<string, string>> = {
   'explain/panels.ts': { api: "'card()' or 'code()', or 's.card()' or 's.code()' when the stage builds it", 'this.api': 'the same, kept on the panel' },
   'explain/seen-from.ts': { api: "the geo function called, 'seenFrom()', 'project()' or 'depthOrder()'" },
   'explain/settings.ts': { where: "the declaration, 'static meta' or 'meta.player'" },
-  'integrations/agentic-mermaid/snapshot.ts': { api: "the call that needed the scene's snapshots, 'diagramResolverOf()', 's.show()' or 'd.morph()'" },
+  'explain/diagram-snapshot.ts': { api: "the call that needed the scene's snapshots, 'diagramResolverOf()', 's.show()' or 'd.morph()'" },
 };
 
 interface Thrown { at: string; kind: string; problems: string[] }

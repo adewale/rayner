@@ -7,7 +7,7 @@ import type { Project } from './explain-project.ts';
 import type { ShippedScenario } from '../../app/embed.ts';
 import { playerTrace } from '../../app/embed-trace.ts';
 import type { LetteringSnapshot, PackedLetteringSnapshot } from '../../src/lettering-outlines.ts';
-import type { SnapshotStore } from '../../integrations/agentic-mermaid/snapshot.ts';
+import type { SnapshotStore } from '../../explain/diagram-snapshot.ts';
 import { pageSnapshot } from './lettering.ts';
 import { pageFaces } from './explain-lettering.ts';
 import { pageSnapshots } from './page-snapshots.ts';

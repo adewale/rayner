@@ -1,6 +1,5 @@
 // Small file helpers the command and the repository's tools share: content hashes, package
-// integrity, '/'-separated paths and recursive listing. (integrations/ keep their own: they ship
-// in the library, which never imports tools/.)
+// integrity, '/'-separated paths and recursive listing.
 import { createHash } from 'node:crypto';
 import type { Dirent } from 'node:fs';
 import { access, readdir, readFile } from 'node:fs/promises';

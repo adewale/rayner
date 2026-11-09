@@ -5,7 +5,7 @@ import { fc, params } from '../../../test/lib/pbt.ts';
 import { Scene } from '../../../src/index.ts';
 import { NullSink } from '../../../src/output.ts';
 import { Diagram } from '../../../explain/index.ts';
-import { replayMorph } from '../../../integrations/agentic-mermaid/build/index.ts';
+import { replayMorph } from '../../../integrations/agentic-mermaid/index.ts';
 import { SAMPLE_FEED } from './feed.ts';
 import { readFeed, tripsOn, addDays, dayChart, ganttSource, ganttEdits } from './model.ts';
 

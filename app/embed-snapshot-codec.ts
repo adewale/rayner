@@ -1,4 +1,4 @@
-import type {SnapshotStore, DiagramSnapshot, SnapshotPart, SnapshotShape} from '../integrations/agentic-mermaid/snapshot.ts';
+import type {SnapshotStore, DiagramSnapshot, SnapshotPart, SnapshotShape} from '../explain/diagram-snapshot.ts';
 
 export type PackedShape = Omit<SnapshotShape, 'subpaths'> & {subpaths: (number[] | number)[]};
 type PackedPart = Omit<SnapshotPart, 'shapes'> & {shapes: PackedShape[]};

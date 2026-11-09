@@ -69,8 +69,6 @@ const sources = (dir: string): string[] =>
   );
 const importsIn = (...dirs: string[]) => dirs.flatMap(sources).flatMap(importsOf);
 const show = (i: Import) => `${i.from} imports ${i.to}${i.type ? ' (type)' : ''}`;
-/** The library half of the diagram integration: what the page replays snapshots with. Its build/ half is capture, which the command runs. */
-const INTEGRATION = sources('integrations/agentic-mermaid').filter((f) => !f.includes('/build/'));
 /** The command's modules: tools/ but the repository-only tooling (tools/repo/) and the oracles (tools/oracle/). */
 const isCommand = (path: string) => path.startsWith('tools/') && !/^tools\/(repo|oracle)\//.test(path);
 const layerOf = (path: string) => (path.startsWith('explain/') ? ORDER.find((l) => EXPLAIN[l]!.includes(path.slice('explain/'.length))) : undefined);
@@ -78,8 +76,7 @@ const layerOf = (path: string) => (path.startsWith('explain/') ? ORDER.find((l) 
 /** The rules, each true of an import that breaks it. */
 const RULES: Record<string, (i: Import) => boolean> = {
   engine: (i) => i.from.startsWith('src/') && !i.to.startsWith('src/') && i.to !== 'vendor/glyph.js',
-  integration: (i) => INTEGRATION.includes(i.from) && (!/^(src|integrations\/agentic-mermaid)\//.test(i.to) || i.to.includes('/build/')),
-  explain: (i) => i.from.startsWith('explain/') && !i.to.startsWith('src/') && !i.to.startsWith('explain/') && !INTEGRATION.includes(i.to),
+  explain: (i) => i.from.startsWith('explain/') && !i.to.startsWith('src/') && !i.to.startsWith('explain/'),
   layers: (i) => {
     const from = layerOf(i.from), to = layerOf(i.to);
     if (!from || !to || from === to) return false;
@@ -87,10 +84,10 @@ const RULES: Record<string, (i: Import) => boolean> = {
     if (from === 'kit' && i.to === 'explain/stage.ts' && i.type) return false;
     return ORDER.indexOf(to) > ORDER.indexOf(from);
   },
-  player: (i) => i.from.startsWith('app/') && (!/^(src|explain|app|integrations\/agentic-mermaid)\//.test(i.to) || i.to.includes('/build/')),
+  player: (i) => i.from.startsWith('app/') && !/^(src|explain|app)\//.test(i.to),
   // The command (tools/ but the repository's own tooling and oracles) ships as rayner-cli: it imports the library,
-  // the player, the diagram integration, the vendored shapers, its own modules and packages, never what stays in the repository.
-  command: (i) => isCommand(i.from) && i.local && !/^(src|explain|app|integrations\/agentic-mermaid|vendor)\//.test(i.to) && !(i.to.startsWith('tools/') && isCommand(i.to)),
+  // the player, diagram capture, the vendored shapers, its own modules and packages, never what stays in the repository.
+  command: (i) => isCommand(i.from) && i.local && !/^(src|explain|app|integrations|vendor)\//.test(i.to) && !(i.to.startsWith('tools/') && isCommand(i.to)),
 };
 const broken = (rule: string, imports: Import[]) => imports.filter(RULES[rule]!).map(show);
 
@@ -119,11 +116,7 @@ test('the engine imports nothing outside src/ but its vendored shaper', () => {
   assert.deepEqual(broken('engine', importsIn('src')), []);
 });
 
-test('the diagram integration the page replays imports only the engine, not the capture half', () => {
-  assert.deepEqual(broken('integration', INTEGRATION.flatMap(importsOf)), []);
-});
-
-test('the explainer layer imports only the engine, the integration it replays and itself', () => {
+test('the explainer layer imports only the engine and itself', () => {
   assert.deepEqual(broken('explain', importsIn('explain')), [], 'no player, command, tests, scenes, capture or packages');
 });
 
@@ -135,7 +128,7 @@ test('the player imports the library and nothing from the command, the tests, th
   assert.deepEqual(broken('player', importsIn('app')), []);
 });
 
-test('the command imports the library, the player, the diagram integration and its own modules, never repository-only code', () => {
+test('the command imports the library, the player, diagram capture and its own modules, never repository-only code', () => {
   assert.deepEqual(broken('command', importsIn('tools').filter((i) => isCommand(i.from))), []);
 });
 
@@ -161,7 +154,7 @@ const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
   'Scene.keepOnTop': { files: ['explain/stage.ts'], why: 'the stage keeps its heading drawn last' },
   'Scene.stopAt': { files: ['explain/live.ts'], why: 'the run to a live step stops as the step ends' },
   'Text.frameBox': { files: ['explain/labels.ts'], why: "a label's size is its text's box" },
-  'Text.run': { files: ['explain/labels.ts'], why: "a label's words are its text's runs" },
+  'Text.run': { files: ['explain/diagram-text.ts', 'explain/labels.ts'], why: "a label's words are its text's runs, and a captured label sits on its text's baseline" },
   'Transform.sameStructure': { files: ['explain/view.ts'], why: 'a view morphs a picture of the same structure' },
 };
 
@@ -241,7 +234,6 @@ test('each rule rejects a seeded break and allows what the layers allow', () => 
   const at = (from: string, to: string, type = false): Import => ({ from, to, type, local: !/^(node:|esbuild$)/.test(to) });
   const rejected = {
     engine: at('src/scene.ts', 'explain/stage.ts', true),
-    integration: at('integrations/agentic-mermaid/snapshot.ts', 'explain/look.ts'),
     explain: at('explain/stage.ts', 'app/embed.ts'),
     player: at('app/embed.ts', 'tools/lib/browser.ts'),
     command: at('tools/lib/explain-check.ts', 'tools/repo/lib/public-names.ts'),
@@ -253,7 +245,8 @@ test('each rule rejects a seeded break and allows what the layers allow', () => 
   for (const i of [at('explain/drawing.ts', 'explain/stage.ts', true), at('explain/stage.ts', 'explain/drawing.ts'), at('explain/describe.ts', 'explain/stage.ts'),
     at('explain/diagrams.ts', 'explain/look.ts')])
     assert.ok(!RULES.layers!(i), show(i));
-  assert.ok(RULES.explain!(at('explain/diagrams.ts', 'integrations/agentic-mermaid/build/index.ts')), 'the capture half');
+  assert.ok(RULES.explain!(at('explain/diagrams.ts', 'integrations/agentic-mermaid/index.ts')), 'diagram capture');
+  assert.ok(RULES.player!(at('app/embed.ts', 'integrations/agentic-mermaid/index.ts')), 'diagram capture');
   for (const i of [at('tools/explain.ts', 'test/lib/random-snapshot.ts'), at('tools/lib/explain-build.ts', 'tools/oracle/glyph-math.ts'), at('tools/lib/x.ts', 'scenes/explainers/catalog.ts'), at('tools/lib/x.ts', 'recipes/render.ts')])
     assert.ok(RULES.command!(i), show(i));
   for (const i of [at('tools/lib/explain-check.ts', 'app/embed-closeup.ts'), at('tools/lib/explain-check.ts', 'explain/live.ts'), at('tools/lib/x.ts', 'esbuild'), at('tools/lib/x.ts', 'node:fs'),

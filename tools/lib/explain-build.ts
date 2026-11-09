@@ -94,7 +94,7 @@ export async function buildExplainer(
   });
   if (
     Object.keys(bundled.metafile!.inputs).some(
-      (p) => p.includes('node_modules/agentic-mermaid') || p.includes('integrations/agentic-mermaid/build/') || p.includes('vendor/glyph-math.js') || p.includes('tools/lettering'),
+      (p) => p.includes('node_modules/agentic-mermaid') || p.includes('integrations/agentic-mermaid/') || p.includes('vendor/glyph-math.js') || p.includes('tools/lettering'),
     )
   )
     throw new Error('Build-time diagram renderer leaked into browser artifact');

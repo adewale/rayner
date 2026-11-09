@@ -91,7 +91,7 @@ Docs: `docs/ANIMATIONS.md`, `CAMERA.md`, `CODE.md`, `EMPHASIS.md`, `GRAPHING.md`
 
 The build pins Agentic Mermaid 0.5.1 as an authoring dependency; pages never load it. Natural diagram lettering uses its public `TextMeasurementProfile` host hook. Rayner measures the scene's actual faces and cuts before layout, then checks that the imported SVG advances match the outlines it draws. Cached natural diagrams also record the source-font and measurement-policy identity.
 
-`integrations/agentic-mermaid/build/capture.ts` still registers a capture backend through `registerBackend`, renders through `createMermaidRenderer`, and keeps each mark's `drawNode` output. Capture must equal the upstream renderer byte for byte, using the same text-measurement profile. Agentic Mermaid 0.5.1 also exports `renderResolvedScene`; migrating the existing importer to that public parts API is separate work.
+`integrations/agentic-mermaid/capture.ts` still registers a capture backend through `registerBackend`, renders through `createMermaidRenderer`, and keeps each mark's `drawNode` output. Capture must equal the upstream renderer byte for byte, using the same text-measurement profile. Agentic Mermaid 0.5.1 also exports `renderResolvedScene`; migrating the existing importer to that public parts API is separate work.
 
 The earlier 0.4.1 limitations around late node labels and state-family reporting are fixed upstream. Rayner retains a diagnostic for a rendered bare node id that contradicts an explicit source label. The catalog and capture tests exercise the pinned renderer; changing it requires real snapshot recapture and review of all supported families.
 

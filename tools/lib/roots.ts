@@ -1,5 +1,5 @@
 // Where the command finds its own files and the library's. Rayner publishes two packages from this
-// repository: `rayner` (src/, explain/, the snapshot reader and their compiled dist/) and
+// repository: `rayner` (src/, explain/ and their compiled dist/) and
 // `rayner-cli` (this command, bundled into dist/tools/, with the player in app/ and the capture
 // tools). In a checkout both are this folder. Installed, the command's chunks sit in
 // node_modules/rayner-cli/dist/tools/ and the library is wherever its `rayner` dependency resolves.
@@ -30,7 +30,7 @@ function libraryRoot(): string {
     throw new Error(`rayner-cli ${cliManifest.version} needs rayner ${cliManifest.version}, and found ${version}; npm install --save-dev rayner@${cliManifest.version}`);
   return root;
 }
-/** The library's files: src/, explain/, integrations/agentic-mermaid/*.ts, vendor/glyph.js and dist/. */
+/** The library's files: src/, explain/, vendor/glyph.js and dist/. */
 export const LIB_ROOT = libraryRoot();
 /**
  * The installed command's private specifier for the library's compiled modules: '#rayner/src/scene.js'

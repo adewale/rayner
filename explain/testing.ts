@@ -14,4 +14,4 @@ export { loadProject, loadSnapshots } from './project.ts';
 export type { LoadedProject, LoadedScenario } from './project.ts';
 export { pictureWordsAt } from './trace.ts';
 export type { PictureWords } from './trace.ts';
-export { diagramFindings } from '../integrations/agentic-mermaid/snapshot.ts';
+export { diagramFindings } from './diagram-snapshot.ts';

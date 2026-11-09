@@ -2,7 +2,7 @@
 // snapshots, and every scenario run against them, as the rayner command runs it but without
 // capturing, cutting lettering or checking. The snapshot folder's format is read here once, and
 // the command's tools (tools/lib/explain-project.ts) read it through readSnapshotStore too.
-import type { SnapshotStore } from '../integrations/agentic-mermaid/snapshot.ts';
+import type { SnapshotStore } from './diagram-snapshot.ts';
 import type { SceneClass, SceneState } from '../src/scene.ts';
 import { bindLettering, letteringOf, pinnedFor, usesOutlineLettering } from '../src/lettering-outlines.ts';
 import type { StoredLetteringSnapshot } from '../src/lettering-outlines.ts';

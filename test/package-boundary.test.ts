@@ -29,10 +29,10 @@ test('rayner ships the vocabulary and runtime, with no dependencies, no command 
   assert.deepEqual(Object.keys(pkg.exports).filter((subpath) => subpath.includes('*')), [], 'rayner exports its entry points only');
   const files = packed(ROOT);
   const leaked = files.filter((f) =>
-    REPO_ONLY.test(f) || /^(?:tools\/|app\/|dist\/tools\/|dist\/app\/)/.test(f) || /(?:^|\/)agentic-mermaid\/build\//.test(f) ||
+    REPO_ONLY.test(f) || /^(?:tools\/|app\/|dist\/tools\/|dist\/app\/)/.test(f) || /^(?:dist\/)?integrations\//.test(f) ||
     /^(?:dist\/)?vendor\/(?:glyph-math|lettering\/)/.test(f) || /\.(?:py|sh|txt)$/.test(f) && !f.startsWith('vendor/licenses/'));
   assert.deepEqual(leaked, [], 'rayner ships only what scenes, hosts and snapshot replay need');
-  for (const f of ['src/index.ts', 'src/lettering-outlines.ts', 'explain/diagrams.ts', 'integrations/agentic-mermaid/snapshot.ts', 'vendor/glyph.js', 'scenes/tutorial/lru-mru/scene.ts', 'skills/rayner-explainers/SKILL.md'])
+  for (const f of ['src/index.ts', 'src/lettering-outlines.ts', 'explain/diagrams.ts', 'explain/diagram-snapshot.ts', 'vendor/glyph.js', 'scenes/tutorial/lru-mru/scene.ts', 'skills/rayner-explainers/SKILL.md'])
     assert.ok(files.includes(f), `rayner ships ${f}`);
 });
 

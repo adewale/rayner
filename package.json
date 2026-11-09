@@ -78,12 +78,10 @@
   "files": [
     "dist/src",
     "dist/explain",
-    "dist/integrations",
     "dist/vendor",
     "dist/recipes",
     "src",
     "explain",
-    "integrations/agentic-mermaid/*.ts",
     "docs/*.md",
     "FAQ.md",
     "skills",

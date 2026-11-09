@@ -84,9 +84,9 @@ try {
   };
   await unreachable(alone);
   // Capture and the command stay out of the library: no tools, player, Python, capture code or typesetter.
-  for (const file of ['tools', 'app', 'dist/tools', 'integrations/agentic-mermaid/build', 'dist/integrations/agentic-mermaid/build', 'vendor/glyph-math.js', 'dist/vendor/glyph-math.js', 'vendor/lettering'])
+  for (const file of ['tools', 'app', 'dist/tools', 'integrations', 'dist/integrations', 'vendor/glyph-math.js', 'dist/vendor/glyph-math.js', 'vendor/lettering'])
     assert.ok(!existsSync(join(alone, 'node_modules/rayner', file)), `rayner ships ${file}`);
-  for (const file of ['explain/audio.ts', 'src/lettering-outlines.ts', 'integrations/agentic-mermaid/snapshot.ts', 'explain/diagrams.ts', 'vendor/glyph.js', 'vendor/licenses/glyph-MIT.txt', 'LICENSE'])
+  for (const file of ['explain/audio.ts', 'src/lettering-outlines.ts', 'explain/diagram-snapshot.ts', 'explain/diagrams.ts', 'vendor/glyph.js', 'vendor/licenses/glyph-MIT.txt', 'LICENSE'])
     assert.ok(existsSync(join(alone, 'node_modules/rayner', file)), `rayner is missing ${file}`);
 
   await writeFile(

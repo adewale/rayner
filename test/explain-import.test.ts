@@ -1,14 +1,14 @@
 // SVG import (integrations/agentic-mermaid): text runs lowered to glyph
-// outlines (text.ts) and SVG path data read as engine paths (build/read-svg.ts).
+// outlines (explain/diagram-text.ts) and SVG path data read as engine paths (integrations/agentic-mermaid/read-svg.ts).
 // The browser-side capture is in explain-capture.test.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Group } from '../src/index.ts';
 import { loadFonts } from '../explain/testing.ts';
 import type { Box } from '../src/index.ts';
-import { outlineText } from '../integrations/agentic-mermaid/text.ts';
-import { pathFromSvgD } from '../integrations/agentic-mermaid/build/read-svg.ts';
-import type { SnapshotTextRun } from '../integrations/agentic-mermaid/snapshot.ts';
+import { outlineText } from '../explain/diagram-text.ts';
+import { pathFromSvgD } from '../integrations/agentic-mermaid/read-svg.ts';
+import type { SnapshotTextRun } from '../explain/diagram-snapshot.ts';
 import { fc, params } from './lib/pbt.ts';
 
 await loadFonts();

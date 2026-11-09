@@ -2,16 +2,17 @@ import { parseRegisteredMermaid } from 'agentic-mermaid';
 import type { SceneNode } from 'agentic-mermaid';
 import type { TextMeasurementProfile } from 'agentic-mermaid';
 import { createHash } from 'node:crypto';
-import { SANS, MONO, FALLBACK } from '../../../src/font-data.ts';
-import { loadFonts } from '../../../src/fonts.ts';
-import type {TextShaping} from '../../../src/text-context.ts';
-import { importedFont, importedText } from '../text.ts';
+import { SANS, MONO, FALLBACK } from '../../src/font-data.ts';
+import { loadFonts } from '../../src/fonts.ts';
+import type {TextShaping} from '../../src/text-context.ts';
+import { importedText } from '../../explain/diagram-text.ts';
+import { importedFont } from './read-svg.ts';
 import type { AnyMutationOp } from 'agentic-mermaid/agent';
 import { mutate, serializeMermaid, verifyMermaid, WARNING_SEVERITY } from 'agentic-mermaid/agent';
-import { launch } from '../../../tools/lib/browser.ts';
+import { launch } from '../../tools/lib/browser.ts';
 import { capture } from './capture.ts';
 import { readSvg } from './read-svg.ts';
-import { diagramKey, RENDERER, SVG_PX_PER_UNIT as PX } from '../snapshot.ts';
+import { diagramKey, RENDERER, SVG_PX_PER_UNIT as PX } from '../../explain/diagram-snapshot.ts';
 import type {
   DiagramResolver,
   DiagramSnapshot,
@@ -19,7 +20,7 @@ import type {
   SnapshotStore,
   SnapshotPart,
   ChartData,
-} from '../snapshot.ts';
+} from '../../explain/diagram-snapshot.ts';
 
 export function replayMorph(
   before: DiagramSpec,

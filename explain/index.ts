@@ -22,7 +22,7 @@ export { settingsOf, resolveSettings } from './settings.ts';
 export { answerOf } from './script.ts';
 export type { StepKind } from './script.ts';
 export type { Setting, Settings, ExplainerClass, ExplainerMeta, PlayerMeta } from './settings.ts';
-export { diagramResolverOf } from '../integrations/agentic-mermaid/snapshot.ts';
+export { diagramResolverOf } from './diagram-snapshot.ts';
 export type {
   DiagramSpec,
   DiagramSnapshot,
@@ -31,4 +31,4 @@ export type {
   Findings,
   DiagramResolver,
   MutationOp,
-} from '../integrations/agentic-mermaid/snapshot.ts';
+} from './diagram-snapshot.ts';

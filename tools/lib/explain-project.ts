@@ -31,8 +31,8 @@ import type { Trace } from '../../explain/testing.ts';
 import { resolveSettings } from '../../explain/index.ts';
 import { scenariosOf, withSettings, bindSnapshots, scenarioName } from '../../explain/testing.ts';
 import type { ExplainerClass, SnapshotStore, Settings } from '../../explain/index.ts';
-import type { DiagramResolver } from '../../integrations/agentic-mermaid/snapshot.ts';
-import { diagramKey, RENDERER } from '../../integrations/agentic-mermaid/snapshot.ts';
+import type { DiagramResolver } from '../../explain/diagram-snapshot.ts';
+import { diagramKey, RENDERER } from '../../explain/diagram-snapshot.ts';
 import { lostLabelWarnings } from './explain-warnings.ts';
 import { letteringRequest, prepareLettering, useProjectLettering } from './explain-lettering.ts';
 import type { Lettering } from './explain-lettering.ts';
@@ -82,14 +82,14 @@ export function engineAlias(node = false, outlines = false): Plugin {
         if (entry) file = join(LIB_ROOT, entry + '.ts');
         else if (args.path.startsWith('.') || args.path.startsWith('/')) {
           const absolute = resolve(args.resolveDir, args.path);
-          const compiled = absolute.match(/\/dist\/(src|explain|integrations\/agentic-mermaid)\/(.+)\.js$/);
+          const compiled = absolute.match(/\/dist\/(src|explain)\/(.+)\.js$/);
           if (compiled) file = join(LIB_ROOT, compiled[1]!, compiled[2]! + '.ts');
           else
             // The player (app/) ships with the command and reaches the engine by relative paths,
             // so its imports land beside it; the engine itself is the library's.
             for (const base of new Set([LIB_ROOT, ROOT])) {
               const local = relativePosix(base, absolute);
-              if (local.startsWith('src/') || local.startsWith('explain/') || local === 'integrations/agentic-mermaid/snapshot.ts') {
+              if (local.startsWith('src/') || local.startsWith('explain/')) {
                 file = join(LIB_ROOT, local);
                 break;
               }
@@ -271,7 +271,7 @@ export async function collectProject(
   const base = file.replace(/\.[^.]+$/, '');
   const previous: SnapshotStore = refresh ? {} : await readSnapshots(base);
   // Lazy: native scenes never require Agentic Mermaid or Chromium.
-  const builders = diagramBuilders<Awaited<ReturnType<typeof import('../../integrations/agentic-mermaid/build/index.ts').snapshotBuilder>>>();
+  const builders = diagramBuilders<Awaited<ReturnType<typeof import('../../integrations/agentic-mermaid/index.ts').snapshotBuilder>>>();
   const store: SnapshotStore = {};
   // Every scene this collection runs: its page needs diagram code when one of them made a diagram.
   const ran: Scene[] = [];
@@ -294,7 +294,7 @@ export async function collectProject(
         styles: outline?.snapshot.request.styles,
       } : undefined;
       if (previous[key] && metricOptions) {
-          const { naturalMeasurementIdentity } = await import('../../integrations/agentic-mermaid/build/index.ts');
+          const { naturalMeasurementIdentity } = await import('../../integrations/agentic-mermaid/index.ts');
           if (previous[key].textMeasurement?.id !== naturalMeasurementIdentity(metricOptions).id) {
             if (captureLettering) delete previous[key];
             else throw new Error(`scene.snapshots: the natural diagram font metrics are stale; run rayner snapshots ${file}`);
@@ -305,7 +305,7 @@ export async function collectProject(
         return inspect(previous[key]);
       }
       const active = await builders.get(spec.lettering === 'natural', async () => {
-        const { snapshotBuilder } = await import('../../integrations/agentic-mermaid/build/index.ts');
+        const { snapshotBuilder } = await import('../../integrations/agentic-mermaid/index.ts');
         return snapshotBuilder(previous, metricOptions);
       });
       const result = await active.diagram(spec);

@@ -28,11 +28,11 @@ export const CLI_FILES = [
 ];
 /** The library's modules, which the command imports from the installed rayner package. */
 export const libraryModule = (name: string) =>
-  name.startsWith('src/') || name.startsWith('explain/') || /^integrations\/agentic-mermaid\/[^/]+\.ts$/.test(name);
+  name.startsWith('src/') || name.startsWith('explain/');
 
 export async function buildCli(out = join(ROOT, 'cli')): Promise<Metafile> {
   out = resolve(out);
-  for (const generated of ['dist', 'app', 'integrations', 'tools', 'vendor', 'LICENSE']) await rm(join(out, generated), { recursive: true, force: true });
+  for (const generated of ['dist', 'app', 'tools', 'vendor', 'LICENSE']) await rm(join(out, generated), { recursive: true, force: true });
   await mkdir(out, { recursive: true });
   if (out !== join(ROOT, 'cli')) for (const file of ['package.json', 'README.md']) await copyFile(join(ROOT, 'cli', file), join(out, file));
   const result = await build({
