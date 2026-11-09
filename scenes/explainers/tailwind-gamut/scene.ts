@@ -4,11 +4,10 @@ import { Scene, Group, Text } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import { card } from '../../../explain/drawing.ts';
-import type { Diagram, PictureNote, View, ExplainerMeta } from '../../../explain/index.ts';
+import type { Diagram, PictureNote, Side, View, ExplainerMeta } from '../../../explain/index.ts';
 import { SHADES, rows, summarize } from './model.ts';
 import type { Row, Shade } from './model.ts';
 import { listed, percent } from '../lib/format.ts';
-type Side = 'above' | 'below' | 'left' | 'right';
 
 // Sources. Every number on screen comes from model.ts, which cites the lines it uses.
 const THEME =
@@ -153,7 +152,7 @@ export default class TailwindGamutExplainer extends Scene<GamutState, { dotNotes
           : dy >= 0
             ? ['below', 'above']
             : ['above', 'below'];
-      const words = [...d.parts.keys()]
+      const words = d.snapshot.parts.map((p) => p.id)
         .filter((id) => id.startsWith('axis-label:') || id.startsWith('tick'))
         .map((id) => d.get(id).box())
         .filter((b): b is Box => !!b);

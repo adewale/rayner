@@ -8,12 +8,13 @@ import type { Mobject, Vec, Box } from '../src/index.ts';
 import type { Stage } from './stage.ts';
 import { callout as calloutLook, dimension as dimensionLook, pin as pinLook, legend as legendLook } from './annotate.ts';
 import { emphasisSource, stagePalette } from './look.ts';
-import type { Side, LegendItem } from './annotate.ts';
+import type { LegendItem } from './annotate.ts';
+import type { Side } from './diagrams.ts';
 import { Card, CodeBlock } from './panels.ts';
 import type { CardRow, CardOptions, CodeBlockOptions } from './panels.ts';
 import { physicalAt } from './layout-direction.ts';
 export type { LegendItem } from './annotate.ts';
-export type { Card, CodeBlock, CardRow, CardOptions, CodeBlockOptions } from './panels.ts';
+export type { Card, CodeBlock, CardRow, CardOptions, CodeBlockOptions, LineMark } from './panels.ts';
 
 /**
  * `m` marked as emphasis, `as` what it shows (`'ring: idle'`, `'outlined: push at slot 3'`): call

@@ -76,7 +76,7 @@ jobs:
       - name: Check lettering capture and playback
         run: EXPLAIN_LETTERING=1 EXPLAIN_BROWSER=1 node tools/repo/ci-tests.ts --test --test-reporter=spec test/diagram-natural-lettering.test.ts test/lettering-cache.test.ts test/lettering-outlines.test.ts test/lettering-styles.test.ts test/lettering-rtl.test.ts test/lettering-*-audit.test.ts test/snapshot-capture.test.ts
       - run: npm run check          # tsc -b over every project (emits dist/); compile a TS consumer against it
-      - run: FULL=1 node tools/repo/ci-tests.ts --expose-gc --test test/*.test.ts test/browser/*.test.ts scenes/*/*/*.test.ts # full properties, independent oracles and raster boundaries
+      - run: FULL=1 node tools/repo/ci-tests.ts --expose-gc --test test/*.test.ts test/browser/*.test.ts scenes/*/*/*.test.ts # full properties from the committed seed (properties.yml draws fresh ones), independent oracles and raster boundaries
       # Product gates reuse this job and its Chromium installation; no scheduled lane.
       - run: |
           node tools/repo/ci-tests.ts "$(command -v npm)" run test:embeds

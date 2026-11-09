@@ -14,6 +14,8 @@ npm run demos:review      # review that exact catalog as served
 npm run pack:smoke        # fresh installed-package checks
 ```
 
+Property tests (fast-check, with `fc` and `params` from `test/lib/pbt.ts`, or `scenes/explainers/lib/pbt.ts` in an explainer's folder) draw their cases from the seed committed in `scenes/explainers/lib/pbt.ts`, so a run and its re-run draw the same cases. CI's gate, the `check` job, runs them from that seed with `FULL=1`, ten times as many cases, so a pull request's gate draws the cases the gate before it drew, unless the pull request changes the tests themselves. The scheduled `properties` workflow (nightly, or run by hand with a seed) runs the same tests with `FULL=1` from a fresh random seed, which it prints first, to find the cases the committed seed misses; what it finds blocks no pull request. A failed property prints its seed and counterexample path, and `tools/repo/ci-tests.ts` prints the command that replays it, `FC_SEED=<seed> FC_PATH=<path> node --test --test-name-pattern='^<test name>$' <file>` (add the lane's other settings, such as `EXPLAIN_BROWSER=1`). `FC_SEED` alone draws from another seed, and `FC_RUNS=<n>` sets every property's count.
+
 Use Node 24 or later. Set `CHROMIUM_EXECUTABLE_PATH` for a system browser. Optional lettering capture checks need the fonts and Python requirements in [LETTERING.md](LETTERING.md). A skipped check supplies no pass evidence.
 
 | Contract | Owner |

@@ -305,7 +305,7 @@ function cutOf(text: Text, provider: LetteringProvider): LetteringCut {
   const bold = text.weight === 'bold' && !!provider.request?.styles?.includes('bold');
   return text.italic ? (bold ? 'bold-italic' : 'italic') : bold ? 'bold' : '';
 }
-/** The source mapping used by Text: grapheme-based tab stops, code-point clusters. */
+/** The source mapping used by Text: tab stops counted in columns (expandTabs), code-point clusters. */
 function spanForm(text: Text): { shaped: string; source: number[] } {
   const { text: shaped, source } = expandTabs(text.text, text.tabWidth);
   return { shaped, source };

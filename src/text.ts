@@ -16,7 +16,7 @@ import type { Style } from './mobject.ts';
 import type { Box, AnimateBuilder, AnimateBuilderBase } from './mobject.ts';
 import { VMobject } from './vmobject.ts';
 import { unionBoxes } from './box.ts';
-import { embeddedShaperFor } from './fonts.ts';
+import { ATTACHED, embeddedShaperFor } from './fonts.ts';
 import type { FontName } from './fonts.ts';
 import { NEUTRAL_COLORS } from './color.ts';
 import type { Vec } from './vec.ts';
@@ -339,32 +339,33 @@ export interface CodeOptions {
   spans?: ReadonlyArray<ColorSpan>;
 }
 
-// Grapheme clusters are not tailored by locale; the locale is named so no machine's default decides.
-const graphemes = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter('en', { granularity: 'grapheme' }) : null;
-
 /**
  * `line` with each tab replaced by the spaces up to the next multiple of `width` columns,
  * and for each code point of the result the UTF-16 index in `line` it came from (a tab's
- * spaces all come from the tab). A column is a grapheme (an accent combined with its
- * letter takes one). `width` must be a positive integer; without one, tabs stay tabs and
- * only the map is made. Text's layout and its lettering runs (src/lettering-outlines.ts)
- * both shape this form, so their clusters agree.
+ * spaces all come from the tab). A column is a code point that draws on its own: one that
+ * draws with the character before it (a combining mark, a joiner, a variation selector:
+ * ATTACHED, the rule font fallback uses) takes none, so an accent combined with its letter
+ * takes one column and a conjunct takes one per consonant. A character's category is fixed
+ * once it is assigned, so every Node and browser counts alike, which grapheme clusters do
+ * not: their rules change between Unicode versions. `width` must be a positive integer;
+ * without one, tabs stay tabs and only the map is made. Text's layout and its lettering
+ * runs (src/lettering-outlines.ts) both shape this form, so their clusters agree.
  */
 export function expandTabs(line: string, width?: number): { text: string; source: number[] } {
   if (width !== undefined && (!Number.isInteger(width) || width < 1)) throw new RangeError(`new Text(): tabWidth must be a positive integer, not ${width}`);
   let out = '', col = 0, at = 0;
   const source: number[] = [];
-  const units = graphemes ? Array.from(graphemes.segment(line), (g) => g.segment) : Array.from(line);
-  for (const ch of units) {
+  for (const ch of line) {
     if (ch === '\t' && width !== undefined) {
       const n = width - (col % width);
       out += ' '.repeat(n); col += n;
       for (let k = 0; k < n; k++) source.push(at);
-      at += 1;
     } else {
-      out += ch; col++;
-      for (const cp of ch) { source.push(at); at += cp.length; }
+      out += ch;
+      if (!ATTACHED.test(ch)) col++;
+      source.push(at);
     }
+    at += ch.length;
   }
   return { text: out, source };
 }

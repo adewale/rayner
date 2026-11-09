@@ -1,0 +1,59 @@
+name: properties
+# Every property test with ten times as many cases (FULL=1), drawn from a fresh random seed, to find
+# cases the committed seed (scenes/explainers/lib/pbt.ts) never draws. ci.yml's gate runs the same
+# tests from the committed seed, so a case found here fails no pull request: replay it with the
+# command a failure prints, then fix it with a test that holds the case.
+on:
+  schedule:
+    - cron: '43 4 * * *'
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: The seed to draw from (empty for a random one)
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: properties-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  properties:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Choose the seed
+        env:
+          SEED: ${{ inputs.seed }}
+        run: |
+          seed="${SEED:-$(( $(od -An -N4 -tu4 /dev/urandom) % 2147483647 ))}"
+          if ! [[ "$seed" =~ ^-?[0-9]{1,10}$ ]]; then echo "::error::The seed must be an integer, not '$seed'"; exit 1; fi
+          echo "Property seed: $seed"
+          echo "Property seed: \`$seed\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "FC_SEED=$seed" >> "$GITHUB_ENV"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # the fork explainer's test reads Lantern's code at the fork base
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          check-latest: true
+          cache: npm
+      - run: npm ci
+      # The browser is cached by lockfile; --with-deps still installs the system libraries it needs.
+      - name: Keep browsers in a cached folder
+        shell: bash
+        run: echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/ms-playwright" >> "$GITHUB_ENV"
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
+      - run: npx playwright-core install --with-deps --only-shell chromium
+      - run: npm run check          # emits dist/, which some tests read
+      # The check job's full step, from this run's seed; a failed property prints the command that replays it.
+      - run: FULL=1 node tools/repo/ci-tests.ts --expose-gc --test test/*.test.ts test/browser/*.test.ts scenes/*/*/*.test.ts

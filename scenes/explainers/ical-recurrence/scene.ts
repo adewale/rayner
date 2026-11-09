@@ -2,7 +2,7 @@ import { Scene, Group, Text, diffLines } from '../../../src/index.ts';
 import type { Box, MatchKey, Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, view, having } from '../../../explain/index.ts';
 import { card, code } from '../../../explain/drawing.ts';
-import type { Diagram, Stage, NoteSide, DiagramPicture, ExplainerMeta } from '../../../explain/index.ts';
+import type { Diagram, Stage, Side, DiagramPicture, ExplainerMeta } from '../../../explain/index.ts';
 import {
   DTSTART,
   GUEST_MEETING,
@@ -84,7 +84,7 @@ type IcalState = {
 // object shown so far, and keys each line by its text, so a line that stays glides to its row.
 type StoredShown = { added: number[]; focus: [number, number] | null; focusAs?: string };
 // How the schema is shown, apart from its source: its notes and what stays undimmed.
-type ErShown = { notes: { id: string; text: string; side: NoteSide }[]; dim: string[] | null };
+type ErShown = { notes: { id: string; text: string; side: Side }[]; dim: string[] | null };
 /** The stored object's marks, the meeting the list lights (and what it is called), and the schema's notes. */
 type IcalShown = { stored?: StoredShown; listMark?: { row: string; as: string } | null; er?: ErShown };
 

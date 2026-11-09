@@ -19,7 +19,13 @@ code.lineSpan(4);             // all of line 4
 Indices are JS string indices (UTF-16 code units) into `code.lines[i].text`,
 the same numbers `Glyph.cluster` holds. A tab is one index however many
 columns it takes, and a character outside the BMP is two
-(`test/code-tabs.test.ts`). Out-of-range lines or indices throw
+(`test/code-tabs.test.ts`). A tab reaches the next multiple of four columns,
+and a column is a code point that draws on its own: a combining mark, a
+joiner or a variation selector draws with the character before it and takes
+none. So `e` with a combining accent is one column and the conjunct `क्ष` is
+two. Character categories do not change once assigned, so a tab stop lands in
+the same place in every Node and browser, which grapheme clusters, whose
+rules change between Unicode versions, would not. Out-of-range lines or indices throw
 `RangeError`; a `token` that isn't there throws.
 
 ### A span is a view

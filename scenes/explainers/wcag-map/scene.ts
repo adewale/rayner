@@ -1,7 +1,7 @@
 import { frames as readerFrames } from './picture.ts';
 import { Scene } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, having } from '../../../explain/index.ts';
-import type { NoteSide, ExplainerMeta } from '../../../explain/index.ts';
+import type { Side, ExplainerMeta } from '../../../explain/index.ts';
 import {
   GUIDELINES,
   LEVELS,
@@ -130,7 +130,7 @@ type WcagState = {
 type Tone = 'accent' | 'good' | 'bad';
 type MapShown = {
   marked: { ids: string[]; tone: Tone; as: string }[];
-  notes: { id: string; text: string; side: NoteSide }[];
+  notes: { id: string; text: string; side: Side }[];
   dim: string[] | null;
 };
 

@@ -12,7 +12,7 @@ import {
 } from '../../../src/index.ts';
 import type { Box, Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, having } from '../../../explain/index.ts';
-import type { NoteSide, ExplainerMeta } from '../../../explain/index.ts';
+import type { Side, ExplainerMeta } from '../../../explain/index.ts';
 // The merge request: the two texts TransformDiff animates, which
 // fidelity.ts holds to the real git diff.
 import { BEFORE_CODE, AFTER_CODE, BEFORE_SPANS, AFTER_SPANS } from './code.ts';
@@ -55,7 +55,7 @@ const ADDED = '#2ea043',
 
 // How the flow diagram is shown, apart from its source: the hops walked, its notes and what stays
 // undimmed. That is `shown`, not the model; its view draws it, and each change is a sync.
-type FlowState = { walked: [string, string][]; notes: { id: string; text: string; side: NoteSide }[]; dim: string[] | null };
+type FlowState = { walked: [string, string][]; notes: { id: string; text: string; side: Side }[]; dim: string[] | null };
 /** How many database reads the change leaves, then the request followed and its reads. */
 type CacheState = { databaseReads?: string; request?: 'hit' | 'miss'; reads?: number };
 

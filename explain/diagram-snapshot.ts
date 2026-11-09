@@ -168,7 +168,8 @@ function validateSnapshot(value: DiagramSnapshot): void {
   const ids = new Map(value.parts.map((p) => [p?.id, p]));
   if (ids.size !== value.parts.length) invalid();
   for (const part of value.parts) {
-    if (!part || typeof part.id !== 'string' || !Array.isArray(part.shapes)) invalid();
+    // A part's id is its key and its address: keyed() refuses ''.
+    if (!part || typeof part.id !== 'string' || part.id === '' || !Array.isArray(part.shapes)) invalid();
     if (
       part.route != null &&
       (!Array.isArray(part.route) || !part.route.every((p) => Array.isArray(p) && p.length === 2 && p.every(point)))

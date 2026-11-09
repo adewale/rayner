@@ -39,6 +39,9 @@ import type {
   MutationOp,
 } from './diagram-snapshot.ts';
 
+/** Which side of its target a diagram's note or the kit's callout stands. */
+export type Side = 'above' | 'below' | 'left' | 'right';
+
 export interface ShowOptions {
   /** Where the diagram fits: a stage region name or [minX, minY, maxX, maxY]. */
   box?: Box | Region;
@@ -53,7 +56,6 @@ interface Part {
   shapes: VMobject[];
   labels: ImportedLabel[];
 }
-export type NoteSide = 'above' | 'below' | 'left' | 'right';
 /** What a picture of a diagram shows besides its parts: its marks with their words, and the parts dimming keeps. */
 interface PictureShows {
   marks: ReadonlyMap<string, { color: string; as: string }>;
@@ -63,7 +65,7 @@ interface PictureShows {
 }
 const pictureShows = Symbol('pictureShows');
 /** A note in a diagram's picture: a short label beside part `id`, at a readable size whatever the diagram's scale. */
-export interface PictureNote { id: string; text: string; side?: NoteSide; color?: string; size?: number }
+export interface PictureNote { id: string; text: string; side?: Side; color?: string; size?: number }
 /**
  * How a diagram is on the stage now: not at all (`detached`, before it is built and after `d.hide()` or
  * `s.clear()`), as its live parts (`live`), or by a view that draws a picture of it while the live
@@ -270,21 +272,21 @@ function journeyActors(source: string): string[] {
   return out;
 }
 
-const OPPOSITE: Record<NoteSide, NoteSide> = { above: 'below', below: 'above', left: 'right', right: 'left' };
+const OPPOSITE: Record<Side, Side> = { above: 'below', below: 'above', left: 'right', right: 'left' };
 /**
  * Where a note sits beside a box. If the frame would push it back onto the
  * part it describes, try the opposite side, then above and below.
  */
-function notePosition(note: Mobject, box: Box, side: NoteSide, frame: Box): Vec {
+function notePosition(note: Mobject, box: Box, side: Side, frame: Box): Vec {
   const w = note.width() / 2,
     h = note.height() / 2;
   const clear = ([x, y]: Vec) => x + w <= box[0] || x - w >= box[2] || y + h <= box[1] || y - h >= box[3];
-  const tries = [...new Set<NoteSide>([side, OPPOSITE[side], 'above', 'below'])].map((s) =>
+  const tries = [...new Set<Side>([side, OPPOSITE[side], 'above', 'below'])].map((s) =>
     clampedPosition(note, box, s, frame),
   );
   return tries.find(clear) ?? tries[0]!;
 }
-function clampedPosition(note: Mobject, box: Box, side: NoteSide, frame: Box): Vec {
+function clampedPosition(note: Mobject, box: Box, side: Side, frame: Box): Vec {
   const w = note.width(),
     h = note.height(),
     gap = 0.14;
@@ -353,7 +355,7 @@ export class Diagram {
    * morph keeps the frame's key.
    */
   private frameKey: string;
-  /** Each part by its id. */
+  /** @internal Each part by its id, for tests: a scene reads part ids from `snapshot.parts` and a part with `get`, `shapes` and `labels`. */
   get parts(): ReadonlyMap<string, Part> { return this.#parts; }
   #parts = new Map<string, Part>();
   /** The top-level parts revealed so far: reveal and hide change it. */
@@ -758,7 +760,9 @@ export class Diagram {
    * by its words in reading order (participants and lanes first), with its emphasis,
    * and the notes on it. Parts drawn with no words are reported as blank.
    */
-  describe(as: PictureShows | null = this.shown()): Description {
+  describe(): Description { return this.#describeShowing(this.shown()); }
+  /** What a reader sees of this diagram showing `as`'s marks and dimming (none for null). */
+  #describeShowing(as: PictureShows | null): Description {
     const w = wordsOf(this.scene);
     const marks = as?.marks ?? new Map<string, { color: string; as: string }>(),
       kept = as?.kept ?? null;
@@ -994,7 +998,7 @@ export class Diagram {
     const diagram = this;
     return selfDescribed(
       pictured,
-      function (this: Mobject) { return diagram.shows(this) ? { what: '', parts: [] } : diagram.describe({ marks: said, kept, walk: false }); },
+      function (this: Mobject) { return diagram.shows(this) ? { what: '', parts: [] } : diagram.#describeShowing({ marks: said, kept, walk: false }); },
       () => emphasis,
     );
   }
@@ -1040,7 +1044,7 @@ export class Diagram {
   notePicture(
     id: string,
     text: string,
-    { side = 'above', color = this.#emphasis, size = 0.22, key = `note:${id}` }: { side?: NoteSide; color?: string; size?: number; key?: string } = {},
+    { side = 'above', color = this.#emphasis, size = 0.22, key = `note:${id}` }: { side?: Side; color?: string; size?: number; key?: string } = {},
   ): Group {
     const g = this.noteLook(text, color, size);
     g.moveTo(notePosition(g, this.part(id, 'd.notePicture()').mob.box()!, side, this.frameBox));

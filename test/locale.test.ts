@@ -1,8 +1,8 @@
 // What Rayner writes must not depend on the machine's locale (docs/ENGINE.md, "Locale"): the same
 // scene gives the same snapshot, trace, description and page in Node and in any browser, whatever
 // LANG says. This holds the rule by reading the code, as test/layers.test.ts holds the layers: no
-// `localeCompare` or `toLocale…` call, no Intl formatter (whose separators and order differ
-// between engines and their data), and no Intl object made without naming its locale. ALLOWED
+// `localeCompare` or `toLocale…` call, and no Intl object (a formatter's separators and order, and a
+// segmenter's breaks, differ between engines and their ICU data, even for a named locale). ALLOWED
 // names each exception and why its output is never saved.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,8 +17,6 @@ const SCANNED = ['src', 'explain', 'app', 'integrations', 'tools', 'scenes', 're
 
 /** Calls whose result follows the machine's locale. */
 const LOCALE_CALLS = new Set(['localeCompare', 'toLocaleString', 'toLocaleDateString', 'toLocaleTimeString', 'toLocaleUpperCase', 'toLocaleLowerCase']);
-/** Intl formatters: their output differs between Node's ICU and a browser's data even for a named locale. */
-const FORMATTERS = new Set(['NumberFormat', 'DateTimeFormat', 'Collator', 'RelativeTimeFormat', 'ListFormat', 'DisplayNames', 'PluralRules', 'DurationFormat']);
 
 /** The exceptions, by file and the name used: why each never reaches saved output. */
 const ALLOWED: Record<string, Record<string, string>> = {
@@ -35,14 +33,8 @@ function localeUses(file: string, source: string): { name: string; at: string }[
     if (ts.isPropertyAccessExpression(node)) {
       const name = node.name.text;
       if (LOCALE_CALLS.has(name) && ts.isCallExpression(node.parent) && node.parent.expression === node) out.push({ name, at: at(node) });
-      if (ts.isIdentifier(node.expression) && node.expression.text === 'Intl') {
-        if (FORMATTERS.has(name)) out.push({ name: `Intl.${name}`, at: at(node) });
-        // Any other Intl object (a Segmenter) must name its locale, or the machine's default decides.
-        else if ((ts.isNewExpression(node.parent) || ts.isCallExpression(node.parent)) && node.parent.expression === node) {
-          const locale = node.parent.arguments?.[0];
-          if (!locale || (ts.isIdentifier(locale) && locale.text === 'undefined')) out.push({ name: `Intl.${name} without a locale`, at: at(node) });
-        }
-      }
+      // Any Intl object: what a formatter writes and where a segmenter breaks follow the engine's ICU data.
+      if (ts.isIdentifier(node.expression) && node.expression.text === 'Intl') out.push({ name: `Intl.${name}`, at: at(node) });
     }
     ts.forEachChild(node, visit);
   };
@@ -56,23 +48,23 @@ const sources = (dir: string): string[] =>
       : e.name.endsWith('.ts') && !e.name.endsWith('.test.ts') && !e.name.endsWith('.d.ts') ? [join(dir, e.name)] : [],
   );
 
-test('nothing Rayner writes follows the machine\'s locale: no localeCompare or toLocale call, no Intl formatter, no Intl object without its locale', () => {
+test('nothing Rayner writes follows the machine\'s locale: no localeCompare or toLocale call, no Intl object', () => {
   const found = SCANNED.flatMap(sources).flatMap((file) => localeUses(file, readFileSync(join(ROOT, file), 'utf8')));
   const unexplained = found.filter(({ name, at }) => !ALLOWED[at.slice(0, at.lastIndexOf(':'))]?.[name]).map(({ name, at }) => `${at}: ${name}`);
-  assert.deepEqual(unexplained, [], 'compare strings by code unit (byCodeUnit), write numbers with writeNumber, and name an Intl object\'s locale');
+  assert.deepEqual(unexplained, [], 'compare strings by code unit (byCodeUnit), write numbers with writeNumber, and count columns by character category, not with Intl');
   // Every exception is still in use, so the list cannot outlive the code it excuses.
   for (const [file, names] of Object.entries(ALLOWED))
     for (const name of Object.keys(names)) assert.ok(found.some((f) => f.name === name && f.at.startsWith(file + ':')), `${file}: ${name} is no longer used; drop it from ALLOWED`);
 });
 
-test('the rule rejects each seeded locale dependence and allows what names its locale', () => {
+test('the rule rejects each seeded locale dependence', () => {
   const uses = (code: string) => localeUses('seeded.ts', code).map((u) => u.name);
   assert.deepEqual(uses('keys.sort((a, b) => a.localeCompare(b));'), ['localeCompare']);
   assert.deepEqual(uses('n.toLocaleString();'), ['toLocaleString']);
   assert.deepEqual(uses("new Intl.NumberFormat('fr-FR').format(n);"), ['Intl.NumberFormat']);
-  assert.deepEqual(uses('new Intl.Segmenter();'), ['Intl.Segmenter without a locale']);
-  assert.deepEqual(uses("new Intl.Segmenter(undefined, { granularity: 'word' });"), ['Intl.Segmenter without a locale']);
-  assert.deepEqual(uses("new Intl.Segmenter('en', { granularity: 'grapheme' }); const f: Intl.NumberFormat | undefined = undefined; // a.localeCompare(b)"), []);
+  // A segmenter named for a locale still breaks by the engine's ICU rules, which change between versions.
+  assert.deepEqual(uses("new Intl.Segmenter('en', { granularity: 'grapheme' });"), ['Intl.Segmenter']);
+  assert.deepEqual(uses("const f: Intl.NumberFormat | undefined = undefined; // a.localeCompare(b)"), []);
 });
 
 test('lettering run keys sort the same under any locale, which localeCompare does not', () => {

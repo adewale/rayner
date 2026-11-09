@@ -1,7 +1,7 @@
 import { Scene, Group, Text, keyed } from '../../../src/index.ts';
 import type { Box, Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, answerOf, view, having } from '../../../explain/index.ts';
-import type { Diagram, NoteSide, View, ExplainerMeta } from '../../../explain/index.ts';
+import type { Diagram, Side, View, ExplainerMeta } from '../../../explain/index.ts';
 import { code } from '../../../explain/drawing.ts';
 import type { CodeBlock } from '../../../explain/drawing.ts';
 // This explainer has no model of its own: its reports are agentic-mermaid 0.5.1's, for small three-node
@@ -60,7 +60,7 @@ type Tone = 'emphasis' | 'bad' | 'good';
 /** Where a diagram is shown: the main one, the two rows of the meaning step, the history's commits. */
 type Slot = 'main' | 'wrong' | 'right' | 'history';
 /** A note beside a part of a diagram, as Diagram.note places one. */
-interface NoteState { part: string; text: string; side: NoteSide; size?: number }
+interface NoteState { part: string; text: string; side: Side; size?: number }
 /** A diagram as a step records it: which source is drawn, which parts are marked and how, and its notes. */
 /** How a slot's diagram is shown, apart from its source (which is the model): what it marks and its notes. */
 interface DiagramState { marks: { part: string; tone: Tone; as: string }[]; notes: NoteState[] }

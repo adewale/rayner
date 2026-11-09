@@ -579,6 +579,18 @@ test('resolving a snapshot never changes it', async () => {
   );
 });
 
+// A part with an empty id passed the validator, and the Diagram then refused to key it (a FULL=1 counterexample).
+test('a part with an empty id is refused', async () => {
+  await fc.assert(
+    fc.asyncProperty(randomSnapshot().filter((s) => s.parts.length > 0).chain((s) => fc.tuple(fc.constant(s), fc.nat({ max: s.parts.length - 1 }))), async ([s, i]) => {
+      const copy: DiagramSnapshot = JSON.parse(JSON.stringify(s));
+      copy.parts[i]!.id = '';
+      await assert.rejects(snapshotResolver({ [diagramKey(s.spec)]: copy }).diagram(s.spec), /scene\.snapshots: a diagram snapshot is invalid/);
+    }),
+    params(50),
+  );
+});
+
 // An empty owner named no part, yet reveal read it as one (a FULL=1 counterexample): it is a dangling owner.
 test('ownership cycles, and owners that are empty or name no part, are refused', async () => {
   await fc.assert(
