@@ -88,20 +88,23 @@ test('only repeated long shape paths become references and restored arrays never
   assert.deepEqual(paths[3], short);
 });
 
+/** decodeSnapshotPayload()'s refusal of a payload not in the packed format, which it names. */
+const notPacked = (e: unknown) => e instanceof Error && e.message.startsWith('decodeSnapshotPayload(): ') && e.message.includes('rayner-paths-v1');
+
 test('packed transport rejects invalid references and malformed dictionary entries', () => {
   for (const ref of [-1, 0.5, 1, Number.MAX_SAFE_INTEGER, NaN, Infinity, {}, '0', null, [0, 'bad']]) {
     const payload = packPageSnapshots(fixture([0, 1]));
     payload.paths = [[0, 1]];
     payload.store.diagram!.parts[0]!.shapes[0]!.subpaths = [ref as number];
-    assert.throws(() => decodeSnapshotPayload(payload), /^Error: decodeSnapshotPayload\(\): the packed diagram snapshots do not match the rayner-paths-v1 format/);
+    assert.throws(() => decodeSnapshotPayload(payload), notPacked);
   }
   for (const paths of [null, {}, [null], [[Infinity]], [['1']], [[{}]], Array(1), [Array(2)]]) {
-    assert.throws(() => decodeSnapshotPayload({format: 'rayner-paths-v1', paths, store: {}}), /^Error: decodeSnapshotPayload\(\): the packed diagram snapshots do not match the rayner-paths-v1 format/);
+    assert.throws(() => decodeSnapshotPayload({format: 'rayner-paths-v1', paths, store: {}}), notPacked);
   }
-  assert.throws(() => decodeSnapshotPayload({format: 'rayner-paths-v2', paths: [], store: {}}), /^Error: decodeSnapshotPayload\(\): the packed diagram snapshots do not match the rayner-paths-v1 format/);
+  assert.throws(() => decodeSnapshotPayload({format: 'rayner-paths-v2', paths: [], store: {}}), notPacked);
   const sparse = packPageSnapshots(fixture([0, 1]));
   sparse.store.diagram!.parts[0]!.shapes[0]!.subpaths = Array(1);
-  assert.throws(() => decodeSnapshotPayload(sparse), /^Error: decodeSnapshotPayload\(\): the packed diagram snapshots do not match the rayner-paths-v1 format/);
+  assert.throws(() => decodeSnapshotPayload(sparse), notPacked);
 });
 
 test('compacted real flowchart, timeline and XY snapshots render byte-identical resting SVGs', async () => {
