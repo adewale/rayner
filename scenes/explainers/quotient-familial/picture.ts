@@ -1,4 +1,4 @@
-import { Group, Rectangle, Text } from '../../../src/index.ts';
+import { Group, Rectangle, Text, keyed } from '../../../src/index.ts';
 import { euros, pourcent } from './model.ts';
 
 /** The income's euros in each tranche of the barème, on the whole income and by parts (repartition() in the model). */
@@ -31,6 +31,6 @@ export function drawRegle(st: Tranches, cle: 'entier' | 'parts', titre: string, 
     if (somme.width() + 0.15 <= w) g.add(somme.moveTo([c[0], y - 0.25]));
     x += w;
   });
-  g.key = `qf-tranches:${cle}`;
+  keyed(g, `qf-tranches:${cle}`);
   return g;
 }

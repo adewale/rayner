@@ -1,4 +1,4 @@
-import { Group, Code, Rectangle, Line, Circle, Arrow } from '../../../src/index.ts';
+import { Group, Code, Rectangle, Line, Circle, Arrow, keyed } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { runSearch, raceLifetimes, racePage, raceReplay } from './model.ts';
@@ -39,7 +39,6 @@ export interface Life { query: Query; start: number; land: number | null }
 /** A page span, outlined in red when `stale`: published after a newer search started. */
 export type Span = PageSpan & { stale: boolean };
 export interface Track { name: string; page: readonly Span[]; key: string }
-const keyed = <M extends Mobject>(m: M, key: string): M => Object.assign(m, { key });
 
 /**
  * Each search as a bar from the tick it starts to the tick its result lands (or, while it runs, a

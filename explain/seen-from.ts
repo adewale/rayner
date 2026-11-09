@@ -13,7 +13,7 @@
 // On a convex body nothing on the near surface can hide anything else there, so the only order
 // that matters is far, body, near, and it never depends on a sort. `depthOrder(picture)` checks it
 // for any picture seenFrom drew, at rest or mid-Follow.
-import { Group, VMobject, Dot, Circle } from '../src/index.ts';
+import { Group, VMobject, Dot, Circle, keyed } from '../src/index.ts';
 import type { Mobject, Vec, Box } from '../src/index.ts';
 import { center } from '../src/box.ts';
 
@@ -369,7 +369,7 @@ function path(style: ConstructorParameters<typeof VMobject>[0], lines: Vec3[][],
 }
 function piece<M extends Mobject>(m: M, seen: SeenPiece, key: string | undefined): M {
   Object.assign(m, { seen });
-  if (key !== undefined) m.key = key;
+  if (key !== undefined) keyed(m, key);
   return m;
 }
 const hiddenKey = (key: string | undefined) => (key === undefined ? undefined : `${key}:hidden`);
@@ -444,7 +444,7 @@ export function seenFrom(model: Model3D, viewpoint: Viewpoint, options: SeenOpti
   const g = new Group(...far, ...body, ...faces, ...paths, ...points, ...above);
   const picture: SeenPicture = { viewpoint: { ...viewpoint }, radius, at: [...l.at] as Vec, scale: l.scale, ...(window ? { window } : {}) };
   const drawn = Object.assign(g, { seenPicture: picture }) as SeenDrawing;
-  if (options.key) drawn.key = options.key;
+  if (options.key) keyed(drawn, options.key);
   return drawn;
 }
 

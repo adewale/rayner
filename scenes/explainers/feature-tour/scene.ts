@@ -1,10 +1,10 @@
-import { Scene, Text, Circle, Line, Dot, Rectangle, Arrow, Group, Axes, Transform, Restore, TransformFromCopy, MoveAlongPath, ArcBetweenPoints, TransformMatchingText, Circumscribe, Brace, NumberLine, DecimalNumber, MathTex, TransformMatching, matchByKey, Code, TransformDiff, diffLines, parseUnifiedDiff, smooth, rushInto, rushFrom, thereAndBack } from '../../../src/index.ts';
+import { Scene, Text, Circle, Line, Dot, Rectangle, Arrow, Group, Axes, Transform, Restore, TransformFromCopy, MoveAlongPath, ArcBetweenPoints, TransformMatchingText, Circumscribe, Brace, NumberLine, DecimalNumber, MathTex, TransformMatching, matchByKey, Code, TransformDiff, diffLines, parseUnifiedDiff, smooth, rushInto, rushFrom, thereAndBack, keyed } from '../../../src/index.ts';
 import { seenFrom, between, latLon, circleOn, project } from '../../../explain/geo.ts';
 import { Square, Underline, Write } from './shorthands.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
 import { stage, settingsOf, palette, answerOf, view, having } from '../../../explain/index.ts';
 import type { ExplainerMeta } from '../../../explain/index.ts';
-import { bars, tile, keyed, code, pin } from '../../../explain/drawing.ts';
+import { bars, tile, code, pin } from '../../../explain/drawing.ts';
 
 type Feature =
   | 'steps'
@@ -755,7 +755,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
         'a circle',
       );
       const shape = new Circle({ radius: 0.8, stroke: accent, strokeWidth: 0.06 }).moveTo([ax, ay]);
-      shape.key = 'animation:shape';
+      keyed(shape, 'animation:shape');
       await s.enter(shape, { describe: 'After: the circle has become a square' });
       await this.play(new Transform(shape, new Square({ side: 1.6, stroke: accent, strokeWidth: 0.06 }).moveTo([ax, ay])));
     } else if (feature === 'matching') {
@@ -790,8 +790,8 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
       // Where the demonstration took it, left as a dashed outline.
       const away = new Circle({ radius: 0.8, stroke: soft, strokeWidth: 0.03 }).moveTo([ax + 1, ay]);
       away.style.dashArray = '0.1 0.08';
-      circle.key = 'restore:circle';
-      away.key = 'restore:away';
+      keyed(circle, 'restore:circle');
+      keyed(away, 'restore:away');
       await s.enter(circle, { describe: 'After: the circle is back at its saved place; a dashed outline marks where it moved to' });
       circle.saveState();
       await this.play(circle.animate.shift([2, 0]));
@@ -804,7 +804,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
       const target = new Text('42', { fontSize: 1.2, color: ink }).moveTo([ax, ay]);
       await s.enter(target);
       const circle = new Circumscribe(target, { keep: true, color: accent });
-      circle.outline.key = 'emphasis:box';
+      keyed(circle.outline, 'emphasis:box');
       s.keep(circle.outline, { describe: 'After: the result 42 remains in a box' });
       await this.play(circle);
     } else if (feature === 'camera') {
@@ -816,7 +816,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
         if (x % 2 === 0) ruler.add(new Text(String(x), { fontSize: 0.18, font: 'mono', color: soft }).moveTo([x, -1.32]));
       }
       const subject = new Circle({ radius: 0.6, stroke: accent, strokeWidth: 0.07 }).moveTo([0, 0]);
-      subject.key = 'camera:circle';
+      keyed(subject, 'camera:circle');
       await s.enter(ruler, subject, {
         describe: 'A circle at the centre of a ruler that spans the stage from −7 to 7, numbered on its even ticks',
       });
@@ -854,7 +854,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
       });
       axes.moveTo([ax, ay]);
       const line = axes.lineGraph(data, { color: accent });
-      line.key = 'chart:line';
+      keyed(line, 'chart:line');
       await s.enter(axes, line, { describe: 'After: a line through values zero, two and one at x zero, one and two' });
     } else if (feature === 'state') {
       await panels(
@@ -899,14 +899,14 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
         'the path’s two ends, nothing drawn',
       );
       const path = new Line([ax - 3.6, ay - 0.9], [ax + 3.6, ay + 0.9], { stroke: accent, strokeWidth: 0.08 });
-      path.key = 'drawing:path';
+      keyed(path, 'drawing:path');
       await s.sketch(path, { tool: 'pen', describe: 'After: a rising line, drawn' });
     } else if (feature === 'brace') {
       await panels([new Text('a b c d', { fontSize: 0.6, color: ink }).moveTo([bx, by])], 'the letters a b c d');
       const row = new Text('a b c d', { fontSize: 0.9, color: ink }).moveTo([ax, ay + 0.6]);
       await s.enter(row);
       const brace = new Brace(row, [0, -1], { stroke: accent, strokeWidth: 0.04 });
-      brace.key = 'brace:brace';
+      keyed(brace, 'brace:brace');
       const count = new Text('4 items', { fontSize: 0.5, color: ink });
       brace.putAtTip(count);
       await s.enter(brace, count, { describe: 'After: a brace under all four letters, its tip pointing at 4 items' });
@@ -916,7 +916,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
       const values = row(ax, 0.9);
       await s.enter(...values);
       const mark = new Underline(values[1]!, { stroke: accent, strokeWidth: 0.06 });
-      mark.key = 'underline:mark';
+      keyed(mark, 'underline:mark');
       await s.enter(mark, { describe: 'After: 42 is underlined; 12 and 7 are not' });
     } else if (feature === 'number-line') {
       await panels(
@@ -925,7 +925,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
       );
       const line = new NumberLine({ range: [0, 10, 2], length: 7.4, includeNumbers: true, stroke: soft, labelColor: ink, labelFontSize: 0.4 }).moveTo([ax, ay - 0.4]);
       const at = new Dot({ radius: 0.13, color: accent }).moveTo(line.n2p(7));
-      at.key = 'number-line:dot';
+      keyed(at, 'number-line:dot');
       const said = new Text('7', { fontSize: 0.5, color: accent }).moveTo([line.n2p(7)[0], line.n2p(7)[1] + 0.55]);
       await s.enter(line, at, said, { describe: 'After: a scale from 0 to 10, ticked every 2, with a dot at 7, between the ticks for 6 and 8' });
       this.state.placed = { value: 7, x: Number(line.n2p(7)[0].toFixed(3)) };
@@ -938,7 +938,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
     } else if (feature === 'math') {
       await panels([new Text('a^2+b^2=c^2', { fontSize: 0.42, font: 'mono', color: ink }).moveTo([bx, by])], 'the TeX source a^2+b^2=c^2');
       const f = new MathTex('a^2+b^2=c^2', { display: true, fontSize: 1.1, color: ink }).moveTo([ax, ay]);
-      f.key = 'math:formula';
+      keyed(f, 'math:formula');
       await s.enter(f, { describe: 'After: the formula a squared plus b squared equals c squared, typeset' });
     } else if (feature === 'arc') {
       const start = (x: number, w: number) => [x - w, by] as Vec,
@@ -952,7 +952,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
       );
       const route = new ArcBetweenPoints(start(ax, 3), end(ax, 3), { angle: Math.PI / 2, stroke: soft, strokeWidth: 0.04 });
       const token = new Dot({ radius: 0.14, color: accent }).moveTo(start(ax, 3));
-      token.key = 'arc:token';
+      keyed(token, 'arc:token');
       await s.enter(route, token, { describe: () => `After: a curved route dipping below the straight line between its ends, with the token at its ${token.center()[0] > ax ? 'far end' : 'start'}` });
       await this.play(new MoveAlongPath(token, route));
     } else if (feature === 'write') {
@@ -970,8 +970,8 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
       await panels([new Square({ side: 1.2, stroke: accent, strokeWidth: 0.06 }).moveTo([bx, by])], 'the square alone');
       const source = new Square({ side: 1.4, stroke: accent, strokeWidth: 0.06 }).moveTo([ax - 1.7, ay]);
       const result = new Circle({ radius: 0.8, stroke: accent, strokeWidth: 0.06 }).moveTo([ax + 1.7, ay]);
-      source.key = 'copy:source';
-      result.key = 'copy:result';
+      keyed(source, 'copy:source');
+      keyed(result, 'copy:result');
       await s.enter(source, { describe: 'After: the square, unchanged' });
       await this.play(new TransformFromCopy(source, result));
       s.keep(result, { describe: 'After: a circle beside the square, morphed from its copy' });
@@ -1087,7 +1087,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
         b = { ...a, yaw: 0, pitch: 45 };
       const draw = (t: number, at: Vec, scale: number, key?: string) => seenFrom(model, between(a, b, t), { at, scale, ...(key ? { key } : {}) });
       const before = draw(0, [bx, by], 1.3, 'before:globe');
-      for (const m of before.family()) if (m.key) m.key = `before:${m.key}`;
+      for (const m of before.family()) if (m.key) keyed(m, `before:${m.key}`);
       await panels([before], 'the globe from the Atlantic, London near its right edge');
       this.state.turn = 0;
       const base = { ...this.state };

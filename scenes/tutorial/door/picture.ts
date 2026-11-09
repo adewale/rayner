@@ -1,4 +1,4 @@
-import { Group, Rectangle, Text } from '../../../src/index.ts';
+import { Group, Rectangle, Text, keyed } from '../../../src/index.ts';
 import type { DoorState } from './model.ts';
 
 /** The stage's colours a door is drawn in. */
@@ -13,5 +13,5 @@ export function drawDoor(st: DoorState, { ink, paper, soft, emphasis }: Ink): Gr
   const word = new Text(st.door, { fontSize: 0.6, color: st.door === 'locked' ? emphasis : ink }).moveTo([0, -2.55]);
   const parts: [string, Rectangle | Text][] = [['door:frame', frame], ['door:panel', panel], ['door:word', word]];
   if (st.door === 'locked') parts.push(['door:bolt', new Rectangle({ width: 0.7, height: 0.32, stroke: 'none', fill: emphasis }).moveTo([0.95, 0.1])]);
-  return new Group(...parts.map(([key, part]) => Object.assign(part, { key })));
+  return new Group(...parts.map(([key, part]) => keyed(part, key)));
 }

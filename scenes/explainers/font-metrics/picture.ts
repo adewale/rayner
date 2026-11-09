@@ -5,7 +5,7 @@
 // Visual decisions: every phrase is at size 0.9, so the advance ruler repeats the opening's 4.41, and the
 // ruler's ticks and space cells come from the same shaped run the Text draws, not a separate estimate.
 // The advance step's dimension is drawn here, with the stage, because a staged draw cannot add one later.
-import { Group, Circle, Line, Rectangle } from '../../../src/index.ts';
+import { Group, Circle, Line, Rectangle, keyed } from '../../../src/index.ts';
 import type { Text, TextOptions } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { dimension } from '../../../explain/drawing.ts';
@@ -37,7 +37,7 @@ export interface CutsState extends RulersState { advances: Record<string, number
 export function drawLayout(st: LayoutState, { stage, text, phrase, color }: Pen): Group {
   const emphasis = stage.look.emphasis;
   const comparison = new Group();
-  comparison.key = 'font-layout';
+  keyed(comparison, 'font-layout');
   const rows = [
     [`Measured as Mono: ${st.layout.wrong.toFixed(2)}`, st.layout.wrong],
     [`Measured as Garamond: ${st.layout.actual.toFixed(2)}`, st.layout.actual],
@@ -95,8 +95,8 @@ export function drawRulers(st: RulersState, { stage, text, phrase, color }: Pen)
       (x, i) => new Line([START + x, yDrawn - 0.34], [START + measured[i]!, yMeasured + 0.34], { stroke: soft, strokeWidth: 0.015 }),
     ),
   );
-  drawnRuler.key = 'font-rulers-drawn';
-  measuredRuler.key = 'font-rulers-measured';
+  keyed(drawnRuler, 'font-rulers-drawn');
+  keyed(measuredRuler, 'font-rulers-measured');
   // Each marker sits its gap past its ruler's end, where the state records it.
   const marker = new Circle({ radius: 0.22, fill: emphasis, stroke: 'none' }).moveTo([START + markers.measured, TOP]);
   const ring = new Circle({ radius: 0.22, fill: 'none', stroke: emphasis, strokeWidth: 0.04 }).moveTo([START + markers.drawn, TOP]);

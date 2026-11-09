@@ -8,12 +8,12 @@
 // projection rather than morphing: a morph's middle frames come from no viewpoint, so parts on their way
 // behind the globe would cross its face, which the depth check rejects. The globe's graticule starts at
 // the equator (see grid). Coastlines are Natural Earth 1:110m, coarse at this scale.
-import { Group, Rectangle, Circle } from '../../../src/index.ts';
+import { Group, Rectangle, Circle, keyed } from '../../../src/index.ts';
 import type { Model3D, Part, Viewpoint, Vec3, SeenOptions } from '../../../explain/geo.ts';
 import { seenFrom, project, latLon, circleOn } from '../../../explain/geo.ts';
 import type { Vec, Text } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
-import { label, keyed, pin } from '../../../explain/drawing.ts';
+import { label, pin } from '../../../explain/drawing.ts';
 import { LAND } from './land.ts';
 import { greatCircle, rhumbLine, pole, tens, RADIUS_KM } from './model.ts';
 import type { Place, Route } from './model.ts';

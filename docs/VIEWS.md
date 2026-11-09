@@ -135,7 +135,7 @@ narrows an optional part of what is shown: `having(sh, 'flow').flow`.
 | a `MatchKey` function | `TransformMatching` with that key | identity you know: a node id, a colour; `matchByKey({ fallback })` to keep unkeyed parts too, `matchByKey({ text: 'whole' })` when a keyed word's change is a new identity |
 
 A key sync whose two pictures carry no keys below their roots would pair nothing, so its play
-throws and names the fix: key the draw's parts (a card's or panel's `key` option, or `part.key`),
+throws and names the fix: key the draw's parts (a card's or panel's `key` option, or `keyed(part, key)`),
 or say `match: 'text'`, `'shapes'` or `'index'`. A bare `Text` is such a picture: the key of a
 picture's root is not read, and its glyphs carry none.
 

@@ -2,7 +2,7 @@
 // do, and the invariants every animation keeps (seek-exact, no jumps).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Group, Text, Code, Circle, Rectangle, Polygon, Line, Arc, Labeled, Arrow, VMobject, FadeIn, Transform, LaggedStart, TransformMatching, TransformMatchingShapes, TransformMatchingText } from '../src/index.ts';
+import { Scene, Group, Text, Code, Circle, Rectangle, Polygon, Line, Arc, Labeled, Arrow, VMobject, FadeIn, Transform, LaggedStart, TransformMatching, TransformMatchingShapes, TransformMatchingText, keyed } from '../src/index.ts';
 import { StringSink, renderFrame } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
@@ -265,7 +265,7 @@ test('matchByKey: a keyed component is kept wherever it moves, its parts morph i
   const { matchByKey } = await import('../src/index.ts');
   const cell = (z: number, symbol: string, at: Vec) => {
     const g = new Group(new Rectangle({ width: 1, height: 1 }), new Text(symbol, { fontSize: 0.4 }), new Text(String(z), { fontSize: 0.2 }));
-    g.key = `cell:${z}`;
+    keyed(g, `cell:${z}`);
     g.moveTo(at);
     return g;
   };
@@ -274,7 +274,7 @@ test('matchByKey: a keyed component is kept wherever it moves, its parts morph i
       ...(shuffled ? [cell(2, 'He', [4, 2]), cell(1, 'H', [-4, 0])] : [cell(1, 'H', [-4, 2]), cell(2, 'He', [-2, 2])]),
       new Text(note, { fontSize: 0.3 }).moveTo([0, -2]),
     );
-    root.key = 'table'; // the picture's own key names it; it must not make every part one component
+    keyed(root, 'table'); // the picture's own key names it; it must not make every part one component
     return root;
   };
   const src = picture(false, 'runs'), tgt = picture(true, 'table');
@@ -309,9 +309,9 @@ test('matchByKey text policy: by place, a relabelled keyed word morphs its glyph
   const { matchByKey } = await import('../src/index.ts');
   const node = (label: string, at: Vec) => {
     const word = new Text(label, { fontSize: 0.3 });
-    word.key = 'state:idle:label';
+    keyed(word, 'state:idle:label');
     const g = new Group(new Rectangle({ width: 2, height: 1 }), word).moveTo(at);
-    g.key = 'state:idle';
+    keyed(g, 'state:idle');
     return new Group(g);
   };
   const byPlace = new TransformMatching(node('idle', [0, 0]), node('ready', [1, 0]), { key: matchByKey() });
@@ -326,9 +326,9 @@ test('matchByKey text policy: by place, a relabelled keyed word morphs its glyph
 });
 
 test('find and findAll address parts by key, depth first, on a mobject and across a scene', () => {
-  const cell = (z: number) => { const g = new Group(new Rectangle({ width: 1, height: 1 }), new Text(String(z))); g.key = `cell:${z}`; g.children[1]!.key = `cell:${z}:z`; return g; };
+  const cell = (z: number) => { const g = new Group(new Rectangle({ width: 1, height: 1 }), new Text(String(z))); keyed(g, `cell:${z}`); keyed(g.children[1]!, `cell:${z}:z`); return g; };
   const table = new Group(cell(1), new Group(cell(2), cell(3)));
-  table.key = 'table';
+  keyed(table, 'table');
   assert.equal(table.find('table'), table);
   assert.equal(table.find('cell:3:z'), table.children[1]!.children[1]!.children[1]);
   assert.equal(table.find('cell:9'), undefined);
@@ -351,7 +351,7 @@ test('View.sync({ match: "keys" }) keeps a keyed cell across a rearrangement and
   scene.state = { order: [1, 2, 3] };
   const v = view(scene, (st) => new Group(...st.order.map((z, i) => {
     const g = new Group(new Rectangle({ width: 0.8, height: 0.8 }), new Text(`c${z}`, { fontSize: 0.3 })).moveTo([i * 2 - 2, 0]);
-    g.key = `cell:${z}`;
+    keyed(g, `cell:${z}`);
     return g;
   })), { place: false });
   scene.add(v);
@@ -367,7 +367,7 @@ test('matchByKey unkeyed: by-place pairs parts under no key by their place in th
   const { matchByKey } = await import('../src/index.ts');
   const picture = (word: string, at: Vec) => {
     const cell = new Group(new Rectangle({ width: 1, height: 1 }));
-    cell.key = 'cell';
+    keyed(cell, 'cell');
     return new Group(cell, new Text(word, { fontSize: 0.3 }).moveTo(at), new Circle({ radius: 0.2 }).moveTo([at[0], -2]));
   };
   const faded = new TransformMatching(picture('odds', [0, 0]), picture('odds', [2, 0]), { key: matchByKey() });
@@ -384,7 +384,7 @@ test('matchByKey unkeyed: by-place pairs parts under no key by their place in th
 
 test('become takes another mobject\'s data in place, keeping identity, children and key', () => {
   const ptr = new Group(new Arrow([0, 0], [1, 0]), new Text('head', { fontSize: 0.24 }));
-  ptr.key = 'ring:pointer:head';
+  keyed(ptr, 'ring:pointer:head');
   const ids = ptr.family().map((m) => m.id), parent = new Group(ptr);
   const drawn = new Group(new Arrow([0, 0], [0, 2]), new Text('head', { fontSize: 0.24 }).moveTo([3, 3]));
   const before = drawn.family().map((m) => m.pointArrays().map((a) => [...a]));

@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   Scene, Code, Text, FadeIn, LaggedStart, TransformDiff, TransformMatchingText, VMobject,
-  diffLines, parseUnifiedDiff,
+  diffLines, parseUnifiedDiff, keyed,
 } from '../src/index.ts';
 import { StringSink, renderText, renderFrame } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
@@ -350,7 +350,7 @@ test('every animation that decides something records it as it begins: nested in 
     override async construct() {
       await this.step('a');
       const readout = view(this, (st) => new Text(st.word));
-      readout.key = 'readout';
+      keyed(readout, 'readout');
       const plain = view(this, (st) => new Text(st.word));
       const dot = new Dot();
       this.add(readout, plain, dot);

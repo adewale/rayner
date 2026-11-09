@@ -1,6 +1,5 @@
-import { Rectangle, Dot, Circle, Line, Text, Group, VMobject } from '../../../src/index.ts';
+import { Rectangle, Dot, Circle, Line, Text, Group, VMobject, keyed } from '../../../src/index.ts';
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
-import { keyed } from '../../../explain/drawing.ts';
 import type { Look } from '../../../explain/index.ts';
 
 // How the lantern explainer draws a state: the tiny scene redrawn from a recorded frame, two frames
@@ -106,8 +105,8 @@ export function timelinePicture(st: TimelineState, c: Ink) {
   const blend = panel(st, 'blend', -6.4, 'Blending fixed endpoints', c),
     nudge = panel(st, 'nudge', 1.6, 'A nudge each frame', c);
   // On a phone the step opens on the nudge's panel, where the two runs part.
-  nudge.played.key = 'lantern-timeline-nudge-played';
-  nudge.seeked.key = 'lantern-timeline-nudge-seeked';
+  keyed(nudge.played, 'lantern-timeline-nudge-played');
+  keyed(nudge.seeked, 'lantern-timeline-nudge-seeked');
   // At the still the story followed, how far apart the nudge's two runs are.
   const x = nudge.fx(st.seek.frame);
   const notes = new Group(

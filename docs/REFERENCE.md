@@ -304,11 +304,10 @@ A row gives one value per column, or one value that spans them all (Requests abo
 - then what the picture shows, positionally: its text, rows or items, and what it measures or points at (a callout's target, a dimension's ends, a pin's point);
 - then one options object: `at` is where the picture stands, `size` its text size, `key` its address.
 
-A function whose parts are keyed (`table`, `stat`, `flow`, `bars`, `legend`) requires `key`, so two of one kind on a stage never collide. The others take `key` optionally, and key their parts only when given it. A keyed picture keys its parts under its own key, so a scene addresses a part by key (`find`, matching, a choreography's `c.from`), never by a child index.
+A function whose parts are keyed (`table`, `stat`, `flow`, `bars`, `legend`) requires `key`, so two of one kind on a stage never collide. The others take `key` optionally, and key their parts only when given it. A keyed picture keys its parts under its own key, so a scene addresses a part by key (`find`, matching, a choreography's `c.from`), never by a child index. A mobject a scene draws itself is keyed with `keyed(m, key)` from `rayner`, which returns `m`; `m.key` is read-only.
 
 | Function | Draws | Keyed parts |
 | --- | --- | --- |
-| `keyed(m, key)` | Sets `m.key` and returns `m`, for any mobject a scene draws itself | |
 | `keyedParts()` | A picture built from keyed parts: `add(m, key)` keys `m`, keeps it in order and returns it, `group()` returns the parts as one Group. A key added twice is refused at the `add` that repeats it | |
 | `emphasised(m, as)` | Marks `m` as emphasis, `as` the words for what it shows (`'outlined: the full slot'`), so the phone's tour and the descriptions find the mark where it is drawn; `null` takes the mark off. Returns `m` ([emphasis](#the-phones-opening-emphasis-and-review-subjects)) | |
 | `label(s, text, { at, color, size, key })` | A centred line of text at `at`, in the look's ink unless given a `color` | |

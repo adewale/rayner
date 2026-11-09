@@ -221,9 +221,9 @@ export async function publicCollection(scene: Scene): Promise<void> {
 
 // The rest of what the collection's scenes import, and the members they use, written as an outside
 // author writes them. Every view draws from its state.
-import { Group, Mobject, VMobject, Circle, Polygon, Arc, Cross, CurvedArrow, BraceLabel, DecimalNumber, ItalicText, FadeOut, LaggedStart, Animation, TransformMatchingShapes, matchByKey, linear, smooth, rushInto, rushFrom, thereAndBack, shaperFor } from 'rayner';
+import { Group, Mobject, VMobject, Circle, Polygon, Arc, Cross, CurvedArrow, BraceLabel, DecimalNumber, ItalicText, FadeOut, LaggedStart, Animation, TransformMatchingShapes, matchByKey, linear, smooth, rushInto, rushFrom, thereAndBack, shaperFor, keyed } from 'rayner';
 import type { Box, Vec, SceneState, ScheduledAnimation, MatchKey, FadeOptions, FontName, SceneClass, Sink, Style, Palette } from 'rayner';
-import { callout, dimension, pin, legend, keyed, keyedParts } from 'rayner/drawing';
+import { callout, dimension, pin, legend, keyedParts } from 'rayner/drawing';
 import { Machine, refuse, isRefusal, answerOf, settingsOf, resolveSettings, regionBox, mermaid } from 'rayner/explain';
 import type { Refusal, Transition, Choreography, NoteSide, PictureNote, DiagramPicture, Stage, ExplainerClass, ExplainerMeta, Setting, StepKind, Description } from 'rayner/explain';
 import { MoveAlongPath, ArcBetweenPoints } from 'rayner';
@@ -283,6 +283,8 @@ export class Collection extends Scene<CollectionModel> {
     path.setStyle(style);
     const fade: FadeOptions = { shift: [0, 0.2], rateFunc: smooth };
     await s.enter(keyed(picture, 'shapes'));
+    // @ts-expect-error a key is read-only: keyed() sets it
+    picture.key = 'other';
     const all: ScheduledAnimation[] = [new LaggedStart(shapes.map((m) => new Pulse(m, { rateFunc: linear }))), new MoveAlongPath(new Dot(), path, { rateFunc: rushInto })];
     await this.play(...all);
     await this.play(new FadeOut(picture, fade), new TransformFromCopy(new Text('done'), new Text('done!')), new ArcBetweenPoints(at, [0, 0]).animate.shift([0, 1]));

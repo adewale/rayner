@@ -13,6 +13,7 @@ import type { FollowSpec } from './state.ts';
 import type { Mobject } from '../src/mobject.ts';
 import type { VMobject } from '../src/vmobject.ts';
 import { linear } from '../src/rate.ts';
+import { keyed } from '../src/index.ts';
 
 /**
  * An animation for a part that is already in the picture but unseen: it shows the part as it was
@@ -113,7 +114,7 @@ export function choreograph(current: Mobject, target: Mobject): Choreography {
     claim(key, true);
     if (now.has(key)) throw new Error(`t.choreograph(): ${JSON.stringify(key)} is already in the current picture; morph it`);
     const part = like.copy();
-    part.key = key;
+    keyed(part, key);
     part.saveState();
     part.setOpacity(0);
     current.add(part);

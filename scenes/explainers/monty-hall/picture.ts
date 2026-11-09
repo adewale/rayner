@@ -1,6 +1,6 @@
-import { Group, Rectangle, Text, Line } from '../../../src/index.ts';
+import { Group, Rectangle, Text, Line, keyed } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
-import { label, keyed } from '../../../explain/drawing.ts';
+import { label } from '../../../explain/drawing.ts';
 import type { Host, threeDoorCells } from './model.ts';
 
 // How the Monty Hall explainer draws its strip of rounds: each cell as wide as its chance, so the

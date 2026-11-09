@@ -8,19 +8,16 @@ import type { Box } from '../src/index.ts';
 import { Text } from '../src/index.ts';
 
 test('rayner/drawing exports exactly the kit, and package.json publishes it', () => {
-  assert.deepEqual(Object.keys(drawing).sort(), ['bars', 'callout', 'card', 'code', 'dimension', 'dot', 'emphasised', 'flow', 'keyed', 'keyedParts', 'label', 'legend', 'pin', 'segment', 'stat', 'table', 'tile']);
+  assert.deepEqual(Object.keys(drawing).sort(), ['bars', 'callout', 'card', 'code', 'dimension', 'dot', 'emphasised', 'flow', 'keyedParts', 'label', 'legend', 'pin', 'segment', 'stat', 'table', 'tile']);
   const exports = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).exports;
   assert.deepEqual(exports['./drawing'], { types: './dist/explain/drawing.d.ts', default: './dist/explain/drawing.js' });
 });
 
-test('keyed sets a key and returns the mobject; segment and dot take keys like the rest of the kit, and a keyed composite keys its parts', async () => {
-  const { Scene, Circle } = await import('../src/index.ts'); const { NullSink } = await import('../src/output.ts'); const { loadFonts } = await import('../explain/testing.ts');
+test('segment and dot take keys like the rest of the kit, and a keyed composite keys its parts', async () => {
+  const { Scene } = await import('../src/index.ts'); const { NullSink } = await import('../src/output.ts'); const { loadFonts } = await import('../explain/testing.ts');
   await loadFonts();
   const { stage } = await import('../explain/index.ts');
   const s = stage(new Scene(new NullSink()));
-  const c = new Circle();
-  assert.equal(drawing.keyed(c, 'sun'), c);
-  assert.equal(c.key, 'sun');
   assert.equal(drawing.segment(s, [0, 0], [1, 0], { color: s.look.soft, key: 'axis' }).key, 'axis');
   const node = drawing.dot(s, 'A', { key: 'node:A' });
   assert.equal(node.key, 'node:A');

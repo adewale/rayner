@@ -4,7 +4,7 @@
 // so they can change without breaking scenes.
 
 // Model
-export { Mobject, Group } from './mobject.ts';
+export { Mobject, Group, keyed } from './mobject.ts';
 export type { Style, StyleRecord, Box, Updater, AnimateBuilder } from './mobject.ts';
 export { VMobject } from './vmobject.ts';
 export { Arc, ArcBetweenPoints, Arrow, Circle, CurvedArrow, Dot, Labeled, Line, Polygon, Rectangle } from './shapes.ts';

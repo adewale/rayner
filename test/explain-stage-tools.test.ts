@@ -3,7 +3,7 @@
 // plays without a motion failure and seeks exactly.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Rectangle, Group, VMobject, Text } from '../src/index.ts';
+import { Scene, Rectangle, Group, VMobject, Text, keyed } from '../src/index.ts';
 import { NullSink, StringSink, renderFrame, toSvgString } from '../src/output.ts';
 import { MotionSink, analyzeMotion } from '../explain/testing.ts';
 import type { Box, Mobject, Vec } from '../src/index.ts';
@@ -271,8 +271,8 @@ test('a kept opening holds its subjects through later steps; a step\'s own openi
   class Kept extends Scene {
     override async construct() {
       const s = stage(this);
-      const tower = Object.assign(new Rectangle({ width: 2, height: 1 }), { key: 'tower' });
-      const note = Object.assign(new Text('note', { fontSize: 0.4 }).moveTo([3, 0]), { key: 'note' });
+      const tower = keyed(new Rectangle({ width: 2, height: 1 }), 'tower');
+      const note = keyed(new Text('note', { fontSize: 0.4 }).moveTo([3, 0]), 'note');
       const at = () => seen.push(openingOf(this).map((m) => m.key ?? ''));
       await this.step('a'); this.add(tower, note); s.opening(tower, { keep: true }); at();
       await this.step('b'); at();

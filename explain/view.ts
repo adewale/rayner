@@ -215,7 +215,7 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
     this.fit = fit;
     if (samePicture(old, next)) { v.commit(fit); this.inner = null; this.next = null; return; }
     const match = this.match;
-    if (match === 'key' && !keyed(old) && !keyed(next)) throw new Error(`view.sync(): ${v.key !== undefined ? `the view ${JSON.stringify(v.key)}'s` : 'the'} pictures carry no keys below their roots, so key matching pairs nothing; give the draw's parts keys (a card's or panel's \`key\` option, or \`part.key = '…'\`), or pass { match: 'text' }, 'shapes' or 'index'`);
+    if (match === 'key' && !keyed(old) && !keyed(next)) throw new Error(`view.sync(): ${v.key !== undefined ? `the view ${JSON.stringify(v.key)}'s` : 'the'} pictures carry no keys below their roots, so key matching pairs nothing; give the draw's parts keys (a card's or panel's \`key\` option, or \`keyed(part, '…')\`), or pass { match: 'text' }, 'shapes' or 'index'`);
     // replace: false everywhere: the View, not the scene, takes the new picture (see finish)
     const staged = this.staged;
     const inner: Animation = match === 'text' ? new TransformMatchingText(old, next, { replace: false, staged })

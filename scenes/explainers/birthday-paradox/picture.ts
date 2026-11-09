@@ -1,4 +1,4 @@
-import { Group, Rectangle } from '../../../src/index.ts';
+import { Group, Rectangle, keyed } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { label, tile, stat } from '../../../explain/drawing.ts';
 import { percent } from '../lib/format.ts';
@@ -24,7 +24,7 @@ export function room(s: Stage, days: readonly number[], dates: readonly string[]
       }),
     ),
   );
-  cards.key = 'birthday-people';
+  keyed(cards, 'birthday-people');
   return new Group(cards, label(s, footer, { at: [0, big ? -3.85 : -3.6], size: 0.62, key: 'birthday-footer' }));
 }
 
@@ -47,14 +47,14 @@ export function pairGrid(
     new Rectangle({ width: cell * size, height: cell * size, fill, fillOpacity: opacity, stroke: 'none' }).moveTo(at(row, col));
   const squares = new Group();
   for (let row = 1; row < n; row++) for (let col = 0; col < (you ? 1 : row); col++) squares.add(square(row, col, s.look.emphasis, 0.55));
-  squares.key = you ? 'birthday-you-lines' : 'birthday-pair-lines';
+  keyed(squares, you ? 'birthday-you-lines' : 'birthday-pair-lines');
   // With `you`, the rest of the room's pairs, faint: the column is one part of the triangle the next step fills.
   const rest = new Group();
   if (you) for (let row = 2; row < n; row++) for (let col = 1; col < row; col++) rest.add(square(row, col, s.look.soft, 0.18));
-  rest.key = 'birthday-other-pairs';
+  keyed(rest, 'birthday-other-pairs');
   // The pairs whose sampled birthdays are the same date, in red.
   const matched = new Group(...matchedPairs.map(([i, j]) => square(j!, i!, s.look.bad, 1, 1.3)));
-  matched.key = 'birthday-matched-pairs';
+  keyed(matched, 'birthday-matched-pairs');
   const g = new Group(rest, squares, matched);
   g.add(
     label(s, you ? 'You: card 1' : 'card 1', { at: [x0, y0 + 0.28], color: you ? s.look.bad : s.look.soft, size: 0.42, key: 'birthday-you' }).moveTo([x0, y0 + 0.28], [-1, 0]),
@@ -81,7 +81,7 @@ export function drawDays(s: Stage, people: number, occupied: number, allowed: nu
     ),
     label(s, `Person ${people}: ${occupied} dates taken, ${allowed} free`, { at: [0, -3.75], size: 0.66 }),
   );
-  grid.key = 'birthday-days';
+  keyed(grid, 'birthday-days');
   return grid;
 }
 

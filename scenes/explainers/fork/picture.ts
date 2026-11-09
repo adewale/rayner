@@ -1,5 +1,4 @@
-import { keyed } from '../../../explain/drawing.ts';
-import { Rectangle, Text, Group, Circle, Cross, Line, Arrow } from '../../../src/index.ts';
+import { Rectangle, Text, Group, Circle, Cross, Line, Arrow, keyed } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import { counted } from '../lib/format.ts';
 
@@ -45,7 +44,7 @@ function rateRow(run: RateRun, i: number, c: Ink) {
     const ok = code === 200;
     const circle = new Circle({ radius: 0.2, stroke: ok ? c.good : c.bad, strokeWidth: 0.05 }).moveTo([x0 + j * pitch, y]);
     const mark: Mobject = ok ? circle : new Cross(circle, { stroke: c.bad, strokeWidth: 0.05 });
-    mark.key = `call:${run.rate}:R${j + 1}`;
+    keyed(mark, `call:${run.rate}:R${j + 1}`);
     g.add(mark);
   });
   const accepted = run.responses.at(-1) === 200;
@@ -55,7 +54,7 @@ function rateRow(run: RateRun, i: number, c: Ink) {
       [-1, 0],
     ),
   );
-  g.key = `rate:${run.rate}`;
+  keyed(g, `rate:${run.rate}`);
   return g;
 }
 /** The outline round R10's column, down through `rows` rows. */
@@ -129,7 +128,7 @@ export function drawChoice(choice: Choice, c: Ink): Group {
   const slot = new Rectangle({ width: W, height: H, stroke: c.bad, strokeWidth: 0.03, cornerRadius: 0.08, fill: 'none' }).moveTo([0, slotY]);
   slot.style.dashArray = '0.14 0.1';
   scenarios.add(slot, two(`${perSecond(Number(refusedLink.asked))}`, 'no scenario: never built', slotY, c.bad, c.bad));
-  scenarios.key = 'fork-choice-scenarios';
+  keyed(scenarios, 'fork-choice-scenarios');
   // The setting's name labels the column, beside its first scenario, clear of the fallback's path below.
   const heading = new Group(
     new Text(setting.label, { fontSize: 0.3, color: c.ink, weight: 'bold', anchor: 'end' }).moveTo([left - 0.3, top + 0.16], [1, 0]),
@@ -157,7 +156,7 @@ export function drawChoice(choice: Choice, c: Ink): Group {
     new Line([back, slotY], [back, to], { stroke: c.emphasis, strokeWidth: 0.04 }),
     arrow(back, left - 0.08, to, c.emphasis),
   );
-  redirect.key = 'fork-choice-fallback';
+  keyed(redirect, 'fork-choice-fallback');
   const refusal = new Group(
     // Rayner's refusal says this at length (the caption quotes it); the picture keeps it short.
     new Text(`“${refusedLink.asked}” is not an option`, { fontSize: 0.28, color: c.bad }).moveTo([0, slotY - H / 2 - 0.4]),

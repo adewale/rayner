@@ -3,7 +3,7 @@
 // a seek, which must reproduce a full run's frame byte for byte.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Rectangle, Text, Code, Create, FadeOut, Circumscribe, SurroundingRectangle, Cross, Brace, BraceLabel, VMobject, Line } from '../src/index.ts';
+import { Scene, Rectangle, Text, Code, Create, FadeOut, Circumscribe, SurroundingRectangle, Cross, Brace, BraceLabel, VMobject, Line, keyed } from '../src/index.ts';
 import { StringSink, renderFrame } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
@@ -254,7 +254,7 @@ test('emphasis can name a part by its key: the part on the stage now, and nothin
   const { emphasises, emphasisOf } = await import('../explain/look.ts');
   const { Scene, Circle } = await import('../src/index.ts'); const { NullSink } = await import('../src/output.ts');
   const scene = new Scene(new NullSink());
-  const ring = Object.assign(new Circle(), { key: 'ring:3' });
+  const ring = keyed(new Circle(), 'ring:3');
   scene.add(ring);
   emphasises(scene, () => [['ring:3', 'outlined'], ['ring:9', 'not drawn'], [ring, 'also the mobject']]);
   const marks = emphasisOf(scene);

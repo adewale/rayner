@@ -10,6 +10,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - A script's intent header (`# question`, labelled lines such as **Answer** and **Checked against**, and `## Check yourself`) is read as the scene's metadata. [Reference](docs/REFERENCE.md#scene)
 - The intent header is the one home of the title, answer, reader questions and what the model is checked against. A scene that declares them too is refused.
 - The page shows what the model is checked against under Sources.
+- `keyed(m, key)` from `rayner` is the one way to key a part, and returns it. `Mobject.key` is read-only.
 - `answerOf(this)` in `rayner/explain` reads the script's answer, so a caption that states it keeps no copy. `withIntent(Scene, scriptText)` in `rayner/testing` adopts a script for a test that runs a scene directly. `withIntent`, `loadProject` and the command adopt the intent afresh each time, from the metadata the scene declares, so a changed or removed line, or a removed header, is not kept.
 - `meta.id` defaults to the scene's folder name (or its file's name when the file is not `scene.ts`).
 - A `meta.id`, declared or taken from the folder, must be one path segment of lowercase letters, digits and `-`, and not a Windows device name (`con`, `nul`, `com1` and the rest), and step names must be unique ignoring case, so no page or share page is written outside its folder, over another, or where Windows cannot write it. The catalog and evidence validators hold an id to the same rule, so an id collection takes is one the site takes; a step named for a device keeps its query link instead of a share page.
@@ -218,7 +219,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 
 ### Drawing kit and 3D
 
-- `rayner/drawing` draws the parts explanations keep needing as ordinary keyed mobjects: `keyed`, `label`, `tile`, `segment`, `dot`, `table`, `stat`, `flow`, `bars`, and the card and code panel the stage enters, `card` and `code`. [Drawing kit](docs/REFERENCE.md#drawing-kit)
+- `rayner/drawing` draws the parts explanations keep needing as ordinary keyed mobjects: `label`, `tile`, `segment`, `dot`, `table`, `stat`, `flow`, `bars`, and the card and code panel the stage enters, `card` and `code`. [Drawing kit](docs/REFERENCE.md#drawing-kit)
 - Every kit function takes the stage first, its content next and one options object: `at` places the picture, `size` is its text size and `key` its address. `table`, `stat`, `flow`, `bars` and `legend` require a `key`, so two of one kind on a stage cannot collide. Kit text is made with the scene's shaping. The card and code panels take `size` as well; only the engine's `Text` and `Code` keep `fontSize`.
 - A keyed kit picture keys its parts under its key (a tile's `key:box` and `key:label`, a callout's `key:line`, `key:dot` and `key:text`, a flow's arrows), and `d.shapes(id)` and `d.labels(id)` give a diagram part's own shapes and labels, so no scene reaches into a picture by child index.
 - `table()` measures its columns and keys every part: the header row, each header, each row, each cell (`key:<row>:<header>`) and the rule.

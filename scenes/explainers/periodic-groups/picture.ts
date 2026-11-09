@@ -6,12 +6,11 @@
 // identity alone; the opening's comparison of one column is drawn large, with the full table shrunk to
 // context beside it; and an element's cell and symbol keep their keys wherever they go, so the runs slide
 // from their rows into the table.
-import { Group, Text, Rectangle, Line, Arrow, matchByKey, lerpColor } from '../../../src/index.ts';
+import { Group, Text, Rectangle, Line, Arrow, matchByKey, lerpColor, keyed } from '../../../src/index.ts';
 import type { Mobject, Vec, MatchKey } from '../../../src/index.ts';
 import { POSITIONS, NAMES, CAPACITY, predicted } from './model.ts';
 import type { Block, Symbol, Subshell, Position } from './model.ts';
 import { listed as list } from '../lib/format.ts';
-import { keyed } from '../../../explain/drawing.ts';
 
 // The table: 18 numbered columns, 7 periods, the f block's two rows below.
 const PITCH_X = 0.82,
@@ -234,7 +233,7 @@ export function drawTable(state: PeriodicState, { z, group, members }: Followed)
       stroke: compact && !chosen ? SOFT : stroke,
       strokeWidth: compact ? (chosen ? 0.12 : 0.045) : chosen ? 0.05 : 0.015,
     }).moveTo([x, y]);
-    if (!compact) cell.key = `periodic-cell:${p.z}`;
+    if (!compact) keyed(cell, `periodic-cell:${p.z}`);
     picture.add(cell);
     if (compact) continue;
     const letters = new Text(p.symbol, {
@@ -242,7 +241,7 @@ export function drawTable(state: PeriodicState, { z, group, members }: Followed)
       color: letter,
       weight: chosen ? 'bold' : 'normal',
     }).moveTo([x, packed ? y : y - 0.11]);
-    letters.key = `periodic-symbol:${p.z}`;
+    keyed(letters, `periodic-symbol:${p.z}`);
     picture.add(letters);
     if (!packed)
       picture.add(
@@ -331,7 +330,7 @@ export function drawTable(state: PeriodicState, { z, group, members }: Followed)
       );
   }
   if (compact) {
-    picture.key = 'periodic-context';
+    keyed(picture, 'periodic-context');
     picture.scale(CONTEXT_SCALE).moveTo([CONTEXT_X, CONTEXT_Y]);
   }
   return picture;
@@ -344,7 +343,7 @@ export function drawNotes(state: PeriodicState, { z, group, members, jumps, fami
     picture.add(new Text(text, { fontSize: size, color, weight: bold ? 'bold' : 'normal' }).moveTo(at, edge));
   const note = String(state.note ?? '');
   if (note === 'column') {
-    picture.key = 'periodic-family-comparison';
+    keyed(picture, 'periodic-family-comparison');
     say(`Group ${group}: elements from top to bottom`, [0, 2.6], { size: 0.68, edge: [0, 0] });
     const pitch = 1.95;
     members.forEach((m, i) => {
@@ -366,14 +365,14 @@ export function drawNotes(state: PeriodicState, { z, group, members, jumps, fami
           `periodic-member:${m.symbol}:atomic-number`,
         ),
       );
-      cell.key = `periodic-member:${m.symbol}`;
+      keyed(cell, `periodic-member:${m.symbol}`);
       picture.add(cell);
       if (i > 0) {
         const jump = new Text(`+${jumps[i - 1]}`, { fontSize: 0.62, font: 'mono', color: INK }).moveTo([
           x - pitch / 2,
           -0.45,
         ]);
-        jump.key = `periodic-jump:${members[i - 1]!.symbol}:${m.symbol}`;
+        keyed(jump, `periodic-jump:${members[i - 1]!.symbol}:${m.symbol}`);
         picture.add(jump);
       }
     });

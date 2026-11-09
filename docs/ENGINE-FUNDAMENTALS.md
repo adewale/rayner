@@ -137,7 +137,8 @@ each of its descendants, root by root, for a test or a check that looks for a pa
 member of one class with as many children, and with `points` the same point counts:
 what `become` keeps identities through.
 
-A part's identity is its `key`, an optional name you give it: `find(key)`,
+A part's identity is its `key`, an optional name you give it with `keyed(m, key)`
+(from `rayner`; it returns `m`, and `m.key` is read-only): `find(key)`,
 `findAll`, keyed matching, invariants and reviews all address parts by key. A
 position in a child array is not an identity, and `Mobject.id`, the renderer's
 number, is internal. Give keys from the domain (`slot:3`, `state:idle`) when the

@@ -1,4 +1,4 @@
-import { Scene, FadeIn, FadeOut, Create } from '../../../src/index.ts';
+import { Scene, FadeIn, FadeOut, Create, keyed } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, view, having } from '../../../explain/index.ts';
 import type { ExplainerMeta } from '../../../explain/index.ts';
@@ -332,7 +332,7 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
         },
         { place: false },
       );
-      card.key = `${month}-daylight-table`;
+      keyed(card, `${month}-daylight-table`);
       return card;
     };
     const juneTable = table('june', 'June', tableBox(JUNE_C));
@@ -391,7 +391,7 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
         (longest - shortest < 0.05 ? `flat at ${hours(longest)}` : `from ${hours(shortest)} to ${hours(longest)}`) +
         (polarDay ? `, flat at 24 h for ${polarDay} days and at 0 h for ${polarNight}` : ''),
     });
-    drawnCurve.key = 'daylight-curve';
+    keyed(drawnCurve, 'daylight-curve');
     // Solstices and equinoxes: a guide and a name at each, fixed by the calendar, and the model's day
     // length there, a view of the state's events.
     const guides = drawGuides(axes, EVENTS, colours);

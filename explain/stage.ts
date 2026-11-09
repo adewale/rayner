@@ -1,4 +1,4 @@
-import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, Create } from '../src/index.ts';
+import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, Create, keyed } from '../src/index.ts';
 import { View } from './view.ts';
 import { cloneJson } from '../src/json.ts';
 import type { Scene, Vec, Box, FadeOptions, Animation, SceneColors } from '../src/index.ts';
@@ -749,7 +749,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
         host.state = { ...state };
         const picture = new View(host, (st) => {
           const drawn = step.draw(st, this as StageApi);
-          if (kind === 'short') drawn.key = 'reader-picture';
+          if (kind === 'short') keyed(drawn, 'reader-picture');
           return drawn;
         }, { place: false });
         const drawing = picture.current;
