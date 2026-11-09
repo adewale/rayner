@@ -23,8 +23,8 @@ test('every authoring feature offers a scenario with its user-side code before i
     seen.add(feature);
     assert.deepEqual(trace.steps.map(s => s.step), ['recipe', 'result'], feature);
     const recipe = trace.steps[0]!, resultStep = trace.steps[1]!;
-    assert.equal(recipe.shown!.phase, 'recipe');
-    assert.equal(resultStep.shown!.phase, 'result');
+    assert.equal(recipe.shown!.chapter, 'recipe');
+    assert.equal(resultStep.shown!.chapter, 'result');
     assert.equal(resultStep.after.feature, feature);
     const pictured = recipe.shown!.picture as { entries: { items?: string[] }[] };
     const lines = pictured.entries.flatMap(entry => entry.items ?? []);

@@ -119,13 +119,9 @@ parent; `group.insert(index, child)` puts it at `index` instead (`0` draws it un
 and `group.replaceChild(old, ...replacements)` puts replacements where `old` stands. A
 mobject's `children` and `parent` are read-only, so these methods and `group.remove(child)`
 are the only ways to change a family, and each keeps every child's `parent` and the cached
-box in step. Both are held outside the mobject, so no write to the mobject, from plain
-JavaScript or through a cast, changes them; a `children` or `parent` defined on the mobject
-itself (`Object.defineProperty`), or a getter for either in a subclass, would hide them from
-whatever reads the property, so `family()`, and so `box()`, refuses a mobject that has one. Code
-that reads `m.children` before any `family()` would still see such a property, and a class's
-prototype is checked the first time one of its mobjects is walked, so one patched after that, from
-plain JavaScript, is not seen. `family()` is the mobject and every descendant, depth first. A scene admits one root per subtree, so admitting a parent never paints a
+box in step. Both are the mobject's private fields, so no other write to the mobject changes
+them, and `family()`, `box()` and the engine's walks read the fields, whatever a subclass's getter
+says. `family()` is the mobject and every descendant, depth first. A scene admits one root per subtree, so admitting a parent never paints a
 child twice. `Scene.add`, `remove`, `replace`, `bringToFront` and `bringToBack`
 control membership and draw order; what the stage keeps over everything else (its heading,
 band, step number and line) stays last through each of them: the root that holds it, which is
@@ -170,7 +166,9 @@ await this.play(new Transform(box, target));
 
 `play()` takes `Playable`s: an `Animation`, an `AnimationGroup` (either is a
 `ScheduledAnimation`), or a `.animate` builder, an `AnimateBuilder`, which records
-chainable methods and constructs a target when the play begins.
+chainable methods and constructs a target when the play begins. Two animation names are
+needed because a group animates no one mobject, so it is not an `Animation`, the class a custom
+animation extends to animate its `mobject`; `ScheduledAnimation` names either.
 `new Transform(m, target, { pathFunc, replace })` morphs `m` into its `target`: each frame
 sets it between the two with `m.interpolate(start, end, alpha, pathFunc)`, each point
 travelling by a `PathFunc` (a straight line by default), and with `replace: true` the scene
@@ -191,24 +189,15 @@ returns to the start), and must land where its last frame drew: `rayner check` c
 each step's picture as it ends with its last frame.
 
 An animation's `phase`, an `AnimationPhase`, is `'idle'` until it begins, `'begun'`
-while it plays, `'landing'` once its play has finished it while members of it still begin
-and finish in turn (a `Succession` whose member waits, as below, or a group holding one), and
-`'finished'` once it has landed, every member with it. A second `begin()` while begun or
-landing throws, and so do `interpolate()` and `finish()` before `begin()`; a finished animation
-may begin again. The guards are the public calls themselves, on `Animation` and
-`AnimationGroup`, so every caller goes through them (the scene, a group, a `Succession`,
-an animation that drives another) and a hook keeps them in whatever form it is written,
-a method or a class field. An animation whose `begin`, `interpolate`, `finish` or `land` (the
-landing after a failure, below, whose hook is `doLand`) is not the engine's is refused, and so
-is one that redefines `phase`, `runTime` or `lagRatio`, or answers `waiting()` (whether a play
-and a `Succession` wait for it) other than as the engine's groups do: as a method in a subclass
-when its first instance is made, and in every form (a subclass's method or accessor, a class
-field, an assignment, `Object.defineProperty`, a prototype patched after the first instance, a
-swapped prototype) where every play and every group member passes before it begins:
-`Scene.play`, a group's begin, a `Succession`'s for each member at its turn (with a scene or
-without one), and `begin()` itself. Two ways round the guard remain, both open only to plain
-JavaScript or a cast: calling a protected hook (`doInterpolate`) directly, and patching a
-lifecycle call in while the animation plays.
+until it has finished, every member with it, and `'finished'` then. A `Succession` whose play
+has finished it while a member waits (as below), or a group holding one, stays `'begun'` while
+its members begin and finish in turn. A second `begin()` while begun throws, and so do
+`interpolate()` and `finish()` before `begin()`; a finished animation may begin again. A play,
+a group and a `Succession` drive their animations through the engine's own private calls, which
+keep the phase and call only the protected hooks: a `begin`, `finish`, `land` or `waiting`
+written on an animation, as a field or an assignment, is the author's own and never reaches a
+play. A subclass that overrides `begin()`, `interpolate()` or `finish()`, or redefines `phase`,
+`runTime` or `lagRatio`, is refused when its first instance is made.
 
 A play that fails leaves no animation begun. When an animation throws as it begins, a
 group lands the members it began before the one that threw, and `play()` lands the
@@ -217,10 +206,10 @@ transition makes, a `Succession`'s member), and then what made the list has made
 throws at its turn, something made at its turn whose read fails or that the one-writer
 check refuses, a frame or a sink that throws), `play()` lands every animation it was
 given. Landing finishes what has begun, as the end of its play would, and begins nothing
-more: a `Succession`'s later members never begin, and an action is abandoned, its running
-beat landing (with its `after`, if its animations had begun) while no later beat is made
-and its `end` does not run; the action is then abandoned, and awaiting it, or playing it again,
-throws. Each landed animation can play again; an action, which plays once, cannot. A stop is not a failure: a scene stopped by its sink (`StopScene`) is stopped
+more: a `Succession`'s later members never begin, and an action's running beat lands (with its
+`after`, if its animations had begun) while no later beat is made and its `end` does not run.
+Each landed animation can play again; an action, which plays once, cannot: awaiting it again
+gives the same failure, and playing it again throws. A stop is not a failure: a scene stopped by its sink (`StopScene`) is stopped
 for good, and its picture stays as the stopping frame drew it.
 
 A run time and a lag ratio are finite and not negative, given to the constructor, to
@@ -295,7 +284,7 @@ contact sheet and the site's cards run each scene once.
 
 `this.state` is the model: what the subject program is doing, and nothing about
 how it is shown. Use `Scene<MyState>` for typed access. `this.shown` holds what is
-shown apart from the model, such as which of several pictures a phase shows; a
+shown apart from the model, such as which of several pictures a chapter of the story shows; a
 view's `draw` may read it, and a machine never changes it. `stateJson()` copies
 the model as JSON, with the parts helpers add with `addJson(fn)`; `shownJson()` copies
 `shown`, with the parts added with `addJson(fn, 'shown')`, such as the stage's

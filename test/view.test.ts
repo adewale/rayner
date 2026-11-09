@@ -400,20 +400,20 @@ test('rayner check names a view whose words match its state but whose marks do n
 });
 
 test('having narrows a state to the shapes that hold its keys and throws on a state of another shape, so check sees the draw read it', async () => {
-  type Phased = { phase: 'year'; longitude: number } | { phase: 'look'; pitch: number };
-  class Phases extends Scene<Phased, { lit?: string }> {
-    year!: View<Text, Phased, { lit?: string }>;
+  type Chaptered = { chapter: 'year'; longitude: number } | { chapter: 'look'; pitch: number };
+  class Chapters extends Scene<Chaptered, { lit?: string }> {
+    year!: View<Text, Chaptered, { lit?: string }>;
     override async construct() {
-      this.state = { phase: 'year', longitude: 10 };
+      this.state = { chapter: 'year', longitude: 10 };
       this.year = view(this, (st, sh) => new Text(`${having(st, 'longitude').longitude} ${sh.lit ?? ''}`));
       this.add(this.year);
     }
   }
-  const scene = new Phases(new StringSink());
+  const scene = new Chapters(new StringSink());
   await scene.run();
   assert.equal(scene.year.texts[0], '10 ');
   // A state of the other shape, as check draws one from another step: the draw throws, naming the key.
-  assert.throws(() => scene.year.draw({ phase: 'look', pitch: 3 }, {}), /reads a state with longitude; this one has phase, pitch/);
+  assert.throws(() => scene.year.draw({ chapter: 'look', pitch: 3 }, {}), /reads a state with longitude; this one has chapter, pitch/);
   // An optional part, made present: several keys at once, and what is shown alike.
   const shown: { flow?: { walked: string[] }; lit?: string } = { flow: { walked: ['a'] } };
   assert.deepEqual(having(shown, 'flow').flow.walked, ['a']);
