@@ -5,63 +5,70 @@ import { emphasised, keyedParts } from '../../../explain/drawing.ts';
 import { AGENT, COMPANY, OPERATIONS, SID, THIEF, USER_IDS, ruleOf } from './model.ts';
 import type { Exchange, Scope, World } from './model.ts';
 
-// One state as a picture, in three columns. Left, what the agent holds. Right, what the Company
-// knows. Between them, the last thing sent: a slip with one slot for each proof (who is asking, and
-// what the account allows) and the Company's answer under it.
+// One state as a picture, in two halves that each stand alone. Left, the last thing sent: who sent
+// it, a slot for each proof (who is asking, and what the account allows) and the Company's answer.
+// Right, what that left behind: what the Company knows, and what the agent holds.
+//
+// Every label is at least 0.66 units high, about 15 px on a 358 px stage: a phone shows the whole
+// picture, and while a reader presses events it shows nothing else, so no label here may depend on
+// a close-up to be read. The scene draws no heading on the stage, which gives the picture the
+// stage's full height; the page prints each step's title and line under the picture. That is why
+// the picture says "read+write" where the words say orders:read orders:write, and why the
+// request's method and path, and the rule of the draft that decided the answer, are in the
+// picture's words (sayWorld) rather than drawn.
 
 const PHRASE: Record<number, string> = { 200: 'OK', 400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found' };
 const scopesOf = (scopes: readonly Scope[]) => scopes.join(' ');
+/** Scopes in one short line of the slip: "orders: read, write". */
+const onSlip = (scopes: readonly Scope[]) => `orders: ${scopes.map((scope) => scope.split(':')[1]).join(', ')}`;
+/** Scopes in the few characters a ledger row has. */
+const briefly = (scopes: readonly Scope[]) => (scopes.length > 1 ? 'read+write' : 'read only');
 
 type Tone = 'good' | 'bad' | 'plain';
-/** The words of the slip: who sent what, the two slots, and what came back. */
-export type Slip = {
-  sender: string;
-  line: string;
-  who: { name: string; means: string; value: string; tone: Tone };
-  what: { name: string; means: string; value: string; tone: Tone };
-  status?: { code: string; outcome: string; tone: Tone };
-};
+type Slot = { label: string; value: string; tone: Tone; sent: boolean };
+/** The words of the left half: who sent what, the two slots, and what came back. */
+export type Slip = { sender: string; asks: string; who: Slot; what: Slot; status: { code: string; outcome: string; tone: Tone } | null };
 
 /** What the last exchange put on the slip, in the reader's words. */
 export function slipOf(w: World): Slip {
   const last: Exchange | null = w.last;
-  const header = { name: 'Poppy-Session', means: 'who is asking' }, auth = { name: 'Authorization', means: 'what your account allows' };
+  const header = 'Session header: who', token = 'Access token: what';
   if (!last)
     return {
-      sender: 'Nothing sent yet',
-      line: 'example.com/.well-known/poppy.json',
-      who: { ...header, value: 'not sent', tone: 'plain' },
-      what: { ...auth, value: 'not sent', tone: 'plain' },
+      sender: 'Your agent has',
+      asks: 'sent nothing yet',
+      who: { label: header, value: 'not sent', tone: 'plain', sent: false },
+      what: { label: token, value: 'not sent', tone: 'plain', sent: false },
+      status: null,
     };
   if (last.kind === 'sign-in')
     return {
-      sender: 'You sign in',
-      line: 'auth.example.com/oauth/authorize',
-      who: { name: 'Your browser', means: 'who is asking', value: 'you, on the Company’s page', tone: 'plain' },
-      what: { name: 'Consent', means: 'what you approve', value: scopesOf(last.granted), tone: 'good' },
-      status: { code: 'Approved', outcome: 'tokens go to agent.example only', tone: 'good' },
+      sender: 'At the Company, you',
+      asks: 'sign in',
+      who: { label: 'Who is asking', value: 'you, not the agent', tone: 'plain', sent: true },
+      what: { label: 'What you approve', value: onSlip(last.granted), tone: 'good', sent: true },
+      status: { code: 'Approved', outcome: 'agent gets tokens', tone: 'good' },
     };
   if (last.kind === 'revoke')
     return {
-      sender: 'Your agent signs out',
-      line: 'POST auth.example.com/oauth/revoke',
-      who: { name: 'Client assertion', means: 'who is asking', value: AGENT.name, tone: 'plain' },
-      what: { name: 'Refresh token', means: 'what it gives up', value: scopesOf(w.approves), tone: 'plain' },
-      status: { code: '200 OK', outcome: 'account access has ended', tone: 'plain' },
+      sender: 'Your agent asks to',
+      asks: 'sign out',
+      who: { label: 'Who is asking', value: AGENT.name, tone: 'plain', sent: true },
+      what: { label: 'What it gives up', value: 'its refresh token', tone: 'plain', sent: true },
+      status: { code: '200 OK', outcome: 'access has ended', tone: 'plain' },
     };
-  const op = OPERATIONS[last.op], { status, error, needs } = last.answer, thief = last.by === 'thief';
+  const { status, needs } = last.answer, thief = last.by === 'thief';
   const outcome =
-    status === 200 ? { cart: 'the medium is in the cart', order: 'here is order 1042', exchange: 'the exchange is made' }[last.op]
-    : status === 401 ? `sign in for ${needs}`
-    : status === 403 ? `the token lacks ${needs}`
-    : thief ? `that token is ${AGENT.name}’s`
-    : (last.answer.reason ?? 'refused');
+    status === 200 ? { cart: 'added to the cart', order: 'here is order 1042', exchange: 'exchange is made' }[last.op]
+    : status === 401 ? `needs ${needs}`
+    : status === 403 ? `lacks ${needs}`
+    : (last.answer.error ?? 'refused');
   return {
-    sender: thief ? 'A thief sends' : 'Your agent sends',
-    line: `${op.method} ${op.path}`,
-    who: { ...header, value: `signed by ${thief ? THIEF.name : AGENT.name}`, tone: thief ? 'bad' : 'plain' },
-    what: { ...auth, value: last.token ? (thief ? 'the agent’s copied token' : scopesOf(w.approves)) : 'no access token', tone: last.token && !thief ? 'good' : 'plain' },
-    status: { code: `${status} ${error ?? PHRASE[status]}`, outcome, tone: status === 200 ? 'good' : 'bad' },
+    sender: thief ? 'A thief asks to' : 'Your agent asks to',
+    asks: { cart: 'add to cart', order: 'see the order', exchange: 'exchange the jacket' }[last.op],
+    who: { label: header, value: thief ? THIEF.name : AGENT.name, tone: thief ? 'bad' : 'plain', sent: true },
+    what: { label: token, value: last.token ? (thief ? 'the agent’s, copied' : onSlip(w.approves)) : 'none sent', tone: last.token && !thief ? 'good' : 'plain', sent: last.token },
+    status: { code: `${status} ${PHRASE[status]}`, outcome, tone: status === 200 ? 'good' : 'bad' },
   };
 }
 
@@ -70,23 +77,19 @@ export function knownBy(w: World): [string, string][] {
   return [
     ['Agent', w.started ? AGENT.name : 'not met yet'],
     ['User ID', w.started ? USER_IDS[COMPANY.domain] : 'not met yet'],
-    ['Session', w.started ? `${SID}: ${w.cart ? '1 in cart' : 'cart empty'}` : 'none'],
-    ['Account', w.linked === 'yes' ? `linked: ${w.approves.length > 1 ? 'read + write' : 'read only'}` : w.linked === 'no' ? 'not linked' : 'signed out'],
+    ['Session', w.started ? (w.cart ? '1 in cart' : 'cart empty') : 'none yet'],
+    ['Account', w.linked === 'yes' ? briefly(w.approves) : w.linked === 'no' ? 'not linked' : 'signed out'],
   ];
 }
 
-/** What the agent holds for this User: a User ID for each Company, the Session ID it chose for this errand, and a refresh token once the User signs in. */
+/** What the agent holds that sign-in changes: a refresh token, once the User approves. */
 export function heldBy(w: World): [string, string][] {
-  return [
-    ...Object.entries(USER_IDS).map(([domain, id]): [string, string] => [`User ID at ${domain}`, id]),
-    ['Session ID, this errand', SID],
-    ['Refresh token', w.grant ? scopesOf(w.approves) : 'none'],
-  ];
+  return [['Refresh token', w.grant ? 'held' : 'none']];
 }
 
 /** The picture in words, for a reader who cannot see it; no two reachable states read alike. */
 export function sayWorld(w: World): string {
-  const last = w.last, scopes = scopesOf(w.approves);
+  const last = w.last, scopes = scopesOf(w.approves), rule = ruleOf(last);
   const sent = !last ? 'Nothing has been sent yet.'
     : last.kind === 'sign-in' ? `You signed in on the Company’s own page and approved ${scopesOf(last.granted)}.`
     : last.kind === 'revoke' ? 'The agent revoked its refresh token.'
@@ -98,68 +101,63 @@ export function sayWorld(w: World): string {
         w.linked === 'yes' ? `linked for ${scopes}` : w.linked === 'no' ? 'not linked' : 'signed out'
       }.`
     : 'The Company knows nothing yet.';
-  return `${sent} ${known} The agent holds ${w.grant ? `a refresh token for ${scopes}` : 'no refresh token'}.`;
+  return `${sent} ${known} The agent holds ${w.grant ? `a refresh token for ${scopes}` : 'no refresh token'}. The rule, from section ${rule.section} of the draft: ${rule.says}`;
 }
 
-const LEFT = -5.5, RIGHT = 5.5, COLUMN = 4.5, SLIP = 5.8, TOP = 2.62;
+/** Each half is HALF wide, its inner edge GAP / 2 from the middle; text sits PAD inside a box. */
+const HALF = 7.3, GAP = 0.9, PAD = 0.28, TOP = 4.2, BOTTOM = -4.2;
+const LABEL = 0.66, VALUE = 0.72, TITLE = 0.7;
 
-/** The state as its picture: the agent's column, the slip, and the Company's column. */
+/** The state as its picture: the last exchange on the left, what it left behind on the right. */
 export function drawWorld(w: World, s: Stage): Group {
   const { ink, soft, good, bad, emphasis, raised, rule: hairline, paper } = s.look, shaping = s.scene.textShaping;
   const parts = keyedParts();
   const tone = (t: Tone) => (t === 'good' ? good : t === 'bad' ? bad : ink);
-  const text = (key: string, value: string, at: [number, number], o: { size: number; color?: string; bold?: boolean; mono?: boolean; end?: boolean; middle?: boolean }) =>
+  const text = (key: string, value: string, at: [number, number], o: { size: number; color?: string; bold?: boolean; end?: boolean }) =>
     parts.add(
-      new Text(value, { fontSize: o.size, color: o.color ?? ink, shaping, anchor: o.end ? 'end' : o.middle ? 'middle' : 'start', ...(o.bold ? { weight: 'bold' as const } : {}), ...(o.mono ? { font: 'mono' as const } : {}) })
-        .moveTo(at, [o.end ? 1 : o.middle ? 0 : -1, 0]),
+      new Text(value, { fontSize: o.size, color: o.color ?? ink, shaping, anchor: o.end ? 'end' : 'start', ...(o.bold ? { weight: 'bold' as const } : {}) }).moveTo(at, [o.end ? 1 : -1, 0]),
       key,
     );
-  const box = (key: string, centre: [number, number], width: number, height: number, o: { stroke?: string; fill?: string; fillOpacity?: number; strokeWidth?: number } = {}) =>
-    parts.add(new Rectangle({ width, height, stroke: o.stroke ?? hairline, strokeWidth: o.strokeWidth ?? 0.03, fill: o.fill ?? raised, fillOpacity: o.fillOpacity ?? 1, cornerRadius: 0.12 }).moveTo(centre), key);
+  const box = (key: string, left: number, top: number, bottom: number, o: { stroke?: string; fill?: string; fillOpacity?: number; strokeWidth?: number } = {}) =>
+    parts.add(
+      new Rectangle({ width: HALF, height: top - bottom, stroke: o.stroke ?? hairline, strokeWidth: o.strokeWidth ?? 0.04, fill: o.fill ?? raised, fillOpacity: o.fillOpacity ?? 1, cornerRadius: 0.18 }).moveTo([left + HALF / 2, (top + bottom) / 2]),
+      key,
+    );
 
-  /** A column: its name, its domain, and its rows on a panel, each a small label over its value. */
-  const column = (key: string, x: number, name: string, domain: string, rows: [string, string][], changed: (label: string) => boolean) => {
-    const left = x - COLUMN / 2 + 0.25, pitch = 1.08, height = rows.length * pitch + 0.3;
-    text(`${key}:name`, name, [x - COLUMN / 2, TOP], { size: 0.4, bold: true });
-    text(`${key}:domain`, domain, [x + COLUMN / 2, TOP - 0.02], { size: 0.27, color: soft, mono: true, end: true });
-    box(`${key}:panel`, [x, TOP - 0.45 - height / 2], COLUMN, height);
-    rows.forEach(([label, value], i) => {
-      const y = TOP - 0.95 - i * pitch, quiet = value === 'none' || value === 'not met yet' || value === 'not linked';
-      text(`${key}:${label}:label`, label, [left, y], { size: 0.25, color: soft });
-      const shown = text(`${key}:${label}:value`, value, [left, y - 0.45], { size: 0.29, color: quiet ? soft : changed(label) ? emphasis : ink });
-      // A value the last exchange changed is a mark: the phone's tour stops on it, and the description names it.
-      if (changed(label)) emphasised(shown, `changed: ${name}, ${label} is now ${value}`);
-    });
-  };
-
-  const last = w.last, request = last?.kind === 'request' ? last : null;
-  // What the last exchange changed is drawn in the emphasis colour, where it changed.
-  column('agent', LEFT, 'Your agent', AGENT.name, heldBy(w), (label) => label === 'Refresh token' && last?.kind === 'sign-in');
-  column('company', RIGHT, 'The Company', COMPANY.domain, knownBy(w), (label) =>
-    !!request && request.by === 'agent' && request.answer.error !== 'invalid_session' && (label === 'Account' ? request.token : label === 'Session' && request.op === 'cart'));
-
-  const slip = slipOf(w), x0 = -SLIP / 2 + 0.3, x1 = SLIP / 2 - 0.3;
-  text('slip:sender', slip.sender, [-SLIP / 2, TOP], { size: 0.4, bold: true });
-  text('slip:line', slip.line, [-SLIP / 2, TOP - 0.55], { size: 0.25, color: soft, mono: true });
-  ([['who', slip.who, 1.02], ['what', slip.what, -0.42]] as const).forEach(([key, slot, y]) => {
-    const sent = slot.value !== 'not sent' && slot.value !== 'no access token';
-    const frame = box(`slip:${key}:box`, [0, y], SLIP, 1.24, { stroke: sent ? tone(slot.tone) : hairline, fill: sent ? raised : paper, strokeWidth: sent ? 0.045 : 0.03 });
-    if (!sent) frame.style.dashArray = '0.14 0.1';
-    text(`slip:${key}:name`, slot.name, [x0, y + 0.3], { size: 0.25, mono: true, color: sent ? ink : soft });
-    text(`slip:${key}:means`, slot.means, [x1, y + 0.3], { size: 0.25, color: soft, end: true });
-    text(`slip:${key}:value`, slot.value, [x0, y - 0.22], { size: 0.31, color: sent ? tone(slot.tone) : soft });
+  // Left: the last exchange.
+  const slip = slipOf(w), x = -GAP / 2 - HALF;
+  text('slip:sender', slip.sender, [x, TOP - 0.4], { size: LABEL, color: soft });
+  text('slip:asks', slip.asks, [x, TOP - 1.25], { size: 0.74, bold: true });
+  ([['who', slip.who, 2.4], ['what', slip.what, 0.35]] as const).forEach(([key, slot, top]) => {
+    const frame = box(`slip:${key}:box`, x, top, top - 1.9, { stroke: slot.sent ? tone(slot.tone) : hairline, fill: slot.sent ? raised : paper, strokeWidth: slot.sent ? 0.07 : 0.04 });
+    if (!slot.sent) frame.style.dashArray = '0.22 0.16';
+    text(`slip:${key}:label`, slot.label, [x + PAD, top - 0.52], { size: LABEL, color: soft });
+    text(`slip:${key}:value`, slot.value, [x + PAD, top - 1.36], { size: VALUE, color: slot.sent ? tone(slot.tone) : soft });
   });
   if (slip.status) {
-    const colour = tone(slip.status.tone);
-    const answer = box('slip:answer:box', [0, -2.02], SLIP, 1.44, { stroke: colour, fill: slip.status.tone === 'plain' ? raised : colour, fillOpacity: slip.status.tone === 'plain' ? 1 : 0.1, strokeWidth: 0.05 });
-    emphasised(answer, `the answer: ${slip.status.code}, ${slip.status.outcome}`);
-    text('slip:answer:code', slip.status.code, [x0, -1.72], { size: 0.42, bold: true, color: colour });
-    text('slip:answer:outcome', slip.status.outcome, [x0, -2.36], { size: 0.3 });
+    const colour = tone(slip.status.tone), plain = slip.status.tone === 'plain';
+    emphasised(box('slip:answer:box', x, -1.7, BOTTOM, { stroke: colour, fill: plain ? raised : colour, fillOpacity: plain ? 1 : 0.1, strokeWidth: 0.08 }), `the answer: ${slip.status.code}, ${slip.status.outcome}`);
+    text('slip:answer:code', slip.status.code, [x + PAD, -2.42], { size: 0.78, bold: true, color: colour });
+    text('slip:answer:outcome', slip.status.outcome, [x + PAD, -3.48], { size: 0.68 });
+  } else {
+    box('slip:answer:box', x, -1.7, BOTTOM, { fill: paper }).style.dashArray = '0.22 0.16';
+    text('slip:answer:code', 'No answer yet', [x + PAD, -2.95], { size: VALUE, color: soft });
   }
-  // The rule that decided this picture, with its section of the draft.
-  const rule = ruleOf(last), bandLeft = LEFT - COLUMN / 2, bandWidth = RIGHT - LEFT + COLUMN;
-  box('rule:band', [0, -3.62], bandWidth, 0.86, { stroke: hairline, fill: paper });
-  text('rule:section', `Poppy 0.4 §${rule.section}`, [bandLeft + 0.3, -3.62], { size: 0.27, mono: true, color: emphasis });
-  text('rule:says', rule.says, [bandLeft + 3.0, -3.62], { size: 0.3 });
+
+  // Right: what the exchange left behind. A value it changed is drawn in the emphasis colour and marked.
+  const last = w.last, request = last?.kind === 'request' && last.by === 'agent' && last.answer.error !== 'invalid_session' ? last : null;
+  const r = GAP / 2, pitch = 1.14;
+  const ledger = (key: string, title: string, rows: [string, string][], top: number, changed: (label: string) => boolean) => {
+    text(`${key}:title`, title, [r, top - 0.4], { size: TITLE, bold: true });
+    box(`${key}:panel`, r, top - 0.92, top - 0.92 - rows.length * pitch - 0.08);
+    rows.forEach(([label, value], i) => {
+      const y = top - 0.92 - 0.61 - i * pitch, quiet = ['none', 'none yet', 'not met yet', 'not linked'].includes(value);
+      text(`${key}:${label}:label`, label, [r + PAD, y], { size: LABEL, color: soft });
+      const shown = text(`${key}:${label}:value`, value, [r + HALF - PAD, y], { size: LABEL, color: quiet ? soft : changed(label) ? emphasis : ink, end: true });
+      if (changed(label)) emphasised(shown, `changed: ${label} is now ${value}`);
+    });
+  };
+  ledger('company', 'The Company knows', knownBy(w), TOP, (label) => !!request && (label === 'Account' ? request.token : label === 'Session' && request.op === 'cart'));
+  ledger('agent', 'Your agent holds', heldBy(w), BOTTOM + 0.92 + pitch + 0.08, () => last?.kind === 'sign-in');
   return parts.group();
 }

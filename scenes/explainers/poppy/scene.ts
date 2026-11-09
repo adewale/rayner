@@ -47,7 +47,9 @@ export default class Poppy extends Scene<World, {}> {
     const challenge = answered(after[2]!), both = answered(after[4]!), thief = answered(after[5]!);
 
     this.state = start(approves);
-    const s = stage(this, { style: 'github-light', headingSize: 0.5 });
+    // No heading on the stage: the picture takes the stage's full height, so its words read on a phone,
+    // where the page prints each step's title and line under the picture anyway.
+    const s = stage(this, { style: 'github-light', heading: false });
     const world = view(this, (w) => drawWorld(w, s), { place: false });
     const machine = new Machine<World, PoppyEvent>(this, {
       start: start(approves),
@@ -65,10 +67,6 @@ export default class Poppy extends Scene<World, {}> {
         'You ask your personal agent to swap the jacket from order 1042 for a warmer one at example.com, a shop that has never met this agent. The agent has read the shop’s poppy.json, the file where a Company lists its APIs and its sign-in page for agents. Nothing has been sent yet, so the Company knows nothing. Borrowing your password would make the agent look like you. What should it prove instead?',
     });
     await s.enter(world, { describe: () => sayWorld(this.state) });
-    // A phone opens each step on the slip: its two proofs and, once something is sent, the answer.
-    // The words are subjects too, so the opening is held to a scale they read at.
-    const openOnSlip = () => s.opening(...world.current.family().filter((part) => /^slip:(who|what|answer):/.test(part.key ?? '')));
-    openOnSlip();
 
     await this.step('cart', {
       title: 'A cart needs no account',
@@ -77,7 +75,6 @@ export default class Poppy extends Scene<World, {}> {
         'The agent puts a medium in the cart, and signs a Session header for that one request. The Company checks the signature against keys the agent publishes, and then knows three things: which agent this is, a User ID, and a Session to keep the cart in. The User ID is a pseudonym the agent made up for this Company; at shoes.example the same person has another. The Company does not know who you are.',
     });
     await this.play(machine.replay([STORY[0]!]));
-    openOnSlip();
 
     await this.step('challenge', {
       title: 'The Session is not a key to your account',
@@ -85,7 +82,6 @@ export default class Poppy extends Scene<World, {}> {
       caption: `The exchange would change order 1042, so the Company answers ${challenge.status} and names the scope it wants, ${challenge.needs}. A Session header never grants account access, whatever it holds. ${answerOf(this)}. The agent supplies the first by itself, on each request. The second has to come from you.`,
     });
     await this.play(machine.replay([STORY[1]!]));
-    openOnSlip();
 
     await this.step('approve', {
       title: 'You approve on the Company’s own page',
@@ -93,7 +89,6 @@ export default class Poppy extends Scene<World, {}> {
       caption: `Sign-in is standard OAuth. The agent opens auth.example.com in your browser; you sign in there and approve ${scopes}. The agent receives a refresh token, which it trades for short-lived access tokens. The Company’s column has not changed: sign-in does not mention the Session. The Company knows which agent holds this grant, and can limit or revoke it without touching your password.`,
     });
     await this.play(machine.replay([STORY[2]!]));
-    openOnSlip();
 
     const made = both.status === 200;
     await this.step('both', {
@@ -106,7 +101,6 @@ export default class Poppy extends Scene<World, {}> {
       }`,
     });
     await this.play(machine.replay([STORY[3]!]));
-    openOnSlip();
 
     await this.step('thief', {
       title: 'A stolen token is not enough',
@@ -114,7 +108,6 @@ export default class Poppy extends Scene<World, {}> {
       caption: `Suppose a thief copies the access token and sends it under a Session header signed with its own key. The Company sees a token issued to agent.example arriving under another signature, and refuses with ${thief.error}. Nothing in its column changes. A whole request copied in transit could be replayed to the same URL for a short time, which is why the agent signs a fresh header for each request.`,
     });
     await this.play(machine.replay([STORY[4]!]));
-    openOnSlip();
 
     await this.step('sign-out', {
       title: 'Sign out, and the Session carries on',
@@ -123,6 +116,5 @@ export default class Poppy extends Scene<World, {}> {
         'The agent revokes its refresh token, and account access ends. The Session does not: the cart is still there, under the same User ID. Press the events to try it: ask for the order signed out, sign in again, let the thief try now. One limit: Poppy binds agents that choose to follow it. An agent that types your password into the website looks like you, and the Company cannot tell the difference.',
     });
     await this.play(machine.replay([STORY[5]!]));
-    openOnSlip();
   }
 }
