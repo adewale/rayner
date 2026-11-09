@@ -99,18 +99,21 @@ test('TransformMatchingText keys tabbed and astral glyphs by their own character
   }
 });
 
-test('one tab expansion: tabs reach the next stop by grapheme, and every code point maps back', () => {
-  const unit = fc.constantFrom('\t', 'a', 'é', 'e\u0301', '😀', ' ', '中');
+test('one tab expansion: tabs reach the next stop by column, and every code point maps back', () => {
+  // Each unit and the columns it takes: a code point that draws with the one before it takes none.
+  const columns = new Map([['a', 1], ['é', 1], ['e\u0301', 1], ['😀', 1], [' ', 1], ['中', 1], ['क्ष', 2], ['👩\u200d💻', 2]]);
+  const unit = fc.constantFrom('\t', ...columns.keys());
   fc.assert(fc.property(fc.array(unit, { maxLength: 12 }), fc.integer({ min: 1, max: 8 }), (units, width) => {
     const line = units.join('');
     const { text, source } = expandTabs(line, width);
     assert.ok(!text.includes('\t'));
     assert.equal(source.length, [...text].length, 'one source index per code point');
-    // A tab ends on a multiple of the width, counting graphemes before it.
+    // A tab ends on a multiple of the width, counting the columns before it.
     let column = 0, out = 0;
     for (const u of units) {
-      out += u === '\t' ? width - (column % width) : [...u].length;
-      column += u === '\t' ? width - (column % width) : 1;
+      const tab = width - (column % width);
+      out += u === '\t' ? tab : [...u].length;
+      column += u === '\t' ? tab : columns.get(u)!;
     }
     assert.equal([...text].length, out);
     // Each non-tab code point comes from the same character in the line.
@@ -121,6 +124,22 @@ test('one tab expansion: tabs reach the next stop by grapheme, and every code po
     assert.equal(kept.source.length, [...line].length);
   }), params());
   assert.deepEqual(expandTabs('e\u0301\tx', 4), { text: 'e\u0301   x', source: [0, 1, 2, 2, 2, 3] });
+});
+
+test('a tab stop after a cluster counts the code points that draw on their own, whatever the Unicode version segments', () => {
+  // Each of these is one grapheme cluster in current Unicode, and more code points than columns: a
+  // conjunct (one cluster since Unicode 15.1, two before), Khmer with a subscript consonant (a cluster
+  // count that differs between ICU versions), and an emoji ZWJ sequence.
+  const stop = (cluster: string) => expandTabs(`${cluster}\tx`, 8).text.length - cluster.length - 1;
+  assert.equal(8 - stop('e\u0301'), 1, 'a letter and its combining accent');
+  assert.equal(8 - stop('क्ष'), 2, 'क, the virama, ष');
+  assert.equal(8 - stop('ក្ខ'), 2, 'ក, the subscript sign, ខ');
+  assert.equal(8 - stop('សួស្តី'), 3);
+  assert.equal(8 - stop('👩\u200d💻'), 2, 'woman, the joiner, laptop');
+  // Code lays it out the same way: after a conjunct, with the default four-column stops, the tab takes two columns.
+  const code = new Code(['क्ष\tx', 'abcd']);
+  const cell = code.lines[1]!.advance() / 4, tab = code.span(0, 3, 4).width();
+  assert.ok(Math.abs(tab - 2 * cell) < 1e-6, `the tab is ${tab / cell} columns`);
 });
 
 test('a lettered line maps tabbed runs to the same clusters as an unlettered one, and keys each glyph by the cluster it draws', () => {

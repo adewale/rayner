@@ -110,7 +110,7 @@ text's own shaping and returns the run, `{ glyphs, width, ascent, descent }`, as
 `font-metrics` reads it. `angle()` is the angle the text has been turned through, in radians,
 `italic` whether it was made italic, `font` its `FontName` (`'sans'` or `'mono'`), and
 `shaping` the `TextShaping` it was made with (`shaping: this.textShaping` gives the scene's). `tabWidth` is the tab stop a text's tabs are laid out to,
-which `Code` sets. A `DecimalNumber` shows `value` with `decimals` places between
+in columns, which `Code` sets; a combining mark, a joiner or a variation selector takes no column. A `DecimalNumber` shows `value` with `decimals` places between
 `prefix` and `suffix`; `setValue(v)` redraws it in place for a new value, and
 `DecimalNumber.format(v, decimals, prefix, suffix)` is the string it would show.
 
