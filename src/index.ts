@@ -5,7 +5,7 @@
 
 // Model
 export { Mobject, Group, keyed } from './mobject.ts';
-export type { Style, StyleRecord, Box, Updater, AnimateBuilder } from './mobject.ts';
+export type { Style, StyleRecord, Box, Updater, AnimateBuilder, AboutOptions } from './mobject.ts';
 export { VMobject } from './vmobject.ts';
 export { Arc, ArcBetweenPoints, Arrow, Circle, CurvedArrow, Dot, Labeled, Line, Polygon, Rectangle } from './shapes.ts';
 export type { RectangleOptions, CircleOptions, DotOptions, ArrowOptions, ArcOptions, CurvedArrowOptions } from './shapes.ts';
@@ -47,7 +47,8 @@ export type { Vec } from './vec.ts';
 export { lerpColor } from './color.ts';
 export type { SceneColors, ColorRole, Palette } from './color.ts';
 export { shaperFor } from './fonts.ts';
-export type { FontName } from './fonts.ts';
+export type { FontName, Shaper } from './fonts.ts';
+export type { Run } from '../vendor/glyph.js';
 
 // Optional lettering: tree-shaken from scenes which do not request it.
 export { MathTex } from './math.ts';

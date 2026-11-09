@@ -71,7 +71,7 @@ writes `pointArrays()` in place, a custom animation's frame, calls `touchPoints(
 bumps the points' version, and `invalidateBox()`.
 
 `applyPointsFunction(fn)` maps every point of the family through `fn([x, y])`, about the box's
-centre unless given `aboutPoint` or `aboutEdge`. `box()` is the family's bounding box, a `Box`, or null when nothing in it
+centre unless given `aboutPoint` or `aboutEdge` (an `AboutOptions`, which `scale`, `rotate` and `stretch` take too). `box()` is the family's bounding box, a `Box`, or null when nothing in it
 has points. It is cached; every engine method that changes points or children clears the
 cache, and code that changes points another way, an animation's own `doInterpolate` or a
 custom mobject that assigns new point arrays, calls `invalidateBox()` after, which clears the
@@ -106,7 +106,7 @@ labels separately.
 
 A `Text`'s `advance()` is its exact advance width and `textSize()` the size it is
 drawn at now, after any scaling. `shapeRun(text, size)` shapes a string with the
-text's own shaping and returns the run, `{ glyphs, width, ascent, descent }`, as
+text's own shaping and returns the run, a `Run`, `{ glyphs, width, ascent, descent }`, as
 `font-metrics` reads it. `angle()` is the angle the text has been turned through, in radians,
 `italic` whether it was made italic, `font` its `FontName` (`'sans'` or `'mono'`), and
 `shaping` the `TextShaping` it was made with (`shaping: this.textShaping` gives the scene's). `tabWidth` is the tab stop a text's tabs are laid out to,

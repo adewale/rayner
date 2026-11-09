@@ -223,7 +223,7 @@ import { Group, Mobject, VMobject, Circle, Polygon, Arc, Cross, CurvedArrow, Bra
 import type { Box, Vec, SceneState, ScheduledAnimation, MatchKey, FadeOptions, FontName, SceneClass, Sink, Style, Palette } from 'rayner';
 import { callout, dimension, pin, legend, keyedParts } from 'rayner/drawing';
 import { Machine, refuse, isRefusal, answerOf, settingsOf, resolveSettings, regionBox, mermaid } from 'rayner/explain';
-import type { Refusal, Transition, Choreography, NoteSide, PictureNote, DiagramPicture, Stage, ExplainerClass, ExplainerMeta, Setting, StepKind, Description } from 'rayner/explain';
+import type { Refusal, Transition, Choreography, Side, PictureNote, DiagramPicture, Stage, ExplainerClass, ExplainerMeta, Setting, StepKind, Description } from 'rayner/explain';
 import { MoveAlongPath, ArcBetweenPoints } from 'rayner';
 import { seenFrom, seenPictures, depthOrder, latLon, toLatLon, greatArc, circleOn, between, project } from 'rayner/geo';
 import type { Model3D, Part, SeenPiece, SeenOptions, SeenPicture, Vec3, Viewpoint } from 'rayner/geo';
@@ -324,7 +324,7 @@ export class Collection extends Scene<CollectionModel> {
 
     await this.step('diagram', { title: 'A diagram', caption: 'A diagram drawn from the state.' });
     const d = await s.show({ source: mermaid.frontMatter({ theme: 'base' }) + 'graph LR\nA --> B' }, { box: 'main' });
-    const side: NoteSide = 'above';
+    const side: Side = 'above';
     const notes: PictureNote[] = [{ id: 'A', text: 'start', side }];
     const shown = s.diagramView(d, (st): DiagramPicture => ({ marks: st.status === 'moved' ? { A: s.look.emphasis } : {}, notes }));
     this.state.status = 'moved';

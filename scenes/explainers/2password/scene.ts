@@ -2,7 +2,7 @@ import { frames as readerFrames } from './picture.ts';
 import { Scene, Arrow, FadeIn, Create } from '../../../src/index.ts';
 import { stage, regionBox, answerOf, view, having } from '../../../explain/index.ts';
 import { code } from '../../../explain/drawing.ts';
-import type { NoteSide, ExplainerMeta } from '../../../explain/index.ts';
+import type { Side, ExplainerMeta } from '../../../explain/index.ts';
 import {
   ITEMS,
   SOURCE,
@@ -29,7 +29,7 @@ type BoundaryShown = { walked: [string, string][]; dim: string[] | null };
 // found) and the lines in focus are how the step shows the items, in `shown`.
 type ListingShown = { columns: 'item' | 'queries'; focus: [number, number] };
 // The reply marked and the notes are how the sequence is shown, drawn by its view from `shown`.
-type SequenceShown = { marked: string[]; notes: { id: string; text: string; side: NoteSide }[] };
+type SequenceShown = { marked: string[]; notes: { id: string; text: string; side: Side }[] };
 /** What each step finds out: the matches, what find printed, the values it leaked, and what op started. */
 type PasswordState = {
   matches?: Record<string, string[]>;

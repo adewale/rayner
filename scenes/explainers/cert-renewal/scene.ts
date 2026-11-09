@@ -2,7 +2,7 @@ import { Scene, Text, FadeOut, Create } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, answerOf, view, having } from '../../../explain/index.ts';
 import { card, code, callout } from '../../../explain/drawing.ts';
 import type { CardOptions, CardRow } from '../../../explain/drawing.ts';
-import type { Diagram, NoteSide, ExplainerMeta } from '../../../explain/index.ts';
+import type { Diagram, Side, ExplainerMeta } from '../../../explain/index.ts';
 import {
   BACKDATE,
   BR_PHASES,
@@ -154,7 +154,7 @@ type CertState = {
 };
 // How a diagram is shown, apart from its source: the parts marked as the chosen rule, its notes and
 // what stays undimmed. That is `shown`, not the model; each diagram's view draws its own entry there.
-type DiagramShown = { marked: string[]; notes: { id: string; text: string; side: NoteSide }[]; dim: string[] | null };
+type DiagramShown = { marked: string[]; notes: { id: string; text: string; side: Side }[]; dim: string[] | null };
 type DiagramName = 'timeline' | 'chart' | 'replaced' | 'retry';
 // The code under the charts is a view: which Certbot's code it shows and the lines in focus are in
 // `shown.code`. Both versions take the old code's width and fit the region's height, and the panel

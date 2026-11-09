@@ -341,8 +341,8 @@ export interface CodeBlockOptions {
    */
   key?: string;
 }
-/** A bar behind an added or removed line. */
-interface LineMark {
+/** A bar behind an added or removed line of a code panel: the line's index, which it marks, and the bar. */
+export interface LineMark {
   line: number;
   kind: 'added' | 'removed';
   mob: Group;

@@ -1,7 +1,7 @@
 import type { Evidence, Box } from '../../../src/index.ts';
 import { Scene, FadeIn, FadeOut } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, answerOf, view, having } from '../../../explain/index.ts';
-import type { Diagram, NoteSide, View, ExplainerMeta } from '../../../explain/index.ts';
+import type { Diagram, Side, View, ExplainerMeta } from '../../../explain/index.ts';
 import type { CodeBlock } from '../../../explain/drawing.ts';
 import { Repo, AUTHOR, parseTree } from './model.ts';
 import { objectLines, reachable } from './objects.ts';
@@ -29,7 +29,7 @@ type Tone = 'emphasis';
 interface GitShown {
   focus?: Record<string, [number, number]>;
   diagram?: { source: string; marks: { part: string; tone: Tone; as: string }[] };
-  notes?: { id: string; part: string; text: string; side: NoteSide }[];
+  notes?: { id: string; part: string; text: string; side: Side }[];
   /** Whether the shared blob has been copied into commit two's row. */
   copied?: boolean;
   /** Whether the new ids are coloured where they agree with the old. */
@@ -179,7 +179,7 @@ export default class GitExplainer extends Scene<GitState, GitShown> {
       const n = having(shown, 'notes').notes.find((x) => x.id === id)!;
       return d.notePicture(n.part, n.text, { side: n.side, color: emphasis, key: `exgit-note:${id}` });
     };
-    const note = async (id: string, part: string, text: string, side: NoteSide) => {
+    const note = async (id: string, part: string, text: string, side: Side) => {
       this.shown.notes = [...(this.shown.notes ?? []), { id, part, text, side }];
       const v = view(this, notePicture(id), { place: false });
       notes.set(id, v);

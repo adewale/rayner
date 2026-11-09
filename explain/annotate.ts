@@ -88,6 +88,7 @@ export function pin(at: Vec, { color, size = 0.24, shaping, label, side = 'right
   return selfDescribed(whole(g, key), () => ({ what: label ? `A pin marked “${label}”` : 'A pin', parts: [] }));
 }
 
+/** Which side of its target a diagram's note or the kit's callout stands. */
 export type Side = 'above' | 'below' | 'left' | 'right';
 const boxOf = (target: Vec | Box | Mobject): Box => {
   if (Array.isArray(target)) return (target.length === 2 ? [target[0], target[1], target[0], target[1]] : target) as Box;

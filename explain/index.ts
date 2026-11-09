@@ -10,7 +10,8 @@ export type { StageOptions, Stage, StageRegion, Describe, StagedStep, StagedStep
 export type { LayoutDirection } from './layout-direction.ts';
 export { Diagram } from './diagrams.ts';
 export type { Action } from './action.ts';
-export type { ShowOptions, NoteSide, PictureNote, DiagramPresentation } from './diagrams.ts';
+export type { ShowOptions, PictureNote, DiagramPresentation } from './diagrams.ts';
+export type { Side, ToolKind } from './annotate.ts';
 export type { Description, DescriptionPart } from './trace.ts';
 export { regionBox } from './look.ts';
 export type { Region, Look } from './look.ts';
