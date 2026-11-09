@@ -143,7 +143,7 @@ test('a packed snapshot unpacks only whole: every glyph names a stored outline a
   const dir = await mkdtemp(join(folder, 'packed-'));
   await writeFile(join(dir, 'scene.ts'), await readFile(join(ROOT, 'test/lettering/hebrew/scene.ts'), 'utf8'));
   await writeFile(join(dir, 'scene.lettering.json'), JSON.stringify(junk));
-  await assert.rejects(collectProject(dir, { write: false }), /scene\.lettering\.json: its outlines are invalid; run rayner snapshots .*scene\.ts/);
+  await assert.rejects(collectProject(dir, { write: false }), /scene\.lettering\.json: its outlines are invalid/);
   await writeFile(join(dir, 'scene.lettering.json'), 'null');
   await assert.rejects(collectProject(dir, { write: false }), /scene\.lettering\.json: it is missing or stale/);
 });

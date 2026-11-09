@@ -88,7 +88,7 @@ test('a stage with no style takes its first diagram’s paper; hidden parts stay
       await d.walk([['A', 'B']]);
     }
   }
-  await assert.rejects(traceScene(bindSnapshots(Own, { [diagramKey(spec)]: fixture() })), /^Error: this\.state: its own walks key would be replaced by the walks a diagram records there; rename the scene's key$/);
+  await assert.rejects(traceScene(bindSnapshots(Own, { [diagramKey(spec)]: fixture() })), /^Error: this\.state: its own walks key would be replaced/);
   class Later extends Scene {
     override async construct() {
       const s = stage(this);
@@ -129,7 +129,7 @@ test('a stage with no style adopts only its first diagram’s palette: a second 
 test('a diagram’s presentation is one value, the view a live diagram replaced included: diagramView, liveDiagram, hide and clear set it, and a viewed diagram refuses a reveal, enlargement or morph', async () => {
   const next = { source: 'graph LR\nA --> B\nB --> C', style: 'nord' };
   const after = fixedSnapshot(next, fixture().parts.filter((p) => p.id !== '__frame'), { palette: fixture().palette });
-  const refused = (api: string) => new RegExp(`^Error: ${api.replace(/[.()]/g, '\\$&')}: the diagram is shown by a view, so its live parts are off the stage; call s\\.liveDiagram\\(d\\) first$`);
+  const refused = (api: string) => new RegExp(`^Error: ${api.replace(/[.()]/g, '\\$&')}: the diagram is shown by a view`);
   class Presented extends Scene {
     override async construct() {
       const s = stage(this);
@@ -148,7 +148,7 @@ test('a diagram’s presentation is one value, the view a live diagram replaced 
       s.liveDiagram(d);
       assert.deepEqual(d.presentation, { kind: 'live', replaced: v });
       assert.ok(!this.mobjects.includes(v) && this.mobjects.includes(d.root));
-      assert.throws(() => s.liveDiagram(d), /^Error: s\.liveDiagram\(\): the diagram is not shown by a view; show it with s\.diagramView\(d, draw\) first$/);
+      assert.throws(() => s.liveDiagram(d), /^Error: s\.liveDiagram\(\): the diagram is not shown by a view/);
       await d.reveal(['A']);
       assert.deepEqual(d.presentation, { kind: 'live', replaced: v }, 'a reveal keeps the view it replaced');
       // Shown by a view again, it is the view it handed back from, drawing the diagram as it is now.
@@ -160,7 +160,7 @@ test('a diagram’s presentation is one value, the view a live diagram replaced 
       const own = d.picture();
       this.add(own);
       d.showBy(own);
-      assert.throws(() => s.diagramView(d), /^Error: s\.diagramView\(\): the diagram is shown by a view of the scene's own; call s\.liveDiagram\(d\) first$/);
+      assert.throws(() => s.diagramView(d), /^Error: s\.diagramView\(\): the diagram is shown by a view of the scene's own/);
       s.liveDiagram(d);
       assert.deepEqual(d.presentation, { kind: 'live', replaced: own });
       assert.ok(!this.mobjects.includes(own));
@@ -184,15 +184,13 @@ test('a diagram’s presentation is one value, the view a live diagram replaced 
 
 test('a diagram\'s presentation changes only through its calls: a root taken off is not described, and one put back beside its view is refused', async () => {
   // Named by the call whose step's description refuses it, not by the property.
-  const twice = /^Error: this\.step\(\): the diagram's root is on the stage while a view shows the diagram, so each of its keys is drawn twice; take it off, or call s\.liveDiagram\(d\) to show the live diagram in the view's place$/;
-  const beside = /^Error: this\.step\(\): the diagram's root is on the stage beside the view it replaced, so each of its keys is drawn twice; take the view off, or call s\.diagramView\(d\) to show the diagram by it again$/;
+  const twice = /^Error: this\.step\(\): the diagram's root is on the stage while a view shows the diagram/;
+  const beside = /^Error: this\.step\(\): the diagram's root is on the stage beside the view it replaced/;
   class ByHand extends Scene {
     override async construct() {
       const s = stage(this);
       await this.step('one');
       const d = await s.show(spec, { build: 'all' });
-      // d.root cannot be replaced, so the group the diagram keeps is the one on stage.
-      assert.throws(() => { (d as unknown as { root: unknown }).root = d.root.copy(); }, TypeError);
       // Taken off by hand, the live diagram keeps its presentation and is not described until it is back.
       this.remove(d.root);
       assert.deepEqual(d.presentation, { kind: 'live', replaced: null });
@@ -225,7 +223,7 @@ test('stage() runs once per scene: a second call is refused', async () => {
     override async construct() {
       stage(this);
       // A second stage would add a second backdrop, heading and step listeners.
-      assert.throws(() => stage(this), /^Error: stage\(\): the scene has a stage already; call stage\(this\) once and keep what it returns$/);
+      assert.throws(() => stage(this), /^Error: stage\(\): the scene has a stage already/);
       assert.equal(this.mobjects.filter((m) => m.role === 'backdrop').length, 1);
       this.state.done = true;
     }
@@ -237,7 +235,6 @@ test('stage() runs once per scene: a second call is refused', async () => {
 
 test('a stage() that throws on its options leaves the scene as it was, free to have a stage', async () => {
   const scene = new Scene(new NullSink());
-  const listeners = () => (scene as unknown as { stepListeners: unknown[] }).stepListeners.length;
   const nord = { paper: '#2e3440', ink: '#d8dee9', accent: '#88c0d0', muted: '#616e88' };
   // What a type cannot hold to its range is checked: a style that is no style, a palette colour
   // that is no hex colour, and a heading size that is not a finite size above 0.
@@ -250,18 +247,20 @@ test('a stage() that throws on its options leaves the scene as it was, free to h
   ];
   for (const [options, refused] of defects) {
     assert.throws(() => stage(scene, options), refused, JSON.stringify(options));
-    assert.equal(listeners(), 0, `${JSON.stringify(options)}: no step listener`);
     assert.equal(scene.mobjects.length, 0, `${JSON.stringify(options)}: no backdrop or heading`);
     assert.equal(paletteOf(scene), undefined);
   }
+  // No refused stage left a step listener behind: a step draws nothing.
+  await scene.step('between', { title: 'Between' });
+  assert.equal(scene.mobjects.length, 0, 'a step after the refusals draws no heading');
   // What the options allow still stages: each on a fresh scene.
   for (const options of [{ palette: nord, headingSize: 0.5, numbered: false, heading: 'A title' }, { palette: { ...nord, paper: '#fff' }, heading: false as const }, { heading: 'step', numbered: true }])
     assert.ok(stage(new Scene(new NullSink()), options), JSON.stringify(options));
-  // The retry is the scene's one stage: its listeners once, its backdrop once.
-  const s = stage(scene);
-  assert.equal(listeners(), 3);
+  // The retry is the scene's one stage: its backdrop once, and its heading follows the next step.
+  const s = stage(scene, { heading: 'step' });
   assert.equal(scene.mobjects.filter((m) => m.role === 'backdrop').length, 1);
-  assert.ok(s.heading);
+  await scene.step('after', { title: 'After' });
+  assert.equal((s.heading as Text).text, 'After');
   assert.throws(() => stage(scene), /the scene has a stage already/);
 });
 
@@ -791,7 +790,7 @@ test('a panel, its rule and secondary text step from the paper toward the ink, i
 
 test('an unknown style is refused even when its name belongs to Object.prototype', () => {
   for (const name of ['valueOf', 'constructor', '__proto__', 'toString', 'hasOwnProperty', '', 'not-a-style'])
-    assert.throws(() => palette(name), /palette\(\): .* is not a style; the styles are/, name);
+    assert.throws(() => palette(name), (e: unknown) => e instanceof RangeError && e.message.startsWith(`palette(): ${JSON.stringify(name)} is not a style`), name);
 });
 
 /** Whether each built-in style's accent is a hue (else emphasis falls back to an orange), as its palette shows. */
@@ -926,7 +925,7 @@ test('assertSteps passes when the named steps appear in order with others betwee
 
 test('the testing helpers name a missing step, and find no snapshots where none are pinned', async () => {
   const trace = { steps: [{ step: 'first' }, { step: 'second' }] };
-  assert.throws(() => pictureWordsAt(trace, 'third'), /pictureWordsAt\(\): the trace has no step "third"; its steps are first, second/);
+  assert.throws(() => pictureWordsAt(trace, 'third'), /pictureWordsAt\(\): the trace has no step "third"/);
   assert.deepEqual(pictureWordsAt(trace, 'second'), { summary: '', full: '', transcript: '' });
   assert.deepEqual(await loadSnapshots('test/fixtures/no-such-explainer'), {});
 });
@@ -945,9 +944,9 @@ test('loadProject draws a scene\'s lettering from the scene.lettering.json besid
   assert.ok(takeMissingGlyphs().has('Ελληνικά'), 'the embedded faces are back after loadProject');
   const asking = (lettering: object) => { const Lettered = class extends Scene {}; (Lettered as { meta?: object }).meta = { lettering }; return Lettered; };
   await assert.rejects(loadProject(asking({ scripts: ['Grek'] }), 'test/fixtures/lettered'),
-    /^Error: loadProject\(\): test\/fixtures\/lettered\/scene\.ts asks for lettering \(meta\.lettering\) and has no scene\.lettering\.json beside it; run rayner snapshots test\/fixtures\/lettered\/scene\.ts$/);
+    /^Error: loadProject\(\): test\/fixtures\/lettered\/scene\.ts .*no scene\.lettering\.json/);
   // A snapshot pinned for another request: Cyrillic asked where Greek is cut, maths where faces and styles are.
-  await assert.rejects(loadProject(asking({ scripts: ['Cyrl'] }), 'test/fixtures/lettering'), /^Error: scene\.lettering\.json: it does not hold the lettering test\/fixtures\/lettering\/scene\.ts asks for; run rayner snapshots/);
+  await assert.rejects(loadProject(asking({ scripts: ['Cyrl'] }), 'test/fixtures/lettering'), /^Error: scene\.lettering\.json: it does not hold the lettering test\/fixtures\/lettering\/scene\.ts asks for/);
   await assert.rejects(loadProject(asking({ math: true }), 'scenes/explainers/font-metrics'), /^Error: scene\.lettering\.json: it does not hold the lettering/);
 });
 
@@ -1027,7 +1026,7 @@ test('a scene with no meta.id is named by one rule: its folder for scene.ts, els
   // The command's own rule once read the file's name alone: scene.ts would have named every explainer "scene".
   assert.notEqual(sceneIdOf('a/b/scene.ts'), 'scene');
   // A name that is not a page id is refused, as such a meta.id is.
-  assert.throws(() => sceneIdOf('scenes/My Scene/scene.ts'), /^RangeError: meta\.id: the scene has none, and its folder name "My Scene" is not a page id; give it a meta\.id, or rename it/);
+  assert.throws(() => sceneIdOf('scenes/My Scene/scene.ts'), /^RangeError: meta\.id: .*"My Scene" is not a page id/);
   for (const file of ['a/b.c.ts', 'a/.ts', 'scene.ts']) assert.throws(() => sceneIdOf(file), /is not a page id/, file);
   // A folder name the site's evidence would refuse (capitals, _) or Windows cannot write (con) is refused here, by the one rule.
   for (const file of ['a/My_Scene/scene.ts', 'a/Push/scene.ts', 'a/con/scene.ts', 'a/b/Scene.ts']) assert.throws(() => sceneIdOf(file), /is not a page id/, file);

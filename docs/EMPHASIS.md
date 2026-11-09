@@ -6,14 +6,11 @@ plus `Circumscribe`, which can either pulse or stay.
 ## Why emphasis should stay
 
 A reader stops on each step's last frame, its resting picture, and looks at it
-while reading the caption. An emphasis that pulses and fades is gone by then. When
-the first fourteen explainers were reviewed as a reader sees them, nine had steps
-that ended exactly like the step before, because highlights had pulsed away and
-tokens had walked off; `rayner check` now fails such a step. A mark that stays still
-says "this one" on the frame the reader sees. Use these shapes when the step is
-about the thing marked. There is no passing glance: `Indicate` and `Flash` were cut
-in 0.2.0, because such a mark has faded by the resting picture, and a step it was all
-that changed fails the check.
+while reading the caption. An emphasis that pulses and fades is gone by then, and a
+step whose highlight has pulsed away ends exactly like the step before, which
+`rayner check` fails. A mark that stays still says "this one" on the frame the reader
+sees. Use these shapes when the step is about the thing marked. There is no passing
+glance (no `Indicate` or `Flash`), because such a mark has faded by the resting picture.
 
 ## The shapes
 

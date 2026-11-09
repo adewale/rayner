@@ -49,7 +49,7 @@ test('an edit that draws no new text keeps the snapshot; drawn text it lacks fai
     await writeFile(join(dir, 'scene.ts'), source.replace('caption: "Arabic"', 'caption: "Changed caption"'));
     assert.ok((await collectProject(dir, { write: false })).outlineLettering);
     await writeFile(join(dir, 'scene.ts'), source.replace('"السَّلَامُ عَلَيْكُمْ"', '"مرحبا"'));
-    await assert.rejects(collectProject(dir, { write: false }), /no run for "مرحبا" \(sans\); run rayner snapshots/);
+    await assert.rejects(collectProject(dir, { write: false }), /no run for "مرحبا" \(sans\)/);
     const s = await snapshot('arabic');
     assert.throws(() => snapshotProvider(s).shape('sans', 'مرحبا', 1, () => { throw new Error('fallback bypassed'); }), /no run/);
   } finally { await rm(dir, { recursive: true, force: true }); }

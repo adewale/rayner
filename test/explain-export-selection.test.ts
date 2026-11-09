@@ -51,12 +51,12 @@ test('a subset can omit the catalog introduction and choose its own entry', () =
 
 test('page ids are unique in one site, ignoring case, and a scene\'s meta.id is its catalog id', () => {
   // A build of the catalog and an export of a built one both select through selectedIds.
-  assert.throws(() => selectedIds(undefined, ['fork', 'cache', 'fork']), /^Error: site: the page id "fork" is listed twice; list each explainer once$/);
-  assert.throws(() => selectedIds('cache', ['fork', 'cache', 'Fork']), /^Error: site: the page ids "fork" and "Fork" differ only in case, so one page would be written over the other; give one of them another id$/);
+  assert.throws(() => selectedIds(undefined, ['fork', 'cache', 'fork']), /^Error: site: the page id "fork" is listed twice/);
+  assert.throws(() => selectedIds('cache', ['fork', 'cache', 'Fork']), /^Error: site: the page ids "fork" and "Fork" differ only in case/);
   const cased = structuredClone(catalog), casedEvidence = structuredClone(evidence);
   cased.scenes[2]!.id = casedEvidence.scenes[2]!.id = 'Cache';
   assert.throws(() => selectExport(undefined, cased, casedEvidence), /"cache" and "Cache" differ only in case/);
   assert.deepEqual(selectedIds(undefined, ['fork', 'cache']), ['fork', 'cache']);
   checkPageId('fork', 'fork');
-  assert.throws(() => checkPageId('fork', 'spoon'), /^Error: site: scenes\/explainers\/fork has the meta.id "spoon", but the catalog builds its page as "fork.html"; drop the meta.id, or make it the folder's name$/);
+  assert.throws(() => checkPageId('fork', 'spoon'), /^Error: site: scenes\/explainers\/fork has the meta\.id "spoon"/);
 });

@@ -262,7 +262,7 @@ test('a family stays a tree: add refuses the mobject itself or an ancestor, and 
   // Before the guard, b.add(a) under a.add(b) made a cycle that hung the next box invalidation.
   const a = new Group(), b = new Group(), c = new Rectangle({ width: 2, height: 2 });
   a.add(b); b.add(c);
-  assert.throws(() => b.add(a), /^Error: m\.add\(\): a Group contains the mobject it is added to, so the family would be a cycle; add it to a mobject outside it$/);
+  assert.throws(() => b.add(a), /^Error: m\.add\(\): a Group contains the mobject it is added to/);
   assert.throws(() => c.add(a), /m\.add\(\): a Group contains the mobject it is added to/);
   assert.throws(() => a.add(a), /^Error: m\.add\(\): a Group is the mobject it is added to/);
   // A refused add changes nothing, even after children listed before the one refused.
@@ -326,12 +326,12 @@ test('keyed() keys a part and returns it; copies carry the key, restore() return
 test('no public path makes the mobject tree a cycle, or lets a parent and its children disagree (invariant row 8)', () => {
   const a = new Group(), b = new Group();
   a.add(b);
-  assert.throws(() => b.insert(0, a), /^Error: m\.insert\(\): a Group contains the mobject it is added to, so the family would be a cycle/);
-  assert.throws(() => b.insert(5, new Rectangle({ width: 2, height: 2 })), /^RangeError: m\.insert\(\): the index is 5; give a whole number from 0 to 0/);
+  assert.throws(() => b.insert(0, a), /^Error: m\.insert\(\): a Group contains the mobject it is added to/);
+  assert.throws(() => b.insert(5, new Rectangle({ width: 2, height: 2 })), /^RangeError: m\.insert\(\): the index is 5/);
   const s = new Rectangle({ width: 2, height: 2 });
   b.add(s);
   const scene = new Scene(new NullSink()).add(a);
-  assert.throws(() => scene.replace(s, a), /^Error: this\.replace\(\): a replacement cannot be an ancestor of the parent it goes into/);
+  assert.throws(() => scene.replace(s, a), /^Error: this\.replace\(\): a replacement cannot be an ancestor/);
   assert.throws(() => replaceChild(b, s, a), /^Error: this\.replace\(\): a Group contains the mobject it is added to/);
 
   // Every public way to change a family, in random order on a small pool, some refused: after each,

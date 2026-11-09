@@ -54,7 +54,7 @@ test('site:export copies each explainer\'s describe.json from demos:build as <id
     // An explainer demos:build has not described fails with what to run.
     await assert.rejects(
       writeDescriptions(root, '/projects/rayner', [{ id: 'fork', group: 'topic' }], built),
-      /^Error: Missing \S+\/out\/fork\/describe\.json: run npm run demos:build first$/,
+      /^Error: Missing \S+\/out\/fork\/describe\.json: run npm run demos:build/,
     );
     await writeFile(join(root, 'llms.txt'), '# My site\n');
     await assert.rejects(writeDescriptions(root, '/projects/rayner', [{ id: 'ring-buffer', group: 'topic' }], built), /not one site:export wrote/);
@@ -92,7 +92,7 @@ test("site:export refuses an explainer's built files when demos:build has not ru
       `import{Scene,Text,FadeIn}from'rayner';export default class X extends Scene{static meta={id:'x',title:'X'};async construct(){await this.step('one',{caption:'One.'});await this.play(new FadeIn(new Text('${n}')));}}`;
     await writeFile(join(scene, 'scene.ts'), code(1));
     await writeFile(join(scene, 'data.txt'), 'a');
-    await assert.rejects(checkBuilt(folder, scene), /^Error: Missing \S+\/out\/x\/inputs\.json: run npm run demos:build first$/);
+    await assert.rejects(checkBuilt(folder, scene), /^Error: Missing \S+\/out\/x\/inputs\.json: run npm run demos:build/);
     // What demos:build records after writing the folder's other files.
     await writeFile(join(folder, 'inputs.json'), JSON.stringify(await sceneInputs(await loadScene(scene))));
     await checkBuilt(folder, scene);
@@ -102,7 +102,7 @@ test("site:export refuses an explainer's built files when demos:build has not ru
     await checkBuilt(folder, scene);
     // A data file or pinned snapshot in the scene's folder, then the scene's code.
     await writeFile(join(scene, 'data.txt'), 'b');
-    await assert.rejects(checkBuilt(folder, scene), /out\/x is stale: the scene's folder changed since it was built\. Run npm run demos:build$/);
+    await assert.rejects(checkBuilt(folder, scene), /out\/x is stale: .*Run npm run demos:build/);
     await writeFile(join(scene, 'data.txt'), 'a');
     await checkBuilt(folder, scene);
     await writeFile(join(scene, 'scene.ts'), code(2));

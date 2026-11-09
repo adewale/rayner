@@ -104,12 +104,10 @@ search), since the reader pressed it to find out. A reason is the model's; where
 go on but the story stops, that is a [bound](#refused-events-bounds-and-authored-transitions), not
 a refusal.
 
-**Why one way.** A separate `why(state, event)` used to give the reason. It had to decide again
-which rule refused (python-dict's ran the key's search a second time), nothing checked that it
-agreed with `next`, and eight of the nine machines left it out, so their players said "Not
-possible here". A reason returned from the branch that refuses cannot name a rule other than the
-one that refused, and costs one line where the refusal is. `why` is gone, and `MachineSpec` has
-no such field.
+**Why one way.** A reason returned from the branch that refuses cannot name a rule other than the
+one that refused, needs no second search to decide which rule it was, and costs one line where the
+refusal is. A separate reason function would decide again, and nothing would check that it agreed
+with `next`. `MachineSpec` has no such field.
 
 A `bound` is different: the model would take the event, but the explainer's story ends before
 it (token-bucket's client sends ten requests). Exploration does not follow it either, and the
@@ -177,32 +175,24 @@ not morphed glyph by glyph. A new machine therefore reads at every frame without
 a word never sits on top of the word replacing it. Parts without a key under no keyed part fade
 the same way. The finish is the sync's own, so it ends exactly on the state's picture.
 
-It replaced an unstaged keyed sync (`match: 'key'`), in which every part that went faded out
-while every part that came faded in, over the same time, and a keyed word that changed was morphed
-glyph by glyph by place. The choice was made by drawing the reader's presses frame by frame
-(`runLive` with an animating sink) for python-dict, which authors no transitions, and for
-ring-buffer with its transitions taken out, under three defaults:
+**Why staged.** Drawn frame by frame (`runLive` with an animating sink), for python-dict, which
+authors no transitions, and for ring-buffer with its transitions taken out, the other defaults
+put words on top of each other:
 
-- **The unstaged keyed sync.** At mid-press python-dict's panel showed "KeyError" and "not
-  found", and "pear is still stored, in entry 1." and "Slot 0 has never been used…", on top of
-  each other, half faded, for about a third of the press; ring-buffer's operation card showed
-  "push 7" and "pop" overlapping, and its head, tail and length values sat on each other.
-- **`t.choreograph(view).rest()`, staged** (what goes fades out, what persists
-  morphs, what comes fades in). A keyed part that persists morphs whole, so a cell whose word
-  changed morphed "KeyError" into "not found" letter shape by letter shape, unreadable for most of
-  the press. Worse, `rest()` sees only keyed parts: python-dict's note and ring-buffer's readouts
-  and card values, which are unkeyed, did not move at all and jumped to the new words in the
-  last frame.
-- **The keyed sync, staged.** No frame shows two words in one place: the old words are gone by
-  halfway and the new ones come after, while the slots, arrows and rings that both pictures have
-  move throughout. Every part, keyed or not, takes part. This is the default.
+- **An unstaged keyed sync** (`match: 'key'`, `staged: false`) fades out every part that goes
+  while every part that comes fades in, over the same time. At mid-press python-dict's panel
+  shows "KeyError" and "not found", and "pear is still stored, in entry 1." and "Slot 0 has
+  never been used…", on top of each other, half faded, for about a third of the press;
+  ring-buffer's operation card shows "push 7" and "pop" overlapping.
+- **`t.choreograph(view).rest()`, staged**, morphs a keyed part that persists whole, so a cell
+  whose word changes morphs "KeyError" into "not found" letter shape by letter shape. And
+  `rest()` sees only keyed parts: python-dict's note and ring-buffer's readouts, which are
+  unkeyed, jump to the new words in the last frame.
 
-Two explainers move differently, and no resting picture changed. python-dict authors no
-transition, so its presses and replays now replace a changed word instead of morphing it.
-monty-hall authors every event but `pick` and `stay`, whose line ("Pick a door" becoming "You
-picked A") was morphed glyph by glyph into a blot for a few frames and now fades out and the new
-line in. The other seven author every event's transition and are unchanged, frame for frame. A
-machine that wants other motion authors a `transition`.
+The keyed sync, staged, shows no two words in one place: the old words are gone by halfway and
+the new ones come after, while the slots, arrows and rings that both pictures have move
+throughout. Every part, keyed or not, takes part. A machine that wants other motion authors a
+`transition`.
 
 ## What check does with a machine
 
@@ -249,13 +239,11 @@ which is the shrinking a generated-sequence check would otherwise need. `statech
   explores, and Next view tours the step's own close-ups, planned for the step's own picture.
   So the served review requires it instead, for the states it visits: at 390 px every label of
   what the events changed must read at least 12 px in the whole picture or one of those
-  close-ups (`changedLabelPx`), else the review fails, naming each label. It used to record
-  this without requiring it, and token-bucket's live step was the case: the request boxes a
-  press changes read at 4.5 to 6.7 px in every view (the review now fails it: "later after
-  [request] at 390px: what the events changed reads under 12 px on a phone", five waiting "…"
-  at 6.7 px). Each box now holds only its answer, at 0.58 units, 13 px in the whole picture on a
-  phone, with the request's name under it and its arrival time over it; the token a 200 takes
-  goes into the box. Exploration still does not check states the review does not visit.
+  close-ups (`changedLabelPx`), else the review fails, naming each label ("later after
+  [request] at 390px: what the events changed reads under 12 px on a phone"). token-bucket's
+  request boxes hold only their answer, at 0.58 units, 13 px in the whole picture on a phone,
+  with the request's name under it and its arrival time over it, so they pass. Exploration does
+  not check states the review does not visit.
 - **A large machine is sampled.** Exploration stops at `limit` states per origin, so
   ring-buffer's 256 states are a sample, and a reader can press their way to a ring no check drew.
   `describeExplainer` counts states from `start` only.
@@ -277,7 +265,7 @@ This section says how it works and why.
 **Which step is live: the step the machine last played in.** There is no declaration. The step a
 machine last played in is the stage `rayner check` explores it on, so a reader
 never drives a machine on a stage the check did not see. A separately declared step could name one
-exploration never checked, or one whose stage no longer holds the machine's views (token-bucket's
+exploration never checked, or one whose stage does not hold the machine's views (token-bucket's
 last step clears them). When two machines last play in one step, the one made later is live there.
 `describeExplainer` reports the step as each machine's `step`.
 
@@ -360,9 +348,9 @@ together, so Back and a repeated log draw nothing and a long exploration holds a
 pictures. One value holds the exploration (`Exploration` in `app/embed-live.ts`: none, or live at
 a step with its log and held run), and one transition (`explore`) changes it for a press, Undo,
 Reset, a link, a held run and leaving. A held run names the step it ran to, and one that arrives
-for another step than the one live, or for a log no longer on show, is closed, not held. `test/embed-live.test.ts` checks that a held
+for another step than the one live, or for a log not on show, is closed, not held. `test/embed-live.test.ts` checks that a held
 run's every frame is the fresh run's, and `test/browser/explain-live.test.ts` that pictures
-reached by pressing, now through held runs, are the ones a fresh load of the link draws.
+reached by pressing, through held runs, are the ones a fresh load of the link draws.
 
 `node tools/repo/live-cost.ts [--cpu 4]` measures it on the built pages: for each live step of the
 default scenario it presses six events in Chromium at 1280 × 900 (after one unmeasured press),
@@ -439,10 +427,9 @@ What each refuses, in its model's words (the tests pin each reason):
   never-used slot 7, so del d[0] raises KeyError and changes nothing".
 
 Drawing each main picture from state can reach pictures the story never shows, and exploration
-checks those too. In ring-buffer it found two states that differed only in the next value to be
-pushed and looked alike (the ring now shows "next N"), and a long tray running into the bottom
-pointers' labels. In latest-search it reached an order no scenario shows ("ca" answers before
-"cat" is typed). `state-machine`'s diagram is drawn by the view: `Diagram.showBy(view)` takes the live diagram off
+checks those too: two ring-buffer states that differ only in the next value to be pushed must
+look different (the ring shows "next N"), and latest-search reaches an order no scenario shows
+("ca" answers before "cat" is typed). `state-machine`'s diagram is drawn by the view: `Diagram.showBy(view)` takes the live diagram off
 the stage and keeps the stage describing it.
 
 ## Tried and not kept

@@ -91,7 +91,7 @@ move the axes first, then build graphs and add them yourself.
 | `plot(fn, { xRange?, samples = 64, color, strokeWidth, ...style })` | `VMobject` through `c2p(x, fn(x))` at every sample, left to right |
 | `lineGraph(points, { color, ...style })` | `VMobject`: a polyline through `[x, y]` pairs, in the order given |
 | `bar(values, { x?, width?, gap = 0.4, colors, labels?, ...style })` | `Group`: one Rectangle per value, then the label Texts |
-| `dot(x, y, dotOpts)` | `Dot` at `c2p(x, y)` |
+| `dot(x, y, options)` | `Dot` at `c2p(x, y)`, with `DotOptions` |
 | `verticalLine(x, { from?, to? })` / `horizontalLine(y, { from?, to? })` | `Line` guide; defaults to the full range of the other axis |
 | `areaUnder(fn, [a, b], { samples, color, fillOpacity })` | closed `VMobject` between the curve and y = 0 |
 

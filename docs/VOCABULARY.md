@@ -3,21 +3,18 @@
 Each idea in Rayner has one name, and each name means one thing. The names are chosen so that
 the five invariants in [the engine map](ENGINE.md#correctness-by-construction) are easy to say,
 and that page also defines the three records, trace, evidence and receipt. This page lists the
-names, what each replaced, the decisions a domain-driven review made about them, and the names
-considered and turned down.
+names, the words not to use for each idea, the decisions behind them, and the names considered
+and turned down.
 
-The pass that fixed these names started from collisions. Turning state into a picture was
-`render` in views, `draw` in a follow and in the scene library's step lists, and `build` in
-`view(build)`, while `render` also named the output pipeline and `draw` a pen animation.
-"Frame" meant the camera, an instant of a run and a step of the scene library. "Claim" meant a
-sentence backed by a test, a frame-level check and a subject the review looks for. Each is
-resolved below.
+A word used for two ideas is the collision this page prevents. Turning state into a picture is
+`draw`, never `render` (the output pipeline) or `build`. "Claim" is a sentence backed by a test,
+never a frame-level check (an invariant) or what the review looks for (a subject).
 
 ## The vocabulary
 
 One row per idea.
 
-| Idea | Name | Meaning | Replaces |
+| Idea | Name | Meaning | Not this |
 | --- | --- | --- | --- |
 | Model | (plain functions) | Pure, tested functions in `model.ts`; `next(state, event)` for a machine | |
 | Model state | `scene.state` | JSON only; the domain (a bucket's tokens, a statechart's configuration) and nothing about how it is shown; a step records it as `before` and `after` | |
@@ -28,16 +25,16 @@ One row per idea.
 | Scenario | `scenario`, `scenariosOf`, `scenarios` | One value for every setting | `variant`, `variantsOf`, `variants`, and `case`, `casesOf`, `cases` (`case` is reserved in JavaScript) |
 | Picture | a `Mobject` tree | What a frame shows | |
 | State to picture | `draw` | The name for a pure function that makes a picture from what it is given, which the checks call again. Four take different arguments: a view's `draw(state, shown)`; `s.diagramView`'s `draw(state, shown)`, which returns what the diagram's picture marks, a `DiagramPicture`, rather than a mobject; a staged step's `draw(state, stage)`, which takes the stage for its colours and kit, since a step list is often written in a picture module apart from the scene, and reads nothing shown; and a follow's `draw(value)` (`FollowSpec`), the picture at one value of the number it follows | `render` (views), the parameterless `draw(stage)` (steps), `build` |
-| View | `view(scene, draw)`, `view.sync()` | A picture kept equal to `draw(scene.state)`; sync morphs it there. `view(scene, draw)` is the one way to make one, and `View` is its type | `View.render` (now `View.draw`), `view(build)`, `stateView` |
-| Staged steps | `stage.steps([...])` | A list of steps, each `{ id, title, line, caption, state, draw }`; each step's state becomes the model and its picture is drawn from it | `lesson()`, `readerFirst()`, `presentFrame()` and the three `*Frame` types in the scene library |
+| View | `view(scene, draw)`, `view.sync()` | A picture kept equal to `draw(scene.state)`; sync morphs it there. `view(scene, draw)` is the one way to make one, and `View` is its type | `View.render`, `view(build)`, `stateView` |
+| Staged steps | `s.steps([...])` | A list of steps, each `{ id, title, line, caption, state, draw }`; each step's state becomes the model and its picture is drawn from it | `lesson()`, `readerFirst()`, `presentFrame()` and the three `*Frame` types in the scene library |
 | The phone's opening | **`s.opening(...)`**, a step's `opening` keys | The parts a caption compares, which the first close-up holds together; set per step | `s.reading(...)` and `reading` ("reading" sat beside the reader and its reader steps) |
-| Emphasis a scene draws itself | `emphasised(mobject, as)` | A mark the scene's own draw makes, tagged with what it shows where it is drawn; the phone's tour visits new emphasis first | `emphasises(scene, now)` from `explain/look.ts`, which the package did not export; `s.emphasise(now)`, a callback read from state beside the draw |
+| Emphasis a scene draws itself | `emphasised(mobject, as)` | A mark the scene's own draw makes, tagged with what it shows where it is drawn; the phone's tour visits new emphasis first | `emphasises(scene, now)`; `s.emphasise(now)`, a callback read from state beside the draw |
 | What a mark says | `as` | The word a mark's description gives it, the same everywhere: a card's `lit: { row, as }`, a code panel's `lit: { lines, as }`, a diagram mark's `{ color, as }`, `emphasised(m, as)`. A code panel's highlighted lines are lit; `focus` means only the camera (`s.focus`) | `litAs` on a card; `focus` and `focusAs` on a code panel; `emphasised(m, what)` |
-| A card or code panel | `card(s, rows, opts)`, `code(s, lines, opts)` in `rayner/drawing`; `s.card`, `s.code` | The kit builds the picture, placed as the stage places it (its direction and regions), and the stage verb builds with the kit and enters it. `Card` and `CodeBlock` are types only. The engine's `Code` is plain highlighted code text with no panel | `new Card(scene, palette, …)` and `new CodeBlock(scene, palette, …)`, which ignored the stage's direction; `s.cardPicture`, `s.codePicture` |
-| A stage or diagram verb that animates | an action, `Action<T>`: what `s.card`, `s.focus`, `d.walk` and the rest return | An animation that is also a promise of what the verb gives: awaited it plays itself, handed to `play()`, a `Succession` or a group it plays there. It plays once ([actions](REFERENCE.md#actions)) | A `Promise` that played at once; `s.focus`'s `with` option for animations in the same play |
-| Identity | `key`, `keyed(m, key)`, `find(key)`, `findAll(match)` | How a part is addressed and kept across morphs: the same key in two pictures is the same part | `Mobject.id`, now private to the engine: the renderer's number |
-| What a part is for | `role` | A job many parts can share: the stage's `'backdrop'`, `'heading'` and `'chrome'`, a diagram's `'frame'`. Copies carry it; it is never an identity | Keys starting `__` (`__chrome`, `__heading`, `__paper`, `__frame`), which made a key double as a role and needed an exception in the one-key-one-part check |
-| A part's own parts | `key:part` under a keyed picture (a tile's `key:box` and `key:label`), `d.shapes(id)` and `d.labels(id)` for a diagram part | How a scene reaches inside a kit picture or a diagram part: by key or accessor, never by child index | `children[i]` reaches into a tile, a callout, a marker or a diagram part |
+| A card or code panel | `card(s, rows, opts)`, `code(s, lines, opts)` in `rayner/drawing`; `s.card`, `s.code` | The kit builds the picture, placed as the stage places it (its direction and regions), and the stage verb builds with the kit and enters it. `Card` and `CodeBlock` are types only. The engine's `Code` is plain highlighted code text with no panel | `new Card(scene, palette, …)` and `new CodeBlock(scene, palette, …)`, which would ignore the stage's direction; `s.cardPicture`, `s.codePicture` |
+| A stage or diagram verb that animates | an action, `Action<T>`: what `s.card`, `s.focus`, `d.walk` and the rest return | An animation that is also a promise of what the verb gives: awaited it plays itself, handed to `play()`, a `Succession` or a group it plays there. It plays once ([actions](REFERENCE.md#actions)) | A `Promise` that plays at once; `s.focus`'s `with` option for animations in the same play |
+| Identity | `key`, `keyed(m, key)`, `find(key)`, `findAll(match)` | How a part is addressed and kept across morphs: the same key in two pictures is the same part; `keyed` sets it, and `key` is read-only | `Mobject.id`, the renderer's internal number; assigning `m.key` |
+| What a part is for | `role` | A job many parts can share: the stage's `'backdrop'`, `'heading'` and `'chrome'`, a diagram's `'frame'`. Copies carry it; it is never an identity | Keys starting `__` (`__chrome`, `__heading`, `__paper`, `__frame`), which make a key double as a role |
+| A part's own parts | `key:part` under a keyed picture (a tile's `key:box` and `key:label`), `d.shapes(id)` and `d.labels(id)` for a diagram part | How a scene reaches inside a kit picture or a diagram part: by key or accessor, never by child index | `children[i]` into a tile, a callout, a marker or a diagram part |
 | The colours to draw with | `s.look` (`Look`) | paper, ink, soft, emphasis, good, bad, raised, rule and muted, each reading on the stage's paper; a colour name means one colour everywhere, so `d.emphasis` and `scene.colors.emphasis` are the look's | `s.emphasis`, `s.soft`, `s.good`, `s.bad`, `s.raised`, `s.rule`, `s.palette` read for drawing, local `{ ...s.palette, soft, emphasis }` bundles; `accent` for the derived emphasis colour (`SceneColors.accent`, `d.accent`) |
 | A named style's colours | `Palette`, `palette(name)` | The input a stage or diagram is styled from: `paper`, `ink`, the style's own `accent` and `muted`. Drawing code reads the look, not the palette | |
 | The stage's paper rectangle | `s.backdrop`, role `'backdrop'` | The rectangle the stage is drawn on; "paper" names only its colour, `s.look.paper` | `s.paper`, role `'paper'` |
@@ -46,24 +43,24 @@ One row per idea.
 | A legend's layout | `stack: 'column' \| 'row'` | Entries stacked or side by side | `direction`, which means left-to-right or right-to-left on the stage and a card |
 | Matching by key | `matchByKey()`, `match: 'key'` | Keyed parts pair with keyed parts; a view's `sync()` matches this way, staged, unless told otherwise | `match: 'keys'` |
 | Enlarging diagram artwork | `d.enlarge(ids \| 'all')` | The diagram's parts scaled up inside its own box; the camera does not move (`s.focus` moves it) | `d.focus` |
-| Event-driven model | `Machine`, `machinesOf(scene)` | `start`, `events`, `next`, `views`; `send`, `replay` | `Session`, `sessionsOf`; describe's `sessions` field (now `machines`) |
+| Event-driven model | `Machine`, `machinesOf(scene)` | `start`, `events`, `next`, `views`; `send`, `replay` | `Session`, `sessionsOf`; a describe field `sessions` |
 | Refused event | `next` returns `refuse(reason)`, the reason in the reader's words (`undefined` refuses with none) | Which buttons a reader cannot press in a state, and why; one function, so the buttons, their reasons and the model cannot disagree | A refused event returning the same state; `why(state, event)`, a reason in a function of its own |
 | Where the story stops | `bound(state, event)` | An event the model would take but the explainer's story does not reach; the player says so instead of calling it refused | |
 | Live step | the step a machine last played in | Where the player gives the reader a button per event, and where `rayner check` explores the machine | |
-| A step's moments | the **still frame** (`holdFrame ?? frame1`), the **hold** (`hold`, `holdFrame`), **rest** (the step's end: `t1`, `frame1`, the trace's `after`) | The still frame is where a step's picture stops changing: where its caption hold begins, else its last frame; the player, playing one step, stops there, while a continuous render plays on through the hold to `t1`. The hold is the caption's reading time, from `holdFrame` to `frame1`, which repeats the still frame's picture. Rest is the step as it ends, after its end listeners, its hold and any code after its last play: its **resting picture** is the one a link shows (`frame1`), the trace records its state as `after`, and a live step's reader starts from it (`LiveRun.rest`, `LogStart`'s `'rest'`), as `rayner check` explores from it. The still frame and rest show one picture, since check fails a picture that changes during the hold or after the last frame; only rest names a state, which code after the last play can still change | `restFrame`; a live run that stopped at the still frame; "timed playback"; "a live Step" for a step still running (a **running** `Step`, whose `frame1` is null; an `EndedStep` has one) |
+| A step's moments | the **still frame** (`holdFrame ?? frame1`), the **hold** (`hold`, `holdFrame`), **rest** (the step's end: `t1`, `frame1`, the trace's `after`) | The still frame is where a step's picture stops changing: where its caption hold begins, else its last frame; the player, playing one step, stops there, while a continuous render plays on through the hold to `t1`. The hold is the caption's reading time, from `holdFrame` to `frame1`, which repeats the still frame's picture. Rest is the step as it ends, after its end listeners, its hold and any code after its last play: its **resting picture** is the one a link shows (`frame1`), the trace records its state as `after`, and a live step's reader starts from it (`LiveRun.rest`, `LogStart`'s `'rest'`), as `rayner check` explores from it. The still frame and rest show one picture, since check fails a picture that changes during the hold or after the last frame; only rest names a state, which code after the last play can still change | `restFrame`; "timed playback"; "a live Step" for a step still running (a **running** `Step`, whose `frame1` is null; an `EndedStep` has one) |
 | What the scene is doing | `scene.phase` (`ScenePhase`) | `idle`, `playing`, `waiting`, `ending-step`, `beginning-step` or `stopped`: the engine's lifecycle; "phase" names only the engine's lifecycles, this and an animation's `phase` | `scene.stopped` |
-| Where an animation is | `animation.phase` (`AnimationPhase`) | `idle`, `begun` (until it and every member have finished; a `Succession` whose play has finished it while a member waits is still begun) or `finished` | `landing`, a fourth phase no reader told apart from `begun` |
+| Where an animation is | `animation.phase` (`AnimationPhase`) | `idle`, `begun` (until it and every member have finished; a `Succession` whose play has finished it while a member waits is still begun) or `finished` | `landing`, as a fourth phase beside `begun` |
 | A chapter of the story | `shown.chapter` | Which picture a scene shows in a stretch of its story (monty-hall's `odds`, statecharts' `parent`), kept in `shown`; a state that changes shape by chapter is a union of its shapes | `shown.phase`, a story phase beside the engine's |
 | Finish | an animation finishes; a play finishes its animations; `rayner check`'s last-frame check | The normal end: an animation's `doFinish()` ends where its last frame drew, a transition finishes on the pictures of the state it reaches, a reader's event finishes on its log's picture (the player's `drawLog()`, `data-drawn`) | "land" for the normal end, which named two things |
 | Land | `landBegun` | Recovery after a failure: a play that fails lands what it began, finishing it as the end of its play would and beginning nothing more | `land()` on an animation (now the engine's own), the `landing` phase, a machine's `Landing` (now `TakePictures`), check's `LandingSink` (now `LastFrameSink`), the player's `land()` (now `drawLog()`) and `data-landed` (now `data-drawn`) |
 | What play() takes | `Playable`: a `ScheduledAnimation` or a `.animate` builder | An `Animation` animates its `mobject`, and is what a custom animation extends; an `AnimationGroup` animates no one mobject, so it is no `Animation`, and `ScheduledAnimation` names either, as groups and transitions take them | |
 | How a diagram is shown | `d.presentation` (`DiagramPresentation`) | `detached`, `live` (its own parts on the stage, which reveal, enlarge and morph move) or `viewed` (a view draws it); `live` here is not a live step | `d.shownBy`, the stage's map of diagram views |
 | The reader's events | `sent` | The events a reader sent at a live step, in the URL beside `step` | |
-| Authored transition | `transition: { [event]: (t) => Animation }` | The motion for an event, built from `{ event, before, after, target, choreograph }` when its turn comes; the views then land in place on the pictures of `after` | Hand animation in ring-buffer and state-machine |
+| Authored transition | `transition: { [event]: (t) => Animation }` | The motion for an event, built from `{ event, before, after, target, choreograph }` when its turn comes; the views then land in place on the pictures of `after` | Hand animation beside the machine |
 | Authored transition parts | `t.choreograph(view)`: `morph`, `enter`, `leave`, `insert`, `own`, `follow`, `travel`, `rest`; `from`, `to`, `has` and `keys` read the two pictures | One event's motion, part by part, by key ([the calls](MACHINES.md#refused-events-bounds-and-authored-transitions)) | |
 | A sampled value | `view.tween((t) => state)`; `c.follow({ from, to, draw }, { targets })` in a transition | A state, or one number, sampled between two ends and redrawn with `become` | |
 | Taking another's data in place | `become(other)` | Keeps identity and keys; refuses to drop a keyed child | |
-| Pen animation | `stage.sketch(m)` | Draw `m` stroke by stroke with a pen or pencil | `stage.draw(m)` |
+| Pen animation | `s.sketch(m)` | Draw `m` stroke by stroke with a pen or pencil | `s.draw(m)` |
 | 2D camera | `Frame`, `scene.frame` | The box of the scene that is on screen | |
 | 3D picture | `seenFrom(model, viewpoint)`, `depthOrder(picture)` in `rayner/geo` | Draws a 3D model through a viewpoint, `{ kind, yaw, pitch }`, as keyed 2D pieces in an explicit depth order (far, body, near). The viewpoint is ordinary state turned by a view's tween; Mercator and gnomonic maps are viewpoint kinds of the same model. Used by great-circle and henge. Not an engine type | |
 | Frame-level check | `addInvariant`, `InvariantSink` | A predicate checked on every frame; returns `true` when it held | Calling invariants "claims" |
@@ -74,20 +71,18 @@ One row per idea.
 | Tables | `table(s, headers, rows, { key })`, rows `{ key, cells }` | The drawing kit's `table()`, with keyed cells: `key:row:column`, each row `key:row`, the header row `key:head`. A row's own `key` (or its index) is its identity, so a moved row is the same part; a duplicated row key or header is refused. Adopted by python-dict (entries keyed `e0`, `e1`, ...) and bloom-filter (lookups keyed by name, sample rows by row length) | A second table primitive |
 | Graphs | `Diagram` | Captured from Mermaid; `walk`, `morph` and `picture` (its marks, notes and dimming, drawn from state) | A separate `Graph` type |
 
-"Frame" still means two things: the 2D camera and an instant of a run. Manim has the same
-overlap (`camera.frame` and frame rate), and context separates them. The step-list meaning is
-gone.
+"Frame" means two things: the 2D camera and an instant of a run. Manim has the same overlap
+(`camera.frame` and frame rate), and context separates them.
 
 ## Decisions
 
-A Domain-Driven Design reading found five vocabularies leaking into each other: the engine
-(Manim's words, kept on purpose), the explanation (step, caption, stage, scenario), verification
-(invariant, claim, trace, evidence), the reader's controls, and each explainer's own domain.
-`draw(state)` is where an explainer's domain becomes pictures, which is why it has one name
-everywhere. The review settled these:
+Five vocabularies meet in Rayner: the engine (Manim's words, kept on purpose), the explanation
+(step, caption, stage, scenario), verification (invariant, claim, trace, evidence), the reader's
+controls, and each explainer's own domain. `draw(state)` is where an explainer's domain becomes
+pictures, which is why it has one name everywhere. These decisions keep them apart:
 
-- One word for a combination of settings, `scenario`, in code, reports and docs. `case` was
-  tried first, but it is reserved in JavaScript, so a single one could not be named `case` in code.
+- One word for a combination of settings, `scenario`, in code, reports and docs. Not `case`,
+  which is reserved in JavaScript, so a single one could not be named `case` in code.
 - The model apart from what is shown. `scene.state` holds only the model, and `scene.shown` holds
   which picture a chapter shows and the stage's description of its picture. A machine plays under
   one `shown`, and exploration draws its states under it.
@@ -98,9 +93,9 @@ everywhere. The review settled these:
 - `seenFrom`, not `projected`. "Projection" is the CQRS word for a picture derived from state,
   so the 3D function is named for what it does.
 
-The renames came with refactors that make a name's promise checkable:
+Each name's promise is checkable:
 
-- Staged steps are views of state. `stage.steps` draws each step's picture as a view of its
+- Staged steps are views of state. `s.steps` draws each step's picture as a view of its
   state, and `rayner check` holds it to its draw as it holds every view: it fails one whose
   picture differs from a fresh draw at its step's end, or is the same whatever state it is drawn from. Constants computed once
   per scenario, such as henge's model, pass: they are the same in both runs.
@@ -109,13 +104,15 @@ The renames came with refactors that make a name's promise checkable:
 - A transition lands on the model's picture. It is optional per event; with one, the authored
   motion plays and the views then land in place on `draw(after)`, and `rayner check` fails a
   transition that ends anywhere else.
-- Keyed tables went in with python-dict as their first adopter, and bloom-filter is the second: its lookup rows are keyed by the name looked up and its sample rows by row length, so `bloom-pipeline:wolf:Filter` is wolf's answer in either scenario, and `scenes/explainers/bloom-filter/scene.test.ts` reads each keyed cell against the model. Its resting and sampled frames hashed the same before and after. `seenFrom` went in with
-  great-circle; henge is the second adopter. Henge's flat cross-section globes could not move to
-  it unchanged, since they drew Earth's axis across an opaque disc and `seenFrom` hides what the
-  body hides. They were replaced instead: two tilted 3D Earths with a translucent body, the axis
-  dashed inside it (`hidden: 'dashed'`) and solid where it stands out of each pole (`'behind'`).
-  Henge also draws New York's sky as a sphere, from outside (the dome) and from its centre (the
-  street, gnomonic), and turns the year with a view's tween over the orbital longitude.
+- A keyed table row is its identity. python-dict and bloom-filter key their rows: bloom-filter's
+  lookup rows by the name looked up and its sample rows by row length, so
+  `bloom-pipeline:wolf:Filter` is wolf's answer in either scenario, and
+  `scenes/explainers/bloom-filter/scene.test.ts` reads each keyed cell against the model.
+- `seenFrom` hides what the body hides. great-circle and henge draw with it: henge's two tilted
+  Earths have a translucent body, the axis dashed inside it (`hidden: 'dashed'`) and solid where
+  it stands out of each pole (`'behind'`). Henge also draws New York's sky as a sphere, from
+  outside (the dome) and from its centre (the street, gnomonic), and turns the year with a view's
+  tween over the orbital longitude.
 
 ## Names deliberately kept
 
@@ -133,10 +130,9 @@ The renames came with refactors that make a name's promise checkable:
 - `GrowFromEdge` and `PulseAlongPath`. They are stock animation vocabulary with a documented
   recipe, and adopter counts are the wrong test for a stock animation.
 
-`Indicate` and `Flash` were kept on the same grounds until 0.2.0, and cut then, with `MathTex`'s
-alias `Math` ([the changelog lists what 0.2.0 removed](../CHANGELOG.md#removed-from-the-public-api)).
-A mark that fades before the resting picture invites what the checks reject, and in a namespace
-agents mostly write, such a name is worse than none. `Circumscribe` stays, because it can `keep`.
+`Indicate` and `Flash` are not stock vocabulary here. A mark that fades before the resting
+picture invites what the checks reject, and in a namespace agents mostly write, such a name is
+worse than none. `Circumscribe` is kept, because it can `keep`.
 
 ## Not chosen, and why
 
@@ -166,7 +162,7 @@ agents mostly write, such a name is worse than none. `Circumscribe` stays, becau
 - `stateView`, a readout of state keys, and `StateReadout`. A card without a panel (`card(s, rows, { panel: false })`) in a `view` does the same.
 - `s.cardPicture` and `s.codePicture`, stage methods that built a picture without entering it. A
   picture a view draws comes from the drawing kit, as `callout(s, …)` does, and the stage verb
-  enters it; one convention for both, and a constructor that skipped the stage's direction is gone.
+  enters it; one convention for both, and no constructor that skips the stage's direction.
 - `focus` for a code panel's highlighted lines. It is the camera's word (`s.focus`); the lines
   are lit, as a card's row is.
 - `view(build)`, a view not made from state. It cannot be checked against the state, so the
