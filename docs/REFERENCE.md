@@ -305,7 +305,7 @@ A row gives one value per column, or one value that spans them all (Requests abo
 - then what the picture shows, positionally: its text, rows or items, and what it measures or points at (a callout's target, a dimension's ends, a pin's point);
 - then one options object: `at` is where the picture stands, `size` its text size, `key` its address.
 
-A function whose parts are keyed (`table`, `stat`, `flow`, `bars`, `legend`) requires `key`, so two of one kind on a stage never collide. `tile`, `dot`, `callout`, `dimension` and `pin` take `key` optionally, and key the composite and its parts (the last column) only when given it. A keyed picture keys its parts under its own key, so a scene addresses a part by key (`find`, matching, a choreography's `c.from`), never by a child index. A single part, `label` or `segment`, takes no `key`: it and any mobject a scene draws itself is keyed with `keyed(m, key)` from `rayner`, the one way to key a part, which returns `m`. `m.key` is read-only.
+A function whose parts are keyed (`table`, `stat`, `flow`, `bars`, `legend`) requires `key`, so two of one kind on a stage never collide. `tile`, `dot`, `callout`, `dimension` and `pin` take `key` optionally, and key the composite and its parts (the last column) only when given it. A keyed picture keys its parts under its own key, so a scene addresses a part by key (`find`, matching, a choreography's `c.from`), never by a child index. A single part, `label` or `segment`, takes no `key`: it and any mobject a scene draws itself is keyed with `keyed(m, key)` from `rayner`, the one way to key a part, which returns `m`. `m.key` is read-only, and an empty key is refused with a `RangeError`.
 
 | Function | Draws | Keyed parts |
 | --- | --- | --- |

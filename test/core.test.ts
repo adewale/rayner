@@ -323,6 +323,12 @@ test('keyed() keys a part and returns it; copies carry the key, restore() return
   assert.equal(sq.key, 'slot');
 });
 
+test('keyed() refuses an empty key and leaves the part as it was', () => {
+  const sq = keyed(new Rectangle({ width: 2, height: 2 }), 'slot');
+  assert.throws(() => keyed(sq, ''), /^RangeError: keyed\(\): the key is ""/);
+  assert.equal(sq.key, 'slot');
+});
+
 test('no public path makes the mobject tree a cycle, or lets a parent and its children disagree (invariant row 8)', () => {
   const a = new Group(), b = new Group();
   a.add(b);

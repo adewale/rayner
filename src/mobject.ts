@@ -894,9 +894,11 @@ export function adoptState(m: Mobject, state: Mobject, keep: ReadonlySet<string>
 
 /**
  * `m` with `key` set, returned: the part's address, which matching (matchByKey), `find`,
- * invariants and reviews read. The one way to key a part: `Mobject.key` is read-only.
+ * invariants and reviews read. The one way to key a part: `Mobject.key` is read-only. A key is a
+ * non-empty string; an empty one, which no type can refuse, is refused with a RangeError.
  */
 export function keyed<T extends Mobject>(m: T, key: string): T {
+  if (key === '') throw new RangeError('keyed(): the key is ""; give the part a non-empty key, its address');
   setKey(m, key);
   return m;
 }
