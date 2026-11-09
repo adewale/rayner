@@ -245,7 +245,10 @@ for good, and its picture stays as the stopping frame drew it.
 A run time and a lag ratio are finite and not negative, given to the constructor, to
 `play()` or set on the animation (`a.runTime = 2`), and, with the rate function, fixed while it
 plays: a play counts its frames from them as it begins, so setting any of them on a begun
-animation throws. A play checks the options it is given against every animation before it gives
+animation throws (`animation.runTime: a FadeIn is playing, …`). An animation plays in one place at a
+time: a `play()` given one that has begun and not finished, a `Succession` whose members still
+finish in turn included, refuses it (`this.play(): a Succession has already begun, …`) before it
+lays out, binds or draws anything. A play checks the options it is given against every animation before it gives
 them to any, so a play refused before anything begins leaves its animations as they were. A
 `Succession` takes no lag ratio, since its members run one after another: its options have none,
 and `play()` and the setter refuse one. A `play()` given no animation, with or without options,

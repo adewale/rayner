@@ -114,6 +114,12 @@ export const playsOn = Symbol('playsOn');
  * runs under, unless sampleAnimation() says otherwise.
  */
 export let beginAnimation: (a: ScheduledAnimation, api?: string) => void;
+/**
+ * @internal Refuse, under `api`, an animation that has begun and not finished (a Succession whose
+ * members still finish in turn included): it plays in one place at a time. What `beginAnimation`
+ * refuses, which a play asks first, before it touches any of its animations.
+ */
+export let refuseBegun: (a: ScheduledAnimation, api: string) => void;
 /** @internal See beginAnimation. */
 export let interpolateAnimation: (a: ScheduledAnimation, alpha: number, api?: string) => void;
 /** @internal See beginAnimation. */
@@ -157,11 +163,8 @@ export function playOptions(anims: readonly ScheduledAnimation[], opts: PlayOpti
   const { runTime, rateFunc, lagRatio } = opts;
   if (runTime != null) assertTime('this.play()', 'its runTime', runTime);
   if (lagRatio != null) assertTime('this.play()', 'its lagRatio', lagRatio);
-  const given = runTime != null ? 'runTime' : rateFunc != null ? 'rateFunc' : lagRatio != null ? 'lagRatio' : null;
-  if (given) for (const a of anims) {
-    if (phaseOf(a) === 'begun') throw new Error(`this.play(): ${animationName(a)} is playing, and its play fixed its frames from its ${given}; give it options before it begins, or after it finishes`);
-    a[refuseTiming]('this.play()', { rateFunc, lagRatio }, true);
-  }
+  // An animation still begun was refused before this (see refuseBegun).
+  for (const a of anims) a[refuseTiming]('this.play()', { rateFunc, lagRatio }, true);
   return () => { for (const a of anims) a[takeOptions](opts); };
 }
 
@@ -191,6 +194,7 @@ abstract class AnimationTiming {
   }
   static {
     beginAnimation = (a, api = 'this.play()') => a.#begin(api);
+    refuseBegun = (a, api) => a.#refuseBegun(api);
     interpolateAnimation = (a, alpha, api = 'this.play()') => a.#interpolate(alpha, api);
     finishAnimation = (a, alpha, api = 'this.play()') => a.#finish(alpha, api);
     runTimeOf = (a) => a.#runTime;
@@ -242,10 +246,14 @@ abstract class AnimationTiming {
     if (this.#phaseNow() === 'begun') throw new Error(`${api}: ${animationName(this)} is playing, and its play fixed its frames from its ${what}; change it before it begins, or after it finishes`);
   }
 
-  /** Begin: fix the endpoints (see doBegin). Refused while begun; a doBegin() that throws leaves the phase as it was. */
-  #begin(api: string): void {
+  /** See refuseBegun. */
+  #refuseBegun(api: string): void {
     if (this.#phaseNow() === 'begun')
       throw new Error(`${api}: ${animationName(this)} has already begun${this.#phase === 'finished' ? ', and its members still finish in turn' : ''}; an animation plays in one place at a time, so make another for the second`);
+  }
+  /** Begin: fix the endpoints (see doBegin). Refused while begun; a doBegin() that throws leaves the phase as it was. */
+  #begin(api: string): void {
+    this.#refuseBegun(api);
     const was = this.#phase;
     this.#phase = 'begun';
     try { this.doBegin(); } catch (e) { this.#phase = was; throw e; }
