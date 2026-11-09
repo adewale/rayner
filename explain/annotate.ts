@@ -345,7 +345,7 @@ export function colorName(hex: string): string {
 }
 
 /** How a legend says one swatch: "purple fill", "dashed red line", "green fill with a dashed outline". */
-export function swatchWords(item: LegendItem, api = 'legend()'): string {
+export function swatchWords(item: LegendItem): string {
   const name = (c: string) => item.name ?? colorName(c);
   if (item.fill === 'none' && item.stroke) return `${item.dashed ? 'dashed ' : ''}${name(item.stroke)} outline`;
   if (item.fill && item.stroke) {
@@ -354,7 +354,7 @@ export function swatchWords(item: LegendItem, api = 'legend()'): string {
   }
   if (item.fill) return `${name(item.fill)} fill`;
   if (item.stroke) return `${item.dashed ? 'dashed ' : ''}${name(item.stroke)} line`;
-  throw new TypeError(`${api}: the entry ${JSON.stringify(item.label)} needs a fill or a stroke for its swatch`);
+  throw new RangeError(`legend(): the entry ${JSON.stringify(item.label)} needs a fill or a stroke for its swatch`);
 }
 
 export interface LegendLook {
@@ -370,8 +370,6 @@ export interface LegendLook {
   gap?: number;
   /** The legend's key: each entry is keyed `key:<label>`, its swatch `key:<label>:swatch` and its words `key:<label>:text`. */
   key?: string;
-  /** The call an error names: the kit's `legend()` or the stage's `s.legend()`. */
-  api?: string;
 }
 
 /**
@@ -379,14 +377,14 @@ export interface LegendLook {
  * describes itself as its swatch→meaning pairs ("Key: purple fill, cat’s bits; dashed blue line,
  * the browser"), so the words a caption uses for a colour or a dash are on the stage too.
  */
-export function legend(items: readonly LegendItem[], { ink, shaping, size = 0.3, at = [0, 0], stack = 'column', gap, key, api = 'legend()' }: LegendLook): Group {
-  if (!items.length) throw new Error(`${api}: a legend needs at least one entry`);
+export function legend(items: readonly LegendItem[], { ink, shaping, size = 0.3, at = [0, 0], stack = 'column', gap, key }: LegendLook): Group {
+  if (!items.length) throw new RangeError('legend(): a legend needs at least one entry');
   const labels = new Set<string>();
   for (const item of items) {
-    if (!item.label.trim()) throw new TypeError(`${api}: every entry needs words for what its swatch means`);
-    if (labels.has(item.label)) throw new Error(`${api}: two entries say ${JSON.stringify(item.label)}; each swatch needs its own meaning`);
+    if (!item.label.trim()) throw new RangeError('legend(): every entry needs words for what its swatch means');
+    if (labels.has(item.label)) throw new Error(`legend(): two entries say ${JSON.stringify(item.label)}; each swatch needs its own meaning`);
     labels.add(item.label);
-    swatchWords(item, api);
+    swatchWords(item);
   }
   const side = size * 0.9,
     long = size * 1.8,

@@ -8,7 +8,7 @@ import { Scene, Create, FadeOut, LaggedStart } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, Diagram, diagramResolverOf, having } from '../../../explain/index.ts';
 import type { ExplainerMeta } from '../../../explain/index.ts';
-import { code } from '../../../explain/drawing.ts';
+import { code, dimension } from '../../../explain/drawing.ts';
 import {
   WORLD,
   TITLE,
@@ -233,7 +233,8 @@ export default class PenAndPencil extends Scene<PenState, { layout?: { marked: s
     this.shown.layout = { marked: [`period:period-${FOCUS}`] };
     await this.play(layoutView.sync({ runTime: 0.45 }));
     const [ex0, ey0, ex1] = focus.event.box;
-    const width = await s.dimension([ex0, ey0], [ex1, ey0], `${fmt(ex1 - ex0, 2)} units`, { offset: -0.3 });
+    const width = s.keep(dimension(s, [ex0, ey0], [ex1, ey0], `${fmt(ex1 - ex0, 2)} units`, { offset: -0.3 }));
+    await this.play(new Create(width, { runTime: 0.6, lagRatio: 0.1 }));
 
     await this.step('marks', {
       title: 'The hand is given the layout’s marks and nothing else',

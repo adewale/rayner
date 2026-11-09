@@ -852,7 +852,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     assert.deepEqual(
       unnamed,
       [],
-      `Captions name a look the stage does not ${where}: ${unnamed.join('; ')}. Label it, or key it with a legend (rayner/drawing's legend, s.legend)`,
+      `Captions name a look the stage does not ${where}: ${unnamed.join('; ')}. Label it, or key it with a legend (rayner/drawing's legend)`,
     );
     const staticSmall = [...staticLabels.values()]
       .filter((label) => label.px < MIN_PX)

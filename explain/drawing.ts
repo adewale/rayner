@@ -327,11 +327,10 @@ export function bars(
   return g;
 }
 
-// Annotations: the pictures the stage's s.callout, s.dimension, s.pin and s.legend draw in. The kit
-// builds each in world coordinates, for a view's or a staged step's draw, beside the parts it
-// annotates; the stage verb builds it with the same function from the points the camera shows, then
-// maps it to the screen, so with the camera moved it is still at its size on screen. At home the two
-// are the same picture.
+// Annotations: pictures that say a value where it is, built in world coordinates, for a view's or a
+// staged step's draw, or for s.enter, beside the parts they annotate. s.callout builds a callout with
+// the same function from the points the camera shows, then maps it to the screen, so with the camera
+// moved it is still at its size on screen; at home the two are the same picture.
 
 /**
  * Words beside a target (a point, a box or a mobject) with a leader line from the words to the
@@ -349,8 +348,7 @@ export function callout(
 }
 /**
  * A dimension line from `a` to `b`, set off by `offset` (positive: to the left of a→b), with ticks
- * at both ends and `label` at its middle, in the look's emphasis on its paper: `s.dimension`'s
- * picture. Keyed `key` when given, with its parts `key:extension:start`, `key:extension:end`,
+ * at both ends and `label` at its middle, in the look's emphasis on its paper. Keyed `key` when given, with its parts `key:extension:start`, `key:extension:end`,
  * `key:line`, `key:arrow:start`, `key:arrow:end`, `key:backing` and `key:text`. Described as “A
  * dimension line marked …”.
  */
@@ -365,7 +363,7 @@ export function dimension(
 }
 /**
  * A pin stuck in at `point`, with an optional label beside its head on its `side` (right by
- * default), in the look's emphasis: `s.pin`'s picture. Keyed `key` when given, with its parts
+ * default), in the look's emphasis. Keyed `key` when given, with its parts
  * `key:needle`, `key:head` and `key:label`. Described as “A pin marked …”.
  */
 export function pin(
@@ -390,8 +388,7 @@ export function legend(
   opts: { at?: Vec; size?: number; stack?: 'column' | 'row'; gap?: number; key: string },
 ): Group {
   const { at = [0, 0], size = 0.3, stack = 'column', gap, key } = opts;
-  const api = (opts as { api?: string }).api ?? 'legend()';
-  return legendLook(items, { ink: s.look.ink, shaping: s.scene.textShaping, size, at, stack, key, api, ...(gap === undefined ? {} : { gap }) });
+  return legendLook(items, { ink: s.look.ink, shaping: s.scene.textShaping, size, at, stack, key, ...(gap === undefined ? {} : { gap }) });
 }
 /**
  * Labelled values on a panel in the stage's colours: `s.card`'s picture, not entered, for a view's

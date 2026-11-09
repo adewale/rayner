@@ -114,9 +114,9 @@ test('an action plays once: a second play, or awaiting one that played in a play
   assert.equal(await card, value, 'awaiting it again gives the same card, without a second play');
   await assert.rejects(scene.play(card), /s\.card\(\): it has already played; an action plays once/);
   // A Succession that holds it twice is refused before either plays.
-  const pin = s.pin([0, 0]);
-  await assert.rejects(scene.play(new Succession([pin, pin])), /this\.play\(\): s\.pin\(\) is listed twice in one play/);
-  await scene.play(pin);
+  const note = s.note('once');
+  await assert.rejects(scene.play(new Succession([note, note])), /this\.play\(\): s\.note\(\) is listed twice in one play/);
+  await scene.play(note);
 });
 
 test('an action made but never played fails its step, and the scene at its end', async () => {

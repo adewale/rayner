@@ -2,7 +2,7 @@ import { Scene, Text, Group, FadeIn } from '../../../src/index.ts';
 import type { Box, FadeOpts } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, answerOf as scriptAnswerOf, view, having } from '../../../explain/index.ts';
 import type { CardOptions, CardRow, View, ExplainerMeta } from '../../../explain/index.ts';
-import { keyed, card, code } from '../../../explain/drawing.ts';
+import { keyed, card, code, legend } from '../../../explain/drawing.ts';
 import {
   ADDR,
   MACHINES,
@@ -508,7 +508,8 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
       },
     });
     // The key to the boxes, which the caption reads: trusted, req.ip, not read, and the band a count trusts.
-    await s.legend(
+    const key = legend(
+      s,
       [
         { label: 'trusted', fill: s.look.good },
         { label: 'req.ip: thick outline', fill: 'none', stroke: s.look.ink },
@@ -517,6 +518,7 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
       ],
       { at: [-7.4, -3.72], size: 0.26, stack: 'row', gap: 0.5, key: 'routes-legend' },
     );
+    await s.enter(key, { runTime: 0.4 });
     s.opening(this.find('routes-positions')!);
 
     // ------------------------------------------------------------------ code

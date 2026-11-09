@@ -10,7 +10,6 @@ import type { StepKind } from './script.ts';
 import type { StepAudio } from './audio.ts';
 import { tool, Sketch, oneStrokeEach } from './annotate.ts';
 import * as kit from './drawing.ts';
-import type { LegendItem } from './annotate.ts';
 import type { Side, ToolKind } from './annotate.ts';
 import { Diagram } from './diagrams.ts';
 import { Action } from './action.ts';
@@ -673,35 +672,10 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
         return { value: undefined, beats: [{ runTime, play: () => [new Transform(m, target, { runTime })] }] };
       });
     },
-    /** A dimension line from `a` to `b` with `label`, set off by `offset`: the kit's `dimension`, sized for the screen, drawn in and kept. */
-    dimension(a: Vec, b: Vec, label: string, opts: { offset?: number; color?: string; size?: number; key?: string } = {}): Action<Group> {
-      return act('s.dimension()', () => {
-        // The line describes itself.
-        const view = camera();
-        const g = onScreen(kit.dimension(this, toScreen(a, view), toScreen(b, view), label, opts), view);
-        return drawIn(g, 0.6, () => new Create(g, { runTime: 0.6, lagRatio: 0.1 }));
-      });
-    },
-    /** A pin stuck in at `point`, with an optional label: the kit's `pin`, sized for the screen, drawn in and kept. */
-    pin(point: Vec, opts: { label?: string; color?: string; size?: number; side?: 'left' | 'right'; key?: string } = {}): Action<Group> {
-      return act('s.pin()', () => {
-        const view = camera();
-        const g = onScreen(kit.pin(this, toScreen(point, view), opts), view);
-        return drawIn(g, 0.4, () => new FadeIn(g, { runTime: 0.4, shift: [0, -0.15] }));
-      });
-    },
     /**
-     * A key of swatches and their meanings, its first entry starting at `at` (the swatch's left edge, on the entry's centre line):
-     * the kit's `legend`, sized for the screen, faded in and kept. It describes itself as its swatch→meaning pairs.
+     * Words beside a target with a leader line to it: the kit's `callout`, sized for the screen,
+     * drawn in and kept. Another kit picture enters with `s.enter`, at its size in the world.
      */
-    legend(items: readonly LegendItem[], opts: { at?: Vec; size?: number; stack?: 'column' | 'row'; gap?: number; key: string }): Action<Group> {
-      return act('s.legend()', () => {
-        const view = camera();
-        const g = onScreen(kit.legend(this, items, { ...opts, at: toScreen(opts.at ?? [0, 0], view), api: 's.legend()' } as typeof opts), view);
-        return drawIn(g, 0.4, () => new FadeIn(g, { runTime: 0.4 }));
-      });
-    },
-    /** Words beside a target with a leader line to it: the kit's `callout`, sized for the screen, drawn in and kept. */
     callout(
       target: Vec | Box | Mobject,
       text: string,
