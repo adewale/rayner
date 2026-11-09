@@ -49,7 +49,7 @@ keeps its size, so the growth is along one axis.
 Placement and authored paint/opacity are captured when the play begins. At its
 normal endpoint, the object has exactly its authored geometry and styles.
 
-Options are `AnimOptions` plus `initialScale`, a finite value in `[0, 1]`, default
+Options are `AnimationOptions` plus `initialScale`, a finite value in `[0, 1]`, default
 `0.001`. The small default avoids a degenerate starting path; zero is supported.
 Opacity starts at zero independently of this scale. Standard duration, easing and
 family lag apply. As with other transforms, an easing that ends somewhere other
@@ -175,7 +175,7 @@ group, and each group lays out its members' times when the play begins, so
 
 ## Composition and verification
 
-Growth and pulse capture geometry at `begin()`. Both support the existing
+Growth and pulse capture geometry as the play begins. Both support the existing
 fixed-frame seek model and expose their written target to the ordinary schedule
 ownership checks, and both can be sampled out of order without integrating
 previous frames.

@@ -1,5 +1,6 @@
 import type {TextShaping} from '../src/text-context.ts';
 import { Group, Text } from '../src/index.ts';
+import { affine } from '../src/mobject.ts';
 import { ItalicText } from '../src/italic.ts';
 import type { VMobject, Style } from '../src/index.ts';
 import { SVG_PX_PER_UNIT as PX } from './diagram-snapshot.ts';
@@ -51,10 +52,10 @@ export function outlineText(run: SnapshotTextRun, style: Style, shaping?: TextSh
     run.x - (run.anchor === 'middle' ? advance / 2 : run.anchor === 'end' ? advance : 0),
     baseline,
   ]);
-  text.applyAffine(1, 0, 0, -1, 0, 2 * baseline, { aboutPoint: [0, 0] });
+  text[affine](1, 0, 0, -1, 0, 2 * baseline, { aboutPoint: [0, 0] });
   const [a, b, c, d, e, f] = run.matrix as [number, number, number, number, number, number];
   for (const path of text.children) {
-    path.applyAffine(a / PX, -b / PX, c / PX, -d / PX, e / PX, -f / PX, { aboutPoint: [0, 0] });
+    path[affine](a / PX, -b / PX, c / PX, -d / PX, e / PX, -f / PX, { aboutPoint: [0, 0] });
     path.style = { ...path.style, ...style };
   }
   return text.children as VMobject[];

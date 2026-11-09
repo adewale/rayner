@@ -6,8 +6,8 @@
 // take a gone one out. rest() lands every keyed part no call has handled, so a transition that
 // forgets a part still ends on the target picture. See docs/MACHINES.md.
 
-import { Animation, AnimationGroup, Create, FadeIn, FadeOut, MoveAlongPath, Transform, cleanUp } from '../src/animation.ts';
-import type { AnimOptions, TransformOptions } from '../src/animation.ts';
+import { Animation, AnimationGroup, Create, FadeIn, FadeOut, MoveAlongPath, Transform, cleanUp, beginAnimation, interpolateAnimation, finishAnimation } from '../src/animation.ts';
+import type { AnimationOptions, TransformOptions } from '../src/animation.ts';
 import { Follow } from './state.ts';
 import type { FollowSpec } from './state.ts';
 import type { Mobject } from '../src/mobject.ts';
@@ -27,9 +27,9 @@ class Joining extends Animation {
     super(part, { runTime: inner.runTime, rateFunc: (t) => t });
     this.inner = inner;
   }
-  protected override doBegin(): void { this.mobject.restore(); this.inner.begin(); }
-  protected override doInterpolate(alpha: number): void { this.inner.interpolate(this.inner.rateFunc(alpha)); }
-  protected override doFinish(): void { this.inner.finish(); }
+  protected override doBegin(): void { this.mobject.restore(); beginAnimation(this.inner); }
+  protected override doInterpolate(alpha: number): void { interpolateAnimation(this.inner, this.inner.rateFunc(alpha)); }
+  protected override doFinish(): void { finishAnimation(this.inner); }
   /** @internal */
   override [cleanUp](scene: Parameters<Animation[typeof cleanUp]>[0]): void { this.inner[cleanUp](scene); }
   override targets(): Mobject[] { return this.inner.targets(); }
@@ -60,9 +60,9 @@ export interface Choreography {
   /** Morph the current part into its target. */
   morph(key: string, opts?: TransformOptions): Animation;
   /** Bring in a part only the target has: faded in, drawn (`create`), or grown from a copy of the current part `from`. */
-  enter(key: string, how?: { from?: string; create?: boolean }, opts?: AnimOptions): Animation;
+  enter(key: string, how?: { from?: string; create?: boolean }, opts?: AnimationOptions): Animation;
   /** Take out a part only the current picture has. */
-  leave(key: string, opts?: AnimOptions): Animation;
+  leave(key: string, opts?: AnimationOptions): Animation;
   /** Put an unseen copy of `like` into the current picture as the part `key`, for the author to animate into view; it must end as the target part, or, when the target has no such part, leave. */
   insert(key: string, like: Mobject): Mobject;
   /** Mark a current part as the author's to animate (with follow, say); it must end as the target part. */
@@ -74,7 +74,7 @@ export interface Choreography {
    * key is owned (as `own`); a mobject target is one the author already holds, such as an
    * inserted part. `draw` returns a fresh mobject per target, in order (or the one, for one).
    */
-  follow(spec: FollowSpec, opts: AnimOptions & { targets: readonly (string | Mobject)[] }): Animation;
+  follow(spec: FollowSpec, opts: AnimationOptions & { targets: readonly (string | Mobject)[] }): Animation;
   /**
    * A token passing along `path`, a part the target does not have (a message on its arrow, an
    * event walking a link): `appear` brings `token` into view at the path's start, `move` carries it
@@ -83,7 +83,7 @@ export interface Choreography {
    */
   travel(key: string, token: Mobject, path: VMobject, times?: { appear?: number; move?: number; leave?: number }): { appear: Animation; move: Animation; leave: Animation };
   /** Every keyed part not yet handled: morphed when both pictures have it, faded in or out when one does. */
-  rest(opts?: AnimOptions): AnimationGroup;
+  rest(opts?: AnimationOptions): AnimationGroup;
 }
 
 /**

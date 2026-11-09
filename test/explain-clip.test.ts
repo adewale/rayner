@@ -11,6 +11,7 @@ import {
 import { NullSink, StringSink, renderFrame, toSvgString, renderElements } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import type { Box } from '../src/index.ts';
+import { mobjectId } from '../src/mobject.ts';
 
 function clipped(group: Group, clipBox: Box) {
   return Object.assign(group, { clipBox });
@@ -75,6 +76,6 @@ test('a translucent leaf wholly outside its clip is not written, and the frame s
   const scene = new Scene(new NullSink());
   scene.add(clipped(new Group(paper, ruled), [-1, -1, 1, 1]));
   const ids = renderElements(scene).map((r) => r.id);
-  assert.ok(ids.includes(paper.id) && !ids.includes(ruled.id));
+  assert.ok(ids.includes(mobjectId(paper)) && !ids.includes(mobjectId(ruled)));
   assert.equal(pixel(toSvgString(scene, { width: 160 }), 80, 45)[0], 0xf7);
 });

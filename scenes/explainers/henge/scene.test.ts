@@ -8,7 +8,7 @@ import { declination, sunset, henge, TILT, LATITUDE } from './model.ts';
 import Henge from './scene.ts';
 import { check as checkHengeScene } from './fidelity.ts';
 import { Scene, Transform } from '../../../src/index.ts';
-import { loadFonts, loadProject, assertViewFollowsState } from '../../../explain/testing.ts';
+import { loadFonts, loadProject, assertViewFollowsState, sampleAnimation } from '../../../explain/testing.ts';
 import type { Mobject, VMobject, Sink } from '../../../src/index.ts';
 import { azAlt, sunsetOf, dome, year, crossedBy, look, lookView, globes } from './sky.ts';
 
@@ -96,17 +96,13 @@ test('Henge street view from the centre: the street’s circle and the horizon s
   // The defect: the camera moved by morphing its first picture into its last, not by a Follow over the pitch.
   const first = look(eye('manhattan', 0), '#ffffff', { day: 'May' }, s), last = look(eye('manhattan', 1), '#ffffff', { day: 'May' }, s);
   bare().add(first);
-  const morph = new Transform(first, last);
-  morph.begin();
-  morph.interpolate(0.5);
+  sampleAnimation(new Transform(first, last), 0.5);
   assert.equal(typeof depthOrder(first), 'string', 'a half-morphed street view is drawn from no viewpoint');
   // The year's turn by morph fails the same way: drawn from no day's circle.
   const model = henge('manhattan'), start = { bearing: model.bearing, start: -90, longitude: -90, crossings: model.half };
   const a = year(start, dayOf, s), b = year({ ...start, longitude: 90 }, dayOf, s);
   bare().add(a);
-  const turn = new Transform(a, b);
-  turn.begin();
-  turn.interpolate(0.5);
+  sampleAnimation(new Transform(a, b), 0.5);
   assert.equal(typeof depthOrder(a), 'string', 'a half-morphed year is drawn from no viewpoint’s rules');
 });
 

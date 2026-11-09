@@ -11,7 +11,7 @@
 // 10.0 -> 9.0 stays put at its left edge. Fonts are loaded by Scene.run();
 // outside a scene, await loadFonts() first.
 
-import { Mobject, Group, animateBuilderBase, followScene } from './mobject.ts';
+import { Mobject, Group, animateBuilderBase, followScene, mergeLeaves, defaultColors, affine, borrowChildren } from './mobject.ts';
 import type { Style } from './mobject.ts';
 import type { Box, AnimateBuilder, AnimateBuilderBase } from './mobject.ts';
 import { VMobject } from './vmobject.ts';
@@ -137,7 +137,7 @@ export class Text extends Group {
     this.fontSize = fontSize;
     this.weight = weight;
     this.anchor = anchor;
-    this.mergeLeaves = true;
+    this[mergeLeaves] = true;
     const bold = weight === 'bold', color = given ?? NEUTRAL_COLORS.ink;
     this.build(text, fontSize, {
       fill: color, fillOpacity, stroke: bold ? color : 'none', strokeWidth: bold ? BOLD_STROKE * fontSize : 0,
@@ -149,7 +149,7 @@ export class Text extends Group {
   }
 
   /** @internal Lay out glyphs with the pen at the origin and the baseline at y = 0. */
-  build(text: string, fontSize: number, style: Style, defaults?: Mobject['defaultColors']): void {
+  build(text: string, fontSize: number, style: Style, defaults?: Mobject[typeof defaultColors]): void {
     const { shaped, source } = shapedForm(text, this.tabWidth);
     const run = this.shapeRun(shaped, fontSize);
     if (this.shaping?.realBold?.(this)) style = {...style, stroke: 'none', strokeWidth: 0};
@@ -159,7 +159,7 @@ export class Text extends Group {
     for (const g of run.glyphs) {
       if (!g.path?.length) continue;
       const gl = new Glyph(g.path, g.s ?? scale, g.x + g.dx, g.dy, { ...style });
-      if (defaults) gl.defaultColors = { ...defaults }; else delete gl.defaultColors;
+      if (defaults) gl[defaultColors] = { ...defaults }; else delete gl[defaultColors];
       gl.cluster = this.formula ? undefined : source(g.cluster);
       glyphs.push(gl);
     }
@@ -244,14 +244,14 @@ export class Text extends Group {
     const first = this.children[0];
     // The new glyphs keep the old ones' style, and any colour they still take from the scene.
     const style: Style = first ? { ...first.style } : { fill: NEUTRAL_COLORS.ink, stroke: 'none' };
-    const defaults = first ? first.defaultColors : { fill: 'ink' as const };
+    const defaults = first ? first[defaultColors] : { fill: 'ink' as const };
     writeText(this, text);
     if (this.plain()) {
       this.build(text, this.textSize(), style, defaults);
     } else {
       const { ex, ey } = this.frame();
       this.build(text, this.run.fontSize, style, defaults);
-      this.applyAffine(ex[0], ex[1], ey[0], ey[1], 0, 0, { aboutPoint: [0, 0] });
+      this[affine](ex[0], ex[1], ey[0], ey[1], 0, 0, { aboutPoint: [0, 0] });
     }
     const now = this.anchorPoint();
     this.shift([at[0] - now[0], at[1] - now[1]]);
@@ -472,7 +472,7 @@ export class CodeSpan extends Group {
     super();
     this.owner = owner; this.line = line; this.from = from; this.to = to;
     this.lineText = owner.text;
-    this.borrow(owner.children.filter((g) => g instanceof Glyph && g.cluster != null && g.cluster >= from && g.cluster < to));
+    borrowChildren(this, owner.children.filter((g) => g instanceof Glyph && g.cluster != null && g.cluster >= from && g.cluster < to));
   }
 
   /** The source text the span covers. */
@@ -502,8 +502,9 @@ export class CodeSpan extends Group {
   // Moving a span moves glyphs the line owns: the line's boxes (and the block's) go stale too
   /** @internal */
   override invalidateBox(): void { super.invalidateBox(); this.owner?.invalidateBox(); }
-  override applyAffine(...args: Parameters<Mobject['applyAffine']>): this {
-    super.applyAffine(...args);
+  /** @internal */
+  override [affine](...args: Parameters<Mobject[typeof affine]>): this {
+    super[affine](...args);
     this.owner.invalidateBox();
     return this;
   }

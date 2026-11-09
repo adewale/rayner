@@ -9,6 +9,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { VMobject, Rectangle, Circle, Polygon, linear, smooth, rushInto, rushFrom, thereAndBack } from '../src/index.ts';
 import type { Vec } from '../src/index.ts';
+import { curveCount, insertCurves } from '../src/vmobject.ts';
 
 interface Answers { rates: Record<string, number[]>; distribute: number[][]; partial: Array<Array<[number, number]>>; same_shape: boolean[][] }
 interface Fixture {
@@ -77,9 +78,9 @@ test('extra curves are distributed across a path the way manim distributes them'
     const p = new VMobject();
     p.startNewPath([0, 0]);
     for (const x of xs.slice(1)) p.addLineTo([x, 0]);
-    p.insertNCurves(0, n);
+    insertCurves(p, 0, n);
     const ours = lengths.map(() => 0);
-    for (let c = 0; c < p.numCurves(); c++) {
+    for (let c = 0; c < curveCount(p); c++) {
       const a = p.pointOnCurve(0, c, 0)[0], b = p.pointOnCurve(0, c, 1)[0], mid = (a + b) / 2;
       // A zero-length piece belongs to the zero-length curve at its point; any other lies inside its curve
       const k = Math.abs(b - a) < 1e-9 ? lengths.findIndex((l, j) => l === 0 && Math.abs(xs[j]! - a) < 1e-6) : lengths.findIndex((_, j) => mid > xs[j]! && mid < xs[j + 1]!);
@@ -98,7 +99,7 @@ test("splitting a cubic matches manim's partial_bezier_points piece by piece", (
   const p = new VMobject();
   p.startNewPath(P[0]!);
   p.addCubic(P[1]!, P[2]!, P[3]!);
-  p.insertNCurves(0, parts - 1);
+  insertCurves(p, 0, parts - 1);
   const split = p.subpaths[0]!;
   for (let j = 0; j < parts; j++) {
     for (let q = 0; q < 4; q++) {

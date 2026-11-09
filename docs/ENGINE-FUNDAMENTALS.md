@@ -57,17 +57,21 @@ arrays in place by bumping the points' version, which the renderer's path-data c
 keys on, so a write that goes round them would draw the old path;
 `test/path-cache.test.ts` writes through every one and compares the cached path with
 one computed afresh. `hasPoints()` says whether a mobject
-has points of its own, as a Group does not. To walk a path: `numCurves(i?)` counts
-the curves of subpath `i` or of the whole path, `pointOnCurve(i, c, t)` is the point
-at parameter `t` on curve `c`, `curveLength(i, c)` and `arcLength()` measure a curve
-and the whole path, `curveParamAt(i, c, s)` is the parameter a length `s` along a
-curve reaches, and `pointFromProportion(t)` is the point a fraction `t` of the path's
+has points of its own, as a Group does not. To walk a path: `pointOnCurve(i, c, t)` is the point
+at parameter `t` on curve `c` of subpath `i`, `arcLength()` measures the whole path, and
+`pointFromProportion(t)` is the point a fraction `t` of the path's
 length along it, which `MoveAlongPath` and the stage's sketch travel by.
 
-`applyPointsFunction(fn)` maps every point of the family through `fn([x, y])`, and
-`applyAffine(a, b, c, d, e, f)` applies the affine map `[a c; b d]p + [e f]` without
-allocating per point; both work about the box's centre unless given `aboutPoint` or
-`aboutEdge`. `box()` is the family's bounding box, a `Box`, or null when nothing in it
+`pointArrays()` is a mobject's own points, `Float32Array`s of x, y pairs, which every
+transform, morph and `copy()` works on: none for a container, a path's `subpaths`. A mobject with
+points of its own that is not a path overrides it, says what the arrays are with `pointKind()`
+(arrays blend only with arrays of the same kind), and overrides `boundingPointArrays()` when some
+of them are not geometry and must not count toward its box (a `Text`'s advance box). Code that
+writes `pointArrays()` in place, a custom animation's frame, calls `touchPoints()` after, which
+bumps the points' version, and `invalidateBox()`.
+
+`applyPointsFunction(fn)` maps every point of the family through `fn([x, y])`, about the box's
+centre unless given `aboutPoint` or `aboutEdge`. `box()` is the family's bounding box, a `Box`, or null when nothing in it
 has points. It is cached; every engine method that changes points or children clears the
 cache, and code that changes points another way, an animation's own `doInterpolate` or a
 custom mobject that assigns new point arrays, calls `invalidateBox()` after, which clears the
@@ -96,9 +100,7 @@ paper, and the SVG sinks draw `paper` behind the frame unless given a `backgroun
 `#rgb` or `#rrggbb`, and it throws a `RangeError` naming any other.
 
 Common layout operations are `nextTo`, `alignTo`, `arrange`, `moveTo`, `setWidth`
-and `setHeight`, and `toEdge(direction, buff)` puts a mobject against an edge of the frame; `arrangeInGrid(cols, { buff })` lays the children out row by row,
-`cols` to a row, each centred in a cell as wide as the widest and as tall as the
-tallest. Bounds describe geometry only; clipping, paint order and stroke
+and `setHeight`, and `toEdge(direction, buff)` puts a mobject against an edge of the frame. Bounds describe geometry only; clipping, paint order and stroke
 also decide what collides on screen, which is why `rayner check` measures painted
 labels separately.
 
@@ -115,8 +117,7 @@ which `Code` sets. A `DecimalNumber` shows `value` with `decimals` places betwee
 ## Ownership, identity and copying
 
 `group.add(child)` moves the child into that group, last on top, detaching it from its old
-parent; `group.insert(index, child)` puts it at `index` instead (`0` draws it under the rest),
-and `group.replaceChild(old, ...replacements)` puts replacements where `old` stands. A
+parent, and `group.insert(index, child)` puts it at `index` instead (`0` draws it under the rest). A
 mobject's `children` and `parent` are read-only, so these methods and `group.remove(child)`
 are the only ways to change a family, and each keeps every child's `parent` and the cached
 box in step. Both are the mobject's private fields, so no other write to the mobject changes
@@ -127,9 +128,9 @@ control membership and draw order; what the stage keeps over everything else (it
 band, step number and line) stays last through each of them: the root that holds it, which is
 the group around it once one wraps it, is moved last, and that is done again before every frame
 and step boundary the scene hands its sink, and before a frame drawn outside the frame loop
-(`renderFrame` past the end, the live player's landing frames), after a direct
-write to `scene.mobjects` too. A sink handed the scene by other code reads the list as it stands. The structure is a tree: `add`, `insert` and
-`replaceChild` refuse the mobject itself or one of its ancestors, which would make a cycle,
+(`renderFrame` past the end, the live player's frames between plays). `scene.mobjects`, the drawn
+list, is read-only: these methods and the plays change it. A sink handed the scene by other code reads the list as it stands. The structure is a tree: `add`, `insert` and
+`scene.replace` refuse the mobject itself or one of its ancestors, which would make a cycle,
 and `group.remove(child)` takes out only the group's own children, leaving a mobject in
 another group where it is. `scene.familyMembers()` lists every mobject on the stage and
 each of its descendants, root by root, for a test or a check that looks for a part.
@@ -140,17 +141,22 @@ what `become` keeps identities through.
 A part's identity is its `key`, an optional name you give it with `keyed(m, key)`
 (from `rayner`; it returns `m`, and `m.key` is read-only): `find(key)`,
 `findAll`, keyed matching, invariants and reviews all address parts by key. A
-position in a child array is not an identity, and `Mobject.id`, the renderer's
-number, is internal. Give keys from the domain (`slot:3`, `state:idle`) when the
+position in a child array is not an identity, and a `Mobject`'s number, the renderer's,
+is private to the engine. Give keys from the domain (`slot:3`, `state:idle`) when the
 domain has identities.
 
 `copy()` clones the tree with its geometry, style and keys (a copy is a new
-object that still answers to the same key), and clears updaters and saved state. A custom composite should expose its
+object that still answers to the same key), and clears updaters and saved state. It makes the copy
+without calling the subclass's constructor, which may take any arguments, and then gives it the
+original's own fields; an array, map, set or typed array a field holds is copied, so the copy
+never shares one with the original, while what they hold, and any other object, is shared. So a
+subclass keeps its state in ordinary fields, never in ES private (`#`) fields or methods, which no
+constructor of the copy installs (`test/core.test.ts` holds the engine's own classes to that). A custom composite should expose its
 parts through getters into its own children, as [StatusBadge](../recipes/extensions.ts)
 does. If it stores named child references, override the protected hook
 `rebindReferences(source, map)` so the clone names its children, not the original's.
-Override `copyData(source)`, also protected, for additional mutable data that the base
-class cannot copy itself.
+Override `copyData(source)`, also protected, for mutable data inside a field (its own points,
+the objects an array holds) that the copy must not share.
 
 `saveState()` stores a copy. `restore()` restores immediately; `Restore`
 does it as an animation. A generic transform can align or replace child structure, so retain
@@ -179,27 +185,35 @@ A custom animation extends `Animation`. Its `mobject` is what it animates, and `
 and `remover` are its timing options, as on an `AnimationGroup`. `targets()` lists the
 mobjects it writes, its `mobject` unless it says otherwise: what `play()` admits to the
 scene and allows one writer each. `evidence()` is what it records as it begins, or null.
-The scene calls an animation's `begin()`, `interpolate(alpha)` and `finish()`; a custom
-animation overrides their protected hooks, `doBegin()`, `doInterpolate(alpha)` and
-`doFinish(alpha)`, and calls `super.doBegin()` where it extends one. Ordinary transforms
-capture endpoints in `doBegin()` and interpolate between them. The scene applies the rate
-function before calling `interpolate`; a custom animation must not apply it twice. Its
-`doFinish()` lands at the rate function's endpoint, which need not be 1 (`thereAndBack`
-returns to the start), and must land where its last frame drew: `rayner check` compares
-each step's picture as it ends with its last frame.
+A custom animation overrides three protected hooks: `doBegin()` as its play begins,
+`doInterpolate(alpha)` for each frame, and `doFinish(alpha)` as its play finishes. It calls
+`super.doBegin()` where it extends one, and `interpolateSubmobject(sub, start, alpha)` is the hook
+for one family row when it extends `Animation`'s own frame. Ordinary transforms capture endpoints
+in `doBegin()` and interpolate between them. The scene applies the rate function before calling
+`doInterpolate`; a custom animation must not apply it twice. Its `doFinish()` finishes at the rate
+function's endpoint, which need not be 1 (`thereAndBack` returns to the start), and must finish
+where its last frame drew: `rayner check` compares each step's picture as it ends with its last
+frame. `sampleAnimation(animation, alpha)`, from `rayner/testing`, draws one frame of an animation
+outside a play, for a test of a custom one.
 
 An animation's `phase`, an `AnimationPhase`, is `'idle'` until it begins, `'begun'`
 until it has finished, every member with it, and `'finished'` then. A `Succession` whose play
 has finished it while a member waits (as below), or a group holding one, stays `'begun'` while
-its members begin and finish in turn. A second `begin()` while begun throws, and so do
-`interpolate()` and `finish()` before `begin()`; a finished animation may begin again. A play,
-a group and a `Succession` drive their animations through the engine's own private calls, which
-keep the phase and call only the protected hooks. What else the engine calls or reads on an
-animation (the options a play gives it, what it waits for, what its play's end removes, the colours
-its endpoints take, the scene it plays on) is keyed apart from any name an author can write, so a
-`begin`, `finish`, `ready`, `settle`, `scene` or `host` written on an animation, as a
-method, a field or an assignment, is the author's own and never reaches a play. A subclass that overrides `begin()`, `interpolate()` or `finish()`, or redefines `phase`,
-`runTime` or `lagRatio`, is refused when its first instance is made.
+its members begin and finish in turn. An animation begins once at a time, and draws frames and
+finishes only while begun; a finished animation may begin again. `Animation` has no public
+lifecycle method: a play, a group, a `Succession` and an animation that runs another begin, draw
+and finish it through the engine's own module functions, which keep the phase and call only the
+protected hooks, and the engine's hooks call `doInterpolate`, never a member an author can
+replace. The engine reads an animation's run time, rate function, lag ratio and phase from its
+private fields, not through members a subclass could redefine. Everything else the engine calls or
+reads on an animation, a group or a mobject (the options a play gives it, what it waits for, what
+its play's end removes, the rows it zipped, the colours its endpoints take, the scene it plays on, a
+mobject's number, cached box and updaters) is an ES private field or keyed by a symbol, so a member
+an author writes on a subclass, as a method, a field or an assignment, under any name, is the
+author's own and never reaches a play; `test/scene-lifecycle.test.ts` shadows every name those
+members have and finds the play unchanged. The documented members are the ones a subclass may
+override: these hooks, `targets()` and `evidence()`, and, on a mobject, `pointArrays()`,
+`boundingPointArrays()`, `pointKind()`, `copyData()` and `rebindReferences()`.
 
 A play that fails leaves no animation begun. When an animation throws as it begins, a
 group lands the members it began before the one that threw, and `play()` lands the
@@ -215,11 +229,13 @@ gives the same failure, and playing it again throws. A stop is not a failure: a 
 for good, and its picture stays as the stopping frame drew it.
 
 A run time and a lag ratio are finite and not negative, given to the constructor, to
-`play()` or set on the animation (`a.runTime = 2`), and fixed while it plays: a play counts
-its frames from them as it begins, so setting either on a begun animation throws. A
-`Succession`'s lag ratio is 1, since its members run one after another; setting another
-throws. A `play()` given no animation, with or without options, throws: `wait()` holds the
-picture.
+`play()` or set on the animation (`a.runTime = 2`), and, with the rate function, fixed while it
+plays: a play counts its frames from them as it begins, so setting any of them on a begun
+animation throws. A play checks the options it is given against every animation before it gives
+them to any, so a play refused before anything begins leaves its animations as they were. A
+`Succession` takes no lag ratio, since its members run one after another: its options have none,
+and `play()` and the setter refuse one. A `play()` given no animation, with or without options,
+throws: `wait()` holds the picture.
 
 Use one `play(a, b)` for simultaneous operations, `Succession` for sequential
 operations and `AnimationGroup`/`LaggedStart` for grouped schedules. There is one scene
@@ -227,10 +243,12 @@ clock, so one `play()`, `wait()` or `step()` runs at a time, and one started whi
 another runs throws (`scene.phase` says which runs). Two simultaneous
 animations may not drive the same mobject or an ancestor and its descendant, and one
 animation may not be listed twice. `Scene.play()` checks and rejects both, as it begins and
-again for whatever begins later in it, a `Succession`'s member at its turn included. A `Succession`'s
-time only runs forward, since a finished member does not run again: it refuses a rate
-function that falls anywhere, given to it or to `play()`, and throws if a group around
-it runs its time backwards. `play()` waits for what any animation it is given reads, a group's
+again for whatever begins later in it, a `Succession`'s member at its turn included. A
+`Succession`'s time never runs back past the start of its running member, since a finished member
+does not run again: it refuses a rate function that falls anywhere, given to it, set on it or given
+to `play()`, and throws, naming the call (`new Succession()`, or an action's own, `s.card()`), if a
+group around it runs its time back past that start. Within its running member its time may run
+back, so a there-and-back group can hold a one-beat action such as `view.sync()`. `play()` waits for what any animation it is given reads, a group's
 members included, before it begins, and lays out its members' times as the play
 begins. What is made only when its turn comes, a machine's transition or an action's beat, may
 read something not ready yet: the play waits for it there, before drawing its next frame, so the
@@ -242,8 +260,8 @@ one that waits, too, listed after it in a play, a group, or a group that is a `S
 member: it begins with the play or the group, and joins the stage and records its evidence
 in its turn, after what the waiting one made. A `Succession` whose member waits begins
 nothing after it until that member has begun, so a waiting member shorter than a frame still
-plays, begun and then landed within its frame, with its side effects in their order, and a
-waiting last member of no run time begins and lands as the play finishes.
+plays, begun and then finished within its frame, with its side effects in their order, and a
+waiting last member of no run time begins and finishes as the play finishes.
 
 Capture starting values when an animation **begins**, not when it is constructed.
 Earlier members of a `Succession` may change them. Define intermediate geometry

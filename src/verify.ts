@@ -25,7 +25,7 @@
 import { VMobject } from './vmobject.ts';
 import { copiedFrom } from './animation.ts';
 import type { Box, HasText, Mobject } from './mobject.ts';
-import { mobjectName, paintsFill, paintsStroke } from './mobject.ts';
+import { mobjectName, paintsFill, paintsStroke, mergeLeaves, mobjectId } from './mobject.ts';
 import type { EndedStep, Scene, Sink, Step } from './scene.ts';
 import { FRAME } from './units.ts';
 import { pad } from './box.ts';
@@ -191,7 +191,7 @@ export class MotionSink implements Sink {
     const walk = (m: Mobject): void => {
       // A merged run (Text) is one visual thing whose glyphs are rebuilt when
       // its string changes, so it is tracked as a unit, not per glyph.
-      const unit = !!m.mergeLeaves && m.children.length > 0;
+      const unit = !!m[mergeLeaves] && m.children.length > 0;
       const drawn = unit || (m instanceof VMobject && m.hasPoints());
       if (drawn) {
         const a = unit ? Math.max(...m.children.map(alphaOf)) : alphaOf(m);
@@ -199,13 +199,13 @@ export class MotionSink implements Sink {
           const w = m.box(), b = w && screen(w);
           if (b) {
             // One sample per leaf and frame: a leaf reached twice keeps its first place and its last sample.
-            const at = seen.get(m.id);
+            const at = seen.get(mobjectId(m));
             if (at !== undefined) F.put(at, b, a);
             else {
-              seen.set(m.id, F.add(m.id, b, a));
-              sampled.push([seen.get(m.id)!, m, unit]);
+              seen.set(mobjectId(m), F.add(mobjectId(m), b, a));
+              sampled.push([seen.get(mobjectId(m))!, m, unit]);
             }
-            if (!this.labels.has(m.id)) this.labels.set(m.id, describeLeaf(m));
+            if (!this.labels.has(mobjectId(m))) this.labels.set(mobjectId(m), describeLeaf(m));
           }
         }
       }
@@ -214,11 +214,11 @@ export class MotionSink implements Sink {
     for (const top of scene.mobjects) walk(top);
     // Looks are for telling a copy over its source from a new shape, so only frames where a leaf appears need them
     const last = this.last;
-    if (last && sampled.some(([, m]) => !last.has(m.id))) {
+    if (last && sampled.some(([, m]) => !last.has(mobjectId(m)))) {
       for (const [i, m, unit] of sampled) {
         F.look(i, lookOf(m, unit));
         const src = copiedFrom.get(m);
-        if (src) F.from.set(i, src.id);
+        if (src) F.from.set(i, mobjectId(src));
       }
     }
     this.last = seen;

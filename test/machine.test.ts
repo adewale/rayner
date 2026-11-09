@@ -14,7 +14,7 @@ import { SetState } from '../explain/state.ts';
 import { exploreMachines } from '../tools/lib/explain-check.ts';
 import { decodeLog, encodeLog } from '../app/embed-live.ts';
 import { liveBase, logStart, runLive } from '../explain/live.ts';
-import { whenReady } from '../src/animation.ts';
+import { whenReady, beginAnimation, interpolateAnimation, finishAnimation, matchRows } from '../src/animation.ts';
 
 await loadFonts();
 
@@ -103,24 +103,24 @@ test('without an authored transition, the views morph by key, staged: what goes 
   const sync = new ViewSync(lamp, { match: machine.spec.match, runTime: 0.6 });
   assert.equal(sync.staged, true);
   scene.state = { level: 1 };
-  sync.begin();
+  beginAnimation(sync);
   const inner = sync.inner as TransformMatching;
   // A replaced word is not morphed glyph by glyph: its glyphs leave and the new word's come.
-  assert.ok(inner.fadesOut.length > 0 && inner.fadesIn.length > 0);
+  assert.ok(inner[matchRows].fadesOut.length > 0 && inner[matchRows].fadesIn.length > 0);
   const seen = (rows: { sub: { style: { opacity: number } } }[]) => Math.max(...rows.map((r) => r.sub.style.opacity));
-  sync.interpolate(0.25);
-  assert.ok(seen(inner.fadesOut) > 0 && seen(inner.fadesIn) === 0, 'a quarter through: the old word fading, the new one not yet shown');
-  sync.interpolate(0.5);
-  assert.ok(seen(inner.fadesOut) === 0 && seen(inner.fadesIn) === 0, 'halfway: neither word, so they never overlap');
-  sync.interpolate(0.75);
-  assert.ok(seen(inner.fadesOut) === 0 && seen(inner.fadesIn) > 0, 'three quarters: the new word coming');
-  sync.finish();
+  interpolateAnimation(sync, 0.25);
+  assert.ok(seen(inner[matchRows].fadesOut) > 0 && seen(inner[matchRows].fadesIn) === 0, 'a quarter through: the old word fading, the new one not yet shown');
+  interpolateAnimation(sync, 0.5);
+  assert.ok(seen(inner[matchRows].fadesOut) === 0 && seen(inner[matchRows].fadesIn) === 0, 'halfway: neither word, so they never overlap');
+  interpolateAnimation(sync, 0.75);
+  assert.ok(seen(inner[matchRows].fadesOut) === 0 && seen(inner[matchRows].fadesIn) > 0, 'three quarters: the new word coming');
+  finishAnimation(sync);
   assert.deepEqual(lamp.texts, ['lamp dim']);
   // Unstaged (`staged: false`), both fade at once.
   const plain = new TransformMatching(lamp.current, lamp.placed({ level: 2 }), { key: matchByKey({ text: 'whole' }), replace: false });
-  plain.begin();
-  plain.interpolate(0.25);
-  assert.ok(seen(plain.fadesOut) > 0 && seen(plain.fadesIn) > 0);
+  beginAnimation(plain);
+  interpolateAnimation(plain, 0.25);
+  assert.ok(seen(plain[matchRows].fadesOut) > 0 && seen(plain[matchRows].fadesIn) > 0);
 });
 
 test('reachable states are found breadth first, each with its shortest events, up to the limit', async () => {

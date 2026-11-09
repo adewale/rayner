@@ -4,15 +4,19 @@
 // and the timeline's preconditions (fps, run times, lag ratios, waits, steps that draw a frame).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import ts from 'typescript';
 import { Scene, Circle, Rectangle, FadeIn, FadeOut, Create, AnimationGroup, Succession, Transform, DecimalNumber, Text, Group } from '../src/index.ts';
-import { thereAndBack } from '../src/rate.ts';
-import { NullSink, renderFrame, StopScene } from '../src/output.ts';
+import { thereAndBack, linear } from '../src/rate.ts';
+import { NullSink, renderFrame, renderElements, StopScene } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { traceScene } from '../src/testing.ts';
 import type { Step } from '../src/index.ts';
-import { MadeAtTurn, animationName, whenReady, playScene } from '../src/animation.ts';
+import { MadeAtTurn, animationName, whenReady, playScene, beginAnimation, interpolateAnimation, finishAnimation } from '../src/animation.ts';
 import type { ScheduledAnimation } from '../src/animation.ts';
 import { loadFonts } from '../explain/testing.ts';
+import { setDrawn } from '../src/scene.ts';
 
 await loadFonts();
 
@@ -38,22 +42,22 @@ test('an animation listed twice in one play is refused before anything begins (t
 test('an animation begins once at a time, and interpolates and finishes only once begun; a finished one may play again', () => {
   const a = new FadeIn(new Circle());
   assert.equal(a.phase, 'idle');
-  assert.throws(() => a.interpolate(0.5), /^Error: animation\.interpolate\(\): a FadeIn has not begun/);
-  assert.throws(() => a.finish(), /animation\.finish\(\): a FadeIn has not begun/);
-  a.begin();
+  assert.throws(() => interpolateAnimation(a, 0.5), /^Error: animation\.interpolate\(\): a FadeIn has not begun/);
+  assert.throws(() => finishAnimation(a), /animation\.finish\(\): a FadeIn has not begun/);
+  beginAnimation(a);
   assert.equal(a.phase, 'begun');
-  assert.throws(() => a.begin(), /animation\.begin\(\): a FadeIn has already begun/);
-  a.interpolate(0.5);
-  a.finish();
+  assert.throws(() => beginAnimation(a), /animation\.begin\(\): a FadeIn has already begun/);
+  interpolateAnimation(a, 0.5);
+  finishAnimation(a);
   assert.equal(a.phase, 'finished');
-  assert.throws(() => a.finish(), /has already finished/);
-  assert.throws(() => a.interpolate(0.2), /has finished/);
-  a.begin();
-  a.finish();
+  assert.throws(() => finishAnimation(a), /has already finished/);
+  assert.throws(() => interpolateAnimation(a, 0.2), /has finished/);
+  beginAnimation(a);
+  finishAnimation(a);
   assert.equal(a.phase, 'finished', 'replayed');
 });
 
-test('a begin() that throws leaves the animation idle, to begin again', () => {
+test('a begin that throws leaves the animation idle, to begin again', () => {
   let fail = true;
   class Flaky extends FadeIn {
     protected override doBegin(): void {
@@ -62,10 +66,10 @@ test('a begin() that throws leaves the animation idle, to begin again', () => {
     }
   }
   const a = new Flaky(new Circle());
-  assert.throws(() => a.begin(), /flaky/);
+  assert.throws(() => beginAnimation(a), /flaky/);
   assert.equal(a.phase, 'idle');
   fail = false;
-  a.begin();
+  beginAnimation(a);
   assert.equal(a.phase, 'begun');
 });
 
@@ -75,55 +79,112 @@ test('a hook written in any form is called inside the phase: as a method or as a
     protected override doBegin = (): void => { this.begun++; super.doBegin(); };
   }
   const a = new FieldHook(new Circle());
-  assert.throws(() => a.interpolate(0.5), /^Error: animation\.interpolate\(\): a FieldHook has not begun/);
-  a.begin();
+  assert.throws(() => interpolateAnimation(a, 0.5), /^Error: animation\.interpolate\(\): a FieldHook has not begun/);
+  beginAnimation(a);
   assert.equal(a.phase, 'begun');
-  a.interpolate(0.5);
-  a.finish();
+  interpolateAnimation(a, 0.5);
+  finishAnimation(a);
   assert.deepEqual([a.phase, a.begun], ['finished', 1]);
 });
 
-test('a subclass that overrides begin(), interpolate() or finish(), or redefines phase, runTime or lagRatio, is refused when its first instance is made', () => {
-  class Override extends FadeIn { override begin(): void { super.doBegin(); } }
-  assert.throws(() => new Override(new Circle()), /^TypeError: new Override\(\): it overrides begin\(\)/);
-  class Finisher extends FadeIn { override finish(): void {} }
-  assert.throws(() => new Finisher(new Circle()), /^TypeError: new Finisher\(\): it overrides finish\(\)/);
-  class Forever extends FadeIn {
-    override get runTime(): number { return Number.POSITIVE_INFINITY; }
-    override set runTime(_value: number) {}
-  }
-  assert.throws(() => new Forever(new Circle()), /^TypeError: new Forever\(\): it redefines runTime/);
-});
+// ---- what an author may name on a subclass ----------------------------------
 
-test('a play drives its animations through the engine\'s own lifecycle: a begin, land or waiting an author assigns or declares changes nothing in it', async () => {
-  const scene = new Scene(new NullSink());
-  // Assigned on the instance: the play begins, draws and finishes it as any other.
-  const circle = new Circle();
-  const assigned = new FadeIn(circle);
-  Object.assign(assigned, { begin() {}, finish() {} });
-  await scene.play(assigned);
-  assert.deepEqual([assigned.phase, circle.style.opacity], ['finished', 1]);
-  // Fields an author names waiting and land are the author's: the play neither waits for them nor calls them.
-  class Queue extends FadeIn { waiting = 3; land = 'the far shore'; }
-  const queued = new Queue(new Circle());
-  await scene.play(new Succession([queued, new FadeIn(new Circle())]));
-  assert.deepEqual([queued.phase, queued.waiting, queued.land], ['finished', 3, 'the far shore']);
-});
-
-test('members an author names ready, settle, setOptions, cleanUpFromScene, paints, scene or host are the author\'s: a play neither calls nor reads them', async () => {
-  const scene = new Scene(new NullSink());
-  const refuse = (): never => { throw new Error('the play called an author\'s member'); };
-  class Mine extends FadeIn {
-    host = 'a server';
-    ready(): Promise<unknown> { return new Promise(() => {}); }
-    settle = refuse; setOptions = refuse; cleanUpFromScene = refuse; paints = refuse;
+/**
+ * The members an author sees on the classes they extend, read from the source: every member that is
+ * neither private nor @internal (the published declarations' public and protected members, the
+ * documented contract of a custom animation or mobject).
+ */
+function declaredSurface(): Set<string> {
+  const seen = new Set<string>();
+  const classes = new Set(['AnimationTiming', 'Animation', 'Transform', 'AnimationGroup', 'Succession', 'Mobject', 'VMobject']);
+  for (const file of ['src/animation.ts', 'src/mobject.ts', 'src/vmobject.ts']) {
+    const source = ts.createSourceFile(file, readFileSync(join(import.meta.dirname, '..', file), 'utf8'), ts.ScriptTarget.Latest, true);
+    for (const node of source.statements) {
+      if (!ts.isClassDeclaration(node) || !classes.has(node.name?.text ?? '')) continue;
+      for (const m of node.members) {
+        if (!m.name || !ts.isIdentifier(m.name)) continue;
+        const hidden = ts.getCombinedModifierFlags(m) & ts.ModifierFlags.Private || ts.getJSDocTags(m).some((t) => t.tagName.text === 'internal');
+        if (!hidden) seen.add(m.name.text);
+      }
+    }
   }
-  class Mixed extends AnimationGroup { scene = 'the cache'; }
-  const a = new Mine(new Circle()), b = new Mine(new Circle(), { remover: true });
-  const group = new Mixed([b]);
-  await scene.play(a, group, { runTime: 0.2 });
-  assert.deepEqual([a.phase, group.phase, a.runTime, group.scene, a.host], ['finished', 'finished', 0.2, 'the cache', 'a server']);
-  assert.ok(scene.familyMembers().includes(a.mobject) && !scene.familyMembers().includes(b.mobject), 'its play added what it drew and removed the remover\'s');
+  return seen;
+}
+
+/**
+ * Every name the engine's own members of those classes have that an author could also write: each
+ * string-named member on their prototype chains and on played instances, and the name each
+ * symbol-keyed member is described by (`families`, `cleanUp`, `mergeLeaves`), less the declared surface.
+ */
+function engineNames(played: readonly object[]): string[] {
+  const surface = declaredSurface(), names = new Set<string>();
+  const take = (o: object) => {
+    for (const k of Reflect.ownKeys(o)) {
+      const name = typeof k === 'symbol' ? k.description : k;
+      if (name && name !== 'constructor' && !surface.has(name)) names.add(name);
+    }
+  };
+  for (const o of played) {
+    take(o);
+    for (let p = Object.getPrototypeOf(o); p && p !== Object.prototype; p = Object.getPrototypeOf(p)) take(p);
+  }
+  return [...names].sort();
+}
+
+/** A play of each class an author extends, in subclasses that write `names` as fields or as methods: its trace, and each frame as the DOM sink's records. */
+async function playShadowing(names: readonly string[], as: 'field' | 'method' | 'none') {
+  const shadow = <C extends abstract new (...args: any[]) => object>(Base: C): C => {
+    if (as === 'none') return Base;
+    abstract class Shadowed extends Base {
+      constructor(...args: any[]) {
+        super(...args);
+        if (as === 'field') for (const n of names) Object.defineProperty(this, n, { value: `the author's ${n}`, writable: true, enumerable: true, configurable: true });
+      }
+    }
+    if (as === 'method') for (const n of names) Object.defineProperty(Shadowed.prototype, n, { value: () => `the author's ${n}`, writable: true, configurable: true });
+    return Shadowed as unknown as C;
+  };
+  const Part = shadow(Rectangle), Morph = shadow(Transform), Together = shadow(AnimationGroup), InTurn = shadow(Succession);
+  const played: object[] = [];
+  const keep = <T extends object>(x: T): T => { played.push(x); return x; };
+  class Story extends Scene<{ done?: boolean }> {
+    override async construct() {
+      const a = keep(new Part({ width: 1, height: 1 })), b = new Part({ width: 1, height: 1 }).shift([1.5, 0]);
+      const row = new Group(a, b), c = new Part().shift([-3, 2]), d = new Part().shift([3, 2]);
+      this.add(row);
+      await this.step('morph');
+      await this.play(keep(new Morph(row, new Group(new Circle(), new Circle().shift([2, -1])), { lagRatio: 0.5 })));
+      await this.step('together');
+      await this.play(keep(new Together([new FadeIn(c), new Create(d)], { lagRatio: 0.5 })));
+      await this.step('in-turn');
+      await this.play(keep(new InTurn([new FadeOut(c), d.animate.shift([-1, -1]), new Morph(d, new Part().shift([0, -2]))])));
+      this.state = { done: true };
+    }
+  }
+  const ids = new Map<number, number>(), frames: string[] = [];
+  const dom = { frame: async (scene: Scene) => {
+    frames.push(JSON.stringify(renderElements(scene, { relative: false }).map((r) => ({ ...r, id: ids.get(r.id) ?? ids.set(r.id, ids.size).get(r.id) }))));
+  } };
+  await new Story(dom).run();
+  const trace = await traceScene(Story);
+  return { frames, trace: JSON.stringify(trace), played };
+}
+
+test('a member an author writes on a subclass, as a field or a method, under any name the engine\'s own members have, changes nothing in a play', async () => {
+  const base = await playShadowing([], 'none');
+  const names = engineNames(base.played);
+  assert.ok(['families', 'cleanUp', 'sceneColors'].every((n) => names.includes(n)), 'the names of the engine\'s symbol-keyed members are among them');
+  for (const as of ['field', 'method'] as const) {
+    const run = await playShadowing(names, as);
+    if (run.trace === base.trace && run.frames.join('\n') === base.frames.join('\n')) continue;
+    // Name the members that change it, one at a time.
+    const changed: string[] = [];
+    for (const n of names) {
+      const one = await playShadowing([n], as);
+      if (one.trace !== base.trace || one.frames.join('\n') !== base.frames.join('\n')) changed.push(n);
+    }
+    assert.fail(`written as a ${as}, these names change the play: ${changed.join(', ')}`);
+  }
 });
 
 test('a failed play lands what it began without calling an author\'s own land(), and reports the failure', async () => {
@@ -147,7 +208,7 @@ test('a group whose member throws as it begins lands the members it began, and c
   const circle = new Circle();
   const first = new FadeIn(circle), second = new Flaky(new Rectangle());
   const group = new AnimationGroup([first, second]);
-  assert.throws(() => group.begin(), /flaky/);
+  assert.throws(() => beginAnimation(group), /flaky/);
   assert.equal(group.phase, 'idle');
   assert.equal(first.phase, 'finished', 'the member begun first is not left begun');
   assert.equal(circle.style.opacity, 1, 'it landed where its play would have');
@@ -269,13 +330,13 @@ test('an animation is named in a message with the article its name is read with'
 test('what is made at its turn and waits for what it reads is refused outside a play, under the call it belongs to', () => {
   const waiting = new MadeLater(() => [new (class extends FadeIn { override [whenReady]() { return new Promise(() => {}); } })(new Circle())]);
   waiting[playScene] = new Scene(new NullSink());
-  assert.throws(() => waiting.begin(), /^Error: x\(\): what begins at its turn waits for what it reads/);
+  assert.throws(() => beginAnimation(waiting), /^Error: x\(\): what begins at its turn waits for what it reads/);
 });
 
 test('a Succession driven without a scene runs its members one after another', () => {
   const a = new FadeIn(new Circle(), { runTime: 0.5 }), b = new FadeIn(new Circle(), { runTime: 0.5 });
   const sq = new Succession([a, b]);
-  sq.begin(); sq.interpolate(0.75); sq.finish();
+  beginAnimation(sq); interpolateAnimation(sq, 0.75); finishAnimation(sq);
   assert.deepEqual([sq.phase, a.phase, b.phase], ['finished', 'finished', 'finished']);
 });
 
@@ -291,7 +352,7 @@ test('a Succession finished by its play while a member waits is still begun unti
   const played = scene.play(group);
   while (!read) await new Promise((r) => setTimeout(r));
   assert.deepEqual([group.phase, sq.phase, w.phase], ['begun', 'begun', 'idle'], 'its play finished it, and the group around it; its last member has not begun');
-  assert.throws(() => sq.begin(), /^Error: animation\.begin\(\): a Succession has already begun/);
+  assert.throws(() => beginAnimation(sq), /^Error: animation\.begin\(\): a Succession has already begun/);
   assert.throws(() => { sq.runTime = 3; }, /^Error: animation\.runTime: a Succession is playing/);
   read();
   await played;
@@ -323,8 +384,8 @@ test('a frame drawn outside the loop raises what is kept on top first: renderFra
       this.add(top);
       this.keepOnTop(top);
       await this.play(new FadeIn(a));
-      // A direct write after the last play: no later frame of the loop raises it.
-      this.mobjects = [top, a];
+      // The engine's own write of the drawn list after the last play: no later frame of the loop raises it.
+      setDrawn(this, [top, a]);
     }
   }
   let drawn: string[] = [];
@@ -337,10 +398,9 @@ test('a frame drawn outside the loop raises what is kept on top first: renderFra
   assert.deepEqual(drawn, ['a', 'top', '0']);
 });
 
-test('a Succession runs its members one after another: its lagRatio stays 1', async () => {
+test('a Succession runs its members one after another and takes no lagRatio', async () => {
   const sq = new Succession([new FadeIn(new Circle()), new FadeIn(new Rectangle())]);
-  assert.throws(() => { sq.lagRatio = 0; }, /^RangeError: animation\.lagRatio: a Succession .*not 0/);
-  sq.lagRatio = 1;
+  for (const lag of [0, 1]) assert.throws(() => { sq.lagRatio = lag; }, (e) => e instanceof RangeError && /^animation\.lagRatio: a Succession/.test(e.message) && e.message.includes(`given ${lag}`));
   const scene = new Scene(new NullSink());
   await scene.play(sq);
   assert.equal(scene.frameCount, 60, 'two seconds, one member after the other');
@@ -393,7 +453,7 @@ test('a mobject kept on top stays last in drawing order through every add and re
   assert.deepEqual(scene.mobjects, [c, a, band, top, b], 'released, they are ordinary roots again');
 });
 
-test('what is kept on top stays on top inside a group added later, and after a direct write to the drawn list, before anything is drawn', async () => {
+test('what is kept on top stays on top inside a group added later, before anything is drawn', async () => {
   const top = new Rectangle(), a = new Circle(), b = new Circle();
   let drawn: string[] = [];
   const name = (m: unknown): string => (m === top ? 'top' : m === a ? 'a' : m === b ? 'b' : 'group');
@@ -405,12 +465,9 @@ test('what is kept on top stays on top inside a group added later, and after a d
   scene.add(a, group);
   scene.add(b);
   assert.deepEqual(scene.mobjects.map(name), ['a', 'b', 'group']);
-  // A direct write to the drawn list is raised again before the next frame.
-  scene.mobjects = [group, a];
   await scene.wait(1 / 30);
-  assert.deepEqual(drawn, ['a', 'group']);
+  assert.deepEqual(drawn, ['a', 'b', 'group']);
   // And before a step boundary the sink hears.
-  scene.mobjects.push(b);
   let atStep: string[] = [];
   const stepping = { frame: async () => {}, stepBegin: async (sc: Scene) => { atStep = sc.mobjects.map(name); } };
   scene.sink = stepping;
@@ -742,12 +799,19 @@ test('a DecimalNumber blends its value only with another number: into a Text it 
   assert.equal(m.text, '3');
 });
 
-test('a Succession refuses a rate function that runs its time backwards, given to it, to play(), or by a group around it', async () => {
-  assert.throws(() => new Succession([new FadeIn(new Circle())], { rateFunc: thereAndBack }), /new Succession\(\): a Succession's rate function must never decrease/);
+test('a Succession refuses a rate function that runs its time back past a finished member, given to it, to play(), or by a group around it, and runs back within one member', async () => {
+  const two = () => new Succession([new FadeIn(new Circle()), new FadeIn(new Rectangle())]);
+  assert.throws(() => new Succession([new FadeIn(new Circle()), new FadeIn(new Rectangle())], { rateFunc: thereAndBack }), (e) => e instanceof RangeError && /^new Succession\(\): its rate function must not run its time back/.test(e.message));
   const scene = new Scene(new NullSink());
-  await assert.rejects(scene.play(new Succession([new FadeIn(new Circle())]), { rateFunc: thereAndBack }), /this\.play\(\): a Succession's rate function must never decrease/);
-  const inner = new Succession([new FadeIn(new Circle()), new FadeIn(new Rectangle())]);
-  await assert.rejects(scene.play(new AnimationGroup([inner], { rateFunc: thereAndBack })), /new Succession\(\): its time ran backwards/);
+  const refused = two();
+  await assert.rejects(scene.play(refused, { rateFunc: thereAndBack }), (e) => e instanceof RangeError && /^this\.play\(\): its rate function must not run its time back/.test(e.message));
+  assert.equal(refused.rateFunc, linear, 'the refused play gave it nothing');
+  await assert.rejects(scene.play(new AnimationGroup([two()], { rateFunc: thereAndBack })), /^Error: new Succession\(\): its time ran backwards/);
+  // One member: its time runs there and back within it, as the member's own would.
+  const circle = new Circle(), alone = new Circle();
+  await scene.play(new Succession([new FadeIn(circle)]), { rateFunc: thereAndBack });
+  await scene.play(new FadeIn(alone), { rateFunc: thereAndBack });
+  assert.equal(circle.style.opacity, alone.style.opacity, 'it finishes where its member alone would');
 });
 
 // ---- caption reading time --------------------------------------------------

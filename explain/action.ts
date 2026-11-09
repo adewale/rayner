@@ -5,7 +5,7 @@
 
 import { Succession } from '../src/index.ts';
 import type { Scene, ScheduledAnimation } from '../src/index.ts';
-import { MadeAtTurn, whenReady, settle, playsOn } from '../src/animation.ts';
+import { MadeAtTurn, whenReady, settle, playsOn, ended, passesEasing, adoptMembers, runTimeOf } from '../src/animation.ts';
 
 /**
  * One play of an action: its run time, fixed when the action is made, and what it does when its
@@ -29,7 +29,7 @@ export interface Plan<T> {
 /** A beat's animations must take the run time it was planned with: a play of each, or a Succession member's slot. */
 function checkTime(call: string, beat: Beat, made: readonly ScheduledAnimation[]): void {
   if (!made.length) return;
-  const took = Math.max(...made.map((a) => a.runTime));
+  const took = Math.max(...made.map(runTimeOf));
   if (Math.abs(took - beat.runTime) > 1e-9)
     throw new Error(`${call}: one of its plays takes ${took} s, where ${beat.runTime} s was planned`);
 }
@@ -51,7 +51,7 @@ class BeatPlay extends MadeAtTurn {
   /** Each animation from the beat's start, for its own run time, which must be the beat's planned one. */
   protected override slots(made: readonly ScheduledAnimation[]): Array<[number, number]> {
     checkTime(this.call, this.beat, made);
-    return made.map((a) => [0, a.runTime]);
+    return made.map((a) => [0, runTimeOf(a)]);
   }
   protected override after(): void {
     this.beat.after?.();
@@ -138,6 +138,8 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
   readonly name: string;
   /** @internal The scene it plays on: a play on another scene refuses it. */
   readonly [playsOn]: Scene<any, any>;
+  /** @internal A play's rateFunc and lagRatio reach what its beats make, as they reach an animation; its own time stays linear. */
+  override readonly [passesEasing] = true;
   /** What decides it: what it gives and its beats. */
   readonly #make: () => Plan<T>;
   /** Settles once what it reads is ready, recording a failure as its decision; null when it reads nothing. */
@@ -225,7 +227,7 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
     }
     this.#state = { ...s, decision: { plan } };
     // Laid out as a Succession lays out its members; a run time given to play() is kept.
-    this.adopt(plan.beats.map((b) => new BeatPlay(b, this.name)));
+    adoptMembers(this, plan.beats.map((b) => new BeatPlay(b, this.name)));
     return plan;
   }
 
@@ -254,8 +256,8 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
     unplayed.get(this[playsOn])?.delete(this as Action<unknown>);
   }
 
-  /** Its last beat has finished and gone: its `end` runs. */
-  protected override ended(): void {
+  /** @internal Its last beat has finished and gone: its `end` runs. */
+  override [ended](): void {
     const s = this.#state;
     if (s.is !== 'composed') return;
     this.#state = { is: 'ended', plan: s.plan, run: null };

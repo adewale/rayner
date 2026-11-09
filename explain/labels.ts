@@ -5,6 +5,7 @@
 
 import { Group, Text, VMobject } from '../src/index.ts';
 import type { Mobject, Vec } from '../src/index.ts';
+import { matchingFrameFor, interpolateData } from '../src/mobject.ts';
 import type { TextShaping } from '../src/text-context.ts';
 import { SVG_PX_PER_UNIT } from './diagram-snapshot.ts';
 import type { SnapshotShape } from './diagram-snapshot.ts';
@@ -76,7 +77,7 @@ export class ImportedLabel extends Group implements LabelInfo {
   override pointKind(): string { return 'imported-label-basis'; }
   protected override copyData(src: Mobject): void { this.basis = new Float32Array((src as ImportedLabel).basis); }
   /** @internal */
-  override matchingFrameFor(source: Mobject): Mobject {
+  override [matchingFrameFor](source: Mobject): Mobject {
     if (!(source instanceof Text)) return this;
     if (!(source.run.fontSize > 0 && Number.isFinite(source.run.fontSize))) return this;
     const p = this.basis, frame = source.copy(), run = source.run;
@@ -87,8 +88,8 @@ export class ImportedLabel extends Group implements LabelInfo {
     return frame;
   }
   /** @internal */
-  override interpolateData(a: Mobject, b: Mobject, alpha: number): void {
-    super.interpolateData(a, b, alpha);
+  override [interpolateData](a: Mobject, b: Mobject, alpha: number): void {
+    super[interpolateData](a, b, alpha);
     if (a instanceof ImportedLabel && (b instanceof ImportedLabel || b instanceof Text)) {
       if (b instanceof Text) {
         // Text's advance frame is a different kind of point data. Only this

@@ -75,7 +75,7 @@ test('every public value, type and member is documented in docs/, or listed as h
   assert.ok(docs.rows.some((r) => r.name === 'View.sync') && docs.rows.some((r) => r.name === 'Card.describe'), 'class members, type-only classes included');
   assert.ok(!docs.rows.some((r) => r.name === 'View.placed' || r.name === 'Mobject.id'), '@internal and hidden members are not public');
   assert.ok(docs.rows.some((r) => r.name === 'Sink.frame') && !docs.rows.some((r) => r.name === 'NullSink.frame'), 'a member that implements an exported interface’s is the interface’s');
-  assert.ok(docs.rows.some((r) => r.name === 'Animation.begin') && !docs.rows.some((r) => r.name === 'FadeOut.begin'), 'an override is its ancestor’s name, not its own');
+  assert.ok(docs.rows.some((r) => r.name === 'Animation.evidence') && !docs.rows.some((r) => r.name === 'TransformMatching.evidence'), 'an override is its ancestor’s name, not its own');
   assert.deepEqual(docsProblems(docs), []);
 });
 

@@ -7,6 +7,7 @@ import type { SnapshotShape, SnapshotTextRun } from '../../explain/internal.ts';
 import svgpath from 'svgpath';
 import type { Page } from 'playwright-core';
 import { VMobject } from '../../src/index.ts';
+import { affine } from '../../src/internal.ts';
 import type { Style } from '../../src/index.ts';
 
 /** SVG styles select a family; the scene's lettering request selects its actual face. */
@@ -255,7 +256,7 @@ export async function readSvg(page: Page, svg: string, natural = false, shaping?
     }
     const path = pathFromSvgD(r.d!, r.style);
     const [a, b, c, d, e, f] = r.matrix.map((v) => v / SVG_PX_PER_UNIT) as [number, number, number, number, number, number];
-    path.applyAffine(a, -b, c, -d, e, -f, { aboutPoint: [0, 0] });
+    path[affine](a, -b, c, -d, e, -f, { aboutPoint: [0, 0] });
     if (path.subpaths.some((p) => !p.every(Number.isFinite))) throw new Error(`Non-finite imported geometry: ${r.d}`);
     const list = out.get(r.owner) ?? [];
     list.push({ subpaths: path.subpaths.map((p) => Array.from(p)), closed: [...path.closed], style: { ...r.style } });

@@ -88,7 +88,7 @@ const sameLog = (a: readonly string[], b: readonly string[]) => a.length === b.l
 /**
  * The exploration after `action`. A held run stays only while it can play the reader's next event:
  * a send keeps it when it is idle at the log before the event, and every other change drops it
- * (Undo and Reset go back past its picture; a send while it still plays, an animated landing cut
+ * (Undo and Reset go back past its picture; a send while it still plays, an animated finish cut
  * short, starts a fresh run). A run held for another step than the one live (`now`, compared by
  * identity), or for a log other than the one on show, is not taken.
  * Sending, Undo and Reset when nothing is live, and Undo and Reset with nothing sent, change nothing.

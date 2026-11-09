@@ -18,6 +18,7 @@ import { MotionSink, analyzeMotion, traceScene, loadFonts } from '../explain/tes
 import { diffTokens, tokenize, hunkHeader } from '../src/diff.ts';
 import type { Hunk, Mobject, Sink } from '../src/index.ts';
 import { drawsFrom } from './lib/random-scene.ts';
+import { beginAnimation } from '../src/animation.ts';
 
 const header = (hs: Hunk[]) => hs.map(hunkHeader);
 
@@ -176,11 +177,11 @@ test('TransformDiff: given hunks are the truth, and hunks that do not describe t
   assert.deepEqual(given.hunks, hunks);
   // Hunks of another edit: lines must match
   const wrong = new TransformDiff(new Code(BEFORE), new Code(AFTER), { hunks: diffLines(['a', 'b', 'c'], ['a', 'c']) });
-  assert.throws(() => wrong.begin(), /new TransformDiff\(\): hunk @@ -2 \+1,0 @@ removes "b"/);
+  assert.throws(() => beginAnimation(wrong), /new TransformDiff\(\): hunk @@ -2 \+1,0 @@ removes "b"/);
   const short = new TransformDiff(new Code(BEFORE), new Code(AFTER), { hunks: [] });
-  assert.throws(() => short.begin(), /after the last hunk the old text has 3 more lines and the new 6/);
+  assert.throws(() => beginAnimation(short), /after the last hunk the old text has 3 more lines and the new 6/);
   const counts = new TransformDiff(new Code(BEFORE), new Code(AFTER), { hunks: [{ oldStart: 2, oldLines: 1, newStart: 2, newLines: 4, ops: ['-', '+'], lines: ['  return db.get(id);', 'x'] }] });
-  assert.throws(() => counts.begin(), /which its header does not count/);
+  assert.throws(() => beginAnimation(counts), /which its header does not count/);
   // Constructing never checks: only begin() reads the texts
   assert.ok(new TransformDiff(new Code(['a']), new Code(['b']), { hunks: [] }));
 });
@@ -331,7 +332,7 @@ test('every matching transform records its counts when it begins in a scene', as
   assert.deepEqual(s.evidence, s.steps[0]!.evidence);
   // Outside a scene there is nowhere to record: begin() still works, and evidence() reads the counts
   const free = new TransformMatchingText(new Text('ab'), new Text('abc'));
-  free.begin();
+  beginAnimation(free);
   assert.deepEqual(free.evidence(), { kind: 'match', matched: 2, morphed: 0, removed: 0, added: 1 });
   // record() copies as JSON
   const data = { n: 1 };

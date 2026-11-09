@@ -51,7 +51,8 @@ One row per idea.
 | What the scene is doing | `scene.phase` (`ScenePhase`) | `idle`, `playing`, `waiting`, `ending-step`, `beginning-step` or `stopped`: the engine's lifecycle; "phase" names only the engine's lifecycles, this and an animation's `phase` | `scene.stopped` |
 | Where an animation is | `animation.phase` (`AnimationPhase`) | `idle`, `begun` (until it and every member have finished; a `Succession` whose play has finished it while a member waits is still begun) or `finished` | `landing`, as a fourth phase beside `begun` |
 | A chapter of the story | `shown.chapter` | Which picture a scene shows in a stretch of its story (monty-hall's `odds`, statecharts' `parent`), kept in `shown`; a state that changes shape by chapter is a union of its shapes | `shown.phase`, a story phase beside the engine's |
-| Land | an animation lands; `rayner check`'s last-frame check | To finish on the end picture: an animation's `finish()` lands where its last frame drew, a play that fails lands what it began, a transition lands on the pictures of the state it reaches, a reader's events land on theirs | `land()` on an animation or in the player, a `landing` phase, `Landing`, `LandingSink`: what does not finish on an end picture has its own name (`TakePictures`, `LastFrameSink`, `drawLog()`) |
+| Finish | an animation finishes; a play finishes its animations; `rayner check`'s last-frame check | The normal end: an animation's `doFinish()` ends where its last frame drew, a transition finishes on the pictures of the state it reaches, a reader's event finishes on its log's picture (the player's `drawLog()`, `data-drawn`) | "land" for the normal end, which named two things |
+| Land | `landBegun` | Recovery after a failure: a play that fails lands what it began, finishing it as the end of its play would and beginning nothing more | `land()` on an animation (now the engine's own), the `landing` phase, a machine's `Landing` (now `TakePictures`), check's `LandingSink` (now `LastFrameSink`), the player's `land()` (now `drawLog()`) and `data-landed` (now `data-drawn`) |
 | What play() takes | `Playable`: a `ScheduledAnimation` or a `.animate` builder | An `Animation` animates its `mobject`, and is what a custom animation extends; an `AnimationGroup` animates no one mobject, so it is no `Animation`, and `ScheduledAnimation` names either, as groups and transitions take them | |
 | How a diagram is shown | `d.presentation` (`DiagramPresentation`) | `detached`, `live` (its own parts on the stage, which reveal, enlarge and morph move) or `viewed` (a view draws it); `live` here is not a live step | `d.shownBy`, the stage's map of diagram views |
 | The reader's events | `sent` | The events a reader sent at a live step, in the URL beside `step` | |
@@ -88,8 +89,7 @@ pictures, which is why it has one name everywhere. These decisions keep them apa
 - A step kind, `kind: 'short' | 'main' | 'detail'`, instead of the flags `reader: true` and `detail: true`.
 - Subjects, not claims, in review. `scene.review.json` declares `subjects`, the CLI flag is
   `--subjects`, and "claim" means only `meta.claims`.
-- One identity. `key` is a part's identity; `Mobject.id` is internal and left out of the
-  published types.
+- One identity. `key` is a part's identity; the renderer's number is private to the engine.
 - `seenFrom`, not `projected`. "Projection" is the CQRS word for a picture derived from state,
   so the 3D function is named for what it does.
 

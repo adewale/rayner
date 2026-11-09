@@ -14,11 +14,10 @@
 import { Mobject, Group, paintDefaults, mobjectName } from '../src/mobject.ts';
 import type { Box, HasText } from '../src/mobject.ts';
 import { center, pointsBox } from '../src/box.ts';
-import { Animation, Transform, TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey, cleanUp } from '../src/animation.ts';
+import { Animation, TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey, knownTransform, beginAnimation, interpolateAnimation, finishAnimation } from '../src/animation.ts';
 import { Follow } from './state.ts';
-import type { AnimOptions, MatchKey, MatchSummary, ScheduledAnimation } from '../src/animation.ts';
+import type { MatchKey, MatchSummary, PlayOptions, ScheduledAnimation } from '../src/animation.ts';
 import { cloneJson } from '../src/json.ts';
-import type { RateFunc } from '../src/rate.ts';
 import { Text } from '../src/text.ts';
 import type { Scene, SceneState, Evidence } from '../src/scene.ts';
 import type { Vec } from '../src/vec.ts';
@@ -40,10 +39,8 @@ export interface ViewOptions {
 /** How sync() morphs: by glyph, by shape, by position in the family, by the keys the picture's parts carry, or by your own key. */
 export type ViewMatch = 'text' | 'shapes' | 'index' | 'key' | MatchKey;
 
-export interface SyncOptions {
-  runTime?: number;
-  rateFunc?: RateFunc;
-  lagRatio?: number;
+/** How sync() runs: a play's options, and how it morphs. */
+export interface SyncOptions extends PlayOptions {
   /**
    * Default 'key': parts pair by the keys the picture gives them. A key sync whose pictures carry
    * no keys below their roots is refused; key the parts, or say 'text', 'shapes' or 'index'.
@@ -52,6 +49,9 @@ export interface SyncOptions {
   /** Parts that go fade out over the first half and parts that come fade in over the second, so the two never overlap. Default true, for every match; 'index' has no parts that go or come. */
   staged?: boolean;
 }
+
+/** How tween() runs: its run time and rate function. */
+export type TweenOptions = Pick<PlayOptions, 'runTime' | 'rateFunc'>;
 
 /** What fitting a freshly built picture gives (see View.measure): its unplaced size, and the scale it was given. */
 interface ViewFit { size: [number, number]; scale: number }
@@ -115,11 +115,11 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
    * and keep the family shape the view's draw gives (as a Follow's draw does). An action, as
    * sync() is.
    */
-  tween(stateAt: (t: number) => S, opts: AnimOptions = {}): Action {
-    return turnAction(this.host, 'view.tween()', opts.runTime ?? 1, () => new ViewTween<S, Sh>(this, (t) => {
+  tween(stateAt: (t: number) => S, { runTime = 1, rateFunc }: TweenOptions = {}): Action {
+    return turnAction(this.host, 'view.tween()', runTime, () => new ViewTween<S, Sh>(this, (t) => {
       this.host.state = cloneJson(stateAt(t), 'view.tween()', 'stateAt(t)') as Scene<S, Sh>['state'];
       return this.placed(this.host.state);
-    }, opts));
+    }, rateFunc ? { runTime, rateFunc } : { runTime }));
   }
 
   /**
@@ -220,23 +220,21 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
     const staged = this.staged;
     const inner: Animation = match === 'text' ? new TransformMatchingText(old, next, { replace: false, staged })
       : match === 'shapes' ? new TransformMatchingShapes(old, next, { replace: false, staged })
-      : match === 'index' ? new Transform(old, next)
+      : match === 'index' ? knownTransform(old, next, { same: old.sameShapeAs(next, true) })
       : new TransformMatching(old, next, { key: match === 'key' ? matchByKey() : match, replace: false, staged });
-    if (inner instanceof Transform) inner.sameStructure = old.sameShapeAs(next, true);
     inner.lagRatio = this.lagRatio;
-    inner.begin();
+    beginAnimation(inner);
     this.inner = inner; this.next = next;
   }
 
   /** alpha already passed through this sync's rateFunc by the scene. */
-  protected override doInterpolate(alpha: number): void { this.inner?.interpolate(alpha); }
+  protected override doInterpolate(alpha: number): void { if (this.inner) interpolateAnimation(this.inner, alpha); }
 
-  protected override doFinish(): void {
+  protected override doFinish(end: number = this.rateFunc(1)): void {
     if (!this.inner) return;
-    const end = this.rateFunc(1);
-    // The morph lands where this sync's last frame drew it, and ends finished, as one the scene began would.
-    this.inner.finish(end);
-    // Landed on the new picture: hand over to it (a matching transform leaves faded
+    // The morph ends where this sync's last frame drew it, and ends finished, as one the scene began would.
+    finishAnimation(this.inner, end);
+    // Finished on the new picture: hand over to it (a matching transform leaves faded
     // parts inside the old one, a Transform leaves it aligned). A rate function that
     // comes back leaves the old picture: the View did not sync.
     if (end === 1) {
@@ -266,7 +264,7 @@ class ViewTween<S extends object, Sh extends object> extends Animation {
   /** Set by begin(): the Follow that writes the picture on screen then. */
   private follow: Follow | null = null;
 
-  constructor(view: View<Mobject, S, Sh>, draw: (t: number) => Mobject, opts: AnimOptions) {
+  constructor(view: View<Mobject, S, Sh>, draw: (t: number) => Mobject, opts: TweenOptions) {
     super(view.current, opts);
     this.view = view;
     this.draw = draw;
@@ -278,19 +276,16 @@ class ViewTween<S extends object, Sh extends object> extends Animation {
   protected override doBegin(): void {
     this.mobject = this.view.current;
     this.follow = new Follow({ from: 0, to: 1, draw: this.draw }, { targets: [this.mobject] });
-    this.follow.begin();
+    beginAnimation(this.follow);
   }
 
   /** alpha already passed through this tween's rateFunc by the scene. */
-  protected override doInterpolate(alpha: number): void { this.begun().interpolate(alpha); }
+  protected override doInterpolate(alpha: number): void { interpolateAnimation(this.begun(), alpha); }
 
-  /** The Follow lands where this tween's last frame drew it, and ends finished. */
-  protected override doFinish(alpha: number = this.rateFunc(1)): void { this.begun().finish(alpha); }
+  /** The Follow ends where this tween's last frame drew it, and ends finished. */
+  protected override doFinish(alpha: number = this.rateFunc(1)): void { finishAnimation(this.begun(), alpha); }
 
   override evidence(): Evidence | null { return this.follow?.evidence() ?? null; }
-
-  /** @internal */
-  override [cleanUp](scene: Scene): void { if (this.remover) scene.remove(this.mobject); }
 
   private begun(): Follow {
     if (!this.follow) throw new Error('view.tween(): it has not begun; play it with this.play()');

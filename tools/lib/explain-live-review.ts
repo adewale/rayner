@@ -160,7 +160,7 @@ export async function reviewLiveStates(
       await page.waitForSelector('[data-ready=true]');
       await page.waitForFunction((value) => {
         const row = document.querySelector<HTMLElement>('.live');
-        return !!row && !row.hidden && row.dataset.landed === value && !document.querySelector('.stage[aria-busy]') &&
+        return !!row && !row.hidden && row.dataset.drawn === value && !document.querySelector('.stage[aria-busy]') &&
           !document.querySelector('svg.leaving') && !document.querySelector('#content.loading');
       }, log, { timeout: 60_000 });
       await settle();

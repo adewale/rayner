@@ -21,7 +21,7 @@ export type { AxisRange, NumberLineOptions, AxisStyle, AxesOptions, PlotOptions,
 export { Animation, Transform, FadeIn, FadeOut, Create, AnimationGroup, LaggedStart } from './animation.ts';
 export { Restore, TransformFromCopy, MoveAlongPath } from './animation.ts';
 export type { MoveAlongPathOptions } from './animation.ts';
-export type { AnimOptions, PlayOptions, Playable, ScheduledAnimation, TransformOptions, FadeOptions, AnimationPhase } from './animation.ts';
+export type { AnimationOptions, PlayOptions, Playable, ScheduledAnimation, TransformOptions, FadeOptions, AnimationPhase } from './animation.ts';
 export { Circumscribe } from './animation.ts';
 export type { CircumscribeOptions } from './animation.ts';
 export { Succession } from './animation.ts';

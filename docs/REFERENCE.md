@@ -211,6 +211,8 @@ The stage's verbs that animate (`s.show`, `s.card`, `s.code`, `s.note`, `s.enter
 - `await` it and it plays itself: one play for each of its beats, each rounded to whole frames. A walk is several beats: its token fades in, moves hop by hop, and fades out.
 - Hand it to `play()`, a `Succession`, an `AnimationGroup` or a `LaggedStart` and it plays there instead, its beats one after another inside that play.
 
+A play's options reach an action as they reach an animation: `runTime` stretches the whole action, and `rateFunc` and `lagRatio` replace the easing and the stagger of what each of its beats makes, while the action's own time stays linear. So `play(view.sync(), { rateFunc: linear })` moves the sync linearly, as `view.sync({ rateFunc: linear })` does, and a there-and-back rate function works on an action wherever it works on an animation. A group whose rate function runs time back can hold a one-beat action (`view.sync()`, `view.tween()`, `machine.send()`); one that would run an action of several beats back past the start of a beat that has finished throws, naming the action's call (`s.card(): its time ran backwards …`).
+
 ```ts
 await this.play(s.focus(d.get('B')), d.walk([['A', 'B']]));        // together, in one play
 await this.play(new Succession([s.enter(box), d.reveal(['B'])]));  // in turn, in one play
@@ -597,6 +599,7 @@ The package has an entry point per audience. A scene is written with `rayner` (t
 | `assertStepState`, `assertSteps`, `StepPath` | `rayner/testing` | Fail unless a step ended with the model's values; unless the named steps come in this order | [An explainer's test](#an-explainers-test) |
 | `assertViewFollowsState` | `rayner/testing` | Fail unless a view shows the traced state at the end of every step | [Views](VIEWS.md#the-fidelity-check-the-picture-side) |
 | `diagramOf` | `rayner/testing` | The diagram a pinned snapshot draws, built on a scene of its own, to read its words or parts | [An explainer's test](#an-explainers-test) |
+| `sampleAnimation` | `rayner/testing` | One frame of an animation outside a play, at an eased progress, for a test of a custom animation: it begins first if it has not | [Extending](EXTENDING.md#make-several-objects-follow-one-parameter) |
 
 `shaperFor` stays in `rayner`, and `refuse` and `isRefusal` (a model's refusal of an event, [machines](MACHINES.md#refused-events-bounds-and-authored-transitions)), `settingsOf` and `resolveSettings` in `rayner/explain`, since models and scenes call them.
 
@@ -679,7 +682,7 @@ Capture asserts that its output equals Agentic Mermaid's `renderMermaidSVG` byte
 | Machines | A state some [machine](MACHINES.md)'s events reach, from its start or from its state as its live step ends (where the reader starts, the run the player makes), collides, has a label under 14 px, has no description, does not show its state, or is described exactly as another reachable state; an authored transition breaks an invariant on the way or does not end on the pictures of the state it reaches; a `bound` stops an event the model refuses anyway; the machine's views are not on the stage of the step it last played in. Each is reported by its shortest events |
 | Invariants | An invariant the scene registered with `this.addInvariant(name, check)` fails on any frame of the full run, mid-animation included, or never holds on any frame (it found nothing to check: a key it reads may be misspelt); the report lists the frames each invariant held on (`invariants`) |
 | Seek | A seeked frame differs from the played frame, at three frames per step: its middle, its second-last and its resting frame, the one a link shows |
-| Last frame | A step's picture as it ends, after its last play has finished and left the stage, differs from its resting frame: an animation's `finish()` must land where its last frame drew, since describe, the shots and the checks of a resting picture (Step change, Text, Routes over labels, Legibility at rest, Looks) read each step as it ends |
+| Last frame | A step's picture as it ends, after its last play has finished and left the stage, differs from its resting frame: an animation's `doFinish()` must end where its last frame drew, since describe, the shots and the checks of a resting picture (Step change, Text, Routes over labels, Legibility at rest, Looks) read each step as it ends |
 | Trace | The trace with frames skipped differs from the played trace |
 | Step change | A step's resting picture, ignoring the heading, equals the previous step's. The camera's view is part of the picture, so a camera move alone is a change |
 | Text | Native text in a resting picture overlaps other text, runs into the heading's number or line, or is cut by the stage edge or the edge of the camera's view; text wholly outside the view is off screen and not judged |

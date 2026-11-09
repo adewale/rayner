@@ -16,7 +16,7 @@ import type {TextShaping} from './text-context.ts';
 // not from constructor values, so it stays right after shift, scale or rotate.
 // Graphs are built at the axes' position when called: move the axes first.
 
-import { Group, followScene } from './mobject.ts';
+import { Group, followScene, defaultColors } from './mobject.ts';
 import type { Mobject, Style } from './mobject.ts';
 import { VMobject } from './vmobject.ts';
 import { Dot, Line, Polygon, Rectangle } from './shapes.ts';
@@ -344,7 +344,7 @@ export class Axes extends Group {
       labels.forEach((s, i) => {
         const at = V.add(this.c2p(x?.[i] ?? i + 0.5, this.yAxis.min), V.mul(down, depth + 0.15));
         // The x axis' colour, or the scene's ink while the axis still takes it.
-        const line = this.xAxis.line, axisColor = line.defaultColors?.stroke ? undefined : line.style.stroke;
+        const line = this.xAxis.line, axisColor = line[defaultColors]?.stroke ? undefined : line.style.stroke;
         g.add(new Text(s, { fontSize: labelFontSize, color: labelColor ?? axisColor, shaping: this.shaping }).moveTo(at, V.mul(down, -1)));
       });
     }

@@ -12,6 +12,8 @@ import { labelOf, readingLabelSize } from '../../explain/labels.ts';
 import type { DiagramSnapshot } from '../../explain/index.ts';
 import importedSnapshot from '../../scenes/explainers/font-metrics/scene.snapshots/4ee0d75a90dc9b78.json' with { type: 'json' };
 import { outlineText } from '../../explain/diagram-text.ts';
+import { beginAnimation, interpolateAnimation, finishAnimation } from '../../src/animation.ts';
+import { affine, mergeLeaves } from '../../src/mobject.ts';
 await loadFonts();
 
 function importedLabel(snapshot = importedSnapshot as DiagramSnapshot) {
@@ -36,7 +38,7 @@ test('native and imported font metrics preserve rotation and uniform scale, and 
     for (const { matrix, scale } of cases) {
       const label = make(), original = readingLabelSize(label)!;
       const [a, b, c, d] = matrix as [number, number, number, number];
-      label.applyAffine(a, b, c, d, 0, 0, { aboutPoint: [0, 0] });
+      label[affine](a, b, c, d, 0, 0, { aboutPoint: [0, 0] });
       assert.ok(Math.abs(readingLabelSize(label)! - original * scale) < 2e-6, JSON.stringify(matrix));
       assert.ok(Math.abs(labelPx(label, {})! - original * scale * 80) < 2e-4,
         'the production legibility checker uses the same transformed font floor');
@@ -63,10 +65,10 @@ test('imported source matrices and forced widths determine font size without alt
     // forced quarter width changes them to 0.5 and 0.5.
     assert.ok(Math.abs(readingLabelSize(label)! - 0.13 * 0.5 * fit) < 2e-6);
     const control = new Group(...label.children.map((m) => m.copy()));
-    control.mergeLeaves = label.mergeLeaves;
+    control[mergeLeaves] = label[mergeLeaves];
     assert.deepEqual(label.box(), control.box(), 'the actual imported label starts with its original ink bounds');
     assert.equal(svg(label as Group), svg(control), 'the added font basis emits no SVG');
-    for (const m of [label, control]) m.rotate(Math.PI / 3).applyAffine(1, 0.4, 2, 1, -3, 2);
+    for (const m of [label, control]) m.rotate(Math.PI / 3)[affine](1, 0.4, 2, 1, -3, 2);
     assert.deepEqual(label.box(), control.box(), 'rotation and shear preserve the original layout bounds');
     assert.equal(svg(label as Group), svg(control), 'rotation and shear preserve the original SVG bytes');
     const text = new Text('Paper', { fontSize: 0.8 }).rotate(Math.PI / 3);
@@ -84,8 +86,8 @@ test('imported label copies and animation retain their basis without changing gl
   assert.ok(Math.abs(readingLabelSize(copy)! - size * 0.01) < 2e-6);
   const geometry = new Group(...original.children.map((m) => m.copy()));
   const matrix = [1, 0.4, 2, 1, -3, 2] as const;
-  original.applyAffine(...matrix, { aboutPoint: [0, 0] });
-  geometry.applyAffine(...matrix, { aboutPoint: [0, 0] });
+  original[affine](...matrix, { aboutPoint: [0, 0] });
+  geometry[affine](...matrix, { aboutPoint: [0, 0] });
   assert.deepEqual(original.box(), geometry.box(), 'basis points add no layout extent, including after shear');
   const paths = (m: Group) => m.family().filter((p): p is VMobject => p instanceof VMobject)
     .map((p) => p.subpaths.map((a) => [...a]));
@@ -93,10 +95,10 @@ test('imported label copies and animation retain their basis without changing gl
   const moving = importedLabel(), start = readingLabelSize(moving)!;
   const target = moving.copy().stretch(0.25, 0);
   const animation = new Transform(moving, target);
-  animation.begin();
-  animation.interpolate(0.5);
+  beginAnimation(animation);
+  interpolateAnimation(animation, 0.5);
   assert.ok(Math.abs(readingLabelSize(moving)! - start * 0.625) < 2e-6, 'the basis follows the glyphs during interpolation');
-  animation.finish();
+  finishAnimation(animation);
   assert.ok(Math.abs(readingLabelSize(moving)! - start * 0.25) < 2e-6);
   moving.copy().rotate(Math.PI / 2);
   assert.ok(Math.abs(readingLabelSize(moving)! - start * 0.25) < 2e-6);
@@ -118,14 +120,14 @@ test('imported font metadata stays out of every ancestor bound during different-
       target.parent!.remove(target);
     }
     const animation = new Transform(source, target);
-    animation.begin();
+    beginAnimation(animation);
     for (const alpha of [0, 0.1, 0.3, 0.5, 0.8, 1]) {
-      animation.interpolate(alpha);
+      interpolateAnimation(animation, alpha);
       const ink = new Group(...source.children.map((m) => m.copy()));
       assert.deepEqual(source.box(), ink.box(), `${word}/${alpha}: no metric-only layout extent`);
       assert.deepEqual(ancestor.box(), ink.box(), `${word}/${alpha}: ancestors also ignore metric-only extent`);
     }
-    animation.finish();
+    finishAnimation(animation);
     assert.deepEqual(ancestor.box(), new Group(...source.children.map((m) => m.copy())).box());
     assert.ok(Math.abs(readingLabelSize(source)! - readingLabelSize(target)!) < 2e-6,
       `${word}: the endpoint retains the target font size`);
@@ -139,8 +141,8 @@ test('nested imported font bases follow matching and morphed glyphs without targ
     label.saveState();
     const source = new Group(label), target = source.copy().stretch(factor, 0);
     const animation = new TransformMatchingShapes(source, target, { replace: false, fadeMismatches: false });
-    animation.begin();
-    animation.finish();
+    beginAnimation(animation);
+    finishAnimation(animation);
     assert.ok(Math.abs(readingLabelSize(label)! - originalSize * Math.min(1, factor)) < 2e-6,
       'retaining the source must not retain an obsolete font basis');
     assert.deepEqual(source.box(), target.box(), 'matching glyphs retain their target geometry');
@@ -159,8 +161,8 @@ test('matching between native and imported labels retains the target font scale 
       const source = nested ? new Group(sourceLabel) : sourceLabel;
       const target = nested ? new Group(targetLabel) : targetLabel;
       const animation = new TransformMatchingShapes(source, target, { replace: false, fadeMismatches: false });
-      animation.begin();
-      animation.finish();
+      beginAnimation(animation);
+      finishAnimation(animation);
       assert.ok(Math.abs(readingLabelSize(sourceLabel)! - expected) < 2e-6,
         `${nativeFirst ? 'native-to-imported' : 'imported-to-native'}/${nested}: exact target em`);
       if (sourceLabel instanceof Text) {
@@ -176,14 +178,14 @@ test('zero-em native matching keeps finite geometry and a closed readability flo
     const source = nativeFirst ? native : imported, target = nativeFirst ? imported : native;
     assert.equal(readingLabelSize(native), 0, 'the existing zero-size constructor yields no readable em');
     const animation = new TransformMatchingShapes(source, target, { replace: false, fadeMismatches: false });
-    animation.begin();
+    beginAnimation(animation);
     for (const alpha of [0, 0.5, 1]) {
-      animation.interpolate(alpha);
+      interpolateAnimation(animation, alpha);
       const arrays = source.family().flatMap((m) => m.pointArrays());
       assert.equal(arrays.length, 10, 'one metric frame and nine glyph contours');
       assert.ok(arrays.every((a) => a.every(Number.isFinite)), 'normalizing a zero em must not introduce NaN coordinates');
     }
-    animation.finish();
+    finishAnimation(animation);
     assert.equal(readingLabelSize(source), 0, 'degenerate native metrics fail closed');
   }
 });
