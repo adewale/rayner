@@ -185,16 +185,14 @@ test('fresh Text is centred on its advance box before any positioning', () => {
     }), params(500, { examples: [['Label', 'sans', 0.4, 'normal'], ['', 'mono', Number.MIN_VALUE, 'bold']] }));
 });
 
-test('scene admission methods render each descendant once across orders and batches', () => {
+test('scene.add renders each descendant once across orders and batches', () => {
   const a = new Square(), b = new Square(), c = new Square(), parent = new Group(a, b);
   const ordered = new Scene(new NullSink()).add(parent, c, parent);
   assert.deepEqual(ordered.mobjects, [c, parent], 'last root occurrence is in front');
   ordered.add(a);
   assert.deepEqual(ordered.mobjects, [c, parent], 'adding a covered child is a no-op');
-  ordered.bringToBack(parent, c);
-  assert.deepEqual(ordered.mobjects, [parent, c], 'back batches retain argument order');
 
-  const op = fc.record({ method: fc.constantFrom('add' as const, 'bringToFront' as const, 'bringToBack' as const), batch: fc.array(fc.integer({ min: 0, max: 4 }), { maxLength: 5 }) });
+  const op = fc.record({ batch: fc.array(fc.integer({ min: 0, max: 4 }), { maxLength: 5 }) });
   fc.assert(fc.property(fc.array(op, { maxLength: 30 }), (batches) => {
     const a = new Square(), b = new Square().shift([2, 0]), c = new Square().shift([4, 0]);
     const inner = new Group(a, b), outer = new Group(inner, c);
@@ -204,12 +202,12 @@ test('scene admission methods render each descendant once across orders and batc
     const descendants = [[0], [1], [2], [0, 1, 3], [0, 1, 2, 3, 4]];
     const scene = new Scene(new NullSink());
     let admitted: number[] = [];
-    for (const { method, batch } of batches) {
-      scene[method](...batch.map((i) => choices[i]!));
-      for (const index of method === 'bringToBack' ? [...batch].reverse() : batch) {
+    for (const { batch } of batches) {
+      scene.add(...batch.map((i) => choices[i]!));
+      for (const index of batch) {
         if (admitted.some((i) => i !== index && descendants[i]!.includes(index))) continue;
         admitted = admitted.filter((i) => !descendants[index]!.includes(i));
-        if (method === 'bringToBack') admitted.unshift(index); else admitted.push(index);
+        admitted.push(index);
       }
       assert.deepEqual(scene.mobjects, admitted.map((i) => choices[i]!), 'admission keeps root draw order, including re-add to front');
       const ids = renderElements(scene).map((e) => e.id);
@@ -217,7 +215,7 @@ test('scene admission methods render each descendant once across orders and batc
       assert.equal(ids.length, new Set(ids).size, 'one rendered occurrence per shape');
       assert.deepEqual(ids, expected.map((i) => choices[i]!.id), 'all and only admitted leaves are painted, in order');
     }
-  }), params(500, { examples: [[[ {method:'add',batch:[3,2,3]} ]], [[{method:'add',batch:[0]},{method:'add',batch:[4]}]], [[{method:'bringToBack',batch:[4,0]}]]] }));
+  }), params(500, { examples: [[[{ batch: [3, 2, 3] }]], [[{ batch: [0] }, { batch: [4] }]], [[{ batch: [4, 0] }]]] }));
 });
 
 test('replacement admission does not duplicate promoted subtrees or delete a self-replaced sibling', () => {

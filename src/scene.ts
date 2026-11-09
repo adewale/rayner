@@ -38,16 +38,6 @@ export interface StepMeta {
   [key: string]: unknown;
 }
 
-/**
- * The frame a step's picture stops changing on: where its caption hold begins, else its last
- * frame, `frame1`, which a link to the step shows and every check judges. The player, playing one
- * step, stops here; a continuous render of the scene plays on through the hold to `t1`. The state
- * can still change after it (code after the step's last play, an end listener): a step's state is
- * read as it ends (the trace's `after`, `stopAt`). A running Step, whose `frame1` is null, has not
- * stopped: Infinity.
- */
-export const stillFrame = (step: { holdFrame?: number | null; frame1?: number | null }): number => step.holdFrame ?? step.frame1 ?? Infinity;
-
 /** A named step: from `step()` to the next step or the end of the scene. */
 export interface Step {
   name: string;
@@ -59,8 +49,8 @@ export interface Step {
   /**
    * When the caption-reading hold began, and on which frame, if the step needed one. The frames
    * from `holdFrame` to `frame1` show one picture: the player, playing one step, stops at
-   * `holdFrame`, and a continuous render plays on to `t1`. `stillFrame(step)` is where the picture
-   * stops changing, held or not.
+   * `holdFrame`, and a continuous render plays on to `t1`. `holdFrame ?? frame1` is where the
+   * picture stops changing, held or not.
    */
   hold?: number;
   holdFrame?: number;
@@ -154,7 +144,7 @@ const LETTERS_PER_WORD = 1.5;
  * LETTERS_PER_WORD of their letters (grapheme clusters, by Intl.Segmenter) count as a word, and a token is always at least one. Grapheme clusters
  * follow fixed Unicode rules, so Node and every browser count alike; a dictionary's word breaks would not.
  */
-export function captionWords(caption: string): number {
+function captionWords(caption: string): number {
   let words = 0;
   for (const token of caption.trim().split(/\s+/)) {
     if (!token) continue;
@@ -241,15 +231,15 @@ function assertDisjointInPlay(playing: readonly Animation[], begun: readonly Ani
 }
 
 /** Maintain one root per subtree while preserving the requested draw order. */
-function admitRoots(current: readonly Mobject[], incoming: readonly Mobject[], back = false): Mobject[] {
+function admitRoots(current: readonly Mobject[], incoming: readonly Mobject[]): Mobject[] {
   let roots = [...current];
   const owner = new Map<Mobject, Mobject>();
   for (const root of roots) for (const member of root.family()) owner.set(member, root);
-  for (const m of back ? [...incoming].reverse() : incoming) {
+  for (const m of incoming) {
     if (owner.has(m) && owner.get(m) !== m) continue;
     const family = m.family(), covered = new Set(family);
     roots = roots.filter((root) => !covered.has(root));
-    if (back) roots.unshift(m); else roots.push(m);
+    roots.push(m);
     for (const member of family) owner.set(member, m);
   }
   return roots;
@@ -719,8 +709,8 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   /**
    * @internal Keep `mobs` drawn last, over anything added after them, in the order given (one kept
    * already moves last among them). Whenever one is on stage, as a root or inside one, the root that
-   * holds it (its topmost ancestor on stage) stands at the end of `mobjects`: after each add,
-   * bringToFront, bringToBack and replace, before every frame and step boundary the sink is handed,
+   * holds it (its topmost ancestor on stage) stands at the end of `mobjects`: after each add and
+   * replace, before every frame and step boundary the sink is handed,
    * and before a frame drawn outside the loop (drawFrame: renderFrame, the live run), so a
    * group added later that wraps it, or a direct write to `mobjects`, is raised again before anything
    * is drawn. A sink handed the scene by other code reads the list as it stands. Keeping does not
@@ -783,13 +773,6 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     return this;
   }
 
-  bringToFront(...mobs: Mobject[]): this { return this.add(...mobs); }
-  bringToBack(...mobs: Mobject[]): this {
-    for (const m of mobs) paintDefaults(m, this.colors);
-    this.mobjects = admitRoots(this.mobjects, mobs, true);
-    this.#raiseTop();
-    return this;
-  }
   /** @internal Empty the drawn list at once, unanimated: for tools and tests (a stage's `s.clear()` fades everything out). */
   removeAll(): this { this.mobjects = []; return this; }
 

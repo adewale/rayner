@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Text } from '../src/index.ts';
 import { NullSink, toSvgString, renderElements } from '../src/output.ts';
-import { perf } from '../explain/testing.ts';
+import { perf } from '../src/perf.ts';
 import type { ElementRecord } from '../src/output.ts';
 import { Fixture, explainers } from './lib/scenes.ts';
 

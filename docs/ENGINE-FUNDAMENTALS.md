@@ -127,7 +127,7 @@ whatever reads the property, so `family()`, and so `box()`, refuses a mobject th
 that reads `m.children` before any `family()` would still see such a property, and a class's
 prototype is checked the first time one of its mobjects is walked, so one patched after that, from
 plain JavaScript, is not seen. `family()` is the mobject and every descendant, depth first. A scene admits one root per subtree, so admitting a parent never paints a
-child twice. `Scene.add`, `remove`, `replace`, `bringToFront` and `bringToBack`
+child twice. `Scene.add`, `remove` and `replace`
 control membership and draw order; what the stage keeps over everything else (its heading,
 band, step number and line) stays last through each of them: the root that holds it, which is
 the group around it once one wraps it, is moved last, and that is done again before every frame
@@ -281,7 +281,7 @@ its step until it could be read, so the step's resting picture, its last frame, 
 from its first. Each step draws at least one frame of its own (`loadProject` and the command
 refuse one that does not). Each moment is recorded as a time and a frame: `hold` and
 `holdFrame` where a caption hold begins, and `t1` and `frame1` where the step ends;
-the player, playing one step, stops at `stillFrame(step)`, the hold frame or else the last,
+the player, playing one step, stops at the still frame, the hold frame or else the last,
 while a continuous render of the scene plays on through the hold to `t1`, and links show
 `frame1`. The still frame and `frame1` show one picture, but code after the step's last play
 and its end listeners can still change the state between them, so a step's state is read at
@@ -376,7 +376,7 @@ understand. A pass on one says nothing about the others. `MotionSink` and
 `analyzeMotion(sink, options)` returns a `MotionEvent` for each teleport, resize, pop, cut,
 flicker or handoff in the frames a `MotionSink` sampled: `{ kind, frame, t, step, what, magnitude, detail }`.
 
-For profiling, `perf.enable()` (`perf` is in `rayner/testing`) starts counters and spans, `perf.report()` explains
+For profiling Rayner itself, `perf.enable()` (in `src/perf.ts`, internal to the repository) starts counters and spans, `perf.report()` explains
 where measured work went, and `perf.chromeTrace()` returns trace-event JSON for a
 trace viewer. Disable it with `perf.disable()`. Compare identical scenes, timestamps,
 frame rates and output modes: a trace-only dry run is not a playback benchmark.

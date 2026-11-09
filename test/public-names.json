@@ -144,9 +144,6 @@
       "machinesOf": {
         "tooling": "an author's test that drives or explores a scene's machines from outside the scene"
       },
-      "perf": {
-        "tooling": "an author profiling a scene or a tool: counters, spans and a trace-event export"
-      },
       "pictureWordsAt": {
         "tooling": "an author's test that reads what a reader who cannot see the stage is told about a step's picture"
       },
@@ -155,9 +152,6 @@
       },
       "scenariosOf": {
         "tooling": "an author's test or tool that runs every scenario of a scene's settings"
-      },
-      "stillFrame": {
-        "tooling": "an author's test that reads where a step's picture stops changing, held or not, from its trace"
       },
       "takeMissingGlyphs": {
         "tooling": "an author's test or tool that draws text outside the command and fails on characters drawn with no glyph"

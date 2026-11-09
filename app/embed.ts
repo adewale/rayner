@@ -3,7 +3,6 @@ import { renderFrame } from '../src/output.ts';
 import { traceRun } from '../src/trace.ts';
 import type { Palette } from '../src/color.ts';
 import type { SceneClass, SceneOptions, Sink } from '../src/index.ts';
-import { stillFrame } from '../src/scene.ts';
 import { StopScene } from '../src/output.ts';
 import { isHex } from '../src/color.ts';
 import { canonicalJson } from '../src/json.ts';
@@ -1284,7 +1283,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         index, scope, sink,
         frame0: step.frame0,
         // Stop when the picture stops: the reader sets the pace instead of waiting through the caption-reading hold.
-        still: stillFrame(step),
+        still: step.holdFrame ?? step.frame1,
         frame1: step.frame1,
         container,
         /** Frames drawn so far: the first is drawn at dt 0, as the picture the step starts from. */

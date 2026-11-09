@@ -1,6 +1,6 @@
 import { table } from '../../../explain/drawing.ts';
 import { answerOf, view, having } from '../../../explain/index.ts';
-import { Scene, Text, FadeIn, captionWords } from '../../../src/index.ts';
+import { Scene, Text, FadeIn } from '../../../src/index.ts';
 import type { EndedStep } from '../../../src/index.ts';
 import { stage, regionBox, resolveSettings } from '../../../explain/index.ts';
 import type { ExplainerClass, Diagram, PictureNote, View, ExplainerMeta } from '../../../explain/index.ts';
@@ -327,8 +327,8 @@ export default class ForkExplainer extends Scene<ForkState, ForkShown> {
     const phases = (fork: EndedStep) => ({
       motion: (fork.hold ?? fork.t1) - fork.t0,
       held: fork.hold == null ? 0 : fork.t1 - fork.hold,
-      // Counted as the hold counts them, so the timeline and the hold agree.
-      words: captionWords(String(fork.meta.caption)),
+      // The caption is English, so its words are what whitespace separates, as the hold counts them.
+      words: String(fork.meta.caption).trim().split(/\s+/).length,
     });
     let timing = { motion: 0, held: 0, words: 0 };
     // The step this detail closes is 'fork'.
