@@ -151,7 +151,7 @@ export class Machine<S extends object, E extends string> {
     // Exploration redraws any reachable state after the run, which needs each picture to be a function
     // of the scene's state alone. Every View is (view(scene, draw)), so there is nothing to refuse.
     this.scene = scene;
-    this.spec = settle(spec);
+    this.spec = frozenSpec(spec);
     machinesOf(scene).push(this as unknown as Machine<object, string>);
   }
 
@@ -316,7 +316,7 @@ export class Machine<S extends object, E extends string> {
  * labels and transitions are frozen copies too, and whose `start` is copied at construction and again
  * at every read, so neither the caller nor a reader can change what the machine explores.
  */
-function settle<S extends object, E extends string>(spec: MachineSpec<S, E>): MachineModel<S, E> {
+function frozenSpec<S extends object, E extends string>(spec: MachineSpec<S, E>): MachineModel<S, E> {
   // A state is JSON (a send sets it through the trace's JSON rules), and the bare runtime that
   // replays a page has no structuredClone.
   const copy = (state: S): S => JSON.parse(JSON.stringify(state)) as S;

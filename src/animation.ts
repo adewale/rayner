@@ -135,6 +135,19 @@ let landAnimation: (a: ScheduledAnimation, scene: Scene | null) => void;
 /** Options a play gives its animations, as one play's: what is set apart from what is not. */
 type Timing = Pick<AnimationOptions, 'rateFunc' | 'lagRatio'>;
 
+/** The easing in a play's options (its rateFunc and lagRatio, those given): what an action hands to what its beats make. */
+const easingOf = ({ rateFunc, lagRatio }: PlayOptions): Timing => ({ ...(rateFunc != null ? { rateFunc } : {}), ...(lagRatio != null ? { lagRatio } : {}) });
+
+/**
+ * Hand `easing`, what a play gave an action, to `a`, made or begun for it at its turn: checked as a
+ * play's options are (refused under `api`, the action's call), then given.
+ */
+function handEasing(a: ScheduledAnimation, easing: Timing, api: string): void {
+  if (easing.rateFunc == null && easing.lagRatio == null) return;
+  a[refuseTiming](api, easing, true);
+  a[takeOptions](easing);
+}
+
 /**
  * @internal Check `opts`, a play's options, against every one of `anims`, changing nothing, and return
  * what gives them the options: a play refused before anything begins (by these checks, or by the
@@ -435,24 +448,22 @@ interface KnownTarget { owned: boolean; same: boolean }
 const UNKNOWN: KnownTarget = { owned: false, same: false };
 /** A target built for the animation alone, as a copy of its mobject: FadeIn's and FadeOut's. */
 const OWN_COPY: KnownTarget = { owned: true, same: true };
-/** The keys of what a Transform knows of its target: given when the engine makes one, or answered as it begins. */
-const known = Symbol('known'), knownAtBegin = Symbol('knownAtBegin');
+/** The key of what a Transform knows of its target as it begins: what it was made knowing, or what an engine subclass answers. */
+const knownAtBegin = Symbol('knownAtBegin');
 
 /**
  * @internal A Transform the engine makes knowing its target (see KnownTarget): a target built for it
  * alone (`owned`), or one of the mobject's own structure (`same`). No author's Transform is told
  * either; each copies its target and aligns it.
  */
-export function knownTransform(mobject: Mobject, target: Mobject, k: Partial<KnownTarget>, opts: TransformOptions = {}): Transform {
-  return new Transform(mobject, target, { ...opts, [known]: { ...UNKNOWN, ...k } } as TransformOptions);
-}
+export let knownTransform: (mobject: Mobject, target: Mobject, k: Partial<KnownTarget>, opts?: TransformOptions) => Transform;
 
 /** Blend `mobject` into `target`. With replace=true, the scene keeps `target` afterwards. */
 export class Transform extends Animation {
   target: Mobject;
   readonly replace: boolean;
   /** What the engine that made it knows of its target (see knownTransform). */
-  readonly #known: KnownTarget;
+  #known: KnownTarget = UNKNOWN;
   /** The target it morphs toward, fixed as it begins: the target itself when owned, else a copy. */
   #targetCopy!: Mobject;
   /** Path structure of the mobject and target families before alignment, restored as it finishes. */
@@ -462,7 +473,13 @@ export class Transform extends Animation {
     super(mobject, opts);
     this.target = target;
     this.replace = replace;
-    this.#known = (opts as { [known]?: KnownTarget })[known] ?? UNKNOWN;
+  }
+  static {
+    knownTransform = (mobject, target, k, opts) => {
+      const t = new Transform(mobject, target, opts);
+      t.#known = { ...UNKNOWN, ...k };
+      return t;
+    };
   }
 
   /** @internal What it knows of its target as it begins: what it was made knowing, unless an engine subclass that builds its target says otherwise. */
@@ -1192,7 +1209,7 @@ export class Succession extends AnimationGroup {
   /** @internal A play's runTime stretches it; its rateFunc warps its time, or, for an action, reaches what its beats make, with its lagRatio. */
   override [takeOptions]({ runTime, rateFunc, lagRatio }: PlayOptions = {}): this {
     if (!this[passesEasing]) return super[takeOptions]({ runTime, rateFunc });
-    this.#easing = { ...(rateFunc != null ? { rateFunc } : {}), ...(lagRatio != null ? { lagRatio } : {}) };
+    this.#easing = easingOf({ rateFunc, lagRatio });
     return super[takeOptions]({ runTime });
   }
 
@@ -1223,7 +1240,7 @@ export class Succession extends AnimationGroup {
     const scene = this[playScene], { play } = this.#playing();
     const next = membersOf(this)[++this.#active];
     if (!next) return;
-    if (this.#easing.rateFunc || this.#easing.lagRatio != null) next[takeOptions](this.#easing);
+    handEasing(next, this.#easing, this.#call());
     // A Succession the engine made for a call names that call, as this one does.
     if (next instanceof Succession && next[madeBy] === undefined && this.#call() !== 'new Succession()') next[madeBy] = this.#call();
     if (!scene) return beginAnimation(next);
@@ -1413,8 +1430,8 @@ export abstract class MadeAtTurn extends AnimationGroup {
     this.#declared = declared;
   }
   /** @internal Its run time is planned; a play's rateFunc and lagRatio are for what it makes. */
-  override [takeOptions]({ runTime, rateFunc, lagRatio }: PlayOptions = {}): this {
-    this.#easing = { ...(rateFunc != null ? { rateFunc } : {}), ...(lagRatio != null ? { lagRatio } : {}) };
+  override [takeOptions]({ runTime, ...easing }: PlayOptions = {}): this {
+    this.#easing = easingOf(easing);
     return super[takeOptions]({ runTime });
   }
   /** Its members, made as its turn comes. */
@@ -1434,10 +1451,10 @@ export abstract class MadeAtTurn extends AnimationGroup {
     adoptMembers(this, [], []);
     this.#turn = { made: 'not yet' };
     const members = this.make();
-    const easing = this.#easing;
-    for (const a of members) if (a instanceof Succession && a[madeBy] === undefined) a[madeBy] = this.call;
-    if (easing.rateFunc || easing.lagRatio != null)
-      for (const a of members) { a[refuseTiming](this.call, easing, true); a[takeOptions](easing); }
+    for (const a of members) {
+      if (a instanceof Succession && a[madeBy] === undefined) a[madeBy] = this.call;
+      handEasing(a, this.#easing, this.call);
+    }
     const turn: { made: 'waiting'; at: number | null } = { made: 'waiting', at: null };
     this.#turn = turn;
     beginWhenReady(scene, members, this.call, () => {
