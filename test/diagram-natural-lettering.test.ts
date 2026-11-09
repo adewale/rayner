@@ -203,7 +203,7 @@ test('requested natural faces and rich cuts use independent HarfBuzz advances th
     const stored = unpackLettering(JSON.parse(await readFile(file, 'utf8')));
     stored.fontInputs!['eb-garamond'] = 'a'.repeat(64);
     await writeFile(file, JSON.stringify(stored));
-    await assert.rejects(collectProject(directory, { write: false }), /Stale natural diagram font metrics/);
+    await assert.rejects(collectProject(directory, { write: false }), { name: 'Error', message: /^scene\.snapshots: .*natural diagram font metrics.*scene\.ts$/ });
     // Poison the actual persisted diagram too: refreshing the source-font
     // metadata alone must not accidentally make damaged cached geometry reusable.
     const index = JSON.parse(await readFile(join(directory, 'scene.snapshots/index.json'), 'utf8')) as {

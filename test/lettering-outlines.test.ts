@@ -101,10 +101,10 @@ test('capture rejects an unrequested script and a MathTex object without opt-in'
   try {
     const source = await readFile(join(fixtures, 'arabic/scene.ts'), 'utf8');
     await writeFile(join(dir, 'scene.ts'), source.replace("scripts:['Arab']", "scripts:['Deva']"));
-    await assert.rejects(collectProject(dir, { captureLettering: true, write: false }), /Script not requested/);
+    await assert.rejects(collectProject(dir, { captureLettering: true, write: false }), { name: 'Error', message: /^new Text\(\): ا \(U\+627\) .*meta\.lettering\.scripts/ });
     const math = await readFile(join(fixtures, 'math/scene.ts'), 'utf8');
     await writeFile(join(dir, 'scene.ts'), math.replace('lettering: {math:true}', 'lettering: {math:false}'));
-    await assert.rejects(collectProject(dir, { captureLettering: true, write: false }), /MathTex requires/);
+    await assert.rejects(collectProject(dir, { captureLettering: true, write: false }), { name: 'Error', message: /^new MathTex\(\): .*meta\.lettering\.math/ });
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
 

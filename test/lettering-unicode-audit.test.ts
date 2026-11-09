@@ -16,7 +16,7 @@ test('Unicode audit: requested faces, combining clusters and modern bidi bracket
   const folder = await mkdtemp(join(tmpdir(), 'rayner-unicode-audit-'));
   try {
     const source = join(folder, 'scene.ts');
-    await writeFile(source, `import{Scene,Text}from'rayner';export default class L extends Scene{static meta={id:'style-latin',lettering:{faces:{sans:'eb-garamond'},scripts:['Latn']}};async construct(){await this.step('word');this.add(new Text('Garamond'));}}`);
+    await writeFile(source, `import{Scene,Text}from'rayner';export default class L extends Scene{static meta={id:'style-latin',lettering:{faces:{sans:'eb-garamond'},scripts:['Latn']}};async construct(){await this.step('word');this.add(new Text('Garamond'));await this.wait(1);}}`);
     // Capture through the real provider too: the Python fix must be wired into
     // the request's chain/preference selection.
     const project = await collectProject(source, { captureLettering: true, write: false });
