@@ -786,10 +786,11 @@ test('a caption holds one second a word at 60 words a minute: whitespace separat
   assert.equal(await held("int('三') returns 3"), frames(3));
   assert.equal(await held('API调用'), frames(2 / 1.5));
   assert.equal(await held('三'), frames(1));
-  // Thai, with its combining marks: grapheme clusters, not code points (six code points, two clusters).
+  // Thai: vowel signs and tone marks are parts of a letter (six code points, two letters).
   assert.equal(await held('ที่นี่'), frames(2 / 1.5));
-  // Khmer, where Node's and Chromium's dictionary word breaks differ; their grapheme clusters agree.
-  assert.equal(await held('សួស្តីពិភពលោក'), frames(7 / 1.5));
+  // Khmer: the subscript sign and vowel signs are marks, the subscript consonant a letter (13 code points,
+  // 8 letters), whatever the ICU version: its grapheme clusters number 8 under Node 24.0.0 and 7 under later Nodes.
+  assert.equal(await held('សួស្តីពិភពលោក'), frames(8 / 1.5));
   // Korean is written with spaces.
   assert.equal(await held('한국어는 띄어쓰기를 합니다'), frames(3));
 });

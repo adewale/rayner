@@ -134,14 +134,18 @@ const RUNNING: Record<Exclude<ScenePhase, 'idle' | 'stopped'>, string> = {
 
 /** Scripts written without spaces between words: a caption in them is counted by letters. */
 const UNSPACED = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}\p{Script=Tibetan}]/u;
+/** A combining mark: part of the letter before it. */
+const MARK = /\p{M}/u;
 /** Letters of a script without spaces that read as one word, as a reader's pace goes: about 240 Han characters a minute at 160 words. */
 const LETTERS_PER_WORD = 1.5;
 
 /**
  * How many words a caption is, for its reading time. Words are what whitespace separates, except in
  * scripts written without spaces (Chinese, Japanese, Thai, Lao, Khmer, Myanmar, Tibetan), where every
- * LETTERS_PER_WORD of their letters (grapheme clusters, by Intl.Segmenter) count as a word, and a token is always at least one. Grapheme clusters
- * follow fixed Unicode rules, so Node and every browser count alike; a dictionary's word breaks would not.
+ * LETTERS_PER_WORD of their letters count as a word, and a token is always at least one. A letter is a code point
+ * of such a script that is not a combining mark (\p{M}): vowel signs, tone marks and Khmer's subscript sign are
+ * parts of a letter. A character's category is fixed once it is assigned, so every Node and browser counts alike;
+ * grapheme clusters are not, since their rules change between Unicode versions, and nor are a dictionary's word breaks.
  */
 function captionWords(caption: string): number {
   let words = 0;
@@ -149,7 +153,7 @@ function captionWords(caption: string): number {
     if (!token) continue;
     if (!UNSPACED.test(token)) { words++; continue; }
     let unspaced = 0;
-    for (const { segment } of new Intl.Segmenter('und', { granularity: 'grapheme' }).segment(token)) if (UNSPACED.test(segment)) unspaced++;
+    for (const ch of token) if (UNSPACED.test(ch) && !MARK.test(ch)) unspaced++;
     // A token is at least a word: a lone character (a numeral, `int('三')`) reads as one.
     words += Math.max(1, unspaced / LETTERS_PER_WORD);
   }
