@@ -287,7 +287,7 @@ test('a family stays a tree: add refuses the mobject itself or an ancestor, and 
   assert.deepEqual(g1.children, []);
 });
 
-test('the children and the parent live outside the mobject: no write to it changes them, and one that shadows them is refused where family() walks (A12)', () => {
+test('the children and the parent live outside the mobject: no write to it changes them, and one that shadows them is refused where family() walks', () => {
   const a = new Group(), b = new Group(), c = new Square();
   a.add(b);
   // The deliberate defects: a write to the old private field, and to the same name by element access.

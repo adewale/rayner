@@ -56,7 +56,7 @@ test('the scene takes the intent as its own metadata, and a part declared in bot
   assert.equal(Scene.meta.answer, 'the second press only dims it');
 });
 
-test('every adoption starts from the declared metadata: withIntent and loadProject drop a removed header\'s keys, as the command does (A19)', async () => {
+test('every adoption starts from the declared metadata: withIntent and loadProject drop a removed header\'s keys, as the command does', async () => {
   const { withIntent } = await import('../explain/testing.ts');
   const { loadProject } = await import('../explain/project.ts');
   const { Scene } = await import('../src/index.ts');

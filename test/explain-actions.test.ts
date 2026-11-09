@@ -287,7 +287,7 @@ class Reads extends FadeIn {
   override ready(): Promise<unknown> { return this.reading; }
 }
 
-test('a play that fails at a turn made later lands what it began: a read that fails, or a refused writer (A1)', async () => {
+test('a play that fails at a turn made later lands what it began: a read that fails, or a refused writer', async () => {
   const { Action } = await import('../explain/action.ts');
   const scene = new Scene(new NullSink());
   // What a beat made waits for a read that fails, after the play has begun.
@@ -306,7 +306,7 @@ test('a play that fails at a turn made later lands what it began: a read that fa
   await scene.play(kept);
 });
 
-test('a beat that makes two, the second throwing as it begins, lands the first, as a play begins and at its turn; its after does not run (B1)', async () => {
+test('a beat that makes two, the second throwing as it begins, lands the first, as a play begins and at its turn; its after does not run', async () => {
   const { Action } = await import('../explain/action.ts');
   class Boom extends FadeIn { protected override doBegin(): void { throw new Error('boom'); } }
   const ran: string[] = [];
@@ -331,7 +331,7 @@ test('a beat that makes two, the second throwing as it begins, lands the first, 
   await assert.rejects(scene.play(sync.a), /^Error: boom$/);
 });
 
-test('a play that fails abandons a composed action: the beat that began lands with its after, and no later beat is made, nor its end run (A5)', async () => {
+test('a play that fails abandons a composed action: the beat that began lands with its after, and no later beat is made, nor its end run', async () => {
   const { Action } = await import('../explain/action.ts');
   class Boom extends FadeIn { protected override doBegin(): void { throw new Error('boom'); } }
   const done: string[] = [];
@@ -372,7 +372,7 @@ test('a play that fails abandons a composed action: the beat that began lands wi
   assert.deepEqual(done, ['start', 'make 1', 'after 1', 'make 2']);
 });
 
-test('an action whose begin fails after it was decided stays unplayed: it plays again, and its step names it if it never does (A6)', async () => {
+test('an action whose begin fails after it was decided stays unplayed: it plays again, and its step names it if it never does', async () => {
   const { Action } = await import('../explain/action.ts');
   // Its start throws once.
   const scene = new Scene(new NullSink());
@@ -394,7 +394,7 @@ test('an action whose begin fails after it was decided stays unplayed: it plays 
   await assert.rejects(new Story(new NullSink()).run(), /^Error: b\(\): it was made in step "a" but never played; await an action/);
 });
 
-test('what is made at its turn is drawn, and records its evidence, in turn order, whether or not something waits (A7)', async () => {
+test('what is made at its turn is drawn, and records its evidence, in turn order, whether or not something waits', async () => {
   const { Action } = await import('../explain/action.ts');
   const run = async (waits: 'none' | 'first' | 'second') => {
     const c = new Circle(), d = new Rectangle();
@@ -435,7 +435,7 @@ test('what is made at its turn is drawn, and records its evidence, in turn order
     for (const waits of [false, true]) assert.deepEqual(await beside(waits, form), { drawn: 'cd', evidence: 'cd' }, `${form}, ${waits ? 'waiting' : 'not waiting'}`);
 });
 
-test('a beat that waits and is shorter than a frame still plays, held and then landed, its side effects in order; so does a last beat of no run time (A8)', async () => {
+test('a beat that waits and is shorter than a frame still plays, held and then landed, its side effects in order; so does a last beat of no run time', async () => {
   const { Action } = await import('../explain/action.ts');
   const scene = new Scene(new NullSink());
   const order: string[] = [];
