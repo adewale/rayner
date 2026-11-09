@@ -12,8 +12,9 @@ import type { StepAudio } from './audio.ts';
 import { tool, Sketch, oneStrokeEach } from './annotate.ts';
 import type { ToolKind } from './annotate.ts';
 import { Diagram } from './diagrams.ts';
-import { Action } from './action.ts';
-import type { Plan } from './action.ts';
+import { action } from './action.ts';
+import type { Action } from './action.ts';
+import type { BeatPlan } from '../src/animation.ts';
 import type { ShowOptions, PictureNote } from './diagrams.ts';
 import type { Card, CodeBlock, CardRow, CardOptions, CodeBlockOptions } from './panels.ts';
 import { card, code } from './drawing.ts';
@@ -421,10 +422,10 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     return anims;
   }
   /** An action of the stage's (see Action): it is decided now and plays when awaited or composed. */
-  const act = <T>(name: string, make: () => Plan<T>, more?: { ready?: Promise<unknown>; late?: boolean }) =>
-    new Action<T>(scene, name, make, more);
+  const act = <T>(name: string, make: () => BeatPlan<T>, more?: { ready?: Promise<unknown>; late?: boolean }) =>
+    action<T>(scene, name, make, more);
   /** Keep `panel` and fade it in over `fade.runTime`. */
-  function enterPanel<T extends Mobject>(panel: T, fade: FadeOptions & { runTime: number }): Plan<T> {
+  function enterPanel<T extends Mobject>(panel: T, fade: FadeOptions & { runTime: number }): BeatPlan<T> {
     return {
       value: panel,
       start: () => overlays.set(panel, undefined),

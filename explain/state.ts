@@ -3,7 +3,7 @@
 // one sampled number into its targets (under view.tween and a transition's follow). Kept out of
 // src/, the engine taken from Lantern. SetState is the machine's own: no entry point exports it,
 // and a scene changes its state by assigning `this.state` and syncing its views.
-import { Animation, cleanUp, playsOn, isRemover } from '../src/animation.ts';
+import { Animation, playsOn } from '../src/animation.ts';
 import type { AnimationOptions } from '../src/animation.ts';
 import { Group, Mobject as MobjectClass } from '../src/mobject.ts';
 import type { Mobject } from '../src/mobject.ts';
@@ -133,8 +133,5 @@ export class Follow extends Animation {
     });
     for (const m of this.written) m.invalidateBox();
   }
-
-  /** @internal */
-  override [cleanUp](scene: Scene): void { if (isRemover(this)) scene.remove(...this.written); }
 }
 

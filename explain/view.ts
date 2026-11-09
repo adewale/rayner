@@ -14,14 +14,17 @@
 import { Mobject, Group, paintDefaults, mobjectName } from '../src/mobject.ts';
 import type { Box, HasText } from '../src/mobject.ts';
 import { center, pointsBox } from '../src/box.ts';
-import { Animation, TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey, knownTransform, beginAnimation, interpolateAnimation, finishAnimation } from '../src/animation.ts';
+import { Enclosing, TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey, knownTransform } from '../src/animation.ts';
+import type { Animation } from '../src/animation.ts';
+import { linear } from '../src/rate.ts';
 import { Follow } from './state.ts';
 import type { MatchKey, MatchSummary, PlayOptions, ScheduledAnimation } from '../src/animation.ts';
 import { cloneJson } from '../src/json.ts';
 import { Text } from '../src/text.ts';
 import type { Scene, SceneState, Evidence } from '../src/scene.ts';
 import type { Vec } from '../src/vec.ts';
-import { Action } from './action.ts';
+import { action } from './action.ts';
+import type { Action } from './action.ts';
 
 /** Where a rebuilt picture goes: its layout box's left edge, center or right edge, at the vertical middle, on the old one's. */
 export type ViewPlace = 'left' | 'center' | 'right';
@@ -190,20 +193,21 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
  * what view.sync(), view.tween(), machine.send() and machine.replay() return.
  */
 export function turnAction(scene: Scene<any, any>, name: string, runTime: number, make: () => ScheduledAnimation): Action {
-  return new Action(scene, name, () => ({ value: undefined, beats: [{ runTime, play: () => [make()] }] }));
+  return action(scene, name, () => ({ value: undefined, beats: [{ runTime, play: () => [make()] }] }));
 }
 
 /**
- * @internal The animation a sync() action plays. Everything is decided in begin(): build(),
- * placing, the matcher and its endpoints. Each frame is the inner
- * transform's pure function of alpha; finish() finishes it and swaps the built
- * picture in, so the View holds exactly what build() made (its `text` too).
+ * @internal The animation a sync() action plays. Everything is decided as it begins: build(),
+ * placing, the matcher and its endpoints, the morph it runs inside it (see Enclosing). Each frame
+ * is the morph's pure function of alpha, which this sync's own rate function eases; its finish
+ * finishes the morph and swaps the built picture in, so the View holds exactly what build() made
+ * (its `text` too).
  */
-export class ViewSync<M extends Mobject = Mobject> extends Animation {
+export class ViewSync<M extends Mobject = Mobject> extends Enclosing {
   view: View<M, any, any>;
   match: ViewMatch;
   staged: boolean;
-  /** @internal Set by begin(): the morph from the current picture to the built one, or null when nothing changed. */
+  /** @internal Set as it begins: the morph from the current picture to the built one, or null when nothing changed. */
   inner!: Animation | null;
   /** Set by begin(): the built, placed picture, swapped in at finish(). */
   private next!: M | null;
@@ -215,31 +219,30 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
     this.view = v; this.match = match; this.staged = staged;
   }
 
-  protected override doBegin(): void {
+  protected override enclose(): Animation | null {
     const v = this.view, old = v.current;
     const { picture: next, fit } = v.measure(fresh(v.build(), old));
     this.fit = fit;
-    if (samePicture(old, next)) { v.commit(fit); this.inner = null; this.next = null; return; }
+    this.inner = null; this.next = null;
+    if (samePicture(old, next)) { v.commit(fit); return null; }
     const match = this.match;
     if (match === 'key' && !keyed(old) && !keyed(next)) throw new Error(`view.sync(): ${v.key !== undefined ? `the view ${JSON.stringify(v.key)}'s` : 'the'} pictures carry no keys below their roots, so key matching pairs nothing; give the draw's parts keys (a card's or panel's \`key\` option, or \`keyed(part, '…')\`), or pass { match: 'text' }, 'shapes' or 'index'`);
-    // replace: false everywhere: the View, not the scene, takes the new picture (see finish)
-    const staged = this.staged;
-    const inner: Animation = match === 'text' ? new TransformMatchingText(old, next, { replace: false, staged })
-      : match === 'shapes' ? new TransformMatchingShapes(old, next, { replace: false, staged })
-      : match === 'index' ? knownTransform(old, next, { same: old.sameShapeAs(next, true) })
-      : new TransformMatching(old, next, { key: match === 'key' ? matchByKey() : match, replace: false, staged });
+    // replace: false everywhere: the View, not the scene, takes the new picture (see finish). The
+    // morph's own time is linear: this sync's rate function eases it.
+    const staged = this.staged, rateFunc = linear;
+    const inner: Animation = match === 'text' ? new TransformMatchingText(old, next, { replace: false, staged, rateFunc })
+      : match === 'shapes' ? new TransformMatchingShapes(old, next, { replace: false, staged, rateFunc })
+      : match === 'index' ? knownTransform(old, next, { same: old.sameShapeAs(next, true) }, { rateFunc })
+      : new TransformMatching(old, next, { key: match === 'key' ? matchByKey() : match, replace: false, staged, rateFunc });
     inner.lagRatio = this.lagRatio;
-    beginAnimation(inner);
     this.inner = inner; this.next = next;
+    return inner;
   }
 
-  /** alpha already passed through this sync's rateFunc by the scene. */
-  protected override doInterpolate(alpha: number): void { if (this.inner) interpolateAnimation(this.inner, alpha); }
-
   protected override doFinish(end: number = this.rateFunc(1)): void {
-    if (!this.inner) return;
     // The morph ends where this sync's last frame drew it, and ends finished, as one the scene began would.
-    finishAnimation(this.inner, end);
+    super.doFinish(end);
+    if (!this.inner) return;
     // Finished on the new picture: hand over to it (a matching transform leaves faded
     // parts inside the old one, a Transform leaves it aligned). A rate function that
     // comes back leaves the old picture: the View did not sync.
@@ -264,10 +267,10 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
  * picture on screen when it begins, not when it was made. In `new Succession([view.sync(), view.tween(f)])`
  * the sync swaps in a new picture first, and the tween draws into that one.
  */
-class ViewTween<S extends object, Sh extends object> extends Animation {
+class ViewTween<S extends object, Sh extends object> extends Enclosing {
   private readonly view: View<Mobject, S, Sh>;
   private readonly draw: (t: number) => Mobject;
-  /** Set by begin(): the Follow that writes the picture on screen then. */
+  /** Set as it begins: the Follow that writes the picture on screen then, which it runs inside it (see Enclosing). */
   private follow: Follow | null = null;
 
   constructor(view: View<Mobject, S, Sh>, draw: (t: number) => Mobject, opts: TweenOptions) {
@@ -279,24 +282,13 @@ class ViewTween<S extends object, Sh extends object> extends Animation {
   /** The picture on screen now: what this writes once it begins. */
   override targets(): Mobject[] { return [this.follow ? this.mobject : this.view.current]; }
 
-  protected override doBegin(): void {
+  /** The Follow's own time is linear: this tween's rate function eases it. */
+  protected override enclose(): Follow {
     this.mobject = this.view.current;
-    this.follow = new Follow({ from: 0, to: 1, draw: this.draw }, { targets: [this.mobject] });
-    beginAnimation(this.follow);
+    return (this.follow = new Follow({ from: 0, to: 1, draw: this.draw }, { targets: [this.mobject], rateFunc: linear }));
   }
-
-  /** alpha already passed through this tween's rateFunc by the scene. */
-  protected override doInterpolate(alpha: number): void { interpolateAnimation(this.begun(), alpha); }
-
-  /** The Follow ends where this tween's last frame drew it, and ends finished. */
-  protected override doFinish(alpha: number = this.rateFunc(1)): void { finishAnimation(this.begun(), alpha); }
 
   override evidence(): Evidence | null { return this.follow?.evidence() ?? null; }
-
-  private begun(): Follow {
-    if (!this.follow) throw new Error('view.tween(): it has not begun; play it with this.play()');
-    return this.follow;
-  }
 }
 
 /** `m`, its parts given `scene`'s colours where they still hold a default. */

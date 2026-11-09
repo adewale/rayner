@@ -13,11 +13,12 @@ import {
   Rectangle,
   keyed,
 } from '../src/index.ts';
-import { MoveAlongPath, beginAnimation, finishAnimation } from '../src/animation.ts';
+import { MoveAlongPath, finishAtOnce } from '../src/animation.ts';
+import type { Beat, BeatPlan } from '../src/animation.ts';
 import { Text } from '../src/text.ts';
-import { Action } from './action.ts';
+import { action } from './action.ts';
+import type { Action } from './action.ts';
 import { ImportedLabel, labelOf } from './labels.ts';
-import type { Beat, Plan } from './action.ts';
 import type { Scene, Mobject, Box, Vec, Style, ScheduledAnimation } from '../src/index.ts';
 import { center, unionBoxes } from '../src/box.ts';
 import { paintsFill, mergeLeaves } from '../src/mobject.ts';
@@ -573,17 +574,17 @@ export class Diagram {
   }
   /** @internal Build the diagram in: its scaffolding, then with 'all' the rest in reading order (s.show's `build` option). */
   build(mode: 'all' | 'frame' = 'all', runTime = 0.65): Action<this> {
-    return new Action(this.scene, 'd.build()', () => this.buildPlan(mode, runTime));
+    return action(this.scene, 'd.build()', () => this.buildPlan(mode, runTime));
   }
   /** @internal What `build` does, decided now: s.show plays it as its own. */
-  buildPlan(mode: 'all' | 'frame' = 'all', runTime = 0.65): Plan<this> {
+  buildPlan(mode: 'all' | 'frame' = 'all', runTime = 0.65): BeatPlan<this> {
     const scaffold = this.revealBeat(this.#order.filter((id) => isScaffold(this.#parts.get(id)!.info)), runTime, 'd.build()');
     const rest = mode === 'all' ? [this.revealBeat('rest', runTime, 'd.build()', new Set(scaffold.arriving)).beat] : [];
     return { value: this, start: () => this.attach('d.build()'), beats: [scaffold.beat, ...rest] };
   }
   /** Bring in the next `n` parts in reading order, named parts, or the rest, in one play. */
   reveal(which: number | readonly string[] | 'rest', { runTime = 0.65 } = {}): Action {
-    return new Action(this.scene, 'd.reveal()', () => {
+    return action(this.scene, 'd.reveal()', () => {
       this.mustBeLive('d.reveal()');
       return { value: undefined, beats: [this.revealBeat(which, runTime, 'd.reveal()').beat] };
     });
@@ -1101,10 +1102,10 @@ export class Diagram {
       parallel = false,
     }: { runTime?: number; color?: string; parallel?: boolean } = {},
   ): Action {
-    return new Action(this.scene, 'd.walk()', () => this.walkPlan(hops, runTime, color, parallel));
+    return action(this.scene, 'd.walk()', () => this.walkPlan(hops, runTime, color, parallel));
   }
   /** A walk, decided now: its hops' links, checked to be real; that they are revealed is checked when it plays. */
-  private walkPlan(hops: readonly (readonly [string, string])[], runTime: number, color: string, parallel: boolean): Plan<void> {
+  private walkPlan(hops: readonly (readonly [string, string])[], runTime: number, color: string, parallel: boolean): BeatPlan<void> {
     // A token travels the live diagram's routes, where a picture of it draws them too.
     // Endpoints resolve as `get` resolves ids (so 'actor:A' and 'A' name the same participant).
     const path = hops.map(([from, to]) => {
@@ -1165,8 +1166,7 @@ export class Diagram {
       const animation = new Transform(m, target, { runTime });
       if (this.#visible.has(this.partIds.get(m)!)) shown.push(animation);
       else {
-        beginAnimation(animation);
-        finishAnimation(animation);
+        finishAtOnce(animation);
       }
     }
     return shown;
@@ -1180,10 +1180,10 @@ export class Diagram {
    * column of text) stays where it is. The camera does not move; `s.focus` moves it.
    */
   enlarge(ids: readonly string[] | 'all', { zoom = 1, runTime = 0.9 }: { zoom?: number; runTime?: number } = {}): Action {
-    return new Action(this.scene, 'd.enlarge()', () => this.enlargePlan(ids, zoom, runTime));
+    return action(this.scene, 'd.enlarge()', () => this.enlargePlan(ids, zoom, runTime));
   }
   /** An enlargement, decided now; the parts move, and hidden ones jump, when it plays. */
-  private enlargePlan(ids: readonly string[] | 'all', zoom: number, runTime: number): Plan<void> {
+  private enlargePlan(ids: readonly string[] | 'all', zoom: number, runTime: number): BeatPlan<void> {
     this.mustBeLive('d.enlarge()');
     if (!(zoom > 0 && Number.isFinite(zoom))) throw new RangeError(`d.enlarge(): zoom must be a positive number, not ${zoom}`);
     const mobs = this.topMobs();
@@ -1253,9 +1253,7 @@ export class Diagram {
     const mobs = this.topMobs(), back = this.homeward(mobs);
     if (back)
       for (const m of mobs) {
-        const jump = new Transform(m, moved(m, back.k, back.from, back.to));
-        beginAnimation(jump);
-        finishAnimation(jump);
+        finishAtOnce(new Transform(m, moved(m, back.k, back.from, back.to)));
       }
     this.zoom = 1;
   }
@@ -1288,7 +1286,7 @@ export class Diagram {
       snapshot = await resolver.diagram(spec);
     })();
     let target: Diagram | null = null;
-    return new Action(this.scene, 'd.morph()', () => ({
+    return action(this.scene, 'd.morph()', () => ({
       value: undefined,
       beats: [{
         runTime,
@@ -1344,7 +1342,7 @@ export class Diagram {
   }
   /** Fade the whole diagram out. `reveal` can bring parts back. */
   hide(): Action {
-    return new Action(this.scene, 'd.hide()', () => {
+    return action(this.scene, 'd.hide()', () => {
       // Shown by a view, with the live diagram off the stage: the view fades, as the live parts would.
       const p = this.presented;
       const shown = p.kind === 'viewed'

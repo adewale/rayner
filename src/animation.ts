@@ -21,7 +21,7 @@ export interface AnimationOptions {
   rateFunc?: RateFunc;
   /** 0: children move together; 1: one after another. */
   lagRatio?: number;
-  /** Remove the mobject from the scene when the animation ends. */
+  /** Remove what the animation animates (its `targets()`, by default its mobject) from the scene when it ends. */
   remover?: boolean;
 }
 
@@ -127,8 +127,8 @@ export let runTimeOf: (a: ScheduledAnimation) => number;
 export let rateFuncOf: (a: ScheduledAnimation) => RateFunc;
 /** @internal See runTimeOf. */
 export let phaseOf: (a: ScheduledAnimation) => AnimationPhase;
-/** @internal Whether the end of an animation's play removes what it animates from the scene (the `remover` option). */
-export let isRemover: (a: ScheduledAnimation) => boolean;
+/** Whether the end of an animation's play removes what it animates from the scene (the `remover` option). */
+let isRemover: (a: ScheduledAnimation) => boolean;
 /** Land after a failure (see landBegun): it ends finished, whatever its landing throws. */
 let landAnimation: (a: ScheduledAnimation, scene: Scene | null) => void;
 
@@ -413,8 +413,8 @@ export class Animation extends AnimationTiming {
    */
   protected override doFinish(alpha: number = this.rateFunc(1)): void { this.doInterpolate(alpha); }
 
-  /** @internal */
-  override [cleanUp](scene: Scene): void { if (isRemover(this)) scene.remove(this.mobject); }
+  /** @internal A remover takes what it animates (its targets) off the scene. */
+  override [cleanUp](scene: Scene): void { if (isRemover(this)) scene.remove(...this.targets()); }
 
   /** alpha already passed through rateFunc by the scene. */
   protected override doInterpolate(alpha: number): void {
@@ -719,12 +719,12 @@ export class Create extends Animation {
  */
 export let membersOf: (g: AnimationGroup) => readonly ScheduledAnimation[];
 /**
- * @internal Take `members` as a group's members, for a group that knows them only once its play begins
- * (an action decided then, what is made at its turn): laid out from their run times, as the
- * constructor lays them out, or at `slots`, each member's start and end in the group's time. A run
- * time given to the group, or to play(), is kept.
+ * Take `members` as a group's members, for a group that knows them only once its play begins
+ * (an animation of beats decided then, what is made at its turn): laid out from their run times, as
+ * the constructor lays them out, or at `slots`, each member's start and end in the group's time. A
+ * run time given to the group, or to play(), is kept.
  */
-export let adoptMembers: (g: AnimationGroup, members: ScheduledAnimation[], slots?: Array<[start: number, end: number]>) => void;
+let adoptMembers: (g: AnimationGroup, members: ScheduledAnimation[], slots?: Array<[start: number, end: number]>) => void;
 /** Each member's start and end in a group's time, and the latest end, set by AnimationGroup. */
 let timingsOf: (g: AnimationGroup) => ReadonlyArray<readonly [start: number, end: number]>;
 let maxEndOf: (g: AnimationGroup) => number;
@@ -1143,13 +1143,13 @@ type SuccessionState =
   | { is: 'held'; play: object; reached: number; to: number; finishing: boolean; endAt: number; closing: boolean };
 
 /**
- * @internal The key of whether a Succession stands for one call that plays what its beats make (an
- * action): a play's `rateFunc` and `lagRatio` then reach what each beat makes, as they reach an
- * animation, and its own time stays linear.
+ * The key of whether a Succession stands for one call that plays what its beats make (see Beats): a
+ * play's `rateFunc` and `lagRatio` then reach what each beat makes, as they reach an animation, and
+ * its own time stays linear.
  */
-export const passesEasing = Symbol('passesEasing');
-/** @internal The key of what a Succession does once its last member has finished and been cleaned up, as its play finished it. Nothing, by default. */
-export const ended = Symbol('ended');
+const passesEasing = Symbol('passesEasing');
+/** The key of what a Succession does once its last member has finished and been cleaned up, as its play finished it. Nothing, by default. */
+const ended = Symbol('ended');
 /** The key of the call a Succession made at its turn belongs to (`machine.send()`), which its messages name. */
 const madeBy = Symbol('madeBy');
 /** @internal The member a Succession runs now, read by play()'s one-writer check; undefined outside a play. */
@@ -1180,7 +1180,7 @@ export class Succession extends AnimationGroup {
   #active = -1;
   /** What a play gave an action to pass to what its beats make (see passesEasing). */
   #easing: Timing = {};
-  /** @internal Whether it passes a play's easing to its beats (see passesEasing): an action does. */
+  /** @internal Whether it passes a play's easing to its beats (see passesEasing): an animation of beats does. */
   readonly [passesEasing]: boolean = false;
   /** @internal The call it belongs to when the engine made it at a turn (see madeBy). */
   [madeBy]: string | undefined = undefined;
@@ -1511,6 +1511,293 @@ export abstract class MadeAtTurn extends AnimationGroup {
   }
   /** @internal Its members are made when its turn comes; its run time was planned. */
   override [settle](): void {}
+}
+
+/**
+ * @internal One play of an animation of beats (see Beats): its run time, fixed when the plan is
+ * made, and what it does when its turn comes. `play` makes the beat's side effects and its
+ * animations at that moment (none plays nothing); `after` runs once they have finished and left
+ * the scene.
+ */
+export interface Beat {
+  runTime: number;
+  play: () => ScheduledAnimation[];
+  after?: () => void;
+}
+
+/** @internal What deciding an animation of beats gives: what it gives, its beats in order, and what happens before the first and after the last. */
+export interface BeatPlan<T> {
+  value: T;
+  beats: readonly Beat[];
+  start?: () => void;
+  end?: () => void;
+}
+
+/** A beat's animations must take the run time it was planned with: a play of each, or a slot in its Succession. */
+function checkBeatTime(call: string, beat: Beat, made: readonly ScheduledAnimation[]): void {
+  if (!made.length) return;
+  const took = Math.max(...made.map(runTimeOf));
+  if (Math.abs(took - beat.runTime) > 1e-9)
+    throw new Error(`${call}: one of its plays takes ${took} s, where ${beat.runTime} s was planned`);
+}
+
+/**
+ * A beat as a member of its Succession: made when its turn comes, then begun through the scene as
+ * a play begins its animations; `after` runs once they are cleaned up, as it does after a play, and
+ * after a failure once they have landed, if they had begun.
+ */
+class BeatPlay extends MadeAtTurn {
+  readonly #beat: Beat;
+  constructor(beat: Beat, call: string) {
+    super(call, 'a beat', beat.runTime);
+    this.#beat = beat;
+  }
+  protected override make(): ScheduledAnimation[] {
+    return this.#beat.play();
+  }
+  /** Each animation from the beat's start, for its own run time, which must be the beat's planned one. */
+  protected override slots(made: readonly ScheduledAnimation[]): Array<[number, number]> {
+    checkBeatTime(this.call, this.#beat, made);
+    return made.map((a) => [0, runTimeOf(a)]);
+  }
+  protected override after(): void {
+    this.#beat.after?.();
+  }
+}
+
+/** What deciding an animation of beats gave: its plan, or the error deciding it (or reading what it reads) threw; null until a late one is decided. */
+type BeatDecision<T> = { plan: BeatPlan<T> } | { error: unknown } | null;
+
+/**
+ * Where an animation of beats is in its life, as one value: each change is made in one place below.
+ *
+ * - `reading`: made, not played, and what it reads is not ready (`ready` has not settled).
+ * - `ready`: made, not played, and what it reads is ready; a late one is decided as it begins.
+ * - `alone`: playing alone, beat by beat; `run` is what it gives then.
+ * - `composed`: begun by a play, or by the Succession or group that holds it.
+ * - `ended`: its last beat has played and its `end` has run, after it played alone (`run`) or
+ *   composed (`run` is null).
+ *
+ * Before it plays it may be `reading`, then `ready`; it plays once, alone or composed, then ends.
+ * A begin that fails leaves it as it was, unplayed, whatever failed: what it reads not ready,
+ * deciding it, its `start`, or its first beat's making or beginning. It can then play again. What
+ * a `start` that ran did stays done. A play that fails after it began leaves it as it was then,
+ * `alone` (its `run` rejecting with the failure) or `composed`, and its `end` does not run: it has
+ * played, so it cannot play again.
+ */
+type BeatsState<T> =
+  | { is: 'reading'; decision: BeatDecision<T> }
+  | { is: 'ready'; decision: BeatDecision<T> }
+  | { is: 'alone'; decision: BeatDecision<T>; run: Promise<T> }
+  | { is: 'composed'; plan: BeatPlan<T> }
+  | { is: 'ended'; plan: BeatPlan<T>; run: Promise<T> | null };
+
+/**
+ * @internal An animation made of beats, on the scene it changes, that plays once: alone, each beat
+ * in a play of its own on that scene (see alone), or composed, handed to play(), a Succession or a
+ * group, its beats one after another as a Succession's members, each made at its turn (see
+ * MadeAtTurn). Both run the same beats, with the same side effects at the same moments between
+ * them. A play's `rateFunc` and `lagRatio` reach what its beats make, as they reach an animation;
+ * its own time stays linear.
+ *
+ * `make` decides it when it is made, or, with `late`, once `ready` has settled and the play that
+ * holds it begins (a play waits for `ready`, a group's members' included, and so does a play for
+ * what is made at its turn there): its run time is known from then. Its `start` runs before its
+ * first beat and its `end` after its last, alone or composed. rayner/explain's actions are these:
+ * `name` is the call that made one (`s.card()`), which its refusals name.
+ */
+export abstract class Beats<T> extends Succession {
+  /** The call that made it, as messages name it: `s.card()`, `d.walk()`. */
+  readonly name: string;
+  /** @internal The scene it plays on: a play on another scene refuses it. */
+  readonly [playsOn]: Scene;
+  /** @internal A play's rateFunc and lagRatio reach what its beats make, as they reach an animation; its own time stays linear. */
+  override readonly [passesEasing] = true;
+  /** What decides it: what it gives and its beats. */
+  readonly #make: () => BeatPlan<T>;
+  /** Settles once what it reads is ready, recording a failure as its decision; null when it reads nothing. */
+  readonly #waiting: Promise<void> | null;
+  #state: BeatsState<T>;
+
+  constructor(scene: Scene<any, any>, name: string, make: () => BeatPlan<T>, { ready, late = false }: { ready?: Promise<unknown>; late?: boolean } = {}) {
+    let decision: BeatDecision<T> = null;
+    if (!late)
+      try {
+        decision = { plan: make() };
+      } catch (error) {
+        decision = { error };
+      }
+    super(decision && 'plan' in decision ? decision.plan.beats.map((b) => new BeatPlay(b, name)) : []);
+    this.name = name;
+    this[playsOn] = scene;
+    this.#make = make;
+    this.#state = { is: ready ? 'reading' : 'ready', decision };
+    this.#waiting = ready
+      ? ready.then(
+          () => {
+            if (this.#state.is === 'reading') this.#state = { is: 'ready', decision: this.#state.decision };
+          },
+          (error: unknown) => {
+            const s = this.#state;
+            if (s.is === 'reading') this.#state = { is: 'ready', decision: s.decision && 'error' in s.decision ? s.decision : { error } };
+            else if (s.is === 'alone' && !(s.decision && 'error' in s.decision)) this.#state = { ...s, decision: { error } };
+          },
+        )
+      : null;
+  }
+
+  /** What it was decided to give, once decided; null before a late one is. Throws what deciding it, or reading what it reads, threw. */
+  protected decided(): BeatPlan<T> | null {
+    const s = this.#state;
+    const decision: BeatDecision<T> = 'plan' in s ? { plan: s.plan } : s.decision;
+    if (decision && 'error' in decision) throw decision.error;
+    return decision ? decision.plan : null;
+  }
+
+  /** Called once it has begun to play, alone or composed: from then it has played. Nothing, by default. */
+  protected playing(): void {}
+
+  /** The refusal of a second play, after it played `how`, for a play `now`. */
+  #playedAlready(how: 'alone' | 'composed', now: 'alone' | 'composed'): Error {
+    return new Error(
+      `${this.name}: it has already played${how === 'composed' ? ' in a play' : ''}; it plays once, so call it again to play it again` +
+        (how === 'composed' && now === 'alone' ? ', and read what it gave from its value' : ''),
+    );
+  }
+
+  /** How it played, once it has: alone or composed; null before. */
+  #played(): 'alone' | 'composed' | null {
+    const s = this.#state;
+    switch (s.is) {
+      case 'reading': case 'ready': return null;
+      case 'alone': case 'composed': return s.is;
+      case 'ended': return s.run ? 'alone' : 'composed';
+    }
+  }
+
+  /**
+   * Its plan, deciding a late one now (once what it reads is ready), its beats laid out as this
+   * Succession's members; throws what deciding it threw. Called from `ready`, before it begins, or `alone`.
+   */
+  #decide(): BeatPlan<T> {
+    const s = this.#state;
+    if (s.is === 'composed' || s.is === 'ended') return s.plan;
+    if (s.decision) {
+      if ('error' in s.decision) throw s.decision.error;
+      return s.decision.plan;
+    }
+    let plan: BeatPlan<T>;
+    try {
+      plan = this.#make();
+    } catch (error) {
+      this.#state = { ...s, decision: { error } };
+      throw error;
+    }
+    this.#state = { ...s, decision: { plan } };
+    // Laid out as a Succession lays out its members; a run time given to play() is kept.
+    adoptMembers(this, plan.beats.map((b) => new BeatPlay(b, this.name)));
+    return plan;
+  }
+
+  /** @internal */ override [whenReady](): Promise<unknown> | null {
+    return this.#state.is === 'reading' ? this.#waiting : null;
+  }
+
+  /** @internal Decided now, if it was not when made: what it reads is ready, and the play that holds it is beginning. */
+  override [settle](): void {
+    const s = this.#state;
+    if (s.is === 'reading') throw new Error(`${this.name}: played before what it reads was ready; hand it to play(), or to a Succession or group that plays, which waits for it`);
+    if (s.is === 'ready') this.#decide();
+  }
+
+  /** Composed: begun by a play, or by the Succession or group that holds it. A begin that fails leaves it unplayed. */
+  protected override doBegin(): void {
+    const s = this.#state;
+    const how = this.#played();
+    if (how) throw this.#playedAlready(how, 'composed');
+    if (s.is === 'reading') throw new Error(`${this.name}: begun before what it reads was ready; hand it to play(), or to a Succession or group that plays, which waits for it`);
+    const plan = this.#decide();
+    plan.start?.();
+    super.doBegin();
+    // Composed only once it has begun: a start or a first beat that throws leaves it unplayed.
+    this.#state = { is: 'composed', plan };
+    this.playing();
+  }
+
+  /** @internal Its last beat has finished and gone: its `end` runs. */
+  override [ended](): void {
+    const s = this.#state;
+    if (s.is !== 'composed') return;
+    this.#state = { is: 'ended', plan: s.plan, run: null };
+    s.plan.end?.();
+  }
+
+  /**
+   * Played alone: each beat in a play of its own on its scene, then what it gives. Called again once
+   * it plays alone, it gives the same promise; after a composed play, a promise that rejects.
+   */
+  protected alone(): Promise<T> {
+    const s = this.#state;
+    if (s.is === 'alone' || (s.is === 'ended' && s.run)) return s.run!;
+    if (s.is !== 'reading' && s.is !== 'ready') return Promise.reject(this.#playedAlready(this.#played()!, 'alone'));
+    // It starts after this state is set (an await, of what it reads or of nothing), so it ends after it too.
+    // A beat that fails leaves it alone, its run rejecting with the failure.
+    let run!: Promise<T>;
+    run = (async () => {
+      await this.#waiting;
+      const plan = this.#decide();
+      plan.start?.();
+      for (const beat of plan.beats) {
+        const made = beat.play();
+        checkBeatTime(this.name, beat, made);
+        if (made.length) await this[playsOn].play(...made);
+        beat.after?.();
+      }
+      this.#state = { is: 'ended', plan, run };
+      plan.end?.();
+      return plan.value;
+    })();
+    this.#state = { is: 'alone', decision: s.decision, run };
+    this.playing();
+    return run;
+  }
+}
+
+/**
+ * @internal An animation that runs another inside it, made as it begins: begun with it, each frame
+ * drawn at its own rate function of this one's eased time, and finished with it, as a group runs a
+ * member that fills it. What it runs never joins the scene by itself: this animation stands for
+ * it, with its own targets, evidence and clean-up. `enclose()` makes it as this one begins, or
+ * gives null when there is nothing to draw.
+ */
+export abstract class Enclosing extends Animation {
+  /** What it runs, once begun; null before, or when there is nothing to draw. */
+  #inner: ScheduledAnimation | null = null;
+  /** What it runs, made as it begins: called once per begin. */
+  protected abstract enclose(): ScheduledAnimation | null;
+  protected override doBegin(): void {
+    this.#inner = null;
+    const inner = this.enclose();
+    if (inner) beginAnimation(inner);
+    this.#inner = inner;
+  }
+  protected override doInterpolate(alpha: number): void {
+    const inner = this.#inner;
+    if (inner) interpolateAnimation(inner, rateFuncOf(inner)(alpha));
+  }
+  protected override doFinish(alpha: number = this.rateFunc(1)): void {
+    const inner = this.#inner;
+    if (inner) finishAnimation(inner, rateFuncOf(inner)(alpha));
+  }
+}
+
+/**
+ * @internal Run `animation` to its end at once, outside any play: begun and finished, as a play
+ * of no frames would leave what it animates, with nothing joining or leaving a scene.
+ */
+export function finishAtOnce(animation: ScheduledAnimation): void {
+  beginAnimation(animation);
+  finishAnimation(animation);
 }
 
 /**

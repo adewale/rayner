@@ -164,11 +164,11 @@ test('an action’s errors surface when it plays, awaited or composed, not when 
 test('an action that waits, made in a machine transition, plays there: the play waits for it as its turn comes, and draws the same frames', async () => {
   const { Machine } = await import('../explain/machine.ts');
   const { view } = await import('../explain/view.ts');
-  const { Action } = await import('../explain/action.ts');
+  const { action } = await import('../explain/action.ts');
   const { StringSink } = await import('../src/svg.ts');
   // A late action, waiting on `ready` as s.show does while it reads a diagram's layout, or the same action reading nothing.
   const fade = (scene: InstanceType<typeof Scene>, n: number, waits: boolean) =>
-    new Action(scene, 's.show()', () => ({ value: undefined, beats: [{ runTime: 0.2, play: () => [new FadeIn(new Circle({ radius: 0.2 }).moveTo([n, -2]), { runTime: 0.2 })] }] }),
+    action(scene, 's.show()', () => ({ value: undefined, beats: [{ runTime: 0.2, play: () => [new FadeIn(new Circle({ radius: 0.2 }).moveTo([n, -2]), { runTime: 0.2 })] }] }),
       waits ? { ready: new Promise((r) => setTimeout(r, 5)), late: true } : {});
   const run = async (waits: boolean) => {
     class InTransition extends Scene<{ n: number }> {
@@ -205,12 +205,12 @@ test('an action that waits, made in a machine transition, plays there: the play 
 });
 
 test('what an action or a machine transition makes as its turn comes has one writer per mobject too, checked against what else the play drives then', async () => {
-  const { Action } = await import('../explain/action.ts');
+  const { action } = await import('../explain/action.ts');
   const { Machine } = await import('../explain/machine.ts');
   const { view } = await import('../explain/view.ts');
   const { FadeOut, Transform } = await import('../src/index.ts');
   const { scene } = setUp();
-  const fadeIn = (c: Circle, runTime = 1) => new Action(scene, 'x()', () => ({ value: undefined, beats: [{ runTime, play: () => [new FadeIn(c, { runTime })] }] }));
+  const fadeIn = (c: Circle, runTime = 1) => action(scene, 'x()', () => ({ value: undefined, beats: [{ runTime, play: () => [new FadeIn(c, { runTime })] }] }));
   // The seeded defect: a beat fades in the circle a FadeOut beside it in the same play fades out.
   // Without the check, the play is accepted and whichever writes last wins.
   const c = new Circle();
@@ -221,7 +221,7 @@ test('what an action or a machine transition makes as its turn comes has one wri
   await assert.rejects(scene.play(later, new Succession([new FadeIn(new Circle(), { runTime: 0.5 }), new FadeOut(d, { runTime: 0.5 })])), /a FadeIn and a FadeOut both animate a Circle/);
   // Two animations one beat makes, on one mobject.
   const e = new Circle();
-  const twice = new Action(scene, 'y()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => [new FadeIn(e), new FadeOut(e)] }] }));
+  const twice = action(scene, 'y()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => [new FadeIn(e), new FadeOut(e)] }] }));
   await assert.rejects(scene.play(twice), /^Error: this\.play\(\): a FadeIn and a FadeOut both animate a Circle/);
   // A machine's transition, made at its turn, against an animation beside the machine.
   const counting = scene as unknown as Scene<{ n: number }>;
@@ -239,12 +239,12 @@ test('what an action or a machine transition makes as its turn comes has one wri
 });
 
 test('an action’s life: a begin refused while what it reads is not ready, or because deciding it failed, leaves it unplayed', async () => {
-  const { Action } = await import('../explain/action.ts');
+  const { action } = await import('../explain/action.ts');
   const { scene } = setUp();
   const circle = new Circle();
   let open!: () => void;
   const ready = new Promise<void>((r) => (open = r));
-  const late = new Action(scene, 'z()', () => ({ value: 7, beats: [{ runTime: 0.2, play: () => [new FadeIn(circle, { runTime: 0.2 })] }] }), { ready, late: true });
+  const late = action(scene, 'z()', () => ({ value: 7, beats: [{ runTime: 0.2, play: () => [new FadeIn(circle, { runTime: 0.2 })] }] }), { ready, late: true });
   // Reading: its value is not known, and a begin outside a play, which waits for nothing, is refused.
   assert.throws(() => late.value, /^Error: z\(\): what it gives is known once the play that holds it begins/);
   assert.throws(() => beginAnimation(late), /^Error: z\(\): begun before what it reads was ready/);
@@ -261,7 +261,7 @@ test('an action’s life: a begin refused while what it reads is not ready, or b
 
   // Deciding it failed: each play throws that error, and none marks it played.
   let tries = 0;
-  const broken = new Action(scene, 'w()', () => { tries++; throw new RangeError('w(): nothing to do'); });
+  const broken = action(scene, 'w()', () => { tries++; throw new RangeError('w(): nothing to do'); });
   assert.equal(tries, 1, 'decided when it is made');
   await assert.rejects(scene.play(broken), /^RangeError: w\(\): nothing to do$/);
   await assert.rejects(scene.play(broken), /^RangeError: w\(\): nothing to do$/);
@@ -272,10 +272,10 @@ test('an action’s life: a begin refused while what it reads is not ready, or b
   assert.equal(tries, 1, 'decided once');
 
   // What it reads failing is its error, when deciding it did not fail first.
-  const unreadable = new Action(scene, 'u()', () => ({ value: undefined, beats: [] }), { ready: Promise.reject(new Error('u(): the layout could not be read')), late: true });
+  const unreadable = action(scene, 'u()', () => ({ value: undefined, beats: [] }), { ready: Promise.reject(new Error('u(): the layout could not be read')), late: true });
   await assert.rejects(scene.play(unreadable), /^Error: u\(\): the layout could not be read$/);
   // Awaited: it plays itself beat by beat, then ends; awaiting it again gives the same value.
-  const awaited = new Action(scene, 'v()', () => ({ value: 'done', beats: [{ runTime: 0.1, play: () => [new FadeIn(new Circle(), { runTime: 0.1 })] }] }));
+  const awaited = action(scene, 'v()', () => ({ value: 'done', beats: [{ runTime: 0.1, play: () => [new FadeIn(new Circle(), { runTime: 0.1 })] }] }));
   assert.equal(await awaited, 'done');
   assert.equal(await awaited, 'done');
   await assert.rejects(scene.play(awaited), /^Error: v\(\): it has already played/);
@@ -289,11 +289,11 @@ class Reads extends FadeIn {
 }
 
 test('a play that fails at a turn made later lands what it began: a read that fails, or a refused writer', async () => {
-  const { Action } = await import('../explain/action.ts');
+  const { action } = await import('../explain/action.ts');
   const scene = new Scene(new NullSink());
   // What a beat made waits for a read that fails, after the play has begun.
   const first = new FadeIn(new Circle());
-  const failing = new Action(scene, 'a()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => [new Reads(new Rectangle(), Promise.reject(new Error('a(): the layout failed')))] }] }));
+  const failing = action(scene, 'a()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => [new Reads(new Rectangle(), Promise.reject(new Error('a(): the layout failed')))] }] }));
   await assert.rejects(scene.play(first, failing), /^Error: a\(\): the layout failed$/);
   assert.deepEqual([first.phase, failing.phase], ['finished', 'finished']);
   assert.equal(scene.phase, 'idle');
@@ -301,19 +301,19 @@ test('a play that fails at a turn made later lands what it began: a read that fa
   assert.equal(first.phase, 'finished', 'it plays again');
   // What a beat made, once ready, writes a mobject a FadeOut beside it drives: refused as it begins.
   const c = new Circle(), kept = new FadeIn(new Rectangle());
-  const writer = new Action(scene, 'b()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => [new Reads(c, Promise.resolve())] }] }));
+  const writer = action(scene, 'b()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => [new Reads(c, Promise.resolve())] }] }));
   await assert.rejects(scene.play(kept, writer, new FadeOut(c)), /^Error: b\(\): a \w+, begun at its turn, and a FadeOut both animate a Circle/);
   assert.deepEqual([kept.phase, writer.phase], ['finished', 'finished']);
   await scene.play(kept);
 });
 
 test('a beat that makes two, the second throwing as it begins, lands the first, as a play begins and at its turn; its after does not run', async () => {
-  const { Action } = await import('../explain/action.ts');
+  const { action } = await import('../explain/action.ts');
   class Boom extends FadeIn { protected override doBegin(): void { throw new Error('boom'); } }
   const ran: string[] = [];
   const twoMade = (scene: Scene, c: Circle) => {
     let fade!: FadeIn;
-    const a = new Action(scene, 'a()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => [fade = new FadeIn(c), new Boom(new Rectangle())], after: () => ran.push('after') }] }));
+    const a = action(scene, 'a()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => [fade = new FadeIn(c), new Boom(new Rectangle())], after: () => ran.push('after') }] }));
     return { a, fade: () => fade };
   };
   const scene = new Scene(new NullSink());
@@ -333,10 +333,10 @@ test('a beat that makes two, the second throwing as it begins, lands the first, 
 });
 
 test('a play that fails stops a composed action: the beat that began lands with its after, and no later beat is made, nor its end run', async () => {
-  const { Action } = await import('../explain/action.ts');
+  const { action } = await import('../explain/action.ts');
   class Boom extends FadeIn { protected override doBegin(): void { throw new Error('boom'); } }
   const done: string[] = [];
-  const twoBeats = (scene: Scene) => new Action(scene, 'a()', () => ({
+  const twoBeats = (scene: Scene) => action(scene, 'a()', () => ({
     value: undefined,
     start: () => done.push('start'),
     beats: [
@@ -374,11 +374,11 @@ test('a play that fails stops a composed action: the beat that began lands with 
 });
 
 test('an action whose begin fails after it was decided stays unplayed: it plays again, and its step names it if it never does', async () => {
-  const { Action } = await import('../explain/action.ts');
+  const { action } = await import('../explain/action.ts');
   // Its start throws once.
   const scene = new Scene(new NullSink());
   let starts = 0;
-  const flaky = new Action(scene, 'a()', () => ({ value: 1, start: () => { if (++starts === 1) throw new Error('a(): the start failed'); }, beats: [{ runTime: 0.5, play: () => [new FadeIn(new Circle(), { runTime: 0.5 })] }] }));
+  const flaky = action(scene, 'a()', () => ({ value: 1, start: () => { if (++starts === 1) throw new Error('a(): the start failed'); }, beats: [{ runTime: 0.5, play: () => [new FadeIn(new Circle(), { runTime: 0.5 })] }] }));
   await assert.rejects(scene.play(flaky), /^Error: a\(\): the start failed$/);
   assert.equal(flaky.phase, 'idle');
   await scene.play(flaky);
@@ -387,7 +387,7 @@ test('an action whose begin fails after it was decided stays unplayed: it plays 
   class Story extends Scene {
     override async construct() {
       await this.step('a');
-      const broken = new Action(this, 'b()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => { throw new Error('b(): the beat failed'); } }] }));
+      const broken = action(this, 'b()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => { throw new Error('b(): the beat failed'); } }] }));
       await this.play(broken).catch(() => {});
       await this.step('next');
     }
@@ -396,11 +396,11 @@ test('an action whose begin fails after it was decided stays unplayed: it plays 
 });
 
 test('what is made at its turn is drawn, and records its evidence, in turn order, whether or not something waits', async () => {
-  const { Action } = await import('../explain/action.ts');
+  const { action } = await import('../explain/action.ts');
   const run = async (waits: 'none' | 'first' | 'second') => {
     const c = new Circle(), d = new Rectangle();
     const scene = new Scene(new NullSink());
-    const beat = (m: Circle | Rectangle, wait: boolean, kind: string) => new Action(scene, `${kind}()`, () => ({
+    const beat = (m: Circle | Rectangle, wait: boolean, kind: string) => action(scene, `${kind}()`, () => ({
       value: undefined,
       beats: [{ runTime: 1, play: () => { const a = wait ? new Reads(m, Promise.resolve()) : new FadeIn(m); a.evidence = () => ({ kind }); return [a]; } }],
     }));
@@ -415,8 +415,8 @@ test('what is made at its turn is drawn, and records its evidence, in turn order
   // At the play's start too: two actions handed to one play.
   const c = new Circle(), d = new Rectangle();
   const scene = new Scene(new NullSink());
-  const one = new Action(scene, 'c()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => [new Reads(c, Promise.resolve())] }] }));
-  const two = new Action(scene, 'd()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => [new FadeIn(d)] }] }));
+  const one = action(scene, 'c()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => [new Reads(c, Promise.resolve())] }] }));
+  const two = action(scene, 'd()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => [new FadeIn(d)] }] }));
   await scene.play(one, two);
   assert.deepEqual(scene.mobjects, [c, d]);
   // Beside a plain animation listed after it, in a play, a group, and a group inside a Succession:
@@ -424,7 +424,7 @@ test('what is made at its turn is drawn, and records its evidence, in turn order
   const beside = async (waits: boolean, form: 'play' | 'group' | 'succession') => {
     const c = new Circle(), d = new Rectangle();
     const scene = new Scene(new NullSink());
-    const a = new Action(scene, 'a()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => { const m = waits ? new Reads(c, Promise.resolve()) : new FadeIn(c); m.evidence = () => ({ kind: 'c' }); return [m]; } }] }));
+    const a = action(scene, 'a()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => { const m = waits ? new Reads(c, Promise.resolve()) : new FadeIn(c); m.evidence = () => ({ kind: 'c' }); return [m]; } }] }));
     const plain = new FadeIn(d);
     plain.evidence = () => ({ kind: 'd' });
     if (form === 'play') await scene.play(a, plain);
@@ -437,12 +437,12 @@ test('what is made at its turn is drawn, and records its evidence, in turn order
 });
 
 test('a beat that waits and is shorter than a frame still plays, held and then landed, its side effects in order; so does a last beat of no run time', async () => {
-  const { Action } = await import('../explain/action.ts');
+  const { action } = await import('../explain/action.ts');
   const scene = new Scene(new NullSink());
   const order: string[] = [];
   const c = new Circle(), d = new Rectangle(), e = new Circle();
   const beat = (name: string, runTime: number, made: () => FadeIn) => ({ runTime, play: () => { order.push(`make ${name}`); return [made()]; }, after: () => order.push(`after ${name}`) });
-  const a = new Action(scene, 'a()', () => ({
+  const a = action(scene, 'a()', () => ({
     value: undefined,
     beats: [
       beat('1', 0.5, () => new FadeIn(e, { runTime: 0.5 })),
@@ -456,7 +456,7 @@ test('a beat that waits and is shorter than a frame still plays, held and then l
   assert.equal(scene.frameCount, Math.round(1.51 * 30));
   // A last beat of no run time that waits: it begins as the play finishes, and lands.
   const f = new Circle();
-  const last = new Action(scene, 'b()', () => ({ value: undefined, beats: [{ runTime: 0.5, play: () => [new FadeIn(new Circle(), { runTime: 0.5 })] }, { runTime: 0, play: () => [new Reads(f, Promise.resolve(), { runTime: 0 })] }] }));
+  const last = action(scene, 'b()', () => ({ value: undefined, beats: [{ runTime: 0.5, play: () => [new FadeIn(new Circle(), { runTime: 0.5 })] }, { runTime: 0, play: () => [new Reads(f, Promise.resolve(), { runTime: 0 })] }] }));
   await scene.play(last);
   assert.ok(scene.mobjects.includes(f));
   assert.equal(f.style.opacity, 1);

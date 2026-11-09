@@ -271,10 +271,12 @@ export let setDrawn: (scene: Scene<any, any>, mobjects: readonly Mobject[]) => v
  * and is held to the same rule: one that returns with a play or wait still running is refused.
  * Then the scene stops for good, as a sink's StopScene stops it (`phase` is `'stopped'`), so
  * construct() never continues. A step the run never reaches ends the run as usual, and `at` never
- * runs. Said before run(). The live player runs a scene to a step this way, and plays the reader's
- * events in `at`; check explores a machine from the same point.
+ * runs. Said before run(). `draw(sink)` hands any sink the picture as it is then, as one frame at
+ * dt 0, what is kept on top raised first (see drawFrame), so the picture between plays reaches
+ * another sink than the scene's own. The live player runs a scene to a step this way, and plays
+ * and draws the reader's events in `at`; check explores a machine from the same point.
  */
-export let stopAt: <T extends Scene<any, any>>(scene: T, path: string, at: (scene: T) => unknown) => void;
+export let stopAt: <T extends Scene<any, any>>(scene: T, path: string, at: (scene: T, draw: (sink: Sink) => Promise<void>) => unknown) => void;
 /**
  * @internal Keep `mobs` drawn last in `scene`, over anything added after them, in the order given (one
  * kept already moves last among them). Whenever one is on stage, as a root or inside one, the root
@@ -289,7 +291,7 @@ export let keepOnTop: (scene: Scene<any, any>, ...mobs: Mobject[]) => () => void
 /**
  * @internal Hand `sink` the picture of `scene` as it is now, as one frame at dt 0, outside play() and
  * wait(): what is kept on top is raised first, as before every frame the scene hands its own sink.
- * For a frame drawn after a run (renderFrame past the end) or between a live run's plays.
+ * For a frame drawn after a run (renderFrame past the end), and the draw stopAt() hands its callback.
  */
 export let drawFrame: (scene: Scene<any, any>, sink: Sink) => Promise<void>;
 /**
@@ -368,7 +370,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   #frameCount = 0;
   static {
     setDrawn = (scene, mobjects) => { scene.#mobjects = mobjects as Mobject[]; };
-    stopAt = (scene, path, at) => scene.#stopAt(path, at as (scene: Scene<any, any>) => unknown);
+    stopAt = (scene, path, at) => scene.#stopAt(path, at as (scene: Scene<any, any>, draw: (sink: Sink) => Promise<void>) => unknown);
     keepOnTop = (scene, ...mobs) => scene.#keepOnTop(mobs);
     drawFrame = (scene, sink) => scene.#drawFrame(sink);
     beginWhenReady = (scene, anims, call, begin) => scene.#beginWhenReady(anims, call, begin);
@@ -421,7 +423,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   /** Mobjects kept last in drawing order while on stage (see keepOnTop), in the order kept. */
   #onTop: Mobject[] = [];
   /** Where the run stops early (see stopAt), or null. */
-  #stop: { path: string; at: (scene: Scene<any, any>) => unknown; reached: boolean } | null = null;
+  #stop: { path: string; at: (scene: Scene<any, any>, draw: (sink: Sink) => Promise<void>) => unknown; reached: boolean } | null = null;
   // One entry per registration, so each remover removes exactly its own.
   #stepListeners: Array<{ listener: (step: Step) => unknown; on: boolean }>;
   #stepEndListeners: Array<{ listener: (step: Step) => unknown; on: boolean }>;
@@ -538,7 +540,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   }
 
   /** See stopAt. */
-  #stopAt(path: string, at: (scene: Scene<any, any>) => unknown): void {
+  #stopAt(path: string, at: (scene: Scene<any, any>, draw: (sink: Sink) => Promise<void>) => unknown): void {
     if (this.#ran) throw new Error('stopAt(): the scene has begun its run; say where it stops before run()');
     this.#stop = { path, at, reached: false };
   }
@@ -552,7 +554,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     // Free to play and wait, as a step listener is.
     this.#listening++;
     // Stopped for good whatever the callback does, a throw included: construct() never continues.
-    try { await stop.at(this); } finally { this.#listening--; this.#phase = 'stopped'; }
+    try { await stop.at(this, (sink) => this.#drawFrame(sink)); } finally { this.#listening--; this.#phase = 'stopped'; }
     // A play it left running would tick on after the stop: refused, as a listener's is.
     if (this.#running !== running)
       throw new Error(`stopAt(): its callback at step ${JSON.stringify(stop.path)} returned with a play() or wait() still running; await each play() and wait() it makes`);
