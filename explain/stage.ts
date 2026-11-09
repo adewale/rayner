@@ -434,7 +434,6 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
 
   const api = {
     scene,
-    backdrop,
     get heading() {
       return heading;
     },

@@ -47,7 +47,7 @@ export function scorePicture(s: Stage, clips: AudioClip[], look: Look = {}) {
       for (let beat = 0; beat < 8; beat++) {
         const strong = look.accent && beat % 4 === 0;
         row.add(
-          label(s, String((beat % 4) + 1), { at: [X0 + beat * DX, top + 0.8], color: strong ? s.look.emphasis : s.look.soft, size: strong ? 0.95 : 0.7, key: `beat-${beat}` }),
+          keyed(label(s, String((beat % 4) + 1), { at: [X0 + beat * DX, top + 0.8], color: strong ? s.look.emphasis : s.look.soft, size: strong ? 0.95 : 0.7 }), `beat-${beat}`),
         );
       }
     clip.notes.forEach((note, i) => {
@@ -79,7 +79,7 @@ export function scorePicture(s: Stage, clips: AudioClip[], look: Look = {}) {
   });
   // One footer line for every step, clear of B's notes and of its onset dots.
   const y = -3.75;
-  if (look.footer) figure.add(label(s, look.footer, { at: [0.6, y], color: s.look.soft, size: 0.66, key: 'score-footer' }));
+  if (look.footer) figure.add(keyed(label(s, look.footer, { at: [0.6, y], color: s.look.soft, size: 0.66 }), 'score-footer'));
   else figure.add(label(s, 'Bar 1: four beats', { at: [-2.7, y], color: s.look.soft, size: 0.7 }), label(s, 'Bar 2: four beats', { at: [4.0, y], color: s.look.soft, size: 0.7 }));
   return figure;
 }

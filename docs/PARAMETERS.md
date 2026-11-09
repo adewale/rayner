@@ -41,7 +41,7 @@ updater on the stage or the camera stops a seek from skipping, so any animation 
   opposite points on a circle; the orbit exists only in the recipe.
 - **The live machine ([#88](https://github.com/adewale/rayner/issues/88)) needs none
   of this.** It is discrete: `next(state, event)`, then a keyed `View` redraw checked
-  with `viewMismatch`. A reader slider would be continuous input, and nothing plans one.
+  for showing its state. A reader slider would be continuous input, and nothing plans one.
 
 ## What was built
 

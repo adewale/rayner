@@ -18,4 +18,5 @@ export { SnapshotSink, VIEWBOX, atHome, clipPathOf, serializeElement, userBox, v
 export { textContextOf } from './text-context.ts';
 export { dryRun } from './timeline.ts';
 export { traceRun } from './trace.ts';
+export { MotionSink, analyzeMotion } from './verify.ts';
 export { FRAME, STAGE_BOX, UNITS, zoomOf } from './units.ts';

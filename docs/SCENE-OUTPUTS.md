@@ -49,7 +49,7 @@ so a caller cannot mutate a later replay by changing the original input object.
 | `nodes`: box, state, slot, pointer, value, text | `Rectangle`, `Circle`, `Arrow`, `Text`, `DecimalNumber`; combine with `Group`/`Labeled` |
 | `edges` and labels | `Arrow`/`CurvedArrow` with `Labeled`, or captured Agentic Mermaid diagrams |
 | `at`, relative placement | `moveTo`, `nextTo`, `alignTo`, `arrange` |
-| `code`, `focus` | `Code`, `highlight`, spans and emphasis animations |
+| `code`, `focus` | `Code`, spans and emphasis animations |
 | `state`, `readout`, `set` | Typed `Scene` state, a model function and `view(this, draw).sync()` |
 | Named `steps` and metadata | `await this.step(name, metadata)` |
 | Sequential ops / arrays of simultaneous ops | Sequential `await this.play(...)` / one `this.play(a, b)` |
@@ -148,8 +148,8 @@ await new Request(new DomSink(container)).run();
 ```
 
 By default the sink plays in real time (`realtime: true`): when the page falls more than a
-frame behind, it drops that frame's DOM patch rather than slow the clock, counting it in
-`dropped`, but never goes longer than `maxFreezeMs` (100) without a patch. `{ realtime: false }`
+frame behind, it drops that frame's DOM patch rather than slow the clock, but never goes
+longer than 100 ms without a patch. `{ realtime: false }`
 patches every frame as fast as the scene runs.
 
 This runs the raw scene, without the reader's Next and Previous controls, scenario

@@ -6,11 +6,10 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import type { Page } from 'playwright-core';
-import { machinesOf } from '../../explain/testing.ts';
+import { machinesOf, liveBase, runLive, stepWords, stepQuery } from '../../explain/internal.ts';
 import type { Scene, Sink } from '../../src/index.ts';
 import type { Machine } from '../../explain/index.ts';
 import { SENT, acceptedLog, encodeLog, outcomes } from '../../app/embed-live.ts';
-import { liveBase, runLive, stepWords, stepQuery } from '../../explain/internal.ts';
 import type { LogStart } from '../../explain/internal.ts';
 import { chromeFor } from '../../app/embed-strings.ts';
 import { READ_PX } from '../../app/embed-closeup.ts';

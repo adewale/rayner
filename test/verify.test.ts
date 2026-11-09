@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, MoveAlongPath, Rectangle, Circle, FadeIn, FadeOut, Transform, Create, Line, linear, thereAndBack } from '../src/index.ts';
-import { MotionSink, analyzeMotion } from '../explain/testing.ts';
+import { MotionSink, analyzeMotion } from '../src/internal.ts';
 import type { Vec, MoveAlongPathOptions } from '../src/index.ts';
 // Manim's values, which the package no longer exports.
 const RIGHT: Vec = [1, 0];
@@ -13,6 +13,30 @@ const run = async (body: (s: Scene) => Promise<void>): Promise<string[]> => {
   await s.run();
   return analyzeMotion(sink).map((e) => e.kind);
 };
+
+test('MotionSink only reads a frame: after it takes each frame, the scene draws the same SVG and keeps the same state', async () => {
+  const { toSvgString } = await import('../src/output.ts');
+  const inner = new MotionSink();
+  const look = (s: Scene) => toSvgString(s) + JSON.stringify(s.stateJson());
+  const changed: number[] = [];
+  const s = new Scene({
+    async frame(sc: Scene) {
+      const before = look(sc);
+      await inner.frame(sc);
+      if (look(sc) !== before) changed.push(sc.frameCount);
+    },
+  }, { fps: 30 });
+  s.construct = async function (this: Scene) {
+    const r = new Rectangle();
+    await this.step('one');
+    await this.play(new FadeIn(r));
+    await this.step('two');
+    await this.play(r.animate.shift([2, 0]));
+    await this.play(new Transform(r, new Circle({ radius: 1 })));
+  };
+  await s.run();
+  assert.deepEqual(changed, []);
+});
 
 test('quiet on smooth motion: shifts, fades, morphs, draw-ins, fast linear moves', async () => {
   assert.deepEqual(await run(async (s) => {

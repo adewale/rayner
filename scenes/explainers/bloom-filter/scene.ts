@@ -1,4 +1,4 @@
-import { Scene, Group } from '../../../src/index.ts';
+import { Scene, Group, keyed } from '../../../src/index.ts';
 import { settingsOf, stage, having } from '../../../explain/index.ts';
 import type { Stage, ExplainerMeta } from '../../../explain/index.ts';
 import { bloomStory, locations, saturation } from './model.ts';
@@ -198,8 +198,8 @@ export default class BloomFilter extends Scene<{}, {}> {
             return new Group(
               grid,
               takenLabel(s, st.size, i === FULL, st.stored),
-              label(s, queryText, { at: [0, -2.85], color: s.look.soft, size: 0.66, key: 'bloom-query' }),
-              label(s, answerText, { at: [0, -3.7], size: 0.66, key: 'bloom-answer' }),
+              keyed(label(s, queryText, { at: [0, -2.85], color: s.look.soft, size: 0.66 }), 'bloom-query'),
+              keyed(label(s, answerText, { at: [0, -3.7], size: 0.66 }), 'bloom-answer'),
             );
           },
         };

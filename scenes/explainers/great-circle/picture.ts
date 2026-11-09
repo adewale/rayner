@@ -76,7 +76,8 @@ const NAME = 0.68, NUMBER = 0.68;
 /** A name beside a point, drawn from the same viewpoint; transparent where the point is out of sight. */
 function nameAt(s: Stage, text: string, p: Place, vp: Viewpoint, o: SeenOptions, offset: Vec, anchor: -1 | 0 | 1, color = INK, key?: string, size = NAME): Text {
   const { at, seen } = project(at3(p), vp, 1, o);
-  const t = label(s, text, { color, size, key }).moveTo([at[0] + offset[0], at[1] + offset[1]], [anchor, 0]);
+  const t = label(s, text, { color, size }).moveTo([at[0] + offset[0], at[1] + offset[1]], [anchor, 0]);
+  if (key !== undefined) keyed(t, key);
   if (!seen) t.setOpacity(0);
   return t;
 }

@@ -6,7 +6,8 @@ import {inflateSnapshots} from '../app/embed-snapshots.ts';
 import {gzipSync} from 'node:zlib';
 import type {SnapshotStore} from '../explain/diagram-snapshot.ts';
 import {fc, params} from './lib/pbt.ts';
-import { bindSnapshots, loadProject } from '../explain/testing.ts';
+import { loadProject } from '../explain/testing.ts';
+import { bindSnapshots } from '../explain/internal.ts';
 import { toSvgString } from '../src/output.ts';
 import type {SceneClass} from '../src/index.ts';
 

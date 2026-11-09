@@ -379,10 +379,9 @@ fonts; [requested lettering](LETTERING.md) adds scripts and maths through snapsh
 
 [Testing Rayner](TESTING.md) says which check answers which question: domain truth,
 geometry and replay, motion continuity, readable served paint, or whether readers
-understand. A pass on one says nothing about the others. `MotionSink` and
-`analyzeMotion` (`rayner/testing`) inspect sampled motion; they judge neither the editing nor the maths.
-`analyzeMotion(sink)` returns a `MotionEvent` for each teleport, resize, pop, cut,
-flicker or handoff in the frames a `MotionSink` sampled: `{ kind, frame, t, step, what, magnitude, detail }`.
+understand. A pass on one says nothing about the others. `rayner check`'s motion check
+samples every frame and reports each teleport, resize, pop, cut, flicker or handoff, with its
+frame, time, step and the part it names; it judges neither the editing nor the maths.
 
 For profiling Rayner itself, `perf.enable()` (in `src/perf.ts`, internal to the repository) starts counters and spans, `perf.report()` explains
 where measured work went, and `perf.chromeTrace()` returns trace-event JSON for a

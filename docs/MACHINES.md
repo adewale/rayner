@@ -30,6 +30,11 @@ this.state = machine.spec.start;
 await machine.replay(['POWER_ON', 'START', 'FROTH']);
 ```
 
+`machine.spec` is the spec with its defaults filled in, frozen: the machine keeps its own copies
+of the events, views, labels and transitions, and of `start`, which it copies again at every
+read. Changing the object passed to `new Machine`, or what `machine.spec.start` returns, changes
+nothing the machine explores.
+
 Since a frame is a pure function of time ([invariant 1](ENGINE.md#correctness-by-construction)),
 a reader's events can be ordinary input to a schedule. Each event becomes a member of a
 `Succession`: a change of state at its turn, to the state `next` computes from the
@@ -209,7 +214,7 @@ picture, and fails if it
 - has colliding text or a connector over a label (the same rules as resting pictures),
 - shows a label under 14 px at a 1280 px stage,
 - has no description,
-- does not show its state (`viewMismatch`), or
+- does not show its state (the fidelity check `assertViewFollowsState` makes), or
 - is described exactly as another reachable state is, so neither a reader nor a screen
   reader could tell them apart.
 

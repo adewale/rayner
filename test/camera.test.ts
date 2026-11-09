@@ -9,7 +9,7 @@ import {
 } from '../src/index.ts';
 import { NullSink, DomSink, renderElements, renderFrame, renderText, toSvgString } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
-import { MotionSink, analyzeMotion } from '../explain/testing.ts';
+import { MotionSink, analyzeMotion } from '../src/internal.ts';
 import type { Box, Sink } from '../src/index.ts';
 import type { ElementRecord } from '../src/output.ts';
 import { mobjectId } from '../src/mobject.ts';

@@ -43,7 +43,7 @@ export function frames(stage: Stage, which: string, answer: string, opts?: Stage
           // The rejected event leaves the state where it was.
           tile(s, st.result.state ?? st.state, { at: [4.7, 1], width: 3.8, height: 1.3, active: true }),
           label(s, '×', { at: [2.35, 1], color: s.look.bad, size: 1 }),
-          label(s, st.result.error!, { at: [0, -1.4], color: s.look.bad, size: 0.8, key: 'rejection' }),
+          keyed(label(s, st.result.error!, { at: [0, -1.4], color: s.look.bad, size: 0.8 }), 'rejection'),
           label(s, `State stays ${st.state}`, { at: [0, -2.8], size: 0.7 }),
         ),
     },

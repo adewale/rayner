@@ -142,9 +142,9 @@ export function picture(s: Stage, v: View) {
       stroke: v.found === null ? s.look.soft : outcome,
       strokeWidth: 0.03,
     }).moveTo([panelX, TOP - 1.15]),
-    label(s, v.ask, { at: [panelX, TOP - 0.03], size: 0.8, key: 'dict-result:ask' }),
-    label(s, v.middle, { at: [panelX, TOP - 1.15], color: s.look.soft, size: 0.66, key: 'dict-result:middle' }),
-    label(s, v.outcome, { at: [panelX, TOP - 2.27], color: outcome, size: 0.8, key: 'dict-result:outcome' }),
+    keyed(label(s, v.ask, { at: [panelX, TOP - 0.03], size: 0.8 }), 'dict-result:ask'),
+    keyed(label(s, v.middle, { at: [panelX, TOP - 1.15], color: s.look.soft, size: 0.66 }), 'dict-result:middle'),
+    keyed(label(s, v.outcome, { at: [panelX, TOP - 2.27], color: outcome, size: 0.8 }), 'dict-result:outcome'),
   );
   keyed(result, 'dict-result');
   return new Group(slots, ...(v.path ? [hops(s, v.path)] : []), entries, result, note);

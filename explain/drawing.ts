@@ -50,20 +50,21 @@ export function keyedParts(): { add<T extends Mobject>(m: T, key: string): T; gr
  * The kit's conventions, the same in every function: the stage `s` first, for its look and its
  * text shaping; then what the picture shows, positionally (its text, rows or items, and what it
  * measures or points at); then one options object. In it, `at` is where the picture stands, `size`
- * its text size, and `key` its address. A function whose parts are keyed requires `key`; one that
- * takes it optionally keys its parts only when given it. Each keyed composite keys its parts under
- * its own key (`key:box`, `key:label` and so on), so a scene addresses a part by key, never by index.
+ * its text size, and `key` the address of a composite and its parts. A function whose parts are keyed
+ * requires `key`; one that takes it optionally (`tile`, `dot` and the annotations) keys its parts only
+ * when given it. Each keyed composite keys its parts under its own key (`key:box`, `key:label` and so
+ * on), so a scene addresses a part by key, never by index. A single part (`label`, `segment`) takes no
+ * `key`: key it with `keyed()`, the one way to key a part.
  * Text is made with the scene's shaping.
  */
 
-/** A centred line of text at `at`, in the look's ink unless given a `color`. */
+/** A centred line of text at `at`, in the look's ink unless given a `color`. Key it with `keyed()`. */
 export function label(
   s: Stage,
   text: string | number,
-  { at = [0, 0], color = s.look.ink, size = 0.6, key }: { at?: Vec; color?: string; size?: number; key?: string } = {},
+  { at = [0, 0], color = s.look.ink, size = 0.6 }: { at?: Vec; color?: string; size?: number } = {},
 ): Text {
-  const t = new Text(String(text), { fontSize: size, color, shaping: s.scene.textShaping }).moveTo(at);
-  return key ? keyed(t, key) : t;
+  return new Text(String(text), { fontSize: size, color, shaping: s.scene.textShaping }).moveTo(at);
 }
 /**
  * A labelled box `width` by `height` centred at `at`: soft, emphasised when `active`, red when `bad`.
@@ -83,18 +84,17 @@ export function tile(
     strokeWidth: active || bad ? 0.055 : 0.025,
   }).moveTo(at);
   const words = label(s, text, { at, color: bad ? s.look.bad : s.look.ink, size });
-  if (!key) return new Group(box, words);
+  if (key === undefined) return new Group(box, words);
   return keyed(new Group(keyed(box, `${key}:box`), keyed(words, `${key}:label`)), key);
 }
-/** A straight stroke from `a` to `b`, in the look's ink unless given a `color`; keyed when given `key`. */
+/** A straight stroke from `a` to `b`, in the look's ink unless given a `color`. Key it with `keyed()`. */
 export function segment(
   s: Stage,
   a: Vec,
   b: Vec,
-  { color = s.look.ink, strokeWidth = 0.04, key }: { color?: string; strokeWidth?: number; key?: string } = {},
+  { color = s.look.ink, strokeWidth = 0.04 }: { color?: string; strokeWidth?: number } = {},
 ): Line {
-  const line = new Line(a, b, { stroke: color, strokeWidth });
-  return key ? keyed(line, key) : line;
+  return new Line(a, b, { stroke: color, strokeWidth });
 }
 /** A labelled circle at `at`, emphasised when `active`. Keyed `key` when given, with its parts `key:circle` and `key:label`. */
 export function dot(
@@ -109,7 +109,7 @@ export function dot(
     strokeWidth: active ? 0.055 : 0.03,
   }).moveTo(at);
   const words = label(s, text, { at, size: 0.7 });
-  if (!key) return new Group(circle, words);
+  if (key === undefined) return new Group(circle, words);
   return keyed(new Group(keyed(circle, `${key}:circle`), keyed(words, `${key}:label`)), key);
 }
 /**
@@ -215,8 +215,8 @@ export function stat(s: Stage, title: string, value: string | number, { at = [0,
   const [x, y] = at;
   return keyed(
     new Group(
-      label(s, title, { at: [x, y + 0.7], color: s.look.soft, size: 0.6, key: `${key}:title` }),
-      label(s, value, { at: [x, y - 0.45], size: 0.95, key: `${key}:value` }),
+      keyed(label(s, title, { at: [x, y + 0.7], color: s.look.soft, size: 0.6 }), `${key}:title`),
+      keyed(label(s, value, { at: [x, y - 0.45], size: 0.95 }), `${key}:value`),
     ),
     key,
   );
@@ -261,7 +261,7 @@ export function flow(s: Stage, names: readonly string[], { at = [0, 1], key }: {
                 `${key}:${i}:box`,
               ),
               ...lines.map((line, row) =>
-                label(s, line, { at: [xs[i]!, y + ((lines.length - 1) / 2 - row) * 0.68], size: 0.62, key: `${key}:${i}:label:${row}` }),
+                keyed(label(s, line, { at: [xs[i]!, y + ((lines.length - 1) / 2 - row) * 0.68], size: 0.62 }), `${key}:${i}:label:${row}`),
               ),
             ),
             `${key}:${i}`,
@@ -307,7 +307,7 @@ export function bars(
     const yy = y - i * 2.3,
       width = (r.value / maximum) * 8.5;
     g.add(
-      label(s, r.label, { at: [dx - 4, yy + 0.55], size: 0.64, key: `${key}:${i}:label` }).moveTo([dx - 4, yy + 0.55], [-1, 0]),
+      keyed(label(s, r.label, { at: [dx - 4, yy + 0.55], size: 0.64 }), `${key}:${i}:label`).moveTo([dx - 4, yy + 0.55], [-1, 0]),
       keyed(
         new Rectangle({ width: 8.5, height: 0.68, fill: 'none', stroke: s.look.soft, strokeWidth: 0.02 }).moveTo([dx + 0.25, yy - 0.3]),
         `${key}:${i}:track`,
@@ -315,7 +315,7 @@ export function bars(
       ...(r.value > 0
         ? [keyed(new Rectangle({ width, height: 0.68, fill: s.look.emphasis, stroke: 'none' }).moveTo([dx - 4 + width / 2, yy - 0.3]), `${key}:${i}:bar`)]
         : []),
-      label(s, r.display, { at: [dx + 7.2, yy - 0.3], size: 0.7, key: `${key}:${i}:value` }).moveTo([dx + 7.2, yy - 0.3], [1, 0]),
+      keyed(label(s, r.display, { at: [dx + 7.2, yy - 0.3], size: 0.7 }), `${key}:${i}:value`).moveTo([dx + 7.2, yy - 0.3], [1, 0]),
     );
   });
   return g;

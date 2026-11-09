@@ -81,7 +81,7 @@ the frame. DOM sinks leave it off and keep one element per mobject. Tests:
 
 ## How the verifier sees it
 
-`MotionSink` samples every leaf in screen space, after the camera, in units of the default
+`rayner check`'s motion check samples every leaf in screen space, after the camera, in units of the default
 16-wide frame, so the thresholds keep their meaning: they describe what a reader sees. A
 smooth camera move is smooth motion of everything on screen and reports nothing. A camera
 cut moves every leaf at once and reports a teleport for each. When the camera is home,

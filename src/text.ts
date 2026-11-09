@@ -16,7 +16,6 @@ import type { Style } from './mobject.ts';
 import type { Box, AnimateBuilder, AnimateBuilderBase } from './mobject.ts';
 import { VMobject } from './vmobject.ts';
 import { unionBoxes } from './box.ts';
-import { Rectangle } from './shapes.ts';
 import { embeddedShaperFor } from './fonts.ts';
 import type { FontName } from './fonts.ts';
 import { NEUTRAL_COLORS } from './color.ts';
@@ -397,14 +396,6 @@ export class Code extends Group {
   protected override rebindReferences(source: Mobject, copies: ReadonlyMap<Mobject, Mobject>): void {
     this.lines = (source as Code).lines.map(line => (copies.get(line) ?? line) as Text);
   }
-  /** A translucent bar behind line `i`, as wide as the block: the scene's emphasis colour unless given a colour. */
-  highlight(i: number, color?: string): Rectangle {
-    const r = new Rectangle({ width: this.width() + 0.3, height: this.lines[i]!.height() * 1.45, cornerRadius: 0.06, fill: color ?? NEUTRAL_COLORS.emphasis, fillOpacity: 0.18, stroke: 'none' });
-    if (color === undefined) followScene(r, { fill: 'emphasis' });
-    return r.moveTo(this.lineCenter(i));
-  }
-  /** Where a highlight bar for line `i` sits. */
-  lineCenter(i: number): Vec { return [this.center()[0], this.lines[i]!.center()[1]]; }
 
   /**
    * The glyphs of line `line` whose source index is in [from, to): a live

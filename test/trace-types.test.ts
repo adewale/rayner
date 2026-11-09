@@ -5,7 +5,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene } from '../src/index.ts';
-import { bindSnapshots, loadProject, traceScene, withSettings } from '../explain/testing.ts';
+import { loadProject, traceScene, withSettings } from '../explain/testing.ts';
+import { bindSnapshots } from '../explain/internal.ts';
 import type { Jsonified, StepRecord, Trace, TraceOf } from '../explain/testing.ts';
 import type { EndedStep, SceneState, Step } from '../src/index.ts';
 import LatestSearch from '../scenes/explainers/latest-search/scene.ts';

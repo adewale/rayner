@@ -4,8 +4,7 @@
 // shows them in English and marks them lang="en".
 import type { ExplainerClass, Settings } from '../explain/index.ts';
 import type { SettingsProblem, WatchedChange } from '../explain/internal.ts';
-import { scenarioName } from '../explain/testing.ts';
-import { describedIn, primaryLanguage, wordsFor } from '../explain/internal.ts';
+import { scenarioName, describedIn, primaryLanguage, wordsFor } from '../explain/internal.ts';
 export type { SettingsProblem } from '../explain/internal.ts';
 
 

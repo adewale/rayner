@@ -123,10 +123,18 @@ export function isRefusal(value: unknown): value is Refusal {
   return typeof value === 'object' && value !== null && (value as Record<symbol, unknown>)[REFUSAL] === true;
 }
 
+/**
+ * A machine's spec as it keeps it: its defaults filled in, frozen, its lists and records its own
+ * frozen copies, and its `start` a fresh copy at every read, so nothing changes the model after the
+ * machine's identity and exploration are computed from it.
+ */
+type MachineModel<S extends object, E extends string> = Readonly<Required<Pick<MachineSpec<S, E>, 'match' | 'runTime' | 'limit'>> & MachineSpec<S, E>>;
+
 /** A model driven by events on one scene, typed by the scene's model type `S`. */
 export class Machine<S extends object, E extends string> {
   private readonly scene: Scene<S, any>;
-  readonly spec: Required<Pick<MachineSpec<S, E>, 'match' | 'runTime' | 'limit'>> & MachineSpec<S, E>;
+  /** The spec the machine was made with, its defaults filled in. Frozen; its `start` is a fresh copy at every read. */
+  readonly spec: MachineModel<S, E>;
   /** What the scene showed (`scene.shown`, as JSON) when the machine last played; exploration redraws under it. */
   private shownWhenPlayed: string | null = null;
   /** The step this machine last played in; exploration checks it on that step's stage. */
@@ -143,7 +151,7 @@ export class Machine<S extends object, E extends string> {
     // Exploration redraws any reachable state after the run, which needs each picture to be a function
     // of the scene's state alone. Every View is (view(scene, draw)), so there is nothing to refuse.
     this.scene = scene;
-    this.spec = { match: matchByKey({ text: 'whole' }), runTime: 0.6, limit: 256, ...spec };
+    this.spec = settle(spec);
     machinesOf(scene).push(this as unknown as Machine<object, string>);
   }
 
@@ -301,6 +309,26 @@ export class Machine<S extends object, E extends string> {
     }
     return [...seen.values()];
   }
+}
+
+/**
+ * `spec` with its defaults, kept apart from the caller's object: a frozen copy whose events, views,
+ * labels and transitions are frozen copies too, and whose `start` is copied at construction and again
+ * at every read, so neither the caller nor a reader can change what the machine explores.
+ */
+function settle<S extends object, E extends string>(spec: MachineSpec<S, E>): MachineModel<S, E> {
+  // A state is JSON (a send sets it through the trace's JSON rules), and the bare runtime that
+  // replays a page has no structuredClone.
+  const copy = (state: S): S => JSON.parse(JSON.stringify(state)) as S;
+  const start = copy(spec.start);
+  const kept = { match: matchByKey({ text: 'whole' }), runTime: 0.6, limit: 256, ...spec };
+  return Object.freeze(Object.defineProperties(kept, {
+    start: { get: () => copy(start), enumerable: true },
+    events: { value: Object.freeze([...spec.events]), enumerable: true },
+    views: { value: Object.freeze([...spec.views]), enumerable: true },
+    ...(spec.labels ? { labels: { value: Object.freeze({ ...spec.labels }), enumerable: true } } : {}),
+    ...(spec.transition ? { transition: { value: Object.freeze({ ...spec.transition }), enumerable: true } } : {}),
+  }));
 }
 
 /**

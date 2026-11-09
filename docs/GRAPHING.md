@@ -54,12 +54,10 @@ new NumberLine({ range: [min, max, step], length = 8, includeNumbers = false, la
   each reaching 0.1 to either side. `includeNumbers` labels every tick, with as many decimal places
   as `step` has. When the line is rotated, labels stay upright, clockwise of the line's direction
   (below a horizontal line).
-- `n2p(x)` maps a number to a point and `p2n(p)` maps a point back, projected onto the line.
-  `unitSize()` gives scene units per unit. All three read the line's **current** endpoints, so they
-  stay right after `shift`, `scale` or `rotate`.
+- `n2p(x)` maps a number to a point. It reads the line's **current** endpoints, so it stays right
+  after `shift`, `scale` or `rotate`.
 - Parts are reached by role: `line`, `tip` (or null), `ticks` and `numbers` (Groups). The children
   are `[line, tip?, ticks, numbers]`, read by index, so a copy's parts are its own.
-  `tickValues()` lists the numbers the ticks stand at.
 - `range` is an `AxisRange`, `[min, max, step?]`, the step 1 when left out.
 
 ## Axes
@@ -76,12 +74,11 @@ new Axes({ xRange = [0, 10, 1], yRange = [0, 5, 1], width = 8, height = 4.5,
   (`tipLength` and `tipWidth` size it).
   `axes.xLabel` and `axes.yLabel` are the axis labels' `Text`s, or null.
 - The axes cross at (0, 0) when zero is in both ranges. Otherwise they cross at the nearest end of
-  the range, so with an x range of 1..12 the y axis stands at x = 1. `axes.crossX` and
-  `axes.crossY` are the values where they cross.
+  the range, so with an x range of 1..12 the y axis stands at x = 1.
 - A label at the crossing is left out on one axis when the other axis runs through it, as in
   manim. When the axes meet at a corner, both zeros stay.
-- `c2p(x, y)` maps data coordinates to a point. `p2c(p)` is its exact inverse, even after rotation.
-  `originPoint()` is `c2p(0, 0)`, which lies off the drawn axes when zero is outside a range.
+- `c2p(x, y)` maps data coordinates to a point, after any shift, scale or rotation of the axes.
+  `c2p(0, 0)` lies off the drawn axes when zero is outside a range.
 
 Graph builders return new mobjects. They are placed where the axes are when you call them, so
 move the axes first, then build graphs and add them yourself.

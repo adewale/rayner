@@ -56,7 +56,7 @@ export function frames(stage: Stage, opts?: StagedStepsOptions): Promise<void> {
             }),
           );
         g.add(
-          label(s, `pop() returned ${st.popped} and moved ${st.moved} values`, { at: [0, -2.75], color: s.look.bad, size: 0.58, key: 'shift-result' }),
+          keyed(label(s, `pop() returned ${st.popped} and moved ${st.moved} values`, { at: [0, -2.75], color: s.look.bad, size: 0.58 }), 'shift-result'),
         );
         return g;
       },

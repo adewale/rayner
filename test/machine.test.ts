@@ -8,7 +8,8 @@ import { Scene, Text, Group, Rectangle, Transform, Animation, AnimationGroup, Su
 import type { Mobject } from '../src/index.ts';
 import { NullSink, StringSink, renderFrame } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
-import { machinesOf, TraceSink, traceScene, loadFonts } from '../explain/testing.ts';
+import { TraceSink, traceScene, loadFonts } from '../explain/testing.ts';
+import { machinesOf } from '../explain/internal.ts';
 import { stage, Machine, refuse, isRefusal, view } from '../explain/index.ts';
 import { SetState } from '../explain/state.ts';
 import { exploreMachines } from '../tools/lib/explain-check.ts';
@@ -204,6 +205,20 @@ test('a machine refuses an event name a link cannot carry: empty, or with a comm
   // Events with spaces and colons still travel.
   const words = new Machine(scene, { ...spec, events: ['start A', 'A lands', 'x:1'] });
   assert.deepEqual(viaLink(words.spec.events), ['start A', 'A lands', 'x:1']);
+});
+
+test('nothing changes a machine’s model once it is made: not the caller’s spec, nor its own', () => {
+  const scene = new Scene<Lamp>(new NullSink());
+  const start = { level: 0 }, events: Array<'UP' | 'DOWN'> = ['UP'];
+  const machine = new Machine<Lamp, 'UP' | 'DOWN'>(scene, { start, events, next: (s) => (s.level < 3 ? { level: s.level + 1 } : undefined), views: [] });
+  const explored = () => machine.reachable().map((r) => r.state.level);
+  const identity = machine.identity;
+  start.level = 2;
+  events.push('DOWN');
+  machine.spec.start.level = 9;
+  assert.throws(() => (machine.spec.events as Array<string>).push('DOWN'), TypeError);
+  assert.throws(() => Object.assign(machine.spec, { limit: 1 }), TypeError);
+  assert.deepEqual([machine.identity, machine.spec.start, machine.spec.events, explored()], [identity, { level: 0 }, ['UP'], [0, 1, 2, 3]]);
 });
 
 test('a refused event: next says undefined, exploration does not follow it, and sending it is refused before anything plays', async () => {

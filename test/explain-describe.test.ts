@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { traceScene } from '../explain/testing.ts';
-import { describeExplainer, withSettings, scenariosOf, bindSnapshots, loadProject, loadSnapshots } from '../explain/testing.ts';
+import { describeExplainer, withSettings, loadProject, loadSnapshots } from '../explain/testing.ts';
+import { scenariosOf, bindSnapshots } from '../explain/internal.ts';
 import type { ExplainerClass } from '../explain/index.ts';
 import RingBuffer from '../scenes/explainers/ring-buffer/scene.ts';
 import OauthPkce from '../scenes/explainers/oauth-pkce/scene.ts';
