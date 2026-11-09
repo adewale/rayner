@@ -76,7 +76,7 @@ export interface MachineSpec<S extends object, E extends string> {
  * What an authored transition is built from: the event, the states either side, and for each of
  * the machine's views, by the view itself, the picture it must end on (`target`) and a
  * choreography from its current picture to that one (`choreograph`). End each view on its target
- * and the landing moves nothing.
+ * and taking the pictures of the state moves nothing.
  */
 export interface Transition<S, E> {
   event: E;
@@ -240,7 +240,7 @@ export class Machine<S extends object, E extends string> {
       transition
         // The transition's motion, then the views take the pictures of `after`: a sync that moves
         // nothing when the transition ended where the model says (rayner check holds it to that).
-        ? new Succession([transition, new Landing(this.scene, views)])
+        ? new Succession([transition, new TakePictures(this.scene, views)])
         // No authored motion: each view's keyed morph, staged, so what goes is gone before what comes appears.
         : new AnimationGroup(views.map((v) => v.sync({ match, runTime: this.runTimeOf(event, before, after) }))),
     ]);
@@ -253,7 +253,7 @@ export class Machine<S extends object, E extends string> {
 
   /**
    * @internal The authored transition for `event` from `before` to `after` as `send` plays it, without
-   * the event's state change before it or the landing after it: made from the pictures on screen
+   * the event's state change before it or the views taking the pictures after it: made from the pictures on screen
    * when its turn comes in a play, over the event's run time. Null when the event has no authored
    * transition. `rayner check` plays each one this way, in a play of the explored scene.
    */
@@ -309,7 +309,7 @@ export class Machine<S extends object, E extends string> {
 class WhenItsTurnComes extends MadeAtTurn {
   readonly #make: () => Animation | AnimationGroup;
   constructor(event: string, make: () => Animation | AnimationGroup, declared: readonly Mobject[], runTime: number) {
-    super({ call: `machine.send(${JSON.stringify(event)})`, subject: 'the transition' }, runTime, declared);
+    super(`machine.send(${JSON.stringify(event)})`, 'the transition', runTime, declared);
     this.#make = make;
   }
   protected override make(): ScheduledAnimation[] {
@@ -323,9 +323,9 @@ class WhenItsTurnComes extends MadeAtTurn {
  * counterpart's data in place (a morphed Text gets its new string) and the parts go back into the
  * drawn picture's stacking order, so every part keeps its identity for the next event. A picture
  * whose parts do not line up by key (one unkeyed, or a key two siblings share) is swapped for the
- * drawn one instead. The landing lasts one of the scene's frames.
+ * drawn one instead. It lasts one of the scene's frames.
  */
-class Landing extends Animation {
+class TakePictures extends Animation {
   views: readonly View[];
   scene: Scene<any>;
   constructor(scene: Scene<any>, views: readonly View[]) {

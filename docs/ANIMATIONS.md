@@ -86,8 +86,8 @@ A member begins at its turn, in turn order with whatever else begins at its turn
 frame. One that waits for what it reads (an action's beat that shows a diagram) holds the
 `Succession`: the members after it begin once it has begun, so their side effects keep their
 order even when the waiting member is shorter than a frame. When the play finishes a
-`Succession` held this way, its `phase` is `'landing'` until its last member has begun and
-landed, then `'finished'`.
+`Succession` held this way, its `phase` stays `'begun'` until its last member has begun and
+finished, then is `'finished'`.
 
 Seeking is exact through a `Succession` too. Its members begin, and add their mobjects,
 as it interpolates, so a seek into a play holding one still interpolates the frames it

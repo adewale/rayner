@@ -1,11 +1,11 @@
 // `rayner check` reaches each step's resting picture one way, as the step ends, the way describe
-// and the shots do; the landing check holds that picture to the step's last played frame.
+// and the shots do; the last-frame check holds that picture to the step's last played frame.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Text, Rectangle, FadeIn } from '../src/index.ts';
 import { toSvgString } from '../src/output.ts';
 import { stage, isHeading } from '../explain/stage.ts';
-import { FanSink, FrameCaptureSink, LandingSink, LegibilitySink, LookWordsSink, RestingSink } from '../tools/lib/explain-check.ts';
+import { FanSink, FrameCaptureSink, LastFrameSink, LegibilitySink, LookWordsSink, RestingSink } from '../tools/lib/explain-check.ts';
 import { restingPictures } from '../tools/lib/explain-shots.ts';
 import { traceScene } from '../explain/testing.ts';
 
@@ -27,10 +27,10 @@ class Two extends Scene {
 test('check reads each step\'s resting picture as the step ends: the picture the shots draw, and the step\'s last played frame', async () => {
   const trace = await traceScene(Two);
   const capture = new FrameCaptureSink(new Set(trace.steps.map((s) => s.frame1)));
-  const landing = new LandingSink(capture.frames), resting = new RestingSink(), looks = new LookWordsSink();
+  const lastFrame = new LastFrameSink(capture.frames), resting = new RestingSink(), looks = new LookWordsSink();
   const legibility = new LegibilitySink(new Map(trace.steps.map((s) => [s.step, { k: 1, views: [] }])), 1);
-  await new Two(new FanSink([capture, landing, resting, legibility, looks])).run();
-  assert.deepEqual(landing.landed, [], 'every step lands on its last played frame');
+  await new Two(new FanSink([capture, lastFrame, resting, legibility, looks])).run();
+  assert.deepEqual(lastFrame.differing, [], 'every step lands on its last played frame');
   const shots = await restingPictures(Two, (scene) => {
     const all = scene.mobjects;
     scene.mobjects = all.filter((m) => !isHeading(m));

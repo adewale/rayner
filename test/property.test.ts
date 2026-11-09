@@ -85,7 +85,7 @@ test('Transform ends drawing exactly what its target, as authored, draws', async
     const origPlay = scene.play.bind(scene);
     // Check right after each play, before the next one moves things again
     scene.play = async (...args) => {
-      const plain = (args as unknown[]).filter((an): an is Transform => an instanceof Transform && an.constructor === Transform && !an.replace && !an.remover);
+      const plain = (args as unknown[]).filter((an): an is Transform => an instanceof Transform && an.constructor === Transform && !an.replace);
       const want = plain.map((an) => drawn(an.target.copy()));
       const r = await origPlay(...args);
       // play()'s options set the rate function: only one that ends at 1 lands on the target

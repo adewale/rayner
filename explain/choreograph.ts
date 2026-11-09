@@ -76,7 +76,7 @@ export interface Choreography {
   /**
    * A token passing along `path`, a part the target does not have (a message on its arrow, an
    * event walking a link): `appear` brings `token` into view at the path's start, `move` carries it
-   * along the path at an even speed, and `leave` takes it out of the picture. Each phase is an
+   * along the path at an even speed, and `leave` takes it out of the picture. Each part is an
    * animation for the author to place, so other motion can run beside it; all three must play.
    */
   travel(key: string, token: Mobject, path: VMobject, times?: { appear?: number; move?: number; leave?: number }): { appear: Animation; move: Animation; leave: Animation };
