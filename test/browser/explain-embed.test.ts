@@ -58,7 +58,8 @@ before(async () => {
   const references = await collectProject('test/fixtures/reference-steps', {write: false});
   projects.set('references', references);
   await buildExplainer(references, join(folder, 'references.html'));
-  // A real scene counts executions without adding player hooks or changing its artwork.
+  // A real scene counts executions without adding player hooks or changing its artwork; a run after
+  // the first (a step rendered on demand) can wait as it reaches step-1, as an asynchronous render does.
   const probe=join(folder,'playback-probe');await mkdir(probe);
   await writeFile(join(probe,'scene.ts'),`import{Scene,Text,FadeIn}from'rayner';
     export default class PlaybackProbe extends Scene {
@@ -67,7 +68,7 @@ before(async () => {
         for(let i=0;i<4;i++){
           await this.step('step-'+i,{title:'Step '+i,caption:('Picture '+i+' ').repeat(12)});
           const delay=typeof window==='undefined'?0:Number(new URLSearchParams(location.search).get('renderDelay'));
-          if(i===1&&this.skipUntil>0&&delay>0){w.__renderDelays=(w.__renderDelays??0)+1;await new Promise(r=>setTimeout(r,delay));}
+          if(i===1&&w.__sceneRuns>1&&delay>0){w.__renderDelays=(w.__renderDelays??0)+1;await new Promise(r=>setTimeout(r,delay));}
           await this.play(new FadeIn(new Text('Picture '+i)),{runTime:2});
         }
       }
