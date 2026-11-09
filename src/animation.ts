@@ -1111,7 +1111,7 @@ export class Succession extends AnimationGroup {
    * Take the members to where the play has taken it: each whose turn has come finishes and is
    * cleaned up, as the end of a play would, and the next begins; then the running one draws its
    * frame (finishing, every member ends instead, and so does it). A member that waits to begin, or,
-   * landing, for its own members to finish, holds it here: it carries on in a turn the scene takes
+   * finished, for its own members to finish, holds it here: it carries on in a turn the scene takes
    * once that member has, so whatever the members do happens in their order.
    */
   #catchUp(closing = false): void {

@@ -76,7 +76,7 @@ export interface MachineSpec<S extends object, E extends string> {
  * What an authored transition is built from: the event, the states either side, and for each of
  * the machine's views, by the view itself, the picture it must end on (`target`) and a
  * choreography from its current picture to that one (`choreograph`). End each view on its target
- * and the landing moves nothing.
+ * and taking the pictures of the state moves nothing.
  */
 export interface Transition<S, E> {
   event: E;
@@ -253,7 +253,7 @@ export class Machine<S extends object, E extends string> {
 
   /**
    * @internal The authored transition for `event` from `before` to `after` as `send` plays it, without
-   * the event's state change before it or the landing after it: made from the pictures on screen
+   * the event's state change before it or the views taking the pictures after it: made from the pictures on screen
    * when its turn comes in a play, over the event's run time. Null when the event has no authored
    * transition. `rayner check` plays each one this way, in a play of the explored scene.
    */

@@ -141,7 +141,7 @@ test('a group whose member throws as it begins lands the members it began, and c
   assert.deepEqual([group.phase, first.phase, second.phase], ['finished', 'finished', 'finished']);
 });
 
-test('a play whose animation throws as it begins lands the ones begun before it, which can play again (N6)', async () => {
+test('a play whose animation throws as it begins lands the ones begun before it, which can play again', async () => {
   let fail = true;
   class Flaky extends FadeIn {
     protected override doBegin(): void {
@@ -166,7 +166,7 @@ test('a play whose animation throws as it begins lands the ones begun before it,
   assert.equal(shown.phase, 'finished', 'the landed FadeIn plays again');
 });
 
-test('a play that fails after it has begun lands everything it began, and begins nothing more: none is left begun (A1)', async () => {
+test('a play that fails after it has begun lands everything it began, and begins nothing more: none is left begun', async () => {
   // A Succession member that throws as its turn comes, half way through the play.
   let fail = true;
   class Flaky extends FadeIn {
@@ -282,7 +282,7 @@ test('a Succession finished by its play while a member waits is still begun unti
   assert.deepEqual([group.phase, sq.phase, w.phase], ['finished', 'finished', 'finished']);
 });
 
-test('a stop\'s callback that throws still stops the run for good (B3)', async () => {
+test('a stop\'s callback that throws still stops the run for good', async () => {
   class Short extends Scene {
     override async construct() {
       await this.step('one');
@@ -299,7 +299,7 @@ test('a stop\'s callback that throws still stops the run for good (B3)', async (
   await assert.rejects(scene.play(new FadeIn(new Circle())), StopScene);
 });
 
-test('a frame drawn outside the loop raises what is kept on top first: renderFrame past the end, and drawFrame (B4)', async () => {
+test('a frame drawn outside the loop raises what is kept on top first: renderFrame past the end, and drawFrame', async () => {
   const top = new Rectangle(), a = new Circle();
   const name = (m: unknown): string => (m === top ? 'top' : m === a ? 'a' : '?');
   class Kept extends Scene {
@@ -321,7 +321,7 @@ test('a frame drawn outside the loop raises what is kept on top first: renderFra
   assert.deepEqual(drawn, ['a', 'top', '0']);
 });
 
-test('a Succession runs its members one after another: its lagRatio stays 1 (A9)', async () => {
+test('a Succession runs its members one after another: its lagRatio stays 1', async () => {
   const sq = new Succession([new FadeIn(new Circle()), new FadeIn(new Rectangle())]);
   assert.throws(() => { sq.lagRatio = 0; }, /^RangeError: animation\.lagRatio: a Succession runs its members one after another, so its lagRatio is 1, not 0; stagger them in a LaggedStart or an AnimationGroup instead$/);
   sq.lagRatio = 1;
@@ -330,7 +330,7 @@ test('a Succession runs its members one after another: its lagRatio stays 1 (A9)
   assert.equal(scene.frameCount, 60, 'two seconds, one member after the other');
 });
 
-test('an animation\'s run time and lag ratio are fixed while it plays (A10)', async () => {
+test('an animation\'s run time and lag ratio are fixed while it plays', async () => {
   const a = new FadeIn(new Circle());
   const changes: Array<() => void> = [() => { a.runTime = 10; }, () => { a.lagRatio = 0.5; }];
   for (const change of changes) {
@@ -345,7 +345,7 @@ test('an animation\'s run time and lag ratio are fixed while it plays (A10)', as
   assert.equal(a.runTime, 0.5, 'finished, it takes a new run time');
 });
 
-test('a play with nothing to play is refused, not drawn as a silent frame (A20)', async () => {
+test('a play with nothing to play is refused, not drawn as a silent frame', async () => {
   const scene = new Scene(new NullSink());
   await assert.rejects(scene.play(), /^Error: this\.play\(\): it was given no animation; give it one or more, or hold the picture with this\.wait\(\)$/);
   await assert.rejects(scene.play({ runTime: 3 }), /^Error: this\.play\(\): it was given no animation, only options; give it one or more/);
@@ -377,7 +377,7 @@ test('a mobject kept on top stays last in drawing order through every add, bring
   assert.deepEqual(scene.mobjects, [c, a, band, top, b], 'released, they are ordinary roots again');
 });
 
-test('what is kept on top stays on top inside a group added later, and after a direct write to the drawn list, before anything is drawn (A13)', async () => {
+test('what is kept on top stays on top inside a group added later, and after a direct write to the drawn list, before anything is drawn', async () => {
   const top = new Rectangle(), a = new Circle(), b = new Circle();
   let drawn: string[] = [];
   const name = (m: unknown): string => (m === top ? 'top' : m === a ? 'a' : m === b ? 'b' : 'group');
@@ -671,7 +671,7 @@ test('step metadata is copied as JSON when the step begins: a later change rewri
   await assert.rejects(new NotObject(new NullSink()).run(), /this\.step\(\): the metadata of step "one" must be an object, or a function of the step before that returns one/);
 });
 
-test('a step\'s recorded metadata is frozen: a write to it after the step began is refused, and changes neither its caption nor its hold (A15)', async () => {
+test('a step\'s recorded metadata is frozen: a write to it after the step began is refused, and changes neither its caption nor its hold', async () => {
   let refused: unknown;
   class Writes extends Scene {
     override async construct() {
