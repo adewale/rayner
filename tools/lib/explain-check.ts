@@ -712,7 +712,7 @@ export async function bareRuntime(project: Project, plugins: Plugin[] = []): Pro
     platform: 'neutral',
     target: 'es2022',
     write: false,
-    plugins: [...plugins, browserFonts(LIB_ROOT), ...(showsDiagrams(project) ? [] : [withoutDiagramCode()]), engineAlias(false, !!project.outlineLettering)],
+    plugins: [...plugins, browserFonts(), ...(showsDiagrams(project) ? [] : [withoutDiagramCode()]), engineAlias(false, !!project.outlineLettering)],
     logLevel: 'silent',
   });
   const script = new vm.Script(b.outputFiles[0]!.text + ';globalThis.result=bare.run(globalThis.values)');

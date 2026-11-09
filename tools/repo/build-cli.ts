@@ -21,14 +21,17 @@ export const CLI_FILES = [
   'tools/lettering-requirements.txt',
   'tools/lettering-outline-fonts.sh',
   'vendor/glyph-math.js',
+  // The page build's inputs: the embedded faces as SFNT, and the pin of the library's shaper it strips the Brotli decoder from.
+  'vendor/font-data-sfnt.json',
+  'vendor/glyph.pin.json',
   // The faces build-time lettering cuts, and the notices every page carries.
   'vendor/lettering',
   'vendor/licenses',
   'LICENSE',
 ];
-/** The library's modules, which the command imports from the installed rayner package. */
+/** The library's modules, which the command imports from the installed rayner package: its sources and the shaper it ships. */
 export const libraryModule = (name: string) =>
-  name.startsWith('src/') || name.startsWith('explain/');
+  name.startsWith('src/') || name.startsWith('explain/') || name === 'vendor/glyph.js';
 
 export async function buildCli(out = join(ROOT, 'cli')): Promise<Metafile> {
   out = resolve(out);

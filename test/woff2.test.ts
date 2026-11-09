@@ -55,7 +55,7 @@ test('the SFNT-only page shaper reads a converted face, and refuses the WOFF2 on
   const { browserFonts } = await import('../tools/lib/explain-browser-fonts.ts');
   const result = await build({
     stdin: { contents: `export{loadFont,run}from ${JSON.stringify(join(ROOT, 'vendor/glyph.js'))}`, resolveDir: ROOT },
-    bundle: true, format: 'esm', write: false, plugins: [browserFonts(ROOT)],
+    bundle: true, format: 'esm', write: false, plugins: [browserFonts()],
   });
   const page = await import('data:text/javascript;base64,' + Buffer.from(result.outputFiles[0]!.text).toString('base64'));
   const woff2 = readFileSync(join(ROOT, 'vendor/lettering/jetbrains-mono.woff2'));

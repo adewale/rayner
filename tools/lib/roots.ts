@@ -30,8 +30,13 @@ function libraryRoot(): string {
     throw new Error(`rayner-cli ${cliManifest.version} needs rayner ${cliManifest.version}, and found ${version}; npm install --save-dev rayner@${cliManifest.version}`);
   return root;
 }
-/** The library's files: src/, explain/, vendor/glyph.js and dist/. */
+/** The library's files: src/ and explain/ (the page build's inputs) and their compiled dist/. */
 export const LIB_ROOT = libraryRoot();
+/**
+ * The vendored shaper, which the library ships once, beside its compiled modules
+ * (dist/vendor/glyph.js); a checkout has it in vendor/. The page build reads it from here.
+ */
+export const GLYPH = join(LIB_ROOT, COMPILED ? 'dist/vendor/glyph.js' : 'vendor/glyph.js');
 /**
  * The installed command's private specifier for the library's compiled modules: '#rayner/src/scene.js'
  * is LIB_ROOT/dist/src/scene.js. tools/repo/build-cli.ts writes it for every library module the

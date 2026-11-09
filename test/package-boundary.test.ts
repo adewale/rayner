@@ -32,8 +32,13 @@ test('rayner ships the vocabulary and runtime, with no dependencies, no command 
     REPO_ONLY.test(f) || /^(?:tools\/|app\/|dist\/tools\/|dist\/app\/)/.test(f) || /^(?:dist\/)?integrations\//.test(f) ||
     /^(?:dist\/)?vendor\/(?:glyph-math|lettering\/)/.test(f) || /\.(?:py|sh|txt)$/.test(f) && !f.startsWith('vendor/licenses/'));
   assert.deepEqual(leaked, [], 'rayner ships only what scenes, hosts and snapshot replay need');
-  for (const f of ['src/index.ts', 'src/lettering-outlines.ts', 'explain/diagrams.ts', 'explain/diagram-snapshot.ts', 'vendor/glyph.js', 'scenes/tutorial/lru-mru/scene.ts', 'skills/rayner-explainers/SKILL.md'])
+  for (const f of ['src/index.ts', 'src/lettering-outlines.ts', 'explain/diagrams.ts', 'explain/diagram-snapshot.ts', 'vendor/glyph.d.ts', 'scenes/tutorial/lru-mru/scene.ts', 'skills/rayner-explainers/SKILL.md'])
     assert.ok(files.includes(f), `rayner ships ${f}`);
+  // The shaper ships once, in dist/vendor/ beside the compiled modules that import it (tools/repo/copy-vendor.ts
+  // puts it there when the package is built); the command's page build reads it there. The page build's own
+  // inputs, the SFNT faces and the shaper's pin, ship with the command.
+  assert.ok(pkg.files.includes('dist/vendor'), 'rayner ships dist/vendor/');
+  for (const f of ['vendor/glyph.js', 'vendor/glyph.pin.json', 'vendor/font-data-sfnt.json']) assert.ok(!files.includes(f), `rayner does not ship ${f}`);
 });
 
 test('rayner-cli is the command at the library\'s version, depending on exactly what its bundle imports', async () => {
@@ -61,11 +66,11 @@ test('rayner-cli is the command at the library\'s version, depending on exactly 
     // the private specifier the command's own resolve hook answers (tools/installed.ts), not an export.
     assert.ok(internal.size > 10);
     for (const file of internal) {
-      const source = file.replace(/\.js$/, '.ts');
+      const source = existsSync(join(ROOT, file)) ? file : file.replace(/\.js$/, '.ts');
       assert.ok(libraryModule(source) && existsSync(join(ROOT, source)), `${LIBRARY}${file} is a library module`);
     }
     const inputs = Object.keys(meta.inputs);
-    assert.deepEqual(inputs.filter((f) => libraryModule(f)), [], 'the command bundles no copy of the library');
+    assert.deepEqual(inputs.filter((f) => libraryModule(f)), [], 'the command bundles no copy of the library or its shaper');
     assert.deepEqual(inputs.filter((f) => REPO_ONLY.test(f)), [], 'the command imports no repository-only code');
     // tools/ outside tools/repo/ and tools/oracle/ is the command: each module is in its bundle, each
     // other file one it ships.
@@ -78,7 +83,7 @@ test('rayner-cli is the command at the library\'s version, depending on exactly 
     const files = packed(out);
     assert.deepEqual(files.filter((f) => REPO_ONLY.test(f) || /^(?:src|explain|scenes|docs|skills|recipes)\//.test(f) || /^tools\/(?:lib|repo)\//.test(f)), [],
       'rayner-cli ships the command, the player and the capture tools, not the library or the repository');
-    for (const f of ['dist/tools/explain.js', 'app/embed.ts', 'app/loader.ts', 'tools/lettering.py', 'tools/lettering-requirements.txt', 'tools/lettering-outline-fonts.sh', 'vendor/glyph-math.js', 'vendor/licenses/glyph-MIT.txt', 'LICENSE', 'README.md'])
+    for (const f of ['dist/tools/explain.js', 'app/embed.ts', 'app/loader.ts', 'tools/lettering.py', 'tools/lettering-requirements.txt', 'tools/lettering-outline-fonts.sh', 'vendor/glyph-math.js', 'vendor/font-data-sfnt.json', 'vendor/glyph.pin.json', 'vendor/licenses/glyph-MIT.txt', 'LICENSE', 'README.md'])
       assert.ok(files.includes(f), `rayner-cli ships ${f}`);
     // Its README is read on npm, outside this repository: every link is absolute.
     const readme = await readFile(join(out, 'README.md'), 'utf8');

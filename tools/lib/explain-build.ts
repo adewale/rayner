@@ -11,7 +11,7 @@ import { sceneEntry, shippedScenario, shippedStore } from './scene-entry.ts';
 import { SnapshotSink, renderFrame } from '../../src/output.ts';
 import { chromeFor, scenarioNameIn, changeText, descriptionLang } from '../../app/embed-strings.ts';
 import { pictureHtml, htmlEscape, stepWords, watchedChanges, wordsHtml } from '../../explain/trace.ts';
-import { ROOT, LIB_ROOT, engineAlias, defaultScenario, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';
+import { ROOT, engineAlias, defaultScenario, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';
 import type { Project } from './explain-project.ts';
 import { letteringReport, useProjectLettering } from './explain-lettering.ts';
 import { letteringLicences } from './lettering.ts';
@@ -86,7 +86,7 @@ export async function buildExplainer(
       },
       // The embedded faces as SFNT, and the shaper without its Brotli decoder: the faces a page
       // decodes of its own (lettering cuts and subsets) are SFNT too (sceneEntry).
-      browserFonts(LIB_ROOT),
+      browserFonts(),
       ...(showsDiagrams(project) ? [] : [withoutDiagramCode()]),
       engineAlias(false, !!project.outlineLettering),
     ],

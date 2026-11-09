@@ -87,10 +87,7 @@
     "skills",
     "scenes/tutorial",
     "recipes",
-    "vendor/glyph.js",
     "vendor/glyph.d.ts",
-    "vendor/glyph.pin.json",
-    "vendor/font-data-sfnt.json",
     "vendor/licenses",
     "LICENSE",
     "CHANGELOG.md"
