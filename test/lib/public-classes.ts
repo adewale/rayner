@@ -2,6 +2,7 @@
 // builds and uses an instance of each: what the tests that hold every exported class to a rule
 // (test/scene-lifecycle.test.ts, test/core.test.ts) enumerate, so a class added or renamed fails them
 // until it is built here, instead of dropping out unseen.
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import ts from 'typescript';
 import { Scene, Circle, Rectangle, FadeIn, Create, AnimationGroup, Transform, Text, Group, Mobject, Animation, Code, Line, Dot, keyed, matchByKey, shaperFor } from '../../src/index.ts';
@@ -11,8 +12,11 @@ import type { DomSink } from '../../src/output.ts';
 import type { TraceSink, InvariantSink } from '../../explain/testing.ts';
 import type { TextShaping } from '../../src/text-context.ts';
 
-/** The public entry points, by specifier, as a package consumer imports them. */
-export const ENTRY_POINTS = { rayner: 'src/index.ts', 'rayner/explain': 'explain/index.ts', 'rayner/output': 'src/output.ts', 'rayner/testing': 'explain/testing.ts' } as const;
+/** The public entry points, by specifier, as package.json exports them, each mapped to its source file. */
+export const ENTRY_POINTS: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.entries((JSON.parse(readFileSync(join(import.meta.dirname, '../../package.json'), 'utf8')) as { exports: Record<string, { default: string }> }).exports)
+    .map(([key, { default: built }]) => [key === '.' ? 'rayner' : `rayner/${key.slice(2)}`, built.replace(/^\.\/dist\//, '').replace(/\.js$/, '.ts')]),
+);
 
 /**
  * The classes the entry points export as values (a type-only class such as `Card` cannot be extended),
