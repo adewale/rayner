@@ -131,7 +131,7 @@ test('a live run stops as the step ends, plays the log there, and is a function 
   assert.deepEqual(empty.rest, { level: 1 });
   assert.equal(ranAfter, 1, 'the run stopped as the step ended, after the code that follows its last play');
   assert.equal(empty.scene.currentStep?.name, 'press', 'and before the next step began');
-  assert.equal(empty.scene.phase, 'stopped', 'the scene is stopped, not merely abandoned');
+  assert.equal(empty.scene.phase, 'stopped', 'the scene is stopped');
   // A construct that swallows the stop cannot run on to the next step's code (N10).
   let after = 0;
   class Swallowing extends lampScene() {

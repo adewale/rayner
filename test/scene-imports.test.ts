@@ -126,7 +126,7 @@ test('the rule rejects an internal module, a package name and a dynamic import, 
     "import { stage, Card } from '../../../explain/index.ts';",
     "import { table } from '../../../explain/drawing.ts';",
     "import type { LetteringRequest } from '../../../src/index.ts';",
-    "import { renderAt } from '../../../src/output.ts';",
+    "import { renderFrame } from '../../../src/output.ts';",
     "import { model } from '../lib/model.ts';",
     "import { readFile } from 'node:fs/promises';",
   ].join('\n');

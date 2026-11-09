@@ -300,7 +300,7 @@ A row gives one value per column, or one value that spans them all (Requests abo
 
 `rayner/drawing` draws the parts explanations keep needing, as ordinary mobjects coloured from a stage's look; nothing here animates or reads scene state. Every function has the same shape:
 
-- the stage `s` first, for its look and its text shaping (all kit text is made with the scene's shaping, as `this.text` makes it);
+- the stage `s` first, for its look and its text shaping (all kit text is made with the scene's shaping, `shaping: s.scene.textShaping`);
 - then what the picture shows, positionally: its text, rows or items, and what it measures or points at (a callout's target, a dimension's ends, a pin's point);
 - then one options object: `at` is where the picture stands, `size` its text size, `key` its address.
 
@@ -323,8 +323,8 @@ A function whose parts are keyed (`table`, `stat`, `flow`, `bars`, `legend`) req
 | `dimension(s, a, b, label, { offset, color, size, key })` | A dimension line from `a` to `b` with ticks, arrowheads and `label`, set off by `offset`, in the look's emphasis. Describes itself, “A dimension line marked …” | `key:extension:start`, `key:extension:end`, `key:line`, `key:arrow:start`, `key:arrow:end`, `key:backing`, `key:text` |
 | `pin(s, point, { label, color, size, side, key })` | A pin stuck in at `point`, with an optional label to the head's `side` (`'right'` by default, or `'left'`). Describes itself, “A pin marked …”. `great-circle` pins its two cities on the globe | `key:needle`, `key:head`, `key:label` |
 | `legend(s, items, { at, size, stack, gap, key })` | Swatches with words: each item, a `LegendItem` `{ label, fill?, stroke?, dashed?, name? }`, is a filled square, a short line or an outlined square (`fill: 'none'`), then its label in the look's ink. Entries stack in a column (`stack: 'column'`, the default) or sit in a row (`'row'`), the first starting at `at`. An empty list, a repeated label, an entry with no words or with no swatch is refused. Describes itself as its pairs, “Key: purple fill, cat’s bits; dashed blue line, the browser”, naming each colour by its nearest plain name or the item's `name`, so a caption's colour word is said on the stage (`bloom-filter`, `wcag-map`, `trust-proxy`) | each entry `key:<label>`, its swatch `key:<label>:swatch` and words `key:<label>:text` |
-| `card(s, rows, { at, align, width, title, columns, size, direction, lit, key, panel })` | `s.card`'s picture: labelled values on a panel, for a view's draw ([card and code](#card-and-codeblock)). `at: 'start' \| 'end'` and the field order follow the stage's direction. Describes itself, its lit row with its word | | |
-| `code(s, lines, { at, align, size, title, diff, added, lit, width, fitHeight, key })` | `s.code`'s picture: code on a panel, one string per line. `at: 'start' \| 'end'` follows the stage's direction. Describes itself, its lit, added and removed lines with their words | | |
+| `card(s, rows, { at, align, width, title, columns, size, direction, lit, key, panel })` | `s.card`'s picture: labelled values on a panel, for a view's draw ([card and code](#card-and-codeblock)). `at: 'start' \| 'end'` and the field order follow the stage's direction. Describes itself, its lit row with its word | |
+| `code(s, lines, { at, align, size, title, diff, added, lit, width, fitHeight, key })` | `s.code`'s picture: code on a panel, one string per line. `at: 'start' \| 'end'` follows the stage's direction. Describes itself, its lit, added and removed lines with their words | |
 
 **Keyed cells.** A table keys every part, so the same row in two pictures is the same part and a keyed morph (a view's `sync()`, which matches by key) or a transition's `t.choreograph(view)` keeps it wherever it moves:
 

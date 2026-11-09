@@ -107,7 +107,7 @@ drawn at now, after any scaling. `shapeRun(text, size)` shapes a string with the
 text's own shaping and returns the run, `{ glyphs, width, ascent, descent }`, as
 `font-metrics` reads it. `angle()` is the angle the text has been turned through, in radians,
 `italic` whether it was made italic, `font` its `FontName` (`'sans'` or `'mono'`), and
-`shaping` the `TextShaping` it was made with: the scene's, when `this.text` made it. `tabWidth` is the tab stop a text's tabs are laid out to,
+`shaping` the `TextShaping` it was made with (`shaping: this.textShaping` gives the scene's). `tabWidth` is the tab stop a text's tabs are laid out to,
 which `Code` sets. A `DecimalNumber` shows `value` with `decimals` places between
 `prefix` and `suffix`; `setValue(v)` redraws it in place for a new value, and
 `DecimalNumber.format(v, decimals, prefix, suffix)` is the string it would show.
@@ -193,9 +193,8 @@ has finished it while a member waits (as below), or a group holding one, stays `
 its members begin and finish in turn. A second `begin()` while begun throws, and so do
 `interpolate()` and `finish()` before `begin()`; a finished animation may begin again. A play,
 a group and a `Succession` drive their animations through the engine's own private calls, which
-keep the phase and call only the protected hooks: a `begin`, `finish`, `land` or `waiting`
-written on an animation, as a field or an assignment, is the author's own and never reaches a
-play. A subclass that overrides `begin()`, `interpolate()` or `finish()`, or redefines `phase`,
+keep the phase and call only the protected hooks: a `begin` or `finish` assigned on an
+instance is the author's own and never reaches a play. A subclass that overrides `begin()`, `interpolate()` or `finish()`, or redefines `phase`,
 `runTime` or `lagRatio`, is refused when its first instance is made.
 
 A play that fails leaves no animation begun. When an animation throws as it begins, a
