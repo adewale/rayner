@@ -8,29 +8,29 @@ export { Mobject, Group } from './mobject.ts';
 export type { Style, StyleRecord, Box, Updater, AnimateBuilder } from './mobject.ts';
 export { VMobject } from './vmobject.ts';
 export { Arc, ArcBetweenPoints, Arrow, Circle, CurvedArrow, Dot, Labeled, Line, Polygon, Rectangle } from './shapes.ts';
-export type { RectangleOpts, CircleOpts, DotOpts, ArrowOpts, ArcOpts, CurvedArrowOpts } from './shapes.ts';
+export type { RectangleOptions, CircleOptions, DotOptions, ArrowOptions, ArcOptions, CurvedArrowOptions } from './shapes.ts';
 export { SurroundingRectangle, Cross, Brace, BraceLabel } from './shapes.ts';
-export type { SurroundingRectangleOpts, CrossOpts, BraceOpts, BraceLabelOpts } from './shapes.ts';
+export type { SurroundingRectangleOptions, CrossOptions, BraceOptions, BraceLabelOptions } from './shapes.ts';
 export { Text, DecimalNumber, Code } from './text.ts';
-export type { TextOpts, DecimalNumberOpts, CodeOpts } from './text.ts';
+export type { TextOptions, DecimalNumberOptions, CodeOptions } from './text.ts';
 export type { CodeSpan, ColorSpan } from './text.ts';
 export { NumberLine, Axes } from './graphing.ts';
-export type { AxisRange, NumberLineOpts, AxisStyle, AxesOpts, PlotOpts, BarOpts, GuideLineOpts } from './graphing.ts';
+export type { AxisRange, NumberLineOptions, AxisStyle, AxesOptions, PlotOptions, BarOptions, GuideLineOptions } from './graphing.ts';
 
 // Motion
 export { Animation, Transform, FadeIn, FadeOut, Create, AnimationGroup, LaggedStart } from './animation.ts';
 export { Restore, TransformFromCopy, MoveAlongPath } from './animation.ts';
-export type { MoveAlongPathOpts } from './animation.ts';
-export type { AnimOpts, PlayOpts, Playable, ScheduledAnimation, TransformOpts, FadeOpts, AnimationPhase } from './animation.ts';
+export type { MoveAlongPathOptions } from './animation.ts';
+export type { AnimOptions, PlayOptions, Playable, ScheduledAnimation, TransformOptions, FadeOptions, AnimationPhase } from './animation.ts';
 export { Circumscribe } from './animation.ts';
-export type { CircumscribeOpts } from './animation.ts';
+export type { CircumscribeOptions } from './animation.ts';
 export { Succession } from './animation.ts';
 export { GrowFromEdge, PulseAlongPath } from './animation.ts';
-export type { GrowFromEdgeOpts } from './animation.ts';
+export type { GrowFromEdgeOptions } from './animation.ts';
 export { TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey } from './animation.ts';
-export type { MatchKey, MatchingOpts, TransformMatchingOpts, MatchSummary, MatchByKeyOpts } from './animation.ts';
+export type { MatchKey, MatchingOptions, TransformMatchingOptions, MatchSummary, MatchByKeyOptions } from './animation.ts';
 export { TransformDiff } from './animation.ts';
-export type { TransformDiffOpts, LinePlan } from './animation.ts';
+export type { TransformDiffOptions, LinePlan } from './animation.ts';
 export { diffLines, parseUnifiedDiff } from './diff.ts';
 export type { DiffOp, Hunk } from './diff.ts';
 export { linear, smooth, rushInto, rushFrom, thereAndBack } from './rate.ts';
@@ -40,7 +40,7 @@ export type { Sink, Step, EndedStep, StepMeta, SceneOptions, SceneState, SceneCl
 export type { Evidence, Invariant, ScenePhase } from './scene.ts';
 // Camera: scene.frame, a box the sinks use as the viewBox
 export { Frame } from './frame.ts';
-export type { FrameFitOpts } from './frame.ts';
+export type { FrameFitOptions } from './frame.ts';
 
 // Vocabulary
 export type { Vec } from './vec.ts';

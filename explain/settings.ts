@@ -35,7 +35,7 @@ export interface ExplainerMeta {
   sources?: readonly string[];
   /** Scripts, faces, styles or maths the build cuts lettering for. */
   lettering?: LetteringRequest;
-  /** Use Scene.text()/TextOpts.shaping instead of ambient lettering constructors. */
+  /** Use Scene.text()/TextOptions.shaping instead of ambient lettering constructors. */
   textContext?: 'explicit';
   /** A scenario picker starts at its first step; transcript links enter there too. Direct step URLs still work. */
   scenarioNavigation?: 'first';

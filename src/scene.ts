@@ -7,14 +7,14 @@
 
 import { prepareAnimation, AnimationGroup, animationName } from './animation.ts';
 import { Succession, bindSuccessions, takeCopies, recordEvidence, assertTime, landBegun, assertLifecycle } from './animation.ts';
-import type { ScheduledAnimation as Animation, Playable, PlayOpts, MadeBy } from './animation.ts';
+import type { ScheduledAnimation as Animation, Playable, PlayOptions, MadeBy } from './animation.ts';
 import { paintDefaults, mobjectName } from './mobject.ts';
 import type { Mobject } from './mobject.ts';
 import { NEUTRAL_COLORS } from './color.ts';
 import type { SceneColors } from './color.ts';
 import { perf } from './perf.ts';
 import {Text} from './text.ts';
-import type {TextOpts} from './text.ts';
+import type {TextOptions} from './text.ts';
 import {textContextOf, withTextContext} from './text-context.ts';
 import { loadFonts } from './fonts.ts';
 import {canonicalJson, cloneJson} from './json.ts';
@@ -524,7 +524,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
 
   /** Explicit text creation stays bound to this scene's shaping service. */
   get textShaping() { return textContextOf(this.constructor); }
-  text(value: string, opts: TextOpts = {}): Text { return new Text(value, {...opts, shaping: opts.shaping ?? this.textShaping}); }
+  text(value: string, opts: TextOptions = {}): Text { return new Text(value, {...opts, shaping: opts.shaping ?? this.textShaping}); }
 
   async run(): Promise<this> {
     if (this.#ran) throw new Error('this.run(): the scene has run already; make a new scene for another run');
@@ -810,17 +810,17 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   }
 
   /** Play animations together; a trailing plain object is options: { runTime, rateFunc, lagRatio }. */
-  async play(...args: Playable[] | [...Playable[], PlayOpts]): Promise<void> {
+  async play(...args: Playable[] | [...Playable[], PlayOptions]): Promise<void> {
     // Refused before begin(): a stopped scene, or one still in another call, changes nothing more
     await this.#exclusive('playing', 'this.play()', () => this.#play(args));
   }
 
-  async #play(args: Playable[] | [...Playable[], PlayOpts]): Promise<void> {
+  async #play(args: Playable[] | [...Playable[], PlayOptions]): Promise<void> {
     const list: unknown[] = [...args];
     const last = list[list.length - 1];
     // An .animate builder is never the options: its prototype is not Object.prototype (Mobject.animate)
     const isOpts = last && Object.getPrototypeOf(last) === Object.prototype;
-    const opts = (isOpts ? list.pop() : {}) as PlayOpts;
+    const opts = (isOpts ? list.pop() : {}) as PlayOptions;
     const anims = list.map((x) => prepareAnimation(x));
     if (!anims.length) throw new Error(`this.play(): it was given no animation${isOpts ? ', only options' : ''}; give it one or more, or hold the picture with this.wait()`);
     // What some animation reads before it can begin (a diagram's layout), a group's members' included: wait for it, once, here.

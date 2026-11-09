@@ -25,7 +25,7 @@ import {ambientTextContext} from './text-context.ts';
 import type {TextShaping} from './text-context.ts';
 import type { Segment, Run } from '../vendor/glyph.js';
 
-export interface TextOpts {
+export interface TextOptions {
   /** Explicit per-object shaping; copied texts retain it. */
   shaping?: TextShaping;
   italic?: boolean;
@@ -110,7 +110,7 @@ export class Text extends Group {
   fontSize: number;
   weight: 'normal' | 'bold';
   anchor: 'start' | 'middle' | 'end';
-  /** Tab stops every this many columns, or undefined: see TextOpts. `text` keeps the tabs, and so do glyph clusters: they index `text`. */
+  /** Tab stops every this many columns, or undefined: see TextOptions. `text` keeps the tabs, and so do glyph clusters: they index `text`. */
   tabWidth: number | undefined;
   /** @internal Set by build(), which the constructor calls. */
   run!: RunMetrics;
@@ -122,7 +122,7 @@ export class Text extends Group {
    */
   frameBox!: Float32Array;
 
-  constructor(text: string, { fontSize = 0.4, font = 'sans', color: given, weight = 'normal', anchor = 'middle', fillOpacity = 1, tabWidth, shaping = ambientTextContext(), italic = false }: TextOpts = {}, formula?: {display: boolean}) {
+  constructor(text: string, { fontSize = 0.4, font = 'sans', color: given, weight = 'normal', anchor = 'middle', fillOpacity = 1, tabWidth, shaping = ambientTextContext(), italic = false }: TextOptions = {}, formula?: {display: boolean}) {
     super();
     this.shaping = shaping; this.italic = italic; this.formula = formula;
     if (tabWidth != null) expandTabs('', tabWidth); // validates it
@@ -268,7 +268,7 @@ export class Text extends Group {
   }
 }
 
-export interface DecimalNumberOpts extends TextOpts { decimals?: number; prefix?: string; suffix?: string }
+export interface DecimalNumberOptions extends TextOptions { decimals?: number; prefix?: string; suffix?: string }
 
 /** A number that animates: Transform blends `value`; the glyphs are re-shaped each frame. */
 export class DecimalNumber extends Text {
@@ -277,7 +277,7 @@ export class DecimalNumber extends Text {
   prefix: string;
   suffix: string;
 
-  constructor(value: number, { decimals = 0, prefix = '', suffix = '', ...opts }: DecimalNumberOpts = {}) {
+  constructor(value: number, { decimals = 0, prefix = '', suffix = '', ...opts }: DecimalNumberOptions = {}) {
     super(DecimalNumber.format(value, decimals, prefix, suffix), opts);
     this.value = value; this.decimals = decimals; this.prefix = prefix; this.suffix = suffix;
   }
@@ -309,7 +309,7 @@ export class DecimalNumber extends Text {
  */
 export interface ColorSpan { line: number; from: number; to: number; color: string }
 
-export interface CodeOpts {
+export interface CodeOptions {
   shaping?: TextShaping;
   fontSize?: number;
   color?: string;
@@ -377,7 +377,7 @@ function shapedForm(text: string, tabWidth: number | undefined): { shaped: strin
 export class Code extends Group {
   lines: Text[];
 
-  constructor(lines: readonly string[], { fontSize = 0.26, color, lineHeight = 1.5, tabWidth = 4, spans = [], shaping }: CodeOpts = {}) {
+  constructor(lines: readonly string[], { fontSize = 0.26, color, lineHeight = 1.5, tabWidth = 4, spans = [], shaping }: CodeOptions = {}) {
     super();
     this.lines = lines.map((l, i) => {
       // `text` stays the source line, tabs and all; the glyphs are laid out with the tabs expanded

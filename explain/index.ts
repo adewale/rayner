@@ -1,6 +1,6 @@
 // Pictures of state: a view redrawn from the state, a machine of events and choreography (docs/VIEWS.md, docs/MACHINES.md)
 export { View, view, having } from './view.ts';
-export type { Having, ViewSync, ViewOpts, ViewPlace, ViewMatch, SyncOpts } from './view.ts';
+export type { Having, ViewSync, ViewOptions, ViewPlace, ViewMatch, SyncOptions } from './view.ts';
 export type { FollowSpec } from './state.ts';
 export { Machine, refuse, isRefusal } from './machine.ts';
 export type { MachineSpec, Transition, Refusal } from './machine.ts';
@@ -11,7 +11,7 @@ export type { LayoutDirection } from './layout-direction.ts';
 export { Diagram } from './diagrams.ts';
 export type { Action } from './action.ts';
 export type { ShowOptions, NoteSide, PictureNote, DiagramPresentation } from './diagrams.ts';
-export type { Card, CodeBlock, CardRow, CardOptions, CodeOptions } from './panels.ts';
+export type { Card, CodeBlock, CardRow, CardOptions, CodeBlockOptions } from './panels.ts';
 export type { Description, DescriptionPart } from './trace.ts';
 export { regionBox } from './look.ts';
 export type { Region, Look } from './look.ts';

@@ -8,10 +8,10 @@ import { TransformFromCopy, Restore } from 'rayner';
 import { StringSink, renderFrame } from 'rayner/output';
 import { traceScene } from 'rayner/testing';
 import { GrowFromEdge, PulseAlongPath, Line, Dot } from 'rayner';
-import type { GrowFromEdgeOpts } from 'rayner';
+import type { GrowFromEdgeOptions } from 'rayner';
 
 export function choreography(scene: Scene<{count: number}>) {
-  const opts: GrowFromEdgeOpts = { initialScale: 0.01, runTime: 0.5 };
+  const opts: GrowFromEdgeOptions = { initialScale: 0.01, runTime: 0.5 };
   const grow = new GrowFromEdge(new Rectangle(), [1, 0], opts);
   const pulse = new PulseAlongPath(new Dot(), new Line([0, 0], [2, 0]), { remover: false, fromCurrent: false });
   scene.state = { count: 3 };
@@ -19,21 +19,21 @@ export function choreography(scene: Scene<{count: number}>) {
   scene.state = { count: 'three' };
   return [grow, pulse];
 }
-import type { AnimOpts, TextOpts } from 'rayner';
+import type { AnimOptions, TextOptions } from 'rayner';
 import { jsonObject } from 'rayner/testing';
 const serializedState: import('rayner').JsonObject = jsonObject({count: 1});
 void serializedState;
 import { TransformMatching, TransformMatchingText } from 'rayner';
-import type { MatchingOpts, MatchSummary } from 'rayner';
+import type { MatchingOptions, MatchSummary } from 'rayner';
 import { Code, TransformDiff, diffLines, parseUnifiedDiff } from 'rayner';
 import { renderElements } from 'rayner/output';
-import type { Hunk, TransformDiffOpts, Evidence, ColorSpan, CodeSpan, Step } from 'rayner';
+import type { Hunk, TransformDiffOptions, Evidence, ColorSpan, CodeSpan, Step } from 'rayner';
 import type { RenderOptions } from 'rayner/output';
 import type { StepRecord } from 'rayner/testing';
 import { Frame, Axes, NumberLine, Brace, Circumscribe, SurroundingRectangle, AnimationGroup, Succession } from 'rayner';
 import { viewMismatch } from 'rayner/testing';
-import type { FrameFitOpts, AxesOpts, NumberLineOpts, PlotOpts, BraceOpts, CircumscribeOpts } from 'rayner';
-import type { ViewSync, SyncOpts } from 'rayner/explain';
+import type { FrameFitOptions, AxesOptions, NumberLineOptions, PlotOptions, BraceOptions, CircumscribeOptions } from 'rayner';
+import type { ViewSync, SyncOptions } from 'rayner/explain';
 import { palette } from 'rayner/explain';
 const middleC: ScoreNote = {midi: 60, at: 0, duration: 1};
 const scoreClip: AudioClip = {id: 'a', label: 'Middle C', bpm: 96, beats: 4, notes: [middleC]};
@@ -51,10 +51,10 @@ export class Demo extends Scene {
   override async construct() {
     this.state = { ok: false };
     await this.step('one', { caption: 'hello' });
-    const opts: TextOpts = { fontSize: 0.3, font: 'mono' };
+    const opts: TextOptions = { fontSize: 0.3, font: 'mono' };
     const box = new Labeled(new Rectangle({ width: 2, height: 1, stroke: '#5cd0b3' }), new Text('box', opts));
     const a = new Arrow([0, 0], [1, 0], { buff: 0.1 });
-    const fade: AnimOpts = { runTime: 0.5 };
+    const fade: AnimOptions = { runTime: 0.5 };
     await this.play(new FadeIn(box, { shift: [0, 1] }), new Create(a), fade);
     await this.play(box.animate.shift([1, 0]));
     await this.play(new Transform(a, new Arrow([0, 0], [2, 0])));
@@ -72,7 +72,7 @@ export async function run(): Promise<number> {
 
 // Matching transforms: options, keys and the pairing report are public types
 export function matching(): number {
-  const opts: MatchingOpts = { fadeMismatches: false, replace: false, runTime: 2 };
+  const opts: MatchingOptions = { fadeMismatches: false, replace: false, runTime: 2 };
   const text = new TransformMatchingText(new Text('cache'), new Text('cached'), opts);
   const fills = new TransformMatching(new Text('a'), new Text('b'), { key: (part) => part.style.fill });
   const report = (m: TransformMatching): MatchSummary => m.summary();
@@ -82,7 +82,7 @@ export function matching(): number {
 // Diff-driven transforms and evidence: hunks, options, colour spans and trace records are public types
 export function diffDriven(): number {
   const hunks: Hunk[] = parseUnifiedDiff('@@ -1 +1 @@\n-a\n+b\n');
-  const opts: TransformDiffOpts = { hunks: diffLines(['a'], ['b']), runTime: 1.4 };
+  const opts: TransformDiffOptions = { hunks: diffLines(['a'], ['b']), runTime: 1.4 };
   const spans: ColorSpan[] = [{ line: 0, from: 0, to: 1, color: '#f97583' }];
   const t = new TransformDiff(new Code(['a']), new Code(['b'], { spans, tabWidth: 2 }), opts);
   const record = (r: StepRecord): Evidence[] => r.evidence ?? [];
@@ -93,24 +93,24 @@ export function diffDriven(): number {
 export class Tour extends Scene {
   override async construct() {
     this.state = { n: 1 };
-    const fit: FrameFitOpts = { margin: 0.4 };
+    const fit: FrameFitOptions = { margin: 0.4 };
     const code = new Code(['let n = 1;']);
     await this.play(this.frame.animate.fit(code, fit));
     const frame: Frame = this.frame;
     const s = stage(this, { palette: palette('github-dark'), heading: false });
     const readout: View<Card> = view(this, (st) => card(s, [['n', st.n]], { panel: false, key: 'n' }), { place: false });
-    const sync: SyncOpts = { runTime: 0.5 };
+    const sync: SyncOptions = { runTime: 0.5 };
     this.state = { n: 2 };
     const syncing: ViewSync<Card> = readout.sync(sync);
     await this.play(syncing);
     const mismatch: string | null = viewMismatch(readout, this.state);
-    const axesOpts: AxesOpts = { xRange: [0, 4, 1], yRange: [0, 2, 1] };
+    const axesOpts: AxesOptions = { xRange: [0, 4, 1], yRange: [0, 2, 1] };
     const axes = new Axes(axesOpts);
-    const lineOpts: NumberLineOpts = { range: [0, 4, 1] };
-    const plot: PlotOpts = { samples: 16 };
+    const lineOpts: NumberLineOptions = { range: [0, 4, 1] };
+    const plot: PlotOptions = { samples: 16 };
     await this.play(new Create(axes), new Create(axes.plot((x) => x / 2, plot)), new Create(new NumberLine(lineOpts)));
-    const brace: BraceOpts = { buff: 0.1 };
-    const ring: CircumscribeOpts = { shape: 'circle' };
+    const brace: BraceOptions = { buff: 0.1 };
+    const ring: CircumscribeOptions = { shape: 'circle' };
     await this.play(new Create(new Brace(code, [0, -1], brace)), new Circumscribe(code, ring), new Create(new SurroundingRectangle(code)));
     const span: CodeSpan = code.token(0, 'n');
     await this.play(span.animate.setFill('#5cd0b3'));
@@ -194,7 +194,7 @@ export function drawingKit(scene: Scene) {
 // What the collection writes, an outside author can write: emphasis a scene draws itself, a card
 // and code rebuilt inside a view, a diagram laid out before it is drawn, and colours mixed from the palette.
 import { Diagram, diagramResolverOf } from 'rayner/explain';
-import type { DiagramResolver, Card, CodeBlock, CodeOptions, Look } from 'rayner/explain';
+import type { DiagramResolver, Card, CodeBlock, CodeBlockOptions, Look } from 'rayner/explain';
 import { emphasised, card, code } from 'rayner/drawing';
 import { lerpColor } from 'rayner';
 export async function publicCollection(scene: Scene): Promise<void> {
@@ -202,7 +202,7 @@ export async function publicCollection(scene: Scene): Promise<void> {
   s.keep(emphasised(new SurroundingRectangle(new Text('slot')), 'outlined: the full slot'));
   const panel = new Rectangle({ fill: s.look.raised, stroke: s.look.rule }).setFill(lerpColor(s.look.paper, s.look.emphasis, 0.36));
   view(scene, (state) => card(s, [['State', String(state.phase ?? 'idle')]], { width: 4, at: 'start', lit: { row: 'State', as: 'now' } }), { place: false });
-  const lit: CodeOptions['lit'] = { lines: [0, 1], as: 'run' };
+  const lit: CodeBlockOptions['lit'] = { lines: [0, 1], as: 'run' };
   const listing: View<CodeBlock> = view(scene, () => code(s, ['let a = 1;', 'a += 1;'], { at: 'end', lit }), { place: false });
   const direction: LayoutDirection = s.direction;
   // The panels are built by the kit, never constructed: Card and CodeBlock are types only.
@@ -221,7 +221,7 @@ export async function publicCollection(scene: Scene): Promise<void> {
 // The rest of what the collection's scenes import, and the members they use, written as an outside
 // author writes them. Every view draws from its state.
 import { Group, Mobject, VMobject, Circle, Polygon, Arc, Cross, CurvedArrow, BraceLabel, DecimalNumber, ItalicText, FadeOut, LaggedStart, Animation, TransformMatchingShapes, matchByKey, linear, smooth, rushInto, rushFrom, thereAndBack, shaperFor } from 'rayner';
-import type { Box, Vec, SceneState, ScheduledAnimation, MatchKey, FadeOpts, FontName, SceneClass, Sink, Style, Palette } from 'rayner';
+import type { Box, Vec, SceneState, ScheduledAnimation, MatchKey, FadeOptions, FontName, SceneClass, Sink, Style, Palette } from 'rayner';
 import { callout, dimension, pin, legend, keyed, keyedParts } from 'rayner/drawing';
 import { Machine, refuse, isRefusal, answerOf, settingsOf, resolveSettings, regionBox, mermaid } from 'rayner/explain';
 import type { Refusal, Transition, Choreography, CardOptions, CardRow, NoteSide, PictureNote, DiagramPicture, Stage, ExplainerClass, ExplainerMeta, Setting, StepKind, Description } from 'rayner/explain';
@@ -280,7 +280,7 @@ export class Collection extends Scene<CollectionModel> {
     const path: VMobject = new Circle({ radius: 1 });
     const style: Style = { stroke: s.look.emphasis };
     path.setStyle(style);
-    const fade: FadeOpts = { shift: [0, 0.2], rateFunc: smooth };
+    const fade: FadeOptions = { shift: [0, 0.2], rateFunc: smooth };
     await s.enter(keyed(picture, 'shapes'));
     const all: ScheduledAnimation[] = [new LaggedStart(shapes.map((m) => new Pulse(m, { rateFunc: linear }))), new MoveAlongPath(new Dot(), path, { rateFunc: rushInto })];
     await this.play(...all);

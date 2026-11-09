@@ -115,7 +115,7 @@ export type Updater<M extends Mobject = Mobject> = (m: M, dt: number) => void;
 /** A function of points about a center: applyPointsFunction's argument. */
 export type PointsFunction = (p: Vec) => Vec;
 
-export interface AboutOpts {
+export interface AboutOptions {
   aboutPoint?: Vec | null;
   aboutEdge?: Vec;
 }
@@ -406,7 +406,7 @@ export class Mobject {
   // ---- transforms --------------------------------------------------------
 
   /** Map `fn([x,y]) -> [x,y]` over every point, about `aboutPoint` (default: box center). */
-  applyPointsFunction(fn: PointsFunction, { aboutPoint = null, aboutEdge = [0, 0] }: AboutOpts = {}): this {
+  applyPointsFunction(fn: PointsFunction, { aboutPoint = null, aboutEdge = [0, 0] }: AboutOptions = {}): this {
     perf.count('applyPointsFunction()');
     const about = aboutPoint ?? this.boxPoint(aboutEdge);
     for (const m of this.family()) {
@@ -441,7 +441,7 @@ export class Mobject {
    * In-place affine map p -> [a c; b d](p - about) + about + [e f], with no
    * allocation per point (applyPointsFunction allocates two arrays per point).
    */
-  applyAffine(a: number, b: number, c: number, d: number, e: number, f: number, { aboutPoint = null, aboutEdge = [0, 0] }: AboutOpts = {}): this {
+  applyAffine(a: number, b: number, c: number, d: number, e: number, f: number, { aboutPoint = null, aboutEdge = [0, 0] }: AboutOptions = {}): this {
     perf.count('applyAffine()');
     const translation = a === 1 && b === 0 && c === 0 && d === 1;
     const about: Readonly<Vec> = translation ? [0, 0] : (aboutPoint ?? this.boxPoint(aboutEdge));
@@ -474,11 +474,11 @@ export class Mobject {
     return this.applyAffine(1, 0, 0, 1, v[0], v[1]);
   }
 
-  scale(k: number, opts: AboutOpts = {}): this {
+  scale(k: number, opts: AboutOptions = {}): this {
     return this.applyAffine(k, 0, 0, k, 0, 0, opts);
   }
 
-  rotate(angle: number, opts: AboutOpts = {}): this {
+  rotate(angle: number, opts: AboutOptions = {}): this {
     const c = Math.cos(angle), s = Math.sin(angle);
     return this.applyAffine(c, s, -s, c, 0, 0, opts);
   }
@@ -549,7 +549,7 @@ export class Mobject {
     return stretch ? this.stretch(h / cur, 1) : this.scale(h / cur);
   }
 
-  stretch(k: number, axis: 0 | 1, opts: AboutOpts = {}): this {
+  stretch(k: number, axis: 0 | 1, opts: AboutOptions = {}): this {
     return axis === 0 ? this.applyAffine(k, 0, 0, 1, 0, 0, opts) : this.applyAffine(1, 0, 0, k, 0, 0, opts);
   }
 

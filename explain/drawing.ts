@@ -11,7 +11,7 @@ import { callout as calloutLook, dimension as dimensionLook, pin as pinLook, leg
 import { emphasisSource, stagePalette } from './look.ts';
 import type { Side, LegendItem } from './annotate.ts';
 import { Card, CodeBlock } from './panels.ts';
-import type { CardRow, CardOptions, CodeOptions } from './panels.ts';
+import type { CardRow, CardOptions, CodeBlockOptions } from './panels.ts';
 import { layoutDirection, physicalAt } from './layout-direction.ts';
 export type { LegendItem } from './annotate.ts';
 
@@ -411,6 +411,6 @@ export function card(s: Stage, rows: readonly CardRow[], opts: CardOptions = {})
  * its lit, added and removed lines with their words. For code text with no panel (the engine's
  * matching and diff transforms), use the engine's `Code`.
  */
-export function code(s: Stage, source: readonly string[], opts: CodeOptions = {}): CodeBlock {
+export function code(s: Stage, source: readonly string[], opts: CodeBlockOptions = {}): CodeBlock {
   return new CodeBlock(s.scene, stagePalette(s, (opts as { api?: string } | null)?.api ?? 'code()'), source, { ...opts, at: physicalAt(opts.at, s.direction) });
 }

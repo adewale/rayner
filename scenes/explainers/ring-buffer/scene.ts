@@ -1,5 +1,5 @@
 import { Scene, AnimationGroup, Succession, Text, Group, FadeIn, Transform, linear } from '../../../src/index.ts';
-import type { View, Choreography, CodeOptions, ExplainerMeta } from '../../../explain/index.ts';
+import type { View, Choreography, CodeBlockOptions, ExplainerMeta } from '../../../explain/index.ts';
 import type { ScheduledAnimation, Vec, Mobject, Arrow } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Machine, view } from '../../../explain/index.ts';
 import { card, code } from '../../../explain/drawing.ts';
@@ -169,7 +169,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
     await this.play(new FadeIn(resultCard, { runTime: 0.35, shift: [0, -0.08] }), new FadeIn(results, { runTime: 0.35 }));
     // The code panel lights the lines the last operation ran: push's first line when it threw
     // Full, pop's body after a pop, push's body after a push.
-    const litOf = (st: RingState): CodeOptions['lit'] =>
+    const litOf = (st: RingState): CodeBlockOptions['lit'] =>
       st.error != null ? { lines: 1 } : st.operation === 'pop' ? { lines: [8, 12] } : st.operation != null ? { lines: [2, 4] } : null;
     const codeAt = regionBox('full', { left: -0.25, top: resultCard.box()![1] - 0.25 });
     const codePanel = (this.code = view(this, (st) => code(s, CODE, { at: codeAt, size: 0.2, lit: litOf(st), key: 'code' }), { place: false }));

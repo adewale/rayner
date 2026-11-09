@@ -18,10 +18,10 @@ export class Polygon extends VMobject {
   }
 }
 
-export interface RectangleOpts extends Style { width?: number; height?: number; cornerRadius?: number }
+export interface RectangleOptions extends Style { width?: number; height?: number; cornerRadius?: number }
 
 export class Rectangle extends VMobject {
-  constructor({ width = 4, height = 2, cornerRadius = 0, ...style }: RectangleOpts = {}) {
+  constructor({ width = 4, height = 2, cornerRadius = 0, ...style }: RectangleOptions = {}) {
     super(style);
     const w = width / 2, h = height / 2, r = Math.min(cornerRadius, w, h);
     // Drawn from the top-left corner, clockwise on screen, so Create sweeps
@@ -45,10 +45,10 @@ export class Rectangle extends VMobject {
   }
 }
 
-export interface CircleOpts extends Style { radius?: number }
+export interface CircleOptions extends Style { radius?: number }
 
 export class Circle extends VMobject {
-  constructor({ radius = 1, ...style }: CircleOpts = {}) {
+  constructor({ radius = 1, ...style }: CircleOptions = {}) {
     super(style);
     const r = radius, k = 0.5523 * r;
     // From 3 o'clock, clockwise on screen (Create sweeps down first)
@@ -61,10 +61,10 @@ export class Circle extends VMobject {
   }
 }
 
-export interface DotOpts extends Style { radius?: number; color?: string }
+export interface DotOptions extends Style { radius?: number; color?: string }
 
 export class Dot extends Circle {
-  constructor({ radius = 0.08, color, ...rest }: DotOpts = {}) {
+  constructor({ radius = 0.08, color, ...rest }: DotOptions = {}) {
     super({ radius, fill: color ?? NEUTRAL_COLORS.ink, stroke: 'none', ...rest });
     if (color === undefined && rest.fill === undefined) followScene(this, { fill: 'ink' });
   }
@@ -109,7 +109,7 @@ export class Labeled<S extends Mobject = Mobject, L extends Mobject = Mobject> e
   get label(): L | null { return (this.children[this.labelIdx] ?? null) as L | null; }
 }
 
-export interface ArrowOpts { tipLength?: number; tipWidth?: number; stroke?: string; strokeWidth?: number; buff?: number }
+export interface ArrowOptions { tipLength?: number; tipWidth?: number; stroke?: string; strokeWidth?: number; buff?: number }
 
 /**
  * A line with a filled triangular tip. Children: [line, tip], read through
@@ -119,7 +119,7 @@ export interface ArrowOpts { tipLength?: number; tipWidth?: number; stroke?: str
 export class Arrow extends Group {
   /** @internal */ opts: { tipLength: number; tipWidth: number };
 
-  constructor(start: Readonly<Vec>, end: Readonly<Vec>, { tipLength = 0.3, tipWidth = 0.22, stroke, strokeWidth = 0.04, buff = 0 }: ArrowOpts = {}) {
+  constructor(start: Readonly<Vec>, end: Readonly<Vec>, { tipLength = 0.3, tipWidth = 0.22, stroke, strokeWidth = 0.04, buff = 0 }: ArrowOptions = {}) {
     super();
     this.opts = { tipLength, tipWidth };
     const ink = stroke ?? NEUTRAL_COLORS.ink;
@@ -145,11 +145,11 @@ export class Arrow extends Group {
 
 
 
-export interface ArcOpts extends Style { center?: Vec; radius?: number; startAngle?: number; angle?: number }
+export interface ArcOptions extends Style { center?: Vec; radius?: number; startAngle?: number; angle?: number }
 
 /** Circular arc as cubics, ≤ 90° per segment. Angles in radians, counterclockwise (y up). */
 export class Arc extends VMobject {
-  constructor({ center = [0, 0], radius = 1, startAngle = 0, angle = Math.PI / 2, ...style }: ArcOpts = {}) {
+  constructor({ center = [0, 0], radius = 1, startAngle = 0, angle = Math.PI / 2, ...style }: ArcOptions = {}) {
     super(style);
     const n = Math.max(1, Math.ceil(Math.abs(angle) / (Math.PI / 2)));
     const step = angle / n;
@@ -186,11 +186,11 @@ export class ArcBetweenPoints extends Arc {
   }
 }
 
-export interface CurvedArrowOpts { angle?: number; tipLength?: number; tipWidth?: number; stroke?: string; strokeWidth?: number }
+export interface CurvedArrowOptions { angle?: number; tipLength?: number; tipWidth?: number; stroke?: string; strokeWidth?: number }
 
 /** Curved arrow: arc body + tip tangent to the arc's end. Children: [arc, tip], by index (see Arrow). */
 export class CurvedArrow extends Group {
-  constructor(start: Readonly<Vec>, end: Readonly<Vec>, { angle = Math.PI / 4, tipLength = 0.28, tipWidth = 0.2, stroke: given, strokeWidth = 0.04 }: CurvedArrowOpts = {}) {
+  constructor(start: Readonly<Vec>, end: Readonly<Vec>, { angle = Math.PI / 4, tipLength = 0.28, tipWidth = 0.2, stroke: given, strokeWidth = 0.04 }: CurvedArrowOptions = {}) {
     super();
     const stroke = given ?? NEUTRAL_COLORS.ink;
     const arc = new ArcBetweenPoints(start, end, { angle, stroke, strokeWidth });
@@ -226,7 +226,7 @@ export function boxOf(target: Mobject | Box, api: string): Box {
   return b;
 }
 
-export interface SurroundingRectangleOpts extends Style { buff?: number; cornerRadius?: number }
+export interface SurroundingRectangleOptions extends Style { buff?: number; cornerRadius?: number }
 
 /**
  * A rectangle around a mobject's box (or a Box), `buff` out on every side.
@@ -234,7 +234,7 @@ export interface SurroundingRectangleOpts extends Style { buff?: number; cornerR
  * clockwise, so Create sweeps along the top first.
  */
 export class SurroundingRectangle extends Rectangle {
-  constructor(target: Mobject | Box, { buff = 0.15, cornerRadius = 0, ...style }: SurroundingRectangleOpts = {}) {
+  constructor(target: Mobject | Box, { buff = 0.15, cornerRadius = 0, ...style }: SurroundingRectangleOptions = {}) {
     const b = boxOf(target, 'new SurroundingRectangle()');
     super({ width: b[2] - b[0] + 2 * buff, height: b[3] - b[1] + 2 * buff, cornerRadius, stroke: NEUTRAL_COLORS.emphasis, fill: 'none', ...style });
     if (style.stroke === undefined) followScene(this, { stroke: 'emphasis' });
@@ -242,7 +242,7 @@ export class SurroundingRectangle extends Rectangle {
   }
 }
 
-export interface CrossOpts extends Style { scale?: number }
+export interface CrossOptions extends Style { scale?: number }
 
 /**
  * Both diagonals of a mobject's box (or a Box): "not this". In the scene's `bad`
@@ -251,7 +251,7 @@ export interface CrossOpts extends Style { scale?: number }
  * box center.
  */
 export class Cross extends VMobject {
-  constructor(target: Mobject | Box, { scale = 1, ...style }: CrossOpts = {}) {
+  constructor(target: Mobject | Box, { scale = 1, ...style }: CrossOptions = {}) {
     super({ stroke: NEUTRAL_COLORS.bad, strokeWidth: 0.06, fill: 'none', ...style });
     if (style.stroke === undefined) followScene(this, { stroke: 'bad' });
     const b = boxOf(target, 'new Cross()');
@@ -262,7 +262,7 @@ export class Cross extends VMobject {
   }
 }
 
-export interface BraceOpts extends Style {
+export interface BraceOptions extends Style {
   /** Gap between the box edge and the brace's ends. */
   buff?: number;
   /** Distance from the brace's ends to its tip. */
@@ -285,7 +285,7 @@ export interface BraceOpts extends Style {
  * after the brace moves or turns.
  */
 export class Brace extends VMobject {
-  constructor(target: Mobject | Box, direction: Readonly<Vec> = [0, -1], { buff = 0.1, depth = 0.2, ...style }: BraceOpts = {}) {
+  constructor(target: Mobject | Box, direction: Readonly<Vec> = [0, -1], { buff = 0.1, depth = 0.2, ...style }: BraceOptions = {}) {
     super({ fill: 'none', ...style });
     const b = boxOf(target, 'new Brace()');
     const d = V.normalize(direction);
@@ -342,7 +342,7 @@ export class Brace extends VMobject {
   }
 }
 
-export interface BraceLabelOpts {
+export interface BraceLabelOptions {
   shaping?: TextShaping; fontSize?: number; color?: string; buff?: number; labelBuff?: number }
 
 /**
@@ -351,7 +351,7 @@ export interface BraceLabelOpts {
  * `buff` is the brace's gap to the box, `labelBuff` the label's to the tip.
  */
 export class BraceLabel extends Group {
-  constructor(target: Mobject | Box, text: string, direction: Readonly<Vec> = [0, -1], { fontSize = 0.3, color, buff = 0.1, labelBuff = 0.15, shaping }: BraceLabelOpts = {}) {
+  constructor(target: Mobject | Box, text: string, direction: Readonly<Vec> = [0, -1], { fontSize = 0.3, color, buff = 0.1, labelBuff = 0.15, shaping }: BraceLabelOptions = {}) {
     super();
     const brace = new Brace(target, direction, { buff, ...(color === undefined ? {} : { stroke: color }) });
     const label = new Text(text, {fontSize, color, shaping});

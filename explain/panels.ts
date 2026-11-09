@@ -312,7 +312,7 @@ export class Card extends Group {
 
 }
 
-export interface CodeOptions {
+export interface CodeBlockOptions {
   /** As for cards: a centre point, or a region/box to centre in (`'start'` and `'end'` follow the stage's direction). */
   at?: Vec | Box | Region | 'start' | 'end';
   align?: 'center' | 'top';
@@ -368,7 +368,7 @@ export class CodeBlock extends Group {
   private readonly title: string | undefined;
 
   /** @internal The kit's `code(s, source, opts)` builds a code panel on a stage. */
-  constructor(scene: Scene, colors: Palette, lines: readonly string[], options: PlacedOptions<CodeOptions> = {}) {
+  constructor(scene: Scene, colors: Palette, lines: readonly string[], options: PlacedOptions<CodeBlockOptions> = {}) {
     super();
     const api = (this.api = options.api ?? 'code()');
     this.scene = scene;

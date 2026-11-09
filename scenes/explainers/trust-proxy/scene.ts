@@ -1,5 +1,5 @@
 import { Scene, Text, Group, FadeIn } from '../../../src/index.ts';
-import type { Box, FadeOpts } from '../../../src/index.ts';
+import type { Box, FadeOptions } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, answerOf as scriptAnswerOf, view, having } from '../../../explain/index.ts';
 import type { CardOptions, CardRow, View, ExplainerMeta } from '../../../explain/index.ts';
 import { keyed, card, code } from '../../../explain/drawing.ts';
@@ -253,7 +253,7 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
      * Keep each view and fade them in together, in one play, as s.enter would. A card describes itself;
      * `words` says what else a view shows.
      */
-    const enterViews = async (views: readonly View[], fade: FadeOpts = {}, words?: (v: View) => string) => {
+    const enterViews = async (views: readonly View[], fade: FadeOptions = {}, words?: (v: View) => string) => {
       for (const v of views) if (words) s.keep(v, { describe: () => words(v) }); else s.keep(v);
       await this.play(...views.map((v) => new FadeIn(v, fade)));
     };

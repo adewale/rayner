@@ -1,7 +1,7 @@
 import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, Create } from '../src/index.ts';
 import { View } from './view.ts';
 import { cloneJson } from '../src/json.ts';
-import type { Scene, Vec, Box, FadeOpts, Animation, SceneColors } from '../src/index.ts';
+import type { Scene, Vec, Box, FadeOptions, Animation, SceneColors } from '../src/index.ts';
 import { center, unionBoxes } from '../src/box.ts';
 import { atHome } from '../src/svg.ts';
 import { FRAME, STAGE_BOX, zoomOf } from '../src/units.ts';
@@ -16,7 +16,7 @@ import { Diagram } from './diagrams.ts';
 import { Action } from './action.ts';
 import type { Plan } from './action.ts';
 import type { ShowOptions, PictureNote } from './diagrams.ts';
-import type { Card, CodeBlock, CardRow, CardOptions, CodeOptions } from './panels.ts';
+import type { Card, CodeBlock, CardRow, CardOptions, CodeBlockOptions } from './panels.ts';
 import { card, code } from './drawing.ts';
 import { resolverOf } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { DiagramSpec, DiagramSnapshot } from '../integrations/agentic-mermaid/snapshot.ts';
@@ -473,7 +473,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
   const act = <T>(name: string, make: () => Plan<T>, more?: { ready?: Promise<unknown>; late?: boolean }) =>
     new Action<T>(scene, name, make, more);
   /** Keep `panel` and fade it in over `fade.runTime`, or with `enter: false` only keep it. */
-  function enterPanel<T extends Mobject>(panel: T, { enter = true }: Entry, fade: FadeOpts & { runTime: number }): Plan<T> {
+  function enterPanel<T extends Mobject>(panel: T, { enter = true }: Entry, fade: FadeOptions & { runTime: number }): Plan<T> {
     return {
       value: panel,
       start: () => overlays.set(panel, undefined),
@@ -606,9 +606,9 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     /** Code on a panel, entered: the kit's `code(s, source, opts)`, faded in and kept. */
     code(
       lines: readonly string[],
-      opts: CodeOptions & Entry = {},
+      opts: CodeBlockOptions & Entry = {},
     ): Action<CodeBlock> {
-      return act('s.code()', () => enterPanel(code(this as StageApi, lines, { ...opts, api: 's.code()' } as CodeOptions), opts, {
+      return act('s.code()', () => enterPanel(code(this as StageApi, lines, { ...opts, api: 's.code()' } as CodeBlockOptions), opts, {
         runTime: 0.4,
       }));
     },
@@ -630,9 +630,9 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       return first;
     },
     /** Keep these and fade them in together, in one play (options as for FadeIn, plus `describe`). */
-    enter(...args: Mobject[] | [...Mobject[], FadeOpts & Describe]): Action {
+    enter(...args: Mobject[] | [...Mobject[], FadeOptions & Describe]): Action {
       return act('s.enter()', () => {
-        const { describe, ...fade } = isOptions(args.at(-1)) ? (args.pop() as FadeOpts & Describe) : {};
+        const { describe, ...fade } = isOptions(args.at(-1)) ? (args.pop() as FadeOptions & Describe) : {};
         const mobs = args as Mobject[];
         return {
           value: undefined,

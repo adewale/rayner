@@ -1,11 +1,11 @@
 // The tour's own shorthands for three Manim conveniences, each written with rayner's public API so
 // an author can copy it: Write is a lagged Create, Square a Rectangle, Underline a Line under a box.
 import { Create, Line, Rectangle } from '../../../src/index.ts';
-import type { AnimOpts, Box, Mobject, Style } from '../../../src/index.ts';
+import type { AnimOptions, Box, Mobject, Style } from '../../../src/index.ts';
 
 /** Create, each letter (or part) starting before the one before it finishes. */
 export class Write extends Create {
-  constructor(mobject: Mobject, opts: AnimOpts = {}) { super(mobject, { lagRatio: 0.3, ...opts }); }
+  constructor(mobject: Mobject, opts: AnimOptions = {}) { super(mobject, { lagRatio: 0.3, ...opts }); }
 }
 
 /** A Rectangle with equal sides. */

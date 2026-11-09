@@ -15,7 +15,7 @@ import { center, pointsBox } from './box.ts';
 import { Circle, SurroundingRectangle, boxOf } from './shapes.ts';
 import { NEUTRAL_COLORS } from './color.ts';
 
-export interface AnimOpts {
+export interface AnimOptions {
   runTime?: number;
   rateFunc?: RateFunc;
   /** 0: children move together; 1: one after another. */
@@ -25,7 +25,7 @@ export interface AnimOpts {
 }
 
 /** What play() accepts besides animations: a trailing options object. */
-export type PlayOpts = Pick<AnimOpts, 'runTime' | 'rateFunc' | 'lagRatio'>;
+export type PlayOptions = Pick<AnimOptions, 'runTime' | 'rateFunc' | 'lagRatio'>;
 
 /**
  * One family member and its counterparts, zipped by index: [mobject's, starting
@@ -139,7 +139,7 @@ abstract class AnimationTiming {
   get phase(): AnimationPhase { return this.#phase === 'finished' && this.waiting() ? 'landing' : this.#phase; }
   /** What begin(), finish() and land() set: whether it is landing is read from its members. */
   #phase: 'idle' | 'begun' | 'finished' = 'idle';
-  constructor({runTime = 1, rateFunc = smooth, lagRatio = 0, remover = false}: AnimOpts = {}) {
+  constructor({runTime = 1, rateFunc = smooth, lagRatio = 0, remover = false}: AnimOptions = {}) {
     const api = `new ${new.target.name}()`;
     if (!checkedClasses.has(new.target)) {
       for (let p = new.target.prototype; p !== AnimationTiming.prototype; p = Object.getPrototypeOf(p))
@@ -168,7 +168,7 @@ abstract class AnimationTiming {
   }
   /** Refuse a lagRatio this kind of animation cannot take (a Succession's is always 1); any by default. */
   protected refuseLagRatio(_value: number): void {}
-  /** @internal */ setOptions({ runTime, rateFunc, lagRatio }: PlayOpts = {}): this {
+  /** @internal */ setOptions({ runTime, rateFunc, lagRatio }: PlayOptions = {}): this {
     if (runTime != null) { this.#refuseWhileBegun('this.play()', 'runTime'); assertTime('this.play()', 'its runTime', runTime); this.#runTime = runTime; }
     if (rateFunc != null) this.rateFunc = rateFunc;
     if (lagRatio != null) { this.#refuseWhileBegun('this.play()', 'lagRatio'); assertTime('this.play()', 'its lagRatio', lagRatio); this.#lagRatio = lagRatio; }
@@ -296,7 +296,7 @@ export class Animation extends AnimationTiming {
   /** @internal */ starting!: Mobject;
   /** @internal */ families!: FamilyRow[];
   /** @internal */ slots!: { index: Int32Array; count: number };
-  constructor(mobject: Mobject, opts: AnimOpts = {}) { super(opts); this.mobject = mobject; }
+  constructor(mobject: Mobject, opts: AnimOptions = {}) { super(opts); this.mobject = mobject; }
   override targets(): Mobject[] { return [this.mobject]; }
   /**
    * What takes the scene's colours before this begins (see Mobject.defaultColors): what it draws,
@@ -364,7 +364,7 @@ export class Animation extends AnimationTiming {
 /** A path's structure: its subpaths and their closed flags. */
 interface PathShape { subpaths: Float32Array[]; closed: boolean[] }
 
-export interface TransformOpts extends AnimOpts {
+export interface TransformOptions extends AnimOptions {
   replace?: boolean;
 }
 
@@ -381,7 +381,7 @@ export class Transform extends Animation {
   /** Path structure of the mobject and target families before alignment, restored on landing. */
   private shapes: WeakMap<Mobject, PathShape> | null = null;
 
-  constructor(mobject: Mobject, target: Mobject, { replace = false, ...opts }: TransformOpts = {}) {
+  constructor(mobject: Mobject, target: Mobject, { replace = false, ...opts }: TransformOptions = {}) {
     super(mobject, opts);
     this.target = target;
     this.replace = replace;
@@ -468,20 +468,20 @@ export class Transform extends Animation {
 }
 
 /** A Transform whose target is the result of recorded .animate calls. */
-function fromAnimateBuilder(builder: AnimateBuilderBase, opts: TransformOpts = {}): Transform {
+function fromAnimateBuilder(builder: AnimateBuilderBase, opts: TransformOptions = {}): Transform {
   const t = new Transform(builder.mobject, builder.buildTarget(), opts);
   t.ownsTarget = true; // the built target is this animation's alone; its structure may differ (setText), so it still aligns
   return t;
 }
 
-export interface FadeOpts extends TransformOpts { shift?: Vec | null; scale?: number }
+export interface FadeOptions extends TransformOptions { shift?: Vec | null; scale?: number }
 
 export class FadeIn extends Transform {
   /** @internal */ shiftVec: Vec | null;
   /** @internal */ scaleFrom: number;
   /** @internal */ mobjectStart!: Mobject;
 
-  constructor(mobject: Mobject, { shift = null, scale = 1, ...opts }: FadeOpts = {}) {
+  constructor(mobject: Mobject, { shift = null, scale = 1, ...opts }: FadeOptions = {}) {
     super(mobject, mobject, opts);
     this.shiftVec = shift; this.scaleFrom = scale;
   }
@@ -502,7 +502,7 @@ export class FadeOut extends Transform {
   /** @internal */ shiftVec: Vec | null;
   /** @internal */ scaleTo: number;
 
-  constructor(mobject: Mobject, { shift = null, scale = 1, ...opts }: FadeOpts = {}) {
+  constructor(mobject: Mobject, { shift = null, scale = 1, ...opts }: FadeOptions = {}) {
     super(mobject, mobject, { remover: true, ...opts });
     this.shiftVec = shift; this.scaleTo = scale;
   }
@@ -524,7 +524,7 @@ export class FadeOut extends Transform {
   }
 }
 
-export interface GrowFromEdgeOpts extends AnimOpts {
+export interface GrowFromEdgeOptions extends AnimOptions {
   /** Nonzero by default to keep the starting path nondegenerate; in [0, 1]. */
   initialScale?: number;
 }
@@ -535,7 +535,7 @@ export class GrowFromEdge extends FadeIn {
   /** @internal */ readonly axis: 0 | 1;
   readonly initialScale: number;
 
-  constructor(mobject: Mobject, edge: Readonly<Vec> = [0, -1], { initialScale = 0.001, ...opts }: GrowFromEdgeOpts = {}) {
+  constructor(mobject: Mobject, edge: Readonly<Vec> = [0, -1], { initialScale = 0.001, ...opts }: GrowFromEdgeOptions = {}) {
     if (!Array.isArray(edge) || edge.length !== 2 || !Number.isFinite(edge[0]) || !Number.isFinite(edge[1]) ||
       Math.abs(edge[0]) + Math.abs(edge[1]) !== 1 || (edge[0] !== 0 && edge[1] !== 0))
       throw new TypeError('new GrowFromEdge(): the edge must be one unit step along an axis: [0, 1], [0, -1], [-1, 0] or [1, 0]');
@@ -562,7 +562,7 @@ export class Create extends Animation {
   /** The border was left to the default, so it follows the size of the text it outlines. */
   private autoBorder: boolean;
 
-  constructor(mobject: Mobject, { borderWidth, ...opts }: AnimOpts & { borderWidth?: number } = {}) {
+  constructor(mobject: Mobject, { borderWidth, ...opts }: AnimOptions & { borderWidth?: number } = {}) {
     super(mobject, { lagRatio: 0.2, ...opts });
     this.borderWidth = borderWidth ?? Create.BORDER;
     this.autoBorder = borderWidth == null;
@@ -619,7 +619,7 @@ export class AnimationGroup extends AnimationTiming {
   /** @internal */ timings!: Array<[start: number, end: number]>;
   /** @internal */ maxEnd!: number;
 
-  constructor(animations: ScheduledAnimation[], { lagRatio = 0, rateFunc = linear, ...opts }: AnimOpts = {}) {
+  constructor(animations: ScheduledAnimation[], { lagRatio = 0, rateFunc = linear, ...opts }: AnimOptions = {}) {
     super({ lagRatio, rateFunc, ...opts });
     this.animations = animations;
     this.layOut();
@@ -654,7 +654,7 @@ export class AnimationGroup extends AnimationTiming {
     if (!this.ownRunTime) this.runTime = this.maxEnd;
   }
   /** A lagRatio given to play() re-staggers the members, as one given to the constructor does. @internal */
-  override setOptions(opts: PlayOpts = {}): this {
+  override setOptions(opts: PlayOptions = {}): this {
     super.setOptions(opts);
     if (opts.runTime != null) this.ownRunTime = true;
     if (opts.lagRatio != null) {
@@ -718,7 +718,7 @@ export class AnimationGroup extends AnimationTiming {
 }
 
 export class LaggedStart extends AnimationGroup {
-  constructor(animations: ScheduledAnimation[], opts: AnimOpts = {}) { super(animations, { lagRatio: 0.2, ...opts }); }
+  constructor(animations: ScheduledAnimation[], opts: AnimOptions = {}) { super(animations, { lagRatio: 0.2, ...opts }); }
 }
 
 /** What play() accepts: an animation, or a `mobject.animate` builder. */
@@ -743,7 +743,7 @@ export function prepareAnimation(x: unknown, api = 'this.play()'): ScheduledAnim
   throw new TypeError(`${api}: it takes animations and mobject.animate builders; pass an Animation, an action, or m.animate`);
 }
 
-export interface MoveAlongPathOpts extends AnimOpts { fromCurrent?: boolean }
+export interface MoveAlongPathOptions extends AnimOptions { fromCurrent?: boolean }
 
 /**
  * Move a mobject's center along a path. If the mobject isn't at the path's
@@ -758,7 +758,7 @@ export class MoveAlongPath extends Animation {
   /** @internal Set by begin(). */
   offset!: Vec;
 
-  constructor(mobject: Mobject, path: VMobject, { fromCurrent = true, ...opts }: MoveAlongPathOpts = {}) {
+  constructor(mobject: Mobject, path: VMobject, { fromCurrent = true, ...opts }: MoveAlongPathOptions = {}) {
     super(mobject, opts); this.path = path; this.fromCurrent = fromCurrent;
   }
   protected override doBegin(): void {
@@ -792,7 +792,7 @@ export class MoveAlongPath extends Animation {
 export class PulseAlongPath extends MoveAlongPath {
   /** @internal */ readonly sourcePath: VMobject;
 
-  constructor(mobject: Mobject, path: VMobject, opts: MoveAlongPathOpts = {}) {
+  constructor(mobject: Mobject, path: VMobject, opts: MoveAlongPathOptions = {}) {
     super(mobject, path, { rateFunc: linear, remover: true, ...opts });
     this.sourcePath = path;
   }
@@ -819,7 +819,7 @@ export class PulseAlongPath extends MoveAlongPath {
 
 // ---- emphasis ----
 
-export interface CircumscribeOpts extends AnimOpts {
+export interface CircumscribeOptions extends AnimOptions {
   color?: string;
   /** 'rect': a SurroundingRectangle; 'circle': a circle through the box's corners, plus buff. */
   shape?: 'rect' | 'circle';
@@ -862,7 +862,7 @@ export class Circumscribe extends Animation {
   /** The outline's opacity when the play began: what drawing in reaches. Set by begin(). @internal */
   baseOpacity!: number;
 
-  constructor(target: Mobject | Box, { color, shape = 'rect', buff = 0.15, strokeWidth = 0.04, cornerRadius = 0, keep = false, fadeOut = true, ...opts }: CircumscribeOpts = {}) {
+  constructor(target: Mobject | Box, { color, shape = 'rect', buff = 0.15, strokeWidth = 0.04, cornerRadius = 0, keep = false, fadeOut = true, ...opts }: CircumscribeOptions = {}) {
     const stroke = color ?? NEUTRAL_COLORS.emphasis;
     const fit = (): VMobject => shape === 'circle'
       ? circleAround(target, buff, { stroke, strokeWidth })
@@ -935,7 +935,7 @@ export class Restore extends Transform {
   /** The saved state this run returns to. Set by begin(). */
   state!: Mobject;
 
-  constructor(mobject: Mobject, opts: Omit<TransformOpts, 'replace'> = {}) { super(mobject, mobject, opts); }
+  constructor(mobject: Mobject, opts: Omit<TransformOptions, 'replace'> = {}) { super(mobject, mobject, opts); }
 
   protected override doBegin(): void {
     const saved = this.mobject.saved;
@@ -969,7 +969,7 @@ export class TransformFromCopy extends Transform {
   /** The copy takeCopy() made for the next begin(), or null. */
   private taken: Mobject | null;
 
-  constructor(source: Mobject, target: Mobject, opts: Omit<TransformOpts, 'replace'> = {}) {
+  constructor(source: Mobject, target: Mobject, opts: Omit<TransformOptions, 'replace'> = {}) {
     super(new Group(), target, { ...opts, replace: true });
     this.source = source;
     this.taken = null;
@@ -1050,14 +1050,14 @@ export class Succession extends AnimationGroup {
   active: number;
 
   /** Members join `scene` (set by play(), see bindSuccessions) as they begin, as each would in a play of its own. */
-  constructor(animations: Playable[], opts: AnimOpts = {}) {
+  constructor(animations: Playable[], opts: AnimOptions = {}) {
     super(animations.map((x) => isAnimateBuilder(x) ? new BuiltTransform(x) : prepareAnimation(x, 'new Succession()')), { rateFunc: linear, ...opts, lagRatio: 1 });
     if (opts.rateFunc) assertForward('new Succession()', opts.rateFunc);
     this.active = -1;
   }
 
   /** Members run one after another: a lagRatio passed to play() is ignored (runTime and rateFunc apply). @internal */
-  override setOptions({ lagRatio: _, ...opts }: PlayOpts = {}): this {
+  override setOptions({ lagRatio: _, ...opts }: PlayOptions = {}): this {
     if (opts.rateFunc) assertForward('this.play()', opts.rateFunc);
     return super.setOptions(opts);
   }
@@ -1358,7 +1358,7 @@ import type { Evidence } from './scene.ts';
  */
 export type MatchKey = (part: Mobject, root: Mobject) => string | undefined;
 
-export interface MatchByKeyOpts {
+export interface MatchByKeyOptions {
   /** How parts under no key below the root pair, when given; it takes precedence over `unkeyed`. */
   fallback?: MatchKey;
   /**
@@ -1386,7 +1386,7 @@ export interface MatchByKeyOpts {
  * every part the same component. A key two containers share pairs by distance,
  * as any repeated key does. `View.sync({ match: 'key' })` uses the defaults.
  */
-export function matchByKey({ fallback, unkeyed = 'fade', text = 'by-place' }: MatchByKeyOpts = {}): MatchKey {
+export function matchByKey({ fallback, unkeyed = 'fade', text = 'by-place' }: MatchByKeyOptions = {}): MatchKey {
   return (part, root) => {
     const path: number[] = [];
     let under = false;
@@ -1404,7 +1404,7 @@ export function matchByKey({ fallback, unkeyed = 'fade', text = 'by-place' }: Ma
   };
 }
 
-export interface MatchingOpts extends TransformOpts {
+export interface MatchingOptions extends TransformOptions {
   /** Unmatched parts fade (default). false: morph them into each other by index, fading only the leftovers. */
   fadeMismatches?: boolean;
   /**
@@ -1421,7 +1421,7 @@ export interface MatchingOpts extends TransformOpts {
   staged?: boolean;
 }
 
-export interface TransformMatchingOpts extends MatchingOpts { key: MatchKey }
+export interface TransformMatchingOptions extends MatchingOptions { key: MatchKey }
 
 /** What a TransformMatching did with each part; see TransformMatching.summary(). */
 export interface MatchSummary { matched: number; morphed: number; removed: number; added: number }
@@ -1482,7 +1482,7 @@ export class TransformMatching extends Animation {
   /** The source family after begin() attached the copies: whose boxes go stale each frame. @internal */
   touched!: Mobject[];
 
-  constructor(mobject: Mobject, target: Mobject, { key, fadeMismatches = true, ordered = false, replace = true, staged = false, ...opts }: TransformMatchingOpts) {
+  constructor(mobject: Mobject, target: Mobject, { key, fadeMismatches = true, ordered = false, replace = true, staged = false, ...opts }: TransformMatchingOptions) {
     super(mobject, opts);
     this.target = target; this.key = key; this.fadeMismatches = fadeMismatches; this.ordered = ordered;
     this.replace = replace; this.staged = staged;
@@ -1632,7 +1632,7 @@ export class TransformMatching extends Animation {
 
 /** Parts that look the same regardless of position and size pair up: VMobject.shapeKey(). */
 export class TransformMatchingShapes extends TransformMatching {
-  constructor(mobject: Mobject, target: Mobject, opts: MatchingOpts = {}) { super(mobject, target, { ...opts, key: shapeKeyOf }); }
+  constructor(mobject: Mobject, target: Mobject, opts: MatchingOptions = {}) { super(mobject, target, { ...opts, key: shapeKeyOf }); }
 }
 
 /**
@@ -1648,7 +1648,7 @@ export class TransformMatchingShapes extends TransformMatching {
  * for code, prefer TransformDiff.
  */
 export class TransformMatchingText extends TransformMatching {
-  constructor(mobject: Mobject, target: Mobject, opts: MatchingOpts = {}) { super(mobject, target, { ordered: true, ...opts, key: textKeyOf }); }
+  constructor(mobject: Mobject, target: Mobject, opts: MatchingOptions = {}) { super(mobject, target, { ordered: true, ...opts, key: textKeyOf }); }
 
   protected override doBegin(): void {
     const plain = this.key;
@@ -1879,7 +1879,7 @@ import type { Code, CodeSpan } from './text.ts';
 import { diffLines, diffTokens, hunkHeader } from './diff.ts';
 import type { Hunk } from './diff.ts';
 
-export interface TransformDiffOpts extends Omit<MatchingOpts, 'ordered'> {
+export interface TransformDiffOptions extends Omit<MatchingOptions, 'ordered'> {
   /**
    * The diff to animate, as unified-diff hunks (diffLines, or parseUnifiedDiff
    * of `git diff` output). They are the truth: the animation follows them even
@@ -1926,7 +1926,7 @@ export class TransformDiff extends TransformMatching {
   /** Each paired glyph's key; every other part has none, so it fades. */
   keys: Map<Mobject, string>;
 
-  constructor(before: Code, after: Code, { hunks, ...opts }: TransformDiffOpts = {}) {
+  constructor(before: Code, after: Code, { hunks, ...opts }: TransformDiffOptions = {}) {
     const keys = new Map<Mobject, string>();
     super(before, after, { ...opts, ordered: false, key: (p) => keys.get(p) });
     this.before = before; this.after = after;
