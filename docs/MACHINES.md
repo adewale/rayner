@@ -30,6 +30,11 @@ this.state = machine.spec.start;
 await machine.replay(['POWER_ON', 'START', 'FROTH']);
 ```
 
+`machine.spec` is the spec with its defaults filled in, frozen: the machine keeps its own copies
+of the events, views, labels and transitions, and of `start`, which it copies again at every
+read. Changing the object passed to `new Machine`, or what `machine.spec.start` returns, changes
+nothing the machine explores.
+
 Since a frame is a pure function of time ([invariant 1](ENGINE.md#correctness-by-construction)),
 a reader's events can be ordinary input to a schedule. Each event becomes a member of a
 `Succession`: a change of state at its turn, to the state `next` computes from the
