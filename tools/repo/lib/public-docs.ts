@@ -3,7 +3,7 @@
 // members; a name is documented when the guides in docs/ name it in code:
 //
 //   a value or a type   its name, as a word, in a code span or block;
-//   an options bag      or, for a type named `...Opts` or `...Options`, the signature of a documented
+//   an options bag      or, for a type named `...Options`, the signature of a documented
 //                       function, constructor or member that takes or returns it, which an editor shows
 //                       wherever it is called;
 //   a member            `.name` or a span that starts with it (`name(` or `name`, not `name.ts`), in a
@@ -46,7 +46,7 @@ export const RECEIVERS: Record<string, readonly string[]> = {
   Stage: ['s'], Diagram: ['d'], View: ['view'], Machine: ['machine'], Mobject: ['m'], Code: ['code'],
 };
 /** A type that may be documented by a documented signature alone: an options bag. */
-export const optionsBag = (name: string): boolean => /(Opts|Options)$/.test(name);
+const optionsBag = (name: string): boolean => name.endsWith('Options');
 
 const internal = (d: ts.Node): boolean => ts.getJSDocTags(d).some((t) => t.tagName.text === 'internal');
 const hidden = (d: ts.Declaration): boolean => {
