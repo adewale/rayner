@@ -1,7 +1,5 @@
 import { Scene, VMobject, linear } from '../../../src/index.ts';
-import type { SeenPiece, SeenPicture } from '../../../explain/geo.ts';
 import { depthOrder, seenPictures } from '../../../explain/geo.ts';
-import type { Group } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import { settingsOf, stage, answerOf, view, having } from '../../../explain/index.ts';
 import type { ExplainerMeta } from '../../../explain/index.ts';
@@ -155,11 +153,11 @@ function lookWords(st: LookState, names: { day: string }): string {
 function straight(scene: Scene): true | string | undefined {
   let checked: true | undefined;
   for (const g of scene.mobjects.flatMap((mob) => seenPictures(mob))) {
-    const meta = (g as Group & { seenPicture: SeenPicture }).seenPicture;
+    const meta = g.seenPicture;
     if (meta.viewpoint.kind !== 'gnomonic') continue;
     for (const piece of g.children) {
       if (!['henge-look:street', 'henge-look:horizon'].includes(piece.key ?? '') || !(piece instanceof VMobject)) continue;
-      if ((piece as VMobject & { seen: SeenPiece }).seen.lines.flat().length < 3) continue;
+      if (piece.seen.lines.flat().length < 3) continue;
       const drawn = piece.subpaths.flatMap((a) => Array.from({ length: (a.length - 2) / 6 + 1 }, (_, i) => [a[i * 6]!, a[i * 6 + 1]!] as Vec));
       const a = drawn[0]!, b = drawn.at(-1)!, length = Math.hypot(b[0] - a[0], b[1] - a[1]);
       if (length < 1e-6) continue;

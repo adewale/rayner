@@ -66,10 +66,11 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
   /** @internal Makes the picture from the scene's state as it is when called. Called at construction and at each sync's begin(). */
   build: () => M;
   /** The picture as a function of the model and what is shown: what the fidelity checks and machine exploration call. */
-  draw: (state: S, shown: Sh) => M;
+  readonly draw: (state: S, shown: Sh) => M;
   /** The scene whose `shown` a placed or rebuilt picture reads. */
-  private host: Scene<S, Sh>;
-  place: ViewPlace | false;
+  private readonly host: Scene<S, Sh>;
+  /** The point a rebuilt picture keeps (see ViewOpts.place). */
+  private readonly place: ViewPlace | false;
   /** @internal Unplaced build size [w, h] of the picture on screen, the scale basis: recorded when the View takes a picture (see commit). */
   builtSize: [number, number];
   /** @internal The scale the last sync applied: kept while the measured one only differs from it in the last bits. */

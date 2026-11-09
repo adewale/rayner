@@ -288,6 +288,7 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
 - Author tooling moved from `rayner` to `rayner/testing`: `traceScene`, `TraceSink`, `MotionSink`, `analyzeMotion`, `InvariantSink`, `viewMismatch`, `machinesOf`, `jsonObject`, `loadFonts`, `takeMissingGlyphs` and `perf`.
 - `describeExplainer`, `scenariosOf`, `scenarioName`, `withSettings` and `bindSnapshots` moved from `rayner/explain` to `rayner/testing`.
 - `edgePartOf` and `stagedStepsOf` are internal; use `d.findings()` and `d.link()`. `findingsOf` is `diagramFindings` in `rayner/testing`, for a pinned snapshot read without its diagram.
+- `seenFrom` and `seenPictures` return `SeenDrawing`s, typed with the `seenPicture` each records and the `seen` each piece records, so a scene reads them without a cast.
 - `resolveSettings` takes any `{ settings }`, so a scene can ask what a link would open without casting, and throws a `RangeError` for a value or a setting the scene does not take.
 - `Card`, `CodeBlock`, `CardRow`, `CardOptions` and `CodeOptions` are exported from `rayner/drawing`, beside the `card` and `code` that make them, not from `rayner/explain`.
 - `rayner/audio` is gone: `AudioClip`, `ScoreNote` and `StepAudio` are types, which carry no code, so `rayner/explain` exports them beside `StagedStep`, whose `audio` they type.
@@ -306,7 +307,8 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
   - `Mobject`'s caches and alignment (`_bbox`, `_pv`, `_mrec`, `_colors`, `mergeLeaves`, `touchPoints`, `interpolateData`, `alignData`, `alignFamily`, `matchingFrameFor`) are internal. Its subclass hooks `rebindReferences`, `copyData`, `afterPointsChanged`, `pushIntoChildren` and `nullCopy` are `protected`, as is `Animation.createStartingMobject`; `Animation.cleanUpFromScene` is internal.
   - `Scene`'s `sink`, `skipUntil`, `emitFrame`, `beginAnimations` and `hasUpdaters` are internal, and `current` is private: read `currentStep`.
   - `View`'s `placed`, `measure`, `commit`, `swap`, `build`, `builtSize` and `scaleK`, and `ViewSync`'s `inner` and `next`, are internal.
-  - `Machine`'s `outcome`, `model`, `after`, `reachable`, `transitionFor` and `playedUnder`, which `rayner check` and the player use, are internal; a scene calls `send` and `replay`.
+  - `Machine`'s `outcome`, `model`, `after`, `reachable`, `transitionFor`, `playedUnder` and `lastPlayedIn`, which `rayner check` and the player use, are internal, and its `scene` is private; a scene calls `send` and `replay`, and reads `spec`.
+  - `Diagram`'s `spec`, `snapshot`, `parts`, `visible`, `order` and `emphasis` are read-only, `parts`, `visible` and `order` as a `ReadonlyMap`, `ReadonlySet` and `readonly string[]`; only the diagram's own calls change them. `View`'s `draw` is read-only and its `place` private.
   - `Diagram`'s `build`, `buildPlan`, `forget`, `showLive`, `described` and `frameBox` are internal; `s.show`'s `build` option builds a diagram in.
   - `Card` and `CodeBlock` keep their scene and colours private, `Card.panel` and `Card.bar` are readonly, as `CodeBlock`'s are, and `CodeBlock.marks` is a readonly list.
   - `Labeled`'s and `Axes`' child indexes are private: read `shape`, `label`, `xLabel` and `yLabel`.

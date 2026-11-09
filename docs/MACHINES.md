@@ -275,7 +275,7 @@ is live at its step, in every scenario that plays it (oauth-pkce without the att
 This section says how it works and why.
 
 **Which step is live: the step the machine last played in.** There is no declaration. The step a
-machine last played in (`lastPlayedIn`) is the stage `rayner check` explores it on, so a reader
+machine last played in is the stage `rayner check` explores it on, so a reader
 never drives a machine on a stage the check did not see. A separately declared step could name one
 exploration never checked, or one whose stage no longer holds the machine's views (token-bucket's
 last step clears them). When two machines last play in one step, the one made later is live there.

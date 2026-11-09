@@ -125,7 +125,7 @@ export function isRefusal(value: unknown): value is Refusal {
 
 /** A model driven by events on one scene, typed by the scene's model type `S`. */
 export class Machine<S extends object, E extends string> {
-  readonly scene: Scene<S, any>;
+  private readonly scene: Scene<S, any>;
   readonly spec: Required<Pick<MachineSpec<S, E>, 'match' | 'runTime' | 'limit'>> & MachineSpec<S, E>;
   /** What the scene showed (`scene.shown`, as JSON) when the machine last played; exploration redraws under it. */
   private shownWhenPlayed: string | null = null;
@@ -155,7 +155,7 @@ export class Machine<S extends object, E extends string> {
   get playedUnder(): SceneState | null { return this.shownWhenPlayed === null ? null : JSON.parse(this.shownWhenPlayed) as SceneState; }
 
   /**
-   * The step (its path) this machine last played in, or null before it played. Exploration runs
+   * @internal The step (its path) this machine last played in, or null before it played. Exploration runs
    * the scene again to that step's resting picture and checks every reachable state there, on the
    * stage the reader saw the machine on, not on whatever the run ends with.
    */
