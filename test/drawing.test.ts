@@ -58,7 +58,7 @@ test('keyedParts keys each part in order, groups them, and refuses a key used tw
   assert.throws(() => p.add(new Circle(), 'slot:0'), /keyedParts\(\)\.add\(\): two parts are keyed "slot:0"/);
 });
 
-test('callout, dimension and pin build the pictures s.callout, s.dimension and s.pin draw in, and dimension and pin describe themselves', async () => {
+test('callout builds the picture s.callout draws in, and dimension and pin describe themselves', async () => {
   const { Scene, Rectangle } = await import('../src/index.ts'); const { NullSink } = await import('../src/output.ts'); const { loadFonts } = await import('../explain/testing.ts');
   const { describesItself, seenSource } = await import('../explain/look.ts');
   await loadFonts();
@@ -71,10 +71,8 @@ test('callout, dimension and pin build the pictures s.callout, s.dimension and s
   assert.equal(built.key, 'note');
   assert.equal(points(built), points(await s.callout(target, 'here', { side: 'above', gap: 0.3 })));
   const line = drawing.dimension(s, [0, 0], [2, 0], '2 units', { offset: -0.4 });
-  assert.equal(points(line), points(await s.dimension([0, 0], [2, 0], '2 units', { offset: -0.4 })));
   assert.deepEqual(built.children.map((m) => m.key), ['note:line', 'note:dot', 'note:backing', 'note:text']);
   const stuck = drawing.pin(s, [3, 1], { label: 'centre', key: 'stuck' });
-  assert.equal(points(stuck), points(await s.pin([3, 1], { label: 'centre' })));
   assert.deepEqual(stuck.children.map((m) => m.key), ['stuck:needle', 'stuck:head', 'stuck:label']);
   // A callout is described by its words; a dimension line and a pin say what they are.
   assert.equal(describesItself(built), false);
@@ -84,13 +82,12 @@ test('callout, dimension and pin build the pictures s.callout, s.dimension and s
   assert.equal(drawing.pin(s, [0, 0]).key, undefined);
   // side: 'left' puts the label's end beside the head instead of its start, mirrored about the needle.
   const left = drawing.pin(s, [3, 1], { label: 'centre', side: 'left', key: 'left' });
-  assert.equal(points(left), points(await s.pin([3, 1], { label: 'centre', side: 'left' })));
   const [rightLabel, leftLabel] = [stuck.find('stuck:label')!, left.find('left:label')!].map((m) => m.box()!) as [Box, Box];
   assert.ok(leftLabel[2] < 3 && rightLabel[0] > 3, 'the left label ends before the needle; the right one starts after it');
   assert.ok(Math.abs((3 - leftLabel[2]) - (rightLabel[0] - 3)) < 1e-6, 'both labels stand off the needle by the same gap');
 });
 
-test('legend draws swatches with words, keyed by label, describes itself as its swatch→meaning pairs, and matches s.legend', async () => {
+test('legend draws swatches with words, keyed by label, describes itself as its swatch→meaning pairs', async () => {
   const { Scene } = await import('../src/index.ts'); const { NullSink } = await import('../src/output.ts'); const { loadFonts } = await import('../explain/testing.ts');
   const { describesItself, seenSource } = await import('../explain/look.ts');
   await loadFonts();
@@ -119,9 +116,7 @@ test('legend draws swatches with words, keyed by label, describes itself as its 
   assert.ok(lefts[0]! < lefts[1]! && lefts[1]! < lefts[2]!);
   // The words are in the stage's ink, the dash on the swatch.
   assert.ok(key.family().some((m) => m.style.dashArray));
-  const points = (m: import('../src/index.ts').Mobject) => JSON.stringify(m.family().map((x) => [x.constructor.name, x.box(), x.style, x.key]));
-  assert.equal(points(key), points(await s.legend(items, { at: [-6, 3], key: 'k' })));
-  assert.throws(() => drawing.legend(s, [], { key: 'k' }), /at least one entry/);
+  assert.throws(() => drawing.legend(s, [], { key: 'k' }), /^RangeError: legend\(\): a legend needs at least one entry/);
   assert.throws(() => drawing.legend(s, [items[0]!, items[0]!], { key: 'k' }), /two entries say "cat’s bits"/);
   assert.throws(() => drawing.legend(s, [{ label: 'nothing' }], { key: 'k' }), /needs a fill or a stroke/);
 });

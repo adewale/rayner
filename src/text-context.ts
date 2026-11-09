@@ -34,7 +34,7 @@ function track<T>(work: () => Promise<T>, tasks: Set<Promise<unknown>>): Promise
   return result;
 }
 /** Legacy `new Text()` scenes need an ambient constructor context. Explicit scenes
- * use Scene.text()/TextOptions.shaping and can overlap without that compatibility lease. */
+ * pass TextOptions.shaping (the scene's textShaping) and can overlap without that compatibility lease. */
 export function withTextContext<T>(source: object, work: () => Promise<T>): Promise<T> {
   const context = contextOf(source), shaping = context?.shaping;
   if (context?.explicit) return Promise.resolve(shaping?.prepare?.()).then(work);

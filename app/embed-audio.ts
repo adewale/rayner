@@ -1,5 +1,5 @@
 import { stepAudio } from '../explain/internal.ts';
-import type { AudioClip } from '../explain/score.ts';
+import type { AudioClip } from '../explain/index.ts';
 import { UNITS } from '../src/internal.ts';
 import {StateScope, wait} from './embed-scope.ts';
 

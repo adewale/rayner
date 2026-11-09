@@ -1,8 +1,9 @@
 import { Scene, Group, Text } from '../../../src/index.ts';
 import type { Box, Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, answerOf, view, having } from '../../../explain/index.ts';
-import type { Diagram, NoteSide, View, CodeBlock, ExplainerMeta } from '../../../explain/index.ts';
+import type { Diagram, NoteSide, View, ExplainerMeta } from '../../../explain/index.ts';
 import { keyed, code } from '../../../explain/drawing.ts';
+import type { CodeBlock } from '../../../explain/drawing.ts';
 // This explainer has no model of its own: its reports are agentic-mermaid 0.5.1's, for small three-node
 // flowcharts, captured with each diagram's snapshot (the broken source's is written below). It does not
 // establish what Mermaid implementations in general accept, and it does not implement the cache-specific

@@ -3,7 +3,7 @@
 // through package.json "exports", as it would from node_modules. If this stops
 // compiling, the public types broke.
 import { Scene, Rectangle, Text, Labeled, Arrow, FadeIn, Create, Transform } from 'rayner';
-import type { AudioClip, ScoreNote, StepAudio } from 'rayner/audio';
+import type { AudioClip, ScoreNote, StepAudio } from 'rayner/explain';
 import { TransformFromCopy, Restore } from 'rayner';
 import { StringSink, renderFrame } from 'rayner/output';
 import { traceScene } from 'rayner/testing';
@@ -33,7 +33,7 @@ import type { StepRecord } from 'rayner/testing';
 import { Frame, Axes, NumberLine, Brace, Circumscribe, SurroundingRectangle, AnimationGroup, Succession } from 'rayner';
 import { viewMismatch } from 'rayner/testing';
 import type { FrameFitOptions, AxesOptions, NumberLineOptions, PlotOptions, BraceOptions, CircumscribeOptions } from 'rayner';
-import type { ViewSync, SyncOptions } from 'rayner/explain';
+import type { SyncOptions } from 'rayner/explain';
 import { palette } from 'rayner/explain';
 const middleC: ScoreNote = {midi: 60, at: 0, duration: 1};
 const scoreClip: AudioClip = {id: 'a', label: 'Middle C', bpm: 96, beats: 4, notes: [middleC]};
@@ -101,8 +101,8 @@ export class Tour extends Scene {
     const readout: View<Card> = view(this, (st) => card(s, [['n', st.n]], { panel: false, key: 'n' }), { place: false });
     const sync: SyncOptions = { runTime: 0.5 };
     this.state = { n: 2 };
-    const syncing: ViewSync<Card> = readout.sync(sync);
-    await this.play(syncing);
+    const syncing: Action = readout.sync(sync);
+    await syncing;
     const mismatch: string | null = viewMismatch(readout, this.state);
     const axesOpts: AxesOptions = { xRange: [0, 4, 1], yRange: [0, 2, 1] };
     const axes = new Axes(axesOpts);
@@ -132,7 +132,8 @@ import type { LetteringRequest as OutlineRequest } from 'rayner';
 export const outlineRequest = { scripts: ['Arab'], math: true, faces: { sans: 'inter' } } satisfies OutlineRequest;
 export const formula = () => new MathTex('x^2');
 
-import { stage, View, view } from 'rayner/explain';
+import { stage, view } from 'rayner/explain';
+import type { View } from 'rayner/explain';
 import type {LayoutDirection, StageRegion, DiagramSpec} from 'rayner/explain';
 export async function authorLayout(scene: Scene): Promise<void> {
   const direction: LayoutDirection = 'rtl', at: StageRegion = 'start';
@@ -173,7 +174,7 @@ function authorContracts() {
 
 // The drawing kit, as an author imports it.
 import { label, tile, table, flow, bars, stat, segment, dot } from 'rayner/drawing';
-import type { TableColumns } from 'rayner/drawing';
+import type { TableColumns, Card, CodeBlock, CodeBlockOptions, CardOptions, CardRow } from 'rayner/drawing';
 export function drawingKit(scene: Scene) {
   const s = stage(scene);
   const spread: TableColumns = { left: -6, right: 6 };
@@ -194,7 +195,7 @@ export function drawingKit(scene: Scene) {
 // What the collection writes, an outside author can write: emphasis a scene draws itself, a card
 // and code rebuilt inside a view, a diagram laid out before it is drawn, and colours mixed from the palette.
 import { Diagram, diagramResolverOf } from 'rayner/explain';
-import type { DiagramResolver, Card, CodeBlock, CodeBlockOptions, Look } from 'rayner/explain';
+import type { DiagramResolver, Look } from 'rayner/explain';
 import { emphasised, card, code } from 'rayner/drawing';
 import { lerpColor } from 'rayner';
 export async function publicCollection(scene: Scene): Promise<void> {
@@ -224,7 +225,7 @@ import { Group, Mobject, VMobject, Circle, Polygon, Arc, Cross, CurvedArrow, Bra
 import type { Box, Vec, SceneState, ScheduledAnimation, MatchKey, FadeOptions, FontName, SceneClass, Sink, Style, Palette } from 'rayner';
 import { callout, dimension, pin, legend, keyed, keyedParts } from 'rayner/drawing';
 import { Machine, refuse, isRefusal, answerOf, settingsOf, resolveSettings, regionBox, mermaid } from 'rayner/explain';
-import type { Refusal, Transition, Choreography, CardOptions, CardRow, NoteSide, PictureNote, DiagramPicture, Stage, ExplainerClass, ExplainerMeta, Setting, StepKind, Description } from 'rayner/explain';
+import type { Refusal, Transition, Choreography, NoteSide, PictureNote, DiagramPicture, Stage, ExplainerClass, ExplainerMeta, Setting, StepKind, Description } from 'rayner/explain';
 import { MoveAlongPath, ArcBetweenPoints } from 'rayner';
 import { seenFrom, seenPictures, depthOrder, latLon, toLatLon, greatArc, circleOn, between, project } from 'rayner/geo';
 import type { Model3D, Part, SeenPiece, SeenOptions, SeenPicture, Vec3, Viewpoint } from 'rayner/geo';
@@ -261,7 +262,7 @@ export class Collection extends Scene<CollectionModel> {
   override async construct() {
     const s: Stage = stage(this);
     const values = settingsOf(this);
-    const resolved = resolveSettings(Collection as unknown as ExplainerClass, values);
+    const resolved = resolveSettings(Collection, values);
     const answer: string = answerOf(this);
     await this.step('shapes', { title: 'Shapes', caption: `${answer} ${resolved.case}` });
     const box: Box = regionBox('main', { top: 3 });
@@ -396,7 +397,7 @@ export class Composed extends Scene {
     const card: Card = entry.value;
     await this.play(s.focus(d.get('A')), entry, new FadeIn(new Rectangle({ width: 1, height: 1 }), { runTime: 0.9 }));
     await this.play(new Succession([d.walk([['A', 'B']]), s.callout(card, 'one'), s.focus('all')]));
-    const panel: CodeBlock = await s.code(['x = 1'], { enter: false });
+    const panel: CodeBlock = code(s, ['x = 1']);
     const walked: Action = d.walk([['A', 'B']]);
     await this.play(new AnimationGroup([walked, s.enter(panel)]));
   }

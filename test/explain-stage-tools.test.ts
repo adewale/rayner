@@ -8,6 +8,7 @@ import { NullSink, StringSink, renderFrame, toSvgString } from '../src/output.ts
 import { MotionSink, analyzeMotion } from '../explain/testing.ts';
 import type { Box, Mobject, Vec } from '../src/index.ts';
 import { stage } from '../explain/index.ts';
+import { dimension, pin } from '../explain/drawing.ts';
 import { oneStrokeEach } from '../explain/annotate.ts';
 import { restingTextProblems } from '../tools/lib/explain-check.ts';
 import { openingOf } from '../explain/look.ts';
@@ -126,8 +127,9 @@ test('annotations keep their words, and under a zoomed camera they show at their
       await this.step('one', { title: 'Annotate' });
       const box = new Rectangle({ width: 2, height: 1 }).moveTo([0, -1]);
       await s.enter(box, { describe: 'a box' });
-      const d = await s.dimension([-1, -1.5], [1, -1.5], '2 units', { offset: -0.3 });
-      const p = await s.pin([1, -0.5], { label: 'corner' });
+      const d = dimension(s, [-1, -1.5], [1, -1.5], '2 units', { offset: -0.3 });
+      const p = pin(s, [1, -0.5], { label: 'corner' });
+      await s.enter(d, p);
       const c = await s.callout(box, 'a box', { side: 'left' });
       atHome = (c.children.find((m) => m instanceof Text) as Text).height();
       assert.ok(d.family().some((m) => m instanceof Text && m.text === '2 units'));

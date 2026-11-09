@@ -27,7 +27,7 @@ const machine = new Machine(this, {
   match: matchByKey({ text: 'whole' }),   // keyed parts keep their identity (the default)
 });
 this.state = machine.spec.start;
-await this.play(machine.replay(['POWER_ON', 'START', 'FROTH']));
+await machine.replay(['POWER_ON', 'START', 'FROTH']);
 ```
 
 Since a frame is a pure function of time ([invariant 1](ENGINE.md#correctness-by-construction)),
@@ -60,8 +60,9 @@ one chapter of a state that changes shape ([typed state](REFERENCE.md#typed-stat
 
 `machine.send(event, from?)` builds one event's schedule for one state (the scene's state by
 default) and refuses to play from any other, so a replay cannot drift from the model.
-`replay(events, from?)` chains them. Those two are what a scene calls. `lastPlayedIn` is the step
-the machine last played in, and `machine.scene` the scene it was made on.
+`replay(events, from?)` chains them. Those two are what a scene calls, and each returns an
+[action](REFERENCE.md#actions): await it, or hand it to `play()`, a `Succession` or a group, and a
+step that ends with one never played fails, as it does for a stage verb.
 
 `rayner check` and the player read the rest from the spec. What an event does from a state is the
 next state, a refusal with the reason `next` gave, or the story's bound. Exploration visits every
@@ -107,8 +108,8 @@ a refusal.
 which rule refused (python-dict's ran the key's search a second time), nothing checked that it
 agreed with `next`, and eight of the nine machines left it out, so their players said "Not
 possible here". A reason returned from the branch that refuses cannot name a rule other than the
-one that refused, and costs one line where the refusal is. `why` is gone; a spec that still has
-one is refused with what to write instead.
+one that refused, and costs one line where the refusal is. `why` is gone, and `MachineSpec` has
+no such field.
 
 A `bound` is different: the model would take the event, but the explainer's story ends before
 it (token-bucket's client sends ten requests). Exploration does not follow it either, and the
@@ -274,7 +275,7 @@ is live at its step, in every scenario that plays it (oauth-pkce without the att
 This section says how it works and why.
 
 **Which step is live: the step the machine last played in.** There is no declaration. The step a
-machine last played in (`lastPlayedIn`) is the stage `rayner check` explores it on, so a reader
+machine last played in is the stage `rayner check` explores it on, so a reader
 never drives a machine on a stage the check did not see. A separately declared step could name one
 exploration never checked, or one whose stage no longer holds the machine's views (token-bucket's
 last step clears them). When two machines last play in one step, the one made later is live there.

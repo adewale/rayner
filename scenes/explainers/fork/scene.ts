@@ -3,7 +3,7 @@ import { answerOf, view, having } from '../../../explain/index.ts';
 import { Scene, Text, FadeIn } from '../../../src/index.ts';
 import type { EndedStep } from '../../../src/index.ts';
 import { stage, regionBox, resolveSettings } from '../../../explain/index.ts';
-import type { ExplainerClass, Diagram, PictureNote, View, ExplainerMeta } from '../../../explain/index.ts';
+import type { Diagram, PictureNote, View, ExplainerMeta } from '../../../explain/index.ts';
 import { TokenBucket } from '../token-bucket/model.ts';
 import { PLACEMENTS } from '../traffic-policy/model.ts';
 import { drawChoice, drawOffered, drawTimeline, drawUnbuilt, perSecond } from './picture.ts';
@@ -184,10 +184,9 @@ export default class ForkExplainer extends Scene<ForkState, ForkShown> {
     await this.play(unbuiltRow.sync({ staged: false, runTime: 0.6 }));
 
     // 3. Why no reader meets that row: a link picks one of the scenarios the build made, or gets the default.
-    const resolver = { settings: [RATE_SETTING] } as unknown as ExplainerClass;
     const open = (asked: string) => {
       try {
-        return { asked, opens: resolveSettings(resolver, { rate: asked }).rate! };
+        return { asked, opens: resolveSettings({ settings: [RATE_SETTING] }, { rate: asked }).rate! };
       } catch (e) {
         return { asked, opens: RATE_SETTING.default, refused: (e as Error).message };
       }

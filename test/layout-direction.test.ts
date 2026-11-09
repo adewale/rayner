@@ -5,7 +5,7 @@ import { NullSink } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import type { Mobject } from '../src/index.ts';
 import { stage, palette } from '../explain/index.ts';
-import type { LayoutDirection, StageOptions, CardOptions } from '../explain/index.ts';
+import type { LayoutDirection } from '../explain/index.ts';
 import { Card } from '../explain/panels.ts';
 import { card } from '../explain/drawing.ts';
 import { useDiagrams } from '../explain/diagram-snapshot.ts';
@@ -98,14 +98,14 @@ test('stage direction resolves logical card/code/carry regions and preserves phy
     const s = stage(scene(), { direction: d, heading: false });
     assert.equal(s.direction, d);
     for (const [at, x] of [['start', d === 'ltr' ? -3.85 : 3.85], ['end', d === 'ltr' ? 3.85 : -3.85], ['left', -3.85], ['right', 3.85]] as const) {
-      const k = await s.card([['field', '123']], { at, width: 3, enter: false });
+      const k = await s.card([['field', '123']], { at, width: 3 });
       near(k.panel.center()[0], x);
       assert.equal(k.direction, d);
       // The kit's card, for a view's draw, is placed and laid out as the stage's.
       const drawn = card(s, [['field', '123']], { at, width: 3 });
       near(drawn.panel.center()[0], x);
       assert.equal(drawn.direction, d);
-      const code = await s.code(['x[12] = 34;'], { at, enter: false });
+      const code = await s.code(['x[12] = 34;'], { at });
       near(code.panel.center()[0], x);
       assert.equal(code.code.lines[0]!.text, 'x[12] = 34;');
       assert.ok(code.code.lines[0]!.frameBox[6]! > code.code.lines[0]!.frameBox[0]!, 'code glyphs stay unmirrored');
@@ -114,7 +114,7 @@ test('stage direction resolves logical card/code/carry regions and preserves phy
       await s.carry(native, at);
       near(native.center()[0], x);
     }
-    const override = await s.card([['field', '123']], { at: 'start', direction: d === 'ltr' ? 'rtl' : 'ltr', enter: false });
+    const override = await s.card([['field', '123']], { at: 'start', direction: d === 'ltr' ? 'rtl' : 'ltr' });
     assert.equal(override.direction, d === 'ltr' ? 'rtl' : 'ltr');
     near(override.panel.center()[0], d === 'ltr' ? -3.85 : 3.85);
   }
@@ -138,37 +138,4 @@ test('logical diagram placement preserves authored graph direction and node orde
     assert.ok(diagram.get('A').center()[0] < diagram.get('B').center()[0]);
     assert.ok(d === 'ltr' ? diagram.get('B').box()![2] < 0 : diagram.get('A').box()![0] > 0);
   }
-});
-
-test('direction rejects malformed, boxed, inherited and coercing values before drawing', async () => {
-  let coerced = 0;
-  const coercing = { toString() { coerced++; throw new Error('must not coerce'); } };
-  const cases: unknown[] = [null, 0, 1, false, '', 'RTL', 'auto', 'constructor', '__proto__', new String('rtl'), coercing, [], {}];
-  for (const direction of cases) {
-    const sc = scene();
-    assert.throws(() => stage(sc, { direction } as StageOptions), /^(TypeError|RangeError): stage\(\): (the options|direction) must/);
-    assert.equal(sc.mobjects.length, 0);
-    assert.throws(() => card(stage(scene(), { heading: false }), [['field', '123']], { direction } as CardOptions), /^(TypeError|RangeError): card\(\): (the options|direction) must/);
-    const s = stage(sc, { heading: false });
-    const count = sc.familyMembers().length, time = sc.time;
-    await assert.rejects(async () => s.card([['field', '123']], { direction } as CardOptions), /^(TypeError|RangeError): s\.card\(\): (the options|direction) must/);
-    assert.equal(sc.familyMembers().length, count); assert.equal(sc.time, time);
-  }
-  for (const options of [Object.create({ direction: 'rtl' }), Object.create({ direction: coercing })]) {
-    assert.throws(() => stage(scene(), options), /stage\(\): direction must be the options' own property, not inherited/);
-    assert.throws(() => card(stage(scene()), [['field', '123']], options), /card\(\): direction must be the options' own property/);
-    await assert.rejects(async () => stage(scene()).card([['field', '123']], options), /s\.card\(\): direction must be the options' own property/);
-  }
-  const getter = Object.defineProperty({}, 'direction', { get() { coerced++; return 'rtl'; } });
-  assert.throws(() => stage(scene(), getter), /stage\(\): direction must be a plain value, not a getter/);
-  // A value of the wrong type is named with the article its type takes.
-  assert.throws(() => stage(scene(), { direction: {} as never }), /^RangeError: stage\(\): direction must be 'ltr' or 'rtl', not an object$/);
-  assert.throws(() => stage(scene(), { direction: 7 as never }), /^RangeError: stage\(\): direction must be 'ltr' or 'rtl', not a number$/);
-  assert.throws(() => card(stage(scene()), [['field', '123']], getter), /card\(\): direction must be a plain value/);
-  await assert.rejects(async () => stage(scene()).card([['field', '123']], getter), /s\.card\(\): direction must be a plain value/);
-  for (const malformed of [null, 1, false, 'rtl', []]) {
-    assert.throws(() => stage(scene(), malformed as StageOptions), /^TypeError: stage\(\): the options must be an object/);
-    assert.throws(() => card(stage(scene()), [['field', '123']], malformed as CardOptions), /^TypeError: card\(\): the options must be an object/);
-  }
-  assert.equal(coerced, 0);
 });

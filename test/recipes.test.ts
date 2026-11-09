@@ -140,7 +140,7 @@ test('a claim that reads a misspelt key finds nothing on every frame: it is repo
         return Math.abs(Math.hypot(...found.center()) - 2) <= 1e-3 || 'off its circle';
       });
       await this.step('turn');
-      await this.play(dot.tween((t) => ({ angle: t })), { runTime: 0.3, rateFunc: linear });
+      await dot.tween((t) => ({ angle: t }), { runTime: 0.3, rateFunc: linear });
     }
   }
   const result = await invariantFailures(Misspelt);

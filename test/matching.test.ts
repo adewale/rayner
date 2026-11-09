@@ -357,9 +357,8 @@ test('View.sync({ match: "keys" }) keeps a keyed cell across a rearrangement and
   scene.add(v);
   const before = v.current.children.map((c) => c.key);
   scene.state = { order: [3, 1, 2] };
-  const sync = v.sync({ match: 'key', runTime: 0.4 });
-  await scene.play(sync);
-  assert.deepEqual(sync.summary(), { matched: 3 * (1 + 2), morphed: 0, removed: 0, added: 0 });
+  await scene.play(v.sync({ match: 'key', runTime: 0.4 }));
+  assert.deepEqual(scene.evidence.at(-1), { kind: 'match', matched: 3 * (1 + 2), morphed: 0, removed: 0, added: 0 });
   assert.deepEqual(v.current.children.map((c) => c.key), ['cell:3', 'cell:1', 'cell:2']);
   assert.notDeepEqual(before, v.current.children.map((c) => c.key));
 });

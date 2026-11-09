@@ -1,4 +1,4 @@
-import { contrastRatio, blendPaint, parseColor } from '../src/color.ts';
+import { blendPaint, contrastRatio, isHex, parseColor } from '../src/color.ts';
 import { Text } from '../src/index.ts';
 import type { Box, Mobject, Scene } from '../src/index.ts';
 import { center } from '../src/box.ts';
@@ -193,6 +193,20 @@ export function stagePalette(s: object, api: string): Palette {
 /** Records where a stage's current palette is read from (see stagePalette). */
 export function bindStagePalette(s: object, read: () => Palette): void {
   stagePalettes.set(s, read);
+}
+
+/**
+ * A size a type cannot hold to its range: a finite number above 0, in scene units. An option bag's
+ * keys and types are TypeScript's to check; this is one of the values it cannot.
+ */
+export function checkSize(api: string, what: string, value: number | undefined): void {
+  if (value !== undefined && !(value > 0 && Number.isFinite(value)))
+    throw new RangeError(`${api}: ${what} is ${String(value)}; give a size in scene units above 0, such as 0.5`);
+}
+/** A palette's four colours, each a hex colour (`#rgb` or `#rrggbb`): its type holds them to strings, not to colours. */
+export function checkPalette(api: string, p: Palette): void {
+  for (const k of ['paper', 'ink', 'accent', 'muted'] as const)
+    if (!isHex(p[k])) throw new RangeError(`${api}: the palette's ${k} is ${JSON.stringify(p[k])}, not a hex colour; give #rgb or #rrggbb, such as '#2e3440'`);
 }
 
 export function lookOf(p: Palette): Look {

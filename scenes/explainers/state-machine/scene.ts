@@ -3,7 +3,8 @@ import { Scene, Text, FadeIn, Create, Transform, AnimationGroup, Succession } fr
 import type { Animation } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, answerOf, Machine, view } from '../../../explain/index.ts';
 import { code } from '../../../explain/drawing.ts';
-import type { Card, View, Choreography, Transition, CodeBlock, ExplainerMeta } from '../../../explain/index.ts';
+import type { Card, CodeBlock } from '../../../explain/drawing.ts';
+import type { View, Choreography, Transition, ExplainerMeta } from '../../../explain/index.ts';
 import { reduceSession, sessionStart, sessionNext, SESSION_EVENTS } from './model.ts';
 import type { SessionState, SessionEvent } from './model.ts';
 const SOURCE =

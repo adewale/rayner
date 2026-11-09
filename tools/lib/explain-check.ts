@@ -1,4 +1,5 @@
-import { scriptReport, claimsReport, checkClaimsMeta, captionLookProblems, describesItself, seenSource, isHeading, withoutHeading, undescribed, watchedChanges, diagramsOn, restingDrawing, LiveSink, liveMachine, runLive, labelOf, readingLabelSize } from '../../explain/internal.ts';
+import { scriptReport, claimsReport, checkClaimsMeta, captionLookProblems, describesItself, seenSource, isHeading, withoutHeading, undescribed, watchedChanges, diagramsOn, restingDrawing, LiveSink, liveMachine, runLive, labelOf, readingLabelSize, isView } from '../../explain/internal.ts';
+import type { View } from '../../explain/index.ts';
 import type { Settings } from '../../explain/index.ts';
 import { renderElements } from '../../src/output.ts';
 import { serializeElement, canonicalJson, zoomOf, contains, intersect, nonempty, overlaps, paints, atHome, viewOf, FRAME, STAGE_BOX } from '../../src/internal.ts';
@@ -16,7 +17,6 @@ import { browserFonts } from './explain-browser-fonts.ts';
 import { showsDiagrams, withoutDiagramCode } from './explain-diagram-code.ts';
 import ts from 'typescript';
 import { Text } from '../../src/index.ts';
-import { View } from '../../explain/index.ts';
 import { renderFrame, toSvgString } from '../../src/output.ts';
 import { MotionSink, InvariantSink, machinesOf, viewMismatch, jsonObject, analyzeMotion } from '../../explain/testing.ts';
 import { SnapshotSink, traceRun } from '../../src/internal.ts';
@@ -273,7 +273,7 @@ export class ViewSink implements Sink {
   async stepEnd(scene: Scene, step: Step): Promise<void> {
     this.states.push(structuredClone(scene.state));
     for (const m of scene.familyMembers()) {
-      if (!(m instanceof View)) continue;
+      if (!isView(m)) continue;
       this.checked++;
       const mismatch = viewMismatch(m, scene.state, { shown: scene.shown }) ?? viewGeometryMismatch(m, scene);
       if (mismatch) this.problems.push(`step "${step.name}": ${m.key ?? 'a view'}: ${mismatch}`);
@@ -839,7 +839,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     assert.deepEqual(
       unnamed,
       [],
-      `Captions name a look the stage does not ${where}: ${unnamed.join('; ')}. Label it, or key it with a legend (rayner/drawing's legend, s.legend)`,
+      `Captions name a look the stage does not ${where}: ${unnamed.join('; ')}. Label it, or key it with a legend (rayner/drawing's legend)`,
     );
     const staticSmall = [...staticLabels.values()]
       .filter((label) => label.px < MIN_PX)

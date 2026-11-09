@@ -1,5 +1,5 @@
 import { Group, Rectangle, Circle } from '../../../src/index.ts';
-import type { AudioClip } from '../../../explain/score.ts';
+import type { AudioClip } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { label, segment } from '../../../explain/drawing.ts';
 import { NOTE_NAMES } from './model.ts';

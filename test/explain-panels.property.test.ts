@@ -15,6 +15,7 @@ import type { Region } from '../explain/look.ts';
 import { fc, params } from './lib/pbt.ts';
 import { hexColor } from './lib/random-snapshot.ts';
 import { view } from '../explain/index.ts';
+import { ViewSync } from '../explain/view.ts';
 import type { View } from '../explain/index.ts';
 
 await loadFonts();
@@ -143,7 +144,7 @@ test('lit refuses any line that is not an index into the code, with the document
 
 /** Play a keyed, staged sync of `v`, as a view of state is synced; the matching it played, or null when the picture did not change. */
 async function keyedSync(sc: Scene, v: View): Promise<TransformMatching | null> {
-  const sync = v.sync();
+  const sync = new ViewSync(v);
   await sc.play(sync);
   return sync.inner as TransformMatching | null;
 }
@@ -438,7 +439,7 @@ test('a card too narrow for any row is refused', () => {
   // Too narrow: less than the padding, the label gap and one glyph's width (2 x 0.28 + 2.5 x size).
   // The boundary is the card's contract with authors, so it is pinned exactly.
   fc.assert(
-    fc.property(fittingCardCase, fc.double({ min: 0, max: 1, noNaN: true }), (c, f) => {
+    fc.property(fittingCardCase, fc.double({ min: 0, max: 1, noNaN: true, minExcluded: true }), (c, f) => {
       const size = c.fontSize ?? 0.24;
       const width = f * (0.56 + 2.5 * size) * (1 - 1e-9);
       assert.throws(() => card({ ...c, width, at: undefined }), /no room for its rows/);
