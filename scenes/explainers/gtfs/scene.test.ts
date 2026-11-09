@@ -47,9 +47,9 @@ test('an ER relationship’s markers and label background belong to it: the labe
     assert.ok(family.indexOf(bg) < family.indexOf(label), `${p.id}: the background paints over its label`);
     for (const end of [1, 2]) assert.ok(family.includes(d.get(`card:${p.id.slice(4)}:${end}`)), `${p.id}: marker ${end}`);
   }
-  // No marker or background is a part of its own: the description and dimming see the relationship.
-  const top = [...d.parts.values()].filter((p) => !p.info.owner).map((p) => p.info.id);
-  assert.deepEqual(top.filter((id) => /^(card|rel-label):/.test(id)), []);
+  // No marker or label is a part of its own: each is drawn inside a relationship, so the description and dimming see the relationship.
+  const relationships = er!.parts.filter((p) => p.id.startsWith('rel:')).map((p) => d.get(p.id).family());
+  for (const p of er!.parts.filter((p) => /^(card|rel-label):/.test(p.id))) assert.ok(relationships.some((family) => family.includes(d.get(p.id))), p.id);
   // A picture of the diagram copies it member for member: a part's drawing is at the part's index.
   const live = d.root.family();
   const drawn = (picture: { family(): ReturnType<typeof d.root.family> }, x: string) =>
