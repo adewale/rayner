@@ -4,7 +4,7 @@
 // and records like any other play, and the same `next` and views a reader would drive
 // can be explored state by state by `rayner check`. See docs/MACHINES.md.
 
-import { Animation, AnimationGroup, MadeAtTurn, Succession, matchByKey, cleanUp } from '../src/animation.ts';
+import { Animation, AnimationGroup, MadeAtTurn, Succession, matchByKey } from '../src/animation.ts';
 import { SetState } from './state.ts';
 import { canonicalJson } from '../src/json.ts';
 import { identifierRule, isIdentifier } from './settings.ts';
@@ -381,8 +381,6 @@ class TakePictures extends Animation {
     }
   }
 
-  /** @internal */
-  override [cleanUp](): void {}
   override targets(): Mobject[] { return [...this.views]; }
 }
 
