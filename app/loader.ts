@@ -1,7 +1,7 @@
 import { STEP_TYPE, exactHttpOrigin, gotoMessage, resizeHeight, stepDetail } from './embed-protocol.ts';
 import type { StepDetail } from './embed-protocol.ts';
 import { chromeFor } from './embed-strings.ts';
-import { PAGE_QUERY } from '../explain/page-query.ts';
+import { PAGE_QUERY } from '../explain/internal.ts';
 
 /**
  * Optional host-side convenience. Never required by the artifact itself. It adds the iframe and

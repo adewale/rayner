@@ -1,8 +1,7 @@
 import { test } from 'node:test';
 import type { View } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
-import { assertViewFollowsState } from '../../../test/lib/view-fidelity.ts';
-import { loadProject } from '../../../explain/testing.ts';
+import { loadProject, assertViewFollowsState } from '../../../explain/testing.ts';
 import GreatCircle from './scene.ts';
 
 test('the turned globe is a view of its step’s state: it ends edge-on, the route a straight line', async () => {

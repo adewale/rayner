@@ -1,5 +1,5 @@
 import type { Trace } from '../../../explain/testing.ts';
-import { assertStepState } from '../../../test/lib/explainer-state.ts';
+import { assertStepState } from '../../../explain/testing.ts';
 import { impot, bareme, tranche, repartition, BAREME } from './model.ts';
 
 /** Every scenario's step state equals the model's answers for its number of children and income. */

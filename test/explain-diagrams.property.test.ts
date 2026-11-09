@@ -13,7 +13,7 @@ import { Diagram } from '../explain/diagrams.ts';
 import type { PictureNote } from '../explain/diagrams.ts';
 import { REGIONS, emphasis, dimOpacity } from '../explain/look.ts';
 import type { Region } from '../explain/look.ts';
-import { diagramKey, snapshotResolver, useDiagrams } from '../integrations/agentic-mermaid/snapshot.ts';
+import { diagramKey, snapshotResolver, useDiagrams } from '../explain/diagram-snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { fc, params } from './lib/pbt.ts';
 import { snapshot, hexColor, buildSnapshot, snapshotPlan, uniqueIds, planOf } from './lib/random-snapshot.ts';

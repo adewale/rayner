@@ -1,11 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene } from '../../../src/index.ts';
-import { NullSink } from '../../../src/output.ts';
-import { loadFonts, loadSnapshots } from '../../../explain/testing.ts';
-import { Diagram } from '../../../explain/index.ts';
+import { diagramOf, loadSnapshots } from '../../../explain/testing.ts';
 import type { DiagramSnapshot } from '../../../explain/index.ts';
-import { wordsFor } from '../../../explain/words.ts';
 
 const store = await loadSnapshots('scenes/explainers/tailwind-gamut');
 
@@ -15,19 +11,12 @@ const radar = (text: string): DiagramSnapshot => {
   return s;
 };
 
-async function shown(s: DiagramSnapshot, Kind: import('../../../src/index.ts').SceneClass = Scene, build: 'all' | 'frame' = 'all') {
-  const d = new Diagram(new Kind(new NullSink(), { skipUntil: Infinity }), s.spec, s, {});
-  await d.build(build);
-  return d;
-}
-
 const chroma500 = () => radar('curve tw["Tailwind 500"]{0.237,');
 
 // ---------------------------------------------------------------- radar words (explain/diagrams.ts)
-await loadFonts();
 
 test('a radar chart names each curve by its value on every spoke, counts its spokes and scale, and leaves none blank', async () => {
-  const seen = (await shown(chroma500())).describe();
+  const seen = (await diagramOf(chroma500())).describe();
   assert.equal(seen.what, 'Radar chart: 2 curves, 17 axes from 0 to 0.35');
   assert.equal(seen.blank, undefined);
   assert.deepEqual(
@@ -39,7 +28,7 @@ test('a radar chart names each curve by its value on every spoke, counts its spo
 });
 
 test('a radar curve brings its dots: revealing the polygon reveals its vertices, which need no words of their own', async () => {
-  const d = await shown(chroma500(), Scene, 'frame');
+  const d = await diagramOf(chroma500(), { build: 'frame' });
   assert.equal(d.visible.has('dot:srgb:0'), false);
   await d.reveal(['curve:srgb']);
   for (let i = 0; i < 17; i++) assert.ok(d.visible.has(`dot:srgb:${i}`), `dot:srgb:${i}`);
@@ -49,11 +38,7 @@ test('a radar curve brings its dots: revealing the polygon reveals its vertices,
 });
 
 test('a French scene says a radar chart in French', async () => {
-  class Fr extends Scene {
-    static meta = { id: 'fr', title: 'fr', lang: 'fr' };
-  }
-  const seen = (await shown(chroma500(), Fr)).describe();
+  const seen = (await diagramOf(chroma500(), { lang: 'fr' })).describe();
   assert.equal(seen.what, 'Graphique en toile : 2 courbes, 17 axes de 0 à 0,35');
   assert.ok(seen.parts[0]!.name.startsWith('sRGB edge : 0,248 pour red 25°, 0,193 pour orange 48°'), seen.parts[0]!.name);
-  assert.deepEqual(wordsFor('fr').families.radar, ['Graphique en toile', 'courbe']);
 });

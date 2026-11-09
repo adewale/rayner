@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process';
 import { access } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep, isAbsolute } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { normalise } from '../../explain/script.ts';
+import { normalise } from '../../explain/internal.ts';
 import { COMPILED, LIB_ROOT } from './roots.ts';
 import { entryPoints } from './entry-points.ts';
 

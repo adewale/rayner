@@ -48,7 +48,7 @@ export { labelOf, readingLabelSize } from ${JSON.stringify(join(ROOT, 'explain/l
   const code = result.outputFiles[0]!.text;
   assert.ok(!code.includes(DIAGRAM_ONLY));
   const carried = Object.entries(Object.values(result.metafile!.outputs)[0]!.inputs).filter(([, input]) => input.bytesInOutput > 0).map(([path]) => path);
-  assert.ok(!carried.some((path) => path.endsWith('integrations/agentic-mermaid/text.ts')), 'no Mermaid replay');
+  assert.ok(!carried.some((path) => path.endsWith('explain/diagram-text.ts')), 'no Mermaid replay');
   const page = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
   assert.throws(() => new page.Diagram(), { message: NO_DIAGRAM_CODE });
   assert.equal(typeof page.labelOf, 'function');

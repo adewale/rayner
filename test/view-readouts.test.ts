@@ -1,6 +1,6 @@
 // The explainers' state readouts against the traced state, with the expected
 // text written here from the state's fields: not from the View's own render,
-// which test/lib/view-fidelity.ts compares the picture with (a render that
+// which assertViewFollowsState (rayner/testing) compares the picture with (a render that
 // pairs a label with the wrong field agrees with itself).
 import { test } from 'node:test';
 import type { View } from '../explain/index.ts';

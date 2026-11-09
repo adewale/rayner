@@ -11,7 +11,7 @@ import { execFileSync } from 'node:child_process';
 import { collectProject, writeSnapshots, ROOT } from '../tools/lib/explain-project.ts';
 import { checkProject } from '../tools/lib/explain-check.ts';
 import { scenariosOf, resolveSettings } from '../explain/settings.ts';
-import { diagramKey } from '../integrations/agentic-mermaid/snapshot.ts';
+import { diagramKey } from '../explain/diagram-snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { fixedSnapshot, square } from './lib/random-snapshot.ts';
 

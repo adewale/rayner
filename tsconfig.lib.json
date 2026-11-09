@@ -13,6 +13,5 @@
     "sourceMap": true,
     "tsBuildInfoFile": "node_modules/.cache/tsc/lib.tsbuildinfo"
   },
-  "include": ["src/**/*.ts", "explain/**/*.ts", "integrations/agentic-mermaid/*.ts"],
-  "exclude": ["integrations/agentic-mermaid/build"]
+  "include": ["src/**/*.ts", "explain/**/*.ts"]
 }

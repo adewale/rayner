@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
-import { pictureWordsAt } from '../../../explain/testing.ts';
+import { pictureWordsAt, assertSteps } from '../../../explain/testing.ts';
 import type { TraceOf } from '../../../explain/testing.ts';
 import { having } from '../../../explain/index.ts';
 import type FontMetrics from './scene.ts';
-import { assertSteps } from '../../../test/lib/steps.ts';
 import type { FidelityRun } from '../../../test/lib/fidelity.ts';
 
 /** Each authored scenario's steps against the program the explainer explains. */

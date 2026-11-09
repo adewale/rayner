@@ -3,9 +3,9 @@
 // player holds is pruned to that one shape, the default scenario's as the build ships it and every
 // other scenario's as the page runs it, and the watched state is opaque, so the player cannot read
 // a key the page might not carry.
-import type { StepRecord, Trace } from '../src/trace.ts';
-import type { SceneState } from '../src/scene.ts';
-import { watchedChanges, type WatchedChange } from '../explain/trace.ts';
+import type { StepRecord, Trace } from '../explain/testing.ts';
+import type { SceneState } from '../src/index.ts';
+import { watchedChanges, type WatchedChange } from '../explain/internal.ts';
 
 declare const watchedOnly: unique symbol;
 /**

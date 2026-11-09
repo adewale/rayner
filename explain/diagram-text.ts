@@ -1,17 +1,11 @@
-import type {TextShaping} from '../../src/text-context.ts';
-import { Group, Text } from '../../src/index.ts';
-import { ItalicText } from '../../src/italic.ts';
-import type { VMobject, Style } from '../../src/index.ts';
-import { SVG_PX_PER_UNIT as PX } from './snapshot.ts';
-import type { SnapshotTextRun } from './snapshot.ts';
+import type {TextShaping} from '../src/text-context.ts';
+import { Group, Text } from '../src/index.ts';
+import { ItalicText } from '../src/italic.ts';
+import type { VMobject, Style } from '../src/index.ts';
+import { SVG_PX_PER_UNIT as PX } from './diagram-snapshot.ts';
+import type { SnapshotTextRun } from './diagram-snapshot.ts';
 
-
-/** SVG styles select a family; the scene's lettering request selects its actual face. */
-export function importedFont(family: string, monospace = false): 'sans' | 'mono' {
-  const first = family.split(',')[0]!.replace(/["']/g, '').trim();
-  return monospace || /mono|share\s*tech/i.test(first) ? 'mono' : 'sans';
-}
-
+/** Replays a captured label: its text, in the scene's faces, as glyph outlines. */
 export function importedText(run: Pick<SnapshotTextRun, 'text' | 'size' | 'font' | 'weight' | 'italic'>, color?: string, shaping?: TextShaping): Text {
   const Type = run.italic ? ItalicText : Text;
   return new Type(run.text, { fontSize: run.size, font: run.font ?? 'sans', weight: run.weight ?? 'normal', color, shaping });

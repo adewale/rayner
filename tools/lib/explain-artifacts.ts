@@ -1,6 +1,6 @@
 import {readFile} from 'node:fs/promises';
-import {jsonObject} from '../../src/json.ts';
-import {isIdentifier} from '../../explain/settings.ts';
+import { jsonObject } from '../../explain/testing.ts';
+import { isIdentifier } from '../../explain/internal.ts';
 import type {NarrowOpeningObligation} from './explain-review-plan.ts';
 
 export interface SceneInputs {

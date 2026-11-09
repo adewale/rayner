@@ -21,8 +21,8 @@ export async function buildInputs(root: string, library = resolve(root) === reso
       for (const entry of found) if (entry.isFile()) add(base, prefix, join(entry.parentPath, entry.name));
     }
   };
-  const runtime = ['src', 'explain', 'integrations', 'vendor'], built = ['dist/src', 'dist/explain', 'dist/integrations', 'dist/vendor'];
-  if (library === root) await scan(root, '', ['package.json', 'LICENSE'], [...runtime, 'app', ...(compiled ? [...built, 'dist/app', 'dist/tools'] : [])]);
+  const runtime = ['src', 'explain', 'vendor'], built = ['dist/src', 'dist/explain', 'dist/vendor'];
+  if (library === root) await scan(root, '', ['package.json', 'LICENSE'], [...runtime, 'app', 'integrations', ...(compiled ? [...built, 'dist/app', 'dist/tools'] : [])]);
   else {
     await scan(root, '', ['package.json', 'LICENSE'], ['app', 'integrations', 'vendor', ...(compiled ? ['dist/tools'] : [])]);
     await scan(library, 'rayner/', ['package.json', 'LICENSE'], [...runtime, ...built]);

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import type { Trace } from '../../../explain/testing.ts';
 import { Scene, Code, parseUnifiedDiff } from '../../../src/index.ts';
 import type { VMobject, Sink } from '../../../src/index.ts';
-import { assertStepState } from '../../../test/lib/explainer-state.ts';
+import { assertStepState } from '../../../explain/testing.ts';
 import type { FidelityRun } from '../../../test/lib/fidelity.ts';
 import * as mrCache from './code.ts';
 

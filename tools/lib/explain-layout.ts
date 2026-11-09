@@ -4,11 +4,8 @@ import { Arc, Line, Rectangle, VMobject } from '../../src/index.ts';
 import { ArcBetweenPoints } from '../../src/extras.ts';
 import { renderElements } from '../../src/output.ts';
 import type { Box, Mobject, Scene, Vec } from '../../src/index.ts';
-import { contains, intersect, nonempty, pad, pointsBox } from '../../src/box.ts';
-import { isHex } from '../../src/color.ts';
-import { isDiagramConnector } from '../../explain/diagrams.ts';
-import { labelOf } from '../../explain/labels.ts';
-import { isFurniture, isHeading } from '../../explain/stage.ts';
+import { contains, intersect, nonempty, pad, pointsBox, isHex } from '../../src/internal.ts';
+import { isDiagramConnector, labelOf, isFurniture, isHeading } from '../../explain/internal.ts';
 
 function visible(m: Mobject): boolean {
   for (let a: Mobject | null = m; a; a = a.parent) if (a.style.opacity < 0.95) return false;

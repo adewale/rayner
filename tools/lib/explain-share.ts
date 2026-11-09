@@ -7,8 +7,7 @@
 // meta refresh, so the preview is the share page's.
 import { copyFile, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { htmlEscape } from '../../explain/trace.ts';
-import { PAGE_QUERY } from '../../explain/page-query.ts';
+import { htmlEscape, PAGE_QUERY } from '../../explain/internal.ts';
 import { HOME, SHARE_META, SHARE_STEPS_META, shareable } from '../../app/embed-share.ts';
 import type { EmbedWidth } from './review-sizes.ts';
 

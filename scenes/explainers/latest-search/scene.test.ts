@@ -2,10 +2,9 @@ import { test } from 'node:test';
 import type { View } from '../../../explain/index.ts';
 import { having } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
-import { loadFonts, loadProject, withSettings } from '../../../explain/testing.ts';
+import { loadFonts, loadProject, withSettings, assertStepState, assertViewFollowsState } from '../../../explain/testing.ts';
 import LatestSearch from './scene.ts';
-import { assertStepState } from '../../../test/lib/explainer-state.ts';
-import { assertViewFollowsState } from '../../../test/lib/view-fidelity.ts';
+
 import LatestSearchExplainer from './fixtures/latest-search-view.ts';
 import { runSearch, raceReplay, raceLifetimes, racePage } from './model.ts';
 import type { RaceEvent } from './model.ts';

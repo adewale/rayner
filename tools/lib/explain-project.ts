@@ -1,9 +1,9 @@
-import { adoptScript } from './explain-intent.ts';
-import type { adoptIntent } from './explain-intent.ts';
-import {textContextOf} from '../../src/text-context.ts';
+import { textContextOf, usesOutlineLettering, withSceneLettering, dryRun, takeLetteringMissing } from '../../src/internal.ts';
+import type { LetteringSnapshot } from '../../src/internal.ts';
+import { diagramsOn, liveSteps, paperOf, paletteOf, checkWatch, adoptExplainer, readSnapshotStore, sceneIdOf, scriptOf, traceScenarios, checkScriptMeta, checkStepMeta, checkClaimsMeta, diagramKey, RENDERER } from '../../explain/internal.ts';
+import type { Live } from '../../explain/internal.ts';
+import type { Palette, DiagramResolver } from '../../explain/index.ts';
 import { canonicalRequest, offPage, prepareLettering as prepareOutlineLettering } from './lettering.ts';
-import { usesOutlineLettering, withSceneLettering } from '../../src/lettering-outlines.ts';
-import type { LetteringSnapshot } from '../../src/lettering-outlines.ts';
 import { build } from 'esbuild';
 import type { Plugin } from 'esbuild';
 import { readFile, writeFile, mkdir, stat, readdir, rm, rename, rmdir } from 'node:fs/promises';
@@ -13,31 +13,16 @@ import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { Scene } from '../../src/index.ts';
 import { NullSink } from '../../src/output.ts';
-import { dryRun } from '../../src/timeline.ts';
-import { diagramsOn } from '../../explain/diagrams.ts';
-import { liveSteps } from '../../explain/live.ts';
-import type { Live } from '../../explain/live.ts';
-import { traceRun } from '../../src/trace.ts';
-import type { Palette } from '../../src/color.ts';
-import { paperOf, paletteOf } from '../../explain/stage.ts';
-import { checkWatch } from '../../explain/trace.ts';
-import { checkScenarioSteps, readSnapshotStore, sceneIdOf } from '../../explain/project.ts';
-import { checkScriptMeta, checkStepMeta } from '../../explain/script.ts';
-import { checkExplainerMeta } from '../../explain/settings.ts';
-import { checkClaimsMeta } from '../../explain/claims.ts';
-import { takeLetteringMissing } from '../../src/lettering.ts';
 import type { Trace } from '../../explain/testing.ts';
 
 import { resolveSettings } from '../../explain/index.ts';
 import { scenariosOf, withSettings, bindSnapshots, scenarioName } from '../../explain/testing.ts';
 import type { ExplainerClass, SnapshotStore, Settings } from '../../explain/index.ts';
-import type { DiagramResolver } from '../../integrations/agentic-mermaid/snapshot.ts';
-import { diagramKey, RENDERER } from '../../integrations/agentic-mermaid/snapshot.ts';
 import { lostLabelWarnings } from './explain-warnings.ts';
 import { letteringRequest, prepareLettering, useProjectLettering } from './explain-lettering.ts';
 import type { Lettering } from './explain-lettering.ts';
 import { buildInputs } from './build-inputs.ts';
-import { COMPILED, LIB_ROOT, ROOT } from './roots.ts';
+import { COMPILED, GLYPH, LIB_ROOT, ROOT } from './roots.ts';
 import { entryPoints } from './entry-points.ts';
 import { listTree, relativePosix, sha256 } from './hash.ts';
 
@@ -82,14 +67,16 @@ export function engineAlias(node = false, outlines = false): Plugin {
         if (entry) file = join(LIB_ROOT, entry + '.ts');
         else if (args.path.startsWith('.') || args.path.startsWith('/')) {
           const absolute = resolve(args.resolveDir, args.path);
-          const compiled = absolute.match(/\/dist\/(src|explain|integrations\/agentic-mermaid)\/(.+)\.js$/);
+          const compiled = absolute.match(/\/dist\/(src|explain)\/(.+)\.js$/);
+          // The library's sources import its shaper beside them; it ships once, beside the compiled modules.
+          if (!node && absolute === join(LIB_ROOT, 'vendor/glyph.js')) return { path: GLYPH };
           if (compiled) file = join(LIB_ROOT, compiled[1]!, compiled[2]! + '.ts');
           else
             // The player (app/) ships with the command and reaches the engine by relative paths,
             // so its imports land beside it; the engine itself is the library's.
             for (const base of new Set([LIB_ROOT, ROOT])) {
               const local = relativePosix(base, absolute);
-              if (local.startsWith('src/') || local.startsWith('explain/') || local === 'integrations/agentic-mermaid/snapshot.ts') {
+              if (local.startsWith('src/') || local.startsWith('explain/')) {
                 file = join(LIB_ROOT, local);
                 break;
               }
@@ -174,7 +161,7 @@ export interface Project {
   lettering?: Lettering;
   outlineLettering?: LetteringSnapshot;
   /** What the scene took from its script's intent header, which the page's bundle takes too. */
-  intent?: ReturnType<typeof adoptIntent>;
+  intent?: ReturnType<typeof adoptExplainer>;
 }
 
 /**
@@ -249,16 +236,10 @@ export async function collectProject(
 ): Promise<Project> {
   const loaded = await loadScene(input);
   const { file } = loaded;
-  // A misspelt meta key would be ignored: refuse any key ExplainerMeta does not name, before anything runs.
-  try { checkExplainerMeta(loaded.Scene.meta); } catch (e) { throw new Error(`${file}: ${(e as Error).message}`); }
-  // A script with an intent header is the one home of the title, answer, questions and what the
-  // model is checked against (tools/lib/explain-intent.ts): the scene reads them as its own,
-  // adopted afresh on every collection, so a rebuild follows the script as it is now.
-  const intent = await adoptScript(loaded.Scene as { meta?: Record<string, unknown> }, file);
-  // An explainer's id is its folder's name (or its file's, for a scene not named scene.ts), unless it declares one.
-  const ownMeta = (loaded.Scene as { meta?: Record<string, unknown> }).meta;
-  if (ownMeta?.id === undefined)
-    (loaded.Scene as { meta?: Record<string, unknown> }).meta = { ...ownMeta, id: sceneIdOf(file) };
+  // As loadProject does: refuse a meta key ExplainerMeta does not name before anything runs, adopt the
+  // script's intent afresh on every collection (so a rebuild follows the script as it is now), and
+  // name the explainer by its folder unless it declares an id.
+  const intent = adoptExplainer(loaded.Scene, file, await readFile(scriptOf(file), 'utf8').catch(() => null), file);
   const outlineRequested = usesOutlineLettering(loaded.Scene);
   const outline = outlineRequested
     ? await prepareOutlineLettering(loaded.Scene, file, captureLettering, write) : undefined;
@@ -271,7 +252,7 @@ export async function collectProject(
   const base = file.replace(/\.[^.]+$/, '');
   const previous: SnapshotStore = refresh ? {} : await readSnapshots(base);
   // Lazy: native scenes never require Agentic Mermaid or Chromium.
-  const builders = diagramBuilders<Awaited<ReturnType<typeof import('../../integrations/agentic-mermaid/build/index.ts').snapshotBuilder>>>();
+  const builders = diagramBuilders<Awaited<ReturnType<typeof import('../../integrations/agentic-mermaid/index.ts').snapshotBuilder>>>();
   const store: SnapshotStore = {};
   // Every scene this collection runs: its page needs diagram code when one of them made a diagram.
   const ran: Scene[] = [];
@@ -294,7 +275,7 @@ export async function collectProject(
         styles: outline?.snapshot.request.styles,
       } : undefined;
       if (previous[key] && metricOptions) {
-          const { naturalMeasurementIdentity } = await import('../../integrations/agentic-mermaid/build/index.ts');
+          const { naturalMeasurementIdentity } = await import('../../integrations/agentic-mermaid/index.ts');
           if (previous[key].textMeasurement?.id !== naturalMeasurementIdentity(metricOptions).id) {
             if (captureLettering) delete previous[key];
             else throw new Error(`scene.snapshots: the natural diagram font metrics are stale; run rayner snapshots ${file}`);
@@ -305,7 +286,7 @@ export async function collectProject(
         return inspect(previous[key]);
       }
       const active = await builders.get(spec.lettering === 'natural', async () => {
-        const { snapshotBuilder } = await import('../../integrations/agentic-mermaid/build/index.ts');
+        const { snapshotBuilder } = await import('../../integrations/agentic-mermaid/index.ts');
         return snapshotBuilder(previous, metricOptions);
       });
       const result = await active.diagram(spec);
@@ -341,6 +322,9 @@ export async function collectProject(
         Object.defineProperty(previous, key, { value: store[key], enumerable: true, writable: true, configurable: true });
     }
     await useProjectLettering({ lettering });
+    // Each scenario runs once against the resolver, which captures what the pinned snapshots lack and
+    // reads which letters the embedded fonts cannot draw; then every scenario is traced against the
+    // snapshots, as loadProject traces it.
     for (const values of scenariosOf(Source)) {
       const collect = new (withSettings(bindSnapshots(Source, resolver), values))(new NullSink(), { skipUntil: Infinity });
       // Text the embedded fonts cannot draw shows as nothing: name it by scenario and step, then fail.
@@ -358,22 +342,19 @@ export async function collectProject(
       });
       ran.push(await collect.run());
       blanks();
-      const Bound = withSettings(bindSnapshots(Source, store), values);
-      const { trace, scene: traced } = await traceRun(Bound),
-        paper = paperOf(traced);
+    }
+    for (const { values, Scene: Bound, trace, scene: traced } of await traceScenarios(Source, store, file)) {
       ran.push(traced);
-      checkScenarioSteps(trace, values, file);
       // The page never draws these (offPage): they stay out of what it carries
       if (outline) await withSceneLettering(Bound, () => offPage(async () => {
         const { Text } = await import('../../src/index.ts');
         for (const [i, s] of trace.steps.entries()) {
-          step = s.step;
           // Contact sheets draw this numbered title outside the authored scene.
           new Text(`${i + 1}. ${String(s.meta.title ?? s.step)}`, {shaping: textContextOf(Bound)});
         }
       }));
       // The steps a reader can drive a machine at (explain/live.ts): the page's transcript lists their events.
-      const live = liveSteps(traced);
+      const live = liveSteps(traced), paper = paperOf(traced);
       scenarios.push({ values, Scene: Bound, trace, palette: paletteOf(traced), ...(paper ? { paper } : {}), ...(live.size ? { live } : {}) });
     }
     if (undrawable.length)

@@ -1,6 +1,5 @@
 import { test } from 'node:test';
-import { assertSteps } from '../../../test/lib/steps.ts';
-import { loadProject } from '../../../explain/testing.ts';
+import { loadProject, assertSteps } from '../../../explain/testing.ts';
 import PythonDict from './scene.ts';
 
 test('the story asks, breaks, repairs and misses; the hash and probe-path reference steps stay under details', async () => {
