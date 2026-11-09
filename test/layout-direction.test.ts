@@ -98,14 +98,14 @@ test('stage direction resolves logical card/code/carry regions and preserves phy
     const s = stage(scene(), { direction: d, heading: false });
     assert.equal(s.direction, d);
     for (const [at, x] of [['start', d === 'ltr' ? -3.85 : 3.85], ['end', d === 'ltr' ? 3.85 : -3.85], ['left', -3.85], ['right', 3.85]] as const) {
-      const k = await s.card([['field', '123']], { at, width: 3, enter: false });
+      const k = await s.card([['field', '123']], { at, width: 3 });
       near(k.panel.center()[0], x);
       assert.equal(k.direction, d);
       // The kit's card, for a view's draw, is placed and laid out as the stage's.
       const drawn = card(s, [['field', '123']], { at, width: 3 });
       near(drawn.panel.center()[0], x);
       assert.equal(drawn.direction, d);
-      const code = await s.code(['x[12] = 34;'], { at, enter: false });
+      const code = await s.code(['x[12] = 34;'], { at });
       near(code.panel.center()[0], x);
       assert.equal(code.code.lines[0]!.text, 'x[12] = 34;');
       assert.ok(code.code.lines[0]!.frameBox[6]! > code.code.lines[0]!.frameBox[0]!, 'code glyphs stay unmirrored');
@@ -114,7 +114,7 @@ test('stage direction resolves logical card/code/carry regions and preserves phy
       await s.carry(native, at);
       near(native.center()[0], x);
     }
-    const override = await s.card([['field', '123']], { at: 'start', direction: d === 'ltr' ? 'rtl' : 'ltr', enter: false });
+    const override = await s.card([['field', '123']], { at: 'start', direction: d === 'ltr' ? 'rtl' : 'ltr' });
     assert.equal(override.direction, d === 'ltr' ? 'rtl' : 'ltr');
     near(override.panel.center()[0], d === 'ltr' ? -3.85 : 3.85);
   }

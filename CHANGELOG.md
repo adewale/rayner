@@ -288,6 +288,7 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
 - Author tooling moved from `rayner` to `rayner/testing`: `traceScene`, `TraceSink`, `MotionSink`, `analyzeMotion`, `InvariantSink`, `viewMismatch`, `machinesOf`, `jsonObject`, `loadFonts`, `takeMissingGlyphs` and `perf`.
 - `describeExplainer`, `scenariosOf`, `scenarioName`, `withSettings` and `bindSnapshots` moved from `rayner/explain` to `rayner/testing`.
 - `edgePartOf` and `stagedStepsOf` are internal; use `d.findings()` and `d.link()`. `findingsOf` is `diagramFindings` in `rayner/testing`, for a pinned snapshot read without its diagram.
+- `s.card` and `s.code` take no `enter: false`: to bring several panels in in one fade, build them with the kit and enter them, `s.enter(card(s, rows), code(s, lines))`.
 - `ViewSync` is internal: `view.sync()` returns an action. `View` is exported as a type only: `view(scene, draw)` makes one.
 - The diagram camera move (`d.focus(ids, { camera: true, also })`) is gone: `s.focus` moves the camera.
 - `s.focus`'s `with` option is gone: play the other animations in the same play, `this.play(s.focus(box), new FadeIn(m, { runTime: 0.9 }))`.

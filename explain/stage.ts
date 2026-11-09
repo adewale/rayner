@@ -51,8 +51,6 @@ export interface StageOptions {
   /** Number each step's heading (a circled 1, 2, 3 before the title). On by default when the heading follows the steps. */
   numbered?: boolean;
 }
-/** `enter: false` makes the panel and keeps it without playing, for `s.enter` to bring in with others. */
-type Entry = { enter?: boolean };
 /**
  * What kept native objects show, in words, for the description: a sentence, or a
  * function for a drawing that changes. Without it, their visible text is listed.
@@ -438,12 +436,12 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
   /** An action of the stage's (see Action): it is decided now and plays when awaited or composed. */
   const act = <T>(name: string, make: () => Plan<T>, more?: { ready?: Promise<unknown>; late?: boolean }) =>
     new Action<T>(scene, name, make, more);
-  /** Keep `panel` and fade it in over `fade.runTime`, or with `enter: false` only keep it. */
-  function enterPanel<T extends Mobject>(panel: T, { enter = true }: Entry, fade: FadeOpts & { runTime: number }): Plan<T> {
+  /** Keep `panel` and fade it in over `fade.runTime`. */
+  function enterPanel<T extends Mobject>(panel: T, fade: FadeOpts & { runTime: number }): Plan<T> {
     return {
       value: panel,
       start: () => overlays.set(panel, undefined),
-      beats: enter ? [{ runTime: fade.runTime, play: () => [new FadeIn(panel, fade)] }] : [],
+      beats: [{ runTime: fade.runTime, play: () => [new FadeIn(panel, fade)] }],
     };
   }
   /** Keep `g`, which describes itself, and play it in with `entry` over `runTime`. */
@@ -547,13 +545,8 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       return direction;
     },
     /** Labelled values, entered: the kit's `card(s, rows, opts)`, faded in and kept. */
-    card(
-      rows: readonly CardRow[],
-      opts: CardOptions & Entry = {},
-    ): Action<Card> {
-      return act('s.card()', () => {
-        return enterPanel(card(this as StageApi, rows, { ...opts, api: 's.card()' } as CardOptions), opts, { runTime: 0.35, shift: [0, -0.08] });
-      });
+    card(rows: readonly CardRow[], opts: CardOptions = {}): Action<Card> {
+      return act('s.card()', () => enterPanel(card(this as StageApi, rows, { ...opts, api: 's.card()' } as CardOptions), { runTime: 0.35, shift: [0, -0.08] }));
     },
     /** Keep these subjects together in the reader's opening when they fit legibly.
      * Other artwork remains available in the close-up tour. Call after step().
@@ -568,20 +561,15 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       opening(scene, ...subjects);
     },
     /** Code on a panel, entered: the kit's `code(s, source, opts)`, faded in and kept. */
-    code(
-      lines: readonly string[],
-      opts: CodeOptions & Entry = {},
-    ): Action<CodeBlock> {
-      return act('s.code()', () => enterPanel(code(this as StageApi, lines, { ...opts, api: 's.code()' } as CodeOptions), opts, {
-        runTime: 0.4,
-      }));
+    code(lines: readonly string[], opts: CodeOptions = {}): Action<CodeBlock> {
+      return act('s.code()', () => enterPanel(code(this as StageApi, lines, { ...opts, api: 's.code()' } as CodeOptions), { runTime: 0.4 }));
     },
     /** A plain line of supporting text in the stage's secondary colour. */
     note(text: string, { at = [0, -3.9], size = 0.24 }: { at?: Vec; size?: number } = {}): Action<Text> {
       return act('s.note()', () => {
         const t = scene.text(text, { fontSize: size, color: soft(colors) }).moveTo(at);
         if (t.width() > 15) t.setWidth(15);
-        return enterPanel(t, {}, { runTime: 0.3 });
+        return enterPanel(t, { runTime: 0.3 });
       });
     },
     /**

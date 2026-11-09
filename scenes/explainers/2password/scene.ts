@@ -209,19 +209,16 @@ export default class PasswordExplainer extends Scene<PasswordState, PasswordShow
       { place: false },
     );
     await s.enter(command, { runTime: 0.4 });
-    const before = await s.code(
-      Object.entries(launched.opEnv).map(([k, v]) => `${k}=${v}`),
-      {
-        at: regionBox('full', { right: -0.75, top: 0.7 }),
-        title: "op's environment",
-        size: 0.26,
-        enter: false,
-      },
-    );
-    const child = await s.code(
-      Object.entries(launched.childEnv).map(([k, v]) => `${k}=${v}`),
-      { at: regionBox('full', { left: 0.75, top: 0.7 }), title: "app's environment", size: 0.26, enter: false },
-    );
+    const before = s.keep(code(s, Object.entries(launched.opEnv).map(([k, v]) => `${k}=${v}`), {
+      at: regionBox('full', { right: -0.75, top: 0.7 }),
+      title: "op's environment",
+      size: 0.26,
+    }));
+    const child = s.keep(code(s, Object.entries(launched.childEnv).map(([k, v]) => `${k}=${v}`), {
+      at: regionBox('full', { left: 0.75, top: 0.7 }),
+      title: "app's environment",
+      size: 0.26,
+    }));
     const yArrow = (before.panel.box()![1] + before.panel.box()![3]) / 2;
     const pass = new Arrow([before.panel.box()![2] + 0.1, yArrow], [child.panel.box()![0] - 0.1, yArrow], {
       stroke: hot,

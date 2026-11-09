@@ -8,7 +8,7 @@ const ROWS: [string, number][] = [['Field', 123]];
 const START = { at: 'start' } as const;
 const END = { at: 'end', direction: 'ltr' } as const;
 // The code panel leaves out the cards' width, font size and titles: they affect neither placement nor field order.
-const CARD = { width: 7.2, size: 0.8, enter: false } as const;
+const CARD = { width: 7.2, size: 0.8 } as const;
 
 // This explainer has no model of its own: every card is the engine's own s.card, placed by the stage, and
 // the state records where each one landed, measured from the card. Its limit: Latin labels and digits only.
@@ -124,8 +124,8 @@ export default class LayoutDirectionExplainer extends Scene<LayoutState, { lit?:
         : 'On this ltr stage the card at left sits where the Start card did, so the two names cannot be told apart. On an rtl stage start moves to the right half and left stays put. These cards hold Latin labels and digits; the page does not show how Arabic or Hebrew text is shaped.',
     });
     await s.clear();
-    const left = await s.card(ROWS, { at: 'left', ...CARD, title: `Left, ${direction}` });
-    const right = await s.card(ROWS, { at: 'right', ...CARD, title: `Right, ${direction}` });
+    const left = card(s, ROWS, { at: 'left', ...CARD, title: `Left, ${direction}` });
+    const right = card(s, ROWS, { at: 'right', ...CARD, title: `Right, ${direction}` });
     await s.enter(left, right);
     s.opening(left, right);
     this.state.cards = { left: layoutOf(left), right: layoutOf(right) };
