@@ -1,7 +1,8 @@
 // Machines: a model driven by events as an ordinary schedule, and rayner check's exploration of
 // every state the events reach.
 import { test } from 'node:test';
-import type { Transition, View, ViewSync } from '../explain/index.ts';
+import type { Transition, View } from '../explain/index.ts';
+import { ViewSync } from '../explain/view.ts';
 import assert from 'node:assert/strict';
 import { Scene, Text, Group, Rectangle, Transform, Animation, AnimationGroup, Succession, TransformMatching, matchByKey } from '../src/index.ts';
 import type { Mobject } from '../src/index.ts';
@@ -97,8 +98,8 @@ test('without an authored transition, the views morph by key, staged: what goes 
   ), { key: 'lamp' }));
   scene.add(lamp);
   const machine = new Machine<Lamp, 'UP' | 'OFF'>(scene, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [lamp] });
-  const step = machine.send('UP');
-  const sync = (step.animations[1] as AnimationGroup).animations[0] as ViewSync;
+  // The morph machine.send plays for each view: the view's sync with the machine's match.
+  const sync = new ViewSync(lamp, { match: machine.spec.match, runTime: 0.6 });
   assert.equal(sync.staged, true);
   scene.state = { level: 1 };
   sync.begin();
@@ -239,9 +240,9 @@ test('a schedule built for one state refuses to play from another', async () => 
       const picture = view(this, (st: Lamp) => new Text(`lamp ${LEVELS[st.level]}`));
       this.add(picture);
       const machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [picture] });
+      await this.step('stale');
       const built = machine.send('UP');
       this.state = { level: 2 };
-      await this.step('stale');
       await this.play(built);
     }
   }
@@ -254,9 +255,9 @@ test('a schedule built for one state refuses to play from another', async () => 
       const picture = view(this, (st: Pair) => new Text(`a ${st.a} b ${st.b}`));
       this.add(picture);
       const machine = new Machine<Pair, 'UP'>(this, { start: { a: 1, b: 2 }, events: ['UP'], next: (s) => ({ a: s.a + 1, b: s.b }), views: [picture] });
+      await this.step('reordered');
       const built = machine.send('UP');
       this.state = { b: 2, a: 1 };
-      await this.step('reordered');
       await this.play(built);
     }
   }

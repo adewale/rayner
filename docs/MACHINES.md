@@ -27,7 +27,7 @@ const machine = new Machine(this, {
   match: matchByKey({ text: 'whole' }),   // keyed parts keep their identity (the default)
 });
 this.state = machine.spec.start;
-await this.play(machine.replay(['POWER_ON', 'START', 'FROTH']));
+await machine.replay(['POWER_ON', 'START', 'FROTH']);
 ```
 
 Since a frame is a pure function of time ([invariant 1](ENGINE.md#correctness-by-construction)),
@@ -60,8 +60,9 @@ one phase of a state that changes shape ([typed state](REFERENCE.md#typed-state-
 
 `machine.send(event, from?)` builds one event's schedule for one state (the scene's state by
 default) and refuses to play from any other, so a replay cannot drift from the model.
-`replay(events, from?)` chains them. Those two are what a scene calls. `lastPlayedIn` is the step
-the machine last played in.
+`replay(events, from?)` chains them. Those two are what a scene calls, and each returns an
+[action](REFERENCE.md#actions): await it, or hand it to `play()`, a `Succession` or a group, and a
+step that ends with one never played fails, as it does for a stage verb.
 
 `rayner check` and the player read the rest from the spec. What an event does from a state is the
 next state, a refusal with the reason `next` gave, or the story's bound. Exploration visits every

@@ -17,14 +17,15 @@ class Ring extends Scene<{ len: number; head: number }, {}> {   // the model's t
 
     await this.step('push-a');
     this.state.len = 1;                         // the program changes
-    await this.play(this.readout.sync({ match: 'text' }));   // the picture follows: 'len 0' -> 'len 1', the rest stays still
+    await this.readout.sync({ match: 'text' });   // the picture follows: 'len 0' -> 'len 1', the rest stays still
   }
 }
 ```
 
 This is manim's `always_redraw` in the engine's form. The picture changes only
 when you play `sync()`, and each change is a matching transform from the old
-picture to the new one. The draw's arguments are typed from the scene: the scene
+picture to the new one. `sync()` returns an [action](REFERENCE.md#actions), as a stage
+verb does: await it, or hand it to `play()`, a `Succession` or a group. The draw's arguments are typed from the scene: the scene
 declares its model and shown types, `Scene<Model, Shown>`, and `view(this, draw)`
 infers `draw(state: Model, shown: Shown)` ([typed state](REFERENCE.md#typed-state-and-shown)).
 
@@ -32,16 +33,16 @@ infers `draw(state: Model, shown: Shown)` ([typed state](REFERENCE.md#typed-stat
 
 `always_redraw` rebuilds the picture every frame with an updater, and an active
 updater makes a seek replay frame by frame ([fundamentals](ENGINE-FUNDAMENTALS.md#updaters-derived-pictures-and-seeking)).
-A View registers no updater. `sync()` is an ordinary animation whose endpoints are
-fixed at `begin()`:
+A View registers no updater. A sync plays an ordinary animation whose endpoints are
+fixed when its turn comes:
 
-1. At `begin()` it calls `draw(scene.state, scene.shown)`, which builds the new
+1. When its turn comes it calls `draw(scene.state, scene.shown)`, which builds the new
    picture from the state as it is **then**.
 2. It scales and moves the new picture to where the current one is (see
    [Placement](#placement)).
 3. It sets up a matching transform from the current picture to the new one, so
    each frame is a pure function of alpha.
-4. At `finish()` the View swaps its child for the new picture, so it holds
+4. When it finishes the View swaps its child for the new picture, so it holds
    exactly what `draw` made, including the `text` field.
 
 A play with a sync in it therefore skips like any other during a seek, and lands
@@ -62,13 +63,13 @@ Every way to change the picture changes the state and lets the views draw it. Th
 
 | I want to… | Use | Because |
 | --- | --- | --- |
-| Change the model for a step and show the change | Assign `this.state` (or one field), then `await this.play(v.sync())` | A sync draws the state as it is when it begins, so a change made before the play is the one it shows. This is the common case: about 250 assignments to the state and 80 syncs in the collection. Several model steps in a row are a loop of assignments and plays (periodic-groups' fill step, the choreography recipe) |
+| Change the model for a step and show the change | Assign `this.state` (or one field), then `await v.sync()` | A sync draws the state as it is when it begins, so a change made before the play is the one it shows. This is the common case: about 250 assignments to the state and 80 syncs in the collection. Several model steps in a row are a loop of assignments and plays (periodic-groups' fill step, the choreography recipe) |
 | Let the reader drive the model with events, and have every state they reach checked | A [`Machine`](MACHINES.md): `machine.replay(events)` in the scene, `machine.send(event)` for one | Each event adopts the state the tested `next` computes at its turn in the schedule, then the views' sync or the event's transition play: a schedule built for a state, which `rayner check` explores from every reachable state and the player replays at the live step. [Nine explainers](MACHINES.md#nine-machines) and two tutorial scenes |
 | Show a sequence of steps, each its own picture of its own state | `s.steps([...])` | It makes each step, sets its state, clears the stage and fades in its `draw` as a view of that state, so `rayner check` redraws every step from its state. 34 lists in 22 explainers |
 | Move a value continuously, the picture right at every frame | `v.tween((t) => stateAt(t))` | A sync morphs between two endpoint pictures; a tween sets the state at every frame and redraws, so a dot on a circle stays on it ([following one number](CHOREOGRAPHY.md#following-one-number)). great-circle, henge |
 | Author an event's motion part by part | The transition's `t.choreograph(v)`, and `c.follow` for parts that follow one number | It names the keyed parts of the view's picture now and of its picture of the next state, animates them in your order, and `rest()` lands the parts no call named, so the transition still ends on the state's picture ([authored transitions](MACHINES.md#refused-events-bounds-and-authored-transitions)) |
 
-Stage and diagram [actions](REFERENCE.md#actions) join a play or a schedule the same way: `this.play(v.sync(), d.walk(hops))` plays a sync beside a walk, and a `Succession` can hold an action between two syncs. Unlike a sync, an action is decided when it is called, not at its turn, so what it shows does not follow a change of state made after the call: draw state in a view.
+A sync, a tween, a machine's `send` and `replay`, and the stage's and diagrams' verbs are all [actions](REFERENCE.md#actions), so they play the same way: awaited, or together in one play, `this.play(v.sync(), d.walk(hops))`, or in turn in a `Succession`. Each plays once, and a step that ends with one made in it and never played fails, so an action cannot be left unplayed by mistake. They differ in when they read the state: a sync, a tween and a machine's events draw the state as it is when their turn comes, while a stage or diagram verb is decided when it is called, so what it shows does not follow a change of state made after the call: draw state in a view.
 
 A machine's schedule is built before it plays, so its events change the state at their turns inside it, with an animation of its own that only machines use; a scene's own code changes the state by assignment.
 
@@ -81,14 +82,14 @@ having(state, ...keys)  // the state as the shapes that hold these keys, or a Ty
 
 view.current            // the picture on screen (the View's one child)
 view.texts              // the strings it shows, in family order
-view.sync({ runTime, rateFunc, lagRatio, match, staged }?)   // an Animation: play it, compose it; by key and staged unless told otherwise
+view.sync({ runTime, rateFunc, lagRatio, match, staged }?)   // an Action: await it or compose it; by key and staged unless told otherwise
 view.rebuild()          // rebuild now, unanimated: for a View not on screen yet
-view.tween((t) => state, { runTime, rateFunc }?)   // an Animation: the state at t, drawn at every frame (above)
+view.tween((t) => state, { runTime, rateFunc }?)   // an Action: the state at t, drawn at every frame (above)
 ```
 
 `sync()` and `rebuild()` are one pair: each redraws the view from the state as it is
 and puts the new picture where the current one stands, scaled as it is. `sync()` is
-an animation that morphs the picture there when its play begins, for a view on
+an action that morphs the picture there when its turn comes, for a view on
 screen. `rebuild()` swaps the picture at once and returns the view, for a view not
 on screen yet, such as one about to be faded in after the state changed; on screen
 it would jump, which the motion check reports.
@@ -109,10 +110,11 @@ narrows an optional part of what is shown: `having(sh, 'flow').flow`.
 - **Identity.** The View is what scenes hold, add, put in groups and lay out. A
   sync only swaps its child, so the View stays in the scene and in any Group
   that holds it. References to the *old picture* go stale; take `view.current` again.
-- **Composable.** `sync()` is an `Animation`, so
+- **Composable.** `sync()` is an action, so
   `this.play(readout.sync({ match: 'text' }), token.animate.shift([1, 0]))` works, and so does a
-  `Succession`, `AnimationGroup` or `LaggedStart` that contains it.
-- **Built at its turn.** Because `draw` runs at `begin()`, a sync created
+  `Succession`, `AnimationGroup` or `LaggedStart` that contains it. Its run time, easing and lag
+  are the sync's own options; a run time given to `play()` stretches it, as it stretches any action.
+- **Built at its turn.** Because `draw` runs when its turn comes, a sync created
   before a state change still shows the state at play time, and a sync inside a
   `Succession` builds after the members before it have run, as `.animate`
   members do.
@@ -131,7 +133,7 @@ narrows an optional part of what is shown: `having(sh, 'flow').flow`.
 | `'shapes'` | `TransformMatchingShapes` | pictures whose parts come and go |
 | a `MatchKey` function | `TransformMatching` with that key | identity you know: a node id, a colour; `matchByKey({ fallback })` to keep unkeyed parts too, `matchByKey({ text: 'whole' })` when a keyed word's change is a new identity |
 
-A key sync whose two pictures carry no keys below their roots would pair nothing, so `begin()`
+A key sync whose two pictures carry no keys below their roots would pair nothing, so its play
 throws and names the fix: key the draw's parts (a card's or panel's `key` option, or `part.key`),
 or say `match: 'text'`, `'shapes'` or `'index'`. A bare `Text` is such a picture: the key of a
 picture's root is not read, and its glyphs carry none.
@@ -141,16 +143,13 @@ turn: the old ones fade out over the first half and the new ones fade in over th
 word and its replacement never overlap. `staged: false` fades both at once, while the matched parts
 morph. A sync by `'index'` has no parts that go or come, so `staged` changes nothing for it.
 
-`view.sync()` returns a `ViewSync`, the `Animation` that plays the morph; its `view`,
-`match` (a `ViewMatch`) and `staged` are what it was given. Once the play has begun,
-its `summary()` reports what a matching transform paired (a `MatchSummary`,
-`{ matched, morphed, removed, added }`); it is `null` for `'index'` and for a
-no-op. The sync records the same counts as
-evidence, with the View's key as `view` when it has one.
+A sync records what its matching transform paired as evidence, `{ kind: 'match', matched,
+morphed, removed, added }`, with the View's key as `view` when it has one; a sync by `'index'`
+and one whose picture did not change record none.
 
 ### A picture that did not change
 
-If the rebuilt, placed picture matches the current one, `begin()` sets up no
+If the rebuilt, placed picture matches the current one, the sync sets up no
 transform. "Matches" means the same family shape and point counts, points within
 1e-5, equal styles and equal strings. Nothing moves, the current child stays, and
 the sync **still takes its run time**, so step timing, frame numbers and

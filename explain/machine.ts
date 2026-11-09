@@ -11,7 +11,9 @@ import { identifierRule, isIdentifier } from './settings.ts';
 import { Group } from '../src/mobject.ts';
 import { linear } from '../src/rate.ts';
 import type { Scene } from '../src/scene.ts';
+import { turnAction, ViewSync } from './view.ts';
 import type { View, ViewMatch } from './view.ts';
+import type { Action } from './action.ts';
 import type { Mobject } from '../src/mobject.ts';
 import { choreograph } from './choreograph.ts';
 import type { Choreography } from './choreograph.ts';
@@ -210,12 +212,19 @@ export class Machine<S extends object, E extends string> {
   }
 
   /**
-   * One event from `from` (default: the scene's state now): the model's next state is adopted and
-   * recorded as `{ kind: 'event', event }`, then the views morph to it, or the event's authored
-   * transition plays and the views land on it. The schedule is built for `from`, so it refuses to
-   * play from any other state, and a refused event is refused here, before anything plays.
+   * One event from `from` (default: the scene's state now), as an action (see Action): await it,
+   * or hand it to play(), a Succession or a group. The model's next state is adopted and recorded
+   * as `{ kind: 'event', event }`, then the views morph to it, or the event's authored transition
+   * plays and the views land on it. It is built for `from`, so it refuses to play from any other
+   * state, and a refused event is refused here, before anything plays.
    */
-  send(event: E, from: S = this.scene.state): Succession {
+  send(event: E, from: S = this.scene.state): Action {
+    const schedule = this.schedule(event, from);
+    return turnAction(this.scene, 'machine.send()', schedule.runTime, () => schedule);
+  }
+
+  /** What one event plays from `from` (see send): its state change, then the views' morph or the transition and the landing. */
+  private schedule(event: E, from: S): Succession {
     const before = JSON.parse(JSON.stringify(from)) as S;
     const o = this.outcome(before, event);
     if ('beyond' in o) throw new RangeError(`machine.send(): ${String(event)} is beyond the story in ${JSON.stringify(before)}: ${o.beyond}`);
@@ -236,7 +245,7 @@ export class Machine<S extends object, E extends string> {
         // nothing when the transition ended where the model says (rayner check holds it to that).
         ? new Succession([transition, new Landing(this.scene, views)])
         // No authored motion: each view's keyed morph, staged, so what goes is gone before what comes appears.
-        : new AnimationGroup(views.map((v) => v.sync({ match, runTime: this.runTimeOf(event, before, after) }))),
+        : new AnimationGroup(views.map((v) => new ViewSync(v, { match, runTime: this.runTimeOf(event, before, after) }))),
     ]);
   }
 
@@ -257,14 +266,15 @@ export class Machine<S extends object, E extends string> {
     return new WhenItsTurnComes(String(event), () => authored(this.transitionFor(event, before, after)), this.spec.views, this.runTimeOf(event, before, after));
   }
 
-  /** Events in turn, each from where the last left the state (default start: the scene's state now). */
-  replay(events: readonly E[], from: S = this.scene.state): Succession {
+  /** Events in turn, each from where the last left the state (default start: the scene's state now), as one action. */
+  replay(events: readonly E[], from: S = this.scene.state): Action {
     let at = from;
-    return new Succession(events.map((e) => {
-      const step = this.send(e, at);
+    const schedule = new Succession(events.map((e) => {
+      const step = this.schedule(e, at);
       at = this.after(at, e)!;
       return step;
     }));
+    return turnAction(this.scene, 'machine.replay()', schedule.runTime, () => schedule);
   }
 
   /**
