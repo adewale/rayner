@@ -249,7 +249,9 @@ animation throws. A play checks the options it is given against every animation 
 them to any, so a play refused before anything begins leaves its animations as they were. A
 `Succession` takes no lag ratio, since its members run one after another: its options have none,
 and `play()` and the setter refuse one. A `play()` given no animation, with or without options,
-throws: `wait()` holds the picture.
+throws a `RangeError`: `wait()` holds the picture. The animations are often a list mapped from the
+scene's data (`this.play(...leaving.map((m) => new FadeOut(m)))`), whose array type does not carry
+its length, so the check is on the value.
 
 Use one `play(a, b)` for simultaneous operations, `Succession` for sequential
 operations and `AnimationGroup`/`LaggedStart` for grouped schedules. There is one scene

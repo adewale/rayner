@@ -439,6 +439,15 @@ test('a copy of every mobject class an entry point exports draws as the original
   }
 });
 
+test("assigning to a method every mobject has, which Object.assign and a function assignment type-check, is refused and leaves the method working", () => {
+  const card = new Group(new Rectangle({ width: 2 })), label = new Text('x');
+  const refused = (name: string) => (e: unknown) => e instanceof TypeError && e.message.startsWith(`m.${name}: `);
+  assert.throws(() => Object.assign(card, { center: label }), refused('center'));
+  assert.throws(() => { card.box = () => null; }, refused('box'));
+  assert.deepEqual(card.center(), [0, 0]);
+  assert.equal(card.width(), 2);
+});
+
 test("a copy of an author's mobject whose class declares an ES private member is refused, naming the class and the member", async () => {
   class Bars extends Rectangle {
     #count = 3;

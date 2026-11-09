@@ -822,7 +822,8 @@ export class Mobject {
   }
 }
 
-// Guard the method names scenes most often clobber with ad-hoc properties.
+// Guard the method names scenes most often take for a part. The types do not refuse it: Object.assign(m, { center })
+// type-checks whatever `center` holds (its result is an intersection), and `m.center = () => …` assigns a function.
 for (const name of ['box', 'center', 'width', 'height', 'left', 'right', 'top', 'bottom'] as const) {
   const method = Mobject.prototype[name];
   Object.defineProperty(Mobject.prototype, name, {

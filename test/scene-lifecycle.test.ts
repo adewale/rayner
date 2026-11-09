@@ -475,8 +475,8 @@ test('an animation\'s run time and lag ratio are fixed while it plays', async ()
 
 test('a play with nothing to play is refused, not drawn as a silent frame', async () => {
   const scene = new Scene(new NullSink());
-  await assert.rejects(scene.play(), /^Error: this\.play\(\): it was given no animation/);
-  await assert.rejects(scene.play({ runTime: 3 }), /^Error: this\.play\(\): it was given no animation, only options/);
+  await assert.rejects(scene.play(), /^RangeError: this\.play\(\): it was given no animation/);
+  await assert.rejects(scene.play({ runTime: 3 }), /^RangeError: this\.play\(\): it was given no animation, only options/);
   assert.equal(scene.frameCount, 0);
   assert.equal(scene.phase, 'idle');
 });

@@ -868,7 +868,9 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     const isOpts = last && Object.getPrototypeOf(last) === Object.prototype;
     const opts = (isOpts ? list.pop() : {}) as PlayOptions;
     const anims = (list as Playable[]).map(prepareAnimation);
-    if (!anims.length) throw new Error(`this.play(): it was given no animation${isOpts ? ', only options' : ''}; give it one or more, or hold the picture with this.wait()`);
+    // The animations are often a list mapped from the scene's data (`...leaving.map(...)`), whose array
+    // type does not carry its length, so an empty one is a value a type cannot refuse.
+    if (!anims.length) throw new RangeError(`this.play(): it was given no animation${isOpts ? ', only options' : ''}; give it one or more, or hold the picture with this.wait()`);
     // What some animation reads before it can begin (a diagram's layout), a group's members' included: wait for it, once, here.
     const waits = anims.map((a) => a[whenReady]()).filter((r) => r !== null);
     if (waits.length) {
