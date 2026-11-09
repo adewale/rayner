@@ -2,6 +2,7 @@ import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, ke
 import { View } from './view.ts';
 import { cloneJson } from '../src/json.ts';
 import type { Scene, Vec, Box, FadeOptions, Animation, SceneColors } from '../src/index.ts';
+import { setDrawn } from '../src/scene.ts';
 import { center, unionBoxes } from '../src/box.ts';
 import { atHome } from '../src/svg.ts';
 import { FRAME, STAGE_BOX, zoomOf } from '../src/units.ts';
@@ -114,8 +115,8 @@ export function isHeading(m: Mobject): boolean {
  */
 export function withoutHeading<T>(scene: Scene<any, any>, draw: () => T): T {
   const all = scene.mobjects;
-  scene.mobjects = all.filter((m) => !isHeading(m));
-  const back = () => { scene.mobjects = all; };
+  setDrawn(scene, all.filter((m) => !isHeading(m)));
+  const back = () => { setDrawn(scene, all); };
   let drawn: T;
   try { drawn = draw(); } catch (e) { back(); throw e; }
   if (drawn instanceof Promise) return drawn.finally(back) as T;

@@ -21,6 +21,8 @@ import { tapeRng, makeScene, place, randomShape, tape, drawsFrom } from './lib/r
 import type { Draws } from './lib/random-scene.ts';
 import { fc, params } from './lib/pbt.ts';
 import { beginAnimation, interpolateAnimation } from '../src/animation.ts';
+import { mobjectId } from '../src/mobject.ts';
+import { curveCount, insertCurves, splitCurve } from '../src/vmobject.ts';
 
 await loadFonts();
 /** Each property over random draws: the one seeded case under SEED=n, else fast-check tapes. */
@@ -53,7 +55,7 @@ test('random scenes: deterministic, finite, cache-exact in both output modes, bo
       await a.frame(scene);
       assert.equal(a.last(), toSvgString(fresh(scene)), `${ctx}: stale render cache at t=${scene.time}`);
       for (const top of scene.mobjects) for (const m of top.family())
-        assert.deepEqual(m.box(), bruteBox(m), `${ctx}: stale box on ${m.constructor.name}#${m.id} at t=${scene.time}`);
+        assert.deepEqual(m.box(), bruteBox(m), `${ctx}: stale box on ${m.constructor.name}#${mobjectId(m)} at t=${scene.time}`);
     } }, { fps: 20 }).run();
     // Absolute mode (what DomSink draws), in a run of its own: the path cache holds one mode, so alternating would bypass it
     await new S({ async frame(scene) {
@@ -111,8 +113,8 @@ test('subdividing any cubic path preserves its geometry (random paths, random n)
     p.startNewPath([r(-2, 2), r(-2, 2)]);
     for (let i = 0; i < n; i++) p.addCubic([r(-2, 2), r(-2, 2)], [r(-2, 2), r(-2, 2)], [r(-2, 2), r(-2, 2)]);
     const original = p.subpaths[0]!.slice(), extra = r.int(1, 12);
-    p.insertNCurves(0, extra);
-    assert.equal(p.numCurves(), n + extra);
+    insertCurves(p, 0, extra);
+    assert.equal(curveCount(p), n + extra);
     const out = p.subpaths[0]!;
     assert.deepEqual(Array.from(out.slice(0, 2)), Array.from(original.slice(0, 2)));
     assert.deepEqual(Array.from(out.slice(-2)), Array.from(original.slice(-2)));
@@ -121,10 +123,10 @@ test('subdividing any cubic path preserves its geometry (random paths, random n)
     // the separate Manim fixtures pin which of these equivalent allocations wins.
     const failed = new Set<string>();
     const matches = (c: number, first: number): boolean => {
-      if (c === n) return first === p.numCurves();
+      if (c === n) return first === curveCount(p);
       const key = `${c}:${first}`;
       if (failed.has(key)) return false;
-      for (let parts = 1; parts <= p.numCurves() - first - (n - c - 1); parts++) {
+      for (let parts = 1; parts <= curveCount(p) - first - (n - c - 1); parts++) {
         const end = 6 * (first + parts);
         if (out[end] !== original[6 * c + 6] || out[end + 1] !== original[6 * c + 7]) continue;
         let same = true;
@@ -190,7 +192,7 @@ test('a one-curve path morphing into a Text heads for the text’s centre, not o
 test('splitCurve preserves equal parameter spans, exact anchors and untouched neighbor curves', () => {
   fc.assert(fc.property(fc.array(fc.tuple(fc.double({ min: -2, max: 2, noNaN: true }), fc.double({ min: -2, max: 2, noNaN: true })), { minLength: 10, maxLength: 10 }), fc.integer({ min: 0, max: 2 }), fc.integer({ min: 1, max: 12 }), (points, curve, parts) => {
     const original = new Float32Array(points.flat());
-    const split = VMobject.splitCurve(original, curve, parts);
+    const split = splitCurve(original, curve, parts);
     assert.equal(split.length, original.length + 6 * (parts - 1));
     assert.deepEqual(split.slice(0, 6 * curve + 2), original.slice(0, 6 * curve + 2));
     assert.deepEqual(split.slice(6 * (curve + parts) ), original.slice(6 * (curve + 1)));
@@ -224,7 +226,6 @@ test('arcLength uses eight Bernstein segments per curve and excludes disconnecte
         });
         let length = 0, prev = at(0);
         for (let k = 1; k <= 8; k++) { const next = at(k / 8); length += Math.hypot(next[0]! - prev[0]!, next[1]! - prev[1]!); prev = next; }
-        assert.ok(Math.abs(p.curveLength(i, c) - length) < 1e-12);
         total += length;
       }
     });

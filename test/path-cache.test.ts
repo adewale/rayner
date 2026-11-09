@@ -8,6 +8,8 @@ import { Arc, Arrow, Circle, Dot, Group, Line, Polygon, Rectangle, Text, Transfo
 import type { Mobject } from '../src/index.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { beginAnimation, interpolateAnimation, finishAnimation } from '../src/animation.ts';
+import { affine } from '../src/mobject.ts';
+import { insertCurves, pathD, pathData } from '../src/vmobject.ts';
 
 await loadFonts();
 
@@ -16,9 +18,9 @@ const paths = (m: Mobject) => m.family().filter((x): x is VMobject => x instance
 /** Each path whose cached path data, in the mode warmed, is not the path computed afresh from its points. */
 function stale(m: Mobject, relative: boolean): string[] {
   return paths(m).flatMap((p, i) => {
-    const cached = p.pathData(relative);
+    const cached = pathData(p, relative);
     // A copy has no cache of its own (its memo is keyed to its owner), so it computes from the points.
-    const fresh = relative ? p.copy().pathData(true) : { d: p.toPathD(), tx: 0, ty: 0 };
+    const fresh = relative ? pathData(p.copy(), true) : { d: pathD(p), tx: 0, ty: 0 };
     return cached.d === fresh.d && cached.tx === fresh.tx && cached.ty === fresh.ty ? [] : [`path ${i} of ${m.constructor.name}`];
   });
 }
@@ -52,7 +54,7 @@ const WRITES: Record<string, (m: Mobject) => void> = {
   setHeight: (m) => m.setHeight(0.4, true),
   stretch: (m) => m.stretch(2.2, 0),
   applyPointsFunction: (m) => m.applyPointsFunction((p) => [p[0] + 0.1 * p[1], p[1] * 1.3]),
-  applyAffine: (m) => m.applyAffine(1, 0.2, -0.3, 1.1, 0.5, -0.4),
+  applyAffine: (m) => m[affine](1, 0.2, -0.3, 1.1, 0.5, -0.4),
   arrange: (m) => { if (m.children.length) m.arrange([0, 1]); else m.shift([0.5, 0]); },
   'restore after a move': (m) => { m.saveState(); m.shift([1, 1]).rotate(0.3); m.restore(); },
   become: (m) => m.become(m.copy().shift([0.8, -0.6]).scale(1.2)),
@@ -68,7 +70,7 @@ const OWN_WRITES: [string, () => Mobject, (m: Mobject) => void][] = [
   ['setPolygon', SHAPES.polygon!, (m) => (m as Polygon).setPolygon([[0, 0], [2, 0], [2, 2], [0, 2]])],
   ['startNewPath and addLineTo', SHAPES.rectangle!, (m) => (m as VMobject).startNewPath([3, 3]).addLineTo([4, 3])],
   ['addCubic and closePath', SHAPES.line!, (m) => (m as VMobject).addCubic([1.5, 1], [1, 1.5], [0, 1]).closePath()],
-  ['insertNCurves', SHAPES.circle!, (m) => (m as VMobject).insertNCurves(0, 3)],
+  ['insertNCurves', SHAPES.circle!, (m) => insertCurves((m as VMobject), 0, 3)],
   ['Text.setText', SHAPES.text!, (m) => (m as Text).setText('Path data')],
   ['DecimalNumber.setValue', () => new DecimalNumber(3.25), (m) => (m as DecimalNumber).setValue(-41.5)],
 ];

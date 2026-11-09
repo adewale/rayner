@@ -12,7 +12,6 @@ import { perf } from './perf.ts';
 import { center, pointsBox } from './box.ts';
 import type { Box } from './box.ts';
 import { FRAME } from './units.ts';
-import type { MergedCache } from './svg.ts';
 
 /**
  * A mobject's children and parent, read and written through these, set by Mobject: they are its
@@ -27,7 +26,59 @@ let setParent: (m: Mobject, p: Mobject | null) => void;
 let setKey: (m: Mobject, key: string | undefined) => void;
 /** @internal The state saveState() stored, for restore() and Restore, or undefined. Copies do not carry it. */
 export let savedState: (m: Mobject) => Mobject | undefined;
+/**
+ * @internal A mobject's number, for rendering and the reviews that match the renderer's records to
+ * their mobjects. Not part of the published types: an author names a part by its `key`.
+ */
+export let mobjectId: (m: Mobject) => number;
+/** @internal The points' version, bumped by every write to them in place (see touchPoints), which render caches key on. */
+export let pointsVersion: (m: Mobject) => number | undefined;
+/** @internal Clear `m`'s own cached box, not its ancestors': for a frame that clears each member, then the root's chain. */
+export let dropBox: (m: Mobject) => void;
+/** @internal Whether `m` or any descendant has an updater, walked without building the family. */
+export let hasUpdaters: (m: Mobject) => boolean;
+/** @internal A copy of `m` alone, without its children: its own points and style. */
+export let copyAlone: <M extends Mobject>(m: M) => M;
+/**
+ * @internal Hold `parts` as `m`'s children while they belong to another mobject: their parent stays
+ * theirs, and `m` only groups them for measuring and pointing (a code span's glyphs, owned by its line).
+ */
+export let borrowChildren: (m: Mobject, parts: readonly Mobject[]) => void;
+/**
+ * @internal Put `replacements` where the child `old` of `parent` stands, in order, taking each from its
+ * old parent; `old` leaves unless it is among them. Refuses an `old` that is not a child of `parent`,
+ * and what `add` refuses. What Scene.replace does for a part inside a group on stage.
+ */
+export let replaceChild: (parent: Mobject, old: Mobject, ...replacements: Mobject[]) => void;
+/** A composite's hook that names its own children again after a copy or a restore (see rebindReferences). */
+let rebind: (m: Mobject, source: Mobject, copies: ReadonlyMap<Mobject, Mobject>) => void;
 let nextId = 1;
+
+/**
+ * @internal Keys of the engine's own members of a mobject, which a matching transform, alignment and
+ * the renderer call and the engine's mobjects (a Text, a diagram's label) override: `affine`, an
+ * in-place affine map of the family; `matchingFrameFor`, the frame a matching transform blends a
+ * source frame toward; `interpolateData`, the points blended between two states; `alignFamily` and
+ * `alignData`, giving two families and two mobjects' own data the same shape before a morph;
+ * `mergeLeaves`, drawing a group of same-styled leaves as one element; `defaultColors`, the style
+ * fields that still hold an engine default. Symbols, so no member an author writes on a mobject
+ * shares a name with one.
+ */
+export const affine = Symbol('affine');
+/** @internal See affine. */
+export const matchingFrameFor = Symbol('matchingFrameFor');
+/** @internal See affine. */
+export const interpolateData = Symbol('interpolateData');
+/** @internal See affine. */
+export const alignFamily = Symbol('alignFamily');
+/** @internal See affine. */
+export const alignData = Symbol('alignData');
+/** @internal See affine. */
+export const mergeLeaves = Symbol('mergeLeaves');
+/** @internal See affine. */
+export const defaultColors = Symbol('defaultColors');
+/** The scene colours a mobject took when it entered a scene: what a child added later, or a picture it becomes, takes. */
+const sceneColors = Symbol('sceneColors');
 
 const COLOR_KEYS = new Set(['fill', 'stroke']);
 
@@ -108,7 +159,7 @@ export interface AnimateBuilderBase<M extends Mobject = Mobject> {
 }
 
 /** The methods of M that return the mobject itself: the ones `.animate` can chain. */
-export type ChainableKeys<M> = { [K in Exclude<keyof M, 'animate' | 'matchingFrameFor'>]: M[K] extends (...args: never[]) => M ? K : never }[Exclude<keyof M, 'animate' | 'matchingFrameFor'>];
+export type ChainableKeys<M> = { [K in Exclude<keyof M, 'animate' | symbol>]: M[K] extends (...args: never[]) => M ? K : never }[Exclude<keyof M, 'animate' | symbol>];
 
 /**
  * `mob.animate`: the mobject's chainable methods, recorded instead of run, each
@@ -127,6 +178,14 @@ export class Mobject {
   #key: string | undefined = undefined;
   /** The state saveState() stored (see savedState). */
   #saved: Mobject | undefined = undefined;
+  /** Its number (see mobjectId). */
+  readonly #id: number = nextId++;
+  /** Called every frame with the mobject and the frame's dt. */
+  #updaters: Updater[] = [];
+  /** The cached box; invalidateBox() clears it up the parent chain. */
+  #bbox: Box | null = null;
+  /** The points' version (see pointsVersion). */
+  #pv: number | undefined = undefined;
   static {
     kids = (m) => m.#children;
     setKids = (m, children) => { m.#children = children; };
@@ -134,12 +193,25 @@ export class Mobject {
     setParent = (m, p) => { m.#parent = p; };
     setKey = (m, key) => { m.#key = key; };
     savedState = (m) => m.#saved;
+    mobjectId = (m) => m.#id;
+    pointsVersion = (m) => m.#pv;
+    dropBox = (m) => { m.#bbox = null; };
+    hasUpdaters = (m) => m.#hasUpdaters();
+    copyAlone = (m) => {
+      const own = m.#children;
+      m.#children = [];
+      try { return m.copy(); } finally { m.#children = own; }
+    };
+    borrowChildren = (m, parts) => { m.#children = [...parts]; m.invalidateBox(); };
+    replaceChild = (parent, old, ...replacements) => {
+      if (old.#parent !== parent) throw new Error(`this.replace(): ${mobjectName(old)} is not a child of ${mobjectName(parent)}; replace one of its children`);
+      parent.#refuseCycle('this.replace()', replacements);
+      const at = parent.#children.filter((c) => c === old || !replacements.includes(c)).indexOf(old);
+      if (!replacements.includes(old)) parent.remove(old);
+      parent.#put('this.replace()', at, replacements);
+    };
+    rebind = (m, source, copies) => m.rebindReferences(source, copies);
   }
-  /**
-   * @internal The object's number, for rendering and error messages. Not part of the published
-   * types: an author names a part by its `key`.
-   */
-  id: number;
   /**
    * What the part is for, to whatever drew it, apart from which part it is: the stage's backdrop
    * (`'backdrop'`), its heading (`'heading'`) and the number, line and band around it (`'chrome'`), a
@@ -148,17 +220,10 @@ export class Mobject {
    */
   role: string | undefined;
   style: StyleRecord;
-  /** @internal */ updaters: Updater[];
-  /** @internal The cached bounding box; invalidateBox() clears it up the parent chain. */
-  _bbox: Box | null;
-  // Assigned lazily (first touchPoints, first merged render, Text): `declare` keeps
-  // them off instances until then, exactly as the untyped code did.
-  /** @internal Points version: bumped by touchPoints(), keyed on by render caches. */
-  declare _pv?: number;
-  /** @internal Merged-record cache for mergeLeaves groups, owned by svg.ts. */
-  declare _mrec?: MergedCache;
+  // Assigned lazily (Text, a diagram's label, the first scene it enters): `declare` keeps them off
+  // instances until then.
   /** @internal Render a group of same-styled leaves as one element (Text sets this). */
-  declare mergeLeaves?: boolean;
+  declare [mergeLeaves]?: boolean;
   /** Fixed world-coordinate paint viewport, inherited by descendants; does not change geometry. */
   declare clipBox?: Box;
   /**
@@ -169,22 +234,19 @@ export class Mobject {
    * takes the scene's colour for its role (`scene.colors`), and the mark is dropped. Setting a
    * field drops its mark at once.
    */
-  declare defaultColors?: Partial<Record<'fill' | 'stroke', ColorRole>>;
-  /** @internal The scene colours this mobject took when it entered a scene: what a child added later, or a picture it becomes, takes. */
-  declare _colors?: Readonly<SceneColors>;
+  declare [defaultColors]?: Partial<Record<'fill' | 'stroke', ColorRole>>;
+  /** @internal The scene colours this mobject took when it entered a scene. */
+  declare [sceneColors]?: Readonly<SceneColors>;
 
   constructor(style: Style = {}) {
-    this.id = nextId++;
     this.role = undefined;
     this.style = { ...DEFAULT_STYLE, ...style };
-    this.updaters = [];
-    this._bbox = null;
   }
 
   /**
-   * The children, in drawing order (last on top). Read-only: change them with `add`, `insert`,
-   * `remove` and `replaceChild`, which keep each child's `parent` and the cached box in step and
-   * refuse a cycle. The list is private to the mobject, so no other write to the mobject changes it.
+   * The children, in drawing order (last on top). Read-only: change them with `add`, `insert` and
+   * `remove`, which keep each child's `parent` and the cached box in step and refuse a cycle. The
+   * list is private to the mobject, so no other write to the mobject changes it.
    */
   get children(): readonly Mobject[] { return this.#children; }
   /** The mobject this one is a child of, or null. Read-only: set by adding this one to another. */
@@ -198,16 +260,20 @@ export class Mobject {
 
   // ---- data --------------------------------------------------------------
 
-  /** The Float32Arrays (stride 2) a transform maps over. Subclasses override. @internal */
+  /**
+   * The mobject's own points: Float32Arrays of x, y pairs, which every transform and morph maps
+   * over and `copy()` must copy (see copyData). None for a container; a path's subpaths. A custom
+   * mobject with points of its own that is not a path overrides it, with `pointKind()`.
+   */
   pointArrays(): Float32Array[] { return []; }
-  /** Geometry contributing to layout bounds. Transform-only metadata can opt
-   * out here while still following affine maps and animation in pointArrays().
-   * @internal
+  /**
+   * The points that count toward its box: all of `pointArrays()` unless some are not geometry
+   * (a Text's advance box is not ink), which then follow maps and morphs without moving the box.
    */
   boundingPointArrays(): Float32Array[] { return this.pointArrays(); }
   /** @internal Frame-only adapter for matching transforms. A target with different
    * metric units can supply a compatible frame without changing drawn parts. */
-  matchingFrameFor(_source: Mobject): Mobject { return this; }
+  [matchingFrameFor](_source: Mobject): Mobject { return this; }
   /**
    * What this mobject's point arrays are: 'path' (curves) or 'box' (a Text's
    * advance box). Arrays only blend with arrays of the same kind; equal
@@ -250,7 +316,7 @@ export class Mobject {
    * a child here moves last). Refuses this mobject itself and any of its ancestors, which would make
    * the family a cycle.
    */
-  add(...mobs: Mobject[]): this { return this.put('m.add()', null, mobs); }
+  add(...mobs: Mobject[]): this { return this.#put('m.add()', null, mobs); }
 
   /**
    * Make each of `mobs` a child of this one, in order, so the first stands at `index` among the
@@ -258,11 +324,11 @@ export class Mobject {
    * old parent. Refuses what `add` refuses, and an index that is not a whole number from 0 to the
    * number of children.
    */
-  insert(index: number, ...mobs: Mobject[]): this { return this.put('m.insert()', index, mobs); }
+  insert(index: number, ...mobs: Mobject[]): this { return this.#put('m.insert()', index, mobs); }
 
   /** Take `mobs` as children at `index` among the children that stay (the end when null), as add and insert do. */
-  private put(api: string, index: number | null, mobs: readonly Mobject[]): this {
-    this.refuseCycle(api, mobs);
+  #put(api: string, index: number | null, mobs: readonly Mobject[]): this {
+    this.#refuseCycle(api, mobs);
     const moving = new Set(mobs);
     const staying = kids(this).filter((c) => !moving.has(c));
     index ??= staying.length;
@@ -272,7 +338,7 @@ export class Mobject {
     setKids(this, [...staying.slice(0, index), ...moving, ...staying.slice(index)]);
     for (const m of moving) {
       setParent(m, this);
-      if (this._colors) paintDefaults(m, this._colors);
+      if (this[sceneColors]) paintDefaults(m, this[sceneColors]);
     }
     this.invalidateBox();
     return this;
@@ -288,21 +354,8 @@ export class Mobject {
     return this;
   }
 
-  /**
-   * Put `replacements` where the child `old` stands, in order, taking each from its old parent; `old`
-   * leaves unless it is among them. Refuses an `old` that is not a child of this one, and what `add`
-   * refuses.
-   */
-  replaceChild(old: Mobject, ...replacements: Mobject[]): this {
-    if (parentIn(old) !== this) throw new Error(`m.replaceChild(): ${mobjectName(old)} is not a child of ${mobjectName(this)}; replace one of its children`);
-    this.refuseCycle('m.replaceChild()', replacements);
-    const at = kids(this).filter((c) => c === old || !replacements.includes(c)).indexOf(old);
-    if (!replacements.includes(old)) this.remove(old);
-    return this.put('m.replaceChild()', at, replacements);
-  }
-
   /** Refuse to take this mobject or one of its ancestors as a child: the family would be a cycle. */
-  private refuseCycle(api: string, mobs: readonly Mobject[]): void {
+  #refuseCycle(api: string, mobs: readonly Mobject[]): void {
     for (const m of mobs) {
       for (let p: Mobject | null = this; p; p = parentIn(p))
         if (p === m) throw new Error(`${api}: ${mobjectName(m)} ${m === this ? 'is the mobject it is added to' : 'contains the mobject it is added to'}, so the family would be a cycle; add it to a mobject outside it`);
@@ -310,31 +363,23 @@ export class Mobject {
   }
 
   /**
-   * @internal Hold `parts` as children that belong to another mobject: their parent stays theirs, and
-   * this one only groups them for measuring and pointing (a code span's glyphs, owned by its line).
+   * A copy of the mobject and its family, made without running a subclass's constructor (which may
+   * take any arguments): Mobject's constructor gives it its own number and private fields, then it
+   * takes this one's own fields. An array, map, set or typed array a field holds is copied, so the
+   * copy never shares one with the original (what they hold is shared); `copyData` copies anything
+   * else mutable, and `rebindReferences` names the copy's own children. A subclass keeps its state in
+   * such fields, never in ES private (`#`) fields, which no constructor of the copy installs.
    */
-  protected borrow(parts: readonly Mobject[]): void { setKids(this, [...parts]); this.invalidateBox(); }
-
-  /** @internal A copy of this mobject alone, without its children: its own points and style. */
-  copyAlone(): this {
-    const own = kids(this);
-    setKids(this, []);
-    try { return this.copy(); } finally { setKids(this, own); }
-  }
-
   copy(): this {
     perf.count('copy()');
-    // Made by Mobject's constructor alone, which gives it its own id and its private family fields
-    // (no parent, no children yet), then given this one's other fields: no subclass constructor runs.
-    const c = Reflect.construct(Mobject, [], this.constructor) as this, id = c.id;
+    const c = Reflect.construct(Mobject, [], this.constructor) as this;
     Object.assign(c, this);
-    c.id = id;
+    const fields = c as unknown as Record<string, unknown>;
+    for (const k of Object.keys(fields)) fields[k] = ownContainer(fields[k]);
     c.#key = this.#key;
     c.style = { ...this.style };
-    if (this.defaultColors) c.defaultColors = { ...this.defaultColors };
+    if (this[defaultColors]) c[defaultColors] = { ...this[defaultColors] };
     if (this.clipBox) c.clipBox = [...this.clipBox];
-    c.updaters = [];
-    c._bbox = null;
     c.copyData(this);
     setKids(c, kids(this).map((ch) => { const cc = ch.copy(); setParent(cc, c); return cc; }));
     if (this.rebindReferences !== Mobject.prototype.rebindReferences) {
@@ -361,7 +406,7 @@ export class Mobject {
    */
   invalidateBox(): void {
     let m: Mobject | null = this;
-    while (m) { m._bbox = null; m = m.parent; }
+    while (m) { m.#bbox = null; m = m.parent; }
   }
 
   /**
@@ -371,9 +416,9 @@ export class Mobject {
    */
   box(): Box | null {
     perf.count('box()');
-    if (this._bbox) return this._bbox;
+    if (this.#bbox) return this.#bbox;
     perf.count('box() miss');
-    return (this._bbox = pointsBox(this.family().flatMap((m) => m.boundingPointArrays())));
+    return (this.#bbox = pointsBox(this.family().flatMap((m) => m.boundingPointArrays())));
   }
 
   /** Point on the box in `direction`: ORIGIN = center, UR = upper right. */
@@ -410,28 +455,25 @@ export class Mobject {
       m.touchPoints();
     }
     this.invalidateBox();
-    for (const m of this.family()) m._bbox = null;
+    for (const m of this.family()) m.#bbox = null;
     return this;
   }
 
-  /** Hook for subclasses whose derived data depends on points (e.g. Text font size). */
-  protected afterPointsChanged(): void {}
-
   /**
-   * @internal Every in-place write to point arrays must end here. It bumps the points
-   * version that render caches key on (array replacement is caught by array
-   * identity instead).
+   * End an in-place write to its point arrays: it bumps the points' version, which render caches key
+   * on (an array replaced is caught by its identity instead). The engine's own methods call it; code
+   * that writes `pointArrays()` in place (a custom animation's frame) calls it after.
    */
   touchPoints(): void {
-    this._pv = (this._pv ?? 0) + 1;
-    this.afterPointsChanged();
+    this.#pv = (this.#pv ?? 0) + 1;
   }
 
   /**
-   * In-place affine map p -> [a c; b d](p - about) + about + [e f], with no
-   * allocation per point (applyPointsFunction allocates two arrays per point).
+   * @internal In-place affine map p -> [a c; b d](p - about) + about + [e f], with no allocation per
+   * point (applyPointsFunction allocates two arrays per point): what shift, scale, rotate and
+   * stretch do, and what diagram capture's SVG transforms do.
    */
-  applyAffine(a: number, b: number, c: number, d: number, e: number, f: number, { aboutPoint = null, aboutEdge = [0, 0] }: AboutOptions = {}): this {
+  [affine](a: number, b: number, c: number, d: number, e: number, f: number, { aboutPoint = null, aboutEdge = [0, 0] }: AboutOptions = {}): this {
     perf.count('applyAffine()');
     const translation = a === 1 && b === 0 && c === 0 && d === 1;
     const about: Readonly<Vec> = translation ? [0, 0] : (aboutPoint ?? this.boxPoint(aboutEdge));
@@ -453,24 +495,24 @@ export class Mobject {
     }
     // Ancestors' boxes depend on siblings too: drop them
     let p = this.parent;
-    while (p) { p._bbox = null; p = p.parent; }
+    while (p) { p.#bbox = null; p = p.parent; }
     // Boxes are recomputed rather than shifted: points are float32, so a shifted
     // float64 box would drift from a recomputed one in the last bits.
-    for (const m of family) m._bbox = null;
+    for (const m of family) m.#bbox = null;
     return this;
   }
 
   shift(v: Readonly<Vec>): this {
-    return this.applyAffine(1, 0, 0, 1, v[0], v[1]);
+    return this[affine](1, 0, 0, 1, v[0], v[1]);
   }
 
   scale(k: number, opts: AboutOptions = {}): this {
-    return this.applyAffine(k, 0, 0, k, 0, 0, opts);
+    return this[affine](k, 0, 0, k, 0, 0, opts);
   }
 
   rotate(angle: number, opts: AboutOptions = {}): this {
     const c = Math.cos(angle), s = Math.sin(angle);
-    return this.applyAffine(c, s, -s, c, 0, 0, opts);
+    return this[affine](c, s, -s, c, 0, 0, opts);
   }
 
   moveTo(target: Readonly<Vec> | Mobject, alignedEdge: Readonly<Vec> = [0, 0]): this {
@@ -518,17 +560,6 @@ export class Mobject {
     return this.moveTo(c);
   }
 
-  /**
-   * Lay the children out in a grid, row-major, `cols` per row. Cells are as wide
-   * as the widest child and as tall as the tallest; children sit centered in them.
-   */
-  arrangeInGrid(cols: number, { buff = 0.25, buffX = buff, buffY = buff }: { buff?: number; buffX?: number; buffY?: number } = {}): this {
-    const c = this.center(), kids = this.children;
-    const cw = Math.max(...kids.map((k) => k.width())), ch = Math.max(...kids.map((k) => k.height()));
-    kids.forEach((k, i) => k.moveTo([(i % cols) * (cw + buffX), -Math.floor(i / cols) * (ch + buffY)]));
-    return this.moveTo(c);
-  }
-
   setWidth(w: number, stretch = false): this {
     const cur = this.width() || 1;
     return stretch ? this.stretch(w / cur, 0) : this.scale(w / cur);
@@ -540,7 +571,7 @@ export class Mobject {
   }
 
   stretch(k: number, axis: 0 | 1, opts: AboutOptions = {}): this {
-    return axis === 0 ? this.applyAffine(k, 0, 0, 1, 0, 0, opts) : this.applyAffine(1, 0, 0, k, 0, 0, opts);
+    return axis === 0 ? this[affine](k, 0, 0, 1, 0, 0, opts) : this[affine](1, 0, 0, k, 0, 0, opts);
   }
 
   // ---- style -------------------------------------------------------------
@@ -549,7 +580,8 @@ export class Mobject {
     const targets = recurse ? this.family() : [this];
     for (const m of targets) {
       Object.assign(m.style, style);
-      if (m.defaultColors) for (const k of COLOR_KEYS) if (k in style) delete m.defaultColors[k as 'fill' | 'stroke'];
+      const marks = m[defaultColors];
+      if (marks) for (const k of COLOR_KEYS) if (k in style) delete marks[k as 'fill' | 'stroke'];
     }
     return this;
   }
@@ -573,7 +605,7 @@ export class Mobject {
    * may have paired with another class (a Rectangle morphing into a Text).
    */
   interpolate(a: Mobject, b: Mobject, alpha: number): this {
-    this.interpolateData(a, b, alpha);
+    this[interpolateData](a, b, alpha);
     // Field by field over whatever the style holds: numbers lerp, colors blend
     const mine = this.style as Record<string, string | number | undefined>;
     const sa = a.style as Record<string, string | number | undefined>, sb = b.style as Record<string, string | number | undefined>;
@@ -588,7 +620,7 @@ export class Mobject {
       const value = va === vb ? va : alpha <= 0 ? va : alpha >= 1 ? vb : COLOR_KEYS.has(k) ? blendPaint(va as string, vb as string, alpha) : typeof va === 'number' && typeof vb === 'number' ? va + (vb - va) * alpha : alpha < 0.5 ? va : vb;
       if (value === undefined) delete mine[k]; else mine[k] = value;
     }
-    this._bbox = null;
+    this.#bbox = null;
     return this;
   }
 
@@ -599,7 +631,7 @@ export class Mobject {
    * as in manim: the shape shrinks away while b's children grow out of the
    * null copies alignment gave this side.
    */
-  interpolateData(a: Mobject, b: Mobject, alpha: number): void {
+  [interpolateData](a: Mobject, b: Mobject, alpha: number): void {
     const mine = this.pointArrays(), pa = a.pointArrays(), pb = b.pointArrays();
     let center: Vec | null = null;
     for (let i = 0; i < mine.length; i++) {
@@ -624,27 +656,27 @@ export class Mobject {
   }
 
   /** @internal Give this family and `other`'s the same shape, child for child, before a transform interpolates them. */
-  alignFamily(other: Mobject): void {
+  [alignFamily](other: Mobject): void {
     // A container opposite a path that draws: the path moves into a first child of its own,
     // so the container's children morph into it (manim's null_point_align). Left where it
     // was, it would sit opposite something that draws nothing and end up not drawn at all.
-    if (this.pointKind() !== 'path' && other.pointKind() === 'path' && other.hasPoints()) other.pushIntoChildren();
+    if (this.pointKind() !== 'path' && other.pointKind() === 'path' && other.hasPoints()) other.#pushIntoChildren();
     const n = Math.max(kids(this).length, kids(other).length);
     for (const [m, o] of [[this, other], [other, this]] as const) {
       while (kids(m).length < n) {
         // A null child: a point-collapsed copy of the counterpart, so it
         // grows out of / shrinks into something sensible.
         const src = kids(o)[kids(m).length] ?? m;
-        const nul = src.nullCopy(m.center());
+        const nul = src.#nullCopy(m.center());
         setKids(m, [...kids(m), nul]); setParent(nul, m);
       }
     }
-    for (let i = 0; i < n; i++) kids(this)[i]!.alignFamily(kids(other)[i]!);
+    for (let i = 0; i < n; i++) kids(this)[i]![alignFamily](kids(other)[i]!);
   }
 
   /** Move this path's own curves into a new first child, leaving it a container (manim's push_self_into_submobjects). */
-  protected pushIntoChildren(): void {
-    const self = this.copyAlone();
+  #pushIntoChildren(): void {
+    const self = copyAlone(this);
     // Only paths are pushed (see alignFamily), and a path's points are its subpaths
     const path = this as unknown as { subpaths: Float32Array[]; closed: boolean[] };
     path.subpaths = []; path.closed = [];
@@ -655,10 +687,10 @@ export class Mobject {
   }
 
   /** @internal Align own point data with `other`. Subclasses override. */
-  alignData(_other: Mobject): void {}
+  [alignData](_other: Mobject): void {}
 
   /** A copy with all points collapsed onto `point`, and invisible. */
-  protected nullCopy(point: Readonly<Vec>): this {
+  #nullCopy(point: Readonly<Vec>): this {
     const c = this.copy();
     for (const m of c.family()) {
       for (const a of m.pointArrays()) for (let i = 0; i < a.length; i += 2) { a[i] = point[0]; a[i + 1] = point[1]; }
@@ -713,7 +745,7 @@ export class Mobject {
     const fresh = other.copy();
     adoptState(this, fresh, KEEP_ON_BECOME);
     takeChildren(this, fresh);
-    if (this._colors) paintDefaults(this, this._colors);
+    if (this[sceneColors]) paintDefaults(this, this[sceneColors]);
     this.invalidateBox();
     return this;
   }
@@ -741,20 +773,20 @@ export class Mobject {
 
   addUpdater(fn: Updater<this>): this {
     // Stored with the mobject it runs on, so update() always passes `this`
-    this.updaters.push(fn as Updater);
+    this.#updaters.push(fn as Updater);
     return this;
   }
-  clearUpdaters(): this { this.updaters = []; return this; }
-  /** @internal Whether this mobject or any descendant has an updater, walked without building the family. */
-  hasUpdaters(): boolean {
-    if (this.updaters.length) return true;
-    for (const c of this.children) if (c.hasUpdaters()) return true;
+  clearUpdaters(): this { this.#updaters = []; return this; }
+  /** Whether this mobject or any descendant has an updater, walked without building the family. */
+  #hasUpdaters(): boolean {
+    if (this.#updaters.length) return true;
+    for (const c of this.#children) if (c.#hasUpdaters()) return true;
     return false;
   }
   update(dt: number): this {
     // Most of the stage has no updater: then nothing to run, and no family to build each frame.
-    if (!this.hasUpdaters()) return this;
-    for (const m of this.family()) for (const u of m.updaters) u(m, dt);
+    if (!this.#hasUpdaters()) return this;
+    for (const m of this.family()) for (const u of m.#updaters) u(m, dt);
     return this;
   }
 
@@ -796,11 +828,12 @@ for (const name of ['box', 'center', 'width', 'height', 'left', 'right', 'top', 
   });
 }
 
-// Fields a mobject keeps through restore(): who it is and where it sits. Caches
-// (underscore fields) stay too; touchPoints() and new arrays invalidate them.
-const KEEP_ON_RESTORE = new Set(['id', 'updaters']);
+// What a mobject keeps through restore() beyond its private fields (its number, updaters, saved
+// state, family and box, which are never copied over): nothing. Caches (underscore fields) stay
+// too; touchPoints() and new arrays invalidate them.
+const KEEP_ON_RESTORE = new Set<string>();
 // become() also keeps each member's key, the address matching, find() and invariants use, and its role.
-const KEEP_ON_BECOME = new Set([...KEEP_ON_RESTORE, 'key', 'role']);
+const KEEP_ON_BECOME = new Set(['key', 'role']);
 
 /** Give `m` the children of `from`, a copy made for it, in place of its own, which leave it. */
 function takeChildren(m: Mobject, from: Mobject): void {
@@ -808,6 +841,15 @@ function takeChildren(m: Mobject, from: Mobject): void {
   setKids(m, kids(from));
   setKids(from, []);
   for (const c of kids(m)) setParent(c, m);
+}
+
+/** `v`, or its own copy when it is an array, a map, a set or a typed array (see Mobject.copy). */
+function ownContainer(v: unknown): unknown {
+  if (Array.isArray(v)) return v.slice();
+  if (v instanceof Map) return new Map(v);
+  if (v instanceof Set) return new Set(v);
+  if (ArrayBuffer.isView(v) && !(v instanceof DataView)) return (v as Float32Array).slice();
+  return v;
 }
 
 /** An object's own enumerable fields, symbols included: what Object.assign (and so copy()) carries. */
@@ -831,22 +873,22 @@ export function adoptState(m: Mobject, state: Mobject, keep: ReadonlySet<string>
   };
   for (const [to, from] of pairs) {
     const t = to as unknown as Record<string, unknown>, f = from as unknown as Record<string, unknown>;
-    const adopt = (k: string | symbol) => typeof k === 'symbol' || (!keep.has(k) && k[0] !== '_');
-    // Symbol-keyed fields (what a drawn part says it emphasises or shows) are data like any other.
+    // Symbol-keyed fields (what a drawn part says it emphasises or shows) are data like any other, but
+    // the scene colours it took, which it keeps, as it keeps its caches.
+    const adopt = (k: string | symbol) => typeof k === 'symbol' ? k !== sceneColors : !keep.has(k) && k[0] !== '_';
     for (const k of ownFields(t)) if (!(k in f) && adopt(k)) delete t[k as string];
     for (const k of ownFields(f)) if (adopt(k)) t[k as string] = place(f[k as string]);
     if (!keep.has('key')) setKey(to, from.key);
-    to._bbox = null;
+    dropBox(to);
     to.touchPoints();
   }
   if (!same) {
     // Changed shape: take the saved children wholesale (fresh copies, so the saved state stays intact)
     takeChildren(m, fresh);
   }
-  // A protected hook, reached from this helper of restore() and become() by element access.
-  for (const [to, from] of pairs) to['rebindReferences'](from, own);
+  for (const [to, from] of pairs) rebind(to, from, own);
   // What it took keeps the colours this mobject took from its scene.
-  if (m._colors) paintDefaults(m, m._colors);
+  if (m[sceneColors]) paintDefaults(m, m[sceneColors]);
   m.invalidateBox();
 }
 
@@ -867,7 +909,7 @@ export function keyed<T extends Mobject>(m: T, key: string): T {
 export function followScene(m: Mobject, roles: Partial<Record<'fill' | 'stroke', ColorRole>>): void {
   for (const x of m.family())
     for (const [field, role] of Object.entries(roles) as Array<['fill' | 'stroke', ColorRole]>)
-      if (x.style[field] === NEUTRAL_COLORS[role]) (x.defaultColors ??= {})[field] = role;
+      if (x.style[field] === NEUTRAL_COLORS[role]) (x[defaultColors] ??= {})[field] = role;
 }
 
 /**
@@ -877,12 +919,12 @@ export function followScene(m: Mobject, roles: Partial<Record<'fill' | 'stroke',
  */
 export function paintDefaults(m: Mobject, colors: Readonly<SceneColors>): void {
   for (const x of m.family()) {
-    x._colors = colors;
-    const marks = x.defaultColors;
+    x[sceneColors] = colors;
+    const marks = x[defaultColors];
     if (!marks) continue;
     for (const [field, role] of Object.entries(marks) as Array<['fill' | 'stroke', ColorRole]>)
       if (x.style[field] === NEUTRAL_COLORS[role]) x.style[field] = colors[role];
-    delete x.defaultColors;
+    delete x[defaultColors];
   }
 }
 

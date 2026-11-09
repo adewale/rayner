@@ -10,7 +10,7 @@ import { Succession, bindSuccessions, takeCopies, recordEvidence, assertTime, la
 import { beginAnimation, interpolateAnimation, finishAnimation, whenReady, settle, cleanUp, paintTargets } from './animation.ts';
 import { membersOf, runningOf, runTimeOf, rateFuncOf, phaseOf, playOptions } from './animation.ts';
 import type { ScheduledAnimation, Playable, PlayOptions } from './animation.ts';
-import { paintDefaults, mobjectName } from './mobject.ts';
+import { paintDefaults, mobjectName, hasUpdaters, replaceChild } from './mobject.ts';
 import type { Mobject } from './mobject.ts';
 import { NEUTRAL_COLORS } from './color.ts';
 import type { SceneColors } from './color.ts';
@@ -258,6 +258,12 @@ function deepFreeze<T extends object>(value: T): T {
   return Object.freeze(value);
 }
 
+/**
+ * @internal Replace the drawn list of `scene` with `mobjects`, as they are: for a picture drawn without
+ * some of what is on stage (the stage's heading), put back once it is drawn.
+ */
+export let setDrawn: (scene: Scene<any, any>, mobjects: readonly Mobject[]) => void;
+
 declare const sceneTypes: unique symbol;
 /**
  * A state type as a scene holds it: `S`'s own properties (an interface's too, which can then go
@@ -289,9 +295,18 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     }
     return own;
   }
-  mobjects: Mobject[];
-  time: number;
-  frameCount: number;
+  /** The mobjects on stage, in drawing order: changed by add, remove, replace and the plays that add and remove. */
+  get mobjects(): readonly Mobject[] { return this.#mobjects; }
+  #mobjects: Mobject[] = [];
+  /** Seconds since the run began: the frame count over fps. */
+  get time(): number { return this.#time; }
+  #time = 0;
+  /** Frames since the run began: what a step's frame0, frame1 and holdFrame record, and what renderFrame seeks. */
+  get frameCount(): number { return this.#frameCount; }
+  #frameCount = 0;
+  static {
+    setDrawn = (scene, mobjects) => { scene.#mobjects = [...mobjects]; };
+  }
   readonly steps: Step[];
   private current: Step | null;
   /** The model: what the explanation is about (a bucket's tokens, a statechart's configuration). JSON. */
@@ -363,9 +378,6 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     if (!(fps > 0 && fps <= 240)) throw new RangeError(`new Scene(): fps is ${String(fps)}; give a number above 0 and at most 240`);
     this.sink = sink;
     this.fps = fps;
-    this.mobjects = [];
-    this.time = 0;
-    this.frameCount = 0;
     // Named steps: the addressable unit for deep links, traces and tests
     this.steps = [];
     this.current = null;
@@ -611,9 +623,9 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
 
   /** @internal Whether any mobject on stage, or the camera, has an updater: then a seek cannot skip frames. */
   hasUpdaters(): boolean {
-    for (const top of this.mobjects) if (top.hasUpdaters()) return true;
+    for (const top of this.mobjects) if (hasUpdaters(top)) return true;
     // Camera: an updater on the frame (follow a dot) integrates over frames too
-    return this.frame.updaters.length > 0;
+    return hasUpdaters(this.frame);
   }
 
   /** The step running now, or null. */
@@ -693,7 +705,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   add(...mobs: Mobject[]): this {
     for (const m of mobs) paintDefaults(m, this.colors);
     // Re-adding a root moves it last; a child of a visible parent is a no-op.
-    this.mobjects = admitRoots(this.mobjects, mobs);
+    this.#mobjects = admitRoots(this.mobjects, mobs);
     this.#raiseTop();
     return this;
   }
@@ -704,8 +716,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    * holds it (its topmost ancestor on stage) stands at the end of `mobjects`: after each add and
    * replace, before every frame and step boundary the sink is handed,
    * and before a frame drawn outside the loop (drawFrame: renderFrame, the live run), so a
-   * group added later that wraps it, or a direct write to `mobjects`, is raised again before anything
-   * is drawn. A sink handed the scene by other code reads the list as it stands. Keeping does not
+   * group added later that wraps it is raised again before anything is drawn. A sink handed the scene by other code reads the list as it stands. Keeping does not
    * add it. Returns a function that stops keeping them.
    * The stage keeps its heading, band, step number and line on top this way.
    */
@@ -727,7 +738,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     }
     if (!top.length || top.every((m, i) => this.mobjects[this.mobjects.length - top.length + i] === m)) return;
     const kept = new Set(top);
-    this.mobjects = [...this.mobjects.filter((m) => !kept.has(m)), ...top];
+    this.#mobjects = [...this.mobjects.filter((m) => !kept.has(m)), ...top];
   }
 
   /**
@@ -738,7 +749,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    */
   remove(...mobs: Mobject[]): this {
     const gone = new Set(mobs.flatMap((m) => m.family()));
-    this.mobjects = this.mobjects.filter((m) => !gone.has(m));
+    this.#mobjects = this.mobjects.filter((m) => !gone.has(m));
     // Also detach from any group on screen
     for (const m of mobs) if (m.parent) m.parent.remove(m);
     return this;
@@ -752,21 +763,21 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     if (parent && replacements.some((m) => m.family().includes(parent)))
       throw new Error('this.replace(): a replacement cannot be an ancestor of the parent it goes into');
     const covered = new Set(replacements.flatMap((m) => m.family()));
-    this.mobjects = this.mobjects.filter((m) => m === old || !covered.has(m));
+    this.#mobjects = this.mobjects.filter((m) => m === old || !covered.has(m));
     if (parent && !this.mobjects.includes(old)) {
-      parent.replaceChild(old, ...replacements);
+      replaceChild(parent, old, ...replacements);
       return this;
     }
     const i = this.mobjects.indexOf(old);
     if (i < 0) { this.add(...replacements); return this; }
     for (const m of replacements) m.parent?.remove(m);
-    this.mobjects.splice(i, 1, ...replacements);
+    this.#mobjects.splice(i, 1, ...replacements);
     this.#raiseTop();
     return this;
   }
 
   /** @internal Empty the drawn list at once, unanimated: for tools and tests (a stage's `s.clear()` fades everything out). */
-  removeAll(): this { this.mobjects = []; return this; }
+  removeAll(): this { this.#mobjects = []; return this; }
 
   // ---- frame loop --------------------------------------------------------
 
@@ -776,8 +787,8 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    */
   private tick(): void {
     this.throwIfStopped();
-    this.frameCount++;
-    this.time = this.frameCount / this.fps;
+    this.#frameCount++;
+    this.#time = this.#frameCount / this.fps;
   }
 
   /**

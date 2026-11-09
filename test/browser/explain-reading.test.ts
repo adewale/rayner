@@ -13,6 +13,7 @@ import type { DiagramSnapshot } from '../../explain/index.ts';
 import importedSnapshot from '../../scenes/explainers/font-metrics/scene.snapshots/4ee0d75a90dc9b78.json' with { type: 'json' };
 import { outlineText } from '../../explain/diagram-text.ts';
 import { beginAnimation, interpolateAnimation, finishAnimation } from '../../src/animation.ts';
+import { affine, mergeLeaves } from '../../src/mobject.ts';
 await loadFonts();
 
 function importedLabel(snapshot = importedSnapshot as DiagramSnapshot) {
@@ -37,7 +38,7 @@ test('native and imported font metrics preserve rotation and uniform scale, and 
     for (const { matrix, scale } of cases) {
       const label = make(), original = readingLabelSize(label)!;
       const [a, b, c, d] = matrix as [number, number, number, number];
-      label.applyAffine(a, b, c, d, 0, 0, { aboutPoint: [0, 0] });
+      label[affine](a, b, c, d, 0, 0, { aboutPoint: [0, 0] });
       assert.ok(Math.abs(readingLabelSize(label)! - original * scale) < 2e-6, JSON.stringify(matrix));
       assert.ok(Math.abs(labelPx(label, {})! - original * scale * 80) < 2e-4,
         'the production legibility checker uses the same transformed font floor');
@@ -64,10 +65,10 @@ test('imported source matrices and forced widths determine font size without alt
     // forced quarter width changes them to 0.5 and 0.5.
     assert.ok(Math.abs(readingLabelSize(label)! - 0.13 * 0.5 * fit) < 2e-6);
     const control = new Group(...label.children.map((m) => m.copy()));
-    control.mergeLeaves = label.mergeLeaves;
+    control[mergeLeaves] = label[mergeLeaves];
     assert.deepEqual(label.box(), control.box(), 'the actual imported label starts with its original ink bounds');
     assert.equal(svg(label as Group), svg(control), 'the added font basis emits no SVG');
-    for (const m of [label, control]) m.rotate(Math.PI / 3).applyAffine(1, 0.4, 2, 1, -3, 2);
+    for (const m of [label, control]) m.rotate(Math.PI / 3)[affine](1, 0.4, 2, 1, -3, 2);
     assert.deepEqual(label.box(), control.box(), 'rotation and shear preserve the original layout bounds');
     assert.equal(svg(label as Group), svg(control), 'rotation and shear preserve the original SVG bytes');
     const text = new Text('Paper', { fontSize: 0.8 }).rotate(Math.PI / 3);
@@ -85,8 +86,8 @@ test('imported label copies and animation retain their basis without changing gl
   assert.ok(Math.abs(readingLabelSize(copy)! - size * 0.01) < 2e-6);
   const geometry = new Group(...original.children.map((m) => m.copy()));
   const matrix = [1, 0.4, 2, 1, -3, 2] as const;
-  original.applyAffine(...matrix, { aboutPoint: [0, 0] });
-  geometry.applyAffine(...matrix, { aboutPoint: [0, 0] });
+  original[affine](...matrix, { aboutPoint: [0, 0] });
+  geometry[affine](...matrix, { aboutPoint: [0, 0] });
   assert.deepEqual(original.box(), geometry.box(), 'basis points add no layout extent, including after shear');
   const paths = (m: Group) => m.family().filter((p): p is VMobject => p instanceof VMobject)
     .map((p) => p.subpaths.map((a) => [...a]));

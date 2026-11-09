@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import type { Page } from 'playwright-core';
 import { VMobject } from '../../src/index.ts';
 import { renderElements } from '../../src/output.ts';
-import { clipPathOf, serializeElement, userBox, UNITS, dryRun, intersect, nonempty, pad, pointsBox, unionBoxes, paints } from '../../src/internal.ts';
+import { clipPathOf, serializeElement, userBox, UNITS, dryRun, intersect, nonempty, pad, pointsBox, unionBoxes, paints, mobjectId } from '../../src/internal.ts';
 import { emphasisOf, newlyEmphasised, labelOf, readingLabelSize, isFurniture, isHeading, stepWords, offPath, stepQuery } from '../../explain/internal.ts';
 import type { Box } from '../../src/index.ts';
 import type { Scene, SceneClass, Mobject } from '../../src/index.ts';
@@ -261,7 +261,7 @@ const paintOf = (records: ElementRecord[], realInk: (r: ElementRecord) => boolea
 
 /** What `scene` shows now, as the memory `storyFrame` compares the next picture with. */
 export function storyMemory(scene: Scene<any>): StoryMemory {
-  const byId = new Map([...new Set(scene.familyMembers())].map((m) => [m.id, m]));
+  const byId = new Map([...new Set(scene.familyMembers())].map((m) => [mobjectId(m), m]));
   return { emphasis: emphasisOf(scene), paint: paintOf(renderElements(scene, { relative: false }), inkTest(byId)) };
 }
 
@@ -307,7 +307,7 @@ export async function storyFrame(
 ): Promise<{ frame: StoryFrame; memory: StoryMemory }> {
   const records = renderElements(scene, { relative: false });
   const members = [...new Set(scene.familyMembers())];
-  const byId = new Map(members.map((m) => [m.id, m]));
+  const byId = new Map(members.map((m) => [mobjectId(m), m]));
   const realInk = inkTest(byId);
   const now = emphasisOf(scene),
     targets: Target[] = [];
@@ -343,7 +343,7 @@ export async function storyFrame(
                 `${name}: ${name} has clipped glyph ink`,
               );
         }
-    const ids = new Set(objects.flatMap((m) => m.family().map((f) => f.id)));
+    const ids = new Set(objects.flatMap((m) => m.family().map((f) => mobjectId(f))));
     const geometry = new Set(records.filter((r) => ids.has(r.id)).map((r) => r.attrs.d));
     // Marks/trails can replace a carrier with a separately painted copy.
     // Bind that actual ink too, rather than crediting the invisible carrier.
@@ -414,7 +414,7 @@ export async function storyFrame(
   const labels = members.flatMap((m) => {
     const label = labelOf(m);
     if (!label?.text.trim() || isHeading(m)) return [];
-    const ids = new Set(m.family().map((child) => child.id));
+    const ids = new Set(m.family().map((child) => mobjectId(child)));
     const indices = records.flatMap((r, index) => (ids.has(r.id) && realInk(r) ? [index] : []));
     return indices.length
       ? [{ text: label.text, size: readingLabelSize(m)!, indices }]

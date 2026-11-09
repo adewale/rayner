@@ -11,6 +11,7 @@ import { TraceSink, traceScene, loadFonts } from '../explain/testing.ts';
 import type { Mobject, Vec } from '../src/index.ts';
 import { fc, params } from './lib/pbt.ts';
 import { beginAnimation, interpolateAnimation, finishAnimation, sampleAnimation } from '../src/animation.ts';
+import { mobjectId } from '../src/mobject.ts';
 // Manim's values, which the package no longer exports.
 const DOWN: Vec = [0, -1];
 const LEFT: Vec = [-1, 0];
@@ -82,14 +83,14 @@ test('PulseAlongPath evaluates the route and opacity from alpha, keeps family op
   path.shift([1, 2]);
   beginAnimation(pulse);
   path.shift([100, 100]); // the running effect reads its captured path
-  const ids = group.family().map(m => m.id);
+  const ids = group.family().map(m => mobjectId(m));
   for (const alpha of [0.5, 0.1, 0.9, 0.5, 1, 0]) {
     interpolateAnimation(pulse, alpha);
     close(group.center()[0], -2 + 6 * alpha); close(group.center()[1], 2);
     const envelope = Math.sin(Math.PI * alpha);
     close(group.style.opacity, 0.3 * envelope);
     close(a.style.opacity, 0.4 * envelope); close(b.style.opacity, 0.7 * envelope);
-    assert.deepEqual(group.family().map(m => m.id), ids);
+    assert.deepEqual(group.family().map(m => mobjectId(m)), ids);
   }
 });
 
@@ -240,7 +241,7 @@ test('Follow samples one value for several drawings: exact ends, linear between,
   const { Follow } = await import('../explain/state.ts');
   const dot = new Dot({ radius: 0.1 }), bar = new Rectangle({ width: 1, height: 1 });
   keyed(dot, 'dot');
-  const ids = [dot.id, bar.id];
+  const ids = [mobjectId(dot), mobjectId(bar)];
   const seen: number[] = [];
   const draw = (v: number) => { seen.push(v); return [new Dot({ radius: 0.1 }).moveTo([v, 0]), new Rectangle({ width: 1, height: 1 }).moveTo([0, v / 2])]; };
   const a = new Follow({ from: 0.1, to: 0.7, draw }, { targets: [dot, bar], rateFunc: linear });
@@ -252,7 +253,7 @@ test('Follow samples one value for several drawings: exact ends, linear between,
     close(dot.center()[0], v); close(bar.center()[1], v / 2);
   }
   // Each drawing is written into its target, which keeps its identity and key
-  assert.deepEqual([dot.id, bar.id], ids);
+  assert.deepEqual([mobjectId(dot), mobjectId(bar)], ids);
   assert.equal(dot.key, 'dot');
   assert.equal(a.valueAt(0), 0.1); assert.equal(a.valueAt(1), 0.7);
   assert.equal(seen[0], 0.1, 'begin draws the start');

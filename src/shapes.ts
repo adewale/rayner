@@ -1,8 +1,8 @@
 import type {TextShaping} from './text-context.ts';
 // Shapes: VMobjects built from cubic Béziers (Rectangle, Circle, Arc, Line, ...),
 // and small groups with named parts (Arrow, CurvedArrow, Labeled).
-import { VMobject } from './vmobject.ts';
-import { Group, followScene, mobjectName } from './mobject.ts';
+import { VMobject, curveCount } from './vmobject.ts';
+import { Group, followScene, mobjectName, affine } from './mobject.ts';
 import type { Mobject, Style } from './mobject.ts';
 import * as V from './vec.ts';
 import type { Vec } from './vec.ts';
@@ -195,7 +195,7 @@ export class CurvedArrow extends Group {
     const stroke = given ?? NEUTRAL_COLORS.ink;
     const arc = new ArcBetweenPoints(start, end, { angle, stroke, strokeWidth });
     // Trim the arc so it ends at the tip's base, then place the tip along the end tangent
-    const n = arc.numCurves(0);
+    const n = curveCount(arc, 0);
     const pEnd = arc.pointOnCurve(0, n - 1, 1), pNear = arc.pointOnCurve(0, n - 1, 0.97);
     const dir = V.normalize(V.sub(pEnd, pNear));
     const base = V.sub(pEnd, V.mul(dir, tipLength));
@@ -311,7 +311,7 @@ export class Brace extends VMobject {
     this.addLineTo([w - r, -h]);
     this.addCubic([w - r + r * k, -h], [w, -h * k], [w, 0]);
     const at = V.add(V.add(c, V.mul(along, (lo + hi) / 2)), V.mul(d, out + buff));
-    this.applyAffine(cos, sin, -sin, cos, at[0], at[1], { aboutPoint: [0, 0] });
+    this[affine](cos, sin, -sin, cos, at[0], at[1], { aboutPoint: [0, 0] });
   }
 
   /** The tip: the anchor farthest from the line through the brace's two ends. */

@@ -10,6 +10,7 @@ import type { Mobject, Vec } from '../src/index.ts';
 import { drawsFrom as rng } from './lib/random-scene.ts';
 import type { Rng } from './lib/random-scene.ts';
 import { beginAnimation, interpolateAnimation, matchRows } from '../src/animation.ts';
+import { mobjectId } from '../src/mobject.ts';
 
 Scene.captionWpm = Infinity;
 await loadFonts();
@@ -386,11 +387,11 @@ test('matchByKey unkeyed: by-place pairs parts under no key by their place in th
 test('become takes another mobject\'s data in place, keeping identity, children and key', () => {
   const ptr = new Group(new Arrow([0, 0], [1, 0]), new Text('head', { fontSize: 0.24 }));
   keyed(ptr, 'ring:pointer:head');
-  const ids = ptr.family().map((m) => m.id), parent = new Group(ptr);
+  const ids = ptr.family().map((m) => mobjectId(m)), parent = new Group(ptr);
   const drawn = new Group(new Arrow([0, 0], [0, 2]), new Text('head', { fontSize: 0.24 }).moveTo([3, 3]));
   const before = drawn.family().map((m) => m.pointArrays().map((a) => [...a]));
   assert.equal(ptr.become(drawn), ptr);
-  assert.deepEqual(ptr.family().map((m) => m.id), ids, 'every member keeps its identity');
+  assert.deepEqual(ptr.family().map((m) => mobjectId(m)), ids, 'every member keeps its identity');
   assert.equal(ptr.key, 'ring:pointer:head');
   assert.equal(ptr.parent, parent);
   assert.deepEqual(ptr.family().map((m) => m.pointArrays().map((a) => [...a])), before, 'and takes the drawn points');

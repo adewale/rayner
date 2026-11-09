@@ -11,6 +11,8 @@ import { loadFonts, traceScene } from '../explain/testing.ts';
 import { Indicate } from './lib/transient.ts';
 import type { Mobject, Sink, RateFunc, Style } from '../src/index.ts';
 import { takeOptions, beginAnimation, interpolateAnimation } from '../src/animation.ts';
+import { affine, mobjectId } from '../src/mobject.ts';
+import { curveCount, pathD } from '../src/vmobject.ts';
 
 await loadFonts();
 
@@ -294,7 +296,7 @@ test('transform: a morph between paths with different contour counts lands on on
     await film(async (s) => { s.add(a); await s.play(new Transform(a, b, { rateFunc: f })); });
     const end = f(1) === 1 ? b : contours(na, -3);
     assert.equal(degenerate(a), 0);
-    assert.equal(a.toPathD(), end.toPathD());
+    assert.equal(pathD(a), pathD(end));
   }), params(40));
 });
 
@@ -320,7 +322,7 @@ test('transform: from an empty path into a circle and back out stays finite and 
   const { frames } = await film(async (s) => {
     s.add(e);
     await s.play(new Transform(e, c));
-    assert.equal(e.toPathD(), c.toPathD());
+    assert.equal(pathD(e), pathD(c));
     await s.play(new Transform(e, new VMobject()));
   });
   assert.ok(frames.every(finiteFrame));
@@ -347,8 +349,8 @@ test('transform: replace=true on a mobject inside an on-screen group leaves no g
   const { scene } = await film(async (s) => { s.add(g); await s.play(new Transform(a, t, { replace: true })); });
   const ids = renderElements(scene).map((e) => e.id);
   assert.equal(ids.length, 2, 'the square and the circle, not the old rectangle too');
-  assert.ok(ids.includes(t.id), 'replacement target is drawn');
-  assert.ok(!ids.includes(a.id), 'grouped source is removed');
+  assert.ok(ids.includes(mobjectId(t)), 'replacement target is drawn');
+  assert.ok(!ids.includes(mobjectId(a)), 'grouped source is removed');
 });
 
 test('play: animating a new Group of mobjects already on screen draws each once, in its place (manim #2500, #2352)', async () => {
@@ -357,7 +359,7 @@ test('play: animating a new Group of mobjects already on screen draws each once,
   const a = new Rectangle({ fill: '#ff0000', fillOpacity: 1 }), b = new Circle({ fill: '#0000ff', fillOpacity: 1 }), top = new Rectangle({ width: 3, height: 3 });
   const { scene } = await film(async (s) => { s.add(a, b, top); await s.play(new Indicate(new Group(a, b))); });
   const ids = renderElements(scene).map((e) => e.id);
-  assert.deepEqual(ids, [a.id, b.id, top.id], 'each drawn once, and the square still on top');
+  assert.deepEqual(ids, [mobjectId(a), mobjectId(b), mobjectId(top)], 'each drawn once, and the square still on top');
 });
 
 test('play: every .animate builder given to play() animates, the last one too (ManimCommunity #4865, #1129; manim #1618)', async () => {
@@ -617,7 +619,7 @@ test('path: pointFromProportion stays finite and exact at its ends on degenerate
     for (const s of subs) { p.startNewPath(s[0] ?? [0, 0]); for (const q of s.slice(1)) p.addLineTo(q); }
     const got = p.pointFromProportion(u);
     assert.ok(got.every(Number.isFinite), `${got}`);
-    if (p.numCurves() > 0) {
+    if (curveCount(p) > 0) {
       const a = p.subpaths.find((x) => x.length > 2)!, z = [...p.subpaths].reverse().find((x) => x.length > 2)!;
       assert.deepEqual(p.pointFromProportion(0), [a[0], a[1]]);
       assert.deepEqual(p.pointFromProportion(1), [z[z.length - 2], z[z.length - 1]]);
@@ -774,10 +776,10 @@ test('decimal: setValue keeps a rotated, scaled number\'s angle and size (ManimC
 
 test('text: setText with the same string changes no glyph, whatever the text has been turned, mirrored, stretched or sheared by (ManimCommunity #4843)', () => {
   // https://github.com/ManimCommunity/manim/pull/4843: set_value lost what had been done to the number.
-  const affine = fc.tuple(fc.double({ min: -2, max: 2, noNaN: true }), fc.double({ min: -2, max: 2, noNaN: true }), fc.double({ min: -2, max: 2, noNaN: true }), fc.double({ min: -2, max: 2, noNaN: true }))
+  const maps = fc.tuple(fc.double({ min: -2, max: 2, noNaN: true }), fc.double({ min: -2, max: 2, noNaN: true }), fc.double({ min: -2, max: 2, noNaN: true }), fc.double({ min: -2, max: 2, noNaN: true }))
     .filter(([a, b, c, d]) => Math.abs(a * d - b * c) > 0.05);
-  fc.assert(fc.property(fc.string({ unit: fc.constantFrom('a', 'W', '1', '.', ' ', 'g'), minLength: 1, maxLength: 6 }), affine, vec, fc.constantFrom('start' as const, 'middle' as const, 'end' as const), (str, [a, b, c, d], at, anchor) => {
-    const t = new Text(str, { anchor }).applyAffine(a, b, c, d, at[0], at[1]);
+  fc.assert(fc.property(fc.string({ unit: fc.constantFrom('a', 'W', '1', '.', ' ', 'g'), minLength: 1, maxLength: 6 }), maps, vec, fc.constantFrom('start' as const, 'middle' as const, 'end' as const), (str, [a, b, c, d], at, anchor) => {
+    const t = new Text(str, { anchor })[affine](a, b, c, d, at[0], at[1]);
     const before = pointsOf(t);
     t.setText(str);
     const after = pointsOf(t);

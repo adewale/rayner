@@ -5,7 +5,7 @@
 import { smooth, linear, clip } from './rate.ts';
 import type { RateFunc } from './rate.ts';
 import type { Mobject, AnimateBuilderBase } from './mobject.ts';
-import { Group, adoptState, followScene, mobjectName, savedState, withArticle } from './mobject.ts';
+import { Group, adoptState, followScene, mobjectName, savedState, withArticle, alignFamily, alignData, matchingFrameFor, interpolateData, dropBox, copyAlone } from './mobject.ts';
 import type { VMobject } from './vmobject.ts';
 import type { Scene } from './scene.ts';
 import * as V from './vec.ts';
@@ -124,6 +124,8 @@ export let runTimeOf: (a: ScheduledAnimation) => number;
 export let rateFuncOf: (a: ScheduledAnimation) => RateFunc;
 /** @internal See runTimeOf. */
 export let phaseOf: (a: ScheduledAnimation) => AnimationPhase;
+/** @internal Whether the end of an animation's play removes what it animates from the scene (the `remover` option). */
+export let isRemover: (a: ScheduledAnimation) => boolean;
 /** Land after a failure (see landBegun): it ends finished, whatever its landing throws. */
 let landAnimation: (a: ScheduledAnimation, scene: Scene | null) => void;
 
@@ -159,8 +161,8 @@ abstract class AnimationTiming {
   #runTime: number;
   #lagRatio: number;
   #rateFunc: RateFunc;
-  /** Whether the end of its play removes what it animates from the scene (the `remover` option). */
-  protected readonly remover: boolean;
+  /** Whether the end of its play removes what it animates from the scene (see isRemover). */
+  readonly #remover: boolean;
   /** Where it is in its life (see AnimationPhase). */
   get phase(): AnimationPhase { return this.#phaseNow(); }
   /** What a begin, a finish and a landing set; whether its members still finish in turn is read from them (see waits). */
@@ -169,7 +171,7 @@ abstract class AnimationTiming {
     const api = `new ${new.target.name}()`;
     assertTime(api, 'its runTime', runTime);
     assertTime(api, 'its lagRatio', lagRatio);
-    this.#runTime = runTime; this.#lagRatio = lagRatio; this.#rateFunc = rateFunc; this.remover = remover;
+    this.#runTime = runTime; this.#lagRatio = lagRatio; this.#rateFunc = rateFunc; this.#remover = remover;
   }
   static {
     beginAnimation = (a) => a.#begin();
@@ -178,6 +180,7 @@ abstract class AnimationTiming {
     runTimeOf = (a) => a.#runTime;
     rateFuncOf = (a) => a.#rateFunc;
     phaseOf = (a) => a.#phaseNow();
+    isRemover = (a) => a.#remover;
     landAnimation = (a, scene) => {
       if (a.#phaseNow() !== 'begun') return;
       try { a[lands](scene); }
@@ -395,7 +398,7 @@ export class Animation extends AnimationTiming {
   protected override doFinish(alpha: number = this.rateFunc(1)): void { this.doInterpolate(alpha); }
 
   /** @internal */
-  override [cleanUp](scene: Scene): void { if (this.remover) scene.remove(this.mobject); }
+  override [cleanUp](scene: Scene): void { if (isRemover(this)) scene.remove(this.mobject); }
 
   /** alpha already passed through rateFunc by the scene. */
   protected override doInterpolate(alpha: number): void {
@@ -473,14 +476,14 @@ export class Transform extends Animation {
     this.#shapes = null;
     if (!same) {
       // Families first, so the shapes recorded include any path alignFamily moved into a child of its own
-      this.mobject.alignFamily(copy);
+      this.mobject[alignFamily](copy);
       const shapes = this.#shapes = new WeakMap<Mobject, PathShape>();
       const from = this.mobject.family(), to = copy.family();
       for (const m of [...from, ...to]) {
         const p = m as Partial<Pick<VMobject, 'subpaths' | 'closed'>>;
         if (p.subpaths && p.closed) shapes.set(m, { subpaths: p.subpaths.map((a) => a.slice()), closed: p.closed.slice() });
       }
-      for (let i = 0; i < from.length; i++) from[i]!.alignData(to[i]!);
+      for (let i = 0; i < from.length; i++) from[i]![alignData](to[i]!);
     }
     super.doBegin();
   }
@@ -594,7 +597,7 @@ export class FadeOut extends Transform {
     // Removed: restore so the mobject can be shown again later, where it was, at its size
     // and opacity (manim's FadeOut also interpolates back to 0 once removed). Kept on
     // screen (remover: false): land, and give back only the opacity, as before.
-    if (this.remover) { super.doFinish(0); return; }
+    if (isRemover(this)) { super.doFinish(0); return; }
     super.doFinish(alpha);
     for (const [m, start] of this[families]) m!.style.opacity = start!.style.opacity;
   }
@@ -869,7 +872,7 @@ export class MoveAlongPath extends Animation {
         const m = mine[j]!, x = from[j]!;
         for (let q = 0; q < m.length; q += 2) { m[q] = x[q]! + dx; m[q + 1] = x[q + 1]! + dy; }
       }
-      sub.touchPoints(); sub._bbox = null;
+      sub.touchPoints(); dropBox(sub);
     }
     this.mobject.invalidateBox();
   }
@@ -900,7 +903,7 @@ export class PulseAlongPath extends MoveAlongPath {
   override [cleanUp](scene: Scene): void {
     super[cleanUp](scene);
     // A removed token can be used again without inheriting its invisible end.
-    if (this.remover) for (const [sub, start] of this[families]) sub!.style.opacity = start!.style.opacity;
+    if (isRemover(this)) for (const [sub, start] of this[families]) sub!.style.opacity = start!.style.opacity;
   }
 }
 
@@ -1711,13 +1714,13 @@ export class TransformMatching extends Animation {
     });
     const moves = linked.map(([s, t]): MoveRow => {
       const end = bare(t);
-      s.alignData(end);
+      s[alignData](end);
       return { sub: s, start: bare(s), end };
     });
     const frames: FrameRow[] = [];
     for (const [ft, fs] of toSource) {
       if (fs instanceof VMobjectClass || ft instanceof VMobjectClass) continue; // a path's points are a part's
-      const targetFrame = ft.matchingFrameFor(fs);
+      const targetFrame = ft[matchingFrameFor](fs);
       const from = fs.pointArrays(), to = targetFrame.pointArrays();
       if (fs.pointKind() !== targetFrame.pointKind()) {
         // A metadata-only source may explicitly normalize another frame kind.
@@ -1758,7 +1761,7 @@ export class TransformMatching extends Animation {
     for (const r of fadesOut) fade(r, 1 - out(staggered(lag, alpha, i++, n)), alpha, true);
     for (const r of fadesIn) fade(r, into(staggered(lag, alpha, i++, n)), alpha, false);
     for (const { node, from, to, start, end } of frames) {
-      if (start && end) { node.interpolateData(start, end, alpha); continue; }
+      if (start && end) { node[interpolateData](start, end, alpha); continue; }
       const mine = node.pointArrays();
       for (let j = 0; j < mine.length; j++) {
         const m = mine[j]!, x = from[j]!, y = to[j]!;
@@ -1768,7 +1771,7 @@ export class TransformMatching extends Animation {
       }
       node.touchPoints();
     }
-    for (const m of touched) m._bbox = null;
+    for (const m of touched) dropBox(m);
     this.mobject.invalidateBox();
   }
 
@@ -1876,7 +1879,7 @@ function frameOf(m: Mobject, root: Mobject): Mobject {
 }
 
 /** A copy of `m` without its children: matching moves parts one by one. */
-function bare<M extends Mobject>(m: M): M { return m.copyAlone(); }
+function bare<M extends Mobject>(m: M): M { return copyAlone(m); }
 
 /** Box of a mobject's own points (not its children's), or null. */
 function ownBox(m: Mobject): Box | null { return pointsBox(m.boundingPointArrays()); }

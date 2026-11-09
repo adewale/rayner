@@ -6,6 +6,8 @@ import { NullSink, toSvgString, renderElements } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { NEUTRAL_COLORS } from '../src/color.ts';
 import { rotate } from '../src/vec.ts';
+import { alignData, mobjectId, replaceChild } from '../src/mobject.ts';
+import { pathD } from '../src/vmobject.ts';
 
 // Text shapes on glyph outlines; scenes load fonts in run(), bare tests do it here
 await loadFonts();
@@ -80,7 +82,7 @@ test('y is up in the model and flipped once, in path data; angles turn countercl
   const r = new Rectangle({ width: 2, height: 2 }).shift([0, 1]);
   assert.deepEqual(r.center(), [0, 1]);
   assert.ok(r.top()[1] > r.bottom()[1], 'top() is the larger y');
-  const d = new Line([0, 0], [0, 1]).toPathD();
+  const d = pathD(new Line([0, 0], [0, 1]));
   assert.match(d, /^M0 0L0 -1000$/, 'y = 1 is written as SVG y = -1000 (above center), and a straight segment as L');
 });
 
@@ -151,8 +153,8 @@ test('alignData pads a path at its centre as the points stand, whether or not it
   };
   const fresh = build(), cached = build();
   cached.holder.box();
-  fresh.holder.alignData(fresh.target);
-  cached.holder.alignData(cached.target);
+  fresh.holder[alignData](fresh.target);
+  cached.holder[alignData](cached.target);
   assert.deepEqual(cached.holder.subpaths.map((a) => Array.from(a)), fresh.holder.subpaths.map((a) => Array.from(a)));
   // The second pad is at the centre of the child square (-4.5..-3.5, -0.5..0.5) and the first pad
   // (4, 2), not at the square's own centre (-4, 0).
@@ -212,7 +214,7 @@ test('scene.add renders each descendant once across orders and batches', () => {
       const ids = renderElements(scene).map((e) => e.id);
       const expected = admitted.flatMap((i) => descendants[i]!.filter((leaf) => leaf < 3));
       assert.equal(ids.length, new Set(ids).size, 'one rendered occurrence per shape');
-      assert.deepEqual(ids, expected.map((i) => choices[i]!.id), 'all and only admitted leaves are painted, in order');
+      assert.deepEqual(ids, expected.map((i) => mobjectId(choices[i]!)), 'all and only admitted leaves are painted, in order');
     }
   }), params(500, { examples: [[[{ batch: [3, 2, 3] }]], [[{ batch: [0] }, { batch: [4] }]], [[{ batch: [4, 0] }]]] }));
 });
@@ -223,13 +225,13 @@ test('replacement admission does not duplicate promoted subtrees or delete a sel
   const s = new Scene(new NullSink()).add(old, a, b);
   s.replace(old, parent, a);
   assert.deepEqual(s.mobjects, [parent]);
-  assert.deepEqual(renderElements(s).map((e) => e.id), [a.id, b.id]);
+  assert.deepEqual(renderElements(s).map((e) => e.id), [mobjectId(a), mobjectId(b)]);
   s.replace(a, a);
   assert.deepEqual(parent.children, [a, b]);
   const other = new Rectangle({ width: 2, height: 2 }); s.add(other);
   s.replace(other, a);
   assert.deepEqual(parent.children, [b]);
-  assert.deepEqual(renderElements(s).map((e) => e.id), [b.id, a.id]);
+  assert.deepEqual(renderElements(s).map((e) => e.id), [mobjectId(b), mobjectId(a)]);
   assert.throws(() => s.replace(b, parent), /ancestor/);
   assert.deepEqual(parent.children, [b], 'invalid replacement leaves the hierarchy intact');
 });
@@ -253,7 +255,7 @@ test('nested replacement preserves earlier siblings, retained old objects and ba
   assert.deepEqual(source.children, [], 'an off-screen source parent releases the replacement');
   assert.equal(replacement.parent, target);
   s.add(source);
-  assert.equal(renderElements(s).filter((r) => r.id === replacement.id).length, 1);
+  assert.equal(renderElements(s).filter((r) => r.id === mobjectId(replacement)).length, 1);
 });
 
 test('a family stays a tree: add refuses the mobject itself or an ancestor, and remove releases only its own children', () => {
@@ -328,14 +330,15 @@ test('no public path makes the mobject tree a cycle, or lets a parent and its ch
   assert.throws(() => b.insert(5, new Rectangle({ width: 2, height: 2 })), /^RangeError: m\.insert\(\): the index is 5; give a whole number from 0 to 0/);
   const s = new Rectangle({ width: 2, height: 2 });
   b.add(s);
-  assert.throws(() => b.replaceChild(s, a), /^Error: m\.replaceChild\(\): a Group contains the mobject it is added to/);
-  assert.throws(() => a.replaceChild(s, new Rectangle({ width: 2, height: 2 })), /^Error: m\.replaceChild\(\): a Rectangle is not a child of a Group; replace one of its children/);
+  const scene = new Scene(new NullSink()).add(a);
+  assert.throws(() => scene.replace(s, a), /^Error: this\.replace\(\): a replacement cannot be an ancestor of the parent it goes into/);
+  assert.throws(() => replaceChild(b, s, a), /^Error: this\.replace\(\): a Group contains the mobject it is added to/);
 
   // Every public way to change a family, in random order on a small pool, some refused: after each,
   // the tree is acyclic, each child names its holder as parent, and each parent holds its child.
-  type Op = { kind: 'add' | 'insert' | 'remove' | 'replaceChild' | 'sceneReplace'; at: number; to: number; with: number[]; index: number };
+  type Op = { kind: 'add' | 'insert' | 'remove' | 'sceneReplace'; at: number; to: number; with: number[]; index: number };
   const op: fc.Arbitrary<Op> = fc.record({
-    kind: fc.constantFrom('add' as const, 'insert' as const, 'remove' as const, 'replaceChild' as const, 'sceneReplace' as const),
+    kind: fc.constantFrom('add' as const, 'insert' as const, 'remove' as const, 'sceneReplace' as const),
     at: fc.integer({ min: 0, max: 5 }), to: fc.integer({ min: 0, max: 5 }),
     with: fc.array(fc.integer({ min: 0, max: 5 }), { maxLength: 3 }), index: fc.integer({ min: 0, max: 3 }),
   });
@@ -348,7 +351,6 @@ test('no public path makes the mobject tree a cycle, or lets a parent and its ch
         if (o.kind === 'add') at.add(to, ...others);
         else if (o.kind === 'insert') at.insert(o.index, to, ...others);
         else if (o.kind === 'remove') at.remove(to, ...others);
-        else if (o.kind === 'replaceChild') at.replaceChild(to, ...others);
         else scene.replace(to, ...others);
       } catch (e) { assert.match(String(e), /would be a cycle|is not a child|the index is|cannot be an ancestor/); }
       for (const m of pool) {
@@ -375,4 +377,40 @@ test('lerpColor refuses an end that is not a hex colour, naming it', () => {
   for (const wrong of ['red', 'none', '#12345', '#ff000080', ''])
     assert.throws(() => lerpColor(wrong, '#ffffff', 0.5), (e: unknown) => e instanceof RangeError && e.message.startsWith('lerpColor(): ') && e.message.includes(JSON.stringify(wrong)));
   assert.throws(() => lerpColor('#ffffff', 'white', 0.5), /^RangeError: lerpColor\(\): "white"/);
+});
+
+test('copy() gives the copy its own arrays, maps and sets, so a subclass\'s fields are never shared with the original', () => {
+  class Tally extends Rectangle {
+    marks: number[] = [1, 2];
+    seen = new Map([['a', 1]]);
+    tags = new Set(['x']);
+    weights = new Float32Array([0.5]);
+  }
+  const t = new Tally(), c = t.copy();
+  c.marks.push(3); c.seen.set('b', 2); c.tags.add('y'); c.weights[0] = 9;
+  assert.deepEqual([t.marks, [...t.seen], [...t.tags], [...t.weights]], [[1, 2], [['a', 1]], ['x'], [0.5]]);
+  assert.deepEqual([c.marks, [...c.seen], [...c.tags], [...c.weights]], [[1, 2, 3], [['a', 1], ['b', 2]], ['x', 'y'], [9]]);
+});
+
+test('no mobject class below Mobject keeps state in ES private fields or methods, which a copy, made without its constructor, would lack', async () => {
+  const { readFileSync, readdirSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const ts = (await import('typescript')).default;
+  const root = join(import.meta.dirname, '..');
+  const files = ['src', 'explain'].flatMap((dir) => readdirSync(join(root, dir)).filter((f) => f.endsWith('.ts')).map((f) => join(dir, f)));
+  const classes = files.flatMap((file) => {
+    const source = ts.createSourceFile(file, readFileSync(join(root, file), 'utf8'), ts.ScriptTarget.Latest, true);
+    return source.statements.filter(ts.isClassDeclaration).map((c) => ({
+      file, name: c.name?.text ?? '',
+      base: c.heritageClauses?.find((h) => h.token === ts.SyntaxKind.ExtendsKeyword)?.types[0]?.expression.getText(source) ?? '',
+      privates: c.members.filter((m) => m.name && ts.isPrivateIdentifier(m.name)).map((m) => m.name!.getText(source)),
+    }));
+  });
+  const mobjects = new Set(['Mobject']);
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const c of classes) if (!mobjects.has(c.name) && mobjects.has(c.base)) { mobjects.add(c.name); grew = true; }
+  }
+  assert.ok(mobjects.has('VMobject') && mobjects.has('Text') && mobjects.size > 20, 'the mobject classes are found');
+  assert.deepEqual(classes.filter((c) => c.name !== 'Mobject' && mobjects.has(c.name) && c.privates.length).map((c) => `${c.file}: ${c.name} ${c.privates.join(' ')}`), []);
 });

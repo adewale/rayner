@@ -6,7 +6,7 @@ import { Group, Line, Circle, Rectangle, Polygon, Text, Create, VMobject, keyed 
 import { families } from '../src/animation.ts';
 import type { Mobject, Vec, Box } from '../src/index.ts';
 import { center, overlaps, pointsBox } from '../src/box.ts';
-import { paintsFill } from '../src/mobject.ts';
+import { paintsFill, replaceChild } from '../src/mobject.ts';
 import { isHex, parseColor } from '../src/color.ts';
 import { selfDescribed } from './look.ts';
 
@@ -298,7 +298,7 @@ export function oneStrokeEach(m: Mobject): Mobject {
   if (m instanceof VMobject) return split(m) ?? m;
   for (const child of [...m.children]) {
     const next = oneStrokeEach(child);
-    if (next !== child) m.replaceChild(child, next);
+    if (next !== child) replaceChild(m, child, next);
   }
   return m;
 }

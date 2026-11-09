@@ -2,7 +2,7 @@
 // it exists so an agent (or a terminal) can read a frame without a browser:
 // where things are, what is connected, which code line is lit.
 
-import { VMobject } from './vmobject.ts';
+import { VMobject, curveCount } from './vmobject.ts';
 import type { Mobject } from './mobject.ts';
 import { Arrow, CurvedArrow, Circle, Dot } from './shapes.ts';
 import { Text } from './text.ts';
@@ -48,7 +48,7 @@ export function renderText(scene: Scene, { cols = 96, rows = 27 }: { cols?: numb
     if (pass === 0 && (m instanceof Arrow || m instanceof CurvedArrow || m instanceof Text || m instanceof Dot)) { later.push(m); return; }
     if (m instanceof Arrow) { line(m.line.start(), m.tip.subpaths[0]!.slice(0, 2), true); return; }
     if (m instanceof CurvedArrow) {
-      const a = m.arc, n = a.numCurves(0);
+      const a = m.arc, n = curveCount(a, 0);
       let prev = a.pointOnCurve(0, 0, 0);
       for (let c = 0; c < n; c++) for (let s = 1; s <= 4; s++) { const p = a.pointOnCurve(0, c, s / 4); line(prev, p, false); prev = p; }
       line(prev, m.tip.subpaths[0]!.slice(0, 2), true);
