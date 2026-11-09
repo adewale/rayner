@@ -8,7 +8,7 @@
 // explored. See docs/MACHINES.md, "The player".
 
 import type { Scene, SceneClass, SceneState, Sink } from '../src/scene.ts';
-import { stopAt, drawFrame } from '../src/scene.ts';
+import { stopAt } from '../src/scene.ts';
 import { canonicalJson } from '../src/json.ts';
 import { machinesOf } from './machine.ts';
 import type { Machine } from './machine.ts';
@@ -175,7 +175,7 @@ export async function runLive(
   // plays the log there (see stopAt).
   const out = new LiveSink();
   const scene = new Source(out) as Scene<any>;
-  stopAt(scene, step, async (at) => {
+  stopAt(scene, step, async (at, draw) => {
     const machine = liveMachine(at, step, place);
     if (machine.playedUnder && canonicalJson(machine.playedUnder) !== canonicalJson(at.shown)) at.shown = machine.playedUnder;
     const rest = JSON.parse(JSON.stringify(at.state)) as object;
@@ -188,13 +188,13 @@ export async function runLive(
     for (const [i, event] of log.entries()) {
       if (animate && i === log.length - 1) {
         out.draw(animate);
-        await drawFrame(at, animate);
+        await draw(animate);
         onStart?.();
       }
       await at.play(machine.send(event));
     }
     const drawn = animate ?? sink;
-    if (drawn) await drawFrame(at, drawn);
+    if (drawn) await draw(drawn);
     result = { scene: at, machine, rest, shown: at.shownJson() };
     if (explore) {
       try { await explore(at, machine, (to) => out.draw(to)); } finally { out.draw(undefined); }
@@ -208,17 +208,17 @@ export async function runLive(
         held();
       });
       if (!command) break;
-      const { event, draw } = command;
+      const { event, draw: how } = command;
       try {
         // As a fresh run plays a log's last event: animated from the picture now, or skipped, then drawn.
-        out.draw(draw.animate);
-        if (draw.animate) {
-          await drawFrame(at, draw.animate);
-          draw.onStart?.();
+        out.draw(how.animate);
+        if (how.animate) {
+          await draw(how.animate);
+          how.onStart?.();
         }
         await at.play(machine.send(event));
-        const last = draw.animate ?? draw.sink;
-        if (last) await drawFrame(at, last);
+        const last = how.animate ?? how.sink;
+        if (last) await draw(last);
         command.done({ scene: at, machine, rest, shown: at.shownJson() });
       } catch (error) {
         command.failed(error);

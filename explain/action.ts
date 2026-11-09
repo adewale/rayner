@@ -3,70 +3,19 @@
 // group, it plays there instead, its beats one after another as a Succession's members. Both paths
 // run the same beats, with the same side effects at the same moments between them.
 
-import { Succession } from '../src/index.ts';
-import type { Scene, ScheduledAnimation } from '../src/index.ts';
-import { MadeAtTurn, whenReady, settle, playsOn, ended, passesEasing, adoptMembers, runTimeOf } from '../src/animation.ts';
-
-/**
- * One play of an action: its run time, fixed when the action is made, and what it does when its
- * turn comes. `play` makes the beat's side effects and its animations at that moment (none plays
- * nothing); `after` runs once they have finished and left the scene.
- */
-export interface Beat {
-  runTime: number;
-  play: () => ScheduledAnimation[];
-  after?: () => void;
-}
-
-/** What an action does: what it gives, its beats in order, and what happens before the first and after the last. */
-export interface Plan<T> {
-  value: T;
-  beats: readonly Beat[];
-  start?: () => void;
-  end?: () => void;
-}
-
-/** A beat's animations must take the run time it was planned with: a play of each, or a Succession member's slot. */
-function checkTime(call: string, beat: Beat, made: readonly ScheduledAnimation[]): void {
-  if (!made.length) return;
-  const took = Math.max(...made.map(runTimeOf));
-  if (Math.abs(took - beat.runTime) > 1e-9)
-    throw new Error(`${call}: one of its plays takes ${took} s, where ${beat.runTime} s was planned`);
-}
-
-/**
- * A beat as a member of its action's Succession: made when its turn comes, then begun through the
- * scene as a play begins its animations; `after` runs once they are cleaned up, as it does after a
- * play, and after a failure once they have landed, if they had begun.
- */
-class BeatPlay extends MadeAtTurn {
-  readonly beat: Beat;
-  constructor(beat: Beat, action: string) {
-    super(action, 'a beat', beat.runTime);
-    this.beat = beat;
-  }
-  protected override make(): ScheduledAnimation[] {
-    return this.beat.play();
-  }
-  /** Each animation from the beat's start, for its own run time, which must be the beat's planned one. */
-  protected override slots(made: readonly ScheduledAnimation[]): Array<[number, number]> {
-    checkTime(this.call, this.beat, made);
-    return made.map((a) => [0, runTimeOf(a)]);
-  }
-  protected override after(): void {
-    this.beat.after?.();
-  }
-}
+import type { Scene, Succession } from '../src/index.ts';
+import { Beats } from '../src/animation.ts';
+import type { BeatPlan } from '../src/animation.ts';
 
 /** The actions each scene has made that have not begun to play: each must, by the end of its step. */
-const unplayed = new WeakMap<Scene<any, any>, Set<Action<unknown>>>();
+const unplayed = new WeakMap<Scene<any, any>, Set<{ readonly name: string }>>();
 
 /**
  * Track `action` until it plays. The first action on a scene makes the scene's step ends check:
  * an action still unplayed when its step ends (or the scene does) throws, naming it, since a lazy
  * action that is neither awaited nor played does nothing.
  */
-function track(scene: Scene<any, any>, action: Action<unknown>): void {
+function track(scene: Scene<any, any>, action: { readonly name: string }): void {
   let waiting = unplayed.get(scene);
   if (!waiting) {
     const left = (waiting = new Set());
@@ -92,33 +41,6 @@ function track(scene: Scene<any, any>, action: Action<unknown>): void {
   waiting.add(action);
 }
 
-/** What deciding an action gave: its plan, or the error deciding it (or reading what it reads) threw; null until a late action is decided. */
-type Decision<T> = { plan: Plan<T> } | { error: unknown } | null;
-
-/**
- * Where an action is in its life, as one value: each change is made in one place below.
- *
- * - `reading`: made, not played, and what it reads is not ready (`ready` has not settled).
- * - `ready`: made, not played, and what it reads is ready; a late action is decided as it begins.
- * - `awaited`: awaited, and playing itself beat by beat; `run` is what awaiting it gives.
- * - `composed`: begun by a play, or by the Succession or group that holds it.
- * - `ended`: its last beat has played and its `end` has run, after it was awaited (`run`) or
- *   composed (`run` is null).
- *
- * Before it plays it may be `reading`, then `ready`; it plays once, awaited or composed, then ends.
- * A begin that fails leaves it as it was, unplayed, whatever failed: what it reads not ready,
- * deciding it, its `start`, or its first beat's making or beginning. It can then play again, and
- * its step's end names it if it never does. What a `start` that ran did stays done. A play that
- * fails after it began leaves it as it was then, `awaited` (its `run` rejecting with the failure)
- * or `composed`, and its `end` does not run: it has played, so it cannot play again.
- */
-type ActionState<T> =
-  | { is: 'reading'; decision: Decision<T> }
-  | { is: 'ready'; decision: Decision<T> }
-  | { is: 'awaited'; decision: Decision<T>; run: Promise<T> }
-  | { is: 'composed'; plan: Plan<T> }
-  | { is: 'ended'; plan: Plan<T>; run: Promise<T> | null };
-
 /**
  * What a stage or diagram action returns: an animation that is also a promise of what the action
  * gives (`T`: the card, the diagram, or nothing).
@@ -133,168 +55,53 @@ type ActionState<T> =
  * does an action still unplayed when its step ends. `value` is what awaiting it gives, there when
  * the action is made, except `s.show`'s diagram, which is there once it begins.
  */
-export class Action<T = void> extends Succession implements PromiseLike<T> {
+export interface Action<T = void> extends Succession, PromiseLike<T> {
   /** The call that made it, as messages name it: `s.card()`, `d.walk()`. */
   readonly name: string;
-  /** @internal The scene it plays on: a play on another scene refuses it. */
-  readonly [playsOn]: Scene<any, any>;
-  /** @internal A play's rateFunc and lagRatio reach what its beats make, as they reach an animation; its own time stays linear. */
-  override readonly [passesEasing] = true;
-  /** What decides it: what it gives and its beats. */
-  readonly #make: () => Plan<T>;
-  /** Settles once what it reads is ready, recording a failure as its decision; null when it reads nothing. */
-  readonly #waiting: Promise<void> | null;
-  #state: ActionState<T>;
-
-  /**
-   * @internal `make` decides the action when it is called, or with `late` once `ready` has settled
-   * and the play that holds it begins (a play waits for `ready`, a group's members' included, and
-   * so does a play for what is made at its turn there): its run time is known from then, so it
-   * plays awaited, in play(), or inside a Succession, a group or a machine's transition.
-   */
-  constructor(scene: Scene<any, any>, name: string, make: () => Plan<T>, { ready, late = false }: { ready?: Promise<unknown>; late?: boolean } = {}) {
-    let decision: Decision<T> = null;
-    if (!late)
-      try {
-        decision = { plan: make() };
-      } catch (error) {
-        decision = { error };
-      }
-    super(decision && 'plan' in decision ? decision.plan.beats.map((b) => new BeatPlay(b, name)) : []);
-    this.name = name;
-    this[playsOn] = scene;
-    this.#make = make;
-    this.#state = { is: ready ? 'reading' : 'ready', decision };
-    this.#waiting = ready
-      ? ready.then(
-          () => {
-            if (this.#state.is === 'reading') this.#state = { is: 'ready', decision: this.#state.decision };
-          },
-          (error: unknown) => {
-            const s = this.#state;
-            if (s.is === 'reading') this.#state = { is: 'ready', decision: s.decision && 'error' in s.decision ? s.decision : { error } };
-            else if (s.is === 'awaited' && !(s.decision && 'error' in s.decision)) this.#state = { ...s, decision: { error } };
-          },
-        )
-      : null;
-    track(scene, this as Action<unknown>);
-  }
-
   /** What awaiting it gives. Set when the action is made (`s.show`'s diagram: once the play that holds it begins). */
+  readonly value: T;
+  then<R1 = T, R2 = never>(
+    onfulfilled?: ((value: T) => R1 | PromiseLike<R1>) | null,
+    onrejected?: ((reason: unknown) => R2 | PromiseLike<R2>) | null,
+  ): Promise<R1 | R2>;
+}
+
+/**
+ * An action: the engine's animation of beats (see Beats), which its scene's step end holds to
+ * playing, and which awaiting plays alone.
+ */
+class Played<T> extends Beats<T> implements Action<T> {
+  readonly #scene: Scene<any, any>;
+  constructor(scene: Scene<any, any>, name: string, make: () => BeatPlan<T>, opts?: { ready?: Promise<unknown>; late?: boolean }) {
+    super(scene, name, make, opts);
+    this.#scene = scene;
+    track(scene, this);
+  }
+
   get value(): T {
-    const s = this.#state;
-    const decision: Decision<T> = 'plan' in s ? { plan: s.plan } : s.decision;
-    if (decision && 'error' in decision) throw decision.error;
-    if (!decision) throw new Error(`${this.name}: what it gives is known once the play that holds it begins; read its value after that, or await it`);
-    return decision.plan.value;
+    const plan = this.decided();
+    if (!plan) throw new Error(`${this.name}: what it gives is known once the play that holds it begins; read its value after that, or await it`);
+    return plan.value;
   }
 
-  /** The refusal of a second play, after it played `how`, for a play `now`. */
-  #playedAlready(how: 'awaited' | 'composed', now: 'awaited' | 'composed'): Error {
-    return new Error(
-      `${this.name}: it has already played${how === 'composed' ? ' in a play' : ''}; an action plays once, so call it again to play it again` +
-        (how === 'composed' && now === 'awaited' ? ', and read what it gave from its value' : ''),
-    );
-  }
-
-  /** How it played, once it has: awaited or composed; null before. */
-  #played(): 'awaited' | 'composed' | null {
-    const s = this.#state;
-    switch (s.is) {
-      case 'reading': case 'ready': return null;
-      case 'awaited': case 'composed': return s.is;
-      case 'ended': return s.run ? 'awaited' : 'composed';
-    }
-  }
-
-  /**
-   * Its plan, deciding a late action now (once what it reads is ready), its beats laid out as this
-   * Succession's members; throws what deciding it threw. Called from `ready`, before it begins, or `awaited`.
-   */
-  #decide(): Plan<T> {
-    const s = this.#state;
-    if (s.is === 'composed' || s.is === 'ended') return s.plan;
-    if (s.decision) {
-      if ('error' in s.decision) throw s.decision.error;
-      return s.decision.plan;
-    }
-    let plan: Plan<T>;
-    try {
-      plan = this.#make();
-    } catch (error) {
-      this.#state = { ...s, decision: { error } };
-      throw error;
-    }
-    this.#state = { ...s, decision: { plan } };
-    // Laid out as a Succession lays out its members; a run time given to play() is kept.
-    adoptMembers(this, plan.beats.map((b) => new BeatPlay(b, this.name)));
-    return plan;
-  }
-
-  /** @internal */ override [whenReady](): Promise<unknown> | null {
-    return this.#state.is === 'reading' ? this.#waiting : null;
-  }
-
-  /** @internal Decided now, if it was not when made: what it reads is ready, and the play that holds it is beginning. */
-  override [settle](): void {
-    const s = this.#state;
-    if (s.is === 'reading') throw new Error(`${this.name}: played before what it reads was ready; hand it to play(), or to a Succession or group that plays, which waits for it`);
-    if (s.is === 'ready') this.#decide();
-  }
-
-  /** Composed: begun by a play, or by the Succession or group that holds it. A begin that fails leaves it unplayed. */
-  protected override doBegin(): void {
-    const s = this.#state;
-    const how = this.#played();
-    if (how) throw this.#playedAlready(how, 'composed');
-    if (s.is === 'reading') throw new Error(`${this.name}: begun before what it reads was ready; hand it to play(), or to a Succession or group that plays, which waits for it`);
-    const plan = this.#decide();
-    plan.start?.();
-    super.doBegin();
-    // Composed only once it has begun: a start or a first beat that throws leaves it unplayed.
-    this.#state = { is: 'composed', plan };
-    unplayed.get(this[playsOn])?.delete(this as Action<unknown>);
-  }
-
-  /** @internal Its last beat has finished and gone: its `end` runs. */
-  override [ended](): void {
-    const s = this.#state;
-    if (s.is !== 'composed') return;
-    this.#state = { is: 'ended', plan: s.plan, run: null };
-    s.plan.end?.();
-  }
-
-  /** Awaited: play each beat in a play of its own, then give the value. Once awaited, awaiting it again gives the same. */
-  #awaited(): Promise<T> {
-    const s = this.#state;
-    if (s.is === 'awaited' || (s.is === 'ended' && s.run)) return s.run!;
-    if (s.is !== 'reading' && s.is !== 'ready') return Promise.reject(this.#playedAlready(this.#played()!, 'awaited'));
-    // It starts after this state is set (an await, of what it reads or of nothing), so it ends after it too.
-    // A beat that fails leaves it awaited, its run rejecting with the failure.
-    let run!: Promise<T>;
-    run = (async () => {
-      await this.#waiting;
-      const plan = this.#decide();
-      plan.start?.();
-      for (const beat of plan.beats) {
-        const made = beat.play();
-        checkTime(this.name, beat, made);
-        if (made.length) await this[playsOn].play(...made);
-        beat.after?.();
-      }
-      this.#state = { is: 'ended', plan, run };
-      plan.end?.();
-      return plan.value;
-    })();
-    this.#state = { is: 'awaited', decision: s.decision, run };
-    unplayed.get(this[playsOn])?.delete(this as Action<unknown>);
-    return run;
+  /** It has begun to play: its step's end no longer waits for it. */
+  protected override playing(): void {
+    unplayed.get(this.#scene)?.delete(this);
   }
 
   then<R1 = T, R2 = never>(
     onfulfilled?: ((value: T) => R1 | PromiseLike<R1>) | null,
     onrejected?: ((reason: unknown) => R2 | PromiseLike<R2>) | null,
   ): Promise<R1 | R2> {
-    return this.#awaited().then(onfulfilled, onrejected);
+    return this.alone().then(onfulfilled, onrejected);
   }
+}
+
+/**
+ * @internal An action on `scene`, which messages name `name`, decided by `make` when it is called,
+ * or with `late` once `ready` has settled and the play that holds it begins (a play waits for
+ * `ready`): it plays awaited, in play(), or inside a Succession, a group or a machine's transition.
+ */
+export function action<T>(scene: Scene<any, any>, name: string, make: () => BeatPlan<T>, opts?: { ready?: Promise<unknown>; late?: boolean }): Action<T> {
+  return new Played(scene, name, make, opts);
 }

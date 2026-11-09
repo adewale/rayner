@@ -63,6 +63,7 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 - A play that fails lands what it began, so each animation can play again.
 - What begins at its turn in a play begins in turn order, and is held to one writer per mobject against everything else the play drives.
 - An animation has a `phase` (`AnimationPhase`: idle, begun or finished).
+- An animation with `remover: true` takes every one of its `targets()` off the scene after its play, as `c.follow` does; a custom animation that overrides `targets()` no longer leaves all but its `mobject` behind.
 - `DecimalNumber` transformed into a `Text` ends as that text instead of `NaN`. `Scene.captionWpm` is read from the scene's own class, and a caption in a script without spaces counts every one and a half letters as a word.
 
 ### Checks

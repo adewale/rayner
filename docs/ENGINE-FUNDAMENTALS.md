@@ -186,7 +186,7 @@ A custom animation extends `Animation`. Its `mobject` is what it animates, and `
 `rateFunc` (a `RateFunc`, from the fraction of the run time elapsed to progress), `lagRatio`
 and `remover` are its timing options, as on an `AnimationGroup`. `targets()` lists the
 mobjects it writes, its `mobject` unless it says otherwise: what `play()` admits to the
-scene and allows one writer each. `evidence()` is what it records as it begins, or null.
+scene and allows one writer each, and what `remover: true` takes off the scene after its play. `evidence()` is what it records as it begins, or null.
 A custom animation overrides three protected hooks: `doBegin()` as its play begins,
 `doInterpolate(alpha)` for each frame, and `doFinish(alpha)` as its play finishes. It calls
 `super.doBegin()` where it extends one, and `interpolateSubmobject(sub, start, alpha)` is the hook

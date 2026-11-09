@@ -6,7 +6,7 @@
 // take a gone one out. rest() moves every keyed part no call has handled to its target, so a transition that
 // forgets a part still ends on the target picture. See docs/MACHINES.md.
 
-import { Animation, AnimationGroup, Create, FadeIn, FadeOut, MoveAlongPath, Transform, cleanUp, beginAnimation, interpolateAnimation, finishAnimation } from '../src/animation.ts';
+import { Animation, AnimationGroup, Create, Enclosing, FadeIn, FadeOut, MoveAlongPath, Transform } from '../src/animation.ts';
 import type { AnimationOptions, TransformOptions } from '../src/animation.ts';
 import { Follow } from './state.ts';
 import type { FollowSpec } from './state.ts';
@@ -17,22 +17,20 @@ import { keyed } from '../src/index.ts';
 
 /**
  * An animation for a part that is already in the picture but unseen: it shows the part as it was
- * made (its saved state) when its turn comes, then runs the animation that brings it in. A part
- * must be in the picture before the play reaches it, or play() would take it for a new mobject
- * and add it to the stage a second time.
+ * made (its saved state) when its turn comes, then runs the animation that brings it in, and is a
+ * remover when that one is. A part must be in the picture before the play reaches it, or play()
+ * would take it for a new mobject and add it to the stage a second time.
  */
-class Joining extends Animation {
-  inner: Animation;
-  constructor(part: Mobject, inner: Animation) {
-    super(part, { runTime: inner.runTime, rateFunc: (t) => t });
-    this.inner = inner;
+class Joining extends Enclosing {
+  readonly #inner: Animation;
+  constructor(part: Mobject, inner: Animation, { remover }: AnimationOptions) {
+    super(part, { runTime: inner.runTime, rateFunc: linear, remover });
+    this.#inner = inner;
   }
-  protected override doBegin(): void { this.mobject.restore(); beginAnimation(this.inner); }
-  protected override doInterpolate(alpha: number): void { interpolateAnimation(this.inner, this.inner.rateFunc(alpha)); }
-  protected override doFinish(): void { finishAnimation(this.inner); }
-  /** @internal */
-  override [cleanUp](scene: Parameters<Animation[typeof cleanUp]>[0]): void { this.inner[cleanUp](scene); }
-  override targets(): Mobject[] { return this.inner.targets(); }
+  protected override enclose(): Animation {
+    this.mobject.restore();
+    return this.#inner;
+  }
 }
 
 /** The keyed parts of a picture that are not inside another keyed part (the picture's own key aside). */
@@ -144,7 +142,7 @@ export function choreograph(current: Mobject, target: Mobject): Choreography {
       const like = how.from !== undefined ? from(how.from) : target;
       const part = make(key, like);
       const inner = how.from !== undefined ? new Transform(part, target, opts) : how.create ? new Create(part, opts) : new FadeIn(part, opts);
-      return new Joining(part, inner);
+      return new Joining(part, inner, opts);
     },
     leave(key, opts = {}) {
       const part = from(key);

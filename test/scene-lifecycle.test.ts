@@ -450,6 +450,17 @@ test('a frame drawn outside the loop raises what is kept on top first: renderFra
   assert.deepEqual(drawn, ['a', 'top', '0']);
 });
 
+test('a remover takes every one of its targets off the scene after its play, not only its mobject', async () => {
+  const a = new Circle(), b = new Rectangle(), kept = new Dot();
+  class Both extends FadeOut {
+    override targets() { return [a, b]; }
+  }
+  const scene = new Scene(new NullSink());
+  scene.add(a, b, kept);
+  await scene.play(new Both(a, { remover: true }));
+  assert.deepEqual(scene.mobjects, [kept]);
+});
+
 test('a Succession runs its members one after another and takes no lagRatio', async () => {
   const sq = new Succession([new FadeIn(new Circle()), new FadeIn(new Rectangle())]);
   for (const lag of [0, 1]) assert.throws(() => { sq.lagRatio = lag; }, (e) => e instanceof RangeError && /^animation\.lagRatio: a Succession/.test(e.message) && e.message.includes(`given ${lag}`));
@@ -548,11 +559,15 @@ test('a run told where to stop stops for good as that step ends: after its end l
   after = 0;
   const scene = new Story(new NullSink());
   let at: { frame: number; x: number; on: number; step: string | undefined } | undefined;
-  stopAt(scene, 'two', async (s) => {
+  let drawn: [boolean, number] | undefined;
+  stopAt(scene, 'two', async (s, draw) => {
     at = { frame: s.frameCount, x: s.state.x, on: s.mobjects.length, step: s.currentStep?.name };
+    // The picture there reaches a sink other than the scene's own, as one frame at dt 0.
+    await draw({ frame: async (sc, dt) => { drawn = [sc === s, dt]; } });
     await s.wait(0.1);
   });
   await scene.run();
+  assert.deepEqual(drawn, [true, 0]);
   // The step's end, as the trace records it: its last frame, its state after, the listener's rectangle on stage.
   assert.deepEqual(at, { frame: two.frame1, x: 1, on: 4, step: 'two' });
   assert.deepEqual(two.after, { x: 1 });
