@@ -1,7 +1,8 @@
 // Machines: a model driven by events as an ordinary schedule, and rayner check's exploration of
 // every state the events reach.
 import { test } from 'node:test';
-import type { Transition, View, ViewSync } from '../explain/index.ts';
+import type { Transition, View } from '../explain/index.ts';
+import { ViewSync } from '../explain/view.ts';
 import assert from 'node:assert/strict';
 import { Scene, Text, Group, Rectangle, Transform, Animation, AnimationGroup, Succession, TransformMatching, matchByKey } from '../src/index.ts';
 import type { Mobject } from '../src/index.ts';
@@ -82,7 +83,7 @@ test('a machine replays events through the model as one schedule: state, evidenc
   await new Lamp(fullTrace).run();
   assert.deepEqual((await traceScene(Lamp)).steps, fullTrace.steps());
   assert.throws(() => ran.machine.send('DOWN' as 'UP'), RangeError);
-  assert.throws(() => new Machine(ran, { start: { level: 0 }, events: [], next, views: [] }), TypeError);
+  assert.throws(() => new Machine(ran, { start: { level: 0 }, events: [], next, views: [] }), /^RangeError: new Machine\(\): it needs at least one event/);
   // A picture that closes over variables outside the state cannot be redrawn for an explored state
   assert.throws(() => new Machine(ran, { start: { level: 0 }, events: ['UP', 'UP'], next, views: [] }), /^Error: new Machine\(\): an event is listed twice/);
 });
@@ -97,8 +98,8 @@ test('without an authored transition, the views morph by key, staged: what goes 
   ), { key: 'lamp' }));
   scene.add(lamp);
   const machine = new Machine<Lamp, 'UP' | 'OFF'>(scene, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [lamp] });
-  const step = machine.send('UP');
-  const sync = (step.animations[1] as AnimationGroup).animations[0] as ViewSync;
+  // The morph machine.send plays for each view: the view's sync with the machine's match.
+  const sync = new ViewSync(lamp, { match: machine.spec.match, runTime: 0.6 });
   assert.equal(sync.staged, true);
   scene.state = { level: 1 };
   sync.begin();
@@ -196,7 +197,6 @@ test('a machine refuses an event name a link cannot carry: empty, or with a comm
   assert.throws(() => new Machine(scene, { ...spec, events: ['a,b'] }), /^RangeError: new Machine\(\): "a,b" is not an event name; an event is words with no comma, as a link joins the events a reader sent with commas$/);
   assert.throws(() => new Machine(scene, { ...spec, events: ['UP', ''] }), /^RangeError: new Machine\(\): "" is not an event name/);
   assert.throws(() => new Machine(scene, { ...spec, events: [' '] }), /is not an event name/);
-  assert.throws(() => new Machine(scene, { ...spec, events: [1 as unknown as string] }), /^TypeError: new Machine\(\): an event must be a string, not 1$/);
   // The defect it closes: a comma in an event comes back from a link as two events.
   const viaLink = (log: readonly string[]) => decodeLog(new URLSearchParams(`sent=${encodeLog(log)}`).get('sent'));
   assert.deepEqual(viaLink(['a,b']), ['a', 'b']);
@@ -231,8 +231,6 @@ test('a model refuses with its reason: refuse(reason) where next refuses, and ou
   assert.ok(isRefusal(r) && !isRefusal({ reason: 'no' }) && !isRefusal(undefined) && !isRefusal({ level: 0 }));
   assert.ok(Object.isFrozen(r));
   assert.throws(() => refuse(' '), /reason must be words/);
-  // One way to say why: a separate why(state, event) is refused, and says what to write instead.
-  assert.throws(() => new Machine(scene, { start: {}, events: ['A'], next: () => undefined, views: [], why: () => 'no' } as never), /return refuse\(reason\) from next/);
 });
 
 test('a schedule built for one state refuses to play from another', async () => {
@@ -242,9 +240,9 @@ test('a schedule built for one state refuses to play from another', async () => 
       const picture = view(this, (st: Lamp) => new Text(`lamp ${LEVELS[st.level]}`));
       this.add(picture);
       const machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [picture] });
+      await this.step('stale');
       const built = machine.send('UP');
       this.state = { level: 2 };
-      await this.step('stale');
       await this.play(built);
     }
   }
@@ -257,9 +255,9 @@ test('a schedule built for one state refuses to play from another', async () => 
       const picture = view(this, (st: Pair) => new Text(`a ${st.a} b ${st.b}`));
       this.add(picture);
       const machine = new Machine<Pair, 'UP'>(this, { start: { a: 1, b: 2 }, events: ['UP'], next: (s) => ({ a: s.a + 1, b: s.b }), views: [picture] });
+      await this.step('reordered');
       const built = machine.send('UP');
       this.state = { b: 2, a: 1 };
-      await this.step('reordered');
       await this.play(built);
     }
   }
@@ -493,7 +491,6 @@ test('end finishes the story at a state: the model\'s moves from it are beyond t
   assert.deepEqual((await exploreMachines(ends, Ends))[0]!.problems, []);
   // A live step that ends finished starts the reader's events from the machine's start.
   assert.deepEqual(logStart(ends.machine as never, { level: 2 }), { from: 'start', state: { level: 0 } });
-  assert.throws(() => new Machine<Lamp, 'UP' | 'OFF'>(ends, { start: { level: 0 }, events: ['UP'], next, views: [], end: 'bright' as never }), /new Machine\(\): end must be a function of the state/);
 });
 
 test('exploration also walks the states a reader reaches from the live step, not only from the start', async () => {

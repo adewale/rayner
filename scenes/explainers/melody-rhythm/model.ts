@@ -1,4 +1,4 @@
-import type { AudioClip, ScoreNote } from '../../../explain/score.ts';
+import type { AudioClip, ScoreNote } from '../../../explain/index.ts';
 // Two versions of one eight-note tune, C D E G E D C C, in beats: A starts a note on every beat; the
 // syncopated B lengthens the first E to one and a half beats and shortens the E after G to half a beat,
 // so G starts halfway through beat 4 and holds across the bar line. What it leaves out: two bars of four

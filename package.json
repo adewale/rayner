@@ -54,10 +54,6 @@
       "types": "./dist/explain/geo.d.ts",
       "default": "./dist/explain/geo.js"
     },
-    "./audio": {
-      "types": "./dist/explain/score.d.ts",
-      "default": "./dist/explain/score.js"
-    },
     "./extras": {
       "types": "./dist/src/extras.d.ts",
       "default": "./dist/src/extras.js"

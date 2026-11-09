@@ -3,7 +3,8 @@ import type { Mobject, Code, CodeSpan } from '../../../src/index.ts';
 import { reduceSession, sessionAttempt } from './model.ts';
 import type { SessionState } from './model.ts';
 import { flow, keyed, label, tile, emphasised, card } from '../../../explain/drawing.ts';
-import type { Stage, StagedStepsOptions, Diagram, CardOptions, Card } from '../../../explain/index.ts';
+import type { CardOptions, Card } from '../../../explain/drawing.ts';
+import type { Stage, StagedStepsOptions, Diagram } from '../../../explain/index.ts';
 
 
 export function frames(stage: Stage, which: string, answer: string, opts?: StagedStepsOptions): Promise<void> {

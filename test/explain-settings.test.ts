@@ -91,7 +91,7 @@ test('resolveSettings refuses an unknown setting id', () => {
   fc.assert(
     fc.property(declared, fc.string(), fc.string(), ([settings, values], id, value) => {
       fc.pre(!settings.some((s) => s.id === id));
-      assert.throws(() => resolveSettings(classOf(settings), { ...values, ...Object.fromEntries([[id, value]]) }), /resolveSettings\(\): the scene has no setting/);
+      assert.throws(() => resolveSettings(classOf(settings), { ...values, ...Object.fromEntries([[id, value]]) }), /^RangeError: resolveSettings\(\): the scene has no setting/);
     }),
     params(),
   );
@@ -102,7 +102,7 @@ test('resolveSettings refuses a value that is not one of the options', () => {
     fc.property(declarations.filter((d) => d.length > 0), fc.nat(), fc.string(), (settings, k, value) => {
       const s = settings[k % settings.length]!;
       fc.pre(!s.options.some((o) => o.value === value));
-      assert.throws(() => resolveSettings(classOf(settings), Object.fromEntries([[s.id, value]])), /resolveSettings\(\): .* is not an option of the setting/);
+      assert.throws(() => resolveSettings(classOf(settings), Object.fromEntries([[s.id, value]])), /^RangeError: resolveSettings\(\): .* is not an option of the setting/);
     }),
     params(),
   );

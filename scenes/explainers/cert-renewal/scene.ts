@@ -1,7 +1,8 @@
 import { Scene, Text, FadeOut } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, answerOf, view, having } from '../../../explain/index.ts';
 import { card, code } from '../../../explain/drawing.ts';
-import type { CardOptions, CardRow, Diagram, NoteSide, ExplainerMeta } from '../../../explain/index.ts';
+import type { CardOptions, CardRow } from '../../../explain/drawing.ts';
+import type { Diagram, NoteSide, ExplainerMeta } from '../../../explain/index.ts';
 import {
   BACKDATE,
   BR_PHASES,

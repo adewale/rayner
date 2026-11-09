@@ -2,7 +2,7 @@ import { Scene, FadeIn, FadeOut, Create } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, view, having } from '../../../explain/index.ts';
 import type { ExplainerMeta } from '../../../explain/index.ts';
-import { emphasised } from '../../../explain/drawing.ts';
+import { emphasised, dimension } from '../../../explain/drawing.ts';
 import { sunlight, daylightYear, noonShare, noonPatch, sunDistance, declinationOn } from './model.ts';
 import {
   SUN, TILT, R, CY, JUNE_C, DEC_C,
@@ -408,17 +408,14 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
     if (polarDay) {
       const lit = days.flatMap((d, i) => (d >= 24 ? [i] : [])),
         top = axes.c2p(0, 24)[1];
-      said.push(
-        await s.dimension(
-          [axes.c2p(xOn(lit[0]!), 24)[0], top],
-          [axes.c2p(xOn(lit.at(-1)!), 24)[0], top],
-          `${now().polarDay} days`,
-          {
-            offset: -0.6,
-            size: 0.22,
-          },
-        ),
+      const polar = s.keep(
+        dimension(s, [axes.c2p(xOn(lit[0]!), 24)[0], top], [axes.c2p(xOn(lit.at(-1)!), 24)[0], top], `${now().polarDay} days`, {
+          offset: -0.6,
+          size: 0.22,
+        }),
       );
+      await this.play(new Create(polar, { runTime: 0.6, lagRatio: 0.1 }));
+      said.push(polar);
       if (polarNight)
         said.push(
           await s.callout(axes.c2p(xOn(EVENTS[3].day), 0), `${now().polarNight} days at 0 h`, {
@@ -434,13 +431,11 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
       await s.enter(levels, {
         describe: `Dashed lines from the shortest day, ${hours(shortest)}, and the longest, ${hours(longest)}, to the right of the chart`,
       });
-      said.push(
-        levels,
-        await s.dimension(axes.c2p(LEVEL_X, shortest), axes.c2p(LEVEL_X, longest), `longest − shortest: ${spread}`, {
-          offset: -0.05,
-          size: 0.22,
-        }),
+      const between = s.keep(
+        dimension(s, axes.c2p(LEVEL_X, shortest), axes.c2p(LEVEL_X, longest), `longest − shortest: ${spread}`, { offset: -0.05, size: 0.22 }),
       );
+      await this.play(new Create(between, { runTime: 0.6, lagRatio: 0.1 }));
+      said.push(levels, between);
     }
 
     // ------------------------------------------------------------ distance

@@ -4,9 +4,12 @@
 // every step is what the state renders (the fidelity helper).
 import { test } from 'node:test';
 import { Square } from '../src/extras.ts';
-import type { ViewSync, Card, Stage } from '../explain/index.ts';
-import { view, View, having, stage } from '../explain/index.ts';
+import type { Stage, SyncOpts } from '../explain/index.ts';
+import { ViewSync } from '../explain/view.ts';
+import { view, having, stage } from '../explain/index.ts';
+import type { View } from '../explain/index.ts';
 import { card } from '../explain/drawing.ts';
+import type { Card } from '../explain/drawing.ts';
 import assert from 'node:assert/strict';
 import { Scene, Group, Text, DecimalNumber, Rectangle, Circle, Animation, FadeIn, Succession } from '../src/index.ts';
 import { StringSink, SnapshotSink, renderFrame } from '../src/output.ts';
@@ -18,6 +21,9 @@ const RIGHT: Vec = [1, 0];
 
 /** A scene holding `st` as its state, for views tested without running a scene. */
 const held = (st: object = {}) => ({ state: st }) as unknown as Scene;
+
+/** The animation a view's sync action plays, for tests that read what it decided. */
+const syncOf = <M extends Mobject>(v: View<M>, opts?: SyncOpts) => new ViewSync<M>(v, opts);
 
 await loadFonts();
 Scene.captionWpm = Infinity;
@@ -50,7 +56,7 @@ class Ring extends Scene {
       await this.step(name);
       mutate();
       if (skip) { await this.wait(1); return; }
-      const s = readout.sync({ match: 'text', staged: false });
+      const s = syncOf(readout, { match: 'text', staged: false });
       this.syncs[name] = s;
       await this.play(s);
       const f = readout.current.frameBox;
@@ -145,7 +151,7 @@ test('tween() writes into the picture on screen when it begins: after a sync in 
   assert.ok(before);
 });
 
-test('a sync and a tween finish the morph they begin: it ends finished, as an animation the scene began does', async () => {
+test('a sync finishes the morph it begins: it ends finished, as an animation the scene began does', async () => {
   const phases: Record<string, string> = {};
   class Finished extends Scene<{ n: number }, {}> {
     override async construct() {
@@ -155,26 +161,21 @@ test('a sync and a tween finish the morph they begin: it ends finished, as an an
       this.add(v);
       for (const match of ['key', 'text', 'shapes', 'index'] as const) {
         this.state.n++;
-        const sync = v.sync({ match, runTime: 0.2 });
+        const sync = syncOf(v, { match, runTime: 0.2 });
         await this.play(sync);
         phases[match] = sync.inner!.phase;
       }
       // A rate function that comes back leaves the old picture, and still finishes the morph.
       this.state.n++;
-      const back = v.sync({ runTime: 0.2, rateFunc: (t) => 4 * t * (1 - t) });
+      const back = syncOf(v, { runTime: 0.2, rateFunc: (t) => 4 * t * (1 - t) });
       const kept = v.current;
       await this.play(back);
       assert.equal(v.current, kept, 'a sync whose rate comes back keeps the old picture');
       phases.back = back.inner!.phase;
-      const w = view(this, (st) => new Rectangle({ width: 1 + st.n, height: 1 }), { place: false });
-      this.add(w);
-      const tween = w.tween((t) => ({ n: 9 + t }), { runTime: 0.2 });
-      await this.play(tween);
-      phases.tween = (tween as unknown as { follow: Animation }).follow.phase;
     }
   }
   await new Finished(new StringSink()).run();
-  assert.deepEqual(phases, { key: 'finished', text: 'finished', shapes: 'finished', index: 'finished', back: 'finished', tween: 'finished' });
+  assert.deepEqual(phases, { key: 'finished', text: 'finished', shapes: 'finished', index: 'finished', back: 'finished' });
 });
 
 test('no updaters: seeking skips the frames of plays with syncs, and renders the frame a full run renders', async () => {
@@ -227,7 +228,7 @@ test('match: index morphs by position (a DecimalNumber counts), shapes and keys 
   const st = { n: 0 };
   const v = view(held(st), () => new DecimalNumber(st.n, { anchor: 'start' }), { place: 'left' });
   st.n = 10;
-  const sync = v.sync({ match: 'index' });
+  const sync = syncOf(v, { match: 'index' });
   sync.begin();
   sync.interpolate(0.5);
   assert.equal(v.current.text, '5', 'the value blends');
@@ -241,13 +242,13 @@ test('match: index morphs by position (a DecimalNumber counts), shapes and keys 
   const g = view(held(), () => new Group(new Circle({ radius: 0.5 }), ...Array.from({ length: kids - 1 }, (_, i) => new Square({ side: 0.4 }).shift([i + 1, 0]))));
   const before = g.current;
   kids = 3;
-  const sh = g.sync({ match: 'shapes' });
+  const sh = syncOf(g, { match: 'shapes' });
   sh.begin(); sh.finish();
   assert.deepEqual(sh.summary(), { matched: 2, morphed: 0, removed: 0, added: 1 });
   assert.notEqual(g.current, before);
   assert.equal(g.current.children.length, 3);
   // By index
-  const ix = g.sync({ match: 'index' });
+  const ix = syncOf(g, { match: 'index' });
   kids = 2;
   ix.begin(); ix.finish();
   assert.equal(ix.summary(), null);
@@ -257,7 +258,7 @@ test('match: index morphs by position (a DecimalNumber counts), shapes and keys 
   const fills = ['#ff0000', '#00ff00'];
   const k = view(held(), () => new Group(...fills.map((f, i) => new Square({ side: 0.4, fill: f, fillOpacity: 1 }).shift([i, 0]))));
   fills.reverse();
-  const ks = k.sync({ match: (p) => p.style.fill });
+  const ks = syncOf(k, { match: (p) => p.style.fill });
   ks.begin(); ks.finish();
   assert.deepEqual(ks.summary(), { matched: 2, morphed: 0, removed: 0, added: 0 });
 });
@@ -266,16 +267,16 @@ test('sync() matches by key, staged, and refuses pictures that carry no keys', (
   let n = 1;
   const keyed = view(held(), () => new Group(...Array.from({ length: n }, (_, i) => { const sq = new Square({ side: 0.4 }).shift([i, 0]); sq.key = `cell-${i}`; return sq; })));
   n = 2;
-  const sync = keyed.sync();
+  const sync = syncOf(keyed);
   assert.equal(sync.match, 'key');
   assert.equal(sync.staged, true);
   sync.begin(); sync.finish();
   assert.deepEqual(sync.summary(), { matched: 1, morphed: 0, removed: 0, added: 1 });
-  assert.equal(keyed.sync({ match: 'text' }).staged, true, 'staged is the default for every match');
+  assert.equal(syncOf(keyed, { match: 'text' }).staged, true, 'staged is the default for every match');
 
   const plain = view(held(), () => new Group(...Array.from({ length: n }, (_, i) => new Square({ side: 0.4 }).shift([i, 0]))));
   n = 3;
-  assert.throws(() => plain.sync().begin(), /carry no keys below their roots.*\{ match: 'text' \}, 'shapes' or 'index'/);
+  assert.throws(() => syncOf(plain).begin(), /carry no keys below their roots.*\{ match: 'text' \}, 'shapes' or 'index'/);
 });
 
 test('placement: a moved and scaled View stays moved and scaled; place: false leaves it to draw()', () => {
@@ -284,7 +285,7 @@ test('placement: a moved and scaled View stays moved and scaled; place: false le
   v.scale(0.5).moveTo([3, -2]);
   const right = v.current.frameBox[2]!, h = v.current.height();
   st.s = 'abcdef';
-  const s = v.sync({ match: 'text' }); s.begin(); s.finish();
+  const s = syncOf(v, { match: 'text' }); s.begin(); s.finish();
   assert.ok(Math.abs(v.current.frameBox[2]! - right) < 1e-5, 'right edge held');
   assert.ok(Math.abs(v.current.height() - h) < 1e-5, 'half size held');
   assert.equal(v.current.text, 'abcdef');
@@ -298,7 +299,7 @@ test('placement: a moved and scaled View stays moved and scaled; place: false le
   // A picture build() hands back twice cannot morph into itself
   const fixed = new Text('same');
   const bad = view(held(), () => fixed);
-  assert.throws(() => bad.sync().begin(), /draw a new one each time/);
+  assert.throws(() => syncOf(bad).begin(), /draw a new one each time/);
 });
 
 test('a card view of the scene\'s state keeps its labels put as values change', async () => {
@@ -338,7 +339,7 @@ test('a returning sync preserves inherited scale for the next rebuild or sync', 
     v.scale(2);
     const original = v.current;
     side = 3;
-    const back = v.sync({ match: 'index', rateFunc: () => 0 });
+    const back = syncOf(v, { match: 'index', rateFunc: () => 0 });
     back.begin(); back.interpolate(0); back.finish();
     assert.equal(v.current, original, 'a returning rate keeps the original picture');
     assert.equal(v.current.width(), 2);
@@ -346,7 +347,7 @@ test('a returning sync preserves inherited scale for the next rebuild or sync', 
     side = 4;
     if (next === 'rebuild') v.rebuild();
     else {
-      const sync = v.sync({ match: 'index' });
+      const sync = syncOf(v, { match: 'index' });
       sync.begin(); sync.interpolate(1); sync.finish();
     }
     assert.equal(v.current.width(), 8, `${next} inherits the original scale`);

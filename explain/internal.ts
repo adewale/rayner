@@ -24,4 +24,5 @@ export type { SettingsProblem } from './settings.ts';
 export { isFurniture, isHeading, paletteOf, paperOf, withoutHeading } from './stage.ts';
 export { checkWatch, htmlEscape, pictureChange, pictureHtml, pictureSummary, stepWords, undescribed, watchedChanges, wordsHtml } from './trace.ts';
 export type { WatchedChange } from './trace.ts';
+export { isView } from './view.ts';
 export { describedIn, primaryLanguage, wordsFor } from './words.ts';

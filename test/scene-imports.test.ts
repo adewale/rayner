@@ -57,7 +57,7 @@ function violations(file: string, source: string): string[] {
   for (const { fileName: spec } of importedFiles) {
     if (isTest(file) && (spec === 'rayner/testing' || relative(ROOT, resolve(ROOT, dirname(file), spec)) === 'explain/testing.ts')) continue;
     if (spec === 'rayner/testing') {
-      out.push(`${file}: ${spec} (author tooling, for tests and tools: a scene is written with rayner, rayner/explain, rayner/drawing, rayner/geo, rayner/audio and rayner/extras)`);
+      out.push(`${file}: ${spec} (author tooling, for tests and tools: a scene is written with rayner, rayner/explain, rayner/drawing, rayner/geo and rayner/extras)`);
       continue;
     }
     if (spec === 'rayner' || spec.startsWith('rayner/')) {
@@ -89,7 +89,7 @@ test('the entry points are the documented package exports', () => {
   assert.deepEqual(
     [...ENTRY].sort(),
     [
-      ['explain/drawing.ts', 'rayner/drawing'], ['explain/geo.ts', 'rayner/geo'], ['explain/index.ts', 'rayner/explain'], ['explain/score.ts', 'rayner/audio'],
+      ['explain/drawing.ts', 'rayner/drawing'], ['explain/geo.ts', 'rayner/geo'], ['explain/index.ts', 'rayner/explain'],
       ['explain/testing.ts', 'rayner/testing'], ['src/extras.ts', 'rayner/extras'], ['src/index.ts', 'rayner'], ['src/output.ts', 'rayner/output'],
     ],
   );
