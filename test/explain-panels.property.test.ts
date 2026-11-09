@@ -229,8 +229,9 @@ test('after a keyed sync no departed line is on stage, and the block shows exact
   await fc.assert(
     fc.asyncProperty(syncCase, async (c) => {
       const { sc, block, old } = await synced(c);
-      const present = new Set(sc.familyMembers());
-      assert.deepEqual(old.code.lines.filter((l) => present.has(l)).map((l) => l.text), []);
+      // A line departed when the block no longer holds it; a picture that did not change keeps its block, and every line.
+      const present = new Set(sc.familyMembers()), held = new Set(block.code.lines);
+      assert.deepEqual(old.code.lines.filter((l) => !held.has(l) && present.has(l)).map((l) => l.text), []);
       const shown = sc.familyMembers().filter((m): m is Text => m instanceof Text && m.parent === block.code);
       // By identity: a deep diff of mobjects runs away on failure.
       assert.ok(shown.length === block.code.lines.length && shown.every((t, i) => t === block.code.lines[i]), 'the block shows exactly its lines');
