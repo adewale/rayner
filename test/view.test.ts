@@ -454,3 +454,22 @@ test('a view measures a fresh picture without changing itself, and records its f
   v.rebuild();
   assert.ok(Math.abs(v.current.width() - 4) < 1e-6, 'a rebuild keeps the scale the view was given');
 });
+
+test('a play\'s lagRatio has nothing to stagger in a tween, which draws one sampled state at every frame', async () => {
+  const frames = async (opts: { lagRatio?: number }) => {
+    const sink = new StringSink();
+    class Slide extends Scene<{ x: number }> {
+      override async construct() {
+        this.state = { x: 0 };
+        const v = view(this, (s: { x: number }) => new Group(keyed(new Rectangle().moveTo([s.x, 0]), 'a'), keyed(new Rectangle().moveTo([s.x, 2]), 'b')), { place: false });
+        this.add(v);
+        await this.play(v.tween((t) => ({ x: 4 * t })), opts);
+      }
+    }
+    await new Slide(sink).run();
+    return sink.frames;
+  };
+  const plain = await frames({});
+  assert.ok(plain.length > 20);
+  assert.deepEqual(await frames({ lagRatio: 1 }), plain);
+});

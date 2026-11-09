@@ -50,8 +50,14 @@ export interface SyncOptions extends PlayOptions {
   staged?: boolean;
 }
 
-/** How tween() runs: its run time and rate function. */
-export type TweenOptions = Pick<PlayOptions, 'runTime' | 'rateFunc'>;
+/**
+ * How tween() runs: its run time and rate function. A tween samples one state at every frame and
+ * redraws the whole picture from it, so it has no parts to stagger and takes no lagRatio; a play's
+ * lagRatio has nothing to reach in it either.
+ */
+export interface TweenOptions extends Pick<PlayOptions, 'runTime' | 'rateFunc'> {
+  lagRatio?: never;
+}
 
 /** What fitting a freshly built picture gives (see View.measure): its unplaced size, and the scale it was given. */
 interface ViewFit { size: [number, number]; scale: number }
