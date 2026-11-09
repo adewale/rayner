@@ -16,7 +16,7 @@ const radar = (text: string): DiagramSnapshot => {
 };
 
 async function shown(s: DiagramSnapshot, Kind: import('../../../src/index.ts').SceneClass = Scene, build: 'all' | 'frame' = 'all') {
-  const d = new Diagram(new Kind(new NullSink(), { skipUntil: Infinity }), s.spec, s, {});
+  const d = new Diagram(new Kind(new NullSink()), s.spec, s, {});
   await d.build(build);
   return d;
 }

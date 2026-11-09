@@ -8,7 +8,7 @@ import {
   Line,
   Transform,
   } from '../src/index.ts';
-import { NullSink, StringSink, SnapshotSink, renderAt, toSvgString, renderElements } from '../src/output.ts';
+import { NullSink, StringSink, SnapshotSink, renderFrame, toSvgString, renderElements } from '../src/output.ts';
 import type { Box } from '../src/index.ts';
 
 function clipped(group: Group, clipBox: Box) {
@@ -60,7 +60,7 @@ test('seeking through a fixed viewport is byte-identical to playing it', async (
   const played = new StringSink({ width: 160, background: '#ffffff' });
   await new Moving(played, { fps: 20 }).run();
   const seek = new SnapshotSink({ width: 160, background: '#ffffff' });
-  await renderAt(Moving, 0.5, seek, { fps: 20 });
+  await renderFrame(Moving, 10, seek, { fps: 20 });
   assert.equal(seek.svg, played.frames[10]);
   assert.deepEqual(pixel(seek.svg, 80, 45), [255, 0, 0, 255]);
 });

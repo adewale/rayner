@@ -33,7 +33,7 @@ const where = fc.oneof(region, anyBox);
 const noteText = fc.string({ unit: 'grapheme', minLength: 1, maxLength: 30 });
 
 async function shown(s: DiagramSnapshot, box: Box | Region = 'full', build: 'all' | 'frame' | null = 'all') {
-  const scene = new Scene(new NullSink(), { skipUntil: Infinity });
+  const scene = new Scene(new NullSink());
   const d = new Diagram(scene, s.spec, s, { box });
   if (build) await d.build(build);
   return { scene, d };

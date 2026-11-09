@@ -23,7 +23,7 @@ const er = Object.values(store).find((s) => s.family === 'er');
 
 async function shown() {
   assert.ok(er, 'the gtfs explainer pins an ER snapshot');
-  const d = new Diagram(new Scene(new NullSink(), { skipUntil: Infinity }), er.spec, er, {});
+  const d = new Diagram(new Scene(new NullSink()), er.spec, er, {});
   await d.build();
   return d;
 }

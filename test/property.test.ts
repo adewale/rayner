@@ -11,8 +11,9 @@ import assert from 'node:assert/strict';
 import {
   Scene, Transform, Line, Arc, Text, VMobject,
   } from '../src/index.ts';
-import { StringSink, SnapshotSink, NullSink, renderAt, indexScene, renderText, renderElements, toSvgString } from '../src/output.ts';
+import { StringSink, SnapshotSink, NullSink, renderFrame, renderText, renderElements, toSvgString } from '../src/output.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
+import { traceRun } from '../src/trace.ts';
 import type { Box, Mobject } from '../src/index.ts';
 import type { ElementRecord } from '../src/output.ts';
 import { tapeRng, makeScene, place, randomShape, tape, drawsFrom } from './lib/random-scene.ts';
@@ -60,19 +61,17 @@ test('random scenes: deterministic, finite, cache-exact in both output modes, bo
     assert.ok(a.frames.length > 1, ctx);
     assert.deepEqual(a.frames, b.frames, `${ctx}: not deterministic`);
     for (const f of a.frames) assert.ok(!/NaN|Infinity|undefined/.test(f), `${ctx}: non-finite output`);
-    // seeking to 3 times lands on the exact frame
-    const ix = await indexScene(S, { fps: 20 });
+    // seeking to 3 frames lands on the exact frame
     const r = typeof seed === 'number' ? drawsFrom(seed * 7919) : tapeRng(seed.slice(400));
     for (let k = 0; k < 3; k++) {
-      const t = r(0, ix.duration);
+      const i = Math.min(a.frames.length - 1, Math.floor(r(0, a.frames.length)));
       const snap = new SnapshotSink();
-      const scene = await renderAt(S, t, snap, { fps: 20 });
-      const i = Math.round(scene.time * 20);
-      assert.equal(snap.svg, a.frames[i], `${ctx}: seek to ${t.toFixed(3)} (frame ${i}) differs from the full run`);
+      const scene = await renderFrame(S, i, snap, { fps: 20 });
+      assert.equal(snap.svg, a.frames[i], `${ctx}: seek to frame ${i} differs from the full run`);
       assert.doesNotThrow(() => renderText(scene), `${ctx}: renderText`);
     }
     // A trace from a skipped run records the same boundaries and state as a played one
-    assert.deepEqual(await traceScene(S, { fps: 20 }), await traceScene(S, { fps: 20, skipUntil: 0 }), `${ctx}: skipped trace differs`);
+    assert.deepEqual(await traceScene(S, { fps: 20 }), (await traceRun(S, { fps: 20, skipUntil: 0 })).trace, `${ctx}: skipped trace differs`);
   });
 });
 

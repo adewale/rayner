@@ -41,11 +41,11 @@ test('a plain run started before a lettered scene is bound never shapes text wit
     }
   }
 
-  const plain = new Plain(new NullSink(), { skipUntil: Infinity }).run();
+  const plain = new Plain(new NullSink()).run();
   await running;
   // Binding a lettered scene while Plain is mid-run.
   const Bound = bindLettering(Lettered, provider);
-  const lettered = new Bound(new NullSink(), { skipUntil: Infinity }).run();
+  const lettered = new Bound(new NullSink()).run();
   // Let the lettered run reach its lease before Plain builds its second Text.
   for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0));
   release();

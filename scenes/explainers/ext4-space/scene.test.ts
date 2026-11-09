@@ -12,7 +12,7 @@ const store = await loadSnapshots('scenes/explainers/ext4-space');
 async function described(text: string) {
   const s = Object.values(store).find((x): x is DiagramSnapshot => x.family === 'pie' && x.spec.source.includes(text));
   assert.ok(s, `no pinned pie with ${text}`);
-  const d = new Diagram(new Scene(new NullSink(), { skipUntil: Infinity }), s.spec, s, {});
+  const d = new Diagram(new Scene(new NullSink()), s.spec, s, {});
   await d.build();
   return d.describe();
 }

@@ -25,6 +25,7 @@ test('route and chart annotations leave the expected paper visible behind their 
     for (const scenario of scenarios) {
       let checked = 0;
       await new scenario.Scene({
+        skipUntil: Infinity,
         async frame() {},
         async stepEnd(scene, step) {
           if (step.name !== stepName) return;
@@ -63,7 +64,7 @@ test('route and chart annotations leave the expected paper visible behind their 
             checked++;
           }
         },
-      }, { skipUntil: Infinity }).run();
+      }).run();
       assert.equal(checked, words.length);
     }
   }

@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene } from '../src/index.ts';
-import { renderAt, SnapshotSink } from '../src/output.ts';
+import { renderFrame, SnapshotSink } from '../src/output.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
 import { explainer } from './lib/scenes.ts';
 
@@ -18,9 +18,9 @@ test('50 seeks and traces leave the heap where 10 did (no per-run growth)', { sk
   await loadFonts();
   const S = await explainer('token-bucket');
   const tr = await traceScene(S);
-  const times = tr.steps.map((s) => s.t0 + 0.3);
+  const frames = tr.steps.map((s) => s.frame0 + 9);
   const heap = (): number => { gc!(); gc!(); return process.memoryUsage().heapUsed; };
-  const cycle = async () => { for (const t of times) await renderAt(S, t, new SnapshotSink()); await traceScene(S); };
+  const cycle = async () => { for (const f of frames) await renderFrame(S, f, new SnapshotSink()); await traceScene(S); };
   for (let i = 0; i < 10; i++) await cycle();
   const after10 = heap();
   for (let i = 0; i < 40; i++) await cycle();

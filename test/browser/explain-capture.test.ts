@@ -30,7 +30,7 @@ test('actual class marker carriers follow their explicit relationships through r
     assert.ok(markerShapes.some((s) => s.subpaths.length && s.style.stroke !== 'none' &&
       (s.style.strokeWidth ?? 0) > 0 && (s.style.strokeOpacity ?? 1) > 0 && (s.style.opacity ?? 1) > 0),
       'the source includes a painted stroked marker');
-    const diagram = new Diagram(new Scene(new NullSink(), { skipUntil: Infinity }), spec, snapshot);
+    const diagram = new Diagram(new Scene(new NullSink()), spec, snapshot);
     await diagram.build('frame');
     for (const carrier of carriers) {
       const part = snapshot.parts.find((p) => p.id === carrier.id)!;

@@ -6,7 +6,7 @@ import { card } from '../explain/drawing.ts';
 import { isFurniture } from '../explain/stage.ts';
 import assert from 'node:assert/strict';
 import { Scene, Group, Rectangle, Circle, Dot, Line, Text, FadeIn, GrowFromEdge, PulseAlongPath, AnimationGroup, LaggedStart, Succession, linear } from '../src/index.ts';
-import { SnapshotSink, StringSink, NullSink, renderAt, toSvgString, renderFrame } from '../src/output.ts';
+import { SnapshotSink, StringSink, NullSink, toSvgString, renderFrame } from '../src/output.ts';
 import { TraceSink, traceScene, loadFonts } from '../explain/testing.ts';
 import type { Mobject, Vec } from '../src/index.ts';
 import { fc, params } from './lib/pbt.ts';
@@ -131,7 +131,7 @@ test('PulseAlongPath applies a supplied easing once and supports retaining the i
       await this.play(new PulseAlongPath(this.dot, new Line([0, 0], [4, 0]), { rateFunc: (t: number) => t * t, remover: false }));
     }
   }
-  const scene = await renderAt(Demo, 0.5, sink) as Demo;
+  const scene = await renderFrame(Demo, 15, sink) as Demo;
   close(scene.dot.center()[0], 1);
   close(scene.dot.style.opacity, Math.sin(Math.PI / 4));
   const full = new Demo(new NullSink()); await full.run();
@@ -179,8 +179,8 @@ test('SetState sequences state-derived views at the correct turn and leaves no d
       await this.step('result');
     }
   }
-  for (const [time, expected] of [[0.25, 3], [0.75, 9]]) {
-    const scene = await renderAt(Demo, time!, new SnapshotSink()); assert.equal(scene.state.count, expected);
+  for (const [frame, expected] of [[8, 3], [23, 9]]) {
+    const scene = await renderFrame(Demo, frame!, new SnapshotSink()); assert.equal(scene.state.count, expected);
   }
   const trace = await traceScene(Demo);
   assert.equal(trace.steps[0]!.after.count, 9);
@@ -217,7 +217,7 @@ test('extracted animations compose in nested schedules and preserve every seeked
     await renderFrame(Demo, frame, snapshot);
     assert.equal(snapshot.svg, sink.frames[frame], `frame ${frame}`);
   }
-  const fullTrace = new TraceSink(); await new Demo(fullTrace).run();
+  const fullTrace = new TraceSink({ skipUntil: 0 }); await new Demo(fullTrace).run();
   assert.deepEqual((await traceScene(Demo)).steps, fullTrace.steps());
 });
 
@@ -325,7 +325,7 @@ test('Follow admits its targets, removes them all as a remover, and seeks to the
   }
   // Mid-sweep the dot sits on the circle, where a morph between the two endpoint pictures would cut through its centre
   const mid = new SnapshotSink();
-  const scene = await renderAt(Orbit, 0.25, mid);
+  const scene = await renderFrame(Orbit, Math.round(0.25 * fps), mid);
   const dot = scene.mobjects.find((m) => m instanceof Dot)!;
   close(Math.hypot(dot.center()[0], dot.center()[1]), 2);
 });

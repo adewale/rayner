@@ -583,7 +583,7 @@ The package has an entry point per audience. A scene is written with `rayner` (t
 
 | Export | From | What it is for | Guide |
 | --- | --- | --- | --- |
-| `renderAt`, `renderFrame`, `indexScene`, `stepTime`, `SeekSink`, `NullSink` | `rayner/output` | The scene at one time, frame or step, without drawing the frames before it; `renderFrame(Scene, step.frame1, sink)` draws a step's resting picture | [Scene outputs](SCENE-OUTPUTS.md#time-and-step-semantics) |
+| `renderFrame`, `NullSink` | `rayner/output` | The scene at one frame or step, without drawing the frames before it; `renderFrame(Scene, step.frame1, sink)` draws a step's resting picture, and `NullSink` runs a scene drawing nothing | [Scene outputs](SCENE-OUTPUTS.md#time-and-step-semantics) |
 | `SnapshotSink`, `StringSink`, `toSvgString`, `renderElements`, `renderText`, `DomSink` | `rayner/output` | One SVG frame, every frame, element records, a text drawing, the live DOM | [Scene outputs](SCENE-OUTPUTS.md#public-output-apis) |
 | `StopScene` | `rayner/output` | What a sink throws to stop a run (a seek does); a `catch` must rethrow it | [Fundamentals](ENGINE-FUNDAMENTALS.md#updaters-derived-pictures-and-seeking) |
 | `traceScene`, `TraceSink` | `rayner/testing` | Every step's timing, state before and after, `shown` and evidence, in one run, typed from the scene class (`TraceOf`, `Jsonified`) | [Scene outputs](SCENE-OUTPUTS.md), [fundamentals](ENGINE-FUNDAMENTALS.md#steps-state-and-evidence), [typed traces](#typed-traces) |

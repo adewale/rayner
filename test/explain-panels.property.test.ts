@@ -21,7 +21,7 @@ await loadFonts();
 
 // Points are float32: at stage magnitudes (up to 16) one unit in the last place is about 1e-6.
 const EPS = 1e-5;
-const scene = () => new Scene(new NullSink(), { skipUntil: Infinity });
+const scene = () => new Scene(new NullSink());
 const palette = fc.record({ paper: hexColor, ink: hexColor, accent: hexColor, muted: hexColor });
 /** Lines: a tiny alphabet (so many lines repeat), empty lines, near-duplicates and any text. */
 const line = fc.oneof(

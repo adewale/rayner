@@ -41,7 +41,7 @@ async function shown(s: DiagramSnapshot, lang?: string) {
   class Scened extends Scene {
     static meta = { id: 'words', title: 'Words', ...(lang ? { lang } : {}) };
   }
-  const d = new Diagram(new Scened(new NullSink(), { skipUntil: Infinity }), s.spec, s, {});
+  const d = new Diagram(new Scened(new NullSink()), s.spec, s, {});
   await d.build();
   return d;
 }

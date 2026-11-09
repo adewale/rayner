@@ -132,7 +132,7 @@ control membership and draw order; what the stage keeps over everything else (it
 band, step number and line) stays last through each of them: the root that holds it, which is
 the group around it once one wraps it, is moved last, and that is done again before every frame
 and step boundary the scene hands its sink, and before a frame drawn outside the frame loop
-(`renderAt` and `renderFrame` past the end, the live player's landing frames), after a direct
+(`renderFrame` past the end, the live player's landing frames), after a direct
 write to `scene.mobjects` too. A sink handed the scene by other code reads the list as it stands. The structure is a tree: `add`, `insert` and
 `replaceChild` refuse the mobject itself or one of its ancestors, which would make a cycle,
 and `group.remove(child)` takes out only the group's own children, leaving a mobject in
@@ -347,12 +347,12 @@ of the two.
 when its play begins and morphs to it. That suits discrete updates; it does not
 evaluate a relationship between the two endpoints, which a [view's tween](CHOREOGRAPHY.md#following-one-number) does.
 
-`renderAt(SceneClass, time, sink)` (`rayner/output`) reruns the scene up to the first frame at or after
-the requested time (or the final frame if past the end), skipping the interpolations
-of plays without updaters. A seek is a replay with skipping, not an index into a
-precompiled timeline. `renderFrame(SceneClass, frame, sink)` reruns it to one frame by its
-number, the frame count a step records as `frame0`, `frame1` or `holdFrame`, so a step's resting
-picture is `renderFrame(SceneClass, step.frame1, sink)`, found without converting a frame to a time.
+`renderFrame(SceneClass, frame, sink)` (`rayner/output`) reruns the scene up to one frame by its
+number (or the final frame if past the end), skipping the interpolations of plays without
+updaters. A seek is a replay with skipping, not an index into a precompiled timeline. The
+number is the frame count a step records as `frame0`, `frame1` or `holdFrame`, so a step's
+resting picture is `renderFrame(SceneClass, step.frame1, sink)`, found without converting a
+frame to a time.
 
 A sink stops a seek with `StopScene` (`rayner/output`). Do not catch animation errors broadly in
 `construct()`: catching that signal can allow author code to mutate the stopped

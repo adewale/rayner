@@ -13,7 +13,7 @@ import { fixedSnapshot, square } from './lib/random-snapshot.ts';
 import { fc, params } from './lib/pbt.ts';
 
 await loadFonts();
-const scene = () => new Scene(new NullSink(), { skipUntil: Infinity });
+const scene = () => new Scene(new NullSink());
 const colors = palette('nord');
 const EPS = 3e-5;
 const near = (actual: number, expected: number) => assert.ok(Math.abs(actual - expected) < EPS, `${actual} != ${expected}`);

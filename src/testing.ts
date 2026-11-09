@@ -4,7 +4,7 @@
 
 export { TraceSink, traceScene } from './trace.ts';
 export { stillFrame } from './scene.ts';
-export type { Trace, StepRecord, TraceOf } from './trace.ts';
+export type { Trace, StepRecord, TraceOf, TraceSinkOptions } from './trace.ts';
 export type { Jsonified } from './json.ts';
 export { MotionSink, analyzeMotion, InvariantSink } from './verify.ts';
 export type { MotionEvent, MotionOptions, InvariantFailure } from './verify.ts';

@@ -3318,6 +3318,7 @@ test('PKCE mobile views expose the derivation and the unsent verifier without ad
   for (const scenario of project.scenarios) {
     const targets = new Map<string, number[][]>();
     await new scenario.Scene({
+      skipUntil: Infinity,
       async frame() {},
       async stepEnd(scene, step) {
         if (!['secret', 'authorize'].includes(step.name)) return;
@@ -3334,7 +3335,7 @@ test('PKCE mobile views expose the derivation and the unsent verifier without ad
         for (const m of scene.mobjects) walk(m);
         targets.set(step.name, found);
       },
-    }, { skipUntil: Infinity }).run();
+    }).run();
     await readerContext({ viewport: { width: 390, height: 844 }, reducedMotion: scenario.values.attacker === 'yes' ? 'no-preference' : 'reduce' }, async context => {
 
       const page = await context.newPage();
@@ -3440,7 +3441,7 @@ test('source tours show the token-cap calculation and terminal rejection in ever
       const claims = await reviewSubjects(project);
       for(const scenario of project.scenarios){
         let nativeChecked=false;
-        await new scenario.Scene({async frame(){},async stepEnd(scene,step){
+        await new scenario.Scene({ skipUntil: Infinity, async frame(){},async stepEnd(scene,step){
           if(step.name!==sourceStep)return;
           const members=scene.familyMembers();
           const keyed=(key:string)=>{
@@ -3477,7 +3478,7 @@ test('source tours show the token-cap calculation and terminal rejection in ever
             assert.equal(scene.state.session,'closed');
           }
           nativeChecked=true;
-        }},{skipUntil:Infinity}).run();
+        }}).run();
         assert.equal(nativeChecked,true);
         // Keep the production reviewer: every main and source step, both
         // widths, all reachable tour stops, plus the independent 320px openings.
@@ -3538,7 +3539,7 @@ test('both pen drawings retain every construction mark and its readable count th
   try{
     for(const scenario of project.scenarios){
       let strokes=0,wordBoxes=0;
-      await new scenario.Scene({async frame(){},async stepEnd(scene,step){
+      await new scenario.Scene({ skipUntil: Infinity, async frame(){},async stepEnd(scene,step){
         if(step.name!=='marks')return;
         const members=scene.familyMembers(),marks=members.filter(m=>m.key==='construction:marks'),
           tallies=members.filter(m=>m.key==='construction:tally');
@@ -3579,7 +3580,7 @@ test('both pen drawings retain every construction mark and its readable count th
         }
         const points=paths.map(m=>Array.from((m as VMobject).subpaths[0]!));
         if(layout)assert.deepEqual(points,layout,'changing the hand keeps all laid-out marks fixed');else layout=points;
-      }},{skipUntil:Infinity}).run();
+      }}).run();
       assert.equal(strokes,53);assert.equal(wordBoxes,8);
       const rows=await reviewStoryScenario(page,`${embed}/pen-and-pencil.html`,scenario,claims);
       assert.deepEqual(rows.map(r=>[r.step,r.width]),[390,1180].flatMap(width=>scenario.trace.steps.map(s=>[s.step,width])));

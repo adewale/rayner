@@ -169,7 +169,7 @@ Each extension point has one rule for what happens when two of them act on the s
 
 ## Test an extension
 
-Test an extension with the same tools Rayner's own suite uses, without a browser. From `rayner/testing`, `traceScene` runs a scene and returns each step's state, evidence and timing. From `rayner/output`, `SnapshotSink` and `renderAt` give the picture at a time. `InvariantSink` runs invariants over a full run. [test/recipes.test.ts](https://github.com/adewale/rayner/blob/main/test/recipes.test.ts) tests the five recipes this way: the copied composite owns its own children, the sampled orbit stays on its circle, and the morphed one leaves it. Give each extension one test of normal use and one that shows its limit failing.
+Test an extension with the same tools Rayner's own suite uses, without a browser. From `rayner/testing`, `traceScene` runs a scene and returns each step's state, evidence and timing. From `rayner/output`, `SnapshotSink` and `renderFrame` give the picture at a frame. `InvariantSink` runs invariants over a full run. [test/recipes.test.ts](https://github.com/adewale/rayner/blob/main/test/recipes.test.ts) tests the five recipes this way: the copied composite owns its own children, the sampled orbit stays on its circle, and the morphed one leaves it. Give each extension one test of normal use and one that shows its limit failing.
 
 ## Composition, compositionality and modularity
 

@@ -53,6 +53,7 @@ test('both operation scenarios open with the whole array queue: both rows, every
     const frames = await storyFrames(scenario.Scene, claims);
     const minimum = new Map<string, number>();
     await new scenario.Scene({
+      skipUntil: Infinity,
       async frame() {},
       async stepEnd(scene, step) {
         if (!steps.includes(step.name)) return;
@@ -60,7 +61,7 @@ test('both operation scenarios open with the whole array queue: both rows, every
         assert.ok(labels.length > 0);
         minimum.set(step.name, Math.min(...labels.map((m) => m.textSize())));
       },
-    }, { skipUntil: Infinity }).run();
+    }).run();
     for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }]) {
       const page = await browser.newPage({ viewport, reducedMotion: 'reduce' });
       await page.addInitScript(() => document.addEventListener('rayner:step', (event) => {

@@ -43,6 +43,7 @@ test('token introductions and the ring’s fill and result steps draw the indepe
   for (const v of token.scenarios)
     await new v.Scene(
       {
+        skipUntil: Infinity,
         async frame() {},
         async stepEnd(scene, step) {
           // The introduction's two pictures are gone; the native steps that show the
@@ -90,11 +91,11 @@ test('token introductions and the ring’s fill and result steps draw the indepe
           frames++;
         },
       },
-      { skipUntil: Infinity },
     ).run();
   for (const v of ring.scenarios)
     await new v.Scene(
       {
+        skipUntil: Infinity,
         async frame() {},
         async stepEnd(scene, step) {
           if (step.name !== 'fill' && step.name !== 'result') return;
@@ -114,7 +115,6 @@ test('token introductions and the ring’s fill and result steps draw the indepe
           frames++;
         },
       },
-      { skipUntil: Infinity },
     ).run();
   // Three token steps in each of three scenarios, two ring introductions in each of two.
   assert.equal(frames, 13);
@@ -127,6 +127,7 @@ test('GTFS departures preserve fixed departures and frequency patterns across al
   for (const v of p.scenarios)
     await new v.Scene(
       {
+        skipUntil: Infinity,
         async frame() {},
         async stepEnd(scene, step) {
           if (step.name !== 'departures') return;
@@ -152,7 +153,6 @@ test('GTFS departures preserve fixed departures and frequency patterns across al
           checked++;
         },
       },
-      { skipUntil: Infinity },
     ).run();
   assert.equal(checked, 6);
 });
@@ -164,6 +164,7 @@ test('the occupied-date picture contains 365 days and the independently expected
   for (const v of p.scenarios)
     await new v.Scene(
       {
+        skipUntil: Infinity,
         async frame() {},
         async stepEnd(scene, step) {
           if (step.name !== 'exact') return;
@@ -178,7 +179,6 @@ test('the occupied-date picture contains 365 days and the independently expected
           checked++;
         },
       },
-      { skipUntil: Infinity },
     ).run();
   assert.equal(checked, 3);
 });
@@ -190,6 +190,7 @@ test('the complete annual daylight picture labels its fixed zero, twelve and twe
   for (const v of p.scenarios)
     await new v.Scene(
       {
+        skipUntil: Infinity,
         async frame() {},
         async stepEnd(scene, step) {
           if (step.name !== 'year') return;
@@ -204,7 +205,6 @@ test('the complete annual daylight picture labels its fixed zero, twelve and twe
           checked++;
         },
       },
-      { skipUntil: Infinity },
     ).run();
   assert.equal(checked, 4);
 });
@@ -219,6 +219,7 @@ test('the ext4 reserve comparison actually changes reserve and preserves the met
   let checked = 0;
   await new v.Scene(
     {
+      skipUntil: Infinity,
       async frame() {},
       async stepEnd(scene, step) {
         if (step.name !== 'chosen') return;
@@ -235,7 +236,6 @@ test('the ext4 reserve comparison actually changes reserve and preserves the met
         checked++;
       },
     },
-    { skipUntil: Infinity },
   ).run();
   assert.equal(checked, 1);
 });
@@ -266,6 +266,7 @@ test('traffic comparisons draw each source pod share without attributing the ing
   for (const v of p.scenarios)
     await new v.Scene(
       {
+        skipUntil: Infinity,
         async frame() {},
         async stepEnd(scene, step) {
           const placement = v.values.pods as keyof typeof expected;
@@ -293,7 +294,6 @@ test('traffic comparisons draw each source pod share without attributing the ing
           checked++;
         },
       },
-      { skipUntil: Infinity },
     ).run();
   assert.equal(checked, 6);
 });

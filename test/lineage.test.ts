@@ -7,8 +7,8 @@ import { Square, Write, MoveAlongPath } from '../src/extras.ts';
 import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
 import { Scene, Group, VMobject, Rectangle, Circle, Line, Dot, Arc, Text, Code, DecimalNumber, Transform, FadeIn, FadeOut, Create, AnimationGroup, LaggedStart, linear, smooth, rushInto, rushFrom, thereAndBack, shaperFor } from '../src/index.ts';
-import { StringSink, NullSink, toSvgString, renderElements, renderAt, indexScene } from '../src/output.ts';
-import { loadFonts } from '../explain/testing.ts';
+import { StringSink, NullSink, toSvgString, renderElements, renderFrame } from '../src/output.ts';
+import { loadFonts, traceScene } from '../explain/testing.ts';
 import { Indicate } from './lib/transient.ts';
 import type { Mobject, Sink, RateFunc, Style } from '../src/index.ts';
 
@@ -237,16 +237,17 @@ test('updaters: the dt an updater receives adds up to the scene clock across pla
   }), params(30));
 });
 
-test('time: seeking to k/fps lands on frame k in a 40-minute scene (manim #1000, #1189)', async () => {
+test('time: frame k is drawn at time k/fps in a 40-minute scene (manim #1000, #1189)', async () => {
   // https://github.com/3b1b/manim/issues/1000, https://github.com/3b1b/manim/pull/1189: frame timing drifted from the nominal rate.
   // A clock summed from dt drifted past the seek tolerance at about 29 minutes at 25 fps; it now
   // comes from the frame count.
   const fps = 25, frames = 40 * 60 * fps;
   const S = class extends Scene { override async construct() { await this.wait(40 * 60); } };
-  // renderAt(k/fps) must land on frame k, late in the scene as well as early
+  // Frame k is at k/fps, late in the scene as well as early
   for (const k of [1, 2, frames / 2 + 1, frames - 2, frames - 1, frames]) {
-    const scene = await renderAt(S, k / fps, new NullSink(), { fps });
-    assert.equal(scene.frameCount, k, `renderAt(${k}/${fps}) (${(k / fps / 60).toFixed(1)} min)`);
+    const scene = await renderFrame(S, k, new NullSink(), { fps });
+    assert.equal(scene.frameCount, k);
+    assert.ok(Math.abs(scene.time - k / fps) < 1e-9, `frame ${k} at ${scene.time} s, not ${k / fps} (${(k / fps / 60).toFixed(1)} min)`);
   }
 });
 
@@ -546,7 +547,7 @@ test('seek: a seeked frame equals the played frame across nested groups, Indicat
     await new S(full, { fps: 20 }).run();
     for (const u of at) {
       const snap = { svg: '', async frame(scene: Scene) { this.svg = toSvgString(scene); } };
-      const scene = await renderAt(S, u * (full.frames.length - 1) / 20, snap, { fps: 20 });
+      const scene = await renderFrame(S, Math.round(u * (full.frames.length - 1)), snap, { fps: 20 });
       assert.equal(snap.svg, full.frames[scene.frameCount], `seek to ${u} of the run`);
     }
   }), params(100));
@@ -557,10 +558,10 @@ test('seek: a dry-run index puts every step on the frame the full run puts it on
   // (skip_animations per section), https://github.com/ManimCommunity/manim/issues/2449 (timing off after a skipped section).
   await fc.assert(fc.asyncProperty(fc.array(op, { minLength: 1, maxLength: 8 }), async (ops) => {
     const S = programScene([{ kind: 'step', i: 0, t: 0.1 }, ...ops]);
-    const ix = await indexScene(S, { fps: 20 });
-    const live = new S(new NullSink(), { fps: 20 });
+    const ix = await traceScene(S, { fps: 20 });
+    const live = new S({ async frame() {} }, { fps: 20 });
     await live.run();
-    assert.deepEqual(ix.steps.map((s) => [s.name, s.frame0, s.frame1]), live.steps.map((s) => [s.name, s.frame0, s.frame1]));
+    assert.deepEqual(ix.steps.map((s) => [s.step, s.frame0, s.frame1]), live.steps.map((s) => [s.path, s.frame0, s.frame1]));
     assert.equal(ix.frames, live.frameCount);
   }), params(100));
 });

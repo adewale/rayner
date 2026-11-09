@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import {
   Scene, Text, Code, DecimalNumber, Transform, shaperFor,
 } from '../src/index.ts';
-import { NullSink, SnapshotSink, renderAt } from '../src/output.ts';
+import { NullSink, SnapshotSink, renderFrame } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { SANS, MONO } from '../src/font-data.ts';
 import {
@@ -57,7 +57,7 @@ test('face requests replay counters at arbitrary FPS and preserve known numeric 
       assert.ok(Math.abs(n.run.width - mono(n.text, n.run.fontSize).width) < 1e-7, 'runtime numerals retain the requested mono face');
     } }, { fps }).run();
   }
-  await renderAt(Bound, .5, new SnapshotSink());
+  await renderFrame(Bound, 15, new SnapshotSink());
   assert.ok(seen.size > 15, 'intermediate values were not captured as endpoint runs');
   assert.equal(JSON.stringify(data), before, 'private numeric caches do not change snapshots or their hashes');
   const provider = snapshotProvider(data);

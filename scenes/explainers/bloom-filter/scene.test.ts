@@ -14,6 +14,7 @@ test("the Bloom filter's tables key each row by its name or row length, and each
     let seen = false;
     await new scenario.Scene(
       {
+        skipUntil: Infinity,
         async frame() {},
         async stepEnd(scene, step) {
           if (step.name !== 'pipeline') return;
@@ -32,7 +33,6 @@ test("the Bloom filter's tables key each row by its name or row length, and each
           for (const row of [m, other]) assert.equal(text(`bloom-sample:bits-${row.size}:Pass`), row.sampleFalsePositives.toLocaleString('en-US'));
         },
       },
-      { skipUntil: Infinity },
     ).run();
     assert.ok(seen, 'the pipeline step ran');
   }

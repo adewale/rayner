@@ -35,7 +35,7 @@ async function run(p: Plan, skipUntil = Infinity) {
       }
     }
   }
-  const scene = await new Planned(new NullSink(), { fps: p.fps, skipUntil }).run();
+  const scene = await new Planned({ skipUntil, async frame() {} }, { fps: p.fps }).run();
   return { steps: scene.steps, motion, end: scene.time };
 }
 

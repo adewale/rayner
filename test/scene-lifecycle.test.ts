@@ -528,7 +528,7 @@ test('a stop\'s callback is held to the listener rule: one that returns with a p
     }
   }
   for (const skipUntil of [0, Infinity]) {
-    const scene = new Short(new NullSink(), { skipUntil });
+    const scene = new Short({ skipUntil, async frame() {} });
     let left: Promise<void> | undefined, frame = 0;
     // A Succession interpolates through skipped frames, so even a skipped play is still running when the callback returns.
     scene.stopAt('one', (s) => { frame = s.frameCount; left = s.play(new Succession([new FadeIn(new Rectangle()), new FadeIn(new Circle({ radius: 0.3 }))])); });

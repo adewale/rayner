@@ -85,9 +85,6 @@
       "NullSink": {
         "tooling": "a test or tool that runs a scene for its state, steps or invariants and draws nothing (the recipes, rayner check)"
       },
-      "SeekSink": {
-        "tooling": "a host page or tool that seeks a scene to one time without drawing the frames before it, as the player does"
-      },
       "SnapshotSink": {
         "tooling": "a tool that keeps one SVG frame at a chosen time, such as a contact sheet or a page's still (the render recipe)"
       },
@@ -97,12 +94,6 @@
       "StringSink": {
         "tooling": "a tool that collects every frame of a run as SVG strings (the render recipe)"
       },
-      "indexScene": {
-        "tooling": "a host page or tool that lists a scene's steps with their start and end times before seeking (the render recipe)"
-      },
-      "renderAt": {
-        "tooling": "a host page or tool that draws the scene at one time or step as SVG (the render and document recipes)"
-      },
       "renderFrame": {
         "tooling": "a host page or tool that draws a step's resting picture, or any frame, by the frame number a trace records (the player, the build's poster and rayner check's seeks)"
       },
@@ -111,9 +102,6 @@
       },
       "renderText": {
         "tooling": "a tool or test that prints a frame as a text drawing, for a terminal or a reviewer (the render recipe)"
-      },
-      "stepTime": {
-        "tooling": "a host page or tool that finds the time a named step starts or rests at (the render recipe)"
       },
       "toSvgString": {
         "tooling": "a host page or tool that serializes the scene's current picture as one SVG document"

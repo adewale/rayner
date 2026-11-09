@@ -221,7 +221,7 @@ test("a participant's bare name and its actor id name the same part, so dimming 
       await d.walk([['actor:A', 'C']]);
     }
   }
-  await new (bindSnapshots(Seq, { [diagramKey(seqSpec)]: seq }))(new NullSink(), { skipUntil: Infinity }).run();
+  await new (bindSnapshots(Seq, { [diagramKey(seqSpec)]: seq }))(new NullSink()).run();
 });
 
 test('a picture names what is new since the step began, and records nothing new when everything is', () => {
@@ -289,7 +289,7 @@ test('a link names its ends by their labels: a service by its label, a class or 
   });
   const describe = async (source: string, family: string, parts: SnapshotPart[], act?: (d: Diagram) => PromiseLike<void>) => {
     const spec = { source, style: 'nord' };
-    const d = new Diagram(new Scene(new NullSink(), { skipUntil: Infinity }), spec, fixedSnapshot(spec, parts, { family, palette }), {});
+    const d = new Diagram(new Scene(new NullSink()), spec, fixedSnapshot(spec, parts, { family, palette }), {});
     await d.build();
     await act?.(d);
     return d.describe().parts.map((p) => (p.mark ? `${p.name} (${p.mark})` : p.name));

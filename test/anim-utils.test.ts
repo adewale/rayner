@@ -4,8 +4,8 @@ import { test } from 'node:test';
 import { Square, Restore, TransformFromCopy } from '../src/extras.ts';
 import assert from 'node:assert/strict';
 import { Scene, Mobject, Group, Rectangle, Circle, Polygon, Text, Code, Transform, FadeIn, FadeOut, Create, AnimationGroup, LaggedStart, Succession, TransformMatchingText } from '../src/index.ts';
-import { StringSink, SnapshotSink, renderAt, indexScene, toSvgString, renderFrame } from '../src/output.ts';
-import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
+import { StringSink, SnapshotSink, toSvgString, renderFrame } from '../src/output.ts';
+import { MotionSink, analyzeMotion, loadFonts, traceScene } from '../explain/testing.ts';
 import { Indicate, Flash } from './lib/transient.ts';
 import type { SceneOptions, Sink } from '../src/index.ts';
 import type { Vec } from '../src/index.ts';
@@ -198,10 +198,10 @@ test('TransformFromCopy copies its source before anything in its play begins, in
   // and a seek lands on the frame the full run drew
   const S = sceneOf(body(false, true)), full = new StringSink();
   await new S(full).run();
-  for (const t of [0.1, 0.5, 0.9, 1.05]) {
+  for (const frame of [3, 15, 27, 32]) {
     const snap = new SnapshotSink();
-    const scene = await renderAt(S, t, snap);
-    assert.equal(snap.svg, full.frames[Math.round(scene.time * scene.fps)], `seek to ${t}`);
+    await renderFrame(S, frame, snap);
+    assert.equal(snap.svg, full.frames[frame], `seek to frame ${frame}`);
   }
 });
 
@@ -233,8 +233,8 @@ test('a Succession runs like consecutive plays: same frames, same step times', a
   assert.equal(sa.time, sb.time);
   assert.deepEqual(sa.mobjects.map((m) => m.constructor.name), ['Circle'], 'the FadeOut member removed the box');
   assert.deepEqual(a.frames, b.frames);
-  const ia = await indexScene(sceneOf(chain(true))), ib = await indexScene(sceneOf(chain(false)));
-  assert.deepEqual(ia.steps.map((x) => [x.name, x.t0, x.frame0]), ib.steps.map((x) => [x.name, x.t0, x.frame0]));
+  const ia = await traceScene(sceneOf(chain(true))), ib = await traceScene(sceneOf(chain(false)));
+  assert.deepEqual(ia.steps.map((x) => [x.step, x.t0, x.frame0]), ib.steps.map((x) => [x.step, x.t0, x.frame0]));
   assert.equal(ia.duration, ib.duration);
 });
 
@@ -351,14 +351,13 @@ class AllThree extends Scene {
 test('Restore, TransformFromCopy and Succession seek to the frame a full run produces', async () => {
   const full = new StringSink();
   await new AllThree(full).run();
-  const ix = await indexScene(AllThree);
+  const ix = await traceScene(AllThree);
   assert.equal(full.frames.length, ix.frames + 1);
-  const times = [0.4, 1.2, 1.5, 2.3, ...ix.steps.map((s) => s.t0), ix.steps[3]!.t0 + 0.6, ix.steps[3]!.t0 + 1.4, ix.steps[3]!.t0 + 2.5, ix.duration];
-  for (const t of times) {
+  const frames = [12, 36, 45, 69, ...ix.steps.map((s) => s.frame0), ix.steps[3]!.frame0 + 18, ix.steps[3]!.frame0 + 42, ix.steps[3]!.frame0 + 75, ix.frames];
+  for (const i of frames) {
     const snap = new SnapshotSink();
-    const scene = await renderAt(AllThree, t, snap);
-    const i = Math.round(scene.time * scene.fps);
-    assert.equal(snap.svg, full.frames[i], `seek to ${t.toFixed(3)} (frame ${i})`);
+    await renderFrame(AllThree, i, snap);
+    assert.equal(snap.svg, full.frames[i], `seek to frame ${i}`);
   }
 });
 

@@ -374,9 +374,9 @@ test('native SVG pixels confirm hollow and covered order/count changes leave the
     let checked = 0;
     for (const kind of unchangedLayerKinds) {
       const pictures: string[] = [];
-      await new (unchangedLayerScene(kind))({ async frame() {}, async stepEnd(scene) {
+      await new (unchangedLayerScene(kind))({ skipUntil: Infinity, async frame() {}, async stepEnd(scene) {
         pictures.push(toSvgString(scene));
-      } }, { skipUntil: Infinity }).run();
+      } }).run();
       assert.equal(pictures.length, 2);
       const changedPixels = await page.evaluate(async pictures => {
         const pixels: Uint8ClampedArray[] = [];
@@ -501,9 +501,9 @@ test('native SVG pixels confirm the stroke-order changes selected by the review'
     for (const sample of strokeOrderCases) {
       const images = new Map<string, string>();
       const Source = strokeOrderScene(sample.kind);
-      await new Source({ async frame() {}, async stepEnd(scene, step) {
+      await new Source({ skipUntil: Infinity, async frame() {}, async stepEnd(scene, step) {
         images.set(step.name, toSvgString(scene));
-      } }, { skipUntil: Infinity }).run();
+      } }).run();
       assert.equal(images.size, 2);
       const pixels: number[][] = [];
       for (const step of ['before', 'after']) pixels.push(await page.evaluate(async ({ svg, x, y }) => {
@@ -531,6 +531,7 @@ test('token-bucket refill does not turn untouched waiting R10 into a story oblig
   for (const scenario of project.scenarios) {
     const frame = (await storyFrames(scenario.Scene)).get('refill')!;
     await new scenario.Scene({
+      skipUntil: Infinity,
       async frame() {},
       async stepEnd(scene, step) {
         if (step.name !== 'refill') return;
@@ -549,7 +550,7 @@ test('token-bucket refill does not turn untouched waiting R10 into a story oblig
           `rate ${scenario.values.rate}: redrawing answered R7-R9 must not make unchanged R10 a subject`);
         checked++;
       },
-    }, { skipUntil: Infinity }).run();
+    }).run();
   }
   assert.equal(checked, 3);
 });
@@ -1044,7 +1045,7 @@ test('traffic policy reviews every scenario and step while binding its compariso
     for (const scenario of project.scenarios) {
       const expected = facts[scenario.values.pods!]!;
       let inspected = 0;
-      await new scenario.Scene({async frame() {}, async stepEnd(scene, step) {
+      await new scenario.Scene({ skipUntil: Infinity, async frame() {}, async stepEnd(scene, step) {
         if (step.name !== 'compare') return;
         const cards = scene.familyMembers().filter((m): m is InstanceType<typeof Card> =>
           m instanceof Card && !!m.key?.startsWith('traffic-compare:'));
@@ -1056,7 +1057,7 @@ test('traffic policy reviews every scenario and step while binding its compariso
           assert.ok(card.family().some(m => m instanceof Text && m.text === (policy === 'cluster' ? 'Cluster' : 'Local')));
         }
         inspected++;
-      }}, {skipUntil: Infinity}).run();
+      }}).run();
       assert.equal(inspected, 1, 'every scenario has one factual policy comparison');
       const applicable = claims.filter(c => Object.entries(c.settings ?? {}).every(([k, v]) => scenario.values[k] === v));
       const frame = (await storyFrames(scenario.Scene, applicable)).get('compare')!;

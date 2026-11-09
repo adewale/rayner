@@ -106,25 +106,18 @@ export interface Sink {
   stepBegin?(scene: Scene, step: Step): Promise<void>;
   stepEnd?(scene: Scene, step: EndedStep): Promise<void>;
   /**
-   * Frames that end before this time are counted, not rendered, as those before the scene's own
-   * `skipUntil` are: a sink that draws only from some point says so here, and may move it between
-   * plays (the live player's sink skips to a step, then draws a reader's event frame by frame; the
-   * player's runner skips to the step it is headed for). A time in seconds, 0 or more, or Infinity;
-   * the scene refuses anything else when it next reads it, which every play and wait does.
+   * Frames that end before this time are counted, not rendered: the one way to skip frames. A sink
+   * that draws only from some point says so here, and may move it between plays (the live player's
+   * sink skips to a step, then draws a reader's event frame by frame; the player's runner skips to
+   * the step it is headed for); one that draws nothing (NullSink, TraceSink) skips every frame with
+   * Infinity. Without it every frame is drawn. A time in seconds, 0 or more, or Infinity; the scene
+   * refuses NaN or a negative time when it next reads it, which every play and wait does.
    */
   readonly skipUntil?: number;
 }
 
 export interface SceneOptions {
   fps?: number;
-  /** Frames that end before this time are counted, not rendered (seeking): seconds, 0 or more, or Infinity. */
-  skipUntil?: number;
-}
-
-/** Why `value` is no skip time (seconds, 0 or more, or Infinity), or null when it is one. */
-function notSkipTime(value: unknown): { kind: 'type' | 'range'; said: string } | null {
-  if (typeof value !== 'number') return { kind: 'type', said: typeof value };
-  return Number.isNaN(value) || value < 0 ? { kind: 'range', said: String(value) } : null;
 }
 
 /** The author's mutable state; stateJson() validates and copies its JSON representation. */
@@ -174,7 +167,7 @@ export function captionWords(caption: string): number {
   return words;
 }
 
-/** A scene class, as traceScene(), renderAt() and the registries take it. */
+/** A scene class, as traceScene(), renderFrame() and the registries take it. */
 export type SceneClass = new (sink: Sink, opts?: SceneOptions) => Scene;
 
 /**
@@ -293,23 +286,19 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   sink: Sink;
   fps: number;
   /**
-   * @internal Frames that end before this time are counted, not rendered: the `skipUntil` option,
-   * or the sink's own `skipUntil` when that is later. These are its only two writers. A sink's that
-   * is not a time (NaN, negative, not a number) is refused here, where every play and wait reads it.
+   * @internal Frames that end before this time are counted, not rendered: the sink's `skipUntil`,
+   * its one writer, or 0 when it has none. NaN or a negative time is refused here, where every play
+   * and wait reads it.
    */
   get skipUntil(): number {
-    const own = this.sink.skipUntil;
-    if (own === undefined) return this.#skipUntil;
-    const wrong = notSkipTime(own);
-    if (wrong) {
+    const own = this.sink.skipUntil ?? 0;
+    if (Number.isNaN(own) || own < 0) {
       const kind = (this.sink as { constructor?: { name?: string } }).constructor;
       const name = !kind?.name || kind === Object ? "the sink's" : `the ${kind.name}'s`;
-      if (wrong.kind === 'type') throw new TypeError(`sink.skipUntil: ${name} is ${wrong.said}; give a time in seconds, 0 or more, or Infinity to skip every frame`);
-      throw new RangeError(`sink.skipUntil: ${name} is ${wrong.said}; give a time in seconds, 0 or more, or Infinity to skip every frame`);
+      throw new RangeError(`sink.skipUntil: ${name} is ${String(own)}; give a time in seconds, 0 or more, or Infinity to skip every frame`);
     }
-    return Math.max(this.#skipUntil, own);
+    return own;
   }
-  readonly #skipUntil: number;
   mobjects: Mobject[];
   time: number;
   frameCount: number;
@@ -373,22 +362,18 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   colors: Readonly<SceneColors>;
 
   /**
-   * skipUntil: frames that end before this time are not rendered or
+   * The sink's skipUntil: frames that end before it are not rendered or
    * interpolated, only counted (manim's skip_animations). Interpolation is a
    * pure function of alpha over endpoints fixed at begin(), so the state after
    * a skipped stretch is exactly the state a full run reaches. Plays with
    * active updaters are never skipped: updaters integrate over frames.
    */
-  constructor(sink: Sink, { fps = 30, skipUntil = 0 }: SceneOptions = {}) {
+  constructor(sink: Sink, { fps = 30 }: SceneOptions = {}) {
     // Times are kept to 1 ms in a trace: up to 240 fps, half a frame is longer, so a rounded time still finds its frame.
     if (typeof fps !== 'number') throw new TypeError(`new Scene(): fps is ${typeof fps}; give a number above 0 and at most 240`);
     if (!(fps > 0 && fps <= 240)) throw new RangeError(`new Scene(): fps is ${String(fps)}; give a number above 0 and at most 240`);
-    const wrong = notSkipTime(skipUntil);
-    if (wrong?.kind === 'type') throw new TypeError(`new Scene(): skipUntil is ${wrong.said}; give a time in seconds, 0 or more, or Infinity to skip every frame`);
-    if (wrong) throw new RangeError(`new Scene(): skipUntil is ${wrong.said}; give a time in seconds, 0 or more, or Infinity to skip every frame`);
     this.sink = sink;
     this.fps = fps;
-    this.#skipUntil = skipUntil;
     this.mobjects = [];
     this.time = 0;
     this.frameCount = 0;
@@ -736,7 +721,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    * already moves last among them). Whenever one is on stage, as a root or inside one, the root that
    * holds it (its topmost ancestor on stage) stands at the end of `mobjects`: after each add,
    * bringToFront, bringToBack and replace, before every frame and step boundary the sink is handed,
-   * and before a frame drawn outside the loop (drawFrame: renderAt, renderFrame, the live run), so a
+   * and before a frame drawn outside the loop (drawFrame: renderFrame, the live run), so a
    * group added later that wraps it, or a direct write to `mobjects`, is raised again before anything
    * is drawn. A sink handed the scene by other code reads the list as it stands. Keeping does not
    * add it. Returns a function that stops keeping them.
@@ -823,7 +808,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   /**
    * @internal Hand `sink` the picture as it is now, as one frame at dt 0, outside play() and wait():
    * what is kept on top is raised first, as before every frame the scene hands its own sink. For a
-   * frame drawn after a run (renderAt and renderFrame past the end) or between a live run's plays.
+   * frame drawn after a run (renderFrame past the end) or between a live run's plays.
    */
   async drawFrame(sink: Sink): Promise<void> {
     this.#raiseTop();
@@ -914,7 +899,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
       // skip from here, as a play begun before it would. With skipUntil fixed, as in every other
       // run, this never holds: time only grows.
       if (!canSkip && this.time + dt + 1e-9 < this.skipUntil && !this.hasUpdaters()) canSkip = true;
-      // Same comparison SeekSink uses to drop a frame, so the first frame shown is identical
+      // A frame is skipped when it ends before skipUntil, by the same 1e-9 slack wait() uses
       if (canSkip && this.time + dt + 1e-9 < this.skipUntil) {
         if (!sequenced) { this.tick(); skipped++; continue; }
         await interpolate(t);

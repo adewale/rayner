@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Rectangle, Group, VMobject, Text } from '../src/index.ts';
-import { NullSink, StringSink, renderAt, toSvgString } from '../src/output.ts';
+import { NullSink, StringSink, renderFrame, toSvgString } from '../src/output.ts';
 import { MotionSink, analyzeMotion } from '../explain/testing.ts';
 import type { Box, Mobject, Vec } from '../src/index.ts';
 import { stage } from '../explain/index.ts';
@@ -182,7 +182,7 @@ test('draw: the tool rides the tip without jumps, leaves no trace, and the drawi
     } as never);
     await full.run();
     const seeked = new StringSink();
-    await renderAt(Drawn, t, seeked);
+    await renderFrame(Drawn, Math.round(t * 30), seeked);
     assert.equal(seeked.last(), played.frames.at(-1), `seek at ${t}`);
   }
 });

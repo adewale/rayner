@@ -106,7 +106,7 @@ test('packed transport rejects invalid references and malformed dictionary entri
 test('compacted real flowchart, timeline and XY snapshots render byte-identical resting SVGs', async () => {
   const frames = async (Source: SceneClass) => {
     const result: string[] = [];
-    await new Source({async frame() {}, async stepEnd(scene) {result.push(toSvgString(scene));}}, {skipUntil: Infinity}).run();
+    await new Source({ skipUntil: Infinity, async frame() {}, async stepEnd(scene) {result.push(toSvgString(scene));}}).run();
     return result;
   };
   for (const id of ['mr-cache', 'cert-renewal', 'tailwind-gamut']) {

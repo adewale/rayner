@@ -20,7 +20,8 @@ import { Text } from '../../src/index.ts';
 import { View } from '../../explain/index.ts';
 import { SnapshotSink, renderFrame, toSvgString } from '../../src/output.ts';
 import { renderElements, serializeElement } from '../../src/svg.ts';
-import { MotionSink, InvariantSink, machinesOf, viewMismatch, jsonObject, analyzeMotion, traceScene } from '../../explain/testing.ts';
+import { MotionSink, InvariantSink, machinesOf, viewMismatch, jsonObject, analyzeMotion } from '../../explain/testing.ts';
+import { traceRun } from '../../src/trace.ts';
 import { canonicalJson } from '../../src/json.ts';
 import { LIB_ROOT, engineAlias, importAuthored, sceneSlug } from './explain-project.ts';
 import { checkedAgainstFiles, compareAnswers, runModelTest } from './explain-evidence.ts';
@@ -836,8 +837,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       await renderFrame(v.Scene, frame, sink);
       assert.equal(sink.svg, svg, `Seek mismatch at frame ${frame} ${where}`);
     }
-    const skipped = await traceScene(v.Scene, { skipUntil: 0 });
-    assert.deepEqual(skipped, v.trace, `Skipped and played traces differ ${where}`);
+    const played = (await traceRun(v.Scene, { skipUntil: 0 })).trace;
+    assert.deepEqual(played, v.trace, `Skipped and played traces differ ${where}`);
     const still = v.trace.steps.filter(
       (step, i) => i > 0 && resting.get(step.step) === resting.get(v.trace.steps[i - 1]!.step),
     );

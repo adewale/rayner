@@ -136,7 +136,7 @@ agents mostly write, such a name is worse than none. `Circumscribe` stays, becau
 
 ## Not chosen, and why
 
-- `render` for state to picture. It already names the output pipeline: `renderAt`, `renderFrame`,
+- `render` for state to picture. It already names the output pipeline: `renderFrame`,
   `renderElements`, `renderText`.
 - `picture` as the function's name. It is a noun and stays the name for the result;
   `picture(state)` reads as a lookup.

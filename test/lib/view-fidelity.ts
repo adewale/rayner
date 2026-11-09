@@ -36,7 +36,7 @@ export async function assertViewFollowsState(
   draw?: (state: SceneState, shown: SceneState) => Mobject,
 ): Promise<number> {
   const sink = new ShownSink(pick, draw);
-  const scene = new SceneClass(sink, { skipUntil: Infinity });
+  const scene = new SceneClass(sink);
   await scene.run();
   const steps = sink.steps();
   let checked = 0;

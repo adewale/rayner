@@ -5,7 +5,7 @@
 import { Scene, Rectangle, Text, Labeled, Arrow, FadeIn, Create, Transform } from 'rayner';
 import type { AudioClip, ScoreNote, StepAudio } from 'rayner/audio';
 import { TransformFromCopy, Restore } from 'rayner/extras';
-import { StringSink, renderAt, SnapshotSink } from 'rayner/output';
+import { StringSink, renderFrame, SnapshotSink } from 'rayner/output';
 import { traceScene } from 'rayner/testing';
 import { GrowFromEdge, PulseAlongPath, Line, Dot } from 'rayner';
 import type { GrowFromEdgeOpts } from 'rayner';
@@ -67,7 +67,7 @@ export async function run(): Promise<number> {
   await new Demo(sink, { fps: 30 }).run();
   const tr = await traceScene(Demo);
   const snap = new SnapshotSink();
-  await renderAt(Demo, 0.2, snap);
+  await renderFrame(Demo, 6, snap);
   return sink.frames.length + tr.steps.length + snap.svg.length;
 }
 
@@ -229,7 +229,7 @@ import type { Refusal, Transition, Choreography, CardOptions, CardRow, NoteSide,
 import { Write, MoveAlongPath, Square, Underline, ArcBetweenPoints } from 'rayner/extras';
 import { seenFrom, seenPictures, depthOrder, latLon, toLatLon, greatArc, circleOn, between, project } from 'rayner/geo';
 import type { Model3D, Part, SeenPiece, SeenOptions, SeenPicture, Vec3, Viewpoint } from 'rayner/geo';
-import { NullSink, indexScene, stepTime, renderText, toSvgString } from 'rayner/output';
+import { NullSink, renderText, toSvgString } from 'rayner/output';
 import { InvariantSink } from 'rayner/testing';
 import type { InvariantFailure } from 'rayner/testing';
 
@@ -356,8 +356,8 @@ export async function globe(scene: Scene): Promise<number> {
 }
 
 export async function hostPage(Explainer: SceneClass): Promise<string> {
-  const index = await indexScene(Explainer);
-  const time = stepTime(index, 'door') ?? 0;
+  const door = (await traceScene(Explainer)).steps.find((s) => s.step === 'door');
+  const frame = door?.frame1 ?? 0;
   const sink: Sink = new NullSink();
   const scene = new Explainer(sink);
   await scene.run();
@@ -366,7 +366,7 @@ export async function hostPage(Explainer: SceneClass): Promise<string> {
   const key: MatchKey = matchByKey({ text: 'whole' });
   const state: SceneState = scene.state;
   const font: FontName = 'mono';
-  return `${time} ${renderText(scene).length} ${toSvgString(scene).length} ${failures.length} ${key(scene.mobjects[0]!, scene.mobjects[0]!)} ${Object.keys(state)} ${shaperFor(font)('x', 1).width}`;
+  return `${frame} ${renderText(scene).length} ${toSvgString(scene).length} ${failures.length} ${key(scene.mobjects[0]!, scene.mobjects[0]!)} ${Object.keys(state)} ${shaperFor(font)('x', 1).width}`;
 }
 
 export function colours(palette: Palette): string {

@@ -56,6 +56,8 @@ function feeding(Scene: SceneClass, also: LayoutSink): SceneClass {
   return class extends Scene {
     constructor(sink: Sink, opts?: SceneOptions) {
       super({
+        // The run's own sink says which frames are drawn (a trace's, none).
+        get skipUntil() { return sink.skipUntil; },
         frame: (scene, dt) => sink.frame(scene, dt),
         ...(sink.stepBegin ? { stepBegin: (scene, step) => sink.stepBegin!(scene, step) } : {}),
         async stepEnd(scene, step) {

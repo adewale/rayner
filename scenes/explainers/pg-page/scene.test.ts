@@ -15,7 +15,7 @@ const pie = (text: string): DiagramSnapshot => {
 };
 
 async function shown(s: DiagramSnapshot) {
-  const d = new Diagram(new Scene(new NullSink(), { skipUntil: Infinity }), s.spec, s, {});
+  const d = new Diagram(new Scene(new NullSink()), s.spec, s, {});
   await d.build();
   return d;
 }

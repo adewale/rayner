@@ -61,6 +61,7 @@ test('reader descriptions match the run fills and complete block fills in every 
     const { trace } = (await project).scenario({ element: expected.element });
     const visited: string[] = [];
     await new Source({
+      skipUntil: Infinity,
       async frame() {},
       async stepEnd(scene, step) {
         if (!phases.includes(step.name)) return;
@@ -122,7 +123,7 @@ test('reader descriptions match the run fills and complete block fills in every 
         }
         visited.push(step.name); checked++;
       },
-    }, { skipUntil: Infinity }).run();
+    }).run();
     assert.deepEqual(visited, phases, `${expected.element}: complete phase inventory`);
   }
   assert.equal(checked, 30);
@@ -161,6 +162,7 @@ test('the opening comparison and the answer note show the independently expected
     const Source = withSettings(PeriodicGroupsExplainer, { element });
     const visited: string[] = [];
     await new Source({
+      skipUntil: Infinity,
       async frame() {},
       async stepEnd(scene, step) {
         if (!['column', 'stack', 'blocks'].includes(step.name)) return;
@@ -235,7 +237,7 @@ test('the opening comparison and the answer note show the independently expected
         }
         visited.push(step.name); steps++;
       },
-    }, { skipUntil: Infinity }).run();
+    }).run();
     assert.deepEqual(visited, ['column', 'stack', 'blocks']);
   }
   assert.equal(steps, 15); assert.equal(members, 28); assert.equal(jumps, 23);

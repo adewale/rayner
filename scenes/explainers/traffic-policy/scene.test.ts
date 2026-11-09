@@ -22,7 +22,7 @@ const CLUSTER_310 = 'align row a b c';
 const withHop = () => Object.values(store).find((x) => x.spec.source.includes(CLUSTER_310) && x.spec.source.includes('k3:L --> R:d'))!;
 
 async function shown(s: DiagramSnapshot) {
-  const d = new Diagram(new Scene(new NullSink(), { skipUntil: Infinity }), s.spec, s, {});
+  const d = new Diagram(new Scene(new NullSink()), s.spec, s, {});
   await d.build();
   return d;
 }

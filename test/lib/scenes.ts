@@ -74,6 +74,7 @@ export async function restingBox(Source: SceneClass, step: string, pick: (scene:
   let box: Box | null = null;
   await new Source(
     {
+      skipUntil: Infinity,
       async frame() {},
       async stepEnd(scene, s) {
         if (s.name !== step) return;
@@ -84,7 +85,6 @@ export async function restingBox(Source: SceneClass, step: string, pick: (scene:
         box = [Math.min(...boxes.map((b) => b[0])), Math.min(...boxes.map((b) => b[1])), Math.max(...boxes.map((b) => b[2])), Math.max(...boxes.map((b) => b[3]))];
       },
     },
-    { skipUntil: Infinity },
   ).run();
   if (!box) throw new Error(`no step ${step}`);
   return box;

@@ -342,7 +342,7 @@ export async function collectProject(
     }
     await useProjectLettering({ lettering });
     for (const values of scenariosOf(Source)) {
-      const collect = new (withSettings(bindSnapshots(Source, resolver), values))(new NullSink(), { skipUntil: Infinity });
+      const collect = new (withSettings(bindSnapshots(Source, resolver), values))(new NullSink());
       // Text the embedded fonts cannot draw shows as nothing: name it by scenario and step, then fail.
       let step = '(before the first step)';
       const blanks = () => {

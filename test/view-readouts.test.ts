@@ -37,7 +37,7 @@ async function readoutAtSteps(S: SceneClass): Promise<Array<{ step: string; stat
         marks: v ? v.family().map(m => m.key).filter((key): key is string => !!key?.startsWith('result:')) : [] });
     }
   }
-  await new S(new Sink(), { skipUntil: Infinity }).run();
+  await new S(new Sink()).run();
   return out;
 }
 

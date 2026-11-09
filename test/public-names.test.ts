@@ -41,7 +41,7 @@ test('the rule rejects a name with no reason, a broken guide or test, and an ent
   assert.match(await found((l) => ((l.names['rayner']!['Scene'] = {} as Record<string, unknown>)['users'] = ['fork'])), /Scene \(rayner\): users is not part of a ledger entry/);
   // Tooling is a written reason, not where a name lives.
   assert.match(await found((l) => delete l.names['rayner/testing']!['perf']), /perf \(rayner\/testing\) has no reason to be public: rayner\/testing is tooling, and test\/public-names\.json gives it no tooling reason/);
-  assert.match(await found((l) => (l.names['rayner/output']!['renderAt'] = { tooling: 'tools' })), /renderAt \(rayner\/output\): its tooling reason must say who uses it outside a scene, and for what/);
+  assert.match(await found((l) => (l.names['rayner/output']!['renderFrame'] = { tooling: 'tools' })), /renderFrame \(rayner\/output\): its tooling reason must say who uses it outside a scene, and for what/);
   assert.match(await found((l) => (l.names['rayner']!['Brace'] = { tooling: 'a host page that draws braces around things' })), /Brace \(rayner\): only a name in rayner\/output or rayner\/testing is tooling/);
 });
 
