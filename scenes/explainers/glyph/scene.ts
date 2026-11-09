@@ -3,7 +3,7 @@ import { Scene, Text, Create, FadeIn, TransformMatchingShapes, shaperFor } from 
 import type { MatchSummary, FontName } from '../../../src/index.ts';
 import { stage, settingsOf, view } from '../../../explain/index.ts';
 import type { ExplainerMeta } from '../../../explain/index.ts';
-import { card } from '../../../explain/drawing.ts';
+import { card, callout } from '../../../explain/drawing.ts';
 
 const SMALL = 0.6; // the smaller copy in the letterforms step
 const STYLE = 'pen-and-ink';
@@ -192,8 +192,8 @@ export default class GlyphExplainer extends Scene<GlyphState, { lit?: string }> 
     const otherFont = toOther.summary();
     const paired = (m: MatchSummary) => `${m.matched} of ${m.matched + m.morphed + m.removed} paired`;
     // Each row says how many of its glyphs found a partner, at its right end.
-    await s.callout(smaller, paired(sameFont), { side: 'right', gap: 0.35, color: soft, size: 0.26 });
-    await s.callout(across, paired(otherFont), { side: 'right', gap: 0.35, color: hot, size: 0.26 });
+    await this.play(new Create(s.keep(callout(s, smaller, paired(sameFont), { side: 'right', gap: 0.35, color: soft, size: 0.26 })), { runTime: 0.6, lagRatio: 0.15 }));
+    await this.play(new Create(s.keep(callout(s, across, paired(otherFont), { side: 'right', gap: 0.35, color: hot, size: 0.26 })), { runTime: 0.6, lagRatio: 0.15 }));
     this.state = { ...measuring, shapePairs: { sameFont: sameFont.matched, otherFont: otherFont.matched } };
   }
 }

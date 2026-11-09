@@ -1,6 +1,6 @@
-import { Scene, Text, FadeOut } from '../../../src/index.ts';
+import { Scene, Text, FadeOut, Create } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, answerOf, view, having } from '../../../explain/index.ts';
-import { card, code } from '../../../explain/drawing.ts';
+import { card, code, callout } from '../../../explain/drawing.ts';
 import type { CardOptions, CardRow } from '../../../explain/drawing.ts';
 import type { Diagram, NoteSide, ExplainerMeta } from '../../../explain/index.ts';
 import {
@@ -576,13 +576,15 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
     const say = (r: Rule, text: string) => {
       const b = bar(r),
         room = b[0] - chartLeft > new Text(text, { fontSize: 0.22 }).width() + 0.4;
-      return s.callout(
+      const note = callout(
+        s,
         b,
         text,
         room
           ? { side: 'left', gap: 0.2, color: s.look.emphasis, size: 0.22 }
           : { side: 'below', gap: 0.8, color: s.look.emphasis, size: 0.22 },
       );
+      return this.play(new Create(s.keep(note), { runTime: 0.6, lagRatio: 0.15 }));
     };
     // Renewing at every run, the 30-day rule's window is the whole life, so its words go under the chart.
     if (limited) {
@@ -590,7 +592,8 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
       const b = bar(rule),
         from = Math.round(byRule[rule].due),
         x = b[0] + ((mine.firstRefused! - from) / (life.hours - from)) * (b[2] - b[0]);
-      await s.callout(
+      const refused = callout(
+        s,
         [x, b[1]],
         `refused at hour ${mine.firstRefused}; ${mine.refusedPerYear} refused, ${mine.renewalsPerYear} renewed in 365 days`,
         {
@@ -600,6 +603,7 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
           size: 0.22,
         },
       );
+      await this.play(new Create(s.keep(refused), { runTime: 0.6, lagRatio: 0.15 }));
     } else
       for (const [r, m] of [
         [rule, mine],

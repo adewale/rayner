@@ -1,4 +1,4 @@
-import { Group, Rectangle, Text } from '../../../src/index.ts';
+import { Group, Rectangle, Text, keyed } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { DTSTART, GUEST, MOVED_FROM, MASTER, counts, expand, occurrences, parseRule, short } from './model.ts';
 import type { Change, VEvent, Week } from './model.ts';
@@ -84,7 +84,7 @@ export const copiesPicture = (st: { copies: CopiesState }, s: Stage) => {
       );
     });
     const g = new Group(...parts);
-    g.key = who === 'alice' ? 'copies-alice' : 'copies-bob';
+    keyed(g, who === 'alice' ? 'copies-alice' : 'copies-bob');
     return g;
   };
   const STYLE: Record<Week, { stroke: string; width: number; dashed: boolean; label: boolean; word?: string; ink: string }> = {
@@ -113,7 +113,7 @@ export const copiesPicture = (st: { copies: CopiesState }, s: Stage) => {
     return parts;
   };
   const weeksBlock = new Group(...strip(alice, 'Alice’s calendar', -0.55), ...strip(bob, 'Bob’s calendar', -2.5));
-  weeksBlock.key = 'copies-weeks';
+  keyed(weeksBlock, 'copies-weeks');
   return new Group(column('alice', -7.55), column('bob', 0.35), weeksBlock);
 };
 /** One VEVENT as a row: what kind it is, and the lines that matter here. */

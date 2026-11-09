@@ -1,7 +1,7 @@
 // How the gtfs explainer draws one state: the right column of words beside the ER diagram, the week
 // grid of services by date, and the card of what leaves a stop. Each takes the state it draws and the
 // stage colours, so the scene reads as its steps.
-import { Text, Group, Rectangle } from '../../../src/index.ts';
+import { Text, Group, Rectangle, keyed } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { card } from '../../../explain/drawing.ts';
@@ -77,7 +77,7 @@ export function drawWeek(st: { week: WeekGrid; date: GtfsDate }, s: Stage): Grou
     if (kind === 'runs') cell.add(words(x.serviceId, { color: s.look.paper, bold: true }).moveTo(where));
     if (kind === 'removed')
       cell.add(words(x.serviceId, { color }).moveTo([where[0], where[1] + 0.16]), words('removed', { color }).moveTo([where[0], where[1] - 0.18]));
-    cell.key = `gtfs-week:${x.serviceId}:${g.dates[i]}`;
+    keyed(cell, `gtfs-week:${x.serviceId}:${g.dates[i]}`);
     return cell;
   };
   const totalY = rowY(g.services.length) + 0.2;
@@ -89,7 +89,7 @@ export function drawWeek(st: { week: WeekGrid; date: GtfsDate }, s: Stage): Grou
       ...g.services.map((_, r) => cellOf(r, i)),
       words(String(g.trips[i]), { size: 0.34, bold: true }).moveTo([colX(i), totalY]),
     );
-    column.key = i === at ? 'gtfs-week:day' : `gtfs-week:column:${d}`;
+    keyed(column, i === at ? 'gtfs-week:day' : `gtfs-week:column:${d}`);
     return column;
   };
   const columns = g.dates.map((_, i) => dayColumn(i));
@@ -113,7 +113,7 @@ export function drawWeek(st: { week: WeekGrid; date: GtfsDate }, s: Stage): Grou
     ),
     words('Trips', { bold: true }).moveTo([labelX, totalY], [1, 0]),
   );
-  rowLabels.key = 'gtfs-week:rows';
+  keyed(rowLabels, 'gtfs-week:rows');
   return new Group(rowLabels, ...columns);
 }
 

@@ -1,6 +1,5 @@
-import { Group, Rectangle, Text, Arrow } from '../../../src/index.ts';
+import { Group, Rectangle, Text, Arrow, keyed } from '../../../src/index.ts';
 import type { Box, Vec } from '../../../src/index.ts';
-import { keyed } from '../../../explain/drawing.ts';
 import { BLCKSZ, LINE_POINTER, PAGE_HEADER, TUPLE_HEADER } from './model.ts';
 import type { Column, Scenario, Tuple } from './model.ts';
 import { counted } from '../lib/format.ts';

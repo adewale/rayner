@@ -212,7 +212,7 @@ export default class QuotientFamilialExplainer extends Scene<QfState, QfShown> {
     });
     await s.clear();
     const flow = await s.show({ source: FLOW }, { box: TOP });
-    /** A callout drawn from the state, drawn in as s.callout draws one. */
+    /** A callout drawn from the state, drawn in and kept. */
     const calloutOf = async (draw: (st: QfState) => Group) => {
       const v = view(this, (st) => draw(st), { place: false });
       s.keep(v);

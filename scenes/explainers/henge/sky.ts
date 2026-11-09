@@ -6,11 +6,11 @@
 // `between` joins only viewpoints of one kind, so the move to the street is the gnomonic tilt from the
 // sky. The tilted Earths are seen from one viewpoint beside the orbit, so the axis keeps one direction
 // on screen; it is dashed inside the translucent body.
-import { Group, Rectangle, Polygon, Circle, VMobject, Arrow } from '../../../src/index.ts';
+import { Group, Rectangle, Polygon, Circle, VMobject, Arrow, keyed } from '../../../src/index.ts';
 import type { Part, Viewpoint, Vec3, SeenOptions } from '../../../explain/geo.ts';
 import { seenFrom, project, circleOn, greatArc } from '../../../explain/geo.ts';
 import type { Vec, Text } from '../../../src/index.ts';
-import { label, keyed } from '../../../explain/drawing.ts';
+import { label } from '../../../explain/drawing.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { sky, LATITUDE } from './model.ts';
 

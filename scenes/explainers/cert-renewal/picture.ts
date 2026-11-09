@@ -1,5 +1,4 @@
-import { Group, Line, Rectangle, Text } from '../../../src/index.ts';
-import { keyed } from '../../../explain/drawing.ts';
+import { Group, Line, Rectangle, Text, keyed } from '../../../src/index.ts';
 import { DAY, FIXED_INTERVAL, LIFETIMES } from './model.ts';
 import type { LifetimeKey, Rule } from './model.ts';
 import { percent } from '../lib/format.ts';

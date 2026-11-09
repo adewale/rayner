@@ -1,4 +1,4 @@
-import { Group, Rectangle, Circle } from '../../../src/index.ts';
+import { Group, Rectangle, Circle, keyed } from '../../../src/index.ts';
 import type { AudioClip } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { label, segment } from '../../../explain/drawing.ts';
@@ -29,12 +29,12 @@ const X0 = -6,
  */
 export function scorePicture(s: Stage, clips: AudioClip[], look: Look = {}) {
   const figure = new Group();
-  figure.key = 'music-score';
+  keyed(figure, 'music-score');
   clips.forEach((clip, lane) => {
     const base = lane === 0 ? 0.25 : -2.5,
       top = base + 1.5;
     const row = new Group(label(s, lane === 0 ? 'A' : 'B', { at: [-7.05, base + 0.7], size: 0.7 }));
-    row.key = `score-${clip.id}`;
+    keyed(row, `score-${clip.id}`);
     if (!look.bare)
     for (let beat = 0; beat <= 8; beat++)
       row.add(
@@ -63,7 +63,7 @@ export function scorePicture(s: Stage, clips: AudioClip[], look: Look = {}) {
         strokeWidth: marked || lit ? 0.065 : 0.03,
       }).moveTo([x, y]);
       const g = new Group(rect, label(s, NOTE_NAMES[note.midi]!, { at: [x, y], size: 0.7 }));
-      g.key = `note-${clip.id}-${i}`;
+      keyed(g, `note-${clip.id}-${i}`);
       row.add(g);
       if (look.onsets) {
         const onBeat = Number.isInteger(note.at);
@@ -71,7 +71,7 @@ export function scorePicture(s: Stage, clips: AudioClip[], look: Look = {}) {
           X0 + note.at * DX,
           base - 0.55,
         ]);
-        dot.key = `onset-${clip.id}-${i}`;
+        keyed(dot, `onset-${clip.id}-${i}`);
         row.add(dot);
       }
     });

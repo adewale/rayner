@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
-import { Rectangle, Group, VMobject, Line, Arrow, Text, Dot, Transform, AnimationGroup, FadeIn, linear, thereAndBack, Scene, SurroundingRectangle, Cross, lerpColor } from '../src/index.ts';
+import { Rectangle, Group, VMobject, Line, Arrow, Text, Dot, Transform, AnimationGroup, FadeIn, linear, thereAndBack, Scene, SurroundingRectangle, Cross, lerpColor, keyed } from '../src/index.ts';
 import { NullSink, toSvgString, renderElements } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { NEUTRAL_COLORS } from '../src/color.ts';
@@ -304,6 +304,21 @@ test('the children and the parent are the mobject\'s own: no write to it changes
   assert.equal(copy.children.length, 2);
   assert.ok(copy.children.every((k) => k.parent === copy));
   assert.ok(g.children.every((k) => k.parent === g));
+});
+
+test('keyed() keys a part and returns it; copies carry the key, restore() returns to the saved one, become() keeps its own', () => {
+  const sq = new Rectangle({ width: 2, height: 2 });
+  assert.equal(keyed(sq, 'slot'), sq);
+  assert.equal(sq.key, 'slot');
+  assert.equal(sq.copy().key, 'slot');
+  assert.equal(new Group(sq).copy().find('slot')?.key, 'slot');
+  sq.saveState();
+  keyed(sq, 'moved');
+  assert.equal(sq.restore().key, 'slot');
+  assert.equal(sq.become(keyed(new Rectangle({ width: 1, height: 1 }), 'other')).key, 'slot');
+  // The key is read-only: a write, which the types refuse, throws and changes nothing.
+  assert.throws(() => Object.assign(sq, { key: 'x' }), TypeError);
+  assert.equal(sq.key, 'slot');
 });
 
 test('no public path makes the mobject tree a cycle, or lets a parent and its children disagree (invariant row 8)', () => {

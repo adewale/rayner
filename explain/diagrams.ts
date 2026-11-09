@@ -11,6 +11,7 @@ import {
   AnimationGroup,
   linear,
   Rectangle,
+  keyed,
 } from '../src/index.ts';
 import { MoveAlongPath } from '../src/animation.ts';
 import { Text } from '../src/text.ts';
@@ -398,7 +399,7 @@ export class Diagram {
     for (const info of partsOf(snapshot)) {
       const mob = new Group();
       this.partIds.set(mob, info.id);
-      mob.key = info.id === '__frame' ? this.frameKey : info.id;
+      keyed(mob, info.id === '__frame' ? this.frameKey : info.id);
       if (info.id === '__frame') mob.role = 'frame';
       if (info.from != null && info.to != null) Object.assign(mob, { [connectorPart]: true });
       const shapes: VMobject[] = [], labels: ImportedLabel[] = [];
@@ -976,7 +977,7 @@ export class Diagram {
       });
     }
     copy.setStyle({ opacity: 1 }, false);
-    if (prefix) for (const m of copy.family()) if (m.key !== undefined) m.key = prefix + m.key;
+    if (prefix) for (const m of copy.family()) if (m.key !== undefined) keyed(m, prefix + m.key);
     const pictured = notes.length ? new Group(copy, ...notes.map((n) => this.notePicture(n.id, n.text, { ...n, key: `${prefix}note:${n.id}` }))) : copy;
     const said = new Map([...marked].flatMap(([id, m]) => (m.as ? [[id, { color: m.color, as: m.as }] as const] : [])));
     Object.assign(pictured, { [pictureShows]: { marks: said, kept } });
@@ -1041,7 +1042,7 @@ export class Diagram {
   ): Group {
     const g = this.noteLook(text, color, size);
     g.moveTo(notePosition(g, this.part(id, 'd.notePicture()').mob.box()!, side, this.frameBox));
-    g.key = key;
+    keyed(g, key);
     const w = wordsOf(this.scene);
     this.drawnNotes.set(g, { id, text });
     // While the diagram is described, the note is one of its parts, as a live note is; otherwise it says itself.
@@ -1295,7 +1296,7 @@ export class Diagram {
           target = new Diagram(this.scene, spec, snapshot!, { box: this.frameBox });
           // The frame keeps its key through the morph.
           const frame = target.#parts.get('__frame');
-          if (frame) frame.mob.key = target.frameKey = this.frameKey;
+          if (frame) { target.frameKey = this.frameKey; keyed(frame.mob, this.frameKey); }
           const animations = [];
           for (const [id, p] of this.#parts)
             if (!p.info.owner && this.#visible.has(id)) {

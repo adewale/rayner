@@ -1,4 +1,4 @@
-import { Group, Text, Rectangle, Arrow } from '../../../src/index.ts';
+import { Group, Text, Rectangle, Arrow, keyed } from '../../../src/index.ts';
 import type { Box, Code } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { flow, label } from '../../../explain/drawing.ts';
@@ -134,7 +134,7 @@ export function drawRequestPaths(which: 'hit' | 'miss', { emphasis, ink, soft }:
     }
     row.add(new Text(kind === 'hit' ? '0 D1 reads' : '1 D1 read', { fontSize: 0.7, color }).moveTo([0.4, y - 0.95]));
     if (kind === 'miss') row.add(new Text('300 s', { fontSize: 0.7, color }).moveTo([-3.3, y - 0.95]));
-    row.key = `result:${kind}`;
+    keyed(row, `result:${kind}`);
     result.add(row);
   }
   return result;

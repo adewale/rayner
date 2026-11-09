@@ -14,7 +14,7 @@
 import { Mobject, Group, paintDefaults, mobjectName } from '../src/mobject.ts';
 import type { Box, HasText } from '../src/mobject.ts';
 import { center, pointsBox } from '../src/box.ts';
-import { Animation, Transform, TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey } from '../src/animation.ts';
+import { Animation, Transform, TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey, cleanUp } from '../src/animation.ts';
 import { Follow } from './state.ts';
 import type { AnimOptions, MatchKey, MatchSummary, ScheduledAnimation } from '../src/animation.ts';
 import { cloneJson } from '../src/json.ts';
@@ -215,7 +215,7 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
     this.fit = fit;
     if (samePicture(old, next)) { v.commit(fit); this.inner = null; this.next = null; return; }
     const match = this.match;
-    if (match === 'key' && !keyed(old) && !keyed(next)) throw new Error(`view.sync(): ${v.key !== undefined ? `the view ${JSON.stringify(v.key)}'s` : 'the'} pictures carry no keys below their roots, so key matching pairs nothing; give the draw's parts keys (a card's or panel's \`key\` option, or \`part.key = '…'\`), or pass { match: 'text' }, 'shapes' or 'index'`);
+    if (match === 'key' && !keyed(old) && !keyed(next)) throw new Error(`view.sync(): ${v.key !== undefined ? `the view ${JSON.stringify(v.key)}'s` : 'the'} pictures carry no keys below their roots, so key matching pairs nothing; give the draw's parts keys (a card's or panel's \`key\` option, or \`keyed(part, '…')\`), or pass { match: 'text' }, 'shapes' or 'index'`);
     // replace: false everywhere: the View, not the scene, takes the new picture (see finish)
     const staged = this.staged;
     const inner: Animation = match === 'text' ? new TransformMatchingText(old, next, { replace: false, staged })
@@ -290,7 +290,7 @@ class ViewTween<S extends object, Sh extends object> extends Animation {
   override evidence(): Evidence | null { return this.follow?.evidence() ?? null; }
 
   /** @internal */
-  override cleanUpFromScene(scene: Scene): void { if (this.remover) scene.remove(this.mobject); }
+  override [cleanUp](scene: Scene): void { if (this.remover) scene.remove(this.mobject); }
 
   private begun(): Follow {
     if (!this.follow) throw new Error('view.tween(): it has not begun; play it with this.play()');
@@ -366,7 +366,6 @@ export function viewMismatch(
 
 /** draw() must make a new picture each time: the old one is what morphs into it. */
 function fresh<M extends Mobject>(m: M, old: Mobject | null): M {
-  if (!(m instanceof Mobject)) throw new TypeError('view(): draw() must return a mobject');
   if (m === old || m.parent) throw new Error(`view(): draw() returned ${mobjectName(m)}, which is ${m === old ? 'the picture on screen' : 'inside another mobject'}; draw a new one each time`);
   return m;
 }

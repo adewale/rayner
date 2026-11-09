@@ -18,6 +18,7 @@ import type { NoteSide, ExplainerMeta } from '../../../explain/index.ts';
 import { BEFORE_CODE, AFTER_CODE, BEFORE_SPANS, AFTER_SPANS } from './code.ts';
 import { frames as readerFrames, panel, inWords, linesBox, lineBar, drawRequestPaths } from './picture.ts';
 import { counted } from '../lib/format.ts';
+import { callout } from '../../../explain/drawing.ts';
 
 const STYLE = 'hand-drawn';
 const BEFORE = 'graph LR\nRequest[Request] --> H[Handler]\nH --> D1[(D1)]';
@@ -184,14 +185,16 @@ export default class CacheMRExplainer extends Scene<CacheState, { flow?: FlowSta
       said: Mobject[] = [];
     for (const r of runs.sort((a, b) => a.from - b.from)) {
       const box = linesBox(after, r.from, r.to);
-      said.push(
-        await s.callout([right - 0.1, box[1], right - 0.1, box[3]], `${counted(r.to - r.from + 1, 'line')} ${r.what}`, {
+      const note = s.keep(
+        callout(s, [right - 0.1, box[1], right - 0.1, box[3]], `${counted(r.to - r.from + 1, 'line')} ${r.what}`, {
           side: 'right',
           gap: NOTES_BOX[0] - right + 0.15,
           color: r.color,
           size: 0.24,
         }),
       );
+      await this.play(new Create(note, { runTime: 0.6, lagRatio: 0.15 }));
+      said.push(note);
     }
     const lookup = new Circumscribe(linesBox(after, 1, 2), {
       keep: true,

@@ -1,4 +1,4 @@
-import { Group, Arrow, Text } from '../../../src/index.ts';
+import { Group, Arrow, Text, keyed } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { currentFiles, unreachable } from './model.ts';
@@ -19,7 +19,7 @@ const tagWidth = (name: string) => new Text(name, { fontSize: SIZE }).width() + 
 
 export function picture(s: Stage, frame: GitFrame, note: string) {
   const graph = new Group();
-  graph.key = 'git-history';
+  keyed(graph, 'git-history');
   for (const c of frame.commits)
     for (const parent of c.parents) {
       const a = AT[c.id]!,
@@ -72,7 +72,7 @@ export function picture(s: Stage, frame: GitFrame, note: string) {
     word.moveTo([right ? tail + 0.1 : tail - 0.1, cy], [right ? -1 : 1, 0]),
     new Arrow([tail, cy], [edge, cy], { stroke: s.look.ink, strokeWidth: 0.035, tipLength: 0.16, tipWidth: 0.16 }),
   );
-  head.key = 'git-head';
+  keyed(head, 'git-head');
   // Without M the history is short, so centre what is drawn rather than leave the stage's right side empty.
   const [x0, , x1] = new Group(graph.copy(), head.copy()).box()!;
   graph.shift([-(x0 + x1) / 2, 0]);

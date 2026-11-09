@@ -3,7 +3,7 @@
 // annotations), as ordinary mobjects coloured from a stage's look. Imported as `rayner/drawing`.
 // Keyed pictures key their parts, so matching (matchByKey), find(), invariants and reviews can
 // address them; nothing here animates, registers or reads scene state.
-import { Group, Rectangle, Circle, Line, Arrow, Text } from '../src/index.ts';
+import { Group, Rectangle, Circle, Line, Arrow, Text, keyed } from '../src/index.ts';
 import type { Mobject, Vec, Box } from '../src/index.ts';
 import type { Stage } from './stage.ts';
 import { callout as calloutLook, dimension as dimensionLook, pin as pinLook, legend as legendLook } from './annotate.ts';
@@ -27,12 +27,6 @@ export function emphasised<T extends Mobject>(m: T, as: string | null): T {
   Object.assign(m, { [emphasisSource](this: Mobject) { return [[this, as]] as const; } });
   return m;
 }
-/** `m` with `key` set: the address matching (matchByKey), find(), invariants and reviews read. */
-export function keyed<T extends Mobject>(m: T, key: string): T {
-  m.key = key;
-  return m;
-}
-
 /**
  * A picture built from keyed parts, as a view's draw builds one: `add(m, key)` keys `m`, keeps it in
  * order and returns it; `group()` returns the parts as one Group. A key used twice is refused when it
@@ -201,7 +195,7 @@ export function table(
       ),
     );
   const g = new Group(...children);
-  g.key = key;
+  keyed(g, key);
   return g;
 }
 const isTableRow = (row: TableRow | readonly TableCell[]): row is TableRow => !Array.isArray(row);
@@ -238,7 +232,7 @@ export function flow(s: Stage, names: readonly string[], { at = [0, 1], key }: {
     gap = names.length === 4 ? 0.75 : 1.35;
   const xs = names.map((_, i) => x0 + (i - (names.length - 1) / 2) * (width + gap));
   const g = new Group();
-  g.key = key;
+  keyed(g, key);
   const wrapped = names.map((name) => {
     const lines: string[] = [];
     for (const word of name.split(' ')) {
@@ -308,7 +302,7 @@ export function bars(
     throw new RangeError('bars(): the maximum must be a positive number, and every value must be from 0 to the maximum');
   const [dx, y] = at;
   const g = new Group();
-  g.key = key;
+  keyed(g, key);
   rows.forEach((r, i) => {
     const yy = y - i * 2.3,
       width = (r.value / maximum) * 8.5;
@@ -328,13 +322,11 @@ export function bars(
 }
 
 // Annotations: pictures that say a value where it is, built in world coordinates, for a view's or a
-// staged step's draw, or for s.enter, beside the parts they annotate. s.callout builds a callout with
-// the same function from the points the camera shows, then maps it to the screen, so with the camera
-// moved it is still at its size on screen; at home the two are the same picture.
+// staged step's draw, or for s.enter or s.keep, beside the parts they annotate.
 
 /**
  * Words beside a target (a point, a box or a mobject) with a leader line from the words to the
- * target's nearest edge, ending in a dot, on the stage's paper: `s.callout`'s picture. `gap` is how
+ * target's nearest edge, ending in a dot, on the stage's paper. `gap` is how
  * far the words stand off the target. Keyed `key` when given, with its parts `key:line`, `key:dot`,
  * `key:backing` and `key:text`. Described by its words.
  */

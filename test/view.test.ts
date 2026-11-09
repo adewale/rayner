@@ -10,7 +10,7 @@ import type { View } from '../explain/index.ts';
 import { card } from '../explain/drawing.ts';
 import type { Card } from '../explain/drawing.ts';
 import assert from 'node:assert/strict';
-import { Scene, Group, Text, DecimalNumber, Rectangle, Circle, Animation, FadeIn, Succession } from '../src/index.ts';
+import { Scene, Group, Text, DecimalNumber, Rectangle, Circle, Animation, FadeIn, Succession, keyed } from '../src/index.ts';
 import { StringSink, renderFrame } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { MotionSink, analyzeMotion, loadFonts, viewMismatch, assertViewFollowsState } from '../explain/testing.ts';
@@ -157,8 +157,8 @@ test('a sync finishes the morph it begins: it ends finished, as an animation the
   class Finished extends Scene<{ n: number }, {}> {
     override async construct() {
       this.state = { n: 0 };
-      const keyed = (st: { n: number }) => new Group(Object.assign(new Rectangle({ width: 1 + st.n, height: 1 }), { key: 'box' }), Object.assign(new Text(`n ${st.n}`, { fontSize: 0.4 }), { key: 'label' }));
-      const v = view(this, keyed, { place: false });
+      const draw = (st: { n: number }) => new Group(keyed(new Rectangle({ width: 1 + st.n, height: 1 }), 'box'), keyed(new Text(`n ${st.n}`, { fontSize: 0.4 }), 'label'));
+      const v = view(this, draw, { place: false });
       this.add(v);
       for (const match of ['key', 'text', 'shapes', 'index'] as const) {
         this.state.n++;
@@ -266,14 +266,14 @@ test('match: index morphs by position (a DecimalNumber counts), shapes and keys 
 
 test('sync() matches by key, staged, and refuses pictures that carry no keys', () => {
   let n = 1;
-  const keyed = view(held(), () => new Group(...Array.from({ length: n }, (_, i) => { const sq = new Rectangle({ width: 0.4, height: 0.4 }).shift([i, 0]); sq.key = `cell-${i}`; return sq; })));
+  const keyedView = view(held(), () => new Group(...Array.from({ length: n }, (_, i) => { const sq = new Rectangle({ width: 0.4, height: 0.4 }).shift([i, 0]); keyed(sq, `cell-${i}`); return sq; })));
   n = 2;
-  const sync = syncOf(keyed);
+  const sync = syncOf(keyedView);
   assert.equal(sync.match, 'key');
   assert.equal(sync.staged, true);
   sync.begin(); sync.finish();
   assert.deepEqual(sync.summary(), { matched: 1, morphed: 0, removed: 0, added: 1 });
-  assert.equal(syncOf(keyed, { match: 'text' }).staged, true, 'staged is the default for every match');
+  assert.equal(syncOf(keyedView, { match: 'text' }).staged, true, 'staged is the default for every match');
 
   const plain = view(held(), () => new Group(...Array.from({ length: n }, (_, i) => new Rectangle({ width: 0.4, height: 0.4 }).shift([i, 0]))));
   n = 3;

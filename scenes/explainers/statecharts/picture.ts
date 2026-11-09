@@ -1,6 +1,5 @@
-import { Group, Text, Rectangle, Arrow, CurvedArrow, Line, Circle } from '../../../src/index.ts';
+import { Group, Text, Rectangle, Arrow, CurvedArrow, Line, Circle, keyed } from '../../../src/index.ts';
 import type { Mobject, Vec, Box } from '../../../src/index.ts';
-import { keyed } from '../../../explain/drawing.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { CONTROLS, FROTHER, RUNS, player, coffee, coffeeWithFrother, boxed, byHand, flatten, flatName, run, activeStates, chartCounts, flatCounts } from './model.ts';
 import type { StateNode, FlatMachine } from './model.ts';

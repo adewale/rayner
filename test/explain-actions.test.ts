@@ -11,6 +11,7 @@ import { stage, Diagram } from '../explain/index.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { diagramKey, snapshotResolver, useDiagrams } from '../explain/diagram-snapshot.ts';
 import { fixedSnapshot, square } from './lib/random-snapshot.ts';
+import { settle, whenReady } from '../src/animation.ts';
 
 await loadFonts();
 
@@ -247,7 +248,7 @@ test('an action’s life: a begin refused while what it reads is not ready, or b
   // Reading: its value is not known, and a begin outside a play, which waits for nothing, is refused.
   assert.throws(() => late.value, /^Error: z\(\): what it gives is known once the play that holds it begins/);
   assert.throws(() => late.begin(), /^Error: z\(\): begun before what it reads was ready; hand it to play\(\), or to a Succession or group that plays, which waits for it$/);
-  assert.throws(() => late.settle(), /^Error: z\(\): played before what it reads was ready/);
+  assert.throws(() => late[settle](), /^Error: z\(\): played before what it reads was ready/);
   assert.equal(late.phase, 'idle');
   // Ready, it plays in a play: the refused begin did not mark it played.
   open();
@@ -280,11 +281,11 @@ test('an action’s life: a begin refused while what it reads is not ready, or b
   await assert.rejects(scene.play(awaited), /v\(\): it has already played; an action plays once/);
 });
 
-/** A FadeIn that reads something first, as `s.show` reads a diagram's layout: its ready() is the promise given. */
+/** A FadeIn that reads something first, as `s.show` reads a diagram's layout: what it waits for is the promise given. */
 class Reads extends FadeIn {
   readonly reading: Promise<unknown>;
   constructor(m: Circle | Rectangle, reading: Promise<unknown>, opts: { runTime?: number } = {}) { super(m, opts); this.reading = reading; }
-  override ready(): Promise<unknown> { return this.reading; }
+  override [whenReady](): Promise<unknown> { return this.reading; }
 }
 
 test('a play that fails at a turn made later lands what it began: a read that fails, or a refused writer', async () => {

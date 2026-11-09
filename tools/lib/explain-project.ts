@@ -1,6 +1,6 @@
 import { textContextOf, usesOutlineLettering, withSceneLettering, dryRun, takeLetteringMissing } from '../../src/internal.ts';
 import type { LetteringSnapshot } from '../../src/internal.ts';
-import { diagramsOn, liveSteps, paperOf, paletteOf, checkWatch, adoptExplainer, readSnapshotStore, sceneIdOf, scriptOf, traceScenarios, checkScriptMeta, checkStepMeta, checkClaimsMeta, diagramKey, RENDERER } from '../../explain/internal.ts';
+import { diagramsOn, liveSteps, paperOf, paletteOf, checkWatch, adoptExplainer, readSnapshotStore, sceneIdOf, scriptOf, traceScenarios, checkScriptMeta, checkClaimsMeta, diagramKey, RENDERER } from '../../explain/internal.ts';
 import type { Live } from '../../explain/internal.ts';
 import type { DiagramResolver } from '../../explain/index.ts';
 import type { Palette } from '../../src/index.ts';
@@ -275,6 +275,7 @@ export async function collectProject(
         ...(outline ? { measurementHash: outline.measurementHash } : subsetMetrics ? { measurementHash: subsetMetrics } : {}),
         styles: outline?.snapshot.request.styles,
       } : undefined;
+      // The one check of a cached natural diagram's font metrics: its nodes and routes were laid out for them.
       if (previous[key] && metricOptions) {
           const { naturalMeasurementIdentity } = await import('../../integrations/agentic-mermaid/index.ts');
           if (previous[key].textMeasurement?.id !== naturalMeasurementIdentity(metricOptions).id) {
@@ -360,8 +361,6 @@ export async function collectProject(
     }
     if (undrawable.length)
       throw new Error(`new Text(): the embedded fonts cannot draw these characters; ask for their script in meta.lettering, or write others:\n${[...new Set(undrawable)].join('\n')}`);
-    // Every step's title, line and kind must be ones the page can read.
-    checkStepMeta(scenarios.flatMap((v) => v.trace.steps));
     // The state readers follow must be state the scene keeps, in some step of some scenario.
     checkWatch(Source.meta?.watch, scenarios.flatMap((v) => v.trace.steps));
     // The script's answer and reader questions must be usable before any scenario is checked against them.

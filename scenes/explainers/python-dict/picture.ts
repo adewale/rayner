@@ -1,4 +1,4 @@
-import { Group, Rectangle, CurvedArrow } from '../../../src/index.ts';
+import { Group, Rectangle, CurvedArrow, keyed } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { EMPTY, DELETED } from './model.ts';
 import type { DictTable, DictLookup, DictState } from './model.ts';
@@ -85,7 +85,7 @@ function hops(s: Stage, path: DictLookup) {
       return new CurvedArrow(from, to, { angle: dir * 4 * Math.atan((2 * sag) / chord), stroke: s.look.emphasis, strokeWidth: 0.045, tipLength: 0.22, tipWidth: 0.2 });
     }),
   );
-  g.key = 'dict-route';
+  keyed(g, 'dict-route');
   return g;
 }
 
@@ -113,7 +113,7 @@ export function picture(s: Stage, v: View) {
       return [label(s, i, { at: [x, SLOT_Y + 0.72], color: s.look.soft, size: 0.66 }), slot];
     }),
   );
-  slots.key = 'dict-index';
+  keyed(slots, 'dict-index');
   const note = label(s, v.note, { at: [0, -3.8], size: 0.62 });
   if (v.hashes) {
     const heads = ['Key', 'Hash', 'In binary', 'Start slot'],
@@ -146,6 +146,6 @@ export function picture(s: Stage, v: View) {
     label(s, v.middle, { at: [panelX, TOP - 1.15], color: s.look.soft, size: 0.66, key: 'dict-result:middle' }),
     label(s, v.outcome, { at: [panelX, TOP - 2.27], color: outcome, size: 0.8, key: 'dict-result:outcome' }),
   );
-  result.key = 'dict-result';
+  keyed(result, 'dict-result');
   return new Group(slots, ...(v.path ? [hops(s, v.path)] : []), entries, result, note);
 }

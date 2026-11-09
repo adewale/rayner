@@ -137,7 +137,8 @@ each of its descendants, root by root, for a test or a check that looks for a pa
 member of one class with as many children, and with `points` the same point counts:
 what `become` keeps identities through.
 
-A part's identity is its `key`, an optional name you give it: `find(key)`,
+A part's identity is its `key`, an optional name you give it with `keyed(m, key)`
+(from `rayner`; it returns `m`, and `m.key` is read-only): `find(key)`,
 `findAll`, keyed matching, invariants and reviews all address parts by key. A
 position in a child array is not an identity, and `Mobject.id`, the renderer's
 number, is internal. Give keys from the domain (`slot:3`, `state:idle`) when the
@@ -193,9 +194,11 @@ has finished it while a member waits (as below), or a group holding one, stays `
 its members begin and finish in turn. A second `begin()` while begun throws, and so do
 `interpolate()` and `finish()` before `begin()`; a finished animation may begin again. A play,
 a group and a `Succession` drive their animations through the engine's own private calls, which
-keep the phase and call only the protected hooks: a `begin`, `finish`, `land` or `waiting`
-written on an animation, as a field or an assignment, is the author's own and never reaches a
-play. A subclass that overrides `begin()`, `interpolate()` or `finish()`, or redefines `phase`,
+keep the phase and call only the protected hooks. What else the engine calls or reads on an
+animation (the options a play gives it, what it waits for, what its play's end removes, the colours
+its endpoints take, the scene it plays on) is keyed apart from any name an author can write, so a
+`begin`, `finish`, `land`, `ready`, `settle`, `scene` or `host` written on an animation, as a
+method, a field or an assignment, is the author's own and never reaches a play. A subclass that overrides `begin()`, `interpolate()` or `finish()`, or redefines `phase`,
 `runTime` or `lagRatio`, is refused when its first instance is made.
 
 A play that fails leaves no animation begun. When an animation throws as it begins, a
@@ -227,8 +230,8 @@ animation may not be listed twice. `Scene.play()` checks and rejects both, as it
 again for whatever begins later in it, a `Succession`'s member at its turn included. A `Succession`'s
 time only runs forward, since a finished member does not run again: it refuses a rate
 function that falls anywhere, given to it or to `play()`, and throws if a group around
-it runs its time backwards. A group exposes its members' `ready()`, so `play()` waits for
-what any of them reads before it begins, and lays out its members' times as the play
+it runs its time backwards. `play()` waits for what any animation it is given reads, a group's
+members included, before it begins, and lays out its members' times as the play
 begins. What is made only when its turn comes, a machine's transition or an action's beat, may
 read something not ready yet: the play waits for it there, before drawing its next frame, so the
 frames are the same as if it had waited for nothing. What begins at its turn (a `Succession`'s

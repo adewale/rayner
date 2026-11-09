@@ -4,11 +4,11 @@ import {
   freeDrawing, tallyLine, ringBand, markerMarks, ringInkLine, tracedChart, panelHeads,
 } from './picture.ts';
 import type { Strokes } from './picture.ts';
-import { Scene, Create, FadeOut, LaggedStart } from '../../../src/index.ts';
+import { Scene, Create, FadeOut, LaggedStart, keyed } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, Diagram, diagramResolverOf, having } from '../../../explain/index.ts';
 import type { ExplainerMeta } from '../../../explain/index.ts';
-import { code, dimension } from '../../../explain/drawing.ts';
+import { code, dimension, callout } from '../../../explain/drawing.ts';
 import {
   WORLD,
   TITLE,
@@ -253,13 +253,11 @@ export default class PenAndPencil extends Scene<PenState, { layout?: { marked: s
       runTime: 3,
       describe: `The timeline’s layout traced in thin blue construction pencil: ${facts.length} period boxes, ${facts.length} event boxes, their markers and strings, the rail and an empty box where each word will go`,
     });
-    traced.key = 'construction:marks';
-    const tally = await s.callout(
-      parts[2]!.period.box,
-      `${outlineCount} outlines · ${filledCount} filled shapes · ${wordCount} words`,
-      { side: 'above', gap: 0.45 },
+    keyed(traced, 'construction:marks');
+    const tally = s.keep(
+      keyed(callout(s, parts[2]!.period.box, `${outlineCount} outlines · ${filledCount} filled shapes · ${wordCount} words`, { side: 'above', gap: 0.45 }), 'construction:tally'),
     );
-    tally.key = 'construction:tally';
+    await this.play(new Create(tally, { runTime: 0.6, lagRatio: 0.15 }));
     s.opening(traced, tally);
     this.state.marks = { outlines: outlineCount, filled: filledCount, words: wordCount };
 

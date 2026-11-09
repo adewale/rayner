@@ -1,4 +1,4 @@
-import { Group, Rectangle, Text, lerpColor } from '../../../src/index.ts';
+import { Group, Rectangle, Text, lerpColor, keyed } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { label, table, stat, legend } from '../../../explain/drawing.ts';
 import { locations } from './model.ts';
@@ -32,7 +32,7 @@ export function takenLabel(s: Stage, size: number, full: boolean, stored: readon
   lead.moveTo([-width / 2, 2.7], [-1, 0]);
   key?.moveTo([-width / 2 + lead.width() + gap, 2.7], [-1, 0]);
   const g = new Group(lead, ...(key ? [key] : []));
-  g.key = 'bloom-taken';
+  keyed(g, 'bloom-taken');
   return g;
 }
 
@@ -73,7 +73,7 @@ export function drawBits(
       label(s, String(j), { at: [x, y + H / 2 + positionGap], color: s.look.soft, size: 0.66 }),
       label(s, String(bit), { at: [x, y], color: bad ? s.look.bad : s.look.ink, size: size === 16 ? 0.9 : 0.74 }),
     );
-    g.key = `bit-${j}`;
+    keyed(g, `bit-${j}`);
     return g;
   };
   const grid = new Group(
@@ -83,7 +83,7 @@ export function drawBits(
       return bitTile(j, bit, x, y, owners[j] ?? [], { active: active.includes(j), bad: bad(j) });
     }),
   );
-  grid.key = 'bloom-bits';
+  keyed(grid, 'bloom-bits');
   return grid;
 }
 

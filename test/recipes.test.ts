@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Succession, linear } from 'rayner';
+import { Scene, Succession, linear, keyed } from 'rayner';
 import { StringSink, NullSink, renderFrame, toSvgString } from 'rayner/output';
 import { traceScene, TraceSink } from 'rayner/testing';
 import { requestScene, route } from '../recipes/document.ts';
@@ -132,7 +132,7 @@ test('a claim that reads a misspelt key finds nothing on every frame: it is repo
   class Misspelt extends Scene {
     override async construct() {
       this.state = { angle: 0 };
-      const dot = view(this, (st) => Object.assign(new Dot().moveTo([2 * Math.cos(st.angle as number), 2 * Math.sin(st.angle as number)]), { key: 'orbit:dot' }), { place: false });
+      const dot = view(this, (st) => keyed(new Dot().moveTo([2 * Math.cos(st.angle as number), 2 * Math.sin(st.angle as number)]), 'orbit:dot'), { place: false });
       this.add(dot);
       this.addInvariant('the dot stays on its circle', (scene) => {
         const found = scene.find('orbit:dto');

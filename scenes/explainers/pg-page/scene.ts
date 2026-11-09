@@ -173,7 +173,7 @@ export default class PgPageExplainer extends Scene<PgState, PgShown> {
     // The free space the empty page records, said in it.
     const freeLabel = view(this, (state) => drawEmptyFree(having(state, 'empty').empty.free, colours), { place: false });
     await s.enter(outline, header, headerLabel, freeLabel, pageSize, { describe: pageWords });
-    /** A callout drawn from the state, drawn in as s.callout draws one. */
+    /** A callout drawn from the state, drawn in and kept. */
     const calloutOf = async (draw: (st: PgState) => Group) => {
       const v = view(this, draw, { place: false });
       s.keep(v);
@@ -303,16 +303,18 @@ export default class PgPageExplainer extends Scene<PgState, PgShown> {
       const first = differ[0]!;
       const here = byte(mine, ours, first),
         there = byte(pair, other, first);
-      await s.callout(here, ours.bytes[first] === 'padding' ? 'padding here' : `${ours.label}’s value`, {
+      const ourNote = callout(s, here, ours.bytes[first] === 'padding' ? 'padding here' : `${ours.label}’s value`, {
         side: 'below',
         gap: here.box()![1] - (TOP - (ours.stored / 8) * CELL) + 0.3,
         size: SMALL,
       });
-      await s.callout(there, other.bytes[first] === 'padding' ? 'padding here' : `${other.label}’s value here`, {
+      await this.play(new Create(s.keep(ourNote), { runTime: 0.6, lagRatio: 0.15 }));
+      const otherNote = callout(s, there, other.bytes[first] === 'padding' ? 'padding here' : `${other.label}’s value here`, {
         side: 'below',
         gap: there.box()![1] - (TOP - (other.stored / 8) * CELL) + 0.3,
         size: SMALL,
       });
+      await this.play(new Create(s.keep(otherNote), { runTime: 0.6, lagRatio: 0.15 }));
     }
 
     // ------------------------------------------------------------------ a full page

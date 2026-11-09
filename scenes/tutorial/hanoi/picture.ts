@@ -1,5 +1,4 @@
-import { Group, Rectangle, Text, lerpColor } from '../../../src/index.ts';
-import { keyed } from '../../../explain/drawing.ts';
+import { Group, Rectangle, Text, lerpColor, keyed } from '../../../src/index.ts';
 import type { Tower } from './model.ts';
 
 /** The stage's colours a tower is drawn in. */

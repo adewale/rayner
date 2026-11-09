@@ -1,4 +1,4 @@
-import { Circle, Line, Text, Group, Polygon, Dot, Arc, Arrow, Rectangle, Axes } from '../../../src/index.ts';
+import { Circle, Line, Text, Group, Polygon, Dot, Arc, Arrow, Rectangle, Axes, keyed } from '../../../src/index.ts';
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { card } from '../../../explain/drawing.ts';
@@ -109,7 +109,7 @@ function drawSeason(month: string, center: Vec, side: 1 | -1, lat: number, name:
     fill: EARTH,
     stroke: 'none',
   }).moveTo(center);
-  ball.key = `${month.toLowerCase()}-globe`;
+  keyed(ball, `${month.toLowerCase()}-globe`);
   const half: Vec[] = [];
   for (let i = 0; i <= 40; i++) {
     const th = -Math.PI / 2 + (Math.PI * i) / 40;
@@ -129,12 +129,12 @@ function drawSeason(month: string, center: Vec, side: 1 | -1, lat: number, name:
     [center[0] + tip * v.a[0], center[1] + tip * v.a[1]],
     { stroke: AXIS, strokeWidth: 0.035 },
   );
-  axis.key = `${month.toLowerCase()}-axis`;
+  keyed(axis, `${month.toLowerCase()}-axis`);
   const north = label('N', [center[0] + (tip + 0.2) * v.a[0], center[1] + (tip + 0.2) * v.a[1]], {
     size: 0.28,
     color: AXIS,
   });
-  north.key = `${month.toLowerCase()}-north`;
+  keyed(north, `${month.toLowerCase()}-north`);
   const equator = new Line(v.at(-1, 0), v.at(1, 0), {
     stroke: muted,
     strokeWidth: 0.02,
@@ -145,12 +145,12 @@ function drawSeason(month: string, center: Vec, side: 1 | -1, lat: number, name:
     stroke: SUN,
     strokeWidth: 0.07,
   });
-  dayLine.key = `${month.toLowerCase()}-daylight-latitude`;
+  keyed(dayLine, `${month.toLowerCase()}-daylight-latitude`);
   const nightLine = new Line(ch.night[0], ch.night[1], {
     stroke: DIMLINE,
     strokeWidth: 0.05,
   });
-  nightLine.key = `${month.toLowerCase()}-night-latitude`;
+  keyed(nightLine, `${month.toLowerCase()}-night-latitude`);
   const p = v.noon(lat);
   const zen: Vec = [(p[0] - center[0]) / R, (p[1] - center[1]) / R];
   const tangent: Vec = [-zen[1], zen[0]];
@@ -159,14 +159,14 @@ function drawSeason(month: string, center: Vec, side: 1 | -1, lat: number, name:
     [p[0] + 0.55 * tangent[0], p[1] + 0.55 * tangent[1]],
     { stroke: ink, strokeWidth: 0.025 },
   );
-  horizon.key = `${month.toLowerCase()}-horizon`;
+  keyed(horizon, `${month.toLowerCase()}-horizon`);
   const dot = new Dot({ radius: 0.09, color: PLACE }).moveTo(p);
-  dot.key = `${month.toLowerCase()}-place`;
+  keyed(dot, `${month.toLowerCase()}-place`);
   const latitude = new Group(nightLine, dayLine);
-  latitude.key = `${month.toLowerCase()}-latitude`;
+  keyed(latitude, `${month.toLowerCase()}-latitude`);
   const drawing = new Group(ball, night, equator, latitude, axis, north, horizon, dot);
   const ray = new Group();
-  ray.key = `${month.toLowerCase()}-noon-ray`;
+  keyed(ray, `${month.toLowerCase()}-noon-ray`);
   if (result.altitude > 0) {
     // The noon ray arrives parallel to the Sun direction; its angle to the
     // local horizon is the model's altitude (90° − |latitude − declination|).
@@ -243,7 +243,7 @@ function drawSeason(month: string, center: Vec, side: 1 | -1, lat: number, name:
 export function drawSpread(st: SeasonState, { ink, soft }: Ink) {
   const label = labeller(soft);
   const spread = new Group();
-  spread.key = 'spread';
+  keyed(spread, 'spread');
   // Ground at y0; 1 m of beam is W units; each beam is drawn L units long on its sun-side edge. The words
   // under each patch sit in a column at ±COLUMN, so the comparison stays narrow enough for a phone to open
   // on it whole with its words at a readable size.
@@ -253,7 +253,7 @@ export function drawSpread(st: SeasonState, { ink, soft }: Ink) {
     COLUMN = 1.9,
     size = 0.34;
   const ground = new Line([-3.4, y0], [3.4, y0], { stroke: ink, strokeWidth: 0.03 });
-  ground.key = 'spread-ground';
+  keyed(ground, 'spread-ground');
   spread.add(ground);
   /**
    * One noon beam landing on the ground, with its words in a column at `column`. `s` is the Sun's side
@@ -262,7 +262,7 @@ export function drawSpread(st: SeasonState, { ink, soft }: Ink) {
    */
   const beam = (month: string, column: number, s: 1 | -1, alt: number, patch: number | null, share: number) => {
     const g = new Group();
-    g.key = `spread-${month.toLowerCase()}`;
+    keyed(g, `spread-${month.toLowerCase()}`);
     const words = patch === null ? [month, 'Sun below the horizon'] : [`${month}, ${degrees(alt)}`, metres(patch), `${pct(share)} per m²`];
     g.add(...words.map((t, i) => label(t, [column, y0 - 0.38 - i * 0.44], { size, color: i === 1 ? SUN : ink })));
     if (patch === null) return g;
@@ -274,9 +274,9 @@ export function drawSpread(st: SeasonState, { ink, soft }: Ink) {
       t1: Vec = [near[0] + L * up[0], near[1] + L * up[1]],
       t2: Vec = [t1[0] + W * across[0], t1[1] + W * across[1]];
     const band = new Polygon([near, t1, t2, far], { fill: SUN, fillOpacity: 0.4, stroke: 'none' });
-    band.key = `spread-${month.toLowerCase()}-beam`;
+    keyed(band, `spread-${month.toLowerCase()}-beam`);
     const lit = new Line(near, far, { stroke: SUN, strokeWidth: 0.07 });
-    lit.key = `spread-${month.toLowerCase()}-patch`;
+    keyed(lit, `spread-${month.toLowerCase()}-patch`);
     g.add(
       band,
       new Line(t1, t2, { stroke: SUN, strokeWidth: 0.03 }),
@@ -319,7 +319,7 @@ export function drawGuess({ ink, soft, muted }: Ink) {
     label('Sun', [sunX, oc[1] + 1.0], { size: 0.36, color: ink }),
   );
   const g = new Group(orbit, sun, near, far);
-  g.key = 'nearest-orbit';
+  keyed(g, 'nearest-orbit');
   return g;
 }
 
@@ -351,7 +351,7 @@ export function drawOrbit({ ink, soft, muted }: Ink) {
       fill: bright ? LIT_EARTH : EARTH,
       stroke: 'none',
     }).moveTo([x, y]);
-    globe.key = `orbit-earth:${name}`;
+    keyed(globe, `orbit-earth:${name}`);
     const g = new Group(
       globe,
       new Line([x + len * Math.sin(e), y - len * Math.cos(e)], [x - len * Math.sin(e), y + len * Math.cos(e)], {
@@ -384,7 +384,7 @@ export function drawNearestNote(soft: string) {
     label('nearest the Sun:', [-6.0, 1.45], { size: 0.32, color: SUN }),
     label('early January', [-6.0, 1.0], { size: 0.32, color: SUN }),
   );
-  note.key = 'nearest-note';
+  keyed(note, 'nearest-note');
   return note;
 }
 
@@ -429,7 +429,7 @@ export function drawNoon(st: SeasonState, colours: Ink) {
   const S = sideOf(st, 'June', colours),
     share = st.noonShare!.june;
   const notes = new Group();
-  notes.key = 'noon-notes';
+  keyed(notes, 'noon-notes');
   const p = S.place,
     start = Math.min(1.45, p[0] - 0.9);
   const small = 0.2,
@@ -475,15 +475,15 @@ export function drawNoon(st: SeasonState, colours: Ink) {
     ],
     { fill: SUN, fillOpacity: 0.4, stroke: 'none' },
   );
-  beam.key = 'noon-beam';
+  keyed(beam, 'noon-beam');
   const patch = new Line(p, q, { stroke: SUN, strokeWidth: 0.06 });
-  patch.key = 'noon-patch';
+  keyed(patch, 'noon-patch');
   const said = new Group(
     ...['Per m² of ground:', `sin ${degrees(st.june.altitude)} = ${share.toFixed(2)}`, 'of overhead sunlight'].map((line, i) =>
       label(line, corner(i).at, { size: small * 1.3, color: i === 1 ? SUN : ink, edge: corner(i).edge }),
     ),
   );
-  said.key = 'noon-share';
+  keyed(said, 'noon-share');
   notes.add(
     beam,
     new Line([start, q[1]], q, { stroke: SUN, strokeWidth: 0.025 }),
@@ -515,7 +515,7 @@ export function drawSolsticeMonths({ ink, soft }: Ink) {
     label('June', [JUNE_C[0] + R, 2.85], { size: 0.32, color: ink, edge: [1, 0] }),
     label('December', [DEC_C[0] + R, 2.85], { size: 0.32, color: ink, edge: [1, 0] }),
   );
-  months.key = 'solstice-months';
+  keyed(months, 'solstice-months');
   return months;
 }
 
@@ -526,7 +526,7 @@ export function drawSolsticeMonths({ ink, soft }: Ink) {
 export function drawLatitudeCircles(places: readonly { name: string; lat: number; here: boolean }[], soft: string) {
   const label = labeller(soft);
   const extra = new Group();
-  extra.key = 'latitude-circles';
+  keyed(extra, 'latitude-circles');
   for (const [center, side] of [
     [JUNE_C, -1],
     [DEC_C, 1],
@@ -605,7 +605,7 @@ export function drawDaylightAxes({ soft, muted }: Ink) {
     axisLabelFontSize: 0.2,
   });
   axes.shift([-6.6 - axes.c2p(0, 0)[0], -3.5 - axes.c2p(0, 0)[1]]);
-  axes.key = 'daylight-axes';
+  keyed(axes, 'daylight-axes');
   const months = new Group(
     ...MONTHS.map((m, i) => label(m, [axes.c2p(i + 0.5, 0)[0], axes.c2p(0, 0)[1] - 0.3], { size: 0.2 })),
   );
@@ -664,7 +664,7 @@ export function drawLevels(axes: Axes, days: readonly number[], shortest: number
 export function drawJanuaryMarker(axes: Axes, value: number) {
   const jan = axes.c2p(0.5, value);
   const point = new Dot({ radius: 0.09, color: SUN }).moveTo(jan);
-  point.key = 'january-point';
+  keyed(point, 'january-point');
   return new Group(axes.verticalLine(0.5, { stroke: SUN, strokeWidth: 0.025, dashArray: '0.1 0.08' }), point);
 }
 
@@ -692,9 +692,9 @@ export function drawMirror(
   let other: Mobject | undefined;
   if (lat !== 0) {
     other = axes.plot(daylightAt(-lat), { samples: 145, color: MIRROR, strokeWidth: 0.035 });
-    other.key = 'mirror-daylight-curve';
+    keyed(other, 'mirror-daylight-curve');
     const point = new Dot({ radius: 0.09, color: MIRROR }).moveTo(axes.c2p(0.5, mirrorJanuary));
-    point.key = 'mirror-january-point';
+    keyed(point, 'mirror-january-point');
     second.add(
       other,
       point,
@@ -716,7 +716,7 @@ export function drawMirror(
 export function drawBars(st: SeasonState, { ink, soft, muted }: Ink) {
   const label = labeller(soft);
   const bars = new Group();
-  bars.key = 'effect-bars';
+  keyed(bars, 'effect-bars');
   const left = 2.6,
     right = 6.9,
     top = 1.0,
@@ -791,11 +791,11 @@ export function drawTags(st: SeasonState, axes: Axes, paper: string) {
     st.latitude !== 0
       ? [tag(0.5, days[0]!, hours(days[0]!), CURVE), tag(0.5, other[0]!, hours(other[0]!), MIRROR)]
       : [tag(0.5, days[0]!, `15 January: ${hours(days[0]!)}`, CURVE), tag(6.5, days[6]!, `15 July: ${hours(days[6]!)}`, CURVE)];
-  tags[0]!.key = 'january-value';
-  tags[1]!.key = st.latitude === 0 ? 'july-value' : 'mirror-january-value';
+  keyed(tags[0]!, 'january-value');
+  keyed(tags[1]!, st.latitude === 0 ? 'july-value' : 'mirror-january-value');
   if (st.latitude === 0) {
     const julyPoint = new Dot({ radius: 0.09, color: CURVE }).moveTo(axes.c2p(6.5, days[6]!));
-    julyPoint.key = 'july-point';
+    keyed(julyPoint, 'july-point');
     tags.push(julyPoint);
   }
   return new Group(...tags);

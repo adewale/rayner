@@ -1,4 +1,4 @@
-import { Scene, Group } from '../../../src/index.ts';
+import { Scene, Group, keyed } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, mermaid, answerOf, view, having } from '../../../explain/index.ts';
 import { card, code } from '../../../explain/drawing.ts';
@@ -540,12 +540,12 @@ export default class TrafficPolicyExplainer extends Scene<TrafficState, { cluste
         { at: box, align: 'top', size: SIZE, title: POLICY[p], key: `traffic-compare:${p}` },
         // Its rows keyed by label, not by index as the key option keys them: scene.review.json targets these.
         (card) => {
-          card.values.get('Second hop')!.key = `${card.key}:hop`;
-          card.values.get('Pod sees')!.key = `${card.key}:source`;
+          keyed(card.values.get('Second hop')!, `${card.key}:hop`);
+          keyed(card.values.get('Pod sees')!, `${card.key}:source`);
           for (const [label, value] of card.values)
             if (label !== 'Second hop' && label !== 'Pod sees') {
-              card.labels.get(label)!.key = `${card.key}:pods:${label}`;
-              value.key = `${card.key}:share:${label}`;
+              keyed(card.labels.get(label)!, `${card.key}:pods:${label}`);
+              keyed(value, `${card.key}:share:${label}`);
             }
         },
       );

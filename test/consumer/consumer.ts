@@ -221,9 +221,9 @@ export async function publicCollection(scene: Scene): Promise<void> {
 
 // The rest of what the collection's scenes import, and the members they use, written as an outside
 // author writes them. Every view draws from its state.
-import { Group, Mobject, VMobject, Circle, Polygon, Arc, Cross, CurvedArrow, BraceLabel, DecimalNumber, ItalicText, FadeOut, LaggedStart, Animation, TransformMatchingShapes, matchByKey, linear, smooth, rushInto, rushFrom, thereAndBack, shaperFor } from 'rayner';
+import { Group, Mobject, VMobject, Circle, Polygon, Arc, Cross, CurvedArrow, BraceLabel, DecimalNumber, ItalicText, FadeOut, LaggedStart, Animation, TransformMatchingShapes, matchByKey, linear, smooth, rushInto, rushFrom, thereAndBack, shaperFor, keyed } from 'rayner';
 import type { Box, Vec, SceneState, ScheduledAnimation, MatchKey, FadeOptions, FontName, SceneClass, Sink, Style, Palette } from 'rayner';
-import { callout, dimension, pin, legend, keyed, keyedParts } from 'rayner/drawing';
+import { callout, dimension, pin, legend, keyedParts } from 'rayner/drawing';
 import { Machine, refuse, isRefusal, answerOf, settingsOf, resolveSettings, regionBox, mermaid } from 'rayner/explain';
 import type { Refusal, Transition, Choreography, NoteSide, PictureNote, DiagramPicture, Stage, ExplainerClass, ExplainerMeta, Setting, StepKind, Description } from 'rayner/explain';
 import { MoveAlongPath, ArcBetweenPoints } from 'rayner';
@@ -283,6 +283,8 @@ export class Collection extends Scene<CollectionModel> {
     path.setStyle(style);
     const fade: FadeOptions = { shift: [0, 0.2], rateFunc: smooth };
     await s.enter(keyed(picture, 'shapes'));
+    // @ts-expect-error a key is read-only: keyed() sets it
+    picture.key = 'other';
     const all: ScheduledAnimation[] = [new LaggedStart(shapes.map((m) => new Pulse(m, { rateFunc: linear }))), new MoveAlongPath(new Dot(), path, { rateFunc: rushInto })];
     await this.play(...all);
     await this.play(new FadeOut(picture, fade), new TransformFromCopy(new Text('done'), new Text('done!')), new ArcBetweenPoints(at, [0, 0]).animate.shift([0, 1]));
@@ -396,7 +398,7 @@ export class Composed extends Scene {
     const entry: Action<Card> = s.card([['count', 1]], { at: 'end' });
     const card: Card = entry.value;
     await this.play(s.focus(d.get('A')), entry, new FadeIn(new Rectangle({ width: 1, height: 1 }), { runTime: 0.9 }));
-    await this.play(new Succession([d.walk([['A', 'B']]), s.callout(card, 'one'), s.focus('all')]));
+    await this.play(new Succession([d.walk([['A', 'B']]), new Create(s.keep(callout(s, card, 'one')), { runTime: 0.6 }), s.focus('all')]));
     const panel: CodeBlock = code(s, ['x = 1']);
     const walked: Action = d.walk([['A', 'B']]);
     await this.play(new AnimationGroup([walked, s.enter(panel)]));

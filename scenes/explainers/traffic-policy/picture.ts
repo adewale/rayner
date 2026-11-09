@@ -1,6 +1,6 @@
 // How the flow step's picture looks: both policies as bands from the load balancer through the nodes to
 // the pods, drawn from what the step records. The cluster diagram itself is Mermaid source, built in the scene.
-import { Group, Rectangle, Text, VMobject } from '../../../src/index.ts';
+import { Group, Rectangle, Text, VMobject, keyed } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import { add, frac, percent, podsOf, q, value } from './model.ts';
 import type { Policy, Q } from './model.ts';
@@ -98,7 +98,7 @@ export function flowPanel(counts: readonly number[], policy: Policy, flow: FlowS
     const o = out.get(b.node)!,
       i = into.get(b.pod)!;
     const m = band(o, o + w(b.share), NODE_Y, i, i + w(b.share), POD_Y + BAR_H, NODE_COLORS[b.node]!);
-    m.key = `traffic-flow:${policy}:band:${b.node + 1}:${b.pod}`;
+    keyed(m, `traffic-flow:${policy}:band:${b.node + 1}:${b.pod}`);
     bandMobs.push(m);
     out.set(b.node, o + w(b.share));
     into.set(b.pod, i + w(b.share));
@@ -111,11 +111,11 @@ export function flowPanel(counts: readonly number[], policy: Policy, flow: FlowS
       text(p.id, paper).moveTo([x, POD_Y + BAR_H / 2]),
       text(percent(share[p.id]!)).moveTo([x, POD_Y - 0.3]),
     );
-    g.key = `traffic-flow:${policy}:pod:${p.id}`;
+    keyed(g, `traffic-flow:${policy}:pod:${p.id}`);
     return g;
   });
   const group = new Group(title, ...parts, ...bandMobs, lb, ...nodeBars, ...podBars);
-  group.key = `traffic-flow:${policy}`;
+  keyed(group, `traffic-flow:${policy}`);
   const words = () => {
     const nodeWords = counts
       .map((_, j) =>

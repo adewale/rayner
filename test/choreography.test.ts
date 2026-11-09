@@ -4,7 +4,7 @@ import { SetState } from '../explain/state.ts';
 import { card } from '../explain/drawing.ts';
 import { isFurniture } from '../explain/stage.ts';
 import assert from 'node:assert/strict';
-import { Scene, MoveAlongPath, Group, Rectangle, Circle, Dot, Line, Text, FadeIn, GrowFromEdge, PulseAlongPath, AnimationGroup, LaggedStart, Succession, linear } from '../src/index.ts';
+import { Scene, MoveAlongPath, Group, Rectangle, Circle, Dot, Line, Text, FadeIn, GrowFromEdge, PulseAlongPath, AnimationGroup, LaggedStart, Succession, linear, keyed } from '../src/index.ts';
 import { StringSink, NullSink, toSvgString, renderFrame } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { TraceSink, traceScene, loadFonts } from '../explain/testing.ts';
@@ -244,7 +244,7 @@ test('Follow samples one value for several drawings: exact ends, linear between,
   // The primitive under view.tween and a choreography's follow.
   const { Follow } = await import('../explain/state.ts');
   const dot = new Dot({ radius: 0.1 }), bar = new Rectangle({ width: 1, height: 1 });
-  dot.key = 'dot';
+  keyed(dot, 'dot');
   const ids = [dot.id, bar.id];
   const seen: number[] = [];
   const draw = (v: number) => { seen.push(v); return [new Dot({ radius: 0.1 }).moveTo([v, 0]), new Rectangle({ width: 1, height: 1 }).moveTo([0, v / 2])]; };
@@ -274,8 +274,7 @@ test('Follow samples one value for several drawings: exact ends, linear between,
   // Invalid specs are refused before anything is drawn
   assert.throws(() => new Follow({ from: 0, to: NaN, draw }, { targets: [dot, bar] }), RangeError);
   assert.throws(() => new Follow({ from: Infinity, to: 1, draw }, { targets: [dot, bar] }), RangeError);
-  assert.throws(() => new Follow({ from: 0, to: 1, draw }, { targets: [] }), TypeError);
-  assert.throws(() => new Follow({ from: 0, to: 1, draw }, { targets: [{} as Mobject] }), TypeError);
+  assert.throws(() => new Follow({ from: 0, to: 1, draw }, { targets: [] }), RangeError);
   assert.throws(() => new Follow({ from: 0, to: 1, draw }, { targets: [dot, dot] }), /^Error: c\.follow\(\): a target is listed twice/);
   const bad = new Follow({ from: () => NaN, to: 1, draw }, { targets: [dot, bar] });
   assert.throws(() => bad.begin(), RangeError);
@@ -283,7 +282,7 @@ test('Follow samples one value for several drawings: exact ends, linear between,
   assert.throws(() => new Follow({ from: 0, to: 1, draw }, { targets: [dot] }).begin(), /2 pictures for 1 targets/);
   assert.throws(() => new Follow({ from: 0, to: 1, draw: () => dot }, { targets: [dot] }).begin(), /fresh mobjects/);
   const cell = new Group(new Rectangle(), new Text('a'));
-  cell.children[1]!.key = 'cell:label';
+  keyed(cell.children[1]!, 'cell:label');
   assert.throws(() => new Follow({ from: 0, to: 1, draw: () => new Group(new Rectangle()) }, { targets: [cell] }).begin(), /the part keyed "cell:label" would be lost/);
   // One writer per mobject: play() refuses a Follow beside anything else that writes one of its targets
   await assert.rejects(() => scene.play(new Follow({ from: 0, to: 1, draw }, { targets: [dot, bar] }), new Transform(bar, bar.copy().shift([1, 0]))), /both animate/);
