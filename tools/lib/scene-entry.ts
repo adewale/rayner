@@ -6,8 +6,8 @@ import { join } from 'node:path';
 import type { Project } from './explain-project.ts';
 import type { ShippedScenario } from '../../app/embed.ts';
 import { playerTrace } from '../../app/embed-trace.ts';
-import type { LetteringSnapshot, PackedLetteringSnapshot } from '../../src/lettering-outlines.ts';
-import type { SnapshotStore } from '../../explain/diagram-snapshot.ts';
+import type { LetteringSnapshot, PackedLetteringSnapshot } from '../../src/internal.ts';
+import type { SnapshotStore } from '../../explain/index.ts';
 import { pageSnapshot } from './lettering.ts';
 import { pageFaces } from './explain-lettering.ts';
 import { pageSnapshots } from './page-snapshots.ts';
@@ -85,13 +85,13 @@ export async function sceneEntry(project: Project, entry: PageEntry | BareEntry)
     : `import * as authored from ${JSON.stringify(project.file)};const Original=authored[${JSON.stringify(project.exportName)}];`;
   const adopted = project.intent ? `Original.meta={...Original.meta,...${JSON.stringify(project.intent)}};` : '';
   const bound = outline
-    ? `import{bindLettering}from ${lib('src/lettering-outlines.ts')};const Source=bindLettering(Original,${JSON.stringify(await outline)});`
+    ? `import{bindLettering}from ${lib('src/internal.ts')};const Source=bindLettering(Original,${JSON.stringify(await outline)});`
     : 'const Source=Original;';
   const [letteringImport, ready] = project.lettering
-    ? [`import{useLettering}from ${lib('src/lettering.ts')};`, `await useLettering(${JSON.stringify(pageFaces(project.lettering))});`]
+    ? [`import{useLettering}from ${lib('src/internal.ts')};`, `await useLettering(${JSON.stringify(pageFaces(project.lettering))});`]
     : ['', ''];
   const source = author + letteringImport + adopted + bound;
   if (entry.target === 'page')
     return `${source}import{mountEmbed}from ${JSON.stringify(join(ROOT, 'app/embed.ts'))};${entry.imports}const root=document.getElementById('content');(async()=>{${ready}await mountEmbed(root,Source,${entry.snapshots},{${entry.audio ? 'audio:mountAudio,' : ''}shipped:${JSON.stringify(entry.shipped)}});root.dataset.ready='true'})().catch(error=>{console.error(error);const p=document.createElement('p');p.setAttribute('role','alert');p.textContent=${JSON.stringify(entry.failed)};root.append(p)});`;
-  return `${source}import{bindSnapshots,withSettings}from ${lib('explain/settings.ts')};import{toSvgString}from ${lib('src/output.ts')};import{traceRun}from ${lib('src/trace.ts')};const Bound=bindSnapshots(Source,${JSON.stringify(shippedStore(project.store))});export async function run(values){${ready}const{trace,scene}=await traceRun(withSettings(Bound,values));return{trace,svg:toSvgString(scene)}}`;
+  return `${source}import{bindSnapshots,withSettings}from ${lib('explain/testing.ts')};import{toSvgString}from ${lib('src/output.ts')};import{traceRun}from ${lib('src/internal.ts')};const Bound=bindSnapshots(Source,${JSON.stringify(shippedStore(project.store))});export async function run(values){${ready}const{trace,scene}=await traceRun(withSettings(Bound,values));return{trace,svg:toSvgString(scene)}}`;
 }

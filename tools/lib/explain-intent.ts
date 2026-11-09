@@ -1,10 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { adoptIntent, parseIntent } from '../../explain/intent.ts';
-import type { Intent } from '../../explain/intent.ts';
+import { adoptIntent, parseIntent } from '../../explain/internal.ts';
+import type { Intent } from '../../explain/internal.ts';
+export { REQUIRED, adoptIntent, intentMeta, parseIntent } from '../../explain/internal.ts';
+export { withIntent } from '../../explain/testing.ts';
+export type { Intent } from '../../explain/internal.ts';
 
-export { REQUIRED, adoptIntent, intentMeta, parseIntent, withIntent } from '../../explain/intent.ts';
-export type { Intent } from '../../explain/intent.ts';
 
 /** The script beside `sceneFile`: errors about its intent name this path, as loadProject's do. */
 const scriptOf = (sceneFile: string) => join(dirname(sceneFile), 'script.md');

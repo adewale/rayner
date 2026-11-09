@@ -10,17 +10,14 @@ import { packPageSnapshots } from './page-snapshots.ts';
 import { sceneEntry, shippedScenario, shippedStore } from './scene-entry.ts';
 import { SnapshotSink, renderFrame } from '../../src/output.ts';
 import { chromeFor, scenarioNameIn, changeText, descriptionLang } from '../../app/embed-strings.ts';
-import { pictureHtml, htmlEscape, stepWords, watchedChanges, wordsHtml } from '../../explain/trace.ts';
+import { pictureHtml, htmlEscape, stepWords, watchedChanges, wordsHtml, stepAudio, liveBase, stepQuery } from '../../explain/internal.ts';
+import { RTL_SCRIPTS } from '../../src/internal.ts';
 import { ROOT, engineAlias, defaultScenario, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';
 import type { Project } from './explain-project.ts';
 import { letteringReport, useProjectLettering } from './explain-lettering.ts';
 import { letteringLicences } from './lettering.ts';
-import { RTL_SCRIPTS } from '../../src/lettering-outlines.ts';
 import { playerCss } from '../../app/embed-style.ts';
-import {stepAudio} from '../../explain/audio.ts';
 import { outcomes } from '../../app/embed-live.ts';
-import { liveBase } from '../../explain/live.ts';
-import { stepQuery } from '../../explain/settings.ts';
 
 /**
  * A page whose lettering asks for a right-to-left script sets the direction of

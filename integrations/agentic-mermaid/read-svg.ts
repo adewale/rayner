@@ -1,14 +1,13 @@
-import type {TextShaping} from '../../src/text-context.ts';
+import type { TextShaping } from '../../src/index.ts';
+import { loadFonts } from '../../explain/testing.ts';
+import { SVG_PX_PER_UNIT, importedText, outlineText } from '../../explain/internal.ts';
+import type { SnapshotShape, SnapshotTextRun } from '../../explain/internal.ts';
 // Build-only SVG lowering. Chromium resolves CSS variables, colour-mix and transforms;
 // svgpath normalizes curves. Runtime snapshots contain only Lantern cubic points.
 import svgpath from 'svgpath';
 import type { Page } from 'playwright-core';
 import { VMobject } from '../../src/index.ts';
-import { loadFonts } from '../../src/testing.ts';
 import type { Style } from '../../src/index.ts';
-import { SVG_PX_PER_UNIT } from '../../explain/diagram-snapshot.ts';
-import type { SnapshotShape, SnapshotTextRun } from '../../explain/diagram-snapshot.ts';
-import { importedText, outlineText } from '../../explain/diagram-text.ts';
 
 /** SVG styles select a family; the scene's lettering request selects its actual face. */
 export function importedFont(family: string, monospace = false): 'sans' | 'mono' {

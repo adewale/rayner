@@ -1,4 +1,4 @@
-import type {SnapshotStore} from '../../explain/diagram-snapshot.ts';
+import type { SnapshotStore } from '../../explain/index.ts';
 import type {PathSnapshotPayload} from '../../app/embed-snapshot-codec.ts';
 
 /** The renderer admits path coordinates through Float32Array. Keep a short

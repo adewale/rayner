@@ -126,7 +126,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     return;
   }
   if (command === 'describe') {
-    const { describeExplainer } = await import('../explain/describe.ts');
+    const { describeExplainer } = await import('../explain/testing.ts');
     const json = JSON.stringify(await describeExplainer(project.Scene, { snapshots: project.store }), null, 2) + '\n';
     if (flags.out) await writeFile(flags.out, json);
     else process.stdout.write(json);

@@ -1,6 +1,6 @@
 import { describeMermaidFacts, mutate, parseRegisteredMermaid, serializeMermaid } from 'agentic-mermaid/agent';
 import type { AnyMutationOp } from 'agentic-mermaid/agent';
-import type { DiagramSpec } from '../../explain/diagram-snapshot.ts';
+import type { DiagramSpec } from '../../explain/index.ts';
 import { replayMorph } from '../../integrations/agentic-mermaid/index.ts';
 
 /**

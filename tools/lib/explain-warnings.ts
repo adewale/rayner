@@ -1,4 +1,4 @@
-import type { DiagramSnapshot } from '../../explain/diagram-snapshot.ts';
+import type { DiagramSnapshot } from '../../explain/index.ts';
 /** Diagnostic only, not a Mermaid parser: recognize common explicit node-label forms.
  * Keep a source-to-paint guard even when the pinned renderer fixes known label-loss bugs. */
 export function lostLabelWarnings(snapshot: DiagramSnapshot): string[] {

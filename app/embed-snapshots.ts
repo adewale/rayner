@@ -1,4 +1,4 @@
-import type {SnapshotStore} from '../explain/diagram-snapshot.ts';
+import type { SnapshotStore } from '../explain/index.ts';
 import {decodeSnapshotPayload} from './embed-snapshot-codec.ts';
 
 /** Expand the page's lossless diagram payload using the browser's native stream API. */

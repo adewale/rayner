@@ -64,10 +64,14 @@ test('rayner-cli is the command at the library\'s version, depending on exactly 
     assert.deepEqual([...external].sort(), Object.keys(tools).sort(), 'cli/package.json lists what the command imports');
     // The engine comes from the installed library, by modules the library compiles and ships, through
     // the private specifier the command's own resolve hook answers (tools/installed.ts), not an export.
-    assert.ok(internal.size > 10);
+    // It reaches the library as an outside project does, through the entry points, and beyond them through
+    // the two internal barrels and the vendored shaper only (docs/ENGINE.md, "The internal interface").
+    const entries = Object.values(root.exports as Record<string, string | { default: string }>).flatMap((t) => (typeof t === 'object' ? [t.default.replace(/^\.\/dist\//, '')] : []));
+    for (const barrel of ['src/internal.js', 'explain/internal.js', 'vendor/glyph.js']) assert.ok(internal.has(barrel), `the command imports ${LIBRARY}${barrel}`);
     for (const file of internal) {
       const source = existsSync(join(ROOT, file)) ? file : file.replace(/\.js$/, '.ts');
       assert.ok(libraryModule(source) && existsSync(join(ROOT, source)), `${LIBRARY}${file} is a library module`);
+      assert.ok(entries.includes(file) || ['src/internal.js', 'explain/internal.js', 'vendor/glyph.js'].includes(file), `${LIBRARY}${file} is an entry point or an internal barrel`);
     }
     const inputs = Object.keys(meta.inputs);
     assert.deepEqual(inputs.filter((f) => libraryModule(f)), [], 'the command bundles no copy of the library or its shaper');

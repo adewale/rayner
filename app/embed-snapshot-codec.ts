@@ -1,4 +1,5 @@
-import type {SnapshotStore, DiagramSnapshot, SnapshotPart, SnapshotShape} from '../explain/diagram-snapshot.ts';
+import type { SnapshotStore, DiagramSnapshot } from '../explain/index.ts';
+import type { SnapshotPart, SnapshotShape } from '../explain/internal.ts';
 
 export type PackedShape = Omit<SnapshotShape, 'subpaths'> & {subpaths: (number[] | number)[]};
 type PackedPart = Omit<SnapshotPart, 'shapes'> & {shapes: PackedShape[]};

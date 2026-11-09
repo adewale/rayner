@@ -6,9 +6,9 @@
 // `machine.send` (`runLive` in explain/live.ts, which the command runs too), so a frame is still a
 // function of time and a link with the log reopens the same picture. See docs/MACHINES.md, "The player".
 
-import type { Machine } from '../explain/machine.ts';
-import type { LiveSession } from '../explain/live.ts';
-import { PAGE_QUERY } from '../explain/page-query.ts';
+import type { Machine } from '../explain/index.ts';
+import type { LiveSession } from '../explain/internal.ts';
+import { PAGE_QUERY } from '../explain/internal.ts';
 
 type AnyMachine = Machine<object, string>;
 

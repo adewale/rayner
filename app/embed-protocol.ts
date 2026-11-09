@@ -1,4 +1,4 @@
-import { PAGE_QUERY } from '../explain/page-query.ts';
+import { PAGE_QUERY } from '../explain/internal.ts';
 export const RESIZE_TYPE = 'rayner:resize',
   STEP_TYPE = 'rayner:step',
   GOTO_TYPE = 'rayner:goto';
