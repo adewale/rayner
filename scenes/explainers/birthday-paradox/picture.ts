@@ -25,7 +25,7 @@ export function room(s: Stage, days: readonly number[], dates: readonly string[]
     ),
   );
   keyed(cards, 'birthday-people');
-  return new Group(cards, label(s, footer, { at: [0, big ? -3.85 : -3.6], size: 0.62, key: 'birthday-footer' }));
+  return new Group(cards, keyed(label(s, footer, { at: [0, big ? -3.85 : -3.6], size: 0.62 }), 'birthday-footer'));
 }
 
 /**
@@ -57,12 +57,12 @@ export function pairGrid(
   keyed(matched, 'birthday-matched-pairs');
   const g = new Group(rest, squares, matched);
   g.add(
-    label(s, you ? 'You: card 1' : 'card 1', { at: [x0, y0 + 0.28], color: you ? s.look.bad : s.look.soft, size: 0.42, key: 'birthday-you' }).moveTo([x0, y0 + 0.28], [-1, 0]),
+    keyed(label(s, you ? 'You: card 1' : 'card 1', { at: [x0, y0 + 0.28], color: you ? s.look.bad : s.look.soft, size: 0.42 }), 'birthday-you').moveTo([x0, y0 + 0.28], [-1, 0]),
     label(s, 'card 2', { at: [x0 - 0.15, at(1, 0)[1]], color: s.look.soft, size: 0.42 }).moveTo([x0 - 0.15, at(1, 0)[1]], [1, 0]),
     label(s, `card ${n}`, { at: [x0 - 0.15, at(n - 1, 0)[1]], color: s.look.soft, size: 0.42 }).moveTo([x0 - 0.15, at(n - 1, 0)[1]], [1, 0]),
     you ? stat(s, 'Comparisons', count, { at: [-4.9, 0.2], key: 'birthday-comparisons' }) : stat(s, 'Pairs', count, { at: [-4.9, 0.2], key: 'birthday-pairs' }),
     stat(s, 'Chance', percent(chance), { at: [4.9, 0.2], key: 'birthday-chance' }),
-    label(s, footer, { at: [0, -3.75], size: 0.58, key: 'birthday-footer' }),
+    keyed(label(s, footer, { at: [0, -3.75], size: 0.58 }), 'birthday-footer'),
   );
   return g;
 }
@@ -93,6 +93,6 @@ export function drawEstimate(s: Stage, pairs: number, shortcut: number, chance: 
     label(s, `= ${pct2(1 - shortcut)} chance of no match`, { at: [0, 0.35], size: 0.66 }),
     stat(s, 'Pair shortcut', pct2(shortcut), { at: [-3.6, -1.7], key: 'birthday-shortcut' }),
     stat(s, 'Exact', pct2(chance), { at: [3.6, -1.7], key: 'birthday-exact' }),
-    label(s, 'The gap: pairs that share a person', { at: [0, -3.6], color: s.look.soft, size: 0.62, key: 'birthday-footer' }),
+    keyed(label(s, 'The gap: pairs that share a person', { at: [0, -3.6], color: s.look.soft, size: 0.62 }), 'birthday-footer'),
   );
 }

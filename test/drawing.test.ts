@@ -13,12 +13,11 @@ test('rayner/drawing exports exactly the kit, and package.json publishes it', ()
   assert.deepEqual(exports['./drawing'], { types: './dist/explain/drawing.d.ts', default: './dist/explain/drawing.js' });
 });
 
-test('segment and dot take keys like the rest of the kit, and a keyed composite keys its parts', async () => {
+test('a keyed composite keys its parts under its own key, and an unkeyed one keys none', async () => {
   const { Scene } = await import('../src/index.ts'); const { NullSink } = await import('../src/output.ts'); const { loadFonts } = await import('../explain/testing.ts');
   await loadFonts();
   const { stage } = await import('../explain/index.ts');
   const s = stage(new Scene(new NullSink()));
-  assert.equal(drawing.segment(s, [0, 0], [1, 0], { color: s.look.soft, key: 'axis' }).key, 'axis');
   const node = drawing.dot(s, 'A', { key: 'node:A' });
   assert.equal(node.key, 'node:A');
   assert.deepEqual(node.children.map((m) => m.key), ['node:A:circle', 'node:A:label']);
@@ -43,6 +42,31 @@ test('segment and dot take keys like the rest of the kit, and a keyed composite 
   assert.ok(Math.abs(t.find('t:head:A')!.center()[0] - 2) < 1e-6 && Math.abs(t.find('t:head:A')!.center()[1] - 1) < 1e-6);
   // Kit text takes the scene's shaping, as the scene's own text does.
   assert.equal(drawing.label(s, 'x').shaping, new Text('x', { shaping: s.scene.textShaping }).shaping);
+});
+
+test('a kit function keys an empty key exactly as keyed() does', async () => {
+  const { Scene, Circle, keyed } = await import('../src/index.ts'); const { NullSink } = await import('../src/output.ts'); const { loadFonts } = await import('../explain/testing.ts');
+  await loadFonts();
+  const s = stage(new Scene(new NullSink()));
+  const outcome = (make: () => { key: string | undefined }): string => {
+    try {
+      return `keyed ${JSON.stringify(make().key)}`;
+    } catch (e) {
+      return (e as Error).constructor.name;
+    }
+  };
+  const expected = outcome(() => keyed(new Circle(), ''));
+  assert.deepEqual(
+    [
+      outcome(() => keyed(drawing.label(s, 'x'), '')),
+      outcome(() => drawing.tile(s, 'x', { width: 2, height: 1, key: '' })),
+      outcome(() => drawing.dot(s, 'x', { key: '' })),
+      outcome(() => drawing.callout(s, [0, 0], 'x', { key: '' })),
+      outcome(() => drawing.dimension(s, [0, 0], [1, 0], 'x', { key: '' })),
+      outcome(() => drawing.pin(s, [0, 0], { key: '' })),
+    ],
+    Array(6).fill(expected),
+  );
 });
 
 test('keyedParts keys each part in order, groups them, and refuses a key used twice', async () => {

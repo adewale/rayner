@@ -179,7 +179,7 @@ export function drawingKit(scene: Scene) {
   const s = stage(scene);
   const spread: TableColumns = { left: -6, right: 6 };
   const parts = [
-    label(s, 'hit', { at: [0, 1], color: s.look.ink, key: 'hit' }), tile(s, 'D1', { width: 2, height: 1, active: true, key: 'db' }),
+    keyed(label(s, 'hit', { at: [0, 1], color: s.look.ink }), 'hit'), tile(s, 'D1', { width: 2, height: 1, active: true, key: 'db' }),
     table(s, ['Key', 'Slot'], [['a', 1]], { columns: spread, key: 'slots' }), table(s, ['Key'], [['a']], { columns: { left: 0, gap: 1 }, at: [0, -1], key: 'keys' }),
     flow(s, ['Request', 'Cache', 'Database'], { key: 'request' }), bars(s, [{ label: 'reads', value: 1, display: '1' }], 2, { at: [0, -2], key: 'reads' }),
     stat(s, 'Reads', 1, { at: [3, 0], key: 'read-count' }), segment(s, [0, 0], [1, 1], { color: s.look.soft, strokeWidth: 0.03 }), dot(s, 'A', { at: [-3, 0], active: true }),

@@ -189,7 +189,7 @@ export async function story(order: CompletionOrder, answer: string): Promise<{ r
           label(s, st.accepted ? `Publish ${q(st.query)}` : `Drop ${q(st.query)}`, { at: [0, 0.5], color: st.accepted ? s.look.good : s.look.bad, size: 0.8 }),
           new Code([CHECK], { fontSize: CODE_SIZE, color: s.look.ink }).moveTo([0, -1.35]),
           // What each rule leaves on the page after this result, from the model's two runs.
-          label(s, `Page now: ${q(st.on.shown)} with the guard, ${q(st.off.shown)} without`, { at: [0, -3.05], size: 0.62, key: 'page-now' }),
+          keyed(label(s, `Page now: ${q(st.on.shown)} with the guard, ${q(st.off.shown)} without`, { at: [0, -3.05], size: 0.62 }), 'page-now'),
         ),
     };
   });
@@ -210,7 +210,7 @@ export async function story(order: CompletionOrder, answer: string): Promise<{ r
       draw: (st, s) =>
         new Group(
           ...timeline(s, st.lifetimes, [], 3).children,
-          label(s, `The user wants ${q('B')}`, { at: [0, -2.0], color: s.look.emphasis, size: 0.75, key: 'timeline-wants' }),
+          keyed(label(s, `The user wants ${q('B')}`, { at: [0, -2.0], color: s.look.emphasis, size: 0.75 }), 'timeline-wants'),
         ),
     },
     overwrite: {

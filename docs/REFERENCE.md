@@ -303,15 +303,15 @@ A row gives one value per column, or one value that spans them all (Requests abo
 - then what the picture shows, positionally: its text, rows or items, and what it measures or points at (a callout's target, a dimension's ends, a pin's point);
 - then one options object: `at` is where the picture stands, `size` its text size, `key` its address.
 
-A function whose parts are keyed (`table`, `stat`, `flow`, `bars`, `legend`) requires `key`, so two of one kind on a stage never collide. The others take `key` optionally, and key their parts only when given it. A keyed picture keys its parts under its own key, so a scene addresses a part by key (`find`, matching, a choreography's `c.from`), never by a child index. A mobject a scene draws itself is keyed with `keyed(m, key)` from `rayner`, which returns `m`; `m.key` is read-only.
+A function whose parts are keyed (`table`, `stat`, `flow`, `bars`, `legend`) requires `key`, so two of one kind on a stage never collide. `tile`, `dot`, `callout`, `dimension` and `pin` take `key` optionally, and key the composite and its parts (the last column) only when given it. A keyed picture keys its parts under its own key, so a scene addresses a part by key (`find`, matching, a choreography's `c.from`), never by a child index. A single part, `label` or `segment`, takes no `key`: it and any mobject a scene draws itself is keyed with `keyed(m, key)` from `rayner`, the one way to key a part, which returns `m`. `m.key` is read-only.
 
 | Function | Draws | Keyed parts |
 | --- | --- | --- |
 | `keyedParts()` | A picture built from keyed parts: `add(m, key)` keys `m`, keeps it in order and returns it, `group()` returns the parts as one Group. A key added twice is refused at the `add` that repeats it | |
 | `emphasised(m, as)` | Marks `m` as emphasis, `as` the words for what it shows (`'outlined: the full slot'`), so the phone's tour and the descriptions find the mark where it is drawn; `null` takes the mark off. Returns `m` ([emphasis](#the-phones-opening-emphasis-and-review-subjects)) | |
-| `label(s, text, { at, color, size, key })` | A centred line of text at `at`, in the look's ink unless given a `color` | |
+| `label(s, text, { at, color, size })` | A centred line of text at `at`, in the look's ink unless given a `color`. Key it with `keyed()` | |
 | `tile(s, text, { at, width, height, active, bad, size, key })` | A labelled box centred at `at`: soft, emphasised when `active`, red when `bad` | `key:box`, `key:label` |
-| `segment(s, a, b, { color, strokeWidth, key })` | A stroke from `a` to `b` | |
+| `segment(s, a, b, { color, strokeWidth })` | A stroke from `a` to `b`. Key it with `keyed()` | |
 | `dot(s, text, { at, active, key })` | A labelled circle | `key:circle`, `key:label` |
 | `table(s, headers, rows, { key, columns, at, gap, size })` | Bold headers over rows; text columns start-aligned, numeric ones end-aligned, a rule spanning exactly the columns. `columns`, a `TableColumns`, is column centres, `{ left, right }` to spread the measured columns between two edges, or `{ left, gap }` to set them a gap apart; `at`'s x shifts them and its y is the header row's; the group's box is the table's measured extent. A row is an array of cells, each a `TableCell` (a string or a number), or a `TableRow`, `{ key, cells }` | below |
 | `stat(s, title, value, { at, key })` | A title over a large value | `key:title`, `key:value` |
