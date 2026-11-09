@@ -12,7 +12,8 @@ import {
   Scene, Code, Text, FadeIn, LaggedStart, TransformDiff, TransformMatchingText, VMobject,
   diffLines, parseUnifiedDiff,
 } from '../src/index.ts';
-import { StringSink, SnapshotSink, renderText, renderFrame } from '../src/output.ts';
+import { StringSink, renderText, renderFrame } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import { MotionSink, analyzeMotion, traceScene, loadFonts } from '../explain/testing.ts';
 import { diffTokens, tokenize, hunkHeader } from '../src/diff.ts';
 import type { Hunk, Mobject, Sink } from '../src/index.ts';

@@ -5,7 +5,7 @@
 import { Scene, Rectangle, Text, Labeled, Arrow, FadeIn, Create, Transform } from 'rayner';
 import type { AudioClip, ScoreNote, StepAudio } from 'rayner/audio';
 import { TransformFromCopy, Restore } from 'rayner';
-import { StringSink, renderFrame, SnapshotSink } from 'rayner/output';
+import { StringSink, renderFrame } from 'rayner/output';
 import { traceScene } from 'rayner/testing';
 import { GrowFromEdge, PulseAlongPath, Line, Dot } from 'rayner';
 import type { GrowFromEdgeOpts } from 'rayner';
@@ -66,9 +66,8 @@ export async function run(): Promise<number> {
   const sink = new StringSink();
   await new Demo(sink, { fps: 30 }).run();
   const tr = await traceScene(Demo);
-  const snap = new SnapshotSink();
-  await renderFrame(Demo, 6, snap);
-  return sink.frames.length + tr.steps.length + snap.svg.length;
+  const still = toSvgString(await renderFrame(Demo, 6));
+  return sink.frames.length + tr.steps.length + still.length;
 }
 
 // Matching transforms: options, keys and the pairing report are public types

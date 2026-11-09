@@ -66,7 +66,7 @@ not for the animation program itself.
 Drawing a scene's frames somewhere is `rayner/output`; a trace is author tooling, in `rayner/testing`.
 
 ```ts
-import { SnapshotSink, renderFrame, renderText, renderElements } from 'rayner/output';
+import { renderFrame, toSvgString, renderText, renderElements } from 'rayner/output';
 import { traceScene } from 'rayner/testing';
 import { requestScene } from './document.ts';
 
@@ -74,10 +74,9 @@ const Request = requestScene({ cached: false });
 const trace = await traceScene(Request);    // complete step-boundary trace
 const result = trace.steps.find((s) => s.step === 'result');
 if (!result) throw new Error('Unknown step');
-const sink = new SnapshotSink();
-const scene = await renderFrame(Request, result.frame1, sink);
+const scene = await renderFrame(Request, result.frame1);
 
-const svg = sink.svg;                       // one SVG frame
+const svg = toSvgString(scene);             // one SVG frame
 const text = renderText(scene);             // lossy spatial text view
 const elements = renderElements(scene);     // geometry/paint records
 const state = scene.stateJson();            // the model at this frame; shownJson() for what is shown
@@ -90,7 +89,7 @@ captions and explanatory descriptions in its transcript.
 
 | Requested result | API | Former Lantern service equivalent |
 | --- | --- | --- |
-| One SVG | `renderFrame` (at a frame, such as a step's `frame1`) into `SnapshotSink` | `/frame.svg` |
+| One SVG | `toSvgString` of the scene `renderFrame` returns at a frame, such as a step's `frame1` | `/frame.svg` |
 | Text at a frame | `renderText` on that sampled scene | `/text` |
 | Element records | `renderElements`, one `ElementRecord` per drawn element | `/elements.json` |
 | Full step/state trace, with each step's timing and the duration | `traceScene`, a `Trace` (`{ fps, duration, frames, steps }`) | `/trace.json`, `/index.json` |
@@ -108,8 +107,9 @@ begins, `holdFrame` where its caption hold begins, and `frame1`, its resting pic
 `renderFrame(SceneClass, record.frame1, sink)` draws. Check the chosen step exists before
 drawing it.
 
-`renderFrame` draws one frame by its number, the `frameCount` the scene reaches as it
-draws it; a number past the end draws the final frame. It counts the frames before it
+`renderFrame` runs the scene to one frame by its number, the `frameCount` the scene reaches as it
+draws it, hands that frame to the sink it is given (none by default) and returns the scene there;
+a number past the end gives the final frame. It counts the frames before it
 without drawing them, and never finds a frame by a rounded time. Frame `k` is at time
 `k / fps`. `traceScene` returns a `Trace`,
 `{ fps, duration, frames, steps }`, typed from the scene class ([typed traces](REFERENCE.md#typed-traces)), recording the model before and after each step and what was shown at its end, not every
@@ -126,7 +126,7 @@ await new Request(all, { fps: 30 }).run();
 // all.frames contains SVG strings in frame order; it retains the whole run. all.last() is the final one.
 ```
 
-Use `SnapshotSink` for a single retained frame or implement `Sink.frame` to stream
+Use `renderFrame` and `toSvgString` for a single frame, or implement `Sink.frame` to stream
 frames rather than retaining a large sequence in memory. Forward `stepBegin` and
 `stepEnd` too when composing a sink that needs step notifications; `stepEnd` is handed an
 `EndedStep`, whose `t1` and `frame1` are numbers. A sink that draws only from

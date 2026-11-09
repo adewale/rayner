@@ -7,7 +7,8 @@ import assert from 'node:assert/strict';
 import {
   Scene, Frame, Code, Rectangle, Circle, Dot, Group, FadeIn, linear,
 } from '../src/index.ts';
-import { NullSink, DomSink, renderElements, renderFrame, renderText, toSvgString, SnapshotSink } from '../src/output.ts';
+import { NullSink, DomSink, renderElements, renderFrame, renderText, toSvgString } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import { MotionSink, analyzeMotion } from '../explain/testing.ts';
 import type { Box, Sink } from '../src/index.ts';
 import type { ElementRecord } from '../src/output.ts';

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Succession, linear } from 'rayner';
-import { StringSink, SnapshotSink, NullSink, renderFrame } from 'rayner/output';
+import { StringSink, NullSink, renderFrame, toSvgString } from 'rayner/output';
 import { traceScene, TraceSink } from 'rayner/testing';
 import { requestScene, route } from '../recipes/document.ts';
 import { Diamond, StatusBadge } from '../recipes/extensions.ts';
@@ -67,9 +67,8 @@ test('one parameter keeps the point on the circle at intermediate values, preser
 test('parameter recipe seeks to played SVGs and traces agree with full playback', async () => {
   const full = new StringSink(); await new ContinuousScene(full).run();
   for (const frame of [0, 3, 15, 27, 30]) {
-    const sink = new SnapshotSink();
-    const scene = await renderFrame(ContinuousScene, frame, sink);
-    assert.equal(sink.svg, full.frames[frame]);
+    const scene = await renderFrame(ContinuousScene, frame);
+    assert.equal(toSvgString(scene), full.frames[frame]);
     assert.ok(Math.abs((scene.state.angle as number) - (frame / 30) * Math.PI) < 1e-12);
   }
   const fullTrace = new TraceSink({ skipUntil: 0 }); await new ContinuousScene(fullTrace).run();
@@ -87,7 +86,7 @@ test('parameter animations capture starts in succession and reject another write
       ]), { rateFunc: linear });
     }
   }
-  const scene = await renderFrame(RoundTrip, 45, new SnapshotSink(), { fps: 60 });
+  const scene = await renderFrame(RoundTrip, 45, new NullSink(), { fps: 60 });
   assert.ok(Math.abs((scene.state.angle as number) - Math.PI / 2) < 1e-12);
   class Conflicting extends Scene {
     override async construct() {

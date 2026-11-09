@@ -149,7 +149,7 @@ A new `Text` starts with its advance box centred on the origin, before `moveTo` 
 
 `Scene.add` keeps a child inside an already visible parent rather than painting it twice. Adding a parent replaces its descendant roots; re-adding a root moves it to the front. `replace` likewise keeps one painted occurrence per descendant and rejects inserting an ancestor into its own descendant.
 
-`toSvgString`, `StringSink` and `SnapshotSink` accept a positive safe-integer pixel `width` (default 1280). There is no 4096px limit on local SVG export. Their `background`, the scene's paper (`scene.colors.paper`) unless given, accepts `#rgb` or `#rrggbb` and writes lowercase `#rrggbb`; named CSS colours and coercible objects are rejected. Arbitrary paint strings on shapes are escaped as XML data, with characters illegal in XML 1.0 removed. `DomSink` sets its background, the scene's paper unless given, through the browser's CSS property rather than serializing it into markup.
+`toSvgString` and `StringSink` accept a positive safe-integer pixel `width` (default 1280). There is no 4096px limit on local SVG export. Their `background`, the scene's paper (`scene.colors.paper`) unless given, accepts `#rgb` or `#rrggbb` and writes lowercase `#rrggbb`; named CSS colours and coercible objects are rejected. Arbitrary paint strings on shapes are escaped as XML data, with characters illegal in XML 1.0 removed. `DomSink` sets its background, the scene's paper unless given, through the browser's CSS property rather than serializing it into markup.
 
 `shaperFor` accepts exactly the strings `sans` and `mono`. TypeScript's font type does not replace runtime validation for JavaScript callers.
 
@@ -584,7 +584,7 @@ The package has an entry point per audience. A scene is written with `rayner` (t
 | Export | From | What it is for | Guide |
 | --- | --- | --- | --- |
 | `renderFrame`, `NullSink` | `rayner/output` | The scene at one frame or step, without drawing the frames before it; `renderFrame(Scene, step.frame1, sink)` draws a step's resting picture, and `NullSink` runs a scene drawing nothing | [Scene outputs](SCENE-OUTPUTS.md#time-and-step-semantics) |
-| `SnapshotSink`, `StringSink`, `toSvgString`, `renderElements`, `renderText`, `DomSink` | `rayner/output` | One SVG frame, every frame, element records, a text drawing, the live DOM | [Scene outputs](SCENE-OUTPUTS.md#public-output-apis) |
+| `toSvgString`, `StringSink`, `renderElements`, `renderText`, `DomSink` | `rayner/output` | One SVG frame, every frame, element records, a text drawing, the live DOM | [Scene outputs](SCENE-OUTPUTS.md#public-output-apis) |
 | `StopScene` | `rayner/output` | What a sink throws to stop a run (a seek does); a `catch` must rethrow it | [Fundamentals](ENGINE-FUNDAMENTALS.md#updaters-derived-pictures-and-seeking) |
 | `traceScene`, `TraceSink` | `rayner/testing` | Every step's timing, state before and after, `shown` and evidence, in one run, typed from the scene class (`TraceOf`, `Jsonified`) | [Scene outputs](SCENE-OUTPUTS.md), [fundamentals](ENGINE-FUNDAMENTALS.md#steps-state-and-evidence), [typed traces](#typed-traces) |
 | `InvariantSink`, `MotionSink`, `analyzeMotion` | `rayner/testing` | Check every frame against the scene's invariants, and motion for pops, cuts and teleports, in a test | [Testing](TESTING.md), [invariants](EXTENDING.md#hold-an-invariant-on-every-frame) |

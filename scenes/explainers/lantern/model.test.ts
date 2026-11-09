@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Rectangle, Dot, Circle, Group, FadeIn, Transform, smooth } from '../../../src/index.ts';
-import { StringSink, SnapshotSink, NullSink, DomSink, StopScene, renderFrame, toSvgString } from '../../../src/output.ts';
+import { StringSink, NullSink, DomSink, StopScene, renderFrame, toSvgString } from '../../../src/output.ts';
 import { TraceSink, MotionSink } from '../../../explain/testing.ts';
 import type { EndedStep, Mobject, Sink, Step, Vec } from '../../../src/index.ts';
 
@@ -108,7 +108,6 @@ test('clock: frame k is t = k / fps in every run, whatever the sink’s pace, a 
 test('sinks only read a frame: after each of Rayner’s sinks takes it, the scene draws the same SVG and keeps the same state', async () => {
   const sinks: Record<string, () => Sink> = {
     string: () => new StringSink(),
-    snapshot: () => new SnapshotSink(),
     null: () => new NullSink(),
     trace: () => new TraceSink(),
     motion: () => new MotionSink(),
@@ -172,11 +171,10 @@ test('an animation blends its start and end by its elapsed share of its run time
     // Seeked to each frame of the play: the one frame computed gets the played alpha and draws the played frame.
     for (let f = 1; f <= n; f++) {
       probes.length = 0;
-      const k = start + f,
-        snap = new SnapshotSink();
-      await renderFrame(Blend, k, snap);
+      const k = start + f;
+      const seeked = toSvgString(await renderFrame(Blend, k));
       assert.deepEqual(probes[0]!.calls, [playedCalls[f - 1]], `runTime ${runTime}, frame ${k}`);
-      assert.equal(snap.svg, full[k], `runTime ${runTime}, frame ${k}`);
+      assert.equal(seeked, full[k], `runTime ${runTime}, frame ${k}`);
     }
   }
 });
@@ -196,9 +194,7 @@ test('seek: unless the scene has updaters, a still computes no frame before t, a
       },
     ).run();
     assert.deepEqual(before, [], `seeking to frame ${k}`);
-    const snap = new SnapshotSink();
-    await renderFrame(TimeOnly, k, snap);
-    assert.equal(snap.svg, full[k], `frame ${k}`);
+    assert.equal(toSvgString(await renderFrame(TimeOnly, k)), full[k], `frame ${k}`);
   }
 });
 
@@ -229,8 +225,6 @@ test('seek: in a scene with updaters a still computes every frame before t, so a
       },
     ).run();
     assert.deepEqual(computed, Array.from({ length: k }, (_, i) => i + 1), `seeking to frame ${k}`);
-    const snap = new SnapshotSink();
-    await renderFrame(Nudged, k, snap);
-    assert.equal(snap.svg, full[k], `frame ${k}`);
+    assert.equal(toSvgString(await renderFrame(Nudged, k)), full[k], `frame ${k}`);
   }
 });

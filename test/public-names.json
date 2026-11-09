@@ -85,9 +85,6 @@
       "NullSink": {
         "tooling": "a test or tool that runs a scene for its state, steps or invariants and draws nothing (the recipes, rayner check)"
       },
-      "SnapshotSink": {
-        "tooling": "a tool that keeps one SVG frame at a chosen time, such as a contact sheet or a page's still (the render recipe)"
-      },
       "StopScene": {
         "tooling": "a host page or tool with its own sink, which throws it to stop a run and must rethrow it from a catch"
       },
@@ -104,7 +101,7 @@
         "tooling": "a tool or test that prints a frame as a text drawing, for a terminal or a reviewer (the render recipe)"
       },
       "toSvgString": {
-        "tooling": "a host page or tool that serializes the scene's current picture as one SVG document"
+        "tooling": "a host page or tool that serializes the scene's current picture as one SVG document, such as a step's still from the scene renderFrame returns (the render recipe)"
       }
     },
     "rayner/testing": {

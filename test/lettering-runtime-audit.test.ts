@@ -5,7 +5,8 @@ import { readFile } from 'node:fs/promises';
 import {
   Scene, Text, Code, DecimalNumber, Transform, shaperFor,
 } from '../src/index.ts';
-import { NullSink, SnapshotSink, renderFrame } from '../src/output.ts';
+import { NullSink, renderFrame } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { SANS, MONO } from '../src/font-data.ts';
 import {

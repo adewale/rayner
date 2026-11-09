@@ -4,7 +4,7 @@ import { realpathSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { SnapshotSink, StringSink, renderFrame, renderText, renderElements } from 'rayner/output';
+import { StringSink, renderFrame, renderText, renderElements, toSvgString } from 'rayner/output';
 import { traceScene } from 'rayner/testing';
 import type { SceneClass } from 'rayner';
 import DocumentScene from './document.ts';
@@ -20,10 +20,9 @@ export const recipes: Readonly<Record<string, SceneClass>> = {
 
 export async function outputs(SceneClass: SceneClass, frame = 15) {
   if (!Number.isInteger(frame) || frame < 0) throw new RangeError('frame must be a whole number, 0 or more');
-  const sink = new SnapshotSink();
-  const scene = await renderFrame(SceneClass, frame, sink);
+  const scene = await renderFrame(SceneClass, frame);
   return {
-    svg: sink.svg, text: renderText(scene), elements: renderElements(scene),
+    svg: toSvgString(scene), text: renderText(scene), elements: renderElements(scene),
     state: scene.stateJson(), trace: await traceScene(SceneClass),
   };
 }

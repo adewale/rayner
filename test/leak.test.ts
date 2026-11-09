@@ -5,7 +5,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene } from '../src/index.ts';
-import { renderFrame, SnapshotSink } from '../src/output.ts';
+import { renderFrame } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
 import { explainer } from './lib/scenes.ts';
 

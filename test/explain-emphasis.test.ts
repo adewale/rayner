@@ -5,7 +5,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Rectangle, Text, FadeIn } from '../src/index.ts';
-import { NullSink, SnapshotSink, renderFrame, toSvgString } from '../src/output.ts';
+import { NullSink, renderFrame, toSvgString } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
 import { stage } from '../explain/index.ts';
 import { bindSnapshots } from '../explain/testing.ts';

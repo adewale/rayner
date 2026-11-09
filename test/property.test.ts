@@ -11,7 +11,8 @@ import assert from 'node:assert/strict';
 import {
   Scene, Transform, Line, Arc, Text, VMobject,
   } from '../src/index.ts';
-import { StringSink, SnapshotSink, NullSink, renderFrame, renderText, renderElements, toSvgString } from '../src/output.ts';
+import { StringSink, NullSink, renderFrame, renderText, renderElements, toSvgString } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
 import { traceRun } from '../src/trace.ts';
 import type { Box, Mobject } from '../src/index.ts';

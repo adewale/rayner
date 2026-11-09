@@ -51,7 +51,7 @@ this.frame.scale(0.5).addUpdater((f) => f.moveTo(token));
 
 ## What sinks do with it
 
-- **SVG string** (`toSvgString`, `StringSink`, `SnapshotSink`): the frame box becomes the
+- **SVG string** (`toSvgString`, `StringSink`): the frame box becomes the
   `viewBox` (integer user units, y flipped in the same helper that writes clip rects). The
   `width`/`height` attributes are unchanged, and the background rect covers whatever the
   viewBox shows. Path data and `transform` attributes do not change when only the camera

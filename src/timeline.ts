@@ -31,12 +31,13 @@ export async function dryRun(SceneClass: SceneClass, sink: Sink, opts: SceneOpti
 }
 
 /**
- * Render exactly frame `frame` through `sink`: the frame a scene's `frameCount` reaches as it draws
- * it, as a step's `frame0`, `frame1` and `holdFrame` record, so `renderFrame(Scene, step.frame1, sink)`
- * draws the step's resting picture. Frames before it are counted, not drawn; past the end, the
- * final frame is drawn. The frame is found by its number, never by a rounded time.
+ * Run a scene to exactly frame `frame` and return it there, handing that frame to `sink`: the frame
+ * a scene's `frameCount` reaches as it draws it, as a step's `frame0`, `frame1` and `holdFrame`
+ * record, so `toSvgString(await renderFrame(Scene, step.frame1))` is the step's resting picture.
+ * Frames before it are counted, not drawn; past the end, the final frame is drawn. The frame is
+ * found by its number, never by a rounded time.
  */
-export async function renderFrame(SceneClass: SceneClass, frame: number, sink: Sink, opts: SceneOptions = {}): Promise<Scene> {
+export async function renderFrame(SceneClass: SceneClass, frame: number, sink: Sink = new NullSink(), opts: SceneOptions = {}): Promise<Scene> {
   if (!Number.isInteger(frame) || frame < 0) throw new RangeError(`renderFrame(): the frame is ${String(frame)}; give a whole frame number, 0 or more`);
   const seek = new FrameSeek(sink, frame);
   const scene = new SceneClass(seek, opts);

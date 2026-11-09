@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { Scene, Rectangle, FadeIn } from '../src/index.ts';
-import { NullSink, SnapshotSink, StringSink, renderFrame, renderText, StopScene } from '../src/output.ts';
+import { NullSink, StringSink, renderFrame, renderText, StopScene } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import { traceScene } from '../explain/testing.ts';
 import { Fixture } from './lib/scenes.ts';
 

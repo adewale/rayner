@@ -3,7 +3,7 @@
 // renders a scene itself (docs/SCENE-OUTPUTS.md). A scene is written with rayner; the player
 // (app/) is built on these.
 
-export { toSvgString, renderElements, StringSink, SnapshotSink, DomSink } from './svg.ts';
+export { toSvgString, renderElements, StringSink, DomSink } from './svg.ts';
 export type { ElementRecord, SvgOptions, RenderOptions } from './svg.ts';
 export { renderText } from './ascii.ts';
 export { NullSink, renderFrame } from './timeline.ts';

@@ -8,7 +8,8 @@ import {
   Line,
   Transform,
   } from '../src/index.ts';
-import { NullSink, StringSink, SnapshotSink, renderFrame, toSvgString, renderElements } from '../src/output.ts';
+import { NullSink, StringSink, renderFrame, toSvgString, renderElements } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import type { Box } from '../src/index.ts';
 
 function clipped(group: Group, clipBox: Box) {
