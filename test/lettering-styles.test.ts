@@ -21,6 +21,7 @@ import { checkProject } from '../tools/lib/explain-check.ts';
 import { licenceOf, validateLetteringSnapshot } from '../tools/lib/lettering-validation.ts';
 import { letteringLicences, pageSnapshot, validateLettering } from '../tools/lib/lettering.ts';
 import { htmlEscape } from '../explain/trace.ts';
+import { textRun } from '../src/text.ts';
 
 const fixture = join(ROOT, 'test/lettering/styles');
 const folder = await mkdtemp(join(tmpdir(), 'rayner-lettering-styles-'));
@@ -43,7 +44,7 @@ test('bold Text draws the stored Bold cut, with no faux-bold stroke, and recolou
   const bold = await built(s, () => new Text('Bold', { weight: 'bold', fontSize: 0.6, color: '#112233' }));
   const run = s.runs[runKey('sans/bold', 'Bold')]!;
   assert.ok(run, 'the snapshot holds the bold run');
-  assert.ok(Math.abs(bold.run.width - run.width * 0.6) < 1e-9, 'laid out on the Bold cut\'s advances');
+  assert.ok(Math.abs(bold[textRun].width - run.width * 0.6) < 1e-9, 'laid out on the Bold cut\'s advances');
   for (const g of bold.children) assert.equal(g.style.stroke, 'none', 'real bold has no stroke');
   bold.setFill('#445566');
   for (const g of bold.children) assert.equal(g.style.stroke, 'none', 'recolouring keeps it unstroked');
@@ -51,7 +52,7 @@ test('bold Text draws the stored Bold cut, with no faux-bold stroke, and recolou
   await loadFonts();
   const faux = new Text('Bold', { weight: 'bold', fontSize: 0.6, color: '#112233' });
   assert.notEqual(faux.children[0]!.style.stroke, 'none');
-  assert.ok(Math.abs(faux.run.width - shaperFor('sans')('Bold', 0.6).width) < 1e-9);
+  assert.ok(Math.abs(faux[textRun].width - shaperFor('sans')('Bold', 0.6).width) < 1e-9);
   assert.notEqual(outline(bold), outline(faux));
 });
 
@@ -66,9 +67,9 @@ test('bold maths keeps its faux stroke: a formula is drawn from its own run, wit
 test('ItalicText draws the Italic and Bold Italic cuts; Arabic in it stays upright', async () => {
   const s = await stored();
   const italic = await built(s, () => new ItalicText('Italic', { fontSize: 0.6 }));
-  assert.ok(Math.abs(italic.run.width - s.runs[runKey('sans/italic', 'Italic')]!.width * 0.6) < 1e-9);
+  assert.ok(Math.abs(italic[textRun].width - s.runs[runKey('sans/italic', 'Italic')]!.width * 0.6) < 1e-9);
   const both = await built(s, () => new ItalicText('Bold italic', { fontSize: 0.6, weight: 'bold' }));
-  assert.ok(Math.abs(both.run.width - s.runs[runKey('sans/bold-italic', 'Bold italic')]!.width * 0.6) < 1e-9);
+  assert.ok(Math.abs(both[textRun].width - s.runs[runKey('sans/bold-italic', 'Bold italic')]!.width * 0.6) < 1e-9);
   for (const g of both.children) assert.equal(g.style.stroke, 'none');
   // Noto Naskh Arabic has no italic: the italic run uses the regular cut's glyphs,
   // and the bold run the Bold cut's, which are other outlines

@@ -148,10 +148,12 @@ domain has identities.
 `copy()` clones the tree with its geometry, style and keys (a copy is a new
 object that still answers to the same key), and clears updaters and saved state. It makes the copy
 without calling the subclass's constructor, which may take any arguments, and then gives it the
-original's own fields; an array, map, set or typed array a field holds is copied, so the copy
-never shares one with the original, while what they hold, and any other object, is shared. So a
-subclass keeps its state in ordinary fields, never in ES private (`#`) fields or methods, which no
-constructor of the copy installs (`test/core.test.ts` holds the engine's own classes to that). A custom composite should expose its
+original's own fields, symbol-keyed ones included; an array, map, set or typed array a named field
+holds is copied, so the copy never shares one with the original, while what they hold, and any
+other object, is shared. So a subclass keeps its state in ordinary fields, never in ES private (`#`)
+fields or methods, which no constructor of the copy installs. The engine's own mobject classes keep
+theirs in ordinary fields or under symbols, and `test/core.test.ts` copies each exported one, plays
+the copy and finds it drawn as the original, and the original unchanged by a change to the copy. A custom composite should expose its
 parts through getters into its own children, as [StatusBadge](../recipes/extensions.ts)
 does. If it stores named child references, override the protected hook
 `rebindReferences(source, map)` so the clone names its children, not the original's.
@@ -206,14 +208,18 @@ and finish it through the engine's own module functions, which keep the phase an
 protected hooks, and the engine's hooks call `doInterpolate`, never a member an author can
 replace. The engine reads an animation's run time, rate function, lag ratio and phase from its
 private fields, not through members a subclass could redefine. Everything else the engine calls or
-reads on an animation, a group or a mobject (the options a play gives it, what it waits for, what
-its play's end removes, the rows it zipped, the colours its endpoints take, the scene it plays on, a
-mobject's number, cached box and updaters) is an ES private field or keyed by a symbol, so a member
-an author writes on a subclass, as a method, a field or an assignment, under any name, is the
-author's own and never reaches a play; `test/scene-lifecycle.test.ts` shadows every name those
-members have and finds the play unchanged. The documented members are the ones a subclass may
-override: these hooks, `targets()` and `evidence()`, and, on a mobject, `pointArrays()`,
-`boundingPointArrays()`, `pointKind()`, `copyData()` and `rebindReferences()`.
+reads on `Scene` and on each mobject, animation and sink class an entry point exports (the options
+a play gives an animation, what it waits for, what its play's end removes, the colours its
+endpoints take, a mobject's number, cached box and updaters, a text's shaped run and advance box,
+an arrow's tip, the scene's sink, listeners and frame loop, a sink's own buffers) is an ES private
+field, keyed by a symbol or a module function, so a member an author writes on a subclass of one,
+as a method, a field or an assignment, under any name, is the author's own and never reaches a run.
+`test/scene-lifecycle.test.ts` finds those classes from the entry points' exports, builds and plays
+each, shadows every name the engine's members have, and finds each run unchanged. `Diagram` and
+`Machine`, which the explainer layer exports, are made, not extended, and hold no such promise. The
+documented members are the ones a subclass may override: these hooks, `targets()` and
+`evidence()`, and, on a mobject, `pointArrays()`, `boundingPointArrays()`, `pointKind()`,
+`copyData()` and `rebindReferences()`.
 
 A play that fails leaves no animation begun. When an animation throws as it begins, a
 group lands the members it began before the one that threw, and `play()` lands the
@@ -294,7 +300,7 @@ while a continuous render of the scene plays on through the hold to `t1`, and li
 `frame1`. The still frame and `frame1` show one picture, but code after the step's last play
 and its end listeners can still change the state between them, so a step's state is read at
 its end, as the trace's `after` records it: the live player and `rayner check`'s exploration of
-a machine start there (`Scene.stopAt`, which stops a run as a named step ends, for good, even
+a machine start there (the scene module's `stopAt`, which stops a run as a named step ends, for good, even
 when its callback throws). A step that has ended is an `EndedStep`, whose `t1` and `frame1`
 are numbers: what a sink's `stepEnd` hears, what a metadata function is given and what
 `AtRest` sees; a running `Step`'s are null. The

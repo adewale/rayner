@@ -75,20 +75,20 @@ export interface TraceSinkOptions {
 
 export class TraceSink implements Sink {
   readonly skipUntil: number;
-  /** @internal Each ended step's record, in order: steps follow one another, so they end in the order they began. */
-  records: StepRecord[];
-  /** @internal What each step begun and not yet ended recorded as it began, by the scene's own Step. */
-  private readonly begun: Map<Step, Pick<StepRecord, 'step' | 't0' | 'frame0' | 'meta' | 'before'>>;
-  /** @internal */ private readonly atRest: AtRest | undefined;
-  constructor(options: TraceSinkOptions = {}) { this.skipUntil = options.skipUntil ?? Infinity; this.records = []; this.begun = new Map(); this.atRest = options.atRest; }
+  /** Each ended step's record, in order: steps follow one another, so they end in the order they began. */
+  readonly #records: StepRecord[] = [];
+  /** What each step begun and not yet ended recorded as it began, by the scene's own Step. */
+  readonly #begun = new Map<Step, Pick<StepRecord, 'step' | 't0' | 'frame0' | 'meta' | 'before'>>();
+  readonly #atRest: AtRest | undefined;
+  constructor(options: TraceSinkOptions = {}) { this.skipUntil = options.skipUntil ?? Infinity; this.#atRest = options.atRest; }
   async frame(): Promise<void> {}
   async stepBegin(scene: Scene, s: Step): Promise<void> {
-    this.begun.set(s, { step: s.path, t0: round(scene.time), frame0: scene.frameCount, meta: s.meta, before: scene.stateJson() });
+    this.#begun.set(s, { step: s.path, t0: round(scene.time), frame0: scene.frameCount, meta: s.meta, before: scene.stateJson() });
   }
   async stepEnd(scene: Scene, s: EndedStep): Promise<void> {
-    const begun = this.begun.get(s);
+    const begun = this.#begun.get(s);
     if (!begun) return;
-    this.begun.delete(s);
+    this.#begun.delete(s);
     // The keys in the order a trace has always written them: what began, then how it ended.
     const after = scene.stateJson(), shown = scene.shownJson();
     const record: StepRecord = {
@@ -99,11 +99,11 @@ export class TraceSink implements Sink {
       ...(Object.keys(shown).length ? { shown } : {}),
       ...(s.evidence?.length ? { evidence: s.evidence.slice() } : {}),
     };
-    this.records.push(record);
-    await this.atRest?.(scene, s);
+    this.#records.push(record);
+    await this.#atRest?.(scene, s);
   }
   /** One entry per step that ended, with its begin and end state. */
-  steps(): StepRecord[] { return this.records; }
+  steps(): StepRecord[] { return this.#records; }
 }
 
 const round = (x: number): number => Math.round(x * 1000) / 1000;

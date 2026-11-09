@@ -17,9 +17,11 @@ import { loadFonts, assertViewFollowsState } from '../explain/testing.ts';
 import { viewMismatch } from '../explain/internal.ts';
 import { MotionSink, analyzeMotion } from '../src/internal.ts';
 import { perf } from '../src/perf.ts';
+import { hasUpdaters } from '../src/mobject.ts';
 import type { Mobject, Sink, SceneState } from '../src/index.ts';
 import type { Vec } from '../src/index.ts';
 import { beginAnimation, interpolateAnimation, finishAnimation } from '../src/animation.ts';
+import { advanceBox } from '../src/text.ts';
 // Manim's values, which the package no longer exports.
 const RIGHT: Vec = [1, 0];
 
@@ -63,7 +65,7 @@ class Ring extends Scene {
       const s = syncOf(readout, { match: 'text', staged: false });
       this.syncs[name] = s;
       await this.play(s);
-      const f = readout.current.frameBox;
+      const f = readout.current[advanceBox];
       this.anchors.push([f[0]!, (f[1]! + f[3]!) / 2]);
     };
     await this.step('show');
@@ -185,7 +187,7 @@ test('a sync finishes the morph it begins: it ends finished, as an animation the
 test('no updaters: seeking skips the frames of plays with syncs, and renders the frame a full run renders', async () => {
   // No updater at any frame
   let frames = 0;
-  const watch: Sink = { async frame(scene) { frames++; assert.ok(!scene.hasUpdaters(), `updater at t=${scene.time}`); } };
+  const watch: Sink = { async frame(scene) { frames++; assert.ok(![...scene.mobjects, scene.frame].some(hasUpdaters), `updater at t=${scene.time}`); } };
   await new Ring(watch).run();
   assert.ok(frames > 200);
 
@@ -287,10 +289,10 @@ test('placement: a moved and scaled View stays moved and scaled; place: false le
   const st = { s: 'ab' };
   const v = view(held(st), () => new Text(st.s, { fontSize: 0.4 }), { place: 'right' });
   v.scale(0.5).moveTo([3, -2]);
-  const right = v.current.frameBox[2]!, h = v.current.height();
+  const right = v.current[advanceBox][2]!, h = v.current.height();
   st.s = 'abcdef';
   const s = syncOf(v, { match: 'text' }); beginAnimation(s); finishAnimation(s);
-  assert.ok(Math.abs(v.current.frameBox[2]! - right) < 1e-5, 'right edge held');
+  assert.ok(Math.abs(v.current[advanceBox][2]! - right) < 1e-5, 'right edge held');
   assert.ok(Math.abs(v.current.height() - h) < 1e-5, 'half size held');
   assert.equal(v.current.text, 'abcdef');
 
@@ -329,7 +331,7 @@ test('a card view of the scene\'s state keeps its labels put as values change', 
   assert.deepEqual(s.rv!.texts, ['tokens', '0', 'responses', '[200,200,429]']);
   const first = card(s.s!, [['tokens', '10'], ['responses', '[]']], { at: [-3, 1], width: 4, panel: false });
   for (const key of ['tokens', 'responses'])
-    assert.ok(Math.abs(s.rv!.current.labels.get(key)!.frameBox[0]! - first.labels.get(key)!.frameBox[0]!) < 1e-5, 'label left edge held');
+    assert.ok(Math.abs(s.rv!.current.labels.get(key)![advanceBox][0]! - first.labels.get(key)![advanceBox][0]!) < 1e-5, 'label left edge held');
   assert.equal(await assertViewFollowsState(Counter, (sc) => (sc as Counter).rv), 4);
   const sink = new MotionSink();
   await new Counter(sink).run();

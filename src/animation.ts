@@ -8,6 +8,7 @@ import type { Mobject, AnimateBuilderBase } from './mobject.ts';
 import { Group, adoptState, followScene, mobjectName, savedState, withArticle, alignFamily, alignData, matchingFrameFor, interpolateData, dropBox, copyAlone } from './mobject.ts';
 import type { VMobject } from './vmobject.ts';
 import type { Scene } from './scene.ts';
+import { beginWhenReady, afterHeld, beginAnimations, inTurn } from './scene.ts';
 import * as V from './vec.ts';
 import type { Vec } from './vec.ts';
 import type { Box } from './mobject.ts';
@@ -260,7 +261,7 @@ abstract class AnimationTiming {
   }
   /**
    * Whether, begun in a play, it still waits for something it made or began at its turn to begin
-   * (see Scene.whenReady), or, finished, for its members to finish in turn (then it is still begun):
+   * (see beginWhenReady), or, finished, for its members to finish in turn (then it is still begun):
    * a Succession that holds it waits for it before its next member. Nothing does, by default; only
    * the engine's groups answer otherwise.
    * @internal
@@ -313,14 +314,14 @@ export function sampleAnimation(animation: ScheduledAnimation, alpha: number): v
  * Record what an animation decided as it began. Called by whoever began it: play() for
  * the animations it is given and a Succession's members, a group for its own members.
  * A group records nothing itself; its members do, in the order they begin. Read now, it is
- * recorded in turn order (see Scene.inTurn): after what waits before it in the frame.
+ * recorded in turn order (see inTurn): after what waits before it in the frame.
  */
 export function recordEvidence(a: ScheduledAnimation, scene: Scene | null): void {
   if (!scene || a instanceof AnimationGroup) return;
   const e = a.evidence();
   if (!e) return;
   const { kind, ...data } = e;
-  scene.inTurn(() => scene.record(kind, data));
+  inTurn(scene, () => scene.record(kind, data));
 }
 /**
  * Any animation a play, a group or a transition runs. `Animation` is the class a custom animation
@@ -1110,7 +1111,7 @@ export function takeCopies(anims: readonly ScheduledAnimation[]): void {
  * - `held`: the running member holds it. It waits to begin, or for something it made at its turn to
  *   begin; or, `closing`, it has finished and its own members still finish in turn before it is
  *   cleaned up. The play's time carries on meanwhile, and the Succession catches up in the turn the
- *   scene takes after that member (see Scene.afterHeld).
+ *   scene takes after that member (see afterHeld).
  *
  * In a play it keeps `play`, which names that play (a turn taken for an earlier one does nothing),
  * `reached`, the time its last frame drew, `to`, where the play has taken it, and `finishing`,
@@ -1150,7 +1151,7 @@ export let runningOf: (s: Succession) => ScheduledAnimation | undefined;
  * start of a member that has finished. It takes no lagRatio.
  *
  * A member's turn is taken in turn order with everything else begun or made at
- * its turn in the same frame (see Scene.whenReady). A member that waits to begin
+ * its turn in the same frame (see beginWhenReady). A member that waits to begin
  * (an action's beat whose picture reads a diagram's layout, or one begun after
  * something else that waits) holds the Succession: the members after it begin
  * only once it has begun, at the time the play has reached, however short it is.
@@ -1225,7 +1226,7 @@ export class Succession extends AnimationGroup {
     if (next instanceof Succession && next[madeBy] === undefined && this.#call() !== 'new Succession()') next[madeBy] = this.#call();
     if (!scene) return beginAnimation(next);
     // A turn taken for an earlier play (one that has landed since) begins nothing.
-    scene.whenReady([next], 'new Succession()', () => { if (this.#in(play)) scene.beginAnimations([next]); });
+    beginWhenReady(scene, [next], 'new Succession()', () => { if (this.#in(play)) beginAnimations(scene, [next]); });
   }
 
   /** Whether it is still in the play `play` began. */
@@ -1303,13 +1304,13 @@ export class Succession extends AnimationGroup {
     return clip((t - start) / (end - start || 1), 0, 1);
   }
 
-  /** Held by the running member: carry on in a turn the scene takes after what it waits for (see Scene.afterHeld). */
+  /** Held by the running member: carry on in a turn the scene takes after what it waits for (see afterHeld). */
   #hold(closing: boolean): void {
     const scene = this[playScene];
     if (!scene) throw new Error(`animation.begin(): ${animationName(membersOf(this)[this.#active]!)} waits to begin, or for its own members, in a Succession with no scene, and only a play can wait; play the Succession with this.play()`);
     const s = this.#playing();
     this.#state = { ...s, is: 'held', closing };
-    scene.afterHeld('new Succession()', () => {
+    afterHeld(scene, 'new Succession()', () => {
       const now = this.#state;
       // Landed meanwhile, or played again: this turn was taken for another play.
       if (now.is !== 'held' || now.play !== s.play) return;
@@ -1385,7 +1386,7 @@ class BuiltTransform extends Transform {
  * @internal An animation whose members are made when its turn comes in a play, from the pictures on
  * screen then: an action's beat, or a machine's transition. Until then it stands for the mobjects it
  * declares it writes. As it begins it makes its members; once what they read is ready (the play
- * waits for that before its next frame, see Scene.whenReady) they are settled, laid out in its run
+ * waits for that before its next frame, see beginWhenReady) they are settled, laid out in its run
  * time, and begun through the scene, which checks them against everything else the play drives.
  * Until they have begun it waits (see waits): a Succession that holds it begins nothing after it,
  * so one shorter than a frame still plays, held and then landed. When one of them throws as it
@@ -1437,14 +1438,14 @@ export abstract class MadeAtTurn extends AnimationGroup {
       for (const a of members) { a[refuseTiming](this.call, easing, true); a[takeOptions](easing); }
     const turn: { made: 'waiting'; at: number | null } = { made: 'waiting', at: null };
     this.#turn = turn;
-    scene.whenReady(members, this.call, () => {
+    beginWhenReady(scene, members, this.call, () => {
       // Landed meanwhile, after a failure: what it made never begins.
       if (this.#turn !== turn) return;
       for (const a of members) a[settle]();
       // Its members before they begin, so the scene checks them, not what it declared, against the play.
       adoptMembers(this, members, this.slots(members));
       this.#turn = { made: 'begun' };
-      try { scene.beginAnimations(members, this.call); }
+      try { beginAnimations(scene, members, this.call); }
       catch (e) {
         // Those begun before the one that threw have landed: it made nothing that plays.
         adoptMembers(this, [], []);
@@ -1509,7 +1510,7 @@ export function bindSuccessions(anims: readonly ScheduledAnimation[], scene: Sce
 // Value imports for this block only, here so the block stays one piece (imports
 // are hoisted; neither module imports this one).
 import { VMobject as VMobjectClass } from './vmobject.ts';
-import { Text } from './text.ts';
+import { Text, matchesClusters, clusterKeyOf } from './text.ts';
 import type { Evidence } from './scene.ts';
 
 /**
@@ -1822,11 +1823,10 @@ export class TransformMatchingText extends TransformMatching {
   protected override doBegin(): void {
     const plain = this.key;
     const texts = [...this.mobject.family(), ...this.target.family()].filter(m => 'text' in m && m.children.length > 0);
-    type ClusterText = Mobject & {clusterMatching?: boolean; clusterKey?: (cluster: number) => string | undefined};
-    if (texts.length && texts.every(m => (m as ClusterText).clusterMatching))
+    if (texts.length && texts.every(m => m instanceof Text && matchesClusters(m)))
       this.key = (part, root) => {
-        const cluster = (part as Mobject & {cluster?: number}).cluster;
-        return cluster == null ? plain(part, root) : (part.parent as ClusterText | null)?.clusterKey?.(cluster) ?? plain(part, root);
+        const cluster = (part as Mobject & {cluster?: number}).cluster, parent = part.parent;
+        return cluster == null || !(parent instanceof Text) ? plain(part, root) : clusterKeyOf(parent, cluster) ?? plain(part, root);
       };
     try { super.doBegin(); } finally { this.key = plain; }
     fadeInsideLines(this, true);

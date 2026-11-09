@@ -8,7 +8,7 @@ import {
   Scene, Frame, Code, Rectangle, Circle, Dot, Group, FadeIn, linear,
 } from '../src/index.ts';
 import { NullSink, DomSink, renderElements, renderFrame, renderText, toSvgString } from '../src/output.ts';
-import { SnapshotSink } from '../src/svg.ts';
+import { SnapshotSink, applyRecords } from '../src/svg.ts';
 import { MotionSink, analyzeMotion } from '../src/internal.ts';
 import type { Box, Sink } from '../src/index.ts';
 import type { ElementRecord } from '../src/output.ts';
@@ -215,18 +215,18 @@ test('DomSink writes the viewBox only when the camera moved', async () => {
   const dom = new DomSink(container, { realtime: false });
   writes.length = 0;
   const s = new Scene(new NullSink());
-  dom.patch(s);
+  await dom.frame(s, 0);
   assert.deepEqual(writes, [], 'the camera at home: the viewBox written at construction stands');
   s.frame.scale(0.5);
-  dom.patch(s);
-  dom.patch(s);
+  await dom.frame(s, 0);
+  await dom.frame(s, 0);
   assert.deepEqual(writes, [['viewBox', '-4000 -2250 8000 4500']], 'one write for the move, none for the frame after');
-  // apply() without a viewBox leaves the camera alone; with the same one, writes nothing
+  // Records applied without a viewBox leaves the camera alone; with the same one, writes nothing
   writes.length = 0;
-  dom.apply([]);
-  dom.apply([], '-4000 -2250 8000 4500');
+  dom[applyRecords]([]);
+  dom[applyRecords]([], '-4000 -2250 8000 4500');
   assert.deepEqual(writes, []);
-  dom.apply([], '-8000 -4500 16000 9000');
+  dom[applyRecords]([], '-8000 -4500 16000 9000');
   assert.deepEqual(writes, [['viewBox', '-8000 -4500 16000 9000']]);
 });
 

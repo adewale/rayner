@@ -6,6 +6,7 @@
 import { Group, Text, VMobject } from '../src/index.ts';
 import type { Mobject, Vec } from '../src/index.ts';
 import { matchingFrameFor, interpolateData } from '../src/mobject.ts';
+import { textRun, advanceBox } from '../src/text.ts';
 import type { TextShaping } from '../src/text-context.ts';
 import { SVG_PX_PER_UNIT } from './diagram-snapshot.ts';
 import type { SnapshotShape } from './diagram-snapshot.ts';
@@ -19,7 +20,7 @@ export interface LabelInfo {
 }
 /** A label's words and size, or undefined for a mobject that is not a label. */
 export function labelOf(m: Mobject): LabelInfo | undefined {
-  if (m instanceof Text) return { text: m.text, fontSize: m.run.fontSize, emRatio: m.run.fontSize / (m.run.ascent + m.run.descent) };
+  if (m instanceof Text) return { text: m.text, fontSize: m[textRun].fontSize, emRatio: m[textRun].fontSize / (m[textRun].ascent + m[textRun].descent) };
   const info = m as Partial<LabelInfo>;
   return typeof info.text === 'string' && info.emRatio ? (info as LabelInfo) : undefined;
 }
@@ -38,11 +39,11 @@ function emFrame(center: Vec, a: number, b: number, c: number, d: number): Float
   return new Float32Array([x, y, x + a + c, y + b + d, x + c, y + d, x + a, y + b]);
 }
 function nativeEmBasis(text: Text): [number, number, number, number] {
-  const f = text.frameBox, height = text.run.ascent + text.run.descent, size = text.run.fontSize;
+  const f = text[advanceBox], height = text[textRun].ascent + text[textRun].descent, size = text[textRun].fontSize;
   if (!(height > 0 && size > 0 && Number.isFinite(height) && Number.isFinite(size))) return [0, 0, 0, 0];
   const c = (f[4]! - f[0]!) / height, d = (f[5]! - f[1]!) / height;
-  const a = text.run.width > 0 ? (f[6]! - f[0]!) / text.run.width : d;
-  const b = text.run.width > 0 ? (f[7]! - f[1]!) / text.run.width : -c;
+  const a = text[textRun].width > 0 ? (f[6]! - f[0]!) / text[textRun].width : d;
+  const b = text[textRun].width > 0 ? (f[7]! - f[1]!) / text[textRun].width : -c;
   return [a * size, b * size, c * size, d * size];
 }
 /** Imported glyphs have no Text advance box. A separate one-em basis follows
@@ -79,10 +80,10 @@ export class ImportedLabel extends Group implements LabelInfo {
   /** @internal */
   override [matchingFrameFor](source: Mobject): Mobject {
     if (!(source instanceof Text)) return this;
-    if (!(source.run.fontSize > 0 && Number.isFinite(source.run.fontSize))) return this;
-    const p = this.basis, frame = source.copy(), run = source.run;
+    if (!(source[textRun].fontSize > 0 && Number.isFinite(source[textRun].fontSize))) return this;
+    const p = this.basis, frame = source.copy(), run = source[textRun];
     const width = run.width / run.fontSize, height = (run.ascent + run.descent) / run.fontSize;
-    frame.frameBox = emFrame(this.center(), (p[6]! - p[0]!) * width, (p[7]! - p[1]!) * width,
+    frame[advanceBox] = emFrame(this.center(), (p[6]! - p[0]!) * width, (p[7]! - p[1]!) * width,
       (p[4]! - p[0]!) * height, (p[5]! - p[1]!) * height);
     frame.invalidateBox();
     return frame;

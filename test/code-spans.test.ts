@@ -9,6 +9,7 @@ import { SnapshotSink } from '../src/svg.ts';
 import { loadFonts } from '../explain/testing.ts';
 import type { ColorSpan, Box, Sink } from '../src/index.ts';
 import { tokenize, lex, shikiTokens, hasShiki, langOf, DARK } from '../tools/repo/lib/tokenize.ts';
+import { advanceBox } from '../src/text.ts';
 // Manim's values, which the package no longer exports.
 const GOLD = '#f0ac5f';
 const RED = '#fc6255';
@@ -25,7 +26,7 @@ const records = (code: Code) => { const s = new Scene(new NullSink()); s.add(cod
 test('span.box() is the advance cells of [from, to) by the line\'s ascent and descent, unioned with the ink', () => {
   const code = new Code(LINES).scale(1.7).shift([1, -0.5]); // a live view: boxes follow the block
   for (const [line, from, to] of [[0, 0, 5], [0, 12, 17], [1, 2, 4], [1, 0, 21], [0, 5, 6]] as const) {
-    const t = code.lines[line]!, f = t.frameBox, cell = t.advance() / t.text.length; // mono, ASCII: one cell per index
+    const t = code.lines[line]!, f = t[advanceBox], cell = t.advance() / t.text.length; // mono, ASCII: one cell per index
     const s = code.span(line, from, to), b = s.box();
     assert.ok(close(b[0], f[0]! + from * cell) && close(b[2], f[0]! + to * cell), `x of ${from}..${to}: ${b}`);
     assert.equal(b[1], f[1]); assert.equal(b[3], f[3]);

@@ -8,7 +8,7 @@ import type {LetteringProvider} from '../src/lettering-outlines.ts';
 
 test('explicit scenes overlap while text, copied text and code retain their own shaping services', {timeout: 15000}, async () => {
   const table = await loadFonts(), embedded = table.sans;
-  const before = [Scene.prototype.run, Text.prototype.build, Text.prototype.copy, Code.prototype.copy];
+  const before = [Scene.prototype.run, Text.prototype.copy, Code.prototype.copy];
   const seen = {a: [] as string[], b: [] as string[]};
   const provider = (id: 'a' | 'b'): LetteringProvider => ({
     shape(_font, text, size, fallback) {seen[id].push(text); return fallback(text, size);},
@@ -40,5 +40,5 @@ test('explicit scenes overlap while text, copied text and code retain their own 
   assert.ok(seen.b.every(text => text.startsWith('b ')));
   assert.equal(table.sans, embedded);
   assert.ok(Object.isFrozen(table));
-  assert.deepEqual([Scene.prototype.run, Text.prototype.build, Text.prototype.copy, Code.prototype.copy], before);
+  assert.deepEqual([Scene.prototype.run, Text.prototype.copy, Code.prototype.copy], before);
 });

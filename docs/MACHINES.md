@@ -294,7 +294,7 @@ frame skipped (`runLive` in `explain/live.ts`); a press plays its last event fra
 before it, from a run held there when there is one ([what a press costs](#the-player)). A fresh
 load of the URL runs the same, all skipped, so a link reopens the same picture, and seeking keeps
 its guarantee: a frame is a function of time and of the log. The run stops as the live step ends
-(`Scene.stopAt`): after its end listeners, its caption hold and any code the scene runs after the
+(the scene module's `stopAt`): after its end listeners, its caption hold and any code the scene runs after the
 step's last play, and before the next step begins. So the reader starts from the state the trace
 records as the step's `after`, on the step's resting picture, the one a link shows (check fails a
 picture that changes during the hold or after the step's last frame). The machine plays under what the scene showed when it last played, as exploration

@@ -4,19 +4,18 @@
 // and the timeline's preconditions (fps, run times, lag ratios, waits, steps that draw a frame).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import ts from 'typescript';
-import { Scene, Circle, Rectangle, FadeIn, FadeOut, Create, AnimationGroup, Succession, Transform, DecimalNumber, Text, Group } from '../src/index.ts';
+import { Scene, Circle, Rectangle, FadeIn, FadeOut, Create, AnimationGroup, Succession, Transform, DecimalNumber, Text, Group, Mobject, Frame, Line, Dot } from '../src/index.ts';
+import type { ScheduledAnimation, Sink } from '../src/index.ts';
+import { publicClasses, MOBJECTS, USES, ANIMATIONS, SINKS, MADE_NOT_EXTENDED } from './lib/public-classes.ts';
+import type { ClassKind } from './lib/public-classes.ts';
 import { thereAndBack, linear } from '../src/rate.ts';
 import { NullSink, renderFrame, renderElements, StopScene } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { traceScene } from '../src/testing.ts';
 import type { Step } from '../src/index.ts';
 import { MadeAtTurn, animationName, whenReady, playScene, beginAnimation, interpolateAnimation, finishAnimation } from '../src/animation.ts';
-import type { ScheduledAnimation } from '../src/animation.ts';
 import { loadFonts } from '../explain/testing.ts';
-import { setDrawn } from '../src/scene.ts';
+import { setDrawn, stopAt, keepOnTop, drawFrame, beginAnimations as beginInScene } from '../src/scene.ts';
 
 await loadFonts();
 
@@ -90,101 +89,151 @@ test('a hook written in any form is called inside the phase: as a method or as a
 // ---- what an author may name on a subclass ----------------------------------
 
 /**
- * The members an author sees on the classes they extend, read from the source: every member that is
- * neither private nor @internal (the published declarations' public and protected members, the
- * documented contract of a custom animation or mobject).
+ * Every name an engine member of `instance` has that is not in `surface`: each string-named member on
+ * the instance and its prototype chain, and the name each symbol-keyed member is described by
+ * (`families`, `cleanUp`, `sceneColors`), which an author could write as a string.
  */
-function declaredSurface(): Set<string> {
-  const seen = new Set<string>();
-  const classes = new Set(['AnimationTiming', 'Animation', 'Transform', 'AnimationGroup', 'Succession', 'Mobject', 'VMobject']);
-  for (const file of ['src/animation.ts', 'src/mobject.ts', 'src/vmobject.ts']) {
-    const source = ts.createSourceFile(file, readFileSync(join(import.meta.dirname, '..', file), 'utf8'), ts.ScriptTarget.Latest, true);
-    for (const node of source.statements) {
-      if (!ts.isClassDeclaration(node) || !classes.has(node.name?.text ?? '')) continue;
-      for (const m of node.members) {
-        if (!m.name || !ts.isIdentifier(m.name)) continue;
-        const hidden = ts.getCombinedModifierFlags(m) & ts.ModifierFlags.Private || ts.getJSDocTags(m).some((t) => t.tagName.text === 'internal');
-        if (!hidden) seen.add(m.name.text);
-      }
-    }
-  }
-  return seen;
-}
-
-/**
- * Every name the engine's own members of those classes have that an author could also write: each
- * string-named member on their prototype chains and on played instances, and the name each
- * symbol-keyed member is described by (`families`, `cleanUp`, `mergeLeaves`), less the declared surface.
- */
-function engineNames(played: readonly object[]): string[] {
-  const surface = declaredSurface(), names = new Set<string>();
-  const take = (o: object) => {
+function engineNames(instance: object, surface: ReadonlySet<string>): string[] {
+  const names = new Set<string>();
+  for (let o: object | null = instance; o && o !== Object.prototype; o = Object.getPrototypeOf(o))
     for (const k of Reflect.ownKeys(o)) {
       const name = typeof k === 'symbol' ? k.description : k;
       if (name && name !== 'constructor' && !surface.has(name)) names.add(name);
     }
-  };
-  for (const o of played) {
-    take(o);
-    for (let p = Object.getPrototypeOf(o); p && p !== Object.prototype; p = Object.getPrototypeOf(p)) take(p);
-  }
   return [...names].sort();
 }
 
-/** A play of each class an author extends, in subclasses that write `names` as fields or as methods: its trace, and each frame as the DOM sink's records. */
-async function playShadowing(names: readonly string[], as: 'field' | 'method' | 'none') {
-  const shadow = <C extends abstract new (...args: any[]) => object>(Base: C): C => {
-    if (as === 'none') return Base;
-    abstract class Shadowed extends Base {
-      constructor(...args: any[]) {
-        super(...args);
-        if (as === 'field') for (const n of names) Object.defineProperty(this, n, { value: `the author's ${n}`, writable: true, enumerable: true, configurable: true });
-      }
-    }
-    if (as === 'method') for (const n of names) Object.defineProperty(Shadowed.prototype, n, { value: () => `the author's ${n}`, writable: true, configurable: true });
-    return Shadowed as unknown as C;
-  };
-  const Part = shadow(Rectangle), Morph = shadow(Transform), Together = shadow(AnimationGroup), InTurn = shadow(Succession);
-  const played: object[] = [];
-  const keep = <T extends object>(x: T): T => { played.push(x); return x; };
-  class Story extends Scene<{ done?: boolean }> {
-    override async construct() {
-      const a = keep(new Part({ width: 1, height: 1 })), b = new Part({ width: 1, height: 1 }).shift([1.5, 0]);
-      const row = new Group(a, b), c = new Part().shift([-3, 2]), d = new Part().shift([3, 2]);
-      this.add(row);
-      await this.step('morph');
-      await this.play(keep(new Morph(row, new Group(new Circle(), new Circle().shift([2, -1])), { lagRatio: 0.5 })));
-      await this.step('together');
-      await this.play(keep(new Together([new FadeIn(c), new Create(d)], { lagRatio: 0.5 })));
-      await this.step('in-turn');
-      await this.play(keep(new InTurn([new FadeOut(c), d.animate.shift([-1, -1]), new Morph(d, new Part().shift([0, -2]))])));
-      this.state = { done: true };
+type Ctor = abstract new (...args: any[]) => object;
+/** `Base`, extended by a subclass that writes each of `names` as a field (set in its constructor) or as a method. */
+function shadow<C extends Ctor>(Base: C, names: readonly string[], as: 'field' | 'method' | 'none'): C {
+  if (as === 'none') return Base;
+  abstract class Shadowed extends Base {
+    constructor(...args: any[]) {
+      super(...args);
+      if (as === 'field') for (const n of names) Object.defineProperty(this, n, { value: `the author's ${n}`, writable: true, enumerable: true, configurable: true });
     }
   }
-  const ids = new Map<number, number>(), frames: string[] = [];
-  const dom = { frame: async (scene: Scene) => {
-    frames.push(JSON.stringify(renderElements(scene, { relative: false }).map((r) => ({ ...r, id: ids.get(r.id) ?? ids.set(r.id, ids.size).get(r.id) }))));
-  } };
-  await new Story(dom).run();
-  const trace = await traceScene(Story);
-  return { frames, trace: JSON.stringify(trace), played };
+  if (as === 'method') for (const n of names) Object.defineProperty(Shadowed.prototype, n, { value: () => `the author's ${n}`, writable: true, configurable: true });
+  Object.defineProperty(Shadowed, 'name', { value: Base.name });
+  return Shadowed as unknown as C;
 }
 
-test('a member an author writes on a subclass, as a field or a method, under any name the engine\'s own members have, changes nothing in a play', async () => {
-  const base = await playShadowing([], 'none');
-  const names = engineNames(base.played);
-  assert.ok(['families', 'cleanUp', 'sceneColors'].every((n) => names.includes(n)), 'the names of the engine\'s symbol-keyed members are among them');
-  for (const as of ['field', 'method'] as const) {
-    const run = await playShadowing(names, as);
-    if (run.trace === base.trace && run.frames.join('\n') === base.frames.join('\n')) continue;
-    // Name the members that change it, one at a time.
-    const changed: string[] = [];
-    for (const n of names) {
-      const one = await playShadowing([n], as);
-      if (one.trace !== base.trace || one.frames.join('\n') !== base.frames.join('\n')) changed.push(n);
+/** Each frame as the renderer's records, its ids numbered by first appearance, with the camera's box. */
+function recorder(): { sink: Sink; frames: string[] } {
+  const ids = new Map<number, number>(), frames: string[] = [];
+  const sink = { frame: async (scene: Scene) => {
+    frames.push(JSON.stringify([scene.frame.box(), renderElements(scene, { relative: false }).map((r) => ({ ...r, id: ids.get(r.id) ?? ids.set(r.id, ids.size).get(r.id) }))]));
+  } };
+  return { sink, frames };
+}
+
+/** A run that plays, copies, saves and restores `make()`'s mobject, using it and its copy (see USES); a Frame as the camera. */
+function mobjectStory(make: () => Mobject, use?: (m: Mobject) => void) {
+  return class extends Scene {
+    override async construct() {
+      await this.step('enter');
+      const m = make();
+      if (m instanceof Frame) {
+        const box = new Rectangle({ width: 3 }).shift([2, 1]);
+        this.add(box);
+        this.frame = m;
+        await this.play(m.animate.scale(0.5).shift([1, 0]), { runTime: 0.3 });
+        await this.play(m.animate.fit(box), { runTime: 0.3 });
+        return;
+      }
+      use?.(m);
+      await this.play(new FadeIn(m), { runTime: 0.3 });
+      await this.step('move');
+      await this.play(m.animate.shift([1, 0.5]).scale(0.8), { runTime: 0.3 });
+      m.saveState();
+      const copy = m.copy().rotate(0.5).shift([-2, 0]);
+      use?.(copy);
+      await this.play(new Transform(m, copy), { runTime: 0.3 });
+      m.restore();
+      await this.step('leave');
+      await this.play(new FadeOut(m), { runTime: 0.3 });
     }
-    assert.fail(`written as a ${as}, these names change the play: ${changed.join(', ')}`);
+  };
+}
+
+/** A run that plays `make()`'s animation. */
+function animationStory(make: () => ScheduledAnimation) {
+  return class extends Scene {
+    override async construct() {
+      await this.step('play');
+      await this.play(make(), { runTime: 0.6 });
+      await this.wait(0.1);
+    }
+  };
+}
+
+/** A run with steps, a caption, an invariant, an updater and plays: what a scene and a sink are played with. */
+const sceneStory = (Base: typeof Scene) => class extends Base {
+  override async construct() {
+    const box = new Rectangle();
+    this.addInvariant('the box is on stage', (s) => s.mobjects.includes(box) || 'the box left');
+    this.add(box);
+    await this.step('one', { caption: 'A box.' });
+    await this.play(box.animate.shift([1, 0]), { runTime: 0.3 });
+    await this.step('two');
+    const dot = new Dot().addUpdater((d, dt) => d.shift([dt, 0]));
+    this.add(dot);
+    await this.play(new FadeIn(new Circle().shift([-2, 0])), new Create(new Line([0, 2], [2, 2])), { runTime: 0.3 });
+    this.state = { dot: dot.center()[0] };
   }
+};
+
+/** What a run of each claimed class shows: its trace and frames for a scene, a mobject or an animation; what a sink made of it. */
+async function play(kind: 'scene' | 'mobject' | 'animation' | 'sink', name: string, C: Ctor): Promise<{ shown: string; instance: object }> {
+  const { sink, frames } = recorder();
+  let instance!: object;
+  const keep = <T extends object>(x: T): T => (instance ??= x) as T;
+  if (kind === 'sink') {
+    const { make, read } = SINKS[name]!;
+    const made = keep(make(C));
+    const scene = new (sceneStory(Scene))(made);
+    await scene.run();
+    return { shown: JSON.stringify([scene.frameCount, scene.steps, read(made)]), instance };
+  }
+  const Story = kind === 'scene' ? sceneStory(C as typeof Scene)
+    : kind === 'mobject' ? mobjectStory(() => keep(MOBJECTS[name]!(C)), USES[name])
+    : animationStory(() => keep(ANIMATIONS[name]!(C)));
+  const scene = new Story(sink);
+  if (kind === 'scene') keep(scene);
+  await scene.run();
+  return { shown: JSON.stringify([await traceScene(Story), frames]), instance };
+}
+
+test('a member an author writes on a subclass of Scene, or of a mobject, animation or sink class an entry point exports, as a field or a method, under any name the engine\'s own members have, changes nothing in a run', async () => {
+  const classes = await publicClasses();
+  // Every exported class is claimed or named as made, not extended; each claimed one is built here, by
+  // its exported name: a class added or renamed fails until it is.
+  assert.deepEqual(classes.filter((c) => !c.kind).map((c) => c.name).sort(), [...MADE_NOT_EXTENDED].sort());
+  const built = (kind: ClassKind | undefined) => kind === 'mobject' ? MOBJECTS : kind === 'animation' ? ANIMATIONS : kind === 'sink' ? SINKS : { Scene: true };
+  assert.deepEqual(classes.filter((c) => c.kind && !(c.name in built(c.kind))).map((c) => c.name), [], 'give each exported class a way to build it');
+  for (const table of [MOBJECTS, ANIMATIONS, SINKS]) assert.deepEqual(Object.keys(table).filter((n) => !classes.some((c) => c.kind && c.name === n)), [], 'every class built here is exported');
+  assert.ok(classes.filter((c) => c.kind).length > 45);
+
+  const changed: string[] = [];
+  for (const { name, kind, C, surface } of classes) {
+    if (!kind) continue;
+    const base = await play(kind, name, C);
+    const names = engineNames(base.instance, surface);
+    for (const as of ['field', 'method'] as const) {
+      if ((await play(kind, name, shadow(C, names, as))).shown === base.shown) continue;
+      // Name the members that change it, one at a time.
+      for (const n of names) if ((await play(kind, name, shadow(C, [n], as))).shown !== base.shown) changed.push(`${name}.${n} (as a ${as})`);
+    }
+  }
+  assert.deepEqual(changed, [], 'these names, written on a subclass, change its run');
+});
+
+test('the names a subclass is checked with reach the engine\'s symbol-keyed state, and leave out the published members', async () => {
+  const classes = await publicClasses(), surface = (name: string) => classes.find((c) => c.name === name)!.surface;
+  const textNames = engineNames((await play('mobject', 'Text', Text)).instance, surface('Text'));
+  assert.ok(['sceneColors', 'run', 'frameBox', 'mergeLeaves'].every((n) => textNames.includes(n)), textNames.join(', '));
+  assert.ok(surface('Scene').has('play') && surface('Text').has('setText') && surface('Animation').has('doBegin'), 'public and protected members are the author\'s');
+  assert.ok(!surface('Scene').has('sink') && !surface('DomSink').has('patch'), 'engine state is not');
 });
 
 test('a failed play lands what it began without calling an author\'s own land(), and reports the failure', async () => {
@@ -315,7 +364,7 @@ test('what is made at its turn lands what it began when a later one throws as it
   assert.equal(scene.phase, 'idle');
   // The list on its own, begun as a play begins it: the one begun first lands.
   const alone = new FadeIn(new Circle());
-  assert.throws(() => scene.beginAnimations([alone, new Boom(new Rectangle())]), /^Error: boom$/);
+  assert.throws(() => beginInScene(scene, [alone, new Boom(new Rectangle())]), /^Error: boom$/);
   assert.equal(alone.phase, 'finished');
 });
 
@@ -369,7 +418,7 @@ test('a stop\'s callback that throws still stops the run for good', async () => 
     }
   }
   const scene = new Short(new NullSink());
-  scene.stopAt('one', () => { throw new Error('the log was refused'); });
+  stopAt(scene, 'one', () => { throw new Error('the log was refused'); });
   await assert.rejects(scene.run(), /^Error: the log was refused$/);
   assert.equal(scene.phase, 'stopped');
   assert.equal(scene.currentStep?.name, 'one');
@@ -382,7 +431,7 @@ test('a frame drawn outside the loop raises what is kept on top first: renderFra
   class Kept extends Scene {
     override async construct() {
       this.add(top);
-      this.keepOnTop(top);
+      keepOnTop(this, top);
       await this.play(new FadeIn(a));
       // The engine's own write of the drawn list after the last play: no later frame of the loop raises it.
       setDrawn(this, [top, a]);
@@ -394,7 +443,7 @@ test('a frame drawn outside the loop raises what is kept on top first: renderFra
   const scene = new Kept(new NullSink());
   await scene.run();
   assert.deepEqual(scene.mobjects.map(name), ['top', 'a'], 'the write stands until something draws');
-  await scene.drawFrame({ frame: async (sc, dt) => { drawn = [...sc.mobjects.map(name), String(dt)]; } });
+  await drawFrame(scene, { frame: async (sc, dt) => { drawn = [...sc.mobjects.map(name), String(dt)]; } });
   assert.deepEqual(drawn, ['a', 'top', '0']);
 });
 
@@ -433,7 +482,7 @@ test('a mobject kept on top stays last in drawing order through every add and re
   const scene = new Scene(new NullSink());
   const top = new Rectangle(), band = new Rectangle(), a = new Circle(), b = new Circle(), c = new Circle();
   scene.add(a, band, top);
-  const unkeep = scene.keepOnTop(band, top);
+  const unkeep = keepOnTop(scene, band, top);
   scene.add(b);
   assert.deepEqual(scene.mobjects, [a, b, band, top]);
   scene.add(a);
@@ -457,9 +506,10 @@ test('what is kept on top stays on top inside a group added later, before anythi
   const top = new Rectangle(), a = new Circle(), b = new Circle();
   let drawn: string[] = [];
   const name = (m: unknown): string => (m === top ? 'top' : m === a ? 'a' : m === b ? 'b' : 'group');
-  const scene = new Scene({ frame: async (sc) => { drawn = sc.mobjects.map(name); } });
+  let atStep: string[] = [];
+  const scene = new Scene({ frame: async (sc) => { drawn = sc.mobjects.map(name); }, stepBegin: async (sc) => { atStep = sc.mobjects.map(name); } });
   scene.add(top);
-  scene.keepOnTop(top);
+  keepOnTop(scene, top);
   // Wrapped in a group added later: the group, the root that holds it, stays last.
   const group = new Group(top);
   scene.add(a, group);
@@ -468,9 +518,6 @@ test('what is kept on top stays on top inside a group added later, before anythi
   await scene.wait(1 / 30);
   assert.deepEqual(drawn, ['a', 'b', 'group']);
   // And before a step boundary the sink hears.
-  let atStep: string[] = [];
-  const stepping = { frame: async () => {}, stepBegin: async (sc: Scene) => { atStep = sc.mobjects.map(name); } };
-  scene.sink = stepping;
   await scene.step('s');
   assert.deepEqual(atStep, ['a', 'b', 'group']);
 });
@@ -498,7 +545,7 @@ test('a run told where to stop stops for good as that step ends: after its end l
   after = 0;
   const scene = new Story(new NullSink());
   let at: { frame: number; x: number; on: number; step: string | undefined } | undefined;
-  scene.stopAt('two', async (s) => {
+  stopAt(scene, 'two', async (s) => {
     at = { frame: s.frameCount, x: s.state.x, on: s.mobjects.length, step: s.currentStep?.name };
     await s.wait(0.1);
   });
@@ -513,10 +560,10 @@ test('a run told where to stop stops for good as that step ends: after its end l
   // A step the run never reaches: the run ends as usual, and the callback never runs.
   const never = new Story(new NullSink());
   let ran = false;
-  never.stopAt('four', () => { ran = true; });
+  stopAt(never, 'four', () => { ran = true; });
   await never.run();
   assert.deepEqual([ran, never.phase], [false, 'idle']);
-  assert.throws(() => never.stopAt('one', () => {}), /^Error: this\.stopAt\(\): the scene has begun its run/);
+  assert.throws(() => stopAt(never, 'one', () => {}), /^Error: stopAt\(\): the scene has begun its run/);
 });
 
 test('a stop\'s callback is held to the listener rule: one that returns with a play still running is refused, and that play ticks no further', async () => {
@@ -530,8 +577,8 @@ test('a stop\'s callback is held to the listener rule: one that returns with a p
     const scene = new Short({ skipUntil, async frame() {} });
     let left: Promise<void> | undefined, frame = 0;
     // A Succession interpolates through skipped frames, so even a skipped play is still running when the callback returns.
-    scene.stopAt('one', (s) => { frame = s.frameCount; left = s.play(new Succession([new FadeIn(new Rectangle()), new FadeIn(new Circle({ radius: 0.3 }))])); });
-    await assert.rejects(scene.run(), /^Error: this\.stopAt\(\): its callback at step "one" .*still running/);
+    stopAt(scene, 'one', (s) => { frame = s.frameCount; left = s.play(new Succession([new FadeIn(new Rectangle()), new FadeIn(new Circle({ radius: 0.3 }))])); });
+    await assert.rejects(scene.run(), /^Error: stopAt\(\): its callback at step "one" .*still running/);
     assert.equal(scene.phase, 'stopped');
     // The play it left ends at its next frame, drawn or skipped, as any call on a stopped scene does.
     await assert.rejects(left!, StopScene);
@@ -539,7 +586,7 @@ test('a stop\'s callback is held to the listener rule: one that returns with a p
   }
   // Awaited, the same play is allowed.
   const fine = new Short(new NullSink());
-  fine.stopAt('one', async (s) => { await s.play(new FadeIn(new Rectangle())); });
+  stopAt(fine, 'one', async (s) => { await s.play(new FadeIn(new Rectangle())); });
   await fine.run();
   assert.equal(fine.phase, 'stopped');
 });

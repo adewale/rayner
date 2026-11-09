@@ -1,13 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
-import { Rectangle, Group, VMobject, Line, Arrow, Text, Dot, Transform, AnimationGroup, FadeIn, linear, thereAndBack, Scene, SurroundingRectangle, Cross, lerpColor, keyed } from '../src/index.ts';
+import { Rectangle, Group, VMobject, Line, Arrow, Text, Dot, Transform, AnimationGroup, FadeIn, linear, thereAndBack, Scene, SurroundingRectangle, Cross, lerpColor, keyed, Frame } from '../src/index.ts';
+import type { Mobject } from '../src/index.ts';
+import { publicClasses, MOBJECTS, USES } from './lib/public-classes.ts';
 import { NullSink, toSvgString, renderElements } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { NEUTRAL_COLORS } from '../src/color.ts';
 import { rotate } from '../src/vec.ts';
 import { alignData, mobjectId, replaceChild } from '../src/mobject.ts';
 import { pathD } from '../src/vmobject.ts';
+import { advanceBox, textRun } from '../src/text.ts';
 
 // Text shapes on glyph outlines; scenes load fonts in run(), bare tests do it here
 await loadFonts();
@@ -175,11 +178,11 @@ test('fresh Text is centred on its advance box before any positioning', () => {
       // materialization: outlines use Float32 storage, not unbounded reals.
       const fontSize = Math.min(requestedSize, 1e30);
       const t = new Text(text.slice(0, 32), { font, fontSize, weight });
-      const f = t.frameBox;
+      const f = t[advanceBox];
       const anchor = t.anchorPoint();
       // Float32 points undergo a cast and a translation; allow their rounding
       // error, including the fixed subnormal quantum, rather than a scene-unit epsilon.
-      const tolerance = 4 * 2 ** -23 * Math.max(t.run.width, t.run.ascent + t.run.descent) + 2 ** -149;
+      const tolerance = 4 * 2 ** -23 * Math.max(t[textRun].width, t[textRun].ascent + t[textRun].descent) + 2 ** -149;
       assert.ok(Math.abs((f[0]! + f[2]!) / 2) <= tolerance, 'advance box x centre is zero');
       assert.ok(Math.abs((f[1]! + f[3]!) / 2) <= tolerance, 'advance box y centre is zero');
       assert.ok(anchor.every((v) => Math.abs(v) <= tolerance), 'public default anchor is the origin');
@@ -244,14 +247,14 @@ test('nested replacement preserves earlier siblings, retained old objects and ba
   assert.equal(old.parent, null);
   assert.equal(a.parent, parent);
   const x = new Rectangle({ width: 2, height: 2 }), y = new Rectangle({ width: 2, height: 2 }), second = new Group(x, y);
-  s.removeAll().add(second);
+  s.remove(...s.mobjects).add(second);
   s.replace(x, x, y);
   assert.deepEqual(second.children, [x, y]);
   assert.equal(x.parent, second);
   assert.equal(y.parent, second);
   const replacement = new Rectangle({ width: 2, height: 2 }), source = new Group(replacement), targetOld = new Rectangle({ width: 2, height: 2 });
   const target = new Group(targetOld);
-  s.removeAll().add(target).replace(targetOld, replacement);
+  s.remove(...s.mobjects).add(target).replace(targetOld, replacement);
   assert.deepEqual(source.children, [], 'an off-screen source parent releases the replacement');
   assert.equal(replacement.parent, target);
   s.add(source);
@@ -398,25 +401,40 @@ test('copy() gives the copy its own arrays, maps and sets, so a subclass\'s fiel
   assert.deepEqual([c.marks, [...c.seen], [...c.tags], [...c.weights]], [[1, 2, 3], [['a', 1], ['b', 2]], ['x', 'y'], [9]]);
 });
 
-test('no mobject class below Mobject keeps state in ES private fields or methods, which a copy, made without its constructor, would lack', async () => {
-  const { readFileSync, readdirSync } = await import('node:fs');
-  const { join } = await import('node:path');
-  const ts = (await import('typescript')).default;
-  const root = join(import.meta.dirname, '..');
-  const files = ['src', 'explain'].flatMap((dir) => readdirSync(join(root, dir)).filter((f) => f.endsWith('.ts')).map((f) => join(dir, f)));
-  const classes = files.flatMap((file) => {
-    const source = ts.createSourceFile(file, readFileSync(join(root, file), 'utf8'), ts.ScriptTarget.Latest, true);
-    return source.statements.filter(ts.isClassDeclaration).map((c) => ({
-      file, name: c.name?.text ?? '',
-      base: c.heritageClauses?.find((h) => h.token === ts.SyntaxKind.ExtendsKeyword)?.types[0]?.expression.getText(source) ?? '',
-      privates: c.members.filter((m) => m.name && ts.isPrivateIdentifier(m.name)).map((m) => m.name!.getText(source)),
-    }));
-  });
-  const mobjects = new Set(['Mobject']);
-  for (let grew = true; grew;) {
-    grew = false;
-    for (const c of classes) if (!mobjects.has(c.name) && mobjects.has(c.base)) { mobjects.add(c.name); grew = true; }
+/** Each frame of a run that fades `m` in and moves it (a Frame: the camera it moves), as the renderer's records, ids numbered by first appearance. */
+async function framesOf(m: Mobject): Promise<string[]> {
+  const ids = new Map<number, number>(), frames: string[] = [];
+  class Story extends Scene {
+    override async construct() {
+      if (m instanceof Frame) {
+        this.add(new Rectangle({ width: 3 }).shift([2, 1]));
+        this.frame = m;
+        await this.play(m.animate.scale(0.5).shift([1, 0]), { runTime: 0.3 });
+        return;
+      }
+      await this.play(new FadeIn(m), { runTime: 0.3 });
+      await this.play(m.animate.shift([1, 0.5]).rotate(0.4), { runTime: 0.3 });
+    }
   }
-  assert.ok(mobjects.has('VMobject') && mobjects.has('Text') && mobjects.size > 20, 'the mobject classes are found');
-  assert.deepEqual(classes.filter((c) => c.name !== 'Mobject' && mobjects.has(c.name) && c.privates.length).map((c) => `${c.file}: ${c.name} ${c.privates.join(' ')}`), []);
+  await new Story({ frame: async (scene) => {
+    frames.push(JSON.stringify([scene.frame.box(), renderElements(scene, { relative: false }).map((r) => ({ ...r, id: ids.get(r.id) ?? ids.set(r.id, ids.size).get(r.id) }))]));
+  } }).run();
+  return frames;
+}
+
+test('a copy of every mobject class an entry point exports draws as the original does through a play, and changing the copy leaves the original alone', async () => {
+  const classes = (await publicClasses()).filter((c) => c.kind === 'mobject');
+  assert.deepEqual(classes.filter((c) => !(c.name in MOBJECTS)).map((c) => c.name), [], 'give each exported mobject class a way to build it');
+  assert.ok(classes.length > 20);
+  const drawing = (m: Mobject) => m instanceof Frame ? JSON.stringify(m.box()) : JSON.stringify(renderElements(new Scene(new NullSink()).add(m), { relative: false }));
+  for (const { name, C } of classes) {
+    const original = MOBJECTS[name]!(C);
+    USES[name]?.(original);
+    const copy = original.copy();
+    assert.deepEqual(await framesOf(copy), await framesOf(original), `${name}: the copy draws as the original did`);
+    const before = drawing(original);
+    copy.shift([3, -2]).scale(1.5).setColor('#cc3300');
+    USES[name]?.(copy);
+    assert.equal(drawing(original), before, `${name}: changing the copy leaves the original alone`);
+  }
 });

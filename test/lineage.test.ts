@@ -13,6 +13,7 @@ import type { Mobject, Sink, RateFunc, Style } from '../src/index.ts';
 import { takeOptions, beginAnimation, interpolateAnimation } from '../src/animation.ts';
 import { affine, mobjectId } from '../src/mobject.ts';
 import { curveCount, pathD } from '../src/vmobject.ts';
+import { advanceBox, textRun } from '../src/text.ts';
 
 await loadFonts();
 
@@ -671,7 +672,7 @@ test('code: consecutive Code lines sit one pitch apart whatever their ascenders 
   // https://github.com/ManimCommunity/manim/pull/4692: lines without ascenders sat lower than lines with them.
   fc.assert(fc.property(fc.array(fc.string({ unit: fc.constantFrom('a', 'g', 'y', 'É', 'b', 'x', ' ', '_', '.'), maxLength: 8 }), { minLength: 2, maxLength: 6 }), fc.double({ min: 0.1, max: 0.6, noNaN: true }), (lines, fontSize) => {
     const c = new Code(lines, { fontSize, lineHeight: 1.5 });
-    const base = c.lines.map((l) => l.frameBox[1]! + l.run.descent);
+    const base = c.lines.map((l) => l[advanceBox][1]! + l[textRun].descent);
     for (let i = 1; i < base.length; i++) assert.ok(near(base[i - 1]! - base[i]!, fontSize * 1.5, 1e-5), `line ${i}`);
   }), params(200));
 });
@@ -684,9 +685,9 @@ test('code: a tab advances to the next tab stop, as source editors draw it (mani
   const columnAfter = (line: string, w: number) => [...line].reduce((c, ch) => (ch === '\t' ? (Math.floor(c / w) + 1) * w : c + 1), 0);
   fc.assert(fc.property(fc.string({ unit: fc.constantFrom('\t', 'a', ' ', 'b'), maxLength: 10 }), fc.integer({ min: 1, max: 8 }), (line, tabWidth) => {
     const c = new Code([line + 'Z'], { tabWidth });
-    const z = c.lines[0]!.children.at(-1)!, left = c.lines[0]!.frameBox[0]!;
+    const z = c.lines[0]!.children.at(-1)!, left = c.lines[0]![advanceBox][0]!;
     const cols = columnAfter(line, tabWidth);
-    assert.ok(near(z.box()![0] - left, cols * col + (new Text('Z', { font: 'mono', fontSize: 0.26 }).children[0]!.box()![0] - new Text('Z', { font: 'mono', fontSize: 0.26 }).frameBox[0]!), 1e-4), JSON.stringify(line));
+    assert.ok(near(z.box()![0] - left, cols * col + (new Text('Z', { font: 'mono', fontSize: 0.26 }).children[0]!.box()![0] - new Text('Z', { font: 'mono', fontSize: 0.26 })[advanceBox][0]!), 1e-4), JSON.stringify(line));
     assert.equal(c.lines[0]!.text, line + 'Z', 'the line keeps its source text');
   }), params(200));
 });
@@ -700,7 +701,7 @@ test('code: a Code line re-set to its own text keeps its tab stops; bad tab widt
     pointsOf(l).forEach((x, i) => assert.ok(near(x, before[i]!, 1e-5)));
   }), params(200));
   // An accented letter is one column, so the tab after it reaches the same stop as after 'x'
-  const stop = (text: string) => { const l = new Code([text]).lines[0]!; return l.children.at(-1)!.box()![0] - l.frameBox[0]!; };
+  const stop = (text: string) => { const l = new Code([text]).lines[0]!; return l.children.at(-1)!.box()![0] - l[advanceBox][0]!; };
   assert.ok(near(stop('\u00e9\tZ'), stop('x\tZ'), 1e-4), 'é + tab reaches the same stop as x + tab');
   for (const w of [0, -1, 2.5, NaN, Infinity, -Infinity]) assert.throws(() => new Code(['\tx'], { tabWidth: w }), RangeError);
 });
@@ -745,7 +746,7 @@ test('text: layout is scale-free, so letter spacing does not drift with font siz
   fc.assert(fc.property(fc.string({ unit: fc.constantFrom('A', 'V', 'T', 'o', 'W', 'a', 'y', '.', ' '), minLength: 1, maxLength: 12 }), fc.double({ min: 0.05, max: 4, noNaN: true }), (s, size) => {
     const a = new Text(s, { fontSize: size, anchor: 'start' }), b = new Text(s, { fontSize: 1, anchor: 'start' });
     assert.ok(near(a.advance() / size, b.advance(), 1e-5), `${a.advance() / size} vs ${b.advance()}`);
-    a.children.forEach((g, i) => assert.ok(near((g.box()![0] - a.frameBox[0]!) / size, b.children[i]!.box()![0] - b.frameBox[0]!, 1e-4)));
+    a.children.forEach((g, i) => assert.ok(near((g.box()![0] - a[advanceBox][0]!) / size, b.children[i]!.box()![0] - b[advanceBox][0]!, 1e-4)));
   }), params(300));
 });
 
@@ -769,7 +770,7 @@ test('decimal: setValue keeps a rotated, scaled number\'s angle and size (ManimC
     assert.ok(near(d.textSize(), size, 1e-4), `size ${d.textSize()} vs ${size}`);
     assert.ok(near(Math.cos(d.angle() - angle), 1, 1e-6), `angle ${d.angle()} vs ${angle}`);
     assert.ok(near(d.anchorPoint()[0], at[0], 1e-4) && near(d.anchorPoint()[1], at[1], 1e-4), 'anchor kept');
-    const diag = (t: Text) => Math.hypot(t.frameBox[2]! - t.frameBox[0]!, t.frameBox[3]! - t.frameBox[1]!);
+    const diag = (t: Text) => Math.hypot(t[advanceBox][2]! - t[advanceBox][0]!, t[advanceBox][3]! - t[advanceBox][1]!);
     assert.ok(near(diag(d), diag(fresh), 1e-4), 'the same advance box as the number freshly made at that size');
   }), params(300));
 });

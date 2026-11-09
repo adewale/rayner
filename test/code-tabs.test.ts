@@ -11,6 +11,7 @@ import { textShaping } from '../src/lettering-outlines.ts';
 import type { LetteringProvider } from '../src/lettering-outlines.ts';
 import type { Box, Mobject } from '../src/index.ts';
 import { beginAnimation } from '../src/animation.ts';
+import { advanceBox, clusterKeyOf } from '../src/text.ts';
 // Manim's values, which the package no longer exports.
 const RED = '#fc6255';
 
@@ -39,7 +40,7 @@ test('lineSpan() of a tabbed line holds every glyph of the line', () => {
 
 test('box() of a span on a tabbed line is its cells in the laid-out line: the tab takes its columns', () => {
   const code = new Code(['\treturn x;', 'ab\tc']).scale(1.4).shift([0.3, -0.2]);
-  const t = code.lines[0]!, f = t.frameBox, cell = t.advance() / '    return x;'.length;
+  const t = code.lines[0]!, f = t[advanceBox], cell = t.advance() / '    return x;'.length;
   const s = code.token(0, 'return'), b = s.box();
   assert.ok(Math.abs(b[0] - (f[0]! + 4 * cell)) < 1e-5 && Math.abs(b[2] - (f[0]! + 10 * cell)) < 1e-5, `x extent ${b}`);
   const ink = union(s.children.map((g) => g.box()!));
@@ -134,7 +135,7 @@ test('a lettered line maps tabbed runs to the same clusters as an unlettered one
     const graphemes = new Map([...new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(line.text)].map((g) => [g.index, g.segment]));
     for (const g of line.children) {
       const drawnBy = line.children.filter((h) => cluster(h) === cluster(g)).length;
-      assert.equal(line.clusterKey(cluster(g)), `${line.font} ${line.weight} ${graphemes.get(cluster(g))} ×${drawnBy}`, `line ${i}, ${JSON.stringify(charOf(g))}`);
+      assert.equal(clusterKeyOf(line, cluster(g)), `${line.font} ${line.weight} ${graphemes.get(cluster(g))} ×${drawnBy}`, `line ${i}, ${JSON.stringify(charOf(g))}`);
     }
   });
 });

@@ -27,6 +27,7 @@ import { launch } from '../../tools/lib/browser.ts';
 import { EXPECTED, expectedOf, pathDigest } from '../../tools/oracle/glyph-math.ts';
 import type { Expected } from '../../tools/oracle/glyph-math.ts';
 import { beginAnimation } from '../../src/animation.ts';
+import { advanceBox, textRun } from '../../src/text.ts';
 
 const fixture = join(ROOT, 'test/lettering/math');
 const expected: Expected = JSON.parse(await readFile(EXPECTED, 'utf8'));
@@ -131,8 +132,8 @@ test('a display formula is typeset once, in display style', async () => {
   class Display extends Scene {
     override async construct() {
       for (const [, tex] of display) {
-        const m = new MathTex(tex, { display: true }), f = m.frameBox;
-        built.push({ width: m.run.width, middle: (f[1]! + f[3]!) / 2 });
+        const m = new MathTex(tex, { display: true }), f = m[advanceBox];
+        built.push({ width: m[textRun].width, middle: (f[1]! + f[3]!) / 2 });
       }
     }
   }

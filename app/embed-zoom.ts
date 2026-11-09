@@ -6,7 +6,7 @@
  * so does a click or tap, which centres the point under it (no drag needed).
  */
 import { DomSink } from '../src/output.ts';
-import { VIEWBOX } from '../src/internal.ts';
+import { VIEWBOX, applyRecords } from '../src/internal.ts';
 import { withoutHeading } from '../explain/internal.ts';
 import type { Scene } from '../src/index.ts';
 import type { ElementRecord } from '../src/output.ts';
@@ -168,11 +168,11 @@ export class ReaderSink extends DomSink {
     // The scene waits for its sink, so its objects stay put while this frame is drawn without them.
     await withoutHeading(scene, () => super.frame(scene, dt));
   }
-  override apply(els: readonly ElementRecord[], viewBox?: string): void {
+  override [applyRecords](els: readonly ElementRecord[], viewBox?: string): void {
     // DomSink can wake from its browser clock after this step was left.
     this.signal.throwIfAborted();
     if (viewBox !== undefined && viewBox !== this.svg.getAttribute('data-camera')) this.svg.setAttribute('data-camera', viewBox);
-    super.apply(els, this.reader(this.svg.getAttribute('data-camera')!));
+    super[applyRecords](els, this.reader(this.svg.getAttribute('data-camera')!));
   }
 }
 

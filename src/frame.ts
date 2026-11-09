@@ -1,5 +1,5 @@
 // Frame: the camera, as a box. Its point array is the visible rectangle
-// [x0, y0, x1, y1] in scene units (the pattern of Text.frameBox), so shift,
+// [x0, y0, x1, y1] in scene units (the pattern of a Text's advance box), so shift,
 // scale, moveTo, .animate and Transform move it exactly as they move any
 // mobject, and an animated camera interpolates as points: pure in alpha,
 // seek-safe. Sinks read the box at the root of the output (the SVG viewBox);
@@ -17,6 +17,9 @@ export interface FrameFitOptions {
 
 const ASPECT = FRAME.w / FRAME.h;
 
+/** The camera's visible box as a point array [x0, y0, x1, y1], which copies carry: a symbol, so no member an author writes on a subclass shares its name. */
+const corners = Symbol('corners');
+
 /**
  * The scene's camera (`scene.frame`): the rectangle of the scene that is on
  * screen, 16 × 9 at the origin by default. It is never drawn and never
@@ -29,16 +32,16 @@ const ASPECT = FRAME.w / FRAME.h;
  * Keep it 16:9: fit(), reset(), scale() and moveTo() do; stretch() would not.
  */
 export class Frame extends Mobject {
-  /** @internal The visible box as a point array [x0, y0, x1, y1]. */
-  corners: Float32Array;
+  /** See corners. */
+  [corners]: Float32Array;
 
   constructor() {
     super();
-    this.corners = new Float32Array(STAGE_BOX);
+    this[corners] = new Float32Array(STAGE_BOX);
   }
 
-  /** @internal */ override pointArrays(): Float32Array[] { return [this.corners]; }
-  protected override copyData(src: Mobject): void { this.corners = new Float32Array((src as Frame).corners); }
+  override pointArrays(): Float32Array[] { return [this[corners]]; }
+  protected override copyData(src: Mobject): void { this[corners] = new Float32Array((src as Frame)[corners]); }
 
   /**
    * Magnification, as the stage shows the box (zoomOf): 1 for the whole 16 × 9 frame, 2 when it
@@ -51,17 +54,18 @@ export class Frame extends Mobject {
     const b = target instanceof Mobject ? target.box() : target;
     if (!b) throw new Error('frame.fit(): the target has no points to fit; give a mobject that is drawn, or a box');
     const w = Math.max(b[2] - b[0] + 2 * margin, (b[3] - b[1] + 2 * margin) * ASPECT);
-    return this.place(...center(b), w);
+    return place(this, ...center(b), w);
   }
 
   /** Back to the default frame: 16 × 9 at the origin. */
-  reset(): this { return this.place(0, 0, FRAME.w); }
+  reset(): this { return place(this, 0, 0, FRAME.w); }
+}
 
-  private place(cx: number, cy: number, w: number): this {
-    const h = w / ASPECT;
-    this.corners.set([cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2]);
-    this.touchPoints();
-    this.invalidateBox();
-    return this;
-  }
+/** Show the 16:9 box `w` wide centred on (cx, cy). */
+function place<F extends Frame>(frame: F, cx: number, cy: number, w: number): F {
+  const h = w / ASPECT;
+  frame[corners].set([cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2]);
+  frame.touchPoints();
+  frame.invalidateBox();
+  return frame;
 }

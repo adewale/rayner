@@ -4,7 +4,7 @@ import type { SceneClass } from './scene.ts';
 import { decodeFont, embeddedChain, embeddedFaces, embeddedShaperFor, memoShaper } from './fonts.ts';
 import type { FontName, ShapedRun, Shaper } from './fonts.ts';
 import type { Font, Run, Segment } from '../vendor/glyph.js';
-import { Text, CodeSpan, expandTabs } from './text.ts';
+import { Text, CodeSpan, expandTabs, textRun, advanceBox, formulaOf } from './text.ts';
 import type { Box } from './mobject.ts';
 import { canonicalJson } from './json.ts';
 import { unionBoxes } from './box.ts';
@@ -301,7 +301,7 @@ export function snapshotProvider(stored: StoredLetteringSnapshot): LetteringProv
 /** One service per provider; each Text retains its own service through copy and replay. */
 const contexts = new WeakMap<LetteringProvider, TextShaping>();
 function cutOf(text: Text, provider: LetteringProvider): LetteringCut {
-  if (text.formula) return '';
+  if (text[formulaOf]) return '';
   const bold = text.weight === 'bold' && !!provider.request?.styles?.includes('bold');
   return text.italic ? (bold ? 'bold-italic' : 'italic') : bold ? 'bold' : '';
 }
@@ -329,8 +329,8 @@ const clusterKeys = new WeakMap<Text, { text: string; keys: Map<number, string> 
  * from a given run (maths), whose clusters are not source indices.
  */
 function sourceRun(text: Text): {run: Run; clusters: number[]} | undefined {
-  if (!text.shaping || text.formula) return undefined;
-  const form = spanForm(text), run = text.shapeRun(form.shaped, text.run.fontSize);
+  if (!text.shaping || text[formulaOf]) return undefined;
+  const form = spanForm(text), run = text.shapeRun(form.shaped, text[textRun].fontSize);
   return {run, clusters: run.glyphs.map(g => form.source[g.cluster] ?? text.text.length)};
 }
 function clusterKey(text: Text, cluster: number): string | undefined {
@@ -361,7 +361,7 @@ function spanBox(span: CodeSpan): Box | undefined {
   const endOf = (cluster: number) => starts.find((start) => start > cluster) ?? text.text.length;
   const selected = span.from === span.to ? []
     : run.glyphs.filter((_, i) => clusters[i]! < span.to && endOf(clusters[i]!) > span.from);
-  const frame = text.frameBox, scale = run.width ? (frame[2]! - frame[0]!) / run.width : 0;
+  const frame = text[advanceBox], scale = run.width ? (frame[2]! - frame[0]!) / run.width : 0;
   let left = Infinity, right = -Infinity;
   for (const glyph of selected) {
     const a = frame[0]! + glyph.x * scale, b = frame[0]! + (glyph.x + glyph.ax) * scale;
@@ -399,7 +399,7 @@ export function textShaping(provider: LetteringProvider): TextShaping {
       shape(owner, text, size) {
         if (owner.italic && !provider.request?.styles?.includes('italic'))
           throw new Error("new ItalicText(): it needs meta.lettering.styles to include 'italic', and a fresh lettering snapshot (rayner snapshots)");
-        return owner.formula ? provider.math(text, size, owner.formula.display)
+        return owner[formulaOf] ? provider.math(text, size, owner[formulaOf].display)
           : provider.shape(owner.font, text, size, embeddedShaperFor(owner.font), cutOf(owner, provider));
       },
       realBold: owner => cutOf(owner, provider).startsWith('bold'),

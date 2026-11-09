@@ -431,19 +431,19 @@ export function toSvgString(scene: Scene, { width = 1280, background = scene.col
 
 /** Collects every frame as an SVG string. Works anywhere JS runs. */
 export class StringSink implements Sink {
-  /** @internal */ opts: SvgOptions;
+  readonly #opts: SvgOptions;
   readonly frames: string[];
-  constructor(opts: SvgOptions = {}) { this.opts = opts; this.frames = []; }
-  async frame(scene: Scene): Promise<void> { this.frames.push(toSvgString(scene, this.opts)); }
+  constructor(opts: SvgOptions = {}) { this.#opts = opts; this.frames = []; }
+  async frame(scene: Scene): Promise<void> { this.frames.push(toSvgString(scene, this.#opts)); }
   last(): string | undefined { return this.frames[this.frames.length - 1]; }
 }
 
 /** Keeps only the latest frame; cheap when you only want a snapshot. */
 export class SnapshotSink implements Sink {
-  /** @internal */ opts: SvgOptions;
+  readonly #opts: SvgOptions;
   svg: string;
-  constructor(opts: SvgOptions = {}) { this.opts = opts; this.svg = ''; }
-  async frame(scene: Scene): Promise<void> { this.svg = toSvgString(scene, this.opts); }
+  constructor(opts: SvgOptions = {}) { this.#opts = opts; this.svg = ''; }
+  async frame(scene: Scene): Promise<void> { this.svg = toSvgString(scene, this.#opts); }
 }
 
 /** DomSink's per-element state: the live node and what was last written to it. */
@@ -460,42 +460,46 @@ interface DomNode {
 const MAX_FREEZE_MS = 100;
 
 /**
+ * @internal DomSink's hook that brings the DOM to exactly these records (one frame), and the viewBox to
+ * the camera's when given: the player's close-up sink overrides it to draw records without a frame
+ * and to map the camera. A symbol, so no member an author writes on a subclass shares its name.
+ */
+export const applyRecords = Symbol('apply');
+
+/**
  * Patches a live <svg> in place: one stable element per mobject, attributes
  * diffed, elements reordered only when draw order changes. Paces frames to
  * real time with requestAnimationFrame.
  */
 export class DomSink implements Sink {
-  /** @internal */ doc: Document;
+  readonly #doc: Document;
   readonly svg: SVGSVGElement;
-  /** @internal */ NS: 'http://www.w3.org/2000/svg';
-  /** @internal */ nodes: Map<number, DomNode>;
-  private readonly realtime: boolean;
-  /** @internal */ anchor: number | null;
-  /** @internal */ lastPatch: number;
-  private defs: SVGDefsElement | null = null;
-  private clipSignature = '';
+  readonly #NS = 'http://www.w3.org/2000/svg';
+  /** Each mobject's element, by the mobject's id. */
+  readonly #nodes = new Map<number, DomNode>();
+  readonly #realtime: boolean;
+  /** When scene time 0 is due on the wall clock, or null to anchor at the next frame. */
+  #anchor: number | null = null;
+  #lastPatch = 0;
+  #defs: SVGDefsElement | null = null;
+  #clipSignature = '';
   /** Camera: the viewBox last written, so an unchanged camera costs no DOM write. */
-  private viewBox = VIEWBOX;
+  #viewBox = VIEWBOX;
 
   /** The background given at construction; without one the SVG takes the scene's paper at each frame. */
-  private background: string | undefined;
+  readonly #background: string | undefined;
 
   constructor(container: Element, { background, realtime = true }: { background?: string; realtime?: boolean } = {}) {
-    const NS = 'http://www.w3.org/2000/svg';
     // A container in a live document always has one
-    this.doc = container.ownerDocument!;
-    this.svg = this.doc.createElementNS(NS, 'svg');
+    this.#doc = container.ownerDocument!;
+    this.svg = this.#doc.createElementNS(this.#NS, 'svg');
     this.svg.setAttribute('viewBox', VIEWBOX);
-    this.background = background;
+    this.#background = background;
     if (background !== undefined) this.svg.style.background = background;
     this.svg.style.width = '100%';
     this.svg.style.display = 'block';
     container.appendChild(this.svg);
-    this.NS = NS;
-    this.nodes = new Map(); // mobject id -> { el, attrs, text }
-    this.realtime = realtime;
-    this.anchor = null;
-    this.lastPatch = 0;
+    this.#realtime = realtime;
   }
 
   /**
@@ -507,10 +511,10 @@ export class DomSink implements Sink {
    * than 250ms (a pause, a hidden tab) re-anchors the schedule.
    */
   async frame(scene: Scene, dt = 0): Promise<void> {
-    if (!this.realtime || dt === 0) { this.anchor = null; this.patch(scene); return; }
+    if (!this.#realtime || dt === 0) { this.#anchor = null; this.#patch(scene); return; }
     const now = performance.now();
-    if (this.anchor != null && now - (this.anchor + scene.time * 1000) > 250) this.anchor = null;
-    if (this.anchor != null && now > this.anchor + scene.time * 1000 + dt * 1000 && now - this.lastPatch < MAX_FREEZE_MS) {
+    if (this.#anchor != null && now - (this.#anchor + scene.time * 1000) > 250) this.#anchor = null;
+    if (this.#anchor != null && now > this.#anchor + scene.time * 1000 + dt * 1000 && now - this.#lastPatch < MAX_FREEZE_MS) {
       perf.count('frames dropped');
       return;
     }
@@ -519,32 +523,32 @@ export class DomSink implements Sink {
     // frames between 1 and 3 vsyncs (16/50 ms judder at a 33 ms cadence).
     for (;;) {
       const vsync = await nextAnimationFrame();
-      if (this.anchor == null) this.anchor = vsync - scene.time * 1000;
-      if (vsync >= this.anchor + scene.time * 1000 - 8) { this.patch(scene); return; }
+      if (this.#anchor == null) this.#anchor = vsync - scene.time * 1000;
+      if (vsync >= this.#anchor + scene.time * 1000 - 8) { this.#patch(scene); return; }
     }
   }
 
-  /** @internal Draw the scene's frame now, unpaced. */
-  patch(scene: Scene): void {
-    if (this.background === undefined && this.svg.style.background !== scene.colors.paper) this.svg.style.background = scene.colors.paper;
+  /** Draw the scene's frame now, unpaced. */
+  #patch(scene: Scene): void {
+    if (this.#background === undefined && this.svg.style.background !== scene.colors.paper) this.svg.style.background = scene.colors.paper;
     // Absolute path data: measured faster for live DOM patching than translate + relative
-    this.apply(renderElements(scene, { relative: false }), viewBoxOf(scene));
+    this[applyRecords](renderElements(scene, { relative: false }), viewBoxOf(scene));
   }
 
-  /** Bring the DOM to exactly these records (one frame), and the viewBox to the camera's when given. @internal */
-  apply(els: readonly ElementRecord[], viewBox?: string): void {
-    this.lastPatch = performance.now();
+  /** @internal See applyRecords. */
+  [applyRecords](els: readonly ElementRecord[], viewBox?: string): void {
+    this.#lastPatch = performance.now();
     const end = perf.begin('dom.patch');
     // Camera: one attribute write when the frame moved, none otherwise
-    if (viewBox !== undefined && viewBox !== this.viewBox) { this.svg.setAttribute('viewBox', viewBox); this.viewBox = viewBox; }
+    if (viewBox !== undefined && viewBox !== this.#viewBox) { this.svg.setAttribute('viewBox', viewBox); this.#viewBox = viewBox; }
     const clips = clipsOf(els), signature = clips.map((c)=>c.id).join(' ');
-    if (signature !== this.clipSignature) {
-      this.clipSignature = signature;
-      if (!clips.length) { this.defs?.remove(); this.defs = null; }
+    if (signature !== this.#clipSignature) {
+      this.#clipSignature = signature;
+      if (!clips.length) { this.#defs?.remove(); this.#defs = null; }
       else {
-        if (!this.defs) { this.defs = this.doc.createElementNS(this.NS,'defs'); this.svg.insertBefore(this.defs,this.svg.firstChild); }
-        this.defs.replaceChildren(...clips.map((c)=>{
-          const path=this.doc.createElementNS(this.NS,'clipPath'), rect=this.doc.createElementNS(this.NS,'rect');
+        if (!this.#defs) { this.#defs = this.#doc.createElementNS(this.#NS,'defs'); this.svg.insertBefore(this.#defs,this.svg.firstChild); }
+        this.#defs.replaceChildren(...clips.map((c)=>{
+          const path=this.#doc.createElementNS(this.#NS,'clipPath'), rect=this.#doc.createElementNS(this.#NS,'rect');
           path.setAttribute('id',c.id);path.setAttribute('clipPathUnits','userSpaceOnUse');
           for(const [k,v] of Object.entries(c.attrs))rect.setAttribute(k,v);
           path.appendChild(rect);return path;
@@ -552,15 +556,15 @@ export class DomSink implements Sink {
       }
     }
     const seen = new Set<number>();
-    let cursor = this.defs ? this.defs.nextSibling : this.svg.firstChild;
+    let cursor = this.#defs ? this.#defs.nextSibling : this.svg.firstChild;
     for (const rec of els) {
       seen.add(rec.id);
-      let node = this.nodes.get(rec.id);
+      let node = this.#nodes.get(rec.id);
       if (!node || node.el.tagName !== rec.tag) {
         if (node) node.el.remove();
-        const el = this.doc.createElementNS(this.NS, rec.tag);
+        const el = this.#doc.createElementNS(this.#NS, rec.tag);
         node = { el, attrs: Object.create(null) as Record<string, string>, text: null, rec: null };
-        this.nodes.set(rec.id, node);
+        this.#nodes.set(rec.id, node);
       }
       // Records are memoized: the same object means nothing about this element changed
       if (node.rec === rec) {
@@ -594,8 +598,8 @@ export class DomSink implements Sink {
       if (node.el !== cursor) this.svg.insertBefore(node.el, cursor);
       else cursor = cursor.nextSibling;
     }
-    for (const [id, node] of this.nodes) {
-      if (!seen.has(id)) { node.el.remove(); this.nodes.delete(id); }
+    for (const [id, node] of this.#nodes) {
+      if (!seen.has(id)) { node.el.remove(); this.#nodes.delete(id); }
     }
     end();
   }
