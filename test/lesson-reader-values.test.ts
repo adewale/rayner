@@ -301,7 +301,7 @@ test('traffic comparisons draw each source pod share without attributing the ing
 test('GNOME sample labels explain every participant outcome and retain the report categories in every scenario', async () => {
   const { frames } = await import('../scenes/explainers/gnome-files/picture.ts');
   // Report page 7, in participant order P1..P6; the selected participant's first
-  // abandoned task is fixed by the session ordering, not the report's chapter order.
+  // abandoned task is fixed by the session ordering, not the order of the report's headings.
   const tasks = { P1: 4, P2: 1, P3: 3, P4: 3, P5: 3, P6: 1 } as const;
   const categories = { 1: 'OBGYOB', 3: 'GGBBBX', 4: 'BYBYGB' } as const;
   const key = {

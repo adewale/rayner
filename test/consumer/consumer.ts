@@ -203,7 +203,7 @@ export async function publicCollection(scene: Scene): Promise<void> {
   const s = stage(scene);
   s.keep(emphasised(new SurroundingRectangle(new Text('slot')), 'outlined: the full slot'));
   const panel = new Rectangle({ fill: s.look.raised, stroke: s.look.rule }).setFill(lerpColor(s.look.paper, s.look.emphasis, 0.36));
-  view(scene, (state) => card(s, [['State', String(state.phase ?? 'idle')]], { width: 4, at: 'start', lit: { row: 'State', as: 'now' } }), { place: false });
+  view(scene, (state) => card(s, [['State', String(state.status ?? 'idle')]], { width: 4, at: 'start', lit: { row: 'State', as: 'now' } }), { place: false });
   const lit: CodeOptions['lit'] = { lines: [0, 1], as: 'run' };
   const listing: View<CodeBlock> = view(scene, () => code(s, ['let a = 1;', 'a += 1;'], { at: 'end', lit }), { place: false });
   const direction: LayoutDirection = s.direction;
@@ -243,7 +243,7 @@ type Door = { door: 'open' | 'closed' };
 type DoorEvent = 'open' | 'close';
 const doorNext = <S extends Door>(state: S, event: DoorEvent): S | Refusal =>
   event === 'open' ? (state.door === 'open' ? refuse('the door is open already') : { ...state, door: 'open' }) : state.door === 'closed' ? refuse('the door is closed already') : { ...state, door: 'closed' };
-type CollectionModel = Door & { phase: string; count: number };
+type CollectionModel = Door & { status: string; count: number };
 // @ts-expect-error A misspelt meta key does not compile.
 export const misspelt = { id: 'x', titel: 'X' } satisfies ExplainerMeta;
 // @ts-expect-error So does a misspelt player key.
@@ -259,7 +259,7 @@ export const words = (d: Description) => d.parts.map((p) => `${p.name}${p.mark ?
 export class Collection extends Scene<CollectionModel> {
   static meta = { id: 'collection', title: 'What the collection uses', answer: 'Every part of it.', player: { corners: 'square' } } satisfies ExplainerMeta;
   static settings = [{ id: 'case', label: 'Case', default: 'a', options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }] }] satisfies readonly Setting[];
-  override state = { door: 'open' as 'open' | 'closed', phase: 'start', count: 0 };
+  override state = { door: 'open' as 'open' | 'closed', status: 'start', count: 0 };
   override async construct() {
     const s: Stage = stage(this);
     const values = settingsOf(this);
@@ -305,14 +305,14 @@ export class Collection extends Scene<CollectionModel> {
     await this.step('door', { title: 'A machine', caption: 'Open and close the door.' });
     const door = view(this, (st) => keyed(new Text(st.door === 'open' ? 'Open' : 'Closed', { color: s.look.ink }), 'door'));
     const machine = new Machine<CollectionModel, DoorEvent>(this, {
-      start: { door: 'open', phase: 'start', count: 0 }, events: ['open', 'close'], next: doorNext, views: [door],
+      start: { door: 'open', status: 'start', count: 0 }, events: ['open', 'close'], next: doorNext, views: [door],
       transition: { close: (t: Transition<CollectionModel, DoorEvent>) => { const c: Choreography = t.choreograph(door); return c.morph('door', { rateFunc: rushFrom }); } },
     });
     await s.enter(door);
     await this.play(machine.send('close'));
     await this.play(machine.replay(['open', 'close']));
     const refused = doorNext({ door: 'closed' }, 'close');
-    this.state.phase = isRefusal(refused) ? refused.reason : 'moved';
+    this.state.status = isRefusal(refused) ? refused.reason : 'moved';
 
     await this.step('code', { title: 'Code', caption: 'A code panel and a card, drawn from the state.' });
     const panel: CodeBlock = await s.code(['let n = 0;', 'n += 1;'], { lit: { lines: 1 } });
@@ -327,8 +327,8 @@ export class Collection extends Scene<CollectionModel> {
     const d = await s.show({ source: mermaid.frontMatter({ theme: 'base' }) + 'graph LR\nA --> B' }, { box: 'main' });
     const side: NoteSide = 'above';
     const notes: PictureNote[] = [{ id: 'A', text: 'start', side }];
-    const shown = s.diagramView(d, (st): DiagramPicture => ({ marks: st.phase === 'moved' ? { A: s.look.emphasis } : {}, notes }));
-    this.state.phase = 'moved';
+    const shown = s.diagramView(d, (st): DiagramPicture => ({ marks: st.status === 'moved' ? { A: s.look.emphasis } : {}, notes }));
+    this.state.status = 'moved';
     await this.play(shown.sync());
     const marked: Mobject = d.picture({ A: { color: s.look.emphasis, as: 'the start' } });
     void [marked, d.order, d.visible.size, d.snapshot.parts.length];

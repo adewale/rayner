@@ -11,7 +11,7 @@ export function check(trace:Trace,values:Record<string,string>) {
   assertSteps(trace,['question','insert','shared','absent','present','predict','false-positive','pipeline','full']);
   for(const step of trace.steps) {
     // Which picture is showing is not part of the model.
-    assert.equal(step.after.phase,undefined,`bloom-filter/${step.step}: no phase in the model`);
+    assert.equal(step.after.chapter,undefined,`bloom-filter/${step.step}: no chapter in the model`);
   }
   const m=bloomStory(Number(values.bits) as 16|32);
   assertStepState(trace,'question',{bits:Array(m.size).fill(0),stored:[]});

@@ -323,7 +323,7 @@ export type Having<S, K extends PropertyKey> =
 
 /**
  * `state` narrowed to the shape that holds `keys`, or a TypeError when it lacks one: for a draw of one
- * phase of a scene whose state changes shape by phase (a union of shapes), or of an optional part
+ * chapter of a scene whose state changes shape by chapter (a union of shapes), or of an optional part
  * of the state or of what is shown. `rayner check` draws every view from other steps' states too,
  * and counts a draw that throws on a state of another shape as one that reads its state.
  *

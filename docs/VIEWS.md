@@ -77,7 +77,7 @@ A machine's schedule is built before it plays, so its events change the state at
 
 ```ts
 view(scene: Scene<S, Sh>, draw: (state: S, shown: Sh) => M, opts?): View<M, S, Sh>   // draw(scene.state, scene.shown) at each sync; kept for the checks; a bare View type is a view of any scene
-having(state, ...keys)  // the state as the shapes that hold these keys, or a TypeError: for a draw of one phase (below)
+having(state, ...keys)  // the state as the shapes that hold these keys, or a TypeError: for a draw of one chapter (below)
 
 view.current            // the picture on screen (the View's one child)
 view.texts              // the strings it shows, in family order
@@ -97,8 +97,8 @@ Most draws read only the model, `state`. A picture that depends on which of seve
 pictures is showing, which is not part of the model, reads it from `shown`, the
 scene's `this.shown`.
 
-A scene whose state changes shape by phase declares the shapes, as a union or as one
-record with optional parts, and a draw of one phase narrows to its shape:
+A scene whose state changes shape by chapter declares the shapes, as a union or as one
+record with optional parts, and a draw of one chapter narrows to its shape:
 `view(this, (st) => year(having(st, 'longitude')))`. `having` returns the state typed
 as the shapes that hold those keys, optional parts made present (a `Having<S, K>`), and throws for a state
 that lacks one. `rayner check` draws every view from other steps' states as well as its

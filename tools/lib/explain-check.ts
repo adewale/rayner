@@ -232,7 +232,7 @@ function legibilityReport(records: LabelSizes[]) {
 // InvariantSink and MotionSink are handed it. Each reads the scene and keeps what its check
 // needs; a scene's `mobjects` changed to read a frame are put back before the next sink runs.
 // A sink that reads a step's resting picture reads it in `stepEnd`, as each step ends, the way
-// describe and the shots read it (AtRest in src/trace.ts); LandingSink holds that picture to the
+// describe and the shots read it (AtRest in src/trace.ts); LastFrameSink holds that picture to the
 // step's last played frame, which the frame-numbered sinks (HoldSink, FrameCaptureSink) read.
 
 /** Hands each frame, and each step's beginning and end, to every sink in turn. */
@@ -356,16 +356,16 @@ export class HoldSink implements Sink {
 /**
  * finish() lands where the last frame drew: as each step ends, after its last play has finished
  * and left the stage, the picture must be its resting frame's, which a link shows and the checks
- * judge, and which describe and the shots draw as the step ends. A step that differs is `landed`
- * elsewhere. Reads the played frames FrameCaptureSink kept, so it comes after it.
+ * judge, and which describe and the shots draw as the step ends. A step that differs is listed
+ * in `differing`. Reads the played frames FrameCaptureSink kept, so it comes after it.
  */
-export class LandingSink implements Sink {
+export class LastFrameSink implements Sink {
   readonly played: ReadonlyMap<number, string>;
-  readonly landed: string[] = [];
+  readonly differing: string[] = [];
   constructor(played: ReadonlyMap<number, string>) { this.played = played; }
   async frame(): Promise<void> {}
   async stepEnd(scene: Scene, step: EndedStep): Promise<void> {
-    if (toSvgString(scene) !== this.played.get(step.frame1)) this.landed.push(step.name);
+    if (toSvgString(scene) !== this.played.get(step.frame1)) this.differing.push(step.name);
   }
 }
 
@@ -631,7 +631,7 @@ export function viewIgnoresState(view: View, state: Record<string, unknown>, sho
     try { return pictureDetail(view.draw(st, sh)) !== drawn; } catch { return true; }
   };
   // A view draws the model and what is shown apart from it; a picture that follows what is shown
-  // (a phase, a highlight) reads its inputs too.
+  // (a chapter, a highlight) reads its inputs too.
   const depends = others.some((other) => differs(other as Record<string, unknown>, shown)) ||
     (Object.keys(shown).length > 0 && differs(state, perturbed(shown) as Record<string, unknown>));
   // A draw may keep what it last drew (its words, say): leave it as the step drew it.
@@ -642,8 +642,8 @@ export function viewIgnoresState(view: View, state: Record<string, unknown>, sho
 
 /**
  * A rendered frame's marks in any stacking order: a part a transition brought in is added last,
- * so it may sit above parts it sits below in the target picture; the landing puts it back a frame
- * later. Every mark must still be there, drawn the same.
+ * so it may sit above parts it sits below in the target picture; the views taking the state's
+ * pictures put it back a frame later. Every mark must still be there, drawn the same.
  */
 const marksOf = (svg: string) => svg.split('/>').sort().join('/>');
 
@@ -652,7 +652,7 @@ const marksOf = (svg: string) => svg.split('/>').sort().join('/>');
  * the event's state change first, then the transition in a play of its own (`machine.transitionPlay`),
  * made when its turn comes and waiting, as the play lets it, for what it reads. Every invariant is
  * checked on every frame it draws (an InvariantSink, through `draw`), and when it ends the views must
- * show the pictures of the state it reaches, as rendered, so the landing sync moves nothing.
+ * show the pictures of the state it reaches, as rendered, so taking them moves nothing.
  */
 async function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[], origin: string, draw: (to?: Sink) => void): Promise<string[]> {
   const problems: string[] = [];
@@ -754,7 +754,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
         ]),
       ),
     );
-    const landing = new LandingSink(capture.frames);
+    const lastFrame = new LastFrameSink(capture.frames);
     // Each step's close-ups on the phone, worked out as the player works them out.
     const layouts = await stepLayouts(v.Scene);
     const legibility = new LegibilitySink(
@@ -778,10 +778,10 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       v.trace.steps.flatMap((s) => (s.holdFrame != null ? [{ step: s.step, from: s.holdFrame + 1, to: s.frame1 }] : [])),
     );
     // One full run feeds every check, each a sink of its own, in this order: the step's resting
-    // picture is read as the step ends, landing first, before views and keys redraw anything.
+    // picture is read as the step ends, the last-frame comparison first, before views and keys redraw anything.
     const views = new ViewSink();
     const keys = new KeySink();
-    const ran = await new v.Scene(new FanSink([invariants, motion, holdSink, capture, landing, restingSink, legibility, looks, views, keys])).run();
+    const ran = await new v.Scene(new FanSink([invariants, motion, holdSink, capture, lastFrame, restingSink, legibility, looks, views, keys])).run();
     // The last frame, before exploring machines moves the scene.
     const finalSvg = toSvgString(ran);
     const { frames } = capture,
@@ -827,7 +827,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       `The picture changes after the caption hold begins, where the player stops; finish every change before the step's last play() ends ${where}`,
     );
     assert.deepEqual(
-      landing.landed.slice(0, 5),
+      lastFrame.differing.slice(0, 5),
       [],
       `These steps end on a different picture from their last frame ${where}: an animation's finish() must land where its last frame drew, since a link, describe and the shots show the step as it ends (the first five)`,
     );
