@@ -133,7 +133,7 @@ export class NumberLine extends Group {
   get numbers(): Group { return this.children[this.tipIdx < 0 ? 2 : 3] as Group; }
 
   /** min, min + step, ... up to max (computed by index, so no drift). */
-  tickValues(): number[] {
+  private tickValues(): number[] {
     const n = Math.floor((this.max - this.min) / this.step + 1e-9);
     return Array.from({ length: n + 1 }, (_, i) => this.min + i * this.step);
   }
@@ -143,15 +143,6 @@ export class NumberLine extends Group {
     const s = this.line.start(), e = this.line.end();
     return V.lerp(s, e, (x - this.min) / (this.max - this.min));
   }
-
-  /** The number at point `p`, projected onto the line. */
-  p2n(p: Readonly<Vec>): number {
-    const s = this.line.start(), d = V.sub(this.line.end(), s);
-    return this.min + V.dot(V.sub(p, s), d) / V.dot(d, d) * (this.max - this.min);
-  }
-
-  /** Scene units per unit of number. */
-  unitSize(): number { return V.norm(V.sub(this.line.end(), this.line.start())) / (this.max - this.min); }
 }
 
 /** NumberLine options an axis takes from Axes (range, length and rotation are the axes'). */
@@ -216,10 +207,10 @@ export interface GuideLineOptions extends Style {
  * { lagRatio: 0.1 } (at 1 s each label pops in over a frame or two).
  */
 export class Axes extends Group {
-  readonly shaping: TextShaping | undefined;
+  private readonly shaping: TextShaping | undefined;
   /** The x and y values where the axes cross. */
-  readonly crossX: number;
-  readonly crossY: number;
+  private readonly crossX: number;
+  private readonly crossY: number;
   private xLabelIdx: number;
   private yLabelIdx: number;
 
@@ -271,16 +262,6 @@ export class Axes extends Group {
     // Along x from the x axis' own point, then up by the y axis' offset from the crossing
     return V.add(this.xAxis.n2p(x), V.sub(yx.n2p(y), yx.n2p(this.crossY)));
   }
-
-  /** The data coordinates of scene point `p`: c2p's inverse (exact under rotation or shear too). */
-  p2c(p: Readonly<Vec>): [x: number, y: number] {
-    const o = this.c2p(0, 0), u = V.sub(this.c2p(1, 0), o), v = V.sub(this.c2p(0, 1), o), d = V.sub(p, o);
-    const det = u[0] * v[1] - u[1] * v[0];
-    return [(d[0] * v[1] - d[1] * v[0]) / det, (u[0] * d[1] - u[1] * d[0]) / det];
-  }
-
-  /** c2p(0, 0): the data origin, which lies off the drawn axes when zero is outside a range. */
-  originPoint(): Vec { return this.c2p(0, 0); }
 
   /**
    * The graph of `fn` over `xRange`: one cubic per pair of neighboring

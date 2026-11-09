@@ -224,7 +224,7 @@ picture, and fails if it
 - has colliding text or a connector over a label (the same rules as resting pictures),
 - shows a label under 14 px at a 1280 px stage,
 - has no description,
-- does not show its state (`viewMismatch`), or
+- does not show its state (the fidelity check `assertViewFollowsState` makes), or
 - is described exactly as another reachable state is, so neither a reader nor a screen
   reader could tell them apart.
 

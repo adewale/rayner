@@ -452,6 +452,9 @@ interface DomNode {
   attrsRef?: Attrs;
 }
 
+/** The longest a live DomSink goes without a patch while it drops late frames, in milliseconds. */
+const MAX_FREEZE_MS = 100;
+
 /**
  * Patches a live <svg> in place: one stable element per mobject, attributes
  * diffed, elements reordered only when draw order changes. Paces frames to
@@ -462,11 +465,9 @@ export class DomSink implements Sink {
   readonly svg: SVGSVGElement;
   /** @internal */ NS: 'http://www.w3.org/2000/svg';
   /** @internal */ nodes: Map<number, DomNode>;
-  readonly realtime: boolean;
+  private readonly realtime: boolean;
   /** @internal */ anchor: number | null;
   /** @internal */ lastPatch: number;
-  dropped: number;
-  readonly maxFreezeMs: number;
   private defs: SVGDefsElement | null = null;
   private clipSignature = '';
   /** Camera: the viewBox last written, so an unchanged camera costs no DOM write. */
@@ -491,8 +492,6 @@ export class DomSink implements Sink {
     this.realtime = realtime;
     this.anchor = null;
     this.lastPatch = 0;
-    this.dropped = 0;
-    this.maxFreezeMs = 100;
   }
 
   /**
@@ -500,15 +499,15 @@ export class DomSink implements Sink {
    * schedule (scene time t is due at anchor + t). Each frame is patched in the
    * animation frame it's due in, so frames land on vsync; when the scene falls
    * more than a frame behind, that frame's DOM patch is dropped instead of
-   * slowing playback, but never for longer than maxFreezeMs. A stall longer
+   * slowing playback, but never for longer than MAX_FREEZE_MS. A stall longer
    * than 250ms (a pause, a hidden tab) re-anchors the schedule.
    */
   async frame(scene: Scene, dt = 0): Promise<void> {
     if (!this.realtime || dt === 0) { this.anchor = null; this.patch(scene); return; }
     const now = performance.now();
     if (this.anchor != null && now - (this.anchor + scene.time * 1000) > 250) this.anchor = null;
-    if (this.anchor != null && now > this.anchor + scene.time * 1000 + dt * 1000 && now - this.lastPatch < this.maxFreezeMs) {
-      this.dropped++; perf.count('frames dropped');
+    if (this.anchor != null && now > this.anchor + scene.time * 1000 + dt * 1000 && now - this.lastPatch < MAX_FREEZE_MS) {
+      perf.count('frames dropped');
       return;
     }
     // Decide on the rAF timestamp (the vsync time), not performance.now() inside the

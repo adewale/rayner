@@ -197,8 +197,7 @@ await assertViewFollowsState(Ring, (scene) => (scene as Ring).readout);
 
 It fails on a scene that changes state and forgets to sync, and on a picture drawn
 from the wrong fields. It compares text (`pictureText`: every `Text` in the picture,
-in family order), not geometry. The pure form, `viewMismatch(view, state, { shown, draw })`,
-is exported from the library and returns `null`, or a message saying what the View
+in family order), not geometry. On a failure it says, for the step, what the View
 shows and what the state draws.
 
 Because every View keeps its `draw`, `rayner check` can also redraw a View for any

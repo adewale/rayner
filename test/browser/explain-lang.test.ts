@@ -11,7 +11,7 @@ import { chromeFor, scenarioNameIn, CHROME, descriptionLang, descriptionsLang } 
 import { settingsProblem } from '../../explain/settings.ts';
 import type { SettingsProblem } from '../../app/embed-strings.ts';
 import { resolveSettings } from '../../explain/index.ts';
-import { scenarioName } from '../../explain/testing.ts';
+import { scenarioName } from '../../explain/internal.ts';
 import { pictureSummary, pictureHtml, picture } from '../../explain/trace.ts';
 import { VOCABULARY, wordsFor, describedIn, familyNames, markHeading } from '../../explain/words.ts';
 import type { Words } from '../../explain/words.ts';

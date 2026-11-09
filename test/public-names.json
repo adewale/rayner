@@ -105,17 +105,8 @@
       "InvariantSink": {
         "tooling": "an author's test that checks every frame of a run against the scene's invariants (the invariants recipe)"
       },
-      "MotionSink": {
-        "tooling": "an author's test that records every frame's motion events, to look for pops, cuts and teleports"
-      },
       "TraceSink": {
         "tooling": "an author's test or tool that records each step's timing, state and evidence while it runs a scene its own way"
-      },
-      "analyzeMotion": {
-        "tooling": "an author's test that reads recorded motion for pops, cuts and teleports, as rayner check does"
-      },
-      "bindSnapshots": {
-        "tooling": "an author's test or tool that runs a scene with diagrams outside the command, from its pinned snapshots"
       },
       "describeExplainer": {
         "tooling": "an author's tool or agent that reads the explainer as one JSON object: scenarios, steps, state and pictures in words"
@@ -147,26 +138,11 @@
       "loadSnapshots": {
         "tooling": "an author's test or tool that reads an explainer's pinned diagram snapshots from its folder, to build or inspect one diagram"
       },
-      "machinesOf": {
-        "tooling": "an author's test that drives or explores a scene's machines from outside the scene"
-      },
       "pictureWordsAt": {
         "tooling": "an author's test that reads what a reader who cannot see the stage is told about a step's picture"
       },
-      "scenarioName": {
-        "tooling": "an author's test or tool that names a scenario the way the command and the player do"
-      },
-      "scenariosOf": {
-        "tooling": "an author's test or tool that runs every scenario of a scene's settings"
-      },
-      "takeMissingGlyphs": {
-        "tooling": "an author's test or tool that draws text outside the command and fails on characters drawn with no glyph"
-      },
       "traceScene": {
         "tooling": "an author's test that compares a run's steps and state with the model (the render and document recipes)"
-      },
-      "viewMismatch": {
-        "tooling": "an author's test that asks whether a view shows the state it claims, as the Views check does"
       },
       "withIntent": {
         "tooling": "an author's test that runs a scene directly with its script's intent adopted, as the command runs it"
@@ -292,7 +268,7 @@
     },
     {
       "feature": "Pictures rebuilt from state",
-      "uses": "`view(scene, draw)`, `view.sync()`; `viewMismatch` and `assertViewFollowsState` in `rayner/testing`",
+      "uses": "`view(scene, draw)`, `view.sync()`; `assertViewFollowsState` in `rayner/testing`",
       "guide": "[Views](VIEWS.md)",
       "items": [
         {

@@ -13,7 +13,8 @@ test('the vendored glyph bundle matches its recorded upstream bytes', () => {
 });
 import { fc, params } from './lib/pbt.ts';
 import { shaperFor, Text } from '../src/index.ts';
-import { loadFonts, takeMissingGlyphs } from '../explain/testing.ts';
+import { loadFonts } from '../explain/testing.ts';
+import { takeMissingGlyphs } from '../src/fonts.ts';
 import { FALLBACK } from '../src/font-data.ts';
 
 await loadFonts();

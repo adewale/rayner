@@ -14,7 +14,8 @@ import {
 } from '../src/index.ts';
 import { StringSink, renderText, renderFrame } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
-import { MotionSink, analyzeMotion, traceScene, loadFonts } from '../explain/testing.ts';
+import { traceScene, loadFonts } from '../explain/testing.ts';
+import { MotionSink, analyzeMotion } from '../src/internal.ts';
 import { diffTokens, tokenize, hunkHeader } from '../src/diff.ts';
 import type { Hunk, Mobject, Sink } from '../src/index.ts';
 import { drawsFrom } from './lib/random-scene.ts';

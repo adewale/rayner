@@ -9,7 +9,7 @@ import { NullSink, renderFrame, toSvgString } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
 import { stage } from '../explain/index.ts';
-import { bindSnapshots } from '../explain/testing.ts';
+import { bindSnapshots } from '../explain/internal.ts';
 import { Diagram } from '../explain/diagrams.ts';
 import { dimOpacity } from '../explain/look.ts';
 import { diagramKey } from '../explain/diagram-snapshot.ts';

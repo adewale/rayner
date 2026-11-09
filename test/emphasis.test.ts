@@ -6,7 +6,8 @@ import assert from 'node:assert/strict';
 import { Scene, Rectangle, Text, Code, Create, FadeOut, Circumscribe, SurroundingRectangle, Cross, Brace, BraceLabel, VMobject, Line, keyed } from '../src/index.ts';
 import { StringSink, renderFrame } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
-import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
+import { loadFonts } from '../explain/testing.ts';
+import { MotionSink, analyzeMotion } from '../src/internal.ts';
 import type { Box, Mobject, Vec } from '../src/index.ts';
 
 /** A line 0.1 under `m`'s box, left to right. */

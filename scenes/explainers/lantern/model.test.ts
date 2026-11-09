@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Rectangle, Dot, Circle, Group, FadeIn, Transform, smooth } from '../../../src/index.ts';
 import { StringSink, NullSink, DomSink, StopScene, renderFrame, toSvgString } from '../../../src/output.ts';
-import { TraceSink, MotionSink } from '../../../explain/testing.ts';
+import { TraceSink } from '../../../explain/testing.ts';
 import type { EndedStep, Mobject, Sink, Step, Vec } from '../../../src/index.ts';
 
 const FPS = 30;
@@ -110,7 +110,6 @@ test('sinks only read a frame: after each of Rayner’s sinks takes it, the scen
     string: () => new StringSink(),
     null: () => new NullSink(),
     trace: () => new TraceSink(),
-    motion: () => new MotionSink(),
     browser: () => new DomSink(fakeDocument(), { realtime: false }),
   };
   const reference = await played(TimeOnly);

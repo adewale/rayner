@@ -9,10 +9,12 @@ import type { Text } from '../src/index.ts';
 import { NullSink } from '../src/output.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
 import { stage, regionBox } from '../explain/index.ts';
-import { paletteOf } from '../explain/stage.ts';
+import { paletteOf, paperOf } from '../explain/stage.ts';
 import { sceneIdOf } from '../explain/project.ts';
 import { REGIONS } from '../explain/look.ts';
-import { assertStepState, assertSteps, bindSnapshots, diagramFindings, diagramOf, loadProject, loadSnapshots, pictureWordsAt, takeMissingGlyphs, withSettings } from '../explain/testing.ts';
+import { assertStepState, assertSteps, diagramFindings, diagramOf, loadProject, loadSnapshots, pictureWordsAt, withSettings } from '../explain/testing.ts';
+import { bindSnapshots } from '../explain/internal.ts';
+import { takeMissingGlyphs } from '../src/fonts.ts';
 import FontMetrics from '../scenes/explainers/font-metrics/scene.ts';
 import GreekLettering from './fixtures/lettering/scene.ts';
 import { edgePartOf, diagramKey, snapshotResolver, useDiagrams, diagramResolverOf, RENDERER } from '../explain/diagram-snapshot.ts';
@@ -64,7 +66,7 @@ test('a stage with no style takes its first diagram’s paper; hidden parts stay
       const s = stage(this);
       await this.step('frame');
       const d = await s.show(spec, { build: 'frame' });
-      assert.equal(s.backdrop.style.fill, '#123456');
+      assert.equal(paperOf(this), '#123456');
       // The camera can frame a part that is not drawn yet without drawing it.
       await d.enlarge(['A']);
       assert.ok(!this.familyMembers().some((m) => m.key === 'A'));
@@ -113,10 +115,10 @@ test('a stage with no style adopts only its first diagram’s palette: a second 
       const s = stage(this);
       await this.step('one', { title: 'Two diagrams' });
       await s.show(spec, { box: 'left' });
-      const adopted = { paper: s.backdrop.style.fill, heading: s.heading.style.fill, colors: { ...this.colors }, palette: paletteOf(this) };
+      const adopted = { paper: paperOf(this), heading: s.heading.style.fill, colors: { ...this.colors }, palette: paletteOf(this) };
       assert.equal(adopted.paper, '#123456');
       await s.show(other, { box: 'right' });
-      assert.equal(s.backdrop.style.fill, adopted.paper, 'the backdrop keeps the first diagram’s paper');
+      assert.equal(paperOf(this), adopted.paper, 'the backdrop keeps the first diagram’s paper');
       assert.equal(s.heading.style.fill, adopted.heading, 'the heading keeps its ink');
       assert.deepEqual(this.colors, adopted.colors, 'engine defaults keep the first palette');
       assert.deepEqual(paletteOf(this), adopted.palette);
@@ -900,9 +902,9 @@ test('the explain entry point exports exactly its documented names', async () =>
   ]);
   // The tooling went to rayner/testing.
   assert.deepEqual(Object.keys(await import('../explain/testing.ts')).sort(), [
-    'InvariantSink', 'MotionSink', 'TraceSink', 'analyzeMotion', 'assertStepState', 'assertSteps', 'assertViewFollowsState', 'bindSnapshots', 'describeExplainer',
+    'InvariantSink', 'TraceSink', 'assertStepState', 'assertSteps', 'assertViewFollowsState', 'describeExplainer',
     'diagramFindings', 'diagramOf', 'jsonObject', 'loadFonts',
-    'loadProject', 'loadSnapshots', 'machinesOf', 'pictureWordsAt', 'scenarioName', 'scenariosOf', 'takeMissingGlyphs', 'traceScene', 'viewMismatch', 'withIntent', 'withSettings',
+    'loadProject', 'loadSnapshots', 'pictureWordsAt', 'traceScene', 'withIntent', 'withSettings',
   ]);
 });
 

@@ -5,6 +5,8 @@
 import { join } from 'node:path';
 import { Scene, MoveAlongPath, Rectangle, Circle, Arrow, Line, Dot, Text, Code, DecimalNumber, FadeIn, FadeOut, Create, Transform, LaggedStart } from '../../src/index.ts';
 import { Indicate } from './transient.ts';
+import { NEUTRAL_COLORS } from '../../src/color.ts';
+import { followScene } from '../../src/mobject.ts';
 import type { Box, Mobject, SceneClass } from '../../src/index.ts';
 import { labelOf } from '../../explain/labels.ts';
 import { Card } from '../../explain/panels.ts';
@@ -30,7 +32,10 @@ export class Fixture extends Scene {
     await this.step('code', { caption: 'A loop appears and its condition is lit.' });
     const code = new Code(['let count = 0;', 'while (count < 3) count++;', 'return count;']).moveTo([-3.5, -2]);
     await this.play(new FadeIn(code, { shift: [0.3, 0] }));
-    const bar = code.highlight(1);
+    // A translucent bar behind the condition's line, in the scene's emphasis colour.
+    const bar = new Rectangle({ width: code.width() + 0.3, height: code.lines[1]!.height() * 1.45, cornerRadius: 0.06, fill: NEUTRAL_COLORS.emphasis, fillOpacity: 0.18, stroke: 'none' });
+    followScene(bar, { fill: 'emphasis' });
+    bar.moveTo([code.center()[0], code.lines[1]!.center()[1]]);
     await this.play(new FadeIn(bar));
 
     await this.step('count', { caption: 'The counter rises while a dot rides the track.' });

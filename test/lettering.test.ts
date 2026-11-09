@@ -19,7 +19,7 @@ import { renderFrame } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { useLettering, withLettering, takeLetteringMissing } from '../src/lettering.ts';
-import { takeMissingGlyphs as takeEmbeddedMissing } from '../explain/testing.ts';
+import { takeMissingGlyphs as takeEmbeddedMissing } from '../src/fonts.ts';
 import { loadFont } from '../vendor/glyph.js';
 
 const folder = await mkdtemp(join(tmpdir(), 'rayner-lettering-'));

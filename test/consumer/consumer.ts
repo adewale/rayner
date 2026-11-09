@@ -31,7 +31,6 @@ import type { Hunk, TransformDiffOptions, Evidence, ColorSpan, CodeSpan, Step } 
 import type { RenderOptions } from 'rayner/output';
 import type { StepRecord } from 'rayner/testing';
 import { Frame, Axes, NumberLine, Brace, Circumscribe, SurroundingRectangle, AnimationGroup, Succession } from 'rayner';
-import { viewMismatch } from 'rayner/testing';
 import type { FrameFitOptions, AxesOptions, NumberLineOptions, PlotOptions, BraceOptions, CircumscribeOptions } from 'rayner';
 import type { SyncOptions } from 'rayner/explain';
 import { palette } from 'rayner/explain';
@@ -103,7 +102,6 @@ export class Tour extends Scene {
     this.state = { n: 2 };
     const syncing: Action = readout.sync(sync);
     await syncing;
-    const mismatch: string | null = viewMismatch(readout, this.state);
     const axesOpts: AxesOptions = { xRange: [0, 4, 1], yRange: [0, 2, 1] };
     const axes = new Axes(axesOpts);
     const lineOpts: NumberLineOptions = { range: [0, 4, 1] };
@@ -117,7 +115,7 @@ export class Tour extends Scene {
     code.saveState();
     await this.play(new Succession([new TransformFromCopy(code, new Code(['n = 2;']).shift([0, -1])), new Restore(code)]));
     this.onStep((s: Step) => s.name);
-    this.addJson(() => ({ frame: frame.width(), mismatch }));
+    this.addJson(() => ({ frame: frame.width() }));
   }
 }
 
@@ -216,7 +214,7 @@ export async function publicCollection(scene: Scene): Promise<void> {
   // A diagram part's shapes and labels, addressed by the part's id rather than by child index.
   const outline = plan.shapes('A')[0], words: string | undefined = plan.labels('A')[0]?.text;
   const look: Look = s.look;
-  void [panel, plan.get('A'), outline, words, look.muted, s.backdrop, plan.emphasis];
+  void [panel, plan.get('A'), outline, words, look.muted, plan.emphasis];
 }
 
 // The rest of what the collection's scenes import, and the members they use, written as an outside

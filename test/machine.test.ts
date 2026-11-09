@@ -8,7 +8,8 @@ import { Scene, Text, Group, Rectangle, Transform, Animation, AnimationGroup, Su
 import type { Mobject } from '../src/index.ts';
 import { NullSink, StringSink, renderFrame } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
-import { machinesOf, TraceSink, traceScene, loadFonts } from '../explain/testing.ts';
+import { TraceSink, traceScene, loadFonts } from '../explain/testing.ts';
+import { machinesOf } from '../explain/internal.ts';
 import { stage, Machine, refuse, isRefusal, view } from '../explain/index.ts';
 import { SetState } from '../explain/state.ts';
 import { exploreMachines } from '../tools/lib/explain-check.ts';

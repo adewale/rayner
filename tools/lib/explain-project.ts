@@ -1,6 +1,6 @@
 import { textContextOf, usesOutlineLettering, withSceneLettering, dryRun, takeLetteringMissing } from '../../src/internal.ts';
 import type { LetteringSnapshot } from '../../src/internal.ts';
-import { diagramsOn, liveSteps, paperOf, paletteOf, checkWatch, adoptExplainer, readSnapshotStore, sceneIdOf, scriptOf, traceScenarios, checkScriptMeta, checkClaimsMeta, diagramKey, RENDERER } from '../../explain/internal.ts';
+import { diagramsOn, liveSteps, paperOf, paletteOf, checkWatch, adoptExplainer, readSnapshotStore, sceneIdOf, scriptOf, traceScenarios, checkScriptMeta, checkClaimsMeta, diagramKey, RENDERER, scenariosOf, bindSnapshots, scenarioName } from '../../explain/internal.ts';
 import type { Live } from '../../explain/internal.ts';
 import type { DiagramResolver } from '../../explain/index.ts';
 import type { Palette } from '../../src/index.ts';
@@ -17,7 +17,7 @@ import { NullSink } from '../../src/output.ts';
 import type { Trace } from '../../explain/testing.ts';
 
 import { resolveSettings } from '../../explain/index.ts';
-import { scenariosOf, withSettings, bindSnapshots, scenarioName } from '../../explain/testing.ts';
+import { withSettings } from '../../explain/testing.ts';
 import type { ExplainerClass, SnapshotStore, Settings } from '../../explain/index.ts';
 import { lostLabelWarnings } from './explain-warnings.ts';
 import { letteringRequest, prepareLettering, useProjectLettering } from './explain-lettering.ts';

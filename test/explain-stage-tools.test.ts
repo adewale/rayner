@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Rectangle, Group, VMobject, Text, keyed } from '../src/index.ts';
 import { NullSink, StringSink, renderFrame, toSvgString } from '../src/output.ts';
-import { MotionSink, analyzeMotion } from '../explain/testing.ts';
+import { MotionSink, analyzeMotion } from '../src/internal.ts';
 import type { Box, Mobject, Vec } from '../src/index.ts';
 import { stage } from '../explain/index.ts';
 import { dimension, pin, callout } from '../explain/drawing.ts';
@@ -52,7 +52,7 @@ test('a step line sits under a numbered title; a line too wide for one line fail
       assert.ok(line.box()![1] >= 3.25);
       // The heading and its parts draw over anything added later.
       this.add(new Rectangle({ width: 2, height: 2 }));
-      assert.ok(this.mobjects.indexOf(s.heading) > this.mobjects.findIndex((m) => m instanceof Rectangle && m.key == null && m !== s.backdrop));
+      assert.ok(this.mobjects.indexOf(s.heading) > this.mobjects.findIndex((m) => m instanceof Rectangle && m.key == null && m.role !== 'backdrop'));
     }
   }
   await new Lined(new NullSink()).run();
