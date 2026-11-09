@@ -2,8 +2,7 @@ import assert from 'node:assert/strict';
 import type { Trace } from '../../../explain/testing.ts';
 import { Text } from '../../../src/index.ts';
 import type { VMobject } from '../../../src/index.ts';
-import { loadFonts } from '../../../explain/testing.ts';
-import { assertStepState } from '../../../test/lib/explainer-state.ts';
+import { loadFonts, assertStepState } from '../../../explain/testing.ts';
 
 /** Each authored scenario's steps against the program the explainer explains. */
 export async function check(trace: Trace, values: Record<string, string>): Promise<void> {

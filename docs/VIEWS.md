@@ -184,12 +184,12 @@ is not on screen adds it abruptly.
 ## The fidelity check: the picture side
 
 `specs/rayner.md` asks for a named pattern: "a scene's state at each step must
-equal the program's". `test/explain-fidelity.test.ts` checks the state side with
-`assertStepState` (`test/lib/explainer-state.ts`). A View adds the picture side:
+equal the program's". `assertStepState` in `rayner/testing` checks the state side.
+A View adds the picture side, `assertViewFollowsState`, also in `rayner/testing`:
 **at the end of every step, the View shows what the traced state draws.**
 
 ```ts
-import { assertViewFollowsState } from './lib/view-fidelity.ts';
+import { assertViewFollowsState } from 'rayner/testing';
 
 // Runs the scene once. At each step's end it compares view.texts with draw(step.after, step.shown).
 await assertViewFollowsState(Ring, (scene) => (scene as Ring).readout);

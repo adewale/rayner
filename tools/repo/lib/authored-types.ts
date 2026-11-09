@@ -1,7 +1,8 @@
-// Every explainer and recipe as an outside author's project holds it, type-checked against an
-// installed rayner's published declarations (npm run pack:smoke). The repository checks scenes
-// against the engine's .ts source, where an @internal member is still visible; the packed .d.ts
-// leaves it out (stripInternal), so a scene that uses an implementation detail fails here.
+// Every explainer, its tests and every recipe as an outside author's project holds them, type-checked
+// against an installed rayner's published declarations (npm run pack:smoke). The repository checks
+// scenes against the engine's .ts source, where an @internal member is still visible; the packed .d.ts
+// leaves it out (stripInternal), so a scene or a scene's test that uses an implementation detail, or
+// reaches a module no entry point exports, fails here.
 import { execFile } from 'node:child_process';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -19,6 +20,16 @@ export const authorSource = (file: string): boolean =>
   file.endsWith('.ts') && !file.endsWith('.test.ts') && !/(^|\/)fidelity\.ts$/.test(file) && !/(^|\/)oracle\//.test(file) &&
   file !== 'explainers/lib/pbt.ts' && file !== 'explainers/catalog.ts';
 
+/**
+ * What a folder's tests may import beside the scene's source: the tests themselves, the oracles and
+ * fixtures they read, the shared property-test settings, and a fidelity check that is written as an
+ * outside author could write it. A fidelity check the repository's own harness types
+ * (test/lib/fidelity.ts) stays out, so a test that imports one fails.
+ */
+const testSource = async (root: string, file: string): Promise<boolean> =>
+  file.endsWith('.ts') && !authorSource(file) && file !== 'explainers/catalog.ts' &&
+  !(/(^|\/)fidelity\.ts$/.test(file) && (await readFile(join(root, 'scenes', file), 'utf8')).includes('test/lib/'));
+
 const options = {
   target: 'es2022', module: 'nodenext', moduleResolution: 'nodenext', lib: ['es2023', 'dom', 'dom.iterable'],
   strict: true, noUncheckedIndexedAccess: true, noImplicitOverride: true, noFallthroughCasesInSwitch: true,
@@ -27,31 +38,39 @@ const options = {
 };
 
 /**
- * Copy scenes/ (each explainer and tutorial scene, with the collection's shared modules) and recipes/
- * from `root` into `project`/authored, engine imports rewritten to the package's entry points, and
- * type-check both with `tsc` against the rayner installed in `project`. Recipes run in Node, so they
- * see Node's types, from `root`'s @types/node; scenes see none. Throws with tsc's report on an error.
+ * Copy scenes/ (each explainer and tutorial scene, with the collection's shared modules and each
+ * folder's tests) and recipes/ from `root` into `project`/authored, engine imports rewritten to the
+ * package's entry points, and type-check them with `tsc` against the rayner installed in `project`.
+ * Scenes see no Node types; their tests and the recipes run in Node, so they see Node's, from
+ * `root`'s @types/node, and the tests' own packages (fast-check, Agentic Mermaid) from `root`.
+ * Throws with tsc's report on an error.
  */
-export async function typeCheckAuthored(root: string, project: string, tsc: string): Promise<{ scenes: number; recipes: number }> {
+export async function typeCheckAuthored(root: string, project: string, tsc: string): Promise<{ scenes: number; tests: number; recipes: number }> {
   const out = join(project, 'authored');
   const copy = async (from: string, to: string) => {
     await mkdir(dirname(to), { recursive: true });
     await writeFile(to, packageImports(await readFile(from, 'utf8'), root));
   };
-  const scenes = (await readdir(join(root, 'scenes'), { recursive: true })).map((f) => f.replaceAll('\\', '/')).filter(authorSource).sort();
-  for (const file of scenes) await copy(join(root, 'scenes', file), join(out, 'scenes', file));
+  const all = (await readdir(join(root, 'scenes'), { recursive: true })).map((f) => f.replaceAll('\\', '/')).sort();
+  const scenes = all.filter(authorSource), support: string[] = [];
+  for (const file of all) if (await testSource(root, file)) support.push(file);
+  for (const file of [...scenes, ...support]) await copy(join(root, 'scenes', file), join(out, 'scenes', file));
+  const tests = support.filter((f) => f.endsWith('.test.ts'));
   const recipes = (await readdir(join(root, 'recipes'))).filter((f) => f.endsWith('.ts')).sort();
   for (const file of recipes) await copy(join(root, 'recipes', file), join(out, 'recipes', file));
-  await writeFile(join(out, 'tsconfig.scenes.json'), JSON.stringify({ compilerOptions: { ...options, types: [] }, include: ['scenes/**/*.ts'] }));
-  await writeFile(join(out, 'tsconfig.recipes.json'), JSON.stringify({
-    compilerOptions: { ...options, types: ['node'], typeRoots: [join(root, 'node_modules/@types')] }, include: ['recipes/*.ts'],
+  const node = { types: ['node'], typeRoots: [join(root, 'node_modules/@types')] };
+  await writeFile(join(out, 'tsconfig.scenes.json'), JSON.stringify({ compilerOptions: { ...options, types: [] }, include: ['scenes/**/*.ts'], exclude: support.map((f) => `scenes/${f}`) }));
+  await writeFile(join(out, 'tsconfig.tests.json'), JSON.stringify({
+    compilerOptions: { ...options, ...node, resolveJsonModule: true, paths: Object.fromEntries(['fast-check', 'agentic-mermaid', 'agentic-mermaid/*'].map((name) => [name, [join(root, 'node_modules', name)]])) },
+    include: tests.map((f) => `scenes/${f}`),
   }));
-  for (const config of ['tsconfig.scenes.json', 'tsconfig.recipes.json'])
+  await writeFile(join(out, 'tsconfig.recipes.json'), JSON.stringify({ compilerOptions: { ...options, ...node }, include: ['recipes/*.ts'] }));
+  for (const config of ['tsconfig.scenes.json', 'tsconfig.tests.json', 'tsconfig.recipes.json'])
     try {
       await run(tsc, ['-p', config], { cwd: out, maxBuffer: 16 * 1024 * 1024 });
     } catch (error) {
       const { stdout = '', stderr = '' } = error as { stdout?: string; stderr?: string };
       throw new Error(`${config}: the collection does not type-check against the packed rayner's declarations:\n${stdout}${stderr}`);
     }
-  return { scenes: scenes.length, recipes: recipes.length };
+  return { scenes: scenes.length, tests: tests.length, recipes: recipes.length };
 }

@@ -1,5 +1,5 @@
 import type { Trace } from '../../../explain/testing.ts';
-import { assertStepState } from '../../../test/lib/explainer-state.ts';
+import { assertStepState } from '../../../explain/testing.ts';
 import assert from 'node:assert/strict';
 import { CRITERIA, LEVELS, VERSIONS, change, criteria, opened, tally } from './model.ts';
 import type { Level, Version } from './model.ts';

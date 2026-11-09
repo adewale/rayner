@@ -1,9 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { parseRegisteredMermaid } from 'agentic-mermaid';
+import { mutate, serializeMermaid } from 'agentic-mermaid/agent';
+import type { AnyMutationOp } from 'agentic-mermaid/agent';
 import { fc, params } from '../lib/pbt.ts';
 import { SAMPLE_FEED } from './feed.ts';
-import { parseCsv, readFeed, serviceOn, servicesOn, tripsOn, visitsAt, stopDay, weekday, addDays, seconds, clock, weekGrid, WEEKDAYS } from './model.ts';
+import { parseCsv, readFeed, serviceOn, servicesOn, tripsOn, visitsAt, stopDay, weekday, addDays, seconds, clock, weekGrid, WEEKDAYS, dayChart, ganttSource, ganttEdits } from './model.ts';
 import type { Feed, GtfsDate } from './model.ts';
 
 const FEED = readFeed(SAMPLE_FEED);
@@ -254,3 +257,32 @@ test('CSV: quoted fields keep their commas, quotes and line breaks', () => {
   );
 });
 
+/** Apply the day chart's edits with Agentic Mermaid's own mutate; true when the result serializes as `to`'s chart does. */
+function replays(from: GtfsDate, to: GtfsDate): boolean {
+  const parsed = parseRegisteredMermaid(ganttSource(FEED, from)),
+    target = parseRegisteredMermaid(ganttSource(FEED, to));
+  assert.ok(parsed.ok && target.ok);
+  let model = parsed.value;
+  for (const op of ganttEdits(FEED, from, to)) {
+    const r = mutate(model, op as unknown as AnyMutationOp);
+    assert.ok(r.ok, JSON.stringify(op));
+    model = r.value;
+  }
+  return serializeMermaid(model) === serializeMermaid(target.value);
+}
+
+test('the day chart’s edits, replayed by Agentic Mermaid, turn any day’s chart into any other’s', () => {
+  // The scene's three scenarios, then a sample of other pairs of dates.
+  for (const date of ['20070604', '20070605', '20070609'])
+    assert.ok(replays(addDays(date, -1), date), date);
+  fc.assert(
+    fc.property(ymd, ymd, (a, b) => {
+      assert.ok(replays(a, b), `${a} to ${b}`);
+      // Two edits per trip whose running changes, none for the others.
+      const changed = FEED.trips.filter((t) => tripsOn(FEED, a).includes(t) !== tripsOn(FEED, b).includes(t)).length;
+      assert.equal(ganttEdits(FEED, a, b).length, 2 * changed);
+      assert.equal(dayChart(FEED, b).flatMap((s) => s.trips).filter((t) => t.runs).length, tripsOn(FEED, b).length);
+    }),
+    params(40),
+  );
+});

@@ -109,7 +109,7 @@ test('the table is read as written: a module left out of it, or placed twice, is
   assert.ok(!core(doc.replace('`machine.ts`, ', '')).includes('machine.ts'), 'a module dropped from the doc is no longer placed');
   const twice = layerTable(doc.replace('`explain/panels.ts` |', '`explain/panels.ts`, `view.ts` |')).flatMap((r) => r.modules);
   assert.ok(twice.filter((m) => m === 'view.ts').length === 2, 'a module written in two rows is read twice');
-  assert.deepEqual(layerTable(doc).find((r) => r.layer === 'Author tooling')!.modules, ['describe.ts', 'project.ts', 'testing.ts'], 'the engine\'s src/testing.ts is not an explain module');
+  assert.deepEqual(layerTable(doc).find((r) => r.layer === 'Author tooling')!.modules, ['describe.ts', 'project.ts', 'test-helpers.ts', 'testing.ts'], 'the engine\'s src/testing.ts is not an explain module');
 });
 
 test('the engine imports nothing outside src/ but its vendored shaper', () => {

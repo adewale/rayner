@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../explain/testing.ts';
-import {assertStepState} from '../../../test/lib/explainer-state.ts';
-import {assertSteps} from '../../../test/lib/steps.ts';
+import { assertStepState, assertSteps } from '../../../explain/testing.ts';
 import {monty,montyExample,threeDoorWorlds,threeDoorCells,oddsAfter,roundStart,roundNext} from './model.ts';
 import type {Host,Round,RoundEvent} from './model.ts';
 

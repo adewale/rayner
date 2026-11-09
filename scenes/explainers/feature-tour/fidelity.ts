@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type { TraceOf } from '../../../explain/testing.ts';
 import { having } from '../../../explain/index.ts';
 import type FeatureTour from './scene.ts';
-import { assertStepState } from '../../../test/lib/explainer-state.ts';
+import { assertStepState } from '../../../explain/testing.ts';
 import type { FidelityRun } from '../../../test/lib/fidelity.ts';
 
 /** Each authored scenario's steps against the program the explainer explains. */

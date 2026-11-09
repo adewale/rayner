@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import type { TraceOf } from '../../../explain/testing.ts';
 import { having } from '../../../explain/index.ts';
-import { assertStepState } from '../../../test/lib/explainer-state.ts';
+import { assertStepState } from '../../../explain/testing.ts';
 import { raceLifetimes, racePage, raceReplay } from './model.ts';
 import type { RaceState } from './model.ts';
 import type LatestSearchExplainer from './scene.ts';

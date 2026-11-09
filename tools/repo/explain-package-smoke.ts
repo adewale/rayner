@@ -133,10 +133,11 @@ try {
   await copyFile(join(ROOT, 'test/consumer/consumer.ts'), join(folder, 'consumer.ts'));
   await copyFile(join(ROOT, 'test/consumer/tsconfig.json'), join(folder, 'tsconfig.json'));
   await run(join(folder, 'node_modules/.bin/tsc'), ['-p', 'tsconfig.json'], { cwd: folder });
-  // Every explainer and recipe, its engine imports rewritten to the entry points, type-checks against
-  // the packed declarations, where @internal members are left out.
+  // Every explainer, its tests and every recipe, engine imports rewritten to the entry points, type-check
+  // against the packed declarations, where @internal members are left out.
   const authored = await typeCheckAuthored(ROOT, folder, join(folder, 'node_modules/.bin/tsc'));
-  assert.ok(authored.scenes > 100 && authored.recipes >= 5, `type-checked only ${authored.scenes} scene files and ${authored.recipes} recipes`);
+  assert.ok(authored.scenes > 100 && authored.tests > 60 && authored.recipes >= 5,
+    `type-checked only ${authored.scenes} scene files, ${authored.tests} tests and ${authored.recipes} recipes`);
 
   await run(process.execPath, [cli, 'init', 'first'], { cwd: folder });
   // The starter is the tutorial's LRU/MRU explainer. Its model test runs as the tutorial says,
@@ -409,7 +410,7 @@ try {
   assert.match(walked, /^After A B C D, request: C D C D · rest: .+\n  changed: .*\bHits\b/m);
 
   console.log(
-    'Package gate passed: rayner alone with no dependencies, its entry points the only modules it exports; both tested archives installed with diagram and PNG authoring, installed TypeScript consumer, every explainer and recipe type-checked against the packed declarations, executable JS bin, external native author, settings, checks, see, build, optional score audio, describeExplainer and its REFERENCE example, notices, lettering on request, one compiled engine' +
+    'Package gate passed: rayner alone with no dependencies, its entry points the only modules it exports; both tested archives installed with diagram and PNG authoring, installed TypeScript consumer, every explainer, its tests and every recipe type-checked against the packed declarations, executable JS bin, external native author, settings, checks, see, build, optional score audio, describeExplainer and its REFERENCE example, notices, lettering on request, one compiled engine' +
       (process.env.EXPLAIN_LETTERING === '1' ? ', installed Arabic and maths capture' : '') +
       (process.env.EXPLAIN_BROWSER ? ', installed diagram capture' : '') +
       '.',

@@ -1,8 +1,7 @@
 import { test } from 'node:test';
 import type { View } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
-import { assertViewFollowsState } from '../../../test/lib/view-fidelity.ts';
-import { withSettings, loadFonts } from '../../../explain/testing.ts';
+import { withSettings, loadFonts, assertViewFollowsState } from '../../../explain/testing.ts';
 import TokenBucketExplainer from './scene.ts';
 import { TokenBucket } from './model.ts';
 import { readFileSync } from 'node:fs';
