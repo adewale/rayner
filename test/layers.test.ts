@@ -181,6 +181,7 @@ const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
   'Scene.drawFrame': { files: ['explain/live.ts'], why: 'a live run draws its landing frames between plays, kept parts raised' },
   'Scene.keepOnTop': { files: ['explain/stage.ts'], why: 'the stage keeps its heading drawn last' },
   'Scene.stopAt': { files: ['explain/live.ts'], why: 'the run to a live step stops as the step ends' },
+  'Text.build': { files: ['explain/diagram-text.ts'], why: 'a captured label lays out its replayed run as a Text does' },
   'Text.frameBox': { files: ['explain/labels.ts'], why: "a label's size is its text's box" },
   'Text.run': { files: ['explain/diagram-text.ts', 'explain/labels.ts'], why: "a label's words are its text's runs, and a captured label sits on its text's baseline" },
   'Transform.sameStructure': { files: ['explain/view.ts'], why: 'a view morphs a picture of the same structure' },

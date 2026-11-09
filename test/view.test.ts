@@ -3,8 +3,7 @@
 // anchor, registers no updater (so seeks skip its frames), and the picture at
 // every step is what the state renders (the fidelity helper).
 import { test } from 'node:test';
-import { Square } from '../src/extras.ts';
-import type { Stage, SyncOpts } from '../explain/index.ts';
+import type { Stage, SyncOptions } from '../explain/index.ts';
 import { ViewSync } from '../explain/view.ts';
 import { view, having, stage } from '../explain/index.ts';
 import type { View } from '../explain/index.ts';
@@ -12,8 +11,10 @@ import { card } from '../explain/drawing.ts';
 import type { Card } from '../explain/drawing.ts';
 import assert from 'node:assert/strict';
 import { Scene, Group, Text, DecimalNumber, Rectangle, Circle, Animation, FadeIn, Succession } from '../src/index.ts';
-import { StringSink, SnapshotSink, renderFrame } from '../src/output.ts';
-import { MotionSink, analyzeMotion, perf, loadFonts, viewMismatch, assertViewFollowsState } from '../explain/testing.ts';
+import { StringSink, renderFrame } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
+import { MotionSink, analyzeMotion, loadFonts, viewMismatch, assertViewFollowsState } from '../explain/testing.ts';
+import { perf } from '../src/perf.ts';
 import type { Mobject, Sink, SceneState } from '../src/index.ts';
 import type { Vec } from '../src/index.ts';
 // Manim's values, which the package no longer exports.
@@ -23,7 +24,7 @@ const RIGHT: Vec = [1, 0];
 const held = (st: object = {}) => ({ state: st }) as unknown as Scene;
 
 /** The animation a view's sync action plays, for tests that read what it decided. */
-const syncOf = <M extends Mobject>(v: View<M>, opts?: SyncOpts) => new ViewSync<M>(v, opts);
+const syncOf = <M extends Mobject>(v: View<M>, opts?: SyncOptions) => new ViewSync<M>(v, opts);
 
 await loadFonts();
 Scene.captionWpm = Infinity;
@@ -71,7 +72,7 @@ class Ring extends Scene {
     await change('same', () => {});                                 // nothing changed: nothing moves
     await this.step('turns');
     // Built at its turn: the state the Mutate before it leaves, not the state now
-    const box = new Square({ side: 0.5 }).moveTo([4, -2]);
+    const box = new Rectangle({ width: 0.5, height: 0.5 }).moveTo([4, -2]);
     await this.play(new FadeIn(box), { runTime: 0.5 });
     const seq = new Succession([box.animate.shift(RIGHT), readout.sync({ match: 'text', staged: false }), new Mutate(() => { this.state.head = 2; this.state.len = 9; }), readout.sync({ match: 'text', staged: false })]);
     this.state.len = 11;
@@ -239,7 +240,7 @@ test('match: index morphs by position (a DecimalNumber counts), shapes and keys 
 
   // Shapes: the circle that stays pairs with itself, the square fades, a new one grows
   let kids = 2;
-  const g = view(held(), () => new Group(new Circle({ radius: 0.5 }), ...Array.from({ length: kids - 1 }, (_, i) => new Square({ side: 0.4 }).shift([i + 1, 0]))));
+  const g = view(held(), () => new Group(new Circle({ radius: 0.5 }), ...Array.from({ length: kids - 1 }, (_, i) => new Rectangle({ width: 0.4, height: 0.4 }).shift([i + 1, 0]))));
   const before = g.current;
   kids = 3;
   const sh = syncOf(g, { match: 'shapes' });
@@ -256,7 +257,7 @@ test('match: index morphs by position (a DecimalNumber counts), shapes and keys 
 
   // Your own key
   const fills = ['#ff0000', '#00ff00'];
-  const k = view(held(), () => new Group(...fills.map((f, i) => new Square({ side: 0.4, fill: f, fillOpacity: 1 }).shift([i, 0]))));
+  const k = view(held(), () => new Group(...fills.map((f, i) => new Rectangle({ width: 0.4, height: 0.4, fill: f, fillOpacity: 1 }).shift([i, 0]))));
   fills.reverse();
   const ks = syncOf(k, { match: (p) => p.style.fill });
   ks.begin(); ks.finish();
@@ -265,7 +266,7 @@ test('match: index morphs by position (a DecimalNumber counts), shapes and keys 
 
 test('sync() matches by key, staged, and refuses pictures that carry no keys', () => {
   let n = 1;
-  const keyed = view(held(), () => new Group(...Array.from({ length: n }, (_, i) => { const sq = new Square({ side: 0.4 }).shift([i, 0]); sq.key = `cell-${i}`; return sq; })));
+  const keyed = view(held(), () => new Group(...Array.from({ length: n }, (_, i) => { const sq = new Rectangle({ width: 0.4, height: 0.4 }).shift([i, 0]); sq.key = `cell-${i}`; return sq; })));
   n = 2;
   const sync = syncOf(keyed);
   assert.equal(sync.match, 'key');
@@ -274,7 +275,7 @@ test('sync() matches by key, staged, and refuses pictures that carry no keys', (
   assert.deepEqual(sync.summary(), { matched: 1, morphed: 0, removed: 0, added: 1 });
   assert.equal(syncOf(keyed, { match: 'text' }).staged, true, 'staged is the default for every match');
 
-  const plain = view(held(), () => new Group(...Array.from({ length: n }, (_, i) => new Square({ side: 0.4 }).shift([i, 0]))));
+  const plain = view(held(), () => new Group(...Array.from({ length: n }, (_, i) => new Rectangle({ width: 0.4, height: 0.4 }).shift([i, 0]))));
   n = 3;
   assert.throws(() => syncOf(plain).begin(), /carry no keys below their roots.*\{ match: 'text' \}, 'shapes' or 'index'/);
 });

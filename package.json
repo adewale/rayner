@@ -54,10 +54,6 @@
       "types": "./dist/explain/geo.d.ts",
       "default": "./dist/explain/geo.js"
     },
-    "./extras": {
-      "types": "./dist/src/extras.d.ts",
-      "default": "./dist/src/extras.js"
-    },
     "./output": {
       "types": "./dist/src/output.d.ts",
       "default": "./dist/src/output.js"

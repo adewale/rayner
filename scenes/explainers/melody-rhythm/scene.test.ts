@@ -64,6 +64,7 @@ test('both piano rolls put every played pitch, onset and duration at its stated 
   for (const scenario of p.scenarios)
     await new scenario.Scene(
       {
+        skipUntil: Infinity,
         async frame() {},
         async stepEnd(scene, step) {
           const flat = step.name === 'rhythm';
@@ -90,7 +91,6 @@ test('both piano rolls put every played pitch, onset and duration at its stated 
           pictures++;
         },
       },
-      { skipUntil: Infinity },
     ).run();
   // Four steps in each of two scenarios, sixteen notes a picture (timing merged into bar, phrase cut).
   assert.equal(pictures, 8);

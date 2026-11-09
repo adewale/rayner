@@ -1,8 +1,8 @@
 import { StateScope, wait } from './embed-scope.ts';
 import { renderFrame } from '../src/output.ts';
 import { traceRun, isHex, canonicalJson, STAGE_BOX } from '../src/internal.ts';
-import type { Palette } from '../explain/index.ts';
-import { stillFrame, bindSnapshots, withSettings } from '../explain/testing.ts';
+import type { Palette } from '../src/index.ts';
+import { bindSnapshots, withSettings } from '../explain/testing.ts';
 import { settingsProblem, stepQuery, PAGE_QUERY, pictureChange, pictureHtml, pictureSummary, stepWords, paletteOf, paperOf, offPath, liveBase, liveSteps, runLive } from '../explain/internal.ts';
 import type { Live, LiveDraw, LivePlace, LiveRun, LogStart } from '../explain/internal.ts';
 import type { SceneClass, SceneOptions, Sink } from '../src/index.ts';
@@ -48,6 +48,8 @@ function feeding(Scene: SceneClass, also: LayoutSink): SceneClass {
   return class extends Scene {
     constructor(sink: Sink, opts?: SceneOptions) {
       super({
+        // The run's own sink says which frames are drawn (a trace's, none).
+        get skipUntil() { return sink.skipUntil; },
         frame: (scene, dt) => sink.frame(scene, dt),
         ...(sink.stepBegin ? { stepBegin: (scene, step) => sink.stepBegin!(scene, step) } : {}),
         async stepEnd(scene, step) {
@@ -1274,7 +1276,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         index, scope, sink,
         frame0: step.frame0,
         // Stop when the picture stops: the reader sets the pace instead of waiting through the caption-reading hold.
-        still: stillFrame(step),
+        still: step.holdFrame ?? step.frame1,
         frame1: step.frame1,
         container,
         /** Frames drawn so far: the first is drawn at dt 0, as the picture the step starts from. */

@@ -5,6 +5,7 @@ import * as drawing from '../explain/drawing.ts';
 import { readFileSync } from 'node:fs';
 import { stage } from '../explain/index.ts';
 import type { Box } from '../src/index.ts';
+import { Text } from '../src/index.ts';
 
 test('rayner/drawing exports exactly the kit, and package.json publishes it', () => {
   assert.deepEqual(Object.keys(drawing).sort(), ['bars', 'callout', 'card', 'code', 'dimension', 'dot', 'emphasised', 'flow', 'keyed', 'keyedParts', 'label', 'legend', 'pin', 'segment', 'stat', 'table', 'tile']);
@@ -44,7 +45,7 @@ test('keyed sets a key and returns the mobject; segment and dot take keys like t
   const t = drawing.table(s, ['A'], [['x']], { columns: [0], at: [2, 1], key: 't' });
   assert.ok(Math.abs(t.find('t:head:A')!.center()[0] - 2) < 1e-6 && Math.abs(t.find('t:head:A')!.center()[1] - 1) < 1e-6);
   // Kit text takes the scene's shaping, as the scene's own text does.
-  assert.equal(drawing.label(s, 'x').shaping, s.scene.text('x').shaping);
+  assert.equal(drawing.label(s, 'x').shaping, new Text('x', { shaping: s.scene.textShaping }).shaping);
 });
 
 test('keyedParts keys each part in order, groups them, and refuses a key used twice', async () => {

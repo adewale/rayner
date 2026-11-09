@@ -125,7 +125,7 @@ test('trust-proxy range subjects contain both settings and all six independently
     const targets = (await storyFrames(scenario.Scene, applicable)).get('ranges')!.targets.map(t => t.name);
     for (const key of ['ranges-current', 'ranges-alternative', 'service:edge', 'service:balancer']) assert.ok(targets.includes(key));
     let checked = false;
-    await new scenario.Scene({ async frame() {}, async stepEnd(scene, step) {
+    await new scenario.Scene({ skipUntil: Infinity, async frame() {}, async stepEnd(scene, step) {
       if (step.name !== 'ranges') return;
       checked = true;
       for (const [key, setting] of [['ranges-current', scenario.values.trust], ['ranges-alternative', scenario.values.trust === 'list' ? '2' : 'list']]) {
@@ -135,7 +135,7 @@ test('trust-proxy range subjects contain both settings and all six independently
         assert.ok(texts.includes(titles[setting!]!), `${key} setting: ${texts.join('; ')}`);
         for (const answer of answers[setting!]!) assert.ok(texts.includes(answer), `${key}: ${answer}`);
       }
-    } }, { skipUntil: Infinity }).run();
+    } }).run();
     assert.ok(checked);
   }
 });

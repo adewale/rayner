@@ -1,10 +1,8 @@
 import { test } from 'node:test';
-import type { MoveAlongPathOpts } from '../src/extras.ts';
-import { MoveAlongPath } from '../src/extras.ts';
 import assert from 'node:assert/strict';
-import { Scene, Rectangle, Circle, FadeIn, FadeOut, Transform, Create, Line, linear, thereAndBack } from '../src/index.ts';
+import { Scene, MoveAlongPath, Rectangle, Circle, FadeIn, FadeOut, Transform, Create, Line, linear, thereAndBack } from '../src/index.ts';
 import { MotionSink, analyzeMotion } from '../explain/testing.ts';
-import type { Vec } from '../src/index.ts';
+import type { Vec, MoveAlongPathOptions } from '../src/index.ts';
 // Manim's values, which the package no longer exports.
 const RIGHT: Vec = [1, 0];
 
@@ -38,7 +36,7 @@ test('flags a teleport between plays', async () => {
 });
 
 test('MoveAlongPath from off the path: snapping is a teleport, the default blends in', async () => {
-  const ride = (opts: MoveAlongPathOpts) => run(async (s) => {
+  const ride = (opts: MoveAlongPathOptions) => run(async (s) => {
     const r = new Rectangle({ width: 0.5, height: 0.5 }); await s.play(new FadeIn(r));
     await s.play(new MoveAlongPath(r, new Line([4, 2], [6, 2]), opts));  // path starts far from r
   });

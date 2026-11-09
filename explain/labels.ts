@@ -4,7 +4,7 @@
 // without diagram code still carries this module, and none of explain/diagrams.ts.
 
 import { Group, Text, VMobject } from '../src/index.ts';
-import type { Mobject, PathFunc, Vec } from '../src/index.ts';
+import type { Mobject, Vec } from '../src/index.ts';
 import type { TextShaping } from '../src/text-context.ts';
 import { SVG_PX_PER_UNIT } from './diagram-snapshot.ts';
 import type { SnapshotShape } from './diagram-snapshot.ts';
@@ -87,8 +87,8 @@ export class ImportedLabel extends Group implements LabelInfo {
     return frame;
   }
   /** @internal */
-  override interpolateData(a: Mobject, b: Mobject, alpha: number, pathFunc: PathFunc | null): void {
-    super.interpolateData(a, b, alpha, pathFunc);
+  override interpolateData(a: Mobject, b: Mobject, alpha: number): void {
+    super.interpolateData(a, b, alpha);
     if (a instanceof ImportedLabel && (b instanceof ImportedLabel || b instanceof Text)) {
       if (b instanceof Text) {
         // Text's advance frame is a different kind of point data. Only this
@@ -96,8 +96,7 @@ export class ImportedLabel extends Group implements LabelInfo {
         const target = emFrame(b.center(), ...nativeEmBasis(b));
         for (let i = 0; i < this.basis.length; i += 2) {
           const from: Vec = [a.basis[i]!, a.basis[i + 1]!], to: Vec = [target[i]!, target[i + 1]!];
-          const point = pathFunc ? pathFunc(from, to, alpha) :
-            alpha === 0 ? from : alpha === 1 ? to : [from[0] + (to[0] - from[0]) * alpha, from[1] + (to[1] - from[1]) * alpha];
+          const point = alpha === 0 ? from : alpha === 1 ? to : [from[0] + (to[0] - from[0]) * alpha, from[1] + (to[1] - from[1]) * alpha];
           this.basis[i] = point[0]!; this.basis[i + 1] = point[1]!;
         }
       }

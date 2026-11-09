@@ -5,8 +5,7 @@ workflow. The [tutorial](TUTORIAL.md) covers authoring an explainer, and
 [extension recipes](EXTENDING.md) give runnable examples. Every name below is a
 public export of `rayner` unless another entry point is shown: sinks, seeking and
 other ways to draw frames are `rayner/output`; traces, frame checks and profiling
-are `rayner/testing`; `view` is `rayner/explain`; and `Write` and `Restore` are
-`rayner/extras`.
+are `rayner/testing`; and `view` is `rayner/explain`.
 
 ## The model
 
@@ -48,8 +47,8 @@ transform matrix whose effect an inspector must reconstruct.
 and `closePath()` build paths, and `setPolygon(corners)` builds a closed polygon.
 Use them, or the transforms above, rather than writing a point buffer yourself: they
 keep the render cache and the cached layout bounds current, and a buffer written in
-place leaves both stale. A shape of your own builds its points in `initPoints()`,
-which its constructor calls.
+place leaves both stale. A shape of your own builds its points in its constructor, after
+`super()`.
 
 A path is `subpaths`, one `Float32Array` of cubic Bézier points per subpath (its
 start, then three points per curve), with `closed` saying which are closed; read
@@ -63,7 +62,7 @@ the curves of subpath `i` or of the whole path, `pointOnCurve(i, c, t)` is the p
 at parameter `t` on curve `c`, `curveLength(i, c)` and `arcLength()` measure a curve
 and the whole path, `curveParamAt(i, c, s)` is the parameter a length `s` along a
 curve reaches, and `pointFromProportion(t)` is the point a fraction `t` of the path's
-length along it, which `MoveAlongPath` (`rayner/extras`) and the stage's sketch travel by.
+length along it, which `MoveAlongPath` and the stage's sketch travel by.
 
 `applyPointsFunction(fn)` maps every point of the family through `fn([x, y])`, and
 `applyAffine(a, b, c, d, e, f)` applies the affine map `[a c; b d]p + [e f]` without
@@ -80,20 +79,21 @@ Style includes fill, stroke, their opacity and width, overall opacity, and optio
 SVG paint details such as dashes and joins. A mobject's `style` is a `StyleRecord`: its
 `Style` with every field filled in but those paint details and `drawFraction`. `setFill`, `setStroke` and `setOpacity`
 update it; `setStyle(style)` sets several fields at once, and `setColor(c)` sets fill
-and stroke to one colour. `Create` and `Write` (`rayner/extras`) use the transient `drawFraction` to reveal a path.
+and stroke to one colour. `Create` uses the transient `drawFraction` to reveal a path.
 Changing `style` or point arrays behind the supported methods risks stale caches.
 
 A colour left out takes the scene's. `scene.colors` holds five (`paper`, `ink`, `soft`,
-`emphasis`, `bad`), and a part built without a colour is marked with the role it takes
-(`defaultColors`, each a `ColorRole`): text, lines, arrows and axes take `ink`, guide lines and a readout's keys
+`emphasis`, `bad`), and a part built without a colour is marked, internally, with the role it takes
+(a `ColorRole`): text, lines, arrows and axes take `ink`, guide lines and a readout's keys
 `soft`, `SurroundingRectangle`, `Circumscribe` and plotted data `emphasis`, and `Cross` `bad`.
 When the part first enters the scene (`scene.add`, a play that draws it or morphs toward it, or
 a parent already on stage), each field still holding its default takes the scene's colour, and a
 field set since keeps what it was set to. A stage sets `scene.colors` from its look (`s.look`), so an
 axis drawn without a `stroke` reads on any paper. A scene without a stage draws dark ink on white
 paper, and the SVG sinks draw `paper` behind the frame unless given a `background`.
-`lerpColor(a, b, t)` gives the colour `t` of the way from `a` to `b` in sRGB, as `#rrggbb`
-(Manim's `interpolate_color`), for a colour between two of the look's.
+`lerpColor(a, b, t)` gives the colour `t` of the way from `a` to `b` in sRGB, always as `#rrggbb`
+(Manim's `interpolate_color`), for a colour between two of the look's. Both ends are hex colours,
+`#rgb` or `#rrggbb`, and it throws a `RangeError` naming any other.
 
 Common layout operations are `nextTo`, `alignTo`, `arrange`, `moveTo`, `setWidth`
 and `setHeight`, and `toEdge(direction, buff)` puts a mobject against an edge of the frame; `arrangeInGrid(cols, { buff })` lays the children out row by row,
@@ -122,12 +122,12 @@ are the only ways to change a family, and each keeps every child's `parent` and 
 box in step. Both are the mobject's private fields, so no other write to the mobject changes
 them, and `family()`, `box()` and the engine's walks read the fields, whatever a subclass's getter
 says. `family()` is the mobject and every descendant, depth first. A scene admits one root per subtree, so admitting a parent never paints a
-child twice. `Scene.add`, `remove`, `replace`, `bringToFront` and `bringToBack`
+child twice. `Scene.add`, `remove` and `replace`
 control membership and draw order; what the stage keeps over everything else (its heading,
 band, step number and line) stays last through each of them: the root that holds it, which is
 the group around it once one wraps it, is moved last, and that is done again before every frame
 and step boundary the scene hands its sink, and before a frame drawn outside the frame loop
-(`renderAt` and `renderFrame` past the end, the live player's landing frames), after a direct
+(`renderFrame` past the end, the live player's landing frames), after a direct
 write to `scene.mobjects` too. A sink handed the scene by other code reads the list as it stands. The structure is a tree: `add`, `insert` and
 `replaceChild` refuse the mobject itself or one of its ancestors, which would make a cycle,
 and `group.remove(child)` takes out only the group's own children, leaving a mobject in
@@ -152,7 +152,7 @@ Override `copyData(source)`, also protected, for additional mutable data that th
 class cannot copy itself.
 
 `saveState()` stores a copy. `restore()` restores immediately; `Restore`
-(`rayner/extras`) does it as an animation. A generic transform can align or replace child structure, so retain
+does it as an animation. A generic transform can align or replace child structure, so retain
 references only to parts whose identity your operation promises to preserve.
 See [restoration and sequencing](ANIMATIONS.md).
 
@@ -169,10 +169,9 @@ await this.play(new Transform(box, target));
 chainable methods and constructs a target when the play begins. Two animation names are
 needed because a group animates no one mobject, so it is not an `Animation`, the class a custom
 animation extends to animate its `mobject`; `ScheduledAnimation` names either.
-`new Transform(m, target, { pathFunc, replace })` morphs `m` into its `target`: each frame
-sets it between the two with `m.interpolate(start, end, alpha, pathFunc)`, each point
-travelling by a `PathFunc` (a straight line by default), and with `replace: true` the scene
-holds `target` in `m`'s place afterwards.
+`new Transform(m, target, { replace })` morphs `m` into its `target`: each frame
+sets it between the two with `m.interpolate(start, end, alpha)`, each point travelling in a
+straight line, and with `replace: true` the scene holds `target` in `m`'s place afterwards.
 
 A custom animation extends `Animation`. Its `mobject` is what it animates, and `runTime`,
 `rateFunc` (a `RateFunc`, from the fraction of the run time elapsed to progress), `lagRatio`
@@ -269,7 +268,7 @@ its step until it could be read, so the step's resting picture, its last frame, 
 from its first. Each step draws at least one frame of its own (`loadProject` and the command
 refuse one that does not). Each moment is recorded as a time and a frame: `hold` and
 `holdFrame` where a caption hold begins, and `t1` and `frame1` where the step ends;
-the player, playing one step, stops at `stillFrame(step)`, the hold frame or else the last,
+the player, playing one step, stops at the still frame, the hold frame or else the last,
 while a continuous render of the scene plays on through the hold to `t1`, and links show
 `frame1`. The still frame and `frame1` show one picture, but code after the step's last play
 and its end listeners can still change the state between them, so a step's state is read at
@@ -335,12 +334,12 @@ of the two.
 when its play begins and morphs to it. That suits discrete updates; it does not
 evaluate a relationship between the two endpoints, which a [view's tween](CHOREOGRAPHY.md#following-one-number) does.
 
-`renderAt(SceneClass, time, sink)` (`rayner/output`) reruns the scene up to the first frame at or after
-the requested time (or the final frame if past the end), skipping the interpolations
-of plays without updaters. A seek is a replay with skipping, not an index into a
-precompiled timeline. `renderFrame(SceneClass, frame, sink)` reruns it to one frame by its
-number, the frame count a step records as `frame0`, `frame1` or `holdFrame`, so a step's resting
-picture is `renderFrame(SceneClass, step.frame1, sink)`, found without converting a frame to a time.
+`renderFrame(SceneClass, frame, sink)` (`rayner/output`) reruns the scene up to one frame by its
+number (or the final frame if past the end), skipping the interpolations of plays without
+updaters. A seek is a replay with skipping, not an index into a precompiled timeline. The
+number is the frame count a step records as `frame0`, `frame1` or `holdFrame`, so a step's
+resting picture is `renderFrame(SceneClass, step.frame1, sink)`, found without converting a
+frame to a time.
 
 A sink stops a seek with `StopScene` (`rayner/output`). Do not catch animation errors broadly in
 `construct()`: catching that signal can allow author code to mutate the stopped
@@ -361,10 +360,10 @@ fonts; [requested lettering](LETTERING.md) adds scripts and maths through snapsh
 geometry and replay, motion continuity, readable served paint, or whether readers
 understand. A pass on one says nothing about the others. `MotionSink` and
 `analyzeMotion` (`rayner/testing`) inspect sampled motion; they judge neither the editing nor the maths.
-`analyzeMotion(sink, options)` returns a `MotionEvent` for each teleport, resize, pop, cut,
+`analyzeMotion(sink)` returns a `MotionEvent` for each teleport, resize, pop, cut,
 flicker or handoff in the frames a `MotionSink` sampled: `{ kind, frame, t, step, what, magnitude, detail }`.
 
-For profiling, `perf.enable()` (`perf` is in `rayner/testing`) starts counters and spans, `perf.report()` explains
+For profiling Rayner itself, `perf.enable()` (in `src/perf.ts`, internal to the repository) starts counters and spans, `perf.report()` explains
 where measured work went, and `perf.chromeTrace()` returns trace-event JSON for a
 trace viewer. Disable it with `perf.disable()`. Compare identical scenes, timestamps,
 frame rates and output modes: a trace-only dry run is not a playback benchmark.

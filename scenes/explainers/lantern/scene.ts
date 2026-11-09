@@ -1,5 +1,5 @@
 import { Scene, Rectangle, Dot, FadeIn, Transform, Animation } from '../../../src/index.ts';
-import { toSvgString, renderAt, StringSink } from '../../../src/output.ts';
+import { toSvgString, renderFrame, StringSink } from '../../../src/output.ts';
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
 import { stage, regionBox, settingsOf, answerOf, view, having } from '../../../explain/index.ts';
 import type { Diagram, PictureNote, ExplainerMeta } from '../../../explain/index.ts';
@@ -113,7 +113,7 @@ function fingerprint(text: string): string {
   for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;
   return h.toString(16).padStart(8, '0');
 }
-// This explainer's model is Rayner's own engine: the tiny scene runs through src/scene.ts and renderAt.
+// This explainer's model is Rayner's own engine: the tiny scene runs through src/scene.ts and renderFrame.
 // Its limits: a still skips the earlier frames only in a scene without updaters and without a Succession
 // in play; those take a slower seek that computes every frame before t, and are outside the pictured
 // comparison. "Sinks only read the frame" is a promise about Rayner's own sinks, not a caller's custom
@@ -121,7 +121,7 @@ function fingerprint(text: string): string {
 // seeking; elsewhere their played paths differ (the blend eases, the nudge moves evenly).
 /**
  * Run the tiny scene with one kind of motion: played from zero, frame by frame; seeked straight to
- * SEEK_T, as renderAt makes a still; and seeked to every other frame, as rayner check seeks, to
+ * SEEK_T's frame, as renderFrame makes a still; and seeked to every other frame, as rayner check seeks, to
  * compare each with the played frame.
  */
 async function runDemo(ink: string, emphasis: string, soft: string, motion: Motion) {
@@ -148,15 +148,15 @@ async function runDemo(ink: string, emphasis: string, soft: string, motion: Moti
   const computed: number[] = [];
   nudges.length = 0;
   // Frame 0, the empty stage before construct() runs, is handed to every sink and computes nothing.
-  await new Demo({ async frame(s: Scene) { if (s.frameCount > 0) computed.push(s.frameCount); } }, { skipUntil: SEEK_T }).run();
+  await new Demo({ skipUntil: SEEK_T, async frame(s: Scene) { if (s.frameCount > 0) computed.push(s.frameCount); } }).run();
   nudges.length = 0;
   const seekSink = new StringSink();
-  const seeked = await renderAt(Demo, SEEK_T, seekSink);
+  const seeked = await renderFrame(Demo, seekAt, seekSink);
   const seekedMoves = nudges[0]?.moves ?? 0;
   const matches: boolean[] = [];
   for (let f = 1; f < frames.length; f++) {
     const sink = new StringSink();
-    seekedX.push(dotX(await renderAt(Demo, f / FPS, sink)));
+    seekedX.push(dotX(await renderFrame(Demo, f, sink)));
     matches.push(sink.last() === frames[f]);
   }
   return {

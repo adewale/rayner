@@ -14,7 +14,7 @@ export { LETTERING_SCRIPTS } from './lettering-scripts.ts';
 export { takeLetteringMissing, takeLetteringUse, useLettering, withLettering } from './lettering.ts';
 export type { LetteringFaces, LetteringScript, SubsetLetteringRequest } from './lettering.ts';
 export { paints, paintsStroke } from './mobject.ts';
-export { VIEWBOX, atHome, clipPathOf, serializeElement, userBox, viewOf } from './svg.ts';
+export { SnapshotSink, VIEWBOX, atHome, clipPathOf, serializeElement, userBox, viewOf } from './svg.ts';
 export { textContextOf } from './text-context.ts';
 export { dryRun } from './timeline.ts';
 export { traceRun } from './trace.ts';

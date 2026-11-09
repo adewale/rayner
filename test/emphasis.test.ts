@@ -2,12 +2,15 @@
 // checked against the target's box; motion against the verifier; time against
 // a seek, which must reproduce a full run's frame byte for byte.
 import { test } from 'node:test';
-import { Square, Underline } from '../src/extras.ts';
 import assert from 'node:assert/strict';
-import { Scene, Rectangle, Text, Code, Create, FadeOut, Circumscribe, SurroundingRectangle, Cross, Brace, BraceLabel, VMobject } from '../src/index.ts';
-import { StringSink, SnapshotSink, renderFrame } from '../src/output.ts';
+import { Scene, Rectangle, Text, Code, Create, FadeOut, Circumscribe, SurroundingRectangle, Cross, Brace, BraceLabel, VMobject, Line } from '../src/index.ts';
+import { StringSink, renderFrame } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
 import type { Box, Mobject, Vec } from '../src/index.ts';
+
+/** A line 0.1 under `m`'s box, left to right. */
+const underline = (m: Mobject) => { const [x0, y0, x1] = m.box()!; return new Line([x0, y0 - 0.1], [x1, y0 - 0.1]); };
 // Manim's values, which the package no longer exports.
 const DOWN: Vec = [0, -1];
 const LEFT: Vec = [-1, 0];
@@ -39,17 +42,8 @@ test('SurroundingRectangle is the target box grown by buff, for a mobject or a B
   assert.ok(c instanceof SurroundingRectangle); nearBox(c.box()!, before, 'copy');
 });
 
-test('Underline runs along the bottom edge, buff below it, left to right', () => {
-  const t = new Text('under', { fontSize: 0.4 }).shift([-1, 2]);
-  const b = t.box()!;
-  const u = new Underline(t);
-  nearVec(u.start(), [b[0], b[1] - 0.1], 'start'); nearVec(u.end(), [b[2], b[1] - 0.1], 'end');
-  const v = new Underline([0, 0, 2, 1], { buff: 0 });
-  nearVec(v.start(), [0, 0], 'Box start'); nearVec(v.end(), [2, 0], 'Box end');
-});
-
 test('Cross diagonals span the box corners; scale shrinks them about the center', () => {
-  const sq = new Square({ side: 2 }).shift([1, 1]);   // box [0, 0, 2, 2]
+  const sq = new Rectangle({ width: 2, height: 2 }).shift([1, 1]);   // box [0, 0, 2, 2]
   const x = new Cross(sq);
   assert.equal(x.subpaths.length, 2); assert.deepEqual(x.defaultColors, { stroke: 'bad' }, "the scene's colour for rejected");
   const [a0, a1] = ends(x, 0), [b0, b1] = ends(x, 1);
@@ -87,7 +81,7 @@ test('a vertical brace is the horizontal one, rotated', () => {
 });
 
 test('Brace: tip and direction follow the points through copies and moves; short braces stay well formed', () => {
-  const br = new Brace(new Square({ side: 1 }), DOWN);
+  const br = new Brace(new Rectangle({ width: 1, height: 1 }), DOWN);
   const c = br.copy().shift([3, 1]);
   nearVec(c.tip(), [3, -0.5 - 0.3 + 1], 'copied, shifted tip');
   nearVec(br.tip(), [0, -0.8], 'original untouched');
@@ -137,11 +131,11 @@ const alphas = (sink: MotionSink, m: Mobject): number[] => Array.from({ length: 
 
 test('Create draws braces and brace labels in without jumps', async () => {
   const { events } = await watch(async (s) => {
-    const sq = new Square({ side: 1.5 }); s.add(sq);
+    const sq = new Rectangle({ width: 1.5, height: 1.5 }); s.add(sq);
     await s.play(new Create(new Brace(sq, DOWN)));
     await s.play(new Create(new Brace(sq, LEFT, { stroke: '#58c4dd' })));
     await s.play(new Create(new BraceLabel(sq, 'side', RIGHT)));
-    await s.play(new Create(new SurroundingRectangle(sq)), new Create(new Underline([-3, 2, -1, 2.5])), new Create(new Cross([1, 2, 3, 3])));
+    await s.play(new Create(new SurroundingRectangle(sq)), new Create(new Line([-3, 1.9], [-1, 1.9])), new Create(new Cross([1, 2, 3, 3])));
   });
   assert.deepEqual(events, []);
 });
@@ -149,7 +143,7 @@ test('Create draws braces and brace labels in without jumps', async () => {
 test('Circumscribe draws in, then fades and is gone; nothing jumps', async () => {
   let c!: Circumscribe;
   const { sink, scene, events } = await watch(async (s) => {
-    const sq = new Square({ side: 1.5 }); s.add(sq);
+    const sq = new Rectangle({ width: 1.5, height: 1.5 }); s.add(sq);
     c = new Circumscribe(sq);
     await s.play(c);
     await s.wait(0.2);
@@ -215,7 +209,7 @@ test('Circumscribe retracts the path at full opacity instead of fading a complet
 test('Circumscribe fits the target where it is when the play starts', async () => {
   let c!: Circumscribe;
   await watch(async (s) => {
-    const sq = new Square({ side: 1 }); s.add(sq);
+    const sq = new Rectangle({ width: 1, height: 1 }); s.add(sq);
     c = new Circumscribe(sq, { keep: true, buff: 0.1 });
     sq.shift([3, -1]);
     await s.play(c);
@@ -231,7 +225,7 @@ test('Circumscribe fits the target where it is when the play starts', async () =
 class EmphasisScene extends Scene {
   override async construct(): Promise<void> {
     const code = new Code(['const x = read();', 'if (x > limit) drop(x);', 'else keep(x);']).shift([-2, 1]);
-    const sq = new Square({ side: 1.2 }).shift([3, -1]);
+    const sq = new Rectangle({ width: 1.2, height: 1.2 }).shift([3, -1]);
     this.add(code, sq);
     await this.step('pulse');
     await this.play(new Circumscribe(code.lines[1]!));
@@ -239,7 +233,7 @@ class EmphasisScene extends Scene {
     const kept = new Circumscribe(sq, { keep: true, shape: 'circle' });
     await this.play(kept, new Create(new BraceLabel(sq, 'limit', DOWN)));
     await this.step('more');
-    await this.play(new Circumscribe(code, { fadeOut: false }), new Create(new Underline(code.lines[2]!)));
+    await this.play(new Circumscribe(code, { fadeOut: false }), new Create(underline(code.lines[2]!)));
     await this.play(new FadeOut(kept.outline));
   }
 }

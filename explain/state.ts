@@ -4,7 +4,7 @@
 // src/, the engine taken from Lantern. SetState is the machine's own: no entry point exports it,
 // and a scene changes its state by assigning `this.state` and syncing its views.
 import { Animation } from '../src/animation.ts';
-import type { AnimOpts } from '../src/animation.ts';
+import type { AnimOptions } from '../src/animation.ts';
 import { Group, Mobject as MobjectClass } from '../src/mobject.ts';
 import type { Mobject } from '../src/mobject.ts';
 import { cloneJson } from '../src/json.ts';
@@ -16,7 +16,7 @@ import type { Scene, SceneState, Evidence } from '../src/scene.ts';
 const stateTargets = new WeakMap<object, Group>();
 
 /** @internal */
-export interface SetStateOpts {
+export interface SetStateOptions {
   /** The event that set the state: recorded as `{ kind: 'event', event }` as this begins. */
   event?: string;
 }
@@ -32,7 +32,7 @@ export class SetState<S extends object = SceneState> extends Animation {
   private readonly snapshot: JsonObject | null;
   private readonly update: ((current: S) => S) | null;
 
-  constructor(host: Scene<S, any>, next: NoInfer<S> | ((current: NoInfer<S>) => NoInfer<S>), { event }: SetStateOpts = {}) {
+  constructor(host: Scene<S, any>, next: NoInfer<S> | ((current: NoInfer<S>) => NoInfer<S>), { event }: SetStateOptions = {}) {
     if (event !== undefined && (typeof event !== 'string' || !event.trim())) throw new TypeError('machine.send(): an event must be a nonempty string');
     const update = typeof next === 'function' ? (next as (current: S) => S) : null;
     const snapshot = update ? null : cloneJson(next, 'machine.send()', 'state');
@@ -70,7 +70,7 @@ export interface FollowSpec {
    */
   draw: (value: number) => Mobject | readonly Mobject[];
 }
-export interface FollowOpts extends AnimOpts {
+export interface FollowOptions extends AnimOptions {
   /** The mobjects `draw` redraws: play() admits them and refuses a second writer of any of them. */
   targets: readonly Mobject[];
 }
@@ -91,7 +91,7 @@ export class Follow extends Animation {
   /** The value the play began from. Set by begin(). */
   start = 0;
 
-  constructor(spec: FollowSpec, { targets, ...opts }: FollowOpts) {
+  constructor(spec: FollowSpec, { targets, ...opts }: FollowOptions) {
     if (!Array.isArray(targets) || !targets.length || !targets.every((m) => m instanceof MobjectClass))
       throw new TypeError('c.follow(): it needs the mobjects draw() redraws, targets: [a, b, ...]');
     if (!Number.isFinite(spec.to)) throw new RangeError(`c.follow(): to must be a finite number, not ${String(spec.to)}`);

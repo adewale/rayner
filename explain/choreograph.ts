@@ -7,7 +7,7 @@
 // forgets a part still ends on the target picture. See docs/MACHINES.md.
 
 import { Animation, AnimationGroup, Create, FadeIn, FadeOut, MoveAlongPath, Transform } from '../src/animation.ts';
-import type { AnimOpts, TransformOpts } from '../src/animation.ts';
+import type { AnimOptions, TransformOptions } from '../src/animation.ts';
 import { Follow } from './state.ts';
 import type { FollowSpec } from './state.ts';
 import type { Mobject } from '../src/mobject.ts';
@@ -56,11 +56,11 @@ export interface Choreography {
   /** The keys of the parts on one side, in order. */
   keys(side: 'from' | 'to'): string[];
   /** Morph the current part into its target. */
-  morph(key: string, opts?: TransformOpts): Animation;
+  morph(key: string, opts?: TransformOptions): Animation;
   /** Bring in a part only the target has: faded in, drawn (`create`), or grown from a copy of the current part `from`. */
-  enter(key: string, how?: { from?: string; create?: boolean }, opts?: AnimOpts): Animation;
+  enter(key: string, how?: { from?: string; create?: boolean }, opts?: AnimOptions): Animation;
   /** Take out a part only the current picture has. */
-  leave(key: string, opts?: AnimOpts): Animation;
+  leave(key: string, opts?: AnimOptions): Animation;
   /** Put an unseen copy of `like` into the current picture as the part `key`, for the author to animate into view; it must end as the target part, or, when the target has no such part, leave. */
   insert(key: string, like: Mobject): Mobject;
   /** Mark a current part as the author's to animate (with follow, say); it must end as the target part. */
@@ -72,7 +72,7 @@ export interface Choreography {
    * key is owned (as `own`); a mobject target is one the author already holds, such as an
    * inserted part. `draw` returns a fresh mobject per target, in order (or the one, for one).
    */
-  follow(spec: FollowSpec, opts: AnimOpts & { targets: readonly (string | Mobject)[] }): Animation;
+  follow(spec: FollowSpec, opts: AnimOptions & { targets: readonly (string | Mobject)[] }): Animation;
   /**
    * A token passing along `path`, a part the target does not have (a message on its arrow, an
    * event walking a link): `appear` brings `token` into view at the path's start, `move` carries it
@@ -81,7 +81,7 @@ export interface Choreography {
    */
   travel(key: string, token: Mobject, path: VMobject, times?: { appear?: number; move?: number; leave?: number }): { appear: Animation; move: Animation; leave: Animation };
   /** Every keyed part not yet handled: morphed when both pictures have it, faded in or out when one does. */
-  rest(opts?: AnimOpts): AnimationGroup;
+  rest(opts?: AnimOptions): AnimationGroup;
 }
 
 /**

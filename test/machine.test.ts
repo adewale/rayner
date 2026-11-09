@@ -6,7 +6,8 @@ import { ViewSync } from '../explain/view.ts';
 import assert from 'node:assert/strict';
 import { Scene, Text, Group, Rectangle, Transform, Animation, AnimationGroup, Succession, TransformMatching, matchByKey } from '../src/index.ts';
 import type { Mobject } from '../src/index.ts';
-import { NullSink, StringSink, SnapshotSink, renderAt, renderFrame } from '../src/output.ts';
+import { NullSink, StringSink, renderFrame } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import { machinesOf, TraceSink, traceScene, loadFonts } from '../explain/testing.ts';
 import { stage, Machine, refuse, isRefusal, view } from '../explain/index.ts';
 import { SetState } from '../explain/state.ts';
@@ -74,12 +75,12 @@ test('a machine replays events through the model as one schedule: state, evidenc
   // A machine is an ordinary play: seeking renders the frame a full run renders, and skipped traces equal played ones
   const full = new StringSink();
   await new Lamp(full).run();
-  for (const t of [0.35, 0.8, 1.4]) {
+  for (const frame of [11, 24, 42]) {
     const snap = new SnapshotSink();
-    const at = await renderAt(Lamp, t, snap);
-    assert.equal(snap.svg, full.frames[Math.round(at.time * at.fps)], `t = ${t}`);
+    await renderFrame(Lamp, frame, snap);
+    assert.equal(snap.svg, full.frames[frame], `frame ${frame}`);
   }
-  const fullTrace = new TraceSink();
+  const fullTrace = new TraceSink({ skipUntil: 0 });
   await new Lamp(fullTrace).run();
   assert.deepEqual((await traceScene(Lamp)).steps, fullTrace.steps());
   assert.throws(() => ran.machine.send('DOWN' as 'UP'), RangeError);
@@ -319,7 +320,7 @@ test('deliberate defect: a transition that breaks an invariant on the way fails,
   // It swings the picture off screen and back, ending where the model says.
   const swing = (t: Transition<Lamp, 'UP' | 'OFF'>, v: View) => {
     const target = t.target(v);
-    return new Transform(v.current, target, { pathFunc: (a, b, t) => a.map((x, i) => x + (b[i]! - x) * t + (i === 0 ? 30 * Math.sin(Math.PI * t) : 0)) as typeof a });
+    return new Succession([new Transform(v.current, v.current.copy().shift([30, 0]), { runTime: 0.5 }), new Transform(v.current, target, { runTime: 0.5 })]);
   };
   const Swing = litLamp(swing, true);
   const [explored] = await exploreMachines(await new Swing(new NullSink()).run(), Swing);

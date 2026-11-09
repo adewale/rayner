@@ -2,16 +2,16 @@
 // rules reject transient emphasis, so no scene should reach for one). The engine tests keep them
 // as ordinary there-and-back animations: groups, colours, seeking and successions are tested with them.
 import { Animation, Transform, thereAndBack, linear } from '../../src/index.ts';
-import type { AnimOpts, Mobject, TransformOpts } from '../../src/index.ts';
+import type { AnimOptions, Mobject, TransformOptions } from '../../src/index.ts';
 
-export interface IndicateOpts extends TransformOpts { scaleFactor?: number; color?: string }
+export interface IndicateOptions extends TransformOptions { scaleFactor?: number; color?: string }
 
 /** Scale up and recolor, there and back. */
 export class Indicate extends Transform {
   scaleFactor: number;
   color: string;
 
-  constructor(mobject: Mobject, { scaleFactor = 1.2, color = '#ffff00', ...opts }: IndicateOpts = {}) {
+  constructor(mobject: Mobject, { scaleFactor = 1.2, color = '#ffff00', ...opts }: IndicateOptions = {}) {
     super(mobject, mobject, { rateFunc: thereAndBack, ...opts });
     this.scaleFactor = scaleFactor; this.color = color;
   }
@@ -28,7 +28,7 @@ export class Indicate extends Transform {
 
 /** Fade in, hold, fade out around a mobject. */
 export class Flash extends Animation {
-  constructor(mobject: Mobject, opts: AnimOpts = {}) { super(mobject, { rateFunc: linear, ...opts }); }
+  constructor(mobject: Mobject, opts: AnimOptions = {}) { super(mobject, { rateFunc: linear, ...opts }); }
   override interpolateSubmobject(sub: Mobject, start: Mobject, alpha: number): void {
     sub.style.opacity = start.style.opacity * Math.sin(Math.PI * alpha);
   }

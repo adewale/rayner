@@ -12,6 +12,7 @@ export async function check(trace: Trace, values: Record<string, string>, { scen
   const rtl = values.direction === 'rtl';
   const seen: string[] = [];
   await new scenario.Scene({
+    skipUntil: Infinity,
     async frame() {},
     async stepEnd(scene, step) {
       if (!['columns', 'updates', 'physical'].includes(step.name)) return;
@@ -43,7 +44,7 @@ export async function check(trace: Trace, values: Record<string, string>, { scen
       }
       seen.push(step.name);
     },
-  }, {skipUntil: Infinity}).run();
+  }).run();
   assert.deepEqual(seen, ['columns', 'updates', 'physical']);
   // The state the scene records says the same.
   assertStepState(trace, 'columns', {

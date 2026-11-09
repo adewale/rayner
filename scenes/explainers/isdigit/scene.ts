@@ -212,7 +212,7 @@ export default class IsDigitExplainer extends Scene<DigitState, {}> {
     );
     await s.enter(transform, { runTime: 0.4 });
     // What int() does with it: a view of the state's answer, where the stage's note went.
-    const said = view(this, (st) => this.text(answer(st).said, { fontSize: SIZE, color: s.look.soft }).moveTo([0, -3.55]), { place: false });
+    const said = view(this, (st) => new Text(answer(st).said, { fontSize: SIZE, color: s.look.soft, shaping: this.textShaping }).moveTo([0, -3.55]), { place: false });
     await s.enter(said, { runTime: 0.3 });
 
     // ------------------------------------------------------------------ the lineup

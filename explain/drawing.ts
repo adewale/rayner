@@ -3,18 +3,17 @@
 // annotations), as ordinary mobjects coloured from a stage's look. Imported as `rayner/drawing`.
 // Keyed pictures key their parts, so matching (matchByKey), find(), invariants and reviews can
 // address them; nothing here animates, registers or reads scene state.
-import { Group, Rectangle, Circle, Line, Arrow } from '../src/index.ts';
-import type { Text } from '../src/index.ts';
+import { Group, Rectangle, Circle, Line, Arrow, Text } from '../src/index.ts';
 import type { Mobject, Vec, Box } from '../src/index.ts';
 import type { Stage } from './stage.ts';
 import { callout as calloutLook, dimension as dimensionLook, pin as pinLook, legend as legendLook } from './annotate.ts';
 import { emphasisSource, stagePalette } from './look.ts';
 import type { Side, LegendItem } from './annotate.ts';
 import { Card, CodeBlock } from './panels.ts';
-import type { CardRow, CardOptions, CodeOptions } from './panels.ts';
+import type { CardRow, CardOptions, CodeBlockOptions } from './panels.ts';
 import { physicalAt } from './layout-direction.ts';
 export type { LegendItem } from './annotate.ts';
-export type { Card, CodeBlock, CardRow, CardOptions, CodeOptions } from './panels.ts';
+export type { Card, CodeBlock, CardRow, CardOptions, CodeBlockOptions } from './panels.ts';
 
 /**
  * `m` marked as emphasis, `as` what it shows (`'ring: idle'`, `'outlined: push at slot 3'`): call
@@ -69,7 +68,7 @@ export function label(
   text: string | number,
   { at = [0, 0], color = s.look.ink, size = 0.6, key }: { at?: Vec; color?: string; size?: number; key?: string } = {},
 ): Text {
-  const t = s.scene.text(String(text), { fontSize: size, color }).moveTo(at);
+  const t = new Text(String(text), { fontSize: size, color, shaping: s.scene.textShaping }).moveTo(at);
   return key ? keyed(t, key) : t;
 }
 /**
@@ -169,8 +168,8 @@ export function table(
     rowsSeen.add(k);
   }
   const values = named.map((row) => row.cells);
-  const heads = headers.map((h) => s.scene.text(h, { fontSize: size, color: s.look.ink, weight: 'bold' }));
-  const cells = values.map((row) => row.map((v) => s.scene.text(String(v), { fontSize: size, color: s.look.ink })));
+  const heads = headers.map((h) => new Text(h, { fontSize: size, color: s.look.ink, weight: 'bold', shaping: s.scene.textShaping }));
+  const cells = values.map((row) => row.map((v) => new Text(String(v), { fontSize: size, color: s.look.ink, shaping: s.scene.textShaping })));
   const widths = headers.map((_, c) => Math.max(heads[c]!.width(), ...cells.map((row) => row[c]!.width())));
   const xs = (Array.isArray(columns) ? (columns as readonly number[]) : columnCentres(widths, columns as Exclude<TableColumns, readonly number[]>)).map((x) => x + dx);
   const isNumber = (v: TableCell | undefined) =>
@@ -244,7 +243,7 @@ export function flow(s: Stage, names: readonly string[], { at = [0, 1], key }: {
     const lines: string[] = [];
     for (const word of name.split(' ')) {
       const next = lines.length ? `${lines.at(-1)} ${word}` : word;
-      if (lines.length && s.scene.text(next, { fontSize: 0.62 }).width() <= width - 0.3) lines[lines.length - 1] = next;
+      if (lines.length && new Text(next, { fontSize: 0.62, shaping: s.scene.textShaping }).width() <= width - 0.3) lines[lines.length - 1] = next;
       else lines.push(word);
     }
     return lines;
@@ -408,6 +407,6 @@ export function card(s: Stage, rows: readonly CardRow[], opts: CardOptions = {})
  * its lit, added and removed lines with their words. For code text with no panel (the engine's
  * matching and diff transforms), use the engine's `Code`.
  */
-export function code(s: Stage, source: readonly string[], opts: CodeOptions = {}): CodeBlock {
+export function code(s: Stage, source: readonly string[], opts: CodeBlockOptions = {}): CodeBlock {
   return new CodeBlock(s.scene, stagePalette(s, (opts as { api?: string }).api ?? 'code()'), source, { ...opts, at: physicalAt(opts.at, s.direction) });
 }

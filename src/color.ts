@@ -45,13 +45,28 @@ export function toHex(rgb: Readonly<RGB>): string {
   return '#' + hex2(rgb[0]) + hex2(rgb[1]) + hex2(rgb[2]);
 }
 
-/** The colour `t` of the way from `a` to `b` in sRGB, as `#rrggbb` (Manim's `interpolate_color`); an unparseable end is taken whole. */
+/**
+ * The colour `t` of the way from `a` to `b` in sRGB (Manim's `interpolate_color`), always as
+ * `#rrggbb`: `t` 0 is `a`, 1 is `b`, and a `t` outside them goes on past the end, each channel held
+ * to 0 to 255. Both ends are hex colours, `#rgb` or `#rrggbb`; anything else is refused.
+ */
 export function lerpColor(a: string, b: string, t: number): string {
+  return mix(hexChannels(a), hexChannels(b), t);
+}
+function hexChannels(color: string): RGB {
+  if (!isHex(color)) throw new RangeError(`lerpColor(): ${JSON.stringify(color)} is not a hex colour; give #rgb or #rrggbb, such as '#2e3440'`);
+  return parseColor(color)!;
+}
+const mix = (a: Readonly<RGB>, b: Readonly<RGB>, t: number): string => toHex([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]);
+
+/**
+ * A paint between `a` and `b` on a frame of a morph: the two blended as lerpColor blends them when
+ * both parse, else one end whole (`none`, a colour name), switching halfway.
+ */
+export function blendPaint(a: string, b: string, t: number): string {
   if (a === b) return a;
   const ca = parseColor(a), cb = parseColor(b);
-  if (!ca) return t < 0.5 ? a : b;
-  if (!cb) return t < 0.5 ? a : b;
-  return toHex([ca[0] + (cb[0] - ca[0]) * t, ca[1] + (cb[1] - ca[1]) * t, ca[2] + (cb[2] - ca[2]) * t]);
+  return ca && cb ? mix(ca, cb, t) : t < 0.5 ? a : b;
 }
 
 /**

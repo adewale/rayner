@@ -1,8 +1,7 @@
 import { test } from 'node:test';
-import { Square } from '../../../src/extras.ts';
 import assert from 'node:assert/strict';
 import { Scene, Rectangle, Dot, Circle, Group, FadeIn, Transform, smooth } from '../../../src/index.ts';
-import { StringSink, SnapshotSink, NullSink, SeekSink, DomSink, StopScene, renderAt, toSvgString } from '../../../src/output.ts';
+import { StringSink, NullSink, DomSink, StopScene, renderFrame, toSvgString } from '../../../src/output.ts';
 import { TraceSink, MotionSink } from '../../../explain/testing.ts';
 import type { EndedStep, Mobject, Sink, Step, Vec } from '../../../src/index.ts';
 
@@ -15,7 +14,7 @@ class TimeOnly extends Scene {
     const box = new Rectangle({ width: 2, height: 1, stroke: '#222222', fill: '#88aadd', fillOpacity: 0.4 }).moveTo([-3, 1]);
     const dot = new Dot({ radius: 0.3 }).moveTo([-5, -2]);
     await this.play(new FadeIn(box), new FadeIn(dot), { runTime: 0.5 });
-    await this.play(new Transform(box, new Square({ side: 2.5, stroke: '#222222' }).moveTo([2, 1])), dot.animate.moveTo([5, -2]), { runTime: 1 });
+    await this.play(new Transform(box, new Rectangle({ width: 2.5, height: 2.5, stroke: '#222222' }).moveTo([2, 1])), dot.animate.moveTo([5, -2]), { runTime: 1 });
     await this.step('two', { title: 'Two' });
     await this.play(new Transform(box, new Circle({ radius: 1, stroke: '#222222' }).moveTo([0, 0])), { runTime: 0.7 });
     await this.wait(0.3);
@@ -80,7 +79,7 @@ class Probe extends Transform {
 
 Scene.captionWpm = Infinity;
 
-test('clock: frame k is t = k / fps in every run, whatever the sink’s pace, and a seek to k / fps lands on frame k', async () => {
+test('clock: frame k is t = k / fps in every run, whatever the sink’s pace, a seek to frame k included', async () => {
   /** The scene time at each frame number, from a sink that takes `pause` before returning each frame. */
   const times = async (pause: () => Promise<void>) => {
     const at: number[] = [];
@@ -100,8 +99,8 @@ test('clock: frame k is t = k / fps in every run, whatever the sink’s pace, an
   assert.deepEqual(slow, fast);
   assert.ok(fast.length > 60);
   for (let k = 1; k < fast.length; k++) {
-    const scene = await renderAt(TimeOnly, k / FPS, new NullSink());
-    assert.equal(scene.frameCount, k, `renderAt(${k}/${FPS})`);
+    const scene = await renderFrame(TimeOnly, k, new NullSink());
+    assert.equal(scene.frameCount, k, `renderFrame(${k})`);
     assert.equal(scene.time, fast[k]);
   }
 });
@@ -109,11 +108,9 @@ test('clock: frame k is t = k / fps in every run, whatever the sink’s pace, an
 test('sinks only read a frame: after each of Rayner’s sinks takes it, the scene draws the same SVG and keeps the same state', async () => {
   const sinks: Record<string, () => Sink> = {
     string: () => new StringSink(),
-    snapshot: () => new SnapshotSink(),
     null: () => new NullSink(),
     trace: () => new TraceSink(),
     motion: () => new MotionSink(),
-    seek: () => new SeekSink(new StringSink(), 0.8),
     browser: () => new DomSink(fakeDocument(), { realtime: false }),
   };
   const reference = await played(TimeOnly);
@@ -175,11 +172,10 @@ test('an animation blends its start and end by its elapsed share of its run time
     // Seeked to each frame of the play: the one frame computed gets the played alpha and draws the played frame.
     for (let f = 1; f <= n; f++) {
       probes.length = 0;
-      const k = start + f,
-        snap = new SnapshotSink();
-      await renderAt(Blend, k / FPS, snap);
+      const k = start + f;
+      const seeked = toSvgString(await renderFrame(Blend, k));
       assert.deepEqual(probes[0]!.calls, [playedCalls[f - 1]], `runTime ${runTime}, frame ${k}`);
-      assert.equal(snap.svg, full[k], `runTime ${runTime}, frame ${k}`);
+      assert.equal(seeked, full[k], `runTime ${runTime}, frame ${k}`);
     }
   }
 });
@@ -191,17 +187,15 @@ test('seek: unless the scene has updaters, a still computes no frame before t, a
     const before: number[] = [];
     await new TimeOnly(
       {
+        skipUntil: k / FPS,
         async frame(s: Scene) {
           if (s.frameCount > 0 && s.frameCount < k) before.push(s.frameCount);
           if (s.frameCount >= k) throw new StopScene();
         },
       },
-      { skipUntil: k / FPS },
     ).run();
     assert.deepEqual(before, [], `seeking to frame ${k}`);
-    const snap = new SnapshotSink();
-    await renderAt(TimeOnly, k / FPS, snap);
-    assert.equal(snap.svg, full[k], `frame ${k}`);
+    assert.equal(toSvgString(await renderFrame(TimeOnly, k)), full[k], `frame ${k}`);
   }
 });
 
@@ -214,7 +208,7 @@ test('seek: in a scene with updaters a still computes every frame before t, so a
       // A nudge each frame, as an updater: the scene computes every frame while it is attached.
       dot.addUpdater((m: Mobject) => { m.shift(step); });
       await this.play(new FadeIn(new Group(box, dot)), { runTime: 0.5 });
-      await this.play(new Transform(box, new Square({ side: 2, stroke: '#222222' }).moveTo([3, 1])), { runTime: 1 });
+      await this.play(new Transform(box, new Rectangle({ width: 2, height: 2, stroke: '#222222' }).moveTo([3, 1])), { runTime: 1 });
       dot.clearUpdaters();
     }
   }
@@ -224,16 +218,14 @@ test('seek: in a scene with updaters a still computes every frame before t, so a
     const computed: number[] = [];
     await new Nudged(
       {
+        skipUntil: k / FPS,
         async frame(s: Scene) {
           if (s.frameCount > 0) computed.push(s.frameCount);
           if (s.frameCount >= k) throw new StopScene();
         },
       },
-      { skipUntil: k / FPS },
     ).run();
     assert.deepEqual(computed, Array.from({ length: k }, (_, i) => i + 1), `seeking to frame ${k}`);
-    const snap = new SnapshotSink();
-    await renderAt(Nudged, k / FPS, snap);
-    assert.equal(snap.svg, full[k], `frame ${k}`);
+    assert.equal(toSvgString(await renderFrame(Nudged, k)), full[k], `frame ${k}`);
   }
 });

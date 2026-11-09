@@ -7,7 +7,8 @@ import assert from 'node:assert/strict';
 import {
   Scene, Frame, Code, Rectangle, Circle, Dot, Group, FadeIn, linear,
 } from '../src/index.ts';
-import { NullSink, DomSink, renderElements, renderAt, renderText, toSvgString, SnapshotSink } from '../src/output.ts';
+import { NullSink, DomSink, renderElements, renderFrame, renderText, toSvgString } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import { MotionSink, analyzeMotion } from '../explain/testing.ts';
 import type { Box, Sink } from '../src/index.ts';
 import type { ElementRecord } from '../src/output.ts';
@@ -50,8 +51,8 @@ test('seeking through a camera move renders the frame a full run produces', asyn
   const seen = new Set<string>();
   for (const k of picks) {
     const snap = new SnapshotSink();
-    await renderAt(CameraScene, full.frames[k]!.t, snap);
-    assert.equal(snap.svg, full.frames[k]!.svg, `frame ${k} at t=${full.frames[k]!.t.toFixed(3)}`);
+    await renderFrame(CameraScene, k, snap);
+    assert.equal(snap.svg, full.frames[k]!.svg, `frame ${k}`);
     seen.add(viewBox(snap.svg));
   }
   assert.ok(seen.size >= 5, 'the picks land on distinct camera positions');

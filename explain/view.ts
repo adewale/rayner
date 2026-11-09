@@ -16,7 +16,7 @@ import type { Box, HasText } from '../src/mobject.ts';
 import { center, pointsBox } from '../src/box.ts';
 import { Animation, Transform, TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey } from '../src/animation.ts';
 import { Follow } from './state.ts';
-import type { AnimOpts, MatchKey, MatchSummary, ScheduledAnimation } from '../src/animation.ts';
+import type { AnimOptions, MatchKey, MatchSummary, ScheduledAnimation } from '../src/animation.ts';
 import { cloneJson } from '../src/json.ts';
 import type { RateFunc } from '../src/rate.ts';
 import { Text } from '../src/text.ts';
@@ -27,7 +27,7 @@ import { Action } from './action.ts';
 /** Where a rebuilt picture goes: its layout box's left edge, center or right edge, at the vertical middle, on the old one's. */
 export type ViewPlace = 'left' | 'center' | 'right';
 
-export interface ViewOpts {
+export interface ViewOptions {
   /**
    * The point a rebuilt picture keeps (default 'center'): a left-placed
    * readout whose text grows stays put at its left edge, as a Text's `anchor`
@@ -40,7 +40,7 @@ export interface ViewOpts {
 /** How sync() morphs: by glyph, by shape, by position in the family, by the keys the picture's parts carry, or by your own key. */
 export type ViewMatch = 'text' | 'shapes' | 'index' | 'key' | MatchKey;
 
-export interface SyncOpts {
+export interface SyncOptions {
   runTime?: number;
   rateFunc?: RateFunc;
   lagRatio?: number;
@@ -69,7 +69,7 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
   readonly draw: (state: S, shown: Sh) => M;
   /** The scene whose `shown` a placed or rebuilt picture reads. */
   private readonly host: Scene<S, Sh>;
-  /** The point a rebuilt picture keeps (see ViewOpts.place). */
+  /** The point a rebuilt picture keeps (see ViewOptions.place). */
   private readonly place: ViewPlace | false;
   /** @internal Unplaced build size [w, h] of the picture on screen, the scale basis: recorded when the View takes a picture (see commit). */
   builtSize: [number, number];
@@ -81,7 +81,7 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
    * draw that check can call again. A draw can still read variables outside the state; the checks
    * catch that when a redraw disagrees.
    */
-  constructor(scene: Scene<S, Sh>, draw: (state: S, shown: Sh) => M, { place = 'center' }: ViewOpts = {}) {
+  constructor(scene: Scene<S, Sh>, draw: (state: S, shown: Sh) => M, { place = 'center' }: ViewOptions = {}) {
     super();
     this.host = scene;
     // Every picture a view draws takes its scene's colours (see Mobject.defaultColors).
@@ -103,7 +103,7 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
    * await it, or hand it to play(), a Succession or a group. It always takes its run time; a
    * picture that comes out the same moves nothing and keeps the current child.
    */
-  sync(opts: SyncOpts = {}): Action {
+  sync(opts: SyncOptions = {}): Action {
     return turnAction(this.host, 'view.sync()', opts.runTime ?? 1, () => new ViewSync<M>(this, opts));
   }
 
@@ -115,7 +115,7 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
    * and keep the family shape the view's draw gives (as a Follow's draw does). An action, as
    * sync() is.
    */
-  tween(stateAt: (t: number) => S, opts: AnimOpts = {}): Action {
+  tween(stateAt: (t: number) => S, opts: AnimOptions = {}): Action {
     return turnAction(this.host, 'view.tween()', opts.runTime ?? 1, () => new ViewTween<S, Sh>(this, (t) => {
       this.host.state = cloneJson(stateAt(t), 'view.tween()', 'stateAt(t)') as Scene<S, Sh>['state'];
       return this.placed(this.host.state);
@@ -204,7 +204,7 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
   /** Set by begin(): the built picture's fit, which the View records only once it takes the picture. */
   private fit!: ViewFit;
 
-  constructor(v: View<M, any, any>, { match = 'key', staged = true, ...opts }: SyncOpts = {}) {
+  constructor(v: View<M, any, any>, { match = 'key', staged = true, ...opts }: SyncOptions = {}) {
     super(v, opts);
     this.view = v; this.match = match; this.staged = staged;
   }
@@ -266,7 +266,7 @@ class ViewTween<S extends object, Sh extends object> extends Animation {
   /** Set by begin(): the Follow that writes the picture on screen then. */
   private follow: Follow | null = null;
 
-  constructor(view: View<Mobject, S, Sh>, draw: (t: number) => Mobject, opts: AnimOpts) {
+  constructor(view: View<Mobject, S, Sh>, draw: (t: number) => Mobject, opts: AnimOptions) {
     super(view.current, opts);
     this.view = view;
     this.draw = draw;
@@ -313,7 +313,7 @@ export const isView = (m: Mobject): m is View => m instanceof View;
  * from the scene (`Scene<S, Sh>`). Keeps `draw`, so the picture can be checked against a trace
  * (see viewMismatch) and redrawn for any state a Machine reaches. Most draws read only the model.
  */
-export function view<S extends object, Sh extends object, M extends Mobject>(scene: Scene<S, Sh>, draw: (state: S, shown: Sh) => M, opts?: ViewOpts): View<M, S, Sh> {
+export function view<S extends object, Sh extends object, M extends Mobject>(scene: Scene<S, Sh>, draw: (state: S, shown: Sh) => M, opts?: ViewOptions): View<M, S, Sh> {
   return new View(scene, draw, opts);
 }
 

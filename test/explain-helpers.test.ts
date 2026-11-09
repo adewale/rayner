@@ -506,7 +506,7 @@ test('whatever the validator accepts, a Diagram can draw and describe without in
         assert.match((error as Error).message, /^scene\.snapshots: (a diagram snapshot is invalid|a snapshot's source does not match its key)/);
         return;
       }
-      const scene = new Scene(new NullSink(), { skipUntil: Infinity });
+      const scene = new Scene(new NullSink());
       const d = new Diagram(scene, ok.spec, ok, { box: 'side' });
       await d.build();
       await d.enlarge('all');
@@ -522,7 +522,7 @@ test('whatever the validator accepts, a Diagram can draw and describe without in
 });
 
 test('two diagrams on one stage have two frames, each a part of its own with the role frame', async () => {
-  const scene = new Scene(new NullSink(), { skipUntil: Infinity });
+  const scene = new Scene(new NullSink());
   const other = fixedSnapshot({ ...spec, source: spec.source + '\n%% another' }, fixture().parts, { palette: fixture().palette });
   const [a, b] = [new Diagram(scene, spec, fixture(), { box: 'left' }), new Diagram(scene, other.spec, other, { box: 'right' })];
   await a.build();
@@ -536,7 +536,7 @@ test('two diagrams on one stage have two frames, each a part of its own with the
 test('a hidden diagram leaves the stage, so nothing describes it, and reveal brings it back', async () => {
   const s = fixture();
   const ok = await snapshotResolver({ [diagramKey(s.spec)]: s }).diagram(s.spec);
-  const scene = new Scene(new NullSink(), { skipUntil: Infinity });
+  const scene = new Scene(new NullSink());
   const d = new Diagram(scene, ok.spec, ok, { box: 'side' });
   await d.build();
   assert.ok(scene.mobjects.includes(d.root));
@@ -549,7 +549,7 @@ test('a hidden diagram leaves the stage, so nothing describes it, and reveal bri
 test('a canvas so large the diagram fits to a point still draws finite points (CI counterexample)', async () => {
   const s = { ...fixture(), width: 129312739843.01703 };
   const ok = await snapshotResolver({ [diagramKey(s.spec)]: s }).diagram(s.spec);
-  const d = new Diagram(new Scene(new NullSink(), { skipUntil: Infinity }), ok.spec, ok, { box: 'side' });
+  const d = new Diagram(new Scene(new NullSink()), ok.spec, ok, { box: 'side' });
   await d.build();
   await d.enlarge('all');
   for (const p of d.parts.values()) for (const m of p.mob.family()) for (const a of m.pointArrays()) assert.ok(a.every(Number.isFinite));
@@ -902,7 +902,7 @@ test('the explain entry point exports exactly its documented names', async () =>
   assert.deepEqual(Object.keys(await import('../explain/testing.ts')).sort(), [
     'InvariantSink', 'MotionSink', 'TraceSink', 'analyzeMotion', 'assertStepState', 'assertSteps', 'assertViewFollowsState', 'bindSnapshots', 'describeExplainer',
     'diagramFindings', 'diagramOf', 'jsonObject', 'loadFonts',
-    'loadProject', 'loadSnapshots', 'machinesOf', 'perf', 'pictureWordsAt', 'scenarioName', 'scenariosOf', 'stillFrame', 'takeMissingGlyphs', 'traceScene', 'viewMismatch', 'withIntent', 'withSettings',
+    'loadProject', 'loadSnapshots', 'machinesOf', 'pictureWordsAt', 'scenarioName', 'scenariosOf', 'takeMissingGlyphs', 'traceScene', 'viewMismatch', 'withIntent', 'withSettings',
   ]);
 });
 
@@ -975,7 +975,7 @@ test('state diagrams name [*] dots by their state and region, count composites a
   const draw = async (source: string) => {
     const captured = Object.values(store).find((s) => s.spec.source === source);
     assert.ok(captured, 'the fixture snapshot is captured');
-    const d = new Diagram(new Scene(new NullSink(), { skipUntil: Infinity }), captured.spec, captured, { box: 'full' });
+    const d = new Diagram(new Scene(new NullSink()), captured.spec, captured, { box: 'full' });
     await d.build();
     return d;
   };

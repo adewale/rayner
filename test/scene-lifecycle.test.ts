@@ -6,9 +6,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Circle, Rectangle, FadeIn, FadeOut, Create, AnimationGroup, Succession, Transform, DecimalNumber, Text, Group } from '../src/index.ts';
 import { thereAndBack } from '../src/rate.ts';
-import { NullSink, SnapshotSink, renderFrame, StopScene } from '../src/output.ts';
+import { NullSink, renderFrame, StopScene } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import { traceScene } from '../src/testing.ts';
-import { captionWords, stillFrame } from '../src/scene.ts';
 import type { Step } from '../src/index.ts';
 import { MadeAtTurn, animationName } from '../src/animation.ts';
 import type { ScheduledAnimation } from '../src/animation.ts';
@@ -353,17 +353,17 @@ test('a play with nothing to play is refused, not drawn as a silent frame', asyn
   assert.equal(scene.phase, 'idle');
 });
 
-test('a mobject kept on top stays last in drawing order through every add, bringToBack and replace, while on stage', () => {
+test('a mobject kept on top stays last in drawing order through every add and replace, while on stage', () => {
   const scene = new Scene(new NullSink());
   const top = new Rectangle(), band = new Rectangle(), a = new Circle(), b = new Circle(), c = new Circle();
   scene.add(a, band, top);
   const unkeep = scene.keepOnTop(band, top);
   scene.add(b);
   assert.deepEqual(scene.mobjects, [a, b, band, top]);
-  scene.bringToFront(a);
+  scene.add(a);
   assert.deepEqual(scene.mobjects, [b, a, band, top]);
-  scene.bringToBack(top);
-  assert.deepEqual(scene.mobjects, [b, a, band, top], 'kept on top even when sent back');
+  scene.add(top);
+  assert.deepEqual(scene.mobjects, [b, a, band, top], 'kept on top when added again');
   scene.replace(a, c);
   assert.deepEqual(scene.mobjects, [b, c, band, top]);
   // Keeping does not add; one taken off the stage is skipped until it comes back.
@@ -454,7 +454,7 @@ test('a stop\'s callback is held to the listener rule: one that returns with a p
     }
   }
   for (const skipUntil of [0, Infinity]) {
-    const scene = new Short(new NullSink(), { skipUntil });
+    const scene = new Short({ skipUntil, async frame() {} });
     let left: Promise<void> | undefined, frame = 0;
     // A Succession interpolates through skipped frames, so even a skipped play is still running when the callback returns.
     scene.stopAt('one', (s) => { frame = s.frameCount; left = s.play(new Succession([new FadeIn(new Rectangle()), new FadeIn(new Circle({ radius: 0.3 }))])); });
@@ -537,7 +537,6 @@ test('a step listener may play and wait in the step: onStep opens it, onStepEnd 
   assert.equal(one.holdFrame, 24);
   assert.equal(one.hold, 24 / 30);
   assert.equal(one.frame1, 90);
-  assert.equal(stillFrame(one), 24);
   assert.equal(scene.phase, 'idle');
 });
 
@@ -596,11 +595,9 @@ test('each step records its hold and rest frames exactly, and the trace carries 
   const [held, unheld] = trace.steps;
   assert.equal(held!.holdFrame, 15);
   assert.ok(held!.frame1 > held!.holdFrame!);
-  assert.equal(stillFrame(held!), held!.holdFrame);
   // With no hold there is no hold frame, and the picture stops on the last frame.
   assert.equal(unheld!.hold, undefined);
   assert.equal(unheld!.holdFrame, undefined);
-  assert.equal(stillFrame(unheld!), unheld!.frame1);
   assert.equal(unheld!.frame1, unheld!.frame0 + 12);
   // A seek to the rest frame draws the frame a full run draws there.
   const frames: string[] = [];
@@ -771,21 +768,30 @@ test('the caption rate is read from the scene\'s own class', async () => {
   assert.equal(scene.steps[0]!.t1, 3, 'three words at 60 a minute');
 });
 
-test('caption words: whitespace separates words, and in scripts without spaces every 1.5 letters count as one', () => {
-  assert.equal(captionWords('  one two\tthree '), 3);
-  assert.equal(captionWords(''), 0);
-  assert.equal(captionWords('哈希表处理冲突'), 7 / 1.5);
-  assert.equal(captionWords('Hello 你好世界'), 1 + 4 / 1.5);
+test('a caption holds one second a word at 60 words a minute: whitespace separates words, and in scripts without spaces every 1.5 letters count as one', async () => {
+  /** The frames a step with only this caption lasts, at 60 words a minute and 30 fps. */
+  const held = async (caption: string) => {
+    class Read extends Scene {
+      static override captionWpm = 60;
+      override async construct() { await this.step('one', { caption }); }
+    }
+    return (await new Read(new NullSink()).run()).steps[0]!.frame1!;
+  };
+  const frames = (words: number) => Math.ceil(words * 30 - 1e-6);
+  assert.equal(await held('  one two\tthree '), frames(3));
+  assert.equal(await held(''), 0);
+  assert.equal(await held('哈希表处理冲突'), frames(7 / 1.5));
+  assert.equal(await held('Hello 你好世界'), frames(1 + 4 / 1.5));
   // A token is at least a word: a lone numeral, or one beside Latin, reads as one.
-  assert.equal(captionWords("int('三') returns 3"), 3);
-  assert.equal(captionWords('API调用'), 2 / 1.5);
-  assert.equal(captionWords('三'), 1);
+  assert.equal(await held("int('三') returns 3"), frames(3));
+  assert.equal(await held('API调用'), frames(2 / 1.5));
+  assert.equal(await held('三'), frames(1));
   // Thai, with its combining marks: grapheme clusters, not code points (six code points, two clusters).
-  assert.equal(captionWords('ที่นี่'), 2 / 1.5);
+  assert.equal(await held('ที่นี่'), frames(2 / 1.5));
   // Khmer, where Node's and Chromium's dictionary word breaks differ; their grapheme clusters agree.
-  assert.equal(captionWords('សួស្តីពិភពលោក'), 7 / 1.5);
+  assert.equal(await held('សួស្តីពិភពលោក'), frames(7 / 1.5));
   // Korean is written with spaces.
-  assert.equal(captionWords('한국어는 띄어쓰기를 합니다'), 3);
+  assert.equal(await held('한국어는 띄어쓰기를 합니다'), frames(3));
 });
 
 test('a Chinese caption holds for its reading time, not as one word', async () => {

@@ -1,11 +1,11 @@
 // Code spans (views of a line's glyphs, boxed on line metrics) and build-time
 // syntax tokens (tools/repo/lib/tokenize.ts, painted by Code's `spans` option).
 import { test } from 'node:test';
-import { Write } from '../src/extras.ts';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { Code, Scene, VMobject, Transform, FadeOut } from '../src/index.ts';
-import { NullSink, StringSink, SnapshotSink, renderAt, renderElements } from '../src/output.ts';
+import { Code, Scene, VMobject, Transform, FadeOut, Create } from '../src/index.ts';
+import { NullSink, StringSink, renderFrame, renderElements } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import { loadFonts } from '../explain/testing.ts';
 import type { ColorSpan, Box, Sink } from '../src/index.ts';
 import { tokenize, lex, shikiTokens, hasShiki, langOf, DARK } from '../tools/repo/lib/tokenize.ts';
@@ -143,7 +143,7 @@ class ColoredScene extends Scene {
   override async construct() {
     await this.step('write');
     const a = new Code(LINES.slice(0, 2), { spans: SPANS }).shift([0, 1]);
-    await this.play(new Write(a), { runTime: 1 });
+    await this.play(new Create(a, { lagRatio: 0.3 }), { runTime: 1 });
     await this.step('morph');
     const next = ['const hit = await cache.get(key);', '  if (!hit) return load(key);'];
     const b = new Code(next, { spans: tokenize(next.join('\n'), 'ts', { engine: 'fallback' }) }).shift([0, -1]);
@@ -161,12 +161,11 @@ test('seeking a coloured Write and Transform renders the frames a full run produ
     async frame(scene) { await svg.frame(scene); dom.push(JSON.stringify(renderElements(scene, { relative: false }).map((r) => r.attrs))); },
   };
   await new ColoredScene(both).run();
-  for (const t of [0.4, 1.0, 1.5, 2.2, 2.5, 3.1]) {
+  for (const frame of [12, 30, 45, 66, 75, svg.frames.length - 1]) {
     const snap = new SnapshotSink();
-    const scene = await renderAt(ColoredScene, t, snap);
-    const frame = scene.frameCount;
-    assert.equal(snap.svg, svg.frames[frame], `svg at ${t}`);
-    assert.equal(JSON.stringify(renderElements(scene, { relative: false }).map((r) => r.attrs)), dom[frame], `dom records at ${t}`);
+    const scene = await renderFrame(ColoredScene, frame, snap);
+    assert.equal(snap.svg, svg.frames[frame], `svg at frame ${frame}`);
+    assert.equal(JSON.stringify(renderElements(scene, { relative: false }).map((r) => r.attrs)), dom[frame], `dom records at frame ${frame}`);
   }
 });
 

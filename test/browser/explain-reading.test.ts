@@ -117,8 +117,7 @@ test('imported font metadata stays out of every ancestor bound during different-
       target = diagram.get('B').family().find((m) => labelOf(m)?.text === word)!;
       target.parent!.remove(target);
     }
-    const animation = new Transform(source, target, { pathFunc: (from, to, alpha) =>
-      [from[0] + (to[0] - from[0]) * alpha, from[1] + (to[1] - from[1]) * alpha + Math.sin(Math.PI * alpha)] });
+    const animation = new Transform(source, target);
     animation.begin();
     for (const alpha of [0, 0.1, 0.3, 0.5, 0.8, 1]) {
       animation.interpolate(alpha);

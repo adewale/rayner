@@ -6,7 +6,7 @@
 
 import * as V from './vec.ts';
 import type { Vec } from './vec.ts';
-import { lerpColor, NEUTRAL_COLORS } from './color.ts';
+import { blendPaint, NEUTRAL_COLORS } from './color.ts';
 import type { ColorRole, SceneColors } from './color.ts';
 import { perf } from './perf.ts';
 import { center, pointsBox } from './box.ts';
@@ -90,10 +90,8 @@ export type Updater<M extends Mobject = Mobject> = (m: M, dt: number) => void;
 
 /** A function of points about a center: applyPointsFunction's argument. */
 export type PointsFunction = (p: Vec) => Vec;
-/** Per-point path for Transform: where a point is at alpha between its two ends. */
-export type PathFunc = (start: Vec, end: Vec, alpha: number) => Vec;
 
-export interface AboutOpts {
+export interface AboutOptions {
   aboutPoint?: Vec | null;
   aboutEdge?: Vec;
 }
@@ -162,7 +160,7 @@ export class Mobject {
   /** @internal The state saveState() stored, for restore() and Restore. Copies do not carry it. */
   declare saved?: Mobject;
   /**
-   * The style fields that still hold an engine default, and the scene colour each takes: a
+   * @internal The style fields that still hold an engine default, and the scene colour each takes: a
    * `Text` built without a `color` has `{ fill: 'ink' }`, a `SurroundingRectangle` without a
    * `stroke` has `{ stroke: 'emphasis' }`. When the mobject first enters a scene (`scene.add`, a play
    * that targets it, or a parent already in one), each field still holding the neutral value
@@ -391,7 +389,7 @@ export class Mobject {
   // ---- transforms --------------------------------------------------------
 
   /** Map `fn([x,y]) -> [x,y]` over every point, about `aboutPoint` (default: box center). */
-  applyPointsFunction(fn: PointsFunction, { aboutPoint = null, aboutEdge = [0, 0] }: AboutOpts = {}): this {
+  applyPointsFunction(fn: PointsFunction, { aboutPoint = null, aboutEdge = [0, 0] }: AboutOptions = {}): this {
     perf.count('applyPointsFunction()');
     const about = aboutPoint ?? this.boxPoint(aboutEdge);
     for (const m of this.family()) {
@@ -426,7 +424,7 @@ export class Mobject {
    * In-place affine map p -> [a c; b d](p - about) + about + [e f], with no
    * allocation per point (applyPointsFunction allocates two arrays per point).
    */
-  applyAffine(a: number, b: number, c: number, d: number, e: number, f: number, { aboutPoint = null, aboutEdge = [0, 0] }: AboutOpts = {}): this {
+  applyAffine(a: number, b: number, c: number, d: number, e: number, f: number, { aboutPoint = null, aboutEdge = [0, 0] }: AboutOptions = {}): this {
     perf.count('applyAffine()');
     const translation = a === 1 && b === 0 && c === 0 && d === 1;
     const about: Readonly<Vec> = translation ? [0, 0] : (aboutPoint ?? this.boxPoint(aboutEdge));
@@ -459,11 +457,11 @@ export class Mobject {
     return this.applyAffine(1, 0, 0, 1, v[0], v[1]);
   }
 
-  scale(k: number, opts: AboutOpts = {}): this {
+  scale(k: number, opts: AboutOptions = {}): this {
     return this.applyAffine(k, 0, 0, k, 0, 0, opts);
   }
 
-  rotate(angle: number, opts: AboutOpts = {}): this {
+  rotate(angle: number, opts: AboutOptions = {}): this {
     const c = Math.cos(angle), s = Math.sin(angle);
     return this.applyAffine(c, s, -s, c, 0, 0, opts);
   }
@@ -534,7 +532,7 @@ export class Mobject {
     return stretch ? this.stretch(h / cur, 1) : this.scale(h / cur);
   }
 
-  stretch(k: number, axis: 0 | 1, opts: AboutOpts = {}): this {
+  stretch(k: number, axis: 0 | 1, opts: AboutOptions = {}): this {
     return axis === 0 ? this.applyAffine(k, 0, 0, 1, 0, 0, opts) : this.applyAffine(1, 0, 0, k, 0, 0, opts);
   }
 
@@ -567,8 +565,8 @@ export class Mobject {
    * `a` and `b` are the family members at this one's index, which alignment
    * may have paired with another class (a Rectangle morphing into a Text).
    */
-  interpolate(a: Mobject, b: Mobject, alpha: number, pathFunc: PathFunc | null = null): this {
-    this.interpolateData(a, b, alpha, pathFunc);
+  interpolate(a: Mobject, b: Mobject, alpha: number): this {
+    this.interpolateData(a, b, alpha);
     // Field by field over whatever the style holds: numbers lerp, colors blend
     const mine = this.style as Record<string, string | number | undefined>;
     const sa = a.style as Record<string, string | number | undefined>, sb = b.style as Record<string, string | number | undefined>;
@@ -580,7 +578,7 @@ export class Mobject {
     for (const k in sb) {
       const va = sa[k], vb = sb[k];
       // Exact at the ends: a + (b - a) * 1 is not always b in floating point.
-      const value = va === vb ? va : alpha <= 0 ? va : alpha >= 1 ? vb : COLOR_KEYS.has(k) ? lerpColor(va as string, vb as string, alpha) : typeof va === 'number' && typeof vb === 'number' ? va + (vb - va) * alpha : alpha < 0.5 ? va : vb;
+      const value = va === vb ? va : alpha <= 0 ? va : alpha >= 1 ? vb : COLOR_KEYS.has(k) ? blendPaint(va as string, vb as string, alpha) : typeof va === 'number' && typeof vb === 'number' ? va + (vb - va) * alpha : alpha < 0.5 ? va : vb;
       if (value === undefined) delete mine[k]; else mine[k] = value;
     }
     this._bbox = null;
@@ -594,7 +592,7 @@ export class Mobject {
    * as in manim: the shape shrinks away while b's children grow out of the
    * null copies alignment gave this side.
    */
-  interpolateData(a: Mobject, b: Mobject, alpha: number, pathFunc: PathFunc | null): void {
+  interpolateData(a: Mobject, b: Mobject, alpha: number): void {
     const mine = this.pointArrays(), pa = a.pointArrays(), pb = b.pointArrays();
     let center: Vec | null = null;
     for (let i = 0; i < mine.length; i++) {
@@ -605,12 +603,7 @@ export class Mobject {
         for (let j = 0; j < m.length; j += 2) { m[j] = x[j]! + (center[0] - x[j]!) * alpha; m[j + 1] = x[j + 1]! + (center[1] - x[j + 1]!) * alpha; }
         continue;
       }
-      if (pathFunc) {
-        for (let j = 0; j < m.length; j += 2) {
-          const p = pathFunc([x[j]!, x[j + 1]!], [y[j]!, y[j + 1]!], alpha);
-          m[j] = p[0]; m[j + 1] = p[1];
-        }
-      } else if (alpha === 1) {
+      if (alpha === 1) {
         // Exact at the ends. Only at the ends: a rate function may overshoot
         // (easeOutBack) or undershoot, and the points must follow it past them.
         m.set(y);

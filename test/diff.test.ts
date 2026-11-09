@@ -12,7 +12,8 @@ import {
   Scene, Code, Text, FadeIn, LaggedStart, TransformDiff, TransformMatchingText, VMobject,
   diffLines, parseUnifiedDiff,
 } from '../src/index.ts';
-import { StringSink, SnapshotSink, renderAt, renderText, indexScene, stepTime, renderFrame } from '../src/output.ts';
+import { StringSink, renderText, renderFrame } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import { MotionSink, analyzeMotion, traceScene, loadFonts } from '../explain/testing.ts';
 import { diffTokens, tokenize, hunkHeader } from '../src/diff.ts';
 import type { Hunk, Mobject, Sink } from '../src/index.ts';
@@ -203,10 +204,9 @@ class DiffScene extends Scene {
 test('seeking into a TransformDiff renders the frame a full run renders', async () => {
   const full = new StringSink();
   await new DiffScene(full).run();
-  const ix = await indexScene(DiffScene);
-  const d = stepTime(ix, 'diff')!, g = stepTime(ix, 'given')!;
-  const ks = [0, Math.round(d * 30), Math.round(d * 30) + 1, Math.round((d + 0.6) * 30), Math.round((d + 1.2) * 30),
-    Math.round(g * 30) + 7, Math.round(g * 30) + 15, full.frames.length - 1];
+  const ix = await traceScene(DiffScene);
+  const d = ix.steps.find((s) => s.step === 'diff')!.frame0, g = ix.steps.find((s) => s.step === 'given')!.frame0;
+  const ks = [0, d, d + 1, d + 18, d + 36, g + 7, g + 15, full.frames.length - 1];
   for (const k of ks) {
     const snap = new SnapshotSink();
     await renderFrame(DiffScene, k, snap);
@@ -279,7 +279,7 @@ test('TransformDiff in a scene: the recorded hunks are git\'s, and no unchanged 
   const scene = await new HandoffScene(sink).run();
   assert.ok(handoff, 'the after block took over from the before block');
   const { from, to, t } = handoff as { from: Float32Array[][][]; to: Code; t: number };
-  assert.ok(Math.abs(t - (stepTime(await indexScene(HandoffScene), 'diff')! + 1.2)) <= 1 / scene.fps + 1e-9, `hand-over at the end of the play (${t})`);
+  assert.ok(Math.abs(t - ((await traceScene(HandoffScene)).steps.find((s) => s.step === 'diff')!.t0 + 1.2)) <= 1 / scene.fps + 1e-9, `hand-over at the end of the play (${t})`);
   // Every line git leaves alone ends exactly on its line of the after block
   let i = 0, j = 0, checked = 0;
   const same = (n: number) => {
@@ -317,7 +317,7 @@ test('evidence: the trace and the text frame carry what each transform paired, a
   const hash = (x: unknown) => createHash('sha256').update(JSON.stringify(x)).digest('hex');
   assert.equal(hash(await traceScene(DiffScene)), hash(tr));
   // Mid-transform, the text frame says what the step recorded so far
-  const scene = await renderAt(DiffScene, stepTime(await indexScene(DiffScene), 'diff')! + 0.5, new SnapshotSink());
+  const scene = await renderFrame(DiffScene, tr.steps.find((s) => s.step === 'diff')!.frame0 + 15, new SnapshotSink());
   assert.match(renderText(scene), /\ndiff @@ -2 \+2,4 @@: 2 unchanged, 1 rewritten, 0 removed, 3 added lines$/);
 });
 

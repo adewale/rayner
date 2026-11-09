@@ -3,7 +3,7 @@ import type { View, Choreography, ExplainerMeta } from '../../../explain/index.t
 import type { ScheduledAnimation, Vec, Mobject, Arrow } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Machine, view } from '../../../explain/index.ts';
 import { card, code } from '../../../explain/drawing.ts';
-import type { CodeOptions } from '../../../explain/drawing.ts';
+import type { CodeBlockOptions } from '../../../explain/drawing.ts';
 import { ringStory, ringStart, ringNext } from './model.ts';
 import type { RingState, RingEvent } from './model.ts';
 import { frames as readerFrames, arrayQueue, SLOTS, C, R, SLOT, angle, polar, pushArg, pointer, pointerAt, drawRing, sayRing } from './picture.ts';
@@ -170,7 +170,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
     await this.play(new FadeIn(resultCard, { runTime: 0.35, shift: [0, -0.08] }), new FadeIn(results, { runTime: 0.35 }));
     // The code panel lights the lines the last operation ran: push's first line when it threw
     // Full, pop's body after a pop, push's body after a push.
-    const litOf = (st: RingState): CodeOptions['lit'] =>
+    const litOf = (st: RingState): CodeBlockOptions['lit'] =>
       st.error != null ? { lines: 1 } : st.operation === 'pop' ? { lines: [8, 12] } : st.operation != null ? { lines: [2, 4] } : null;
     const codeAt = regionBox('full', { left: -0.25, top: resultCard.box()![1] - 0.25 });
     const codePanel = (this.code = view(this, (st) => code(s, CODE, { at: codeAt, size: 0.2, lit: litOf(st), key: 'code' }), { place: false }));

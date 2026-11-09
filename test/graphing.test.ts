@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {
   NumberLine, Axes, VMobject, Rectangle, Text, Scene, Create, Transform, FadeIn,
   } from '../src/index.ts';
-import { StringSink, SnapshotSink, renderFrame } from '../src/output.ts';
+import { StringSink, renderFrame } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
 import { fc, params } from './lib/pbt.ts';
 import type { Vec } from '../src/index.ts';

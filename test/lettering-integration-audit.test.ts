@@ -52,7 +52,7 @@ test('a cached snapshot rejects a glyph cluster one past the source', async () =
 for (const explicit of [false, true]) test(`numbered contact-sheet titles capture and replay the requested script (${explicit ? 'explicit' : 'ambient'})`, { skip: process.env.EXPLAIN_LETTERING !== '1' }, async () => {
   const folder = await mkdtemp(join(tmpdir(), 'lettering-audit-sheet-'));
   try {
-    await writeFile(join(folder, 'scene.ts'), `import{Scene,Text}from'rayner';import{stage}from'rayner/explain';export default class S extends Scene{static meta={id:'sheet',${explicit ? "textContext:'explicit'," : ''}lettering:{scripts:['Arab']}};async construct(){const s=stage(this,{heading:false});await this.step('one',{title:'السَّلَامُ عَلَيْكُمْ',caption:'Arabic'});await s.enter(${explicit ? 'this.text' : 'new Text'}('السَّلَامُ عَلَيْكُمْ'));}}`);
+    await writeFile(join(folder, 'scene.ts'), `import{Scene,Text}from'rayner';import{stage}from'rayner/explain';export default class S extends Scene{static meta={id:'sheet',${explicit ? "textContext:'explicit'," : ''}lettering:{scripts:['Arab']}};async construct(){const s=stage(this,{heading:false});await this.step('one',{title:'السَّلَامُ عَلَيْكُمْ',caption:'Arabic'});await s.enter(new Text('السَّلَامُ عَلَيْكُمْ'${explicit ? ',{shaping:this.textShaping}' : ''}));}}`);
     const p = await collectProject(folder, { captureLettering: true, write: false });
     const key = JSON.stringify(['sans', '1. السَّلَامُ عَلَيْكُمْ', false]);
     assert.ok(p.outlineLettering?.runs[key]);

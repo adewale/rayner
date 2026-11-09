@@ -1,4 +1,4 @@
-import { Scene, ItalicText } from '../../../src/index.ts';
+import { Scene, ItalicText, Text } from '../../../src/index.ts';
 import { stage, settingsOf, view } from '../../../explain/index.ts';
 import type { ExplainerMeta } from '../../../explain/index.ts';
 import { SAMPLE, GAP, drawLayout, drawAdvance, drawRulers, drawCuts } from './picture.ts';
@@ -45,16 +45,16 @@ export default class FontMetrics extends Scene<FontState, {}> {
     const s = stage(this, { headingSize: 0.6, style: 'pen-and-ink' });
     const color = s.look.ink;
     /** The phrase in EB Garamond at the rows' size, drawn afresh for each picture. */
-    const phrase = () => this.text(SAMPLE, { fontSize: 0.9, color });
+    const phrase = () => new Text(SAMPLE, { fontSize: 0.9, color, shaping: this.textShaping });
     const run = phrase().shapeRun(SAMPLE, 0.9);
     const spaces = run.glyphs.filter((g) => SAMPLE[g.cluster] === ' ');
-    const monoRun = this.text(SAMPLE, { font: 'mono', fontSize: 0.9 }).shapeRun(SAMPLE, 0.9);
+    const monoRun = new Text(SAMPLE, { font: 'mono', fontSize: 0.9, shaping: this.textShaping }).shapeRun(SAMPLE, 0.9);
     const stopsOf = (r: typeof run) => [...r.glyphs.map((g) => g.x), r.glyphs.at(-1)!.x + r.glyphs.at(-1)!.ax];
 
     // Each step's picture is drawn from the measurements its state records, and check redraws it from them.
     // 1. The failure: the marker goes where the measured width ends, and the wrong face is measured.
     const layout = {
-      layout: { wrong: this.text(SAMPLE, { font: 'mono', fontSize: 0.9 }).advance(), actual: this.text(SAMPLE, { fontSize: 0.9 }).advance() },
+      layout: { wrong: new Text(SAMPLE, { font: 'mono', fontSize: 0.9, shaping: this.textShaping }).advance(), actual: new Text(SAMPLE, { fontSize: 0.9, shaping: this.textShaping }).advance() },
     };
     // 2. The answer: a phrase's width is the sum of its glyphs' advances, which belong to the face. The
     // lower row of the opening again, at its size: the ruler's total is the 4.41 the marker used. `pen`:
@@ -79,7 +79,7 @@ export default class FontMetrics extends Scene<FontState, {}> {
     const { wrong, actual } = layout.layout;
     const measuredEnd = rulers.rulers.measured.at(-1)!,
       drawnEnd = rulers.rulers.drawn.at(-1)!;
-    const pen: Pen = { stage: s, text: (value, opts) => this.text(value, opts), phrase, color };
+    const pen: Pen = { stage: s, text: (value, opts) => new Text(value, { ...opts, shaping: this.textShaping }), phrase, color };
     await s.steps([
       {
         id: 'layout',
@@ -118,7 +118,7 @@ export default class FontMetrics extends Scene<FontState, {}> {
     const word = (cut: (typeof CUTS)[number]) =>
       cut === 'Italic'
         ? new ItalicText(SAMPLE, { fontSize: 0.9, color, shaping: this.textShaping })
-        : this.text(SAMPLE, { fontSize: 0.9, color, weight: cut === 'Bold' ? 'bold' : 'normal' });
+        : new Text(SAMPLE, { fontSize: 0.9, color, weight: cut === 'Bold' ? 'bold' : 'normal', shaping: this.textShaping });
     await this.step('cuts', {
       title: 'Bold and italic are faces of their own, with their own advances',
       line: 'Same text, size 0.9: three cuts, three widths.',
@@ -172,7 +172,7 @@ export default class FontMetrics extends Scene<FontState, {}> {
     this.state.stretch = Object.fromEntries(
       WORDS.map(([, text]) => {
         const run = d.snapshot.parts.flatMap((p) => p.shapes).find((sh) => sh.textRun?.text === text)!.textRun!;
-        const natural = this.text(text, { fontSize: run.size }).advance();
+        const natural = new Text(text, { fontSize: run.size, shaping: this.textShaping }).advance();
         return [text, (run.width ?? natural) / natural];
       }),
     );

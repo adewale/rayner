@@ -6,7 +6,7 @@
 // ruler's ticks and space cells come from the same shaped run the Text draws, not a separate estimate.
 // The advance step's dimension is drawn here, with the stage, because a staged draw cannot add one later.
 import { Group, Circle, Line, Rectangle } from '../../../src/index.ts';
-import type { Text, TextOpts } from '../../../src/index.ts';
+import type { Text, TextOptions } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { dimension } from '../../../explain/drawing.ts';
 
@@ -20,7 +20,7 @@ const START = -5.3,
 /** What the pictures draw with: the stage, the scene's text (lettered), the phrase as drawn, and the ink colour. */
 export interface Pen {
   stage: Stage;
-  text: (value: string, opts?: TextOpts) => Text;
+  text: (value: string, opts?: TextOptions) => Text;
   phrase: () => Text;
   color: string;
 }

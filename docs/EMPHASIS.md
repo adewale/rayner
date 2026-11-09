@@ -25,14 +25,13 @@ build a new one.
 | Shape | Says | Defaults |
 | --- | --- | --- |
 | `new SurroundingRectangle(t, { buff, cornerRadius })` | this one | the scene's emphasis colour as its stroke, no fill, `buff` 0.15 |
-| `new Underline(t, { buff })` | this word, this value | the scene's ink, `buff` 0.1 below the bottom edge |
 | `new Cross(t, { scale })` | not this, removed, rejected | the scene's `bad` colour, stroke 0.06, both diagonals of the box |
-| `new Brace(t, direction, { buff, depth, sharpness })` | this span, as a whole | the scene's ink, `buff` 0.1, `depth` 0.2 |
+| `new Brace(t, direction, { buff, depth })` | this span, as a whole | the scene's ink, `buff` 0.1, `depth` 0.2 |
 | `new BraceLabel(t, text, direction, { fontSize, color, buff, labelBuff })` | this span is _n_ | a Brace and a Text beyond its tip |
 
-`Underline` is imported from `rayner/extras`, the rest from `rayner`. All take the usual style fields (`stroke`, `strokeWidth`, `fill`, ...). A colour left out is the scene's for that role ([default colours](ENGINE-FUNDAMENTALS.md#geometry-and-paint)): on a stage, its palette's. Draw order
+Each is imported from `rayner`, and all take the usual style fields (`stroke`, `strokeWidth`, `fill`, ...). A colour left out is the scene's for that role ([default colours](ENGINE-FUNDAMENTALS.md#geometry-and-paint)): on a stage, its palette's. Draw order
 is chosen for `Create`. The rectangle starts at its top-left corner and goes
-clockwise. The underline runs left to right. The cross draws upper-left to
+clockwise. The cross draws upper-left to
 lower-right first. A brace runs from one end, through the tip, to the other.
 
 **Braces.** `direction` is the side of the box the brace goes on, and the tip
@@ -105,7 +104,6 @@ on the same idea for explainers, drawn from state by a [view](VIEWS.md).
   [ring-buffer](https://github.com/adewale/rayner/blob/main/scenes/explainers/ring-buffer/scene.ts) (the slot an operation touched).
 - `Circumscribe({ keep: true })`: [mr-cache](https://github.com/adewale/rayner/blob/main/scenes/explainers/mr-cache/scene.ts) (the KV lookup)
   and the feature tour's `emphasis` scenario.
-- `Underline` (from `rayner/extras`): the feature tour's `underline` scenario only.
 - `Cross`: [ring-buffer](https://github.com/adewale/rayner/blob/main/scenes/explainers/ring-buffer/scene.ts), on a refused value, and
   [latest-search](https://github.com/adewale/rayner/blob/main/scenes/explainers/latest-search/scene.ts), on a response the guard drops. On one flat
   line of code a `Cross` reads as a strikethrough rather than an X.

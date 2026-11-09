@@ -12,7 +12,8 @@ import type { Browser } from 'playwright-core';
 import { launch } from '../../tools/lib/browser.ts';
 import { collectProject, defaultScenario, ROOT } from '../../tools/lib/explain-project.ts';
 import type { Project } from '../../tools/lib/explain-project.ts';
-import { SnapshotSink, renderFrame, renderElements } from '../../src/output.ts';
+import { renderFrame, renderElements } from '../../src/output.ts';
+import { SnapshotSink } from '../../src/svg.ts';
 import { buildExplainer } from '../../tools/lib/explain-build.ts';
 import { serve } from '../../tools/lib/explain-serve.ts';
 

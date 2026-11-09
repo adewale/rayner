@@ -4,7 +4,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Resvg } from '@resvg/resvg-js';
 import { Scene, Rectangle, Text } from '../src/index.ts';
-import { NullSink, SnapshotSink, StringSink, toSvgString } from '../src/output.ts';
+import { NullSink, StringSink, toSvgString } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { fc, params } from './lib/pbt.ts';
 

@@ -18,6 +18,7 @@ test('Monty Hall paints every round at its chance and the host-conditioned perce
     assert.equal(scenario.values.choice, undefined);
     await new scenario.Scene(
       {
+        skipUntil: Infinity,
         async frame() {},
         async stepEnd(scene, step) {
           if (!['rounds', 'odds', 'worlds'].includes(step.name)) return;
@@ -68,7 +69,6 @@ test('Monty Hall paints every round at its chance and the host-conditioned perce
           visited.push(step.name);
         },
       },
-      { skipUntil: Infinity },
     ).run();
     assert.deepEqual(visited, ['rounds', 'odds', 'worlds']);
   }

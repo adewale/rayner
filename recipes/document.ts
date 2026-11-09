@@ -10,7 +10,7 @@ export function route(input: RequestInput): 'cache' | 'database' {
   return input.cached ? 'cache' : 'database';
 }
 
-/** Bind ordinary data to a SceneClass; renderAt/traceScene need no special format. */
+/** Bind ordinary data to a SceneClass; renderFrame and traceScene need no special format. */
 export function requestScene(input: RequestInput) {
   // Validate and copy the input under the trace's JSON rules, so later mutation by the caller cannot
   // change a replay and a function or NaN is refused here, with its path, rather than in the trace.

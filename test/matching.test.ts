@@ -1,10 +1,10 @@
 // Matching transforms: which part pairs with which, what the unmatched parts
 // do, and the invariants every animation keeps (seek-exact, no jumps).
 import { test } from 'node:test';
-import { Square } from '../src/extras.ts';
 import assert from 'node:assert/strict';
 import { Scene, Group, Text, Code, Circle, Rectangle, Polygon, Line, Arc, Labeled, Arrow, VMobject, FadeIn, Transform, LaggedStart, TransformMatching, TransformMatchingShapes, TransformMatchingText } from '../src/index.ts';
-import { StringSink, SnapshotSink, renderFrame } from '../src/output.ts';
+import { StringSink, renderFrame } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
 import type { Mobject, Vec } from '../src/index.ts';
 import { drawsFrom as rng } from './lib/random-scene.ts';
@@ -37,7 +37,7 @@ function pairing(a: TransformMatching, src: Mobject[], tgt: Mobject[]): string {
 }
 
 const SHAPES = [
-  () => new Square({ side: 1 }), () => new Square({ side: 1.5 }), () => new Circle({ radius: 0.5 }), () => new Rectangle({ width: 2, height: 1 }),
+  () => new Rectangle({ width: 1, height: 1 }), () => new Rectangle({ width: 1.5, height: 1.5 }), () => new Circle({ radius: 0.5 }), () => new Rectangle({ width: 2, height: 1 }),
   () => new Polygon([[0, 0], [1, 0], [0.3, 0.8]]), () => new Line([0, 0], [1, 0.5]), () => new Arc({ radius: 0.6, angle: 2 }),
 ];
 const at = <M extends Mobject>(m: M, r: Rng): M => m.moveTo([r(-6, 6), r(-3, 3)]);
@@ -151,8 +151,8 @@ test('mono and sans letters, and bold and normal, do not match', () => {
 
 /** Two small diagrams sharing a square and a circle. */
 function diagrams(): [Group, Group, Record<string, Mobject>] {
-  const sq = new Square({ side: 1 }).shift([-3, 0]), ci = new Circle({ radius: 0.5 }), tri = new Polygon([[2.5, -0.5], [3.5, -0.5], [3, 0.4]]);
-  const sq2 = new Square({ side: 1.4 }).shift([-2, 1.5]), ci2 = new Circle({ radius: 0.5 }).shift([1, 1.5]), rect = new Rectangle({ width: 2, height: 1 }).shift([3, -2]);
+  const sq = new Rectangle({ width: 1, height: 1 }).shift([-3, 0]), ci = new Circle({ radius: 0.5 }), tri = new Polygon([[2.5, -0.5], [3.5, -0.5], [3, 0.4]]);
+  const sq2 = new Rectangle({ width: 1.4, height: 1.4 }).shift([-2, 1.5]), ci2 = new Circle({ radius: 0.5 }).shift([1, 1.5]), rect = new Rectangle({ width: 2, height: 1 }).shift([3, -2]);
   return [new Group(sq, ci, tri), new Group(sq2, ci2, rect), { sq, ci, tri, sq2, ci2, rect }];
 }
 
@@ -174,7 +174,7 @@ test('shapes: shared nodes travel to the target, others fade out, new ones fade 
 
 test('an explicit key; fadeMismatches: false morphs leftovers; replace: false keeps the source', async () => {
   const dots = (xs: number[], fill: string) => xs.map((x) => new Circle({ radius: 0.2, fill, fillOpacity: 1 }).shift([x, 0]));
-  const a = new Group(...dots([-2, 0], '#ff0000'), ...dots([2], '#00ff00')), b = new Group(...dots([-1, 1, 3], '#ff0000'), new Square({ side: 0.4 }));
+  const a = new Group(...dots([-2, 0], '#ff0000'), ...dots([2], '#00ff00')), b = new Group(...dots([-1, 1, 3], '#ff0000'), new Rectangle({ width: 0.4, height: 0.4 }));
   const anim = new TransformMatching(a, b, { key: (p) => p.style.fill, fadeMismatches: false, replace: false });
   const s = new Scene(new StringSink());
   s.construct = async function (this: Scene) { this.add(a); await this.play(anim); };
@@ -196,7 +196,7 @@ test('one animation of the source: plays inside a group, and play() refuses a se
   s.construct = async function (this: Scene) {
     await this.play(new LaggedStart([new TransformMatchingText(a, b), new FadeIn(dot)]));
     const c = new Text('abc').shift([0, 1]);
-    await assert.rejects(this.play(new TransformMatchingText(b, c), new Transform(b.children[0]!, new Square())), /both animate/);
+    await assert.rejects(this.play(new TransformMatchingText(b, c), new Transform(b.children[0]!, new Rectangle({ width: 2, height: 2 }))), /both animate/);
   };
   await s.run();
   assert.deepEqual(s.mobjects, [b, dot], 'the group put the source on screen, and replace swapped in the target');
@@ -221,7 +221,7 @@ class MatchingScene extends Scene {
     await this.step('key');
     const dots = new Group(...[-1, 0, 1].map((x) => new Circle({ radius: 0.2, fill: '#58c4dd', fillOpacity: 1 }).shift([x, 3.5])));
     await this.play(new FadeIn(dots));
-    await this.play(new TransformMatching(dots, new Group(...[-1.5, 1.5].map((x) => new Square({ side: 0.4, fill: '#58c4dd', fillOpacity: 1 }).shift([x, 3.4]))),
+    await this.play(new TransformMatching(dots, new Group(...[-1.5, 1.5].map((x) => new Rectangle({ width: 0.4, height: 0.4, fill: '#58c4dd', fillOpacity: 1 }).shift([x, 3.4]))),
       { key: (p) => p.style.fill, fadeMismatches: false, lagRatio: 0.3 }));
     await this.wait(0.5);
   }
@@ -248,8 +248,8 @@ test('matching transforms are free of motion discontinuities', async () => {
 
 test('shapeKey: same shape at any position and size, nothing else', () => {
   const key = (m: VMobject) => m.shapeKey();
-  const sq = new Square({ side: 1 });
-  assert.equal(key(sq), key(new Square({ side: 3 }).shift([4.37, -2.11])));
+  const sq = new Rectangle({ width: 1, height: 1 });
+  assert.equal(key(sq), key(new Rectangle({ width: 3, height: 3 }).shift([4.37, -2.11])));
   assert.equal(key(sq), key(sq.copy().scale(0.013).shift([7.9, 3.3])), 'tiny and far away');
   assert.notEqual(key(sq), key(new Rectangle({ width: 2, height: 1 })));
   assert.notEqual(key(sq), key(sq.copy().stretch(1.05, 0)), 'five percent wider is another shape');
@@ -264,7 +264,7 @@ test('shapeKey: same shape at any position and size, nothing else', () => {
 test('matchByKey: a keyed component is kept wherever it moves, its parts morph inside it, and the root key is ignored', async () => {
   const { matchByKey } = await import('../src/index.ts');
   const cell = (z: number, symbol: string, at: Vec) => {
-    const g = new Group(new Square({ side: 1 }), new Text(symbol, { fontSize: 0.4 }), new Text(String(z), { fontSize: 0.2 }));
+    const g = new Group(new Rectangle({ width: 1, height: 1 }), new Text(symbol, { fontSize: 0.4 }), new Text(String(z), { fontSize: 0.2 }));
     g.key = `cell:${z}`;
     g.moveTo(at);
     return g;
@@ -285,9 +285,9 @@ test('matchByKey: a keyed component is kept wherever it moves, its parts morph i
   for (const [s, t] of a.pairs) {
     const owner = (m: Mobject) => { let p: Mobject | null = m; while (p && p.key === undefined) p = p.parent; return p?.key; };
     assert.equal(owner(s), owner(t));
-    if (s instanceof Square) assert.notEqual(owner(s), 'table');
+    if (s instanceof Rectangle) assert.notEqual(owner(s), 'table');
   }
-  assert.equal(a.pairs.filter(([s]) => s instanceof Square).length, 2);
+  assert.equal(a.pairs.filter(([s]) => s instanceof Rectangle).length, 2);
   // The unkeyed note has no fallback: its glyphs fade out and in
   assert.equal(a.removed.length, 'runs'.length);
   assert.equal(a.added.length, 'table'.length);
@@ -326,7 +326,7 @@ test('matchByKey text policy: by place, a relabelled keyed word morphs its glyph
 });
 
 test('find and findAll address parts by key, depth first, on a mobject and across a scene', () => {
-  const cell = (z: number) => { const g = new Group(new Square({ side: 1 }), new Text(String(z))); g.key = `cell:${z}`; g.children[1]!.key = `cell:${z}:z`; return g; };
+  const cell = (z: number) => { const g = new Group(new Rectangle({ width: 1, height: 1 }), new Text(String(z))); g.key = `cell:${z}`; g.children[1]!.key = `cell:${z}:z`; return g; };
   const table = new Group(cell(1), new Group(cell(2), cell(3)));
   table.key = 'table';
   assert.equal(table.find('table'), table);
@@ -350,7 +350,7 @@ test('View.sync({ match: "keys" }) keeps a keyed cell across a rearrangement and
   const scene = new Scene<{ order: number[] }>(new StringSink());
   scene.state = { order: [1, 2, 3] };
   const v = view(scene, (st) => new Group(...st.order.map((z, i) => {
-    const g = new Group(new Square({ side: 0.8 }), new Text(`c${z}`, { fontSize: 0.3 })).moveTo([i * 2 - 2, 0]);
+    const g = new Group(new Rectangle({ width: 0.8, height: 0.8 }), new Text(`c${z}`, { fontSize: 0.3 })).moveTo([i * 2 - 2, 0]);
     g.key = `cell:${z}`;
     return g;
   })), { place: false });
@@ -366,7 +366,7 @@ test('View.sync({ match: "keys" }) keeps a keyed cell across a rearrangement and
 test('matchByKey unkeyed: by-place pairs parts under no key by their place in the picture; fade leaves them to fade', async () => {
   const { matchByKey } = await import('../src/index.ts');
   const picture = (word: string, at: Vec) => {
-    const cell = new Group(new Square({ side: 1 }));
+    const cell = new Group(new Rectangle({ width: 1, height: 1 }));
     cell.key = 'cell';
     return new Group(cell, new Text(word, { fontSize: 0.3 }).moveTo(at), new Circle({ radius: 0.2 }).moveTo([at[0], -2]));
   };

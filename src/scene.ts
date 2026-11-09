@@ -8,14 +8,12 @@
 import { prepareAnimation, AnimationGroup, animationName } from './animation.ts';
 import { Succession, bindSuccessions, takeCopies, recordEvidence, assertTime, landBegun } from './animation.ts';
 import { beginAnimation, interpolateAnimation, finishAnimation } from './animation.ts';
-import type { ScheduledAnimation, Playable, PlayOpts } from './animation.ts';
+import type { ScheduledAnimation, Playable, PlayOptions } from './animation.ts';
 import { paintDefaults, mobjectName } from './mobject.ts';
 import type { Mobject } from './mobject.ts';
 import { NEUTRAL_COLORS } from './color.ts';
 import type { SceneColors } from './color.ts';
 import { perf } from './perf.ts';
-import {Text} from './text.ts';
-import type {TextOpts} from './text.ts';
 import {textContextOf, withTextContext} from './text-context.ts';
 import { loadFonts } from './fonts.ts';
 import {canonicalJson, cloneJson} from './json.ts';
@@ -39,16 +37,6 @@ export interface StepMeta {
   [key: string]: unknown;
 }
 
-/**
- * The frame a step's picture stops changing on: where its caption hold begins, else its last
- * frame, `frame1`, which a link to the step shows and every check judges. The player, playing one
- * step, stops here; a continuous render of the scene plays on through the hold to `t1`. The state
- * can still change after it (code after the step's last play, an end listener): a step's state is
- * read as it ends (the trace's `after`, `stopAt`). A running Step, whose `frame1` is null, has not
- * stopped: Infinity.
- */
-export const stillFrame = (step: { holdFrame?: number | null; frame1?: number | null }): number => step.holdFrame ?? step.frame1 ?? Infinity;
-
 /** A named step: from `step()` to the next step or the end of the scene. */
 export interface Step {
   name: string;
@@ -60,8 +48,8 @@ export interface Step {
   /**
    * When the caption-reading hold began, and on which frame, if the step needed one. The frames
    * from `holdFrame` to `frame1` show one picture: the player, playing one step, stops at
-   * `holdFrame`, and a continuous render plays on to `t1`. `stillFrame(step)` is where the picture
-   * stops changing, held or not.
+   * `holdFrame`, and a continuous render plays on to `t1`. `holdFrame ?? frame1` is where the
+   * picture stops changing, held or not.
    */
   hold?: number;
   holdFrame?: number;
@@ -107,25 +95,18 @@ export interface Sink {
   stepBegin?(scene: Scene, step: Step): Promise<void>;
   stepEnd?(scene: Scene, step: EndedStep): Promise<void>;
   /**
-   * Frames that end before this time are counted, not rendered, as those before the scene's own
-   * `skipUntil` are: a sink that draws only from some point says so here, and may move it between
-   * plays (the live player's sink skips to a step, then draws a reader's event frame by frame; the
-   * player's runner skips to the step it is headed for). A time in seconds, 0 or more, or Infinity;
-   * the scene refuses anything else when it next reads it, which every play and wait does.
+   * Frames that end before this time are counted, not rendered: the one way to skip frames. A sink
+   * that draws only from some point says so here, and may move it between plays (the live player's
+   * sink skips to a step, then draws a reader's event frame by frame; the player's runner skips to
+   * the step it is headed for); one that draws nothing (NullSink, TraceSink) skips every frame with
+   * Infinity. Without it every frame is drawn. A time in seconds, 0 or more, or Infinity; the scene
+   * refuses NaN or a negative time when it next reads it, which every play and wait does.
    */
   readonly skipUntil?: number;
 }
 
 export interface SceneOptions {
   fps?: number;
-  /** Frames that end before this time are counted, not rendered (seeking): seconds, 0 or more, or Infinity. */
-  skipUntil?: number;
-}
-
-/** Why `value` is no skip time (seconds, 0 or more, or Infinity), or null when it is one. */
-function notSkipTime(value: unknown): { kind: 'type' | 'range'; said: string } | null {
-  if (typeof value !== 'number') return { kind: 'type', said: typeof value };
-  return Number.isNaN(value) || value < 0 ? { kind: 'range', said: String(value) } : null;
 }
 
 /** The author's mutable state; stateJson() validates and copies its JSON representation. */
@@ -162,7 +143,7 @@ const LETTERS_PER_WORD = 1.5;
  * LETTERS_PER_WORD of their letters (grapheme clusters, by Intl.Segmenter) count as a word, and a token is always at least one. Grapheme clusters
  * follow fixed Unicode rules, so Node and every browser count alike; a dictionary's word breaks would not.
  */
-export function captionWords(caption: string): number {
+function captionWords(caption: string): number {
   let words = 0;
   for (const token of caption.trim().split(/\s+/)) {
     if (!token) continue;
@@ -175,7 +156,7 @@ export function captionWords(caption: string): number {
   return words;
 }
 
-/** A scene class, as traceScene(), renderAt() and the registries take it. */
+/** A scene class, as traceScene(), renderFrame() and the registries take it. */
 export type SceneClass = new (sink: Sink, opts?: SceneOptions) => Scene;
 
 /**
@@ -252,15 +233,15 @@ function assertDisjointInPlay(playing: readonly ScheduledAnimation[], begun: rea
 }
 
 /** Maintain one root per subtree while preserving the requested draw order. */
-function admitRoots(current: readonly Mobject[], incoming: readonly Mobject[], back = false): Mobject[] {
+function admitRoots(current: readonly Mobject[], incoming: readonly Mobject[]): Mobject[] {
   let roots = [...current];
   const owner = new Map<Mobject, Mobject>();
   for (const root of roots) for (const member of root.family()) owner.set(member, root);
-  for (const m of back ? [...incoming].reverse() : incoming) {
+  for (const m of incoming) {
     if (owner.has(m) && owner.get(m) !== m) continue;
     const family = m.family(), covered = new Set(family);
     roots = roots.filter((root) => !covered.has(root));
-    if (back) roots.unshift(m); else roots.push(m);
+    roots.push(m);
     for (const member of family) owner.set(member, m);
   }
   return roots;
@@ -295,29 +276,25 @@ type Held<S> = unknown extends S ? any : { [K in keyof S]: S[K] };
 export class Scene<S extends object = SceneState, Sh extends object = SceneState> {
   /** @internal Where frames and step boundaries go (the constructor's sink). */
   sink: Sink;
-  fps: number;
+  readonly fps: number;
   /**
-   * @internal Frames that end before this time are counted, not rendered: the `skipUntil` option,
-   * or the sink's own `skipUntil` when that is later. These are its only two writers. A sink's that
-   * is not a time (NaN, negative, not a number) is refused here, where every play and wait reads it.
+   * @internal Frames that end before this time are counted, not rendered: the sink's `skipUntil`,
+   * its one writer, or 0 when it has none. NaN or a negative time is refused here, where every play
+   * and wait reads it.
    */
   get skipUntil(): number {
-    const own = this.sink.skipUntil;
-    if (own === undefined) return this.#skipUntil;
-    const wrong = notSkipTime(own);
-    if (wrong) {
+    const own = this.sink.skipUntil ?? 0;
+    if (Number.isNaN(own) || own < 0) {
       const kind = (this.sink as { constructor?: { name?: string } }).constructor;
       const name = !kind?.name || kind === Object ? "the sink's" : `the ${kind.name}'s`;
-      if (wrong.kind === 'type') throw new TypeError(`sink.skipUntil: ${name} is ${wrong.said}; give a time in seconds, 0 or more, or Infinity to skip every frame`);
-      throw new RangeError(`sink.skipUntil: ${name} is ${wrong.said}; give a time in seconds, 0 or more, or Infinity to skip every frame`);
+      throw new RangeError(`sink.skipUntil: ${name} is ${String(own)}; give a time in seconds, 0 or more, or Infinity to skip every frame`);
     }
-    return Math.max(this.#skipUntil, own);
+    return own;
   }
-  readonly #skipUntil: number;
   mobjects: Mobject[];
   time: number;
   frameCount: number;
-  steps: Step[];
+  readonly steps: Step[];
   private current: Step | null;
   /** The model: what the explanation is about (a bucket's tokens, a statechart's configuration). JSON. */
   state: NoInfer<Held<S>>;
@@ -333,7 +310,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    */
   declare readonly [sceneTypes]?: { state: S | Record<string, any>; shown: Sh | Record<string, any> };
   /** Every Scene.record() so far, in order, across steps. */
-  evidence: Evidence[];
+  readonly evidence: Evidence[];
   /**
    * The camera: which box of the scene is on screen (see frame.ts). Held here,
    * not in `mobjects`: it is never drawn, and every walk over `mobjects`
@@ -377,22 +354,18 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   colors: Readonly<SceneColors>;
 
   /**
-   * skipUntil: frames that end before this time are not rendered or
+   * The sink's skipUntil: frames that end before it are not rendered or
    * interpolated, only counted (manim's skip_animations). Interpolation is a
    * pure function of alpha over endpoints fixed at begin(), so the state after
    * a skipped stretch is exactly the state a full run reaches. Plays with
    * active updaters are never skipped: updaters integrate over frames.
    */
-  constructor(sink: Sink, { fps = 30, skipUntil = 0 }: SceneOptions = {}) {
+  constructor(sink: Sink, { fps = 30 }: SceneOptions = {}) {
     // Times are kept to 1 ms in a trace: up to 240 fps, half a frame is longer, so a rounded time still finds its frame.
     if (typeof fps !== 'number') throw new TypeError(`new Scene(): fps is ${typeof fps}; give a number above 0 and at most 240`);
     if (!(fps > 0 && fps <= 240)) throw new RangeError(`new Scene(): fps is ${String(fps)}; give a number above 0 and at most 240`);
-    const wrong = notSkipTime(skipUntil);
-    if (wrong?.kind === 'type') throw new TypeError(`new Scene(): skipUntil is ${wrong.said}; give a time in seconds, 0 or more, or Infinity to skip every frame`);
-    if (wrong) throw new RangeError(`new Scene(): skipUntil is ${wrong.said}; give a time in seconds, 0 or more, or Infinity to skip every frame`);
     this.sink = sink;
     this.fps = fps;
-    this.#skipUntil = skipUntil;
     this.mobjects = [];
     this.time = 0;
     this.frameCount = 0;
@@ -553,7 +526,6 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
 
   /** Explicit text creation stays bound to this scene's shaping service. */
   get textShaping() { return textContextOf(this.constructor); }
-  text(value: string, opts: TextOpts = {}): Text { return new Text(value, {...opts, shaping: opts.shaping ?? this.textShaping}); }
 
   async run(): Promise<this> {
     if (this.#ran) throw new Error('this.run(): the scene has run already; make a new scene for another run');
@@ -738,9 +710,9 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   /**
    * @internal Keep `mobs` drawn last, over anything added after them, in the order given (one kept
    * already moves last among them). Whenever one is on stage, as a root or inside one, the root that
-   * holds it (its topmost ancestor on stage) stands at the end of `mobjects`: after each add,
-   * bringToFront, bringToBack and replace, before every frame and step boundary the sink is handed,
-   * and before a frame drawn outside the loop (drawFrame: renderAt, renderFrame, the live run), so a
+   * holds it (its topmost ancestor on stage) stands at the end of `mobjects`: after each add and
+   * replace, before every frame and step boundary the sink is handed,
+   * and before a frame drawn outside the loop (drawFrame: renderFrame, the live run), so a
    * group added later that wraps it, or a direct write to `mobjects`, is raised again before anything
    * is drawn. A sink handed the scene by other code reads the list as it stands. Keeping does not
    * add it. Returns a function that stops keeping them.
@@ -802,13 +774,6 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     return this;
   }
 
-  bringToFront(...mobs: Mobject[]): this { return this.add(...mobs); }
-  bringToBack(...mobs: Mobject[]): this {
-    for (const m of mobs) paintDefaults(m, this.colors);
-    this.mobjects = admitRoots(this.mobjects, mobs, true);
-    this.#raiseTop();
-    return this;
-  }
   /** @internal Empty the drawn list at once, unanimated: for tools and tests (a stage's `s.clear()` fades everything out). */
   removeAll(): this { this.mobjects = []; return this; }
 
@@ -827,7 +792,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   /**
    * @internal Hand `sink` the picture as it is now, as one frame at dt 0, outside play() and wait():
    * what is kept on top is raised first, as before every frame the scene hands its own sink. For a
-   * frame drawn after a run (renderAt and renderFrame past the end) or between a live run's plays.
+   * frame drawn after a run (renderFrame past the end) or between a live run's plays.
    */
   async drawFrame(sink: Sink): Promise<void> {
     this.#raiseTop();
@@ -846,17 +811,17 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   }
 
   /** Play animations together; a trailing plain object is options: { runTime, rateFunc, lagRatio }. */
-  async play(...args: Playable[] | [...Playable[], PlayOpts]): Promise<void> {
+  async play(...args: Playable[] | [...Playable[], PlayOptions]): Promise<void> {
     // Refused before begin(): a stopped scene, or one still in another call, changes nothing more
     await this.#exclusive('playing', 'this.play()', () => this.#play(args));
   }
 
-  async #play(args: Playable[] | [...Playable[], PlayOpts]): Promise<void> {
+  async #play(args: Playable[] | [...Playable[], PlayOptions]): Promise<void> {
     const list: unknown[] = [...args];
     const last = list[list.length - 1];
     // An .animate builder is never the options: its prototype is not Object.prototype (Mobject.animate)
     const isOpts = last && Object.getPrototypeOf(last) === Object.prototype;
-    const opts = (isOpts ? list.pop() : {}) as PlayOpts;
+    const opts = (isOpts ? list.pop() : {}) as PlayOptions;
     const anims = list.map((x) => prepareAnimation(x));
     if (!anims.length) throw new Error(`this.play(): it was given no animation${isOpts ? ', only options' : ''}; give it one or more, or hold the picture with this.wait()`);
     // What some animation reads before it can begin (a diagram's layout), a group's members' included: wait for it, once, here.
@@ -918,7 +883,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
       // skip from here, as a play begun before it would. With skipUntil fixed, as in every other
       // run, this never holds: time only grows.
       if (!canSkip && this.time + dt + 1e-9 < this.skipUntil && !this.hasUpdaters()) canSkip = true;
-      // Same comparison SeekSink uses to drop a frame, so the first frame shown is identical
+      // A frame is skipped when it ends before skipUntil, by the same 1e-9 slack wait() uses
       if (canSkip && this.time + dt + 1e-9 < this.skipUntil) {
         if (!sequenced) { this.tick(); skipped++; continue; }
         await interpolate(t);

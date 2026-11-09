@@ -6,7 +6,7 @@
 // serializer and the alignment code both read it directly.
 
 import { Mobject } from './mobject.ts';
-import type { Style, PathFunc } from './mobject.ts';
+import type { Style } from './mobject.ts';
 import * as V from './vec.ts';
 import type { Vec } from './vec.ts';
 import { perf } from './perf.ts';
@@ -52,8 +52,8 @@ export class VMobject extends Mobject {
     this.initPoints();
   }
 
-  /** Subclasses build their geometry here. */
-  initPoints(): void {}
+  /** Subclasses build their geometry here, from the constructor (before their own fields are set). */
+  protected initPoints(): void {}
 
   /** @internal */ override pointArrays(): Float32Array[] { return this.subpaths; }
   override pointKind(): string { return 'path'; }
@@ -66,8 +66,8 @@ export class VMobject extends Mobject {
   }
 
   /** Points blend; a subpath's closed flag switches to the target's halfway through. */
-  override interpolate(a: Mobject, b: Mobject, alpha: number, pathFunc: PathFunc | null = null): this {
-    super.interpolate(a, b, alpha, pathFunc);
+  override interpolate(a: Mobject, b: Mobject, alpha: number): this {
+    super.interpolate(a, b, alpha);
     // Either side may be a non-path (alignment pairs by index): then it has no `closed`
     const ac = (a as Partial<Pick<VMobject, 'closed'>>).closed, bc = (b as Partial<Pick<VMobject, 'closed'>>).closed;
     if (ac && bc && bc.length === this.closed.length) {

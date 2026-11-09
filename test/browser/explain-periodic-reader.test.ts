@@ -87,12 +87,12 @@ test('opening-comparison labels stay at least 12 CSS pixels in actual short lapt
   let stages=0;
   for(const scenario of project.scenarios){
     let minimum=Infinity;
-    await new scenario.Scene({async frame(){},async stepEnd(scene,step){
+    await new scenario.Scene({ skipUntil: Infinity, async frame(){},async stepEnd(scene,step){
       if(step.name!=='column')return;
       const labels=scene.familyMembers().filter((m):m is Text=>m instanceof Text&&!!m.text.trim());
       assert.ok(labels.length>0);
       minimum=Math.min(...labels.map(m=>m.textSize()));
-    }},{skipUntil:Infinity}).run();
+    }}).run();
     assert.ok(Number.isFinite(minimum));
     for(const viewport of [1100,1212,1280].flatMap(width=>[720,800].map(height=>({width,height})))){
       const page=await browser.newPage({viewport,reducedMotion:'reduce'});

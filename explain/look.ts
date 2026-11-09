@@ -1,4 +1,4 @@
-import { contrastRatio, isHex, lerpColor, parseColor } from '../src/color.ts';
+import { blendPaint, contrastRatio, isHex, parseColor } from '../src/color.ts';
 import { Text } from '../src/index.ts';
 import type { Box, Mobject, Scene } from '../src/index.ts';
 import { center } from '../src/box.ts';
@@ -12,8 +12,8 @@ import type { Description } from './trace.ts';
  */
 export function soft(p: Palette): string {
   let t = 0.32;
-  while (t > 0 && contrast(p, lerpColor(p.ink, p.paper, t)) < 4.5) t = Math.round((t - 0.01) * 100) / 100;
-  return lerpColor(p.ink, p.paper, t);
+  while (t > 0 && contrast(p, blendPaint(p.ink, p.paper, t)) < 4.5) t = Math.round((t - 0.01) * 100) / 100;
+  return blendPaint(p.ink, p.paper, t);
 }
 /** WCAG contrast of a colour against the paper. */
 function contrast(p: Palette, color: string): number {
@@ -147,15 +147,14 @@ export const bad = (p: Palette) => onPaper(p, '#f85149', '#cf222e');
  */
 export function dimOpacity(p: Palette): number {
   let a = 0.2;
-  while (a < 1 && contrast(p, lerpColor(p.paper, p.ink, a)) < 3) a = Math.round((a + 0.01) * 100) / 100;
+  while (a < 1 && contrast(p, blendPaint(p.paper, p.ink, a)) < 3) a = Math.round((a + 0.01) * 100) / 100;
   return a;
 }
 /** A panel surface one shade off the paper. */
-export const raised = (p: Palette) => lerpColor(p.paper, p.ink, 0.07);
+export const raised = (p: Palette) => blendPaint(p.paper, p.ink, 0.07);
 /** A hairline that separates without shouting. */
-export const rule = (p: Palette) => lerpColor(p.paper, p.ink, 0.28);
+export const rule = (p: Palette) => blendPaint(p.paper, p.ink, 0.28);
 
-export type { Palette } from '../src/color.ts';
 /**
  * The colours a scene draws with on a stage (`s.look`), derived from its palette so each reads on
  * its paper. A palette is the input (a named style); the look is what drawing code reads.

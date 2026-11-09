@@ -1,10 +1,10 @@
-import { textContextOf, traceRun, isHex, withSceneLettering } from '../../src/internal.ts';
+import { textContextOf, traceRun, isHex, withSceneLettering, SnapshotSink } from '../../src/internal.ts';
 import { stepWords, paperOf } from '../../explain/internal.ts';
 import { writeFile, mkdir } from 'node:fs/promises';
 import { basename, dirname, extname, join, resolve } from 'node:path';
 import { Scene, Text } from '../../src/index.ts';
 import type { Step } from '../../src/index.ts';
-import { NullSink, SnapshotSink, renderFrame, toSvgString } from '../../src/output.ts';
+import { NullSink, renderFrame, toSvgString } from '../../src/output.ts';
 import { rasterize, band } from './explain-raster.ts';
 import { defaultScenario } from './explain-project.ts';
 import type { Project } from './explain-project.ts';

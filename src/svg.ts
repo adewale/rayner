@@ -428,7 +428,7 @@ export function toSvgString(scene: Scene, { width = 1280, background = scene.col
 /** Collects every frame as an SVG string. Works anywhere JS runs. */
 export class StringSink implements Sink {
   /** @internal */ opts: SvgOptions;
-  frames: string[];
+  readonly frames: string[];
   constructor(opts: SvgOptions = {}) { this.opts = opts; this.frames = []; }
   async frame(scene: Scene): Promise<void> { this.frames.push(toSvgString(scene, this.opts)); }
   last(): string | undefined { return this.frames[this.frames.length - 1]; }
@@ -459,14 +459,14 @@ interface DomNode {
  */
 export class DomSink implements Sink {
   /** @internal */ doc: Document;
-  svg: SVGSVGElement;
+  readonly svg: SVGSVGElement;
   /** @internal */ NS: 'http://www.w3.org/2000/svg';
   /** @internal */ nodes: Map<number, DomNode>;
-  realtime: boolean;
+  readonly realtime: boolean;
   /** @internal */ anchor: number | null;
   /** @internal */ lastPatch: number;
   dropped: number;
-  maxFreezeMs: number;
+  readonly maxFreezeMs: number;
   private defs: SVGDefsElement | null = null;
   private clipSignature = '';
   /** Camera: the viewBox last written, so an unchanged camera costs no DOM write. */

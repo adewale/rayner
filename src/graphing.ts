@@ -20,7 +20,7 @@ import { Group, followScene } from './mobject.ts';
 import type { Mobject, Style } from './mobject.ts';
 import { VMobject } from './vmobject.ts';
 import { Dot, Line, Polygon, Rectangle } from './shapes.ts';
-import type { DotOpts } from './shapes.ts';
+import type { DotOptions } from './shapes.ts';
 import { Text } from './text.ts';
 import { NEUTRAL_COLORS } from './color.ts';
 import * as V from './vec.ts';
@@ -29,35 +29,41 @@ import type { Vec } from './vec.ts';
 /** `[min, max, step]`; step defaults to 1. */
 export type AxisRange = readonly [min: number, max: number, step?: number];
 
-export interface NumberLineOpts extends Style {
+export interface NumberLineOptions extends Style {
   shaping?: TextShaping;
   range: AxisRange;
   /** Scene units from min to max. */
   length?: number;
-  includeTicks?: boolean;
-  /** Tick half-length: ticks reach this far to each side of the line. */
-  tickSize?: number;
+  /** Label every tick with its value. */
   includeNumbers?: boolean;
-  /** Values to label (default: every tick). */
-  numbersToInclude?: readonly number[];
-  /** Values not to label (Axes leaves out a crossing label the other axis would run through). */
-  numbersToExclude?: readonly number[];
   labelFontSize?: number;
   /** Default: the line's stroke color. */
   labelColor?: string;
   /** Decimal places in labels (default: as many as `step` has). */
   decimals?: number;
-  /** Which side of the line labels sit on (default: clockwise of the line's direction, so below a horizontal line). */
-  labelDirection?: Readonly<Vec>;
   /** Gap between a tick's end and its label. */
   labelBuff?: number;
-  /** A filled tip past `max`; the line itself still ends exactly at max. */
-  includeTip?: boolean;
+  /** Of the tip past `max`, which an Axes with `tips` draws. */
   tipLength?: number;
   tipWidth?: number;
   /** Radians, counterclockwise. Labels stay upright. */
   rotation?: number;
 }
+
+/**
+ * What an Axes sets on each of its lines beside the options: labels sit on the side away from the
+ * other axis (`labelDirection`, default clockwise of the line's direction, so below a horizontal
+ * line), the crossing value is not labelled where the other axis runs through it, and `tips` draws
+ * a filled tip past `max` (the line itself still ends exactly at max).
+ */
+interface AxisLineOptions extends NumberLineOptions {
+  labelDirection?: Readonly<Vec>;
+  numbersToExclude?: readonly number[];
+  includeTip?: boolean;
+}
+
+/** Tick half-length: each tick reaches this far to either side of the line. */
+const TICK_SIZE = 0.1;
 
 /**
  * A number line: a Line from `min` to `max`, centered on the origin, with tick
@@ -68,16 +74,17 @@ export interface NumberLineOpts extends Style {
  * that is the order Create draws them in.
  */
 export class NumberLine extends Group {
-  min: number;
-  max: number;
-  step: number;
+  readonly min: number;
+  readonly max: number;
+  readonly step: number;
   /** Child index of the tip, or -1. @internal */
   tipIdx: number;
 
-  constructor({
-    range, length = 8, includeTicks = true, tickSize = 0.1, includeNumbers = false, numbersToInclude, numbersToExclude = [], labelFontSize = 0.24,
-    labelColor, decimals, labelDirection, labelBuff = 0.12, includeTip = false, tipLength = 0.22, tipWidth = 0.18, rotation = 0, shaping, ...style
-  }: NumberLineOpts) {
+  constructor(opts: NumberLineOptions) {
+    const {
+      range, length = 8, includeNumbers = false, numbersToExclude = [], labelFontSize = 0.24,
+      labelColor, decimals, labelDirection, labelBuff = 0.12, includeTip = false, tipLength = 0.22, tipWidth = 0.18, rotation = 0, shaping, ...style
+    }: AxisLineOptions = opts;
     super();
     const [min, max, step = 1] = range;
     if (!(max > min) || !(step > 0)) throw new RangeError(`new NumberLine(): the range [${min}, ${max}, ${step}] needs max > min and step > 0`);
@@ -98,11 +105,9 @@ export class NumberLine extends Group {
       this.tipIdx = 1;
     }
     const ticks = new Group();
-    if (includeTicks) {
-      for (const x of this.tickValues()) {
-        const px = -length / 2 + (x - min) / (max - min) * length;
-        ticks.add(new Line([px, -tickSize], [px, tickSize], lineStyle));
-      }
+    for (const x of this.tickValues()) {
+      const px = -length / 2 + (x - min) / (max - min) * length;
+      ticks.add(new Line([px, -TICK_SIZE], [px, TICK_SIZE], lineStyle));
     }
     this.add(ticks);
     if (rotation) this.rotate(rotation, { aboutPoint: [0, 0] });
@@ -111,11 +116,11 @@ export class NumberLine extends Group {
     if (includeNumbers) {
       const dir = V.normalize(snap(labelDirection ?? V.rotate([0, -1], rotation)));
       const places = decimals ?? decimalsOf(step);
-      for (const x of numbersToInclude ?? this.tickValues()) {
+      for (const x of this.tickValues()) {
         if (numbersToExclude.some((e) => Math.abs(e - x) < 1e-9 * this.step)) continue;
         const t = new Text(x.toFixed(places).replace(/^-(0\.?0*)$/, '$1'), { fontSize: labelFontSize, color: labelColor ?? stroke, shaping });
         // The label's edge facing the line sits just past the tick's end
-        t.moveTo(V.add(this.n2p(x), V.mul(dir, (includeTicks ? tickSize : 0) + labelBuff)), V.mul(dir, -1));
+        t.moveTo(V.add(this.n2p(x), V.mul(dir, TICK_SIZE + labelBuff)), V.mul(dir, -1));
         numbers.add(t);
       }
     }
@@ -150,9 +155,9 @@ export class NumberLine extends Group {
 }
 
 /** NumberLine options an axis takes from Axes (range, length and rotation are the axes'). */
-export type AxisStyle = Omit<NumberLineOpts, 'range' | 'length' | 'rotation'>;
+export type AxisStyle = Omit<NumberLineOptions, 'range' | 'length' | 'rotation'>;
 
-export interface AxesOpts {
+export interface AxesOptions {
   shaping?: TextShaping;
   xRange?: AxisRange;
   yRange?: AxisRange;
@@ -160,9 +165,8 @@ export interface AxesOpts {
   width?: number;
   /** Scene units spanned by the y range. */
   height?: number;
-  /** Both axes; xAxisStyle and yAxisStyle override it per axis. */
+  /** Both axes; yAxisStyle overrides it for the y axis. */
   axisStyle?: AxisStyle;
-  xAxisStyle?: AxisStyle;
   yAxisStyle?: AxisStyle;
   tips?: boolean;
   xLabel?: string;
@@ -171,7 +175,7 @@ export interface AxesOpts {
   axisLabelFontSize?: number;
 }
 
-export interface PlotOpts extends Style {
+export interface PlotOptions extends Style {
   /** Default: the x axis range. */
   xRange?: readonly [min: number, max: number];
   /** Sample count, ends included. Sample order is draw order: Create traces left to right. */
@@ -179,7 +183,7 @@ export interface PlotOpts extends Style {
   color?: string;
 }
 
-export interface BarOpts extends Style {
+export interface BarOptions extends Style {
   /** Bar centers in x (default: i + 0.5, so bar i fills the unit [i, i + 1] less the gap). */
   x?: readonly number[];
   /** Bar width in x units (default 1 − gap). */
@@ -194,7 +198,7 @@ export interface BarOpts extends Style {
   labelColor?: string;
 }
 
-export interface GuideLineOpts extends Style {
+export interface GuideLineOptions extends Style {
   /** Where the line starts, in the other axis' units (default: that axis' min). */
   from?: number;
   /** Where it ends (default: that axis' max). */
@@ -214,28 +218,27 @@ export interface GuideLineOpts extends Style {
 export class Axes extends Group {
   readonly shaping: TextShaping | undefined;
   /** The x and y values where the axes cross. */
-  crossX: number;
-  crossY: number;
+  readonly crossX: number;
+  readonly crossY: number;
   private xLabelIdx: number;
   private yLabelIdx: number;
 
   constructor({
-    xRange = [0, 10, 1], yRange = [0, 5, 1], width = 8, height = 4.5, axisStyle = {}, xAxisStyle = {}, yAxisStyle = {},
+    xRange = [0, 10, 1], yRange = [0, 5, 1], width = 8, height = 4.5, axisStyle = {}, yAxisStyle = {},
     tips = false, xLabel, yLabel, axisLabelFontSize = 0.28, shaping = ambientTextContext(),
-  }: AxesOpts = {}) {
+  }: AxesOptions = {}) {
     super();
     this.shaping = shaping;
     const [x0, x1] = xRange, [y0, y1] = yRange;
     this.crossX = clamp(0, x0, x1);
     this.crossY = clamp(0, y0, y1);
     // A crossing label sits on the other axis when that axis runs past the crossing
-    const x = new NumberLine({
-      includeTip: tips, numbersToExclude: y0 < this.crossY ? [this.crossX] : [], ...axisStyle, shaping, ...xAxisStyle, range: xRange, length: width,
-    });
-    const y = new NumberLine({
+    const xLine: AxisLineOptions = { includeTip: tips, numbersToExclude: y0 < this.crossY ? [this.crossX] : [], ...axisStyle, shaping, range: xRange, length: width };
+    const yLine: AxisLineOptions = {
       includeTip: tips, labelDirection: [-1, 0], numbersToExclude: x0 < this.crossX ? [this.crossY] : [], ...axisStyle, shaping, ...yAxisStyle,
       range: yRange, length: height, rotation: Math.PI / 2,
-    });
+    };
+    const x = new NumberLine(xLine), y = new NumberLine(yLine);
     // Both lines are centered on the origin: slide each across so they meet
     // where the other one's crossing value is. The lines then span exactly
     // the width × height box about the origin.
@@ -289,7 +292,7 @@ export class Axes extends Group {
    * interval, so the path is a true function of x. Non-finite values
    * (1/x at 0) break the curve into separate subpaths.
    */
-  plot(fn: (x: number) => number, { xRange, samples = 64, color, ...style }: PlotOpts = {}): VMobject {
+  plot(fn: (x: number) => number, { xRange, samples = 64, color, ...style }: PlotOptions = {}): VMobject {
     const [a, b] = xRange ?? [this.xAxis.min, this.xAxis.max];
     const n = Math.max(2, Math.round(samples));
     const xs = Array.from({ length: n }, (_, i) => i === n - 1 ? b : a + (b - a) * i / (n - 1));
@@ -320,7 +323,7 @@ export class Axes extends Group {
    */
   bar(values: readonly number[], {
     x, gap = 0.4, width = 1 - gap, colors, labels, labelFontSize = 0.22, labelColor, fillOpacity = 0.85, ...style
-  }: BarOpts = {}): Group {
+  }: BarOptions = {}): Group {
     const palette = colors === undefined ? [NEUTRAL_COLORS.emphasis] : typeof colors === 'string' ? [colors] : colors;
     const g = new Group();
     values.forEach((v, i) => {
@@ -349,17 +352,17 @@ export class Axes extends Group {
   }
 
   /** A Dot at data coordinates (x, y). */
-  dot(x: number, y: number, opts: DotOpts = {}): Dot {
+  dot(x: number, y: number, opts: DotOptions = {}): Dot {
     return accented(new Dot({ color: NEUTRAL_COLORS.emphasis, ...opts }), opts.color ?? opts.fill, 'fill').moveTo(this.c2p(x, y));
   }
 
   /** A vertical guide at `x`, across the y range unless `from`/`to` say otherwise. */
-  verticalLine(x: number, { from = this.yAxis.min, to = this.yAxis.max, ...style }: GuideLineOpts = {}): Line {
+  verticalLine(x: number, { from = this.yAxis.min, to = this.yAxis.max, ...style }: GuideLineOptions = {}): Line {
     return guide(new Line(this.c2p(x, from), this.c2p(x, to), { stroke: NEUTRAL_COLORS.soft, strokeWidth: 0.025, ...style }), style.stroke);
   }
 
   /** A horizontal guide at `y` (a capacity, a threshold), across the x range unless `from`/`to` say otherwise. */
-  horizontalLine(y: number, { from = this.xAxis.min, to = this.xAxis.max, ...style }: GuideLineOpts = {}): Line {
+  horizontalLine(y: number, { from = this.xAxis.min, to = this.xAxis.max, ...style }: GuideLineOptions = {}): Line {
     return guide(new Line(this.c2p(from, y), this.c2p(to, y), { stroke: NEUTRAL_COLORS.soft, strokeWidth: 0.025, ...style }), style.stroke);
   }
 
@@ -368,7 +371,7 @@ export class Axes extends Group {
    * plot's curve from a to b, then down to the axis and back. `fn` must be
    * finite on [a, b].
    */
-  areaUnder(fn: (x: number) => number, [a, b]: readonly [number, number], { samples = 64, color, fillOpacity = 0.3, ...style }: Omit<PlotOpts, 'xRange'> = {}): VMobject {
+  areaUnder(fn: (x: number) => number, [a, b]: readonly [number, number], { samples = 64, color, fillOpacity = 0.3, ...style }: Omit<PlotOptions, 'xRange'> = {}): VMobject {
     const n = Math.max(2, Math.round(samples));
     const run = Array.from({ length: n }, (_, i): [number, number] => {
       const x = i === n - 1 ? b : a + (b - a) * i / (n - 1), y = fn(x);

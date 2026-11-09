@@ -1,4 +1,4 @@
-import { Scene, Group } from '../../../src/index.ts';
+import { Scene, Group, Text } from '../../../src/index.ts';
 import type { Box, Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, answerOf, view, having } from '../../../explain/index.ts';
 import type { Diagram, NoteSide, View, ExplainerMeta } from '../../../explain/index.ts';
@@ -267,7 +267,7 @@ export default class MermaidExplainer extends Scene<MermaidState, MermaidShown> 
         `renderability: ${st.broken.checks.renderability}`,
         `taskCorrectness: ${st.broken.checks.taskCorrectness}`,
       ]);
-      const note = this.text('The renderer cannot draw this source: no picture', { fontSize: 0.28, color: s.look.soft }).moveTo([-3.2, -2.6]);
+      const note = new Text('The renderer cannot draw this source: no picture', { fontSize: 0.28, color: s.look.soft, shaping: this.textShaping }).moveTo([-3.2, -2.6]);
       return new Group(source, ...stack(report), note);
     };
     await s.steps([

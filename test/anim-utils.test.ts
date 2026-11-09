@@ -1,11 +1,11 @@
 // saveState/restore and Restore, TransformFromCopy, Succession: the end states
 // they promise, their timing against plain play() calls, and seek equality.
 import { test } from 'node:test';
-import { Square, Restore, TransformFromCopy } from '../src/extras.ts';
 import assert from 'node:assert/strict';
-import { Scene, Mobject, Group, Rectangle, Circle, Polygon, Text, Code, Transform, FadeIn, FadeOut, Create, AnimationGroup, LaggedStart, Succession, TransformMatchingText } from '../src/index.ts';
-import { StringSink, SnapshotSink, renderAt, indexScene, toSvgString, renderFrame } from '../src/output.ts';
-import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
+import { Scene, Restore, TransformFromCopy, Mobject, Group, Rectangle, Circle, Polygon, Text, Code, Transform, FadeIn, FadeOut, Create, AnimationGroup, LaggedStart, Succession, TransformMatchingText } from '../src/index.ts';
+import { StringSink, toSvgString, renderFrame } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
+import { MotionSink, analyzeMotion, loadFonts, traceScene } from '../explain/testing.ts';
 import { Indicate, Flash } from './lib/transient.ts';
 import type { SceneOptions, Sink } from '../src/index.ts';
 import type { Vec } from '../src/index.ts';
@@ -101,17 +101,17 @@ test('restore() after the family changed shape takes the saved children wholesal
   outer.saveState();
   const before = data(outer);
   label.setText('a much longer string');
-  outer.add(new Square());
+  outer.add(new Rectangle({ width: 2, height: 2 }));
   outer.restore();
   assert.deepEqual(data(outer), before);
   assert.equal(outer.parent, parent, 'keeps its parent');
   assert.ok(outer.children.every((c) => c.parent === outer));
   assert.equal(outer.children.length, 1);
-  assert.throws(() => new Square().restore(), /saveState/);
+  assert.throws(() => new Rectangle({ width: 2, height: 2 }).restore(), /saveState/);
 });
 
 test('copy() does not carry the saved state', () => {
-  const s = new Square().saveState();
+  const s = new Rectangle({ width: 2, height: 2 }).saveState();
   assert.ok(s.saved);
   assert.equal(s.copy().saved, undefined);
   assert.equal(new Group(s).copy().children[0]!.saved, undefined);
@@ -148,14 +148,14 @@ test('Restore after Indicate and after an .animate change lands on the saved fra
 });
 
 test('Restore without saveState() says what to do', async () => {
-  await assert.rejects(run(async (s) => { await s.play(new Restore(new Square())); }), /saveState/);
+  await assert.rejects(run(async (s) => { await s.play(new Restore(new Rectangle({ width: 2, height: 2 }))); }), /saveState/);
 });
 
 // ---- TransformFromCopy -------------------------------------------------------
 
 test('TransformFromCopy leaves the source alone and the scene holding the target', async () => {
   await run(async (s) => {
-    const a = new Square({ side: 1 }).shift([-2, 0]);
+    const a = new Rectangle({ width: 1, height: 1 }).shift([-2, 0]);
     const b = new Circle({ radius: 0.6 }).shift([3, 1]);
     s.add(a);
     const aBefore = data(a), bBefore = data(b);
@@ -168,7 +168,7 @@ test('TransformFromCopy leaves the source alone and the scene holding the target
 
 test('TransformFromCopy and an animation on the source share a play', async () => {
   await run(async (s) => {
-    const a = new Square().shift([-2, 0]), b = new Square().shift([2, 0]);
+    const a = new Rectangle({ width: 2, height: 2 }).shift([-2, 0]), b = new Rectangle({ width: 2, height: 2 }).shift([2, 0]);
     s.add(a);
     const aBefore = data(a);
     await s.play(new TransformFromCopy(a, b), new Indicate(a));
@@ -180,7 +180,7 @@ test('TransformFromCopy and an animation on the source share a play', async () =
 test('TransformFromCopy copies its source before anything in its play begins, in either argument order', async () => {
   // Create's begin() hides its mobject: a copy taken after it would morph from nothing
   const body = (copyFirst: boolean, onScreen: boolean) => async (s: Scene) => {
-    const a = new Square({ side: 1 }).shift([-3, 0]), b = new Circle({ radius: 0.5 }).shift([3, 0]);
+    const a = new Rectangle({ width: 1, height: 1 }).shift([-3, 0]), b = new Circle({ radius: 0.5 }).shift([3, 0]);
     if (onScreen) s.add(a);
     const anims = [new TransformFromCopy(a, b), new Create(a)];
     await s.play(...(copyFirst ? anims : anims.reverse()));
@@ -198,10 +198,10 @@ test('TransformFromCopy copies its source before anything in its play begins, in
   // and a seek lands on the frame the full run drew
   const S = sceneOf(body(false, true)), full = new StringSink();
   await new S(full).run();
-  for (const t of [0.1, 0.5, 0.9, 1.05]) {
+  for (const frame of [3, 15, 27, 32]) {
     const snap = new SnapshotSink();
-    const scene = await renderAt(S, t, snap);
-    assert.equal(snap.svg, full.frames[Math.round(scene.time * scene.fps)], `seek to ${t}`);
+    await renderFrame(S, frame, snap);
+    assert.equal(snap.svg, full.frames[frame], `seek to frame ${frame}`);
   }
 });
 
@@ -210,7 +210,7 @@ test('TransformFromCopy copies its source before anything in its play begins, in
 /** The same three animations, as one Succession or as three plays. */
 const chain = (together: boolean) => async (s: Scene) => {
   await s.step('setup');
-  const box = new Square({ side: 1, fill: BLUE, fillOpacity: 0.6 });
+  const box = new Rectangle({ width: 1, height: 1, fill: BLUE, fillOpacity: 0.6 });
   const c = new Circle({ radius: 0.4 }).shift([3, 0]);
   await s.play(new FadeIn(box));
   await s.step('chain');
@@ -233,13 +233,13 @@ test('a Succession runs like consecutive plays: same frames, same step times', a
   assert.equal(sa.time, sb.time);
   assert.deepEqual(sa.mobjects.map((m) => m.constructor.name), ['Circle'], 'the FadeOut member removed the box');
   assert.deepEqual(a.frames, b.frames);
-  const ia = await indexScene(sceneOf(chain(true))), ib = await indexScene(sceneOf(chain(false)));
-  assert.deepEqual(ia.steps.map((x) => [x.name, x.t0, x.frame0]), ib.steps.map((x) => [x.name, x.t0, x.frame0]));
+  const ia = await traceScene(sceneOf(chain(true))), ib = await traceScene(sceneOf(chain(false)));
+  assert.deepEqual(ia.steps.map((x) => [x.step, x.t0, x.frame0]), ib.steps.map((x) => [x.step, x.t0, x.frame0]));
   assert.equal(ia.duration, ib.duration);
 });
 
 test('a lagRatio passed to play() leaves a Succession sequential', async () => {
-  const succession = new Succession([new FadeIn(new Square(), { runTime: 1 }), new FadeIn(new Circle(), { runTime: 1 })]);
+  const succession = new Succession([new FadeIn(new Rectangle({ width: 2, height: 2 }), { runTime: 1 }), new FadeIn(new Circle(), { runTime: 1 })]);
   const s = await run(async (s) => { await s.play(succession, { lagRatio: 0.5 }); });
   assert.deepEqual(succession.timings, [[0, 1], [1, 2]]);
   assert.equal(succession.runTime, 2);
@@ -250,7 +250,7 @@ test('seeking into a Succession whose member brings an updater matches the full 
   // The Flash member adds b, which has an updater, a second into the play: from that
   // frame on, the full run integrates it, so a seek must stop skipping there too.
   const S = sceneOf(async (s) => {
-    const a = new Square({ side: 1 });
+    const a = new Rectangle({ width: 1, height: 1 });
     const b = new Circle({ radius: 0.5 }).shift([-3, 0]);
     b.addUpdater((m, dt) => { m.shift([dt, 0]); });
     await s.play(new Succession([new Create(a), new Flash(b)]));
@@ -267,13 +267,13 @@ test('seeking into a Succession whose member brings an updater matches the full 
 });
 
 test('Succession run time is the sum of its members', () => {
-  const s = new Succession([new FadeIn(new Square(), { runTime: 0.5 }), new FadeIn(new Circle(), { runTime: 1.25 })]);
+  const s = new Succession([new FadeIn(new Rectangle({ width: 2, height: 2 }), { runTime: 0.5 }), new FadeIn(new Circle(), { runTime: 1.25 })]);
   assert.equal(s.runTime, 1.75);
 });
 
 test('a Succession of groups runs like consecutive plays of them', async () => {
   const body = (together: boolean) => async (s: Scene) => {
-    const p = new Square({ side: 1 }).shift([-3, 0]), q = new Circle({ radius: 0.5 }).shift([3, 0]);
+    const p = new Rectangle({ width: 1, height: 1 }).shift([-3, 0]), q = new Circle({ radius: 0.5 }).shift([3, 0]);
     const anims = () => [
       new AnimationGroup([new FadeIn(p), new Create(q)]),
       new LaggedStart([new Transform(p, p.copy().shift(UP)), new Transform(q, q.copy().shift(UP))]),
@@ -287,13 +287,13 @@ test('a Succession of groups runs like consecutive plays of them', async () => {
   const sa = await run(body(true), a), sb = await run(body(false), b);
   assert.equal(sa.frameCount, sb.frameCount);
   assert.deepEqual(a.frames, b.frames);
-  assert.deepEqual(sa.mobjects.map((m) => m.constructor.name), ['Square']);
+  assert.deepEqual(sa.mobjects.map((m) => m.constructor.name), ['Rectangle']);
 });
 
 test('a Succession inside a group runs beside the other members', async () => {
-  let p!: Square, q!: Circle;
+  let p!: Rectangle, q!: Circle;
   const s = await run(async (s) => {
-    p = new Square({ side: 1 }).shift([-3, 0]); q = new Circle({ radius: 0.5 }).shift([3, 0]);
+    p = new Rectangle({ width: 1, height: 1 }).shift([-3, 0]); q = new Circle({ radius: 0.5 }).shift([3, 0]);
     await s.play(new AnimationGroup([
       new Succession([new FadeIn(p), p.animate.shift(RIGHT), new Indicate(p)]),
       new FadeIn(q, { runTime: 2 }),
@@ -307,16 +307,16 @@ test('a Succession inside a group runs beside the other members', async () => {
 
 test('play() still refuses two animations on one mobject, through a Succession', async () => {
   await assert.rejects(run(async (s) => {
-    const a = new Square(); s.add(a);
+    const a = new Rectangle({ width: 2, height: 2 }); s.add(a);
     await s.play(new Succession([new Indicate(a)]), new Indicate(a));
   }), /both animate/);
   await assert.rejects(run(async (s) => {
-    const a = new Square(); s.add(a);
+    const a = new Rectangle({ width: 2, height: 2 }); s.add(a);
     await s.play(new Succession([new AnimationGroup([new Indicate(a), new FadeOut(a)])]));
   }), /both animate/);
   // Members of one Succession may share a mobject: they never overlap in time
   await run(async (s) => {
-    const a = new Square(); s.add(a);
+    const a = new Rectangle({ width: 2, height: 2 }); s.add(a);
     await s.play(new Succession([new Indicate(a), a.animate.shift(RIGHT), new Indicate(a)]));
     assert.deepEqual(a.center().map((x) => Math.round(x * 1e6) / 1e6), [1, 0]);
     // An .animate member builds its target when its turn comes, from where the last one left off
@@ -332,7 +332,7 @@ class AllThree extends Scene {
     const box = new Rectangle({ width: 2, height: 1, fill: BLUE, fillOpacity: 0.5 }).shift([-3, 1]);
     const dot = new Circle({ radius: 0.3, fill: GREEN, fillOpacity: 1 }).shift([3, -1]);
     const label = new Text('hello').shift([0, 2.5]);
-    const tile = new Square({ side: 0.8, fill: GREEN, fillOpacity: 0.4 }).shift([3, 2]);
+    const tile = new Rectangle({ width: 0.8, height: 0.8, fill: GREEN, fillOpacity: 0.4 }).shift([3, 2]);
     await this.step('show');
     await this.play(new FadeIn(box), new Create(dot), new FadeIn(label));
     box.saveState();
@@ -351,14 +351,13 @@ class AllThree extends Scene {
 test('Restore, TransformFromCopy and Succession seek to the frame a full run produces', async () => {
   const full = new StringSink();
   await new AllThree(full).run();
-  const ix = await indexScene(AllThree);
+  const ix = await traceScene(AllThree);
   assert.equal(full.frames.length, ix.frames + 1);
-  const times = [0.4, 1.2, 1.5, 2.3, ...ix.steps.map((s) => s.t0), ix.steps[3]!.t0 + 0.6, ix.steps[3]!.t0 + 1.4, ix.steps[3]!.t0 + 2.5, ix.duration];
-  for (const t of times) {
+  const frames = [12, 36, 45, 69, ...ix.steps.map((s) => s.frame0), ix.steps[3]!.frame0 + 18, ix.steps[3]!.frame0 + 42, ix.steps[3]!.frame0 + 75, ix.frames];
+  for (const i of frames) {
     const snap = new SnapshotSink();
-    const scene = await renderAt(AllThree, t, snap);
-    const i = Math.round(scene.time * scene.fps);
-    assert.equal(snap.svg, full.frames[i], `seek to ${t.toFixed(3)} (frame ${i})`);
+    await renderFrame(AllThree, i, snap);
+    assert.equal(snap.svg, full.frames[i], `seek to frame ${i}`);
   }
 });
 
@@ -371,7 +370,7 @@ test('the motion verifier finds no teleport, pop or cut in these animations', as
   assert.deepEqual(analyzeMotion(chained), []);
   const saved = new MotionSink();
   await run(async (s) => {
-    const a = new Square().shift([-2, 0]); s.add(a);
+    const a = new Rectangle({ width: 2, height: 2 }).shift([-2, 0]); s.add(a);
     a.saveState();
     await s.wait(0.2);
     await s.play(a.animate.shift([3, 0]).setFill(RED, 1));
@@ -389,15 +388,15 @@ test('brighter shapes over faint ones and far-away arrivals are cut-ins', async 
     return analyzeMotion(sink).map((e) => e.kind);
   };
   assert.deepEqual(await kinds(async (s) => {
-    const a = new Square({ fill: BLUE, fillOpacity: 0.2, strokeOpacity: 0.2 }); s.add(a);
+    const a = new Rectangle({ width: 2, height: 2, fill: BLUE, fillOpacity: 0.2, strokeOpacity: 0.2 }); s.add(a);
     await s.wait(0.2);
-    s.add(new Square({ fill: RED, fillOpacity: 1 }));
+    s.add(new Rectangle({ width: 2, height: 2, fill: RED, fillOpacity: 1 }));
     await s.wait(0.2);
   }), ['cut-in']);
   assert.deepEqual(await kinds(async (s) => {
-    s.add(new Square().shift([-3, 0]));
+    s.add(new Rectangle({ width: 2, height: 2 }).shift([-3, 0]));
     await s.wait(0.2);
-    s.add(new Square().shift([3, 0]));
+    s.add(new Rectangle({ width: 2, height: 2 }).shift([3, 0]));
     await s.wait(0.2);
   }), ['cut-in']);
 });
@@ -411,15 +410,15 @@ test('a cut-in is exempt over a staying leaf only when it is a copy of it or loo
   // A filled square popping in, with no outline and inside a stroke-only one: a cut-in either way
   for (const outline of [false, true]) {
     assert.deepEqual(await kinds(async (s) => {
-      if (outline) s.add(new Square({ side: 2, stroke: '#ffffff', fill: 'none' }));
+      if (outline) s.add(new Rectangle({ width: 2, height: 2, stroke: '#ffffff', fill: 'none' }));
       await s.wait(0.2);
-      s.add(new Square({ side: 1.8, fill: RED, fillOpacity: 1, stroke: 'none' }));
+      s.add(new Rectangle({ width: 1.8, height: 1.8, fill: RED, fillOpacity: 1, stroke: 'none' }));
       await s.wait(0.2);
     }), ['cut-in'], outline ? 'inside an outline' : 'on its own');
   }
   // A copy over its source is none, also when aligning to the target changed its points
   assert.deepEqual(await kinds(async (s) => {
-    const a = new Square({ fill: RED, fillOpacity: 1 }); s.add(a);
+    const a = new Rectangle({ width: 2, height: 2, fill: RED, fillOpacity: 1 }); s.add(a);
     await s.wait(0.2);
     const hexagon = new Polygon([[0, 1], [0.87, 0.5], [0.87, -0.5], [0, -1], [-0.87, -0.5], [-0.87, 0.5]]).shift([3, 0]);
     await s.play(new TransformFromCopy(a, hexagon));
@@ -436,7 +435,7 @@ test('a cut-in is exempt over a staying leaf only when it is a copy of it or loo
 
 test('play() with a lone .animate builder animates it (it is not the options object)', async () => {
   await run(async (s) => {
-    const a = new Square(); s.add(a);
+    const a = new Rectangle({ width: 2, height: 2 }); s.add(a);
     await s.play(a.animate.shift(RIGHT));
     assert.equal(Math.round(s.time * s.fps), 30);
     assert.deepEqual(a.center().map((x) => Math.round(x * 1e6) / 1e6), [1, 0]);

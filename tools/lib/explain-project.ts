@@ -2,7 +2,8 @@ import { textContextOf, usesOutlineLettering, withSceneLettering, dryRun, takeLe
 import type { LetteringSnapshot } from '../../src/internal.ts';
 import { diagramsOn, liveSteps, paperOf, paletteOf, checkWatch, adoptExplainer, readSnapshotStore, sceneIdOf, scriptOf, traceScenarios, checkScriptMeta, checkStepMeta, checkClaimsMeta, diagramKey, RENDERER } from '../../explain/internal.ts';
 import type { Live } from '../../explain/internal.ts';
-import type { Palette, DiagramResolver } from '../../explain/index.ts';
+import type { DiagramResolver } from '../../explain/index.ts';
+import type { Palette } from '../../src/index.ts';
 import { canonicalRequest, offPage, prepareLettering as prepareOutlineLettering } from './lettering.ts';
 import { build } from 'esbuild';
 import type { Plugin } from 'esbuild';
@@ -326,7 +327,7 @@ export async function collectProject(
     // reads which letters the embedded fonts cannot draw; then every scenario is traced against the
     // snapshots, as loadProject traces it.
     for (const values of scenariosOf(Source)) {
-      const collect = new (withSettings(bindSnapshots(Source, resolver), values))(new NullSink(), { skipUntil: Infinity });
+      const collect = new (withSettings(bindSnapshots(Source, resolver), values))(new NullSink());
       // Text the embedded fonts cannot draw shows as nothing: name it by scenario and step, then fail.
       let step = '(before the first step)';
       const blanks = () => {

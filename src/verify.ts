@@ -30,17 +30,6 @@ import type { EndedStep, Scene, Sink, Step } from './scene.ts';
 import { FRAME } from './units.ts';
 import { pad } from './box.ts';
 
-/** Thresholds for analyzeMotion(); see DEFAULTS. */
-export interface MotionOptions {
-  minJump?: number;
-  spikeRatio?: number;
-  minResize?: number;
-  popAlpha?: number;
-  cutAlpha?: number;
-  flickerFrames?: number;
-  handoffIoU?: number;
-}
-
 /**
  * One drawn leaf in one frame: box center, size and effective alpha. On every
  * leaf of a frame in which some leaf appears, also `look` (each part's shape,
@@ -135,7 +124,8 @@ function grow<T extends Int32Array | Float64Array>(array: T, length: number): T 
 export type MotionKind = 'teleport' | 'resize' | 'pop' | 'cut-in' | 'cut-out' | 'flicker' | 'handoff';
 export interface MotionEvent { kind: MotionKind; frame: number; t: number; step: string | null; what: string; magnitude: number; detail: string }
 
-const DEFAULTS: Required<MotionOptions> = {
+/** analyzeMotion()'s thresholds: what a viewer perceives as a jump rather than motion. */
+const LIMITS = {
   minJump: 0.2,      // scene units (frame is 16 wide, so ~1.25% of width, ~16px at 1280)
   spikeRatio: 3,     // displacement must exceed this multiple of both neighbors' displacement
   minResize: 0.25,   // relative size change in one frame
@@ -143,7 +133,7 @@ const DEFAULTS: Required<MotionOptions> = {
   cutAlpha: 0.5,     // appearing/vanishing above this alpha is a cut
   flickerFrames: 3,
   handoffIoU: 0.6,
-};
+} as const;
 
 function alphaOf(m: Mobject): number {
   const s = m.style;
@@ -245,8 +235,7 @@ const iou = (a0: Box, b0: Box): number => {
   return inter / (area(a) + area(b) - inter);
 };
 
-export function analyzeMotion(sink: MotionSink, opts: MotionOptions = {}): MotionEvent[] {
-  const o = { ...DEFAULTS, ...opts };
+export function analyzeMotion(sink: MotionSink): MotionEvent[] {
   const F = sink.frames;
   // The frames around the one analysed, as objects: two before it, and those a flicker looks ahead to.
   const window = new Map<number, Map<number, LeafSample>>();
@@ -282,17 +271,17 @@ export function analyzeMotion(sink: MotionSink, opts: MotionOptions = {}): Motio
     for (const [id, s] of cur) {
       const p = prev.get(id);
       if (!p) {
-        if (s.a >= o.cutAlpha) cutIns.push([id, s]);
+        if (s.a >= LIMITS.cutAlpha) cutIns.push([id, s]);
         continue;
       }
       const d = disp(f, id);
-      if (d > o.minJump && d > o.spikeRatio * Math.max(disp(f - 1, id), disp(f + 1, id))) ev('teleport', f, id, d, `moved ${d.toFixed(2)} in one frame`);
+      if (d > LIMITS.minJump && d > LIMITS.spikeRatio * Math.max(disp(f - 1, id), disp(f + 1, id))) ev('teleport', f, id, d, `moved ${d.toFixed(2)} in one frame`);
       const z = dsize(f, id);
-      if (z > o.minResize && z > o.spikeRatio * Math.max(dsize(f - 1, id), dsize(f + 1, id))) ev('resize', f, id, z, `size changed ${(100 * z).toFixed(0)}% in one frame`);
+      if (z > LIMITS.minResize && z > LIMITS.spikeRatio * Math.max(dsize(f - 1, id), dsize(f + 1, id))) ev('resize', f, id, z, `size changed ${(100 * z).toFixed(0)}% in one frame`);
       const da = dalpha(f, id);
-      if (da >= o.popAlpha) ev('pop', f, id, da, `alpha ${p.a.toFixed(2)} → ${s.a.toFixed(2)}`);
+      if (da >= LIMITS.popAlpha) ev('pop', f, id, da, `alpha ${p.a.toFixed(2)} → ${s.a.toFixed(2)}`);
     }
-    for (const [id, p] of prev) if (!cur.has(id) && p.a >= o.cutAlpha) cutOuts.push([id, p]);
+    for (const [id, p] of prev) if (!cur.has(id) && p.a >= LIMITS.cutAlpha) cutOuts.push([id, p]);
 
     // Pair same-frame replacements: a matching box is a seamless handoff
     const usedIn = new Set<number>();
@@ -303,7 +292,7 @@ export function analyzeMotion(sink: MotionSink, opts: MotionOptions = {}): Motio
         const score = iou(op.box, ip.box);
         if (score > bestScore) { best = [iid, ip]; bestScore = score; }
       }
-      if (best && bestScore >= o.handoffIoU) { usedIn.add(best[0]); continue; }
+      if (best && bestScore >= LIMITS.handoffIoU) { usedIn.add(best[0]); continue; }
       if (best && bestScore > 0) {
         usedIn.add(best[0]);
         const d = Math.hypot(best[1].cx - op.cx, best[1].cy - op.cy);
@@ -312,7 +301,7 @@ export function analyzeMotion(sink: MotionSink, opts: MotionOptions = {}): Motio
       }
       // Gone: flicker if it comes back soon, else a hard cut
       let back = 0;
-      for (let k = f + 1; k < Math.min(F.length, f + 1 + o.flickerFrames); k++) if (leaves(k)!.has(oid)) { back = k; break; }
+      for (let k = f + 1; k < Math.min(F.length, f + 1 + LIMITS.flickerFrames); k++) if (leaves(k)!.has(oid)) { back = k; break; }
       if (back) ev('flicker', f, oid, back - f, `hidden for ${back - f} frame(s)`);
       else ev('cut-out', f, oid, op.a, `vanished at alpha ${op.a.toFixed(2)}`);
     }
@@ -320,7 +309,7 @@ export function analyzeMotion(sink: MotionSink, opts: MotionOptions = {}): Motio
     // changes nothing a viewer sees when it is a copy of that leaf (TransformFromCopy)
     // or its parts look like that leaf's. A filled shape inside an outline is a cut-in.
     const overStaying = (s: LeafSample): boolean => {
-      for (const [id, q] of cur) if (prev.has(id) && q.a + 0.02 >= s.a && iou(q.box, s.box) >= o.handoffIoU && (s.from === id || partsOf(s.look, q.look))) return true;
+      for (const [id, q] of cur) if (prev.has(id) && q.a + 0.02 >= s.a && iou(q.box, s.box) >= LIMITS.handoffIoU && (s.from === id || partsOf(s.look, q.look))) return true;
       return false;
     };
     for (const [iid, ip] of cutIns) if (!usedIn.has(iid)) {
@@ -353,9 +342,9 @@ export interface InvariantFailure {
  */
 export class InvariantSink implements Sink {
   readonly inner: Sink | null;
-  failures: InvariantFailure[];
-  checked: Map<string, number>;
-  held: Map<string, number>;
+  readonly failures: InvariantFailure[];
+  readonly checked: Map<string, number>;
+  readonly held: Map<string, number>;
   constructor(inner: Sink | null = null) { this.inner = inner; this.failures = []; this.checked = new Map(); this.held = new Map(); }
 
   /** The invariants that ran on some frame and held on none: invariants that tested nothing. */

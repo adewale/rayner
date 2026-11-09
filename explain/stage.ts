@@ -1,7 +1,7 @@
 import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, Create } from '../src/index.ts';
 import { View } from './view.ts';
 import { cloneJson } from '../src/json.ts';
-import type { Scene, Vec, Box, FadeOpts, Animation, SceneColors } from '../src/index.ts';
+import type { Scene, Vec, Box, FadeOptions, Animation, SceneColors } from '../src/index.ts';
 import { center, unionBoxes } from '../src/box.ts';
 import { atHome } from '../src/svg.ts';
 import { FRAME, STAGE_BOX, zoomOf } from '../src/units.ts';
@@ -15,7 +15,7 @@ import { Diagram } from './diagrams.ts';
 import { Action } from './action.ts';
 import type { Plan } from './action.ts';
 import type { ShowOptions, PictureNote } from './diagrams.ts';
-import type { Card, CodeBlock, CardRow, CardOptions, CodeOptions } from './panels.ts';
+import type { Card, CodeBlock, CardRow, CardOptions, CodeBlockOptions } from './panels.ts';
 import { card, code } from './drawing.ts';
 import { resolverOf } from './diagram-snapshot.ts';
 import type { DiagramSpec, DiagramSnapshot } from './diagram-snapshot.ts';
@@ -192,14 +192,14 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
    * heading they belong to the stage, not the picture a step leaves.
    */
   const makeChrome = (text: string, line: string, number: number | null, step: string) => {
-    const t = scene.text(text, { fontSize: headingSize, color: colors.ink, weight: 'bold' });
+    const t = new Text(text, { fontSize: headingSize, color: colors.ink, weight: 'bold', shaping: scene.textShaping });
     t.role = 'heading';
     const y = line ? HEADING_Y_WITH_LINE : HEADING_Y;
     const parts: Mobject[] = [];
     let badge: Group | null = null;
     if (number != null && text) {
       const r = headingSize * 0.62;
-      const digit = scene.text(String(number), { fontSize: headingSize * 0.72, color: emphasis(colors), weight: 'bold' });
+      const digit = new Text(String(number), { fontSize: headingSize * 0.72, color: emphasis(colors), weight: 'bold', shaping: scene.textShaping });
       badge = new Group(
         new Circle({ radius: r, stroke: emphasis(colors), strokeWidth: headingSize * 0.06, fill: 'none' }),
         digit,
@@ -215,7 +215,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       parts.push(badge);
     }
     if (line) {
-      const l = scene.text(line, { fontSize: LINE_SIZE, color: soft(colors) });
+      const l = new Text(line, { fontSize: LINE_SIZE, color: soft(colors), shaping: scene.textShaping });
       if (l.width() > CHROME_WIDTH)
         throw new Error(
           `this.step(): the line of step ${JSON.stringify(step)} is ${l.width().toFixed(1)} units wide, longer than one line under the heading (${CHROME_WIDTH}); shorten it`,
@@ -436,7 +436,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
   const act = <T>(name: string, make: () => Plan<T>, more?: { ready?: Promise<unknown>; late?: boolean }) =>
     new Action<T>(scene, name, make, more);
   /** Keep `panel` and fade it in over `fade.runTime`. */
-  function enterPanel<T extends Mobject>(panel: T, fade: FadeOpts & { runTime: number }): Plan<T> {
+  function enterPanel<T extends Mobject>(panel: T, fade: FadeOptions & { runTime: number }): Plan<T> {
     return {
       value: panel,
       start: () => overlays.set(panel, undefined),
@@ -560,13 +560,13 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       opening(scene, ...subjects);
     },
     /** Code on a panel, entered: the kit's `code(s, source, opts)`, faded in and kept. */
-    code(lines: readonly string[], opts: CodeOptions = {}): Action<CodeBlock> {
-      return act('s.code()', () => enterPanel(code(this as StageApi, lines, { ...opts, api: 's.code()' } as CodeOptions), { runTime: 0.4 }));
+    code(lines: readonly string[], opts: CodeBlockOptions = {}): Action<CodeBlock> {
+      return act('s.code()', () => enterPanel(code(this as StageApi, lines, { ...opts, api: 's.code()' } as CodeBlockOptions), { runTime: 0.4 }));
     },
     /** A plain line of supporting text in the stage's secondary colour. */
     note(text: string, { at = [0, -3.9], size = 0.24 }: { at?: Vec; size?: number } = {}): Action<Text> {
       return act('s.note()', () => {
-        const t = scene.text(text, { fontSize: size, color: soft(colors) }).moveTo(at);
+        const t = new Text(text, { fontSize: size, color: soft(colors), shaping: scene.textShaping }).moveTo(at);
         if (t.width() > 15) t.setWidth(15);
         return enterPanel(t, { runTime: 0.3 });
       });
@@ -581,9 +581,9 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       return first;
     },
     /** Keep these and fade them in together, in one play (options as for FadeIn, plus `describe`). */
-    enter(...args: Mobject[] | [...Mobject[], FadeOpts & Describe]): Action {
+    enter(...args: Mobject[] | [...Mobject[], FadeOptions & Describe]): Action {
       return act('s.enter()', () => {
-        const { describe, ...fade } = isOptions(args.at(-1)) ? (args.pop() as FadeOpts & Describe) : {};
+        const { describe, ...fade } = isOptions(args.at(-1)) ? (args.pop() as FadeOptions & Describe) : {};
         const mobs = args as Mobject[];
         return {
           value: undefined,

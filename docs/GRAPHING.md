@@ -46,16 +46,14 @@ class Daylight extends Scene<{}, {}> {
 ## NumberLine
 
 ```ts
-new NumberLine({ range: [min, max, step], length = 8, includeTicks = true, tickSize = 0.1,
-                 includeNumbers = false, numbersToInclude, numbersToExclude, labelFontSize = 0.24,
-                 labelColor, decimals, labelDirection, labelBuff = 0.12,
-                 includeTip = false, tipLength, tipWidth, rotation = 0, ...style })
+new NumberLine({ range: [min, max, step], length = 8, includeNumbers = false, labelFontSize = 0.24,
+                 labelColor, decimals, labelBuff = 0.12, tipLength, tipWidth, rotation = 0, ...style })
 ```
 
-- The line runs from `min` to `max` and is centered on the origin. Ticks fall at `min + i·step`, and
-  `tickSize` is the half-length (each tick reaches that far to either side). Labels default to
-  every tick, with as many decimal places as `step` has. When the line is rotated, labels stay
-  upright on the `labelDirection` side.
+- The line runs from `min` to `max` and is centered on the origin. Ticks fall at `min + i·step`,
+  each reaching 0.1 to either side. `includeNumbers` labels every tick, with as many decimal places
+  as `step` has. When the line is rotated, labels stay upright, clockwise of the line's direction
+  (below a horizontal line).
 - `n2p(x)` maps a number to a point and `p2n(p)` maps a point back, projected onto the line.
   `unitSize()` gives scene units per unit. All three read the line's **current** endpoints, so they
   stay right after `shift`, `scale` or `rotate`.
@@ -68,12 +66,14 @@ new NumberLine({ range: [min, max, step], length = 8, includeTicks = true, tickS
 
 ```ts
 new Axes({ xRange = [0, 10, 1], yRange = [0, 5, 1], width = 8, height = 4.5,
-           axisStyle, xAxisStyle, yAxisStyle, tips = false, xLabel, yLabel, axisLabelFontSize })
+           axisStyle, yAxisStyle, tips = false, xLabel, yLabel, axisLabelFontSize })
 ```
 
 - The two axes are NumberLines (`axes.xAxis`, `axes.yAxis`), and their lines span exactly
   `width × height` about the origin. `axisStyle` takes any NumberLine option except range, length
-  and rotation (its type is `AxisStyle`). `xAxisStyle` and `yAxisStyle` override it for one axis.
+  and rotation (its type is `AxisStyle`), and `yAxisStyle` overrides it for the y axis. The y
+  axis labels its ticks on its left, and `tips` draws a filled tip past each axis's `max`
+  (`tipLength` and `tipWidth` size it).
   `axes.xLabel` and `axes.yLabel` are the axis labels' `Text`s, or null.
 - The axes cross at (0, 0) when zero is in both ranges. Otherwise they cross at the nearest end of
   the range, so with an x range of 1..12 the y axis stands at x = 1. `axes.crossX` and

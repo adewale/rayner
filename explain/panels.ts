@@ -146,13 +146,13 @@ export class Card extends Group {
     for (const [label, ...vs] of rows)
       if (vs.length !== 1 && vs.length !== n)
         throw new TypeError(n ? `${api}: the row ${JSON.stringify(label)} has ${vs.length} values for ${n} columns; give one per column, or one to span them` : `${api}: the row ${JSON.stringify(label)} has ${vs.length} values; pass columns to show more than one`);
-    const valueText = (v: unknown) => this.scene.text(String(v), { fontSize: size * 1.04, font: 'mono', color: colors.ink, anchor: valueAnchor });
-    const labels = rows.map(([l]) => this.scene.text(l, { fontSize: size, color: soft(colors), anchor: labelAnchor }));
+    const valueText = (v: unknown) => new Text(String(v), { fontSize: size * 1.04, font: 'mono', color: colors.ink, anchor: valueAnchor, shaping: this.scene.textShaping });
+    const labels = rows.map(([l]) => new Text(l, { fontSize: size, color: soft(colors), anchor: labelAnchor, shaping: this.scene.textShaping }));
     const cells = rows.map(([, ...vs]) => vs.map(valueText));
     const spans = (i: number) => cells[i]!.length === 1 && n !== 1;
-    const headings = this.columns.map((c) => this.scene.text(c, { fontSize: size, color: colors.accent, weight: 'bold', anchor: valueAnchor }));
+    const headings = this.columns.map((c) => new Text(c, { fontSize: size, color: colors.accent, weight: 'bold', anchor: valueAnchor, shaping: this.scene.textShaping }));
     const titleText = options.title
-      ? this.scene.text(options.title, { fontSize: size * 1.05, color: colors.accent, weight: 'bold', anchor: labelAnchor })
+      ? new Text(options.title, { fontSize: size * 1.05, color: colors.accent, weight: 'bold', anchor: labelAnchor, shaping: this.scene.textShaping })
       : null;
     const gap = size * COLUMN_GAP;
     // A column is as wide as its heading or its widest value (at least a glyph), plus the gap before it.
@@ -313,7 +313,7 @@ export class Card extends Group {
 
 }
 
-export interface CodeOptions {
+export interface CodeBlockOptions {
   /** As for cards: a centre point, or a region/box to centre in (`'start'` and `'end'` follow the stage's direction). */
   at?: Vec | Box | Region | 'start' | 'end';
   align?: 'center' | 'top';
@@ -369,7 +369,7 @@ export class CodeBlock extends Group {
   private readonly title: string | undefined;
 
   /** @internal The kit's `code(s, source, opts)` builds a code panel on a stage. */
-  constructor(scene: Scene, colors: Palette, lines: readonly string[], options: PlacedOptions<CodeOptions> = {}) {
+  constructor(scene: Scene, colors: Palette, lines: readonly string[], options: PlacedOptions<CodeBlockOptions> = {}) {
     super();
     const api = (this.api = options.api ?? 'code()');
     this.scene = scene;
@@ -384,7 +384,7 @@ export class CodeBlock extends Group {
     this.title = options.title;
     const pad = 0.3;
     const head = options.title
-      ? this.scene.text(options.title, { fontSize: 0.2, color: soft(colors), anchor: 'start' })
+      ? new Text(options.title, { fontSize: 0.2, color: soft(colors), anchor: 'start', shaping: this.scene.textShaping })
       : null;
     if (box) {
       const room = (options.width ?? box[2] - box[0]) - 0.7;

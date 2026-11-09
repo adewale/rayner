@@ -10,7 +10,7 @@ import type { Box } from './mobject.ts';
 import { FRAME, STAGE_BOX, zoomOf } from './units.ts';
 import { center } from './box.ts';
 
-export interface FrameFitOpts {
+export interface FrameFitOptions {
   /** Space kept around the target on every side, in scene units. */
   margin?: number;
 }
@@ -47,7 +47,7 @@ export class Frame extends Mobject {
   get zoom(): number { return zoomOf(this.box() ?? STAGE_BOX); }
 
   /** The smallest 16:9 box that holds `target` (a mobject or a box) plus `margin` on every side, centered on it. */
-  fit(target: Mobject | Readonly<Box>, { margin = 0.5 }: FrameFitOpts = {}): this {
+  fit(target: Mobject | Readonly<Box>, { margin = 0.5 }: FrameFitOptions = {}): this {
     const b = target instanceof Mobject ? target.box() : target;
     if (!b) throw new Error('frame.fit(): the target has no points to fit; give a mobject that is drawn, or a box');
     const w = Math.max(b[2] - b[0] + 2 * margin, (b[3] - b[1] + 2 * margin) * ASPECT);

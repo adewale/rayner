@@ -49,7 +49,7 @@ keeps its size, so the growth is along one axis.
 Placement and authored paint/opacity are captured when the play begins. At its
 normal endpoint, the object has exactly its authored geometry and styles.
 
-Options are `AnimOpts` plus `initialScale`, a finite value in `[0, 1]`, default
+Options are `AnimOptions` plus `initialScale`, a finite value in `[0, 1]`, default
 `0.001`. The small default avoids a degenerate starting path; zero is supported.
 Opacity starts at zero independently of this scale. Standard duration, easing and
 family lag apply. As with other transforms, an easing that ends somewhere other
@@ -74,7 +74,7 @@ is strongest halfway along. Child opacity ratios are preserved; existing dimming
 is not overwritten with full strength. Applying an easing also changes that pulse's
 timing; the default is linear.
 
-Options are `MoveAlongPathOpts`, a type exported only from `rayner/extras` (beside `MoveAlongPath`), though `PulseAlongPath` itself is in `rayner`. With the default `fromCurrent: true`, any initial
+Options are `MoveAlongPathOptions`, exported from `rayner` with `MoveAlongPath` and `PulseAlongPath`. With the default `fromCurrent: true`, any initial
 offset from the route is blended away rather than snapping on the first frame.
 Use `fromCurrent: false` to start exactly on the route. A live route edited after
 the animation begins does not change this traversal.

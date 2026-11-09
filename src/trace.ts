@@ -8,7 +8,6 @@
 
 import type { EndedStep, Evidence, Scene, SceneClass, SceneOptions, SceneState, Sink, Step, StepMeta } from './scene.ts';
 import type { Jsonified } from './json.ts';
-import { dryRun } from './timeline.ts';
 
 /**
  * One step of a trace: what traceScene() returns per step. `S` and `Sh` are the types of the model
@@ -63,13 +62,25 @@ export type TraceOf<C> = 0 extends 1 & C ? Trace
  */
 export type AtRest = (scene: Scene, step: EndedStep) => unknown;
 
+/** Options for a TraceSink. */
+export interface TraceSinkOptions {
+  /**
+   * Frames that end before this time are counted, not drawn (Sink.skipUntil). Infinity unless given:
+   * a trace reads only step boundaries, which are exact either way; 0 draws every frame, as a full run does.
+   */
+  skipUntil?: number;
+  /** @internal Called as each step ends, with the scene at rest (AtRest). */
+  atRest?: AtRest;
+}
+
 export class TraceSink implements Sink {
+  readonly skipUntil: number;
   /** @internal Each ended step's record, in order: steps follow one another, so they end in the order they began. */
   records: StepRecord[];
   /** @internal What each step begun and not yet ended recorded as it began, by the scene's own Step. */
   private readonly begun: Map<Step, Pick<StepRecord, 'step' | 't0' | 'frame0' | 'meta' | 'before'>>;
   /** @internal */ private readonly atRest: AtRest | undefined;
-  constructor(atRest?: AtRest) { this.records = []; this.begun = new Map(); this.atRest = atRest; }
+  constructor(options: TraceSinkOptions = {}) { this.skipUntil = options.skipUntil ?? Infinity; this.records = []; this.begun = new Map(); this.atRest = options.atRest; }
   async frame(): Promise<void> {}
   async stepBegin(scene: Scene, s: Step): Promise<void> {
     this.begun.set(s, { step: s.path, t0: round(scene.time), frame0: scene.frameCount, meta: s.meta, before: scene.stateJson() });
@@ -107,10 +118,12 @@ export async function traceScene<C extends SceneClass>(SceneClass: C, opts: Scen
 
 /**
  * traceScene, with the scene as the run left it, for a caller that reads its final state too; and,
- * with `atRest`, each step's resting picture from the same run.
+ * with `atRest`, each step's resting picture from the same run. `skipUntil: 0` draws every frame,
+ * which `rayner check` compares with the skipped trace.
  */
-export async function traceRun(SceneClass: SceneClass, opts: SceneOptions = {}, atRest?: AtRest): Promise<{ trace: Trace; scene: Scene }> {
-  const sink = new TraceSink(atRest);
-  const scene = await dryRun(SceneClass, sink, opts);
+export async function traceRun(SceneClass: SceneClass, { skipUntil, ...opts }: SceneOptions & Pick<TraceSinkOptions, 'skipUntil'> = {}, atRest?: AtRest): Promise<{ trace: Trace; scene: Scene }> {
+  const sink = new TraceSink({ skipUntil, atRest });
+  const scene = new SceneClass(sink, opts);
+  await scene.run();
   return { trace: { fps: scene.fps, duration: round(scene.time), frames: scene.frameCount, steps: sink.steps() }, scene };
 }

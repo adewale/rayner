@@ -76,11 +76,11 @@ export async function assertViewFollowsState(
 ): Promise<number> {
   // Per step: null before the view exists, else viewMismatch's answer (null when they agree).
   const checks: ({ mismatch: string | null } | null)[] = [];
-  const sink = new TraceSink((scene) => {
+  const sink = new TraceSink({ atRest: (scene) => {
     const v = pick(scene), end = sink.steps().at(-1)!;
     checks.push(v ? { mismatch: viewMismatch(v, end.after, { shown: end.shown ?? {}, draw: draw ?? v.draw }) } : null);
-  });
-  await new Explainer(sink, { skipUntil: Infinity }).run();
+  } });
+  await new Explainer(sink).run();
   let checked = 0;
   sink.steps().forEach((s, i) => {
     const c = checks[i];
@@ -103,7 +103,7 @@ export async function diagramOf(snapshot: DiagramSnapshot, { lang, build = 'all'
   class Shown extends Scene {
     static meta = { id: 'diagram', title: 'Diagram', ...(lang ? { lang } : {}) };
   }
-  const d = new Diagram(new Shown(new NullSink(), { skipUntil: Infinity }), snapshot.spec, snapshot, {});
+  const d = new Diagram(new Shown(new NullSink()), snapshot.spec, snapshot, {});
   await d.build(build);
   return d;
 }

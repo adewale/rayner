@@ -13,6 +13,7 @@ import {
   Rectangle,
 } from '../src/index.ts';
 import { MoveAlongPath } from '../src/animation.ts';
+import { Text } from '../src/text.ts';
 import { Action } from './action.ts';
 import { ImportedLabel, labelOf } from './labels.ts';
 import type { Beat, Plan } from './action.ts';
@@ -27,7 +28,7 @@ import { recordWalk } from './trace.ts';
 import { wordsOf, wordsFor, familyNames } from './words.ts';
 import type { Words } from './words.ts';
 import type { Description, DescriptionPart } from './trace.ts';
-import { lerpColor, parseColor } from '../src/color.ts';
+import { blendPaint, parseColor } from '../src/color.ts';
 import type {
   DiagramSpec,
   DiagramSnapshot,
@@ -870,7 +871,7 @@ export class Diagram {
             st.strokeWidth = (st.strokeWidth ?? 0) * 1.8;
           }
           if (paintsFill(st) && !hollow) {
-            st.fill = connector ? color : lerpColor(st.fill!, color, 0.2);
+            st.fill = connector ? color : blendPaint(st.fill!, color, 0.2);
             // A shape drawn by fill alone (a bar, a task) gains an outline: the mark shows by shape, not only hue.
             if (!connector && !(st.stroke && st.stroke !== 'none' && (st.strokeWidth ?? 0) > 0)) {
               Object.assign(st, { stroke: color, strokeOpacity: 1, strokeWidth: 0.04 * this.zoom });
@@ -1052,7 +1053,7 @@ export class Diagram {
   }
   /** A note's label on its raised, outlined paper, at the origin. */
   private noteLook(text: string, color: string, size: number): Group {
-    const label = this.scene.text(text, {fontSize: size, color});
+    const label = new Text(text, { fontSize: size, color, shaping: this.scene.textShaping });
     const bg = new Rectangle({
       width: label.width() + size * 1.4,
       height: size * 1.85,
