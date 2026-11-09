@@ -317,10 +317,13 @@ export class Machine<S extends object, E extends string> {
  * at every read, so neither the caller nor a reader can change what the machine explores.
  */
 function settle<S extends object, E extends string>(spec: MachineSpec<S, E>): MachineModel<S, E> {
-  const start = structuredClone(spec.start);
+  // A state is JSON (a send sets it through the trace's JSON rules), and the bare runtime that
+  // replays a page has no structuredClone.
+  const copy = (state: S): S => JSON.parse(JSON.stringify(state)) as S;
+  const start = copy(spec.start);
   const kept = { match: matchByKey({ text: 'whole' }), runTime: 0.6, limit: 256, ...spec };
   return Object.freeze(Object.defineProperties(kept, {
-    start: { get: () => structuredClone(start), enumerable: true },
+    start: { get: () => copy(start), enumerable: true },
     events: { value: Object.freeze([...spec.events]), enumerable: true },
     views: { value: Object.freeze([...spec.views]), enumerable: true },
     ...(spec.labels ? { labels: { value: Object.freeze({ ...spec.labels }), enumerable: true } } : {}),
