@@ -211,6 +211,9 @@ The stage's verbs that animate (`s.show`, `s.card`, `s.code`, `s.note`, `s.enter
 - `await` it and it plays itself: one play for each of its beats, each rounded to whole frames. A walk is several beats: its token fades in, moves hop by hop, and fades out.
 - Hand it to `play()`, a `Succession`, an `AnimationGroup` or a `LaggedStart` and it plays there instead, its beats one after another inside that play.
 
+<!-- gH2: written to gH1's brief, item 3 (play options on actions). Check it against gH1's merged code, and the lagRatio rule against its tests, after both merges. -->
+Play options reach an action as they reach an animation. A view's `sync` and `tween` pass `play()`'s options, and a group's, to the one animation they play: `play(view.sync(), { rateFunc: linear })` replaces the sync's easing, as `play(new FadeIn(m), { rateFunc: linear })` replaces the fade's, and a there-and-back rate function plays it out and back, in `play()` or in an `AnimationGroup`. An action whose parts play in turn (a machine's `send` and `replay`, a walk, any action of several beats, and a `Succession`) takes `runTime` and `rateFunc` over all its parts, so it refuses a rate function that runs backwards, and `lagRatio`, which only staggers a group; each refusal names the call that made it (`machine.replay()`, `d.walk()`), not a `Succession` the author never wrote.
+
 ```ts
 await this.play(s.focus(d.get('B')), d.walk([['A', 'B']]));        // together, in one play
 await this.play(new Succession([s.enter(box), d.reveal(['B'])]));  // in turn, in one play
