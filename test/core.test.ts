@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import { Square } from '../src/extras.ts';
 import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
-import { Rectangle, Group, VMobject, Line, Arrow, Text, Dot, Transform, AnimationGroup, FadeIn, linear, thereAndBack, Scene, SurroundingRectangle, Cross } from '../src/index.ts';
+import { Rectangle, Group, VMobject, Line, Arrow, Text, Dot, Transform, AnimationGroup, FadeIn, linear, thereAndBack, Scene, SurroundingRectangle, Cross, lerpColor } from '../src/index.ts';
 import { NullSink, toSvgString, renderElements } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { NEUTRAL_COLORS } from '../src/color.ts';
@@ -354,4 +354,19 @@ test('no public path makes the mobject tree a cycle, or lets a parent and its ch
       }
     }
   }), params(500));
+});
+
+test('lerpColor mixes two hex colours and always answers #rrggbb', () => {
+  assert.equal(lerpColor('#000000', '#ffffff', 0.5), '#808080');
+  assert.equal(lerpColor('#FFF', '#FFF', 0.3), '#ffffff');
+  assert.equal(lerpColor('#f00', '#00F', 0), '#ff0000');
+  assert.equal(lerpColor('#f00', '#00f', 1), '#0000ff');
+  // Past the ends, each channel is held to 0 to 255.
+  assert.equal(lerpColor('#808080', '#ffffff', 2), '#ffffff');
+});
+
+test('lerpColor refuses an end that is not a hex colour, naming it', () => {
+  for (const wrong of ['red', 'none', '#12345', '#ff000080', ''])
+    assert.throws(() => lerpColor(wrong, '#ffffff', 0.5), (e: unknown) => e instanceof RangeError && e.message.startsWith('lerpColor(): ') && e.message.includes(JSON.stringify(wrong)));
+  assert.throws(() => lerpColor('#ffffff', 'white', 0.5), /^RangeError: lerpColor\(\): "white"/);
 });

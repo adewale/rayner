@@ -43,7 +43,7 @@ export type { FrameFitOpts } from './frame.ts';
 // Vocabulary
 export type { Vec } from './vec.ts';
 export { lerpColor } from './color.ts';
-export type { SceneColors, ColorRole } from './color.ts';
+export type { SceneColors, ColorRole, Palette } from './color.ts';
 export { shaperFor } from './fonts.ts';
 export type { FontName } from './fonts.ts';
 

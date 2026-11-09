@@ -92,8 +92,9 @@ a parent already on stage), each field still holding its default takes the scene
 field set since keeps what it was set to. A stage sets `scene.colors` from its look (`s.look`), so an
 axis drawn without a `stroke` reads on any paper. A scene without a stage draws dark ink on white
 paper, and the SVG sinks draw `paper` behind the frame unless given a `background`.
-`lerpColor(a, b, t)` gives the colour `t` of the way from `a` to `b` in sRGB, as `#rrggbb`
-(Manim's `interpolate_color`), for a colour between two of the look's.
+`lerpColor(a, b, t)` gives the colour `t` of the way from `a` to `b` in sRGB, always as `#rrggbb`
+(Manim's `interpolate_color`), for a colour between two of the look's. Both ends are hex colours,
+`#rgb` or `#rrggbb`, and it throws a `RangeError` naming any other.
 
 Common layout operations are `nextTo`, `alignTo`, `arrange`, `moveTo`, `setWidth`
 and `setHeight`, and `toEdge(direction, buff)` puts a mobject against an edge of the frame; `arrangeInGrid(cols, { buff })` lays the children out row by row,

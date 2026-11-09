@@ -14,7 +14,7 @@ export type { ShowOptions, NoteSide, PictureNote, DiagramPresentation } from './
 export type { Card, CodeBlock, CardRow, CardOptions, CodeOptions } from './panels.ts';
 export type { Description, DescriptionPart } from './trace.ts';
 export { regionBox } from './look.ts';
-export type { Region, Look, Palette } from './look.ts';
+export type { Region, Look } from './look.ts';
 export { palette } from './palettes.ts';
 export { mermaid } from './mermaid.ts';
 export type { FrontMatterValue, PieSlice, PieOptions } from './mermaid.ts';

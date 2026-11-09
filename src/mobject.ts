@@ -6,7 +6,7 @@
 
 import * as V from './vec.ts';
 import type { Vec } from './vec.ts';
-import { lerpColor, NEUTRAL_COLORS } from './color.ts';
+import { blendPaint, NEUTRAL_COLORS } from './color.ts';
 import type { ColorRole, SceneColors } from './color.ts';
 import { perf } from './perf.ts';
 import { center, pointsBox } from './box.ts';
@@ -597,7 +597,7 @@ export class Mobject {
     for (const k in sb) {
       const va = sa[k], vb = sb[k];
       // Exact at the ends: a + (b - a) * 1 is not always b in floating point.
-      const value = va === vb ? va : alpha <= 0 ? va : alpha >= 1 ? vb : COLOR_KEYS.has(k) ? lerpColor(va as string, vb as string, alpha) : typeof va === 'number' && typeof vb === 'number' ? va + (vb - va) * alpha : alpha < 0.5 ? va : vb;
+      const value = va === vb ? va : alpha <= 0 ? va : alpha >= 1 ? vb : COLOR_KEYS.has(k) ? blendPaint(va as string, vb as string, alpha) : typeof va === 'number' && typeof vb === 'number' ? va + (vb - va) * alpha : alpha < 0.5 ? va : vb;
       if (value === undefined) delete mine[k]; else mine[k] = value;
     }
     this._bbox = null;

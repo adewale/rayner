@@ -222,10 +222,10 @@ export async function publicCollection(scene: Scene): Promise<void> {
 // The rest of what the collection's scenes import, and the members they use, written as an outside
 // author writes them. Every view draws from its state.
 import { Group, Mobject, VMobject, Circle, Polygon, Arc, Cross, CurvedArrow, BraceLabel, DecimalNumber, ItalicText, FadeOut, LaggedStart, Animation, TransformMatchingShapes, matchByKey, linear, smooth, rushInto, rushFrom, thereAndBack, shaperFor } from 'rayner';
-import type { Box, Vec, SceneState, ScheduledAnimation, MatchKey, FadeOpts, FontName, SceneClass, Sink, Style } from 'rayner';
+import type { Box, Vec, SceneState, ScheduledAnimation, MatchKey, FadeOpts, FontName, SceneClass, Sink, Style, Palette } from 'rayner';
 import { callout, dimension, pin, legend, keyed, keyedParts } from 'rayner/drawing';
 import { Machine, refuse, isRefusal, answerOf, settingsOf, resolveSettings, regionBox, mermaid } from 'rayner/explain';
-import type { Refusal, Transition, Choreography, CardOptions, CardRow, NoteSide, PictureNote, DiagramPicture, Palette, Stage, ExplainerClass, ExplainerMeta, Setting, StepKind, Description } from 'rayner/explain';
+import type { Refusal, Transition, Choreography, CardOptions, CardRow, NoteSide, PictureNote, DiagramPicture, Stage, ExplainerClass, ExplainerMeta, Setting, StepKind, Description } from 'rayner/explain';
 import { Write, MoveAlongPath, Square, Underline, ArcBetweenPoints } from 'rayner/extras';
 import { seenFrom, seenPictures, depthOrder, latLon, toLatLon, greatArc, circleOn, between, project } from 'rayner/geo';
 import type { Model3D, Part, SeenPiece, SeenOptions, SeenPicture, Vec3, Viewpoint } from 'rayner/geo';

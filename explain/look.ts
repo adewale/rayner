@@ -155,7 +155,6 @@ export const raised = (p: Palette) => lerpColor(p.paper, p.ink, 0.07);
 /** A hairline that separates without shouting. */
 export const rule = (p: Palette) => lerpColor(p.paper, p.ink, 0.28);
 
-export type { Palette } from '../src/color.ts';
 /**
  * The colours a scene draws with on a stage (`s.look`), derived from its palette so each reads on
  * its paper. A palette is the input (a named style); the look is what drawing code reads.
