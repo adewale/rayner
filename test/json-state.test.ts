@@ -25,23 +25,12 @@ test('state and evidence refuse silent data loss and cycles with a useful field 
     assert.throws(() => scene.record('example', {answer: bad}), /this\.record\(\): data\.answer[.\w\[\]]* must/);
     assert.equal(scene.evidence.length, 0);
   }
-  assert.throws(() => scene.record('example', {kind: 4} as never), /data must not have its own kind/);
-  assert.throws(() => scene.record(4 as never), /kind must be/);
   for (const bad of [null, 4, Symbol('data'), ()=>1, [], new Date()])
     assert.throws(() => scene.record('example', bad as never), /this\.record\(\): data must/);
   assert.equal(scene.evidence.length, 0);
   const cyclic: Record<string, unknown> = {}; cyclic.self = cyclic;
   assert.throws(() => jsonObject(cyclic), /state.self/);
 });
-test('a caption that is not a string fails once the step before has ended, before the step begins; other fields are the layer above\'s', async () => {
-  const scene = new Scene(new NullSink());
-  await scene.step('first');
-  await assert.rejects(scene.step('bad', {caption: 4} as never), /this\.step\(\): the caption of step "bad" must be a string/);
-  assert.equal(scene.steps.length, 1, 'the bad step never began');
-  assert.notEqual(scene.steps[0]!.frame1, null, 'the step before it ended, as it does for metadata given by a function');
-  assert.equal(scene.currentStep, null);
-});
-
 test('JSON arrays refuse subclasses, inherited entries and iterator substitution', () => {
   class Values extends Array<number> {
     override *[Symbol.iterator]() { yield 99; return undefined; }

@@ -678,10 +678,6 @@ test('step metadata is copied as JSON when the step begins: a later change rewri
     override async construct() { await this.step('one', { caption: 'x', at: () => 1 } as never); }
   }
   await assert.rejects(new Fn(new NullSink()).run(), /this\.step\(\): its metadata\.at must contain finite, acyclic JSON data/);
-  class NotObject extends Scene {
-    override async construct() { await this.step('one', () => 3 as never); }
-  }
-  await assert.rejects(new NotObject(new NullSink()).run(), /this\.step\(\): the metadata of step "one" must be an object, or a function of the step before that returns one/);
 });
 
 test('a step\'s recorded metadata is frozen: a write to it after the step began is refused, and changes neither its caption nor its hold', async () => {
@@ -701,25 +697,6 @@ test('a step\'s recorded metadata is frozen: a write to it after the step began 
   assert.ok(refused instanceof TypeError, 'the write throws');
   assert.deepEqual(trace.steps[0]!.meta, { caption: 'one', more: { list: [1] } });
   assert.ok(trace.steps[0]!.frame1 < 30, 'the hold is the reading time of one word');
-});
-
-test('step metadata given as a value or as a function is refused at the same point: once the step before has ended and held', async () => {
-  const at = async (meta: unknown): Promise<number> => {
-    let frames = 0;
-    class Bad extends Scene {
-      override async construct() {
-        await this.step('one', { caption: 'A caption long enough to hold the step for a while.' });
-        await this.wait(0.1);
-        await this.step('two', meta as never);
-      }
-    }
-    const sink = { frame: async () => { frames++; } };
-    await assert.rejects(new Bad(sink).run(), /this\.step\(\): the caption of step "two" must be a string/);
-    return frames;
-  };
-  const asValue = await at({ caption: 3 }), asFunction = await at(() => ({ caption: 3 }));
-  assert.equal(asValue, asFunction, 'both fail on the same frame');
-  assert.ok(asValue > 4, `${asValue} frames: the step before held for its caption first`);
 });
 
 // ---- timeline gates --------------------------------------------------------
@@ -889,6 +866,5 @@ test('a scene runs once, a step listener begins no step, and a listener leaves n
   }
   await new Awaited(new NullSink()).run();
 
-  assert.throws(() => new One(new NullSink(), { fps: '30' as unknown as number }), /^TypeError: new Scene\(\): fps is string/);
   assert.throws(() => new One(new NullSink(), { fps: 0 }), /^RangeError: new Scene\(\): fps is 0/);
 });

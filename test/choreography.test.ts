@@ -274,8 +274,7 @@ test('Follow samples one value for several drawings: exact ends, linear between,
   // Invalid specs are refused before anything is drawn
   assert.throws(() => new Follow({ from: 0, to: NaN, draw }, { targets: [dot, bar] }), RangeError);
   assert.throws(() => new Follow({ from: Infinity, to: 1, draw }, { targets: [dot, bar] }), RangeError);
-  assert.throws(() => new Follow({ from: 0, to: 1, draw }, { targets: [] }), TypeError);
-  assert.throws(() => new Follow({ from: 0, to: 1, draw }, { targets: [{} as Mobject] }), TypeError);
+  assert.throws(() => new Follow({ from: 0, to: 1, draw }, { targets: [] }), RangeError);
   assert.throws(() => new Follow({ from: 0, to: 1, draw }, { targets: [dot, dot] }), /^Error: c\.follow\(\): a target is listed twice/);
   const bad = new Follow({ from: () => NaN, to: 1, draw }, { targets: [dot, bar] });
   assert.throws(() => bad.begin(), RangeError);

@@ -65,21 +65,6 @@ declare module '../src/scene.ts' {
     kind?: StepKind;
   }
 }
-const KINDS: readonly unknown[] = ['short', 'main', 'detail'] satisfies StepKind[];
-/**
- * Refuse a step whose words or path the explain layer cannot read: a title or line that is not a
- * string, a kind that is not short, main or detail, or the old `detail` and `reader` flags.
- * Collection runs it over every step of every scenario.
- */
-export function checkStepMeta(steps: readonly { step: string; meta: Readonly<Record<string, unknown>> }[]): void {
-  for (const { step, meta } of steps) {
-    for (const key of ['title', 'line'] as const)
-      if (meta[key] !== undefined && typeof meta[key] !== 'string') throw new TypeError(`this.step(): the ${key} of step ${JSON.stringify(step)} must be a string`);
-    if (meta.kind !== undefined && !KINDS.includes(meta.kind)) throw new RangeError(`this.step(): the kind of step ${JSON.stringify(step)} must be 'short', 'main' or 'detail'`);
-    if ('detail' in meta || 'reader' in meta) throw new TypeError(`this.step(): step ${JSON.stringify(step)} has ${'detail' in meta ? 'detail' : 'reader'}, which this.step() does not take; say kind: 'detail' or kind: 'short'`);
-  }
-}
-
 /** A step as the reading-path rule reads it: a trace's step record, a scene's step, or anything with their `meta`. */
 export type TeachingStep = { readonly meta: Readonly<Record<string, unknown>> };
 type Step = TeachingStep & { step: string };

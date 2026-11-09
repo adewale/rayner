@@ -53,8 +53,7 @@ function lagSlots(rows: readonly FamilyRow[]): { index: Int32Array; count: numbe
  * @internal Refuse a time that is not a finite number from 0 to `max`: NaN plays no frames and lands
  * silently, Infinity never ends.
  */
-export function assertTime(api: string, what: string, value: unknown, max = Infinity): void {
-  if (typeof value !== 'number') throw new TypeError(`${api}: ${what} is ${typeof value}; give a finite number from 0${max === Infinity ? '' : ` to ${max}`}`);
+export function assertTime(api: string, what: string, value: number, max = Infinity): void {
   if (!Number.isFinite(value) || value < 0 || value > max)
     throw new RangeError(`${api}: ${what} is ${String(value)}; give a finite number from 0${max === Infinity ? '' : ` to ${max}`}`);
 }

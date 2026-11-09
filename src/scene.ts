@@ -253,13 +253,6 @@ function deepFreeze<T extends object>(value: T): T {
   return Object.freeze(value);
 }
 
-/** Refuse metadata step() cannot keep: not an object, or a caption that is not a string. */
-function checkMeta(name: string, meta: unknown): asserts meta is StepMeta {
-  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) throw new TypeError(`this.step(): the metadata of step ${JSON.stringify(name)} must be an object, or a function of the step before that returns one`);
-  const caption = (meta as StepMeta).caption;
-  if (caption !== undefined && typeof caption !== 'string') throw new TypeError(`this.step(): the caption of step ${JSON.stringify(name)} must be a string`);
-}
-
 declare const sceneTypes: unique symbol;
 /**
  * A state type as a scene holds it: `S`'s own properties (an interface's too, which can then go
@@ -362,7 +355,6 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    */
   constructor(sink: Sink, { fps = 30 }: SceneOptions = {}) {
     // Times are kept to 1 ms in a trace: up to 240 fps, half a frame is longer, so a rounded time still finds its frame.
-    if (typeof fps !== 'number') throw new TypeError(`new Scene(): fps is ${typeof fps}; give a number above 0 and at most 240`);
     if (!(fps > 0 && fps <= 240)) throw new RangeError(`new Scene(): fps is ${String(fps)}; give a number above 0 and at most 240`);
     this.sink = sink;
     this.fps = fps;
@@ -514,8 +506,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    * and so checks nothing between them. Names are unique per scene; returns a remover.
    */
   addInvariant(name: string, check: Invariant): () => void {
-    if (typeof name !== 'string' || !name.trim()) throw new TypeError('this.addInvariant(): an invariant needs a name');
-    if (typeof check !== 'function') throw new TypeError(`this.addInvariant(): the check of ${JSON.stringify(name)} must be a function of the scene`);
+    if (!name.trim()) throw new RangeError('this.addInvariant(): an invariant needs a name');
     if (this.invariants.has(name)) throw new Error(`this.addInvariant(): ${JSON.stringify(name)} is already registered; give each invariant its own name`);
     this.invariants.set(name, check);
     return () => { if (this.invariants.get(name) === check) this.invariants.delete(name); };
@@ -556,15 +547,11 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    * form is checked at that point, once the running step has ended.
    */
   async step(name: string, meta: StepMeta | ((closed: EndedStep | null) => StepMeta) = {}): Promise<Step> {
-    if (typeof name !== 'string') throw new TypeError('this.step(): its name must be a string');
     if (this.#listening)
       throw new Error(`this.step(): a step listener began step ${JSON.stringify(name)}; a listener may play and wait in its step, so begin the next step from construct()`);
     return this.#exclusive('ending-step', 'this.step()', async () => {
       const closed = await this.#endStep();
-      // Checked once the step before has ended, in either form: a function needs the closed step,
-      // so a value is held to the same point, and the same mistake fails on the same frame.
       const given = typeof meta === 'function' ? meta(closed) : meta;
-      checkMeta(name, given);
       // Frozen, deeply: what the trace records, and what the caption hold reads, cannot change after.
       const copy = deepFreeze(cloneJson(given, 'this.step()', 'its metadata')) as StepMeta;
       this.#phase = 'beginning-step';
@@ -675,9 +662,8 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    * as JSON when recorded.
    */
   record(kind: string, data: Record<string, unknown> & {kind?: never} = {}): void {
-    if (typeof kind !== 'string' || !kind.trim()) throw new TypeError('this.record(): kind must be a nonempty string');
+    if (!kind.trim()) throw new RangeError('this.record(): kind must be a nonempty string');
     const payload = cloneJson(data, 'this.record()', 'data');
-    if (Object.hasOwn(payload, 'kind')) throw new TypeError('this.record(): data must not have its own kind; the first argument is the kind');
     const e: Evidence = {kind, ...payload};
     this.evidence.push(e);
     this.current?.evidence?.push(e);

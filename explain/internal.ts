@@ -17,7 +17,7 @@ export type { Live, LiveDraw, LiveExplore, LivePlace, LiveRun, LiveSession, LogS
 export { describesItself, emphasisOf, newlyEmphasised, openingOf, seenSource } from './look.ts';
 export { PAGE_QUERY } from './page-query.ts';
 export { adoptExplainer, readSnapshotStore, sceneIdOf, scriptOf, traceScenarios } from './project.ts';
-export { checkScriptMeta, checkStepMeta, isDetail, normalise, offPath, scriptReport, teachingIndices } from './script.ts';
+export { checkScriptMeta, isDetail, normalise, offPath, scriptReport, teachingIndices } from './script.ts';
 export type { TeachingStep } from './script.ts';
 export { isIdentifier, settingsProblem, stepQuery } from './settings.ts';
 export type { SettingsProblem } from './settings.ts';
