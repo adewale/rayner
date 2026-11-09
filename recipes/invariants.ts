@@ -31,12 +31,8 @@ function orbit(turn: 'sampled' | 'morphed'): SceneClass {
         return off <= 1e-3 || `the dot is ${off.toFixed(3)} off its circle`;
       });
       await this.step('turn');
-      await this.play(
-        sampled
-          ? sampled.tween((t) => ({ angle: Math.PI * t }))
-          : new Transform(dot, dot.copy().moveTo([-RADIUS, 0])),
-        { runTime: 1, rateFunc: linear },
-      );
+      const turning = { runTime: 1, rateFunc: linear };
+      await this.play(sampled ? sampled.tween((t) => ({ angle: Math.PI * t }), turning) : new Transform(dot, dot.copy().moveTo([-RADIUS, 0]), turning));
       await this.step('result', { caption: turn === 'sampled' ? 'Evaluated from its angle, the dot stayed on the circle.' : 'Morphed between its ends, the dot cut across the circle.' });
       await this.wait(0.2);
     }

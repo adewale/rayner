@@ -71,6 +71,11 @@ export type Layer = 'far' | 'body' | 'surface' | 'above';
 export interface SeenPiece { part: string; layer: Layer; surface: boolean; lines: Vec3[][]; shown: boolean }
 /** What seenFrom records on the picture it returns. */
 export interface SeenPicture { viewpoint: Viewpoint; radius: number; at: Vec; scale: number; window?: Box }
+/**
+ * A picture seenFrom drew: its `seenPicture` records the viewpoint, radius, place and scale it was
+ * drawn with, and each of its pieces (its children) records what it shows as `seen`.
+ */
+export type SeenDrawing = Group & { readonly seenPicture: SeenPicture; readonly children: readonly (Mobject & { readonly seen: SeenPiece })[] };
 
 const D = Math.PI / 180;
 const dot3 = (a: Vec3, b: Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -377,7 +382,7 @@ const hiddenKey = (key: string | undefined) => (key === undefined ? undefined : 
  * only the parts that lie on the sphere, and no body. Pure: the same model and viewpoint draw the
  * same picture.
  */
-export function seenFrom(model: Model3D, viewpoint: Viewpoint, options: SeenOptions = {}): Group {
+export function seenFrom(model: Model3D, viewpoint: Viewpoint, options: SeenOptions = {}): SeenDrawing {
   const radius = model.body.radius;
   if (!(radius > 0)) throw new RangeError('seenFrom(): the body needs a positive radius');
   const l = lens(viewpoint, radius, options);
@@ -438,16 +443,16 @@ export function seenFrom(model: Model3D, viewpoint: Viewpoint, options: SeenOpti
     { part: b.key ?? 'body', layer: 'body', surface: true, lines: [], shown: true }, b.key)];
   const g = new Group(...far, ...body, ...faces, ...paths, ...points, ...above);
   const picture: SeenPicture = { viewpoint: { ...viewpoint }, radius, at: [...l.at] as Vec, scale: l.scale, ...(window ? { window } : {}) };
-  Object.assign(g, { seenPicture: picture });
-  if (options.key) g.key = options.key;
-  return g;
+  const drawn = Object.assign(g, { seenPicture: picture }) as SeenDrawing;
+  if (options.key) drawn.key = options.key;
+  return drawn;
 }
 
 const RANK: Record<Layer, number> = { far: 0, body: 1, surface: 2, above: 3 };
 const seenOf = (m: Mobject) => (m as Mobject & { seen?: SeenPiece }).seen;
 /** The seenFrom pictures in `m`'s family (m included), outermost first. */
-export function seenPictures(m: Mobject): Group[] {
-  return m.family().filter((x): x is Group => !!(x as Mobject & { seenPicture?: SeenPicture }).seenPicture);
+export function seenPictures(m: Mobject): SeenDrawing[] {
+  return m.family().filter((x): x is SeenDrawing => !!(x as Mobject & { seenPicture?: SeenPicture }).seenPicture);
 }
 const fmt = (vp: Viewpoint) => `${vp.kind} yaw ${vp.yaw.toFixed(1)}°, pitch ${vp.pitch.toFixed(1)}°`;
 /** A piece's drawn anchors, subpath by subpath. */
@@ -482,7 +487,7 @@ export function depthOrder(picture: Mobject): true | string | undefined {
   const drawings = seenPictures(picture);
   if (!drawings.length) return undefined;
   for (const g of drawings) {
-    const meta = (g as Group & { seenPicture: SeenPicture }).seenPicture;
+    const meta = g.seenPicture;
     const l = lens(meta.viewpoint, meta.radius, { at: meta.at, scale: meta.scale }, 'depthOrder()');
     const tolerance = 1e-4 * Math.max(1, meta.scale * meta.radius);
     const slack = 1e-6 * (meta.viewpoint.kind === 'mercator' ? 1 : meta.radius);

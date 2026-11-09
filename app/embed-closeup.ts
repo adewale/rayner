@@ -22,14 +22,8 @@
  * close-up's zoom then multiplies the camera's, and Whole picture is the author's frame.
  */
 import type { Box, Mobject, Scene, SceneClass, Sink } from '../src/index.ts';
-import { center, intersect, overlaps, pad, unionBoxes } from '../src/box.ts';
-import { paints, paintsStroke } from '../src/mobject.ts';
-import { viewOf } from '../src/svg.ts';
-import { dryRun } from '../src/timeline.ts';
-import { FRAME, STAGE_BOX, zoomOf } from '../src/units.ts';
-import { labelOf, readingLabelSize } from '../explain/labels.ts';
-import { emphasisOf, newlyEmphasised, openingOf } from '../explain/look.ts';
-import { isFurniture, isHeading } from '../explain/stage.ts';
+import { center, intersect, overlaps, pad, unionBoxes, paints, paintsStroke, viewOf, dryRun, FRAME, STAGE_BOX, zoomOf } from '../src/internal.ts';
+import { labelOf, readingLabelSize, emphasisOf, newlyEmphasised, openingOf, isFurniture, isHeading } from '../explain/internal.ts';
 import { IDENTITY, ZOOM_MAX, clampZoom } from './embed-zoom.ts';
 import type { Zoom } from './embed-zoom.ts';
 

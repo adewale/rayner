@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { gzipSync } from 'node:zlib';
-import type { SnapshotStore } from '../../integrations/agentic-mermaid/snapshot.ts';
+import type { SnapshotStore } from '../../explain/diagram-snapshot.ts';
 import { packPageSnapshots } from '../../tools/lib/page-snapshots.ts';
 import { fixture } from '../lib/page-snapshot-fixture.ts';
 

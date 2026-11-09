@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../explain/testing.ts';
-import {assertStepState} from '../../../test/lib/explainer-state.ts';
+import { assertStepState } from '../../../explain/testing.ts';
 import {musicStory} from './model.ts';
 import type {Timing} from './model.ts';
 
@@ -9,7 +9,7 @@ import type {Timing} from './model.ts';
 export function check(trace:Trace,values:Record<string,string>) {
   for(const step of trace.steps) {
     // Which picture is showing is not part of the model.
-    assert.equal(step.after.phase,undefined,`melody-rhythm/${step.step}: no phase in the model`);
+    assert.equal(step.after.chapter,undefined,`melody-rhythm/${step.step}: no chapter in the model`);
   }
   // One tempo, 96 BPM: the tempo setting changed no conclusion and is gone.
   assert.equal(values.tempo,undefined);

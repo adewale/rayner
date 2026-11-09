@@ -2,12 +2,11 @@
 // the picture as text, then the step's title, caption, what the picture shows in words, and what
 // the step changed in scene.state. Lantern's `npm run see`, for one scenario. Every word comes from
 // describeExplainer's description of the scenario, so `see` and `describe` cannot disagree.
-import { withoutHeading } from '../../explain/stage.ts';
+import { withoutHeading, describeScenario } from '../../explain/internal.ts';
+import type { ScenarioDescription } from '../../explain/testing.ts';
 import { writeFile } from 'node:fs/promises';
 import { renderFrame, toSvgString } from '../../src/output.ts';
 import type { Scene, Sink } from '../../src/index.ts';
-import { describeScenario } from '../../explain/describe.ts';
-import type { ScenarioDescription } from '../../explain/describe.ts';
 import type { Project } from './explain-project.ts';
 
 type Scenario = Project['scenarios'][number];

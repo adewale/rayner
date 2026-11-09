@@ -4,7 +4,7 @@ import {pageSnapshots, packPageSnapshots} from '../tools/lib/page-snapshots.ts';
 import {decodeSnapshotPayload} from '../app/embed-snapshot-codec.ts';
 import {inflateSnapshots} from '../app/embed-snapshots.ts';
 import {gzipSync} from 'node:zlib';
-import type {SnapshotStore} from '../integrations/agentic-mermaid/snapshot.ts';
+import type {SnapshotStore} from '../explain/diagram-snapshot.ts';
 import {fc, params} from './lib/pbt.ts';
 import { bindSnapshots, loadProject } from '../explain/testing.ts';
 import { toSvgString } from '../src/output.ts';

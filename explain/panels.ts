@@ -1,11 +1,10 @@
 import { Group, Rectangle, Text, Code } from '../src/index.ts';
 import type { Scene, Vec, Box, Mobject } from '../src/index.ts';
 import type { Palette } from '../src/color.ts';
-import { soft, raised, rule, boxCenter, emphasis, good, bad, regionBox, emphasisSource, seenSource } from './look.ts';
+import { soft, raised, rule, boxCenter, emphasis, good, bad, regionBox, emphasisSource, seenSource, checkSize } from './look.ts';
 import type { Region, Emphasis } from './look.ts';
 import type { Description } from './trace.ts';
 import { wordsOf } from './words.ts';
-import { layoutDirection } from './layout-direction.ts';
 import type { LayoutDirection } from './layout-direction.ts';
 
 /** A label and its value; with `columns`, one value per column or a single value that spans them. */
@@ -127,7 +126,9 @@ export class Card extends Group {
   constructor(scene: Scene, colors: Palette, rows: readonly CardRow[], options: PlacedOptions<CardOptions> = {}) {
     super();
     const api = (this.api = options.api ?? 'card()');
-    this.direction = layoutDirection(options, 'ltr', api);
+    this.direction = options.direction ?? 'ltr';
+    checkSize(api, 'size', options.size);
+    checkSize(api, 'width', options.width);
     const edge = this.direction === 'ltr' ? 1 : -1;
     const labelAnchor = edge === 1 ? 'start' : 'end';
     const valueAnchor = edge === 1 ? 'end' : 'start';
@@ -373,6 +374,8 @@ export class CodeBlock extends Group {
     const api = (this.api = options.api ?? 'code()');
     this.scene = scene;
     this.colors = colors;
+    checkSize(api, 'size', options.size);
+    checkSize(api, 'width', options.width);
     const fontSize = (this.fontSize = options.size ?? 0.25);
     if (!lines.length) throw new Error(`${api}: a code panel needs at least one line`);
     this.code = new Code(lines, {fontSize, color: colors.ink, shaping: scene.textShaping});

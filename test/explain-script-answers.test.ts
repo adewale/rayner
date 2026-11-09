@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
-import { parseIntent, intentMeta } from '../tools/lib/explain-intent.ts';
+import { parseIntent, intentMeta } from '../explain/intent.ts';
 import { compareAnswers } from '../tools/lib/explain-evidence.ts';
 
 // Each explainer's answer and its reader questions' answers were once computed from its model inside the scene's static

@@ -18,7 +18,7 @@ A recipe is an excerpt. The tour's [runnable source](https://github.com/adewale/
 | `diff` | `parseUnifiedDiff`, `TransformDiff({hunks})`, `diffLines` | [Diff-driven](MATCHING.md#diff-driven) |
 | `animation`, `matching`, `keys`, `restore`, `copy` | `Transform`, `TransformMatchingText`, `TransformMatching({key: matchByKey()})`, `saveState` / `Restore`, `TransformFromCopy` | [Matching](MATCHING.md), [sequencing and copies](ANIMATIONS.md) |
 | `write`, `arc`, `rates` | `Write`, `ArcBetweenPoints`, `MoveAlongPath`, `rateFunc: smooth`, `rushInto`, `rushFrom`, `thereAndBack` | [Animations](ANIMATIONS.md), [choreography](CHOREOGRAPHY.md) |
-| `emphasis`, `underline`, `brace`, `annotations`, `drawing` | `Circumscribe({keep:true})`, `Underline`, `Brace`, `s.pin`, `s.sketch` | [Emphasis shapes](EMPHASIS.md), [stage helpers](REFERENCE.md#stage) |
+| `emphasis`, `underline`, `brace`, `annotations`, `drawing` | `Circumscribe({keep:true})`, `Underline`, `Brace`, `pin` with `s.enter`, `s.sketch` | [Emphasis shapes](EMPHASIS.md), [stage helpers](REFERENCE.md#stage) |
 | `camera` | `s.focus(subject)`, `s.focus('all')` | [Camera and framing](CAMERA.md) |
 | `chart`, `number-line`, `bars`, `decimal` | `Axes`, `axes.lineGraph`, `NumberLine`, `line.n2p`, `bars`, `DecimalNumber` | [Plots, bars and number lines](GRAPHING.md), [the drawing kit](REFERENCE.md#drawing-kit) |
 | `state` | `this.state`, `view(this, ...)`, `label.sync()` | [State views and fidelity checks](VIEWS.md) |

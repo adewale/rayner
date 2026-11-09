@@ -1,8 +1,9 @@
 import { Scene, FadeIn, Create, Transform, AnimationGroup, Succession, rushFrom, thereAndBack } from '../../../src/index.ts';
-import type { View, Card, CodeBlock, ExplainerMeta } from '../../../explain/index.ts';
-import type { ScheduledAnimation as Animation, VMobject } from '../../../src/index.ts';
+import type { View, ExplainerMeta } from '../../../explain/index.ts';
+import type { ScheduledAnimation, VMobject } from '../../../src/index.ts';
 import { stage, settingsOf, Machine, view } from '../../../explain/index.ts';
 import { code } from '../../../explain/drawing.ts';
+import type { Card, CodeBlock } from '../../../explain/drawing.ts';
 import { TokenBucket, bucketStart, bucketRequest } from './model.ts';
 import type { BucketCall as Call, BucketState } from './model.ts';
 import { counted, listed } from '../lib/format.ts';
@@ -261,7 +262,7 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
           // The answer. A 200 takes the top token out of the bucket to the request, as the level
           // and the line drop by one; a 429 finds no whole token there, and the request turns red.
           const top = levelY(call.found, CAPACITY);
-          const answer: Animation[] = [
+          const answer: ScheduledAnimation[] = [
             ...(call.ok ? [c.enter(`balance:spend:${n}`, { create: true }, { runTime: ANSWER_S })] : []),
             c.enter(`balance:found:${n}`, {}, { runTime: ANSWER_S }),
             new Transform(level, g.to('bucket:level'), { runTime: ANSWER_S }),

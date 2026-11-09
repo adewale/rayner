@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../explain/testing.ts';
-import {assertStepState} from '../../../test/lib/explainer-state.ts';
-import {assertSteps} from '../../../test/lib/steps.ts';
+import { assertStepState, assertSteps } from '../../../explain/testing.ts';
 import {bloomStory,saturation} from './model.ts';
 
 /** The model has native/exhaustive oracles in model.test.ts. This boundary
@@ -11,7 +10,7 @@ export function check(trace:Trace,values:Record<string,string>) {
   assertSteps(trace,['question','insert','shared','absent','present','predict','false-positive','pipeline','full']);
   for(const step of trace.steps) {
     // Which picture is showing is not part of the model.
-    assert.equal(step.after.phase,undefined,`bloom-filter/${step.step}: no phase in the model`);
+    assert.equal(step.after.chapter,undefined,`bloom-filter/${step.step}: no chapter in the model`);
   }
   const m=bloomStory(Number(values.bits) as 16|32);
   assertStepState(trace,'question',{bits:Array(m.size).fill(0),stored:[]});

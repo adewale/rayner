@@ -2,7 +2,8 @@ import { Scene, Group } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, mermaid, answerOf, view, having } from '../../../explain/index.ts';
 import { card, code } from '../../../explain/drawing.ts';
-import type { CardRow, CardOptions, View, Diagram, PictureNote, Having, Card, ExplainerMeta } from '../../../explain/index.ts';
+import type { CardRow, CardOptions, Card } from '../../../explain/drawing.ts';
+import type { View, Diagram, PictureNote, Having, ExplainerMeta } from '../../../explain/index.ts';
 import {
   CLIENT_IP,
   PLACEMENTS,

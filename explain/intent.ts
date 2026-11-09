@@ -1,5 +1,5 @@
 // A script's intent header, parsed and adopted: pure, so the page, the tools and an author's tests
-// share it (rayner/testing's withIntent). tools/lib/explain-intent.ts reads the script from disk.
+// share it (rayner/testing's withIntent). loadProject and the command read the script from disk (adoptExplainer).
 /**
  * A script's intent: what the explainer must achieve, written for its author. The script states
  * the question (its `#` heading), a few labelled lines, and the questions a reader should be able

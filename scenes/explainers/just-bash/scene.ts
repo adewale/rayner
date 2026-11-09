@@ -1,9 +1,10 @@
 import { frames as readerFrames, FILE, files, prints, shellsPicture, shellsWords, commandLine, faded } from './picture.ts';
-import type { Choreography, Transition, Diagram, PictureNote, View, CardRow, CardOptions, ExplainerMeta } from '../../../explain/index.ts';
+import type { Choreography, Transition, Diagram, PictureNote, View, ExplainerMeta } from '../../../explain/index.ts';
 import { Scene, Text, Transform, AnimationGroup, Succession, FadeIn, FadeOut } from '../../../src/index.ts';
 import type { Animation, Box } from '../../../src/index.ts';
 import { stage, regionBox, answerOf, Machine, view, having } from '../../../explain/index.ts';
 import { card, code } from '../../../explain/drawing.ts';
+import type { CardRow, CardOptions } from '../../../explain/drawing.ts';
 import { exec } from './model.ts';
 import type { Shell } from './model.ts';
 import { sessionOfShells, sessionNextShell, scriptBound, BASH_EVENTS } from './model.ts';

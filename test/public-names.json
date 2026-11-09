@@ -12,7 +12,7 @@
         "check": "Keys: two parts on the stage with one key at the end of a step fail"
       },
       "Scene": {
-        "check": "Seek, Trace, Hold, Landing: every scenario is played and seeked; a seeked frame or trace that differs from the played one, a picture that changes after its caption's hold begins, or a step that ends on a different picture from its last frame, fails"
+        "check": "Seek, Trace, Hold, Last frame: every scenario is played and seeked; a seeked frame or trace that differs from the played one, a picture that changes after its caption's hold begins, or a step that ends on a different picture from its last frame, fails"
       },
       "Text": {
         "check": "Text, Legibility, Glyphs: native text that overlaps other text, reads under 14 px at 1280 px, or has characters the fonts cannot draw fails"
@@ -42,9 +42,6 @@
       },
       "Machine": {
         "check": "Machines: every state its events reach is drawn and fails if it collides, has a label under 14 px, has no description, does not show its state or is described like another"
-      },
-      "View": {
-        "check": "Views: at the end of every step, a view whose words, parts, boxes or opacity differ from a fresh draw of the state, placed where a sync would put it, fails"
       },
       "refuse": {
         "check": "Machines: a bound that stops an event the model refuses anyway fails"
@@ -138,8 +135,20 @@
       "describeExplainer": {
         "tooling": "an author's tool or agent that reads the explainer as one JSON object: scenarios, steps, state and pictures in words"
       },
+      "assertStepState": {
+        "tooling": "an author's test that compares each step's state with the program the explainer explains (every explainer's fidelity check)"
+      },
+      "assertSteps": {
+        "tooling": "an author's test that names the steps it reads, in order, so it survives an edit to the rest of the story"
+      },
+      "assertViewFollowsState": {
+        "tooling": "an author's test that checks a view shows the traced state at the end of every step (ring-buffer, henge and five more)"
+      },
       "diagramFindings": {
         "tooling": "an author's test that reads the verifier's warnings on a pinned diagram snapshot without building its diagram"
+      },
+      "diagramOf": {
+        "tooling": "an author's test that reads a pinned diagram's words or parts (pg-page, traffic-policy, gnome-files, tailwind-gamut and gtfs)"
       },
       "jsonObject": {
         "tooling": "an author's test or tool that validates and clones state under the trace's JSON rules (the document recipe)"
@@ -307,7 +316,7 @@
     },
     {
       "feature": "Pictures rebuilt from state",
-      "uses": "`view(scene, draw)`, `view.sync()`; `viewMismatch`, and `assertViewFollowsState` in `test/lib/view-fidelity.ts`",
+      "uses": "`view(scene, draw)`, `view.sync()`; `viewMismatch` and `assertViewFollowsState` in `rayner/testing`",
       "guide": "[Views](VIEWS.md)",
       "items": [
         {
@@ -548,11 +557,13 @@
     {
       "explaining": "A drawing made by hand, values said on it",
       "start": "`pen-and-pencil`",
-      "shows": "`s.sketch` with a pen and pencil, `s.focus` on the camera, `s.carry`, `s.dimension` and `s.callout` instead of cards",
+      "shows": "`s.sketch` with a pen and pencil, `s.focus` on the camera, `s.carry`, the kit's `dimension` and `s.callout` instead of cards",
       "scenes": [
         "pen-and-pencil"
       ],
-      "names": []
+      "names": [
+        "dimension"
+      ]
     },
     {
       "explaining": "A claim about viewpoint or projection",

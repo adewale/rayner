@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../explain/testing.ts';
 import { london, madrid, haversine, rhumb, tens } from './model.ts';
-import { assertStepState } from '../../../test/lib/explainer-state.ts';
-import { assertSteps } from '../../../test/lib/steps.ts';
+import { assertStepState, assertSteps } from '../../../explain/testing.ts';
 
 /** Every number a step draws or says comes from the route model; the model has its own GeographicLib oracle. */
 export function check(trace: Trace, values: Record<string, string>): void {

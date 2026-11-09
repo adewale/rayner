@@ -15,7 +15,7 @@ import { loadFonts } from '../explain/testing.ts';
 import type { Mobject } from '../src/index.ts';
 import { restingTextProblems, lintConstruct } from '../tools/lib/explain-check.ts';
 import { readSnapshots, writeSnapshots, snapshotFileName, scriptEscape } from '../tools/lib/explain-project.ts';
-import { diagramKey } from '../integrations/agentic-mermaid/snapshot.ts';
+import { diagramKey } from '../explain/diagram-snapshot.ts';
 import type { SnapshotStore } from '../explain/index.ts';
 import { fc, params } from './lib/pbt.ts';
 import { existsSync } from 'node:fs';

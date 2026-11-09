@@ -4,7 +4,7 @@ import { Square, Restore, Underline, ArcBetweenPoints, MoveAlongPath, Write, Tra
 import type { Mobject, Vec } from '../../../src/index.ts';
 import { stage, settingsOf, palette, answerOf, view, having } from '../../../explain/index.ts';
 import type { ExplainerMeta } from '../../../explain/index.ts';
-import { bars, tile, keyed, code } from '../../../explain/drawing.ts';
+import { bars, tile, keyed, code, pin } from '../../../explain/drawing.ts';
 
 type Feature =
   | 'steps'
@@ -233,9 +233,9 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     code: [
       'await s.enter(new Circle({radius: 0.8}),',
       "  {describe: 'Circle'});",
-      "await s.pin([0, 0], {label: 'centre'});",
+      "await s.enter(pin(s, [0, 0], {label: 'centre'}));",
     ],
-    recipe: "s.pin puts a label at a point in the picture and draws a leader to it.",
+    recipe: "pin puts a label at a point and draws a leader to it; s.enter brings it in.",
     caption: "The leader ties the word centre to the circle’s centre, so the label names a place without another animation. The bare circle on the left is a separate drawing.",
     point: 'The word centre sits at the end of a leader to the circle’s centre.',
   },
@@ -560,7 +560,7 @@ type TourState = {
   london?: number[];
 };
 /** Whether the recipe or its result is on show, the diagram's walked edges and the code's focused line. */
-type TourShown = { phase?: 'recipe' | 'result'; walked?: [string, string][]; lit?: { lines: number; as: string } | null };
+type TourShown = { chapter?: 'recipe' | 'result'; walked?: [string, string][]; lit?: { lines: number; as: string } | null };
 
 export default class FeatureTour extends Scene<TourState, TourShown> {
   static meta = {
@@ -655,7 +655,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
     });
     await s.code(example.code, { at: 'full', size: 0.6, fitHeight: true });
     this.state.feature = feature;
-    this.shown.phase = 'recipe';
+    this.shown.chapter = 'recipe';
 
     // 2. The result, at rest: before on the left, after on the right. The before panels, the camera
     // ruler and Restore's dashed outline are this scene's own artwork, not what the recipe lines draw;
@@ -673,7 +673,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
     };
     // Each result names its own before and after; the camera scenario has no before panel.
     await this.step('result', { title: example.result, line: example.point, caption: example.caption });
-    this.shown.phase = 'result';
+    this.shown.chapter = 'result';
     await s.clear();
     const [ax, ay] = centre(AFTER),
       [bx, by] = centre(BEFORE);
@@ -879,7 +879,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
       await s.enter(new Circle({ radius: 0.8, stroke: accent, strokeWidth: 0.05 }).moveTo([ax, ay]), {
         describe: 'After: a circle whose centre is pinned',
       });
-      await s.pin([ax, ay], { label: 'centre', size: 0.42 });
+      await s.enter(pin(s, [ax, ay], { label: 'centre', size: 0.42 }), { runTime: 0.4, shift: [0, -0.15] });
     } else if (feature === 'direction') {
       // In a right-to-left stage the panels mirror: the before panel is drawn on the right.
       await s.enter(

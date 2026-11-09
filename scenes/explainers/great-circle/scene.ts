@@ -1,7 +1,7 @@
 import { Scene, VMobject, Succession } from '../../../src/index.ts';
-import type { Viewpoint, SeenPicture, SeenPiece } from '../../../explain/geo.ts';
+import type { Viewpoint } from '../../../explain/geo.ts';
 import { depthOrder, seenPictures, latLon, toLatLon } from '../../../explain/geo.ts';
-import type { Group, Vec } from '../../../src/index.ts';
+import type { Vec } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, view } from '../../../explain/index.ts';
 import type { Stage, ExplainerMeta } from '../../../explain/index.ts';
 import { greatCircle, pole, london, madrid, haversine, rhumb, tens, RADIUS_KM } from './model.ts';
@@ -26,10 +26,10 @@ const GNOMONIC: Viewpoint = { kind: 'gnomonic', yaw: -58, pitch: 50, limit: 51 }
 function straight(scene: Scene): true | string | undefined {
   let checked: true | undefined;
   for (const g of scene.mobjects.flatMap((m) => seenPictures(m))) {
-    const meta = (g as Group & { seenPicture: SeenPicture }).seenPicture;
+    const meta = g.seenPicture;
     for (const piece of g.children) {
       if (!piece.key?.startsWith('route:') || piece.key.endsWith(':hidden') || !(piece instanceof VMobject)) continue;
-      const pts = (piece as VMobject & { seen: SeenPiece }).seen.lines.flat();
+      const pts = piece.seen.lines.flat();
       if (pts.length < 3) continue;
       const n = pole(toLatLon(pts[0]!), toLatLon(pts.at(-1)!));
       const v = latLon(meta.viewpoint.pitch, meta.viewpoint.yaw);

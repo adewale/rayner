@@ -2,7 +2,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { phrase, musicStory, beatMs } from './model.ts';
 import MelodyRhythm from './scene.ts';
-import { stepAudio } from '../../../explain/audio.ts';
 import { readFileSync } from 'node:fs';
 import { withIntent } from '../../../explain/testing.ts';
 import type { ExplainerMeta } from '../../../explain/index.ts';
@@ -48,7 +47,6 @@ test('the music comparison preserves pitches and total beats while moving exactl
     for(const clip of m.clips) {
       assert.deepEqual(clip.notes.map(n=>n.midi),expected);
       assert.equal(clip.notes.at(-1)!.at+clip.notes.at(-1)!.duration,8);
-      assert.equal(stepAudio({clips:[clip]})!.clips[0],clip);
     }
     for(const [i,clip] of m.flat.entries()) {
       assert.deepEqual(clip.notes.map(n=>n.midi),Array(8).fill(60));

@@ -9,13 +9,13 @@ import type { Drawn } from './picture.ts';
 
 /** Morphs pair parts by key: shapes by their place in the keyed part, a keyed word only with the same word. */
 const byKey: MatchKey = matchByKey({ text: 'whole' });
-type Phase = 'machine' | 'copies' | 'parent' | 'multiply' | 'grid' | 'regions' | 'flatten' | 'question' | 'frother';
+type Chapter = 'machine' | 'copies' | 'parent' | 'multiply' | 'grid' | 'regions' | 'flatten' | 'question' | 'frother';
 // The picture is a function of the model and of which picture is shown. The model, for the two
 // charts a reader could drive, is their configuration (`config`) and the boxes it is in
-// (`current`); otherwise just the boxes followed, if any. Which picture is `shown.phase`. So a View
+// (`current`); otherwise just the boxes followed, if any. Which picture is `shown.chapter`. So a View
 // checks it against the trace, and rayner check can draw any state a Machine reaches.
 type Model = Driven | { current: string[] | null };
-type Shown = { phase: Phase };
+type Shown = { chapter: Chapter };
 
 export default class Statecharts extends Scene<Model, Shown> {
   static meta = {
@@ -59,8 +59,8 @@ export default class Statecharts extends Scene<Model, Shown> {
     const followCell = cellKey(cellOf([playing, muted]));
     const ACTIVE = activeStates(playerChart, run(playerChart, RUNS.player)[2]!.config);
     let drawn: Drawn = { group: new Group(), words: [] };
-    const picture = (st: Model, { phase }: Shown): Drawn => {
-      switch (phase) {
+    const picture = (st: Model, { chapter }: Shown): Drawn => {
+      switch (chapter) {
         case 'machine':
           return coffeePicture(s, big(coffeeLayout('flat').bounds), 'plain', { follow: [], lit: [] });
         case 'copies':
@@ -82,19 +82,19 @@ export default class Statecharts extends Scene<Model, Shown> {
       }
     };
     this.state = { current: null } satisfies Model;
-    this.shown = { phase: 'machine' } satisfies Shown;
+    this.shown = { chapter: 'machine' } satisfies Shown;
     const main = view(this, (st, sh) => (drawn = picture(st, sh)).group, { place: false });
     const describe = { describe: () => drawn.words.join('; ') };
-    const show = (phase: Phase) => { this.shown = { phase } satisfies Shown; };
+    const show = (chapter: Chapter) => { this.shown = { chapter } satisfies Shown; };
     /** A new picture: clear the stage and fade the next one in. */
-    const fresh = async (next: Phase) => {
+    const fresh = async (next: Chapter) => {
       await s.clear({ runTime: 0.35 });
       show(next);
       main.rebuild();
       s.keep(main, describe);
       await this.play(new FadeIn(main, { runTime: 0.6 }));
     };
-    const morph = async (next: Phase) => {
+    const morph = async (next: Chapter) => {
       show(next);
       await this.play(main.sync({ match: byKey, staged: false, runTime: 1.2 }));
     };
@@ -102,7 +102,7 @@ export default class Statecharts extends Scene<Model, Shown> {
     // rayner check draws every configuration the events reach. The parent step replays a brew
     // that starts; the frother step the transfer answer's events.
     /** The boxes the picture draws green for a state: the parent step follows the configuration, the frother step every box it is in. */
-    const followed = (st: Driven) => (this.shown.phase === 'parent' ? st.config : st.current);
+    const followed = (st: Driven) => (this.shown.chapter === 'parent' ? st.config : st.current);
     /** The arrow an event takes: the transition written on the state that handled it (its own, or its parent's), keyed as coffeePicture keys it. */
     /** The line an arrow of the chart is drawn along: a straight arrow's line, a curved one's arc. */
     const shaft = (arrow: Mobject) => (arrow instanceof CurvedArrow ? arrow.arc : (arrow as Arrow).line);
@@ -150,8 +150,8 @@ export default class Statecharts extends Scene<Model, Shown> {
     const brew = driven(coffee());
     const frother = driven(coffeeWithFrother());
     /** Start a chart in its picture, then replay its events through the model. */
-    const replay = async (machine: typeof brew, phase: 'parent' | 'frother', events: readonly string[]) => {
-      show(phase);
+    const replay = async (machine: typeof brew, chapter: 'parent' | 'frother', events: readonly string[]) => {
+      show(chapter);
       this.state = machine.spec.start;
       await this.play(main.sync({ match: byKey, staged: false, runTime: 1.2 }));
       await this.play(machine.replay(events));

@@ -72,7 +72,7 @@ test('useLettering with the faces in place, or none in place, does nothing', asy
   assert.equal(shaperFor('sans'), embedded.sans);
 });
 
-test('lettering callers take turns: overlapping runs each see their own faces, and the last useLettering call wins (N13)', async () => {
+test('lettering callers take turns: overlapping runs each see their own faces, and the last useLettering call wins', async () => {
   await useLettering(null);
   const faces = pageFaces((await collectProject(FIXTURE, { write: false })).lettering);
   await useLettering(null);
@@ -99,7 +99,7 @@ test('lettering callers take turns: overlapping runs each see their own faces, a
   await useLettering(null);
 });
 
-test('a selection whose faces cannot be decoded changes nothing, so the next run puts back the faces really in place (A4)', async () => {
+test('a selection whose faces cannot be decoded changes nothing, so the next run puts back the faces really in place', async () => {
   await useLettering(null);
   // The deliberate defect: a face that is not a font.
   await assert.rejects(useLettering({ sans: 'bm90IGEgZm9udA==' }), /meta\.lettering: the sans cut cannot be decoded/);
@@ -109,7 +109,7 @@ test('a selection whose faces cannot be decoded changes nothing, so the next run
   assert.equal(shaperFor('sans'), embedded.sans);
 });
 
-test('a loadProject with no lettering takes its turn too: overlapping a lettered run, it traces with the embedded faces (A3)', async () => {
+test('a loadProject with no lettering takes its turn too: overlapping a lettered run, it traces with the embedded faces', async () => {
   const { loadProject } = await import('../explain/project.ts');
   const { Scene } = await import('../src/index.ts');
   await useLettering(null);

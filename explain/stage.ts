@@ -10,7 +10,6 @@ import type { StepKind } from './script.ts';
 import type { StepAudio } from './audio.ts';
 import { tool, Sketch, oneStrokeEach } from './annotate.ts';
 import * as kit from './drawing.ts';
-import type { LegendItem } from './annotate.ts';
 import type { Side, ToolKind } from './annotate.ts';
 import { Diagram } from './diagrams.ts';
 import { Action } from './action.ts';
@@ -18,17 +17,16 @@ import type { Plan } from './action.ts';
 import type { ShowOptions, PictureNote } from './diagrams.ts';
 import type { Card, CodeBlock, CardRow, CardOptions, CodeOptions } from './panels.ts';
 import { card, code } from './drawing.ts';
-import { resolverOf } from '../integrations/agentic-mermaid/snapshot.ts';
-import type { DiagramSpec, DiagramSnapshot } from '../integrations/agentic-mermaid/snapshot.ts';
-import { isHex } from '../src/color.ts';
+import { resolverOf } from './diagram-snapshot.ts';
+import type { DiagramSpec, DiagramSnapshot } from './diagram-snapshot.ts';
 import type { Palette } from '../src/color.ts';
 import { palette } from './palettes.ts';
-import { soft, emphasis, bad, lookOf, bindStagePalette, regionBox, opening, partsSeen, REGIONS } from './look.ts';
+import { soft, emphasis, bad, lookOf, bindStagePalette, regionBox, opening, partsSeen, REGIONS, checkPalette, checkSize } from './look.ts';
 import type { Region, Look } from './look.ts';
 import { picture, shownNames } from './trace.ts';
 import { wordsOf, langOf } from './words.ts';
 import type { Description } from './trace.ts';
-import { layoutDirection, physicalAt } from './layout-direction.ts';
+import { physicalAt } from './layout-direction.ts';
 import type { LayoutDirection } from './layout-direction.ts';
 
 /** Physical regions retain their coordinates; start/end follow the stage's direction. */
@@ -52,8 +50,6 @@ export interface StageOptions {
   /** Number each step's heading (a circled 1, 2, 3 before the title). On by default when the heading follows the steps. */
   numbered?: boolean;
 }
-/** `enter: false` makes the panel and keeps it without playing, for `s.enter` to bring in with others. */
-type Entry = { enter?: boolean };
 /**
  * What kept native objects show, in words, for the description: a sentence, or a
  * function for a drawing that changes. Without it, their visible text is listed.
@@ -168,40 +164,6 @@ export interface DiagramPicture {
   dim?: readonly string[] | null;
   prefix?: string;
 }
-const STAGE_OPTIONS = ['direction', 'style', 'palette', 'heading', 'headingSize', 'numbered'] as const;
-const PALETTE_KEYS = ['paper', 'ink', 'accent', 'muted'] as const;
-/**
- * Every option stage() takes, checked before the stage touches the scene: only the keys it takes,
- * a palette of four hex colours, a heading that is 'step', words or false, a heading size above 0,
- * and `numbered` true or false. (The options' shape and direction are checked by layoutDirection,
- * first, and the style where it is read.)
- */
-function checkStageOptions(options: StageOptions): void {
-  const unknown = Object.keys(options).filter((k) => !(STAGE_OPTIONS as readonly string[]).includes(k));
-  if (unknown.length) throw new TypeError(`stage(): it takes no option ${unknown.map((k) => JSON.stringify(k)).join(', ')}; the options are ${STAGE_OPTIONS.join(', ')}`);
-  const { palette: p, heading, headingSize, numbered } = options;
-  if (p !== undefined) {
-    if (typeof p !== 'object' || p === null) throw new TypeError(`stage(): the palette is ${JSON.stringify(p) ?? typeof p}; give { paper, ink, accent, muted }, each a hex colour, or a style's, palette('nord')`);
-    const missing = PALETTE_KEYS.filter((k) => !(k in p));
-    if (missing.length) throw new TypeError(`stage(): the palette has no ${missing.join(', ')}; give { paper, ink, accent, muted }, each a hex colour`);
-    const extra = Object.keys(p).filter((k) => !(PALETTE_KEYS as readonly string[]).includes(k));
-    if (extra.length) throw new TypeError(`stage(): the palette takes no ${extra.map((k) => JSON.stringify(k)).join(', ')}; give { paper, ink, accent, muted }, each a hex colour`);
-    for (const k of PALETTE_KEYS) {
-      const c: unknown = p[k];
-      if (typeof c !== 'string') throw new TypeError(`stage(): the palette's ${k} is ${typeof c}; give a hex colour, such as '#2e3440'`);
-      if (!isHex(c)) throw new RangeError(`stage(): the palette's ${k} is ${JSON.stringify(c)}, not a hex colour; give #rgb or #rrggbb, such as '#2e3440'`);
-    }
-  }
-  if (heading !== undefined && heading !== false && typeof heading !== 'string')
-    throw new TypeError(`stage(): the heading is ${JSON.stringify(heading) ?? typeof heading}; give 'step' to follow each step's title, words to fix it, or false for none`);
-  if (headingSize !== undefined) {
-    if (typeof headingSize !== 'number') throw new TypeError(`stage(): headingSize is ${typeof headingSize}; give a font size in scene units above 0, such as 0.5`);
-    if (!(headingSize > 0 && Number.isFinite(headingSize))) throw new RangeError(`stage(): headingSize is ${String(headingSize)}; give a font size in scene units above 0, such as 0.5`);
-  }
-  if (numbered !== undefined && typeof numbered !== 'boolean')
-    throw new TypeError(`stage(): numbered is ${JSON.stringify(numbered) ?? typeof numbered}; give true or false`);
-}
-
 /**
  * The stage on `scene`: its palette, heading, regions, diagrams and panels, and the helpers that
  * enter, keep and clear what it shows. Typed from the scene (`Scene<S, Sh>`), so the draws it takes
@@ -213,8 +175,9 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
   // The options are checked, and the backdrop and first heading made, before the stage touches the
   // scene: a stage() that throws here leaves it as it was, without a stage and free to have one.
   // From `staged.add` on, the scene has its stage.
-  const direction = layoutDirection(options, 'ltr', 'stage()');
-  checkStageOptions(options);
+  const direction = options.direction ?? 'ltr';
+  if (options.palette) checkPalette('stage()', options.palette);
+  checkSize('stage()', 'headingSize', options.headingSize);
   // Without a style or palette, the stage adopts the first diagram's palette, and only the first's.
   let adopt = !options.palette && !options.style;
   let colors = options.palette ?? palette(options.style ?? 'nord');
@@ -472,12 +435,12 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
   /** An action of the stage's (see Action): it is decided now and plays when awaited or composed. */
   const act = <T>(name: string, make: () => Plan<T>, more?: { ready?: Promise<unknown>; late?: boolean }) =>
     new Action<T>(scene, name, make, more);
-  /** Keep `panel` and fade it in over `fade.runTime`, or with `enter: false` only keep it. */
-  function enterPanel<T extends Mobject>(panel: T, { enter = true }: Entry, fade: FadeOpts & { runTime: number }): Plan<T> {
+  /** Keep `panel` and fade it in over `fade.runTime`. */
+  function enterPanel<T extends Mobject>(panel: T, fade: FadeOpts & { runTime: number }): Plan<T> {
     return {
       value: panel,
       start: () => overlays.set(panel, undefined),
-      beats: enter ? [{ runTime: fade.runTime, play: () => [new FadeIn(panel, fade)] }] : [],
+      beats: [{ runTime: fade.runTime, play: () => [new FadeIn(panel, fade)] }],
     };
   }
   /** Keep `g`, which describes itself, and play it in with `entry` over `runTime`. */
@@ -581,15 +544,8 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       return direction;
     },
     /** Labelled values, entered: the kit's `card(s, rows, opts)`, faded in and kept. */
-    card(
-      rows: readonly CardRow[],
-      opts: CardOptions & Entry = {},
-    ): Action<Card> {
-      return act('s.card()', () => {
-        // The direction is checked on the options as given, before they are copied with the call's name.
-        layoutDirection(opts, direction, 's.card()');
-        return enterPanel(card(this as StageApi, rows, { ...opts, api: 's.card()' } as CardOptions), opts, { runTime: 0.35, shift: [0, -0.08] });
-      });
+    card(rows: readonly CardRow[], opts: CardOptions = {}): Action<Card> {
+      return act('s.card()', () => enterPanel(card(this as StageApi, rows, { ...opts, api: 's.card()' } as CardOptions), { runTime: 0.35, shift: [0, -0.08] }));
     },
     /** Keep these subjects together in the reader's opening when they fit legibly.
      * Other artwork remains available in the close-up tour. Call after step().
@@ -604,20 +560,15 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       opening(scene, ...subjects);
     },
     /** Code on a panel, entered: the kit's `code(s, source, opts)`, faded in and kept. */
-    code(
-      lines: readonly string[],
-      opts: CodeOptions & Entry = {},
-    ): Action<CodeBlock> {
-      return act('s.code()', () => enterPanel(code(this as StageApi, lines, { ...opts, api: 's.code()' } as CodeOptions), opts, {
-        runTime: 0.4,
-      }));
+    code(lines: readonly string[], opts: CodeOptions = {}): Action<CodeBlock> {
+      return act('s.code()', () => enterPanel(code(this as StageApi, lines, { ...opts, api: 's.code()' } as CodeOptions), { runTime: 0.4 }));
     },
     /** A plain line of supporting text in the stage's secondary colour. */
     note(text: string, { at = [0, -3.9], size = 0.24 }: { at?: Vec; size?: number } = {}): Action<Text> {
       return act('s.note()', () => {
         const t = scene.text(text, { fontSize: size, color: soft(colors) }).moveTo(at);
         if (t.width() > 15) t.setWidth(15);
-        return enterPanel(t, {}, { runTime: 0.3 });
+        return enterPanel(t, { runTime: 0.3 });
       });
     },
     /**
@@ -721,35 +672,10 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
         return { value: undefined, beats: [{ runTime, play: () => [new Transform(m, target, { runTime })] }] };
       });
     },
-    /** A dimension line from `a` to `b` with `label`, set off by `offset`: the kit's `dimension`, sized for the screen, drawn in and kept. */
-    dimension(a: Vec, b: Vec, label: string, opts: { offset?: number; color?: string; size?: number; key?: string } = {}): Action<Group> {
-      return act('s.dimension()', () => {
-        // The line describes itself.
-        const view = camera();
-        const g = onScreen(kit.dimension(this, toScreen(a, view), toScreen(b, view), label, opts), view);
-        return drawIn(g, 0.6, () => new Create(g, { runTime: 0.6, lagRatio: 0.1 }));
-      });
-    },
-    /** A pin stuck in at `point`, with an optional label: the kit's `pin`, sized for the screen, drawn in and kept. */
-    pin(point: Vec, opts: { label?: string; color?: string; size?: number; side?: 'left' | 'right'; key?: string } = {}): Action<Group> {
-      return act('s.pin()', () => {
-        const view = camera();
-        const g = onScreen(kit.pin(this, toScreen(point, view), opts), view);
-        return drawIn(g, 0.4, () => new FadeIn(g, { runTime: 0.4, shift: [0, -0.15] }));
-      });
-    },
     /**
-     * A key of swatches and their meanings, its first entry starting at `at` (the swatch's left edge, on the entry's centre line):
-     * the kit's `legend`, sized for the screen, faded in and kept. It describes itself as its swatch→meaning pairs.
+     * Words beside a target with a leader line to it: the kit's `callout`, sized for the screen,
+     * drawn in and kept. Another kit picture enters with `s.enter`, at its size in the world.
      */
-    legend(items: readonly LegendItem[], opts: { at?: Vec; size?: number; stack?: 'column' | 'row'; gap?: number; key: string }): Action<Group> {
-      return act('s.legend()', () => {
-        const view = camera();
-        const g = onScreen(kit.legend(this, items, { ...opts, at: toScreen(opts.at ?? [0, 0], view), api: 's.legend()' } as typeof opts), view);
-        return drawIn(g, 0.4, () => new FadeIn(g, { runTime: 0.4 }));
-      });
-    },
-    /** Words beside a target with a leader line to it: the kit's `callout`, sized for the screen, drawn in and kept. */
     callout(
       target: Vec | Box | Mobject,
       text: string,

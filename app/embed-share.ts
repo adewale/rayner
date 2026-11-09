@@ -2,7 +2,7 @@
 // step of the default scenario, at <path>/<id>/<step>, whose link preview is that step. The exported
 // player carries SHARE_META, whose content is <origin><path>/<id>/, so Copy link can give that URL.
 
-import { isIdentifier } from '../explain/settings.ts';
+import { isIdentifier } from '../explain/internal.ts';
 
 /** Where the footer's mark of the maker goes: the project's home (also `PRODUCT.home`). */
 export const HOME = 'https://github.com/adewale/rayner';

@@ -1,9 +1,8 @@
 import { test } from 'node:test';
 import type { View as StateView } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
-import { loadProject } from '../../../explain/testing.ts';
+import { loadProject, assertViewFollowsState as viewFollowsState } from '../../../explain/testing.ts';
 import StateMachine from './scene.ts';
-import { assertViewFollowsState as viewFollowsState } from '../../../test/lib/view-fidelity.ts';
 
 test('state-machine: its Session card shows the traced state at every step, in every scenario', async () => {
   const project = await loadProject(StateMachine, 'scenes/explainers/state-machine');

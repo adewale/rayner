@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../explain/testing.ts';
-import {assertStepState} from '../../../test/lib/explainer-state.ts';
-import {assertSteps} from '../../../test/lib/steps.ts';
+import { assertStepState, assertSteps } from '../../../explain/testing.ts';
 import {monty,montyExample,threeDoorWorlds,threeDoorCells,oddsAfter,roundStart,roundNext} from './model.ts';
 import type {Host,Round,RoundEvent} from './model.ts';
 
@@ -12,8 +11,8 @@ export function check(trace:Trace,values:Record<string,string>) {
   assertSteps(trace,['choice','predict','rounds','odds','worlds']);
   for(const step of trace.steps) {
     // Which picture is showing is not part of the model; monty-hall names it in shown.
-    assert.equal(step.after.phase,undefined,`monty-hall/${step.step}: no phase in the model`);
-    assert.equal(step.shown?.phase,step.step,`monty-hall/${step.step}: shown names the picture`);
+    assert.equal(step.after.chapter,undefined,`monty-hall/${step.step}: no chapter in the model`);
+    assert.equal(step.shown?.chapter,step.step,`monty-hall/${step.step}: shown names the picture`);
   }
   const host=values.host as Host,choice=0,example=montyExample(choice,'switch');
   // The round (the old choice and host steps, merged) and the prediction show the same doors, car unrevealed:

@@ -1,7 +1,7 @@
-import {stepAudio} from '../explain/audio.ts';
-import type {AudioClip} from '../explain/audio.ts';
+import { stepAudio } from '../explain/internal.ts';
+import type { AudioClip } from '../explain/index.ts';
+import { UNITS } from '../src/internal.ts';
 import {StateScope, wait} from './embed-scope.ts';
-import {UNITS} from '../src/units.ts';
 
 /** Optional reader module. Only pages with authored audio import this code. */
 export function mountAudio(stage: HTMLElement, frame: HTMLElement) {
@@ -15,18 +15,18 @@ export function mountAudio(stage: HTMLElement, frame: HTMLElement) {
   const stopButton=document.createElement('button');stopButton.type='button';stopButton.textContent='Stop';
   panel.append(buttons,status);frame.after(panel);
   type Playing = {kind:'playing'; scope:StateScope; active:Map<OscillatorNode,GainNode>; cursor:SVGLineElement|null};
-  type Phase = {kind:'idle'|'finished'|'failed'} | {kind:'starting';scope:StateScope} | Playing;
+  type Playback = {kind:'idle'|'finished'|'failed'} | {kind:'starting';scope:StateScope} | Playing;
   let context: AudioContext | null=null;
-  let phase:Phase={kind:'idle'};
-  function enter(next:Phase) {
-    if('scope' in phase && (!('scope' in next) || phase.scope!==next.scope)) phase.scope.abort();
-    if(phase.kind==='playing') {
-      for(const [osc,gain] of phase.active) {osc.stop();osc.disconnect();gain.disconnect();}
-      phase.cursor?.remove();
+  let playback:Playback={kind:'idle'};
+  function enter(next:Playback) {
+    if('scope' in playback && (!('scope' in next) || playback.scope!==next.scope)) playback.scope.abort();
+    if(playback.kind==='playing') {
+      for(const [osc,gain] of playback.active) {osc.stop();osc.disconnect();gain.disconnect();}
+      playback.cursor?.remove();
     }
     stopButton.disabled=!('scope' in next);
     panel.dataset.playing=String(next.kind==='playing');elapsed.value='';
-    phase=next;
+    playback=next;
   }
   function revealScore() {
     // A click or keyboard focus can scroll the controls into view while hiding

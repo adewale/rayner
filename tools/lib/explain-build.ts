@@ -10,17 +10,14 @@ import { packPageSnapshots } from './page-snapshots.ts';
 import { sceneEntry, shippedScenario, shippedStore } from './scene-entry.ts';
 import { SnapshotSink, renderFrame } from '../../src/output.ts';
 import { chromeFor, scenarioNameIn, changeText, descriptionLang } from '../../app/embed-strings.ts';
-import { pictureHtml, htmlEscape, stepWords, watchedChanges, wordsHtml } from '../../explain/trace.ts';
-import { ROOT, LIB_ROOT, engineAlias, defaultScenario, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';
+import { pictureHtml, htmlEscape, stepWords, watchedChanges, wordsHtml, stepAudio, liveBase, stepQuery } from '../../explain/internal.ts';
+import { RTL_SCRIPTS } from '../../src/internal.ts';
+import { ROOT, engineAlias, defaultScenario, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';
 import type { Project } from './explain-project.ts';
 import { letteringReport, useProjectLettering } from './explain-lettering.ts';
 import { letteringLicences } from './lettering.ts';
-import { RTL_SCRIPTS } from '../../src/lettering-outlines.ts';
 import { playerCss } from '../../app/embed-style.ts';
-import {stepAudio} from '../../explain/audio.ts';
 import { outcomes } from '../../app/embed-live.ts';
-import { liveBase } from '../../explain/live.ts';
-import { stepQuery } from '../../explain/settings.ts';
 
 /**
  * A page whose lettering asks for a right-to-left script sets the direction of
@@ -86,7 +83,7 @@ export async function buildExplainer(
       },
       // The embedded faces as SFNT, and the shaper without its Brotli decoder: the faces a page
       // decodes of its own (lettering cuts and subsets) are SFNT too (sceneEntry).
-      browserFonts(LIB_ROOT),
+      browserFonts(),
       ...(showsDiagrams(project) ? [] : [withoutDiagramCode()]),
       engineAlias(false, !!project.outlineLettering),
     ],
@@ -94,7 +91,7 @@ export async function buildExplainer(
   });
   if (
     Object.keys(bundled.metafile!.inputs).some(
-      (p) => p.includes('node_modules/agentic-mermaid') || p.includes('integrations/agentic-mermaid/build/') || p.includes('vendor/glyph-math.js') || p.includes('tools/lettering'),
+      (p) => p.includes('node_modules/agentic-mermaid') || p.includes('integrations/agentic-mermaid/') || p.includes('vendor/glyph-math.js') || p.includes('tools/lettering'),
     )
   )
     throw new Error('Build-time diagram renderer leaked into browser artifact');

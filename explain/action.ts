@@ -27,11 +27,11 @@ export interface Plan<T> {
 }
 
 /** A beat's animations must take the run time it was planned with: a play of each, or a Succession member's slot. */
-function checkTime(action: string, beat: Beat, made: readonly ScheduledAnimation[]): void {
+function checkTime(call: string, beat: Beat, made: readonly ScheduledAnimation[]): void {
   if (!made.length) return;
   const took = Math.max(...made.map((a) => a.runTime));
   if (Math.abs(took - beat.runTime) > 1e-9)
-    throw new Error(`${action}: one of its plays takes ${took} s, where ${beat.runTime} s was planned`);
+    throw new Error(`${call}: one of its plays takes ${took} s, where ${beat.runTime} s was planned`);
 }
 
 /**
@@ -42,7 +42,7 @@ function checkTime(action: string, beat: Beat, made: readonly ScheduledAnimation
 class BeatPlay extends MadeAtTurn {
   readonly beat: Beat;
   constructor(beat: Beat, action: string) {
-    super({ call: action, subject: 'a beat' }, beat.runTime);
+    super(action, 'a beat', beat.runTime);
     this.beat = beat;
   }
   protected override make(): ScheduledAnimation[] {
@@ -50,7 +50,7 @@ class BeatPlay extends MadeAtTurn {
   }
   /** Each animation from the beat's start, for its own run time, which must be the beat's planned one. */
   protected override slots(made: readonly ScheduledAnimation[]): Array<[number, number]> {
-    checkTime(this.by.call, this.beat, made);
+    checkTime(this.call, this.beat, made);
     return made.map((a) => [0, a.runTime]);
   }
   protected override after(): void {
@@ -104,23 +104,20 @@ type Decision<T> = { plan: Plan<T> } | { error: unknown } | null;
  * - `composed`: begun by a play, or by the Succession or group that holds it.
  * - `ended`: its last beat has played and its `end` has run, after it was awaited (`run`) or
  *   composed (`run` is null).
- * - `abandoned`: its play failed after it began: the beat that had begun landed, no later beat was
- *   made, and its `end` did not run. Awaited, `run` rejects with the failure; composed, the play
- *   that held it threw it (see Action.abandoned).
  *
- * Before it plays it may be `reading`, then `ready`; it plays once, awaited or composed, then ends
- * or is abandoned. A begin that fails leaves it as it was, unplayed, whatever failed: what it reads
- * not ready, deciding it, its `start`, or its first beat's making or beginning. It can then play
- * again, and its step's end names it if it never does. What a `start` that ran did stays done. An
- * awaited action whose read, deciding or `start` fails stays `awaited`, its `run` rejecting with that.
+ * Before it plays it may be `reading`, then `ready`; it plays once, awaited or composed, then ends.
+ * A begin that fails leaves it as it was, unplayed, whatever failed: what it reads not ready,
+ * deciding it, its `start`, or its first beat's making or beginning. It can then play again, and
+ * its step's end names it if it never does. What a `start` that ran did stays done. A play that
+ * fails after it began leaves it as it was then, `awaited` (its `run` rejecting with the failure)
+ * or `composed`, and its `end` does not run: it has played, so it cannot play again.
  */
 type ActionState<T> =
-  | { phase: 'reading'; decision: Decision<T> }
-  | { phase: 'ready'; decision: Decision<T> }
-  | { phase: 'awaited'; decision: Decision<T>; run: Promise<T> }
-  | { phase: 'composed'; plan: Plan<T> }
-  | { phase: 'ended'; plan: Plan<T>; run: Promise<T> | null }
-  | { phase: 'abandoned'; plan: Plan<T>; run: Promise<T> | null };
+  | { is: 'reading'; decision: Decision<T> }
+  | { is: 'ready'; decision: Decision<T> }
+  | { is: 'awaited'; decision: Decision<T>; run: Promise<T> }
+  | { is: 'composed'; plan: Plan<T> }
+  | { is: 'ended'; plan: Plan<T>; run: Promise<T> | null };
 
 /**
  * What a stage or diagram action returns: an animation that is also a promise of what the action
@@ -165,16 +162,16 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
     this.name = name;
     this.host = scene;
     this.#make = make;
-    this.#state = { phase: ready ? 'reading' : 'ready', decision };
+    this.#state = { is: ready ? 'reading' : 'ready', decision };
     this.#waiting = ready
       ? ready.then(
           () => {
-            if (this.#state.phase === 'reading') this.#state = { phase: 'ready', decision: this.#state.decision };
+            if (this.#state.is === 'reading') this.#state = { is: 'ready', decision: this.#state.decision };
           },
           (error: unknown) => {
             const s = this.#state;
-            if (s.phase === 'reading') this.#state = { phase: 'ready', decision: s.decision && 'error' in s.decision ? s.decision : { error } };
-            else if (s.phase === 'awaited' && !(s.decision && 'error' in s.decision)) this.#state = { ...s, decision: { error } };
+            if (s.is === 'reading') this.#state = { is: 'ready', decision: s.decision && 'error' in s.decision ? s.decision : { error } };
+            else if (s.is === 'awaited' && !(s.decision && 'error' in s.decision)) this.#state = { ...s, decision: { error } };
           },
         )
       : null;
@@ -201,10 +198,10 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
   /** How it played, once it has: awaited or composed; null before. */
   #played(): 'awaited' | 'composed' | null {
     const s = this.#state;
-    switch (s.phase) {
+    switch (s.is) {
       case 'reading': case 'ready': return null;
-      case 'awaited': case 'composed': return s.phase;
-      case 'ended': case 'abandoned': return s.run ? 'awaited' : 'composed';
+      case 'awaited': case 'composed': return s.is;
+      case 'ended': return s.run ? 'awaited' : 'composed';
     }
   }
 
@@ -214,7 +211,7 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
    */
   #decide(): Plan<T> {
     const s = this.#state;
-    if (s.phase === 'composed' || s.phase === 'ended' || s.phase === 'abandoned') return s.plan;
+    if (s.is === 'composed' || s.is === 'ended') return s.plan;
     if (s.decision) {
       if ('error' in s.decision) throw s.decision.error;
       return s.decision.plan;
@@ -233,14 +230,14 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
   }
 
   /** @internal */ override ready(): Promise<unknown> | null {
-    return this.#state.phase === 'reading' ? this.#waiting : null;
+    return this.#state.is === 'reading' ? this.#waiting : null;
   }
 
   /** @internal Decided now, if it was not when made: what it reads is ready, and the play that holds it is beginning. */
   override settle(): void {
     const s = this.#state;
-    if (s.phase === 'reading') throw new Error(`${this.name}: played before what it reads was ready; hand it to play(), or to a Succession or group that plays, which waits for it`);
-    if (s.phase === 'ready') this.#decide();
+    if (s.is === 'reading') throw new Error(`${this.name}: played before what it reads was ready; hand it to play(), or to a Succession or group that plays, which waits for it`);
+    if (s.is === 'ready') this.#decide();
   }
 
   /** Composed: begun by a play, or by the Succession or group that holds it. A begin that fails leaves it unplayed. */
@@ -248,60 +245,46 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
     const s = this.#state;
     const how = this.#played();
     if (how) throw this.#playedAlready(how, 'composed');
-    if (s.phase === 'reading') throw new Error(`${this.name}: begun before what it reads was ready; hand it to play(), or to a Succession or group that plays, which waits for it`);
+    if (s.is === 'reading') throw new Error(`${this.name}: begun before what it reads was ready; hand it to play(), or to a Succession or group that plays, which waits for it`);
     const plan = this.#decide();
     plan.start?.();
     super.doBegin();
     // Composed only once it has begun: a start or a first beat that throws leaves it unplayed.
-    this.#state = { phase: 'composed', plan };
+    this.#state = { is: 'composed', plan };
     unplayed.get(this.host)?.delete(this as Action<unknown>);
   }
 
   /** Its last beat has finished and gone: its `end` runs. */
   protected override ended(): void {
     const s = this.#state;
-    if (s.phase !== 'composed') return;
-    this.#state = { phase: 'ended', plan: s.plan, run: null };
+    if (s.is !== 'composed') return;
+    this.#state = { is: 'ended', plan: s.plan, run: null };
     s.plan.end?.();
-  }
-
-  /**
-   * Its play failed after it began: abandoned. The beat that has begun has landed, and run its
-   * `after` if its animations began; no later beat is made, and its `end` does not run. It has
-   * played, so it cannot play again.
-   */
-  protected override abandoned(): void {
-    const s = this.#state;
-    if (s.phase === 'composed') this.#state = { phase: 'abandoned', plan: s.plan, run: null };
   }
 
   /** Awaited: play each beat in a play of its own, then give the value. Once awaited, awaiting it again gives the same. */
   #awaited(): Promise<T> {
     const s = this.#state;
-    if (s.phase === 'awaited' || ((s.phase === 'ended' || s.phase === 'abandoned') && s.run)) return s.run!;
-    if (s.phase !== 'reading' && s.phase !== 'ready') return Promise.reject(this.#playedAlready(this.#played()!, 'awaited'));
+    if (s.is === 'awaited' || (s.is === 'ended' && s.run)) return s.run!;
+    if (s.is !== 'reading' && s.is !== 'ready') return Promise.reject(this.#playedAlready(this.#played()!, 'awaited'));
     // It starts after this state is set (an await, of what it reads or of nothing), so it ends after it too.
+    // A beat that fails leaves it awaited, its run rejecting with the failure.
     let run!: Promise<T>;
     run = (async () => {
       await this.#waiting;
       const plan = this.#decide();
       plan.start?.();
-      try {
-        for (const beat of plan.beats) {
-          const made = beat.play();
-          checkTime(this.name, beat, made);
-          if (made.length) await this.host.play(...made);
-          beat.after?.();
-        }
-      } catch (error) {
-        this.#state = { phase: 'abandoned', plan, run };
-        throw error;
+      for (const beat of plan.beats) {
+        const made = beat.play();
+        checkTime(this.name, beat, made);
+        if (made.length) await this.host.play(...made);
+        beat.after?.();
       }
-      this.#state = { phase: 'ended', plan, run };
+      this.#state = { is: 'ended', plan, run };
       plan.end?.();
       return plan.value;
     })();
-    this.#state = { phase: 'awaited', decision: s.decision, run };
+    this.#state = { is: 'awaited', decision: s.decision, run };
     unplayed.get(this.host)?.delete(this as Action<unknown>);
     return run;
   }

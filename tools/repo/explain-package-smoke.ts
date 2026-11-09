@@ -84,9 +84,9 @@ try {
   };
   await unreachable(alone);
   // Capture and the command stay out of the library: no tools, player, Python, capture code or typesetter.
-  for (const file of ['tools', 'app', 'dist/tools', 'integrations/agentic-mermaid/build', 'dist/integrations/agentic-mermaid/build', 'vendor/glyph-math.js', 'dist/vendor/glyph-math.js', 'vendor/lettering'])
+  for (const file of ['tools', 'app', 'dist/tools', 'integrations', 'dist/integrations', 'vendor/glyph-math.js', 'dist/vendor/glyph-math.js', 'vendor/lettering', 'vendor/glyph.js', 'vendor/glyph.pin.json', 'vendor/font-data-sfnt.json'])
     assert.ok(!existsSync(join(alone, 'node_modules/rayner', file)), `rayner ships ${file}`);
-  for (const file of ['explain/audio.ts', 'src/lettering-outlines.ts', 'integrations/agentic-mermaid/snapshot.ts', 'explain/diagrams.ts', 'vendor/glyph.js', 'vendor/licenses/glyph-MIT.txt', 'LICENSE'])
+  for (const file of ['explain/audio.ts', 'src/lettering-outlines.ts', 'explain/diagram-snapshot.ts', 'explain/diagrams.ts', 'dist/vendor/glyph.js', 'vendor/licenses/glyph-MIT.txt', 'LICENSE'])
     assert.ok(existsSync(join(alone, 'node_modules/rayner', file)), `rayner is missing ${file}`);
 
   await writeFile(
@@ -108,7 +108,7 @@ try {
   assert.equal(commandManifest.version, version);
   assert.equal(commandManifest.dependencies.rayner, version, 'rayner-cli requires rayner at exactly its own version');
   assert.ok(!existsSync(join(command, 'node_modules/rayner')), 'one rayner: the command uses the author\'s');
-  for (const file of ['app/embed-audio.ts', 'app/embed-audio.css', 'tools/lettering.py', 'tools/lettering-requirements.txt', 'tools/lettering-outline-fonts.sh', 'vendor/glyph-math.js', 'vendor/lettering/inter.woff2', 'vendor/licenses/LatinModernMath-GUST.txt', 'vendor/licenses/glyph-MIT.txt', 'LICENSE'])
+  for (const file of ['app/embed-audio.ts', 'app/embed-audio.css', 'tools/lettering.py', 'tools/lettering-requirements.txt', 'tools/lettering-outline-fonts.sh', 'vendor/glyph-math.js', 'vendor/font-data-sfnt.json', 'vendor/glyph.pin.json', 'vendor/lettering/inter.woff2', 'vendor/licenses/LatinModernMath-GUST.txt', 'vendor/licenses/glyph-MIT.txt', 'LICENSE'])
     assert.ok(existsSync(join(command, file)), `rayner-cli is missing ${file}`);
   // Public-API extension recipes must work from the installed archive too.
   await run(process.execPath, [join(installed, 'dist/recipes/render.js'), '--out', join(folder, 'recipe-output')], { cwd: folder });
@@ -133,10 +133,11 @@ try {
   await copyFile(join(ROOT, 'test/consumer/consumer.ts'), join(folder, 'consumer.ts'));
   await copyFile(join(ROOT, 'test/consumer/tsconfig.json'), join(folder, 'tsconfig.json'));
   await run(join(folder, 'node_modules/.bin/tsc'), ['-p', 'tsconfig.json'], { cwd: folder });
-  // Every explainer and recipe, its engine imports rewritten to the entry points, type-checks against
-  // the packed declarations, where @internal members are left out.
+  // Every explainer, its tests and every recipe, engine imports rewritten to the entry points, type-check
+  // against the packed declarations, where @internal members are left out.
   const authored = await typeCheckAuthored(ROOT, folder, join(folder, 'node_modules/.bin/tsc'));
-  assert.ok(authored.scenes > 100 && authored.recipes >= 5, `type-checked only ${authored.scenes} scene files and ${authored.recipes} recipes`);
+  assert.ok(authored.scenes > 100 && authored.tests > 60 && authored.recipes >= 5,
+    `type-checked only ${authored.scenes} scene files, ${authored.tests} tests and ${authored.recipes} recipes`);
 
   await run(process.execPath, [cli, 'init', 'first'], { cwd: folder });
   // The starter is the tutorial's LRU/MRU explainer. Its model test runs as the tutorial says,
@@ -409,7 +410,7 @@ try {
   assert.match(walked, /^After A B C D, request: C D C D · rest: .+\n  changed: .*\bHits\b/m);
 
   console.log(
-    'Package gate passed: rayner alone with no dependencies, its entry points the only modules it exports; both tested archives installed with diagram and PNG authoring, installed TypeScript consumer, every explainer and recipe type-checked against the packed declarations, executable JS bin, external native author, settings, checks, see, build, optional score audio, describeExplainer and its REFERENCE example, notices, lettering on request, one compiled engine' +
+    'Package gate passed: rayner alone with no dependencies, its entry points the only modules it exports; both tested archives installed with diagram and PNG authoring, installed TypeScript consumer, every explainer, its tests and every recipe type-checked against the packed declarations, executable JS bin, external native author, settings, checks, see, build, optional score audio, describeExplainer and its REFERENCE example, notices, lettering on request, one compiled engine' +
       (process.env.EXPLAIN_LETTERING === '1' ? ', installed Arabic and maths capture' : '') +
       (process.env.EXPLAIN_BROWSER ? ', installed diagram capture' : '') +
       '.',

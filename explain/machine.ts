@@ -11,7 +11,9 @@ import { identifierRule, isIdentifier } from './settings.ts';
 import { Group } from '../src/mobject.ts';
 import { linear } from '../src/rate.ts';
 import type { Scene } from '../src/scene.ts';
+import { turnAction, ViewSync } from './view.ts';
 import type { View, ViewMatch } from './view.ts';
+import type { Action } from './action.ts';
 import type { Mobject } from '../src/mobject.ts';
 import { choreograph } from './choreograph.ts';
 import type { Choreography } from './choreograph.ts';
@@ -76,7 +78,7 @@ export interface MachineSpec<S extends object, E extends string> {
  * What an authored transition is built from: the event, the states either side, and for each of
  * the machine's views, by the view itself, the picture it must end on (`target`) and a
  * choreography from its current picture to that one (`choreograph`). End each view on its target
- * and the landing moves nothing.
+ * and taking the pictures of the state moves nothing.
  */
 export interface Transition<S, E> {
   event: E;
@@ -102,7 +104,7 @@ export class Refusal {
   /** Why the model refuses the event, in the reader's words: what the player says of its button. */
   readonly reason: string;
   constructor(reason: string) {
-    if (typeof reason !== 'string' || !reason.trim()) throw new TypeError('refuse(): the reason must be words; return undefined from next for a refusal with no reason');
+    if (!reason.trim()) throw new RangeError('refuse(): the reason must be words; return undefined from next for a refusal with no reason');
     this.reason = reason;
     Object.defineProperty(this, REFUSAL, { value: true });
     Object.freeze(this);
@@ -123,7 +125,7 @@ export function isRefusal(value: unknown): value is Refusal {
 
 /** A model driven by events on one scene, typed by the scene's model type `S`. */
 export class Machine<S extends object, E extends string> {
-  readonly scene: Scene<S, any>;
+  private readonly scene: Scene<S, any>;
   readonly spec: Required<Pick<MachineSpec<S, E>, 'match' | 'runTime' | 'limit'>> & MachineSpec<S, E>;
   /** What the scene showed (`scene.shown`, as JSON) when the machine last played; exploration redraws under it. */
   private shownWhenPlayed: string | null = null;
@@ -131,19 +133,13 @@ export class Machine<S extends object, E extends string> {
   private playedInStep: string | null = null;
 
   constructor(scene: Scene<S, any>, spec: MachineSpec<S, E>) {
-    if (!spec.events.length) throw new TypeError('new Machine(): it needs at least one event');
-    for (const event of spec.events) {
-      if (typeof event !== 'string') throw new TypeError(`new Machine(): an event must be a string, not ${JSON.stringify(event)}`);
+    // The spec's shape is its type's to check; what a type cannot say is checked here.
+    if (!spec.events.length) throw new RangeError('new Machine(): it needs at least one event');
+    for (const event of spec.events)
       if (!isIdentifier('event', event)) throw new RangeError(`new Machine(): ${JSON.stringify(event)} is not an event name; an event is ${identifierRule('event')}`);
-    }
     if (new Set(spec.events).size !== spec.events.length) throw new Error('new Machine(): an event is listed twice; list each event once');
-    if (typeof spec.next !== 'function') throw new TypeError('new Machine(): it needs next(state, event)');
-    if ('why' in spec) throw new TypeError('new Machine(): it takes no why(state, event); return refuse(reason) from next where the model refuses an event');
-    if (spec.end !== undefined && typeof spec.end !== 'function') throw new TypeError('new Machine(): end must be a function of the state that returns the reason the story ends there, or undefined');
-    for (const [event, label] of Object.entries(spec.labels ?? {})) {
-      if (!spec.events.includes(event as E)) throw new TypeError(`new Machine(): labels name its events, and ${JSON.stringify(event)} is not one`);
-      if (typeof label !== 'string' || !label.trim()) throw new TypeError(`new Machine(): the label of ${JSON.stringify(event)} must be words`);
-    }
+    for (const [event, label] of Object.entries<string | undefined>(spec.labels ?? {}))
+      if (!label?.trim()) throw new RangeError(`new Machine(): the label of ${JSON.stringify(event)} must be words`);
     // Exploration redraws any reachable state after the run, which needs each picture to be a function
     // of the scene's state alone. Every View is (view(scene, draw)), so there is nothing to refuse.
     this.scene = scene;
@@ -159,7 +155,7 @@ export class Machine<S extends object, E extends string> {
   get playedUnder(): SceneState | null { return this.shownWhenPlayed === null ? null : JSON.parse(this.shownWhenPlayed) as SceneState; }
 
   /**
-   * The step (its path) this machine last played in, or null before it played. Exploration runs
+   * @internal The step (its path) this machine last played in, or null before it played. Exploration runs
    * the scene again to that step's resting picture and checks every reachable state there, on the
    * stage the reader saw the machine on, not on whatever the run ends with.
    */
@@ -216,12 +212,19 @@ export class Machine<S extends object, E extends string> {
   }
 
   /**
-   * One event from `from` (default: the scene's state now): the model's next state is adopted and
-   * recorded as `{ kind: 'event', event }`, then the views morph to it, or the event's authored
-   * transition plays and the views land on it. The schedule is built for `from`, so it refuses to
-   * play from any other state, and a refused event is refused here, before anything plays.
+   * One event from `from` (default: the scene's state now), as an action (see Action): await it,
+   * or hand it to play(), a Succession or a group. The model's next state is adopted and recorded
+   * as `{ kind: 'event', event }`, then the views morph to it, or the event's authored transition
+   * plays and the views land on it. It is built for `from`, so it refuses to play from any other
+   * state, and a refused event is refused here, before anything plays.
    */
-  send(event: E, from: S = this.scene.state): Succession {
+  send(event: E, from: S = this.scene.state): Action {
+    const schedule = this.schedule(event, from);
+    return turnAction(this.scene, 'machine.send()', schedule.runTime, () => schedule);
+  }
+
+  /** What one event plays from `from` (see send): its state change, then the views' morph or the transition and the landing. */
+  private schedule(event: E, from: S): Succession {
     const before = JSON.parse(JSON.stringify(from)) as S;
     const o = this.outcome(before, event);
     if ('beyond' in o) throw new RangeError(`machine.send(): ${String(event)} is beyond the story in ${JSON.stringify(before)}: ${o.beyond}`);
@@ -240,9 +243,9 @@ export class Machine<S extends object, E extends string> {
       transition
         // The transition's motion, then the views take the pictures of `after`: a sync that moves
         // nothing when the transition ended where the model says (rayner check holds it to that).
-        ? new Succession([transition, new Landing(this.scene, views)])
+        ? new Succession([transition, new TakePictures(this.scene, views)])
         // No authored motion: each view's keyed morph, staged, so what goes is gone before what comes appears.
-        : new AnimationGroup(views.map((v) => v.sync({ match, runTime: this.runTimeOf(event, before, after) }))),
+        : new AnimationGroup(views.map((v) => new ViewSync(v, { match, runTime: this.runTimeOf(event, before, after) }))),
     ]);
   }
 
@@ -253,7 +256,7 @@ export class Machine<S extends object, E extends string> {
 
   /**
    * @internal The authored transition for `event` from `before` to `after` as `send` plays it, without
-   * the event's state change before it or the landing after it: made from the pictures on screen
+   * the event's state change before it or the views taking the pictures after it: made from the pictures on screen
    * when its turn comes in a play, over the event's run time. Null when the event has no authored
    * transition. `rayner check` plays each one this way, in a play of the explored scene.
    */
@@ -263,14 +266,15 @@ export class Machine<S extends object, E extends string> {
     return new WhenItsTurnComes(String(event), () => authored(this.transitionFor(event, before, after)), this.spec.views, this.runTimeOf(event, before, after));
   }
 
-  /** Events in turn, each from where the last left the state (default start: the scene's state now). */
-  replay(events: readonly E[], from: S = this.scene.state): Succession {
+  /** Events in turn, each from where the last left the state (default start: the scene's state now), as one action. */
+  replay(events: readonly E[], from: S = this.scene.state): Action {
     let at = from;
-    return new Succession(events.map((e) => {
-      const step = this.send(e, at);
+    const schedule = new Succession(events.map((e) => {
+      const step = this.schedule(e, at);
       at = this.after(at, e)!;
       return step;
     }));
+    return turnAction(this.scene, 'machine.replay()', schedule.runTime, () => schedule);
   }
 
   /**
@@ -309,7 +313,7 @@ export class Machine<S extends object, E extends string> {
 class WhenItsTurnComes extends MadeAtTurn {
   readonly #make: () => Animation | AnimationGroup;
   constructor(event: string, make: () => Animation | AnimationGroup, declared: readonly Mobject[], runTime: number) {
-    super({ call: `machine.send(${JSON.stringify(event)})`, subject: 'the transition' }, runTime, declared);
+    super(`machine.send(${JSON.stringify(event)})`, 'the transition', runTime, declared);
     this.#make = make;
   }
   protected override make(): ScheduledAnimation[] {
@@ -323,9 +327,9 @@ class WhenItsTurnComes extends MadeAtTurn {
  * counterpart's data in place (a morphed Text gets its new string) and the parts go back into the
  * drawn picture's stacking order, so every part keeps its identity for the next event. A picture
  * whose parts do not line up by key (one unkeyed, or a key two siblings share) is swapped for the
- * drawn one instead. The landing lasts one of the scene's frames.
+ * drawn one instead. It lasts one of the scene's frames.
  */
-class Landing extends Animation {
+class TakePictures extends Animation {
   views: readonly View[];
   scene: Scene<any>;
   constructor(scene: Scene<any>, views: readonly View[]) {

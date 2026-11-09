@@ -2,11 +2,11 @@
 //
 //   const readout = view(this, (s) => new Text(`len ${s.len}  head ${s.head}`), { place: 'left' });
 //   this.state.len++;
-//   await this.play(readout.sync({ match: 'text' }));  // rebuilt from the state as it is now, morphed into place
+//   await readout.sync({ match: 'text' });  // rebuilt from the state as it is now, morphed into place
 //
 // manim's always_redraw idea in the engine's endpoint-based form. A View is a
-// Group with one child, the current picture. sync() is an animation: when the
-// play begins it calls build() for the new picture and morphs the current one
+// Group with one child, the current picture. sync() is an action: when its
+// turn comes it calls build() for the new picture and morphs the current one
 // into it with a matching transform; when it lands, the View swaps its child.
 // No updater is ever registered, so a play with a sync in it is still a pure
 // function of alpha and seeking can skip its frames. See docs/VIEWS.md.
@@ -16,12 +16,13 @@ import type { Box, HasText } from '../src/mobject.ts';
 import { center, pointsBox } from '../src/box.ts';
 import { Animation, Transform, TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey } from '../src/animation.ts';
 import { Follow } from './state.ts';
-import type { AnimOpts, MatchKey, MatchSummary } from '../src/animation.ts';
+import type { AnimOpts, MatchKey, MatchSummary, ScheduledAnimation } from '../src/animation.ts';
 import { cloneJson } from '../src/json.ts';
 import type { RateFunc } from '../src/rate.ts';
 import { Text } from '../src/text.ts';
 import type { Scene, SceneState, Evidence } from '../src/scene.ts';
 import type { Vec } from '../src/vec.ts';
+import { Action } from './action.ts';
 
 /** Where a rebuilt picture goes: its layout box's left edge, center or right edge, at the vertical middle, on the old one's. */
 export type ViewPlace = 'left' | 'center' | 'right';
@@ -30,7 +31,7 @@ export interface ViewOpts {
   /**
    * The point a rebuilt picture keeps (default 'center'): a left-placed
    * readout whose text grows stays put at its left edge, as a Text's `anchor`
-   * does for setText(). false: no placing or scaling, build() puts the picture
+   * does for setText(). false: no placing or scaling, the draw puts the picture
    * where it belongs (moving the View then lasts only until the next sync).
    */
   place?: ViewPlace | false;
@@ -65,18 +66,20 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
   /** @internal Makes the picture from the scene's state as it is when called. Called at construction and at each sync's begin(). */
   build: () => M;
   /** The picture as a function of the model and what is shown: what the fidelity checks and machine exploration call. */
-  draw: (state: S, shown: Sh) => M;
+  readonly draw: (state: S, shown: Sh) => M;
   /** The scene whose `shown` a placed or rebuilt picture reads. */
-  private host: Scene<S, Sh>;
-  place: ViewPlace | false;
+  private readonly host: Scene<S, Sh>;
+  /** The point a rebuilt picture keeps (see ViewOpts.place). */
+  private readonly place: ViewPlace | false;
   /** @internal Unplaced build size [w, h] of the picture on screen, the scale basis: recorded when the View takes a picture (see commit). */
   builtSize: [number, number];
   /** @internal The scale the last sync applied: kept while the measured one only differs from it in the last bits. */
   scaleK: number;
 
   /**
-   * Every View is a picture of a scene's state with a draw that check can call again. A draw can
-   * still read variables outside the state; the checks catch that when a redraw disagrees.
+   * @internal `view(scene, draw)` makes a View. Every View is a picture of a scene's state with a
+   * draw that check can call again. A draw can still read variables outside the state; the checks
+   * catch that when a redraw disagrees.
    */
   constructor(scene: Scene<S, Sh>, draw: (state: S, shown: Sh) => M, { place = 'center' }: ViewOpts = {}) {
     super();
@@ -95,25 +98,28 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
   get texts(): string[] { return pictureText(this.current); }
 
   /**
-   * An animation that rebuilds the picture when its play begins (so after
-   * any state change before it, or the Succession members before it) and
-   * morphs the current one into it. It always takes its run time; a picture
-   * that comes out the same moves nothing and keeps the current child.
+   * An action (see Action) that rebuilds the picture when its turn comes (so after any state
+   * change before it, or the Succession members before it) and morphs the current one into it:
+   * await it, or hand it to play(), a Succession or a group. It always takes its run time; a
+   * picture that comes out the same moves nothing and keeps the current child.
    */
-  sync(opts: SyncOpts = {}): ViewSync<M> { return new ViewSync<M>(this, opts); }
+  sync(opts: SyncOpts = {}): Action {
+    return turnAction(this.host, 'view.sync()', opts.runTime ?? 1, () => new ViewSync<M>(this, opts));
+  }
 
   /**
    * The state moving through time, and the picture with it: at each frame the scene's state is
    * `stateAt(t)`, t running from 0 to 1 at the eased alpha, and the view draws it. So the picture is
    * the view's draw of the state at every frame, a seek renders what a full play renders, and the
    * play ends with the state at `stateAt(1)`. `stateAt` must be a function of t alone, return JSON,
-   * and keep the family shape the view's draw gives (as a Follow's draw does).
+   * and keep the family shape the view's draw gives (as a Follow's draw does). An action, as
+   * sync() is.
    */
-  tween(stateAt: (t: number) => S, opts: AnimOpts = {}): Animation {
-    return new ViewTween<S, Sh>(this, (t) => {
+  tween(stateAt: (t: number) => S, opts: AnimOpts = {}): Action {
+    return turnAction(this.host, 'view.tween()', opts.runTime ?? 1, () => new ViewTween<S, Sh>(this, (t) => {
       this.host.state = cloneJson(stateAt(t), 'view.tween()', 'stateAt(t)') as Scene<S, Sh>['state'];
       return this.placed(this.host.state);
-    }, opts);
+    }, opts));
   }
 
   /**
@@ -174,7 +180,15 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
 }
 
 /**
- * The animation sync() returns. Everything is decided in begin(): build(),
+ * An action of one beat, `runTime` long, whose animation `make` makes when the beat's turn comes:
+ * what view.sync(), view.tween(), machine.send() and machine.replay() return.
+ */
+export function turnAction(scene: Scene<any, any>, name: string, runTime: number, make: () => ScheduledAnimation): Action {
+  return new Action(scene, name, () => ({ value: undefined, beats: [{ runTime, play: () => [make()] }] }));
+}
+
+/**
+ * @internal The animation a sync() action plays. Everything is decided in begin(): build(),
  * placing, the matcher and its endpoints. Each frame is the inner
  * transform's pure function of alpha; finish() finishes it and swaps the built
  * picture in, so the View holds exactly what build() made (its `text` too).
@@ -242,7 +256,7 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
 }
 
 /**
- * The animation tween() returns: a Follow of the view's draw over t from 0 to 1, writing into the
+ * The animation a tween() action plays: a Follow of the view's draw over t from 0 to 1, writing into the
  * picture on screen when it begins, not when it was made. In `new Succession([view.sync(), view.tween(f)])`
  * the sync swaps in a new picture first, and the tween draws into that one.
  */
@@ -291,6 +305,9 @@ function paintedFor<M extends Mobject>(scene: Scene<any, any>, m: M): M {
   return m;
 }
 
+/** Whether `m` is a View, for a tool that finds the views on a stage (View is exported as a type only). */
+export const isView = (m: Mobject): m is View => m instanceof View;
+
 /**
  * A View of the scene's model: `draw(scene.state, scene.shown)` at each sync, its arguments typed
  * from the scene (`Scene<S, Sh>`). Keeps `draw`, so the picture can be checked against a trace
@@ -309,7 +326,7 @@ export type Having<S, K extends PropertyKey> =
 
 /**
  * `state` narrowed to the shape that holds `keys`, or a TypeError when it lacks one: for a draw of one
- * phase of a scene whose state changes shape by phase (a union of shapes), or of an optional part
+ * chapter of a scene whose state changes shape by chapter (a union of shapes), or of an optional part
  * of the state or of what is shown. `rayner check` draws every view from other steps' states too,
  * and counts a draw that throws on a state of another shape as one that reads its state.
  *

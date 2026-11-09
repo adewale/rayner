@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../explain/testing.ts';
-import {assertStepState} from '../../../test/lib/explainer-state.ts';
-import {assertSteps} from '../../../test/lib/steps.ts';
+import { assertStepState, assertSteps } from '../../../explain/testing.ts';
 import {dictStory} from './model.ts';
 
 /** The model has native/exhaustive oracles in model.test.ts. This boundary
@@ -11,7 +10,7 @@ export function check(trace:Trace,values:Record<string,string>) {
   assertSteps(trace,['question','broken','marker','missing','hash','collision']);
   for(const step of trace.steps) {
     // Which picture is showing is not part of the model.
-    assert.equal(step.after.phase,undefined,`python-dict/${step.step}: no phase in the model`);
+    assert.equal(step.after.chapter,undefined,`python-dict/${step.step}: no chapter in the model`);
   }
   const key=Number(values.key),m=dictStory(key);
   // The question step now carries the old lookup step's state: the intact dict and d[key]'s result.

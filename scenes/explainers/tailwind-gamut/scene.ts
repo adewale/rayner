@@ -3,6 +3,7 @@ import type { Curve } from './picture.ts';
 import { Scene, Group, Text } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
+import { card } from '../../../explain/drawing.ts';
 import type { Diagram, PictureNote, View, ExplainerMeta } from '../../../explain/index.ts';
 import { SHADES, rows, summarize } from './model.ts';
 import type { Row, Shade } from './model.ts';
@@ -91,11 +92,11 @@ export default class TailwindGamutExplainer extends Scene<GamutState, { dotNotes
     /** A card at the top of the side column, lines under it, and the key at its foot, entering together. */
     const column = async (
       d: Diagram | null,
-      card: readonly (readonly [string, string])[],
+      cardRows: readonly (readonly [string, string])[],
       texts: readonly string[],
       curves: readonly Curve[] = [],
     ) => {
-      const c = card.length ? await s.card(card, { at: SIDE, align: 'top', size: SIZE, enter: false }) : null;
+      const c = cardRows.length ? card(s, cardRows, { at: SIDE, align: 'top', size: SIZE }) : null;
       if (c) c.shift([SIDE[0] - c.box()![0], 0]);
       const { made } = lines(texts, SIDE[3] - (c ? c.height() + 0.3 : 0));
       if (c || made.length) await s.enter(...(c ? [c] : []), ...made);

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../explain/testing.ts';
-import {assertStepState} from '../../../test/lib/explainer-state.ts';
+import { assertStepState } from '../../../explain/testing.ts';
 import {birthdayStory,birthdayChance,pairCount} from './model.ts';
 
 /** The model has native/exhaustive oracles in model.test.ts. This boundary
@@ -8,7 +8,7 @@ import {birthdayStory,birthdayChance,pairCount} from './model.ts';
 export function check(trace:Trace,values:Record<string,string>) {
   for(const step of trace.steps) {
     // Which picture is showing is not part of the model.
-    assert.equal(step.after.phase,undefined,`birthday-paradox/${step.step}: no phase in the model`);
+    assert.equal(step.after.chapter,undefined,`birthday-paradox/${step.step}: no chapter in the model`);
   }
   const m=birthdayStory(Number(values.people));
   // The room the reader scans, then the same room with its repeated dates and the 1,000-room sample.
