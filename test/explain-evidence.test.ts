@@ -7,7 +7,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { checkedAgainstFiles, compareAnswers, namedPaths, runModelTest } from '../tools/lib/explain-evidence.ts';
-import { intentMeta, parseIntent } from '../tools/lib/explain-intent.ts';
+import { intentMeta, parseIntent } from '../explain/intent.ts';
 import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
 
 async function folder(files: Record<string, string>): Promise<string> {

@@ -3,12 +3,12 @@
 // capturing, cutting lettering or checking. The snapshot folder's format is read here once, and
 // the command's tools (tools/lib/explain-project.ts) read it through readSnapshotStore too.
 import type { SnapshotStore } from './diagram-snapshot.ts';
-import type { SceneClass, SceneState } from '../src/scene.ts';
+import type { Scene, SceneClass, SceneState } from '../src/scene.ts';
 import { bindLettering, letteringOf, pinnedFor, usesOutlineLettering } from '../src/lettering-outlines.ts';
 import type { StoredLetteringSnapshot } from '../src/lettering-outlines.ts';
 import { withLettering } from '../src/lettering.ts';
 import type { LetteringFaces } from '../src/lettering.ts';
-import { traceScene } from '../src/trace.ts';
+import { traceRun } from '../src/trace.ts';
 import type { Trace, TraceOf } from '../src/trace.ts';
 import { adoptIntent, parseIntent } from './intent.ts';
 import { bindSnapshots, checkExplainerMeta, identifierRule, isIdentifier, resolveSettings, scenariosOf, withSettings } from './settings.ts';
@@ -65,30 +65,14 @@ export async function loadProject<C extends SceneClass>(Explainer: C, where: str
   const Scene = Explainer as ExplainerClass,
     read = nodeReader(),
     file = sceneFile(where);
-  // A misspelt meta key is refused, as collection refuses it.
-  try { checkExplainerMeta(Scene.meta); } catch (e) { throw new TypeError(`loadProject(): ${file}: ${(e as Error).message}`); }
-  const folder = file.replace(/[^/\\]*$/, ''),
-    script = await read(folder + 'script.md');
-  // Adopted afresh, as the command adopts it: a header removed since an earlier load takes its keys with it.
-  adoptIntent(Scene as { meta?: Record<string, unknown> }, script === null ? null : parseIntent(script, folder + 'script.md'), folder + 'script.md');
-  // Its id is sceneIdOf(file) unless it declares one, as the command has it.
-  if (Scene.meta?.id === undefined) Scene.meta = { ...Scene.meta, id: sceneIdOf(file) };
+  adoptExplainer(Scene, file, await read(scriptOf(file)), `loadProject(): ${file}`);
   const snapshots = await readSnapshotStore((name) => read(`${baseOf(file)}.snapshots/${name}`));
   const { Lettered, faces } = await pinnedLettering(Scene, file, read);
-  const scenarios: LoadedScenario[] = [];
   // Subset lettering is the fonts' (useLettering), as on the page, for the scenarios' runs only, and
   // a scene with none traces with the embedded faces alone. Either way the runs take their turn
   // (withLettering): another loadProject or lettered run overlapping this one waits, so each traces
   // with its own faces.
-  const traceAll = async () => {
-    for (const values of scenariosOf(Lettered)) {
-      const Bound = withSettings(bindSnapshots(Lettered, snapshots), values);
-      const trace = await traceScene(Bound);
-      checkScenarioSteps(trace, values, 'loadProject()');
-      scenarios.push({ values, Scene: Bound, trace });
-    }
-  };
-  await withLettering(faces ?? null, traceAll);
+  const scenarios = (await withLettering(faces ?? null, () => traceScenarios(Lettered, snapshots, 'loadProject()'))).map(({ values, Scene, trace }) => ({ values, Scene, trace }));
   const project: LoadedProject = {
     Scene: Lettered,
     snapshots,
@@ -102,6 +86,42 @@ export async function loadProject<C extends SceneClass>(Explainer: C, where: str
   };
   // Each trace holds the states the scene class declares, which stateJson() validated as JSON.
   return project as ProjectOf<C>;
+}
+
+/** The script beside a scene file, which holds its intent. */
+export const scriptOf = (file: string) => file.replace(/[^/\\]*$/, '') + 'script.md';
+
+/**
+ * What loadProject and the rayner command do to a scene class before it runs, given its file and the
+ * text of the script beside it (null for none): refuse a `meta` key ExplainerMeta does not name, adopt
+ * the script's intent afresh (so a header removed since an earlier run takes its keys with it), and
+ * give the scene its file's id (sceneIdOf) when it declares none. Returns what it adopted. `api` is
+ * the prefix of what it throws: `loadProject(): <file>`, or the scene's file for the command.
+ */
+export function adoptExplainer(Scene: ExplainerClass, file: string, script: string | null, api: string): ReturnType<typeof adoptIntent> {
+  try { checkExplainerMeta(Scene.meta); } catch (e) {
+    throw e instanceof RangeError ? new RangeError(`${api}: ${e.message}`) : new TypeError(`${api}: ${(e as Error).message}`);
+  }
+  const intent = adoptIntent(Scene as { meta?: Record<string, unknown> }, script === null ? null : parseIntent(script, scriptOf(file)), scriptOf(file));
+  if (Scene.meta?.id === undefined) Scene.meta = { ...Scene.meta, id: sceneIdOf(file) };
+  return intent;
+}
+
+/**
+ * Every scenario of `Explainer`, in `scenariosOf` order, bound to its values and `snapshots` and
+ * traced, its steps held to checkScenarioSteps (`api` prefixes what that throws); with the scene each
+ * run left, which the command reads its colours and live steps from. loadProject and the rayner
+ * command both collect a project's scenarios by it.
+ */
+export async function traceScenarios(Explainer: ExplainerClass, snapshots: SnapshotStore, api: string): Promise<(LoadedScenario & { scene: Scene })[]> {
+  const out: (LoadedScenario & { scene: Scene })[] = [];
+  for (const values of scenariosOf(Explainer)) {
+    const Bound = withSettings(bindSnapshots(Explainer, snapshots), values);
+    const { trace, scene } = await traceRun(Bound);
+    checkScenarioSteps(trace, values, api);
+    out.push({ values, Scene: Bound, trace, scene });
+  }
+  return out;
 }
 
 /**

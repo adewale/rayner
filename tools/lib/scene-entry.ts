@@ -72,7 +72,7 @@ export function shippedScenario(project: Project, scenario: Project['scenarios']
 
 /**
  * The entry for `target`. The author's class takes the script's intent first, as the tools
- * adopted it (collectProject ran adoptIntent, which checks that the scene does not declare
+ * adopted it (collectProject ran adoptExplainer, which checks that the scene does not declare
  * the same parts, and kept its result as project.intent: the entry applies that result, so
  * a page never carries explain/intent.ts), then its outline lettering is bound, and a
  * subset-lettered scene puts its faces in place before anything shapes text.
