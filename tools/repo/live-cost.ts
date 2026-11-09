@@ -7,8 +7,8 @@
 // For each live step of each explainer's default scenario it builds the page, serves it, and in
 // Chromium presses events the model takes, each press extending the reader's log (Reset where no
 // event goes on), and times each press from the click to the first animated frame on the stage
-// (the scene run again to the step, every earlier event skipped), to the landing, and, with
-// motion reduced, to the landing drawn at once. In Node it times the same re-runs (runLive, no
+// (the scene run again to the step, every earlier event skipped), to the end picture, and, with
+// motion reduced, to the end picture drawn at once. In Node it times the same re-runs (runLive, no
 // frame drawn). Prints a Markdown table of medians and worsts. Numbers move with whatever else the
 // machine runs; compare rows from one run.
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -35,8 +35,8 @@ const { values: flags } = parseArgs({
 const presses = Number(flags.presses), cpu = Number(flags.cpu);
 const ms = (xs: number[]) => `${Math.round(median(xs))} / ${Math.round(Math.max(...xs))}`;
 
-/** Click `event`'s button; resolve with the time to the first new picture on the stage and to the landing on `want`. */
-const press = (page: Page, event: string, want: string) => page.evaluate(({ event, want }) => new Promise<{ start: number; landed: number }>((resolve) => {
+/** Click `event`'s button; resolve with the time to the first new picture on the stage and to the end picture of `want`. */
+const press = (page: Page, event: string, want: string) => page.evaluate(({ event, want }) => new Promise<{ start: number; ended: number }>((resolve) => {
   const stage = document.querySelector('.stage')!, row = document.querySelector<HTMLElement>('.live')!;
   const before = new Set(stage.querySelectorAll(':scope>svg'));
   let start = NaN;
@@ -47,16 +47,16 @@ const press = (page: Page, event: string, want: string) => page.evaluate(({ even
   seen.observe(stage, { childList: true });
   document.querySelector<HTMLButtonElement>(`.live-events button[data-event="${CSS.escape(event)}"]`)!.click();
   const check = () => {
-    if (row.dataset.landed === want && !stage.hasAttribute('aria-busy')) {
+    if (row.dataset.drawn === want && !stage.hasAttribute('aria-busy')) {
       seen.disconnect();
-      resolve({ start, landed: performance.now() - t0 });
+      resolve({ start, ended: performance.now() - t0 });
     } else requestAnimationFrame(check);
   };
   requestAnimationFrame(check);
 }), { event, want });
-const landed = (page: Page, log: string) => page.waitForFunction((value) => {
+const ended = (page: Page, log: string) => page.waitForFunction((value) => {
   const row = document.querySelector<HTMLElement>('.live');
-  return !!row && !row.hidden && row.dataset.landed === value && !document.querySelector('.stage[aria-busy]') && !document.querySelector('#content.loading');
+  return !!row && !row.hidden && row.dataset.drawn === value && !document.querySelector('.stage[aria-busy]') && !document.querySelector('#content.loading');
 }, log, { timeout: 60_000 });
 
 const folder = await mkdtemp(join(tmpdir(), 'rayner-live-cost-'));
@@ -91,26 +91,26 @@ try {
         await runLive(scenario.Scene, step, live, log, { from: base.from });
         if (i) node.push(performance.now() - t0);
       }
-      const measured: Record<'motion' | 'reduce', { start: number[]; landed: number[] }> = { motion: { start: [], landed: [] }, reduce: { start: [], landed: [] } };
+      const measured: Record<'motion' | 'reduce', { start: number[]; ended: number[] }> = { motion: { start: [], ended: [] }, reduce: { start: [], ended: [] } };
       for (const motion of ['motion', 'reduce'] as const) {
         const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: motion === 'reduce' ? 'reduce' : 'no-preference' });
         const page = await context.newPage();
         if (cpu > 1) await (await context.newCDPSession(page)).send('Emulation.setCPUThrottlingRate', { rate: cpu });
         await page.goto(`${server.url}/${id}.html?${stepQuery(scenario.values, step)}`);
         await page.waitForSelector('[data-ready=true]');
-        await landed(page, '');
+        await ended(page, '');
         for (const [i, log] of walk.entries()) {
           if (log.length === 1 && i) {
             await page.click('.live-tools button:text-is("Reset")');
-            await landed(page, '');
+            await ended(page, '');
           }
           const t = await press(page, log.at(-1)!, encodeLog(log));
-          if (i) { measured[motion].start.push(t.start); measured[motion].landed.push(t.landed); }
+          if (i) { measured[motion].start.push(t.start); measured[motion].ended.push(t.ended); }
         }
         if (new URL(page.url()).searchParams.get(SENT) !== walk.at(-1)!.join(',')) throw new Error(`${id} ${step}: the URL lost the events`);
         await context.close();
       }
-      rows.push(`| \`${id}\` | \`${step}\` | ${Math.max(...walk.map((l) => l.length))} | ${ms(node)} | ${ms(measured.motion.start)} | ${ms(measured.motion.landed)} | ${ms(measured.reduce.landed)} |`);
+      rows.push(`| \`${id}\` | \`${step}\` | ${Math.max(...walk.map((l) => l.length))} | ${ms(node)} | ${ms(measured.motion.start)} | ${ms(measured.motion.ended)} | ${ms(measured.reduce.ended)} |`);
       console.error(rows.at(-1));
     }
     server.close();
@@ -120,6 +120,6 @@ try {
   await rm(folder, { recursive: true, force: true });
 }
 console.log(`${presses} presses per live step, CPU throttling ${cpu}×; median / worst in ms.\n`);
-console.log('| Explainer | Live step | Longest log | Node: re-run | Chromium: press to first frame | Chromium: press to landing | Chromium, reduced motion: press to landing |');
+console.log('| Explainer | Live step | Longest log | Node: re-run | Chromium: press to first frame | Chromium: press to end picture | Chromium, reduced motion: press to end picture |');
 console.log('| --- | --- | --- | --- | --- | --- | --- |');
 for (const row of rows) console.log(row);

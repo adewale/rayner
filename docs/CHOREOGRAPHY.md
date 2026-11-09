@@ -175,7 +175,7 @@ group, and each group lays out its members' times when the play begins, so
 
 ## Composition and verification
 
-Growth and pulse capture geometry at `begin()`. Both support the existing
+Growth and pulse capture geometry as the play begins. Both support the existing
 fixed-frame seek model and expose their written target to the ordinary schedule
 ownership checks, and both can be sampled out of order without integrating
 previous frames.

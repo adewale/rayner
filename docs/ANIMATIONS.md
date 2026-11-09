@@ -19,7 +19,7 @@ await this.play(new Restore(box));        // back to the saved look, animated
 it at once, `Restore` transforms back to it. After either, the mobject equals the saved
 state exactly: points, style, and fields such as a `Text`'s string. That holds even
 when the mobject changed shape on the way (morphed into a circle, which subdivides its
-curves): `Restore` aligns to morph, then lands on the saved data itself.
+curves): `Restore` aligns to morph, then finishes on the saved data itself.
 
 The contract for structure: restore expects the family to have the same shape as when
 saved, and then rewrites each member's data in place, so references to children stay
@@ -77,10 +77,10 @@ animations may not drive one mobject at the same time looks through it: members 
 the `Succession`.
 
 Time through a `Succession` is linear by default; members ease with their own rate
-functions. A group rate function must not run time backwards. A `lagRatio` given to
-`play()` does not stagger a `Succession`: its members stay one after another
-(`test/anim-utils.test.ts`, "a lagRatio passed to play() leaves a Succession sequential"),
-and setting its `lagRatio` to anything but 1 throws.
+functions. A group rate function must not run its time back past the start of a member
+that has finished. A `Succession` takes no `lagRatio`: its options have none, and `play()`
+and its setter refuse one, naming the call (`test/anim-utils.test.ts`, "a Succession takes no
+lagRatio").
 
 A member begins at its turn, in turn order with whatever else begins at its turn in the same
 frame. One that waits for what it reads (an action's beat that shows a diagram) holds the

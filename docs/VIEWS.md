@@ -81,9 +81,9 @@ having(state, ...keys)  // the state as the shapes that hold these keys, or a Ty
 
 view.current            // the picture on screen (the View's one child)
 view.texts              // the strings it shows, in family order
-view.sync({ runTime, rateFunc, lagRatio, match, staged }?)   // an Action: await it or compose it; by key and staged unless told otherwise
+view.sync({ runTime, rateFunc, lagRatio, match, staged }?)   // an Action: await it or compose it; by key and staged unless told otherwise (SyncOptions: PlayOptions with match and staged)
 view.rebuild()          // rebuild now, unanimated: for a View not on screen yet
-view.tween((t) => state, { runTime, rateFunc }?)   // an Action: the state at t, drawn at every frame (above)
+view.tween((t) => state, { runTime, rateFunc }?)   // an Action: the state at t, drawn at every frame (above); TweenOptions
 ```
 
 `sync()` and `rebuild()` are one pair: each redraws the view from the state as it is

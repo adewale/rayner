@@ -68,7 +68,7 @@ const urlOf = (s: Subject, log: readonly string[]) =>
 const landed = (page: Page, log: readonly string[]) =>
   page.waitForFunction((value) => {
     const row = document.querySelector<HTMLElement>('.live');
-    return !!row && !row.hidden && row.dataset.landed === value && !document.querySelector('.stage[aria-busy]') &&
+    return !!row && !row.hidden && row.dataset.drawn === value && !document.querySelector('.stage[aria-busy]') &&
       !document.querySelector('svg.leaving') && !document.querySelector('#content.loading');
   }, encodeLog(log), { timeout: 30_000 });
 const picture = (page: Page) => page.locator('.stage svg:not(.leaving)').evaluate((svg) => svg.outerHTML);

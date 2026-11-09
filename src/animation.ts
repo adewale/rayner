@@ -1130,6 +1130,8 @@ type SuccessionState =
 export const passesEasing = Symbol('passesEasing');
 /** @internal The key of what a Succession does once its last member has finished and been cleaned up, as its play finished it. Nothing, by default. */
 export const ended = Symbol('ended');
+/** The key of the call a Succession made at its turn belongs to (`machine.send()`), which its messages name. */
+const madeBy = Symbol('madeBy');
 /** @internal The member a Succession runs now, read by play()'s one-writer check; undefined outside a play. */
 export let runningOf: (s: Succession) => ScheduledAnimation | undefined;
 
@@ -1160,11 +1162,13 @@ export class Succession extends AnimationGroup {
   #easing: Timing = {};
   /** @internal Whether it passes a play's easing to its beats (see passesEasing): an action does. */
   readonly [passesEasing]: boolean = false;
+  /** @internal The call it belongs to when the engine made it at a turn (see madeBy). */
+  [madeBy]: string | undefined = undefined;
 
   /** Members join `scene` (set by play(), see bindSuccessions) as they begin, as each would in a play of its own. */
   constructor(animations: Playable[], opts: Omit<AnimationOptions, 'lagRatio'> = {}) {
     super(animations.map((x) => isAnimateBuilder(x) ? new BuiltTransform(x) : x), { rateFunc: linear, ...opts, lagRatio: 1 });
-    if (opts.rateFunc) assertForward('new Succession()', opts.rateFunc);
+    if (opts.rateFunc) assertForward('new Succession()', opts.rateFunc, timingsOf(this), maxEndOf(this));
   }
   static {
     runningOf = (s) => s.#state.is === 'idle' ? undefined : membersOf(s)[s.#active];
@@ -1172,12 +1176,14 @@ export class Succession extends AnimationGroup {
 
   /**
    * @internal Its members run one after another, so it takes no lagRatio, and its time must not run
-   * backwards. An action's play gives both to what its beats make instead (see passesEasing).
+   * back past the start of a member that has finished. An action's play gives both to what its beats
+   * make instead (see passesEasing).
    */
   override [refuseTiming](api: string, { rateFunc, lagRatio }: Timing, play = false): void {
     if (play && this[passesEasing]) return;
-    if (lagRatio != null) throw new RangeError(`${api}: a Succession runs its members one after another, so it takes no lagRatio, and this one was given ${lagRatio}; stagger them in a LaggedStart or an AnimationGroup instead`);
-    if (rateFunc) assertForward(api, rateFunc);
+    const what = this[madeBy] ? 'it plays its parts' : 'a Succession runs its members';
+    if (lagRatio != null) throw new RangeError(`${api}: ${what} one after another, so it takes no lagRatio, and it was given ${lagRatio}; stagger them in a LaggedStart or an AnimationGroup instead`);
+    if (rateFunc) assertForward(api, rateFunc, timingsOf(this), maxEndOf(this));
   }
 
   /** @internal A play's runTime stretches it; its rateFunc warps its time, or, for an action, reaches what its beats make, with its lagRatio. */
@@ -1196,10 +1202,10 @@ export class Succession extends AnimationGroup {
     this.#beginNext();
   }
 
-  /** The call messages name it by: an action's (`view.sync()`), or `new Succession()`. */
+  /** The call messages name it by: an action's (`view.sync()`), the call the engine made it for (`machine.send()`), or `new Succession()`. */
   #call(): string {
     const name = (this as { name?: unknown }).name;
-    return typeof name === 'string' && name ? name : 'new Succession()';
+    return typeof name === 'string' && name ? name : this[madeBy] ?? 'new Succession()';
   }
 
   /** Its state in a play: refused outside one, which only a hook called directly could reach. */
@@ -1215,6 +1221,8 @@ export class Succession extends AnimationGroup {
     const next = membersOf(this)[++this.#active];
     if (!next) return;
     if (this.#easing.rateFunc || this.#easing.lagRatio != null) next[takeOptions](this.#easing);
+    // A Succession the engine made for a call names that call, as this one does.
+    if (next instanceof Succession && next[madeBy] === undefined && this.#call() !== 'new Succession()') next[madeBy] = this.#call();
     if (!scene) return beginAnimation(next);
     // A turn taken for an earlier play (one that has landed since) begins nothing.
     scene.whenReady([next], 'new Succession()', () => { if (this.#in(play)) scene.beginAnimations([next]); });
@@ -1234,8 +1242,10 @@ export class Succession extends AnimationGroup {
   protected override doInterpolate(alpha: number): void {
     const s = this.#playing(), t = alpha * maxEndOf(this);
     const start = timingsOf(this)[this.#active]?.[0] ?? maxEndOf(this);
-    if (t < s.reached - 1e-9 && t < start - 1e-9)
-      throw new Error(`${this.#call()}: its time ran backwards, from ${s.reached} s to ${t} s, past the start of its member at ${start} s after the one before it finished, and a finished member cannot run again; give it, and any group around it, a rate function that never decreases`);
+    if (t < s.reached - 1e-9 && t < start - 1e-9) {
+      const call = this.#call();
+      throw new Error(`${call}: its time ran backwards, from ${s.reached} s to ${t} s, past the start of its member at ${start} s after the one before it finished, and a finished member cannot run again; give it, and any group around it, a rate function that never decreases`);
+    }
     this.#state = { ...s, reached: t, to: t };
     if (s.is === 'running') this.#catchUp();
   }
@@ -1337,15 +1347,21 @@ export class Succession extends AnimationGroup {
 }
 
 /**
- * Refuse a rate function that runs time backwards anywhere (thereAndBack, wiggle): a Succession's
- * finished members do not run again. Sampled at 240 points, finer than a second at most fps.
+ * Refuse a rate function that runs a Succession's time back past the start of a member that has
+ * finished, over `timings` of `total` seconds: a finished member does not run again. Within one
+ * member time may run back (a there-and-back Succession of one member). Sampled at 240 points,
+ * finer than a second at most fps.
  */
-function assertForward(api: string, rateFunc: RateFunc): void {
-  let last = rateFunc(0);
-  for (let i = 1; i <= 240; i++) {
-    const v = rateFunc(i / 240);
-    if (v < last - 1e-9) throw new RangeError(`${api}: a Succession's rate function must never decrease, and this one falls from ${last.toFixed(3)} to ${v.toFixed(3)} at ${(i / 240).toFixed(3)}; give one such as linear or smooth, and run a there-and-back motion as its own play`);
-    last = v;
+function assertForward(api: string, rateFunc: RateFunc, timings: ReadonlyArray<readonly [number, number]>, total: number): void {
+  const starts = timings.slice(1).map(([start]) => start);
+  let reached = -Infinity;
+  for (let i = 0; i <= 240; i++) {
+    const t = rateFunc(i / 240) * total;
+    reached = Math.max(reached, t);
+    // The start of the latest member the time has reached, whose members before it have finished
+    const passed = starts.filter((s) => s < reached - 1e-9).at(-1);
+    if (passed !== undefined && t < passed - 1e-9)
+      throw new RangeError(`${api}: its rate function must not run its time back past the start of a part that has finished, and this one goes from ${reached.toFixed(3)} s back to ${t.toFixed(3)} s, before the member at ${passed.toFixed(3)} s; give one such as linear or smooth, and run a there-and-back motion as its own play`);
   }
 }
 
@@ -1416,6 +1432,7 @@ export abstract class MadeAtTurn extends AnimationGroup {
     this.#turn = { made: 'not yet' };
     const members = this.make();
     const easing = this.#easing;
+    for (const a of members) if (a instanceof Succession && a[madeBy] === undefined) a[madeBy] = this.call;
     if (easing.rateFunc || easing.lagRatio != null)
       for (const a of members) { a[refuseTiming](this.call, easing, true); a[takeOptions](easing); }
     const turn: { made: 'waiting'; at: number | null } = { made: 'waiting', at: null };

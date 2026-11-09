@@ -1009,7 +1009,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       ]));
       if (found && !log.length) explored({ kind: 'link', now: found, log: [] });
       drawLive();
-      if (found) liveRow.dataset.landed = encodeLog(kept);
+      if (found) liveRow.dataset.drawn = encodeLog(kept);
       if (shown) describePicture(step, shown);
       // Reduced motion: no animation, but the old picture fades out over the new one, so the change is still seen.
       const old = reduced() ? stage.querySelector('svg') : null;
@@ -1100,7 +1100,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     if (!now) {
       liveEvents.replaceChildren();
       liveSaid.textContent = '';
-      delete liveRow.dataset.landed;
+      delete liveRow.dataset.drawn;
       return;
     }
     liveLede.textContent = now.base.from === 'start' ? t.liveFromStart : t.liveFromRest;
@@ -1147,8 +1147,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     changeLog({ kind: 'send', event });
     return drawLog(now, !reduced(), o.label);
   }
-  // Undo and Reset during an animated landing: the change drops the run still playing (explore),
-  // drawLog() aborts the landing's scope, so its sink draws nothing more and its picture is not kept,
+  // Undo and Reset during an animated finish: the change drops the run still playing (explore),
+  // drawLog() aborts the finish's scope, so its sink draws nothing more and its picture is not kept,
   // and the log's own picture is drawn at once.
   undo.onclick = () => {
     if (live.kind !== 'live' || !live.log.length) return;
@@ -1172,7 +1172,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
    * Draw the picture the reader's log lands on. Animated, the scene runs to the step's picture
    * with every earlier event skipped, and the last one plays in real time from the picture before
    * it, so a press during a play lands that one and plays the next. Otherwise (reduced motion,
-   * Undo, Reset) the landing is drawn at once. Then the picture's words and the live line say
+   * Undo, Reset) the end picture is drawn at once. Then the picture's words and the live line say
    * what happened: `what` (the event, or Undo) and the picture it lands on; Reset says so.
    */
   function drawLog(now: LiveNow, animated: boolean, what?: string) {
@@ -1190,7 +1190,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         const sink = new ReaderSink(container, sinkOptions(at, true), readerView, scope.signal, narrow);
         const run = yield* wait(liveRun(at, now, log, {
           animate: sink,
-          // A landing cut short (Undo, Reset, another press) never puts its picture on the stage.
+          // A finish cut short (Undo, Reset, another press) never puts its picture on the stage.
           onStart: () => {
             if (scope.signal.aborted) return;
             stage.replaceChildren(...container.childNodes);
@@ -1213,7 +1213,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       // What the event changed of the picture, or the whole picture when no description changed.
       const change = pictureChange(describedShown, before);
       liveSaid.textContent = what === undefined ? t.resetSaid : t.sentSaid(what, change ? `${change}.` : summary.textContent ?? '');
-      liveRow.dataset.landed = encodeLog(log);
+      liveRow.dataset.drawn = encodeLog(log);
       document.dispatchEvent(new CustomEvent('rayner:sent', { detail: { step: step.step, sent: log, settings: values } }));
       primeNext(at);
     });
@@ -1383,7 +1383,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       const now = yield* wait(liveAt(at, step));
       if (now) explored({ kind: 'link', now, log: [] });
       drawLive();
-      if (now) liveRow.dataset.landed = '';
+      if (now) liveRow.dataset.drawn = '';
       yield* settle(step, null, at, scope);
     });
   }

@@ -259,7 +259,7 @@ function deepFreeze<T extends object>(value: T): T {
 }
 
 /**
- * @internal Replace the drawn list of `scene` with `mobjects`, as they are: for a picture drawn without
+ * @internal Make `mobjects`, as it is, the drawn list of `scene`: for a picture drawn without
  * some of what is on stage (the stage's heading), put back once it is drawn.
  */
 export let setDrawn: (scene: Scene<any, any>, mobjects: readonly Mobject[]) => void;
@@ -305,7 +305,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   get frameCount(): number { return this.#frameCount; }
   #frameCount = 0;
   static {
-    setDrawn = (scene, mobjects) => { scene.#mobjects = [...mobjects]; };
+    setDrawn = (scene, mobjects) => { scene.#mobjects = mobjects as Mobject[]; };
   }
   readonly steps: Step[];
   private current: Step | null;

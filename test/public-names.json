@@ -153,6 +153,9 @@
       "pictureWordsAt": {
         "tooling": "an author's test that reads what a reader who cannot see the stage is told about a step's picture"
       },
+      "sampleAnimation": {
+        "tooling": "an author's test of a custom animation that draws its frames at chosen alphas, in any order (the continuous recipe's test)"
+      },
       "scenarioName": {
         "tooling": "an author's test or tool that names a scenario the way the command and the player do"
       },

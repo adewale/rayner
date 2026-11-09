@@ -191,10 +191,12 @@ const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
   families: { files: ['explain/annotate.ts'], why: 'an annotation reads what an animation draws' },
   finishAnimation: { files: ['explain/choreograph.ts', 'explain/diagrams.ts', 'explain/view.ts'], why: 'an animation that runs another finishes it, and a diagram moves a hidden part at once' },
   interpolateAnimation: { files: ['explain/choreograph.ts', 'explain/view.ts'], why: 'an animation that runs another draws its frames' },
+  isRemover: { files: ['explain/state.ts'], why: 'a Follow removes its targets when it is a remover' },
   knownTransform: { files: ['explain/view.ts'], why: 'a view morphs a picture of the same structure without aligning it' },
   passesEasing: { files: ['explain/action.ts'], why: "a play's rateFunc and lagRatio reach what an action's beats make" },
   runTimeOf: { files: ['explain/action.ts'], why: "an action checks its beats' run times against its plan" },
   playsOn: { files: ['explain/action.ts', 'explain/state.ts'], why: 'an action and a state change belong to the scene they change' },
+  setDrawn: { files: ['explain/stage.ts'], why: 'the checks and close-ups draw a step without its heading, then put the list back' },
   settle: { files: ['explain/action.ts'], why: 'an action is decided once what it reads is ready' },
   whenReady: { files: ['explain/action.ts'], why: 'an action waits for what it reads before it begins' },
 };

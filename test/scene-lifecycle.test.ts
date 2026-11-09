@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import ts from 'typescript';
 import { Scene, Circle, Rectangle, FadeIn, FadeOut, Create, AnimationGroup, Succession, Transform, DecimalNumber, Text, Group } from '../src/index.ts';
-import { thereAndBack } from '../src/rate.ts';
+import { thereAndBack, linear } from '../src/rate.ts';
 import { NullSink, renderFrame, renderElements, StopScene } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { traceScene } from '../src/testing.ts';
@@ -799,12 +799,19 @@ test('a DecimalNumber blends its value only with another number: into a Text it 
   assert.equal(m.text, '3');
 });
 
-test('a Succession refuses a rate function that runs its time backwards, given to it, to play(), or by a group around it', async () => {
-  assert.throws(() => new Succession([new FadeIn(new Circle())], { rateFunc: thereAndBack }), /new Succession\(\): a Succession's rate function must never decrease/);
+test('a Succession refuses a rate function that runs its time back past a finished member, given to it, to play(), or by a group around it, and runs back within one member', async () => {
+  const two = () => new Succession([new FadeIn(new Circle()), new FadeIn(new Rectangle())]);
+  assert.throws(() => new Succession([new FadeIn(new Circle()), new FadeIn(new Rectangle())], { rateFunc: thereAndBack }), (e) => e instanceof RangeError && /^new Succession\(\): its rate function must not run its time back/.test(e.message));
   const scene = new Scene(new NullSink());
-  await assert.rejects(scene.play(new Succession([new FadeIn(new Circle())]), { rateFunc: thereAndBack }), /this\.play\(\): a Succession's rate function must never decrease/);
-  const inner = new Succession([new FadeIn(new Circle()), new FadeIn(new Rectangle())]);
-  await assert.rejects(scene.play(new AnimationGroup([inner], { rateFunc: thereAndBack })), /new Succession\(\): its time ran backwards/);
+  const refused = two();
+  await assert.rejects(scene.play(refused, { rateFunc: thereAndBack }), (e) => e instanceof RangeError && /^this\.play\(\): its rate function must not run its time back/.test(e.message));
+  assert.equal(refused.rateFunc, linear, 'the refused play gave it nothing');
+  await assert.rejects(scene.play(new AnimationGroup([two()], { rateFunc: thereAndBack })), /^Error: new Succession\(\): its time ran backwards/);
+  // One member: its time runs there and back within it, as the member's own would.
+  const circle = new Circle(), alone = new Circle();
+  await scene.play(new Succession([new FadeIn(circle)]), { rateFunc: thereAndBack });
+  await scene.play(new FadeIn(alone), { rateFunc: thereAndBack });
+  assert.equal(circle.style.opacity, alone.style.opacity, 'it finishes where its member alone would');
 });
 
 // ---- caption reading time --------------------------------------------------
