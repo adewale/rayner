@@ -8,10 +8,9 @@ import { declination, sunset, henge, TILT, LATITUDE } from './model.ts';
 import Henge from './scene.ts';
 import { check as checkHengeScene } from './fidelity.ts';
 import { Scene, Transform } from '../../../src/index.ts';
-import { loadFonts, loadProject } from '../../../explain/testing.ts';
+import { loadFonts, loadProject, assertViewFollowsState } from '../../../explain/testing.ts';
 import type { Mobject, VMobject, Sink } from '../../../src/index.ts';
 import { azAlt, sunsetOf, dome, year, crossedBy, look, lookView, globes } from './sky.ts';
-import { assertViewFollowsState } from '../../../test/lib/view-fidelity.ts';
 
 const close = (a: number, b: number, tolerance = 1e-10) => assert.ok(Math.abs(a - b) < tolerance, `${a} versus ${b}`);
 

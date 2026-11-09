@@ -1,7 +1,7 @@
-import {stepAudio} from '../explain/audio.ts';
-import type {AudioClip} from '../explain/audio.ts';
+import { stepAudio } from '../explain/internal.ts';
+import type { AudioClip } from '../explain/index.ts';
+import { UNITS } from '../src/internal.ts';
 import {StateScope, wait} from './embed-scope.ts';
-import {UNITS} from '../src/units.ts';
 
 /** Optional reader module. Only pages with authored audio import this code. */
 export function mountAudio(stage: HTMLElement, frame: HTMLElement) {

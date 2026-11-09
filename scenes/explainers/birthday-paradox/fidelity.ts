@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../explain/testing.ts';
-import {assertStepState} from '../../../test/lib/explainer-state.ts';
+import { assertStepState } from '../../../explain/testing.ts';
 import {birthdayStory,birthdayChance,pairCount} from './model.ts';
 
 /** The model has native/exhaustive oracles in model.test.ts. This boundary

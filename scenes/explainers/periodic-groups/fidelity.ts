@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../explain/testing.ts';
-import { assertStepState } from '../../../test/lib/explainer-state.ts';
-import { assertSteps } from '../../../test/lib/steps.ts';
+import { assertStepState, assertSteps } from '../../../explain/testing.ts';
 import {
   NIST_UP_TO, POSITIONS, atomicNumber, periodLength, configText, coreOf, counted, gaps, listed, membersOf, position, predicted, shorthand, symbolOf,
 } from './model.ts';

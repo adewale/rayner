@@ -8,7 +8,7 @@ import { stage, palette } from '../explain/index.ts';
 import type { LayoutDirection } from '../explain/index.ts';
 import { Card } from '../explain/panels.ts';
 import { card } from '../explain/drawing.ts';
-import { useDiagrams } from '../integrations/agentic-mermaid/snapshot.ts';
+import { useDiagrams } from '../explain/diagram-snapshot.ts';
 import { fixedSnapshot, square } from './lib/random-snapshot.ts';
 import { fc, params } from './lib/pbt.ts';
 

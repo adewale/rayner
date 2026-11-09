@@ -40,15 +40,14 @@ const EXEMPT: Record<string, readonly string[]> = {
 };
 
 /**
- * A folder's own tests are written like its scene, so an outside author can write them too: a model
- * test (model.test.ts, and any other test but the scene's) imports the folder's files, the collection's
- * and the entry points, and may also use rayner/testing, which is for an author's tests. A folder's
- * scene tests (scene.test.ts) and fidelity checks (fidelity.ts) are this repository's own tests of the
- * scene: they run it with test/lib's helpers and the tools, as the tests under test/ do, so the rule
- * does not hold them.
+ * A folder's own tests are written like its scene, so an outside author can write them too: a test
+ * (model.test.ts, scene.test.ts) imports the folder's files, the collection's and the entry points,
+ * and may also use rayner/testing, which is for an author's tests. A folder's fidelity check
+ * (fidelity.ts) is this repository's own: test/explain-fidelity.test.ts runs it on the project the
+ * command collects, so the rule does not hold it.
  */
 const isTest = (file: string) => file.endsWith('.test.ts');
-const isRepositoryTest = (file: string) => /(^|\/)(scene\.test|fidelity)\.ts$/.test(file);
+const isRepositoryTest = (file: string) => /(^|\/)fidelity\.ts$/.test(file);
 
 /** Every import a file makes that breaks the rule, as `file: specifier (why)`. */
 function violations(file: string, source: string): string[] {
@@ -134,18 +133,19 @@ test('the rule rejects an internal module, a package name and a dynamic import, 
   assert.deepEqual(violations(file, allowed), []);
 });
 
-test('a folder’s model test may use rayner/testing and nothing else a scene may not; its scene tests are the repository’s own', () => {
+test('a folder’s tests may use rayner/testing and nothing else a scene may not; its fidelity check is the repository’s own', () => {
   const imports = [
     "import { traceScene } from '../../../explain/testing.ts';",
-    "import { assertStepState } from '../../../test/lib/explainer-state.ts';",
+    "import { idsOf } from '../../../test/lib/steps.ts';",
     "import { collectProject } from '../../../tools/lib/explain-project.ts';",
     "import { emphasises } from '../../../explain/look.ts';",
   ].join('\n');
-  const model = violations('scenes/explainers/example/model.test.ts', imports);
-  assert.equal(model.length, 3, model.join('\n'));
-  for (const target of ['test/lib/explainer-state.ts', 'tools/lib/explain-project.ts', 'explain/look.ts'])
-    assert.ok(model.some((v) => v.includes(`(${target} is not a public entry point`)), target);
+  for (const test of ['model.test.ts', 'scene.test.ts']) {
+    const found = violations(`scenes/explainers/example/${test}`, imports);
+    assert.equal(found.length, 3, found.join('\n'));
+    for (const target of ['test/lib/steps.ts', 'tools/lib/explain-project.ts', 'explain/look.ts'])
+      assert.ok(found.some((v) => v.includes(`(${target} is not a public entry point`)), target);
+  }
   assert.equal(violations('scenes/explainers/example/answers.ts', imports).length, 4, 'answers.ts is not a test');
-  assert.deepEqual(violations('scenes/explainers/example/scene.test.ts', imports), []);
   assert.deepEqual(violations('scenes/explainers/example/fidelity.ts', imports), []);
 });

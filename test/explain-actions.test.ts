@@ -9,7 +9,7 @@ import { NullSink } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { stage, Diagram } from '../explain/index.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
-import { diagramKey, snapshotResolver, useDiagrams } from '../integrations/agentic-mermaid/snapshot.ts';
+import { diagramKey, snapshotResolver, useDiagrams } from '../explain/diagram-snapshot.ts';
 import { fixedSnapshot, square } from './lib/random-snapshot.ts';
 
 await loadFonts();

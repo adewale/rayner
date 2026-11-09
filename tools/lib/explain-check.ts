@@ -1,11 +1,12 @@
-import { scriptReport } from '../../explain/script.ts';
-import { claimsReport, checkClaimsMeta } from '../../explain/claims.ts';
-import { captionLookProblems } from '../../explain/caption-looks.ts';
-import { describesItself, seenSource } from '../../explain/look.ts';
+import { scriptReport, claimsReport, checkClaimsMeta, captionLookProblems, describesItself, seenSource, isHeading, withoutHeading, undescribed, watchedChanges, diagramsOn, restingDrawing, LiveSink, liveMachine, runLive, labelOf, readingLabelSize, isView } from '../../explain/internal.ts';
+import type { View } from '../../explain/index.ts';
+import type { Settings } from '../../explain/index.ts';
+import { renderElements } from '../../src/output.ts';
+import { serializeElement, canonicalJson, zoomOf, contains, intersect, nonempty, overlaps, paints, atHome, viewOf, FRAME, STAGE_BOX } from '../../src/internal.ts';
+import type { LiveExplore } from '../../explain/internal.ts';
 import { restingRouteProblems } from './explain-layout.ts';
 import { letteringWeight } from './lettering.ts';
 import { sceneEntry } from './scene-entry.ts';
-import { isHeading, withoutHeading } from '../../explain/stage.ts';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
@@ -14,30 +15,15 @@ import { build } from 'esbuild';
 import type { Plugin } from 'esbuild';
 import { browserFonts } from './explain-browser-fonts.ts';
 import { showsDiagrams, withoutDiagramCode } from './explain-diagram-code.ts';
-import type { Settings } from '../../explain/settings.ts';
 import ts from 'typescript';
 import { Text } from '../../src/index.ts';
-import { View } from '../../explain/view.ts';
 import { SnapshotSink, renderFrame, toSvgString } from '../../src/output.ts';
-import { renderElements, serializeElement } from '../../src/svg.ts';
 import { MotionSink, InvariantSink, machinesOf, viewMismatch, jsonObject, analyzeMotion, traceScene } from '../../explain/testing.ts';
-import { canonicalJson } from '../../src/json.ts';
 import { LIB_ROOT, engineAlias, importAuthored, sceneSlug } from './explain-project.ts';
 import { checkedAgainstFiles, compareAnswers, runModelTest } from './explain-evidence.ts';
 import { scenarioName } from '../../explain/testing.ts';
-import { undescribed, watchedChanges } from '../../explain/trace.ts';
-import { diagramsOn } from '../../explain/diagrams.ts';
-import { restingDrawing } from '../../explain/describe.ts';
-import { LiveSink, liveMachine, runLive } from '../../explain/live.ts';
-import type { LiveExplore } from '../../explain/live.ts';
-import { labelOf, readingLabelSize } from '../../explain/labels.ts';
 import { closeUps, stageScale, stepLayouts, toView, viewBox } from '../../app/embed-closeup.ts';
-import { zoomOf } from '../../src/units.ts';
 import type { Box, EndedStep, Mobject, Scene, SceneClass, Sink, Step } from '../../src/index.ts';
-import { contains, intersect, nonempty, overlaps } from '../../src/box.ts';
-import { paints } from '../../src/mobject.ts';
-import { atHome, viewOf } from '../../src/svg.ts';
-import { FRAME, STAGE_BOX } from '../../src/units.ts';
 import type { Project } from './explain-project.ts';
 import { letteringReport, useProjectLettering } from './explain-lettering.ts';
 import { MIN_PX, PHONE_VIEWPORT, STAGE_PX_PER_UNIT } from './review-sizes.ts';
@@ -286,7 +272,7 @@ export class ViewSink implements Sink {
   async stepEnd(scene: Scene, step: Step): Promise<void> {
     this.states.push(structuredClone(scene.state));
     for (const m of scene.familyMembers()) {
-      if (!(m instanceof View)) continue;
+      if (!isView(m)) continue;
       this.checked++;
       const mismatch = viewMismatch(m, scene.state, { shown: scene.shown }) ?? viewGeometryMismatch(m, scene);
       if (mismatch) this.problems.push(`step "${step.name}": ${m.key ?? 'a view'}: ${mismatch}`);
@@ -712,7 +698,7 @@ export async function bareRuntime(project: Project, plugins: Plugin[] = []): Pro
     platform: 'neutral',
     target: 'es2022',
     write: false,
-    plugins: [...plugins, browserFonts(LIB_ROOT), ...(showsDiagrams(project) ? [] : [withoutDiagramCode()]), engineAlias(false, !!project.outlineLettering)],
+    plugins: [...plugins, browserFonts(), ...(showsDiagrams(project) ? [] : [withoutDiagramCode()]), engineAlias(false, !!project.outlineLettering)],
     logLevel: 'silent',
   });
   const script = new vm.Script(b.outputFiles[0]!.text + ';globalThis.result=bare.run(globalThis.values)');

@@ -21,8 +21,8 @@ import { center, unionBoxes } from '../src/box.ts';
 import { paintsFill } from '../src/mobject.ts';
 import { regionBox, boxCenter, raised, emphasis, dimOpacity, emphasises, selfDescribed } from './look.ts';
 import type { Region } from './look.ts';
-import { resolverOf, diagramKey, diagramFindings, SVG_PX_PER_UNIT } from '../integrations/agentic-mermaid/snapshot.ts';
-import { outlineText } from '../integrations/agentic-mermaid/text.ts';
+import { resolverOf, diagramKey, diagramFindings, SVG_PX_PER_UNIT } from './diagram-snapshot.ts';
+import { outlineText } from './diagram-text.ts';
 import { recordWalk } from './trace.ts';
 import { wordsOf, wordsFor, familyNames } from './words.ts';
 import type { Words } from './words.ts';
@@ -33,7 +33,7 @@ import type {
   DiagramSnapshot,
   SnapshotPart,
   MutationOp,
-} from '../integrations/agentic-mermaid/snapshot.ts';
+} from './diagram-snapshot.ts';
 
 export interface ShowOptions {
   /** Where the diagram fits: a stage region name or [minX, minY, maxX, maxY]. */

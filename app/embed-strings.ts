@@ -2,12 +2,12 @@
 // the scene (`meta.lang`). A language without a table here gets English. The generated picture
 // descriptions have their own vocabulary (explain/words.ts); a page in a language it lacks
 // shows them in English and marks them lang="en".
-import type { ExplainerClass, Settings, SettingsProblem } from '../explain/settings.ts';
-import { scenarioName } from '../explain/settings.ts';
-import { describedIn, primaryLanguage, wordsFor } from '../explain/words.ts';
-import type { WatchedChange } from '../explain/trace.ts';
+import type { ExplainerClass, Settings } from '../explain/index.ts';
+import type { SettingsProblem, WatchedChange } from '../explain/internal.ts';
+import { scenarioName } from '../explain/testing.ts';
+import { describedIn, primaryLanguage, wordsFor } from '../explain/internal.ts';
+export type { SettingsProblem } from '../explain/internal.ts';
 
-export type { SettingsProblem } from '../explain/settings.ts';
 
 export interface Chrome {
   details: string;

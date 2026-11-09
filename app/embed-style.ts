@@ -1,6 +1,5 @@
-import type { ExplainerClass } from '../explain/settings.ts';
-import type { Palette } from '../src/color.ts';
-import { contrastRatio, isHex } from '../src/color.ts';
+import type { ExplainerClass, Palette } from '../explain/index.ts';
+import { contrastRatio, isHex } from '../src/internal.ts';
 
 type Cues = NonNullable<NonNullable<ExplainerClass['meta']>['player']>;
 const themes = {

@@ -27,11 +27,11 @@ export interface Plan<T> {
 }
 
 /** A beat's animations must take the run time it was planned with: a play of each, or a Succession member's slot. */
-function checkTime(action: string, beat: Beat, made: readonly ScheduledAnimation[]): void {
+function checkTime(call: string, beat: Beat, made: readonly ScheduledAnimation[]): void {
   if (!made.length) return;
   const took = Math.max(...made.map((a) => a.runTime));
   if (Math.abs(took - beat.runTime) > 1e-9)
-    throw new Error(`${action}: one of its plays takes ${took} s, where ${beat.runTime} s was planned`);
+    throw new Error(`${call}: one of its plays takes ${took} s, where ${beat.runTime} s was planned`);
 }
 
 /**

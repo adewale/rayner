@@ -1,11 +1,10 @@
 import assert from 'node:assert/strict';
-import { pictureWordsAt } from '../../../explain/testing.ts';
+import { pictureWordsAt, assertStepState } from '../../../explain/testing.ts';
 import type { TraceOf } from '../../../explain/testing.ts';
 import { having } from '../../../explain/index.ts';
 import type SeasonsExplainer from './scene.ts';
 import { Scene, Text } from '../../../src/index.ts';
 import type { Sink } from '../../../src/index.ts';
-import { assertStepState } from '../../../test/lib/explainer-state.ts';
 import type { FidelityRun } from '../../../test/lib/fidelity.ts';
 import { sunlight, noonShare, noonPatch, sunDistance, daylightYear } from './model.ts';
 

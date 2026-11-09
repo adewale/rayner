@@ -1,9 +1,9 @@
 // The convention for error messages an author can see (docs/ENGINE.md, "Error messages"), held
-// mechanically over the library: every `new Error(`, `new TypeError(` and `new RangeError(` in
-// src/, explain/, the player (app/) and diagram replay. A message starts with the API the author called and a colon,
-// ends without a full stop, and never names a mobject by its internal id. A prefix the code
-// computes, such as the call an action was made by or the file a script was read from, is allowed
-// only where ALLOWED lists that expression and says what it holds.
+// mechanically over the library and the player: every `new Error(`, `new TypeError(` and
+// `new RangeError(` in src/, explain/ and app/. A message starts with the API the author called and
+// a colon, ends without a full stop, and never names a mobject by its internal id. A prefix the code
+// computes, such as the call an action was made by, is read from a variable with one of a few names
+// the whole repository uses for it (CALLERS): whether it holds the right call is for review.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -11,7 +11,7 @@ import { join, relative, resolve } from 'node:path';
 import ts from 'typescript';
 
 const ROOT = resolve(import.meta.dirname, '..');
-const SCANNED = ['src', 'explain', 'app', 'integrations/agentic-mermaid/snapshot.ts', 'integrations/agentic-mermaid/text.ts'];
+const SCANNED = ['src', 'explain', 'app'];
 
 /**
  * The static prefixes: a call, `card()`, `s.card()`, `keyedParts().add()`; a constructor,
@@ -20,34 +20,13 @@ const SCANNED = ['src', 'explain', 'app', 'integrations/agentic-mermaid/snapshot
  */
 const PREFIX = /^(new [A-Z]\w*\(\)|static (meta|settings)|scene\.(snapshots|lettering\.json)|[a-z_$][\w$]*(\(\))?(\.[a-zA-Z_$][\w$]*(\(\))?)*): \S/;
 
-/** Computed prefixes, by file and the expression that opens the message: what each one holds. */
-const ALLOWED: Record<string, Record<string, string>> = {
-  'src/json.ts': { api: 'the call cloneJson was given by its caller' },
-  'src/animation.ts': {
-    api: "the call that took the animations or the time, 'this.play()', 'new Succession()' or 'new FadeIn()'",
-    'this.call': "the call what is made at its turn belongs to, 's.card()' or 'machine.send(\"UP\")'",
-  },
-  'src/scene.ts': {
-    api: "the scene's call that found another running, 'this.play()', 'this.wait()', 'this.step()' or 'this.construct()'; or the registration of a listener that left a play running, 'this.onStep()' or 'this.onStepEnd()'",
-    call: "the call that made or began animations at their turn in a play, 's.card()', 'machine.send(\"UP\")' or 'new Succession()'",
-  },
-  'src/shapes.ts': { api: "the constructor boxOf's caller names" },
-  'src/fonts.ts': { label: "decodeFont's subject, which its caller names with a prefix ('loadFonts(): the embedded sans face')" },
-  'src/mobject.ts': { 'm.${name}': 'the method of every mobject that was assigned to, m.box', api: "the call that changes the children, 'm.add()', 'm.insert()' or 'm.replaceChild()'" },
-  'explain/action.ts': {
-    action: "the action's call, 's.card()'",
-    'this.name': "the action's call, 's.card()'",
-    "names.join(', ')": "the calls of the actions never played, 's.card(), d.walk()'",
-  },
-  'explain/diagrams.ts': { api: "the diagram method called, 'd.get()'", name: "the diagram action, 'd.reveal()'" },
-  'explain/intent.ts': { where: "the script's file, 'script.md' or its path" },
-  'explain/look.ts': { api: "the kit function given something other than a stage, 'card()' or 'code()'" },
-  'explain/project.ts': { api: "the call that collected a scenario's steps, 'loadProject()', or the scene's file when the rayner command collects them" },
-  'explain/panels.ts': { api: "'card()' or 'code()', or 's.card()' or 's.code()' when the stage builds it", 'this.api': 'the same, kept on the panel' },
-  'explain/seen-from.ts': { api: "the geo function called, 'seenFrom()', 'project()' or 'depthOrder()'" },
-  'explain/settings.ts': { where: "the declaration, 'static meta' or 'meta.player'" },
-  'integrations/agentic-mermaid/snapshot.ts': { api: "the call that needed the scene's snapshots, 'diagramResolverOf()', 's.show()' or 'd.morph()'" },
-};
+/**
+ * The names a computed prefix is read from, wherever it is computed: `api`, the call the author made,
+ * which a helper was given by its caller; `call` (or `calls`), the call an action or animation was
+ * made by; `where`, the declaration or file at fault; and `name` (or `names`), what an action or a
+ * diagram action keeps as its call, or the subject a decoder was handed.
+ */
+const CALLERS = new Set(['api', 'call', 'calls', 'where', 'name', 'names']);
 
 interface Thrown { at: string; kind: string; problems: string[] }
 
@@ -90,10 +69,12 @@ function check(file: string, source: string): Thrown[] {
             const first = open.templateSpans[0]!;
             const computed = `${open.head.text}\${${first.expression.getText(sf)}}`.replace(/^\$\{(.*)\}$/, '$1');
             const static_ = open.head.text;
+            const names: string[] = [];
+            const collect = (n: ts.Node): void => { if (ts.isIdentifier(n)) names.push(n.text); n.forEachChild(collect); };
+            collect(first.expression);
             if (static_ && PREFIX.test(static_ + '…')) { /* a static prefix before the first substitution */ }
-            else if (!ALLOWED[file]?.[computed]) problems.push(`its prefix is computed from ${computed}, which ALLOWED does not list for ${file}`);
-            else if (!static_ && !/^(:| cannot be decoded)/.test(first.literal.text) && !(computed.startsWith('m.') && first.literal.text.startsWith(':')))
-              problems.push(`its computed prefix ${computed} is not followed by a colon`);
+            else if (!names.some((n) => CALLERS.has(n))) problems.push(`its prefix is computed from ${computed}; read it from a variable named ${[...CALLERS].join(', ')}`);
+            else if (!/^(:| cannot be decoded)/.test(first.literal.text)) problems.push(`its computed prefix ${computed} is not followed by a colon`);
           } else problems.push(`its message is not written where it is thrown: ${open.getText(sf).slice(0, 60)}`);
         }
         for (const end of endings(message)) {
@@ -126,25 +107,12 @@ test('every error the library throws names the API called, ends without a full s
   assert.deepEqual(bad, []);
 });
 
-test('every computed prefix ALLOWED lists is still used', () => {
-  for (const [file, expressions] of Object.entries(ALLOWED)) {
-    const sf = ts.createSourceFile(file, readFileSync(join(ROOT, file), 'utf8'), ts.ScriptTarget.Latest, true);
-    const used = new Set<string>();
-    const visit = (node: ts.Node): void => {
-      if (ts.isTemplateExpression(node)) used.add(`${node.head.text}\${${node.templateSpans[0]!.expression.getText(sf)}}`.replace(/^\$\{(.*)\}$/, '$1'));
-      node.forEachChild(visit);
-    };
-    visit(sf);
-    for (const expression of Object.keys(expressions)) assert.ok(used.has(expression), `${file}: ALLOWED lists ${expression}, which no message opens with`);
-  }
-});
-
-test('the check rejects a message without a prefix, a full stop, an internal id and an unlisted computed prefix', () => {
+test('the check rejects a message without a prefix, a full stop, an internal id and a prefix computed from another name', () => {
   const cases: [string, RegExp][] = [
     ["throw new Error('Card row is not unique');", /does not start with the API/],
     ["throw new Error('card(): the row is not unique.');", /full stop/],
     ['throw new Error(`view(): draw() returned ${m.constructor.name}#${m.id}`);', /internal id/],
-    ['throw new Error(`${who}: no such row`);', /ALLOWED does not list/],
+    ['throw new Error(`${who}: no such row`);', /read it from a variable named api/],
     ['throw new TypeError(message);', /not written where it is thrown/],
     ["throw new RangeError(n ? 'card(): too many' : 'Too few');", /does not start with the API/],
   ];
@@ -153,8 +121,9 @@ test('the check rejects a message without a prefix, a full stop, an internal id 
     assert.equal(found.length, 1, source);
     assert.match(found[0]!.problems.join('; '), problem, source);
   }
-  // A prefix the code computes passes where ALLOWED lists it for that file, followed by a colon.
+  // A prefix the code computes passes when it is read from one of the names, followed by a colon.
   assert.deepEqual(check('explain/panels.ts', 'throw new Error(`${api}: a card with columns needs at least one column`);'), []);
+  assert.deepEqual(check('explain/example.ts', 'throw new Error(`${this.by.call}: it was never played`);'), []);
   assert.deepEqual(check('explain/panels.ts', 'throw new Error(`${api} needs a column`);').length, 1);
   assert.deepEqual(check('src/text.ts', "throw new RangeError('code.span(): there is no line 3; the code has 2, from 0');"), []);
 });

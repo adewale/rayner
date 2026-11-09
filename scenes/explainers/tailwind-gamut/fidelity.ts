@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../explain/testing.ts';
-import { assertStepState } from '../../../test/lib/explainer-state.ts';
-import { assertSteps, idsOf } from '../../../test/lib/steps.ts';
+import { assertStepState, assertSteps } from '../../../explain/testing.ts';
+import { idsOf } from '../../../test/lib/steps.ts';
 import { SHADES, rows, summarize } from './model.ts';
 import type { Shade } from './model.ts';
 

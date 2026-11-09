@@ -305,6 +305,9 @@ function paintedFor<M extends Mobject>(scene: Scene<any, any>, m: M): M {
   return m;
 }
 
+/** Whether `m` is a View, for a tool that finds the views on a stage (View is exported as a type only). */
+export const isView = (m: Mobject): m is View => m instanceof View;
+
 /**
  * A View of the scene's model: `draw(scene.state, scene.shown)` at each sync, its arguments typed
  * from the scene (`Scene<S, Sh>`). Keeps `draw`, so the picture can be checked against a trace

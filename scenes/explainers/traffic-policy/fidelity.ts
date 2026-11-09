@@ -1,5 +1,5 @@
 import type { Trace } from '../../../explain/testing.ts';
-import { assertStepState } from '../../../test/lib/explainer-state.ts';
+import { assertStepState } from '../../../explain/testing.ts';
 import {
   CLIENT_IP,
   PLACEMENTS,

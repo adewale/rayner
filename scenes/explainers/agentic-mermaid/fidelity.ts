@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
-import { pictureWordsAt } from '../../../explain/testing.ts';
+import { pictureWordsAt, assertStepState } from '../../../explain/testing.ts';
 import type { TraceOf } from '../../../explain/testing.ts';
 import { having } from '../../../explain/index.ts';
 import type MermaidExplainer from './scene.ts';
-import { assertStepState } from '../../../test/lib/explainer-state.ts';
 import type { FidelityRun } from '../../../test/lib/fidelity.ts';
 
 /** Each authored scenario's steps against the program the explainer explains. */

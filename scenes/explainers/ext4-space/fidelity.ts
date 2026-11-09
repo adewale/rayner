@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../explain/testing.ts';
-import { assertStepState } from '../../../test/lib/explainer-state.ts';
+import { assertStepState } from '../../../explain/testing.ts';
 import { DEFAULT_RESERVE, SIZES, metadataPie, space, wholePie } from './model.ts';
 import type { Size } from './model.ts';
 

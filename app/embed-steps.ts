@@ -1,5 +1,5 @@
-import { isDetail, teachingIndices } from '../explain/script.ts';
-import type { TeachingStep } from '../explain/script.ts';
+import { isDetail, teachingIndices } from '../explain/internal.ts';
+import type { TeachingStep } from '../explain/internal.ts';
 
 /** Reference steps remain linkable and reviewable, outside the short reading path (explain/script.ts teachingIndices). */
 export const storyIndices = teachingIndices;
