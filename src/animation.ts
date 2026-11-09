@@ -60,96 +60,88 @@ export function assertTime(api: string, what: string, value: unknown, max = Infi
 }
 
 /**
- * Where an animation is in its life: `idle` until it begins, `begun` while it plays, `landing` once
- * its play has finished it while members of it still begin and finish in turn (a `Succession` held
- * by a member that waits, or a group holding one), and `finished` once it has landed, every member
- * with it. It interpolates and finishes only while begun, and begins only when idle or finished; a
- * finished animation may begin again (play it once more).
+ * Where an animation is in its life: `idle` until it begins, `begun` from then until it has
+ * finished, every member with it, and `finished` once it has. It interpolates and finishes only
+ * while begun, before its play has finished it: a `Succession` whose play has finished it while a
+ * member waits, or a group holding one, is still begun while its members finish in turn. It begins
+ * only when idle or finished; a finished animation may begin again (play it once more).
  */
-export type AnimationPhase = 'idle' | 'begun' | 'landing' | 'finished';
-
-/** The calls that keep an animation's phase, and the hooks a subclass overrides for each. */
-const LIFECYCLE = { begin: 'doBegin', interpolate: 'doInterpolate', finish: 'doFinish', land: 'doLand' } as const;
-/** The accessors that keep an animation's phase and times checked: an own property or an override would skip the check. */
-const CHECKED = ['phase', 'runTime', 'lagRatio'] as const;
-/** Animation classes already checked for an override of a lifecycle call (see AnimationTiming's constructor). */
-const checkedClasses = new WeakSet<Function>();
-
-/** The engine's own answers to waiting(): any other would hold a play, or let it run on, by its own rule. */
-let engineWaits: Set<unknown> | null = null;
-const engineWaiting = (): Set<unknown> =>
-  (engineWaits ??= new Set([AnimationTiming.prototype.waiting, AnimationGroup.prototype.waiting, Succession.prototype.waiting, MadeAtTurn.prototype.waiting]));
-
-/** The property `name` resolves to on `o`: its own, or the nearest prototype's. */
-function resolved(o: object, name: string): PropertyDescriptor | undefined {
-  for (let p: object | null = o; p; p = Object.getPrototypeOf(p)) {
-    const d = Object.getOwnPropertyDescriptor(p, name);
-    if (d) return d;
-  }
-  return undefined;
-}
+export type AnimationPhase = 'idle' | 'begun' | 'finished';
 
 /**
- * @internal Refuse an animation whose lifecycle calls (`begin`, `interpolate`, `finish`, `land`) or
- * checked accessors (`phase`, `runTime`, `lagRatio`) are not the engine's: defined on the instance (a
- * class field, an assignment, `Object.defineProperty`) or on a prototype (an override, a patch made
- * after the class's first instance, a swapped prototype). Each would skip the phase or the time the
- * engine keeps. `waiting` may be only the engine's own: the default's, or a group's, a
- * Succession's or a MadeAtTurn's.
- * Called where every play and every group member passes before it begins: `begin()` itself,
- * `Scene.beginAnimations` (which reaches an animation whose own `begin` was replaced), a group's
- * begin for its members and a Succession's for each member at its turn.
+ * Keys of the engine's own members, private to this module: whether an animation still waits for
+ * something at its turn, and how it lands after a failure. No author can name either, so no
+ * subclass or field overrides or collides with them.
  */
-export function assertLifecycle(a: object, api: string): void {
-  const base = AnimationTiming.prototype;
-  for (const [call, hook] of Object.entries(LIFECYCLE))
-    if ((a as Record<string, unknown>)[call] !== (base as unknown as Record<string, unknown>)[call])
-      throw new TypeError(`${api}: ${animationName(a)} replaces ${call}(), which keeps the animation's phase; override ${hook}() instead`);
-  if (!engineWaiting().has((a as { waiting?: unknown }).waiting))
-    throw new TypeError(`${api}: ${animationName(a)} replaces waiting(), which tells a play and a Succession whether to wait for it; only the engine's groups answer it, so leave it to them`);
-  for (const name of CHECKED) {
-    const d = resolved(a, name), own = resolved(base, name)!;
-    if (d?.get !== own.get || d?.set !== own.set)
-      throw new TypeError(`${api}: ${animationName(a)} redefines ${name}, which the engine keeps checked; ${name === 'phase' ? 'begin(), interpolate() and finish() set it' : `set it through its accessor, or pass it as an option`}`);
-  }
-}
+const waits = Symbol('waits'), lands = Symbol('lands');
+
+/** What a subclass may not redefine, and what to do instead: each keeps the phase or the times a play reads. */
+const FIXED = {
+  begin: "it overrides begin(), which keeps the animation's phase; override doBegin() instead",
+  interpolate: "it overrides interpolate(), which keeps the animation's phase; override doInterpolate() instead",
+  finish: "it overrides finish(), which keeps the animation's phase; override doFinish() instead",
+  phase: 'it redefines phase, which begin(), interpolate() and finish() keep',
+  runTime: 'it redefines runTime, which a play reads as it begins; pass it as an option, or set it',
+  lagRatio: 'it redefines lagRatio, which a play reads as it begins; pass it as an option, or set it',
+} as const;
+/** Animation classes already checked for a redefinition of a FIXED member (see AnimationTiming's constructor). */
+const checkedClasses = new WeakSet<Function>();
+
+/**
+ * @internal The engine's calls of an animation's lifecycle, set by AnimationTiming: a play, a group
+ * and a Succession begin, draw, finish and land their animations through these, which keep the
+ * private phase and call only the protected hooks, so nothing an author writes on an animation
+ * (a method, a field, an assignment) reaches a play in their place.
+ */
+export let beginAnimation: (a: ScheduledAnimation) => void;
+/** @internal See beginAnimation. */
+export let interpolateAnimation: (a: ScheduledAnimation, alpha: number) => void;
+/** @internal See beginAnimation. */
+export let finishAnimation: (a: ScheduledAnimation, alpha?: number) => void;
+/** Land after a failure (see landBegun): it ends finished, whatever its landing throws. */
+let landAnimation: (a: ScheduledAnimation, scene: Scene | null) => void;
 
 /**
  * Shared scheduling contract for a drawable animation or a group of animations.
  *
  * `begin()`, `interpolate()` and `finish()` keep the phase (see AnimationPhase), and each calls
  * its protected hook, `doBegin()`, `doInterpolate()` and `doFinish()`, which a subclass
- * overrides. Every caller, the scene, a group or another animation, goes through the guarded
- * call; a subclass's `super.doBegin()` does not. An animation that replaces a guarded call, or
- * redefines `phase`, `runTime` or `lagRatio`, is refused as it begins (see assertLifecycle); a
- * subclass that overrides a guarded call as a method is refused when its first instance is made.
- * The landing after a failure, `land()`, is guarded the same way, and `waiting()` may be only the
- * engine's own. The hooks are protected in TypeScript only: plain JavaScript (or a cast) that calls
- * one directly skips the guard, and a lifecycle call patched in while the animation plays is not seen.
+ * overrides. A play, a group and a Succession drive their animations through the same private
+ * calls, never through a member an author could replace, and a subclass that redefines one of the
+ * calls, `phase`, `runTime` or `lagRatio` is refused when its first instance is made.
  */
 abstract class AnimationTiming {
   #runTime!: number;
   #lagRatio!: number;
   rateFunc: RateFunc;
-  remover: boolean;
-  /**
-   * Where it is in its life (see AnimationPhase): set by begin() and finish(), and `landing` while,
-   * finished by its play, it still waits for members to finish in turn (see waiting).
-   */
-  get phase(): AnimationPhase { return this.#phase === 'finished' && this.waiting() ? 'landing' : this.#phase; }
-  /** What begin(), finish() and land() set: whether it is landing is read from its members. */
+  /** Whether the end of its play removes what it animates from the scene (the `remover` option). */
+  protected readonly remover: boolean;
+  /** Where it is in its life (see AnimationPhase). */
+  get phase(): AnimationPhase { return this.#phase === 'finished' && this[waits]() ? 'begun' : this.#phase; }
+  /** What begin(), finish() and a landing set; whether its members still finish in turn is read from them (see waits). */
   #phase: 'idle' | 'begun' | 'finished' = 'idle';
   constructor({runTime = 1, rateFunc = smooth, lagRatio = 0, remover = false}: AnimOpts = {}) {
     const api = `new ${new.target.name}()`;
     if (!checkedClasses.has(new.target)) {
       for (let p = new.target.prototype; p !== AnimationTiming.prototype; p = Object.getPrototypeOf(p))
-        for (const [call, hook] of Object.entries(LIFECYCLE))
-          if (Object.hasOwn(p, call)) throw new TypeError(`${api}: it overrides ${call}(), which keeps the animation's phase; override ${hook}() instead`);
+        for (const [name, why] of Object.entries(FIXED))
+          if (Object.hasOwn(p, name)) throw new TypeError(`${api}: ${why}`);
       checkedClasses.add(new.target);
     }
     assertTime(api, 'its runTime', runTime);
     assertTime(api, 'its lagRatio', lagRatio);
     this.#runTime = runTime; this.#lagRatio = lagRatio; this.rateFunc = rateFunc; this.remover = remover;
+  }
+  static {
+    beginAnimation = (a) => a.#begin();
+    interpolateAnimation = (a, alpha) => a.#interpolate(alpha);
+    finishAnimation = (a, alpha) => a.#finish(alpha);
+    landAnimation = (a, scene) => {
+      if (a.phase !== 'begun') return;
+      try { a[lands](scene); }
+      catch { /* the failure's error is reported instead */ }
+      finally { a.#phase = 'finished'; }
+    };
   }
   /** Seconds the animation runs: finite and not negative, checked on every set; fixed while it plays. */
   get runTime(): number { return this.#runTime; }
@@ -177,62 +169,53 @@ abstract class AnimationTiming {
 
   /** A play fixes its frames from the times it begins with, so neither may change while it plays. */
   #refuseWhileBegun(api: string, what: 'runTime' | 'lagRatio'): void {
-    if (this.#phase === 'begun' || this.phase === 'landing') throw new Error(`${api}: ${animationName(this)} is playing, and its play fixed its frames from its ${what}; change it before it begins, or after it finishes`);
+    if (this.phase === 'begun') throw new Error(`${api}: ${animationName(this)} is playing, and its play fixed its frames from its ${what}; change it before it begins, or after it finishes`);
   }
 
   /** Begin: fix the endpoints (see doBegin). Refused while begun; a doBegin() that throws leaves the phase as it was. */
-  begin(): void {
-    assertLifecycle(this, 'animation.begin()');
-    const phase = this.phase;
-    if (phase === 'begun' || phase === 'landing')
-      throw new Error(`animation.begin(): ${animationName(this)} has already begun${phase === 'landing' ? ', and its members still finish in turn' : ''}; an animation plays in one place at a time, so make another for the second`);
+  begin(): void { this.#begin(); }
+  /** Draw the frame at `alpha`, already passed through rateFunc by the caller (see doInterpolate). Only while begun. */
+  interpolate(alpha: number): void { this.#interpolate(alpha); }
+  /** Land, at rateFunc(1) unless given another alpha (see doFinish). Only while begun; then finished. */
+  finish(alpha?: number): void { this.#finish(alpha); }
+
+  #begin(): void {
+    if (this.phase === 'begun')
+      throw new Error(`animation.begin(): ${animationName(this)} has already begun${this.#phase === 'finished' ? ', and its members still finish in turn' : ''}; an animation plays in one place at a time, so make another for the second`);
     const was = this.#phase;
     this.#phase = 'begun';
     try { this.doBegin(); } catch (e) { this.#phase = was; throw e; }
   }
-  /** Draw the frame at `alpha`, already passed through rateFunc by the caller (see doInterpolate). Only while begun. */
-  interpolate(alpha: number): void {
+  #interpolate(alpha: number): void {
     if (this.#phase !== 'begun') throw new Error(`animation.interpolate(): ${animationName(this)} ${this.#phase === 'idle' ? 'has not begun' : 'has finished'}; begin() it first`);
     this.doInterpolate(alpha);
   }
-  /** Land, at rateFunc(1) unless given another alpha (see doFinish). Only while begun; then finished. */
-  finish(alpha?: number): void {
+  #finish(alpha?: number): void {
     if (this.#phase !== 'begun') throw new Error(`animation.finish(): ${animationName(this)} ${this.#phase === 'idle' ? 'has not begun' : 'has already finished'}; begin() it first`);
     this.doFinish(alpha);
     this.#phase = 'finished';
   }
 
   /**
-   * @internal Land after its play failed (see landBegun): it ends finished, whatever its landing
-   * throws, which is dropped (the failure's own error is the one to report). What it has begun
-   * lands as the end of its play would land it; what it has not begun yet never begins (see doLand).
-   */
-  land(scene: Scene | null): void {
-    const phase = this.phase;
-    if (phase !== 'begun' && phase !== 'landing') return;
-    try { this.doLand(scene); }
-    catch { /* the failure's error is reported instead */ }
-    finally { this.#phase = 'finished'; }
-  }
-  /**
-   * @internal How it lands after a failure (see land): finished and cleaned up from `scene`, as the
-   * end of its play would. A group lands only the members that have begun, so a Succession's later
+   * How it lands after a failure (see landBegun): finished and cleaned up from `scene`, as the end of
+   * its play would. A group lands only the members that have begun, so a Succession's later
    * members, an action's later beats and their side effects never happen. A group may come here
-   * landing, finished while its members still finish in turn: it lands them.
+   * finished while its members still finish in turn: it lands them.
+   * @internal
    */
-  protected doLand(scene: Scene | null): void {
+  [lands](scene: Scene | null): void {
     if (this.#phase !== 'begun') return;
     this.doFinish();
     if (scene) this.cleanUpFromScene(scene);
   }
   /**
-   * @internal Whether, begun in a play, it still waits for something it made or began at its turn to
-   * begin (see Scene.whenReady), or, finished, for its members to finish in turn (then its phase is
-   * `landing`): a Succession that holds it waits for it before its next member. Nothing does, by
-   * default; only the engine's groups answer otherwise, and any other answer is refused as the
-   * animation begins (see assertLifecycle).
+   * Whether, begun in a play, it still waits for something it made or began at its turn to begin
+   * (see Scene.whenReady), or, finished, for its members to finish in turn (then it is still begun):
+   * a Succession that holds it waits for it before its next member. Nothing does, by default; only
+   * the engine's groups answer otherwise.
+   * @internal
    */
-  waiting(): boolean { return false; }
+  [waits](): boolean { return false; }
 
   /** Called by begin(): fix the endpoints. Copies live here, never in the constructor. */
   protected abstract doBegin(): void;
@@ -278,17 +261,21 @@ export function recordEvidence(a: ScheduledAnimation, scene: Scene | null): void
   const { kind, ...data } = e;
   scene.inTurn(() => scene.record(kind, data));
 }
+/**
+ * Any animation a play, a group or a transition runs. `Animation` is the class a custom animation
+ * extends, one that animates its `mobject`; a group animates no one mobject, so it is not an
+ * `Animation`, and this names either.
+ */
 export type ScheduledAnimation = Animation | AnimationGroup;
 
 /**
  * @internal Land the animations a failure left begun, last begun first: each ends finished, so none
  * is left begun and each may begin again; what had begun lands as the end of its play would land
- * it, and what had not begun never begins (see AnimationTiming.land). A group whose member throws
- * as it begins lands the members before it; a play that fails, as it begins or after, lands every
- * animation it was given.
+ * it, and what had not begun never begins. A group whose member throws as it begins lands the
+ * members before it; a play that fails, as it begins or after, lands every animation it was given.
  */
 export function landBegun(begun: readonly ScheduledAnimation[], scene: Scene | null): void {
-  for (const a of [...begun].reverse()) a.land(scene);
+  for (const a of [...begun].reverse()) landAnimation(a, scene);
 }
 
 export class Animation extends AnimationTiming {
@@ -689,9 +676,7 @@ export class AnimationGroup extends AnimationTiming {
     const begun: ScheduledAnimation[] = [];
     try {
       for (const a of this.animations) {
-        // Checked before its begin(), which a replaced begin would skip.
-        assertLifecycle(a, 'animation.begin()');
-        a.begin();
+        beginAnimation(a);
         begun.push(a);
         recordEvidence(a, this.scene);
       }
@@ -699,14 +684,14 @@ export class AnimationGroup extends AnimationTiming {
   }
   /** Each member lands where the group's own timeline puts it at rateFunc(1) (a there-and-back group ends at the start). */
   protected override doFinish(alpha: number = this.rateFunc(1)): void {
-    this.animations.forEach((a, i) => a.finish(a.rateFunc(this.memberTime(alpha, i))));
+    this.animations.forEach((a, i) => finishAnimation(a, a.rateFunc(this.memberTime(alpha, i))));
   }
   /** @internal */
   override cleanUpFromScene(scene: Scene): void { for (const a of this.animations) a.cleanUpFromScene(scene); }
   /** @internal After a failure, each member that has begun lands on its own, last first; nothing else begins. */
-  protected override doLand(scene: Scene | null): void { landBegun(this.animations, scene); }
-  /** @internal Whether a member still waits for something made at its turn to begin (see AnimationTiming.waiting). */
-  override waiting(): boolean { return this.animations.some((a) => a.waiting()); }
+  override [lands](scene: Scene | null): void { landBegun(this.animations, scene); }
+  /** @internal Whether a member still waits for something made at its turn to begin (see AnimationTiming's waits). */
+  override [waits](): boolean { return this.animations.some((a) => a[waits]()); }
   /** Member i's own time fraction at group alpha. */
   private memberTime(alpha: number, i: number): number {
     const [s, e] = this.timings[i]!, t = alpha * this.maxEnd;
@@ -716,7 +701,7 @@ export class AnimationGroup extends AnimationTiming {
   }
   /** Receives raw time fraction (scene applies this.rateFunc first). */
   protected override doInterpolate(alpha: number): void {
-    this.animations.forEach((a, i) => a.interpolate(a.rateFunc(this.memberTime(alpha, i))));
+    this.animations.forEach((a, i) => interpolateAnimation(a, a.rateFunc(this.memberTime(alpha, i))));
   }
   /** A group has no mobject; nested groups contribute their leaf members. */
   get mobjects(): Mobject[] {
@@ -1030,9 +1015,9 @@ export function takeCopies(anims: readonly ScheduledAnimation[]): void {
  * member still to come begins and finishes in turn.
  */
 type SuccessionState =
-  | { phase: 'idle' }
-  | { phase: 'running'; play: object; reached: number; to: number; finishing: boolean }
-  | { phase: 'held'; play: object; reached: number; to: number; finishing: boolean; closing: boolean };
+  | { is: 'idle' }
+  | { is: 'running'; play: object; reached: number; to: number; finishing: boolean }
+  | { is: 'held'; play: object; reached: number; to: number; finishing: boolean; closing: boolean };
 
 /**
  * Run animations one after another: each begins when the previous ends, as
@@ -1076,18 +1061,18 @@ export class Succession extends AnimationGroup {
   }
 
   /** Where it is in its play (see SuccessionState). */
-  #state: SuccessionState = { phase: 'idle' };
+  #state: SuccessionState = { is: 'idle' };
 
   protected override doBegin(): void {
     this.active = -1;
-    this.#state = { phase: 'running', play: {}, reached: 0, to: 0, finishing: false };
+    this.#state = { is: 'running', play: {}, reached: 0, to: 0, finishing: false };
     this.#beginNext();
   }
 
   /** Its state in a play: refused outside one, which only a hook called directly could reach. */
-  #playing(): Exclude<SuccessionState, { phase: 'idle' }> {
+  #playing(): Exclude<SuccessionState, { is: 'idle' }> {
     const s = this.#state;
-    if (s.phase === 'idle') throw new Error(`animation.interpolate(): ${animationName(this)} is not in a play; begin() it first`);
+    if (s.is === 'idle') throw new Error(`animation.interpolate(): ${animationName(this)} is not in a play; begin() it first`);
     return s;
   }
 
@@ -1096,20 +1081,15 @@ export class Succession extends AnimationGroup {
     const scene = this.scene, { play } = this.#playing();
     const next = this.animations[++this.active];
     if (!next) return;
-    if (!scene) {
-      // Checked before its begin(), which a replaced begin would skip, as a group checks its members.
-      assertLifecycle(next, 'animation.begin()');
-      next.begin();
-      return;
-    }
+    if (!scene) return beginAnimation(next);
     // A turn taken for an earlier play (one that has landed since) begins nothing.
-    scene.whenReady([next], { call: 'new Succession()', subject: 'its member' }, () => { if (this.#in(play)) scene.beginAnimations([next]); });
+    scene.whenReady([next], 'new Succession()', () => { if (this.#in(play)) scene.beginAnimations([next]); });
   }
 
   /** Whether it is still in the play `play` began. */
   #in(play: object): boolean {
     const s = this.#state;
-    return s.phase !== 'idle' && s.play === play;
+    return s.is !== 'idle' && s.play === play;
   }
 
   protected override doInterpolate(alpha: number): void {
@@ -1117,28 +1097,28 @@ export class Succession extends AnimationGroup {
     if (t < s.reached - 1e-9)
       throw new Error(`new Succession(): its time ran backwards, from ${s.reached} s to ${t} s, and a finished member cannot run again; give it, and any group around it, a rate function that never decreases`);
     this.#state = { ...s, reached: t, to: t };
-    if (s.phase === 'running') this.#catchUp();
+    if (s.is === 'running') this.#catchUp();
   }
 
   /** Every member still to come begins and finishes in turn, then the last one finishes. */
   protected override doFinish(): void {
     const s = this.#playing();
     this.#state = { ...s, finishing: true };
-    if (s.phase === 'running') this.#catchUp();
+    if (s.is === 'running') this.#catchUp();
   }
 
   /**
    * Take the members to where the play has taken it: each whose turn has come finishes and is
    * cleaned up, as the end of a play would, and the next begins; then the running one draws its
    * frame (finishing, every member ends instead, and so does it). A member that waits to begin, or,
-   * landing, for its own members to finish, holds it here: it carries on in a turn the scene takes
+   * finished, for its own members to finish, holds it here: it carries on in a turn the scene takes
    * once that member has, so whatever the members do happens in their order.
    */
   #catchUp(closing = false): void {
     const scene = this.scene;
     for (;;) {
       const a = this.animations[this.active];
-      if (a && (closing ? a.phase === 'landing' : a.phase !== 'begun' || a.waiting())) return this.#hold(closing);
+      if (a && (closing ? a[waits]() : a.phase !== 'begun' || a[waits]())) return this.#hold(closing);
       if (a && closing) {
         closing = false;
         if (scene) a.cleanUpFromScene(scene);
@@ -1150,17 +1130,17 @@ export class Succession extends AnimationGroup {
       const due = this.active < this.animations.length &&
         (finishing || (this.active + 1 < this.animations.length && to > this.timings[this.active + 1]![0]));
       if (!due) break;
-      if (a) { a.finish(); closing = true; } else this.#beginNext();
+      if (a) { finishAnimation(a); closing = true; } else this.#beginNext();
     }
     const { to, finishing } = this.#playing();
     if (finishing) {
-      this.#state = { phase: 'idle' };
+      this.#state = { is: 'idle' };
       return this.ended();
     }
     const a = this.animations[this.active];
     if (!a) return;
     const [start, end] = this.timings[this.active]!;
-    a.interpolate(a.rateFunc(clip((to - start) / (end - start || 1), 0, 1)));
+    interpolateAnimation(a, a.rateFunc(clip((to - start) / (end - start || 1), 0, 1)));
   }
 
   /** Held by the running member: carry on in a turn the scene takes after what it waits for (see Scene.afterHeld). */
@@ -1168,12 +1148,12 @@ export class Succession extends AnimationGroup {
     const scene = this.scene;
     if (!scene) throw new Error(`animation.begin(): ${animationName(this.animations[this.active]!)} waits to begin, or for its own members, in a Succession with no scene, and only a play can wait; play the Succession with this.play()`);
     const s = this.#playing();
-    this.#state = { ...s, phase: 'held', closing };
+    this.#state = { ...s, is: 'held', closing };
     scene.afterHeld('new Succession()', () => {
       const now = this.#state;
       // Landed meanwhile, or played again: this turn was taken for another play.
-      if (now.phase !== 'held' || now.play !== s.play) return;
-      this.#state = { phase: 'running', play: now.play, reached: now.reached, to: now.to, finishing: now.finishing };
+      if (now.is !== 'held' || now.play !== s.play) return;
+      this.#state = { is: 'running', play: now.play, reached: now.reached, to: now.to, finishing: now.finishing };
       this.#catchUp(now.closing);
     });
   }
@@ -1182,19 +1162,12 @@ export class Succession extends AnimationGroup {
   protected ended(): void {}
 
   /** @internal Whether a member holds it (see #catchUp). */
-  override waiting(): boolean { return this.#state.phase === 'held'; }
+  override [waits](): boolean { return this.#state.is === 'held'; }
 
-  /**
-   * Called once a play that failed after it began has landed it: its running member landed, if it
-   * had begun, and no member after it began. Nothing, by default.
-   */
-  protected abandoned(): void {}
-
-  /** @internal After a failure: the running member lands, if it has begun; no member after it begins (see abandoned). */
-  protected override doLand(scene: Scene | null): void {
-    this.#state = { phase: 'idle' };
-    super.doLand(scene);
-    this.abandoned();
+  /** @internal After a failure: the running member lands, if it has begun; no member after it begins. */
+  override [lands](scene: Scene | null): void {
+    this.#state = { is: 'idle' };
+    super[lands](scene);
   }
 
   /** @internal Members were cleaned up as each finished. */
@@ -1203,7 +1176,7 @@ export class Succession extends AnimationGroup {
   /** Members join the scene as they begin; these are the ones that have. */
   override get mobjects(): Mobject[] {
     const cur = this.animations[this.active], s = this.#state;
-    const closing = s.phase === 'held' && s.closing;
+    const closing = s.is === 'held' && s.closing;
     const upTo = cur && !closing && cur.phase !== 'begun' ? this.active : this.active + 1;
     return this.animations.slice(0, upTo).flatMap((a) => a instanceof AnimationGroup ? a.mobjects : [a.mobject]).filter(Boolean);
   }
@@ -1236,33 +1209,29 @@ class BuiltTransform extends Transform {
   }
 }
 
-/** Who made what began at its turn, as messages name it: the call it belongs to, and what it is. */
-export interface MadeBy {
-  /** The call, as a message begins: `s.card()`, `machine.send("UP")`, `new Succession()`. */
-  call: string;
-  /** What made it, as a message names it after the call: `a beat`, `the transition`. */
-  subject: string;
-}
-
 /**
  * @internal An animation whose members are made when its turn comes in a play, from the pictures on
  * screen then: an action's beat, or a machine's transition. Until then it stands for the mobjects it
  * declares it writes. As it begins it makes its members; once what they read is ready (the play
  * waits for that before its next frame, see Scene.whenReady) they are settled, laid out in its run
  * time, and begun through the scene, which checks them against everything else the play drives.
- * Until they have begun it waits (see waiting): a Succession that holds it begins nothing after it,
+ * Until they have begun it waits (see waits): a Succession that holds it begins nothing after it,
  * so one shorter than a frame still plays, held and then landed. When one of them throws as it
- * begins, those begun before it land, and it has made nothing. `by` names it, as messages do.
+ * begins, those begun before it land, and it has made nothing. Messages name it by `call`, the
+ * call it belongs to (`s.card()`, `machine.send("UP")`), and `subject`, what it is (`a beat`, `the
+ * transition`).
  */
 export abstract class MadeAtTurn extends AnimationGroup {
-  readonly by: MadeBy;
+  protected readonly call: string;
+  readonly #subject: string;
   readonly #declared: readonly Mobject[];
   /** Its members: not made before it begins, waiting for what they read (with the alpha a frame gave it meanwhile), or begun. */
   #turn: { made: 'not yet' } | { made: 'waiting'; at: number | null } | { made: 'begun' } = { made: 'not yet' };
 
-  constructor(by: MadeBy, runTime: number, declared: readonly Mobject[] = []) {
+  constructor(call: string, subject: string, runTime: number, declared: readonly Mobject[] = []) {
     super([], { runTime, rateFunc: linear });
-    this.by = by;
+    this.call = call;
+    this.#subject = subject;
     this.#declared = declared;
   }
   /** Its members, made as its turn comes. */
@@ -1277,21 +1246,21 @@ export abstract class MadeAtTurn extends AnimationGroup {
    */
   protected after(): void {}
   protected override doBegin(): void {
-    const scene = this.scene, { call, subject } = this.by;
-    if (!scene) throw new Error(`${call}: ${subject} has no scene to play on; play it with this.play() on the scene it belongs to`);
+    const scene = this.scene;
+    if (!scene) throw new Error(`${this.call}: ${this.#subject} has no scene to play on; play it with this.play() on the scene it belongs to`);
     this.adopt([], []);
     this.#turn = { made: 'not yet' };
-    const made = this.make();
+    const members = this.make();
     const turn: { made: 'waiting'; at: number | null } = { made: 'waiting', at: null };
     this.#turn = turn;
-    scene.whenReady(made, { call, subject: `what ${subject} made` }, () => {
+    scene.whenReady(members, this.call, () => {
       // Landed meanwhile, after a failure: what it made never begins.
       if (this.#turn !== turn) return;
-      for (const a of made) a.settle();
+      for (const a of members) a.settle();
       // Its members before they begin, so the scene checks them, not what it declared, against the play.
-      this.adopt(made, this.slots(made));
+      this.adopt(members, this.slots(members));
       this.#turn = { made: 'begun' };
-      try { scene.beginAnimations(made, this.by); }
+      try { scene.beginAnimations(members, this.call); }
       catch (e) {
         // Those begun before the one that threw have landed: it made nothing that plays.
         this.adopt([], []);
@@ -1309,12 +1278,12 @@ export abstract class MadeAtTurn extends AnimationGroup {
   }
   protected override doFinish(alpha?: number): void {
     // A play, a group and a Succession each wait for what it made before they finish it.
-    if (this.#turn.made === 'waiting') throw new Error(`${this.by.call}: ${this.by.subject} was finished while what it made still waited for what it reads; play it with this.play(), or in a Succession or group that plays, which wait for it`);
+    if (this.#turn.made === 'waiting') throw new Error(`${this.call}: ${this.#subject} was finished while what it made still waited for what it reads; play it with this.play(), or in a Succession or group that plays, which wait for it`);
     super.doFinish(alpha);
   }
   /** @internal Whether what it made has yet to begin, or a member of it waits in turn. */
-  override waiting(): boolean {
-    return this.#turn.made === 'waiting' || super.waiting();
+  override [waits](): boolean {
+    return this.#turn.made === 'waiting' || super[waits]();
   }
   /** @internal What it made is cleaned up, then `after` runs. */
   override cleanUpFromScene(scene: Scene): void {
@@ -1322,10 +1291,10 @@ export abstract class MadeAtTurn extends AnimationGroup {
     this.after();
   }
   /** @internal After a failure: what it made lands, then `after` runs, if it has begun; it never begins if it has not. */
-  protected override doLand(scene: Scene | null): void {
+  override [lands](scene: Scene | null): void {
     const began = this.#turn.made === 'begun';
     this.#turn = { made: 'not yet' };
-    super.doLand(scene);
+    super[lands](scene);
     if (began) this.after();
   }
   /** Before its members are made, what it declares; then theirs. */

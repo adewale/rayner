@@ -61,7 +61,7 @@ export type Participant = (typeof PARTICIPANTS)[number];
 export type Section = 'Menu structure' | 'Search' | 'List view layout';
 
 export interface Task {
-  /** The report's number: the heat map's S/n column, and its findings' chapter. */
+  /** The report's number: the heat map's S/n column, and the heading its findings sit under. */
   n: number;
   /** The heat map's task text, verbatim. */
   text: string;
