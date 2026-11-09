@@ -10,7 +10,7 @@ import { NullSink, renderFrame, StopScene } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { traceScene } from '../src/testing.ts';
 import type { Step } from '../src/index.ts';
-import { MadeAtTurn, animationName, whenReady, playScene } from '../src/animation.ts';
+import { MadeAtTurn, animationName, whenReady, playScene, beginAnimation, interpolateAnimation, finishAnimation } from '../src/animation.ts';
 import type { ScheduledAnimation } from '../src/animation.ts';
 import { loadFonts } from '../explain/testing.ts';
 
@@ -38,22 +38,22 @@ test('an animation listed twice in one play is refused before anything begins (t
 test('an animation begins once at a time, and interpolates and finishes only once begun; a finished one may play again', () => {
   const a = new FadeIn(new Circle());
   assert.equal(a.phase, 'idle');
-  assert.throws(() => a.interpolate(0.5), /animation\.interpolate\(\): a FadeIn has not begun; begin\(\) it first/);
-  assert.throws(() => a.finish(), /animation\.finish\(\): a FadeIn has not begun/);
-  a.begin();
+  assert.throws(() => interpolateAnimation(a, 0.5), /^Error: animation\.interpolate\(\): a FadeIn has not begun/);
+  assert.throws(() => finishAnimation(a), /animation\.finish\(\): a FadeIn has not begun/);
+  beginAnimation(a);
   assert.equal(a.phase, 'begun');
-  assert.throws(() => a.begin(), /animation\.begin\(\): a FadeIn has already begun/);
-  a.interpolate(0.5);
-  a.finish();
+  assert.throws(() => beginAnimation(a), /animation\.begin\(\): a FadeIn has already begun/);
+  interpolateAnimation(a, 0.5);
+  finishAnimation(a);
   assert.equal(a.phase, 'finished');
-  assert.throws(() => a.finish(), /has already finished/);
-  assert.throws(() => a.interpolate(0.2), /has finished/);
-  a.begin();
-  a.finish();
+  assert.throws(() => finishAnimation(a), /has already finished/);
+  assert.throws(() => interpolateAnimation(a, 0.2), /has finished/);
+  beginAnimation(a);
+  finishAnimation(a);
   assert.equal(a.phase, 'finished', 'replayed');
 });
 
-test('a begin() that throws leaves the animation idle, to begin again', () => {
+test('a begin that throws leaves the animation idle, to begin again', () => {
   let fail = true;
   class Flaky extends FadeIn {
     protected override doBegin(): void {
@@ -62,10 +62,10 @@ test('a begin() that throws leaves the animation idle, to begin again', () => {
     }
   }
   const a = new Flaky(new Circle());
-  assert.throws(() => a.begin(), /flaky/);
+  assert.throws(() => beginAnimation(a), /flaky/);
   assert.equal(a.phase, 'idle');
   fail = false;
-  a.begin();
+  beginAnimation(a);
   assert.equal(a.phase, 'begun');
 });
 
@@ -75,55 +75,12 @@ test('a hook written in any form is called inside the phase: as a method or as a
     protected override doBegin = (): void => { this.begun++; super.doBegin(); };
   }
   const a = new FieldHook(new Circle());
-  assert.throws(() => a.interpolate(0.5), /^Error: animation\.interpolate\(\): a FieldHook has not begun/);
-  a.begin();
+  assert.throws(() => interpolateAnimation(a, 0.5), /^Error: animation\.interpolate\(\): a FieldHook has not begun/);
+  beginAnimation(a);
   assert.equal(a.phase, 'begun');
-  a.interpolate(0.5);
-  a.finish();
+  interpolateAnimation(a, 0.5);
+  finishAnimation(a);
   assert.deepEqual([a.phase, a.begun], ['finished', 1]);
-});
-
-test('a subclass that overrides begin(), interpolate() or finish(), or redefines phase, runTime or lagRatio, is refused when its first instance is made', () => {
-  class Override extends FadeIn { override begin(): void { super.doBegin(); } }
-  assert.throws(() => new Override(new Circle()), /^TypeError: new Override\(\): it overrides begin\(\)/);
-  class Finisher extends FadeIn { override finish(): void {} }
-  assert.throws(() => new Finisher(new Circle()), /^TypeError: new Finisher\(\): it overrides finish\(\)/);
-  class Forever extends FadeIn {
-    override get runTime(): number { return Number.POSITIVE_INFINITY; }
-    override set runTime(_value: number) {}
-  }
-  assert.throws(() => new Forever(new Circle()), /^TypeError: new Forever\(\): it redefines runTime/);
-});
-
-test('a play drives its animations through the engine\'s own lifecycle: a begin, land or waiting an author assigns or declares changes nothing in it', async () => {
-  const scene = new Scene(new NullSink());
-  // Assigned on the instance: the play begins, draws and finishes it as any other.
-  const circle = new Circle();
-  const assigned = new FadeIn(circle);
-  Object.assign(assigned, { begin() {}, finish() {} });
-  await scene.play(assigned);
-  assert.deepEqual([assigned.phase, circle.style.opacity], ['finished', 1]);
-  // Fields an author names waiting and land are the author's: the play neither waits for them nor calls them.
-  class Queue extends FadeIn { waiting = 3; land = 'the far shore'; }
-  const queued = new Queue(new Circle());
-  await scene.play(new Succession([queued, new FadeIn(new Circle())]));
-  assert.deepEqual([queued.phase, queued.waiting, queued.land], ['finished', 3, 'the far shore']);
-});
-
-test('members an author names ready, settle, setOptions, cleanUpFromScene, paints, scene or host are the author\'s: a play neither calls nor reads them', async () => {
-  const scene = new Scene(new NullSink());
-  const refuse = (): never => { throw new Error('the play called an author\'s member'); };
-  class Mine extends FadeIn {
-    host = 'a server';
-    ready(): Promise<unknown> { return new Promise(() => {}); }
-    settle = refuse; setOptions = refuse; cleanUpFromScene = refuse; paints = refuse;
-  }
-  class Mixed extends AnimationGroup { scene = 'the cache'; }
-  const a = new Mine(new Circle()), b = new Mine(new Circle(), { remover: true });
-  const group = new Mixed([b]);
-  await scene.play(a, group, { runTime: 0.2 });
-  assert.deepEqual([a.phase, group.phase, a.runTime, group.scene, a.host], ['finished', 'finished', 0.2, 'the cache', 'a server']);
-  assert.ok(scene.familyMembers().includes(a.mobject) && !scene.familyMembers().includes(b.mobject), 'its play added what it drew and removed the remover\'s');
 });
 
 test('a failed play lands what it began without calling an author\'s own land(), and reports the failure', async () => {
@@ -147,7 +104,7 @@ test('a group whose member throws as it begins lands the members it began, and c
   const circle = new Circle();
   const first = new FadeIn(circle), second = new Flaky(new Rectangle());
   const group = new AnimationGroup([first, second]);
-  assert.throws(() => group.begin(), /flaky/);
+  assert.throws(() => beginAnimation(group), /flaky/);
   assert.equal(group.phase, 'idle');
   assert.equal(first.phase, 'finished', 'the member begun first is not left begun');
   assert.equal(circle.style.opacity, 1, 'it landed where its play would have');
@@ -269,13 +226,13 @@ test('an animation is named in a message with the article its name is read with'
 test('what is made at its turn and waits for what it reads is refused outside a play, under the call it belongs to', () => {
   const waiting = new MadeLater(() => [new (class extends FadeIn { override [whenReady]() { return new Promise(() => {}); } })(new Circle())]);
   waiting[playScene] = new Scene(new NullSink());
-  assert.throws(() => waiting.begin(), /^Error: x\(\): what begins at its turn waits for what it reads/);
+  assert.throws(() => beginAnimation(waiting), /^Error: x\(\): what begins at its turn waits for what it reads/);
 });
 
 test('a Succession driven without a scene runs its members one after another', () => {
   const a = new FadeIn(new Circle(), { runTime: 0.5 }), b = new FadeIn(new Circle(), { runTime: 0.5 });
   const sq = new Succession([a, b]);
-  sq.begin(); sq.interpolate(0.75); sq.finish();
+  beginAnimation(sq); interpolateAnimation(sq, 0.75); finishAnimation(sq);
   assert.deepEqual([sq.phase, a.phase, b.phase], ['finished', 'finished', 'finished']);
 });
 
@@ -291,7 +248,7 @@ test('a Succession finished by its play while a member waits is still begun unti
   const played = scene.play(group);
   while (!read) await new Promise((r) => setTimeout(r));
   assert.deepEqual([group.phase, sq.phase, w.phase], ['begun', 'begun', 'idle'], 'its play finished it, and the group around it; its last member has not begun');
-  assert.throws(() => sq.begin(), /^Error: animation\.begin\(\): a Succession has already begun/);
+  assert.throws(() => beginAnimation(sq), /^Error: animation\.begin\(\): a Succession has already begun/);
   assert.throws(() => { sq.runTime = 3; }, /^Error: animation\.runTime: a Succession is playing/);
   read();
   await played;
@@ -337,10 +294,9 @@ test('a frame drawn outside the loop raises what is kept on top first: renderFra
   assert.deepEqual(drawn, ['a', 'top', '0']);
 });
 
-test('a Succession runs its members one after another: its lagRatio stays 1', async () => {
+test('a Succession runs its members one after another and takes no lagRatio', async () => {
   const sq = new Succession([new FadeIn(new Circle()), new FadeIn(new Rectangle())]);
-  assert.throws(() => { sq.lagRatio = 0; }, /^RangeError: animation\.lagRatio: a Succession runs its members one after another, so its lagRatio is 1, not 0; stagger them in a LaggedStart or an AnimationGroup instead$/);
-  sq.lagRatio = 1;
+  for (const lag of [0, 1]) assert.throws(() => { sq.lagRatio = lag; }, (e) => e instanceof RangeError && /^animation\.lagRatio: a Succession/.test(e.message) && e.message.includes(`given ${lag}`));
   const scene = new Scene(new NullSink());
   await scene.play(sq);
   assert.equal(scene.frameCount, 60, 'two seconds, one member after the other');

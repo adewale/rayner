@@ -9,6 +9,7 @@ import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
 import type { Mobject, Vec } from '../src/index.ts';
 import { drawsFrom as rng } from './lib/random-scene.ts';
 import type { Rng } from './lib/random-scene.ts';
+import { beginAnimation, interpolateAnimation, matchRows } from '../src/animation.ts';
 
 Scene.captionWpm = Infinity;
 await loadFonts();
@@ -61,7 +62,7 @@ test('every part ends matched, morphed, removed or added, exactly once, and the 
       const run = (make: (seed: number) => [Mobject, Mobject], Anim: typeof TransformMatchingShapes) => {
         const [src, tgt] = make(seed), sp = parts(src), tp = parts(tgt);
         const a = new Anim(src, tgt, { fadeMismatches });
-        a.begin();
+        beginAnimation(a);
         assertPartition(a, sp, tp, `seed ${seed}`);
         if (fadeMismatches) assert.equal(a.morphed.length, 0);
         else assert.ok(a.removed.length === 0 || a.added.length === 0, 'fadeMismatches: false morphs what it can');
@@ -82,7 +83,7 @@ test('a moved, scaled and shuffled copy of a group pairs every part with its own
     const tgt = new Group(...[...copies].sort(() => r(-1, 1)));
     tgt.scale(r(0.5, 2)).shift([r(-3, 3), r(-2, 2)]);
     const a = new TransformMatchingShapes(src, tgt);
-    a.begin();
+    beginAnimation(a);
     assert.deepEqual(a.summary(), { matched: src.children.length, morphed: 0, removed: 0, added: 0 }, `seed ${seed}`);
     for (const [s, t] of a.pairs) assert.equal(t, of.get(s), `seed ${seed}: a part paired with another's copy`);
   }
@@ -94,10 +95,10 @@ test('inserting or deleting a character keeps every other glyph', () => {
     const w = Array.from({ length: r.int(1, 12) }, () => r.pick([...'abcab'])).join('');
     const i = r.int(0, w.length), longer = w.slice(0, i) + r.pick([...'abc']) + w.slice(i);
     const grow = new TransformMatchingText(new Text(w), new Text(longer));
-    grow.begin();
+    beginAnimation(grow);
     assert.deepEqual(grow.summary(), { matched: w.length, morphed: 0, removed: 0, added: 1 }, `${w} -> ${longer}`);
     const shrink = new TransformMatchingText(new Text(longer), new Text(w));
-    shrink.begin();
+    beginAnimation(shrink);
     assert.deepEqual(shrink.summary(), { matched: w.length, morphed: 0, removed: 1, added: 0 }, `${longer} -> ${w}`);
   }
 });
@@ -118,14 +119,14 @@ test("Text('cache') -> Text('cached'): five glyphs keep their letters, the d fad
   // The d grows from a point beside the word as it fades in
   const c = new Text('cache'), d = new Text('cached');
   const grow = new TransformMatchingText(c, d);
-  grow.begin();
-  const copy = grow.fadesIn[0]!.sub as VMobject, glyph = d.children[5] as VMobject;
+  beginAnimation(grow);
+  const copy = grow[matchRows].fadesIn[0]!.sub as VMobject, glyph = d.children[5] as VMobject;
   assert.equal(copy.parent, c, 'the new glyph lives in the source while it plays');
   assert.equal(copy.style.opacity, 0);
-  grow.interpolate(0.5);
+  interpolateAnimation(grow, 0.5);
   assert.ok(Math.abs(copy.style.opacity - 0.5) < 1e-12);
   assert.ok(copy.width() < glyph.width() * 0.6 && copy.width() > glyph.width() * 0.4, 'half grown');
-  grow.interpolate(1);
+  interpolateAnimation(grow, 1);
   assert.deepEqual(copy.subpaths, glyph.subpaths);
   assert.equal(copy.style.opacity, 1);
 });
@@ -133,19 +134,19 @@ test("Text('cache') -> Text('cached'): five glyphs keep their letters, the d fad
 test('an inserted line of code leaves the other lines in place, and its glyphs join it', () => {
   const a = new Code(['const x = 1;', 'return x;']), b = new Code(['const x = 1;', 'const y = x + 1;', 'return y;']);
   const anim = new TransformMatchingText(a, b);
-  anim.begin();
+  beginAnimation(anim);
   const line = (m: Mobject) => b.lines.indexOf(m.parent as Text);
   for (const [x, y] of anim.pairs) assert.equal(line(y), a.lines.indexOf(x.parent as Text) === 0 ? 0 : 2, `${(x.parent as Text).text} stays its line`);
   assert.deepEqual(anim.added.map(line), [...Array(11).fill(1), 2], 'the new line, and the y');
   assert.deepEqual(anim.removed.map((m) => (m.parent as Text).text), ['return x;'], 'the x');
-  anim.interpolate(1);
-  const stage = anim.fadesIn[0]!.sub.parent!;
+  interpolateAnimation(anim, 1);
+  const stage = anim[matchRows].fadesIn[0]!.sub.parent!;
   assert.ok(stage instanceof Text && stage.parent === a, 'the new line grows inside a copy of its line');
 });
 
 test('mono and sans letters, and bold and normal, do not match', () => {
   const anim = new TransformMatchingText(new Group(new Text('ab', { font: 'mono' }), new Text('ab', { weight: 'bold' })), new Text('ab'));
-  anim.begin();
+  beginAnimation(anim);
   assert.deepEqual(anim.summary(), { matched: 0, morphed: 0, removed: 4, added: 2 });
 });
 
@@ -167,7 +168,7 @@ test('shapes: shared nodes travel to the target, others fade out, new ones fade 
   assert.deepEqual(anim.added, [n.rect]);
   for (const [x, y] of anim.pairs) assert.deepEqual((x as VMobject).subpaths, (y as VMobject).subpaths, 'shared nodes land on the target');
   assert.equal(n.tri!.style.opacity, 0, 'the triangle faded out');
-  const copy = anim.fadesIn[0]!.sub as VMobject;
+  const copy = anim[matchRows].fadesIn[0]!.sub as VMobject;
   assert.deepEqual(copy.subpaths, (n.rect as VMobject).subpaths, 'the rectangle faded in where the target has it');
   assert.ok(s.mobjects.includes(b) && !s.mobjects.includes(a));
 });
@@ -279,7 +280,7 @@ test('matchByKey: a keyed component is kept wherever it moves, its parts morph i
   };
   const src = picture(false, 'runs'), tgt = picture(true, 'table');
   const a = new TransformMatching(src, tgt, { key: matchByKey() });
-  a.begin();
+  beginAnimation(a);
   assertPartition(a, parts(src), parts(tgt), 'keys');
   // Each cell's square pairs with its own key's square across the swap, not the nearer one
   for (const [s, t] of a.pairs) {
@@ -293,15 +294,15 @@ test('matchByKey: a keyed component is kept wherever it moves, its parts morph i
   assert.equal(a.added.length, 'table'.length);
   // A fallback keys what is under no key: the same word pairs
   const b = new TransformMatching(picture(false, 'same'), picture(true, 'same'), { key: matchByKey({ fallback: (p) => (p.parent instanceof Text ? `${p.parent.text}#${p.parent.children.indexOf(p)}` : undefined) }) });
-  b.begin();
+  beginAnimation(b);
   assert.equal(b.removed.length + b.added.length, 0);
   // A kept Text may change its glyphs: the symbol's parts morph inside the kept cell
   const c = new TransformMatching(new Group(cell(3, 'Li', [0, 0])), new Group(cell(3, 'Be', [3, 0])), { key: matchByKey() });
-  c.begin();
+  beginAnimation(c);
   assert.equal(c.summary().matched, 1 + 2 + 1, 'the square, both glyphs by place, and the digit');
   // The root's own key is not a component: matching one keyed cell to another reads only what is below it
   const d = new TransformMatching(cell(3, 'Li', [0, 0]), cell(3, 'Be', [3, 0]), { key: matchByKey() });
-  d.begin();
+  beginAnimation(d);
   assert.equal(d.summary().matched, 0);
 });
 
@@ -315,13 +316,13 @@ test('matchByKey text policy: by place, a relabelled keyed word morphs its glyph
     return new Group(g);
   };
   const byPlace = new TransformMatching(node('idle', [0, 0]), node('ready', [1, 0]), { key: matchByKey() });
-  byPlace.begin();
+  beginAnimation(byPlace);
   assert.deepEqual(byPlace.summary(), { matched: 1 + 4, morphed: 0, removed: 0, added: 1 });
   const whole = new TransformMatching(node('idle', [0, 0]), node('ready', [1, 0]), { key: matchByKey({ text: 'whole' }) });
-  whole.begin();
+  beginAnimation(whole);
   assert.deepEqual(whole.summary(), { matched: 1, morphed: 0, removed: 4, added: 5 });
   const same = new TransformMatching(node('idle', [0, 0]), node('idle', [1, 0]), { key: matchByKey({ text: 'whole' }) });
-  same.begin();
+  beginAnimation(same);
   assert.deepEqual(same.summary(), { matched: 1 + 4, morphed: 0, removed: 0, added: 0 });
 });
 
@@ -371,14 +372,14 @@ test('matchByKey unkeyed: by-place pairs parts under no key by their place in th
     return new Group(cell, new Text(word, { fontSize: 0.3 }).moveTo(at), new Circle({ radius: 0.2 }).moveTo([at[0], -2]));
   };
   const faded = new TransformMatching(picture('odds', [0, 0]), picture('odds', [2, 0]), { key: matchByKey() });
-  faded.begin();
+  beginAnimation(faded);
   assert.deepEqual(faded.summary(), { matched: 1, morphed: 0, removed: 4 + 1, added: 4 + 1 });
   const placed = new TransformMatching(picture('odds', [0, 0]), picture('odds', [2, 0]), { key: matchByKey({ unkeyed: 'by-place' }) });
-  placed.begin();
+  beginAnimation(placed);
   assert.deepEqual(placed.summary(), { matched: 1 + 4 + 1, morphed: 0, removed: 0, added: 0 });
   // A fallback still wins over unkeyed
   const fallen = new TransformMatching(picture('odds', [0, 0]), picture('odds', [2, 0]), { key: matchByKey({ unkeyed: 'by-place', fallback: () => undefined }) });
-  fallen.begin();
+  beginAnimation(fallen);
   assert.equal(fallen.summary().matched, 1);
 });
 

@@ -13,7 +13,7 @@ import {
   Rectangle,
   keyed,
 } from '../src/index.ts';
-import { MoveAlongPath } from '../src/animation.ts';
+import { MoveAlongPath, beginAnimation, finishAnimation } from '../src/animation.ts';
 import { Text } from '../src/text.ts';
 import { Action } from './action.ts';
 import { ImportedLabel, labelOf } from './labels.ts';
@@ -1164,8 +1164,8 @@ export class Diagram {
       const animation = new Transform(m, target, { runTime });
       if (this.#visible.has(this.partIds.get(m)!)) shown.push(animation);
       else {
-        animation.begin();
-        animation.finish();
+        beginAnimation(animation);
+        finishAnimation(animation);
       }
     }
     return shown;
@@ -1253,8 +1253,8 @@ export class Diagram {
     if (back)
       for (const m of mobs) {
         const jump = new Transform(m, moved(m, back.k, back.from, back.to));
-        jump.begin();
-        jump.finish();
+        beginAnimation(jump);
+        finishAnimation(jump);
       }
     this.zoom = 1;
   }

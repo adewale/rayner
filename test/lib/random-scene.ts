@@ -127,7 +127,7 @@ export function makeScene(draws: Draws): SceneClass {
         // One play drives each mobject at most once (Scene.play enforces it)
         const free = [...pool].sort(() => r() - 0.5);
         const anims: Playable[] = Array.from({ length: r.int(1, Math.min(3, free.length)) }, () => randomAnimation(r, [free.pop()!]));
-        if (anims.some((a) => (a as Partial<AnimationGroup>).animations)) anims.splice(1); // a LaggedStart over the pool plays alone
+        if (anims.some((a) => a instanceof AnimationGroup)) anims.splice(1); // a LaggedStart over the pool plays alone
         const rate = r.pick([linear, smooth, rushInto, thereAndBack]);
         await this.play(...anims, { runTime: r(0.05, 0.8), rateFunc: rate });
         state.plays = i + 1;

@@ -20,6 +20,7 @@ import type { ElementRecord } from '../src/output.ts';
 import { tapeRng, makeScene, place, randomShape, tape, drawsFrom } from './lib/random-scene.ts';
 import type { Draws } from './lib/random-scene.ts';
 import { fc, params } from './lib/pbt.ts';
+import { beginAnimation, interpolateAnimation } from '../src/animation.ts';
 
 await loadFonts();
 /** Each property over random draws: the one seeded case under SEED=n, else fast-check tapes. */
@@ -173,8 +174,8 @@ test('a one-curve path morphing into a Text heads for the text’s centre, not o
         const target = new Text(text, { fontSize: 0.3 }).moveTo([x1, y1]);
         const start = path.pointArrays()[0]!.slice();
         const morph = new Transform(path, target);
-        morph.begin();
-        morph.interpolate(alpha);
+        beginAnimation(morph);
+        interpolateAnimation(morph, alpha);
         const c = target.center(), now = path.pointArrays()[0]!;
         for (let j = 0; j < start.length; j += 2) {
           const want = [start[j]! + (c[0] - start[j]!) * alpha, start[j + 1]! + (c[1] - start[j + 1]!) * alpha];

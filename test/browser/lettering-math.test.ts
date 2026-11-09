@@ -26,6 +26,7 @@ import { serve } from '../../tools/lib/explain-serve.ts';
 import { launch } from '../../tools/lib/browser.ts';
 import { EXPECTED, expectedOf, pathDigest } from '../../tools/oracle/glyph-math.ts';
 import type { Expected } from '../../tools/oracle/glyph-math.ts';
+import { beginAnimation } from '../../src/animation.ts';
 
 const fixture = join(ROOT, 'test/lettering/math');
 const expected: Expected = JSON.parse(await readFile(EXPECTED, 'utf8'));
@@ -152,7 +153,7 @@ test('morphs: TransformMatchingShapes and TransformMatchingText both pair a form
         const key = new Map<Mobject, string>([...from.children, ...to.children].map((g) => [g, (g as VMobject).shapeKey()]));
         this.add(from);
         const t = new Kind(from, to);
-        t.begin();
+        beginAnimation(t);
         results[name] = { ...t.summary(), sameShapes: t.pairs.every(([a, b]) => key.get(a) === key.get(b)), pairs: t.pairs.map(([a, b]) => [index.get(a), index.get(b)]) };
         this.remove(from);
       }

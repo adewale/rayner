@@ -8,6 +8,7 @@ import { stage } from '../explain/index.ts';
 import { table } from '../explain/drawing.ts';
 import { bars, flow } from '../explain/drawing.ts';
 import { fc, params } from './lib/pbt.ts';
+import { beginAnimation } from '../src/animation.ts';
 
 await loadFonts();
 const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-5, `${a} != ${b}`);
@@ -152,7 +153,7 @@ test('a keyed table names each part by row and column, and a keyed morph pairs a
         const name = names[from]!;
         assert.notEqual(before.find(`t:${name}:Name`)!.box()![1], after.find(`t:${name}:Name`)!.box()![1]);
         const keyed = new TransformMatching(before, after, { key: matchByKey() });
-        keyed.begin();
+        beginAnimation(keyed);
         assert.equal(keyed.removed.length + keyed.added.length, 0, 'every glyph has its partner');
         for (const [a, b] of keyed.pairs) assert.equal(owner(a), owner(b));
         const text = (m: Mobject) => (m.parent instanceof Text ? m.parent.text : null);
@@ -163,7 +164,7 @@ test('a keyed table names each part by row and column, and a keyed morph pairs a
           table(s, ['Name', 'Letters'], moved.map((n) => [n, n.length]), { key: 't' }),
           { key: matchByKey() },
         );
-        byPlace.begin();
+        beginAnimation(byPlace);
         const atTo = byPlace.pairs.filter(([a]) => owner(a) === `t:${to}:Name`);
         assert.ok(atTo.length > 0);
         assert.ok(atTo.every(([a, b]) => text(a) === names[to] && text(b) === moved[to] && names[to] !== moved[to]), 'index keys pair different rows');

@@ -10,6 +10,7 @@ import { SnapshotSink } from '../src/svg.ts';
 import { TraceSink, traceScene, loadFonts } from '../explain/testing.ts';
 import type { Mobject, Vec } from '../src/index.ts';
 import { fc, params } from './lib/pbt.ts';
+import { beginAnimation, interpolateAnimation, finishAnimation, sampleAnimation } from '../src/animation.ts';
 // Manim's values, which the package no longer exports.
 const DOWN: Vec = [0, -1];
 const LEFT: Vec = [-1, 0];
@@ -31,9 +32,9 @@ test('GrowFromEdge anchors each cardinal edge, captures placement at begin, and 
     const before = box.copy(), target = box.box()!;
     const axis = edge[0] === 0 ? 1 : 0;
     const anchor = edge[axis] < 0 ? target[axis]! : target[axis + 2]!;
-    animation.begin();
+    beginAnimation(animation);
     for (const alpha of [0, 0.25, 0.5, 1, 0.1, 1]) {
-      animation.interpolate(alpha);
+      interpolateAnimation(animation, alpha);
       const b = box.box()!;
       close(edge[axis] < 0 ? b[axis]! : b[axis + 2]!, anchor);
       close(b[axis + 2]! - b[axis]!, (target[axis + 2]! - target[axis]!) * (0.001 + 0.999 * alpha));
@@ -41,29 +42,23 @@ test('GrowFromEdge anchors each cardinal edge, captures placement at begin, and 
       close(b[3 - axis]!, target[3 - axis]!);
       close(box.style.opacity, alpha);
     }
-    animation.finish();
+    finishAnimation(animation);
     assert.deepEqual(data(box), data(before));
   }
 });
 
-test('GrowFromEdge preserves the old diagram growth frame for frame, including child opacity and lag', async () => {
-  class OldGrowth extends FadeIn {
-    override createStartingMobject(): Mobject {
-      return super.createStartingMobject().stretch(0.001, 1, { aboutEdge: DOWN });
-    }
+test('GrowFromEdge grows each part out of the fixed edge, invisible at first and staggered by lagRatio, and ends on the mobject with its children\'s opacities', () => {
+  const row = new Group(new Rectangle().setOpacity(0.4), new Circle().shift(RIGHT).setOpacity(0.7)), end = data(row), bottom = row.bottom()[1];
+  const grow = new GrowFromEdge(row, DOWN, { lagRatio: 0.15 });
+  sampleAnimation(grow, 0);
+  for (const part of row.children) {
+    assert.ok(part.height() < 0.01 && Math.abs(part.bottom()[1] - bottom) < 1e-6, 'flat on the bottom edge');
+    assert.equal(part.style.opacity, 0);
   }
-  const run = async (modern: boolean) => {
-    const sink = new StringSink();
-    class Demo extends Scene {
-      override async construct() {
-        const row = new Group(new Rectangle().setOpacity(0.4), new Circle().shift(RIGHT).setOpacity(0.7));
-        await this.play(modern ? new GrowFromEdge(row, DOWN, { lagRatio: 0.15 }) : new OldGrowth(row, { lagRatio: 0.15 }));
-      }
-    }
-    await new Demo(sink).run();
-    return sink.frames;
-  };
-  assert.deepEqual(await run(true), await run(false));
+  sampleAnimation(grow, 0.3);
+  assert.ok(row.children[0]!.height() > row.children[1]!.height(), 'the first part is ahead of the second');
+  finishAnimation(grow);
+  assert.deepEqual(data(row), end);
 });
 
 test('GrowFromEdge rejects malformed directions and scale values before changing the drawing', () => {
@@ -73,7 +68,7 @@ test('GrowFromEdge rejects malformed directions and scale values before changing
   for (const initialScale of [-1, 1.1, NaN, Infinity, '0', new Number(0)])
     assert.throws(() => new GrowFromEdge(box, DOWN, { initialScale: initialScale as number }), /initialScale/);
   assert.deepEqual(data(box), before);
-  const zero = new GrowFromEdge(box, LEFT, { initialScale: 0 }); zero.begin(); zero.finish();
+  const zero = new GrowFromEdge(box, LEFT, { initialScale: 0 }); beginAnimation(zero); finishAnimation(zero);
   assert.deepEqual(data(box), before);
 });
 
@@ -85,11 +80,11 @@ test('PulseAlongPath evaluates the route and opacity from alpha, keeps family op
   const path = new Line([-3, 0], [3, 0]);
   const pulse = new PulseAlongPath(group, path, { fromCurrent: false });
   path.shift([1, 2]);
-  pulse.begin();
+  beginAnimation(pulse);
   path.shift([100, 100]); // the running effect reads its captured path
   const ids = group.family().map(m => m.id);
   for (const alpha of [0.5, 0.1, 0.9, 0.5, 1, 0]) {
-    pulse.interpolate(alpha);
+    interpolateAnimation(pulse, alpha);
     close(group.center()[0], -2 + 6 * alpha); close(group.center()[1], 2);
     const envelope = Math.sin(Math.PI * alpha);
     close(group.style.opacity, 0.3 * envelope);
@@ -146,11 +141,11 @@ test('SetState copies validated input, replaces rather than merges, and gives ev
   const change = new SetState(host, input);
   assert.equal(change.runTime, 0); assert.equal(change.mobject.hasPoints(), false);
   input.count = 90; input.nested.values[0] = 90;
-  change.begin(); assert.deepEqual(host.state, { count: 3, nested: { values: [1, 2] } });
-  change.finish();
+  beginAnimation(change); assert.deepEqual(host.state, { count: 3, nested: { values: [1, 2] } });
+  finishAnimation(change);
   host.state.nested!.values[0] = 80;
-  change.begin(); assert.deepEqual(host.state, { count: 3, nested: { values: [1, 2] } });
-  new SetState(host, { count: 5 }).begin(); assert.deepEqual(host.state, { count: 5 });
+  beginAnimation(change); assert.deepEqual(host.state, { count: 3, nested: { values: [1, 2] } });
+  beginAnimation(new SetState(host, { count: 5 })); assert.deepEqual(host.state, { count: 5 });
 });
 
 test('SetState refuses lossy JSON at JavaScript boundaries and retains own prototype-sensitive keys', () => {
@@ -159,7 +154,7 @@ test('SetState refuses lossy JSON at JavaScript boundaries and retains own proto
   for (const invalid of [{ n: NaN }, { n: Infinity }, { date: new Date() }, { fn: () => 1 }, { a: [undefined] }, { a: Array(1) }, cycle])
     assert.throws(() => new SetState(host, invalid), /^TypeError: machine\.send\(\): state[.\w\[\]]* must/);
   const ownKey = JSON.parse('{"__proto__":{"safe":true},"count":1}');
-  new SetState(host, ownKey).begin();
+  beginAnimation(new SetState(host, ownKey));
   assert.ok(Object.hasOwn(host.state, '__proto__'));
   assert.equal(Object.getPrototypeOf(host.state), Object.prototype);
 });
@@ -228,12 +223,12 @@ test('growth and pulse can resample arbitrary alpha order without accumulating g
     fc.array(fc.double({ min: 0, max: 1, noNaN: true }), { minLength: 1, maxLength: 8 }),
     (width, shift, alphas) => {
       const box = new Rectangle({ width, height: 1 }).moveTo([shift, 0]);
-      const grow = new GrowFromEdge(box, LEFT); grow.begin();
-      const dot = new Dot(), pulse = new PulseAlongPath(dot, new Line([shift, 0], [shift + width, 0]), { fromCurrent: false }); pulse.begin();
+      const grow = new GrowFromEdge(box, LEFT); beginAnimation(grow);
+      const dot = new Dot(), pulse = new PulseAlongPath(dot, new Line([shift, 0], [shift + width, 0]), { fromCurrent: false }); beginAnimation(pulse);
       const scene = new Scene(new NullSink()).add(box, dot);
-      grow.interpolate(0.5); pulse.interpolate(0.5); const middle = toSvgString(scene);
-      for (const alpha of alphas) { grow.interpolate(alpha); pulse.interpolate(alpha); }
-      grow.interpolate(0.5); pulse.interpolate(0.5);
+      interpolateAnimation(grow, 0.5); interpolateAnimation(pulse, 0.5); const middle = toSvgString(scene);
+      for (const alpha of alphas) { interpolateAnimation(grow, alpha); interpolateAnimation(pulse, alpha); }
+      interpolateAnimation(grow, 0.5); interpolateAnimation(pulse, 0.5);
       assert.equal(toSvgString(scene), middle);
       close(dot.center()[0], shift + width / 2);
     }), params(80));
@@ -250,9 +245,9 @@ test('Follow samples one value for several drawings: exact ends, linear between,
   const draw = (v: number) => { seen.push(v); return [new Dot({ radius: 0.1 }).moveTo([v, 0]), new Rectangle({ width: 1, height: 1 }).moveTo([0, v / 2])]; };
   const a = new Follow({ from: 0.1, to: 0.7, draw }, { targets: [dot, bar], rateFunc: linear });
   assert.deepEqual(a.targets(), [dot, bar]);
-  a.begin();
+  beginAnimation(a);
   for (const alpha of [0, 0.5, 1, 0.25, 1, 0]) {
-    a.interpolate(alpha);
+    interpolateAnimation(a, alpha);
     const v = a.valueAt(alpha);
     close(dot.center()[0], v); close(bar.center()[1], v / 2);
   }
@@ -277,13 +272,13 @@ test('Follow samples one value for several drawings: exact ends, linear between,
   assert.throws(() => new Follow({ from: 0, to: 1, draw }, { targets: [] }), RangeError);
   assert.throws(() => new Follow({ from: 0, to: 1, draw }, { targets: [dot, dot] }), /^Error: c\.follow\(\): a target is listed twice/);
   const bad = new Follow({ from: () => NaN, to: 1, draw }, { targets: [dot, bar] });
-  assert.throws(() => bad.begin(), RangeError);
+  assert.throws(() => beginAnimation(bad), RangeError);
   // What draw returns must be one fresh picture per target, of the target's shape
-  assert.throws(() => new Follow({ from: 0, to: 1, draw }, { targets: [dot] }).begin(), /2 pictures for 1 targets/);
-  assert.throws(() => new Follow({ from: 0, to: 1, draw: () => dot }, { targets: [dot] }).begin(), /fresh mobjects/);
+  assert.throws(() => beginAnimation(new Follow({ from: 0, to: 1, draw }, { targets: [dot] })), /2 pictures for 1 targets/);
+  assert.throws(() => beginAnimation(new Follow({ from: 0, to: 1, draw: () => dot }, { targets: [dot] })), /fresh mobjects/);
   const cell = new Group(new Rectangle(), new Text('a'));
   keyed(cell.children[1]!, 'cell:label');
-  assert.throws(() => new Follow({ from: 0, to: 1, draw: () => new Group(new Rectangle()) }, { targets: [cell] }).begin(), /the part keyed "cell:label" would be lost/);
+  assert.throws(() => beginAnimation(new Follow({ from: 0, to: 1, draw: () => new Group(new Rectangle()) }, { targets: [cell] })), /the part keyed "cell:label" would be lost/);
   // One writer per mobject: play() refuses a Follow beside anything else that writes one of its targets
   await assert.rejects(() => scene.play(new Follow({ from: 0, to: 1, draw }, { targets: [dot, bar] }), new Transform(bar, bar.copy().shift([1, 0]))), /both animate/);
   await assert.rejects(() => scene.play(new Follow({ from: 0, to: 1, draw: (v) => new Dot().moveTo([v, 0]) }, { targets: [dot] }), new Follow({ from: 0, to: 1, draw: (v) => new Dot().moveTo([0, v]) }, { targets: [dot] })), /both animate/);

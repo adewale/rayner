@@ -17,6 +17,7 @@ import { MotionSink, analyzeMotion, loadFonts, viewMismatch, assertViewFollowsSt
 import { perf } from '../src/perf.ts';
 import type { Mobject, Sink, SceneState } from '../src/index.ts';
 import type { Vec } from '../src/index.ts';
+import { beginAnimation, interpolateAnimation, finishAnimation } from '../src/animation.ts';
 // Manim's values, which the package no longer exports.
 const RIGHT: Vec = [1, 0];
 
@@ -230,10 +231,10 @@ test('match: index morphs by position (a DecimalNumber counts), shapes and keys 
   const v = view(held(st), () => new DecimalNumber(st.n, { anchor: 'start' }), { place: 'left' });
   st.n = 10;
   const sync = syncOf(v, { match: 'index' });
-  sync.begin();
-  sync.interpolate(0.5);
+  beginAnimation(sync);
+  interpolateAnimation(sync, 0.5);
   assert.equal(v.current.text, '5', 'the value blends');
-  sync.finish();
+  finishAnimation(sync);
   assert.equal(v.current.text, '10');
   assert.equal(v.current.value, 10);
   assert.equal(sync.summary(), null);
@@ -244,14 +245,14 @@ test('match: index morphs by position (a DecimalNumber counts), shapes and keys 
   const before = g.current;
   kids = 3;
   const sh = syncOf(g, { match: 'shapes' });
-  sh.begin(); sh.finish();
+  beginAnimation(sh); finishAnimation(sh);
   assert.deepEqual(sh.summary(), { matched: 2, morphed: 0, removed: 0, added: 1 });
   assert.notEqual(g.current, before);
   assert.equal(g.current.children.length, 3);
   // By index
   const ix = syncOf(g, { match: 'index' });
   kids = 2;
-  ix.begin(); ix.finish();
+  beginAnimation(ix); finishAnimation(ix);
   assert.equal(ix.summary(), null);
   assert.equal(g.current.children.length, 2);
 
@@ -260,7 +261,7 @@ test('match: index morphs by position (a DecimalNumber counts), shapes and keys 
   const k = view(held(), () => new Group(...fills.map((f, i) => new Rectangle({ width: 0.4, height: 0.4, fill: f, fillOpacity: 1 }).shift([i, 0]))));
   fills.reverse();
   const ks = syncOf(k, { match: (p) => p.style.fill });
-  ks.begin(); ks.finish();
+  beginAnimation(ks); finishAnimation(ks);
   assert.deepEqual(ks.summary(), { matched: 2, morphed: 0, removed: 0, added: 0 });
 });
 
@@ -271,13 +272,13 @@ test('sync() matches by key, staged, and refuses pictures that carry no keys', (
   const sync = syncOf(keyedView);
   assert.equal(sync.match, 'key');
   assert.equal(sync.staged, true);
-  sync.begin(); sync.finish();
+  beginAnimation(sync); finishAnimation(sync);
   assert.deepEqual(sync.summary(), { matched: 1, morphed: 0, removed: 0, added: 1 });
   assert.equal(syncOf(keyedView, { match: 'text' }).staged, true, 'staged is the default for every match');
 
   const plain = view(held(), () => new Group(...Array.from({ length: n }, (_, i) => new Rectangle({ width: 0.4, height: 0.4 }).shift([i, 0]))));
   n = 3;
-  assert.throws(() => syncOf(plain).begin(), /carry no keys below their roots.*\{ match: 'text' \}, 'shapes' or 'index'/);
+  assert.throws(() => beginAnimation(syncOf(plain)), /carry no keys below their roots.*\{ match: 'text' \}, 'shapes' or 'index'/);
 });
 
 test('placement: a moved and scaled View stays moved and scaled; place: false leaves it to draw()', () => {
@@ -286,7 +287,7 @@ test('placement: a moved and scaled View stays moved and scaled; place: false le
   v.scale(0.5).moveTo([3, -2]);
   const right = v.current.frameBox[2]!, h = v.current.height();
   st.s = 'abcdef';
-  const s = syncOf(v, { match: 'text' }); s.begin(); s.finish();
+  const s = syncOf(v, { match: 'text' }); beginAnimation(s); finishAnimation(s);
   assert.ok(Math.abs(v.current.frameBox[2]! - right) < 1e-5, 'right edge held');
   assert.ok(Math.abs(v.current.height() - h) < 1e-5, 'half size held');
   assert.equal(v.current.text, 'abcdef');
@@ -300,7 +301,7 @@ test('placement: a moved and scaled View stays moved and scaled; place: false le
   // A picture build() hands back twice cannot morph into itself
   const fixed = new Text('same');
   const bad = view(held(), () => fixed);
-  assert.throws(() => syncOf(bad).begin(), /draw a new one each time/);
+  assert.throws(() => beginAnimation(syncOf(bad)), /draw a new one each time/);
 });
 
 test('a card view of the scene\'s state keeps its labels put as values change', async () => {
@@ -341,7 +342,7 @@ test('a returning sync preserves inherited scale for the next rebuild or sync', 
     const original = v.current;
     side = 3;
     const back = syncOf(v, { match: 'index', rateFunc: () => 0 });
-    back.begin(); back.interpolate(0); back.finish();
+    beginAnimation(back); interpolateAnimation(back, 0); finishAnimation(back);
     assert.equal(v.current, original, 'a returning rate keeps the original picture');
     assert.equal(v.current.width(), 2);
     assert.equal(v.current.height(), 2);
@@ -349,7 +350,7 @@ test('a returning sync preserves inherited scale for the next rebuild or sync', 
     if (next === 'rebuild') v.rebuild();
     else {
       const sync = syncOf(v, { match: 'index' });
-      sync.begin(); sync.interpolate(1); sync.finish();
+      beginAnimation(sync); interpolateAnimation(sync, 1); finishAnimation(sync);
     }
     assert.equal(v.current.width(), 8, `${next} inherits the original scale`);
     assert.equal(v.current.height(), 8, `${next} inherits the original scale`);

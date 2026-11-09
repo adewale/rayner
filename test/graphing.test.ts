@@ -8,6 +8,7 @@ import { SnapshotSink } from '../src/svg.ts';
 import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
 import { fc, params } from './lib/pbt.ts';
 import type { Vec } from '../src/index.ts';
+import { beginAnimation, interpolateAnimation } from '../src/animation.ts';
 // Manim's values, which the package no longer exports.
 const GOLD = '#f0ac5f';
 const RED = '#fc6255';
@@ -241,7 +242,7 @@ test('bar interpolation fixes baseline while the top moves linearly through zero
   fc.assert(fc.property(fc.double({ min: -3, max: 3, noNaN: true }), fc.double({ min: -3, max: 3, noNaN: true }), fc.double({ min: 0, max: 1, noNaN: true }), (a, b, alpha) => {
     const ax = new Axes({ xRange: [-2, 2, 1], yRange: [-4, 4, 1] }).rotate(0.3).shift([1, -1]);
     const bars = ax.bar([a], { x: [0.5], width: 0.8 }), target = ax.bar([b], { x: [0.5], width: 0.8 });
-    const transform = new Transform(bars, target); transform.begin(); transform.interpolate(alpha);
+    const transform = new Transform(bars, target); beginAnimation(transform); interpolateAnimation(transform, alpha);
     const pts = anchors(bars.children[0] as VMobject), top = a + (b - a) * alpha;
     [[0.1, top], [0.9, top], [0.9, 0], [0.1, 0]].forEach(([x, y], i) => nearVec(pts[i]!, ax.c2p(x!, y!), 1e-6));
   }), params(200));

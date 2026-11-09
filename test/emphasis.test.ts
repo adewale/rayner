@@ -8,6 +8,7 @@ import { StringSink, renderFrame } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
 import type { Box, Mobject, Vec } from '../src/index.ts';
+import { beginAnimation, interpolateAnimation } from '../src/animation.ts';
 
 /** A line 0.1 under `m`'s box, left to right. */
 const underline = (m: Mobject) => { const [x0, y0, x1] = m.box()!; return new Line([x0, y0 - 0.1], [x1, y0 - 0.1]); };
@@ -197,8 +198,8 @@ test('Circumscribe retracts the path at full opacity instead of fading a complet
   const fade = new Circumscribe([0, 0, 2, 1]);
   for (const c of [retract, fade]) {
     c.outline.style.opacity = 0.8;
-    c.begin();
-    c.interpolate(5 / 6);
+    beginAnimation(c);
+    interpolateAnimation(c, 5 / 6);
   }
   assert.ok(retract.outline.style.drawFraction! > 0 && retract.outline.style.drawFraction! < 1);
   assert.equal(retract.outline.style.opacity, 0.8);
@@ -216,7 +217,7 @@ test('Circumscribe fits the target where it is when the play starts', async () =
   });
   nearBox(c.outline.box()!, [2.4, -1.6, 3.6, -0.4], 'refitted at begin()');
   const r = new Circumscribe([0, 0, 3, 4], { shape: 'circle', buff: 0 });
-  r.begin();
+  beginAnimation(r);
   nearBox(r.outline.box()!, [-1, -0.5, 4, 4.5], 'circle through the corners');
 });
 

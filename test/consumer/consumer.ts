@@ -19,7 +19,7 @@ export function choreography(scene: Scene<{count: number}>) {
   scene.state = { count: 'three' };
   return [grow, pulse];
 }
-import type { AnimOptions, TextOptions } from 'rayner';
+import type { AnimationOptions, TextOptions } from 'rayner';
 import { jsonObject } from 'rayner/testing';
 const serializedState: import('rayner').JsonObject = jsonObject({count: 1});
 void serializedState;
@@ -54,7 +54,7 @@ export class Demo extends Scene {
     const opts: TextOptions = { fontSize: 0.3, font: 'mono' };
     const box = new Labeled(new Rectangle({ width: 2, height: 1, stroke: '#5cd0b3' }), new Text('box', opts));
     const a = new Arrow([0, 0], [1, 0], { buff: 0.1 });
-    const fade: AnimOptions = { runTime: 0.5 };
+    const fade: AnimationOptions = { runTime: 0.5 };
     await this.play(new FadeIn(box, { shift: [0, 1] }), new Create(a), fade);
     await this.play(box.animate.shift([1, 0]));
     await this.play(new Transform(a, new Arrow([0, 0], [2, 0])));

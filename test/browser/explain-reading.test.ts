@@ -12,6 +12,7 @@ import { labelOf, readingLabelSize } from '../../explain/labels.ts';
 import type { DiagramSnapshot } from '../../explain/index.ts';
 import importedSnapshot from '../../scenes/explainers/font-metrics/scene.snapshots/4ee0d75a90dc9b78.json' with { type: 'json' };
 import { outlineText } from '../../explain/diagram-text.ts';
+import { beginAnimation, interpolateAnimation, finishAnimation } from '../../src/animation.ts';
 await loadFonts();
 
 function importedLabel(snapshot = importedSnapshot as DiagramSnapshot) {
@@ -93,10 +94,10 @@ test('imported label copies and animation retain their basis without changing gl
   const moving = importedLabel(), start = readingLabelSize(moving)!;
   const target = moving.copy().stretch(0.25, 0);
   const animation = new Transform(moving, target);
-  animation.begin();
-  animation.interpolate(0.5);
+  beginAnimation(animation);
+  interpolateAnimation(animation, 0.5);
   assert.ok(Math.abs(readingLabelSize(moving)! - start * 0.625) < 2e-6, 'the basis follows the glyphs during interpolation');
-  animation.finish();
+  finishAnimation(animation);
   assert.ok(Math.abs(readingLabelSize(moving)! - start * 0.25) < 2e-6);
   moving.copy().rotate(Math.PI / 2);
   assert.ok(Math.abs(readingLabelSize(moving)! - start * 0.25) < 2e-6);
@@ -118,14 +119,14 @@ test('imported font metadata stays out of every ancestor bound during different-
       target.parent!.remove(target);
     }
     const animation = new Transform(source, target);
-    animation.begin();
+    beginAnimation(animation);
     for (const alpha of [0, 0.1, 0.3, 0.5, 0.8, 1]) {
-      animation.interpolate(alpha);
+      interpolateAnimation(animation, alpha);
       const ink = new Group(...source.children.map((m) => m.copy()));
       assert.deepEqual(source.box(), ink.box(), `${word}/${alpha}: no metric-only layout extent`);
       assert.deepEqual(ancestor.box(), ink.box(), `${word}/${alpha}: ancestors also ignore metric-only extent`);
     }
-    animation.finish();
+    finishAnimation(animation);
     assert.deepEqual(ancestor.box(), new Group(...source.children.map((m) => m.copy())).box());
     assert.ok(Math.abs(readingLabelSize(source)! - readingLabelSize(target)!) < 2e-6,
       `${word}: the endpoint retains the target font size`);
@@ -139,8 +140,8 @@ test('nested imported font bases follow matching and morphed glyphs without targ
     label.saveState();
     const source = new Group(label), target = source.copy().stretch(factor, 0);
     const animation = new TransformMatchingShapes(source, target, { replace: false, fadeMismatches: false });
-    animation.begin();
-    animation.finish();
+    beginAnimation(animation);
+    finishAnimation(animation);
     assert.ok(Math.abs(readingLabelSize(label)! - originalSize * Math.min(1, factor)) < 2e-6,
       'retaining the source must not retain an obsolete font basis');
     assert.deepEqual(source.box(), target.box(), 'matching glyphs retain their target geometry');
@@ -159,8 +160,8 @@ test('matching between native and imported labels retains the target font scale 
       const source = nested ? new Group(sourceLabel) : sourceLabel;
       const target = nested ? new Group(targetLabel) : targetLabel;
       const animation = new TransformMatchingShapes(source, target, { replace: false, fadeMismatches: false });
-      animation.begin();
-      animation.finish();
+      beginAnimation(animation);
+      finishAnimation(animation);
       assert.ok(Math.abs(readingLabelSize(sourceLabel)! - expected) < 2e-6,
         `${nativeFirst ? 'native-to-imported' : 'imported-to-native'}/${nested}: exact target em`);
       if (sourceLabel instanceof Text) {
@@ -176,14 +177,14 @@ test('zero-em native matching keeps finite geometry and a closed readability flo
     const source = nativeFirst ? native : imported, target = nativeFirst ? imported : native;
     assert.equal(readingLabelSize(native), 0, 'the existing zero-size constructor yields no readable em');
     const animation = new TransformMatchingShapes(source, target, { replace: false, fadeMismatches: false });
-    animation.begin();
+    beginAnimation(animation);
     for (const alpha of [0, 0.5, 1]) {
-      animation.interpolate(alpha);
+      interpolateAnimation(animation, alpha);
       const arrays = source.family().flatMap((m) => m.pointArrays());
       assert.equal(arrays.length, 10, 'one metric frame and nine glyph contours');
       assert.ok(arrays.every((a) => a.every(Number.isFinite)), 'normalizing a zero em must not introduce NaN coordinates');
     }
-    animation.finish();
+    finishAnimation(animation);
     assert.equal(readingLabelSize(source), 0, 'degenerate native metrics fail closed');
   }
 });

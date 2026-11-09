@@ -9,3 +9,4 @@ export { MotionSink, analyzeMotion, InvariantSink } from './verify.ts';
 export type { MotionEvent, InvariantFailure } from './verify.ts';
 export { jsonObject } from './json.ts';
 export { loadFonts, takeMissingGlyphs } from './fonts.ts';
+export { sampleAnimation } from './animation.ts';

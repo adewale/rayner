@@ -25,6 +25,8 @@ let parentIn: (m: Mobject) => Mobject | null;
 let setParent: (m: Mobject, p: Mobject | null) => void;
 /** A mobject's key, written only through `keyed` and the engine's own copies. */
 let setKey: (m: Mobject, key: string | undefined) => void;
+/** @internal The state saveState() stored, for restore() and Restore, or undefined. Copies do not carry it. */
+export let savedState: (m: Mobject) => Mobject | undefined;
 let nextId = 1;
 
 const COLOR_KEYS = new Set(['fill', 'stroke']);
@@ -123,12 +125,15 @@ export class Mobject {
   #children: readonly Mobject[] = [];
   #parent: Mobject | null = null;
   #key: string | undefined = undefined;
+  /** The state saveState() stored (see savedState). */
+  #saved: Mobject | undefined = undefined;
   static {
     kids = (m) => m.#children;
     setKids = (m, children) => { m.#children = children; };
     parentIn = (m) => m.#parent;
     setParent = (m, p) => { m.#parent = p; };
     setKey = (m, key) => { m.#key = key; };
+    savedState = (m) => m.#saved;
   }
   /**
    * @internal The object's number, for rendering and error messages. Not part of the published
@@ -156,8 +161,6 @@ export class Mobject {
   declare mergeLeaves?: boolean;
   /** Fixed world-coordinate paint viewport, inherited by descendants; does not change geometry. */
   declare clipBox?: Box;
-  /** @internal The state saveState() stored, for restore() and Restore. Copies do not carry it. */
-  declare saved?: Mobject;
   /**
    * @internal The style fields that still hold an engine default, and the scene colour each takes: a
    * `Text` built without a `color` has `{ fill: 'ink' }`, a `SurroundingRectangle` without a
@@ -332,7 +335,6 @@ export class Mobject {
     if (this.clipBox) c.clipBox = [...this.clipBox];
     c.updaters = [];
     c._bbox = null;
-    if (this.saved) delete c.saved; // a copy is a new mobject: it has no saved state of its own
     c.copyData(this);
     setKids(c, kids(this).map((ch) => { const cc = ch.copy(); setParent(cc, c); return cc; }));
     if (this.rebindReferences !== Mobject.prototype.rebindReferences) {
@@ -670,7 +672,7 @@ export class Mobject {
 
   /** Store a deep copy of this mobject's current state, for restore() or `new Restore(this)`. */
   saveState(): this {
-    this.saved = this.copy();
+    this.#saved = this.copy();
     return this;
   }
 
@@ -685,8 +687,8 @@ export class Mobject {
    * state stays, so restore() can run again.
    */
   restore(): this {
-    if (!this.saved) throw new Error(`m.restore(): ${mobjectName(this)} has no saved state; call m.saveState() first`);
-    adoptState(this, this.saved);
+    if (!this.#saved) throw new Error(`m.restore(): ${mobjectName(this)} has no saved state; call m.saveState() first`);
+    adoptState(this, this.#saved);
     return this;
   }
 
@@ -796,7 +798,7 @@ for (const name of ['box', 'center', 'width', 'height', 'left', 'right', 'top', 
 
 // Fields a mobject keeps through restore(): who it is and where it sits. Caches
 // (underscore fields) stay too; touchPoints() and new arrays invalidate them.
-const KEEP_ON_RESTORE = new Set(['id', 'updaters', 'saved']);
+const KEEP_ON_RESTORE = new Set(['id', 'updaters']);
 // become() also keeps each member's key, the address matching, find() and invariants use, and its role.
 const KEEP_ON_BECOME = new Set([...KEEP_ON_RESTORE, 'key', 'role']);
 

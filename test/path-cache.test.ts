@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { Arc, Arrow, Circle, Dot, Group, Line, Polygon, Rectangle, Text, Transform, VMobject, Brace, Cross, DecimalNumber } from '../src/index.ts';
 import type { Mobject } from '../src/index.ts';
 import { loadFonts } from '../explain/testing.ts';
+import { beginAnimation, interpolateAnimation, finishAnimation } from '../src/animation.ts';
 
 await loadFonts();
 
@@ -56,8 +57,8 @@ const WRITES: Record<string, (m: Mobject) => void> = {
   'restore after a move': (m) => { m.saveState(); m.shift([1, 1]).rotate(0.3); m.restore(); },
   become: (m) => m.become(m.copy().shift([0.8, -0.6]).scale(1.2)),
   interpolate: (m) => m.interpolate(m.copy(), m.copy().shift([2, 1]).rotate(1), 0.4),
-  'a Transform part-way': (m) => { const t = new Transform(m, m.copy().shift([-1, 0.5]).scale(0.7)); t.begin(); t.interpolate(0.5); },
-  'a Transform to the end': (m) => { const t = new Transform(m, m.copy().rotate(-0.9)); t.begin(); t.interpolate(1); t.finish(); },
+  'a Transform part-way': (m) => { const t = new Transform(m, m.copy().shift([-1, 0.5]).scale(0.7)); beginAnimation(t); interpolateAnimation(t, 0.5); },
+  'a Transform to the end': (m) => { const t = new Transform(m, m.copy().rotate(-0.9)); beginAnimation(t); interpolateAnimation(t, 1); finishAnimation(t); },
 };
 
 /** Writes that only some kinds offer. */

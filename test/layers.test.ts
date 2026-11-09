@@ -160,7 +160,6 @@ test('the player, the command and diagram capture import the library through its
  * added, with its reason. A module-level name the layers above use is in an internal barrel instead.
  */
 const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
-  'Animation.families': { files: ['explain/annotate.ts'], why: 'an annotation reads what an animation draws' },
   'DomSink.apply': { files: ['app/embed-zoom.ts'], why: 'the close-up draws records without a frame' },
   'Machine.after': { files: ['tools/lib/explain-check.ts'], why: 'check reads the state an event leads to' },
   'Machine.lastPlayedIn': { files: ['tools/lib/explain-check.ts'], why: 'check explores a machine on the step it last played in' },
@@ -183,9 +182,17 @@ const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
   'Text.build': { files: ['explain/diagram-text.ts'], why: 'a captured label lays out its replayed run as a Text does' },
   'Text.frameBox': { files: ['explain/labels.ts'], why: "a label's size is its text's box" },
   'Text.run': { files: ['explain/diagram-text.ts', 'explain/labels.ts'], why: "a label's words are its text's runs, and a captured label sits on its text's baseline" },
-  'Transform.sameStructure': { files: ['explain/view.ts'], why: 'a view morphs a picture of the same structure' },
   'View.placed': { files: ['tools/lib/explain-check.ts'], why: 'check redraws a view where it was placed' },
-  cleanUp: { files: ['explain/choreograph.ts', 'explain/machine.ts', 'explain/state.ts', 'explain/view.ts'], why: "the explainer layer's animations say what the end of their play takes off the stage" },
+  adoptMembers: { files: ['explain/action.ts'], why: 'an action decided late takes its beats as its members then' },
+  beginAnimation: { files: ['explain/choreograph.ts', 'explain/diagrams.ts', 'explain/view.ts'], why: 'an animation that runs another begins it, and a diagram moves a hidden part at once' },
+  cleanUp: { files: ['explain/choreograph.ts', 'explain/state.ts'], why: "the explainer layer's animations say what the end of their play takes off the stage" },
+  ended: { files: ['explain/action.ts'], why: "an action's end runs once its last beat has finished" },
+  families: { files: ['explain/annotate.ts'], why: 'an annotation reads what an animation draws' },
+  finishAnimation: { files: ['explain/choreograph.ts', 'explain/diagrams.ts', 'explain/view.ts'], why: 'an animation that runs another finishes it, and a diagram moves a hidden part at once' },
+  interpolateAnimation: { files: ['explain/choreograph.ts', 'explain/view.ts'], why: 'an animation that runs another draws its frames' },
+  knownTransform: { files: ['explain/view.ts'], why: 'a view morphs a picture of the same structure without aligning it' },
+  passesEasing: { files: ['explain/action.ts'], why: "a play's rateFunc and lagRatio reach what an action's beats make" },
+  runTimeOf: { files: ['explain/action.ts'], why: "an action checks its beats' run times against its plan" },
   playsOn: { files: ['explain/action.ts', 'explain/state.ts'], why: 'an action and a state change belong to the scene they change' },
   settle: { files: ['explain/action.ts'], why: 'an action is decided once what it reads is ready' },
   whenReady: { files: ['explain/action.ts'], why: 'an action waits for what it reads before it begins' },

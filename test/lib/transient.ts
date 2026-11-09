@@ -2,7 +2,7 @@
 // rules reject transient emphasis, so no scene should reach for one). The engine tests keep them
 // as ordinary there-and-back animations: groups, colours, seeking and successions are tested with them.
 import { Animation, Transform, thereAndBack, linear } from '../../src/index.ts';
-import type { AnimOptions, Mobject, TransformOptions } from '../../src/index.ts';
+import type { AnimationOptions, Mobject, TransformOptions } from '../../src/index.ts';
 
 export interface IndicateOptions extends TransformOptions { scaleFactor?: number; color?: string }
 
@@ -21,14 +21,14 @@ export class Indicate extends Transform {
       if (m.style.stroke !== 'none') m.style.stroke = this.color;
       if (m.style.fill !== 'none') m.style.fill = this.color;
     }
-    this.target = t; this.ownsTarget = true; this.sameStructure = true;
+    this.target = t;
     super.doBegin();
   }
 }
 
 /** Fade in, hold, fade out around a mobject. */
 export class Flash extends Animation {
-  constructor(mobject: Mobject, opts: AnimOptions = {}) { super(mobject, { rateFunc: linear, ...opts }); }
+  constructor(mobject: Mobject, opts: AnimationOptions = {}) { super(mobject, { rateFunc: linear, ...opts }); }
   override interpolateSubmobject(sub: Mobject, start: Mobject, alpha: number): void {
     sub.style.opacity = start.style.opacity * Math.sin(Math.PI * alpha);
   }

@@ -6,6 +6,7 @@ import { Scene, Transform, VMobject, Dot } from '../src/index.ts';
 import { Follow } from '../explain/state.ts';
 import type { Mobject, Sink } from '../src/index.ts';
 import { fc, params } from './lib/pbt.ts';
+import { beginAnimation, interpolateAnimation } from '../src/animation.ts';
 
 // A globe with something of every kind: a point and a path on the sphere, a great circle whose far
 // half is dashed, a face standing off the sphere (a sheet through the centre), and a rod through it.
@@ -152,17 +153,17 @@ test('turning by a morph breaks depth order mid-turn; turning by a Follow holds 
   const a = seenFrom(model, from), b = seenFrom(model, to);
   morphed.add(a);
   const morph = new Transform(a, b);
-  morph.begin();
-  morph.interpolate(0.5);
+  beginAnimation(morph);
+  interpolateAnimation(morph, 0.5);
   const broken = depthOrder(a);
   assert.equal(typeof broken, 'string', 'a half-morphed globe is drawn from no viewpoint');
   assert.match(broken as string, /from orthographic yaw 0\.0°, pitch 30\.0°|from where orthographic yaw 0\.0°, pitch 30\.0° puts it/);
 
   const target = seenFrom(model, from);
   const follow = new Follow({ from: 0, to: 1, draw: (t) => seenFrom(model, between(from, to, t)) }, { targets: [target] });
-  follow.begin();
+  beginAnimation(follow);
   for (let i = 0; i <= 40; i++) {
-    follow.interpolate(i / 40);
+    interpolateAnimation(follow, i / 40);
     assert.equal(depthOrder(target), true, `frame ${i}`);
   }
   // Its last frame is the picture of the end viewpoint.

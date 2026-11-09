@@ -10,7 +10,7 @@ import { StringSink, NullSink, toSvgString, renderElements, renderFrame } from '
 import { loadFonts, traceScene } from '../explain/testing.ts';
 import { Indicate } from './lib/transient.ts';
 import type { Mobject, Sink, RateFunc, Style } from '../src/index.ts';
-import { takeOptions } from '../src/animation.ts';
+import { takeOptions, beginAnimation, interpolateAnimation } from '../src/animation.ts';
 
 await loadFonts();
 
@@ -484,7 +484,7 @@ test('create: the temporary outline Write draws on text scales with the text (Ma
   // https://github.com/ManimCommunity/manim/issues/4220, https://github.com/ManimCommunity/manim/pull/4222:
   // a fixed outline width is a hairline on large text and a smear on small text.
   fc.assert(fc.property(fc.double({ min: 0.1, max: 3, noNaN: true }), fc.double({ min: 0.25, max: 4, noNaN: true }), (size, k) => {
-    const border = (t: Text) => { const c = new Create(t, { lagRatio: 0.3 }); c.begin(); c.interpolate(0.3); return t.children[0]!.style.strokeWidth; };
+    const border = (t: Text) => { const c = new Create(t, { lagRatio: 0.3 }); beginAnimation(c); interpolateAnimation(c, 0.3); return t.children[0]!.style.strokeWidth; };
     const built = border(new Text('Hi', { fontSize: size * k })), scaled = border(new Text('Hi', { fontSize: size }).scale(k));
     assert.ok(near(built, scaled, 1e-6 * size * k), `${built} vs ${scaled}`);
     // Text sizes are read back from Float32 points: equal to about 1e-7, relatively

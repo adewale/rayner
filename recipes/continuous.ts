@@ -1,7 +1,7 @@
 // A supported recipe using the Animation extension point by hand. A view's `tween` does the same
 // through the scene's state, redrawing the view at every frame (docs/VIEWS.md); this shows what it wraps.
 import { Scene, Group, Circle, Dot, Line, DecimalNumber, Animation, linear } from 'rayner';
-import type { Vec, AnimOptions } from 'rayner';
+import type { Vec, AnimationOptions } from 'rayner';
 
 /** One immutable model sample, shared by every dependent drawing. */
 export function orbit(angle: number): Readonly<{ angle: number; position: Readonly<Vec> }> {
@@ -27,7 +27,7 @@ export class FollowAngle extends Animation {
   target: number;
   from = 0;
   publish: (sample: ReturnType<typeof orbit>) => void;
-  constructor(rig: OrbitDrawing, target: number, publish: (sample: ReturnType<typeof orbit>) => void = () => {}, opts: AnimOptions = {}) {
+  constructor(rig: OrbitDrawing, target: number, publish: (sample: ReturnType<typeof orbit>) => void = () => {}, opts: AnimationOptions = {}) {
     orbit(target); // validate without changing the drawing
     super(rig.root, opts);
     this.rig = rig; this.target = target; this.publish = publish;

@@ -3,6 +3,7 @@ import type {TextShaping} from '../src/text-context.ts';
 // with a leader line, and a drawing tool that rides the tip of a stroke as it is drawn. They are
 // native mobjects, so they seek, trace and check like everything else.
 import { Group, Line, Circle, Rectangle, Polygon, Text, Create, VMobject, keyed } from '../src/index.ts';
+import { families } from '../src/animation.ts';
 import type { Mobject, Vec, Box } from '../src/index.ts';
 import { center, overlaps, pointsBox } from '../src/box.ts';
 import { paintsFill } from '../src/mobject.ts';
@@ -176,7 +177,7 @@ export class Sketch extends Create {
     super.doBegin();
     const subjectLeaves = new Set(this.subject.family());
     const strokes: { row: number; length: number; start: Vec; end: Vec }[] = [];
-    this.families.forEach((row: Row, i: number) => {
+    this[families].forEach((row: Row, i: number) => {
       const m = row[0]!;
       if (subjectLeaves.has(m) && traceable(m))
         strokes.push({ row: i, length: m.arcLength(), start: m.pointFromProportion(0), end: m.pointFromProportion(1) });
@@ -223,7 +224,7 @@ export class Sketch extends Create {
       at += length;
     });
     this.total = Math.max(at, 1e-6);
-    this.interpolate(0);
+    this.doInterpolate(0);
   }
   protected override doInterpolate(alpha: number): void {
     if (!this.plan) return super.doInterpolate(alpha);
@@ -231,7 +232,7 @@ export class Sketch extends Create {
     const rowAlpha = new Map<number, number>();
     for (const p of this.plan) for (const row of p.rows) rowAlpha.set(row, Math.min(1, Math.max(0, (distance - p.from) / (p.to - p.from))));
     const subjectLeaves = new Set(this.subject.family());
-    this.families.forEach((row: Row, i: number) => {
+    this[families].forEach((row: Row, i: number) => {
       const m = row[0]!;
       if (this.pen && !subjectLeaves.has(m)) return;
       this.interpolateSubmobject(...(row as [Mobject, Mobject]), rowAlpha.get(i) ?? alpha);
@@ -244,7 +245,7 @@ export class Sketch extends Create {
       if (distance >= p.from && distance <= p.to) {
         const u = (distance - p.from) / (p.to - p.from);
         tip = p.single
-          ? (this.families[p.rows[0]!]![0] as VMobject).pointFromProportion(u)
+          ? (this[families][p.rows[0]!]![0] as VMobject).pointFromProportion(u)
           : [p.start[0] + (p.end[0] - p.start[0]) * u, p.start[1] + (p.end[1] - p.start[1]) * u];
       }
     if (!tip)

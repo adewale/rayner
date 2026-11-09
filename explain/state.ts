@@ -4,7 +4,7 @@
 // src/, the engine taken from Lantern. SetState is the machine's own: no entry point exports it,
 // and a scene changes its state by assigning `this.state` and syncing its views.
 import { Animation, cleanUp, playsOn } from '../src/animation.ts';
-import type { AnimOptions } from '../src/animation.ts';
+import type { AnimationOptions } from '../src/animation.ts';
 import { Group, Mobject as MobjectClass } from '../src/mobject.ts';
 import type { Mobject } from '../src/mobject.ts';
 import { cloneJson } from '../src/json.ts';
@@ -70,7 +70,7 @@ export interface FollowSpec {
    */
   draw: (value: number) => Mobject | readonly Mobject[];
 }
-export interface FollowOptions extends AnimOptions {
+export interface FollowOptions extends AnimationOptions {
   /** The mobjects `draw` redraws: play() admits them and refuses a second writer of any of them. */
   targets: readonly Mobject[];
 }
@@ -112,7 +112,7 @@ export class Follow extends Animation {
     const from = typeof this.spec.from === 'function' ? this.spec.from() : this.spec.from;
     if (!Number.isFinite(from)) throw new RangeError(`c.follow(): from() must return a finite number, not ${String(from)}`);
     this.start = from;
-    this.interpolate(0);
+    this.doInterpolate(0);
   }
 
   /** The value at an eased alpha: exact at 0 and 1. */
