@@ -438,3 +438,16 @@ test('a copy of every mobject class an entry point exports draws as the original
     assert.equal(drawing(original), before, `${name}: changing the copy leaves the original alone`);
   }
 });
+
+test('restore() and become() take an author\'s fields whatever their names, a leading underscore included', () => {
+  class Counter extends Rectangle { _count = 0; count = 0; }
+  const c = new Counter();
+  c.saveState();
+  c._count = 5; c.count = 5;
+  c.restore();
+  assert.deepEqual([c.count, c._count], [0, 0]);
+  const d = new Counter(), e = new Counter();
+  e._count = 7; e.count = 7;
+  d.become(e);
+  assert.deepEqual([d.count, d._count], [7, 7]);
+});
