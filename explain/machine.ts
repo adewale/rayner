@@ -309,7 +309,7 @@ export class Machine<S extends object, E extends string> {
 class WhenItsTurnComes extends MadeAtTurn {
   readonly #make: () => Animation | AnimationGroup;
   constructor(event: string, make: () => Animation | AnimationGroup, declared: readonly Mobject[], runTime: number) {
-    super({ call: `machine.send(${JSON.stringify(event)})`, subject: 'the transition' }, runTime, declared);
+    super(`machine.send(${JSON.stringify(event)})`, 'the transition', runTime, declared);
     this.#make = make;
   }
   protected override make(): ScheduledAnimation[] {

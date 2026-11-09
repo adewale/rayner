@@ -214,7 +214,7 @@ test('what an action or a machine transition makes as its turn comes has one wri
   // Without the check, the play is accepted and whichever writes last wins.
   const c = new Circle();
   const beside = fadeIn(c);
-  await assert.rejects(scene.play(beside, new FadeOut(c)), /^Error: this\.play\(\): a FadeOut and a FadeIn, made by a beat of x\(\) as its turn came, both animate a Circle; one play can drive a mobject only once, so sequence them, or combine them into one Transform$/);
+  await assert.rejects(scene.play(beside, new FadeOut(c)), /^Error: x\(\): a FadeIn, begun at its turn, and a FadeOut both animate a Circle/);
   // Begun later, at its turn in a Succession beside the beat: refused as it begins.
   const d = new Circle(), later = fadeIn(d);
   await assert.rejects(scene.play(later, new Succession([new FadeIn(new Circle(), { runTime: 0.5 }), new FadeOut(d, { runTime: 0.5 })])), /a FadeIn and a FadeOut both animate a Circle/);
@@ -230,7 +230,7 @@ test('what an action or a machine transition makes as its turn comes has one wri
   const ring = new Circle({ radius: 2 });
   scene.add(ring);
   const m = new Machine(counting, { start: { n: 0 }, events: ['UP'], next: (st: { n: number }) => ({ n: st.n + 1 }), views: [v], transition: { UP: () => new AnimationGroup([v.sync(), new Transform(ring, new Circle({ radius: 1 }))]) } });
-  await assert.rejects(scene.play(m.send('UP'), new FadeOut(ring)), /made by the transition of machine\.send\("UP"\) as its turn came, both animate a Circle/);
+  await assert.rejects(scene.play(m.send('UP'), new FadeOut(ring)), /^Error: machine\.send\("UP"\): a Transform, begun at its turn, and a FadeOut both animate a Circle/);
   // Sequenced, the same writers are fine: the beat, then the FadeOut.
   const f = new Circle();
   await scene.play(new Succession([fadeIn(f), new FadeOut(f)]));
@@ -287,7 +287,7 @@ class Reads extends FadeIn {
   override ready(): Promise<unknown> { return this.reading; }
 }
 
-test('a play that fails at a turn made later lands what it began: a read that fails, or a refused writer (A1)', async () => {
+test('a play that fails at a turn made later lands what it began: a read that fails, or a refused writer', async () => {
   const { Action } = await import('../explain/action.ts');
   const scene = new Scene(new NullSink());
   // What a beat made waits for a read that fails, after the play has begun.
@@ -301,12 +301,12 @@ test('a play that fails at a turn made later lands what it began: a read that fa
   // What a beat made, once ready, writes a mobject a FadeOut beside it drives: refused as it begins.
   const c = new Circle(), kept = new FadeIn(new Rectangle());
   const writer = new Action(scene, 'b()', () => ({ value: undefined, beats: [{ runTime: 1, play: () => [new Reads(c, Promise.resolve())] }] }));
-  await assert.rejects(scene.play(kept, writer, new FadeOut(c)), /made by a beat of b\(\) as its turn came, both animate a Circle/);
+  await assert.rejects(scene.play(kept, writer, new FadeOut(c)), /^Error: b\(\): a \w+, begun at its turn, and a FadeOut both animate a Circle/);
   assert.deepEqual([kept.phase, writer.phase], ['finished', 'finished']);
   await scene.play(kept);
 });
 
-test('a beat that makes two, the second throwing as it begins, lands the first, as a play begins and at its turn; its after does not run (B1)', async () => {
+test('a beat that makes two, the second throwing as it begins, lands the first, as a play begins and at its turn; its after does not run', async () => {
   const { Action } = await import('../explain/action.ts');
   class Boom extends FadeIn { protected override doBegin(): void { throw new Error('boom'); } }
   const ran: string[] = [];
