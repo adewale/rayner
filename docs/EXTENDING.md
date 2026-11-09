@@ -99,7 +99,7 @@ distribution and adding another dependent readout. Keep these constraints:
 4. Stay inside the model's domain. This recipe's angle is in `[0, pi]`, and its
    rate function must stay in `[0, 1]`; overshooting easings are refused by the
    model's domain check.
-5. Land in `doFinish()` where the last frame drew. `rayner check` compares each step's
+5. Finish in `doFinish()` where the last frame drew. `rayner check` compares each step's
    picture as it ends, after its last play has finished, with its resting frame,
    since `rayner describe` and the shots draw the step as it ends.
 
@@ -171,7 +171,7 @@ Each extension point has one rule for what happens when two of them act on the s
 | An animation | One `play()` drives a mobject once: two animations on the same mobject, or on one inside the other, throw. A `Succession`'s members run in turn and may share mobjects. Separate plays run one after another. | `play()` throws, naming both animations and the mobject. |
 | An invariant | Every registered invariant runs on every frame, each on its own, and none may change the scene. Each must hold on at least one frame of a run. | `InvariantSink`; `rayner check` fails an invariant that never held. |
 | A sink | Sinks never meet inside the scene. A sink reads each frame and hands it to the sink it wraps, or a fan sends each frame to several sinks in order. | By construction: the scene calls one sink. |
-| A machine's transition | An event plays one transition, and the transition must end on what the views draw from the new state. Without one, the views morph to the new state by key. | `rayner check` explores every reachable event and compares where each lands with the views' draw. |
+| A machine's transition | An event plays one transition, and the transition must end on what the views draw from the new state. Without one, the views morph to the new state by key. | `rayner check` explores every reachable event and compares where each finishes with the views' draw. |
 
 ## Test an extension
 

@@ -103,7 +103,7 @@ export interface LiveDraw {
   onStart?: () => void;
 }
 /**
- * A live run held at the picture its log lands on (`runLive` with `keep`). `send` plays one more
+ * A live run held at the picture its log finishes on (`runLive` with `keep`). `send` plays one more
  * event from there, as a fresh run of the longer log would play its last event, without running
  * the scene to the step again. A send that fails (a sink aborted mid-play, say) closes the
  * session, since its scene may have stopped part-way; start a fresh run then.
@@ -140,11 +140,11 @@ export class LiveSink implements Sink {
 /**
  * Run `Source` to the end of `step`, where the machine at `place` is live, then play `log` through
  * `machine.send` (from the machine's start, its views redrawn there, when `from` is 'start' and the
- * log is not empty), every frame skipped; `sink` then draws the picture the log lands on.
+ * log is not empty), every frame skipped; `sink` then draws the picture the log finishes on.
  * With `animate`, the last event plays through that sink instead, frame by frame from the picture
- * before it (drawn at dt 0, after which `onStart` is called), and then lands. `onRest` sees the
+ * before it (drawn at dt 0, after which `onStart` is called), and then finishes. `onRest` sees the
  * scene as the step ends, before any event (the review compares a state with it).
- * With `keep`, the run is held at the picture the log lands on, as the result's `session`.
+ * With `keep`, the run is held at the picture the log finishes on, as the result's `session`.
  *
  * The run stops as the step ends (`stopAt`): after its end listeners and caption hold, with
  * the code the scene runs after the step's last play run, so the scene is as the trace's `after`
@@ -217,8 +217,8 @@ export async function runLive(
           draw.onStart?.();
         }
         await at.play(machine.send(event));
-        const landing = draw.animate ?? draw.sink;
-        if (landing) await drawFrame(at, landing);
+        const last = draw.animate ?? draw.sink;
+        if (last) await drawFrame(at, last);
         command.done({ scene: at, machine, rest, shown: at.shownJson() });
       } catch (error) {
         command.failed(error);

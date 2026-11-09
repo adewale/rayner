@@ -57,7 +57,7 @@ export type TraceOf<C> = 0 extends 1 & C ? Trace
 
 /**
  * Called as each step ends, with the scene showing the step's resting picture: its last frame, after
- * its last play has landed (`rayner check` holds that the two are the same picture). Whatever reads
+ * its last play has finished (`rayner check` holds that the two are the same picture). Whatever reads
  * a picture of every step reads it here, from one run, instead of seeking to each step.
  */
 export type AtRest = (scene: Scene, step: EndedStep) => unknown;

@@ -641,7 +641,7 @@ export class Diagram {
       return [new AnimationGroup(anims, { lagRatio: 0.12, rateFunc: linear })];
     };
     const after = () => {
-      // Land exactly on that look: drawing animations can end a rounding away from it.
+      // End exactly on that look: drawing animations can end a rounding away from it.
       this.restyle(arriving);
       for (const p of messages)
         recordWalk(this.scene, {
@@ -988,7 +988,7 @@ export class Diagram {
       return key === undefined ? [] : [[prefix + key, m.as ? `mark ${m.color} ${m.as}` : `mark ${m.color}`]];
     });
     // Described with the diagram while it shows it; on its own, as the diagram it pictures.
-    // Read from the part it is called on, so a picture that takes this one's fields (a view landing
+    // Read from the part it is called on, so a picture that takes this one's fields (a view finishing
     // it with become) answers for itself, not for the copy it was drawn as.
     const diagram = this;
     return selfDescribed(

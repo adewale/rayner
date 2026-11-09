@@ -942,7 +942,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     perf.count('frames skipped', skipped);
     perf.span('anim.finish', () => { for (const a of anims) { finishAnimation(a); a[cleanUp](this); } });
     // What finishing began at its turn and waits (a last member of no run time, an action's last
-    // beat) begins and lands now, the members after it in turn.
+    // beat) begins and finishes now, the members after it in turn.
     if (this.#held.length) await this.#beginHeld();
   }
 

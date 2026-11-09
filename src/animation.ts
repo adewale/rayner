@@ -51,7 +51,7 @@ function lagSlots(rows: readonly FamilyRow[]): { index: Int32Array; count: numbe
 }
 
 /**
- * @internal Refuse a time that is not a finite number from 0 to `max`: NaN plays no frames and lands
+ * @internal Refuse a time that is not a finite number from 0 to `max`: NaN plays no frames and finishes
  * silently, Infinity never ends.
  */
 export function assertTime(api: string, what: string, value: number, max = Infinity): void {
@@ -597,7 +597,7 @@ export class FadeOut extends Transform {
   protected override doFinish(alpha?: number): void {
     // Removed: restore so the mobject can be shown again later, where it was, at its size
     // and opacity (manim's FadeOut also interpolates back to 0 once removed). Kept on
-    // screen (remover: false): land, and give back only the opacity, as before.
+    // screen (remover: false): finish, and give back only the opacity, as before.
     if (isRemover(this)) { super.doFinish(0); return; }
     super.doFinish(alpha);
     for (const [m, start] of this[families]) m!.style.opacity = start!.style.opacity;
@@ -1019,7 +1019,7 @@ function circleAround(target: Mobject | Box, buff: number, style: { stroke?: str
  *   await this.play(new Restore(box));
  *
  * The saved state is read when the play begins. When it ends (with a rate
- * function that lands on 1), the mobject equals the saved state exactly, in
+ * function that ends at 1), the mobject equals the saved state exactly, in
  * points, style and structure, as restore() would leave it.
  */
 export class Restore extends Transform {
@@ -1389,7 +1389,7 @@ class BuiltTransform extends Transform {
  * waits for that before its next frame, see beginWhenReady) they are settled, laid out in its run
  * time, and begun through the scene, which checks them against everything else the play drives.
  * Until they have begun it waits (see waits): a Succession that holds it begins nothing after it,
- * so one shorter than a frame still plays, held and then landed. When one of them throws as it
+ * so one shorter than a frame still plays, held and then finished. When one of them throws as it
  * begins, those begun before it land, and it has made nothing. Messages name it by `call`, the
  * call it belongs to (`s.card()`, `machine.send("UP")`), and `subject`, what it is (`a beat`, `the
  * transition`). A play's `rateFunc` and `lagRatio`, passed on by the action that holds it, reach what

@@ -227,7 +227,7 @@ export class Text extends Group {
     return this;
   }
 
-  /** Glyphs morph pairwise (Transform aligns them); the string itself switches when the morph lands. */
+  /** Glyphs morph pairwise (Transform aligns them); the string itself switches when the morph finishes. */
   override interpolate(a: Mobject, b: Mobject, alpha: number): this {
     super.interpolate(a, b, alpha);
     if (alpha >= 1 && b instanceof Text) { writeText(this, b.text); this[textRun] = b[textRun]; }
@@ -457,7 +457,7 @@ export class Code extends Group {
  * to the scene and draw its glyphs twice; draw a shape from span.box() instead.
  *
  * Fixed at creation. Once the line's text changes (Text.setText, or a
- * Transform landing another string on it) the span is `stale` and box()
+ * Transform finishing with another string on it) the span is `stale` and box()
  * throws: take a new span from the Code now on screen.
  */
 export class CodeSpan extends Group {

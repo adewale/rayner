@@ -7,7 +7,7 @@
 // manim's always_redraw idea in the engine's endpoint-based form. A View is a
 // Group with one child, the current picture. sync() is an action: when its
 // turn comes it calls build() for the new picture and morphs the current one
-// into it with a matching transform; when it lands, the View swaps its child.
+// into it with a matching transform; when it finishes, the View swaps its child.
 // No updater is ever registered, so a play with a sync in it is still a pure
 // function of alpha and seeking can skip its frames. See docs/VIEWS.md.
 
@@ -125,7 +125,7 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
   /**
    * @internal The picture of `state` (with what the scene shows now), placed where a sync or rebuild would
    * put it now, without taking it: what an authored transition morphs into, so it ends where the
-   * View will land.
+   * View will finish.
    */
   placed(state: S, shown: Sh = this.host.shown): M {
     return this.measure(fresh(paintedFor(this.host, this.draw(state, shown)), this.current)).picture;

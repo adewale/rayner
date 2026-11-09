@@ -53,7 +53,7 @@ Options are `AnimationOptions` plus `initialScale`, a finite value in `[0, 1]`, 
 `0.001`. The small default avoids a degenerate starting path; zero is supported.
 Opacity starts at zero independently of this scale. Standard duration, easing and
 family lag apply. As with other transforms, an easing that ends somewhere other
-than 1 lands at that point in the interpolation.
+than 1 ends at that point in the interpolation.
 
 ## PulseAlongPath
 

@@ -1,9 +1,9 @@
 // Choreograph: an authored transition between two pictures of a view, part by part, by key.
 // A machine's transition receives the view's current picture and its target (the picture of the
-// state the event reaches, placed where the view lands). choreograph(current, target) names the
+// state the event reaches, placed where the view finishes). choreograph(current, target) names the
 // keyed parts of both, and each call animates some of them in the author's order: morph a part
 // into its target, bring a new one in (faded, drawn, or grown from a copy of another part), or
-// take a gone one out. rest() lands every keyed part no call has handled, so a transition that
+// take a gone one out. rest() moves every keyed part no call has handled to its target, so a transition that
 // forgets a part still ends on the target picture. See docs/MACHINES.md.
 
 import { Animation, AnimationGroup, Create, FadeIn, FadeOut, MoveAlongPath, Transform, cleanUp, beginAnimation, interpolateAnimation, finishAnimation } from '../src/animation.ts';
@@ -89,7 +89,7 @@ export interface Choreography {
 /**
  * Choreograph a transition from the `current` picture to `target`. Parts are found by key; a part
  * a call brings in is added to the current picture, and a part a call takes out leaves it, so when
- * every part has landed the current picture shows the target's parts.
+ * every part has finished the current picture shows the target's parts.
  */
 export function choreograph(current: Mobject, target: Mobject): Choreography {
   const now = keyedParts(current), want = keyedParts(target);

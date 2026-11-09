@@ -1169,11 +1169,11 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     drawLive();
   }
   /**
-   * Draw the picture the reader's log lands on. Animated, the scene runs to the step's picture
+   * Draw the picture the reader's log finishes on. Animated, the scene runs to the step's picture
    * with every earlier event skipped, and the last one plays in real time from the picture before
-   * it, so a press during a play lands that one and plays the next. Otherwise (reduced motion,
+   * it, so a press during a play finishes that one at once and plays the next. Otherwise (reduced motion,
    * Undo, Reset) the end picture is drawn at once. Then the picture's words and the live line say
-   * what happened: `what` (the event, or Undo) and the picture it lands on; Reset says so.
+   * what happened: `what` (the event, or Undo) and the picture it finishes on; Reset says so.
    */
   function drawLog(now: LiveNow, animated: boolean, what?: string) {
     if (scenarioLoad.kind !== 'ready') return;

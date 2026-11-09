@@ -251,10 +251,12 @@ animations may not drive the same mobject or an ancestor and its descendant, and
 animation may not be listed twice. `Scene.play()` checks and rejects both, as it begins and
 again for whatever begins later in it, a `Succession`'s member at its turn included. A
 `Succession`'s time never runs back past the start of its running member, since a finished member
-does not run again: it refuses a rate function that falls anywhere, given to it, set on it or given
-to `play()`, and throws, naming the call (`new Succession()`, or an action's own, `s.card()`), if a
-group around it runs its time back past that start. Within its running member its time may run
-back, so a there-and-back group can hold a one-beat action such as `view.sync()`. `play()` waits for what any animation it is given reads, a group's
+does not run again: it refuses a rate function that would run its time back past the start of a
+member it has reached, given to it, set on it or given to `play()`, and throws, naming the call
+(`new Succession()`, or an action's own, `s.card()`), if a group around it runs its time back past
+that start. Within its running member its time may run back, so a rate function that dips and
+recovers inside one member is accepted, a Succession of one member can run there and back, and a
+there-and-back group can hold a one-beat action such as `view.sync()`. `play()` waits for what any animation it is given reads, a group's
 members included, before it begins, and lays out its members' times as the play
 begins. What is made only when its turn comes, a machine's transition or an action's beat, may
 read something not ready yet: the play waits for it there, before drawing its next frame, so the

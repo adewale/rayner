@@ -339,7 +339,7 @@ export class HoldSink implements Sink {
 }
 
 /**
- * finish() lands where the last frame drew: as each step ends, after its last play has finished
+ * An animation's doFinish() ends where the last frame drew: as each step ends, after its last play has finished
  * and left the stage, the picture must be its resting frame's, which a link shows and the checks
  * judge, and which describe and the shots draw as the step ends. A step that differs is listed
  * in `differing`. Reads the played frames FrameCaptureSink kept, so it comes after it.
@@ -673,7 +673,7 @@ async function transitionProblems(scene: Scene, machine: ReturnType<typeof machi
       const through = Math.round(((f.t - t0) / (motion.runTime || 1)) * 100);
       problems.push(`${at}: the invariant "${f.invariant}" fails ${through}% through the transition: ${f.message}`);
     }
-    // Compared as rendered marks, since a morph lands glyphs without retyping a Text. A transition that
+    // Compared as rendered marks, since a morph finishes on glyphs without retyping a Text. A transition that
     // ends elsewhere would leave the views there: their next rebuild keeps the place it left them.
     if (marksOf(toSvgString(scene)) !== expected) problems.push(`${at}: the transition ends somewhere other than the picture of the state it reaches`);
     scene.state = jsonObject(after, 'machine state');
@@ -757,7 +757,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     const restingSink = new RestingSink();
     const looks = new LookWordsSink();
     // The caption hold: the player stops where it begins and the film holds the picture there, so
-    // nothing may change after it. A play lands after its last frame is drawn (a morph gets its
+    // nothing may change after it. A play finishes after its last frame is drawn (a morph gets its
     // paths' own structure back), so the first held frame is the resting picture, as in render.
     const holdSink = new HoldSink(
       v.trace.steps.flatMap((s) => (s.holdFrame != null ? [{ step: s.step, from: s.holdFrame + 1, to: s.frame1 }] : [])),
@@ -814,7 +814,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     assert.deepEqual(
       lastFrame.differing.slice(0, 5),
       [],
-      `These steps end on a different picture from their last frame ${where}: an animation's finish() must land where its last frame drew, since a link, describe and the shots show the step as it ends (the first five)`,
+      `These steps end on a different picture from their last frame ${where}: an animation's doFinish() must end where its last frame drew, since a link, describe and the shots show the step as it ends (the first five)`,
     );
     for (const [frame, svg] of frames) {
       const sink = new SnapshotSink();
