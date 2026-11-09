@@ -122,7 +122,7 @@ test('failed and stopped sinks close their trace span before the next caller', a
     for (const failure of [new Error('sink failed'), new StopScene()]) {
       perf.enable({ timelineDepth: 1 });
       const scene = new Scene({ async frame() { clock += 7; throw failure; } });
-      await assert.rejects(scene.emitFrame(0), (error) => error === failure);
+      await assert.rejects(scene.wait(1 / 30), (error) => error === failure);
       perf.span('after', () => { clock += 3; });
       assert.deepEqual(perf.rows().find((r) => r.name === 'sink'), { name: 'sink', calls: 1, total: 7, self: 7, max: 7 });
       assert.deepEqual(perf.rows().find((r) => r.name === 'after'), { name: 'after', calls: 1, total: 3, self: 3, max: 3 });

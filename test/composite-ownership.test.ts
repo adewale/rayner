@@ -82,7 +82,7 @@ test('live copied panels expose inherited highlights without registering tempora
   const code = new CodeBlock(scene, colors, ['+ added', '- removed'], {diff: true, lit: {lines: 0}});
   const copies = new Group(card, code).copy();
   const [copiedCard, copiedCode] = copies.children as [Card, CodeBlock];
-  scene.removeAll(); scene.add(copies);
+  scene.remove(...scene.mobjects); scene.add(copies);
   const highlighted = emphasisOf(scene);
   assert.equal(highlighted.get(copiedCard.bar), 'row Count: 1');
   assert.equal(highlighted.get(copiedCode.bar), 'lines 0-0: + added');
@@ -99,7 +99,7 @@ test('live copied panels expose inherited highlights without registering tempora
   assert.equal(emphasisOf(scene).get(added.bar), 'lines 0-0: + added');
   copiedCode.remove(copiedCode.bar);
   assert.equal(emphasisOf(scene).get(copiedCode.bar), 'lines 0-0: + added', 'a missing highlight stays declared so story checks can reject it');
-  scene.removeAll();
+  scene.remove(...scene.mobjects);
   assert.equal(emphasisOf(scene).size, 0);
 });
 

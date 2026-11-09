@@ -1,6 +1,7 @@
 import type {TextShaping} from '../src/text-context.ts';
 import { Group, Text } from '../src/index.ts';
 import { affine } from '../src/mobject.ts';
+import { buildText, textRun } from '../src/text.ts';
 import { ItalicText } from '../src/italic.ts';
 import type { VMobject, Style } from '../src/index.ts';
 import { SVG_PX_PER_UNIT as PX } from './diagram-snapshot.ts';
@@ -16,7 +17,7 @@ export function importedText(run: Pick<SnapshotTextRun, 'text' | 'size' | 'font'
  * Store text/placement once, not thousands of repeated font control points. */
 export function outlineText(run: SnapshotTextRun, style: Style, shaping?: TextShaping): VMobject[] {
   const text = run.natural ? importedText(run, style.fill, shaping) : new Text(run.text, { fontSize: run.size, color: style.fill, shaping });
-  text.build(run.text, run.size, { ...style, strokeWidth: (style.strokeWidth ?? 0) * PX });
+  buildText(text, run.text, run.size, { ...style, strokeWidth: (style.strokeWidth ?? 0) * PX });
   if (!run.natural && run.width != null && text.advance())
     text.stretch(run.width / text.advance(), 0, { aboutPoint: [0, 0] });
   const advance = text.advance();
@@ -36,13 +37,13 @@ export function outlineText(run: SnapshotTextRun, style: Style, shaping?: TextSh
       }
       break;
     case 'central':
-      offset = (text.run.ascent - text.run.descent) / 2;
+      offset = (text[textRun].ascent - text[textRun].descent) / 2;
       break;
     case 'text-before-edge':
-      offset = text.run.ascent;
+      offset = text[textRun].ascent;
       break;
     case 'text-after-edge':
-      offset = -text.run.descent;
+      offset = -text[textRun].descent;
       break;
     default:
       throw new Error(`scene.snapshots: a label has the text baseline ${run.baseline}, which replay does not support; run \`rayner snapshots <scene> --refresh\``);

@@ -66,6 +66,16 @@ interface AxisLineOptions extends NumberLineOptions {
 const TICK_SIZE = 0.1;
 
 /**
+ * The state of a number line and of axes, which copies carry, kept under symbols so that no member an
+ * author writes on a subclass shares a name with it: a number line's tip, by child index (-1 for
+ * none); the axes' shaping service, the x and y values where they cross, and their labels by child
+ * index.
+ */
+const tipAt = Symbol('tipAt');
+/** See tipAt. */
+const axesLayout = Symbol('layout');
+
+/**
  * A number line: a Line from `min` to `max`, centered on the origin, with tick
  * Lines and optional Text labels. Children, read through indices so copies
  * stay correct (copy() clones children; a stored reference would still point
@@ -77,8 +87,8 @@ export class NumberLine extends Group {
   readonly min: number;
   readonly max: number;
   readonly step: number;
-  /** Child index of the tip, or -1. @internal */
-  tipIdx: number;
+  /** See tipAt. */
+  [tipAt]: number;
 
   constructor(opts: NumberLineOptions) {
     const {
@@ -95,17 +105,17 @@ export class NumberLine extends Group {
     // Built along +x about the origin, then turned as one piece
     const line = new Line([-length / 2, 0], [length / 2, 0], lineStyle);
     this.add(line);
-    this.tipIdx = -1;
+    this[tipAt] = -1;
     if (includeTip) {
       const e = length / 2;
       // Clockwise on screen, like Arrow's tip
       const tip = new Polygon([[e + tipLength, 0], [e, -tipWidth / 2], [e, tipWidth / 2]], { fill: stroke ?? NEUTRAL_COLORS.ink, stroke: 'none' });
       if (stroke === undefined) followScene(tip, { fill: 'ink' });
       this.add(tip);
-      this.tipIdx = 1;
+      this[tipAt] = 1;
     }
     const ticks = new Group();
-    for (const x of this.tickValues()) {
+    for (const x of tickValues(this)) {
       const px = -length / 2 + (x - min) / (max - min) * length;
       ticks.add(new Line([px, -TICK_SIZE], [px, TICK_SIZE], lineStyle));
     }
@@ -116,7 +126,7 @@ export class NumberLine extends Group {
     if (includeNumbers) {
       const dir = V.normalize(snap(labelDirection ?? V.rotate([0, -1], rotation)));
       const places = decimals ?? decimalsOf(step);
-      for (const x of this.tickValues()) {
+      for (const x of tickValues(this)) {
         if (numbersToExclude.some((e) => Math.abs(e - x) < 1e-9 * this.step)) continue;
         const t = new Text(x.toFixed(places).replace(/^-(0\.?0*)$/, '$1'), { fontSize: labelFontSize, color: labelColor ?? stroke, shaping });
         // The label's edge facing the line sits just past the tick's end
@@ -128,15 +138,11 @@ export class NumberLine extends Group {
   }
 
   get line(): Line { return this.children[0] as Line; }
-  get tip(): Polygon | null { return (this.children[this.tipIdx] ?? null) as Polygon | null; }
-  get ticks(): Group { return this.children[this.tipIdx < 0 ? 1 : 2] as Group; }
-  get numbers(): Group { return this.children[this.tipIdx < 0 ? 2 : 3] as Group; }
+  get tip(): Polygon | null { return (this.children[this[tipAt]] ?? null) as Polygon | null; }
+  get ticks(): Group { return this.children[this[tipAt] < 0 ? 1 : 2] as Group; }
+  get numbers(): Group { return this.children[this[tipAt] < 0 ? 2 : 3] as Group; }
 
-  /** min, min + step, ... up to max (computed by index, so no drift). */
-  private tickValues(): number[] {
-    const n = Math.floor((this.max - this.min) / this.step + 1e-9);
-    return Array.from({ length: n + 1 }, (_, i) => this.min + i * this.step);
-  }
+
 
   /** The point for number `x`, from the line's current endpoints (extrapolates outside the range). */
   n2p(x: number): Vec {
@@ -207,60 +213,55 @@ export interface GuideLineOptions extends Style {
  * { lagRatio: 0.1 } (at 1 s each label pops in over a frame or two).
  */
 export class Axes extends Group {
-  private readonly shaping: TextShaping | undefined;
-  /** The x and y values where the axes cross. */
-  private readonly crossX: number;
-  private readonly crossY: number;
-  private xLabelIdx: number;
-  private yLabelIdx: number;
+  /** See tipAt. */
+  [axesLayout]: { readonly shaping: TextShaping | undefined; readonly crossX: number; readonly crossY: number; readonly xLabel: number; readonly yLabel: number };
 
   constructor({
     xRange = [0, 10, 1], yRange = [0, 5, 1], width = 8, height = 4.5, axisStyle = {}, yAxisStyle = {},
     tips = false, xLabel, yLabel, axisLabelFontSize = 0.28, shaping = ambientTextContext(),
   }: AxesOptions = {}) {
     super();
-    this.shaping = shaping;
     const [x0, x1] = xRange, [y0, y1] = yRange;
-    this.crossX = clamp(0, x0, x1);
-    this.crossY = clamp(0, y0, y1);
+    const crossX = clamp(0, x0, x1), crossY = clamp(0, y0, y1);
     // A crossing label sits on the other axis when that axis runs past the crossing
-    const xLine: AxisLineOptions = { includeTip: tips, numbersToExclude: y0 < this.crossY ? [this.crossX] : [], ...axisStyle, shaping, range: xRange, length: width };
+    const xLine: AxisLineOptions = { includeTip: tips, numbersToExclude: y0 < crossY ? [crossX] : [], ...axisStyle, shaping, range: xRange, length: width };
     const yLine: AxisLineOptions = {
-      includeTip: tips, labelDirection: [-1, 0], numbersToExclude: x0 < this.crossX ? [this.crossY] : [], ...axisStyle, shaping, ...yAxisStyle,
+      includeTip: tips, labelDirection: [-1, 0], numbersToExclude: x0 < crossX ? [crossY] : [], ...axisStyle, shaping, ...yAxisStyle,
       range: yRange, length: height, rotation: Math.PI / 2,
     };
     const x = new NumberLine(xLine), y = new NumberLine(yLine);
     // Both lines are centered on the origin: slide each across so they meet
     // where the other one's crossing value is. The lines then span exactly
     // the width × height box about the origin.
-    x.shift([0, y.n2p(this.crossY)[1]]);
-    y.shift([x.n2p(this.crossX)[0] - y.n2p(this.crossY)[0], 0]);
+    x.shift([0, y.n2p(crossY)[1]]);
+    y.shift([x.n2p(crossX)[0] - y.n2p(crossY)[0], 0]);
     this.add(x, y);
-    this.xLabelIdx = this.yLabelIdx = -1;
+    let xLabelAt = -1, yLabelAt = -1;
     // Without either, the labels take the scene's ink.
     const color = axisStyle.labelColor ?? axisStyle.stroke;
     if (xLabel != null) {
       const end = x.tip ? x.tip.right() : x.n2p(x.max);
       this.add(new Text(xLabel, { fontSize: axisLabelFontSize, color, shaping }).moveTo(V.add(end, [0.15, 0]), [-1, 0]));
-      this.xLabelIdx = this.children.length - 1;
+      xLabelAt = this.children.length - 1;
     }
     if (yLabel != null) {
       const end = y.tip ? y.tip.top() : y.n2p(y.max);
       this.add(new Text(yLabel, { fontSize: axisLabelFontSize, color, shaping }).moveTo(V.add(end, [0, 0.15]), [0, -1]));
-      this.yLabelIdx = this.children.length - 1;
+      yLabelAt = this.children.length - 1;
     }
+    this[axesLayout] = { shaping, crossX, crossY, xLabel: xLabelAt, yLabel: yLabelAt };
   }
 
   get xAxis(): NumberLine { return this.children[0] as NumberLine; }
   get yAxis(): NumberLine { return this.children[1] as NumberLine; }
-  get xLabel(): Text | null { return (this.children[this.xLabelIdx] ?? null) as Text | null; }
-  get yLabel(): Text | null { return (this.children[this.yLabelIdx] ?? null) as Text | null; }
+  get xLabel(): Text | null { return (this.children[this[axesLayout].xLabel] ?? null) as Text | null; }
+  get yLabel(): Text | null { return (this.children[this[axesLayout].yLabel] ?? null) as Text | null; }
 
   /** The scene point for data coordinates (x, y). Extrapolates outside the ranges. */
   c2p(x: number, y: number): Vec {
     const yx = this.yAxis;
     // Along x from the x axis' own point, then up by the y axis' offset from the crossing
-    return V.add(this.xAxis.n2p(x), V.sub(yx.n2p(y), yx.n2p(this.crossY)));
+    return V.add(this.xAxis.n2p(x), V.sub(yx.n2p(y), yx.n2p(this[axesLayout].crossY)));
   }
 
   /**
@@ -279,7 +280,7 @@ export class Axes extends Group {
     const xs = Array.from({ length: n }, (_, i) => i === n - 1 ? b : a + (b - a) * i / (n - 1));
     const m = accented(new VMobject({ stroke: color ?? NEUTRAL_COLORS.emphasis, strokeWidth: 0.05, ...style, fill: 'none' }), color ?? style.stroke, 'stroke');
     let run: Array<[number, number]> = [];
-    const flush = () => { if (run.length > 1) this.addSmoothRun(m, run); run = []; };
+    const flush = () => { if (run.length > 1) addSmoothRun(this, m, run); run = []; };
     for (const x of xs) {
       const y = fn(x);
       if (Number.isFinite(y)) run.push([x, y]); else flush();
@@ -326,7 +327,7 @@ export class Axes extends Group {
         const at = V.add(this.c2p(x?.[i] ?? i + 0.5, this.yAxis.min), V.mul(down, depth + 0.15));
         // The x axis' colour, or the scene's ink while the axis still takes it.
         const line = this.xAxis.line, axisColor = line[defaultColors]?.stroke ? undefined : line.style.stroke;
-        g.add(new Text(s, { fontSize: labelFontSize, color: labelColor ?? axisColor, shaping: this.shaping }).moveTo(at, V.mul(down, -1)));
+        g.add(new Text(s, { fontSize: labelFontSize, color: labelColor ?? axisColor, shaping: this[axesLayout].shaping }).moveTo(at, V.mul(down, -1)));
       });
     }
     return g;
@@ -360,20 +361,27 @@ export class Axes extends Group {
       return [x, y];
     });
     const m = accented(new VMobject({ fill: color ?? NEUTRAL_COLORS.emphasis, fillOpacity, stroke: 'none', ...style }), color ?? style.fill, 'fill');
-    this.addSmoothRun(m, run);
+    addSmoothRun(this, m, run);
     m.addLineTo(this.c2p(b, 0)).addLineTo(this.c2p(a, 0)).closePath();
     return m;
   }
 
-  /** Append one subpath through `run` (data points, increasing x) with monotone cubic handles. */
-  private addSmoothRun(m: VMobject, run: ReadonlyArray<readonly [number, number]>): void {
-    const slopes = monotoneSlopes(run);
-    m.startNewPath(this.c2p(run[0]![0], run[0]![1]));
-    for (let i = 0; i + 1 < run.length; i++) {
-      const [x0, y0] = run[i]!, [x1, y1] = run[i + 1]!, h = (x1 - x0) / 3;
-      // Bézier control points are affine-invariant: build in data space, map each through c2p
-      m.addCubic(this.c2p(x0 + h, y0 + slopes[i]! * h), this.c2p(x1 - h, y1 - slopes[i + 1]! * h), this.c2p(x1, y1));
-    }
+}
+
+/** A number line's tick values: min, min + step, ... up to max (computed by index, so no drift). */
+function tickValues({ min, max, step }: NumberLine): number[] {
+  const n = Math.floor((max - min) / step + 1e-9);
+  return Array.from({ length: n + 1 }, (_, i) => min + i * step);
+}
+
+/** Append to `m` one subpath through `run` (data points of `axes`, increasing x) with monotone cubic handles. */
+function addSmoothRun(axes: Axes, m: VMobject, run: ReadonlyArray<readonly [number, number]>): void {
+  const slopes = monotoneSlopes(run);
+  m.startNewPath(axes.c2p(run[0]![0], run[0]![1]));
+  for (let i = 0; i + 1 < run.length; i++) {
+    const [x0, y0] = run[i]!, [x1, y1] = run[i + 1]!, h = (x1 - x0) / 3;
+    // Bézier control points are affine-invariant: build in data space, map each through c2p
+    m.addCubic(axes.c2p(x0 + h, y0 + slopes[i]! * h), axes.c2p(x1 - h, y1 - slopes[i + 1]! * h), axes.c2p(x1, y1));
   }
 }
 

@@ -2,7 +2,7 @@ import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, ke
 import { View } from './view.ts';
 import { cloneJson } from '../src/json.ts';
 import type { Scene, Vec, Box, FadeOptions, Animation, SceneColors } from '../src/index.ts';
-import { setDrawn } from '../src/scene.ts';
+import { setDrawn, keepOnTop } from '../src/scene.ts';
 import { center, unionBoxes } from '../src/box.ts';
 import { atHome } from '../src/svg.ts';
 import { FRAME, STAGE_BOX, zoomOf } from '../src/units.ts';
@@ -262,8 +262,8 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     [band, band.copy()],
   ]);
   /** The heading, its band, number and line draw last, over anything added after them. */
-  scene.keepOnTop(band);
-  let unkeepHeading = scene.keepOnTop(heading);
+  keepOnTop(scene, band);
+  let unkeepHeading = keepOnTop(scene, heading);
   /** A camera map from home to the world: world = shift + k × home. */
   type CameraMap = { k: number; shift: Vec };
   const HOME: CameraMap = { k: 1, shift: [0, 0] };
@@ -315,7 +315,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     chrome = next.chrome;
     // The old heading stays on top until it has faded out: something added in the same play draws under it, as under the new one.
     const unkeepOld = unkeepHeading;
-    unkeepHeading = scene.keepOnTop(heading, ...chrome);
+    unkeepHeading = keepOnTop(scene, heading, ...chrome);
     if (!text) scene.add(heading);
     try {
       if (anims.length) await scene.play(...anims);

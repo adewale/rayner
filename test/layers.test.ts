@@ -160,7 +160,6 @@ test('the player, the command and diagram capture import the library through its
  * added, with its reason. A module-level name the layers above use is in an internal barrel instead.
  */
 const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
-  'DomSink.apply': { files: ['app/embed-zoom.ts'], why: 'the close-up draws records without a frame' },
   'Machine.after': { files: ['tools/lib/explain-check.ts'], why: 'check reads the state an event leads to' },
   'Machine.lastPlayedIn': { files: ['tools/lib/explain-check.ts'], why: 'check explores a machine on the step it last played in' },
   'Machine.identity': { files: ['tools/lib/explain-check.ts'], why: "check tells a scene's machines apart across runs" },
@@ -171,12 +170,6 @@ const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
   'Machine.transitionPlay': { files: ['tools/lib/explain-check.ts'], why: "check plays each transition to compare where it ends with the state's picture" },
   MadeAtTurn: { files: ['explain/action.ts', 'explain/machine.ts'], why: "an action's beat and a machine's transition are made at their turn" },
   'MotionSink.frames': { files: ['tools/lib/explain-check.ts'], why: 'check reports how many frames its motion check sampled' },
-  'Scene.drawFrame': { files: ['explain/live.ts'], why: 'a live run draws its landing frames between plays, kept parts raised' },
-  'Scene.keepOnTop': { files: ['explain/stage.ts'], why: 'the stage keeps its heading drawn last' },
-  'Scene.stopAt': { files: ['explain/live.ts'], why: 'the run to a live step stops as the step ends' },
-  'Text.build': { files: ['explain/diagram-text.ts'], why: 'a captured label lays out its replayed run as a Text does' },
-  'Text.frameBox': { files: ['explain/labels.ts'], why: "a label's size is its text's box" },
-  'Text.run': { files: ['explain/diagram-text.ts', 'explain/labels.ts'], why: "a label's words are its text's runs, and a captured label sits on its text's baseline" },
   'View.placed': { files: ['tools/lib/explain-check.ts'], why: 'check redraws a view where it was placed' },
   affine: { files: ['explain/diagram-text.ts'], why: "a captured label takes the SVG's transform" },
   curveCount: { files: ['explain/diagrams.ts'], why: 'a link is a route with curves' },
@@ -185,26 +178,32 @@ const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
   mergeLeaves: { files: ['explain/diagrams.ts'], why: "a diagram's labels draw as one element" },
   replaceChild: { files: ['explain/annotate.ts'], why: 'an annotation swaps a drawn part inside its group' },
   adoptMembers: { files: ['explain/action.ts'], why: 'an action decided late takes its beats as its members then' },
+  advanceBox: { files: ['explain/labels.ts'], why: "a label's size is its text's advance box" },
   beginAnimation: { files: ['explain/choreograph.ts', 'explain/diagrams.ts', 'explain/view.ts'], why: 'an animation that runs another begins it, and a diagram moves a hidden part at once' },
+  buildText: { files: ['explain/diagram-text.ts'], why: 'a captured label lays out its replayed run as a Text does' },
   cleanUp: { files: ['explain/choreograph.ts', 'explain/state.ts'], why: "the explainer layer's animations say what the end of their play takes off the stage" },
+  drawFrame: { files: ['explain/live.ts'], why: 'a live run draws its landing frames between plays, kept parts raised' },
   ended: { files: ['explain/action.ts'], why: "an action's end runs once its last beat has finished" },
   families: { files: ['explain/annotate.ts'], why: 'an annotation reads what an animation draws' },
   finishAnimation: { files: ['explain/choreograph.ts', 'explain/diagrams.ts', 'explain/view.ts'], why: 'an animation that runs another finishes it, and a diagram moves a hidden part at once' },
   interpolateAnimation: { files: ['explain/choreograph.ts', 'explain/view.ts'], why: 'an animation that runs another draws its frames' },
   isRemover: { files: ['explain/state.ts'], why: 'a Follow removes its targets when it is a remover' },
+  keepOnTop: { files: ['explain/stage.ts'], why: 'the stage keeps its heading drawn last' },
   knownTransform: { files: ['explain/view.ts'], why: 'a view morphs a picture of the same structure without aligning it' },
   passesEasing: { files: ['explain/action.ts'], why: "a play's rateFunc and lagRatio reach what an action's beats make" },
   runTimeOf: { files: ['explain/action.ts'], why: "an action checks its beats' run times against its plan" },
   playsOn: { files: ['explain/action.ts', 'explain/state.ts'], why: 'an action and a state change belong to the scene they change' },
   setDrawn: { files: ['explain/stage.ts'], why: 'the checks and close-ups draw a step without its heading, then put the list back' },
   settle: { files: ['explain/action.ts'], why: 'an action is decided once what it reads is ready' },
+  stopAt: { files: ['explain/live.ts'], why: 'the run to a live step stops as the step ends' },
+  textRun: { files: ['explain/diagram-text.ts', 'explain/labels.ts'], why: "a label's words are its text's run, and a captured label sits on its text's baseline" },
   whenReady: { files: ['explain/action.ts'], why: 'an action waits for what it reads before it begins' },
 };
 
 /** Every file the type checker reads for the tests below: the library's users, its entry points and barrels, and a seeded user. */
 const SEEDED = {
   file: 'app/seeded-defect.ts',
-  text: "import type { Scene } from '../src/scene.ts';\nexport const swap = (scene: Scene, other: Scene) => { scene.sink = other.sink; return scene.stopAt; };\n",
+  text: "import type { Machine } from '../explain/machine.ts';\nexport const peek = (m: Machine<object, string>, other: Machine<object, string>) => { other.reachable(); return m.outcome; };\n",
 };
 let checked: { program: ts.Program; checker: ts.TypeChecker } | undefined;
 function typeChecked() {
@@ -267,8 +266,8 @@ function internalUses(files: string[]): Record<string, string[]> {
 }
 
 test('the @internal members used across the layers are exactly those listed, by the files listed', () => {
-  // A seeded use of the scene's internal sink, from a file the list does not name, is read as one.
-  assert.deepEqual(internalUses([SEEDED.file]), { 'Scene.sink': [SEEDED.file], 'Scene.stopAt': [SEEDED.file] }, 'the seeded file\'s uses are found by member, through a type');
+  // A seeded use of a machine's internal members, from a file the list does not name, is read as one.
+  assert.deepEqual(internalUses([SEEDED.file]), { 'Machine.outcome': [SEEDED.file], 'Machine.reachable': [SEEDED.file] }, 'the seeded file\'s uses are found by member, through a type');
   const listed = Object.fromEntries(Object.entries(INTERNAL_USES).map(([member, { files }]) => [member, files]));
   assert.deepEqual(internalUses([...sources('explain'), ...ABOVE]), listed, 'list each new use of an @internal member across the layers in INTERNAL_USES, with its reason');
 });

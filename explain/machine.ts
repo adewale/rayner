@@ -84,7 +84,7 @@ export interface Transition<S, E> {
   event: E;
   before: S;
   after: S;
-  /** `view`'s picture of `after`, placed where the view will land. Throws for a view the machine does not have. */
+  /** `view`'s picture of `after`, placed where the view will finish. Throws for a view the machine does not have. */
   target(view: View): Mobject;
   /** `choreograph(view.current, target(view))`: the view's parts, from what it shows now to its target. */
   choreograph(view: View): Choreography;
@@ -151,7 +151,7 @@ export class Machine<S extends object, E extends string> {
     // Exploration redraws any reachable state after the run, which needs each picture to be a function
     // of the scene's state alone. Every View is (view(scene, draw)), so there is nothing to refuse.
     this.scene = scene;
-    this.spec = settle(spec);
+    this.spec = frozenSpec(spec);
     machinesOf(scene).push(this as unknown as Machine<object, string>);
   }
 
@@ -207,7 +207,7 @@ export class Machine<S extends object, E extends string> {
 
   /**
    * @internal The transition for `event` from `before` to `after`, with each view's target placed where it
-   * will land now (when the transition is built: its turn in a play, or exploration).
+   * will finish now (when the transition is built: its turn in a play, or exploration).
    */
   transitionFor(event: E, before: S, after: S): Transition<S, E> {
     const { views } = this.spec, placed = new Map<View, Mobject>();
@@ -223,7 +223,7 @@ export class Machine<S extends object, E extends string> {
    * One event from `from` (default: the scene's state now), as an action (see Action): await it,
    * or hand it to play(), a Succession or a group. The model's next state is adopted and recorded
    * as `{ kind: 'event', event }`, then the views morph to it, or the event's authored transition
-   * plays and the views land on it. It is built for `from`, so it refuses to play from any other
+   * plays and the views finish on it. It is built for `from`, so it refuses to play from any other
    * state, and a refused event is refused here, before anything plays.
    */
   send(event: E, from: S = this.scene.state): Action {
@@ -231,7 +231,7 @@ export class Machine<S extends object, E extends string> {
     return turnAction(this.scene, 'machine.send()', schedule.runTime, () => schedule);
   }
 
-  /** What one event plays from `from` (see send): its state change, then the views' morph or the transition and the landing. */
+  /** What one event plays from `from` (see send): its state change, then the views' morph or the transition and the views' finish. */
   private schedule(event: E, from: S): Succession {
     const before = JSON.parse(JSON.stringify(from)) as S;
     const o = this.outcome(before, event);
@@ -316,7 +316,7 @@ export class Machine<S extends object, E extends string> {
  * labels and transitions are frozen copies too, and whose `start` is copied at construction and again
  * at every read, so neither the caller nor a reader can change what the machine explores.
  */
-function settle<S extends object, E extends string>(spec: MachineSpec<S, E>): MachineModel<S, E> {
+function frozenSpec<S extends object, E extends string>(spec: MachineSpec<S, E>): MachineModel<S, E> {
   // A state is JSON (a send sets it through the trace's JSON rules), and the bare runtime that
   // replays a page has no structuredClone.
   const copy = (state: S): S => JSON.parse(JSON.stringify(state)) as S;
@@ -333,7 +333,7 @@ function settle<S extends object, E extends string>(spec: MachineSpec<S, E>): Ma
 
 /**
  * The transition, made when its turn comes from the pictures on screen then: a transition in a
- * replay starts from the pictures the event before it landed on, which do not exist when the
+ * replay starts from the pictures the event before it finished on, which do not exist when the
  * replay is built. Before it begins it declares the views as what it writes. What it makes may
  * wait for what it reads (`s.show` of a diagram not laid out yet, `d.morph`): the play waits for
  * that before its next frame. It plays over `runTime`, with the made animation's own easing.

@@ -72,7 +72,7 @@ step that ends with one never played fails, as it does for a stage verb.
 `rayner check` and the player read the rest from the spec. What an event does from a state is the
 next state, a refusal with the reason `next` gave, or the story's bound. Exploration visits every
 state reachable from `start`, breadth first, each by the shortest events that reach it, and plays
-every transition from every state it visits, with each view's target placed where it will land
+every transition from every state it visits, with each view's target placed where it will finish
 ([below](#refused-events-bounds-and-authored-transitions)). It draws every state under what the scene
 showed (`scene.shown`) when the machine last played: what is shown may change between events (a
 guided tour moving a code panel's focus).
@@ -121,7 +121,7 @@ player says the story stops there rather than that the model refuses. A bound on
 
 An event may have authored motion instead of the keyed morph. The transition's `t.choreograph(view)`
 names the keyed parts of a view's picture and of its target, and each call animates some of
-them in the author's order; `rest()` lands every part no call named, so a transition that
+them in the author's order; `rest()` moves every part no call named to its target, so a transition that
 forgets a part still ends on the target. From `ring-buffer`, with the refused push left out:
 
 ```ts
@@ -136,7 +136,7 @@ transition: {
         c.enter(`ring:value:${slot}`, { from: `ring:incoming:${pushArg(after.operation)}` }), // the value grows from push(v)'s
         c.morph(`ring:slot:${slot}`),
       ]),
-      together([turn(c, 'tail', before.tail, after.tail), fields(), c.rest()]), // tail turns round the ring; the rest lands
+      together([turn(c, 'tail', before.tail, after.tail), fields(), c.rest()]), // tail turns round the ring; the rest finishes in place
     ]);
   },
 },
@@ -294,7 +294,7 @@ frame skipped (`runLive` in `explain/live.ts`); a press plays its last event fra
 before it, from a run held there when there is one ([what a press costs](#the-player)). A fresh
 load of the URL runs the same, all skipped, so a link reopens the same picture, and seeking keeps
 its guarantee: a frame is a function of time and of the log. The run stops as the live step ends
-(`Scene.stopAt`): after its end listeners, its caption hold and any code the scene runs after the
+(the scene module's `stopAt`): after its end listeners, its caption hold and any code the scene runs after the
 step's last play, and before the next step begins. So the reader starts from the state the trace
 records as the step's `after`, on the step's resting picture, the one a link shows (check fails a
 picture that changes during the hold or after the step's last frame). The machine plays under what the scene showed when it last played, as exploration

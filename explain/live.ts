@@ -8,6 +8,7 @@
 // explored. See docs/MACHINES.md, "The player".
 
 import type { Scene, SceneClass, SceneState, Sink } from '../src/scene.ts';
+import { stopAt, drawFrame } from '../src/scene.ts';
 import { canonicalJson } from '../src/json.ts';
 import { machinesOf } from './machine.ts';
 import type { Machine } from './machine.ts';
@@ -102,7 +103,7 @@ export interface LiveDraw {
   onStart?: () => void;
 }
 /**
- * A live run held at the picture its log lands on (`runLive` with `keep`). `send` plays one more
+ * A live run held at the picture its log finishes on (`runLive` with `keep`). `send` plays one more
  * event from there, as a fresh run of the longer log would play its last event, without running
  * the scene to the step again. A send that fails (a sink aborted mid-play, say) closes the
  * session, since its scene may have stopped part-way; start a fresh run then.
@@ -139,13 +140,13 @@ export class LiveSink implements Sink {
 /**
  * Run `Source` to the end of `step`, where the machine at `place` is live, then play `log` through
  * `machine.send` (from the machine's start, its views redrawn there, when `from` is 'start' and the
- * log is not empty), every frame skipped; `sink` then draws the picture the log lands on.
+ * log is not empty), every frame skipped; `sink` then draws the picture the log finishes on.
  * With `animate`, the last event plays through that sink instead, frame by frame from the picture
- * before it (drawn at dt 0, after which `onStart` is called), and then lands. `onRest` sees the
+ * before it (drawn at dt 0, after which `onStart` is called), and then finishes. `onRest` sees the
  * scene as the step ends, before any event (the review compares a state with it).
- * With `keep`, the run is held at the picture the log lands on, as the result's `session`.
+ * With `keep`, the run is held at the picture the log finishes on, as the result's `session`.
  *
- * The run stops as the step ends (`Scene.stopAt`): after its end listeners and caption hold, with
+ * The run stops as the step ends (`stopAt`): after its end listeners and caption hold, with
  * the code the scene runs after the step's last play run, so the scene is as the trace's `after`
  * records it, and `rayner check` explores the machine from that same run. Its picture is the step's
  * resting picture, the one a link shows (check holds a step's picture still from its still frame to
@@ -171,10 +172,10 @@ export async function runLive(
   let wake: ((command: Command | null) => void) | null = null, held!: () => void;
   const holding = new Promise<void>((resolve) => (held = resolve));
   // Run there as a seek does, every frame skipped; the scene stops itself as the step ends, and
-  // plays the log there (see Scene.stopAt).
+  // plays the log there (see stopAt).
   const out = new LiveSink();
   const scene = new Source(out) as Scene<any>;
-  scene.stopAt(step, async (at) => {
+  stopAt(scene, step, async (at) => {
     const machine = liveMachine(at, step, place);
     if (machine.playedUnder && canonicalJson(machine.playedUnder) !== canonicalJson(at.shown)) at.shown = machine.playedUnder;
     const rest = JSON.parse(JSON.stringify(at.state)) as object;
@@ -187,13 +188,13 @@ export async function runLive(
     for (const [i, event] of log.entries()) {
       if (animate && i === log.length - 1) {
         out.draw(animate);
-        await at.drawFrame(animate);
+        await drawFrame(at, animate);
         onStart?.();
       }
       await at.play(machine.send(event));
     }
     const drawn = animate ?? sink;
-    if (drawn) await at.drawFrame(drawn);
+    if (drawn) await drawFrame(at, drawn);
     result = { scene: at, machine, rest, shown: at.shownJson() };
     if (explore) {
       try { await explore(at, machine, (to) => out.draw(to)); } finally { out.draw(undefined); }
@@ -212,12 +213,12 @@ export async function runLive(
         // As a fresh run plays a log's last event: animated from the picture now, or skipped, then drawn.
         out.draw(draw.animate);
         if (draw.animate) {
-          await at.drawFrame(draw.animate);
+          await drawFrame(at, draw.animate);
           draw.onStart?.();
         }
         await at.play(machine.send(event));
-        const landing = draw.animate ?? draw.sink;
-        if (landing) await at.drawFrame(landing);
+        const last = draw.animate ?? draw.sink;
+        if (last) await drawFrame(at, last);
         command.done({ scene: at, machine, rest, shown: at.shownJson() });
       } catch (error) {
         command.failed(error);

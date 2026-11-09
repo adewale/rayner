@@ -829,8 +829,8 @@ for (const name of ['box', 'center', 'width', 'height', 'left', 'right', 'top', 
 }
 
 // What a mobject keeps through restore() beyond its private fields (its number, updaters, saved
-// state, family and box, which are never copied over): nothing. Caches (underscore fields) stay
-// too; touchPoints() and new arrays invalidate them.
+// state, family and box, which are never copied over) and the scene colours it took: nothing. Every
+// other field, an author's included, whatever its name, takes the saved value.
 const KEEP_ON_RESTORE = new Set<string>();
 // become() also keeps each member's key, the address matching, find() and invariants use, and its role.
 const KEEP_ON_BECOME = new Set(['key', 'role']);
@@ -874,8 +874,8 @@ export function adoptState(m: Mobject, state: Mobject, keep: ReadonlySet<string>
   for (const [to, from] of pairs) {
     const t = to as unknown as Record<string, unknown>, f = from as unknown as Record<string, unknown>;
     // Symbol-keyed fields (what a drawn part says it emphasises or shows) are data like any other, but
-    // the scene colours it took, which it keeps, as it keeps its caches.
-    const adopt = (k: string | symbol) => typeof k === 'symbol' ? k !== sceneColors : !keep.has(k) && k[0] !== '_';
+    // the scene colours it took, which it keeps.
+    const adopt = (k: string | symbol) => typeof k === 'symbol' ? k !== sceneColors : !keep.has(k);
     for (const k of ownFields(t)) if (!(k in f) && adopt(k)) delete t[k as string];
     for (const k of ownFields(f)) if (adopt(k)) t[k as string] = place(f[k as string]);
     if (!keep.has('key')) setKey(to, from.key);

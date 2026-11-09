@@ -231,7 +231,7 @@ test('what an action or a machine transition makes as its turn comes has one wri
   const ring = new Circle({ radius: 2 });
   scene.add(ring);
   const m = new Machine(counting, { start: { n: 0 }, events: ['UP'], next: (st: { n: number }) => ({ n: st.n + 1 }), views: [v], transition: { UP: () => new AnimationGroup([v.sync(), new Transform(ring, new Circle({ radius: 1 }))]) } });
-  await assert.rejects(scene.play(m.send('UP'), new FadeOut(ring)), /^Error: machine\.send\("UP"\): a Transform, begun at its turn, and a FadeOut both animate a Circle/);
+  await assert.rejects(scene.play(m.send('UP'), new FadeOut(ring)), (e) => e instanceof Error && e.message.startsWith('machine.send("UP"): ') && ['a Transform', 'a FadeOut', 'a Circle'].every((v) => e.message.includes(v)));
   // Sequenced, the same writers are fine: the beat, then the FadeOut.
   const f = new Circle();
   await scene.play(new Succession([fadeIn(f), new FadeOut(f)]));

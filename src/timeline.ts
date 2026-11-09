@@ -4,7 +4,7 @@
 // re-running the program up to it. The fixed-dt loop makes that exact, and at
 // well under a millisecond per frame it is cheap enough to do per request.
 
-import { StopScene } from './scene.ts';
+import { StopScene, drawFrame } from './scene.ts';
 import type { EndedStep, Scene, SceneClass, SceneOptions, Sink, Step } from './scene.ts';
 
 /** Sink that records nothing, and so skips every frame: the scene counts them without drawing them. */
@@ -16,7 +16,7 @@ export class NullSink implements Sink {
 /**
  * @internal Run a scene with every frame skipped, handing step boundaries to `sink`, whatever the
  * sink's own skip time: what the command and the player read a project's steps and layouts from.
- * Nothing reads frames, and the state at a step boundary is exact (see Scene.skipUntil).
+ * Nothing reads frames, and the state at a step boundary is exact (see Sink.skipUntil).
  */
 export async function dryRun(SceneClass: SceneClass, sink: Sink, opts: SceneOptions = {}): Promise<Scene> {
   const skipping: Sink = {
@@ -44,7 +44,7 @@ export async function renderFrame(SceneClass: SceneClass, frame: number, sink: S
   // Frames that end before this one are skipped, by the scene's own clock (its fps is known only now).
   seek.fps = scene.fps;
   await scene.run();
-  if (!seek.forwarded) await scene.drawFrame(sink); // past the end: final frame
+  if (!seek.forwarded) await drawFrame(scene, sink); // past the end: final frame
   return scene;
 }
 

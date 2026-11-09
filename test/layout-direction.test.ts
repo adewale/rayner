@@ -11,6 +11,7 @@ import { card } from '../explain/drawing.ts';
 import { useDiagrams } from '../explain/diagram-snapshot.ts';
 import { fixedSnapshot, square } from './lib/random-snapshot.ts';
 import { fc, params } from './lib/pbt.ts';
+import { advanceBox } from '../src/text.ts';
 
 await loadFonts();
 const scene = () => new Scene(new NullSink());
@@ -108,7 +109,7 @@ test('stage direction resolves logical card/code/carry regions and preserves phy
       const code = await s.code(['x[12] = 34;'], { at });
       near(code.panel.center()[0], x);
       assert.equal(code.code.lines[0]!.text, 'x[12] = 34;');
-      assert.ok(code.code.lines[0]!.frameBox[6]! > code.code.lines[0]!.frameBox[0]!, 'code glyphs stay unmirrored');
+      assert.ok(code.code.lines[0]![advanceBox][6]! > code.code.lines[0]![advanceBox][0]!, 'code glyphs stay unmirrored');
       const native = new Rectangle({ width: 1, height: 1 });
       s.scene.add(native);
       await s.carry(native, at);

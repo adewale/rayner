@@ -16,6 +16,7 @@ import type { DiagramSnapshot } from '../explain/diagram-snapshot.ts';
 import { snapshotBuilder, naturalMeasurementIdentity } from '../integrations/agentic-mermaid/index.ts';
 import { collectProject, ROOT } from '../tools/lib/explain-project.ts';
 import { fc, params } from './lib/pbt.ts';
+import { buildText, textRun } from '../src/text.ts';
 
 test('natural lettering has a separate cache key and refuses unknown JavaScript modes', () => {
   fc.assert(fc.property(fc.string(), fc.string(), (source, style) => {
@@ -65,12 +66,12 @@ test('natural baselines and anchors place actual glyph ink at the SVG coordinate
     fc.integer({ min: 8, max: 80 }), fc.integer({ min: -100, max: 100 }), fc.integer({ min: -100, max: 100 }),
     (font, value, anchor, baseline, size, x, y) => {
       const text = new Text(value, { font, fontSize: size });
-      text.build(value, size, { fill: '#000000', stroke: 'none' });
+      buildText(text, value, size, { fill: '#000000', stroke: 'none' });
       const xGlyph = new Text('x', { font, fontSize: 1 }).children[0]!;
       const offset = baseline === 'middle' ? xGlyph.height() * size / 2
-        : baseline === 'central' ? (text.run.ascent - text.run.descent) / 2
-        : baseline === 'text-before-edge' ? text.run.ascent
-        : baseline === 'text-after-edge' ? -text.run.descent : 0;
+        : baseline === 'central' ? (text[textRun].ascent - text[textRun].descent) / 2
+        : baseline === 'text-before-edge' ? text[textRun].ascent
+        : baseline === 'text-after-edge' ? -text[textRun].descent : 0;
       const shift = x - text.advance() * (anchor === 'middle' ? 0.5 : anchor === 'end' ? 1 : 0);
       const matrix = [1, 0.1, 0.2, 1, 2, -3];
       const actual = outlineText({ text: value, size, x, y, anchor, baseline, natural: true, font, matrix },

@@ -30,7 +30,7 @@ copies, and not re-parented (they stay children of the line). So:
 - `span.setFill(s.look.emphasis)` recolours the text on screen.
 - `span.box()`, `center()`, `top()`... are where the text is now, after any
   shift or scale of the block. A `Rectangle` or brace built from `span.box()`
-  lands on the real glyphs.
+  sits on the real glyphs.
 - `span.shift(...)` moves the real glyphs and invalidates the line's and the
   block's boxes.
 - `span.animate.setFill(s.look.bad)` records the calls and plays them as a Transform
@@ -43,7 +43,7 @@ copies, and not re-parented (they stay children of the line). So:
   glyphs would draw twice. Mark a shape drawn from its box instead.
 
 A span is fixed when taken. After its line's text changes (`Text.setText`, or a
-Transform that lands another string on the line) it is `stale` and `box()`
+Transform that finishes with another string on the line) it is `stale` and `box()`
 throws; take a new span from the `Code` now on screen. After
 `Transform(a, b, { replace: true })`, take spans from `b`.
 

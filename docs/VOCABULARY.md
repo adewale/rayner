@@ -56,7 +56,7 @@ One row per idea.
 | What play() takes | `Playable`: a `ScheduledAnimation` or a `.animate` builder | An `Animation` animates its `mobject`, and is what a custom animation extends; an `AnimationGroup` animates no one mobject, so it is no `Animation`, and `ScheduledAnimation` names either, as groups and transitions take them | |
 | How a diagram is shown | `d.presentation` (`DiagramPresentation`) | `detached`, `live` (its own parts on the stage, which reveal, enlarge and morph move) or `viewed` (a view draws it); `live` here is not a live step | `d.shownBy`, the stage's map of diagram views |
 | The reader's events | `sent` | The events a reader sent at a live step, in the URL beside `step` | |
-| Authored transition | `transition: { [event]: (t) => Animation }` | The motion for an event, built from `{ event, before, after, target, choreograph }` when its turn comes; the views then land in place on the pictures of `after` | Hand animation beside the machine |
+| Authored transition | `transition: { [event]: (t) => Animation }` | The motion for an event, built from `{ event, before, after, target, choreograph }` when its turn comes; the views then finish in place on the pictures of `after` | Hand animation beside the machine |
 | Authored transition parts | `t.choreograph(view)`: `morph`, `enter`, `leave`, `insert`, `own`, `follow`, `travel`, `rest`; `from`, `to`, `has` and `keys` read the two pictures | One event's motion, part by part, by key ([the calls](MACHINES.md#refused-events-bounds-and-authored-transitions)) | |
 | A sampled value | `view.tween((t) => state)`; `c.follow({ from, to, draw }, { targets })` in a transition | A state, or one number, sampled between two ends and redrawn with `become` | |
 | Taking another's data in place | `become(other)` | Keeps identity and keys; refuses to drop a keyed child | |
@@ -101,8 +101,8 @@ Each name's promise is checkable:
   per scenario, such as henge's model, pass: they are the same in both runs.
 - Refusal lives in `next`. There is no separate `allows`, since two functions could disagree about
   which events a state accepts.
-- A transition lands on the model's picture. It is optional per event; with one, the authored
-  motion plays and the views then land in place on `draw(after)`, and `rayner check` fails a
+- A transition finishes on the model's picture. It is optional per event; with one, the authored
+  motion plays and the views then finish in place on `draw(after)`, and `rayner check` fails a
   transition that ends anywhere else.
 - A keyed table row is its identity. python-dict and bloom-filter key their rows: bloom-filter's
   lookup rows by the name looked up and its sample rows by row length, so

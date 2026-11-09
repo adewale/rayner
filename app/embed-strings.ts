@@ -112,7 +112,7 @@ export interface Chrome {
   notPossible: string;
   /** An event past where the explainer's story stops, with the story's reason. */
   storyStops: (reason: string) => string;
-  /** Announced after an event: the event, then the picture it lands on. */
+  /** Announced after an event: the event, then the picture it finishes on. */
   sentSaid: (event: string, picture: string) => string;
   /** Announced when a refused event's button is pressed: the event and why. */
   refusedSaid: (event: string, reason: string) => string;

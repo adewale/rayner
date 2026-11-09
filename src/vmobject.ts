@@ -55,7 +55,7 @@ export class VMobject extends Mobject {
   /** Subclasses build their geometry here, from the constructor (before their own fields are set). */
   protected initPoints(): void {}
 
-  /** @internal */ override pointArrays(): Float32Array[] { return this.subpaths; }
+  override pointArrays(): Float32Array[] { return this.subpaths; }
   override pointKind(): string { return 'path'; }
 
   /** `src` is the mobject this one was copied from: same class. */

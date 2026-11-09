@@ -86,6 +86,14 @@ export class Line extends VMobject {
 }
 
 /**
+ * The state of a composite shape, which copies carry, kept under symbols so that no member an author
+ * writes on a subclass shares a name with it.
+ */
+const labeledParts = Symbol('parts');
+/** See labeledParts. */
+const arrowTip = Symbol('tip');
+
+/**
  * A shape with a label: a box and its name, a state and its circle, an edge
  * and its caption. `shape` and `label` read through child indices, so they
  * stay correct on copies (copy() clones children; a plain property pointing
@@ -94,19 +102,18 @@ export class Line extends VMobject {
  * The type parameters say what the parts are (`Labeled<Rectangle, Text>`).
  */
 export class Labeled<S extends Mobject = Mobject, L extends Mobject = Mobject> extends Group {
-  private shapeIdx: number;
-  private labelIdx: number;
+  /** Which children are the shape and the label, by index (-1 for none). */
+  [labeledParts]: { readonly shape: number; readonly label: number };
 
   /** center: put the label on the shape's center */
   constructor(shape: S | null, label: L | null, { center = true }: { center?: boolean } = {}) {
     super(...[shape, label].filter((m): m is S | L => Boolean(m)));
-    this.shapeIdx = shape ? 0 : -1;
-    this.labelIdx = label ? this.children.length - 1 : -1;
+    this[labeledParts] = { shape: shape ? 0 : -1, label: label ? this.children.length - 1 : -1 };
     if (shape && label && center) label.moveTo(shape);
   }
   /** The shape, or the label when there is no shape: what arrows attach to. */
-  get shape(): S | L { return (this.children[this.shapeIdx] ?? this.label) as S | L; }
-  get label(): L | null { return (this.children[this.labelIdx] ?? null) as L | null; }
+  get shape(): S | L { return (this.children[this[labeledParts].shape] ?? this.label) as S | L; }
+  get label(): L | null { return (this.children[this[labeledParts].label] ?? null) as L | null; }
 }
 
 export interface ArrowOptions { tipLength?: number; tipWidth?: number; stroke?: string; strokeWidth?: number; buff?: number }
@@ -117,11 +124,12 @@ export interface ArrowOptions { tipLength?: number; tipWidth?: number; stroke?: 
  * stored reference would still point at the original's.
  */
 export class Arrow extends Group {
-  /** @internal */ opts: { tipLength: number; tipWidth: number };
+  /** The tip's length and width. */
+  [arrowTip]: { readonly tipLength: number; readonly tipWidth: number };
 
   constructor(start: Readonly<Vec>, end: Readonly<Vec>, { tipLength = 0.3, tipWidth = 0.22, stroke, strokeWidth = 0.04, buff = 0 }: ArrowOptions = {}) {
     super();
-    this.opts = { tipLength, tipWidth };
+    this[arrowTip] = { tipLength, tipWidth };
     const ink = stroke ?? NEUTRAL_COLORS.ink;
     this.add(new Line(start, end, { stroke: ink, strokeWidth }), new Polygon([[0, 0], [0, 0], [0, 0]], { fill: ink, stroke: 'none' }));
     if (stroke === undefined) followScene(this, { fill: 'ink', stroke: 'ink' });
@@ -133,7 +141,7 @@ export class Arrow extends Group {
     const dir = V.normalize(V.sub(end, start));
     const s = V.add(start, V.mul(dir, buff));
     const e = V.sub(end, V.mul(dir, buff));
-    const { tipLength, tipWidth } = this.opts;
+    const { tipLength, tipWidth } = this[arrowTip];
     const base = V.sub(e, V.mul(dir, tipLength));
     const perp: Vec = [dir[1], -dir[0]]; // right of the direction: the tip is drawn clockwise on screen
     this.line.putStartAndEndOn(s, base);

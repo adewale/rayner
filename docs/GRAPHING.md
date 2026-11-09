@@ -6,7 +6,7 @@ model at run time, with no build step, and cannot disagree with it.
 
 Everything is an ordinary mobject. Axes are Lines, Polygons and Text in Groups. A plot is one
 VMobject made of cubic Béziers, and bars are Rectangles. So `Create` draws a chart in,
-`Transform` morphs one set of bars into the next, and seeking lands on the same frame as a full run.
+`Transform` morphs one set of bars into the next, and seeking reaches the same frame as a full run.
 
 ## Example: daylight hours from the seasons model
 
