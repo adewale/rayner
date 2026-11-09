@@ -22,7 +22,7 @@ import { lostLabelWarnings } from './explain-warnings.ts';
 import { letteringRequest, prepareLettering, useProjectLettering } from './explain-lettering.ts';
 import type { Lettering } from './explain-lettering.ts';
 import { buildInputs } from './build-inputs.ts';
-import { COMPILED, LIB_ROOT, ROOT } from './roots.ts';
+import { COMPILED, GLYPH, LIB_ROOT, ROOT } from './roots.ts';
 import { entryPoints } from './entry-points.ts';
 import { listTree, relativePosix, sha256 } from './hash.ts';
 
@@ -68,6 +68,8 @@ export function engineAlias(node = false, outlines = false): Plugin {
         else if (args.path.startsWith('.') || args.path.startsWith('/')) {
           const absolute = resolve(args.resolveDir, args.path);
           const compiled = absolute.match(/\/dist\/(src|explain)\/(.+)\.js$/);
+          // The library's sources import its shaper beside them; it ships once, beside the compiled modules.
+          if (!node && absolute === join(LIB_ROOT, 'vendor/glyph.js')) return { path: GLYPH };
           if (compiled) file = join(LIB_ROOT, compiled[1]!, compiled[2]! + '.ts');
           else
             // The player (app/) ships with the command and reaches the engine by relative paths,
