@@ -13,8 +13,6 @@ import type { Mobject } from './mobject.ts';
 import { NEUTRAL_COLORS } from './color.ts';
 import type { SceneColors } from './color.ts';
 import { perf } from './perf.ts';
-import {Text} from './text.ts';
-import type {TextOptions} from './text.ts';
 import {textContextOf, withTextContext} from './text-context.ts';
 import { loadFonts } from './fonts.ts';
 import {canonicalJson, cloneJson} from './json.ts';
@@ -524,7 +522,6 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
 
   /** Explicit text creation stays bound to this scene's shaping service. */
   get textShaping() { return textContextOf(this.constructor); }
-  text(value: string, opts: TextOptions = {}): Text { return new Text(value, {...opts, shaping: opts.shaping ?? this.textShaping}); }
 
   async run(): Promise<this> {
     if (this.#ran) throw new Error('this.run(): the scene has run already; make a new scene for another run');

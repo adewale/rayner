@@ -13,6 +13,7 @@ import {
   Rectangle,
 } from '../src/index.ts';
 import { MoveAlongPath } from '../src/animation.ts';
+import { Text } from '../src/text.ts';
 import { Action } from './action.ts';
 import { ImportedLabel, labelOf } from './labels.ts';
 import type { Beat, Plan } from './action.ts';
@@ -1043,7 +1044,7 @@ export class Diagram {
   }
   /** A note's label on its raised, outlined paper, at the origin. */
   private noteLook(text: string, color: string, size: number): Group {
-    const label = this.scene.text(text, {fontSize: size, color});
+    const label = new Text(text, { fontSize: size, color, shaping: this.scene.textShaping });
     const bg = new Rectangle({
       width: label.width() + size * 1.4,
       height: size * 1.85,
