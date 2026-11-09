@@ -81,14 +81,24 @@ const waits = Symbol('waits'), lands = Symbol('lands');
  * ready; `cleanUp`, what the end of its play takes off the scene. Symbols, so no member an author
  * writes on an animation shares a name with one or replaces it.
  */
-export const takeOptions = Symbol('takeOptions'), whenReady = Symbol('whenReady'), settle = Symbol('settle'), cleanUp = Symbol('cleanUp');
+export const takeOptions = Symbol('takeOptions');
+/** @internal See takeOptions. */
+export const whenReady = Symbol('whenReady');
+/** @internal See takeOptions. */
+export const settle = Symbol('settle');
+/** @internal See takeOptions. */
+export const cleanUp = Symbol('cleanUp');
 /**
  * @internal Keys of what the engine reads on an animation, set apart from any name an author's member
  * may have: `paintTargets`, what takes the scene's colours before it begins; `playScene`, the scene a
  * group's play runs on, which play() sets; `playsOn`, the scene an animation that changes its scene's
  * state belongs to (an action's), which a play on another scene refuses.
  */
-export const paintTargets = Symbol('paintTargets'), playScene = Symbol('playScene'), playsOn = Symbol('playsOn');
+export const paintTargets = Symbol('paintTargets');
+/** @internal See paintTargets. */
+export const playScene = Symbol('playScene');
+/** @internal See paintTargets. */
+export const playsOn = Symbol('playsOn');
 
 /** What a subclass may not redefine, and what to do instead: each keeps the phase or the times a play reads. */
 const FIXED = {

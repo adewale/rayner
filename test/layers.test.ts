@@ -185,6 +185,10 @@ const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
   'Text.run': { files: ['explain/diagram-text.ts', 'explain/labels.ts'], why: "a label's words are its text's runs, and a captured label sits on its text's baseline" },
   'Transform.sameStructure': { files: ['explain/view.ts'], why: 'a view morphs a picture of the same structure' },
   'View.placed': { files: ['tools/lib/explain-check.ts'], why: 'check redraws a view where it was placed' },
+  cleanUp: { files: ['explain/choreograph.ts', 'explain/machine.ts', 'explain/state.ts', 'explain/view.ts'], why: "the explainer layer's animations say what the end of their play takes off the stage" },
+  playsOn: { files: ['explain/action.ts', 'explain/state.ts'], why: 'an action and a state change belong to the scene they change' },
+  settle: { files: ['explain/action.ts'], why: 'an action is decided once what it reads is ready' },
+  whenReady: { files: ['explain/action.ts'], why: 'an action waits for what it reads before it begins' },
 };
 
 /** Every file the type checker reads for the tests below: the library's users, its entry points and barrels, and a seeded user. */
@@ -219,9 +223,15 @@ const sideOf = (file: string) => (file.startsWith('src/') ? 'engine' : file.star
 function internalUses(files: string[]): Record<string, string[]> {
   const { program, checker } = typeChecked();
   const member = (d: ts.Declaration) => ts.isClassLike(d.parent) || ts.isInterfaceDeclaration(d.parent);
+  // TypeScript attaches a statement's comment to its first declarator only: a later declarator of
+  // `export const a = …, b = …` is read with the statement's tags too.
+  const tagsOf = (d: ts.Declaration): readonly ts.JSDocTag[] =>
+    ts.isVariableDeclaration(d) && ts.isVariableDeclarationList(d.parent) && ts.isVariableStatement(d.parent.parent)
+      ? [...ts.getJSDocTags(d), ...ts.getJSDocTags(d.parent.parent)]
+      : ts.getJSDocTags(d);
   const crosses = (d: ts.Declaration, user: string) => {
     const declared = sideOf(relative(ROOT, d.getSourceFile().fileName)), from = sideOf(user);
-    if (declared === 'above' || declared === from || !ts.getJSDocTags(d).some((t) => t.tagName.text === 'internal')) return false;
+    if (declared === 'above' || declared === from || !tagsOf(d).some((t) => t.tagName.text === 'internal')) return false;
     return member(d) || (declared === 'engine' && from === 'explain');
   };
   const nameOf = (d: ts.Declaration) => {
