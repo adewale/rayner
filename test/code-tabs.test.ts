@@ -10,6 +10,7 @@ import { fc, params } from './lib/pbt.ts';
 import { textShaping } from '../src/lettering-outlines.ts';
 import type { LetteringProvider } from '../src/lettering-outlines.ts';
 import type { Box, Mobject } from '../src/index.ts';
+import { beginAnimation } from '../src/animation.ts';
 // Manim's values, which the package no longer exports.
 const RED = '#fc6255';
 
@@ -73,17 +74,17 @@ test('a span after an astral character selects the right glyphs', () => {
 
 test('TransformDiff: an unchanged tabbed line pairs every glyph', () => {
   const same = new TransformDiff(new Code(['\tlet total = 0;']), new Code(['\tlet total = 0;']));
-  same.begin();
+  beginAnimation(same);
   const n = same.before.lines[0]!.children.length;
   assert.deepEqual(same.summary(), { matched: n, morphed: 0, removed: 0, added: 0 });
   for (const [s, t] of same.pairs) assert.equal(cluster(s), cluster(t));
   // Next to an edit: the tabbed line still travels whole; only x -> y changes
   const edit = new TransformDiff(new Code(['\tlet total = 0;', 'x']), new Code(['\tlet total = 0;', 'y']));
-  edit.begin();
+  beginAnimation(edit);
   assert.deepEqual(edit.summary(), { matched: n, morphed: 0, removed: 1, added: 1 });
   // A changed line with tabs pairs its shared tokens character for character
   const changed = new TransformDiff(new Code(['\treturn x;']), new Code(['\treturn y;']));
-  changed.begin();
+  beginAnimation(changed);
   assert.deepEqual(changed.summary(), { matched: 7, morphed: 0, removed: 1, added: 1 });
   for (const [s, t] of changed.pairs) assert.equal(charOf(s), charOf(t));
 });
@@ -91,7 +92,7 @@ test('TransformDiff: an unchanged tabbed line pairs every glyph', () => {
 test('TransformMatchingText keys tabbed and astral glyphs by their own character', () => {
   for (const [a, b, n] of [['\tcache', '\tcached', 5], ['\tcache = 1', 'cache\t= 1', 7], ['😀cache', 'cached😀', 5], ['\t𝑥 = ab', 'ab = 𝑥', 3]] as const) {
     const m = new TransformMatchingText(new Code([a]), new Code([b]));
-    m.begin();
+    beginAnimation(m);
     assert.equal(m.summary().matched, n, `${JSON.stringify(a)} -> ${JSON.stringify(b)}`);
     for (const [s, t] of m.pairs) assert.equal(charOf(s), charOf(t));
   }

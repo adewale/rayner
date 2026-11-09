@@ -2,9 +2,10 @@
 // mobject, in draw order), which either serializes to an SVG string (no DOM
 // needed: Workers, Node, tests) or patches a live DOM (browser).
 
-import { VMobject } from './vmobject.ts';
+import { VMobject, pathData } from './vmobject.ts';
 import type { PathData } from './vmobject.ts';
 import type { Box, Mobject, StyleRecord } from './mobject.ts';
+import { mergeLeaves, mobjectId } from './mobject.ts';
 import type { Scene, Sink } from './scene.ts';
 import { perf } from './perf.ts';
 import { isHex } from './color.ts';
@@ -45,8 +46,8 @@ export interface ElementRecord {
   svg?: string;
 }
 
-/** Per-VMobject record memo (VMobject._rec): the style and path it was built from. */
-export interface AttrsCache {
+/** Per-VMobject record memo (see attrsCache): the style and path it was built from. */
+interface AttrsCache {
   paint: string;
   id: number;
   d: string;
@@ -61,8 +62,8 @@ export interface AttrsCache {
   rec: ElementRecord | null;
 }
 
-/** Per-group memo for a merged line of glyphs (Mobject._mrec): one entry per run of equal style. */
-export interface MergedCache { runs: MergedRun[] }
+/** Per-group memo for a merged line of glyphs (see mergedCache): one entry per run of equal style. */
+interface MergedCache { runs: MergedRun[] }
 interface MergedRun {
   id: number;
   start: number;
@@ -114,7 +115,7 @@ function renderElementsImpl(scene: Scene, relative: boolean, cull: boolean, widt
     const clip = m.clipBox ? clipFor(m.clipBox, inherited?.box) : inherited;
     const emit = (rec: ElementRecord): void => { out.push(clip ? clippedRecord(rec, clip) : rec); };
     // A child-specific viewport cannot be lost by merging its parent.
-    if (!relative && m.mergeLeaves && !m.children.some((c) => c.clipBox)) {
+    if (!relative && m[mergeLeaves] && !m.children.some((c) => c.clipBox)) {
       const merged = mergedRecords(m);
       if (merged !== undefined) { for (const rec of merged) emit(rec); return; }
     }
@@ -177,22 +178,25 @@ function clipsOf(els: readonly ElementRecord[]): Clip[] {
  * per frame, and an unchanged one costs a few comparisons. Records are never
  * mutated after creation, so they can be kept per frame (see Recording).
  */
+/** Each path's record memo, and each merged group's: the renderer's own, so no field of a mobject holds them. */
+const attrsCache = new WeakMap<VMobject, AttrsCache>(), mergedCache = new WeakMap<Mobject, MergedCache>();
+
 function elementFor(m: Mobject, relative: boolean): ElementRecord | null {
   const s = m.style;
   if (s.opacity <= 0) return null;
   if (m instanceof VMobject) {
     if (!m.hasPoints()) return null;
-    const pd = m.pathData(relative);
+    const pd = pathData(m, relative);
     const paint = JSON.stringify([s.lineCap, s.lineJoin, s.fillRule, s.dashArray, s.dashOffset, s.miterLimit, s.paintOrder]);
-    let k = m._rec;
-    if (!(k && k.paint === paint && k.id === m.id && k.d === pd.d && k.fill === s.fill && k.fillOpacity === s.fillOpacity && k.stroke === s.stroke &&
+    let k = attrsCache.get(m), id = mobjectId(m);
+    if (!(k && k.paint === paint && k.id === id && k.d === pd.d && k.fill === s.fill && k.fillOpacity === s.fillOpacity && k.stroke === s.stroke &&
         k.strokeWidth === s.strokeWidth && k.strokeOpacity === s.strokeOpacity && k.opacity === s.opacity && k.drawFraction === s.drawFraction)) {
       perf.count('attrs miss');
-      k = m._rec = { paint, id: m.id, d: pd.d, fill: s.fill, fillOpacity: s.fillOpacity, stroke: s.stroke, strokeWidth: s.strokeWidth, strokeOpacity: s.strokeOpacity, opacity: s.opacity, drawFraction: s.drawFraction, attrs: vmobjectAttrs(m, s, pd), rec: null };
+      attrsCache.set(m, k = { paint, id, d: pd.d, fill: s.fill, fillOpacity: s.fillOpacity, stroke: s.stroke, strokeWidth: s.strokeWidth, strokeOpacity: s.strokeOpacity, opacity: s.opacity, drawFraction: s.drawFraction, attrs: vmobjectAttrs(m, s, pd), rec: null });
     }
     if (k.rec && k.rec.tx === pd.tx && k.rec.ty === pd.ty) { perf.count('element hit'); return k.rec; }
     perf.count('element moved');
-    return (k.rec = { id: m.id, tag: 'path', attrs: k.attrs, transform: pd.tx || pd.ty ? 'translate(' + pd.tx + ' ' + pd.ty + ')' : null, tx: pd.tx, ty: pd.ty, text: null });
+    return (k.rec = { id, tag: 'path', attrs: k.attrs, transform: pd.tx || pd.ty ? 'translate(' + pd.tx + ' ' + pd.ty + ')' : null, tx: pd.tx, ty: pd.ty, text: null });
   }
   return null;
 }
@@ -217,7 +221,7 @@ function mergedRecords(g: Mobject): ElementRecord[] | undefined {
     if (s.drawFraction != null || s.lineCap || s.lineJoin || s.fillRule || s.dashArray || s.paintOrder) return undefined;
   }
   // Every child is a VMobject: the loop above returned otherwise
-  const leaves = kids as VMobject[], old = g._mrec?.runs, runs: MergedRun[] = [], out: ElementRecord[] = [];
+  const leaves = kids as VMobject[], old = mergedCache.get(g)?.runs, runs: MergedRun[] = [], out: ElementRecord[] = [];
   for (let i = 0, j = 0; i < leaves.length; i = j) {
     const s0 = leaves[i]!.style;
     for (j = i + 1; j < leaves.length; j++) {
@@ -226,9 +230,9 @@ function mergedRecords(g: Mobject): ElementRecord[] | undefined {
           s.strokeOpacity !== s0.strokeOpacity || s.opacity !== s0.opacity) break;
     }
     if (s0.opacity <= 0) continue;
-    const id = i === 0 && j === leaves.length ? g.id : leaves[i]!.id;
+    const id = mobjectId(i === 0 && j === leaves.length ? g : leaves[i]!);
     const pds: Array<PathData | null> = [];
-    for (let n = i; n < j; n++) pds.push(leaves[n]!.hasPoints() ? leaves[n]!.pathData(false) : null);
+    for (let n = i; n < j; n++) pds.push(leaves[n]!.hasPoints() ? pathData(leaves[n]!, false) : null);
     let k = old?.[runs.length];
     if (k && k.id === id && k.start === i && k.pds.length === pds.length && k.pds.every((p, n) => p === pds[n]) && k.fill === s0.fill &&
         k.fillOpacity === s0.fillOpacity && k.stroke === s0.stroke && k.strokeWidth === s0.strokeWidth && k.strokeOpacity === s0.strokeOpacity && k.opacity === s0.opacity) {
@@ -242,7 +246,7 @@ function mergedRecords(g: Mobject): ElementRecord[] | undefined {
     runs.push(k);
     out.push(k.rec);
   }
-  g._mrec = { runs };
+  mergedCache.set(g, { runs });
   return out;
 }
 

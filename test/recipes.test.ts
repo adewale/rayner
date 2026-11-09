@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Succession, linear, keyed } from 'rayner';
 import { StringSink, NullSink, renderFrame, toSvgString } from 'rayner/output';
-import { traceScene, TraceSink } from 'rayner/testing';
+import { traceScene, TraceSink, sampleAnimation } from 'rayner/testing';
 import { requestScene, route } from '../recipes/document.ts';
 import { Diamond, StatusBadge } from '../recipes/extensions.ts';
 import ContinuousScene, { orbit, makeOrbit, FollowAngle } from '../recipes/continuous.ts';
@@ -49,9 +49,8 @@ test('custom geometry owns its copy and a copied composite exposes its own child
 test('one parameter keeps the point on the circle at intermediate values, preserves identity, and resamples without history', () => {
   const rig = makeOrbit(), parts = [rig.dot, rig.radius, rig.readout];
   const animation = new FollowAngle(rig, Math.PI);
-  animation.begin();
   for (const alpha of [0.5, 0.9, 0.1, 0.5, 1, 0]) {
-    animation.interpolate(alpha);
+    sampleAnimation(animation, alpha);
     const [x, y] = rig.dot.center();
     assert.ok(Math.abs(x - 3 * Math.cos(Math.PI * alpha)) < 1e-5);
     assert.ok(Math.abs(y - 3 * Math.sin(Math.PI * alpha)) < 1e-5);

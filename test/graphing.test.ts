@@ -9,6 +9,9 @@ import { loadFonts } from '../explain/testing.ts';
 import { MotionSink, analyzeMotion } from '../src/internal.ts';
 import { fc, params } from './lib/pbt.ts';
 import type { Vec } from '../src/index.ts';
+import { beginAnimation, interpolateAnimation } from '../src/animation.ts';
+import { curveCount } from '../src/vmobject.ts';
+import { affine } from '../src/mobject.ts';
 // Manim's values, which the package no longer exports.
 const GOLD = '#f0ac5f';
 const RED = '#fc6255';
@@ -99,7 +102,7 @@ test('plot passes through c2p(x, fn(x)) at every sample, and draws left to right
   pts.forEach((p, i) => { const x = 10 * i / (samples - 1); nearVec(p, ax.c2p(x, fn(x)), 1e-6, `sample ${i}`); });
   for (let i = 1; i < pts.length; i++) assert.ok(pts[i]![0] > pts[i - 1]![0], 'x increases along the path');
   // Between samples the curve stays close to fn (monotone slopes trade a little accuracy for no overshoot)
-  for (let c = 0; c < plot.numCurves(); c++) {
+  for (let c = 0; c < curveCount(plot); c++) {
     const [x, y] = dataAt(ax, plot.pointOnCurve(0, c, 0.5));
     near(y, fn(x), 1e-2, `midpoint of curve ${c}`);
   }
@@ -114,7 +117,7 @@ test('plot never overshoots a clamped function between samples (monotone cubic, 
   };
   const ax = new Axes({ xRange: [0, 12, 1], yRange: [0, 24, 6] });
   const plot = ax.plot(daylight, { samples: 25 });
-  for (let c = 0; c < plot.numCurves(); c++) {
+  for (let c = 0; c < curveCount(plot); c++) {
     for (let k = 1; k < 16; k++) {
       const y = dataAt(ax, plot.pointOnCurve(0, c, k / 16))[1];
       assert.ok(y >= -1e-4 && y <= 24 + 1e-4, `curve ${c} stays in [0, 24]: ${y}`);
@@ -145,7 +148,7 @@ test('bar heights are value × scale, standing on y = 0; negatives hang below th
   values.forEach((v, i) => {
     const r = bars.children[i] as Rectangle;
     assert.ok(r instanceof Rectangle);
-    assert.equal(r.numCurves(), 4, 'four corners even for a zero bar');
+    assert.equal(curveCount(r), 4, 'four corners even for a zero bar');
     const [, y0, , y1] = r.box()!;
     near(y1 - y0, Math.abs(v) * unit, 1e-5, `height of bar ${i}`);
     if (v >= 0) near(y0, axisY, 1e-5, `bar ${i} stands on the axis`);
@@ -218,7 +221,7 @@ test('coordinate maps follow independent nonsingular affine transforms', () => {
   fc.assert(fc.property(fc.double({ min: -4, max: 4, noNaN: true }), fc.double({ min: -4, max: 4, noNaN: true }), fc.double({ min: -2, max: 2, noNaN: true }), (x, y, shear) => {
     const ax = new Axes({ xRange: [1, 5, 1], yRange: [-3, 2, 1], width: 7, height: 3 });
     const before = ax.c2p(x, y);
-    ax.applyAffine(1, 0, shear, 1, 2, -1, { aboutPoint: [0, 0] });
+    ax[affine](1, 0, shear, 1, 2, -1, { aboutPoint: [0, 0] });
     nearVec(ax.c2p(x, y), [before[0] + shear * before[1] + 2, before[1] - 1], 1e-5);
     const nl = new NumberLine({ range: [1, 5, 1], length: 7 });
     nl.shift([2, -1]).rotate(shear).scale(0.75);
@@ -246,7 +249,7 @@ test('bar interpolation fixes baseline while the top moves linearly through zero
   fc.assert(fc.property(fc.double({ min: -3, max: 3, noNaN: true }), fc.double({ min: -3, max: 3, noNaN: true }), fc.double({ min: 0, max: 1, noNaN: true }), (a, b, alpha) => {
     const ax = new Axes({ xRange: [-2, 2, 1], yRange: [-4, 4, 1] }).rotate(0.3).shift([1, -1]);
     const bars = ax.bar([a], { x: [0.5], width: 0.8 }), target = ax.bar([b], { x: [0.5], width: 0.8 });
-    const transform = new Transform(bars, target); transform.begin(); transform.interpolate(alpha);
+    const transform = new Transform(bars, target); beginAnimation(transform); interpolateAnimation(transform, alpha);
     const pts = anchors(bars.children[0] as VMobject), top = a + (b - a) * alpha;
     [[0.1, top], [0.9, top], [0.9, 0], [0.1, 0]].forEach(([x, y], i) => nearVec(pts[i]!, ax.c2p(x!, y!), 1e-6));
   }), params(200));
@@ -258,7 +261,7 @@ test('plot samples once per x and every segment stays between neighboring sample
     let calls = 0;
     const plot = ax.plot((x) => { calls++; return values[Math.round(x)]!; }, { samples: values.length });
     assert.equal(calls, values.length);
-    assert.equal(plot.numCurves(), values.length - 1);
+    assert.equal(curveCount(plot), values.length - 1);
     anchors(plot).forEach((p, i) => assert.deepEqual(p, ax.c2p(i, values[i]!)));
     for (let c = 0; c < values.length - 1; c++) for (const t of [0, 0.125, 0.25, 0.5, 0.75, 0.875, 1]) {
       const y = dataAt(ax, plot.pointOnCurve(0, c, t))[1];

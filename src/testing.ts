@@ -8,3 +8,4 @@ export { InvariantSink } from './verify.ts';
 export type { InvariantFailure } from './verify.ts';
 export { jsonObject } from './json.ts';
 export { loadFonts } from './fonts.ts';
+export { sampleAnimation } from './animation.ts';

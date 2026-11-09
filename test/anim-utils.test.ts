@@ -113,9 +113,9 @@ test('restore() after the family changed shape takes the saved children wholesal
 
 test('copy() does not carry the saved state', () => {
   const s = new Rectangle({ width: 2, height: 2 }).saveState();
-  assert.ok(s.saved);
-  assert.equal(s.copy().saved, undefined);
-  assert.equal(new Group(s).copy().children[0]!.saved, undefined);
+  s.restore();
+  assert.throws(() => s.copy().restore(), /^Error: m\.restore\(\): .* has no saved state/);
+  assert.throws(() => new Group(s).copy().children[0]!.restore(), /^Error: m\.restore\(\): .* has no saved state/);
 });
 
 // ---- Restore -----------------------------------------------------------------
@@ -239,12 +239,15 @@ test('a Succession runs like consecutive plays: same frames, same step times', a
   assert.equal(ia.duration, ib.duration);
 });
 
-test('a lagRatio passed to play() leaves a Succession sequential', async () => {
+test('a Succession takes no lagRatio: play() refuses one under its own call, and the Succession then plays sequentially', async () => {
   const succession = new Succession([new FadeIn(new Rectangle({ width: 2, height: 2 }), { runTime: 1 }), new FadeIn(new Circle(), { runTime: 1 })]);
-  const s = await run(async (s) => { await s.play(succession, { lagRatio: 0.5 }); });
-  assert.deepEqual(succession.timings, [[0, 1], [1, 2]]);
-  assert.equal(succession.runTime, 2);
+  const s = await run(async (s) => {
+    await assert.rejects(s.play(succession, { lagRatio: 0.5, runTime: 4 }), (e) => e instanceof RangeError && /^this\.play\(\): a Succession .* 0\.5/.test(e.message));
+    await s.play(succession);
+  });
+  assert.equal(succession.runTime, 2, 'the refused play gave it nothing');
   assert.equal(Math.round(s.time * s.fps), 60);
+  assert.throws(() => { succession.lagRatio = 0.5; }, /^RangeError: animation\.lagRatio: a Succession/);
 });
 
 test('seeking into a Succession whose member brings an updater matches the full run', async () => {

@@ -12,6 +12,7 @@ import { SnapshotSink } from '../src/svg.ts';
 import { MotionSink, analyzeMotion } from '../src/internal.ts';
 import type { Box, Sink } from '../src/index.ts';
 import type { ElementRecord } from '../src/output.ts';
+import { mobjectId } from '../src/mobject.ts';
 
 Scene.captionWpm = Infinity;
 
@@ -241,7 +242,7 @@ test('cull: true leaves out what the camera cannot show; off by default', async 
   scene.frame.fit([-2, -1.125, 2, 1.125] as Box, { margin: 0 });
   const all = renderElements(scene), culled = renderElements(scene, { cull: true });
   assert.equal(all.length, 5, 'default: every leaf');
-  assert.deepEqual(culled.map((r) => r.id).sort(), [inside.id, straddling.id].sort(), 'culled: the visible box and the one on the edge');
+  assert.deepEqual(culled.map((r) => r.id).sort(), [mobjectId(inside), mobjectId(straddling)].sort(), 'culled: the visible box and the one on the edge');
   // Records keep identity, so a DOM sink could cull too without re-creating nodes
   for (const r of culled) assert.ok(all.includes(r));
   assert.ok(toSvgString(scene, { cull: true }).length < toSvgString(scene).length);
@@ -260,8 +261,8 @@ test('cull: a stroke reaching into the view is kept; a sliver under 2 output pix
   s.add(stroked, sliver);
   s.frame.fit([-2, -1.125, 2, 1.125] as Box, { margin: 0 });
   const ids = renderElements(s, { cull: true }).map((r) => r.id);
-  assert.ok(ids.includes(stroked.id), 'the visible stroke was culled');
-  assert.ok(!ids.includes(sliver.id), 'the half-pixel sliver was kept');
+  assert.ok(ids.includes(mobjectId(stroked)), 'the visible stroke was culled');
+  assert.ok(!ids.includes(mobjectId(sliver)), 'the half-pixel sliver was kept');
 });
 
 test('cull: 2 pixels of the output width, so a wider output keeps a thinner strip', () => {
@@ -269,8 +270,8 @@ test('cull: 2 pixels of the output width, so a wider output keeps a thinner stri
   // Home camera, 16 units wide: a strip 0.02 units wide is 1.6 px at 1280 and 4.8 px at 3840
   const strip = new Rectangle({ width: 1, height: 1, stroke: 'none', fill: '#fff', fillOpacity: 1 }).moveTo([-8.5 + 0.02, 0]);
   s.add(strip);
-  assert.ok(!renderElements(s, { cull: true }).some((r) => r.id === strip.id), 'under 2 px at the default 1280');
-  assert.ok(renderElements(s, { cull: true, width: 3840 }).some((r) => r.id === strip.id), '4.8 px at 3840 is kept');
+  assert.ok(!renderElements(s, { cull: true }).some((r) => r.id === mobjectId(strip)), 'under 2 px at the default 1280');
+  assert.ok(renderElements(s, { cull: true, width: 3840 }).some((r) => r.id === mobjectId(strip)), '4.8 px at 3840 is kept');
   assert.equal(toSvgString(s, { cull: true }).match(/<path/g)?.length ?? 0, 0);
   assert.equal(toSvgString(s, { cull: true, width: 3840 }).match(/<path/g)?.length ?? 0, 1, 'toSvgString culls for its own width');
 });

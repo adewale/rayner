@@ -5,6 +5,7 @@ import { NullSink, toSvgString, renderElements } from '../src/output.ts';
 import { perf } from '../src/perf.ts';
 import type { ElementRecord } from '../src/output.ts';
 import { Fixture, explainers } from './lib/scenes.ts';
+import { mobjectId } from '../src/mobject.ts';
 
 // Caption holds are thousands of identical frames; the hold rule has its own test
 Scene.captionWpm = Infinity;
@@ -106,7 +107,7 @@ test('DOM output merges same-styled glyph lines into one element, and splits dur
     const els = renderElements(scene, { relative: false });
     const ids = new Set(els.map((e) => e.id));
     for (const top of scene.mobjects) for (const m of top.family()) if (m instanceof Text && m.children.length > 1) {
-      if (ids.has(m.id)) merged++; else if (m.children.some((c) => ids.has(c.id))) split++;
+      if (ids.has(mobjectId(m))) merged++; else if (m.children.some((c) => ids.has(mobjectId(c)))) split++;
     }
   } }).run();
   assert.ok(merged > 500, `merged lines: ${merged}`);

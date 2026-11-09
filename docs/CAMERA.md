@@ -11,7 +11,7 @@ units. That has three consequences:
 
 - **It moves like any mobject.** `shift`, `scale`, `moveTo`, `.animate` and `Transform` all
   work on it, and an animated camera interpolates as points: pure in alpha over endpoints
-  fixed at `begin()`, so seeking through a camera move is byte-identical to a full run.
+  fixed as the play begins, so seeking through a camera move is byte-identical to a full run.
 - **It is never drawn.** It is not a VMobject, so it produces no element.
 - **It is not a transform of the points.** Moving the camera changes no other mobject's
   points; `box()`, `center()`, layout calls and traces read the same world coordinates

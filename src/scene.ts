@@ -7,9 +7,10 @@
 
 import { prepareAnimation, AnimationGroup, animationName } from './animation.ts';
 import { Succession, bindSuccessions, takeCopies, recordEvidence, assertTime, landBegun } from './animation.ts';
-import { beginAnimation, interpolateAnimation, finishAnimation, takeOptions, whenReady, settle, cleanUp, paintTargets } from './animation.ts';
+import { beginAnimation, interpolateAnimation, finishAnimation, whenReady, settle, cleanUp, paintTargets } from './animation.ts';
+import { membersOf, runningOf, runTimeOf, rateFuncOf, phaseOf, playOptions } from './animation.ts';
 import type { ScheduledAnimation, Playable, PlayOptions } from './animation.ts';
-import { paintDefaults, mobjectName } from './mobject.ts';
+import { paintDefaults, mobjectName, hasUpdaters, replaceChild } from './mobject.ts';
 import type { Mobject } from './mobject.ts';
 import { NEUTRAL_COLORS } from './color.ts';
 import type { SceneColors } from './color.ts';
@@ -180,7 +181,7 @@ function assertOnce(anims: readonly ScheduledAnimation[]): void {
   const visit = (a: ScheduledAnimation): void => {
     if (listed.has(a)) throw new Error(`this.play(): ${animationName(a)} is listed twice in one play; an animation plays once, so make another for the second`);
     listed.add(a);
-    if (a instanceof AnimationGroup) a.animations.forEach(visit);
+    if (a instanceof AnimationGroup) membersOf(a).forEach(visit);
   };
   anims.forEach(visit);
 }
@@ -190,9 +191,9 @@ function assertOnce(anims: readonly ScheduledAnimation[]): void {
  * members are made when its turn comes (an action's beat, a machine's transition) stands for
  * itself until then, with the targets it declares.
  */
-const leaves = (a: ScheduledAnimation): ScheduledAnimation[] => (a instanceof AnimationGroup && !(a instanceof Succession) && a.animations.length ? a.animations.flatMap(leaves) : [a]);
+const leaves = (a: ScheduledAnimation): ScheduledAnimation[] => (a instanceof AnimationGroup && !(a instanceof Succession) && membersOf(a).length ? membersOf(a).flatMap(leaves) : [a]);
 /** The mobjects an animation drives, each family member counted: a Succession's members' together. */
-const driven = (a: ScheduledAnimation): Mobject[] => (a instanceof Succession ? a.animations.flatMap(leaves).flatMap(driven) : a.targets().flatMap(m => m.family()));
+const driven = (a: ScheduledAnimation): Mobject[] => (a instanceof Succession ? membersOf(a).flatMap(leaves).flatMap(driven) : a.targets().flatMap(m => m.family()));
 /** Two writers of `m` in one play: `other`, and `a`, begun beside it, or at its turn in the play by what `call` names ('s.card()'). */
 const twoWriters = (other: ScheduledAnimation, a: ScheduledAnimation, m: Mobject, call?: string): Error =>
   call
@@ -204,7 +205,7 @@ function assertDisjointOnce(anims: readonly ScheduledAnimation[]): void {
   // A Succession's members run one at a time, so they may share mobjects with each
   // other (each is checked on its own below), but not with anything beside them.
   for (const a of anims.flatMap(leaves)) {
-    if (a instanceof Succession) for (const member of a.animations) assertDisjointOnce([member]);
+    if (a instanceof Succession) for (const member of membersOf(a)) assertDisjointOnce([member]);
     for (const m of driven(a)) {
       const other = seen.get(m);
       if (other && other !== a) throw twoWriters(other, a, m);
@@ -223,9 +224,9 @@ function assertDisjointInPlay(playing: readonly ScheduledAnimation[], begun: rea
   const visit = (a: ScheduledAnimation): void => {
     if (skip.has(a)) return;
     if (a instanceof Succession) {
-      const running = a.animations[a.active];
+      const running = runningOf(a);
       if (running) visit(running);
-    } else if (a instanceof AnimationGroup && a.animations.length) a.animations.forEach(visit);
+    } else if (a instanceof AnimationGroup && membersOf(a).length) membersOf(a).forEach(visit);
     else for (const m of driven(a)) now.set(m, a);
   };
   playing.forEach(visit);
@@ -256,6 +257,12 @@ function deepFreeze<T extends object>(value: T): T {
   for (const v of Object.values(value)) if (v && typeof v === 'object') deepFreeze(v);
   return Object.freeze(value);
 }
+
+/**
+ * @internal Make `mobjects`, as it is, the drawn list of `scene`: for a picture drawn without
+ * some of what is on stage (the stage's heading), put back once it is drawn.
+ */
+export let setDrawn: (scene: Scene<any, any>, mobjects: readonly Mobject[]) => void;
 
 declare const sceneTypes: unique symbol;
 /**
@@ -288,9 +295,18 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     }
     return own;
   }
-  mobjects: Mobject[];
-  time: number;
-  frameCount: number;
+  /** The mobjects on stage, in drawing order: changed by add, remove, replace and the plays that add and remove. */
+  get mobjects(): readonly Mobject[] { return this.#mobjects; }
+  #mobjects: Mobject[] = [];
+  /** Seconds since the run began: the frame count over fps. */
+  get time(): number { return this.#time; }
+  #time = 0;
+  /** Frames since the run began: what a step's frame0, frame1 and holdFrame record, and what renderFrame seeks. */
+  get frameCount(): number { return this.#frameCount; }
+  #frameCount = 0;
+  static {
+    setDrawn = (scene, mobjects) => { scene.#mobjects = mobjects as Mobject[]; };
+  }
   readonly steps: Step[];
   private current: Step | null;
   /** The model: what the explanation is about (a bucket's tokens, a statechart's configuration). JSON. */
@@ -362,9 +378,6 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     if (!(fps > 0 && fps <= 240)) throw new RangeError(`new Scene(): fps is ${String(fps)}; give a number above 0 and at most 240`);
     this.sink = sink;
     this.fps = fps;
-    this.mobjects = [];
-    this.time = 0;
-    this.frameCount = 0;
     // Named steps: the addressable unit for deep links, traces and tests
     this.steps = [];
     this.current = null;
@@ -610,9 +623,9 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
 
   /** @internal Whether any mobject on stage, or the camera, has an updater: then a seek cannot skip frames. */
   hasUpdaters(): boolean {
-    for (const top of this.mobjects) if (top.hasUpdaters()) return true;
+    for (const top of this.mobjects) if (hasUpdaters(top)) return true;
     // Camera: an updater on the frame (follow a dot) integrates over frames too
-    return this.frame.updaters.length > 0;
+    return hasUpdaters(this.frame);
   }
 
   /** The step running now, or null. */
@@ -692,7 +705,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   add(...mobs: Mobject[]): this {
     for (const m of mobs) paintDefaults(m, this.colors);
     // Re-adding a root moves it last; a child of a visible parent is a no-op.
-    this.mobjects = admitRoots(this.mobjects, mobs);
+    this.#mobjects = admitRoots(this.mobjects, mobs);
     this.#raiseTop();
     return this;
   }
@@ -703,8 +716,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    * holds it (its topmost ancestor on stage) stands at the end of `mobjects`: after each add and
    * replace, before every frame and step boundary the sink is handed,
    * and before a frame drawn outside the loop (drawFrame: renderFrame, the live run), so a
-   * group added later that wraps it, or a direct write to `mobjects`, is raised again before anything
-   * is drawn. A sink handed the scene by other code reads the list as it stands. Keeping does not
+   * group added later that wraps it is raised again before anything is drawn. A sink handed the scene by other code reads the list as it stands. Keeping does not
    * add it. Returns a function that stops keeping them.
    * The stage keeps its heading, band, step number and line on top this way.
    */
@@ -726,7 +738,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     }
     if (!top.length || top.every((m, i) => this.mobjects[this.mobjects.length - top.length + i] === m)) return;
     const kept = new Set(top);
-    this.mobjects = [...this.mobjects.filter((m) => !kept.has(m)), ...top];
+    this.#mobjects = [...this.mobjects.filter((m) => !kept.has(m)), ...top];
   }
 
   /**
@@ -737,7 +749,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    */
   remove(...mobs: Mobject[]): this {
     const gone = new Set(mobs.flatMap((m) => m.family()));
-    this.mobjects = this.mobjects.filter((m) => !gone.has(m));
+    this.#mobjects = this.mobjects.filter((m) => !gone.has(m));
     // Also detach from any group on screen
     for (const m of mobs) if (m.parent) m.parent.remove(m);
     return this;
@@ -751,21 +763,21 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     if (parent && replacements.some((m) => m.family().includes(parent)))
       throw new Error('this.replace(): a replacement cannot be an ancestor of the parent it goes into');
     const covered = new Set(replacements.flatMap((m) => m.family()));
-    this.mobjects = this.mobjects.filter((m) => m === old || !covered.has(m));
+    this.#mobjects = this.mobjects.filter((m) => m === old || !covered.has(m));
     if (parent && !this.mobjects.includes(old)) {
-      parent.replaceChild(old, ...replacements);
+      replaceChild(parent, old, ...replacements);
       return this;
     }
     const i = this.mobjects.indexOf(old);
     if (i < 0) { this.add(...replacements); return this; }
     for (const m of replacements) m.parent?.remove(m);
-    this.mobjects.splice(i, 1, ...replacements);
+    this.#mobjects.splice(i, 1, ...replacements);
     this.#raiseTop();
     return this;
   }
 
   /** @internal Empty the drawn list at once, unanimated: for tools and tests (a stage's `s.clear()` fades everything out). */
-  removeAll(): this { this.mobjects = []; return this; }
+  removeAll(): this { this.#mobjects = []; return this; }
 
   // ---- frame loop --------------------------------------------------------
 
@@ -775,8 +787,8 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    */
   private tick(): void {
     this.throwIfStopped();
-    this.frameCount++;
-    this.time = this.frameCount / this.fps;
+    this.#frameCount++;
+    this.#time = this.#frameCount / this.fps;
   }
 
   /**
@@ -812,7 +824,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     // An .animate builder is never the options: its prototype is not Object.prototype (Mobject.animate)
     const isOpts = last && Object.getPrototypeOf(last) === Object.prototype;
     const opts = (isOpts ? list.pop() : {}) as PlayOptions;
-    const anims = list.map((x) => prepareAnimation(x));
+    const anims = (list as Playable[]).map(prepareAnimation);
     if (!anims.length) throw new Error(`this.play(): it was given no animation${isOpts ? ', only options' : ''}; give it one or more, or hold the picture with this.wait()`);
     // What some animation reads before it can begin (a diagram's layout), a group's members' included: wait for it, once, here.
     const waits = anims.map((a) => a[whenReady]()).filter((r) => r !== null);
@@ -822,12 +834,14 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     }
     // Then every run time is known: a group lays out its members' times now.
     for (const a of anims) a[settle]();
-    for (const a of anims) a[takeOptions](opts);
+    // Checked before any is given: a play refused before anything begins leaves its animations as they were.
+    const giveOptions = playOptions(anims, opts);
     assertDisjoint(anims);
+    giveOptions();
     this.#playing = anims;
     this.#held = [];
     // One that throws as it begins leaves none of the others begun: those it began first land.
-    const idle = anims.filter((a) => a.phase !== 'begun');
+    const idle = anims.filter((a) => phaseOf(a) !== 'begun');
     try { perf.span('anim.begin', () => this.beginAnimations(anims)); }
     catch (e) { this.#held = []; landBegun(idle, this); throw e; }
     // From here on, a failure (a member that throws at its turn, what was made at its turn failing to
@@ -845,7 +859,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   /** The frames of a play whose animations have begun, then their finish. */
   async #playFrames(anims: readonly ScheduledAnimation[]): Promise<void> {
     if (this.#held.length) await this.#beginHeld();
-    const runTime = Math.max(...anims.map((a) => a.runTime));
+    const runTime = Math.max(...anims.map(runTimeOf));
     const dt = 1 / this.fps;
     const n = Math.max(1, Math.round(runTime * this.fps));
     let canSkip = this.skipUntil > this.time && !this.hasUpdaters();
@@ -853,13 +867,13 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     // a play holding one, skipped frames still interpolate, and the first member to bring
     // an updater ends the skipping: the full run integrates it from the frame it joins.
     const sequenced = anims.some(function holds(a: ScheduledAnimation): boolean {
-      return a instanceof Succession || (a instanceof AnimationGroup && a.animations.some(holds));
+      return a instanceof Succession || (a instanceof AnimationGroup && membersOf(a).some(holds));
     });
     const interpolate = async (t: number): Promise<void> => {
       perf.span('interpolate', () => {
         for (const a of anims) {
-          const alpha = a.runTime > 0 ? Math.min(t / a.runTime, 1) : 1;
-          interpolateAnimation(a, a.rateFunc(alpha));
+          const time = runTimeOf(a), alpha = time > 0 ? Math.min(t / time, 1) : 1;
+          interpolateAnimation(a, rateFuncOf(a)(alpha));
         }
       });
       // What began at its turn in this frame and waits for what it reads begins before the frame is drawn.
@@ -960,7 +974,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     // endpoints are fixed in them (a Succession's members take them as they begin, here).
     const paint = (a: ScheduledAnimation): void => {
       if (a instanceof Succession) return;
-      if (a instanceof AnimationGroup) a.animations.forEach(paint);
+      if (a instanceof AnimationGroup) membersOf(a).forEach(paint);
       else for (const m of a[paintTargets]()) paintDefaults(m, this.colors);
     };
     for (const a of anims) paint(a);

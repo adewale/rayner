@@ -59,7 +59,10 @@ adding a badge-specific operation to the scene or renderer.
 
 For a custom class with mutable fields outside its children, read
 [copying and ownership](ENGINE-FUNDAMENTALS.md#ownership-identity-and-copying).
-Do not assume `copy()` knows how to clone an arbitrary closure or external handle.
+`copy()` makes the copy without calling your constructor, so keep a mobject's state in ordinary
+fields, never ES private (`#`) fields or methods, which the copy would lack. It gives the copy its
+own arrays, maps and sets; copy what they hold, and anything else mutable, in `copyData`. Do not
+assume `copy()` knows how to clone an arbitrary closure or external handle.
 
 ## Make several objects follow one parameter
 
@@ -74,6 +77,9 @@ npm run recipes -- --scene continuous --time 0.5 --out out/orbit
 The dot is at the top of the circle and the number reads 1.57, because the recipe
 evaluates the orbit throughout the motion; interpolating the two opposite endpoint
 pictures would put the dot through the centre.
+
+`sampleAnimation(animation, alpha)` from `rayner/testing` draws one frame of it outside a play,
+in any order, which is how `test/recipes.test.ts` checks the dot stays on the circle.
 
 `FollowAngle` captures the initial value in `doBegin()`, makes an immutable sample
 from alpha, applies absolute updates and publishes that sample as scene state.

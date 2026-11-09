@@ -178,7 +178,7 @@ only the new picture has grow and fade in over the second, and parts both have m
 A keyed Text whose words change counts as gone and come (`text: 'whole'`), so it is replaced,
 not morphed glyph by glyph. A new machine therefore reads at every frame without authored motion:
 a word never sits on top of the word replacing it. Parts without a key under no keyed part fade
-the same way. Landing is the sync's own, so it ends exactly on the state's picture.
+the same way. The finish is the sync's own, so it ends exactly on the state's picture.
 
 **Why staged.** Drawn frame by frame (`runLive` with an animating sink), for python-dict, which
 authors no transitions, and for ring-buffer with its transitions taken out, the other defaults
@@ -192,7 +192,7 @@ put words on top of each other:
 - **`t.choreograph(view).rest()`, staged**, morphs a keyed part that persists whole, so a cell
   whose word changes morphs "KeyError" into "not found" letter shape by letter shape. And
   `rest()` sees only keyed parts: python-dict's note and ring-buffer's readouts, which are
-  unkeyed, jump to the new words in the landing frame.
+  unkeyed, jump to the new words in the last frame.
 
 The keyed sync, staged, shows no two words in one place: the old words are gone by halfway and
 the new ones come after, while the slots, arrows and rings that both pictures have move
@@ -223,7 +223,7 @@ plays it: the state moves to the one the event reaches, then the transition play
 own, made when its turn comes and waiting, as any play lets it, for what it reads (a diagram's
 layout). Each invariant is checked on every frame it draws, and the first frame one fails on is
 reported by how far through the transition it is. The transition must end on the pictures of the
-state it reaches, compared as rendered, so the landing moves nothing. A
+state it reaches, compared as rendered, so taking those pictures moves nothing. A
 transition that ended elsewhere would leave the view there for good, since a rebuilt picture
 keeps its place.
 
@@ -360,12 +360,12 @@ reached by pressing, through held runs, are the ones a fresh load of the link dr
 `node tools/repo/live-cost.ts [--cpu 4]` measures it on the built pages: for each live step of the
 default scenario it presses six events in Chromium at 1280 × 900 (after one unmeasured press),
 each press extending the log, with Reset where no event goes on, and times each from the click to
-the first new picture on the stage (the animation starting), to the landing, and to the landing
-with motion reduced; in Node it times `runLive` of the same logs, no frame drawn. Median / worst
+the first new picture on the stage (the animation starting), to the end picture, and to the end
+picture with motion reduced; in Node it times `runLive` of the same logs, no frame drawn. Median / worst
 in milliseconds, on a shared 4-core container (load about 3), before and after holding the run;
 4× is Chromium's CPU throttling, a stand-in for a phone:
 
-| Live step | Node: run to the step and the log | First frame, before: 1× / 4× | First frame, held: 1× / 4× | Reduced motion, landed, held: 4× |
+| Live step | Node: run to the step and the log | First frame, before: 1× / 4× | First frame, held: 1× / 4× | Reduced motion, end picture, held: 4× |
 | --- | --- | --- | --- | --- |
 | `ring-buffer` `result` | 139 / 194 | 127 / 144 · 579 / 625 | 10 / 37 · 31 / 53 | 93 / 112 |
 | `state-machine` `terminal` | 110 / 127 | 102 / 128 · 521 / 629 | 7 / 16 · 22 / 43 | 50 / 79 |
@@ -383,7 +383,7 @@ in milliseconds, on a shared 4-core container (load about 3), before and after h
 Before, every press ran the scene again, and at 4× six of the twelve steps took over half a second
 to start moving (ring-buffer, state-machine, frother, token-bucket, oauth-pkce, just-bash). Held,
 a press starts in tens of milliseconds; the worsts left are the presses after a Reset, which run
-afresh (oauth-pkce's sign-in runs to its end first). Landing takes the event's own motion on top:
+afresh (oauth-pkce's sign-in runs to its end first). The finish takes the event's own motion on top:
 0.8 to 2.1 s, which is authored, not overhead.
 
 **Not done.**
@@ -454,8 +454,8 @@ the stage and keeps the stage describing it.
 - **A token-bucket of free requests plus a refill tick.** It would contradict the caption (the
   bucket refills lazily, on arrival) and reach about 350,000 states; driving it by the client's
   own schedule keeps it honest and small.
-- **Disabling the buttons while an event plays.** A press then landed nowhere; landing the playing
-  event and playing the next keeps every press, and the picture is the log's either way.
+- **Disabling the buttons while an event plays.** A press then went nowhere; finishing the playing
+  event at once and playing the next keeps every press, and the picture is the log's either way.
 - **Leaving disabled buttons `disabled`.** A disabled button cannot take focus, so a keyboard or
   screen reader user could not learn why an event is refused; `aria-disabled` keeps it in the Tab
   order with its reason as its description.
@@ -465,10 +465,10 @@ the stage and keeps the stage describing it.
   label's backing plate, so it crossed its own label (the route check said so), and a copy with
   the label drew the label twice. Drawing the whole diagram from state (`Diagram.picture`) has
   no overlay.
-- **Landing a transition with a one-frame keyed morph.** Parts without keys (a readout's
-  glyphs) faded out and back within a frame. **Landing by swapping in the drawn pictures** gave
+- **Finishing a transition with a one-frame keyed morph.** Parts without keys (a readout's
+  glyphs) faded out and back within a frame. **Finishing by swapping in the drawn pictures** gave
   every part a new identity in the frame the next event's copy appeared, which the motion
-  check could not pair. Landing in place keeps identities and moves nothing.
+  check could not pair. Taking the pictures in place keeps identities and moves nothing.
 - **Building a transition when its schedule is built.** In a replay, the second event's
-  transition held the first picture, which the first event's landing had replaced. It is built
+  transition held the first picture, which the first event's finish had replaced. It is built
   when its turn comes.

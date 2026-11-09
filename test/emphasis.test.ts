@@ -9,6 +9,8 @@ import { SnapshotSink } from '../src/svg.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { MotionSink, analyzeMotion } from '../src/internal.ts';
 import type { Box, Mobject, Vec } from '../src/index.ts';
+import { beginAnimation, interpolateAnimation } from '../src/animation.ts';
+import { defaultColors, mobjectId } from '../src/mobject.ts';
 
 /** A line 0.1 under `m`'s box, left to right. */
 const underline = (m: Mobject) => { const [x0, y0, x1] = m.box()!; return new Line([x0, y0 - 0.1], [x1, y0 - 0.1]); };
@@ -32,7 +34,7 @@ test('SurroundingRectangle is the target box grown by buff, for a mobject or a B
   const t = new Text('emphasis', { fontSize: 0.4 }).shift([1.3, -0.7]);
   const r = new SurroundingRectangle(t);
   nearBox(r.box()!, grow(t.box()!, 0.15), 'default buff');
-  assert.equal(r.style.stroke, '#0969da', 'the neutral emphasis colour'); assert.deepEqual(r.defaultColors, { stroke: 'emphasis' }, "which becomes the scene's emphasis colour"); assert.equal(r.style.fill, 'none');
+  assert.equal(r.style.stroke, '#0969da', 'the neutral emphasis colour'); assert.deepEqual(r[defaultColors], { stroke: 'emphasis' }, "which becomes the scene's emphasis colour"); assert.equal(r.style.fill, 'none');
   nearBox(new SurroundingRectangle(t, { buff: 0.4, cornerRadius: 0.1 }).box()!, grow(t.box()!, 0.4), 'rounded, buff 0.4');
   const box: Box = [-2, 1, 3, 1.5];
   nearBox(new SurroundingRectangle(box, { buff: 0 }).box()!, box, 'a Box target');
@@ -46,7 +48,7 @@ test('SurroundingRectangle is the target box grown by buff, for a mobject or a B
 test('Cross diagonals span the box corners; scale shrinks them about the center', () => {
   const sq = new Rectangle({ width: 2, height: 2 }).shift([1, 1]);   // box [0, 0, 2, 2]
   const x = new Cross(sq);
-  assert.equal(x.subpaths.length, 2); assert.deepEqual(x.defaultColors, { stroke: 'bad' }, "the scene's colour for rejected");
+  assert.equal(x.subpaths.length, 2); assert.deepEqual(x[defaultColors], { stroke: 'bad' }, "the scene's colour for rejected");
   const [a0, a1] = ends(x, 0), [b0, b1] = ends(x, 1);
   nearVec(a0, [0, 2], 'UL'); nearVec(a1, [2, 0], 'DR'); nearVec(b0, [2, 2], 'UR'); nearVec(b1, [0, 0], 'DL');
   nearBox(new Cross([0, 0, 2, 2], { scale: 0.5 }).box()!, [0.5, 0.5, 1.5, 1.5], 'scaled');
@@ -128,7 +130,7 @@ const watch = async (body: (s: Scene) => Promise<void>): Promise<{ sink: MotionS
 };
 
 /** The outline's sampled alpha, frame by frame (0 where it was not drawn). */
-const alphas = (sink: MotionSink, m: Mobject): number[] => Array.from({ length: sink.frames.length }, (_, f) => sink.frames.leaves(f).get(m.id)?.a ?? 0);
+const alphas = (sink: MotionSink, m: Mobject): number[] => Array.from({ length: sink.frames.length }, (_, f) => sink.frames.leaves(f).get(mobjectId(m))?.a ?? 0);
 
 test('Create draws braces and brace labels in without jumps', async () => {
   const { events } = await watch(async (s) => {
@@ -198,8 +200,8 @@ test('Circumscribe retracts the path at full opacity instead of fading a complet
   const fade = new Circumscribe([0, 0, 2, 1]);
   for (const c of [retract, fade]) {
     c.outline.style.opacity = 0.8;
-    c.begin();
-    c.interpolate(5 / 6);
+    beginAnimation(c);
+    interpolateAnimation(c, 5 / 6);
   }
   assert.ok(retract.outline.style.drawFraction! > 0 && retract.outline.style.drawFraction! < 1);
   assert.equal(retract.outline.style.opacity, 0.8);
@@ -217,7 +219,7 @@ test('Circumscribe fits the target where it is when the play starts', async () =
   });
   nearBox(c.outline.box()!, [2.4, -1.6, 3.6, -0.4], 'refitted at begin()');
   const r = new Circumscribe([0, 0, 3, 4], { shape: 'circle', buff: 0 });
-  r.begin();
+  beginAnimation(r);
   nearBox(r.outline.box()!, [-1, -0.5, 4, 4.5], 'circle through the corners');
 });
 

@@ -13,14 +13,15 @@ import {
   Rectangle,
   keyed,
 } from '../src/index.ts';
-import { MoveAlongPath } from '../src/animation.ts';
+import { MoveAlongPath, beginAnimation, finishAnimation } from '../src/animation.ts';
 import { Text } from '../src/text.ts';
 import { Action } from './action.ts';
 import { ImportedLabel, labelOf } from './labels.ts';
 import type { Beat, Plan } from './action.ts';
 import type { Scene, Mobject, Box, Vec, Style, ScheduledAnimation } from '../src/index.ts';
 import { center, unionBoxes } from '../src/box.ts';
-import { paintsFill } from '../src/mobject.ts';
+import { paintsFill, mergeLeaves } from '../src/mobject.ts';
+import { curveCount } from '../src/vmobject.ts';
 import { regionBox, boxCenter, raised, emphasis, dimOpacity, emphasises, selfDescribed } from './look.ts';
 import type { Region } from './look.ts';
 import { resolverOf, diagramKey, diagramFindings, SVG_PX_PER_UNIT } from './diagram-snapshot.ts';
@@ -411,7 +412,7 @@ export class Diagram {
         }
         // A text run is one label of many outlines: it moves and checks as a unit.
         const drawn = shape.text != null ? new ImportedLabel(paths, shape, scene.textShaping) : paths[0]!;
-        if (shape.textRun) drawn.mergeLeaves = true;
+        if (shape.textRun) drawn[mergeLeaves] = true;
         if (drawn instanceof ImportedLabel) labels.push(drawn);
         else shapes.push(drawn);
         mob.add(drawn);
@@ -930,7 +931,7 @@ export class Diagram {
     const edge = [...this.#parts.values()].find(
       (p) => p.info.from != null && p.info.to != null && this.end(p.info.from) === a && this.end(p.info.to) === b,
     );
-    if (!edge?.route || !edge.route.numCurves()) throw new RangeError(`d.link(): ${from} -> ${to} is not a link of this diagram`);
+    if (!edge?.route || !curveCount(edge.route)) throw new RangeError(`d.link(): ${from} -> ${to} is not a link of this diagram`);
     return { id: edge.info.id, mob: edge.mob, route: edge.route };
   }
   /**
@@ -1111,7 +1112,7 @@ export class Diagram {
       const edge = [...this.#parts.values()].find(
         (p) => p.info.from != null && p.info.to != null && this.end(p.info.from) === a && this.end(p.info.to) === b,
       );
-      if (!edge?.route || !edge.route.numCurves())
+      if (!edge?.route || !curveCount(edge.route))
         throw new RangeError(`d.walk(): ${from} -> ${to} is not a link of this diagram`);
       return { edge, from, to, a, b };
     });
@@ -1164,8 +1165,8 @@ export class Diagram {
       const animation = new Transform(m, target, { runTime });
       if (this.#visible.has(this.partIds.get(m)!)) shown.push(animation);
       else {
-        animation.begin();
-        animation.finish();
+        beginAnimation(animation);
+        finishAnimation(animation);
       }
     }
     return shown;
@@ -1253,8 +1254,8 @@ export class Diagram {
     if (back)
       for (const m of mobs) {
         const jump = new Transform(m, moved(m, back.k, back.from, back.to));
-        jump.begin();
-        jump.finish();
+        beginAnimation(jump);
+        finishAnimation(jump);
       }
     this.zoom = 1;
   }

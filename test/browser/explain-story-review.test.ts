@@ -16,6 +16,7 @@ import { stage } from '../../explain/index.ts';
 import { emphasises } from '../../explain/look.ts';
 import {Card, CodeBlock} from '../../explain/panels.ts';
 import {palette} from '../../explain/palettes.ts';
+import { mobjectId } from '../../src/mobject.ts';
 
 test('story review requires copied card, focus and diff highlights without another marking call', async () => {
   const names = ['copied-card', 'copied-focus', 'copied-added', 'copied-removed'];
@@ -542,7 +543,7 @@ test('token-bucket refill does not turn untouched waiting R10 into a story oblig
         const chip = requests[0]!.children[0]!;
         assert.ok(chip instanceof Rectangle);
         const records = renderElements(scene, { relative: false });
-        const index = records.findIndex(r => r.id === chip.id);
+        const index = records.findIndex(r => r.id === mobjectId(chip));
         assert.ok(index >= 0);
         assert.equal(records[index]!.attrs['stroke-dasharray'], '80 60', 'R10 is still waiting');
         assert.deepEqual(frame.records[index]!.attrs, records[index]!.attrs, 'bind the same actual rectangle in the reviewed frame');

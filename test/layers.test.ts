@@ -160,7 +160,6 @@ test('the player, the command and diagram capture import the library through its
  * added, with its reason. A module-level name the layers above use is in an internal barrel instead.
  */
 const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
-  'Animation.families': { files: ['explain/annotate.ts'], why: 'an annotation reads what an animation draws' },
   'DomSink.apply': { files: ['app/embed-zoom.ts'], why: 'the close-up draws records without a frame' },
   'Machine.after': { files: ['tools/lib/explain-check.ts'], why: 'check reads the state an event leads to' },
   'Machine.lastPlayedIn': { files: ['tools/lib/explain-check.ts'], why: 'check explores a machine on the step it last played in' },
@@ -171,11 +170,6 @@ const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
   'Machine.reachable': { files: ['tools/lib/explain-check.ts', 'tools/lib/explain-live-review.ts'], why: 'check and the live review explore every reachable state' },
   'Machine.transitionPlay': { files: ['tools/lib/explain-check.ts'], why: "check plays each transition to compare where it ends with the state's picture" },
   MadeAtTurn: { files: ['explain/action.ts', 'explain/machine.ts'], why: "an action's beat and a machine's transition are made at their turn" },
-  'Mobject.boundingPointArrays': { files: ['explain/view.ts'], why: 'a view measures what it draws' },
-  'Mobject.id': { files: ['tools/lib/explain-layout.ts', 'tools/lib/explain-story-review.ts'], why: "the layout and story reviews match the renderer's records to their mobjects" },
-  'Mobject.interpolateData': { files: ['explain/labels.ts'], why: 'a label interpolates its own data' },
-  'Mobject.mergeLeaves': { files: ['explain/diagrams.ts'], why: "a diagram's labels draw as one element" },
-  'Mobject.pointArrays': { files: ['app/embed-closeup.ts', 'explain/view.ts'], why: 'a view and the close-ups measure points' },
   'MotionSink.frames': { files: ['tools/lib/explain-check.ts'], why: 'check reports how many frames its motion check sampled' },
   'Scene.drawFrame': { files: ['explain/live.ts'], why: 'a live run draws its landing frames between plays, kept parts raised' },
   'Scene.keepOnTop': { files: ['explain/stage.ts'], why: 'the stage keeps its heading drawn last' },
@@ -183,8 +177,28 @@ const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
   'Text.build': { files: ['explain/diagram-text.ts'], why: 'a captured label lays out its replayed run as a Text does' },
   'Text.frameBox': { files: ['explain/labels.ts'], why: "a label's size is its text's box" },
   'Text.run': { files: ['explain/diagram-text.ts', 'explain/labels.ts'], why: "a label's words are its text's runs, and a captured label sits on its text's baseline" },
-  'Transform.sameStructure': { files: ['explain/view.ts'], why: 'a view morphs a picture of the same structure' },
   'View.placed': { files: ['tools/lib/explain-check.ts'], why: 'check redraws a view where it was placed' },
+  affine: { files: ['explain/diagram-text.ts'], why: "a captured label takes the SVG's transform" },
+  curveCount: { files: ['explain/diagrams.ts'], why: 'a link is a route with curves' },
+  interpolateData: { files: ['explain/labels.ts'], why: 'a label interpolates its own data' },
+  matchingFrameFor: { files: ['explain/labels.ts'], why: "a captured label gives a matching transform a frame in its text's units" },
+  mergeLeaves: { files: ['explain/diagrams.ts'], why: "a diagram's labels draw as one element" },
+  replaceChild: { files: ['explain/annotate.ts'], why: 'an annotation swaps a drawn part inside its group' },
+  adoptMembers: { files: ['explain/action.ts'], why: 'an action decided late takes its beats as its members then' },
+  beginAnimation: { files: ['explain/choreograph.ts', 'explain/diagrams.ts', 'explain/view.ts'], why: 'an animation that runs another begins it, and a diagram moves a hidden part at once' },
+  cleanUp: { files: ['explain/choreograph.ts', 'explain/state.ts'], why: "the explainer layer's animations say what the end of their play takes off the stage" },
+  ended: { files: ['explain/action.ts'], why: "an action's end runs once its last beat has finished" },
+  families: { files: ['explain/annotate.ts'], why: 'an annotation reads what an animation draws' },
+  finishAnimation: { files: ['explain/choreograph.ts', 'explain/diagrams.ts', 'explain/view.ts'], why: 'an animation that runs another finishes it, and a diagram moves a hidden part at once' },
+  interpolateAnimation: { files: ['explain/choreograph.ts', 'explain/view.ts'], why: 'an animation that runs another draws its frames' },
+  isRemover: { files: ['explain/state.ts'], why: 'a Follow removes its targets when it is a remover' },
+  knownTransform: { files: ['explain/view.ts'], why: 'a view morphs a picture of the same structure without aligning it' },
+  passesEasing: { files: ['explain/action.ts'], why: "a play's rateFunc and lagRatio reach what an action's beats make" },
+  runTimeOf: { files: ['explain/action.ts'], why: "an action checks its beats' run times against its plan" },
+  playsOn: { files: ['explain/action.ts', 'explain/state.ts'], why: 'an action and a state change belong to the scene they change' },
+  setDrawn: { files: ['explain/stage.ts'], why: 'the checks and close-ups draw a step without its heading, then put the list back' },
+  settle: { files: ['explain/action.ts'], why: 'an action is decided once what it reads is ready' },
+  whenReady: { files: ['explain/action.ts'], why: 'an action waits for what it reads before it begins' },
 };
 
 /** Every file the type checker reads for the tests below: the library's users, its entry points and barrels, and a seeded user. */
@@ -219,9 +233,15 @@ const sideOf = (file: string) => (file.startsWith('src/') ? 'engine' : file.star
 function internalUses(files: string[]): Record<string, string[]> {
   const { program, checker } = typeChecked();
   const member = (d: ts.Declaration) => ts.isClassLike(d.parent) || ts.isInterfaceDeclaration(d.parent);
+  // TypeScript attaches a statement's comment to its first declarator only: a later declarator of
+  // `export const a = …, b = …` is read with the statement's tags too.
+  const tagsOf = (d: ts.Declaration): readonly ts.JSDocTag[] =>
+    ts.isVariableDeclaration(d) && ts.isVariableDeclarationList(d.parent) && ts.isVariableStatement(d.parent.parent)
+      ? [...ts.getJSDocTags(d), ...ts.getJSDocTags(d.parent.parent)]
+      : ts.getJSDocTags(d);
   const crosses = (d: ts.Declaration, user: string) => {
     const declared = sideOf(relative(ROOT, d.getSourceFile().fileName)), from = sideOf(user);
-    if (declared === 'above' || declared === from || !ts.getJSDocTags(d).some((t) => t.tagName.text === 'internal')) return false;
+    if (declared === 'above' || declared === from || !tagsOf(d).some((t) => t.tagName.text === 'internal')) return false;
     return member(d) || (declared === 'engine' && from === 'explain');
   };
   const nameOf = (d: ts.Declaration) => {

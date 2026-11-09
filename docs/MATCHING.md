@@ -121,7 +121,7 @@ faded parts left in it invisible, new copies attached, its `text` unchanged.
 
 ## What it reports
 
-After `begin()` (that is, once played), a `TransformMatching` reports what it did
+Once it has begun (that is, once played), a `TransformMatching` reports what it did
 with the parts of its source and its `target`:
 
 - `summary()`: a `MatchSummary`, `{ matched, morphed, removed, added }`, counts.
@@ -164,13 +164,13 @@ boundary, about 0.02% of copies.
 
 ## Invariants
 
-- The pairing and every endpoint are fixed in `begin()`; each frame is a pure
+- The pairing and every endpoint are fixed as the play begins; each frame is a pure
   function of alpha, so seeking renders the frame a full run renders
   (`test/matching.test.ts`, which also runs the motion verifier).
 - The target is never modified. The source is, as `Transform`'s alignment
   modifies it: matched parts gain curves, new copies are attached.
 - `TransformMatchingText` scans both texts once per matching run it finds, so
-  `begin()` is O(runs·N·M). One edit costs little: 42 ms at begin for 40 lines
+  beginning is O(runs·N·M). One edit costs little: 42 ms at begin for 40 lines
   of code, 90 ms for 80. Scattered edits (a change on every line) leave many
   short runs: 0.3 s for 40 lines, 1.2 s for 80. Prefer `TransformDiff` for
   code (36 ms and 168 ms for the same edits). Frames cost what a `Transform`
@@ -230,7 +230,7 @@ await this.play(new TransformDiff(before, after, { hunks }));
 ```
 
 Given hunks are used as they are, even where `diffLines` would differ. They
-must describe the two texts: begin() throws, naming the hunk and the line,
+must describe the two texts: the play throws as it begins, naming the hunk and the line,
 when a removed, added or context line's text is not the line at that
 position, when a hunk's ops do not add up to its header, when hunks overlap
 or leave unequal gaps, or when the lines outside the hunks differ. Running

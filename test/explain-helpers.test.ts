@@ -903,7 +903,7 @@ test('the explain entry point exports exactly its documented names', async () =>
   assert.deepEqual(Object.keys(await import('../explain/testing.ts')).sort(), [
     'InvariantSink', 'TraceSink', 'assertStepState', 'assertSteps', 'assertViewFollowsState', 'describeExplainer',
     'diagramFindings', 'diagramOf', 'jsonObject', 'loadFonts',
-    'loadProject', 'loadSnapshots', 'pictureWordsAt', 'traceScene', 'withIntent', 'withSettings',
+    'loadProject', 'loadSnapshots', 'pictureWordsAt', 'sampleAnimation', 'traceScene', 'withIntent', 'withSettings',
   ]);
 });
 

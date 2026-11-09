@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Text, Rectangle, FadeIn } from '../src/index.ts';
 import { toSvgString } from '../src/output.ts';
-import { stage, isHeading } from '../explain/stage.ts';
+import { stage, withoutHeading } from '../explain/stage.ts';
 import { FanSink, FrameCaptureSink, LastFrameSink, LegibilitySink, LookWordsSink, RestingSink } from '../tools/lib/explain-check.ts';
 import { restingPictures } from '../tools/lib/explain-shots.ts';
 import { traceScene } from '../explain/testing.ts';
@@ -31,13 +31,7 @@ test('check reads each step\'s resting picture as the step ends: the picture the
   const legibility = new LegibilitySink(new Map(trace.steps.map((s) => [s.step, { k: 1, views: [] }])), 1);
   await new Two(new FanSink([capture, lastFrame, resting, legibility, looks])).run();
   assert.deepEqual(lastFrame.differing, [], 'every step lands on its last played frame');
-  const shots = await restingPictures(Two, (scene) => {
-    const all = scene.mobjects;
-    scene.mobjects = all.filter((m) => !isHeading(m));
-    const svg = toSvgString(scene);
-    scene.mobjects = all;
-    return svg;
-  });
+  const shots = await restingPictures(Two, (scene) => withoutHeading(scene, () => toSvgString(scene)));
   assert.deepEqual([...resting.resting.keys()], trace.steps.map((s) => s.step), 'one resting picture per step, by name');
   assert.deepEqual([...resting.resting], [...shots], 'the shots\' picture of every step');
   // The phone's close-ups are measured at each step's end, named by the step.
