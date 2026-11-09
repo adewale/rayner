@@ -560,7 +560,7 @@ type TourState = {
   london?: number[];
 };
 /** Whether the recipe or its result is on show, the diagram's walked edges and the code's focused line. */
-type TourShown = { phase?: 'recipe' | 'result'; walked?: [string, string][]; lit?: { lines: number; as: string } | null };
+type TourShown = { chapter?: 'recipe' | 'result'; walked?: [string, string][]; lit?: { lines: number; as: string } | null };
 
 export default class FeatureTour extends Scene<TourState, TourShown> {
   static meta = {
@@ -655,7 +655,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
     });
     await s.code(example.code, { at: 'full', size: 0.6, fitHeight: true });
     this.state.feature = feature;
-    this.shown.phase = 'recipe';
+    this.shown.chapter = 'recipe';
 
     // 2. The result, at rest: before on the left, after on the right. The before panels, the camera
     // ruler and Restore's dashed outline are this scene's own artwork, not what the recipe lines draw;
@@ -673,7 +673,7 @@ export default class FeatureTour extends Scene<TourState, TourShown> {
     };
     // Each result names its own before and after; the camera scenario has no before panel.
     await this.step('result', { title: example.result, line: example.point, caption: example.caption });
-    this.shown.phase = 'result';
+    this.shown.chapter = 'result';
     await s.clear();
     const [ax, ay] = centre(AFTER),
       [bx, by] = centre(BEFORE);

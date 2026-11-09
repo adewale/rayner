@@ -240,7 +240,7 @@ export class Machine<S extends object, E extends string> {
       transition
         // The transition's motion, then the views take the pictures of `after`: a sync that moves
         // nothing when the transition ended where the model says (rayner check holds it to that).
-        ? new Succession([transition, new Landing(this.scene, views)])
+        ? new Succession([transition, new TakePictures(this.scene, views)])
         // No authored motion: each view's keyed morph, staged, so what goes is gone before what comes appears.
         : new AnimationGroup(views.map((v) => v.sync({ match, runTime: this.runTimeOf(event, before, after) }))),
     ]);
@@ -323,9 +323,9 @@ class WhenItsTurnComes extends MadeAtTurn {
  * counterpart's data in place (a morphed Text gets its new string) and the parts go back into the
  * drawn picture's stacking order, so every part keeps its identity for the next event. A picture
  * whose parts do not line up by key (one unkeyed, or a key two siblings share) is swapped for the
- * drawn one instead. The landing lasts one of the scene's frames.
+ * drawn one instead. It lasts one of the scene's frames.
  */
-class Landing extends Animation {
+class TakePictures extends Animation {
   views: readonly View[];
   scene: Scene<any>;
   constructor(scene: Scene<any>, views: readonly View[]) {

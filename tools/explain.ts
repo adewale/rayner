@@ -187,25 +187,25 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
  * runs mark it dirty, and it runs once more when it ends, however many saves there were.
  */
 export function watchAndRebuild(folder: string, out: string, rebuild: () => Promise<string>) {
-  let phase: 'idle' | 'building' | 'dirty' = 'idle',
+  let rebuilding: 'idle' | 'building' | 'dirty' = 'idle',
     loop: Promise<void> = Promise.resolve(),
     timer: ReturnType<typeof setTimeout> | undefined;
   /** Start a rebuild, or mark the one running dirty; resolves when the page is current. */
   const run = (): Promise<void> => {
-    if (phase !== 'idle') {
-      phase = 'dirty';
+    if (rebuilding !== 'idle') {
+      rebuilding = 'dirty';
       return loop;
     }
     loop = (async () => {
       do {
-        phase = 'building';
+        rebuilding = 'building';
         try {
           console.log(await rebuild());
         } catch (error) {
           console.error(`rayner: ${(error as Error).message} (still serving the last good build)`);
         }
-      } while ((phase as string) === 'dirty');
-      phase = 'idle';
+      } while ((rebuilding as string) === 'dirty');
+      rebuilding = 'idle';
     })();
     return loop;
   };

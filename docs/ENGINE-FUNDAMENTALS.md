@@ -166,7 +166,9 @@ await this.play(new Transform(box, target));
 
 `play()` takes `Playable`s: an `Animation`, an `AnimationGroup` (either is a
 `ScheduledAnimation`), or a `.animate` builder, an `AnimateBuilder`, which records
-chainable methods and constructs a target when the play begins.
+chainable methods and constructs a target when the play begins. Two animation names are
+needed because a group animates no one mobject, so it is not an `Animation`, the class a custom
+animation extends to animate its `mobject`; `ScheduledAnimation` names either.
 `new Transform(m, target, { pathFunc, replace })` morphs `m` into its `target`: each frame
 sets it between the two with `m.interpolate(start, end, alpha, pathFunc)`, each point
 travelling by a `PathFunc` (a straight line by default), and with `replace: true` the scene
@@ -282,7 +284,7 @@ contact sheet and the site's cards run each scene once.
 
 `this.state` is the model: what the subject program is doing, and nothing about
 how it is shown. Use `Scene<MyState>` for typed access. `this.shown` holds what is
-shown apart from the model, such as which of several pictures a phase shows; a
+shown apart from the model, such as which of several pictures a chapter of the story shows; a
 view's `draw` may read it, and a machine never changes it. `stateJson()` copies
 the model as JSON, with the parts helpers add with `addJson(fn)`; `shownJson()` copies
 `shown`, with the parts added with `addJson(fn, 'shown')`, such as the stage's

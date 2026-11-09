@@ -17,7 +17,7 @@ const HOST: Record<Host, string> = { informed: 'Host who knows', random: 'Random
  */
 const byKey: MatchKey = matchByKey({ text: 'whole', unkeyed: 'by-place' });
 /** Which picture is shown: the round, the strips, the odds, the copy or the worlds. */
-type Phase = 'choice' | 'predict' | 'rounds' | 'odds' | 'copy' | 'worlds';
+type Chapter = 'choice' | 'predict' | 'rounds' | 'odds' | 'copy' | 'worlds';
 /** What the later steps record: the odds and the strips' cells, then the door opened and what it leaves, then every world. */
 type MontyFacts = {
   odds: ReturnType<typeof monty>;
@@ -35,7 +35,7 @@ type MontyFacts = {
 /** The round a reader plays (the machine's), then the facts the strips are drawn from. */
 type MontyState = Round | MontyFacts;
 
-export default class MontyHall extends Scene<MontyState, { phase?: Phase }> {
+export default class MontyHall extends Scene<MontyState, { chapter?: Chapter }> {
   static meta = {
     sources: ['https://mathigon.org/course/probability/monty-hall', 'https://doi.org/10.1080/00031305.1975.10479121'],
     // Sentences that reach past the strip on screen, and the test that holds each over every first pick.
@@ -107,7 +107,7 @@ export default class MontyHall extends Scene<MontyState, { phase?: Phase }> {
       }
       return said.join('; ');
     };
-    const doors = (r: Round, phase: 'choice' | 'predict') => {
+    const doors = (r: Round, chapter: 'choice' | 'predict') => {
       const yours = roundDoor(r),
         result = roundResult(r),
         revealed = r.car !== null && r.decision !== null;
@@ -134,7 +134,7 @@ export default class MontyHall extends Scene<MontyState, { phase?: Phase }> {
             : `Opens a random door; this time ${r.shows === 'car' ? 'the car' : 'a goat'}`;
       const closed = closedDoors(r).map(door);
       const outcome =
-        phase === 'predict'
+        chapter === 'predict'
           ? 'Predict: stay or switch?'
           : result === 'over'
             ? `The round is over: the car was behind ${O}.`
@@ -171,27 +171,27 @@ export default class MontyHall extends Scene<MontyState, { phase?: Phase }> {
     const cellKey = (y: number) => label(s, KEY, { at: [0, y], color: s.look.soft, size: F, key: 'monty-key' });
 
     /**
-     * The picture for a phase: the round (the model) while the doors show, else a function of what is
+     * The picture for a chapter: the round (the model) while the doors show, else a function of what is
      * shown alone, so the trace's view check and rayner check can redraw it.
      */
-    const picture = (phase: Phase, round: Round): Group => {
-      switch (phase) {
+    const picture = (chapter: Chapter, round: Round): Group => {
+      switch (chapter) {
         case 'choice':
         case 'predict':
-          return doors(round, phase);
+          return doors(round, chapter);
         case 'rounds':
         case 'odds': {
           // The key sits under the strip it explains; in odds the two figures take the stage's lower part, clear of it.
-          const dy = phase === 'rounds' ? ALONE : 0,
+          const dy = chapter === 'rounds' ? ALONE : 0,
             y = SLOT.informed + dy,
-            ruled = phase === 'odds' ? dim : undefined;
+            ruled = chapter === 'odds' ? dim : undefined;
           words = [describeStrip(host, cells[host], ruled), KEY];
           return new Group(
             heads(s, HEADS + dy),
             titleOf(host, y + NAME),
             strip(s, cells[host], y, host, ruled),
             cellKey(y - NAME),
-            ...(phase === 'odds'
+            ...(chapter === 'odds'
               ? [
                   stat(s, 'Stay', percent(seen[host].stayChance), { at: [-3.25, -2.85], key: 'monty-stay' }),
                   stat(s, 'Switch', percent(seen[host].switchChance), { at: [3.25, -2.85], key: 'monty-switch' }),
@@ -202,13 +202,13 @@ export default class MontyHall extends Scene<MontyState, { phase?: Phase }> {
         case 'copy':
         case 'worlds': {
           // Copy: the other host's strip starts as a copy of this host's, then takes its own rounds.
-          const list = (h: Host) => (phase === 'copy' && h === other ? cells[host] : cells[h]);
+          const list = (h: Host) => (chapter === 'copy' && h === other ? cells[host] : cells[h]);
           words = [...HOSTS.map((h) => describeStrip(h, list(h), dim)), KEY];
           return new Group(
             heads(s, HEADS),
             ...HOSTS.flatMap((h) => [
               titleOf(h, SLOT[h] + NAME),
-              ...(phase === 'worlds' ? [readout(SLOT[h] + NAME, seen[h].switchChance, `monty-readout-${h}`)] : []),
+              ...(chapter === 'worlds' ? [readout(SLOT[h] + NAME, seen[h].switchChance, `monty-readout-${h}`)] : []),
               strip(s, list(h), SLOT[h], h, dim),
             ]),
             cellKey(SLOT.random - NAME),
@@ -217,7 +217,7 @@ export default class MontyHall extends Scene<MontyState, { phase?: Phase }> {
       }
     };
     // Before the first step the picture is the choice, with no door picked yet.
-    // Which picture is shown (`shown.phase`) is not part of the model: the round, the host and the odds are.
+    // Which picture is shown (`shown.chapter`) is not part of the model: the round, the host and the odds are.
     const start = roundStart(host);
     const roundOf = (st: MontyState) => ('pick' in st ? st : start);
     /** The machine's round: the state while the round is played. */
@@ -226,9 +226,9 @@ export default class MontyHall extends Scene<MontyState, { phase?: Phase }> {
     // caption: your door, and the door the host opened, while the round plays (the prediction asks
     // about the same doors; its caption is the question, so it marks nothing new).
     const main = view(this, (st, sh) => {
-      const phase = sh.phase ?? 'choice', r = roundOf(st);
-      const drawn = keyed(picture(phase, r), 'monty-picture');
-      if (phase === 'choice') {
+      const chapter = sh.chapter ?? 'choice', r = roundOf(st);
+      const drawn = keyed(picture(chapter, r), 'monty-picture');
+      if (chapter === 'choice') {
         const yours = roundDoor(r), mine = yours === null ? undefined : drawn.find(`door-${yours}`);
         if (mine) emphasised(mine, `your door: ${door(yours!)}`);
         const opened = r.opened === null ? undefined : drawn.find(`door-${r.opened}`);
@@ -236,20 +236,20 @@ export default class MontyHall extends Scene<MontyState, { phase?: Phase }> {
       }
       return drawn;
     }, { place: false });
-    const shown = (next: Phase) => { this.shown = { phase: next }; };
+    const shown = (next: Chapter) => { this.shown = { chapter: next }; };
     const describe = { describe: () => words.join('. ') };
-    const fresh = async (next: Phase) => {
+    const fresh = async (next: Chapter) => {
       await s.clear({ runTime: 0.3 });
       shown(next);
       main.rebuild();
       s.keep(main, describe);
       await this.play(new FadeIn(main, { runTime: 0.5 }));
     };
-    const morph = async (next: Phase, runTime = 1.1) => {
+    const morph = async (next: Chapter, runTime = 1.1) => {
       shown(next);
       await this.play(main.sync({ match: byKey, staged: false, runTime }));
     };
-    const at = (id: Phase, state: MontyFacts) => {
+    const at = (id: Chapter, state: MontyFacts) => {
       this.state = JSON.parse(JSON.stringify(state));
       shown(id);
     };
