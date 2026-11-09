@@ -1,7 +1,7 @@
 import { describeMermaidFacts, mutate, parseRegisteredMermaid, serializeMermaid } from 'agentic-mermaid/agent';
 import type { AnyMutationOp } from 'agentic-mermaid/agent';
-import type { DiagramSpec } from '../../integrations/agentic-mermaid/snapshot.ts';
-import { replayMorph } from '../../integrations/agentic-mermaid/build/index.ts';
+import type { DiagramSpec } from '../../explain/index.ts';
+import { replayMorph } from '../../integrations/agentic-mermaid/index.ts';
 
 /**
  * `replayMorph`, with its failure saying why the edits do not reproduce the next diagram, so

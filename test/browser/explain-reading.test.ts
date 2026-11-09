@@ -11,7 +11,7 @@ import { Diagram } from '../../explain/diagrams.ts';
 import { labelOf, readingLabelSize } from '../../explain/labels.ts';
 import type { DiagramSnapshot } from '../../explain/index.ts';
 import importedSnapshot from '../../scenes/explainers/font-metrics/scene.snapshots/4ee0d75a90dc9b78.json' with { type: 'json' };
-import { outlineText } from '../../integrations/agentic-mermaid/text.ts';
+import { outlineText } from '../../explain/diagram-text.ts';
 await loadFonts();
 
 function importedLabel(snapshot = importedSnapshot as DiagramSnapshot) {

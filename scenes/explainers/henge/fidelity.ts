@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../explain/testing.ts';
 import { henge, sunset, declination, type Street } from './model.ts';
-import { assertStepState } from '../../../test/lib/explainer-state.ts';
-import { assertSteps } from '../../../test/lib/steps.ts';
+import { assertStepState, assertSteps } from '../../../explain/testing.ts';
 
 /** The coordinate model has an independent ERFA oracle; this binds each published scenario to it. */
 export function check(trace: Trace, values: Record<string, string>): void {

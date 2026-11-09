@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict';
-import { loadProject } from '../../../explain/testing.ts';
+import { loadProject, assertStepState } from '../../../explain/testing.ts';
 import type { Trace } from '../../../explain/testing.ts';
 import { Scene } from '../../../src/index.ts';
 import { resolveSettings } from '../../../explain/index.ts';
 import { VOCABULARY } from '../../../explain/words.ts';
-import { assertStepState } from '../../../test/lib/explainer-state.ts';
 import type { FidelityRun } from '../../../test/lib/fidelity.ts';
 
 /** Each authored scenario's steps against the program the explainer explains. */

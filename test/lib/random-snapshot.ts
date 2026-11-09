@@ -1,5 +1,5 @@
 // Synthetic diagram snapshots for the explainer property tests, shaped as
-// integrations/agentic-mermaid/build/index.ts writes them (checked against the
+// integrations/agentic-mermaid/index.ts writes them (checked against the
 // pinned snapshots in scenes/explainers): node words are outlined text runs
 // inside the node's part; edge and relationship labels are parts their link
 // owns; participants are `actor:X` with a `lifeline:X`, classes `class:X`, and
@@ -7,8 +7,8 @@
 // by fast-check, so failures shrink to the smallest diagram that shows them.
 import { fc } from './pbt.ts';
 import { Rectangle } from '../../src/index.ts';
-import { RENDERER } from '../../integrations/agentic-mermaid/snapshot.ts';
-import type { DiagramSnapshot, DiagramSpec, SnapshotPart, SnapshotShape, ChartData } from '../../integrations/agentic-mermaid/snapshot.ts';
+import { RENDERER } from '../../explain/diagram-snapshot.ts';
+import type { DiagramSnapshot, DiagramSpec, SnapshotPart, SnapshotShape, ChartData } from '../../explain/diagram-snapshot.ts';
 import type { Style } from '../../src/index.ts';
 
 const HEX = fc

@@ -1,11 +1,11 @@
-// A script's intent header (tools/lib/explain-intent.ts): the one home of an explainer's title,
+// A script's intent header (explain/intent.ts): the one home of an explainer's title,
 // answer, reader questions and what its model is checked against.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseIntent, adoptIntent, adoptScript } from '../tools/lib/explain-intent.ts';
+import { parseIntent, adoptIntent } from '../explain/intent.ts';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import { buildExplainer } from '../tools/lib/explain-build.ts';
 
@@ -56,7 +56,7 @@ test('the scene takes the intent as its own metadata, and a part declared in bot
   assert.equal(Scene.meta.answer, 'the second press only dims it');
 });
 
-test('every adoption starts from the declared metadata: withIntent and loadProject drop a removed header\'s keys, as the command does (A19)', async () => {
+test('every adoption starts from the declared metadata: withIntent and loadProject drop a removed header\'s keys, as the command does', async () => {
   const { withIntent } = await import('../explain/testing.ts');
   const { loadProject } = await import('../explain/project.ts');
   const { Scene } = await import('../src/index.ts');
@@ -91,7 +91,7 @@ test('every adoption starts from the declared metadata: withIntent and loadProje
   }
 });
 
-test('a part declared in both places is refused under the script\'s path, by the command and by loadProject alike', async () => {
+test('a part declared in both places is refused under the script\'s path', async () => {
   const { loadProject } = await import('../explain/project.ts');
   const { Scene } = await import('../src/index.ts');
   const root = await mkdtemp(join(tmpdir(), 'rayner-intent-twice-')), folder = join(root, 'lamp');
@@ -99,9 +99,7 @@ test('a part declared in both places is refused under the script\'s path, by the
     await mkdir(folder);
     await writeFile(join(folder, 'script.md'), SCRIPT);
     const twice = (where: string) => new RegExp(`^Error: ${where.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}: answer is declared in both script\\.md and the scene;`);
-    // Before, the command named the scene file and loadProject the script.
-    const Declared = { meta: { answer: 'twice' } as Record<string, unknown> };
-    await assert.rejects(adoptScript(Declared, join(folder, 'scene.ts')), twice(join(folder, 'script.md')));
+    // The command and loadProject adopt a script by one function, adoptExplainer.
     class Lamp extends Scene {
       static meta = { answer: 'twice' };
       override async construct() { await this.step('one', { caption: 'The lamp.' }); }

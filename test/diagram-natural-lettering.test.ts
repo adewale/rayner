@@ -10,10 +10,10 @@ import { NullSink, toSvgString } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { Resvg } from '@resvg/resvg-js';
 import { unpackLettering, withSceneLettering } from '../src/lettering-outlines.ts';
-import { outlineText } from '../integrations/agentic-mermaid/text.ts';
-import { diagramKey, snapshotResolver } from '../integrations/agentic-mermaid/snapshot.ts';
-import type { DiagramSnapshot } from '../integrations/agentic-mermaid/snapshot.ts';
-import { snapshotBuilder, naturalMeasurementIdentity } from '../integrations/agentic-mermaid/build/index.ts';
+import { outlineText } from '../explain/diagram-text.ts';
+import { diagramKey, snapshotResolver } from '../explain/diagram-snapshot.ts';
+import type { DiagramSnapshot } from '../explain/diagram-snapshot.ts';
+import { snapshotBuilder, naturalMeasurementIdentity } from '../integrations/agentic-mermaid/index.ts';
 import { collectProject, ROOT } from '../tools/lib/explain-project.ts';
 import { fc, params } from './lib/pbt.ts';
 

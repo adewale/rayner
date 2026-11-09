@@ -10,10 +10,9 @@ import assert from 'node:assert/strict';
 import { Scene, Group, Text, DecimalNumber, Rectangle, Circle, Animation, FadeIn, Succession } from '../src/index.ts';
 import { StringSink, renderFrame } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
-import { MotionSink, analyzeMotion, loadFonts, viewMismatch } from '../explain/testing.ts';
+import { MotionSink, analyzeMotion, loadFonts, viewMismatch, assertViewFollowsState } from '../explain/testing.ts';
 import { perf } from '../src/perf.ts';
 import type { Mobject, Sink, SceneState } from '../src/index.ts';
-import { assertViewFollowsState } from './lib/view-fidelity.ts';
 import type { Vec } from '../src/index.ts';
 // Manim's values, which the package no longer exports.
 const RIGHT: Vec = [1, 0];
@@ -214,7 +213,7 @@ test('the fidelity helper: the picture at every step is what the traced state re
   assert.equal(n, 7);
   // A wrong builder fails
   const wrong = (st: SceneState) => readoutOf({ ...st, head: (st.head as number) + 1 });
-  await assert.rejects(assertViewFollowsState(Ring, (s) => (s as Ring).readout, wrong), /step "show": the view shows/);
+  await assert.rejects(assertViewFollowsState(Ring, (s) => (s as Ring).readout, wrong), /^Error: assertViewFollowsState\(\): .*step "show".*the view shows \["len 0  head 0"\]/);
   // So does a scene that changes state and forgets to sync
   class Forgetful extends Ring { static override skipSync = true; }
   await assert.rejects(assertViewFollowsState(Forgetful, (s) => (s as Ring).readout), /step "push-a"/);

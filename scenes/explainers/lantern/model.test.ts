@@ -136,7 +136,8 @@ test('sinks only read a frame: after each of Rayner’s sinks takes it, the scen
       if (!(e instanceof StopScene)) throw e;
     }
     assert.deepEqual(seen, reference, `with the ${name} sink`);
-    if (inner instanceof DomSink) assert.ok(inner.nodes.size > 0, 'the browser sink patched its document');
+    // The fake document's elements keep their children in a list (fakeDocument).
+    if (inner instanceof DomSink) assert.ok((inner.svg as unknown as { children: unknown[] }).children.length > 0, 'the browser sink patched its document');
   }
 });
 

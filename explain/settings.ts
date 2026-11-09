@@ -1,7 +1,7 @@
 import type { LetteringRequest } from '../src/lettering-outlines.ts';
 import type { Scene, SceneClass } from '../src/index.ts';
-import { useDiagrams, snapshotResolver } from '../integrations/agentic-mermaid/snapshot.ts';
-import type { SnapshotStore, DiagramResolver } from '../integrations/agentic-mermaid/snapshot.ts';
+import { useDiagrams, snapshotResolver } from './diagram-snapshot.ts';
+import type { SnapshotStore, DiagramResolver } from './diagram-snapshot.ts';
 import { PAGE_QUERY } from './page-query.ts';
 
 export interface Setting {

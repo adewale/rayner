@@ -27,10 +27,10 @@ export function bytesOf(b64: string): Uint8Array {
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
 }
-/** Decode base64 font data; `label` names it when it cannot be decoded. */
-export async function decodeFont(b64: string, label: string): Promise<Font> {
+/** Decode base64 font data; `name` names it when it cannot be decoded. */
+export async function decodeFont(b64: string, name: string): Promise<Font> {
   const r = await loadFont(bytesOf(b64));
-  if (r.tag !== 'Ok') throw new Error(`${label} cannot be decoded: ${JSON.stringify(r.error)}`);
+  if (r.tag !== 'Ok') throw new Error(`${name} cannot be decoded: ${JSON.stringify(r.error)}`);
   return r.value;
 }
 

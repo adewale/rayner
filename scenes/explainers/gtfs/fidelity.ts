@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../explain/testing.ts';
-import { assertStepState } from '../../../test/lib/explainer-state.ts';
+import { assertStepState } from '../../../explain/testing.ts';
 import { SAMPLE_FEED } from './feed.ts';
 import { readFeed, servicesOn, tripsOn, stopDay, ganttEdits, addDays, stopTimesOf, bandsOf, weekGrid } from './model.ts';
 

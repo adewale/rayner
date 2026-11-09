@@ -1,6 +1,6 @@
 // The explain package's own contracts that are not a Diagram's or a panel's:
 // the stage's palette and evidence, snapshot validation and resolution
-// (integrations/agentic-mermaid/snapshot.ts), the colours and regions in
+// (explain/diagram-snapshot.ts), the colours and regions in
 // explain/look.ts, and the HTML escaping in explain/trace.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,11 +10,12 @@ import { NullSink } from '../src/output.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
 import { stage, regionBox } from '../explain/index.ts';
 import { paletteOf } from '../explain/stage.ts';
+import { sceneIdOf } from '../explain/project.ts';
 import { REGIONS } from '../explain/look.ts';
-import { bindSnapshots, diagramFindings, loadProject, loadSnapshots, pictureWordsAt, takeMissingGlyphs, withSettings } from '../explain/testing.ts';
+import { assertStepState, assertSteps, bindSnapshots, diagramFindings, diagramOf, loadProject, loadSnapshots, pictureWordsAt, takeMissingGlyphs, withSettings } from '../explain/testing.ts';
 import FontMetrics from '../scenes/explainers/font-metrics/scene.ts';
 import GreekLettering from './fixtures/lettering/scene.ts';
-import { edgePartOf, diagramKey, snapshotResolver, useDiagrams, diagramResolverOf, RENDERER } from '../integrations/agentic-mermaid/snapshot.ts';
+import { edgePartOf, diagramKey, snapshotResolver, useDiagrams, diagramResolverOf, RENDERER } from '../explain/diagram-snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { raised, rule, emphasis, soft, good, bad, dimOpacity, seenSource } from '../explain/look.ts';
 import type { SeenSource } from '../explain/look.ts';
@@ -325,7 +326,7 @@ test('the old heading stays on top until it has faded out: what its play adds dr
   assert.deepEqual(over, [], 'no part of a heading, old or new, draws under what the fade\'s play added');
 });
 
-// ---- integrations/agentic-mermaid/snapshot.ts ------------------------------------
+// ---- explain/diagram-snapshot.ts -----------------------------------------------
 
 test('snapshot JSON with a corrupt point, paint, owner, path, size, finding or chart value is refused, as is one stored under another source', async () => {
   const good = fixture();
@@ -900,9 +901,28 @@ test('the explain entry point exports exactly its documented names', async () =>
   ]);
   // The tooling went to rayner/testing.
   assert.deepEqual(Object.keys(await import('../explain/testing.ts')).sort(), [
-    'InvariantSink', 'MotionSink', 'TraceSink', 'analyzeMotion', 'bindSnapshots', 'describeExplainer', 'diagramFindings', 'jsonObject', 'loadFonts',
+    'InvariantSink', 'MotionSink', 'TraceSink', 'analyzeMotion', 'assertStepState', 'assertSteps', 'assertViewFollowsState', 'bindSnapshots', 'describeExplainer',
+    'diagramFindings', 'diagramOf', 'jsonObject', 'loadFonts',
     'loadProject', 'loadSnapshots', 'machinesOf', 'pictureWordsAt', 'scenarioName', 'scenariosOf', 'takeMissingGlyphs', 'traceScene', 'viewMismatch', 'withIntent', 'withSettings',
   ]);
+});
+
+test('assertStepState passes when the named fields match the step\'s state, and names the step, the field and both values when one does not', () => {
+  const trace = { steps: [{ step: 'first', meta: {}, after: { count: 1, items: ['a'], nested: { ok: true } } }] };
+  assertStepState(trace, 'first', { count: 1, items: ['a'], nested: { ok: true } });
+  assertStepState(trace, 'first', { missing: undefined });
+  assert.throws(() => assertStepState(trace, 'first', { count: 2 }), /^Error: assertStepState\(\): step "first" .*count 1, not 2/);
+  assert.throws(() => assertStepState(trace, 'first', { items: ['a', 'b'] }), /^Error: assertStepState\(\): .*\["a"\]/);
+  assert.throws(() => assertStepState(trace, 'first', { nested: { ok: true, extra: 1 } }), /^Error: assertStepState\(\): .*nested/);
+  assert.throws(() => assertStepState(trace, 'second', {}), /^RangeError: assertStepState\(\): no step "second".*first/);
+});
+
+test('assertSteps passes when the named steps appear in order with others between them, on a path when one is given', () => {
+  const trace = { steps: ['a', 'b', 'c', 'd'].map((step) => ({ step, meta: step === 'c' ? { kind: 'detail' as const } : {}, after: {} })) };
+  assertSteps(trace, ['a', 'c']);
+  assertSteps(trace, ['b', 'd'], 'story');
+  assert.throws(() => assertSteps(trace, ['c', 'a']), /^Error: assertSteps\(\): no step "a" after "c"/);
+  assert.throws(() => assertSteps(trace, ['c'], 'story'), /^Error: assertSteps\(\): no step "c" on the story path/);
 });
 
 test('the testing helpers name a missing step, and find no snapshots where none are pinned', async () => {
@@ -986,4 +1006,43 @@ test('state diagrams name [*] dots by their state and region, count composites a
   assert.equal(wordsFor('fr').pseudostate('start', 'on', 2), 'début d’on, région 2');
   assert.equal(wordsFor('fr').pseudostate('end', 'veille'), 'fin de veille');
   assert.equal(wordsFor('en').pseudostate('end'), 'end');
+});
+
+test('a picture of an architecture diagram dims and marks services named by their bare ids, and says so', async () => {
+  const store = await loadSnapshots('scenes/explainers/traffic-policy');
+  const withHop = Object.values(store).find((x) => x.spec.source.includes('align row a b c') && x.spec.source.includes('k3:L --> R:d'))!;
+  const d = await diagramOf(withHop);
+  // The edge between two kept services stays undimmed; one to a dimmed pod does not.
+  const parts = (d.picture({}, { dim: ['lb', 'k3'] }) as unknown as SeenSource)[seenSource]().parts;
+  assert.equal(parts.find((p) => p.name === 'Load balancer → Node 3 · 10.240.0.3')?.dimmed, undefined);
+  assert.equal(parts.find((p) => p.name === 'Node 3 · 10.240.0.3 → Pod d')?.dimmed, true);
+  const marked = d.picture({ 'group:n3': { color: '#ff0000', as: 'fails the health check' }, k3: { color: '#ff0000', as: 'fails the health check' } });
+  assert.equal((marked as unknown as SeenSource)[seenSource]().parts.find((p) => p.name === 'Node 3 · 10.240.0.3')?.mark, 'fails the health check');
+});
+
+test('a scene with no meta.id is named by one rule: its folder for scene.ts, else its file', () => {
+  assert.equal(sceneIdOf('scenes/explainers/hanoi/scene.ts'), 'hanoi');
+  assert.equal(sceneIdOf('scenes\\explainers\\hanoi\\scene.ts'), 'hanoi');
+  assert.equal(sceneIdOf('recipes/extensions.ts'), 'extensions');
+  assert.equal(sceneIdOf('/abs/dir/scene.ts'), 'dir');
+  // The command's own rule once read the file's name alone: scene.ts would have named every explainer "scene".
+  assert.notEqual(sceneIdOf('a/b/scene.ts'), 'scene');
+  // A name that is not a page id is refused, as such a meta.id is.
+  assert.throws(() => sceneIdOf('scenes/My Scene/scene.ts'), /^RangeError: meta\.id: the scene has none, and its folder name "My Scene" is not a page id; give it a meta\.id, or rename it/);
+  for (const file of ['a/b.c.ts', 'a/.ts', 'scene.ts']) assert.throws(() => sceneIdOf(file), /is not a page id/, file);
+  // A folder name the site's evidence would refuse (capitals, _) or Windows cannot write (con) is refused here, by the one rule.
+  for (const file of ['a/My_Scene/scene.ts', 'a/Push/scene.ts', 'a/con/scene.ts', 'a/b/Scene.ts']) assert.throws(() => sceneIdOf(file), /is not a page id/, file);
+});
+
+test('loadProject holds every scenario to the step rules the command holds', async () => {
+  class Still extends Scene {
+    static meta = { id: 'still' };
+    override async construct() { await this.step('one', { caption: 'One.' }); await this.step('empty'); await this.step('two', { caption: 'Two.' }); }
+  }
+  await assert.rejects(loadProject(Still, 'test/fixtures/no-such-explainer'), /^Error: loadProject\(\): step "empty" of the scenario \{\} draws no frame of its own/);
+  class Twice extends Scene {
+    static meta = { id: 'twice' };
+    override async construct() { await this.step('Push', { caption: 'One.' }); await this.step('push', { caption: 'Two.' }); }
+  }
+  await assert.rejects(loadProject(Twice, 'test/fixtures/no-such-explainer'), /^Error: loadProject\(\): two steps of the scenario \{\} share the name "push", ignoring case/);
 });

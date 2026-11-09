@@ -1,21 +1,16 @@
-import {textContextOf} from '../../src/text-context.ts';
+import { textContextOf, traceRun, isHex, withSceneLettering, SnapshotSink } from '../../src/internal.ts';
+import { stepWords, paperOf } from '../../explain/internal.ts';
 import { writeFile, mkdir } from 'node:fs/promises';
 import { basename, dirname, extname, join, resolve } from 'node:path';
 import { Scene, Text } from '../../src/index.ts';
 import type { Step } from '../../src/index.ts';
 import { NullSink, renderFrame, toSvgString } from '../../src/output.ts';
-import { SnapshotSink } from '../../src/svg.ts';
-import { traceRun } from '../../src/trace.ts';
 import { rasterize, band } from './explain-raster.ts';
 import { defaultScenario } from './explain-project.ts';
-import { stepWords } from '../../explain/trace.ts';
-import { paperOf } from '../../explain/stage.ts';
-import { isHex } from '../../src/color.ts';
 import type { Project } from './explain-project.ts';
 import { CARD } from './explain-share.ts';
 import { useProjectLettering } from './explain-lettering.ts';
 import { palettePng } from './explain-palette.ts';
-import { withSceneLettering } from '../../src/lettering-outlines.ts';
 
 /**
  * Each step's resting picture as `draw` makes it from the scene, every one from one run of `Source`

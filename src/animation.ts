@@ -650,7 +650,7 @@ export class AnimationGroup extends AnimationTiming {
     }
     return this;
   }
-  /** The scene the play runs on, set by play() (see bindSuccessions): members record their evidence to it as they begin. */
+  /** @internal The scene the play runs on, set by play() (see bindSuccessions): members record their evidence to it as they begin. */
   scene: Scene | null = null;
   /** @internal What every member waits for before it can begin: a play waits for all of it. */
   override ready(): Promise<unknown> | null {

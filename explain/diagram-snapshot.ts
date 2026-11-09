@@ -1,7 +1,7 @@
-import type { Style } from '../../src/mobject.ts';
-import type { Scene } from '../../src/scene.ts';
-import { isHex } from '../../src/color.ts';
-import type { Palette } from '../../src/color.ts';
+import type { Style } from '../src/mobject.ts';
+import type { Scene } from '../src/scene.ts';
+import { isHex } from '../src/color.ts';
+import type { Palette } from '../src/color.ts';
 
 export interface DiagramSpec {
   source: string;

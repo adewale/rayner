@@ -12,7 +12,7 @@ import type { ExplainerClass, Setting, Settings } from './settings.ts';
 import { pictureSummary, stepWords, watchedChanges } from './trace.ts';
 import type { WatchedChange } from './trace.ts';
 import { paperOf, withoutHeading } from './stage.ts';
-import type { SnapshotStore, DiagramResolver } from '../integrations/agentic-mermaid/snapshot.ts';
+import type { SnapshotStore, DiagramResolver } from './diagram-snapshot.ts';
 
 /** One step of one scenario. Times are seconds on the scene's clock. */
 export interface StepDescription {

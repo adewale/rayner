@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import type { Trace } from '../../../explain/testing.ts';
-import { assertStepState } from '../../../test/lib/explainer-state.ts';
+import { assertStepState } from '../../../explain/testing.ts';
 import assert from 'node:assert/strict';
 import { activeStates, RUNS } from './model.ts';
 import { CHARTS, FIXTURE } from './oracle/statecharts.ts';

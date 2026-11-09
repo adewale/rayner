@@ -1,21 +1,17 @@
 import { StateScope, wait } from './embed-scope.ts';
 import { renderFrame } from '../src/output.ts';
-import { traceRun } from '../src/trace.ts';
-import type { Palette } from '../src/color.ts';
+import { traceRun, isHex, canonicalJson, STAGE_BOX } from '../src/internal.ts';
+import type { Palette } from '../src/index.ts';
+import { bindSnapshots, withSettings } from '../explain/testing.ts';
+import { settingsProblem, stepQuery, PAGE_QUERY, pictureChange, pictureHtml, pictureSummary, stepWords, paletteOf, paperOf, offPath, liveBase, liveSteps, runLive } from '../explain/internal.ts';
+import type { Live, LiveDraw, LivePlace, LiveRun, LogStart } from '../explain/internal.ts';
 import type { SceneClass, SceneOptions, Sink } from '../src/index.ts';
 import { StopScene } from '../src/output.ts';
-import { isHex } from '../src/color.ts';
-import { canonicalJson } from '../src/json.ts';
 import { resolveSettings } from '../explain/index.ts';
-import { bindSnapshots, settingsProblem, stepQuery, withSettings } from '../explain/settings.ts';
-import { PAGE_QUERY } from '../explain/page-query.ts';
-import { STAGE_BOX } from '../src/units.ts';
 import type { ExplainerClass, Settings, SnapshotStore } from '../explain/index.ts';
-import { pictureChange, pictureHtml, pictureSummary, stepWords } from '../explain/trace.ts';
 import { playerChanges, playerTrace } from './embed-trace.ts';
 import type { PlayerStep, PlayerTrace } from './embed-trace.ts';
 import { playerProperties } from './embed-style.ts';
-import { paletteOf, paperOf } from '../explain/stage.ts';
 import { STEP_TYPE, connectHost, reportHeight } from './embed-protocol.ts';
 import { icon } from './embed-icons.ts';
 import type { IconName } from './embed-icons.ts';
@@ -27,11 +23,8 @@ import { Lru } from './embed-lru.ts';
 import { changeText, chromeFor, descriptionsLang } from './embed-strings.ts';
 import { HOME, SHARE_META, SHARE_STEPS_META, shareable } from './embed-share.ts';
 import { storyIndices, adjacentStep } from './embed-steps.ts';
-import { offPath } from '../explain/script.ts';
 import { SENT, acceptedLog, decodeLog, encodeLog, exploreAndClose, outcomes } from './embed-live.ts';
 import type { Exploration, ExploreAction } from './embed-live.ts';
-import { liveBase, liveSteps, runLive } from '../explain/live.ts';
-import type { Live, LiveDraw, LivePlace, LiveRun, LogStart } from '../explain/live.ts';
 
 /**
  * The default scenario as the build traced it: its settings, its trace as the player reads it

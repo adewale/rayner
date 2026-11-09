@@ -9,8 +9,7 @@ import { MACHINE_STARTER_FILES, STARTER_FILES, packageImports } from '../tools/l
 import { collectProject, ROOT } from '../tools/lib/explain-project.ts';
 import { DOCS, docBlocks } from '../tools/repo/lib/docs-code.ts';
 import type { Picture } from '../explain/trace.ts';
-import { assertStepState } from './lib/explainer-state.ts';
-import { assertSteps } from './lib/steps.ts';
+import { assertStepState, assertSteps } from '../explain/testing.ts';
 import { run } from '../scenes/tutorial/lru-mru/model.ts';
 // The tutorials' own model tests (Wikipedia's worked LRU and MRU examples, every door event from every
 // state, no Hanoi route shorter than 7 or 15 moves) run beside them: npm test runs scenes/*/*/*.test.ts,

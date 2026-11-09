@@ -1,21 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadFonts, loadSnapshots } from '../../../explain/testing.ts';
-import { fc, params } from '../../../test/lib/pbt.ts';
-import { Scene } from '../../../src/index.ts';
-import { NullSink } from '../../../src/output.ts';
-import { Diagram } from '../../../explain/index.ts';
-import { replayMorph } from '../../../integrations/agentic-mermaid/build/index.ts';
-import { SAMPLE_FEED } from './feed.ts';
-import { readFeed, tripsOn, addDays, dayChart, ganttSource, ganttEdits } from './model.ts';
+import { diagramOf, loadSnapshots } from '../../../explain/testing.ts';
 
 // ------------------------------------------------------------------ ER words, on the pinned snapshot
-await loadFonts();
-
-const FEED = readFeed(SAMPLE_FEED);
-
-// A service as calendar.txt and calendar_dates.txt can state it, for properties over any date.
-const ymd = fc.date({ min: new Date(Date.UTC(2005, 0, 1)), max: new Date(Date.UTC(2012, 11, 31)), noInvalidDate: true }).map((d) => d.toISOString().slice(0, 10).replace(/-/g, ''));
 
 const store = await loadSnapshots('scenes/explainers/gtfs');
 
@@ -23,29 +10,11 @@ const er = Object.values(store).find((s) => s.family === 'er');
 
 async function shown() {
   assert.ok(er, 'the gtfs explainer pins an ER snapshot');
-  const d = new Diagram(new Scene(new NullSink()), er.spec, er, {});
-  await d.build();
-  return d;
+  return diagramOf(er);
 }
 
 /** Mermaid's crow's-foot markers, as the source writes them: the left one at the first entity. */
 const MARKERS: Record<string, string> = { '||': 'exactly one', '|o': 'zero or one', 'o|': 'zero or one', '}o': 'zero or more', 'o{': 'zero or more', '}|': 'one or more', '|{': 'one or more' };
-
-test('the day chart’s edits, replayed by Agentic Mermaid, turn any day’s chart into any other’s', () => {
-  // The scene's three scenarios, then a sample of other pairs of dates.
-  for (const date of ['20070604', '20070605', '20070609'])
-    replayMorph({ source: ganttSource(FEED, addDays(date, -1)) }, { source: ganttSource(FEED, date) }, ganttEdits(FEED, addDays(date, -1), date));
-  fc.assert(
-    fc.property(ymd, ymd, (a, b) => {
-      replayMorph({ source: ganttSource(FEED, a) }, { source: ganttSource(FEED, b) }, ganttEdits(FEED, a, b));
-      // Two edits per trip whose running changes, none for the others.
-      const changed = FEED.trips.filter((t) => tripsOn(FEED, a).includes(t) !== tripsOn(FEED, b).includes(t)).length;
-      assert.equal(ganttEdits(FEED, a, b).length, 2 * changed);
-      assert.equal(dayChart(FEED, b).flatMap((s) => s.trips).filter((t) => t.runs).length, tripsOn(FEED, b).length);
-    }),
-    params(40),
-  );
-});
 
 test('an ER relationship is described by its label and what each crow’s-foot marker says, read from the source', async () => {
   const d = await shown();

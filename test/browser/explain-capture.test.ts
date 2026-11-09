@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { capture } from '../../integrations/agentic-mermaid/build/capture.ts';
+import { capture } from '../../integrations/agentic-mermaid/capture.ts';
 import { renderMermaidSVG } from 'agentic-mermaid';
-import { snapshotBuilder } from '../../integrations/agentic-mermaid/build/index.ts';
+import { snapshotBuilder } from '../../integrations/agentic-mermaid/index.ts';
 import { Resvg } from '@resvg/resvg-js';
-import { outlineText } from '../../integrations/agentic-mermaid/text.ts';
+import { outlineText } from '../../explain/diagram-text.ts';
 import { lostLabelWarnings } from '../../tools/lib/explain-warnings.ts';
 import { Scene, VMobject } from '../../src/index.ts';
 import type { Mobject } from '../../src/index.ts';

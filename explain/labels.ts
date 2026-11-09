@@ -6,8 +6,8 @@
 import { Group, Text, VMobject } from '../src/index.ts';
 import type { Mobject, Vec } from '../src/index.ts';
 import type { TextShaping } from '../src/text-context.ts';
-import { SVG_PX_PER_UNIT } from '../integrations/agentic-mermaid/snapshot.ts';
-import type { SnapshotShape } from '../integrations/agentic-mermaid/snapshot.ts';
+import { SVG_PX_PER_UNIT } from './diagram-snapshot.ts';
+import type { SnapshotShape } from './diagram-snapshot.ts';
 
 /** The words and size of a label: a native Text, or a diagram label imported as outlines. */
 export interface LabelInfo {

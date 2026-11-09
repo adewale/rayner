@@ -61,7 +61,7 @@ one chapter of a state that changes shape ([typed state](REFERENCE.md#typed-stat
 `machine.send(event, from?)` builds one event's schedule for one state (the scene's state by
 default) and refuses to play from any other, so a replay cannot drift from the model.
 `replay(events, from?)` chains them. Those two are what a scene calls. `lastPlayedIn` is the step
-the machine last played in.
+the machine last played in, and `machine.scene` the scene it was made on.
 
 `rayner check` and the player read the rest from the spec. What an event does from a state is the
 next state, a refusal with the reason `next` gave, or the story's bound. Exploration visits every

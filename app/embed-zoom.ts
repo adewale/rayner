@@ -6,10 +6,10 @@
  * so does a click or tap, which centres the point under it (no drag needed).
  */
 import { DomSink } from '../src/output.ts';
-import { VIEWBOX } from '../src/svg.ts';
+import { VIEWBOX } from '../src/internal.ts';
+import { withoutHeading } from '../explain/internal.ts';
 import type { Scene } from '../src/index.ts';
 import type { ElementRecord } from '../src/output.ts';
-import { withoutHeading } from '../explain/stage.ts';
 /** A zoom: scale `k` about the stage's top-left corner, then a pan of (x, y) stage pixels. */
 export interface Zoom {
   k: number;

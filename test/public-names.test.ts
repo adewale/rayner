@@ -99,4 +99,9 @@ test('the docs check rejects a public name no guide names, and a stale entry amo
   assert.ok(!documented(n('member', 'Line.start'), 'machine.spec.start', new Set()));
   assert.ok(!documented(n('member', 'InvariantSink.inner'), ['InvariantSink\nfailures', 'sync.inner'], new Set()));
   assert.ok(documented(n('member', 'Line.start'), ['Line\nline.start()'], new Set()));
+  // So is another class's receiver, or a file of the same name, in a section that names the owner.
+  assert.ok(!documented(n('member', 'Card.labels'), ['Card\nd.labels(id)'], new Set()));
+  assert.ok(!documented(n('member', 'Diagram.scene'), ['Diagram\ns.scene'], new Set()));
+  assert.ok(!documented(n('member', 'Machine.scene'), ['Machine\nscene.ts'], new Set()));
+  assert.ok(documented(n('member', 'Card.labels'), ['Card\ncard.labels'], new Set()));
 });
