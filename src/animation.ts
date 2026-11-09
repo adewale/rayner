@@ -1231,7 +1231,10 @@ export class Succession extends AnimationGroup {
   /** Its state in a play: refused outside one, which only a hook called directly could reach. */
   #playing(): Exclude<SuccessionState, { is: 'idle' }> {
     const s = this.#state;
-    if (s.is === 'idle') throw new Error(`${this.#call()}: ${animationName(this)} is not in a play; play it with this.play()`);
+    if (s.is === 'idle') {
+      const call = this.#call();
+      throw new Error(`${call}: ${animationName(this)} is not in a play; play it with this.play()`);
+    }
     return s;
   }
 
@@ -1326,7 +1329,8 @@ export class Succession extends AnimationGroup {
   /** Held by the running member: carry on in a turn the scene takes after what it waits for (see afterHeld). */
   #hold(closing: boolean): void {
     const scene = this[playScene];
-    if (!scene) throw new Error(`${this.#call()}: ${animationName(membersOf(this)[this.#active]!)} waits to begin, or for its own members, in a Succession with no scene, and only a play can wait; play the Succession with this.play()`);
+    const call = this.#call();
+    if (!scene) throw new Error(`${call}: ${animationName(membersOf(this)[this.#active]!)} waits to begin, or for its own members, in a Succession with no scene, and only a play can wait; play the Succession with this.play()`);
     const s = this.#playing();
     this.#state = { ...s, is: 'held', closing };
     afterHeld(scene, 'new Succession()', () => {
