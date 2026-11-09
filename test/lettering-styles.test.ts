@@ -160,7 +160,7 @@ for (const [family, text, file, features] of [
 });
 
 test('a face without the asked cut fails capture, naming it; a script without Bold cannot draw bold', { skip: !capture && 'set EXPLAIN_LETTERING=1 to capture' }, async () => {
-  const scene = (lettering: string, body: string) => `import{Scene,Text}from'rayner';export default class L extends Scene{static meta={id:'cut',lettering:${lettering}};async construct(){await this.step('one');this.add(${body});}}`;
+  const scene = (lettering: string, body: string) => `import{Scene,Text}from'rayner';export default class L extends Scene{static meta={id:'cut',lettering:${lettering}};async construct(){await this.step('one');this.add(${body});await this.wait(1);}}`;
   const dir = await mkdtemp(join(folder, 'cut-'));
   await writeFile(join(dir, 'scene.ts'), scene(`{faces:{sans:'noto-sans-hebrew'},scripts:['Hebr'],styles:['italic']}`, `new (await import('rayner')).ItalicText('שלום')`));
   await assert.rejects(collectProject(dir, { captureLettering: true, write: false }), /noto-sans-hebrew has no italic cut/);
