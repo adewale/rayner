@@ -5,8 +5,7 @@ workflow. The [tutorial](TUTORIAL.md) covers authoring an explainer, and
 [extension recipes](EXTENDING.md) give runnable examples. Every name below is a
 public export of `rayner` unless another entry point is shown: sinks, seeking and
 other ways to draw frames are `rayner/output`; traces, frame checks and profiling
-are `rayner/testing`; `view` is `rayner/explain`; and `Write` and `Restore` are
-`rayner/extras`.
+are `rayner/testing`; and `view` is `rayner/explain`.
 
 ## The model
 
@@ -63,7 +62,7 @@ the curves of subpath `i` or of the whole path, `pointOnCurve(i, c, t)` is the p
 at parameter `t` on curve `c`, `curveLength(i, c)` and `arcLength()` measure a curve
 and the whole path, `curveParamAt(i, c, s)` is the parameter a length `s` along a
 curve reaches, and `pointFromProportion(t)` is the point a fraction `t` of the path's
-length along it, which `MoveAlongPath` (`rayner/extras`) and the stage's sketch travel by.
+length along it, which `MoveAlongPath` and the stage's sketch travel by.
 
 `applyPointsFunction(fn)` maps every point of the family through `fn([x, y])`, and
 `applyAffine(a, b, c, d, e, f)` applies the affine map `[a c; b d]p + [e f]` without
@@ -80,7 +79,7 @@ Style includes fill, stroke, their opacity and width, overall opacity, and optio
 SVG paint details such as dashes and joins. A mobject's `style` is a `StyleRecord`: its
 `Style` with every field filled in but those paint details and `drawFraction`. `setFill`, `setStroke` and `setOpacity`
 update it; `setStyle(style)` sets several fields at once, and `setColor(c)` sets fill
-and stroke to one colour. `Create` and `Write` (`rayner/extras`) use the transient `drawFraction` to reveal a path.
+and stroke to one colour. `Create` uses the transient `drawFraction` to reveal a path.
 Changing `style` or point arrays behind the supported methods risks stale caches.
 
 A colour left out takes the scene's. `scene.colors` holds five (`paper`, `ink`, `soft`,
@@ -157,7 +156,7 @@ Override `copyData(source)`, also protected, for additional mutable data that th
 class cannot copy itself.
 
 `saveState()` stores a copy. `restore()` restores immediately; `Restore`
-(`rayner/extras`) does it as an animation. A generic transform can align or replace child structure, so retain
+does it as an animation. A generic transform can align or replace child structure, so retain
 references only to parts whose identity your operation promises to preserve.
 See [restoration and sequencing](ANIMATIONS.md).
 

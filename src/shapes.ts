@@ -45,12 +45,6 @@ export class Rectangle extends VMobject {
   }
 }
 
-export interface SquareOpts extends Style { side?: number; cornerRadius?: number }
-
-export class Square extends Rectangle {
-  constructor({ side = 2, ...rest }: SquareOpts = {}) { super({ width: side, height: side, ...rest }); }
-}
-
 export interface CircleOpts extends Style { radius?: number }
 
 export class Circle extends VMobject {
@@ -245,16 +239,6 @@ export class SurroundingRectangle extends Rectangle {
     super({ width: b[2] - b[0] + 2 * buff, height: b[3] - b[1] + 2 * buff, cornerRadius, stroke: NEUTRAL_COLORS.emphasis, fill: 'none', ...style });
     if (style.stroke === undefined) followScene(this, { stroke: 'emphasis' });
     this.shift(center(b));
-  }
-}
-
-export interface UnderlineOpts extends Style { buff?: number }
-
-/** A line along the bottom of a mobject's box (or a Box), `buff` below it, drawn left to right. */
-export class Underline extends Line {
-  constructor(target: Mobject | Box, { buff = 0.1, ...style }: UnderlineOpts = {}) {
-    const b = boxOf(target, 'new Underline()'), y = b[1] - buff;
-    super([b[0], y], [b[2], y], style);
   }
 }
 

@@ -4,7 +4,6 @@
 // everywhere without Python. With MANIM_DIR=<checkout of 3b1b/manim> (and python3 +
 // numpy) the fixture is also checked against the live oracle; UPDATE_ORACLE=1 rewrites it.
 import { test } from 'node:test';
-import { Square } from '../src/extras.ts';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -27,13 +26,13 @@ const { request, answers, manim } = JSON.parse(readFileSync(file, 'utf8')) as Fi
 function sameShapeCases(): Array<[string, VMobject]> {
   const polyline = (pts: Vec[]) => { const v = new VMobject().startNewPath(pts[0]!); for (const p of pts.slice(1)) v.addLineTo(p); return v; };
   // Float32 noise: the same square after a chain of moves and scales
-  const mapped = new Square({ side: 2 });
+  const mapped = new Rectangle({ width: 2, height: 2 });
   for (let i = 0; i < 5; i++) mapped.shift([1.37, -0.71]).scale(1.3);
   return [
-    ['square', new Square({ side: 2 })],
-    ['square, moved and scaled', new Square({ side: 3 }).shift([4, -1])],
+    ['square', new Rectangle({ width: 2, height: 2 })],
+    ['square, moved and scaled', new Rectangle({ width: 3, height: 3 }).shift([4, -1])],
     ['square, after five maps', mapped],
-    ['square, drawn from another corner', new Square({ side: 2 }).rotate(Math.PI / 2)],
+    ['square, drawn from another corner', new Rectangle({ width: 2, height: 2 }).rotate(Math.PI / 2)],
     ['rectangle 2:1', new Rectangle({ width: 2, height: 1 })],
     ['rectangle 1:2', new Rectangle({ width: 1, height: 2 })],
     ['circle', new Circle({ radius: 1 })],

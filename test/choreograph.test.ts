@@ -2,10 +2,9 @@
 // Whatever the author names or leaves out, the current picture ends showing the target's parts.
 
 import { test } from 'node:test';
-import { Square } from '../src/extras.ts';
 import { choreograph } from '../explain/choreograph.ts';
 import assert from 'node:assert/strict';
-import { Scene, Group, Circle, Dot, Line, Succession, Transform } from '../src/index.ts';
+import { Scene, Group, Circle, Dot, Line, Rectangle, Succession, Transform } from '../src/index.ts';
 import { NullSink, toSvgString } from '../src/output.ts';
 import type { AnimationGroup } from '../src/index.ts';
 import type { Mobject, Animation } from '../src/index.ts';
@@ -31,7 +30,7 @@ async function play(current: Group, make: (c: Group) => Animation | AnimationGro
   return current;
 }
 
-const before = () => picture(['a', new Circle({ radius: 0.5 }).moveTo([-2, 0])], ['b', new Square({ side: 1 }).moveTo([0, 0])]);
+const before = () => picture(['a', new Circle({ radius: 0.5 }).moveTo([-2, 0])], ['b', new Rectangle({ width: 1, height: 1 }).moveTo([0, 0])]);
 const after = () => picture(['a', new Circle({ radius: 0.5 }).moveTo([-1, 1])], ['c', new Dot().moveTo([2, 0])]);
 
 test('morph, enter and leave in the author\'s order end on the target picture', async () => {
@@ -88,7 +87,7 @@ test('a passing part the target does not have comes in, moves and goes out, and 
 });
 
 test('a picture with two parts under one key is refused', () => {
-  const twice = new Group(Object.assign(new Circle(), { key: 'x' }), Object.assign(new Square(), { key: 'x' }));
+  const twice = new Group(Object.assign(new Circle(), { key: 'x' }), Object.assign(new Rectangle({ width: 2, height: 2 }), { key: 'x' }));
   assert.throws(() => choreograph(twice, after()), /t\.choreograph\(\): two parts of one picture are keyed "x"/);
 });
 

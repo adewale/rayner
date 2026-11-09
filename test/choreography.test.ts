@@ -1,11 +1,10 @@
 import { test } from 'node:test';
-import { MoveAlongPath } from '../src/extras.ts';
 import { view, stage } from '../explain/index.ts';
 import { SetState } from '../explain/state.ts';
 import { card } from '../explain/drawing.ts';
 import { isFurniture } from '../explain/stage.ts';
 import assert from 'node:assert/strict';
-import { Scene, Group, Rectangle, Circle, Dot, Line, Text, FadeIn, GrowFromEdge, PulseAlongPath, AnimationGroup, LaggedStart, Succession, linear } from '../src/index.ts';
+import { Scene, MoveAlongPath, Group, Rectangle, Circle, Dot, Line, Text, FadeIn, GrowFromEdge, PulseAlongPath, AnimationGroup, LaggedStart, Succession, linear } from '../src/index.ts';
 import { SnapshotSink, StringSink, NullSink, toSvgString, renderFrame } from '../src/output.ts';
 import { TraceSink, traceScene, loadFonts } from '../explain/testing.ts';
 import type { Mobject, Vec } from '../src/index.ts';

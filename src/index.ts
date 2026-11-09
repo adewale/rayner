@@ -7,7 +7,7 @@
 export { Mobject, Group } from './mobject.ts';
 export type { Style, StyleRecord, Box, Updater, AnimateBuilder } from './mobject.ts';
 export { VMobject } from './vmobject.ts';
-export { Arc, Arrow, Circle, CurvedArrow, Dot, Labeled, Line, Polygon, Rectangle } from './shapes.ts';
+export { Arc, ArcBetweenPoints, Arrow, Circle, CurvedArrow, Dot, Labeled, Line, Polygon, Rectangle } from './shapes.ts';
 export type { RectangleOpts, CircleOpts, DotOpts, ArrowOpts, ArcOpts, CurvedArrowOpts } from './shapes.ts';
 export { SurroundingRectangle, Cross, Brace, BraceLabel } from './shapes.ts';
 export type { SurroundingRectangleOpts, CrossOpts, BraceOpts, BraceLabelOpts } from './shapes.ts';
@@ -19,6 +19,8 @@ export type { AxisRange, NumberLineOpts, AxisStyle, AxesOpts, PlotOpts, BarOpts,
 
 // Motion
 export { Animation, Transform, FadeIn, FadeOut, Create, AnimationGroup, LaggedStart } from './animation.ts';
+export { Restore, TransformFromCopy, MoveAlongPath } from './animation.ts';
+export type { MoveAlongPathOpts } from './animation.ts';
 export type { AnimOpts, PlayOpts, Playable, ScheduledAnimation, TransformOpts, FadeOpts, AnimationPhase } from './animation.ts';
 export { Circumscribe } from './animation.ts';
 export type { CircumscribeOpts } from './animation.ts';

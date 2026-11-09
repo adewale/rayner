@@ -16,15 +16,15 @@ Three records say what happened, each answering a different question. The **trac
 
 ## Which guide answers which question
 
-Modules are in `src/` (the engine taken from Lantern) unless named with `explain/`. Views, machines and choreography are Rayner's pictures of state, so they live in `explain/` and are exported from `rayner/explain`, not from `rayner`. `Restore`, `TransformFromCopy` and `Underline` live in `src/` but are exported from `rayner/extras`, not from `rayner`.
+Modules are in `src/` (the engine taken from Lantern) unless named with `explain/`. Views, machines and choreography are Rayner's pictures of state, so they live in `explain/` and are exported from `rayner/explain`, not from `rayner`.
 
 | Module | Doc | The question it answers |
 | --- | --- | --- |
 | `mobject.ts`, `vmobject.ts`, `shapes.ts`, `scene.ts` | [Fundamentals](ENGINE-FUNDAMENTALS.md) and [extension recipes](EXTENDING.md) | What is a scene made of, how does ownership work, and how do I extend it? |
-| `animation.ts`: `Restore`, `TransformFromCopy` (both from `rayner/extras`), `Succession` (`saveState` in `mobject.ts`) | [ANIMATIONS.md](ANIMATIONS.md) | How do I come back to a saved look, derive one thing from another, or run animations one after another in one play? |
+| `animation.ts`: `Restore`, `TransformFromCopy`, `Succession` (`saveState` in `mobject.ts`) | [ANIMATIONS.md](ANIMATIONS.md) | How do I come back to a saved look, derive one thing from another, or run animations one after another in one play? |
 | `animation.ts`: `GrowFromEdge`, `PulseAlongPath`; `mobject.ts`: `become`; in `explain/`: `view.ts` (`tween`), `choreograph.ts` (`follow`) | [Reusable choreography](CHOREOGRAPHY.md) | How do I grow a bar or task, send a transient token, or drive several drawings from one sampled number? |
 | `animation.ts`: `TransformMatching`, `TransformMatchingShapes`, `TransformMatchingText`, `matchByKey` (`shapeKey()` in `vmobject.ts`) | [MATCHING.md](MATCHING.md) | How do I morph by what the parts are instead of where they sit in the family, and keep a keyed cell or node as one component? |
-| `animation.ts`: `Circumscribe`; `shapes.ts`: `SurroundingRectangle`, `Underline` (from `rayner/extras`), `Cross`, `Brace`, `BraceLabel` | [EMPHASIS.md](EMPHASIS.md) | How do I point at part of the picture so the step's resting picture still shows it? |
+| `animation.ts`: `Circumscribe`; `shapes.ts`: `SurroundingRectangle`, `Cross`, `Brace`, `BraceLabel` | [EMPHASIS.md](EMPHASIS.md) | How do I point at part of the picture so the step's resting picture still shows it? |
 | `frame.ts` (`scene.frame`); `svg.ts`: `cull` | [CAMERA.md](CAMERA.md) | How do I zoom and pan without moving anything I drew? |
 | `graphing.ts`: `NumberLine`, `Axes` | [GRAPHING.md](GRAPHING.md) | How do I chart the program's own numbers? |
 | `explain/view.ts`: `view`, `viewMismatch`; `explain/drawing.ts`: `card`, `code` (the panels in `explain/panels.ts`) | [VIEWS.md](VIEWS.md) | How do I make a picture a function of `scene.state`, and check it at every step? |
@@ -94,7 +94,7 @@ A review on 2026-11-03 found that 34 of the 40 explainers then in the collection
 
 ## Public names
 
-The package has an entry point per audience. A scene is written with `rayner`, `rayner/explain` and `rayner/drawing`, and opts in to `rayner/geo` (3D and the globe), `rayner/audio` (a step's score) and `rayner/extras` (Manim's conveniences, each a shorthand for something in `rayner`). `rayner/output` draws a scene's frames outside the built page, for a host page or a tool, and `rayner/testing` holds what an author's tests and tools use; no scene may import it ([the reference lists both](REFERENCE.md#testing-and-tooling-api)).
+The package has an entry point per audience. A scene is written with `rayner`, `rayner/explain` and `rayner/drawing`, and opts in to `rayner/geo` (3D and the globe) and `rayner/audio` (a step's score). `rayner/output` draws a scene's frames outside the built page, for a host page or a tool, and `rayner/testing` holds what an author's tests and tools use; no scene may import it ([the reference lists both](REFERENCE.md#testing-and-tooling-api)).
 
 The package has no dependencies; the `rayner` command is the separate `rayner-cli` package, at the same version. The package exports its entry points and nothing else, so an outside project can import no other module. The command shares the library's compiled modules with the scenes it loads without an export: its bundle imports them by a private specifier (`#rayner/src/scene.js`), and a resolve hook it registers at startup (`tools/installed.ts`) maps that specifier to the installed `rayner` package's `dist/`, the files its entry points load, for the command's own modules only. `npm run pack:smoke` checks that an outside project cannot import `rayner/internal/...` or the private specifier.
 

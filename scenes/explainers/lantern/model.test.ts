@@ -1,5 +1,4 @@
 import { test } from 'node:test';
-import { Square } from '../../../src/extras.ts';
 import assert from 'node:assert/strict';
 import { Scene, Rectangle, Dot, Circle, Group, FadeIn, Transform, smooth } from '../../../src/index.ts';
 import { StringSink, SnapshotSink, NullSink, DomSink, StopScene, renderFrame, toSvgString } from '../../../src/output.ts';
@@ -15,7 +14,7 @@ class TimeOnly extends Scene {
     const box = new Rectangle({ width: 2, height: 1, stroke: '#222222', fill: '#88aadd', fillOpacity: 0.4 }).moveTo([-3, 1]);
     const dot = new Dot({ radius: 0.3 }).moveTo([-5, -2]);
     await this.play(new FadeIn(box), new FadeIn(dot), { runTime: 0.5 });
-    await this.play(new Transform(box, new Square({ side: 2.5, stroke: '#222222' }).moveTo([2, 1])), dot.animate.moveTo([5, -2]), { runTime: 1 });
+    await this.play(new Transform(box, new Rectangle({ width: 2.5, height: 2.5, stroke: '#222222' }).moveTo([2, 1])), dot.animate.moveTo([5, -2]), { runTime: 1 });
     await this.step('two', { title: 'Two' });
     await this.play(new Transform(box, new Circle({ radius: 1, stroke: '#222222' }).moveTo([0, 0])), { runTime: 0.7 });
     await this.wait(0.3);
@@ -212,7 +211,7 @@ test('seek: in a scene with updaters a still computes every frame before t, so a
       // A nudge each frame, as an updater: the scene computes every frame while it is attached.
       dot.addUpdater((m: Mobject) => { m.shift(step); });
       await this.play(new FadeIn(new Group(box, dot)), { runTime: 0.5 });
-      await this.play(new Transform(box, new Square({ side: 2, stroke: '#222222' }).moveTo([3, 1])), { runTime: 1 });
+      await this.play(new Transform(box, new Rectangle({ width: 2, height: 2, stroke: '#222222' }).moveTo([3, 1])), { runTime: 1 });
       dot.clearUpdaters();
     }
   }

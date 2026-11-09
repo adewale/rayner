@@ -1,10 +1,9 @@
 // Code spans (views of a line's glyphs, boxed on line metrics) and build-time
 // syntax tokens (tools/repo/lib/tokenize.ts, painted by Code's `spans` option).
 import { test } from 'node:test';
-import { Write } from '../src/extras.ts';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { Code, Scene, VMobject, Transform, FadeOut } from '../src/index.ts';
+import { Code, Scene, VMobject, Transform, FadeOut, Create } from '../src/index.ts';
 import { NullSink, StringSink, SnapshotSink, renderFrame, renderElements } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import type { ColorSpan, Box, Sink } from '../src/index.ts';
@@ -143,7 +142,7 @@ class ColoredScene extends Scene {
   override async construct() {
     await this.step('write');
     const a = new Code(LINES.slice(0, 2), { spans: SPANS }).shift([0, 1]);
-    await this.play(new Write(a), { runTime: 1 });
+    await this.play(new Create(a, { lagRatio: 0.3 }), { runTime: 1 });
     await this.step('morph');
     const next = ['const hit = await cache.get(key);', '  if (!hit) return load(key);'];
     const b = new Code(next, { spans: tokenize(next.join('\n'), 'ts', { engine: 'fallback' }) }).shift([0, -1]);

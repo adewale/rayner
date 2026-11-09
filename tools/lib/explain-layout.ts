@@ -1,7 +1,6 @@
 // The geometric part of Lantern's layout verifier, adapted for Rayner's semantic
 // diagram labels, painted VMobject connectors, clipped camera and label plates.
 import { Arc, Line, Rectangle, VMobject } from '../../src/index.ts';
-import { ArcBetweenPoints } from '../../src/extras.ts';
 import { renderElements } from '../../src/output.ts';
 import type { Box, Mobject, Scene, Vec } from '../../src/index.ts';
 import { contains, intersect, nonempty, pad, pointsBox } from '../../src/box.ts';
@@ -134,7 +133,7 @@ export function restingRouteProblems(scene: Scene): string[] {
   const plates = members.filter((m): m is Rectangle => m instanceof Rectangle && opaque(m) && (m.style.drawFraction ?? 1) >= 1 && Number.isFinite(rank(m)));
   const problems = new Set<string>();
   const routes = members.filter((m): m is VMobject => m instanceof VMobject &&
-    (m instanceof Line || m instanceof Arc || m instanceof ArcBetweenPoints || isDiagramConnector(m)) && !textAncestor(m) && visible(m) && record.has(m.id) &&
+    (m instanceof Line || m instanceof Arc || isDiagramConnector(m)) && !textAncestor(m) && visible(m) && record.has(m.id) &&
     m.style.strokeWidth > 0 && m.style.strokeOpacity * (paintAlpha(m.style.stroke) ?? 1) >= 0.95 && (m.style.drawFraction ?? 1) >= 1);
   const endpoints = routes.flatMap((m) => m.subpaths.flatMap((p, j): Vec[] => m.closed[j] || p.length < 8 ? [] : [[p[0]!, p[1]!], [p.at(-2)!, p.at(-1)!]]));
   const unjoined = (p: Vec) => endpoints.filter((q) => Math.max(Math.abs(p[0] - q[0]), Math.abs(p[1] - q[1])) <= 4 * 2 ** -23 * Math.max(1, ...p.map(Math.abs), ...q.map(Math.abs))).length === 1;

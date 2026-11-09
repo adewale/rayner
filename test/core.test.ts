@@ -1,5 +1,4 @@
 import { test } from 'node:test';
-import { Square } from '../src/extras.ts';
 import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
 import { Rectangle, Group, VMobject, Line, Arrow, Text, Dot, Transform, AnimationGroup, FadeIn, linear, thereAndBack, Scene, SurroundingRectangle, Cross, lerpColor } from '../src/index.ts';
@@ -86,7 +85,7 @@ test('y is up in the model and flipped once, in path data; angles turn countercl
 });
 
 test('ArcBetweenPoints hits both endpoints and bulges to the signed side', async () => {
-  const { ArcBetweenPoints } = await import('../src/extras.ts');
+  const { ArcBetweenPoints } = await import('../src/index.ts');
   const a = new ArcBetweenPoints([0, 0], [2, 0], { angle: Math.PI / 2 });
   const end = a.pointFromProportion(1), mid = a.pointFromProportion(0.5);
   assert.ok(Math.hypot(end[0] - 2, end[1]) < 1e-5);
@@ -144,7 +143,7 @@ test('alignData pads a path at its centre as the points stand, whether or not it
   // property test found frames that differed with and without a box() call (random-scene tape).
   const build = () => {
     const holder = new VMobject();
-    holder.add(new Square({ side: 1 }).moveTo([-4, 0]));
+    holder.add(new Rectangle({ width: 1, height: 1 }).moveTo([-4, 0]));
     const target = new VMobject();
     target.startNewPath([4, 2]).addLineTo([5, 2]);
     target.startNewPath([4, -2]).addLineTo([5, -2]);
@@ -186,7 +185,7 @@ test('fresh Text is centred on its advance box before any positioning', () => {
 });
 
 test('scene.add renders each descendant once across orders and batches', () => {
-  const a = new Square(), b = new Square(), c = new Square(), parent = new Group(a, b);
+  const a = new Rectangle({ width: 2, height: 2 }), b = new Rectangle({ width: 2, height: 2 }), c = new Rectangle({ width: 2, height: 2 }), parent = new Group(a, b);
   const ordered = new Scene(new NullSink()).add(parent, c, parent);
   assert.deepEqual(ordered.mobjects, [c, parent], 'last root occurrence is in front');
   ordered.add(a);
@@ -194,7 +193,7 @@ test('scene.add renders each descendant once across orders and batches', () => {
 
   const op = fc.record({ batch: fc.array(fc.integer({ min: 0, max: 4 }), { maxLength: 5 }) });
   fc.assert(fc.property(fc.array(op, { maxLength: 30 }), (batches) => {
-    const a = new Square(), b = new Square().shift([2, 0]), c = new Square().shift([4, 0]);
+    const a = new Rectangle({ width: 2, height: 2 }), b = new Rectangle({ width: 2, height: 2 }).shift([2, 0]), c = new Rectangle({ width: 2, height: 2 }).shift([4, 0]);
     const inner = new Group(a, b), outer = new Group(inner, c);
     const choices = [a, b, c, inner, outer];
     // Independent input tree, including each node itself: no production
@@ -219,7 +218,7 @@ test('scene.add renders each descendant once across orders and batches', () => {
 });
 
 test('replacement admission does not duplicate promoted subtrees or delete a self-replaced sibling', () => {
-  const a = new Square(), b = new Square(), old = new Square();
+  const a = new Rectangle({ width: 2, height: 2 }), b = new Rectangle({ width: 2, height: 2 }), old = new Rectangle({ width: 2, height: 2 });
   const parent = new Group(a, b);
   const s = new Scene(new NullSink()).add(old, a, b);
   s.replace(old, parent, a);
@@ -227,7 +226,7 @@ test('replacement admission does not duplicate promoted subtrees or delete a sel
   assert.deepEqual(renderElements(s).map((e) => e.id), [a.id, b.id]);
   s.replace(a, a);
   assert.deepEqual(parent.children, [a, b]);
-  const other = new Square(); s.add(other);
+  const other = new Rectangle({ width: 2, height: 2 }); s.add(other);
   s.replace(other, a);
   assert.deepEqual(parent.children, [b]);
   assert.deepEqual(renderElements(s).map((e) => e.id), [b.id, a.id]);
@@ -236,19 +235,19 @@ test('replacement admission does not duplicate promoted subtrees or delete a sel
 });
 
 test('nested replacement preserves earlier siblings, retained old objects and backlinks', () => {
-  const a = new Square(), old = new Square(), b = new Square();
+  const a = new Rectangle({ width: 2, height: 2 }), old = new Rectangle({ width: 2, height: 2 }), b = new Rectangle({ width: 2, height: 2 });
   const parent = new Group(a, old, b), s = new Scene(new NullSink()).add(parent);
   s.replace(old, a);
   assert.deepEqual(parent.children, [a, b]);
   assert.equal(old.parent, null);
   assert.equal(a.parent, parent);
-  const x = new Square(), y = new Square(), second = new Group(x, y);
+  const x = new Rectangle({ width: 2, height: 2 }), y = new Rectangle({ width: 2, height: 2 }), second = new Group(x, y);
   s.removeAll().add(second);
   s.replace(x, x, y);
   assert.deepEqual(second.children, [x, y]);
   assert.equal(x.parent, second);
   assert.equal(y.parent, second);
-  const replacement = new Square(), source = new Group(replacement), targetOld = new Square();
+  const replacement = new Rectangle({ width: 2, height: 2 }), source = new Group(replacement), targetOld = new Rectangle({ width: 2, height: 2 });
   const target = new Group(targetOld);
   s.removeAll().add(target).replace(targetOld, replacement);
   assert.deepEqual(source.children, [], 'an off-screen source parent releases the replacement');
@@ -259,13 +258,13 @@ test('nested replacement preserves earlier siblings, retained old objects and ba
 
 test('a family stays a tree: add refuses the mobject itself or an ancestor, and remove releases only its own children', () => {
   // Before the guard, b.add(a) under a.add(b) made a cycle that hung the next box invalidation.
-  const a = new Group(), b = new Group(), c = new Square();
+  const a = new Group(), b = new Group(), c = new Rectangle({ width: 2, height: 2 });
   a.add(b); b.add(c);
   assert.throws(() => b.add(a), /^Error: m\.add\(\): a Group contains the mobject it is added to, so the family would be a cycle; add it to a mobject outside it$/);
   assert.throws(() => c.add(a), /m\.add\(\): a Group contains the mobject it is added to/);
   assert.throws(() => a.add(a), /^Error: m\.add\(\): a Group is the mobject it is added to/);
   // A refused add changes nothing, even after children listed before the one refused.
-  const d = new Square();
+  const d = new Rectangle({ width: 2, height: 2 });
   assert.throws(() => b.add(d, a));
   assert.deepEqual(b.children, [c]);
   assert.equal(d.parent, null);
@@ -273,7 +272,7 @@ test('a family stays a tree: add refuses the mobject itself or an ancestor, and 
   assert.ok(a.box(), 'the box of a refused family is still measured');
 
   // remove() on another group leaves the child with its real parent, whose box still follows it.
-  const x = new Square({ side: 1 }), g1 = new Group(x), g2 = new Group(new Square());
+  const x = new Rectangle({ width: 1, height: 1 }), g1 = new Group(x), g2 = new Group(new Rectangle({ width: 2, height: 2 }));
   assert.equal(g1.box()![2], 0.5);
   g2.remove(x);
   assert.equal(x.parent, g1);
@@ -286,7 +285,7 @@ test('a family stays a tree: add refuses the mobject itself or an ancestor, and 
 });
 
 test('the children and the parent live outside the mobject: no write to it changes them, and one that shadows them is refused where family() walks (A12)', () => {
-  const a = new Group(), b = new Group(), c = new Square();
+  const a = new Group(), b = new Group(), c = new Rectangle({ width: 2, height: 2 });
   a.add(b);
   // The deliberate defects: a write to the old private field, and to the same name by element access.
   (b as unknown as { _children: unknown })._children = [a];
@@ -299,9 +298,9 @@ test('the children and the parent live outside the mobject: no write to it chang
   assert.throws(() => a.family(), /^TypeError: m\.children: a Group defines children on itself, which hides its real children; change them with add, insert, remove or replaceChild$/);
   assert.throws(() => a.box(), /m\.children: a Group defines children on itself/);
   Object.defineProperty(c, 'parent', { value: a });
-  assert.throws(() => c.family(), /^TypeError: m\.parent: a Square defines parent on itself, which hides its real parent; change it with add, insert, remove or replaceChild$/);
+  assert.throws(() => c.family(), /^TypeError: m\.parent: a Rectangle defines parent on itself, which hides its real parent; change it with add, insert, remove or replaceChild$/);
   // Copies, which are made without the constructor, have their own children and parent.
-  const g = new Group(new Square(), new Square());
+  const g = new Group(new Rectangle({ width: 2, height: 2 }), new Rectangle({ width: 2, height: 2 }));
   const copy = g.copy();
   assert.equal(copy.children.length, 2);
   assert.ok(copy.children.every((k) => k.parent === copy));
@@ -317,11 +316,11 @@ test('no public path makes the mobject tree a cycle, or lets a parent and its ch
   assert.throws(() => { (a as unknown as { parent: unknown }).parent = b; }, TypeError);
   assert.deepEqual(b.children, []);
   assert.throws(() => b.insert(0, a), /^Error: m\.insert\(\): a Group contains the mobject it is added to, so the family would be a cycle/);
-  assert.throws(() => b.insert(5, new Square()), /^RangeError: m\.insert\(\): the index is 5; give a whole number from 0 to 0/);
-  const s = new Square();
+  assert.throws(() => b.insert(5, new Rectangle({ width: 2, height: 2 })), /^RangeError: m\.insert\(\): the index is 5; give a whole number from 0 to 0/);
+  const s = new Rectangle({ width: 2, height: 2 });
   b.add(s);
   assert.throws(() => b.replaceChild(s, a), /^Error: m\.replaceChild\(\): a Group contains the mobject it is added to/);
-  assert.throws(() => a.replaceChild(s, new Square()), /^Error: m\.replaceChild\(\): a Square is not a child of a Group; replace one of its children/);
+  assert.throws(() => a.replaceChild(s, new Rectangle({ width: 2, height: 2 })), /^Error: m\.replaceChild\(\): a Rectangle is not a child of a Group; replace one of its children/);
 
   // Every public way to change a family, in random order on a small pool, some refused: after each,
   // the tree is acyclic, each child names its holder as parent, and each parent holds its child.
@@ -332,7 +331,7 @@ test('no public path makes the mobject tree a cycle, or lets a parent and its ch
     with: fc.array(fc.integer({ min: 0, max: 5 }), { maxLength: 3 }), index: fc.integer({ min: 0, max: 3 }),
   });
   fc.assert(fc.property(fc.array(op, { maxLength: 25 }), (ops) => {
-    const pool = [new Group(), new Group(), new Group(), new Square(), new Square().shift([2, 0]), new Group()];
+    const pool = [new Group(), new Group(), new Group(), new Rectangle({ width: 2, height: 2 }), new Rectangle({ width: 2, height: 2 }).shift([2, 0]), new Group()];
     const scene = new Scene(new NullSink()).add(pool[0]!);
     for (const o of ops) {
       const at = pool[o.at]!, to = pool[o.to]!, others = o.with.map((i) => pool[i]!);

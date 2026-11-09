@@ -3,8 +3,7 @@
 // edits. `explainer(id)` is what readers see: an explainer's default scenario with
 // its diagram snapshots bound.
 import { join } from 'node:path';
-import { Write, MoveAlongPath } from '../../src/extras.ts';
-import { Scene, Rectangle, Circle, Arrow, Line, Dot, Text, Code, DecimalNumber, FadeIn, FadeOut, Create, Transform, LaggedStart } from '../../src/index.ts';
+import { Scene, MoveAlongPath, Rectangle, Circle, Arrow, Line, Dot, Text, Code, DecimalNumber, FadeIn, FadeOut, Create, Transform, LaggedStart } from '../../src/index.ts';
 import { Indicate } from './transient.ts';
 import type { Box, Mobject, SceneClass } from '../../src/index.ts';
 import { labelOf } from '../../explain/labels.ts';
@@ -24,7 +23,7 @@ export class Fixture extends Scene {
     const heading = new Text('A fixture for the engine tests', { fontSize: 0.4 }).moveTo([0, 3.4]);
     const box = new Rectangle({ width: 2.4, height: 1.2, cornerRadius: 0.1, stroke: TEAL }).moveTo([-3, 1]);
     const ring = new Circle({ radius: 0.6, stroke: GOLD }).moveTo([3, 1]);
-    await this.play(new Write(heading), new Create(box), new FadeIn(ring, { shift: [0, 0.5] }));
+    await this.play(new Create(heading, { lagRatio: 0.3 }), new Create(box), new FadeIn(ring, { shift: [0, 0.5] }));
     const link = new Arrow(box.right(), ring.left(), { buff: 0.1 });
     await this.play(new Create(link));
 

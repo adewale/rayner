@@ -613,11 +613,6 @@ export class Create extends Animation {
   }
 }
 
-/** Write text: Create for paths, letter-by-letter fade for Text. */
-export class Write extends Create {
-  constructor(mobject: Mobject, opts: AnimOpts = {}) { super(mobject, { lagRatio: 0.3, ...opts }); }
-}
-
 /** Run several animations together; lagRatio staggers their start times. */
 export class AnimationGroup extends AnimationTiming {
   /** @internal */ animations: ScheduledAnimation[];

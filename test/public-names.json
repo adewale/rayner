@@ -227,14 +227,11 @@
     },
     {
       "feature": "Emphasis that stays",
-      "uses": "`SurroundingRectangle`, `Underline`, `Cross`, `Brace`, `BraceLabel`, `Circumscribe({ keep: true })`",
+      "uses": "`SurroundingRectangle`, `Cross`, `Brace`, `BraceLabel`, `Circumscribe({ keep: true })`",
       "guide": "[Emphasis](EMPHASIS.md)",
       "items": [
         {
           "name": "SurroundingRectangle"
-        },
-        {
-          "name": "Underline"
         },
         {
           "name": "Cross"

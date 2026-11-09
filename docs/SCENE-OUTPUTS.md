@@ -46,7 +46,7 @@ so a caller cannot mutate a later replay by changing the original input object.
 
 | Lantern document concept | Native Rayner equivalent |
 | --- | --- |
-| `nodes`: box, state, slot, pointer, value, text | `Rectangle`, `Circle`, `Square`, `Arrow`, `Text`, `DecimalNumber`; combine with `Group`/`Labeled` |
+| `nodes`: box, state, slot, pointer, value, text | `Rectangle`, `Circle`, `Arrow`, `Text`, `DecimalNumber`; combine with `Group`/`Labeled` |
 | `edges` and labels | `Arrow`/`CurvedArrow` with `Labeled`, or captured Agentic Mermaid diagrams |
 | `at`, relative placement | `moveTo`, `nextTo`, `alignTo`, `arrange` |
 | `code`, `focus` | `Code`, `highlight`, spans and emphasis animations |

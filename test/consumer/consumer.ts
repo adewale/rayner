@@ -4,7 +4,7 @@
 // compiling, the public types broke.
 import { Scene, Rectangle, Text, Labeled, Arrow, FadeIn, Create, Transform } from 'rayner';
 import type { AudioClip, ScoreNote, StepAudio } from 'rayner/audio';
-import { TransformFromCopy, Restore } from 'rayner/extras';
+import { TransformFromCopy, Restore } from 'rayner';
 import { StringSink, renderFrame, SnapshotSink } from 'rayner/output';
 import { traceScene } from 'rayner/testing';
 import { GrowFromEdge, PulseAlongPath, Line, Dot } from 'rayner';
@@ -226,7 +226,7 @@ import type { Box, Vec, SceneState, ScheduledAnimation, MatchKey, FadeOpts, Font
 import { callout, dimension, pin, legend, keyed, keyedParts } from 'rayner/drawing';
 import { Machine, refuse, isRefusal, answerOf, settingsOf, resolveSettings, regionBox, mermaid } from 'rayner/explain';
 import type { Refusal, Transition, Choreography, CardOptions, CardRow, NoteSide, PictureNote, DiagramPicture, Stage, ExplainerClass, ExplainerMeta, Setting, StepKind, Description } from 'rayner/explain';
-import { Write, MoveAlongPath, Square, Underline, ArcBetweenPoints } from 'rayner/extras';
+import { MoveAlongPath, ArcBetweenPoints } from 'rayner';
 import { seenFrom, seenPictures, depthOrder, latLon, toLatLon, greatArc, circleOn, between, project } from 'rayner/geo';
 import type { Model3D, Part, SeenPiece, SeenOptions, SeenPicture, Vec3, Viewpoint } from 'rayner/geo';
 import { NullSink, renderText, toSvgString } from 'rayner/output';
@@ -285,13 +285,13 @@ export class Collection extends Scene<CollectionModel> {
     await s.enter(keyed(picture, 'shapes'));
     const all: ScheduledAnimation[] = [new LaggedStart(shapes.map((m) => new Pulse(m, { rateFunc: linear }))), new MoveAlongPath(new Dot(), path, { rateFunc: rushInto })];
     await this.play(...all);
-    await this.play(new FadeOut(picture, fade), new Write(new Text('done')), new ArcBetweenPoints(at, [0, 0]).animate.shift([0, 1]));
+    await this.play(new FadeOut(picture, fade), new TransformFromCopy(new Text('done'), new Text('done!')), new ArcBetweenPoints(at, [0, 0]).animate.shift([0, 1]));
     await s.clear();
 
     await this.step('kit', { title: 'The kit', caption: 'A callout, a dimension, a pin and a legend.' });
-    const square = new Square({ side: 1 });
+    const square = new Rectangle({ width: 1, height: 1 });
     await s.enter(
-      square, new Underline(square),
+      square,
       callout(s, square, 'a unit square', { side: 'right', key: 'note' }),
       dimension(s, [-0.5, -0.8], [0.5, -0.8], '1', { key: 'width' }),
       pin(s, [0, 0], { label: 'centre', key: 'centre' }),

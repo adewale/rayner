@@ -74,7 +74,7 @@ is strongest halfway along. Child opacity ratios are preserved; existing dimming
 is not overwritten with full strength. Applying an easing also changes that pulse's
 timing; the default is linear.
 
-Options are `MoveAlongPathOpts`, a type exported only from `rayner/extras` (beside `MoveAlongPath`), though `PulseAlongPath` itself is in `rayner`. With the default `fromCurrent: true`, any initial
+Options are `MoveAlongPathOpts`, exported from `rayner` with `MoveAlongPath` and `PulseAlongPath`. With the default `fromCurrent: true`, any initial
 offset from the route is blended away rather than snapping on the first frame.
 Use `fromCurrent: false` to start exactly on the route. A live route edited after
 the animation begins does not change this traversal.
