@@ -121,6 +121,7 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 - `s.card` and `s.code` take no `enter: false`: build several panels with the kit and enter them together, `s.enter(card(s, rows), code(s, lines))`.
 - `REGIONS` is not exported: name a region, or use `regionBox`.
 - `edgePartOf` is internal: use `d.link()`.
+- `Diagram.parts` is internal: read a part from `d.snapshot.parts`, or through `d.shapes(id)`, `d.labels(id)` and `d.link()`. `d.describe()` takes no argument.
 - `Card` and `CodeBlock` are types only: the kit's `card()` and `code()` build them.
 - `LetteringSnapshot` is not exported.
 - Members that are implementation details are `private`, `protected` or `@internal`, and the published declarations leave the internal ones out. Among them: `Mobject`'s caches and alignment, `Scene`'s sink and frame loop, `View`'s `placed`, `measure`, `commit` and `swap`, `Diagram`'s `build` and `frameBox`, the renderer's point buffers, and `Mobject.saved`, `Text.run` and `TraceSink.records` (read `steps()`). `Diagram`'s fields are read-only.
