@@ -134,7 +134,7 @@ type MachineModel<S extends object, E extends string> = Readonly<Required<Pick<M
 export class Machine<S extends object, E extends string> {
   private readonly scene: Scene<S, any>;
   /** The spec the machine was made with, its defaults filled in. Frozen; its `start` is a fresh copy at every read. */
-  readonly spec: MachineModel<S, E>;
+  readonly spec: Readonly<Required<Pick<MachineSpec<S, E>, 'match' | 'runTime' | 'limit'>> & MachineSpec<S, E>>;
   /** What the scene showed (`scene.shown`, as JSON) when the machine last played; exploration redraws under it. */
   private shownWhenPlayed: string | null = null;
   /** The step this machine last played in; exploration checks it on that step's stage. */
