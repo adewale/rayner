@@ -106,9 +106,9 @@ let landAnimation: (a: ScheduledAnimation, scene: Scene | null) => void;
  *
  * `begin()`, `interpolate()` and `finish()` keep the phase (see AnimationPhase), and each calls
  * its protected hook, `doBegin()`, `doInterpolate()` and `doFinish()`, which a subclass
- * overrides. The engine drives its animations through the same private calls (see
- * beginAnimation), never through a member an author could replace, and a subclass that redefines
- * one of the calls, `phase`, `runTime` or `lagRatio` is refused when its first instance is made.
+ * overrides. A play, a group and a Succession drive their animations through the same private
+ * calls, never through a member an author could replace, and a subclass that redefines one of the
+ * calls, `phase`, `runTime` or `lagRatio` is refused when its first instance is made.
  */
 abstract class AnimationTiming {
   #runTime!: number;
@@ -1215,7 +1215,7 @@ class BuiltTransform extends Transform {
  * declares it writes. As it begins it makes its members; once what they read is ready (the play
  * waits for that before its next frame, see Scene.whenReady) they are settled, laid out in its run
  * time, and begun through the scene, which checks them against everything else the play drives.
- * Until they have begun it waits (see waiting): a Succession that holds it begins nothing after it,
+ * Until they have begun it waits (see waits): a Succession that holds it begins nothing after it,
  * so one shorter than a frame still plays, held and then landed. When one of them throws as it
  * begins, those begun before it land, and it has made nothing. Messages name it by `call`, the
  * call it belongs to (`s.card()`, `machine.send("UP")`), and `subject`, what it is (`a beat`, `the
