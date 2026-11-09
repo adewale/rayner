@@ -281,8 +281,6 @@ export class Cross extends VMobject {
 export interface BraceOpts extends Style {
   /** Gap between the box edge and the brace's ends. */
   buff?: number;
-  /** Higher is tighter: each curl is 2 · depth / sharpness long. */
-  sharpness?: number;
   /** Distance from the brace's ends to its tip. */
   depth?: number;
 }
@@ -303,7 +301,7 @@ export interface BraceOpts extends Style {
  * after the brace moves or turns.
  */
 export class Brace extends VMobject {
-  constructor(target: Mobject | Box, direction: Readonly<Vec> = [0, -1], { buff = 0.1, sharpness = 2, depth = 0.2, ...style }: BraceOpts = {}) {
+  constructor(target: Mobject | Box, direction: Readonly<Vec> = [0, -1], { buff = 0.1, depth = 0.2, ...style }: BraceOpts = {}) {
     super({ fill: 'none', ...style });
     const b = boxOf(target, 'new Brace()');
     const d = V.normalize(direction);
@@ -320,7 +318,7 @@ export class Brace extends VMobject {
     const out = Math.max(...corners.map((p) => V.dot(p, d)));
     // Pointing DOWN about the origin: ends on y = 0, tip at (0, -depth).
     // Short braces shorten their curls so the straight runs never go negative.
-    const w = (hi - lo) / 2, h = depth / 2, r = Math.min(2 * depth / sharpness, w / 2), k = 0.5523;
+    const w = (hi - lo) / 2, h = depth / 2, r = Math.min(depth, w / 2), k = 0.5523;
     this.startNewPath([-w, 0]);
     this.addCubic([-w, -h * k], [-w + r - r * k, -h], [-w + r, -h]);
     this.addLineTo([-r, -h]);

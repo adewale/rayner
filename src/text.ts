@@ -12,7 +12,7 @@
 // outside a scene, await loadFonts() first.
 
 import { Mobject, Group, animateBuilderBase, followScene } from './mobject.ts';
-import type { Style, PathFunc } from './mobject.ts';
+import type { Style } from './mobject.ts';
 import type { Box, AnimateBuilder, AnimateBuilderBase } from './mobject.ts';
 import { VMobject } from './vmobject.ts';
 import { unionBoxes } from './box.ts';
@@ -261,8 +261,8 @@ export class Text extends Group {
   }
 
   /** Glyphs morph pairwise (Transform aligns them); the string itself switches when the morph lands. */
-  override interpolate(a: Mobject, b: Mobject, alpha: number, pathFunc?: PathFunc | null): this {
-    super.interpolate(a, b, alpha, pathFunc);
+  override interpolate(a: Mobject, b: Mobject, alpha: number): this {
+    super.interpolate(a, b, alpha);
     if (alpha >= 1 && b instanceof Text) { this.text = b.text; this.run = b.run; }
     return this;
   }
@@ -290,12 +290,12 @@ export class DecimalNumber extends Text {
     this.value = v;
     return this.setText(DecimalNumber.format(v, this.decimals, this.prefix, this.suffix));
   }
-  override interpolate(a: Mobject, b: Mobject, alpha: number, pathFunc?: PathFunc | null): this {
+  override interpolate(a: Mobject, b: Mobject, alpha: number): this {
     // Alignment pairs family members by index, so either side may be another class (a Text, a
     // shape): the value blends only between two numbers, and anything else takes the plain blend.
     const va = (a as Partial<Pick<DecimalNumber, 'value'>>).value, vb = (b as Partial<Pick<DecimalNumber, 'value'>>).value;
-    if (typeof va !== 'number' || typeof vb !== 'number' || va === vb) return super.interpolate(a, b, alpha, pathFunc);
-    Mobject.prototype.interpolate.call(this, a, b, alpha, pathFunc);
+    if (typeof va !== 'number' || typeof vb !== 'number' || va === vb) return super.interpolate(a, b, alpha);
+    Mobject.prototype.interpolate.call(this, a, b, alpha);
     return this.setValue(va + (vb - va) * alpha);
   }
 }

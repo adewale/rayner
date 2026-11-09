@@ -4,7 +4,7 @@
 
 import { smooth, linear, clip } from './rate.ts';
 import type { RateFunc } from './rate.ts';
-import type { Mobject, PathFunc, AnimateBuilderBase } from './mobject.ts';
+import type { Mobject, AnimateBuilderBase } from './mobject.ts';
 import { Group, adoptState, followScene, mobjectName, withArticle } from './mobject.ts';
 import type { VMobject } from './vmobject.ts';
 import type { Scene } from './scene.ts';
@@ -365,14 +365,12 @@ export class Animation extends AnimationTiming {
 interface PathShape { subpaths: Float32Array[]; closed: boolean[] }
 
 export interface TransformOpts extends AnimOpts {
-  pathFunc?: PathFunc | null;
   replace?: boolean;
 }
 
 /** Blend `mobject` into `target`. With replace=true, the scene keeps `target` afterwards. */
 export class Transform extends Animation {
   target: Mobject;
-  /** @internal */ pathFunc: PathFunc | null;
   replace: boolean;
   /** The target was built for this animation alone, so begin() may use it without copying. @internal */
   ownsTarget: boolean;
@@ -383,10 +381,9 @@ export class Transform extends Animation {
   /** Path structure of the mobject and target families before alignment, restored on landing. */
   private shapes: WeakMap<Mobject, PathShape> | null = null;
 
-  constructor(mobject: Mobject, target: Mobject, { pathFunc = null, replace = false, ...opts }: TransformOpts = {}) {
+  constructor(mobject: Mobject, target: Mobject, { replace = false, ...opts }: TransformOpts = {}) {
     super(mobject, opts);
     this.target = target;
-    this.pathFunc = pathFunc;
     this.replace = replace;
     this.ownsTarget = false;
     this.sameStructure = false;
@@ -460,7 +457,7 @@ export class Transform extends Animation {
   /** @internal */ override allMobjects(): Mobject[] { return [this.mobject, this.starting, this.targetCopy]; }
 
   protected override interpolateSubmobject(sub: Mobject, start: Mobject, target: Mobject, alpha: number): void {
-    sub.interpolate(start, target, alpha, this.pathFunc);
+    sub.interpolate(start, target, alpha);
   }
 
   /** @internal */
@@ -1471,7 +1468,6 @@ export class TransformMatching extends Animation {
   key: MatchKey;
   fadeMismatches: boolean;
   ordered: boolean;
-  /** @internal */ pathFunc: PathFunc | null;
   replace: boolean;
   staged: boolean;
   // Set by begin(), in source order: [source part, target part]
@@ -1491,10 +1487,10 @@ export class TransformMatching extends Animation {
   /** The source family after begin() attached the copies: whose boxes go stale each frame. @internal */
   touched!: Mobject[];
 
-  constructor(mobject: Mobject, target: Mobject, { key, fadeMismatches = true, ordered = false, pathFunc = null, replace = true, staged = false, ...opts }: TransformMatchingOpts) {
+  constructor(mobject: Mobject, target: Mobject, { key, fadeMismatches = true, ordered = false, replace = true, staged = false, ...opts }: TransformMatchingOpts) {
     super(mobject, opts);
     this.target = target; this.key = key; this.fadeMismatches = fadeMismatches; this.ordered = ordered;
-    this.pathFunc = pathFunc; this.replace = replace; this.staged = staged;
+    this.replace = replace; this.staged = staged;
   }
 
   /** @internal */ override paints(): Mobject[] { return [this.mobject, this.target]; }
@@ -1611,14 +1607,14 @@ export class TransformMatching extends Animation {
   protected override doInterpolate(alpha: number): void {
     const n = this.moves.length + this.fadesOut.length + this.fadesIn.length;
     let i = 0;
-    for (const { sub, start, end } of this.moves) sub.interpolate(start, end, this.subAlpha(alpha, i++, n), this.pathFunc);
+    for (const { sub, start, end } of this.moves) sub.interpolate(start, end, this.subAlpha(alpha, i++, n));
     // Staged: what leaves is gone by halfway, and what comes starts there.
     const out = this.staged ? (a: number) => Math.min(1, 2 * a) : (a: number) => a,
       into = this.staged ? (a: number) => Math.max(0, 2 * a - 1) : (a: number) => a;
     for (const r of this.fadesOut) fade(r, 1 - out(this.subAlpha(alpha, i++, n)), alpha, true);
     for (const r of this.fadesIn) fade(r, into(this.subAlpha(alpha, i++, n)), alpha, false);
     for (const { node, from, to, start, end } of this.frames) {
-      if (start && end) { node.interpolateData(start, end, alpha, this.pathFunc); continue; }
+      if (start && end) { node.interpolateData(start, end, alpha); continue; }
       const mine = node.pointArrays();
       for (let j = 0; j < mine.length; j++) {
         const m = mine[j]!, x = from[j]!, y = to[j]!;

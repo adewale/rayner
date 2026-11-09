@@ -34,30 +34,36 @@ export interface NumberLineOpts extends Style {
   range: AxisRange;
   /** Scene units from min to max. */
   length?: number;
-  includeTicks?: boolean;
-  /** Tick half-length: ticks reach this far to each side of the line. */
-  tickSize?: number;
+  /** Label every tick with its value. */
   includeNumbers?: boolean;
-  /** Values to label (default: every tick). */
-  numbersToInclude?: readonly number[];
-  /** Values not to label (Axes leaves out a crossing label the other axis would run through). */
-  numbersToExclude?: readonly number[];
   labelFontSize?: number;
   /** Default: the line's stroke color. */
   labelColor?: string;
   /** Decimal places in labels (default: as many as `step` has). */
   decimals?: number;
-  /** Which side of the line labels sit on (default: clockwise of the line's direction, so below a horizontal line). */
-  labelDirection?: Readonly<Vec>;
   /** Gap between a tick's end and its label. */
   labelBuff?: number;
-  /** A filled tip past `max`; the line itself still ends exactly at max. */
-  includeTip?: boolean;
+  /** Of the tip past `max`, which an Axes with `tips` draws. */
   tipLength?: number;
   tipWidth?: number;
   /** Radians, counterclockwise. Labels stay upright. */
   rotation?: number;
 }
+
+/**
+ * What an Axes sets on each of its lines beside the options: labels sit on the side away from the
+ * other axis (`labelDirection`, default clockwise of the line's direction, so below a horizontal
+ * line), the crossing value is not labelled where the other axis runs through it, and `tips` draws
+ * a filled tip past `max` (the line itself still ends exactly at max).
+ */
+interface AxisLineOpts extends NumberLineOpts {
+  labelDirection?: Readonly<Vec>;
+  numbersToExclude?: readonly number[];
+  includeTip?: boolean;
+}
+
+/** Tick half-length: each tick reaches this far to either side of the line. */
+const TICK_SIZE = 0.1;
 
 /**
  * A number line: a Line from `min` to `max`, centered on the origin, with tick
@@ -74,10 +80,11 @@ export class NumberLine extends Group {
   /** Child index of the tip, or -1. @internal */
   tipIdx: number;
 
-  constructor({
-    range, length = 8, includeTicks = true, tickSize = 0.1, includeNumbers = false, numbersToInclude, numbersToExclude = [], labelFontSize = 0.24,
-    labelColor, decimals, labelDirection, labelBuff = 0.12, includeTip = false, tipLength = 0.22, tipWidth = 0.18, rotation = 0, shaping, ...style
-  }: NumberLineOpts) {
+  constructor(opts: NumberLineOpts) {
+    const {
+      range, length = 8, includeNumbers = false, numbersToExclude = [], labelFontSize = 0.24,
+      labelColor, decimals, labelDirection, labelBuff = 0.12, includeTip = false, tipLength = 0.22, tipWidth = 0.18, rotation = 0, shaping, ...style
+    }: AxisLineOpts = opts;
     super();
     const [min, max, step = 1] = range;
     if (!(max > min) || !(step > 0)) throw new RangeError(`new NumberLine(): the range [${min}, ${max}, ${step}] needs max > min and step > 0`);
@@ -98,11 +105,9 @@ export class NumberLine extends Group {
       this.tipIdx = 1;
     }
     const ticks = new Group();
-    if (includeTicks) {
-      for (const x of this.tickValues()) {
-        const px = -length / 2 + (x - min) / (max - min) * length;
-        ticks.add(new Line([px, -tickSize], [px, tickSize], lineStyle));
-      }
+    for (const x of this.tickValues()) {
+      const px = -length / 2 + (x - min) / (max - min) * length;
+      ticks.add(new Line([px, -TICK_SIZE], [px, TICK_SIZE], lineStyle));
     }
     this.add(ticks);
     if (rotation) this.rotate(rotation, { aboutPoint: [0, 0] });
@@ -111,11 +116,11 @@ export class NumberLine extends Group {
     if (includeNumbers) {
       const dir = V.normalize(snap(labelDirection ?? V.rotate([0, -1], rotation)));
       const places = decimals ?? decimalsOf(step);
-      for (const x of numbersToInclude ?? this.tickValues()) {
+      for (const x of this.tickValues()) {
         if (numbersToExclude.some((e) => Math.abs(e - x) < 1e-9 * this.step)) continue;
         const t = new Text(x.toFixed(places).replace(/^-(0\.?0*)$/, '$1'), { fontSize: labelFontSize, color: labelColor ?? stroke, shaping });
         // The label's edge facing the line sits just past the tick's end
-        t.moveTo(V.add(this.n2p(x), V.mul(dir, (includeTicks ? tickSize : 0) + labelBuff)), V.mul(dir, -1));
+        t.moveTo(V.add(this.n2p(x), V.mul(dir, TICK_SIZE + labelBuff)), V.mul(dir, -1));
         numbers.add(t);
       }
     }
@@ -160,9 +165,8 @@ export interface AxesOpts {
   width?: number;
   /** Scene units spanned by the y range. */
   height?: number;
-  /** Both axes; xAxisStyle and yAxisStyle override it per axis. */
+  /** Both axes; yAxisStyle overrides it for the y axis. */
   axisStyle?: AxisStyle;
-  xAxisStyle?: AxisStyle;
   yAxisStyle?: AxisStyle;
   tips?: boolean;
   xLabel?: string;
@@ -220,7 +224,7 @@ export class Axes extends Group {
   private yLabelIdx: number;
 
   constructor({
-    xRange = [0, 10, 1], yRange = [0, 5, 1], width = 8, height = 4.5, axisStyle = {}, xAxisStyle = {}, yAxisStyle = {},
+    xRange = [0, 10, 1], yRange = [0, 5, 1], width = 8, height = 4.5, axisStyle = {}, yAxisStyle = {},
     tips = false, xLabel, yLabel, axisLabelFontSize = 0.28, shaping = ambientTextContext(),
   }: AxesOpts = {}) {
     super();
@@ -229,13 +233,12 @@ export class Axes extends Group {
     this.crossX = clamp(0, x0, x1);
     this.crossY = clamp(0, y0, y1);
     // A crossing label sits on the other axis when that axis runs past the crossing
-    const x = new NumberLine({
-      includeTip: tips, numbersToExclude: y0 < this.crossY ? [this.crossX] : [], ...axisStyle, shaping, ...xAxisStyle, range: xRange, length: width,
-    });
-    const y = new NumberLine({
+    const xLine: AxisLineOpts = { includeTip: tips, numbersToExclude: y0 < this.crossY ? [this.crossX] : [], ...axisStyle, shaping, range: xRange, length: width };
+    const yLine: AxisLineOpts = {
       includeTip: tips, labelDirection: [-1, 0], numbersToExclude: x0 < this.crossX ? [this.crossY] : [], ...axisStyle, shaping, ...yAxisStyle,
       range: yRange, length: height, rotation: Math.PI / 2,
-    });
+    };
+    const x = new NumberLine(xLine), y = new NumberLine(yLine);
     // Both lines are centered on the origin: slide each across so they meet
     // where the other one's crossing value is. The lines then span exactly
     // the width × height box about the origin.

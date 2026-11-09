@@ -27,7 +27,7 @@ build a new one.
 | `new SurroundingRectangle(t, { buff, cornerRadius })` | this one | the scene's emphasis colour as its stroke, no fill, `buff` 0.15 |
 | `new Underline(t, { buff })` | this word, this value | the scene's ink, `buff` 0.1 below the bottom edge |
 | `new Cross(t, { scale })` | not this, removed, rejected | the scene's `bad` colour, stroke 0.06, both diagonals of the box |
-| `new Brace(t, direction, { buff, depth, sharpness })` | this span, as a whole | the scene's ink, `buff` 0.1, `depth` 0.2 |
+| `new Brace(t, direction, { buff, depth })` | this span, as a whole | the scene's ink, `buff` 0.1, `depth` 0.2 |
 | `new BraceLabel(t, text, direction, { fontSize, color, buff, labelBuff })` | this span is _n_ | a Brace and a Text beyond its tip |
 
 `Underline` is imported from `rayner/extras`, the rest from `rayner`. All take the usual style fields (`stroke`, `strokeWidth`, `fill`, ...). A colour left out is the scene's for that role ([default colours](ENGINE-FUNDAMENTALS.md#geometry-and-paint)): on a stage, its palette's. Draw order

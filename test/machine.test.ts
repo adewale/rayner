@@ -321,7 +321,7 @@ test('deliberate defect: a transition that breaks an invariant on the way fails,
   // It swings the picture off screen and back, ending where the model says.
   const swing = (t: Transition<Lamp, 'UP' | 'OFF'>, v: View) => {
     const target = t.target(v);
-    return new Transform(v.current, target, { pathFunc: (a, b, t) => a.map((x, i) => x + (b[i]! - x) * t + (i === 0 ? 30 * Math.sin(Math.PI * t) : 0)) as typeof a });
+    return new Succession([new Transform(v.current, v.current.copy().shift([30, 0]), { runTime: 0.5 }), new Transform(v.current, target, { runTime: 0.5 })]);
   };
   const Swing = litLamp(swing, true);
   const [explored] = await exploreMachines(await new Swing(new NullSink()).run(), Swing);

@@ -5,7 +5,7 @@
 
 // Model
 export { Mobject, Group } from './mobject.ts';
-export type { Style, StyleRecord, Box, Updater, PathFunc, AnimateBuilder } from './mobject.ts';
+export type { Style, StyleRecord, Box, Updater, AnimateBuilder } from './mobject.ts';
 export { VMobject } from './vmobject.ts';
 export { Arc, Arrow, Circle, CurvedArrow, Dot, Labeled, Line, Polygon, Rectangle } from './shapes.ts';
 export type { RectangleOpts, CircleOpts, DotOpts, ArrowOpts, ArcOpts, CurvedArrowOpts } from './shapes.ts';

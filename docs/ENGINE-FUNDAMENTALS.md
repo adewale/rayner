@@ -172,10 +172,9 @@ await this.play(new Transform(box, target));
 `play()` takes `Playable`s: an `Animation`, an `AnimationGroup` (either is a
 `ScheduledAnimation`), or a `.animate` builder, an `AnimateBuilder`, which records
 chainable methods and constructs a target when the play begins.
-`new Transform(m, target, { pathFunc, replace })` morphs `m` into its `target`: each frame
-sets it between the two with `m.interpolate(start, end, alpha, pathFunc)`, each point
-travelling by a `PathFunc` (a straight line by default), and with `replace: true` the scene
-holds `target` in `m`'s place afterwards.
+`new Transform(m, target, { replace })` morphs `m` into its `target`: each frame
+sets it between the two with `m.interpolate(start, end, alpha)`, each point travelling in a
+straight line, and with `replace: true` the scene holds `target` in `m`'s place afterwards.
 
 A custom animation extends `Animation`. Its `mobject` is what it animates, and `runTime`,
 `rateFunc` (a `RateFunc`, from the fraction of the run time elapsed to progress), `lagRatio`
@@ -373,7 +372,7 @@ fonts; [requested lettering](LETTERING.md) adds scripts and maths through snapsh
 geometry and replay, motion continuity, readable served paint, or whether readers
 understand. A pass on one says nothing about the others. `MotionSink` and
 `analyzeMotion` (`rayner/testing`) inspect sampled motion; they judge neither the editing nor the maths.
-`analyzeMotion(sink, options)` returns a `MotionEvent` for each teleport, resize, pop, cut,
+`analyzeMotion(sink)` returns a `MotionEvent` for each teleport, resize, pop, cut,
 flicker or handoff in the frames a `MotionSink` sampled: `{ kind, frame, t, step, what, magnitude, detail }`.
 
 For profiling Rayner itself, `perf.enable()` (in `src/perf.ts`, internal to the repository) starts counters and spans, `perf.report()` explains

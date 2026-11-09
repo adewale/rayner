@@ -114,8 +114,6 @@ export type Updater<M extends Mobject = Mobject> = (m: M, dt: number) => void;
 
 /** A function of points about a center: applyPointsFunction's argument. */
 export type PointsFunction = (p: Vec) => Vec;
-/** Per-point path for Transform: where a point is at alpha between its two ends. */
-export type PathFunc = (start: Vec, end: Vec, alpha: number) => Vec;
 
 export interface AboutOpts {
   aboutPoint?: Vec | null;
@@ -584,8 +582,8 @@ export class Mobject {
    * `a` and `b` are the family members at this one's index, which alignment
    * may have paired with another class (a Rectangle morphing into a Text).
    */
-  interpolate(a: Mobject, b: Mobject, alpha: number, pathFunc: PathFunc | null = null): this {
-    this.interpolateData(a, b, alpha, pathFunc);
+  interpolate(a: Mobject, b: Mobject, alpha: number): this {
+    this.interpolateData(a, b, alpha);
     // Field by field over whatever the style holds: numbers lerp, colors blend
     const mine = this.style as Record<string, string | number | undefined>;
     const sa = a.style as Record<string, string | number | undefined>, sb = b.style as Record<string, string | number | undefined>;
@@ -611,7 +609,7 @@ export class Mobject {
    * as in manim: the shape shrinks away while b's children grow out of the
    * null copies alignment gave this side.
    */
-  interpolateData(a: Mobject, b: Mobject, alpha: number, pathFunc: PathFunc | null): void {
+  interpolateData(a: Mobject, b: Mobject, alpha: number): void {
     const mine = this.pointArrays(), pa = a.pointArrays(), pb = b.pointArrays();
     let center: Vec | null = null;
     for (let i = 0; i < mine.length; i++) {
@@ -622,12 +620,7 @@ export class Mobject {
         for (let j = 0; j < m.length; j += 2) { m[j] = x[j]! + (center[0] - x[j]!) * alpha; m[j + 1] = x[j + 1]! + (center[1] - x[j + 1]!) * alpha; }
         continue;
       }
-      if (pathFunc) {
-        for (let j = 0; j < m.length; j += 2) {
-          const p = pathFunc([x[j]!, x[j + 1]!], [y[j]!, y[j + 1]!], alpha);
-          m[j] = p[0]; m[j + 1] = p[1];
-        }
-      } else if (alpha === 1) {
+      if (alpha === 1) {
         // Exact at the ends. Only at the ends: a rate function may overshoot
         // (easeOutBack) or undershoot, and the points must follow it past them.
         m.set(y);
