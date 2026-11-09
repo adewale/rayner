@@ -43,9 +43,6 @@
       "Machine": {
         "check": "Machines: every state its events reach is drawn and fails if it collides, has a label under 14 px, has no description, does not show its state or is described like another"
       },
-      "View": {
-        "check": "Views: at the end of every step, a view whose words, parts, boxes or opacity differ from a fresh draw of the state, placed where a sync would put it, fails"
-      },
       "refuse": {
         "check": "Machines: a bound that stops an event the model refuses anyway fails"
       },
@@ -548,11 +545,13 @@
     {
       "explaining": "A drawing made by hand, values said on it",
       "start": "`pen-and-pencil`",
-      "shows": "`s.sketch` with a pen and pencil, `s.focus` on the camera, `s.carry`, `s.dimension` and `s.callout` instead of cards",
+      "shows": "`s.sketch` with a pen and pencil, `s.focus` on the camera, `s.carry`, the kit's `dimension` and `s.callout` instead of cards",
       "scenes": [
         "pen-and-pencil"
       ],
-      "names": []
+      "names": [
+        "dimension"
+      ]
     },
     {
       "explaining": "A claim about viewpoint or projection",

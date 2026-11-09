@@ -124,6 +124,8 @@ narrows an optional part of what is shown: `having(sh, 'flow').flow`.
 
 ### `match`
 
+`match` takes a `ViewMatch`, one of these:
+
 | `match` | morphs with | good for |
 |---|---|---|
 | `'key'` (default) | `TransformMatching` with `matchByKey()` | pictures whose containers carry `key`s: a keyed card, panel, cell or node keeps its identity wherever it moves, its parts morph inside it, unkeyed parts fade ([matching](MATCHING.md#keyed-components)) |
