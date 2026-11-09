@@ -76,8 +76,7 @@ A machine's schedule is built before it plays, so its events change the state at
 ## API
 
 ```ts
-view(scene: Scene<S, Sh>, draw: (state: S, shown: Sh) => M, opts?): View<M, S, Sh>   // draw(scene.state, scene.shown) at each sync; kept for the checks
-new View(scene, draw, opts?)   // the same; a bare View type is a view of any scene
+view(scene: Scene<S, Sh>, draw: (state: S, shown: Sh) => M, opts?): View<M, S, Sh>   // draw(scene.state, scene.shown) at each sync; kept for the checks; a bare View type is a view of any scene
 having(state, ...keys)  // the state as the shapes that hold these keys, or a TypeError: for a draw of one phase (below)
 
 view.current            // the picture on screen (the View's one child)

@@ -17,7 +17,7 @@ import { showsDiagrams, withoutDiagramCode } from './explain-diagram-code.ts';
 import type { Settings } from '../../explain/settings.ts';
 import ts from 'typescript';
 import { Text } from '../../src/index.ts';
-import { View } from '../../explain/index.ts';
+import { View } from '../../explain/view.ts';
 import { SnapshotSink, renderFrame, toSvgString } from '../../src/output.ts';
 import { renderElements, serializeElement } from '../../src/svg.ts';
 import { MotionSink, InvariantSink, machinesOf, viewMismatch, jsonObject, analyzeMotion, traceScene } from '../../explain/testing.ts';

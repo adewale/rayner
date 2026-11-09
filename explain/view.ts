@@ -76,8 +76,9 @@ export class View<M extends Mobject = Mobject, S extends object = any, Sh extend
   scaleK: number;
 
   /**
-   * Every View is a picture of a scene's state with a draw that check can call again. A draw can
-   * still read variables outside the state; the checks catch that when a redraw disagrees.
+   * @internal `view(scene, draw)` makes a View. Every View is a picture of a scene's state with a
+   * draw that check can call again. A draw can still read variables outside the state; the checks
+   * catch that when a redraw disagrees.
    */
   constructor(scene: Scene<S, Sh>, draw: (state: S, shown: Sh) => M, { place = 'center' }: ViewOpts = {}) {
     super();

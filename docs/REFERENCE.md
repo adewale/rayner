@@ -66,7 +66,7 @@ export default class Reads extends Scene<{ reads?: number }, {}> {   // the mode
 
 ### Typed state and shown
 
-A scene declares the type of its model and of what is shown: `class Bucket extends Scene<BucketState, BucketShown>`. `this.state` and `this.shown` are typed from them, and so is everything drawn from them: a view's draw (`view(this, (st, sh) => …)` and `new View(this, draw)` infer both arguments from the scene), `s.diagramView`'s draw (`stage(this)` carries the types), a `Machine` (its state is the scene's model type), and `view.tween`. A scene with nothing shown declares `{}`; a scene whose pictures are all staged steps has no model of its own and declares `Scene<{}, {}>`. Untyped, both are JSON records (`SceneState`), which suits a test or a tool.
+A scene declares the type of its model and of what is shown: `class Bucket extends Scene<BucketState, BucketShown>`. `this.state` and `this.shown` are typed from them, and so is everything drawn from them: a view's draw (`view(this, (st, sh) => …)` infers both arguments from the scene), `s.diagramView`'s draw (`stage(this)` carries the types), a `Machine` (its state is the scene's model type), and `view.tween`. A scene with nothing shown declares `{}`; a scene whose pictures are all staged steps has no model of its own and declares `Scene<{}, {}>`. Untyped, both are JSON records (`SceneState`), which suits a test or a tool.
 
 ```ts
 type Tokens = { tokens: number; rejected: string[] };

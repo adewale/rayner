@@ -133,7 +133,8 @@ import type { LetteringRequest as OutlineRequest } from 'rayner';
 export const outlineRequest = { scripts: ['Arab'], math: true, faces: { sans: 'inter' } } satisfies OutlineRequest;
 export const formula = () => new MathTex('x^2');
 
-import { stage, View, view } from 'rayner/explain';
+import { stage, view } from 'rayner/explain';
+import type { View } from 'rayner/explain';
 import type {LayoutDirection, StageRegion, DiagramSpec} from 'rayner/explain';
 export async function authorLayout(scene: Scene): Promise<void> {
   const direction: LayoutDirection = 'rtl', at: StageRegion = 'start';
