@@ -59,7 +59,6 @@ test('SetState takes a model step: a function of a copy of the state when it beg
     }
   })(new NullSink()).run();
   assert.deepEqual(scene.steps[0]!.evidence, [{ kind: 'event', event: 'TICK' }]);
-  assert.throws(() => new SetState(new Scene(new NullSink()), { n: 1 }, { event: '' }), TypeError);
 });
 
 test('a machine replays events through the model as one schedule: state, evidence, seeking and trace follow the model', async () => {

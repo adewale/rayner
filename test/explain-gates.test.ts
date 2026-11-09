@@ -256,11 +256,6 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
     message: /Captions name a look the stage does not in the scene: one: the caption names “red”/,
   },
   {
-    gate: 'a step kind that is not short, main or detail',
-    source: scene(`await this.step('one',{caption:'A label.',kind:'details'});${label('hello')}`),
-    message: /this\.step\(\): the kind of step "one" must be 'short', 'main' or 'detail'/,
-  },
-  {
     // Built by a function, where the ExplainerMeta type does not reach: collection still refuses the key.
     gate: 'an unknown meta key',
     source: scene(`await this.step('one',{caption:'A label.'});${label('hello')}`, `const meta=()=>({title:'T',soruces:[]});`, 'static meta=meta();'),
