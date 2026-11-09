@@ -102,7 +102,7 @@ export class Refusal {
   /** Why the model refuses the event, in the reader's words: what the player says of its button. */
   readonly reason: string;
   constructor(reason: string) {
-    if (typeof reason !== 'string' || !reason.trim()) throw new TypeError('refuse(): the reason must be words; return undefined from next for a refusal with no reason');
+    if (!reason.trim()) throw new RangeError('refuse(): the reason must be words; return undefined from next for a refusal with no reason');
     this.reason = reason;
     Object.defineProperty(this, REFUSAL, { value: true });
     Object.freeze(this);
@@ -131,19 +131,13 @@ export class Machine<S extends object, E extends string> {
   private playedInStep: string | null = null;
 
   constructor(scene: Scene<S, any>, spec: MachineSpec<S, E>) {
-    if (!spec.events.length) throw new TypeError('new Machine(): it needs at least one event');
-    for (const event of spec.events) {
-      if (typeof event !== 'string') throw new TypeError(`new Machine(): an event must be a string, not ${JSON.stringify(event)}`);
+    // The spec's shape is its type's to check; what a type cannot say is checked here.
+    if (!spec.events.length) throw new RangeError('new Machine(): it needs at least one event');
+    for (const event of spec.events)
       if (!isIdentifier('event', event)) throw new RangeError(`new Machine(): ${JSON.stringify(event)} is not an event name; an event is ${identifierRule('event')}`);
-    }
     if (new Set(spec.events).size !== spec.events.length) throw new Error('new Machine(): an event is listed twice; list each event once');
-    if (typeof spec.next !== 'function') throw new TypeError('new Machine(): it needs next(state, event)');
-    if ('why' in spec) throw new TypeError('new Machine(): it takes no why(state, event); return refuse(reason) from next where the model refuses an event');
-    if (spec.end !== undefined && typeof spec.end !== 'function') throw new TypeError('new Machine(): end must be a function of the state that returns the reason the story ends there, or undefined');
-    for (const [event, label] of Object.entries(spec.labels ?? {})) {
-      if (!spec.events.includes(event as E)) throw new TypeError(`new Machine(): labels name its events, and ${JSON.stringify(event)} is not one`);
-      if (typeof label !== 'string' || !label.trim()) throw new TypeError(`new Machine(): the label of ${JSON.stringify(event)} must be words`);
-    }
+    for (const [event, label] of Object.entries<string | undefined>(spec.labels ?? {}))
+      if (!label?.trim()) throw new RangeError(`new Machine(): the label of ${JSON.stringify(event)} must be words`);
     // Exploration redraws any reachable state after the run, which needs each picture to be a function
     // of the scene's state alone. Every View is (view(scene, draw)), so there is nothing to refuse.
     this.scene = scene;

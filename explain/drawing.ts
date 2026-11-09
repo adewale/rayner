@@ -12,7 +12,7 @@ import { emphasisSource, stagePalette } from './look.ts';
 import type { Side, LegendItem } from './annotate.ts';
 import { Card, CodeBlock } from './panels.ts';
 import type { CardRow, CardOptions, CodeOptions } from './panels.ts';
-import { layoutDirection, physicalAt } from './layout-direction.ts';
+import { physicalAt } from './layout-direction.ts';
 export type { LegendItem } from './annotate.ts';
 
 /**
@@ -401,9 +401,8 @@ export function legend(
  * word.
  */
 export function card(s: Stage, rows: readonly CardRow[], opts: CardOptions = {}): Card {
-  const api = (opts as { api?: string } | null)?.api ?? 'card()';
-  const direction = layoutDirection(opts, s.direction, api);
-  return new Card(s.scene, stagePalette(s, api), rows, { ...opts, at: physicalAt(opts.at, s.direction), direction });
+  const api = (opts as { api?: string }).api ?? 'card()';
+  return new Card(s.scene, stagePalette(s, api), rows, { ...opts, at: physicalAt(opts.at, s.direction), direction: opts.direction ?? s.direction });
 }
 /**
  * Code on a panel in the stage's colours, one string per line: `s.code`'s picture, not entered, for
@@ -412,5 +411,5 @@ export function card(s: Stage, rows: readonly CardRow[], opts: CardOptions = {})
  * matching and diff transforms), use the engine's `Code`.
  */
 export function code(s: Stage, source: readonly string[], opts: CodeOptions = {}): CodeBlock {
-  return new CodeBlock(s.scene, stagePalette(s, (opts as { api?: string } | null)?.api ?? 'code()'), source, { ...opts, at: physicalAt(opts.at, s.direction) });
+  return new CodeBlock(s.scene, stagePalette(s, (opts as { api?: string }).api ?? 'code()'), source, { ...opts, at: physicalAt(opts.at, s.direction) });
 }

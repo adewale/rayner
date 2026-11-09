@@ -15,7 +15,7 @@ import { bindSnapshots, diagramFindings, loadProject, loadSnapshots, pictureWord
 import FontMetrics from '../scenes/explainers/font-metrics/scene.ts';
 import GreekLettering from './fixtures/lettering/scene.ts';
 import { edgePartOf, diagramKey, snapshotResolver, useDiagrams, diagramResolverOf, RENDERER } from '../integrations/agentic-mermaid/snapshot.ts';
-import type { DiagramSnapshot } from '../explain/index.ts';
+import type { DiagramSnapshot, StageOptions } from '../explain/index.ts';
 import { raised, rule, emphasis, soft, good, bad, dimOpacity, seenSource } from '../explain/look.ts';
 import type { SeenSource } from '../explain/look.ts';
 import { PALETTES, palette } from '../explain/palettes.ts';
@@ -238,29 +238,17 @@ test('a stage() that throws on its options leaves the scene as it was, free to h
   const scene = new Scene(new NullSink());
   const listeners = () => (scene as unknown as { stepListeners: unknown[] }).stepListeners.length;
   const nord = { paper: '#2e3440', ink: '#d8dee9', accent: '#88c0d0', muted: '#616e88' };
-  // Each option is checked: before, a malformed palette, heading size, numbering or heading staged
-  // without a word, and `heading: 42` staged with no step headings at all.
-  const defects: [unknown, RegExp][] = [
-    [{ direction: 'sideways' }, /^RangeError: stage\(\): /],
-    [{ style: 'no-such-style' }, /^RangeError: palette\(\): /],
-    [{ palette: {} }, /^TypeError: stage\(\): the palette has no paper, ink, accent, muted; give \{ paper, ink, accent, muted \}, each a hex colour$/],
-    [{ palette: { ...nord, paper: 'notacolour' } }, /^RangeError: stage\(\): the palette's paper is "notacolour", not a hex colour; give #rgb or #rrggbb, such as '#2e3440'$/],
-    [{ palette: { ...nord, ink: 7 } }, /^TypeError: stage\(\): the palette's ink is number;/],
-    [{ palette: { ...nord, emphasis: '#fff' } }, /^TypeError: stage\(\): the palette takes no "emphasis";/],
-    [{ palette: 'nord' }, /^TypeError: stage\(\): the palette is "nord"; give \{ paper, ink, accent, muted \}, each a hex colour, or a style's, palette\('nord'\)$/],
-    [{ headingSize: NaN }, /^RangeError: stage\(\): headingSize is NaN; give a font size in scene units above 0, such as 0\.5$/],
-    [{ headingSize: -1 }, /^RangeError: stage\(\): headingSize is -1;/],
-    [{ headingSize: 0 }, /^RangeError: stage\(\): headingSize is 0;/],
-    [{ headingSize: Infinity }, /^RangeError: stage\(\): headingSize is Infinity;/],
-    [{ headingSize: '0.5' }, /^TypeError: stage\(\): headingSize is string;/],
-    [{ numbered: 'yes' }, /^TypeError: stage\(\): numbered is "yes"; give true or false$/],
-    [{ heading: 42 }, /^TypeError: stage\(\): the heading is 42; give 'step' to follow each step's title, words to fix it, or false for none$/],
-    [{ heading: true }, /^TypeError: stage\(\): the heading is true;/],
-    [{ headingsize: 0.5 }, /^TypeError: stage\(\): it takes no option "headingsize"; the options are direction, style, palette, heading, headingSize, numbered$/],
-    [null, /^TypeError: stage\(\): the options must be an object/],
+  // What a type cannot hold to its range is checked: a style that is no style, a palette colour
+  // that is no hex colour, and a heading size that is not a finite size above 0.
+  const defects: [StageOptions, RegExp][] = [
+    [{ style: 'no-such-style' }, /^RangeError: palette\(\): "no-such-style"/],
+    [{ palette: { ...nord, paper: 'notacolour' } }, /^RangeError: stage\(\): the palette's paper is "notacolour"/],
+    [{ headingSize: NaN }, /^RangeError: stage\(\): headingSize is NaN/],
+    [{ headingSize: 0 }, /^RangeError: stage\(\): headingSize is 0/],
+    [{ headingSize: Infinity }, /^RangeError: stage\(\): headingSize is Infinity/],
   ];
   for (const [options, refused] of defects) {
-    assert.throws(() => stage(scene, options as never), refused, JSON.stringify(options));
+    assert.throws(() => stage(scene, options), refused, JSON.stringify(options));
     assert.equal(listeners(), 0, `${JSON.stringify(options)}: no step listener`);
     assert.equal(scene.mobjects.length, 0, `${JSON.stringify(options)}: no backdrop or heading`);
     assert.equal(paletteOf(scene), undefined);
@@ -274,6 +262,17 @@ test('a stage() that throws on its options leaves the scene as it was, free to h
   assert.equal(scene.mobjects.filter((m) => m.role === 'backdrop').length, 1);
   assert.ok(s.heading);
   assert.throws(() => stage(scene), /the scene has a stage already/);
+});
+
+test('a card or code panel refuses a size or width that is not a finite size above 0', async () => {
+  const { card, code } = await import('../explain/drawing.ts');
+  const s = stage(new Scene(new NullSink()), { heading: false });
+  for (const bad of [0, -1, NaN, Infinity]) {
+    assert.throws(() => card(s, [['a', 1]], { size: bad }), new RegExp(`^RangeError: card\\(\\): size is ${bad}`));
+    assert.throws(() => card(s, [['a', 1]], { width: bad }), new RegExp(`^RangeError: card\\(\\): width is ${bad}`));
+    assert.throws(() => code(s, ['x'], { size: bad }), new RegExp(`^RangeError: code\\(\\): size is ${bad}`));
+    assert.throws(() => code(s, ['x'], { width: bad }), new RegExp(`^RangeError: code\\(\\): width is ${bad}`));
+  }
 });
 
 test('withoutHeading draws with the heading off the stage, and puts the list back however the draw ends', async () => {

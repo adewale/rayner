@@ -107,8 +107,8 @@ a refusal.
 which rule refused (python-dict's ran the key's search a second time), nothing checked that it
 agreed with `next`, and eight of the nine machines left it out, so their players said "Not
 possible here". A reason returned from the branch that refuses cannot name a rule other than the
-one that refused, and costs one line where the refusal is. `why` is gone; a spec that still has
-one is refused with what to write instead.
+one that refused, and costs one line where the refusal is. `why` is gone, and `MachineSpec` has
+no such field.
 
 A `bound` is different: the model would take the event, but the explainer's story ends before
 it (token-bucket's client sends ten requests). Exploration does not follow it either, and the

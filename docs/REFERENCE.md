@@ -6,6 +6,8 @@ This page covers the explainer layer: the stage, diagrams, checks, the command l
 
 Words used throughout: a **setting** is a choice a scene declares (an id, a label and options); a **scenario** is one value for every setting. A **step** is a named section of the scene, and its **resting picture** is what the step leaves on screen: the picture a reader looks at while reading the caption. The **stage** is the 16 × 9 drawing area. Code and JSON use the same word (`scenario`, `scenariosOf`, `scenarios` in reports). Code calls the frame that shows it a step's `frame1`, its last.
 
+**Options.** Every function and verb takes its options as one typed object, and TypeScript refuses a key it does not take or a value of the wrong type, so nothing checks those again at run time. At run time a call checks only what a type cannot say: a colour that must be a hex colour, a size that must be a finite number above 0, a name that must be one of a list (a style, an event), a key that must be unique. It throws a `RangeError` for each, before it draws anything. `stage()`, `card()`, `code()` and `palette()` follow this rule, as do the stage's verbs that build on them.
+
 ## Scene
 
 An explainer is a Rayner `Scene` exported from a TypeScript or ESM file, preferably as the default export. A module with exactly one exported `Scene` subclass also works.
@@ -171,7 +173,7 @@ const s = stage(this, { style: 'nord' });
 | `headingSize` | The heading's font size, 0.36 by default; at 0.5 it reads at about 12 px on a 390 px page without a close-up |
 | `numbered` | A circled step number before the title; on by default when the heading follows the steps |
 
-`stage()` checks every option before it touches the scene, and refuses a key it does not take, a palette that is not four hex colours (`#rgb` or `#rrggbb`), a heading that is not `'step'`, a string or `false`, a heading size that is not a number above 0, and a `numbered` that is not `true` or `false`; the scene is then left without a stage, free to have one.
+`stage()` checks its [option values](#options) before it touches the scene: a palette colour that is not a hex colour (`#rgb` or `#rrggbb`), a heading size that is not a finite number above 0, and a style that is not one of the styles are refused, and the scene is then left without a stage, free to have one.
 
 With neither `style` nor `palette`, the stage adopts the first diagram's palette. Later diagrams keep their own colours and leave the backdrop, heading and engine defaults as the first one set them.
 

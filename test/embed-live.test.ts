@@ -76,8 +76,7 @@ test('buttons say what outcome says: the label, and a refusalâ€™s or the storyâ€
   assert.deepEqual(outcomes(machine as never, { level: 0 }).map((o) => o.kind), ['next', 'refused', 'beyond']);
   // A refusal with no reason (next returns undefined) has none: the player says its own words.
   assert.deepEqual(outcomes(machine as never, { level: 0 })[1], { event: 'DOWN', label: 'DOWN', kind: 'refused', reason: null });
-  // A label must name one of the machine's events, in words.
-  assert.throws(() => new Machine(ran, { start: {}, events: ['A'], labels: { B: 'b' } as never, next: () => ({}), views: [] }), /labels name its events/);
+  // A label must be words.
   assert.throws(() => new Machine(ran, { start: {}, events: ['A'], labels: { A: ' ' }, next: () => ({}), views: [] }), /must be words/);
 });
 
