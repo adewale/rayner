@@ -4,8 +4,11 @@ import { Scene } from '../src/index.ts';
 import { NullSink } from '../src/output.ts';
 import { traceScene } from '../explain/testing.ts';
 import { resolveSettings, settingsOf } from '../explain/index.ts';
-import { scenariosOf, withSettings, scenarioName } from '../explain/testing.ts';
-import type { Setting } from '../explain/index.ts';
+import { withSettings } from '../explain/testing.ts';
+import { scenariosOf, scenarioName } from '../explain/internal.ts';
+import type { Setting, ExplainerMeta, ExplainerClass } from '../explain/index.ts';
+import { checkExplainerMeta, isIdentifier } from '../explain/settings.ts';
+import { shareable } from '../app/embed-share.ts';
 import { fc, params } from './lib/pbt.ts';
 
 class Example extends Scene {
@@ -89,7 +92,7 @@ test('resolveSettings refuses an unknown setting id', () => {
   fc.assert(
     fc.property(declared, fc.string(), fc.string(), ([settings, values], id, value) => {
       fc.pre(!settings.some((s) => s.id === id));
-      assert.throws(() => resolveSettings(classOf(settings), { ...values, ...Object.fromEntries([[id, value]]) }), /Unknown setting/);
+      assert.throws(() => resolveSettings(classOf(settings), { ...values, ...Object.fromEntries([[id, value]]) }), /^RangeError: resolveSettings\(\): the scene has no setting/);
     }),
     params(),
   );
@@ -100,7 +103,7 @@ test('resolveSettings refuses a value that is not one of the options', () => {
     fc.property(declarations.filter((d) => d.length > 0), fc.nat(), fc.string(), (settings, k, value) => {
       const s = settings[k % settings.length]!;
       fc.pre(!s.options.some((o) => o.value === value));
-      assert.throws(() => resolveSettings(classOf(settings), Object.fromEntries([[s.id, value]])), /Unknown .* option/);
+      assert.throws(() => resolveSettings(classOf(settings), Object.fromEntries([[s.id, value]])), /^RangeError: resolveSettings\(\): .* is not an option of the setting/);
     }),
     params(),
   );
@@ -118,7 +121,7 @@ test('declarations with an invalid, reserved or duplicate id, or bad options, ar
     fc.property(declarations, broken, fc.nat(), (good, bad, at) => {
       const all = [...good.filter((g) => !bad.some((b) => b.id === g.id))];
       all.splice(at % (all.length + 1), 0, ...bad);
-      assert.throws(() => resolveSettings(classOf(all)), /Invalid/);
+      assert.throws(() => resolveSettings(classOf(all)), /^Error: static settings: /);
     }),
     params(),
   );
@@ -150,7 +153,7 @@ test('scenariosOf refuses exactly when the product exceeds the limit', () => {
     fc.property(declarations, fc.oneof(fc.nat({ max: 300 }), fc.constantFrom(NaN, Infinity, -1, 0)), (settings, limit) => {
       const S = classOf(settings);
       if (product(settings) <= limit) assert.equal(scenariosOf(S, limit).length, product(settings));
-      else assert.throws(() => scenariosOf(S, limit), /exceed/);
+      else assert.throws(() => scenariosOf(S, limit), /^RangeError: static settings: they make \d+ scenarios, more than/);
     }),
     params(),
   );
@@ -192,4 +195,59 @@ test('the innermost withSettings binding wins, and two bindings never share stat
     }),
     params(),
   );
+});
+
+test('static meta takes the keys ExplainerMeta names, and refuses any other, naming it and the keys it takes', () => {
+  const full: ExplainerMeta = {
+    id: 'a', title: 'A', lang: 'en', sources: [], lettering: { scripts: ['Grek'] }, textContext: 'explicit', scenarioNavigation: 'first',
+    player: { accent: true, paper: true, corners: 'square', minStageWidth: 800, outline: true }, watch: { n: 'N' },
+    answer: 'Yes', questions: [{ question: 'Q?', answer: 'A' }], checkedAgainst: 'model.test.ts', claims: [{ says: 'x', shown: true }],
+  };
+  checkExplainerMeta(full);
+  checkExplainerMeta(undefined);
+  checkExplainerMeta({});
+  // Built apart from the declaration, where the type does not reach: the check still names the key.
+  const built = (): object => ({ title: 'A', soruces: ['https://example.com'] });
+  assert.throws(() => checkExplainerMeta(built()), /^TypeError: static meta: "soruces" is not a key/);
+  assert.throws(() => checkExplainerMeta({ titel: 'A', lnag: 'fr' }), /static meta: "titel", "lnag" are not keys it takes/);
+  assert.throws(() => checkExplainerMeta({ player: { acent: true } }), /^TypeError: meta\.player: "acent" is not a key/);
+  for (const bad of [null, 4, 'meta', []]) assert.throws(() => checkExplainerMeta(bad), /static meta: it must be an object/);
+  assert.throws(() => checkExplainerMeta({ player: true }), /meta\.player: it must be an object/);
+  // A key inherited through the prototype is not the scene's: only own keys are read.
+  checkExplainerMeta(Object.create({ titel: 'A' }));
+});
+
+test('one validator for the names a link carries or a file is named by: events, meta.id and shareable steps', () => {
+  // An event: any words without a comma, since a link joins the events a reader sent with commas.
+  for (const ok of ['push', 'start A', 'A lands', 'Lamp lit', 'é:1']) assert.ok(isIdentifier('event', ok), ok);
+  for (const bad of ['', '  ', 'a,b', 3]) assert.ok(!isIdentifier('event', bad), JSON.stringify(bad));
+  // meta.id: one safe path segment, in lower case, and no name Windows keeps for a device.
+  for (const ok of ['seasons', 'lru-mru', 'a-1', '2password', 'console', 'com10', 'nul-pointer']) assert.ok(isIdentifier('id', ok), ok);
+  for (const bad of ['', '../x', 'a/b', '.hidden', 'a b', 'x.html', '-x', 'é', 'a_1', 'My_Scene', 'Push', 'con', 'NUL', 'Aux', 'prn', 'com1', 'LPT9'])
+    assert.ok(!isIdentifier('id', bad), bad);
+  // A step with a share page: letters, digits, - and _, and no device name.
+  for (const ok of ['push', 'Push-2', 'a_b', 'connect']) assert.ok(isIdentifier('step', ok), ok);
+  for (const bad of ['', 'a b', 'a/b', 'é', 'con', 'Nul', 'com3']) assert.ok(!isIdentifier('step', bad), bad);
+  // The player's share check and the site's are this validator.
+  for (const name of ['push', 'a b', '../x']) assert.equal(shareable(name), isIdentifier('step', name));
+  // meta.id is checked with the rest of static meta.
+  assert.throws(() => checkExplainerMeta({ id: '../escape' }), /^RangeError: meta\.id: "\.\.\/escape" is not a page id/);
+  assert.throws(() => checkExplainerMeta({ id: 'con' }), /^RangeError: meta\.id: "con" is not a page id/);
+  assert.throws(() => checkExplainerMeta({ id: 'My_Scene' }), /^RangeError: meta\.id: "My_Scene" is not a page id/);
+  assert.throws(() => checkExplainerMeta({ id: 'a/b' }), /^RangeError: meta\.id: "a\/b" is not a page id/);
+  assert.throws(() => checkExplainerMeta({ id: 7 }), /^TypeError: meta\.id: it must be a string/);
+  checkExplainerMeta({ id: 'seasons' });
+});
+
+test('every explainer and tutorial scene declares a static meta that collection takes', async () => {
+  const { readdirSync, existsSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const root = join(import.meta.dirname, '..', 'scenes');
+  for (const group of ['explainers', 'tutorial'])
+    for (const id of readdirSync(join(root, group))) {
+      const file = join(root, group, id, 'scene.ts');
+      if (!existsSync(file)) continue;
+      const Explainer = (await import(file)).default as ExplainerClass;
+      checkExplainerMeta(Explainer.meta);
+    }
 });

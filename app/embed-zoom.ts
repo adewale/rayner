@@ -6,9 +6,10 @@
  * so does a click or tap, which centres the point under it (no drag needed).
  */
 import { DomSink } from '../src/output.ts';
+import { VIEWBOX, applyRecords } from '../src/internal.ts';
+import { withoutHeading } from '../explain/internal.ts';
 import type { Scene } from '../src/index.ts';
 import type { ElementRecord } from '../src/output.ts';
-import { isHeading } from '../explain/stage.ts';
 /** A zoom: scale `k` about the stage's top-left corner, then a pan of (x, y) stage pixels. */
 export interface Zoom {
   k: number;
@@ -69,7 +70,7 @@ export function panBy(z: Zoom, dx: number, dy: number, w: number, h: number, max
 // On screen, a label is world size × camera zoom × reader zoom × px per view unit.
 
 /** The camera's home viewBox: the whole 16 × 9 stage, in the sinks' user units. */
-export const HOME_VIEW = '-8000 -4500 16000 9000';
+export const HOME_VIEW = VIEWBOX;
 type Rect = [number, number, number, number];
 const rect = (v: string) => v.trim().split(/[\s,]+/).map(Number) as Rect;
 /** How a `w`×`h` stage draws an `aw`×`ah` view at 1× (the SVG letterboxes): px per unit and the offset of its top-left corner. */
@@ -165,19 +166,13 @@ export class ReaderSink extends DomSink {
   override async frame(scene: Scene, dt = 0): Promise<void> {
     if (!this.withoutHeading()) return super.frame(scene, dt);
     // The scene waits for its sink, so its objects stay put while this frame is drawn without them.
-    const all = scene.mobjects;
-    scene.mobjects = all.filter((m) => !isHeading(m));
-    try {
-      await super.frame(scene, dt);
-    } finally {
-      scene.mobjects = all;
-    }
+    await withoutHeading(scene, () => super.frame(scene, dt));
   }
-  override apply(els: readonly ElementRecord[], viewBox?: string): void {
+  override [applyRecords](els: readonly ElementRecord[], viewBox?: string): void {
     // DomSink can wake from its browser clock after this step was left.
     this.signal.throwIfAborted();
     if (viewBox !== undefined && viewBox !== this.svg.getAttribute('data-camera')) this.svg.setAttribute('data-camera', viewBox);
-    super.apply(els, this.reader(this.svg.getAttribute('data-camera')!));
+    super[applyRecords](els, this.reader(this.svg.getAttribute('data-camera')!));
   }
 }
 
@@ -273,6 +268,18 @@ export class StageZoom {
     this.set(clampZoom(z, w, h, this.max), glide);
   }
   private size: [number, number] | null = null;
+
+  /**
+   * Fit again if the stage is no longer the size the zoom was last fitted at. The ResizeObserver
+   * only reports a size that differs from the one it last reported, so a size the stage held only
+   * in the middle of a frame (layout written after `apply` read it, and written back before the
+   * frame ended) is never reported again: whoever writes that layout calls this once it is final.
+   */
+  refit(): void {
+    if (!this.size) return;
+    const [w, h] = stageSize(this.stage);
+    if (w > 0 && h > 0 && (this.size[0] !== w || this.size[1] !== h)) this.apply();
+  }
 
   /** Adopt an already clamped zoom, then paint. */
   private set(z: Zoom, glide = false): void {

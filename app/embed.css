@@ -55,7 +55,7 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
    3.6rem at 1.125rem × 1.6), so a reader sees the picture and the start of what it means without scrolling. The card, not
    only the frame, is capped by the viewport's height, so the stage fills the card's width and Next
    is on screen at load; a floor of 20rem keeps a short landscape window's card usable. Tuned
-   against the viewports in specs/player-redesign.md R2. */
+   against the viewports in player-redesign R2. */
 .player{position:relative;min-width:0}
 .frame{position:relative;container-type:inline-size}
 /* A narrow stage (a phone) is taller than the picture's 16:9, up to 4:5 (NARROW_ASPECT in
@@ -109,6 +109,7 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .live .event:focus-visible .reason:not(:empty){display:block}
 @media(hover:hover){.live .event:hover .reason:not(:empty){display:block}}
 .live-said:empty{display:none}
+.rail-body>.live{padding:8px 10px 12px;margin-block-end:8px;border-block-end:1px solid var(--line)}
 .words{display:grid;gap:6px;padding:14px var(--inset) 16px}
 .player>.caption{padding:14px var(--inset)}
 .caption,.caption-ruler{margin:0;max-width:52ch;font-size:1.125rem;line-height:1.6;text-wrap:pretty}
@@ -158,16 +159,16 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .tools .share{margin-inline-start:12px}
 .words>.tools{margin:8px 0 0;padding:10px 0 0;border:0;border-top:1px solid var(--line);justify-content:flex-start}.words>.tools .try{margin-inline-end:auto}
 @media(max-width:640px){.tools{flex-basis:100%;padding:0;border:0}.button.try{font-size:.9375rem}.stepper .button,.tools .button,.step-bar button{min-width:44px;min-height:44px}.step-bar button{min-width:0}}
-/* The scene's check questions after its last step: each question in view, its answer behind a disclosure. */
-.checks{margin:10px 0 2px;padding:12px 14px;max-width:68ch;border:1px solid var(--line);border-radius:var(--player-control-radius,8px);overflow-wrap:anywhere}
-.checks[hidden]{display:none}
-.checks h2{margin:0;font-size:1.0625rem}
-.checks .hint{margin:2px 0 6px;font-size:.875rem;color:var(--muted)}
-.checks ol{margin:0;padding-left:1.25rem;display:grid;gap:8px}
-.checks .question{margin:0;font-weight:600}
-.checks details{font-size:.9375rem}
-.checks summary{padding:4px 0;cursor:pointer;color:var(--muted)}
-.checks details p{margin:2px 0 0}
+/* The scene's reader questions after its last step: each question in view, its answer behind a disclosure. */
+.reader-questions{margin:10px 0 2px;padding:12px 14px;max-width:68ch;border:1px solid var(--line);border-radius:var(--player-control-radius,8px);overflow-wrap:anywhere}
+.reader-questions[hidden]{display:none}
+.reader-questions h2{margin:0;font-size:1.0625rem}
+.reader-questions .hint{margin:2px 0 6px;font-size:.875rem;color:var(--muted)}
+.reader-questions ol{margin:0;padding-left:1.25rem;display:grid;gap:8px}
+.reader-questions .question{margin:0;font-weight:600}
+.reader-questions details{font-size:.9375rem}
+.reader-questions summary{padding:4px 0;cursor:pointer;color:var(--muted)}
+.reader-questions details p{margin:2px 0 0}
 .described{margin:2px 0 0;max-width:68ch;font-size:.9375rem;color:var(--muted)}
 .described summary{padding:6px 0;cursor:pointer}
 .described ul,.transcript li ul{margin:4px 0;padding-left:1.25rem;overflow-wrap:anywhere}
@@ -253,7 +254,7 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
    Try and Back) once: when the tools do not fit beside it they take their own line on every step,
    and the row keeps the widest case's height, so stepping never wraps it differently (embed.ts). */
 .step-bar{flex-basis:0;min-width:min(100%,calc(var(--segments,8)*8px))}
-.stepper>.button.try{flex:1 1 0;min-width:44px;max-width:max-content;display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.stepper>.button.try:not([hidden]){flex:1 1 0;min-width:44px;max-width:max-content;display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .stepper{min-height:var(--stepper-h,0px)}
 .stepper[data-stacked]>.tools{flex-basis:100%;padding-inline-start:0;border-inline-start:0}
 @media(prefers-reduced-motion:reduce){.tile,.button,.stage svg.glide,.overview .view,.segments label,.steps button{transition:none}.button:active:not(:disabled){transform:none}.step-bar .fill{transition:none}}

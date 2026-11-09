@@ -1,24 +1,23 @@
 // Lettering on request, at build time. An explainer that sets `static meta.lettering`
-// gets Inter and JetBrains Mono (vendor/lettering/, made by tools/lettering-fonts.sh)
+// gets Inter and JetBrains Mono (vendor/lettering/, made by tools/repo/lettering-fonts.sh)
 // cut to the letters it draws in the scripts it asked for, and only its page carries
 // them. The cut faces are pinned beside the scene in `<scene>.lettering.json`, so a
 // build needs fonttools only when the letters change. An explainer that asks for
 // nothing never reaches this file's work: see collectProject.
 import { readFile, writeFile, mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { createHash } from 'node:crypto';
-import { useLettering, takeLetteringUse } from '../../src/lettering.ts';
-import type { SubsetLetteringRequest, LetteringScript, LetteringFaces } from '../../src/lettering.ts';
+import { useLettering, withLettering, takeLetteringUse, LETTERING_SCRIPTS, SUBSET_LETTERING_VERSION } from '../../src/internal.ts';
+import type { SubsetLetteringRequest, LetteringScript, LetteringFaces } from '../../src/internal.ts';
 import type { FontName } from '../../src/index.ts';
+import { ROOT } from './roots.ts';
+import { sfntBase64 } from './woff2.ts';
+import { sha256 } from './hash.ts';
 
-const ROOT = new URL('../../', import.meta.url);
-const sha256 = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex');
 
-/** Code point ranges per script. Keep in step with tools/lettering-fonts.sh, which cuts the sources to them. */
+/** Code point ranges per script. Keep in step with tools/repo/lettering-fonts.sh, which cuts the sources to them. */
 export const SCRIPTS: Record<LetteringScript, readonly (readonly [number, number])[]> = {
   Latn: [
     [0x0100, 0x024f],
@@ -52,9 +51,9 @@ export interface Lettering {
 export function letteringRequest(Scene: { meta?: object }): SubsetLetteringRequest | undefined {
   const value = (Scene.meta as { lettering?: unknown } | undefined)?.lettering;
   if (value === undefined) return undefined;
-  const known = Object.keys(SCRIPTS);
+  const known: readonly string[] = LETTERING_SCRIPTS;
   const fail = (why: string) => {
-    throw new Error(`meta.lettering ${why}. Ask for { scripts: [...] } with some of ${known.join(', ')}`);
+    throw new TypeError(`meta.lettering: it ${why}; ask for { scripts: [...] } with some of ${known.join(', ')}`);
   };
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail('must be an object');
   const extra = Object.keys(value as object).filter((k) => k !== 'scripts');
@@ -71,11 +70,19 @@ const inScripts = (scripts: readonly LetteringScript[], cp: number) =>
   scripts.some((s) => SCRIPTS[s].some(([from, to]) => cp >= from && cp <= to));
 const hex = (cp: number) => cp.toString(16).toUpperCase().padStart(4, '0');
 
-/** The page's faces for useLettering(). */
-export const pageFaces = (l: Lettering | undefined): LetteringFaces | null =>
+/** The cuts for useLettering(), as committed: WOFF2. */
+const cutFaces = (l: Lettering | undefined): LetteringFaces | null =>
   l ? Object.fromEntries(FAMILIES.flatMap((f) => (l.faces[f] ? [[f, l.faces[f].woff2]] : []))) : null;
+/**
+ * The page's faces for useLettering(): the cuts as SFNT, which the page's shaper reads without
+ * a Brotli decoder (tools/lib/woff2.ts).
+ */
+export const pageFaces = (l: Lettering | undefined): LetteringFaces | null => {
+  const faces = cutFaces(l);
+  return faces && Object.fromEntries(Object.entries(faces).map(([family, data]) => [family, sfntBase64(data!)]));
+};
 /** Put the project's lettering in place for what draws it next, or the embedded faces alone. */
-export const useProjectLettering = (p: { lettering?: Lettering }) => useLettering(pageFaces(p.lettering));
+export const useProjectLettering = (p: { lettering?: Lettering }) => useLettering(cutFaces(p.lettering));
 
 /** The size report: for the receipt and the check report of a lettered explainer only. */
 export function letteringReport(l: Lettering) {
@@ -90,8 +97,8 @@ export function letteringReport(l: Lettering) {
   return {
     scripts: l.scripts,
     faces,
-    // The faces as the page holds them: base64 in its script
-    pageBytes: FAMILIES.reduce((n, f) => n + (l.faces[f]?.woff2.length ?? 0), 0),
+    // The faces as the page holds them: SFNT, base64 in its script
+    pageBytes: Object.values(pageFaces(l) ?? {}).reduce((n, data) => n + data!.length, 0),
   };
 }
 
@@ -109,15 +116,12 @@ export async function prepareLettering(
   { write = true }: { write?: boolean } = {},
 ): Promise<Lettering> {
   const sources = Object.fromEntries(
-    await Promise.all(FAMILIES.map(async (f) => [f, await readFile(new URL(SOURCES[f].file, ROOT))] as const)),
+    await Promise.all(FAMILIES.map(async (f) => [f, await readFile(join(ROOT, SOURCES[f].file))] as const)),
   ) as Record<FontName, Buffer>;
-  await useLettering({ sans: sources.sans.toString('base64'), mono: sources.mono.toString('base64') });
-  takeLetteringUse();
-  try {
+  await withLettering({ sans: sources.sans.toString('base64'), mono: sources.mono.toString('base64') }, async () => {
+    takeLetteringUse();
     await draw();
-  } finally {
-    await useLettering(null);
-  }
+  });
   const use = takeLetteringUse();
   const pinFile = base + '.lettering.json';
   const pinned = await readFile(pinFile, 'utf8').then(
@@ -131,18 +135,18 @@ export async function prepareLettering(
     if (!codePoints.length) continue;
     const list = codePoints.map(hex).join(' '),
       sourceHash = sha256(sources[family]);
-    const pin = pinned?.version === 1 ? pinned.faces?.[family] : undefined;
+    const pin = pinned?.version === SUBSET_LETTERING_VERSION ? pinned.faces?.[family] : undefined;
     const woff2 =
       pin?.sourceHash === sourceHash && pin.codePoints === list && pin.woff2 ? pin.woff2 : await cut(family, codePoints);
     faces[family] = { codePoints, woff2 };
     pins[family] = { source: SOURCES[family].file, sourceHash, codePoints: list, woff2 };
   }
-  const body = JSON.stringify({ version: 1, scripts: request.scripts, faces: pins }, null, 2) + '\n';
+  const body = JSON.stringify({ version: SUBSET_LETTERING_VERSION, scripts: request.scripts, faces: pins }, null, 2) + '\n';
   if (write && (await readFile(pinFile, 'utf8').catch(() => null)) !== body) await writeFile(pinFile, body);
   return { scripts: request.scripts, faces };
 }
 
-/** Cut `family`'s source face to `codePoints` with fonttools' subsetter, as tools/fonts.sh does. */
+/** Cut `family`'s source face to `codePoints` with fonttools' subsetter, as tools/repo/fonts.sh does. */
 async function cut(family: FontName, codePoints: number[]): Promise<string> {
   const folder = await mkdtemp(join(tmpdir(), 'rayner-lettering-'));
   const out = join(folder, family + '.woff2');
@@ -151,7 +155,7 @@ async function cut(family: FontName, codePoints: number[]): Promise<string> {
     await promisify(execFile)(
       tool,
       [
-        fileURLToPath(new URL(SOURCES[family].file, ROOT)),
+        join(ROOT, SOURCES[family].file),
         '--unicodes=' + codePoints.map((cp) => 'U+' + hex(cp)).join(','),
         '--layout-features=' + SOURCES[family].features,
         '--flavor=woff2',
@@ -163,7 +167,7 @@ async function cut(family: FontName, codePoints: number[]): Promise<string> {
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT')
       throw new Error(
-        `The lettering this explainer asks for must be cut again, because the letters it draws changed, and that needs fonttools: pip install fonttools brotli (or set PYFTSUBSET to pyftsubset's path)`,
+        `meta.lettering: the lettering it asks for must be cut again, because the letters it draws changed, and that needs fonttools; pip install fonttools brotli, or set PYFTSUBSET to pyftsubset's path`,
       );
     throw error;
   } finally {

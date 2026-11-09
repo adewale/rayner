@@ -1,19 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { capture } from '../../integrations/agentic-mermaid/build/capture.ts';
+import { capture } from '../../integrations/agentic-mermaid/capture.ts';
 import { renderMermaidSVG } from 'agentic-mermaid';
-import { snapshotBuilder } from '../../integrations/agentic-mermaid/build/index.ts';
+import { snapshotBuilder } from '../../integrations/agentic-mermaid/index.ts';
 import { Resvg } from '@resvg/resvg-js';
-import { outlineText } from '../../integrations/agentic-mermaid/text.ts';
+import { outlineText } from '../../explain/diagram-text.ts';
 import { lostLabelWarnings } from '../../tools/lib/explain-warnings.ts';
 import { Scene, VMobject } from '../../src/index.ts';
+import type { Mobject } from '../../src/index.ts';
 import { NullSink, toSvgString } from '../../src/output.ts';
 import { PALETTES } from '../../explain/palettes.ts';
-import { findingsOf } from '../../integrations/agentic-mermaid/snapshot.ts';
+import { diagramFindings } from '../../explain/testing.ts';
 import { Diagram } from '../../explain/diagrams.ts';
 import { dimOpacity } from '../../explain/look.ts';
 
-test('actual class marker carriers follow their explicit relationships through reveal, marking and dimming', {
+test('actual class marker carriers follow their explicit relationships through reveal, and through a picture’s marks and dimming', {
   skip: !process.env.EXPLAIN_BROWSER && 'set EXPLAIN_BROWSER=1 for real capture',
 }, async () => {
   const spec = { source: 'classDiagram\nclass Scene\nclass Mobject\nclass Animation\nclass Sink\nclass Subclass\nScene *-- Mobject : owns\nScene o-- Animation : plays\nScene --> Sink : emits\nScene <|-- Subclass : inherits' };
@@ -29,7 +30,7 @@ test('actual class marker carriers follow their explicit relationships through r
     assert.ok(markerShapes.some((s) => s.subpaths.length && s.style.stroke !== 'none' &&
       (s.style.strokeWidth ?? 0) > 0 && (s.style.strokeOpacity ?? 1) > 0 && (s.style.opacity ?? 1) > 0),
       'the source includes a painted stroked marker');
-    const diagram = new Diagram(new Scene(new NullSink(), { skipUntil: Infinity }), spec, snapshot);
+    const diagram = new Diagram(new Scene(new NullSink()), spec, snapshot);
     await diagram.build('frame');
     for (const carrier of carriers) {
       const part = snapshot.parts.find((p) => p.id === carrier.id)!;
@@ -50,16 +51,20 @@ test('actual class marker carriers follow their explicit relationships through r
     const labelPaint = labels.map((m) => structuredClone(m.style));
     const basePaint = new Map(carriers.map((c) => [c.id, diagram.get(c.id).family().map((m) => structuredClone(m.style))]));
     const before = new Map(carriers.map((c) => [c.id, diagram.get(c.id).family().map((m) => m.style.opacity ?? 1)]));
-    await diagram.dim([], { runTime: 0 });
+    // Each live member's copy in a picture of the diagram: picture() copies the root member for member.
+    const drawnIn = (picture: Mobject) => {
+      const live = diagram.root.family(), drawn = picture.family();
+      return (m: Mobject) => drawn[live.indexOf(m)]!;
+    };
+    const dimmed = drawnIn(diagram.picture({}, { dim: [] }));
     for (const carrier of carriers)
-      assert.deepEqual(diagram.get(carrier.id).family().map((m) => m.style.opacity ?? 1),
+      assert.deepEqual(diagram.get(carrier.id).family().map((m) => dimmed(m).style.opacity ?? 1),
         before.get(carrier.id)!.map((o) => o * dimOpacity(snapshot.palette)), 'the owner dims its arrowhead with the relationship');
-    await diagram.dim(null, { runTime: 0 });
-    await diagram.mark(carriers.map((c) => c.owner!.id), { color: '#ff0000', runTime: 0 });
+    const marked = drawnIn(diagram.picture(Object.fromEntries(carriers.map((c) => [c.owner!.id, '#ff0000']))));
     for (const carrier of carriers) {
       const shapes = snapshot.parts.find((p) => p.id === carrier.id)!.shapes;
       const route = diagram.parts.get(carrier.id)!.route;
-      const leaves = diagram.get(carrier.id).family().filter((m) => !m.children.length && m !== route);
+      const leaves = diagram.get(carrier.id).family().filter((m) => !m.children.length && m !== route).map(marked);
       assert.equal(leaves.length, shapes.length, 'each captured marker shape remains an actual leaf');
       shapes.forEach((s, i) => {
         if (s.subpaths.length && s.style.stroke !== 'none' && (s.style.strokeWidth ?? 0) > 0 &&
@@ -72,11 +77,10 @@ test('actual class marker carriers follow their explicit relationships through r
         }
       });
     }
-    assert.deepEqual(labels.map((m) => m.style), labelPaint, 'owned relationship labels keep their original paint');
-    await diagram.unmark(undefined, { runTime: 0 });
+    assert.deepEqual(labels.map((m) => marked(m).style), labelPaint, 'owned relationship labels keep their original paint');
     for (const carrier of carriers)
       assert.deepEqual(diagram.get(carrier.id).family().map((m) => m.style), basePaint.get(carrier.id),
-        'clearing dimming and marking restores each arrowhead exactly');
+        'drawing pictures leaves each live arrowhead exactly as it was');
   } finally { await builder.close(); }
 });
 
@@ -90,7 +94,7 @@ test('actual branch warnings map both raw per-pair ids to their captured edge pa
     });
     const warnings = snapshot.findings.warnings.filter((w) => w.code === 'DECISION_BRANCH_UNLABELED');
     assert.deepEqual(warnings.map((w) => w.edge), ['A->B#0', 'A->C#0']);
-    const mapped = findingsOf(snapshot).filter((w) => w.code === 'DECISION_BRANCH_UNLABELED');
+    const mapped = diagramFindings(snapshot).filter((w) => w.code === 'DECISION_BRANCH_UNLABELED');
     assert.deepEqual(mapped.map((w) => w.part), ['edge:A->B#0', 'edge:A->C#0']);
     assert.ok(mapped.every((w) => snapshot.parts.some((p) => p.id === w.part && p.kind === 'connector')));
   } finally { await builder.close(); }

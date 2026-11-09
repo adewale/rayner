@@ -11,14 +11,14 @@ import { execFileSync } from 'node:child_process';
 import { collectProject, writeSnapshots, ROOT } from '../tools/lib/explain-project.ts';
 import { checkProject } from '../tools/lib/explain-check.ts';
 import { scenariosOf, resolveSettings } from '../explain/settings.ts';
-import { diagramKey } from '../integrations/agentic-mermaid/snapshot.ts';
+import { diagramKey } from '../explain/diagram-snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { fixedSnapshot, square } from './lib/random-snapshot.ts';
 
 const folder = await mkdtemp(join(tmpdir(), 'rayner-gates-'));
 after(() => rm(folder, { recursive: true, force: true }));
 
-const HEAD = `import{Scene,Text,Dot,Rectangle,Line,FadeIn}from'rayner';import{stage,settingsOf}from'rayner/explain';`;
+const HEAD = `import{Scene,Text,Dot,Rectangle,Line,FadeIn,keyed}from'rayner';import{stage,settingsOf}from'rayner/explain';`;
 /** A scene module: `pre` at module level, `body` inside construct() after `const s=stage(this)`. */
 const scene = (body: string, pre = '', statics = '') =>
   `${HEAD}${pre}export default class Seeded extends Scene{${statics}async construct(){const s=stage(this);${body}}}`;
@@ -30,7 +30,7 @@ async function write(source: string, snapshots?: Record<string, DiagramSnapshot>
   const dir = join(folder, String(n++));
   await mkdir(dir);
   await writeFile(join(dir, 'scene.ts'), source);
-  if (snapshots) await writeSnapshots(join(dir, 'scene'), snapshots, 'test');
+  if (snapshots) await writeSnapshots(join(dir, 'scene'), snapshots);
   return dir;
 }
 const checked = async (dir: string) => checkProject(await collectProject(dir, { write: false }), join(dir, 'checks'));
@@ -51,7 +51,7 @@ test('numerals outside Latin draw from the fallback faces and pass every gate, i
   assert.equal((report.scenarios as unknown[]).length, 1);
 });
 
-// A diagram whose label B is readable only in mid-sweep: focus(['B']) zooms to it, focus('all') ends the step with it at 4 px.
+// A diagram whose label B is readable only in mid-sweep: enlarge(['B']) zooms to it, enlarge('all') ends the step with it at 4 px.
 const spec = { source: 'graph LR\nA -->|hello| B', style: 'nord' };
 function smallLabel(): DiagramSnapshot {
   const shape = (x: number) => square(x, { fill: '#fff', stroke: '#000' });
@@ -102,6 +102,18 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
     message: /The bare runtime \(no DOM, no Node\) disagrees with the trace/,
   },
   {
+    // Same steps and state; only the time the second step ends differs.
+    gate: 'bare runtime: a step that lasts longer outside Node',
+    source: scene(`await this.step('one');${label('hello')}await this.step('two');${label('world', '[0,-2]')}await this.wait(typeof process==='object'?1:2);`),
+    message: /The bare runtime \(no DOM, no Node\) disagrees with the trace/,
+  },
+  {
+    // Same trace; only the last frame's words differ.
+    gate: 'bare runtime: a last frame drawn differently outside Node',
+    source: scene(`await this.step('one');${label('hello')}await this.step('two');await s.enter(new Text(typeof process==='object'?'node':'bare',{fontSize:.4}).moveTo([0,-2]),{describe:'where it runs'});`),
+    message: /The bare runtime \(no DOM, no Node\) disagrees with the trace .*: its last frame draws differently/,
+  },
+  {
     gate: 'motion: a text removed without an animation',
     source: scene(`await this.step('one');const t=new Text('hello',{fontSize:.4});await s.enter(t,{describe:'hello'});await this.step('two');this.remove(t);${label('bye', '[0,-2]')}`),
     message: /Motion failures .*cut-out/,
@@ -120,7 +132,7 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
   },
   {
     gate: 'step change: a step that ends on the same picture',
-    source: `import{Scene,Text,FadeIn}from'rayner';import{stage}from'rayner/explain';export default class Same extends Scene{async construct(){const s=stage(this);await this.step('one',{title:'One'});await this.play(new FadeIn(new Text('hello',{color:s.palette.ink})));await this.step('two',{title:'Two',caption:'Nothing new is drawn.'});await this.wait(.5);}}`,
+    source: `import{Scene,Text,FadeIn}from'rayner';import{stage}from'rayner/explain';export default class Same extends Scene{async construct(){const s=stage(this);await this.step('one',{title:'One'});await this.play(new FadeIn(new Text('hello',{color:s.look.ink})));await this.step('two',{title:'Two',caption:'Nothing new is drawn.'});await this.wait(.5);}}`,
     message: /Each step must change the picture[^]*two/,
   },
   {
@@ -131,7 +143,7 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
   {
     // Every key is an identity, whatever it looks like: what the stage's chrome is for is its role.
     gate: 'keys: two parts on the stage with one key',
-    source: scene(`await this.step('one');const a=new Text('a',{fontSize:.4});a.key='__shared';const b=new Text('b',{fontSize:.4}).shift([0,-1.5]);b.key='__shared';await s.enter(a,b,{describe:'two letters'});`),
+    source: scene(`await this.step('one');const a=new Text('a',{fontSize:.4});keyed(a,'__shared');const b=new Text('b',{fontSize:.4}).shift([0,-1.5]);keyed(b,'__shared');await s.enter(a,b,{describe:'two letters'});`),
     message: /Keys in the scene: at the end of a step, a key names one mobject/,
   },
   {
@@ -155,7 +167,7 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
   },
   {
     gate: 'imported legibility: a label readable only mid-sweep',
-    source: `import{Scene}from'rayner';import{stage}from'rayner/explain';export default class Camera extends Scene{async construct(){const s=stage(this);await this.step('one',{caption:'Read the label.'});const d=await s.show(${JSON.stringify(spec)});await d.focus(['B']);await this.wait(.5);await d.focus('all');await this.wait(.5);}}`,
+    source: `import{Scene}from'rayner';import{stage}from'rayner/explain';export default class Camera extends Scene{async construct(){const s=stage(this);await this.step('one',{caption:'Read the label.'});const d=await s.show(${JSON.stringify(spec)});await d.enlarge(['B']);await this.wait(.5);await d.enlarge('all');await this.wait(.5);}}`,
     snapshots: () => ({ [diagramKey(spec)]: smallLabel() }),
     message: /Imported labels need a readable completed-step view/,
   },
@@ -224,23 +236,58 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
   {
     gate: 'duplicate step names',
     source: `import{Scene}from'rayner';export default class Bad extends Scene{async construct(){await this.step('same');await this.wait(.5);await this.step('same');await this.wait(.5);}}`,
-    message: /Duplicate step names/,
+    message: /scene\.ts: two steps of the scenario \{\} share the name "same", ignoring case/,
+  },
+  {
+    // Push and push would write one share page on macOS and Windows.
+    gate: 'step names that differ only in case',
+    source: `import{Scene}from'rayner';export default class Bad extends Scene{async construct(){await this.step('Push');await this.wait(.5);await this.step('push');await this.wait(.5);}}`,
+    message: /scene\.ts: two steps of the scenario \{\} share the name "push", ignoring case; name each step once, so each has its own link and share page/,
+  },
+  {
+    gate: 'a meta.id that is not one path segment',
+    source: `import{Scene}from'rayner';export default class Bad extends Scene{static meta={id:'../escape'};async construct(){await this.step('one');await this.wait(.5);}}`,
+    message: /meta\.id: "\.\.\/escape" is not a page id; an id is one path segment of lowercase letters, digits and -/,
   },
   {
     // The caption keys a colour the stage never names: hidden, the caption takes the key with it.
     gate: 'a caption names a colour no word on the stage says',
-    source: scene(`await this.step('one',{caption:'The red dot is the answer.'});await s.enter(new Dot({color:s.bad}),{describe:'A dot'});`),
+    source: scene(`await this.step('one',{caption:'The red dot is the answer.'});await s.enter(new Dot({color:s.look.bad}),{describe:'A dot'});`),
     message: /Captions name a look the stage does not in the scene: one: the caption names “red”/,
+  },
+  {
+    // Built by a function, where the ExplainerMeta type does not reach: collection still refuses the key.
+    gate: 'an unknown meta key',
+    source: scene(`await this.step('one',{caption:'A label.'});${label('hello')}`, `const meta=()=>({title:'T',soruces:[]});`, 'static meta=meta();'),
+    message: /scene\.ts: static meta: "soruces" is not a key it takes; it takes id, title,/,
+  },
+  {
+    // The authored run never draws the diagram (the box grows to 2 wide); a reader's second press does,
+    // so the page, built without diagram code since no scenario made a diagram, could not draw it.
+    gate: "a diagram only a reader's event draws",
+    source: `import{Scene,Rectangle,keyed}from'rayner';import{stage,Machine,view,Diagram}from'rayner/explain';const snap=${JSON.stringify(smallLabel())};export default class Reader extends Scene{async construct(){const s=stage(this);this.state={n:0};const v=view(this,(st)=>st.n>1?new Diagram(this,snap.spec,snap).root:keyed(new Rectangle({width:1+st.n,height:1}), 'box'));const m=new Machine(this,{start:{n:0},events:['UP'],next:(st)=>({n:Math.min(2,st.n+1)}),views:[v]});await this.step('one',{caption:'Press up.'});await s.enter(v,{describe:'box'});await this.play(m.replay(['UP']));}}`,
+    message: /Diagrams .*: a reader's event draws a diagram no scenario draws, so the page, built without diagram code, cannot draw it; draw the diagram in a scenario too/,
+  },
+  {
+    gate: 'a step that draws no frame of its own',
+    source: `import{Scene}from'rayner';export default class Bad extends Scene{async construct(){await this.step('one');await this.wait(.5);await this.step('empty');await this.step('three');await this.wait(.5);}}`,
+    message: /scene\.ts: step "empty" of the scenario \{\} draws no frame of its own, so it shows the step before's picture/,
+  },
+  {
+    // finish() recolours the box after the last frame drew it: a link, describe and the shots would show another picture.
+    gate: 'a step that ends on a different picture from its last frame',
+    source: `import{Scene,Rectangle,Animation}from'rayner';import{stage}from'rayner/explain';class Recolour extends Animation{override doFinish(){super.doFinish();this.mobject.setFill('#ff0000',1);}}export default class Bad extends Scene{async construct(){const s=stage(this);await this.step('one');await this.play(new Recolour(new Rectangle({width:1,height:1})));await this.step('two');await this.wait(.5);}}`,
+    message: /These steps end on a different picture from their last frame in the scene/,
   },
   {
     gate: 'a scenario with no steps',
     source: `import{Scene,Dot,FadeIn}from'rayner';export default class Bad extends Scene{async construct(){await this.play(new FadeIn(new Dot()));}}`,
-    message: /Each scenario needs non-empty named steps/,
+    message: /scene\.ts: the scenario \{\} has no step, or a step with an empty name/,
   },
   {
     gate: 'one scene export',
     source: `import{Scene}from'rayner';export class A extends Scene{async construct(){await this.step('a');await this.wait(.5)}}export class B extends Scene{async construct(){await this.step('b');await this.wait(.5)}}`,
-    message: /Export one Scene subclass/,
+    message: /scene\.ts: it must export one Scene subclass, or a Scene as its default export/,
   },
 ];
 for (const { gate, source, message, snapshots } of gates)
@@ -250,7 +297,7 @@ for (const { gate, source, message, snapshots } of gates)
 
 test('the key check names every key held twice, with no exception for the stage, whose chrome has a role instead', async () => {
   const { KeySink } = await import('../tools/lib/explain-check.ts');
-  const { Scene, Text } = await import('../src/index.ts');
+  const { Scene, Text, keyed } = await import('../src/index.ts');
   const { stage } = await import('../explain/index.ts');
   const keys = new KeySink();
   class Twice extends Scene {
@@ -259,7 +306,7 @@ test('the key check names every key held twice, with no exception for the stage,
       // Numbered headings with lines crossfade at every step: their parts are 'chrome', never keyed.
       for (const step of ['one', 'two', 'three']) await this.step(step, { title: step, line: `the ${step} step` });
       const a = new Text('a'), b = new Text('b').shift([0, -1.5]);
-      a.key = b.key = '__shared';
+      keyed(a, '__shared'); keyed(b, '__shared');
       await s.enter(a, b, { describe: 'two letters' });
     }
   }
@@ -288,7 +335,7 @@ test('rayner check exits 1 and names the failing gate on stderr', async () => {
 // step moves its dot by a nudge each frame instead of by blending, as the lantern explainer's tiny scene does.
 const CASES_HEAD = `import{Scene,Text,Dot,Animation}from'rayner';import{stage,settingsOf}from'rayner/explain';`;
 const scenariosScene = (nudgeIn?: { motion: string; size: string }) =>
-  `${CASES_HEAD}class Nudge extends Animation{constructor(m){super(m,{runTime:1});this.live=false}begin(){super.begin();this.live=true}interpolate(){if(this.live)this.mobject.shift([0.1,0])}finish(){}}` +
+  `${CASES_HEAD}class Nudge extends Animation{constructor(m){super(m,{runTime:1});this.live=false}doBegin(){super.doBegin();this.live=true}doInterpolate(){if(this.live)this.mobject.shift([0.1,0])}doFinish(){}}` +
   `export default class Scenarios extends Scene{static settings=[` +
   `{id:'motion',label:'Motion',default:'blend',options:[{value:'blend',label:'Blend'},{value:'nudge',label:'Nudge'}]},` +
   `{id:'size',label:'Size',default:'small',options:[{value:'small',label:'Small'},{value:'mid',label:'Mid'},{value:'large',label:'Large'}]}];` +
@@ -299,11 +346,11 @@ const scenariosScene = (nudgeIn?: { motion: string; size: string }) =>
   `const nudge=${nudgeIn ? `v.motion===${JSON.stringify(nudgeIn.motion)}&&v.size===${JSON.stringify(nudgeIn.size)}` : 'false'};` +
   `await this.play(nudge?new Nudge(d):d.animate.moveTo([0,-2]),{runTime:1});}}`;
 
-test('rayner check seeks two frames in each step of every scenario: a nudge each frame in one scenario’s last step fails it with a seek mismatch naming that scenario', async () => {
+test('rayner check seeks three frames in each step of every scenario: a nudge each frame in one scenario’s last step fails it with a seek mismatch naming that scenario', async () => {
   const clean = await checked(await write(scenariosScene()));
   const scenarios = clean.scenarios as { settings: Record<string, string>; steps: number; seekFrames: number }[];
   assert.equal(scenarios.length, 6);
-  for (const v of scenarios) assert.equal(v.seekFrames, 2 * v.steps, JSON.stringify(v.settings));
+  for (const v of scenarios) assert.equal(v.seekFrames, 3 * v.steps, JSON.stringify(v.settings));
   // The last scenario built, and the last step in it: a check that stopped short of either would pass.
   await assert.rejects(checked(await write(scenariosScene({ motion: 'nudge', size: 'large' }))), /Seek mismatch at frame \d+ in Motion: Nudge · Size: Large$/m);
   await assert.rejects(checked(await write(scenariosScene({ motion: 'blend', size: 'mid' }))), /Seek mismatch at frame \d+ in Motion: Blend · Size: Mid$/m);
@@ -318,6 +365,6 @@ test('the build makes every combination of options a scenario, rayner check test
   const report = await checkProject(project, join(dir, 'checks'));
   assert.deepEqual((report.scenarios as { settings: Record<string, string> }[]).map((v) => v.settings), combos);
   // A value no option lists is refused, so no request reaches a scenario the build did not make.
-  assert.throws(() => resolveSettings(project.Scene, { motion: 'spring' }), /Unknown .* option/);
-  assert.throws(() => resolveSettings(project.Scene, { size: '0.1' }), /Unknown .* option/);
+  assert.throws(() => resolveSettings(project.Scene, { motion: 'spring' }), /resolveSettings\(\): "spring" is not an option of the setting "motion"/);
+  assert.throws(() => resolveSettings(project.Scene, { size: '0.1' }), /resolveSettings\(\): "0\.1" is not an option of the setting "size"/);
 });

@@ -1,9 +1,0 @@
-# Construction and scope
-
-The scene uses the report and article linked in its metadata, including the recorded task locations and findings. The opening menu paths are schematic, not reproduced screenshots. The selected participant determines which unfinished task is introduced, while the give-up table and the outcome grid keep all six participants visible.
-
-The reading path is four steps: who was studied and the report's colour key, one participant's first give-up, the same task across all six, then every give-up by task and person. The key comes first so that the colours of every later picture are already known. The full heat map and one journey chart are supporting steps. The journey shows the participant's first four tasks, which hold every participant's first give-up; it once ran over three steps covering all eleven tasks, which repeated the heat map's column, so the other seven tasks are left to the heat map. The flat-curve description that P3's middle tasks used to exercise is pinned by `test/fixtures/journey-flat`. The give-up table shows only the five tasks with a give-up, so that it reads whole on a 320 px phone; the full heat map carries the other six rows.
-
-Green through black are the report's categories. Assigning them scores from 5 to 1 is this page's visualization choice; the spacing is not a measured interval of difficulty or time. Gray is excluded from the plotted journey rather than averaged in as a success or failure. Ranking by give-ups counts the black cells. The article's own ranking (icon size and Bookmarks hardest) states no method; the heat-map step compares it with a count of cells graded moderate or worse, which `test/explain-gnome-files.test.ts` holds.
-
-The evidence concerns the two cited Files 47 development builds and six first-time GNOME users. It supports an account of those sessions, not a population estimate or a causal experiment isolating menus from other design factors.

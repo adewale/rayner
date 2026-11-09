@@ -11,14 +11,14 @@ units. That has three consequences:
 
 - **It moves like any mobject.** `shift`, `scale`, `moveTo`, `.animate` and `Transform` all
   work on it, and an animated camera interpolates as points: pure in alpha over endpoints
-  fixed at `begin()`, so seeking through a camera move is byte-identical to a full run.
+  fixed as the play begins, so seeking through a camera move is byte-identical to a full run.
 - **It is never drawn.** It is not a VMobject, so it produces no element.
 - **It is not a transform of the points.** Moving the camera changes no other mobject's
   points; `box()`, `center()`, layout calls and traces read the same world coordinates
   whether the camera is home or zoomed in.
 
 It lives on the scene, not in `scene.mobjects`, so walks over the drawn list (renderers,
-verifiers, `clear()`, a scene's own bookkeeping) never meet it, although `play()` animates
+verifiers, a scene's own bookkeeping) never meet it, although `play()` animates
 it like anything else.
 
 ## Moving it
@@ -29,11 +29,11 @@ await this.play(this.frame.animate.scale(0.5).moveTo(dot));      // twice as clo
 await this.play(this.frame.animate.reset());                     // back to the whole frame
 ```
 
-| | |
+| `Frame` | |
 |---|---|
 | `fit(target, { margin })` | the smallest 16:9 box holding `target` (a mobject or a `Box`) plus `margin` on every side (default 0.5), centered on it |
 | `reset()` | the default box: 16 × 9 at the origin |
-| `zoom` | magnification: 1 for the 16-wide frame, 2 when it is 8 wide |
+| `zoom` | magnification as the stage shows the box: 1 for the whole 16 × 9 frame, 2 when it is 8 × 4.5; a box out of 16:9 is letterboxed, so its tighter side sets it (the zoom `rayner check` measures labels with) |
 | `width()`, `height()`, `center()`, `box()` | as on any mobject |
 
 `fit`, `reset`, `scale` and `moveTo` keep the 16:9 aspect; `stretch` would not, and a
@@ -51,7 +51,7 @@ this.frame.scale(0.5).addUpdater((f) => f.moveTo(token));
 
 ## What sinks do with it
 
-- **SVG string** (`toSvgString`, `StringSink`, `SnapshotSink`): the frame box becomes the
+- **SVG string** (`toSvgString`, `StringSink`): the frame box becomes the
   `viewBox` (integer user units, y flipped in the same helper that writes clip rects). The
   `width`/`height` attributes are unchanged, and the background rect covers whatever the
   viewBox shows. Path data and `transform` attributes do not change when only the camera
@@ -81,7 +81,7 @@ the frame. DOM sinks leave it off and keep one element per mobject. Tests:
 
 ## How the verifier sees it
 
-`MotionSink` samples every leaf in screen space, after the camera, in units of the default
+`rayner check`'s motion check samples every leaf in screen space, after the camera, in units of the default
 16-wide frame, so the thresholds keep their meaning: they describe what a reader sees. A
 smooth camera move is smooth motion of everything on screen and reports nothing. A camera
 cut moves every leaf at once and reports a teleport for each. When the camera is home,
@@ -102,13 +102,14 @@ so a camera that glides past a small label does not make it read
 
 - [seasons](https://github.com/adewale/rayner/blob/main/scenes/explainers/seasons/scene.ts), "noon": the stage's `s.focus(box, { exact: true })`
   onto a box the scene computes, a 2× zoom onto the noon angle with labels sized for the zoomed
-  view, and `s.focus('all')` at the start of the next step. The stage keeps the heading and its
+  view, played in one play with the fades of what the close-up leaves out
+  (`this.play(s.focus(box, { exact: true, runTime: 1.2 }), new FadeOut(sun, { runTime: 1.2 }))`),
+  and `s.focus('all')` at the start of the next step. The stage keeps the heading and its
   line on screen over a paper band while the camera is away, so the box keeps the band's strip
   free of content.
 - [lantern](https://github.com/adewale/rayner/blob/main/scenes/explainers/lantern/scene.ts), "begin": `s.focus(box, { exact: true })` onto
   the classes the step is about and the listing below them, with the heading kept on screen.
 
-The diagram helper `d.focus(ids, { camera: true })` moves the same camera; without `camera` a focus
-enlarges the artwork inside the diagram's box ([reference](REFERENCE.md#diagrams)). With
-`d.focus(…, { camera: true })` or a raw `this.frame` move, the heading falls outside the view while
-zoomed; `s.focus` (the [stage](REFERENCE.md#stage)) keeps it on screen.
+The diagram helper `d.enlarge(ids)` does not move the camera: it enlarges the artwork inside the
+diagram's box ([reference](REFERENCE.md#diagrams)). With a raw `this.frame` move, the heading falls
+outside the view while zoomed; `s.focus` (the [stage](REFERENCE.md#stage)) keeps it on screen.

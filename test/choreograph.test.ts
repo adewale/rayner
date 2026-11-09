@@ -2,14 +2,15 @@
 // Whatever the author names or leaves out, the current picture ends showing the target's parts.
 
 import { test } from 'node:test';
+import { choreograph } from '../explain/choreograph.ts';
 import assert from 'node:assert/strict';
-import { Scene, Group, Circle, Square, Dot, Line, Succession, Transform, choreograph } from '../src/index.ts';
+import { Scene, Group, Circle, Dot, Line, Rectangle, Succession, Transform, keyed } from '../src/index.ts';
 import { NullSink, toSvgString } from '../src/output.ts';
 import type { AnimationGroup } from '../src/index.ts';
 import type { Mobject, Animation } from '../src/index.ts';
 
 /** A picture of keyed parts. */
-const picture = (...parts: [string, Mobject][]) => new Group(...parts.map(([key, m]) => Object.assign(m, { key })));
+const picture = (...parts: [string, Mobject][]) => new Group(...parts.map(([key, m]) => keyed(m, key)));
 /** What a picture shows, as unordered rendered marks. */
 const marks = (m: Mobject) => {
   const s = new Scene(new NullSink());
@@ -29,7 +30,7 @@ async function play(current: Group, make: (c: Group) => Animation | AnimationGro
   return current;
 }
 
-const before = () => picture(['a', new Circle({ radius: 0.5 }).moveTo([-2, 0])], ['b', new Square({ side: 1 }).moveTo([0, 0])]);
+const before = () => picture(['a', new Circle({ radius: 0.5 }).moveTo([-2, 0])], ['b', new Rectangle({ width: 1, height: 1 }).moveTo([0, 0])]);
 const after = () => picture(['a', new Circle({ radius: 0.5 }).moveTo([-1, 1])], ['c', new Dot().moveTo([2, 0])]);
 
 test('morph, enter and leave in the author\'s order end on the target picture', async () => {
@@ -86,8 +87,8 @@ test('a passing part the target does not have comes in, moves and goes out, and 
 });
 
 test('a picture with two parts under one key is refused', () => {
-  const twice = new Group(Object.assign(new Circle(), { key: 'x' }), Object.assign(new Square(), { key: 'x' }));
-  assert.throws(() => choreograph(twice, after()), /two parts are keyed x/);
+  const twice = new Group(keyed(new Circle(), 'x'), keyed(new Rectangle({ width: 2, height: 2 }), 'x'));
+  assert.throws(() => choreograph(twice, after()), /t\.choreograph\(\): two parts of one picture are keyed "x"/);
 });
 
 test('travel: a token appears at the path start, moves along it, and leaves; the picture still lands', async () => {
@@ -100,9 +101,13 @@ test('travel: a token appears at the path start, moves along it, and leaves; the
     const part = cur.children.find((m) => m.key === 'token')!;
     // Unseen until its turn, then carried from one end of the path to the other.
     assert.ok(part.family().every((m) => m.style.opacity === 0));
-    const watch = (anim: Animation, into: 'appeared' | 'moved') => Object.assign(anim, {
-      finish: ((orig) => function (this: Animation) { orig.call(this); seen[into] = [...part.center()]; })(anim.finish),
-    });
+    // Its landing hook, wrapped on the instance: finish() still keeps the phase around it.
+    const watch = (anim: Animation, into: 'appeared' | 'moved'): Animation => {
+      const hooks = anim as unknown as { doFinish(alpha?: number): void };
+      const orig = hooks.doFinish;
+      hooks.doFinish = function (this: Animation, alpha?: number) { orig.call(this, alpha); seen[into] = [...part.center()]; };
+      return anim;
+    };
     return new Succession([watch(t.appear, 'appeared'), watch(t.move, 'moved'), t.leave, c.rest({ runTime: 0.2 })]);
   });
   assert.deepEqual(seen.appeared!.map((v) => Math.round(v * 1e6) / 1e6), [-3, -1]);

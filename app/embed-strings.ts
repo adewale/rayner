@@ -3,15 +3,10 @@
 // descriptions have their own vocabulary (explain/words.ts); a page in a language it lacks
 // shows them in English and marks them lang="en".
 import type { ExplainerClass, Settings } from '../explain/index.ts';
-import { describedIn, primaryLanguage, wordsFor } from '../explain/words.ts';
-import type { WatchedChange } from '../explain/trace.ts';
+import type { SettingsProblem, WatchedChange } from '../explain/internal.ts';
+import { scenarioName, describedIn, primaryLanguage, wordsFor } from '../explain/internal.ts';
+export type { SettingsProblem } from '../explain/internal.ts';
 
-/** What is wrong with a URL's settings, so each language can say it in its own words. */
-export type SettingsProblem =
-  | { kind: 'option'; id: string; label: string; value: string }
-  | { kind: 'setting'; id: string }
-  /** Anything else the validator refuses, with its (English) message. */
-  | { kind: 'other'; message: string };
 
 export interface Chrome {
   details: string;
@@ -66,12 +61,16 @@ export interface Chrome {
   noStep: (step: string) => string;
   /** A notice when the URL's settings are invalid. */
   fallback: (problem: SettingsProblem) => string;
+  /** A notice when the scenario the reader chose could not be shown, so the player keeps the one it had. */
+  scenarioFailed: string;
   /** The stage's accessible name: the explainer's title, the step's, and the line under it. */
   stageLabel: (title: string, step: string, line: string) => string;
   /** "Label: option", the way a scenario is named in headings. */
   setting: (label: string, option: string) => string;
   transcript: string;
   sources: string;
+  /** What the explainer's model is checked against, from its script, first under Sources. */
+  checkedAgainst: (what: string) => string;
   /** Shown when the player cannot start, above the transcript. */
   failed: string;
   /** The quiet label before a step's changes to the state its author watches (`meta.watch`). */
@@ -93,11 +92,11 @@ export interface Chrome {
   hintTouch: string;
   /** A rail entry for a step the reader has not reached: its title stays hidden until then. */
   notYet: (i: number) => string;
-  /** The heading over the scene's check questions after the last step, and in the transcript. */
+  /** The heading over the scene's reader questions after the last step, and in the transcript. */
   checkYourself: string;
-  /** Under the check questions' heading: answer before opening. */
-  checkHint: string;
-  /** The disclosure that holds a check question's answer. */
+  /** Under the reader questions' heading: answer before opening. */
+  questionsHint: string;
+  /** The disclosure that holds a reader question's answer. */
   showAnswer: string;
   /** Accessible name of a live step's event buttons (docs/MACHINES.md, "The player"). */
   liveControls: string;
@@ -113,7 +112,7 @@ export interface Chrome {
   notPossible: string;
   /** An event past where the explainer's story stops, with the story's reason. */
   storyStops: (reason: string) => string;
-  /** Announced after an event: the event, then the picture it lands on. */
+  /** Announced after an event: the event, then the picture it finishes on. */
   sentSaid: (event: string, picture: string) => string;
   /** Announced when a refused event's button is pressed: the event and why. */
   refusedSaid: (event: string, reason: string) => string;
@@ -161,11 +160,13 @@ const EN: Chrome = {
   copied: 'Link copied.',
   noStep: (step) => `This scenario has no “${step}” step, so it opens at the first step.`,
   fallback: (p) =>
-    `${p.kind === 'option' ? `Unknown ${p.id} option: ${p.value}` : p.kind === 'setting' ? `Unknown setting: ${p.id}` : p.message}. Showing the default scenario.`,
+    `${p.kind === 'option' ? `The setting “${p.label}” has no option “${p.value}”` : p.kind === 'setting' ? `This explanation has no setting “${p.id}”` : p.message}. Showing the default scenario.`,
+  scenarioFailed: 'That scenario could not be shown, so the player keeps the one it had.',
   stageLabel: (title, step, line) => `${title}: ${step}${line ? ` — ${line}` : ''}`,
   setting: (label, option) => `${label}: ${option}`,
   transcript: 'Transcript',
   sources: 'Sources',
+  checkedAgainst: (what) => `The model is checked against: ${what}`,
   failed: 'The interactive player could not start. The transcript is available below.',
   changed: 'What changed',
   yes: wordsFor('en').yes,
@@ -179,11 +180,11 @@ const EN: Chrome = {
   hintTouch: 'Tap a segment to jump; tap the current one to finish it',
   notYet: (i) => `Step ${i}`,
   checkYourself: 'Check yourself',
-  checkHint: 'Answer each one before you open it.',
+  questionsHint: 'Answer each one before you open it.',
   showAnswer: 'Show the answer',
-  liveControls: 'Send events',
-  liveFromRest: 'Try it: send an event',
-  liveFromStart: 'Try it: send the events again, in your own order',
+  liveControls: 'Try it yourself',
+  liveFromRest: 'Try it yourself: carry on from this picture',
+  liveFromStart: 'Try it yourself, from the beginning',
   undo: 'Undo',
   reset: 'Reset',
   resetLabel: 'Reset: the step’s own picture',
@@ -194,7 +195,7 @@ const EN: Chrome = {
   resetSaid: 'Back to the step’s own picture.',
   sentFallback: (event, reason) => `This link’s event “${event}” cannot be sent there (${reason}), so the picture stops before it.`,
   notLive: 'This step has no events to send, so the link’s events are left out.',
-  liveEvents: (events, fromStart) => `Try it: ${fromStart ? 'from the start, send ' : 'send '}${events}.`,
+  liveEvents: (events, fromStart) => `Try it yourself: ${fromStart ? 'from the beginning, press ' : 'press '}${events}.`,
 };
 /** French typography: a narrow no-break space (U+202F) before : ; ! ? and inside « ». */
 const FR: Chrome = {
@@ -238,10 +239,12 @@ const FR: Chrome = {
           ? `Cette explication n’a pas de réglage « ${p.id} »`
           : 'Les réglages de l’adresse ne sont pas valides'
     }. Le scénario par défaut est affiché.`,
+  scenarioFailed: 'Ce scénario n’a pas pu être affiché\u202f: le lecteur garde le précédent.',
   stageLabel: (title, step, line) => `${title} : ${step}${line ? ` — ${line}` : ''}`,
   setting: (label, option) => `${label} : ${option}`,
   transcript: 'Transcription',
   sources: 'Sources',
+  checkedAgainst: (what) => `Le modèle est vérifié par\u202f: ${what}`,
   failed: 'Le lecteur interactif n’a pas pu démarrer. La transcription se trouve plus bas.',
   changed: 'Ce qui a changé',
   yes: wordsFor('fr').yes,
@@ -255,11 +258,11 @@ const FR: Chrome = {
   hintTouch: 'Touchez un segment pour y aller\u202f; touchez celui en cours pour le terminer',
   notYet: (i) => `Étape ${i}`,
   checkYourself: 'Vérifiez vos connaissances',
-  checkHint: 'Répondez à chaque question avant d’ouvrir la réponse.',
+  questionsHint: 'Répondez à chaque question avant d’ouvrir la réponse.',
   showAnswer: 'Voir la réponse',
-  liveControls: 'Envoyer des événements',
-  liveFromRest: 'À vous\u202f: envoyez un événement',
-  liveFromStart: 'À vous\u202f: renvoyez les événements, dans l’ordre de votre choix',
+  liveControls: 'À vous de jouer',
+  liveFromRest: 'À vous de jouer\u202f: continuez à partir de cette image',
+  liveFromStart: 'À vous de jouer, depuis le début',
   undo: 'Annuler',
   reset: 'Réinitialiser',
   resetLabel: 'Réinitialiser\u202f: l’image de l’étape',
@@ -270,7 +273,7 @@ const FR: Chrome = {
   resetSaid: 'Retour à l’image de l’étape.',
   sentFallback: (event, reason) => `L’événement «\u202f${event}\u202f» de ce lien ne peut pas être envoyé là (${reason})\u202f: l’image s’arrête avant lui.`,
   notLive: 'Cette étape n’a pas d’événements à envoyer\u202f: ceux du lien sont ignorés.',
-  liveEvents: (events, fromStart) => `À vous\u202f: ${fromStart ? 'depuis le début, envoyez ' : 'envoyez '}${events}.`,
+  liveEvents: (events, fromStart) => `À vous de jouer\u202f: ${fromStart ? 'depuis le début, appuyez sur ' : 'appuyez sur '}${events}.`,
 };
 export const CHROME: Readonly<Record<string, Chrome>> = { en: EN, fr: FR };
 
@@ -290,29 +293,9 @@ export const descriptionLang = (lang = 'en') => {
   const tag = descriptionsLang(lang);
   return tag ? ` lang="${tag}"` : '';
 };
-/**
- * Why `resolveSettings` refused a URL's `values`, found the way it checks them: a declared
- * setting's unknown option first, then an undeclared setting.
- */
-export function settingsProblem(Scene: ExplainerClass, values: Settings, error: unknown): SettingsProblem {
-  for (const s of Scene.settings ?? []) {
-    const value = Object.hasOwn(values, s.id) ? values[s.id]! : undefined;
-    if (value !== undefined && !s.options.some((o) => o.value === value))
-      return { kind: 'option', id: s.id, label: s.label, value };
-  }
-  const declared = new Set((Scene.settings ?? []).map((s) => s.id));
-  const unknown = Object.keys(values).find((id) => !declared.has(id));
-  return unknown !== undefined
-    ? { kind: 'setting', id: unknown }
-    : { kind: 'other', message: String((error as Error)?.message ?? error) };
-}
 /** A scenario's name, "Label: option · Label: option", with the language's punctuation. */
-export function scenarioNameIn(lang: string, Scene: ExplainerClass, values: Settings): string {
-  const t = chromeFor(lang);
-  return (Scene.settings ?? [])
-    .map((s) => t.setting(s.label, s.options.find((o) => o.value === values[s.id])?.label ?? values[s.id]!))
-    .join(' · ');
-}
+export const scenarioNameIn = (lang: string, Scene: ExplainerClass, values: Settings): string =>
+  scenarioName(Scene, values, chromeFor(lang).setting);
 /** One watched change as a reader reads it: "Tokens: 5 → 0", "Tokens: 5" (it appeared), "Tokens: removed". */
 export const changeText = (t: Chrome, c: WatchedChange): string =>
   t.setting(c.label, c.after === undefined ? t.removed : c.before === undefined ? c.after : `${c.before} → ${c.after}`);

@@ -17,19 +17,36 @@ test('catalog and evidence readers validate known fields before returning typed 
     (v: typeof c) => {v.scenes[0]!.showcase = 'yes' as never;},
     (v: typeof c) => {(v.scenes[0] as Record<string, unknown>).tier = 'featured';},
     (v: typeof c) => {v.totals.scenarios = NaN;},
-  ]) {const bad = structuredClone(c); defect(bad); assert.throws(() => catalog(bad), /Invalid catalog/);}
+    // An id the page-id rule refuses: capitals and _, or a Windows device name.
+    (v: typeof c) => {v.scenes[0]!.id = 'My_Scene';},
+    (v: typeof c) => {v.scenes[0]!.id = 'nul';},
+  ]) {const bad = structuredClone(c); defect(bad); assert.throws(() => catalog(bad), /^Error: catalog\(\): /);}
+  // Two pages with one id: the reason is named.
+  const twice = structuredClone(c); twice.scenes.push(twice.scenes[0]!);
+  assert.throws(() => catalog(twice), /^Error: catalog\(\): the page id "example" is listed twice/);
   for (const defect of [
     (v: typeof e) => {v.checked = 'yes' as never;},
     (v: typeof e) => {v.scenes[0]!.scenarios[0]!.case = 2 as never;},
     (v: typeof e) => {v.scenes[0]!.narrowOpenings[0]!.steps[0]!.targets = [] as string[];},
     (v: typeof e) => {v.scenes[0]!.narrowOpenings[0]!.steps[0]!.reviewed = 'yes' as never;},
-  ]) {const bad = structuredClone(e); defect(bad); assert.throws(() => catalogEvidence(bad), /Invalid/);}
+    (v: typeof e) => {v.scenes[0]!.id = 'My_Scene';},
+    (v: typeof e) => {v.scenes[0]!.id = 'COM1';},
+  ]) {const bad = structuredClone(e); defect(bad); assert.throws(() => catalogEvidence(bad), /^Error: catalogEvidence\(\): /);}
 });
 test('scene input records require their declared format and actual digest strings', () => {
-  const value = {version: '2', sourceHash: 'a'.repeat(64), engineHash: 'b'.repeat(64), importer: 'c'.repeat(16), files: 'd'.repeat(64), buildHash: 'e'.repeat(64)};
+  const value = {version: '3', sourceHash: 'a'.repeat(64), files: 'd'.repeat(64), buildHash: 'e'.repeat(64)};
   assert.deepEqual(sceneInputs(value), value);
   for (const key of Object.keys(value)) {
-    const bad = {...value, [key]: key === 'version' ? '1' : 'not-a-digest'};
-    assert.throws(() => sceneInputs(bad), /Invalid scene inputs/);
+    const bad = {...value, [key]: key === 'version' ? '2' : 'not-a-digest'};
+    assert.throws(() => sceneInputs(bad), /^Error: sceneInputs\(\): the scene inputs artifact does not match its version 3 format/);
+  }
+});
+test('every place that holds a page id holds it to one rule: what loadProject takes, the catalog and the evidence take', async () => {
+  const {isIdentifier} = await import('../explain/settings.ts');
+  for (const id of ['example', 'lru-mru', '2password', 'My_Scene', 'Push', 'a_1', 'con', 'lpt1', '-x']) {
+    const withId = <T extends {scenes: {id: string}[]}>(v: T) => {const copy = structuredClone(v); copy.scenes[0]!.id = id; return copy;};
+    const takes = (read: () => unknown) => {try {read(); return true;} catch {return false;}};
+    assert.equal(takes(() => catalog({...withId(c), product: {entry: {id, step: 'one', settings: {case: 'a'}}}})), isIdentifier('id', id), `catalog: ${id}`);
+    assert.equal(takes(() => catalogEvidence(withId(e))), isIdentifier('id', id), `evidence: ${id}`);
   }
 });

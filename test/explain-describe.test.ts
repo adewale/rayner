@@ -1,16 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { traceScene } from '../explain/testing.ts';
-import { describeExplainer, withSettings, scenariosOf, bindSnapshots } from '../explain/testing.ts';
+import { describeExplainer, withSettings, loadProject, loadSnapshots } from '../explain/testing.ts';
+import { scenariosOf, bindSnapshots } from '../explain/internal.ts';
 import type { ExplainerClass } from '../explain/index.ts';
-import { readSnapshots } from '../tools/lib/explain-project.ts';
 import RingBuffer from '../scenes/explainers/ring-buffer/scene.ts';
 import OauthPkce from '../scenes/explainers/oauth-pkce/scene.ts';
 import { PALETTES } from '../explain/palettes.ts';
 import { idsOf, stepIdsOf } from './lib/steps.ts';
+import { RestingSink } from '../tools/lib/explain-check.ts';
 
 test('describeExplainer gives every scenario and step: the words, the state the trace recorded and what each step changed', async () => {
-  const d = await describeExplainer(RingBuffer as ExplainerClass);
+  // As the tools describe it: collected, so its id is its folder's name.
+  const d = await describeExplainer((await loadProject(RingBuffer, 'scenes/explainers/ring-buffer')).Scene);
   assert.equal(d.schema, 1);
   assert.equal(d.id, 'ring-buffer');
   assert.deepEqual(d.scenarios.map((c) => c.values), scenariosOf(RingBuffer as ExplainerClass));
@@ -27,7 +29,7 @@ test('describeExplainer gives every scenario and step: the words, the state the 
       assert.equal(s.title, t.meta.title);
       assert.equal(s.line, t.meta.line ?? '', `${s.step}: the line under the title`);
       assert.equal(s.caption, t.meta.caption);
-      const state = t.after ?? {}, picture = t.shown?.picture;
+      const state = t.after, picture = t.shown?.picture;
       assert.deepEqual(s.state, state, `${s.step}: state is the trace's model; the picture is traced as shown`);
       assert.ok(picture === undefined || s.picture.length > 0, `${s.step}: the picture in words`);
       const before = t.before;
@@ -54,8 +56,22 @@ test('describeExplainer gives every scenario and step: the words, the state the 
   assert.deepEqual(JSON.parse(JSON.stringify(d)), d);
 });
 
+test('a step\'s resting picture has one text drawing: rayner check\'s restingFrames is describe\'s drawing, the heading left out of both', async () => {
+  const Bound = withSettings((await loadProject(RingBuffer, 'scenes/explainers/ring-buffer')).Scene, scenariosOf(RingBuffer as ExplainerClass)[0]!);
+  const d = await describeExplainer(Bound);
+  // As check reads it: a RestingSink on a full run.
+  const resting = new RestingSink();
+  await new Bound(resting).run();
+  const steps = d.scenarios[0]!.steps;
+  assert.ok(steps.length > 1);
+  for (const s of steps) {
+    assert.equal(resting.restingText.get(s.step), s.drawing, `${s.step}: check draws the step as describe does`);
+    assert.ok(!resting.restingText.get(s.step)!.includes(s.title), `${s.step}: the title is not in check's drawing`);
+  }
+});
+
 test('a scene with diagrams describes from its pinned snapshots, scenario by scenario, and fails without them', async () => {
-  const snapshots = await readSnapshots('scenes/explainers/oauth-pkce/scene');
+  const snapshots = await loadSnapshots('scenes/explainers/oauth-pkce');
   const d = await describeExplainer(OauthPkce as ExplainerClass, { snapshots, drawings: false });
   assert.deepEqual(d.settings.map((s) => s.id), ['attacker']);
   assert.equal(d.scenarios.length, 2);
@@ -68,7 +84,7 @@ test('a scene with diagrams describes from its pinned snapshots, scenario by sce
   // Same answer as binding the snapshots by hand.
   const trace = await traceScene(withSettings(bindSnapshots(OauthPkce as ExplainerClass, snapshots), d.scenarios[0]!.values));
   assert.deepEqual(d.scenarios[0]!.steps.map((s) => s.step), trace.steps.map((s) => s.step));
-  await assert.rejects(describeExplainer(OauthPkce as ExplainerClass, { drawings: false }), /^Error: No diagram snapshots are bound to this scene:/);
+  await assert.rejects(describeExplainer(OauthPkce as ExplainerClass, { drawings: false }), /^Error: s\.show\(\): no diagram snapshots are bound to this scene;/);
 });
 
 test("drawings: a step's name draws that step only, as drawing every step draws it", async () => {

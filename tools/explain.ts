@@ -1,18 +1,19 @@
 #!/usr/bin/env node
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { realpathSync, existsSync, readFileSync } from 'node:fs';
+import { realpathSync, existsSync, watch } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { serve } from './lib/explain-serve.ts';
-import { collectProject, defaultScenario, sceneSlug, ROOT } from './lib/explain-project.ts';
+import { collectProject, defaultScenario, sceneSlug } from './lib/explain-project.ts';
+import { cliManifest } from './lib/roots.ts';
 import { buildExplainer, buildLoader } from './lib/explain-build.ts';
 import { MACHINE_STARTER, MACHINE_STARTER_FILES, STARTER, STARTER_FILES, packageImports } from './lib/explain-init.ts';
 
 // Authoring packages, grouped for installation error messages.
 const CAPTURE = ['agentic-mermaid', 'playwright-core', 'svgpath'],
   RASTER = ['@resvg/resvg-js'];
-const pkg: { version: string; dependencies: Record<string, string> } = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+const pkg = cliManifest;
 const peers = pkg.dependencies;
 const install = (names: string[]) => 'npm i ' + names.map((n) => `${n}@${peers[n]}`).join(' ');
 const HELP = `Rayner ${pkg.version} (Node 24+)
@@ -80,11 +81,11 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     },
   });
   const [command, input, ...extra] = positionals;
-  if (!input) throw new Error('Supply a scene file or directory. Use --help for usage.');
+  if (!input) throw new TypeError('supply a scene file or directory; rayner --help lists the commands');
   // `see` takes the step to show as a second argument.
   const step = command === 'see' ? extra.shift() : undefined;
-  if (extra.length) throw new Error(`Unexpected argument: ${extra[0]}`);
-  if (flags.machine && command !== 'init') throw new Error('--machine is for init');
+  if (extra.length) throw new TypeError(`${JSON.stringify(extra[0])} is one argument too many; rayner --help lists what each command takes`);
+  if (flags.machine && command !== 'init') throw new TypeError('--machine is an option of rayner init alone');
   if (command === 'init') {
     const dir = resolve(input);
     await mkdir(dirname(dir), { recursive: true });
@@ -93,12 +94,12 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     for (const file of files)
       await writeFile(join(dir, file), packageImports(await readFile(join(from, file), 'utf8')));
     console.log(flags.machine
-      ? `Created ${join(dir, 'scene.ts')}, a machine explainer: its model in model.ts (next refuses with a reason), the model's test in model.test.ts, and the review's subjects in scene.review.json`
-      : `Created ${join(dir, 'script.md')}, the script to write first, and ${join(dir, 'scene.ts')}, with its model in model.ts and the model's test in model.test.ts`);
+      ? `Created ${join(dir, 'script.md')}, the intent to write first, and ${join(dir, 'scene.ts')}, a machine explainer: its picture in picture.ts, its model in model.ts (next refuses with a reason), the model's test in model.test.ts, and the review's subjects in scene.review.json`
+      : `Created ${join(dir, 'script.md')}, the intent to write first, and ${join(dir, 'scene.ts')}, with its model in model.ts and the model's test in model.test.ts`);
     return;
   }
   if (!['preview', 'snapshots', 'check', 'review', 'build', 'shots', 'describe', 'see'].includes(command!))
-    throw new Error(`Unknown command: ${command}`);
+    throw new RangeError(`${JSON.stringify(command)} is not a command; rayner --help lists the commands`);
   const collection = { refresh: flags.refresh, captureLettering: command === 'snapshots' || command === 'preview' };
   const project = await collectProject(input, collection);
   const slug = sceneSlug(project);
@@ -125,7 +126,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     return;
   }
   if (command === 'describe') {
-    const { describeExplainer } = await import('../explain/describe.ts');
+    const { describeExplainer } = await import('../explain/testing.ts');
     const json = JSON.stringify(await describeExplainer(project.Scene, { snapshots: project.store }), null, 2) + '\n';
     if (flags.out) await writeFile(flags.out, json);
     else process.stdout.write(json);
@@ -143,7 +144,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     const values: Record<string, string> = {};
     for (const assignment of flags.scenario ?? []) {
       const at = assignment.indexOf('=');
-      if (at < 1) throw new Error('--scenario requires id=value');
+      if (at < 1) throw new TypeError('--scenario takes id=value, such as --scenario request=miss');
       values[assignment.slice(0, at)] = assignment.slice(at + 1);
     }
     return defaultScenario(project, values);
@@ -172,36 +173,53 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     console.log(
       `Preview ${url}/ (Ctrl-C to stop; ${flags.watch ? 'rebuilds on save' : 'rerun after edits, or pass --watch'})`,
     );
-    if (flags.watch) {
-      // Rebuild when anything beside the scene changes; keep serving the last good build on error.
-      const { watch } = await import('node:fs');
-      let timer: ReturnType<typeof setTimeout> | undefined,
-        running = Promise.resolve();
-      watch(dirname(project.file), { recursive: true }, (_, name) => {
-        // Source edits only: the rebuild's own outputs (page, sheet, snapshots) must not retrigger it.
-        if (!name || !/\.(ts|mts|js|mjs)$/.test(name) || /\.snapshots(\/|\.json$)/.test(name)) return;
-        if (resolve(dirname(project.file), name) === resolve(out)) return;
-        clearTimeout(timer);
-        timer = setTimeout(() => {
-          running = running.then(async () => {
-            try {
-              const next = await collectProject(input!, collection);
-              await buildExplainer(next, out);
-              console.log(`Rebuilt ${slug}: ${next.scenarios.length} scenarios`);
-            } catch (error) {
-              console.error(`rayner: ${(error as Error).message} (still serving the last good build)`);
-            }
-          });
-        }, 200);
+    if (flags.watch)
+      watchAndRebuild(dirname(project.file), out, async () => {
+        const next = await collectProject(input, collection);
+        await buildExplainer(next, out);
+        return `Rebuilt ${slug}: ${next.scenarios.length} scenarios`;
       });
-    }
   }
 }
-if (
-  process.argv[1] &&
-  existsSync(process.argv[1]) &&
-  import.meta.url === pathToFileURL(realpathSync(resolve(process.argv[1]))).href
-)
+/**
+ * `preview --watch`: rebuild the page when a source file beside the scene or its script.md changes,
+ * and keep serving the last good build on error. One rebuild runs at a time; saves made while it
+ * runs mark it dirty, and it runs once more when it ends, however many saves there were.
+ */
+export function watchAndRebuild(folder: string, out: string, rebuild: () => Promise<string>) {
+  let rebuilding: 'idle' | 'building' | 'dirty' = 'idle',
+    loop: Promise<void> = Promise.resolve(),
+    timer: ReturnType<typeof setTimeout> | undefined;
+  /** Start a rebuild, or mark the one running dirty; resolves when the page is current. */
+  const run = (): Promise<void> => {
+    if (rebuilding !== 'idle') {
+      rebuilding = 'dirty';
+      return loop;
+    }
+    loop = (async () => {
+      do {
+        rebuilding = 'building';
+        try {
+          console.log(await rebuild());
+        } catch (error) {
+          console.error(`rayner: ${(error as Error).message} (still serving the last good build)`);
+        }
+      } while ((rebuilding as string) === 'dirty');
+      rebuilding = 'idle';
+    })();
+    return loop;
+  };
+  const watcher = watch(folder, { recursive: true }, (_, name) => {
+    // Sources and the script only: the rebuild's own outputs (page, sheet, snapshots) must not retrigger it.
+    if (!name || !(/\.(ts|mts|js|mjs)$/.test(name) || basename(name) === 'script.md') || /\.snapshots(\/|\.json$)/.test(name)) return;
+    if (resolve(folder, name) === resolve(out)) return;
+    clearTimeout(timer);
+    timer = setTimeout(run, 200);
+  });
+  return { watcher, run };
+}
+/** Run the command line, reporting a failure on stderr with exit code 1 (tools/installed.ts runs it in the installed command). */
+export const run = (): Promise<void> =>
   main().catch((error) => {
     // Diagnose an incomplete authoring install with the pinned dependency versions.
     const missing = error.code === 'ERR_MODULE_NOT_FOUND' && /Cannot find package '([^']+)'/.exec(error.message)?.[1];
@@ -213,3 +231,9 @@ if (
     );
     process.exitCode = 1;
   });
+if (
+  process.argv[1] &&
+  existsSync(process.argv[1]) &&
+  import.meta.url === pathToFileURL(realpathSync(resolve(process.argv[1]))).href
+)
+  void run();

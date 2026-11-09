@@ -5,16 +5,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
-import {
-  Scene, Group, VMobject, Rectangle, Circle, Square, Line, Dot, Arc, Polygon, Text, Code, DecimalNumber,
-  Transform, FadeIn, FadeOut, Create, Write, MoveAlongPath, AnimationGroup, LaggedStart,
-  linear, smooth, rushInto, rushFrom, thereAndBack,
-  shaperFor,
-} from '../src/index.ts';
-import { StringSink, NullSink, toSvgString, renderElements, renderAt, indexScene } from '../src/output.ts';
-import { loadFonts } from '../explain/testing.ts';
+import { Scene, MoveAlongPath, Group, VMobject, Rectangle, Circle, Line, Dot, Arc, Text, Code, DecimalNumber, Transform, FadeIn, FadeOut, Create, AnimationGroup, LaggedStart, linear, smooth, rushInto, rushFrom, thereAndBack, shaperFor } from '../src/index.ts';
+import { StringSink, NullSink, toSvgString, renderElements, renderFrame } from '../src/output.ts';
+import { loadFonts, traceScene } from '../explain/testing.ts';
 import { Indicate } from './lib/transient.ts';
-import type { Mobject, Sink, Vec, RateFunc, Animation, Style } from '../src/index.ts';
+import type { Mobject, Sink, RateFunc, Style } from '../src/index.ts';
+import { takeOptions, beginAnimation, interpolateAnimation } from '../src/animation.ts';
+import { affine, mobjectId } from '../src/mobject.ts';
+import { curveCount, pathD } from '../src/vmobject.ts';
+import { advanceBox, textRun } from '../src/text.ts';
 
 await loadFonts();
 
@@ -63,7 +62,7 @@ test('rate: points follow a rate function past its ends, as easeOutBack and wigg
   // Clipping alpha to [0, 1] made wiggle move one way only. Lantern clipped at the
   // point level (alpha >= 1 copied the target), so easeOutBack never overshot.
   fc.assert(fc.property(vec, vec, fc.double({ min: -1, max: 2, noNaN: true }), (at, d, alpha) => {
-    const a = new Square({ side: 1 }).moveTo(at), b = a.copy().shift(d), m = a.copy();
+    const a = new Rectangle({ width: 1, height: 1 }).moveTo(at), b = a.copy().shift(d), m = a.copy();
     m.interpolate(a, b, alpha);
     const c = m.center();
     assert.ok(near(c[0], at[0] + d[0] * alpha, 2e-4) && near(c[1], at[1] + d[1] * alpha, 2e-4), `alpha ${alpha}: ${c} vs ${[at[0] + d[0] * alpha, at[1] + d[1] * alpha]}`);
@@ -133,7 +132,7 @@ test('group: a lagRatio given to play() staggers a group the way one given to it
   // https://github.com/ManimCommunity/manim/issues/2563, https://github.com/ManimCommunity/manim/pull/2913:
   // options passed to play() instead of the animation were silently not applied.
   await fc.assert(fc.asyncProperty(fc.double({ min: 0, max: 1.5, noNaN: true }), fc.integer({ min: 2, max: 4 }), async (lag, n) => {
-    const members = () => Array.from({ length: n }, (_, i) => new Square({ side: 0.5 }).shift([i - 2, 0]));
+    const members = () => Array.from({ length: n }, (_, i) => new Rectangle({ width: 0.5, height: 0.5 }).shift([i - 2, 0]));
     const anims = (ms: Mobject[]) => ms.map((m) => new Transform(m, m.copy().shift([0, 1])));
     const byCtor = await film(async (s) => { const ms = members(); s.add(...ms); await s.play(new AnimationGroup(anims(ms), { lagRatio: lag })); });
     const byPlay = await film(async (s) => { const ms = members(); s.add(...ms); await s.play(new AnimationGroup(anims(ms)), { lagRatio: lag }); });
@@ -170,11 +169,11 @@ test('group: an instant member (runTime 0) of a group lands on its end, and an e
   // https://github.com/ManimCommunity/manim/pull/4017 (run_time = 0 inside groups, the Add animation),
   // https://github.com/ManimCommunity/manim/issues/2563 (options given to play() vs the animation).
   await fc.assert(fc.asyncProperty(fc.double({ min: 0.1, max: 2, noNaN: true }), fc.double({ min: 0, max: 1.5, noNaN: true }), async (rest, lag) => {
-    const sq = new Square({ side: 0.5 }).shift([-2, 0]), c = new Circle({ radius: 0.3 });
+    const sq = new Rectangle({ width: 0.5, height: 0.5 }).shift([-2, 0]), c = new Circle({ radius: 0.3 });
     await film(async (s) => { s.add(sq); await s.play(new AnimationGroup([new Transform(sq, sq.copy().shift([4, 0]), { runTime: 0 }), new FadeIn(c, { runTime: rest })])); });
     assert.ok(near(sq.center()[0], 2, 1e-5), `instant member ended at ${sq.center()[0]}`);
     const g = new AnimationGroup([new FadeIn(new Dot(), { runTime: 1 }), new FadeIn(new Dot(), { runTime: 2 })], { runTime: 2 });
-    g.setOptions({ lagRatio: lag });
+    g[takeOptions]({ lagRatio: lag });
     assert.equal(g.runTime, 2);
   }), params(30));
 });
@@ -232,7 +231,7 @@ test('updaters: the dt an updater receives adds up to the scene clock across pla
       const d = new Dot().addUpdater((m, dt) => { sum += dt; calls++; m.shift([dt, 0]); });
       s.add(d);
       for (const [isPlay, t] of ops) {
-        if (isPlay) { const r = new Square({ side: 0.3 }); s.add(r); await s.play(new Transform(r, r.copy().shift([1, 0]), { runTime: t })); }
+        if (isPlay) { const r = new Rectangle({ width: 0.3, height: 0.3 }); s.add(r); await s.play(new Transform(r, r.copy().shift([1, 0]), { runTime: t })); }
         else await s.wait(t);
       }
     });
@@ -241,16 +240,17 @@ test('updaters: the dt an updater receives adds up to the scene clock across pla
   }), params(30));
 });
 
-test('time: seeking to k/fps lands on frame k in a 40-minute scene (manim #1000, #1189)', async () => {
+test('time: frame k is drawn at time k/fps in a 40-minute scene (manim #1000, #1189)', async () => {
   // https://github.com/3b1b/manim/issues/1000, https://github.com/3b1b/manim/pull/1189: frame timing drifted from the nominal rate.
   // A clock summed from dt drifted past the seek tolerance at about 29 minutes at 25 fps; it now
   // comes from the frame count.
   const fps = 25, frames = 40 * 60 * fps;
   const S = class extends Scene { override async construct() { await this.wait(40 * 60); } };
-  // renderAt(k/fps) must land on frame k, late in the scene as well as early
+  // Frame k is at k/fps, late in the scene as well as early
   for (const k of [1, 2, frames / 2 + 1, frames - 2, frames - 1, frames]) {
-    const scene = await renderAt(S, k / fps, new NullSink(), { fps });
-    assert.equal(scene.frameCount, k, `renderAt(${k}/${fps}) (${(k / fps / 60).toFixed(1)} min)`);
+    const scene = await renderFrame(S, k, new NullSink(), { fps });
+    assert.equal(scene.frameCount, k);
+    assert.ok(Math.abs(scene.time - k / fps) < 1e-9, `frame ${k} at ${scene.time} s, not ${k / fps} (${(k / fps / 60).toFixed(1)} min)`);
   }
 });
 
@@ -297,7 +297,7 @@ test('transform: a morph between paths with different contour counts lands on on
     await film(async (s) => { s.add(a); await s.play(new Transform(a, b, { rateFunc: f })); });
     const end = f(1) === 1 ? b : contours(na, -3);
     assert.equal(degenerate(a), 0);
-    assert.equal(a.toPathD(), end.toPathD());
+    assert.equal(pathD(a), pathD(end));
   }), params(40));
 });
 
@@ -305,12 +305,14 @@ test('transform: a path paired with something that draws nothing (a group, a Tex
   // https://github.com/maloyan/manim-web/pull/102. Alignment pairs family members by index; a path opposite a
   // container collapses to a point, and a stroked point draws a round-capped dot.
   await fc.assert(fc.asyncProperty(glyphs, glyphs, fc.boolean(), async (a, b, flip) => {
-    const src = flip ? new Group(new Circle(), new Text(a)) : new Group(new Text(a), new Square());
-    const dst = flip ? new Group(new Text(b), new Square()) : new Group(new Circle(), new Text(b));
+    const src = flip ? new Group(new Circle(), new Text(a)) : new Group(new Text(a), new Rectangle({ width: 2, height: 2 }));
+    const dst = flip ? new Group(new Text(b), new Rectangle({ width: 2, height: 2 })) : new Group(new Circle(), new Text(b));
     const { scene } = await film(async (s) => { s.add(src); await s.play(new Transform(src, dst)); });
     for (const el of renderElements(scene)) {
+      // The path's points, whether written as cubics (C) or straight segments (L): one point is a dot.
       const nums = (el.attrs.d ?? '').split(/[^-\d]+/).filter(Boolean);
-      assert.ok(new Set(nums).size > 2 || el.attrs.stroke === 'none' || el.attrs['stroke-width'] === '0', `zero-extent stroked path ${el.attrs.d}`);
+      const points = new Set(nums.flatMap((x, i) => (i % 2 ? [] : [`${x} ${nums[i + 1]}`])));
+      assert.ok(points.size > 1 || el.attrs.stroke === 'none' || el.attrs['stroke-width'] === '0', `zero-extent stroked path ${el.attrs.d}`);
     }
   }), params(40));
 });
@@ -321,7 +323,7 @@ test('transform: from an empty path into a circle and back out stays finite and 
   const { frames } = await film(async (s) => {
     s.add(e);
     await s.play(new Transform(e, c));
-    assert.equal(e.toPathD(), c.toPathD());
+    assert.equal(pathD(e), pathD(c));
     await s.play(new Transform(e, new VMobject()));
   });
   assert.ok(frames.every(finiteFrame));
@@ -332,7 +334,7 @@ test('transform: replace=true with the target already on screen leaves one copy 
   // https://github.com/ManimCommunity/manim/issues/4238, https://github.com/ManimCommunity/manim/pull/4242,
   // https://github.com/ManimCommunity/manim/pull/4372 (chained ReplacementTransforms).
   // replace() used to splice the target in without removing its own entry, so it drew twice.
-  const a = new Rectangle(), b = new Circle().shift([3, 0]), c = new Square().shift([-3, 0]);
+  const a = new Rectangle(), b = new Circle().shift([3, 0]), c = new Rectangle({ width: 2, height: 2 }).shift([-3, 0]);
   const { scene } = await film(async (s) => {
     s.add(a, b, c);
     await s.play(new Transform(a, b, { replace: true }));
@@ -344,21 +346,21 @@ test('transform: replace=true with the target already on screen leaves one copy 
 test('transform: replace=true on a mobject inside an on-screen group leaves no ghost behind (ManimCommunity #2507)', async () => {
   // https://github.com/ManimCommunity/manim/issues/2507: replacing a submobject left the old one drawn.
   // replace() used to look only at top-level mobjects, leaving a grouped source behind.
-  const a = new Rectangle(), g = new Group(a, new Square().shift([3, 0])), t = new Circle().shift([-3, 0]);
+  const a = new Rectangle(), g = new Group(a, new Rectangle({ width: 2, height: 2 }).shift([3, 0])), t = new Circle().shift([-3, 0]);
   const { scene } = await film(async (s) => { s.add(g); await s.play(new Transform(a, t, { replace: true })); });
   const ids = renderElements(scene).map((e) => e.id);
   assert.equal(ids.length, 2, 'the square and the circle, not the old rectangle too');
-  assert.ok(ids.includes(t.id), 'replacement target is drawn');
-  assert.ok(!ids.includes(a.id), 'grouped source is removed');
+  assert.ok(ids.includes(mobjectId(t)), 'replacement target is drawn');
+  assert.ok(!ids.includes(mobjectId(a)), 'grouped source is removed');
 });
 
 test('play: animating a new Group of mobjects already on screen draws each once, in its place (manim #2500, #2352)', async () => {
   // https://github.com/3b1b/manim/pull/2500, https://github.com/3b1b/manim/issues/2352
   // A new wrapper group of on-screen mobjects used to be added, drawing its members twice.
-  const a = new Rectangle({ fill: '#ff0000', fillOpacity: 1 }), b = new Circle({ fill: '#0000ff', fillOpacity: 1 }), top = new Square({ side: 3 });
+  const a = new Rectangle({ fill: '#ff0000', fillOpacity: 1 }), b = new Circle({ fill: '#0000ff', fillOpacity: 1 }), top = new Rectangle({ width: 3, height: 3 });
   const { scene } = await film(async (s) => { s.add(a, b, top); await s.play(new Indicate(new Group(a, b))); });
   const ids = renderElements(scene).map((e) => e.id);
-  assert.deepEqual(ids, [a.id, b.id, top.id], 'each drawn once, and the square still on top');
+  assert.deepEqual(ids, [mobjectId(a), mobjectId(b), mobjectId(top)], 'each drawn once, and the square still on top');
 });
 
 test('play: every .animate builder given to play() animates, the last one too (ManimCommunity #4865, #1129; manim #1618)', async () => {
@@ -367,7 +369,7 @@ test('play: every .animate builder given to play() animates, the last one too (M
   // play() takes a trailing object whose prototype is Object.prototype as its options; a
   // builder's Proxy reported Object.prototype, so play(m.animate.shift(v)) did nothing at all.
   await fc.assert(fc.asyncProperty(fc.integer({ min: 1, max: 4 }), vec, async (n, d) => {
-    const ms = Array.from({ length: n }, (_, i) => new Square({ side: 0.5 }).shift([i, 0]));
+    const ms = Array.from({ length: n }, (_, i) => new Rectangle({ width: 0.5, height: 0.5 }).shift([i, 0]));
     const { scene } = await film(async (s) => { s.add(...ms); await s.play(...ms.map((m) => m.animate.shift(d))); });
     ms.forEach((m, i) => assert.ok(near(m.center()[0], i + d[0], 1e-4) && near(m.center()[1], d[1], 1e-4), `square ${i} of ${n}`));
     assert.ok(near(scene.time, 1, 1e-9), 'the play ran for the default second');
@@ -388,7 +390,7 @@ test('play: playing never reorders what is already on screen; what it brings in 
         else if (o === 'fadeIn') await s.play(new FadeIn(k));
         else if (o === 'move') await s.play(k.animate.shift([0, 0.1]));
         else if (o === 'create') await s.play(new Create(k));
-        else { const n = new Square({ side: 0.5 }); added.push(n); await s.play(new FadeIn(n)); }
+        else { const n = new Rectangle({ width: 0.5, height: 0.5 }); added.push(n); await s.play(new FadeIn(n)); }
       }
     });
     assert.deepEqual(scene.mobjects, [...kids, ...added]);
@@ -397,7 +399,7 @@ test('play: playing never reorders what is already on screen; what it brings in 
 
 test('play: two animations of one family in one play() are refused rather than one silently winning (ManimCommunity #4865, #1129)', async () => {
   // https://github.com/ManimCommunity/manim/issues/4865, https://github.com/ManimCommunity/manim/issues/1129
-  const a = new Square(), g = new Group(a, new Circle());
+  const a = new Rectangle({ width: 2, height: 2 }), g = new Group(a, new Circle());
   await assert.rejects(film(async (s) => { s.add(g); await s.play(g.animate.shift([1, 0]), a.animate.setFill('#ff0000')); }), /both animate/);
   await assert.rejects(film(async (s) => { s.add(g); await s.play(new Indicate(g), new FadeOut(a)); }), /both animate/);
 });
@@ -405,7 +407,7 @@ test('play: two animations of one family in one play() are refused rather than o
 test('animate: chained .animate calls accumulate and the target is built when played (manim-web #299; ManimCommunity #3502)', async () => {
   // https://github.com/maloyan/manim-web/pull/299, https://github.com/ManimCommunity/manim/pull/3502
   await fc.assert(fc.asyncProperty(vec, vec, vec, async (d1, d2, moved) => {
-    const r = new Square({ side: 1 });
+    const r = new Rectangle({ width: 1, height: 1 });
     await film(async (s) => { s.add(r); const b = r.animate.shift(d1).shift(d2); r.shift(moved); await s.play(b); });
     const c = r.center();
     assert.ok(near(c[0], d1[0] + d2[0] + moved[0], 1e-4) && near(c[1], d1[1] + d2[1] + moved[1], 1e-4));
@@ -456,7 +458,7 @@ test('create: Create and Write leave every member\'s style and points as they we
     const kids = styles.map((st, i) => new Rectangle({ width: 1, height: 1, ...st }).shift([i * 1.2 - 2, 0]));
     const g = new Group(...kids, new Text('ab', { fontSize: 0.5 }).shift([0, 1.5]));
     const before = g.family().map((m) => ({ ...m.style })), pts = pointsOf(g);
-    await film(async (s) => { await s.play(write ? new Write(g) : new Create(g)); });
+    await film(async (s) => { await s.play(write ? new Create(g, { lagRatio: 0.3 }) : new Create(g)); });
     assert.deepEqual(g.family().map((m) => ({ ...m.style })), before);
     assert.deepEqual(pointsOf(g), pts);
   }), params(40));
@@ -476,8 +478,8 @@ test('create: Create\'s stagger does not depend on how the drawn shapes are grou
 });
 
 test('create: wrapping Text in a Group preserves Write stagger', async () => {
-  const word = await film(async (s) => { await s.play(new Write(new Text('lag'))); });
-  const wrapped = await film(async (s) => { await s.play(new Write(new Group(new Text('lag')))); });
+  const word = await film(async (s) => { await s.play(new Create(new Text('lag'), { lagRatio: 0.3 })); });
+  const wrapped = await film(async (s) => { await s.play(new Create(new Group(new Text('lag')), { lagRatio: 0.3 })); });
   assert.deepEqual(wrapped.frames, word.frames);
 });
 
@@ -485,7 +487,7 @@ test('create: the temporary outline Write draws on text scales with the text (Ma
   // https://github.com/ManimCommunity/manim/issues/4220, https://github.com/ManimCommunity/manim/pull/4222:
   // a fixed outline width is a hairline on large text and a smear on small text.
   fc.assert(fc.property(fc.double({ min: 0.1, max: 3, noNaN: true }), fc.double({ min: 0.25, max: 4, noNaN: true }), (size, k) => {
-    const border = (t: Text) => { const c = new Write(t); c.begin(); c.interpolate(0.3); return t.children[0]!.style.strokeWidth; };
+    const border = (t: Text) => { const c = new Create(t, { lagRatio: 0.3 }); beginAnimation(c); interpolateAnimation(c, 0.3); return t.children[0]!.style.strokeWidth; };
     const built = border(new Text('Hi', { fontSize: size * k })), scaled = border(new Text('Hi', { fontSize: size }).scale(k));
     assert.ok(near(built, scaled, 1e-6 * size * k), `${built} vs ${scaled}`);
     // Text sizes are read back from Float32 points: equal to about 1e-7, relatively
@@ -548,7 +550,7 @@ test('seek: a seeked frame equals the played frame across nested groups, Indicat
     await new S(full, { fps: 20 }).run();
     for (const u of at) {
       const snap = { svg: '', async frame(scene: Scene) { this.svg = toSvgString(scene); } };
-      const scene = await renderAt(S, u * (full.frames.length - 1) / 20, snap, { fps: 20 });
+      const scene = await renderFrame(S, Math.round(u * (full.frames.length - 1)), snap, { fps: 20 });
       assert.equal(snap.svg, full.frames[scene.frameCount], `seek to ${u} of the run`);
     }
   }), params(100));
@@ -559,10 +561,10 @@ test('seek: a dry-run index puts every step on the frame the full run puts it on
   // (skip_animations per section), https://github.com/ManimCommunity/manim/issues/2449 (timing off after a skipped section).
   await fc.assert(fc.asyncProperty(fc.array(op, { minLength: 1, maxLength: 8 }), async (ops) => {
     const S = programScene([{ kind: 'step', i: 0, t: 0.1 }, ...ops]);
-    const ix = await indexScene(S, { fps: 20 });
-    const live = new S(new NullSink(), { fps: 20 });
+    const ix = await traceScene(S, { fps: 20 });
+    const live = new S({ async frame() {} }, { fps: 20 });
     await live.run();
-    assert.deepEqual(ix.steps.map((s) => [s.name, s.frame0, s.frame1]), live.steps.map((s) => [s.name, s.frame0, s.frame1]));
+    assert.deepEqual(ix.steps.map((s) => [s.step, s.frame0, s.frame1]), live.steps.map((s) => [s.path, s.frame0, s.frame1]));
     assert.equal(ix.frames, live.frameCount);
   }), params(100));
 });
@@ -618,7 +620,7 @@ test('path: pointFromProportion stays finite and exact at its ends on degenerate
     for (const s of subs) { p.startNewPath(s[0] ?? [0, 0]); for (const q of s.slice(1)) p.addLineTo(q); }
     const got = p.pointFromProportion(u);
     assert.ok(got.every(Number.isFinite), `${got}`);
-    if (p.numCurves() > 0) {
+    if (curveCount(p) > 0) {
       const a = p.subpaths.find((x) => x.length > 2)!, z = [...p.subpaths].reverse().find((x) => x.length > 2)!;
       assert.deepEqual(p.pointFromProportion(0), [a[0], a[1]]);
       assert.deepEqual(p.pointFromProportion(1), [z[z.length - 2], z[z.length - 1]]);
@@ -670,7 +672,7 @@ test('code: consecutive Code lines sit one pitch apart whatever their ascenders 
   // https://github.com/ManimCommunity/manim/pull/4692: lines without ascenders sat lower than lines with them.
   fc.assert(fc.property(fc.array(fc.string({ unit: fc.constantFrom('a', 'g', 'y', 'É', 'b', 'x', ' ', '_', '.'), maxLength: 8 }), { minLength: 2, maxLength: 6 }), fc.double({ min: 0.1, max: 0.6, noNaN: true }), (lines, fontSize) => {
     const c = new Code(lines, { fontSize, lineHeight: 1.5 });
-    const base = c.lines.map((l) => l.frameBox[1]! + l.run.descent);
+    const base = c.lines.map((l) => l[advanceBox][1]! + l[textRun].descent);
     for (let i = 1; i < base.length; i++) assert.ok(near(base[i - 1]! - base[i]!, fontSize * 1.5, 1e-5), `line ${i}`);
   }), params(200));
 });
@@ -683,9 +685,9 @@ test('code: a tab advances to the next tab stop, as source editors draw it (mani
   const columnAfter = (line: string, w: number) => [...line].reduce((c, ch) => (ch === '\t' ? (Math.floor(c / w) + 1) * w : c + 1), 0);
   fc.assert(fc.property(fc.string({ unit: fc.constantFrom('\t', 'a', ' ', 'b'), maxLength: 10 }), fc.integer({ min: 1, max: 8 }), (line, tabWidth) => {
     const c = new Code([line + 'Z'], { tabWidth });
-    const z = c.lines[0]!.children.at(-1)!, left = c.lines[0]!.frameBox[0]!;
+    const z = c.lines[0]!.children.at(-1)!, left = c.lines[0]![advanceBox][0]!;
     const cols = columnAfter(line, tabWidth);
-    assert.ok(near(z.box()![0] - left, cols * col + (new Text('Z', { font: 'mono', fontSize: 0.26 }).children[0]!.box()![0] - new Text('Z', { font: 'mono', fontSize: 0.26 }).frameBox[0]!), 1e-4), JSON.stringify(line));
+    assert.ok(near(z.box()![0] - left, cols * col + (new Text('Z', { font: 'mono', fontSize: 0.26 }).children[0]!.box()![0] - new Text('Z', { font: 'mono', fontSize: 0.26 })[advanceBox][0]!), 1e-4), JSON.stringify(line));
     assert.equal(c.lines[0]!.text, line + 'Z', 'the line keeps its source text');
   }), params(200));
 });
@@ -699,7 +701,7 @@ test('code: a Code line re-set to its own text keeps its tab stops; bad tab widt
     pointsOf(l).forEach((x, i) => assert.ok(near(x, before[i]!, 1e-5)));
   }), params(200));
   // An accented letter is one column, so the tab after it reaches the same stop as after 'x'
-  const stop = (text: string) => { const l = new Code([text]).lines[0]!; return l.children.at(-1)!.box()![0] - l.frameBox[0]!; };
+  const stop = (text: string) => { const l = new Code([text]).lines[0]!; return l.children.at(-1)!.box()![0] - l[advanceBox][0]!; };
   assert.ok(near(stop('\u00e9\tZ'), stop('x\tZ'), 1e-4), 'é + tab reaches the same stop as x + tab');
   for (const w of [0, -1, 2.5, NaN, Infinity, -Infinity]) assert.throws(() => new Code(['\tx'], { tabWidth: w }), RangeError);
 });
@@ -712,7 +714,7 @@ test('text: empty, blank and unsupported-script strings shape, Write and morph w
   await fc.assert(fc.asyncProperty(anyText, anyText, async (a, b) => {
     const { frames } = await film(async (s) => {
       const t = new Text(a);
-      await s.play(new Write(t));
+      await s.play(new Create(t, { lagRatio: 0.3 }));
       await s.play(new Transform(t, new Text(b).shift([0, 1])));
       await s.play(new FadeOut(t));
       await s.play(new Create(new Code([a, b])));
@@ -744,7 +746,7 @@ test('text: layout is scale-free, so letter spacing does not drift with font siz
   fc.assert(fc.property(fc.string({ unit: fc.constantFrom('A', 'V', 'T', 'o', 'W', 'a', 'y', '.', ' '), minLength: 1, maxLength: 12 }), fc.double({ min: 0.05, max: 4, noNaN: true }), (s, size) => {
     const a = new Text(s, { fontSize: size, anchor: 'start' }), b = new Text(s, { fontSize: 1, anchor: 'start' });
     assert.ok(near(a.advance() / size, b.advance(), 1e-5), `${a.advance() / size} vs ${b.advance()}`);
-    a.children.forEach((g, i) => assert.ok(near((g.box()![0] - a.frameBox[0]!) / size, b.children[i]!.box()![0] - b.frameBox[0]!, 1e-4)));
+    a.children.forEach((g, i) => assert.ok(near((g.box()![0] - a[advanceBox][0]!) / size, b.children[i]!.box()![0] - b[advanceBox][0]!, 1e-4)));
   }), params(300));
 });
 
@@ -768,17 +770,17 @@ test('decimal: setValue keeps a rotated, scaled number\'s angle and size (ManimC
     assert.ok(near(d.textSize(), size, 1e-4), `size ${d.textSize()} vs ${size}`);
     assert.ok(near(Math.cos(d.angle() - angle), 1, 1e-6), `angle ${d.angle()} vs ${angle}`);
     assert.ok(near(d.anchorPoint()[0], at[0], 1e-4) && near(d.anchorPoint()[1], at[1], 1e-4), 'anchor kept');
-    const diag = (t: Text) => Math.hypot(t.frameBox[2]! - t.frameBox[0]!, t.frameBox[3]! - t.frameBox[1]!);
+    const diag = (t: Text) => Math.hypot(t[advanceBox][2]! - t[advanceBox][0]!, t[advanceBox][3]! - t[advanceBox][1]!);
     assert.ok(near(diag(d), diag(fresh), 1e-4), 'the same advance box as the number freshly made at that size');
   }), params(300));
 });
 
 test('text: setText with the same string changes no glyph, whatever the text has been turned, mirrored, stretched or sheared by (ManimCommunity #4843)', () => {
   // https://github.com/ManimCommunity/manim/pull/4843: set_value lost what had been done to the number.
-  const affine = fc.tuple(fc.double({ min: -2, max: 2, noNaN: true }), fc.double({ min: -2, max: 2, noNaN: true }), fc.double({ min: -2, max: 2, noNaN: true }), fc.double({ min: -2, max: 2, noNaN: true }))
+  const maps = fc.tuple(fc.double({ min: -2, max: 2, noNaN: true }), fc.double({ min: -2, max: 2, noNaN: true }), fc.double({ min: -2, max: 2, noNaN: true }), fc.double({ min: -2, max: 2, noNaN: true }))
     .filter(([a, b, c, d]) => Math.abs(a * d - b * c) > 0.05);
-  fc.assert(fc.property(fc.string({ unit: fc.constantFrom('a', 'W', '1', '.', ' ', 'g'), minLength: 1, maxLength: 6 }), affine, vec, fc.constantFrom('start' as const, 'middle' as const, 'end' as const), (str, [a, b, c, d], at, anchor) => {
-    const t = new Text(str, { anchor }).applyAffine(a, b, c, d, at[0], at[1]);
+  fc.assert(fc.property(fc.string({ unit: fc.constantFrom('a', 'W', '1', '.', ' ', 'g'), minLength: 1, maxLength: 6 }), maps, vec, fc.constantFrom('start' as const, 'middle' as const, 'end' as const), (str, [a, b, c, d], at, anchor) => {
+    const t = new Text(str, { anchor })[affine](a, b, c, d, at[0], at[1]);
     const before = pointsOf(t);
     t.setText(str);
     const after = pointsOf(t);

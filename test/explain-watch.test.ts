@@ -1,5 +1,5 @@
 // meta.watch: the state an author names for readers, and what each step changed of it
-// (specs/player-guidance.md G1). One formatter serves the player, the transcript, describe
+// (player-guidance G1). One formatter serves the player, the transcript, describe
 // and check; these tests hold it to independently written expectations.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fc, params } from './lib/pbt.ts';
 import { checkWatch, watchedChanges, watchedValue } from '../explain/trace.ts';
+import { writeNumber } from '../explain/words.ts';
 import { chromeFor, changeText } from '../app/embed-strings.ts';
 import { describeExplainer } from '../explain/testing.ts';
 import type { ExplainerClass } from '../explain/index.ts';
@@ -35,8 +36,14 @@ test('a watched value reads as a reader reads it: every kind of value, in Englis
   assert.equal(watchedValue(1234.5678, 'fr'), `1${NB}234,57`);
   assert.equal(watchedValue(65673.88, 'fr'), `65${NB}673,88`);
   assert.equal(watchedValue(2.5, 'fr'), '2,5');
-  // A tag Intl refuses still gets its number, as English writes it.
+  // A language with no description words here, or no language at all, gets its number as English writes it.
   assert.equal(watchedValue(1234.5, 'not a tag!'), '1,234.5');
+  assert.equal(watchedValue(1234.5, 'de'), '1,234.5');
+  assert.equal(watchedValue(-0.001), '0', 'a value that rounds to zero has no sign');
+  assert.equal(watchedValue(1.005), '1.01', 'rounded on the shortest decimal form, as written');
+  assert.equal(watchedValue(9.999), '10');
+  assert.equal(watchedValue(2.5e-7), '0');
+  assert.equal(watchedValue(1e21), '1,000,000,000,000,000,000,000');
   // Strings: as written up to 24 characters; longer ones end in an ellipsis at 24.
   assert.equal(watchedValue('every request'), 'every request');
   assert.equal(watchedValue('x'.repeat(24)), 'x'.repeat(24));
@@ -61,6 +68,25 @@ test('a watched value reads as a reader reads it: every kind of value, in Englis
   for (const v of [null, undefined, []]) assert.equal(watchedValue(v), '', JSON.stringify(v));
   // Anything else cannot be said briefly: null, and the key is skipped.
   for (const v of [{ a: 1 }, [{ a: 1 }], [[1]], [1, null], {}, [undefined]]) assert.equal(watchedValue(v), null, JSON.stringify(v));
+});
+
+test('writeNumber writes numbers as Intl does in Node for English and French, but from the repository\'s own table, the same in every engine', () => {
+  // Intl here is the oracle for the table; the browser's Intl, which writes French groups with
+  // another space in some engines, never runs, so a page and its transcript agree.
+  const number = fc.oneof(
+    fc.double({ noNaN: true, noDefaultInfinity: true }),
+    fc.integer({ min: -1e9, max: 1e9 }).map((k) => k / 1000),
+    fc.integer({ min: -1e7, max: 1e7 }).map((k) => k / 200),
+    fc.integer().map((k) => k * 1e12),
+  );
+  fc.assert(fc.property(number, fc.constantFrom('en', 'fr'), fc.nat({ max: 20 }), (n, lang, digits) => {
+    const intl = new Intl.NumberFormat(lang, { maximumFractionDigits: digits }).format(n);
+    // Intl writes "-0" for a negative value that rounds to zero; the repository writes "0".
+    assert.equal(writeNumber(n, lang, digits), intl === '-0' ? '0' : intl, `${n} in ${lang} with ${digits} decimals`);
+  }), params(2000));
+  assert.equal(writeNumber(1791.5, 'fr'), `1${NB}791,5`);
+  assert.equal(writeNumber(1791.5, 'fr-CA'), `1${NB}791,5`);
+  assert.equal(writeNumber(Infinity), 'Infinity');
 });
 
 test('a list of any length reads as at most four items, then the count of the rest', () => {
@@ -92,7 +118,7 @@ test('watchedChanges: keys whose JSON changed, in declaration order, at most fou
   // Unchanged values, unwatched keys and a scene with no watch show nothing.
   assert.deepEqual(watchedChanges({ before: { a: 1, z: 1 }, after: { a: 1, z: 2 } }, { a: 'A' }), []);
   assert.deepEqual(watchedChanges(step, undefined), []);
-  assert.deepEqual(watchedChanges({ before: { a: 1 } }, { a: 'A' }), [{ label: 'A', before: '1' }]);
+  assert.deepEqual(watchedChanges({ before: { a: 1 }, after: {} }, { a: 'A' }), [{ label: 'A', before: '1' }]);
   // Values that read the same are no change to a reader; nor is null to absent or [] to absent.
   assert.deepEqual(watchedChanges({ before: { a: 0.001, b: null, c: [] }, after: { a: 0.002 } }, { a: 'A', b: 'B', c: 'C' }), []);
   // An object is skipped and reported; the others still show.
@@ -101,6 +127,10 @@ test('watchedChanges: keys whose JSON changed, in declaration order, at most fou
     { label: 'N', before: '1', after: '2' },
   ]);
   assert.deepEqual(unformatted, ['o']);
+  // An object whose keys were written in another order is unchanged: not a change, not unformatted.
+  const reordered: string[] = [];
+  assert.deepEqual(watchedChanges({ before: { o: { x: 1, y: 2 } }, after: { o: { y: 2, x: 1 } } }, { o: 'O' }, 'en', reordered), []);
+  assert.deepEqual(reordered, []);
 });
 
 test('a change reads "Label: before → after", "Label: after" or "Label: removed", with French typography in French', () => {
@@ -120,14 +150,14 @@ test('checkWatch refuses a watch that cannot work and names the problem', () => 
   const steps = [{ before: {}, after: { tokens: 5 } }, { before: { tokens: 5 }, after: { tokens: 0, gone: 1 } }];
   checkWatch(undefined, steps);
   checkWatch({ tokens: 'Tokens', gone: 'Gone' }, steps);
-  assert.throws(() => checkWatch({ nope: 'Nope' }, steps), /meta\.watch names "nope", which is never in the scene's state/);
-  assert.throws(() => checkWatch({ tokens: '   ' }, steps), /meta\.watch gives "tokens" an empty label/);
+  assert.throws(() => checkWatch({ nope: 'Nope' }, steps), /meta\.watch: it names "nope", which is never in the scene's state/);
+  assert.throws(() => checkWatch({ tokens: '   ' }, steps), /meta\.watch: it gives "tokens" an empty label/);
   assert.throws(() => checkWatch({ tokens: 5 }, steps), /an empty label/);
-  assert.throws(() => checkWatch({ '': 'Empty' }, steps), /meta\.watch has an empty key/);
+  assert.throws(() => checkWatch({ '': 'Empty' }, steps), /meta\.watch: it has an empty key/);
   assert.throws(() => checkWatch(['tokens'], steps), /must be a record/);
   assert.throws(() => checkWatch('tokens', steps), /must be a record/);
   const nine = Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`k${i}`, `K${i}`]));
-  assert.throws(() => checkWatch(nine, [{ before: {}, after: nine }]), /names 9 keys; at most 8/);
+  assert.throws(() => checkWatch(nine, [{ before: {}, after: nine }]), /it names 9 keys; name at most 8/);
   const eight = Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`k${i}`, `K${i}`]));
   checkWatch(eight, [{ before: {}, after: eight }]);
 });
@@ -142,8 +172,8 @@ async function collect(name: string, watch: string) {
 }
 
 test('collection refuses an unknown watched key, naming it, and accepts a key present in only one scenario', async () => {
-  await assert.rejects(collect('unknown', `{count:'Count',missing:'Missing'}`), /meta\.watch names "missing", which is never in the scene's state at any step of any scenario/);
-  await assert.rejects(collect('blank', `{count:' '}`), /meta\.watch gives "count" an empty label/);
+  await assert.rejects(collect('unknown', `{count:'Count',missing:'Missing'}`), /meta\.watch: it names "missing", which is never in the scene's state at any step of any scenario/);
+  await assert.rejects(collect('blank', `{count:' '}`), /meta\.watch: it gives "count" an empty label/);
   const p = await collect('ok', `{count:'Count',only:'Only'}`);
   assert.deepEqual(p.Scene.meta?.watch, { count: 'Count', only: 'Only' });
 });

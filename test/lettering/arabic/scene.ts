@@ -5,6 +5,6 @@ export default class Example extends Scene {
   override async construct() {
     const s = stage(this, {heading: false});
     await this.step('example', {title: "Arabic", caption: "Arabic"});
-    await s.enter(new Text("السَّلَامُ عَلَيْكُمْ", {color: s.palette.ink}));
+    await s.enter(new Text("السَّلَامُ عَلَيْكُمْ", {color: s.look.ink}));
   }
 }

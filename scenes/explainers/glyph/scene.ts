@@ -1,24 +1,18 @@
-import { frames as readerFrames } from '../lib/readers/glyph.ts';
-import {
-  Scene,
-  Text,
-  Create,
-  FadeIn,
-  TransformMatchingShapes,
-  Group,
-  Line,
-  SurroundingRectangle,
-  BraceLabel,
-  shaperFor,
-} from '../../../src/index.ts';
-import type { Mobject, MatchSummary, FontName } from '../../../src/index.ts';
-import { stage, settingsOf } from '../../../explain/index.ts';
+import { frames as readerFrames, ruler, pairLines, WORD, SIZE, measuredRows, advanceCells, letterRow, letterTargets } from './picture.ts';
+import { Scene, Text, Create, FadeIn, TransformMatchingShapes, shaperFor } from '../../../src/index.ts';
+import type { MatchSummary, FontName } from '../../../src/index.ts';
+import { stage, settingsOf, view } from '../../../explain/index.ts';
+import type { ExplainerMeta } from '../../../explain/index.ts';
+import { card, callout } from '../../../explain/drawing.ts';
 
-const WORD = 'Hello, outlines';
-const SIZE = 0.9; // the size the fidelity test measures
 const SMALL = 0.6; // the smaller copy in the letterforms step
 const STYLE = 'pen-and-ink';
 const NAME: Record<FontName, string> = { sans: 'Inter', mono: 'JetBrains Mono' };
+// This explainer has no model of its own: every width and outline is the engine's, from the shaped runs of the
+// bundled Inter and JetBrains Mono files, never estimated character widths. The phrase has fifteen characters
+// but fourteen drawn glyphs, since the space has no outline. The shape-match result holds for this phrase and
+// these font files, not for any two fonts; the matcher removes translation and uniform scale, not differences
+// in the paths themselves.
 /** What the shaper hands back for a run: segment kinds and per-glyph advances. */
 function shape(font: FontName, text: string) {
   const run = shaperFor(font)(text, SIZE);
@@ -35,69 +29,30 @@ function shape(font: FontName, text: string) {
   };
 }
 
-/** A width ruler under a text: a tick at every glyph's pen position, and a brace labelled with the measured width. */
-function ruler(text: Text, stops: readonly number[], label: string, color: string, size = 0.24): Group {
-  const [x0, y0] = text.box()!;
-  const y = y0 - 0.12;
-  const g = new Group();
-  for (const x of stops.slice(1))
-    g.add(new Line([x0 + x, y], [x0 + x, y - 0.14], { stroke: color, strokeWidth: 0.014 }));
-  // The brace spans the text's advance box: the width the shaper measured.
-  const brace = new BraceLabel(text, label, [0, -1], { fontSize: size, color, buff: 0.3, labelBuff: 0.1 });
-  brace.brace.setStroke(color, 0.022);
-  g.add(brace);
-  return g;
-}
+/** The measuring model: each group's share of the difference, and later how many glyphs paired by shape. */
+type GlyphState = {
+  font: FontName;
+  width: number;
+  glyphs: number;
+  gains: Record<string, number>;
+  shapePairs?: { sameFont: number; otherFont: number };
+};
 
-/** Thin lines from each source glyph (as `ghost` shows it) to the glyph it was paired with. */
-function pairLines(pairs: Array<[Mobject, Mobject]>, ghostOf: (m: Mobject) => Mobject, color: string): Group {
-  const g = new Group();
-  for (const [a, b] of pairs) {
-    const p = ghostOf(a).box()!,
-      q = b.box()!;
-    g.add(
-      new Line([(p[0] + p[2]) / 2, p[1] - 0.1], [(q[0] + q[2]) / 2, q[3] + 0.1], { stroke: color, strokeWidth: 0.012 }),
-    );
-  }
-  return g;
-}
-
-export default class GlyphExplainer extends Scene {
+export default class GlyphExplainer extends Scene<GlyphState, { lit?: string }> {
   static meta = {
-    id: 'glyph',
-    title: 'Why does the same text take different space?',
     sources: ['https://github.com/ivarvong/lantern/blob/2c7bad5/src/text.ts'],
-    // The script's answer and check questions (script.md); check holds a step (measure) to stating the answer.
-    answer: 'Width is the sum of the glyphs’ advances, and each font sets its own',
     claims: [
       {
         says: 'Inter gives each l and i only 0.218',
-        test: 'test/explain-glyph.test.ts: Inter gives l and i its narrowest advance',
+        test: 'model.test.ts: Inter gives l and i its narrowest advance',
       },
       {
         says: 'Only the H is wider in Inter',
-        test: 'test/explain-glyph.test.ts: only the H is wider than JetBrains Mono’s cell',
+        test: 'model.test.ts: only the H is wider than JetBrains Mono’s cell',
       },
       { says: 'Every glyph pairs with its 60% copy; with the other font, none do', shown: true as const },
     ],
-    checks: [
-      {
-        question: 'A space adds no outline. Why can adding one still move the next word farther right?',
-        answer:
-          'A space has an advance even though it draws no ink. The pen moves by that advance before the next glyph, so the line grows without another outline.',
-      },
-      {
-        question:
-          '“illicit” and “mammoth” both have seven letters. Set each in JetBrains Mono instead of Inter: which one grows, and could the other shrink?',
-        answer:
-          'In JetBrains Mono both are 7 × 0.540 = 3.78 units. “illicit” is mostly thin stems that Inter gives 0.218 each, so it grows from 1.90 to 3.78. Inter gives m 0.788, more than JetBrains Mono’s cell, so “mammoth” shrinks from 4.24 to 3.78.',
-      },
-      {
-        question: 'Could moving or uniformly resizing the Inter glyphs make them match the JetBrains Mono paths that failed to pair?',
-        answer: 'No. The matcher already removes position and uniform size before comparing paths. Those operations cannot remove differences in the outlines themselves.',
-      },
-    ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'font',
@@ -113,9 +68,9 @@ export default class GlyphExplainer extends Scene {
     const font = settingsOf(this).font as FontName,
       other: FontName = font === 'sans' ? 'mono' : 'sans',
       s = stage(this, { style: STYLE, headingSize: 0.6 }),
-      ink = s.palette.ink,
-      hot = s.emphasis,
-      soft = s.soft;
+      ink = s.look.ink,
+      hot = s.look.emphasis,
+      soft = s.look.soft;
     const mine = shape(font, WORD),
       theirs = shape(other, WORD);
     const [widthFrame, shapeFrame] = readerFrames(font);
@@ -152,10 +107,7 @@ export default class GlyphExplainer extends Scene {
     });
     await s.clear();
     const wide = Math.max(mine.width, theirs.width);
-    const measured = new Text(WORD, { font, fontSize: SIZE, color: ink });
-    measured.setStroke(ink, 0.012);
-    measured.moveTo([-wide / 2, 2.4], [-1, 0]);
-    const compare = new Text(WORD, { font: other, fontSize: SIZE, color: soft }).moveTo([-wide / 2, 0.1], [-1, 0]);
+    const { measured, compare } = measuredRows(font, other, wide, ink, soft);
     const units = (f: FontName) => `${advance(f).toFixed(4)} units · ${NAME[f]}`;
     const mineRule = ruler(measured, mine.stops, units(font), hot);
     const theirRule = ruler(compare, theirs.stops, units(other), soft);
@@ -164,24 +116,13 @@ export default class GlyphExplainer extends Scene {
     await this.play(new Create(mineRule, { runTime: 0.9, lagRatio: 0 }));
     await this.play(new FadeIn(compare, { runTime: 0.5 }), new Create(theirRule, { runTime: 0.9, lagRatio: 0 }));
     // Inter's widest letter and all its narrowest ones, boxed by their advance cells in both rows.
-    const cells = new Group();
-    for (const [row, run, color] of [
-      [measured, mine, hot],
-      [compare, theirs, soft],
-    ] as const) {
-      const [x0, y0, , y1] = row.box()!;
-      for (const i of [wideAt, ...stems]) {
-        const x = x0 + run.stops[i]!;
-        cells.add(
-          new SurroundingRectangle([x, y0, x + run.advances[i]!, y1], {
-            buff: 0.02,
-            cornerRadius: 0.03,
-            stroke: color,
-            strokeWidth: 0.018,
-          }),
-        );
-      }
-    }
+    const cells = advanceCells(
+      [
+        [measured, mine, hot],
+        [compare, theirs, soft],
+      ],
+      [wideAt, ...stems],
+    );
     s.keep(cells, {
       describe: `Boxes around ${NAME.sans}’s widest letter, “${sans.chars[wideAt]}”, and its narrowest, ${stems.map((i) => `“${sans.chars[i]}”`).join(', ')}, in both rows`,
     });
@@ -193,12 +134,6 @@ export default class GlyphExplainer extends Scene {
       [named(wider), wider],
       [`the other ${rest.length}`, rest],
     ];
-    const card = await s.card(
-      groups.map(([name, is]) => [name, signed(sum(is))]),
-      { at: [-4.6, -4.25, 4.6, -1.3], title: `${NAME.mono} − ${NAME.sans}: +${total.toFixed(2)} units` },
-    );
-    card.bar.style.fill = hot;
-    await card.mark(named(stems));
     // The measuring model; the outline step's short picture has a model of its own, after which this one resumes.
     const measuring = {
       font,
@@ -206,7 +141,21 @@ export default class GlyphExplainer extends Scene {
       glyphs: measured.children.length,
       gains: Object.fromEntries(groups.map(([name, is]) => [name, +sum(is).toFixed(3)])),
     };
+    // The card is a view: the gains by group are the model's (this.state), and the group it lights is
+    // how the step shows them (this.shown).
     this.state = { ...measuring };
+    this.shown.lit = named(stems);
+    const gainsCard = view(this, (st, sh) => {
+      const drawn = card(s, Object.entries(st.gains).map(([name, gain]) => [name, signed(gain)]), {
+        at: [-4.6, -4.25, 4.6, -1.3],
+        title: `${NAME.mono} − ${NAME.sans}: +${total.toFixed(2)} units`,
+        lit: sh.lit == null ? null : { row: sh.lit },
+        key: 'gains',
+      });
+      drawn.bar.style.fill = hot;
+      return drawn;
+    }, { place: false });
+    await s.enter(gainsCard, { runTime: 0.35 });
 
     // 3. The same letter, two outlines: the prediction.
     await s.steps([shapeFrame!], { kind: 'short' });
@@ -218,11 +167,11 @@ export default class GlyphExplainer extends Scene {
       caption: `Rayner’s shape matcher, TransformMatchingShapes, compares outlines after removing position and size. The ${SMALL * 100}% copy keeps those paths, so all ${measured.children.length} of its glyphs pair with the originals; the space has no outline to pair. In this phrase the other font changes the paths: none pairs across the fonts. A character name identifies a letter, not a particular outline.`,
     });
     await s.clear();
-    const row = new Text(WORD, { font, fontSize: SIZE, color: ink }).moveTo([-wide / 2, 2.35], [-1, 0]);
+    // The card has gone, and the row it lit with it.
+    delete this.shown.lit;
+    const row = letterRow(font, wide, ink);
     await s.enter(row, { runTime: 0.5 });
-    const [mx0, , mx1] = row.box()!;
-    const smaller = new Text(WORD, { font, fontSize: SIZE * SMALL, color: ink }).moveTo([(mx0 + mx1) / 2, 0.55]);
-    const across = new Text(WORD, { font: other, fontSize: SIZE, color: hot }).moveTo([-wide / 2, -1.15], [-1, 0]);
+    const { smaller, across } = letterTargets(row, font, other, SMALL, wide, ink, hot);
     s.keep(smaller, across);
     // Each morph starts from a copy, so the original row stays to compare against.
     const first = row.copy(),
@@ -243,8 +192,8 @@ export default class GlyphExplainer extends Scene {
     const otherFont = toOther.summary();
     const paired = (m: MatchSummary) => `${m.matched} of ${m.matched + m.morphed + m.removed} paired`;
     // Each row says how many of its glyphs found a partner, at its right end.
-    await s.callout(smaller, paired(sameFont), { side: 'right', gap: 0.35, color: soft, size: 0.26 });
-    await s.callout(across, paired(otherFont), { side: 'right', gap: 0.35, color: hot, size: 0.26 });
+    await this.play(new Create(s.keep(callout(s, smaller, paired(sameFont), { side: 'right', gap: 0.35, color: soft, size: 0.26 })), { runTime: 0.6, lagRatio: 0.15 }));
+    await this.play(new Create(s.keep(callout(s, across, paired(otherFont), { side: 'right', gap: 0.35, color: hot, size: 0.26 })), { runTime: 0.6, lagRatio: 0.15 }));
     this.state = { ...measuring, shapePairs: { sameFont: sameFont.matched, otherFont: otherFont.matched } };
   }
 }

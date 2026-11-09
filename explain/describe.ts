@@ -2,16 +2,17 @@
 // the state the scene recorded, what each step changed and its resting picture drawn as text.
 // One definition behind `rayner describe` and anything an agent imports; it runs the scene in
 // Node or a browser, with no Chromium, given the diagrams' pinned snapshots.
-import { renderAt, renderText } from '../src/output.ts';
-import { machinesOf } from '../src/testing.ts';
+import { renderText } from '../src/output.ts';
+import { machinesOf } from './machine.ts';
 import { traceRun } from '../src/trace.ts';
-import type { Scene, SceneState, Sink } from '../src/index.ts';
+import { canonicalJson } from '../src/json.ts';
+import type { Scene, SceneState } from '../src/index.ts';
 import { scenariosOf, withSettings, scenarioName, bindSnapshots } from './settings.ts';
 import type { ExplainerClass, Setting, Settings } from './settings.ts';
-import { pictureSummary, restingTime, stepWords, watchedChanges } from './trace.ts';
+import { pictureSummary, stepWords, watchedChanges } from './trace.ts';
 import type { WatchedChange } from './trace.ts';
-import { isHeading, paperOf } from './stage.ts';
-import type { SnapshotStore, DiagramResolver } from '../integrations/agentic-mermaid/snapshot.ts';
+import { paperOf, withoutHeading } from './stage.ts';
+import type { SnapshotStore, DiagramResolver } from './diagram-snapshot.ts';
 
 /** One step of one scenario. Times are seconds on the scene's clock. */
 export interface StepDescription {
@@ -82,8 +83,10 @@ export interface ExplainerDescription {
   settings: Setting[];
   /** The script's one-sentence answer (`meta.answer`), when the scene declares it. */
   answer?: string;
-  /** The questions a reader should be able to answer afterwards, with answers (`meta.checks`). */
-  checks?: { question: string; answer: string }[];
+  /** The questions a reader should be able to answer afterwards, with answers (`meta.questions`). */
+  questions?: { question: string; answer: string }[];
+  /** What the model is checked against, from the script's intent header. */
+  checkedAgainst?: string;
   scenarios: ScenarioDescription[];
 }
 export interface DescribeOptions {
@@ -99,7 +102,7 @@ export interface DescribeOptions {
 const PICTURE = 'picture';
 const withoutPicture = (state: SceneState = {}): SceneState =>
   Object.fromEntries(Object.entries(state).filter(([k]) => k !== PICTURE));
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+const same = (a: unknown, b: unknown) => canonicalJson(a) === canonicalJson(b);
 
 /** What `Scene` explains, every scenario and step, in one JSON-safe object. */
 export async function describeExplainer(Scene: ExplainerClass, options: DescribeOptions = {}): Promise<ExplainerDescription> {
@@ -112,9 +115,10 @@ export async function describeExplainer(Scene: ExplainerClass, options: Describe
     title: meta.title ?? meta.id ?? '',
     lang: meta.lang ?? 'en',
     sources: [...(meta.sources ?? [])],
+    ...((meta as { checkedAgainst?: string }).checkedAgainst ? { checkedAgainst: (meta as { checkedAgainst?: string }).checkedAgainst } : {}),
     settings: (Scene.settings ?? []).map((s) => ({ ...s, options: s.options.map((o) => ({ ...o })) })),
     ...(meta.answer ? { answer: meta.answer } : {}),
-    ...(meta.checks?.length ? { checks: meta.checks.map((c) => ({ question: c.question, answer: c.answer })) } : {}),
+    ...(meta.questions?.length ? { questions: meta.questions.map((c) => ({ question: c.question, answer: c.answer })) } : {}),
     scenarios,
   };
 }
@@ -123,13 +127,17 @@ export async function describeExplainer(Scene: ExplainerClass, options: Describe
 export async function describeScenario(Scene: ExplainerClass, values: Settings, options: DescribeOptions = {}): Promise<ScenarioDescription> {
   const Source = options.snapshots ? bindSnapshots(Scene, options.snapshots) : Scene,
     Bound = withSettings(Source, values),
-    { trace, scene } = await traceRun(Bound),
-    paper = paperOf(scene),
     draw = options.drawings ?? true,
+    // Each step's picture as text, drawn as the step ends: every one from the run that traces it.
+    drawings = new Map<string, string>(),
+    { trace, scene } = await traceRun(Bound, {}, (ran, step) => {
+      if (draw === true || draw === step.path) drawings.set(step.path, restingDrawing(ran));
+    }),
+    paper = paperOf(scene),
     steps: StepDescription[] = [];
   for (const s of trace.steps) {
     const before = s.before,
-      after = s.after ?? {},
+      after = s.after,
       shown = withoutPicture(s.shown),
       changed: StepDescription['changed'] = {};
     for (const k of new Set([...Object.keys(before), ...Object.keys(after)]))
@@ -142,7 +150,7 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
       line: words.line,
       caption: words.caption,
       start: s.t0,
-      end: s.t1 ?? trace.duration,
+      end: s.t1,
       ...(s.hold == null ? {} : { hold: s.hold }),
       state: after,
       ...(Object.keys(shown).length ? { shown } : {}),
@@ -152,7 +160,8 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
     };
     const events = (s.evidence ?? []).filter((e) => e.kind === 'event').map((e) => String(e.event));
     if (events.length) d.events = events;
-    if (draw === true || draw === s.step) d.drawing = await drawing(Bound, restingTime(s, trace.fps));
+    const drawn = drawings.get(s.step);
+    if (drawn !== undefined) d.drawing = drawn;
     steps.push(d);
   }
   const invariants = [...scene.invariants.keys()];
@@ -177,10 +186,12 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
   };
 }
 
-/** The picture at `t` as text, without the heading that names the step, as `rayner check` draws it. */
-async function drawing(Bound: ExplainerClass, t: number): Promise<string> {
-  const sink: Sink = { async frame() {} };
-  const scene: Scene = await renderAt(Bound, t, sink);
-  scene.mobjects = scene.mobjects.filter((m) => !isHeading(m));
-  return renderText(scene);
+/**
+ * A step's resting picture as text: the scene as the step ends, drawn without the heading (number,
+ * title, line) that names the step, since whoever reads the drawing has the step's title and line
+ * beside it. The one text drawing of a resting picture: `describe`'s `drawing` and `rayner check`'s
+ * `restingFrames` are both this.
+ */
+export function restingDrawing(scene: Scene): string {
+  return withoutHeading(scene, () => renderText(scene));
 }

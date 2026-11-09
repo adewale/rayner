@@ -1,4 +1,5 @@
-import type {SnapshotStore, DiagramSnapshot, SnapshotPart, SnapshotShape} from '../integrations/agentic-mermaid/snapshot.ts';
+import type { SnapshotStore, DiagramSnapshot } from '../explain/index.ts';
+import type { SnapshotPart, SnapshotShape } from '../explain/internal.ts';
 
 export type PackedShape = Omit<SnapshotShape, 'subpaths'> & {subpaths: (number[] | number)[]};
 type PackedPart = Omit<SnapshotPart, 'shapes'> & {shapes: PackedShape[]};
@@ -11,7 +12,7 @@ export interface PathSnapshotPayload {
 
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const path = (v: unknown): v is number[] => Array.isArray(v) && Array.from(v).every(n => typeof n === 'number' && Number.isFinite(n));
-const invalid = () => new Error('Invalid packed diagram snapshots');
+const invalid = () => new Error('decodeSnapshotPayload(): the packed diagram snapshots do not match the rayner-paths-v1 format; build the page again');
 
 /** Expand only shape.subpaths references. Other numbers and metadata are untouched. */
 export function decodeSnapshotPayload(value: unknown): SnapshotStore {

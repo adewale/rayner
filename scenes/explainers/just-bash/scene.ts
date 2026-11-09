@@ -1,22 +1,26 @@
-import { frames as readerFrames, ANSWER } from '../lib/readers/just-bash.ts';
-import { Scene, Text, Group, Rectangle, Transform, Arrow, AnimationGroup, Succession, FadeIn, Machine, choreograph, view } from '../../../src/index.ts';
-import type { Animation, Box, Choreography, Mobject, SceneState, Transition } from '../../../src/index.ts';
-import { stage, regionBox } from '../../../explain/index.ts';
-import { keyedParts } from '../../../explain/drawing.ts';
-import { exec } from '../lib/models.ts';
-import type { Shell } from '../lib/models.ts';
-import { sessionOfShells, sessionNextShell, scriptBound, BASH_EVENTS } from '../lib/just-bash.ts';
-import type { ShellSession, BashEvent } from '../lib/just-bash.ts';
+import { frames as readerFrames, FILE, files, prints, shellsPicture, shellsWords, commandLine, faded } from './picture.ts';
+import type { Choreography, Transition, Diagram, PictureNote, View, ExplainerMeta } from '../../../explain/index.ts';
+import { Scene, Text, Transform, AnimationGroup, Succession, FadeIn, FadeOut } from '../../../src/index.ts';
+import type { Animation, Box } from '../../../src/index.ts';
+import { stage, regionBox, answerOf, Machine, view, having } from '../../../explain/index.ts';
+import { card, code } from '../../../explain/drawing.ts';
+import type { CardRow, CardOptions } from '../../../explain/drawing.ts';
+import { exec } from './model.ts';
+import type { Shell } from './model.ts';
+import { sessionOfShells, sessionNextShell, scriptBound, BASH_EVENTS } from './model.ts';
+import type { ShellSession, BashEvent } from './model.ts';
 const STYLE = 'chalkboard';
 const PIPELINE = [
   ['echo', 'hello'],
   ['tr', 'a-z', 'A-Z'],
 ] as const;
-const FILE = 'shout.txt';
 const q = (v: string) => JSON.stringify(v);
-const files = (sh: Shell) => Object.keys(sh.fs).join(', ') || 'none';
-/** What cat's stdout amounts to, in words. */
-const prints = (out: string) => (out ? `prints ${out.trim()}` : 'prints nothing');
+/** The word a diagram's mark gives its parts by default, in this explainer's language. */
+const MARKED = 'marked';
+/** How a diagram is shown besides its source, kept in `shown`: its marks (trails included) and its notes. */
+type DiagramShown = { marks: Record<string, string | { color: string; as?: string }>; notes: PictureNote[] };
+const PLAIN: DiagramShown = { marks: {}, notes: [] };
+type Focus = number | [number, number] | null;
 /** Ask the model whether it can run a command name. Pure: no animation inside the catch. */
 function lookup(name: string): 'builtin' | 'unsupported' {
   try {
@@ -27,62 +31,73 @@ function lookup(name: string): 'builtin' | 'unsupported' {
     throw error;
   }
 }
-/** The check answers, from the model: two writes from the same starting shell, a pipeline with no redirect, and ls. */
-const CHECK = (() => {
-  const empty: Shell = { fs: {}, steps: 0 },
-    first = exec(empty, [['echo', 'hi']], 'a.txt').shell,
-    second = exec(empty, [['echo', 'bye']], 'b.txt').shell,
-    plain = exec(empty, PIPELINE);
-  let ls = '';
-  try {
-    exec(first, [['ls']]);
-  } catch (error) {
-    ls = error instanceof Error ? error.message : String(error);
-  }
-  if (!('a.txt' in first.fs) || 'a.txt' in second.fs) throw new Error('a.txt should be in the first result alone');
-  return { branch: { first: files(first), second: files(second) }, plain: { stdout: plain.stdout, files: files(plain.shell) }, ls };
-})();
 const TOP = regionBox('top', { bottom: -0.2 }),
   BOTTOM = regionBox('bottom', { top: -0.5 }),
   BOTTOM_LEFT = regionBox('left', { top: -0.5 }),
   BOTTOM_RIGHT = regionBox('right', { top: -0.5 });
-export default class BashExplainer extends Scene {
+/**
+ * The two shells a redirect leaves (and what cat printed on the returned one), then the caller's
+ * session of shells that the lesson's machine drives.
+ */
+type BashState = { oldShell?: Shell; newShell?: Shell; stdout?: string; cat?: string } & Partial<ShellSession>;
+type DiagramName = 'ast' | 'flow' | 'policy';
+type CodeName = 'api' | 'call' | 'loop' | 'dispatch' | 'story';
+type CardName = 'before' | 'after' | 'picked';
+/** Each diagram's marks and notes, each code panel's focus, each card's lit row, and whether the redirect has written. */
+type BashShown = { [d in DiagramName]?: DiagramShown } & { [c in CodeName]?: Focus } & { [c in CardName]?: string } & { written?: boolean };
+
+export default class BashExplainer extends Scene<BashState, BashShown> {
   static meta = {
-    id: 'just-bash',
-    title: 'Why must you keep the returned shell?',
     sources: [
       'https://github.com/elixir-ai-tools/just_bash',
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/just-bash.ts',
     ],
-    // The script's answer; check holds reader-values to stating it.
-    answer: ANSWER,
     claims: [
-      { says: 'leaves the shell you passed in unchanged', test: 'test/explain-models.test.ts: exec leaves any shell it is given unchanged' },
+      { says: 'leaves the shell you passed in unchanged', test: 'model.test.ts: exec leaves any shell it is given unchanged' },
       { says: 'only the returned one holds shout.txt', shown: true as const },
     ],
-    // Commands no step runs, each answered by the same exec.
-    checks: [
-      {
-        question: 'From the empty shell, a caller runs echo hi > a.txt and keeps the returned shell. Then it runs echo bye > b.txt on the empty shell again and keeps that result too. Which files does the second result hold, and where is a.txt?',
-        answer: `The second result holds ${CHECK.branch.second} and nothing else. a.txt is in the first result, because the second command started from the empty shell, which never received the first write.`,
-      },
-      {
-        question: 'Run echo hello | tr a-z A-Z with no redirect. What does exec print, and does the returned shell gain a file?',
-        answer: `It prints ${q(CHECK.plain.stdout)}, and the returned shell holds ${CHECK.plain.files === 'none' ? 'no files' : CHECK.plain.files}. Without a redirect the text stays on standard output, so there is no write for the returned shell to carry.`,
-      },
-      {
-        question: 'To check whether shout.txt exists, a caller runs ls on the returned shell. What happens, and what does that tell it about the file?',
-        answer: `exec throws “${CHECK.ls}”, because this model has branches only for echo, tr and cat. The error says nothing about shout.txt; cat on the returned shell would print its contents.`,
-      },
-    ],
-  };
+  } satisfies ExplainerMeta;
   override async construct() {
     const s = stage(this, { headingSize: 0.6, style: STYLE }),
-      ink = s.palette.ink,
-      accent = s.emphasis;
+      ink = s.look.ink,
+      accent = s.look.emphasis;
     const old: Shell = { fs: {}, steps: 0 };
+    // How each picture is shown, apart from the model: a code panel's focus, a diagram's marks and
+    // notes, a card's lit row. That is `shown`, under each picture's name; views draw it.
+    const shownOf = (name: DiagramName) => having(this.shown, name)[name];
+    const show = async <K extends keyof BashShown>(v: View, name: K, value: BashShown[K], runTime = 0.45) => {
+      this.shown = { ...this.shown, [name]: value };
+      await this.play(v.sync({ runTime }));
+    };
+    /** A code panel as s.code draws it, its lit bar on `shown[name]`. */
+    const codePanel = async (lines: readonly string[], opts: { at: Box | 'side'; size: number }, name: CodeName) => {
+      const v = view(this, (_st, sh) => code(s, lines, { ...opts, lit: sh[name] == null ? null : { lines: sh[name] }, key: name }), { place: false });
+      await s.enter(v, { runTime: 0.4 });
+      return v;
+    };
+    const focus = (v: View, name: CodeName, lines: Focus) => show(v, name, lines, 0.4);
+    /** Diagram `d` shown by a view of `shown[name]`. */
+    const diagramView = (d: Diagram, name: DiagramName) => {
+      this.shown = { ...this.shown, [name]: PLAIN };
+      return s.diagramView(d, (_st, sh) => having(sh, name)[name]);
+    };
+    /** These changes to how diagram `name` is shown, synced. */
+    const showDiagram = (v: View, name: DiagramName, change: (was: DiagramShown) => Partial<DiagramShown>) =>
+      show(v, name, { ...shownOf(name), ...change(shownOf(name)) });
+    /** A walk's token, then its trail left in `shown[name]`, in `color` (the diagram's accent by default). */
+    const walked = async (d: Diagram, v: View, name: DiagramName, hops: [string, string][], color?: string) => {
+      await d.walk(hops);
+      await showDiagram(v, name, (was) => ({ marks: { ...was.marks, ...d.trail(hops, color) } }));
+    };
+    const noted = (v: View, name: DiagramName, note: PictureNote) => showDiagram(v, name, (was) => ({ notes: [...was.notes, note] }));
+    /** A card as s.card draws it, its lit row on `shown[name]`. */
+    const cardView = async (rows: (st: BashState, sh: BashShown) => readonly CardRow[], opts: Omit<CardOptions, 'lit' | 'key'>, name: CardName) => {
+      const v = view(this, (st, sh) => card(s, rows(st, sh), { ...opts, lit: sh[name] == null ? null : { row: sh[name] }, key: name }), { place: false });
+      await s.enter(v, { runTime: 0.35, shift: [0, -0.08] });
+      return v;
+    };
     // ── command: a line of text and a shell value ──────────────────────
-    await s.steps(readerFrames(), { kind: 'short' });
+    await readerFrames(s, answerOf(this), { kind: 'short' });
     await this.step('command', {
       kind: 'detail',
       title: 'A command line and the empty shell it runs on',
@@ -98,35 +113,19 @@ export default class BashExplainer extends Scene {
       ['>', 'redirect'],
       [FILE, 'file'],
     ];
-    const tokens = parts.map(([t]) => new Text(t, { fontSize: 0.56, font: 'mono', color: ink }));
-    const line = new Group(...tokens).arrange([1, 0], 0.42).moveTo([0, 1.9]);
-    const roles = parts.map(([, role], i) => {
-      const tok = tokens[i]!,
-        [a, , b] = tok.box()!,
-        isOp = role === 'pipe' || role === 'redirect';
-      const bar = new Rectangle({
-        width: Math.max(0.3, b - a),
-        height: 0.035,
-        fill: isOp ? accent : ink,
-        stroke: 'none',
-      }).moveTo([(a + b) / 2, 1.4]);
-      const label = new Text(role, { fontSize: 0.24, color: isOp ? accent : s.soft }).moveTo([
-        (a + b) / 2,
-        1.05,
-      ]);
-      return new Group(bar, label);
-    });
+    const { line, roles } = commandLine(parts, ink, accent, s.look.soft);
     await s.enter(line, { runTime: 0.5 });
-    await s.enter(new Group(...roles), { runTime: 0.5 });
-    const api = await s.code(
+    await s.enter(roles, { runTime: 0.5 });
+    const api = await codePanel(
       [
         `shell = { fs: ${JSON.stringify(old.fs)}, steps: ${old.steps} }`,
         'exec(shell, pipeline, redirect)',
         '  → { shell, stdout }',
       ],
-      { at: BOTTOM, fontSize: 0.3 },
+      { at: BOTTOM, size: 0.3 },
+      'api',
     );
-    await api.focus(0);
+    await focus(api, 'api', 0);
     // ── parse: the command is a tree ────────────────────────────────────
     await this.step('parse', {
       kind: 'detail',
@@ -143,16 +142,18 @@ export default class BashExplainer extends Scene {
       },
       { box: 'main' },
     );
-    const call = await s.code(
+    const astView = diagramView(ast, 'ast');
+    const call = await codePanel(
       ['exec(shell,', '  [["echo", "hello"],', '   ["tr", "a-z", "A-Z"]],', `  "${FILE}")`],
       {
         at: 'side',
-        fontSize: 0.3,
+        size: 0.3,
       },
+      'call',
     );
-    await ast.mark(['Echo', 'Tr']);
-    await call.focus([1, 2]);
-    await ast.note('Redirect', 'not a command', { side: 'below' });
+    await showDiagram(astView, 'ast', () => ({ marks: { Echo: { color: ast.emphasis, as: MARKED }, Tr: { color: ast.emphasis, as: MARKED } } }));
+    await focus(call, 'call', [1, 2]);
+    await noted(astView, 'ast', { id: 'Redirect', text: 'not a command', side: 'below' });
     // ── reduce: stdout threads through the builtins ─────────────────────
     const afterEcho = exec(old, [PIPELINE[0]]).stdout,
       afterTr = exec(old, PIPELINE).stdout;
@@ -170,23 +171,25 @@ export default class BashExplainer extends Scene {
       },
       { box: TOP },
     );
-    const loop = await s.code(
+    let flowView = diagramView(flow, 'flow');
+    const loop = await codePanel(
       [
         'stdout = ""',
         'for each [name, ...args] in stages:',
         '  echo: stdout = args + "\\n"',
         '  tr:   stdout = upper(stdout)',
       ],
-      { at: BOTTOM, fontSize: 0.3 },
+      { at: BOTTOM, size: 0.3 },
+      'loop',
     );
-    await loop.focus(0);
-    await flow.walk([['Input', 'Echo']], { trail: true });
-    await loop.focus(2);
-    await flow.note('Echo', q(afterEcho), { side: 'below' });
-    await flow.walk([['Echo', 'Tr']], { trail: true });
-    await loop.focus(3);
-    await flow.note('Tr', q(afterTr), { side: 'below' });
-    await flow.walk([['Tr', 'Output']], { trail: true });
+    await focus(loop, 'loop', 0);
+    await walked(flow, flowView, 'flow', [['Input', 'Echo']]);
+    await focus(loop, 'loop', 2);
+    await noted(flowView, 'flow', { id: 'Echo', text: q(afterEcho), side: 'below' });
+    await walked(flow, flowView, 'flow', [['Echo', 'Tr']]);
+    await focus(loop, 'loop', 3);
+    await noted(flowView, 'flow', { id: 'Tr', text: q(afterTr), side: 'below' });
+    await walked(flow, flowView, 'flow', [['Tr', 'Output']]);
     const run = exec(old, PIPELINE, FILE);
     this.state = { oldShell: old, newShell: run.shell, stdout: run.stdout };
     // ── redirect: the write lands in a new value ────────────────────────
@@ -196,35 +199,47 @@ export default class BashExplainer extends Scene {
       caption:
         'The redirect stores HELLO in shout.txt and empties stdout, but the file does not go into the shell the caller passed in. exec copies that shell’s files into a new shell value, adds shout.txt there and returns it, so the original shell on the left still has no files and its step count is still 0.',
     });
-    await s.clearOverlays();
+    // The code panel goes, and the diagram's notes and trail with it; the live diagram takes the edit.
+    this.shown = { ...this.shown, flow: PLAIN };
+    await this.play(flowView.sync({ runTime: 0.3 }), new FadeOut(loop, { runTime: 0.3 }));
+    s.liveDiagram(flow);
     await flow.morph({
       source: `graph LR\nInput[empty stdin] --> Echo[echo hello]\nEcho --> Tr[tr a-z A-Z]\nTr --> File[${FILE}]`,
     });
-    await flow.note('File', q(run.shell.fs[FILE]!), { side: 'below' });
-    const before = await s.card(
-      [
-        ['files', files(old)],
-        ['steps run', old.steps],
+    flowView = s.diagramView(flow, (_st, sh) => having(sh, 'flow').flow);
+    await noted(flowView, 'flow', { id: 'File', text: q(run.shell.fs[FILE]!), side: 'below' });
+    const before = await cardView(
+      (st) => [
+        ['files', files(having(st, 'oldShell').oldShell)],
+        ['steps run', having(st, 'oldShell').oldShell.steps],
       ],
-      { at: BOTTOM_LEFT, align: 'top', title: 'Original shell', fontSize: 0.3, width: 5.2 },
+      { at: BOTTOM_LEFT, align: 'top', title: 'Original shell', size: 0.3, width: 5.2 },
+      'before',
     );
-    const after = await s.card(
-      [
-        ['files', files(old)],
-        [FILE, '—'],
-        ['steps run', old.steps],
-        ['stdout', q(afterTr)],
-      ],
-      { at: BOTTOM_RIGHT, align: 'top', title: 'Returned shell', fontSize: 0.3, width: 5.2 },
+    // The returned shell's card starts as the copy exec makes, then shows what the redirect wrote.
+    const after = await cardView(
+      (st, sh) => {
+        const { newShell, stdout } = having(st, 'newShell', 'stdout');
+        return sh.written
+          ? [
+              ['files', files(newShell)],
+              [FILE, q(newShell.fs[FILE]!)],
+              ['steps run', newShell.steps],
+              ['stdout', q(stdout)],
+            ]
+          : [
+              ['files', files(old)],
+              [FILE, '—'],
+              ['steps run', old.steps],
+              ['stdout', q(afterTr)],
+            ];
+      },
+      { at: BOTTOM_RIGHT, align: 'top', title: 'Returned shell', size: 0.3, width: 5.2 },
+      'after',
     );
-    await after.set({
-      files: files(run.shell),
-      [FILE]: q(run.shell.fs[FILE]!),
-      'steps run': run.shell.steps,
-      stdout: q(run.stdout),
-    });
-    await after.mark(FILE);
-    await before.mark('files');
+    await show(after, 'written', true);
+    await show(after, 'after', FILE, 0.4);
+    await show(before, 'before', 'files', 0.4);
     // ── lookup: names resolve through a policy ──────────────────────────
     await this.step('lookup', {
       kind: 'detail',
@@ -243,40 +258,39 @@ export default class BashExplainer extends Scene {
       },
       { box: TOP },
     );
-    const dispatch = await s.code(
+    const policyView = diagramView(policy, 'policy');
+    const dispatch = await codePanel(
       [
         'if (name === "echo") …',
         'else if (name === "tr") …',
         'else if (name === "cat") …',
         'else throw Error("Unknown model command")',
       ],
-      { at: BOTTOM, fontSize: 0.3 },
+      { at: BOTTOM, size: 0.3 },
+      'dispatch',
     );
-    await policy.walk(
-      [
-        ['Name', 'Builtin'],
-        ['Builtin', 'Run'],
-      ],
-      { trail: true },
-    );
-    await policy.note(
-      'Run',
-      found
+    await walked(policy, policyView, 'policy', [
+      ['Name', 'Builtin'],
+      ['Builtin', 'Run'],
+    ]);
+    await noted(policyView, 'policy', {
+      id: 'Run',
+      text: found
         .filter(([, r]) => r === 'builtin')
         .map(([n]) => n)
         .join(' · '),
-      { side: 'above' },
-    );
-    await policy.walk([['Builtin', 'Error']], { trail: s.bad });
-    await policy.note(
-      'Error',
-      found
+      side: 'above',
+    });
+    await walked(policy, policyView, 'policy', [['Builtin', 'Error']], s.look.bad);
+    await noted(policyView, 'policy', {
+      id: 'Error',
+      text: found
         .filter(([, r]) => r === 'unsupported')
         .map(([n]) => n)
         .join(' · '),
-      { side: 'below' },
-    );
-    await dispatch.focus(3);
+      side: 'below',
+    });
+    await focus(dispatch, 'dispatch', 3);
     // ── cat: the same command against two shells ────────────────────────
     const chosen = run.shell,
       result = exec(chosen, [['cat', FILE]]),
@@ -291,28 +305,20 @@ export default class BashExplainer extends Scene {
     await s.clear();
     await s.code([`exec(${'returned'}, [["cat", "${FILE}"]])`], {
       at: regionBox('top', { bottom: 1.6 }),
-      fontSize: 0.4,
+      size: 0.4,
     });
-    const shellCard = (sh: Shell, out: string, title: string, at: Box) =>
-      s.card(
-        [
-          ['files', files(sh)],
-          [FILE, sh.fs[FILE] == null ? 'missing' : q(sh.fs[FILE]!)],
-          ['cat stdout', q(out)],
-        ],
-        { at, title, fontSize: 0.32 },
-      );
+    const shellRows = (sh: Shell, out: string): CardRow[] => [
+      ['files', files(sh)],
+      [FILE, sh.fs[FILE] == null ? 'missing' : q(sh.fs[FILE]!)],
+      ['cat stdout', q(out)],
+    ];
     const oldResult = other.stdout,
       newResult = result.stdout;
-    const oldCard = await shellCard(old, oldResult, 'Original shell', regionBox('left', { top: 1.3 })),
-      newCard = await shellCard(run.shell, newResult, 'Returned shell', regionBox('right', { top: 1.3 }));
-    const [picked, unpicked] = [newCard, oldCard];
-    const faded = unpicked.copy();
-    faded.family().forEach((m, i) => {
-      if (unpicked.family()[i] !== unpicked.bar) m.style.opacity = 0.4;
-    });
-    await this.play(new Transform(unpicked, faded, { runTime: 0.4 }));
-    await picked.mark('cat stdout');
+    const oldCard = await s.card(shellRows(old, oldResult), { at: regionBox('left', { top: 1.3 }), title: 'Original shell', size: 0.32 });
+    // The returned shell's card is the one cat reads: its cat stdout row lights, from `shown`.
+    const newCard = await cardView(() => shellRows(run.shell, newResult), { at: regionBox('right', { top: 1.3 }), title: 'Returned shell', size: 0.32 }, 'picked');
+    await this.play(new Transform(oldCard, faded(oldCard), { runTime: 0.4 }));
+    await show(newCard, 'picked', 'cat stdout', 0.4);
     this.state.cat = result.stdout;
     // ── lesson: the shell as a chain of values ──────────────────────────
     const viaNew = exec(run.shell, [['cat', FILE]]).stdout,
@@ -326,22 +332,14 @@ export default class BashExplainer extends Scene {
     await s.clear();
     // The caller's shells, drawn from the session: each command line is an event of a machine whose model is exec.
     const start = sessionOfShells();
-    this.state = { ...start } as unknown as SceneState;
-    const chain = view(this, (st) => shellsPicture(st as unknown as ShellSession, s), { place: false });
-    const session = () => this.state as unknown as ShellSession;
+    this.state = { ...start };
+    const chain = view(this, (st) => shellsPicture(having(st, 'shells', 'cats'), s), { place: false });
+    const session = () => having(this.state, 'shells', 'cats');
     s.keep(chain, { describe: () => shellsWords(session()) });
-    // What the picture marks: the shell the caller keeps, and what each cat printed.
-    s.emphasise(() => {
-      const st = session(), newest = st.shells.length - 1;
-      return [
-        [`shell:${newest}:box`, `kept: s${newest}`],
-        ...st.cats.flatMap((c, i) => (c === null ? [] : [[`out:${i}`, `cat on s${i}: ${prints(c)}`] as const])),
-      ];
-    });
     // Checked on every frame, and through every transition from every state rayner check reaches: whatever ran, s0
     // is the empty shell the caller started with, in the model and in the picture.
     this.addInvariant('s0 stays the empty shell', (scene) => {
-      const st = scene.state as unknown as ShellSession;
+      const st: BashState = scene.state;
       if (!Array.isArray(st.shells)) return false;
       if (JSON.stringify(st.shells[0]) !== JSON.stringify(old)) return `s0 is ${JSON.stringify(st.shells[0])}`;
       const said = chain.current.find('shell:0:files')?.family().filter((m): m is Text => m instanceof Text).map((t) => t.text) ?? [];
@@ -349,84 +347,44 @@ export default class BashExplainer extends Scene {
       return true;
     });
     await this.play(new FadeIn(chain, { runTime: 0.4 }));
-    const machine = new Machine<ShellSession, BashEvent>(this, {
+    // The script's code, its focus bar on the line the lesson runs next: shown, set between replays.
+    this.shown = { story: 0 };
+    const story = view(
+      this,
+      (_st, sh) =>
+        code(
+          s,
+          [
+            `s1 = exec(s0, pipeline, "${FILE}").shell`,
+            `exec(s1, [["cat", "${FILE}"]]).stdout   // ${q(viaNew)}`,
+            `exec(s0, [["cat", "${FILE}"]]).stdout   // ${q(viaOld)}`,
+            `s0.fs                               // ${JSON.stringify(old.fs)}`,
+          ],
+          { at: BOTTOM, size: 0.3, lit: sh.story == null ? null : { lines: sh.story }, key: 'story' },
+        ),
+      { place: false },
+    );
+    const machine = new Machine<BashState, BashEvent>(this, {
       start,
       events: BASH_EVENTS,
       // What the player's buttons say: the script's lines as the reader would run them.
       labels: { RUN_PIPELINE: 'Run the pipeline', CAT_NEWEST: 'cat on the newest shell', CAT_S0: 'cat on s0', LS: 'ls' },
-      next: sessionNextShell,
-      bound: scriptBound,
+      next: (st, event) => sessionNextShell(having(st, 'shells', 'cats'), event),
+      bound: (st, event) => scriptBound(having(st, 'shells', 'cats'), event),
       views: [chain],
       runTime: ({ event }) => (event === 'RUN_PIPELINE' ? 1.6 : 1.2),
       transition: Object.fromEntries(
-        BASH_EVENTS.map((event) => [event, (t: Transition<ShellSession, BashEvent>) => commandRuns(t.choreograph(chain))]),
-      ) as unknown as Record<BashEvent, (t: Transition<ShellSession, BashEvent>) => Animation>,
+        BASH_EVENTS.map((event) => [event, (t: Transition<BashState, BashEvent>) => commandRuns(t.choreograph(chain))]),
+      ),
     });
-    const story = await s.code(
-      [
-        `s1 = exec(s0, pipeline, "${FILE}").shell`,
-        `exec(s1, [["cat", "${FILE}"]]).stdout   // ${q(viaNew)}`,
-        `exec(s0, [["cat", "${FILE}"]]).stdout   // ${q(viaOld)}`,
-        `s0.fs                               // ${JSON.stringify(old.fs)}`,
-      ],
-      { at: BOTTOM, fontSize: 0.3 },
-    );
+    await s.enter(story, { runTime: 0.4 });
     // The lesson's three lines, in order: the write on s0, whose returned shell is kept, then cat on each shell.
     for (const [line, event] of [[0, 'RUN_PIPELINE'], [1, 'CAT_NEWEST'], [2, 'CAT_S0']] as const) {
-      await story.focus(line);
+      await focus(story, 'story', line);
       await this.play(machine.replay([event]));
     }
-    await story.focus(1);
+    await focus(story, 'story', 1);
   }
-}
-
-// ---- the session's picture ------------------------------------------------------------------
-
-/** Where each shell's box sits: s0 on the left, the shell the write returned to its right. */
-const SHELL_X = [-4.5, 3.1],
-  SHELL_Y = 2.25,
-  OUT_Y = 0.2,
-  BOX_W = 3.6,
-  BOX_H = 1.1;
-
-/**
- * The caller's shells drawn from the session: a box for each shell (the newest, which the caller keeps, outlined in
- * the accent), an arrow from s0 to the shell the write returned, and under each shell cat has read, an arrow to what it
- * printed. Every part is keyed, so a command's transition can bring in exactly what it adds.
- */
-function shellsPicture(st: ShellSession, s: ReturnType<typeof stage>): Group {
-  const ink = s.palette.ink, newest = st.shells.length - 1, { add, group } = keyedParts();
-  st.shells.forEach((sh, i) => {
-    const x = SHELL_X[i]!, kept = i === newest;
-    add(new Rectangle({ width: BOX_W, height: BOX_H, cornerRadius: 0.12, fill: kept ? s.emphasis : ink, fillOpacity: kept ? 0.1 : 0.04, stroke: kept ? s.emphasis : s.soft, strokeWidth: kept ? 0.05 : 0.03 }).moveTo([x, SHELL_Y]), `shell:${i}:box`);
-    add(new Text(`s${i}: ${i === 0 ? 'original' : 'returned'} shell`, { fontSize: 0.3, color: ink, weight: 'bold' }).moveTo([x, SHELL_Y + 0.2]), `shell:${i}:name`);
-    add(new Text(`files: ${files(sh)}`, { fontSize: 0.28, font: 'mono', color: ink }).moveTo([x, SHELL_Y - 0.24]), `shell:${i}:files`);
-    if (i > 0) {
-      const arrow = new Arrow([SHELL_X[i - 1]! + BOX_W / 2 + 0.1, SHELL_Y], [x - BOX_W / 2 - 0.1, SHELL_Y], { stroke: s.emphasis, strokeWidth: 0.04, tipLength: 0.22, tipWidth: 0.18 });
-      add(new Group(arrow, new Text('echo, tr, redirect', { fontSize: 0.26, color: ink }).moveTo([(SHELL_X[i - 1]! + x) / 2, SHELL_Y + 0.32])), `run:${i}`);
-    }
-  });
-  st.cats.forEach((out, i) => {
-    if (out === null) return;
-    const x = SHELL_X[i]!, color = i === newest ? s.emphasis : s.soft;
-    const arrow = new Arrow([x, SHELL_Y - BOX_H / 2 - 0.08], [x, OUT_Y + 0.3 + 0.08], { stroke: color, strokeWidth: 0.035, tipLength: 0.2, tipWidth: 0.16 });
-    add(new Group(arrow, new Text(`cat ${FILE}`, { fontSize: 0.26, font: 'mono', color: ink, anchor: 'start' }).moveTo([x + 0.22, (SHELL_Y - BOX_H / 2 + OUT_Y + 0.3) / 2], [-1, 0])), `cat:${i}`);
-    add(new Group(
-      new Rectangle({ width: 3.0, height: 0.6, cornerRadius: 0.1, fill: s.palette.paper, stroke: color, strokeWidth: 0.03 }).moveTo([x, OUT_Y]),
-      new Text(prints(out), { fontSize: 0.3, color: out ? ink : s.bad }).moveTo([x, OUT_Y]),
-    ), `out:${i}`);
-  });
-  return group();
-}
-
-/** The session's picture in words. */
-function shellsWords(st: ShellSession): string {
-  const newest = st.shells.length - 1;
-  return [
-    ...st.shells.map((sh, i) => `s${i}, the ${i === 0 ? 'original' : 'returned'} shell${i === newest ? ', which the caller keeps' : ''}, holds files: ${files(sh)}`),
-    ...st.shells.slice(1).map((_, k) => `An arrow from s${k} to s${k + 1}: echo, tr, redirect`),
-    ...st.cats.flatMap((c, i) => (c === null ? [] : [`cat ${FILE} on s${i} ${prints(c)}`])),
-  ].join('. ') + '.';
 }
 
 /**

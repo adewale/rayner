@@ -10,13 +10,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   Scene, Code, Text, FadeIn, LaggedStart, TransformDiff, TransformMatchingText, VMobject,
-  diffLines, parseUnifiedDiff,
+  diffLines, parseUnifiedDiff, keyed,
 } from '../src/index.ts';
-import { StringSink, SnapshotSink, renderAt, renderText, indexScene, stepTime } from '../src/output.ts';
-import { MotionSink, analyzeMotion, traceScene, loadFonts } from '../explain/testing.ts';
+import { StringSink, renderText, renderFrame } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
+import { traceScene, loadFonts } from '../explain/testing.ts';
+import { MotionSink, analyzeMotion } from '../src/internal.ts';
 import { diffTokens, tokenize, hunkHeader } from '../src/diff.ts';
 import type { Hunk, Mobject, Sink } from '../src/index.ts';
 import { drawsFrom } from './lib/random-scene.ts';
+import { beginAnimation } from '../src/animation.ts';
 
 const header = (hs: Hunk[]) => hs.map(hunkHeader);
 
@@ -84,7 +87,7 @@ test('parseUnifiedDiff: headers, context, omitted counts, no-newline markers; ma
   assert.deepEqual(parseUnifiedDiff(''), []);
   assert.throws(() => parseUnifiedDiff('@@ -1,2 +1 @@\n-a\n'), /shorter than its header/);
   assert.throws(() => parseUnifiedDiff('@@ -1 +1 @@\n-a\n-b\n+c\n'), /more lines than its header/);
-  assert.throws(() => parseUnifiedDiff('@@ -1 +1 @@\n-a\n+b\ndiff --git a/g b/g\n--- a/g\n+++ b/g\n@@ -1 +1 @@\n-x\n+y\n'), /one file per diff/);
+  assert.throws(() => parseUnifiedDiff('@@ -1 +1 @@\n-a\n+b\ndiff --git a/g b/g\n--- a/g\n+++ b/g\n@@ -1 +1 @@\n-x\n+y\n'), /parseUnifiedDiff\(\): the diff has a second file header/);
 });
 
 test('git agrees: parse(git diff) equals diffLines on random edits, and git round-trips through the parser', () => {
@@ -175,11 +178,11 @@ test('TransformDiff: given hunks are the truth, and hunks that do not describe t
   assert.deepEqual(given.hunks, hunks);
   // Hunks of another edit: lines must match
   const wrong = new TransformDiff(new Code(BEFORE), new Code(AFTER), { hunks: diffLines(['a', 'b', 'c'], ['a', 'c']) });
-  assert.throws(() => wrong.begin(), /TransformDiff: hunk @@ -2 \+1,0 @@ removes "b", but before line 2 is " {2}return db.get\(id\);"; the hunks do not describe/);
+  assert.throws(() => beginAnimation(wrong), /new TransformDiff\(\): hunk @@ -2 \+1,0 @@ removes "b"/);
   const short = new TransformDiff(new Code(BEFORE), new Code(AFTER), { hunks: [] });
-  assert.throws(() => short.begin(), /after the last hunk the old text has 3 more lines and the new 6/);
+  assert.throws(() => beginAnimation(short), /after the last hunk the old text has 3 more lines and the new 6/);
   const counts = new TransformDiff(new Code(BEFORE), new Code(AFTER), { hunks: [{ oldStart: 2, oldLines: 1, newStart: 2, newLines: 4, ops: ['-', '+'], lines: ['  return db.get(id);', 'x'] }] });
-  assert.throws(() => counts.begin(), /which its header does not count/);
+  assert.throws(() => beginAnimation(counts), /which its header does not count/);
   // Constructing never checks: only begin() reads the texts
   assert.ok(new TransformDiff(new Code(['a']), new Code(['b']), { hunks: [] }));
 });
@@ -203,13 +206,12 @@ class DiffScene extends Scene {
 test('seeking into a TransformDiff renders the frame a full run renders', async () => {
   const full = new StringSink();
   await new DiffScene(full).run();
-  const ix = await indexScene(DiffScene);
-  const d = stepTime(ix, 'diff')!, g = stepTime(ix, 'given')!;
-  const ks = [0, Math.round(d * 30), Math.round(d * 30) + 1, Math.round((d + 0.6) * 30), Math.round((d + 1.2) * 30),
-    Math.round(g * 30) + 7, Math.round(g * 30) + 15, full.frames.length - 1];
+  const ix = await traceScene(DiffScene);
+  const d = ix.steps.find((s) => s.step === 'diff')!.frame0, g = ix.steps.find((s) => s.step === 'given')!.frame0;
+  const ks = [0, d, d + 1, d + 18, d + 36, g + 7, g + 15, full.frames.length - 1];
   for (const k of ks) {
     const snap = new SnapshotSink();
-    await renderAt(DiffScene, k / 30, snap);
+    await renderFrame(DiffScene, k, snap);
     assert.equal(snap.svg, full.frames[k], `frame ${k}`);
   }
 });
@@ -279,7 +281,7 @@ test('TransformDiff in a scene: the recorded hunks are git\'s, and no unchanged 
   const scene = await new HandoffScene(sink).run();
   assert.ok(handoff, 'the after block took over from the before block');
   const { from, to, t } = handoff as { from: Float32Array[][][]; to: Code; t: number };
-  assert.ok(Math.abs(t - (stepTime(await indexScene(HandoffScene), 'diff')! + 1.2)) <= 1 / scene.fps + 1e-9, `hand-over at the end of the play (${t})`);
+  assert.ok(Math.abs(t - ((await traceScene(HandoffScene)).steps.find((s) => s.step === 'diff')!.t0 + 1.2)) <= 1 / scene.fps + 1e-9, `hand-over at the end of the play (${t})`);
   // Every line git leaves alone ends exactly on its line of the after block
   let i = 0, j = 0, checked = 0;
   const same = (n: number) => {
@@ -317,7 +319,7 @@ test('evidence: the trace and the text frame carry what each transform paired, a
   const hash = (x: unknown) => createHash('sha256').update(JSON.stringify(x)).digest('hex');
   assert.equal(hash(await traceScene(DiffScene)), hash(tr));
   // Mid-transform, the text frame says what the step recorded so far
-  const scene = await renderAt(DiffScene, stepTime(await indexScene(DiffScene), 'diff')! + 0.5, new SnapshotSink());
+  const scene = await renderFrame(DiffScene, tr.steps.find((s) => s.step === 'diff')!.frame0 + 15, new SnapshotSink());
   assert.match(renderText(scene), /\ndiff @@ -2 \+2,4 @@: 2 unchanged, 1 rewritten, 0 removed, 3 added lines$/);
 });
 
@@ -331,7 +333,7 @@ test('every matching transform records its counts when it begins in a scene', as
   assert.deepEqual(s.evidence, s.steps[0]!.evidence);
   // Outside a scene there is nowhere to record: begin() still works, and evidence() reads the counts
   const free = new TransformMatchingText(new Text('ab'), new Text('abc'));
-  free.begin();
+  beginAnimation(free);
   assert.deepEqual(free.evidence(), { kind: 'match', matched: 2, morphed: 0, removed: 0, added: 1 });
   // record() copies as JSON
   const data = { n: 1 };
@@ -342,13 +344,15 @@ test('every matching transform records its counts when it begins in a scene', as
 
 test('every animation that decides something records it as it begins: nested in groups and successions, in begin order', async () => {
   await loadFonts();
-  const { view, Follow, Succession, AnimationGroup, Dot, linear } = await import('../src/index.ts');
+  const { Succession, AnimationGroup, Dot, linear } = await import('../src/index.ts');
+  const { view } = await import('../explain/index.ts');
+  const { Follow } = await import('../explain/state.ts');
   const s = await new (class extends Scene<{ word: string }> {
     override state = { word: 'cache' };
     override async construct() {
       await this.step('a');
       const readout = view(this, (st) => new Text(st.word));
-      readout.key = 'readout';
+      keyed(readout, 'readout');
       const plain = view(this, (st) => new Text(st.word));
       const dot = new Dot();
       this.add(readout, plain, dot);
@@ -356,7 +360,7 @@ test('every animation that decides something records it as it begins: nested in 
       await this.play(new AnimationGroup([
         new TransformMatchingText(new Text('ab'), new Text('abc')),
         new Succession([
-          readout.sync({ runTime: 0.2 }),
+          readout.sync({ match: 'text', runTime: 0.2 }),
           new Follow({ from: 1, to: 2, draw: (x) => new Dot().moveTo([x, 0]) }, { targets: [dot], runTime: 0.2, rateFunc: linear }),
           plain.sync({ runTime: 0.2, match: 'index' }),
         ]),

@@ -2,22 +2,29 @@
 // mobject, in draw order), which either serializes to an SVG string (no DOM
 // needed: Workers, Node, tests) or patches a live DOM (browser).
 
-import { VMobject } from './vmobject.ts';
+import { VMobject, pathData } from './vmobject.ts';
 import type { PathData } from './vmobject.ts';
 import type { Box, Mobject, StyleRecord } from './mobject.ts';
+import { mergeLeaves, mobjectId } from './mobject.ts';
 import type { Scene, Sink } from './scene.ts';
 import { perf } from './perf.ts';
+import { isHex } from './color.ts';
+import { FRAME, STAGE_BOX, UNITS } from './units.ts';
 
-export const FRAME = { w: 16, h: 9 } as const;
-/** SVG user units per scene unit: lengths are emitted as integers (see VMobject.formatPathD). */
-export const UNITS = 1000;
 /** A length in integer user units. */
 const len = (x: number): string => '' + Math.round(x * UNITS);
+/** A world box in user units, [left, top, right, bottom] with y down, unrounded: what the SVG draws it as. */
+export const userBox = (b: Readonly<Box>): Box => [b[0] * UNITS, -b[3] * UNITS, b[2] * UNITS, -b[1] * UNITS];
 /** A world box as a user-unit rect [x, y, width, height]: model y is up, SVG y is down, so y flips here. */
 const userRect = (b: Readonly<Box>): string[] => [len(b[0]), len(-b[3]), len(b[2] - b[0]), len(b[3] - b[1])];
 /** Camera: the viewBox is the scene's frame box (16 × 9 at the origin unless the camera moved). */
 const viewBoxOf = (scene: Scene): string => userRect(scene.frame.box()!).join(' ');
-const VIEWBOX = userRect([-FRAME.w / 2, -FRAME.h / 2, FRAME.w / 2, FRAME.h / 2]).join(' ');
+/** The camera's home viewBox: the whole stage, in user units. */
+export const VIEWBOX = userRect(STAGE_BOX).join(' ');
+/** Whether a camera box is the home box, to within float noise from an animated camera. */
+export const atHome = (view: Readonly<Box>): boolean => view.every((v, i) => Math.abs(v - STAGE_BOX[i]!) < 1e-6);
+/** The box of the world on screen: the camera's (`scene.frame`), which the SVG viewBox shows; without one, the whole stage. A new box. */
+export const viewOf = (scene: { frame?: { box(): Box | null } }): Box => [...(scene.frame?.box() ?? STAGE_BOX)] as Box;
 
 const fmt = (x: number): string => (Math.round(x * 1000) / 1000).toString();
 
@@ -39,8 +46,8 @@ export interface ElementRecord {
   svg?: string;
 }
 
-/** Per-VMobject record memo (VMobject._rec): the style and path it was built from. */
-export interface AttrsCache {
+/** Per-VMobject record memo (see attrsCache): the style and path it was built from. */
+interface AttrsCache {
   paint: string;
   id: number;
   d: string;
@@ -55,8 +62,8 @@ export interface AttrsCache {
   rec: ElementRecord | null;
 }
 
-/** Per-group memo for a merged line of glyphs (Mobject._mrec): one entry per run of equal style. */
-export interface MergedCache { runs: MergedRun[] }
+/** Per-group memo for a merged line of glyphs (see mergedCache): one entry per run of equal style. */
+interface MergedCache { runs: MergedRun[] }
 interface MergedRun {
   id: number;
   start: number;
@@ -108,7 +115,7 @@ function renderElementsImpl(scene: Scene, relative: boolean, cull: boolean, widt
     const clip = m.clipBox ? clipFor(m.clipBox, inherited?.box) : inherited;
     const emit = (rec: ElementRecord): void => { out.push(clip ? clippedRecord(rec, clip) : rec); };
     // A child-specific viewport cannot be lost by merging its parent.
-    if (!relative && m.mergeLeaves && !m.children.some((c) => c.clipBox)) {
+    if (!relative && m[mergeLeaves] && !m.children.some((c) => c.clipBox)) {
       const merged = mergedRecords(m);
       if (merged !== undefined) { for (const rec of merged) emit(rec); return; }
     }
@@ -131,7 +138,7 @@ function renderElementsImpl(scene: Scene, relative: boolean, cull: boolean, widt
 interface Clip { box: Box; id: string; attrs: Attrs }
 function clipFor(box: Box, parent?: Box): Clip {
   if (box.length !== 4 || !box.every(Number.isFinite) || box[0] > box[2] || box[1] > box[3])
-    throw new RangeError('clipBox must be a finite ordered world-coordinate box');
+    throw new RangeError('m.clipBox: it must be a finite, ordered box in world coordinates, [minX, minY, maxX, maxY]');
   if (parent) {
     const x = Math.max(box[0], parent[0]), y = Math.max(box[1], parent[1]);
     box = [x, y, Math.max(x, Math.min(box[2], parent[2])), Math.max(y, Math.min(box[3], parent[3]))];
@@ -139,6 +146,12 @@ function clipFor(box: Box, parent?: Box): Clip {
   const coords = userRect(box);
   return {box, id: 'rayner-clip-' + coords.join('_'), attrs: {x:coords[0]!,y:coords[1]!,width:coords[2]!,height:coords[3]!}};
 }
+const serializeClip = (c: Clip): string => `<clipPath id="${c.id}" clipPathUnits="userSpaceOnUse"><rect${serializeAttrs(c.attrs)}/></clipPath>`;
+/** The `<clipPath>` a record clipped to `clipBox` (ElementRecord.clipBox) refers to, as toSvgString writes it. */
+export const clipPathOf = (clipBox: Box): { id: string; svg: string } => {
+  const c = clipFor(clipBox);
+  return { id: c.id, svg: serializeClip(c) };
+};
 const clippedRecords = new WeakMap<ElementRecord, {id:string; rec:ElementRecord}>();
 function clippedRecord(rec: ElementRecord, clip: Clip): ElementRecord {
   const cached = clippedRecords.get(rec);
@@ -165,22 +178,25 @@ function clipsOf(els: readonly ElementRecord[]): Clip[] {
  * per frame, and an unchanged one costs a few comparisons. Records are never
  * mutated after creation, so they can be kept per frame (see Recording).
  */
+/** Each path's record memo, and each merged group's: the renderer's own, so no field of a mobject holds them. */
+const attrsCache = new WeakMap<VMobject, AttrsCache>(), mergedCache = new WeakMap<Mobject, MergedCache>();
+
 function elementFor(m: Mobject, relative: boolean): ElementRecord | null {
   const s = m.style;
   if (s.opacity <= 0) return null;
   if (m instanceof VMobject) {
     if (!m.hasPoints()) return null;
-    const pd = m.pathData(relative);
+    const pd = pathData(m, relative);
     const paint = JSON.stringify([s.lineCap, s.lineJoin, s.fillRule, s.dashArray, s.dashOffset, s.miterLimit, s.paintOrder]);
-    let k = m._rec;
-    if (!(k && k.paint === paint && k.id === m.id && k.d === pd.d && k.fill === s.fill && k.fillOpacity === s.fillOpacity && k.stroke === s.stroke &&
+    let k = attrsCache.get(m), id = mobjectId(m);
+    if (!(k && k.paint === paint && k.id === id && k.d === pd.d && k.fill === s.fill && k.fillOpacity === s.fillOpacity && k.stroke === s.stroke &&
         k.strokeWidth === s.strokeWidth && k.strokeOpacity === s.strokeOpacity && k.opacity === s.opacity && k.drawFraction === s.drawFraction)) {
       perf.count('attrs miss');
-      k = m._rec = { paint, id: m.id, d: pd.d, fill: s.fill, fillOpacity: s.fillOpacity, stroke: s.stroke, strokeWidth: s.strokeWidth, strokeOpacity: s.strokeOpacity, opacity: s.opacity, drawFraction: s.drawFraction, attrs: vmobjectAttrs(m, s, pd), rec: null };
+      attrsCache.set(m, k = { paint, id, d: pd.d, fill: s.fill, fillOpacity: s.fillOpacity, stroke: s.stroke, strokeWidth: s.strokeWidth, strokeOpacity: s.strokeOpacity, opacity: s.opacity, drawFraction: s.drawFraction, attrs: vmobjectAttrs(m, s, pd), rec: null });
     }
     if (k.rec && k.rec.tx === pd.tx && k.rec.ty === pd.ty) { perf.count('element hit'); return k.rec; }
     perf.count('element moved');
-    return (k.rec = { id: m.id, tag: 'path', attrs: k.attrs, transform: pd.tx || pd.ty ? 'translate(' + pd.tx + ' ' + pd.ty + ')' : null, tx: pd.tx, ty: pd.ty, text: null });
+    return (k.rec = { id, tag: 'path', attrs: k.attrs, transform: pd.tx || pd.ty ? 'translate(' + pd.tx + ' ' + pd.ty + ')' : null, tx: pd.tx, ty: pd.ty, text: null });
   }
   return null;
 }
@@ -205,7 +221,7 @@ function mergedRecords(g: Mobject): ElementRecord[] | undefined {
     if (s.drawFraction != null || s.lineCap || s.lineJoin || s.fillRule || s.dashArray || s.paintOrder) return undefined;
   }
   // Every child is a VMobject: the loop above returned otherwise
-  const leaves = kids as VMobject[], old = g._mrec?.runs, runs: MergedRun[] = [], out: ElementRecord[] = [];
+  const leaves = kids as VMobject[], old = mergedCache.get(g)?.runs, runs: MergedRun[] = [], out: ElementRecord[] = [];
   for (let i = 0, j = 0; i < leaves.length; i = j) {
     const s0 = leaves[i]!.style;
     for (j = i + 1; j < leaves.length; j++) {
@@ -214,9 +230,9 @@ function mergedRecords(g: Mobject): ElementRecord[] | undefined {
           s.strokeOpacity !== s0.strokeOpacity || s.opacity !== s0.opacity) break;
     }
     if (s0.opacity <= 0) continue;
-    const id = i === 0 && j === leaves.length ? g.id : leaves[i]!.id;
+    const id = mobjectId(i === 0 && j === leaves.length ? g : leaves[i]!);
     const pds: Array<PathData | null> = [];
-    for (let n = i; n < j; n++) pds.push(leaves[n]!.hasPoints() ? leaves[n]!.pathData(false) : null);
+    for (let n = i; n < j; n++) pds.push(leaves[n]!.hasPoints() ? pathData(leaves[n]!, false) : null);
     let k = old?.[runs.length];
     if (k && k.id === id && k.start === i && k.pds.length === pds.length && k.pds.every((p, n) => p === pds[n]) && k.fill === s0.fill &&
         k.fillOpacity === s0.fillOpacity && k.stroke === s0.stroke && k.strokeWidth === s0.strokeWidth && k.strokeOpacity === s0.strokeOpacity && k.opacity === s0.opacity) {
@@ -230,7 +246,7 @@ function mergedRecords(g: Mobject): ElementRecord[] | undefined {
     runs.push(k);
     out.push(k.rec);
   }
-  g._mrec = { runs };
+  mergedCache.set(g, { runs });
   return out;
 }
 
@@ -373,7 +389,8 @@ function serializeAttrs(attrs: Attrs): string {
   }
   return s;
 }
-function serializeElement(el: ElementRecord): string {
+/** One element record as SVG markup, as toSvgString writes it. */
+export function serializeElement(el: ElementRecord): string {
   const t = el.transform ? ` transform="${esc(el.transform)}"` : '';
   return `<${el.tag}${t}${serializeAttrs(el.attrs)}` + (el.text == null ? '/>' : `>${esc(el.text)}</${el.tag}>`);
 }
@@ -389,9 +406,9 @@ export interface SvgOptions {
 
 export function toSvgString(scene: Scene, { width = 1280, background = scene.colors.paper, cull = false }: SvgOptions = {}): string {
   if (typeof width !== 'number' || !Number.isSafeInteger(width) || width < 1)
-    throw new TypeError('svg width must be a positive safe integer');
-  if (typeof background !== 'string' || !/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(background))
-    throw new TypeError('svg background must be a #rgb or #rrggbb colour');
+    throw new TypeError('toSvgString(): width must be a positive safe integer');
+  if (!isHex(background))
+    throw new TypeError('toSvgString(): background must be a #rgb or #rrggbb colour');
   const hex = background.slice(1).toLowerCase();
   background = '#' + (hex.length === 3 ? [...hex].map((ch) => ch + ch).join('') : hex);
   const height = Number((BigInt(width) * BigInt(FRAME.h) + BigInt(FRAME.w / 2)) / BigInt(FRAME.w));
@@ -403,7 +420,7 @@ export function toSvgString(scene: Scene, { width = 1280, background = scene.col
   const end = perf.begin('render.serialize');
   const parts = [s];
   const clips = clipsOf(els);
-  if (clips.length) parts.push('<defs>',...clips.map((c)=>`<clipPath id="${c.id}" clipPathUnits="userSpaceOnUse"><rect${serializeAttrs(c.attrs)}/></clipPath>`),'</defs>');
+  if (clips.length) parts.push('<defs>',...clips.map(serializeClip),'</defs>');
   for (const el of els) parts.push(el.svg ??= serializeElement(el));
   parts.push('</svg>');
   end();
@@ -414,19 +431,19 @@ export function toSvgString(scene: Scene, { width = 1280, background = scene.col
 
 /** Collects every frame as an SVG string. Works anywhere JS runs. */
 export class StringSink implements Sink {
-  opts: SvgOptions;
-  frames: string[];
-  constructor(opts: SvgOptions = {}) { this.opts = opts; this.frames = []; }
-  async frame(scene: Scene): Promise<void> { this.frames.push(toSvgString(scene, this.opts)); }
+  readonly #opts: SvgOptions;
+  readonly frames: string[];
+  constructor(opts: SvgOptions = {}) { this.#opts = opts; this.frames = []; }
+  async frame(scene: Scene): Promise<void> { this.frames.push(toSvgString(scene, this.#opts)); }
   last(): string | undefined { return this.frames[this.frames.length - 1]; }
 }
 
 /** Keeps only the latest frame; cheap when you only want a snapshot. */
 export class SnapshotSink implements Sink {
-  opts: SvgOptions;
+  readonly #opts: SvgOptions;
   svg: string;
-  constructor(opts: SvgOptions = {}) { this.opts = opts; this.svg = ''; }
-  async frame(scene: Scene): Promise<void> { this.svg = toSvgString(scene, this.opts); }
+  constructor(opts: SvgOptions = {}) { this.#opts = opts; this.svg = ''; }
+  async frame(scene: Scene): Promise<void> { this.svg = toSvgString(scene, this.#opts); }
 }
 
 /** DomSink's per-element state: the live node and what was last written to it. */
@@ -439,47 +456,50 @@ interface DomNode {
   attrsRef?: Attrs;
 }
 
+/** The longest a live DomSink goes without a patch while it drops late frames, in milliseconds. */
+const MAX_FREEZE_MS = 100;
+
+/**
+ * @internal DomSink's hook that brings the DOM to exactly these records (one frame), and the viewBox to
+ * the camera's when given: the player's close-up sink overrides it to draw records without a frame
+ * and to map the camera. A symbol, so no member an author writes on a subclass shares its name.
+ */
+export const applyRecords = Symbol('apply');
+
 /**
  * Patches a live <svg> in place: one stable element per mobject, attributes
  * diffed, elements reordered only when draw order changes. Paces frames to
  * real time with requestAnimationFrame.
  */
 export class DomSink implements Sink {
-  doc: Document;
-  svg: SVGSVGElement;
-  NS: 'http://www.w3.org/2000/svg';
-  nodes: Map<number, DomNode>;
-  realtime: boolean;
-  anchor: number | null;
-  lastPatch: number;
-  dropped: number;
-  maxFreezeMs: number;
-  private defs: SVGDefsElement | null = null;
-  private clipSignature = '';
+  readonly #doc: Document;
+  readonly svg: SVGSVGElement;
+  readonly #NS = 'http://www.w3.org/2000/svg';
+  /** Each mobject's element, by the mobject's id. */
+  readonly #nodes = new Map<number, DomNode>();
+  readonly #realtime: boolean;
+  /** When scene time 0 is due on the wall clock, or null to anchor at the next frame. */
+  #anchor: number | null = null;
+  #lastPatch = 0;
+  #defs: SVGDefsElement | null = null;
+  #clipSignature = '';
   /** Camera: the viewBox last written, so an unchanged camera costs no DOM write. */
-  private viewBox = VIEWBOX;
+  #viewBox = VIEWBOX;
 
   /** The background given at construction; without one the SVG takes the scene's paper at each frame. */
-  private background: string | undefined;
+  readonly #background: string | undefined;
 
   constructor(container: Element, { background, realtime = true }: { background?: string; realtime?: boolean } = {}) {
-    const NS = 'http://www.w3.org/2000/svg';
     // A container in a live document always has one
-    this.doc = container.ownerDocument!;
-    this.svg = this.doc.createElementNS(NS, 'svg');
+    this.#doc = container.ownerDocument!;
+    this.svg = this.#doc.createElementNS(this.#NS, 'svg');
     this.svg.setAttribute('viewBox', VIEWBOX);
-    this.background = background;
+    this.#background = background;
     if (background !== undefined) this.svg.style.background = background;
     this.svg.style.width = '100%';
     this.svg.style.display = 'block';
     container.appendChild(this.svg);
-    this.NS = NS;
-    this.nodes = new Map(); // mobject id -> { el, attrs, text }
-    this.realtime = realtime;
-    this.anchor = null;
-    this.lastPatch = 0;
-    this.dropped = 0;
-    this.maxFreezeMs = 100;
+    this.#realtime = realtime;
   }
 
   /**
@@ -487,15 +507,15 @@ export class DomSink implements Sink {
    * schedule (scene time t is due at anchor + t). Each frame is patched in the
    * animation frame it's due in, so frames land on vsync; when the scene falls
    * more than a frame behind, that frame's DOM patch is dropped instead of
-   * slowing playback, but never for longer than maxFreezeMs. A stall longer
+   * slowing playback, but never for longer than MAX_FREEZE_MS. A stall longer
    * than 250ms (a pause, a hidden tab) re-anchors the schedule.
    */
   async frame(scene: Scene, dt = 0): Promise<void> {
-    if (!this.realtime || dt === 0) { this.anchor = null; this.patch(scene); return; }
+    if (!this.#realtime || dt === 0) { this.#anchor = null; this.#patch(scene); return; }
     const now = performance.now();
-    if (this.anchor != null && now - (this.anchor + scene.time * 1000) > 250) this.anchor = null;
-    if (this.anchor != null && now > this.anchor + scene.time * 1000 + dt * 1000 && now - this.lastPatch < this.maxFreezeMs) {
-      this.dropped++; perf.count('frames dropped');
+    if (this.#anchor != null && now - (this.#anchor + scene.time * 1000) > 250) this.#anchor = null;
+    if (this.#anchor != null && now > this.#anchor + scene.time * 1000 + dt * 1000 && now - this.#lastPatch < MAX_FREEZE_MS) {
+      perf.count('frames dropped');
       return;
     }
     // Decide on the rAF timestamp (the vsync time), not performance.now() inside the
@@ -503,31 +523,32 @@ export class DomSink implements Sink {
     // frames between 1 and 3 vsyncs (16/50 ms judder at a 33 ms cadence).
     for (;;) {
       const vsync = await nextAnimationFrame();
-      if (this.anchor == null) this.anchor = vsync - scene.time * 1000;
-      if (vsync >= this.anchor + scene.time * 1000 - 8) { this.patch(scene); return; }
+      if (this.#anchor == null) this.#anchor = vsync - scene.time * 1000;
+      if (vsync >= this.#anchor + scene.time * 1000 - 8) { this.#patch(scene); return; }
     }
   }
 
-  patch(scene: Scene): void {
-    if (this.background === undefined && this.svg.style.background !== scene.colors.paper) this.svg.style.background = scene.colors.paper;
+  /** Draw the scene's frame now, unpaced. */
+  #patch(scene: Scene): void {
+    if (this.#background === undefined && this.svg.style.background !== scene.colors.paper) this.svg.style.background = scene.colors.paper;
     // Absolute path data: measured faster for live DOM patching than translate + relative
-    this.apply(renderElements(scene, { relative: false }), viewBoxOf(scene));
+    this[applyRecords](renderElements(scene, { relative: false }), viewBoxOf(scene));
   }
 
-  /** Bring the DOM to exactly these records (one frame), and the viewBox to the camera's when given. */
-  apply(els: readonly ElementRecord[], viewBox?: string): void {
-    this.lastPatch = performance.now();
+  /** @internal See applyRecords. */
+  [applyRecords](els: readonly ElementRecord[], viewBox?: string): void {
+    this.#lastPatch = performance.now();
     const end = perf.begin('dom.patch');
     // Camera: one attribute write when the frame moved, none otherwise
-    if (viewBox !== undefined && viewBox !== this.viewBox) { this.svg.setAttribute('viewBox', viewBox); this.viewBox = viewBox; }
+    if (viewBox !== undefined && viewBox !== this.#viewBox) { this.svg.setAttribute('viewBox', viewBox); this.#viewBox = viewBox; }
     const clips = clipsOf(els), signature = clips.map((c)=>c.id).join(' ');
-    if (signature !== this.clipSignature) {
-      this.clipSignature = signature;
-      if (!clips.length) { this.defs?.remove(); this.defs = null; }
+    if (signature !== this.#clipSignature) {
+      this.#clipSignature = signature;
+      if (!clips.length) { this.#defs?.remove(); this.#defs = null; }
       else {
-        if (!this.defs) { this.defs = this.doc.createElementNS(this.NS,'defs'); this.svg.insertBefore(this.defs,this.svg.firstChild); }
-        this.defs.replaceChildren(...clips.map((c)=>{
-          const path=this.doc.createElementNS(this.NS,'clipPath'), rect=this.doc.createElementNS(this.NS,'rect');
+        if (!this.#defs) { this.#defs = this.#doc.createElementNS(this.#NS,'defs'); this.svg.insertBefore(this.#defs,this.svg.firstChild); }
+        this.#defs.replaceChildren(...clips.map((c)=>{
+          const path=this.#doc.createElementNS(this.#NS,'clipPath'), rect=this.#doc.createElementNS(this.#NS,'rect');
           path.setAttribute('id',c.id);path.setAttribute('clipPathUnits','userSpaceOnUse');
           for(const [k,v] of Object.entries(c.attrs))rect.setAttribute(k,v);
           path.appendChild(rect);return path;
@@ -535,15 +556,15 @@ export class DomSink implements Sink {
       }
     }
     const seen = new Set<number>();
-    let cursor = this.defs ? this.defs.nextSibling : this.svg.firstChild;
+    let cursor = this.#defs ? this.#defs.nextSibling : this.svg.firstChild;
     for (const rec of els) {
       seen.add(rec.id);
-      let node = this.nodes.get(rec.id);
+      let node = this.#nodes.get(rec.id);
       if (!node || node.el.tagName !== rec.tag) {
         if (node) node.el.remove();
-        const el = this.doc.createElementNS(this.NS, rec.tag);
+        const el = this.#doc.createElementNS(this.#NS, rec.tag);
         node = { el, attrs: Object.create(null) as Record<string, string>, text: null, rec: null };
-        this.nodes.set(rec.id, node);
+        this.#nodes.set(rec.id, node);
       }
       // Records are memoized: the same object means nothing about this element changed
       if (node.rec === rec) {
@@ -577,8 +598,8 @@ export class DomSink implements Sink {
       if (node.el !== cursor) this.svg.insertBefore(node.el, cursor);
       else cursor = cursor.nextSibling;
     }
-    for (const [id, node] of this.nodes) {
-      if (!seen.has(id)) { node.el.remove(); this.nodes.delete(id); }
+    for (const [id, node] of this.#nodes) {
+      if (!seen.has(id)) { node.el.remove(); this.#nodes.delete(id); }
     }
     end();
   }

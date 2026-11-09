@@ -4,8 +4,8 @@ Read this to draw, animate, inspect or extend a scene without the publishing
 workflow. The [tutorial](TUTORIAL.md) covers authoring an explainer, and
 [extension recipes](EXTENDING.md) give runnable examples. Every name below is a
 public export of `rayner` unless another entry point is shown: sinks, seeking and
-other ways to draw frames are `rayner/output`, and traces, frame checks and profiling
-are `rayner/testing`.
+other ways to draw frames are `rayner/output`; traces, frame checks and profiling
+are `rayner/testing`; and `view` is `rayner/explain`.
 
 ## The model
 
@@ -24,66 +24,152 @@ so changing the sink changes the output and leaves the scene alone.
 | `Frame` | The scene's camera, used as the SVG viewBox rather than drawn |
 | `Sink` | A consumer of frames and optional step-boundary notifications |
 
+The shapes are `Line`, `Arrow`, `CurvedArrow`, `Arc` (`{ center, radius, startAngle, angle }`,
+radians counterclockwise), `Circle`, `Dot`, `Rectangle` and `Polygon` (`new Polygon(corners,
+style)`, closed), with `Labeled` to put a label on one; the emphasis shapes are in
+[Emphasis](EMPHASIS.md). `line.putStartAndEndOn(a, b)` moves a `Line`'s or an `Arrow`'s
+ends to two points, its tip following, so a drawing whose ends come from a model is
+redrawn in place. `line.start()` and `line.end()` are a `Line`'s ends. An `Arrow` is its
+`line` and its `tip`, a `CurvedArrow` its `arc` and its `tip`, and a `Labeled` its `shape`
+(the label, when it has no shape) and its `label`, so a scene can colour or place one piece.
+
 The drawing area is 16 × 9 scene units, centred on `[0, 0]`, with positive y up.
 An output width changes pixel size, not those coordinates. A `Box` is
 `[minX, minY, maxX, maxY]`. A `Vec` is `[x, y]`.
 
 ## Geometry and paint
 
-Points are world coordinates stored in `Float32Array`s. `shift`, `scale`, `rotate`
-and `moveTo` change the points of the whole family. There is no separate model
+Points are world coordinates stored in `Float32Array`s. A `Mobject`'s `shift`, `scale`,
+`rotate`, `stretch(k, axis)` and `moveTo` change the points of the whole family. There is no separate model
 transform matrix whose effect an inspector must reconstruct.
 
 `VMobject.startNewPath(point)`, `addLineTo(point)`, `addCubic(handle1, handle2, end)`
 and `closePath()` build paths, and `setPolygon(corners)` builds a closed polygon.
-Use them rather than writing a point buffer yourself, because they keep the geometry
-caches current. Code that mutates a point buffer in place must call both
-`touchPoints()` on the object whose points changed, which bumps the render-cache
-version, and `invalidateBox()`, which drops the cached layout bounds.
+Use them, or the transforms above, rather than writing a point buffer yourself: they
+keep the render cache and the cached layout bounds current, and a buffer written in
+place leaves both stale. A shape of your own builds its points in its constructor, after
+`super()`.
+
+A path is `subpaths`, one `Float32Array` of cubic Bézier points per subpath (its
+start, then three points per curve), with `closed` saying which are closed; read
+them, and change them with the methods above. Each of those methods ends a write to the
+arrays in place by bumping the points' version, which the renderer's path-data cache
+keys on, so a write that goes round them would draw the old path;
+`test/path-cache.test.ts` writes through every one and compares the cached path with
+one computed afresh. `hasPoints()` says whether a mobject
+has points of its own, as a Group does not. To walk a path: `pointOnCurve(i, c, t)` is the point
+at parameter `t` on curve `c` of subpath `i`, `arcLength()` measures the whole path, and
+`pointFromProportion(t)` is the point a fraction `t` of the path's
+length along it, which `MoveAlongPath` and the stage's sketch travel by.
+
+`pointArrays()` is a mobject's own points, `Float32Array`s of x, y pairs, which every
+transform, morph and `copy()` works on: none for a container, a path's `subpaths`. A mobject with
+points of its own that is not a path overrides it, says what the arrays are with `pointKind()`
+(arrays blend only with arrays of the same kind), and overrides `boundingPointArrays()` when some
+of them are not geometry and must not count toward its box (a `Text`'s advance box). Code that
+writes `pointArrays()` in place, a custom animation's frame, calls `touchPoints()` after, which
+bumps the points' version, and `invalidateBox()`.
+
+`applyPointsFunction(fn)` maps every point of the family through `fn([x, y])`, about the box's
+centre unless given `aboutPoint` or `aboutEdge` (an `AboutOptions`, which `scale`, `rotate` and `stretch` take too). `box()` is the family's bounding box, a `Box`, or null when nothing in it
+has points. It is cached; every engine method that changes points or children clears the
+cache, and code that changes points another way, an animation's own `doInterpolate` or a
+custom mobject that assigns new point arrays, calls `invalidateBox()` after, which clears the
+mobject's cache and its ancestors'. `boxPoint(direction)` is a point of that box: `[0, 0]` its centre, `[1, 1]`
+its upper right; `center()`, `top()`, `bottom()`, `left()` and `right()` are five of them,
+and `width()` and `height()` its size.
 
 Style includes fill, stroke, their opacity and width, overall opacity, and optional
-SVG paint details such as dashes and joins. `setFill`, `setStroke` and `setOpacity`
-update it. `Create`/`Write` use the transient `drawFraction` to reveal a path.
+SVG paint details such as dashes and joins. A mobject's `style` is a `StyleRecord`: its
+`Style` with every field filled in but those paint details and `drawFraction`. `setFill`, `setStroke` and `setOpacity`
+update it; `setStyle(style)` sets several fields at once, and `setColor(c)` sets fill
+and stroke to one colour. `Create` uses the transient `drawFraction` to reveal a path.
 Changing `style` or point arrays behind the supported methods risks stale caches.
 
 A colour left out takes the scene's. `scene.colors` holds five (`paper`, `ink`, `soft`,
-`accent`, `bad`), and a part built without a colour is marked with the role it takes
-(`defaultColors`): text, lines, arrows and axes take `ink`, guide lines and a readout's keys
-`soft`, `SurroundingRectangle`, `Circumscribe` and plotted data `accent`, and `Cross` `bad`.
+`emphasis`, `bad`), and a part built without a colour is marked, internally, with the role it takes
+(a `ColorRole`): text, lines, arrows and axes take `ink`, guide lines and a readout's keys
+`soft`, `SurroundingRectangle`, `Circumscribe` and plotted data `emphasis`, and `Cross` `bad`.
 When the part first enters the scene (`scene.add`, a play that draws it or morphs toward it, or
 a parent already on stage), each field still holding its default takes the scene's colour, and a
-field set since keeps what it was set to. A stage sets `scene.colors` from its palette, so an
+field set since keeps what it was set to. A stage sets `scene.colors` from its look (`s.look`), so an
 axis drawn without a `stroke` reads on any paper. A scene without a stage draws dark ink on white
 paper, and the SVG sinks draw `paper` behind the frame unless given a `background`.
+`lerpColor(a, b, t)` gives the colour `t` of the way from `a` to `b` in sRGB, always as `#rrggbb`
+(Manim's `interpolate_color`), for a colour between two of the look's. Both ends are hex colours,
+`#rgb` or `#rrggbb`, and it throws a `RangeError` naming any other.
 
 Common layout operations are `nextTo`, `alignTo`, `arrange`, `moveTo`, `setWidth`
-and `setHeight`. Bounds describe geometry only; clipping, paint order and stroke
+and `setHeight`, and `toEdge(direction, buff)` puts a mobject against an edge of the frame. Bounds describe geometry only; clipping, paint order and stroke
 also decide what collides on screen, which is why `rayner check` measures painted
 labels separately.
 
+A `Text`'s `advance()` is its exact advance width and `textSize()` the size it is
+drawn at now, after any scaling. `shapeRun(text, size)` shapes a string with the
+text's own shaping and returns the run, a `Run`, `{ glyphs, width, ascent, descent }`, as
+`font-metrics` reads it. `angle()` is the angle the text has been turned through, in radians,
+`italic` whether it was made italic, `font` its `FontName` (`'sans'` or `'mono'`), and
+`shaping` the `TextShaping` it was made with (`shaping: this.textShaping` gives the scene's). `tabWidth` is the tab stop a text's tabs are laid out to,
+in columns, which `Code` sets; a combining mark, a joiner or a variation selector takes no column. A `DecimalNumber` shows `value` with `decimals` places between
+`prefix` and `suffix`; `setValue(v)` redraws it in place for a new value, and
+`DecimalNumber.format(v, decimals, prefix, suffix)` is the string it would show.
+
 ## Ownership, identity and copying
 
-`group.add(child)` moves the child into that group, detaching it from its old
-parent. A scene admits one root per subtree, so admitting a parent never paints a
-child twice. `Scene.add`, `remove`, `replace`, `bringToFront` and `bringToBack`
-control membership and draw order. The structure is a tree: do not insert a child
-twice or make a cycle.
+`group.add(child)` moves the child into that group, last on top, detaching it from its old
+parent, and `group.insert(index, child)` puts it at `index` instead (`0` draws it under the rest). A
+mobject's `children` and `parent` are read-only, so these methods and `group.remove(child)`
+are the only ways to change a family, and each keeps every child's `parent` and the cached
+box in step. Both are the mobject's private fields, so no other write to the mobject changes
+them, and `family()`, `box()` and the engine's walks read the fields, whatever a subclass's getter
+says. `family()` is the mobject and every descendant, depth first. A scene admits one root per subtree, so admitting a parent never paints a
+child twice. `Scene.add`, `remove` and `replace`
+control membership and draw order; what the stage keeps over everything else (its heading,
+band, step number and line) stays last through each of them: the root that holds it, which is
+the group around it once one wraps it, is moved last, and that is done again before every frame
+and step boundary the scene hands its sink, and before a frame drawn outside the frame loop
+(`renderFrame` past the end, the live player's frames between plays). `scene.mobjects`, the drawn
+list, is read-only: these methods and the plays change it. A sink handed the scene by other code reads the list as it stands. The structure is a tree: `add`, `insert` and
+`scene.replace` refuse the mobject itself or one of its ancestors, which would make a cycle,
+and `group.remove(child)` takes out only the group's own children, leaving a mobject in
+another group where it is. `scene.familyMembers()` lists every mobject on the stage and
+each of its descendants, root by root, for a test or a check that looks for a part.
+`sameShapeAs(other, points?)` says whether two families have the same shape, every
+member of one class with as many children, and with `points` the same point counts:
+what `become` keeps identities through.
 
-A part's identity is its `key`, an optional name you give it: `find(key)`,
+A part's identity is its `key`, an optional name you give it with `keyed(m, key)`
+(from `rayner`; it returns `m`, and `m.key` is read-only): `find(key)`,
 `findAll`, keyed matching, invariants and reviews all address parts by key. A
-position in a child array is not an identity, and `Mobject.id`, the renderer's
-number, is internal. Give keys from the domain (`slot:3`, `state:idle`) when the
+position in a child array is not an identity, and a `Mobject`'s number, the renderer's,
+is private to the engine. Give keys from the domain (`slot:3`, `state:idle`) when the
 domain has identities.
 
 `copy()` clones the tree with its geometry, style and keys (a copy is a new
-object that still answers to the same key), and clears updaters and saved state. A custom composite should expose its
+object that still answers to the same key), and clears updaters and saved state. It makes the copy
+without calling the subclass's constructor, which may take any arguments, and then gives it the
+original's own fields, symbol-keyed ones included; an array, map, set or typed array a named field
+holds is copied, so the copy never shares one with the original, while what they hold, and any
+other object, is shared. So a subclass keeps its state in ordinary fields (a TypeScript `private`
+field is one), never in ES private (`#`) fields, methods or accessors, which only the subclass's own
+constructor installs. No design lets a copy carry one: code outside the class can neither read nor
+install another class's `#` member, and running the constructor would need arguments `copy()` does
+not have. So `copy()`, which every transform, fade, saved state, `become` and `.animate` goes through,
+refuses a mobject whose class, or a class between it and `Mobject`, declares one, with a `TypeError`
+that names the class and the member (`class Bars: it declares the ES private member #count, …`)
+rather than the language's own error at the copy's first use. It reads each class's source once to
+find them, so code compiled to emulate `#` members another way still fails at that first use. A
+static `#` member lives on the class and is copied with nothing. The engine's own mobject classes keep
+theirs in ordinary fields or under symbols, and `test/core.test.ts` copies each exported one, plays
+the copy and finds it drawn as the original, and the original unchanged by a change to the copy. A custom composite should expose its
 parts through getters into its own children, as [StatusBadge](../recipes/extensions.ts)
-does. If it stores named child references, implement `rebindReferences(source, map)`
-so the clone names its children, not the original's. Use `copyData(source)` for
-additional mutable data that the base class cannot copy itself.
+does. If it stores named child references, override the protected hook
+`rebindReferences(source, map)` so the clone names its children, not the original's.
+Override `copyData(source)`, also protected, for mutable data inside a field (its own points,
+the objects an array holds) that the copy must not share.
 
-`saveState()` stores a copy. `restore()` restores immediately; `Restore` does it as
-an animation. A generic transform can align or replace child structure, so retain
+`saveState()` stores a copy. `restore()` restores immediately; `Restore`
+does it as an animation. A generic transform can align or replace child structure, so retain
 references only to parts whose identity your operation promises to preserve.
 See [restoration and sequencing](ANIMATIONS.md).
 
@@ -95,24 +181,118 @@ await this.play(box.animate.shift([2, 0]).setFill('#58c4dd'));
 await this.play(new Transform(box, target));
 ```
 
-An `.animate` builder records chainable methods and constructs a target when the
-play begins. Ordinary transforms capture endpoints at `begin()` and interpolate
-between them. The scene applies the rate function before calling `interpolate`;
-a custom animation must not apply it twice. Its `finish()` lands at the rate
-function's endpoint, which need not be 1 (`thereAndBack` returns to the start).
+`play()` takes `Playable`s: an `Animation`, an `AnimationGroup` (either is a
+`ScheduledAnimation`), or a `.animate` builder, an `AnimateBuilder`, which records
+chainable methods and constructs a target when the play begins. Two animation names are
+needed because a group animates no one mobject, so it is not an `Animation`, the class a custom
+animation extends to animate its `mobject`; `ScheduledAnimation` names either.
+`new Transform(m, target, { replace })` morphs `m` into its `target`: each frame
+sets it between the two with `m.interpolate(start, end, alpha)`, each point travelling in a
+straight line, and with `replace: true` the scene holds `target` in `m`'s place afterwards.
+
+A custom animation extends `Animation`. Its `mobject` is what it animates, and `runTime`,
+`rateFunc` (a `RateFunc`, from the fraction of the run time elapsed to progress), `lagRatio`
+and `remover` are its timing options, as on an `AnimationGroup`. `targets()` lists the
+mobjects it writes, its `mobject` unless it says otherwise: what `play()` admits to the
+scene and allows one writer each, and what `remover: true` takes off the scene after its play. `evidence()` is what it records as it begins, or null.
+A custom animation overrides three protected hooks: `doBegin()` as its play begins,
+`doInterpolate(alpha)` for each frame, and `doFinish(alpha)` as its play finishes. It calls
+`super.doBegin()` where it extends one, and `interpolateSubmobject(sub, start, alpha)` is the hook
+for one family row when it extends `Animation`'s own frame. Ordinary transforms capture endpoints
+in `doBegin()` and interpolate between them. The scene applies the rate function before calling
+`doInterpolate`; a custom animation must not apply it twice. Its `doFinish()` finishes at the rate
+function's endpoint, which need not be 1 (`thereAndBack` returns to the start), and must finish
+where its last frame drew: `rayner check` compares each step's picture as it ends with its last
+frame. `sampleAnimation(animation, alpha)`, from `rayner/testing`, draws one frame of an animation
+outside a play, for a test of a custom one.
+
+An animation's `phase`, an `AnimationPhase`, is `'idle'` until it begins, `'begun'`
+until it has finished, every member with it, and `'finished'` then. A `Succession` whose play
+has finished it while a member waits (as below), or a group holding one, stays `'begun'` while
+its members begin and finish in turn. An animation begins once at a time, and draws frames and
+finishes only while begun; a finished animation may begin again. `Animation` has no public
+lifecycle method: a play, a group, a `Succession` and an animation that runs another begin, draw
+and finish it through the engine's own module functions, which keep the phase and call only the
+protected hooks, and the engine's hooks call `doInterpolate`, never a member an author can
+replace. The engine reads an animation's run time, rate function, lag ratio and phase from its
+private fields, not through members a subclass could redefine. Everything else the engine calls or
+reads on `Scene` and on each mobject, animation and sink class an entry point exports (the options
+a play gives an animation, what it waits for, what its play's end removes, the colours its
+endpoints take, a mobject's number, cached box and updaters, a text's shaped run and advance box,
+an arrow's tip, the scene's sink, listeners and frame loop, a sink's own buffers) is an ES private
+field, keyed by a symbol or a module function, so a member an author writes on a subclass of one,
+as a method, a field or an assignment, under any name, is the author's own and never reaches a run.
+`test/scene-lifecycle.test.ts` finds those classes from the entry points' exports, builds and plays
+each, shadows every name the engine's members have, and finds each run unchanged. `Diagram` and
+`Machine`, which the explainer layer exports, are made, not extended, and hold no such promise. The
+documented members are the ones a subclass may override: these hooks, `targets()` and
+`evidence()`, and, on a mobject, `pointArrays()`, `boundingPointArrays()`, `pointKind()`,
+`copyData()` and `rebindReferences()`.
+
+A play that fails leaves no animation begun. When an animation throws as it begins, a
+group lands the members it began before the one that threw, and `play()` lands the
+animations before it; so does a list begun at its turn inside the play (what a beat or a
+transition makes, a `Succession`'s member), and then what made the list has made nothing. When the play fails after it has begun (a `Succession`'s member that
+throws at its turn, something made at its turn whose read fails or that the one-writer
+check refuses, a frame or a sink that throws), `play()` lands every animation it was
+given. Landing finishes what has begun, as the end of its play would, and begins nothing
+more: a `Succession`'s later members never begin, and an action's running beat lands (with its
+`after`, if its animations had begun) while no later beat is made and its `end` does not run.
+Each landed animation can play again; an action, which plays once, cannot: awaiting it again
+gives the same failure, and playing it again throws. A stop is not a failure: a scene stopped by its sink (`StopScene`) is stopped
+for good, and its picture stays as the stopping frame drew it.
+
+A run time and a lag ratio are finite and not negative, given to the constructor, to
+`play()` or set on the animation (`a.runTime = 2`), and, with the rate function, fixed while it
+plays: a play counts its frames from them as it begins, so setting any of them on a begun
+animation throws (`animation.runTime: a FadeIn is playing, …`). An animation plays in one place at a
+time: a `play()` given one that has begun and not finished, a `Succession` whose members still
+finish in turn included, refuses it (`this.play(): a Succession has already begun, …`) before it
+lays out, binds or draws anything. A play checks the options it is given against every animation before it gives
+them to any, so a play refused before anything begins leaves its animations as they were. A
+`Succession` takes no lag ratio, since its members run one after another: its options have none,
+and `play()` and the setter refuse one. A `play()` given no animation, with or without options,
+throws a `RangeError`: `wait()` holds the picture. The animations are often a list mapped from the
+scene's data (`this.play(...leaving.map((m) => new FadeOut(m)))`), whose array type does not carry
+its length, so the check is on the value.
 
 Use one `play(a, b)` for simultaneous operations, `Succession` for sequential
-operations and `AnimationGroup`/`LaggedStart` for grouped schedules. Never await two
-concurrent `Scene.play()` calls: there is one scene clock. Two simultaneous
-animations may not drive the same mobject or an ancestor and its descendant.
-`Scene.play()` checks and rejects that conflict.
+operations and `AnimationGroup`/`LaggedStart` for grouped schedules. There is one scene
+clock, so one `play()`, `wait()` or `step()` runs at a time, and one started while
+another runs throws (`scene.phase` says which runs). Two simultaneous
+animations may not drive the same mobject or an ancestor and its descendant, and one
+animation may not be listed twice. `Scene.play()` checks and rejects both, as it begins and
+again for whatever begins later in it, a `Succession`'s member at its turn included. A
+`Succession`'s time never runs back past the start of its running member, since a finished member
+does not run again: it refuses a rate function that would run its time back past the start of a
+member it has reached, given to it, set on it or given to `play()`, and throws, naming the call
+(`new Succession()`, or an action's own, `s.card()`), if a group around it runs its time back past
+that start. Within its running member its time may run back, so a rate function that dips and
+recovers inside one member is accepted, a Succession of one member can run there and back, and a
+there-and-back group can hold a one-beat action such as `view.sync()`. `play()` waits for what any animation it is given reads, a group's
+members included, before it begins, and lays out its members' times as the play
+begins. What is made only when its turn comes, a machine's transition or an action's beat, may
+read something not ready yet: the play waits for it there, before drawing its next frame, so the
+frames are the same as if it had waited for nothing. What begins at its turn (a `Succession`'s
+member, what a beat or a transition makes) begins in turn order, whether or not something
+waits: once one waits, whatever comes after it in the frame waits behind it, so the drawing
+order and the recorded evidence follow the turns. That holds for an animation begun beside
+one that waits, too, listed after it in a play, a group, or a group that is a `Succession`'s
+member: it begins with the play or the group, and joins the stage and records its evidence
+in its turn, after what the waiting one made. A `Succession` whose member waits begins
+nothing after it until that member has begun, so a waiting member shorter than a frame still
+plays, begun and then finished within its frame, with its side effects in their order, and a
+waiting last member of no run time begins and finishes as the play finishes.
 
 Capture starting values when an animation **begins**, not when it is constructed.
 Earlier members of a `Succession` may change them. Define intermediate geometry
 from that captured start and alpha rather than adding a per-frame displacement.
 [FollowAngle](../recipes/continuous.ts) demonstrates the extension contract.
 
-The default frame rate is 30. Time comes from the frame count. Sinks can wait for
+The default frame rate, `scene.fps`, is 30, and the constructor refuses one outside
+(0, 240]: a trace keeps times to 1 ms, and up to 240 fps that still finds the frame.
+`wait(seconds)` refuses a time that is not finite or is negative. Time comes from the frame count: `scene.frameCount` is the
+frames emitted so far, and `scene.time` the seconds they make. Sinks can wait for
 browser display or return immediately offline, but cannot change the model's time
 step. Exact comparisons are within the chosen frame grid, not arbitrary subframe
 timestamps.
@@ -122,29 +302,54 @@ timestamps.
 `await this.step(name, metadata)` closes the previous step and begins the next.
 Names are stable, unique URL identifiers. `title`, `line`, `caption` and `kind`
 (`'short'`, `'main'` or `'detail'`) mean something to the reader; other metadata
-can describe the model's inputs. A caption extends its step until it could be read,
-so the step's resting picture, its last frame, can differ from its first.
+can describe the model's inputs. Metadata is copied as JSON when the step begins, and the
+copy, `currentStep.meta`, is frozen deeply, so a write to it throws rather than change the
+caption, its hold or the trace (the language's own `TypeError`, which names the property; see
+[error messages](ENGINE.md#error-messages)); given a function, `step()` calls it with the step it has just closed. A caption extends
+its step until it could be read, so the step's resting picture, its last frame, can differ
+from its first. Each step draws at least one frame of its own (`loadProject` and the command
+refuse one that does not). Each moment is recorded as a time and a frame: `hold` and
+`holdFrame` where a caption hold begins, and `t1` and `frame1` where the step ends;
+the player, playing one step, stops at the still frame, the hold frame or else the last,
+while a continuous render of the scene plays on through the hold to `t1`, and links show
+`frame1`. The still frame and `frame1` show one picture, but code after the step's last play
+and its end listeners can still change the state between them, so a step's state is read at
+its end, as the trace's `after` records it: the live player and `rayner check`'s exploration of
+a machine start there (the scene module's `stopAt`, which stops a run as a named step ends, for good, even
+when its callback throws). A step that has ended is an `EndedStep`, whose `t1` and `frame1`
+are numbers: what a sink's `stepEnd` hears, what a metadata function is given and what
+`AtRest` sees; a running `Step`'s are null. The
+[vocabulary](VOCABULARY.md) names these moments. `TraceSink` copies them into the trace as each step ends, so every step of a trace has its end (a run stopped inside a step leaves that step out), and `traceRun`'s `AtRest` callback (`src/trace.ts`) hands the scene, showing each
+step's resting picture, to the tools that draw every step, so `rayner describe`, the
+contact sheet and the site's cards run each scene once.
 
 `this.state` is the model: what the subject program is doing, and nothing about
 how it is shown. Use `Scene<MyState>` for typed access. `this.shown` holds what is
-shown apart from the model, such as which of several pictures a phase shows; a
-view's `draw` may read it, and a machine never changes it. `describe()` snapshots
-the model plus describers registered into it; `describeShown()` snapshots `shown`
-plus describers registered with `addDescriber(fn, 'shown')`, such as the stage's
-description of its picture. The trace records the model as `before` and `after`
-and the second as `shown`. Both accept plain JSON and finite numbers, and refuse
+shown apart from the model, such as which of several pictures a chapter of the story shows; a
+view's `draw` may read it, and a machine never changes it. `stateJson()` copies
+the model as JSON, with the parts helpers add with `addJson(fn)`; `shownJson()` copies
+`shown`, with the parts added with `addJson(fn, 'shown')`, such as the stage's
+description of its picture. A part never replaces a key: one it writes that the
+model, what is shown or another part already has with another value throws when the
+JSON is read. So a helper's keys are reserved, `walks` in the state (a diagram's
+recorded walks) and `picture` in what is shown (the stage's description), and a
+scene that names its own `walks` is refused rather than overwritten. The trace
+records the model as `before` and `after` and the second as `shown`. Both accept plain JSON and finite numbers, and refuse
 functions, class instances, cycles and non-finite values; shapes belong in the
 scene tree.
 
 Evidence is what an animation or operation did, attached to the step it happened
-in, apart from the model. `this.record(kind, data)` adds a record, and every
+in, apart from the model. `this.record(kind, data)` adds a record, an `Evidence`
+(`{ kind, ...data }`), and every
 animation's `evidence()` is recorded as it begins: a matching transform records
 `{ kind: 'match', … }` and `TransformDiff` `{ kind: 'diff', … }`
 ([matching](MATCHING.md#evidence)), a view's sync its morph's counts with the view's
-key as `view`, `Follow` its interval and targets, and `SetState` with an `event`
-`{ kind: 'event', event }`. `onStep` and `addDescriber` are the extension hooks,
+key as `view`, a follow or a view's tween its interval and targets, and a machine's event
+`{ kind: 'event', event }`. `onStep`, `onStepEnd` and `addJson` are the extension hooks,
 and each returns its own remover; do not replace the scene's methods to attach
-helpers.
+helpers. A step listener may play and wait inside the step: `onStep`'s as the step
+begins, `onStepEnd`'s as it is about to end, before its caption hold; one that throws
+stops the step from ending (an action never played does, in `rayner/explain`).
 
 A trace records what an author declared; it does not prove the declaration true.
 Compare it with an independently checked program, and check the values on screen
@@ -152,25 +357,36 @@ too: a [view](VIEWS.md) ties a picture to the state it was drawn from.
 
 ## Updaters, derived pictures and seeking
 
-`mobject.addUpdater((object, dt) => ...)` runs before a rendered frame. Camera
-updaters run after ordinary objects. Clear registrations with `clearUpdaters()`
+`m.addUpdater((object, dt) => ...)` registers an `Updater`, which runs before a rendered frame. Camera
+updaters run after ordinary objects. `m.update(dt)` runs the updaters of a mobject and
+its descendants once, as the scene does before each frame. Clear registrations with `m.clearUpdaters()`
 when they are no longer needed. An updater that integrates `velocity * dt` depends
 on previous frames. The engine conservatively replays any play or wait with active
-updaters, including an updater that merely reads the current value.
+updaters, including an updater that merely reads the current value. A frame with no
+updater on stage walks the tree without building a family list.
+
+Updaters are exempt from the one-writer rule. They run after the frame's animations
+have interpolated, so on a mobject both drive, whatever the updater writes wins for
+that frame and the animation keeps the rest: a label that follows a dot by an updater
+can still fade in, the fade writing its opacity and the updater its place. An updater
+that writes what an animation writes overrides it silently, so give a moving part one
+of the two.
 
 `view(scene, draw).sync()` registers no updater: it rebuilds a target from state
 when its play begins and morphs to it. That suits discrete updates; it does not
-evaluate a relationship between the two endpoints, which [`Follow`](CHOREOGRAPHY.md#follow) does.
+evaluate a relationship between the two endpoints, which a [view's tween](CHOREOGRAPHY.md#following-one-number) does.
 
-`renderAt(SceneClass, time, sink)` (`rayner/output`) reruns the scene up to the first frame at or after
-the requested time (or the final frame if past the end), skipping the interpolations
-of plays without updaters. A seek is a replay with skipping, not an index into a
-precompiled timeline.
+`renderFrame(SceneClass, frame, sink)` (`rayner/output`) reruns the scene up to one frame by its
+number (or the final frame if past the end), skipping the interpolations of plays without
+updaters. A seek is a replay with skipping, not an index into a precompiled timeline. The
+number is the frame count a step records as `frame0`, `frame1` or `holdFrame`, so a step's
+resting picture is `renderFrame(SceneClass, step.frame1, sink)`, found without converting a
+frame to a time.
 
 A sink stops a seek with `StopScene` (`rayner/output`). Do not catch animation errors broadly in
 `construct()`: catching that signal can allow author code to mutate the stopped
 scene. Handle known model errors before animating. The engine limits the damage:
-a `StopScene` from a sink sets `scene.stopped`, and from then on `play()`, `wait()`,
+a `StopScene` from a sink sets `scene.phase` to `'stopped'`, and from then on `play()`, `wait()`,
 `step()` and every frame rethrow it before doing anything, so a swallowed stop emits
 no further frame. Plain code between the catch and the next scene call (a `shift()`,
 a write to `this.state`) still runs, which is why `rayner check` fails the pattern.
@@ -184,10 +400,11 @@ fonts; [requested lettering](LETTERING.md) adds scripts and maths through snapsh
 
 [Testing Rayner](TESTING.md) says which check answers which question: domain truth,
 geometry and replay, motion continuity, readable served paint, or whether readers
-understand. A pass on one says nothing about the others. `MotionSink` and
-`analyzeMotion` (`rayner/testing`) inspect sampled motion; they judge neither the editing nor the maths.
+understand. A pass on one says nothing about the others. `rayner check`'s motion check
+samples every frame and reports each teleport, resize, pop, cut, flicker or handoff, with its
+frame, time, step and the part it names; it judges neither the editing nor the maths.
 
-For profiling, `perf.enable()` (`perf` is in `rayner/testing`) starts counters and spans, `perf.report()` explains
+For profiling Rayner itself, `perf.enable()` (in `src/perf.ts`, internal to the repository) starts counters and spans, `perf.report()` explains
 where measured work went, and `perf.chromeTrace()` returns trace-event JSON for a
 trace viewer. Disable it with `perf.disable()`. Compare identical scenes, timestamps,
 frame rates and output modes: a trace-only dry run is not a playback benchmark.

@@ -7,10 +7,11 @@ import { serve } from '../../tools/lib/explain-serve.ts';
 import { collectProject, ROOT } from '../../tools/lib/explain-project.ts';
 import type { Project } from '../../tools/lib/explain-project.ts';
 import { buildExplainer } from '../../tools/lib/explain-build.ts';
-import { chromeFor, scenarioNameIn, CHROME, descriptionLang, descriptionsLang, settingsProblem } from '../../app/embed-strings.ts';
+import { chromeFor, scenarioNameIn, CHROME, descriptionLang, descriptionsLang } from '../../app/embed-strings.ts';
+import { settingsProblem } from '../../explain/settings.ts';
 import type { SettingsProblem } from '../../app/embed-strings.ts';
 import { resolveSettings } from '../../explain/index.ts';
-import { scenarioName } from '../../explain/testing.ts';
+import { scenarioName } from '../../explain/internal.ts';
 import { pictureSummary, pictureHtml, picture } from '../../explain/trace.ts';
 import { VOCABULARY, wordsFor, describedIn, familyNames, markHeading } from '../../explain/words.ts';
 import type { Words } from '../../explain/words.ts';
@@ -22,17 +23,18 @@ const NB = ' ';
 // One scene per language: a setting, a card (so each step has a generated description) and a caption.
 const scene = (lang: string, label: string, caption: string) =>
   `import{Scene}from'rayner';import{stage,settingsOf}from'rayner/explain';export default class L extends Scene{static meta={id:'lang-${lang}',title:'${label}',lang:'${lang}',sources:['https://example.com/source']};static settings=[{id:'n',label:'${label}',default:'1',options:[{value:'1',label:'1'},{value:'2',label:'2'}]}];async construct(){const s=stage(this);await this.step('one',{title:'${label}',caption:'${caption}'});await s.card([['${label}',settingsOf(this).n]]);}}`;
-// A French scene that uses every kind of generated words: a flowchart marked, noted, walked with
-// and without a trail and dimmed; a titled card with a lit row; code with a diff and a focus; a
-// chart with two bar series and two lines; kept text with no describe.
+// A French scene that uses every kind of generated words: a flowchart shown by its view, marked,
+// noted, walked with and without a trail drawn and dimmed; a titled card with a lit row; code with a
+// diff and a lit line; a chart with two bar series and two lines; kept text with no describe.
 const rich = `import{Scene,Text}from'rayner';import{stage}from'rayner/explain';export default class R extends Scene{static meta={id:'riche',title:'Riche',lang:'fr'};async construct(){const s=stage(this);
 await this.step('flux',{title:'Flux',caption:'Le revenu passe par le barème.'});
 const d=await s.show({source:'graph LR\\nA["Revenu"] --> B["Barème"]\\nB --> C["Impôt"]'},{box:[-8,0,8,3.4]});
-await d.mark(['A']);await d.note('C','plafond');
-const c=await s.card([['Parts','2'],['Quotient','15 000 €']],{title:'Foyer',at:[-4,-2]});await c.mark('Parts');
+this.shown.trail=[];this.shown.keep=null;
+const v=s.diagramView(d,(st,sh)=>({marks:{A:d.accent,...d.trail(sh.trail)},notes:[{id:'C',text:'plafond'}],dim:sh.keep}));
+await s.card([['Parts','2'],['Quotient','15 000 €']],{title:'Foyer',at:[-4,-2],lit:{row:'Parts'}});
 await this.step('trajet',{title:'Trajet',caption:'Le revenu va au barème.'});
-await d.walk([['A','B']],{trail:true});await d.dim(['A','B']);
-const k=await s.code(['+ seuil: 11600','+ plafond: 1807','- seuil: 11497','taux: 11 %'],{diff:true,title:'barème',at:[4,-2]});await k.focus(3);
+await d.walk([['A','B']]);this.shown.trail=[['A','B']];this.shown.keep=['A','B'];await this.play(v.sync());
+await s.code(['+ seuil: 11600','+ plafond: 1807','- seuil: 11497','taux: 11 %'],{diff:true,title:'barème',at:[4,-2],lit:{lines:3}});
 await this.step('chemin',{title:'Chemin',caption:'Puis à l’impôt.'});
 await d.walk([['B','C']]);
 await this.step('graphique',{title:'Graphique',caption:'Les montants par mois.'});
@@ -112,7 +114,7 @@ test('page words come from a table by primary language, English when there is no
   assert.equal(chromeFor('fr').stepOf(3, 4, 'Titre'), `Étape 3 sur 4${NB}: Titre`);
   assert.equal(chromeFor('en').allSteps(4), 'All 4 steps');
   assert.equal(chromeFor('fr').allSteps(4), 'Les 4 étapes');
-  // The footer's mark and way out of a frame (specs/player-tile.md T7); "Rayner" is a name, never translated.
+  // The footer's mark and way out of a frame (player-tile T7); "Rayner" is a name, never translated.
   assert.equal(chromeFor('en').madeWith, 'Made with Rayner');
   assert.equal(chromeFor('fr').madeWith, 'Réalisé avec Rayner');
   assert.equal(chromeFor('en').open, 'Open the explainer');
@@ -146,13 +148,13 @@ test('French chrome follows French typography: a narrow no-break space before : 
   }
 });
 
-test('the invalid-settings notice names the problem in the page’s language; English says what the validator says', () => {
+test('the invalid-settings notice names the problem in the page’s language, in the reader’s words, not the validator’s', () => {
   const { Scene } = built.fr.project;
   const problem = (values: Record<string, string>) => {
     try {
       resolveSettings(Scene, values);
     } catch (error) {
-      return { error: (error as Error).message, problem: settingsProblem(Scene, values, error) };
+      return { error: (error as Error).message, problem: settingsProblem(error) };
     }
     throw new Error('accepted');
   };
@@ -163,7 +165,11 @@ test('the invalid-settings notice names the problem in the page’s language; En
   assert.deepEqual(unknown.problem, { kind: 'setting', id: 'x' });
   // The validator checks declared settings first; so does the notice.
   assert.equal(both.problem.kind, 'option');
-  for (const p of [option, unknown, both]) assert.equal(chromeFor('en').fallback(p.problem), `${p.error}. Showing the default scenario.`);
+  // The validator's message is for the author (resolveSettings(): ...); the notice says the same in the reader's words.
+  for (const p of [option, unknown, both]) assert.match(p.error, /^resolveSettings\(\): /);
+  assert.equal(chromeFor('en').fallback(option.problem), 'The setting “Enfants à charge” has no option “9”. Showing the default scenario.');
+  assert.equal(chromeFor('en').fallback(unknown.problem), 'This explanation has no setting “x”. Showing the default scenario.');
+  assert.equal(chromeFor('en').fallback({ kind: 'other', message: 'static settings: they make 99 scenarios, more than 64' }), 'static settings: they make 99 scenarios, more than 64. Showing the default scenario.');
   assert.equal(
     chromeFor('fr').fallback(option.problem),
     `Le réglage «${NB}Enfants à charge${NB}» n’a pas d’option «${NB}9${NB}». Le scénario par défaut est affiché.`,
@@ -418,7 +424,7 @@ test(
           notice: document.querySelector('.notice')?.textContent,
         }));
       };
-      // Each language's scene has one step, so the reader opens at the end: Next is Start again (specs/player-guidance.md G2).
+      // Each language's scene has one step, so the reader opens at the end: Next is Start again (player-guidance G2).
       const fr = await read('fr');
       assert.deepEqual(
         { ...fr, picture: undefined },
@@ -461,7 +467,7 @@ test(
           notice: undefined,
         },
       );
-      assert.equal((await read('en', '?n=9')).notice, 'Unknown n option: 9. Showing the default scenario.');
+      assert.equal((await read('en', '?n=9')).notice, 'The setting “Children” has no option “9”. Showing the default scenario.');
     } finally {
       try { await browser?.close(); }
       finally { server.close(); }

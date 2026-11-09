@@ -1,14 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
-import {
-  Rectangle, Group, Square, VMobject, Line, Arrow, Text, Dot, Transform, AnimationGroup, FadeIn, linear, thereAndBack,
-  Scene, SurroundingRectangle, Cross,
-  } from '../src/index.ts';
+import { Rectangle, Group, VMobject, Line, Arrow, Text, Dot, Transform, AnimationGroup, FadeIn, linear, thereAndBack, Scene, SurroundingRectangle, Cross, lerpColor, keyed, Frame } from '../src/index.ts';
+import type { Mobject } from '../src/index.ts';
+import { publicClasses, MOBJECTS, USES } from './lib/public-classes.ts';
 import { NullSink, toSvgString, renderElements } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { NEUTRAL_COLORS } from '../src/color.ts';
 import { rotate } from '../src/vec.ts';
+import { alignData, mobjectId, replaceChild } from '../src/mobject.ts';
+import { pathD } from '../src/vmobject.ts';
+import { advanceBox, textRun } from '../src/text.ts';
 
 // Text shapes on glyph outlines; scenes load fonts in run(), bare tests do it here
 await loadFonts();
@@ -27,7 +29,7 @@ test('SVG output: a fixed 16 x 9 frame at 1000 units per scene unit, sized to th
 // the scene's colour for its role when it enters the scene (scene.colors, which a stage sets from
 // its palette), and a scene without a stage draws dark ink on white paper (docs/ENGINE-FUNDAMENTALS.md).
 test("a part built without a colour takes the scene's colour for its role when it enters; a colour given stays", () => {
-  const colors = { paper: '#202020', ink: '#eeeeee', soft: '#999999', accent: '#ffaa00', bad: '#ff3355' };
+  const colors = { paper: '#202020', ink: '#eeeeee', soft: '#999999', emphasis: '#ffaa00', bad: '#ff3355' };
   const scene = new Scene(new NullSink());
   assert.deepEqual(scene.colors, NEUTRAL_COLORS, 'a scene without a stage has the neutral colours');
   scene.colors = colors;
@@ -38,7 +40,7 @@ test("a part built without a colour takes the scene's colour for its role when i
   assert.ok(plain.children.every((g) => g.style.fill === colors.ink), 'text takes the ink');
   assert.ok(given.children.every((g) => g.style.fill === '#ff0000'), 'a colour given stays');
   assert.equal(box.style.stroke, colors.ink, "a shape's default stroke is the ink");
-  assert.equal(outline.style.stroke, colors.accent);
+  assert.equal(outline.style.stroke, colors.emphasis);
   assert.equal(cross.style.stroke, colors.bad);
   assert.equal(dot.style.fill, colors.ink);
   // Set after construction, before it enters: what was set stays.
@@ -61,7 +63,7 @@ test("a part built without a colour takes the scene's colour for its role when i
 });
 
 test("a play fixes both ends in the scene's colours before it begins", async () => {
-  const colors = { paper: '#202020', ink: '#eeeeee', soft: '#999999', accent: '#ffaa00', bad: '#ff3355' };
+  const colors = { paper: '#202020', ink: '#eeeeee', soft: '#999999', emphasis: '#ffaa00', bad: '#ff3355' };
   class S extends Scene {
     override async construct() {
       this.colors = colors;
@@ -83,8 +85,8 @@ test('y is up in the model and flipped once, in path data; angles turn countercl
   const r = new Rectangle({ width: 2, height: 2 }).shift([0, 1]);
   assert.deepEqual(r.center(), [0, 1]);
   assert.ok(r.top()[1] > r.bottom()[1], 'top() is the larger y');
-  const d = new Line([0, 0], [0, 1]).toPathD();
-  assert.match(d, /^M0 0C0 -333 0 -667 0 -1000$/, 'y = 1 is written as SVG y = -1000 (above center)');
+  const d = pathD(new Line([0, 0], [0, 1]));
+  assert.match(d, /^M0 0L0 -1000$/, 'y = 1 is written as SVG y = -1000 (above center), and a straight segment as L');
 });
 
 test('ArcBetweenPoints hits both endpoints and bulges to the signed side', async () => {
@@ -146,7 +148,7 @@ test('alignData pads a path at its centre as the points stand, whether or not it
   // property test found frames that differed with and without a box() call (random-scene tape).
   const build = () => {
     const holder = new VMobject();
-    holder.add(new Square({ side: 1 }).moveTo([-4, 0]));
+    holder.add(new Rectangle({ width: 1, height: 1 }).moveTo([-4, 0]));
     const target = new VMobject();
     target.startNewPath([4, 2]).addLineTo([5, 2]);
     target.startNewPath([4, -2]).addLineTo([5, -2]);
@@ -154,8 +156,8 @@ test('alignData pads a path at its centre as the points stand, whether or not it
   };
   const fresh = build(), cached = build();
   cached.holder.box();
-  fresh.holder.alignData(fresh.target);
-  cached.holder.alignData(cached.target);
+  fresh.holder[alignData](fresh.target);
+  cached.holder[alignData](cached.target);
   assert.deepEqual(cached.holder.subpaths.map((a) => Array.from(a)), fresh.holder.subpaths.map((a) => Array.from(a)));
   // The second pad is at the centre of the child square (-4.5..-3.5, -0.5..0.5) and the first pad
   // (4, 2), not at the square's own centre (-4, 0).
@@ -176,29 +178,27 @@ test('fresh Text is centred on its advance box before any positioning', () => {
       // materialization: outlines use Float32 storage, not unbounded reals.
       const fontSize = Math.min(requestedSize, 1e30);
       const t = new Text(text.slice(0, 32), { font, fontSize, weight });
-      const f = t.frameBox;
+      const f = t[advanceBox];
       const anchor = t.anchorPoint();
       // Float32 points undergo a cast and a translation; allow their rounding
       // error, including the fixed subnormal quantum, rather than a scene-unit epsilon.
-      const tolerance = 4 * 2 ** -23 * Math.max(t.run.width, t.run.ascent + t.run.descent) + 2 ** -149;
+      const tolerance = 4 * 2 ** -23 * Math.max(t[textRun].width, t[textRun].ascent + t[textRun].descent) + 2 ** -149;
       assert.ok(Math.abs((f[0]! + f[2]!) / 2) <= tolerance, 'advance box x centre is zero');
       assert.ok(Math.abs((f[1]! + f[3]!) / 2) <= tolerance, 'advance box y centre is zero');
       assert.ok(anchor.every((v) => Math.abs(v) <= tolerance), 'public default anchor is the origin');
     }), params(500, { examples: [['Label', 'sans', 0.4, 'normal'], ['', 'mono', Number.MIN_VALUE, 'bold']] }));
 });
 
-test('scene admission methods render each descendant once across orders and batches', () => {
-  const a = new Square(), b = new Square(), c = new Square(), parent = new Group(a, b);
+test('scene.add renders each descendant once across orders and batches', () => {
+  const a = new Rectangle({ width: 2, height: 2 }), b = new Rectangle({ width: 2, height: 2 }), c = new Rectangle({ width: 2, height: 2 }), parent = new Group(a, b);
   const ordered = new Scene(new NullSink()).add(parent, c, parent);
   assert.deepEqual(ordered.mobjects, [c, parent], 'last root occurrence is in front');
   ordered.add(a);
   assert.deepEqual(ordered.mobjects, [c, parent], 'adding a covered child is a no-op');
-  ordered.bringToBack(parent, c);
-  assert.deepEqual(ordered.mobjects, [parent, c], 'back batches retain argument order');
 
-  const op = fc.record({ method: fc.constantFrom('add' as const, 'bringToFront' as const, 'bringToBack' as const), batch: fc.array(fc.integer({ min: 0, max: 4 }), { maxLength: 5 }) });
+  const op = fc.record({ batch: fc.array(fc.integer({ min: 0, max: 4 }), { maxLength: 5 }) });
   fc.assert(fc.property(fc.array(op, { maxLength: 30 }), (batches) => {
-    const a = new Square(), b = new Square().shift([2, 0]), c = new Square().shift([4, 0]);
+    const a = new Rectangle({ width: 2, height: 2 }), b = new Rectangle({ width: 2, height: 2 }).shift([2, 0]), c = new Rectangle({ width: 2, height: 2 }).shift([4, 0]);
     const inner = new Group(a, b), outer = new Group(inner, c);
     const choices = [a, b, c, inner, outer];
     // Independent input tree, including each node itself: no production
@@ -206,57 +206,285 @@ test('scene admission methods render each descendant once across orders and batc
     const descendants = [[0], [1], [2], [0, 1, 3], [0, 1, 2, 3, 4]];
     const scene = new Scene(new NullSink());
     let admitted: number[] = [];
-    for (const { method, batch } of batches) {
-      scene[method](...batch.map((i) => choices[i]!));
-      for (const index of method === 'bringToBack' ? [...batch].reverse() : batch) {
+    for (const { batch } of batches) {
+      scene.add(...batch.map((i) => choices[i]!));
+      for (const index of batch) {
         if (admitted.some((i) => i !== index && descendants[i]!.includes(index))) continue;
         admitted = admitted.filter((i) => !descendants[index]!.includes(i));
-        if (method === 'bringToBack') admitted.unshift(index); else admitted.push(index);
+        admitted.push(index);
       }
       assert.deepEqual(scene.mobjects, admitted.map((i) => choices[i]!), 'admission keeps root draw order, including re-add to front');
       const ids = renderElements(scene).map((e) => e.id);
       const expected = admitted.flatMap((i) => descendants[i]!.filter((leaf) => leaf < 3));
       assert.equal(ids.length, new Set(ids).size, 'one rendered occurrence per shape');
-      assert.deepEqual(ids, expected.map((i) => choices[i]!.id), 'all and only admitted leaves are painted, in order');
+      assert.deepEqual(ids, expected.map((i) => mobjectId(choices[i]!)), 'all and only admitted leaves are painted, in order');
     }
-  }), params(500, { examples: [[[ {method:'add',batch:[3,2,3]} ]], [[{method:'add',batch:[0]},{method:'add',batch:[4]}]], [[{method:'bringToBack',batch:[4,0]}]]] }));
+  }), params(500, { examples: [[[{ batch: [3, 2, 3] }]], [[{ batch: [0] }, { batch: [4] }]], [[{ batch: [4, 0] }]]] }));
 });
 
 test('replacement admission does not duplicate promoted subtrees or delete a self-replaced sibling', () => {
-  const a = new Square(), b = new Square(), old = new Square();
+  const a = new Rectangle({ width: 2, height: 2 }), b = new Rectangle({ width: 2, height: 2 }), old = new Rectangle({ width: 2, height: 2 });
   const parent = new Group(a, b);
   const s = new Scene(new NullSink()).add(old, a, b);
   s.replace(old, parent, a);
   assert.deepEqual(s.mobjects, [parent]);
-  assert.deepEqual(renderElements(s).map((e) => e.id), [a.id, b.id]);
+  assert.deepEqual(renderElements(s).map((e) => e.id), [mobjectId(a), mobjectId(b)]);
   s.replace(a, a);
   assert.deepEqual(parent.children, [a, b]);
-  const other = new Square(); s.add(other);
+  const other = new Rectangle({ width: 2, height: 2 }); s.add(other);
   s.replace(other, a);
   assert.deepEqual(parent.children, [b]);
-  assert.deepEqual(renderElements(s).map((e) => e.id), [b.id, a.id]);
+  assert.deepEqual(renderElements(s).map((e) => e.id), [mobjectId(b), mobjectId(a)]);
   assert.throws(() => s.replace(b, parent), /ancestor/);
   assert.deepEqual(parent.children, [b], 'invalid replacement leaves the hierarchy intact');
 });
 
 test('nested replacement preserves earlier siblings, retained old objects and backlinks', () => {
-  const a = new Square(), old = new Square(), b = new Square();
+  const a = new Rectangle({ width: 2, height: 2 }), old = new Rectangle({ width: 2, height: 2 }), b = new Rectangle({ width: 2, height: 2 });
   const parent = new Group(a, old, b), s = new Scene(new NullSink()).add(parent);
   s.replace(old, a);
   assert.deepEqual(parent.children, [a, b]);
   assert.equal(old.parent, null);
   assert.equal(a.parent, parent);
-  const x = new Square(), y = new Square(), second = new Group(x, y);
-  s.clear().add(second);
+  const x = new Rectangle({ width: 2, height: 2 }), y = new Rectangle({ width: 2, height: 2 }), second = new Group(x, y);
+  s.remove(...s.mobjects).add(second);
   s.replace(x, x, y);
   assert.deepEqual(second.children, [x, y]);
   assert.equal(x.parent, second);
   assert.equal(y.parent, second);
-  const replacement = new Square(), source = new Group(replacement), targetOld = new Square();
+  const replacement = new Rectangle({ width: 2, height: 2 }), source = new Group(replacement), targetOld = new Rectangle({ width: 2, height: 2 });
   const target = new Group(targetOld);
-  s.clear().add(target).replace(targetOld, replacement);
+  s.remove(...s.mobjects).add(target).replace(targetOld, replacement);
   assert.deepEqual(source.children, [], 'an off-screen source parent releases the replacement');
   assert.equal(replacement.parent, target);
   s.add(source);
-  assert.equal(renderElements(s).filter((r) => r.id === replacement.id).length, 1);
+  assert.equal(renderElements(s).filter((r) => r.id === mobjectId(replacement)).length, 1);
+});
+
+test('a family stays a tree: add refuses the mobject itself or an ancestor, and remove releases only its own children', () => {
+  // Before the guard, b.add(a) under a.add(b) made a cycle that hung the next box invalidation.
+  const a = new Group(), b = new Group(), c = new Rectangle({ width: 2, height: 2 });
+  a.add(b); b.add(c);
+  assert.throws(() => b.add(a), /^Error: m\.add\(\): a Group contains the mobject it is added to/);
+  assert.throws(() => c.add(a), /m\.add\(\): a Group contains the mobject it is added to/);
+  assert.throws(() => a.add(a), /^Error: m\.add\(\): a Group is the mobject it is added to/);
+  // A refused add changes nothing, even after children listed before the one refused.
+  const d = new Rectangle({ width: 2, height: 2 });
+  assert.throws(() => b.add(d, a));
+  assert.deepEqual(b.children, [c]);
+  assert.equal(d.parent, null);
+  assert.deepEqual(a.family(), [a, b, c]);
+  assert.ok(a.box(), 'the box of a refused family is still measured');
+
+  // remove() on another group leaves the child with its real parent, whose box still follows it.
+  const x = new Rectangle({ width: 1, height: 1 }), g1 = new Group(x), g2 = new Group(new Rectangle({ width: 2, height: 2 }));
+  assert.equal(g1.box()![2], 0.5);
+  g2.remove(x);
+  assert.equal(x.parent, g1);
+  assert.deepEqual(g1.children, [x]);
+  x.shift([3, 0]);
+  assert.equal(g1.box()![2], 3.5, 'the moved child invalidates its parent\'s box');
+  g1.remove(x);
+  assert.equal(x.parent, null);
+  assert.deepEqual(g1.children, []);
+});
+
+test('the children and the parent are the mobject\'s own: no write to it changes them, and family() walks them whatever a subclass\'s getter says', () => {
+  const a = new Group(), b = new Group(), c = new Rectangle({ width: 2, height: 2 });
+  a.add(b);
+  // Writes to a field of the same name, by assignment and by element access, are unrelated fields.
+  (b as unknown as { _children: unknown })._children = [a];
+  (b as unknown as Record<string, unknown>)['_parent'] = c;
+  assert.deepEqual(b.children, []);
+  assert.equal(b.parent, a);
+  assert.deepEqual(a.family(), [a, b], 'no cycle, so family() ends');
+  // A subclass's getter misleads only its own readers.
+  class Liar extends Group { override get children(): readonly Rectangle[] { return []; } }
+  const sq = new Rectangle({ width: 2, height: 2 });
+  const liar = new Liar(sq);
+  assert.deepEqual([liar.children.length, liar.family().length, sq.parent === liar], [0, 2, true]);
+  // Copies, which no subclass constructor makes, have their own children and parent.
+  const g = new Group(new Rectangle({ width: 2, height: 2 }), new Rectangle({ width: 2, height: 2 }));
+  const copy = g.copy();
+  assert.equal(copy.children.length, 2);
+  assert.ok(copy.children.every((k) => k.parent === copy));
+  assert.ok(g.children.every((k) => k.parent === g));
+});
+
+test('keyed() keys a part and returns it; copies carry the key, restore() returns to the saved one, become() keeps its own', () => {
+  const sq = new Rectangle({ width: 2, height: 2 });
+  assert.equal(keyed(sq, 'slot'), sq);
+  assert.equal(sq.key, 'slot');
+  assert.equal(sq.copy().key, 'slot');
+  assert.equal(new Group(sq).copy().find('slot')?.key, 'slot');
+  sq.saveState();
+  keyed(sq, 'moved');
+  assert.equal(sq.restore().key, 'slot');
+  assert.equal(sq.become(keyed(new Rectangle({ width: 1, height: 1 }), 'other')).key, 'slot');
+  // The key is read-only: a write, which the types refuse, throws and changes nothing.
+  assert.throws(() => Object.assign(sq, { key: 'x' }), TypeError);
+  assert.equal(sq.key, 'slot');
+});
+
+test('keyed() refuses an empty key and leaves the part as it was', () => {
+  const sq = keyed(new Rectangle({ width: 2, height: 2 }), 'slot');
+  assert.throws(() => keyed(sq, ''), /^RangeError: keyed\(\): the key is ""/);
+  assert.equal(sq.key, 'slot');
+});
+
+test('no public path makes the mobject tree a cycle, or lets a parent and its children disagree (invariant row 8)', () => {
+  const a = new Group(), b = new Group();
+  a.add(b);
+  assert.throws(() => b.insert(0, a), /^Error: m\.insert\(\): a Group contains the mobject it is added to/);
+  assert.throws(() => b.insert(5, new Rectangle({ width: 2, height: 2 })), /^RangeError: m\.insert\(\): the index is 5/);
+  const s = new Rectangle({ width: 2, height: 2 });
+  b.add(s);
+  const scene = new Scene(new NullSink()).add(a);
+  assert.throws(() => scene.replace(s, a), /^Error: this\.replace\(\): a replacement cannot be an ancestor/);
+  assert.throws(() => replaceChild(b, s, a), /^Error: this\.replace\(\): a Group contains the mobject it is added to/);
+
+  // Every public way to change a family, in random order on a small pool, some refused: after each,
+  // the tree is acyclic, each child names its holder as parent, and each parent holds its child.
+  type Op = { kind: 'add' | 'insert' | 'remove' | 'sceneReplace'; at: number; to: number; with: number[]; index: number };
+  const op: fc.Arbitrary<Op> = fc.record({
+    kind: fc.constantFrom('add' as const, 'insert' as const, 'remove' as const, 'sceneReplace' as const),
+    at: fc.integer({ min: 0, max: 5 }), to: fc.integer({ min: 0, max: 5 }),
+    with: fc.array(fc.integer({ min: 0, max: 5 }), { maxLength: 3 }), index: fc.integer({ min: 0, max: 3 }),
+  });
+  fc.assert(fc.property(fc.array(op, { maxLength: 25 }), (ops) => {
+    const pool = [new Group(), new Group(), new Group(), new Rectangle({ width: 2, height: 2 }), new Rectangle({ width: 2, height: 2 }).shift([2, 0]), new Group()];
+    const scene = new Scene(new NullSink()).add(pool[0]!);
+    for (const o of ops) {
+      const at = pool[o.at]!, to = pool[o.to]!, others = o.with.map((i) => pool[i]!);
+      try {
+        if (o.kind === 'add') at.add(to, ...others);
+        else if (o.kind === 'insert') at.insert(o.index, to, ...others);
+        else if (o.kind === 'remove') at.remove(to, ...others);
+        else scene.replace(to, ...others);
+      } catch (e) { assert.match(String(e), /would be a cycle|is not a child|the index is|cannot be an ancestor/); }
+      for (const m of pool) {
+        const seen = new Set<unknown>();
+        for (let p: typeof m | null = m; p; p = p.parent) { assert.ok(!seen.has(p), 'no cycle through parents'); seen.add(p); }
+        assert.equal(new Set(m.family()).size, m.family().length, 'no member twice in a family');
+        for (const c of m.children) assert.equal(c.parent, m, 'a child names its holder');
+        if (m.parent) assert.ok(m.parent.children.includes(m), 'a parent holds its child');
+      }
+    }
+  }), params(500));
+});
+
+test('lerpColor mixes two hex colours and always answers #rrggbb', () => {
+  assert.equal(lerpColor('#000000', '#ffffff', 0.5), '#808080');
+  assert.equal(lerpColor('#FFF', '#FFF', 0.3), '#ffffff');
+  assert.equal(lerpColor('#f00', '#00F', 0), '#ff0000');
+  assert.equal(lerpColor('#f00', '#00f', 1), '#0000ff');
+  // Past the ends, each channel is held to 0 to 255.
+  assert.equal(lerpColor('#808080', '#ffffff', 2), '#ffffff');
+});
+
+test('lerpColor refuses an end that is not a hex colour, naming it', () => {
+  for (const wrong of ['red', 'none', '#12345', '#ff000080', ''])
+    assert.throws(() => lerpColor(wrong, '#ffffff', 0.5), (e: unknown) => e instanceof RangeError && e.message.startsWith('lerpColor(): ') && e.message.includes(JSON.stringify(wrong)));
+  assert.throws(() => lerpColor('#ffffff', 'white', 0.5), /^RangeError: lerpColor\(\): "white"/);
+});
+
+test('copy() gives the copy its own arrays, maps and sets, so a subclass\'s fields are never shared with the original', () => {
+  class Tally extends Rectangle {
+    marks: number[] = [1, 2];
+    seen = new Map([['a', 1]]);
+    tags = new Set(['x']);
+    weights = new Float32Array([0.5]);
+  }
+  const t = new Tally(), c = t.copy();
+  c.marks.push(3); c.seen.set('b', 2); c.tags.add('y'); c.weights[0] = 9;
+  assert.deepEqual([t.marks, [...t.seen], [...t.tags], [...t.weights]], [[1, 2], [['a', 1]], ['x'], [0.5]]);
+  assert.deepEqual([c.marks, [...c.seen], [...c.tags], [...c.weights]], [[1, 2, 3], [['a', 1], ['b', 2]], ['x', 'y'], [9]]);
+});
+
+/** Each frame of a run that fades `m` in and moves it (a Frame: the camera it moves), as the renderer's records, ids numbered by first appearance. */
+async function framesOf(m: Mobject): Promise<string[]> {
+  const ids = new Map<number, number>(), frames: string[] = [];
+  class Story extends Scene {
+    override async construct() {
+      if (m instanceof Frame) {
+        this.add(new Rectangle({ width: 3 }).shift([2, 1]));
+        this.frame = m;
+        await this.play(m.animate.scale(0.5).shift([1, 0]), { runTime: 0.3 });
+        return;
+      }
+      await this.play(new FadeIn(m), { runTime: 0.3 });
+      await this.play(m.animate.shift([1, 0.5]).rotate(0.4), { runTime: 0.3 });
+    }
+  }
+  await new Story({ frame: async (scene) => {
+    frames.push(JSON.stringify([scene.frame.box(), renderElements(scene, { relative: false }).map((r) => ({ ...r, id: ids.get(r.id) ?? ids.set(r.id, ids.size).get(r.id) }))]));
+  } }).run();
+  return frames;
+}
+
+test('a copy of every mobject class an entry point exports draws as the original does through a play, and changing the copy leaves the original alone', async () => {
+  const classes = (await publicClasses()).filter((c) => c.kind === 'mobject');
+  assert.deepEqual(classes.filter((c) => !(c.name in MOBJECTS)).map((c) => c.name), [], 'give each exported mobject class a way to build it');
+  assert.ok(classes.length > 20);
+  const drawing = (m: Mobject) => m instanceof Frame ? JSON.stringify(m.box()) : JSON.stringify(renderElements(new Scene(new NullSink()).add(m), { relative: false }));
+  for (const { name, C } of classes) {
+    const original = MOBJECTS[name]!(C);
+    USES[name]?.(original);
+    const copy = original.copy();
+    assert.deepEqual(await framesOf(copy), await framesOf(original), `${name}: the copy draws as the original did`);
+    const before = drawing(original);
+    copy.shift([3, -2]).scale(1.5).setColor('#cc3300');
+    USES[name]?.(copy);
+    assert.equal(drawing(original), before, `${name}: changing the copy leaves the original alone`);
+  }
+});
+
+test("assigning to a method every mobject has, which Object.assign and a function assignment type-check, is refused and leaves the method working", () => {
+  const card = new Group(new Rectangle({ width: 2 })), label = new Text('x');
+  const refused = (name: string) => (e: unknown) => e instanceof TypeError && e.message.startsWith(`m.${name}: `);
+  assert.throws(() => Object.assign(card, { center: label }), refused('center'));
+  assert.throws(() => { card.box = () => null; }, refused('box'));
+  assert.deepEqual(card.center(), [0, 0]);
+  assert.equal(card.width(), 2);
+});
+
+test("a copy of an author's mobject whose class declares an ES private member is refused, naming the class and the member", async () => {
+  class Bars extends Rectangle {
+    #count = 3;
+    override pointArrays(): Float32Array[] { return this.#count ? super.pointArrays() : []; }
+  }
+  class Stepper extends Rectangle {
+    #step(): void { this.shift([1, 0]); }
+    advance(): this { this.#step(); return this; }
+  }
+  const refused = (name: string, member: string) => (e: unknown) => e instanceof TypeError && e.message.startsWith(`class ${name}: `) && e.message.includes(member);
+  class Story extends Scene {
+    override async construct() { await this.play(new FadeIn(new Bars()), { runTime: 0.1 }); }
+  }
+  await assert.rejects(new Story(new NullSink()).run(), refused('Bars', '#count'));
+  assert.throws(() => new Stepper().saveState(), refused('Stepper', '#step'));
+  class SubBars extends Bars {}
+  assert.throws(() => new Group(new SubBars()).copy(), refused('SubBars', '#count'), 'a member a class it extends declares counts');
+  // What a copy does carry: an ordinary field, a TypeScript private one, and a static ES private member, which lives on the class.
+  class Tidy extends Rectangle {
+    static #made = 0;
+    private count = 3;
+    tint = '#cc3300';
+    constructor() { super(); Tidy.#made++; }
+    get counted(): number { return this.count + Tidy.#made * 0; }
+  }
+  assert.equal(new Tidy().copy().counted, 3);
+});
+
+test('restore() and become() take an author\'s fields whatever their names, a leading underscore included', () => {
+  class Counter extends Rectangle { _count = 0; count = 0; }
+  const c = new Counter();
+  c.saveState();
+  c._count = 5; c.count = 5;
+  c.restore();
+  assert.deepEqual([c.count, c._count], [0, 0]);
+  const d = new Counter(), e = new Counter();
+  e._count = 7; e.count = 7;
+  d.become(e);
+  assert.deepEqual([d.count, d._count], [7, 7]);
 });

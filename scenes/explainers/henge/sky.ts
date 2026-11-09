@@ -1,12 +1,18 @@
 // Henge's 3D pictures: New York's sky as a sphere around the observer, seen from outside (the dome)
 // and from its centre (the street), and Earth seen from beside its orbit. Every direction on them
-// comes from the ERFA-checked model in ../lib/henge.ts: a day's path is the model's sky() swept
-// through the hour angle, ending at the model's own sunset hour angle.
-import { Group, Rectangle, Polygon, Circle, VMobject, Arrow } from '../../../src/index.ts';
+// comes from the ERFA-checked model in ./model.ts: a day's path is the model's sky() swept
+// through the hour angle, ending at the model's own sunset hour angle. The dome and the street are
+// separate steps rather than one camera move: a perspective eye must stay outside the sphere, and
+// `between` joins only viewpoints of one kind, so the move to the street is the gnomonic tilt from the
+// sky. The tilted Earths are seen from one viewpoint beside the orbit, so the axis keeps one direction
+// on screen; it is dashed inside the translucent body.
+import { Group, Rectangle, Polygon, Circle, VMobject, Arrow, keyed } from '../../../src/index.ts';
+import type { Part, Viewpoint, Vec3, SeenOptions } from '../../../explain/geo.ts';
+import { seenFrom, project, circleOn, greatArc } from '../../../explain/geo.ts';
 import type { Vec, Text } from '../../../src/index.ts';
-import { seenFrom, project, circleOn, greatArc, label, keyed } from '../../../explain/drawing.ts';
-import type { Part, Viewpoint, Vec3, SeenOptions } from '../../../explain/drawing.ts';
-import { sky, LATITUDE } from '../lib/henge.ts';
+import { label } from '../../../explain/drawing.ts';
+import type { Stage } from '../../../explain/index.ts';
+import { sky, LATITUDE } from './model.ts';
 
 export const INK = '#1e293b', SUN = '#c77900', SUMMER = '#a03b22', WINTER = '#235d9b', MUTED = '#64748b', ROAD = '#eef2f6';
 const SKY = '#dcebf7', GROUND = '#e4dccb', WALL = '#d8e0e8', NIGHT = '#33415c';
@@ -99,38 +105,38 @@ export interface SkyState { bearing: number; days: (Day & { azimuth: number })[]
 const DAY_NAMES = ['December', 'Equinox', 'June'];
 const DAY_COLORS = [WINTER, MUTED, SUN];
 /** A label beside a point on the dome, drawn from the same viewpoint. */
-function nameAt(text: string, p: Vec3, vp: Viewpoint, o: SeenOptions, offset: Vec, anchor: -1 | 0 | 1, color: string, size = 0.52): Text {
+function nameAt(s: Stage, text: string, p: Vec3, vp: Viewpoint, o: SeenOptions, offset: Vec, anchor: -1 | 0 | 1, color: string, size = 0.52): Text {
   const { at } = project(p, vp, 1, o);
-  return label(text, 0, 0, color, size).moveTo([at[0] + offset[0], at[1] + offset[1]], [anchor, 0]);
+  return label(s, text, { color, size }).moveTo([at[0] + offset[0], at[1] + offset[1]], [anchor, 0]);
 }
 /** Compass points just outside the horizon, away from the dome's centre. */
-function compass(vp: Viewpoint, o: SeenOptions, side: Side): Text[] {
+function compass(s: Stage, vp: Viewpoint, o: SeenOptions, side: Side): Text[] {
   const c = project([0, 0, 0], vp, 1, o).at;
   return ([['N', 0], ['S', 180], ['W', 270]] as const).map(([name, az]) => {
     const p = project(azAlt(az, 0, side), vp, 1, o).at, dx = p[0] - c[0], dy = p[1] - c[1], h = Math.hypot(dx, dy) || 1;
-    return label(name, p[0] + (dx / h) * 0.36, p[1] + (dy / h) * 0.36, MUTED, 0.52);
+    return label(s, name, { at: [p[0] + (dx / h) * 0.36, p[1] + (dy / h) * 0.36], color: MUTED, size: 0.52 });
   });
 }
 /** Where the horizon's name goes: beside the horizon's southern end, outside the dome. */
 const horizonLabelAt = (): Vec => { const p = project(azAlt(205, 0, 'outside'), DOME_VIEW, 1, DOME).at; return [p[0] + 0.55, p[1] - 0.15]; };
 /** The street's name, beside its circle low on its western side, where the sky is clear of the day's paths. */
-const streetName = (bearing: number, key: string) =>
-  keyed(new Group(nameAt('Street', azAlt(bearing, 16, 'outside'), DOME_VIEW, DOME, [-0.22, 0], 1, SUMMER)), key);
+const streetName = (s: Stage, bearing: number, key: string) =>
+  keyed(new Group(nameAt(s, 'Street', azAlt(bearing, 16, 'outside'), DOME_VIEW, DOME, [-0.22, 0], 1, SUMMER)), key);
 
 /** The sky step: December's, the equinox's and June's paths on the dome, each ending at its sunset, with the street's vertical circle. */
-export function dome(st: SkyState): Group {
+export function dome(st: SkyState, s: Stage): Group {
   const vp = DOME_VIEW, side: Side = 'outside';
   const parts: Part[] = [ground, horizon];
   st.days.forEach((d, i) => parts.push(...dayParts(`henge-dome:${DAY_NAMES[i]!.toLowerCase()}`, d, DAY_COLORS[i]!, side)));
   parts.push(street(st.bearing), axis, pole);
   st.days.forEach((d, i) => parts.push(marker(`henge-dome:sunset:${i}`, sunsetOf(d, side), DAY_COLORS[i]!, 3.6)));
   const picture = seenFrom({ body: DOME_BODY, parts }, vp, { ...DOME, key: 'henge-dome:seen' });
-  const g = new Group(picture, ...compass(vp, DOME, side));
+  const g = new Group(picture, ...compass(s, vp, DOME, side));
   // Each path is named beside its highest point, noon.
-  st.days.forEach((d, i) => g.add(nameAt(DAY_NAMES[i]!, onSphere(sky(LATITUDE, d.declination, 0), side), vp, DOME, [0.2, 0.3], -1, DAY_COLORS[i]!)));
-  g.add(streetName(st.bearing, 'henge-dome-street'),
-    nameAt('Pole', poleOf(side), vp, DOME, [-0.18, 0], 1, INK, 0.52),
-    keyed(new Group(label('New York’s horizon', 0, 0, INK, 0.52).moveTo(horizonLabelAt(), [-1, 0])), 'henge-dome-horizon'));
+  st.days.forEach((d, i) => g.add(nameAt(s, DAY_NAMES[i]!, onSphere(sky(LATITUDE, d.declination, 0), side), vp, DOME, [0.2, 0.3], -1, DAY_COLORS[i]!)));
+  g.add(streetName(s, st.bearing, 'henge-dome-street'),
+    nameAt(s, 'Pole', poleOf(side), vp, DOME, [-0.18, 0], 1, INK, 0.52),
+    keyed(new Group(label(s, 'New York’s horizon', { color: INK, size: 0.52 }).moveTo(horizonLabelAt(), [-1, 0])), 'henge-dome-horizon'));
   return keyed(g, 'henge-dome');
 }
 
@@ -154,7 +160,7 @@ export const crossedBy = (st: YearState) => st.crossings.filter((c) => c > st.st
  * The sweep step at one orbital longitude: that day's path and sunset, the stretch of horizon the
  * sunsets have covered since `start`, and the street's circle, marked once the sunset has crossed it.
  */
-export function year(st: YearState, dayAt: DayAt): Group {
+export function year(st: YearState, dayAt: DayAt, s: Stage): Group {
   const vp = DOME_VIEW, side: Side = 'outside', today = dayAt(st.longitude);
   const [lo, hi] = reach(dayAt, st.start, st.longitude);
   const steps = Math.max(1, Math.ceil(hi - lo));
@@ -166,11 +172,11 @@ export function year(st: YearState, dayAt: DayAt): Group {
     marker('henge-year:crossing', azAlt(st.bearing, 0, side), SUMMER, 6, fill),
     marker('henge-year:sunset', sunsetOf(today, side), SUN, 3.6)];
   const picture = seenFrom({ body: DOME_BODY, parts }, vp, { ...DOME, key: 'henge-year:seen' });
-  return keyed(new Group(picture, ...compass(vp, DOME, side), streetName(st.bearing, 'henge-year-street'),
-    nameAt('Pole', poleOf(side), vp, DOME, [-0.18, 0], 1, INK, 0.52),
-    keyed(new Group(label('Gold band:', 0, 0, SUN, 0.52).moveTo([2.3, -1.65], [-1, 0]),
-      label('the sunsets so far', 0, 0, SUN, 0.52).moveTo([2.3, -2.3], [-1, 0]),
-      label(`Street crossings: ${crossed}`, 0, 0, SUMMER, 0.52).moveTo([2.3, -3.25], [-1, 0])), 'henge-year-count'),
+  return keyed(new Group(picture, ...compass(s, vp, DOME, side), streetName(s, st.bearing, 'henge-year-street'),
+    nameAt(s, 'Pole', poleOf(side), vp, DOME, [-0.18, 0], 1, INK, 0.52),
+    keyed(new Group(label(s, 'Gold band:', { color: SUN, size: 0.52 }).moveTo([2.3, -1.65], [-1, 0]),
+      label(s, 'the sunsets so far', { color: SUN, size: 0.52 }).moveTo([2.3, -2.3], [-1, 0]),
+      label(s, `Street crossings: ${crossed}`, { color: SUMMER, size: 0.52 }).moveTo([2.3, -3.25], [-1, 0])), 'henge-year-count'),
   ), 'henge-year');
 }
 
@@ -233,7 +239,7 @@ const DISC = 0.42;
  * The look step's picture: the sky sphere from its centre, then what is nearer than the sky (the
  * Sun's disc, the ground, the road and the walls), each placed by the same pinhole, then the frame.
  */
-export function look(st: LookState, paper: string, names: { day: string }): Group {
+export function look(st: LookState, paper: string, names: { day: string }, s: Stage): Group {
   const vp = lookView(st.bearing, st.pitch), side: Side = 'inside';
   const o = { at: CENTRE, scale: st.scale };
   const parts: Part[] = [
@@ -263,12 +269,12 @@ export function look(st: LookState, paper: string, names: { day: string }): Grou
     .moveTo([(WINDOW.left + WINDOW.right) / 2, (WINDOW.top + WINDOW.bottom) / 2]), 'henge-look-window');
   // From the centre, looking along the street, its circle is the vertical line through the middle at every pitch.
   const legend = keyed(new Group(
-    label('Street', 0, 0, SUMMER, 0.52).moveTo([CENTRE[0] + 0.2, WINDOW.top - 0.4], [-1, 0]),
-    label(`Gold: a ${names.day} evening’s path`, 0, 0, SUN, 0.52).moveTo([CENTRE[0], WINDOW.bottom - 0.45]),
+    label(s, 'Street', { color: SUMMER, size: 0.52 }).moveTo([CENTRE[0] + 0.2, WINDOW.top - 0.4], [-1, 0]),
+    label(s, `Gold: a ${names.day} evening’s path`, { color: SUN, size: 0.52 }).moveTo([CENTRE[0], WINDOW.bottom - 0.45]),
   ), 'henge-look-legend');
   // Facing the street's western end, south is on the left and north on the right.
-  const sides = keyed(new Group(label('← south', 0, 0, MUTED, 0.52).moveTo([WINDOW.left + 0.25, WINDOW.bottom + 0.4], [-1, 0]),
-    label('north →', 0, 0, MUTED, 0.52).moveTo([WINDOW.right - 0.25, WINDOW.bottom + 0.4], [1, 0])), 'henge-look-sides');
+  const sides = keyed(new Group(label(s, '← south', { color: MUTED, size: 0.52 }).moveTo([WINDOW.left + 0.25, WINDOW.bottom + 0.4], [-1, 0]),
+    label(s, 'north →', { color: MUTED, size: 0.52 }).moveTo([WINDOW.right - 0.25, WINDOW.bottom + 0.4], [1, 0])), 'henge-look-sides');
   return keyed(new Group(sky3, keyed(new Group(disc), 'henge-look-sun'), ground, roadShape, ...wallShapes, mask, border, legend, sides), 'henge-look');
 }
 
@@ -301,7 +307,7 @@ function newYorkCircle(side: 1 | -1, st: Pick<GlobeState, 'tilt' | 'latitude'>) 
  * Earth at one solstice. New York's daily circle is cut where the model's sunset hour angle puts
  * its sunset and sunrise: the gold arc is in daylight, the dark one in night.
  */
-function earth(side: 1 | -1, st: GlobeState, at: Vec, key: string): Group {
+function earth(s: Stage, side: 1 | -1, st: GlobeState, at: Vec, key: string): Group {
   const { axis, sun, atHour } = newYorkCircle(side, st);
   const d = side === 1 ? st.june : st.december;
   const arc = (from: number, to: number) => { const n = Math.ceil(Math.abs(to - from) / 3); return Array.from({ length: n + 1 }, (_, i) => atHour(from + ((to - from) * i) / n)); };
@@ -322,16 +328,16 @@ function earth(side: 1 | -1, st: GlobeState, at: Vec, key: string): Group {
   const o: SeenOptions = { at, scale: 1.3 };
   const g = seenFrom({ body: { radius: 1, fill: '#e0edf7', fillOpacity: 0.6, stroke: WINTER, strokeWidth: 0.03, key: `${key}:body` }, parts }, GLOBE_VIEW, { ...o, key: `${key}:seen` });
   const n = project(north, GLOBE_VIEW, 1, o).at;
-  return new Group(g, label('N', n[0] + 0.14, n[1] + 0.32, INK, 0.52));
+  return new Group(g, label(s, 'N', { at: [n[0] + 0.14, n[1] + 0.32], color: INK, size: 0.52 }));
 }
 /** The tilt step: June's Earth left of the Sun, December's right, one axis direction for both. */
-export function globes(st: GlobeState): Group {
-  const g = new Group(new Circle({ radius: 0.6, fill: SUN, stroke: SUN }), label('Sun', 0, -1.05, SUN, 0.58),
+export function globes(st: GlobeState, s: Stage): Group {
+  const g = new Group(new Circle({ radius: 0.6, fill: SUN, stroke: SUN }), label(s, 'Sun', { at: [0, -1.05], color: SUN, size: 0.58 }),
     new Arrow([0.75, 0], [2.55, 0], { stroke: SUN, strokeWidth: 0.045 }), new Arrow([-0.75, 0], [-2.55, 0], { stroke: SUN, strokeWidth: 0.045 }));
-  g.add(earth(1, st, [-4.3, 0], 'henge-earth:june'), earth(-1, st, [4.3, 0], 'henge-earth:december'),
-    label('June', -4.3, 2.45, INK, 0.58), label('December', 4.3, 2.45, INK, 0.58),
-    label('North sunward', -4.3, -2.05, INK, 0.58), label('North away', 4.3, -2.05, INK, 0.58),
-    keyed(new Group(label('Red dot: New York at noon, on its daily circle', 0, -2.85, SUMMER, 0.52),
-      label('Gold: the circle in daylight; dark: in night', 0, -3.5, INK, 0.52)), 'henge-earth-legend'));
+  g.add(earth(s, 1, st, [-4.3, 0], 'henge-earth:june'), earth(s, -1, st, [4.3, 0], 'henge-earth:december'),
+    label(s, 'June', { at: [-4.3, 2.45], color: INK, size: 0.58 }), label(s, 'December', { at: [4.3, 2.45], color: INK, size: 0.58 }),
+    label(s, 'North sunward', { at: [-4.3, -2.05], color: INK, size: 0.58 }), label(s, 'North away', { at: [4.3, -2.05], color: INK, size: 0.58 }),
+    keyed(new Group(label(s, 'Red dot: New York at noon, on its daily circle', { at: [0, -2.85], color: SUMMER, size: 0.52 }),
+      label(s, 'Gold: the circle in daylight; dark: in night', { at: [0, -3.5], color: INK, size: 0.52 })), 'henge-earth-legend'));
   return keyed(g, 'henge-orbit');
 }

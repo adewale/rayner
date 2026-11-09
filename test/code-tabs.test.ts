@@ -5,7 +5,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Code, Text, TransformDiff, TransformMatchingText } from '../src/index.ts';
 import { loadFonts } from '../explain/testing.ts';
+import { expandTabs } from '../src/text.ts';
+import { fc, params } from './lib/pbt.ts';
+import { textShaping } from '../src/lettering-outlines.ts';
+import type { LetteringProvider } from '../src/lettering-outlines.ts';
 import type { Box, Mobject } from '../src/index.ts';
+import { beginAnimation } from '../src/animation.ts';
+import { advanceBox, clusterKeyOf } from '../src/text.ts';
 // Manim's values, which the package no longer exports.
 const RED = '#fc6255';
 
@@ -34,7 +40,7 @@ test('lineSpan() of a tabbed line holds every glyph of the line', () => {
 
 test('box() of a span on a tabbed line is its cells in the laid-out line: the tab takes its columns', () => {
   const code = new Code(['\treturn x;', 'ab\tc']).scale(1.4).shift([0.3, -0.2]);
-  const t = code.lines[0]!, f = t.frameBox, cell = t.advance() / '    return x;'.length;
+  const t = code.lines[0]!, f = t[advanceBox], cell = t.advance() / '    return x;'.length;
   const s = code.token(0, 'return'), b = s.box();
   assert.ok(Math.abs(b[0] - (f[0]! + 4 * cell)) < 1e-5 && Math.abs(b[2] - (f[0]! + 10 * cell)) < 1e-5, `x extent ${b}`);
   const ink = union(s.children.map((g) => g.box()!));
@@ -69,17 +75,17 @@ test('a span after an astral character selects the right glyphs', () => {
 
 test('TransformDiff: an unchanged tabbed line pairs every glyph', () => {
   const same = new TransformDiff(new Code(['\tlet total = 0;']), new Code(['\tlet total = 0;']));
-  same.begin();
+  beginAnimation(same);
   const n = same.before.lines[0]!.children.length;
   assert.deepEqual(same.summary(), { matched: n, morphed: 0, removed: 0, added: 0 });
   for (const [s, t] of same.pairs) assert.equal(cluster(s), cluster(t));
   // Next to an edit: the tabbed line still travels whole; only x -> y changes
   const edit = new TransformDiff(new Code(['\tlet total = 0;', 'x']), new Code(['\tlet total = 0;', 'y']));
-  edit.begin();
+  beginAnimation(edit);
   assert.deepEqual(edit.summary(), { matched: n, morphed: 0, removed: 1, added: 1 });
   // A changed line with tabs pairs its shared tokens character for character
   const changed = new TransformDiff(new Code(['\treturn x;']), new Code(['\treturn y;']));
-  changed.begin();
+  beginAnimation(changed);
   assert.deepEqual(changed.summary(), { matched: 7, morphed: 0, removed: 1, added: 1 });
   for (const [s, t] of changed.pairs) assert.equal(charOf(s), charOf(t));
 });
@@ -87,8 +93,68 @@ test('TransformDiff: an unchanged tabbed line pairs every glyph', () => {
 test('TransformMatchingText keys tabbed and astral glyphs by their own character', () => {
   for (const [a, b, n] of [['\tcache', '\tcached', 5], ['\tcache = 1', 'cache\t= 1', 7], ['😀cache', 'cached😀', 5], ['\t𝑥 = ab', 'ab = 𝑥', 3]] as const) {
     const m = new TransformMatchingText(new Code([a]), new Code([b]));
-    m.begin();
+    beginAnimation(m);
     assert.equal(m.summary().matched, n, `${JSON.stringify(a)} -> ${JSON.stringify(b)}`);
     for (const [s, t] of m.pairs) assert.equal(charOf(s), charOf(t));
   }
+});
+
+test('one tab expansion: tabs reach the next stop by column, and every code point maps back', () => {
+  // Each unit and the columns it takes: a code point that draws with the one before it takes none.
+  const columns = new Map([['a', 1], ['é', 1], ['e\u0301', 1], ['😀', 1], [' ', 1], ['中', 1], ['क्ष', 2], ['👩\u200d💻', 2]]);
+  const unit = fc.constantFrom('\t', ...columns.keys());
+  fc.assert(fc.property(fc.array(unit, { maxLength: 12 }), fc.integer({ min: 1, max: 8 }), (units, width) => {
+    const line = units.join('');
+    const { text, source } = expandTabs(line, width);
+    assert.ok(!text.includes('\t'));
+    assert.equal(source.length, [...text].length, 'one source index per code point');
+    // A tab ends on a multiple of the width, counting the columns before it.
+    let column = 0, out = 0;
+    for (const u of units) {
+      const tab = width - (column % width);
+      out += u === '\t' ? tab : [...u].length;
+      column += u === '\t' ? tab : columns.get(u)!;
+    }
+    assert.equal([...text].length, out);
+    // Each non-tab code point comes from the same character in the line.
+    [...text].forEach((cp, i) => { if (cp !== ' ' || line[source[i]!] !== '\t') assert.equal(String.fromCodePoint(line.codePointAt(source[i]!)!), cp); });
+    // Without a width, tabs stay and only the map is made.
+    const kept = expandTabs(line);
+    assert.equal(kept.text, line);
+    assert.equal(kept.source.length, [...line].length);
+  }), params());
+  assert.deepEqual(expandTabs('e\u0301\tx', 4), { text: 'e\u0301   x', source: [0, 1, 2, 2, 2, 3] });
+});
+
+test('a tab stop after a cluster counts the code points that draw on their own, whatever the Unicode version segments', () => {
+  // Each of these is one grapheme cluster in current Unicode, and more code points than columns: a
+  // conjunct (one cluster since Unicode 15.1, two before), Khmer with a subscript consonant (a cluster
+  // count that differs between ICU versions), and an emoji ZWJ sequence.
+  const stop = (cluster: string) => expandTabs(`${cluster}\tx`, 8).text.length - cluster.length - 1;
+  assert.equal(8 - stop('e\u0301'), 1, 'a letter and its combining accent');
+  assert.equal(8 - stop('क्ष'), 2, 'क, the virama, ष');
+  assert.equal(8 - stop('ក្ខ'), 2, 'ក, the subscript sign, ខ');
+  assert.equal(8 - stop('សួស្តី'), 3);
+  assert.equal(8 - stop('👩\u200d💻'), 2, 'woman, the joiner, laptop');
+  // Code lays it out the same way: after a conjunct, with the default four-column stops, the tab takes two columns.
+  const code = new Code(['क्ष\tx', 'abcd']);
+  const cell = code.lines[1]!.advance() / 4, tab = code.span(0, 3, 4).width();
+  assert.ok(Math.abs(tab - 2 * cell) < 1e-6, `the tab is ${tab / cell} columns`);
+});
+
+test('a lettered line maps tabbed runs to the same clusters as an unlettered one, and keys each glyph by the cluster it draws', () => {
+  // A provider that shapes as the embedded fonts do: only where lettering maps runs back to the line differs.
+  const provider: LetteringProvider = { shape: (_font, text, size, fallback) => fallback(text, size), math: () => { throw new Error('no maths here'); } };
+  // An astral character and a combining sequence before a tab: a tab stop counted by code unit or code point lands elsewhere.
+  const lines = ['\tx = 1;', 'a\t😀\treturn é;', '\t\te\u0301\t中 x'];
+  const plain = new Code(lines), lettered = new Code(lines, { shaping: textShaping(provider) });
+  lettered.lines.forEach((line, i) => {
+    assert.deepEqual(line.children.map(cluster), plain.lines[i]!.children.map(cluster), `line ${i}: the same clusters`);
+    // Each glyph is keyed by the character it draws and how many glyphs draw that character.
+    const graphemes = new Map([...new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(line.text)].map((g) => [g.index, g.segment]));
+    for (const g of line.children) {
+      const drawnBy = line.children.filter((h) => cluster(h) === cluster(g)).length;
+      assert.equal(clusterKeyOf(line, cluster(g)), `${line.font} ${line.weight} ${graphemes.get(cluster(g))} ×${drawnBy}`, `line ${i}, ${JSON.stringify(charOf(g))}`);
+    }
+  });
 });

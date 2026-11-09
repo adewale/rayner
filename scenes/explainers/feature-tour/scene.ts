@@ -1,43 +1,10 @@
-import {
-  Scene,
-  Text,
-  Circle,
-  Square,
-  Line,
-  Dot,
-  Rectangle,
-  Arrow,
-  Group,
-  Axes,
-  Transform,
-  TransformMatchingText,
-  Restore,
-  Circumscribe,
-  view,
-  Brace,
-  Underline,
-  NumberLine,
-  DecimalNumber,
-  MathTex,
-  ArcBetweenPoints,
-  MoveAlongPath,
-  Write,
-  TransformFromCopy,
-  TransformMatching,
-  matchByKey,
-  Code,
-  TransformDiff,
-  diffLines,
-  parseUnifiedDiff,
-  Follow,
-  smooth,
-  rushInto,
-  rushFrom,
-  thereAndBack,
-} from '../../../src/index.ts';
-import type { SceneState, Mobject, Vec } from '../../../src/index.ts';
-import { stage, settingsOf, palette } from '../../../explain/index.ts';
-import { bars, tile, keyed, seenFrom, between, latLon, circleOn, project } from '../../../explain/drawing.ts';
+import { Scene, Text, Circle, Line, Dot, Rectangle, Arrow, Group, Axes, Transform, Restore, TransformFromCopy, MoveAlongPath, ArcBetweenPoints, TransformMatchingText, Circumscribe, Brace, NumberLine, DecimalNumber, MathTex, TransformMatching, matchByKey, Code, TransformDiff, diffLines, parseUnifiedDiff, smooth, rushInto, rushFrom, thereAndBack, keyed } from '../../../src/index.ts';
+import { seenFrom, between, latLon, circleOn, project } from '../../../explain/geo.ts';
+import { Square, Underline, Write } from './shorthands.ts';
+import type { Mobject, Vec } from '../../../src/index.ts';
+import { stage, settingsOf, palette, answerOf, view, having } from '../../../explain/index.ts';
+import type { ExplainerMeta } from '../../../explain/index.ts';
+import { bars, tile, code, pin } from '../../../explain/drawing.ts';
 
 type Feature =
   | 'steps'
@@ -114,37 +81,49 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       'const d = await s.show({source:',
       "  'graph LR\\nA[Start] --> B[Finish]'},",
       "  {box: 'main'});",
-      "await d.walk([['A', 'B']], {trail: true});",
+      'this.shown.walked = [];',
+      'const v = s.diagramView(d, (st, sh) =>',
+      '  ({marks: d.trail(sh.walked)}));',
+      "await d.walk([['A', 'B']]);",
+      "this.shown.walked = [['A', 'B']];",
+      "await this.play(v.sync());",
     ],
-    recipe: "s.show draws a diagram from geometry captured at build time. d.walk sends a token along an edge that exists in the diagram, here Start → Finish; trail: true is the walk option this scenario is about.",
+    recipe: "s.show draws a diagram from geometry captured at build time. d.walk sends a token along an edge that exists in the diagram, here Start → Finish; the walked edge is then recorded in this.shown, and the diagram’s view draws it as a trail.",
     caption: "The trail stays on Start → Finish after the token has gone, so the route can be inspected at rest, and it follows the captured edge rather than a shortcut. The unmarked copy on the left is a separate drawing of the flowchart before the walk.",
     point: 'The trail stays on Start → Finish after the walk ends.',
   },
   code: {
-    title: 'Show the author’s code, then focus a line',
+    title: 'Show the author’s code, then light a line',
     result: 'Two plain lines, then the second marked as the update',
     code: [
-      'const block = await s.code([',
-      "  'let count = 0;', 'count += 1;'",
-      "], {at: 'main'});",
-      "await block.focus(1, {as: 'update'});",
+      'this.shown.lit = null;',
+      'const block = view(this, (st, sh) => code(s,',
+      "  ['let count = 0;', 'count += 1;'],",
+      "  {at: 'main', lit: sh.lit, key: 'block'}),",
+      "  {place: false});",
+      'await s.enter(block);',
+      "this.shown.lit = {lines: 1, as: 'update'};",
+      "await this.play(block.sync());",
     ],
-    recipe: "s.code draws the lines as a code panel. block.focus(1, {as: 'update'}) points at the line with index 1, the second, and says why.",
-    caption: "The update bar stays on count += 1 after the focus finishes, which ties the caption to the line it explains. The plain copy on the left is a separate drawing of the panel before the focus.",
+    recipe: "A view draws the lines as a code panel, its lit line from this.shown, which says how the scene is shown. Lighting line 1 and syncing points at the line with index 1, the second, and as: 'update' says why.",
+    caption: "The update bar stays on count += 1 after the sync finishes, which ties the caption to the line it explains. The plain copy on the left is a separate drawing of the panel before the bar arrived.",
     point: 'The update bar stays on count += 1 after the motion stops.',
   },
   'code-diff': {
     title: 'Morph edited code by its surviving lines',
     result: 'count += 1 edited to count += 2, the new line marked',
     code: [
-      'const block = await s.code([',
-      "  'let count = 0;', 'count += 1;'",
-      "], {at: 'top'});",
-      "await block.morph(['let count = 0;',",
-      "  'count += 2;'], {markAdded: true});",
+      'const block = view(this, (st) =>',
+      '  code(s, st.lines, {at: AFTER,',
+      "   added: st.added, key: 'block'}),",
+      '  {place: false});',
+      'await s.enter(block);',
+      "this.state.lines = ['let count = 0;', 'count += 2;'];",
+      'this.state.added = [1];',
+      "await this.play(block.sync());",
     ],
-    recipe: "block.morph turns the panel into a new list of lines and keeps the lines both versions share in place; markAdded: true marks what the edit introduced.",
-    caption: "let count = 0 stays where it was, and count += 2 replaces the old increment and carries the mark. The mark labels the current line; it is not a history of earlier edits. The panel on the left is a separate drawing of the version before the morph.",
+    recipe: "A view draws the lines in this.state as a code panel. Syncing after an edit keeps each line both versions share, paired by its text; added lists the lines the edit introduced, which carry the mark.",
+    caption: "let count = 0 stays where it was, and count += 2 replaces the old increment and carries the mark. The mark labels the current line; it is not a history of earlier edits. The panel on the left is a separate drawing of the version before the edit.",
     point: 'Only count += 2 carries the added mark; let count = 0 kept its place.',
   },
   animation: {
@@ -196,7 +175,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       "const target = new Text('42');",
       'await s.enter(target);',
       'const circle = new Circumscribe(target,',
-      '  {keep: true, color: s.emphasis});',
+      '  {keep: true, color: s.look.emphasis});',
       's.keep(circle.outline,',
       "  {describe: 'Box round 42'});",
       'await this.play(circle);',
@@ -242,7 +221,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       '    {fontSize: 1}));',
       "await s.enter(label, {describe: 'Count'});",
       'this.state.count = 1;',
-      'await this.play(label.sync());',
+      "await this.play(label.sync({match: 'text'}));",
     ],
     recipe: "this.state holds values the model decides. view builds a label from that state, and label.sync() rebuilds the label after the state changes.",
     caption: "Setting count alone changes nothing on screen; sync rebuilt the label from count, so the label and the recorded state both read 1. The 0 on the left is a separate drawing of the view before the change.",
@@ -254,9 +233,9 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     code: [
       'await s.enter(new Circle({radius: 0.8}),',
       "  {describe: 'Circle'});",
-      "await s.pin([0, 0], {label: 'centre'});",
+      "await s.enter(pin(s, [0, 0], {label: 'centre'}));",
     ],
-    recipe: "s.pin puts a label at a point in the picture and draws a leader to it.",
+    recipe: "pin puts a label at a point and draws a leader to it; s.enter brings it in.",
     caption: "The leader ties the word centre to the circle’s centre, so the label names a place without another animation. The bare circle on the left is a separate drawing.",
     point: 'The word centre sits at the end of a leader to the circle’s centre.',
   },
@@ -307,7 +286,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       '  new Text(v).moveTo([i * 1.5, 0]));',
       'await s.enter(...values);',
       'const mark = new Underline(values[1],',
-      '  {stroke: s.emphasis});',
+      '  {stroke: s.look.emphasis});',
       "await s.enter(mark, {describe: '42 underlined'});",
     ],
     recipe: 'Underline draws a stroke just under its target’s box, left to right. The other values are not touched.',
@@ -320,8 +299,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     code: [
       'const line = new NumberLine({range: [0, 10, 2],',
       '  length: 8, includeNumbers: true,',
-      '  stroke: s.soft, labelColor: s.palette.ink});',
-      'const at = new Dot({color: s.emphasis})',
+      '  stroke: s.look.soft, labelColor: s.look.ink});',
+      'const at = new Dot({color: s.look.emphasis})',
       '  .moveTo(line.n2p(7));',
       "await s.enter(line, at, {describe: '7 on 0 to 10'});",
     ],
@@ -364,8 +343,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     result: 'A token at the start, then at the end of its curved route',
     code: [
       'const route = new ArcBetweenPoints([-3, 0], [3, 0],',
-      '  {angle: Math.PI / 2, stroke: s.soft});',
-      'const token = new Dot({color: s.emphasis})',
+      '  {angle: Math.PI / 2, stroke: s.look.soft});',
+      'const token = new Dot({color: s.look.emphasis})',
       '  .moveTo([-3, 0]);',
       "await s.enter(route, token, {describe: 'A route'});",
       'await this.play(new MoveAlongPath(token, route));',
@@ -406,8 +385,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     result: 'A B C, then C A B with each tile moved whole',
     code: [
       'const row = (ids: string[]) => new Group(...ids.map(',
-      '  (id, i) => tile(id, i * 1.6, 0, 1.2, 1.2, s,',
-      '    {key: `tile:${id}`})));',
+      '  (id, i) => tile(s, id, {at: [i * 1.6, 0],',
+      '    width: 1.2, height: 1.2, key: `tile:${id}`})));',
       "const before = row(['A', 'B', 'C']);",
       'await s.enter(before);',
       "const after = row(['C', 'A', 'B']);",
@@ -468,12 +447,12 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     code: [
       'const s = stage(this,',
       "  {palette: palette('nord')});",
-      "await s.card([['Paper', s.palette.paper],",
-      "  ['Ink', s.palette.ink],",
-      "  ['Emphasis', s.emphasis]]);",
+      "await s.card([['Paper', s.look.paper],",
+      "  ['Ink', s.look.ink],",
+      "  ['Emphasis', s.look.emphasis]]);",
     ],
-    recipe: 'palette(\'nord\') gives the stage a named palette of paper, ink and accent. The stage’s helpers colour from it, and s.palette, s.emphasis and s.soft hand the same colours to what you draw.',
-    caption: 'One option recoloured the paper, the heading and the card, and the card lists the colours s.palette gave it, so a drawing coloured from s.palette follows a change of palette and keeps its contrast. The panel on the left is a separate drawing in github-dark, this tour’s usual palette.',
+    recipe: 'palette(\'nord\') gives the stage a named palette of paper, ink and accent. The stage’s helpers colour from its look, and s.look hands the same colours to what you draw.',
+    caption: 'One option recoloured the paper, the heading and the card, and the card lists the colours s.look gave it, so a drawing coloured from s.look follows a change of palette and keeps its contrast. The panel on the left is a separate drawing in github-dark, this tour’s usual palette.',
     point: 'Paper, heading and card all took nord’s colours from one option.',
   },
   globe: {
@@ -484,13 +463,12 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       '  b = {...a, yaw: 0, pitch: 45};',
       'const draw = (t: number) =>',
       '  seenFrom(model, between(a, b, t), {scale: 1.6});',
-      'const globe = draw(0);',
+      'const globe = view(this, (st) => draw(st.turn));',
       "await s.enter(globe, {describe: 'A globe'});",
-      'await this.play(new Follow({from: 0, to: 1,',
-      '  draw: (t) => [draw(t)]}, {targets: [globe]}));',
+      'await this.play(globe.tween((t) => ({turn: t})));',
     ],
-    recipe: 'seenFrom draws a 3D model through a viewpoint as flat, keyed pieces, and between interpolates two viewpoints. Follow redraws the globe from one number on each frame, so the turn passes through the viewpoints in between.',
-    caption: 'Follow drew the globe from between(a, b, t) on each frame, so parts turning away went behind the globe instead of sliding across its face, and from a link the reader sees the end of the turn: London near the middle. The globe on the left is a separate drawing from the first viewpoint.',
+    recipe: 'seenFrom draws a 3D model through a viewpoint as flat, keyed pieces, and between interpolates two viewpoints. A view\'s tween redraws the globe from one number on each frame, so the turn passes through the viewpoints in between.',
+    caption: 'The tween drew the globe from between(a, b, t) on each frame, so parts turning away went behind the globe instead of sliding across its face, and from a link the reader sees the end of the turn: London near the middle. The globe on the left is a separate drawing from the first viewpoint.',
     point: 'London now faces the reader, turned by one number from 0 to 1.',
   },
 };
@@ -532,8 +510,8 @@ const PREDICT: Record<Feature, string> = {
   steps: 'Predict: what address would a link to this step end with?',
   settings: 'Predict: which scenario is this page showing, and how many did the build make?',
   diagram: 'Predict: once the walk ends, what stays on the flowchart?',
-  code: 'Predict: once the focus ends, is any line still marked?',
-  'code-diff': 'Predict: after the morph, which line carries the added mark?',
+  code: 'Predict: once the bar stops moving, is any line still marked?',
+  'code-diff': 'Predict: after the edit, which line carries the added mark?',
   animation: 'Predict: opened from a link, do these lines leave the circle, the square or both?',
   matching: 'Predict: from cache miss to cache hit, which letters move rather than fade?',
   restore: 'Predict: opened from a link, would these lines show that the circle ever moved?',
@@ -560,19 +538,32 @@ const PREDICT: Record<Feature, string> = {
   globe: 'Predict: once the turn ends, where is London on the globe?',
 };
 
-/** The script's one-sentence answer, which opens every scenario's recipe caption. */
-const ANSWER =
-  'Each feature takes a few lines of the scene, and the picture they leave at rest is what a reader who opens the step from a link sees';
 
 // The result step's two panels: what the reader would have seen before the feature ran, and after.
 const BEFORE: [number, number, number, number] = [-7.4, -3.5, -2.5, 2.1],
   AFTER: [number, number, number, number] = [-1.3, -3.5, 7.4, 2.1];
 const centre = (b: readonly number[]): [number, number] => [(b[0]! + b[2]!) / 2, (b[1]! + b[3]!) / 2];
 
-export default class FeatureTour extends Scene {
+/** The feature shown, and what its scenario records. */
+type TourState = {
+  feature?: Feature;
+  lines?: string[];
+  added?: number[];
+  matched?: { moved: string; fadedIn: string; fadedOut: string };
+  camera?: { before: number; after: number };
+  count?: number;
+  placed?: { value: number; x: number };
+  order?: string[];
+  ops?: { patch: string; diffLines: string };
+  rates?: string[];
+  turn?: number;
+  london?: number[];
+};
+/** Whether the recipe or its result is on show, the diagram's walked edges and the code's focused line. */
+type TourShown = { chapter?: 'recipe' | 'result'; walked?: [string, string][]; lit?: { lines: number; as: string } | null };
+
+export default class FeatureTour extends Scene<TourState, TourShown> {
   static meta = {
-    id: 'feature-tour',
-    title: 'How do I write that in Rayner?',
     // The maths scenario's formula, typeset once by rayner snapshots into scene.lettering.json.
     lettering: { math: true },
     scenarioNavigation: 'first' as const,
@@ -583,8 +574,6 @@ export default class FeatureTour extends Scene {
       'https://github.com/adewale/rayner/tree/main/scenes/explainers/mr-cache',
       'https://github.com/adewale/rayner/tree/main/scenes/explainers/layout-direction',
     ],
-    // The script's answer and check questions (script.md); every scenario's recipe step states the answer.
-    answer: ANSWER,
     // Scope sentences: the build rule and the drawing tool rule have tests; the result picture is the evidence for the rest.
     claims: [
       {
@@ -603,27 +592,7 @@ export default class FeatureTour extends Scene {
         test: 'test/explain-stage-tools.test.ts: draw: the tool rides the tip without jumps, leaves no trace',
       },
     ],
-    checks: [
-      {
-        question:
-          'Run the code-edits recipe twice in one step: count += 1 becomes count += 2, then count += 3, each morph with markAdded. What does a reader who opens that step from a link see, and is there any sign of count += 2?',
-        answer:
-          'Two lines, let count = 0 and count += 3, with count += 3 marked as added. The second morph fades count += 2 out along with its mark, so nothing in the resting picture shows that it existed; to keep it, draw the earlier panel beside the result, as the before panels on this page do.',
-      },
-      {
-        question:
-          'In the camera scenario, the author also enters a second circle at (5, 0) before calling s.focus(subject). Is it in the result picture, and where is it?',
-        answer:
-          'It is out of the picture. The closer view frames 6 of the stage’s 16 units around the first circle, roughly x = −3 to 3, so a circle at x = 5 falls outside it. It is still at (5, 0), because s.focus moves only the camera, and s.focus(‘all’) would bring it back into view.',
-      },
-      {
-        question:
-          'An author wants the chart scenario to plot numbers that each reader types into a box. Can a Rayner page do that, and what can the author offer instead?',
-        answer:
-          'No. A reader can only choose among the options a setting declares, and the build makes one scenario per option before anyone reads the page. The author can declare a setting whose options are a few prepared data sets, so each one is a scenario the build makes and the author can read.',
-      },
-    ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'feature',
@@ -664,6 +633,7 @@ export default class FeatureTour extends Scene {
   ];
 
   override async construct() {
+    const answer = answerOf(this);
     const feature = settingsOf(this).feature as Feature;
     const example = RECIPES[feature];
     const s = stage(this, {
@@ -673,21 +643,24 @@ export default class FeatureTour extends Scene {
       numbered: false,
       ...(feature === 'direction' ? { direction: 'rtl' as const } : {}),
     });
-    const ink = s.palette.ink,
-      accent = s.emphasis,
-      soft = s.soft;
+    const ink = s.look.ink,
+      accent = s.look.emphasis,
+      soft = s.look.soft;
 
     // 1. The author's question, and the few lines that answer it.
     await this.step('recipe', {
       title: QUESTIONS[feature],
       line: PREDICT[feature],
-      caption: `${ANSWER}. ${example.recipe}`,
+      caption: `${answer}. ${example.recipe}`,
     });
-    await s.code(example.code, { at: 'full', fontSize: 0.6 });
+    await s.code(example.code, { at: 'full', size: 0.6, fitHeight: true });
     this.state.feature = feature;
-    this.shown.phase = 'recipe';
+    this.shown.chapter = 'recipe';
 
-    // 2. The result, at rest: before on the left, after on the right.
+    // 2. The result, at rest: before on the left, after on the right. The before panels, the camera
+    // ruler and Restore's dashed outline are this scene's own artwork, not what the recipe lines draw;
+    // keep them visibly separate so readers do not credit the before-and-after to the feature itself.
+    // The camera changes the whole view, so it gets a ruler rather than a before panel.
     const panels = async (before: Mobject[], describe: string) => {
       const [bx] = centre(BEFORE),
         [ax] = centre(AFTER);
@@ -700,7 +673,7 @@ export default class FeatureTour extends Scene {
     };
     // Each result names its own before and after; the camera scenario has no before panel.
     await this.step('result', { title: example.result, line: example.point, caption: example.caption });
-    this.shown.phase = 'result';
+    this.shown.chapter = 'result';
     await s.clear();
     const [ax, ay] = centre(AFTER),
       [bx, by] = centre(BEFORE);
@@ -719,8 +692,8 @@ export default class FeatureTour extends Scene {
     } else if (feature === 'settings') {
       const options = FeatureTour.settings[0]!;
       await panels([], `the default scenario, feature = ${options.default}`);
-      await s.card([['Default scenario', options.default]], { at: BEFORE, fontSize: 0.45 });
-      await s.card([['This scenario', feature], ['Scenarios built', String(options.options.length)]], { at: AFTER, fontSize: 0.55 });
+      await s.card([['Default scenario', options.default]], { at: BEFORE, size: 0.45 });
+      await s.card([['This scenario', feature], ['Scenarios built', String(options.options.length)]], { at: AFTER, size: 0.55 });
     } else if (feature === 'diagram') {
       // One live diagram; the before panel is a picture of it, its keys prefixed so each key names one part.
       const d = await s.show({ source: 'graph LR\nA[Start] --> B[Finish]' }, { box: AFTER });
@@ -739,24 +712,50 @@ export default class FeatureTour extends Scene {
         }
       }
       await panels([before], 'the captured flowchart, no path marked');
-      await d.walk([['A', 'B']], { trail: true });
+      // The walked edge is how the diagram is shown (this.shown); its view draws it as a trail.
+      this.shown.walked = [];
+      const v = s.diagramView(d, (_st, sh) => ({ marks: d.trail(having(sh, 'walked').walked) }));
+      await d.walk([['A', 'B']]);
+      this.shown.walked = [['A', 'B']];
+      await this.play(v.sync());
     } else if (feature === 'code') {
       await panels([], 'the two lines, nothing marked');
-      await s.code(['let count = 0;', 'count += 1;'], { at: BEFORE, fontSize: 0.36 });
-      const block = await s.code(['let count = 0;', 'count += 1;'], { at: AFTER, fontSize: 0.45 });
-      await block.focus(1, { as: 'update' });
+      await s.code(['let count = 0;', 'count += 1;'], { at: BEFORE, size: 0.36 });
+      // The lit line is how the panel is shown (this.shown); the panel is a view of it.
+      this.shown.lit = null;
+      const block = view(
+        this,
+        (_st, sh) => code(s, ['let count = 0;', 'count += 1;'], { at: AFTER, size: 0.45, lit: sh.lit ?? null, key: 'block' }),
+        { place: false },
+      );
+      await s.enter(block, { runTime: 0.4 });
+      this.shown.lit = { lines: 1, as: 'update' };
+      await this.play(block.sync());
     } else if (feature === 'code-diff') {
       await panels([], 'count += 1');
-      await s.code(['let count = 0;', 'count += 1;'], { at: BEFORE, fontSize: 0.36 });
-      const block = await s.code(['let count = 0;', 'count += 1;'], { at: AFTER, fontSize: 0.5 });
-      await block.morph(['let count = 0;', 'count += 2;'], { markAdded: true });
+      await s.code(['let count = 0;', 'count += 1;'], { at: BEFORE, size: 0.36 });
+      // The code is the model here (this.state); the panel is a view of it, and marks what the edit added.
+      this.state.lines = ['let count = 0;', 'count += 1;'];
+      this.state.added = [];
+      const block = view(
+        this,
+        (state) => {
+          const st = having(state, 'lines', 'added');
+          return code(s, st.lines, { at: AFTER, size: 0.5, added: st.added, key: 'block' });
+        },
+        { place: false },
+      );
+      await s.enter(block, { runTime: 0.4 });
+      this.state.lines = ['let count = 0;', 'count += 2;'];
+      this.state.added = [1];
+      await this.play(block.sync());
     } else if (feature === 'animation') {
       await panels(
         [new Circle({ radius: 0.8, stroke: accent, strokeWidth: 0.06 }).moveTo([bx, by])],
         'a circle',
       );
       const shape = new Circle({ radius: 0.8, stroke: accent, strokeWidth: 0.06 }).moveTo([ax, ay]);
-      shape.key = 'animation:shape';
+      keyed(shape, 'animation:shape');
       await s.enter(shape, { describe: 'After: the circle has become a square' });
       await this.play(new Transform(shape, new Square({ side: 1.6, stroke: accent, strokeWidth: 0.06 }).moveTo([ax, ay])));
     } else if (feature === 'matching') {
@@ -791,8 +790,8 @@ export default class FeatureTour extends Scene {
       // Where the demonstration took it, left as a dashed outline.
       const away = new Circle({ radius: 0.8, stroke: soft, strokeWidth: 0.03 }).moveTo([ax + 1, ay]);
       away.style.dashArray = '0.1 0.08';
-      circle.key = 'restore:circle';
-      away.key = 'restore:away';
+      keyed(circle, 'restore:circle');
+      keyed(away, 'restore:away');
       await s.enter(circle, { describe: 'After: the circle is back at its saved place; a dashed outline marks where it moved to' });
       circle.saveState();
       await this.play(circle.animate.shift([2, 0]));
@@ -805,7 +804,7 @@ export default class FeatureTour extends Scene {
       const target = new Text('42', { fontSize: 1.2, color: ink }).moveTo([ax, ay]);
       await s.enter(target);
       const circle = new Circumscribe(target, { keep: true, color: accent });
-      circle.outline.key = 'emphasis:box';
+      keyed(circle.outline, 'emphasis:box');
       s.keep(circle.outline, { describe: 'After: the result 42 remains in a box' });
       await this.play(circle);
     } else if (feature === 'camera') {
@@ -817,7 +816,7 @@ export default class FeatureTour extends Scene {
         if (x % 2 === 0) ruler.add(new Text(String(x), { fontSize: 0.18, font: 'mono', color: soft }).moveTo([x, -1.32]));
       }
       const subject = new Circle({ radius: 0.6, stroke: accent, strokeWidth: 0.07 }).moveTo([0, 0]);
-      subject.key = 'camera:circle';
+      keyed(subject, 'camera:circle');
       await s.enter(ruler, subject, {
         describe: 'A circle at the centre of a ruler that spans the stage from −7 to 7, numbered on its even ticks',
       });
@@ -844,7 +843,7 @@ export default class FeatureTour extends Scene {
       await panels([], 'the model’s three values as numbers');
       await s.card(
         data.map(([x, y]) => [`x = ${x}`, `y = ${y}`]),
-        { at: BEFORE, fontSize: 0.45 },
+        { at: BEFORE, size: 0.45 },
       );
       const axes = new Axes({
         xRange: [0, 2, 1],
@@ -855,7 +854,7 @@ export default class FeatureTour extends Scene {
       });
       axes.moveTo([ax, ay]);
       const line = axes.lineGraph(data, { color: accent });
-      line.key = 'chart:line';
+      keyed(line, 'chart:line');
       await s.enter(axes, line, { describe: 'After: a line through values zero, two and one at x zero, one and two' });
     } else if (feature === 'state') {
       await panels(
@@ -868,19 +867,19 @@ export default class FeatureTour extends Scene {
       this.state.count = 0;
       const label = view(
         this,
-        (state: SceneState) => new Text(String(state.count), { fontSize: 1.3, color: ink }).moveTo([ax, ay]),
+        (state) => new Text(String(state.count), { fontSize: 1.3, color: ink }).moveTo([ax, ay]),
         { place: false },
       );
       await s.enter(label, { describe: () => `Recorded count: ${String(this.state.count)}` });
       this.state.count = 1;
-      await this.play(label.sync());
+      await this.play(label.sync({ match: 'text' }));
       await s.enter(new Text('state.count = 1', { fontSize: 0.34, font: 'mono', color: soft }).moveTo([ax, ay - 1.3]));
     } else if (feature === 'annotations') {
       await panels([new Circle({ radius: 0.6, stroke: accent, strokeWidth: 0.05 }).moveTo([bx, by])], 'a circle, nothing named');
       await s.enter(new Circle({ radius: 0.8, stroke: accent, strokeWidth: 0.05 }).moveTo([ax, ay]), {
         describe: 'After: a circle whose centre is pinned',
       });
-      await s.pin([ax, ay], { label: 'centre', size: 0.42 });
+      await s.enter(pin(s, [ax, ay], { label: 'centre', size: 0.42 }), { runTime: 0.4, shift: [0, -0.15] });
     } else if (feature === 'direction') {
       // In a right-to-left stage the panels mirror: the before panel is drawn on the right.
       await s.enter(
@@ -888,7 +887,7 @@ export default class FeatureTour extends Scene {
         new Text('Before: start in a left-to-right stage', { fontSize: 0.34, color: soft }).moveTo([-4, 1.2]),
         { describe: 'Before: an outline on the left, where start is in a left-to-right stage' },
       );
-      await s.card([['Count', 3]], { at: 'start', direction: 'ltr', width: 6.8, fontSize: 0.65 });
+      await s.card([['Count', 3]], { at: 'start', direction: 'ltr', width: 6.8, size: 0.65 });
       await s.enter(new Text('After: start in this right-to-left stage', { fontSize: 0.34, color: soft }).moveTo([4, -2.8]));
     } else if (feature === 'drawing') {
       await panels(
@@ -900,14 +899,14 @@ export default class FeatureTour extends Scene {
         'the path’s two ends, nothing drawn',
       );
       const path = new Line([ax - 3.6, ay - 0.9], [ax + 3.6, ay + 0.9], { stroke: accent, strokeWidth: 0.08 });
-      path.key = 'drawing:path';
+      keyed(path, 'drawing:path');
       await s.sketch(path, { tool: 'pen', describe: 'After: a rising line, drawn' });
     } else if (feature === 'brace') {
       await panels([new Text('a b c d', { fontSize: 0.6, color: ink }).moveTo([bx, by])], 'the letters a b c d');
       const row = new Text('a b c d', { fontSize: 0.9, color: ink }).moveTo([ax, ay + 0.6]);
       await s.enter(row);
       const brace = new Brace(row, [0, -1], { stroke: accent, strokeWidth: 0.04 });
-      brace.key = 'brace:brace';
+      keyed(brace, 'brace:brace');
       const count = new Text('4 items', { fontSize: 0.5, color: ink });
       brace.putAtTip(count);
       await s.enter(brace, count, { describe: 'After: a brace under all four letters, its tip pointing at 4 items' });
@@ -917,7 +916,7 @@ export default class FeatureTour extends Scene {
       const values = row(ax, 0.9);
       await s.enter(...values);
       const mark = new Underline(values[1]!, { stroke: accent, strokeWidth: 0.06 });
-      mark.key = 'underline:mark';
+      keyed(mark, 'underline:mark');
       await s.enter(mark, { describe: 'After: 42 is underlined; 12 and 7 are not' });
     } else if (feature === 'number-line') {
       await panels(
@@ -926,7 +925,7 @@ export default class FeatureTour extends Scene {
       );
       const line = new NumberLine({ range: [0, 10, 2], length: 7.4, includeNumbers: true, stroke: soft, labelColor: ink, labelFontSize: 0.4 }).moveTo([ax, ay - 0.4]);
       const at = new Dot({ radius: 0.13, color: accent }).moveTo(line.n2p(7));
-      at.key = 'number-line:dot';
+      keyed(at, 'number-line:dot');
       const said = new Text('7', { fontSize: 0.5, color: accent }).moveTo([line.n2p(7)[0], line.n2p(7)[1] + 0.55]);
       await s.enter(line, at, said, { describe: 'After: a scale from 0 to 10, ticked every 2, with a dot at 7, between the ticks for 6 and 8' });
       this.state.placed = { value: 7, x: Number(line.n2p(7)[0].toFixed(3)) };
@@ -939,7 +938,7 @@ export default class FeatureTour extends Scene {
     } else if (feature === 'math') {
       await panels([new Text('a^2+b^2=c^2', { fontSize: 0.42, font: 'mono', color: ink }).moveTo([bx, by])], 'the TeX source a^2+b^2=c^2');
       const f = new MathTex('a^2+b^2=c^2', { display: true, fontSize: 1.1, color: ink }).moveTo([ax, ay]);
-      f.key = 'math:formula';
+      keyed(f, 'math:formula');
       await s.enter(f, { describe: 'After: the formula a squared plus b squared equals c squared, typeset' });
     } else if (feature === 'arc') {
       const start = (x: number, w: number) => [x - w, by] as Vec,
@@ -953,7 +952,7 @@ export default class FeatureTour extends Scene {
       );
       const route = new ArcBetweenPoints(start(ax, 3), end(ax, 3), { angle: Math.PI / 2, stroke: soft, strokeWidth: 0.04 });
       const token = new Dot({ radius: 0.14, color: accent }).moveTo(start(ax, 3));
-      token.key = 'arc:token';
+      keyed(token, 'arc:token');
       await s.enter(route, token, { describe: () => `After: a curved route dipping below the straight line between its ends, with the token at its ${token.center()[0] > ax ? 'far end' : 'start'}` });
       await this.play(new MoveAlongPath(token, route));
     } else if (feature === 'write') {
@@ -971,14 +970,14 @@ export default class FeatureTour extends Scene {
       await panels([new Square({ side: 1.2, stroke: accent, strokeWidth: 0.06 }).moveTo([bx, by])], 'the square alone');
       const source = new Square({ side: 1.4, stroke: accent, strokeWidth: 0.06 }).moveTo([ax - 1.7, ay]);
       const result = new Circle({ radius: 0.8, stroke: accent, strokeWidth: 0.06 }).moveTo([ax + 1.7, ay]);
-      source.key = 'copy:source';
-      result.key = 'copy:result';
+      keyed(source, 'copy:source');
+      keyed(result, 'copy:result');
       await s.enter(source, { describe: 'After: the square, unchanged' });
       await this.play(new TransformFromCopy(source, result));
       s.keep(result, { describe: 'After: a circle beside the square, morphed from its copy' });
     } else if (feature === 'keys') {
       const row = (ids: string[], x: number, size: number, prefix: string) =>
-        new Group(...ids.map((id, i) => tile(id, x + (i - 1) * size * 1.35, by, size, size, s, { key: `${prefix}tile:${id}`, size: size * 0.55 })));
+        new Group(...ids.map((id, i) => tile(s, id, { at: [x + (i - 1) * size * 1.35, by], width: size, height: size, key: `${prefix}tile:${id}`, size: size * 0.55 })));
       await panels([row(['A', 'B', 'C'], bx, 1, 'before:')], 'the tiles in the order A, B, C');
       const before = row(['A', 'B', 'C'], ax, 1.4, '');
       await s.enter(before);
@@ -1052,7 +1051,7 @@ export default class FeatureTour extends Scene {
         { label: 'MRU', value: 1, display: '1 hit' },
       ];
       await panels([], 'the counts as numbers');
-      await s.card(rows.map((r) => [r.label, r.display]), { at: BEFORE, fontSize: 0.45 });
+      await s.card(rows.map((r) => [r.label, r.display]), { at: BEFORE, size: 0.45 });
       const chart = bars(s, rows, 4, { key: 'hits' });
       chart.scale(0.62).moveTo([ax, ay]);
       await s.enter(chart, { describe: 'After: two bars on one scale of 4, LRU at 3 hits and MRU at 1 hit, a third as long' });
@@ -1068,16 +1067,16 @@ export default class FeatureTour extends Scene {
       );
       await s.card(
         [
-          ['Paper', s.palette.paper],
-          ['Ink', s.palette.ink],
-          ['Emphasis', s.emphasis],
+          ['Paper', s.look.paper],
+          ['Ink', s.look.ink],
+          ['Emphasis', s.look.emphasis],
         ],
-        { at: AFTER, fontSize: 0.55, title: "palette('nord')" },
+        { at: AFTER, size: 0.55, title: "palette('nord')" },
       );
     } else {
-      // A globe: London and two great circles, seen from one viewpoint and turned to another by a Follow.
+      // A globe: London and two great circles, seen from one viewpoint and turned to another by a view's tween.
       const model = {
-        body: { radius: 1, fill: s.palette.paper, stroke: soft, strokeWidth: 0.03 },
+        body: { radius: 1, fill: s.look.paper, stroke: soft, strokeWidth: 0.03 },
         parts: [
           { kind: 'path' as const, key: 'globe:equator', lines: [circleOn([0, 0, 1], 90)], closed: true, color: soft, width: 0.025 },
           { kind: 'path' as const, key: 'globe:meridian', lines: [circleOn(latLon(0, 90), 90)], closed: true, color: soft, width: 0.025 },
@@ -1088,11 +1087,13 @@ export default class FeatureTour extends Scene {
         b = { ...a, yaw: 0, pitch: 45 };
       const draw = (t: number, at: Vec, scale: number, key?: string) => seenFrom(model, between(a, b, t), { at, scale, ...(key ? { key } : {}) });
       const before = draw(0, [bx, by], 1.3, 'before:globe');
-      for (const m of before.family()) if (m.key) m.key = `before:${m.key}`;
+      for (const m of before.family()) if (m.key) keyed(m, `before:${m.key}`);
       await panels([before], 'the globe from the Atlantic, London near its right edge');
-      const globe = draw(0, [ax, ay], 2);
+      this.state.turn = 0;
+      const base = { ...this.state };
+      const globe = view(this, (st) => draw(having(st, 'turn').turn, [ax, ay], 2), { place: false });
       await s.enter(globe, { describe: 'After: the globe, turned to face London, which sits near its middle' });
-      await this.play(new Follow({ from: 0, to: 1, draw: (t) => [draw(t, [ax, ay], 2)] }, { targets: [globe] }));
+      await this.play(globe.tween((t) => ({ ...base, turn: t })));
       const london = project(latLon(51.5, -0.1), b, 1, { at: [ax, ay], scale: 2 }).at;
       await s.enter(new Text('London', { fontSize: 0.36, color: ink }).moveTo([london[0] + 0.25, london[1]], [-1, 0]));
       this.state.london = london.map((v) => Number(v.toFixed(2)));

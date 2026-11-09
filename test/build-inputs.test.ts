@@ -10,7 +10,7 @@ test('artifact identity changes for reader, builder, dependency and notice edits
   const root = await mkdtemp(join(tmpdir(), 'rayner-inputs-'));
   const inputs = ['app/embed.css', 'app/embed.ts', 'tools/lib/explain-build.ts', 'src/fonts.ts', 'explain/stage.ts', 'integrations/capture.ts', 'vendor/licenses/font.txt', 'package.json', 'package-lock.json', 'LICENSE'];
   try {
-    for (const directory of ['src', 'explain', 'integrations', 'app', 'tools/lib', 'vendor/licenses', 'docs', 'out', 'scenes/explainers']) await mkdir(join(root, directory), { recursive: true });
+    for (const directory of ['src', 'explain', 'integrations', 'app', 'tools/lib', 'tools/repo', 'vendor/licenses', 'docs', 'out', 'scenes/explainers']) await mkdir(join(root, directory), { recursive: true });
     for (const name of inputs) await writeFile(join(root, name), 'original');
     const original = await buildInputs(root);
     await writeFile(join(root, 'docs/README.md'), 'documentation only');
@@ -28,7 +28,7 @@ test('artifact identity changes for reader, builder, dependency and notice edits
         assert.notEqual((await buildInputs(root)).hash, original.hash, `${name} must invalidate a built artifact`);
       } finally { await writeFile(join(root, name), 'original'); }
     }), params(40));
-    for (const name of ['tools/lib/explain-story-review.ts', 'tools/bench.ts', 'tools/prepare-release.ts']) {
+    for (const name of ['tools/lib/explain-story-review.ts', 'tools/repo/bench.ts', 'tools/repo/prepare-release.ts']) {
       await writeFile(join(root, name), 'review or maintenance only');
       assert.equal((await buildInputs(root)).hash, original.hash, name + ' must not rebuild pages');
     }
@@ -38,4 +38,19 @@ test('artifact identity changes for reader, builder, dependency and notice edits
     await writeFile(join(root, 'tools/lib/new-builder.ts'), 'export const value = 2;');
     assert.notEqual((await buildInputs(root)).hash, withHelper, 'new transitive producer dependencies count automatically');
   } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('the command line loads the TypeScript compiler only when a fingerprint parses imports', async () => {
+  const { execFileSync } = await import('node:child_process');
+  // Every command imports these modules; only buildInputs() needs the compiler.
+  const probe = `import { registerHooks } from 'node:module';
+let loaded = 0;
+registerHooks({ resolve(spec, context, next) { if (spec === 'typescript') loaded++; return next(spec, context); } });
+await import('./tools/explain.ts');
+const before = loaded;
+const { buildInputs } = await import('./tools/lib/build-inputs.ts');
+await buildInputs('.');
+console.log(JSON.stringify([before, loaded > 0]));`;
+  const out = execFileSync(process.execPath, ['--input-type=module', '-e', probe], { cwd: join(import.meta.dirname, '..'), encoding: 'utf8' });
+  assert.deepEqual(JSON.parse(out), [0, true]);
 });

@@ -1,129 +1,52 @@
-import { Scene, Group, Rectangle, Text, Line, FadeIn, Transform, AnimationGroup, Succession, Machine, choreograph, view, matchByKey } from '../../../src/index.ts';
-import type { ScheduledAnimation, Mobject, MatchKey, Choreography, Transition } from '../../../src/index.ts';
-import { stage, settingsOf } from '../../../explain/index.ts';
-import type { Stage } from '../../../explain/index.ts';
-import { monty, montyExample, threeDoorWorlds, threeDoorCells, oddsAfter, roundStart, roundNext, roundDoor, roundResult, ROUND_EVENTS } from '../lib/monty-hall.ts';
-import type { Host, Opener, Round, RoundEvent } from '../lib/monty-hall.ts';
-import { label, tile, stat, keyed } from '../lib/lesson-drawing.ts';
-import { percent } from '../lib/format.ts';
+import { Scene, Group, Text, FadeIn, Transform, AnimationGroup, Succession, matchByKey, keyed } from '../../../src/index.ts';
+import type { Choreography, Transition, ExplainerMeta } from '../../../explain/index.ts';
+import type { ScheduledAnimation, Mobject, MatchKey } from '../../../src/index.ts';
+import { stage, settingsOf, Machine, view, having } from '../../../explain/index.ts';
+import { monty, montyExample, threeDoorWorlds, threeDoorCells, oddsAfter, roundStart, roundNext, roundDoor, roundResult, ROUND_EVENTS } from './model.ts';
+import type { Host, Opener, Round, RoundEvent } from './model.ts';
+import { label, tile, stat, emphasised } from '../../../explain/drawing.ts';
+import { door, X0, X1, F, SLOT, NAME, HEADS, ALONE, left, strip, heads, type Cell } from './picture.ts';
+import { listed, percent } from '../lib/format.ts';
 
-const door = (i: number) => 'ABC'[i]!;
 const HOSTS: readonly Host[] = ['informed', 'random'];
 const HOST: Record<Host, string> = { informed: 'Host who knows', random: 'Random host' };
-type Cell = ReturnType<typeof threeDoorCells>[number];
-
-// The strip: every round for the first pick, side by side, each as wide as its chance.
-// Nearly the stage's width; every word on a strip step is F, so a phone's opening close-up
-// still holds a whole strip with its labels at 12 px.
-const X0 = -6.5,
-  X1 = 6.5,
-  H = 2.05,
-  SIX = (X1 - X0) / 6,
-  F = 0.6;
-/** Strip centres: the host in play on top (rounds, odds), the second host under it (worlds). */
-const SLOT: Record<Host, number> = { informed: 0.5, random: -2.475 };
-/** A strip's name and readout sit this far above its centre; the column heads sit over the top strip. */
-const NAME = H / 2 + 0.45,
-  HEADS = 2.78;
-/** The rounds step has the strip alone, so its picture is lowered to the middle of the stage. */
-const ALONE = -1.45;
 
 /**
  * Morphs pair parts by key: shapes by their place in the keyed part, a keyed word only with the
  * same word, and anything unkeyed by its place in the picture.
  */
 const byKey: MatchKey = matchByKey({ text: 'whole', unkeyed: 'by-place' });
-const left = (text: string, x: number, y: number, color: string, size: number, key: string) =>
-  keyed(new Text(text, { fontSize: size, color }).moveTo([x, y], [-1, 0]), key);
+/** Which picture is shown: the round, the strips, the odds, the copy or the worlds. */
+type Chapter = 'choice' | 'predict' | 'rounds' | 'odds' | 'copy' | 'worlds';
+/** What the later steps record: the odds and the strips' cells, then the door opened and what it leaves, then every world. */
+type MontyFacts = {
+  odds: ReturnType<typeof monty>;
+  cells: Cell[] | Record<Host, Cell[]>;
+  opened?: string;
+  seen?: ReturnType<typeof oddsAfter> | Record<Host, ReturnType<typeof oddsAfter>>;
+  choice?: number;
+  host?: Host;
+  worlds?: ReturnType<typeof threeDoorWorlds>;
+  informedWorlds?: ReturnType<typeof threeDoorWorlds>;
+  randomWorlds?: ReturnType<typeof threeDoorWorlds>;
+  informed?: ReturnType<typeof monty>;
+  random?: ReturnType<typeof monty>;
+};
+/** The round a reader plays (the machine's), then the facts the strips are drawn from. */
+type MontyState = Round | MontyFacts;
 
-/** What a round's cell says: the door he opens, what it shows, and which choice wins. */
-const cellWords = (c: Cell) => [c.opened, c.shows, c.stay === 'ends' ? 'over' : c.stay === 'win' ? 'stay' : 'switch'];
-
-/**
- * One host's strip of rounds at height y, keyed `strip:<as>`; `dim` greys the rounds the reader has ruled out.
- * Switching wins are tinted, rounds that show the car are drawn in the warning colour.
- */
-function strip(s: Stage, cells: readonly Cell[], y: number, as: string, dim?: (c: Cell) => boolean): Group {
-  let x = X0;
-  const parts = cells.map((c) => {
-    const w = c.sixths * SIX,
-      cx = x + w / 2,
-      off = dim?.(c) ?? false,
-      car = c.shows === 'car',
-      win = c.swap === 'win';
-    x += w;
-    const color = off ? s.soft : car ? s.bad : win ? s.emphasis : s.palette.ink;
-    const [opens, shows, wins] = cellWords(c);
-    return keyed(
-      new Group(
-        new Rectangle({
-          width: w,
-          height: H,
-          fill: off ? s.palette.paper : car ? s.bad : win ? s.emphasis : s.palette.paper,
-          fillOpacity: off ? 1 : car || win ? 0.14 : 1,
-          stroke: off ? s.soft : s.palette.ink,
-          // Once some rounds are ruled out, the ones left are outlined heavier.
-          strokeWidth: off ? 0.02 : dim ? 0.06 : 0.03,
-        }).moveTo([cx, y]),
-        new Text(opens!, { fontSize: F, color }).moveTo([cx, y + 0.65]),
-        new Text(shows!, { fontSize: F, color }).moveTo([cx, y]),
-        new Text(wins!, { fontSize: F, color, weight: off ? 'normal' : 'bold' }).moveTo([cx, y - 0.65]),
-      ),
-      `${as}:${c.prize}${c.opened}`,
-    );
-  });
-  return keyed(new Group(...parts), `strip:${as}`);
-}
-/** The car's three places, a third of the strip each: each head centred over its third, a rule under it spanning the third. */
-const heads = (s: Stage, y: number) =>
-  keyed(
-    new Group(
-      ...[0, 1, 2].flatMap((i) => {
-        const a = X0 + i * 2 * SIX + 0.12,
-          b = a + 2 * SIX - 0.24,
-          r = y - 0.36;
-        return [
-          label(`Car behind ${door(i)}`, (a + b) / 2, y, s.soft, F),
-          new Line([a, r], [b, r], { stroke: s.soft, strokeWidth: 0.025 }),
-          new Line([a, r], [a, r + 0.14], { stroke: s.soft, strokeWidth: 0.025 }),
-          new Line([b, r], [b, r + 0.14], { stroke: s.soft, strokeWidth: 0.025 }),
-        ];
-      }),
-    ),
-    'monty-heads',
-  );
-// Check 2: the car hidden behind A 40% of the time, B and C 30% each.
-const PRIOR = [4, 3, 3];
-
-export default class MontyHall extends Scene {
+export default class MontyHall extends Scene<MontyState, { chapter?: Chapter }> {
   static meta = {
-    id: 'monty-hall',
-    title: 'Why does the host’s rule change the odds of switching?',
     sources: ['https://mathigon.org/course/probability/monty-hall', 'https://doi.org/10.1080/00031305.1975.10479121'],
-    // The script's answer and check questions (script.md); `worlds` states the answer.
-    answer:
-      'Switching wins 2 in 3 if the host knows where the car is and picks at random between two goats, but 1 in 2 if he opened a random door and showed a goat',
     // Sentences that reach past the strip on screen, and the test that holds each over every first pick.
     claims: [
       { says: 'The strip lays out every round for a pick of', shown: true as const },
-      { says: 'is the only goat you didn’t pick', test: 'test/learning-models.test.ts: the host who knows always opens the only goat left' },
-      { says: 'the host who knows always opens', test: 'test/learning-models.test.ts: the host who knows always opens the only goat left' },
-      { says: 'in only one of them and opens the car in the other', test: 'test/learning-models.test.ts: the random host opens it in only half those rounds' },
-      { says: 'had known where the car was and always shown a goat', test: 'test/learning-models.test.ts: the host who knows always opens the only goat left' },
+      { says: 'is the only goat you didn’t pick', test: 'model.test.ts: the host who knows always opens the only goat left' },
+      { says: 'the host who knows always opens', test: 'model.test.ts: the host who knows always opens the only goat left' },
+      { says: 'in only one of them and opens the car in the other', test: 'model.test.ts: the random host opens it in only half those rounds' },
+      { says: 'had known where the car was and always shown a goat', test: 'model.test.ts: the host who knows always opens the only goat left' },
     ],
-    checks: [
-      {
-        question:
-          'This host knows where the car is. When your first pick is right, he opens one of the two goats at random. When it is wrong, he tosses a coin: heads, he opens the car and the round ends; tails, he opens the other goat. You pick A and he opens B to a goat. How often does switching win, and which strip in the last step is his?',
-        answer: `${percent(oddsAfter(0, 'coin', 'B').switchChance)}. His strip is the random host’s, cell for cell: with the car behind B or C, he opens each unchosen door half the time, so one of the two sixths in each wrong-pick third shows the car. He knows where the car is, but his rule gives each round the random host’s chance, and those chances set the odds.`,
-      },
-      {
-        question:
-          'The producers hide the car behind A 40% of the time and behind B or C 30% each. You pick A and the host opens B to a goat. How often does switching win with the host who knows, and with the random host?',
-        answer: `With the host who knows, ${percent(oddsAfter(0, 'informed', 'B', PRIOR).switchChance)}: the car-behind-A rounds now fill 40% of the strip and he opens B in half of them, 20%, while all of the car-behind-C rounds, 30%, open B. With the random host, ${percent(oddsAfter(0, 'random', 'B', PRIOR).switchChance)}: he opens B in only half of the car-behind-C rounds, 15%, against the same 20%.`,
-      },
-    ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'host',
@@ -155,7 +78,6 @@ export default class MontyHall extends Scene {
       others = [0, 1, 2].filter((i) => i !== choice).map(door);
     const seen = { informed: oddsAfter(choice, 'informed', B), random: oddsAfter(choice, 'random', B) } as Record<Opener, ReturnType<typeof oddsAfter>>;
     const s = stage(this, { style: 'github-light', headingSize: 0.6 });
-    type Phase = 'choice' | 'predict' | 'rounds' | 'odds' | 'copy' | 'worlds';
     // The first strip shows every round; from the next on, only the rounds where he opened B to a goat count and the rest are greyed.
     const dim = (c: Cell) => c.opened !== B || c.shows === 'car';
     const KEY = 'Each cell: opens · shows · wins';
@@ -185,7 +107,7 @@ export default class MontyHall extends Scene {
       }
       return said.join('; ');
     };
-    const doors = (r: Round, phase: 'choice' | 'predict') => {
+    const doors = (r: Round, chapter: 'choice' | 'predict') => {
       const yours = roundDoor(r),
         result = roundResult(r),
         revealed = r.car !== null && r.decision !== null;
@@ -212,64 +134,67 @@ export default class MontyHall extends Scene {
             : `Opens a random door; this time ${r.shows === 'car' ? 'the car' : 'a goat'}`;
       const closed = closedDoors(r).map(door);
       const outcome =
-        phase === 'predict'
+        chapter === 'predict'
           ? 'Predict: stay or switch?'
           : result === 'over'
             ? `The round is over: the car was behind ${O}.`
             : result
               ? `The car is behind ${door(r.car!)}: ${r.decision === 'switch' ? 'switching' : 'staying'} ${result === 'win' ? 'wins' : 'loses'}.`
-              : `The car is behind ${closed.slice(0, -1).join(', ')} or ${closed.at(-1)}.`;
+              : `The car is behind ${listed(closed, { or: true })}.`;
       words = [roundWords(r)];
       return new Group(
         ...[0, 1, 2].flatMap((i) => [
-          label(door(i), DOOR_X(i), 2.7, s.soft, 0.64, `monty-letter-${i}`),
-          tile(i === r.opened ? r.shows! : revealed ? (i === r.car ? 'car' : 'goat') : '?', DOOR_X(i), DOOR_Y, 3.5, 2.5, s, {
+          keyed(label(s, door(i), { at: [DOOR_X(i), 2.7], color: s.look.soft, size: 0.64 }), `monty-letter-${i}`),
+          tile(s, i === r.opened ? r.shows! : revealed ? (i === r.car ? 'car' : 'goat') : '?', {
+            at: [DOOR_X(i), DOOR_Y],
+            width: 3.5,
+            height: 2.5,
             active: i === yours,
             bad: i === r.opened && r.shows === 'car',
             size: 0.8,
             key: `door-${i}`,
           }),
         ]),
-        label(said, 0, -1.25, s.palette.ink, 0.62, 'monty-said'),
+        keyed(label(s, said, { at: [0, -1.25], size: 0.62 }), 'monty-said'),
         // The size of the lines around it: a phone's close-up is set by the line that changes, the result.
-        label(rule, 0, -2.45, s.soft, 0.62, 'monty-rule'),
-        label(outcome, 0, -3.65, s.palette.ink, 0.62, 'monty-result'),
+        keyed(label(s, rule, { at: [0, -2.45], color: s.look.soft, size: 0.62 }), 'monty-rule'),
+        keyed(label(s, outcome, { at: [0, -3.65], size: 0.62 }), 'monty-result'),
       );
     };
     /** Switching's chance for a host, right of his name: over every round, or (as) over the rounds left after the seen goat. */
-    const readout = (h: Host, y: number, chance: number, key: string) =>
-      keyed(new Text(`switch wins ${percent(chance)}`, { fontSize: F, color: s.palette.ink }).moveTo([X1, y], [1, 0]), key);
-    const titleOf = (h: Host, y: number) => left(HOST[h], X0, y, h === host ? s.emphasis : s.palette.ink, F, `monty-name-${h}`);
+    const readout = (y: number, chance: number, key: string) =>
+      keyed(new Text(`switch wins ${percent(chance)}`, { fontSize: F, color: s.look.ink }).moveTo([X1, y], [1, 0]), key);
+    const titleOf = (h: Host, y: number) => left(HOST[h], X0, y, h === host ? s.look.emphasis : s.look.ink, F, `monty-name-${h}`);
     const describeStrip = (h: Host, list: readonly Cell[], dim: (c: Cell) => boolean = () => false) =>
       `${HOST[h]}: ` +
       list.map((c) => `car behind ${c.prize}, he opens ${c.opened}: ${c.shows}, ${c.stay === 'ends' ? 'game over' : c.stay === 'win' ? 'staying wins' : 'switching wins'}, ${c.sixths} sixth${c.sixths > 1 ? 's' : ''}${dim(c) ? ' (greyed)' : ''}`).join('; ');
-    const cellKey = (y: number) => label(KEY, 0, y, s.soft, F, 'monty-key');
+    const cellKey = (y: number) => keyed(label(s, KEY, { at: [0, y], color: s.look.soft, size: F }), 'monty-key');
 
     /**
-     * The picture for a phase: the round (the model) while the doors show, else a function of what is
+     * The picture for a chapter: the round (the model) while the doors show, else a function of what is
      * shown alone, so the trace's view check and rayner check can redraw it.
      */
-    const picture = (phase: Phase, round: Round): Group => {
-      switch (phase) {
+    const picture = (chapter: Chapter, round: Round): Group => {
+      switch (chapter) {
         case 'choice':
         case 'predict':
-          return doors(round, phase);
+          return doors(round, chapter);
         case 'rounds':
         case 'odds': {
           // The key sits under the strip it explains; in odds the two figures take the stage's lower part, clear of it.
-          const dy = phase === 'rounds' ? ALONE : 0,
+          const dy = chapter === 'rounds' ? ALONE : 0,
             y = SLOT.informed + dy,
-            ruled = phase === 'odds' ? dim : undefined;
+            ruled = chapter === 'odds' ? dim : undefined;
           words = [describeStrip(host, cells[host], ruled), KEY];
           return new Group(
             heads(s, HEADS + dy),
             titleOf(host, y + NAME),
             strip(s, cells[host], y, host, ruled),
             cellKey(y - NAME),
-            ...(phase === 'odds'
+            ...(chapter === 'odds'
               ? [
-                  stat(s, 'Stay', percent(seen[host].stayChance), -3.25, -2.85, 'monty-stay'),
-                  stat(s, 'Switch', percent(seen[host].switchChance), 3.25, -2.85, 'monty-switch'),
+                  stat(s, 'Stay', percent(seen[host].stayChance), { at: [-3.25, -2.85], key: 'monty-stay' }),
+                  stat(s, 'Switch', percent(seen[host].switchChance), { at: [3.25, -2.85], key: 'monty-switch' }),
                 ]
               : []),
           );
@@ -277,13 +202,13 @@ export default class MontyHall extends Scene {
         case 'copy':
         case 'worlds': {
           // Copy: the other host's strip starts as a copy of this host's, then takes its own rounds.
-          const list = (h: Host) => (phase === 'copy' && h === other ? cells[host] : cells[h]);
+          const list = (h: Host) => (chapter === 'copy' && h === other ? cells[host] : cells[h]);
           words = [...HOSTS.map((h) => describeStrip(h, list(h), dim)), KEY];
           return new Group(
             heads(s, HEADS),
             ...HOSTS.flatMap((h) => [
               titleOf(h, SLOT[h] + NAME),
-              ...(phase === 'worlds' ? [readout(h, SLOT[h] + NAME, seen[h].switchChance, `monty-readout-${h}`)] : []),
+              ...(chapter === 'worlds' ? [readout(SLOT[h] + NAME, seen[h].switchChance, `monty-readout-${h}`)] : []),
               strip(s, list(h), SLOT[h], h, dim),
             ]),
             cellKey(SLOT.random - NAME),
@@ -292,38 +217,39 @@ export default class MontyHall extends Scene {
       }
     };
     // Before the first step the picture is the choice, with no door picked yet.
-    // Which picture is shown (`shown.phase`) is not part of the model: the round, the host and the odds are.
+    // Which picture is shown (`shown.chapter`) is not part of the model: the round, the host and the odds are.
     const start = roundStart(host);
-    const roundOf = (st: object) => ('pick' in st ? (st as unknown as Round) : start);
-    const main = view(this, (st, sh) => keyed(picture((sh as { phase?: Phase }).phase ?? 'choice', roundOf(st)), 'monty-picture'), {
-      place: false,
-    });
-    const shown = (next: Phase) => { this.shown = { phase: next }; };
+    const roundOf = (st: MontyState) => ('pick' in st ? st : start);
+    /** The machine's round: the state while the round is played. */
+    const round = (st: MontyState) => having(st, 'pick');
+    // What the round marks is emphasis the phone's close-ups visit first and review holds to the
+    // caption: your door, and the door the host opened, while the round plays (the prediction asks
+    // about the same doors; its caption is the question, so it marks nothing new).
+    const main = view(this, (st, sh) => {
+      const chapter = sh.chapter ?? 'choice', r = roundOf(st);
+      const drawn = keyed(picture(chapter, r), 'monty-picture');
+      if (chapter === 'choice') {
+        const yours = roundDoor(r), mine = yours === null ? undefined : drawn.find(`door-${yours}`);
+        if (mine) emphasised(mine, `your door: ${door(yours!)}`);
+        const opened = r.opened === null ? undefined : drawn.find(`door-${r.opened}`);
+        if (opened) emphasised(opened, `opened: ${door(r.opened!)}, ${r.shows}`);
+      }
+      return drawn;
+    }, { place: false });
+    const shown = (next: Chapter) => { this.shown = { chapter: next }; };
     const describe = { describe: () => words.join('. ') };
-    // What the round marks, as emphasis the phone's close-ups visit first and
-    // review holds to the caption: your door, and the door the host opened, while the round plays (the
-    // prediction asks about the same doors; its caption is the question, so it marks nothing new). Read from state.
-    s.emphasise(() => {
-      const phase = (this.shown as { phase?: Phase }).phase;
-      if (phase !== 'choice') return [];
-      const r = roundOf(this.state), yours = roundDoor(r);
-      return [
-        ...(yours === null ? [] : [[`door-${yours}`, `your door: ${door(yours)}`] as const]),
-        ...(r.opened === null ? [] : [[`door-${r.opened}`, `opened: ${door(r.opened)}, ${r.shows}`] as const]),
-      ];
-    });
-    const fresh = async (next: Phase) => {
+    const fresh = async (next: Chapter) => {
       await s.clear({ runTime: 0.3 });
       shown(next);
       main.rebuild();
       s.keep(main, describe);
       await this.play(new FadeIn(main, { runTime: 0.5 }));
     };
-    const morph = async (next: Phase, runTime = 1.1) => {
+    const morph = async (next: Chapter, runTime = 1.1) => {
       shown(next);
-      await this.play(main.sync({ match: byKey, runTime }));
+      await this.play(main.sync({ match: byKey, staged: false, runTime }));
     };
-    const at = (id: Phase, state: Record<string, unknown>) => {
+    const at = (id: Chapter, state: MontyFacts) => {
       this.state = JSON.parse(JSON.stringify(state));
       shown(id);
     };
@@ -346,33 +272,33 @@ export default class MontyHall extends Scene {
       return new Succession([fold, gone, new Transform(open, c.to(key), { runTime: 0.4 })]);
     };
     const together = (anims: ScheduledAnimation[]) => new AnimationGroup(anims);
-    const machine = new Machine<Round, RoundEvent>(this, {
+    const machine = new Machine<MontyState, RoundEvent>(this, {
       start,
       events: ROUND_EVENTS,
-      next: roundNext,
+      next: (st, event) => roundNext(round(st), event),
       views: [main],
       runTime: ({ event }) => (event.startsWith('open') || event.startsWith('car') ? 1.22 : event === 'switch' ? 1.66 : 0.6),
       transition: Object.fromEntries(
-        ROUND_EVENTS.flatMap((event): [RoundEvent, (t: Transition<Round, RoundEvent>) => ScheduledAnimation][] => {
+        ROUND_EVENTS.flatMap((event): [RoundEvent, (t: Transition<MontyState, RoundEvent>) => ScheduledAnimation][] => {
           // The host opens his door: it swings round to show a goat (or, for a random host, the car), then the lines say so.
           if (event.startsWith('open'))
             return [[event, (t) => {
               const { after } = t, c = t.choreograph(main);
-              return new Succession([swing(c, after.opened!), together([...crossfade(c, LINES, 0.45), c.rest({ runTime: 0.45 })])]);
+              return new Succession([swing(c, round(after).opened!), together([...crossfade(c, LINES, 0.45), c.rest({ runTime: 0.45 })])]);
             }]];
           // The car is shown: both closed doors swing open together.
           if (event.startsWith('car'))
             return [[event, (t) => {
               const { after } = t, c = t.choreograph(main);
-              return new Succession([together(closedDoors(after).map((i) => swing(c, i))), together([...crossfade(c, LINES, 0.45), c.rest({ runTime: 0.45 })])]);
+              return new Succession([together(closedDoors(round(after)).map((i) => swing(c, i))), together([...crossfade(c, LINES, 0.45), c.rest({ runTime: 0.45 })])]);
             }]];
           // Switching: your door's outline lifts off it, passes over the open door, and settles on the one he offered.
           if (event === 'switch')
             return [[event, (t) => {
               const { before, after } = t, c = t.choreograph(main);
-              const from = roundDoor(before)!,
-                to = roundDoor(after)!;
-              const outline = c.from(`door-${from}`).children[0]!;
+              const from = roundDoor(round(before))!,
+                to = roundDoor(round(after))!;
+              const outline = c.from(`door-${from}`).find(`door-${from}:box`)!;
               const at = (i: number, lift: number) => outline.copy().moveTo([DOOR_X(i), DOOR_Y + lift]);
               const yours = c.insert('monty-yours', outline);
               return new Succession([

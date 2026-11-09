@@ -2,9 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Text } from '../src/index.ts';
 import { NullSink, toSvgString, renderElements } from '../src/output.ts';
-import { perf } from '../explain/testing.ts';
+import { perf } from '../src/perf.ts';
 import type { ElementRecord } from '../src/output.ts';
 import { Fixture, explainers } from './lib/scenes.ts';
+import { mobjectId } from '../src/mobject.ts';
 
 // Caption holds are thousands of identical frames; the hold rule has its own test
 Scene.captionWpm = Infinity;
@@ -106,7 +107,7 @@ test('DOM output merges same-styled glyph lines into one element, and splits dur
     const els = renderElements(scene, { relative: false });
     const ids = new Set(els.map((e) => e.id));
     for (const top of scene.mobjects) for (const m of top.family()) if (m instanceof Text && m.children.length > 1) {
-      if (ids.has(m.id)) merged++; else if (m.children.some((c) => ids.has(c.id))) split++;
+      if (ids.has(mobjectId(m))) merged++; else if (m.children.some((c) => ids.has(mobjectId(c)))) split++;
     }
   } }).run();
   assert.ok(merged > 500, `merged lines: ${merged}`);
@@ -121,7 +122,7 @@ test('failed and stopped sinks close their trace span before the next caller', a
     for (const failure of [new Error('sink failed'), new StopScene()]) {
       perf.enable({ timelineDepth: 1 });
       const scene = new Scene({ async frame() { clock += 7; throw failure; } });
-      await assert.rejects(scene.emitFrame(0), (error) => error === failure);
+      await assert.rejects(scene.wait(1 / 30), (error) => error === failure);
       perf.span('after', () => { clock += 3; });
       assert.deepEqual(perf.rows().find((r) => r.name === 'sink'), { name: 'sink', calls: 1, total: 7, self: 7, max: 7 });
       assert.deepEqual(perf.rows().find((r) => r.name === 'after'), { name: 'after', calls: 1, total: 3, self: 3, max: 3 });

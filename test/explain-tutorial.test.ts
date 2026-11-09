@@ -6,25 +6,18 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { MACHINE_STARTER_FILES, STARTER_FILES, packageImports } from '../tools/lib/explain-init.ts';
-import { collectProject } from '../tools/lib/explain-project.ts';
+import { collectProject, ROOT } from '../tools/lib/explain-project.ts';
+import { DOCS, docBlocks } from '../tools/repo/lib/docs-code.ts';
 import type { Picture } from '../explain/trace.ts';
-import { assertStepState } from './lib/explainer-state.ts';
-import { assertSteps } from './lib/steps.ts';
+import { assertStepState, assertSteps } from '../explain/testing.ts';
 import { run } from '../scenes/tutorial/lru-mru/model.ts';
-// The tutorial's own model tests: Wikipedia's worked LRU and MRU examples.
-import '../scenes/tutorial/lru-mru/model.test.ts';
-// The machine starter's model tests: every event from every state, and every refusal's reason.
-import '../scenes/tutorial/door/model.test.ts';
+// The tutorials' own model tests (Wikipedia's worked LRU and MRU examples, every door event from every
+// state, no Hanoi route shorter than 7 or 15 moves) run beside them: npm test runs scenes/*/*/*.test.ts,
+// and rayner check runs each folder's model.test.ts.
 
 const DIR = 'scenes/tutorial/lru-mru/';
-const tutorial = readFileSync('docs/TUTORIAL.md', 'utf8');
-const block = (name: string) => {
-  const code = tutorial.match(new RegExp(`<!-- ${name} -->\\n\`\`\`(?:ts|md)\\n([\\s\\S]*?)\`\`\``))?.[1];
-  assert.ok(code, `docs/TUTORIAL.md shows ${name}`);
-  return code;
-};
 
-test('`rayner init` writes the tutorial\'s explainer, and the tutorial prints what it writes', async () => {
+test('`rayner init` writes the tutorial\'s explainer as it is checked in, with package imports', async () => {
   const folder = await mkdtemp(join(tmpdir(), 'rayner-init-'));
   try {
     execFileSync(process.execPath, ['tools/explain.ts', 'init', join(folder, 'lru-mru')], { stdio: 'pipe' });
@@ -33,7 +26,6 @@ test('`rayner init` writes the tutorial\'s explainer, and the tutorial prints wh
       const written = readFileSync(join(folder, 'lru-mru', file), 'utf8');
       assert.equal(written, packageImports(readFileSync(DIR + file, 'utf8')), `${file} is the checked-in file with package imports`);
       assert.doesNotMatch(written, /\.\.\/\.\.\/\.\.\//, `${file} has no repository imports`);
-      assert.equal(block(`lru-mru/${file}`), written, `docs/TUTORIAL.md prints ${file} as init writes it`);
     }
   } finally {
     await rm(folder, { recursive: true, force: true });
@@ -54,11 +46,14 @@ test('`rayner init --machine` writes the machine starter, and `rayner check` pas
     // What it starts from: a model that refuses with reasons, a view of the state, and a live last step.
     assert.match(readFileSync(join(dir, 'model.ts'), 'utf8'), /refuse\('the door is locked, so unlock it first'\)/);
     const report = JSON.parse(execFileSync(process.execPath, ['tools/explain.ts', 'check', join(dir, 'scene.ts'), '--out', join(folder, 'checks')], { encoding: 'utf8' }));
+    // check runs the model test beside the scene, which imports rayner: from a folder that installs
+    // no Rayner, the Rayner running the check.
+    assert.deepEqual(report.model, { file: join(dir, 'model.test.ts'), tests: 2, passed: 2 });
     const scenario = report.scenarios[0];
     assert.deepEqual(scenario.machines, [{ events: ['open', 'close', 'lock', 'unlock'], states: 3 }]);
     assert.deepEqual(scenario.claims.scope, [], 'no sweeping sentence goes unbacked');
     // An option for init alone.
-    assert.throws(() => execFileSync(process.execPath, ['tools/explain.ts', 'check', join(dir, 'scene.ts'), '--machine'], { stdio: 'pipe' }), /--machine is for init/);
+    assert.throws(() => execFileSync(process.execPath, ['tools/explain.ts', 'check', join(dir, 'scene.ts'), '--machine'], { stdio: 'pipe' }), /--machine is an option of rayner init alone/);
   } finally {
     await rm(folder, { recursive: true, force: true });
   }
@@ -143,4 +138,12 @@ test('the hand-written captions say what the model does', async () => {
   for (const policy of ['lru', 'mru'] as const) assert.equal(run(policy, 4, SEQ.loop).filter((r) => r.hit).length, 4);
   assert.match(meta('loop', 'verdict').caption!, /MRU hits 3 times and LRU 0/);
   assert.match(meta('reuse', 'verdict').caption!, /LRU hits 4 times and MRU 0/);
+});
+
+test('the README and the tutorial print each tutorial file exactly as it is checked in, with package imports', () => {
+  const printed = DOCS.flatMap((doc) => docBlocks(ROOT, doc).map((b) => ({ ...b, doc })));
+  // What each guide must print: the tutorial's whole explainer, and the README's Hanoi.
+  for (const file of STARTER_FILES) assert.ok(printed.some((b) => b.doc === 'docs/TUTORIAL.md' && b.file === `lru-mru/${file}`), `docs/TUTORIAL.md prints lru-mru/${file}`);
+  for (const file of ['script.md', 'model.ts', 'scene.ts']) assert.ok(printed.some((b) => b.doc === 'README.md' && b.file === `hanoi/${file}`), `README.md prints hanoi/${file}`);
+  for (const b of printed) assert.equal(b.shown, b.source, `${b.doc} prints ${b.file} as checked in; run node tools/repo/docs-code.ts --write`);
 });

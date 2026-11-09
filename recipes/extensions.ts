@@ -1,4 +1,4 @@
-import { VMobject, Group, Text, Scene, FadeIn, Transform } from 'rayner';
+import { VMobject, Group, Text, Scene, FadeIn, Transform, keyed } from 'rayner';
 import type { Style } from 'rayner';
 
 /** Use VMobject's public path builder; copies own their point buffers. */
@@ -21,17 +21,22 @@ export class StatusBadge extends Group {
   // No copyData override is needed: the only state is the inherited children.
 }
 
-/** An ordinary function is already a useful extension unit. */
+/** An ordinary function is already a useful extension unit. Each badge is keyed by its label, so a scene finds it by name. */
 export function statusRow(labels: readonly string[]): Group {
-  return new Group(...labels.map(label => new StatusBadge(label))).arrange([1, 0], 1);
+  const badges = labels.map((label) => {
+    const badge = new StatusBadge(label);
+    keyed(badge, label);
+    return badge;
+  });
+  return new Group(...badges).arrange([1, 0], 1);
 }
 
-export default class ExtensionScene extends Scene {
+export default class ExtensionScene extends Scene<{ labels?: string[] }, {}> {
   override async construct() {
     const row = statusRow(['queued', 'running', 'done']);
     await this.step('badges', { caption: 'A custom path and a composite participate in the ordinary animation API.' });
     await this.play(new FadeIn(row), { runTime: 0.4 });
-    const middle = row.children[1] as StatusBadge;
+    const middle = row.find('running') as StatusBadge;
     await this.step('rename', { caption: 'Change one label while keeping the same badge and diamond.' });
     const next = middle.label.copy().setText('working');
     await this.play(new Transform(middle.label, next), { runTime: 0.5 });

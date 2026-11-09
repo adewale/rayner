@@ -1,10 +1,12 @@
 import { test } from 'node:test';
+import type { Model3D, Part, Viewpoint, Vec3, SeenPiece } from '../explain/geo.ts';
+import { seenFrom, depthOrder, project, latLon, circleOn, greatArc, between } from '../explain/geo.ts';
 import assert from 'node:assert/strict';
-import { Scene, Follow, Transform, VMobject, Dot } from '../src/index.ts';
+import { Scene, Transform, VMobject, Dot } from '../src/index.ts';
+import { Follow } from '../explain/state.ts';
 import type { Mobject, Sink } from '../src/index.ts';
-import { seenFrom, depthOrder, project, latLon, circleOn, greatArc, between } from '../explain/drawing.ts';
-import type { Model3D, Part, Viewpoint, Vec3, Seen } from '../explain/drawing.ts';
 import { fc, params } from './lib/pbt.ts';
+import { beginAnimation, interpolateAnimation } from '../src/animation.ts';
 
 // A globe with something of every kind: a point and a path on the sphere, a great circle whose far
 // half is dashed, a face standing off the sphere (a sheet through the centre), and a rod through it.
@@ -19,7 +21,7 @@ const parts: Part[] = [
 ];
 const model: Model3D = { body: { radius: 1, fill: '#eef', stroke: '#000', key: 'body' }, parts };
 const ortho = (yaw: number, pitch: number): Viewpoint => ({ kind: 'orthographic', yaw, pitch });
-const seen = (m: Mobject) => (m as Mobject & { seen: Seen }).seen;
+const seen = (m: Mobject) => (m as Mobject & { seen: SeenPiece }).seen;
 const points = (m: Mobject) => (m as VMobject).subpaths.flatMap((a) => Array.from({ length: (a.length - 2) / 6 + 1 }, (_, i) => [a[6 * i]!, a[6 * i + 1]!]));
 const viewpoints = fc.record({ yaw: fc.double({ min: -180, max: 180, noNaN: true }), pitch: fc.double({ min: -89, max: 89, noNaN: true }) });
 
@@ -119,7 +121,7 @@ test('perspective: the limb is smaller than the sphere, and a point beyond the h
 
 test('between turns yaw the short way and keeps the kind', () => {
   assert.deepEqual(between(ortho(170, 0), ortho(-170, 20), 0.5), ortho(180, 10));
-  assert.throws(() => between(ortho(0, 0), { kind: 'gnomonic', yaw: 0, pitch: 0 }, 0.5), /nothing in between/);
+  assert.throws(() => between(ortho(0, 0), { kind: 'gnomonic', yaw: 0, pitch: 0 }, 0.5), /^Error: between\(\): an orthographic and a gnomonic viewpoint have nothing in between;/);
 });
 
 // The deliberate defect: a viewpoint change that reaches a picture without redrawing it. What was
@@ -151,17 +153,17 @@ test('turning by a morph breaks depth order mid-turn; turning by a Follow holds 
   const a = seenFrom(model, from), b = seenFrom(model, to);
   morphed.add(a);
   const morph = new Transform(a, b);
-  morph.begin();
-  morph.interpolate(0.5);
+  beginAnimation(morph);
+  interpolateAnimation(morph, 0.5);
   const broken = depthOrder(a);
   assert.equal(typeof broken, 'string', 'a half-morphed globe is drawn from no viewpoint');
   assert.match(broken as string, /from orthographic yaw 0\.0°, pitch 30\.0°|from where orthographic yaw 0\.0°, pitch 30\.0° puts it/);
 
   const target = seenFrom(model, from);
   const follow = new Follow({ from: 0, to: 1, draw: (t) => seenFrom(model, between(from, to, t)) }, { targets: [target] });
-  follow.begin();
+  beginAnimation(follow);
   for (let i = 0; i <= 40; i++) {
-    follow.interpolate(i / 40);
+    interpolateAnimation(follow, i / 40);
     assert.equal(depthOrder(target), true, `frame ${i}`);
   }
   // Its last frame is the picture of the end viewpoint.

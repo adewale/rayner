@@ -13,7 +13,8 @@ test('the vendored glyph bundle matches its recorded upstream bytes', () => {
 });
 import { fc, params } from './lib/pbt.ts';
 import { shaperFor, Text } from '../src/index.ts';
-import { loadFonts, takeMissingGlyphs } from '../explain/testing.ts';
+import { loadFonts } from '../explain/testing.ts';
+import { takeMissingGlyphs } from '../src/fonts.ts';
 import { FALLBACK } from '../src/font-data.ts';
 
 await loadFonts();
@@ -142,6 +143,6 @@ test('font admission accepts only the literal sans and mono names without coerci
   const hostile = { toString() { throw new Error('coercion must not run'); } };
   fc.assert(fc.property(fc.anything(), (name) => {
     if (name === 'sans' || name === 'mono') assert.equal(typeof shaperFor(name), 'function');
-    else assert.throws(() => shaperFor(name as import('../src/index.ts').FontName), /Unknown font/);
+    else assert.throws(() => shaperFor(name as import('../src/index.ts').FontName), /^RangeError: shaperFor\(\): .* is not a font/);
   }), params<[unknown]>(500, { examples: [['sans'], ['mono'], ['constructor'], ['toString'], ['__proto__'], [new String('sans')], [hostile], [Symbol('sans')], [() => 'sans']] }));
 });

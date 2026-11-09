@@ -17,6 +17,7 @@
         "t1": 3.4,
         "frame1": 102,
         "hold": 2,
+        "holdFrame": 60,
         "after": {
           "count": 0
         }
@@ -34,6 +35,7 @@
         "t1": 6.4,
         "frame1": 192,
         "hold": 5.4,
+        "holdFrame": 162,
         "after": {
           "count": 0
         }
@@ -51,6 +53,7 @@
         "t1": 9.8,
         "frame1": 294,
         "hold": 8.9,
+        "holdFrame": 267,
         "after": {
           "count": 3
         }

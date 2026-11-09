@@ -21,51 +21,50 @@ What Rayner checks: the model's test, against the real system, checks principle 
 
 ## Before you start
 
-You need Node 24 or later. In your project, run `npm install --save-dev rayner`; the commands below then run as `npx rayner <command>`. In a checkout of this repository, run `npm ci` and use `npm run rayner -- <command>` instead.
+You need Node 24 or later. In your project, run `npm install --save-dev rayner rayner-cli`: your scenes import `rayner`, and `rayner-cli` provides the `rayner` command, so the commands below run as `npx rayner <command>`. In a checkout of this repository, run `npm ci` and use `npm run rayner -- <command>` instead.
 
 This explainer draws no diagrams, so `check`, `preview` and `build` work without a browser. `review` opens the page in Chromium: install it with `npx playwright-core install chromium`, or set `CHROMIUM_EXECUTABLE_PATH` to a Chromium you already have.
 
 ## 1. Plan on paper
 
-Write the plan before any code (principle 1):
-
-```text
-Reader:    a developer choosing a replacement policy who assumes recently used data is always worth keeping
-Question:  what is the difference between LRU and MRU, and when does it matter?
-Answer:    on a miss in a full cache, LRU evicts the item used longest ago and MRU evicts the item used most
-           recently; which one gets more hits depends on the order of requests
-Model:     run(policy, size, requests) returns each request's hit, eviction and cache contents
-Sources:   the worked examples in Wikipedia's "Cache replacement policies"; Chou and DeWitt, VLDB 1985
-Scenarios: baseline A B C D A B C D | changed: last four are C D C D | fixed: three slots, same first four
-           requests, both policies | predicted hits: LRU 0, MRU 3 → LRU 4, MRU 0
-Limit:     hit counts for eight requests through three slots; not the cost of tracking recency, and no claim
-           about random access
-```
-
-The scenarios line is written before any drawing, so the picture has to match a prediction (principle 6). The tempting shortcut is that keeping recent items is always right. A loop over more items than the cache holds is the request pattern that could prove it wrong. Chou and DeWitt wrote that a file being repeatedly scanned should be kept in memory if possible, and that if it is too large to fit, "an MRU replacement algorithm should be used to manage the buffer pool". The two scenarios share their first four requests, so the first eviction is identical in both and only what follows it differs.
-
-The limit line keeps the explainer inside what it tests. It counts hits, so it cannot say anything about latency or the bookkeeping LRU needs to track recency. It does not test random access either, where Chou and DeWitt report that "the choice of a replacement algorithm is immaterial". The limit becomes the last caption (principle 8).
-
-Then ask whether a still would do. A trace table of eight requests and two policies answers the question for a reader who already reads trace tables. The stepped version isolates the one decision where the policies differ before it shows what that decision costs over the whole sequence, which a table cannot do.
-
-Then write the explanation you would give the reader, with the concrete problem before the names and each paragraph supplying the reason for the next. Read it straight through: does it explain the result, or merely announce what the drawing will show? `script.md` contains that reader-facing prose. It has no fixed word count. `rayner init` writes this example:
+Write the plan before any code (principle 1). The plan is the explainer's script, `script.md`: it states what the explainer must achieve, for you, its author, and Rayner reads its header. `rayner init` writes this example:
 
 <!-- lru-mru/script.md -->
 ```md
 # What is the difference between LRU and MRU?
 
-A cache has three slots. Requests for A, B and C have filled them, in that order. Now D arrives. It is missing, and there is no spare slot. Which item should make room: A, which has waited longest, or C, which was just used?
+- **Reader:** a developer choosing a replacement policy who assumes recently used data is always worth keeping.
+- **Answer:** LRU evicts the item used longest ago
+- **Changed condition:** the last four of eight requests through three slots. After A B C D, repeating A B C D gives LRU 0 hits and MRU 3; changing them to C D C D gives LRU 4 and MRU 0. The first four requests, and so the first eviction, are the same in both.
+- **Reader's own work:** predict which item each policy evicts when D arrives; switch the requests between A B C D again and C D C D; answer the reader questions.
+- **Checked against:** the worked LRU and MRU examples in Wikipedia's "Cache replacement policies", in `model.test.ts`; Chou and DeWitt (VLDB 1985) for when MRU suits a file scanned over and over.
+- **Leaves out:** the cost of tracking recency, latency, and random access, where Chou and DeWitt report that the choice is immaterial; the hit counts are for eight requests through three slots.
 
-LRU evicts the item used longest ago: A. Its name means least recently used. MRU, most recently used, evicts C instead. Both put D in the freed slot. Keeping the recent item sounds sensible, but the next requests decide whether it helps.
+## Check yourself
 
-Suppose A, B, C and D repeat. LRU has just evicted A, the next item needed. Bringing A back evicts B, which comes next. The same mistake repeats: all eight requests miss. MRU kept A and B when it made room for D. On the second pass, A, B and D hit; C misses. Evicting the newest item preserved more of this loop.
+1. A full cache misses. Which item does each policy evict?
+   LRU evicts the item used longest ago; MRU evicts the item used most recently.
+2. Why does LRU miss every request when a loop is one item larger than the cache?
+   Each miss evicts the oldest item, which is exactly the item the loop asks for next.
+3. Which policy should manage a buffer for a file scanned over and over that does not fit in memory?
+   MRU: it keeps most of the loop in the cache, while LRU evicts each item just before it is needed again.
 
-Change only the last four requests: C, D, C, D. LRU kept both, so all four repeats hit. MRU dropped C for D. Bringing C back now drops D, then bringing D back drops C. All four repeats miss.
+## Why this explainer
 
-The eviction rule has stayed the same; the useful choice has reversed. Recency records the past. Whether it predicts the next request depends on the access pattern. These two examples count eight requests through three slots; they do not measure the cost of maintaining the cache.
+The tempting shortcut is that keeping recent items is always right. A loop over more items than the cache holds is the request pattern that proves it wrong, and Chou and DeWitt make the same point for a file scanned repeatedly that does not fit in memory. So the explainer isolates the one decision where the policies differ, which item D evicts, before it shows what that decision costs over the whole sequence, and then changes only the last four requests so the same rule wins the other way. A trace table of eight requests would answer the question for a reader who already reads trace tables; the steps exist to separate the decision from its cost.
+
+The ending is the limit: these are hit counts for one short sequence, not a claim about latency, bookkeeping or random access.
 ```
 
-The script holds only the explanation addressed to the reader, including any limit the reader needs to interpret its conclusion. The answer and the check questions live in the scene: `meta.answer`, which `rayner check` requires some step's title, line or caption to contain (it reports which step, so you can see whether the answer arrives before the details), and `meta.checks`, the questions the player asks after the last step, with each answer behind a disclosure. Use the questions to review the prose: could a reader reason through an unseen condition after reading it? [Working documents](EXPLAINER-RUBRIC.md#working-documents) says what belongs in the script, the scene and an optional `notes.md`.
+The `#` heading is the reader's question, and it becomes the page's title. **Answer** is the one sentence the explanation must reach; `rayner check` reports which step first states it, so you can see whether the answer arrives before the details. The questions under **Check yourself** are what the player asks after the last step; use them to review the scene: could a reader reason through an unseen condition after it? **Checked against** appears on the page under Sources. Everything below the header is yours, and Rayner does not read it. [The reference](REFERENCE.md#scene) gives the header's rules: which lines are required, and what `rayner check` holds each to.
+
+The **Changed condition** line is written before any drawing, so the picture has to match a prediction (principle 6). The tempting shortcut is that keeping recent items is always right. A loop over more items than the cache holds is the request pattern that could prove it wrong. Chou and DeWitt wrote that a file being repeatedly scanned should be kept in memory if possible, and that if it is too large to fit, "an MRU replacement algorithm should be used to manage the buffer pool". The two scenarios share their first four requests, so the first eviction is identical in both and only what follows it differs.
+
+The **Leaves out** line keeps the explainer inside what it tests. It counts hits, so it cannot say anything about latency or the bookkeeping LRU needs to track recency. It does not test random access either, where Chou and DeWitt report that "the choice of a replacement algorithm is immaterial". The limit becomes the last caption (principle 8).
+
+Then ask whether a still would do. A trace table of eight requests and two policies answers the question for a reader who already reads trace tables. The stepped version isolates the one decision where the policies differ before it shows what that decision costs over the whole sequence, which a table cannot do.
+
+The script is not what the reader reads. The explanation is the scene's steps and captions, which section 5 reads against this plan. [Working documents](EXPLAINER-RUBRIC.md#working-documents) says what belongs in the script, the model and the scene.
 
 ## 2. Generate the explainer
 
@@ -144,28 +143,24 @@ Pin what you checked against in the scene's `meta.sources` (principle 3). The sc
 <!-- lru-mru/scene.ts -->
 ```ts
 import { Scene } from 'rayner';
-import { stage, settingsOf } from 'rayner/explain';
+import { stage, settingsOf, view } from 'rayner/explain';
+import type { ExplainerMeta } from 'rayner/explain';
+import { card } from 'rayner/drawing';
 import { run, type Policy } from './model.ts';
 
 const SIZE = 3;
 const NEXT = { loop: 'ABCD', reuse: 'CDCD' };
 
-export default class LruMru extends Scene {
+/** What the card shows after some requests: the requests so far, and each policy's cache, evictions and hits. */
+type CardState = { Requests: string; 'Newest first': [string, string]; Evicted: [string, string]; Hits: [string, string] };
+
+export default class LruMru extends Scene<CardState, { lit: string | null }> {
   static meta = {
-    id: 'lru-mru',
-    title: 'What is the difference between LRU and MRU?',
     sources: [
       'https://en.wikipedia.org/w/index.php?title=Cache_replacement_policies&oldid=1376205644',
       'https://www.vldb.org/conf/1985/P127.PDF',
     ],
-    // From script.md: check holds the first two steps to the answer; the player asks the questions at the end.
-    answer: 'LRU evicts the item used longest ago',
-    checks: [
-      { question: 'A full cache misses. Which item does each policy evict?', answer: 'LRU evicts the item used longest ago; MRU evicts the item used most recently.' },
-      { question: 'Why does LRU miss every request when a loop is one item larger than the cache?', answer: 'Each miss evicts the oldest item, which is exactly the item the loop asks for next.' },
-      { question: 'Which policy should manage a buffer for a file scanned over and over that does not fit in memory?', answer: 'MRU: it keeps most of the loop in the cache, while LRU evicts each item just before it is needed again.' },
-    ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [{ id: 'next', label: 'After A B C D, request', default: 'loop', options: [{ value: 'loop', label: 'A B C D again' }, { value: 'reuse', label: 'C D C D' }] }];
 
   override async construct() {
@@ -175,7 +170,7 @@ export default class LruMru extends Scene {
     const trace = { lru: run('lru', SIZE, requests), mru: run('mru', SIZE, requests) };
 
     // What the card shows after the first n requests, read from the model's trace.
-    const shown = (n: number) => {
+    const shown = (n: number): CardState => {
       const column = (policy: Policy) => {
         const done = trace[policy].slice(0, n), hits = done.filter((r) => r.hit).map((r) => r.key);
         return [done.at(-1)!.cache.join(' '), done.flatMap((r) => r.evicted ?? []).join(' ') || 'none', hits.length ? `${hits.length}: ${hits.join(' ')}` : '0'];
@@ -184,26 +179,31 @@ export default class LruMru extends Scene {
       const pair = (i: number): [string, string] => [lru[i]!, mru[i]!];
       return { Requests: requests.slice(0, n).join(' '), 'Newest first': pair(0), Evicted: pair(1), Hits: pair(2) };
     };
-    const show = async (n: number) => {
-      await card.set(shown(n));
-      Object.assign(this.state, shown(n));
+    // The card is a view: its values are the model's (this.state), and the row it lights is how the
+    // step shows them (this.shown). Each step changes them, and the card is redrawn from both.
+    const show = async (n: number, lit: string | null = null) => {
+      this.state = shown(n);
+      this.shown = { lit };
+      await this.play(cache.sync());
     };
 
     await this.step('full', { title: 'Same items, same order', line: 'A, B and C missed and filled all three slots.', caption: 'Both caches have seen the same three requests, so both hold C, B, A from newest to oldest. The next request, D, misses in both and forces each policy to evict one item.' });
-    const first = shown(3);
-    const card = await s.card([
-      ['Requests', first.Requests],
-      ['Slots', SIZE],
-      ['Newest first', ...first['Newest first']],
-      ['Evicted', ...first.Evicted],
-      ['Hits', ...first.Hits],
-    ], { columns: ['LRU', 'MRU'], width: 6.8, fontSize: 0.3 });
-    Object.assign(this.state, first);
+    this.state = shown(3);
+    this.shown = { lit: null };
+    const cache = view(this, (st, sh) => {
+      return card(s, [
+        ['Requests', st.Requests],
+        ['Slots', SIZE],
+        ['Newest first', ...st['Newest first']],
+        ['Evicted', ...st.Evicted],
+        ['Hits', ...st.Hits],
+      ], { columns: ['LRU', 'MRU'], width: 6.8, size: 0.3, lit: sh.lit === null ? null : { row: sh.lit }, key: 'cache' });
+    }, { place: false });
+    await s.enter(cache, { runTime: 0.35 });
 
     const [lruOut, mruOut] = [trace.lru[3]!.evicted, trace.mru[3]!.evicted];
     await this.step('evict', { title: 'D evicts opposite ends', line: `LRU drops ${lruOut}, the oldest; MRU drops ${mruOut}, the newest.`, caption: `LRU evicts the item used longest ago, ${lruOut}. MRU evicts the item used most recently, ${mruOut}. Each then records D as its newest item.` });
-    await show(4);
-    await card.mark('Evicted');
+    await show(4, 'Evicted');
 
     const lruHits = trace.lru.filter((r) => r.hit).length, mruHits = trace.mru.filter((r) => r.hit).length;
     await this.step('rest', {
@@ -212,7 +212,7 @@ export default class LruMru extends Scene {
         ? 'The loop asks for A, B, C and D again. LRU always evicts the item the loop needs next, so all eight requests miss. MRU evicted C to make room for D, so on the second pass A, B and D hit and only C misses.'
         : 'C and D now alternate. LRU still holds both after evicting A, so all four repeats hit. MRU evicts the item requested just before, which is always the next one requested, so all four repeats miss.',
     });
-    await show(8);
+    await show(8, 'Evicted');
 
     await this.step('verdict', {
       title: next === 'loop' ? 'A loop favours MRU' : 'Reuse favours LRU',
@@ -220,18 +220,20 @@ export default class LruMru extends Scene {
         ? `On this loop MRU hits ${mruHits} times and LRU ${lruHits}. Four items do not fit in three slots, which is when Chou and DeWitt recommend MRU for a repeated scan; a file that fits should stay in memory. The counts leave out what tracking recency costs.`
         : `On this pattern LRU hits ${lruHits} times and MRU ${mruHits}, because the items just used are the next ones requested. The counts cover eight requests through three slots and leave out what tracking recency costs.`,
     });
-    await card.mark('Hits');
+    await show(8, 'Hits');
   }
 }
 ```
 
 Read it from the top:
 
-- `static meta` holds the id, which names the output files, the page title and the sources the model was checked against.
+- `static meta` holds the sources the model was checked against. `satisfies ExplainerMeta` types it, so a misspelt key does not compile, and collection refuses a key `ExplainerMeta` does not name. The id, which names the output files, is the folder's name, and the title, answer and reader questions come from the script's header (the questions from its `## Check yourself` list).
 - `static settings` declares one setting with two options. Each option is a scenario: the reader can switch between them, and `check` and `review` visit both. Both scenarios send A B C D first, then either repeat the loop or alternate C and D.
-- `trace` asks the model once per scenario. Every value on the card comes from it: `shown(n)` turns the trace into what the card shows after the first `n` requests, and `show(n)` updates the card and records the same values on `this.state`, where tests and `rayner describe` can read them.
+- `trace` asks the model once per scenario. Every value on the card comes from it: `shown(n)` turns the trace into what the card shows after the first `n` requests.
+- `Scene<CardState, { lit: string | null }>` declares the scene's two types: its model, what the card shows, and what is shown of it, the row the card lights. `this.state`, `this.shown` and the draw's `st` and `sh` are typed from them ([typed state](REFERENCE.md#typed-state-and-shown)).
+- The card is a view of the state: `view(this, draw)` builds it with the drawing kit's `card(s, rows, options)` from `this.state` whenever the state changes, its `lit: { row }` from `this.shown`, and `show(n, lit)` puts the values after `n` requests (and the row to light) in the state and plays `cache.sync(...)`. So the card cannot drift from the state that tests and `rayner describe` read, and `check` redraws it from that state at every step. The card's `key` lets the sync change only what changed: a new value fades in where the old one fades out, and the bar moves to the lit row.
 - `stage(this, { style: 'nord', headingSize: 0.54 })` draws the paper and a heading that follows the steps. The larger heading keeps the step number readable on a phone.
-- `s.card` draws one card with an LRU column and an MRU column. A row with one value per column compares the policies; a row with a single value, such as Requests, spans both columns because both caches receive the same requests.
+- The card has an LRU column and an MRU column. A row with one value per column compares the policies; a row with a single value, such as Requests, spans both columns because both caches receive the same requests.
 - There are four steps. Each has a stable name used in links, a title and a caption, and the first two have a line under the title. The page prints the caption beside the picture.
 
 The first step opens on the moment the policies are about to diverge (principle 2): both caches hold the same items in the same order and D is about to miss. The second step is the whole difference between the policies, so it gets a step of its own (principle 4), and its mark on the Evicted row stays on screen while the reader reads why (principle 5). Its captions take the evicted items from the model. Because the two policies share one card, a reader sees both columns of every row at once, including on a phone, where the player zooms onto the card.
@@ -250,7 +252,7 @@ Choose C D C D above the stage. The URL names the scenario and step (`lru-mru.ht
 
 ## 7. Break a check
 
-Delete the last line of `construct()`, `await card.mark('Hits');`, and run the checks:
+Change the last line of `construct()`, `await show(8, 'Hits');`, to `await show(8, 'Evicted');`, and run the checks:
 
 ```sh
 npx rayner check lru-mru/scene.ts
@@ -266,7 +268,7 @@ rayner: Each step must change the picture; these end exactly as the step before 
 - []
 ```
 
-Without the mark, the last step plays nothing, so it rests on exactly the picture step 3 left. A reader pressing Next would get a new caption and nothing new on the stage to read it against. The check reports the first scenario where this happens. Put the line back and run `check` again: it passes. The report it saves to `out/checks/lru-mru/report.json` includes `legibility.labelsUnder12PxAt390`, the number of labels a phone reader sees smaller than 12 px. Keep it at 0 in every scenario.
+With the mark left where it was, the last step changes nothing, so it rests on exactly the picture step 3 left. A reader pressing Next would get a new caption and nothing new on the stage to read it against. The check reports the first scenario where this happens. Put the line back and run `check` again: it passes. The report it saves to `out/checks/lru-mru/report.json` includes `legibility.labelsUnder12PxAt390`, the number of labels a phone reader sees smaller than 12 px. Keep it at 0 in every scenario.
 
 ## 8. Break a caption
 

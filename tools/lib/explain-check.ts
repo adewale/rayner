@@ -1,30 +1,31 @@
-import { scriptReport } from '../../explain/script.ts';
-import { claimsReport, checkClaimsMeta } from '../../explain/claims.ts';
-import { captionLookProblems } from '../../explain/caption-looks.ts';
-import { describesItself, seenSource } from '../../explain/look.ts';
+import { scriptReport, claimsReport, checkClaimsMeta, captionLookProblems, describesItself, seenSource, isHeading, withoutHeading, undescribed, watchedChanges, diagramsOn, restingDrawing, LiveSink, liveMachine, runLive, labelOf, readingLabelSize, isView, machinesOf, viewMismatch, scenarioName } from '../../explain/internal.ts';
+import type { View } from '../../explain/index.ts';
+import type { Settings } from '../../explain/index.ts';
+import { renderElements } from '../../src/output.ts';
+import { serializeElement, canonicalJson, zoomOf, contains, intersect, nonempty, overlaps, paints, atHome, viewOf, FRAME, STAGE_BOX, MotionSink, analyzeMotion, SnapshotSink, traceRun } from '../../src/internal.ts';
+import type { LiveExplore } from '../../explain/internal.ts';
 import { restingRouteProblems } from './explain-layout.ts';
-import { letteringWeight, pageSnapshot } from './lettering.ts';
-import { isHeading, stagedStepsOf, pictureFingerprint } from '../../explain/stage.ts';
+import { letteringWeight } from './lettering.ts';
+import { sceneEntry } from './scene-entry.ts';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { build } from 'esbuild';
+import type { Plugin } from 'esbuild';
+import { browserFonts } from './explain-browser-fonts.ts';
+import { showsDiagrams, withoutDiagramCode } from './explain-diagram-code.ts';
 import ts from 'typescript';
-import {
-  Text,
-  View,
-} from '../../src/index.ts';
-import { SnapshotSink, renderAt, toSvgString, renderText, NullSink } from '../../src/output.ts';
-import { MotionSink, InvariantSink, machinesOf, viewMismatch, jsonObject, analyzeMotion, traceScene } from '../../explain/testing.ts';
-import { ROOT, engineAlias, sceneSlug } from './explain-project.ts';
-import { scenarioName } from '../../explain/testing.ts';
-import { restingFrame, restingTime, undescribed, watchedChanges } from '../../explain/trace.ts';
-import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
-import { closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '../../app/embed-closeup.ts';
-import type { Box, Mobject, Scene, Sink, Step } from '../../src/index.ts';
+import { Text } from '../../src/index.ts';
+import { renderFrame, toSvgString } from '../../src/output.ts';
+import { InvariantSink, jsonObject } from '../../explain/testing.ts';
+import { LIB_ROOT, engineAlias, importAuthored, sceneSlug } from './explain-project.ts';
+import { checkedAgainstFiles, compareAnswers, runModelTest } from './explain-evidence.ts';
+import { closeUps, stageScale, stepLayouts, toView, viewBox } from '../../app/embed-closeup.ts';
+import type { Box, EndedStep, Mobject, Scene, SceneClass, Sink, Step } from '../../src/index.ts';
 import type { Project } from './explain-project.ts';
-import { pageFaces, letteringReport, useProjectLettering } from './explain-lettering.ts';
+import { letteringReport, useProjectLettering } from './explain-lettering.ts';
+import { MIN_PX, PHONE_VIEWPORT, STAGE_PX_PER_UNIT } from './review-sizes.ts';
 
 const SWALLOW =
   'Do not catch around awaited animation/step calls in construct(): a broad catch can swallow StopScene. Catch model errors before animation.';
@@ -65,19 +66,12 @@ export function lintConstruct(source: string): string[] {
   walk(file);
   return errors;
 }
-/** Smallest label, in CSS pixels at a 1280-pixel stage, a reader must be able to see. */
-export const MIN_PX = 14;
-/** Reader CSS pixels per scene unit on a 1280-pixel stage, with the camera home. */
-const STAGE_PX_PER_UNIT = 1280 / 16;
-const FRAME: Box = [-8, -4.5, 8, 4.5];
+export { MIN_PX };
 /** Anything with a camera: a Scene, or a test's stand-in. Without one, the view is the whole stage. */
 interface Viewed {
   familyMembers(): Mobject[];
   frame?: { box(): Box | null };
 }
-/** The box of the world on screen: the camera's (`scene.frame`), which the SVG viewBox shows. */
-export const viewOf = (scene: Pick<Viewed, 'frame'>): Box => [...(scene.frame?.box() ?? FRAME)] as Box;
-const isHome = (view: Box) => view.every((v, i) => Math.abs(v - FRAME[i]!) < 1e-6);
 /**
  * A label's size as the reader sees it, in CSS pixels at a 1280-pixel stage: its size
  * in the world times the camera's zoom. A label the camera has zoomed in on reads
@@ -87,27 +81,22 @@ const isHome = (view: Box) => view.every((v, i) => Math.abs(v - FRAME[i]!) < 1e-
  */
 export function labelPx(m: Mobject, scene: Pick<Viewed, 'frame'>): number | null {
   const size = readingLabelSize(m);
-  return size == null ? null : size * STAGE_PX_PER_UNIT * viewZoom(viewOf(scene));
+  return size == null ? null : size * STAGE_PX_PER_UNIT * zoomOf(viewOf(scene));
 }
-/** `box` cut down to every clip around `m`: the part of it that is drawn (a diagram clips to its frame). */
-function clipped(m: Mobject, box: Box): Box {
-  const out: Box = [...box];
-  for (let a: Mobject | null = m; a; a = a.parent)
-    if (a.clipBox) {
-      out[0] = Math.max(out[0], a.clipBox[0]);
-      out[1] = Math.max(out[1], a.clipBox[1]);
-      out[2] = Math.min(out[2], a.clipBox[2]);
-      out[3] = Math.min(out[3], a.clipBox[3]);
-    }
+/**
+ * `box` cut down to every clip around `m`: the part of it that is drawn (a diagram clips
+ * to its frame); null when nothing of it is.
+ */
+function clipped(m: Mobject, box: Box): Box | null {
+  let out: Box | null = nonempty(box) ? [...box] : null;
+  for (let a: Mobject | null = m; a && out; a = a.parent) if (a.clipBox) out = intersect(out, a.clipBox);
   return out;
 }
 /** Fully drawn and inside the viewport: a label a reader can see at its size. */
-const readable = (m: Mobject, box: Box | null, viewport: Box) =>
+const readable = (m: Mobject, box: Box | null, viewport: Box | null) =>
   !!box &&
-  box[0] >= viewport[0] - 1e-5 &&
-  box[2] <= viewport[2] + 1e-5 &&
-  box[1] >= viewport[1] - 1e-5 &&
-  box[3] <= viewport[3] + 1e-5 &&
+  !!viewport &&
+  contains(viewport, box, 1e-5) &&
   m.style.opacity >= 0.95 &&
   (m.style.drawFraction ?? 1) >= 0.95;
 
@@ -121,22 +110,15 @@ const readable = (m: Mobject, box: Box | null, viewport: Box) =>
  */
 export function restingTextProblems(scene: Viewed): string[] {
   const view = viewOf(scene),
-    zoomed = !isHome(view);
+    zoomed = !atHome(view);
   const texts: { m: Mobject; box: Box; native: boolean; text: string }[] = [];
   const problems: string[] = [];
   const chromeBoxes: { box: Box; text: string }[] = [];
   const visible = (m: Mobject) => {
     for (let a: Mobject | null = m; a; a = a.parent) if ((a.style.opacity ?? 1) < 0.5) return false;
     // Text is drawn by the fill (and any stroke) of its paths: with neither it shows nothing.
-    // A group's own paint is never drawn, so look at the paths it holds.
-    const painted = (x: Mobject) =>
-      (x.style.opacity ?? 1) >= 0.5 &&
-      ((!!x.style.fill && x.style.fill !== 'none' && (x.style.fillOpacity ?? 1) >= 0.5) ||
-        (!!x.style.stroke &&
-          x.style.stroke !== 'none' &&
-          (x.style.strokeOpacity ?? 1) >= 0.5 &&
-          (x.style.strokeWidth ?? 0) > 0));
-    return m.family().some((x) => !x.children.length && painted(x));
+    // A group's own paint is never drawn, so look at the paths it holds. Legible, not merely present: half opacity at least.
+    return m.family().some((x) => !x.children.length && (x.style.opacity ?? 1) >= 0.5 && paints(x.style, { min: 0.5 }));
   };
   const seen = new Set<Mobject>();
   for (const m of scene.familyMembers()) {
@@ -152,13 +134,13 @@ export function restingTextProblems(scene: Viewed): string[] {
     const drawn = m.box();
     if (!drawn) continue;
     const box = clipped(m, drawn);
-    if (!(box[2] > box[0] && box[3] > box[1])) continue;
-    const shown = box[0] < view[2] && box[2] > view[0] && box[1] < view[3] && box[3] > view[1];
+    if (!box) continue;
+    const shown = overlaps(box, view, { touching: false });
     if (zoomed && !shown) continue; // off screen while the camera looks elsewhere
     const native = m instanceof Text;
     // The heading, and its number and line: stage furniture, kept clear of the picture by the stage itself.
     const heading = isHeading(m);
-    if (zoomed && (native || heading) && (box[0] < view[0] || box[1] < view[1] || box[2] > view[2] || box[3] > view[3]))
+    if (zoomed && (native || heading) && !contains(view, box))
       problems.push(`"${text}" is cut off by the frame`);
     if (!heading) texts.push({ m, box, native, text });
     else chromeBoxes.push({ box, text });
@@ -166,23 +148,18 @@ export function restingTextProblems(scene: Viewed): string[] {
   // The heading's line takes room under the title: content text must stay clear of all of it.
   for (const t of texts)
     for (const c of chromeBoxes)
-      if (t.box[0] < c.box[2] && t.box[2] > c.box[0] && t.box[1] < c.box[3] && t.box[3] > c.box[1])
+      if (overlaps(t.box, c.box, { touching: false }))
         problems.push(`"${t.text}" runs into the heading's "${c.text}"`);
   for (const t of texts)
-    if (t.native && (t.box[0] < FRAME[0] || t.box[1] < FRAME[1] || t.box[2] > FRAME[2] || t.box[3] > FRAME[3]))
+    if (t.native && !contains(STAGE_BOX, t.box))
       problems.push(`"${t.text}" crosses the stage edge`);
   const area = (b: Box) => Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]);
   for (let i = 0; i < texts.length; i++)
     for (let j = i + 1; j < texts.length; j++) {
       const a = texts[i]!,
         b = texts[j]!;
-      const overlap: Box = [
-        Math.max(a.box[0], b.box[0]),
-        Math.max(a.box[1], b.box[1]),
-        Math.min(a.box[2], b.box[2]),
-        Math.min(a.box[3], b.box[3]),
-      ];
-      if (overlap[2] <= overlap[0] || overlap[3] <= overlap[1]) continue;
+      const overlap = intersect(a.box, b.box);
+      if (!overlap) continue;
       if (area(overlap) > 0.12 * Math.min(area(a.box), area(b.box))) problems.push(`"${a.text}" overlaps "${b.text}"`);
     }
   return problems;
@@ -193,9 +170,9 @@ export function restingTextProblems(scene: Viewed): string[] {
  * depends on the served page's headings and viewport; only browser review measures it.
  * Do not duplicate the player's CSS/DOM height calculation here or assume its 4:5 maximum.
  */
-const PHONE_PAGE = 390,
+const PHONE_PAGE = PHONE_VIEWPORT.width,
   PHONE_W = PHONE_PAGE - 32,
-  PHONE_H = PHONE_W * 9 / 16;
+  PHONE_H = PHONE_W * FRAME.h / FRAME.w;
 /** One label across a scenario: its largest size at 1280 px, and in the phone's close-ups at rest. */
 interface LabelSizes {
   text: string;
@@ -239,6 +216,9 @@ function legibilityReport(records: LabelSizes[]) {
 // `rayner check` plays each scenario once and hands every frame to these, through FanSink, as
 // InvariantSink and MotionSink are handed it. Each reads the scene and keeps what its check
 // needs; a scene's `mobjects` changed to read a frame are put back before the next sink runs.
+// A sink that reads a step's resting picture reads it in `stepEnd`, as each step ends, the way
+// describe and the shots read it (AtRest in src/trace.ts); LastFrameSink holds that picture to the
+// step's last played frame, which the frame-numbered sinks (HoldSink, FrameCaptureSink) read.
 
 /** Hands each frame, and each step's beginning and end, to every sink in turn. */
 export class FanSink implements Sink {
@@ -246,7 +226,7 @@ export class FanSink implements Sink {
   constructor(sinks: readonly Sink[]) { this.sinks = sinks; }
   async frame(scene: Scene, dt: number): Promise<void> { for (const s of this.sinks) await s.frame(scene, dt); }
   async stepBegin(scene: Scene, step: Step): Promise<void> { for (const s of this.sinks) await s.stepBegin?.(scene, step); }
-  async stepEnd(scene: Scene, step: Step): Promise<void> { for (const s of this.sinks) await s.stepEnd?.(scene, step); }
+  async stepEnd(scene: Scene, step: EndedStep): Promise<void> { for (const s of this.sinks) await s.stepEnd?.(scene, step); }
 }
 
 /**
@@ -281,14 +261,33 @@ export class KeySink implements Sink {
 export class ViewSink implements Sink {
   readonly problems: string[] = [];
   checked = 0;
+  /** Views some step's end has shown to depend on their state (see viewIgnoresState). */
+  private readonly proven = new Set<View>();
+  /** Views no step has shown to yet, each named by the first step that showed it. */
+  private readonly unproven = new Map<View, { name: string; others: number }>();
+  /** Each step's state so far: the other states a view first seen now is drawn from. */
+  private readonly states: Record<string, unknown>[] = [];
   async frame(): Promise<void> {}
   async stepEnd(scene: Scene, step: Step): Promise<void> {
+    this.states.push(structuredClone(scene.state));
     for (const m of scene.familyMembers()) {
-      if (!(m instanceof View)) continue;
+      if (!isView(m)) continue;
       this.checked++;
       const mismatch = viewMismatch(m, scene.state, { shown: scene.shown }) ?? viewGeometryMismatch(m, scene);
       if (mismatch) this.problems.push(`step "${step.name}": ${m.key ?? 'a view'}: ${mismatch}`);
+      // Asked at each step's end that shows the view, while the scene is as the step left it (a draw
+      // may read live parts of the scene), until one shows the picture depends on the state: a list
+      // that is empty at first and grows later shows it only later.
+      if (this.proven.has(m)) continue;
+      const others = viewIgnoresState(m, scene.state, scene.shown, this.states);
+      if (others === null) { this.proven.add(m); this.unproven.delete(m); }
+      else if (!this.unproven.has(m)) this.unproven.set(m, { name: `step "${step.name}": ${m.key ?? 'a view'}`, others });
     }
+  }
+  /** After the run: the views whose draw never depended on their state, at any step that showed them. */
+  get ignoring(): string[] { return [...this.unproven.values()].map((u) => u.name); }
+  ignoringProblems(): string[] {
+    return [...this.unproven.values()].map((u) => `${u.name}: its draw ignores its state; its picture is the same drawn from ${u.others} different states, so it can disagree with the state the step records`);
   }
 }
 
@@ -312,18 +311,46 @@ function viewGeometryMismatch(v: View, scene: Scene): string | null {
   return `the view's part ${i} is ${shows[i] ?? 'missing'}, the state draws ${draws[i] ?? 'nothing there'} (${shows.length} parts shown, ${draws.length} drawn)`;
 }
 
+/**
+ * A frame as the parts toSvgString joins: the camera's box and paper, then each element's string
+ * and clip. Each element's string is memoised on its mobject while it is unchanged, so comparing
+ * two frames part by part costs no SVG document; the verdict is toSvgString's.
+ */
+function frameParts(scene: Scene): string[] {
+  const parts = [`${scene.frame.box()!.join(' ')} ${scene.colors.paper}`];
+  for (const el of renderElements(scene)) parts.push(el.svg ??= serializeElement(el), el.clipBox?.join(' ') ?? '');
+  return parts;
+}
+const sameParts = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((p, i) => p === b[i]);
+
 /** The caption hold: a step whose picture changes after its hold begins is `moved`. */
 export class HoldSink implements Sink {
   readonly holds: readonly { step: string; from: number; to: number }[];
-  readonly held = new Map<string, string>();
+  readonly held = new Map<string, string[]>();
   readonly moved = new Set<string>();
   constructor(holds: readonly { step: string; from: number; to: number }[]) { this.holds = holds; }
   async frame(scene: Scene, dt: number): Promise<void> {
     const hold = dt ? this.holds.find((h) => scene.frameCount >= h.from && scene.frameCount <= h.to) : undefined;
-    if (!hold) return;
-    const svg = toSvgString(scene);
-    if (scene.frameCount === hold.from) this.held.set(hold.step, svg);
-    else if (svg !== this.held.get(hold.step)) this.moved.add(hold.step);
+    if (!hold || this.moved.has(hold.step)) return;
+    const parts = frameParts(scene);
+    if (scene.frameCount === hold.from) this.held.set(hold.step, parts);
+    else if (!sameParts(parts, this.held.get(hold.step) ?? [])) this.moved.add(hold.step);
+  }
+}
+
+/**
+ * An animation's doFinish() ends where the last frame drew: as each step ends, after its last play has finished
+ * and left the stage, the picture must be its resting frame's, which a link shows and the checks
+ * judge, and which describe and the shots draw as the step ends. A step that differs is listed
+ * in `differing`. Reads the played frames FrameCaptureSink kept, so it comes after it.
+ */
+export class LastFrameSink implements Sink {
+  readonly played: ReadonlyMap<number, string>;
+  readonly differing: string[] = [];
+  constructor(played: ReadonlyMap<number, string>) { this.played = played; }
+  async frame(): Promise<void> {}
+  async stepEnd(scene: Scene, step: EndedStep): Promise<void> {
+    if (toSvgString(scene) !== this.played.get(step.frame1)) this.differing.push(step.name);
   }
 }
 
@@ -337,40 +364,33 @@ export class FrameCaptureSink implements Sink {
   }
 }
 
-/** Each step's resting picture: its SVG without the heading, its text drawing, and its text and route collisions. */
+/** Each step's resting picture, by step: its SVG and its text drawing, both without the heading, and its text and route collisions. */
 export class RestingSink implements Sink {
-  readonly completed: ReadonlySet<number>;
-  readonly resting = new Map<number, string>();
-  readonly restingText = new Map<number, string>();
+  readonly resting = new Map<string, string>();
+  readonly restingText = new Map<string, string>();
   readonly collisions: string[] = [];
-  constructor(completed: ReadonlySet<number>) { this.completed = completed; }
-  async frame(scene: Scene): Promise<void> {
-    if (!this.completed.has(scene.frameCount)) return;
+  async frame(): Promise<void> {}
+  async stepEnd(scene: Scene, step: Step): Promise<void> {
     // The resting picture of a step, without the heading (number, title, line) that names it.
-    const all = scene.mobjects;
-    scene.mobjects = all.filter((m) => !isHeading(m));
-    this.resting.set(scene.frameCount, toSvgString(scene));
-    scene.mobjects = all;
-    this.restingText.set(scene.frameCount, renderText(scene));
+    this.resting.set(step.path, withoutHeading(scene, () => toSvgString(scene)));
+    // Drawn as describe draws it, without the heading too (restingDrawing).
+    this.restingText.set(step.path, restingDrawing(scene));
     this.collisions.push(
-      ...[...restingTextProblems(scene), ...restingRouteProblems(scene)].map((p) => `${scene.currentStep?.name}: ${p}`),
+      ...[...restingTextProblems(scene), ...restingRouteProblems(scene)].map((p) => `${step.name}: ${p}`),
     );
   }
 }
 
 /**
- * At each resting frame, the colours and line styles the step's caption and line name that no word
+ * At each step's resting picture, the colours and line styles the step's caption and line name that no word
  * on the stage names (explain/caption-looks.ts). The stage's words are its visible text, diagram
  * labels and the words of every part that describes itself, a legend's swatches included; not a
  * `describe`, which only a screen reader hears.
  */
 export class LookWordsSink implements Sink {
-  readonly completed: ReadonlySet<number>;
   readonly problems: string[] = [];
-  constructor(completed: ReadonlySet<number>) { this.completed = completed; }
-  async frame(scene: Scene): Promise<void> {
-    const step = scene.currentStep;
-    if (!this.completed.has(scene.frameCount) || !step) return;
+  async frame(): Promise<void> {}
+  async stepEnd(scene: Scene, step: Step): Promise<void> {
     const words: string[] = [];
     const heading = new Set(scene.mobjects.filter(isHeading).flatMap((m) => m.family()));
     for (const m of scene.familyMembers()) {
@@ -389,31 +409,23 @@ export class LookWordsSink implements Sink {
 
 /**
  * Every label's largest readable size: at 1280 px in any frame, and on the phone in each
- * resting frame's close-ups. Native labels are kept by object, so a small label is not
+ * step's resting picture's close-ups. Native labels are kept by object, so a small label is not
  * excused by a larger one with the same words; imported labels by their keyed owner.
  */
 export class LegibilitySink implements Sink {
   readonly labels = new Map<Mobject, LabelSizes>();
   readonly staticLabels = new Map<string, LabelSizes>();
-  readonly completedFrames: ReadonlySet<number>;
-  readonly phoneViews: ReadonlyMap<number, { k: number; views: { k: number; box: Box }[] }>;
-  readonly stepAt: ReadonlyMap<number, string>;
+  /** Each step's close-ups on the phone, by step. */
+  readonly phoneViews: ReadonlyMap<string, { k: number; views: { k: number; box: Box }[] }>;
   readonly phoneUnit: number;
-  constructor(
-    completedFrames: ReadonlySet<number>,
-    phoneViews: ReadonlyMap<number, { k: number; views: { k: number; box: Box }[] }>,
-    stepAt: ReadonlyMap<number, string>,
-    phoneUnit: number,
-  ) {
-    this.completedFrames = completedFrames;
+  constructor(phoneViews: ReadonlyMap<string, { k: number; views: { k: number; box: Box }[] }>, phoneUnit: number) {
     this.phoneViews = phoneViews;
-    this.stepAt = stepAt;
     this.phoneUnit = phoneUnit;
   }
 
   /**
-   * Record a label readable in this frame: at 1280 px always, and on the phone when the
-   * frame is a resting one. `px` is already on screen (world size × the author's camera
+   * Record a label readable in this picture: at 1280 px always, and on the phone when it is
+   * step `step`'s resting picture. `px` is already on screen (world size × the author's camera
    * zoom); the phone's close-up is the reader's zoom over that view, so the two multiply.
    * `box` is in the camera's view units, where close-ups are worked out.
    *
@@ -423,12 +435,11 @@ export class LegibilitySink implements Sink {
    * the player sets the step's number, title and line as page text under the stepper row.
    * It is still measured at 1280 px, where the stage draws it.
    */
-  private seen(record: LabelSizes, px: number, box: Box | null, frame: number, chrome = false): void {
+  private seen(record: LabelSizes, px: number, box: Box | null, step: string | undefined, chrome = false): void {
     record.px = Math.max(record.px, px);
-    const close = this.phoneViews.get(frame);
+    const close = step === undefined ? undefined : this.phoneViews.get(step);
     if (!close) return;
-    const inside = (v: Box) =>
-      !!box && box[0] >= v[0] - 1e-6 && box[2] <= v[2] + 1e-6 && box[1] >= v[1] - 1e-6 && box[3] <= v[3] + 1e-6;
+    const inside = (v: Box) => !!box && contains(v, box, 1e-6);
     if (chrome) return;
     const complete = close.views.filter((v) => inside(v.box));
     // The opening can frame a comparison at a smaller scale than its detail
@@ -437,17 +448,23 @@ export class LegibilitySink implements Sink {
     const size = (px / STAGE_PX_PER_UNIT) * this.phoneUnit * k;
     if (size > record.phone) {
       record.phone = size;
-      record.phoneStep = this.stepAt.get(frame);
+      record.phoneStep = step;
     }
     if (complete.length) record.inView = true;
   }
 
-  async frame(scene: Scene): Promise<void> {
+  /** A frame on the way: a camera gliding past does not make a label read (see `measure`). */
+  async frame(scene: Scene): Promise<void> { this.measure(scene, false); }
+  /** A step's resting picture, as the step ends: measured in full, and on the phone in its close-ups. */
+  async stepEnd(scene: Scene, step: Step): Promise<void> { this.measure(scene, true, step.path); }
+  /** A resting picture that belongs to no step (a state a machine reaches): measured in full, not on the phone. */
+  resting(scene: Scene): void { this.measure(scene, true); }
+
+  private measure(scene: Scene, completed: boolean, step?: string): void {
     // Sizes on screen: world size times the camera's zoom, inside the camera's view
     // cut by every clip; boxes for the phone's close-ups in the view's own units.
     const view = viewOf(scene);
     const shown = (b: Box | null) => (b ? toView(b, view) : null);
-    const completed = this.completedFrames.has(scene.frameCount);
     for (const m of scene.familyMembers()) {
       const label = labelOf(m);
       if (!label?.text.trim()) continue;
@@ -462,13 +479,13 @@ export class LegibilitySink implements Sink {
         const key = `${owner?.key ?? text}@${label.fontSize.toPrecision(5)}`;
         if (!this.staticLabels.has(key)) this.staticLabels.set(key, { text, px: 0, phone: 0, inView: false });
         const record = this.staticLabels.get(key)!;
-        if (completed && readable(m, (owner ?? m).box(), viewport)) this.seen(record, px, shown(m.box()), scene.frameCount);
+        if (completed && readable(m, (owner ?? m).box(), viewport)) this.seen(record, px, shown(m.box()), step);
       } else {
         if (!this.labels.has(m)) this.labels.set(m, { text, px: 0, phone: 0, inView: false });
         // A camera gliding past does not make a label read: between completed frames a
         // label counts at no more than its size with the camera home.
         const credited = completed ? px : Math.min(px, readingLabelSize(m)! * STAGE_PX_PER_UNIT);
-        if (readable(m, m.box(), viewport)) this.seen(this.labels.get(m)!, credited, shown(m.box()), scene.frameCount, isHeading(m));
+        if (readable(m, m.box(), viewport)) this.seen(this.labels.get(m)!, credited, shown(m.box()), completed ? step : undefined, isHeading(m));
       }
     }
   }
@@ -476,68 +493,87 @@ export class LegibilitySink implements Sink {
 
 /**
  * Every state a scene's machines (src/machine.ts) reach, breadth first from each one's start,
- * redrawn after the run and checked as a resting picture is: no text collisions or routes
- * over labels, every label it shows at least MIN_PX at a 1280 px stage (measured by the same
- * LegibilitySink a run uses), a description, a picture that follows the state (viewMismatch,
- * for views of the scene's state), and a description no other reachable state shares, so a
- * reader, or a screen reader, can tell them apart. A problem is named by the shortest events
- * reaching it. Phone close-ups are not worked out for explored states.
+ * redrawn and checked as a resting picture is: no text collisions or routes over labels, every
+ * label it shows at least MIN_PX at a 1280 px stage (measured by the same LegibilitySink a run
+ * uses), a description, a picture that follows the state (viewMismatch, for views of the scene's
+ * state), and a description no other reachable state shares, so a reader, or a screen reader, can
+ * tell them apart. A problem is named by the shortest events reaching it. Phone close-ups are not
+ * worked out for explored states.
+ *
+ * Each machine of `scene` (a run of `Source`, the scene's class) is explored on the stage the reader
+ * drives it on: `Source` run again to the end of the step it last played in, by the live player's
+ * own run (`runLive`, which refuses a run that made a different machine there), and explored there,
+ * while that scene can still play, so the state exploration starts from is the one the reader's
+ * events start from, and each transition plays in a play of its own, as a reader's event plays it.
+ * A machine that never played is explored on a fresh run of `Source` as it ends. `diagrams` says
+ * whether exploring the machine made a diagram, which a page without diagram code could not draw.
  */
 export async function exploreMachines(
   scene: Scene,
-  stageOf?: (step: string) => Promise<Scene>,
-): Promise<{ events: string[]; states: number; sampled: boolean; problems: string[] }[]> {
+  Source: SceneClass,
+): Promise<{ events: string[]; states: number; sampled: boolean; diagrams: boolean; problems: string[] }[]> {
   const explored = [];
-  for (const [index, live] of machinesOf(scene).entries()) {
-    // The stage the reader saw the machine on: the run again, to the resting picture of the step it
-    // last played in (a frame is a function of time, so this is that picture exactly), rather than
-    // the stage the run ends with, which may have cleared its views away.
-    const host = stageOf && live.lastPlayedIn ? await stageOf(live.lastPlayedIn) : scene;
-    const machine = host === scene ? live : machinesOf(host)[index];
-    if (!machine || JSON.stringify(machine.spec.events) !== JSON.stringify(live.spec.events))
-      throw new Error(`exploration: the run to "${live.lastPlayedIn}" made different machines; a scene must make the same machines each run`);
-    const problems: string[] = [];
-    const missing = machine.spec.views.filter((v) => !host.familyMembers().includes(v));
-    if (missing.length) problems.push(`its views ${missing.map((v) => v.key ?? v.constructor.name).join(', ')} are not on the stage where it last played, so its states cannot be checked there`);
-    // From the start, as exploration always has; and from the state the reader finds at the step
-    // where the machine is live, since the player lets the reader send events from there too.
-    const fromStart = machine.reachable().map((r) => ({ ...r, origin: '' }));
-    const seen = new Set(fromStart.map((r) => JSON.stringify(r.state)));
-    const stepState = jsonObject(host.state, 'machine state') as object;
-    const answers = (() => { try { return machine.spec.events.some((e) => machine.after(stepState, e) !== undefined); } catch { return false; } })();
-    const fromStep = host === scene || seen.has(JSON.stringify(stepState)) || !answers ? []
-      : machine.reachable(stepState).filter((r) => !seen.has(JSON.stringify(r.state))).map((r) => ({ ...r, origin: `from the state at "${live.lastPlayedIn}", ` }));
-    const reached = [...fromStart, ...fromStep];
-    const shownThen = host.shown;
-    // Every state is drawn as the reader would have seen it: under what the scene showed while the machine played.
-    host.shown = machine.playedUnder ?? shownThen;
-    const said = new Map<string, string>();
-    for (const { state, path, origin } of reached) {
-      const at = origin + (path.length ? `after ${path.join(', ')}` : 'at the start');
-      host.state = jsonObject(state, 'machine state');
-      for (const view of machine.spec.views) {
-        view.rebuild();
-        const mismatch = viewMismatch(view, host.state, { shown: host.shown });
-        if (mismatch) problems.push(`${at}: ${mismatch}`);
-      }
-      problems.push(...[...restingTextProblems(host), ...restingRouteProblems(host)].map((p) => `${at}: ${p}`));
-      // Each label this state shows, at the size a 1280 px stage draws it; one not shown (outside
-      // the view, clipped or transparent) is never measured and stays at 0.
-      const sizes = new LegibilitySink(new Set([host.frameCount]), new Map(), new Map(), 0);
-      await sizes.frame(host);
-      for (const r of [...sizes.labels.values(), ...sizes.staticLabels.values()])
-        if (r.px > 0 && r.px < MIN_PX) problems.push(`${at}: “${r.text}” is ${r.px.toFixed(1)} px at a 1280 px stage, under ${MIN_PX}`);
-      const picture = host.describeShown().picture as { entries?: { what?: string; items?: string[] }[] } | undefined;
-      const words = JSON.stringify(picture?.entries ?? []);
-      if (!picture?.entries?.some((e) => e.what?.trim())) problems.push(`${at}: the picture has no description`);
-      else if (said.has(words)) problems.push(`${at}: the picture is described exactly as ${said.get(words)}, a different state`);
-      else said.set(words, at);
-      problems.push(...transitionProblems(host, machine, state, path, origin));
+  for (const [index, made] of machinesOf(scene).entries()) {
+    const step = made.lastPlayedIn, place = { index, identity: made.identity };
+    let found: Awaited<ReturnType<typeof exploreMachines>>[number] | undefined;
+    const explore: LiveExplore = async (host, machine, draw) => { found = await exploreMachine(host, machine, step, draw); };
+    // The stage the reader saw the machine on, rather than the stage the run ends with, which may
+    // have cleared its views away.
+    if (step !== null) await runLive(Source, step, place, [], { explore });
+    else {
+      const out = new LiveSink();
+      const host = await new Source(out).run();
+      await explore(host, liveMachine(host, null, place), (to) => out.draw(to));
     }
-    host.shown = shownThen;
-    explored.push({ events: [...machine.spec.events], states: reached.length, sampled: fromStart.length >= machine.spec.limit || fromStep.length >= machine.spec.limit, problems });
+    explored.push(found!);
   }
   return explored;
+}
+
+/** One machine explored on `host`, which may still play, as the step it last played in (`step`) ends, or as the run ends when it never played; `draw` routes the host's frames. */
+async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf>[number], step: string | null, draw: (to?: Sink) => void) {
+  const diagramsBefore = diagramsOn(host);
+  const problems: string[] = [];
+  const missing = machine.spec.views.filter((v) => !host.familyMembers().includes(v));
+  if (missing.length) problems.push(`its views ${missing.map((v) => v.key ?? v.constructor.name).join(', ')} are not on the stage where it last played, so its states cannot be checked there`);
+  // From the start, as exploration always has; and from the state the reader finds at the step
+  // where the machine is live, since the player lets the reader send events from there too.
+  const fromStart = machine.reachable().map((r) => ({ ...r, origin: '' }));
+  const seen = new Set(fromStart.map((r) => canonicalJson(r.state)));
+  const stepState = jsonObject(host.state, 'machine state') as object;
+  const answers = (() => { try { return machine.spec.events.some((e) => machine.after(stepState, e) !== undefined); } catch { return false; } })();
+  const fromStep = step === null || seen.has(canonicalJson(stepState)) || !answers ? []
+    : machine.reachable(stepState).filter((r) => !seen.has(canonicalJson(r.state))).map((r) => ({ ...r, origin: `from the state at "${step}", ` }));
+  const reached = [...fromStart, ...fromStep];
+  const shownThen = host.shown;
+  // Every state is drawn as the reader would have seen it: under what the scene showed while the machine played.
+  host.shown = machine.playedUnder ?? shownThen;
+  const said = new Map<string, string>();
+  for (const { state, path, origin } of reached) {
+    const at = origin + (path.length ? `after ${path.join(', ')}` : 'at the start');
+    host.state = jsonObject(state, 'machine state');
+    for (const view of machine.spec.views) {
+      view.rebuild();
+      const mismatch = viewMismatch(view, host.state, { shown: host.shown });
+      if (mismatch) problems.push(`${at}: ${mismatch}`);
+    }
+    problems.push(...[...restingTextProblems(host), ...restingRouteProblems(host)].map((p) => `${at}: ${p}`));
+    // Each label this state shows, at the size a 1280 px stage draws it; one not shown (outside
+    // the view, clipped or transparent) is never measured and stays at 0.
+    const sizes = new LegibilitySink(new Map(), 0);
+    sizes.resting(host);
+    for (const r of [...sizes.labels.values(), ...sizes.staticLabels.values()])
+      if (r.px > 0 && r.px < MIN_PX) problems.push(`${at}: “${r.text}” is ${r.px.toFixed(1)} px at a 1280 px stage, under ${MIN_PX}`);
+    const picture = host.shownJson().picture as { entries?: { what?: string; items?: string[] }[] } | undefined;
+    const words = JSON.stringify(picture?.entries ?? []);
+    if (!picture?.entries?.some((e) => e.what?.trim())) problems.push(`${at}: the picture has no description`);
+    else if (said.has(words)) problems.push(`${at}: the picture is described exactly as ${said.get(words)}, a different state`);
+    else said.set(words, at);
+    problems.push(...await transitionProblems(host, machine, state, path, origin, draw));
+  }
+  host.shown = shownThen;
+  const sampled = fromStart.length >= machine.spec.limit || fromStep.length >= machine.spec.limit;
+  return { events: [...machine.spec.events], states: reached.length, sampled, diagrams: diagramsOn(host) > diagramsBefore, problems };
 }
 
 /** A picture in full for telling two drawings apart: each part's kind, key, text, box and style. */
@@ -556,73 +592,64 @@ function perturbed(value: unknown): unknown {
 }
 
 /**
- * Every step `stage.steps` presented, redrawn after the run from the state its trace recorded and
- * compared with the picture drawn then (text and every part's box). A step whose draw reads
- * anything but its own state, such as a variable a later step changed, draws something else now
- * and is named here.
+ * A view, drawn from states that differ from the one it shows: its state with every value changed,
+ * the empty state, the states of the steps so far, and what is shown with every value changed (ViewSink asks at
+ * each step's end that shows the view, until one finds that it depends). A view whose picture is the same for all of them, and whose draw
+ * throws for none, does not read its state, so it can disagree with the state its steps record:
+ * this returns how many states drew that same picture, and ViewSink names the view in `ignoring`
+ * and in `problems`. A draw that throws on a different state has read it, so a throw counts as
+ * depending on it; otherwise this returns null.
  *
- * The redraw alone passes a draw that ignores its state and draws from constants it captured, so
- * the picture could disagree with the state the step records. Each step is therefore also drawn
- * from states that differ from its own: its state with every value changed, the empty state, and
- * the other steps' recorded states. A draw whose picture is the same for all of them, and throws
- * for none, does not read its state, and its step is named in `ignoring` and in `problems`. A
- * draw that throws on a different state has read it, so a throw counts as depending on it.
- *
- * The rule: a step whose recorded state is empty is exempt (there is nothing to read, and nothing
- * for the picture to disagree with); any other step's picture must depend on its state. A state
- * that changes nothing in the picture is a value the reader is told about but never shown, so it
- * either reaches the picture or leaves the state.
+ * The rule: a view first seen with an empty state is exempt (there is nothing to read, and nothing
+ * for the picture to disagree with); any other view's picture must depend on the state. A state
+ * that changes nothing in a picture is a value the reader is told about but never shown, so it
+ * either reaches the picture or leaves the state. (The redraw itself, that a view shows what its
+ * draw makes of each step's state, is ViewSink's.)
  */
-export function redrawStagedSteps(scene: Scene, trace: { steps: readonly { step: string; after?: Record<string, unknown> }[] }): { redrawn: number; problems: string[]; ignoring: string[] } {
-  const problems: string[] = [];
-  const ignoring: string[] = [];
-  const records = stagedStepsOf(scene);
-  const recorded = records.map((r) => trace.steps.find((s) => s.step === r.step)?.after);
-  records.forEach((record, i) => {
-    const after = recorded[i];
-    if (!after) { problems.push(`step "${record.step}": no recorded state to redraw it from`); return; }
-    if (pictureFingerprint(record.redraw(after)) !== record.drawn)
-      problems.push(`step "${record.step}": its picture differs when drawn again from the state it recorded; its draw reads something other than its state`);
-    if (!Object.keys(after).length) return;
-    const own = JSON.stringify(after);
-    const drawn = pictureDetail(record.redraw(after));
-    const others = [perturbed(after), {}, ...recorded.filter((s): s is Record<string, unknown> => !!s)]
-      .filter((s, j, all) => JSON.stringify(s) !== own && all.findIndex((t) => JSON.stringify(t) === JSON.stringify(s)) === j);
-    const depends = others.some((state) => {
-      try { return pictureDetail(record.redraw(state as Record<string, unknown>)) !== drawn; } catch { return true; }
-    });
-    if (!depends) {
-      ignoring.push(record.step);
-      problems.push(`step "${record.step}": its draw ignores its state; its picture is the same drawn from ${others.length} different states, so it can disagree with the state the step records`);
-    }
-  });
-  return { redrawn: records.length, problems, ignoring };
+export function viewIgnoresState(view: View, state: Record<string, unknown>, shown: Record<string, unknown>, states: readonly Record<string, unknown>[]): number | null {
+  if (!Object.keys(state).length) return null;
+  const own = canonicalJson(state);
+  const drawn = pictureDetail(view.draw(state, shown));
+  const others = [perturbed(state), {}, ...states]
+    .filter((s, j, all) => canonicalJson(s) !== own && all.findIndex((t) => canonicalJson(t) === canonicalJson(s)) === j);
+  const differs = (st: Record<string, unknown>, sh: Record<string, unknown>) => {
+    try { return pictureDetail(view.draw(st, sh)) !== drawn; } catch { return true; }
+  };
+  // A view draws the model and what is shown apart from it; a picture that follows what is shown
+  // (a chapter, a highlight) reads its inputs too.
+  const depends = others.some((other) => differs(other as Record<string, unknown>, shown)) ||
+    (Object.keys(shown).length > 0 && differs(state, perturbed(shown) as Record<string, unknown>));
+  // A draw may keep what it last drew (its words, say): leave it as the step drew it.
+  view.draw(state, shown);
+  return depends ? null : others.length;
 }
 
 
 /**
- * Each authored transition from `state`, played through on the explored scene: every invariant
- * is checked a quarter, half, three quarters and all the way through, and when it ends the views
- * must show the pictures of the state it reaches, as rendered, so the landing sync moves nothing.
- */
-/**
  * A rendered frame's marks in any stacking order: a part a transition brought in is added last,
- * so it may sit above parts it sits below in the target picture; the landing puts it back a frame
- * later. Every mark must still be there, drawn the same.
+ * so it may sit above parts it sits below in the target picture; the views taking the state's
+ * pictures put it back a frame later. Every mark must still be there, drawn the same.
  */
 const marksOf = (svg: string) => svg.split('/>').sort().join('/>');
 
-function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[], origin = ''): string[] {
+/**
+ * Each authored transition from `state`, played on the explored scene as a reader's event plays it:
+ * the event's state change first, then the transition in a play of its own (`machine.transitionPlay`),
+ * made when its turn comes and waiting, as the play lets it, for what it reads. Every invariant is
+ * checked on every frame it draws (an InvariantSink, through `draw`), and when it ends the views must
+ * show the pictures of the state it reaches, as rendered, so taking them moves nothing.
+ */
+async function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[], origin: string, draw: (to?: Sink) => void): Promise<string[]> {
   const problems: string[] = [];
-  const { views, transition, events } = machine.spec;
+  const { views, events } = machine.spec;
   for (const event of events) {
     // A bound only bounds: an event it stops that the model refuses anyway is a refusal.
     const bound = machine.spec.bound?.(state, event);
     if (bound !== undefined && 'refused' in machine.model(state, event))
       problems.push(`${origin}${path.length ? `after ${path.join(', ')}, ` : ''}${event}: the bound says "${bound}", but the model refuses it anyway; it is a refusal, not where the story stops`);
-    const authored = transition?.[event];
-    const after = authored && machine.after(state, event);
-    if (!authored || after === undefined) continue;
+    const after = machine.after(state, event);
+    const motion = after === undefined ? null : machine.transitionPlay(event, state, after);
+    if (!motion) continue;
     const at = `${origin}${path.length ? `after ${path.join(', ')}, ` : ''}${event}`;
     // What the reader should see when it ends: the views rebuilt for `after` where they stand
     // now (a rebuilt picture keeps its place), before the transition can move them.
@@ -631,21 +658,22 @@ function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>
     const expected = marksOf(toSvgString(scene));
     scene.state = jsonObject(state, 'machine state');
     for (const v of views) v.rebuild();
-    const motion = authored(machine.transitionFor(event, state, after));
-    // As in a play: the event's SetState has already moved the scene to `after` when its transition
+    // As in a send: the event's SetState has already moved the scene to `after` when its transition
     // begins, so a sync inside the transition draws the state reached.
     scene.state = jsonObject(after, 'machine state');
-    scene.beginAnimations([motion]);
-    for (const alpha of [0.25, 0.5, 0.75, 1]) {
-      motion.interpolate(motion.rateFunc(alpha));
-      for (const [name, check] of scene.invariants) {
-        const said = check(scene);
-        if (typeof said === 'string') problems.push(`${at}: the invariant "${name}" fails ${alpha * 100}% through the transition: ${said}`);
-      }
+    const frames = new InvariantSink();
+    const t0 = scene.time;
+    draw(frames);
+    try { await scene.play(motion); } finally { draw(); }
+    // Each invariant's first failing frame, by how far through the transition it is.
+    const failed = new Set<string>();
+    for (const f of frames.failures) {
+      if (failed.has(f.invariant)) continue;
+      failed.add(f.invariant);
+      const through = Math.round(((f.t - t0) / (motion.runTime || 1)) * 100);
+      problems.push(`${at}: the invariant "${f.invariant}" fails ${through}% through the transition: ${f.message}`);
     }
-    motion.finish();
-    motion.cleanUpFromScene(scene);
-    // Compared as rendered marks, since a morph lands glyphs without retyping a Text. A transition that
+    // Compared as rendered marks, since a morph finishes on glyphs without retyping a Text. A transition that
     // ends elsewhere would leave the views there: their next rebuild keeps the place it left them.
     if (marksOf(toSvgString(scene)) !== expected) problems.push(`${at}: the transition ends somewhere other than the picture of the state it reaches`);
     scene.state = jsonObject(after, 'machine state');
@@ -654,62 +682,93 @@ function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>
   return problems;
 }
 
+/**
+ * The bare runtime of a project: its scene entry bundled once, as the page bundles it (the page's
+ * SFNT font path, and no diagram code when no scenario shows a diagram), for a neutral platform with
+ * no DOM. Each call runs one scenario in a fresh VM context, so no state crosses scenarios.
+ */
+export async function bareRuntime(project: Project, plugins: Plugin[] = []): Promise<(values: Settings) => Promise<{ trace: unknown; svg: string }>> {
+  const contents = await sceneEntry(project, { target: 'bare' });
+  const b = await build({
+    stdin: { contents, resolveDir: LIB_ROOT, loader: 'ts' },
+    bundle: true,
+    format: 'iife',
+    globalName: 'bare',
+    platform: 'neutral',
+    target: 'es2022',
+    write: false,
+    plugins: [...plugins, browserFonts(), ...(showsDiagrams(project) ? [] : [withoutDiagramCode()]), engineAlias(false, !!project.outlineLettering)],
+    logLevel: 'silent',
+  });
+  const script = new vm.Script(b.outputFiles[0]!.text + ';globalThis.result=bare.run(globalThis.values)');
+  return async (values) => {
+    const context = vm.createContext({ TextEncoder, TextDecoder, atob, values: JSON.parse(JSON.stringify(values)) });
+    script.runInContext(context);
+    return JSON.parse(JSON.stringify(await context.result));
+  };
+}
+
 /** Run every check on every scenario; write the report to `out`/report.json and return it. */
 export async function checkProject(project: Project, out: string): Promise<Record<string, unknown>> {
   const lint = lintConstruct(await readFile(project.file, 'utf8'));
   assert.deepEqual(lint, [], lint.join('\n'));
   await mkdir(out, { recursive: true });
+  // The folder's own evidence first: a scene drawn from a model its test refuses shows nothing true.
+  const model = await runModelTest(project.file);
+  assert.ok(!model?.failed.length, `The model test fails (${model?.file}): ${model?.failed.join('; ')}`);
+  const answers = await compareAnswers(project.file, project.Scene.meta, async (file) => (await importAuthored(file)).module);
+  assert.deepEqual(answers?.problems ?? [], [], `script.md disagrees with answers.ts (${answers?.file}): ${answers?.problems.join('; ')}`);
+  const checkedAgainst = await checkedAgainstFiles(project.file, (project.Scene.meta as { checkedAgainst?: unknown } | undefined)?.checkedAgainst);
+  assert.deepEqual(checkedAgainst?.problems ?? [], [], `script.md's Checked against names files that are not there: ${checkedAgainst?.problems.join('; ')}`);
   await useProjectLettering(project);
   const scenarios = [];
-  // The lettering the page carries, once for every scenario: the bare runtime below runs it
-  const shipped = project.outlineLettering ? JSON.stringify(await pageSnapshot(project.outlineLettering)) : '';
+  let runBare: ReturnType<typeof bareRuntime> | undefined;
   for (const v of project.scenarios) {
     const where = `in ${scenarioName(project.Scene, v.values) || 'the scene'}`;
     // The scene's own invariants of the picture (Scene.addInvariant), checked on every frame of this full run.
     const invariants = new InvariantSink();
     const motion = new MotionSink();
-    // Each played frame at two points per step, compared below with what a seek renders there.
+    // Each played frame at three points per step, compared below with what a seek renders there: its
+    // middle, the frame before its last, and its resting frame, the one a link to it shows.
     const capture = new FrameCaptureSink(
       new Set(
         v.trace.steps.flatMap((s) => [
-          s.frame0 + Math.max(1, Math.floor(((s.frame1 ?? s.frame0 + 1) - s.frame0) / 2)),
-          Math.max(s.frame0 + 1, (s.frame1 ?? s.frame0 + 1) - 1),
+          s.frame0 + Math.max(1, Math.floor((s.frame1 - s.frame0) / 2)),
+          Math.max(s.frame0 + 1, s.frame1 - 1),
+          s.frame1,
         ]),
       ),
     );
-    const completedFrames = new Set(v.trace.steps.map(restingFrame));
-    // Each resting frame's close-ups on the phone, worked out as the player works them out.
+    const lastFrame = new LastFrameSink(capture.frames);
+    // Each step's close-ups on the phone, worked out as the player works them out.
     const layouts = await stepLayouts(v.Scene);
     const legibility = new LegibilitySink(
-      completedFrames,
       new Map(
         v.trace.steps.map((s) => {
           const tour = closeUps(layouts.get(s.step), PHONE_W, PHONE_H);
           return [
-            restingFrame(s),
+            s.step,
             { k: tour[0]!.k, views: tour.map((z) => ({ k: z.k, box: viewBox(z, PHONE_W, PHONE_H) })) },
           ] as const;
         }),
       ),
-      new Map(v.trace.steps.map((s) => [restingFrame(s), s.step] as const)),
       stageScale(PHONE_W, PHONE_H).s,
     );
-    const restingSink = new RestingSink(completedFrames);
-    const looks = new LookWordsSink(completedFrames);
+    const restingSink = new RestingSink();
+    const looks = new LookWordsSink();
     // The caption hold: the player stops where it begins and the film holds the picture there, so
-    // nothing may change after it. A play lands after its last frame is drawn (a morph gets its
+    // nothing may change after it. A play finishes after its last frame is drawn (a morph gets its
     // paths' own structure back), so the first held frame is the resting picture, as in render.
     const holdSink = new HoldSink(
-      v.trace.steps.flatMap((s) =>
-        s.hold == null
-          ? []
-          : [{ step: s.step, from: Math.round(s.hold * v.trace.fps) + 1, to: s.frame1 ?? v.trace.frames }],
-      ),
+      v.trace.steps.flatMap((s) => (s.holdFrame != null ? [{ step: s.step, from: s.holdFrame + 1, to: s.frame1 }] : [])),
     );
-    // One full run feeds every check, each a sink of its own, in this order.
+    // One full run feeds every check, each a sink of its own, in this order: the step's resting
+    // picture is read as the step ends, the last-frame comparison first, before views and keys redraw anything.
     const views = new ViewSink();
     const keys = new KeySink();
-    const ran = await new v.Scene(new FanSink([invariants, motion, holdSink, capture, restingSink, legibility, views, keys, looks])).run();
+    const ran = await new v.Scene(new FanSink([invariants, motion, holdSink, capture, lastFrame, restingSink, legibility, looks, views, keys])).run();
+    // The last frame, before exploring machines moves the scene.
+    const finalSvg = toSvgString(ran);
     const { frames } = capture,
       { moved } = holdSink,
       { resting, restingText, collisions } = restingSink,
@@ -726,26 +785,21 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       [],
       `Invariants never held ${where}: each ran but found nothing to check on every frame (a key it reads may be misspelt)`,
     );
-    // Each machine is explored on the stage where it last played: the scene run again to that step's resting picture.
-    const machines = await exploreMachines(ran, async (step) => {
-      const s = v.trace.steps.find((x) => x.step === step)!;
-      return renderAt(v.Scene, restingTime(s, v.trace.fps), new NullSink());
-    });
+    // Each machine is explored on the stage where it last played: the scene run again to that step's end, as the player runs it.
+    const machines = await exploreMachines(ran, v.Scene);
+    assert.ok(
+      showsDiagrams(project) || !machines.some((m) => m.diagrams),
+      `Diagrams ${where}: a reader's event draws a diagram no scenario draws, so the page, built without diagram code, cannot draw it; draw the diagram in a scenario too`,
+    );
     assert.deepEqual(
-      views.problems.slice(0, 5),
+      [...views.problems, ...views.ignoringProblems()].slice(0, 5),
       [],
-      `Views ${where}: at the end of a step, a view must show what its draw makes of the step's state (the first five)`,
+      `Views ${where}: at the end of a step, a view must show what its draw makes of the step's state, and that picture must depend on the state (the first five)`,
     );
     assert.deepEqual(
       keys.problems.slice(0, 5),
       [],
       `Keys ${where}: at the end of a step, a key names one mobject on the stage, so find, transforms and the close-up mean one part (the first five)`,
-    );
-    const staged = redrawStagedSteps(ran, v.trace);
-    assert.deepEqual(
-      staged.problems.slice(0, 5),
-      [],
-      `Staged steps ${where}: a step's picture must be a function of the state it records (the first five)`,
     );
     assert.deepEqual(
       machines.flatMap((s) => s.problems).slice(0, 5),
@@ -757,15 +811,20 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       [],
       `The picture changes after the caption hold begins, where the player stops; finish every change before the step's last play() ends ${where}`,
     );
+    assert.deepEqual(
+      lastFrame.differing.slice(0, 5),
+      [],
+      `These steps end on a different picture from their last frame ${where}: an animation's doFinish() must end where its last frame drew, since a link, describe and the shots show the step as it ends (the first five)`,
+    );
     for (const [frame, svg] of frames) {
       const sink = new SnapshotSink();
-      await renderAt(v.Scene, frame / v.trace.fps, sink);
+      await renderFrame(v.Scene, frame, sink);
       assert.equal(sink.svg, svg, `Seek mismatch at frame ${frame} ${where}`);
     }
-    const skipped = await traceScene(v.Scene, { skipUntil: 0 });
-    assert.deepEqual(skipped, v.trace, `Skipped and played traces differ ${where}`);
+    const played = (await traceRun(v.Scene, { skipUntil: 0 })).trace;
+    assert.deepEqual(played, v.trace, `Skipped and played traces differ ${where}`);
     const still = v.trace.steps.filter(
-      (step, i) => i > 0 && resting.get(restingFrame(step)) === resting.get(restingFrame(v.trace.steps[i - 1]!)),
+      (step, i) => i > 0 && resting.get(step.step) === resting.get(v.trace.steps[i - 1]!.step),
     );
     assert.deepEqual(
       still.map((s) => s.step),
@@ -778,7 +837,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     assert.deepEqual(
       unnamed,
       [],
-      `Captions name a look the stage does not ${where}: ${unnamed.join('; ')}. Label it, or key it with a legend (rayner/drawing's legend, s.legend)`,
+      `Captions name a look the stage does not ${where}: ${unnamed.join('; ')}. Label it, or key it with a legend (rayner/drawing's legend)`,
     );
     const staticSmall = [...staticLabels.values()]
       .filter((label) => label.px < MIN_PX)
@@ -792,36 +851,13 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     assert.deepEqual(small, [], `Labels never reach ${MIN_PX}px at 1280px stage ${where}: ${JSON.stringify(small)}`);
     const blank = v.trace.steps.flatMap((s) => undescribed(s.shown).map((m) => `${s.step}: ${m}`));
     assert.deepEqual(blank, [], `Every drawing needs words for readers who cannot see it ${where}`);
-    // A lettered explainer's bare runtime puts its faces in place first, as its page does.
-    const lettered = project.lettering
-      ? [
-          `import{useLettering}from ${JSON.stringify(join(ROOT, 'src/lettering.ts'))};`,
-          `await useLettering(${JSON.stringify(pageFaces(project.lettering))});`,
-        ]
-      : ['', ''];
-    const contents = `${project.outlineLettering ? `import{bindLettering}from ${JSON.stringify(join(ROOT, 'src/lettering-outlines.ts'))};` : ''}import * as author from ${JSON.stringify(project.file)};import{bindSnapshots,withSettings}from ${JSON.stringify(join(ROOT, 'explain/settings.ts'))};import{NullSink,toSvgString}from ${JSON.stringify(join(ROOT, 'src/output.ts'))};${lettered[0]}const Source=author[${JSON.stringify(project.exportName)}];export async function run(){${lettered[1]}const Lettered=${project.outlineLettering ? `bindLettering(Source,${shipped})` : 'Source'};const C=withSettings(bindSnapshots(Lettered,${JSON.stringify(project.store)}),${JSON.stringify(v.values)});const s=await new C(new NullSink(),{skipUntil:Infinity}).run();return{steps:s.steps.map(s=>s.name),state:s.describe(),svg:toSvgString(s)}}`;
-    const b = await build({
-      stdin: { contents, resolveDir: ROOT, loader: 'ts' },
-      bundle: true,
-      format: 'iife',
-      globalName: 'bare',
-      platform: 'neutral',
-      target: 'es2022',
-      write: false,
-      plugins: [engineAlias(false, !!project.outlineLettering)],
-      logLevel: 'silent',
-    });
-    const context = vm.createContext({ TextEncoder, TextDecoder, atob });
-    vm.runInContext(b.outputFiles[0]!.text + ';globalThis.result=bare.run()', context);
-    const result = await context.result;
-    const bare = `The bare runtime (no DOM, no Node) disagrees with the trace ${where}`;
-    assert.deepEqual(
-      JSON.parse(JSON.stringify(result.steps)),
-      v.trace.steps.map((s) => s.step),
-      bare,
-    );
-    assert.deepEqual(JSON.parse(JSON.stringify(result.state)), v.trace.steps.at(-1)!.after, bare);
-    assert.ok(result.svg.includes('<path'), bare);
+    // The bare runtime runs what the page ships (its lettering, faces and snapshots, through the page's
+    // font path and diagram code) in a context of its own, and must reproduce the Node trace: every
+    // step's times, hold, state and what it shows, and the last frame.
+    const bare = await (await (runBare ??= bareRuntime(project)))(v.values);
+    const disagrees = `The bare runtime (no DOM, no Node) disagrees with the trace ${where}`;
+    assert.deepEqual(bare.trace, JSON.parse(JSON.stringify(v.trace)), disagrees);
+    assert.equal(bare.svg, finalSvg, `${disagrees}: its last frame draws differently`);
     const script = scriptReport(project.Scene.meta, v.trace.steps);
     assert.deepEqual(script.problems, [], `Script ${where}: ${script.problems.join('; ')}`);
     scenarios.push({
@@ -835,8 +871,6 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       invariants: Object.fromEntries(invariants.held),
       // Each machine's events and how many states they reach, every one drawn and checked.
       ...(machines.length ? { machines: machines.map(({ events, states, sampled }) => ({ events, states, ...(sampled ? { sampled } : {}) })) } : {}),
-      // How many stage.steps pictures were redrawn from their recorded state and matched.
-      ...(staged.redrawn ? { redrawn: staged.redrawn } : {}),
       // How many view pictures, step by step, were compared with what their draw makes of the step's state.
       ...(views.checked ? { viewsChecked: views.checked } : {}),
       labels: labels.size,
@@ -844,7 +878,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       // What a reader sees: the labels at 1280 px, and on a 390 px phone in each step's close-up.
       legibility: legibilityReport([...labels.values(), ...staticLabels.values()]),
       // The script gate (explain/script.ts): a declared meta.answer stated by some step (where, reported), and how many
-      // check questions the page asks. Undeclared parts are reported as missing.
+      // reader questions the page asks. Undeclared parts are reported as missing.
       script,
       // Sentences with scope words, the declared claim (meta.claims) backing each, and the code names
       // reaching the steps' words (explain/claims.ts). Reported, not gated; see claimProblems below.
@@ -860,9 +894,10 @@ export async function checkProject(project: Project, out: string): Promise<Recor
             }),
           }
         : {}),
-      // Each step's resting frame as text, so an author can read it without a browser.
+      // Each step's resting frame as text, so an author can read it without a browser: the drawing
+      // describe gives (restingDrawing), without the heading that names the step.
       restingFrames: Object.fromEntries(
-        v.trace.steps.map((step) => [step.step, restingText.get(restingFrame(step)) ?? '']),
+        v.trace.steps.map((step) => [step.step, restingText.get(step.step) ?? '']),
       ),
     });
   }
@@ -870,10 +905,18 @@ export async function checkProject(project: Project, out: string): Promise<Recor
   const claimProblems = await declaredClaimProblems(
     checkClaimsMeta(project.Scene.meta),
     scenarios.flatMap((v) => v.claims.stated),
+    process.cwd(),
+    dirname(project.file),
   );
   assert.deepEqual(claimProblems, [], `Claims: ${claimProblems.join('; ')}`);
   const report = {
     scene: sceneSlug(project),
+    // The model test beside the scene (model.test.ts), run with node:test: how many tests ran and passed, and any skipped.
+    ...(model ? { model: { file: model.file, tests: model.tests, passed: model.passed, ...(model.skipped ? { skipped: model.skipped } : {}) } } : {}),
+    // The script's answer and its reader questions' answers that answers.ts computes from the model, each equal to script.md's.
+    ...(answers ? { answers: { file: answers.file, compared: answers.compared } } : {}),
+    // The files the script's Checked against line names in backticks, each one in the explainer's folder.
+    ...(checkedAgainst?.files.length ? { checkedAgainst: checkedAgainst.files } : {}),
     scenarios,
     diagrams: Object.keys(project.store).length,
     replayedEdits: project.edits,
@@ -887,9 +930,10 @@ export async function checkProject(project: Project, out: string): Promise<Recor
 
 /**
  * What is wrong with a scene's declared claims: one no scenario states, or one whose test file is not
- * there or holds no test whose name contains the given part.
+ * there or holds no test whose name contains the given part. A test file is looked for in the scene's
+ * `folder` first (`model.test.ts: …`), then from `directory`, where the command was run.
  */
-export async function declaredClaimProblems(claims: readonly { says: string; test?: string; shown?: true }[], stated: readonly string[], directory = process.cwd()): Promise<string[]> {
+export async function declaredClaimProblems(claims: readonly { says: string; test?: string; shown?: true }[], stated: readonly string[], directory = process.cwd(), folder?: string): Promise<string[]> {
   const problems: string[] = [];
   const files = new Map<string, string[] | null>();
   for (const c of claims) {
@@ -899,7 +943,9 @@ export async function declaredClaimProblems(claims: readonly { says: string; tes
       file = c.test.slice(0, at),
       name = c.test.slice(at + 2);
     if (!files.has(file)) {
-      const source = await readFile(resolve(directory, file), 'utf8').catch(() => null);
+      const source =
+        (folder === undefined ? null : await readFile(resolve(folder, file), 'utf8').catch(() => null)) ??
+        (await readFile(resolve(directory, file), 'utf8').catch(() => null));
       files.set(file, source === null ? null : testNames(source));
     }
     const names = files.get(file);

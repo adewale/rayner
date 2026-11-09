@@ -1,6 +1,6 @@
-import type { ExplainerClass } from '../explain/settings.ts';
-import type { Palette } from '../integrations/agentic-mermaid/snapshot.ts';
-import { parseColor } from '../src/color.ts';
+import type { ExplainerClass } from '../explain/index.ts';
+import type { Palette } from '../src/index.ts';
+import { contrastRatio, isHex } from '../src/internal.ts';
 
 type Cues = NonNullable<NonNullable<ExplainerClass['meta']>['player']>;
 const themes = {
@@ -22,19 +22,8 @@ const themes = {
   },
 };
 // Opaque hex only: alpha and CSS syntax must never enter the hashed stylesheet.
-const color = (s: unknown): s is string =>
-  typeof s === 'string' && /^#(?:[a-f0-9]{3}|[a-f0-9]{6})$/i.test(s);
-const contrast = (a: string, b: string) => {
-  const lum = (s: string) => {
-    const c = parseColor(s)!.map((v) =>
-      (v /= 255) <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4,
-    );
-    return c[0]! * 0.2126 + c[1]! * 0.7152 + c[2]! * 0.0722;
-  };
-  const x = lum(a),
-    y = lum(b);
-  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
-};
+const color = (s: unknown): s is string => isHex(s);
+const contrast = contrastRatio;
 /** Complete, resettable properties: a scenario without a valid cue clears the preceding scenario's cue. */
 export function playerProperties(
   cues: Cues = {},

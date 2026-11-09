@@ -7,7 +7,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
 import { Group, Rectangle, Scene, Text } from '../src/index.ts';
-import { stage } from '../explain/index.ts';
+import { stage, view } from '../explain/index.ts';
+import { card as cardPicture, code as codePicture } from '../explain/drawing.ts';
+import type { View } from '../explain/index.ts';
 import { explainer, labelsSaying, restingBox, wordsOutsideCards } from './lib/scenes.ts';
 import type { Box } from '../src/index.ts';
 import { clampZoom, ZOOM_MAX } from '../app/embed-zoom.ts';
@@ -378,19 +380,32 @@ test('a step records what it emphasised with the helpers, and only that step', a
   class Marks extends Scene {
     override async construct() {
       const s = stage(this, { heading: false });
+      // The card's values are the model; the lit row and the lit line are how the step shows it.
+      this.state.first = 1;
+      this.shown.lit = null;
+      this.shown.focus = null;
+      const sync = (v: View) => this.play(v.sync());
       await this.step('card');
-      const card = await s.card([['first', 1], ['second', 2], ['third', 3]], { at: [4, -2] });
-      await card.mark('third');
+      this.shown.lit = 'third';
+      const card = view(this, (st, sh) =>
+        cardPicture(s, [['first', st.first], ['second', 2], ['third', 3]], { at: [4, -2], lit: sh.lit == null ? null : { row: sh.lit as string }, key: 'card' }), { place: false });
+      await s.enter(card);
       await this.step('code');
-      const code = await s.code(['let a = 1;', 'let b = 2;'], { at: [-4, 2] });
-      await code.focus(1);
+      this.shown.focus = 1;
+      const code = view(this, (_st, sh) =>
+        codePicture(s, ['let a = 1;', 'let b = 2;'], { at: [-4, 2], lit: sh.focus == null ? null : { lines: sh.focus as number }, key: 'code' }), { place: false });
+      await s.enter(code);
       await this.step('quiet');
-      await card.set({ first: 10 });
+      this.state.first = 10;
+      await sync(card);
       await this.step('unlit');
-      await card.mark('first');
-      await card.mark(null);
+      this.shown.lit = 'first';
+      await sync(card);
+      this.shown.lit = null;
+      await sync(card);
       await this.step('moved');
-      await code.focus(0);
+      this.shown.focus = 0;
+      await sync(code);
     }
   }
   const layouts = await stepLayouts(Marks);

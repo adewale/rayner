@@ -6,16 +6,16 @@ model at run time, with no build step, and cannot disagree with it.
 
 Everything is an ordinary mobject. Axes are Lines, Polygons and Text in Groups. A plot is one
 VMobject made of cubic Béziers, and bars are Rectangles. So `Create` draws a chart in,
-`Transform` morphs one set of bars into the next, and seeking lands on the same frame as a full run.
+`Transform` morphs one set of bars into the next, and seeking reaches the same frame as a full run.
 
 ## Example: daylight hours from the seasons model
 
 The seasons explainer computes daylight with `sunlight(latitude, declination)` in
-`scenes/explainers/lib/models.ts`. Here the scene plots that same function:
+`scenes/explainers/seasons/model.ts`. Here the scene plots that same function:
 
 ```ts
-import { Scene, Axes, Create, Transform, FadeIn } from '../../../src/index.ts';
-import { sunlight, daylightYear } from '../lib/models.ts';
+import { Scene, Axes, Create, Transform, FadeIn } from 'rayner';
+import { sunlight, daylightYear } from './model.ts';
 
 const MONTHS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 // Declination: month m (0 = January) to degrees
@@ -23,7 +23,7 @@ const declination = (m: number) => 23.44 * Math.sin((2 * Math.PI * (m - 2)) / 12
 // Bar i is centered at x = i + 0.5, so the curve reads month x - 0.5 to line up with it
 const daylightAt = (lat: number) => (x: number) => sunlight(lat, declination(x - 0.5)).daylight;
 
-class Daylight extends Scene {
+class Daylight extends Scene<{}, {}> {
   async construct() {
     const axes = new Axes({
       xRange: [0, 12, 1], yRange: [0, 24, 6], width: 10, height: 5, yLabel: 'hours',
@@ -46,38 +46,39 @@ class Daylight extends Scene {
 ## NumberLine
 
 ```ts
-new NumberLine({ range: [min, max, step], length = 8, includeTicks = true, tickSize = 0.1,
-                 includeNumbers = false, numbersToInclude, numbersToExclude, labelFontSize = 0.24,
-                 labelColor, decimals, labelDirection, labelBuff = 0.12,
-                 includeTip = false, tipLength, tipWidth, rotation = 0, ...style })
+new NumberLine({ range: [min, max, step], length = 8, includeNumbers = false, labelFontSize = 0.24,
+                 labelColor, decimals, labelBuff = 0.12, tipLength, tipWidth, rotation = 0, ...style })
 ```
 
-- The line runs from `min` to `max` and is centered on the origin. Ticks fall at `min + i·step`, and
-  `tickSize` is the half-length (each tick reaches that far to either side). Labels default to
-  every tick, with as many decimal places as `step` has. When the line is rotated, labels stay
-  upright on the `labelDirection` side.
-- `n2p(x)` maps a number to a point and `p2n(p)` maps a point back, projected onto the line.
-  `unitSize()` gives scene units per unit. All three read the line's **current** endpoints, so they
-  stay right after `shift`, `scale` or `rotate`.
+- The line runs from `min` to `max` and is centered on the origin. Ticks fall at `min + i·step`,
+  each reaching 0.1 to either side. `includeNumbers` labels every tick, with as many decimal places
+  as `step` has. When the line is rotated, labels stay upright, clockwise of the line's direction
+  (below a horizontal line).
+- `n2p(x)` maps a number to a point. It reads the line's **current** endpoints, so it stays right
+  after `shift`, `scale` or `rotate`.
 - Parts are reached by role: `line`, `tip` (or null), `ticks` and `numbers` (Groups). The children
   are `[line, tip?, ticks, numbers]`, read by index, so a copy's parts are its own.
+- `range` is an `AxisRange`, `[min, max, step?]`, the step 1 when left out.
 
 ## Axes
 
 ```ts
 new Axes({ xRange = [0, 10, 1], yRange = [0, 5, 1], width = 8, height = 4.5,
-           axisStyle, xAxisStyle, yAxisStyle, tips = false, xLabel, yLabel, axisLabelFontSize })
+           axisStyle, yAxisStyle, tips = false, xLabel, yLabel, axisLabelFontSize })
 ```
 
 - The two axes are NumberLines (`axes.xAxis`, `axes.yAxis`), and their lines span exactly
   `width × height` about the origin. `axisStyle` takes any NumberLine option except range, length
-  and rotation. `xAxisStyle` and `yAxisStyle` override it for one axis.
+  and rotation (its type is `AxisStyle`), and `yAxisStyle` overrides it for the y axis. The y
+  axis labels its ticks on its left, and `tips` draws a filled tip past each axis's `max`
+  (`tipLength` and `tipWidth` size it).
+  `axes.xLabel` and `axes.yLabel` are the axis labels' `Text`s, or null.
 - The axes cross at (0, 0) when zero is in both ranges. Otherwise they cross at the nearest end of
   the range, so with an x range of 1..12 the y axis stands at x = 1.
 - A label at the crossing is left out on one axis when the other axis runs through it, as in
   manim. When the axes meet at a corner, both zeros stay.
-- `c2p(x, y)` maps data coordinates to a point. `p2c(p)` is its exact inverse, even after rotation.
-  `originPoint()` is `c2p(0, 0)`, which lies off the drawn axes when zero is outside a range.
+- `c2p(x, y)` maps data coordinates to a point, after any shift, scale or rotation of the axes.
+  `c2p(0, 0)` lies off the drawn axes when zero is outside a range.
 
 Graph builders return new mobjects. They are placed where the axes are when you call them, so
 move the axes first, then build graphs and add them yourself.
@@ -87,11 +88,11 @@ move the axes first, then build graphs and add them yourself.
 | `plot(fn, { xRange?, samples = 64, color, strokeWidth, ...style })` | `VMobject` through `c2p(x, fn(x))` at every sample, left to right |
 | `lineGraph(points, { color, ...style })` | `VMobject`: a polyline through `[x, y]` pairs, in the order given |
 | `bar(values, { x?, width?, gap = 0.4, colors, labels?, ...style })` | `Group`: one Rectangle per value, then the label Texts |
-| `dot(x, y, dotOpts)` | `Dot` at `c2p(x, y)` |
+| `dot(x, y, options)` | `Dot` at `c2p(x, y)`, with `DotOptions` |
 | `verticalLine(x, { from?, to? })` / `horizontalLine(y, { from?, to? })` | `Line` guide; defaults to the full range of the other axis |
 | `areaUnder(fn, [a, b], { samples, color, fillOpacity })` | closed `VMobject` between the curve and y = 0 |
 
-A colour left out is the scene's for that role ([default colours](ENGINE-FUNDAMENTALS.md#geometry-and-paint)): lines, ticks and labels without a `stroke` take its ink, plotted data without a `color` its accent, and guide lines its soft colour. On a stage these are the palette's, so an axis drawn without a stroke reads on any paper.
+A colour left out is the scene's for that role, so on a stage an axis drawn without a stroke reads on any paper ([default colours](ENGINE-FUNDAMENTALS.md#geometry-and-paint) says which part takes which).
 
 ### Plot
 

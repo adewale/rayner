@@ -1,23 +1,30 @@
 // Node-only preparation. Optional dependencies are needed only to refresh a
 // lettering snapshot; check/build from a fresh snapshot need none of them.
+import { sfntBase64 } from './woff2.ts';
 import { readFile, writeFile, mkdir, mkdtemp, rename, rm } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { execFileSync } from 'node:child_process';
 import { resolve, join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { createHash } from 'node:crypto';
 import { loadFont } from '../../vendor/glyph.js';
-import { SANS, MONO, FALLBACK } from '../../src/font-data.ts';
-import { bindLettering, cutFace, defaultCutFace, letteringOf, packLettering, unpackLettering, numericAlphabet, requestCuts, runKey, scaledRun, scriptCuts, scriptFaceNames, snapshotProvider, usesLettering } from '../../src/lettering-outlines.ts';
-import type { LetteringCut, PackedLetteringSnapshot, StoredLetteringSnapshot, LetteringSnapshot, LetteringProvider, LetteringRequest } from '../../src/lettering-outlines.ts';
-import type { ExplainerClass } from '../../explain/settings.ts';
+import { SANS, MONO, FALLBACK, embeddedFaces, canonicalJson, LETTERING_VERSION, pinnedFor, bindLettering, cutFace, defaultCutFace, letteringOf, packLettering, unpackLettering, numericAlphabet, requestCuts, runKey, scaledRun, scriptCuts, scriptFaceNames, snapshotProvider, usesLettering } from '../../src/internal.ts';
+import type { LetteringCut, PackedLetteringSnapshot, StoredLetteringSnapshot, LetteringSnapshot, LetteringProvider } from '../../src/internal.ts';
+import type { LetteringRequest } from '../../src/index.ts';
+import type { ExplainerClass } from '../../explain/index.ts';
 import type { Run } from '../../vendor/glyph.js';
 import { licenceOf, validateLetteringSnapshot } from './lettering-validation.ts';
+import { GLYPH, LIB_ROOT, ROOT } from './roots.ts';
+import { byCodeUnit, sha256 } from './hash.ts';
 
-const root = fileURLToPath(new URL('../../', import.meta.url));
-const hash = (s: string | Uint8Array) => createHash('sha256').update(s).digest('hex');
-const json = (x: unknown) => JSON.stringify(x, null, 2) + '\n';
+// The capture's files ship with the command (ROOT); the shaper and fallback faces it replays with, with the library.
+const root = ROOT;
+const hash = sha256;
+/**
+ * A lettering request as a measurement cache key holds it: its keys in canonical order
+ * (canonicalJson), so one request is one key whatever order its keys were written in, as the pins
+ * compare it (pinnedFor). The rest of a key keeps the order it is stored in.
+ */
+export const canonicalRequest = <T>(request: T): T => JSON.parse(canonicalJson(request)) as T;
 /**
  * The faces a scene may ask for, each cut as a file in the font cache that
  * tools/lettering-outline-fonts.sh fills, with the file holding its licence
@@ -67,23 +74,23 @@ const offPageWork = new AsyncLocalStorage<true>();
 export const offPage = <T>(work: () => Promise<T>): Promise<T> => offPageWork.run(true, work);
 const isOffPage = (): boolean => offPageWork.getStore() === true;
 export function validateLettering(request: LetteringRequest): void {
-  if (!request || typeof request !== 'object' || Array.isArray(request)) throw new Error('lettering must be an object');
-  for (const k of Object.keys(request)) if (!['faces', 'scripts', 'math', 'styles'].includes(k)) throw new Error(`Unknown lettering option: ${k}`);
+  if (!request || typeof request !== 'object' || Array.isArray(request)) throw new TypeError('meta.lettering: it must be an object');
+  for (const k of Object.keys(request)) if (!['faces', 'scripts', 'math', 'styles'].includes(k)) throw new TypeError(`meta.lettering: ${JSON.stringify(k)} is not an option it takes; it takes faces, scripts, math and styles`);
   if (request.styles !== undefined) {
-    if (!Array.isArray(request.styles) || !request.styles.length) throw new Error("lettering.styles must be a non-empty array of 'bold' and 'italic'");
-    for (const style of request.styles) if (!STYLES.includes(style)) throw new Error(`Unknown lettering style: ${style}; use 'bold' or 'italic'`);
-    if (new Set(request.styles).size !== request.styles.length) throw new Error('lettering.styles names a style twice');
+    if (!Array.isArray(request.styles) || !request.styles.length) throw new TypeError("meta.lettering: styles must be a non-empty list of 'bold' and 'italic'");
+    for (const style of request.styles) if (!STYLES.includes(style)) throw new RangeError(`meta.lettering: ${JSON.stringify(style)} is not a style; use 'bold' or 'italic'`);
+    if (new Set(request.styles).size !== request.styles.length) throw new Error('meta.lettering: styles names a style twice; name each once');
   }
-  if (request.math !== undefined && typeof request.math !== 'boolean') throw new Error('lettering.math must be boolean');
-  if (request.faces && (typeof request.faces !== 'object' || Array.isArray(request.faces))) throw new Error('lettering.faces must be an object');
+  if (request.math !== undefined && typeof request.math !== 'boolean') throw new TypeError('meta.lettering: math must be true or false');
+  if (request.faces && (typeof request.faces !== 'object' || Array.isArray(request.faces))) throw new TypeError('meta.lettering: faces must be an object, such as { sans: \'eb-garamond\' }');
   for (const [key, name] of Object.entries(request.faces ?? {})) {
-    if (!['sans', 'mono'].includes(key) || !Object.hasOwn(registry, name)) throw new Error(`Unknown lettering face: ${key}=${name}`);
+    if (!['sans', 'mono'].includes(key) || !Object.hasOwn(registry, name)) throw new RangeError(`meta.lettering: faces.${key} = ${JSON.stringify(name)} is not a face it can request; LETTERING.md lists the registered faces, for sans and mono`);
   }
-  if (request.scripts !== undefined && !Array.isArray(request.scripts)) throw new Error('lettering.scripts must be an array');
+  if (request.scripts !== undefined && !Array.isArray(request.scripts)) throw new TypeError('meta.lettering: scripts must be a list');
   for (const script of request.scripts ?? []) {
-    if (typeof script !== 'string' || !/^[A-Z][a-z]{3}$/.test(script)) throw new Error(`Invalid ISO 15924 script: ${script}`);
-    try { new RegExp(`\\p{Script=${script}}`, 'u'); } catch { throw new Error(`Unknown script: ${script}`); }
-    if (!scriptFaces[script] && !request.faces?.sans) throw new Error(`Script ${script} requires a supported face in lettering.faces.sans`);
+    if (typeof script !== 'string' || !/^[A-Z][a-z]{3}$/.test(script)) throw new TypeError(`meta.lettering: ${JSON.stringify(script)} is not an ISO 15924 script code, such as Grek`);
+    try { new RegExp(`\\p{Script=${script}}`, 'u'); } catch { throw new RangeError(`meta.lettering: ${JSON.stringify(script)} is not a script Unicode knows`); }
+    if (!scriptFaces[script] && !request.faces?.sans) throw new RangeError(`meta.lettering: the script ${script} has no registered face; ask for a face that draws it in faces.sans`);
   }
 }
 function python(request: object): unknown {
@@ -93,8 +100,18 @@ function python(request: object): unknown {
     }));
   } catch (error) {
     const stderr = (error as { stderr?: string }).stderr;
-    throw new Error(`Lettering needs fonttools, brotli, uharfbuzz and python-bidi when refreshing snapshots. ${stderr ?? String(error)}`);
+    throw new Error(`meta.lettering: refreshing its snapshot needs fonttools, brotli, uharfbuzz and python-bidi in Python; ${stderr ?? String(error)}`);
   }
+}
+/**
+ * A record with its keys in code-unit order: how a snapshot stores its runs and font inputs, so the
+ * file and the hashes taken over it are the same on every machine, whatever its locale.
+ */
+export function inKeyOrder<T>(record: Record<string, T>): Record<string, T> {
+  const out: Record<string, T> = {};
+  for (const [k, v] of Object.entries(record).sort(([a], [b]) => byCodeUnit(a, b)))
+    Object.defineProperty(out, k, { value: v, enumerable: true, writable: true, configurable: true });
+  return out;
 }
 export interface PreparedLettering {
   Scene: ExplainerClass;
@@ -102,15 +119,17 @@ export interface PreparedLettering {
   readonly measurementHash: string;
   finish(): Promise<void>;
 }
-export async function prepareLettering(Source: ExplainerClass, file: string, sourceHash: string, capture: boolean, persist = true): Promise<PreparedLettering | undefined> {
+export async function prepareLettering(Source: ExplainerClass, file: string, capture: boolean, persist = true): Promise<PreparedLettering | undefined> {
   const request = letteringOf(Source);
   if (!request) return undefined;
   validateLettering(request);
   if (!Object.keys(request.faces ?? {}).length && !request.scripts?.length && !request.math && !request.styles?.length) return undefined;
-  // Default faces and the core shaper are inputs too: requested runs may contain
-  // glyphs from the existing fallback chain, and Text determines the strings
-  // handed to the shaper (for example after tab expansion).
-  const builderHash = hash((await Promise.all(['src/text-context.ts', 'src/lettering-outlines.ts', 'src/math.ts', 'src/italic.ts', 'src/font-data.ts', 'src/fonts.ts', 'src/text.ts', 'tools/lib/lettering.ts', 'tools/lib/lettering-validation.ts', 'tools/lettering.py', 'tools/lettering-requirements.txt', 'vendor/glyph.js', 'vendor/glyph-math.js'].map((name) => readFile(join(root, name), 'utf8')))).join('\n'));
+  // What decides the outlines: the shaper and its pinned requirements, the vendored glyph and math
+  // shapers, and the fallback faces' bytes (requested runs may contain their glyphs). A snapshot
+  // captured by any other tool is stale. Changes to Rayner's own code are checked by behaviour, not
+  // here: a different string asks for a run the snapshot lacks, and CI's capture tests compare
+  // fresh runs with stored ones.
+  const builderHash = hash((await Promise.all(([[root, 'tools/lettering.py'], [root, 'tools/lettering-requirements.txt'], [GLYPH], [root, 'vendor/glyph-math.js'], [LIB_ROOT, 'src/font-data.ts']] as const).map((path) => readFile(join(...path), 'utf8')))).join('\n'));
   const path = file.replace(/\.[^.]+$/, '') + '.lettering.json';
   if (!capture) {
     const raw: unknown = await readFile(path, 'utf8').then(JSON.parse).catch((e: NodeJS.ErrnoException) => {
@@ -122,15 +141,13 @@ export async function prepareLettering(Source: ExplainerClass, file: string, sou
       try { snapshot = unpackLettering(raw as LetteringSnapshot); }
       catch (e) { throw new Error(`${(e as Error).message.replace(/; run rayner snapshots.*$/, '')}; run rayner snapshots ${file}`); }
     }
-    if (!snapshot || snapshot.version !== 1 || snapshot.sourceHash !== sourceHash || snapshot.builderHash !== builderHash || json(snapshot.request) !== json(request))
-      throw new Error('Missing or stale lettering snapshot; run rayner snapshots ' + file);
+    if (!snapshot || snapshot.builderHash !== builderHash || !pinnedFor(snapshot, request, true))
+      throw new Error(`scene.lettering.json: it is missing or stale; run rayner snapshots ${file}`);
     validateLetteringSnapshot(snapshot);
-    if (!snapshot.payloadHash || snapshot.payloadHash !== hash(JSON.stringify({ ...snapshot, payloadHash: undefined })))
-      throw new Error('Invalid lettering snapshot payload checksum; run rayner snapshots ' + file);
     return { Scene: bindLettering(Source, snapshot), snapshot,
       get measurementHash() {
-        if (!snapshot.fontInputs) throw new Error('Missing natural diagram font identity; run rayner snapshots ' + file);
-        return hash(JSON.stringify([snapshot.builderHash, snapshot.shaper, snapshot.request, snapshot.fontInputs]));
+        if (!snapshot.fontInputs) throw new Error(`scene.lettering.json: it has no natural diagram font identity; run rayner snapshots ${file}`);
+        return hash(JSON.stringify([snapshot.builderHash, snapshot.shaper, canonicalRequest(snapshot.request), snapshot.fontInputs]));
       }, async finish() {} };
   }
   const folder = resolve(process.env.RAYNER_LETTERING_FONTS ?? join(root, 'out/lettering-fonts'));
@@ -141,15 +158,15 @@ export async function prepareLettering(Source: ExplainerClass, file: string, sou
     if (fonts.has(name)) return;
     const [base, cut = ''] = name.split('/') as [string, LetteringCut?];
     const info = registry[base];
-    if (!info) throw new Error(`Unknown lettering face: ${name}`);
+    if (!info) throw new RangeError(`meta.lettering: ${JSON.stringify(name)} is not a registered face`);
     const file = info.cuts[cut];
-    if (!file) throw new Error(`Lettering face ${base} has no ${cut} cut`);
+    if (!file) throw new RangeError(`meta.lettering: the face ${base} has no ${cut} cut; ask for another face or drop the style`);
     let bytes: Buffer, license: string;
     try {
       bytes = readFileSync(join(folder, file));
       license = readFileSync(info.license.startsWith('repo:') ? join(root, info.license.slice(5)) : join(folder, info.license), 'utf8');
-    } catch (e) { throw new Error(`Install requested lettering fonts with tools/lettering-outline-fonts.sh: ${String(e)}`); }
-    if (!licenceOf(license)) throw new Error(`Lettering face ${base} is not under the OFL or Apache-2.0; only those may be embedded`);
+    } catch (e) { throw new Error(`meta.lettering: the fonts it asks for are not installed; install them with tools/lettering-outline-fonts.sh (${String(e)})`); }
+    if (!licenceOf(license)) throw new Error(`meta.lettering: the face ${base} is not under the OFL or Apache-2.0, and only those may be embedded; ask for another face`);
     fonts.set(name, { file: join(folder, file), license, hash: hash(bytes) });
   };
   for (const name of [...Object.values(request.faces ?? {}), ...(request.scripts ?? []).flatMap((s) => scriptFaces[s] ?? [])]) addFace(name);
@@ -161,7 +178,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, sou
     const scripts = (request.scripts ?? []).flatMap((s) => scriptFaces[s] ?? []);
     if (!cut) return [...new Set([request.faces?.[font] ?? font, ...scripts, font, 'sans', ...FALLBACK.map(([name]) => name)])];
     const primary = request.faces?.[font] ?? defaultCutFace[font];
-    if (!hasCut(primary, cut)) throw new Error(`Lettering face ${primary} has no ${cut} cut; ask for another face or drop the style`);
+    if (!hasCut(primary, cut)) throw new RangeError(`meta.lettering: the face ${primary} has no ${cut} cut; ask for another face or drop the style`);
     const cuts = scripts.flatMap((name) => {
       const found = scriptCuts(cut).find((c) => hasCut(name, c));
       return found === undefined ? [] : [cutFace(name, found)];
@@ -200,21 +217,18 @@ export async function prepareLettering(Source: ExplainerClass, file: string, sou
     }
     fonts.set(name!, { file, license: '', hash: digest });
   }
-  const coverage = await Promise.all([SANS, MONO, ...FALLBACK.map(([, data]) => data)].map(async (data) => {
-    const result = await loadFont(Buffer.from(data, 'base64'));
-    if (result.tag !== 'Ok') throw new Error('Cannot decode existing font coverage');
-    return result.value;
-  }));
-  const snapshot: LetteringSnapshot = { version: 1, sourceHash, builderHash, request, runs: {}, faces: {}, shaper: 'uharfbuzz+python-bidi/fonttools; glyph-math@6398654' };
+  const embedded = await embeddedFaces();
+  const coverage = [embedded.sans, embedded.mono, ...embedded.fallback];
+  const snapshot: LetteringSnapshot = { version: LETTERING_VERSION, builderHash, request, runs: {}, faces: {}, shaper: 'uharfbuzz+python-bidi/fonttools; glyph-math@6398654' };
   const used = new Set<number>();
   const usedMath = new Set<number>();
   let mathFont: Awaited<ReturnType<typeof loadFont>> | undefined;
   if (request.math) {
     const file = process.env.RAYNER_MATH_FONT ?? '/usr/share/texmf/fonts/opentype/public/lm-math/latinmodern-math.otf';
-    const bytes = await readFile(file).catch(() => { throw new Error('Set RAYNER_MATH_FONT to Latin Modern Math 1.959 (OpenType MATH font)'); });
-    if (hash(bytes) !== '6075562b771f8b82f0c179e363389684f2dd09de30038269e2628e504bd7be0f') throw new Error('Latin Modern Math checksum mismatch');
+    const bytes = await readFile(file).catch(() => { throw new Error('meta.lettering: math needs Latin Modern Math; set RAYNER_MATH_FONT to Latin Modern Math 1.959, an OpenType MATH font'); });
+    if (hash(bytes) !== '6075562b771f8b82f0c179e363389684f2dd09de30038269e2628e504bd7be0f') throw new Error('meta.lettering: RAYNER_MATH_FONT is not Latin Modern Math 1.959, whose SHA-256 is pinned; set it to that release');
     mathFont = await loadFont(bytes);
-    if (mathFont.tag !== 'Ok') throw new Error('Cannot load Latin Modern Math: ' + JSON.stringify(mathFont.error));
+    if (mathFont.tag !== 'Ok') throw new Error('meta.lettering: Latin Modern Math cannot be loaded: ' + JSON.stringify(mathFont.error));
     fonts.set('latin-modern-math', { file, hash: hash(bytes), license: await readFile(join(root, 'vendor/licenses/LatinModernMath-GUST.txt'), 'utf8') });
   }
   const { typeset } = request.math ? await import('../../vendor/glyph-math.js') : { typeset: undefined };
@@ -227,7 +241,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, sou
     request,
     shape(font, text, size, fallback, cut = '') {
       if (replay) return replay.shape(font, text, size, fallback, cut);
-      if (cut && !requestCuts(request).includes(cut)) throw new Error(`Lettering cut ${cut} was not requested in meta.lettering.styles`);
+      if (cut && !requestCuts(request).includes(cut)) throw new Error(`new ItalicText(): the ${cut} cut is not requested; add it to meta.lettering.styles`);
       if (!cut && !request.faces?.[font] && !request.scripts?.length) return fallback(text, size);
       const key = runKey(cutFace(font, cut), text);
       let r = snapshot.runs[key];
@@ -237,7 +251,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, sou
           // Existing coverage remains free, including the existing numeral faces.
           if (!coverage.some((f) => f.glyphOf(ch.codePointAt(0)!) !== 0) && !/\p{Cc}|\p{Cf}/u.test(ch) &&
             !(request.scripts ?? []).some((s) => new RegExp(`\\p{Script_Extensions=${s}}`, 'u').test(ch)))
-            throw new Error(`Script not requested in meta.lettering.scripts: ${ch} (U+${ch.codePointAt(0)!.toString(16).toUpperCase()})`);
+            throw new Error(`new Text(): ${ch} (U+${ch.codePointAt(0)!.toString(16).toUpperCase()}) is in a script meta.lettering.scripts does not ask for; ask for its script`);
           used.add(ch.codePointAt(0)!);
         }
         if (!usesLettering(request, font, text, cut)) return fallback(text, size);
@@ -262,13 +276,13 @@ export async function prepareLettering(Source: ExplainerClass, file: string, sou
     },
     math(text, size, display) {
       if (replay) return replay.math(text, size, display);
-      if (!request.math || !typeset || mathFont?.tag !== 'Ok') throw new Error('MathTex requires meta.lettering.math: true');
+      if (!request.math || !typeset || mathFont?.tag !== 'Ok') throw new Error('new MathTex(): it needs meta.lettering.math: true');
       const key = runKey('math', text, display);
       seen(key);
       let run = snapshot.runs[key];
       if (!run) {
         const result = typeset(mathFont.value, 'latin-modern-math', text, { size: 1, display });
-        if (result.tag !== 'Ok') throw new Error('Math: ' + JSON.stringify(result.error));
+        if (result.tag !== 'Ok') throw new Error(`new MathTex(): glyph cannot typeset ${JSON.stringify(text)}: ${JSON.stringify(result.error)}`);
         const r = result.value;
         run = { width: r.width, ascent: r.ascent, descent: r.descent, s: r.s,
           glyphs: r.glyphs.map((g) => {
@@ -291,8 +305,8 @@ export async function prepareLettering(Source: ExplainerClass, file: string, sou
       // probes may draw a cut that the scene has not visited yet.
       for (const family of ['sans', 'mono'] as const)
         for (const cut of ['', ...requestCuts(request)] as LetteringCut[]) chainOf(family, cut);
-      snapshot.fontInputs = Object.fromEntries([...fonts].sort(([a], [b]) => a.localeCompare(b)).map(([name, face]) => [name, face.hash]));
-      return hash(JSON.stringify([snapshot.builderHash, snapshot.shaper, snapshot.request, snapshot.fontInputs]));
+      snapshot.fontInputs = inKeyOrder(Object.fromEntries([...fonts].map(([name, face]) => [name, face.hash])));
+      return hash(JSON.stringify([snapshot.builderHash, snapshot.shaper, canonicalRequest(snapshot.request), snapshot.fontInputs]));
     },
     async finish() {
       for (const [name, face] of fonts) if (face.license) {
@@ -311,11 +325,10 @@ export async function prepareLettering(Source: ExplainerClass, file: string, sou
         const data = python({ command: 'subset', font: face.file, codepoints: [...points].sort((a, b) => a - b), gids: name === 'latin-modern-math' ? [...usedMath] : [], features: subsetFeatures(name) }) as string;
         snapshot.faces[name] = { hash: face.hash, data, license: face.license };
       }
-      // Stable run order, regardless of which case first visits a string.
-      snapshot.runs = Object.fromEntries(Object.entries(snapshot.runs).sort(([a], [b]) => a.localeCompare(b)));
+      // Stable run order, regardless of which case first visits a string or the machine's locale.
+      snapshot.runs = inKeyOrder(snapshot.runs);
       const off = Object.keys(snapshot.runs).filter((key) => offPageOnly.has(key) && !onPage.has(key));
       if (off.length) snapshot.offPage = off;
-      snapshot.payloadHash = hash(JSON.stringify({ ...snapshot, payloadHash: undefined }));
       replay = snapshotProvider(snapshot);
       if (persist) {
         await mkdir(dirname(path), { recursive: true });
@@ -367,8 +380,9 @@ export async function pageSnapshot(snapshot: LetteringSnapshot): Promise<PackedL
   const runs = Object.fromEntries(Object.entries(snapshot.runs).filter(([key]) => !off.has(key)));
   await snapshotProvider({ ...snapshot, runs, faces }).prepare!();
   return packLettering({
-    version: 1, sourceHash: '', builderHash: '', request: snapshot.request, runs, shaper: '',
-    faces: Object.fromEntries([...used].sort().map((name) => [name, { hash: '', data: snapshot.faces[name]!.data, license: '' }])),
+    version: LETTERING_VERSION, builderHash: '', request: snapshot.request, runs, shaper: '',
+    // As SFNT, which the page's shaper reads without a Brotli decoder (woff2.ts).
+    faces: Object.fromEntries([...used].sort().map((name) => [name, { hash: '', data: sfntBase64(snapshot.faces[name]!.data), license: '' }])),
   });
 }
 /** The face licences a lettered page adds to its licence block: each distinct notice once. */

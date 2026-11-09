@@ -5,18 +5,12 @@
 // counterexample shrinks to a smaller scene. Everything is deterministic in
 // its seed or tape.
 import { fc } from './pbt.ts';
-import {
-  Scene, Group, Rectangle, Circle, Square, Line, Polygon, Arc, Dot, Text, Labeled,
-  Transform, FadeIn, FadeOut, Create, Write, MoveAlongPath, LaggedStart, AnimationGroup,
-  linear, smooth, rushInto, thereAndBack,
-} from '../../src/index.ts';
+import { Scene, MoveAlongPath, Group, Rectangle, Circle, Line, Polygon, Arc, Dot, Text, Labeled, Transform, FadeIn, FadeOut, Create, LaggedStart, AnimationGroup, linear, smooth, rushInto, thereAndBack } from '../../src/index.ts';
 import { Indicate, Flash } from './transient.ts';
-import type { Animation, AnimateBuilder, Mobject, Playable, SceneClass, Style, Vec } from '../../src/index.ts';
+import type { AnimateBuilder, Mobject, Playable, SceneClass, Style, Vec } from '../../src/index.ts';
 // Manim's values, which the package no longer exports.
 const DOWN: Vec = [0, -1];
-const LEFT: Vec = [-1, 0];
 const RIGHT: Vec = [1, 0];
-const UP: Vec = [0, 1];
 
 /** A seeded uniform draw in [lo, hi), with integer, pick and coin-flip helpers. */
 export interface Rng {
@@ -75,7 +69,7 @@ export function randomShape(r: Rng, depth = 0): Mobject {
   switch (r.int(0, depth > 1 ? 7 : 9)) {
     case 0: return new Rectangle({ width: r(0.1, 4), height: r(0.1, 3), cornerRadius: r.bool() ? r(0, 0.5) : 0, ...s });
     case 1: return new Circle({ radius: r(0.05, 2), ...s });
-    case 2: return new Square({ side: r(0.1, 2), ...s });
+    case 2: { const side = r(0.1, 2); return new Rectangle({ width: side, height: side, ...s }); }
     case 3: return new Line([r(-6, 6), r(-3, 3)], [r(-6, 6), r(-3, 3)], s);
     case 4: return new Polygon(Array.from({ length: r.int(3, 7) }, (): Vec => [r(-2, 2), r(-2, 2)]), s);
     case 5: return new Arc({ radius: r(0.2, 2), startAngle: r(0, 6.3), angle: r(-6, 6), ...s });
@@ -99,7 +93,7 @@ function randomAnimation(r: Rng, pool: Mobject[]): import('../../src/index.ts').
     case 0: return new FadeIn(m, { shift: r.bool() ? [r(-1, 1), r(-1, 1)] : null, scale: r(0.5, 1.5) });
     case 1: return new FadeOut(m, { shift: r.bool() ? [r(-1, 1), r(-1, 1)] : null });
     case 2: return new Create(m);
-    case 3: return m instanceof Text ? new Write(m) : new Create(m);
+    case 3: return m instanceof Text ? new Create(m, { lagRatio: 0.3 }) : new Create(m);
     case 4: { const t = place(r, randomShape(r)); return new Transform(m, t, { replace: r.bool(0.3) }); }
     case 5: return m.animate.shift([r(-2, 2), r(-2, 2)]).setFill(r.pick(COLORS)).scale(r(0.5, 1.5));
     case 6: return new Indicate(m, { color: r.pick(COLORS), scaleFactor: r(1, 1.4) });
@@ -133,7 +127,7 @@ export function makeScene(draws: Draws): SceneClass {
         // One play drives each mobject at most once (Scene.play enforces it)
         const free = [...pool].sort(() => r() - 0.5);
         const anims: Playable[] = Array.from({ length: r.int(1, Math.min(3, free.length)) }, () => randomAnimation(r, [free.pop()!]));
-        if (anims.some((a) => (a as Partial<AnimationGroup>).animations)) anims.splice(1); // a LaggedStart over the pool plays alone
+        if (anims.some((a) => a instanceof AnimationGroup)) anims.splice(1); // a LaggedStart over the pool plays alone
         const rate = r.pick([linear, smooth, rushInto, thereAndBack]);
         await this.play(...anims, { runTime: r(0.05, 0.8), rateFunc: rate });
         state.plays = i + 1;

@@ -1,80 +1,8 @@
 {
   "version": 2,
   "subjects": [
-    {
-      "step": "reader-focus",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "No visible focus"
-        },
-        {
-          "text": "Visible focus on Pay"
-        },
-        {
-          "text": "Cancel"
-        },
-        {
-          "text": "Pay"
-        }
-      ]
-    },
-    {
-      "step": "reader-levels",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "A"
-        },
-        {
-          "text": "AA"
-        },
-        {
-          "text": "AAA"
-        },
-        {
-          "text": "A + AA"
-        },
-        {
-          "text": "A + AA + AAA"
-        }
-      ]
-    },
-    {
-      "step": "reader-versions",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "2.0"
-        },
-        {
-          "text": "2.1"
-        },
-        {
-          "text": "2.2"
-        },
-        {
-          "text": "A"
-        },
-        {
-          "text": "4.1.1 Parsing"
-        },
-        {
-          "text": "Criteria"
-        },
-        {
-          "key": "versions-key"
-        }
-      ]
-    }
+    { "step": "reader-focus", "opening": true, "targets": [{ "key": "reader-picture" }, { "text": "No visible focus" }, { "text": "Visible focus on Pay" }, { "text": "Cancel" }, { "text": "Pay" }] },
+    { "step": "reader-levels", "opening": true, "targets": [{ "key": "reader-picture" }, { "text": "A" }, { "text": "AA" }, { "text": "AAA" }, { "text": "A + AA" }, { "text": "A + AA + AAA" }] },
+    { "step": "reader-versions", "opening": true, "targets": [{ "key": "reader-picture" }, { "text": "2.0" }, { "text": "2.1" }, { "text": "2.2" }, { "text": "A" }, { "text": "4.1.1 Parsing" }, { "text": "Criteria" }, { "key": "versions-key" }] }
   ]
 }

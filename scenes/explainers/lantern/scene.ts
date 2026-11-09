@@ -1,10 +1,10 @@
-import { Scene, Rectangle, Dot, Circle, Line, Text, Group, VMobject, FadeIn, Transform, Animation, view } from '../../../src/index.ts';
-import { toSvgString, renderAt, StringSink } from '../../../src/output.ts';
+import { Scene, Rectangle, Dot, FadeIn, Transform, Animation } from '../../../src/index.ts';
+import { toSvgString, renderFrame, StringSink } from '../../../src/output.ts';
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
-import { stage, regionBox, settingsOf } from '../../../explain/index.ts';
-import { keyed } from '../lib/lesson-drawing.ts';
-import { stagedStep } from '../../../explain/index.ts';
-import type { Diagram } from '../../../explain/index.ts';
+import { stage, regionBox, settingsOf, answerOf, view, having } from '../../../explain/index.ts';
+import type { Diagram, PictureNote, ExplainerMeta } from '../../../explain/index.ts';
+import { START, END, tiny, timelinePicture, checkPicture, playedLabel, seekedLabel, playedPicture, seekPicture, rulerPicture, sinkNote } from './picture.ts';
+import type { Motion, TinyFrame, Still, Seek, TimelineState, CheckState } from './picture.ts';
 const STYLE = 'hand-drawn';
 
 /**
@@ -49,12 +49,9 @@ const CLASSES =
 const FLOW =
   '---\nconfig:\n  flowchart:\n    rankSpacing: 24\n    nodeSpacing: 16\n---\ngraph LR\nAuthor[Native Scene] --> Clock[Fixed dt loop]\nClock --> Browser[Browser sink]\nClock --> SVG[SVG frames]\nClock --> Trace[State trace]\nSVG --> PNG[PNG stills]';
 
-type Motion = 'blend' | 'nudge';
 /** The still the story asks about: t = 1 s, halfway through the dot's one-second move. */
 const SEEK_T = 1;
-const START: Vec = [-6, -3],
-  END: Vec = [6, -3],
-  MOVE_TIME = 1,
+const MOVE_TIME = 1,
   FPS = 30;
 
 /**
@@ -70,38 +67,23 @@ class Nudge extends Animation {
     super(mobject, { runTime: MOVE_TIME });
     this.by = by;
   }
-  override begin(): void {
-    super.begin(); // begin() calls interpolate(0) once; that call is not a frame
+  protected override doBegin(): void {
+    super.doBegin(); // begin() calls interpolate(0) once; that call is not a frame
     this.live = true;
   }
-  override interpolate(_alpha: number): void {
+  protected override doInterpolate(_alpha: number): void {
     if (!this.live) return;
     this.mobject.shift(this.by);
     this.moves++;
   }
   // No last step at the end: the frames already made every move there is.
-  override finish(): void {}
+  protected override doFinish(): void {}
 }
 
-/** The tiny scene's frame as a step records it: the box's centre and size, and the dot's place on the track. */
-interface TinyFrame { box: { center: Vec; width: number; height: number }; dot: number }
-/** The tiny scene's look, shared by its own run and by the thumbnails drawn from a recorded frame. */
-const tiny = (ink: string, accent: string, soft: string) => {
-  const look = { stroke: ink, strokeWidth: 0.14, fill: accent, fillOpacity: 0.35 };
-  return {
-    track: () =>
-      new Group(
-        new Line(START, END, { stroke: soft, strokeWidth: 0.08 }),
-        ...[START, [0, -3] as Vec, END].map((p) => new Line([p[0], p[1] - 0.45], [p[0], p[1] + 0.45], { stroke: soft, strokeWidth: 0.08 })),
-      ),
-    box: (width: number, height: number, center: Vec) => new Rectangle({ width, height, ...look }).moveTo(center),
-    dot: (x: number) => new Dot({ radius: 0.55, color: ink }).moveTo([x, START[1]]),
-  };
-};
 /** A tiny native scene, run inside this one: a box grows, and a dot crosses a track. */
-function demoScene(ink: string, accent: string, soft: string, motion: Motion, nudges: Nudge[]) {
-  const parts = tiny(ink, accent, soft);
-  return class SeekDemo extends Scene {
+function demoScene(ink: string, emphasis: string, soft: string, motion: Motion, nudges: Nudge[]) {
+  const parts = tiny(ink, emphasis, soft);
+  return class SeekDemo extends Scene<{}, {}> {
     override async construct() {
       const box = parts.box(3, 2.4, [-4.5, 1.6]);
       const dot = parts.dot(START[0]);
@@ -125,33 +107,26 @@ function frameOf(mobs: readonly Mobject[]): TinyFrame {
   const [x0, y0, x1, y1] = box.box()!;
   return { box: { center: [(x0 + x1) / 2, (y0 + y1) / 2], width: x1 - x0, height: y1 - y0 }, dot: dot.center()[0] };
 }
-/** A recorded frame of the tiny scene, with its SVG's fingerprint and length. */
-interface Still { frame: TinyFrame; svg: string; chars: number }
-/** Where the story takes its still: the frame number and its time in seconds. */
-interface Seek { frame: number; t: number }
-/** The timeline step's state: the dot's x at every frame, played and seeked, for both motions. */
-interface TimelineState {
-  timeline: { frames: number; moveStarts: number; played: Record<Motion, number[]>; seeked: Record<Motion, number[]> };
-  motion: Motion;
-  seek: Seek;
-  nudges: { played: number; seeked: number };
-}
-/** The check step's state: how many seeked frames match playback, and which, for both motions. */
-interface CheckState { check: { frames: number; matched: Record<Motion, number> }; matches: Record<Motion, boolean[]>; seek: Seek }
 /** FNV-1a, so the reader can compare two frames by a short fingerprint. */
 function fingerprint(text: string): string {
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;
   return h.toString(16).padStart(8, '0');
 }
+// This explainer's model is Rayner's own engine: the tiny scene runs through src/scene.ts and renderFrame.
+// Its limits: a still skips the earlier frames only in a scene without updaters and without a Succession
+// in play; those take a slower seek that computes every frame before t, and are outside the pictured
+// comparison. "Sinks only read the frame" is a promise about Rayner's own sinks, not a caller's custom
+// sink. And the two motions give the same played frame at t = 1 s, so the comparison there isolates
+// seeking; elsewhere their played paths differ (the blend eases, the nudge moves evenly).
 /**
  * Run the tiny scene with one kind of motion: played from zero, frame by frame; seeked straight to
- * SEEK_T, as renderAt makes a still; and seeked to every other frame, as rayner check seeks, to
+ * SEEK_T's frame, as renderFrame makes a still; and seeked to every other frame, as rayner check seeks, to
  * compare each with the played frame.
  */
-async function runDemo(ink: string, accent: string, soft: string, motion: Motion) {
+async function runDemo(ink: string, emphasis: string, soft: string, motion: Motion) {
   const nudges: Nudge[] = [];
-  const Demo = demoScene(ink, accent, soft, motion, nudges);
+  const Demo = demoScene(ink, emphasis, soft, motion, nudges);
   const frames: string[] = [];
   /** The dot's x at each frame, played and seeked: what the timeline step plots. */
   const playedX: number[] = [],
@@ -173,15 +148,15 @@ async function runDemo(ink: string, accent: string, soft: string, motion: Motion
   const computed: number[] = [];
   nudges.length = 0;
   // Frame 0, the empty stage before construct() runs, is handed to every sink and computes nothing.
-  await new Demo({ async frame(s: Scene) { if (s.frameCount > 0) computed.push(s.frameCount); } }, { skipUntil: SEEK_T }).run();
+  await new Demo({ skipUntil: SEEK_T, async frame(s: Scene) { if (s.frameCount > 0) computed.push(s.frameCount); } }).run();
   nudges.length = 0;
   const seekSink = new StringSink();
-  const seeked = await renderAt(Demo, SEEK_T, seekSink);
+  const seeked = await renderFrame(Demo, seekAt, seekSink);
   const seekedMoves = nudges[0]?.moves ?? 0;
   const matches: boolean[] = [];
   for (let f = 1; f < frames.length; f++) {
     const sink = new StringSink();
-    seekedX.push(dotX(await renderAt(Demo, f / FPS, sink)));
+    seekedX.push(dotX(await renderFrame(Demo, f, sink)));
     matches.push(sink.last() === frames[f]);
   }
   return {
@@ -208,31 +183,32 @@ function dotX(s: Scene): number {
   if (!dot) throw new Error(`No dot on frame ${s.frameCount}`);
   return +dot.center()[0].toFixed(3) + 0;
 }
-/** The script's one-sentence answer, stated in the seek step. */
-const ANSWER =
-  'A still re-runs the scene on the same fixed clock and, unless the scene has updaters or is playing a Succession, skips computing the frames before t, so it matches playback whenever each frame depends on the time alone, and can miss when a frame depends on how many frames ran before it';
 
-export default class LanternExplainer extends Scene {
+// How the classes are shown, apart from their source: the links walked, the notes and what stays
+// undimmed. That is `shown`, not the model; the diagram's view draws it, and each change is a sync.
+type ClassesShown = { walked: [string, string][]; notes: PictureNote[]; dim: string[] | null };
+/** After the staged steps: the frame the still seeks to, and the scene time of each frame. */
+type LanternState = { frameAtSeek?: number; ruler?: { fps: number; times: number[] } };
+/** The pipeline's walked links, and how the classes are shown. */
+type LanternShown = { flowWalked?: [string, string][]; classes?: ClassesShown };
+
+export default class LanternExplainer extends Scene<LanternState, LanternShown> {
   static meta = {
-    id: 'lantern',
-    title: 'How can a still skip the frames before it?',
     sources: [
       'https://github.com/ivarvong/lantern',
       'https://github.com/ivarvong/lantern/blob/2c7bad5/src/scene.ts',
       'https://github.com/adewale/rayner/blob/main/src/scene.ts',
       'https://github.com/adewale/rayner/blob/main/src/animation.ts',
     ],
-    // The script's answer and check questions (script.md); the seek step states the answer.
-    answer: ANSWER,
     // Each rule the steps state about every run, frame, sink or page, and the test that holds it.
     claims: [
       {
         says: 'unless the scene has updaters or is playing a Succession, skips computing the frames before t',
-        test: 'test/explain-lantern.test.ts: seek: unless the scene has updaters, a still computes no frame before t',
+        test: 'model.test.ts: seek: unless the scene has updaters, a still computes no frame before t',
       },
       {
         says: 'counts frames 1–29 without computing them',
-        test: 'test/explain-lantern.test.ts: seek: unless the scene has updaters, a still computes no frame before t',
+        test: 'model.test.ts: seek: unless the scene has updaters, a still computes no frame before t',
       },
       {
         says: 'the nudged dot never passes its first step',
@@ -240,46 +216,26 @@ export default class LanternExplainer extends Scene {
       },
       {
         says: 'Frame 30 is t = 1.00 s in every run',
-        test: 'test/explain-lantern.test.ts: clock: frame k is t = k / fps in every run, whatever the sink’s pace',
+        test: 'model.test.ts: clock: frame k is t = k / fps in every run, whatever the sink’s pace',
       },
       {
         says: 'Rayner’s sinks only read the frame',
-        test: 'test/explain-lantern.test.ts: sinks only read a frame: after each of Rayner’s sinks takes it',
+        test: 'model.test.ts: sinks only read a frame: after each of Rayner’s sinks takes it',
       },
       {
         says: 'by an amount set only by how far through its run time the animation is',
-        test: 'test/explain-lantern.test.ts: an animation blends its start and end by its elapsed share of its run time alone',
+        test: 'model.test.ts: an animation blends its start and end by its elapsed share of its run time alone',
       },
       {
-        says: 'in every step of every scenario it seeks one frame midway and one just before the step ends',
-        test: 'test/explain-gates.test.ts: rayner check seeks two frames in each step of every scenario',
+        says: 'in every step of every scenario it seeks three frames: one midway, then its second-last and its last',
+        test: 'test/explain-gates.test.ts: rayner check seeks three frames in each step of every scenario',
       },
       {
         says: 'in a scene with updaters, a still computes every frame before t',
-        test: 'test/explain-lantern.test.ts: seek: in a scene with updaters a still computes every frame before t',
+        test: 'model.test.ts: seek: in a scene with updaters a still computes every frame before t',
       },
     ],
-    checks: [
-      {
-        question:
-          'In the nudge version, the fade-in is stretched from 0.5 s to 1 s, so the move runs from t = 1 s to 2 s and the scene has 60 frames. Does the still at t = 1 s now match playback, and which is the first frame whose still differs?',
-        answer:
-          'The still at t = 1 s matches: frame 30 is now the last frame of the fade, and neither run has nudged the dot yet. The first frame that differs is 32. Frame 31 opens the move, and the seek and playback have each made one nudge there; by frame 32 playback has made two and the seek still one.',
-      },
-      {
-        question:
-          'Another version moves the dot by the change in time since the last frame it computed: x += distance × (α − α at the last frame). Does its still at t = 1 s match playback?',
-        answer:
-          'Yes. begin() computes α = 0, the skipped frames are never computed, and the frame at t = 1 s adds the whole change from 0 to 0.5 in one go, so the dot is halfway, as in playback. Keeping state is allowed, as long as the frame comes out the same however many frames ran before it.',
-      },
-      {
-        question:
-          'You write a typing animation: each computed frame appends the next character of a 60-character sentence, over a 2-second run at 30 fps. What does a still taken 1 s into that run show, and what change makes it match playback?',
-        answer:
-          'Playback has computed 30 frames by then and shows 30 characters; the still computes only the frame at t and shows about one. Show the first round(60 × α) characters instead, where α is the elapsed share of the run: each frame then depends on the time alone, and both show 30 characters at the midpoint.',
-      },
-    ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'motion',
@@ -292,17 +248,18 @@ export default class LanternExplainer extends Scene {
     },
   ];
   override async construct() {
+    const answer = answerOf(this);
     const motion = settingsOf(this).motion as Motion;
     const s = stage(this, { headingSize: 0.6, style: STYLE });
-    const ink = s.palette.ink,
-      accent = s.emphasis,
-      soft = s.soft;
-    const parts = tiny(ink, accent, soft);
+    const ink = s.look.ink,
+      emphasis = s.look.emphasis,
+      soft = s.look.soft;
+    const c = s.look;
 
     // The tiny scene with both kinds of motion: this scenario's, and the other one the last step compares.
     const runs = {
-      blend: await runDemo(ink, accent, soft, 'blend'),
-      nudge: await runDemo(ink, accent, soft, 'nudge'),
+      blend: await runDemo(ink, emphasis, soft, 'blend'),
+      nudge: await runDemo(ink, emphasis, soft, 'nudge'),
     };
     const run = runs[motion];
     const match = run.played === run.seeked;
@@ -320,35 +277,7 @@ export default class LanternExplainer extends Scene {
     const still = (frame: Mobject[], svg: string): Still => ({ frame: frameOf(frame), svg: fingerprint(svg), chars: svg.length });
     const played = still(run.playedFrame, run.played),
       seeked = still(run.seekedFrame, run.seeked);
-    // Two frames side by side, centred in the stage below the heading.
-    const THUMB_X = 3.7,
-      THUMB_Y = -0.45;
-    /** A thumbnail of a recorded frame, redrawn from it; `ghost` outlines where playback has the dot. */
-    const thumb = (shot: Still | null, cx: number, label: string, ghost?: number) => {
-      const w = 6.6,
-        k = w / 16;
-      const box = new Rectangle({ width: w, height: (w * 9) / 16, stroke: ink, strokeWidth: 0.02, cornerRadius: 0.04 });
-      const items: Mobject[] = [box];
-      if (shot) {
-        const { box: b, dot } = shot.frame;
-        const art = new Group(parts.track(), parts.box(b.width, b.height, b.center), parts.dot(dot));
-        art.scale(k, { aboutPoint: [0, 0] });
-        for (const m of art.family()) m.style.strokeWidth *= k;
-        items.push(art);
-        // Where playback has the dot, drawn as an outline over a still that has it elsewhere.
-        if (ghost !== undefined)
-          items.push(new Circle({ radius: 0.55 * k + 0.04, stroke: accent, strokeWidth: 0.04, fill: 'none' }).moveTo([ghost * k, START[1] * k]));
-      } else items.push(new Text('?', { fontSize: 0.9, color: soft, weight: 'bold' }));
-      const g = new Group(...items).moveTo([cx, THUMB_Y]);
-      const title = new Text(label, { fontSize: 0.3, color: ink }).moveTo([cx, THUMB_Y + (w * 9) / 32 + 0.4]);
-      const out: Mobject[] = [g, title];
-      if (shot)
-        out.push(new Text(`svg ${shot.svg} · ${shot.chars} chars`, { fontSize: 0.26, font: 'mono', color: soft }).moveTo([cx, THUMB_Y - (w * 9) / 32 - 0.4]));
-      return new Group(...out);
-    };
     const t = SEEK_T.toFixed(2);
-    const playedLabel = (at: Seek) => `played: frame ${at.frame}, t = ${at.t.toFixed(2)} s`,
-      seekedLabel = (at: Seek) => `seeked: frames 1–${at.frame - 1} only counted`;
     const how =
       motion === 'blend'
         ? 'Rayner’s animate.moveTo moves the dot by blending its start and end.'
@@ -359,59 +288,9 @@ export default class LanternExplainer extends Scene {
     // The dot's position at every frame, played and seeked, for both kinds of motion side by side.
     const total = run.matches.length,
       moveStarts = runs.nudge.playedX.findIndex((x) => x !== START[0]) + 1;
-    const W = 5.0,
-      H = 2.5,
-      bottom = -2.0;
-    /** One panel of the timeline: the dot's place against the frame, played (a line) and seeked (a dot per frame). */
-    const panel = (st: TimelineState, m: Motion, left: number, heading: string) => {
-      const { frames: count, moveStarts: starts } = st.timeline;
-      const fx = (f: number) => left + (f / count) * W,
-        py = (x: number) => bottom + ((x - START[0]) / (END[0] - START[0])) * H;
-      const frame = new Group(
-        new Line([left, bottom], [left + W, bottom], { stroke: soft, strokeWidth: 0.025 }),
-        new Line([left, bottom], [left, bottom + H], { stroke: soft, strokeWidth: 0.025 }),
-      );
-      const words = new Group(
-        new Text(heading, { fontSize: 0.32, color: ink, weight: m === st.motion ? 'bold' : 'normal' }).moveTo([left + W / 2, bottom + H + 0.5]),
-        new Text('end', { fontSize: 0.26, color: soft, anchor: 'end' }).moveTo([left - 0.15, py(END[0])], [1, 0]),
-        new Text('start', { fontSize: 0.26, color: soft, anchor: 'end' }).moveTo([left - 0.15, py(START[0])], [1, 0]),
-      );
-      for (const f of [1, starts, st.seek.frame, count]) {
-        frame.add(new Line([fx(f), bottom], [fx(f), bottom - 0.1], { stroke: soft, strokeWidth: 0.025 }));
-        words.add(new Text(String(f), { fontSize: 0.26, font: 'mono', color: soft }).moveTo([fx(f), bottom - 0.32]));
-      }
-      // The still the story followed.
-      const marker = new Line([fx(st.seek.frame), bottom], [fx(st.seek.frame), bottom + H], { stroke: accent, strokeWidth: 0.025 });
-      marker.style.dashArray = '0.12 0.1';
-      const playedLine = new VMobject({ stroke: ink, strokeWidth: 0.045, fill: 'none' });
-      st.timeline.played[m].forEach((x, i) => (i ? playedLine.addLineTo([fx(i + 1), py(x)]) : playedLine.startNewPath([fx(1), py(x)])));
-      const stills = new Group(...st.timeline.seeked[m].map((x, i) => new Dot({ radius: 0.065, color: accent }).moveTo([fx(i + 1), py(x)])));
-      return { frame, words, marker, played: playedLine, seeked: stills, fx, py };
-    };
-    const timelinePicture = (st: TimelineState) => {
-      const blend = panel(st, 'blend', -6.4, 'Blending fixed endpoints'),
-        nudge = panel(st, 'nudge', 1.6, 'A nudge each frame');
-      // On a phone the step opens on the nudge's panel, where the two runs part.
-      nudge.played.key = 'lantern-timeline-nudge-played';
-      nudge.seeked.key = 'lantern-timeline-nudge-seeked';
-      // At the still the story followed, how far apart the nudge's two runs are.
-      const x = nudge.fx(st.seek.frame);
-      const notes = new Group(
-        new Text(`played: ${st.nudges.played} nudges`, { fontSize: 0.26, color: ink, anchor: 'end' }).moveTo(
-          [x - 0.15, nudge.py(st.timeline.played.nudge[st.seek.frame - 1]!) + 0.25],
-          [1, 0],
-        ),
-        new Text(`seeked: ${st.nudges.seeked} nudge`, { fontSize: 0.26, color: accent, anchor: 'start' }).moveTo(
-          [x + 0.15, nudge.py(st.timeline.seeked.nudge[st.seek.frame - 1]!) + 0.3],
-          [-1, 0],
-        ),
-        new Text('frame', { fontSize: 0.26, color: soft }).moveTo([0, bottom - 0.32]),
-      );
-      return new Group(blend.frame, nudge.frame, blend.marker, nudge.marker, new Group(blend.played, nudge.played), new Group(blend.seeked, nudge.seeked), blend.words, nudge.words, notes);
-    };
 
     await s.steps([
-      stagedStep({
+      {
         id: 'played',
         title: `Played, the dot is halfway at t = ${t} s`,
         line: `A still at t = ${SEEK_T} s skips computing frames 1–${run.seekAt - 1}. Where is its dot?`,
@@ -420,9 +299,9 @@ export default class LanternExplainer extends Scene {
         state: { at, played },
         describe: (st) =>
           `Left: the tiny scene ${playedLabel(st.at)}, the dot halfway along its track, fingerprint ${st.played.svg}. Right: an empty frame marked with a question mark, ${seekedLabel(st.at)}.`,
-        draw: (st) => new Group(thumb(st.played, -THUMB_X, playedLabel(st.at)), thumb(null, THUMB_X, seekedLabel(st.at))),
-      }),
-      stagedStep({
+        draw: (st) => playedPicture(st, c),
+      },
+      {
         id: 'seek',
         title: match
           ? `The still matches: the same SVG, fingerprint ${print}`
@@ -430,7 +309,7 @@ export default class LanternExplainer extends Scene {
         line: match
           ? 'Blending works the dot out from the time alone.'
           : `Played, the dot made ${run.playedMoves} nudges by t = ${SEEK_T} s; seeked, it made ${run.seekedMoves}.`,
-        caption: match ? `The pictures match because animate.moveTo calculates position from elapsed time and fixed endpoints. It does not need the earlier dot positions. ${ANSWER}.` : `The still makes ${run.seekedMoves} nudge while playback has made ${run.playedMoves}. A nudge adds to the previous position, so skipping calculations loses the accumulated moves. The box still matches because its size is calculated from fixed endpoints. ${ANSWER}.`,
+        caption: match ? `The pictures match because animate.moveTo calculates position from elapsed time and fixed endpoints. It does not need the earlier dot positions. ${answer}.` : `The still makes ${run.seekedMoves} nudge while playback has made ${run.playedMoves}. A nudge adds to the previous position, so skipping calculations loses the accumulated moves. The box still matches because its size is calculated from fixed endpoints. ${answer}.`,
         state: {
           seek: { motion, match, played: print, seeked: seekPrint, playedMoves: run.playedMoves, seekedMoves: run.seekedMoves },
           at,
@@ -441,14 +320,9 @@ export default class LanternExplainer extends Scene {
             ? `Two frames of the tiny scene at t = ${st.at.t.toFixed(2)} s, played and seeked, both with the dot halfway and the fingerprint ${st.seek.played}.`
             : `Two frames of the tiny scene at t = ${st.at.t.toFixed(2)} s: played, with the dot halfway (${st.seek.played}); seeked, with the dot near the start of its track and an outline where playback has it (${st.seek.seeked}).`,
         // The two frames, the still's with an outline where playback has the dot when they differ.
-        draw: (st) =>
-          new Group(
-            thumb(st.stills.played, -THUMB_X, playedLabel(st.at)),
-            thumb(st.stills.seeked, THUMB_X, seekedLabel(st.at), st.seek.match ? undefined : st.stills.played.frame.dot),
-            new Text(st.seek.match ? '=' : '≠', { fontSize: 0.7, color: accent, weight: 'bold' }).moveTo([0, THUMB_Y]),
-          ),
-      }),
-      stagedStep({
+        draw: (st) => seekPicture(st, c),
+      },
+      {
         id: 'timeline',
         title: 'Seeked frame by frame, the nudged dot never passes its first step',
         line: 'Line: where playback has the dot. Dots: a still taken at each frame.',
@@ -467,9 +341,9 @@ export default class LanternExplainer extends Scene {
         } satisfies TimelineState,
         describe: (st) =>
           `Two plots of the dot’s place on its track, start to end, against frames 1 to ${st.timeline.frames}. Each has a line for playback and a dot for a still seeked to each frame. Blending fixed endpoints: every dot sits on the line. A nudge each frame: the dots follow the line through frame ${st.timeline.moveStarts}, then stay one nudge from the start while the line climbs to the end; at frame ${st.seek.frame} playback has made ${st.nudges.played} nudges and the still ${st.nudges.seeked}.`,
-        draw: (st) => timelinePicture(st),
+        draw: (st) => timelinePicture(st, c),
         opening: ['lantern-timeline-nudge-played', 'lantern-timeline-nudge-seeked'],
-      }),
+      },
     ]);
 
     await this.step('clock', {
@@ -484,49 +358,22 @@ export default class LanternExplainer extends Scene {
     const flowAt: Box = [-7.35, RULER_TOP + 0.2, 7.35, 2.95];
     const flow = await s.show({ source: FLOW }, { box: bleed(flowAt, [606.6, 222.7], [40, 40, 566.6, 182.7]) });
     inside(flow, ['Author', 'Browser', 'Trace', 'PNG'], flowAt, regionBox('top', { bottom: RULER_TOP }));
-    await flow.walk(
-      [
-        ['Clock', 'Browser'],
-        ['Clock', 'Trace'],
-      ],
-      { parallel: true, trail: true },
-    );
+    // The links walked are how the pipeline is shown, not the model: they live in `shown`, and the
+    // pipeline is shown by a view that draws them as a trail.
+    this.shown.flowWalked = [];
+    const flowView = s.diagramView(flow, (_st, sh) => ({ marks: flow.trail(having(sh, 'flowWalked').flowWalked) }));
+    const paced: [string, string][] = [
+      ['Clock', 'Browser'],
+      ['Clock', 'Trace'],
+    ];
+    await flow.walk(paced, { parallel: true });
+    this.shown.flowWalked = paced;
+    await this.play(flowView.sync());
     // Frame times from the scene's own fps; two sinks pace the same frames differently.
     this.state.frameAtSeek = run.seekAt;
     this.state.ruler = { fps: this.fps, times: Array.from({ length: 9 }, (_, n) => (n * 1000) / this.fps) };
-    const x0 = -2.85,
-      pitch = 1.25;
-    const axisY = RULER_TOP - 0.4,
-      timeY = axisY - 0.4,
-      browserY = timeY - 0.85,
-      traceY = browserY - 0.8;
-    const lane = (label: string, y: number) =>
-      new Text(label, { fontSize: 0.28, color: s.soft, anchor: 'start' }).moveTo([-7.3, y], [-1, 0]);
     // The scene time of each frame the state records, and when each sink takes it.
-    const ruler = view(
-      this,
-      (st) => {
-        const { times } = (st as unknown as { ruler: { fps: number; times: number[] } }).ruler;
-        const g = new Group();
-        g.add(
-          lane('scene time (ms)', timeY),
-          lane('browser sink, wall clock', browserY),
-          lane('trace sink, wall clock', traceY),
-          new Line([x0 - 0.25, axisY], [x0 + pitch * (times.length - 1) + 0.25, axisY], { stroke: ink, strokeWidth: 0.025 }),
-        );
-        times.forEach((ms, n) => {
-          const x = x0 + n * pitch;
-          g.add(
-            new Line([x, axisY + 0.14], [x, axisY - 0.14], { stroke: ink, strokeWidth: 0.025 }),
-            new Text(ms.toFixed(0), { fontSize: 0.26, font: 'mono', color: ink }).moveTo([x, timeY]),
-            new Dot({ radius: 0.11, color: accent }).moveTo([x, browserY]),
-            new Dot({ radius: 0.11, color: accent }).moveTo([x0 + n * 0.28, traceY]),
-          );
-        });
-        return keyed(g, 'lantern-ruler');
-      },
-      { place: false },
-    );
+    const ruler = view(this, (st) => rulerPicture(having(st, 'ruler').ruler.times, RULER_TOP, c), { place: false });
     await s.enter(ruler);
 
     await this.step('objects', {
@@ -539,15 +386,27 @@ export default class LanternExplainer extends Scene {
     const classesAt: Box = [-6.1, -3.55, 1.0, 2.95];
     const classes = await s.show({ source: CLASSES }, { box: bleed(classesAt, [397.786, 370.7], [40, 40, 358, 331]) });
     inside(classes, ['Scene', 'Mobject', 'Animation', 'Sink'], classesAt, regionBox('full', { right: classesAt[2] + 0.3 }));
-    await classes.walk([['Scene', 'Mobject']], { trail: true });
-    await classes.walk([['Scene', 'Animation']], { trail: true });
-    await classes.walk([['Scene', 'Sink']], { trail: true });
+    this.shown.classes = { walked: [], notes: [], dim: null } satisfies ClassesShown;
+    const drawClasses = (_st: LanternState, sh: LanternShown) => {
+      const c = having(sh, 'classes').classes;
+      return { marks: classes.trail(c.walked), notes: c.notes, dim: c.dim };
+    };
+    const classesView = s.diagramView(classes, drawClasses);
+    const showClasses = async (change: Partial<ClassesShown>) => {
+      this.shown.classes = { ...having(this.shown, 'classes').classes, ...change };
+      await this.play(classesView.sync());
+    };
+    for (const hop of [
+      ['Scene', 'Mobject'],
+      ['Scene', 'Animation'],
+      ['Scene', 'Sink'],
+    ] as [string, string][]) {
+      await classes.walk([hop]);
+      await showClasses({ walked: [...having(this.shown, 'classes').classes.walked, hop] });
+    }
     // What the sink does with a frame, beside it: it reads; it never changes a mobject.
     const sinkBox = classes.get('Sink').box()!;
-    const reads = new Text('reads each frame; changes nothing', { fontSize: 0.28, color: soft, anchor: 'start' }).moveTo(
-      [sinkBox[2] + 0.35, (sinkBox[1] + sinkBox[3]) / 2],
-      [-1, 0],
-    );
+    const reads = sinkNote(sinkBox, soft);
     await s.enter(reads, { describe: 'Beside Sink: it reads each frame and changes nothing.' });
     // src/animation.ts:1-3 and 79-83: begin() copies the starting mobject; every frame blends two fixed endpoints.
     await this.step('begin', {
@@ -556,8 +415,9 @@ export default class LanternExplainer extends Scene {
       caption: `begin() copies the starting object. Each frame blends that copy with a fixed end by an amount set only by how far through its run time the animation is. Halfway through the duration therefore means halfway between the endpoints. In contrast, dot.shift(step) adds to the position accumulated by earlier frames.`,
     });
     await s.clearOverlays();
-    await classes.unmark();
-    const fixed = await classes.note('Animation', 'endpoints fixed at begin()', { side: 'below' });
+    await showClasses({ walked: [] });
+    await showClasses({ notes: [{ id: 'Animation', text: 'endpoints fixed at begin()', side: 'below' }] });
+    const fixed = classesView.current.family().find((m) => m.key === 'note:Animation')!;
     const anim = classes.get('Animation').box()!,
       mob = classes.get('Mobject').box()!;
     // Beside the two boxes it is about: begin() copies a mobject, and the frames blend from that copy.
@@ -573,10 +433,10 @@ export default class LanternExplainer extends Scene {
         '// the nudge, each frame:',
         '  dot.shift(step)',
       ],
-      { at: [anim[2] + 0.25, anim[1], anim[2] + 4.2, mob[3]], fontSize: 0.19 },
+      { at: [anim[2] + 0.25, anim[1], anim[2] + 4.2, mob[3]], size: 0.19 },
     );
     // Scene and Sink fade, so nothing behind the heading competes with it once the camera moves in.
-    await classes.dim(['Mobject', 'Animation']);
+    await showClasses({ dim: ['Mobject', 'Animation'] });
     // The camera frames Scene and the two links this step is about, Mobject, Animation, its note and the
     // listing below the heading, which stays on screen. Sink, above Mobject, passes under the heading
     // whole, so the frame cuts no box.
@@ -595,48 +455,12 @@ export default class LanternExplainer extends Scene {
     // Every frame of the tiny scene, seeked and compared with playback, for both kinds of motion.
     const count = (m: Motion) => runs[m].matches.filter(Boolean).length;
     const firstMiss = runs.nudge.matches.indexOf(false) + 1;
-    const cell = 0.29,
-      x1 = -6.5;
-    /** One row of cells, a cell per frame: filled where the seeked frame is the played one, hollow where it differs. */
-    const strip = (matches: readonly boolean[], y: number, label: string) => {
-      const g = new Group();
-      g.add(
-        new Text(`${label}: ${matches.filter(Boolean).length} of ${matches.length} match`, { fontSize: 0.3, color: ink, anchor: 'start' }).moveTo([x1, y + 0.65], [-1, 0]),
-      );
-      matches.forEach((ok, i) => {
-        g.add(
-          new Rectangle({
-            width: cell * 0.8,
-            height: 0.6,
-            stroke: ok ? s.good : s.bad,
-            strokeWidth: 0.02,
-            fill: ok ? s.good : s.bad,
-            fillOpacity: ok ? 0.85 : 0.2,
-          }).moveTo([x1 + cell * (i + 0.5), y]),
-        );
-      });
-      return g;
-    };
-    const checkPicture = (st: CheckState) => {
-      const axis = new Group();
-      for (const f of [1, 15, st.seek.frame, st.check.frames]) {
-        const x = x1 + cell * (f - 0.5);
-        axis.add(new Text(String(f), { fontSize: 0.26, font: 'mono', color: soft }).moveTo([x, -2.05]));
-      }
-      axis.add(new Text('frame', { fontSize: 0.26, color: soft, anchor: 'end' }).moveTo([x1 - 0.2, -2.05], [1, 0]));
-      // The still the story followed, marked across both rows.
-      const x = x1 + cell * (st.seek.frame - 0.5);
-      const marker = new Line([x, 1.7], [x, -1.75], { stroke: accent, strokeWidth: 0.03 });
-      const markerLabel = new Text(`the still at t = ${st.seek.t.toFixed(2)} s`, { fontSize: 0.26, color: accent }).moveTo([x, 1.95]);
-      const key = new Text('filled: seeked frame = played frame · hollow: different', { fontSize: 0.26, color: soft }).moveTo([0, -2.85]);
-      return new Group(strip(st.matches.blend, 0.5, 'Blending fixed endpoints'), strip(st.matches.nudge, -1.2, 'A nudge each frame'), axis, marker, markerLabel, key);
-    };
     await s.steps([
-      stagedStep({
+      {
         id: 'check',
         title: `Seeked frame by frame: ${count('blend')} of ${total} match with blending, ${count('nudge')} with the nudge`,
         line: 'rayner check fails a page on the first seeked frame that differs from playback.',
-        caption: `The strips compare each of those ${total} stills with its played frame, the whole SVG, box and dot together. Blending agrees throughout; the nudge first differs at frame ${firstMiss}. rayner check samples less: in every step of every scenario it seeks one frame midway and one just before the step ends. A mismatch fails the check, but agreement at those two times proves nothing about the times between them. An updater follows a different path: in a scene with updaters, a still computes every frame before t.`,
+        caption: `The strips compare each of those ${total} stills with its played frame, the whole SVG, box and dot together. Blending agrees throughout; the nudge first differs at frame ${firstMiss}. rayner check samples less: in every step of every scenario it seeks three frames: one midway, then its second-last and its last. A mismatch fails the check, but agreement at those three times proves nothing about the times between them. An updater follows a different path: in a scene with updaters, a still computes every frame before t.`,
         state: {
           check: { frames: total, matched: { blend: count('blend'), nudge: count('nudge') } },
           // Whether each frame's still is the played frame, for both kinds of motion: the cells.
@@ -648,8 +472,8 @@ export default class LanternExplainer extends Scene {
             miss = st.matches.nudge.indexOf(false) + 1;
           return `Two rows of ${frames} cells, one per frame of the tiny scene, each comparing the seeked frame with the played one. Blending: ${matched.blend === frames ? `all ${frames}` : `${matched.blend} of ${frames}`} match. A nudge each frame: frames 1 to ${miss - 1} match, frames ${miss} to ${frames} differ. A line marks frame ${st.seek.frame}, the still at t = ${st.seek.t.toFixed(2)} s.`;
         },
-        draw: (st) => checkPicture(st),
-      }),
+        draw: (st) => checkPicture(st, c),
+      },
     ]);
   }
 }

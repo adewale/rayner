@@ -6,14 +6,14 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import type { Page } from 'playwright-core';
-import { machinesOf } from '../../explain/testing.ts';
-import type { Machine, Scene, Sink } from '../../src/index.ts';
-import { SENT, acceptedLog, encodeLog, logStart, outcomes, runLive } from '../../app/embed-live.ts';
-import type { LogStart } from '../../app/embed-live.ts';
+import { machinesOf, liveBase, runLive, stepWords, stepQuery } from '../../explain/internal.ts';
+import type { Scene, Sink } from '../../src/index.ts';
+import type { Machine } from '../../explain/index.ts';
+import { SENT, acceptedLog, encodeLog, outcomes } from '../../app/embed-live.ts';
+import type { LogStart } from '../../explain/internal.ts';
 import { chromeFor } from '../../app/embed-strings.ts';
 import { READ_PX } from '../../app/embed-closeup.ts';
-import { stepWords } from '../../explain/trace.ts';
-import { MIN_PX } from './explain-check.ts';
+import { MIN_PX, PHONE_VIEWPORT, REVIEW_VIEWPORTS, STAGE_PX } from './review-sizes.ts';
 import { covered, inspectStoryFrame, storyFrame, storyMemory, verifyStoryTargets } from './explain-story-review.ts';
 import type { StoryFrame, StoryMemory, StoryView } from './explain-story-review.ts';
 import type { Project } from './explain-project.ts';
@@ -73,7 +73,7 @@ export interface LiveSubject {
 
 /**
  * Every live state of `scenario` to visit (liveVisits), each with the picture the page must paint:
- * the scene run to the live step's resting picture and the events played (runLive, as the page
+ * the scene run to the live step's end and the events played (runLive, as the page
  * runs it), read as a resting step is read, with what the events newly emphasised, else the
  * artwork they changed, compared with the step's own picture. An event that leaves the stage as
  * it was is reviewed on the machine's views. A step whose machine no event moves has no buttons
@@ -83,9 +83,8 @@ export async function liveSubjects(scenario: Scenario, lang?: string): Promise<L
   const t = chromeFor(lang);
   const subjects: LiveSubject[] = [];
   for (const [step, live] of scenario.live ?? []) {
-    const times = scenario.trace.steps.find((s) => s.step === step);
-    assert.ok(times, `live step ${step} is not in the trace`);
-    const base = logStart(live.machine, (await runLive(scenario.Scene, times, live.index, [])).rest);
+    assert.ok(scenario.trace.steps.some((s) => s.step === step), `live step ${step} is not in the trace`);
+    const { base } = await liveBase(scenario.Scene, step, live);
     if (!base) continue;
     for (const sent of liveVisits(live.machine, base.state)) {
       const name = `${step} after [${sent.join(', ')}]`;
@@ -96,7 +95,7 @@ export async function liveSubjects(scenario: Scenario, lang?: string): Promise<L
           frame = (await storyFrame(scene, name, memory!, [], views.map((v) => ({ name: `view: ${v.key ?? 'machine'}`, objects: [v] })))).frame;
         },
       };
-      await runLive(scenario.Scene, times, live.index, sent, { sink: capture, from: base.from, onRest: (scene) => (memory = storyMemory(scene)) });
+      await runLive(scenario.Scene, step, live, sent, { sink: capture, from: base.from, onRest: (scene) => (memory = storyMemory(scene)) });
       assert.ok(frame, `${name}: the run drew no picture`);
       const state = acceptedLog(live.machine, base.state, sent).states.at(-1)!;
       const buttons = outcomes(live.machine, state).map((o) => ({
@@ -147,14 +146,11 @@ export async function reviewLiveStates(
   const results: LiveStateReview[] = [];
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const settle = () => page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
-  for (const viewport of [
-    { width: 390, height: 844 },
-    { width: 1180, height: 980 },
-  ]) {
+  for (const viewport of REVIEW_VIEWPORTS) {
     await page.setViewportSize(viewport);
     for (const [n, subject] of subjects.entries()) {
       const name = `${subject.step} after [${subject.sent.join(', ')}]`, where = `${name} at ${viewport.width}px`;
-      const log = encodeLog(subject.sent), link = `${url}?${new URLSearchParams({ ...scenario.values, step: subject.step })}&${SENT}=${log}`;
+      const log = encodeLog(subject.sent), link = `${url}?${stepQuery(scenario.values, subject.step)}&${SENT}=${log}`;
       // The first state at each width opens as a fresh load of its link; the rest are reached
       // through the history, as Back and Forward reach them, which draws the same picture
       // (explain-live.test.ts compares a fresh load with presses) at a third of the time.
@@ -163,7 +159,7 @@ export async function reviewLiveStates(
       await page.waitForSelector('[data-ready=true]');
       await page.waitForFunction((value) => {
         const row = document.querySelector<HTMLElement>('.live');
-        return !!row && !row.hidden && row.dataset.landed === value && !document.querySelector('.stage[aria-busy]') &&
+        return !!row && !row.hidden && row.dataset.drawn === value && !document.querySelector('.stage[aria-busy]') &&
           !document.querySelector('svg.leaving') && !document.querySelector('#content.loading');
       }, log, { timeout: 60_000 });
       await settle();
@@ -203,20 +199,20 @@ export async function reviewLiveStates(
       const verified = verifyStoryTargets(frame, views, name, viewport.width);
       assert.ok(verified.size, `${where}: nothing the events changed is painted in a reader view`);
       // The check's legibility rule, on the served page: each label in the whole picture, as at a 1280 px stage.
-      const perStage = 1280 / (whole.stage[2] - whole.stage[0]);
+      const perStage = STAGE_PX / (whole.stage[2] - whole.stage[0]);
       const labels = labelPixels(frame.labels, [whole]).map((l) => ({ ...l, px: l.px * perStage }));
       const small = labels.filter((l) => l.px < MIN_PX - 1e-3);
       assert.deepEqual(small.map((l) => `“${l.text}” is ${l.px.toFixed(1)} px at a 1280 px stage`), [], `${where}: labels under ${MIN_PX} px`);
       const changed = new Set(frame.targets.flatMap((t) => t.indices)),
         changedLabels = labelPixels(frame.labels.filter((l) => l.indices.some((i) => changed.has(i))), views);
       // On a phone, what a press changed must read at the phone's floor in the whole picture or a close-up.
-      if (viewport.width === 390)
+      if (viewport.width === PHONE_VIEWPORT.width)
         assert.deepEqual(changedLabels.filter((l) => !readableOpeningLabel(l.px)).map((l) => `“${l.text}” is ${l.px.toFixed(1)} px at its best view`), [],
           `${where}: what the events changed reads under ${READ_PX} px on a phone`);
       results.push({
         step: subject.step, sent: subject.sent, width: viewport.width, views: views.length, targets: [...verified],
         labels: labels.length, minimumLabelPx1280: labels.length ? Math.min(...labels.map((l) => l.px)) : null,
-        ...(viewport.width === 390 ? { changedLabelPx: changedLabels.length ? Math.min(...changedLabels.map((l) => l.px)) : null } : {}),
+        ...(viewport.width === PHONE_VIEWPORT.width ? { changedLabelPx: changedLabels.length ? Math.min(...changedLabels.map((l) => l.px)) : null } : {}),
       });
     }
   }

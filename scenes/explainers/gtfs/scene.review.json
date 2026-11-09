@@ -1,63 +1,9 @@
 {
   "version": 2,
   "subjects": [
-    {
-      "step": "evaluate",
-      "settings": {
-        "date": "2007-06-04"
-      },
-      "targets": [
-        {
-          "text": "FULLW,20070604,2"
-        },
-        {
-          "text": "Trips that run"
-        }
-      ]
-    },
-    {
-      "step": "day",
-      "settings": {
-        "date": "2007-06-09"
-      },
-      "targets": [
-        {
-          "text": "AAMV1, route 50"
-        },
-        {
-          "text": "AAMV2, route 50"
-        },
-        {
-          "text": "AAMV3, route 50"
-        },
-        {
-          "text": "AAMV4, route 50"
-        }
-      ]
-    },
-    {
-      "step": "week",
-      "opening": true,
-      "targets": [
-        {
-          "key": "gtfs-week:day"
-        }
-      ]
-    },
-    {
-      "step": "week",
-      "settings": {
-        "date": "2007-06-04"
-      },
-      "opening": true,
-      "targets": [
-        {
-          "key": "gtfs-week:FULLW:20070604"
-        },
-        {
-          "text": "removed"
-        }
-      ]
-    }
+    { "step": "evaluate", "settings": { "date": "2007-06-04" }, "targets": [{ "text": "FULLW,20070604,2" }, { "text": "Trips that run" }] },
+    { "step": "day", "settings": { "date": "2007-06-09" }, "targets": [{ "text": "AAMV1, route 50" }, { "text": "AAMV2, route 50" }, { "text": "AAMV3, route 50" }, { "text": "AAMV4, route 50" }] },
+    { "step": "week", "opening": true, "targets": [{ "key": "gtfs-week:day" }] },
+    { "step": "week", "settings": { "date": "2007-06-04" }, "opening": true, "targets": [{ "key": "gtfs-week:FULLW:20070604" }, { "text": "removed" }] }
   ]
 }

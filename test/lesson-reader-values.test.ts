@@ -2,11 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Text, Rectangle } from '../src/index.ts';
 import { NullSink } from '../src/output.ts';
-import { loadFonts } from '../explain/testing.ts';
+import { loadFonts, loadProject } from '../explain/testing.ts';
 import { stage } from '../explain/index.ts';
-import { collectProject } from '../tools/lib/explain-project.ts';
 import { fc, params } from './lib/pbt.ts';
-import { bars } from '../scenes/explainers/lib/reader-drawing.ts';
+import { bars } from '../explain/drawing.ts';
+
+/** Explainer `id` of the collection, loaded as an author's test loads it. */
+const loaded = async (id: string) => loadProject((await import(`../scenes/explainers/${id}/scene.ts`)).default, `scenes/explainers/${id}`);
 await loadFonts();
 
 test('comparison bars preserve a common scale, exact ends and an empty zero', () => {
@@ -17,11 +19,7 @@ test('comparison bars preserve a common scale, exact ends and an empty zero', ()
       (scale, raw) => {
         const values = raw.map((n) => n % (scale + 1)),
           s = stage(new Scene(new NullSink())),
-          g = bars(
-            s,
-            values.map((v, i) => ({ label: `row ${i}`, value: v, display: String(v) })),
-            scale,
-          );
+          g = bars(s, values.map((v, i) => ({ label: `row ${i}`, value: v, display: String(v) })), scale, { key: 'reader-bars' });
         const fills = g.children.filter((m): m is Rectangle => m instanceof Rectangle && m.style.stroke === 'none');
         assert.equal(fills.length, values.filter((v) => v > 0).length, 'zero must not acquire a decorative stub');
         // Rectangle paths use Float32 coordinates; allow less than 0.001 CSS px at 1280.
@@ -37,14 +35,15 @@ test('comparison bars preserve a common scale, exact ends and an empty zero', ()
 });
 
 test('token introductions and the ring’s fill and result steps draw the independently expected balances, responses and slot values in every scenario', async () => {
-  const token = await collectProject('scenes/explainers/token-bucket', { write: false }),
-    ring = await collectProject('scenes/explainers/ring-buffer', { write: false });
+  const token = await loaded('token-bucket'),
+    ring = await loaded('ring-buffer');
   assert.equal(token.scenarios.length, 3);
   assert.equal(ring.scenarios.length, 2);
   let frames = 0;
   for (const v of token.scenarios)
     await new v.Scene(
       {
+        skipUntil: Infinity,
         async frame() {},
         async stepEnd(scene, step) {
           // The introduction's two pictures are gone; the native steps that show the
@@ -92,11 +91,11 @@ test('token introductions and the ring’s fill and result steps draw the indepe
           frames++;
         },
       },
-      { skipUntil: Infinity },
     ).run();
   for (const v of ring.scenarios)
     await new v.Scene(
       {
+        skipUntil: Infinity,
         async frame() {},
         async stepEnd(scene, step) {
           if (step.name !== 'fill' && step.name !== 'result') return;
@@ -116,19 +115,19 @@ test('token introductions and the ring’s fill and result steps draw the indepe
           frames++;
         },
       },
-      { skipUntil: Infinity },
     ).run();
   // Three token steps in each of three scenarios, two ring introductions in each of two.
   assert.equal(frames, 13);
 });
 
 test('GTFS departures preserve fixed departures and frequency patterns across all six source-feed scenarios', async () => {
-  const p = await collectProject('scenes/explainers/gtfs', { write: false });
+  const p = await loaded('gtfs');
   assert.equal(p.scenarios.length, 6);
   let checked = 0;
   for (const v of p.scenarios)
     await new v.Scene(
       {
+        skipUntil: Infinity,
         async frame() {},
         async stepEnd(scene, step) {
           if (step.name !== 'departures') return;
@@ -154,18 +153,18 @@ test('GTFS departures preserve fixed departures and frequency patterns across al
           checked++;
         },
       },
-      { skipUntil: Infinity },
     ).run();
   assert.equal(checked, 6);
 });
 
 test('the occupied-date picture contains 365 days and the independently expected excluded set in every scenario', async () => {
-  const p = await collectProject('scenes/explainers/birthday-paradox', { write: false });
+  const p = await loaded('birthday-paradox');
   assert.equal(p.scenarios.length, 3);
   let checked = 0;
   for (const v of p.scenarios)
     await new v.Scene(
       {
+        skipUntil: Infinity,
         async frame() {},
         async stepEnd(scene, step) {
           if (step.name !== 'exact') return;
@@ -180,18 +179,18 @@ test('the occupied-date picture contains 365 days and the independently expected
           checked++;
         },
       },
-      { skipUntil: Infinity },
     ).run();
   assert.equal(checked, 3);
 });
 
 test('the complete annual daylight picture labels its fixed zero, twelve and twenty-four-hour scale at every latitude', async () => {
-  const p = await collectProject('scenes/explainers/seasons', { write: false });
+  const p = await loaded('seasons');
   assert.equal(p.scenarios.length, 4);
   let checked = 0;
   for (const v of p.scenarios)
     await new v.Scene(
       {
+        skipUntil: Infinity,
         async frame() {},
         async stepEnd(scene, step) {
           if (step.name !== 'year') return;
@@ -206,14 +205,13 @@ test('the complete annual daylight picture labels its fixed zero, twelve and twe
           checked++;
         },
       },
-      { skipUntil: Infinity },
     ).run();
   assert.equal(checked, 4);
 });
 
 test('the ext4 reserve comparison actually changes reserve and preserves the metadata allocation', async () => {
-  const { space, SIZES } = await import('../scenes/explainers/lib/ext4-space.ts');
-  const p = await collectProject('scenes/explainers/ext4-space', { write: false });
+  const { space, SIZES } = await import('../scenes/explainers/ext4-space/model.ts');
+  const p = await loaded('ext4-space');
   // The 1 TiB disk formatted with -m 1, against the default -m 5 the story walks first.
   const v = p.scenarios.find((x) => x.values.size === '1t' && x.values.reserve === '1');
   assert.ok(v);
@@ -221,6 +219,7 @@ test('the ext4 reserve comparison actually changes reserve and preserves the met
   let checked = 0;
   await new v.Scene(
     {
+      skipUntil: Infinity,
       async frame() {},
       async stepEnd(scene, step) {
         if (step.name !== 'chosen') return;
@@ -237,7 +236,6 @@ test('the ext4 reserve comparison actually changes reserve and preserves the met
         checked++;
       },
     },
-    { skipUntil: Infinity },
   ).run();
   assert.equal(checked, 1);
 });
@@ -262,12 +260,13 @@ test('traffic comparisons draw each source pod share without attributing the ing
       ['c / N3', '33.3%', '33.3%'],
     ],
   } as const;
-  const p = await collectProject('scenes/explainers/traffic-policy', { write: false });
+  const p = await loaded('traffic-policy');
   assert.equal(p.scenarios.length, 6);
   let checked = 0;
   for (const v of p.scenarios)
     await new v.Scene(
       {
+        skipUntil: Infinity,
         async frame() {},
         async stepEnd(scene, step) {
           const placement = v.values.pods as keyof typeof expected;
@@ -295,15 +294,14 @@ test('traffic comparisons draw each source pod share without attributing the ing
           checked++;
         },
       },
-      { skipUntil: Infinity },
     ).run();
   assert.equal(checked, 6);
 });
 
 test('GNOME sample labels explain every participant outcome and retain the report categories in every scenario', async () => {
-  const { frames } = await import('../scenes/explainers/lib/readers/gnome-files.ts');
+  const { frames } = await import('../scenes/explainers/gnome-files/picture.ts');
   // Report page 7, in participant order P1..P6; the selected participant's first
-  // abandoned task is fixed by the session ordering, not the report's chapter order.
+  // abandoned task is fixed by the session ordering, not the order of the report's headings.
   const tasks = { P1: 4, P2: 1, P3: 3, P4: 3, P5: 3, P6: 1 } as const;
   const categories = { 1: 'OBGYOB', 3: 'GGBBBX', 4: 'BYBYGB' } as const;
   const key = {

@@ -1,16 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import { RECIPES } from '../scenes/explainers/feature-tour/scene.ts';
 import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
-
-test('retired Hello World is absent from source and active authoring paths', () => {
-  assert.equal(EXPLAINERS.some(e => e.id === 'hello-world'), false);
-  assert.equal(existsSync('scenes/explainers/hello-world'), false);
-  for (const path of ['README.md', 'docs/TUTORIAL.md', 'docs/FEATURE-TOUR.md'])
-    assert.doesNotMatch(readFileSync(path, 'utf8'), /hello.world|BY-EXAMPLE|Learn by example/i, path);
-});
 
 test('every authoring feature offers a scenario with its user-side code before its result', async () => {
   const project = await collectProject('scenes/explainers/feature-tour', { write: false });
@@ -23,9 +15,9 @@ test('every authoring feature offers a scenario with its user-side code before i
     seen.add(feature);
     assert.deepEqual(trace.steps.map(s => s.step), ['recipe', 'result'], feature);
     const recipe = trace.steps[0]!, resultStep = trace.steps[1]!;
-    assert.equal(recipe.shown!.phase, 'recipe');
-    assert.equal(resultStep.shown!.phase, 'result');
-    assert.equal(resultStep.after!.feature, feature);
+    assert.equal(recipe.shown!.chapter, 'recipe');
+    assert.equal(resultStep.shown!.chapter, 'result');
+    assert.equal(resultStep.after.feature, feature);
     const pictured = recipe.shown!.picture as { entries: { items?: string[] }[] };
     const lines = pictured.entries.flatMap(entry => entry.items ?? []);
     assert.deepEqual(lines.map(line => line.replace(/^\d+: /, '')), RECIPES[feature].code, feature);
@@ -36,6 +28,6 @@ test('every authoring feature offers a scenario with its user-side code before i
   assert.equal(EXPLAINERS.find(e => e.id === 'feature-tour')?.step, 'result');
   assert.equal((project.Scene.meta as { scenarioNavigation?: string }).scenarioNavigation, 'first', 'changing an authoring feature starts its recipe');
   const state = project.scenarios.find(v => v.values.feature === 'state')!;
-  assert.equal(state.trace.steps[1]!.after!.count, 1, 'the view scenario must update recorded state');
+  assert.equal(state.trace.steps[1]!.after.count, 1, 'the view scenario must update recorded state');
   assert.match(JSON.stringify(state.trace.steps[1]!.shown!.picture), /Recorded count: 1/);
 });

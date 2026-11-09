@@ -1,8 +1,9 @@
-import { lerpColor, parseColor } from '../src/color.ts';
+import { blendPaint, contrastRatio, isHex, parseColor } from '../src/color.ts';
 import { Text } from '../src/index.ts';
 import type { Box, Mobject, Scene } from '../src/index.ts';
-import type { Palette } from '../integrations/agentic-mermaid/snapshot.ts';
-import type { Seen } from './trace.ts';
+import { center } from '../src/box.ts';
+import type { Palette } from '../src/color.ts';
+import type { Description } from './trace.ts';
 
 /**
  * Secondary text that still reads on the paper: ink pulled up to a third of the way
@@ -11,18 +12,14 @@ import type { Seen } from './trace.ts';
  */
 export function soft(p: Palette): string {
   let t = 0.32;
-  while (t > 0 && contrast(p, lerpColor(p.ink, p.paper, t)) < 4.5) t = Math.round((t - 0.01) * 100) / 100;
-  return lerpColor(p.ink, p.paper, t);
+  while (t > 0 && contrast(p, blendPaint(p.ink, p.paper, t)) < 4.5) t = Math.round((t - 0.01) * 100) / 100;
+  return blendPaint(p.ink, p.paper, t);
 }
 /** WCAG contrast of a colour against the paper. */
 function contrast(p: Palette, color: string): number {
-  const lum = (c: string) => {
-    const lin = (v: number) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
-    const [r, g, b] = parseColor(c) ?? [255, 255, 255];
-    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-  };
-  const [a, z] = [lum(color), lum(p.paper)].sort((x, y) => y - x);
-  return (a! + 0.05) / (z! + 0.05);
+  // A colour this cannot read counts as white.
+  const rgb = (c: string) => parseColor(c) ?? ([255, 255, 255] as const);
+  return contrastRatio(rgb(color), rgb(p.paper));
 }
 /** Of a colour for dark paper and one for light paper, the one that reads on this paper. */
 const onPaper = (p: Palette, dark: string, light: string) => (contrast(p, dark) >= contrast(p, light) ? dark : light);
@@ -54,11 +51,11 @@ interface EmphasisSource { [emphasisSource](): Emphasis }
  * staged step's picture), so a picture built from state is described as it is built.
  */
 export const seenSource = Symbol('seenSource');
-export interface SeenSource { [seenSource](): Seen }
+export interface SeenSource { [seenSource](): Description }
 /** Whether `m` describes itself. */
 export const describesItself = (m: Mobject): m is Mobject & SeenSource => typeof (m as Partial<SeenSource>)[seenSource] === 'function';
 /** Give `m` its own description (and, when `emphasis` is given, its own emphasis); returns `m`. */
-export function selfDescribed<T extends Mobject>(m: T, seen: () => Seen, emphasis?: () => Emphasis): T {
+export function selfDescribed<T extends Mobject>(m: T, seen: () => Description, emphasis?: () => Emphasis): T {
   Object.assign(m, { [seenSource]: seen, ...(emphasis ? { [emphasisSource]: emphasis } : {}) });
   return m;
 }
@@ -66,8 +63,8 @@ export function selfDescribed<T extends Mobject>(m: T, seen: () => Seen, emphasi
  * What `m` shows in words: each part that describes itself, as it describes itself, and the text
  * of every other `Text`, in family order. A self-describing part's own text is not repeated.
  */
-export function partsSeen(m: Mobject, text: (t: Text) => boolean = () => true): { seen: Seen[]; words: string[] } {
-  const seen: Seen[] = [], words: string[] = [];
+export function partsSeen(m: Mobject, text: (t: Text) => boolean = () => true): { seen: Description[]; words: string[] } {
+  const seen: Description[] = [], words: string[] = [];
   const walk = (x: Mobject): void => {
     if (describesItself(x)) { seen.push(x[seenSource]()); return; }
     if (x instanceof Text) { if (text(x)) words.push(x.text); return; }
@@ -111,6 +108,27 @@ export function emphasisOf(scene: Scene): Map<Mobject, string> {
   return out;
 }
 
+/**
+ * Where a part showing emphasis sits, so a redrawn picture's part counts as the same one: its
+ * keys from the outermost keyed ancestor down when it is keyed, else the object itself.
+ */
+function emphasisAddress(m: Mobject): Mobject | string {
+  if (m.key === undefined) return m;
+  const keys: string[] = [];
+  for (let x: Mobject | null = m; x; x = x.parent) if (x.key !== undefined) keys.unshift(x.key);
+  return keys.join(' / ');
+}
+/**
+ * What `now` emphasises that `was` did not: a part that shows emphasis now and did not before,
+ * or showed another row, line or colour. A view that redraws a kept mark makes a new object
+ * at the same address with the same words, which is not new emphasis.
+ */
+export function newlyEmphasised(now: ReadonlyMap<Mobject, string>, was: ReadonlyMap<Mobject, string>): Map<Mobject, string> {
+  const before = new Map<Mobject | string, string>();
+  for (const [m, what] of was) before.set(emphasisAddress(m), what);
+  return new Map([...now].filter(([m, what]) => was.get(m) !== what && before.get(emphasisAddress(m)) !== what));
+}
+
 const openingSubjects = new WeakMap<Scene, readonly Mobject[]>();
 /** The objects a reader must compare together before exploring the details.
  * This selects an opening; it neither removes artwork nor changes its scale. */
@@ -129,13 +147,73 @@ export const bad = (p: Palette) => onPaper(p, '#f85149', '#cf222e');
  */
 export function dimOpacity(p: Palette): number {
   let a = 0.2;
-  while (a < 1 && contrast(p, lerpColor(p.paper, p.ink, a)) < 3) a = Math.round((a + 0.01) * 100) / 100;
+  while (a < 1 && contrast(p, blendPaint(p.paper, p.ink, a)) < 3) a = Math.round((a + 0.01) * 100) / 100;
   return a;
 }
 /** A panel surface one shade off the paper. */
-export const raised = (p: Palette) => lerpColor(p.paper, p.ink, 0.07);
+export const raised = (p: Palette) => blendPaint(p.paper, p.ink, 0.07);
 /** A hairline that separates without shouting. */
-export const rule = (p: Palette) => lerpColor(p.paper, p.ink, 0.28);
+export const rule = (p: Palette) => blendPaint(p.paper, p.ink, 0.28);
+
+/**
+ * The colours a scene draws with on a stage (`s.look`), derived from its palette so each reads on
+ * its paper. A palette is the input (a named style); the look is what drawing code reads.
+ */
+export interface Look {
+  /** The paper the stage is drawn on. */
+  readonly paper: string;
+  /** Text and lines. */
+  readonly ink: string;
+  /** Secondary text that still reads on the paper: at least 4.5:1 against it. */
+  readonly soft: string;
+  /** Emphasis: trails, marks, lit rows and lines, plotted data. The style's accent when it has a hue, else a warm orange. */
+  readonly emphasis: string;
+  /** An outcome that passed or was accepted. */
+  readonly good: string;
+  /** An outcome that failed or was rejected. */
+  readonly bad: string;
+  /** A panel surface one shade off the paper. */
+  readonly raised: string;
+  /** A hairline that separates without shouting. */
+  readonly rule: string;
+  /** The style's faint colour, for guides, axes and tracks that are not read as text. */
+  readonly muted: string;
+}
+/** The look of a palette: the colours drawn on its paper. */
+const stagePalettes = new WeakMap<object, () => Palette>();
+/**
+ * The palette a stage was styled from, for the card and code panels the kit builds (a card's
+ * headings take the palette's own accent). Not public: a scene draws with `s.look`.
+ */
+export function stagePalette(s: object, api: string): Palette {
+  const read = stagePalettes.get(s);
+  if (!read) throw new TypeError(`${api}: its first argument must be a stage, stage(this)`);
+  return read();
+}
+/** Records where a stage's current palette is read from (see stagePalette). */
+export function bindStagePalette(s: object, read: () => Palette): void {
+  stagePalettes.set(s, read);
+}
+
+/**
+ * A size a type cannot hold to its range: a finite number above 0, in scene units. An option bag's
+ * keys and types are TypeScript's to check; this is one of the values it cannot.
+ */
+export function checkSize(api: string, what: string, value: number | undefined): void {
+  if (value !== undefined && !(value > 0 && Number.isFinite(value)))
+    throw new RangeError(`${api}: ${what} is ${String(value)}; give a size in scene units above 0, such as 0.5`);
+}
+/** A palette's four colours, each a hex colour (`#rgb` or `#rrggbb`): its type holds them to strings, not to colours. */
+export function checkPalette(api: string, p: Palette): void {
+  for (const k of ['paper', 'ink', 'accent', 'muted'] as const)
+    if (!isHex(p[k])) throw new RangeError(`${api}: the palette's ${k} is ${JSON.stringify(p[k])}, not a hex colour; give #rgb or #rrggbb, such as '#2e3440'`);
+}
+
+export function lookOf(p: Palette): Look {
+  return Object.freeze({
+    paper: p.paper, ink: p.ink, soft: soft(p), emphasis: emphasis(p), good: good(p), bad: bad(p), raised: raised(p), rule: rule(p), muted: p.muted,
+  });
+}
 
 /**
  * Stage regions below the heading, in scene units (16 × 9, y up). Lay native
@@ -163,4 +241,4 @@ export function regionBox(
   const b: Box = typeof r === 'string' ? [...REGIONS[r]] : [...r];
   return [left ?? b[0], bottom ?? b[1], right ?? b[2], top ?? b[3]];
 }
-export const boxCenter = (b: Box): [number, number] => [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
+export const boxCenter = (b: Box): [number, number] => center(b);

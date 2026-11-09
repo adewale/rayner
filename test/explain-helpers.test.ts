@@ -1,17 +1,26 @@
 // The explain package's own contracts that are not a Diagram's or a panel's:
 // the stage's palette and evidence, snapshot validation and resolution
-// (integrations/agentic-mermaid/snapshot.ts), the colours and regions in
+// (explain/diagram-snapshot.ts), the colours and regions in
 // explain/look.ts, and the HTML escaping in explain/trace.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene } from '../src/index.ts';
+import { Scene, Rectangle } from '../src/index.ts';
+import type { Text } from '../src/index.ts';
 import { NullSink } from '../src/output.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
-import { stage, regionBox, REGIONS } from '../explain/index.ts';
-import { bindSnapshots } from '../explain/testing.ts';
-import { findingsOf, edgePartOf, diagramKey, snapshotResolver, useDiagrams, diagramsOf, RENDERER } from '../integrations/agentic-mermaid/snapshot.ts';
-import type { DiagramSnapshot } from '../explain/index.ts';
-import { raised, rule, emphasis, soft, good, bad, dimOpacity } from '../explain/look.ts';
+import { stage, regionBox } from '../explain/index.ts';
+import { paletteOf, paperOf } from '../explain/stage.ts';
+import { sceneIdOf } from '../explain/project.ts';
+import { REGIONS } from '../explain/look.ts';
+import { assertStepState, assertSteps, diagramFindings, diagramOf, loadProject, loadSnapshots, pictureWordsAt, withSettings } from '../explain/testing.ts';
+import { bindSnapshots } from '../explain/internal.ts';
+import { takeMissingGlyphs } from '../src/fonts.ts';
+import FontMetrics from '../scenes/explainers/font-metrics/scene.ts';
+import GreekLettering from './fixtures/lettering/scene.ts';
+import { edgePartOf, diagramKey, snapshotResolver, useDiagrams, diagramResolverOf, RENDERER } from '../explain/diagram-snapshot.ts';
+import type { DiagramSnapshot, StageOptions } from '../explain/index.ts';
+import { raised, rule, emphasis, soft, good, bad, dimOpacity, seenSource } from '../explain/look.ts';
+import type { SeenSource } from '../explain/look.ts';
 import { PALETTES, palette } from '../explain/palettes.ts';
 import { Diagram } from '../explain/diagrams.ts';
 import { htmlEscape } from '../explain/trace.ts';
@@ -57,9 +66,9 @@ test('a stage with no style takes its first diagram’s paper; hidden parts stay
       const s = stage(this);
       await this.step('frame');
       const d = await s.show(spec, { build: 'frame' });
-      assert.equal(s.paper.style.fill, '#123456');
+      assert.equal(paperOf(this), '#123456');
       // The camera can frame a part that is not drawn yet without drawing it.
-      await d.focus(['A']);
+      await d.enlarge(['A']);
       assert.ok(!this.familyMembers().some((m) => m.key === 'A'));
       await d.reveal(['A', 'B', 'edge:A->B#0']);
       assert.equal(d.get('edge-label:A->B#0').parent, d.get('edge:A->B#0'), 'a link carries the label it owns');
@@ -68,11 +77,256 @@ test('a stage with no style takes its first diagram’s paper; hidden parts stay
     }
   }
   const trace = await traceScene(bindSnapshots(Demo, { [diagramKey(spec)]: fixture() }));
-  assert.deepEqual(trace.steps[0]!.after!.walks, [{ step: 'frame', from: 'A', to: 'B', edge: 'edge:A->B#0' }]);
-  assert.equal(trace.steps[0]!.after!.answer, 42);
+  assert.deepEqual(trace.steps[0]!.after.walks, [{ step: 'frame', from: 'A', to: 'B', edge: 'edge:A->B#0' }]);
+  assert.equal(trace.steps[0]!.after.answer, 42);
+  // A scene's own walks key is refused, at the walk or when a later state brings one, not replaced.
+  class Own extends Scene {
+    override state = { walks: 'mine' };
+    override async construct() {
+      const s = stage(this);
+      await this.step('frame');
+      const d = await s.show(spec, { build: 'frame' });
+      await d.reveal(['A', 'B', 'edge:A->B#0']);
+      await d.walk([['A', 'B']]);
+    }
+  }
+  await assert.rejects(traceScene(bindSnapshots(Own, { [diagramKey(spec)]: fixture() })), /^Error: this\.state: its own walks key would be replaced/);
+  class Later extends Scene {
+    override async construct() {
+      const s = stage(this);
+      await this.step('frame');
+      const d = await s.show(spec, { build: 'frame' });
+      await d.reveal(['A', 'B', 'edge:A->B#0']);
+      await d.walk([['A', 'B']]);
+      this.state = { walks: 'mine' };
+      await this.step('after');
+    }
+  }
+  await assert.rejects(traceScene(bindSnapshots(Later, { [diagramKey(spec)]: fixture() })), /^Error: this\.state: the key "walks" is also written by a helper/);
 });
 
-// ---- integrations/agentic-mermaid/snapshot.ts ------------------------------------
+test('a stage with no style adopts only its first diagram’s palette: a second diagram in another style recolours nothing', async () => {
+  const other = { source: 'graph LR\nC --> D', style: 'dusk' };
+  const second = fixedSnapshot(other, [{ id: 'C', role: 'node', kind: 'shape', shapes: [square(0, { fill: '#fff', stroke: '#000' })] }], {
+    palette: { paper: '#fafafa', ink: '#111111', accent: '#0000ff', muted: '#bbbbbb' },
+  });
+  class Two extends Scene {
+    override async construct() {
+      const s = stage(this);
+      await this.step('one', { title: 'Two diagrams' });
+      await s.show(spec, { box: 'left' });
+      const adopted = { paper: paperOf(this), heading: s.heading.style.fill, colors: { ...this.colors }, palette: paletteOf(this) };
+      assert.equal(adopted.paper, '#123456');
+      await s.show(other, { box: 'right' });
+      assert.equal(paperOf(this), adopted.paper, 'the backdrop keeps the first diagram’s paper');
+      assert.equal(s.heading.style.fill, adopted.heading, 'the heading keeps its ink');
+      assert.deepEqual(this.colors, adopted.colors, 'engine defaults keep the first palette');
+      assert.deepEqual(paletteOf(this), adopted.palette);
+      this.state.done = true;
+    }
+  }
+  await new (bindSnapshots(Two, { [diagramKey(spec)]: fixture(), [diagramKey(other)]: second }))(new NullSink()).run();
+});
+
+test('a diagram’s presentation is one value, the view a live diagram replaced included: diagramView, liveDiagram, hide and clear set it, and a viewed diagram refuses a reveal, enlargement or morph', async () => {
+  const next = { source: 'graph LR\nA --> B\nB --> C', style: 'nord' };
+  const after = fixedSnapshot(next, fixture().parts.filter((p) => p.id !== '__frame'), { palette: fixture().palette });
+  const refused = (api: string) => new RegExp(`^Error: ${api.replace(/[.()]/g, '\\$&')}: the diagram is shown by a view`);
+  class Presented extends Scene {
+    override async construct() {
+      const s = stage(this);
+      await this.step('one');
+      const d = await s.show(spec, { build: 'frame' });
+      assert.deepEqual(d.presentation, { kind: 'live', replaced: null });
+      const v = s.diagramView(d, () => ({ marks: { A: d.emphasis } }));
+      assert.deepEqual(d.presentation, { kind: 'viewed', view: v });
+      assert.ok(this.mobjects.includes(v) && !this.mobjects.includes(d.root), 'the view takes the live diagram’s place');
+      // Showing it by a view again redraws that view with the new draw.
+      assert.equal(s.diagramView(d, () => ({})), v);
+      await assert.rejects(async () => await d.reveal(['A']), refused('d.reveal()'));
+      await assert.rejects(async () => await d.enlarge(['A']), refused('d.enlarge()'));
+      await assert.rejects(async () => await d.morph(next), refused('d.morph()'));
+      assert.ok(!this.familyMembers().includes(d.get('A')), 'no refused call put a live part beside the view');
+      s.liveDiagram(d);
+      assert.deepEqual(d.presentation, { kind: 'live', replaced: v });
+      assert.ok(!this.mobjects.includes(v) && this.mobjects.includes(d.root));
+      assert.throws(() => s.liveDiagram(d), /^Error: s\.liveDiagram\(\): the diagram is not shown by a view/);
+      await d.reveal(['A']);
+      assert.deepEqual(d.presentation, { kind: 'live', replaced: v }, 'a reveal keeps the view it replaced');
+      // Shown by a view again, it is the view it handed back from, drawing the diagram as it is now.
+      assert.equal(s.diagramView(d), v);
+      assert.deepEqual(d.presentation, { kind: 'viewed', view: v });
+      assert.ok(this.mobjects.includes(v) && !this.mobjects.includes(d.root));
+      s.liveDiagram(d);
+      // A view of the scene's own shows it too; the stage hands back to the live diagram from it as well.
+      const own = d.picture();
+      this.add(own);
+      d.showBy(own);
+      assert.throws(() => s.diagramView(d), /^Error: s\.diagramView\(\): the diagram is shown by a view of the scene's own/);
+      s.liveDiagram(d);
+      assert.deepEqual(d.presentation, { kind: 'live', replaced: own });
+      assert.ok(!this.mobjects.includes(own));
+      // hide fades the view and detaches the diagram; so does clear.
+      const w = s.diagramView(d);
+      assert.notEqual(w, v, 'a view of its own replaced the stage’s, so the stage makes a new one');
+      await d.hide();
+      assert.deepEqual(d.presentation, { kind: 'detached' });
+      assert.ok(!this.familyMembers().includes(w) && !this.mobjects.includes(d.root));
+      await d.reveal(['A']);
+      assert.notEqual(s.diagramView(d), w, 'after a hide the diagram starts afresh, with a new view');
+      await s.clear();
+      assert.deepEqual(d.presentation, { kind: 'detached' });
+      await d.morph(next);
+      assert.deepEqual(d.presentation, { kind: 'live', replaced: null });
+      this.state.done = true;
+    }
+  }
+  await new (bindSnapshots(Presented, { [diagramKey(spec)]: fixture(), [diagramKey(next)]: after }))(new NullSink()).run();
+});
+
+test('a diagram\'s presentation changes only through its calls: a root taken off is not described, and one put back beside its view is refused', async () => {
+  // Named by the call whose step's description refuses it, not by the property.
+  const twice = /^Error: this\.step\(\): the diagram's root is on the stage while a view shows the diagram/;
+  const beside = /^Error: this\.step\(\): the diagram's root is on the stage beside the view it replaced/;
+  class ByHand extends Scene {
+    override async construct() {
+      const s = stage(this);
+      await this.step('one');
+      const d = await s.show(spec, { build: 'all' });
+      // Taken off by hand, the live diagram keeps its presentation and is not described until it is back.
+      this.remove(d.root);
+      assert.deepEqual(d.presentation, { kind: 'live', replaced: null });
+      assert.equal(d.described(), false);
+      this.add(d.root);
+      assert.equal(d.described(), true);
+      // Put on by hand while a view shows the diagram: refused when the stage next describes it.
+      const v = s.diagramView(d);
+      this.add(d.root);
+      assert.throws(() => d.described(), twice);
+      this.remove(d.root);
+      assert.equal(d.described(), true);
+      // The view it replaced, put back beside the live diagram: refused too.
+      s.liveDiagram(d);
+      this.add(v);
+      assert.throws(() => d.described(), beside);
+      this.remove(v);
+      assert.equal(d.described(), true);
+      // Left on stage at a step's end, the stage's description refuses it.
+      s.diagramView(d);
+      this.add(d.root);
+      await this.step('two');
+    }
+  }
+  await assert.rejects(new (bindSnapshots(ByHand, { [diagramKey(spec)]: fixture() }))(new NullSink()).run(), twice);
+});
+
+test('stage() runs once per scene: a second call is refused', async () => {
+  class Twice extends Scene {
+    override async construct() {
+      stage(this);
+      // A second stage would add a second backdrop, heading and step listeners.
+      assert.throws(() => stage(this), /^Error: stage\(\): the scene has a stage already/);
+      assert.equal(this.mobjects.filter((m) => m.role === 'backdrop').length, 1);
+      this.state.done = true;
+    }
+  }
+  await new Twice(new NullSink()).run();
+  // Each scene has its own stage.
+  await new Twice(new NullSink()).run();
+});
+
+test('a stage() that throws on its options leaves the scene as it was, free to have a stage', async () => {
+  const scene = new Scene(new NullSink());
+  const nord = { paper: '#2e3440', ink: '#d8dee9', accent: '#88c0d0', muted: '#616e88' };
+  // What a type cannot hold to its range is checked: a style that is no style, a palette colour
+  // that is no hex colour, and a heading size that is not a finite size above 0.
+  const defects: [StageOptions, RegExp][] = [
+    [{ style: 'no-such-style' }, /^RangeError: palette\(\): "no-such-style"/],
+    [{ palette: { ...nord, paper: 'notacolour' } }, /^RangeError: stage\(\): the palette's paper is "notacolour"/],
+    [{ headingSize: NaN }, /^RangeError: stage\(\): headingSize is NaN/],
+    [{ headingSize: 0 }, /^RangeError: stage\(\): headingSize is 0/],
+    [{ headingSize: Infinity }, /^RangeError: stage\(\): headingSize is Infinity/],
+  ];
+  for (const [options, refused] of defects) {
+    assert.throws(() => stage(scene, options), refused, JSON.stringify(options));
+    assert.equal(scene.mobjects.length, 0, `${JSON.stringify(options)}: no backdrop or heading`);
+    assert.equal(paletteOf(scene), undefined);
+  }
+  // No refused stage left a step listener behind: a step draws nothing.
+  await scene.step('between', { title: 'Between' });
+  assert.equal(scene.mobjects.length, 0, 'a step after the refusals draws no heading');
+  // What the options allow still stages: each on a fresh scene.
+  for (const options of [{ palette: nord, headingSize: 0.5, numbered: false, heading: 'A title' }, { palette: { ...nord, paper: '#fff' }, heading: false as const }, { heading: 'step', numbered: true }])
+    assert.ok(stage(new Scene(new NullSink()), options), JSON.stringify(options));
+  // The retry is the scene's one stage: its backdrop once, and its heading follows the next step.
+  const s = stage(scene, { heading: 'step' });
+  assert.equal(scene.mobjects.filter((m) => m.role === 'backdrop').length, 1);
+  await scene.step('after', { title: 'After' });
+  assert.equal((s.heading as Text).text, 'After');
+  assert.throws(() => stage(scene), /the scene has a stage already/);
+});
+
+test('a card or code panel refuses a size or width that is not a finite size above 0', async () => {
+  const { card, code } = await import('../explain/drawing.ts');
+  const s = stage(new Scene(new NullSink()), { heading: false });
+  for (const bad of [0, -1, NaN, Infinity]) {
+    assert.throws(() => card(s, [['a', 1]], { size: bad }), new RegExp(`^RangeError: card\\(\\): size is ${bad}`));
+    assert.throws(() => card(s, [['a', 1]], { width: bad }), new RegExp(`^RangeError: card\\(\\): width is ${bad}`));
+    assert.throws(() => code(s, ['x'], { size: bad }), new RegExp(`^RangeError: code\\(\\): size is ${bad}`));
+    assert.throws(() => code(s, ['x'], { width: bad }), new RegExp(`^RangeError: code\\(\\): width is ${bad}`));
+  }
+});
+
+test('withoutHeading draws with the heading off the stage, and puts the list back however the draw ends', async () => {
+  const { withoutHeading, isHeading } = await import('../explain/stage.ts');
+  const scene = new Scene(new NullSink());
+  stage(scene, { heading: 'A title' });
+  const all = scene.mobjects;
+  assert.ok(all.some(isHeading));
+  const seen = withoutHeading(scene, () => scene.mobjects.filter(isHeading).length);
+  assert.equal(seen, 0);
+  assert.equal(scene.mobjects, all);
+  assert.equal(await withoutHeading(scene, async () => { await Promise.resolve(); return scene.mobjects.some(isHeading); }), false);
+  assert.equal(scene.mobjects, all);
+  assert.throws(() => withoutHeading(scene, () => { throw new Error('drawn wrong'); }), /drawn wrong/);
+  assert.equal(scene.mobjects, all);
+  await assert.rejects(withoutHeading(scene, async () => { throw new Error('drawn wrong'); }), /drawn wrong/);
+  assert.equal(scene.mobjects, all);
+});
+
+test('the old heading stays on top until it has faded out: what its play adds draws under it', async () => {
+  const { isHeading } = await import('../explain/stage.ts');
+  const over: string[] = [];
+  let added: Rectangle | null = null;
+  class Retitled extends Scene {
+    override async construct() {
+      const s = stage(this);
+      await this.step('one', { title: 'The first title' });
+      // An updater that adds a mobject during the next heading's fade, as anything added in that play would be.
+      const ticker = new Rectangle({ width: 0.1, height: 0.1 });
+      ticker.addUpdater(() => {
+        if (!added && this.currentStep?.name === 'two') this.add((added = new Rectangle({ width: 16, height: 9 })));
+      });
+      this.add(ticker);
+      await this.wait(0.2);
+      void s;
+      await this.step('two', { title: 'The second title' });
+      await this.wait(0.2);
+    }
+  }
+  const watch = {
+    async frame(scene: Scene) {
+      if (!added || !scene.mobjects.includes(added)) return;
+      const at = scene.mobjects.indexOf(added);
+      for (const [i, m] of scene.mobjects.entries()) if (isHeading(m) && i < at) over.push(`frame ${scene.frameCount}: ${(m as Text).text ?? m.role}`);
+    },
+  };
+  await new Retitled(watch).run();
+  assert.ok(added, 'the updater added its rectangle during the fade');
+  assert.deepEqual(over, [], 'no part of a heading, old or new, draws under what the fade\'s play added');
+});
+
+// ---- explain/diagram-snapshot.ts -----------------------------------------------
 
 test('snapshot JSON with a corrupt point, paint, owner, path, size, finding or chart value is refused, as is one stored under another source', async () => {
   const good = fixture();
@@ -109,7 +363,7 @@ test('snapshot JSON with a corrupt point, paint, owner, path, size, finding or c
   for (const corrupt of corruptions) {
     const broken = JSON.parse(JSON.stringify(good));
     corrupt(broken);
-    await assert.rejects(snapshotResolver({ [diagramKey(spec)]: broken }).diagram(spec), /Invalid diagram snapshot/);
+    await assert.rejects(snapshotResolver({ [diagramKey(spec)]: broken }).diagram(spec), /scene\.snapshots: a diagram snapshot is invalid/);
   }
   await assert.rejects(
     snapshotResolver({ [diagramKey(spec)]: { ...good, spec: { source: 'graph LR\\nX-->Y' } } }).diagram(spec),
@@ -146,7 +400,7 @@ test('marker carriers require an explicit semantic connector owner with identica
   for (const [name, corrupt] of corruptions) {
     const broken = structuredClone(good);
     corrupt(broken);
-    await assert.rejects(snapshotResolver({ [diagramKey(spec)]: broken }).diagram(spec), /Invalid diagram snapshot/, name);
+    await assert.rejects(snapshotResolver({ [diagramKey(spec)]: broken }).diagram(spec), /scene\.snapshots: a diagram snapshot is invalid/, name);
   }
 });
 
@@ -235,7 +489,7 @@ test('a snapshot with any one field replaced is accepted or refused with the doc
       try {
         await snapshotResolver({ [key]: broken }).diagram(s.spec);
       } catch (error) {
-        assert.match((error as Error).message, /^(Invalid diagram snapshot|Snapshot source does not match)/, `${path.join('.')} = ${JSON.stringify(value)}`);
+        assert.match((error as Error).message, /^scene\.snapshots: (a diagram snapshot is invalid|a snapshot's source does not match its key)/, `${path.join('.')} = ${JSON.stringify(value)}`);
       }
     }),
     params(),
@@ -250,13 +504,13 @@ test('whatever the validator accepts, a Diagram can draw and describe without in
       try {
         ok = await snapshotResolver({ [diagramKey(s.spec)]: broken }).diagram(s.spec);
       } catch (error) {
-        assert.match((error as Error).message, /^(Invalid diagram snapshot|Snapshot source does not match)/);
+        assert.match((error as Error).message, /^scene\.snapshots: (a diagram snapshot is invalid|a snapshot's source does not match its key)/);
         return;
       }
-      const scene = new Scene(new NullSink(), { skipUntil: Infinity });
+      const scene = new Scene(new NullSink());
       const d = new Diagram(scene, ok.spec, ok, { box: 'side' });
       await d.build();
-      await d.focus('all');
+      await d.enlarge('all');
       for (const p of d.describe().parts) assert.equal(typeof p.name, 'string');
       for (const p of d.parts.values())
         for (const m of p.mob.family()) {
@@ -269,7 +523,7 @@ test('whatever the validator accepts, a Diagram can draw and describe without in
 });
 
 test('two diagrams on one stage have two frames, each a part of its own with the role frame', async () => {
-  const scene = new Scene(new NullSink(), { skipUntil: Infinity });
+  const scene = new Scene(new NullSink());
   const other = fixedSnapshot({ ...spec, source: spec.source + '\n%% another' }, fixture().parts, { palette: fixture().palette });
   const [a, b] = [new Diagram(scene, spec, fixture(), { box: 'left' }), new Diagram(scene, other.spec, other, { box: 'right' })];
   await a.build();
@@ -283,7 +537,7 @@ test('two diagrams on one stage have two frames, each a part of its own with the
 test('a hidden diagram leaves the stage, so nothing describes it, and reveal brings it back', async () => {
   const s = fixture();
   const ok = await snapshotResolver({ [diagramKey(s.spec)]: s }).diagram(s.spec);
-  const scene = new Scene(new NullSink(), { skipUntil: Infinity });
+  const scene = new Scene(new NullSink());
   const d = new Diagram(scene, ok.spec, ok, { box: 'side' });
   await d.build();
   assert.ok(scene.mobjects.includes(d.root));
@@ -296,9 +550,9 @@ test('a hidden diagram leaves the stage, so nothing describes it, and reveal bri
 test('a canvas so large the diagram fits to a point still draws finite points (CI counterexample)', async () => {
   const s = { ...fixture(), width: 129312739843.01703 };
   const ok = await snapshotResolver({ [diagramKey(s.spec)]: s }).diagram(s.spec);
-  const d = new Diagram(new Scene(new NullSink(), { skipUntil: Infinity }), ok.spec, ok, { box: 'side' });
+  const d = new Diagram(new Scene(new NullSink()), ok.spec, ok, { box: 'side' });
   await d.build();
-  await d.focus('all');
+  await d.enlarge('all');
   for (const p of d.parts.values()) for (const m of p.mob.family()) for (const a of m.pointArrays()) assert.ok(a.every(Number.isFinite));
 });
 
@@ -311,7 +565,7 @@ test('a label width beyond float32 is refused, not drawn as Infinity (property c
     return snapshotResolver({ [diagramKey(s.spec)]: s }).diagram(s.spec);
   };
   await withLabel(24);
-  await assert.rejects(withLabel(3.4028235677973366e38), /Invalid diagram snapshot/);
+  await assert.rejects(withLabel(3.4028235677973366e38), /scene\.snapshots: a diagram snapshot is invalid/);
 });
 
 test('resolving a snapshot never changes it', async () => {
@@ -322,6 +576,18 @@ test('resolving a snapshot never changes it', async () => {
       assert.equal(JSON.stringify(s), before);
     }),
     params(),
+  );
+});
+
+// A part with an empty id passed the validator, and the Diagram then refused to key it (a FULL=1 counterexample).
+test('a part with an empty id is refused', async () => {
+  await fc.assert(
+    fc.asyncProperty(randomSnapshot().filter((s) => s.parts.length > 0).chain((s) => fc.tuple(fc.constant(s), fc.nat({ max: s.parts.length - 1 }))), async ([s, i]) => {
+      const copy: DiagramSnapshot = JSON.parse(JSON.stringify(s));
+      copy.parts[i]!.id = '';
+      await assert.rejects(snapshotResolver({ [diagramKey(s.spec)]: copy }).diagram(s.spec), /scene\.snapshots: a diagram snapshot is invalid/);
+    }),
+    params(50),
   );
 });
 
@@ -339,7 +605,7 @@ test('ownership cycles, and owners that are empty or name no part, are refused',
           fc.pre(!copy.parts.some((p) => p.id === ghost));
           ids[0]!.owner = ghost;
         } else ids.forEach((p, i) => (p.owner = ids[(i + 1) % ids.length]!.id));
-        await assert.rejects(snapshotResolver({ [diagramKey(s.spec)]: copy }).diagram(s.spec), /Invalid diagram snapshot/);
+        await assert.rejects(snapshotResolver({ [diagramKey(s.spec)]: copy }).diagram(s.spec), /scene\.snapshots: a diagram snapshot is invalid/);
       },
     ),
     params(),
@@ -351,7 +617,7 @@ test('a missing snapshot is refused', async () => {
     fc.asyncProperty(randomSnapshot(), fc.array(randomSnapshot('other'), { maxLength: 2 }), async (s, others) => {
       const store = Object.fromEntries(others.map((o) => [diagramKey(o.spec), o]));
       fc.pre(!(diagramKey(s.spec) in store));
-      await assert.rejects(snapshotResolver(store).diagram(s.spec), /Missing diagram snapshot/);
+      await assert.rejects(snapshotResolver(store).diagram(s.spec), /scene\.snapshots: there is no snapshot of/);
     }),
     params(),
   );
@@ -367,7 +633,7 @@ test('a snapshot stored under another spec is refused', async () => {
   );
 });
 
-test('diagramsOf returns the resolver last bound to that scene, and refuses an unbound scene', () => {
+test('diagramResolverOf returns the resolver last bound to that scene, and refuses an unbound scene', () => {
   fc.assert(
     fc.property(fc.array(fc.nat({ max: 3 }), { maxLength: 10 }), (binds) => {
       const scenes = Array.from({ length: 4 }, () => new Scene(new NullSink()));
@@ -378,8 +644,8 @@ test('diagramsOf returns the resolver last bound to that scene, and refuses an u
         last.set(scenes[i]!, r);
       }
       for (const scene of scenes)
-        if (last.has(scene)) assert.equal(diagramsOf(scene), last.get(scene));
-        else assert.throws(() => diagramsOf(scene), /No diagram snapshots/);
+        if (last.has(scene)) assert.equal(diagramResolverOf(scene), last.get(scene));
+        else assert.throws(() => diagramResolverOf(scene), /diagramResolverOf\(\): no diagram snapshots are bound to this scene/);
     }),
     params(),
   );
@@ -420,7 +686,7 @@ test('current producer warnings name multigraph parts per pair regardless of glo
     const current: DiagramSnapshot = { ...s, renderer: RENDERER };
     for (const id of ids) assert.equal(edgePartOf(current, id.slice('edge:'.length)), id);
     const warnings = ids.map((id) => ({ code: 'DECISION_BRANCH_UNLABELED', edge: id.slice('edge:'.length) }));
-    assert.deepEqual(findingsOf({ ...current, findings: { ...current.findings, warnings } }).map((w) => w.part), ids);
+    assert.deepEqual(diagramFindings({ ...current, findings: { ...current.findings, warnings } }).map((w) => w.part), ids);
     assert.equal(edgePartOf(current, 'missing->edge#0'), undefined);
     const authored = { ...current, parts: current.parts.map((p, i) => ({ ...p, id: `edge:authored_${i}` })) };
     authored.parts.forEach((p) => assert.equal(edgePartOf(authored, p.id.slice('edge:'.length)), p.id));
@@ -439,7 +705,7 @@ test('edgePartOf finds nothing for a name whose index or endpoints do not match 
   );
 });
 
-test('findingsOf keeps each warning, gives the part its edge names (never a stale one), and copies rather than mutates', () => {
+test('diagramFindings keeps each warning, gives the part its edge names (never a stale one), and copies rather than mutates', () => {
   fc.assert(
     fc.property(
       multigraph.chain((m) =>
@@ -462,7 +728,7 @@ test('findingsOf keeps each warning, gives the part its edge names (never a stal
         const warnings = written.map((w) => (typeof w.edge === 'number' ? { ...w, edge: `${edges[w.edge]!.from}->${edges[w.edge]!.to}#${w.edge}` } : w));
         const snap = { ...s, findings: { ...(s.findings as object), warnings } } as DiagramSnapshot;
         const before = JSON.stringify(warnings);
-        const out = findingsOf(snap);
+        const out = diagramFindings(snap);
         assert.equal(out.length, warnings.length);
         out.forEach((f, i) => {
           const { part: _stale, ...rest } = warnings[i]!;
@@ -486,7 +752,7 @@ test('scale probe: keys, validation and edge lookup on very large inputs', { tim
   assert.equal(await snapshotResolver({ [diagramKey(huge.spec)]: huge }).diagram(huge.spec), huge);
   const edges = Array.from({ length: 100_000 }, (_, i) => ({ from: 'n' + (i % 100), to: 'n' + ((i * 7) % 100) }));
   const g = { parts: [], findings: { layout: { edges }, warnings: Array.from({ length: 200 }, (_, i) => ({ code: 'W', edge: `${edges[i * 400]!.from}->${edges[i * 400]!.to}#${i * 400}` })) } } as unknown as DiagramSnapshot;
-  assert.equal(findingsOf(g).length, 200);
+  assert.equal(diagramFindings(g).length, 200);
   assert.equal(htmlEscape('<&>"\''.repeat(1_000_000)).length, 1_000_000 * (4 + 5 + 4 + 6 + 5));
 });
 
@@ -538,7 +804,7 @@ test('a panel, its rule and secondary text step from the paper toward the ink, i
 
 test('an unknown style is refused even when its name belongs to Object.prototype', () => {
   for (const name of ['valueOf', 'constructor', '__proto__', 'toString', 'hasOwnProperty', '', 'not-a-style'])
-    assert.throws(() => palette(name), /Unknown style/, name);
+    assert.throws(() => palette(name), (e: unknown) => e instanceof RangeError && e.message.startsWith(`palette(): ${JSON.stringify(name)} is not a style`), name);
 });
 
 /** Whether each built-in style's accent is a hue (else emphasis falls back to an orange), as its palette shows. */
@@ -643,13 +909,59 @@ test('the regions meant to sit side by side never overlap', () => {
 
 test('the explain entry point exports exactly its documented names', async () => {
   assert.deepEqual(Object.keys(await import('../explain/index.ts')).sort(), [
-    'Card', 'CodeBlock', 'Diagram', 'REGIONS', 'diagramsOf', 'mermaid', 'palette', 'regionBox', 'resolveSettings', 'settingsOf', 'stage', 'stagedStep',
+    'Diagram', 'Machine', 'answerOf', 'diagramResolverOf', 'having', 'isRefusal', 'mermaid', 'palette', 'refuse', 'regionBox', 'resolveSettings', 'settingsOf', 'stage', 'view',
   ]);
   // The tooling went to rayner/testing.
   assert.deepEqual(Object.keys(await import('../explain/testing.ts')).sort(), [
-    'InvariantSink', 'MotionSink', 'TraceSink', 'analyzeMotion', 'bindSnapshots', 'describeExplainer', 'jsonObject', 'loadFonts',
-    'machinesOf', 'perf', 'scenarioName', 'scenariosOf', 'takeMissingGlyphs', 'traceScene', 'viewMismatch', 'withSettings',
+    'InvariantSink', 'TraceSink', 'assertStepState', 'assertSteps', 'assertViewFollowsState', 'describeExplainer',
+    'diagramFindings', 'diagramOf', 'jsonObject', 'loadFonts',
+    'loadProject', 'loadSnapshots', 'pictureWordsAt', 'sampleAnimation', 'traceScene', 'withIntent', 'withSettings',
   ]);
+});
+
+test('assertStepState passes when the named fields match the step\'s state, and names the step, the field and both values when one does not', () => {
+  const trace = { steps: [{ step: 'first', meta: {}, after: { count: 1, items: ['a'], nested: { ok: true } } }] };
+  assertStepState(trace, 'first', { count: 1, items: ['a'], nested: { ok: true } });
+  assertStepState(trace, 'first', { missing: undefined });
+  assert.throws(() => assertStepState(trace, 'first', { count: 2 }), /^Error: assertStepState\(\): step "first" .*count 1, not 2/);
+  assert.throws(() => assertStepState(trace, 'first', { items: ['a', 'b'] }), /^Error: assertStepState\(\): .*\["a"\]/);
+  assert.throws(() => assertStepState(trace, 'first', { nested: { ok: true, extra: 1 } }), /^Error: assertStepState\(\): .*nested/);
+  assert.throws(() => assertStepState(trace, 'second', {}), /^RangeError: assertStepState\(\): no step "second".*first/);
+});
+
+test('assertSteps passes when the named steps appear in order with others between them, on a path when one is given', () => {
+  const trace = { steps: ['a', 'b', 'c', 'd'].map((step) => ({ step, meta: step === 'c' ? { kind: 'detail' as const } : {}, after: {} })) };
+  assertSteps(trace, ['a', 'c']);
+  assertSteps(trace, ['b', 'd'], 'story');
+  assert.throws(() => assertSteps(trace, ['c', 'a']), /^Error: assertSteps\(\): no step "a" after "c"/);
+  assert.throws(() => assertSteps(trace, ['c'], 'story'), /^Error: assertSteps\(\): no step "c" on the story path/);
+});
+
+test('the testing helpers name a missing step, and find no snapshots where none are pinned', async () => {
+  const trace = { steps: [{ step: 'first' }, { step: 'second' }] };
+  assert.throws(() => pictureWordsAt(trace, 'third'), /pictureWordsAt\(\): the trace has no step "third"/);
+  assert.deepEqual(pictureWordsAt(trace, 'second'), { summary: '', full: '', transcript: '' });
+  assert.deepEqual(await loadSnapshots('test/fixtures/no-such-explainer'), {});
+});
+
+test('loadProject draws a scene\'s lettering from the scene.lettering.json beside it, and refuses one missing or stale', async () => {
+  // Outline lettering: font-metrics' italic and its Garamond measurements need its snapshot, which the class alone lacks.
+  await assert.rejects(traceScene(FontMetrics), /new ItalicText\(\): it needs meta\.lettering\.styles/);
+  const metrics = await loadProject(FontMetrics, 'scenes/explainers/font-metrics');
+  const { layout } = metrics.scenario().trace.steps.find((s) => s.step === 'layout')!.after;
+  assert.ok(layout.actual < layout.wrong, `Garamond ${layout.actual} is narrower than JetBrains Mono ${layout.wrong}`);
+  // Subset lettering: the pinned Greek cuts draw every Greek letter during the runs, and the embedded faces, which draw none, return after.
+  takeMissingGlyphs();
+  await loadProject(GreekLettering, 'test/fixtures/lettering');
+  assert.deepEqual([...takeMissingGlyphs().keys()], []);
+  await traceScene(withSettings(GreekLettering, {}));
+  assert.ok(takeMissingGlyphs().has('Ελληνικά'), 'the embedded faces are back after loadProject');
+  const asking = (lettering: object) => { const Lettered = class extends Scene {}; (Lettered as { meta?: object }).meta = { lettering }; return Lettered; };
+  await assert.rejects(loadProject(asking({ scripts: ['Grek'] }), 'test/fixtures/lettered'),
+    /^Error: loadProject\(\): test\/fixtures\/lettered\/scene\.ts .*no scene\.lettering\.json/);
+  // A snapshot pinned for another request: Cyrillic asked where Greek is cut, maths where faces and styles are.
+  await assert.rejects(loadProject(asking({ scripts: ['Cyrl'] }), 'test/fixtures/lettering'), /^Error: scene\.lettering\.json: it does not hold the lettering test\/fixtures\/lettering\/scene\.ts asks for/);
+  await assert.rejects(loadProject(asking({ math: true }), 'scenes/explainers/font-metrics'), /^Error: scene\.lettering\.json: it does not hold the lettering/);
 });
 
 // ---- explain/trace.ts ------------------------------------------------------------
@@ -670,14 +982,13 @@ test('htmlEscape output has no markup characters and decodes back to the text', 
 // ---- state diagrams: composites and regions ---------------------------------------
 
 test('state diagrams name [*] dots by their state and region, count composites as states, and dim keeps a composite whole', async () => {
-  const { readSnapshots } = await import('../tools/lib/explain-project.ts');
   const { COMPOSITE, REGIONS } = await import('./fixtures/state-composite/scene.ts');
   const { wordsFor } = await import('../explain/words.ts');
-  const store = await readSnapshots('test/fixtures/state-composite/scene');
+  const store = await loadSnapshots('test/fixtures/state-composite');
   const draw = async (source: string) => {
     const captured = Object.values(store).find((s) => s.spec.source === source);
     assert.ok(captured, 'the fixture snapshot is captured');
-    const d = new Diagram(new Scene(new NullSink(), { skipUntil: Infinity }), captured.spec, captured, { box: 'full' });
+    const d = new Diagram(new Scene(new NullSink()), captured.spec, captured, { box: 'full' });
     await d.build();
     return d;
   };
@@ -698,8 +1009,8 @@ test('state diagrams name [*] dots by their state and region, count composites a
   assert.ok(!names(regions).some((n) => /__r\d|_start\b/.test(n)), 'no part falls back to a capture id');
 
   // Keeping the composite keeps what is drawn inside it; the outside state and its links fade.
-  await regions.dim(['on']);
-  const dimmed = new Set(regions.describe().parts.filter((p) => p.dimmed).map((p) => p.name));
+  const kept = regions.picture({}, { dim: ['on'] }) as unknown as SeenSource;
+  const dimmed = new Set(kept[seenSource]().parts.filter((p) => p.dimmed).map((p) => p.name));
   for (const name of ['off', 'start → off', 'on → off: POWER_OFF', 'off → on: POWER']) assert.ok(dimmed.has(name), `${name} fades`);
   for (const name of ['paused', 'muted', 'start of on, region 2', 'paused → playing: PLAY', 'unmuted → muted: MUTE'])
     assert.ok(!dimmed.has(name), `${name} stays`);
@@ -707,4 +1018,43 @@ test('state diagrams name [*] dots by their state and region, count composites a
   assert.equal(wordsFor('fr').pseudostate('start', 'on', 2), 'début d’on, région 2');
   assert.equal(wordsFor('fr').pseudostate('end', 'veille'), 'fin de veille');
   assert.equal(wordsFor('en').pseudostate('end'), 'end');
+});
+
+test('a picture of an architecture diagram dims and marks services named by their bare ids, and says so', async () => {
+  const store = await loadSnapshots('scenes/explainers/traffic-policy');
+  const withHop = Object.values(store).find((x) => x.spec.source.includes('align row a b c') && x.spec.source.includes('k3:L --> R:d'))!;
+  const d = await diagramOf(withHop);
+  // The edge between two kept services stays undimmed; one to a dimmed pod does not.
+  const parts = (d.picture({}, { dim: ['lb', 'k3'] }) as unknown as SeenSource)[seenSource]().parts;
+  assert.equal(parts.find((p) => p.name === 'Load balancer → Node 3 · 10.240.0.3')?.dimmed, undefined);
+  assert.equal(parts.find((p) => p.name === 'Node 3 · 10.240.0.3 → Pod d')?.dimmed, true);
+  const marked = d.picture({ 'group:n3': { color: '#ff0000', as: 'fails the health check' }, k3: { color: '#ff0000', as: 'fails the health check' } });
+  assert.equal((marked as unknown as SeenSource)[seenSource]().parts.find((p) => p.name === 'Node 3 · 10.240.0.3')?.mark, 'fails the health check');
+});
+
+test('a scene with no meta.id is named by one rule: its folder for scene.ts, else its file', () => {
+  assert.equal(sceneIdOf('scenes/explainers/hanoi/scene.ts'), 'hanoi');
+  assert.equal(sceneIdOf('scenes\\explainers\\hanoi\\scene.ts'), 'hanoi');
+  assert.equal(sceneIdOf('recipes/extensions.ts'), 'extensions');
+  assert.equal(sceneIdOf('/abs/dir/scene.ts'), 'dir');
+  // The command's own rule once read the file's name alone: scene.ts would have named every explainer "scene".
+  assert.notEqual(sceneIdOf('a/b/scene.ts'), 'scene');
+  // A name that is not a page id is refused, as such a meta.id is.
+  assert.throws(() => sceneIdOf('scenes/My Scene/scene.ts'), /^RangeError: meta\.id: .*"My Scene" is not a page id/);
+  for (const file of ['a/b.c.ts', 'a/.ts', 'scene.ts']) assert.throws(() => sceneIdOf(file), /is not a page id/, file);
+  // A folder name the site's evidence would refuse (capitals, _) or Windows cannot write (con) is refused here, by the one rule.
+  for (const file of ['a/My_Scene/scene.ts', 'a/Push/scene.ts', 'a/con/scene.ts', 'a/b/Scene.ts']) assert.throws(() => sceneIdOf(file), /is not a page id/, file);
+});
+
+test('loadProject holds every scenario to the step rules the command holds', async () => {
+  class Still extends Scene {
+    static meta = { id: 'still' };
+    override async construct() { await this.step('one', { caption: 'One.' }); await this.step('empty'); await this.step('two', { caption: 'Two.' }); }
+  }
+  await assert.rejects(loadProject(Still, 'test/fixtures/no-such-explainer'), /^Error: loadProject\(\): step "empty" of the scenario \{\} draws no frame of its own/);
+  class Twice extends Scene {
+    static meta = { id: 'twice' };
+    override async construct() { await this.step('Push', { caption: 'One.' }); await this.step('push', { caption: 'Two.' }); }
+  }
+  await assert.rejects(loadProject(Twice, 'test/fixtures/no-such-explainer'), /^Error: loadProject\(\): two steps of the scenario \{\} share the name "push", ignoring case/);
 });

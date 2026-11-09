@@ -1,15 +1,16 @@
 // Cached lettering is executable drawing data. Reject damaged snapshots before
 // they reach Text, the browser, or an image renderer, even if their metadata is fresh.
-import type { LetteringSnapshot } from '../../src/lettering-outlines.ts';
+import type { LetteringSnapshot } from '../../src/internal.ts';
+import { LETTERING_VERSION } from '../../src/internal.ts';
 
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 const digest = (value: unknown): value is string => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 
 export function validateLetteringSnapshot(value: unknown): asserts value is LetteringSnapshot {
-  const fail = (part: string): never => { throw new Error(`Invalid lettering snapshot ${part}; run rayner snapshots to rebuild it`); };
-  if (!object(value) || value.version !== 1 || !digest(value.sourceHash) || !digest(value.builderHash) ||
-      !digest(value.payloadHash) || !object(value.request) || !object(value.runs) || !object(value.faces) || typeof value.shaper !== 'string') fail('header');
+  const fail = (part: string): never => { throw new Error(`scene.lettering.json: its ${part} is invalid; run rayner snapshots to rebuild it`); };
+  if (!object(value) || value.version !== LETTERING_VERSION || !digest(value.builderHash) ||
+      !object(value.request) || !object(value.runs) || !object(value.faces) || typeof value.shaper !== 'string') fail('header');
   const snapshot = value as Record<string, unknown> & { runs: Record<string, unknown>; faces: Record<string, unknown> };
   if (snapshot.fontInputs !== undefined && (!object(snapshot.fontInputs) ||
       !Object.keys(snapshot.fontInputs).length || !Object.values(snapshot.fontInputs).every(digest))) fail('font inputs');
@@ -47,7 +48,7 @@ export function validateLetteringSnapshot(value: unknown): asserts value is Lett
     // Latin Modern Math (GUST Font License) is the one face outside the rule, for Math.
     const gust = name === 'latin-modern-math' && /GUST Font License/.test(String((value as { license: string }).license));
     if (!gust && !licenceOf(String((value as { license: string }).license)))
-      throw new Error(`Lettering face ${name} is not under the OFL or Apache-2.0; only those may be embedded`);
+      throw new Error(`meta.lettering: the face ${name} is not under the OFL or Apache-2.0, and only those may be embedded; ask for another face`);
   }
 }
 

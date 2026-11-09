@@ -3,21 +3,33 @@
 // anchor, registers no updater (so seeks skip its frames), and the picture at
 // every step is what the state renders (the fidelity helper).
 import { test } from 'node:test';
+import type { Stage, SyncOptions } from '../explain/index.ts';
+import { ViewSync } from '../explain/view.ts';
+import { view, having, stage } from '../explain/index.ts';
+import type { View } from '../explain/index.ts';
+import { card } from '../explain/drawing.ts';
+import type { Card } from '../explain/drawing.ts';
 import assert from 'node:assert/strict';
-import {
-  Scene, Group, Text, DecimalNumber, Rectangle, Square, Circle, Animation, FadeIn, Succession, StateReadout,
-  view, View,
-} from '../src/index.ts';
-import { StringSink, SnapshotSink, renderAt } from '../src/output.ts';
-import { MotionSink, analyzeMotion, perf, loadFonts, viewMismatch } from '../explain/testing.ts';
-import type { Mobject, Sink, SceneState, ViewSync } from '../src/index.ts';
-import { assertViewFollowsState } from './lib/view-fidelity.ts';
+import { Scene, Group, Text, DecimalNumber, Rectangle, Circle, Animation, FadeIn, Succession, keyed } from '../src/index.ts';
+import { StringSink, renderFrame } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
+import { loadFonts, assertViewFollowsState } from '../explain/testing.ts';
+import { viewMismatch } from '../explain/internal.ts';
+import { MotionSink, analyzeMotion } from '../src/internal.ts';
+import { perf } from '../src/perf.ts';
+import { hasUpdaters } from '../src/mobject.ts';
+import type { Mobject, Sink, SceneState } from '../src/index.ts';
 import type { Vec } from '../src/index.ts';
+import { beginAnimation, interpolateAnimation, finishAnimation } from '../src/animation.ts';
+import { advanceBox } from '../src/text.ts';
 // Manim's values, which the package no longer exports.
 const RIGHT: Vec = [1, 0];
 
 /** A scene holding `st` as its state, for views tested without running a scene. */
 const held = (st: object = {}) => ({ state: st }) as unknown as Scene;
+
+/** The animation a view's sync action plays, for tests that read what it decided. */
+const syncOf = <M extends Mobject>(v: View<M>, opts?: SyncOptions) => new ViewSync<M>(v, opts);
 
 await loadFonts();
 Scene.captionWpm = Infinity;
@@ -26,7 +38,7 @@ Scene.captionWpm = Infinity;
 class Mutate extends Animation {
   fn: () => void;
   constructor(fn: () => void) { super(new Group(), { runTime: 0.5 }); this.fn = fn; }
-  override begin(): void { this.fn(); super.begin(); }
+  protected override doBegin(): void { this.fn(); super.doBegin(); }
 }
 
 const readoutOf = (s: SceneState) => new Text(`len ${s.len}  head ${s.head}`, { font: 'mono', fontSize: 0.4 });
@@ -50,10 +62,10 @@ class Ring extends Scene {
       await this.step(name);
       mutate();
       if (skip) { await this.wait(1); return; }
-      const s = readout.sync();
+      const s = syncOf(readout, { match: 'text', staged: false });
       this.syncs[name] = s;
       await this.play(s);
-      const f = readout.current.frameBox;
+      const f = readout.current[advanceBox];
       this.anchors.push([f[0]!, (f[1]! + f[3]!) / 2]);
     };
     await this.step('show');
@@ -65,9 +77,9 @@ class Ring extends Scene {
     await change('same', () => {});                                 // nothing changed: nothing moves
     await this.step('turns');
     // Built at its turn: the state the Mutate before it leaves, not the state now
-    const box = new Square({ side: 0.5 }).moveTo([4, -2]);
+    const box = new Rectangle({ width: 0.5, height: 0.5 }).moveTo([4, -2]);
     await this.play(new FadeIn(box), { runTime: 0.5 });
-    const seq = new Succession([box.animate.shift(RIGHT), readout.sync(), new Mutate(() => { this.state.head = 2; this.state.len = 9; }), readout.sync()]);
+    const seq = new Succession([box.animate.shift(RIGHT), readout.sync({ match: 'text', staged: false }), new Mutate(() => { this.state.head = 2; this.state.len = 9; }), readout.sync({ match: 'text', staged: false })]);
     this.state.len = 11;
     await this.play(seq);
     await this.wait(0.5);
@@ -113,7 +125,7 @@ test('sync() inside a Succession builds from the state at its turn, not at const
         return new Text(String(state.n));
       });
       this.add(v);
-      const seq = new Succession([v.sync(), new Mutate(() => { this.state.n = 2; }), v.sync()]);
+      const seq = new Succession([v.sync({ match: 'text' }), new Mutate(() => { this.state.n = 2; }), v.sync({ match: 'text' })]);
       assert.deepEqual(seen, [0], 'creating syncs does not build their targets');
       this.state.n = 1;
       await this.play(seq);
@@ -124,10 +136,58 @@ test('sync() inside a Succession builds from the state at its turn, not at const
   assert.deepEqual(seen, [0, 1, 2]);
 });
 
+test('tween() writes into the picture on screen when it begins: after a sync in the same Succession, the synced one', async () => {
+  let before: Mobject | null = null;
+  class Tweened extends Scene<{ n: number }, {}> {
+    override async construct() {
+      this.state = { n: 0 };
+      const v = view(this, (st) => new Rectangle({ width: 1 + st.n, height: 1 }), { place: false });
+      this.add(v);
+      before = v.current;
+      this.state.n = 1;
+      // Both are made before either plays: the tween's target is the picture the sync swaps in.
+      await this.play(new Succession([v.sync({ match: 'index', runTime: 0.2 }), v.tween((t) => ({ n: 1 + t }), { runTime: 0.2 })]));
+      assert.notEqual(v.current, before, 'the sync swapped in a new picture');
+      assert.ok(Math.abs(v.current.width() - 3) < 1e-6, `the picture on screen is ${v.current.width()} wide, not the tween's 3`);
+      assert.ok(Math.abs(before.width() - 2) < 1e-6, 'the picture the sync replaced is left as the sync left it');
+      assert.equal(this.state.n, 2);
+    }
+  }
+  await new Tweened(new StringSink()).run();
+  assert.ok(before);
+});
+
+test('a sync finishes the morph it begins: it ends finished, as an animation the scene began does', async () => {
+  const phases: Record<string, string> = {};
+  class Finished extends Scene<{ n: number }, {}> {
+    override async construct() {
+      this.state = { n: 0 };
+      const draw = (st: { n: number }) => new Group(keyed(new Rectangle({ width: 1 + st.n, height: 1 }), 'box'), keyed(new Text(`n ${st.n}`, { fontSize: 0.4 }), 'label'));
+      const v = view(this, draw, { place: false });
+      this.add(v);
+      for (const match of ['key', 'text', 'shapes', 'index'] as const) {
+        this.state.n++;
+        const sync = syncOf(v, { match, runTime: 0.2 });
+        await this.play(sync);
+        phases[match] = sync.inner!.phase;
+      }
+      // A rate function that comes back leaves the old picture, and still finishes the morph.
+      this.state.n++;
+      const back = syncOf(v, { runTime: 0.2, rateFunc: (t) => 4 * t * (1 - t) });
+      const kept = v.current;
+      await this.play(back);
+      assert.equal(v.current, kept, 'a sync whose rate comes back keeps the old picture');
+      phases.back = back.inner!.phase;
+    }
+  }
+  await new Finished(new StringSink()).run();
+  assert.deepEqual(phases, { key: 'finished', text: 'finished', shapes: 'finished', index: 'finished', back: 'finished' });
+});
+
 test('no updaters: seeking skips the frames of plays with syncs, and renders the frame a full run renders', async () => {
   // No updater at any frame
   let frames = 0;
-  const watch: Sink = { async frame(scene) { frames++; assert.ok(!scene.hasUpdaters(), `updater at t=${scene.time}`); } };
+  const watch: Sink = { async frame(scene) { frames++; assert.ok(![...scene.mobjects, scene.frame].some(hasUpdaters), `updater at t=${scene.time}`); } };
   await new Ring(watch).run();
   assert.ok(frames > 200);
 
@@ -142,7 +202,7 @@ test('no updaters: seeking skips the frames of plays with syncs, and renders the
   for (const k of [...ks].sort((a, b) => a - b)) {
     const snap = new SnapshotSink();
     perf.enable();
-    try { await renderAt(Ring, k / 30, snap); } finally { perf.disable(); }
+    try { await renderFrame(Ring, k, snap); } finally { perf.disable(); }
     assert.equal(snap.svg, full.frames[k], `frame ${k}`);
     if (k > 30) assert.ok((perf.counters.get('frames skipped') ?? 0) > 0, `frame ${k}: the seek skipped frames`);
   }
@@ -159,7 +219,7 @@ test('the fidelity helper: the picture at every step is what the traced state re
   assert.equal(n, 7);
   // A wrong builder fails
   const wrong = (st: SceneState) => readoutOf({ ...st, head: (st.head as number) + 1 });
-  await assert.rejects(assertViewFollowsState(Ring, (s) => (s as Ring).readout, wrong), /step "show": the view shows/);
+  await assert.rejects(assertViewFollowsState(Ring, (s) => (s as Ring).readout, wrong), /^Error: assertViewFollowsState\(\): .*step "show".*the view shows \["len 0  head 0"\]/);
   // So does a scene that changes state and forgets to sync
   class Forgetful extends Ring { static override skipSync = true; }
   await assert.rejects(assertViewFollowsState(Forgetful, (s) => (s as Ring).readout), /step "push-a"/);
@@ -174,49 +234,65 @@ test('match: index morphs by position (a DecimalNumber counts), shapes and keys 
   const st = { n: 0 };
   const v = view(held(st), () => new DecimalNumber(st.n, { anchor: 'start' }), { place: 'left' });
   st.n = 10;
-  const sync = v.sync({ match: 'index' });
-  sync.begin();
-  sync.interpolate(0.5);
+  const sync = syncOf(v, { match: 'index' });
+  beginAnimation(sync);
+  interpolateAnimation(sync, 0.5);
   assert.equal(v.current.text, '5', 'the value blends');
-  sync.finish();
+  finishAnimation(sync);
   assert.equal(v.current.text, '10');
   assert.equal(v.current.value, 10);
   assert.equal(sync.summary(), null);
 
   // Shapes: the circle that stays pairs with itself, the square fades, a new one grows
   let kids = 2;
-  const g = view(held(), () => new Group(new Circle({ radius: 0.5 }), ...Array.from({ length: kids - 1 }, (_, i) => new Square({ side: 0.4 }).shift([i + 1, 0]))));
+  const g = view(held(), () => new Group(new Circle({ radius: 0.5 }), ...Array.from({ length: kids - 1 }, (_, i) => new Rectangle({ width: 0.4, height: 0.4 }).shift([i + 1, 0]))));
   const before = g.current;
   kids = 3;
-  const sh = g.sync({ match: 'shapes' });
-  sh.begin(); sh.finish();
+  const sh = syncOf(g, { match: 'shapes' });
+  beginAnimation(sh); finishAnimation(sh);
   assert.deepEqual(sh.summary(), { matched: 2, morphed: 0, removed: 0, added: 1 });
   assert.notEqual(g.current, before);
   assert.equal(g.current.children.length, 3);
-  // Default for a picture without text: by index
-  const ix = g.sync();
+  // By index
+  const ix = syncOf(g, { match: 'index' });
   kids = 2;
-  ix.begin(); ix.finish();
+  beginAnimation(ix); finishAnimation(ix);
   assert.equal(ix.summary(), null);
   assert.equal(g.current.children.length, 2);
 
   // Your own key
   const fills = ['#ff0000', '#00ff00'];
-  const k = view(held(), () => new Group(...fills.map((f, i) => new Square({ side: 0.4, fill: f, fillOpacity: 1 }).shift([i, 0]))));
+  const k = view(held(), () => new Group(...fills.map((f, i) => new Rectangle({ width: 0.4, height: 0.4, fill: f, fillOpacity: 1 }).shift([i, 0]))));
   fills.reverse();
-  const ks = k.sync({ match: (p) => p.style.fill });
-  ks.begin(); ks.finish();
+  const ks = syncOf(k, { match: (p) => p.style.fill });
+  beginAnimation(ks); finishAnimation(ks);
   assert.deepEqual(ks.summary(), { matched: 2, morphed: 0, removed: 0, added: 0 });
 });
 
-test('placement: a moved and scaled View stays moved and scaled; place: false leaves it to build()', () => {
+test('sync() matches by key, staged, and refuses pictures that carry no keys', () => {
+  let n = 1;
+  const keyedView = view(held(), () => new Group(...Array.from({ length: n }, (_, i) => { const sq = new Rectangle({ width: 0.4, height: 0.4 }).shift([i, 0]); keyed(sq, `cell-${i}`); return sq; })));
+  n = 2;
+  const sync = syncOf(keyedView);
+  assert.equal(sync.match, 'key');
+  assert.equal(sync.staged, true);
+  beginAnimation(sync); finishAnimation(sync);
+  assert.deepEqual(sync.summary(), { matched: 1, morphed: 0, removed: 0, added: 1 });
+  assert.equal(syncOf(keyedView, { match: 'text' }).staged, true, 'staged is the default for every match');
+
+  const plain = view(held(), () => new Group(...Array.from({ length: n }, (_, i) => new Rectangle({ width: 0.4, height: 0.4 }).shift([i, 0]))));
+  n = 3;
+  assert.throws(() => beginAnimation(syncOf(plain)), /carry no keys below their roots/);
+});
+
+test('placement: a moved and scaled View stays moved and scaled; place: false leaves it to draw()', () => {
   const st = { s: 'ab' };
   const v = view(held(st), () => new Text(st.s, { fontSize: 0.4 }), { place: 'right' });
   v.scale(0.5).moveTo([3, -2]);
-  const right = v.current.frameBox[2]!, h = v.current.height();
+  const right = v.current[advanceBox][2]!, h = v.current.height();
   st.s = 'abcdef';
-  const s = v.sync(); s.begin(); s.finish();
-  assert.ok(Math.abs(v.current.frameBox[2]! - right) < 1e-5, 'right edge held');
+  const s = syncOf(v, { match: 'text' }); beginAnimation(s); finishAnimation(s);
+  assert.ok(Math.abs(v.current[advanceBox][2]! - right) < 1e-5, 'right edge held');
   assert.ok(Math.abs(v.current.height() - h) < 1e-5, 'half size held');
   assert.equal(v.current.text, 'abcdef');
 
@@ -229,26 +305,18 @@ test('placement: a moved and scaled View stays moved and scaled; place: false le
   // A picture build() hands back twice cannot morph into itself
   const fixed = new Text('same');
   const bad = view(held(), () => fixed);
-  assert.throws(() => bad.sync().begin(), /build a new one each time/);
+  assert.throws(() => beginAnimation(syncOf(bad)), /draw a new one each time/);
 });
 
-test('a StateReadout copy() names its own value Texts', () => {
-  const r = new StateReadout([['n', 1], ['m', 'x']]);
-  const c = r.copy();
-  assert.equal(c.values.n, c.children[1]);
-  assert.equal(c.values.m, c.children[3]);
-  assert.notEqual(c.values.n, r.values.n);
-  assert.equal(c.values.m!.text, 'x');
-  assert.deepEqual(Object.keys(c.values), ['n', 'm']);
-});
-
-test('a StateReadout view of the scene\'s state keeps its keys put as values grow', async () => {
+test('a card view of the scene\'s state keeps its labels put as values change', async () => {
   class Counter extends Scene {
-    rv?: View<StateReadout>;
+    rv?: View<Card>;
+    s?: Stage;
     override async construct(): Promise<void> {
       this.state = { tokens: 10, responses: [] as number[] };
       const text = (v: unknown) => (typeof v === 'string' ? v : JSON.stringify(v));
-      const rv = (this.rv = view(this, (st) => new StateReadout((['tokens', 'responses'] as const).map((k) => [k, text(st[k])] as const), { at: [-3, 1], shaping: this.textShaping }), { place: 'left' }));
+      const s = (this.s = stage(this, { style: 'github-dark', heading: false }));
+      const rv = (this.rv = view(this, (st) => card(s, (['tokens', 'responses'] as const).map((k) => [k, text(st[k])] as const), { at: [-3, 1], width: 4, panel: false, key: 'readout' }), { place: false }));
       await this.step('show');
       await this.play(new FadeIn(rv));
       for (const [i, code] of [200, 200, 429].entries()) {
@@ -260,10 +328,10 @@ test('a StateReadout view of the scene\'s state keeps its keys put as values gro
     }
   }
   const s = await new Counter(new StringSink()).run();
-  const keys = () => s.rv!.current.children.filter((c, i) => i % 2 === 0) as Text[];
   assert.deepEqual(s.rv!.texts, ['tokens', '0', 'responses', '[200,200,429]']);
-  const first = new StateReadout([['tokens', '10'], ['responses', '[]']], { at: [-3, 1] });
-  keys().forEach((k, i) => assert.ok(Math.abs(k.frameBox[2]! - (first.children[2 * i] as Text).frameBox[2]!) < 1e-5, 'key right edge held'));
+  const first = card(s.s!, [['tokens', '10'], ['responses', '[]']], { at: [-3, 1], width: 4, panel: false });
+  for (const key of ['tokens', 'responses'])
+    assert.ok(Math.abs(s.rv!.current.labels.get(key)![advanceBox][0]! - first.labels.get(key)![advanceBox][0]!) < 1e-5, 'label left edge held');
   assert.equal(await assertViewFollowsState(Counter, (sc) => (sc as Counter).rv), 4);
   const sink = new MotionSink();
   await new Counter(sink).run();
@@ -277,16 +345,16 @@ test('a returning sync preserves inherited scale for the next rebuild or sync', 
     v.scale(2);
     const original = v.current;
     side = 3;
-    const back = v.sync({ rateFunc: () => 0 });
-    back.begin(); back.interpolate(0); back.finish();
+    const back = syncOf(v, { match: 'index', rateFunc: () => 0 });
+    beginAnimation(back); interpolateAnimation(back, 0); finishAnimation(back);
     assert.equal(v.current, original, 'a returning rate keeps the original picture');
     assert.equal(v.current.width(), 2);
     assert.equal(v.current.height(), 2);
     side = 4;
     if (next === 'rebuild') v.rebuild();
     else {
-      const sync = v.sync();
-      sync.begin(); sync.interpolate(1); sync.finish();
+      const sync = syncOf(v, { match: 'index' });
+      beginAnimation(sync); interpolateAnimation(sync, 1); finishAnimation(sync);
     }
     assert.equal(v.current.width(), 8, `${next} inherits the original scale`);
     assert.equal(v.current.height(), 8, `${next} inherits the original scale`);
@@ -303,7 +371,7 @@ test('rayner check names a view whose picture lags the state at the end of a ste
       this.add(readout);
       await this.step('one');
       this.state = { n: 2 };
-      if (sync) await this.play(readout.sync({ runTime: 0.2 }));
+      if (sync) await this.play(readout.sync({ match: 'text', runTime: 0.2 }));
       await this.step('two');
     }
   };
@@ -327,7 +395,7 @@ test('rayner check names a view whose words match its state but whose marks do n
       this.add(card);
       await this.step('one');
       if (byHand) card.current.children[1]!.shift([0, -0.5]);
-      else { this.state = { lit: 1 }; await this.play(card.sync({ runTime: 0.2 })); }
+      else { this.state = { lit: 1 }; await this.play(card.sync({ match: 'text', runTime: 0.2 })); }
     }
   };
   for (const byHand of [false, true]) {
@@ -336,4 +404,72 @@ test('rayner check names a view whose words match its state but whose marks do n
     if (byHand) assert.match(views.problems[0]!, /^step "one": a view: the view's part \d+ is \["Rectangle"/);
     else assert.deepEqual(views.problems, []);
   }
+});
+
+test('having narrows a state to the shapes that hold its keys and throws on a state of another shape, so check sees the draw read it', async () => {
+  type Chaptered = { chapter: 'year'; longitude: number } | { chapter: 'look'; pitch: number };
+  class Chapters extends Scene<Chaptered, { lit?: string }> {
+    year!: View<Text, Chaptered, { lit?: string }>;
+    override async construct() {
+      this.state = { chapter: 'year', longitude: 10 };
+      this.year = view(this, (st, sh) => new Text(`${having(st, 'longitude').longitude} ${sh.lit ?? ''}`));
+      this.add(this.year);
+    }
+  }
+  const scene = new Chapters(new StringSink());
+  await scene.run();
+  assert.equal(scene.year.texts[0], '10 ');
+  // A state of the other shape, as check draws one from another step: the draw throws, naming the key.
+  assert.throws(() => scene.year.draw({ chapter: 'look', pitch: 3 }, {}), /reads a state with longitude; this one has chapter, pitch/);
+  // An optional part, made present: several keys at once, and what is shown alike.
+  const shown: { flow?: { walked: string[] }; lit?: string } = { flow: { walked: ['a'] } };
+  assert.deepEqual(having(shown, 'flow').flow.walked, ['a']);
+  assert.throws(() => having(shown, 'flow', 'lit'), /reads a state with lit/);
+});
+
+test('a view measures a fresh picture without changing itself, and records its fit only once it takes the picture', async () => {
+  const { thereAndBack } = await import('../src/index.ts');
+  const { NullSink } = await import('../src/output.ts');
+  const scene = new Scene<{ w: number }>(new NullSink());
+  scene.state = { w: 1 };
+  const v = view(scene, (st: { w: number }) => new Rectangle({ width: st.w, height: st.w }));
+  scene.add(v);
+  v.scale(2);
+  // Its fit, seen from outside: the picture on screen, and the size it would place a probe state at.
+  const fit = () => [v.current.width(), v.current.height(), v.placed({ w: 5 }).width()].map((x) => x.toFixed(6)).join(' ');
+  const before = fit();
+  assert.equal(before, [2, 2, 10].map((x) => x.toFixed(6)).join(' '));
+  scene.state = { w: 3 };
+  // Measured for a transition's target: placed at the view's scale, and the view unchanged.
+  const placed = v.placed(scene.state);
+  assert.ok(Math.abs(placed.height() - 6) < 1e-6 && Math.abs(placed.width() - 6) < 1e-6);
+  assert.equal(fit(), before, 'placed() only measures');
+  // A sync whose rate function comes back keeps the picture on screen, and its fit.
+  await scene.play(v.sync({ match: 'index', rateFunc: thereAndBack }));
+  assert.equal(fit(), before, 'a sync that lands back records nothing');
+  // Taken, the picture's fit is recorded: its built size, and the scale it was given.
+  await scene.play(v.sync({ match: 'index' }));
+  assert.equal(fit(), [6, 6, 10].map((x) => x.toFixed(6)).join(' '), 'the picture taken, at the scale the view was given');
+  scene.state = { w: 2 };
+  v.rebuild();
+  assert.ok(Math.abs(v.current.width() - 4) < 1e-6, 'a rebuild keeps the scale the view was given');
+});
+
+test('a play\'s lagRatio has nothing to stagger in a tween, which draws one sampled state at every frame', async () => {
+  const frames = async (opts: { lagRatio?: number }) => {
+    const sink = new StringSink();
+    class Slide extends Scene<{ x: number }> {
+      override async construct() {
+        this.state = { x: 0 };
+        const v = view(this, (s: { x: number }) => new Group(keyed(new Rectangle().moveTo([s.x, 0]), 'a'), keyed(new Rectangle().moveTo([s.x, 2]), 'b')), { place: false });
+        this.add(v);
+        await this.play(v.tween((t) => ({ x: 4 * t })), opts);
+      }
+    }
+    await new Slide(sink).run();
+    return sink.frames;
+  };
+  const plain = await frames({});
+  assert.ok(plain.length > 20);
+  assert.deepEqual(await frames({ lagRatio: 1 }), plain);
 });

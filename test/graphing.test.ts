@@ -3,10 +3,15 @@ import assert from 'node:assert/strict';
 import {
   NumberLine, Axes, VMobject, Rectangle, Text, Scene, Create, Transform, FadeIn,
   } from '../src/index.ts';
-import { StringSink, SnapshotSink, renderAt } from '../src/output.ts';
-import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
+import { StringSink, renderFrame } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
+import { loadFonts } from '../explain/testing.ts';
+import { MotionSink, analyzeMotion } from '../src/internal.ts';
 import { fc, params } from './lib/pbt.ts';
 import type { Vec } from '../src/index.ts';
+import { beginAnimation, interpolateAnimation } from '../src/animation.ts';
+import { curveCount } from '../src/vmobject.ts';
+import { affine } from '../src/mobject.ts';
 // Manim's values, which the package no longer exports.
 const GOLD = '#f0ac5f';
 const RED = '#fc6255';
@@ -16,13 +21,20 @@ await loadFonts();
 
 const near = (a: number, b: number, eps: number, msg = '') => assert.ok(Math.abs(a - b) <= eps, `${msg} ${a} vs ${b}`);
 const nearVec = (a: Readonly<Vec>, b: Readonly<Vec>, eps: number, msg = '') => { near(a[0], b[0], eps, msg + ' x'); near(a[1], b[1], eps, msg + ' y'); };
+/** The data coordinates at point `p`: the inverse of the axes' c2p, which is affine. */
+const dataAt = (ax: Axes, p: Readonly<Vec>): [number, number] => {
+  const o = ax.c2p(0, 0), ex = ax.c2p(1, 0), ey = ax.c2p(0, 1);
+  const [ax0, ax1, ay0, ay1, d0, d1] = [ex[0] - o[0], ex[1] - o[1], ey[0] - o[0], ey[1] - o[1], p[0] - o[0], p[1] - o[1]];
+  const det = ax0 * ay1 - ax1 * ay0;
+  return [(d0 * ay1 - d1 * ay0) / det, (ax0 * d1 - ax1 * d0) / det];
+};
 const anchors = (m: VMobject, i = 0): Vec[] => {
   const a = m.subpaths[i]!, out: Vec[] = [];
   for (let j = 0; j < a.length; j += 6) out.push([a[j]!, a[j + 1]!]);
   return out;
 };
 
-test('NumberLine: n2p and p2n round-trip, and follow the line after shift and rotate', () => {
+test('NumberLine: n2p follows the line after shift and rotate', () => {
   const nl = new NumberLine({ range: [-2, 6, 0.5], length: 8, includeNumbers: true });
   nearVec(nl.n2p(-2), [-4, 0], 1e-6, 'min is the left end');
   nearVec(nl.n2p(6), [4, 0], 1e-6, 'max is the right end');
@@ -30,20 +42,17 @@ test('NumberLine: n2p and p2n round-trip, and follow the line after shift and ro
   assert.equal(nl.numbers.children.length, 17);
   assert.equal((nl.numbers.children[4] as Text).text, '0.0', 'decimals follow the step');
   nl.shift([1, -2]).rotate(0.7);
-  for (const x of [-2, -0.25, 0, 1.5, 6, 9]) near(nl.p2n(nl.n2p(x)), x, 1e-5, `round trip ${x}`);
   // n2p reads the moved line, not the constructor's numbers
   nearVec(nl.n2p(-2), nl.line.start(), 1e-6, 'min is still the start');
-  const tick0 = nl.ticks.children[0]!.center();
-  nearVec(tick0, nl.n2p(-2), 1e-5, 'first tick sits on n2p(min)');
+  nl.ticks.children.forEach((tick, i) => nearVec(tick.center(), nl.n2p(-2 + 0.5 * i), 1e-5, `tick ${i} sits on its number`));
   // A copy reads its own children
   const c = nl.copy().shift([3, 0]);
   nearVec(c.n2p(0), [nl.n2p(0)[0] + 3, nl.n2p(0)[1]], 1e-5, 'copy maps through its own line');
 });
 
-test('Axes: c2p and p2c round-trip; c2p(0, 0) is the origin point where the axes cross', () => {
+test('Axes: c2p reads both axes and follows them after shift, rotate and scale; c2p(0, 0) is where the axes cross', () => {
   const ax = new Axes({ xRange: [-3, 5, 1], yRange: [-1, 4, 1], width: 8, height: 5 });
-  const o = ax.originPoint();
-  nearVec(ax.c2p(0, 0), o, 0);
+  const o = ax.c2p(0, 0);
   // The axes meet at the origin: the x axis' 0 and the y axis' 0 are one point
   nearVec(ax.xAxis.n2p(0), o, 1e-6, 'x axis passes through the origin');
   nearVec(ax.yAxis.n2p(0), o, 1e-6, 'y axis passes through the origin');
@@ -52,8 +61,10 @@ test('Axes: c2p and p2c round-trip; c2p(0, 0) is the origin point where the axes
   [-4, -2.5, 4, 2.5].forEach((v, i) => near(b[i]!, v, 1e-5, `box ${i}`));
   const check = (label: string) => {
     for (const [x, y] of [[0, 0], [-3, -1], [5, 4], [1.25, 2.5], [7, -2]] as const) {
-      const [u, v] = ax.p2c(ax.c2p(x, y));
-      near(u, x, 1e-5, `${label} x`); near(v, y, 1e-5, `${label} y`);
+      const [o, onX, onY] = [ax.c2p(0, 0), ax.xAxis.n2p(x), ax.yAxis.n2p(y)];
+      nearVec(ax.c2p(x, 0), onX, 1e-5, `${label}: (x, 0) is on the x axis`);
+      nearVec(ax.c2p(0, y), onY, 1e-5, `${label}: (0, y) is on the y axis`);
+      nearVec(ax.c2p(x, y), [onX[0] + onY[0] - o[0], onX[1] + onY[1] - o[1]], 1e-5, `${label}: (x, y)`);
     }
   };
   check('fresh');
@@ -69,11 +80,11 @@ test('Axes: when zero is outside a range, the axes cross at the range end', () =
   const ax = new Axes({ xRange: [1, 12, 1], yRange: [0, 24, 6] });
   nearVec(ax.xAxis.n2p(1), ax.yAxis.n2p(0), 1e-6, 'y axis stands at x = 1');
   nearVec(ax.c2p(1, 0), ax.xAxis.line.start(), 1e-6);
-  near(ax.originPoint()[0], ax.c2p(1, 0)[0] - ax.xAxis.unitSize(), 1e-5, 'origin point is one unit left of the axes');
+  near(ax.c2p(0, 0)[0], ax.c2p(1, 0)[0] - (ax.c2p(2, 0)[0] - ax.c2p(1, 0)[0]), 1e-5, 'c2p(0, 0) is one unit left of the axes');
 });
 
 test('Axes drop a crossing label only where the other axis runs through it', () => {
-  const texts = (g: { children: unknown[] }) => g.children.map((t) => (t as Text).text);
+  const texts = (g: { children: readonly unknown[] }) => g.children.map((t) => (t as Text).text);
   const corner = new Axes({ xRange: [0, 3, 1], yRange: [0, 2, 1], axisStyle: { includeNumbers: true } });
   assert.deepEqual(texts(corner.xAxis.numbers), ['0', '1', '2', '3'], 'axes meet at a corner: both zeros stay');
   assert.deepEqual(texts(corner.yAxis.numbers), ['0', '1', '2']);
@@ -91,8 +102,8 @@ test('plot passes through c2p(x, fn(x)) at every sample, and draws left to right
   pts.forEach((p, i) => { const x = 10 * i / (samples - 1); nearVec(p, ax.c2p(x, fn(x)), 1e-6, `sample ${i}`); });
   for (let i = 1; i < pts.length; i++) assert.ok(pts[i]![0] > pts[i - 1]![0], 'x increases along the path');
   // Between samples the curve stays close to fn (monotone slopes trade a little accuracy for no overshoot)
-  for (let c = 0; c < plot.numCurves(); c++) {
-    const [x, y] = ax.p2c(plot.pointOnCurve(0, c, 0.5));
+  for (let c = 0; c < curveCount(plot); c++) {
+    const [x, y] = dataAt(ax, plot.pointOnCurve(0, c, 0.5));
     near(y, fn(x), 1e-2, `midpoint of curve ${c}`);
   }
 });
@@ -106,9 +117,9 @@ test('plot never overshoots a clamped function between samples (monotone cubic, 
   };
   const ax = new Axes({ xRange: [0, 12, 1], yRange: [0, 24, 6] });
   const plot = ax.plot(daylight, { samples: 25 });
-  for (let c = 0; c < plot.numCurves(); c++) {
+  for (let c = 0; c < curveCount(plot); c++) {
     for (let k = 1; k < 16; k++) {
-      const y = ax.p2c(plot.pointOnCurve(0, c, k / 16))[1];
+      const y = dataAt(ax, plot.pointOnCurve(0, c, k / 16))[1];
       assert.ok(y >= -1e-4 && y <= 24 + 1e-4, `curve ${c} stays in [0, 24]: ${y}`);
     }
   }
@@ -133,17 +144,17 @@ test('bar heights are value × scale, standing on y = 0; negatives hang below th
   const values = [3, 0, -1.5, 4.25];
   const bars = ax.bar(values, { colors: [GOLD, RED], labels: ['a', 'b', 'c', 'd'] });
   assert.equal(bars.children.length, 8, 'bars, then labels');
-  const unit = ax.yAxis.unitSize(), axisY = ax.c2p(0, 0)[1];
+  const unit = ax.c2p(0, 1)[1] - ax.c2p(0, 0)[1], axisY = ax.c2p(0, 0)[1];
   values.forEach((v, i) => {
     const r = bars.children[i] as Rectangle;
     assert.ok(r instanceof Rectangle);
-    assert.equal(r.numCurves(), 4, 'four corners even for a zero bar');
+    assert.equal(curveCount(r), 4, 'four corners even for a zero bar');
     const [, y0, , y1] = r.box()!;
     near(y1 - y0, Math.abs(v) * unit, 1e-5, `height of bar ${i}`);
     if (v >= 0) near(y0, axisY, 1e-5, `bar ${i} stands on the axis`);
     else { near(y1, axisY, 1e-5, `bar ${i} hangs from the axis`); assert.ok(y0 < axisY); }
     near(r.center()[0], ax.c2p(i + 0.5, 0)[0], 1e-5, `bar ${i} centered at i + 0.5`);
-    near(r.width(), 0.6 * ax.xAxis.unitSize(), 1e-5, 'default width is 1 − gap');
+    near(r.width(), 0.6 * (ax.c2p(1, 0)[0] - ax.c2p(0, 0)[0]), 1e-5, 'default width is 1 − gap');
   });
   assert.equal(bars.children[0]!.style.fill, GOLD);
   assert.equal(bars.children[3]!.style.fill, RED, 'colors cycle');
@@ -201,23 +212,21 @@ test('seeking renders the identical frame a full run produces, mid-animation too
   // Mid Create(axes), mid Create(plot), mid FadeIn, mid sign-flip Transform, mid recolor, the end
   for (const frame of [17, 45, 79, 96, 110, 138, 168, full.frames.length - 1]) {
     const snap = new SnapshotSink();
-    await renderAt(ChartScene, frame / 30, snap, { fps: 30 });
+    await renderFrame(ChartScene, frame, snap, { fps: 30 });
     assert.equal(snap.svg, full.frames[frame], `frame ${frame}`);
   }
 });
 
-test('coordinate inverses follow independent nonsingular affine transforms', () => {
+test('coordinate maps follow independent nonsingular affine transforms', () => {
   fc.assert(fc.property(fc.double({ min: -4, max: 4, noNaN: true }), fc.double({ min: -4, max: 4, noNaN: true }), fc.double({ min: -2, max: 2, noNaN: true }), (x, y, shear) => {
     const ax = new Axes({ xRange: [1, 5, 1], yRange: [-3, 2, 1], width: 7, height: 3 });
     const before = ax.c2p(x, y);
-    ax.applyAffine(1, 0, shear, 1, 2, -1, { aboutPoint: [0, 0] });
+    ax[affine](1, 0, shear, 1, 2, -1, { aboutPoint: [0, 0] });
     nearVec(ax.c2p(x, y), [before[0] + shear * before[1] + 2, before[1] - 1], 1e-5);
-    nearVec(ax.p2c(ax.c2p(x, y)), [x, y], 1e-5);
     const nl = new NumberLine({ range: [1, 5, 1], length: 7 });
     nl.shift([2, -1]).rotate(shear).scale(0.75);
     nearVec(nl.n2p(1), nl.line.start(), 0);
     nearVec(nl.n2p(5), nl.line.end(), 1e-6);
-    near(nl.p2n(nl.n2p(x)), x, 1e-5);
   }), params(200));
 });
 
@@ -240,7 +249,7 @@ test('bar interpolation fixes baseline while the top moves linearly through zero
   fc.assert(fc.property(fc.double({ min: -3, max: 3, noNaN: true }), fc.double({ min: -3, max: 3, noNaN: true }), fc.double({ min: 0, max: 1, noNaN: true }), (a, b, alpha) => {
     const ax = new Axes({ xRange: [-2, 2, 1], yRange: [-4, 4, 1] }).rotate(0.3).shift([1, -1]);
     const bars = ax.bar([a], { x: [0.5], width: 0.8 }), target = ax.bar([b], { x: [0.5], width: 0.8 });
-    const transform = new Transform(bars, target); transform.begin(); transform.interpolate(alpha);
+    const transform = new Transform(bars, target); beginAnimation(transform); interpolateAnimation(transform, alpha);
     const pts = anchors(bars.children[0] as VMobject), top = a + (b - a) * alpha;
     [[0.1, top], [0.9, top], [0.9, 0], [0.1, 0]].forEach(([x, y], i) => nearVec(pts[i]!, ax.c2p(x!, y!), 1e-6));
   }), params(200));
@@ -252,10 +261,10 @@ test('plot samples once per x and every segment stays between neighboring sample
     let calls = 0;
     const plot = ax.plot((x) => { calls++; return values[Math.round(x)]!; }, { samples: values.length });
     assert.equal(calls, values.length);
-    assert.equal(plot.numCurves(), values.length - 1);
+    assert.equal(curveCount(plot), values.length - 1);
     anchors(plot).forEach((p, i) => assert.deepEqual(p, ax.c2p(i, values[i]!)));
     for (let c = 0; c < values.length - 1; c++) for (const t of [0, 0.125, 0.25, 0.5, 0.75, 0.875, 1]) {
-      const y = ax.p2c(plot.pointOnCurve(0, c, t))[1];
+      const y = dataAt(ax, plot.pointOnCurve(0, c, t))[1];
       // Unit y scale and integer anchors make these bounds exact; no epsilon.
       assert.ok(y >= Math.min(values[c]!, values[c + 1]!) && y <= Math.max(values[c]!, values[c + 1]!), `${c} at ${t}: ${y}`);
     }

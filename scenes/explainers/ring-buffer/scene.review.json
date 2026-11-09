@@ -1,29 +1,6 @@
 {
   "version": 2,
   "subjects": [
-    {
-      "step": "shift",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "slot 0"
-        },
-        {
-          "text": "slot 4"
-        },
-        {
-          "key": "array:0"
-        },
-        {
-          "key": "array-after:0"
-        },
-        {
-          "text": "pop() returned 1 and moved 4 values"
-        }
-      ]
-    }
+    { "step": "shift", "opening": true, "targets": [{ "key": "reader-picture" }, { "text": "slot 0" }, { "text": "slot 4" }, { "key": "array:0" }, { "key": "array-after:0" }, { "text": "pop() returned 1 and moved 4 values" }] }
   ]
 }

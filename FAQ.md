@@ -14,11 +14,11 @@ They need a static host and nothing else. `rayner build` writes one HTML file ho
 
 ## Why are diagrams captured at build time instead of drawn in the browser?
 
-So the page carries no diagram renderer. Rayner renders each Mermaid diagram with [Agentic Mermaid](https://github.com/adewale/agentic-mermaid) in Chromium while building, checks the capture against the renderer's own output, and commits the result to `scene.snapshots/`. The browser only replays that geometry, decompressing it with its native `DecompressionStream`. A later build reuses the snapshot until the diagram's source or the capture code changes.
+So the page carries no diagram renderer. Rayner renders each Mermaid diagram with [Agentic Mermaid](https://github.com/adewale/agentic-mermaid) in Chromium while building, checks the capture against the renderer's own output, and commits the result to `scene.snapshots/`. The browser only replays that geometry, decompressing it with its native `DecompressionStream`. A later build reuses the snapshot until the diagram's spec (its source, style or lettering) or the Agentic Mermaid release changes; a change to Rayner's own code does not recapture it ([snapshots](docs/REFERENCE.md#snapshots)).
 
 ## How many scenarios can one explainer have?
 
-At most 64, and every combination of settings is built ahead of time, so each scenario adds to the page. A page must stay under 1.5 MiB of HTML and 450 KiB gzipped; when a scene goes over, split it or cut scenarios. Spend them on scenarios that change the conclusion: a scenario that only recolours the picture still costs page size.
+At most 64, and every combination of settings is built ahead of time, so each scenario adds to the page. A page must stay under 1.5 MiB of HTML and 450 KiB gzipped ([the page](docs/REFERENCE.md#page)); when a scene goes over, split it or cut scenarios. Spend them on scenarios that change the conclusion: a scenario that only recolours the picture still costs page size.
 
 ## Can I embed an explainer in another page?
 
@@ -32,7 +32,7 @@ Yes. `rayner describe scene.ts` prints every scenario and step as JSON: title, c
 
 It let an author write an explanation as data rather than code. A Lantern doc listed the shapes on screen, the connections between them, a code panel, the values to track, and named steps made of operations such as `add`, `move`, `focus` and `set`; `sceneFromDoc` turned it into an ordinary scene, so a doc got deep links, seeking and traces. The step names and state in the trace matched what the doc declared. ([Lantern's format notes](https://github.com/ivarvong/lantern/blob/2c7bad533be25fbd56d26a9a2b6c5651743f011e/docs/DOC-FORMAT.md), at the commit Rayner forked from.)
 
-The values in a doc were typed in by hand. Lantern's ring-buffer doc says `set { len: 1 }` after the first push because its author wrote that, so the trace could only repeat the author's claim. A doc also had no way to offer the reader a second scenario. Rayner deleted the format along with `DocScene` ([upstream](docs/UPSTREAM.md)) and writes scenes as TypeScript classes that ask a model for each value: the ring buffer's state now comes from running a ring buffer in `scenes/explainers/lib/models.ts`, a test compares the scene's recorded result with that model, and another checks that each step's picture follows the recorded state. The machine-readable view moved to the output: `rayner describe` reports what the scene recorded rather than what an author declared.
+The values in a doc were typed in by hand. Lantern's ring-buffer doc says `set { len: 1 }` after the first push because its author wrote that, so the trace could only repeat the author's claim. A doc also had no way to offer the reader a second scenario. Rayner deleted the format along with `DocScene` ([upstream](docs/UPSTREAM.md)) and writes scenes as TypeScript classes that ask a model for each value: the ring buffer's state now comes from running a ring buffer in `scenes/explainers/ring-buffer/model.ts`, a test compares the scene's recorded result with that model, and another checks that each step's picture follows the recorded state. The machine-readable view moved to the output: `rayner describe` reports what the scene recorded rather than what an author declared.
 
 ## How does Rayner relate to Lantern and Manim?
 

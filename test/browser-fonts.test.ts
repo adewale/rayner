@@ -15,7 +15,7 @@ test('portable SFNT faces retain WOFF2 glyphs, advances and fallback shaping', a
     bundle: true,
     format: 'esm',
     write: false,
-    plugins: [browserFonts(ROOT)],
+    plugins: [browserFonts()],
     metafile: true,
   });
   assert.ok(Object.keys(result.metafile!.inputs).some((path) => path.startsWith('embedded-sfnt:')));
@@ -67,7 +67,7 @@ test('the font equivalence oracle rejects a substituted default face', async () 
     format: 'esm',
     write: false,
     plugins: [
-      browserFonts(ROOT),
+      browserFonts(),
       {
         name: 'substitute-mono-for-sans',
         setup(b) {

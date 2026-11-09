@@ -181,7 +181,7 @@ test(
               : step === 'spread'
                 ? ['spread-ground', 'spread-december', 'spread-june']
               : step === 'latitude'
-                ? ['june-latitude', 'december-latitude', 'latitude-circles', 'june-daylight-table', 'december-daylight-table', `emphasis: row ${values.name}`, `emphasis: row ${values.name}`]
+                ? ['june-latitude', 'december-latitude', 'latitude-circles', 'june-daylight-table', 'december-daylight-table', `emphasis: row ${values.name}: ${values.june.replace(' of daylight', '')}`, `emphasis: row ${values.name}: ${values.december[0]!.replace(' of daylight', '')}`]
                 : ['effect-bars', 'daylight-curve', 'january-point', 'january-value', ...(scenario.values.place === 'quito' ? ['july-point', 'july-value'] : ['mirror-daylight-curve', 'mirror-january-point', 'mirror-january-value'])];
           assert.deepEqual(frame.targets.map((target) => target.name).sort(), [...expectedKeys].sort());
           const indices = new Set(frame.targets.flatMap((target) => target.indices));

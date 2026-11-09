@@ -2,24 +2,49 @@
 export type JsonValue = null | boolean | number | string | JsonValue[] | JsonObject;
 export interface JsonObject { [key: string]: JsonValue }
 
+/**
+ * `T` as `jsonObject()` copies it, and so as a trace records a scene's state: strings, numbers,
+ * booleans and null stay; arrays and objects map their items and fields; functions, symbols,
+ * bigints and undefined array items, which the copy refuses, are `never`. An object field that may
+ * be undefined stays so, since the copy omits it. A JSON-safe type (a scene's model, say) maps to
+ * itself, and `unknown` and `any` stay as they are.
+ */
+export type Jsonified<T> =
+  unknown extends T ? T
+  : T extends string | number | boolean | null ? T
+  : T extends readonly unknown[] ? { [K in keyof T]: Jsonified<T[K]> }
+  : T extends (...args: never) => unknown ? never
+  : T extends object ? { [K in keyof T]: JsonField<T[K]> }
+  : never;
+type JsonField<T> = T extends undefined ? undefined : Jsonified<T>;
+
 /** Clone JSON data without silently replacing invalid numbers or dropping functions.
- * Undefined object fields are omitted; undefined array items and holes are refused. */
+ * Undefined object fields are omitted; undefined array items and holes are refused. `name` is
+ * the value's name in an error message. */
 export function jsonObject(value: unknown, name = 'state'): JsonObject {
+  return cloneJson(value, 'jsonObject()', name);
+}
+
+/**
+ * jsonObject for the library's own callers: an error names `api`, the call the author made, and
+ * the value's path from `name` (docs/ENGINE.md, "Error messages").
+ */
+export function cloneJson(value: unknown, api: string, name: string, where = ''): JsonObject {
   const ancestors = new Set<object>();
   const clone = (input: unknown, path: string): JsonValue => {
     if (input === null || typeof input === 'boolean' || typeof input === 'string') return input;
     if (typeof input === 'number' && Number.isFinite(input)) return input === 0 ? 0 : input;
-    if (!input || typeof input !== 'object' || ancestors.has(input)) throw new TypeError(`${path} must contain finite, acyclic JSON data`);
+    if (!input || typeof input !== 'object' || ancestors.has(input)) throw new TypeError(`${api}: ${path} must contain finite, acyclic JSON data${where}`);
     const array = Array.isArray(input), prototype = Object.getPrototypeOf(input);
     if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null)
-      throw new TypeError(`${path} must be a JSON object or array`);
-    if (Object.getOwnPropertySymbols(input).length) throw new TypeError(`${path} must use JSON string keys`);
+      throw new TypeError(`${api}: ${path} must be a JSON object or array${where}`);
+    if (Object.getOwnPropertySymbols(input).length) throw new TypeError(`${api}: ${path} must use JSON string keys${where}`);
     ancestors.add(input);
     try {
       if (Array.isArray(input)) {
         const output: JsonValue[] = [];
         for (let i = 0; i < input.length; i++) {
-          if (!Object.hasOwn(input, i)) throw new TypeError(`${path}[${i}] must not be an array hole`);
+          if (!Object.hasOwn(input, i)) throw new TypeError(`${api}: ${path}[${i}] must not be an array hole${where}`);
           output.push(clone(input[i], `${path}[${i}]`));
         }
         return output;
@@ -32,6 +57,22 @@ export function jsonObject(value: unknown, name = 'state'): JsonObject {
       return output;
     } finally { ancestors.delete(input); }
   };
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be a JSON object`);
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${api}: ${name} must be a JSON object${where}`);
   return clone(value, name) as JsonObject;
+}
+
+/**
+ * `value` as JSON text with each object's keys in code-unit order, so two equal JSON values
+ * give the same text whatever order their keys were written in. Every comparison and
+ * deduplication of JSON values uses it; output keeps the author's order.
+ */
+export function canonicalJson(value: unknown): string {
+  return JSON.stringify(value, (_key, v: unknown) => {
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return v;
+    const sorted: Record<string, unknown> = {};
+    // Own keys defined, not assigned, so a key such as "__proto__" stays a key.
+    for (const k of Object.keys(v).sort())
+      Object.defineProperty(sorted, k, { value: (v as Record<string, unknown>)[k], enumerable: true, writable: true, configurable: true });
+    return sorted;
+  });
 }

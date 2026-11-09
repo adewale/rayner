@@ -5,7 +5,8 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { Scene, Text } from '../src/index.ts';
-import { NullSink, SnapshotSink, renderAt, renderElements, toSvgString } from '../src/output.ts';
+import { NullSink, renderFrame, renderElements, toSvgString } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import { runKey, bindLettering, snapshotProvider, unpackLettering } from '../src/lettering-outlines.ts';
 import type { LetteringSnapshot } from '../src/lettering-outlines.ts';
 import { collectProject, defaultScenario, ROOT } from '../tools/lib/explain-project.ts';
@@ -13,7 +14,7 @@ import { buildExplainer } from '../tools/lib/explain-build.ts';
 import { checkProject } from '../tools/lib/explain-check.ts';
 import { pageSnapshot } from '../tools/lib/lettering.ts';
 import { launch } from '../tools/lib/browser.ts';
-import { htmlEscape, restingTime } from '../explain/trace.ts';
+import { htmlEscape } from '../explain/trace.ts';
 
 const fixtures = join(ROOT, 'test/lettering');
 const ids = ['arabic', 'devanagari', 'math', 'style'] as const;
@@ -39,13 +40,16 @@ for (const id of ids) test(`${id}: committed snapshots pass seek, motion, bare r
   } finally { await rm(out, { recursive: true, force: true }); }
 });
 
-test('caption edits invalidate lettering snapshots before drawing; absent runs fail closed', async () => {
+test('an edit that draws no new text keeps the snapshot; drawn text it lacks fails before drawing, naming the run', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'lettering-stale-'));
   try {
     const source = await readFile(join(fixtures, 'arabic/scene.ts'), 'utf8');
-    await writeFile(join(dir, 'scene.ts'), source.replace('caption: "Arabic"', 'caption: "Changed caption"'));
     await copyFile(join(fixtures, 'arabic/scene.lettering.json'), join(dir, 'scene.lettering.json'));
-    await assert.rejects(collectProject(dir, { write: false }), /stale lettering snapshot/);
+    // The caption is the page's HTML, not outlines: the snapshot still has every run the scene draws.
+    await writeFile(join(dir, 'scene.ts'), source.replace('caption: "Arabic"', 'caption: "Changed caption"'));
+    assert.ok((await collectProject(dir, { write: false })).outlineLettering);
+    await writeFile(join(dir, 'scene.ts'), source.replace('"السَّلَامُ عَلَيْكُمْ"', '"مرحبا"'));
+    await assert.rejects(collectProject(dir, { write: false }), /no run for "مرحبا" \(sans\)/);
     const s = await snapshot('arabic');
     assert.throws(() => snapshotProvider(s).shape('sans', 'مرحبا', 1, () => { throw new Error('fallback bypassed'); }), /no run/);
   } finally { await rm(dir, { recursive: true, force: true }); }
@@ -98,10 +102,10 @@ test('capture rejects an unrequested script and a MathTex object without opt-in'
   try {
     const source = await readFile(join(fixtures, 'arabic/scene.ts'), 'utf8');
     await writeFile(join(dir, 'scene.ts'), source.replace("scripts:['Arab']", "scripts:['Deva']"));
-    await assert.rejects(collectProject(dir, { captureLettering: true, write: false }), /Script not requested/);
+    await assert.rejects(collectProject(dir, { captureLettering: true, write: false }), { name: 'Error', message: /^new Text\(\): ا \(U\+627\) .*meta\.lettering\.scripts/ });
     const math = await readFile(join(fixtures, 'math/scene.ts'), 'utf8');
     await writeFile(join(dir, 'scene.ts'), math.replace('lettering: {math:true}', 'lettering: {math:false}'));
-    await assert.rejects(collectProject(dir, { captureLettering: true, write: false }), /MathTex requires/);
+    await assert.rejects(collectProject(dir, { captureLettering: true, write: false }), { name: 'Error', message: /^new MathTex\(\): .*meta\.lettering\.math/ });
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
 
@@ -119,7 +123,7 @@ test('requested pages run offline in Chromium without errors or network requests
       const { html } = await buildExplainer(project, join(dir, id + '.html'));
       const scenario = defaultScenario(project);
       const first = scenario.trace.steps[0]!;
-      const scene = await renderAt(scenario.Scene, restingTime(first, scenario.trace.fps), new SnapshotSink());
+      const scene = await renderFrame(scenario.Scene, first.frame1, new SnapshotSink());
       const expected = renderElements(scene, { relative: false })
         .filter((record) => record.tag === 'path').map((record) => String(record.attrs.d)).sort();
       assert.ok(expected.length > 0, `${id}: the source fixture draws outlines`);
@@ -139,4 +143,26 @@ test('requested pages run offline in Chromium without errors or network requests
       await page.close();
     }
   } finally { await browser.close(); await rm(dir, { recursive: true, force: true }); }
+});
+
+test('a snapshot stores each outline as path data that reads back to the same segments', async () => {
+  const { outlinePath, outlineSegments, packLettering } = await import('../src/lettering-outlines.ts');
+  const { fc, params } = await import('./lib/pbt.ts');
+  const n = fc.double({ noNaN: true, noDefaultInfinity: true, min: -1e6, max: 1e6 }).map((x) => (Object.is(x, -0) ? 0 : x));
+  const segment = fc.oneof(
+    fc.record({ tag: fc.constantFrom('MoveTo' as const, 'LineTo' as const), x: n, y: n }),
+    fc.record({ tag: fc.constant('QuadTo' as const), x1: n, y1: n, x: n, y: n }),
+    fc.record({ tag: fc.constant('CubicTo' as const), x1: n, y1: n, x2: n, y2: n, x: n, y: n }),
+    fc.constant({ tag: 'Close' as const }),
+  );
+  fc.assert(fc.property(fc.array(segment.map((s) => ({ ...s })), { maxLength: 20 }), (path) => {
+    assert.deepEqual(outlineSegments(outlinePath(path)), path);
+  }), params(500));
+  assert.equal(outlinePath([{ tag: 'MoveTo', x: 0.5, y: -0.25 }, { tag: 'LineTo', x: 1e-7, y: 2 }, { tag: 'Close' }]), 'M0.5-0.25L1e-7 2Z');
+  // A committed snapshot's outlines are path data, each distinct outline once.
+  const stored = JSON.parse(await readFile(join(ROOT, 'test/lettering/math/scene.lettering.json'), 'utf8'));
+  assert.equal(stored.version, 3);
+  assert.ok(stored.outlines.every((d: unknown) => typeof d === 'string' && outlineSegments(d)));
+  assert.equal(new Set(stored.outlines).size, stored.outlines.length);
+  assert.deepEqual(packLettering(unpackLettering(stored)), stored);
 });

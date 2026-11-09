@@ -1,14 +1,15 @@
 // Code spans (views of a line's glyphs, boxed on line metrics) and build-time
-// syntax tokens (tools/lib/tokenize.ts, painted by Code's `spans` option).
+// syntax tokens (tools/repo/lib/tokenize.ts, painted by Code's `spans` option).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import {
-  Code, Scene, VMobject, Write, Transform, FadeOut, } from '../src/index.ts';
-import { NullSink, StringSink, SnapshotSink, renderAt, renderElements } from '../src/output.ts';
+import { Code, Scene, VMobject, Transform, FadeOut, Create } from '../src/index.ts';
+import { NullSink, StringSink, renderFrame, renderElements } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import { loadFonts } from '../explain/testing.ts';
 import type { ColorSpan, Box, Sink } from '../src/index.ts';
-import { tokenize, lex, shikiTokens, hasShiki, langOf, DARK } from '../tools/lib/tokenize.ts';
+import { tokenize, lex, shikiTokens, hasShiki, langOf, DARK } from '../tools/repo/lib/tokenize.ts';
+import { advanceBox } from '../src/text.ts';
 // Manim's values, which the package no longer exports.
 const GOLD = '#f0ac5f';
 const RED = '#fc6255';
@@ -25,7 +26,7 @@ const records = (code: Code) => { const s = new Scene(new NullSink()); s.add(cod
 test('span.box() is the advance cells of [from, to) by the line\'s ascent and descent, unioned with the ink', () => {
   const code = new Code(LINES).scale(1.7).shift([1, -0.5]); // a live view: boxes follow the block
   for (const [line, from, to] of [[0, 0, 5], [0, 12, 17], [1, 2, 4], [1, 0, 21], [0, 5, 6]] as const) {
-    const t = code.lines[line]!, f = t.frameBox, cell = t.advance() / t.text.length; // mono, ASCII: one cell per index
+    const t = code.lines[line]!, f = t[advanceBox], cell = t.advance() / t.text.length; // mono, ASCII: one cell per index
     const s = code.span(line, from, to), b = s.box();
     assert.ok(close(b[0], f[0]! + from * cell) && close(b[2], f[0]! + to * cell), `x of ${from}..${to}: ${b}`);
     assert.equal(b[1], f[1]); assert.equal(b[3], f[3]);
@@ -51,7 +52,7 @@ test('token() finds the nth occurrence\'s glyphs, by source index', () => {
   assert.equal(code.token(0, 'await').source, 'await');
   assert.deepEqual([code.lineSpan(1).from, code.lineSpan(1).to], [0, LINES[1]!.length]);
   assert.equal(code.lineSpan(2).children.length, 0);
-  assert.throws(() => code.token(1, 'hit', 2), /No "hit" #2/);
+  assert.throws(() => code.token(1, 'hit', 2), /code\.token\(\): line 1 has no occurrence 2 of "hit"/);
   assert.throws(() => code.span(3, 0, 0), RangeError);
   assert.throws(() => code.span(0, 4, 2), RangeError);
   assert.throws(() => code.span(0, 0, 99), RangeError);
@@ -78,7 +79,7 @@ test('a span is a view: it recolours and moves the real glyphs, and goes stale w
   assert.ok(close(code.box()![3], kv.box()[3]) && code.box()![3] > before[3] + 0.5);
   line.setText('const hit = 1;');
   assert.equal(kv.stale, true);
-  assert.throws(() => kv.box(), /Stale span/);
+  assert.throws(() => kv.box(), /code\.span\(\): the span .* is stale/);
   assert.equal(code.token(0, '1').stale, false);
 });
 
@@ -143,7 +144,7 @@ class ColoredScene extends Scene {
   override async construct() {
     await this.step('write');
     const a = new Code(LINES.slice(0, 2), { spans: SPANS }).shift([0, 1]);
-    await this.play(new Write(a), { runTime: 1 });
+    await this.play(new Create(a, { lagRatio: 0.3 }), { runTime: 1 });
     await this.step('morph');
     const next = ['const hit = await cache.get(key);', '  if (!hit) return load(key);'];
     const b = new Code(next, { spans: tokenize(next.join('\n'), 'ts', { engine: 'fallback' }) }).shift([0, -1]);
@@ -161,12 +162,11 @@ test('seeking a coloured Write and Transform renders the frames a full run produ
     async frame(scene) { await svg.frame(scene); dom.push(JSON.stringify(renderElements(scene, { relative: false }).map((r) => r.attrs))); },
   };
   await new ColoredScene(both).run();
-  for (const t of [0.4, 1.0, 1.5, 2.2, 2.5, 3.1]) {
+  for (const frame of [12, 30, 45, 66, 75, svg.frames.length - 1]) {
     const snap = new SnapshotSink();
-    const scene = await renderAt(ColoredScene, t, snap);
-    const frame = scene.frameCount;
-    assert.equal(snap.svg, svg.frames[frame], `svg at ${t}`);
-    assert.equal(JSON.stringify(renderElements(scene, { relative: false }).map((r) => r.attrs)), dom[frame], `dom records at ${t}`);
+    const scene = await renderFrame(ColoredScene, frame, snap);
+    assert.equal(snap.svg, svg.frames[frame], `svg at frame ${frame}`);
+    assert.equal(JSON.stringify(renderElements(scene, { relative: false }).map((r) => r.attrs)), dom[frame], `dom records at frame ${frame}`);
   }
 });
 
@@ -236,9 +236,9 @@ test('tokenize() maps kinds to the palette, leaves punctuation uncoloured and me
   assert.throws(() => langOf('cobol'), /Unknown language/);
 });
 
-test('tools/tokens.ts prints the spans JSON for stdin', () => {
+test('tools/repo/tokens.ts prints the spans JSON for stdin', () => {
   const src = 'def f():\n    return 1  # one\n';
-  const r = spawnSync(process.execPath, ['tools/tokens.ts', '-', '--lang', 'python', '--engine', 'fallback'], { input: src, encoding: 'utf8' });
+  const r = spawnSync(process.execPath, ['tools/repo/tokens.ts', '-', '--lang', 'python', '--engine', 'fallback'], { input: src, encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
   assert.deepEqual(JSON.parse(r.stdout), tokenize(src, 'python', { engine: 'fallback' }));
   assert.match(r.stderr, /engine fallback/);

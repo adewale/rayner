@@ -10,12 +10,13 @@ import { NullSink, toSvgString } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { Resvg } from '@resvg/resvg-js';
 import { unpackLettering, withSceneLettering } from '../src/lettering-outlines.ts';
-import { outlineText } from '../integrations/agentic-mermaid/text.ts';
-import { diagramKey, snapshotResolver } from '../integrations/agentic-mermaid/snapshot.ts';
-import type { DiagramSnapshot } from '../integrations/agentic-mermaid/snapshot.ts';
-import { snapshotBuilder, naturalMeasurementIdentity } from '../integrations/agentic-mermaid/build/index.ts';
+import { outlineText } from '../explain/diagram-text.ts';
+import { diagramKey, snapshotResolver } from '../explain/diagram-snapshot.ts';
+import type { DiagramSnapshot } from '../explain/diagram-snapshot.ts';
+import { snapshotBuilder, naturalMeasurementIdentity } from '../integrations/agentic-mermaid/index.ts';
 import { collectProject, ROOT } from '../tools/lib/explain-project.ts';
 import { fc, params } from './lib/pbt.ts';
+import { buildText, textRun } from '../src/text.ts';
 
 test('natural lettering has a separate cache key and refuses unknown JavaScript modes', () => {
   fc.assert(fc.property(fc.string(), fc.string(), (source, style) => {
@@ -65,12 +66,12 @@ test('natural baselines and anchors place actual glyph ink at the SVG coordinate
     fc.integer({ min: 8, max: 80 }), fc.integer({ min: -100, max: 100 }), fc.integer({ min: -100, max: 100 }),
     (font, value, anchor, baseline, size, x, y) => {
       const text = new Text(value, { font, fontSize: size });
-      text.build(value, size, { fill: '#000000', stroke: 'none' });
+      buildText(text, value, size, { fill: '#000000', stroke: 'none' });
       const xGlyph = new Text('x', { font, fontSize: 1 }).children[0]!;
       const offset = baseline === 'middle' ? xGlyph.height() * size / 2
-        : baseline === 'central' ? (text.run.ascent - text.run.descent) / 2
-        : baseline === 'text-before-edge' ? text.run.ascent
-        : baseline === 'text-after-edge' ? -text.run.descent : 0;
+        : baseline === 'central' ? (text[textRun].ascent - text[textRun].descent) / 2
+        : baseline === 'text-before-edge' ? text[textRun].ascent
+        : baseline === 'text-after-edge' ? -text[textRun].descent : 0;
       const shift = x - text.advance() * (anchor === 'middle' ? 0.5 : anchor === 'end' ? 1 : 0);
       const matrix = [1, 0.1, 0.2, 1, 2, -3];
       const actual = outlineText({ text: value, size, x, y, anchor, baseline, natural: true, font, matrix },
@@ -95,7 +96,7 @@ test('natural baselines and anchors place actual glyph ink at the SVG coordinate
 });
 
 const browser = process.env.EXPLAIN_BROWSER === '1';
-test('real natural captures preserve explicit direction, and reject stale cached font metrics', {
+test('real natural captures preserve explicit direction', {
   skip: !browser && 'set EXPLAIN_BROWSER=1 for actual Chromium capture',
 }, async () => {
   const builder = await snapshotBuilder();
@@ -122,11 +123,8 @@ test('real natural captures preserve explicit direction, and reject stale cached
         const run = damaged.parts.flatMap((p) => p.shapes).find((s) => s.textRun)!.textRun!;
         if (value === undefined) delete run[field];
         else Object.assign(run, { [field]: value });
-        await assert.rejects(snapshotResolver({ [diagramKey(spec)]: damaged }).diagram(spec), /Invalid diagram snapshot/);
+        await assert.rejects(snapshotResolver({ [diagramKey(spec)]: damaged }).diagram(spec), /scene\.snapshots: a diagram snapshot is invalid/);
       }
-      const stale = await snapshotBuilder({ [diagramKey(spec)]: snapshot }, { measurementHash: 'changed source-font bytes' });
-      try { await assert.rejects(stale.diagram(spec), /Stale natural diagram font metrics/); }
-      finally { await stale.close(); }
     }
     await assert.rejects(builder.diagram({ source: 'graph LR\nA["<b>Bold</b>"]', lettering: 'natural' }), /styles.*'bold'/);
     const recovered = await builder.diagram({ source: 'graph LR\nA[Recovered]', lettering: 'natural' });
@@ -202,9 +200,9 @@ test('requested natural faces and rich cuts use independent HarfBuzz advances th
     const file = join(directory, 'scene.lettering.json');
     const stored = unpackLettering(JSON.parse(await readFile(file, 'utf8')));
     stored.fontInputs!['eb-garamond'] = 'a'.repeat(64);
-    stored.payloadHash = createHash('sha256').update(JSON.stringify({ ...stored, payloadHash: undefined })).digest('hex');
     await writeFile(file, JSON.stringify(stored));
-    await assert.rejects(collectProject(directory, { write: false }), /Stale natural diagram font metrics/);
+    await assert.rejects(collectProject(directory, { write: false }), (e: Error) =>
+      e.constructor === Error && e.message.startsWith('scene.snapshots: ') && e.message.includes(join(directory, 'scene.ts')));
     // Poison the actual persisted diagram too: refreshing the source-font
     // metadata alone must not accidentally make damaged cached geometry reusable.
     const index = JSON.parse(await readFile(join(directory, 'scene.snapshots/index.json'), 'utf8')) as {

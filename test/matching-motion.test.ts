@@ -9,10 +9,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Text, Code, VMobject, TransformMatchingText } from '../src/index.ts';
-import { StringSink, SnapshotSink, renderAt } from '../src/output.ts';
-import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
+import { StringSink, renderFrame } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
+import { loadFonts } from '../explain/testing.ts';
+import { MotionSink, analyzeMotion } from '../src/internal.ts';
 import type { Mobject, Vec } from '../src/index.ts';
 import { fc, params } from './lib/pbt.ts';
+import { beginAnimation, interpolateAnimation, matchRows } from '../src/animation.ts';
 
 Scene.captionWpm = Infinity;
 await loadFonts();
@@ -69,7 +72,7 @@ function assertMorphInterpolation({ a, b, size, move, lag, font }: Morph): void 
   const targetOpacity = new Map([...after.keys()].map((p) => [p, p.style.opacity]));
   const sourceGeometry = geometry(src), targetGeometry = geometry(target), targetFrame = pointSnapshot(target);
   const animation = new TransformMatchingText(src, target, { lagRatio: lag });
-  animation.begin();
+  beginAnimation(animation);
   const sourcePartition = [...animation.pairs.map(([s]) => s), ...animation.removed];
   const targetPartition = [...animation.pairs.map(([, t]) => t), ...animation.added];
   assert.equal(animation.morphed.length, 0);
@@ -79,7 +82,7 @@ function assertMorphInterpolation({ a, b, size, move, lag, font }: Morph): void 
   assert.deepEqual(new Set(targetPartition), new Set(after.keys()));
   const slots = animation.pairs.length + animation.removed.length + animation.added.length;
   const slotDuration = 1 / (1 + (slots - 1) * lag);
-  assert.equal(animation.fadesIn.length, animation.added.length);
+  assert.equal(animation[matchRows].fadesIn.length, animation.added.length);
   const phase = (alpha: number, slot: number) => alpha === 1 ? 1 : Math.max(0, Math.min(1, (alpha - slot * lag * slotDuration) / slotDuration));
   const check = (alpha: number) => {
     animation.pairs.forEach(([part, targetPart], i) => {
@@ -111,7 +114,7 @@ function assertMorphInterpolation({ a, b, size, move, lag, font }: Morph): void 
     animation.added.forEach((part, i) => {
       // Read the public added copy only as the observed object. Expected phase
       // and opacity come from the authored target and documented slot order.
-      const actual = animation.fadesIn[i]!.sub.style.opacity;
+      const actual = animation[matchRows].fadesIn[i]!.sub.style.opacity;
       opacity(actual, targetOpacity.get(part)!, phase(alpha, animation.pairs.length + animation.removed.length + i), false);
     });
   };
@@ -119,7 +122,7 @@ function assertMorphInterpolation({ a, b, size, move, lag, font }: Morph): void 
   // smoothstep; do not call production subAlpha or inspect its internal rows.
   for (let k = 0; k <= 30; k++) {
     const time = k / 30, expectedAlpha = 6 * time ** 5 - 15 * time ** 4 + 10 * time ** 3;
-    animation.interpolate(animation.rateFunc(time));
+    interpolateAnimation(animation, animation.rateFunc(time));
     check(expectedAlpha);
   }
   // Every matched or fading part's waiting/active/finished boundaries, including
@@ -127,12 +130,12 @@ function assertMorphInterpolation({ a, b, size, move, lag, font }: Morph): void 
   for (let i = 0; i < slots; i++) for (const boundary of [i * lag * slotDuration, i * lag * slotDuration + slotDuration]) {
     for (const offset of [-8 * Number.EPSILON, 0, 8 * Number.EPSILON]) {
       const alpha = Math.max(0, Math.min(1, boundary + offset));
-      animation.interpolate(alpha); check(alpha);
+      interpolateAnimation(animation, alpha); check(alpha);
     }
   }
-  animation.interpolate(0);
+  interpolateAnimation(animation, 0);
   assert.deepEqual(geometry(src), sourceGeometry, 'added glyphs are invisible at the exact authored source endpoint');
-  animation.interpolate(1);
+  interpolateAnimation(animation, 1);
   assert.deepEqual(geometry(src), targetGeometry, 'matched and added glyphs reach the entire authored target; removals are invisible');
   assert.deepEqual(pointSnapshot(src), targetFrame, 'the line advance frame reaches the exact authored target');
   assert.deepEqual(geometry(target), targetGeometry, 'target geometry is never modified');
@@ -154,7 +157,7 @@ test('seeking into a lagged text morph renders the frame a full run renders', as
   await new S(full).run();
   for (const k of [0, 1, 5, 12, 18, 24, 30, 31, full.frames.length - 1]) {
     const snap = new SnapshotSink();
-    await renderAt(S, k / 30, snap);
+    await renderFrame(S, k, snap);
     assert.equal(snap.svg, full.frames[k], `frame ${k}`);
   }
 });
@@ -183,7 +186,7 @@ test('property: text morph replay agrees across lag ratios up to one', async () 
     const full = new StringSink();
     await new S(full).run();
     const snap = new SnapshotSink();
-    await renderAt(S, k / 30, snap);
+    await renderFrame(S, k, snap);
     assert.equal(snap.svg, full.frames[k], `lag ${lag}, frame ${k}`);
   }), params(100));
 });

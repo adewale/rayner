@@ -3,9 +3,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Resvg } from '@resvg/resvg-js';
 import { toSvgString } from '../src/output.ts';
-import { labelOf } from '../explain/diagrams.ts';
+import { labelOf } from '../explain/labels.ts';
 import { toView } from '../app/embed-closeup.ts';
-import { collectProject } from '../tools/lib/explain-project.ts';
+import { loadProject } from '../explain/testing.ts';
+
+/** Explainer `id` of the collection, loaded as an author's test loads it. */
+const loaded = async (id: string) => loadProject((await import(`../scenes/explainers/${id}/scene.ts`)).default, `scenes/explainers/${id}`);
 
 test('route and chart annotations leave the expected paper visible behind their lettering', async () => {
   const cases: [string, string, string[], Record<string, string>, number[]][] = [
@@ -16,12 +19,13 @@ test('route and chart annotations leave the expected paper visible behind their 
     ['seasons', 'distance', ['0.0 h'], {place: 'tromso'}, [26, 27, 38]],
   ];
   for (const [id, stepName, words, settings, paper] of cases) {
-    const project = await collectProject(`scenes/explainers/${id}`, { write: false });
+    const project = await loaded(id);
     const scenarios = project.scenarios.filter((v) => Object.entries(settings).every(([k, value]) => v.values[k] === value));
     assert.ok(scenarios.length > 0, `${id}: the named scenario must exist`);
     for (const scenario of scenarios) {
       let checked = 0;
       await new scenario.Scene({
+        skipUntil: Infinity,
         async frame() {},
         async stepEnd(scene, step) {
           if (step.name !== stepName) return;
@@ -31,13 +35,13 @@ test('route and chart annotations leave the expected paper visible behind their 
           // its ink is now visible. This checks rendered pixels, not plate metadata.
           const boxes = labels.map((m) => toView(m.box()!, scene.frame.box()!));
           const opaque = labels.map((m) => m.family().every((f) => f.style.opacity >= 0.95));
-          for (const [i, full] of opaque.entries()) if (!full)
+          for (const [, full] of opaque.entries()) if (!full)
             assert.ok(id === 'mr-cache' && stepName === 'request', 'only the deliberately dimmed cache diagram uses the light-context bound');
-          const children = labels.map((m) => m.children);
-          labels.forEach((m) => { m.children = []; });
+          const children = labels.map((m) => [...m.children]);
+          labels.forEach((m) => m.remove(...m.children));
           let svg: string;
           try { svg = toSvgString(scene, { width: 1280 }); }
-          finally { labels.forEach((m, i) => { m.children = children[i]!; }); }
+          finally { labels.forEach((m, i) => m.add(...children[i]!)); }
           const image = new Resvg(svg, { font: { loadSystemFonts: false } }).render();
           const pixels = image.pixels;
           if (id === 'lantern') {
@@ -60,7 +64,7 @@ test('route and chart annotations leave the expected paper visible behind their 
             checked++;
           }
         },
-      }, { skipUntil: Infinity }).run();
+      }).run();
       assert.equal(checked, words.length);
     }
   }

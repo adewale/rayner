@@ -9,6 +9,7 @@
     "lib": ["es2023"],
     "types": [],
     "strict": true,
+    "noUnusedLocals": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,

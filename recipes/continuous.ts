@@ -1,7 +1,7 @@
-// A supported recipe using the Animation extension point by hand. The exported
-// `Follow` does the same for any one number (docs/CHOREOGRAPHY.md); this shows what it wraps.
+// A supported recipe using the Animation extension point by hand. A view's `tween` does the same
+// through the scene's state, redrawing the view at every frame (docs/VIEWS.md); this shows what it wraps.
 import { Scene, Group, Circle, Dot, Line, DecimalNumber, Animation, linear } from 'rayner';
-import type { Vec, AnimOpts } from 'rayner';
+import type { Vec, AnimationOptions } from 'rayner';
 
 /** One immutable model sample, shared by every dependent drawing. */
 export function orbit(angle: number): Readonly<{ angle: number; position: Readonly<Vec> }> {
@@ -27,17 +27,17 @@ export class FollowAngle extends Animation {
   target: number;
   from = 0;
   publish: (sample: ReturnType<typeof orbit>) => void;
-  constructor(rig: OrbitDrawing, target: number, publish: (sample: ReturnType<typeof orbit>) => void = () => {}, opts: AnimOpts = {}) {
+  constructor(rig: OrbitDrawing, target: number, publish: (sample: ReturnType<typeof orbit>) => void = () => {}, opts: AnimationOptions = {}) {
     orbit(target); // validate without changing the drawing
     super(rig.root, opts);
     this.rig = rig; this.target = target; this.publish = publish;
   }
-  override begin(): void {
+  protected override doBegin(): void {
     // Capture when this play begins, including when nested in Succession.
     this.from = this.rig.angle;
-    super.begin();
+    super.doBegin();
   }
-  override interpolate(alpha: number): void {
+  protected override doInterpolate(alpha: number): void {
     const angle = alpha === 0 ? this.from : alpha === 1 ? this.target : this.from + (this.target - this.from) * alpha;
     const sample = orbit(angle);
     this.rig.angle = sample.angle;
@@ -48,7 +48,7 @@ export class FollowAngle extends Animation {
   }
 }
 
-export default class ContinuousScene extends Scene<{ angle: number; x: number; y: number }> {
+export default class ContinuousScene extends Scene<{ angle: number; x: number; y: number }, {}> {
   override state = { angle: 0, x: 3, y: 0 };
   override async construct() {
     const rig = makeOrbit();

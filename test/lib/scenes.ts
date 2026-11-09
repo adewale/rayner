@@ -3,13 +3,12 @@
 // edits. `explainer(id)` is what readers see: an explainer's default scenario with
 // its diagram snapshots bound.
 import { join } from 'node:path';
-import {
-  Scene, Rectangle, Circle, Arrow, Line, Dot, Text, Code, DecimalNumber,
-  FadeIn, FadeOut, Write, Create, Transform, MoveAlongPath, LaggedStart,
-} from '../../src/index.ts';
+import { Scene, MoveAlongPath, Rectangle, Circle, Arrow, Line, Dot, Text, Code, DecimalNumber, FadeIn, FadeOut, Create, Transform, LaggedStart } from '../../src/index.ts';
 import { Indicate } from './transient.ts';
+import { NEUTRAL_COLORS } from '../../src/color.ts';
+import { followScene } from '../../src/mobject.ts';
 import type { Box, Mobject, SceneClass } from '../../src/index.ts';
-import { labelOf } from '../../explain/diagrams.ts';
+import { labelOf } from '../../explain/labels.ts';
 import { Card } from '../../explain/panels.ts';
 import { toView } from '../../app/embed-closeup.ts';
 import { EXPLAINERS } from '../../scenes/explainers/catalog.ts';
@@ -26,14 +25,17 @@ export class Fixture extends Scene {
     const heading = new Text('A fixture for the engine tests', { fontSize: 0.4 }).moveTo([0, 3.4]);
     const box = new Rectangle({ width: 2.4, height: 1.2, cornerRadius: 0.1, stroke: TEAL }).moveTo([-3, 1]);
     const ring = new Circle({ radius: 0.6, stroke: GOLD }).moveTo([3, 1]);
-    await this.play(new Write(heading), new Create(box), new FadeIn(ring, { shift: [0, 0.5] }));
+    await this.play(new Create(heading, { lagRatio: 0.3 }), new Create(box), new FadeIn(ring, { shift: [0, 0.5] }));
     const link = new Arrow(box.right(), ring.left(), { buff: 0.1 });
     await this.play(new Create(link));
 
     await this.step('code', { caption: 'A loop appears and its condition is lit.' });
     const code = new Code(['let count = 0;', 'while (count < 3) count++;', 'return count;']).moveTo([-3.5, -2]);
     await this.play(new FadeIn(code, { shift: [0.3, 0] }));
-    const bar = code.highlight(1);
+    // A translucent bar behind the condition's line, in the scene's emphasis colour.
+    const bar = new Rectangle({ width: code.width() + 0.3, height: code.lines[1]!.height() * 1.45, cornerRadius: 0.06, fill: NEUTRAL_COLORS.emphasis, fillOpacity: 0.18, stroke: 'none' });
+    followScene(bar, { fill: 'emphasis' });
+    bar.moveTo([code.center()[0], code.lines[1]!.center()[1]]);
     await this.play(new FadeIn(bar));
 
     await this.step('count', { caption: 'The counter rises while a dot rides the track.' });
@@ -76,6 +78,7 @@ export async function restingBox(Source: SceneClass, step: string, pick: (scene:
   let box: Box | null = null;
   await new Source(
     {
+      skipUntil: Infinity,
       async frame() {},
       async stepEnd(scene, s) {
         if (s.name !== step) return;
@@ -86,7 +89,6 @@ export async function restingBox(Source: SceneClass, step: string, pick: (scene:
         box = [Math.min(...boxes.map((b) => b[0])), Math.min(...boxes.map((b) => b[1])), Math.max(...boxes.map((b) => b[2])), Math.max(...boxes.map((b) => b[3]))];
       },
     },
-    { skipUntil: Infinity },
   ).run();
   if (!box) throw new Error(`no step ${step}`);
   return box;

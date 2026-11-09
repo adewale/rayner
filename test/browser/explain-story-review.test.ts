@@ -9,28 +9,27 @@ import { collectProject, ROOT } from '../../tools/lib/explain-project.ts';
 import { buildExplainer } from '../../tools/lib/explain-build.ts';
 import { serve } from '../../tools/lib/explain-serve.ts';
 import { launch } from '../../tools/lib/browser.ts';
-import { Scene, Text, Line, Group, Rectangle, VMobject } from '../../src/index.ts';
+import { Scene, Text, Line, Group, Rectangle, VMobject, keyed } from '../../src/index.ts';
 import { renderElements, toSvgString } from '../../src/output.ts';
 import { traceScene } from '../../explain/testing.ts';
 import { stage } from '../../explain/index.ts';
 import { emphasises } from '../../explain/look.ts';
 import {Card, CodeBlock} from '../../explain/panels.ts';
 import {palette} from '../../explain/palettes.ts';
+import { mobjectId } from '../../src/mobject.ts';
 
 test('story review requires copied card, focus and diff highlights without another marking call', async () => {
   const names = ['copied-card', 'copied-focus', 'copied-added', 'copied-removed'];
   const fixture = (missing: boolean) => class Copied extends Scene {
     override async construct() {
       await this.step('copied');
-      const card = new Card(this, palette('nord'), [['Count', 1]]);
-      const code = new CodeBlock(this, palette('nord'), ['+ added', '- removed'], {diff: true});
-      await card.mark('Count', {runTime: 0});
-      await code.focus(0, {runTime: 0});
-      this.clear();
+      const card = new Card(this, palette('nord'), [['Count', 1]], {lit: {row: 'Count'}});
+      const code = new CodeBlock(this, palette('nord'), ['+ added', '- removed'], {diff: true, lit: {lines: 0}});
+      this.remove(...this.mobjects);
       const copies = new Group(card, code).copy();
       const [copiedCard, copiedCode] = copies.children as [Card, CodeBlock];
       const bars = [copiedCard.bar, copiedCode.bar, ...copiedCode.marks.map(m => m.mob)];
-      bars.forEach((bar, i) => bar.key = names[i]!);
+      bars.forEach((bar, i) => keyed(bar, names[i]!));
       this.add(copies);
       if (missing) copiedCard.remove(copiedCard.bar);
     }
@@ -96,7 +95,7 @@ test('logical story labels reject partially missing glyphs before accepting surv
       override async construct() {
         await this.step('claim');
         const t = new Text('word');
-        t.key = 'word';
+        keyed(t, 'word');
         this.add(t);
         const glyph = t.children[0]!;
         if (defect === 'opacity') glyph.setOpacity(0);
@@ -114,7 +113,7 @@ test('logical story labels reject partially missing glyphs before accepting surv
     override async construct() {
       await this.step('window');
       const t = new Text('word');
-      t.key = 'word';
+      keyed(t, 'word');
       t.clipBox = [0, -1, 2, 1];
       this.add(t);
     }
@@ -144,7 +143,7 @@ test('logical story labels reject partially missing glyphs before accepting surv
 
 test('declared story subjects do not turn incidental context into extra obligations',async()=>{
   for(const helper of [false,true]){
-    class Selection extends Scene {override async construct(){await this.step('picture');const subject=new Text('Subject');subject.key='subject';const context=new Text('Context').moveTo([6,3]);context.key='context';this.add(subject,context);if(helper)emphasises(this,()=>[[subject,'the subject']]);}}
+    class Selection extends Scene {override async construct(){await this.step('picture');const subject=new Text('Subject');keyed(subject, 'subject');const context=new Text('Context').moveTo([6,3]);keyed(context, 'context');this.add(subject,context);if(helper)emphasises(this,()=>[[subject,'the subject']]);}}
     const frame=(await storyFrames(Selection,helper?[]:[{step:'picture',targets:[{key:'subject'}]}])).get('picture')!;
     assert.deepEqual(frame.targets.map(t=>t.name),[helper?'emphasis: subject':'subject']);
     assert.ok(frame.records.length>frame.targets[0]!.indices.length,'incidental context is still rendered');
@@ -169,7 +168,7 @@ test('a caption explaining unchanged artwork must declare its subject', async ()
     override async construct() {
       await this.step('draw');
       const t = new Text('word');
-      t.key = 'word';
+      keyed(t, 'word');
       this.add(t);
       await this.step('explain');
     }
@@ -213,7 +212,7 @@ test('redrawn paint preserves layer order and multiplicity without shifting unch
             // nearly opaque lower copies can disappear below 8-bit resolution.
             const layer = new Rectangle({ width: 2, height: 2, fill: color, fillOpacity: sample.fillOpacity ?? 1, stroke: 'none' })
               .moveTo(sample.positions?.[color] ?? [0, 0]).setOpacity(0.95);
-            layer.key = `layer-${color}-${occurrence}`;
+            keyed(layer, `layer-${color}-${occurrence}`);
             return layer;
           }), new Text(`Step ${counter}`).moveTo([0, -3]));
         };
@@ -273,7 +272,7 @@ test('persistent layer ids preserve overlapping order changes but do not disting
       override async construct() {
         const layers = colors.map((color, index) => {
           const layer = new Rectangle({ width: 2, height: 2, fill: color, stroke: 'none' }).setOpacity(0.95);
-          layer.key = `layer-${index}`;
+          keyed(layer, `layer-${index}`);
           return layer;
         });
         await this.step('before');
@@ -298,10 +297,10 @@ function unchangedLayerScene(kind: typeof unchangedLayerKinds[number], size = 4,
       const countChange = kind === 'added' || kind === 'removed';
       const outer = new Rectangle({ width: size, height: size, fill: kind === 'hollow' ? 'none' : 'red',
         stroke: kind === 'hollow' ? 'red' : 'none', strokeWidth: 0.1 }).setOpacity(countChange ? 0.95 : 1);
-      outer.key = 'outer';
+      keyed(outer, 'outer');
       const inner = new Rectangle({ width: countChange ? size : inset, height: countChange ? size : inset,
         fill: countChange ? 'red' : 'blue', stroke: 'none' }).setOpacity(countChange ? 0.95 : 1);
-      inner.key = 'inner';
+      keyed(inner, 'inner');
       const cover = new Rectangle({ width: size + 1, height: size + 1, fill: 'white', stroke: 'none' });
       await this.step('before');
       this.add(outer, ...(kind === 'added' ? [] : [inner]), ...(kind === 'hollow' ? [] : [cover]));
@@ -331,7 +330,7 @@ test('removing the final cover counts newly revealed artwork, but not a still-co
   const scene = (mode: 'revealed' | 'covered' | 'disjoint') => class extends Scene {
     override async construct() {
       const blue = new Rectangle({ width: 2, height: 2, fill: 'blue', stroke: 'none' });
-      blue.key = 'blue';
+      keyed(blue, 'blue');
       const cover = new Rectangle({ width: 3, height: 3, fill: 'red', stroke: 'none' });
       if (mode === 'disjoint') cover.shift([5, 0]);
       await this.step('before');
@@ -353,10 +352,10 @@ test('removing a duplicate layer also checks the differently shaped artwork it r
       class Revealed extends Scene {
         override async construct() {
           const lower = new Rectangle({ width: 2, height: 2, fill: 'red', stroke: 'none' }).setOpacity(0.95);
-          lower.key = 'lower';
+          keyed(lower, 'lower');
           const blue = new Rectangle({ width: 1.5, height: 1.5, fill: 'blue', stroke: 'none' })
             .moveTo([x, y]).setOpacity(0.95);
-          blue.key = 'blue';
+          keyed(blue, 'blue');
           const upper = new Rectangle({ width: 2, height: 2, fill: 'red', stroke: 'none' }).setOpacity(0.95);
           await this.step('before'); this.add(lower, blue, upper);
           await this.step('after'); this.remove(upper);
@@ -376,9 +375,9 @@ test('native SVG pixels confirm hollow and covered order/count changes leave the
     let checked = 0;
     for (const kind of unchangedLayerKinds) {
       const pictures: string[] = [];
-      await new (unchangedLayerScene(kind))({ async frame() {}, async stepEnd(scene) {
+      await new (unchangedLayerScene(kind))({ skipUntil: Infinity, async frame() {}, async stepEnd(scene) {
         pictures.push(toSvgString(scene));
-      } }, { skipUntil: Infinity }).run();
+      } }).run();
       assert.equal(pictures.length, 2);
       const changedPixels = await page.evaluate(async pictures => {
         const pixels: Uint8ClampedArray[] = [];
@@ -406,11 +405,11 @@ test('served review rejects hiding the blue artwork revealed by removing a dupli
   const browser = await launch();
   let server: Awaited<ReturnType<typeof serve>> | undefined;
   try {
-    await writeFile(join(dir, 'scene.ts'), `import{Scene,Rectangle}from'rayner';export default class Reveal extends Scene{
+    await writeFile(join(dir, 'scene.ts'), `import{Scene,Rectangle,keyed}from'rayner';export default class Reveal extends Scene{
       static meta={id:'reveal',title:'Removing the top red reveals blue'};
       async construct(){
-        const lower=new Rectangle({width:2,height:2,fill:'red',stroke:'none'}).setOpacity(.95);lower.key='lower';
-        const blue=new Rectangle({width:1.5,height:1.5,fill:'blue',stroke:'none'}).setOpacity(.95);blue.key='blue';
+        const lower=new Rectangle({width:2,height:2,fill:'red',stroke:'none'}).setOpacity(.95);keyed(lower,'lower');
+        const blue=new Rectangle({width:1.5,height:1.5,fill:'blue',stroke:'none'}).setOpacity(.95);keyed(blue,'blue');
         const upper=new Rectangle({width:2,height:2,fill:'red',stroke:'none'}).setOpacity(.95);
         await this.step('before',{caption:'The top red covers blue.'});this.add(lower,blue,upper);
         await this.step('after',{caption:'Removing the top red reveals blue.'});this.remove(upper);
@@ -471,11 +470,11 @@ function strokeOrderScene(kind: typeof strokeOrderCases[number]['kind']) {
           ...(kind === 'miter' ? { miterLimit: 20 } : {}) })
           .startNewPath([-1, kind === 'miter' ? 0.1 : 0.4]).addLineTo([0, 0])
           .addLineTo([-1, kind === 'miter' ? -0.1 : -0.4]);
-      stroke.setOpacity(0.95); stroke.key = 'stroke';
+      stroke.setOpacity(0.95); keyed(stroke, 'stroke');
       const size = capped ? 0.05 : kind === 'miter' ? 0.3 : 0.1;
       const patch = new Rectangle({ width: size, height: size, fill: 'blue', stroke: 'none' })
         .moveTo([capped ? 0.65 : kind === 'miter' ? 0.6 : 0.2, 0]).setOpacity(0.95);
-      patch.key = 'patch';
+      keyed(patch, 'patch');
       await this.step('before');
       const first = new Text('Step 1').moveTo([0, -3]);
       this.add(stroke, patch, first);
@@ -503,9 +502,9 @@ test('native SVG pixels confirm the stroke-order changes selected by the review'
     for (const sample of strokeOrderCases) {
       const images = new Map<string, string>();
       const Source = strokeOrderScene(sample.kind);
-      await new Source({ async frame() {}, async stepEnd(scene, step) {
+      await new Source({ skipUntil: Infinity, async frame() {}, async stepEnd(scene, step) {
         images.set(step.name, toSvgString(scene));
-      } }, { skipUntil: Infinity }).run();
+      } }).run();
       assert.equal(images.size, 2);
       const pixels: number[][] = [];
       for (const step of ['before', 'after']) pixels.push(await page.evaluate(async ({ svg, x, y }) => {
@@ -533,6 +532,7 @@ test('token-bucket refill does not turn untouched waiting R10 into a story oblig
   for (const scenario of project.scenarios) {
     const frame = (await storyFrames(scenario.Scene)).get('refill')!;
     await new scenario.Scene({
+      skipUntil: Infinity,
       async frame() {},
       async stepEnd(scene, step) {
         if (step.name !== 'refill') return;
@@ -543,7 +543,7 @@ test('token-bucket refill does not turn untouched waiting R10 into a story oblig
         const chip = requests[0]!.children[0]!;
         assert.ok(chip instanceof Rectangle);
         const records = renderElements(scene, { relative: false });
-        const index = records.findIndex(r => r.id === chip.id);
+        const index = records.findIndex(r => r.id === mobjectId(chip));
         assert.ok(index >= 0);
         assert.equal(records[index]!.attrs['stroke-dasharray'], '80 60', 'R10 is still waiting');
         assert.deepEqual(frame.records[index]!.attrs, records[index]!.attrs, 'bind the same actual rectangle in the reviewed frame');
@@ -551,7 +551,7 @@ test('token-bucket refill does not turn untouched waiting R10 into a story oblig
           `rate ${scenario.values.rate}: redrawing answered R7-R9 must not make unchanged R10 a subject`);
         checked++;
       },
-    }, { skipUntil: Infinity }).run();
+    }).run();
   }
   assert.equal(checked, 3);
 });
@@ -571,7 +571,7 @@ test('fresh helper emphasis must be on stage and painted replacement routes coun
       await this.step('claim');
       const carrier = new Line([-1, 0], [1, 0], { fill: '#ff0000', strokeOpacity: 0 });
       const part = new Group(carrier, new Text('word'));
-      part.key = 'route';
+      keyed(part, 'route');
       const overlay = carrier.copy().setStroke('#ff0000', 0.1, 1);
       this.add(part, overlay);
     }
@@ -580,7 +580,7 @@ test('fresh helper emphasis must be on stage and painted replacement routes coun
     override async construct() {
       await this.step('claim');
       const route = new Group(new Line([-1, 0], [1, 0], { strokeOpacity: 0 }), new Text('route label'));
-      route.key = 'route';
+      keyed(route, 'route');
       this.add(route);
     }
   }
@@ -612,11 +612,11 @@ test(
     try {
       await writeFile(
         join(dir, 'scene.ts'),
-        `import{Scene,Text,Line}from'rayner';import{stage,settingsOf}from'rayner/explain';import{emphasises}from${JSON.stringify(join(ROOT, 'explain/look.ts'))};
+        `import{Scene,Text,Line,keyed}from'rayner';import{stage,settingsOf}from'rayner/explain';import{emphasises}from${JSON.stringify(join(ROOT, 'explain/look.ts'))};
       export default class Story extends Scene{static meta={id:'story',title:'Story subjects'};static settings=[{id:'route',label:'Route position',default:'visible',options:[{value:'visible',label:'Entering the viewport'},{value:'outside',label:'Outside the authored picture'}]}];async construct(){const s=stage(this);
-      await this.step('opening',{caption:'The first subject is shown.'});const a=new Text('First subject',{fontSize:.7});a.key='first';await s.enter(a,{describe:'First subject'});
-      await this.step('ending',{caption:'The final subject replaces the first.'});await s.clear();const b=new Text('Final subject',{fontSize:.7});b.key='last';b.clipBox=[-7,-2,7,2];await s.enter(b,{describe:'Final subject'});
-      await this.step('split',{caption:'Read the left and right subjects.'});await s.clear();const l=new Text('Left',{fontSize:.2}).moveTo([-5,0]),r=new Text('Right',{fontSize:.2}).moveTo([5,0]);l.key='left';r.key='right';r.clipBox=[4,-1,6,1];await s.enter(l,r,{describe:'The left and right subjects'});await this.step('return',{caption:'Return to the right subject.'});await s.clear();const again=new Text('Again',{fontSize:.7}).moveTo([4,0]);again.key='again';await s.enter(again,{describe:'Again on the right'});await this.step('route',{caption:'The highlighted route enters the window.'});await s.clear();const outside=settingsOf(this).route==='outside';const route=new Line(outside?[20,0]:[-10,0],outside?[21,0]:[0,0],{stroke:'#ff0000',strokeWidth:.05});route.key='window-route';route.clipBox=outside?[19,-1,22,1]:[-1,-1,1,1];this.add(route,new Text('Unrelated context',{fontSize:.2}).moveTo([6,3]));const other=outside?new Text('Other subject',{fontSize:.7}):null;if(other)this.add(other);emphasises(this,()=>other?[[route,'visible route'],[other,'other subject']]:[[route,'visible route']]);}}`,
+      await this.step('opening',{caption:'The first subject is shown.'});const a=new Text('First subject',{fontSize:.7});keyed(a,'first');await s.enter(a,{describe:'First subject'});
+      await this.step('ending',{caption:'The final subject replaces the first.'});await s.clear();const b=new Text('Final subject',{fontSize:.7});keyed(b,'last');b.clipBox=[-7,-2,7,2];await s.enter(b,{describe:'Final subject'});
+      await this.step('split',{caption:'Read the left and right subjects.'});await s.clear();const l=new Text('Left',{fontSize:.2}).moveTo([-5,0]),r=new Text('Right',{fontSize:.2}).moveTo([5,0]);keyed(l,'left');keyed(r,'right');r.clipBox=[4,-1,6,1];await s.enter(l,r,{describe:'The left and right subjects'});await this.step('return',{caption:'Return to the right subject.'});await s.clear();const again=new Text('Again',{fontSize:.7}).moveTo([4,0]);keyed(again,'again');await s.enter(again,{describe:'Again on the right'});await this.step('route',{caption:'The highlighted route enters the window.'});await s.clear();const outside=settingsOf(this).route==='outside';const route=new Line(outside?[20,0]:[-10,0],outside?[21,0]:[0,0],{stroke:'#ff0000',strokeWidth:.05});keyed(route,'window-route');route.clipBox=outside?[19,-1,22,1]:[-1,-1,1,1];this.add(route,new Text('Unrelated context',{fontSize:.2}).moveTo([6,3]));const other=outside?new Text('Other subject',{fontSize:.7}):null;if(other)this.add(other);emphasises(this,()=>other?[[route,'visible route'],[other,'other subject']]:[[route,'visible route']]);}}`,
       );
       const project = await collectProject(dir, { write: false }),
         scenario = project.scenarios[0]!;
@@ -825,7 +825,7 @@ test('narrow-opening plans keep a nonopening text claim separate from a same-nam
     override async construct() {
       const s = stage(this); await this.step('comparison');
       const context = new Text('Same', {fontSize: .7}).moveTo([-2, 0]);
-      const subject = new Text('Result', {fontSize: .7}).moveTo([2, 0]); subject.key = 'Same';
+      const subject = new Text('Result', {fontSize: .7}).moveTo([2, 0]); keyed(subject, 'Same');
       await s.enter(context, subject, {describe: 'Context and result'});
     }
   }
@@ -845,7 +845,7 @@ test('story label metrics preserve the smallest native em dimension under rotati
         override async construct() {
           const s = stage(this); await this.step('turned');
           const text = new Text('1', {fontSize: .6}).stretch(x / 4, 0).stretch(y / 4, 1).rotate(angle);
-          text.key = 'turned'; await s.enter(text, {describe: 'A transformed number'});
+          keyed(text, 'turned'); await s.enter(text, {describe: 'A transformed number'});
         }
       }
       const frame = (await storyFrames(Turned, [{step: 'turned', opening: true, targets: [{key: 'turned'}]}])).get('turned')!;
@@ -862,11 +862,11 @@ test(
     const browser = await launch();
     let server: Awaited<ReturnType<typeof serve>> | undefined;
     try {
-      await writeFile(join(dir, 'scene.ts'), `import{Scene,Text,Group}from'rayner';import{stage,settingsOf}from'rayner/explain';
+      await writeFile(join(dir, 'scene.ts'), `import{Scene,Text,Group,keyed}from'rayner';import{stage,settingsOf}from'rayner/explain';
 export default class Narrow extends Scene{static meta={id:'narrow',title:'Width-sensitive comparison'};static settings=[{id:'spacing',label:'Spacing',default:'compact',options:[{value:'compact',label:'Compact'},{value:'wide',label:'Wide'},{value:'all-detail',label:'All detail fallback'}]}];async construct(){
 const s=stage(this);await this.step('comparison',{kind:settingsOf(this).spacing==='all-detail'?'detail':'main',caption:'Keep both values together.'});const x=settingsOf(this).spacing==='wide'?6.5:3;
-const left=new Text('Before 1',{fontSize:.6}).moveTo([-x,0]),right=new Text('After 2',{fontSize:.6}).moveTo([x,0]);left.key='left';right.key='right';const g=new Group(left,right);s.opening(g);await s.enter(g,{describe:'Before one, after two'});
-await this.step('reference',{kind:'detail',caption:'Reference implementation value.'});await s.clear();const r=new Text('Reference',{fontSize:.2});r.key='reference';await s.enter(r,{describe:'Reference value'});
+const left=new Text('Before 1',{fontSize:.6}).moveTo([-x,0]),right=new Text('After 2',{fontSize:.6}).moveTo([x,0]);keyed(left,'left');keyed(right,'right');const g=new Group(left,right);s.opening(g);await s.enter(g,{describe:'Before one, after two'});
+await this.step('reference',{kind:'detail',caption:'Reference implementation value.'});await s.clear();const r=new Text('Reference',{fontSize:.2});keyed(r,'reference');await s.enter(r,{describe:'Reference value'});
 }}`);
       const project = await collectProject(dir, {write: false});
       await buildExplainer(project, join(dir, 'narrow.html'));
@@ -951,13 +951,13 @@ test('served review rejects hidden reordered and duplicated layers despite a cha
   const browser = await launch();
   let server: Awaited<ReturnType<typeof serve>> | undefined;
   try {
-    await writeFile(join(dir, 'scene.ts'), `import{Scene,Group,Rectangle,Text}from'rayner';import{settingsOf}from'rayner/explain';
+    await writeFile(join(dir, 'scene.ts'), `import{Scene,Group,Rectangle,Text,keyed}from'rayner';import{settingsOf}from'rayner/explain';
       export default class Layers extends Scene{
         static meta={id:'layers',title:'Which layers are painted?'};
         static settings=[{id:'mode',label:'Layer change',default:'reordered',options:['reordered','added','removed'].map(value=>({value,label:value}))}];
         async construct(){
           const mode=settingsOf(this).mode;
-          const draw=(colors,counter)=>new Group(...colors.map((fill,i)=>{const r=new Rectangle({width:6,height:4,fill,stroke:'none'}).setOpacity(.95);r.key='layer-'+i;return r;}),new Text('Step '+counter,{fontSize:.6}).moveTo([0,-3]));
+          const draw=(colors,counter)=>new Group(...colors.map((fill,i)=>{const r=new Rectangle({width:6,height:4,fill,stroke:'none'}).setOpacity(.95);keyed(r,'layer-'+i);return r;}),new Text('Step '+counter,{fontSize:.6}).moveTo([0,-3]));
           await this.step('before',{caption:'The initial layer stack is shown.'});
           const first=draw(mode==='removed'?['#ff0000','#ff0000']:mode==='added'?['#ff0000']:['#ff0000','#0000ff'],1);this.add(first);
           await this.step('after',{caption:mode==='reordered'?'Red now covers blue.':mode==='added'?'Two translucent red layers are painted.':'One red layer remains.'});
@@ -1046,7 +1046,7 @@ test('traffic policy reviews every scenario and step while binding its compariso
     for (const scenario of project.scenarios) {
       const expected = facts[scenario.values.pods!]!;
       let inspected = 0;
-      await new scenario.Scene({async frame() {}, async stepEnd(scene, step) {
+      await new scenario.Scene({ skipUntil: Infinity, async frame() {}, async stepEnd(scene, step) {
         if (step.name !== 'compare') return;
         const cards = scene.familyMembers().filter((m): m is InstanceType<typeof Card> =>
           m instanceof Card && !!m.key?.startsWith('traffic-compare:'));
@@ -1058,7 +1058,7 @@ test('traffic policy reviews every scenario and step while binding its compariso
           assert.ok(card.family().some(m => m instanceof Text && m.text === (policy === 'cluster' ? 'Cluster' : 'Local')));
         }
         inspected++;
-      }}, {skipUntil: Infinity}).run();
+      }}).run();
       assert.equal(inspected, 1, 'every scenario has one factual policy comparison');
       const applicable = claims.filter(c => Object.entries(c.settings ?? {}).every(([k, v]) => scenario.values[k] === v));
       const frame = (await storyFrames(scenario.Scene, applicable)).get('compare')!;
@@ -1145,19 +1145,19 @@ test('320px opening paint requires each named shape and label to contribute thro
   const browser = await launch();
   let server: Awaited<ReturnType<typeof serve>> | undefined;
   try {
-    await writeFile(join(dir, 'scene.ts'), `import{Scene,Rectangle,Text,Group}from'rayner';import{stage,settingsOf}from'rayner/explain';
+    await writeFile(join(dir, 'scene.ts'), `import{Scene,Rectangle,Text,Group,keyed}from'rayner';import{stage,settingsOf}from'rayner/explain';
 export default class Occlusion extends Scene{static meta={id:'occlusion',title:'Named opening paint'};
 static settings=[{id:'channels',label:'Disabled paint',default:'opacity',options:[{value:'opacity',label:'Zero opacity'},{value:'color',label:'Transparent colour'}]}];async construct(){
 const transparent=settingsOf(this).channels==='color';
 const s=stage(this);await this.step('comparison',{caption:'The blue shape and the named value are visible.'});
-const shape=new Rectangle({width:1,height:1,fill:'blue',stroke:'none'}).moveTo([-3,0]);shape.key='blue-shape';shape.clipBox=[-3.6,-.6,-2.4,.6];
+const shape=new Rectangle({width:1,height:1,fill:'blue',stroke:'none'}).moveTo([-3,0]);keyed(shape,'blue-shape');shape.clipBox=[-3.6,-.6,-2.4,.6];
 const label=new Text('Named value',{fontSize:.8,color:'white'}).moveTo([2,0]);label.clipBox=[-1,-.6,5,.6];
 const accent=new Rectangle({width:.5,height:.5,fill:'blue',stroke:'none'}).moveTo([2,-1.5]);
 const outlined=new Text('Outline',{fontSize:2}).setStyle({fill:transparent?'transparent':'white',fillOpacity:transparent?1:0,stroke:'white',strokeWidth:.03,strokeOpacity:1}).moveTo([-3,-2.5]);
 const filled=new Text('Fill',{fontSize:.8}).setStyle({fill:'white',fillOpacity:1,stroke:transparent?'rgba(255,255,255,0)':'white',strokeWidth:.2,strokeOpacity:transparent?1:0}).moveTo([3,-2.5]);
 const haloPlate=new Rectangle({width:4,height:1.4,fill:'red',stroke:'none'}).moveTo([0,2]);
 const halo=new Text('Halo',{fontSize:.8}).setStyle({fill:'white',stroke:'red',strokeWidth:.08,paintOrder:'stroke'}).moveTo([0,2]);
-const labelled=new Group(label,accent,outlined,filled,haloPlate,halo);labelled.key='label-subject';s.opening(shape,labelled);
+const labelled=new Group(label,accent,outlined,filled,haloPlate,halo);keyed(labelled,'label-subject');s.opening(shape,labelled);
 const shapeCover=new Rectangle({width:2,height:2,fill:'red',stroke:'none'}).moveTo([-3,0]).setOpacity(.2);
 const labelCover=new Rectangle({width:6,height:2,fill:'red',stroke:'none'}).moveTo([2,0]).setOpacity(.2);
 const halfCover=new Rectangle({width:3,height:2,fill:'green',stroke:'none'}).moveTo([3.5,0]).setOpacity(.2);
@@ -1264,11 +1264,11 @@ test('a thick highlighted outline remains reachable above the heading boundary t
   const browser = await launch();
   let server: Awaited<ReturnType<typeof serve>> | undefined;
   try {
-    await writeFile(join(dir, 'scene.ts'), `import{Scene,Rectangle,Text}from'rayner';import{emphasises}from${JSON.stringify(join(ROOT, 'explain/look.ts'))};
+    await writeFile(join(dir, 'scene.ts'), `import{Scene,Rectangle,Text,keyed}from'rayner';import{emphasises}from${JSON.stringify(join(ROOT, 'explain/look.ts'))};
 export default class StrokeTour extends Scene{static meta={id:'stroke-tour',title:'The entire outlined region'};async construct(){
 await this.step('outlined',{caption:'The red outline surrounds the region.'});
 const heading=new Rectangle({width:12,height:.6,fill:'gray',stroke:'none'}).moveTo([0,3.5]);heading.role='heading';
-const outline=new Rectangle({width:7.6,height:7.6,fill:'none',stroke:'red',strokeWidth:.126}).moveTo([-3.95,-.6]);outline.key='outlined-region';
+const outline=new Rectangle({width:7.6,height:7.6,fill:'none',stroke:'red',strokeWidth:.126}).moveTo([-3.95,-.6]);keyed(outline,'outlined-region');
 const label=new Text('Region',{fontSize:.2}).moveTo([-4,0]);this.add(heading,outline,label);
 await this.step('refocus',{caption:'The outline stays while Region becomes Area.'});label.setText('Area');
 emphasises(this,()=>[[outline,'same region, newly focused']]);}}`);

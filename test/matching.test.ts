@@ -2,14 +2,16 @@
 // do, and the invariants every animation keeps (seek-exact, no jumps).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  Scene, Group, Text, Code, Square, Circle, Rectangle, Polygon, Line, Arc, Labeled, Arrow, VMobject, FadeIn, Transform, LaggedStart,
-  TransformMatching, TransformMatchingShapes, TransformMatchingText, } from '../src/index.ts';
-import { StringSink, SnapshotSink, renderAt } from '../src/output.ts';
-import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
+import { Scene, Group, Text, Code, Circle, Rectangle, Polygon, Line, Arc, Labeled, Arrow, VMobject, FadeIn, Transform, LaggedStart, TransformMatching, TransformMatchingShapes, TransformMatchingText, keyed } from '../src/index.ts';
+import { StringSink, renderFrame } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
+import { loadFonts } from '../explain/testing.ts';
+import { MotionSink, analyzeMotion } from '../src/internal.ts';
 import type { Mobject, Vec } from '../src/index.ts';
 import { drawsFrom as rng } from './lib/random-scene.ts';
 import type { Rng } from './lib/random-scene.ts';
+import { beginAnimation, interpolateAnimation, matchRows } from '../src/animation.ts';
+import { mobjectId } from '../src/mobject.ts';
 
 Scene.captionWpm = Infinity;
 await loadFonts();
@@ -38,7 +40,7 @@ function pairing(a: TransformMatching, src: Mobject[], tgt: Mobject[]): string {
 }
 
 const SHAPES = [
-  () => new Square({ side: 1 }), () => new Square({ side: 1.5 }), () => new Circle({ radius: 0.5 }), () => new Rectangle({ width: 2, height: 1 }),
+  () => new Rectangle({ width: 1, height: 1 }), () => new Rectangle({ width: 1.5, height: 1.5 }), () => new Circle({ radius: 0.5 }), () => new Rectangle({ width: 2, height: 1 }),
   () => new Polygon([[0, 0], [1, 0], [0.3, 0.8]]), () => new Line([0, 0], [1, 0.5]), () => new Arc({ radius: 0.6, angle: 2 }),
 ];
 const at = <M extends Mobject>(m: M, r: Rng): M => m.moveTo([r(-6, 6), r(-3, 3)]);
@@ -62,7 +64,7 @@ test('every part ends matched, morphed, removed or added, exactly once, and the 
       const run = (make: (seed: number) => [Mobject, Mobject], Anim: typeof TransformMatchingShapes) => {
         const [src, tgt] = make(seed), sp = parts(src), tp = parts(tgt);
         const a = new Anim(src, tgt, { fadeMismatches });
-        a.begin();
+        beginAnimation(a);
         assertPartition(a, sp, tp, `seed ${seed}`);
         if (fadeMismatches) assert.equal(a.morphed.length, 0);
         else assert.ok(a.removed.length === 0 || a.added.length === 0, 'fadeMismatches: false morphs what it can');
@@ -83,7 +85,7 @@ test('a moved, scaled and shuffled copy of a group pairs every part with its own
     const tgt = new Group(...[...copies].sort(() => r(-1, 1)));
     tgt.scale(r(0.5, 2)).shift([r(-3, 3), r(-2, 2)]);
     const a = new TransformMatchingShapes(src, tgt);
-    a.begin();
+    beginAnimation(a);
     assert.deepEqual(a.summary(), { matched: src.children.length, morphed: 0, removed: 0, added: 0 }, `seed ${seed}`);
     for (const [s, t] of a.pairs) assert.equal(t, of.get(s), `seed ${seed}: a part paired with another's copy`);
   }
@@ -95,10 +97,10 @@ test('inserting or deleting a character keeps every other glyph', () => {
     const w = Array.from({ length: r.int(1, 12) }, () => r.pick([...'abcab'])).join('');
     const i = r.int(0, w.length), longer = w.slice(0, i) + r.pick([...'abc']) + w.slice(i);
     const grow = new TransformMatchingText(new Text(w), new Text(longer));
-    grow.begin();
+    beginAnimation(grow);
     assert.deepEqual(grow.summary(), { matched: w.length, morphed: 0, removed: 0, added: 1 }, `${w} -> ${longer}`);
     const shrink = new TransformMatchingText(new Text(longer), new Text(w));
-    shrink.begin();
+    beginAnimation(shrink);
     assert.deepEqual(shrink.summary(), { matched: w.length, morphed: 0, removed: 1, added: 0 }, `${longer} -> ${w}`);
   }
 });
@@ -119,14 +121,14 @@ test("Text('cache') -> Text('cached'): five glyphs keep their letters, the d fad
   // The d grows from a point beside the word as it fades in
   const c = new Text('cache'), d = new Text('cached');
   const grow = new TransformMatchingText(c, d);
-  grow.begin();
-  const copy = grow.fadesIn[0]!.sub as VMobject, glyph = d.children[5] as VMobject;
+  beginAnimation(grow);
+  const copy = grow[matchRows].fadesIn[0]!.sub as VMobject, glyph = d.children[5] as VMobject;
   assert.equal(copy.parent, c, 'the new glyph lives in the source while it plays');
   assert.equal(copy.style.opacity, 0);
-  grow.interpolate(0.5);
+  interpolateAnimation(grow, 0.5);
   assert.ok(Math.abs(copy.style.opacity - 0.5) < 1e-12);
   assert.ok(copy.width() < glyph.width() * 0.6 && copy.width() > glyph.width() * 0.4, 'half grown');
-  grow.interpolate(1);
+  interpolateAnimation(grow, 1);
   assert.deepEqual(copy.subpaths, glyph.subpaths);
   assert.equal(copy.style.opacity, 1);
 });
@@ -134,26 +136,26 @@ test("Text('cache') -> Text('cached'): five glyphs keep their letters, the d fad
 test('an inserted line of code leaves the other lines in place, and its glyphs join it', () => {
   const a = new Code(['const x = 1;', 'return x;']), b = new Code(['const x = 1;', 'const y = x + 1;', 'return y;']);
   const anim = new TransformMatchingText(a, b);
-  anim.begin();
+  beginAnimation(anim);
   const line = (m: Mobject) => b.lines.indexOf(m.parent as Text);
   for (const [x, y] of anim.pairs) assert.equal(line(y), a.lines.indexOf(x.parent as Text) === 0 ? 0 : 2, `${(x.parent as Text).text} stays its line`);
   assert.deepEqual(anim.added.map(line), [...Array(11).fill(1), 2], 'the new line, and the y');
   assert.deepEqual(anim.removed.map((m) => (m.parent as Text).text), ['return x;'], 'the x');
-  anim.interpolate(1);
-  const stage = anim.fadesIn[0]!.sub.parent!;
+  interpolateAnimation(anim, 1);
+  const stage = anim[matchRows].fadesIn[0]!.sub.parent!;
   assert.ok(stage instanceof Text && stage.parent === a, 'the new line grows inside a copy of its line');
 });
 
 test('mono and sans letters, and bold and normal, do not match', () => {
   const anim = new TransformMatchingText(new Group(new Text('ab', { font: 'mono' }), new Text('ab', { weight: 'bold' })), new Text('ab'));
-  anim.begin();
+  beginAnimation(anim);
   assert.deepEqual(anim.summary(), { matched: 0, morphed: 0, removed: 4, added: 2 });
 });
 
 /** Two small diagrams sharing a square and a circle. */
 function diagrams(): [Group, Group, Record<string, Mobject>] {
-  const sq = new Square({ side: 1 }).shift([-3, 0]), ci = new Circle({ radius: 0.5 }), tri = new Polygon([[2.5, -0.5], [3.5, -0.5], [3, 0.4]]);
-  const sq2 = new Square({ side: 1.4 }).shift([-2, 1.5]), ci2 = new Circle({ radius: 0.5 }).shift([1, 1.5]), rect = new Rectangle({ width: 2, height: 1 }).shift([3, -2]);
+  const sq = new Rectangle({ width: 1, height: 1 }).shift([-3, 0]), ci = new Circle({ radius: 0.5 }), tri = new Polygon([[2.5, -0.5], [3.5, -0.5], [3, 0.4]]);
+  const sq2 = new Rectangle({ width: 1.4, height: 1.4 }).shift([-2, 1.5]), ci2 = new Circle({ radius: 0.5 }).shift([1, 1.5]), rect = new Rectangle({ width: 2, height: 1 }).shift([3, -2]);
   return [new Group(sq, ci, tri), new Group(sq2, ci2, rect), { sq, ci, tri, sq2, ci2, rect }];
 }
 
@@ -168,14 +170,14 @@ test('shapes: shared nodes travel to the target, others fade out, new ones fade 
   assert.deepEqual(anim.added, [n.rect]);
   for (const [x, y] of anim.pairs) assert.deepEqual((x as VMobject).subpaths, (y as VMobject).subpaths, 'shared nodes land on the target');
   assert.equal(n.tri!.style.opacity, 0, 'the triangle faded out');
-  const copy = anim.fadesIn[0]!.sub as VMobject;
+  const copy = anim[matchRows].fadesIn[0]!.sub as VMobject;
   assert.deepEqual(copy.subpaths, (n.rect as VMobject).subpaths, 'the rectangle faded in where the target has it');
   assert.ok(s.mobjects.includes(b) && !s.mobjects.includes(a));
 });
 
 test('an explicit key; fadeMismatches: false morphs leftovers; replace: false keeps the source', async () => {
   const dots = (xs: number[], fill: string) => xs.map((x) => new Circle({ radius: 0.2, fill, fillOpacity: 1 }).shift([x, 0]));
-  const a = new Group(...dots([-2, 0], '#ff0000'), ...dots([2], '#00ff00')), b = new Group(...dots([-1, 1, 3], '#ff0000'), new Square({ side: 0.4 }));
+  const a = new Group(...dots([-2, 0], '#ff0000'), ...dots([2], '#00ff00')), b = new Group(...dots([-1, 1, 3], '#ff0000'), new Rectangle({ width: 0.4, height: 0.4 }));
   const anim = new TransformMatching(a, b, { key: (p) => p.style.fill, fadeMismatches: false, replace: false });
   const s = new Scene(new StringSink());
   s.construct = async function (this: Scene) { this.add(a); await this.play(anim); };
@@ -197,7 +199,7 @@ test('one animation of the source: plays inside a group, and play() refuses a se
   s.construct = async function (this: Scene) {
     await this.play(new LaggedStart([new TransformMatchingText(a, b), new FadeIn(dot)]));
     const c = new Text('abc').shift([0, 1]);
-    await assert.rejects(this.play(new TransformMatchingText(b, c), new Transform(b.children[0]!, new Square())), /both animate/);
+    await assert.rejects(this.play(new TransformMatchingText(b, c), new Transform(b.children[0]!, new Rectangle({ width: 2, height: 2 }))), /both animate/);
   };
   await s.run();
   assert.deepEqual(s.mobjects, [b, dot], 'the group put the source on screen, and replace swapped in the target');
@@ -222,7 +224,7 @@ class MatchingScene extends Scene {
     await this.step('key');
     const dots = new Group(...[-1, 0, 1].map((x) => new Circle({ radius: 0.2, fill: '#58c4dd', fillOpacity: 1 }).shift([x, 3.5])));
     await this.play(new FadeIn(dots));
-    await this.play(new TransformMatching(dots, new Group(...[-1.5, 1.5].map((x) => new Square({ side: 0.4, fill: '#58c4dd', fillOpacity: 1 }).shift([x, 3.4]))),
+    await this.play(new TransformMatching(dots, new Group(...[-1.5, 1.5].map((x) => new Rectangle({ width: 0.4, height: 0.4, fill: '#58c4dd', fillOpacity: 1 }).shift([x, 3.4]))),
       { key: (p) => p.style.fill, fadeMismatches: false, lagRatio: 0.3 }));
     await this.wait(0.5);
   }
@@ -232,11 +234,11 @@ test('seeking into a matching transform renders the frame a full run renders', a
   const full = new StringSink();
   await new MatchingScene(full).run();
   assert.equal(full.frames.length, 271);
-  // Frame k is at k / 30 s. The transforms run over frames 31-60, 91-135, 166-195
+  // The transforms run over frames 31-60, 91-135, 166-195
   // and 226-255: seek before, into (first, early, middle, last frame) and after each
   for (const k of [0, 15, 31, 38, 45, 60, 75, 91, 100, 113, 135, 150, 166, 172, 181, 195, 210, 226, 233, 241, 255, 270]) {
     const snap = new SnapshotSink();
-    await renderAt(MatchingScene, k / 30, snap);
+    await renderFrame(MatchingScene, k, snap);
     assert.equal(snap.svg, full.frames[k], `frame ${k}`);
   }
 });
@@ -249,8 +251,8 @@ test('matching transforms are free of motion discontinuities', async () => {
 
 test('shapeKey: same shape at any position and size, nothing else', () => {
   const key = (m: VMobject) => m.shapeKey();
-  const sq = new Square({ side: 1 });
-  assert.equal(key(sq), key(new Square({ side: 3 }).shift([4.37, -2.11])));
+  const sq = new Rectangle({ width: 1, height: 1 });
+  assert.equal(key(sq), key(new Rectangle({ width: 3, height: 3 }).shift([4.37, -2.11])));
   assert.equal(key(sq), key(sq.copy().scale(0.013).shift([7.9, 3.3])), 'tiny and far away');
   assert.notEqual(key(sq), key(new Rectangle({ width: 2, height: 1 })));
   assert.notEqual(key(sq), key(sq.copy().stretch(1.05, 0)), 'five percent wider is another shape');
@@ -265,8 +267,8 @@ test('shapeKey: same shape at any position and size, nothing else', () => {
 test('matchByKey: a keyed component is kept wherever it moves, its parts morph inside it, and the root key is ignored', async () => {
   const { matchByKey } = await import('../src/index.ts');
   const cell = (z: number, symbol: string, at: Vec) => {
-    const g = new Group(new Square({ side: 1 }), new Text(symbol, { fontSize: 0.4 }), new Text(String(z), { fontSize: 0.2 }));
-    g.key = `cell:${z}`;
+    const g = new Group(new Rectangle({ width: 1, height: 1 }), new Text(symbol, { fontSize: 0.4 }), new Text(String(z), { fontSize: 0.2 }));
+    keyed(g, `cell:${z}`);
     g.moveTo(at);
     return g;
   };
@@ -275,34 +277,34 @@ test('matchByKey: a keyed component is kept wherever it moves, its parts morph i
       ...(shuffled ? [cell(2, 'He', [4, 2]), cell(1, 'H', [-4, 0])] : [cell(1, 'H', [-4, 2]), cell(2, 'He', [-2, 2])]),
       new Text(note, { fontSize: 0.3 }).moveTo([0, -2]),
     );
-    root.key = 'table'; // the picture's own key names it; it must not make every part one component
+    keyed(root, 'table'); // the picture's own key names it; it must not make every part one component
     return root;
   };
   const src = picture(false, 'runs'), tgt = picture(true, 'table');
   const a = new TransformMatching(src, tgt, { key: matchByKey() });
-  a.begin();
+  beginAnimation(a);
   assertPartition(a, parts(src), parts(tgt), 'keys');
   // Each cell's square pairs with its own key's square across the swap, not the nearer one
   for (const [s, t] of a.pairs) {
     const owner = (m: Mobject) => { let p: Mobject | null = m; while (p && p.key === undefined) p = p.parent; return p?.key; };
     assert.equal(owner(s), owner(t));
-    if (s instanceof Square) assert.notEqual(owner(s), 'table');
+    if (s instanceof Rectangle) assert.notEqual(owner(s), 'table');
   }
-  assert.equal(a.pairs.filter(([s]) => s instanceof Square).length, 2);
+  assert.equal(a.pairs.filter(([s]) => s instanceof Rectangle).length, 2);
   // The unkeyed note has no fallback: its glyphs fade out and in
   assert.equal(a.removed.length, 'runs'.length);
   assert.equal(a.added.length, 'table'.length);
   // A fallback keys what is under no key: the same word pairs
   const b = new TransformMatching(picture(false, 'same'), picture(true, 'same'), { key: matchByKey({ fallback: (p) => (p.parent instanceof Text ? `${p.parent.text}#${p.parent.children.indexOf(p)}` : undefined) }) });
-  b.begin();
+  beginAnimation(b);
   assert.equal(b.removed.length + b.added.length, 0);
   // A kept Text may change its glyphs: the symbol's parts morph inside the kept cell
   const c = new TransformMatching(new Group(cell(3, 'Li', [0, 0])), new Group(cell(3, 'Be', [3, 0])), { key: matchByKey() });
-  c.begin();
+  beginAnimation(c);
   assert.equal(c.summary().matched, 1 + 2 + 1, 'the square, both glyphs by place, and the digit');
   // The root's own key is not a component: matching one keyed cell to another reads only what is below it
   const d = new TransformMatching(cell(3, 'Li', [0, 0]), cell(3, 'Be', [3, 0]), { key: matchByKey() });
-  d.begin();
+  beginAnimation(d);
   assert.equal(d.summary().matched, 0);
 });
 
@@ -310,26 +312,26 @@ test('matchByKey text policy: by place, a relabelled keyed word morphs its glyph
   const { matchByKey } = await import('../src/index.ts');
   const node = (label: string, at: Vec) => {
     const word = new Text(label, { fontSize: 0.3 });
-    word.key = 'state:idle:label';
+    keyed(word, 'state:idle:label');
     const g = new Group(new Rectangle({ width: 2, height: 1 }), word).moveTo(at);
-    g.key = 'state:idle';
+    keyed(g, 'state:idle');
     return new Group(g);
   };
   const byPlace = new TransformMatching(node('idle', [0, 0]), node('ready', [1, 0]), { key: matchByKey() });
-  byPlace.begin();
+  beginAnimation(byPlace);
   assert.deepEqual(byPlace.summary(), { matched: 1 + 4, morphed: 0, removed: 0, added: 1 });
   const whole = new TransformMatching(node('idle', [0, 0]), node('ready', [1, 0]), { key: matchByKey({ text: 'whole' }) });
-  whole.begin();
+  beginAnimation(whole);
   assert.deepEqual(whole.summary(), { matched: 1, morphed: 0, removed: 4, added: 5 });
   const same = new TransformMatching(node('idle', [0, 0]), node('idle', [1, 0]), { key: matchByKey({ text: 'whole' }) });
-  same.begin();
+  beginAnimation(same);
   assert.deepEqual(same.summary(), { matched: 1 + 4, morphed: 0, removed: 0, added: 0 });
 });
 
 test('find and findAll address parts by key, depth first, on a mobject and across a scene', () => {
-  const cell = (z: number) => { const g = new Group(new Square({ side: 1 }), new Text(String(z))); g.key = `cell:${z}`; g.children[1]!.key = `cell:${z}:z`; return g; };
+  const cell = (z: number) => { const g = new Group(new Rectangle({ width: 1, height: 1 }), new Text(String(z))); keyed(g, `cell:${z}`); keyed(g.children[1]!, `cell:${z}:z`); return g; };
   const table = new Group(cell(1), new Group(cell(2), cell(3)));
-  table.key = 'table';
+  keyed(table, 'table');
   assert.equal(table.find('table'), table);
   assert.equal(table.find('cell:3:z'), table.children[1]!.children[1]!.children[1]);
   assert.equal(table.find('cell:9'), undefined);
@@ -347,20 +349,19 @@ test('find and findAll address parts by key, depth first, on a mobject and acros
 });
 
 test('View.sync({ match: "keys" }) keeps a keyed cell across a rearrangement and seeks exactly', async () => {
-  const { view } = await import('../src/index.ts');
+  const { view } = await import('../explain/index.ts');
   const scene = new Scene<{ order: number[] }>(new StringSink());
   scene.state = { order: [1, 2, 3] };
   const v = view(scene, (st) => new Group(...st.order.map((z, i) => {
-    const g = new Group(new Square({ side: 0.8 }), new Text(`c${z}`, { fontSize: 0.3 })).moveTo([i * 2 - 2, 0]);
-    g.key = `cell:${z}`;
+    const g = new Group(new Rectangle({ width: 0.8, height: 0.8 }), new Text(`c${z}`, { fontSize: 0.3 })).moveTo([i * 2 - 2, 0]);
+    keyed(g, `cell:${z}`);
     return g;
   })), { place: false });
   scene.add(v);
   const before = v.current.children.map((c) => c.key);
   scene.state = { order: [3, 1, 2] };
-  const sync = v.sync({ match: 'key', runTime: 0.4 });
-  await scene.play(sync);
-  assert.deepEqual(sync.summary(), { matched: 3 * (1 + 2), morphed: 0, removed: 0, added: 0 });
+  await scene.play(v.sync({ match: 'key', runTime: 0.4 }));
+  assert.deepEqual(scene.evidence.at(-1), { kind: 'match', matched: 3 * (1 + 2), morphed: 0, removed: 0, added: 0 });
   assert.deepEqual(v.current.children.map((c) => c.key), ['cell:3', 'cell:1', 'cell:2']);
   assert.notDeepEqual(before, v.current.children.map((c) => c.key));
 });
@@ -368,30 +369,30 @@ test('View.sync({ match: "keys" }) keeps a keyed cell across a rearrangement and
 test('matchByKey unkeyed: by-place pairs parts under no key by their place in the picture; fade leaves them to fade', async () => {
   const { matchByKey } = await import('../src/index.ts');
   const picture = (word: string, at: Vec) => {
-    const cell = new Group(new Square({ side: 1 }));
-    cell.key = 'cell';
+    const cell = new Group(new Rectangle({ width: 1, height: 1 }));
+    keyed(cell, 'cell');
     return new Group(cell, new Text(word, { fontSize: 0.3 }).moveTo(at), new Circle({ radius: 0.2 }).moveTo([at[0], -2]));
   };
   const faded = new TransformMatching(picture('odds', [0, 0]), picture('odds', [2, 0]), { key: matchByKey() });
-  faded.begin();
+  beginAnimation(faded);
   assert.deepEqual(faded.summary(), { matched: 1, morphed: 0, removed: 4 + 1, added: 4 + 1 });
   const placed = new TransformMatching(picture('odds', [0, 0]), picture('odds', [2, 0]), { key: matchByKey({ unkeyed: 'by-place' }) });
-  placed.begin();
+  beginAnimation(placed);
   assert.deepEqual(placed.summary(), { matched: 1 + 4 + 1, morphed: 0, removed: 0, added: 0 });
   // A fallback still wins over unkeyed
   const fallen = new TransformMatching(picture('odds', [0, 0]), picture('odds', [2, 0]), { key: matchByKey({ unkeyed: 'by-place', fallback: () => undefined }) });
-  fallen.begin();
+  beginAnimation(fallen);
   assert.equal(fallen.summary().matched, 1);
 });
 
 test('become takes another mobject\'s data in place, keeping identity, children and key', () => {
   const ptr = new Group(new Arrow([0, 0], [1, 0]), new Text('head', { fontSize: 0.24 }));
-  ptr.key = 'ring:pointer:head';
-  const ids = ptr.family().map((m) => m.id), parent = new Group(ptr);
+  keyed(ptr, 'ring:pointer:head');
+  const ids = ptr.family().map((m) => mobjectId(m)), parent = new Group(ptr);
   const drawn = new Group(new Arrow([0, 0], [0, 2]), new Text('head', { fontSize: 0.24 }).moveTo([3, 3]));
   const before = drawn.family().map((m) => m.pointArrays().map((a) => [...a]));
   assert.equal(ptr.become(drawn), ptr);
-  assert.deepEqual(ptr.family().map((m) => m.id), ids, 'every member keeps its identity');
+  assert.deepEqual(ptr.family().map((m) => mobjectId(m)), ids, 'every member keeps its identity');
   assert.equal(ptr.key, 'ring:pointer:head');
   assert.equal(ptr.parent, parent);
   assert.deepEqual(ptr.family().map((m) => m.pointArrays().map((a) => [...a])), before, 'and takes the drawn points');

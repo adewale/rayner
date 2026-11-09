@@ -1,4 +1,4 @@
-// specs/player-tile.md T5: the tile's chrome is tinted toward the scenario's paper, by one mix for every
+// player-tile T5: the tile's chrome is tinted toward the scenario's paper, by one mix for every
 // palette. The mix must keep the page's text, its secondary text and its accent readable on the tinted
 // chrome in both themes, for all thirteen palettes: 7:1, 4.5:1 and 3:1 (WCAG 1.4.3, 1.4.6, 1.4.11).
 // The colours and the oracle here are independent of explain/look.ts; the tint is read from embed.css.

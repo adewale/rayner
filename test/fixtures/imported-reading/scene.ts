@@ -1,6 +1,7 @@
-import { Scene } from '../../../src/index.ts';
+import { Scene, keyed } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
-import { Diagram, labelOf } from '../../../explain/diagrams.ts';
+import { Diagram } from '../../../explain/diagrams.ts';
+import { labelOf } from '../../../explain/labels.ts';
 import snapshot from '../../../scenes/explainers/font-metrics/scene.snapshots/4ee0d75a90dc9b78.json' with { type: 'json' };
 import type { DiagramSnapshot } from '../../../explain/index.ts';
 
@@ -19,7 +20,7 @@ export default class ImportedReading extends Scene {
     label.scale(0.8 / (label.height() * labelOf(label)!.emRatio));
     if (settingsOf(this).width === 'thin') label.stretch(0.01, 0);
     label.moveTo([0, 0]);
-    label.key = 'paper';
+    keyed(label, 'paper');
     s.opening(label);
     this.add(label);
   }

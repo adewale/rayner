@@ -11,12 +11,12 @@
 // 10.0 -> 9.0 stays put at its left edge. Fonts are loaded by Scene.run();
 // outside a scene, await loadFonts() first.
 
-import { Mobject, Group, animateBuilderBase, followScene, paintDefaults } from './mobject.ts';
-import type { Style, PathFunc } from './mobject.ts';
+import { Mobject, Group, animateBuilderBase, followScene, mergeLeaves, defaultColors, affine, borrowChildren } from './mobject.ts';
+import type { Style } from './mobject.ts';
 import type { Box, AnimateBuilder, AnimateBuilderBase } from './mobject.ts';
 import { VMobject } from './vmobject.ts';
-import { Rectangle } from './shapes.ts';
-import { embeddedShaperFor } from './fonts.ts';
+import { unionBoxes } from './box.ts';
+import { ATTACHED, embeddedShaperFor } from './fonts.ts';
 import type { FontName } from './fonts.ts';
 import { NEUTRAL_COLORS } from './color.ts';
 import type { Vec } from './vec.ts';
@@ -24,7 +24,7 @@ import {ambientTextContext} from './text-context.ts';
 import type {TextShaping} from './text-context.ts';
 import type { Segment, Run } from '../vendor/glyph.js';
 
-export interface TextOpts {
+export interface TextOptions {
   /** Explicit per-object shaping; copied texts retain it. */
   shaping?: TextShaping;
   italic?: boolean;
@@ -97,32 +97,47 @@ class Glyph extends VMobject {
 // (only Regular faces are embedded).
 const BOLD_STROKE = 0.045;
 
+/** The one writer of a built Text's `text`, which is read-only to everything else. */
+const writeText = (t: Text, text: string): void => { (t as { text: string }).text = text; };
+
 /** A shaped run's metrics, in scene units at `fontSize`. */
 export interface RunMetrics { width: number; ascent: number; descent: number; fontSize: number }
 
+/**
+ * @internal Keys of a Text's engine state, which copies, restore() and become() carry: `textRun`, the
+ * metrics of its shaped run (set by buildText); `advanceBox`, the advance box as a point array of
+ * its corners, bottom-left, top-right, top-left, bottom-right: [x0, y0, x1, y1, ...], all four
+ * travelling with the glyphs, so a rotated text still knows its size and angle; `formulaOf`,
+ * MathTex's display mode (a formula's glyphs have no clusters). Symbols, so no member an author
+ * writes on a subclass shares a name with one.
+ */
+export const textRun = Symbol('run');
+/** @internal See textRun. */
+export const advanceBox = Symbol('frameBox');
+/** @internal See textRun. */
+export const formulaOf = Symbol('formula');
+
 export class Text extends Group {
-  text: string;
+  /** The string shown. setText() replaces it and lays out the glyphs again. */
+  readonly text: string;
   readonly shaping: TextShaping | undefined;
   readonly italic: boolean;
-  readonly formula: {display: boolean} | undefined;
-  font: FontName;
-  fontSize: number;
-  weight: 'normal' | 'bold';
+  /** @internal See textRun. */
+  readonly [formulaOf]: {display: boolean} | undefined;
+  readonly font: FontName;
+  readonly fontSize: number;
+  readonly weight: 'normal' | 'bold';
   anchor: 'start' | 'middle' | 'end';
-  /** Tab stops every this many columns, or undefined: see TextOpts. `text` keeps the tabs, and so do glyph clusters: they index `text`. */
-  tabWidth: number | undefined;
-  // Set by build(), which the constructor calls
-  run!: RunMetrics;
-  /**
-   * The advance box as a point array of its corners, bottom-left, top-right,
-   * top-left, bottom-right: [x0, y0, x1, y1, ...]. All four travel with the glyphs,
-   * so a rotated text still knows its size and angle: see build().
-   */
-  frameBox!: Float32Array;
+  /** Tab stops every this many columns, or undefined: see TextOptions. `text` keeps the tabs, and so do glyph clusters: they index `text`. */
+  readonly tabWidth: number | undefined;
+  /** @internal See textRun. */
+  [textRun]!: RunMetrics;
+  /** @internal See textRun. */
+  [advanceBox]!: Float32Array;
 
-  constructor(text: string, { fontSize = 0.4, font = 'sans', color: given, weight = 'normal', anchor = 'middle', fillOpacity = 1, tabWidth, shaping = ambientTextContext(), italic = false }: TextOpts = {}, formula?: {display: boolean}) {
+  constructor(text: string, { fontSize = 0.4, font = 'sans', color: given, weight = 'normal', anchor = 'middle', fillOpacity = 1, tabWidth, shaping = ambientTextContext(), italic = false }: TextOptions = {}, formula?: {display: boolean}) {
     super();
-    this.shaping = shaping; this.italic = italic; this.formula = formula;
+    this.shaping = shaping; this.italic = italic; this[formulaOf] = formula;
     if (tabWidth != null) expandTabs('', tabWidth); // validates it
     this.tabWidth = tabWidth;
     this.text = text;
@@ -130,97 +145,50 @@ export class Text extends Group {
     this.fontSize = fontSize;
     this.weight = weight;
     this.anchor = anchor;
-    this.mergeLeaves = true;
+    this[mergeLeaves] = true;
     const bold = weight === 'bold', color = given ?? NEUTRAL_COLORS.ink;
-    this.build(text, fontSize, {
+    buildText(this, text, fontSize, {
       fill: color, fillOpacity, stroke: bold ? color : 'none', strokeWidth: bold ? BOLD_STROKE * fontSize : 0,
     });
     if (given === undefined) followScene(this, { fill: 'ink', stroke: 'ink' });
     // Centre the advance box, whose baseline is y=0 and bounds are
     // [0, -descent, width, ascent], rather than shifting it up by an ascent.
-    this.shift([-this.run.width / 2, -(this.run.ascent - this.run.descent) / 2]);
-  }
-
-  /** Lay out glyphs with the pen at the origin and the baseline at y = 0. */
-  build(text: string, fontSize: number, style: Style, defaults?: Mobject['defaultColors']): void {
-    const { shaped, source } = shapedForm(text, this.tabWidth);
-    const run = this.shapeRun(shaped, fontSize);
-    if (this.shaping?.realBold?.(this)) style = {...style, stroke: 'none', strokeWidth: 0};
-    this.run = { width: run.width, ascent: run.ascent, descent: run.descent, fontSize };
-    const scale = run.s ?? fontSize / 1000;
-    for (const c of this.children) c.parent = null;
-    this.children = [];
-    for (const g of run.glyphs) {
-      if (!g.path?.length) continue;
-      const gl = new Glyph(g.path, g.s ?? scale, g.x + g.dx, g.dy, { ...style });
-      if (defaults) gl.defaultColors = { ...defaults }; else delete gl.defaultColors;
-      if (this._colors) paintDefaults(gl, this._colors);
-      gl.cluster = this.formula ? undefined : source(g.cluster);
-      gl.parent = this;
-      this.children.push(gl);
-    }
-    // The advance box travels with the glyphs as a point array of its own, so
-    // box()/left() are typographic extents (leading spaces count), not ink.
-    this.frameBox = new Float32Array([0, -run.descent, run.width, run.ascent, 0, run.ascent, run.width, -run.descent]);
-    this.invalidateBox();
+    this.shift([-this[textRun].width / 2, -(this[textRun].ascent - this[textRun].descent) / 2]);
   }
 
   /** Shape with this object's own service, including after its originating run ends. */
   shapeRun(text: string, size: number): Run {
     if (this.shaping) return this.shaping.shape(this, text, size);
-    if (this.italic) throw new Error("ItalicText needs static meta.lettering.styles to include 'italic' and a fresh lettering snapshot");
-    if (this.formula) throw new Error('MathTex requires meta.lettering.math and a fresh lettering snapshot');
+    if (this.italic) throw new Error("new ItalicText(): it needs meta.lettering.styles to include 'italic', and a fresh lettering snapshot (rayner snapshots)");
+    if (this[formulaOf]) throw new Error('new MathTex(): it needs meta.lettering.math, and a fresh lettering snapshot (rayner snapshots)');
     return embeddedShaperFor(this.font)(text, size);
   }
-  get clusterMatching(): boolean { return !!this.shaping?.clusterKey && !this.formula; }
-  clusterKey(cluster: number): string | undefined { return this.shaping?.clusterKey?.(this, cluster); }
-
-  override pointArrays(): Float32Array[] { return [this.frameBox]; }
+  override pointArrays(): Float32Array[] { return [this[advanceBox]]; }
   override pointKind(): string { return 'box'; }
-  override copyData(src: Mobject): void { this.frameBox = new Float32Array((src as Text).frameBox); }
+  protected override copyData(src: Mobject): void { this[advanceBox] = new Float32Array((src as Text)[advanceBox]); }
 
   /** Exact advance width, in scene units. */
-  advance(): number { return this.frameBox[2]! - this.frameBox[0]!; }
-
-  /**
-   * What the advance box has been through since build(), as its linear part per unit:
-   * ex along the baseline, ey up the side. A fresh build has ex = (1, 0), ey = (0, 1).
-   */
-  private frame(): { ex: Vec; ey: Vec } {
-    const f = this.frameBox, h = this.run.ascent + this.run.descent, w = this.run.width;
-    const ey: Vec = [(f[4]! - f[0]!) / h, (f[5]! - f[1]!) / h];
-    // An empty run has no width to measure: assume the baseline is ey turned a quarter clockwise
-    const ex: Vec = w > 0 ? [(f[6]! - f[0]!) / w, (f[7]! - f[1]!) / w] : [ey[1], -ey[0]];
-    return { ex, ey };
-  }
-
-  /** Only moved and scaled uniformly (no turn, mirror, stretch or shear): the common case, read the simple way. */
-  private plain(): boolean {
-    const f = this.frameBox;
-    if (!(f[0] === f[4] && f[1] === f[7])) return false;
-    const { ex, ey } = this.frame();
-    return ex[0] > 0 && ey[1] > 0 && Math.abs(ex[0] / ey[1] - 1) < 1e-6;
-  }
+  advance(): number { return this[advanceBox][2]! - this[advanceBox][0]!; }
 
   /** The angle the text has been turned through, in radians (0 while plain), read from its upright edge. */
   angle(): number {
-    if (this.plain()) return 0;
-    const { ey } = this.frame();
+    if (isPlain(this)) return 0;
+    const { ey } = frameOf(this);
     return Math.atan2(ey[1], ey[0]) - Math.PI / 2;
   }
 
   /** The font size the text is drawn at now, after any scaling (the geometric mean when stretched); never negative. */
   textSize(): number {
-    const f = this.frameBox;
-    if (this.plain()) return this.run.fontSize * (f[3]! - f[1]!) / (this.run.ascent + this.run.descent);
-    const { ex, ey } = this.frame();
-    return this.run.fontSize * Math.sqrt(Math.abs(ex[0] * ey[1] - ex[1] * ey[0]));
+    const f = this[advanceBox], run = this[textRun];
+    if (isPlain(this)) return run.fontSize * (f[3]! - f[1]!) / (run.ascent + run.descent);
+    const { ex, ey } = frameOf(this);
+    return run.fontSize * Math.sqrt(Math.abs(ex[0] * ey[1] - ex[1] * ey[0]));
   }
 
   /** The point setText keeps fixed: left, center or right of the advance box, at its vertical middle. */
   anchorPoint(): Vec {
-    const f = this.frameBox;
-    if (this.plain()) {
+    const f = this[advanceBox];
+    if (isPlain(this)) {
       const cy = (f[1]! + f[3]!) / 2;
       return [this.anchor === 'start' ? f[0]! : this.anchor === 'end' ? f[2]! : (f[0]! + f[2]!) / 2, cy];
     }
@@ -238,14 +206,14 @@ export class Text extends Group {
     const first = this.children[0];
     // The new glyphs keep the old ones' style, and any colour they still take from the scene.
     const style: Style = first ? { ...first.style } : { fill: NEUTRAL_COLORS.ink, stroke: 'none' };
-    const defaults = first ? first.defaultColors : { fill: 'ink' as const };
-    this.text = text;
-    if (this.plain()) {
-      this.build(text, this.textSize(), style, defaults);
+    const defaults = first ? first[defaultColors] : { fill: 'ink' as const };
+    writeText(this, text);
+    if (isPlain(this)) {
+      buildText(this, text, this.textSize(), style, defaults);
     } else {
-      const { ex, ey } = this.frame();
-      this.build(text, this.run.fontSize, style, defaults);
-      this.applyAffine(ex[0], ex[1], ey[0], ey[1], 0, 0, { aboutPoint: [0, 0] });
+      const { ex, ey } = frameOf(this);
+      buildText(this, text, this[textRun].fontSize, style, defaults);
+      this[affine](ex[0], ex[1], ey[0], ey[1], 0, 0, { aboutPoint: [0, 0] });
     }
     const now = this.anchorPoint();
     this.shift([at[0] - now[0], at[1] - now[1]]);
@@ -259,24 +227,72 @@ export class Text extends Group {
     return this;
   }
 
-  /** Glyphs morph pairwise (Transform aligns them); the string itself switches when the morph lands. */
-  override interpolate(a: Mobject, b: Mobject, alpha: number, pathFunc?: PathFunc | null): this {
-    super.interpolate(a, b, alpha, pathFunc);
-    if (alpha >= 1 && b instanceof Text) { this.text = b.text; this.run = b.run; }
+  /** Glyphs morph pairwise (Transform aligns them); the string itself switches when the morph finishes. */
+  override interpolate(a: Mobject, b: Mobject, alpha: number): this {
+    super.interpolate(a, b, alpha);
+    if (alpha >= 1 && b instanceof Text) { writeText(this, b.text); this[textRun] = b[textRun]; }
     return this;
   }
 }
 
-export interface DecimalNumberOpts extends TextOpts { decimals?: number; prefix?: string; suffix?: string }
+/** @internal Lay out `t`'s glyphs for `text` with the pen at the origin and the baseline at y = 0. */
+export function buildText(t: Text, text: string, fontSize: number, style: Style, defaults?: Mobject[typeof defaultColors]): void {
+  const { shaped, source } = shapedForm(text, t.tabWidth);
+  const run = t.shapeRun(shaped, fontSize);
+  if (t.shaping?.realBold?.(t)) style = {...style, stroke: 'none', strokeWidth: 0};
+  t[textRun] = { width: run.width, ascent: run.ascent, descent: run.descent, fontSize };
+  const scale = run.s ?? fontSize / 1000;
+  const glyphs: Glyph[] = [];
+  for (const g of run.glyphs) {
+    if (!g.path?.length) continue;
+    const gl = new Glyph(g.path, g.s ?? scale, g.x + g.dx, g.dy, { ...style });
+    if (defaults) gl[defaultColors] = { ...defaults }; else delete gl[defaultColors];
+    gl.cluster = t[formulaOf] ? undefined : source(g.cluster);
+    glyphs.push(gl);
+  }
+  // The new glyphs take this text's scene colours as they join it (see Mobject.add).
+  t.remove(...t.children).add(...glyphs);
+  // The advance box travels with the glyphs as a point array of its own, so
+  // box()/left() are typographic extents (leading spaces count), not ink.
+  t[advanceBox] = new Float32Array([0, -run.descent, run.width, run.ascent, 0, run.ascent, run.width, -run.descent]);
+  t.invalidateBox();
+}
+
+/** @internal Whether a TransformMatchingText pairs `t`'s glyphs by their lettering clusters (clusterKeyOf). */
+export const matchesClusters = (t: Text): boolean => !!t.shaping?.clusterKey && !t[formulaOf];
+/** @internal The key `t`'s shaping gives the glyphs of `cluster`, which a TransformMatchingText pairs by. */
+export const clusterKeyOf = (t: Text, cluster: number): string | undefined => t.shaping?.clusterKey?.(t, cluster);
+
+/**
+ * What `t`'s advance box has been through since it was built, as its linear part per unit:
+ * ex along the baseline, ey up the side. A fresh build has ex = (1, 0), ey = (0, 1).
+ */
+function frameOf(t: Text): { ex: Vec; ey: Vec } {
+  const f = t[advanceBox], { ascent, descent, width: w } = t[textRun], h = ascent + descent;
+  const ey: Vec = [(f[4]! - f[0]!) / h, (f[5]! - f[1]!) / h];
+  // An empty run has no width to measure: assume the baseline is ey turned a quarter clockwise
+  const ex: Vec = w > 0 ? [(f[6]! - f[0]!) / w, (f[7]! - f[1]!) / w] : [ey[1], -ey[0]];
+  return { ex, ey };
+}
+
+/** Whether `t` is only moved and scaled uniformly (no turn, mirror, stretch or shear): the common case, read the simple way. */
+function isPlain(t: Text): boolean {
+  const f = t[advanceBox];
+  if (!(f[0] === f[4] && f[1] === f[7])) return false;
+  const { ex, ey } = frameOf(t);
+  return ex[0] > 0 && ey[1] > 0 && Math.abs(ex[0] / ey[1] - 1) < 1e-6;
+}
+
+export interface DecimalNumberOptions extends TextOptions { decimals?: number; prefix?: string; suffix?: string }
 
 /** A number that animates: Transform blends `value`; the glyphs are re-shaped each frame. */
 export class DecimalNumber extends Text {
   value: number;
-  decimals: number;
-  prefix: string;
-  suffix: string;
+  readonly decimals: number;
+  readonly prefix: string;
+  readonly suffix: string;
 
-  constructor(value: number, { decimals = 0, prefix = '', suffix = '', ...opts }: DecimalNumberOpts = {}) {
+  constructor(value: number, { decimals = 0, prefix = '', suffix = '', ...opts }: DecimalNumberOptions = {}) {
     super(DecimalNumber.format(value, decimals, prefix, suffix), opts);
     this.value = value; this.decimals = decimals; this.prefix = prefix; this.suffix = suffix;
   }
@@ -289,13 +305,13 @@ export class DecimalNumber extends Text {
     this.value = v;
     return this.setText(DecimalNumber.format(v, this.decimals, this.prefix, this.suffix));
   }
-  override interpolate(a: Mobject, b: Mobject, alpha: number, pathFunc?: PathFunc | null): this {
-    // Alignment pairs family members by index, so either side may be another
-    // class; its `value` is then undefined and the plain blend runs
-    const va = (a as Partial<DecimalNumber>).value, vb = (b as Partial<DecimalNumber>).value;
-    if (va === vb) return super.interpolate(a, b, alpha, pathFunc);
-    Mobject.prototype.interpolate.call(this, a, b, alpha, pathFunc);
-    return this.setValue(va! + (vb! - va!) * alpha);
+  override interpolate(a: Mobject, b: Mobject, alpha: number): this {
+    // Alignment pairs family members by index, so either side may be another class (a Text, a
+    // shape): the value blends only between two numbers, and anything else takes the plain blend.
+    const va = (a as Partial<Pick<DecimalNumber, 'value'>>).value, vb = (b as Partial<Pick<DecimalNumber, 'value'>>).value;
+    if (typeof va !== 'number' || typeof vb !== 'number' || va === vb) return super.interpolate(a, b, alpha);
+    Mobject.prototype.interpolate.call(this, a, b, alpha);
+    return this.setValue(va + (vb - va) * alpha);
   }
 }
 
@@ -303,12 +319,12 @@ export class DecimalNumber extends Text {
  * Colour for part of one Code line: source indices [from, to) of line `line`,
  * counted in UTF-16 code units (JS string indices into the line as given, tabs
  * and all). Glyph.cluster holds the same index: the shaper counts code points
- * in the tab-expanded string, and Text.build maps each back (shapedForm). The
+ * in the tab-expanded string, and buildText maps each back (shapedForm). The
  * syntax-token data format: tools/tokens.ts writes it at build time.
  */
 export interface ColorSpan { line: number; from: number; to: number; color: string }
 
-export interface CodeOpts {
+export interface CodeOptions {
   shaping?: TextShaping;
   fontSize?: number;
   color?: string;
@@ -323,29 +339,33 @@ export interface CodeOpts {
   spans?: ReadonlyArray<ColorSpan>;
 }
 
-const graphemes = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter() : null;
-
 /**
  * `line` with each tab replaced by the spaces up to the next multiple of `width` columns,
  * and for each code point of the result the UTF-16 index in `line` it came from (a tab's
- * spaces all come from the tab). A column is a grapheme (an accent combined with its
- * letter takes one). `width` must be a positive integer.
+ * spaces all come from the tab). A column is a code point that draws on its own: one that
+ * draws with the character before it (a combining mark, a joiner, a variation selector:
+ * ATTACHED, the rule font fallback uses) takes none, so an accent combined with its letter
+ * takes one column and a conjunct takes one per consonant. A character's category is fixed
+ * once it is assigned, so every Node and browser counts alike, which grapheme clusters do
+ * not: their rules change between Unicode versions. `width` must be a positive integer;
+ * without one, tabs stay tabs and only the map is made. Text's layout and its lettering
+ * runs (src/lettering-outlines.ts) both shape this form, so their clusters agree.
  */
-function expandTabs(line: string, width = 4): { text: string; source: number[] } {
-  if (!Number.isInteger(width) || width < 1) throw new RangeError(`tabWidth must be a positive integer, not ${width}`);
+export function expandTabs(line: string, width?: number): { text: string; source: number[] } {
+  if (width !== undefined && (!Number.isInteger(width) || width < 1)) throw new RangeError(`new Text(): tabWidth must be a positive integer, not ${width}`);
   let out = '', col = 0, at = 0;
   const source: number[] = [];
-  const units = graphemes ? Array.from(graphemes.segment(line), (g) => g.segment) : Array.from(line);
-  for (const ch of units) {
-    if (ch === '\t') {
+  for (const ch of line) {
+    if (ch === '\t' && width !== undefined) {
       const n = width - (col % width);
       out += ' '.repeat(n); col += n;
       for (let k = 0; k < n; k++) source.push(at);
-      at += 1;
     } else {
-      out += ch; col++;
-      for (const cp of ch) { source.push(at); at += cp.length; }
+      out += ch;
+      if (!ATTACHED.test(ch)) col++;
+      source.push(at);
     }
+    at += ch.length;
   }
   return { text: out, source };
 }
@@ -373,29 +393,21 @@ function shapedForm(text: string, tabWidth: number | undefined): { shaped: strin
 export class Code extends Group {
   lines: Text[];
 
-  constructor(lines: readonly string[], { fontSize = 0.26, color, lineHeight = 1.5, tabWidth = 4, spans = [], shaping }: CodeOpts = {}) {
+  constructor(lines: readonly string[], { fontSize = 0.26, color, lineHeight = 1.5, tabWidth = 4, spans = [], shaping }: CodeOptions = {}) {
     super();
     this.lines = lines.map((l, i) => {
       // `text` stays the source line, tabs and all; the glyphs are laid out with the tabs expanded
       const t = new Text(l, { fontSize, font: 'mono', color, anchor: 'start', tabWidth, shaping });
-      t.shift([-t.frameBox[0]!, -i * fontSize * lineHeight - t.anchorPoint()[1]]);
+      t.shift([-t[advanceBox][0]!, -i * fontSize * lineHeight - t.anchorPoint()[1]]);
       return t;
     });
     this.add(...this.lines);
     for (const s of spans) this.span(s.line, s.from, s.to).setFill(s.color);
     this.moveTo([0, 0]);
   }
-  override rebindReferences(source: Mobject, copies: ReadonlyMap<Mobject, Mobject>): void {
+  protected override rebindReferences(source: Mobject, copies: ReadonlyMap<Mobject, Mobject>): void {
     this.lines = (source as Code).lines.map(line => (copies.get(line) ?? line) as Text);
   }
-  /** A translucent bar behind line `i`, as wide as the block: the scene's accent unless given a colour. */
-  highlight(i: number, color?: string): Rectangle {
-    const r = new Rectangle({ width: this.width() + 0.3, height: this.lines[i]!.height() * 1.45, cornerRadius: 0.06, fill: color ?? NEUTRAL_COLORS.accent, fillOpacity: 0.18, stroke: 'none' });
-    if (color === undefined) followScene(r, { fill: 'accent' });
-    return r.moveTo(this.lineCenter(i));
-  }
-  /** Where a highlight bar for line `i` sits. */
-  lineCenter(i: number): Vec { return [this.center()[0], this.lines[i]!.center()[1]]; }
 
   /**
    * The glyphs of line `line` whose source index is in [from, to): a live
@@ -405,9 +417,9 @@ export class Code extends Group {
    */
   span(line: number, from: number, to: number): CodeSpan {
     const t = this.lines[line];
-    if (!t) throw new RangeError(`Code has no line ${line} (it has ${this.lines.length})`);
+    if (!t) throw new RangeError(`code.span(): there is no line ${line}; the code has ${this.lines.length}, from 0`);
     if (!(Number.isInteger(from) && Number.isInteger(to) && from >= 0 && from <= to && to <= t.text.length))
-      throw new RangeError(`span ${from}..${to} is outside line ${line} (length ${t.text.length}): ${JSON.stringify(t.text)}`);
+      throw new RangeError(`code.span(): ${from}..${to} is outside line ${line}, which is ${t.text.length} long: ${JSON.stringify(t.text)}`);
     return new CodeSpan(t, line, from, to);
   }
   /** The span of the `nth` (from 0) occurrence of `text` on line `line`, counting non-overlapping matches. */
@@ -416,7 +428,7 @@ export class Code extends Group {
     let at = -1;
     for (let k = 0, from = 0; k <= nth; k++, from = at + Math.max(1, text.length)) {
       at = text ? src.indexOf(text, from) : -1;
-      if (at < 0) throw new RangeError(`No ${JSON.stringify(text)} #${nth} on line ${line}: ${JSON.stringify(src)}`);
+      if (at < 0) throw new RangeError(`code.token(): line ${line} has no occurrence ${nth} of ${JSON.stringify(text)}, counting from 0: ${JSON.stringify(src)}`);
     }
     return this.span(line, at, at + text.length);
   }
@@ -446,7 +458,7 @@ export class Code extends Group {
  * to the scene and draw its glyphs twice; draw a shape from span.box() instead.
  *
  * Fixed at creation. Once the line's text changes (Text.setText, or a
- * Transform landing another string on it) the span is `stale` and box()
+ * Transform finishing with another string on it) the span is `stale` and box()
  * throws: take a new span from the Code now on screen.
  */
 export class CodeSpan extends Group {
@@ -463,7 +475,7 @@ export class CodeSpan extends Group {
     super();
     this.owner = owner; this.line = line; this.from = from; this.to = to;
     this.lineText = owner.text;
-    this.children = owner.children.filter((g) => g instanceof Glyph && g.cluster != null && g.cluster >= from && g.cluster < to);
+    borrowChildren(this, owner.children.filter((g) => g instanceof Glyph && g.cluster != null && g.cluster >= from && g.cluster < to));
   }
 
   /** The source text the span covers. */
@@ -474,12 +486,12 @@ export class CodeSpan extends Group {
 
   /** Advance cells by line metrics, unioned with ink; computed afresh, never cached (the glyphs aren't ours to watch). */
   override box(): Box {
-    if (this.stale) throw new Error(`Stale span ${this.from}..${this.to} of line ${this.line}: the line is now ${JSON.stringify(this.owner.text)}; take a new span`);
+    if (this.stale) throw new Error(`code.span(): the span ${this.from}..${this.to} of line ${this.line} is stale, since the line is now ${JSON.stringify(this.owner.text)}; take a new span`);
     const shapedBox = this.owner.shaping?.spanBox?.(this);
     if (shapedBox) return shapedBox;
-    // Shaped as build() shapes it (tabs expanded), clusters mapped back to source indices
-    const t = this.owner, f = t.frameBox, { shaped, source } = shapedForm(t.text, t.tabWidth);
-    const run = t.shapeRun(shaped, t.run.fontSize);
+    // Shaped as buildText shapes it (tabs expanded), clusters mapped back to source indices
+    const t = this.owner, f = t[advanceBox], { shaped, source } = shapedForm(t.text, t.tabWidth);
+    const run = t.shapeRun(shaped, t[textRun].fontSize);
     // Shaped units to scene units along the line, however it has been scaled
     const k = run.width ? (f[2]! - f[0]!) / run.width : 0;
     const pen = (c: number): number => {
@@ -487,18 +499,14 @@ export class CodeSpan extends Group {
       return run.width;
     };
     const b: Box = [f[0]! + pen(this.from) * k, f[1]!, f[0]! + pen(this.to) * k, f[3]!];
-    for (const g of this.children) {
-      const gb = g.box();
-      if (!gb) continue;
-      b[0] = Math.min(b[0], gb[0]); b[1] = Math.min(b[1], gb[1]); b[2] = Math.max(b[2], gb[2]); b[3] = Math.max(b[3], gb[3]);
-    }
-    return b;
+    return unionBoxes([b, ...this.children.map((g) => g.box())])!;
   }
 
   // Moving a span moves glyphs the line owns: the line's boxes (and the block's) go stale too
   override invalidateBox(): void { super.invalidateBox(); this.owner?.invalidateBox(); }
-  override applyAffine(...args: Parameters<Mobject['applyAffine']>): this {
-    super.applyAffine(...args);
+  /** @internal */
+  override [affine](...args: Parameters<Mobject[typeof affine]>): this {
+    super[affine](...args);
     this.owner.invalidateBox();
     return this;
   }

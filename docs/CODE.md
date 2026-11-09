@@ -19,7 +19,13 @@ code.lineSpan(4);             // all of line 4
 Indices are JS string indices (UTF-16 code units) into `code.lines[i].text`,
 the same numbers `Glyph.cluster` holds. A tab is one index however many
 columns it takes, and a character outside the BMP is two
-(`test/code-tabs.test.ts`). Out-of-range lines or indices throw
+(`test/code-tabs.test.ts`). A tab reaches the next multiple of four columns,
+and a column is a code point that draws on its own: a combining mark, a
+joiner or a variation selector draws with the character before it and takes
+none. So `e` with a combining accent is one column and the conjunct `क्ष` is
+two. Character categories do not change once assigned, so a tab stop lands in
+the same place in every Node and browser, which grapheme clusters, whose
+rules change between Unicode versions, would not. Out-of-range lines or indices throw
 `RangeError`; a `token` that isn't there throws.
 
 ### A span is a view
@@ -27,13 +33,13 @@ columns it takes, and a character outside the BMP is two
 A `CodeSpan` is a `Group` whose children are the line's live glyphs: not
 copies, and not re-parented (they stay children of the line). So:
 
-- `span.setFill(s.emphasis)` recolours the text on screen.
+- `span.setFill(s.look.emphasis)` recolours the text on screen.
 - `span.box()`, `center()`, `top()`... are where the text is now, after any
   shift or scale of the block. A `Rectangle` or brace built from `span.box()`
-  lands on the real glyphs.
+  sits on the real glyphs.
 - `span.shift(...)` moves the real glyphs and invalidates the line's and the
   block's boxes.
-- `span.animate.setFill(s.bad)` records the calls and plays them as a Transform
+- `span.animate.setFill(s.look.bad)` records the calls and plays them as a Transform
   of the span's *line* to a copy of the line with the same span changed. The
   span never joins the scene. Two spans of one line can't animate in the same
   `play()` (both would drive the line); recolour a `code.copy()` and Transform
@@ -43,7 +49,7 @@ copies, and not re-parented (they stay children of the line). So:
   glyphs would draw twice. Mark a shape drawn from its box instead.
 
 A span is fixed when taken. After its line's text changes (`Text.setText`, or a
-Transform that lands another string on the line) it is `stale` and `box()`
+Transform that finishes with another string on the line) it is `stale` and `box()`
 throws; take a new span from the `Code` now on screen. After
 `Transform(a, b, { replace: true })`, take spans from `b`.
 
@@ -87,13 +93,13 @@ to it (as explainers already do). Styling applied after construction (a
 ### The tool
 
 ```
-node tools/tokens.ts <file | -> [--lang ts|js|python|bash|elixir] [--theme dark|light] [--engine auto|shiki|fallback]
+node tools/repo/tokens.ts <file | -> [--lang ts|js|python|bash|elixir] [--theme dark|light] [--engine auto|shiki|fallback]
 ```
 
 prints the spans as a JSON array, one span per line, to paste into a scene. The language defaults to the file extension; stdin needs `--lang`.
-The engine used goes to stderr. From code, the module `tools/lib/tokenize.ts`
+The engine used goes to stderr. From code, the module `tools/repo/lib/tokenize.ts`
 exports `tokenize(source, lang, { engine, palette })`, which returns the same
-`ColorSpan[]` (the `rayner` CLI can call it at build time). The module's `lex()` and `shikiTokens()`
+`ColorSpan[]`. The module's `lex()` and `shikiTokens()`
 return the classified tokens (`keyword`, `string`, `comment`, `number`,
 `function`, `punctuation`) before colouring.
 
@@ -121,7 +127,7 @@ is the example). Nothing in `src/` or the browser bundle imports shiki or the le
 
 - **zero runtime dependencies**: the engine and anything a page loads stay
   dependency-free; shiki is a devDependency of the checkout, used only by
-  `tools/tokens.ts`, which the package does not ship.
+  `tools/repo/tokens.ts`, which the package does not ship.
 - **deterministic output**: the same data renders the same frames everywhere,
   and seeks stay byte-identical. A highlighter running at view time could
   change colours with a grammar update; a checked-in array changes only when
@@ -157,7 +163,7 @@ default) costs a fraction of one that colours it.
 
 - [mr-cache](https://github.com/adewale/rayner/blob/main/scenes/explainers/mr-cache/scene.ts): both blocks of the merge
   request are `new Code(lines, { spans })`, with spans that
-  `node tools/tokens.ts --theme light --engine shiki` generated and that are
+  `node tools/repo/tokens.ts --theme light --engine shiki` generated and that are
   checked in beside the scene (`scenes/explainers/mr-cache/code.ts`);
   `TransformDiff` morphs one into the other.
 - [state-machine](https://github.com/adewale/rayner/blob/main/scenes/explainers/state-machine/scene.ts): finds the reducer

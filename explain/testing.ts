@@ -6,4 +6,12 @@
 export * from '../src/testing.ts';
 export { describeExplainer } from './describe.ts';
 export type { ExplainerDescription, ScenarioDescription, StepDescription, DescribeOptions } from './describe.ts';
-export { scenariosOf, scenarioName, withSettings, bindSnapshots } from './settings.ts';
+export { withSettings } from './settings.ts';
+export { withIntent } from './intent.ts';
+export { loadProject, loadSnapshots } from './project.ts';
+export type { LoadedProject, LoadedScenario } from './project.ts';
+export { pictureWordsAt } from './trace.ts';
+export type { PictureWords } from './trace.ts';
+export { diagramFindings } from './diagram-snapshot.ts';
+export { assertStepState, assertSteps, assertViewFollowsState, diagramOf } from './test-helpers.ts';
+export type { StepPath } from './test-helpers.ts';

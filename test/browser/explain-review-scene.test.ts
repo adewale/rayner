@@ -7,7 +7,7 @@ import { collectProject } from '../../tools/lib/explain-project.ts';
 import { reviewSubjects, reviewScene } from '../../tools/lib/explain-review-scene.ts';
 import { storyFrames } from '../../tools/lib/explain-story-review.ts';
 
-const source = `import{Scene,Text,FadeIn}from'rayner';import{stage}from'rayner/explain';export default class Example extends Scene{static meta={id:'outside-author',title:'Outside author'};static settings=[{id:'case',label:'Case',default:'a',options:[{value:'a',label:'A'},{value:'b',label:'B'}]}];async construct(){const s=stage(this,{heading:false});await this.step('one',{caption:'A visible answer.'});await this.play(new FadeIn(new Text('Answer',{color:s.palette.ink})));}}`;
+const source = `import{Scene,Text,FadeIn}from'rayner';import{stage}from'rayner/explain';export default class Example extends Scene{static meta={id:'outside-author',title:'Outside author'};static settings=[{id:'case',label:'Case',default:'a',options:[{value:'a',label:'A'},{value:'b',label:'B'}]}];async construct(){const s=stage(this,{heading:false});await this.step('one',{caption:'A visible answer.'});await this.play(new FadeIn(new Text('Answer',{color:s.look.ink})));}}`;
 test('author-side claims reject unknown scenarios, steps, malformed targets and missing explicit files', async () => {
   const folder = await mkdtemp(join(tmpdir(), 'rayner-claims-'));
   try {
@@ -125,7 +125,7 @@ test('trust-proxy range subjects contain both settings and all six independently
     const targets = (await storyFrames(scenario.Scene, applicable)).get('ranges')!.targets.map(t => t.name);
     for (const key of ['ranges-current', 'ranges-alternative', 'service:edge', 'service:balancer']) assert.ok(targets.includes(key));
     let checked = false;
-    await new scenario.Scene({ async frame() {}, async stepEnd(scene, step) {
+    await new scenario.Scene({ skipUntil: Infinity, async frame() {}, async stepEnd(scene, step) {
       if (step.name !== 'ranges') return;
       checked = true;
       for (const [key, setting] of [['ranges-current', scenario.values.trust], ['ranges-alternative', scenario.values.trust === 'list' ? '2' : 'list']]) {
@@ -135,7 +135,7 @@ test('trust-proxy range subjects contain both settings and all six independently
         assert.ok(texts.includes(titles[setting!]!), `${key} setting: ${texts.join('; ')}`);
         for (const answer of answers[setting!]!) assert.ok(texts.includes(answer), `${key}: ${answer}`);
       }
-    } }, { skipUntil: Infinity }).run();
+    } }).run();
     assert.ok(checked);
   }
 });

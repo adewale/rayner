@@ -5,19 +5,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Rectangle, Text, FadeIn } from '../src/index.ts';
-import { NullSink, SnapshotSink, renderAt, toSvgString } from '../src/output.ts';
+import { NullSink, renderFrame, toSvgString } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
 import { stage } from '../explain/index.ts';
-import { bindSnapshots } from '../explain/testing.ts';
+import { bindSnapshots } from '../explain/internal.ts';
 import { Diagram } from '../explain/diagrams.ts';
 import { dimOpacity } from '../explain/look.ts';
-import { diagramKey } from '../integrations/agentic-mermaid/snapshot.ts';
+import { diagramKey } from '../explain/diagram-snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
-import type { SnapshotPart } from '../integrations/agentic-mermaid/snapshot.ts';
+import type { SnapshotPart } from '../explain/diagram-snapshot.ts';
 import type { Mobject } from '../src/index.ts';
 import type { Picture } from '../explain/trace.ts';
 import { fixedSnapshot, square } from './lib/random-snapshot.ts';
-import { pictureSummary, pictureHtml, undescribed, picture, shownNames, restingTime, restingFrame } from '../explain/trace.ts';
+import { pictureSummary, pictureHtml, undescribed, picture, shownNames } from '../explain/trace.ts';
 
 const spec = { source: 'graph LR\nA --> B\nB --> C', style: 'nord' };
 const PAPER = '#123456',
@@ -87,26 +88,34 @@ test('the heading follows step titles; a fixed or absent heading is still possib
   await new Absent(new NullSink()).run();
 });
 
-test('a note follows its part through focus; clear() leaves paper and heading, and a cleared diagram can be drawn again', async () => {
+test('a view’s note follows its part through enlarge; clear() leaves paper and heading, and a cleared diagram can be drawn again', async () => {
   class Notes extends Scene {
     override async construct() {
       const s = stage(this);
       await this.step('one');
       const d = await s.show(spec);
-      const note = await d.note('C', 'here', { side: 'above' });
-      const gap = () => note.center()[0] - d.get('C').center()[0];
+      const draw = () => ({ notes: [{ id: 'C', text: 'here', side: 'above' as const }] });
+      s.diagramView(d, draw);
+      const note = () => this.find('note:C')!;
+      const gap = () => note().center()[0] - d.get('C').center()[0];
       assert.ok(Math.abs(gap()) < 1e-6);
-      await d.focus(['A']);
+      // An enlargement moves the live parts: the live diagram takes the view's place first.
+      await assert.rejects(async () => await d.enlarge(['A']), /^Error: d\.enlarge\(\): the diagram is shown by a view/);
+      s.liveDiagram(d);
+      await d.enlarge(['A']);
+      s.diagramView(d, draw);
       // Centred over C again, unless the frame's edge holds it back.
-      assert.ok(Math.abs(gap()) < 1e-6 || note.center()[0] >= d.frameBox[2] - note.width() / 2 - 0.06);
-      await d.focus('all');
-      assert.ok(Math.abs(gap()) < 1e-6 && note.center()[1] > d.get('C').box()![3]);
+      assert.ok(Math.abs(gap()) < 1e-6 || note().center()[0] >= d.frameBox[2] - note().width() / 2 - 0.06);
+      s.liveDiagram(d);
+      await d.enlarge('all');
+      s.diagramView(d, draw);
+      assert.ok(Math.abs(gap()) < 1e-6 && note().center()[1] > d.get('C').box()![3]);
       await s.card([['k', 1]]);
       await s.clear();
-      // Paper, the heading's band (invisible at home) and the heading stay.
+      // The backdrop, the heading's band (invisible at home) and the heading stay.
       assert.deepEqual(
         this.mobjects.map((m) => m.role),
-        ['paper', 'chrome', 'heading'],
+        ['backdrop', 'chrome', 'heading'],
       );
       await d.reveal(['A']);
       assert.ok(this.familyMembers().includes(d.get('A')));
@@ -136,10 +145,9 @@ test('the time a player, poster or screenshot shows for a step renders that step
   }).run();
   for (const step of trace.steps) {
     // The resting frame is the last one the step draws: everything it played has arrived.
-    assert.equal(restingFrame(step), step.frame1, step.step);
     const sink = new SnapshotSink();
-    await renderAt(Ends, restingTime(step, trace.fps), sink);
-    assert.equal(sink.svg, played.get(restingFrame(step)), `${step.step} rests on its final frame`);
+    await renderFrame(Ends, step.frame1, sink);
+    assert.equal(sink.svg, played.get(step.frame1), `${step.step} rests on its final frame`);
   }
 });
 
@@ -160,8 +168,7 @@ test('descriptions read chart values as written, name marks by their word, and r
       const s = stage(this);
       await this.step('chart');
       const d = await s.show(chartSpec);
-      await d.mark(['bar:0:R2'], { as: 'rejected' });
-      await d.note('bar:0:R1', 'full');
+      s.diagramView(d, () => ({ marks: { 'bar:0:R2': { color: d.emphasis, as: 'rejected' } }, notes: [{ id: 'bar:0:R1', text: 'full' }] }));
       await this.step('drawing');
       await s.enter(new Rectangle({ width: 1, height: 1 }).moveTo([5, 2]));
       await this.step('faint');
@@ -208,13 +215,14 @@ test("a participant's bare name and its actor id name the same part, so dimming 
     override async construct() {
       const d = await stage(this).show(seqSpec);
       assert.equal(d.get('A'), d.get('actor:A'));
-      await d.dim(['actor:A', 'C']);
-      assert.equal(d.get('message:A->C#0').family()[0]!.style.opacity, 1);
-      assert.equal(d.get('message:A->B#0').family()[0]!.style.opacity, dimOpacity(seq.palette));
+      const kept = d.picture({}, { dim: ['actor:A', 'C'] });
+      const drawn = (key: string) => kept.family().find((m) => m.key === key)!;
+      assert.equal(drawn('message:A->C#0').family()[0]!.style.opacity, 1);
+      assert.equal(drawn('message:A->B#0').family()[0]!.style.opacity, dimOpacity(seq.palette));
       await d.walk([['actor:A', 'C']]);
     }
   }
-  await new (bindSnapshots(Seq, { [diagramKey(seqSpec)]: seq }))(new NullSink(), { skipUntil: Infinity }).run();
+  await new (bindSnapshots(Seq, { [diagramKey(seqSpec)]: seq }))(new NullSink()).run();
 });
 
 test('a picture names what is new since the step began, and records nothing new when everything is', () => {
@@ -280,9 +288,9 @@ test('a link names its ends by their labels: a service by its label, a class or 
       [x + 1, 0],
     ],
   });
-  const describe = async (source: string, family: string, parts: SnapshotPart[], act?: (d: Diagram) => Promise<void>) => {
+  const describe = async (source: string, family: string, parts: SnapshotPart[], act?: (d: Diagram) => PromiseLike<void>) => {
     const spec = { source, style: 'nord' };
-    const d = new Diagram(new Scene(new NullSink(), { skipUntil: Infinity }), spec, fixedSnapshot(spec, parts, { family, palette }), {});
+    const d = new Diagram(new Scene(new NullSink()), spec, fixedSnapshot(spec, parts, { family, palette }), {});
     await d.build();
     await act?.(d);
     return d.describe().parts.map((p) => (p.mark ? `${p.name} (${p.mark})` : p.name));
@@ -349,60 +357,69 @@ test('a link names its ends by their labels: a service by its label, a class or 
   }
 });
 
-// ---- pictures built from state: marks, focus, notes and words that are part of the picture ----
+// ---- pictures built from state: marks, lit rows and lines, notes and words that are part of the picture ----
 
-test('a card drawn lit and code drawn focused carry the bar mark() and focus() leave, and describe and emphasise it', async () => {
-  const { Card, CodeBlock } = await import('../explain/index.ts');
+test('a card drawn lit and code drawn lit carry their bar on the row or lines, and describe and emphasise it', async () => {
+  const { card, code } = await import('../explain/drawing.ts');
   const { emphasisOf } = await import('../explain/look.ts');
   await loadFonts();
   const scene = new Scene(new NullSink());
   const s = stage(scene);
   const rows = [['a', 1], ['b', 22], ['c', 333]] as const;
-  const marked = await s.card(rows, { at: [1, 0.5], title: 'T' });
-  await marked.mark('b', { as: 'chosen' });
-  const lit = new Card(scene, s.palette, rows, { at: [1, 0.5], title: 'T', lit: 'b', litAs: 'chosen' });
-  assert.deepEqual([...lit.bar.subpaths[0]!], [...marked.bar.subpaths[0]!]);
+  const lit = card(s, rows, { at: [1, 0.5], title: 'T', lit: { row: 'b', as: 'chosen' } });
+  // The bar runs across the panel, on row b.
+  const bar = lit.bar.box()!, panel = lit.panel.box()!;
+  assert.ok(Math.abs(lit.bar.center()[1] - lit.values.get('b')!.anchorPoint()[1]) < 1e-6);
+  assert.ok(Math.abs(lit.bar.center()[0] - lit.panel.center()[0]) < 1e-6);
+  assert.ok(bar[0] > panel[0] && bar[2] < panel[2] && bar[2] - bar[0] > (panel[2] - panel[0]) * 0.9);
+  for (const other of ['a', 'c']) {
+    const y = lit.values.get(other)!.anchorPoint()[1];
+    assert.ok(y < bar[1] || y > bar[3], `row ${other} is outside the bar`);
+  }
   assert.equal(lit.bar.style.opacity, 1);
-  assert.deepEqual(lit.describe(), marked.describe());
+  assert.deepEqual(lit.describe().parts.map((p) => p.mark), [undefined, 'chosen', undefined]);
   assert.equal(lit.describe().parts.find((p) => p.mark)?.name.startsWith('b'), true);
   // Unlit, the bar is there but hidden, so a picture keeps one family shape whether lit or not.
-  const plain = new Card(scene, s.palette, rows, { at: [1, 0.5], title: 'T' });
+  const plain = card(s, rows, { at: [1, 0.5], title: 'T' });
   assert.equal(plain.bar.style.opacity, 0);
   assert.equal(plain.family().length, lit.family().length);
-  assert.throws(() => new Card(scene, s.palette, rows, { lit: 'nope' }), /No card row nope/);
+  assert.equal(plain.describe().parts.some((p) => p.mark), false);
+  assert.throws(() => card(s, rows, { lit: { row: 'nope' } }), /card\(\): lit names no row of the card, "nope"/);
 
   const lines = ['one', 'two', 'three', 'four'];
-  const focused = await s.code(lines, { at: [-3, 0] });
-  await focused.focus([1, 2], { as: 'run' });
-  const built = new CodeBlock(scene, s.palette, lines, { at: [-3, 0], focus: [1, 2], focusAs: 'run' });
-  const round = (a: Float32Array) => [...a].map((v) => Math.round(v * 1e4) / 1e4);
-  assert.deepEqual(round(built.bar.subpaths[0]!), round(focused.bar.subpaths[0]!));
-  assert.deepEqual(built.describe(), focused.describe());
-  assert.throws(() => new CodeBlock(scene, s.palette, lines, { focus: [2, 9] }), /No code lines 2..9/);
+  const built = code(s, lines, { at: [-3, 0], lit: { lines: [1, 2], as: 'run' } });
+  // The bar covers lines 1 and 2, and neither line beside them.
+  const span = built.bar.box()!, ys = built.code.lines.map((l) => l.anchorPoint()[1]);
+  assert.equal(built.bar.style.opacity, 1);
+  assert.ok(ys[1]! > span[1] && ys[1]! < span[3] && ys[2]! > span[1] && ys[2]! < span[3]);
+  assert.ok(ys[0]! > span[3] && ys[3]! < span[1]);
+  assert.deepEqual(built.describe().parts.map((p) => p.mark), [undefined, 'run', 'run', undefined]);
+  assert.throws(() => code(s, lines, { lit: { lines: [2, 9] } }), /code\(\): lit names lines 2\.\.9, which are not lines of this panel/);
 
-  // On stage, each says what it emphasises, as mark() and focus() do.
+  // On stage, each says what it emphasises.
   scene.add(lit, built);
   const said = emphasisOf(scene);
-  assert.equal(said.get(lit.bar), 'row b');
-  assert.equal(said.get(built.bar), 'lines 1-2');
+  assert.equal(said.get(lit.bar), 'row b: 22');
+  assert.equal(said.get(built.bar), 'lines 1-2: two / three');
 });
 
 test('a view of a card or code is described as that card or code, and a describe speaks for the rest', async () => {
-  const { Card, CodeBlock } = await import('../explain/index.ts');
-  const { Group, view } = await import('../src/index.ts');
+  const { card: cardPicture, code } = await import('../explain/drawing.ts');
+  const { Group } = await import('../src/index.ts');
+  const { view } = await import('../explain/index.ts');
   class Described extends Scene {
     override async construct() {
       const s = stage(this);
       this.state = { n: 7 };
       await this.step('card');
-      const card = view(this, (st) => new Card(this, s.palette, [['n', (st as { n: number }).n]], { lit: 'n', litAs: 'now' }), { place: false });
+      const card = view(this, (st) => cardPicture(s, [['n', (st as { n: number }).n]], { lit: { row: 'n', as: 'now' } }), { place: false });
       await s.enter(card);
       await this.step('both');
       await s.clear();
       // A card beside words of its own: the card describes itself, the describe says the rest.
       const pair = view(
         this,
-        (st) => new Group(new CodeBlock(this, s.palette, [`n = ${(st as { n: number }).n}`], { focus: 0 }), new Text('beside', { color: INK }).moveTo([0, -2])),
+        (st) => new Group(code(s, [`n = ${(st as { n: number }).n}`], { lit: { lines: 0 } }), new Text('beside', { color: INK }).moveTo([0, -2])),
         { place: false },
       );
       await s.enter(pair, { describe: 'Words beside the code' });
@@ -417,25 +434,24 @@ test('a view of a card or code is described as that card or code, and a describe
 });
 
 test('a staged step says what its picture shows with describe, and its own card says itself', async () => {
-  const { Card, stagedStep } = await import('../explain/index.ts');
+  const { card } = await import('../explain/drawing.ts');
   const { Group, Circle } = await import('../src/index.ts');
   class Staged extends Scene {
     override async construct() {
       const s = stage(this);
-      const steps = [
-        stagedStep({
+      await s.steps([
+        {
           id: 'geometry', title: 'A circle', line: '', caption: 'A circle.',
           state: { r: 2 },
           describe: (st) => `A circle of radius ${st.r}`,
           draw: (st) => new Circle({ radius: st.r }),
-        }),
-        stagedStep({
+        },
+        {
           id: 'words', title: 'Words', line: '', caption: 'Words.',
           state: { k: 'v' },
-          draw: (st, stage) => new Group(new Card(this, stage.palette, [['k', st.k]], { at: [0, 2] }), new Text('under it', { color: INK }).moveTo([0, -2])),
-        }),
-      ];
-      await s.steps(steps);
+          draw: (st, stage) => new Group(card(stage, [['k', st.k]], { at: [0, 2] }), new Text('under it', { color: INK }).moveTo([0, -2])),
+        },
+      ]);
     }
   }
   const [geometry, words] = (await traceScene(Staged)).steps.map((st) => (st.shown!.picture as Picture).entries);
@@ -444,7 +460,7 @@ test('a staged step says what its picture shows with describe, and its own card 
   assert.deepEqual(words, [{ what: '1 labelled value', items: ['k: v'] }, { what: 'under it', items: [] }]);
 });
 
-test('a diagram picture carries notes placed as note() places them, dimming as dim() gives it, and prefixed keys', async () => {
+test('a diagram picture carries notes beside their parts, dimming that keeps 3:1, and prefixed keys', async () => {
   const { emphasisOf } = await import('../explain/look.ts');
   // The fixture's parts with words, so the description can name them.
   const named = { source: 'graph LR\nA --> B\nB --> C\n%% named', style: 'nord' };
@@ -455,32 +471,33 @@ test('a diagram picture carries notes placed as note() places them, dimming as d
       const s = stage(this);
       await this.step('one');
       const d = await s.show(named);
-      const live = await d.note('C', 'here', { side: 'above' });
       const notePicture = d.notePicture('C', 'here', { side: 'above' });
-      assert.deepEqual(notePicture.box(), live.box());
+      // Above C, centred on it.
+      assert.ok(notePicture.box()![1] >= d.get('C').box()![3]);
+      assert.ok(Math.abs(notePicture.center()[0] - d.get('C').center()[0]) < 1e-6);
       assert.equal(notePicture.key, 'note:C');
       const pictured = d.picture({ B: { color: ACCENT, as: 'chosen' } }, { notes: [{ id: 'C', text: 'here', side: 'above' }], dim: ['A'], prefix: 'p:' });
       // The diagram, then its note over it, unclipped.
       assert.equal(pictured.children.length, 2);
       const [art, note] = pictured.children as [Mobject, Mobject];
       assert.equal(note!.key, 'p:note:C');
-      assert.deepEqual(note!.box(), live.box());
+      assert.deepEqual(note!.box(), notePicture.box());
       assert.ok(art!.family().filter((m) => m.key).every((m) => m.key!.startsWith('p:')), 'every key prefixed, the frame\'s too');
       assert.ok(art!.family().some((m) => m.key === 'p:A'));
-      // Dimmed as dim() dims: everything but A and its scaffolding.
-      await d.dim(['A']);
+      // Dimmed: everything but A (and the link between kept parts, of which there are none) fades to the
+      // least opacity that keeps 3:1 on the paper; A keeps its look.
       const opacity = (root: Mobject, key: string) => root.family().find((m) => m.key === key)!.family().map((m) => m.style.opacity ?? 1);
-      assert.deepEqual(opacity(art!, 'p:C'), d.get('C').family().map((m) => m.style.opacity ?? 1));
-      assert.ok(opacity(art!, 'p:C').some((o) => o < 1));
+      const faint = dimOpacity(d.snapshot.palette);
+      assert.ok(faint < 1);
+      for (const id of ['B', 'C', 'edge:A->B#0'])
+        assert.deepEqual(opacity(art!, `p:${id}`), d.get(id).family().map((m) => (m.style.opacity ?? 1) * faint), id);
+      assert.deepEqual(opacity(art!, 'p:A'), d.get('A').family().map((m) => m.style.opacity ?? 1));
       // The note describes itself and says what it emphasises.
       this.remove(d.root);
       d.showBy(pictured);
       this.add(pictured);
       assert.equal(emphasisOf(this).get(note!), 'note here');
       s.keep(pictured);
-      // Shown by its picture, the live diagram is off the stage: marking it would reach nothing on screen.
-      for (const call of [() => d.mark(['A']), () => d.unmark(), () => d.dim(null), () => d.note('A', 'there'), () => d.walk([['A', 'B']], { trail: true })])
-        await assert.rejects(call(), /changes the live diagram, but a view shows it by its picture \(showBy\).*d\.picture\(marks/);
     }
   }
   // Described as the live diagram is: the note and the worded mark among its parts, dimmed parts said so;

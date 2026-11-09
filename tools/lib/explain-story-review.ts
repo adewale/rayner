@@ -6,17 +6,18 @@ import assert from 'node:assert/strict';
 import type { Page } from 'playwright-core';
 import { VMobject } from '../../src/index.ts';
 import { renderElements } from '../../src/output.ts';
+import { clipPathOf, serializeElement, userBox, UNITS, dryRun, intersect, nonempty, pad, pointsBox, unionBoxes, paints, mobjectId } from '../../src/internal.ts';
+import { emphasisOf, newlyEmphasised, labelOf, readingLabelSize, isFurniture, isHeading, stepWords, offPath, stepQuery } from '../../explain/internal.ts';
+import type { Box } from '../../src/index.ts';
 import type { Scene, SceneClass, Mobject } from '../../src/index.ts';
 import type { ElementRecord } from '../../src/output.ts';
-import { emphasisOf } from '../../explain/look.ts';
-import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
-import { isHeading } from '../../explain/stage.ts';
 import { NARROW_PX } from '../../app/embed-closeup.ts';
-import { stepWords } from '../../explain/trace.ts';
+import { STEP_TYPE } from '../../app/embed-protocol.ts';
 import type { Project } from './explain-project.ts';
 import { join } from 'node:path';
 import { rasterize } from './explain-raster.ts';
 import { readableOpeningLabel, type NarrowOpeningReview, type NarrowOpeningObligation } from './explain-review-plan.ts';
+import { DESKTOP_VIEWPORT, PHONE_VIEWPORT, REVIEW_VIEWPORTS, REVIEW_WIDTHS } from './review-sizes.ts';
 
 export interface StorySubject {
   step: string;
@@ -61,16 +62,7 @@ const paintBoundsCache = new WeakMap<ElementRecord, Rect | null>();
 function paintBounds(record: ElementRecord): Rect | null {
   if (paintBoundsCache.has(record)) return paintBoundsCache.get(record)!;
   const coords = record.attrs.d?.match(/-?\d+/g)?.map(Number) ?? [];
-  let left = Infinity,
-    top = Infinity,
-    right = -Infinity,
-    bottom = -Infinity;
-  for (let i = 0; i + 1 < coords.length; i += 2) {
-    left = Math.min(left, coords[i]!);
-    right = Math.max(right, coords[i]!);
-    top = Math.min(top, coords[i + 1]!);
-    bottom = Math.max(bottom, coords[i + 1]!);
-  }
+  const path = pointsBox([coords]);
   const half =
     record.attrs.stroke !== 'none' && Number(record.attrs['stroke-opacity'] ?? 1) > 0
       ? Number(record.attrs['stroke-width'] ?? 0) / 2
@@ -82,24 +74,13 @@ function paintBounds(record: ElementRecord): Rect | null {
   const extent = half * Math.max(miter, record.attrs['stroke-linecap'] === 'square' ? Math.SQRT2 : 1);
   const tx = record.tx ?? 0,
     ty = record.ty ?? 0;
-  let bounds: Rect = [left + tx - extent, top + ty - extent, right + tx + extent, bottom + ty + extent];
-  if (record.clipBox) {
-    const [x0, y0, x1, y1] = record.clipBox;
-    bounds = [
-      Math.max(bounds[0], x0 * 1000),
-      Math.max(bounds[1], -y1 * 1000),
-      Math.min(bounds[2], x1 * 1000),
-      Math.min(bounds[3], -y0 * 1000),
-    ];
-  }
-  const result = bounds[2] > bounds[0] && bounds[3] > bounds[1] ? bounds : null;
+  const bounds: Rect | null = path && pad([path[0] + tx, path[1] + ty, path[2] + tx, path[3] + ty], extent);
+  let result = bounds && nonempty(bounds) ? bounds : null;
+  if (bounds && record.clipBox) result = intersect(bounds, userBox(record.clipBox));
   paintBoundsCache.set(record, result);
   return result;
 }
 
-const intersect = (a: Rect, b: Rect): Rect =>
-  [Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.min(a[2], b[2]), Math.min(a[3], b[3])];
-const nonempty = (r: Rect) => r[2] > r[0] && r[3] > r[1];
 
 /** Bounds identify possible changes, not ink: holes, caps and later opaque
  * layers can make a permutation invisible. Probe only the affected patch with
@@ -111,22 +92,20 @@ async function changedComposite(
 ): Promise<Set<number>> {
   const boxes = [...candidates].flatMap(i => current[i]!.bounds ? [current[i]!.bounds!] : []);
   if (!boxes.length) return new Set();
-  const bounds = intersect([Math.min(...boxes.map(b => b[0])), Math.min(...boxes.map(b => b[1])),
-    Math.max(...boxes.map(b => b[2])), Math.max(...boxes.map(b => b[3]))], camera);
-  if (!nonempty(bounds)) return new Set();
+  const bounds = intersect(unionBoxes(boxes)!, camera);
+  if (!bounds) return new Set();
   const scale = Math.min(1280 / (camera[2] - camera[0]), 720 / (camera[3] - camera[1]));
   const width = Math.max(1, Math.ceil((bounds[2] - bounds[0]) * scale));
   const height = Math.max(1, Math.ceil((bounds[3] - bounds[1]) * scale));
-  const escape = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
   const svg = (paints: readonly StoryPaint[]) => {
     const paths: string[] = [], clips = new Map<string, string>();
     for (const { record: r, bounds: b } of paints) {
-      if (!b || !nonempty(intersect(b, bounds))) continue;
+      if (!b || !intersect(b, bounds)) continue;
       if (r.clipBox) {
-        const id = r.attrs['clip-path']!.slice(5, -1), [x0, y0, x1, y1] = r.clipBox;
-        clips.set(id, `<clipPath id="${escape(id)}" clipPathUnits="userSpaceOnUse"><rect x="${Math.round(x0 * 1000)}" y="${Math.round(-y1 * 1000)}" width="${Math.round((x1 - x0) * 1000)}" height="${Math.round((y1 - y0) * 1000)}"/></clipPath>`);
+        const clip = clipPathOf(r.clipBox);
+        clips.set(clip.id, clip.svg);
       }
-      paths.push(`<path${Object.entries(r.attrs).map(([k, v]) => ` ${k}="${escape(v)}"`).join('')}${r.transform ? ` transform="${escape(r.transform)}"` : ''}/>`);
+      paths.push(serializeElement(r));
     }
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${bounds[0]} ${bounds[1]} ${bounds[2] - bounds[0]} ${bounds[3] - bounds[1]}"><defs>${[...clips.values()].join('')}</defs>${paths.join('')}</svg>`;
   };
@@ -236,7 +215,7 @@ async function changedPaint(previous: readonly StoryPaint[], current: readonly S
       // it too. Binding only an identical surviving copy misses that revelation.
       current.forEach((other, i) => {
         if (matched[i]! >= 0 && matched[i]! < previousIndex && paint.bounds && other.bounds &&
-            nonempty(intersect(paint.bounds, other.bounds))) candidates.add(i);
+            intersect(paint.bounds, other.bounds)) candidates.add(i);
       });
     }
     for (const i of await changedComposite(current, reference.map(p => p.paint), candidates, camera)) changed.add(i);
@@ -282,7 +261,7 @@ const paintOf = (records: ElementRecord[], realInk: (r: ElementRecord) => boolea
 
 /** What `scene` shows now, as the memory `storyFrame` compares the next picture with. */
 export function storyMemory(scene: Scene<any>): StoryMemory {
-  const byId = new Map([...new Set(scene.familyMembers())].map((m) => [m.id, m]));
+  const byId = new Map([...new Set(scene.familyMembers())].map((m) => [mobjectId(m), m]));
   return { emphasis: emphasisOf(scene), paint: paintOf(renderElements(scene, { relative: false }), inkTest(byId)) };
 }
 
@@ -300,17 +279,14 @@ export async function storyFrames(
   // Keep ordered occurrences: redraws may change ids without changing the picture,
   // but a reordered layer or another copy can change what the reader sees.
   let memory: StoryMemory = { emphasis: new Map(), paint: [] };
-  await new Source(
-    {
-      async frame() {},
-      async stepEnd(scene, step) {
-        const next = await storyFrame(scene, step.name, memory, declared.filter((c) => c.step === step.name));
-        memory = next.memory;
-        frames.set(step.name, next.frame);
-      },
+  await dryRun(Source, {
+    async frame() {},
+    async stepEnd(scene, step) {
+      const next = await storyFrame(scene, step.name, memory, declared.filter((c) => c.step === step.name));
+      memory = next.memory;
+      frames.set(step.name, next.frame);
     },
-    { skipUntil: Infinity },
-  ).run();
+  });
   for (const c of declared) assert.ok(frames.has(c.step), `story entry names missing step ${c.step}`);
   return frames;
 }
@@ -331,7 +307,7 @@ export async function storyFrame(
 ): Promise<{ frame: StoryFrame; memory: StoryMemory }> {
   const records = renderElements(scene, { relative: false });
   const members = [...new Set(scene.familyMembers())];
-  const byId = new Map(members.map((m) => [m.id, m]));
+  const byId = new Map(members.map((m) => [mobjectId(m), m]));
   const realInk = inkTest(byId);
   const now = emphasisOf(scene),
     targets: Target[] = [];
@@ -353,8 +329,7 @@ export async function storyFrame(
           assert.ok(
             glyph.style.opacity > 0.01 &&
               (glyph.style.drawFraction ?? 1) >= 0.95 &&
-              ((glyph.style.fill !== 'none' && glyph.style.fillOpacity > 0) ||
-                (glyph.style.stroke !== 'none' && glyph.style.strokeWidth > 0 && glyph.style.strokeOpacity > 0)),
+              paints(glyph.style),
             `${name}: ${name} has missing glyph ink`,
           );
           const b = glyph.box()!;
@@ -368,7 +343,7 @@ export async function storyFrame(
                 `${name}: ${name} has clipped glyph ink`,
               );
         }
-    const ids = new Set(objects.flatMap((m) => m.family().map((f) => f.id)));
+    const ids = new Set(objects.flatMap((m) => m.family().map((f) => mobjectId(f))));
     const geometry = new Set(records.filter((r) => ids.has(r.id)).map((r) => r.attrs.d));
     // Marks/trails can replace a carrier with a separately painted copy.
     // Bind that actual ink too, rather than crediting the invisible carrier.
@@ -400,30 +375,23 @@ export async function storyFrame(
       ...(clipShapes ? { partial, required: true } : {}),
     });
   };
-  for (const [m, what] of now)
-    if (previous.emphasis.get(m) !== what) {
-      assert.ok(members.includes(m), `${name}: newly emphasised ${m.key ?? what} is absent from the stage`);
-      add(`emphasis: ${m.key ?? what}`, [m], false, false, false, true);
-    }
+  for (const [m, what] of newlyEmphasised(now, previous.emphasis)) {
+    assert.ok(members.includes(m), `${name}: newly emphasised ${m.key ?? what} is absent from the stage`);
+    add(`emphasis: ${m.key ?? what}`, [m], false, false, false, true);
+  }
   const paint = paintOf(records, realInk);
   const added = new Set<Mobject>();
   // Declared intent takes priority over unrelated context that a rebuild
   // happens to replace or move. With no primary subject, inspect new art.
   const hasPrimary = targets.length > 0 || declared.length > 0;
-  const [x0, y0, x1, y1] = scene.frame.box()!;
-  const changed = hasPrimary ? new Set<number>() : await changedPaint(previous.paint, paint,
-    [x0 * 1000, -y1 * 1000, x1 * 1000, -y0 * 1000]);
+  const changed = hasPrimary ? new Set<number>() : await changedPaint(previous.paint, paint, userBox(scene.frame.box()!));
   for (const [index, r] of (hasPrimary ? [] : records).entries()) {
     if (!changed.has(index) || Number(r.attrs.opacity ?? 1) < 0.95) continue;
     const m = byId.get(r.id);
     if (!m) continue;
-    let fixed = false,
-      subject = m;
-    for (let a: Mobject | null = m; a; a = a.parent) {
-      if (a.role === 'paper' || a.role === 'frame' || isHeading(a)) fixed = true;
-      if (labelOf(a)) subject = a;
-    }
-    if (fixed || added.has(subject)) continue;
+    let subject = m;
+    for (let a: Mobject | null = m; a; a = a.parent) if (labelOf(a)) subject = a;
+    if (isFurniture(m, { frame: true }) || added.has(subject)) continue;
     // Invisible route helpers are not narrative artwork.
     if (!realInk(r)) continue;
     add(`changed: ${labelOf(subject)?.text ?? subject.key ?? 'drawing'}`, [subject], false, true);
@@ -446,7 +414,7 @@ export async function storyFrame(
   const labels = members.flatMap((m) => {
     const label = labelOf(m);
     if (!label?.text.trim() || isHeading(m)) return [];
-    const ids = new Set(m.family().map((child) => child.id));
+    const ids = new Set(m.family().map((child) => mobjectId(child)));
     const indices = records.flatMap((r, index) => (ids.has(r.id) && realInk(r) ? [index] : []));
     return indices.length
       ? [{ text: label.text, size: readingLabelSize(m)!, indices }]
@@ -465,17 +433,15 @@ export function covered(target: Rect, views: readonly Rect[]): boolean {
   let left = [target];
   for (const v of views)
     left = left.flatMap((r): Rect[] => {
-      const x = Math.max(r[0], v[0]),
-        y = Math.max(r[1], v[1]),
-        right = Math.min(r[2], v[2]),
-        bottom = Math.min(r[3], v[3]);
-      if (right <= x || bottom <= y) return [r];
-      return [
+      const shared = intersect(r, v);
+      if (!shared) return [r];
+      const [x, y, right, bottom] = shared;
+      return ([
         [r[0], r[1], x, r[3]],
         [right, r[1], r[2], r[3]],
         [x, r[1], right, y],
         [x, bottom, right, r[3]],
-      ].filter((b) => b[2]! > b[0]! && b[3]! > b[1]!) as Rect[];
+      ] as Rect[]).filter((b) => nonempty(b));
     });
   return left.length === 0;
 }
@@ -484,7 +450,7 @@ export function covered(target: Rect, views: readonly Rect[]): boolean {
 export async function inspectStoryFrame(page: Page, frame: StoryFrame) {
   const width = await page.locator('.stage').evaluate((stage) => stage.clientWidth);
   const slots = elementSlots(frame, width);
-  return page.locator('.stage svg:not(.leaving)').evaluate((node, { expected, slots }) => {
+  return page.locator('.stage svg:not(.leaving)').evaluate((node, { expected, slots, authorBox, units }) => {
     const svg = node as SVGSVGElement,
       stage = svg.parentElement!.getBoundingClientRect();
     const painted = [...svg.children].filter((e) => e.tagName.toLowerCase() !== 'defs') as SVGGraphicsElement[];
@@ -508,13 +474,7 @@ export async function inspectStoryFrame(page: Page, frame: StoryFrame) {
         throw new Error(`painted record ${i} differs from the resting scene`);
     }
     const rect = (r: DOMRect): [number, number, number, number] => [r.left, r.top, r.right, r.bottom];
-    const camera = expected.camera;
-    const author: [number, number, number, number] = [
-      camera[0]! * 1000,
-      -camera[3]! * 1000,
-      camera[2]! * 1000,
-      -camera[1]! * 1000,
-    ];
+    const author = authorBox;
     const points = (b: number[], matrix: DOMMatrix) => [
       new DOMPoint(b[0], b[1]).matrixTransform(matrix),
       new DOMPoint(b[2], b[3]).matrixTransform(matrix),
@@ -653,12 +613,12 @@ export async function inspectStoryFrame(page: Page, frame: StoryFrame) {
           const x = m.a * m.a + m.b * m.b,
             y = m.c * m.c + m.d * m.d;
           const largest = Math.sqrt((x + y + Math.hypot(x - y, 2 * (m.a * m.c + m.b * m.d))) / 2);
-          return largest ? (Math.abs(m.a * m.d - m.b * m.c) / largest) * 1000 : 0;
+          return largest ? (Math.abs(m.a * m.d - m.b * m.c) / largest) * units : 0;
         })(),
       };
     });
     return { viewport, ink, stage: rect(stage), viewBox: svg.getAttribute('viewBox') };
-  }, { expected: frame, slots });
+  }, { expected: frame, slots, authorBox: userBox(frame.camera as Box), units: UNITS });
 }
 
 /** Build-time obligations come from authored main/detail metadata and the
@@ -672,9 +632,8 @@ export async function narrowOpeningPlan(
     Object.entries(c.settings ?? {}).every(([key, value]) => scenario.values[key] === value),
   );
   const source = frames ?? (await storyFrames(scenario.Scene, applicable));
-  const hasMain = scenario.trace.steps.some((step) => step.meta.kind !== 'detail');
-  return scenario.trace.steps.map((step) => {
-    if (step.meta.kind === 'detail' && hasMain) return { step: step.step, reviewed: false, reason: 'detail-step' };
+  return scenario.trace.steps.map((step, index) => {
+    if (offPath(scenario.trace.steps, index)) return { step: step.step, reviewed: false, reason: 'detail-step' };
     const targets = [
       ...new Set(
         applicable
@@ -711,18 +670,10 @@ export function verifyStoryTargets(
       // The obligation comes from the authored frame, never from a possibly
       // damaged live clip. Each stop contributes only its actual shown ink.
       const authoredClip = frame.records[index]!.clipBox;
-      const expectedClip: Rect = authoredClip
-        ? [authoredClip[0] * 1000, -authoredClip[3] * 1000, authoredClip[2] * 1000, -authoredClip[1] * 1000]
-        : (original.author as Rect);
-      const box: Rect = bounded
-        ? [
-            Math.max(original.box[0], expectedClip[0], original.author[0]),
-            Math.max(original.box[1], expectedClip[1], original.author[1]),
-            Math.min(original.box[2], expectedClip[2], original.author[2]),
-            Math.min(original.box[3], expectedClip[3], original.author[3]),
-          ]
-        : original.box;
-      if (bounded && (box[2] <= box[0] || box[3] <= box[1])) continue; // context outside an authored viewport is not newly shown ink
+      const expectedClip: Rect = authoredClip ? userBox(authoredClip) : (original.author as Rect);
+      const clippedBox = bounded ? intersect(original.box as Rect, expectedClip) : null;
+      const box = bounded ? clippedBox && intersect(clippedBox, original.author as Rect) : (original.box as Rect);
+      if (!box) continue; // context outside an authored viewport is not newly shown ink
       const eligible = (target.opening ? [opening] : views).filter((v) => {
         const ink = v.ink.find((p) => p.index === index);
         return ink?.visible && (bounded || ink.complete);
@@ -923,7 +874,7 @@ async function reviewNarrowOpening(
   frame: StoryFrame,
 ): Promise<NarrowOpeningReview> {
   await page.setViewportSize({ width: 320, height: 568 });
-  await page.goto(`${url}?${new URLSearchParams({ ...scenario.values, step })}`);
+  await page.goto(`${url}?${stepQuery(scenario.values, step)}`);
   await page.waitForSelector('[data-ready=true]');
   await page.waitForFunction(
     (name) =>
@@ -984,13 +935,13 @@ export async function reviewStoryScenario(
 ) {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   if (!initialized.has(page)) {
-    await page.addInitScript(() => {
+    await page.addInitScript((type) => {
       const w = window as unknown as { raynerReviewStep: string | null };
       w.raynerReviewStep = null;
-      document.addEventListener('rayner:step', (e) => {
+      document.addEventListener(type, (e) => {
         w.raynerReviewStep = (e as CustomEvent).detail.step;
       });
-    });
+    }, STEP_TYPE);
     initialized.add(page);
   }
   const applicable = declared.filter((c) => Object.entries(c.settings ?? {}).every(([k, v]) => scenario.values[k] === v));
@@ -1008,13 +959,10 @@ export async function reviewStoryScenario(
   }
   assert.equal(narrow.size, scenario.trace.steps.length, 'every step has a narrow-opening review or explicit exclusion');
   assert.equal(frames.size, scenario.trace.steps.length, 'every traced step has a resting frame');
-  for (const viewport of [
-    { width: 390, height: 844 },
-    { width: 1180, height: 980 },
-  ]) {
+  for (const viewport of REVIEW_VIEWPORTS) {
     await page.setViewportSize(viewport);
     for (const [index, step] of scenario.trace.steps.entries()) {
-      const query = new URLSearchParams({ ...scenario.values, step: step.step });
+      const query = stepQuery(scenario.values, step.step);
       // Start each width as a fresh reader. Then use the real step buttons:
       // Next view preserves automatic following, and each step must reset its
       // tour to the opening. This also exercises retained/restored DOM frames.
@@ -1039,7 +987,7 @@ export async function reviewStoryScenario(
       );
       if (index === 0 && shell) {
         assert.deepEqual(await page.evaluate(readerShellProblems, shell), [], 'reader shell');
-        if (viewport.width === 1180 && shell.crop) assert.deepEqual(await page.evaluate(cropTest, shell.crop), [], 'standalone tile');
+        if (viewport.width === DESKTOP_VIEWPORT.width && shell.crop) assert.deepEqual(await page.evaluate(cropTest, shell.crop), [], 'standalone tile');
       }
       assert.equal(await page.evaluate(() => innerWidth), viewport.width, 'review must use the declared viewport');
       assert.equal(await page.locator('.caption').innerText(), stepWords(step).caption);
@@ -1079,13 +1027,13 @@ export async function reviewStoryScenario(
         width: viewport.width,
         views: views.length,
         targets: [...verified],
-        ...(viewport.width === 390 ? { openingAt320: narrow.get(step.step)! } : {}),
+        ...(viewport.width === PHONE_VIEWPORT.width ? { openingAt320: narrow.get(step.step)! } : {}),
       });
     }
   }
   assert.deepEqual(
     results.map(({ step, width }) => ({ step, width })),
-    [390, 1180].flatMap((width) => scenario.trace.steps.map((step) => ({ step: step.step, width }))),
+    REVIEW_WIDTHS.flatMap((width) => scenario.trace.steps.map((step) => ({ step: step.step, width }))),
     'every traced step must be reviewed exactly once at each width',
   );
   return results;

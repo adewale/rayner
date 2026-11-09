@@ -1,12 +1,13 @@
 // The explainers' state readouts against the traced state, with the expected
 // text written here from the state's fields: not from the View's own render,
-// which test/lib/view-fidelity.ts compares the picture with (a render that
+// which assertViewFollowsState (rayner/testing) compares the picture with (a render that
 // pairs a label with the wrong field agrees with itself).
 import { test } from 'node:test';
+import type { View } from '../explain/index.ts';
 import assert from 'node:assert/strict';
 import { Scene } from '../src/index.ts';
 import { TraceSink, loadFonts } from '../explain/testing.ts';
-import type { SceneClass, SceneState, Step, View } from '../src/index.ts';
+import type { EndedStep, SceneClass, SceneState } from '../src/index.ts';
 import { withSettings } from '../explain/testing.ts';
 import RingBufferExplainer from '../scenes/explainers/ring-buffer/scene.ts';
 import TokenBucketExplainer from '../scenes/explainers/token-bucket/scene.ts';
@@ -18,7 +19,7 @@ Scene.captionWpm = Infinity;
 async function readoutAtSteps(S: SceneClass): Promise<Array<{ step: string; state: SceneState; shown: string[] | null; marks: string[] }>> {
   const out: Array<{ step: string; state: SceneState; shown: string[] | null; marks: string[] }> = [];
   class Sink extends TraceSink {
-    override async stepEnd(scene: Scene, s: Step): Promise<void> {
+    override async stepEnd(scene: Scene, s: EndedStep): Promise<void> {
       await super.stepEnd(scene, s);
       const v = (scene as unknown as { readout?: View | null }).readout;
       if (scene instanceof TokenBucketExplainer) {
@@ -32,11 +33,11 @@ async function readoutAtSteps(S: SceneClass): Promise<Array<{ step: string; stat
           }
         }
       }
-      out.push({ step: s.path, state: this.events.at(-1)!.state, shown: v ? v.texts : null,
+      out.push({ step: s.path, state: this.steps().at(-1)!.after, shown: v ? v.texts : null,
         marks: v ? v.family().map(m => m.key).filter((key): key is string => !!key?.startsWith('result:')) : [] });
     }
   }
-  await new S(new Sink(), { skipUntil: Infinity }).run();
+  await new S(new Sink()).run();
   return out;
 }
 
@@ -76,7 +77,7 @@ test('token-bucket: reader labels and comparison marks pair balances, refill tim
       const { tokens, lastRefill, allowed, rejected } = state as { tokens: number; lastRefill: number; allowed: number; rejected: string[] };
       assert.deepEqual(
         shown,
-        ['Tokens left', tenths(tokens), 'Last refill (s)', tenths(lastRefill), 'Accepted', String(allowed), 'Rejected', rejected.length ? rejected.join(', ') : 'none'],
+        ['Bucket balance', 'Tokens left', tenths(tokens), 'Last refill (s)', tenths(lastRefill), 'Accepted', String(allowed), 'Rejected', rejected.length ? rejected.join(', ') : 'none'],
         `rate ${rate}, step "${step}"`,
       );
     }

@@ -2,7 +2,8 @@
 // true while things move, and a sink that checks it. The same dot goes half way round a circle
 // twice: sampled from its angle it stays on the circle; morphed between its two ends it cuts
 // across, and the invariant names the frames where it does.
-import { Scene, Circle, Dot, Follow, Transform, linear } from 'rayner';
+import { Scene, Circle, Dot, Transform, linear, keyed } from 'rayner';
+import { view } from 'rayner/explain';
 import { NullSink } from 'rayner/output';
 import { InvariantSink } from 'rayner/testing';
 import type { SceneClass, Sink } from 'rayner';
@@ -12,10 +13,13 @@ const RADIUS = 2;
 
 /** The dot half way round the circle, one way or the other, holding on every frame that it stays on it. */
 function orbit(turn: 'sampled' | 'morphed'): SceneClass {
-  return class Orbit extends Scene {
+  return class Orbit extends Scene<{ angle: number }, {}> {
     override async construct() {
-      const dot = new Dot({ radius: 0.12 }).moveTo([RADIUS, 0]);
-      dot.key = 'orbit:dot';
+      const dotAt = (angle: number) => keyed(new Dot({ radius: 0.12 }).moveTo([RADIUS * Math.cos(angle), RADIUS * Math.sin(angle)]), 'orbit:dot');
+      // Sampled, the dot is a view of the angle in the state; morphed, a dot moved from end to end.
+      this.state = { angle: 0 };
+      const sampled = turn === 'sampled' ? view(this, (st) => dotAt(st.angle), { place: false }) : null;
+      const dot = sampled ?? dotAt(0);
       this.add(new Circle({ radius: RADIUS }), dot);
       // Read by key, changing nothing: a message when it fails, true when it held, nothing
       // when the part is not there to check. An invariant that never holds is reported as vacuous.
@@ -27,12 +31,8 @@ function orbit(turn: 'sampled' | 'morphed'): SceneClass {
         return off <= 1e-3 || `the dot is ${off.toFixed(3)} off its circle`;
       });
       await this.step('turn');
-      await this.play(
-        turn === 'sampled'
-          ? new Follow({ from: 0, to: Math.PI, draw: (a) => new Dot({ radius: 0.12 }).moveTo([RADIUS * Math.cos(a), RADIUS * Math.sin(a)]) }, { targets: [dot] })
-          : new Transform(dot, dot.copy().moveTo([-RADIUS, 0])),
-        { runTime: 1, rateFunc: linear },
-      );
+      const turning = { runTime: 1, rateFunc: linear };
+      await this.play(sampled ? sampled.tween((t) => ({ angle: Math.PI * t }), turning) : new Transform(dot, dot.copy().moveTo([-RADIUS, 0]), turning));
       await this.step('result', { caption: turn === 'sampled' ? 'Evaluated from its angle, the dot stayed on the circle.' : 'Morphed between its ends, the dot cut across the circle.' });
       await this.wait(0.2);
     }

@@ -7,11 +7,18 @@
 // meta refresh, so the preview is the share page's.
 import { copyFile, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { htmlEscape } from '../../explain/trace.ts';
+import { htmlEscape, PAGE_QUERY } from '../../explain/internal.ts';
 import { HOME, SHARE_META, SHARE_STEPS_META, shareable } from '../../app/embed-share.ts';
-import type { EmbedSize } from './explain-embed-size.ts';
+import type { EmbedWidth } from './review-sizes.ts';
 
 export { shareable };
+
+/** A framed page's measured heights at the three reading widths (tools/repo/lib/explain-embed-size.ts measures them). */
+export interface EmbedSize {
+  schema: 1;
+  aspect: '16/9';
+  heights: Record<EmbedWidth, number>;
+}
 
 /**
  * A preview picture: the 960 × 540 still centred on a 1080 × 540 (2:1) canvas of the stage's
@@ -95,13 +102,13 @@ const card = (m: ShareManifest, s: ShareStep, origin: string, title: string, url
 export function sharePage(m: ShareManifest, s: ShareStep, origin: string, path: string): string {
   const base = folder(origin, path),
     url = `${base}/${m.id}/${s.step}`,
-    player = `${path.replace(/\/$/, '')}/${m.id}?step=${encodeURIComponent(s.step)}`,
+    player = `${path.replace(/\/$/, '')}/${m.id}?${PAGE_QUERY.step}=${encodeURIComponent(s.step)}`,
     title = `${s.title} · ${m.title}`,
     a = htmlEscape;
   return `<!doctype html>
 <html lang="${a(m.lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${a(title)}</title>
-<link rel="canonical" href="${a(base + '/' + m.id + '?step=' + encodeURIComponent(s.step))}">
+<link rel="canonical" href="${a(`${base}/${m.id}?${PAGE_QUERY.step}=${encodeURIComponent(s.step)}`)}">
 ${cardTags(card(m, s, origin, title, url, path))}
 <meta http-equiv="refresh" content="0; url=${a(player)}">
 </head><body><p><a href="${a(player)}">${a(title)}</a></p></body></html>
@@ -152,7 +159,7 @@ export function oembed(m: { id: string; title: string }, size: EmbedSize, thumbn
     thumbnail_height: thumbnail.height,
     width: 640,
     height,
-    html: `<iframe src="${a(`${base}/${m.id}.html?theme=light`)}" title="${a(m.title)}" width="640" height="${height}" style="border:0;border-radius:12px;display:block;max-width:100%" allow="fullscreen" loading="lazy"></iframe>`,
+    html: `<iframe src="${a(`${base}/${m.id}.html?${PAGE_QUERY.theme}=light`)}" title="${a(m.title)}" width="640" height="${height}" style="border:0;border-radius:12px;display:block;max-width:100%" allow="fullscreen" loading="lazy"></iframe>`,
     cache_age: 86400,
   };
 }

@@ -12,7 +12,7 @@ How to put a built page on a website. The contracts it relies on (URL parameters
 
    Review runs the checks and served-reader audit, then saves the reviewed HTML, receipt, header recipe and `loader.js`. Test the model and inspect the screenshots under `out/review/<id>/` too. A failed review removes the success receipt and leaves the previous published page alone.
 
-   In a checkout, use `npm run rayner -- review ...`. The HTML contains every scenario, poster, transcript, sources and licence notices. It makes no network requests at runtime. Use `build` for an unreviewed draft.
+   The `rayner` command comes from `rayner-cli`, installed beside `rayner`; in a checkout, use `npm run rayner -- review ...`. A host serving the page needs neither package. The HTML contains every scenario, poster, transcript, sources and licence notices. It makes no network requests at runtime. Use `build` for an unreviewed draft.
 
 2. Upload `cache.html` to any static host, with `loader.js` if you will use the loader.
 
@@ -42,7 +42,7 @@ npm run demos:review -- --from out/showcase
 npm run site:export -- <site-root> --from out/showcase --only python-dict,bloom-filter --entry python-dict
 ```
 
-The exporter checks shared files and selected page bytes against their build pins. Unselected pages need not exist. Full catalog CI still requires every source lesson, scenario, resting step and reading width.
+Each page is written as `<id>.html`, so the build and the export refuse two catalog ids that are equal ignoring case (on a case-insensitive host one page would replace the other), and a scene whose `meta.id` is not its catalog id. The exporter checks shared files and selected page bytes against their build pins. Unselected pages need not exist. Full catalog CI still requires every source lesson, scenario, resting step and reading width.
 
 `--entry` must name a selected lesson. If omitted, export keeps the catalog entry when selected, otherwise it uses the first requested id. No particular subject is mandatory. The exported catalog, evidence and `llms.txt` report only the selected lessons; complete collection checks remain separate.
 

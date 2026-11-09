@@ -1,11 +1,18 @@
-import { table, keyed } from '../lib/lesson-drawing.ts';
-import { stagedStep } from '../../../explain/index.ts';
-import { Scene, Rectangle, Text, Group, Circle, Cross, Line, Arrow, view } from '../../../src/index.ts';
-import type { Mobject } from '../../../src/index.ts';
+import { table } from '../../../explain/drawing.ts';
+import { answerOf, view, having } from '../../../explain/index.ts';
+import { Scene, Text, FadeIn } from '../../../src/index.ts';
+import type { EndedStep } from '../../../src/index.ts';
 import { stage, regionBox, resolveSettings } from '../../../explain/index.ts';
-import type { ExplainerClass } from '../../../explain/index.ts';
-import { TokenBucket } from '../lib/models.ts';
-import { PLACEMENTS } from '../lib/traffic-policy.ts';
+import type { Diagram, PictureNote, View, ExplainerMeta } from '../../../explain/index.ts';
+import { TokenBucket } from '../token-bucket/model.ts';
+import { PLACEMENTS } from '../traffic-policy/model.ts';
+import { drawChoice, drawOffered, drawTimeline, drawUnbuilt, perSecond } from './picture.ts';
+import type { Choice, RateRun, SentenceState, Timing } from './picture.ts';
+// This explainer has no model of its own. Its rate rows run the token bucket's model and request schedule,
+// with a 0.1-rate run held beside the three offered rates: it is not a run against a deployed rate limiter.
+// Lantern's Worker is read from its source at commit 2c7bad5, not measured by running it. The traffic-policy
+// scenario count comes from that scene's settings; this page does not draw its six scenarios. The timing
+// detail uses this page's own trace and the default caption reading speed.
 const STYLE = 'github-light';
 // Upstream Lantern at the fork base, 2c7bad5: README "Outputs", app/worker.ts, src/mermaid.ts, src/doc.ts.
 const LANTERN =
@@ -41,7 +48,7 @@ const UNBUILT = 0.1;
 const POLICIES = ['Local', 'Cluster'];
 const PODS = Object.keys(PLACEMENTS);
 const SCENARIOS = PODS.length * POLICIES.length;
-/** The diagram families the explainers name and describe; test/explain-fidelity.test.ts holds it to explain/words.ts. */
+/** The diagram families the explainers name and describe; fidelity.ts holds it to explain/words.ts. */
 const FAMILIES = 15;
 const GONE = ['Doc', 'Parser', 'Player', 'Worker'];
 // The diagram takes the top three fifths; cards sit under it.
@@ -56,28 +63,27 @@ function runAt(rate: number) {
     return { ok, found: bucket.tokens + (ok ? 1 : 0) };
   });
 }
-/** One rate's ten requests as a step records them: each answer (200 or 429), and the tokens R10 finds. */
-interface RateRun { rate: number; offered: boolean; responses: number[]; found: number }
-/** The opening steps' state: the offered rates' answers, each rate's run, and the rate the page never built. */
-interface SentenceState { offered: { rate: number; r10: number }[]; runs: RateRun[]; pending: { rate: number } }
-/** The token bucket's rate setting, each scenario it makes with R10's answer there, and where two links land. */
-interface Choice {
-  setting: typeof RATE_SETTING;
-  scenarios: { rate: string; r10: number; default: boolean }[];
-  links: { asked: string; opens: string; refused?: string }[];
-}
-/** The 'fork' step on the page: seconds moving, seconds still, and the words its caption holds. */
-interface Timing { motion: number; held: number; words: number }
-const perSecond = (r: number) => `${r} token${r === 1 ? '' : 's'} a second`;
 
-/** The script's one-sentence answer (meta.answer), which the untested step states. */
-const ANSWER =
-  'Rayner builds every scenario before anyone reads it, so rayner check can test each one and the author can read it, and a reader can open only a scenario the build made';
+// How the flow diagram is shown, apart from its source: the parts marked deleted, the links walked,
+// its notes and what stays undimmed. That is `shown`, not the model; the diagram's view draws it,
+// and each change is a sync. A morph or a focus takes the live diagram, with `shown` plain. The
+// timing step quotes this step's motion, so its plays keep their run times: 0.45 to mark the deleted
+// parts, 0.35 to clear them before the morph, and the trail and the note in one 0.35 play with the families note.
+type FlowShown = { deleted: string[]; walked: [string, string][]; notes: PictureNote[]; dim: string[] | null };
+/**
+ * The opening's runs and the rate the page never built; after the staged steps, the count of
+ * diagram families and the timing of the 'fork' step.
+ */
+type ForkState = Partial<SentenceState> & {
+  unbuilt?: { rate: number; r10: number; found: number };
+  families?: number;
+  timing?: Timing;
+};
+/** The Worker's mark on Lantern's diagram, and how the flow diagram is shown. */
+type ForkShown = { lanternMarked?: boolean; flow?: FlowShown };
 
-export default class ForkExplainer extends Scene {
+export default class ForkExplainer extends Scene<ForkState, ForkShown> {
   static meta = {
-    id: 'fork',
-    title: 'Why build the page before readers open it?',
     sources: [
       'https://github.com/ivarvong/lantern/blob/2c7bad5/README.md',
       'https://github.com/ivarvong/lantern/blob/2c7bad5/app/worker.ts',
@@ -85,8 +91,6 @@ export default class ForkExplainer extends Scene {
       'https://github.com/adewale/rayner/blob/main/docs/UPSTREAM.md',
       'https://github.com/adewale/rayner/blob/main/scenes/explainers/token-bucket/scene.ts',
     ],
-    // The script's answer and check questions (script.md); the untested step states the answer.
-    answer: ANSWER,
     // Sentences about every rate, scenario or combination, and the test that holds each.
     claims: [
       {
@@ -118,30 +122,12 @@ export default class ForkExplainer extends Scene {
         test: 'test/explain-gates.test.ts: the build makes every combination of options a scenario, rayner check tests each, and a reader can open no other',
       },
     ],
-    checks: [
-      {
-        question:
-          'On the token bucket page, R8 and R9 arrive together at 1 s. If its author moved R10 from 5 s to 1.5 s, at which offered rate would ‘R10 is accepted at every rate’ become false, and could a reader see the false sentence?',
-        answer:
-          'At 1 token a second. There R8 spends the one token that has come back by 1 s, so at 1.5 s the bucket holds half a token and R10 gets 429; at 2 and 4 tokens a second it is still accepted. A reader could see it only if the author published without reading that scenario, because 1 token a second is a scenario the build makes and the author can run and read.',
-      },
-      {
-        question:
-          'Someone shares a link to the token bucket page that ends in ?rate=0.1. What does the reader see, and do they meet the false sentence about R10?',
-        answer:
-          'The player looks for 0.1 among the rates the scene lists, finds none, and opens the default scenario, 2 tokens a second, with the notice “Unknown rate option: 0.1. Showing the default scenario.” The reader sees a scenario the author ran, where R10 is accepted; the 0.1 row exists only in this explainer.',
-      },
-      {
-        question:
-          'The traffic-policy page has two policies and three pod placements. Its author wants a third setting, the number of nodes, with four values. How many scenarios would the build make and the author need to read, and when is such a setting worth adding?',
-        answer:
-          'Twenty-four: 2 × 3 × 4. Each is built, checked and must be read before publishing, so a setting earns its place when one of its values changes what the page concludes, not merely a number on it.',
-      },
-    ],
-  };
+  } satisfies ExplainerMeta;
   override async construct() {
+    const answer = answerOf(this);
     const s = stage(this, { headingSize: 0.6, style: STYLE });
-    const ink = s.palette.ink;
+    /** The colours the pictures are drawn in. */
+    const colours = s.look;
     const runs = new Map([...RATES, UNBUILT].map((r) => [r, runAt(r)] as const));
     const r10 = (r: number) => runs.get(r)![TIMES.length - 1]!;
     // The second and third steps say R10 gets 200 at every offered rate and 429 at the unbuilt one.
@@ -156,47 +142,7 @@ export default class ForkExplainer extends Scene {
     });
 
     // 1. A sentence that is true of every scenario the page offers.
-    const pitch = 0.82,
-      x0 = -2.9,
-      labelX = -7.4,
-      findsX = x0 + pitch * (TIMES.length - 1) + 0.75;
-    const rowY = (i: number) => 1.15 - i * 1.05;
-    /** One rate's row of answers, drawn from its run: a circle for 200, a cross for 429, and what R10 finds. */
-    const row = (run: RateRun, i: number) => {
-      const g = new Group();
-      const y = rowY(i);
-      g.add(
-        new Text(run.offered ? perSecond(run.rate) : `${perSecond(run.rate)}, not offered`, {
-          fontSize: 0.26,
-          color: run.offered ? ink : s.bad,
-          anchor: 'start',
-        }).moveTo([labelX, y], [-1, 0]),
-      );
-      run.responses.forEach((code, j) => {
-        const ok = code === 200;
-        const circle = new Circle({ radius: 0.2, stroke: ok ? s.good : s.bad, strokeWidth: 0.05 }).moveTo([x0 + j * pitch, y]);
-        const mark: Mobject = ok ? circle : new Cross(circle, { stroke: s.bad, strokeWidth: 0.05 });
-        mark.key = `call:${run.rate}:R${j + 1}`;
-        g.add(mark);
-      });
-      const accepted = run.responses.at(-1) === 200;
-      g.add(
-        new Text(`R10 finds ${run.found.toFixed(1)}`, { fontSize: 0.24, font: 'mono', color: accepted ? ink : s.bad, anchor: 'start' }).moveTo(
-          [findsX, y],
-          [-1, 0],
-        ),
-      );
-      g.key = `rate:${run.rate}`;
-      return g;
-    };
-    const column = (rows: number) => {
-      const x = x0 + pitch * (TIMES.length - 1);
-      return new Rectangle({ width: 0.62, height: rows * 1.05 + 0.5, stroke: s.emphasis, strokeWidth: 0.04, cornerRadius: 0.1 }).moveTo([
-        x,
-        2.05 - (rows * 1.05 + 0.5) / 2 + 0.25,
-      ]);
-    };
-    const sentenceState = () => this.state as unknown as SentenceState;
+    const sentenceState = () => having(this.state, 'offered', 'runs', 'pending');
     await this.step('sentence', {
       title: '“R10 is accepted at every rate”',
       line: `At ${perSecond(UNBUILT)}, a rate the page doesn’t offer, is it still true?`,
@@ -207,38 +153,9 @@ export default class ForkExplainer extends Scene {
     this.state.runs = RATES.map((r) => runOf(r, true));
     this.state.pending = { rate: UNBUILT };
     // The offered rates' rows, R10's column outlined, with the header and the key: a picture of the runs the state records.
-    const answers = view(
-      this,
-      (st) => {
-        const offered = (st as unknown as SentenceState).runs.filter((r) => r.offered);
-        const header = new Group();
-        offered[0]!.responses.forEach((_, i) =>
-          header.add(new Text(`R${i + 1}`, { fontSize: 0.26, color: ink }).moveTo([x0 + i * pitch, 2.05])),
-        );
-        header.add(new Text('Request', { fontSize: 0.26, color: s.soft, anchor: 'start' }).moveTo([labelX, 2.05], [-1, 0]));
-        const key = new Text('circle: 200, accepted · cross: 429, refused · a request needs 1 token', { fontSize: 0.22, color: s.soft }).moveTo([0, -3.2]);
-        return new Group(keyed(header, 'fork-header'), ...offered.map((r, i) => row(r, i)), keyed(column(offered.length), 'fork-r10'), keyed(key, 'fork-key'));
-      },
-      { place: false },
-    );
+    const answers = view(this, (st) => drawOffered(having(st, 'offered', 'runs', 'pending'), colours), { place: false });
     // Under them, the rate the page never built: a question mark until its run is in the state, then its row.
-    const unbuiltRow = view(
-      this,
-      (st) => {
-        const { runs: all, pending } = st as unknown as SentenceState;
-        const slow = all.find((r) => !r.offered);
-        const offered = all.filter((r) => r.offered).length;
-        if (slow) return row(slow, offered).shift([0, -0.25]);
-        return keyed(
-          new Group(
-            new Text(`${perSecond(pending.rate)}, not offered`, { fontSize: 0.26, color: s.soft, anchor: 'start' }).moveTo([labelX, rowY(offered) - 0.25], [-1, 0]),
-            new Text('?', { fontSize: 0.5, color: s.soft, weight: 'bold' }).moveTo([x0 + pitch * (TIMES.length - 1), rowY(offered) - 0.25]),
-          ),
-          'fork-pending',
-        );
-      },
-      { place: false },
-    );
+    const unbuiltRow = view(this, (st) => drawUnbuilt(having(st, 'offered', 'runs', 'pending'), TIMES.length, colours), { place: false });
     await s.enter(answers, {
       describe: () => {
         const offered = sentenceState().runs.filter((r) => r.offered);
@@ -259,18 +176,17 @@ export default class ForkExplainer extends Scene {
     await this.step('untested', {
       title: `At ${perSecond(UNBUILT)}, R10 finds ${slow.found.toFixed(1)} tokens and is refused`,
       line: 'The sentence holds at every rate the page built and fails at one it never built.',
-      caption: `At ${perSecond(UNBUILT)}, R10 still needs a whole token. After five seconds only ${slow.found.toFixed(1)} tokens have come back, so R10 gets 429. The caption described the offered inputs, not arbitrary rates. ${ANSWER}.`,
+      caption: `At ${perSecond(UNBUILT)}, R10 still needs a whole token. After five seconds only ${slow.found.toFixed(1)} tokens have come back, so R10 gets 429. The caption described the offered inputs, not arbitrary rates. ${answer}.`,
     });
     this.state.unbuilt = { rate: UNBUILT, r10: slow.ok ? 200 : 429, found: Number(slow.found.toFixed(2)) };
     this.state.runs = [...sentenceState().runs, runOf(UNBUILT, false)];
     // The question mark goes and the row of answers comes in under the offered rates.
-    await this.play(unbuiltRow.sync({ match: 'key', runTime: 0.6 }));
+    await this.play(unbuiltRow.sync({ staged: false, runTime: 0.6 }));
 
     // 3. Why no reader meets that row: a link picks one of the scenarios the build made, or gets the default.
-    const resolver = { settings: [RATE_SETTING] } as unknown as ExplainerClass;
     const open = (asked: string) => {
       try {
-        return { asked, opens: resolveSettings(resolver, { rate: asked }).rate! };
+        return { asked, opens: resolveSettings({ settings: [RATE_SETTING] }, { rate: asked }).rate! };
       } catch (e) {
         return { asked, opens: RATE_SETTING.default, refused: (e as Error).message };
       }
@@ -285,70 +201,9 @@ export default class ForkExplainer extends Scene {
       links,
     };
     // The scenarios the setting makes, the slot a 0.1 scenario would fill, and where each link lands: all from the choice the state records.
-    const choicePicture = (st: { choice: Choice }) => {
-      const { setting, scenarios: built, links: asked } = st.choice;
-      const [listed, refusedLink] = asked as [Choice['links'][number], Choice['links'][number]];
-      const W = 3.1,
-        H = 0.68,
-        pitch = 0.8,
-        top = 1.3;
-      const y = (i: number) => top - i * pitch;
-      const slotY = y(built.length);
-      const left = -W / 2,
-        right = W / 2;
-      const two = (a: string, b: string, at: number, color: string, colorB = s.soft) =>
-        new Group(
-          new Text(a, { fontSize: 0.28, color, anchor: 'start' }).moveTo([left + 0.18, at + 0.15], [-1, 0]),
-          new Text(b, { fontSize: 0.25, color: colorB, anchor: 'start' }).moveTo([left + 0.18, at - 0.16], [-1, 0]),
-        );
-      const scenarios = new Group();
-      built.forEach((o, i) => {
-        scenarios.add(
-          new Rectangle({ width: W, height: H, stroke: o.default ? s.emphasis : ink, strokeWidth: o.default ? 0.05 : 0.025, cornerRadius: 0.08 }).moveTo([0, y(i)]),
-          two(perSecond(Number(o.rate)), `R10: ${o.r10}, checked`, y(i), ink, o.r10 === 200 ? s.good : s.bad),
-        );
-      });
-      // Where a 0.1 scenario would sit: the build made none.
-      const slot = new Rectangle({ width: W, height: H, stroke: s.bad, strokeWidth: 0.03, cornerRadius: 0.08, fill: 'none' }).moveTo([0, slotY]);
-      slot.style.dashArray = '0.14 0.1';
-      scenarios.add(slot, two(`${perSecond(Number(refusedLink.asked))}`, 'no scenario: never built', slotY, s.bad, s.bad));
-      scenarios.key = 'fork-choice-scenarios';
-      // The setting's name labels the column, beside its first scenario, clear of the fallback's path below.
-      const heading = new Group(
-        new Text(setting.label, { fontSize: 0.3, color: ink, weight: 'bold', anchor: 'end' }).moveTo([left - 0.3, top + 0.16], [1, 0]),
-        new Text(`${built.length} scenarios`, { fontSize: 0.26, color: s.soft, anchor: 'end' }).moveTo([left - 0.3, top - 0.17], [1, 0]),
-      );
-      // Links come in from the right.
-      const arrow = (from: number, to: number, at: number, color: string) =>
-        new Arrow([from, at], [to, at], { stroke: color, strokeWidth: 0.04, tipLength: 0.22, tipWidth: 0.2 });
-      const linkX = right + 1.5;
-      const link = (text: string, at: number, color: string) =>
-        new Group(
-          new Text(text, { font: 'mono', fontSize: 0.3, color, anchor: 'start' }).moveTo([linkX + 0.15, at], [-1, 0]),
-          arrow(linkX, right + 0.08, at, color),
-        );
-      const index = (rate: string) => built.findIndex((o) => o.rate === rate);
-      const four = link(`?rate=${listed.asked}`, y(index(listed.opens)), ink);
-      const unknown = link(`?rate=${refusedLink.asked}`, slotY, s.bad);
-      const defaultY = y(built.findIndex((o) => o.default));
-      const tag = new Text('the default scenario', { fontSize: 0.3, color: s.emphasis, anchor: 'start' }).moveTo([right + 0.3, defaultY], [-1, 0]);
-      // Refused, the link falls back along the left side to the default scenario.
-      const back = left - 0.5,
-        to = y(index(refusedLink.opens));
-      const redirect = new Group(
-        new Line([left - 0.05, slotY], [back, slotY], { stroke: s.emphasis, strokeWidth: 0.04 }),
-        new Line([back, slotY], [back, to], { stroke: s.emphasis, strokeWidth: 0.04 }),
-        arrow(back, left - 0.08, to, s.emphasis),
-      );
-      redirect.key = 'fork-choice-fallback';
-      const refusal = new Group(
-        new Text(String(refusedLink.refused), { fontSize: 0.28, color: s.bad }).moveTo([0, slotY - H / 2 - 0.4]),
-        new Text('so the page opens the default scenario', { fontSize: 0.28, color: s.emphasis }).moveTo([0, slotY - H / 2 - 0.8]),
-      );
-      return new Group(heading, scenarios, tag, four, unknown, redirect, refusal);
-    };
+    const choicePicture = (st: { choice: Choice }) => drawChoice(st.choice, colours);
     await s.steps([
-      stagedStep({
+      {
         id: 'choice',
         title: `The build made ${RATES.length} scenarios, and a link opens one of them`,
         line: `A link naming ${UNBUILT} matches no scenario, so the page opens the default, ${byDefault}.`,
@@ -356,7 +211,7 @@ export default class ForkExplainer extends Scene {
         state: { choice },
         draw: (st) => choicePicture(st),
         opening: ['fork-choice-scenarios', 'fork-choice-fallback'],
-      }),
+      },
     ]);
 
     // 4. Where the live page went: Lantern rendered whatever was asked; Rayner offers what it built.
@@ -369,21 +224,28 @@ export default class ForkExplainer extends Scene {
     });
     await s.clear();
     const lantern = await s.show({ source: LANTERN }, { box: regionBox(ABOVE, { right: 3 }) });
-    await lantern.mark(['Worker'], { color: s.emphasis, as: 'renders on request' });
+    // The Worker's mark is how the diagram is shown, not the model: it lives in `shown`, and the
+    // diagram is shown by a view that draws it.
+    this.shown.lanternMarked = false;
+    const lanternView = s.diagramView(lantern, (_st, sh) => ({
+      marks: Object.fromEntries(sh.lanternMarked ? [['Worker', { color: s.look.emphasis, as: 'renders on request' }]] : []),
+    }));
+    this.shown.lanternMarked = true;
+    await this.play(lanternView.sync({ runTime: 0.45 }));
     // What the Worker did, beside it: GET /frame.svg?scene=&step= or &t=, rendered when asked.
     const worker = lantern.get('Worker').box()!;
     await s.enter(
-      new Text('any step or time, on request', { fontSize: 0.24, color: s.emphasis, anchor: 'start' }).moveTo(
+      new Text('any step or time, on request', { fontSize: 0.24, color: s.look.emphasis, anchor: 'start' }).moveTo(
         [worker[2] + 0.25, (worker[1] + worker[3]) / 2],
         [-1, 0],
       ),
       { describe: 'Beside Worker: any step or time, rendered on request.' },
     );
-    await s.code(SETTINGS, { at: BELOW, fontSize: 0.24 });
+    await s.code(SETTINGS, { at: BELOW, size: 0.24 });
 
     // 5. The price, the ending: every combination of settings is a scenario to build and check.
     await s.steps([
-      stagedStep({
+      {
         id: 'scenarios',
         title: `${PODS.length} pod placements × ${POLICIES.length} traffic policies make ${SCENARIOS} scenarios to build`,
         line: 'Every combination of options is a scenario the build makes and rayner check tests.',
@@ -392,13 +254,13 @@ export default class ForkExplainer extends Scene {
         // A row per pod placement and a column per policy, each cell the scenario that combination makes.
         draw: ({ scenarios: { policies, pods } }, st) =>
           table(
+            st,
             ['Pods per node', ...policies],
             pods.map((placement, r) => [placement.replaceAll('-', ', '), ...policies.map((_, p) => `scenario ${r * policies.length + p + 1}`)]),
-            st,
-            { xs: [-5, 0, 5], y: 2.2, gap: 1.45, key: 'fork-scenarios' },
+            { columns: [-5, 0, 5], at: [0, 2.2], gap: 1.45, key: 'fork-scenarios' },
           ),
         opening: ['fork-scenarios'],
-      }),
+      },
     ]);
 
     // Details after the ending: what the build does for each scenario, and what replaced Lantern's live parts.
@@ -412,86 +274,86 @@ export default class ForkExplainer extends Scene {
     // The two architectures, what the fork deleted and the path a page takes are fixed facts of the
     // two code bases, the same in every scenario; the count of diagram families is the describer's own.
     const flow = await s.show({ source: LANTERN }, { box: ABOVE });
-    await flow.mark(GONE, { color: s.bad, as: 'deleted' });
+    const drawFlow = (of: Diagram) => (_st: ForkState, sh: ForkShown) => {
+      const f = having(sh, 'flow').flow;
+      return {
+        marks: { ...of.trail(f.walked), ...Object.fromEntries(f.deleted.map((id) => [id, { color: s.look.bad, as: 'deleted' }])) },
+        notes: f.notes,
+        dim: f.dim,
+      };
+    };
+    this.shown.flow = { deleted: [], walked: [], notes: [], dim: null } satisfies FlowShown;
+    let flowView: View = s.diagramView(flow, drawFlow(flow));
+    const showFlow = async (change: Partial<FlowShown>, runTime = 0.45) => {
+      this.shown.flow = { ...having(this.shown, 'flow').flow, ...change };
+      await this.play(flowView.sync({ runTime }));
+    };
+    await showFlow({ deleted: GONE });
+    await showFlow({ deleted: [] }, 0.35);
+    s.liveDiagram(flow);
     await flow.morph({ source: FORK });
-    await flow.walk(
-      [
-        ['Settings', 'Scene'],
-        ['Capture', 'Snaps'],
-        ['Snaps', 'Scene'],
-        ['Scene', 'Clock'],
-        ['Clock', 'Page'],
-      ],
-      { trail: true },
-    );
+    flowView = s.diagramView(flow, drawFlow(flow));
+    const path: [string, string][] = [
+      ['Settings', 'Scene'],
+      ['Capture', 'Snaps'],
+      ['Snaps', 'Scene'],
+      ['Scene', 'Clock'],
+      ['Clock', 'Page'],
+    ];
+    await flow.walk(path);
     this.state.families = FAMILIES;
     // The count of families, said in a note below Capture: drawn from the state. The note describes itself
     // and says what it emphasises.
     const familiesNote = view(
       this,
       (st) =>
-        flow.notePicture('Capture', `${(st as { families: number }).families} diagram families, Chromium at build`, {
+        flow.notePicture('Capture', `${having(st, 'families').families} diagram families, Chromium at build`, {
           side: 'below',
-          color: s.emphasis,
+          color: s.look.emphasis,
           key: 'fork-families-note',
         }),
       { place: false },
     );
-    await s.enter(familiesNote, { runTime: 0.35, shift: [0, -0.06] });
-    await flow.note('Page', 'no diagram renderer', { side: 'above' });
+    s.keep(familiesNote);
+    this.shown.flow = { ...having(this.shown, 'flow').flow, walked: path, notes: [{ id: 'Page', text: 'no diagram renderer', side: 'above' }] };
+    await this.play(
+      new FadeIn(familiesNote, { runTime: 0.35, shift: [0, -0.06] }),
+      flowView.sync({ runTime: 0.35 }),
+    );
 
-    // A detail after the ending: the page holds each resting picture for its caption. It reads the
-    // timing of the 'fork' step, so that step ends here, holding for its caption as any step does.
-    await this.endCurrentStep();
-    const shown = this.steps.find((st) => st.name === 'fork')!;
-    const words = String(shown.meta.caption).trim().split(/\s+/).length;
-    const motion = (shown.hold ?? shown.t1!) - shown.t0,
-      held = shown.hold == null ? 0 : shown.t1! - shown.hold;
-    await this.step('timing', {
-      kind: 'detail',
-      title: 'The page holds each resting picture for its caption',
-      line: `Moving ${motion.toFixed(1)} s, then still for ${held.toFixed(1)} s.`,
-      caption: `The scene clock reserves reading time after motion. This caption needs ${(motion + held).toFixed(1)} seconds at ${Scene.captionWpm} words a minute; the ${motion.toFixed(1)}-second animation leaves ${held.toFixed(1)} seconds at rest. The caption therefore does not have to compete with a still-changing picture.`,
+    // A detail after the ending: the page holds each resting picture for its caption. Its words read
+    // the timing of the 'fork' step, so they are a function of that step, closed with its hold.
+    const phases = (fork: EndedStep) => ({
+      motion: (fork.hold ?? fork.t1) - fork.t0,
+      held: fork.hold == null ? 0 : fork.t1 - fork.hold,
+      // The caption is English, so its words are what whitespace separates, as the hold counts them.
+      words: String(fork.meta.caption).trim().split(/\s+/).length,
     });
+    let timing = { motion: 0, held: 0, words: 0 };
+    // The step this detail closes is 'fork'.
+    await this.step('timing', (fork) => {
+      if (fork) timing = phases(fork);
+      const { motion, held } = timing;
+      return {
+        kind: 'detail',
+        title: 'The page holds each resting picture for its caption',
+        line: `Moving ${motion.toFixed(1)} s, then still for ${held.toFixed(1)} s.`,
+        caption: `The scene clock reserves reading time after motion. This caption needs ${(motion + held).toFixed(1)} seconds at ${Scene.captionWpm} words a minute; the ${motion.toFixed(1)}-second animation leaves ${held.toFixed(1)} seconds at rest. The caption therefore does not have to compete with a still-changing picture.`,
+      };
+    });
+    const { motion, held, words } = timing;
     await s.clearOverlays();
-    await flow.unmark();
-    await flow.dim(['Clock', 'Frames', 'Image']);
-    await flow.focus(['Clock', 'Page', 'Frames', 'Image', 'Check'], { zoom: 0.95 });
+    await showFlow({ walked: [], notes: [] });
+    s.liveDiagram(flow);
+    await flow.enlarge(['Clock', 'Page', 'Frames', 'Image', 'Check'], { zoom: 0.95 });
+    flowView = s.diagramView(flow, drawFlow(flow));
+    await showFlow({ dim: ['Clock', 'Frames', 'Image'] });
     this.state.timing = { motion: Number(motion.toFixed(2)), held: Number(held.toFixed(2)), words };
     // One bar per phase of the 'fork' step, to scale: the timing the state records.
-    const timeline = view(
-      this,
-      (st) => {
-        const t = (st as unknown as { timing: Timing }).timing;
-        const unit = 11 / (t.motion + t.held),
-          bx = -5.5,
-          y = -2.85;
-        const phase = (from: number, len: number, fill: string, label: string, key: string) => {
-          const bar = new Rectangle({ width: len * unit, height: 0.55, fill, fillOpacity: 0.85, stroke: 'none' }).moveTo([
-            bx + (from + len / 2) * unit,
-            y,
-          ]);
-          const text = new Text(label, { fontSize: 0.24, color: ink }).moveTo([bx + (from + len / 2) * unit, y - 0.6]);
-          return keyed(new Group(bar, text), key);
-        };
-        return new Group(
-          keyed(
-            new Text(`Step 'fork' on the page: ${(t.motion + t.held).toFixed(1)} s`, {
-              fontSize: 0.26,
-              color: ink,
-              weight: 'bold',
-            }).moveTo([0, -1.85]),
-            'timing:title',
-          ),
-          phase(0, t.motion, s.emphasis, `moving: ${t.motion.toFixed(1)} s`, 'timing:moving'),
-          phase(t.motion, t.held, s.soft, `still, caption of ${t.words} words: ${t.held.toFixed(1)} s`, 'timing:still'),
-        );
-      },
-      { place: false },
-    );
+    const timeline = view(this, (st) => drawTimeline(having(st, 'timing').timing, colours), { place: false });
     await s.enter(timeline, {
       describe: () => {
-        const t = (this.state as unknown as { timing: Timing }).timing;
+        const t = having(this.state, 'timing').timing;
         return `A timeline of the fork step on the page: ${t.motion.toFixed(1)} seconds of motion, then ${t.held.toFixed(1)} seconds still under its ${t.words}-word caption`;
       },
     });

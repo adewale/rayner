@@ -13,8 +13,9 @@ import type { Project } from '../../tools/lib/explain-project.ts';
 import { buildExplainer } from '../../tools/lib/explain-build.ts';
 import { serve } from '../../tools/lib/explain-serve.ts';
 import { launch } from '../../tools/lib/browser.ts';
-import { SENT, acceptedLog, decodeLog, encodeLog, logStart, outcomes, runLive } from '../../app/embed-live.ts';
-import type { Live } from '../../app/embed-live.ts';
+import { SENT, acceptedLog, decodeLog, encodeLog, outcomes } from '../../app/embed-live.ts';
+import { logStart, runLive } from '../../explain/live.ts';
+import type { Live } from '../../explain/live.ts';
 import { chromeFor } from '../../app/embed-strings.ts';
 
 const enabled = !!process.env.EXPLAIN_BROWSER;
@@ -46,8 +47,7 @@ before(async () => {
     const scenario = project.scenarios[0]!;
     assert.ok(scenario.live?.size, `${id}: its default scenario has a live step`);
     for (const [step, live] of scenario.live!) {
-      const times = scenario.trace.steps.find((s) => s.step === step)!;
-      const base = logStart(live.machine, (await runLive(scenario.Scene, times, live.index, [])).rest);
+      const base = logStart(live.machine, (await runLive(scenario.Scene, step, live, [])).rest);
       assert.ok(base, `${id} ${step}: some event goes somewhere`);
       subjects.push({ id, file, values: scenario.values, step, live, base });
     }
@@ -68,7 +68,7 @@ const urlOf = (s: Subject, log: readonly string[]) =>
 const landed = (page: Page, log: readonly string[]) =>
   page.waitForFunction((value) => {
     const row = document.querySelector<HTMLElement>('.live');
-    return !!row && !row.hidden && row.dataset.landed === value && !document.querySelector('.stage[aria-busy]') &&
+    return !!row && !row.hidden && row.dataset.drawn === value && !document.querySelector('.stage[aria-busy]') &&
       !document.querySelector('svg.leaving') && !document.querySelector('#content.loading');
   }, encodeLog(log), { timeout: 30_000 });
 const picture = (page: Page) => page.locator('.stage svg:not(.leaving)').evaluate((svg) => svg.outerHTML);
@@ -171,6 +171,51 @@ test('a button that disagrees with outcome fails the check (a deliberate defect)
     assert.match(problems[0]!, /push: the button is .*"kind":"refused".*outcome says .*"kind":"next"/);
   } finally {
     await page.close();
+  }
+});
+
+test('Undo, Reset or another press during an animated landing lands where a fresh load of the URL does', options, async () => {
+  const s = subjects.find((x) => x.id === 'ring-buffer')!;
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } }),
+    fresh = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  /** An event the machine takes after `log`. */
+  const nextAfter = (log: string[]) => outcomes(s.live.machine, acceptedLog(s.live.machine, s.base.state, log).states.at(-1)!).find((o) => o.kind === 'next')!.event;
+  const event = nextAfter([]);
+  /** The stage at rest on `log`, a moment later still, and the picture a fresh load of that link draws. */
+  const same = async (log: string[], why: string) => {
+    await landed(page, log);
+    assert.deepEqual(decodeLog(new URL(page.url()).searchParams.get(SENT)), log, why);
+    const now = await picture(page);
+    // A landing cut short must not put its picture on the stage afterwards.
+    await page.waitForTimeout(600);
+    assert.equal(await picture(page), now, `${why}: the stage changed after it landed`);
+    await fresh.goto(urlOf(s, log));
+    await fresh.waitForSelector('[data-ready=true]');
+    await landed(fresh, log);
+    assert.equal(now, await picture(fresh), `${why}: a fresh load draws another picture`);
+  };
+  try {
+    await page.goto(urlOf(s, []));
+    await page.waitForSelector('[data-ready=true]');
+    await landed(page, []);
+    const landing = () => page.locator('.stage[aria-busy]').count();
+    for (const control of ['Undo', 'Reset']) {
+      await page.click(`.live-events button[data-event="${event}"]`);
+      assert.equal(await landing(), 1, 'the press is still landing');
+      await page.click(`.live-tools button:text-is("${control}")`);
+      await same([], `${control} during the landing`);
+    }
+    const second = nextAfter([event]);
+    await page.click(`.live-events button[data-event="${event}"]`);
+    assert.equal(await landing(), 1, 'the press is still landing');
+    await page.click(`.live-events button[data-event="${second}"]`);
+    await same([event, second], 'a press during the landing');
+    const third = nextAfter([event, second]);
+    await page.click(`.live-events button[data-event="${third}"]`);
+    await same([event, second, third], 'a press after it, from the run held there');
+  } finally {
+    await page.close();
+    await fresh.close();
   }
 });
 

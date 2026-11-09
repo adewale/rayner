@@ -1,28 +1,26 @@
 // Lettering on request (src/lettering.ts, tools/lib/explain-lettering.ts): an explainer pays only
-// for the lettering it asks for. One that asks for nothing carries no lettering code and keeps its
-// engine fingerprint; one that asks gets its letters, cut to what it draws; and a letter in a
+// for the lettering it asks for. One that asks for nothing carries no lettering code; one that asks
+// gets its letters, cut to what it draws; and a letter in a
 // script nobody asked for still fails the build.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, readFile, cp, symlink, rm } from 'node:fs/promises';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
+import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { collectProject, defaultScenario, ROOT, loadScene } from '../tools/lib/explain-project.ts';
 import type { Project } from '../tools/lib/explain-project.ts';
 import { buildExplainer } from '../tools/lib/explain-build.ts';
 import { checkProject } from '../tools/lib/explain-check.ts';
-import { SCRIPTS, letteringRequest, useProjectLettering } from '../tools/lib/explain-lettering.ts';
+import { SCRIPTS, letteringRequest, pageFaces, useProjectLettering } from '../tools/lib/explain-lettering.ts';
 import type { LetteringFace } from '../tools/lib/explain-lettering.ts';
 import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
 import { shaperFor } from '../src/index.ts';
-import { SnapshotSink, renderAt } from '../src/output.ts';
+import { renderFrame } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import { loadFonts } from '../explain/testing.ts';
-import { useLettering, takeMissingGlyphs } from '../src/lettering.ts';
-import { takeMissingGlyphs as takeEmbeddedMissing } from '../explain/testing.ts';
+import { useLettering, withLettering, takeLetteringMissing } from '../src/lettering.ts';
+import { takeMissingGlyphs as takeEmbeddedMissing } from '../src/fonts.ts';
 import { loadFont } from '../vendor/glyph.js';
-import { restingTime } from '../explain/trace.ts';
 
 const folder = await mkdtemp(join(tmpdir(), 'rayner-lettering-'));
 after(() => rm(folder, { recursive: true, force: true }));
@@ -47,30 +45,6 @@ test('only the requested-face catalog example and the feature tour’s maths opt
     } else if (id === 'feature-tour') assert.deepEqual(Scene.meta?.lettering, { math: true }, 'the tour’s maths scenario asks for maths and nothing else');
     else assert.equal(Scene.meta?.lettering, undefined, id);
   }
-});
-
-// Mutate real inputs in an isolated package, rather than repeating the producer's hash algorithm.
-test('optional lettering code changes its engine fingerprint without changing an opt-out fingerprint', async () => {
-  const copy = await mkdtemp(join(tmpdir(), 'rayner-hash-contract-'));
-  try {
-    for (const name of ['src', 'explain', 'integrations', 'tools', 'vendor'])
-      await cp(join(ROOT, name), join(copy, name), { recursive: true });
-    await cp(join(ROOT, 'package.json'), join(copy, 'package.json'));
-    await symlink(join(ROOT, 'node_modules'), join(copy, 'node_modules'), 'dir');
-    const plain = join(copy, 'plain.ts'), lettered = join(copy, 'lettered.ts');
-    await writeFile(plain, `import{Scene}from'rayner';export default class Plain extends Scene{}`);
-    await writeFile(lettered, `import{Scene}from'rayner';export default class Lettered extends Scene{static meta={lettering:{scripts:['Grek']}};}`);
-    const run = promisify(execFile);
-    const fingerprints = async () => JSON.parse((await run(process.execPath, ['--input-type=module', '-e',
-      `import{loadScene}from${JSON.stringify(join(copy, 'tools/lib/explain-project.ts'))};console.log(JSON.stringify(await Promise.all(${JSON.stringify([plain, lettered])}.map(async file=>(await loadScene(file)).engineHash))));`
-    ])).stdout) as [string, string];
-    const before = await fingerprints();
-    const optional = join(copy, 'src/lettering.ts');
-    await writeFile(optional, (await readFile(optional, 'utf8')) + '\n// independently changed optional implementation\n');
-    const after = await fingerprints();
-    assert.equal(after[0], before[0], 'opt-out compatibility fingerprint stays stable');
-    assert.notEqual(after[1], before[1], 'requested lettering counts its actual implementation');
-  } finally { await rm(copy, { recursive: true, force: true }); }
 });
 
 test('a page that asks for nothing carries no lettering code, and building a lettered one first leaks nothing into it', async () => {
@@ -99,9 +73,72 @@ test('useLettering with the faces in place, or none in place, does nothing', asy
   assert.equal(shaperFor('sans'), embedded.sans);
 });
 
+test('lettering callers take turns: overlapping runs each see their own faces, and the last useLettering call wins', async () => {
+  await useLettering(null);
+  const faces = pageFaces((await collectProject(FIXTURE, { write: false })).lettering);
+  await useLettering(null);
+  const lettered = () => shaperFor('sans') !== embedded.sans;
+  const seen: string[] = [];
+  const run = (label: string) => async () => {
+    seen.push(`${label} begins ${lettered()}`);
+    await new Promise((r) => setTimeout(r, 20));
+    seen.push(`${label} ends ${lettered()}`);
+    return label;
+  };
+  // Two overlapping runs, as two loadProject calls in one file make: the second waits for the first.
+  assert.deepEqual(await Promise.all([withLettering(faces, run('a')), withLettering(null, run('b')), withLettering(faces, run('c'))]), ['a', 'b', 'c']);
+  assert.deepEqual(seen, ['a begins true', 'a ends true', 'b begins false', 'b ends false', 'c begins true', 'c ends true']);
+  assert.equal(shaperFor('sans'), embedded.sans, 'each run put back the faces in place before it');
+  // A run that throws still puts them back, and the next caller still gets its turn.
+  await assert.rejects(withLettering(faces, async () => { throw new Error('the run failed'); }), /the run failed/);
+  assert.equal(shaperFor('sans'), embedded.sans);
+  // The faces take time to decode, null none: the call made last is the one in place, not the one done last.
+  await Promise.all([useLettering(faces), useLettering(null)]);
+  assert.equal(shaperFor('sans'), embedded.sans, 'null, the later call, wins');
+  await Promise.all([useLettering(null), useLettering(faces)]);
+  assert.ok(lettered(), 'the faces, the later call, win');
+  await useLettering(null);
+});
+
+test('a selection whose faces cannot be decoded changes nothing, so the next run puts back the faces really in place', async () => {
+  await useLettering(null);
+  // The deliberate defect: a face that is not a font.
+  await assert.rejects(useLettering({ sans: 'bm90IGEgZm9udA==' }), /meta\.lettering: the sans cut cannot be decoded/);
+  assert.equal(shaperFor('sans'), embedded.sans, 'the embedded faces are still in place');
+  // The run succeeds, and puts back none: before, it re-selected the bad faces and rejected with their error.
+  assert.equal(await withLettering(null, async () => 42), 42);
+  assert.equal(shaperFor('sans'), embedded.sans);
+});
+
+test('a loadProject with no lettering takes its turn too: overlapping a lettered run, it traces with the embedded faces', async () => {
+  const { loadProject } = await import('../explain/project.ts');
+  const { Scene } = await import('../src/index.ts');
+  await useLettering(null);
+  const faces = pageFaces((await collectProject(FIXTURE, { write: false })).lettering);
+  await useLettering(null);
+  const seen: boolean[] = [];
+  class Plain extends Scene {
+    static meta = { id: 'plain' };
+    override async construct() {
+      await this.step('one', { caption: 'Plain words.' });
+      for (let i = 0; i < 4; i++) {
+        seen.push(shaperFor('sans') !== embedded.sans);
+        await new Promise((r) => setTimeout(r, 10));
+        await this.wait(0.1);
+      }
+    }
+  }
+  // A lettered run in progress when the unlettered load begins: the load waits for it.
+  const lettered = withLettering(faces, () => new Promise((r) => setTimeout(r, 150)));
+  await new Promise((r) => setTimeout(r, 20));
+  await Promise.all([lettered, loadProject(Plain, join(folder, 'plain'))]);
+  assert.deepEqual(seen, [false, false, false, false], 'every run of the plain scene saw the embedded faces');
+  assert.equal(shaperFor('sans'), embedded.sans);
+});
+
 // Fail closed: a script nobody asked for fails every command, as it did before lettering existed.
 const scene = (meta: string, text: string) =>
-  `import{Scene,Text}from'rayner';import{stage}from'rayner/explain';export default class L extends Scene{static meta={${meta}};async construct(){stage(this);await this.step('one',{title:'One'});this.add(new Text(${JSON.stringify(text)}));}}`;
+  `import{Scene,Text,FadeIn}from'rayner';import{stage}from'rayner/explain';export default class L extends Scene{static meta={${meta}};async construct(){stage(this);await this.step('one',{title:'One'});await this.play(new FadeIn(new Text(${JSON.stringify(text)})));}}`;
 async function collectSource(name: string, source: string) {
   const file = join(folder, name + '.ts');
   await writeFile(file, source);
@@ -120,7 +157,7 @@ test('an explainer that asks for Greek still fails on a Cyrillic letter, naming 
   // And after that failure the embedded faces are back for whatever builds next
   await collectProject(join(ROOT, 'scenes/explainers/seasons'), { write: false });
   shaperFor('sans')('ж', 1);
-  assert.deepEqual([...takeMissingGlyphs()], [['ж', 'ж']]);
+  assert.deepEqual([...takeLetteringMissing()], [['ж', 'ж']]);
 });
 
 test('the legacy subset request parser rejects unsupported fields and scripts', () => {
@@ -156,7 +193,8 @@ test('a lettered page embeds only the requested faces, cut to the letters it dra
   for (const family of ['sans', 'mono'] as const) {
     const face: LetteringFace = project.lettering!.faces[family]!;
     assert.equal(face.woff2, pinned.faces[family].woff2, `${family}: the pinned cut`);
-    assert.ok(html.includes(face.woff2), `${family}: the page carries the cut`);
+    assert.ok(html.includes(pageFaces(project.lettering)![family]!), `${family}: the page carries the cut, as SFNT`);
+    assert.ok(!html.includes(face.woff2), `${family}: and not its WOFF2`);
     assert.ok(!html.includes(sources[family]), `${family}: and not the whole source face`);
     // Every character the cut maps, read from its own cmap
     const font = await loadFont(Buffer.from(face.woff2, 'base64'));
@@ -172,17 +210,17 @@ test('a lettered page embeds only the requested faces, cut to the letters it dra
   assert.deepEqual(report.scripts, ['Grek']);
   assert.equal(report.faces.sans!.characters, EXPECTED.sans.length);
   assert.equal(report.faces.mono!.characters, EXPECTED.mono.length);
-  assert.equal(
-    report.pageBytes,
-    project.lettering!.faces.sans!.woff2.length + project.lettering!.faces.mono!.woff2.length,
-  );
-  assert.ok(report.pageBytes < 12_000, `${report.pageBytes} bytes for two dozen letters`);
+  // The page carries the cuts as SFNT, base64, which its shaper reads without a Brotli decoder.
+  const faces = pageFaces(project.lettering)!;
+  assert.equal(report.pageBytes, faces.sans!.length + faces.mono!.length);
+  for (const data of [faces.sans!, faces.mono!]) assert.notEqual(Buffer.from(data, 'base64').toString('latin1', 0, 4), 'wOF2');
+  assert.ok(report.pageBytes < 16_000, `${report.pageBytes} bytes for two dozen letters`);
 });
 
 test('a lettered explainer draws its Greek as outlines, and without its faces the same Greek is missing', async () => {
   const project = await collectProject(FIXTURE, { write: false });
   await useProjectLettering(project);
-  takeMissingGlyphs();
+  takeLetteringMissing();
   for (const [font, text] of [
     ['sans', 'Ελληνικά'],
     ['mono', 'αβγ'],
@@ -195,18 +233,18 @@ test('a lettered explainer draws its Greek as outlines, and without its faces th
       assert.ok(g.path.length > 2, `${font} ${text}: an outline`);
     }
   }
-  assert.deepEqual([...takeMissingGlyphs()], []);
+  assert.deepEqual([...takeLetteringMissing()], []);
   // The poster is the resting picture of the first step, drawn with those outlines
   const v = defaultScenario(project, { word: 'phos' });
   const step = v.trace.steps.find((s) => s.step === 'code')!;
   const sink = new SnapshotSink();
-  await renderAt(v.Scene, restingTime(step, v.trace.fps), sink);
+  await renderFrame(v.Scene, step.frame1, sink);
   const lettered = sink.svg;
   await useLettering(null);
   assert.ok(shaperFor('mono')('αβγ', 1).glyphs.every((g) => g.gid === 0));
-  assert.deepEqual([...takeMissingGlyphs()], [['αβγ', 'αβγ']]);
+  assert.deepEqual([...takeLetteringMissing()], [['αβγ', 'αβγ']]);
   const bare = new SnapshotSink();
-  await renderAt(v.Scene, restingTime(step, v.trace.fps), bare);
+  await renderFrame(v.Scene, step.frame1, bare);
   assert.notEqual(bare.svg, lettered, 'the Greek outlines are what the lettering added');
 });
 
@@ -221,9 +259,9 @@ test('a lettered explainer passes every check, its bare runtime included, and re
 test('a requested face records only the glyphs absent from every available face', async () => {
   const project = await collectProject(FIXTURE, { write: false });
   await useProjectLettering(project);
-  takeMissingGlyphs();
+  takeLetteringMissing();
   shaperFor('sans')('λж', 1);
   assert.deepEqual([...takeEmbeddedMissing()], [['λж', 'λж']], 'the engine names all the embedded faces lack');
   shaperFor('sans')('λж', 1);
-  assert.deepEqual([...takeMissingGlyphs()], [['λж', 'ж']], 'lettering names only what no face has');
+  assert.deepEqual([...takeLetteringMissing()], [['λж', 'ж']], 'lettering names only what no face has');
 });

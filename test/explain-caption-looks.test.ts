@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { looksNamed, keyedByLine, captionLookProblems, NOT_A_LOOK } from '../explain/caption-looks.ts';
-import { colourName, swatchWords } from '../explain/annotate.ts';
+import { colorName, swatchWords } from '../explain/annotate.ts';
 
 test('looksNamed reads colour and pattern words, folding gray into grey and plurals into the word', () => {
   assert.deepEqual(looksNamed('The purple fill marks cat; the dashed line is the browser.'), ['purple', 'dashed']);
@@ -33,12 +33,12 @@ test('captionLookProblems: a caption may lean on the stage or the heading, a lin
   assert.deepEqual(captionLookProblems(loose, [loose.line], []), ['the line names “red”, which nothing else on the stage says']);
 });
 
-test('colourName names a colour by its hue, and greys, black and white by lightness', () => {
+test('colorName names a colour by its hue, and greys, black and white by lightness', () => {
   assert.deepEqual(
-    ['#cf222e', '#fb8f44', '#bf8700', '#9a6700', '#1a7f37', '#1b7c83', '#0969da', '#8250df', '#bf3989', '#6e7781', '#1f2328', '#ffffff'].map(colourName),
+    ['#cf222e', '#fb8f44', '#bf8700', '#9a6700', '#1a7f37', '#1b7c83', '#0969da', '#8250df', '#bf3989', '#6e7781', '#1f2328', '#ffffff'].map(colorName),
     ['red', 'orange', 'yellow', 'brown', 'green', 'teal', 'blue', 'purple', 'pink', 'grey', 'black', 'white'],
   );
-  assert.equal(colourName('not a colour'), 'coloured');
+  assert.equal(colorName('not a colour'), 'coloured');
 });
 
 test('swatchWords says a fill, a line and an outline, dashed or not, with a name override', () => {
@@ -46,5 +46,7 @@ test('swatchWords says a fill, a line and an outline, dashed or not, with a name
   assert.equal(swatchWords({ label: 'browser', stroke: '#0969da', dashed: true }), 'dashed blue line');
   assert.equal(swatchWords({ label: 'gap', fill: 'none', stroke: '#cf222e', dashed: true }), 'dashed red outline');
   assert.equal(swatchWords({ label: 'dog', fill: '#e0d0b0', stroke: '#9a6700', name: 'brown' }), 'brown fill with a brown outline');
+  // The article follows the word after it.
+  assert.equal(swatchWords({ label: 'fox', fill: '#8250df', stroke: '#e8590c' }), 'purple fill with an orange outline');
   assert.throws(() => swatchWords({ label: 'nothing' }), /needs a fill or a stroke/);
 });

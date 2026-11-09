@@ -1,8 +1,6 @@
 {
   "version": 2,
-  "importer": "a766bb6141ca6fb0",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "706805f133d4bdeb91a16ed4d34cf70f9ae437ad9c03ee17a9a150e76ffb2d41",
   "diagrams": {
     "[\"---\\nconfig:\\n  pie:\\n    legendPosition: right\\n    textPosition: 0.68\\n  themeVariables:\\n    pie1: '#6e7781'\\n    pie2: '#4ac26b'\\n    pie3: '#cf222e'\\n    pieLegendTextSize: 17px\\n    pieSectionTextSize: 15px\\n    pieTitleTextSize: 18px\\n---\\npie\\n  title Every 4 KiB block of 1 TiB\\n  \\\"Metadata\\\" : 4495258\\n  \\\"Users can write\\\" : 250514330\\n  \\\"Root reserve\\\" : 13421772\",\"github-light\"]": "e556a392be1a850d.json",
     "[\"---\\nconfig:\\n  pie:\\n    legendPosition: right\\n    textPosition: 0.68\\n  themeVariables:\\n    pie1: '#6e7781'\\n    pie2: '#4ac26b'\\n    pie3: '#cf222e'\\n    pieLegendTextSize: 17px\\n    pieSectionTextSize: 15px\\n    pieTitleTextSize: 18px\\n---\\npie\\n  title Every 4 KiB block of 1 TiB\\n  \\\"Metadata\\\" : 4495258\\n  \\\"Users can write\\\" : 261251748\\n  \\\"Root reserve\\\" : 2684354\",\"github-light\"]": "febddd254697805d.json",

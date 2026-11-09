@@ -8,8 +8,10 @@ import {
   Line,
   Transform,
   } from '../src/index.ts';
-import { NullSink, StringSink, SnapshotSink, renderAt, toSvgString, renderElements } from '../src/output.ts';
+import { NullSink, StringSink, renderFrame, toSvgString, renderElements } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import type { Box } from '../src/index.ts';
+import { mobjectId } from '../src/mobject.ts';
 
 function clipped(group: Group, clipBox: Box) {
   return Object.assign(group, { clipBox });
@@ -44,7 +46,7 @@ test('nested viewport clips affect paint, not geometry, and survive translated p
   assert.deepEqual(after.clipBox, [0, -0.5, 1, 0.5]);
   assert.notEqual(before, after);
   outer.clipBox[2] = NaN;
-  assert.throws(() => renderElements(scene), /finite ordered/);
+  assert.throws(() => renderElements(scene), /m\.clipBox: it must be a finite, ordered box/);
 });
 test('seeking through a fixed viewport is byte-identical to playing it', async () => {
   class Moving extends Scene {
@@ -60,7 +62,7 @@ test('seeking through a fixed viewport is byte-identical to playing it', async (
   const played = new StringSink({ width: 160, background: '#ffffff' });
   await new Moving(played, { fps: 20 }).run();
   const seek = new SnapshotSink({ width: 160, background: '#ffffff' });
-  await renderAt(Moving, 0.5, seek, { fps: 20 });
+  await renderFrame(Moving, 10, seek, { fps: 20 });
   assert.equal(seek.svg, played.frames[10]);
   assert.deepEqual(pixel(seek.svg, 80, 45), [255, 0, 0, 255]);
 });
@@ -74,6 +76,6 @@ test('a translucent leaf wholly outside its clip is not written, and the frame s
   const scene = new Scene(new NullSink());
   scene.add(clipped(new Group(paper, ruled), [-1, -1, 1, 1]));
   const ids = renderElements(scene).map((r) => r.id);
-  assert.ok(ids.includes(paper.id) && !ids.includes(ruled.id));
+  assert.ok(ids.includes(mobjectId(paper)) && !ids.includes(mobjectId(ruled)));
   assert.equal(pixel(toSvgString(scene, { width: 160 }), 80, 45)[0], 0xf7);
 });

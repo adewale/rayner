@@ -1,31 +1,7 @@
 {
   "version": 2,
   "subjects": [
-    {
-      "step": "timeline",
-      "opening": true,
-      "targets": [
-        {
-          "key": "lantern-timeline-nudge-played"
-        },
-        {
-          "key": "lantern-timeline-nudge-seeked"
-        }
-      ]
-    },
-    {
-      "step": "objects",
-      "targets": [
-        {
-          "text": "owns"
-        },
-        {
-          "text": "plays"
-        },
-        {
-          "text": "emits"
-        }
-      ]
-    }
+    { "step": "timeline", "opening": true, "targets": [{ "key": "lantern-timeline-nudge-played" }, { "key": "lantern-timeline-nudge-seeked" }] },
+    { "step": "objects", "targets": [{ "text": "owns" }, { "text": "plays" }, { "text": "emits" }] }
   ]
 }

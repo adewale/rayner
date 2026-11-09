@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { selectExport } from '../tools/lib/explain-export-selection.ts';
+import { checkPageId, selectExport, selectedIds } from '../tools/repo/lib/explain-export-selection.ts';
 
 const catalog: import('../tools/lib/explain-artifacts.ts').Catalog = {
   version: 2,
@@ -47,4 +47,16 @@ test('a subset can omit the catalog introduction and choose its own entry', () =
   assert.equal(selectExport('old,small', catalog, evidence, 'old').catalog.product.entry.id, 'old');
   assert.throws(() => selectExport('old', catalog, evidence, 'cache'), /entry.*selected.*cache/);
   assert.equal(catalog.product.entry.id, 'cache');
+});
+
+test('page ids are unique in one site, ignoring case, and a scene\'s meta.id is its catalog id', () => {
+  // A build of the catalog and an export of a built one both select through selectedIds.
+  assert.throws(() => selectedIds(undefined, ['fork', 'cache', 'fork']), /^Error: site: the page id "fork" is listed twice/);
+  assert.throws(() => selectedIds('cache', ['fork', 'cache', 'Fork']), /^Error: site: the page ids "fork" and "Fork" differ only in case/);
+  const cased = structuredClone(catalog), casedEvidence = structuredClone(evidence);
+  cased.scenes[2]!.id = casedEvidence.scenes[2]!.id = 'Cache';
+  assert.throws(() => selectExport(undefined, cased, casedEvidence), /"cache" and "Cache" differ only in case/);
+  assert.deepEqual(selectedIds(undefined, ['fork', 'cache']), ['fork', 'cache']);
+  checkPageId('fork', 'fork');
+  assert.throws(() => checkPageId('fork', 'spoon'), /^Error: site: scenes\/explainers\/fork has the meta\.id "spoon"/);
 });

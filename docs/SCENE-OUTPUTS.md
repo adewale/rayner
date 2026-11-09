@@ -46,10 +46,10 @@ so a caller cannot mutate a later replay by changing the original input object.
 
 | Lantern document concept | Native Rayner equivalent |
 | --- | --- |
-| `nodes`: box, state, slot, pointer, value, text | `Rectangle`, `Circle`, `Square`, `Arrow`, `Text`, `DecimalNumber`; combine with `Group`/`Labeled` |
+| `nodes`: box, state, slot, pointer, value, text | `Rectangle`, `Circle`, `Arrow`, `Text`, `DecimalNumber`; combine with `Group`/`Labeled` |
 | `edges` and labels | `Arrow`/`CurvedArrow` with `Labeled`, or captured Agentic Mermaid diagrams |
 | `at`, relative placement | `moveTo`, `nextTo`, `alignTo`, `arrange` |
-| `code`, `focus` | `Code`, `highlight`, spans and emphasis animations |
+| `code`, `focus` | `Code`, spans and emphasis animations |
 | `state`, `readout`, `set` | Typed `Scene` state, a model function and `view(this, draw).sync()` |
 | Named `steps` and metadata | `await this.step(name, metadata)` |
 | Sequential ops / arrays of simultaneous ops | Sequential `await this.play(...)` / one `this.play(a, b)` |
@@ -66,22 +66,20 @@ not for the animation program itself.
 Drawing a scene's frames somewhere is `rayner/output`; a trace is author tooling, in `rayner/testing`.
 
 ```ts
-import { SnapshotSink, renderAt, renderText, renderElements, indexScene, stepTime } from 'rayner/output';
+import { renderFrame, toSvgString, renderText, renderElements } from 'rayner/output';
 import { traceScene } from 'rayner/testing';
 import { requestScene } from './document.ts';
 
 const Request = requestScene({ cached: false });
-const index = await indexScene(Request);
-const time = stepTime(index, 'result');
-if (time === null) throw new Error('Unknown step');
-const sink = new SnapshotSink();
-const scene = await renderAt(Request, time, sink);
+const trace = await traceScene(Request);    // complete step-boundary trace
+const result = trace.steps.find((s) => s.step === 'result');
+if (!result) throw new Error('Unknown step');
+const scene = await renderFrame(Request, result.frame1);
 
-const svg = sink.svg;                       // one SVG frame
+const svg = toSvgString(scene);             // one SVG frame
 const text = renderText(scene);             // lossy spatial text view
 const elements = renderElements(scene);     // geometry/paint records
-const state = scene.describe();             // the model at this frame; describeShown() for what is shown
-const trace = await traceScene(Request);    // complete step-boundary trace
+const state = scene.stateJson();            // the model at this frame; shownJson() for what is shown
 ```
 
 Copy `recipes/document.ts` beside this code, or import your own Scene class instead.
@@ -91,11 +89,10 @@ captions and explanatory descriptions in its transcript.
 
 | Requested result | API | Former Lantern service equivalent |
 | --- | --- | --- |
-| One SVG | `renderAt` into `SnapshotSink` | `/frame.svg` |
-| Text at a time | `renderText` on that sampled scene | `/text` |
-| Element records | `renderElements` | `/elements.json` |
-| Full step/state trace | `traceScene` | `/trace.json` |
-| Step timing and duration | `indexScene` | `/index.json` |
+| One SVG | `toSvgString` of the scene `renderFrame` returns at a frame, such as a step's `frame1` | `/frame.svg` |
+| Text at a frame | `renderText` on that sampled scene | `/text` |
+| Element records | `renderElements`, one `ElementRecord` per drawn element | `/elements.json` |
+| Full step/state trace, with each step's timing and the duration | `traceScene`, a `Trace` (`{ fps, duration, frames, steps }`) | `/trace.json`, `/index.json` |
 | Every SVG frame | `new SceneClass(new StringSink()).run()`; read sink's `frames` | frame-sequence rendering (`/render`) |
 
 These are capability correspondences, not restored HTTP routes or wire schemas.
@@ -105,17 +102,20 @@ scene-document endpoint. The Node runner's filesystem code is not Worker code.
 
 ## Time and step semantics
 
-`stepTime` returns a step's **start**, not its final resting picture. In the example,
-the `result` step follows the completed decision, so its start already shows the
-answer. For a trace record `record`, sample the last frame with
-`Math.max(record.t0, (record.t1 ?? record.t0) - 0.5 / trace.fps)`.
-The helper implementing this is internal, not a package export. Check the chosen
-step exists before sampling.
+A scene is sought by frame. A step's record names its frames by number: `frame0` where it
+begins, `holdFrame` where its caption hold begins, and `frame1`, its resting picture, which
+`renderFrame(SceneClass, record.frame1, sink)` draws. Check the chosen step exists before
+drawing it.
 
-`renderAt` samples the first frame at or after the requested time, on the scene's
-fixed frame grid. A time past the end returns the final frame. `traceScene` records
-the model before and after each step and what was shown at its end, not every
-intermediate value; call `scene.describe()` at chosen sample times for those.
+`renderFrame` runs the scene to one frame by its number, the `frameCount` the scene reaches as it
+draws it, hands that frame to the sink it is given (none by default) and returns the scene there;
+a number past the end gives the final frame. It counts the frames before it
+without drawing them, and never finds a frame by a rounded time. Frame `k` is at time
+`k / fps`. `traceScene` returns a `Trace`,
+`{ fps, duration, frames, steps }`, typed from the scene class ([typed traces](REFERENCE.md#typed-traces)), recording the model before and after each step and what was shown at its end, not every
+intermediate value; call `scene.stateJson()` at chosen sample times for those. It runs the
+scene into a `TraceSink`, whose `steps()` are those records: hand one to a run of your own to
+trace it beside other output.
 
 For all SVG frames:
 
@@ -123,16 +123,22 @@ For all SVG frames:
 import { StringSink } from 'rayner/output';
 const all = new StringSink();
 await new Request(all, { fps: 30 }).run();
-// all.frames contains SVG strings in frame order; it retains the whole run.
+// all.frames contains SVG strings in frame order; it retains the whole run. all.last() is the final one.
 ```
 
-Use `SnapshotSink` for a single retained frame or implement `Sink.frame` to stream
+Use `renderFrame` and `toSvgString` for a single frame, or implement `Sink.frame` to stream
 frames rather than retaining a large sequence in memory. Forward `stepBegin` and
-`stepEnd` too when composing a sink that needs step notifications.
+`stepEnd` too when composing a sink that needs step notifications; `stepEnd` is handed an
+`EndedStep`, whose `t1` and `frame1` are numbers. A sink that draws only from
+some time on says so with `skipUntil`, the one way to skip frames: frames that end before it are
+counted, not drawn, and the sink may move it between plays. It is a time in seconds, 0 or more, or
+`Infinity` to skip every frame, as `NullSink` and `TraceSink` do; the scene refuses `NaN` or a
+negative time when a play or wait next reads it. A sink without it draws every frame, and
+`new TraceSink({ skipUntil: 0 })` traces a run that draws them all.
 
 ## Live browser output and publication
 
-In a browser module, pass a container element to `DomSink`, which appends its own SVG:
+In a browser module, pass a container element to `DomSink`, which appends its own SVG element, its `svg`:
 
 ```ts
 import { DomSink } from 'rayner/output';
@@ -140,6 +146,11 @@ const container = document.querySelector('#diagram');
 if (!container) throw new Error('Missing diagram container');
 await new Request(new DomSink(container)).run();
 ```
+
+By default the sink plays in real time (`realtime: true`): when the page falls more than a
+frame behind, it drops that frame's DOM patch rather than slow the clock, but never goes
+longer than 100 ms without a patch. `{ realtime: false }`
+patches every frame as fast as the scene runs.
 
 This runs the raw scene, without the reader's Next and Previous controls, scenario
 selection, transcript or deep links; for those, use `rayner build` and the

@@ -4,14 +4,17 @@ import {pageSnapshots, packPageSnapshots} from '../tools/lib/page-snapshots.ts';
 import {decodeSnapshotPayload} from '../app/embed-snapshot-codec.ts';
 import {inflateSnapshots} from '../app/embed-snapshots.ts';
 import {gzipSync} from 'node:zlib';
-import type {SnapshotStore} from '../integrations/agentic-mermaid/snapshot.ts';
+import type {SnapshotStore} from '../explain/diagram-snapshot.ts';
 import {fc, params} from './lib/pbt.ts';
-import {collectProject} from '../tools/lib/explain-project.ts';
-import { bindSnapshots } from '../explain/testing.ts';
+import { loadProject } from '../explain/testing.ts';
+import { bindSnapshots } from '../explain/internal.ts';
 import { toSvgString } from '../src/output.ts';
 import type {SceneClass} from '../src/index.ts';
 
 import { fixture } from './lib/page-snapshot-fixture.ts';
+
+/** Explainer `id` of the collection, loaded as an author's test loads it. */
+const loaded = async (id: string) => loadProject((await import(`../scenes/explainers/${id}/scene.ts`)).default, `scenes/explainers/${id}`);
 
 test('page path compaction preserves exact float32 bytes through JSON, including signed underflow', () => {
   const check = (points: number[]) => {
@@ -85,31 +88,34 @@ test('only repeated long shape paths become references and restored arrays never
   assert.deepEqual(paths[3], short);
 });
 
+/** decodeSnapshotPayload()'s refusal of a payload not in the packed format, which it names. */
+const notPacked = (e: unknown) => e instanceof Error && e.message.startsWith('decodeSnapshotPayload(): ') && e.message.includes('rayner-paths-v1');
+
 test('packed transport rejects invalid references and malformed dictionary entries', () => {
   for (const ref of [-1, 0.5, 1, Number.MAX_SAFE_INTEGER, NaN, Infinity, {}, '0', null, [0, 'bad']]) {
     const payload = packPageSnapshots(fixture([0, 1]));
     payload.paths = [[0, 1]];
     payload.store.diagram!.parts[0]!.shapes[0]!.subpaths = [ref as number];
-    assert.throws(() => decodeSnapshotPayload(payload), /Invalid packed diagram snapshots/);
+    assert.throws(() => decodeSnapshotPayload(payload), notPacked);
   }
   for (const paths of [null, {}, [null], [[Infinity]], [['1']], [[{}]], Array(1), [Array(2)]]) {
-    assert.throws(() => decodeSnapshotPayload({format: 'rayner-paths-v1', paths, store: {}}), /Invalid packed diagram snapshots/);
+    assert.throws(() => decodeSnapshotPayload({format: 'rayner-paths-v1', paths, store: {}}), notPacked);
   }
-  assert.throws(() => decodeSnapshotPayload({format: 'rayner-paths-v2', paths: [], store: {}}), /Invalid packed diagram snapshots/);
+  assert.throws(() => decodeSnapshotPayload({format: 'rayner-paths-v2', paths: [], store: {}}), notPacked);
   const sparse = packPageSnapshots(fixture([0, 1]));
   sparse.store.diagram!.parts[0]!.shapes[0]!.subpaths = Array(1);
-  assert.throws(() => decodeSnapshotPayload(sparse), /Invalid packed diagram snapshots/);
+  assert.throws(() => decodeSnapshotPayload(sparse), notPacked);
 });
 
 test('compacted real flowchart, timeline and XY snapshots render byte-identical resting SVGs', async () => {
   const frames = async (Source: SceneClass) => {
     const result: string[] = [];
-    await new Source({async frame() {}, async stepEnd(scene) {result.push(toSvgString(scene));}}, {skipUntil: Infinity}).run();
+    await new Source({ skipUntil: Infinity, async frame() {}, async stepEnd(scene) {result.push(toSvgString(scene));}}).run();
     return result;
   };
   for (const id of ['mr-cache', 'cert-renewal', 'tailwind-gamut']) {
-    const project = await collectProject(`scenes/explainers/${id}`, {write: false});
-    const compact = pageSnapshots(project.store);
+    const project = await loaded(id);
+    const compact = pageSnapshots(project.snapshots);
     const Source = project.scenarios[0]!.Scene;
     const original = await frames(Source);
     assert.ok(original.length >= 3, 'compare every resting picture, not an empty render');

@@ -3,31 +3,38 @@
   "version": "0.2.0",
   "type": "module",
   "scripts": {
-    "build:lib": "rm -rf dist && tsc -p tsconfig.lib.json && tsc -p tsconfig.recipes.json && node tools/copy-vendor.ts && node tools/build-cli.ts",
-    "test": "node --expose-gc --test test/*.test.ts test/browser/*.test.ts",
-    "test:full": "FULL=1 node --expose-gc --test test/*.test.ts test/browser/*.test.ts",
-    "fonts": "tools/fonts.sh",
-    "fonts:lettering": "tools/lettering-fonts.sh",
+    "build:lib": "rm -rf dist && tsc -p tsconfig.lib.json && tsc -p tsconfig.recipes.json && node tools/repo/copy-vendor.ts",
+    "build:cli": "node tools/repo/build-cli.ts",
+    "test": "node --expose-gc --test test/*.test.ts test/browser/*.test.ts scenes/*/*/*.test.ts",
+    "test:full": "FULL=1 node --expose-gc --test test/*.test.ts test/browser/*.test.ts scenes/*/*/*.test.ts",
+    "fonts": "tools/repo/fonts.sh",
+    "fonts:lettering": "tools/repo/lettering-fonts.sh",
     "fonts:lettering-outlines": "bash tools/lettering-outline-fonts.sh",
-    "check": "tsc -b && node tools/copy-vendor.ts && tsc -p test/consumer/tsconfig.json",
+    "check": "tsc -b && node tools/repo/copy-vendor.ts && tsc -p test/consumer/tsconfig.json",
     "prepack": "npm run build:lib",
     "rayner": "node tools/explain.ts",
-    "demos:build": "node tools/explain-demos.ts",
-    "demos:check": "node tools/explain-demos.ts --check",
-    "demos:serve": "node tools/explain-serve.ts",
-    "demos:review": "node tools/explain-review.ts",
-    "check:budgets": "node tools/page-budgets.ts",
-    "pack:smoke": "node tools/explain-package-smoke.ts",
-    "site:export": "node tools/explain-site.ts",
+    "demos:build": "node tools/repo/explain-demos.ts",
+    "demos:check": "node tools/repo/explain-demos.ts --check",
+    "demos:serve": "node tools/repo/explain-serve.ts",
+    "demos:review": "node tools/repo/explain-review.ts",
+    "check:budgets": "node tools/repo/page-budgets.ts",
+    "pack:smoke": "node tools/repo/explain-package-smoke.ts",
+    "site:export": "node tools/repo/explain-site.ts",
     "test:embeds": "EXPLAIN_BROWSER=1 node --test test/browser/*.test.ts",
-    "release:check": "node tools/prepare-release.ts",
-    "bench": "node tools/bench.ts",
+    "release:check": "node tools/repo/prepare-release.ts",
+    "bench": "node tools/repo/bench.ts",
     "recipes": "node recipes/render.ts"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "2.6.2",
     "@types/node": "24.19.2",
+    "agentic-mermaid": "0.5.1",
+    "esbuild": "0.25.12",
     "fast-check": "4.10.2",
-    "shiki": "4.5.0"
+    "playwright-core": "1.64.1",
+    "shiki": "4.5.0",
+    "svgpath": "2.6.0",
+    "typescript": "5.9.3"
   },
   "description": "Technical explainers drawn from a tested TypeScript model, each step's pictures checked against its state. Read step by step or explore in the player, from one portable HTML page.",
   "exports": {
@@ -43,9 +50,9 @@
       "types": "./dist/explain/drawing.d.ts",
       "default": "./dist/explain/drawing.js"
     },
-    "./lettering": {
-      "types": "./dist/src/lettering.d.ts",
-      "default": "./dist/src/lettering.js"
+    "./geo": {
+      "types": "./dist/explain/geo.d.ts",
+      "default": "./dist/explain/geo.js"
     },
     "./output": {
       "types": "./dist/src/output.d.ts",
@@ -56,37 +63,23 @@
       "default": "./dist/explain/testing.js"
     }
   },
-  "bin": {
-    "rayner": "dist/tools/explain.js"
-  },
   "author": "Ade Oshineye (https://github.com/adewale)",
   "license": "MIT",
   "sideEffects": false,
   "types": "./dist/src/index.d.ts",
   "files": [
-    "dist",
+    "dist/src",
+    "dist/explain",
+    "dist/vendor",
+    "dist/recipes",
     "src",
     "explain",
-    "integrations",
-    "app/embed*",
-    "app/loader.ts",
     "docs/*.md",
     "FAQ.md",
     "skills",
     "scenes/tutorial",
     "recipes",
-    "tools/lettering.py",
-    "tools/lib/lettering.ts",
-    "tools/lib/lettering-validation.ts",
-    "vendor/glyph-math.js",
-    "vendor/glyph-math.d.ts",
-    "tools/lettering-outline-fonts.sh",
-    "tools/lettering-requirements.txt",
-    "vendor/glyph.js",
-    "vendor/glyph.pin.json",
-    "vendor/font-data-sfnt.json",
     "vendor/glyph.d.ts",
-    "vendor/lettering",
     "vendor/licenses",
     "LICENSE",
     "CHANGELOG.md"
@@ -107,14 +100,6 @@
     "embed",
     "mermaid"
   ],
-  "dependencies": {
-    "esbuild": "0.25.12",
-    "typescript": "5.9.3",
-    "agentic-mermaid": "0.5.1",
-    "playwright-core": "1.64.1",
-    "svgpath": "2.6.0",
-    "@resvg/resvg-js": "2.6.2"
-  },
   "homepage": "https://oshineye.dev/projects/rayner",
   "bugs": {
     "url": "https://github.com/adewale/rayner/issues"

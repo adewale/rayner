@@ -1,4 +1,3 @@
-import type {TextShaping} from '../src/text-context.ts';
 import {
   Group,
   VMobject,
@@ -7,31 +6,41 @@ import {
   Create,
   Transform,
   Dot,
-  MoveAlongPath,
   GrowFromEdge,
   PulseAlongPath,
   AnimationGroup,
   linear,
   Rectangle,
-  Text,
+  keyed,
 } from '../src/index.ts';
-import type { Scene, Mobject, Box, Vec, Style, PathFunc } from '../src/index.ts';
+import { MoveAlongPath, finishAtOnce } from '../src/animation.ts';
+import type { Beat, BeatPlan } from '../src/animation.ts';
+import { Text } from '../src/text.ts';
+import { action } from './action.ts';
+import type { Action } from './action.ts';
+import { ImportedLabel, labelOf } from './labels.ts';
+import type { Scene, Mobject, Box, Vec, Style, ScheduledAnimation } from '../src/index.ts';
+import { center, unionBoxes } from '../src/box.ts';
+import { paintsFill, mergeLeaves } from '../src/mobject.ts';
+import { curveCount } from '../src/vmobject.ts';
 import { regionBox, boxCenter, raised, emphasis, dimOpacity, emphasises, selfDescribed } from './look.ts';
 import type { Region } from './look.ts';
-import { diagramsOf, diagramKey, findingsOf, SVG_PX_PER_UNIT } from '../integrations/agentic-mermaid/snapshot.ts';
-import { outlineText } from '../integrations/agentic-mermaid/text.ts';
+import { resolverOf, diagramKey, diagramFindings, SVG_PX_PER_UNIT } from './diagram-snapshot.ts';
+import { outlineText } from './diagram-text.ts';
 import { recordWalk } from './trace.ts';
 import { wordsOf, wordsFor, familyNames } from './words.ts';
 import type { Words } from './words.ts';
-import type { Seen, SeenPart } from './trace.ts';
-import { lerpColor, parseColor } from '../src/color.ts';
+import type { Description, DescriptionPart } from './trace.ts';
+import { blendPaint, parseColor } from '../src/color.ts';
 import type {
   DiagramSpec,
   DiagramSnapshot,
   SnapshotPart,
-  SnapshotShape,
   MutationOp,
-} from '../integrations/agentic-mermaid/snapshot.ts';
+} from './diagram-snapshot.ts';
+
+/** Which side of its target a diagram's note or the kit's callout stands. */
+export type Side = 'above' | 'below' | 'left' | 'right';
 
 export interface ShowOptions {
   /** Where the diagram fits: a stage region name or [minX, minY, maxX, maxY]. */
@@ -43,19 +52,47 @@ interface Part {
   info: SnapshotPart;
   mob: Group;
   route?: VMobject;
+  /** The part's own drawn shapes and labels, in drawing order (see Diagram.shapes and Diagram.labels). */
+  shapes: VMobject[];
+  labels: ImportedLabel[];
 }
-export type NoteSide = 'above' | 'below' | 'left' | 'right';
 /** What a picture of a diagram shows besides its parts: its marks with their words, and the parts dimming keeps. */
-interface PictureShows { marks: ReadonlyMap<string, { color: string; as: string }>; kept: ReadonlySet<string> | null }
-const pictureShows = Symbol('pictureShows');
-/** A note in a diagram's picture: beside part `id`, as `note(id, text, { side, color, size })` draws it. */
-export interface PictureNote { id: string; text: string; side?: NoteSide; color?: string; size?: number }
-interface Note {
-  id: string;
-  side: NoteSide;
-  text: string;
-  mob: Group;
+interface PictureShows {
+  marks: ReadonlyMap<string, { color: string; as: string }>;
+  kept: ReadonlySet<string> | null;
+  /** False for a picture describing itself apart from the diagram (a second copy, say): the live walk is not its. */
+  walk?: boolean;
 }
+const pictureShows = Symbol('pictureShows');
+/** A note in a diagram's picture: a short label beside part `id`, at a readable size whatever the diagram's scale. */
+export interface PictureNote { id: string; text: string; side?: Side; color?: string; size?: number }
+/**
+ * How a diagram is on the stage now: not at all (`detached`, before it is built and after `d.hide()` or
+ * `s.clear()`), as its live parts (`live`), or by a view that draws a picture of it while the live
+ * diagram is off the stage (`viewed`, set by `s.diagramView` or `d.showBy`). A live diagram that
+ * took a view's place (`s.liveDiagram`) names that view as `replaced`, so the stage can show the
+ * diagram by it again; otherwise `replaced` is null.
+ *
+ * The rule: only the diagram's and the stage's calls change it (`s.show`, a reveal, a morph,
+ * `d.hide`, `s.clear`, `s.diagramView`, `s.liveDiagram`, `d.showBy`), and `d.root` cannot be
+ * replaced. A scene may take the live root or the view off the stage itself (`this.remove`, a
+ * FadeOut): the presentation stays, and the stage describes the diagram again once it is back. A
+ * scene must not put on the stage what the presentation says is off it, the live root while a view
+ * shows the diagram, or the view it replaced beside a live diagram: each key would be drawn twice,
+ * and the stage refuses it when it next describes the diagram.
+ */
+export type DiagramPresentation =
+  | { readonly kind: 'detached' }
+  | { readonly kind: 'live'; readonly replaced: Mobject | null }
+  | { readonly kind: 'viewed'; readonly view: Mobject };
+const DETACHED: DiagramPresentation = Object.freeze({ kind: 'detached' });
+const LIVE: DiagramPresentation = Object.freeze({ kind: 'live', replaced: null });
+/** Whether `m` is on `scene`: its outermost ancestor is one of the scene's top-level mobjects. */
+const onStage = (scene: Scene, m: Mobject): boolean => {
+  let top = m;
+  while (top.parent) top = top.parent;
+  return scene.mobjects.includes(top);
+};
 const connectorPart = Symbol('diagram connector part');
 /** Whether a drawn path belongs to a diagram connector (not a glyph or node). */
 export function isDiagramConnector(m: Mobject): boolean {
@@ -235,136 +272,25 @@ function journeyActors(source: string): string[] {
   return out;
 }
 
-/** The words and size of a label: a native Text, or a diagram label imported as outlines. */
-export interface LabelInfo {
-  text: string;
-  fontSize: number;
-  /** Original font size per unit of ink height. Use readingLabelSize after transforming a label. */
-  emRatio: number;
-}
-/** A label's words and size, or undefined for a mobject that is not a label. */
-export function labelOf(m: Mobject): LabelInfo | undefined {
-  if (m instanceof Text) return { text: m.text, fontSize: m.run.fontSize, emRatio: m.run.fontSize / (m.run.ascent + m.run.descent) };
-  const info = m as Partial<LabelInfo>;
-  return typeof info.text === 'string' && info.emRatio ? (info as LabelInfo) : undefined;
-}
-
-/** The smaller affine scale: rotation preserves size; squash and shear reduce it. */
-function smallestScale(a: number, b: number, c: number, d: number): number {
-  const x = a * a + b * b, y = c * c + d * d;
-  const largest = Math.sqrt((x + y + Math.hypot(x - y, 2 * (a * c + b * d))) / 2);
-  return largest > 0 ? Math.abs(a * d - b * c) / largest : 0;
-}
-
-/** A canonical one-em parallelogram, centred on the label. Its point order
- * matches Text's frame indexing, but its dimensions are always one font em. */
-function emFrame(center: Vec, a: number, b: number, c: number, d: number): Float32Array {
-  const x = center[0] - (a + c) / 2, y = center[1] - (b + d) / 2;
-  return new Float32Array([x, y, x + a + c, y + b + d, x + c, y + d, x + a, y + b]);
-}
-function nativeEmBasis(text: Text): [number, number, number, number] {
-  const f = text.frameBox, height = text.run.ascent + text.run.descent, size = text.run.fontSize;
-  if (!(height > 0 && size > 0 && Number.isFinite(height) && Number.isFinite(size))) return [0, 0, 0, 0];
-  const c = (f[4]! - f[0]!) / height, d = (f[5]! - f[1]!) / height;
-  const a = text.run.width > 0 ? (f[6]! - f[0]!) / text.run.width : d;
-  const b = text.run.width > 0 ? (f[7]! - f[1]!) / text.run.width : -c;
-  return [a * size, b * size, c * size, d * size];
-}
-/** Imported glyphs have no Text advance box. A separate one-em basis follows
- * affine maps and animation, including captured SVG transforms and forced
- * text widths, without contributing to glyph geometry or any layout bounds. */
-class ImportedLabel extends Group implements LabelInfo {
-  text: string;
-  fontSize: number;
-  emRatio: number;
-  private basis: Float32Array = new Float32Array();
-
-  constructor(paths: VMobject[], shape: SnapshotShape, shaping?: TextShaping) {
-    super(...paths);
-    this.text = shape.text!;
-    this.fontSize = shape.fontSize!;
-    this.emRatio = this.fontSize / Math.max(0.001, this.height());
-    const run = shape.textRun;
-    let [a, b, c, d] = [this.fontSize, 0, 0, this.fontSize];
-    if (run) {
-      const advance = !run.natural && run.width != null ? new Text(run.text, {fontSize: run.size, shaping}).advance() : 0;
-      const width = advance ? run.width! / advance : 1;
-      // outlineText maps SVG's downward y axis into the scene's upward y axis.
-      a = run.matrix[0]! * run.size * width / SVG_PX_PER_UNIT;
-      b = -run.matrix[1]! * run.size * width / SVG_PX_PER_UNIT;
-      c = -run.matrix[2]! * run.size / SVG_PX_PER_UNIT;
-      d = run.matrix[3]! * run.size / SVG_PX_PER_UNIT;
-    }
-    this.basis = emFrame(this.center(), a, b, c, d);
-  }
-  override pointArrays(): Float32Array[] { return [this.basis]; }
-  override boundingPointArrays(): Float32Array[] { return []; }
-  override pointKind(): string { return 'imported-label-basis'; }
-  override copyData(src: Mobject): void { this.basis = new Float32Array((src as ImportedLabel).basis); }
-  override matchingFrameFor(source: Mobject): Mobject {
-    if (!(source instanceof Text)) return this;
-    if (!(source.run.fontSize > 0 && Number.isFinite(source.run.fontSize))) return this;
-    const p = this.basis, frame = source.copy(), run = source.run;
-    const width = run.width / run.fontSize, height = (run.ascent + run.descent) / run.fontSize;
-    frame.frameBox = emFrame(this.center(), (p[6]! - p[0]!) * width, (p[7]! - p[1]!) * width,
-      (p[4]! - p[0]!) * height, (p[5]! - p[1]!) * height);
-    frame.invalidateBox();
-    return frame;
-  }
-  override interpolateData(a: Mobject, b: Mobject, alpha: number, pathFunc: PathFunc | null): void {
-    super.interpolateData(a, b, alpha, pathFunc);
-    if (a instanceof ImportedLabel && (b instanceof ImportedLabel || b instanceof Text)) {
-      if (b instanceof Text) {
-        // Text's advance frame is a different kind of point data. Only this
-        // imported label opts into it; native Text interpolation stays intact.
-        const target = emFrame(b.center(), ...nativeEmBasis(b));
-        for (let i = 0; i < this.basis.length; i += 2) {
-          const from: Vec = [a.basis[i]!, a.basis[i + 1]!], to: Vec = [target[i]!, target[i + 1]!];
-          const point = pathFunc ? pathFunc(from, to, alpha) :
-            alpha === 0 ? from : alpha === 1 ? to : [from[0] + (to[0] - from[0]) * alpha, from[1] + (to[1] - from[1]) * alpha];
-          this.basis[i] = point[0]!; this.basis[i + 1] = point[1]!;
-        }
-      }
-      if (alpha >= 1) {
-        const label = labelOf(b)!;
-        this.text = label.text; this.fontSize = label.fontSize; this.emRatio = label.emRatio;
-      }
-    }
-  }
-  readingSize(): number {
-    if (!this.basis.length) return 0;
-    const p = this.basis;
-    const x = p[6]! - p[0]!, y = p[7]! - p[1]!, z = p[4]! - p[0]!, w = p[5]! - p[1]!;
-    return smallestScale(x, y, z, w);
-  }
-}
-
-/** Conservative font em in world units, for native and imported labels; undefined for other artwork. */
-export function readingLabelSize(m: Mobject): number | undefined {
-  if (m instanceof ImportedLabel) return m.readingSize();
-  if (m instanceof Text) return smallestScale(...nativeEmBasis(m));
-  const label = labelOf(m);
-  return label ? m.height() * label.emRatio : undefined;
-}
-const OPPOSITE: Record<NoteSide, NoteSide> = { above: 'below', below: 'above', left: 'right', right: 'left' };
+const OPPOSITE: Record<Side, Side> = { above: 'below', below: 'above', left: 'right', right: 'left' };
 /**
  * Where a note sits beside a box. If the frame would push it back onto the
  * part it describes, try the opposite side, then above and below.
  */
-function notePosition(note: Mobject, box: Box, side: NoteSide, frame: Box): Vec {
+function notePosition(note: Mobject, box: Box, side: Side, frame: Box): Vec {
   const w = note.width() / 2,
     h = note.height() / 2;
   const clear = ([x, y]: Vec) => x + w <= box[0] || x - w >= box[2] || y + h <= box[1] || y - h >= box[3];
-  const tries = [...new Set<NoteSide>([side, OPPOSITE[side], 'above', 'below'])].map((s) =>
+  const tries = [...new Set<Side>([side, OPPOSITE[side], 'above', 'below'])].map((s) =>
     clampedPosition(note, box, s, frame),
   );
   return tries.find(clear) ?? tries[0]!;
 }
-function clampedPosition(note: Mobject, box: Box, side: NoteSide, frame: Box): Vec {
+function clampedPosition(note: Mobject, box: Box, side: Side, frame: Box): Vec {
   const w = note.width(),
     h = note.height(),
     gap = 0.14;
-  let [x, y] = [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2];
+  let [x, y] = center(box);
   if (side === 'above') y = box[3] + gap + h / 2;
   else if (side === 'below') y = box[1] - gap - h / 2;
   else if (side === 'left') x = box[0] - gap - w / 2;
@@ -389,6 +315,16 @@ function scaleArtwork(mob: Mobject, k: number, at: Vec = [0, 0]): void {
   mob.scale(k, { aboutPoint: at });
   for (const m of mob.family()) scaleStyle(m.style, k);
 }
+/** How many diagrams each scene has made, by the scene. */
+const made = new WeakMap<Scene<any, any>, number>();
+/**
+ * @internal How many diagrams have been made on `scene`: the command reads it on each scene a
+ * project ran (and each one exploration ran) to know whether its page needs diagram code, wherever
+ * the diagrams' snapshots came from. Kept per scene, so runs of other projects in the same process
+ * never count.
+ */
+export const diagramsOn = (scene: Scene<any, any>): number => made.get(scene) ?? 0;
+
 /** A copy of `m` scaled by k about `from`, then moved so `from` lands on `to`: one move of the diagram's own view. */
 function moved(m: Group, k: number, from: Vec, to: Vec): Group {
   const target = m.copy();
@@ -396,29 +332,21 @@ function moved(m: Group, k: number, from: Vec, to: Vec): Group {
   target.shift([to[0] - from[0], to[1] - from[1]]);
   return target;
 }
-/** The stage: the camera's home box, and the most it shows. */
-const STAGE: Box = [-8, -4.5, 8, 4.5];
-const atHome = (frame: Mobject) => frame.box()!.every((v, i) => Math.abs(v - STAGE[i]!) < 1e-6);
-/**
- * The 16:9 camera box around `box` with `margin` on every side, `zoom` times
- * closer, kept inside the stage so the paper always fills the view.
- */
-export function cameraBox(box: Readonly<Box>, margin = 0.5, zoom = 1): Box {
-  const aspect = (STAGE[2] - STAGE[0]) / (STAGE[3] - STAGE[1]);
-  const fit = Math.max(box[2] - box[0] + 2 * margin, (box[3] - box[1] + 2 * margin) * aspect);
-  const w = Math.min(STAGE[2] - STAGE[0], fit / zoom),
-    h = w / aspect;
-  const clamp = (c: number, half: number, lo: number, hi: number) => Math.min(Math.max(c, lo + half), hi - half);
-  const cx = clamp((box[0] + box[2]) / 2, w / 2, STAGE[0], STAGE[2]),
-    cy = clamp((box[1] + box[3]) / 2, h / 2, STAGE[1], STAGE[3]);
-  return [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2];
-}
-
 export class Diagram {
   readonly scene: Scene;
-  spec: DiagramSpec;
-  snapshot: DiagramSnapshot;
-  root = new Group();
+  /** The spec it was drawn from (after a morph, the morph's). */
+  get spec(): DiagramSpec { return this.#spec; }
+  #spec: DiagramSpec;
+  /** The snapshot its geometry comes from (after a morph, the morph's). */
+  get snapshot(): DiagramSnapshot { return this.#snapshot; }
+  #snapshot: DiagramSnapshot;
+  /**
+   * The group that holds the diagram's artwork, which the diagram and the stage put on the stage
+   * and take off it (see DiagramPresentation). It cannot be replaced. A scene may take it off the
+   * stage itself; it may not put it on while a view shows the diagram.
+   */
+  get root(): Group { return this.#root; }
+  #root = new Group();
   /** Each part's id in the snapshot, by its mobject (a part's key is its id, but for the frame's). */
   private partIds = new WeakMap<Mobject, string>();
   /**
@@ -427,11 +355,20 @@ export class Diagram {
    * morph keeps the frame's key.
    */
   private frameKey: string;
-  parts = new Map<string, Part>();
-  visible = new Set<string>();
-  order: string[];
+  /** @internal Each part by its id, for tests: a scene reads part ids from `snapshot.parts` and a part with `get`, `shapes` and `labels`. */
+  get parts(): ReadonlyMap<string, Part> { return this.#parts; }
+  #parts = new Map<string, Part>();
+  /** The top-level parts revealed so far: reveal and hide change it. */
+  get visible(): ReadonlySet<string> { return this.#visible; }
+  #visible = new Set<string>();
+  /** The top-level parts in reading order: what reveal brings in next. */
+  get order(): readonly string[] { return this.#order; }
+  #order: string[];
+  /** @internal The box the diagram was laid out in. */
   frameBox: Box;
-  accent: string;
+  /** The diagram's emphasis colour: its style's accent when that has a hue, else a warm orange, as the stage's `look.emphasis`. */
+  get emphasis(): string { return this.#emphasis; }
+  #emphasis: string;
   private home = new Group();
   /** Unemphasised styles of each top-level part's family, at the home frame (captured when built). */
   private base = new Map<string, Style[]>();
@@ -439,16 +376,10 @@ export class Diagram {
   private zoom = 1;
   /** The top-level parts last focused on, for the description; null when the diagram is seen whole. */
   private focused: string[] | null = null;
-  /** Where a camera focus left the camera; once the camera is elsewhere, the parts are no longer in focus. */
-  private focusView: Box | null = null;
-  /** Marked parts: their colour, and the word a description gives the mark. */
-  private marks = new Map<string, { color: string; as: string }>();
-  private kept: Set<string> | null = null;
-  /** How opaque dimmed parts stay on this diagram's paper. */
+  /** How opaque dimmed parts stay on this diagram's paper, in a picture that dims (see picture). */
   private dimmed: number;
   /** The last walk, by step name, for the description. */
-  private walked: { step: string | undefined; hops: string[]; trail: boolean } | null = null;
-  notes: Note[] = [];
+  private walked: { step: string | undefined; hops: string[]; edges: string[] } | null = null;
   /** Notes notePicture built, for the description while they are on stage. */
   private drawnNotes = new Map<Mobject, { id: string; text: string }>();
 
@@ -458,22 +389,24 @@ export class Diagram {
     snapshot: DiagramSnapshot,
     { box: where = 'full' }: ShowOptions = {},
   ) {
+    made.set(scene, diagramsOn(scene) + 1);
     const box = regionBox(where);
     this.scene = scene;
     this.frameKey = `frame:${diagramKey(spec)}`;
-    this.spec = spec;
-    this.snapshot = snapshot;
+    this.#spec = spec;
+    this.#snapshot = snapshot;
     this.frameBox = box;
-    this.root.clipBox = [...box];
-    this.accent = emphasis(snapshot.palette);
+    this.#root.clipBox = [...box];
+    this.#emphasis = emphasis(snapshot.palette);
     this.dimmed = dimOpacity(snapshot.palette);
     emphasises(scene, () => this.emphasised());
     for (const info of partsOf(snapshot)) {
       const mob = new Group();
       this.partIds.set(mob, info.id);
-      mob.key = info.id === '__frame' ? this.frameKey : info.id;
+      keyed(mob, info.id === '__frame' ? this.frameKey : info.id);
       if (info.id === '__frame') mob.role = 'frame';
       if (info.from != null && info.to != null) Object.assign(mob, { [connectorPart]: true });
+      const shapes: VMobject[] = [], labels: ImportedLabel[] = [];
       for (const shape of info.shapes) {
         const paths = shape.textRun ? outlineText(shape.textRun, shape.style, scene.textShaping) : [new VMobject(shape.style)];
         if (!shape.textRun) {
@@ -482,7 +415,9 @@ export class Diagram {
         }
         // A text run is one label of many outlines: it moves and checks as a unit.
         const drawn = shape.text != null ? new ImportedLabel(paths, shape, scene.textShaping) : paths[0]!;
-        if (shape.textRun) drawn.mergeLeaves = true;
+        if (shape.textRun) drawn[mergeLeaves] = true;
+        if (drawn instanceof ImportedLabel) labels.push(drawn);
+        else shapes.push(drawn);
         mob.add(drawn);
       }
       // Connector lettering needs a paper gap, not just an outline around each
@@ -497,12 +432,9 @@ export class Diagram {
           const paper = new Rectangle({
             width: b[2] - b[0] + gap * 2, height: b[3] - b[1] + gap * 2,
             fill: snapshot.palette.paper, stroke: 'none',
-          }).moveTo([(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]);
+          }).moveTo(center(b));
           // Keep the plate with the label through reveals, dimming and focus.
-          const i = mob.children.indexOf(label);
-          mob.add(paper);
-          mob.children.splice(mob.children.indexOf(paper), 1);
-          mob.children.splice(i, 0, paper);
+          mob.insert(mob.children.indexOf(label), paper);
         }
       }
       let route: VMobject | undefined;
@@ -512,35 +444,28 @@ export class Diagram {
         for (const p of info.route.slice(1)) route.addLineTo(p);
         mob.add(route);
       }
-      this.parts.set(info.id, { info, mob, ...(route ? { route } : {}) });
-      this.root.add(mob);
+      this.#parts.set(info.id, { info, mob, shapes, labels, ...(route ? { route } : {}) });
+      this.#root.add(mob);
     }
     // Some renderer labels overhang the declared SVG canvas (notably XY ticks).
     // Fit all artwork as well as that canvas, rather than clipping those labels.
     const [w, h] = [snapshot.width / SVG_PX_PER_UNIT, snapshot.height / SVG_PX_PER_UNIT];
-    const artwork = this.root.box() ?? [0, -h, w, 0];
-    const bounds: Box = [
-      Math.min(0, artwork[0]),
-      Math.min(-h, artwork[1]),
-      Math.max(w, artwork[2]),
-      Math.max(0, artwork[3]),
-    ];
+    const artwork = this.#root.box() ?? [0, -h, w, 0];
+    const bounds = unionBoxes([[0, -h, w, 0], artwork])!;
     const inset = Math.min(0.12, (box[2] - box[0]) / 20, (box[3] - box[1]) / 20);
     const k = Math.min(
       (box[2] - box[0] - 2 * inset) / (bounds[2] - bounds[0]),
       (box[3] - box[1] - 2 * inset) / (bounds[3] - bounds[1]),
     );
-    scaleArtwork(this.root, k);
-    this.root.shift([
-      (box[0] + box[2]) / 2 - ((bounds[0] + bounds[2]) * k) / 2,
-      (box[1] + box[3]) / 2 - ((bounds[1] + bounds[3]) * k) / 2,
-    ]);
-    this.home = this.root.copy();
-    for (const p of this.parts.values()) if (p.info.owner) this.parts.get(p.info.owner)!.mob.add(p.mob);
+    scaleArtwork(this.#root, k);
+    const [to, from] = [center(box), center(bounds)];
+    this.#root.shift([to[0] - from[0] * k, to[1] - from[1] * k]);
+    this.home = this.#root.copy();
+    for (const p of this.#parts.values()) if (p.info.owner) this.#parts.get(p.info.owner)!.mob.add(p.mob);
     // Hidden marks stay in the addressable map, not in the rendered tree.
-    for (const p of [...this.root.children]) this.root.remove(p);
+    for (const p of [...this.#root.children]) this.#root.remove(p);
     // Family reading: preserve message/task/commit order; graph nodes precede outgoing links.
-    const all = [...this.parts.values()].filter((p) => !p.info.owner);
+    const all = [...this.#parts.values()].filter((p) => !p.info.owner);
     const graph = ['flowchart', 'state', 'mindmap', 'class', 'architecture'].includes(snapshot.family);
     const nodes = all.filter((p) => p.info.from == null && p.info.id !== '__frame');
     if (graph) {
@@ -570,17 +495,17 @@ export class Diagram {
             b.mob.center()[1] - a.mob.center()[1] ||
             a.mob.center()[0] - b.mob.center()[0],
       );
-      this.order = nodes.flatMap((n) => [n.info.id, ...edges.filter((e) => e.from === n.info.id).map((e) => e.id)]);
-      this.order.push(...all.map((p) => p.info.id).filter((id) => !this.order.includes(id)));
-    } else this.order = all.map((p) => p.info.id);
+      this.#order = nodes.flatMap((n) => [n.info.id, ...edges.filter((e) => e.from === n.info.id).map((e) => e.id)]);
+      this.#order.push(...all.map((p) => p.info.id).filter((id) => !this.#order.includes(id)));
+    } else this.#order = all.map((p) => p.info.id);
     if (snapshot.family === 'gitgraph')
-      this.order.sort((a, b) => this.get(a).center()[0] - this.get(b).center()[0]);
+      this.#order.sort((a, b) => this.get(a).center()[0] - this.get(b).center()[0]);
     for (const p of all) this.base.set(p.info.id, p.mob.family().map((m) => ({ ...m.style })));
   }
 
-  /** The verifier's warnings for this diagram, each with the `part` id it names (see `findingsOf`). */
+  /** The verifier's warnings for this diagram, each with the `part` id it names (see `diagramFindings`). */
   findings() {
-    return findingsOf(this.snapshot);
+    return diagramFindings(this.#snapshot);
   }
 
   /**
@@ -590,96 +515,150 @@ export class Diagram {
    */
   private find(id: string): Part | undefined {
     return (
-      this.parts.get(id) ??
-      ['actor:', 'class:', 'service:', 'junction:', 'group:', 'entity:'].map((kind) => this.parts.get(kind + id)).find((p) => p)
+      this.#parts.get(id) ??
+      ['actor:', 'class:', 'service:', 'junction:', 'group:', 'entity:'].map((kind) => this.#parts.get(kind + id)).find((p) => p)
     );
   }
   get(id: string): Group {
+    return this.part(id, 'd.get()').mob;
+  }
+  /**
+   * Part `id`'s own drawn shapes, in drawing order: a node's outline, a link's line and arrowhead, a
+   * task's bar. Its labels, the plates behind them, its route and the parts it owns are not among them.
+   */
+  shapes(id: string): VMobject[] {
+    return [...this.part(id, 'd.shapes()').shapes];
+  }
+  /** Part `id`'s own labels, in drawing order, each with the `text` it reads. */
+  labels(id: string): (Mobject & { readonly text: string })[] {
+    return [...this.part(id, 'd.labels()').labels];
+  }
+  private part(id: string, api: string): Part {
     const part = this.find(id);
-    if (!part) throw new Error(`No diagram mark ${id}. Available: ${[...this.parts.keys()].join(', ')}`);
-    return part.mob;
+    if (!part) throw new RangeError(`${api}: the diagram has no part ${JSON.stringify(id)}; its parts are ${[...this.#parts.keys()].join(', ')}`);
+    return part;
   }
   /** The top-level part an id belongs to (an owned label resolves to its owner); throws for an unknown id. */
-  private top(id: string): string {
-    this.get(id);
+  private top(id: string, api: string): string {
+    this.part(id, api);
     let part = this.find(id)!;
-    while (part.info.owner) part = this.parts.get(part.info.owner)!;
+    while (part.info.owner) part = this.#parts.get(part.info.owner)!;
     return part.info.id;
   }
   /** As `top`, but an endpoint that names no part stands for itself. */
   private end(id: string): string {
-    return this.find(id) ? this.top(id) : id;
+    return this.find(id) ? this.top(id, 'd.link()') : id;
   }
-  /** Put the root on stage. Hidden marks are never added: opacity on a Group does not mask its descendants in the engine. */
-  private attach(): void {
-    if (!this.scene.mobjects.includes(this.root)) this.scene.add(this.root);
+  /** Put the root on stage: the diagram is live. Hidden marks are never added: opacity on a Group does not mask its descendants in the engine. */
+  private attach(api: string): void {
+    this.mustBeLive(api);
+    if (!this.scene.mobjects.includes(this.#root)) this.scene.add(this.#root);
+    this.goLive();
+  }
+  /** Live, if it was not: a diagram live already keeps the view it replaced. */
+  private goLive(): void {
+    if (this.presented.kind !== 'live') this.presented = LIVE;
+  }
+  /**
+   * A call that moves the live parts (a reveal, an enlargement, a morph) refuses a diagram a view
+   * shows: the parts it moves are off the stage, and bringing them back beside the view would put
+   * every key on stage twice.
+   */
+  private mustBeLive(api: string): void {
+    if (this.presented.kind === 'viewed')
+      throw new Error(`${api}: the diagram is shown by a view, so its live parts are off the stage; call s.liveDiagram(d) first`);
   }
   /** A route token at the start of a link. */
   private token(route: VMobject, color: string): Dot {
     const dot = new Dot({ radius: TOKEN.radius, color }).moveTo(route.pointFromProportion(0));
-    this.root.add(dot);
+    this.#root.add(dot);
     return dot;
   }
-  async build(mode: 'all' | 'frame' = 'all', runTime = 0.65): Promise<this> {
-    this.attach();
-    await this.reveal(this.order.filter((id) => isScaffold(this.parts.get(id)!.info)), { runTime });
-    if (mode === 'all') await this.reveal('rest', { runTime });
-    return this;
+  /** @internal Build the diagram in: its scaffolding, then with 'all' the rest in reading order (s.show's `build` option). */
+  build(mode: 'all' | 'frame' = 'all', runTime = 0.65): Action<this> {
+    return action(this.scene, 'd.build()', () => this.buildPlan(mode, runTime));
   }
-  async reveal(which: number | readonly string[] | 'rest', { runTime = 0.65 } = {}): Promise<void> {
-    const pending = this.order.filter((id) => !this.visible.has(id));
+  /** @internal What `build` does, decided now: s.show plays it as its own. */
+  buildPlan(mode: 'all' | 'frame' = 'all', runTime = 0.65): BeatPlan<this> {
+    const scaffold = this.revealBeat(this.#order.filter((id) => isScaffold(this.#parts.get(id)!.info)), runTime, 'd.build()');
+    const rest = mode === 'all' ? [this.revealBeat('rest', runTime, 'd.build()', new Set(scaffold.arriving)).beat] : [];
+    return { value: this, start: () => this.attach('d.build()'), beats: [scaffold.beat, ...rest] };
+  }
+  /** Bring in the next `n` parts in reading order, named parts, or the rest, in one play. */
+  reveal(which: number | readonly string[] | 'rest', { runTime = 0.65 } = {}): Action {
+    return action(this.scene, 'd.reveal()', () => {
+      this.mustBeLive('d.reveal()');
+      return { value: undefined, beats: [this.revealBeat(which, runTime, 'd.reveal()').beat] };
+    });
+  }
+  /**
+   * A reveal's play, decided now: the parts that arrive (pending now, and not in `coming`, which
+   * an earlier beat of the same action reveals), and what each does when its turn comes.
+   */
+  private revealBeat(which: number | readonly string[] | 'rest', runTime: number, name: string, coming: ReadonlySet<string> = new Set()): { beat: Beat; arriving: string[] } {
+    const shown = (id: string) => this.#visible.has(id) || coming.has(id);
+    const pending = this.#order.filter((id) => !shown(id));
     if (typeof which === 'number' && (!Number.isInteger(which) || which < 0))
-      throw new Error('reveal count must be a non-negative integer');
+      throw new RangeError(`${name}: a count of parts must be a whole number, 0 or more, not ${which}`);
     const requested =
       which === 'rest' ? pending : typeof which === 'number' ? pending.slice(0, which) : [...which];
-    const arriving = [...new Set(requested.map((id) => this.top(id)))].filter((id) => !this.visible.has(id));
+    const arriving = [...new Set(requested.map((id) => this.top(id, name)))].filter((id) => !shown(id));
+    // The members start 0.12 of a run time apart, as the play's group lays them out.
+    let last = 0;
+    for (let i = 1; i < arriving.length; i++) last += 0.12 * runTime;
     const messages: Part[] = [];
-    // Arrive in the current look (dimmed if dimming is on, marked if marked, at the camera's zoom).
-    this.looks(arriving, 0, false);
-    const anims = arriving.map((id) => {
-        const p = this.parts.get(id)!;
-        this.visible.add(id);
-        this.attach();
-        for (const child of this.parts.values()) if (child.info.owner === id) this.visible.add(child.info.id);
-        this.root.add(p.mob);
-        if (p.info.role === 'message' && p.info.from && p.info.to && p.route) {
-          const token = this.token(p.route, this.accent);
-          messages.push(p);
-          return new AnimationGroup(
-            [
-              new Create(p.mob, { runTime, lagRatio: 0 }),
-              new PulseAlongPath(token, p.route, { runTime, rateFunc: linear }),
-            ],
-            { rateFunc: linear },
-          );
-        }
-        if (p.info.role === 'bar') return new GrowFromEdge(p.mob, [0, -1], { runTime });
-        if (p.info.role === 'task') return new GrowFromEdge(p.mob, [-1, 0], { runTime });
-        return p.info.from
-          ? new Create(p.mob, { runTime, lagRatio: 0 })
-          : new FadeIn(p.mob, { runTime, shift: [0, 0.08] });
-      });
-    if (anims.length) {
+    const play = (): ScheduledAnimation[] => {
+      const early = arriving.find((id) => this.#visible.has(id));
+      if (early) throw new Error(`${name}: ${early} was revealed after this reveal was made; make the reveal once the one before it has played`);
+      // Arrive in the current look (dimmed if dimming is on, marked if marked, at the camera's zoom).
+      this.restyle(arriving);
+      const anims = arriving.map((id) => {
+          const p = this.#parts.get(id)!;
+          this.#visible.add(id);
+          this.attach(name);
+          for (const child of this.#parts.values()) if (child.info.owner === id) this.#visible.add(child.info.id);
+          this.#root.add(p.mob);
+          if (p.info.role === 'message' && p.info.from && p.info.to && p.route) {
+            const token = this.token(p.route, this.#emphasis);
+            messages.push(p);
+            return new AnimationGroup(
+              [
+                new Create(p.mob, { runTime, lagRatio: 0 }),
+                new PulseAlongPath(token, p.route, { runTime, rateFunc: linear }),
+              ],
+              { rateFunc: linear },
+            );
+          }
+          if (p.info.role === 'bar') return new GrowFromEdge(p.mob, [0, -1], { runTime });
+          if (p.info.role === 'task') return new GrowFromEdge(p.mob, [-1, 0], { runTime });
+          return p.info.from
+            ? new Create(p.mob, { runTime, lagRatio: 0 })
+            : new FadeIn(p.mob, { runTime, shift: [0, 0.08] });
+        });
+      if (!anims.length) return [];
       // Draw in snapshot order, sorted once (by rank, not a search per comparison). Transient
       // route tokens (and notes) stay above artwork; the sort is stable among them.
-      const rank = new Map(this.snapshot.parts.map((p, i) => [p.id, i]));
-      const at = (m: Mobject) => rank.get(this.partIds.get(m)!) ?? this.snapshot.parts.length;
-      this.root.children.sort((a, b) => at(a) - at(b));
-      await this.scene.play(new AnimationGroup(anims, { lagRatio: 0.12, rateFunc: linear }));
-    }
-    // Land exactly on that look: drawing animations can end a rounding away from it.
-    this.looks(arriving, 0, false);
-    for (const p of messages)
-      recordWalk(this.scene, {
-        step: this.scene.currentStep?.name,
-        from: p.info.from!,
-        to: p.info.to!,
-        edge: p.info.id,
-      });
+      const rank = new Map(this.#snapshot.parts.map((p, i) => [p.id, i]));
+      const at = (m: Mobject) => rank.get(this.partIds.get(m)!) ?? this.#snapshot.parts.length;
+      this.#root.add(...[...this.#root.children].sort((a, b) => at(a) - at(b)));
+      return [new AnimationGroup(anims, { lagRatio: 0.12, rateFunc: linear })];
+    };
+    const after = () => {
+      // End exactly on that look: drawing animations can end a rounding away from it.
+      this.restyle(arriving);
+      for (const p of messages)
+        recordWalk(this.scene, {
+          step: this.scene.currentStep?.name,
+          from: p.info.from!,
+          to: p.info.to!,
+          edge: p.info.id,
+        });
+    };
+    return { beat: { runTime: arriving.length ? last + runTime : 0, play, after }, arriving };
   }
   /** A part's words: its own text and its labels' (an edge's label is a part it owns; a quadrant point's is `<id>:label`). */
   private words(id: string): string {
-    return [...this.parts.values()]
+    return [...this.#parts.values()]
       .filter((p) => p.info.id === id || p.info.owner === id || p.info.id === `${id}:label`)
       .flatMap((p) => p.info.shapes.map((s) => s.text?.trim()).filter((t): t is string => !!t))
       .join(' ');
@@ -690,8 +669,8 @@ export class Diagram {
     if (!p) return id;
     const w = wordsOf(this.scene),
       words = this.words(p.info.id);
-    const namer = Object.hasOwn(NAMERS, this.snapshot.family) ? NAMERS[this.snapshot.family] : undefined;
-    const own = namer?.({ w, snapshot: this.snapshot, info: p.info, words, end: (e) => this.endName(e) });
+    const namer = Object.hasOwn(NAMERS, this.#snapshot.family) ? NAMERS[this.#snapshot.family] : undefined;
+    const own = namer?.({ w, snapshot: this.#snapshot, info: p.info, words, end: (e) => this.endName(e) });
     if (own) return own;
     if (p.info.from && p.info.to) {
       const link = w.arrow(this.endName(p.info.from), this.endName(p.info.to));
@@ -725,18 +704,18 @@ export class Diagram {
       return data ? wordsOf(this.scene).pair(id.slice(6), data[1] ? `${data[1]} (${data[2]})` : data[2]!) : id.slice(6);
     }
     // A radar curve is said by its legend name and its value on each spoke, from the source; its dots are its own.
-    if (id.startsWith('curve:') && this.snapshot.family === 'radar') {
+    if (id.startsWith('curve:') && this.#snapshot.family === 'radar') {
       const w = wordsOf(this.scene);
-      const { axes, curves } = radarData(this.snapshot.spec.source);
+      const { axes, curves } = radarData(this.#snapshot.spec.source);
       const curve = curves.find((c) => c.id === id.slice(6));
       if (!curve) return id.slice(6);
       const said = curve.values.flatMap((v, i) => (Number.isFinite(v) ? [w.valueAt(w.number(v), axes[i]?.label ?? String(i + 1))] : []));
       return said.length ? w.pair(curve.label, said.join(', ')) : curve.label;
     }
     if (!bar && !line) return '';
-    const categories = this.snapshot.chart?.categories ?? [];
+    const categories = this.#snapshot.chart?.categories ?? [];
     // Bars and lines are numbered within their kind: bar:1:… is the second bar series.
-    const series = (this.snapshot.chart?.series ?? []).filter((s) => s.kind === (bar ? 'bar' : 'line'));
+    const series = (this.#snapshot.chart?.series ?? []).filter((s) => s.kind === (bar ? 'bar' : 'line'));
     const k = +(bar ?? line)![1]!;
     const values = series[k]?.values ?? [];
     const w = wordsOf(this.scene);
@@ -750,59 +729,58 @@ export class Diagram {
   }
   /** The chart's axes, as a reader would read them: titles, the value range and the categories. */
   private axes(): string {
-    const ticks = [...this.parts.keys()]
+    const ticks = [...this.#parts.keys()]
       .filter((id) => id.startsWith('axis:y:label:'))
       .map((id) => Number(this.words(id)))
       .filter(Number.isFinite);
     const w = wordsOf(this.scene);
     const y = this.words('axis:y:title') || w.values;
     const range = ticks.length ? ` ${w.span(w.number(Math.min(...ticks)), w.number(Math.max(...ticks)))}` : '';
-    const categories = this.snapshot.chart?.categories ?? [];
+    const categories = this.#snapshot.chart?.categories ?? [];
     const x = this.words('axis:x:title');
     const over = categories.length
       ? `, ${w.count(categories.length, w.category)} ${w.span(categories[0]!, categories.at(-1)!)}`
       : '';
     return `${y}${range}${x ? ` ${w.by(x)}` : ''}${over}`;
   }
-  /** The parts in focus: a camera focus holds only while the camera stays where it put it. */
-  private inFocus(): string[] | null {
-    const view = this.scene.frame.box();
-    return this.focusView && !(view && view.every((v, i) => Math.abs(v - this.focusView![i]!) < 1e-6)) ? null : this.focused;
-  }
   /** What the diagram emphasises now, for the player's phone close-ups (`emphasises` in look.ts). */
-  private emphasised(): [Mobject, string][] {
-    const part = (id: string) => this.parts.get(id)?.mob;
-    return [
-      ...[...this.marks].flatMap(([id, m]): [Mobject, string][] => (part(id) ? [[part(id)!, `mark ${m.color} ${m.as}`]] : [])),
-      ...(this.inFocus() ?? []).flatMap((id): [Mobject, string][] => (part(id) ? [[part(id)!, 'focus']] : [])),
-      ...this.notes.map((n): [Mobject, string] => [n.mob, `note ${n.text}`]),
-    ];
+  private emphasised(): [Mobject | string, string][] {
+    // While a view shows the diagram, the live one is off the stage: a part is named by its key,
+    // which names the view's copy of it on the stage.
+    const viewed = this.presented.kind === 'viewed';
+    const part = (id: string): Mobject | string | undefined => {
+      const mob = this.#parts.get(id)?.mob;
+      return mob && viewed ? mob.key : mob;
+    };
+    // Marks and notes are drawn in a picture (see picture), which says what it emphasises itself.
+    return (this.focused ?? []).flatMap((id): [Mobject | string, string][] => (part(id) ? [[part(id)!, 'focus']] : []));
   }
   /**
    * What a reader sees of this diagram: what it is and how big, then each shown part
    * by its words in reading order (participants and lanes first), with its emphasis,
    * and the notes on it. Parts drawn with no words are reported as blank.
    */
-  describe(as: PictureShows | null = this.shown()): Seen {
+  describe(): Description { return this.#describeShowing(this.shown()); }
+  /** What a reader sees of this diagram showing `as`'s marks and dimming (none for null). */
+  #describeShowing(as: PictureShows | null): Description {
     const w = wordsOf(this.scene);
-    const marks = as ? as.marks : this.marks,
-      kept = as ? as.kept : this.kept;
-    const [family, thing, link] = familyNames(w, this.snapshot.family);
+    const marks = as?.marks ?? new Map<string, { color: string; as: string }>(),
+      kept = as?.kept ?? null;
+    const [family, thing, link] = familyNames(w, this.#snapshot.family);
     // Blank parts are reported to the author, in English.
-    const [english] = familyNames(wordsFor('en'), this.snapshot.family);
-    const parts: SeenPart[] = [];
+    const [english] = familyNames(wordsFor('en'), this.#snapshot.family);
+    const parts: DescriptionPart[] = [];
     const blank: string[] = [];
-    const journey = this.snapshot.family === 'journey',
-      stateFamily = this.snapshot.family === 'state';
+    const journey = this.#snapshot.family === 'journey',
+      stateFamily = this.#snapshot.family === 'state';
     let things = 0,
       links = 0;
     const step = this.scene.steps.at(-1)?.name;
-    // A trail already marks the path; a walk without one names it.
+    // A trail drawn from state (travelled marks) already says the path; a walk without one names it.
     const walked = this.walked;
-    const focused = this.inFocus();
-    if (walked && walked.step === step && !walked.trail) parts.push({ name: walked.hops.join(', '), mark: w.path });
-    // Live notes sit in the root: a picture that shows the diagram has its own, drawn from state.
-    if (!as) for (const n of this.notes) parts.push({ name: w.beside(n.text, this.nameOf(n.id)), mark: w.note });
+    const focused = this.focused;
+    const trailed = walked?.edges.every((id) => marks.get(id)?.as === w.travelled);
+    if (walked && walked.step === step && !trailed && as?.walk !== false) parts.push({ name: walked.hops.join(', '), mark: w.path });
     // Notes drawn from state, in the order the stage draws them; ones no longer on stage are forgotten.
     const present = this.scene.familyMembers();
     const onStage = new Set(present);
@@ -811,15 +789,15 @@ export class Diagram {
       const n = this.drawnNotes.get(m);
       if (n) parts.push({ name: w.beside(n.text, this.nameOf(n.id)), mark: w.note });
     }
-    const order = [...this.order].sort((a, b) => +!isScaffold(this.parts.get(a)!.info) - +!isScaffold(this.parts.get(b)!.info));
+    const order = [...this.#order].sort((a, b) => +!isScaffold(this.#parts.get(a)!.info) - +!isScaffold(this.#parts.get(b)!.info));
     for (const id of order) {
-      const info = this.parts.get(id)!.info;
+      const info = this.#parts.get(id)!.info;
       // Axes, titles and legends are summed up in what the chart is.
-      if (!this.visible.has(id) || /axis|title|legend/.test(info.role)) continue;
+      if (!this.#visible.has(id) || /axis|title|legend/.test(info.role)) continue;
       // A point's label is said with its point.
-      if (id.endsWith(':label') && this.visible.has(id.slice(0, -6))) continue;
+      if (id.endsWith(':label') && this.#visible.has(id.slice(0, -6))) continue;
       // A slice's share label is said with its slice.
-      if (id.startsWith('slice-label:') && this.visible.has('slice:' + id.slice(12))) continue;
+      if (id.startsWith('slice-label:') && this.#visible.has('slice:' + id.slice(12))) continue;
       // A journey's score guide is its scale, said in what the chart is.
       if (id === 'score-guide') continue;
       const name = this.nameOf(id);
@@ -844,12 +822,12 @@ export class Diagram {
     const title = this.words('title');
     // A journey's scale is its score guide's digits; its actors are the ones its tasks name.
     const scale = journey ? this.words('score-guide').split(' ').map(Number).filter(Number.isFinite) : [];
-    const actors = journey ? journeyActors(this.snapshot.spec.source) : [];
+    const actors = journey ? journeyActors(this.#snapshot.spec.source) : [];
     // A radar's spokes and its scale, from the centre out, as its source gives them.
-    const radar = this.snapshot.family === 'radar' ? radarData(this.snapshot.spec.source) : undefined;
+    const radar = this.#snapshot.family === 'radar' ? radarData(this.#snapshot.spec.source) : undefined;
     const spokes = radar?.axes.length ? `${w.count(radar.axes.length, w.axis)} ${w.span(w.number(radar.min), w.number(radar.max))}` : '';
     const size =
-      this.snapshot.family === 'xychart'
+      this.#snapshot.family === 'xychart'
         ? this.axes()
         : [
             things && w.count(things, thing),
@@ -869,7 +847,7 @@ export class Diagram {
    */
   /** Each family member's style for part `id` as the diagram draws it, marked in `color` and dimmed or not. */
   private styled(id: string, color: string | undefined, dim: boolean): Style[] {
-      const p = this.parts.get(id)!;
+      const p = this.#parts.get(id)!;
       const fam = p.mob.family();
       const base = this.base.get(id)!;
       const connector = !!(p.info.from && p.info.to);
@@ -886,19 +864,21 @@ export class Diagram {
         // and explicitly captured marker carriers take their connector's mark.
         const partId = (a: Mobject) => this.partIds.get(a);
         const owned = within(m, (a) => partId(a) != null && partId(a) !== id && !partId(a)!.startsWith('card:') &&
-          !this.parts.get(partId(a)!)?.info.markerCarrier);
-        const marker = p.info.markerCarrier || within(m, (a) => !!partId(a) && !!this.parts.get(partId(a)!)?.info.markerCarrier);
+          !this.#parts.get(partId(a)!)?.info.markerCarrier);
+        const marker = p.info.markerCarrier || within(m, (a) => !!partId(a) && !!this.#parts.get(partId(a)!)?.info.markerCarrier);
         // Paper inside an aggregation diamond or inheritance triangle denotes
         // a hollow marker. Colour its outline without turning it solid.
-        const paper = parseColor(this.snapshot.palette.paper);
+        const paper = parseColor(this.#snapshot.palette.paper);
         const hollow = marker && parseColor(st.fill)?.every((v, i) => v === paper?.[i]);
         if (color && !owned && !text) {
+          // Any stroke with a width takes the mark, whatever its opacity now (not paintsStroke):
+          // a mark recolours the outline the part has, shown or not.
           if (st.stroke && st.stroke !== 'none' && (st.strokeWidth ?? 0) > 0) {
             st.stroke = color;
             st.strokeWidth = (st.strokeWidth ?? 0) * 1.8;
           }
-          if (st.fill && st.fill !== 'none' && (st.fillOpacity ?? 1) > 0 && !hollow) {
-            st.fill = connector ? color : lerpColor(st.fill, color, 0.2);
+          if (paintsFill(st) && !hollow) {
+            st.fill = connector ? color : blendPaint(st.fill!, color, 0.2);
             // A shape drawn by fill alone (a bar, a task) gains an outline: the mark shows by shape, not only hue.
             if (!connector && !(st.stroke && st.stroke !== 'none' && (st.strokeWidth ?? 0) > 0)) {
               Object.assign(st, { stroke: color, strokeOpacity: 1, strokeWidth: 0.04 * this.zoom });
@@ -909,44 +889,54 @@ export class Diagram {
         return st;
       });
   }
-  private looks(ids: Iterable<string>, runTime: number, animate = true): Transform[] {
-    const anims: Transform[] = [];
+  /** Put each of these parts in its plain look at the current zoom, in place. */
+  private restyle(ids: Iterable<string>): void {
     for (const id of new Set(ids)) {
-      const p = this.parts.get(id)!;
-      const fam = p.mob.family();
-      const dim = this.kept != null && !this.kept.has(id) && !isScaffold(p.info);
-      const styles = this.styled(id, this.marks.get(id)?.color, dim);
-      if (fam.every((m, i) => JSON.stringify(m.style) === JSON.stringify(styles[i]))) continue;
-      if (animate && this.root.children.includes(p.mob) && this.scene.familyMembers().includes(p.mob)) {
-        const target = p.mob.copy();
-        target.family().forEach((m, i) => (m.style = { ...styles[i]! } as typeof m.style));
-        anims.push(new Transform(p.mob, target, { runTime }));
-      } else fam.forEach((m, i) => (m.style = { ...styles[i]! } as typeof m.style));
+      const fam = this.#parts.get(id)!.mob.family();
+      const styles = this.styled(id, undefined, false);
+      fam.forEach((m, i) => (m.style = { ...styles[i]! } as typeof m.style));
     }
-    return anims;
   }
-  /** A picture drawn from this diagram (see picture()) that shows it while the live diagram is off the stage. */
-  shownBy: Mobject | null = null;
-  /** Say that `picture` shows this diagram: the stage describes the diagram while it is on stage. */
-  showBy(picture: Mobject): this {
-    this.shownBy = picture;
-    return this;
+  /** How the diagram is on the stage now: detached, live (with the view it replaced), or viewed by a view (see DiagramPresentation). */
+  private presented: DiagramPresentation = DETACHED;
+  get presentation(): DiagramPresentation {
+    return this.presented;
   }
   /**
-   * While a view shows this diagram by its picture and the live diagram is off the stage, a change
-   * to the live diagram reaches nothing a reader sees; the picture is drawn from state instead.
+   * Show this diagram by `view`, a picture drawn from it (see picture()) that the scene shows: the
+   * live diagram leaves the stage, and the stage describes the diagram as the view shows it.
+   * `s.diagramView` calls it; a scene that draws its own view calls it after adding the view.
+   * A reveal, an enlargement or a morph then needs `s.liveDiagram(d)` first.
    */
-  private refuseWhileShownBy(call: string, args = ''): void {
-    if (this.shownBy && !this.scene.familyMembers().includes(this.root))
-      throw new Error(`d.${call}(${args}) changes the live diagram, but a view shows it by its picture (showBy) and the live diagram is off the stage. Put the change in the state and draw it with d.picture(marks, { notes, dim }) in the view's draw, then play view.sync().`);
+  showBy(view: Mobject): this {
+    if (view === this.#root) throw new Error('d.showBy(): the live diagram cannot be its own view; give the view that draws a picture of it');
+    this.scene.remove(this.#root);
+    this.presented = { kind: 'viewed', view };
+    return this;
+  }
+  /** @internal The live diagram back on the stage in its view's place (the stage's liveDiagram); gives the view it replaces. */
+  showLive(): Mobject {
+    const p = this.presented;
+    if (p.kind !== 'viewed') throw new Error('s.liveDiagram(): the diagram is not shown by a view; show it with s.diagramView(d, draw) first');
+    this.scene.remove(p.view);
+    this.scene.add(this.#root);
+    this.presented = { kind: 'live', replaced: p.view };
+    return p.view;
+  }
+  /**
+   * The marks a walk's trail leaves along these hops, for a picture drawn from state (see picture,
+   * and stage.diagramView): each link travelled, in `color` (the diagram's emphasis colour), said as travelled.
+   */
+  trail(hops: readonly (readonly [string, string])[], color: string = this.#emphasis): Record<string, { color: string; as: string }> {
+    return Object.fromEntries(hops.map(([from, to]) => [this.link(from, to).id, { color, as: wordsOf(this.scene).travelled }]));
   }
   /** The link from `from` to `to`, its endpoints resolved as walk resolves them: its id, its part and its route. */
   link(from: string, to: string): { id: string; mob: Group; route: VMobject } {
     const [a, b] = [this.end(from), this.end(to)];
-    const edge = [...this.parts.values()].find(
+    const edge = [...this.#parts.values()].find(
       (p) => p.info.from != null && p.info.to != null && this.end(p.info.from) === a && this.end(p.info.to) === b,
     );
-    if (!edge?.route || !edge.route.numCurves()) throw new Error(`link(): ${from} -> ${to} is not a real link`);
+    if (!edge?.route || !curveCount(edge.route)) throw new RangeError(`d.link(): ${from} -> ${to} is not a link of this diagram`);
     return { id: edge.info.id, mob: edge.mob, route: edge.route };
   }
   /**
@@ -970,18 +960,21 @@ export class Diagram {
     marks: Readonly<Record<string, string | { color: string; as?: string }>> = {},
     { notes = [], dim, prefix = '' }: { notes?: readonly PictureNote[]; dim?: readonly string[] | null; prefix?: string } = {},
   ): Group {
-    const copy = this.root.copy();
-    const live = this.root.family(), drawn = copy.family();
+    const copy = this.#root.copy();
+    const live = this.#root.family(), drawn = copy.family();
     const at = new Map(live.map((m, i) => [m, i] as const));
-    const marked = new Map(Object.entries(marks).map(([id, m]) => [this.top(id), typeof m === 'string' ? { color: m } : m] as const));
+    // A mark given as a colour alone is said as marked, in the scene's language.
+    const word = wordsOf(this.scene).marked;
+    for (const n of notes) this.top(n.id, 'd.picture()');
+    const marked = new Map(Object.entries(marks).map(([id, m]) => [this.top(id, 'd.picture()'), typeof m === 'string' ? { color: m, as: word } : { as: word, ...m }] as const));
     const kept = dim ? this.keptOf(dim) : null;
     // Every part in the diagram's own look, whatever the live diagram shows now: revealed parts as
     // drawn or marked, the rest unseen.
-    for (const [id, part] of this.parts) {
+    for (const [id, part] of this.#parts) {
       // An owned part (a link's label) is styled with its owner's family.
       if (!this.base.has(id)) continue;
       const dimmed = !!kept && !kept.has(id) && !isScaffold(part.info);
-      const styles = this.styled(id, marked.get(id)?.color, dimmed), shown = this.visible.has(id);
+      const styles = this.styled(id, marked.get(id)?.color, dimmed), shown = this.#visible.has(id);
       part.mob.family().forEach((m, k) => {
         const i = at.get(m);
         if (i === undefined) return;
@@ -990,28 +983,54 @@ export class Diagram {
       });
     }
     copy.setStyle({ opacity: 1 }, false);
-    if (prefix) for (const m of copy.family()) if (m.key !== undefined) m.key = prefix + m.key;
+    if (prefix) for (const m of copy.family()) if (m.key !== undefined) keyed(m, prefix + m.key);
     const pictured = notes.length ? new Group(copy, ...notes.map((n) => this.notePicture(n.id, n.text, { ...n, key: `${prefix}note:${n.id}` }))) : copy;
     const said = new Map([...marked].flatMap(([id, m]) => (m.as ? [[id, { color: m.color, as: m.as }] as const] : [])));
     Object.assign(pictured, { [pictureShows]: { marks: said, kept } });
+    // What it marks is emphasis, as the live diagram's marks are: each marked part by its key here.
+    const emphasis: [string, string][] = [...marked].flatMap(([id, m]): [string, string][] => {
+      const key = this.#parts.get(id)?.mob.key;
+      return key === undefined ? [] : [[prefix + key, m.as ? `mark ${m.color} ${m.as}` : `mark ${m.color}`]];
+    });
     // Described with the diagram while it shows it; on its own, as the diagram it pictures.
-    return selfDescribed(pictured, () => (this.shows(pictured) ? { what: '', parts: [] } : this.describe({ marks: said, kept })));
+    // Read from the part it is called on, so a picture that takes this one's fields (a view finishing
+    // it with become) answers for itself, not for the copy it was drawn as.
+    const diagram = this;
+    return selfDescribed(
+      pictured,
+      function (this: Mobject) { return diagram.shows(this) ? { what: '', parts: [] } : diagram.#describeShowing({ marks: said, kept, walk: false }); },
+      () => emphasis,
+    );
   }
-  /** Whether the stage describes this diagram now: its root, or the picture that shows it, is on stage. */
-  private described(): boolean {
-    const present = new Set(this.scene.familyMembers());
-    return present.has(this.root) || (!!this.shownBy && present.has(this.shownBy));
+  /**
+   * @internal Whether the stage describes this diagram now: it is live, or viewed by a view that is
+   * on stage. Being on stage is the scene's fact, read now, not a copy kept here: a scene can take
+   * the live root or the view off the stage itself (`this.remove`, a FadeOut, `clear()`), and the
+   * diagram is told of none of those.
+   */
+  described(): boolean {
+    const p = this.presented;
+    // The stage describes the diagram as a step ends (the trace reads what it shows then) and as the
+    // next begins, so the refusal names this.step().
+    // The one record of how the diagram is presented is `presented`; the scene's membership says only whether that is on stage now.
+    if (p.kind === 'viewed' && onStage(this.scene, this.#root))
+      throw new Error(`this.step(): the diagram's root is on the stage while a view shows the diagram, so each of its keys is drawn twice; take it off, or call s.liveDiagram(d) to show the live diagram in the view's place`);
+    if (p.kind === 'live' && p.replaced && onStage(this.scene, p.replaced) && onStage(this.scene, this.#root))
+      throw new Error(`this.step(): the diagram's root is on the stage beside the view it replaced, so each of its keys is drawn twice; take the view off, or call s.diagramView(d) to show the diagram by it again`);
+    return p.kind === 'live' ? onStage(this.scene, this.#root) : p.kind === 'viewed' && onStage(this.scene, p.view);
   }
-  /** Whether `m` is, or is inside, what shows this diagram, while that is on stage. */
+  /** Whether `m` is, or is inside, the view that shows this diagram, while that is on stage. */
   private shows(m: Mobject): boolean {
-    if (!this.shownBy || !this.described()) return false;
-    for (let x: Mobject | null = m; x; x = x.parent) if (x === this.shownBy) return true;
+    const p = this.presented;
+    if (p.kind !== 'viewed' || !onStage(this.scene, p.view)) return false;
+    for (let x: Mobject | null = m; x; x = x.parent) if (x === p.view) return true;
     return false;
   }
-  /** The picture of this diagram that shows it now, when the live diagram is off the stage: what it marks and dims. */
+  /** The picture of this diagram that shows it now, when a view shows it: what it marks and dims. */
   private shown(): PictureShows | null {
-    if (!this.shownBy || this.scene.familyMembers().includes(this.root)) return null;
-    for (const m of this.shownBy.family()) {
+    const p = this.presented;
+    if (p.kind !== 'viewed') return null;
+    for (const m of p.view.family()) {
       const shows = (m as Mobject & { [pictureShows]?: PictureShows })[pictureShows];
       if (shows) return shows;
     }
@@ -1025,27 +1044,27 @@ export class Diagram {
   notePicture(
     id: string,
     text: string,
-    { side = 'above', color = this.accent, size = 0.22, key = `note:${id}` }: { side?: NoteSide; color?: string; size?: number; key?: string } = {},
+    { side = 'above', color = this.#emphasis, size = 0.22, key = `note:${id}` }: { side?: Side; color?: string; size?: number; key?: string } = {},
   ): Group {
     const g = this.noteLook(text, color, size);
-    g.moveTo(notePosition(g, this.get(id).box()!, side, this.frameBox));
-    g.key = key;
+    g.moveTo(notePosition(g, this.part(id, 'd.notePicture()').mob.box()!, side, this.frameBox));
+    keyed(g, key);
     const w = wordsOf(this.scene);
     this.drawnNotes.set(g, { id, text });
     // While the diagram is described, the note is one of its parts, as a live note is; otherwise it says itself.
     return selfDescribed(
       g,
       () => (this.described() ? { what: '', parts: [] } : { what: w.note, parts: [{ name: w.beside(text, this.nameOf(id)) }] }),
-      () => [[g, `note ${text}`]],
+      function (this: Mobject) { return [[this, `note ${text}`]] as const; },
     );
   }
   /** A note's label on its raised, outlined paper, at the origin. */
   private noteLook(text: string, color: string, size: number): Group {
-    const label = this.scene.text(text, {fontSize: size, color});
+    const label = new Text(text, { fontSize: size, color, shaping: this.scene.textShaping });
     const bg = new Rectangle({
       width: label.width() + size * 1.4,
       height: size * 1.85,
-      fill: raised(this.snapshot.palette),
+      fill: raised(this.#snapshot.palette),
       stroke: color,
       strokeWidth: 0.014,
       cornerRadius: 0.08,
@@ -1053,160 +1072,95 @@ export class Diagram {
     label.moveTo(bg.center());
     return new Group(bg, label);
   }
-  /**
-   * Colour parts (and links' arrowheads) and thicken their outlines until unmarked. Labels keep
-   * their ink. `as` is the word the description gives the mark ("rejected"), when marks are kinds.
-   */
-  async mark(
-    ids: readonly string[],
-    { color = this.accent, as = wordsOf(this.scene).marked, runTime = 0.45 }: { color?: string; as?: string; runTime?: number } = {},
-  ): Promise<void> {
-    this.refuseWhileShownBy('mark');
-    const tops = ids.map((id) => this.top(id));
-    for (const id of tops) this.marks.set(id, { color, as });
-    const anims = this.looks(tops, runTime);
-    if (anims.length) await this.scene.play(...anims);
-  }
-  async unmark(ids?: readonly string[], { runTime = 0.45 } = {}): Promise<void> {
-    this.refuseWhileShownBy('unmark');
-    const tops = ids ? ids.map((id) => this.top(id)) : [...this.marks.keys()];
-    for (const id of tops) this.marks.delete(id);
-    const anims = this.looks(tops, runTime);
-    if (anims.length) await this.scene.play(...anims);
-  }
-  /**
-   * Fade everything except these parts (and links between them, and the
-   * family's scaffolding such as lifelines and axes). A kept group (a composite
-   * state, a subgraph, an architecture group) keeps what is drawn inside it.
-   * `null` restores.
-   */
-  async dim(keep: readonly string[] | null, { runTime = 0.5 } = {}): Promise<void> {
-    this.refuseWhileShownBy('dim');
-    this.kept = keep == null ? null : this.keptOf(keep);
-    const anims = this.looks(
-      [...this.parts.values()].filter((p) => !p.info.owner).map((p) => p.info.id),
-      runTime,
-    );
-    if (anims.length) await this.scene.play(...anims);
-  }
-  /** The parts `dim(keep)` keeps: these, what a kept group draws inside it, and the links between kept parts. */
+  /** The parts a picture's `dim` keeps: these, what a kept group draws inside it, and the links between kept parts. */
   private keptOf(keep: readonly string[]): Set<string> {
-    const kept = new Set(keep.map((id) => this.top(id)));
+    const kept = new Set(keep.map((id) => this.top(id, 'd.picture()')));
     // Members are not recorded on a group's parts, but the layout draws them inside its box.
     const within = (inner: Box, outer: Box) =>
       inner[0] >= outer[0] - 1e-6 && inner[1] >= outer[1] - 1e-6 && inner[2] <= outer[2] + 1e-6 && inner[3] <= outer[3] + 1e-6;
     for (const id of [...kept]) {
-      const group = this.parts.get(id)!;
+      const group = this.#parts.get(id)!;
       const outer = group.info.role === 'group' ? group.mob.box() : null;
       if (outer)
-        for (const p of this.parts.values()) {
+        for (const p of this.#parts.values()) {
           const box = !p.info.owner && p !== group && !(p.info.from && p.info.to) ? p.mob.box() : null;
           if (box && within(box, outer)) kept.add(p.info.id);
         }
     }
-    for (const p of this.parts.values())
+    for (const p of this.#parts.values())
       if (!p.info.owner && p.info.from && p.info.to && !kept.has(p.info.id)) {
         if ([p.info.from, p.info.to].every((n) => kept.has(this.end(n)))) kept.add(p.info.id);
       }
     return kept;
   }
   /**
-   * A short label beside a part, at a readable size whatever the diagram's
-   * scale. It follows the part through `focus` (and, with `camera`, stays beside it,
-   * since the camera moves no part), and leaves with `hide`/`morph`.
-   */
-  async note(
-    id: string,
-    text: string,
-    { side = 'above', color = this.accent, size = 0.22 }: { side?: NoteSide; color?: string; size?: number } = {},
-  ): Promise<Group> {
-    this.refuseWhileShownBy('note');
-    const anchor = this.get(id);
-    const g = this.noteLook(text, color, size);
-    g.moveTo(notePosition(g, anchor.box()!, side, this.frameBox));
-    this.root.add(g);
-    this.attach();
-    this.notes.push({ id, side, text, mob: g });
-    await this.scene.play(new FadeIn(g, { runTime: 0.35, shift: [0, -0.06] }));
-    return g;
-  }
-  async clearNotes({ runTime = 0.3 } = {}): Promise<void> {
-    const notes = this.notes;
-    this.notes = [];
-    if (notes.length) await this.scene.play(...notes.map((n) => new FadeOut(n.mob, { runTime })));
-  }
-  /**
    * Tokens travel the diagram's own links. Consecutive hops that join up are
-   * one journey with one token. `trail` leaves the travelled links marked, so
-   * the step's resting frame still shows the path.
+   * one journey with one token. To leave the path marked for the step's resting
+   * frame, draw `trail(hops)` in the diagram's picture (see stage.diagramView).
    */
-  async walk(
+  walk(
     hops: readonly (readonly [string, string])[],
     {
       runTime = 0.8,
-      color = this.accent,
+      color = this.#emphasis,
       parallel = false,
-      trail = false,
-    }: { runTime?: number; color?: string; parallel?: boolean; trail?: boolean | string } = {},
-  ): Promise<void> {
-    // A token travels the live diagram's routes, where the picture draws them too; a trail marks the live diagram.
-    if (trail) this.refuseWhileShownBy('walk', '{ trail }');
+    }: { runTime?: number; color?: string; parallel?: boolean } = {},
+  ): Action {
+    return action(this.scene, 'd.walk()', () => this.walkPlan(hops, runTime, color, parallel));
+  }
+  /** A walk, decided now: its hops' links, checked to be real; that they are revealed is checked when it plays. */
+  private walkPlan(hops: readonly (readonly [string, string])[], runTime: number, color: string, parallel: boolean): BeatPlan<void> {
+    // A token travels the live diagram's routes, where a picture of it draws them too.
     // Endpoints resolve as `get` resolves ids (so 'actor:A' and 'A' name the same participant).
     const path = hops.map(([from, to]) => {
       const [a, b] = [this.end(from), this.end(to)];
-      const edge = [...this.parts.values()].find(
+      const edge = [...this.#parts.values()].find(
         (p) => p.info.from != null && p.info.to != null && this.end(p.info.from) === a && this.end(p.info.to) === b,
       );
-      if (!edge?.route || !edge.route.numCurves())
-        throw new Error(`walk(): ${from} -> ${to} is not a real link`);
-      if (!this.visible.has(edge.info.id)) throw new Error(`walk(): reveal ${edge.info.id} first`);
+      if (!edge?.route || !curveCount(edge.route))
+        throw new RangeError(`d.walk(): ${from} -> ${to} is not a link of this diagram`);
       return { edge, from, to, a, b };
     });
-    const trailColor = trail === true ? color : trail || null;
-    const lay = (ids: string[]) => {
-      if (!trailColor) return [];
-      for (const id of ids) this.marks.set(id, { color: trailColor, as: wordsOf(this.scene).travelled });
-      return this.looks(ids, runTime);
-    };
     const record = ({ edge, from, to }: (typeof path)[number]) =>
       recordWalk(this.scene, { step: this.scene.currentStep?.name, from, to, edge: edge.info.id });
-    this.walked = {
-      step: this.scene.currentStep?.name,
-      hops: path.map(({ edge }) => wordsOf(this.scene).arrow(this.endName(edge.info.from!), this.endName(edge.info.to!))),
-      trail: !!trailColor,
+    const start = () => {
+      for (const { edge } of path) if (!this.#visible.has(edge.info.id)) throw new Error(`d.walk(): the link ${edge.info.id} is not revealed; reveal it first`);
+      this.walked = {
+        step: this.scene.currentStep?.name,
+        hops: path.map(({ edge }) => wordsOf(this.scene).arrow(this.endName(edge.info.from!), this.endName(edge.info.to!))),
+        edges: path.map(({ edge }) => edge.info.id),
+      };
     };
+    const fade = TOKEN.fade;
     if (parallel && path.length) {
-      const tokens = path.map(({ edge }) => this.token(edge.route!, color));
-      await this.scene.play(...tokens.map((token) => new FadeIn(token, { runTime: TOKEN.fade })));
-      await this.scene.play(
-        ...tokens.map(
-          (token, i) => new MoveAlongPath(token, path[i]!.edge.route!, { runTime, rateFunc: linear }),
-        ),
-        ...lay(path.map((p) => p.edge.info.id)),
-      );
-      path.forEach(record);
-      await this.scene.play(...tokens.map((token) => new FadeOut(token, { runTime: TOKEN.fade })));
-      return;
+      let tokens: Dot[] = [];
+      return {
+        value: undefined,
+        start,
+        beats: [
+          { runTime: fade, play: () => (tokens = path.map(({ edge }) => this.token(edge.route!, color))).map((token) => new FadeIn(token, { runTime: fade })) },
+          {
+            runTime,
+            play: () => tokens.map((token, i) => new MoveAlongPath(token, path[i]!.edge.route!, { runTime, rateFunc: linear })),
+            after: () => path.forEach(record),
+          },
+          { runTime: fade, play: () => tokens.map((token) => new FadeOut(token, { runTime: fade })) },
+        ],
+      };
     }
+    // Consecutive hops that join up are one journey: its token fades in before the first and out after the last.
     let token: Dot | null = null;
-    for (let i = 0; i < path.length; i++) {
-      const hop = path[i]!;
-      if (!token) {
-        token = this.token(hop.edge.route!, color);
-        await this.scene.play(new FadeIn(token, { runTime: TOKEN.fade }));
-      }
-      await this.scene.play(
-        new MoveAlongPath(token, hop.edge.route!, { runTime, rateFunc: linear }),
-        ...lay([hop.edge.info.id]),
-      );
-      record(hop);
-      if (path[i + 1]?.a !== hop.b) {
-        await this.scene.play(new FadeOut(token, { runTime: TOKEN.fade }));
-        token = null;
-      }
-    }
+    const beats: Beat[] = [];
+    path.forEach((hop, i) => {
+      if (i === 0 || path[i - 1]!.b !== hop.a)
+        beats.push({ runTime: fade, play: () => [new FadeIn((token = this.token(hop.edge.route!, color)), { runTime: fade })] });
+      beats.push({ runTime, play: () => [new MoveAlongPath(token!, hop.edge.route!, { runTime, rateFunc: linear })], after: () => record(hop) });
+      if (path[i + 1]?.a !== hop.b)
+        beats.push({ runTime: fade, play: () => [new FadeOut(token!, { runTime: fade })], after: () => { token = null; } });
+    });
+    return { value: undefined, start, beats };
   }
-  /** Transforms that take the shown parts and their notes to `targetFor`'s copies; hidden parts move at once. */
+  /** Transforms that take the shown parts to `targetFor`'s copies; hidden parts move at once. */
   private partMoves(mobs: Group[], targetFor: (m: Group) => Group, runTime: number): Transform[] {
     const shown: Transform[] = [];
     const targets = new Map<Mobject, Group>();
@@ -1214,99 +1168,48 @@ export class Diagram {
       const target = targetFor(m);
       targets.set(m, target);
       const animation = new Transform(m, target, { runTime });
-      if (this.visible.has(this.partIds.get(m)!)) shown.push(animation);
+      if (this.#visible.has(this.partIds.get(m)!)) shown.push(animation);
       else {
-        animation.begin();
-        animation.finish();
+        finishAtOnce(animation);
       }
-    }
-    for (const n of this.notes) {
-      let top: Mobject = this.get(n.id);
-      while (top.parent && top.parent !== this.root) top = top.parent;
-      const moved = targets.get(top);
-      if (!moved) continue;
-      const box = moved.family()[top.family().indexOf(this.get(n.id))]!.box()!;
-      const target = n.mob.copy();
-      target.moveTo(notePosition(target, box, n.side, this.frameBox));
-      shown.push(new Transform(n.mob, target, { runTime }));
     }
     return shown;
   }
   /**
-   * Look closer at these parts, or back at the whole diagram with `'all'`. The description
-   * names the parts in focus.
+   * Enlarge these parts, or put the whole diagram back with `'all'`. The description names the
+   * enlarged parts as focused.
    *
-   * By default the diagram's own view moves: inside its box (which clips it) the artwork
-   * scales `zoom` times past a fit of the parts, notes follow, and whatever stands beside
-   * the box (cards, code, a column of text) stays where it is.
-   *
-   * With `camera: true` the stage's camera (`scene.frame`) moves instead, onto the parts,
-   * their notes and any native objects in `also`, with `margin` scene units around them;
-   * `zoom` above 1 goes closer, below 1 shows more. No point moves: labels keep their size
-   * in the world and the camera enlarges them on screen, which is how `rayner check` and
-   * the player's close-ups measure them. The view never leaves the 16 × 9 stage, but it
-   * shows less of it: the heading, cards and code are world objects too, so keep what the
-   * step's last frame needs inside the view with `also`.
-   *
-   * `'all'` undoes both: the artwork returns to its box and the camera goes home, in one
-   * play. `s.clear()` also brings the camera home.
+   * The diagram's own view moves: inside its box (which clips it) the artwork scales `zoom` times
+   * past a fit of the parts, notes follow, and whatever stands beside the box (cards, code, a
+   * column of text) stays where it is. The camera does not move; `s.focus` moves it.
    */
-  async focus(
-    ids: readonly string[] | 'all',
-    {
-      zoom = 1,
-      camera = false,
-      margin = 0.5,
-      also = [],
-      runTime = 0.9,
-    }: { zoom?: number; camera?: boolean; margin?: number; also?: readonly Mobject[]; runTime?: number } = {},
-  ): Promise<void> {
-    if (!(zoom > 0 && Number.isFinite(zoom))) throw new Error(`focus() zoom must be a positive number, not ${zoom}`);
-    if (!camera && also.length) throw new Error('focus(): `also` frames native objects with the camera; pass camera: true');
-    const frame = this.scene.frame;
-    const mobs = [...this.parts.values()].filter((p) => !p.info.owner).map((p) => p.mob);
-    const whole = new Group(...mobs.map((m) => m.copy()));
+  enlarge(ids: readonly string[] | 'all', { zoom = 1, runTime = 0.9 }: { zoom?: number; runTime?: number } = {}): Action {
+    return action(this.scene, 'd.enlarge()', () => this.enlargePlan(ids, zoom, runTime));
+  }
+  /** An enlargement, decided now; the parts move, and hidden ones jump, when it plays. */
+  private enlargePlan(ids: readonly string[] | 'all', zoom: number, runTime: number): BeatPlan<void> {
+    this.mustBeLive('d.enlarge()');
+    if (!(zoom > 0 && Number.isFinite(zoom))) throw new RangeError(`d.enlarge(): zoom must be a positive number, not ${zoom}`);
+    const mobs = this.topMobs();
+    // Whether the play has anything to show: a shown part moves (partMoves moves hidden ones at once).
+    const shows = mobs.some((m) => this.#visible.has(this.partIds.get(m)!));
     if (ids === 'all') {
-      this.focused = this.focusView = null;
-      const anims: Transform[] = atHome(frame) ? [] : [new Transform(frame, frame.copy().reset(), { runTime })];
-      // Apply one global affine map from current full diagram bounds to its authored frame.
-      const home = this.home.box(),
-        now = whole.box();
-      // The map is uniform, so either extent gives k; the longer one is measured more precisely
-      // (a thin diagram's short side is mostly float32 rounding once zoomed).
-      const wide = !!home && home[2] - home[0] >= home[3] - home[1];
-      const k = !home || !now ? NaN : wide ? (home[2] - home[0]) / (now[2] - now[0]) : (home[3] - home[1]) / (now[3] - now[1]);
-      // Nothing drawn, or a diagram fitted down to a point (an absurd canvas size): no extent to restore.
-      const restore = Number.isFinite(k) && k > 0;
-      if (restore) {
-        const a: Vec = [(now![0] + now![2]) / 2, (now![1] + now![3]) / 2],
-          b: Vec = [(home![0] + home![2]) / 2, (home![1] + home![3]) / 2];
-        anims.push(...this.partMoves(mobs, (m) => moved(m, k, a, b), runTime));
-      }
-      if (anims.length) await this.scene.play(...anims);
-      if (restore) this.rezoom(1);
-      return;
+      const back = this.homeward(mobs);
+      return {
+        value: undefined,
+        beats: [{
+          runTime: back && shows ? runTime : 0,
+          play: () => {
+            this.focused = null;
+            return back ? this.partMoves(mobs, (m) => moved(m, back.k, back.from, back.to), runTime) : [];
+          },
+          after: () => { if (back) this.rezoom(1); },
+        }],
+      };
     }
-    if (!ids.length) throw new Error("focus() needs at least one part, or 'all'");
-    const tops = [...new Set(ids.map((id) => this.top(id)))];
-    if (camera) {
-      const notes = this.notes.filter((n) => tops.includes(this.top(n.id))).map((n) => n.mob);
-      const boxes = [...ids.map((id) => this.get(id)), ...notes, ...also]
-        .map((m) => m.box())
-        .filter((b): b is Box => b != null);
-      if (!boxes.length) throw new Error('focus(): nothing to look at');
-      const box: Box = [
-        Math.min(...boxes.map((b) => b[0])),
-        Math.min(...boxes.map((b) => b[1])),
-        Math.max(...boxes.map((b) => b[2])),
-        Math.max(...boxes.map((b) => b[3])),
-      ];
-      this.focused = tops;
-      await this.scene.play(frame.animate.fit(cameraBox(box, margin, zoom), { margin: 0 }), { runTime });
-      this.focusView = [...frame.box()!] as Box;
-      return;
-    }
-    const chosen = new Group(...ids.map((id) => this.get(id).copy()));
+    if (!ids.length) throw new RangeError("d.enlarge(): it needs at least one part, or 'all'");
+    const tops = [...new Set(ids.map((id) => this.top(id, 'd.enlarge()')))];
+    const chosen = new Group(...ids.map((id) => this.part(id, 'd.enlarge()').mob.copy()));
     const center = chosen.center(),
       box = this.frameBox;
     const k =
@@ -1316,97 +1219,161 @@ export class Diagram {
       ) *
       0.78 *
       zoom;
-    this.focused = tops;
-    this.focusView = null;
-    const anims = this.partMoves(mobs, (m) => moved(m, k, center, boxCenter(box)), runTime);
-    if (anims.length) await this.scene.play(...anims);
-    this.rezoom(this.zoom * k);
+    return {
+      value: undefined,
+      beats: [{
+        runTime: shows ? runTime : 0,
+        play: () => {
+          this.focused = tops;
+          return this.partMoves(mobs, (m) => moved(m, k, center, boxCenter(box)), runTime);
+        },
+        after: () => this.rezoom(this.zoom * k),
+      }],
+    };
+  }
+  /** The top-level parts' mobjects. */
+  private topMobs(): Group[] {
+    return [...this.#parts.values()].filter((p) => !p.info.owner).map((p) => p.mob);
+  }
+  /**
+   * The move that puts the diagram's own view back home: one uniform map from the parts' bounds now
+   * to the authored frame, or null when there is no extent to restore.
+   */
+  private homeward(mobs: Group[]): { k: number; from: Vec; to: Vec } | null {
+    const home = this.home.box(),
+      now = new Group(...mobs.map((m) => m.copy())).box();
+    if (!home || !now) return null;
+    // The map is uniform, so either extent gives k; the longer one is measured more precisely
+    // (a thin diagram's short side is mostly float32 rounding once zoomed).
+    const wide = home[2] - home[0] >= home[3] - home[1];
+    const k = wide ? (home[2] - home[0]) / (now[2] - now[0]) : (home[3] - home[1]) / (now[3] - now[1]);
+    // A diagram fitted down to a point (an absurd canvas size) has no extent to restore.
+    if (!(Number.isFinite(k) && k > 0)) return null;
+    return { k, from: [(now[0] + now[2]) / 2, (now[1] + now[3]) / 2], to: [(home[0] + home[2]) / 2, (home[1] + home[3]) / 2] };
+  }
+  /** Undo an enlargement at once, without animating: every part back in the authored frame, at zoom 1. */
+  private unzoom(): void {
+    if (this.zoom === 1) return;
+    const mobs = this.topMobs(), back = this.homeward(mobs);
+    if (back)
+      for (const m of mobs) {
+        finishAtOnce(new Transform(m, moved(m, back.k, back.from, back.to)));
+      }
+    this.zoom = 1;
   }
   /**
    * The diagram's view has moved: re-derive every look from the home styles at the new zoom (the move
-   * already animated it), so a look depends only on zoom, marks and dimming, never on the order
+   * already animated it), so a look depends only on zoom, never on the order
    * of calls, and returning to 'all' restores the home styles exactly.
    */
   private rezoom(zoom: number): void {
     this.zoom = zoom;
-    this.looks(this.base.keys(), 0, false);
+    this.restyle(this.base.keys());
   }
   /**
-   * Same-id marks glide to their next place; arrivals fade in, departures fade
-   * out. Marks, dimming and notes are reset: the next diagram starts plain.
+   * Same-id parts glide to their next place; arrivals fade in, departures fade
+   * out. The next diagram starts plain, with no walk or focus.
    * The next diagram keeps this one's style unless it names its own.
    */
-  async morph(
+  morph(
     next: DiagramSpec,
     { ops, runTime = 1.1 }: { ops?: readonly MutationOp[]; runTime?: number } = {},
-  ): Promise<void> {
-    if (next.style == null && this.spec.style != null) next = { ...next, style: this.spec.style };
-    const resolver = diagramsOf(this.scene);
-    if (ops && resolver.morph) await resolver.morph(this.spec, next, ops);
-    const snapshot = await resolver.diagram(next);
-    const target = new Diagram(this.scene, next, snapshot, { box: this.frameBox });
-    // The frame keeps its key through the morph.
-    const frame = target.parts.get('__frame');
-    if (frame) frame.mob.key = target.frameKey = this.frameKey;
-    const animations = [];
-    for (const [id, p] of this.parts)
-      if (!p.info.owner && this.visible.has(id)) {
-        const q = target.parts.get(id);
-        animations.push(q ? new Transform(p.mob, q.mob, { runTime }) : new FadeOut(p.mob, { runTime }));
-      }
-    for (const [id, q] of target.parts)
-      if (!q.info.owner && !this.visible.has(id)) animations.push(new FadeIn(q.mob, { runTime }));
-    for (const n of this.notes) animations.push(new FadeOut(n.mob, { runTime: Math.min(runTime, 0.4) }));
-    this.notes = [];
-    if (animations.length) await this.scene.play(...animations);
-    // Exact handoff to the freshly read tree, retaining semantic route references.
-    this.scene.remove(this.root);
-    for (const p of target.parts.values())
+  ): Action {
+    this.mustBeLive('d.morph()');
+    if (next.style == null && this.#spec.style != null) next = { ...next, style: this.#spec.style };
+    // The next diagram's layout is read now; a play waits for it.
+    const before = this.#spec, spec = next;
+    let snapshot: DiagramSnapshot | null = null;
+    const reading = (async () => {
+      const resolver = resolverOf(this.scene, 'd.morph()');
+      if (ops && resolver.morph) await resolver.morph(before, spec, ops);
+      snapshot = await resolver.diagram(spec);
+    })();
+    let target: Diagram | null = null;
+    return action(this.scene, 'd.morph()', () => ({
+      value: undefined,
+      beats: [{
+        runTime,
+        play: () => {
+          this.mustBeLive('d.morph()');
+          target = new Diagram(this.scene, spec, snapshot!, { box: this.frameBox });
+          // The frame keeps its key through the morph.
+          const frame = target.#parts.get('__frame');
+          if (frame) { target.frameKey = this.frameKey; keyed(frame.mob, this.frameKey); }
+          const animations = [];
+          for (const [id, p] of this.#parts)
+            if (!p.info.owner && this.#visible.has(id)) {
+              const q = target.#parts.get(id);
+              animations.push(q ? new Transform(p.mob, q.mob, { runTime }) : new FadeOut(p.mob, { runTime }));
+            }
+          for (const [id, q] of target.#parts)
+            if (!q.info.owner && !this.#visible.has(id)) animations.push(new FadeIn(q.mob, { runTime }));
+          return animations;
+        },
+        after: () => this.takeOver(target!, spec, snapshot!),
+      }],
+    }), { ready: reading });
+  }
+  /** Exact handoff to the freshly read tree a morph built, retaining semantic route references. */
+  private takeOver(target: Diagram, next: DiagramSpec, snapshot: DiagramSnapshot): void {
+    this.scene.remove(this.#root);
+    for (const p of target.#parts.values())
       if (!p.info.owner) {
         this.scene.remove(p.mob);
         target.root.add(p.mob);
       }
     this.scene.add(target.root);
-    this.parts = target.parts;
+    this.goLive();
+    this.#parts = target.#parts;
     this.partIds = target.partIds;
-    this.order = target.order;
-    this.root = target.root;
+    this.#order = target.#order;
+    this.#root = target.#root;
     this.home = target.home;
-    this.visible = new Set(this.parts.keys());
-    this.spec = next;
-    this.snapshot = snapshot;
+    this.#visible = new Set(this.#parts.keys());
+    this.#spec = next;
+    this.#snapshot = snapshot;
     // A new style brings its own emphasis colour and dimming.
-    this.accent = target.accent;
+    this.#emphasis = target.#emphasis;
     this.dimmed = target.dimmed;
     this.base = target.base;
     this.zoom = 1;
     this.plain();
   }
-  /** No marks, dimming or walk: the state a fresh or morphed diagram starts in. */
+  /** No walk or focus: the state a fresh or morphed diagram starts in. */
   private plain(): void {
-    this.marks.clear();
-    this.kept = null;
     this.walked = null;
-    this.focused = this.focusView = null;
+    this.focused = null;
   }
-  /** Fade the whole diagram (and its notes) out. `reveal` can bring parts back. */
-  async hide(): Promise<void> {
-    const shown = [...this.visible]
-      .filter((id) => !this.parts.get(id)!.info.owner)
-      .map((id) => this.parts.get(id)!.mob);
-    const notes = this.notes.map((n) => n.mob);
-    if (shown.length || notes.length)
-      await this.scene.play(...[...shown, ...notes].map((m) => new FadeOut(m, { runTime: 0.4 })));
-    this.forget();
+  /** Fade the whole diagram out. `reveal` can bring parts back. */
+  hide(): Action {
+    return action(this.scene, 'd.hide()', () => {
+      // Shown by a view, with the live diagram off the stage: the view fades, as the live parts would.
+      const p = this.presented;
+      const shown = p.kind === 'viewed'
+        ? (onStage(this.scene, p.view) ? [p.view] : [])
+        : [...this.#visible].filter((id) => !this.#parts.get(id)!.info.owner).map((id) => this.#parts.get(id)!.mob);
+      return {
+        value: undefined,
+        beats: [{ runTime: shown.length ? 0.4 : 0, play: () => shown.map((m) => new FadeOut(m, { runTime: 0.4 })) }],
+        end: () => this.forget(),
+      };
+    });
   }
-  /** Reset to unrevealed and unemphasised, without animating (the stage has faded it). */
+  /**
+   * @internal Reset to unrevealed, unemphasised and detached, without animating (the stage has faded
+   * it): no view shows it, its notes are forgotten, and an enlargement is undone.
+   */
   forget(): void {
     this.plain();
-    this.looks(this.base.keys(), 0, false);
-    this.notes = [];
-    this.visible.clear();
-    for (const child of [...this.root.children]) this.root.remove(child);
+    this.unzoom();
+    this.restyle(this.base.keys());
+    this.#visible.clear();
+    this.drawnNotes.clear();
+    for (const child of [...this.#root.children]) this.#root.remove(child);
     // Off stage, so the description stops naming it; `reveal` attaches it again.
-    this.scene.remove(this.root);
+    const p = this.presented;
+    if (p.kind === 'viewed') this.scene.remove(p.view);
+    this.scene.remove(this.#root);
+    this.presented = DETACHED;
   }
 }

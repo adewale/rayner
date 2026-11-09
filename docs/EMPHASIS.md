@@ -6,14 +6,11 @@ plus `Circumscribe`, which can either pulse or stay.
 ## Why emphasis should stay
 
 A reader stops on each step's last frame, its resting picture, and looks at it
-while reading the caption. An emphasis that pulses and fades is gone by then. When
-the first fourteen explainers were reviewed as a reader sees them, nine had steps
-that ended exactly like the step before, because highlights had pulsed away and
-tokens had walked off; `rayner check` now fails such a step. A mark that stays still
-says "this one" on the frame the reader sees. Use these shapes when the step is
-about the thing marked. There is no passing glance: `Indicate` and `Flash` were cut
-in 0.2.0, because such a mark has faded by the resting picture, and a step it was all
-that changed fails the check.
+while reading the caption. An emphasis that pulses and fades is gone by then, and a
+step whose highlight has pulsed away ends exactly like the step before, which
+`rayner check` fails. A mark that stays still says "this one" on the frame the reader
+sees. Use these shapes when the step is about the thing marked. There is no passing
+glance (no `Indicate` or `Flash`), because such a mark has faded by the resting picture.
 
 ## The shapes
 
@@ -24,15 +21,14 @@ build a new one.
 
 | Shape | Says | Defaults |
 | --- | --- | --- |
-| `new SurroundingRectangle(t, { buff, cornerRadius })` | this one | the scene's accent stroke, no fill, `buff` 0.15 |
-| `new Underline(t, { buff })` | this word, this value | the scene's ink, `buff` 0.1 below the bottom edge |
+| `new SurroundingRectangle(t, { buff, cornerRadius })` | this one | the scene's emphasis colour as its stroke, no fill, `buff` 0.15 |
 | `new Cross(t, { scale })` | not this, removed, rejected | the scene's `bad` colour, stroke 0.06, both diagonals of the box |
-| `new Brace(t, direction, { buff, depth, sharpness })` | this span, as a whole | the scene's ink, `buff` 0.1, `depth` 0.2 |
+| `new Brace(t, direction, { buff, depth })` | this span, as a whole | the scene's ink, `buff` 0.1, `depth` 0.2 |
 | `new BraceLabel(t, text, direction, { fontSize, color, buff, labelBuff })` | this span is _n_ | a Brace and a Text beyond its tip |
 
-All take the usual style fields (`stroke`, `strokeWidth`, `fill`, ...). A colour left out is the scene's for that role ([default colours](ENGINE-FUNDAMENTALS.md#geometry-and-paint)): on a stage, its palette's. Draw order
+Each is imported from `rayner`, and all take the usual style fields (`stroke`, `strokeWidth`, `fill`, ...). A colour left out is the scene's for that role ([default colours](ENGINE-FUNDAMENTALS.md#geometry-and-paint)): on a stage, its palette's. Draw order
 is chosen for `Create`. The rectangle starts at its top-left corner and goes
-clockwise. The underline runs left to right. The cross draws upper-left to
+clockwise. The cross draws upper-left to
 lower-right first. A brace runs from one end, through the tip, to the other.
 
 **Braces.** `direction` is the side of the box the brace goes on, and the tip
@@ -62,14 +58,14 @@ frame shows it. That also means the step's last frame differs from the previous
 step's, which `rayner check` requires. Remove it later with
 `new FadeOut(c.outline)`.
 
-Options: `color` (yellow), `shape` (`'rect'`, or `'circle'` through the box's
+Options: `color` (the scene's emphasis colour), `shape` (`'rect'`, or `'circle'` through the box's
 corners plus `buff`), `buff` (0.15), `strokeWidth`, `cornerRadius`, `keep`,
 `fadeOut`, `runTime` (1). A circle around a long, flat target is large, so use
 `'circle'` for compact targets and `'rect'` for lines of text.
 
 The animation's mobject is the outline itself, which is how `play()` adds it to
 the scene. The outline exists from construction, so a scene can keep a reference
-to it, and it is refitted to the target's box when the play starts. Constructing
+to it, and it is refitted to its `target`'s box when the play starts. Constructing
 the animation early and then moving the target still circles the target where it
 ends up. The draw-in is a `drawFraction` reveal, like `Create`, and the fade is an
 opacity ramp, so the motion verifier sees no pop or cut. At run times below about
@@ -90,10 +86,10 @@ await this.play(new Create(new SurroundingRectangle(span, { buff: 0.06, cornerRa
 await this.play(new Create(new BraceLabel(span, 'the retry loop', [1, 0], { fontSize: 0.22 })));
 ```
 
-`Code.highlight(i)` is a filled bar behind one line, for the line about to run;
-an outline or brace points at a span while the caption says something about it.
-The stage's `CodeBlock.focus` and the diagram helpers `note` and `mark` build on
-the same idea for explainers.
+An outline or brace points at a span while the caption says something about it.
+A code panel's `lit` option puts a bar behind the line about to run; it, a card's `lit`, a
+diagram picture's marks and `d.notePicture` build on the same idea for explainers, drawn from
+state by a [view](VIEWS.md).
 
 ## In the explainers
 
@@ -104,7 +100,6 @@ the same idea for explainers.
   [ring-buffer](https://github.com/adewale/rayner/blob/main/scenes/explainers/ring-buffer/scene.ts) (the slot an operation touched).
 - `Circumscribe({ keep: true })`: [mr-cache](https://github.com/adewale/rayner/blob/main/scenes/explainers/mr-cache/scene.ts) (the KV lookup)
   and the feature tour's `emphasis` scenario.
-- `Underline`: [glyph](https://github.com/adewale/rayner/blob/main/scenes/explainers/glyph/scene.ts) (the letter it then draws large as outlines).
 - `Cross`: [ring-buffer](https://github.com/adewale/rayner/blob/main/scenes/explainers/ring-buffer/scene.ts), on a refused value, and
   [latest-search](https://github.com/adewale/rayner/blob/main/scenes/explainers/latest-search/scene.ts), on a response the guard drops. On one flat
   line of code a `Cross` reads as a strikethrough rather than an X.

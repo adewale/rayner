@@ -1,22 +1,23 @@
-import { build } from 'esbuild';
+import { build, transform } from 'esbuild';
 import { browserFonts } from './explain-browser-fonts.ts';
+import { showsDiagrams, withoutDiagramCode } from './explain-diagram-code.ts';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { pageSize } from './page-budget.ts';
-import { pageSnapshots, packPageSnapshots } from './page-snapshots.ts';
-import { SnapshotSink, renderAt } from '../../src/output.ts';
+import { packPageSnapshots } from './page-snapshots.ts';
+import { sceneEntry, shippedScenario, shippedStore } from './scene-entry.ts';
+import { renderFrame } from '../../src/output.ts';
 import { chromeFor, scenarioNameIn, changeText, descriptionLang } from '../../app/embed-strings.ts';
-import { restingTime, pictureHtml, htmlEscape, stepWords, watchedChanges, wordsHtml } from '../../explain/trace.ts';
+import { pictureHtml, htmlEscape, stepWords, watchedChanges, wordsHtml, stepAudio, liveBase, stepQuery } from '../../explain/internal.ts';
+import { RTL_SCRIPTS, SnapshotSink } from '../../src/internal.ts';
 import { ROOT, engineAlias, defaultScenario, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';
 import type { Project } from './explain-project.ts';
-import { pageFaces, letteringReport, useProjectLettering } from './explain-lettering.ts';
-import { letteringLicences, pageSnapshot } from './lettering.ts';
-import { RTL_SCRIPTS } from '../../src/lettering-outlines.ts';
+import { letteringReport, useProjectLettering } from './explain-lettering.ts';
+import { letteringLicences } from './lettering.ts';
 import { playerCss } from '../../app/embed-style.ts';
-import {stepAudio} from '../../explain/audio.ts';
-import { logStart, outcomes, runLive } from '../../app/embed-live.ts';
+import { outcomes } from '../../app/embed-live.ts';
 
 /**
  * A page whose lettering asks for a right-to-left script sets the direction of
@@ -45,10 +46,10 @@ export async function buildExplainer(
   for(const scenario of project.scenarios) for(const step of scenario.trace.steps)
     if(stepAudio(step.meta.audio)) withAudio=true;
   const sink = new SnapshotSink();
-  await renderAt(v.Scene, restingTime(first, v.trace.fps), sink);
+  await renderFrame(v.Scene, first.frame1, sink);
   // A page that asked for lettering puts its faces in place before the player shapes anything.
   // Every other page's entry is as it was: it never imports src/lettering.ts.
-  const snapshots = pageSnapshots(project.store);
+  const snapshots = shippedStore(project.store);
   const rawSnapshots = JSON.stringify(snapshots);
   const rawCompressed = gzipSync(rawSnapshots, {level: 9});
   const packedCompressed = gzipSync(JSON.stringify(packPageSnapshots(snapshots)), {level: 9});
@@ -57,14 +58,8 @@ export async function buildExplainer(
   const payload = zipped ? `await inflateSnapshots(${JSON.stringify(compressed)})` : rawSnapshots;
   const snapshotImport = zipped ? `import{inflateSnapshots}from ${JSON.stringify(join(ROOT, 'app/embed-snapshots.ts'))};` : '';
   const soundImport=withAudio ? `import{mountAudio}from ${JSON.stringify(join(ROOT,'app/embed-audio.ts'))};` : '';
-  const mount = `mountEmbed(root,Source,${payload}${withAudio?',mountAudio':''})`,
-    lettered = project.lettering
-      ? `import{useLettering}from ${JSON.stringify(join(ROOT, 'src/lettering.ts'))};`
-      : '';
-  const author = project.outlineLettering
-    ? `import Original from 'virtual:author';import{bindLettering}from ${JSON.stringify(join(ROOT, 'src/lettering-outlines.ts'))};const Source=bindLettering(Original,${JSON.stringify(await pageSnapshot(project.outlineLettering))});`
-    : `import Source from 'virtual:author';`;
-  const entry = `${author}import{mountEmbed}from ${JSON.stringify(join(ROOT, 'app/embed.ts'))};${soundImport}${lettered}${snapshotImport}const root=document.getElementById('content');(async()=>{${lettered ? `await useLettering(${JSON.stringify(pageFaces(project.lettering))});` : ''}await ${mount};root.dataset.ready='true'})().catch(error=>{console.error(error);const p=document.createElement('p');p.setAttribute('role','alert');p.textContent=${JSON.stringify(t.failed)};root.append(p)});`;
+  // The script's intent reaches the bundled scene as it reached the one the build ran.
+  const entry = await sceneEntry(project, { target: 'page', snapshots: payload, imports: soundImport + snapshotImport, audio: withAudio, failed: t.failed, shipped: shippedScenario(project, v) });
   const bundled = await build({
     stdin: { contents: entry, resolveDir: ROOT, sourcefile: 'explainer-entry.ts', loader: 'ts' },
     bundle: true,
@@ -86,23 +81,27 @@ export async function buildExplainer(
           }));
         },
       },
-      ...(!project.lettering && !project.outlineLettering ? [browserFonts(ROOT)] : []),
+      // The embedded faces as SFNT, and the shaper without its Brotli decoder: the faces a page
+      // decodes of its own (lettering cuts and subsets) are SFNT too (sceneEntry).
+      browserFonts(),
+      ...(showsDiagrams(project) ? [] : [withoutDiagramCode()]),
       engineAlias(false, !!project.outlineLettering),
     ],
     logLevel: 'silent',
   });
   if (
     Object.keys(bundled.metafile!.inputs).some(
-      (p) => p.includes('node_modules/agentic-mermaid') || p.includes('integrations/agentic-mermaid/build/') || p.includes('vendor/glyph-math.js') || p.includes('tools/lettering'),
+      (p) => p.includes('node_modules/agentic-mermaid') || p.includes('integrations/agentic-mermaid/') || p.includes('vendor/glyph-math.js') || p.includes('tools/lettering'),
     )
   )
     throw new Error('Build-time diagram renderer leaked into browser artifact');
-  // Framed (specs/player-tile.md T4), the page draws only the tile. This runs before the body is
+  // Framed (player-tile T4), the page draws only the tile. This runs before the body is
   // laid out, so a frame never shows the padded page first; the CSP pins it by its own hash.
   const framedJs = "if(parent!==window)document.documentElement.dataset.framed=''";
+  // The page's style, minified as its script is.
   const js = scriptEscape(bundled.outputFiles[0]!.text),
-    css = (await readFile(join(ROOT, 'app/embed.css'), 'utf8')) + (rightToLeftPage(project) ? RTL_CSS : '') +
-      (withAudio ? '\n'+await readFile(join(ROOT,'app/embed-audio.css'),'utf8') : '') + playerCss(project.Scene.meta?.player, v.palette);
+    css = await minifyCss((await readFile(join(ROOT, 'app/embed.css'), 'utf8')) + (rightToLeftPage(project) ? RTL_CSS : '') +
+      (withAudio ? '\n'+await readFile(join(ROOT,'app/embed-audio.css'),'utf8') : '') + playerCss(project.Scene.meta?.player, v.palette));
   // Every scenario, every step: a link to it, its caption, what it changed of the state the author
   // watches (meta.watch) and what its resting picture shows.
   // The player shows the current scenario's section; without JavaScript every scenario shows.
@@ -110,9 +109,9 @@ export async function buildExplainer(
   // agent, can try there, from where the step leaves the machine (or from its start, when it is finished there).
   const liveLines = await Promise.all(project.scenarios.map(async ({ Scene, trace, live }) => {
     const lines = new Map<string, string>();
-    for (const [step, { index, machine }] of live ?? []) {
-      const times = trace.steps.find((s) => s.step === step);
-      const base = times && logStart(machine, (await runLive(Scene, times, index, [])).rest);
+    for (const [step, at] of live ?? []) {
+      const { machine } = at;
+      const base = trace.steps.some((s) => s.step === step) && (await liveBase(Scene, step, at)).base;
       if (!base) continue;
       const events = outcomes(machine, base.state).filter((o) => o.kind === 'next').map((o) => o.label);
       lines.set(step, t.liveEvents(events.join(', '), base.from === 'start'));
@@ -121,10 +120,10 @@ export async function buildExplainer(
   }));
   const transcript = project.scenarios
     .map(({ values, trace }, n) => {
-      const key = new URLSearchParams(values).toString(),
+      const key = stepQuery(values),
         name = scenarioNameIn(lang, project.Scene, values);
       const steps = trace.steps.map((s, i) => {
-        const href = `?${key ? key + '&' : ''}${new URLSearchParams({ step: s.step })}`,
+        const href = `?${stepQuery(values, s.step)}`,
           shows = pictureHtml(s.shown, trace.steps[i - 1]?.shown),
           words = stepWords(s),
           changes = watchedChanges(s, project.Scene.meta?.watch, lang).map((c) => changeText(t, c));
@@ -137,11 +136,12 @@ export async function buildExplainer(
       return `<section data-scenario="${htmlEscape(key)}">${name ? `<h2>${htmlEscape(name)}</h2>` : ''}<ol>${steps.join('')}</ol></section>`;
     })
     .join('');
-  // The scene's check questions after every scenario: the questions, each answer behind a disclosure.
-  const checks = (project.Scene.meta?.checks ?? [])
+  // The scene's reader questions after every scenario: the questions, each answer behind a disclosure.
+  const questions = (project.Scene.meta?.questions ?? [])
     .map((c) => `<li><p>${htmlEscape(c.question)}</p><details><summary>${htmlEscape(t.showAnswer)}</summary><p>${htmlEscape(c.answer)}</p></details></li>`)
     .join('');
-  const sources = (project.Scene.meta?.sources ?? [])
+  const checkedAgainst = (project.Scene.meta as { checkedAgainst?: string } | undefined)?.checkedAgainst;
+  const sources = (checkedAgainst ? `<li>${htmlEscape(t.checkedAgainst(checkedAgainst))}</li>` : '') + (project.Scene.meta?.sources ?? [])
     .map((url) => `<li><a href="${htmlEscape(url)}" target="_blank" rel="noopener">${htmlEscape(url)}</a></li>`)
     .join('');
   const notices = await Promise.all(
@@ -153,7 +153,7 @@ export async function buildExplainer(
   const licenses = notices.join('\n\n') + (project.outlineLettering
     ? letteringLicences(project.outlineLettering).filter((notice) => !notices.includes(notice)).map((notice) => '\n\n' + notice).join('')
     : '');
-  const html = `<!doctype html>\n<html lang="${htmlEscape(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(title)}</title><meta name="generator" content="Rayner"><style>${css}</style></head><body><script>${framedJs}</script><main id="content"><div class="layout tile"><section class="player"><h1>${htmlEscape(title)}</h1><div class="stage poster">${sink.svg}</div><p class="caption">${htmlEscape(stepWords(first).caption)}</p><details class="transcript" open><summary>${htmlEscape(t.transcript)}</summary>${transcript}${checks ? `<h2>${htmlEscape(t.checkYourself)}</h2><ol class="check-questions">${checks}</ol>` : ''}${sources ? `<h2>${htmlEscape(t.sources)}</h2><ul>${sources}</ul>` : ''}</details></section></div></main><template id="licenses"><pre>${htmlEscape(licenses)}</pre></template><script>${js}</script></body></html>\n`;
+  const html = `<!doctype html>\n<html lang="${htmlEscape(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(title)}</title><meta name="generator" content="Rayner"><style>${css}</style></head><body><script>${framedJs}</script><main id="content"><div class="layout tile"><section class="player"><h1>${htmlEscape(title)}</h1><div class="stage poster">${sink.svg}</div><p class="caption">${htmlEscape(stepWords(first).caption)}</p><details class="transcript" open><summary>${htmlEscape(t.transcript)}</summary>${transcript}${questions ? `<h2>${htmlEscape(t.checkYourself)}</h2><ol class="reader-questions">${questions}</ol>` : ''}${sources ? `<h2>${htmlEscape(t.sources)}</h2><ul>${sources}</ul>` : ''}</details></section></div></main><template id="licenses"><pre>${htmlEscape(licenses)}</pre></template><script>${js}</script></body></html>\n`;
   const sri = (value: string) => "'sha256-" + createHash('sha256').update(value).digest('base64') + "'";
   const policy = `default-src 'none'; script-src ${sri(framedJs)} ${sri(js)}; style-src ${sri(css)}; img-src data:; connect-src 'none'; font-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors *`;
   const receipt = {
@@ -178,6 +178,8 @@ export async function buildExplainer(
   await writeFile(out + '.headers.json', JSON.stringify(receipt.headers, null, 2) + '\n');
   return { html, receipt };
 }
+/** CSS as the page ships it: esbuild's minifier, with no trailing newline. */
+export const minifyCss = async (css: string) => (await transform(css, { loader: 'css', minify: true })).code.trimEnd();
 export async function buildLoader(out: string): Promise<void> {
   const result = await build({
     entryPoints: [join(ROOT, 'app/loader.ts')],
@@ -188,6 +190,8 @@ export async function buildLoader(out: string): Promise<void> {
     target: 'es2022',
     write: false,
     minify: true,
+    // The loader ships with the command and reaches the library's words by relative paths.
+    plugins: [engineAlias()],
   });
   await mkdir(dirname(resolve(out)), { recursive: true });
   await writeFile(out, result.outputFiles[0]!.text);

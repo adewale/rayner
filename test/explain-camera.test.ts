@@ -1,19 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  Scene,
-  Rectangle,
-  Text,
-  FadeIn,
-  } from '../src/index.ts';
-import { NullSink, StringSink, renderAt, toSvgString } from '../src/output.ts';
-import { MotionSink, analyzeMotion } from '../explain/testing.ts';
+import { Scene, Rectangle, Text, FadeIn } from '../src/index.ts';
+import { NullSink, StringSink, renderFrame, toSvgString } from '../src/output.ts';
+import { MotionSink, analyzeMotion } from '../src/internal.ts';
 import type { Box, Mobject } from '../src/index.ts';
 import { stage } from '../explain/index.ts';
-import { bindSnapshots } from '../explain/testing.ts';
-import { diagramKey, RENDERER } from '../integrations/agentic-mermaid/snapshot.ts';
+import { bindSnapshots } from '../explain/internal.ts';
+import { diagramKey, RENDERER } from '../explain/diagram-snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
-import { cameraBox } from '../explain/diagrams.ts';
 import { labelPx, restingTextProblems, MIN_PX } from '../tools/lib/explain-check.ts';
 import { closeUps, stepLayouts, toView } from '../app/embed-closeup.ts';
 
@@ -59,7 +53,7 @@ const bound = (S: import('../src/index.ts').SceneClass) => bindSnapshots(S, { [d
 const pointsOf = (mobs: Mobject[]) => mobs.flatMap((m) => m.family().flatMap((f) => f.pointArrays().map((a) => [...a])));
 const near = (a: readonly number[], b: readonly number[]) => a.every((v, i) => Math.abs(v - b[i]!) < 1e-6);
 
-test('focus with camera moves the camera, not the diagram; notes, marks, dims and walks work while zoomed', async () => {
+test('s.focus moves the camera, not the diagram; a view’s notes, marks, dims and a walk work while zoomed', async () => {
   class Zoom extends Scene {
     override async construct() {
       const s = stage(this);
@@ -67,33 +61,44 @@ test('focus with camera moves the camera, not the diagram; notes, marks, dims an
       const d = await s.show(spec, { box: 'full' });
       const parts = ['A', 'B', 'C', 'edge:A->B#0', 'edge:B->C#0'].map((id) => d.get(id));
       const before = pointsOf(parts);
-      await d.focus(['B'], { camera: true });
+      await s.focus(d.get('B'));
       assert.ok(this.frame.zoom > 1.5, 'the camera went closer');
       const view = this.frame.box()!;
       const b = d.get('B').box()!;
       assert.ok(b[0] >= view[0] && b[2] <= view[2] && b[1] >= view[1] && b[3] <= view[3], 'B is in view');
       assert.deepEqual(pointsOf(parts), before, 'no point moved');
-      // Emphasis while zoomed: it changes styles and adds marks, never part geometry.
-      await d.mark(['B']);
-      await d.dim(['A', 'B']);
-      const note = await d.note('B', 'here', { side: 'above' });
+      // Emphasis while zoomed, drawn by the diagram's view: it changes styles and adds notes, never part geometry.
+      this.shown.emphasis = true;
+      this.shown.walked = [];
+      const v = s.diagramView(d, (_st, sh) =>
+        sh.emphasis
+          ? {
+              marks: { B: d.emphasis, ...d.trail(sh.walked as [string, string][]) },
+              dim: ['A', 'B'],
+              notes: [{ id: 'B', text: 'here', side: 'above' }],
+            }
+          : {});
+      const note = this.find('note:B')!;
       assert.ok(note.box()![1] >= d.get('B').box()![3], 'the note sits beside its part');
-      await d.walk([['A', 'B']], { trail: true });
+      await d.walk([['A', 'B']]);
+      this.shown.walked = [['A', 'B']];
+      await this.play(v.sync());
       assert.deepEqual(pointsOf(parts), before);
-      assert.ok(d.get('C').family()[1]!.style.opacity! < 1, 'C is dimmed');
-      // A focus frames the chosen parts' notes too.
-      await d.focus(['B'], { camera: true });
+      const drawn = (id: string) => v.current.family().find((m) => m.key === id)!;
+      assert.ok(drawn('C').family()[1]!.style.opacity! < 1, 'C is dimmed');
+      assert.equal(drawn('edge:A->B#0').family()[1]!.style.stroke, d.emphasis, 'the walked link is marked travelled');
+      // A focus can frame the part's note with it.
+      await s.focus([d.get('B'), this.find('note:B')!]);
       const tight = this.frame.box()!;
-      const nb = note.box()!;
+      const nb = this.find('note:B')!.box()!;
       assert.ok(nb[1] >= tight[1] && nb[3] <= tight[3], 'the note is in view');
-      await d.focus('all');
+      assert.equal(d.describe().parts.find((p) => p.name === 'Beta')?.mark, 'marked');
+      await s.focus('all');
       assert.ok(near(this.frame.box()!, HOME), 'all returns to the whole stage');
       assert.deepEqual(pointsOf(parts), before);
-      assert.equal(d.describe().parts.some((p) => p.mark === 'focused'), false, 'nothing is in focus at home');
-      await d.unmark();
-      await d.focus(['C'], { camera: true });
-      // The description says what the camera is on, as a mark does; a mark says more and wins.
-      assert.deepEqual(d.describe().parts.find((p) => p.name === 'Gamma')?.mark, 'focused');
+      this.shown.emphasis = false;
+      await this.play(v.sync());
+      await s.focus(d.get('C'));
       await s.clear();
       assert.ok(near(this.frame.box()!, HOME), 'clear() brings the camera home');
       this.state.done = true;
@@ -102,44 +107,35 @@ test('focus with camera moves the camera, not the diagram; notes, marks, dims an
   await new (bound(Zoom))(new NullSink()).run();
 });
 
-test('a camera focus is described only while the camera stays on it; an artwork focus does not depend on the camera', async () => {
+test('an enlargement does not depend on the camera', async () => {
   class Away extends Scene {
     override async construct() {
       const s = stage(this);
       await this.step('one');
       const d = await s.show(spec, { box: 'full' });
       const focused = () => d.describe().parts.filter((p) => p.mark === 'focused').map((p) => p.name);
-      await d.focus(['B'], { camera: true });
-      assert.deepEqual(focused(), ['Beta'], 'in focus while the camera is on it');
-      await this.play(this.frame.animate.reset());
-      assert.deepEqual(focused(), [], 'the camera went home without focus("all")');
-      await d.focus(['B'], { camera: true });
-      await this.play(this.frame.animate.shift([1, 0]));
-      assert.deepEqual(focused(), [], 'the camera moved on');
-      await this.play(this.frame.animate.reset());
       // The artwork moves inside the diagram's own box: where the camera is does not matter.
-      await d.focus(['A']);
+      await d.enlarge(['A']);
       await this.play(this.frame.animate.scale(0.9));
-      assert.deepEqual(focused(), ['Alpha'], 'an artwork focus holds wherever the camera is');
+      assert.deepEqual(focused(), ['Alpha'], 'an enlargement holds wherever the camera is');
       this.state.done = true;
     }
   }
   await new (bound(Away))(new NullSink()).run();
 });
 
-test('by default focus moves the diagram inside its own box and the camera stays home', async () => {
+test('enlarge moves the diagram inside its own box and the camera stays home', async () => {
   class Inside extends Scene {
     override async construct() {
       const s = stage(this);
       await this.step('one');
       const d = await s.show(spec, { box: 'left' });
       const wide = d.get('B').width();
-      await d.focus(['B']);
+      await d.enlarge(['B']);
       assert.ok(near(this.frame.box()!, HOME), 'the camera did not move');
       assert.ok(d.get('B').width() > 1.5 * wide, 'the artwork scaled up');
       assert.deepEqual(d.describe().parts.find((p) => p.name === 'Beta')?.mark, 'focused');
-      await assert.rejects(d.focus(['B'], { also: [s.heading] }), /camera: true/);
-      await d.focus('all');
+      await d.enlarge('all');
       assert.ok(Math.abs(d.get('B').width() - wide) < 1e-4, 'all puts the artwork back');
       this.state.done = true;
     }
@@ -174,32 +170,17 @@ test('close-ups are worked out in the camera view: boxes in its units, label siz
   assert.ok(closeUps(closer, w, h)[0]!.k <= closeUps(home, w, h)[0]!.k);
 });
 
-test('the camera box keeps 16:9, honours zoom and margin, and stays on the stage', () => {
-  const box = cameraBox([0, 0, 2, 1], 0.5);
-  assert.ok(Math.abs((box[2] - box[0]) / (box[3] - box[1]) - 16 / 9) < 1e-9);
-  assert.ok(near([(box[0] + box[2]) / 2, (box[1] + box[3]) / 2], [1, 0.5]));
-  // 2 x 1 plus 0.5 a side is 3 x 2; 16:9 around that is 2 tall, so 32/9 wide.
-  assert.ok(Math.abs(box[2] - box[0] - 32 / 9) < 1e-9);
-  const closer = cameraBox([0, 0, 2, 1], 0.5, 2);
-  assert.ok(Math.abs((closer[2] - closer[0]) * 2 - (box[2] - box[0])) < 1e-9, 'zoom 2 is half as wide');
-  // A part at the stage's corner: the view slides to stay on the paper.
-  const corner = cameraBox([7, 4, 7.9, 4.4], 0.5);
-  assert.ok(corner[2] <= 8 + 1e-9 && corner[3] <= 4.5 + 1e-9);
-  // Wider than the stage: the whole stage, never past the paper.
-  assert.ok(near(cameraBox([-20, -1, 20, 1]), HOME));
-});
-
 test('a scene that focuses twice seeks to the same SVG and moves without teleports', async () => {
   class Twice extends Scene {
     override async construct() {
       const s = stage(this);
       await this.step('look');
       const d = await s.show(spec, { box: 'full' });
-      await d.focus(['A'], { camera: true });
+      await s.focus(d.get('A'));
       await this.step('across');
-      await d.focus(['C'], { camera: true, zoom: 1.5 });
+      await s.focus(d.get('C'), { margin: 0.2 });
       await this.step('back');
-      await d.focus('all');
+      await s.focus('all');
     }
   }
   const Bound = bound(Twice);
@@ -217,7 +198,7 @@ test('a scene that focuses twice seeks to the same SVG and moves without telepor
   assert.ok(views.size > 10, 'the viewBox animates');
   for (const frame of [5, 30, 45, 60, 75, sink.frames.length - 1]) {
     const at = new StringSink();
-    await renderAt(Bound, frame / 30, at);
+    await renderFrame(Bound, frame, at);
     assert.equal(at.last(), sink.frames[frame], `seek to frame ${frame}`);
   }
 });
@@ -260,4 +241,34 @@ test('resting text is judged in the camera view: cut by its edge fails, wholly o
   assert.notEqual(zoomed, home);
   scene.frame.fit([-1, -1, 1, 1], { margin: 0.2 });
   assert.equal(toSvgString(scene), zoomed);
+});
+
+test('one camera zoom: the stage pins its heading by the zoom the close-ups read, for a box out of 16:9 too', async () => {
+  const { zoomOf } = await import('../src/units.ts');
+  const { isHeading } = await import('../explain/stage.ts');
+  assert.equal(zoomOf(HOME), 1);
+  assert.equal(zoomOf([-2, -1.125, 2, 1.125]), 4, 'a 16:9 box: width and height agree');
+  assert.equal(zoomOf([-1, -2, 1, 2]), 9 / 4, 'a tall box: its height sets the scale');
+  assert.equal(zoomOf([-4, -1, 4, 1]), 2, 'a wide box: its width sets the scale');
+  // s.focus with an exact box out of 16:9: the heading must stay where it is on screen, as the
+  // close-ups map the world into the camera's view (toView, by zoomOf).
+  for (const box of [[-1, -2, 1, 2], [-4, -1, 4, 1]] as Box[]) {
+    let home: Box[] = [], away: Box[] = [], view: Box = HOME;
+    class Tall extends Scene {
+      override async construct() {
+        const s = stage(this);
+        await this.step('one', { title: 'A heading' } as never);
+        const heading = () => this.mobjects.filter((m) => isHeading(m) && m.role === 'heading').map((m) => m.box()!);
+        home = heading();
+        await s.focus(box, { exact: true });
+        view = this.frame.box()!;
+        away = heading().map((b) => toView(b, view));
+        this.state.done = true;
+      }
+    }
+    await new Tall(new NullSink()).run();
+    assert.ok(home.length > 0);
+    assert.notDeepEqual(view, HOME);
+    assert.ok(home.every((b, i) => b.every((v, k) => Math.abs(v - away[i]![k]!) < 1e-3)), `${JSON.stringify(box)}: the heading moved on screen, ${JSON.stringify(home)} to ${JSON.stringify(away)}`);
+  }
 });

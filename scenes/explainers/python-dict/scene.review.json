@@ -1,95 +1,11 @@
 {
   "version": 2,
   "subjects": [
-    {
-      "step": "question",
-      "opening": true,
-      "targets": [
-        {
-          "key": "dict-index"
-        },
-        {
-          "key": "dict-entries"
-        },
-        {
-          "key": "dict-result"
-        }
-      ]
-    },
-    {
-      "step": "hash",
-      "opening": true,
-      "targets": [
-        {
-          "key": "dict-index"
-        },
-        {
-          "key": "dict-hashes"
-        }
-      ]
-    },
-    {
-      "step": "collision",
-      "opening": true,
-      "targets": [
-        {
-          "key": "dict-index"
-        },
-        {
-          "key": "dict-entries"
-        },
-        {
-          "text": "d[16]"
-        }
-      ]
-    },
-    {
-      "step": "broken",
-      "opening": true,
-      "targets": [
-        {
-          "key": "dict-index"
-        },
-        {
-          "key": "dict-entries"
-        },
-        {
-          "key": "dict-result"
-        }
-      ]
-    },
-    {
-      "step": "marker",
-      "opening": true,
-      "targets": [
-        {
-          "key": "dict-index"
-        },
-        {
-          "key": "dict-route"
-        },
-        {
-          "key": "dict-entries"
-        },
-        {
-          "key": "dict-result"
-        }
-      ]
-    },
-    {
-      "step": "missing",
-      "opening": true,
-      "targets": [
-        {
-          "key": "dict-index"
-        },
-        {
-          "key": "dict-route"
-        },
-        {
-          "key": "dict-result"
-        }
-      ]
-    }
+    { "step": "question", "opening": true, "targets": [{ "key": "dict-index" }, { "key": "dict-entries" }, { "key": "dict-result" }] },
+    { "step": "hash", "opening": true, "targets": [{ "key": "dict-index" }, { "key": "dict-hashes" }] },
+    { "step": "collision", "opening": true, "targets": [{ "key": "dict-index" }, { "key": "dict-entries" }, { "text": "d[16]" }] },
+    { "step": "broken", "opening": true, "targets": [{ "key": "dict-index" }, { "key": "dict-entries" }, { "key": "dict-result" }] },
+    { "step": "marker", "opening": true, "targets": [{ "key": "dict-index" }, { "key": "dict-route" }, { "key": "dict-entries" }, { "key": "dict-result" }] },
+    { "step": "missing", "opening": true, "targets": [{ "key": "dict-index" }, { "key": "dict-route" }, { "key": "dict-result" }] }
   ]
 }

@@ -5,7 +5,8 @@ import { readFile } from 'node:fs/promises';
 import {
   Scene, Text, Code, DecimalNumber, Transform, shaperFor,
 } from '../src/index.ts';
-import { NullSink, SnapshotSink, renderAt } from '../src/output.ts';
+import { NullSink, renderFrame } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { SANS, MONO } from '../src/font-data.ts';
 import {
@@ -15,9 +16,10 @@ import type { LetteringProvider, LetteringSnapshot } from '../src/lettering-outl
 import { loadFont } from '../vendor/glyph.js';
 import type { Run } from '../vendor/glyph.js';
 import { shapeChain } from '../src/fonts.ts';
+import { advanceBox, textRun } from '../src/text.ts';
 
 function snapshot(request: LetteringSnapshot['request'], runs: Record<string, Run>): LetteringSnapshot {
-  return { version: 1, sourceHash: '', builderHash: '', request, runs, faces: {}, shaper: 'runtime-audit' };
+  return { version: 3, builderHash: '', request, runs, faces: {}, shaper: 'runtime-audit' };
 }
 function deferred() {
   let resolve!: () => void;
@@ -54,10 +56,10 @@ test('face requests replay counters at arbitrary FPS and preserve known numeric 
       const n = scene.mobjects[0] as DecimalNumber | undefined;
       if (!n) return;
       seen.add(n.text);
-      assert.ok(Math.abs(n.run.width - mono(n.text, n.run.fontSize).width) < 1e-7, 'runtime numerals retain the requested mono face');
+      assert.ok(Math.abs(n[textRun].width - mono(n.text, n[textRun].fontSize).width) < 1e-7, 'runtime numerals retain the requested mono face');
     } }, { fps }).run();
   }
-  await renderAt(Bound, .5, new SnapshotSink());
+  await renderFrame(Bound, 15, new SnapshotSink());
   assert.ok(seen.size > 15, 'intermediate values were not captured as endpoint runs');
   assert.equal(JSON.stringify(data), before, 'private numeric caches do not change snapshots or their hashes');
   const provider = snapshotProvider(data);
@@ -90,7 +92,7 @@ test('Greek numeric wrappers work with replaced, implicit and partially replaced
       const n = scene.mobjects[0] as DecimalNumber | undefined;
       if (!n) return;
       seen.add(n.text);
-      assert.ok(Math.abs(n.run.width - shapeChain(chain, font, n.text, n.run.fontSize).width) < 1e-7, mode);
+      assert.ok(Math.abs(n[textRun].width - shapeChain(chain, font, n.text, n[textRun].fontSize).width) < 1e-7, mode);
     } }, { fps: 11 }).run();
     assert.ok(seen.has('λόγος 3'), mode);
   }
@@ -116,7 +118,7 @@ test('RTL/mixed Code token boxes use visual advance cells, including after the l
     override async construct() { code = new Code([text], { fontSize: 1 }); this.add(code); }
   }
   await new (bindLettering(Example, data))(new NullSink()).run();
-  const left = code.lines[0]!.frameBox[0]!;
+  const left = code.lines[0]![advanceBox][0]!;
   assert.deepEqual(code.span(0, 3, 4).box().slice(0, 3).filter((_, i) => i !== 1), [left + 4, left + 5]);
   assert.equal(code.span(0, 4, 5).box()[0], left + 3);
   assert.equal(code.span(0, 4, 5).box()[2], left + 4);
@@ -137,7 +139,7 @@ test('ordinary LTR spans keep their geometry after explicitly installing the opt
   const code = new Code(['abc def'], { fontSize: .5 });
   const line = code.lines[0]!, width = mono('abc', .5).width;
   const span = code.span(0, 0, 3).box();
-  assert.ok(Math.abs(span[0] - line.frameBox[0]!) < 1e-6);
+  assert.ok(Math.abs(span[0] - line[advanceBox][0]!) < 1e-6);
   assert.ok(Math.abs((span[2] - span[0]) - width) < 1e-6);
 });
 
@@ -155,7 +157,7 @@ test('an empty range inside an RTL base/mark cluster remains a zero-width caret'
   await new (bindLettering(Example, snapshot({ scripts: ['Hebr'] }, { [runKey('mono', text)]: run })))(new NullSink()).run();
   const caret = code.span(0, 1, 1).box();
   assert.equal(caret[2] - caret[0], 0);
-  const mark = code.lines[0]!.children.find((g) => g.box()![3] > code.lines[0]!.frameBox[3]!)!;
+  const mark = code.lines[0]!.children.find((g) => g.box()![3] > code.lines[0]![advanceBox][3]!)!;
   assert.ok(code.span(0, 1, 2).box()[3] >= mark.box()![3], 'a nonempty partial cluster includes its overhanging mark ink');
 });
 
@@ -166,7 +168,7 @@ test('same-provider nested runs settle and delayed ordinary runs keep embedded f
   class Lettered extends Scene { override async construct() { this.add(new Text('WWW')); } }
   const Bound = bindLettering(Lettered, provider);
   const nested = await bounded(withSceneLettering(Bound, () => new Bound(new NullSink()).run()));
-  assert.ok(Math.abs((nested.mobjects[0] as Text).run.width - mono('WWW', .4).width) < 1e-8);
+  assert.ok(Math.abs((nested.mobjects[0] as Text)[textRun].width - mono('WWW', .4).width) < 1e-8);
 
   const started = deferred(), finish = deferred();
   class Slow extends Scene {
@@ -178,7 +180,7 @@ test('same-provider nested runs settle and delayed ordinary runs keep embedded f
   const ordinary = new Ordinary(new NullSink()).run();
   finish.resolve();
   const [, plain] = await bounded(Promise.all([slow, ordinary]));
-  assert.ok(Math.abs((plain.mobjects[0] as Text).run.width - normal('WWW', .4).width) < 1e-8);
+  assert.ok(Math.abs((plain.mobjects[0] as Text)[textRun].width - normal('WWW', .4).width) < 1e-8);
 });
 
 test('the compatibility context waits for overlapping same-provider tasks before admitting another scene', async () => {
@@ -202,5 +204,5 @@ test('the compatibility context waits for overlapping same-provider tasks before
   const [, done] = await bounded(Promise.all([first, second]));
   assert.equal(settledBeforeSecond, false, 'the first lease waits for its overlapping task');
   assert.equal(firstSettled, true);
-  assert.ok(Math.abs((done.mobjects[0] as Text).run.width - mono('WWW', .4).width) < 1e-8);
+  assert.ok(Math.abs((done.mobjects[0] as Text)[textRun].width - mono('WWW', .4).width) < 1e-8);
 });

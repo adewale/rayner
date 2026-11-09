@@ -23,7 +23,8 @@ node node_modules/rayner/dist/recipes/render.js --out out/recipes
 Packages built from this source include the recipes; older releases may not. The
 installed runner is compiled JavaScript, because Node does not strip TypeScript inside
 `node_modules`; copy the `recipes/*.ts` sources into your project to edit them. They
-import only from `rayner`. `npm run check` type-checks them, the standard tests run
+import only from the public entry points (`rayner`, `rayner/explain`, `rayner/output` and
+`rayner/testing`). `npm run check` type-checks them, the standard tests run
 them, and `npm run pack:smoke` runs them from a fresh install. Their output is raw
 engine content, not a checked explainer.
 
@@ -45,7 +46,7 @@ inputs without learning a JSON animation language.
 - `Diamond extends VMobject` builds one custom path with `setPolygon`.
 - `StatusBadge extends Group` combines that path and a text label. Getters find
   the badge's own children, including after `copy()`.
-- `statusRow(labels)` is an ordinary function arranging several badges.
+- `statusRow(labels)` is an ordinary function arranging several badges, each keyed by its label so the scene finds one with `row.find(label)`.
 
 All of them work with `FadeIn`, `Transform`, `Group`, copying, layout and the SVG
 renderer without registering anything, because they are built from existing path
@@ -58,7 +59,12 @@ adding a badge-specific operation to the scene or renderer.
 
 For a custom class with mutable fields outside its children, read
 [copying and ownership](ENGINE-FUNDAMENTALS.md#ownership-identity-and-copying).
-Do not assume `copy()` knows how to clone an arbitrary closure or external handle.
+`copy()` makes the copy without calling your constructor, so keep a mobject's state in ordinary
+fields (a TypeScript `private` one is fine), never ES private (`#`) fields or methods, which the copy
+would lack: copying one, as a transform or a fade does, is refused with a `TypeError` that names your
+class and the member. It gives the copy its
+own arrays, maps and sets; copy what they hold, and anything else mutable, in `copyData`. Do not
+assume `copy()` knows how to clone an arbitrary closure or external handle.
 
 ## Make several objects follow one parameter
 
@@ -74,7 +80,10 @@ The dot is at the top of the circle and the number reads 1.57, because the recip
 evaluates the orbit throughout the motion; interpolating the two opposite endpoint
 pictures would put the dot through the centre.
 
-`FollowAngle` captures the initial value in `begin()`, makes an immutable sample
+`sampleAnimation(animation, alpha)` from `rayner/testing` draws one frame of it outside a play,
+in any order, which is how `test/recipes.test.ts` checks the dot stays on the circle.
+
+`FollowAngle` captures the initial value in `doBegin()`, makes an immutable sample
 from alpha, applies absolute updates and publishes that sample as scene state.
 It registers no updater. Its animation target is the whole dependent group, so
 the existing `play()` overlap checker rejects another simultaneous animation of
@@ -87,15 +96,18 @@ distribution and adding another dependent readout. Keep these constraints:
    previously drawn point as a model input.
 2. Write only the animation's owned subtree. Its callback may publish the same
    sample to state but must not secretly animate another object.
-3. Capture changing endpoints at `begin()`. Never use ambient time, unseeded random
+3. Capture changing endpoints in `doBegin()`. Never use ambient time, unseeded random
    values or mutable external inputs to decide intermediate geometry.
 4. Stay inside the model's domain. This recipe's angle is in `[0, pi]`, and its
    rate function must stay in `[0, 1]`; overshooting easings are refused by the
    model's domain check.
+5. Finish in `doFinish()` where the last frame drew. `rayner check` compares each step's
+   picture as it ends, after its last play has finished, with its resting frame,
+   since `rayner describe` and the shots draw the step as it ends.
 
 The recipe fixes drawing coordinates at construction, so shifting, scaling or
 rotating the dependent group does not survive the next sample; a camera move is
-unaffected. The exported form of this idea is [`Follow`](CHOREOGRAPHY.md#follow):
+unaffected. The exported form of this idea is a [view's tween](CHOREOGRAPHY.md#following-one-number):
 one sampled number, a `draw` that returns the picture at it, and the targets it
 writes, named for the one-writer check.
 
@@ -112,20 +124,24 @@ this.addInvariant('the dot stays on its circle', (scene) => {
 });
 ```
 
-A check reads the scene by key and changes nothing. It returns a message when the
+A check, an `Invariant`, reads the scene by key and changes nothing. It returns a message when the
 invariant fails, `true` when it held, and nothing when there was nothing to check on
 that frame. An invariant that never holds in a whole run tested nothing, so
 `rayner check` fails it, which keeps a misspelt key from passing. `rayner check` runs
 every registered invariant on every frame of every scenario, so an invariant about what
 happens between steps (a gauge meeting a line, a pointer on its circle) fails at the
-first frame that breaks it. Sampled from its angle with `Follow`, the dot holds; morphed
+first frame that breaks it. Sampled from its angle by a view's tween, the dot holds; morphed
 between its two ends with `Transform`, it cuts through the centre, and the recipe's test
 finds those frames. `token-bucket` and `ring-buffer` declare invariants of this kind.
 
 `InvariantSink` (`rayner/testing`) runs them, and it is the pattern for a check of your own: a sink
-receives every frame of a full run, reads the scene, and hands the frame on to an inner
+receives every frame of a full run, reads the scene, and hands the frame on to its `inner`
 sink, so several checks share one run. `rayner check` composes it with its motion and
 legibility sampling this way. A seek skips frames, so run invariants over a full run.
+After the run, `failures` lists each failure as an `InvariantFailure`, `{ invariant, step,
+frame, t, message }`; `checked` and `held` count, per invariant, the frames it ran on and the
+frames it held on; and `vacuous()` names the invariants that ran and never held. `check(scene)` runs every
+invariant once against the scene as it is, as each frame does.
 
 ## Consume a scene in another application
 
@@ -136,13 +152,13 @@ instead. Keep host-specific imports in that adapter rather than adding filesyste
 or DOM assumptions to your model.
 
 In a browser, `DomSink` (`rayner/output`) draws into an SVG element; in a document generator,
-`SnapshotSink` returns a frame. See the live-browser example in
+`toSvgString(await renderFrame(Scene, frame))` returns a frame. See the live-browser example in
 [Scene outputs](SCENE-OUTPUTS.md#live-browser-output-and-publication).
 
 ## Compose built-in animation techniques
 
-[choreography.ts](../recipes/choreography.ts) uses the exported `GrowFromEdge`,
-`PulseAlongPath` and `SetState` with native shapes and a readout drawn from state.
+[choreography.ts](../recipes/choreography.ts) uses the exported `GrowFromEdge`
+and `PulseAlongPath` with native shapes and a readout drawn from state.
 [Reusable choreography](CHOREOGRAPHY.md) documents their timing, ownership, opacity,
 snapshot and cleanup contracts.
 
@@ -157,11 +173,11 @@ Each extension point has one rule for what happens when two of them act on the s
 | An animation | One `play()` drives a mobject once: two animations on the same mobject, or on one inside the other, throw. A `Succession`'s members run in turn and may share mobjects. Separate plays run one after another. | `play()` throws, naming both animations and the mobject. |
 | An invariant | Every registered invariant runs on every frame, each on its own, and none may change the scene. Each must hold on at least one frame of a run. | `InvariantSink`; `rayner check` fails an invariant that never held. |
 | A sink | Sinks never meet inside the scene. A sink reads each frame and hands it to the sink it wraps, or a fan sends each frame to several sinks in order. | By construction: the scene calls one sink. |
-| A machine's transition | An event plays one transition, and the transition must end on what the views draw from the new state. Without one, the views morph to the new state by key. | `rayner check` explores every reachable event and compares where each lands with the views' draw. |
+| A machine's transition | An event plays one transition, and the transition must end on what the views draw from the new state. Without one, the views morph to the new state by key. | `rayner check` explores every reachable event and compares where each finishes with the views' draw. |
 
 ## Test an extension
 
-Test an extension with the same tools Rayner's own suite uses, without a browser. From `rayner/testing`, `traceScene` runs a scene and returns each step's state, evidence and timing. From `rayner/output`, `SnapshotSink` and `renderAt` give the picture at a time. `InvariantSink` runs invariants over a full run. [test/recipes.test.ts](https://github.com/adewale/rayner/blob/main/test/recipes.test.ts) tests the five recipes this way: the copied composite owns its own children, the sampled orbit stays on its circle, and the morphed one leaves it. Give each extension one test of normal use and one that shows its limit failing.
+Test an extension with the same tools Rayner's own suite uses, without a browser. From `rayner/testing`, `traceScene` runs a scene and returns each step's state, evidence and timing. From `rayner/output`, `renderFrame` and `toSvgString` give the picture at a frame. `InvariantSink` runs invariants over a full run. [test/recipes.test.ts](https://github.com/adewale/rayner/blob/main/test/recipes.test.ts) tests the five recipes this way: the copied composite owns its own children, the sampled orbit stays on its circle, and the morphed one leaves it. Give each extension one test of normal use and one that shows its limit failing.
 
 ## Composition, compositionality and modularity
 

@@ -7,8 +7,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { VMobject, Square, Rectangle, Circle, Polygon, linear, smooth, rushInto, rushFrom, thereAndBack } from '../src/index.ts';
+import { VMobject, Rectangle, Circle, Polygon, linear, smooth, rushInto, rushFrom, thereAndBack } from '../src/index.ts';
 import type { Vec } from '../src/index.ts';
+import { curveCount, insertCurves } from '../src/vmobject.ts';
 
 interface Answers { rates: Record<string, number[]>; distribute: number[][]; partial: Array<Array<[number, number]>>; same_shape: boolean[][] }
 interface Fixture {
@@ -26,13 +27,13 @@ const { request, answers, manim } = JSON.parse(readFileSync(file, 'utf8')) as Fi
 function sameShapeCases(): Array<[string, VMobject]> {
   const polyline = (pts: Vec[]) => { const v = new VMobject().startNewPath(pts[0]!); for (const p of pts.slice(1)) v.addLineTo(p); return v; };
   // Float32 noise: the same square after a chain of moves and scales
-  const mapped = new Square({ side: 2 });
+  const mapped = new Rectangle({ width: 2, height: 2 });
   for (let i = 0; i < 5; i++) mapped.shift([1.37, -0.71]).scale(1.3);
   return [
-    ['square', new Square({ side: 2 })],
-    ['square, moved and scaled', new Square({ side: 3 }).shift([4, -1])],
+    ['square', new Rectangle({ width: 2, height: 2 })],
+    ['square, moved and scaled', new Rectangle({ width: 3, height: 3 }).shift([4, -1])],
     ['square, after five maps', mapped],
-    ['square, drawn from another corner', new Square({ side: 2 }).rotate(Math.PI / 2)],
+    ['square, drawn from another corner', new Rectangle({ width: 2, height: 2 }).rotate(Math.PI / 2)],
     ['rectangle 2:1', new Rectangle({ width: 2, height: 1 })],
     ['rectangle 1:2', new Rectangle({ width: 1, height: 2 })],
     ['circle', new Circle({ radius: 1 })],
@@ -77,9 +78,9 @@ test('extra curves are distributed across a path the way manim distributes them'
     const p = new VMobject();
     p.startNewPath([0, 0]);
     for (const x of xs.slice(1)) p.addLineTo([x, 0]);
-    p.insertNCurves(0, n);
+    insertCurves(p, 0, n);
     const ours = lengths.map(() => 0);
-    for (let c = 0; c < p.numCurves(); c++) {
+    for (let c = 0; c < curveCount(p); c++) {
       const a = p.pointOnCurve(0, c, 0)[0], b = p.pointOnCurve(0, c, 1)[0], mid = (a + b) / 2;
       // A zero-length piece belongs to the zero-length curve at its point; any other lies inside its curve
       const k = Math.abs(b - a) < 1e-9 ? lengths.findIndex((l, j) => l === 0 && Math.abs(xs[j]! - a) < 1e-6) : lengths.findIndex((_, j) => mid > xs[j]! && mid < xs[j + 1]!);
@@ -98,7 +99,7 @@ test("splitting a cubic matches manim's partial_bezier_points piece by piece", (
   const p = new VMobject();
   p.startNewPath(P[0]!);
   p.addCubic(P[1]!, P[2]!, P[3]!);
-  p.insertNCurves(0, parts - 1);
+  insertCurves(p, 0, parts - 1);
   const split = p.subpaths[0]!;
   for (let j = 0; j < parts; j++) {
     for (let q = 0; q < 4; q++) {

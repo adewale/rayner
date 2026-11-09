@@ -2,6 +2,8 @@
 
 Three animations from manim's set. Each fixes its endpoints when it begins, so a
 seek renders the byte-identical frame a full run produces (`test/anim-utils.test.ts`).
+`Restore` and `TransformFromCopy`, in `rayner`, are each a `Transform` (to the saved look,
+or of a copy that the play makes as it begins). `Succession` is in `rayner` too.
 [Reusable choreography](CHOREOGRAPHY.md) covers the animations extracted from the
 example collection.
 
@@ -9,15 +11,15 @@ example collection.
 
 ```ts
 box.saveState();
-await this.play(box.animate.setFill(s.bad).scale(1.5));
+await this.play(box.animate.setFill(s.look.bad).scale(1.5));
 await this.play(new Restore(box));        // back to the saved look, animated
 ```
 
-`saveState()` stores a deep copy on the mobject (`box.saved`). `restore()` returns to
+`saveState()` stores a deep copy on the mobject. `restore()` returns to
 it at once, `Restore` transforms back to it. After either, the mobject equals the saved
 state exactly: points, style, and fields such as a `Text`'s string. That holds even
 when the mobject changed shape on the way (morphed into a circle, which subdivides its
-curves): `Restore` aligns to morph, then lands on the saved data itself.
+curves): `Restore` aligns to morph, then finishes on the saved data itself.
 
 The contract for structure: restore expects the family to have the same shape as when
 saved, and then rewrites each member's data in place, so references to children stay
@@ -31,10 +33,10 @@ carry it: a copy is a new mobject with no history.
 ## TransformFromCopy: derive one thing from another
 
 ```ts
-await this.play(new TransformFromCopy(formula, result), formula.animate.setFill(s.soft));
+await this.play(new TransformFromCopy(formula, result), formula.animate.setFill(s.look.soft));
 ```
 
-A copy of `formula` morphs into `result`. `formula` stays where it is, unchanged, and
+A copy of `formula`, the animation's `source`, morphs into `result`. `formula` stays where it is, unchanged, and
 the scene holds `result` at the end. The copy is taken before any animation in the play
 begins, so it is `formula` as the play found it whatever the argument order, and it is a
 different mobject from the source, so the source can be animated in the same play. With
@@ -75,9 +77,17 @@ animations may not drive one mobject at the same time looks through it: members 
 the `Succession`.
 
 Time through a `Succession` is linear by default; members ease with their own rate
-functions. A group rate function must not run time backwards. A `lagRatio` given to
-`play()` does not stagger a `Succession`: its members stay one after another
-(`test/anim-utils.test.ts`, "a lagRatio passed to play() leaves a Succession sequential").
+functions. A group rate function must not run its time back past the start of a member
+that has finished. A `Succession` takes no `lagRatio`: its options have none, and `play()`
+and its setter refuse one, naming the call (`test/anim-utils.test.ts`, "a Succession takes no
+lagRatio").
+
+A member begins at its turn, in turn order with whatever else begins at its turn in the same
+frame. One that waits for what it reads (an action's beat that shows a diagram) holds the
+`Succession`: the members after it begin once it has begun, so their side effects keep their
+order even when the waiting member is shorter than a frame. When the play finishes a
+`Succession` held this way, its `phase` stays `'begun'` until its last member has begun and
+finished, then is `'finished'`.
 
 Seeking is exact through a `Succession` too. Its members begin, and add their mobjects,
 as it interpolates, so a seek into a play holding one still interpolates the frames it
@@ -88,7 +98,8 @@ whose member brings an updater matches the full run").
 
 - `saveState`/`Restore`: the [feature tour](https://github.com/adewale/rayner/blob/main/scenes/explainers/feature-tour/scene.ts)'s
   `restore` scenario moves a circle and restores it.
-- `TransformFromCopy`: [exgit](https://github.com/adewale/rayner/blob/main/scenes/explainers/exgit/scene.ts) sends the shared blob to tree two.
+- `TransformFromCopy`: only the [feature tour](https://github.com/adewale/rayner/blob/main/scenes/explainers/feature-tour/scene.ts)'s
+  `copy` scenario.
 - `Succession`: [state-machine](https://github.com/adewale/rayner/blob/main/scenes/explainers/state-machine/scene.ts),
   [token-bucket](https://github.com/adewale/rayner/blob/main/scenes/explainers/token-bucket/scene.ts) and
   [ring-buffer](https://github.com/adewale/rayner/blob/main/scenes/explainers/ring-buffer/scene.ts) build each event's authored

@@ -11,7 +11,8 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { Scene, MathTex, TransformMatchingShapes, TransformMatchingText } from '../../src/index.ts';
-import { NullSink, SnapshotSink, renderAt, renderElements } from '../../src/output.ts';
+import { NullSink, renderFrame, renderElements } from '../../src/output.ts';
+import { SnapshotSink } from '../../src/svg.ts';
 import type { Mobject, VMobject } from '../../src/index.ts';
 import { bindLettering, snapshotProvider, unpackLettering } from '../../src/lettering-outlines.ts';
 import type { LetteringSnapshot } from '../../src/lettering-outlines.ts';
@@ -22,10 +23,11 @@ import { collectProject, defaultScenario, ROOT } from '../../tools/lib/explain-p
 import { buildExplainer } from '../../tools/lib/explain-build.ts';
 import { checkProject } from '../../tools/lib/explain-check.ts';
 import { serve } from '../../tools/lib/explain-serve.ts';
-import { restingTime } from '../../explain/trace.ts';
 import { launch } from '../../tools/lib/browser.ts';
 import { EXPECTED, expectedOf, pathDigest } from '../../tools/oracle/glyph-math.ts';
 import type { Expected } from '../../tools/oracle/glyph-math.ts';
+import { beginAnimation } from '../../src/animation.ts';
+import { advanceBox, textRun } from '../../src/text.ts';
 
 const fixture = join(ROOT, 'test/lettering/math');
 const expected: Expected = JSON.parse(await readFile(EXPECTED, 'utf8'));
@@ -117,7 +119,7 @@ test('capture fails the build on unsupported TeX and names the error', { skip: n
 test('a formula changed without refreshing the snapshot fails before anything is drawn', async () => {
   const dir = await scenario('"\\\\frac{1}{2}+x^2"', '"\\\\frac{1}{3}+x^2"', true);
   try {
-    await assert.rejects(collectProject(dir, { write: false }), /stale lettering snapshot/);
+    await assert.rejects(collectProject(dir, { write: false }), /no run for .*\(math\)/);
     assert.throws(() => snapshotProvider(snapshot).math('\\frac{1}{3}+x^2', 1, false), /no run/);
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
@@ -130,8 +132,8 @@ test('a display formula is typeset once, in display style', async () => {
   class Display extends Scene {
     override async construct() {
       for (const [, tex] of display) {
-        const m = new MathTex(tex, { display: true }), f = m.frameBox;
-        built.push({ width: m.run.width, middle: (f[1]! + f[3]!) / 2 });
+        const m = new MathTex(tex, { display: true }), f = m[advanceBox];
+        built.push({ width: m[textRun].width, middle: (f[1]! + f[3]!) / 2 });
       }
     }
   }
@@ -152,7 +154,7 @@ test('morphs: TransformMatchingShapes and TransformMatchingText both pair a form
         const key = new Map<Mobject, string>([...from.children, ...to.children].map((g) => [g, (g as VMobject).shapeKey()]));
         this.add(from);
         const t = new Kind(from, to);
-        t.begin();
+        beginAnimation(t);
         results[name] = { ...t.summary(), sameShapes: t.pairs.every(([a, b]) => key.get(a) === key.get(b)), pairs: t.pairs.map(([a, b]) => [index.get(a), index.get(b)]) };
         this.remove(from);
       }
@@ -196,7 +198,7 @@ test('the page draws the same maths paths as Node at every step', { skip: !proce
     assert.equal(v.trace.steps.length, 4);
     for (const step of v.trace.steps) {
       // The step's resting picture as the build draws it in Node, as the player's DomSink writes it
-      const scene = await renderAt(v.Scene, restingTime(step, v.trace.fps), new SnapshotSink());
+      const scene = await renderFrame(v.Scene, step.frame1, new SnapshotSink());
       const want = renderElements(scene, { relative: false }).filter((r) => r.tag === 'path').map((r) => String(r.attrs.d)).sort();
       const page = await browser.newPage();
       try {

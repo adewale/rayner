@@ -3,13 +3,15 @@
 // plays without a motion failure and seeks exactly.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Rectangle, Group, VMobject, Text } from '../src/index.ts';
-import { NullSink, StringSink, renderAt, toSvgString } from '../src/output.ts';
-import { MotionSink, analyzeMotion } from '../explain/testing.ts';
+import { Scene, Rectangle, Group, VMobject, Text, keyed } from '../src/index.ts';
+import { NullSink, StringSink, renderFrame, toSvgString } from '../src/output.ts';
+import { MotionSink, analyzeMotion } from '../src/internal.ts';
 import type { Box, Mobject, Vec } from '../src/index.ts';
 import { stage } from '../explain/index.ts';
+import { dimension, pin, callout } from '../explain/drawing.ts';
 import { oneStrokeEach } from '../explain/annotate.ts';
 import { restingTextProblems } from '../tools/lib/explain-check.ts';
+import { openingOf } from '../explain/look.ts';
 
 /** Run a scene, collecting its motion failures and a probe's readings after each frame. */
 async function run<T>(S: import('../src/index.ts').SceneClass, probe: (scene: Scene) => T) {
@@ -50,7 +52,7 @@ test('a step line sits under a numbered title; a line too wide for one line fail
       assert.ok(line.box()![1] >= 3.25);
       // The heading and its parts draw over anything added later.
       this.add(new Rectangle({ width: 2, height: 2 }));
-      assert.ok(this.mobjects.indexOf(s.heading) > this.mobjects.findIndex((m) => m instanceof Rectangle && m.key == null && m !== s.paper));
+      assert.ok(this.mobjects.indexOf(s.heading) > this.mobjects.findIndex((m) => m instanceof Rectangle && m.key == null && m.role !== 'backdrop'));
     }
   }
   await new Lined(new NullSink()).run();
@@ -60,7 +62,7 @@ test('a step line sits under a numbered title; a line too wide for one line fail
       await this.step('bad', { title: 'T', line: 'word '.repeat(40) });
     }
   }
-  await assert.rejects(new TooLong(new NullSink()).run(), /Step "bad": its line is .* longer than one line under the heading/);
+  await assert.rejects(new TooLong(new NullSink()).run(), /this\.step\(\): the line of step "bad" is .* longer than one line under the heading/);
 });
 
 test('focus zooms onto a target below the heading, which stays put on screen at its size', async () => {
@@ -116,30 +118,23 @@ test('carry shrinks an object into a box, never enlarges it, and glides there', 
   assert.ok(near(c.small.box()!, [4.75, -1.25, 5.25, -0.75]));
 });
 
-test('annotations keep their words, and under a zoomed camera they show at their home size', async () => {
-  let atHome = 0,
-    zoomed = 0;
+test('annotations keep their words and rest without text problems', async () => {
   class Noted extends Scene {
     override async construct() {
       const s = stage(this);
       await this.step('one', { title: 'Annotate' });
       const box = new Rectangle({ width: 2, height: 1 }).moveTo([0, -1]);
       await s.enter(box, { describe: 'a box' });
-      const d = await s.dimension([-1, -1.5], [1, -1.5], '2 units', { offset: -0.3 });
-      const p = await s.pin([1, -0.5], { label: 'corner' });
-      const c = await s.callout(box, 'a box', { side: 'left' });
-      atHome = (c.children.find((m) => m instanceof Text) as Text).height();
+      const d = dimension(s, [-1, -1.5], [1, -1.5], '2 units', { offset: -0.3 });
+      const p = pin(s, [1, -0.5], { label: 'corner' });
+      const c = callout(s, box, 'a box', { side: 'left' });
+      await s.enter(d, p, c);
       assert.ok(d.family().some((m) => m instanceof Text && m.text === '2 units'));
-      await s.focus([box, d, p, c], { margin: 1.4 });
-      const z = await s.callout(box, 'zoomed', { side: 'below', gap: 0.3 });
-      const t = z.children.find((m) => m instanceof Text) as Text;
-      zoomed = t.height() * (16 / (this.frame.box()![2] - this.frame.box()![0]));
+      assert.ok(c.family().some((m) => m instanceof Text && m.text === 'a box'));
     }
   }
   const { scene, events } = await run(Noted, () => null);
   assert.deepEqual(events, []);
-  // On screen, the callout made while zoomed is as tall as one made at home.
-  assert.ok(Math.abs(zoomed - atHome) / atHome < 0.05, `${zoomed} vs ${atHome}`);
   assert.deepEqual(restingTextProblems(scene), []);
 });
 
@@ -165,7 +160,7 @@ test('draw: the tool rides the tip without jumps, leaves no trace, and the drawi
   assert.deepEqual(events, [], JSON.stringify(events.slice(0, 3)));
   // The tool is gone when the play ends: nothing but the strokes, paper and heading parts remain.
   const stageFurniture = (m: Mobject) => {
-    for (let a: Mobject | null = m; a; a = a.parent) if (a.role === 'paper' || a.role === 'heading' || a.role === 'chrome') return true;
+    for (let a: Mobject | null = m; a; a = a.parent) if (a.role === 'backdrop' || a.role === 'heading' || a.role === 'chrome') return true;
     return false;
   };
   const filled = scene
@@ -181,7 +176,7 @@ test('draw: the tool rides the tip without jumps, leaves no trace, and the drawi
     } as never);
     await full.run();
     const seeked = new StringSink();
-    await renderAt(Drawn, t, seeked);
+    await renderFrame(Drawn, Math.round(t * 30), seeked);
     assert.equal(seeked.last(), played.frames.at(-1), `seek at ${t}`);
   }
 });
@@ -240,8 +235,8 @@ test("engine defaults take the stage's palette: an axis, outlines and text drawn
   const { Axes, Circumscribe, SurroundingRectangle } = await import('../src/index.ts');
   const { palette } = await import('../explain/index.ts');
   const { sceneColors } = await import('../explain/stage.ts');
-  const p = palette('pen-and-ink'), accent = sceneColors(p).accent;
-  assert.notEqual(accent, p.ink, 'the roles differ on this palette, so the test can tell them apart');
+  const p = palette('pen-and-ink'), emphasis = sceneColors(p).emphasis;
+  assert.notEqual(emphasis, p.ink, 'the roles differ on this palette, so the test can tell them apart');
   let seen: Record<string, string | undefined> = {};
   class S extends Scene {
     override async construct() {
@@ -260,5 +255,26 @@ test("engine defaults take the stage's palette: an axis, outlines and text drawn
     }
   }
   await new S(new NullSink()).run();
-  assert.deepEqual(seen, { axis: p.ink, label: p.ink, outline: accent, ring: accent, text: p.ink, given: '#123456' });
+  assert.deepEqual(seen, { axis: p.ink, label: p.ink, outline: emphasis, ring: emphasis, text: p.ink, given: '#123456' });
 });
+
+test('a kept opening holds its subjects through later steps; a step\'s own opening wins for that step; an empty kept call clears them', async () => {
+  const seen: string[][] = [];
+  class Kept extends Scene {
+    override async construct() {
+      const s = stage(this);
+      const tower = keyed(new Rectangle({ width: 2, height: 1 }), 'tower');
+      const note = keyed(new Text('note', { fontSize: 0.4 }).moveTo([3, 0]), 'note');
+      const at = () => seen.push(openingOf(this).map((m) => m.key ?? ''));
+      await this.step('a'); this.add(tower, note); s.opening(tower, { keep: true }); at();
+      await this.step('b'); at();
+      await this.step('c'); s.opening(note); at();
+      await this.step('d'); at();
+      await this.step('e'); s.opening({ keep: true }); at();
+      await this.step('f'); at();
+    }
+  }
+  await new Kept(new NullSink()).run();
+  assert.deepEqual(seen, [['tower'], ['tower'], ['note'], ['tower'], [], []]);
+});
+

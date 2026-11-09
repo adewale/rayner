@@ -8,11 +8,12 @@ import assert from 'node:assert/strict';
 import { Scene, Dot } from '../src/index.ts';
 import { NullSink } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
-import type { Box } from '../src/index.ts';
+import type { Box, Mobject } from '../src/index.ts';
 import { Diagram } from '../explain/diagrams.ts';
+import type { PictureNote } from '../explain/diagrams.ts';
 import { REGIONS, emphasis, dimOpacity } from '../explain/look.ts';
 import type { Region } from '../explain/look.ts';
-import { diagramKey, snapshotResolver, useDiagrams } from '../integrations/agentic-mermaid/snapshot.ts';
+import { diagramKey, snapshotResolver, useDiagrams } from '../explain/diagram-snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { fc, params } from './lib/pbt.ts';
 import { snapshot, hexColor, buildSnapshot, snapshotPlan, uniqueIds, planOf } from './lib/random-snapshot.ts';
@@ -32,7 +33,7 @@ const where = fc.oneof(region, anyBox);
 const noteText = fc.string({ unit: 'grapheme', minLength: 1, maxLength: 30 });
 
 async function shown(s: DiagramSnapshot, box: Box | Region = 'full', build: 'all' | 'frame' | null = 'all') {
-  const scene = new Scene(new NullSink(), { skipUntil: Infinity });
+  const scene = new Scene(new NullSink());
   const d = new Diagram(scene, s.spec, s, { box });
   if (build) await d.build(build);
   return { scene, d };
@@ -46,6 +47,25 @@ const overlaps = (a: Box, b: Box) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] &
 const union = (boxes: Box[]): Box =>
   boxes.reduce((u, b) => [Math.min(u[0], b[0]), Math.min(u[1], b[1]), Math.max(u[2], b[2]), Math.max(u[3], b[3])]);
 const links = (d: Diagram) => [...d.parts.values()].filter((p) => !p.info.owner && p.info.from && p.info.to);
+/**
+ * Each live member's copy in a picture of the diagram drawn without notes: picture() copies the
+ * root member for member.
+ */
+const drawnIn = (d: Diagram, picture: Mobject) => {
+  const live = d.root.family(), drawn = picture.family();
+  assert.equal(drawn.length, live.length, 'the picture copies the diagram member for member');
+  return (m: Mobject) => drawn[live.indexOf(m)]!;
+};
+/** Every part's styles as a picture draws them. */
+const pictureLooks = (d: Diagram, picture: Mobject) => {
+  const drawn = drawnIn(d, picture);
+  return JSON.stringify([...d.parts].map(([id, p]) => [id, p.mob.family().map((m) => drawn(m).style)]));
+};
+/** What a view's draw gives a diagram's picture: the parts it marks, in one colour, and the parts its dimming keeps. */
+type Drawn = { marks: string[]; color: string; keep: string[] | null };
+const drawn = (ids: string[]): fc.Arbitrary<Drawn> => fc.record({ marks: fc.subarray(ids), color: hexColor, keep: fc.option(fc.subarray(ids)) });
+const draw = (d: Diagram, p: Drawn, notes: readonly PictureNote[] = []) =>
+  d.picture(Object.fromEntries(p.marks.map((id) => [id, p.color])), { dim: p.keep, notes });
 /** The part a name names, from what the generator built: its own id, or the part a bare name stands for. */
 const named = (s: DiagramSnapshot, id: string) => (s.parts.some((p) => p.id === id) ? id : planOf(s).names.get(id));
 /** The top-level part a name names: an owned label belongs to the link that owns it. */
@@ -103,24 +123,7 @@ test('a built diagram fits inside the box it is shown in', async () => {
   );
 });
 
-test('mark then unmark restores every style exactly', async () => {
-  await fc.assert(
-    fc.asyncProperty(
-      withPicks((ids) => fc.subarray(ids)),
-      hexColor,
-      async ([s, ids], color) => {
-        const { d } = await shown(s);
-        const before = looks(d);
-        await d.mark(ids, { color });
-        await d.unmark(ids);
-        assert.equal(looks(d), before);
-      },
-    ),
-    params(),
-  );
-});
-
-test('mark colours outlines and links, never labels or owned parts', async () => {
+test('a picture marks outlines and links, never labels or owned parts, and leaves the live diagram as it was', async () => {
   await fc.assert(
     fc.asyncProperty(
       withPicks((ids) => fc.subarray(ids)),
@@ -128,22 +131,25 @@ test('mark colours outlines and links, never labels or owned parts', async () =>
       async ([s, ids], color) => {
         fc.pre(ids.length > 0);
         const { d } = await shown(s);
+        const live = looks(d);
         const before = new Map(tops(d).map((id) => [id, d.parts.get(id)!.mob.family().map((m) => ({ ...m.style }))]));
-        await d.mark(ids, { color });
+        const drawnAs = drawnIn(d, d.picture(Object.fromEntries(ids.map((id) => [id, color]))));
+        assert.equal(looks(d), live, 'drawing a picture changes nothing live');
         for (const id of new Set(ids.map((i) => topOf(s, i)))) {
           const p = d.parts.get(id)!;
           const connector = !!(p.info.from && p.info.to);
           p.mob.family().forEach((m, i) => {
             const b = before.get(id)![i]!;
+            const style = drawnAs(m).style;
             let owned = false;
             let text = false;
             for (let a: typeof m | null = m; a && a !== p.mob; a = a.parent) {
               if (a.key != null && a.key !== id) owned = true;
               if (typeof (a as { text?: unknown }).text === 'string') text = true;
             }
-            if (owned || text) return assert.deepEqual(m.style, b, `${id}: labels and owned parts keep their look`);
-            if (b.stroke && b.stroke !== 'none' && (b.strokeWidth ?? 0) > 0) assert.equal(m.style.stroke, color);
-            if (connector && b.fill && b.fill !== 'none' && (b.fillOpacity ?? 1) > 0) assert.equal(m.style.fill, color);
+            if (owned || text) return assert.deepEqual(style, b, `${id}: labels and owned parts keep their look`);
+            if (b.stroke && b.stroke !== 'none' && (b.strokeWidth ?? 0) > 0) assert.equal(style.stroke, color);
+            if (connector && b.fill && b.fill !== 'none' && (b.fillOpacity ?? 1) > 0) assert.equal(style.fill, color);
           });
         }
       },
@@ -152,69 +158,45 @@ test('mark colours outlines and links, never labels or owned parts', async () =>
   );
 });
 
-type Op =
-  | { k: 'mark'; ids: string[]; color: string }
-  | { k: 'unmark'; ids: string[] | null }
-  | { k: 'dim'; keep: string[] | null }
-  | { k: 'focus'; ids: string[] | 'all' };
+type Op = { k: 'picture'; p: Drawn } | { k: 'focus'; ids: string[] | 'all' };
+const focusOp = (ids: string[]) =>
+  fc.record({ k: fc.constant('focus' as const), ids: ids.length ? fc.oneof(fc.constant('all' as const), fc.subarray(ids, { minLength: 1 })) : fc.constant('all' as const) });
 const ops = (ids: string[], focus: boolean): fc.Arbitrary<Op[]> =>
-  fc.array(
-    fc.oneof(
-      fc.record({ k: fc.constant('mark' as const), ids: fc.subarray(ids), color: hexColor }),
-      fc.record({ k: fc.constant('unmark' as const), ids: fc.option(fc.subarray(ids)) }),
-      fc.record({ k: fc.constant('dim' as const), keep: fc.option(fc.subarray(ids)) }),
-      ...(focus
-        ? [fc.record({ k: fc.constant('focus' as const), ids: ids.length ? fc.oneof(fc.constant('all' as const), fc.subarray(ids, { minLength: 1 })) : fc.constant('all' as const) })]
-        : []),
-    ),
-    { maxLength: 8 },
-  );
-async function apply(d: Diagram, op: Op) {
-  if (op.k === 'mark') await d.mark(op.ids, { color: op.color });
-  else if (op.k === 'unmark') await d.unmark(op.ids ?? undefined);
-  else if (op.k === 'dim') await d.dim(op.keep);
-  else await d.focus(op.ids);
-}
-/** Replay only the camera moves, then apply the final marks and dimming: the documented end state. */
-async function finalLook(s: DiagramSnapshot, sequence: Op[]) {
-  const { d } = await shown(s);
-  const marks = new Map<string, string>();
-  let keep: string[] | null = null;
+  fc.array(fc.oneof(fc.record({ k: fc.constant('picture' as const), p: drawn(ids) }), ...(focus ? [focusOp(ids)] : [])), { maxLength: 8 });
+/** Draw each picture (and throw it away, as a view's sync replaces it) and make each camera move. */
+async function apply(d: Diagram, sequence: Op[]) {
   for (const op of sequence) {
-    if (op.k === 'mark') for (const id of op.ids) marks.set(topOf(s, id), op.color);
-    else if (op.k === 'unmark') {
-      if (op.ids) for (const id of op.ids) marks.delete(topOf(s, id));
-      else marks.clear();
-    } else if (op.k === 'dim') keep = op.keep;
-    else await d.focus(op.ids);
+    if (op.k === 'picture') draw(d, op.p);
+    else await d.enlarge(op.ids);
   }
-  for (const [id, color] of marks) await d.mark([id], { color });
-  if (keep) await d.dim(keep);
-  return looks(d);
 }
 
-test('the resting look depends only on the final marks and dimming, not on their order or the camera moves between them', async () => {
+test('a picture’s look depends only on what it draws and the camera moves before it, not on the pictures drawn before it', async () => {
   await fc.assert(
     fc.asyncProperty(
-      withPicks((ids) => ops(ids, true)),
-      async ([s, sequence]) => {
+      withPicks((ids) => fc.tuple(ops(ids, true), drawn(ids))),
+      async ([s, [sequence, last]]) => {
         const { d } = await shown(s);
-        for (const op of sequence) await apply(d, op);
-        assert.equal(looks(d), await finalLook(s, sequence));
+        await apply(d, sequence);
+        // The oracle makes only the camera moves, then draws the same picture.
+        const { d: oracle } = await shown(s);
+        await apply(oracle, sequence.filter((op) => op.k === 'focus'));
+        assert.equal(looks(d), looks(oracle), 'pictures drawn before change nothing live');
+        assert.equal(pictureLooks(d, draw(d, last)), pictureLooks(oracle, draw(oracle, last)));
       },
     ),
     params(300),
   );
 });
 
-test('dim fades exactly the parts outside the kept set, the links between kept parts, and scaffolding', async () => {
+test('a picture’s dimming fades exactly the parts outside the kept set, the links between kept parts, and scaffolding', async () => {
   await fc.assert(
     fc.asyncProperty(
       withPicks((ids) => fc.subarray(ids)),
       async ([s, keep]) => {
         const { d } = await shown(s);
         const base = new Map(tops(d).map((id) => [id, d.parts.get(id)!.mob.family().map((m) => m.style.opacity)]));
-        await d.dim(keep);
+        const drawnAs = drawnIn(d, d.picture({}, { dim: keep }));
         const kept = new Set(keep.map((id) => topOf(s, id)));
         for (const l of links(d))
           if ([l.info.from!, l.info.to!].every((n) => named(s, n) && kept.has(topOf(s, n)))) kept.add(l.info.id);
@@ -223,7 +205,7 @@ test('dim fades exactly the parts outside the kept set, the links between kept p
           const p = d.parts.get(id)!;
           const faded = !kept.has(id) && !scaffold.has(id);
           p.mob.family().forEach((m, i) =>
-            assert.equal(m.style.opacity, faded ? base.get(id)![i]! * dimOpacity(s.palette) : base.get(id)![i]!, `${id} faded=${faded}`),
+            assert.equal(drawnAs(m).style.opacity, faded ? base.get(id)![i]! * dimOpacity(s.palette) : base.get(id)![i]!, `${id} faded=${faded}`),
           );
         }
       },
@@ -232,55 +214,57 @@ test('dim fades exactly the parts outside the kept set, the links between kept p
   );
 });
 
-test('dim(null) restores every style exactly', async () => {
+test('forget, after any pictures and enlargements, leaves every style and place as built and takes the diagram off the stage', async () => {
   await fc.assert(
     fc.asyncProperty(
-      withPicks((ids) => fc.subarray(ids)),
-      async ([s, keep]) => {
-        const { d } = await shown(s);
-        const before = looks(d);
-        await d.dim(keep);
-        await d.dim(null);
-        assert.equal(looks(d), before);
-      },
-    ),
-    params(),
-  );
-});
-
-test('forget restores every style and takes the diagram off the stage', async () => {
-  await fc.assert(
-    fc.asyncProperty(
-      withPicks((ids) => ops(ids, false)),
+      withPicks((ids) => ops(ids, true)),
       async ([s, sequence]) => {
-        const { d } = await shown(s);
+        const { scene, d } = await shown(s);
         const before = looks(d);
-        for (const op of sequence) await apply(d, op);
+        const boxes = () => tops(d).map((id) => d.get(id).box()).filter((b): b is Box => !!b);
+        const home = boxes().length ? union(boxes()) : null;
+        await apply(d, sequence);
         d.forget();
         assert.equal(looks(d), before);
         assert.equal(d.visible.size, 0);
         assert.equal(d.root.children.length, 0);
+        assert.equal(d.presentation.kind, 'detached');
+        assert.ok(!scene.mobjects.includes(d.root));
+        // An enlargement is undone: every part is back in the authored frame (to float32 rounding).
+        if (home) {
+          const eps = 1e-4 * Math.max(1, ...home.map(Math.abs));
+          union(boxes()).forEach((v, i) => assert.ok(Math.abs(v - home[i]!) <= eps, `${union(boxes())} vs ${home}`));
+        }
       },
     ),
     params(300),
   );
 });
 
-test('hide fades every part and note out and resets emphasis; reveal then draws it as if freshly built', async () => {
+test('hide fades out the picture that shows the diagram, its notes with it; reveal then draws it as if freshly built', async () => {
   await fc.assert(
     fc.asyncProperty(
-      withPicks((ids) => fc.tuple(ops(ids, false), fc.subarray(ids))),
-      async ([s, [sequence, noted]]) => {
+      withPicks((ids) => fc.tuple(drawn(ids), fc.subarray(ids))),
+      async ([s, [p, noted]]) => {
         const { scene, d } = await shown(s);
         const before = looks(d);
-        for (const op of sequence) await apply(d, op);
-        for (const id of noted) await d.note(id, 'n');
+        // Shown by its picture, as stage.diagramView shows it.
+        const picture = draw(d, p, noted.map((id) => ({ id, text: 'n' })));
+        scene.add(picture);
+        assert.equal(d.presentation.kind, 'live');
+        // showBy takes the live diagram off the stage.
+        d.showBy(picture);
+        assert.deepEqual(d.presentation, { kind: 'viewed', view: picture });
+        assert.ok(!scene.mobjects.includes(d.root), 'the live diagram leaves the stage');
         await d.hide();
         const present = new Set(scene.familyMembers());
         assert.ok(tops(d).every((id) => !present.has(d.get(id))), 'no part left on stage');
-        assert.equal(d.notes.length, 0);
+        assert.ok(!present.has(picture), 'the picture and its notes are gone');
         assert.equal(looks(d), before);
+        assert.equal(d.presentation.kind, 'detached');
         await d.reveal('rest');
+        // A reveal that brings in a part puts the live diagram back on stage.
+        if (tops(d).length) assert.equal(d.presentation.kind, 'live');
         assert.equal(looks(d), looks((await shown(s)).d));
       },
     ),
@@ -295,7 +279,7 @@ const hops = (s: DiagramSnapshot) => {
 };
 const walkSnapshot = snapshot().chain((s) => fc.tuple(fc.constant(s), hops(s)));
 /** Walks recorded so far (revealing a message records its walk too, so tests read the ones after a point). */
-const walks = (scene: Scene) => (scene.describe().walks ?? []) as { edge: string; from: string; to: string }[];
+const walks = (scene: Scene) => (scene.stateJson().walks ?? []) as { edge: string; from: string; to: string }[];
 
 test('walk, one after another or in parallel, records each hop in order on the link it travelled, and leaves no token behind', async () => {
   await fc.assert(
@@ -314,17 +298,20 @@ test('walk, one after another or in parallel, records each hop in order on the l
   );
 });
 
-test('a walk trail leaves every travelled link marked in the trail colour', async () => {
+test('a picture of a walk’s trail draws every travelled link in the trail colour, said as travelled', async () => {
   await fc.assert(
-    fc.asyncProperty(walkSnapshot, hexColor, fc.boolean(), async ([s, path], color, parallel) => {
+    fc.asyncProperty(walkSnapshot, hexColor, async ([s, path], color) => {
       const { d } = await shown(s);
-      await d.walk(path, { trail: color, parallel });
+      const trail = d.trail(path, color);
+      const drawnAs = drawnIn(d, d.picture(trail));
       for (const [from, to] of path) {
-        const edge = d.parts.get(s.parts.find((p) => p.from === from && p.to === to)!.id)!;
+        const id = s.parts.find((p) => p.from === from && p.to === to)!.id;
+        assert.deepEqual(trail[id], { color, as: 'travelled' });
+        const edge = d.parts.get(id)!;
         // The link's own strokes: not its route, not a label it owns, not its words.
         const own = edge.mob.family().filter((m) => m.parent === edge.mob && m !== edge.route && m.key == null && typeof (m as { text?: unknown }).text !== 'string');
         for (const m of own)
-          if (m.style.stroke !== 'none' && (m.style.strokeWidth ?? 0) > 0) assert.equal(m.style.stroke, color);
+          if (m.style.stroke !== 'none' && (m.style.strokeWidth ?? 0) > 0) assert.equal(drawnAs(m).style.stroke, color);
       }
     }),
     params(),
@@ -345,7 +332,8 @@ test('walk rejects a hop that is not a link before anything moves or is recorded
         const before = looks(d),
           built = walks(scene).length;
         const bad = [...path.slice(0, at), [from, to] as [string, string], ...path.slice(at)];
-        await assert.rejects(d.walk(bad, { trail: true }), /is not a real link/);
+        await assert.rejects(async () => d.walk(bad), /d\.walk\(\): .* is not a link of this diagram/);
+        assert.throws(() => d.trail(bad), /d\.link\(\): .* is not a link of this diagram/);
         assert.equal(walks(scene).length, built);
         assert.equal(looks(d), before);
       },
@@ -359,13 +347,13 @@ test('walk rejects a link that has not been revealed', async () => {
     fc.asyncProperty(walkSnapshot, async ([s, path]) => {
       fc.pre(path.length > 0);
       const { d } = await shown(s, 'full', 'frame');
-      await assert.rejects(d.walk(path), /reveal [^]* first/);
+      await assert.rejects(async () => d.walk(path), /reveal [^]* first/);
     }),
     params(),
   );
 });
 
-test("focus on any parts, then focus('all'), returns the diagram to its home frame and its home styles", async () => {
+test("enlarging any parts, then enlarge('all'), returns the diagram to its home frame and its home styles", async () => {
   await fc.assert(
     fc.asyncProperty(
       withPicks((ids) => fc.array(ids.length ? fc.subarray(ids, { minLength: 1 }) : fc.constant([] as string[]), { minLength: 1, maxLength: 3 })),
@@ -380,11 +368,11 @@ test("focus on any parts, then focus('all'), returns the diagram to its home fra
         const span = (b: Box) => Math.max(b[2] - b[0], b[3] - b[1]);
         let far = 0;
         for (const ids of focuses) {
-          await d.focus(ids, { zoom });
+          await d.enlarge(ids, { zoom });
           far = Math.max(far, ...union(boxes()).map(Math.abs));
         }
         const zoomed = span(union(boxes())) / span(home);
-        await d.focus('all');
+        await d.enlarge('all');
         const now = union(boxes());
         // Points are stored as float32. Each camera move rounds every point several times (scale,
         // shift, the transform's landing, the measured bounds the way back is computed from), at the
@@ -400,7 +388,7 @@ test("focus on any parts, then focus('all'), returns the diagram to its home fra
   );
 });
 
-test('under focus, stroke widths and dash lengths scale with the artwork', async () => {
+test('enlarged, stroke widths and dash lengths scale with the artwork', async () => {
   const lengths = (d: Diagram) =>
     tops(d).flatMap((id) => d.get(id).family().map((m) => [m.style.strokeWidth ?? 0, ...(m.style.dashArray ?? '').split(/[ ,]+/).filter(Boolean).map(Number)]));
   await fc.assert(
@@ -417,7 +405,7 @@ test('under focus, stroke widths and dash lengths scale with the artwork', async
         };
         const [before, home] = [lengths(d), span()];
         fc.pre(home > 1e-3);
-        await d.focus(ids, { zoom });
+        await d.enlarge(ids, { zoom });
         const k = span() / home;
         lengths(d).forEach((now, i) =>
           now.forEach((v, j) => {
@@ -431,37 +419,37 @@ test('under focus, stroke widths and dash lengths scale with the artwork', async
   );
 });
 
-test('focus on no parts is refused, and moves nothing', async () => {
+test('enlarging no parts is refused, and moves nothing', async () => {
   await fc.assert(
     fc.asyncProperty(snapshot(), async (s) => {
       const { d } = await shown(s);
       const before = JSON.stringify(tops(d).map((id) => d.get(id).box()));
-      await assert.rejects(d.focus([]), /at least one part/);
+      await assert.rejects(async () => d.enlarge([]), /at least one part/);
       assert.equal(JSON.stringify(tops(d).map((id) => d.get(id).box())), before);
     }),
     params(),
   );
 });
 
-test('focus refuses a zoom that is not a positive number, and moves nothing', async () => {
+test('enlarge refuses a zoom that is not a positive number, and moves nothing', async () => {
   await fc.assert(
     fc.asyncProperty(withPicks((ids) => (ids.length ? fc.subarray(ids, { minLength: 1 }) : fc.constant(['none'] as string[]))), fc.oneof(fc.constantFrom(0, -0, NaN, Infinity, -Infinity), fc.double({ max: 0 })), async ([s, ids], zoom) => {
       fc.pre(s.parts.length > 0);
       const { d } = await shown(s);
       const before = JSON.stringify(tops(d).map((id) => d.get(id).box()));
-      await assert.rejects(d.focus(ids, { zoom }), /zoom must be a positive number/);
+      await assert.rejects(async () => d.enlarge(ids, { zoom }), /zoom must be a positive number/);
       assert.equal(JSON.stringify(tops(d).map((id) => d.get(id).box())), before);
     }),
     params(),
   );
 });
 
-test('focus centres the chosen parts in the frame', async () => {
+test('enlarge centres the chosen parts in the frame', async () => {
   await fc.assert(
     fc.asyncProperty(withPicks((ids) => (ids.length ? fc.subarray(ids, { minLength: 1 }) : fc.constant([] as string[]))), fc.double({ min: 0.25, max: 4, noNaN: true }), where, async ([s, ids], zoom, box) => {
       fc.pre(ids.length > 0);
       const { d } = await shown(s, box);
-      await d.focus(ids, { zoom });
+      await d.enlarge(ids, { zoom });
       const [x0, y0, x1, y1] = union(ids.map((id) => d.get(id).box()!));
       const f = d.frameBox;
       const tol = 2 ** -24 * 64 * Math.max(1, ...[x0, y0, x1, y1, ...f].map(Math.abs));
@@ -471,27 +459,38 @@ test('focus centres the chosen parts in the frame', async () => {
   );
 });
 
-test('a note keeps its size through any focus', async () => {
+test('a note keeps its size through any enlargement', async () => {
   await fc.assert(
     fc.asyncProperty(withPicks((ids) => fc.tuple(fc.constantFrom(...(ids.length ? ids : ['none'])), fc.array(ids.length ? fc.subarray(ids, { minLength: 1 }) : fc.constant(['none'] as string[]), { minLength: 1, maxLength: 3 }))), noteText, async ([s, [id, focuses]], text) => {
       fc.pre(s.parts.some((p) => p.id === id));
       const { d } = await shown(s);
-      const note = await d.note(id, text);
-      const [w, h] = [note.width(), note.height()];
-      for (const f of focuses) await d.focus(f);
-      await d.focus('all');
-      assert.ok(Math.abs(note.width() - w) < 1e-5 && Math.abs(note.height() - h) < 1e-5);
+      // A view redraws its notes at each sync: one drawn while zoomed, or back home, is the same size.
+      const size = () => {
+        const note = d.notePicture(id, text);
+        return [note.width(), note.height()];
+      };
+      const [w, h] = size();
+      const same = () => {
+        const [nw, nh] = size();
+        assert.ok(Math.abs(nw! - w!) < 1e-5 && Math.abs(nh! - h!) < 1e-5);
+      };
+      for (const f of focuses) {
+        await d.enlarge(f);
+        same();
+      }
+      await d.enlarge('all');
+      same();
     }),
     params(300),
   );
 });
 
-test("focus('all') on a diagram with nothing drawn is a no-op", async () => {
+test("enlarge('all') on a diagram with nothing drawn is a no-op", async () => {
   await fc.assert(
     fc.asyncProperty(snapshotPlan, async (plan) => {
       const s = buildSnapshot({ ...plan, nodes: [], links: [], frame: null });
       const { d } = await shown(s);
-      await d.focus('all');
+      await d.enlarge('all');
       assert.equal(d.root.children.length, 0);
     }),
     params(),
@@ -510,7 +509,7 @@ test('a note stays inside the diagram frame whenever it fits there', async () =>
       async ([s, id], text, at, box) => {
         fc.pre(s.parts.some((p) => p.id === id));
         const { d } = await shown(s, box);
-        const note = await d.note(id, text, { side: at });
+        const note = d.notePicture(id, text, { side: at });
         const f = d.frameBox,
           b = note.box()!;
         fc.pre(b[2] - b[0] + 0.1 <= f[2] - f[0] && b[3] - b[1] + 0.1 <= f[3] - f[1]);
@@ -533,7 +532,7 @@ test('a note avoids its part whenever one of the sides it tries has room', async
         fc.pre(s.parts.some((p) => p.id === id));
         const { d } = await shown(s, box);
         const part = d.get(id).box()!;
-        const note = await d.note(id, text, { side: at });
+        const note = d.notePicture(id, text, { side: at });
         const [w, h] = [note.width(), note.height()],
           f = d.frameBox;
         // Room with a margin wider than any gap the placement uses, so this does not restate it.
@@ -559,7 +558,7 @@ test('get finds every part by its id and rejects names that are not parts', asyn
       for (const p of s.parts) assert.equal(d.get(p.id), d.parts.get(p.id)!.mob);
       // A participant's or a class's bare name names its part.
       for (const [bare, id] of planOf(s).names) if (!s.parts.some((p) => p.id === bare)) assert.equal(d.get(bare), d.get(id));
-      if (!named(s, name)) assert.throws(() => d.get(name), /No diagram mark/);
+      if (!named(s, name)) assert.throws(() => d.get(name), /d\.get\(\): the diagram has no part/);
     }),
     params(),
   );
@@ -589,7 +588,7 @@ test('reveal rejects a count that is not a non-negative integer, revealing nothi
       async (s, n) => {
         const { d } = await shown(s, 'full', 'frame');
         const before = [...d.visible];
-        await assert.rejects(d.reveal(n), /non-negative integer/);
+        await assert.rejects(async () => d.reveal(n), /d\.reveal\(\): a count of parts must be a whole number, 0 or more/);
         assert.deepEqual([...d.visible], before);
       },
     ),
@@ -597,43 +596,43 @@ test('reveal rejects a count that is not a non-negative integer, revealing nothi
   );
 });
 
-test('morph hands over to the next diagram: every part shown, at its fresh place, with emphasis reset', async () => {
+test('morph hands over to the next diagram: every part shown, at its fresh place, with focus reset', async () => {
   await fc.assert(
     fc.asyncProperty(
-      withPicks((ids) => fc.tuple(ops(ids, false), fc.subarray(ids))),
+      withPicks((ids) => ops(ids, true)),
       snapshot('next'),
       where,
-      async ([s, [sequence, noted]], next, box) => {
+      async ([s, sequence], next, box) => {
         const { scene, d } = await shown(s, box);
         useDiagrams(scene, snapshotResolver({ [diagramKey(next.spec)]: next }));
-        for (const op of sequence) await apply(d, op);
-        for (const id of noted) await d.note(id, 'n');
+        await apply(d, sequence);
         await d.morph(next.spec);
         const fresh = new Diagram(new Scene(new NullSink()), next.spec, next, { box: d.frameBox });
         assert.deepEqual([...d.visible].sort(), [...d.parts.keys()].sort());
         assert.deepEqual([...d.parts.keys()], next.parts.map((p) => p.id));
-        assert.equal(d.notes.length, 0);
+        assert.ok(!d.describe().parts.some((p) => p.mark === 'focused'), 'nothing is in focus');
         assert.equal(looks(d), looks(fresh));
         for (const id of tops(d)) assert.deepEqual(d.get(id).box(), fresh.get(id).box(), id);
         // The next style brings its own emphasis colour.
-        assert.equal(d.accent, emphasis(next.palette));
+        assert.equal(d.emphasis, emphasis(next.palette));
       },
     ),
     params(300),
   );
 });
 
-test('a part revealed while emphasis is on arrives in the current look', async () => {
+test('a part revealed while enlarged arrives in the current look, and pictures draw it as if it had been there', async () => {
   await fc.assert(
     fc.asyncProperty(
-      withPicks((ids) => ops(ids, true)),
-      async ([s, sequence]) => {
+      withPicks((ids) => fc.tuple(ops(ids, true), drawn(ids))),
+      async ([s, [sequence, last]]) => {
         const late = await shown(s, 'full', 'frame');
-        for (const op of sequence) await apply(late.d, op);
+        await apply(late.d, sequence);
         await late.d.reveal('rest');
         const early = await shown(s);
-        for (const op of sequence) await apply(early.d, op);
+        await apply(early.d, sequence);
         assert.equal(looks(late.d), looks(early.d));
+        assert.equal(pictureLooks(late.d, draw(late.d, last)), pictureLooks(early.d, draw(early.d, last)));
       },
     ),
     params(300),
@@ -681,21 +680,27 @@ test('a gitgraph reads left to right', async () => {
   );
 });
 
-test('mark and dim refuse an unknown part and change nothing', async () => {
+test('a picture refuses to mark, dim to or note an unknown part, and changes nothing', async () => {
   await fc.assert(
-    fc.asyncProperty(withPicks((ids) => fc.subarray(ids)), fc.string(), fc.boolean(), async ([s, ids], name, dim) => {
+    fc.asyncProperty(withPicks((ids) => fc.subarray(ids)), fc.string(), fc.constantFrom('marks', 'dim', 'notes'), async ([s, ids], name, how) => {
       const { d } = await shown(s);
       fc.pre(!named(s, name));
       const before = looks(d);
       const bad = [...ids, name];
-      await assert.rejects(dim ? d.dim(bad) : d.mark(bad), /No diagram mark/);
+      assert.throws(
+        () =>
+          how === 'marks' ? d.picture(Object.fromEntries(bad.map((id) => [id, '#ff0000'])))
+          : how === 'dim' ? d.picture({}, { dim: bad })
+          : d.picture({}, { notes: bad.map((id) => ({ id, text: 'n' })) }),
+        /d\.picture\(\): the diagram has no part/,
+      );
       assert.equal(looks(d), before);
     }),
     params(),
   );
 });
 
-test('scale probe: a diagram of 1,800 parts with 600 outlined labels builds, emphasises, focuses and walks', { timeout: 120_000 }, async () => {
+test('scale probe: a diagram of 1,800 parts with 600 outlined labels builds, is pictured, enlarged and walked', { timeout: 120_000 }, async () => {
   const nodes = Array.from({ length: 600 }, (_, i) => ({
     id: 'n' + i,
     x: (i % 40) * 0.5,
@@ -732,12 +737,13 @@ test('scale probe: a diagram of 1,800 parts with 600 outlined labels builds, emp
   assert.ok(uniqueIds(s) && s.parts.length === 1800);
   const t = performance.now();
   const { scene, d } = await shown(s);
-  await d.mark(['n1', 'n2']);
-  await d.dim(['n1']);
-  await d.focus(['n5']);
-  await d.focus('all');
+  const picture = d.picture({ n1: d.emphasis, n2: d.emphasis, ...d.trail([['n0', 'n1']]) }, { dim: ['n1'], notes: [{ id: 'n3', text: 'here' }] });
+  await d.enlarge(['n5']);
+  await d.enlarge('all');
   await d.walk([['n0', 'n1']]);
-  await d.note('n3', 'here');
+  scene.remove(d.root);
+  scene.add(picture);
+  d.showBy(picture);
   await d.hide();
   assert.equal(d.visible.size, 0);
   assert.ok(!scene.familyMembers().some((m) => m instanceof Dot));

@@ -1,10 +1,7 @@
 import { describeMermaidFacts, mutate, parseRegisteredMermaid, serializeMermaid } from 'agentic-mermaid/agent';
 import type { AnyMutationOp } from 'agentic-mermaid/agent';
-import type { DiagramSpec } from '../../integrations/agentic-mermaid/snapshot.ts';
-import { replayMorph } from '../../integrations/agentic-mermaid/build/index.ts';
-
-// Kept out of integrations/agentic-mermaid/build/ on purpose: every .ts file there is part of the diagram-snapshot
-// fingerprint (IMPORTER in tools/lib/explain-project.ts), so a change there invalidates every committed snapshot.
+import type { DiagramSpec } from '../../explain/index.ts';
+import { replayMorph } from '../../integrations/agentic-mermaid/index.ts';
 
 /**
  * `replayMorph`, with its failure saying why the edits do not reproduce the next diagram, so
@@ -24,7 +21,7 @@ export function replayMorphExplained(before: DiagramSpec, after: DiagramSpec, op
       if (!result.ok) throw error;
       model = result.value;
     }
-    throw new Error(`${error.message}: ${morphDifference(model, target.value, serializeMermaid(model), serializeMermaid(target.value))}`);
+    throw new Error(`d.morph(): ${error.message}: ${morphDifference(model, target.value, serializeMermaid(model), serializeMermaid(target.value))}`);
   }
 }
 

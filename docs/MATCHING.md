@@ -71,12 +71,14 @@ picture works this way). Pass a
 fallback to keep unkeyed parts that are the same thing in the same place
 (`periodic-groups` keys them by their words or size and position). The root's
 own key, and keys above it, are never read: they would make every part one
-component and reduce the morph to matching by index. `View.sync({ match: 'key' })`
-is `matchByKey()` with the defaults ([views](VIEWS.md#match)), and it is how a
+component and reduce the morph to matching by index. `View.sync()` matches by
+`matchByKey()` with the defaults ([views](VIEWS.md#match)), and it is how a
 [machine](MACHINES.md)'s views morph unless the machine says otherwise, so the
 parts that stay through an event keep their identity.
 
 ## How parts pair
+
+A `TransformMatching` and its two variants pair parts this way:
 
 - A key that occurs once on each side pairs outright.
 - A key that repeats pairs so the total squared distance travelled is least.
@@ -100,15 +102,15 @@ parts that stay through an event keep their identity.
   piece for the motion verifier (`test/matching-motion.test.ts`). With a
   `lagRatio` above about 0.25 and large rearrangements, matched glyphs that
   cross a line can still report a teleport in a few frames.
-- `fadeMismatches: false` morphs the unmatched parts into each other instead,
+- `fadeMismatches: false` (a `TransformMatching` option) morphs the unmatched parts into each other instead,
   by index, as manim's `transform_mismatches` does; only the surplus fades.
 - `staged: true` takes the unmatched parts in turn instead of together: the
   source's shrink and fade over the first half, the target's grow and fade in
   over the second, while matched parts morph throughout. A word and the word
-  that replaces it in the same place never overlap. A machine's views morph
-  this way when an event has no authored transition
-  ([machines](MACHINES.md#the-default-transition)); `view.sync({ staged: true })`
-  asks for it anywhere else.
+  that replaces it in the same place never overlap. A view's sync morphs this
+  way unless it says `staged: false` ([views](VIEWS.md#match)), and so do a
+  machine's views when an event has no authored transition
+  ([machines](MACHINES.md#the-default-transition)).
 
 New parts live in the source while the animation plays: copies of them are
 added to the source's line their target line corresponds to, or to a bare copy
@@ -119,12 +121,12 @@ faded parts left in it invisible, new copies attached, its `text` unchanged.
 
 ## What it reports
 
-After `begin()` (that is, once played):
+Once it has begun (that is, once played), a `TransformMatching` reports what it did
+with the parts of its source and its `target`:
 
-- `summary()`: `{ matched, morphed, removed, added }`, counts.
+- `summary()`: a `MatchSummary`, `{ matched, morphed, removed, added }`, counts.
 - `pairs`, `morphed`: `[sourcePart, targetPart]` in source order; `removed`:
-  source parts; `added`: target parts (the originals; their copies are
-  `fadesIn[i].sub`).
+  source parts; `added`: target parts (the originals, not the copies that fade in).
 
 Every part of either side is in exactly one of these. Invisible parts
 (opacity 0, such as what an earlier transform left behind) take no part.
@@ -162,13 +164,13 @@ boundary, about 0.02% of copies.
 
 ## Invariants
 
-- The pairing and every endpoint are fixed in `begin()`; each frame is a pure
+- The pairing and every endpoint are fixed as the play begins; each frame is a pure
   function of alpha, so seeking renders the frame a full run renders
   (`test/matching.test.ts`, which also runs the motion verifier).
 - The target is never modified. The source is, as `Transform`'s alignment
   modifies it: matched parts gain curves, new copies are attached.
 - `TransformMatchingText` scans both texts once per matching run it finds, so
-  `begin()` is O(runs·N·M). One edit costs little: 42 ms at begin for 40 lines
+  beginning is O(runs·N·M). One edit costs little: 42 ms at begin for 40 lines
   of code, 90 ms for 80. Scattered edits (a change on every line) leave many
   short runs: 0.3 s for 40 lines, 1.2 s for 80. Prefer `TransformDiff` for
   code (36 ms and 168 ms for the same edits). Frames cost what a `Transform`
@@ -207,12 +209,12 @@ await this.play(new TransformDiff(before, after, { hunks: parseUnifiedDiff(patch
 
 It is a `TransformMatching` whose key is that pairing: `pairs`, `removed`,
 `added`, `summary()`, `replace` and seeking work as above, and `plan` says
-what each line did (`same`, `changed`, `removed`, `added`, by index).
+what each line did, a `LinePlan` (`same`, `changed`, `removed`, `added`, by index).
 
 ### Hunks are the truth
 
-`hunks` (unified-diff shape: `oldStart`, `oldLines`, `newStart`, `newLines`,
-then `ops` and `lines`, one per line of the hunk: `'='` context, `'-'`, `'+'`)
+`hunks`, each a `Hunk` (unified-diff shape: `oldStart`, `oldLines`, `newStart`, `newLines`,
+then `ops` and `lines`, one per line of the hunk, each op a `DiffOp`: `'='` context, `'-'`, `'+'`)
 default to `diffLines(before, after)`: a line LCS with the common head and tail
 trimmed, deletions before insertions, no context. On an edit with one minimal
 diff that is exactly what git prints (`test/diff.test.ts` holds it to
@@ -228,7 +230,7 @@ await this.play(new TransformDiff(before, after, { hunks }));
 ```
 
 Given hunks are used as they are, even where `diffLines` would differ. They
-must describe the two texts: begin() throws, naming the hunk and the line,
+must describe the two texts: the play throws as it begins, naming the hunk and the line,
 when a removed, added or context line's text is not the line at that
 position, when a hunk's ops do not add up to its header, when hunks overlap
 or leave unequal gaps, or when the lines outside the hunks differ. Running
@@ -243,7 +245,7 @@ begins ([fundamentals](ENGINE-FUNDAMENTALS.md#steps-state-and-evidence)):
 morphed, removed, added }`. A view's sync records its morph's `match` counts, with
 the view's key as `view`. The trace carries evidence per step, and `renderText`
 prints a one-line summary under the frame. The KV-cache explainer morphs its merge request's two texts with
-`TransformDiff`, and `test/explain-fidelity.test.ts` holds the hunks it
+`TransformDiff`, and its `fidelity.ts` (`scenes/explainers/mr-cache/`) holds the hunks it
 records, in both of its scenarios, to `git diff --no-index --unified=0`, with its
 line counts git's. The same file checks the match evidence behind the counts
 the glyph and git explainers put on screen.
@@ -253,8 +255,9 @@ the glyph and git explainers put on screen.
 - [`scenes/explainers/mr-cache/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/mr-cache/scene.ts): `TransformDiff`
   on coloured `Code`, with tinted bars placed from `diff.plan`.
 - [`scenes/explainers/glyph/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/glyph/scene.ts): `TransformMatchingShapes`
-  pairing glyphs by outline across sizes and fonts, and `TransformMatchingText`
-  for a text diff, with lines drawn between `pairs` and counts from `summary()`.
-- [`scenes/explainers/exgit/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/exgit/scene.ts): `TransformMatchingShapes`
-  keeping one row whole while another grows in, and `TransformMatchingText`
-  morphing old git ids into new, with counts read from `scene.evidence`.
+  pairing glyphs by outline across sizes and fonts, with lines drawn between `pairs`
+  and counts from `summary()`. It uses no `TransformMatchingText`.
+- [`scenes/explainers/exgit/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/exgit/scene.ts): no matching transform of its
+  own. Its views sync by shape (`match: 'shapes'`, keeping one row whole while another grows in)
+  and by index, and the counts it shows are read from the match evidence those syncs record
+  in `scene.evidence`.

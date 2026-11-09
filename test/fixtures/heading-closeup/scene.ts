@@ -31,11 +31,11 @@ export default class HeadingCloseUp extends Scene {
     const parts: Mobject[] = [];
     for (const [i, x] of [-5, 0, 5].entries())
       for (const [j, y] of [1.4, -2].entries()) {
-        parts.push(new Rectangle({ width: 4, height: 1.6, stroke: s.soft, strokeWidth: 0.03, fill: 'none' }).moveTo([x, y]));
+        parts.push(new Rectangle({ width: 4, height: 1.6, stroke: s.look.soft, strokeWidth: 0.03, fill: 'none' }).moveTo([x, y]));
         parts.push(new Text(`box ${i * 2 + j + 1}`, { fontSize: 0.42 }).moveTo([x, y]));
       }
     if (settingsOf(this).reach === 'into')
-      parts.push(new Rectangle({ width: 15.2, height: 8.6, stroke: s.soft, strokeWidth: 0.03, fill: 'none' }).moveTo([0, 0.05]));
+      parts.push(new Rectangle({ width: 15.2, height: 8.6, stroke: s.look.soft, strokeWidth: 0.03, fill: 'none' }).moveTo([0, 0.05]));
     await s.enter(...parts, { describe: 'Six labelled boxes' });
   }
 }

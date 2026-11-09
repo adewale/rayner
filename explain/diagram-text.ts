@@ -1,0 +1,63 @@
+import type {TextShaping} from '../src/text-context.ts';
+import { Group, Text } from '../src/index.ts';
+import { affine } from '../src/mobject.ts';
+import { buildText, textRun } from '../src/text.ts';
+import { ItalicText } from '../src/italic.ts';
+import type { VMobject, Style } from '../src/index.ts';
+import { SVG_PX_PER_UNIT as PX } from './diagram-snapshot.ts';
+import type { SnapshotTextRun } from './diagram-snapshot.ts';
+
+/** Replays a captured label: its text, in the scene's faces, as glyph outlines. */
+export function importedText(run: Pick<SnapshotTextRun, 'text' | 'size' | 'font' | 'weight' | 'italic'>, color?: string, shaping?: TextShaping): Text {
+  const Type = run.italic ? ItalicText : Text;
+  return new Type(run.text, { fontSize: run.size, font: run.font ?? 'sans', weight: run.weight ?? 'normal', color, shaping });
+}
+
+/** Shared lowering of a resolved SVG text run to embedded glyph outlines.
+ * Store text/placement once, not thousands of repeated font control points. */
+export function outlineText(run: SnapshotTextRun, style: Style, shaping?: TextShaping): VMobject[] {
+  const text = run.natural ? importedText(run, style.fill, shaping) : new Text(run.text, { fontSize: run.size, color: style.fill, shaping });
+  buildText(text, run.text, run.size, { ...style, strokeWidth: (style.strokeWidth ?? 0) * PX });
+  if (!run.natural && run.width != null && text.advance())
+    text.stretch(run.width / text.advance(), 0, { aboutPoint: [0, 0] });
+  const advance = text.advance();
+  let offset = 0;
+  switch (run.baseline ?? 'alphabetic') {
+    case 'auto':
+    case 'alphabetic':
+      break;
+    case 'middle':
+      if (run.natural) {
+        const x = importedText({ ...run, text: 'x', size: 1 }, undefined, shaping);
+        offset = (new Group(...x.children).height() * run.size) / 2;
+      }
+      else {
+        const xHeightEm = new Text('x', {fontSize: 1, shaping: text.shaping}).children[0]!.height();
+        offset = (xHeightEm * run.size) / 2;
+      }
+      break;
+    case 'central':
+      offset = (text[textRun].ascent - text[textRun].descent) / 2;
+      break;
+    case 'text-before-edge':
+      offset = text[textRun].ascent;
+      break;
+    case 'text-after-edge':
+      offset = -text[textRun].descent;
+      break;
+    default:
+      throw new Error(`scene.snapshots: a label has the text baseline ${run.baseline}, which replay does not support; run \`rayner snapshots <scene> --refresh\``);
+  }
+  const baseline = run.y + offset;
+  text.shift([
+    run.x - (run.anchor === 'middle' ? advance / 2 : run.anchor === 'end' ? advance : 0),
+    baseline,
+  ]);
+  text[affine](1, 0, 0, -1, 0, 2 * baseline, { aboutPoint: [0, 0] });
+  const [a, b, c, d, e, f] = run.matrix as [number, number, number, number, number, number];
+  for (const path of text.children) {
+    path[affine](a / PX, -b / PX, c / PX, -d / PX, e / PX, -f / PX, { aboutPoint: [0, 0] });
+    path.style = { ...path.style, ...style };
+  }
+  return text.children as VMobject[];
+}

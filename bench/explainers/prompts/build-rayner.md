@@ -1,7 +1,7 @@
 <!-- The Rayner builder's brief. Fill {TOPIC}, {ID}, {SCRIPT}, {REMEMBER}, {CHECKS} and {TRANSFER}. The script, transfer and requirements match build-plain.md word for word; neither brief says how to teach. -->
 Build the best educational explainer you can of {TOPIC} with Rayner, as the scene `scenes/explainers/{ID}/`. Read `skills/rayner-explainers/SKILL.md` and use it (the script is already approved, below). Don't read any other attempt at this topic.
 
-**The approved script** (keep its meaning and order; you may add around it). Save it as `scenes/explainers/{ID}/script.md`, and put its answer in `meta.answer` and its check questions, with answers, in `meta.checks`:
+**The approved script** (keep its meaning and order; you may add around it). Save it as `scenes/explainers/{ID}/script.md`, and put its answer in `meta.answer` and its check questions, with answers, in `meta.questions`:
 > {SCRIPT}
 
 **Sentence to remember:** {REMEMBER}

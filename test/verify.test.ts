@@ -1,9 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Rectangle, Circle, FadeIn, FadeOut, Transform, Create, MoveAlongPath, Line, linear, thereAndBack } from '../src/index.ts';
-import { MotionSink, analyzeMotion } from '../explain/testing.ts';
-import type { MoveAlongPathOpts } from '../src/index.ts';
-import type { Vec } from '../src/index.ts';
+import { Scene, MoveAlongPath, Rectangle, Circle, FadeIn, FadeOut, Transform, Create, Line, linear, thereAndBack } from '../src/index.ts';
+import { MotionSink, analyzeMotion } from '../src/internal.ts';
+import type { Vec, MoveAlongPathOptions } from '../src/index.ts';
 // Manim's values, which the package no longer exports.
 const RIGHT: Vec = [1, 0];
 
@@ -14,6 +13,30 @@ const run = async (body: (s: Scene) => Promise<void>): Promise<string[]> => {
   await s.run();
   return analyzeMotion(sink).map((e) => e.kind);
 };
+
+test('MotionSink only reads a frame: after it takes each frame, the scene draws the same SVG and keeps the same state', async () => {
+  const { toSvgString } = await import('../src/output.ts');
+  const inner = new MotionSink();
+  const look = (s: Scene) => toSvgString(s) + JSON.stringify(s.stateJson());
+  const changed: number[] = [];
+  const s = new Scene({
+    async frame(sc: Scene) {
+      const before = look(sc);
+      await inner.frame(sc);
+      if (look(sc) !== before) changed.push(sc.frameCount);
+    },
+  }, { fps: 30 });
+  s.construct = async function (this: Scene) {
+    const r = new Rectangle();
+    await this.step('one');
+    await this.play(new FadeIn(r));
+    await this.step('two');
+    await this.play(r.animate.shift([2, 0]));
+    await this.play(new Transform(r, new Circle({ radius: 1 })));
+  };
+  await s.run();
+  assert.deepEqual(changed, []);
+});
 
 test('quiet on smooth motion: shifts, fades, morphs, draw-ins, fast linear moves', async () => {
   assert.deepEqual(await run(async (s) => {
@@ -37,7 +60,7 @@ test('flags a teleport between plays', async () => {
 });
 
 test('MoveAlongPath from off the path: snapping is a teleport, the default blends in', async () => {
-  const ride = (opts: MoveAlongPathOpts) => run(async (s) => {
+  const ride = (opts: MoveAlongPathOptions) => run(async (s) => {
     const r = new Rectangle({ width: 0.5, height: 0.5 }); await s.play(new FadeIn(r));
     await s.play(new MoveAlongPath(r, new Line([4, 2], [6, 2]), opts));  // path starts far from r
   });
@@ -94,3 +117,29 @@ const seeded: Array<[string, (s: Scene) => Promise<void>, string[]]> = [
   }, ['handoff']],
 ];
 for (const [name, body, kinds] of seeded) test(`flags it: ${name}`, async () => assert.deepEqual(await run(body), kinds));
+
+test('MotionSink keeps one sample per drawn leaf and frame in columns, and analyses them as sampled', async () => {
+  const sink = new MotionSink();
+  const s = new Scene(sink, { fps: 30 });
+  let shapes = 0;
+  s.construct = async function (this: Scene) {
+    const many = Array.from({ length: 40 }, (_, i) => new Rectangle({ width: 0.2, height: 0.2 }).shift([i * 0.3 - 6, 0]));
+    shapes = many.length;
+    this.add(...many);
+    await this.wait(1);
+    many[3]!.shift([4, 0]);                             // no animation: a teleport on the next frame
+    await this.wait(0.2);
+  };
+  await s.run();
+  const F = sink.frames;
+  // Columns, not an object per leaf: 40 samples a frame, each a few numbers.
+  // The scene's first frame is drawn before construct adds anything; every later one holds the 40.
+  const counts = Array.from({ length: F.length }, (_, f) => F.leaves(f).size);
+  assert.deepEqual(counts, [0, ...Array(F.length - 1).fill(shapes)]);
+  assert.equal(F.size, shapes * (F.length - 1));
+  assert.ok(F.box instanceof Float64Array && F.alpha instanceof Float64Array && F.id instanceof Int32Array);
+  const events = analyzeMotion(sink);
+  assert.deepEqual(events.map((e) => e.kind), ['teleport']);
+  assert.equal(events[0]!.what, 'a Rectangle');
+  assert.ok(Math.abs(events[0]!.t - 1) < 0.05, `the teleport is when the shape moved, not at ${events[0]!.t}`);
+});

@@ -2,30 +2,40 @@ import { stepWords } from './trace.ts';
 
 /**
  * The script a scene is written from, as far as tools can hold it to it: `meta.answer`, the one
- * sentence that answers the reader's question, and `meta.checks`, the questions a reader should be
- * able to answer afterwards. See skills/rayner-explainers/SKILL.md, "Script first".
+ * sentence that answers the reader's question, and `meta.questions`, the questions a reader should
+ * be able to answer afterwards. See skills/rayner-explainers/SKILL.md, "Script first".
  */
 export interface ScriptMeta {
   answer?: unknown;
-  checks?: unknown;
+  questions?: unknown;
 }
-/** The most check questions a scene may ask: more is a test, not a check. */
-export const CHECKS_MAX = 6;
+/**
+ * The explainer's one-sentence answer, as its script's intent header states it (Rayner adopts it as
+ * `meta.answer`), so a caption that states the answer reads it instead of keeping a copy.
+ */
+export function answerOf(scene: object): string {
+  const answer = (scene.constructor as { meta?: ScriptMeta }).meta?.answer;
+  if (typeof answer !== 'string' || !answer.trim())
+    throw new Error(`answerOf(): ${scene.constructor.name} has no answer; write it in script.md's intent header (- **Answer:** …), or in meta.answer`);
+  return answer;
+}
+/** The most reader questions a scene may ask: more is a test, not a recap. */
+export const QUESTIONS_MAX = 6;
 
-/** Refuse an `answer` or `checks` that cannot work: wrong types, empty text, or too many questions. */
+/** Refuse an `answer` or `questions` that cannot work: wrong types, empty text, or too many questions. */
 export function checkScriptMeta(meta: ScriptMeta | undefined): void {
   if (meta?.answer !== undefined && (typeof meta.answer !== 'string' || !meta.answer.trim()))
-    throw new Error('meta.answer must be the one sentence that answers the reader’s question');
-  if (meta?.checks === undefined) return;
-  if (!Array.isArray(meta.checks) || !meta.checks.length)
-    throw new Error('meta.checks must be a list of { question, answer }');
-  if (meta.checks.length > CHECKS_MAX)
-    throw new Error(`meta.checks asks ${meta.checks.length} questions; at most ${CHECKS_MAX}`);
-  for (const [i, c] of meta.checks.entries()) {
+    throw new TypeError('meta.answer: it must be the one sentence that answers the reader’s question');
+  if (meta?.questions === undefined) return;
+  if (!Array.isArray(meta.questions) || !meta.questions.length)
+    throw new TypeError('meta.questions: it must be a list of { question, answer }');
+  if (meta.questions.length > QUESTIONS_MAX)
+    throw new RangeError(`meta.questions: it asks ${meta.questions.length} questions; ask at most ${QUESTIONS_MAX}`);
+  for (const [i, c] of meta.questions.entries()) {
     const q = (c as { question?: unknown })?.question,
       a = (c as { answer?: unknown })?.answer;
-    if (typeof q !== 'string' || !q.trim()) throw new Error(`meta.checks[${i}] has no question`);
-    if (typeof a !== 'string' || !a.trim()) throw new Error(`meta.checks[${i}] ("${q}") has no answer`);
+    if (typeof q !== 'string' || !q.trim()) throw new TypeError(`meta.questions: entry ${i} has no question`);
+    if (typeof a !== 'string' || !a.trim()) throw new TypeError(`meta.questions: entry ${i} (${JSON.stringify(q)}) has no answer`);
   }
 }
 
@@ -41,12 +51,40 @@ export function normalise(text: string): string {
     .replace(/[.!?…:;,\s]+$/u, '');
 }
 
-type Step = { step: string; meta: Record<string, unknown> };
-/** Teaching steps, as the player counts them: every step not marked `detail`, or every step. */
-function teaching<T extends Step>(steps: readonly T[]): T[] {
-  const main = steps.filter((s) => s.meta.kind !== 'detail');
-  return main.length ? main : [...steps];
+/** Which path a step is on: the reader's short path, the main story, or a detail players skip. */
+export type StepKind = 'short' | 'main' | 'detail';
+// A step's words and path are the explain layer's: it declares them on the engine's open StepMeta,
+// so `this.step(name, { title, line, caption, kind })` is typed wherever rayner/explain is loaded.
+declare module '../src/scene.ts' {
+  interface StepMeta {
+    /** The step's heading, which the stage draws and the player names the step by. */
+    title?: string;
+    /** One short line under the title, drawn on the picture. */
+    line?: string;
+    /** Which path the step is on (default 'main'): a 'short' path a reader can take first, or a 'detail' after the story that players skip. */
+    kind?: StepKind;
+  }
 }
+/** A step as the reading-path rule reads it: a trace's step record, a scene's step, or anything with their `meta`. */
+export type TeachingStep = { readonly meta: Readonly<Record<string, unknown>> };
+type Step = TeachingStep & { step: string };
+/** Whether a step is marked `detail`: reference, linkable and reviewable, outside the reading path. */
+export const isDetail = (step: TeachingStep): boolean => step.meta.kind === 'detail';
+/**
+ * The indices of the teaching steps, the reading path the player steps through and numbers:
+ * every step not marked `detail`, or every step when all of them are.
+ */
+export function teachingIndices(steps: readonly TeachingStep[]): number[] {
+  const main = steps.flatMap((s, i) => (isDetail(s) ? [] : [i]));
+  return main.length ? main : steps.map((_, i) => i);
+}
+/** The teaching steps themselves (teachingIndices). */
+export function teaching<T extends TeachingStep>(steps: readonly T[]): T[] {
+  return teachingIndices(steps).map((i) => steps[i]!);
+}
+/** Whether `steps[index]` is off the reading path: a detail step, while some step is not one. */
+export const offPath = (steps: readonly TeachingStep[], index: number): boolean =>
+  !!steps[index] && isDetail(steps[index]) && steps.some((s) => !isDetail(s));
 
 /**
  * Where a scenario's steps first state `answer`: the teaching step (1-based) whose title, line or
@@ -64,10 +102,10 @@ export function answerStep(answer: string, steps: readonly Step[]): { step: stri
 export interface ScriptReport {
   /** The teaching step that first states `meta.answer` (1-based), or null when no step does. */
   answer?: { step: string; at: number } | null;
-  /** How many check questions the page asks after its last step. */
-  checks: number;
-  /** What the scene's script leaves undeclared: `answer`, `checks`. */
-  missing: ('answer' | 'checks')[];
+  /** How many reader questions the page asks after its last step. */
+  questions: number;
+  /** What the scene's script leaves undeclared: `answer`, `questions`. */
+  missing: ('answer' | 'questions')[];
   /** Why the scenario fails the script gate; empty when it passes. */
   problems: string[];
 }
@@ -75,7 +113,7 @@ export interface ScriptReport {
  * The script gate for one scenario: some teaching step must state a declared answer. Where it first
  * does is reported (`answer.at`), not gated: whether it arrives before the explanation elaborates
  * is a reader's judgement, and a fixed step number would only stand in for it. An undeclared
- * answer or check list is reported as missing, not failed, so older scenes still check; new
+ * answer or question list is reported as missing, not failed, so older scenes still check; new
  * scenes start with both (`rayner init`).
  */
 export function scriptReport(meta: ScriptMeta | undefined, steps: readonly Step[]): ScriptReport {
@@ -87,7 +125,7 @@ export function scriptReport(meta: ScriptMeta | undefined, steps: readonly Step[
     found = answerStep(meta.answer, steps);
     if (!found) problems.push(`No step states meta.answer ("${meta.answer}"); put it in a title, line or caption, before the explanation elaborates`);
   } else missing.push('answer');
-  const checks = Array.isArray(meta?.checks) ? meta.checks.length : 0;
-  if (!checks) missing.push('checks');
-  return { ...(found === undefined ? {} : { answer: found }), checks, missing, problems };
+  const questions = Array.isArray(meta?.questions) ? meta.questions.length : 0;
+  if (!questions) missing.push('questions');
+  return { ...(found === undefined ? {} : { answer: found }), questions, missing, problems };
 }

@@ -5,9 +5,10 @@ import { NullSink } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import type { Mobject } from '../src/index.ts';
 import { stage } from '../explain/index.ts';
-import { table } from '../scenes/explainers/lib/lesson-drawing.ts';
-import { bars, flow } from '../scenes/explainers/lib/reader-drawing.ts';
+import { table } from '../explain/drawing.ts';
+import { bars, flow } from '../explain/drawing.ts';
 import { fc, params } from './lib/pbt.ts';
+import { beginAnimation } from '../src/animation.ts';
 
 await loadFonts();
 const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-5, `${a} != ${b}`);
@@ -24,10 +25,10 @@ test('comparison tables align text starts and numeric ends, including their head
       ),
       (rows) => {
         const drawing = table(
+          stage(new Scene(new NullSink())),
           ['Source', 'Reads'],
           rows.map((r) => [r.name, r.value]),
-          stage(new Scene(new NullSink())),
-          { xs: [-4, 4] },
+          { columns: [-4, 4], key: 'comparison' },
         );
         const texts = drawing.family().filter((m): m is Text => m instanceof Text);
         assert.deepEqual(
@@ -58,7 +59,7 @@ test('comparison tables align text starts and numeric ends, including their head
 
 test('wrapping a flow label preserves equal peer boxes and keeps every word inside its box', () => {
   const names = ['Route', 'Trip', 'Service date'],
-    drawing = flow(stage(new Scene(new NullSink())), names);
+    drawing = flow(stage(new Scene(new NullSink())), names, { key: 'reader-flow' });
   const nodes = names.map((_, i) => drawing.find(`reader-flow:${i}`)!);
   const boxes = nodes.map((n) => n.children.find((m): m is Rectangle => m instanceof Rectangle)!);
   for (const box of boxes) near(box.height(), boxes[0]!.height());
@@ -82,6 +83,7 @@ test('bar labels share the zero edge and displayed numbers share a right edge', 
       { label: 'After', value: 5, display: '5' },
     ],
     5,
+    { key: 'reader-bars' },
   );
   const labels = drawing.children.filter((m) => m.key?.endsWith(':label'));
   const values = drawing.children.filter((m) => m.key?.endsWith(':value'));
@@ -95,8 +97,8 @@ test('a table placed by its edges spreads its measured columns with equal gaps a
   const s = stage(new Scene(new NullSink()));
   const headers = ['Key', 'Hash', 'In binary', 'Start slot'],
     rows = [['a', 12, '01100', 4], ['bb', 3, '00011', 3]];
-  const fixed = table(headers, rows, s, { xs: [-6, -2, 2, 6] });
-  const spread = table(headers, rows, s, { xs: { left: -6, right: 6 } });
+  const fixed = table(s, headers, rows, { key: 'comparison', columns: [-6, -2, 2, 6] });
+  const spread = table(s, headers, rows, { key: 'comparison', columns: { left: -6, right: 6 } });
   const widths = headers.map((_, c) => Math.max(...fixed.family().filter((m): m is Text => m instanceof Text).filter((_, i) => i % 4 === c).map((t) => t.width())));
   const rule = spread.children.find((m): m is Line => m instanceof Line)!;
   near(rule.box()![0], -6);
@@ -111,7 +113,7 @@ test('a table placed by its edges spreads its measured columns with equal gaps a
   const gaps = headers.slice(1).map((_, c) => columnBox(c + 1)[0]! - columnBox(c)[1]!);
   for (const g of gaps) near(g, gaps[0]!);
   near(gaps[0]!, (12 - widths.reduce((a, w) => a + w, 0)) / 3);
-  const beside = table(headers, rows, s, { xs: { left: 1.5, gap: 0.7 } });
+  const beside = table(s, headers, rows, { key: 'comparison', columns: { left: 1.5, gap: 0.7 } });
   const bTexts = beside.family().filter((m): m is Text => m instanceof Text);
   near(beside.box()![0], 1.5);
   for (let c = 1; c < 4; c++)
@@ -137,8 +139,8 @@ test('a keyed table names each part by row and column, and a keyed morph pairs a
         const moved = [...names];
         moved.splice(to, 0, moved.splice(from, 1)[0]!);
         const rows = (order: string[]) => order.map((name) => ({ key: name, cells: [name, name.length] }));
-        const before = table(['Name', 'Letters'], rows(names), s, { key: 't' });
-        const after = table(['Name', 'Letters'], rows(moved), s, { key: 't' });
+        const before = table(s, ['Name', 'Letters'], rows(names), { key: 't' });
+        const after = table(s, ['Name', 'Letters'], rows(moved), { key: 't' });
         // Every part answers to its row and column: the table, its header row and headers, each row and cell, the rule.
         for (const name of names) {
           assert.equal((after.find(`t:${name}:Name`) as Text).text, name);
@@ -151,18 +153,18 @@ test('a keyed table names each part by row and column, and a keyed morph pairs a
         const name = names[from]!;
         assert.notEqual(before.find(`t:${name}:Name`)!.box()![1], after.find(`t:${name}:Name`)!.box()![1]);
         const keyed = new TransformMatching(before, after, { key: matchByKey() });
-        keyed.begin();
+        beginAnimation(keyed);
         assert.equal(keyed.removed.length + keyed.added.length, 0, 'every glyph has its partner');
         for (const [a, b] of keyed.pairs) assert.equal(owner(a), owner(b));
         const text = (m: Mobject) => (m.parent instanceof Text ? m.parent.text : null);
         assert.ok(keyed.pairs.filter(([a]) => text(a) === name).every(([a, b]) => text(b) === text(a)), `${name} pairs with ${name}`);
         // Keyed by index instead, the row at the moved place pairs with whichever row is there now.
         const byPlace = new TransformMatching(
-          table(['Name', 'Letters'], names.map((n) => [n, n.length]), s, { key: 't' }),
-          table(['Name', 'Letters'], moved.map((n) => [n, n.length]), s, { key: 't' }),
+          table(s, ['Name', 'Letters'], names.map((n) => [n, n.length]), { key: 't' }),
+          table(s, ['Name', 'Letters'], moved.map((n) => [n, n.length]), { key: 't' }),
           { key: matchByKey() },
         );
-        byPlace.begin();
+        beginAnimation(byPlace);
         const atTo = byPlace.pairs.filter(([a]) => owner(a) === `t:${to}:Name`);
         assert.ok(atTo.length > 0);
         assert.ok(atTo.every(([a, b]) => text(a) === names[to] && text(b) === moved[to] && names[to] !== moved[to]), 'index keys pair different rows');
@@ -174,13 +176,13 @@ test('a keyed table names each part by row and column, and a keyed morph pairs a
 
 test('a table refuses two rows with one key, a row keyed as its own head or rule, and two columns with one header', () => {
   const s = stage(new Scene(new NullSink()));
-  assert.throws(() => table(['Key'], [{ key: 'a', cells: ['x'] }, { key: 'a', cells: ['y'] }], s, { key: 'dup' }), /^Error: table dup: two rows are keyed "a"; a row's key is its identity/);
+  assert.throws(() => table(s, ['Key'], [{ key: 'a', cells: ['x'] }, { key: 'a', cells: ['y'] }], { key: 'dup' }), /^Error: table\(\): the table "dup" has two rows keyed "a"/);
   // A bare row is keyed by its index, so it collides with a keyed row that takes the same name.
-  assert.throws(() => table(['Key'], [['x'], { key: '0', cells: ['y'] }], s), /table comparison: two rows are keyed "0"/);
+  assert.throws(() => table(s, ['Key'], [['x'], { key: '0', cells: ['y'] }], { key: 'comparison' }), /table\(\): the table "comparison" has two rows keyed "0"/);
   for (const reserved of ['head', 'rule'])
-    assert.throws(() => table(['Key'], [{ key: reserved, cells: ['x'] }], s, { key: 't' }), new RegExp(`table t: a row cannot be keyed "${reserved}"`));
-  assert.throws(() => table(['Key', 'Key'], [['x', 'y']], s, { key: 't' }), /table t: two columns are headed "Key"/);
+    assert.throws(() => table(s, ['Key'], [{ key: reserved, cells: ['x'] }], { key: 't' }), new RegExp(`table\\(\\): a row of the table "t" cannot be keyed "${reserved}"`));
+  assert.throws(() => table(s, ['Key', 'Key'], [['x', 'y']], { key: 't' }), /table\(\): the table "t" has two columns headed "Key"/);
   // Distinct keys in any order are accepted, and each row keeps its own.
-  const ok = table(['Key'], [{ key: 'b', cells: ['y'] }, ['x'], { key: 'a', cells: ['z'] }], s, { key: 't' });
+  const ok = table(s, ['Key'], [{ key: 'b', cells: ['y'] }, ['x'], { key: 'a', cells: ['z'] }], { key: 't' });
   assert.deepEqual(ok.children.slice(2).map((r) => r.key), ['t:b', 't:1', 't:a']);
 });

@@ -1,6 +1,7 @@
 import type { Scene, SceneState } from '../src/index.ts';
 import type { StepRecord } from '../src/testing.ts';
-import { wordsFor, describedIn, markHeading } from './words.ts';
+import { canonicalJson } from '../src/json.ts';
+import { wordsFor, describedIn, markHeading, writeNumber } from './words.ts';
 import type { Words } from './words.ts';
 interface WalkRecord {
   step?: string;
@@ -9,36 +10,40 @@ interface WalkRecord {
   edge: string;
 }
 const logs = new WeakMap<Scene, WalkRecord[]>();
-/** Keep helper evidence even when an author replaces the program-state object. */
+/**
+ * Keep helper evidence even when an author replaces the program-state object. The state's `walks`
+ * key is reserved for it: a scene's own `walks` is refused rather than replaced.
+ */
 export function recordWalk(scene: Scene, walk: WalkRecord): void {
   let log = logs.get(scene);
+  const own = (scene.state as Record<string, unknown>).walks;
+  if (own !== undefined && (!log || canonicalJson(own) !== canonicalJson(log)))
+    throw new Error('this.state: its own walks key would be replaced by the walks a diagram records there; rename the scene\'s key');
   if (!log) {
     log = [];
     logs.set(scene, log);
     const entries = log;
-    scene.addDescriber(() => ({ walks: entries.map((entry) => ({ ...entry })) }));
+    scene.addJson(() => ({ walks: entries.map((entry) => ({ ...entry })) }));
   }
   log.push(walk);
   scene.state.walks = log.map((entry) => ({ ...entry }));
 }
 
-type Timed = Pick<StepRecord, 't0' | 't1' | 'frame0' | 'frame1'>;
-/** A step's resting frame, the last it draws: what a reader looks at while reading its caption. */
-export const restingFrame = (s: Timed) => Math.max(s.frame0 + 1, s.frame1 ?? s.frame0 + 1);
-/** A time inside the resting frame (half a frame before the step ends), for renderAt. */
-export const restingTime = (s: Timed, fps: number) => Math.max(s.t0, (s.t1 ?? s.t0) - 0.5 / fps);
 
 /** A part of something on the stage, as a reader would name it, with its emphasis. */
-export interface SeenPart {
+export interface DescriptionPart {
   name: string;
   /** The word for its emphasis ("marked", "rejected", "focused", in the scene's language); absent when plain. */
   mark?: string;
   dimmed?: boolean;
 }
-/** One thing on the stage as its helper sees it: what it is, its parts, and anything drawn without words. */
-export interface Seen {
+/**
+ * Words for one thing on the stage, as its helper sees it: what it is, its parts, and anything drawn
+ * without words. What `describe()` returns on a card, a code panel and a diagram.
+ */
+export interface Description {
   what: string;
-  parts: SeenPart[];
+  parts: DescriptionPart[];
   /** Drawn things with nothing to say for them (a part id, a kept drawing): `undescribed` reports these. */
   blank?: string[];
 }
@@ -89,18 +94,8 @@ export interface WatchedChange {
   before?: string;
   after?: string;
 }
-const numberFormats = new Map<string, Intl.NumberFormat>();
 function sayOne(v: unknown, lang: string): string | null {
-  if (typeof v === 'number') {
-    let f = numberFormats.get(lang);
-    if (!f) {
-      const options = { maximumFractionDigits: 2 };
-      // A tag Intl refuses still gets its numbers, written as English writes them.
-      try { f = new Intl.NumberFormat(lang, options); } catch { f = new Intl.NumberFormat('en', options); }
-      numberFormats.set(lang, f);
-    }
-    return f.format(v);
-  }
+  if (typeof v === 'number') return writeNumber(v, lang, 2);
   if (typeof v === 'string') {
     const chars = [...v];
     return chars.length > 24 ? chars.slice(0, 23).join('') + '…' : v;
@@ -109,7 +104,8 @@ function sayOne(v: unknown, lang: string): string | null {
   return null;
 }
 /**
- * A watched state value as a reader reads it: a number in the scene's language, a string cut to 24
+ * A watched state value as a reader reads it: a number as the scene's description language writes
+ * it (`writeNumber`, two decimals at most), a string cut to 24
  * characters, yes or no, or up to four such items and how many more; '' when it has no value (null,
  * absent or an empty list); null when it cannot be said briefly (an object, a list of objects).
  */
@@ -122,22 +118,22 @@ export function watchedValue(v: unknown, lang = 'en'): string | null {
 }
 /**
  * What a step changed of the state its author names for readers (`meta.watch`, key to label): each
- * watched key whose JSON differs between the step's start and end, in `watch` order, at most four.
+ * watched key whose JSON differs (whatever the order of its keys) between the step's start and end, in `watch` order, at most four.
  * A key whose value cannot be said briefly is skipped and its name pushed to `unformatted`; one that
  * reads the same before and after (0.001 and 0.002 both read 0) is no change to a reader. The player,
  * the page's transcript, `describeExplainer` and `rayner check` all read changes here.
  */
 export function watchedChanges(
-  step: { before?: SceneState; after?: SceneState },
+  step: { before: SceneState; after: SceneState },
   watch: Readonly<Record<string, string>> | undefined,
   lang = 'en',
   unformatted?: string[],
 ): WatchedChange[] {
   const changes: WatchedChange[] = [];
   for (const [key, label] of Object.entries(watch ?? {})) {
-    const was = step.before?.[key],
-      is = step.after?.[key];
-    if (JSON.stringify(was) === JSON.stringify(is)) continue;
+    const was = step.before[key],
+      is = step.after[key];
+    if (canonicalJson(was) === canonicalJson(is)) continue;
     const before = watchedValue(was, lang),
       after = watchedValue(is, lang);
     if (before == null || after == null) unformatted?.push(key);
@@ -150,25 +146,25 @@ export function watchedChanges(
  * Refuse a `meta.watch` that cannot work: not a record, more than eight entries, an empty key or
  * label, or a key that is never in the state of any step of any scenario (`steps`, all scenarios' steps).
  */
-export function checkWatch(watch: unknown, steps: readonly { before?: SceneState; after?: SceneState }[]): void {
+export function checkWatch(watch: unknown, steps: readonly { before: SceneState; after: SceneState }[]): void {
   if (watch === undefined) return;
   if (!watch || typeof watch !== 'object' || Array.isArray(watch))
-    throw new Error('meta.watch must be a record from a state key to the label readers see');
+    throw new TypeError('meta.watch: it must be a record from a state key to the label readers see');
   const entries = Object.entries(watch);
-  if (entries.length > WATCH_MAX) throw new Error(`meta.watch names ${entries.length} keys; at most ${WATCH_MAX} keep a step's changes readable`);
+  if (entries.length > WATCH_MAX) throw new RangeError(`meta.watch: it names ${entries.length} keys; name at most ${WATCH_MAX}, so a step's changes stay readable`);
   for (const [key, label] of entries) {
-    if (!key) throw new Error('meta.watch has an empty key');
-    if (typeof label !== 'string' || !label.trim()) throw new Error(`meta.watch gives "${key}" an empty label`);
-    if (!steps.some((s) => Object.hasOwn(s.before ?? {}, key) || Object.hasOwn(s.after ?? {}, key)))
-      throw new Error(`meta.watch names "${key}", which is never in the scene's state at any step of any scenario`);
+    if (!key) throw new TypeError('meta.watch: it has an empty key');
+    if (typeof label !== 'string' || !label.trim()) throw new TypeError(`meta.watch: it gives ${JSON.stringify(key)} an empty label`);
+    if (!steps.some((s) => Object.hasOwn(s.before, key) || Object.hasOwn(s.after, key)))
+      throw new RangeError(`meta.watch: it names ${JSON.stringify(key)}, which is never in the scene's state at any step of any scenario`);
   }
 }
 const pictureOf = (state: unknown): Picture | undefined => (state as { picture?: Picture } | undefined)?.picture;
 /**
- * Seen things as entries, emphasis first, and what is new since `before` (the names shown
+ * Descriptions as entries, emphasis first, and what is new since `before` (the names shown
  * when the step began), in the words of `lang`, the scene's language.
  */
-export function picture(all: readonly Seen[], before: ReadonlySet<string>, lang?: string): Picture {
+export function picture(all: readonly Description[], before: ReadonlySet<string>, lang?: string): Picture {
   const words = wordsFor(lang),
     said = describedIn(lang);
   const undescribed = all.flatMap((s) => s.blank ?? []);
@@ -200,7 +196,7 @@ export function picture(all: readonly Seen[], before: ReadonlySet<string>, lang?
   };
 }
 /** The names a picture shows, for the next step's `before`. */
-export const shownNames = (seen: readonly Seen[]) =>
+export const shownNames = (seen: readonly Description[]) =>
   new Set(seen.filter((s) => s.what).flatMap(({ what, parts }) => (parts.length ? parts.map((p) => p.name) : [what])));
 
 /**
@@ -257,6 +253,29 @@ export function pictureSummary(state: unknown): string {
     .map(sentence)
     .join(' ');
 }
+/** An entry's emphasised parts, each with its word: "bulb (lit)". */
+const markedParts = (e: Pick<PictureEntry, 'marked'>) =>
+  Object.entries(e.marked ?? {}).flatMap(([word, names]) => names.map((n) => `${n} (${word})`));
+/** What an entry shows, its emphasis and its parts, in any order: equal when the thing looks as it did. */
+const entryKey = (e: Pick<PictureEntry, 'marked'> & { items?: readonly string[] }) => [...markedParts(e), ...(e.items ?? [])].sort().join('\n');
+/**
+ * What changed of the picture since `previous` (a step's or event's shown state), in words:
+ * each described thing that was not there, or whose emphasis or parts differ from the thing
+ * of the same name before, named with its emphasised parts, in the picture's language. A thing
+ * that only moved in the list is not a change. Empty when nothing changed: what a screen reader
+ * hears after a live event, rather than the whole picture.
+ */
+export function pictureChange(state: unknown, previous?: unknown): string {
+  const p = pictureOf(state);
+  if (!p?.entries.length) return '';
+  const w = wordsFor(p.lang);
+  const before = new Map<string, Set<string>>();
+  for (const e of pictureOf(previous)?.entries ?? []) before.set(e.what, (before.get(e.what) ?? new Set()).add(entryKey(e)));
+  return p.entries
+    .filter((e) => !before.get(e.what)?.has(entryKey(e)))
+    .map((e) => [e.what, ...markedParts(e)].join(', ').replace(/[\u00a0\u202f]?[.;,]+$/, ''))
+    .join(w.separator);
+}
 /**
  * The picture as nested lists, each thing's emphasised parts first, punctuated so it
  * reads as sentences when flattened. Given the previous step's state, a thing whose
@@ -266,16 +285,14 @@ export function pictureHtml(state: unknown, previous?: unknown): string {
   const p = pictureOf(state);
   if (!p?.entries.length) return '';
   const w = wordsFor(p.lang);
-  const marked = (e: PictureEntry) => Object.entries(e.marked ?? {}).flatMap(([word, names]) => names.map((n) => `${n} (${word})`));
-  const key = (e: PictureEntry) => [...marked(e), ...e.items].sort().join('\n');
-  const before = new Map((pictureOf(previous)?.entries ?? []).map((e) => [e.what, key(e)]));
+  const before = new Map((pictureOf(previous)?.entries ?? []).map((e) => [e.what, entryKey(e)]));
   const li = (text: string, last: boolean, sub = '') =>
     `<li>${htmlEscape(end(text, sub ? w.colon : last ? '.' : w.semicolon))}${sub}</li>`;
   const ul = (texts: string[]) => `<ul>${texts.map((t, i) => li(t, i === texts.length - 1)).join('')}</ul>`;
   return `<ul>${p.entries
     .map((e, i) => {
-      const same = e.items.length && before.get(e.what) === key(e);
-      const items = [...marked(e), ...(same ? [w.restAsBefore] : e.items)];
+      const same = e.items.length && before.get(e.what) === entryKey(e);
+      const items = [...markedParts(e), ...(same ? [w.restAsBefore] : e.items)];
       return li(e.what, i === p.entries.length - 1, items.length ? ul(items) : '');
     })
     .join('')}</ul>`;
@@ -285,3 +302,29 @@ export function pictureHtml(state: unknown, previous?: unknown): string {
  * Empty when everything on the stage is described; `rayner check` fails a step otherwise.
  */
 export const undescribed = (state: unknown): string[] => pictureOf(state)?.undescribed ?? [];
+/** A step's picture in words, as each reading surface says it (`pictureWordsAt`). */
+export interface PictureWords {
+  /** Two or three short sentences: what is shown, what is emphasised and what is new; the stage's accessible description. */
+  summary: string;
+  /** Everything shown, each thing's emphasised parts first, as the player's picture list reads; plain text. */
+  full: string;
+  /** As `full`, except that a thing whose parts are as in the previous step lists only its emphasis, as the page's transcript reads. */
+  transcript: string;
+}
+/**
+ * The picture in words at the end of the step named `step`, from a trace (`traceScene`, or a
+ * scenario of `loadProject`): what a reader who cannot see the stage is told about it.
+ */
+export function pictureWordsAt(trace: { steps: readonly Pick<StepRecord, 'step' | 'shown'>[] }, step: string): PictureWords {
+  const i = trace.steps.findIndex((s) => s.step === step);
+  if (i < 0) throw new RangeError(`pictureWordsAt(): the trace has no step ${JSON.stringify(step)}; its steps are ${trace.steps.map((s) => s.step).join(', ')}`);
+  const { shown } = trace.steps[i]!,
+    previous = trace.steps[i - 1]?.shown;
+  const text = (html: string) =>
+    html
+      .replace(/<li>/g, ' ')
+      .replace(/<\/?(?:ul|li)>/g, '')
+      .replace(/&(?:amp|lt|gt|quot|#39);/g, (e) => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" })[e]!)
+      .trim();
+  return { summary: pictureSummary(shown), full: text(pictureHtml(shown)), transcript: text(pictureHtml(shown, previous)) };
+}

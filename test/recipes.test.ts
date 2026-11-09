@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Succession, linear } from 'rayner';
-import { StringSink, SnapshotSink, NullSink, renderAt } from 'rayner/output';
-import { traceScene, TraceSink } from 'rayner/testing';
+import { Scene, Succession, linear, keyed } from 'rayner';
+import { StringSink, NullSink, renderFrame, toSvgString } from 'rayner/output';
+import { traceScene, TraceSink, sampleAnimation } from 'rayner/testing';
 import { requestScene, route } from '../recipes/document.ts';
 import { Diamond, StatusBadge } from '../recipes/extensions.ts';
 import ContinuousScene, { orbit, makeOrbit, FollowAngle } from '../recipes/continuous.ts';
@@ -49,9 +49,8 @@ test('custom geometry owns its copy and a copied composite exposes its own child
 test('one parameter keeps the point on the circle at intermediate values, preserves identity, and resamples without history', () => {
   const rig = makeOrbit(), parts = [rig.dot, rig.radius, rig.readout];
   const animation = new FollowAngle(rig, Math.PI);
-  animation.begin();
   for (const alpha of [0.5, 0.9, 0.1, 0.5, 1, 0]) {
-    animation.interpolate(alpha);
+    sampleAnimation(animation, alpha);
     const [x, y] = rig.dot.center();
     assert.ok(Math.abs(x - 3 * Math.cos(Math.PI * alpha)) < 1e-5);
     assert.ok(Math.abs(y - 3 * Math.sin(Math.PI * alpha)) < 1e-5);
@@ -66,13 +65,12 @@ test('one parameter keeps the point on the circle at intermediate values, preser
 
 test('parameter recipe seeks to played SVGs and traces agree with full playback', async () => {
   const full = new StringSink(); await new ContinuousScene(full).run();
-  for (const time of [0, 0.1, 0.5, 0.9, 1]) {
-    const sink = new SnapshotSink();
-    const scene = await renderAt(ContinuousScene, time, sink);
-    assert.equal(sink.svg, full.frames[Math.round(scene.time * scene.fps)]);
-    assert.ok(Math.abs((scene.state.angle as number) - time * Math.PI) < 1e-12);
+  for (const frame of [0, 3, 15, 27, 30]) {
+    const scene = await renderFrame(ContinuousScene, frame);
+    assert.equal(toSvgString(scene), full.frames[frame]);
+    assert.ok(Math.abs((scene.state.angle as number) - (frame / 30) * Math.PI) < 1e-12);
   }
-  const fullTrace = new TraceSink(); await new ContinuousScene(fullTrace).run();
+  const fullTrace = new TraceSink({ skipUntil: 0 }); await new ContinuousScene(fullTrace).run();
   assert.deepEqual((await traceScene(ContinuousScene)).steps, fullTrace.steps());
 });
 
@@ -87,7 +85,7 @@ test('parameter animations capture starts in succession and reject another write
       ]), { rateFunc: linear });
     }
   }
-  const scene = await renderAt(RoundTrip, 0.75, new SnapshotSink(), { fps: 60 });
+  const scene = await renderFrame(RoundTrip, 45, new NullSink(), { fps: 60 });
   assert.ok(Math.abs((scene.state.angle as number) - Math.PI / 2) < 1e-12);
   class Conflicting extends Scene {
     override async construct() {
@@ -104,9 +102,7 @@ test('every supported recipe produces nonempty SVG, text, elements and a named-s
     const result = await outputs(SceneClass);
     assert.match(result.svg, /^<svg/);
     assert.ok(result.text.trim().length > 0);
-    assert.ok(result.elements.length > 0);
     assert.ok(result.trace.steps.length >= 2);
-    assert.equal(result.index.steps.length, result.trace.steps.length);
   }
 });
 
@@ -130,11 +126,12 @@ test('invariant recipe: the sampled orbit holds its claim on every frame, the mo
 });
 
 test('a claim that reads a misspelt key finds nothing on every frame: it is reported as vacuous, not as held', async () => {
-  const { Scene, Dot, Follow, linear } = await import('rayner');
+  const { Scene, Dot, linear } = await import('rayner');
+  const { view } = await import('rayner/explain');
   class Misspelt extends Scene {
     override async construct() {
-      const dot = new Dot().moveTo([2, 0]);
-      dot.key = 'orbit:dot';
+      this.state = { angle: 0 };
+      const dot = view(this, (st) => keyed(new Dot().moveTo([2 * Math.cos(st.angle as number), 2 * Math.sin(st.angle as number)]), 'orbit:dot'), { place: false });
       this.add(dot);
       this.addInvariant('the dot stays on its circle', (scene) => {
         const found = scene.find('orbit:dto');
@@ -142,7 +139,7 @@ test('a claim that reads a misspelt key finds nothing on every frame: it is repo
         return Math.abs(Math.hypot(...found.center()) - 2) <= 1e-3 || 'off its circle';
       });
       await this.step('turn');
-      await this.play(new Follow({ from: 0, to: 1, draw: (a) => new Dot().moveTo([2 * Math.cos(a), 2 * Math.sin(a)]) }, { targets: [dot] }), { runTime: 0.3, rateFunc: linear });
+      await dot.tween((t) => ({ angle: t }), { runTime: 0.3, rateFunc: linear });
     }
   }
   const result = await invariantFailures(Misspelt);

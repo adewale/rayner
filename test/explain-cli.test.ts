@@ -26,7 +26,7 @@ const failure = (run: () => unknown) => {
 test('external source and compiled ESM scenes share the CLI engine; source hashes ignore checkout paths', async () => {
   const folder = await mkdtemp(join(tmpdir(), 'rayner-cli-'));
   try {
-    const source = `import{Scene,Text,FadeIn}from'rayner';import{stage}from'rayner/explain';export default class Author extends Scene{static meta={id:'author',title:'External author'};async construct(){const s=stage(this);await this.step('one',{caption:'A real native scene.'});await this.play(new FadeIn(new Text('hello',{color:s.palette.ink})));this.state.answer=42;}}`;
+    const source = `import{Scene,Text,FadeIn}from'rayner';import{stage}from'rayner/explain';export default class Author extends Scene{static meta={id:'author',title:'External author'};async construct(){const s=stage(this);await this.step('one',{caption:'A real native scene.'});await this.play(new FadeIn(new Text('hello',{color:s.look.ink})));this.state.answer=42;}}`;
     const a = join(folder, 'a', 'scene.ts'),
       b = join(folder, 'b', 'scene.ts');
     await mkdir(join(folder, 'a'));
@@ -63,7 +63,7 @@ test('external source and compiled ESM scenes share the CLI engine; source hashe
     assert.equal(refused?.status, 1, 'an unknown command must exit 1');
     // Node 24.0 emits its type-stripping warning before the source CLI runs.
     // Require the CLI's own error line without assuming it owns all of stderr.
-    assert.match(String(refused?.stderr), /^rayner: Unknown command: not-a-command$/m);
+    assert.match(String(refused?.stderr), /^rayner: "not-a-command" is not a command/m);
   } finally {
     await rm(folder, { recursive: true, force: true });
   }
@@ -111,7 +111,7 @@ test('`rayner see` prints a step: its resting picture as text, title, caption, p
     assert.match(await readFile(svg, 'utf8'), /^<svg /);
     const missing = failure(() => execFileSync(process.execPath, [cli, 'see', scene, 'nope'], { stdio: 'pipe' }));
     assert.equal(missing?.status, 1);
-    assert.match(String(missing?.stderr), /No step "nope"\. Steps: .*result/);
+    assert.match(String(missing?.stderr), /the scene has no step "nope"; its steps are .*result/);
   } finally {
     await rm(folder, { recursive: true, force: true });
   }
@@ -137,7 +137,7 @@ test('`rayner see` prints describeExplainer\'s words for the step, so the two ca
   };
   assert.equal(seeText('x', made), 'DRAWN\n\nx · step 2 of 2: b · Size: 3\nTitle: Two\nLine: A line.\nCaption: Cap.\nPicture: A box.\nChanged: n: — → 1; gone: "x" → —');
   assert.equal(seeText('x', made, 'a'), '\n\nx · step 1 of 2: a · Size: 3\nTitle: One\nChanged: nothing in scene.state');
-  assert.throws(() => seeText('x', made, 'c'), /No step "c"\. Steps: a, b/);
+  assert.throws(() => seeText('x', made, 'c'), /the scene has no step "c"/);
 });
 
 // `see` draws only the step it shows; its text must still be what the whole description gives.
@@ -165,7 +165,110 @@ test('lettering errors name the rayner capture command', async () => {
     await writeFile(file, `import{Scene}from'rayner';export default class L extends Scene{static meta={id:'missing',lettering:{scripts:['Arab']}};async construct(){await this.step('one');}}`);
     const result = spawnSync(process.execPath, [join(ROOT, 'tools/explain.ts'), 'check', file], { encoding: 'utf8' });
     assert.equal(result.status, 1);
-    assert.match(result.stderr, /stale lettering snapshot; run rayner snapshots /);
+    assert.match(result.stderr, /scene\.lettering\.json: it is missing or stale; run rayner snapshots /);
     assert.doesNotMatch(result.stderr, /run explain snapshots/);
   } finally { await rm(folder, { recursive: true, force: true }); }
+});
+
+test('two diagram resolutions in flight start one builder of each kind, and close closes every one that started', async () => {
+  const { diagramBuilders } = await import('../tools/lib/explain-project.ts');
+  const builders = diagramBuilders<{ close(): Promise<void> }>();
+  let started = 0, closed = 0, release!: () => void;
+  const gate = new Promise<void>((r) => (release = r));
+  const start = async () => { started++; await gate; return { close: async () => { closed++; } }; };
+  const both = Promise.all([builders.get(false, start), builders.get(false, start), builders.get(true, start), builders.get(true, start)]);
+  release();
+  const [a, b, c, d] = await both;
+  assert.equal(started, 2, 'one start per kind, however many resolutions wait for it');
+  assert.ok(a === b && c === d && a !== c);
+  await builders.close();
+  assert.equal(closed, 2);
+  // A builder that failed to start is left to the resolution that asked for it; the others still close.
+  const failing = diagramBuilders<{ close(): Promise<void> }>();
+  await assert.rejects(failing.get(true, async () => { throw new Error('no browser'); }), /no browser/);
+  await failing.get(false, start);
+  await failing.close();
+  assert.equal(closed, 3);
+});
+
+test('preview --watch adopts script.md afresh on every rebuild: a changed line, a removed question and a removed intent header all show', async () => {
+  const { watchAndRebuild } = await import('../tools/explain.ts');
+  // A folder named as a page id is (lower case), since the scene declares none.
+  const folder = join(await mkdtemp(join(tmpdir(), 'rayner-watch-intent-')), 'watched');
+  await mkdir(folder);
+  const log = console.log, error = console.error;
+  console.log = () => {};
+  const errors: unknown[] = [];
+  console.error = (e: unknown) => { errors.push(e); };
+  // The scene's code never changes, so every rebuild loads the same module and the same class.
+  await writeFile(join(folder, 'scene.ts'), `import{Scene,Text}from'rayner';import{stage}from'rayner/explain';export default class Watched extends Scene{static meta={sources:[{label:'own',url:'https://example.org'}]};async construct(){const s=stage(this);await this.step('one',{caption:'A label.'});await s.enter(new Text('hi',{fontSize:.4}),{describe:'hi'});}}`);
+  const script = (question: string, answer: string, check = '') => `# ${question}\n\n- **Answer:** ${answer}.\n- **Checked against:** a test.\n${check}`;
+  await writeFile(join(folder, 'script.md'), script('Why?', 'because', '\n## Check yourself\n\n1. Really?\n   Yes.\n'));
+  let seen: { meta: Record<string, unknown> | undefined; Scene: unknown }[] = [], built: (() => void) | undefined;
+  const watching = watchAndRebuild(folder, join(folder, 'page.html'), async () => {
+    const project = await collectProject(folder, { write: false });
+    seen.push({ meta: { ...project.Scene.meta }, Scene: project.Scene });
+    built?.();
+    return 'Rebuilt';
+  });
+  /** Save script.md and wait for the watcher's rebuild. */
+  const save = async (text: string) => {
+    const rebuilt = new Promise<void>((r) => (built = r));
+    await writeFile(join(folder, 'script.md'), text);
+    await Promise.race([rebuilt, new Promise((_, no) => setTimeout(() => no(new Error('script.md did not rebuild')), 10000))]);
+    await watching.run();
+    return seen.at(-1)!.meta!;
+  };
+  try {
+    await watching.run();
+    const own = { sources: [{ label: 'own', url: 'https://example.org' }], id: folder.split('/').at(-1) };
+    assert.deepEqual(seen[0]!.meta, { ...own, title: 'Why?', answer: 'because', questions: [{ question: 'Really?', answer: 'Yes.' }], checkedAgainst: 'a test.' });
+    // A changed answer and a removed question: the next rebuild has the new answer and no questions.
+    assert.deepEqual(await save(script('Why not?', 'since')), { ...own, title: 'Why not?', answer: 'since', checkedAgainst: 'a test.' });
+    // No intent header any more: what the last adoption put in goes, and the scene's own meta stays.
+    assert.deepEqual(await save('# Notes\n\nJust prose for the author.\n'), own);
+    // And back: adopted again.
+    assert.equal((await save(script('Why?', 'because')))['title'], 'Why?');
+    assert.equal(new Set(seen.map((s) => s.Scene)).size, 1, 'every rebuild used the same scene class');
+    assert.deepEqual(errors, []);
+  } finally {
+    watching.watcher.close();
+    console.log = log;
+    console.error = error;
+    await rm(join(folder, '..'), { recursive: true, force: true });
+  }
+});
+
+test('preview --watch rebuilds at most once more for saves made during a rebuild, and on script.md', async () => {
+  const { watchAndRebuild } = await import('../tools/explain.ts');
+  const folder = await mkdtemp(join(tmpdir(), 'rayner-watch-'));
+  const log = console.log;
+  console.log = () => {};
+  let builds = 0, release!: () => void, built!: () => void;
+  let gate = new Promise<void>((r) => (release = r));
+  const watching = watchAndRebuild(folder, join(folder, 'page.html'), async () => {
+    builds++;
+    built?.();
+    await gate;
+    return 'Rebuilt';
+  });
+  try {
+    const first = watching.run();
+    // Five saves while the first rebuild runs: one more rebuild, not five.
+    for (let i = 0; i < 5; i++) void watching.run();
+    release();
+    await first;
+    assert.equal(builds, 2);
+    // An edit to the script rebuilds, as an edit to the scene does; the built page does not.
+    gate = Promise.resolve();
+    const rebuilt = new Promise<void>((r) => (built = r));
+    await writeFile(join(folder, 'page.html'), 'output');
+    await writeFile(join(folder, 'script.md'), '# Why?\n');
+    await Promise.race([rebuilt, new Promise((_, no) => setTimeout(() => no(new Error('script.md did not rebuild')), 5000))]);
+    assert.equal(builds, 3);
+  } finally {
+    watching.watcher.close();
+    console.log = log;
+    await rm(folder, { recursive: true, force: true });
+  }
 });

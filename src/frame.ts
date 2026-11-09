@@ -1,5 +1,5 @@
 // Frame: the camera, as a box. Its point array is the visible rectangle
-// [x0, y0, x1, y1] in scene units (the pattern of Text.frameBox), so shift,
+// [x0, y0, x1, y1] in scene units (the pattern of a Text's advance box), so shift,
 // scale, moveTo, .animate and Transform move it exactly as they move any
 // mobject, and an animated camera interpolates as points: pure in alpha,
 // seek-safe. Sinks read the box at the root of the output (the SVG viewBox);
@@ -7,14 +7,18 @@
 
 import { Mobject } from './mobject.ts';
 import type { Box } from './mobject.ts';
-import { FRAME } from './svg.ts';
+import { FRAME, STAGE_BOX, zoomOf } from './units.ts';
+import { center } from './box.ts';
 
-export interface FrameFitOpts {
+export interface FrameFitOptions {
   /** Space kept around the target on every side, in scene units. */
   margin?: number;
 }
 
 const ASPECT = FRAME.w / FRAME.h;
+
+/** The camera's visible box as a point array [x0, y0, x1, y1], which copies carry: a symbol, so no member an author writes on a subclass shares its name. */
+const corners = Symbol('corners');
 
 /**
  * The scene's camera (`scene.frame`): the rectangle of the scene that is on
@@ -28,36 +32,40 @@ const ASPECT = FRAME.w / FRAME.h;
  * Keep it 16:9: fit(), reset(), scale() and moveTo() do; stretch() would not.
  */
 export class Frame extends Mobject {
-  /** The visible box as a point array [x0, y0, x1, y1]. */
-  corners: Float32Array;
+  /** See corners. */
+  [corners]: Float32Array;
 
   constructor() {
     super();
-    this.corners = new Float32Array([-FRAME.w / 2, -FRAME.h / 2, FRAME.w / 2, FRAME.h / 2]);
+    this[corners] = new Float32Array(STAGE_BOX);
   }
 
-  override pointArrays(): Float32Array[] { return [this.corners]; }
-  override copyData(src: Mobject): void { this.corners = new Float32Array((src as Frame).corners); }
+  override pointArrays(): Float32Array[] { return [this[corners]]; }
+  protected override copyData(src: Mobject): void { this[corners] = new Float32Array((src as Frame)[corners]); }
 
-  /** Magnification: 1 for the full 16-wide frame, 2 when half as wide. */
-  get zoom(): number { return FRAME.w / this.width(); }
+  /**
+   * Magnification, as the stage shows the box (zoomOf): 1 for the whole 16 × 9 frame, 2 when it
+   * shows half as wide and half as high. A box out of 16:9 is letterboxed, so its tighter side sets it.
+   */
+  get zoom(): number { return zoomOf(this.box() ?? STAGE_BOX); }
 
   /** The smallest 16:9 box that holds `target` (a mobject or a box) plus `margin` on every side, centered on it. */
-  fit(target: Mobject | Readonly<Box>, { margin = 0.5 }: FrameFitOpts = {}): this {
+  fit(target: Mobject | Readonly<Box>, { margin = 0.5 }: FrameFitOptions = {}): this {
     const b = target instanceof Mobject ? target.box() : target;
-    if (!b) throw new RangeError('Frame.fit(): the target has no points to fit');
+    if (!b) throw new Error('frame.fit(): the target has no points to fit; give a mobject that is drawn, or a box');
     const w = Math.max(b[2] - b[0] + 2 * margin, (b[3] - b[1] + 2 * margin) * ASPECT);
-    return this.place((b[0] + b[2]) / 2, (b[1] + b[3]) / 2, w);
+    return place(this, ...center(b), w);
   }
 
   /** Back to the default frame: 16 × 9 at the origin. */
-  reset(): this { return this.place(0, 0, FRAME.w); }
+  reset(): this { return place(this, 0, 0, FRAME.w); }
+}
 
-  private place(cx: number, cy: number, w: number): this {
-    const h = w / ASPECT;
-    this.corners.set([cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2]);
-    this.touchPoints();
-    this.invalidateBox();
-    return this;
-  }
+/** Show the 16:9 box `w` wide centred on (cx, cy). */
+function place<F extends Frame>(frame: F, cx: number, cy: number, w: number): F {
+  const h = w / ASPECT;
+  frame[corners].set([cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2]);
+  frame.touchPoints();
+  frame.invalidateBox();
+  return frame;
 }

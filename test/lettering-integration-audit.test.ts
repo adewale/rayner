@@ -4,12 +4,12 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { takeMissingGlyphs } from '../src/lettering.ts';
+import { takeLetteringMissing } from '../src/lettering.ts';
 import { collectProject, ROOT } from '../tools/lib/explain-project.ts';
 import { contactSheet } from '../tools/lib/explain-shots.ts';
 import { validateLetteringSnapshot } from '../tools/lib/lettering-validation.ts';
 import { unpackLettering } from '../src/lettering-outlines.ts';
-import type { LetteringSnapshot } from '../src/lettering-outlines.ts';
+import type { LetteringSnapshot, PackedLetteringSnapshot } from '../src/lettering-outlines.ts';
 import type { Run, Segment, ShapedGlyph } from '../vendor/glyph.js';
 import { fc, params } from './lib/pbt.ts';
 
@@ -21,31 +21,18 @@ const sourceAt = async (folder: string) => {
   return snapshot;
 };
 
-test('a fresh metadata fingerprint cannot hide damaged cached outline data', async () => {
+test('damaged cached outline data is refused', async () => {
   const folder = await mkdtemp(join(tmpdir(), 'lettering-audit-integrity-'));
   try {
     const snapshot = await sourceAt(folder);
     const run = Object.values(snapshot.runs).find((r: unknown) => (r as { glyphs: unknown[] }).glyphs.length) as { glyphs: { path: unknown[] }[] };
     run.glyphs[0]!.path = [{ tag: 'LineTo', x: 'broken', y: 0 }];
-    // Even someone updating the checksum cannot bypass structural checks.
-    snapshot.payloadHash = createHash('sha256').update(JSON.stringify({ ...snapshot, payloadHash: undefined })).digest('hex');
     await writeFile(join(folder, 'scene.lettering.json'), JSON.stringify(snapshot));
-    await assert.rejects(collectProject(folder, { write: false }), /Invalid lettering snapshot outline/);
+    await assert.rejects(collectProject(folder, { write: false }), /scene\.lettering\.json: its outline is invalid/);
   } finally { await rm(folder, { recursive: true, force: true }); }
 });
 
-test('editing a contour without changing metadata is caught by the payload checksum', async () => {
-  const folder = await mkdtemp(join(tmpdir(), 'lettering-audit-checksum-'));
-  try {
-    const snapshot = await sourceAt(folder);
-    const run = Object.values(snapshot.runs).find((r: unknown) => (r as { glyphs: unknown[] }).glyphs.length) as { glyphs: { dx: number }[] };
-    run.glyphs[0]!.dx += .1;
-    await writeFile(join(folder, 'scene.lettering.json'), JSON.stringify(snapshot));
-    await assert.rejects(collectProject(folder, { write: false }), /^Error: Invalid lettering snapshot payload checksum;/);
-  } finally { await rm(folder, { recursive: true, force: true }); }
-});
-
-test('a cached snapshot rejects a glyph cluster one past the source even with fresh fingerprints and checksum', async () => {
+test('a cached snapshot rejects a glyph cluster one past the source', async () => {
   const folder = await mkdtemp(join(tmpdir(), 'lettering-audit-cluster-'));
   try {
     const snapshot = await sourceAt(folder);
@@ -57,23 +44,22 @@ test('a cached snapshot rejects a glyph cluster one past the source even with fr
       [...JSON.parse(key)[1]].length > 0 && (value as { glyphs: unknown[] }).glyphs.length > 0,
     )! as [string, { glyphs: { cluster: number }[] }];
     run.glyphs[0]!.cluster = [...JSON.parse(key)[1]].length;
-    snapshot.payloadHash = createHash('sha256').update(JSON.stringify({ ...snapshot, payloadHash: undefined })).digest('hex');
     await writeFile(file, JSON.stringify(snapshot));
-    await assert.rejects(collectProject(folder, { write: false }), /^Error: Invalid lettering snapshot glyph;/);
+    await assert.rejects(collectProject(folder, { write: false }), /^Error: scene\.lettering\.json: its glyph is invalid;/);
   } finally { await rm(folder, { recursive: true, force: true }); }
 });
 
 for (const explicit of [false, true]) test(`numbered contact-sheet titles capture and replay the requested script (${explicit ? 'explicit' : 'ambient'})`, { skip: process.env.EXPLAIN_LETTERING !== '1' }, async () => {
   const folder = await mkdtemp(join(tmpdir(), 'lettering-audit-sheet-'));
   try {
-    await writeFile(join(folder, 'scene.ts'), `import{Scene,Text}from'rayner';import{stage}from'rayner/explain';export default class S extends Scene{static meta={id:'sheet',${explicit ? "textContext:'explicit'," : ''}lettering:{scripts:['Arab']}};async construct(){const s=stage(this,{heading:false});await this.step('one',{title:'السَّلَامُ عَلَيْكُمْ',caption:'Arabic'});await s.enter(${explicit ? 'this.text' : 'new Text'}('السَّلَامُ عَلَيْكُمْ'));}}`);
+    await writeFile(join(folder, 'scene.ts'), `import{Scene,Text}from'rayner';import{stage}from'rayner/explain';export default class S extends Scene{static meta={id:'sheet',${explicit ? "textContext:'explicit'," : ''}lettering:{scripts:['Arab']}};async construct(){const s=stage(this,{heading:false});await this.step('one',{title:'السَّلَامُ عَلَيْكُمْ',caption:'Arabic'});await s.enter(new Text('السَّلَامُ عَلَيْكُمْ'${explicit ? ',{shaping:this.textShaping}' : ''}));}}`);
     const p = await collectProject(folder, { captureLettering: true, write: false });
     const key = JSON.stringify(['sans', '1. السَّلَامُ عَلَيْكُمْ', false]);
     assert.ok(p.outlineLettering?.runs[key]);
-    takeMissingGlyphs();
+    takeLetteringMissing();
     const output = join(folder, 'sheet.png');
     await contactSheet(p, output);
-    assert.deepEqual([...takeMissingGlyphs()], [], 'the numbered title must not silently lose glyphs');
+    assert.deepEqual([...takeLetteringMissing()], [], 'the numbered title must not silently lose glyphs');
     assert.equal((await readFile(output)).subarray(1, 4).toString(), 'PNG');
   } finally { await rm(folder, { recursive: true, force: true }); }
 });
@@ -85,10 +71,9 @@ const digest = (value: string) => createHash('sha256').update(value).digest('hex
 type SchemaFont = 'math' | `${'sans' | 'mono'}${'' | '/bold' | '/italic' | '/bold-italic'}`;
 function schemaSnapshot(text: string, font: SchemaFont, run: Run, display = false): LetteringSnapshot {
   const snapshot: LetteringSnapshot = {
-    version: 1, sourceHash: digest('schema source'), builderHash: digest('schema builder'),
+    version: 3, builderHash: digest('schema builder'),
     request: {}, runs: { [JSON.stringify([font, text, display])]: run }, faces: {}, shaper: 'schema contract',
   };
-  snapshot.payloadHash = digest(JSON.stringify(snapshot));
   return snapshot;
 }
 const finite = fc.double({ noNaN: true, noDefaultInfinity: true });
@@ -119,6 +104,11 @@ const oneGlyph = (cluster = 0, gid = 1): ShapedGlyph => ({
   gid, cluster, x: 0, dx: 0, dy: 0, ax: 1, s: 1,
   path: [{ tag: 'MoveTo', x: 0, y: 0 }, { tag: 'LineTo', x: 1, y: 1 }],
 });
+// The wire contract, checked by the type-checker: packed glyph references are not expanded outline paths.
+export const wireContract = (packed: PackedLetteringSnapshot, expanded: (snapshot: LetteringSnapshot) => void) =>
+  // @ts-expect-error a packed snapshot is not an expanded one
+  expanded(packed);
+
 const singleRun = (snapshot: LetteringSnapshot): Run => Object.values(snapshot.runs)[0]!;
 
 test('serialized snapshot schema accepts finite runs with source-bound clusters across all families', () => {
@@ -130,14 +120,14 @@ test('serialized snapshot schema rejects source indices outside code-point bound
     const text = '𐐀' + suffix, length = [...text].length;
     const cluster = below ? -1 - offset : length + offset;
     const snapshot = schemaSnapshot(text, 'sans', { width: 1, ascent: 1, descent: 0, glyphs: [oneGlyph(cluster)] });
-    assert.throws(() => validateLetteringSnapshot(snapshot), /^Error: Invalid lettering snapshot glyph;/);
+    assert.throws(() => validateLetteringSnapshot(snapshot), /^Error: scene\.lettering\.json: its glyph is invalid;/);
   }), params());
 });
 
 test('serialized snapshot schema rejects non-finite run metrics before drawing', () => {
   fc.assert(fc.property(validSchema, fc.constantFrom('width', 'ascent', 'descent', 's'), fc.constantFrom(NaN, Infinity, -Infinity), (snapshot, key, value) => {
     singleRun(snapshot)[key] = value;
-    assert.throws(() => validateLetteringSnapshot(snapshot), /^Error: Invalid lettering snapshot run metrics;/);
+    assert.throws(() => validateLetteringSnapshot(snapshot), /^Error: scene\.lettering\.json: its run metrics is invalid;/);
   }), params());
 });
 
@@ -153,7 +143,7 @@ test('serialized snapshot schema rejects malformed outline commands', () => {
     const glyph = oneGlyph();
     glyph.path = [path as Segment];
     const snapshot = schemaSnapshot('x', 'mono', { width: 1, ascent: 1, descent: 0, glyphs: [glyph] });
-    assert.throws(() => validateLetteringSnapshot(snapshot), /^Error: Invalid lettering snapshot outline;/);
+    assert.throws(() => validateLetteringSnapshot(snapshot), /^Error: scene\.lettering\.json: its outline is invalid;/);
   }), params());
 });
 
@@ -163,7 +153,7 @@ test('serialized snapshot schema rejects malformed run keys', () => {
       : kind === 'display' ? JSON.stringify(['sans', text, 'false']) : JSON.stringify(['sans', text]);
     const snapshot = schemaSnapshot('', 'sans', { width: 0, ascent: 1, descent: 0, glyphs: [] });
     snapshot.runs = { [key]: singleRun(snapshot) };
-    assert.throws(() => validateLetteringSnapshot(snapshot), /^Error: Invalid lettering snapshot run key;/);
+    assert.throws(() => validateLetteringSnapshot(snapshot), /^Error: scene\.lettering\.json: its run key is invalid;/);
   }), params());
 });
 
@@ -178,7 +168,7 @@ for (const { name, text, font, glyphs } of [
   const run = { width: text ? 1 : 0, ascent: 1, descent: 0, glyphs };
   validateLetteringSnapshot(schemaSnapshot(text, font, run));
   const bad = schemaSnapshot(text, font, { ...run, glyphs: [...glyphs, oneGlyph([...text].length)] });
-  assert.throws(() => validateLetteringSnapshot(bad), /^Error: Invalid lettering snapshot glyph;/);
+  assert.throws(() => validateLetteringSnapshot(bad), /^Error: scene\.lettering\.json: its glyph is invalid;/);
 });
 
 test('serialized snapshot source bounds handle one large run without recursive traversal', () => {
@@ -187,5 +177,5 @@ test('serialized snapshot source bounds handle one large run without recursive t
   const snapshot = schemaSnapshot('𐐀'.repeat(count), 'mono', { width: count, ascent: 1, descent: 0, glyphs });
   validateLetteringSnapshot(snapshot);
   glyphs[count - 1]!.cluster = count;
-  assert.throws(() => validateLetteringSnapshot(snapshot), /^Error: Invalid lettering snapshot glyph;/);
+  assert.throws(() => validateLetteringSnapshot(snapshot), /^Error: scene\.lettering\.json: its glyph is invalid;/);
 });

@@ -13,8 +13,9 @@
 // On a convex body nothing on the near surface can hide anything else there, so the only order
 // that matters is far, body, near, and it never depends on a sort. `depthOrder(picture)` checks it
 // for any picture seenFrom drew, at rest or mid-Follow.
-import { Group, VMobject, Dot, Circle } from '../src/index.ts';
+import { Group, VMobject, Dot, Circle, keyed } from '../src/index.ts';
 import type { Mobject, Vec, Box } from '../src/index.ts';
+import { center } from '../src/box.ts';
 
 /** A point in the model: x toward latitude 0, longitude 0; y toward longitude 90° E; z toward the north pole. */
 export type Vec3 = readonly [number, number, number];
@@ -67,9 +68,14 @@ export interface SeenOptions { at?: Vec; scale?: number; window?: Box; key?: str
 
 export type Layer = 'far' | 'body' | 'surface' | 'above';
 /** What seenFrom records on each piece it draws, so depthOrder can check it: an own field, so Follow's become() carries it. */
-export interface Seen { part: string; layer: Layer; surface: boolean; lines: Vec3[][]; shown: boolean }
+export interface SeenPiece { part: string; layer: Layer; surface: boolean; lines: Vec3[][]; shown: boolean }
 /** What seenFrom records on the picture it returns. */
 export interface SeenPicture { viewpoint: Viewpoint; radius: number; at: Vec; scale: number; window?: Box }
+/**
+ * A picture seenFrom drew: its `seenPicture` records the viewpoint, radius, place and scale it was
+ * drawn with, and each of its pieces (its children) records what it shows as `seen`.
+ */
+export type SeenDrawing = Group & { readonly seenPicture: SeenPicture; readonly children: readonly (Mobject & { readonly seen: SeenPiece })[] };
 
 const D = Math.PI / 180;
 const dot3 = (a: Vec3, b: Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -115,7 +121,8 @@ export function circleOn(pole: Vec3, angle: number, radius = 1, step = 2): Vec3[
 }
 /** The viewpoint a fraction `t` of the way from a to b (same kind): yaw turns the short way. */
 export function between(a: Viewpoint, b: Viewpoint, t: number): Viewpoint {
-  if (a.kind !== b.kind) throw new Error(`between: a ${a.kind} and a ${b.kind} viewpoint have nothing in between`);
+  const an = (kind: string) => `${/^[aeiou]/.test(kind) ? 'an' : 'a'} ${kind}`;
+  if (a.kind !== b.kind) throw new Error(`between(): ${an(a.kind)} and ${an(b.kind)} viewpoint have nothing in between; give two viewpoints of one kind`);
   if (t <= 0) return a;
   if (t >= 1) return b;
   const v: Viewpoint = { kind: a.kind, yaw: a.yaw + wrap(b.yaw - a.yaw) * t, pitch: a.pitch + (b.pitch - a.pitch) * t };
@@ -140,15 +147,15 @@ const EDGE = 1e-7;
  * One viewpoint, ready to classify and place points. `near(p)` is the rule depthOrder holds every
  * picture to: for the globe kinds, a point is near when the body does not hide it from the eye.
  */
-function lens(vp: Viewpoint, radius: number, { at = [0, 0], scale = 1 }: SeenOptions) {
-  if (!['orthographic', 'perspective', 'gnomonic', 'mercator'].includes(vp.kind)) throw new Error(`seenFrom: no viewpoint kind ${String(vp.kind)}`);
-  if (![vp.yaw, vp.pitch].every(Number.isFinite)) throw new Error('seenFrom: yaw and pitch must be finite degrees');
+function lens(vp: Viewpoint, radius: number, { at = [0, 0], scale = 1 }: SeenOptions, api = 'seenFrom()') {
+  if (!['orthographic', 'perspective', 'gnomonic', 'mercator'].includes(vp.kind)) throw new RangeError(`${api}: ${JSON.stringify(vp.kind)} is not a viewpoint kind; use orthographic, perspective, gnomonic or mercator`);
+  if (![vp.yaw, vp.pitch].every(Number.isFinite)) throw new RangeError(`${api}: yaw and pitch must be finite degrees`);
   const { toward, right, up } = axes(vp);
   const distance = (vp.distance ?? 3) * radius;
   const limit = vp.limit ?? (vp.kind === 'mercator' ? 80 : 60);
-  if (vp.kind === 'perspective' && !(distance > radius)) throw new Error('seenFrom: a perspective eye must be outside the sphere (distance > 1)');
-  if (vp.kind === 'gnomonic' && !(limit > 0 && limit < 89)) throw new Error('seenFrom: a gnomonic limit must be between 0 and 89 degrees');
-  if (vp.kind === 'mercator' && !(limit > 0 && limit < 89)) throw new Error('seenFrom: a Mercator limit must be between 0 and 89 degrees');
+  if (vp.kind === 'perspective' && !(distance > radius)) throw new RangeError(`${api}: a perspective eye must be outside the sphere, so distance must be more than 1`);
+  if (vp.kind === 'gnomonic' && !(limit > 0 && limit < 89)) throw new RangeError(`${api}: a gnomonic limit must be between 0 and 89 degrees`);
+  if (vp.kind === 'mercator' && !(limit > 0 && limit < 89)) throw new RangeError(`${api}: a Mercator limit must be between 0 and 89 degrees`);
   const globe = vp.kind === 'orthographic' || vp.kind === 'perspective';
   /** The silhouette plane: points on the eye's side of it are never behind the sphere. */
   const horizon = vp.kind === 'perspective' ? (radius * radius) / distance : 0;
@@ -210,7 +217,7 @@ type Lens = ReturnType<typeof lens>;
 
 /** Where a point lands and whether it is seen: for a label beside a part, drawn from the same viewpoint. */
 export function project(p: Vec3, viewpoint: Viewpoint, radius = 1, options: SeenOptions = {}): { at: Vec; seen: boolean } {
-  const l = lens(viewpoint, radius, options);
+  const l = lens(viewpoint, radius, options, 'project()');
   let seen = l.near(p, l.onSphere(p));
   if (seen && viewpoint.kind === 'mercator' && options.window) {
     const q = l.project(p), w = options.window;
@@ -360,9 +367,9 @@ function path(style: ConstructorParameters<typeof VMobject>[0], lines: Vec3[][],
   }
   return m;
 }
-function piece<M extends Mobject>(m: M, seen: Seen, key: string | undefined): M {
+function piece<M extends Mobject>(m: M, seen: SeenPiece, key: string | undefined): M {
   Object.assign(m, { seen });
-  if (key !== undefined) m.key = key;
+  if (key !== undefined) keyed(m, key);
   return m;
 }
 const hiddenKey = (key: string | undefined) => (key === undefined ? undefined : `${key}:hidden`);
@@ -375,9 +382,9 @@ const hiddenKey = (key: string | undefined) => (key === undefined ? undefined : 
  * only the parts that lie on the sphere, and no body. Pure: the same model and viewpoint draw the
  * same picture.
  */
-export function seenFrom(model: Model3D, viewpoint: Viewpoint, options: SeenOptions = {}): Group {
+export function seenFrom(model: Model3D, viewpoint: Viewpoint, options: SeenOptions = {}): SeenDrawing {
   const radius = model.body.radius;
-  if (!(radius > 0)) throw new Error('seenFrom: the body needs a positive radius');
+  if (!(radius > 0)) throw new RangeError('seenFrom(): the body needs a positive radius');
   const l = lens(viewpoint, radius, options);
   const window = viewpoint.kind === 'mercator'
     ? [Math.max(options.window?.[0] ?? -Infinity, l.project(latLon(0, viewpoint.yaw - 179.999999, radius))[0]),
@@ -420,7 +427,7 @@ export function seenFrom(model: Model3D, viewpoint: Viewpoint, options: SeenOpti
       return;
     }
     if (!l.globe && viewpoint.kind === 'mercator' && part.rings.some((ring) => ring.some((p, i) => i && Math.abs(wrap(toLatLon(p).lon - toLatLon(ring[i - 1]!).lon)) > 90)))
-      throw new Error(`seenFrom: face ${name} crosses the Mercator map's edge; split it`);
+      throw new Error(`seenFrom(): the face ${name} crosses the Mercator map's edge; split it in two there`);
     // Faces are cut by the silhouette plane alone, so one must not pass through the body.
     const keepNear = (p: Vec3) => l.near(p, true);
     const nearRings = part.rings.map((ring) => clipRing(ring, keepNear, l, surface)).filter((r) => r.length > 2);
@@ -436,23 +443,23 @@ export function seenFrom(model: Model3D, viewpoint: Viewpoint, options: SeenOpti
     { part: b.key ?? 'body', layer: 'body', surface: true, lines: [], shown: true }, b.key)];
   const g = new Group(...far, ...body, ...faces, ...paths, ...points, ...above);
   const picture: SeenPicture = { viewpoint: { ...viewpoint }, radius, at: [...l.at] as Vec, scale: l.scale, ...(window ? { window } : {}) };
-  Object.assign(g, { seenPicture: picture });
-  if (options.key) g.key = options.key;
-  return g;
+  const drawn = Object.assign(g, { seenPicture: picture }) as SeenDrawing;
+  if (options.key) keyed(drawn, options.key);
+  return drawn;
 }
 
 const RANK: Record<Layer, number> = { far: 0, body: 1, surface: 2, above: 3 };
-const seenOf = (m: Mobject) => (m as Mobject & { seen?: Seen }).seen;
+const seenOf = (m: Mobject) => (m as Mobject & { seen?: SeenPiece }).seen;
 /** The seenFrom pictures in `m`'s family (m included), outermost first. */
-export function seenPictures(m: Mobject): Group[] {
-  return m.family().filter((x): x is Group => !!(x as Mobject & { seenPicture?: SeenPicture }).seenPicture);
+export function seenPictures(m: Mobject): SeenDrawing[] {
+  return m.family().filter((x): x is SeenDrawing => !!(x as Mobject & { seenPicture?: SeenPicture }).seenPicture);
 }
 const fmt = (vp: Viewpoint) => `${vp.kind} yaw ${vp.yaw.toFixed(1)}°, pitch ${vp.pitch.toFixed(1)}°`;
 /** A piece's drawn anchors, subpath by subpath. */
 function anchors(m: Mobject): Vec[][] {
   if (m instanceof Circle) {
     const b = m.box();
-    return b ? [[[(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]]] : [];
+    return b ? [[center(b)]] : [];
   }
   if (!(m instanceof VMobject)) return [];
   return m.subpaths.map((a) => {
@@ -480,8 +487,8 @@ export function depthOrder(picture: Mobject): true | string | undefined {
   const drawings = seenPictures(picture);
   if (!drawings.length) return undefined;
   for (const g of drawings) {
-    const meta = (g as Group & { seenPicture: SeenPicture }).seenPicture;
-    const l = lens(meta.viewpoint, meta.radius, { at: meta.at, scale: meta.scale });
+    const meta = g.seenPicture;
+    const l = lens(meta.viewpoint, meta.radius, { at: meta.at, scale: meta.scale }, 'depthOrder()');
     const tolerance = 1e-4 * Math.max(1, meta.scale * meta.radius);
     const slack = 1e-6 * (meta.viewpoint.kind === 'mercator' ? 1 : meta.radius);
     const pieces = g.children.filter((m) => seenOf(m)).map((m) => [m, seenOf(m)!] as const);

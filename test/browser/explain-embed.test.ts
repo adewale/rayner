@@ -16,10 +16,11 @@ import { publishedPage } from '../../tools/lib/explain-share.ts';
 import { fc, params } from '../lib/pbt.ts';
 import { resolveSettings } from '../../explain/index.ts';
 import type { Settings } from '../../explain/index.ts';
+import { settingsProblem } from '../../explain/settings.ts';
 import { pictureHtml, pictureSummary, stepWords } from '../../explain/trace.ts';
 import { NARROW_PX, READ_PX, closeUps, labelsToRead, stageScale, stepLayouts, toView, viewBox } from '../../app/embed-closeup.ts';
 import type { StepLayout } from '../../app/embed-closeup.ts';
-import { labelOf } from '../../explain/diagrams.ts';
+import { labelOf } from '../../explain/labels.ts';
 import { labelsSaying, restingBox, wordsOutsideCards } from '../lib/scenes.ts';
 import type { Box } from '../../src/index.ts';
 import { chromeFor } from '../../app/embed-strings.ts';
@@ -57,7 +58,8 @@ before(async () => {
   const references = await collectProject('test/fixtures/reference-steps', {write: false});
   projects.set('references', references);
   await buildExplainer(references, join(folder, 'references.html'));
-  // A real scene counts executions without adding player hooks or changing its artwork.
+  // A real scene counts executions without adding player hooks or changing its artwork; a run after
+  // the first (a step rendered on demand) can wait as it reaches step-1, as an asynchronous render does.
   const probe=join(folder,'playback-probe');await mkdir(probe);
   await writeFile(join(probe,'scene.ts'),`import{Scene,Text,FadeIn}from'rayner';
     export default class PlaybackProbe extends Scene {
@@ -66,7 +68,7 @@ before(async () => {
         for(let i=0;i<4;i++){
           await this.step('step-'+i,{title:'Step '+i,caption:('Picture '+i+' ').repeat(12)});
           const delay=typeof window==='undefined'?0:Number(new URLSearchParams(location.search).get('renderDelay'));
-          if(i===1&&this.skipUntil>0&&delay>0){w.__renderDelays=(w.__renderDelays??0)+1;await new Promise(r=>setTimeout(r,delay));}
+          if(i===1&&w.__sceneRuns>1&&delay>0){w.__renderDelays=(w.__renderDelays??0)+1;await new Promise(r=>setTimeout(r,delay));}
           await this.play(new FadeIn(new Text('Picture '+i)),{runTime:2});
         }
       }
@@ -253,7 +255,7 @@ test('authored phone openings keep comparison ink readable, and a narrow stage p
   }
 });
 
-// specs/player-redesign.md R2: the viewports the stepper row must fit at load, and the two pages it is checked on.
+// player-redesign R2: the viewports the stepper row must fit at load, and the two pages it is checked on.
 const R2_VIEWPORTS = [[320, 568], [390, 568], [390, 844], [768, 1024], [1280, 800], [1440, 900]] as const;
 const R2_PAGES = ['/mr-cache.html?step=before&request=hit', '/oauth-pkce.html?attacker=yes'];
 type Rect = { top: number; bottom: number; left: number; right: number };
@@ -297,7 +299,7 @@ test('Next is on screen at load', options, async () => {
         assert.ok(v.scrollWidth <= v.width, `${where}: no horizontal scroll (${v.scrollWidth} > ${v.width})`);
     });
     }
-  // specs/player-tile.md T1: with the header inside the card, the French eleven-step page too.
+  // player-tile T1: with the header inside the card, the French eleven-step page too.
   for (const [width, height] of [[1280, 800], [1440, 900]] as const) {
     await readerPage({ viewport: { width, height } }, embed + '/quotient-familial.html', async page => {
       const v = await boxesOf(page, { next: '.stepper .primary', lede: '.lede' });
@@ -341,7 +343,7 @@ readerTest('fullscreen keeps the stepper row reachable when the player overflows
     assert.equal(bounds.overflow, true, 'the test exercises a scrollable fullscreen player');
     assert.ok(bounds.stage <= bounds.viewport - 180 + 1, 'the stage keeps within the screen less 180 px');
     assert.ok(bounds.top >= 0 && bounds.bottom <= bounds.viewport, 'Next is reachable at scroll position zero');
-    // specs/player-tile.md T2: the card alone, its header and the step's heading on screen too.
+    // player-tile T2: the card alone, its header and the step's heading on screen too.
     assert.ok(bounds.head[0]! >= 0 && bounds.lede[1]! <= bounds.viewport, `the header and the step heading are on screen ${JSON.stringify(bounds)}`);
     await page.getByRole('button', {name: 'Next step', exact: true}).click();
     assert.equal(new URL(page.url()).searchParams.get('step'), 'diff');
@@ -486,7 +488,7 @@ test('the shared tile preserves English/French chrome and headings, standalone, 
   assert.equal(pages, shellFixtures.length);
   assert.equal(languages.size,2,'English and French both visited');
 });
-// specs/player-guidance.md G1: under the caption, what the step changed of the state the author watches.
+// player-guidance G1: under the caption, what the step changed of the state the author watches.
 const changesOf = (page: Page) =>
   page.evaluate(() => {
     const row = document.querySelector<HTMLElement>('.words > .changes');
@@ -525,7 +527,7 @@ readerTest('what changed: token-bucket\'s burst step lists its three watched cha
       assert.doesNotMatch((await page.locator('.transcript').textContent())!, /What changed/, `${scene}: no line in the transcript`);
     }
     });
-// specs/player-guidance.md G3: the controls teach their keys, and the footer how to move.
+// player-guidance G3: the controls teach their keys, and the footer how to move.
 test('every keyed control names its key in its tooltip and aria-keyshortcuts, in English and French; names are unchanged', options, async () => {
   await readerPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' }, undefined, async page => {
     for (const [name, lang] of [['mr-cache', 'en'], ['quotient-familial', 'fr']] as const) {
@@ -612,7 +614,7 @@ test('the footer hint: keys on a fine pointer, taps on a touch screen, wrapping 
     await touch.close();
   }
 });
-// specs/player-guidance.md G7: the changes row, the hint and the thumbnails follow the page's direction.
+// player-guidance G7: the changes row, the hint and the thumbnails follow the page's direction.
 test('right to left: the changes row reads from the right and the footer hint sits between the mark and the way out', options, async () => {
   hostBody = `<!doctype html><style>body{margin:0}</style><iframe title="t" src="${embed}/mr-cache.html?request=hit&step=before" style="width:1280px;height:900px;border:0"></iframe>`;
   await readerPage({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' }, undefined, async page => {
@@ -628,7 +630,7 @@ test('right to left: the changes row reads from the right and the footer hint si
     assert.deepEqual(seen, { changes: true, hint: true });
   });
 });
-// specs/player-guidance.md G2: after the last step, Start again, and for a scene with settings, its next scenario.
+// player-guidance G2: after the last step, Start again, and for a scene with settings, its next scenario.
 const endOf = (page: Page) =>
   page.evaluate(() => {
     const next = document.querySelector<HTMLButtonElement>('.stepper .primary')!,
@@ -639,6 +641,8 @@ const endOf = (page: Page) =>
       disabled: next.disabled,
       // The Try button follows Next straight away, in the row and in the Tab order.
       tryScenario: tries.filter((b) => !b.hidden).map((b) => [b.textContent, b.previousElementSibling === next]),
+      // A hidden Try is not painted, so it takes no room and no Tab stop (a rule that sets its display must not override [hidden]).
+      hiddenPainted: tries.filter((b) => b.hidden && b.getClientRects().length > 0).length,
       step: new URL(location.href).searchParams.get('step'),
       request: new URL(location.href).searchParams.get('request'),
     };
@@ -651,7 +655,7 @@ readerTest('one-scenario and French endings retain their localized Start again a
     // French: Recommencer, and Essayer « 2 » for quotient-familial's first setting.
     await visitReader(page, `${embed}/quotient-familial.html?step=revenus-2025`);
     const fr = await endOf(page);
-    assert.deepEqual([fr.name, fr.text, fr.tryScenario], ['Recommencer à l’étape 1', 'Recommencer', [['Essayer «\u202f2\u202f»', true]]]);
+    assert.deepEqual([fr.name, fr.text, fr.tryScenario, fr.hiddenPainted], ['Recommencer à l’étape 1', 'Recommencer', [['Essayer «\u202f2\u202f»', true]], 0]);
     });
 test('the last step while it plays: Next still reads Next and rests the step; the face changes only at rest', options, async () => {
   await readerPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'no-preference' }, undefined, async page => {
@@ -665,15 +669,15 @@ test('the last step while it plays: Next still reads Next and rests the step; th
     // Playing the last step: busy, and Next is still Next, enabled.
     await page.waitForFunction(() => document.querySelector('.stage')!.getAttribute('aria-busy') === 'true');
     const playing = await endOf(page);
-    assert.deepEqual([playing.name, playing.disabled, playing.tryScenario], ['Next step', false, []]);
+    assert.deepEqual([playing.name, playing.disabled, playing.tryScenario, playing.hiddenPainted], ['Next step', false, [], 0]);
     await page.getByRole('button', { name: 'Next step', exact: true }).click();
     await page.waitForFunction(() => (window as unknown as { __rests: string[] }).__rests.at(-1) === 'request');
     assert.equal(await page.locator('.stage').getAttribute('aria-busy'), null);
     const rested = await endOf(page);
-    assert.deepEqual([rested.name, rested.step, rested.tryScenario], ['Start again from step 1', 'request', [['Try ‘Cache miss’', true]]]);
+    assert.deepEqual([rested.name, rested.step, rested.tryScenario, rested.hiddenPainted], ['Start again from step 1', 'request', [['Try ‘Cache miss’', true]], 0]);
   });
 });
-// specs/player-redesign.md R3: the step bar. One segment per step, the current one filling as it plays.
+// player-redesign R3: the step bar. One segment per step, the current one filling as it plays.
 /** The step bar as the reader's tools see it: each segment's step, state, Tab stop, name and fill. */
 const stepBarOf = (page: Page) =>
   page.locator('.step-bar button').evaluateAll((bs) =>
@@ -758,7 +762,7 @@ test('arrow keys inside the step bar move the step and the focus', options, asyn
 test('pressing the current segment while a step plays rests the picture', options, async () => {
   const p = projects.get('mr-cache')!,
     step = p.scenarios.find((v) => v.values.request === 'hit')!.trace.steps[1]!,
-    motion = (step.hold ?? step.t1!) - step.t0;
+    motion = (step.hold ?? step.t1) - step.t0;
   assert.equal(step.step, 'reader-outcome');
   await readerContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'no-preference' }, async context => {
 
@@ -809,7 +813,7 @@ test('pressing the current segment while a step plays rests the picture', option
   });
 });
 
-// specs/player-redesign.md R5, R6, R10: the rail beside the card, the tools beside Next, both following the page's direction.
+// player-redesign R5, R6, R10: the rail beside the card, the tools beside Next, both following the page's direction.
 test('the rail is a pane beside the card when wide and a closed details row inside the card, under the words, when narrow', options, async () => {
   const p = projects.get('mr-cache')!,
     list = teachingSpecs(p, resolveSettings(p.Scene, { request: 'hit' }));
@@ -878,7 +882,7 @@ test('the rail is a pane beside the card when wide and a closed details row insi
       const seen = await rail(page);
       const where = `at ${width}×${height}`;
       assert.deepEqual([seen.tag, seen.rails, seen.summary, seen.open, seen.holdsList], ['DETAILS', 1, 'All 2 steps', false, true], where);
-      // specs/player-tile.md T2: a row of the card, under the words.
+      // player-tile T2: a row of the card, under the words.
       assert.ok(seen.afterWords && seen.box.top < seen.card.bottom, `${where}: the rail is a row in the card, under the words ${JSON.stringify(seen)}`);
       assert.equal(await page.locator('.steps:not(.supporting-steps) button').count(), list.length, `${where}: the list is in the page`);
       await page.locator('details.rail > summary').click();
@@ -907,7 +911,7 @@ test('the rail is a pane beside the card when wide and a closed details row insi
     });
 });
 
-// specs/player-tile.md T2: one tile holds everything the page shows.
+// player-tile T2: one tile holds everything the page shows.
 test('one tile: the border is on .layout.tile alone, the rail pane runs its height, and the steps and transcript rows are in the card', options, async () => {
   for (const [width, height] of [[1280, 800], [1440, 900], [390, 844], [768, 1024]] as const) {
     await readerPage({ viewport: { width, height }, reducedMotion: 'reduce' }, `${embed}/mr-cache.html?request=hit`, async page => {
@@ -993,7 +997,7 @@ test('right to left: the step bar fills from the right, the rail sits on the lef
     assert.ok(seen.rail <= seen.card, `the rail is on the card's left: ${JSON.stringify(seen)}`);
     assert.ok(seen.prev > seen.next, `Previous is right of Next: ${JSON.stringify(seen)}`);
     });
-  // specs/player-tile.md T9: in a frame, the footer's mark is at the inline start (the right) and the way out at the end (the left).
+  // player-tile T9: in a frame, the footer's mark is at the inline start (the right) and the way out at the end (the left).
   hostBody = `<!doctype html><style>body{margin:0}</style><iframe title="t" src="${embed}/mr-cache.html?request=hit" style="width:1280px;height:800px;border:0"></iframe>`;
   const host2 = await browser.newPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
   try {
@@ -1056,7 +1060,7 @@ test(
         b = await readyFrame(page, 'oauth-pkce');
       const ah = await assertHeight(page, 'a', a),
         bh = await assertHeight(page, 'b', b);
-      // specs/player-tile.md T3: the loader adds the iframe and nothing else; the way out is the page's footer.
+      // player-tile T3: the loader adds the iframe and nothing else; the way out is the page's footer.
       assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('#a > *, #b > *')].map((e) => e.tagName)), ['IFRAME', 'IFRAME']);
       assert.equal(await page.locator('a').count(), 0, 'no link outside the frames');
       await a.locator('.transcript > summary').click();
@@ -1087,7 +1091,7 @@ test(
   });
   },
 );
-// specs/player-tile.md T3: the loader mounts an iframe and nothing else, and dispose() takes it away with its listener.
+// player-tile T3: the loader mounts an iframe and nothing else, and dispose() takes it away with its listener.
 test('the loader appends only the iframe, and dispose() removes the iframe and its message listener', options, async () => {
   hostBody = `<!doctype html><div id="t"></div><script src="${embed}/loader.js"></script>`;
   await readerPage({}, undefined, async page => {
@@ -1107,11 +1111,11 @@ test('the loader appends only the iframe, and dispose() removes the iframe and i
     assert.deepEqual(await page.evaluate(() => ({ children: [...document.getElementById('t')!.children].map((e) => e.tagName), links: document.querySelectorAll('a').length, listeners: (window as unknown as { __listeners: number }).__listeners })), { children: ['IFRAME'], links: 0, listeners: 1 });
     await page.evaluate(() => (window as unknown as { __dispose: () => void }).__dispose());
     assert.deepEqual(await page.evaluate(() => ({ children: document.getElementById('t')!.childNodes.length, links: document.querySelectorAll('a, iframe').length, listeners: (window as unknown as { __listeners: number }).__listeners })), { children: 0, links: 0, listeners: 0 });
-    // specs/player-guidance.md G4: goTo after dispose does nothing, and does not throw.
+    // player-guidance G4: goTo after dispose does nothing, and does not throw.
     assert.equal(await page.evaluate(() => (window as unknown as { __dispose: { goTo(step?: string): unknown } }).__dispose.goTo('request')), undefined);
   });
 });
-// specs/player-guidance.md G4: the host page hears each settled step and can drive the player.
+// player-guidance G4: the host page hears each settled step and can drive the player.
 type Heard = { step: string; index: number; total: number; settings: Record<string, string> };
 const heard = (page: Page) => page.evaluate(() => (window as unknown as { heard: { a: Heard[]; b: Heard[]; onStep: Heard[] } }).heard);
 const stepOfFrame = (frame: Frame) => frame.evaluate(() => Object.fromEntries(new URL(location.href).searchParams));
@@ -1217,7 +1221,7 @@ async function pixelAt(page: Page, x: number, y: number): Promise<number[]> {
       return [...g.getImageData(0, 0, 1, 1).data].slice(0, 3);
     }, png.toString('base64')));
 }
-// specs/player-tile.md T4: in a frame the page is the tile alone, on the host's background.
+// player-tile T4: in a frame the page is the tile alone, on the host's background.
 test('framed, the page draws only the tile: a transparent body, no padding, and the host\'s background at the tile\'s corner in light and dark device schemes', options, async () => {
   for (const colorScheme of ['light', 'dark'] as const) {
     hostBody = `<!doctype html><style>body{margin:0;padding:20px;background:rgb(251,248,243)}</style>${loader('a', 'mr-cache')}`;
@@ -1272,7 +1276,7 @@ test('the loader passes theme=light or theme=dark from the host page\'s computed
   });
   }
 });
-// specs/player-tile.md T5: no catalog explainer changes style between scenarios, so this scene does.
+// player-tile T5: no catalog explainer changes style between scenarios, so this scene does.
 const TWO_PAPERS = `import{Scene,Text}from'rayner';import{stage,settingsOf}from'rayner/explain';
 export default class TwoPapers extends Scene{static meta={id:'two-papers',title:'Two papers'};
 static settings=[{id:'look',label:'Look',default:'cream',options:[{value:'cream',label:'Cream'},{value:'night',label:'Night'}]}];
@@ -1311,9 +1315,9 @@ test('the neutral tile stays independent of the scenario palette, including befo
     }
   });
 });
-// specs/player-tile.md T6: the published height at 640 px is the height the loader gives the frame there.
+// player-tile T6: the published height at 640 px is the height the loader gives the frame there.
 test('known heights: mr-cache measures three heights above the floor, and the loader at 640 px settles the frame at heights["640"] within 2 px', options, async () => {
-  const { measureEmbed, embedSizeProblems } = await import('../../tools/lib/explain-embed-size.ts');
+  const { measureEmbed, embedSizeProblems } = await import('../../tools/repo/lib/explain-embed-size.ts');
   const size = await measureEmbed(browser, embed, 'mr-cache.html');
   assert.deepEqual(embedSizeProblems(size), [], JSON.stringify(size));
   // Natural captions can make a phone page shorter; the settled heights and loader agreement are the contract.
@@ -1529,11 +1533,16 @@ test(
       assert.ok(near(await painted(), tour[0]!), `opens on the first close-up ${JSON.stringify(tour[0])}`);
       const smallest = Math.min(...labelsToRead(layout).map((l) => l.size));
       assert.ok(smallest * stageScale(size.w, size.h).s * tour[0]!.k >= READ_PX - 1e-6, 'labels near the change read at 12 px');
+      // The map's part spans are drawn once for the step at this size: a zoom moves only the view.
+      const parts = page.locator('.overview .part');
+      assert.equal(await parts.count(), layout.parts.length, 'one span per changed part');
+      await parts.evaluateAll((spans) => spans.forEach((span) => span.setAttribute('data-kept', '')));
       for (let i = 1; i <= tour.length; i++) {
         await page.locator('.overview').click();
         const want = tour[i % tour.length]!;
         await until(async () => near(zoomOf(await paintedView(page)), want), `close-up ${i}`);
       }
+      assert.equal(await page.locator('.overview .part[data-kept]').count(), layout.parts.length, 'the zooms kept the part spans');
       // Whole picture shows the author's frame, and keeps it for the next steps; Close-up brings the close-ups back.
       await page.getByRole('button', { name: 'Whole picture' }).click();
       await until(async () => zoomOf(await paintedView(page)) === null, 'Whole picture');
@@ -1813,7 +1822,7 @@ function resolveLoad(p: Project, request: Record<string, string>, step: string |
     values = resolveSettings(p.Scene, request);
   } catch (error) {
     values = resolveSettings(p.Scene);
-    notices.push(`${(error as Error).message}. Showing the default scenario.`);
+    notices.push(chromeFor('en').fallback(settingsProblem(error)));
   }
   const list = stepsOf(p, values);
   let found = step ? list.findIndex((s) => s.step === step) : teachingSteps(list)[0]!;
@@ -1825,7 +1834,7 @@ function resolveLoad(p: Project, request: Record<string, string>, step: string |
   return { entry: { values, step: list[found]!.step }, notice: notices.join(' ') };
 }
 
-/** The parts of the card the reader model checks, in order (specs/player-tile.md T2). */
+/** The parts of the card the reader model checks, in order (player-tile T2). */
 const CARD_ORDER = 'head frame stepper words transcript foot';
 /** Everything the reader can see or the host can read, in one snapshot. */
 function observe(ids: string[]) {
@@ -1862,7 +1871,7 @@ function observe(ids: string[]) {
     picture: document.querySelector('.described > div')?.innerHTML,
     title: document.querySelector('h1')!.textContent,
     prevDisabled: button('Previous step')!.disabled,
-    // Next's face: at rest on the last step it is Start again (specs/player-guidance.md G2).
+    // Next's face: at rest on the last step it is Start again (player-guidance G2).
     next: ((b) => ({ name: b.getAttribute('aria-label'), text: b.querySelector('span')!.textContent, disabled: b.disabled }))(
       document.querySelector<HTMLButtonElement>('.stepper .primary')!,
     ),
@@ -1889,7 +1898,7 @@ function observe(ids: string[]) {
     viewCount: document.querySelector('.view-controls > span')!.textContent,
     transcriptOpen: (document.querySelector('details.transcript') as HTMLDetailsElement).open,
     transcriptLinks: [...document.querySelectorAll<HTMLAnchorElement>('.transcript section:not([hidden]) a')].map((a) => a.href),
-    // specs/player-tile.md T2: the card's parts, in the card's order, and nothing of the page outside the tile.
+    // player-tile T2: the card's parts, in the card's order, and nothing of the page outside the tile.
     card: [...document.querySelector('.player')!.children].flatMap((e) => ['head', 'frame', 'stepper', 'words', 'transcript', 'foot'].filter((c) => e.classList.contains(c))),
     outside: [...document.getElementById('content')!.children].map((e) => e.className),
   };
@@ -2492,6 +2501,24 @@ test('crossing the narrow width redraws the resting picture in place, including 
     assert.ok(model.redraws >= 1, 'the stage crossed NARROW_PX at least once');
   });
 });
+test('turning narrow again plans the close-up tour for the size the stage settles at, as a fresh load at that size does', options, async () => {
+  // Found by the property test (seed -1591536521): at 632 × 697 the stage is wide and the
+  // heading's reserved heights are measured at that width. Narrowing to 252 px turns the stage
+  // narrow under those stale heights, so for part of a frame its cap lets it be 140 px tall; the
+  // re-measure later in that frame brings it back to 124 px, the size the ResizeObserver last
+  // reported, so it never reports it again. The tour must still be planned for 124 px (15 views),
+  // not the 140 px it held mid-frame (12), and match what a fresh load at 252 × 683 offers.
+  let fresh = '';
+  await withPlayer('oauth-pkce', {values: [undefined], viewport: {width: 252, height: 683}}, async (_model, real) => {
+    fresh = await real.page.locator('.view-controls > span').innerText();
+  });
+  await withPlayer('oauth-pkce', {
+    values: [undefined], viewport: {width: 200, height: 400},
+  }, async (model, real) => {
+    await fc.asyncModelRun(() => ({model, real}), [Resize(632, 697), Resize(252, 683)]);
+    assert.equal(await real.page.locator('.view-controls > span').innerText(), fresh, 'the resized stage offers the views a fresh load does');
+  });
+});
 test('Next view uses each detail view’s scale after a comparison opening', options, async () => {
   // Explicit comparison labels and a smaller implementation note require different
   // scales regardless of incidental wording or heading placement in a subject lesson.
@@ -2910,8 +2937,10 @@ test(
 const earlyControls = (page: Page, actions: string[]) => page.addInitScript((actions: string[]) => {
   const w = window as unknown as { __early: number };
   w.__early = 0;
+  // The stepper's primary button, by its place: on a link to the last step it is already Start again
+  // when the player builds it, since a shipped scenario shows its step at once.
   const observer = new MutationObserver(() => {
-    if (!document.querySelector('button[aria-label="Next step"]')) return;
+    if (!document.querySelector('.stepper button.primary')) return;
     observer.disconnect();
     for (const a of actions) {
       const b = document.querySelector<HTMLButtonElement>(`button[aria-label="${a}"]`);
@@ -3142,7 +3171,7 @@ async function heightsSettle(page: Page, frame: Frame) {
   let last: { posted: unknown; content: number; iframe: string } | undefined;
   for (const until = Date.now() + 5000; Date.now() < until; await page.waitForTimeout(50)) {
     const { posted, content } = await frame.evaluate(() => ({
-      // The resize messages; the frame also reports each settled step (specs/player-guidance.md G4).
+      // The resize messages; the frame also reports each settled step (player-guidance G4).
       posted: (window as unknown as { __posts: Post[] }).__posts.filter((p) => p.msg.type === 'rayner:resize').at(-1)?.msg.height,
       content: Math.ceil(document.getElementById('content')!.getBoundingClientRect().height),
     }));
@@ -3252,7 +3281,7 @@ test(
           await page.waitForTimeout(100);
           const posts = await postsOf(frame);
           assert.deepEqual([...new Set(posts.map((p) => p.origin))], exact ? [value] : [], `parentOrigin ${JSON.stringify(value)}`);
-          // specs/player-tile.md T3: in any frame the footer's way out opens this page at the reader's step
+          // player-tile T3: in any frame the footer's way out opens this page at the reader's step
           // and scenario, in a new tab, without parentOrigin.
           const out = await frame.evaluate(() => ({
             links: [...document.querySelectorAll<HTMLAnchorElement>('.player > .foot a.open')].map((a) => ({ href: a.href, target: a.target, text: a.textContent })),
@@ -3290,6 +3319,7 @@ test('PKCE mobile views expose the derivation and the unsent verifier without ad
   for (const scenario of project.scenarios) {
     const targets = new Map<string, number[][]>();
     await new scenario.Scene({
+      skipUntil: Infinity,
       async frame() {},
       async stepEnd(scene, step) {
         if (!['secret', 'authorize'].includes(step.name)) return;
@@ -3306,7 +3336,7 @@ test('PKCE mobile views expose the derivation and the unsent verifier without ad
         for (const m of scene.mobjects) walk(m);
         targets.set(step.name, found);
       },
-    }, { skipUntil: Infinity }).run();
+    }).run();
     await readerContext({ viewport: { width: 390, height: 844 }, reducedMotion: scenario.values.attacker === 'yes' ? 'no-preference' : 'reduce' }, async context => {
 
       const page = await context.newPage();
@@ -3412,7 +3442,7 @@ test('source tours show the token-cap calculation and terminal rejection in ever
       const claims = await reviewSubjects(project);
       for(const scenario of project.scenarios){
         let nativeChecked=false;
-        await new scenario.Scene({async frame(){},async stepEnd(scene,step){
+        await new scenario.Scene({ skipUntil: Infinity, async frame(){},async stepEnd(scene,step){
           if(step.name!==sourceStep)return;
           const members=scene.familyMembers();
           const keyed=(key:string)=>{
@@ -3449,7 +3479,7 @@ test('source tours show the token-cap calculation and terminal rejection in ever
             assert.equal(scene.state.session,'closed');
           }
           nativeChecked=true;
-        }},{skipUntil:Infinity}).run();
+        }}).run();
         assert.equal(nativeChecked,true);
         // Keep the production reviewer: every main and source step, both
         // widths, all reachable tour stops, plus the independent 320px openings.
@@ -3510,7 +3540,7 @@ test('both pen drawings retain every construction mark and its readable count th
   try{
     for(const scenario of project.scenarios){
       let strokes=0,wordBoxes=0;
-      await new scenario.Scene({async frame(){},async stepEnd(scene,step){
+      await new scenario.Scene({ skipUntil: Infinity, async frame(){},async stepEnd(scene,step){
         if(step.name!=='marks')return;
         const members=scene.familyMembers(),marks=members.filter(m=>m.key==='construction:marks'),
           tallies=members.filter(m=>m.key==='construction:tally');
@@ -3551,7 +3581,7 @@ test('both pen drawings retain every construction mark and its readable count th
         }
         const points=paths.map(m=>Array.from((m as VMobject).subpaths[0]!));
         if(layout)assert.deepEqual(points,layout,'changing the hand keeps all laid-out marks fixed');else layout=points;
-      }},{skipUntil:Infinity}).run();
+      }}).run();
       assert.equal(strokes,53);assert.equal(wordBoxes,8);
       const rows=await reviewStoryScenario(page,`${embed}/pen-and-pencil.html`,scenario,claims);
       assert.deepEqual(rows.map(r=>[r.step,r.width]),[390,1180].flatMap(width=>scenario.trace.steps.map(s=>[s.step,width])));

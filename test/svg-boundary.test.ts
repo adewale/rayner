@@ -4,7 +4,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Resvg } from '@resvg/resvg-js';
 import { Scene, Rectangle, Text } from '../src/index.ts';
-import { NullSink, SnapshotSink, StringSink, toSvgString } from '../src/output.ts';
+import { NullSink, StringSink, toSvgString } from '../src/output.ts';
+import { SnapshotSink } from '../src/svg.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { fc, params } from './lib/pbt.ts';
 
@@ -18,7 +19,7 @@ test('SVG widths reject every runtime value except positive safe integers', () =
       // Do not rasterize arbitrary output dimensions; parsing the public header
       // is enough to check this contract without allocating width × height pixels.
       assert.ok(toSvgString(scene(), options).startsWith(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${Number((BigInt(width) * 9n + 8n) / 16n)}"`));
-    } else assert.throws(() => toSvgString(scene(), options), /svg width/);
+    } else assert.throws(() => toSvgString(scene(), options), /toSvgString\(\): width must be a positive safe integer/);
   }), params<[unknown]>(500, { examples: [[1], [4097], [8192], [Number.MAX_SAFE_INTEGER], [0], [-1], [1.5], [NaN], [Infinity], ['100'], [{ valueOf: (): number => 100 }]] }));
 });
 
@@ -26,7 +27,7 @@ test('SVG backgrounds admit only hex colours and serialize their canonical colou
   fc.assert(fc.property(fc.oneof(fc.anything(), fc.integer({ min: 0, max: 0xffffff }).map((n) => '#' + n.toString(16).padStart(6, '0'))), (background) => {
     if (background === undefined) { assert.match(toSvgString(scene(), { background }), /fill="#ffffff"/, "the scene's paper"); return; }
     const legal = typeof background === 'string' && /^#[0-9a-f]{3}(?:[0-9a-f]{3})?$/i.test(background);
-    if (!legal) assert.throws(() => toSvgString(scene(), { background: background as string }), /svg background/);
+    if (!legal) assert.throws(() => toSvgString(scene(), { background: background as string }), /toSvgString\(\): background must be a #rgb or #rrggbb colour/);
     else {
       const h = (background as string).slice(1).toLowerCase();
       const expected = '#' + (h.length === 3 ? [...h].map((ch) => ch + ch).join('') : h);
@@ -83,6 +84,6 @@ test('fill-only glyphs omit stroke paint while genuinely stroked shapes retain i
 test('SVG sinks enforce the same options as direct serialization', async () => {
   for (const Sink of [StringSink, SnapshotSink]) {
     for (const options of [{ width: 0 }, { background: '" data-audit="yes' }])
-      await assert.rejects(new Sink(options).frame(scene()), /svg (width|background)/);
+      await assert.rejects(new Sink(options).frame(scene()), /toSvgString\(\): (width|background) must/);
   }
 });
