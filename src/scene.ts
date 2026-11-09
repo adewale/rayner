@@ -8,7 +8,7 @@
 import { prepareAnimation, AnimationGroup, animationName } from './animation.ts';
 import { Succession, bindSuccessions, takeCopies, recordEvidence, assertTime, landBegun } from './animation.ts';
 import { beginAnimation, interpolateAnimation, finishAnimation, whenReady, settle, cleanUp, paintTargets } from './animation.ts';
-import { membersOf, runningOf, runTimeOf, rateFuncOf, phaseOf, playOptions } from './animation.ts';
+import { membersOf, runningOf, runTimeOf, rateFuncOf, playOptions, refuseBegun } from './animation.ts';
 import type { ScheduledAnimation, Playable, PlayOptions } from './animation.ts';
 import { paintDefaults, mobjectName, hasUpdaters, replaceChild } from './mobject.ts';
 import type { Mobject } from './mobject.ts';
@@ -870,7 +870,12 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     const isOpts = last && Object.getPrototypeOf(last) === Object.prototype;
     const opts = (isOpts ? list.pop() : {}) as PlayOptions;
     const anims = (list as Playable[]).map(prepareAnimation);
-    if (!anims.length) throw new Error(`this.play(): it was given no animation${isOpts ? ', only options' : ''}; give it one or more, or hold the picture with this.wait()`);
+    // The animations are often a list mapped from the scene's data (`...leaving.map(...)`), whose array
+    // type does not carry its length, so an empty one is a value a type cannot refuse.
+    if (!anims.length) throw new RangeError(`this.play(): it was given no animation${isOpts ? ', only options' : ''}; give it one or more, or hold the picture with this.wait()`);
+    // One still begun, in another scene's play or this one's before, is refused before anything here touches it:
+    // settling would lay out its times again, and binding would move a Succession's later members here.
+    for (const a of anims) refuseBegun(a, 'this.play()');
     // What some animation reads before it can begin (a diagram's layout), a group's members' included: wait for it, once, here.
     const waits = anims.map((a) => a[whenReady]()).filter((r) => r !== null);
     if (waits.length) {
@@ -886,9 +891,8 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     this.#playing = anims;
     this.#held = [];
     // One that throws as it begins leaves none of the others begun: those it began first land.
-    const idle = anims.filter((a) => phaseOf(a) !== 'begun');
     try { perf.span('anim.begin', () => this.#beginAnimations(anims)); }
-    catch (e) { this.#held = []; landBegun(idle, this); throw e; }
+    catch (e) { this.#held = []; landBegun(anims, this); throw e; }
     // From here on, a failure (a member that throws at its turn, what was made at its turn failing to
     // be ready or refused, a frame that throws) lands everything the play began, and nothing waiting
     // begins: no animation is left begun. A stop is no failure: the scene is stopped for good, and

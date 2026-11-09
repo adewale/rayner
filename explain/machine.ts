@@ -142,6 +142,7 @@ export class Machine<S extends object, E extends string> {
 
   constructor(scene: Scene<S, any>, spec: MachineSpec<S, E>) {
     // The spec's shape is its type's to check; what a type cannot say is checked here.
+    // A scene may read its events from its data (a statechart's arrows), as a list whose type does not carry its length.
     if (!spec.events.length) throw new RangeError('new Machine(): it needs at least one event');
     for (const event of spec.events)
       if (!isIdentifier('event', event)) throw new RangeError(`new Machine(): ${JSON.stringify(event)} is not an event name; an event is ${identifierRule('event')}`);

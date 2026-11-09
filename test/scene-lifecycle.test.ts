@@ -406,6 +406,11 @@ test('a Succession finished by its play while a member waits is still begun unti
   assert.deepEqual([group.phase, sq.phase, w.phase], ['begun', 'begun', 'idle'], 'its play finished it, and the group around it; its last member has not begun');
   assert.throws(() => beginAnimation(sq), refusal('this.play()', 'a Succession'));
   assert.throws(() => { sq.runTime = 3; }, /^Error: animation\.runTime: a Succession is playing/);
+  // Played in a second scene, it is refused under the call made, before that scene touches it.
+  const other = new Scene(new NullSink());
+  for (const options of [[], [{ runTime: 2 }]] as const)
+    await assert.rejects(other.play(sq, ...options), refusal('this.play()', 'a Succession'));
+  assert.deepEqual([other.mobjects.length, other.frameCount, sq.runTime], [0, 0, 0.1]);
   read();
   await played;
   assert.deepEqual([group.phase, sq.phase, w.phase], ['finished', 'finished', 'finished']);
@@ -486,8 +491,8 @@ test('an animation\'s run time and lag ratio are fixed while it plays', async ()
 
 test('a play with nothing to play is refused, not drawn as a silent frame', async () => {
   const scene = new Scene(new NullSink());
-  await assert.rejects(scene.play(), /^Error: this\.play\(\): it was given no animation/);
-  await assert.rejects(scene.play({ runTime: 3 }), /^Error: this\.play\(\): it was given no animation, only options/);
+  await assert.rejects(scene.play(), /^RangeError: this\.play\(\): it was given no animation/);
+  await assert.rejects(scene.play({ runTime: 3 }), /^RangeError: this\.play\(\): it was given no animation, only options/);
   assert.equal(scene.frameCount, 0);
   assert.equal(scene.phase, 'idle');
 });
