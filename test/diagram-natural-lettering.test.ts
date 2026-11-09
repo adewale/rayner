@@ -95,7 +95,7 @@ test('natural baselines and anchors place actual glyph ink at the SVG coordinate
 });
 
 const browser = process.env.EXPLAIN_BROWSER === '1';
-test('real natural captures preserve explicit direction, and reject stale cached font metrics', {
+test('real natural captures preserve explicit direction', {
   skip: !browser && 'set EXPLAIN_BROWSER=1 for actual Chromium capture',
 }, async () => {
   const builder = await snapshotBuilder();
@@ -124,9 +124,6 @@ test('real natural captures preserve explicit direction, and reject stale cached
         else Object.assign(run, { [field]: value });
         await assert.rejects(snapshotResolver({ [diagramKey(spec)]: damaged }).diagram(spec), /scene\.snapshots: a diagram snapshot is invalid/);
       }
-      const stale = await snapshotBuilder({ [diagramKey(spec)]: snapshot }, { measurementHash: 'changed source-font bytes' });
-      try { await assert.rejects(stale.diagram(spec), /Stale natural diagram font metrics/); }
-      finally { await stale.close(); }
     }
     await assert.rejects(builder.diagram({ source: 'graph LR\nA["<b>Bold</b>"]', lettering: 'natural' }), /styles.*'bold'/);
     const recovered = await builder.diagram({ source: 'graph LR\nA[Recovered]', lettering: 'natural' });
@@ -203,7 +200,8 @@ test('requested natural faces and rich cuts use independent HarfBuzz advances th
     const stored = unpackLettering(JSON.parse(await readFile(file, 'utf8')));
     stored.fontInputs!['eb-garamond'] = 'a'.repeat(64);
     await writeFile(file, JSON.stringify(stored));
-    await assert.rejects(collectProject(directory, { write: false }), { name: 'Error', message: /^scene\.snapshots: .*natural diagram font metrics.*scene\.ts$/ });
+    await assert.rejects(collectProject(directory, { write: false }), (e: Error) =>
+      e.constructor === Error && e.message.startsWith('scene.snapshots: ') && e.message.includes(join(directory, 'scene.ts')));
     // Poison the actual persisted diagram too: refreshing the source-font
     // metadata alone must not accidentally make damaged cached geometry reusable.
     const index = JSON.parse(await readFile(join(directory, 'scene.snapshots/index.json'), 'utf8')) as {

@@ -275,6 +275,7 @@ export async function collectProject(
         ...(outline ? { measurementHash: outline.measurementHash } : subsetMetrics ? { measurementHash: subsetMetrics } : {}),
         styles: outline?.snapshot.request.styles,
       } : undefined;
+      // The one check of a cached natural diagram's font metrics: its nodes and routes were laid out for them.
       if (previous[key] && metricOptions) {
           const { naturalMeasurementIdentity } = await import('../../integrations/agentic-mermaid/index.ts');
           if (previous[key].textMeasurement?.id !== naturalMeasurementIdentity(metricOptions).id) {
