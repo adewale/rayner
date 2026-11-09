@@ -6,9 +6,11 @@
 //   an options bag      or, for a type named `...Opts` or `...Options`, the signature of a documented
 //                       function, constructor or member that takes or returns it, which an editor shows
 //                       wherever it is called;
-//   a member            `.name` or a span that starts with it (`name(` or `name`), in a section (the text
-//                       under one heading) that also names its owner class in code, or `r.name` for one
-//                       of the receivers the guides write for its owner (RECEIVERS: `s.card`, `d.walk`).
+//   a member            `.name` or a span that starts with it (`name(` or `name`, not `name.ts`), in a
+//                       section (the text under one heading) that also names its owner class in code, or
+//                       `r.name` for one of the receivers the guides write for its owner (RECEIVERS:
+//                       `s.card`, `d.walk`). `r.name` for another class's receiver documents that
+//                       class's member, not this one: `d.labels` is the diagram's, not a card's.
 //
 // A member that overrides an exported ancestor's is the ancestor's name, not one of its own
 // (`FadeOut.begin` is `Animation.begin`), and one that implements an exported interface's is the
@@ -227,9 +229,11 @@ export function documented(n: PublicName, code: string | readonly string[], show
   const sections = typeof code === 'string' ? [code] : code;
   if (n.kind === 'member') {
     const owner = n.name.slice(0, n.name.indexOf('.')), member = escape(n.name.slice(n.name.indexOf('.') + 1));
-    const shows = new RegExp(`\\.${member}(?![\\w$])|(^|\\n)${member}(?![\\w$])`), names = word(owner);
+    const foreign = new Set(Object.entries(RECEIVERS).flatMap(([other, rs]) => (other === owner ? [] : rs)));
+    const dotted = new RegExp(`([\\w$]*)\\.${member}(?![\\w$])`, 'g'), leads = new RegExp(`(^|\\n)${member}(?![\\w$.])`), names = word(owner);
+    const shows = (c: string) => leads.test(c) || [...c.matchAll(dotted)].some(([, receiver]) => !foreign.has(receiver!));
     const receivers = RECEIVERS[owner] && new RegExp(`(?<![\\w$])(${RECEIVERS[owner]!.join('|')})\\.${member}(?![\\w$])`);
-    return sections.some((c) => (shows.test(c) && names.test(c)) || !!receivers?.test(c));
+    return sections.some((c) => (names.test(c) && shows(c)) || !!receivers?.test(c));
   }
   if (sections.some((c) => word(n.name).test(c))) return true;
   return n.kind === 'type' && optionsBag(n.name) && shown.has(n.name);
