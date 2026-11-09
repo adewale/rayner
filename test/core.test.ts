@@ -439,6 +439,34 @@ test('a copy of every mobject class an entry point exports draws as the original
   }
 });
 
+test("a copy of an author's mobject whose class declares an ES private member is refused, naming the class and the member", async () => {
+  class Bars extends Rectangle {
+    #count = 3;
+    override pointArrays(): Float32Array[] { return this.#count ? super.pointArrays() : []; }
+  }
+  class Stepper extends Rectangle {
+    #step(): void { this.shift([1, 0]); }
+    advance(): this { this.#step(); return this; }
+  }
+  const refused = (name: string, member: string) => (e: unknown) => e instanceof TypeError && e.message.startsWith(`class ${name}: `) && e.message.includes(member);
+  class Story extends Scene {
+    override async construct() { await this.play(new FadeIn(new Bars()), { runTime: 0.1 }); }
+  }
+  await assert.rejects(new Story(new NullSink()).run(), refused('Bars', '#count'));
+  assert.throws(() => new Stepper().saveState(), refused('Stepper', '#step'));
+  class SubBars extends Bars {}
+  assert.throws(() => new Group(new SubBars()).copy(), refused('SubBars', '#count'), 'a member a class it extends declares counts');
+  // What a copy does carry: an ordinary field, a TypeScript private one, and a static ES private member, which lives on the class.
+  class Tidy extends Rectangle {
+    static #made = 0;
+    private count = 3;
+    tint = '#cc3300';
+    constructor() { super(); Tidy.#made++; }
+    get counted(): number { return this.count + Tidy.#made * 0; }
+  }
+  assert.equal(new Tidy().copy().counted, 3);
+});
+
 test('restore() and become() take an author\'s fields whatever their names, a leading underscore included', () => {
   class Counter extends Rectangle { _count = 0; count = 0; }
   const c = new Counter();

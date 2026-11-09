@@ -150,8 +150,16 @@ object that still answers to the same key), and clears updaters and saved state.
 without calling the subclass's constructor, which may take any arguments, and then gives it the
 original's own fields, symbol-keyed ones included; an array, map, set or typed array a named field
 holds is copied, so the copy never shares one with the original, while what they hold, and any
-other object, is shared. So a subclass keeps its state in ordinary fields, never in ES private (`#`)
-fields or methods, which no constructor of the copy installs. The engine's own mobject classes keep
+other object, is shared. So a subclass keeps its state in ordinary fields (a TypeScript `private`
+field is one), never in ES private (`#`) fields, methods or accessors, which only the subclass's own
+constructor installs. No design lets a copy carry one: code outside the class can neither read nor
+install another class's `#` member, and running the constructor would need arguments `copy()` does
+not have. So `copy()`, which every transform, fade, saved state, `become` and `.animate` goes through,
+refuses a mobject whose class, or a class between it and `Mobject`, declares one, with a `TypeError`
+that names the class and the member (`class Bars: it declares the ES private member #count, …`)
+rather than the language's own error at the copy's first use. It reads each class's source once to
+find them, so code compiled to emulate `#` members another way still fails at that first use. A
+static `#` member lives on the class and is copied with nothing. The engine's own mobject classes keep
 theirs in ordinary fields or under symbols, and `test/core.test.ts` copies each exported one, plays
 the copy and finds it drawn as the original, and the original unchanged by a change to the copy. A custom composite should expose its
 parts through getters into its own children, as [StatusBadge](../recipes/extensions.ts)

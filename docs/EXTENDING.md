@@ -60,7 +60,9 @@ adding a badge-specific operation to the scene or renderer.
 For a custom class with mutable fields outside its children, read
 [copying and ownership](ENGINE-FUNDAMENTALS.md#ownership-identity-and-copying).
 `copy()` makes the copy without calling your constructor, so keep a mobject's state in ordinary
-fields, never ES private (`#`) fields or methods, which the copy would lack. It gives the copy its
+fields (a TypeScript `private` one is fine), never ES private (`#`) fields or methods, which the copy
+would lack: copying one, as a transform or a fade does, is refused with a `TypeError` that names your
+class and the member. It gives the copy its
 own arrays, maps and sets; copy what they hold, and anything else mutable, in `copyData`. Do not
 assume `copy()` knows how to clone an arbitrary closure or external handle.
 

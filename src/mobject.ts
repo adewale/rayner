@@ -368,10 +368,13 @@ export class Mobject {
    * takes this one's own fields. An array, map, set or typed array a field holds is copied, so the
    * copy never shares one with the original (what they hold is shared); `copyData` copies anything
    * else mutable, and `rebindReferences` names the copy's own children. A subclass keeps its state in
-   * such fields, never in ES private (`#`) fields, which no constructor of the copy installs.
+   * such fields (a TypeScript `private` one included), never in an ES private (`#`) member, which only
+   * the subclass's constructor installs: copying a mobject whose class declares one is refused with a
+   * TypeError naming the class and the member (see refuseHashMembers).
    */
   copy(): this {
     perf.count('copy()');
+    refuseHashMembers(this.constructor);
     const c = Reflect.construct(Mobject, [], this.constructor) as this;
     Object.assign(c, this);
     const fields = c as unknown as Record<string, unknown>;
@@ -841,6 +844,45 @@ function takeChildren(m: Mobject, from: Mobject): void {
   setKids(m, kids(from));
   setKids(from, []);
   for (const c of kids(m)) setParent(c, m);
+}
+
+/**
+ * For each mobject class copied so far, the first ES private (`#`) instance member it or a class
+ * between it and Mobject declares, or null: read once per class from its source, so a copy pays one
+ * map lookup. Any engine path that copies (a transform's target, a fade, saveState, become, `.animate`)
+ * goes through copy(), which no subclass constructor runs, so such a member would be missing from the
+ * copy and its first use would throw the language's own TypeError, far from the class at fault.
+ */
+const hashMembers = new WeakMap<object, string | null>();
+
+/** Refuse to copy an instance of `C` when its class declares an ES private instance member (see hashMembers). */
+function refuseHashMembers(C: Function): void {
+  let member = hashMembers.get(C);
+  if (member === undefined) {
+    member = null;
+    for (let k: Function | null = C; k && k !== Mobject && !member; k = Object.getPrototypeOf(k) as Function | null)
+      member = declaredHashMember(Function.prototype.toString.call(k));
+    hashMembers.set(C, member);
+  }
+  if (member) {
+    const where = `class ${C.name || '(anonymous)'}`;
+    throw new TypeError(`${where}: it declares the ES private member ${member}, which a copy of the mobject cannot carry (a transform, a fade and a saved state copy it without running its constructor); keep that state in an ordinary field, such as a TypeScript \`private ${member.slice(1)}\``);
+  }
+}
+
+/**
+ * The first ES private instance member a class's source both declares and reads or writes on an
+ * object (`this.#count`, `other.#count`, `#count in o`), or null. A static one (`static #cache`) is
+ * left out: it lives on the class, not on its instances.
+ */
+function declaredHashMember(source: string): string | null {
+  const name = String.raw`#[A-Za-z_$][\w$]*`;
+  const used = new Set([...source.matchAll(new RegExp(String.raw`\??\.\s*(${name})|(${name})\s+in\b`, 'g'))].map((m) => (m[1] ?? m[2])!));
+  const declaredStatic = new Set([...source.matchAll(new RegExp(String.raw`\bstatic\s+(?:(?:async|get|set)\s+|\*\s*)*(${name})`, 'g'))].map((m) => m[1]!));
+  // Declared in this class: a member name written without a receiver (`#count = 0;`, `#step() {`).
+  const declared = new Set([...source.matchAll(new RegExp(String.raw`(?<![\w$.#'"\x60])(${name})[ \t]*[=;:(!?}\r\n]`, 'g'))].map((m) => m[1]!));
+  for (const n of used) if (declared.has(n) && !declaredStatic.has(n)) return n;
+  return null;
 }
 
 /** `v`, or its own copy when it is an array, a map, a set or a typed array (see Mobject.copy). */
