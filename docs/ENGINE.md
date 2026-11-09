@@ -63,7 +63,7 @@ A constant more than one layer needs has one source, a leaf module: the frame, i
 
 Where the code departs from the stack:
 
-- **The kit names the stage's type.** Each kit function takes the stage `s` first, to read its colours and text shaping, so `drawing.ts` imports the `Stage` type. Its values come only from the core and the engine; the test allows that one type import and no other. The stage's `s.callout` draws with `annotate.ts`, the module the kit's `callout` is drawn with, rather than by calling the kit's function.
+- **The kit names the stage's type.** Each kit function takes the stage `s` first, to read its colours and text shaping, so `drawing.ts` imports the `Stage` type. Its values come only from the core and the engine; the test allows that one type import and no other.
 - **The engine carries a step's caption, what is shown, and the trace's JSON hooks.** `src/scene.ts` keeps them because the engine's own work reads them:
   - The caption-reading hold (`StepMeta.caption`, `Scene.captionWpm`, `Step.hold`) is part of the timeline. It adds frames to every captioned step of every scene, with a stage or without one (the command and the player run both), and seeking, the trace and the player stop at it. Moving its arithmetic into `explain/` would need each scene to register it, through a stage every scene must make before its first step or a base class every scene must extend, and a scene that missed it would play a different timeline from the same source.
   - `scene.shown` is half of the typed scene, `Scene<Model, Shown>`, which views, machines and staged steps take their types from, and the trace records it at the end of every step beside the state. Moving it means a base class from the explain layer for every scene.

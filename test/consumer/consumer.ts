@@ -398,7 +398,7 @@ export class Composed extends Scene {
     const entry: Action<Card> = s.card([['count', 1]], { at: 'end' });
     const card: Card = entry.value;
     await this.play(s.focus(d.get('A')), entry, new FadeIn(new Rectangle({ width: 1, height: 1 }), { runTime: 0.9 }));
-    await this.play(new Succession([d.walk([['A', 'B']]), s.callout(card, 'one'), s.focus('all')]));
+    await this.play(new Succession([d.walk([['A', 'B']]), new Create(s.keep(callout(s, card, 'one')), { runTime: 0.6 }), s.focus('all')]));
     const panel: CodeBlock = code(s, ['x = 1']);
     const walked: Action = d.walk([['A', 'B']]);
     await this.play(new AnimationGroup([walked, s.enter(panel)]));

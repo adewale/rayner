@@ -212,8 +212,8 @@ place: a picture that changes is drawn by a view, and what it marks comes from t
 from `shown` when it is presentation rather than model. A draw is synchronous and builds its
 picture whole, so each has a builder a draw can call, which puts the mark in the picture and
 lets the part describe itself. The drawing kit builds cards, code panels and annotations
-(`card`, `code` and `callout` from `rayner/drawing`); the stage's `s.card`, `s.code` and
-`s.callout` enter the same pictures for a part that does not change.
+(`card`, `code` and `callout` from `rayner/drawing`); the stage's `s.card` and `s.code`
+enter the same pictures for a part that does not change, and `s.enter` or `s.keep` any other.
 
 ```ts
 import { view, having } from 'rayner/explain';
@@ -275,8 +275,8 @@ afterwards, which shows it by the same view. A walk runs over the view as it is;
   the picture, the frame's too; marks, notes and dimming still
   name parts by their ids in the diagram.
 - **Annotations without the camera.** `callout`, `dimension` and `pin` build at the draw's own
-  coordinates and size. The stage's helpers build the same pictures in screen coordinates while
-  the camera is away, so prefer the helpers for an annotation drawn into a zoomed view.
+  coordinates and size, so a camera moved closer shows them larger, as it shows the rest of the
+  picture.
 
 ## Other readouts
 

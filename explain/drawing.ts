@@ -322,13 +322,11 @@ export function bars(
 }
 
 // Annotations: pictures that say a value where it is, built in world coordinates, for a view's or a
-// staged step's draw, or for s.enter, beside the parts they annotate. s.callout builds a callout with
-// the same function from the points the camera shows, then maps it to the screen, so with the camera
-// moved it is still at its size on screen; at home the two are the same picture.
+// staged step's draw, or for s.enter or s.keep, beside the parts they annotate.
 
 /**
  * Words beside a target (a point, a box or a mobject) with a leader line from the words to the
- * target's nearest edge, ending in a dot, on the stage's paper: `s.callout`'s picture. `gap` is how
+ * target's nearest edge, ending in a dot, on the stage's paper. `gap` is how
  * far the words stand off the target. Keyed `key` when given, with its parts `key:line`, `key:dot`,
  * `key:backing` and `key:text`. Described by its words.
  */

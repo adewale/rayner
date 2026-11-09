@@ -1,18 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  Scene,
-  Rectangle,
-  Text,
-  FadeIn,
-  Transform,
-  Succession,
-  } from '../src/index.ts';
+import { Scene, Rectangle, Text, FadeIn } from '../src/index.ts';
 import { NullSink, StringSink, renderFrame, toSvgString } from '../src/output.ts';
 import { MotionSink, analyzeMotion } from '../explain/testing.ts';
 import type { Box, Mobject } from '../src/index.ts';
 import { stage } from '../explain/index.ts';
-import type { Stage } from '../explain/index.ts';
 import { bindSnapshots } from '../explain/testing.ts';
 import { diagramKey, RENDERER } from '../explain/diagram-snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
@@ -113,39 +105,6 @@ test('s.focus moves the camera, not the diagram; a view’s notes, marks, dims a
     }
   }
   await new (bound(Zoom))(new NullSink()).run();
-});
-
-test('the stage follows a camera the scene moves itself: a callout after a raw frame move is sized as after s.focus', async () => {
-  // A 16:9 box a quarter of the stage wide: the camera's map scales by 0.25 about the box's centre.
-  const box: Box = [-1, -0.625, 3, 1.625];
-  const calloutAfter = async (move: (scene: Scene, s: Stage) => PromiseLike<unknown>, composed = false) => {
-    let drawn: number[][] = [];
-    class Noted extends Scene {
-      override async construct() {
-        const s = stage(this, { heading: false });
-        await this.step('one');
-        if (composed) {
-          // Composed with the move, the callout is decided when it is called: for the camera then, at home.
-          const note = s.callout([1, 0.5], 'here');
-          await this.play(new Succession([s.focus(box, { exact: true }), note]));
-          drawn = pointsOf([note.value]);
-        } else {
-          await move(this, s);
-          drawn = pointsOf([await s.callout([1, 0.5], 'here')]);
-        }
-        this.state.done = true;
-      }
-    }
-    await new Noted(new NullSink()).run();
-    return drawn.flat();
-  };
-  const close = (a: number[], b: number[]) => a.length === b.length && a.every((v, i) => Math.abs(v - b[i]!) < 1e-4);
-  const home = await calloutAfter(async () => {});
-  const focused = await calloutAfter((_scene, s) => s.focus(box, { exact: true }));
-  const raw = await calloutAfter((scene) => scene.play(new Transform(scene.frame, scene.frame.copy().fit(box, { margin: 0 }))));
-  assert.ok(!close(focused, home), 'a callout while zoomed is sized for the screen');
-  assert.ok(close(raw, focused), 'a raw camera move sizes the callout as s.focus does');
-  assert.ok(close(await calloutAfter(async () => {}, true), home), 'a callout composed after a focus is decided when called');
 });
 
 test('an enlargement does not depend on the camera', async () => {

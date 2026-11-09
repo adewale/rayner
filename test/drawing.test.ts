@@ -55,18 +55,14 @@ test('keyedParts keys each part in order, groups them, and refuses a key used tw
   assert.throws(() => p.add(new Circle(), 'slot:0'), /keyedParts\(\)\.add\(\): two parts are keyed "slot:0"/);
 });
 
-test('callout builds the picture s.callout draws in, and dimension and pin describe themselves', async () => {
+test('callout keys its parts, and dimension and pin describe themselves', async () => {
   const { Scene, Rectangle } = await import('../src/index.ts'); const { NullSink } = await import('../src/output.ts'); const { loadFonts } = await import('../explain/testing.ts');
   const { describesItself, seenSource } = await import('../explain/look.ts');
   await loadFonts();
   const s = stage(new Scene(new NullSink()));
-  const { paintDefaults } = await import('../src/mobject.ts');
-  // As each part would be on the stage: a colour left out takes the stage's when the picture enters it.
-  const points = (m: import('../src/index.ts').Mobject) => (paintDefaults(m, s.scene.colors), JSON.stringify(m.family().map((x) => [x.constructor.name, x.box(), x.style])));
   const target = new Rectangle({ width: 1, height: 0.5 }).moveTo([1, 1]);
   const built = drawing.callout(s, target, 'here', { side: 'above', gap: 0.3, key: 'note' });
   assert.equal(built.key, 'note');
-  assert.equal(points(built), points(await s.callout(target, 'here', { side: 'above', gap: 0.3 })));
   const line = drawing.dimension(s, [0, 0], [2, 0], '2 units', { offset: -0.4 });
   assert.deepEqual(built.children.map((m) => m.key), ['note:line', 'note:dot', 'note:backing', 'note:text']);
   const stuck = drawing.pin(s, [3, 1], { label: 'centre', key: 'stuck' });

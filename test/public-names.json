@@ -533,12 +533,13 @@
     {
       "explaining": "A drawing made by hand, values said on it",
       "start": "`pen-and-pencil`",
-      "shows": "`s.sketch` with a pen and pencil, `s.focus` on the camera, `s.carry`, the kit's `dimension` and `s.callout` instead of cards",
+      "shows": "`s.sketch` with a pen and pencil, `s.focus` on the camera, `s.carry`, the kit's `dimension` and `callout` instead of cards",
       "scenes": [
         "pen-and-pencil"
       ],
       "names": [
-        "dimension"
+        "dimension",
+        "callout"
       ]
     },
     {

@@ -2,7 +2,7 @@ import { Scene, FadeIn, FadeOut, Create, keyed } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, view, having } from '../../../explain/index.ts';
 import type { ExplainerMeta } from '../../../explain/index.ts';
-import { emphasised, dimension } from '../../../explain/drawing.ts';
+import { emphasised, dimension, callout } from '../../../explain/drawing.ts';
 import { sunlight, daylightYear, noonShare, noonPatch, sunDistance, declinationOn } from './model.ts';
 import {
   SUN, TILT, R, CY, JUNE_C, DEC_C,
@@ -130,15 +130,16 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
       const S = sideOf(now(), month, colours),
         r = month === 'June' ? now().june : now().december!;
       const { mid, gap } = daylightAnchor(S);
-      const callout = await s.callout(mid, `${hours(r.daylight)} of daylight`, {
+      const note = s.keep(callout(s, mid, `${hours(r.daylight)} of daylight`, {
         side: 'below', gap, color: SUN, size: 0.28, key: `${S.month.toLowerCase()}-daylight-callout`,
-      });
+      }));
+      await this.play(new Create(note, { runTime: 0.6, lagRatio: 0.15 }));
       if (r.altitude <= 0) {
-        const below = belowHorizonNote(callout, r.altitude, soft);
-        callout.add(below);
+        const below = belowHorizonNote(note, r.altitude, soft);
+        note.add(below);
         await this.play(new FadeIn(below, { runTime: 0.2 }));
       }
-      return callout;
+      return note;
     };
     /** A solstice's globe and its noon ray, each a view of the state, described from it. */
     const solstice = (month: 'June' | 'December') => {
@@ -416,14 +417,11 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
       );
       await this.play(new Create(polar, { runTime: 0.6, lagRatio: 0.1 }));
       said.push(polar);
-      if (polarNight)
-        said.push(
-          await s.callout(axes.c2p(xOn(EVENTS[3].day), 0), `${now().polarNight} days at 0 h`, {
-            side: 'above',
-            gap: 1.1,
-            size: 0.22,
-          }),
-        );
+      if (polarNight) {
+        const night = s.keep(callout(s, axes.c2p(xOn(EVENTS[3].day), 0), `${now().polarNight} days at 0 h`, { side: 'above', gap: 1.1, size: 0.22 }));
+        await this.play(new Create(night, { runTime: 0.6, lagRatio: 0.15 }));
+        said.push(night);
+      }
     } else if (longest - shortest >= 0.05) {
       // From the hours as printed, so the label is the difference the reader can take.
       const spread = hours(tenths(longest) - tenths(shortest));
