@@ -342,9 +342,9 @@ export interface InvariantFailure {
  */
 export class InvariantSink implements Sink {
   readonly inner: Sink | null;
-  failures: InvariantFailure[];
-  checked: Map<string, number>;
-  held: Map<string, number>;
+  readonly failures: InvariantFailure[];
+  readonly checked: Map<string, number>;
+  readonly held: Map<string, number>;
   constructor(inner: Sink | null = null) { this.inner = inner; this.failures = []; this.checked = new Map(); this.held = new Map(); }
 
   /** The invariants that ran on some frame and held on none: invariants that tested nothing. */

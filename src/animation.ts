@@ -371,7 +371,7 @@ export interface TransformOptions extends AnimOptions {
 /** Blend `mobject` into `target`. With replace=true, the scene keeps `target` afterwards. */
 export class Transform extends Animation {
   target: Mobject;
-  replace: boolean;
+  readonly replace: boolean;
   /** The target was built for this animation alone, so begin() may use it without copying. @internal */
   ownsTarget: boolean;
   /** The target is a copy of the mobject: same structure, no alignment needed. @internal */
@@ -754,7 +754,7 @@ export interface MoveAlongPathOptions extends AnimOptions { fromCurrent?: boolea
  */
 export class MoveAlongPath extends Animation {
   path: VMobject;
-  fromCurrent: boolean;
+  readonly fromCurrent: boolean;
   /** @internal Set by begin(). */
   offset!: Vec;
 
@@ -853,12 +853,12 @@ const CIRCUMSCRIBE_DRAWN = 2 / 3;
  * target's box at begin(), when the play starts.
  */
 export class Circumscribe extends Animation {
-  target: Mobject | Box;
-  shape: 'rect' | 'circle';
-  buff: number;
-  cornerRadius: number;
-  keep: boolean;
-  fadeOut: boolean;
+  readonly target: Mobject | Box;
+  readonly shape: 'rect' | 'circle';
+  readonly buff: number;
+  readonly cornerRadius: number;
+  readonly keep: boolean;
+  readonly fadeOut: boolean;
   /** The outline's opacity when the play began: what drawing in reaches. Set by begin(). @internal */
   baseOpacity!: number;
 
@@ -965,7 +965,7 @@ export class Restore extends Transform {
  * `play(new Create(a), new TransformFromCopy(a, b))` are fine.
  */
 export class TransformFromCopy extends Transform {
-  source: Mobject;
+  readonly source: Mobject;
   /** The copy takeCopy() made for the next begin(), or null. */
   private taken: Mobject | null;
 
@@ -1459,12 +1459,12 @@ interface Carry { k: number; bx: number; by: number }
  * modified. See docs/MATCHING.md.
  */
 export class TransformMatching extends Animation {
-  target: Mobject;
+  readonly target: Mobject;
   key: MatchKey;
-  fadeMismatches: boolean;
-  ordered: boolean;
-  replace: boolean;
-  staged: boolean;
+  readonly fadeMismatches: boolean;
+  readonly ordered: boolean;
+  readonly replace: boolean;
+  readonly staged: boolean;
   // Set by begin(), in source order: [source part, target part]
   /** Parts paired by key. */
   pairs!: Array<[Mobject, Mobject]>;
@@ -1915,8 +1915,8 @@ export interface LinePlan { same: Array<[number, number]>; changed: Array<[numbe
  * `{ kind: 'diff', hunks, lines, ...summary() }` (see Scene.record).
  */
 export class TransformDiff extends TransformMatching {
-  before: Code;
-  after: Code;
+  readonly before: Code;
+  readonly after: Code;
   /** The hunks given to the constructor, or null to compute them. @internal */
   given: readonly Hunk[] | null;
   // Set by begin()
@@ -1924,7 +1924,7 @@ export class TransformDiff extends TransformMatching {
   hunks!: Hunk[];
   plan!: LinePlan;
   /** Each paired glyph's key; every other part has none, so it fades. */
-  keys: Map<Mobject, string>;
+  readonly keys: Map<Mobject, string>;
 
   constructor(before: Code, after: Code, { hunks, ...opts }: TransformDiffOptions = {}) {
     const keys = new Map<Mobject, string>();

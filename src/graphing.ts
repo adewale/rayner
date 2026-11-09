@@ -74,9 +74,9 @@ const TICK_SIZE = 0.1;
  * that is the order Create draws them in.
  */
 export class NumberLine extends Group {
-  min: number;
-  max: number;
-  step: number;
+  readonly min: number;
+  readonly max: number;
+  readonly step: number;
   /** Child index of the tip, or -1. @internal */
   tipIdx: number;
 
@@ -218,8 +218,8 @@ export interface GuideLineOptions extends Style {
 export class Axes extends Group {
   readonly shaping: TextShaping | undefined;
   /** The x and y values where the axes cross. */
-  crossX: number;
-  crossY: number;
+  readonly crossX: number;
+  readonly crossY: number;
   private xLabelIdx: number;
   private yLabelIdx: number;
 

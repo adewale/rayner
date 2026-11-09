@@ -176,7 +176,7 @@ export class Mobject {
   /** @internal The state saveState() stored, for restore() and Restore. Copies do not carry it. */
   declare saved?: Mobject;
   /**
-   * The style fields that still hold an engine default, and the scene colour each takes: a
+   * @internal The style fields that still hold an engine default, and the scene colour each takes: a
    * `Text` built without a `color` has `{ fill: 'ink' }`, a `SurroundingRectangle` without a
    * `stroke` has `{ stroke: 'emphasis' }`. When the mobject first enters a scene (`scene.add`, a play
    * that targets it, or a parent already in one), each field still holding the neutral value

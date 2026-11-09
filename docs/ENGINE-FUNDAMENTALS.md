@@ -47,8 +47,8 @@ transform matrix whose effect an inspector must reconstruct.
 and `closePath()` build paths, and `setPolygon(corners)` builds a closed polygon.
 Use them, or the transforms above, rather than writing a point buffer yourself: they
 keep the render cache and the cached layout bounds current, and a buffer written in
-place leaves both stale. A shape of your own builds its points in `initPoints()`,
-which its constructor calls.
+place leaves both stale. A shape of your own builds its points in its constructor, after
+`super()`.
 
 A path is `subpaths`, one `Float32Array` of cubic Bézier points per subpath (its
 start, then three points per curve), with `closed` saying which are closed; read
@@ -83,8 +83,8 @@ and stroke to one colour. `Create` uses the transient `drawFraction` to reveal a
 Changing `style` or point arrays behind the supported methods risks stale caches.
 
 A colour left out takes the scene's. `scene.colors` holds five (`paper`, `ink`, `soft`,
-`emphasis`, `bad`), and a part built without a colour is marked with the role it takes
-(`defaultColors`, each a `ColorRole`): text, lines, arrows and axes take `ink`, guide lines and a readout's keys
+`emphasis`, `bad`), and a part built without a colour is marked, internally, with the role it takes
+(a `ColorRole`): text, lines, arrows and axes take `ink`, guide lines and a readout's keys
 `soft`, `SurroundingRectangle`, `Circumscribe` and plotted data `emphasis`, and `Cross` `bad`.
 When the part first enters the scene (`scene.add`, a play that draws it or morphs toward it, or
 a parent already on stage), each field still holding its default takes the scene's colour, and a

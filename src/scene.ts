@@ -272,7 +272,7 @@ type Held<S> = unknown extends S ? any : { [K in keyof S]: S[K] };
 export class Scene<S extends object = SceneState, Sh extends object = SceneState> {
   /** @internal Where frames and step boundaries go (the constructor's sink). */
   sink: Sink;
-  fps: number;
+  readonly fps: number;
   /**
    * @internal Frames that end before this time are counted, not rendered: the sink's `skipUntil`,
    * its one writer, or 0 when it has none. NaN or a negative time is refused here, where every play
@@ -290,7 +290,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   mobjects: Mobject[];
   time: number;
   frameCount: number;
-  steps: Step[];
+  readonly steps: Step[];
   private current: Step | null;
   /** The model: what the explanation is about (a bucket's tokens, a statechart's configuration). JSON. */
   state: NoInfer<Held<S>>;
@@ -306,7 +306,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    */
   declare readonly [sceneTypes]?: { state: S | Record<string, any>; shown: Sh | Record<string, any> };
   /** Every Scene.record() so far, in order, across steps. */
-  evidence: Evidence[];
+  readonly evidence: Evidence[];
   /**
    * The camera: which box of the scene is on screen (see frame.ts). Held here,
    * not in `mobjects`: it is never drawn, and every walk over `mobjects`

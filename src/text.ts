@@ -98,20 +98,25 @@ class Glyph extends VMobject {
 // (only Regular faces are embedded).
 const BOLD_STROKE = 0.045;
 
+/** The one writer of a built Text's `text`, which is read-only to everything else. */
+const writeText = (t: Text, text: string): void => { (t as { text: string }).text = text; };
+
 /** A shaped run's metrics, in scene units at `fontSize`. */
 export interface RunMetrics { width: number; ascent: number; descent: number; fontSize: number }
 
 export class Text extends Group {
-  text: string;
+  /** The string shown. setText() replaces it and lays out the glyphs again. */
+  readonly text: string;
   readonly shaping: TextShaping | undefined;
   readonly italic: boolean;
+  /** @internal MathTex's display mode; a formula's glyphs have no clusters. */
   readonly formula: {display: boolean} | undefined;
-  font: FontName;
-  fontSize: number;
-  weight: 'normal' | 'bold';
+  readonly font: FontName;
+  readonly fontSize: number;
+  readonly weight: 'normal' | 'bold';
   anchor: 'start' | 'middle' | 'end';
   /** Tab stops every this many columns, or undefined: see TextOptions. `text` keeps the tabs, and so do glyph clusters: they index `text`. */
-  tabWidth: number | undefined;
+  readonly tabWidth: number | undefined;
   /** @internal Set by build(), which the constructor calls. */
   run!: RunMetrics;
   /**
@@ -143,7 +148,7 @@ export class Text extends Group {
     this.shift([-this.run.width / 2, -(this.run.ascent - this.run.descent) / 2]);
   }
 
-  /** Lay out glyphs with the pen at the origin and the baseline at y = 0. */
+  /** @internal Lay out glyphs with the pen at the origin and the baseline at y = 0. */
   build(text: string, fontSize: number, style: Style, defaults?: Mobject['defaultColors']): void {
     const { shaped, source } = shapedForm(text, this.tabWidth);
     const run = this.shapeRun(shaped, fontSize);
@@ -240,7 +245,7 @@ export class Text extends Group {
     // The new glyphs keep the old ones' style, and any colour they still take from the scene.
     const style: Style = first ? { ...first.style } : { fill: NEUTRAL_COLORS.ink, stroke: 'none' };
     const defaults = first ? first.defaultColors : { fill: 'ink' as const };
-    this.text = text;
+    writeText(this, text);
     if (this.plain()) {
       this.build(text, this.textSize(), style, defaults);
     } else {
@@ -263,7 +268,7 @@ export class Text extends Group {
   /** Glyphs morph pairwise (Transform aligns them); the string itself switches when the morph lands. */
   override interpolate(a: Mobject, b: Mobject, alpha: number): this {
     super.interpolate(a, b, alpha);
-    if (alpha >= 1 && b instanceof Text) { this.text = b.text; this.run = b.run; }
+    if (alpha >= 1 && b instanceof Text) { writeText(this, b.text); this.run = b.run; }
     return this;
   }
 }
@@ -273,9 +278,9 @@ export interface DecimalNumberOptions extends TextOptions { decimals?: number; p
 /** A number that animates: Transform blends `value`; the glyphs are re-shaped each frame. */
 export class DecimalNumber extends Text {
   value: number;
-  decimals: number;
-  prefix: string;
-  suffix: string;
+  readonly decimals: number;
+  readonly prefix: string;
+  readonly suffix: string;
 
   constructor(value: number, { decimals = 0, prefix = '', suffix = '', ...opts }: DecimalNumberOptions = {}) {
     super(DecimalNumber.format(value, decimals, prefix, suffix), opts);
