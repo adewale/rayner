@@ -4,7 +4,8 @@
 // leaves it out (stripInternal), so a scene or a scene's test that uses an implementation detail, or
 // reaches a module no entry point exports, fails here.
 import { execFile } from 'node:child_process';
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, symlink, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 import { packageImports } from '../../lib/entry-points.ts';
@@ -42,7 +43,8 @@ const options = {
  * folder's tests) and recipes/ from `root` into `project`/authored, engine imports rewritten to the
  * package's entry points, and type-check them with `tsc` against the rayner installed in `project`.
  * Scenes see no Node types; their tests and the recipes run in Node, so they see Node's, from
- * `root`'s @types/node, and the tests' own packages (fast-check, Agentic Mermaid) from `root`.
+ * `root`'s @types/node. The tests' own packages are the project's: Agentic Mermaid comes with
+ * rayner-cli, and fast-check, which an author adds for property tests, is linked from `root`.
  * Throws with tsc's report on an error.
  */
 export async function typeCheckAuthored(root: string, project: string, tsc: string): Promise<{ scenes: number; tests: number; recipes: number }> {
@@ -59,9 +61,10 @@ export async function typeCheckAuthored(root: string, project: string, tsc: stri
   const recipes = (await readdir(join(root, 'recipes'))).filter((f) => f.endsWith('.ts')).sort();
   for (const file of recipes) await copy(join(root, 'recipes', file), join(out, 'recipes', file));
   const node = { types: ['node'], typeRoots: [join(root, 'node_modules/@types')] };
+  if (!existsSync(join(project, 'node_modules/fast-check'))) await symlink(join(root, 'node_modules/fast-check'), join(project, 'node_modules/fast-check'), 'dir');
   await writeFile(join(out, 'tsconfig.scenes.json'), JSON.stringify({ compilerOptions: { ...options, types: [] }, include: ['scenes/**/*.ts'], exclude: support.map((f) => `scenes/${f}`) }));
   await writeFile(join(out, 'tsconfig.tests.json'), JSON.stringify({
-    compilerOptions: { ...options, ...node, resolveJsonModule: true, paths: Object.fromEntries(['fast-check', 'agentic-mermaid', 'agentic-mermaid/*'].map((name) => [name, [join(root, 'node_modules', name)]])) },
+    compilerOptions: { ...options, ...node, resolveJsonModule: true },
     include: tests.map((f) => `scenes/${f}`),
   }));
   await writeFile(join(out, 'tsconfig.recipes.json'), JSON.stringify({ compilerOptions: { ...options, ...node }, include: ['recipes/*.ts'] }));
