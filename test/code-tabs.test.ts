@@ -7,7 +7,8 @@ import { Code, Text, TransformDiff, TransformMatchingText } from '../src/index.t
 import { loadFonts } from '../explain/testing.ts';
 import { expandTabs } from '../src/text.ts';
 import { fc, params } from './lib/pbt.ts';
-import { readFileSync } from 'node:fs';
+import { textShaping } from '../src/lettering-outlines.ts';
+import type { LetteringProvider } from '../src/lettering-outlines.ts';
 import type { Box, Mobject } from '../src/index.ts';
 // Manim's values, which the package no longer exports.
 const RED = '#fc6255';
@@ -96,7 +97,7 @@ test('TransformMatchingText keys tabbed and astral glyphs by their own character
   }
 });
 
-test('one tab expansion: tabs reach the next stop by grapheme, every code point maps back, and lettering runs shape the same form', () => {
+test('one tab expansion: tabs reach the next stop by grapheme, and every code point maps back', () => {
   const unit = fc.constantFrom('\t', 'a', 'é', 'e\u0301', '😀', ' ', '中');
   fc.assert(fc.property(fc.array(unit, { maxLength: 12 }), fc.integer({ min: 1, max: 8 }), (units, width) => {
     const line = units.join('');
@@ -118,8 +119,21 @@ test('one tab expansion: tabs reach the next stop by grapheme, every code point 
     assert.equal(kept.source.length, [...line].length);
   }), params());
   assert.deepEqual(expandTabs('e\u0301\tx', 4), { text: 'e\u0301   x', source: [0, 1, 2, 2, 2, 3] });
-  // Lettering runs map their clusters through this function, not a copy of it.
-  const outlines = readFileSync(new URL('../src/lettering-outlines.ts', import.meta.url), 'utf8');
-  assert.match(outlines, /import \{[^}]*\bexpandTabs\b[^}]*\} from '\.\/text\.ts'/);
-  assert.doesNotMatch(outlines, /'\\t'|Intl\.Segmenter/, 'no tab stop or grapheme split of its own');
+});
+
+test('a lettered line maps tabbed runs to the same clusters as an unlettered one, and keys each glyph by the cluster it draws', () => {
+  // A provider that shapes as the embedded fonts do: only where lettering maps runs back to the line differs.
+  const provider: LetteringProvider = { shape: (_font, text, size, fallback) => fallback(text, size), math: () => { throw new Error('no maths here'); } };
+  // An astral character and a combining sequence before a tab: a tab stop counted by code unit or code point lands elsewhere.
+  const lines = ['\tx = 1;', 'a\t😀\treturn é;', '\t\te\u0301\t中 x'];
+  const plain = new Code(lines), lettered = new Code(lines, { shaping: textShaping(provider) });
+  lettered.lines.forEach((line, i) => {
+    assert.deepEqual(line.children.map(cluster), plain.lines[i]!.children.map(cluster), `line ${i}: the same clusters`);
+    // Each glyph is keyed by the character it draws and how many glyphs draw that character.
+    const graphemes = new Map([...new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(line.text)].map((g) => [g.index, g.segment]));
+    for (const g of line.children) {
+      const drawnBy = line.children.filter((h) => cluster(h) === cluster(g)).length;
+      assert.equal(line.clusterKey(cluster(g)), `${line.font} ${line.weight} ${graphemes.get(cluster(g))} ×${drawnBy}`, `line ${i}, ${JSON.stringify(charOf(g))}`);
+    }
+  });
 });
