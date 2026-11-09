@@ -26,7 +26,6 @@ import { regionBox, boxCenter, raised, emphasis, dimOpacity, emphasises, selfDes
 import type { Region } from './look.ts';
 import { resolverOf, diagramKey, diagramFindings, SVG_PX_PER_UNIT } from './diagram-snapshot.ts';
 import { outlineText } from './diagram-text.ts';
-import type { Side } from './annotate.ts';
 import { recordWalk } from './trace.ts';
 import { wordsOf, wordsFor, familyNames } from './words.ts';
 import type { Words } from './words.ts';
@@ -38,6 +37,9 @@ import type {
   SnapshotPart,
   MutationOp,
 } from './diagram-snapshot.ts';
+
+/** Which side of its target a diagram's note or the kit's callout stands. */
+export type Side = 'above' | 'below' | 'left' | 'right';
 
 export interface ShowOptions {
   /** Where the diagram fits: a stage region name or [minX, minY, maxX, maxY]. */
