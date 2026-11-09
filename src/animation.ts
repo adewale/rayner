@@ -110,12 +110,14 @@ export const playsOn = Symbol('playsOn');
  * a Succession and an animation that runs another begin, draw and finish it through these, which keep
  * its private phase and call only its protected hooks. The class has no public lifecycle method, so
  * nothing an author writes on an animation (a method, a field, an assignment) is called in their place.
+ * `api` is the author's call a refusal names: `this.play()`, which every play, group and Succession
+ * runs under, unless sampleAnimation() says otherwise.
  */
-export let beginAnimation: (a: ScheduledAnimation) => void;
+export let beginAnimation: (a: ScheduledAnimation, api?: string) => void;
 /** @internal See beginAnimation. */
-export let interpolateAnimation: (a: ScheduledAnimation, alpha: number) => void;
+export let interpolateAnimation: (a: ScheduledAnimation, alpha: number, api?: string) => void;
 /** @internal See beginAnimation. */
-export let finishAnimation: (a: ScheduledAnimation, alpha?: number) => void;
+export let finishAnimation: (a: ScheduledAnimation, alpha?: number, api?: string) => void;
 /**
  * @internal What a play reads of an animation's timing and life, read from its private fields, so no
  * getter a subclass writes stands in for them.
@@ -175,9 +177,9 @@ abstract class AnimationTiming {
     this.#runTime = runTime; this.#lagRatio = lagRatio; this.#rateFunc = rateFunc; this.#remover = remover;
   }
   static {
-    beginAnimation = (a) => a.#begin();
-    interpolateAnimation = (a, alpha) => a.#interpolate(alpha);
-    finishAnimation = (a, alpha) => a.#finish(alpha);
+    beginAnimation = (a, api = 'this.play()') => a.#begin(api);
+    interpolateAnimation = (a, alpha, api = 'this.play()') => a.#interpolate(alpha, api);
+    finishAnimation = (a, alpha, api = 'this.play()') => a.#finish(alpha, api);
     runTimeOf = (a) => a.#runTime;
     rateFuncOf = (a) => a.#rateFunc;
     phaseOf = (a) => a.#phaseNow();
@@ -228,21 +230,21 @@ abstract class AnimationTiming {
   }
 
   /** Begin: fix the endpoints (see doBegin). Refused while begun; a doBegin() that throws leaves the phase as it was. */
-  #begin(): void {
+  #begin(api: string): void {
     if (this.#phaseNow() === 'begun')
-      throw new Error(`animation.begin(): ${animationName(this)} has already begun${this.#phase === 'finished' ? ', and its members still finish in turn' : ''}; an animation plays in one place at a time, so make another for the second`);
+      throw new Error(`${api}: ${animationName(this)} has already begun${this.#phase === 'finished' ? ', and its members still finish in turn' : ''}; an animation plays in one place at a time, so make another for the second`);
     const was = this.#phase;
     this.#phase = 'begun';
     try { this.doBegin(); } catch (e) { this.#phase = was; throw e; }
   }
   /** Draw the frame at `alpha`, already passed through rateFunc by the caller (see doInterpolate). Only while begun. */
-  #interpolate(alpha: number): void {
-    if (this.#phase !== 'begun') throw new Error(`animation.interpolate(): ${animationName(this)} ${this.#phase === 'idle' ? 'has not begun' : 'has finished'}; begin it first`);
+  #interpolate(alpha: number, api: string): void {
+    if (this.#phase !== 'begun') throw new Error(`${api}: ${animationName(this)} ${this.#phase === 'idle' ? 'has not begun' : 'has finished'}; begin it first`);
     this.doInterpolate(alpha);
   }
   /** Finish, at rateFunc(1) unless given another alpha (see doFinish). Only while begun; then finished. */
-  #finish(alpha?: number): void {
-    if (this.#phase !== 'begun') throw new Error(`animation.finish(): ${animationName(this)} ${this.#phase === 'idle' ? 'has not begun' : 'has already finished'}; begin it first`);
+  #finish(alpha: number | undefined, api: string): void {
+    if (this.#phase !== 'begun') throw new Error(`${api}: ${animationName(this)} ${this.#phase === 'idle' ? 'has not begun' : 'has already finished'}; begin it first`);
     this.doFinish(alpha);
     this.#phase = 'finished';
   }
@@ -306,8 +308,8 @@ abstract class AnimationTiming {
  * since every frame is a function of alpha over the endpoints fixed as it began.
  */
 export function sampleAnimation(animation: ScheduledAnimation, alpha: number): void {
-  if (phaseOf(animation) !== 'begun') beginAnimation(animation);
-  interpolateAnimation(animation, alpha);
+  if (phaseOf(animation) !== 'begun') beginAnimation(animation, 'sampleAnimation()');
+  interpolateAnimation(animation, alpha, 'sampleAnimation()');
 }
 
 /**
@@ -1212,7 +1214,7 @@ export class Succession extends AnimationGroup {
   /** Its state in a play: refused outside one, which only a hook called directly could reach. */
   #playing(): Exclude<SuccessionState, { is: 'idle' }> {
     const s = this.#state;
-    if (s.is === 'idle') throw new Error(`animation.interpolate(): ${animationName(this)} is not in a play; play it with this.play()`);
+    if (s.is === 'idle') throw new Error(`${this.#call()}: ${animationName(this)} is not in a play; play it with this.play()`);
     return s;
   }
 
@@ -1307,7 +1309,7 @@ export class Succession extends AnimationGroup {
   /** Held by the running member: carry on in a turn the scene takes after what it waits for (see afterHeld). */
   #hold(closing: boolean): void {
     const scene = this[playScene];
-    if (!scene) throw new Error(`animation.begin(): ${animationName(membersOf(this)[this.#active]!)} waits to begin, or for its own members, in a Succession with no scene, and only a play can wait; play the Succession with this.play()`);
+    if (!scene) throw new Error(`${this.#call()}: ${animationName(membersOf(this)[this.#active]!)} waits to begin, or for its own members, in a Succession with no scene, and only a play can wait; play the Succession with this.play()`);
     const s = this.#playing();
     this.#state = { ...s, is: 'held', closing };
     afterHeld(scene, 'new Succession()', () => {

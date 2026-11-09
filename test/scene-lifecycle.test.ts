@@ -38,14 +38,17 @@ test('an animation listed twice in one play is refused before anything begins (t
   assert.equal(f.phase, 'finished');
 });
 
+/** An Error whose message starts with the call `api` names and names `value`. */
+const refusal = (api: string, value: string) => (e: unknown) => e instanceof Error && e.message.startsWith(`${api}: `) && e.message.includes(value);
+
 test('an animation begins once at a time, and interpolates and finishes only once begun; a finished one may play again', () => {
   const a = new FadeIn(new Circle());
   assert.equal(a.phase, 'idle');
-  assert.throws(() => interpolateAnimation(a, 0.5), /^Error: animation\.interpolate\(\): a FadeIn has not begun/);
-  assert.throws(() => finishAnimation(a), /animation\.finish\(\): a FadeIn has not begun/);
+  assert.throws(() => interpolateAnimation(a, 0.5), refusal('this.play()', 'a FadeIn'));
+  assert.throws(() => finishAnimation(a), refusal('this.play()', 'a FadeIn'));
   beginAnimation(a);
   assert.equal(a.phase, 'begun');
-  assert.throws(() => beginAnimation(a), /animation\.begin\(\): a FadeIn has already begun/);
+  assert.throws(() => beginAnimation(a), refusal('this.play()', 'a FadeIn'));
   interpolateAnimation(a, 0.5);
   finishAnimation(a);
   assert.equal(a.phase, 'finished');
@@ -78,7 +81,7 @@ test('a hook written in any form is called inside the phase: as a method or as a
     protected override doBegin = (): void => { this.begun++; super.doBegin(); };
   }
   const a = new FieldHook(new Circle());
-  assert.throws(() => interpolateAnimation(a, 0.5), /^Error: animation\.interpolate\(\): a FieldHook has not begun/);
+  assert.throws(() => interpolateAnimation(a, 0.5), refusal('this.play()', 'a FieldHook'));
   beginAnimation(a);
   assert.equal(a.phase, 'begun');
   interpolateAnimation(a, 0.5);
@@ -401,7 +404,7 @@ test('a Succession finished by its play while a member waits is still begun unti
   const played = scene.play(group);
   while (!read) await new Promise((r) => setTimeout(r));
   assert.deepEqual([group.phase, sq.phase, w.phase], ['begun', 'begun', 'idle'], 'its play finished it, and the group around it; its last member has not begun');
-  assert.throws(() => beginAnimation(sq), /^Error: animation\.begin\(\): a Succession has already begun/);
+  assert.throws(() => beginAnimation(sq), refusal('this.play()', 'a Succession'));
   assert.throws(() => { sq.runTime = 3; }, /^Error: animation\.runTime: a Succession is playing/);
   read();
   await played;
