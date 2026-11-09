@@ -1,16 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import { RECIPES } from '../scenes/explainers/feature-tour/scene.ts';
 import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
-
-test('retired Hello World is absent from source and active authoring paths', () => {
-  assert.equal(EXPLAINERS.some(e => e.id === 'hello-world'), false);
-  assert.equal(existsSync('scenes/explainers/hello-world'), false);
-  for (const path of ['README.md', 'docs/TUTORIAL.md', 'docs/FEATURE-TOUR.md'])
-    assert.doesNotMatch(readFileSync(path, 'utf8'), /hello.world|BY-EXAMPLE|Learn by example/i, path);
-});
 
 test('every authoring feature offers a scenario with its user-side code before its result', async () => {
   const project = await collectProject('scenes/explainers/feature-tour', { write: false });

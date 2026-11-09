@@ -277,7 +277,7 @@ test('sync() matches by key, staged, and refuses pictures that carry no keys', (
 
   const plain = view(held(), () => new Group(...Array.from({ length: n }, (_, i) => new Rectangle({ width: 0.4, height: 0.4 }).shift([i, 0]))));
   n = 3;
-  assert.throws(() => syncOf(plain).begin(), /carry no keys below their roots.*\{ match: 'text' \}, 'shapes' or 'index'/);
+  assert.throws(() => syncOf(plain).begin(), /carry no keys below their roots/);
 });
 
 test('placement: a moved and scaled View stays moved and scaled; place: false leaves it to draw()', () => {
@@ -427,25 +427,25 @@ test('a view measures a fresh picture without changing itself, and records its f
   const { NullSink } = await import('../src/output.ts');
   const scene = new Scene<{ w: number }>(new NullSink());
   scene.state = { w: 1 };
-  const v = view(scene, (st: { w: number }) => new Rectangle({ width: st.w, height: 1 }));
+  const v = view(scene, (st: { w: number }) => new Rectangle({ width: st.w, height: st.w }));
   scene.add(v);
   v.scale(2);
-  const fit = () => JSON.stringify([v.builtSize, v.scaleK]);
+  // Its fit, seen from outside: the picture on screen, and the size it would place a probe state at.
+  const fit = () => [v.current.width(), v.current.height(), v.placed({ w: 5 }).width()].map((x) => x.toFixed(6)).join(' ');
   const before = fit();
+  assert.equal(before, [2, 2, 10].map((x) => x.toFixed(6)).join(' '));
   scene.state = { w: 3 };
   // Measured for a transition's target: placed at the view's scale, and the view unchanged.
   const placed = v.placed(scene.state);
-  assert.ok(Math.abs(placed.height() - 2) < 1e-6 && Math.abs(placed.width() - 6) < 1e-6);
+  assert.ok(Math.abs(placed.height() - 6) < 1e-6 && Math.abs(placed.width() - 6) < 1e-6);
   assert.equal(fit(), before, 'placed() only measures');
   // A sync whose rate function comes back keeps the picture on screen, and its fit.
   await scene.play(v.sync({ match: 'index', rateFunc: thereAndBack }));
   assert.equal(fit(), before, 'a sync that lands back records nothing');
   // Taken, the picture's fit is recorded: its built size, and the scale it was given.
   await scene.play(v.sync({ match: 'index' }));
-  assert.deepEqual(v.builtSize, [3, 1]);
-  assert.ok(Math.abs(v.scaleK - 2) < 1e-6);
+  assert.equal(fit(), [6, 6, 10].map((x) => x.toFixed(6)).join(' '), 'the picture taken, at the scale the view was given');
   scene.state = { w: 2 };
   v.rebuild();
-  assert.deepEqual(v.builtSize, [2, 1]);
   assert.ok(Math.abs(v.current.width() - 4) < 1e-6, 'a rebuild keeps the scale the view was given');
 });

@@ -362,7 +362,6 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    */
   constructor(sink: Sink, { fps = 30 }: SceneOptions = {}) {
     // Times are kept to 1 ms in a trace: up to 240 fps, half a frame is longer, so a rounded time still finds its frame.
-    if (typeof fps !== 'number') throw new TypeError(`new Scene(): fps is ${typeof fps}; give a number above 0 and at most 240`);
     if (!(fps > 0 && fps <= 240)) throw new RangeError(`new Scene(): fps is ${String(fps)}; give a number above 0 and at most 240`);
     this.sink = sink;
     this.fps = fps;

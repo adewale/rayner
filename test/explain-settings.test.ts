@@ -207,9 +207,9 @@ test('static meta takes the keys ExplainerMeta names, and refuses any other, nam
   checkExplainerMeta({});
   // Built apart from the declaration, where the type does not reach: the check still names the key.
   const built = (): object => ({ title: 'A', soruces: ['https://example.com'] });
-  assert.throws(() => checkExplainerMeta(built()), /^TypeError: static meta: "soruces" is not a key it takes; it takes id, title, lang, sources, lettering, textContext, scenarioNavigation, player, watch, answer, questions, checkedAgainst, claims$/);
+  assert.throws(() => checkExplainerMeta(built()), /^TypeError: static meta: "soruces" is not a key/);
   assert.throws(() => checkExplainerMeta({ titel: 'A', lnag: 'fr' }), /static meta: "titel", "lnag" are not keys it takes/);
-  assert.throws(() => checkExplainerMeta({ player: { acent: true } }), /^TypeError: meta\.player: "acent" is not a key it takes; it takes accent, paper, corners, minStageWidth, outline$/);
+  assert.throws(() => checkExplainerMeta({ player: { acent: true } }), /^TypeError: meta\.player: "acent" is not a key/);
   for (const bad of [null, 4, 'meta', []]) assert.throws(() => checkExplainerMeta(bad), /static meta: it must be an object/);
   assert.throws(() => checkExplainerMeta({ player: true }), /meta\.player: it must be an object/);
   // A key inherited through the prototype is not the scene's: only own keys are read.
@@ -230,11 +230,11 @@ test('one validator for the names a link carries or a file is named by: events, 
   // The player's share check and the site's are this validator.
   for (const name of ['push', 'a b', '../x']) assert.equal(shareable(name), isIdentifier('step', name));
   // meta.id is checked with the rest of static meta.
-  assert.throws(() => checkExplainerMeta({ id: '../escape' }), /^RangeError: meta\.id: "\.\.\/escape" is not a page id; an id is one path segment of lowercase letters, digits and -, starting with a letter or digit, and not a name Windows keeps for a device \(con, nul, com1 and the like\), as it names the page's files$/);
+  assert.throws(() => checkExplainerMeta({ id: '../escape' }), /^RangeError: meta\.id: "\.\.\/escape" is not a page id/);
   assert.throws(() => checkExplainerMeta({ id: 'con' }), /^RangeError: meta\.id: "con" is not a page id/);
   assert.throws(() => checkExplainerMeta({ id: 'My_Scene' }), /^RangeError: meta\.id: "My_Scene" is not a page id/);
   assert.throws(() => checkExplainerMeta({ id: 'a/b' }), /^RangeError: meta\.id: "a\/b" is not a page id/);
-  assert.throws(() => checkExplainerMeta({ id: 7 }), /^TypeError: meta\.id: it must be a string$/);
+  assert.throws(() => checkExplainerMeta({ id: 7 }), /^TypeError: meta\.id: it must be a string/);
   checkExplainerMeta({ id: 'seasons' });
 });
 

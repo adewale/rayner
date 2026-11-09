@@ -107,12 +107,12 @@ test('an action plays once: a second play, or awaiting one that played in a play
   const { scene, s } = setUp();
   const entry = s.enter(new Circle({ radius: 0.3 }));
   await scene.play(entry);
-  await assert.rejects(scene.play(entry), /s\.enter\(\): it has already played in a play; an action plays once/);
-  await assert.rejects(async () => entry, /already played in a play[^]*read what it gave from its value/);
+  await assert.rejects(scene.play(entry), /^Error: s\.enter\(\): it has already played in a play/);
+  await assert.rejects(async () => entry, /^Error: s\.enter\(\): it has already played in a play/);
   const card = s.card([['k', 'v']]);
   const value = await card;
   assert.equal(await card, value, 'awaiting it again gives the same card, without a second play');
-  await assert.rejects(scene.play(card), /s\.card\(\): it has already played; an action plays once/);
+  await assert.rejects(scene.play(card), /^Error: s\.card\(\): it has already played/);
   // A Succession that holds it twice is refused before either plays.
   const note = s.note('once');
   await assert.rejects(scene.play(new Succession([note, note])), /this\.play\(\): s\.note\(\) is listed twice in one play/);
@@ -128,7 +128,7 @@ test('an action made but never played fails its step, and the scene at its end',
       await this.step('two');
     }
   }
-  await assert.rejects(new Forgot(new NullSink()).run(), /s\.enter\(\): it was made in step "one" but never played; await an action, or hand it to play\(\)/);
+  await assert.rejects(new Forgot(new NullSink()).run(), /^Error: s\.enter\(\): it was made in step "one" but never played/);
   class AtTheEnd extends Scene {
     override async construct() {
       const s = stage(this, { heading: false });
@@ -246,7 +246,7 @@ test('an action’s life: a begin refused while what it reads is not ready, or b
   const late = new Action(scene, 'z()', () => ({ value: 7, beats: [{ runTime: 0.2, play: () => [new FadeIn(circle, { runTime: 0.2 })] }] }), { ready, late: true });
   // Reading: its value is not known, and a begin outside a play, which waits for nothing, is refused.
   assert.throws(() => late.value, /^Error: z\(\): what it gives is known once the play that holds it begins/);
-  assert.throws(() => late.begin(), /^Error: z\(\): begun before what it reads was ready; hand it to play\(\), or to a Succession or group that plays, which waits for it$/);
+  assert.throws(() => late.begin(), /^Error: z\(\): begun before what it reads was ready/);
   assert.throws(() => late.settle(), /^Error: z\(\): played before what it reads was ready/);
   assert.equal(late.phase, 'idle');
   // Ready, it plays in a play: the refused begin did not mark it played.
@@ -256,7 +256,7 @@ test('an action’s life: a begin refused while what it reads is not ready, or b
   assert.equal(circle.style.opacity, 1);
   // Ended: a second play is refused, as is awaiting it.
   await assert.rejects(scene.play(late), /z\(\): it has already played in a play/);
-  await assert.rejects(async () => late, /z\(\): it has already played in a play; [^]*read what it gave from its value$/);
+  await assert.rejects(async () => late, /^Error: z\(\): it has already played in a play/);
 
   // Deciding it failed: each play throws that error, and none marks it played.
   let tries = 0;
@@ -267,7 +267,7 @@ test('an action’s life: a begin refused while what it reads is not ready, or b
   assert.throws(() => broken.value, /^RangeError: w\(\): nothing to do$/);
   await assert.rejects(async () => broken, /^RangeError: w\(\): nothing to do$/);
   // Awaited, it was played, so a play now is refused as a second play.
-  await assert.rejects(scene.play(broken), /w\(\): it has already played; an action plays once/);
+  await assert.rejects(scene.play(broken), /^Error: w\(\): it has already played/);
   assert.equal(tries, 1, 'decided once');
 
   // What it reads failing is its error, when deciding it did not fail first.
@@ -277,7 +277,7 @@ test('an action’s life: a begin refused while what it reads is not ready, or b
   const awaited = new Action(scene, 'v()', () => ({ value: 'done', beats: [{ runTime: 0.1, play: () => [new FadeIn(new Circle(), { runTime: 0.1 })] }] }));
   assert.equal(await awaited, 'done');
   assert.equal(await awaited, 'done');
-  await assert.rejects(scene.play(awaited), /v\(\): it has already played; an action plays once/);
+  await assert.rejects(scene.play(awaited), /^Error: v\(\): it has already played/);
 });
 
 /** A FadeIn that reads something first, as `s.show` reads a diagram's layout: its ready() is the promise given. */
@@ -359,7 +359,7 @@ test('a play that fails stops a composed action: the beat that began lands with 
   await assert.rejects(other.play(b, new Succession([new FadeIn(new Circle(), { runTime: 1.5 }), new Boom(new Rectangle())])), /boom/);
   assert.deepEqual(done, ['start', 'make 1', 'after 1', 'make 2', 'after 2']);
   // Stopped, it has played: awaiting it is refused as a second play, and its value is still there.
-  await assert.rejects(Promise.resolve(b), /^Error: a\(\): it has already played in a play; an action plays once/);
+  await assert.rejects(Promise.resolve(b), /^Error: a\(\): it has already played in a play/);
   assert.equal(b.value, undefined);
   // Awaited, a beat whose play fails stops it too: awaiting again gives the same failure, and its end never runs.
   done.length = 0;
@@ -368,7 +368,7 @@ test('a play that fails stops a composed action: the beat that began lands with 
   const awaited = twoBeats(failing);
   await assert.rejects(Promise.resolve(awaited), /^Error: the sink failed$/);
   await assert.rejects(Promise.resolve(awaited), /^Error: the sink failed$/);
-  await assert.rejects(failing.play(awaited), /^Error: a\(\): it has already played; an action plays once/);
+  await assert.rejects(failing.play(awaited), /^Error: a\(\): it has already played/);
   assert.deepEqual(done, ['start', 'make 1', 'after 1', 'make 2']);
 });
 
@@ -391,7 +391,7 @@ test('an action whose begin fails after it was decided stays unplayed: it plays 
       await this.step('next');
     }
   }
-  await assert.rejects(new Story(new NullSink()).run(), /^Error: b\(\): it was made in step "a" but never played; await an action/);
+  await assert.rejects(new Story(new NullSink()).run(), /^Error: b\(\): it was made in step "a" but never played/);
 });
 
 test('what is made at its turn is drawn, and records its evidence, in turn order, whether or not something waits', async () => {

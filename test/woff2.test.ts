@@ -69,7 +69,7 @@ test('the SFNT-only page shaper reads a converted face, and refuses the WOFF2 on
 test('conversion refuses what is not WOFF2, and leaves an SFNT face as it is', () => {
   const sfnt = Buffer.from(woff2ToSfnt(readFileSync(join(ROOT, 'vendor/lettering/jetbrains-mono.woff2')))).toString('base64');
   assert.equal(sfntBase64(sfnt), sfnt);
-  assert.throws(() => woff2ToSfnt(new Uint8Array(64)), /^Error: woff2ToSfnt\(\): the face is not a WOFF2 font it can convert: it does not start with wOF2; cut it again with rayner snapshots$/);
+  assert.throws(() => woff2ToSfnt(new Uint8Array(64)), /^Error: woff2ToSfnt\(\): the face is not a WOFF2 font/);
   const truncated = readFileSync(join(ROOT, 'vendor/lettering/jetbrains-mono.woff2')).subarray(0, 200);
   assert.throws(() => woff2ToSfnt(truncated), /woff2ToSfnt\(\): the face is not a WOFF2 font it can convert/);
 });

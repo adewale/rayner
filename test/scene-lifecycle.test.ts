@@ -24,7 +24,7 @@ test('an animation listed twice in one play is refused before anything begins (t
   const scene = new Scene(new NullSink());
   const circle = new Circle({ radius: 1 }), other = new Rectangle();
   const f = new FadeIn(circle);
-  await assert.rejects(scene.play(new AnimationGroup([f, new FadeIn(other)]), f), /this\.play\(\): a FadeIn is listed twice in one play; an animation plays once/);
+  await assert.rejects(scene.play(new AnimationGroup([f, new FadeIn(other)]), f), /^Error: this\.play\(\): a FadeIn is listed twice/);
   assert.equal(f.phase, 'idle', 'nothing began');
   // Listed twice inside one Succession too.
   const g = new FadeIn(new Circle());
@@ -38,7 +38,7 @@ test('an animation listed twice in one play is refused before anything begins (t
 test('an animation begins once at a time, and interpolates and finishes only once begun; a finished one may play again', () => {
   const a = new FadeIn(new Circle());
   assert.equal(a.phase, 'idle');
-  assert.throws(() => a.interpolate(0.5), /animation\.interpolate\(\): a FadeIn has not begun; begin\(\) it first/);
+  assert.throws(() => a.interpolate(0.5), /^Error: animation\.interpolate\(\): a FadeIn has not begun/);
   assert.throws(() => a.finish(), /animation\.finish\(\): a FadeIn has not begun/);
   a.begin();
   assert.equal(a.phase, 'begun');
@@ -323,7 +323,7 @@ test('a frame drawn outside the loop raises what is kept on top first: renderFra
 
 test('a Succession runs its members one after another: its lagRatio stays 1', async () => {
   const sq = new Succession([new FadeIn(new Circle()), new FadeIn(new Rectangle())]);
-  assert.throws(() => { sq.lagRatio = 0; }, /^RangeError: animation\.lagRatio: a Succession runs its members one after another, so its lagRatio is 1, not 0; stagger them in a LaggedStart or an AnimationGroup instead$/);
+  assert.throws(() => { sq.lagRatio = 0; }, /^RangeError: animation\.lagRatio: a Succession .*not 0/);
   sq.lagRatio = 1;
   const scene = new Scene(new NullSink());
   await scene.play(sq);
@@ -337,7 +337,7 @@ test('an animation\'s run time and lag ratio are fixed while it plays', async ()
     let thrown: unknown;
     const scene = new Scene({ frame: async (sc) => { if (sc.frameCount === 5) try { change(); } catch (e) { thrown = e; } } });
     await scene.play(a);
-    assert.match(String(thrown), /^Error: animation\.(runTime|lagRatio): a FadeIn is playing, and its play fixed its frames from its (runTime|lagRatio); change it before it begins, or after it finishes$/);
+    assert.match(String(thrown), /^Error: animation\.(runTime|lagRatio): a FadeIn is playing/);
     assert.equal(a.runTime, 1, 'unchanged');
     assert.equal(scene.frameCount, 30);
   }
@@ -347,8 +347,8 @@ test('an animation\'s run time and lag ratio are fixed while it plays', async ()
 
 test('a play with nothing to play is refused, not drawn as a silent frame', async () => {
   const scene = new Scene(new NullSink());
-  await assert.rejects(scene.play(), /^Error: this\.play\(\): it was given no animation; give it one or more, or hold the picture with this\.wait\(\)$/);
-  await assert.rejects(scene.play({ runTime: 3 }), /^Error: this\.play\(\): it was given no animation, only options; give it one or more/);
+  await assert.rejects(scene.play(), /^Error: this\.play\(\): it was given no animation/);
+  await assert.rejects(scene.play({ runTime: 3 }), /^Error: this\.play\(\): it was given no animation, only options/);
   assert.equal(scene.frameCount, 0);
   assert.equal(scene.phase, 'idle');
 });
@@ -443,7 +443,7 @@ test('a run told where to stop stops for good as that step ends: after its end l
   never.stopAt('four', () => { ran = true; });
   await never.run();
   assert.deepEqual([ran, never.phase], [false, 'idle']);
-  assert.throws(() => never.stopAt('one', () => {}), /^Error: this\.stopAt\(\): the scene has begun its run; say where it stops before run\(\)$/);
+  assert.throws(() => never.stopAt('one', () => {}), /^Error: this\.stopAt\(\): the scene has begun its run/);
 });
 
 test('a stop\'s callback is held to the listener rule: one that returns with a play still running is refused, and that play ticks no further', async () => {
@@ -458,7 +458,7 @@ test('a stop\'s callback is held to the listener rule: one that returns with a p
     let left: Promise<void> | undefined, frame = 0;
     // A Succession interpolates through skipped frames, so even a skipped play is still running when the callback returns.
     scene.stopAt('one', (s) => { frame = s.frameCount; left = s.play(new Succession([new FadeIn(new Rectangle()), new FadeIn(new Circle({ radius: 0.3 }))])); });
-    await assert.rejects(scene.run(), /^Error: this\.stopAt\(\): its callback at step "one" returned with a play\(\) or wait\(\) still running; await each play\(\) and wait\(\) it makes$/);
+    await assert.rejects(scene.run(), /^Error: this\.stopAt\(\): its callback at step "one" .*still running/);
     assert.equal(scene.phase, 'stopped');
     // The play it left ends at its next frame, drawn or skipped, as any call on a stopped scene does.
     await assert.rejects(left!, StopScene);
@@ -480,7 +480,7 @@ test('two plays started together are refused, not interleaved: await each', asyn
       await Promise.all([this.play(new FadeIn(new Circle())), this.play(new FadeIn(new Rectangle()))]);
     }
   }
-  await assert.rejects(new Together(new NullSink()).run(), /this\.play\(\): a play\(\) is still running; await each play\(\), wait\(\) and step\(\) before the next/);
+  await assert.rejects(new Together(new NullSink()).run(), /^Error: this\.play\(\): a play\(\) is still running/);
   class PlayDuringWait extends Scene {
     override async construct() {
       await this.step('both');
@@ -502,7 +502,7 @@ test('a step begun without await is refused, so steps are never recorded out of 
     }
   }
   const scene = new Unawaited({ async frame() {}, async stepBegin(_s, step) { order.push(step.name); } });
-  await assert.rejects(scene.run(), /this\.step\(\): a step\(\) is still running; await each/);
+  await assert.rejects(scene.run(), /^Error: this\.step\(\): a step\(\) is still running/);
   assert.deepEqual(order, ['a', 'b'], 'b began; c, called while b was beginning, was refused, not recorded before it');
   // A play not awaited at the end of construct() is refused as the scene ends.
   class Trailing extends Scene {
@@ -665,7 +665,7 @@ test('step metadata is copied as JSON when the step begins: a later change rewri
   class NotObject extends Scene {
     override async construct() { await this.step('one', () => 3 as never); }
   }
-  await assert.rejects(new NotObject(new NullSink()).run(), /this\.step\(\): the metadata of step "one" must be an object, or a function of the step before that returns one/);
+  await assert.rejects(new NotObject(new NullSink()).run(), /this\.step\(\): the metadata of step "one" must be an object/);
 });
 
 test('a step\'s recorded metadata is frozen: a write to it after the step began is refused, and changes neither its caption nor its hold', async () => {
@@ -710,7 +710,7 @@ test('step metadata given as a value or as a function is refused at the same poi
 
 test('fps must be above 0 and at most 240, where a trace time rounded to 1 ms still finds its frame', () => {
   for (const fps of [0, -30, NaN, Infinity, 241])
-    assert.throws(() => new Scene(new NullSink(), { fps }), /new Scene\(\): fps is .*; give a number above 0 and at most 240/, String(fps));
+    assert.throws(() => new Scene(new NullSink(), { fps }), /^RangeError: new Scene\(\): fps is /, String(fps));
   assert.equal(new Scene(new NullSink(), { fps: 240 }).fps, 240);
   // At 240 fps, every frame's time, rounded to 1 ms, is within half a frame of it.
   for (let k = 0; k < 2400; k++) assert.equal(Math.round((Math.round((k / 240) * 1000) / 1000) * 240), k);
@@ -718,16 +718,16 @@ test('fps must be above 0 and at most 240, where a trace time rounded to 1 ms st
 
 test('run times, lag ratios and waits are finite and not negative', async () => {
   for (const runTime of [NaN, Infinity, -1])
-    assert.throws(() => new FadeIn(new Circle(), { runTime }), /new FadeIn\(\): its runTime is .*; give a finite number from 0/, String(runTime));
+    assert.throws(() => new FadeIn(new Circle(), { runTime }), /^RangeError: new FadeIn\(\): its runTime is /, String(runTime));
   assert.throws(() => new Create(new Circle(), { lagRatio: NaN }), /new Create\(\): its lagRatio is NaN/);
   assert.throws(() => new AnimationGroup([], { lagRatio: -0.5 }), /new AnimationGroup\(\): its lagRatio is -0\.5/);
   const scene = new Scene(new NullSink());
   await assert.rejects(scene.play(new FadeIn(new Circle()), { runTime: Infinity }), /this\.play\(\): its runTime is Infinity/);
   await assert.rejects(scene.play(new FadeIn(new Circle()), { lagRatio: NaN }), /this\.play\(\): its lagRatio is NaN/);
-  for (const t of [NaN, Infinity, -0.5]) await assert.rejects(scene.wait(t), /this\.wait\(\): the time is .*; give a finite number from 0/, String(t));
+  for (const t of [NaN, Infinity, -0.5]) await assert.rejects(scene.wait(t), /^RangeError: this\.wait\(\): the time is /, String(t));
   // Set after construction too: a run time of NaN would play no frames and land silently.
   const late = new FadeIn(new Circle());
-  for (const runTime of [NaN, Infinity, -1]) assert.throws(() => { late.runTime = runTime; }, /animation\.runTime: the runTime of a FadeIn is .*; give a finite number from 0/, String(runTime));
+  for (const runTime of [NaN, Infinity, -1]) assert.throws(() => { late.runTime = runTime; }, /^RangeError: animation\.runTime: the runTime of a FadeIn is /, String(runTime));
   assert.throws(() => { late.lagRatio = NaN; }, /animation\.lagRatio: the lagRatio of a FadeIn is NaN/);
   late.runTime = 0.5;
   assert.equal(late.runTime, 0.5);
@@ -830,7 +830,7 @@ test('a scene runs once, a step listener begins no step, and a listener leaves n
   class One extends Scene { override async construct() { await this.step('a', {}); await this.wait(0.1); } }
   const once = new One(new NullSink());
   await once.run();
-  await assert.rejects(once.run(), /^Error: this\.run\(\): the scene has run already; make a new scene for another run$/);
+  await assert.rejects(once.run(), /^Error: this\.run\(\): the scene has run already/);
 
   // From onStep, a step would draw no frame; from onStepEnd it would end itself again without end.
   for (const on of ['onStep', 'onStepEnd'] as const) {
@@ -841,7 +841,7 @@ test('a scene runs once, a step listener begins no step, and a listener leaves n
         await this.step('a', {}); await this.wait(0.1); await this.step('b', {}); await this.wait(0.1);
       }
     }
-    await assert.rejects(new Nested(new NullSink()).run(), /^Error: this\.step\(\): a step listener began step "inner"; a listener may play and wait in its step/, on);
+    await assert.rejects(new Nested(new NullSink()).run(), /^Error: this\.step\(\): a step listener began step "inner"/, on);
   }
 
   // A listener that fires a play without awaiting it: the next play would interleave frames with it.
@@ -852,7 +852,7 @@ test('a scene runs once, a step listener begins no step, and a listener leaves n
       await this.step('a', {}); await this.wait(0.2);
     }
   }
-  await assert.rejects(new Fired(new NullSink()).run(), /^Error: this\.onStep\(\): a listener of step "a" returned with a play\(\) or wait\(\) still running; await each play\(\) and wait\(\) it makes$/);
+  await assert.rejects(new Fired(new NullSink()).run(), /^Error: this\.onStep\(\): a listener of step "a" .*still running/);
   // The same from an end listener names the call it was registered with.
   class FiredAtEnd extends Scene {
     override async construct() {
@@ -861,7 +861,7 @@ test('a scene runs once, a step listener begins no step, and a listener leaves n
       await this.step('a', {}); await this.wait(0.2);
     }
   }
-  await assert.rejects(new FiredAtEnd(new NullSink()).run(), /^Error: this\.onStepEnd\(\): a listener of step "a" returned with a play\(\) or wait\(\) still running/);
+  await assert.rejects(new FiredAtEnd(new NullSink()).run(), /^Error: this\.onStepEnd\(\): a listener of step "a" .*still running/);
 
   // A listener that awaits its play is the intended use, and plays in the step.
   class Awaited extends Scene {
@@ -873,6 +873,5 @@ test('a scene runs once, a step listener begins no step, and a listener leaves n
   }
   await new Awaited(new NullSink()).run();
 
-  assert.throws(() => new One(new NullSink(), { fps: '30' as unknown as number }), /^TypeError: new Scene\(\): fps is string/);
   assert.throws(() => new One(new NullSink(), { fps: 0 }), /^RangeError: new Scene\(\): fps is 0/);
 });

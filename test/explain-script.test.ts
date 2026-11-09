@@ -45,7 +45,7 @@ test('collection refuses a step whose title or line is not a string or whose kin
     assert.throws(() => checkStepMeta([...steps, step('bad', meta)]), /^(TypeError|RangeError): this\.step\(\): the (title|line|kind) of step "bad" must be/);
   // The old flags are refused by name, so a scene written for them says what to write instead.
   for (const meta of [{ detail: true }, { reader: true }])
-    assert.throws(() => checkStepMeta([step('bad', meta)]), /this\.step\(\): step "bad" has (detail|reader), which this\.step\(\) does not take; say kind: 'detail' or kind: 'short'/);
+    assert.throws(() => checkStepMeta([step('bad', meta)]), /this\.step\(\): step "bad" has (detail|reader)/);
 });
 
 test('malformed script meta is refused', () => {

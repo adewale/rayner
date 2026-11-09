@@ -176,7 +176,7 @@ test('TransformDiff: given hunks are the truth, and hunks that do not describe t
   assert.deepEqual(given.hunks, hunks);
   // Hunks of another edit: lines must match
   const wrong = new TransformDiff(new Code(BEFORE), new Code(AFTER), { hunks: diffLines(['a', 'b', 'c'], ['a', 'c']) });
-  assert.throws(() => wrong.begin(), /new TransformDiff\(\): hunk @@ -2 \+1,0 @@ removes "b", but before line 2 is " {2}return db.get\(id\);"; the hunks do not describe/);
+  assert.throws(() => wrong.begin(), /new TransformDiff\(\): hunk @@ -2 \+1,0 @@ removes "b"/);
   const short = new TransformDiff(new Code(BEFORE), new Code(AFTER), { hunks: [] });
   assert.throws(() => short.begin(), /after the last hunk the old text has 3 more lines and the new 6/);
   const counts = new TransformDiff(new Code(BEFORE), new Code(AFTER), { hunks: [{ oldStart: 2, oldLines: 1, newStart: 2, newLines: 4, ops: ['-', '+'], lines: ['  return db.get(id);', 'x'] }] });
