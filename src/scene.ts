@@ -7,7 +7,7 @@
 
 import { prepareAnimation, AnimationGroup, animationName } from './animation.ts';
 import { Succession, bindSuccessions, takeCopies, recordEvidence, assertTime, landBegun } from './animation.ts';
-import { beginAnimation, interpolateAnimation, finishAnimation } from './animation.ts';
+import { beginAnimation, interpolateAnimation, finishAnimation, takeOptions, whenReady, settle, cleanUp, paintTargets } from './animation.ts';
 import type { ScheduledAnimation, Playable, PlayOptions } from './animation.ts';
 import { paintDefaults, mobjectName } from './mobject.ts';
 import type { Mobject } from './mobject.ts';
@@ -825,14 +825,14 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     const anims = list.map((x) => prepareAnimation(x));
     if (!anims.length) throw new Error(`this.play(): it was given no animation${isOpts ? ', only options' : ''}; give it one or more, or hold the picture with this.wait()`);
     // What some animation reads before it can begin (a diagram's layout), a group's members' included: wait for it, once, here.
-    const waits = anims.map((a) => a.ready()).filter((r) => r !== null);
+    const waits = anims.map((a) => a[whenReady]()).filter((r) => r !== null);
     if (waits.length) {
       await Promise.all(waits);
       this.throwIfStopped();
     }
     // Then every run time is known: a group lays out its members' times now.
-    for (const a of anims) a.settle();
-    for (const a of anims) a.setOptions(opts);
+    for (const a of anims) a[settle]();
+    for (const a of anims) a[takeOptions](opts);
     assertDisjoint(anims);
     this.#playing = anims;
     this.#held = [];
@@ -893,14 +893,14 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
       await this.emitFrame(dt);
     }
     perf.count('frames skipped', skipped);
-    perf.span('anim.finish', () => { for (const a of anims) { finishAnimation(a); a.cleanUpFromScene(this); } });
+    perf.span('anim.finish', () => { for (const a of anims) { finishAnimation(a); a[cleanUp](this); } });
     // What finishing began at its turn and waits (a last member of no run time, an action's last
     // beat) begins and lands now, the members after it in turn.
     if (this.#held.length) await this.#beginHeld();
   }
 
   /**
-   * @internal Run `begin` once what `anims` read is ready (see Animation.ready), in turn order: now
+   * @internal Run `begin` once what `anims` read is ready (see the whenReady hook), in turn order: now
    * when nothing waits and nothing begun or made earlier in this frame of the running play waits;
    * otherwise in the running play, which waits for it, and begins what waited in the order the turns
    * came, before its next frame. So whatever is begun at its turn joins the stage, and records its
@@ -910,7 +910,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    * 's.card()', 'machine.send("UP")' or 'new Succession()'.
    */
   whenReady(anims: readonly ScheduledAnimation[], call: string, begin: () => void): void {
-    const waits = anims.map((a) => a.ready()).filter((r) => r !== null);
+    const waits = anims.map((a) => a[whenReady]()).filter((r) => r !== null);
     if (!waits.length && !this.#held.length) return begin();
     this.#holdInPlay(call, waits.length ? Promise.all(waits) : Promise.resolve(), begin);
   }
@@ -971,7 +971,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     const paint = (a: ScheduledAnimation): void => {
       if (a instanceof Succession) return;
       if (a instanceof AnimationGroup) a.animations.forEach(paint);
-      else for (const m of a.paints()) paintDefaults(m, this.colors);
+      else for (const m of a[paintTargets]()) paintDefaults(m, this.colors);
     };
     for (const a of anims) paint(a);
     /** It joins the stage: each mobject it writes is added, unless it is on stage already. */

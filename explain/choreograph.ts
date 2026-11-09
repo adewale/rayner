@@ -6,7 +6,7 @@
 // take a gone one out. rest() lands every keyed part no call has handled, so a transition that
 // forgets a part still ends on the target picture. See docs/MACHINES.md.
 
-import { Animation, AnimationGroup, Create, FadeIn, FadeOut, MoveAlongPath, Transform } from '../src/animation.ts';
+import { Animation, AnimationGroup, Create, FadeIn, FadeOut, MoveAlongPath, Transform, cleanUp } from '../src/animation.ts';
 import type { AnimOptions, TransformOptions } from '../src/animation.ts';
 import { Follow } from './state.ts';
 import type { FollowSpec } from './state.ts';
@@ -30,7 +30,8 @@ class Joining extends Animation {
   protected override doBegin(): void { this.mobject.restore(); this.inner.begin(); }
   protected override doInterpolate(alpha: number): void { this.inner.interpolate(this.inner.rateFunc(alpha)); }
   protected override doFinish(): void { this.inner.finish(); }
-  override cleanUpFromScene(scene: Parameters<Animation['cleanUpFromScene']>[0]): void { this.inner.cleanUpFromScene(scene); }
+  /** @internal */
+  override [cleanUp](scene: Parameters<Animation[typeof cleanUp]>[0]): void { this.inner[cleanUp](scene); }
   override targets(): Mobject[] { return this.inner.targets(); }
 }
 

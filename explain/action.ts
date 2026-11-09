@@ -5,7 +5,7 @@
 
 import { Succession } from '../src/index.ts';
 import type { Scene, ScheduledAnimation } from '../src/index.ts';
-import { MadeAtTurn } from '../src/animation.ts';
+import { MadeAtTurn, whenReady, settle, playsOn } from '../src/animation.ts';
 
 /**
  * One play of an action: its run time, fixed when the action is made, and what it does when its
@@ -137,7 +137,7 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
   /** The call that made it, as messages name it: `s.card()`, `d.walk()`. */
   readonly name: string;
   /** @internal The scene it plays on: a play on another scene refuses it. */
-  readonly host: Scene<any, any>;
+  readonly [playsOn]: Scene<any, any>;
   /** What decides it: what it gives and its beats. */
   readonly #make: () => Plan<T>;
   /** Settles once what it reads is ready, recording a failure as its decision; null when it reads nothing. */
@@ -160,7 +160,7 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
       }
     super(decision && 'plan' in decision ? decision.plan.beats.map((b) => new BeatPlay(b, name)) : []);
     this.name = name;
-    this.host = scene;
+    this[playsOn] = scene;
     this.#make = make;
     this.#state = { is: ready ? 'reading' : 'ready', decision };
     this.#waiting = ready
@@ -229,12 +229,12 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
     return plan;
   }
 
-  /** @internal */ override ready(): Promise<unknown> | null {
+  /** @internal */ override [whenReady](): Promise<unknown> | null {
     return this.#state.is === 'reading' ? this.#waiting : null;
   }
 
   /** @internal Decided now, if it was not when made: what it reads is ready, and the play that holds it is beginning. */
-  override settle(): void {
+  override [settle](): void {
     const s = this.#state;
     if (s.is === 'reading') throw new Error(`${this.name}: played before what it reads was ready; hand it to play(), or to a Succession or group that plays, which waits for it`);
     if (s.is === 'ready') this.#decide();
@@ -251,7 +251,7 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
     super.doBegin();
     // Composed only once it has begun: a start or a first beat that throws leaves it unplayed.
     this.#state = { is: 'composed', plan };
-    unplayed.get(this.host)?.delete(this as Action<unknown>);
+    unplayed.get(this[playsOn])?.delete(this as Action<unknown>);
   }
 
   /** Its last beat has finished and gone: its `end` runs. */
@@ -277,7 +277,7 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
       for (const beat of plan.beats) {
         const made = beat.play();
         checkTime(this.name, beat, made);
-        if (made.length) await this.host.play(...made);
+        if (made.length) await this[playsOn].play(...made);
         beat.after?.();
       }
       this.#state = { is: 'ended', plan, run };
@@ -285,7 +285,7 @@ export class Action<T = void> extends Succession implements PromiseLike<T> {
       return plan.value;
     })();
     this.#state = { is: 'awaited', decision: s.decision, run };
-    unplayed.get(this.host)?.delete(this as Action<unknown>);
+    unplayed.get(this[playsOn])?.delete(this as Action<unknown>);
     return run;
   }
 

@@ -14,7 +14,7 @@
 import { Mobject, Group, paintDefaults, mobjectName } from '../src/mobject.ts';
 import type { Box, HasText } from '../src/mobject.ts';
 import { center, pointsBox } from '../src/box.ts';
-import { Animation, Transform, TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey } from '../src/animation.ts';
+import { Animation, Transform, TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey, cleanUp } from '../src/animation.ts';
 import { Follow } from './state.ts';
 import type { AnimOptions, MatchKey, MatchSummary, ScheduledAnimation } from '../src/animation.ts';
 import { cloneJson } from '../src/json.ts';
@@ -290,7 +290,7 @@ class ViewTween<S extends object, Sh extends object> extends Animation {
   override evidence(): Evidence | null { return this.follow?.evidence() ?? null; }
 
   /** @internal */
-  override cleanUpFromScene(scene: Scene): void { if (this.remover) scene.remove(this.mobject); }
+  override [cleanUp](scene: Scene): void { if (this.remover) scene.remove(this.mobject); }
 
   private begun(): Follow {
     if (!this.follow) throw new Error('view.tween(): it has not begun; play it with this.play()');

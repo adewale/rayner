@@ -75,6 +75,22 @@ export type AnimationPhase = 'idle' | 'begun' | 'finished';
  */
 const waits = Symbol('waits'), lands = Symbol('lands');
 
+/**
+ * @internal Keys of the engine's hooks on an animation, which a play, a group and an action call and
+ * the engine's own animations and rayner/explain's override: `takeOptions`, the options a play gives
+ * it; `whenReady`, what it must wait for before it begins; `settle`, fixing its run time once that is
+ * ready; `cleanUp`, what the end of its play takes off the scene. Symbols, so no member an author
+ * writes on an animation shares a name with one or replaces it.
+ */
+export const takeOptions = Symbol('takeOptions'), whenReady = Symbol('whenReady'), settle = Symbol('settle'), cleanUp = Symbol('cleanUp');
+/**
+ * @internal Keys of what the engine reads on an animation, set apart from any name an author's member
+ * may have: `paintTargets`, what takes the scene's colours before it begins; `playScene`, the scene a
+ * group's play runs on, which play() sets; `playsOn`, the scene an animation that changes its scene's
+ * state belongs to (an action's), which a play on another scene refuses.
+ */
+export const paintTargets = Symbol('paintTargets'), playScene = Symbol('playScene'), playsOn = Symbol('playsOn');
+
 /** What a subclass may not redefine, and what to do instead: each keeps the phase or the times a play reads. */
 const FIXED = {
   begin: "it overrides begin(), which keeps the animation's phase; override doBegin() instead",
@@ -160,7 +176,7 @@ abstract class AnimationTiming {
   }
   /** Refuse a lagRatio this kind of animation cannot take (a Succession's is always 1); any by default. */
   protected refuseLagRatio(_value: number): void {}
-  /** @internal */ setOptions({ runTime, rateFunc, lagRatio }: PlayOptions = {}): this {
+  /** @internal */ [takeOptions]({ runTime, rateFunc, lagRatio }: PlayOptions = {}): this {
     if (runTime != null) { this.#refuseWhileBegun('this.play()', 'runTime'); assertTime('this.play()', 'its runTime', runTime); this.#runTime = runTime; }
     if (rateFunc != null) this.rateFunc = rateFunc;
     if (lagRatio != null) { this.#refuseWhileBegun('this.play()', 'lagRatio'); assertTime('this.play()', 'its lagRatio', lagRatio); this.#lagRatio = lagRatio; }
@@ -206,7 +222,7 @@ abstract class AnimationTiming {
   [lands](scene: Scene | null): void {
     if (this.#phase !== 'begun') return;
     this.doFinish();
-    if (scene) this.cleanUpFromScene(scene);
+    if (scene) this[cleanUp](scene);
   }
   /**
    * Whether, begun in a play, it still waits for something it made or began at its turn to begin
@@ -224,7 +240,7 @@ abstract class AnimationTiming {
   /** Called by finish(): land where the last frame drew, at `alpha` (rateFunc(1) when not given). */
   protected abstract doFinish(alpha?: number): void;
   /** @internal Remove what the animation took off the stage, after it finished. */
-  abstract cleanUpFromScene(scene: Scene): void;
+  abstract [cleanUp](scene: Scene): void;
   /** The mobjects this animation writes: what play() admits to the scene and allows one writer each. */
   abstract targets(): Mobject[];
   /**
@@ -235,17 +251,17 @@ abstract class AnimationTiming {
    */
   evidence(): Evidence | null { return null; }
   /**
-   * What must settle before this animation can begin, or null (the default). play() waits for
-   * every one among its animations, a group's members included, before it begins any of them:
+   * @internal What must settle before this animation can begin, or null (the default). play() waits
+   * for every one among its animations, a group's members included, before it begins any of them:
    * rayner/explain's `s.show` and `d.morph` read a diagram's layout first.
    */
-  /** @internal */ ready(): Promise<unknown> | null { return null; }
+  [whenReady](): Promise<unknown> | null { return null; }
   /**
-   * @internal Fix the run time, once what it reads is ready (see ready()) and before it begins:
+   * @internal Fix the run time, once what it reads is ready (see whenReady) and before it begins:
    * play() settles its animations, and a group its members, then lays out their times. Nothing
    * to do for an animation whose run time is known when it is made.
    */
-  settle(): void {}
+  [settle](): void {}
 }
 
 /**
@@ -290,7 +306,7 @@ export class Animation extends AnimationTiming {
    * and what it morphs toward, so both endpoints are fixed in the scene's colours.
    * @internal
    */
-  paints(): Mobject[] { return this.targets(); }
+  [paintTargets](): Mobject[] { return this.targets(); }
   /** Called when play starts. Copies live here, never in the constructor. */
   protected override doBegin(): void {
     this.starting = this.createStartingMobject();
@@ -317,7 +333,7 @@ export class Animation extends AnimationTiming {
   protected override doFinish(alpha: number = this.rateFunc(1)): void { this.interpolate(alpha); }
 
   /** @internal */
-  override cleanUpFromScene(scene: Scene): void { if (this.remover) scene.remove(this.mobject); }
+  override [cleanUp](scene: Scene): void { if (this.remover) scene.remove(this.mobject); }
 
   /** alpha already passed through rateFunc by the scene. */
   protected override doInterpolate(alpha: number): void {
@@ -376,7 +392,7 @@ export class Transform extends Animation {
     this.sameStructure = false;
   }
 
-  /** @internal */ override paints(): Mobject[] { return [this.mobject, this.target]; }
+  /** @internal */ override [paintTargets](): Mobject[] { return [this.mobject, this.target]; }
 
   protected override doBegin(): void {
     // An animation that built its own target (FadeIn, .animate) hands it
@@ -448,8 +464,8 @@ export class Transform extends Animation {
   }
 
   /** @internal */
-  override cleanUpFromScene(scene: Scene): void {
-    super.cleanUpFromScene(scene);
+  override [cleanUp](scene: Scene): void {
+    super[cleanUp](scene);
     if (this.replace) scene.replace(this.mobject, this.target);
   }
 }
@@ -641,8 +657,8 @@ export class AnimationGroup extends AnimationTiming {
     if (!this.ownRunTime) this.runTime = this.maxEnd;
   }
   /** A lagRatio given to play() re-staggers the members, as one given to the constructor does. @internal */
-  override setOptions(opts: PlayOptions = {}): this {
-    super.setOptions(opts);
+  override [takeOptions](opts: PlayOptions = {}): this {
+    super[takeOptions](opts);
     if (opts.runTime != null) this.ownRunTime = true;
     if (opts.lagRatio != null) {
       this.layOut();
@@ -651,15 +667,15 @@ export class AnimationGroup extends AnimationTiming {
     return this;
   }
   /** @internal The scene the play runs on, set by play() (see bindSuccessions): members record their evidence to it as they begin. */
-  scene: Scene | null = null;
+  [playScene]: Scene | null = null;
   /** @internal What every member waits for before it can begin: a play waits for all of it. */
-  override ready(): Promise<unknown> | null {
-    const waits = this.animations.map((a) => a.ready()).filter((r): r is Promise<unknown> => r !== null);
+  override [whenReady](): Promise<unknown> | null {
+    const waits = this.animations.map((a) => a[whenReady]()).filter((r): r is Promise<unknown> => r !== null);
     return waits.length ? Promise.all(waits) : null;
   }
   /** @internal Settle the members, then lay out their times again: a member may know its run time only now. */
-  override settle(): void {
-    for (const a of this.animations) a.settle();
+  override [settle](): void {
+    for (const a of this.animations) a[settle]();
     this.layOut();
     if (!this.ownRunTime) this.runTime = this.maxEnd;
   }
@@ -670,16 +686,16 @@ export class AnimationGroup extends AnimationTiming {
       for (const a of this.animations) {
         beginAnimation(a);
         begun.push(a);
-        recordEvidence(a, this.scene);
+        recordEvidence(a, this[playScene]);
       }
-    } catch (e) { landBegun(begun, this.scene); throw e; }
+    } catch (e) { landBegun(begun, this[playScene]); throw e; }
   }
   /** Each member lands where the group's own timeline puts it at rateFunc(1) (a there-and-back group ends at the start). */
   protected override doFinish(alpha: number = this.rateFunc(1)): void {
     this.animations.forEach((a, i) => finishAnimation(a, a.rateFunc(this.memberTime(alpha, i))));
   }
   /** @internal */
-  override cleanUpFromScene(scene: Scene): void { for (const a of this.animations) a.cleanUpFromScene(scene); }
+  override [cleanUp](scene: Scene): void { for (const a of this.animations) a[cleanUp](scene); }
   /** @internal After a failure, each member that has begun lands on its own, last first; nothing else begins. */
   override [lands](scene: Scene | null): void { landBegun(this.animations, scene); }
   /** @internal Whether a member still waits for something made at its turn to begin (see AnimationTiming's waits). */
@@ -795,8 +811,8 @@ export class PulseAlongPath extends MoveAlongPath {
   }
 
   /** @internal */
-  override cleanUpFromScene(scene: Scene): void {
-    super.cleanUpFromScene(scene);
+  override [cleanUp](scene: Scene): void {
+    super[cleanUp](scene);
     // A removed token can be used again without inheriting its invisible end.
     if (this.remover) for (const [sub, start] of this.families) sub!.style.opacity = start!.style.opacity;
   }
@@ -1042,9 +1058,9 @@ export class Succession extends AnimationGroup {
   }
 
   /** Members run one after another: a lagRatio passed to play() is ignored (runTime and rateFunc apply). @internal */
-  override setOptions({ lagRatio: _, ...opts }: PlayOptions = {}): this {
+  override [takeOptions]({ lagRatio: _, ...opts }: PlayOptions = {}): this {
     if (opts.rateFunc) assertForward('this.play()', opts.rateFunc);
-    return super.setOptions(opts);
+    return super[takeOptions](opts);
   }
 
   /** Its members run one after another, so its lagRatio is 1 and stays 1. */
@@ -1070,7 +1086,7 @@ export class Succession extends AnimationGroup {
 
   /** Begin the next member at its turn: through the scene, in turn order with what else begins in this frame. */
   #beginNext(): void {
-    const scene = this.scene, { play } = this.#playing();
+    const scene = this[playScene], { play } = this.#playing();
     const next = this.animations[++this.active];
     if (!next) return;
     if (!scene) return beginAnimation(next);
@@ -1107,13 +1123,13 @@ export class Succession extends AnimationGroup {
    * once that member has, so whatever the members do happens in their order.
    */
   #catchUp(closing = false): void {
-    const scene = this.scene;
+    const scene = this[playScene];
     for (;;) {
       const a = this.animations[this.active];
       if (a && (closing ? a[waits]() : a.phase !== 'begun' || a[waits]())) return this.#hold(closing);
       if (a && closing) {
         closing = false;
-        if (scene) a.cleanUpFromScene(scene);
+        if (scene) a[cleanUp](scene);
         this.#beginNext();
         continue;
       }
@@ -1137,7 +1153,7 @@ export class Succession extends AnimationGroup {
 
   /** Held by the running member: carry on in a turn the scene takes after what it waits for (see Scene.afterHeld). */
   #hold(closing: boolean): void {
-    const scene = this.scene;
+    const scene = this[playScene];
     if (!scene) throw new Error(`animation.begin(): ${animationName(this.animations[this.active]!)} waits to begin, or for its own members, in a Succession with no scene, and only a play can wait; play the Succession with this.play()`);
     const s = this.#playing();
     this.#state = { ...s, is: 'held', closing };
@@ -1163,7 +1179,7 @@ export class Succession extends AnimationGroup {
   }
 
   /** @internal Members were cleaned up as each finished. */
-  override cleanUpFromScene(_scene: Scene): void {}
+  override [cleanUp](_scene: Scene): void {}
 
   /** Members join the scene as they begin; these are the ones that have. */
   override get mobjects(): Mobject[] {
@@ -1238,7 +1254,7 @@ export abstract class MadeAtTurn extends AnimationGroup {
    */
   protected after(): void {}
   protected override doBegin(): void {
-    const scene = this.scene;
+    const scene = this[playScene];
     if (!scene) throw new Error(`${this.call}: ${this.#subject} has no scene to play on; play it with this.play() on the scene it belongs to`);
     this.adopt([], []);
     this.#turn = { made: 'not yet' };
@@ -1248,7 +1264,7 @@ export abstract class MadeAtTurn extends AnimationGroup {
     scene.whenReady(members, this.call, () => {
       // Landed meanwhile, after a failure: what it made never begins.
       if (this.#turn !== turn) return;
-      for (const a of members) a.settle();
+      for (const a of members) a[settle]();
       // Its members before they begin, so the scene checks them, not what it declared, against the play.
       this.adopt(members, this.slots(members));
       this.#turn = { made: 'begun' };
@@ -1278,8 +1294,8 @@ export abstract class MadeAtTurn extends AnimationGroup {
     return this.#turn.made === 'waiting' || super[waits]();
   }
   /** @internal What it made is cleaned up, then `after` runs. */
-  override cleanUpFromScene(scene: Scene): void {
-    super.cleanUpFromScene(scene);
+  override [cleanUp](scene: Scene): void {
+    super[cleanUp](scene);
     this.after();
   }
   /** @internal After a failure: what it made lands, then `after` runs, if it has begun; it never begins if it has not. */
@@ -1294,7 +1310,7 @@ export abstract class MadeAtTurn extends AnimationGroup {
     return this.#turn.made === 'begun' ? super.targets() : [...this.#declared];
   }
   /** @internal Its members are made when its turn comes; its run time was planned. */
-  override settle(): void {}
+  override [settle](): void {}
 }
 
 /**
@@ -1304,11 +1320,11 @@ export abstract class MadeAtTurn extends AnimationGroup {
  */
 export function bindSuccessions(anims: readonly ScheduledAnimation[], scene: Scene): void {
   for (const a of anims) {
-    // A scene-bound animation (one that changes its scene's state, such as a machine's change of state) names its scene as `host`.
-    const host = (a as { host?: unknown }).host;
+    // A scene-bound animation (one that changes its scene's state, such as an action) names its scene under playsOn.
+    const host = (a as { [playsOn]?: Scene })[playsOn];
     if (host && host !== scene) throw new Error(`this.play(): ${animationName(a)} belongs to another scene; play it on the scene it was made for`);
     if (!(a instanceof AnimationGroup)) continue;
-    a.scene = scene;
+    a[playScene] = scene;
     bindSuccessions(a.animations, scene);
   }
 }
@@ -1457,7 +1473,7 @@ export class TransformMatching extends Animation {
     this.replace = replace; this.staged = staged;
   }
 
-  /** @internal */ override paints(): Mobject[] { return [this.mobject, this.target]; }
+  /** @internal */ override [paintTargets](): Mobject[] { return [this.mobject, this.target]; }
 
   /** How many parts were matched, morphed, faded out and faded in. */
   summary(): MatchSummary {
@@ -1593,8 +1609,8 @@ export class TransformMatching extends Animation {
   }
 
   /** @internal */
-  override cleanUpFromScene(scene: Scene): void {
-    super.cleanUpFromScene(scene);
+  override [cleanUp](scene: Scene): void {
+    super[cleanUp](scene);
     if (this.replace) scene.replace(this.mobject, this.target);
   }
 }

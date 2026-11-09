@@ -3,7 +3,7 @@
 // one sampled number into its targets (under view.tween and a transition's follow). Kept out of
 // src/, the engine taken from Lantern. SetState is the machine's own: no entry point exports it,
 // and a scene changes its state by assigning `this.state` and syncing its views.
-import { Animation } from '../src/animation.ts';
+import { Animation, cleanUp, playsOn } from '../src/animation.ts';
 import type { AnimOptions } from '../src/animation.ts';
 import { Group, Mobject as MobjectClass } from '../src/mobject.ts';
 import type { Mobject } from '../src/mobject.ts';
@@ -27,7 +27,8 @@ export interface SetStateOptions {
  * scene's): a model step, so each member of a replay starts where the one before left it.
  */
 export class SetState<S extends object = SceneState> extends Animation {
-  readonly host: Scene<S, any>;
+  /** @internal The scene whose state it sets: a play on another scene refuses it. */
+  readonly [playsOn]: Scene<S, any>;
   readonly event: string | undefined;
   private readonly snapshot: JsonObject | null;
   private readonly update: ((current: S) => S) | null;
@@ -39,7 +40,7 @@ export class SetState<S extends object = SceneState> extends Animation {
     let target = stateTargets.get(host);
     if (!target) { target = new Group(); stateTargets.set(host, target); }
     super(target, { runTime: 0, remover: true });
-    this.host = host;
+    this[playsOn] = host;
     this.event = event;
     this.snapshot = snapshot;
     this.update = update;
@@ -47,9 +48,9 @@ export class SetState<S extends object = SceneState> extends Animation {
 
   protected override doBegin(): void {
     const next = this.update
-      ? this.update(cloneJson(this.host.state, 'machine.send()', 'this.state') as S)
+      ? this.update(cloneJson(this[playsOn].state, 'machine.send()', 'this.state') as S)
       : this.snapshot;
-    this.host.state = cloneJson(next, 'machine.send()', this.event === undefined ? 'state' : `next(state, ${JSON.stringify(this.event)})`) as Scene<S, any>['state'];
+    this[playsOn].state = cloneJson(next, 'machine.send()', this.event === undefined ? 'state' : `next(state, ${JSON.stringify(this.event)})`) as Scene<S, any>['state'];
     super.doBegin();
   }
 
@@ -137,6 +138,6 @@ export class Follow extends Animation {
   }
 
   /** @internal */
-  override cleanUpFromScene(scene: Scene): void { if (this.remover) scene.remove(...this.written); }
+  override [cleanUp](scene: Scene): void { if (this.remover) scene.remove(...this.written); }
 }
 

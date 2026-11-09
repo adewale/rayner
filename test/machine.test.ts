@@ -14,6 +14,7 @@ import { SetState } from '../explain/state.ts';
 import { exploreMachines } from '../tools/lib/explain-check.ts';
 import { decodeLog, encodeLog } from '../app/embed-live.ts';
 import { liveBase, logStart, runLive } from '../explain/live.ts';
+import { whenReady } from '../src/animation.ts';
 
 await loadFonts();
 
@@ -283,7 +284,7 @@ class WaitsToRead extends Animation {
   #asked = 0;
   #read = false;
   constructor(m: Mobject) { super(m, { runTime: 0.1 }); }
-  override ready(): Promise<unknown> | null {
+  override [whenReady](): Promise<unknown> | null {
     if (this.#read || this.#asked++ === 0) return null;
     return new Promise((done) => setTimeout(done, 5)).then(() => { this.#read = true; });
   }
