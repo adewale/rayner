@@ -2,7 +2,8 @@ import { Scene, FadeOut } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, mermaid, answerOf, view, having } from '../../../explain/index.ts';
 import { card } from '../../../explain/drawing.ts';
-import type { Diagram, CardRow, CardOptions, View, Having, Card, ExplainerMeta } from '../../../explain/index.ts';
+import type { CardRow, CardOptions, Card } from '../../../explain/drawing.ts';
+import type { Diagram, View, Having, ExplainerMeta } from '../../../explain/index.ts';
 import {
   BLOCK,
   DEFAULT_RESERVE,

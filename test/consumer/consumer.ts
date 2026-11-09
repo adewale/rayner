@@ -175,7 +175,7 @@ function authorContracts() {
 
 // The drawing kit, as an author imports it.
 import { label, tile, table, flow, bars, stat, segment, dot } from 'rayner/drawing';
-import type { TableColumns } from 'rayner/drawing';
+import type { TableColumns, Card, CodeBlock, CodeOptions, CardOptions, CardRow } from 'rayner/drawing';
 export function drawingKit(scene: Scene) {
   const s = stage(scene);
   const spread: TableColumns = { left: -6, right: 6 };
@@ -196,7 +196,7 @@ export function drawingKit(scene: Scene) {
 // What the collection writes, an outside author can write: emphasis a scene draws itself, a card
 // and code rebuilt inside a view, a diagram laid out before it is drawn, and colours mixed from the palette.
 import { Diagram, diagramResolverOf } from 'rayner/explain';
-import type { DiagramResolver, Card, CodeBlock, CodeOptions, Look } from 'rayner/explain';
+import type { DiagramResolver, Look } from 'rayner/explain';
 import { emphasised, card, code } from 'rayner/drawing';
 import { lerpColor } from 'rayner';
 export async function publicCollection(scene: Scene): Promise<void> {
@@ -226,7 +226,7 @@ import { Group, Mobject, VMobject, Circle, Polygon, Arc, Cross, CurvedArrow, Bra
 import type { Box, Vec, SceneState, ScheduledAnimation, MatchKey, FadeOpts, FontName, SceneClass, Sink, Style } from 'rayner';
 import { callout, dimension, pin, legend, keyed, keyedParts } from 'rayner/drawing';
 import { Machine, refuse, isRefusal, answerOf, settingsOf, resolveSettings, regionBox, mermaid } from 'rayner/explain';
-import type { Refusal, Transition, Choreography, CardOptions, CardRow, NoteSide, PictureNote, DiagramPicture, Palette, Stage, ExplainerClass, ExplainerMeta, Setting, StepKind, Description } from 'rayner/explain';
+import type { Refusal, Transition, Choreography, NoteSide, PictureNote, DiagramPicture, Palette, Stage, ExplainerClass, ExplainerMeta, Setting, StepKind, Description } from 'rayner/explain';
 import { Write, MoveAlongPath, Square, Underline, ArcBetweenPoints } from 'rayner/extras';
 import { seenFrom, seenPictures, depthOrder, latLon, toLatLon, greatArc, circleOn, between, project } from 'rayner/geo';
 import type { Model3D, Part, SeenPiece, SeenOptions, SeenPicture, Vec3, Viewpoint } from 'rayner/geo';

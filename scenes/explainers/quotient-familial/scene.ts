@@ -1,7 +1,8 @@
 import { Scene, Group, Create } from '../../../src/index.ts';
 import { callout, card, code } from '../../../explain/drawing.ts';
+import type { CardRow, CardOptions, Card } from '../../../explain/drawing.ts';
 import { stage, settingsOf, regionBox, mermaid, view, having } from '../../../explain/index.ts';
-import type { CardRow, CardOptions, View, Diagram, Having, Card, ExplainerMeta } from '../../../explain/index.ts';
+import type { View, Diagram, Having, ExplainerMeta } from '../../../explain/index.ts';
 import { impot, bareme, tranche, repartition, BAREME, PARAMS, euros, pourcent, partsTexte, NNBSP } from './model.ts';
 import type { Impot } from './model.ts';
 import { drawRegle } from './picture.ts';

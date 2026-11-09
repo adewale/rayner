@@ -11,7 +11,6 @@ export type { LayoutDirection } from './layout-direction.ts';
 export { Diagram } from './diagrams.ts';
 export type { Action } from './action.ts';
 export type { ShowOptions, NoteSide, PictureNote, DiagramPresentation } from './diagrams.ts';
-export type { Card, CodeBlock, CardRow, CardOptions, CodeOptions } from './panels.ts';
 export type { Description, DescriptionPart } from './trace.ts';
 export { regionBox } from './look.ts';
 export type { Region, Look, Palette } from './look.ts';

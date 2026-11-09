@@ -1,8 +1,9 @@
 import { Scene, Text, Group, FadeIn } from '../../../src/index.ts';
 import type { Box, FadeOpts } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, answerOf as scriptAnswerOf, view, having } from '../../../explain/index.ts';
-import type { CardOptions, CardRow, View, ExplainerMeta } from '../../../explain/index.ts';
+import type { View, ExplainerMeta } from '../../../explain/index.ts';
 import { keyed, card, code, legend } from '../../../explain/drawing.ts';
+import type { CardOptions, CardRow } from '../../../explain/drawing.ts';
 import {
   ADDR,
   MACHINES,

@@ -4,11 +4,12 @@
 // every step is what the state renders (the fidelity helper).
 import { test } from 'node:test';
 import { Square } from '../src/extras.ts';
-import type { Card, Stage, SyncOpts } from '../explain/index.ts';
+import type { Stage, SyncOpts } from '../explain/index.ts';
 import { ViewSync } from '../explain/view.ts';
 import { view, having, stage } from '../explain/index.ts';
 import type { View } from '../explain/index.ts';
 import { card } from '../explain/drawing.ts';
+import type { Card } from '../explain/drawing.ts';
 import assert from 'node:assert/strict';
 import { Scene, Group, Text, DecimalNumber, Rectangle, Circle, Animation, FadeIn, Succession } from '../src/index.ts';
 import { StringSink, SnapshotSink, renderFrame } from '../src/output.ts';

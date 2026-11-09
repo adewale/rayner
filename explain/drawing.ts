@@ -14,6 +14,7 @@ import { Card, CodeBlock } from './panels.ts';
 import type { CardRow, CardOptions, CodeOptions } from './panels.ts';
 import { physicalAt } from './layout-direction.ts';
 export type { LegendItem } from './annotate.ts';
+export type { Card, CodeBlock, CardRow, CardOptions, CodeOptions } from './panels.ts';
 
 /**
  * `m` marked as emphasis, `as` what it shows (`'ring: idle'`, `'outlined: push at slot 3'`): call

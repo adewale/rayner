@@ -1,7 +1,8 @@
 import { Axes, Circle, Cross, Group, Rectangle, Text } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
-import type { CodeBlock, Stage, Look } from '../../../explain/index.ts';
+import type { Stage, Look } from '../../../explain/index.ts';
 import { keyedParts, card } from '../../../explain/drawing.ts';
+import type { CodeBlock } from '../../../explain/drawing.ts';
 import type { BucketCall as Call, BucketState } from './model.ts';
 
 /** The stage's colours the pictures are drawn in. */
