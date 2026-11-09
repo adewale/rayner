@@ -31,7 +31,7 @@ export interface ViewOpts {
   /**
    * The point a rebuilt picture keeps (default 'center'): a left-placed
    * readout whose text grows stays put at its left edge, as a Text's `anchor`
-   * does for setText(). false: no placing or scaling, build() puts the picture
+   * does for setText(). false: no placing or scaling, the draw puts the picture
    * where it belongs (moving the View then lasts only until the next sync).
    */
   place?: ViewPlace | false;
