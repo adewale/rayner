@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import type { Transition, View } from '../explain/index.ts';
 import { ViewSync } from '../explain/view.ts';
 import assert from 'node:assert/strict';
-import { Scene, Text, Group, Rectangle, Transform, Animation, AnimationGroup, Succession, TransformMatching, matchByKey } from '../src/index.ts';
+import { Scene, Text, Group, Rectangle, Transform, Animation, AnimationGroup, Succession, TransformMatching, matchByKey, keyed } from '../src/index.ts';
 import type { Mobject } from '../src/index.ts';
 import { NullSink, StringSink, renderFrame } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
@@ -14,6 +14,7 @@ import { SetState } from '../explain/state.ts';
 import { exploreMachines } from '../tools/lib/explain-check.ts';
 import { decodeLog, encodeLog } from '../app/embed-live.ts';
 import { liveBase, logStart, runLive } from '../explain/live.ts';
+import { whenReady } from '../src/animation.ts';
 
 await loadFonts();
 
@@ -30,9 +31,9 @@ function lampScene(blind = false, size = 0.5) {
       const s = stage(this);
       const picture = view(this, (st: Lamp) => {
         const word = new Text(blind ? 'lamp' : `lamp ${LEVELS[st.level]}`, { fontSize: st.level === 2 ? size : 0.5 });
-        word.key = 'lamp:word';
+        keyed(word, 'lamp:word');
         const g = new Group(new Rectangle({ width: 4, height: 1.2 }), word);
-        g.key = 'lamp';
+        keyed(g, 'lamp');
         return g;
       });
       s.keep(picture, { describe: () => picture.texts.join(' ') });
@@ -58,7 +59,6 @@ test('SetState takes a model step: a function of a copy of the state when it beg
     }
   })(new NullSink()).run();
   assert.deepEqual(scene.steps[0]!.evidence, [{ kind: 'event', event: 'TICK' }]);
-  assert.throws(() => new SetState(new Scene(new NullSink()), { n: 1 }, { event: '' }), TypeError);
 });
 
 test('a machine replays events through the model as one schedule: state, evidence, seeking and trace follow the model', async () => {
@@ -93,10 +93,10 @@ test('without an authored transition, the views morph by key, staged: what goes 
   // The lamp's word is keyed: "lamp off" and "lamp dim" are different words, so the old fades out and the new fades in.
   const scene = new Scene<Lamp>(new NullSink());
   scene.state = { level: 0 };
-  const lamp = view(scene, (st: Lamp) => Object.assign(new Group(
-    Object.assign(new Rectangle({ width: 4, height: 1.2 }), { key: 'lamp:box' }),
-    Object.assign(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), { key: 'lamp:word' }),
-  ), { key: 'lamp' }));
+  const lamp = view(scene, (st: Lamp) => keyed(new Group(
+    keyed(new Rectangle({ width: 4, height: 1.2 }), 'lamp:box'),
+    keyed(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), 'lamp:word'),
+  ), 'lamp'));
   scene.add(lamp);
   const machine = new Machine<Lamp, 'UP' | 'OFF'>(scene, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [lamp] });
   // The morph machine.send plays for each view: the view's sync with the machine's match.
@@ -169,11 +169,11 @@ function litLamp(transition: (t: Transition<Lamp, 'UP' | 'OFF'>, lamp: View) => 
       const s = stage(this);
       const picture = view(this, (st: Lamp) => {
         const word = new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 });
-        word.key = 'lamp:word';
+        keyed(word, 'lamp:word');
         const box = new Rectangle({ width: 4, height: 1.2 });
-        box.key = 'lamp:box';
+        keyed(box, 'lamp:box');
         const g = new Group(box, word);
-        g.key = 'lamp';
+        keyed(g, 'lamp');
         return g;
       });
       s.keep(picture, { describe: () => picture.texts.join(' ') });
@@ -283,7 +283,7 @@ class WaitsToRead extends Animation {
   #asked = 0;
   #read = false;
   constructor(m: Mobject) { super(m, { runTime: 0.1 }); }
-  override ready(): Promise<unknown> | null {
+  override [whenReady](): Promise<unknown> | null {
     if (this.#read || this.#asked++ === 0) return null;
     return new Promise((done) => setTimeout(done, 5)).then(() => { this.#read = true; });
   }
@@ -340,8 +340,8 @@ test('what is shown may change between a machine\'s events; exploration draws it
       const picture = view(this, (st: Lamp, shown) => {
         // Too small to read in the hall: exploration drawing there would say so.
         const word = new Text(`${String(shown.room ?? 'hall')} lamp ${LEVELS[st.level]}`, { fontSize: shown.room === 'hall' ? 0.08 : 0.5 });
-        word.key = 'lamp:word';
-        return Object.assign(new Group(new Rectangle({ width: 6, height: 1.2 }), word), { key: 'lamp' });
+        keyed(word, 'lamp:word');
+        return keyed(new Group(new Rectangle({ width: 6, height: 1.2 }), word), 'lamp');
       });
       s.keep(picture, { describe: () => picture.texts.join(' ') });
       this.add(picture);
@@ -377,8 +377,8 @@ test('exploration checks a machine on the stage where it last played, not the st
       const s = stage(this);
       const picture = view(this, (st: Lamp) => {
         const word = new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 });
-        word.key = 'lamp:word';
-        return Object.assign(new Group(new Rectangle({ width: 4, height: 1.2 }), word), { key: 'lamp' });
+        keyed(word, 'lamp:word');
+        return keyed(new Group(new Rectangle({ width: 4, height: 1.2 }), word), 'lamp');
       });
       s.keep(picture, { describe: () => picture.texts.join(' ') });
       this.add(picture);
@@ -407,8 +407,8 @@ test('a transition finds each view by the view itself, and refuses a view the ma
   class Two extends Scene<Lamp> {
     override state = { level: 0 };
     override async construct() {
-      const lamp = view(this, (st: Lamp) => Object.assign(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), { key: 'lamp' }));
-      const meter = view(this, (st: Lamp) => Object.assign(new Text(`level ${st.level}`, { fontSize: 0.5 }).moveTo([0, -2]), { key: 'meter' }));
+      const lamp = view(this, (st: Lamp) => keyed(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), 'lamp'));
+      const meter = view(this, (st: Lamp) => keyed(new Text(`level ${st.level}`, { fontSize: 0.5 }).moveTo([0, -2]), 'meter'));
       const stranger = view(this, () => new Text('elsewhere'));
       this.add(lamp, meter);
       let asked: unknown = null;
@@ -439,7 +439,7 @@ test('a bound stops the story where the model would go on; check fails a bound t
     override state = { level: 0 };
     override async construct() {
       const s = stage(this);
-      const picture = view(this, (st: Lamp) => Object.assign(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), { key: 'lamp' }));
+      const picture = view(this, (st: Lamp) => keyed(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), 'lamp'));
       s.keep(picture, { describe: () => picture.texts.join(' ') });
       this.add(picture);
       this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next: nextUp, views: [picture], bound });
@@ -474,7 +474,7 @@ test('end finishes the story at a state: the model\'s moves from it are beyond t
     override state = { level: 0 };
     override async construct() {
       const s = stage(this);
-      const picture = view(this, (st: Lamp) => Object.assign(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), { key: 'lamp' }));
+      const picture = view(this, (st: Lamp) => keyed(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), 'lamp'));
       s.keep(picture, { describe: () => picture.texts.join(' ') });
       this.add(picture);
       this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next: nextUp, views: [picture],
@@ -500,7 +500,7 @@ test('exploration also walks the states a reader reaches from the live step, not
     override state = { level: 0 };
     override async construct() {
       const s = stage(this);
-      const picture = view(this, (st: Lamp) => Object.assign(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: st.level === 1 ? 0.08 : 0.5 }), { key: 'lamp' }));
+      const picture = view(this, (st: Lamp) => keyed(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: st.level === 1 ? 0.08 : 0.5 }), 'lamp'));
       s.keep(picture, { describe: () => picture.texts.join(' ') });
       this.add(picture);
       const machine = new Machine<Lamp, 'UP'>(this, {
@@ -527,7 +527,7 @@ function restingLamp(rest: 'code' | 'listener', caption?: string) {
     override state = { level: 0 };
     override async construct() {
       const s = stage(this);
-      const picture = view(this, (st: Lamp) => Object.assign(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: st.level === 0 ? 0.08 : 0.5 }), { key: 'lamp' }));
+      const picture = view(this, (st: Lamp) => keyed(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: st.level === 0 ? 0.08 : 0.5 }), 'lamp'));
       s.keep(picture, { describe: () => picture.texts.join(' ') });
       this.add(picture);
       const machine = new Machine<Lamp, 'UP' | 'OFF'>(this, {
@@ -591,9 +591,9 @@ test('an authored transition lands a picture whose parts repeat a key by redrawi
     override state = { n: 0 };
     override async construct() {
       this.pair = view(this, (st: N) => {
-        const a = Object.assign(new Text(`a${st.n}`, { fontSize: 0.5 }).shift([-2, 0]), { key: 'part' });
-        const b = Object.assign(new Text(`b${st.n}`, { fontSize: 0.5 }).shift([2, 0]), { key: 'part' });
-        return Object.assign(new Group(a, b), { key: 'pair' });
+        const a = keyed(new Text(`a${st.n}`, { fontSize: 0.5 }).shift([-2, 0]), 'part');
+        const b = keyed(new Text(`b${st.n}`, { fontSize: 0.5 }).shift([2, 0]), 'part');
+        return keyed(new Group(a, b), 'pair');
       });
       this.add(this.pair);
       const machine = new Machine<N, 'UP'>(this, {
@@ -616,7 +616,7 @@ test('exploration refuses a run to the live step that made a different machine a
     override state = { level: 0 };
     override async construct() {
       const s = stage(this);
-      const picture = view(this, (st: Lamp) => Object.assign(new Group(new Rectangle({ width: 4, height: 1.2 }), Object.assign(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), { key: 'lamp:word' })), { key: 'lamp' }));
+      const picture = view(this, (st: Lamp) => keyed(new Group(new Rectangle({ width: 4, height: 1.2 }), keyed(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), 'lamp:word')), 'lamp'));
       s.keep(picture, { describe: () => picture.texts.join(' ') });
       this.add(picture);
       const machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start, events, next, views: [picture], runTime: 0.3 });

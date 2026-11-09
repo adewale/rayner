@@ -160,7 +160,6 @@ test('the player, the command and diagram capture import the library through its
  * added, with its reason. A module-level name the layers above use is in an internal barrel instead.
  */
 const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
-  'Animation.cleanUpFromScene': { files: ['explain/choreograph.ts'], why: 'a joined animation cleans up as the play would' },
   'Animation.families': { files: ['explain/annotate.ts'], why: 'an annotation reads what an animation draws' },
   'DomSink.apply': { files: ['app/embed-zoom.ts'], why: 'the close-up draws records without a frame' },
   'Machine.after': { files: ['tools/lib/explain-check.ts'], why: 'check reads the state an event leads to' },

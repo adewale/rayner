@@ -4,13 +4,13 @@
 import { test } from 'node:test';
 import { choreograph } from '../explain/choreograph.ts';
 import assert from 'node:assert/strict';
-import { Scene, Group, Circle, Dot, Line, Rectangle, Succession, Transform } from '../src/index.ts';
+import { Scene, Group, Circle, Dot, Line, Rectangle, Succession, Transform, keyed } from '../src/index.ts';
 import { NullSink, toSvgString } from '../src/output.ts';
 import type { AnimationGroup } from '../src/index.ts';
 import type { Mobject, Animation } from '../src/index.ts';
 
 /** A picture of keyed parts. */
-const picture = (...parts: [string, Mobject][]) => new Group(...parts.map(([key, m]) => Object.assign(m, { key })));
+const picture = (...parts: [string, Mobject][]) => new Group(...parts.map(([key, m]) => keyed(m, key)));
 /** What a picture shows, as unordered rendered marks. */
 const marks = (m: Mobject) => {
   const s = new Scene(new NullSink());
@@ -87,7 +87,7 @@ test('a passing part the target does not have comes in, moves and goes out, and 
 });
 
 test('a picture with two parts under one key is refused', () => {
-  const twice = new Group(Object.assign(new Circle(), { key: 'x' }), Object.assign(new Rectangle({ width: 2, height: 2 }), { key: 'x' }));
+  const twice = new Group(keyed(new Circle(), 'x'), keyed(new Rectangle({ width: 2, height: 2 }), 'x'));
   assert.throws(() => choreograph(twice, after()), /t\.choreograph\(\): two parts of one picture are keyed "x"/);
 });
 

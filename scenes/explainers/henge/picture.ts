@@ -6,7 +6,7 @@
 // Visual decisions: the overhead grid is schematic, turned to the street's bearing, not Manhattan's real
 // blocks; its sunrise direction is the same day's path reached at the opposite hour angle. The street
 // views enlarge the Sun's disc and simplify the buildings.
-import { Group, Circle, Dot, Line, Polygon, Rectangle, Arrow, VMobject } from '../../../src/index.ts';
+import { Group, Circle, Dot, Line, Polygon, Rectangle, Arrow, VMobject, keyed } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { label } from '../../../explain/drawing.ts';
@@ -30,7 +30,6 @@ function path(points: Vec[], color: string, width = 0.07) {
   for (const point of points.slice(1)) p.addLineTo(point);
   return p;
 }
-function tagged<T extends Group>(g: T, key: string): T { g.key = key; return g; }
 
 /** Street perspective: a visible horizon clips the disc; the two walls keep its bearing fixed.
  *  The ground below the horizon is the page itself, with the roadway drawn on it, so it has no panel edge. */
@@ -53,7 +52,7 @@ function streetView(half: boolean, paper: string, cx = 0, scale = 1, cy = 0) {
 /** The opening picture: the street seen from its middle, the full Sun between its walls, and the street's name. */
 export function drawStreet(st: { street: Street }, s: Stage): Group {
   const words = writer(s);
-  return tagged(new Group(streetView(false, s.look.paper), words(STREET_NAME[st.street], 0, -3.7)), 'henge-street');
+  return keyed(new Group(streetView(false, s.look.paper), words(STREET_NAME[st.street], 0, -3.7)), 'henge-street');
 }
 
 /** The year's sunset directions against the street; with `crossings`, the days the curve crosses it. */
@@ -78,7 +77,7 @@ export function annual(st: { bearing: number; street: Street; annual: { longitud
     g.add(new Dot({ radius: 0.13, color: SUMMER }).moveTo([x(longitude), streetY]),
       words(seasonNames[i]!, 0, 0, SUMMER).moveTo(at, [-side, 0]));
   });
-  return tagged(g, 'henge-annual');
+  return keyed(g, 'henge-annual');
 }
 
 /** Overhead, north up: a schematic grid turned to the street's bearing, and the Sun's direction at sunset and sunrise
@@ -100,9 +99,9 @@ export function overhead({ bearing, street: which, alignment }: { bearing: numbe
     const c = at(o, u, (j * streetsHalf) / 3);
     grid.add(line(at(c, v, -avenuesHalf), at(c, v, avenuesHalf), '#cbd5e1', 0.05));
   }
-  const north = tagged(new Group(new Arrow([-6.4, -3.4], [-6.4, -2.2], { stroke: INK, strokeWidth: 0.05 }), words('N', -6.4, -1.75)), 'henge-map-north');
+  const north = keyed(new Group(new Arrow([-6.4, -3.4], [-6.4, -2.2], { stroke: INK, strokeWidth: 0.05 }), words('N', -6.4, -1.75)), 'henge-map-north');
   // Drawn over the Sun's rays, thinner than them, so a ray along the street still shows the street inside it.
-  const street = tagged(new Group(line(at(o, u, -streetsHalf - 0.6), at(o, u, streetsHalf + 0.6), SUMMER, 0.04)), 'henge-map-street');
+  const street = keyed(new Group(line(at(o, u, -streetsHalf - 0.6), at(o, u, streetsHalf + 0.6), SUMMER, 0.04)), 'henge-map-street');
   const ray = (az: number, length: number, dashed: boolean) => {
     const a = new Arrow(at(o, dir(az), 0.25), at(o, dir(az), length), { stroke: SUN, strokeWidth: 0.07 });
     if (dashed) a.style.dashArray = '0.22 0.14';
@@ -117,7 +116,7 @@ export function overhead({ bearing, street: which, alignment }: { bearing: numbe
     const d = disc(az), x = side * 6.6;
     return new Group(words(name, 0, 0, SUN).moveTo([x, d[1] + 1.22], [side, 0]), words(detail, 0, 0, SUN).moveTo([x, d[1] + 0.54], [side, 0]));
   };
-  const sun = tagged(new Group(
+  const sun = keyed(new Group(
     ray(sunset, 3.8, false), ray(sunrise, 3.8, true),
     new Circle({ radius: 0.2, fill: SUN, stroke: SUN }).moveTo(disc(sunset)),
     new Circle({ radius: 0.2, fill: SUN, stroke: SUN }).moveTo(disc(sunrise)),
@@ -127,14 +126,14 @@ export function overhead({ bearing, street: which, alignment }: { bearing: numbe
     ? [words('East end', 0, 0, SUMMER).moveTo([6.6, -2.55], [1, 0]), words(offEast(back), 0, 0, SUMMER).moveTo([6.6, -3.23], [1, 0]),
       words(`Sunrise misses that end by ${(back - sunrise).toFixed(1)}°`, 0, -3.9)]
     : [words('Sunrise and sunset both run along the street', 0, -3.7)];
-  return tagged(new Group(grid, sun, street, new Dot({ radius: 0.12, color: INK }).moveTo(o), north, ...notes), 'henge-map');
+  return keyed(new Group(grid, sun, street, new Dot({ radius: 0.12, color: INK }).moveTo(o), north, ...notes), 'henge-map');
 }
 
 /** Half Sun and full Sun side by side, each centred down the street, and the order each season brings them in. */
 export function disc({ street }: { street: Street }, s: Stage): Group {
   const words = writer(s);
   const seasonNames = seasonsOf(street);
-  return tagged(new Group(
+  return keyed(new Group(
     streetView(true, s.look.paper, -3.5, 0.5, 0.5), streetView(false, s.look.paper, 3.5, 0.5, 0.5),
     words('Half Sun', -3.5, 2.45), words('Full Sun', 3.5, 2.45),
     words('Centre on horizon', -3.5, -1.6), words('Bottom on horizon', 3.5, -1.6),

@@ -94,11 +94,8 @@ export async function snapshotBuilder(
     },
     async diagram(spec: DiagramSpec): Promise<DiagramSnapshot> {
       const key = diagramKey(spec);
-      if (store[key]) {
-        if (spec.lettering === 'natural' && store[key].textMeasurement?.id !== textMeasurement.id)
-          throw new Error('Stale natural diagram font metrics; run rayner snapshots to rebuild it');
-        return store[key];
-      }
+      // The store is the collection's, which refused or dropped any natural snapshot measured with other metrics.
+      if (store[key]) return store[key];
       if (pending.has(key)) return pending.get(key)!;
       const task = serial.then(async () => {
         const verified = verifyMermaid(spec.source);

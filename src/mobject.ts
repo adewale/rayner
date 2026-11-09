@@ -23,6 +23,8 @@ let kids: (m: Mobject) => readonly Mobject[];
 let setKids: (m: Mobject, children: readonly Mobject[]) => void;
 let parentIn: (m: Mobject) => Mobject | null;
 let setParent: (m: Mobject, p: Mobject | null) => void;
+/** A mobject's key, written only through `keyed` and the engine's own copies. */
+let setKey: (m: Mobject, key: string | undefined) => void;
 let nextId = 1;
 
 const COLOR_KEYS = new Set(['fill', 'stroke']);
@@ -120,22 +122,19 @@ export interface HasText { text?: string }
 export class Mobject {
   #children: readonly Mobject[] = [];
   #parent: Mobject | null = null;
+  #key: string | undefined = undefined;
   static {
     kids = (m) => m.#children;
     setKids = (m, children) => { m.#children = children; };
     parentIn = (m) => m.#parent;
     setParent = (m, p) => { m.#parent = p; };
+    setKey = (m, key) => { m.#key = key; };
   }
   /**
    * @internal The object's number, for rendering and error messages. Not part of the published
    * types: an author names a part by its `key`.
    */
   id: number;
-  /**
-   * The part's identity: the same key in two pictures is the same part, so a transform, a
-   * choreography, `scene.find`, emphasis and review all follow it from picture to picture.
-   */
-  key: string | undefined;
   /**
    * What the part is for, to whatever drew it, apart from which part it is: the stage's backdrop
    * (`'backdrop'`), its heading (`'heading'`) and the number, line and band around it (`'chrome'`), a
@@ -173,7 +172,6 @@ export class Mobject {
 
   constructor(style: Style = {}) {
     this.id = nextId++;
-    this.key = undefined;
     this.role = undefined;
     this.style = { ...DEFAULT_STYLE, ...style };
     this.updaters = [];
@@ -188,6 +186,12 @@ export class Mobject {
   get children(): readonly Mobject[] { return this.#children; }
   /** The mobject this one is a child of, or null. Read-only: set by adding this one to another. */
   get parent(): Mobject | null { return this.#parent; }
+  /**
+   * The part's identity: the same key in two pictures is the same part, so a transform, a
+   * choreography, `scene.find`, emphasis and review all follow it from picture to picture.
+   * Read-only: set it with `keyed(m, key)`. Copies carry it.
+   */
+  get key(): string | undefined { return this.#key; }
 
   // ---- data --------------------------------------------------------------
 
@@ -322,6 +326,7 @@ export class Mobject {
     const c = Reflect.construct(Mobject, [], this.constructor) as this, id = c.id;
     Object.assign(c, this);
     c.id = id;
+    c.#key = this.#key;
     c.style = { ...this.style };
     if (this.defaultColors) c.defaultColors = { ...this.defaultColors };
     if (this.clipBox) c.clipBox = [...this.clipBox];
@@ -828,6 +833,7 @@ export function adoptState(m: Mobject, state: Mobject, keep: ReadonlySet<string>
     // Symbol-keyed fields (what a drawn part says it emphasises or shows) are data like any other.
     for (const k of ownFields(t)) if (!(k in f) && adopt(k)) delete t[k as string];
     for (const k of ownFields(f)) if (adopt(k)) t[k as string] = place(f[k as string]);
+    if (!keep.has('key')) setKey(to, from.key);
     to._bbox = null;
     to.touchPoints();
   }
@@ -840,6 +846,15 @@ export function adoptState(m: Mobject, state: Mobject, keep: ReadonlySet<string>
   // What it took keeps the colours this mobject took from its scene.
   if (m._colors) paintDefaults(m, m._colors);
   m.invalidateBox();
+}
+
+/**
+ * `m` with `key` set, returned: the part's address, which matching (matchByKey), `find`,
+ * invariants and reviews read. The one way to key a part: `Mobject.key` is read-only.
+ */
+export function keyed<T extends Mobject>(m: T, key: string): T {
+  setKey(m, key);
+  return m;
 }
 
 /**

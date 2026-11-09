@@ -25,7 +25,7 @@ import { reviewScene } from '../../tools/lib/explain-review-scene.ts';
  * bright, and another adds a note when bright, readable at a 1280 px stage but small and far from
  * the lamp, so on a phone neither the whole picture nor the step's close-up reads it.
  */
-const lamp = (defect: boolean) => `import{Scene,Text,Group,Rectangle}from'rayner';import{Machine,refuse,view}from'rayner/explain';import{stage,settingsOf}from'rayner/explain';
+const lamp = (defect: boolean) => `import{Scene,Text,Group,Rectangle,keyed}from'rayner';import{Machine,refuse,view}from'rayner/explain';import{stage,settingsOf}from'rayner/explain';
 const LEVELS=['off','dim','bright'];
 export default class Lamp extends Scene{
   static meta={id:'lamp',title:'A lamp a reader can switch'};
@@ -34,10 +34,10 @@ export default class Lamp extends Scene{
   async construct(){
     const s=stage(this),tiny=${defect ? "settingsOf(this).label==='tiny'" : 'false'},far=${defect ? "settingsOf(this).label==='far'" : 'false'};
     const picture=view(this,(st)=>{
-      const word=new Text('lamp '+LEVELS[st.level],{fontSize:tiny&&st.level===2?0.1:0.6});word.key='lamp:word';
+      const word=new Text('lamp '+LEVELS[st.level],{fontSize:tiny&&st.level===2?0.1:0.6});keyed(word,'lamp:word');
       const parts=[new Rectangle({width:4,height:1.2}),word];
-      if(far&&st.level===2)parts.push(Object.assign(new Text('bright, its brightest',{fontSize:0.18}).moveTo([-5.6,-3.6]),{key:'lamp:note'}));
-      return Object.assign(new Group(...parts),{key:'lamp'});
+      if(far&&st.level===2)parts.push(keyed(new Text('bright, its brightest',{fontSize:0.18}).moveTo([-5.6,-3.6]), 'lamp:note'));
+      return keyed(new Group(...parts), 'lamp');
     });
     s.keep(picture,{describe:()=>picture.texts.join(' ')});
     this.add(picture);

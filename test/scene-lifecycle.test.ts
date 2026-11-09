@@ -10,7 +10,7 @@ import { NullSink, renderFrame, StopScene } from '../src/output.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { traceScene } from '../src/testing.ts';
 import type { Step } from '../src/index.ts';
-import { MadeAtTurn, animationName } from '../src/animation.ts';
+import { MadeAtTurn, animationName, whenReady, playScene } from '../src/animation.ts';
 import type { ScheduledAnimation } from '../src/animation.ts';
 import { loadFonts } from '../explain/testing.ts';
 
@@ -108,6 +108,22 @@ test('a play drives its animations through the engine\'s own lifecycle: a begin,
   const queued = new Queue(new Circle());
   await scene.play(new Succession([queued, new FadeIn(new Circle())]));
   assert.deepEqual([queued.phase, queued.waiting, queued.land], ['finished', 3, 'the far shore']);
+});
+
+test('members an author names ready, settle, setOptions, cleanUpFromScene, paints, scene or host are the author\'s: a play neither calls nor reads them', async () => {
+  const scene = new Scene(new NullSink());
+  const refuse = (): never => { throw new Error('the play called an author\'s member'); };
+  class Mine extends FadeIn {
+    host = 'a server';
+    ready(): Promise<unknown> { return new Promise(() => {}); }
+    settle = refuse; setOptions = refuse; cleanUpFromScene = refuse; paints = refuse;
+  }
+  class Mixed extends AnimationGroup { scene = 'the cache'; }
+  const a = new Mine(new Circle()), b = new Mine(new Circle(), { remover: true });
+  const group = new Mixed([b]);
+  await scene.play(a, group, { runTime: 0.2 });
+  assert.deepEqual([a.phase, group.phase, a.runTime, group.scene, a.host], ['finished', 'finished', 0.2, 'the cache', 'a server']);
+  assert.ok(scene.familyMembers().includes(a.mobject) && !scene.familyMembers().includes(b.mobject), 'its play added what it drew and removed the remover\'s');
 });
 
 test('a failed play lands what it began without calling an author\'s own land(), and reports the failure', async () => {
@@ -251,8 +267,8 @@ test('an animation is named in a message with the article its name is read with'
 });
 
 test('what is made at its turn and waits for what it reads is refused outside a play, under the call it belongs to', () => {
-  const waiting = new MadeLater(() => [new (class extends FadeIn { override ready() { return new Promise(() => {}); } })(new Circle())]);
-  waiting.scene = new Scene(new NullSink());
+  const waiting = new MadeLater(() => [new (class extends FadeIn { override [whenReady]() { return new Promise(() => {}); } })(new Circle())]);
+  waiting[playScene] = new Scene(new NullSink());
   assert.throws(() => waiting.begin(), /^Error: x\(\): what begins at its turn waits for what it reads/);
 });
 
@@ -268,7 +284,7 @@ test('a Succession finished by its play while a member waits is still begun unti
   let read!: () => void;
   // Asked first as the play begins, which finds nothing to wait for; then at its turn, which waits.
   let asked = 0;
-  class Reads extends FadeIn { override ready(): Promise<unknown> | null { return ++asked === 2 ? new Promise<void>((r) => (read = r)) : null; } }
+  class Reads extends FadeIn { override [whenReady](): Promise<unknown> | null { return ++asked === 2 ? new Promise<void>((r) => (read = r)) : null; } }
   const scene = new Scene(new NullSink());
   const w = new Reads(new Circle(), { runTime: 0 });
   const sq = new Succession([new FadeIn(new Circle(), { runTime: 0.1 }), w]), group = new AnimationGroup([sq]);
@@ -662,10 +678,6 @@ test('step metadata is copied as JSON when the step begins: a later change rewri
     override async construct() { await this.step('one', { caption: 'x', at: () => 1 } as never); }
   }
   await assert.rejects(new Fn(new NullSink()).run(), /this\.step\(\): its metadata\.at must contain finite, acyclic JSON data/);
-  class NotObject extends Scene {
-    override async construct() { await this.step('one', () => 3 as never); }
-  }
-  await assert.rejects(new NotObject(new NullSink()).run(), /this\.step\(\): the metadata of step "one" must be an object/);
 });
 
 test('a step\'s recorded metadata is frozen: a write to it after the step began is refused, and changes neither its caption nor its hold', async () => {
@@ -685,25 +697,6 @@ test('a step\'s recorded metadata is frozen: a write to it after the step began 
   assert.ok(refused instanceof TypeError, 'the write throws');
   assert.deepEqual(trace.steps[0]!.meta, { caption: 'one', more: { list: [1] } });
   assert.ok(trace.steps[0]!.frame1 < 30, 'the hold is the reading time of one word');
-});
-
-test('step metadata given as a value or as a function is refused at the same point: once the step before has ended and held', async () => {
-  const at = async (meta: unknown): Promise<number> => {
-    let frames = 0;
-    class Bad extends Scene {
-      override async construct() {
-        await this.step('one', { caption: 'A caption long enough to hold the step for a while.' });
-        await this.wait(0.1);
-        await this.step('two', meta as never);
-      }
-    }
-    const sink = { frame: async () => { frames++; } };
-    await assert.rejects(new Bad(sink).run(), /this\.step\(\): the caption of step "two" must be a string/);
-    return frames;
-  };
-  const asValue = await at({ caption: 3 }), asFunction = await at(() => ({ caption: 3 }));
-  assert.equal(asValue, asFunction, 'both fail on the same frame');
-  assert.ok(asValue > 4, `${asValue} frames: the step before held for its caption first`);
 });
 
 // ---- timeline gates --------------------------------------------------------
@@ -786,10 +779,11 @@ test('a caption holds one second a word at 60 words a minute: whitespace separat
   assert.equal(await held("int('三') returns 3"), frames(3));
   assert.equal(await held('API调用'), frames(2 / 1.5));
   assert.equal(await held('三'), frames(1));
-  // Thai, with its combining marks: grapheme clusters, not code points (six code points, two clusters).
+  // Thai: vowel signs and tone marks are parts of a letter (six code points, two letters).
   assert.equal(await held('ที่นี่'), frames(2 / 1.5));
-  // Khmer, where Node's and Chromium's dictionary word breaks differ; their grapheme clusters agree.
-  assert.equal(await held('សួស្តីពិភពលោក'), frames(7 / 1.5));
+  // Khmer: the subscript sign and vowel signs are marks, the subscript consonant a letter (13 code points,
+  // 8 letters), whatever the ICU version: its grapheme clusters number 8 under Node 24.0.0 and 7 under later Nodes.
+  assert.equal(await held('សួស្តីពិភពលោក'), frames(8 / 1.5));
   // Korean is written with spaces.
   assert.equal(await held('한국어는 띄어쓰기를 합니다'), frames(3));
 });

@@ -1,8 +1,8 @@
-import { Group, Dot, SurroundingRectangle } from '../../../src/index.ts';
+import { Group, Dot, SurroundingRectangle, keyed } from '../../../src/index.ts';
 import type { Mobject, Code, CodeSpan } from '../../../src/index.ts';
 import { reduceSession, sessionAttempt } from './model.ts';
 import type { SessionState } from './model.ts';
-import { flow, keyed, label, tile, emphasised, card } from '../../../explain/drawing.ts';
+import { flow, label, tile, emphasised, card } from '../../../explain/drawing.ts';
 import type { CardOptions, Card } from '../../../explain/drawing.ts';
 import type { Stage, StagedStepsOptions, Diagram } from '../../../explain/index.ts';
 
@@ -72,8 +72,8 @@ export function drawSessionCard(s: Stage, st: SessionState, at: CardOptions['at'
     { at, size: 0.28, width: 4.8, lit: row && { row } },
   );
   for (const field of ['State', 'Event', 'Returns'])
-    drawn.values.get(field)!.key = `session:${field.toLowerCase()}`;
-  drawn.bar.key = 'session:bar';
+    keyed(drawn.values.get(field)!, `session:${field.toLowerCase()}`);
+  keyed(drawn.bar, 'session:bar');
   return drawn;
 }
 

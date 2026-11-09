@@ -1,9 +1,9 @@
 // How the exgit explainer draws one state: the bytes Git hashes for a blob, the id they hash to, and each
 // commit's row of object boxes (the commit, its tree, each entry's blob) as the steps record them. The
 // object diagram is Mermaid, laid out by the scene's live diagram.
-import { Text, Rectangle, Group, Arrow, BraceLabel } from '../../../src/index.ts';
+import { Text, Rectangle, Group, Arrow, BraceLabel, keyed } from '../../../src/index.ts';
 import type { Mobject, Box } from '../../../src/index.ts';
-import { keyed, code } from '../../../explain/drawing.ts';
+import { code } from '../../../explain/drawing.ts';
 import type { Stage, Look } from '../../../explain/index.ts';
 
 /** The stage's colours these pictures use: text, secondary text and the emphasis colour. */

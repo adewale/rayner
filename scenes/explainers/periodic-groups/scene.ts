@@ -1,4 +1,4 @@
-import { Scene, AnimationGroup, FadeIn, linear } from '../../../src/index.ts';
+import { Scene, AnimationGroup, FadeIn, linear, keyed } from '../../../src/index.ts';
 import type { View, ExplainerMeta } from '../../../explain/index.ts';
 import { stage, settingsOf, answerOf, view } from '../../../explain/index.ts';
 import {
@@ -135,8 +135,8 @@ export default class PeriodicGroupsExplainer extends Scene<PeriodicState, {}> {
     const table = view(this, (state) => drawTable(state, followed), { place: false });
     const notes = view(this, (state) => drawNotes(state, followed), { place: false });
     // Named, so each redraw's evidence says which picture it paired.
-    table.key = 'periodic:table';
-    notes.key = 'periodic:notes';
+    keyed(table, 'periodic:table');
+    keyed(notes, 'periodic:notes');
     this.table = table;
     this.notes = notes;
     s.keep(table, notes, { describe: () => sayPeriodic(this.state, followed) });

@@ -1,5 +1,6 @@
 import { frames as readerFrames, colourKey, giveUpTable, heatMap, KEY_TOP, KEY_PITCH } from './picture.ts';
-import { Scene } from '../../../src/index.ts';
+import { Scene, Create } from '../../../src/index.ts';
+import { callout } from '../../../explain/drawing.ts';
 import { stage, settingsOf, answerOf } from '../../../explain/index.ts';
 import type { ExplainerMeta } from '../../../explain/index.ts';
 import {
@@ -176,16 +177,13 @@ export default class GnomeFilesExplainer extends Scene<FilesState, {}> {
       for (const [r, n] of SESSION.entries()) {
         const q = quitters(n);
         if (!q.length) continue;
-        await s.callout(
-          rowBox(r),
-          `${listed(q)} gave up`,
-          {
-            side: 'right',
-            gap: 0.3,
-            color: q.includes(p) ? s.look.emphasis : s.look.soft,
-            size: 0.28,
-          },
-        );
+        const note = callout(s, rowBox(r), `${listed(q)} gave up`, {
+          side: 'right',
+          gap: 0.3,
+          color: q.includes(p) ? s.look.emphasis : s.look.soft,
+          size: 0.28,
+        });
+        await this.play(new Create(s.keep(note), { runTime: 0.6, lagRatio: 0.15 }));
       }
     }
 

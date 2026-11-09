@@ -1,5 +1,5 @@
 import { frames as readerFrames, RING, drawSessionCard, reducerSpans, drawTrails, drawRing, drawReading, walkToken } from './picture.ts';
-import { Scene, Text, FadeIn, Create, Transform, AnimationGroup, Succession } from '../../../src/index.ts';
+import { Scene, Text, FadeIn, Create, Transform, AnimationGroup, Succession, keyed } from '../../../src/index.ts';
 import type { Animation } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, answerOf, Machine, view } from '../../../explain/index.ts';
 import { code } from '../../../explain/drawing.ts';
@@ -74,9 +74,9 @@ export default class StateMachineExplainer extends Scene<SessionState, {}> {
         // The table's rows and the throw are keyed by what they mean, not by their text as the key option
         // keys them: scene.review.json and the embed tests target these keys.
         ['idle:CONNECT', 'connecting:OPENED', 'connecting:ERROR', 'open:CLOSE'].forEach((row, i) => {
-          panel.code.lines[i + 1]!.key = `reducer:${row}`;
+          keyed(panel.code.lines[i + 1]!, `reducer:${row}`);
         });
-        panel.code.lines[THROW]!.key = 'reducer:throw';
+        keyed(panel.code.lines[THROW]!, 'reducer:throw');
         return panel;
       },
       { place: false },

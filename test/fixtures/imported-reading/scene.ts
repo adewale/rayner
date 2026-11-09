@@ -1,4 +1,4 @@
-import { Scene } from '../../../src/index.ts';
+import { Scene, keyed } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import { Diagram } from '../../../explain/diagrams.ts';
 import { labelOf } from '../../../explain/labels.ts';
@@ -20,7 +20,7 @@ export default class ImportedReading extends Scene {
     label.scale(0.8 / (label.height() * labelOf(label)!.emRatio));
     if (settingsOf(this).width === 'thin') label.stretch(0.01, 0);
     label.moveTo([0, 0]);
-    label.key = 'paper';
+    keyed(label, 'paper');
     s.opening(label);
     this.add(label);
   }

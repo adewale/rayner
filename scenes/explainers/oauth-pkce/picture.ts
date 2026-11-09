@@ -1,4 +1,4 @@
-import { Group, Rectangle, Text, Arrow, Line } from '../../../src/index.ts';
+import { Group, Rectangle, Text, Arrow, Line, keyed } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { keyedParts, emphasised } from '../../../explain/drawing.ts';
@@ -195,7 +195,7 @@ export function channelMap(map: Record<Message['channel'], LaneMessage[]>, s: St
       parts.push(tail, head, names);
     });
     const g = new Group(...parts);
-    g.key = key;
+    keyed(g, key);
     return g;
   };
   const party = (name: string, x: number) =>

@@ -1,4 +1,4 @@
-import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, Create } from '../src/index.ts';
+import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, keyed } from '../src/index.ts';
 import { View } from './view.ts';
 import { cloneJson } from '../src/json.ts';
 import type { Scene, Vec, Box, FadeOptions, Animation, SceneColors } from '../src/index.ts';
@@ -9,8 +9,7 @@ import { isDetail, teaching } from './script.ts';
 import type { StepKind } from './script.ts';
 import type { StepAudio } from './audio.ts';
 import { tool, Sketch, oneStrokeEach } from './annotate.ts';
-import * as kit from './drawing.ts';
-import type { Side, ToolKind } from './annotate.ts';
+import type { ToolKind } from './annotate.ts';
 import { Diagram } from './diagrams.ts';
 import { Action } from './action.ts';
 import type { Plan } from './action.ts';
@@ -379,18 +378,6 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     const say = typeof describe === 'string' ? () => describe : describe;
     for (const m of mobs) overlays.set(m, say);
   };
-  /**
-   * Annotations are sized for the screen: the kit builds each in home coordinates from the points the
-   * camera shows, then it is mapped into the world as the heading is, so a zoomed camera shows it at size.
-   */
-  const toScreen = (p: Vec, view: CameraMap): Vec => [(p[0] - view.shift[0]) / view.k, (p[1] - view.shift[1]) / view.k];
-  function onScreen<T extends Mobject>(m: T, view: CameraMap): T {
-    if (view.k === 1 && !view.shift[0] && !view.shift[1]) return m;
-    m.scale(view.k, { aboutPoint: [0, 0] });
-    for (const x of m.family()) if (x.style.strokeWidth) x.style.strokeWidth *= view.k;
-    m.shift(view.shift);
-    return m;
-  }
   /** The camera box that shows `target` in the content area below the heading. */
   function viewFor(target: Mobject | readonly Mobject[] | Box, margin: number): Box {
     let b: Box | null;
@@ -442,10 +429,6 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       start: () => overlays.set(panel, undefined),
       beats: [{ runTime: fade.runTime, play: () => [new FadeIn(panel, fade)] }],
     };
-  }
-  /** Keep `g`, which describes itself, and play it in with `entry` over `runTime`. */
-  function drawIn<T extends Mobject>(g: T, runTime: number, entry: () => Animation): Plan<T> {
-    return { value: g, start: () => keepAll([g], {}), beats: [{ runTime, play: () => [entry()] }] };
   }
 
   const api = {
@@ -673,28 +656,6 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       });
     },
     /**
-     * Words beside a target with a leader line to it: the kit's `callout`, sized for the screen,
-     * drawn in and kept. Another kit picture enters with `s.enter`, at its size in the world.
-     */
-    callout(
-      target: Vec | Box | Mobject,
-      text: string,
-      opts: { side?: Side; gap?: number; color?: string; size?: number; key?: string } = {},
-    ): Action<Group> {
-      return act('s.callout()', () => {
-        const box = Array.isArray(target)
-          ? target.length === 2
-            ? ([...target, ...target] as Box)
-            : (target as Box)
-          : (target as Mobject).box();
-        if (!box) throw new Error('s.callout(): the target has no extent; give a point, a box or a mobject that is drawn');
-        const view = camera();
-        const [a, b] = [toScreen([box[0], box[1]], view), toScreen([box[2], box[3]], view)];
-        const g = onScreen(kit.callout(this, [a[0], a[1], b[0], b[1]], text, opts), view);
-        return drawIn(g, 0.6, () => new Create(g, { runTime: 0.6, lagRatio: 0.15 }));
-      });
-    },
-    /**
      * Draw `m` stroke by stroke at an even speed, with a pen or pencil riding the tip (or none),
      * and keep it. `m` must not be on stage yet. A path of several strokes is split into one path
      * per stroke first; the result is what was drawn and kept. `describe` says what it shows.
@@ -749,7 +710,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
         host.state = { ...state };
         const picture = new View(host, (st) => {
           const drawn = step.draw(st, this as StageApi);
-          if (kind === 'short') drawn.key = 'reader-picture';
+          if (kind === 'short') keyed(drawn, 'reader-picture');
           return drawn;
         }, { place: false });
         const drawing = picture.current;

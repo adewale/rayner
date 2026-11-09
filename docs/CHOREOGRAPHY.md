@@ -162,7 +162,7 @@ plays in the `play`, `AnimationGroup`, `LaggedStart` or `Succession` it is hande
 
 ```ts
 await this.play(s.focus(d.get('cache')), d.walk([['client', 'cache']]));
-await this.play(new Succession([d.reveal(['cache']), s.callout(d.get('cache'), 'warm'), view.sync()]));
+await this.play(new Succession([d.reveal(['cache']), s.enter(callout(s, d.get('cache'), 'warm')), view.sync()]));
 ```
 
 An action is decided when it is called and does its side effects (keeping a panel,

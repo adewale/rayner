@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
-import { Scene, Text, Group, Rectangle } from '../src/index.ts';
+import { Scene, Text, Group, Rectangle, keyed } from '../src/index.ts';
 import { NullSink, StringSink } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import type { Sink } from '../src/index.ts';
@@ -29,8 +29,8 @@ function lampScene({ after = (_scene: Scene<Lamp>) => {} } = {}) {
       const s = stage(this);
       const picture = view(this, (st: Lamp) => {
         const word = new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 });
-        word.key = 'lamp:word';
-        return Object.assign(new Group(new Rectangle({ width: 4, height: 1.2 }), word), { key: 'lamp' });
+        keyed(word, 'lamp:word');
+        return keyed(new Group(new Rectangle({ width: 4, height: 1.2 }), word), 'lamp');
       });
       s.keep(picture, { describe: () => picture.texts.join(' ') });
       this.add(picture);
@@ -344,7 +344,7 @@ test('a live run drives the same machine it was given: same events in the same o
   class Swapping extends Scene<Lamp> {
     override state = { level: 0 };
     override async construct() {
-      const picture = view(this, (st: Lamp) => Object.assign(new Group(Object.assign(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), { key: 'lamp:word' })), { key: 'lamp' }));
+      const picture = view(this, (st: Lamp) => keyed(new Group(keyed(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), 'lamp:word')), 'lamp'));
       this.add(picture);
       const events: Press[] = runs++ % 2 ? ['DOWN', 'UP'] : ['UP', 'DOWN'];
       const machine = new Machine<Lamp, Press>(this, { start: { level: 0 }, events, views: [picture], runTime: 0.2, next: (st, e) => ({ level: e === 'UP' ? Math.min(2, st.level + 1) : Math.max(0, st.level - 1) }) });

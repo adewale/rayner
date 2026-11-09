@@ -1,4 +1,4 @@
-import { Scene, FadeIn, Create, Transform, AnimationGroup, Succession, rushFrom, thereAndBack } from '../../../src/index.ts';
+import { Scene, FadeIn, Create, Transform, AnimationGroup, Succession, rushFrom, thereAndBack, keyed } from '../../../src/index.ts';
 import type { View, ExplainerMeta } from '../../../explain/index.ts';
 import type { ScheduledAnimation, VMobject } from '../../../src/index.ts';
 import { stage, settingsOf, Machine, view } from '../../../explain/index.ts';
@@ -214,7 +214,7 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
         });
         // The min(5, …) line keyed by what it is, not by its text as the key option keys it:
         // scene.review.json and the embed tests target it.
-        panel.code.lines[1]!.key = 'balance:cap';
+        keyed(panel.code.lines[1]!, 'balance:cap');
         return panel;
       },
       { place: false },

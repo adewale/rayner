@@ -3,7 +3,7 @@
 // one sampled number into its targets (under view.tween and a transition's follow). Kept out of
 // src/, the engine taken from Lantern. SetState is the machine's own: no entry point exports it,
 // and a scene changes its state by assigning `this.state` and syncing its views.
-import { Animation } from '../src/animation.ts';
+import { Animation, cleanUp, playsOn } from '../src/animation.ts';
 import type { AnimOptions } from '../src/animation.ts';
 import { Group, Mobject as MobjectClass } from '../src/mobject.ts';
 import type { Mobject } from '../src/mobject.ts';
@@ -27,19 +27,19 @@ export interface SetStateOptions {
  * scene's): a model step, so each member of a replay starts where the one before left it.
  */
 export class SetState<S extends object = SceneState> extends Animation {
-  readonly host: Scene<S, any>;
+  /** @internal The scene whose state it sets: a play on another scene refuses it. */
+  readonly [playsOn]: Scene<S, any>;
   readonly event: string | undefined;
   private readonly snapshot: JsonObject | null;
   private readonly update: ((current: S) => S) | null;
 
   constructor(host: Scene<S, any>, next: NoInfer<S> | ((current: NoInfer<S>) => NoInfer<S>), { event }: SetStateOptions = {}) {
-    if (event !== undefined && (typeof event !== 'string' || !event.trim())) throw new TypeError('machine.send(): an event must be a nonempty string');
     const update = typeof next === 'function' ? (next as (current: S) => S) : null;
     const snapshot = update ? null : cloneJson(next, 'machine.send()', 'state');
     let target = stateTargets.get(host);
     if (!target) { target = new Group(); stateTargets.set(host, target); }
     super(target, { runTime: 0, remover: true });
-    this.host = host;
+    this[playsOn] = host;
     this.event = event;
     this.snapshot = snapshot;
     this.update = update;
@@ -47,9 +47,9 @@ export class SetState<S extends object = SceneState> extends Animation {
 
   protected override doBegin(): void {
     const next = this.update
-      ? this.update(cloneJson(this.host.state, 'machine.send()', 'this.state') as S)
+      ? this.update(cloneJson(this[playsOn].state, 'machine.send()', 'this.state') as S)
       : this.snapshot;
-    this.host.state = cloneJson(next, 'machine.send()', this.event === undefined ? 'state' : `next(state, ${JSON.stringify(this.event)})`) as Scene<S, any>['state'];
+    this[playsOn].state = cloneJson(next, 'machine.send()', this.event === undefined ? 'state' : `next(state, ${JSON.stringify(this.event)})`) as Scene<S, any>['state'];
     super.doBegin();
   }
 
@@ -92,11 +92,9 @@ export class Follow extends Animation {
   start = 0;
 
   constructor(spec: FollowSpec, { targets, ...opts }: FollowOptions) {
-    if (!Array.isArray(targets) || !targets.length || !targets.every((m) => m instanceof MobjectClass))
-      throw new TypeError('c.follow(): it needs the mobjects draw() redraws, targets: [a, b, ...]');
+    if (!targets.length) throw new RangeError('c.follow(): it needs the mobjects draw() redraws, targets: [a, b, ...]');
     if (!Number.isFinite(spec.to)) throw new RangeError(`c.follow(): to must be a finite number, not ${String(spec.to)}`);
     if (typeof spec.from !== 'function' && !Number.isFinite(spec.from)) throw new RangeError(`c.follow(): from must be a finite number or a function, not ${String(spec.from)}`);
-    if (typeof spec.draw !== 'function') throw new TypeError('c.follow(): draw must be a function of the value');
     if (new Set(targets).size !== targets.length) throw new Error('c.follow(): a target is listed twice; list each target once');
     super(targets[0]!, opts);
     this.spec = spec;
@@ -137,6 +135,6 @@ export class Follow extends Animation {
   }
 
   /** @internal */
-  override cleanUpFromScene(scene: Scene): void { if (this.remover) scene.remove(...this.written); }
+  override [cleanUp](scene: Scene): void { if (this.remover) scene.remove(...this.written); }
 }
 

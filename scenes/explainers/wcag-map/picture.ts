@@ -1,4 +1,4 @@
-import { Group, Line, Rectangle } from '../../../src/index.ts';
+import { Group, Line, Rectangle, keyed } from '../../../src/index.ts';
 import type { Stage, StagedStepsOptions } from '../../../explain/index.ts';
 import { tally, criteria, change, CRITERIA, LEVELS, VERSIONS, inVersion, atLevel } from './model.ts';
 import type { Criterion, Level, Version } from './model.ts';
@@ -80,7 +80,7 @@ function lists(st: Lists, s: Stage) {
   );
   swatches.moveTo([lead.width() + 0.24, 0], [-1, 0]);
   const key = new Group(lead, swatches);
-  key.key = 'versions-key';
+  keyed(key, 'versions-key');
   // Under the table, starting where its rows start, so the key is never wider than the table: a
   // phone's opening must show both whole.
   g.add(key.moveTo([g.box()![0], -3.75], [-1, 0]));

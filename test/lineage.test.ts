@@ -10,6 +10,7 @@ import { StringSink, NullSink, toSvgString, renderElements, renderFrame } from '
 import { loadFonts, traceScene } from '../explain/testing.ts';
 import { Indicate } from './lib/transient.ts';
 import type { Mobject, Sink, RateFunc, Style } from '../src/index.ts';
+import { takeOptions } from '../src/animation.ts';
 
 await loadFonts();
 
@@ -169,7 +170,7 @@ test('group: an instant member (runTime 0) of a group lands on its end, and an e
     await film(async (s) => { s.add(sq); await s.play(new AnimationGroup([new Transform(sq, sq.copy().shift([4, 0]), { runTime: 0 }), new FadeIn(c, { runTime: rest })])); });
     assert.ok(near(sq.center()[0], 2, 1e-5), `instant member ended at ${sq.center()[0]}`);
     const g = new AnimationGroup([new FadeIn(new Dot(), { runTime: 1 }), new FadeIn(new Dot(), { runTime: 2 })], { runTime: 2 });
-    g.setOptions({ lagRatio: lag });
+    g[takeOptions]({ lagRatio: lag });
     assert.equal(g.runTime, 2);
   }), params(30));
 });

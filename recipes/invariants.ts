@@ -2,7 +2,7 @@
 // true while things move, and a sink that checks it. The same dot goes half way round a circle
 // twice: sampled from its angle it stays on the circle; morphed between its two ends it cuts
 // across, and the invariant names the frames where it does.
-import { Scene, Circle, Dot, Transform, linear } from 'rayner';
+import { Scene, Circle, Dot, Transform, linear, keyed } from 'rayner';
 import { view } from 'rayner/explain';
 import { NullSink } from 'rayner/output';
 import { InvariantSink } from 'rayner/testing';
@@ -15,7 +15,7 @@ const RADIUS = 2;
 function orbit(turn: 'sampled' | 'morphed'): SceneClass {
   return class Orbit extends Scene<{ angle: number }, {}> {
     override async construct() {
-      const dotAt = (angle: number) => Object.assign(new Dot({ radius: 0.12 }).moveTo([RADIUS * Math.cos(angle), RADIUS * Math.sin(angle)]), { key: 'orbit:dot' });
+      const dotAt = (angle: number) => keyed(new Dot({ radius: 0.12 }).moveTo([RADIUS * Math.cos(angle), RADIUS * Math.sin(angle)]), 'orbit:dot');
       // Sampled, the dot is a view of the angle in the state; morphed, a dot moved from end to end.
       this.state = { angle: 0 };
       const sampled = turn === 'sampled' ? view(this, (st) => dotAt(st.angle), { place: false }) : null;

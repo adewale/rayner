@@ -2,7 +2,7 @@
 // give-up, then the same task across all six), the give-up table and the whole heat map. The colours and
 // their meanings are the report's (page 7); the scores 5 to 1 beside them are this page's choice for its
 // charts. The opening menu paths are schematic, not screenshots of Files.
-import { Group, Rectangle, Text, Line } from '../../../src/index.ts';
+import { Group, Rectangle, Text, Line, keyed } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { gaveUp, task, PARTICIPANTS, colourOf, RGB, MEANING, COLOURS, SCORE, SESSION, quitters } from './model.ts';
 import type { Participant, Colour } from './model.ts';
@@ -111,7 +111,7 @@ export function frames(p: Participant): [StagedStep<TaskFrame>, StagedStep<Sampl
               label(s, q, { at: [x, y], color: color === 'black' ? '#ffffff' : '#151515', size: 0.8 }),
               ...outcomeLines[color].map((line, row) => label(s, line, { at: [x, y - 1 - row * 0.72], size: 0.65 })),
             );
-            outcome.key = `outcome:${q}`;
+            keyed(outcome, `outcome:${q}`);
             return outcome;
           }),
         ),
@@ -168,7 +168,7 @@ export function giveUpTable(p: Participant, lost: readonly number[], total: numb
   const sumY = rowY(lost.length) - 0.1;
   const strong = (text: string, x: number, y: number, key: string, color = ink) => {
     const t = new Text(text, { fontSize: F, color, weight: 'bold' }).moveTo([x, y]);
-    t.key = key;
+    keyed(t, key);
     return t;
   };
   const table = new Group(
@@ -195,7 +195,7 @@ export function giveUpTable(p: Participant, lost: readonly number[], total: numb
     fontSize: F,
     color: ink,
   }).moveTo([0, sumY - RH - 0.05]);
-  rest.key = 'gave-up:none';
+  keyed(rest, 'gave-up:none');
   const at = PARTICIPANTS.indexOf(p);
   const outline = new Rectangle({
     width: CW + 0.04,

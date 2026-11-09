@@ -1,4 +1,4 @@
-import { Text, Rectangle, Group } from '../../../src/index.ts';
+import { Text, Rectangle, Group, keyed } from '../../../src/index.ts';
 import { ADDR, TRUST_KEYS, TRUST_LABEL, REQUEST_KEYS } from './model.ts';
 import type { Outcome, Position, RequestKey, TrustKey } from './model.ts';
 
@@ -120,7 +120,7 @@ export function drawRoutesPanel(t: TrustKey, routes: Record<Route, Position[]>, 
     );
   });
   const subject = new Group(...core);
-  subject.key = key;
+  keyed(subject, key);
   return { panel: new Group(...parts, subject), subject };
 }
 

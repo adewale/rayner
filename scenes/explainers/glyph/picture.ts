@@ -1,4 +1,4 @@
-import { Group, Text, Line, Rectangle, BraceLabel, SurroundingRectangle, shaperFor } from '../../../src/index.ts';
+import { Group, Text, Line, Rectangle, BraceLabel, SurroundingRectangle, shaperFor, keyed } from '../../../src/index.ts';
 import type { FontName, Mobject } from '../../../src/index.ts';
 import { label } from '../../../explain/drawing.ts';
 import type { StagedStep } from '../../../explain/index.ts';
@@ -33,7 +33,7 @@ export function frames(font: FontName): [StagedStep<WidthState>, StagedStep<Shap
           const y = 1.5 - i * 3,
             w = st.widths[i]!,
             text = new Text(st.word, { font: f, fontSize: size, color: s.look.ink }).moveTo([-6.5, y], [-1, 0]);
-          text.key = `word:${f}`;
+          keyed(text, `word:${f}`);
           g.add(
             text,
             label(s, name(f), { at: [-6.5, y + 1.1], size: 0.65 }).moveTo([-6.5, y + 1.1], [-1, 0]),
@@ -56,7 +56,7 @@ export function frames(font: FontName): [StagedStep<WidthState>, StagedStep<Shap
         [st.font, st.other].forEach((f, i) => {
           const x = i ? 3.6 : -3.6;
           const t = new Text('l', { font: f, fontSize: big, color: s.look.ink }).moveTo([x, 0.75]);
-          t.key = `l:${f}`;
+          keyed(t, `l:${f}`);
           const [x0, y0, x1, y1] = t.box()!;
           const cell = new Rectangle({
             width: x1 - x0,

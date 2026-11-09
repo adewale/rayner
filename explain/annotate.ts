@@ -2,7 +2,7 @@ import type {TextShaping} from '../src/text-context.ts';
 // Annotations that sit on the picture instead of in a panel: a dimension line, a pin, a callout
 // with a leader line, and a drawing tool that rides the tip of a stroke as it is drawn. They are
 // native mobjects, so they seek, trace and check like everything else.
-import { Group, Line, Circle, Rectangle, Polygon, Text, Create, VMobject } from '../src/index.ts';
+import { Group, Line, Circle, Rectangle, Polygon, Text, Create, VMobject, keyed } from '../src/index.ts';
 import type { Mobject, Vec, Box } from '../src/index.ts';
 import { center, overlaps, pointsBox } from '../src/box.ts';
 import { paintsFill } from '../src/mobject.ts';
@@ -32,12 +32,12 @@ export interface AnnotationLook {
 }
 /** `m` keyed `key:part` when the annotation has a key. */
 const part = <T extends Mobject>(m: T, key: string | undefined, name: string): T => {
-  if (key !== undefined) m.key = `${key}:${name}`;
+  if (key !== undefined) keyed(m, `${key}:${name}`);
   return m;
 };
 /** `g` keyed `key` when given. */
 const whole = <T extends Mobject>(g: T, key: string | undefined): T => {
-  if (key !== undefined) g.key = key;
+  if (key !== undefined) keyed(g, key);
   return g;
 };
 

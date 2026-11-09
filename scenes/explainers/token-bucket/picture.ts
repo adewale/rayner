@@ -1,4 +1,4 @@
-import { Axes, Circle, Cross, Group, Rectangle, Text } from '../../../src/index.ts';
+import { Axes, Circle, Cross, Group, Rectangle, Text, keyed } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
 import type { Stage, Look } from '../../../explain/index.ts';
 import { keyedParts, card } from '../../../explain/drawing.ts';
@@ -65,14 +65,14 @@ export function drawRequest(i: number, result: boolean | null, { ink, soft, mute
     color: result == null ? soft : ink,
   }).moveTo([0, 0]);
   const request = new Group(box, answer).moveTo([chipX(i), CHIP_Y]);
-  request.key = `request:${name(i)}`;
+  keyed(request, `request:${name(i)}`);
   return request;
 }
 /** Each request's arrival time above its box and its name below. */
 export function drawArrivals(times: readonly number[], { soft }: Pick<Ink, 'soft'>) {
   const arrivals = times.map((t, i) => new Text('t = ' + t, { fontSize: 0.2, color: soft }).moveTo([chipX(i), CHIP_Y + 0.72]));
-  arrivals.forEach((time, i) => { time.key = `arrival:${name(i)}`; });
-  const names = times.map((_, i) => Object.assign(new Text(name(i), { fontSize: 0.2, color: soft }).moveTo([chipX(i), CHIP_Y - 0.66]), { key: `name:${name(i)}` }));
+  arrivals.forEach((time, i) => { keyed(time, `arrival:${name(i)}`); });
+  const names = times.map((_, i) => keyed(new Text(name(i), { fontSize: 0.2, color: soft }).moveTo([chipX(i), CHIP_Y - 0.66]), `name:${name(i)}`));
   return { times: arrivals, names };
 }
 
@@ -101,7 +101,7 @@ export function drawChart(st: BucketState, axes: Axes, { rate, capacity, last }:
     if (full != null) {
       const [x, y] = axes.c2p((full + call.at) / 2, capacity);
       const note = new Text('full: min(5, …)', { fontSize: 0.2, color: emphasis }).moveTo([x, y + 0.24]);
-      note.key = i === last ? 'balance:cap:note' : `balance:cap:note:${name(i)}`;
+      keyed(note, i === last ? 'balance:cap:note' : `balance:cap:note:${name(i)}`);
       notes.push(note);
     }
   });
@@ -138,7 +138,7 @@ export function drawComparison(rows: readonly (readonly [number, readonly number
         strokeWidth: 0.06,
       }).moveTo([first + i * pitch, y]);
       const mark = response === 200 ? circle : new Cross(circle, { stroke: bad, strokeWidth: 0.06 });
-      mark.key = `result:${r}:R${i + 1}:${response}`;
+      keyed(mark, `result:${r}:R${i + 1}:${response}`);
       picture.add(mark);
     }
   }
@@ -190,7 +190,7 @@ export function drawShell({ muted, paper }: Pick<Ink, 'muted' | 'paper'>) {
     strokeWidth: 0.03,
     fill: paper,
   }).moveTo([SHELL_X, (Y0 + Y5) / 2]);
-  shell.key = 'bucket:shell';
+  keyed(shell, 'bucket:shell');
   return shell;
 }
 /** The bucket's level at `n` of `capacity` tokens; an empty bucket keeps a sliver 0.001 tall, so it can still be seen. */
@@ -201,7 +201,7 @@ export function drawLevel(n: number, capacity: number, { emphasis }: Pick<Ink, '
     stroke: 'none',
     fill: emphasis,
   }).moveTo([SHELL_X, Y0], [0, -1]);
-  level.key = 'bucket:level';
+  keyed(level, 'bucket:level');
   return level;
 }
 /** The balance in the bucket. */
@@ -250,8 +250,8 @@ export function drawReadout(s: Stage, state: BucketState, format: (v: unknown) =
     { title: 'Bucket balance', size: 0.22, at: [3.3, -4.45, 6.6, -2.3], align: 'top', panel: false },
   );
   // scene.review.json and the embed tests target the balance row by these keys.
-  balance.labels.get('Tokens left')!.key = 'balance:label';
-  balance.values.get('Tokens left')!.key = 'balance:value';
+  keyed(balance.labels.get('Tokens left')!, 'balance:label');
+  keyed(balance.values.get('Tokens left')!, 'balance:value');
   return balance;
 }
 

@@ -1,4 +1,4 @@
-import { Group, Rectangle, Text, Code } from '../src/index.ts';
+import { Group, Rectangle, Text, Code, keyed } from '../src/index.ts';
 import type { Scene, Vec, Box, Mobject } from '../src/index.ts';
 import type { Palette } from '../src/color.ts';
 import { soft, raised, rule, boxCenter, emphasis, good, bad, regionBox, emphasisSource, seenSource, checkSize } from './look.ts';
@@ -249,15 +249,15 @@ export class Card extends Group {
     }
     if (options.key) {
       const k = options.key;
-      this.key = k;
-      this.panel.key = `${k}:panel`;
-      this.bar.key = `${k}:bar`;
-      if (titleText) titleText.key = `${k}:title`;
-      headings.forEach((h, j) => (h.key = `${k}:column:${j}`));
+      keyed(this, k);
+      keyed(this.panel, `${k}:panel`);
+      keyed(this.bar, `${k}:bar`);
+      if (titleText) keyed(titleText, `${k}:title`);
+      headings.forEach((h, j) => keyed(h, `${k}:column:${j}`));
       // By row: a repeated label names no single row, so the label map holds only its last.
       this.rows.forEach((row, i) => {
-        labels[i]!.key = `${k}:row:${i}`;
-        row.cells.forEach((c, j) => (c.key = `${k}:row:${i}:${j}:${c.text}`));
+        keyed(labels[i]!, `${k}:row:${i}`);
+        row.cells.forEach((c, j) => keyed(c, `${k}:row:${i}:${j}:${c.text}`));
       });
     }
     place(this, at, height, options.align);
@@ -444,10 +444,10 @@ export class CodeBlock extends Group {
     }
     if (options.key) {
       const k = options.key;
-      this.key = k;
-      this.panel.key = `${k}:panel`;
-      this.bar.key = `${k}:bar`;
-      this.code.key ??= `${k}:code`;
+      keyed(this, k);
+      keyed(this.panel, `${k}:panel`);
+      keyed(this.bar, `${k}:bar`);
+      keyed(this.code, this.code.key ?? `${k}:code`);
       // A line is keyed by its text and which occurrence of that text it is, so a line that moves
       // (one inserted above it) pairs with itself, and its added or removed bar moves with it.
       const seen = new Map<string, number>();
@@ -456,8 +456,8 @@ export class CodeBlock extends Group {
         seen.set(line.text, n);
         return `${line.text}#${n}`;
       });
-      this.code.lines.forEach((line, i) => (line.key ??= `${k}:line:${lineKeys[i]}`));
-      this.marks.forEach((m) => (m.mob.key ??= `${k}:mark:${lineKeys[m.line]}:${m.kind}`));
+      this.code.lines.forEach((line, i) => keyed(line, line.key ?? `${k}:line:${lineKeys[i]}`));
+      this.marks.forEach((m) => keyed(m.mob, m.mob.key ?? `${k}:mark:${lineKeys[m.line]}:${m.kind}`));
     }
   }
 

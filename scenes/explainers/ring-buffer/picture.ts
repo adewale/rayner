@@ -1,7 +1,7 @@
-import { Group, Arrow, Circle, Text, SurroundingRectangle, Cross } from '../../../src/index.ts';
+import { Group, Arrow, Circle, Text, SurroundingRectangle, Cross, keyed } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import { keyedParts } from '../../../explain/drawing.ts';
-import { keyed, label, tile, emphasised } from '../../../explain/drawing.ts';
+import { label, tile, emphasised } from '../../../explain/drawing.ts';
 import type { Stage, StagedStepsOptions, Look } from '../../../explain/index.ts';
 import type { RingState } from './model.ts';
 
