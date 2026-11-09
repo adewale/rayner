@@ -1,5 +1,5 @@
 import { Scene } from '../../../src/index.ts';
-import type { AudioClip } from '../../../explain/score.ts';
+import type { AudioClip } from '../../../explain/index.ts';
 import { settingsOf, stage } from '../../../explain/index.ts';
 import type { Stage, ExplainerMeta } from '../../../explain/index.ts';
 import { musicStory } from './model.ts';

@@ -47,7 +47,7 @@ The code is a stack, and each layer imports only the layers under it. From the b
 | --- | --- | --- |
 | Engine | `src/` | Nothing else in the repository but the vendored shaper, `vendor/glyph.js` |
 | Diagram replay | `integrations/agentic-mermaid/snapshot.ts` and `text.ts`: snapshot types, keys, validation and findings, and a captured label's text | The engine |
-| Explain core | `explain/`: `view.ts`, `state.ts`, `machine.ts`, `live.ts`, `choreograph.ts` (views, machines, the run to a live step, and state); `action.ts` (what a stage or diagram action returns); `look.ts`, `palettes.ts`, `layout-direction.ts` (the look); `words.ts`, `trace.ts`, `script.ts`, `claims.ts`, `caption-looks.ts` (words); `settings.ts`, `page-query.ts`, `intent.ts`, `mermaid.ts`, `audio.ts`, `score.ts` | The engine and diagram replay |
+| Explain core | `explain/`: `view.ts`, `state.ts`, `machine.ts`, `live.ts`, `choreograph.ts` (views, machines, the run to a live step, and state); `action.ts` (what a stage or diagram action returns); `look.ts`, `palettes.ts`, `layout-direction.ts` (the look); `words.ts`, `trace.ts`, `script.ts`, `claims.ts`, `caption-looks.ts` (words); `settings.ts`, `page-query.ts`, `intent.ts`, `mermaid.ts`, `audio.ts` | The engine and diagram replay |
 | Diagrams and panels | `explain/diagrams.ts`, `explain/labels.ts`, `explain/panels.ts` | The core, diagram replay and the engine |
 | Drawing kit | `explain/drawing.ts`, `explain/annotate.ts`, `explain/geo.ts`, `explain/seen-from.ts` | Diagrams and panels, the core and the engine |
 | Stage | `explain/stage.ts`, and `explain/index.ts`, the `rayner/explain` entry point | Every layer above |
@@ -94,7 +94,7 @@ A review on 2026-11-03 found that 34 of the 40 explainers then in the collection
 
 ## Public names
 
-The package has an entry point per audience. A scene is written with `rayner`, `rayner/explain` and `rayner/drawing`, and opts in to `rayner/geo` (3D and the globe), `rayner/audio` (a step's score) and `rayner/extras` (Manim's conveniences, each a shorthand for something in `rayner`). `rayner/output` draws a scene's frames outside the built page, for a host page or a tool, and `rayner/testing` holds what an author's tests and tools use; no scene may import it ([the reference lists both](REFERENCE.md#testing-and-tooling-api)).
+The package has an entry point per audience. A scene is written with `rayner`, `rayner/explain` and `rayner/drawing`, and opts in to `rayner/geo` (3D and the globe) and `rayner/extras` (Manim's conveniences, each a shorthand for something in `rayner`). `rayner/output` draws a scene's frames outside the built page, for a host page or a tool, and `rayner/testing` holds what an author's tests and tools use; no scene may import it ([the reference lists both](REFERENCE.md#testing-and-tooling-api)).
 
 The package has no dependencies; the `rayner` command is the separate `rayner-cli` package, at the same version. The package exports its entry points and nothing else, so an outside project can import no other module. The command shares the library's compiled modules with the scenes it loads without an export: its bundle imports them by a private specifier (`#rayner/src/scene.js`), and a resolve hook it registers at startup (`tools/installed.ts`) maps that specifier to the installed `rayner` package's `dist/`, the files its entry points load, for the command's own modules only. `npm run pack:smoke` checks that an outside project cannot import `rayner/internal/...` or the private specifier.
 

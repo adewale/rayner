@@ -29,7 +29,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - What is shown may change between a machine's events (a guided tour moving a code panel's lit line); exploration and the live player draw under what the machine last played under.
 - The phone's close-ups count a mark redrawn at the same keyed place with the same words as the same emphasis, not new.
 - Views, `Machine` and choreography moved from `src/` to `explain/` and are imported from `rayner/explain`; `src/` is the engine taken from Lantern.
-- Three opt-in entry points: `rayner/geo` (`seenFrom` and the globe, out of `rayner/drawing`), `rayner/audio` (the score types) and `rayner/extras` (`Write`, `TransformFromCopy`, `Restore`, `MoveAlongPath`, `ArcBetweenPoints`, `Square`, `Underline`, out of `rayner`).
+- Two opt-in entry points: `rayner/geo` (`seenFrom` and the globe, out of `rayner/drawing`) and `rayner/extras` (`Write`, `TransformFromCopy`, `Restore`, `MoveAlongPath`, `ArcBetweenPoints`, `Square`, `Underline`, out of `rayner`).
 - `view.tween((t) => state)` moves the state through time and redraws the view at every frame; `c.follow(spec, { targets })` does the same for parts of an authored transition. `Follow` is no longer exported.
 - [Changing what is shown](docs/VIEWS.md#changing-what-is-shown) says which way to change the state for which job: assignment and sync, a machine, `s.steps`, a tween or an authored transition.
 - Every folder in `scenes/explainers/` now holds its own `script.md`, `scene.ts`, `model.ts` (where it has a model) and `picture.ts` (where its drawing is worth separating).
@@ -288,6 +288,7 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
 - Author tooling moved from `rayner` to `rayner/testing`: `traceScene`, `TraceSink`, `MotionSink`, `analyzeMotion`, `InvariantSink`, `viewMismatch`, `machinesOf`, `jsonObject`, `loadFonts`, `takeMissingGlyphs` and `perf`.
 - `describeExplainer`, `scenariosOf`, `scenarioName`, `withSettings` and `bindSnapshots` moved from `rayner/explain` to `rayner/testing`.
 - `edgePartOf` and `stagedStepsOf` are internal; use `d.findings()` and `d.link()`. `findingsOf` is `diagramFindings` in `rayner/testing`, for a pinned snapshot read without its diagram.
+- `rayner/audio` is gone: `AudioClip`, `ScoreNote` and `StepAudio` are types, which carry no code, so `rayner/explain` exports them beside `StagedStep`, whose `audio` they type.
 - `s.dimension`, `s.pin` and `s.legend` are gone: enter the kit's picture, `s.enter(pin(s, point, { label }))`. No explainer used them with the camera away from home, where they differed from the kit's.
 - `s.card` and `s.code` take no `enter: false`: to bring several panels in in one fade, build them with the kit and enter them, `s.enter(card(s, rows), code(s, lines))`.
 - `ViewSync` is internal: `view.sync()` returns an action. `View` is exported as a type only: `view(scene, draw)` makes one.

@@ -3,7 +3,7 @@
 // through package.json "exports", as it would from node_modules. If this stops
 // compiling, the public types broke.
 import { Scene, Rectangle, Text, Labeled, Arrow, FadeIn, Create, Transform } from 'rayner';
-import type { AudioClip, ScoreNote, StepAudio } from 'rayner/audio';
+import type { AudioClip, ScoreNote, StepAudio } from 'rayner/explain';
 import { TransformFromCopy, Restore } from 'rayner/extras';
 import { StringSink, renderAt, SnapshotSink } from 'rayner/output';
 import { traceScene } from 'rayner/testing';

@@ -22,6 +22,7 @@ export { settingsOf, resolveSettings } from './settings.ts';
 export { answerOf } from './script.ts';
 export type { StepKind } from './script.ts';
 export type { Setting, Settings, ExplainerClass, ExplainerMeta, PlayerMeta } from './settings.ts';
+export type { AudioClip, ScoreNote, StepAudio } from './audio.ts';
 export { diagramResolverOf } from '../integrations/agentic-mermaid/snapshot.ts';
 export type {
   DiagramSpec,
