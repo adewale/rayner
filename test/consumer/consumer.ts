@@ -263,7 +263,7 @@ export class Collection extends Scene<CollectionModel> {
   override async construct() {
     const s: Stage = stage(this);
     const values = settingsOf(this);
-    const resolved = resolveSettings(Collection as unknown as ExplainerClass, values);
+    const resolved = resolveSettings(Collection, values);
     const answer: string = answerOf(this);
     await this.step('shapes', { title: 'Shapes', caption: `${answer} ${resolved.case}` });
     const box: Box = regionBox('main', { top: 3 });

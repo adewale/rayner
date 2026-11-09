@@ -288,6 +288,7 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
 - Author tooling moved from `rayner` to `rayner/testing`: `traceScene`, `TraceSink`, `MotionSink`, `analyzeMotion`, `InvariantSink`, `viewMismatch`, `machinesOf`, `jsonObject`, `loadFonts`, `takeMissingGlyphs` and `perf`.
 - `describeExplainer`, `scenariosOf`, `scenarioName`, `withSettings` and `bindSnapshots` moved from `rayner/explain` to `rayner/testing`.
 - `edgePartOf` and `stagedStepsOf` are internal; use `d.findings()` and `d.link()`. `findingsOf` is `diagramFindings` in `rayner/testing`, for a pinned snapshot read without its diagram.
+- `resolveSettings` takes any `{ settings }`, so a scene can ask what a link would open without casting, and throws a `RangeError` for a value or a setting the scene does not take.
 - `Card`, `CodeBlock`, `CardRow`, `CardOptions` and `CodeOptions` are exported from `rayner/drawing`, beside the `card` and `code` that make them, not from `rayner/explain`.
 - `rayner/audio` is gone: `AudioClip`, `ScoreNote` and `StepAudio` are types, which carry no code, so `rayner/explain` exports them beside `StagedStep`, whose `audio` they type.
 - `s.dimension`, `s.pin` and `s.legend` are gone: enter the kit's picture, `s.enter(pin(s, point, { label }))`. No explainer used them with the camera away from home, where they differed from the kit's.

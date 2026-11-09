@@ -139,8 +139,12 @@ export type SettingsProblem =
   | { kind: 'setting'; id: string }
   /** Anything else the validator refuses, with its (English) message. */
   | { kind: 'other'; message: string };
-/** What resolveSettings throws: its English message, and the problem for a page to say in its own words. */
-export class SettingsError extends Error {
+/**
+ * What resolveSettings throws for values that are not the scene's: a value that is not one of its
+ * setting's options, or a setting the scene does not declare. A RangeError, with its English message
+ * and the problem for a page to say in its own words.
+ */
+export class SettingsError extends RangeError {
   readonly problem: SettingsProblem;
   constructor(problem: SettingsProblem, message = problem.kind === 'other' ? problem.message : '') {
     super(message);
@@ -151,8 +155,11 @@ export class SettingsError extends Error {
 export const settingsProblem = (error: unknown): SettingsProblem =>
   error instanceof SettingsError ? error.problem : { kind: 'other', message: String((error as Error)?.message ?? error) };
 
-/** Validate declarations and selections once, at the author/URL boundary. */
-export function resolveSettings(Scene: ExplainerClass, values: Settings = {}): Settings {
+/**
+ * Validate declarations and selections once, at the author/URL boundary. It reads only the class's
+ * `settings`, so `{ settings: [setting] }` stands for a scene that declares one.
+ */
+export function resolveSettings(Scene: Pick<ExplainerClass, 'settings'>, values: Settings = {}): Settings {
   const result: Record<string, string> = Object.create(null);
   for (const s of Scene.settings ?? []) {
     if (!/^[a-z][a-z0-9_-]*$/i.test(s.id) || reserved.has(s.id) || s.id in result)
