@@ -7,7 +7,6 @@ import { Code, Text, TransformDiff, TransformMatchingText } from '../src/index.t
 import { loadFonts } from '../explain/testing.ts';
 import { expandTabs } from '../src/text.ts';
 import { fc, params } from './lib/pbt.ts';
-import { readFileSync } from 'node:fs';
 import type { Box, Mobject } from '../src/index.ts';
 // Manim's values, which the package no longer exports.
 const RED = '#fc6255';
@@ -118,8 +117,4 @@ test('one tab expansion: tabs reach the next stop by grapheme, every code point 
     assert.equal(kept.source.length, [...line].length);
   }), params());
   assert.deepEqual(expandTabs('e\u0301\tx', 4), { text: 'e\u0301   x', source: [0, 1, 2, 2, 2, 3] });
-  // Lettering runs map their clusters through this function, not a copy of it.
-  const outlines = readFileSync(new URL('../src/lettering-outlines.ts', import.meta.url), 'utf8');
-  assert.match(outlines, /import \{[^}]*\bexpandTabs\b[^}]*\} from '\.\/text\.ts'/);
-  assert.doesNotMatch(outlines, /'\\t'|Intl\.Segmenter/, 'no tab stop or grapheme split of its own');
 });

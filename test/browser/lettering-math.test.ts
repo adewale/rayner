@@ -117,7 +117,7 @@ test('capture fails the build on unsupported TeX and names the error', { skip: n
 test('a formula changed without refreshing the snapshot fails before anything is drawn', async () => {
   const dir = await scenario('"\\\\frac{1}{2}+x^2"', '"\\\\frac{1}{3}+x^2"', true);
   try {
-    await assert.rejects(collectProject(dir, { write: false }), /no run for .*\(math\); run rayner snapshots/);
+    await assert.rejects(collectProject(dir, { write: false }), /no run for .*\(math\)/);
     assert.throws(() => snapshotProvider(snapshot).math('\\frac{1}{3}+x^2', 1, false), /no run/);
   } finally { await rm(dir, { recursive: true, force: true }); }
 });

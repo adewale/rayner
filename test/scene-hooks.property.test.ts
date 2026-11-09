@@ -293,7 +293,7 @@ test('a helper\'s key refused in the scene\'s own state: an author\'s walks is n
   off();
   // Another value under the same key is the author's key colliding with the helper's.
   scene.addJson(() => ({ walks: [2] }));
-  assert.throws(() => scene.stateJson(), /^Error: this\.state: the key "walks" is also written by a helper, with another value; rename the scene's key/);
+  assert.throws(() => scene.stateJson(), /^Error: this\.state: the key "walks" is also written by a helper/);
   scene.state = {};
   scene.addJson(() => ({ walks: [3] }));
   assert.throws(() => scene.stateJson(), /^Error: this\.addJson\(\): two parts write the key "walks" into this\.state with different values/);

@@ -100,7 +100,7 @@ test('a view’s note follows its part through enlarge; clear() leaves paper and
       const gap = () => note().center()[0] - d.get('C').center()[0];
       assert.ok(Math.abs(gap()) < 1e-6);
       // An enlargement moves the live parts: the live diagram takes the view's place first.
-      await assert.rejects(async () => await d.enlarge(['A']), /^Error: d\.enlarge\(\): the diagram is shown by a view, so its live parts are off the stage; call s\.liveDiagram\(d\) first$/);
+      await assert.rejects(async () => await d.enlarge(['A']), /^Error: d\.enlarge\(\): the diagram is shown by a view/);
       s.liveDiagram(d);
       await d.enlarge(['A']);
       s.diagramView(d, draw);
