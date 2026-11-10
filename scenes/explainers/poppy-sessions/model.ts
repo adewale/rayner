@@ -21,8 +21,8 @@ import type { AccessToken, Answer, HttpRequest, OperationKey } from '../poppy/mo
 
 export { AGENT, COMPANY, SID, THIEF, USER_IDS } from '../poppy/model.ts';
 
-/** Another Company the same User uses through the same agent, with its own identifier (3.2). */
-export const OTHER_COMPANY = { domain: 'shoes.example', issuer: 'https://auth.shoes.example' } as const;
+/** Another Company the same User uses through the same agent. It has no issuer, so its identifier is https://shoes.example (3.2). */
+export const OTHER_COMPANY = { domain: 'shoes.example' } as const;
 
 /**
  * A Company's identifier, which a Session JWT names in aud (5.2, 10.4): its issuer when it has one,
@@ -49,7 +49,7 @@ export const CLIENT_METADATA: Readonly<Record<string, ClientMetadata>> = {
   [THIEF.clientId]: { client_id: THIEF.clientId, jwks_uri: 'https://thief.example/jwks.json', keys: [PUBLISHED.thief] },
 };
 
-const hostOf = (url: string) => (url.startsWith('https://') ? url.slice(8).split('/')[0]!.toLowerCase() : null);
+export const hostOf = (url: string) => (url.startsWith('https://') ? url.slice(8).split('/')[0]!.toLowerCase() : null);
 
 /**
  * The client a Company learns from iss (4.1, 5.3): the client_id is an HTTPS URL that returns the
@@ -330,7 +330,7 @@ export const TOKEN: AccessToken = { value: 'at_Qp4w', client: AGENT.clientId, sc
 /** The agent's genuine request: the jacket exchange, signed in, sealed at the spec's iat with the spec's jti. */
 export function genuine(): Request {
   const op = OPERATIONS.exchange, base = { method: op.method, url: op.url, token: TOKEN };
-  const s = sealRequest(AGENT_SIGNER, base, { company: COMPANY, sub: USER_IDS['example.com'], sid: SID, now: TIME.signed, jti: 'e1j3V_bK' });
+  const s = sealRequest(AGENT_SIGNER, base, { company: COMPANY, sub: USER_IDS['example.com'], sid: SID, now: TIME.signed, jti: 'e1j3Vb' });
   if (isRefusal(s)) throw new Error(s.reason);
   return { ...base, session: s };
 }
@@ -340,8 +340,12 @@ export function genuine(): Request {
  * someone could really attempt, and each meets a different check.
  */
 export type Tamper = 'send' | 'replay' | 'late' | 'url' | 'aud' | 'thief' | 'published' | 'expired' | 'other-user';
-/** Every tamper, in the order the player shows its buttons. */
-export const TAMPERS: readonly Tamper[] = ['send', 'replay', 'late', 'url', 'aud', 'thief', 'published', 'expired', 'other-user'];
+/**
+ * The tampers the player offers, in the order it shows its buttons: eight, which a phone can hold.
+ * `late` (the same copy two minutes later, refused by iat) stays in the model and its tests; the
+ * story tells it in words.
+ */
+export const TAMPERS: readonly Tamper[] = ['send', 'replay', 'url', 'aud', 'thief', 'published', 'expired', 'other-user'];
 /** The tampers made from the genuine request as it travelled, so nothing exists to copy before it is sent. */
 const COPIES: readonly Tamper[] = ['replay', 'late', 'url', 'thief'];
 
@@ -433,4 +437,4 @@ export function ruleOf(last: SealWorld['last']): { section: string; says: string
 }
 
 /** The tampers of the story, in order: what the steps replay. */
-export const STORY: readonly Tamper[] = ['send', 'url', 'aud', 'thief', 'published', 'replay', 'late', 'expired', 'other-user'];
+export const STORY: readonly Tamper[] = ['send', 'url', 'aud', 'thief', 'published', 'replay', 'expired', 'other-user'];

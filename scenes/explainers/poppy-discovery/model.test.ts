@@ -230,12 +230,12 @@ const run = (events: readonly DiscoveryEvent[], from = start()) => events.reduce
   assert.ok(!isRefusal(after), `${e} was refused: ${isRefusal(after) ? after.reason : ''}`);
   return after as World;
 }, from);
-const CHECKS: readonly DiscoveryEvent[] = ['fetch', 'read', 'find issuer', 'confirm'];
+const C = (n: number): DiscoveryEvent[] => Array.from({ length: n }, () => 'check' as const);
 
 test('section 3: the machine’s checks agree with discover() for every server', () => {
   for (const server of Object.keys(SERVERS) as Server[]) {
     let w = run(server === 'shop' ? [] : [server]);
-    for (const e of CHECKS) if (!isRefusal(next(w, e))) w = next(w, e) as World;
+    while (!isRefusal(next(w, 'check'))) w = next(w, 'check') as World;
     const { verdict } = progress(w), { start: from, web, known } = SERVERS[server], d = discover(from, web, { known });
     assert.ok(verdict, server);
     if (isStop(d)) assert.deepEqual(verdict, { accepted: false, gate: d.stopped, reason: d.reason }, server);
@@ -243,21 +243,17 @@ test('section 3: the machine’s checks agree with discover() for every server',
   }
 });
 
-test('section 3: the checks run in order, and each refused press says why', () => {
-  const s = start();
-  assert.deepEqual(CHECKS.map((e) => reasonOf(s, e)), [
-    null,
-    'the agent has fetched no document yet, so there is nothing to read',
-    'the agent has not read organization.domain yet, so it does not know whose metadata to ask',
-    'the agent has found no issuer yet, so there is no one to ask',
-  ]);
-  assert.equal(reasonOf(s, 'shop'), 'the agent is already about to fetch www.example.com’s poppy.json');
-  assert.equal(reasonOf(run(['fetch']), 'fetch'), 'the agent has already fetched the document');
-  assert.equal(reasonOf(run(['upload', 'fetch']), 'read'), 'the agent refused this document at the path check, so it checks nothing more');
-  assert.equal(reasonOf(run(['small', 'fetch', 'read', 'find issuer']), 'confirm'), 'corner.example has no issuer, so there is nothing to confirm');
-  assert.equal(reasonOf(run(['fetch', 'read', 'find issuer', 'confirm']), 'confirm'), 'the agent has already asked the issuer');
-  assert.equal(reasonOf(run(['fetch', 'read']), 'copy'), null, 'choosing another server starts again');
-  assert.deepEqual(run(['fetch', 'read', 'copy']), { server: 'copy', ran: 0 });
+test('section 3: the checks run in their fixed order, eight buttons in all, and each refused press says why', () => {
+  assert.equal(EVENTS.length, 8);
+  assert.deepEqual(C(4).reduce<World[]>((ws) => [...ws, next(ws.at(-1)!, 'check') as World], [start()]).map((w) => progress(w).results.map((r) => r.gate)),
+    [[], ['fetch'], ['fetch', 'read'], ['fetch', 'read', 'issuer'], ['fetch', 'read', 'issuer', 'listed']]);
+  assert.equal(reasonOf(start(), 'shop'), 'the agent is already about to fetch www.example.com’s poppy.json');
+  assert.equal(reasonOf(run(['upload', 'check']), 'check'), 'the agent refused this document at the path check, so it checks nothing more');
+  assert.equal(reasonOf(run(['copy', ...C(2)]), 'check'), 'the agent refused this document at the domain check, so it checks nothing more');
+  assert.equal(reasonOf(run(['small', ...C(3)]), 'check'), 'corner.example has no issuer, so there is no listing to check');
+  assert.equal(reasonOf(run(C(4)), 'check'), 'the agent has run all 4 checks and uses this document');
+  assert.equal(reasonOf(run(C(2)), 'copy'), null, 'choosing another server starts again');
+  assert.deepEqual(run([...C(2), 'copy']), { server: 'copy', ran: 0 });
 });
 
 test('section 3: every reachable state leaves an event to press, and the states are few', () => {

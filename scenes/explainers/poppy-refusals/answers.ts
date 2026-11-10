@@ -21,7 +21,7 @@ export const questions = {
     const t = troubled('delegation'), reply = respond(t.request, t.company);
     expect(remedy(reply, { token: t.request.token, refresh: ['orders:read', 'orders:write'], signedOut: false, resent: false, version: '0.4', implements: ['0.4'], extensions: [], offered: {} }), 'fix');
     const inNew = troubled('delegation', { sid: NEW_SID });
-    const kept = play(['delegation', 'fix']).cart;
+    const kept = play(['delegation', 'answer']).cart;
     return `It stops sending the exchange and fixes the cause: a new delegation, in the same Session, so the cart is ${kept ? 'kept' : 'lost'}. A new Session would carry the same broken header and get ${sayReply(respond(inNew.request, inNew.company))} again.`;
   },
   2: () => {
@@ -32,7 +32,7 @@ export const questions = {
   },
   3: () => {
     const run = pursue('exchange', { company: { ...EXAMPLE_COMPANY, ended: 'all' } });
-    const stop = expect(run[1]!.move, 'stop'), lost = !play(['end', 'new-session']).cart;
+    const stop = expect(run[1]!.move, 'stop'), lost = !play(['end', 'answer']).cart;
     return `It stops sending the exchange: ${stop.why}, and the agent sends again once. The first Session’s cart ${lost ? 'did not carry over' : 'carried over'}.`;
   },
   4: () => {

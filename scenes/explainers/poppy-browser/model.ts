@@ -85,8 +85,12 @@ export function pageRuleFailures(response: PageResponse): string[] {
 
 /** The Session a code is authorized for (6, step 2): the agent that signed, and, if signed in, the token's account and scopes. */
 export type Grant = { sid: string; agent: string; account: string | null; scopes: readonly WebScope[] };
-/** The Company's record of one code. The Company knows the browser only by the cookie value it paired the code with. */
-export type CodeRecord = { code: string; cookie: string; authorized: Grant | null; submitted: boolean; expired: boolean };
+/**
+ * The Company's record of one code. The Company knows the browser only by the cookie value it
+ * paired the code with. Once submitted, `seated` says whether the matching join cookie came with
+ * it, and `joined` whether every check passed and the Session's cookie was set (6, step 3).
+ */
+export type CodeRecord = { code: string; cookie: string; authorized: Grant | null; submitted: boolean; expired: boolean; seated: boolean; joined: boolean };
 /** What the Company holds: the codes it issued, the Sessions it has started (5.3), and how many Session cookies it has set. */
 export type Company = { codes: readonly CodeRecord[]; sessions: readonly string[]; cookiesSet: number };
 /**
@@ -108,7 +112,7 @@ export const newBrowser = (name: string, login: string | null = null): Browser =
 export function load(company: Company, browser: Browser): { company: Company; browser: Browser; code: string; response: PageResponse } {
   const i = company.codes.length, code = CODES[i] ?? `bc_${i}`, cookie = JOIN_VALUES[i] ?? `jn_${i}`;
   return {
-    company: { ...company, codes: [...company.codes, { code, cookie, authorized: null, submitted: false, expired: false }] },
+    company: { ...company, codes: [...company.codes, { code, cookie, authorized: null, submitted: false, expired: false, seated: false, joined: false }] },
     browser: { ...browser, join: cookie },
     code,
     response: PAGE_RESPONSE,
@@ -206,8 +210,9 @@ export function submit(company: Company, browser: Browser, code: string, from: s
     if (record.expired) failed.push('the code has expired');
     if (record.submitted) failed.push('the code was submitted before');
   }
-  const spent = record ? { ...company, codes: company.codes.map((r) => (r === record ? { ...r, submitted: true } : r)) } : company;
-  if (failed.length || !record?.authorized) return { company: spent, browser, answer: { status: 400, failed } };
+  const ok = !failed.length && !!record?.authorized, seated = !!sent && record?.cookie === sent;
+  const spent = record ? { ...company, codes: company.codes.map((r) => (r === record ? { ...r, submitted: true, seated, joined: ok } : r)) } : company;
+  if (!ok || !record?.authorized) return { company: spent, browser, answer: { status: 400, failed } };
   const grant = record.authorized, value = SESSION_VALUES[company.cookiesSet] ?? `sb_${company.cookiesSet}`;
   return {
     company: { ...spent, cookiesSet: company.cookiesSet + 1 },
@@ -367,9 +372,12 @@ export function websiteAllows(visit: Visit, needs: Scope, website: Website): { a
  */
 export function pageFetch(url: string, doc: WebDoc, client: 'its own HTTP client' | 'a browser', _browserSignedIn = false): { session: SessionJwt | null; token: null } {
   if (client === 'a browser') return { session: null, token: null };
-  const u = new URL(url);
-  if (u.protocol !== 'https:' || u.hostname !== doc.organization.domain.toLowerCase() || u.pathname.startsWith('/.well-known/')) return { session: null, token: null };
-  return { session: sign(AGENT, { method: 'GET', url: `${u.origin}${u.pathname}` }, USER_IDS[COMPANY.domain], SID), token: null };
+  // Scheme, host (lower case, no port or user info here) and path, without the query or fragment.
+  const m = /^([a-z]+):\/\/([^/?#:]+)([^?#]*)/i.exec(url);
+  if (!m) return { session: null, token: null };
+  const [, scheme, host, path] = m as unknown as [string, string, string, string], origin = `${scheme.toLowerCase()}://${host.toLowerCase()}`;
+  if (scheme.toLowerCase() !== 'https' || host.toLowerCase() !== doc.organization.domain.toLowerCase() || path.startsWith('/.well-known/')) return { session: null, token: null };
+  return { session: sign(AGENT, { method: 'GET', url: `${origin}${path || '/'}` }, USER_IDS[COMPANY.domain], SID), token: null };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -391,13 +399,21 @@ export const JOIN_EVENTS: readonly JoinEvent[] = ['fetch', 'load', 'authorize', 
 /** The page the agent fetches without a browser, for contrast: a help article. */
 export const HELP_URL = 'https://example.com/help/exchanges';
 
+/**
+ * The status of a page the website serves: the help page fetched without a browser, the
+ * browser-session page (6, step 1, whose example response is 200 OK) and a page the joined browser
+ * opens. The draft gives a status only for the browser-session page; the others are ordinary pages,
+ * served whether signed in or not, and this model serves them all with 200.
+ */
+export const PAGE_STATUS = 200;
+
 /** What the last event did: the middle of the picture. */
 export type Last =
-  | { event: 'fetch'; session: boolean; token: boolean }
-  | { event: 'load'; code: string }
+  | { event: 'fetch'; status: number; session: boolean; token: boolean }
+  | { event: 'load'; status: number; code: string }
   | { event: 'authorize'; code: string; withToken: boolean; answer: Answer }
   | { event: 'submit'; code: string; answer: SubmitAnswer }
-  | { event: 'browse'; visit: Visit }
+  | { event: 'browse'; status: number; visit: Visit }
   | { event: 'forge'; code: string; answer: SubmitAnswer }
   | { event: 'phish'; code: string; declined: string; answer: SubmitAnswer };
 
@@ -433,7 +449,7 @@ export function start(signIn: SignIn): World {
 export function bound(w: World, event: JoinEvent): string | undefined {
   if ((event === 'forge' || event === 'phish') && !w.browser.session) return 'in this story the attacker strikes once your agent’s browser has joined';
   if (event === 'load' && w.browser.session) return 'the story joins the browser once';
-  if (event === 'load' && w.company.codes.length >= 4) return 'the story loads the page twice at most';
+  if (event === 'load' && !w.page && w.company.codes.length >= 4) return 'the story loads the page twice at most';
   return undefined;
 }
 
@@ -456,13 +472,13 @@ export function next(w: World, event: JoinEvent): World | Refusal {
     case 'fetch': {
       // 5.2: a page fetched with the agent's own HTTP client carries the Session header and never a token.
       const sent = pageFetch(HELP_URL, POPPY_JSON, 'its own HTTP client', !!w.browser.session?.grant.account);
-      return { ...w, last: { event: 'fetch', session: !!sent.session, token: sent.token !== null } };
+      return { ...w, last: { event: 'fetch', status: PAGE_STATUS, session: !!sent.session, token: sent.token !== null } };
     }
     case 'load': {
       // 6, step 2: the agent completes steps 2 and 3 right away, so it does not load a second code while one is open.
       if (w.page) return refuse(`the browser’s page already shows ${w.page.slice(0, 7)}, which the agent has not used yet`);
       const loaded = load(w.company, w.browser);
-      return { ...w, company: loaded.company, browser: loaded.browser, page: loaded.code, last: { event: 'load', code: loaded.code } };
+      return { ...w, company: loaded.company, browser: loaded.browser, page: loaded.code, last: { event: 'load', status: PAGE_STATUS, code: loaded.code } };
     }
     case 'authorize': {
       if (!w.page) return refuse('the browser has no browser-session page open, so there is no code to read');
@@ -486,7 +502,7 @@ export function next(w: World, event: JoinEvent): World | Refusal {
     case 'browse':
       // 6: a Company that lists browser_session_endpoint is browsed only by a joined browser.
       if (!w.browser.session) return refuse(`${COMPANY.domain} lists a browser-session endpoint, so the agent joins its browser to the Session before browsing`);
-      return { ...w, last: { event: 'browse', visit: browse(w.browser) } };
+      return { ...w, last: { event: 'browse', status: PAGE_STATUS, visit: browse(w.browser) } };
     case 'forge': {
       // 10.6: a page on evil.example posts the attacker's authorized code from the agent's browser.
       if (record(ATTACK_CODE).submitted) return refuse('the attacker’s code was used by the first form that submitted it, and a code works once');

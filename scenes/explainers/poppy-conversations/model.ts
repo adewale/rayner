@@ -1,4 +1,4 @@
-import { refuse } from '../../../explain/index.ts';
+import { isRefusal, refuse } from '../../../explain/index.ts';
 import type { Refusal } from '../../../explain/index.ts';
 import { AGENT, COMPANY, POPPY_JSON, USER_IDS } from '../poppy/model.ts';
 
@@ -344,14 +344,13 @@ export const LINES = {
   cold: 'Jacket 1042 is too cold.',
   insulated: 'Insulated, in medium?',
   medium: 'Medium, please.',
-  question: 'Hi, about my exchange.',
+  question: 'About my exchange.',
   offer: 'Insulated: $70 more?',
   stock: 'Yes, in stock. Exchange?',
   size: 'Which size, please?',
   confirm: 'Medium it is. Done.',
-  finding: 'Finding a specialist.',
+  finding: 'Specialist coming.',
   help: 'Sure. Which size?',
-  nobody: 'Nobody is free just now.',
   decline: 'They can’t talk just now.',
 } as const;
 export type LineKey = keyof typeof LINES;
@@ -359,9 +358,9 @@ export type LineKey = keyof typeof LINES;
 /** One turn of speech: who said it, what, and at which table (the conversation, or the Direct Conversation). */
 export type Turn = { speaker: Speaker; line: LineKey; at: 'main' | 'direct' };
 
-export type TableEvent = 'ask' | 'you' | 'read' | 'person' | 'joins' | 'nobody' | 'invite' | 'direct' | 'close';
+export type TableEvent = 'ask' | 'you' | 'read' | 'person' | 'joins' | 'invite' | 'direct' | 'close';
 /** Every event, in the order the player shows its buttons: the agent's requests, then the Company's moves. */
-export const TABLE_EVENTS: readonly TableEvent[] = ['ask', 'you', 'read', 'person', 'joins', 'nobody', 'invite', 'direct', 'close'];
+export const TABLE_EVENTS: readonly TableEvent[] = ['ask', 'you', 'read', 'person', 'joins', 'invite', 'direct', 'close'];
 
 /**
  * The table. `main` is the conversation the agent started, with its four state fields (null before
@@ -414,7 +413,8 @@ function replyOf(w: World, at: 'main' | 'direct', c: Conv): Turn {
  * reads the reply, and a read takes everything the Company has done (8.5's cursor, has_more and wait
  * are the wire layer's). The Company hands off only when asked (8.9 also lets it do so on its own),
  * asks for the User only in the conversation, and never closes a conversation itself (8.12 lets it,
- * after inactivity). The story opens one Direct Conversation (see `bound`). Sign-in, ownership and
+ * after inactivity). When it looks for a person, one always joins in the end: "nobody is available"
+ * (8.9) is the wire layer's `nobodyAvailable`, left out of the buttons so the live step has eight. The story opens one Direct Conversation (see `bound`). Sign-in, ownership and
  * retries are the wire layer's.
  */
 export function next(w: World, event: TableEvent): World | Refusal {
@@ -475,16 +475,13 @@ export function next(w: World, event: TableEvent): World | Refusal {
       if (main.responder === 'human') return refuse(`${PERSON.name}, a person, is handling the conversation already, so asking changes nothing (8.9)`);
       return put(w, 'main', askForPerson(main));
     }
-    case 'joins':
-    case 'nobody': {
+    case 'joins': {
       // The Company's move: it answers the conversation where handoff is pending.
       const at = direct?.handoff === 'pending' ? 'direct' : main?.handoff === 'pending' && !main.closed ? 'main' : null;
       if (!at) return refuse('handoff is none: nobody is looking for a person (in this model the Company hands off only when asked)');
       const c = at === 'main' ? main! : direct!;
       // 8.7: a person who joins starts writing, which is work in progress, so working is true until the agent reads.
-      if (event === 'joins') return { ...put(w, at, { ...personJoins(c), working: true }), said: null };
-      // 8.9: nobody available: back to none, responder still agent, and the Company Agent says why.
-      return { ...put(w, at, nobodyAvailable(c)), said: { speaker: 'company agent', line: 'nobody', at } };
+      return { ...put(w, at, { ...personJoins(c), working: true }), said: null };
     }
     case 'invite': {
       // 8.10: the Company asks for the User with a user_requested event, which changes no state field.
@@ -526,10 +523,11 @@ export function next(w: World, event: TableEvent): World | Refusal {
 
 /**
  * Where the explainer's story stops though the model would go on: it opens one Direct
- * Conversation. The specification allows another once the first has closed (8.10).
+ * Conversation. The specification allows another once the first has closed (8.10). It bounds only
+ * what the model would take: a refusal stays a refusal.
  */
 export function bound(w: World, event: TableEvent): string | undefined {
-  if (w.direct === 'closed' && (event === 'direct' || event === 'invite')) return 'this story opens one Direct Conversation; Poppy allows another once the first has closed';
+  if (w.direct === 'closed' && (event === 'direct' || event === 'invite') && !isRefusal(next(w, event))) return 'this story opens one Direct Conversation; Poppy allows another once the first has closed';
   return undefined;
 }
 

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { isRefusal } from '../../../explain/index.ts';
 import { AGENT, COMPANY, OPERATIONS, POPPY_JSON, SID, THIEF, USER_IDS } from '../poppy/model.ts';
 import {
-  ACCOUNT, ATTACK_CODE, ATTACKER, AUTHORIZE_URL, BROWSER_SIGN_IN, CODES, ENDPOINT, JOIN_EVENTS, PAGE_RESPONSE, PHISH_CODE, SIGN_INS, SIGN_IN_ENDS, STORY,
+  ACCOUNT, ATTACK_CODE, PAGE_STATUS, ATTACKER, AUTHORIZE_URL, BROWSER_SIGN_IN, CODES, ENDPOINT, JOIN_EVENTS, PAGE_RESPONSE, PHISH_CODE, SIGN_INS, SIGN_IN_ENDS, STORY,
   agentMayJoin, agentTakesCode, authorize, authorizeRequest, bound, end, browse, browserSignInMeans, browsingPlan, emptyCompany, endSignIn,
   issuerWebUnscoped, joinEffect, load, mayRequestBrowserSignIn, mustSupportBrowserSignIn, newBrowser, next, pageFetch, pageRuleFailures,
   plantJoinCookie, start, storyOf, submit, tokenFor, userToken, webProblems, websiteAllows,
@@ -30,6 +30,12 @@ const play = (signIn: SignIn, events: readonly JoinEvent[]) =>
     return after as World;
   }, start(signIn));
 const reasonOf = (w: World, e: JoinEvent) => { const n = next(w, e); return isRefusal(n) ? n.reason : null; };
+
+test('6, step 1: the browser-session page is served with 200, as the spec’s example response is', () => {
+  assert.equal(PAGE_STATUS, 200);
+  const w = play('signed in', ['load']);
+  assert.equal(w.last?.event === 'load' && w.last.status, 200);
+});
 
 test('section 6: the endpoint comes from poppy.json, and the authorize URL is the endpoint with /authorize', () => {
   assert.equal(ENDPOINT, 'https://example.com/poppy/browser-session');
@@ -91,6 +97,7 @@ test('6, step 3: the browser that loaded the page, with its cookie, joins the Se
   const joined = join(SIGNED_IN);
   assert.deepEqual(joined.answer, { status: 303, location: '/' });
   assert.equal(joined.browser.join, null);
+  assert.deepEqual(joined.company.codes[0]!, { ...joined.company.codes[0]!, submitted: true, seated: true, joined: true });
   assert.deepEqual(joined.browser.session, { value: 'Pz81kQ', grant: { sid: SID, agent: AGENT.clientId, account: ACCOUNT, scopes: SIGNED_IN.scopes } });
 });
 
@@ -98,6 +105,7 @@ test('6, step 3: every check is named when it fails, and a code is used by the f
   const loaded = load(emptyCompany(), newBrowser('agent’s browser'));
   const early = submit(loaded.company, loaded.browser, loaded.code);
   assert.deepEqual(early.answer, { status: 400, failed: ['no agent authorized the code'] });
+  assert.deepEqual([early.company.codes[0]!.seated, early.company.codes[0]!.joined], [true, false], 'the cookie came and fitted; the stamp was missing');
   assert.equal(early.browser.session, null, 'no cookie is set');
   const late = authorize(early.company, authorizeRequest(AGENT, loaded.code, sub, SID));
   assert.deepEqual(late.answer, { status: 204 }, 'the draft’s step 2 does not check for a code already submitted');
@@ -117,6 +125,7 @@ test('10.6: an attacker’s authorized code posted from another site fails for w
   const w = start('signed in');
   const forged = submit(w.company, newBrowser('victim'), ATTACK_CODE, ATTACKER.site);
   assert.deepEqual(forged.answer, { status: 400, failed: ['the form came from evil.example, so the browser sent no join cookie'] });
+  assert.deepEqual(forged.company.codes.find((r) => r.code === ATTACK_CODE)!, { ...forged.company.codes[0]!, submitted: true, seated: false, joined: false });
   // Even a browser holding a join cookie sends none with a cross-site form (SameSite=Strict).
   const holding = load(w.company, newBrowser('victim'));
   assert.equal(submit(holding.company, holding.browser, ATTACK_CODE, ATTACKER.site).answer.status, 400);
@@ -226,11 +235,11 @@ test('5.2: a page fetched with the agent’s own client carries the Session head
 test('the story: the agent’s browser joins, browses, and both attacks fail, in each scenario', () => {
   const after = (signIn: SignIn, k: number) => play(signIn, storyOf(signIn).slice(0, k));
   // Signed in with the scope: the browser browses signed in to A.
-  assert.deepEqual(after('signed in', 1).last, { event: 'fetch', session: true, token: false });
-  assert.deepEqual(after('signed in', 2).last, { event: 'load', code: 'bc_Vn3qT8xLw2Rk9mZ4yHc1Ad' });
+  assert.deepEqual(after('signed in', 1).last, { event: 'fetch', status: 200, session: true, token: false });
+  assert.deepEqual(after('signed in', 2).last, { event: 'load', status: 200, code: 'bc_Vn3qT8xLw2Rk9mZ4yHc1Ad' });
   assert.deepEqual(after('signed in', 3).last, { event: 'authorize', code: 'bc_Vn3qT8xLw2Rk9mZ4yHc1Ad', withToken: true, answer: { status: 204 } });
   assert.deepEqual(after('signed in', 4).last, { event: 'submit', code: 'bc_Vn3qT8xLw2Rk9mZ4yHc1Ad', answer: { status: 303, location: '/' } });
-  assert.deepEqual(after('signed in', 5).last, { event: 'browse', visit: { session: SID, account: ACCOUNT, scopes: SIGNED_IN.scopes, via: 'session' } });
+  assert.deepEqual(after('signed in', 5).last, { event: 'browse', status: 200, visit: { session: SID, account: ACCOUNT, scopes: SIGNED_IN.scopes, via: 'session' } });
   assert.deepEqual(after('signed in', 6).last, { event: 'forge', code: ATTACK_CODE, answer: { status: 400, failed: ['the form came from evil.example, so the browser sent no join cookie'] } });
   const last = after('signed in', 7).last;
   assert.deepEqual(last, {
@@ -240,12 +249,12 @@ test('the story: the agent’s browser joins, browses, and both attacks fail, in
   });
   // Signed out: the browser joins the Session signed out.
   assert.deepEqual(after('signed out', 3).last, { event: 'authorize', code: CODES[2], withToken: false, answer: { status: 204 } });
-  assert.deepEqual(after('signed out', 5).last, { event: 'browse', visit: { session: SID, account: null, scopes: null, via: null } });
+  assert.deepEqual(after('signed out', 5).last, { event: 'browse', status: 200, visit: { session: SID, account: null, scopes: null, via: null } });
   // Without the browser scope: 403, then the same code without a token, and the browser joins signed out.
   const lacking = 'signed in without the browser scope';
   assert.deepEqual(after(lacking, 3).last, { event: 'authorize', code: CODES[2], withToken: true, answer: { status: 403, error: 'insufficient_scope', needs: BROWSER_SIGN_IN } });
   assert.deepEqual(after(lacking, 4).last, { event: 'authorize', code: CODES[2], withToken: false, answer: { status: 204 } });
-  assert.deepEqual(after(lacking, 6).last, { event: 'browse', visit: { session: SID, account: null, scopes: null, via: null } });
+  assert.deepEqual(after(lacking, 6).last, { event: 'browse', status: 200, visit: { session: SID, account: null, scopes: null, via: null } });
   assert.deepEqual(storyOf('signed in'), STORY);
   // The attacks leave the User's Session and the agent's browser as they were.
   const joined = after('signed in', 5), attacked = after('signed in', 7);

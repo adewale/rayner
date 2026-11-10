@@ -199,6 +199,9 @@ const tokensFor = (requested: readonly Scope[], scopes: readonly Scope[], card: 
   access_token: ACCESS, refresh_token: CARDS[card], granted: scopes, ...(scopes.length !== requested.length ? { scope: scopes.join(' ') } : {}),
 });
 
+/** The host of an HTTPS URL, in lower case: what lies between the scheme and the first slash, query or fragment. */
+export const hostOf = (uri: string) => uri.replace(/^https:\/\//i, '').split(/[/?#]/)[0]!.toLowerCase();
+
 /**
  * Whether the agent may show a Device Sign-In link (4.3): its host must be the host of the Company's
  * issuer or its organization.domain, or a subdomain of either, compared ignoring case. Otherwise a
@@ -206,8 +209,8 @@ const tokensFor = (requested: readonly Scope[], scopes: readonly Scope[], card: 
  * Company's name and domain with it.
  */
 export function deviceLink(uri: string, company: { issuer: string; domain: string; name: string } = { issuer: COMPANY.issuer, ...ORGANIZATION }): { show: string; beside: string } | Rejected {
-  const host = new URL(uri).host.toLowerCase();
-  const allowed = [new URL(company.issuer).host.toLowerCase(), company.domain.toLowerCase()];
+  const host = hostOf(uri);
+  const allowed = [hostOf(company.issuer), company.domain.toLowerCase()];
   if (!allowed.some((a) => host === a || host.endsWith(`.${a}`))) return rejected('invalid_request', `its host ${host} is neither ${allowed.join(' nor ')}, nor a subdomain of either`);
   return { show: uri, beside: `${company.name} · ${company.domain}` };
 }

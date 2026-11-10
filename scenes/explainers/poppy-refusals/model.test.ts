@@ -4,7 +4,7 @@ import { isRefusal } from '../../../explain/index.ts';
 import { AGENT, OPERATIONS, SID, USER_IDS, COMPANY } from '../poppy/model.ts';
 import {
   APIS, EXAMPLE_COMPANY, FIXES, MCP_METADATA, MCP_URL, REFUSAL_EVENTS, RETRY_AFTER, STORY, TROUBLES,
-  agentAfter, carriedIn, choose, compatible, healthy, libraryKeepsToken, next, pending, pursue, remedy, respond, start, troubled,
+  TEMPTING, agentAfter, carriedIn, choose, compatible, healthy, libraryKeepsToken, next, pending, pursue, remedy, respond, rightFix, start, temptation, troubled, tryFix,
   type Fix, type Holding, type Reply, type RefusalEvent, type Trouble, type World,
 } from './model.ts';
 
@@ -24,7 +24,7 @@ const play = (events: readonly RefusalEvent[], from: World = start()) => events.
   assert.ok(!isRefusal(after), `${e} was refused: ${isRefusal(after) ? after.reason : ''}`);
   return after as World;
 }, from);
-const reasonOf = (w: World, e: RefusalEvent) => { const n = next(w, e); return isRefusal(n) ? n.reason : null; };
+const reasonOf = (w: World, e: RefusalEvent | Fix) => { const n = e === 'answer' || (TROUBLES as readonly string[]).includes(e) ? next(w, e as RefusalEvent) : tryFix(w, e as Fix); return isRefusal(n) ? n.reason : null; };
 
 test('section 7: Poppy lists two API types, OpenAPI and MCP, and the example Company lists one of each', () => {
   assert.deepEqual(APIS.map((a) => a.type), ['openapi', 'mcp']);
@@ -201,12 +201,25 @@ test('section 7: from each refusal, exactly one fix is taken, and the request th
   for (const trouble of TROUBLES) {
     const refused = play([trouble]);
     assert.ok(pending(refused), trouble);
-    const taken = FIXES.filter((f) => !isRefusal(next(refused, f)));
+    const taken = FIXES.filter((f) => !isRefusal(tryFix(refused, f)));
     assert.equal(taken.length, 1, `${trouble}: ${taken.join(', ')}`);
-    const fixed = next(refused, taken[0]!) as World;
+    const fixed = tryFix(refused, taken[0]!) as World;
+    assert.equal(rightFix(refused), taken[0]);
+    assert.deepEqual(next(refused, 'answer'), fixed, 'the agent answers with that remedy');
     assert.deepEqual(fixed.last?.again, { status: 200 }, trouble);
     assert.equal(pending(fixed), false);
   }
+});
+
+test('section 7 and 5.3: the tempting wrong remedy for each refusal is named with the draft’s reason, and fails', () => {
+  for (const trouble of TROUBLES) {
+    const refused = play([trouble]), t = temptation(refused);
+    assert.ok(t, trouble);
+    assert.equal(t.fix, TEMPTING[trouble]);
+    assert.notEqual(t.fix, rightFix(refused), trouble);
+    assert.deepEqual(temptation(play(['answer'], refused)), t, 'the answered picture still says why');
+  }
+  assert.equal(temptation(play(['delegation']))!.reason, 'a new Session does not fix invalid_session: the same header fails in any Session, so the agent stops and fixes the cause');
 });
 
 test('section 7: the wrong remedies the status codes are meant to prevent are refused with the reason', () => {
@@ -220,21 +233,22 @@ test('section 7: the wrong remedies the status codes are meant to prevent are re
 });
 
 test('section 7: a remedy answers a refusal, so every fix is refused when nothing has been refused, and every trouble while a refusal waits', () => {
-  for (const fix of FIXES) assert.equal(reasonOf(start(), fix), 'nothing has been refused, so there is nothing to remedy');
+  for (const fix of FIXES) assert.equal(reasonOf(start(), fix), 'nothing has been refused, so the agent has nothing to answer');
+  assert.equal(reasonOf(start(), 'answer'), 'nothing has been refused, so the agent has nothing to answer');
   const refused = play(['expire']);
   for (const trouble of TROUBLES) assert.equal(reasonOf(refused, trouble), 'the agent has a refusal to answer first: 401 invalid_token');
 });
 
 test('5.5: a new Session leaves the old Session’s cart behind; fixing the delegation keeps it (5.2)', () => {
   assert.equal(start().cart, true);
-  assert.equal(play(['end', 'new-session']).cart, false);
-  assert.equal(play(['old-copy', 'reread']).cart, false, 'a new version means a new Session (3.4)');
-  assert.equal(play(['delegation', 'fix']).cart, true);
-  assert.equal(play(['expire', 'refresh']).cart, true);
+  assert.equal(play(['end', 'answer']).cart, false);
+  assert.equal(play(['old-copy', 'answer']).cart, false, 'a new version means a new Session (3.4)');
+  assert.equal(play(['delegation', 'answer']).cart, true);
+  assert.equal(play(['expire', 'answer']).cart, true);
 });
 
 test('4.5: once the agent holds a key cut for the MCP server, its sizing call succeeds at once', () => {
-  const w = play(['mcp', 'refresh']);
+  const w = play(['mcp', 'answer']);
   assert.equal(w.mcpKey, true);
   const again = play(['mcp'], w);
   assert.deepEqual(again.last, { trouble: 'mcp', reply: { status: 200 }, fix: null, again: null });
@@ -256,7 +270,8 @@ test('the scene’s machine (no section): the story replays without a refusal, a
 });
 
 test('the scene’s machine (no section): the events are the troubles then the fixes, distinct, with no comma in a name', () => {
-  assert.deepEqual(REFUSAL_EVENTS, [...TROUBLES, ...FIXES]);
+  assert.deepEqual(REFUSAL_EVENTS, [...TROUBLES, 'answer']);
+  assert.ok(REFUSAL_EVENTS.length <= 8, 'a phone takes at most eight buttons');
   assert.equal(new Set(REFUSAL_EVENTS).size, REFUSAL_EVENTS.length);
   for (const e of REFUSAL_EVENTS) assert.doesNotMatch(e, /,/);
   const fixes: readonly Fix[] = FIXES;

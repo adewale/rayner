@@ -41,7 +41,7 @@ test('4.1: the client_id is an HTTPS URL that returns metadata naming itself, wi
 
 test('3.2 and 5.2: aud is the issuer when there is one, else https:// and the domain in lowercase', () => {
   assert.equal(identifierOf(COMPANY), 'https://auth.example.com');
-  assert.equal(identifierOf(OTHER_COMPANY), 'https://auth.shoes.example');
+  assert.equal(identifierOf(OTHER_COMPANY), 'https://shoes.example');
   assert.equal(identifierOf({ domain: 'Shop.Example' }), 'https://shop.example');
 });
 
@@ -55,7 +55,7 @@ test('5.2: the spec’s delegation: issued by the agent, signed by a published k
   // 5.2: no User ID, Agent ID, Company issuer, or anything about them, in any delegation.
   for (const { delegation } of Object.values(AGENT_SIGNER.byUser)) {
     const text = JSON.stringify(delegation);
-    for (const secret of [...Object.values(USER_IDS), OTHER_USER, COMPANY.issuer, COMPANY.domain, OTHER_COMPANY.issuer, OTHER_COMPANY.domain]) assert.ok(!text.includes(secret), secret);
+    for (const secret of [...Object.values(USER_IDS), OTHER_USER, COMPANY.issuer, COMPANY.domain, identifierOf(OTHER_COMPANY), OTHER_COMPANY.domain]) assert.ok(!text.includes(secret), secret);
   }
 });
 
@@ -64,7 +64,7 @@ test('5.2: a Session JWT binds iss, aud, sid, sub, htm, htu, iat, jti and ath, s
   assert.deepEqual(g.session, {
     typ: 'poppy-session+jwt', kid: '9E421cSq', poppy_dlg: held.delegation,
     iss: 'https://agent.example/agent.json', aud: 'https://auth.example.com', sid: SID, sub: 'usr_Q7c1vK',
-    htm: 'POST', htu: 'https://api.example.com/orders/ord_7Hk2/exchanges', iat: 1790900000, jti: 'e1j3V_bK', ath: 'ath(at_Qp4w)', signedBy: '9E421cSq',
+    htm: 'POST', htu: 'https://api.example.com/orders/ord_7Hk2/exchanges', iat: 1790900000, jti: 'e1j3Vb', ath: 'ath(at_Qp4w)', signedBy: '9E421cSq',
   });
   const out = sealRequest(AGENT_SIGNER, { method: 'POST', url: OPERATIONS.cart.url }, { company: COMPANY, sub: 'usr_Q7c1vK', sid: SID, now, jti: 'x' });
   assert.ok(!isRefusal(out) && !('ath' in out), 'ath is left out when the request carries no access token');
@@ -89,7 +89,7 @@ test('5.3: a copied header sent to another URL is refused by htm and htu', () =>
 test('10.4: a header addressed to another Company is refused, though every signature is genuine', () => {
   const { request, now: at } = attempt('aud');
   assert.equal(request.session!.htu, OPERATIONS.cart.url, 'shoes.example’s documents named example.com’s URL, which nobody checks');
-  assert.equal(failure(request, at), 'aud: the header is addressed to https://auth.shoes.example, and this is https://auth.example.com');
+  assert.equal(failure(request, at), 'aud: the header is addressed to https://shoes.example, and this is https://auth.example.com');
   assert.deepEqual(receive(request, at, 'required').passed, ['header', 'client', 'delegation', 'signature', 'typ']);
 });
 
@@ -147,8 +147,8 @@ test('5.3: iat must be within the window: a copy sent two minutes later is refus
 test('5.3: a Company that remembers jtis refuses an exact copy within the minute; one that does not accepts it', () => {
   const g = genuine(), first = receive(g, now, 'remembers');
   const memory = remember(FORGETFUL, g, first);
-  assert.deepEqual(memory, { jtis: ['e1j3V_bK'], keyUser: { '9E421cSq': 'usr_Q7c1vK' } });
-  assert.equal(failure(g, TIME.signed + 10, 'remembers', memory), 'replay: jti e1j3V_bK has been seen already, so this is a copy');
+  assert.deepEqual(memory, { jtis: ['e1j3Vb'], keyUser: { '9E421cSq': 'usr_Q7c1vK' } });
+  assert.equal(failure(g, TIME.signed + 10, 'remembers', memory), 'replay: jti e1j3Vb has been seen already, so this is a copy');
   assert.equal(failure(g, TIME.signed + 10, 'required', memory), '200');
   assert.deepEqual(remember(memory, g, receive(g, TIME.signed + 10, 'remembers', memory)), memory, 'a failed header teaches the Company nothing');
 });
@@ -189,8 +189,8 @@ test('5.3: no header at all is refused, and the header never grants account acce
 
 test('the story: each tamper meets the check the spec gives for it, under both policies', () => {
   const failedAt = (policy: Policy) => STORY.map((_, i) => lastFailed(play(policy, STORY.slice(0, i + 1))));
-  assert.deepEqual(failedAt('remembers'), [null, 'request', 'aud', 'token', 'delegation', 'replay', 'time', 'delegation', 'one-user'] satisfies (CheckId | null)[]);
-  assert.deepEqual(failedAt('required'), [null, 'request', 'aud', 'token', 'delegation', null, 'time', 'delegation', null] satisfies (CheckId | null)[]);
+  assert.deepEqual(failedAt('remembers'), [null, 'request', 'aud', 'token', 'delegation', 'replay', 'delegation', 'one-user'] satisfies (CheckId | null)[]);
+  assert.deepEqual(failedAt('required'), [null, 'request', 'aud', 'token', 'delegation', null, 'delegation', null] satisfies (CheckId | null)[]);
   const end = play('required', STORY);
   assert.deepEqual(end.last!.verdict.answer, { status: 401, needs: 'orders:write' });
 });
@@ -198,14 +198,20 @@ test('the story: each tamper meets the check the spec gives for it, under both p
 test('every refusal says why, and each tamper is refused or taken as the state decides', () => {
   const reasonOf = (w: SealWorld, t: Tamper) => { const n = next(w, t); return isRefusal(n) ? n.reason : null; };
   const nothing = 'the agent has sent nothing yet, so there is nothing to copy';
-  assert.deepEqual(TAMPERS.map((t) => reasonOf(start('remembers'), t)), [null, nothing, nothing, nothing, null, nothing, null, null, null]);
-  assert.deepEqual(TAMPERS.map((t) => reasonOf(play('remembers', ['send']), t)), ['the agent has sent the exchange already, and it seals each request once', null, null, null, null, null, null, null, null]);
+  assert.deepEqual(TAMPERS.map((t) => reasonOf(start('remembers'), t)), [null, nothing, nothing, null, nothing, null, null, null]);
+  assert.deepEqual(TAMPERS.map((t) => reasonOf(play('remembers', ['send']), t)), ['the agent has sent the exchange already, and it seals each request once', null, null, null, null, null, null, null]);
 });
 
 test('a remembering Company cannot tell which use of a key came first: the leaked key used first locks out the genuine request', () => {
   const w = play('remembers', ['other-user', 'send']);
   assert.equal(w.last!.verdict.answer.reason, `key 9E421cSq has already signed for ${OTHER_USER}`);
   assert.equal(w.sent, true);
+});
+
+test('5.3: the late copy is not a button, and the model still refuses it by iat', () => {
+  assert.ok(!TAMPERS.includes('late') && TAMPERS.length === 8);
+  const w = next(play('required', ['send']), 'late');
+  assert.ok(!isRefusal(w) && w.last!.verdict.failed === 'time');
 });
 
 test('every state the tampers reach leaves a tamper to press, and there are few of them', () => {
@@ -224,6 +230,6 @@ test('every state the tampers reach leaves a tamper to press, and there are few 
 test('each verdict cites the section that decided it', () => {
   assert.equal(ruleOf(null).section, '5.3');
   const sections = STORY.map((_, i) => ruleOf(play('remembers', STORY.slice(0, i + 1)).last).section);
-  assert.deepEqual(sections, ['5.3', '5.3', '10.4', '5.3', '5.2', '5.3', '5.3', '5.2', '5.2']);
+  assert.deepEqual(sections, ['5.3', '5.3', '10.4', '5.3', '5.2', '5.3', '5.2', '5.2']);
   assert.match(ruleOf(play('required', STORY).last).says, /grants no account access/);
 });

@@ -8,7 +8,7 @@ import {
   COMPANIES, COVERAGE_EVENTS, FEEDBACK_ENDPOINT, KNOWN, MUST_KEEP_OUT, POPPY_JSON_WITH_TASKS, SECRETS_HELD, SKILLS_SCHEMA, SKILL_BYTES, STORY, TASKS, TASKS_ENDPOINT,
   asksOf, cacheControlAllowed, channelsToTry, companyAnswers, coverageOf, digestOf, exchangeRequest, giftAlternative, isAlternative, keyOf, listedAs,
   mayReport, mayUseTasksResponse, modelContext, next, referenceUse, reportFor, reportProblems, sha256, start, tasksRequest, tasksResponse, usableSkills,
-  verifies, weigh, whereItGoes,
+  verifies, weigh, whereItGoes, resolveReference,
   type Ask, type Company, type Context, type CoverageEvent, type SkillEntry, type World,
 } from './model.ts';
 import { answer } from '../poppy/model.ts';
@@ -269,4 +269,9 @@ test('from the start, every reachable state leaves an event to press, and the st
         assert.deepEqual(w.approves, approves);
       }
     }
+});
+
+test('9.4: skill URLs resolve against tasks.endpoint as RFC 3986 §5 says (held to Node’s URL)', () => {
+  for (const ref of ['skills/a/SKILL.md', '/skills/b/SKILL.md', './c/SKILL.md', '../d/SKILL.md', '../../e.zip', 'f?x=1', '//cdn.example.com/g', 'https://cdn.other.example/h.zip', 'skills/./i/../j.md'])
+    assert.equal(resolveReference(ref, TASKS_ENDPOINT), new URL(ref, TASKS_ENDPOINT).href, ref);
 });

@@ -12,11 +12,11 @@
 1. A thief copies your whole exchange request, Session header and access token together, and sends it to GET /orders/ord_7Hk2 to read the order instead. What does example.com answer, and which claim stops it?
    400 invalid_session at htm and htu: the header was signed for POST /orders/ord_7Hk2/exchanges, and this is GET /orders/ord_7Hk2. A Session JWT covers one request, and only that one.
 2. shoes.example's own documents named example.com's cart URL, so the agent signed a header for that URL and sent it to shoes.example, which replays it at example.com. Every signature in it is genuine. What happens?
-   400 invalid_session at aud: the header is addressed to https://auth.shoes.example, and this is https://auth.example.com. The agent names the Company it verified in aud, so a header one Company collects is refused by every other.
+   400 invalid_session at aud: the header is addressed to https://shoes.example, and this is https://auth.example.com. The agent names the Company it verified in aud, so a header one Company collects is refused by every other.
 3. Your delegated key leaks while its delegation still has hours to run. What can whoever holds it do at example.com, and until when?
    Sign headers as any User ID it knows, signed out only: the exchange gets 401, naming orders:write. A Company that remembers which User ID each key signed for refuses it for anyone but usr_Q7c1vK: key 9E421cSq has already signed for usr_Q7c1vK. At 07:00 nothing works: the delegation expired at 06:00:00, and it is 07:00:00.
 4. An exact copy of the agent's request arrives ten seconds after it, and another two minutes after it. What happens to each?
-   Where the Company remembers jtis, the copy ten seconds later gets 400 invalid_session (jti e1j3V_bK has been seen already, so this is a copy); where it does not, 200. The copy two minutes later gets 400 invalid_session either way: the header was signed at 00:13:20, 120 s before 00:15:20, outside the 60 s window (section 5.3).
+   Where the Company remembers jtis, the copy ten seconds later gets 400 invalid_session (jti e1j3Vb has been seen already, so this is a copy); where it does not, 200. The copy two minutes later gets 400 invalid_session either way: the header was signed at 00:13:20, 120 s before 00:15:20, outside the 60 s window (section 5.3).
 5. Why does the agent sign your requests at example.com (usr_Q7c1vK) and at shoes.example (usr_m4Tz9P) with different delegated keys?
    With one key, the two Companies could match you by its thumbprint or its delegation’s jti. With 9E421cSq at one and Lp0wF2Ux at the other they have nothing in common, and a leaked key exposes you at one Company only.
 

@@ -196,7 +196,6 @@ test('8.9: asking for a person makes handoff pending, and asking again, or with 
   const w = play(['ask', 'read', 'person']);
   assert.equal(reasonOf(w, 'person'), 'handoff is already pending, so asking again changes nothing (8.9)');
   assert.equal(reasonOf(play(['joins'], w), 'person'), 'Alex, a person, is handling the conversation already, so asking changes nothing (8.9)');
-  assert.deepEqual(play(['nobody'], w).said, { speaker: 'company agent', line: 'nobody', at: 'main' }, 'the Company Agent says why');
   // While pending, the agent can keep talking and the Company Agent keeps answering.
   assert.deepEqual(play(['ask', 'read'], w).said?.speaker, 'company agent');
   assert.equal(play(['ask', 'read'], w).main?.handoff, 'pending');
@@ -215,7 +214,7 @@ test('8.10: the Company can only ask for the User: user_requested changes no sta
   const settled = play(['ask', 'read']), invited = play(['invite'], settled);
   assert.deepEqual({ ...invited, invited: false }, settled);
   assert.equal(invited.direct, null);
-  for (const e of ['joins', 'nobody', 'invite'] as const) assert.equal(openDirectOf(isRefusal(next(invited, e)) ? invited : (next(invited, e) as World)), null, e);
+  for (const e of ['joins', 'invite'] as const) assert.equal(openDirectOf(isRefusal(next(invited, e)) ? invited : (next(invited, e) as World)), null, e);
   const opened = play(['direct'], invited);
   // Accepted without a message: the Company speaks first, working, looking for a person.
   assert.deepEqual(opened.direct, { ...NEW_CONVERSATION, working: true, handoff: 'pending' });
@@ -302,7 +301,6 @@ test('every refusal says why, and from the start only a first message can be sen
     null,
     none('read'),
     none('ask in'),
-    'handoff is none: nobody is looking for a person (in this model the Company hands off only when asked)',
     'handoff is none: nobody is looking for a person (in this model the Company hands off only when asked)',
     none('ask for you in'),
     'there is no conversation yet to link a Direct Conversation to (8.10)',

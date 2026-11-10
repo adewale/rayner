@@ -59,10 +59,21 @@ export const wellKnownUrl = (domain: string) => `https://${domain}/.well-known/p
 export const prmUrl = (domain: string) => `https://${domain}/.well-known/oauth-protected-resource`;
 /** 3.2: where an issuer publishes its metadata (RFC 8414 §3.1): the well-known part goes between the host and any path. */
 export function asMetadataUrl(issuer: string): string {
-  const u = new URL(issuer), path = u.pathname === '/' ? '' : u.pathname;
-  return `${u.origin}/.well-known/oauth-authorization-server${path}`;
+  const u = parseUrl(issuer), path = u.path === '/' ? '' : u.path;
+  return `${u.scheme}://${u.host}/.well-known/oauth-authorization-server${path}`;
 }
 const isHttps = (url: string) => /^https:\/\//.test(url);
+/**
+ * The parts of an absolute URL this model reads: scheme, host (with any port, in lower case), path
+ * and query. A plain parse, with no normalization of the path: the draft says the path must be
+ * "exactly" /.well-known/poppy.json, and the model reads that literally (WHATWG URL parsing would
+ * resolve dot segments first; the draft does not say which).
+ */
+export function parseUrl(url: string): { scheme: string; host: string; path: string; search: string } {
+  const m = /^([a-z][a-z0-9+.-]*):\/\/([^/?#]*)([^?#]*)(\?[^#]*)?/i.exec(url);
+  if (!m) return { scheme: '', host: '', path: '', search: '' };
+  return { scheme: m[1]!.toLowerCase(), host: m[2]!.toLowerCase(), path: m[3] || '/', search: m[4] ?? '' };
+}
 
 /**
  * Section 3: redirects. The draft sets no limit on how many an agent follows; this model stops
@@ -80,8 +91,7 @@ export type Fetched = { hops: readonly string[]; url: string; host: string; doc:
  * file from some path on a domain, such as an upload, could redirect to it and have it speak for
  * that domain. `exactPath: false` skips that one rule, for the test that shows what it stops.
  *
- * The path is read as WHATWG URL parsing gives it, so dot segments are resolved first; the draft
- * says "exactly" and does not say whether before or after that. Left out: the rule against
+ * The path is compared as written, with no normalization (see `parseUrl`). Left out: the rule against
  * connecting to loopback, private and link-local addresses.
  */
 export function fetchDocument(web: Web, domain: string, o: { exactPath?: boolean } = {}): Fetched | Stop {
@@ -92,8 +102,8 @@ export function fetchDocument(web: Web, domain: string, o: { exactPath?: boolean
     const answer = get(web, url);
     if (answer === 'timeout') return stop('fetch', `${url} did not answer, so there is no poppy.json`);
     if (answer.status === 200) {
-      const last = new URL(url);
-      if (o.exactPath !== false && last.pathname !== '/.well-known/poppy.json') return stop('fetch', `the last URL, ${url}, is not at /.well-known/poppy.json`);
+      const last = parseUrl(url);
+      if (o.exactPath !== false && last.path !== '/.well-known/poppy.json') return stop('fetch', `the last URL, ${url}, is not at /.well-known/poppy.json`);
       if (o.exactPath !== false && last.search !== '') return stop('fetch', `the last URL, ${url}, has a query`);
       if (typeof answer.body !== 'object' || answer.body === null) return stop('fetch', `${url} is not a JSON document`);
       return { hops, url, host: last.host, doc: answer.body as PoppyDocument };
@@ -286,7 +296,7 @@ export function chooseVersion(doc: PoppyDocument, host: string, web: Web, implem
   const offered = [doc.protocol_version!, ...Object.keys(doc.supported_versions ?? {})];
   const usable = offered
     .filter((v) => implemented.some((mine) => compatible(v, mine)))
-    .filter((v) => v === doc.protocol_version || (() => { const url = doc.supported_versions![v]!; return isHttps(url) && new URL(url).host === host; })())
+    .filter((v) => v === doc.protocol_version || (() => { const url = doc.supported_versions![v]!; return isHttps(url) && parseUrl(url).host === host; })())
     .sort((a, b) => newer(b, a));
   const version = usable[0];
   if (!version) return stop('read', `no version the document offers, ${offered.join(' or ')}, is compatible with ${implemented.join(' or ')}`);
@@ -410,12 +420,13 @@ export const FORGERIES = { upload: 'fetch', copy: 'read', claim: 'listed' } as c
 
 // The machine: the reader chooses who serves the document, then the agent runs its checks in order.
 
-/** Pressing a check: the event name the reader sees, for each check. */
-export type CheckEvent = 'fetch' | 'read' | 'find issuer' | 'confirm';
-const GATE_OF: Record<CheckEvent, Gate> = { fetch: 'fetch', read: 'read', 'find issuer': 'issuer', confirm: 'listed' };
-export type DiscoveryEvent = Server | CheckEvent;
+/**
+ * The agent's checks run in a fixed order, so the reader drives them with one event: run the next
+ * check. The servers are the other events; 7 servers and one check make the 8 buttons a phone holds.
+ */
+export type DiscoveryEvent = Server | 'check';
 /** Every event, in the order the player shows its buttons. */
-export const EVENTS: readonly DiscoveryEvent[] = [...SERVER_ORDER, 'fetch', 'read', 'find issuer', 'confirm'];
+export const EVENTS: readonly DiscoveryEvent[] = [...SERVER_ORDER, 'check'];
 
 /** The world: who serves the document, and how many checks the agent has run on it. */
 export type World = { server: Server; ran: number };
@@ -454,46 +465,31 @@ export function progress(w: World): { results: GateResult[]; verdict: Verdict | 
   return { results, verdict: accept(), fetched };
 }
 
-/** Why each check cannot run before the one ahead of it. */
-const NOT_YET: Record<Gate, string> = {
-  fetch: '',
-  read: 'the agent has fetched no document yet, so there is nothing to read',
-  issuer: 'the agent has not read organization.domain yet, so it does not know whose metadata to ask',
-  listed: 'the agent has found no issuer yet, so there is no one to ask',
-};
-const ALREADY: Record<Gate, string> = {
-  fetch: 'the agent has already fetched the document',
-  read: 'the agent has already read the document',
-  issuer: 'the agent has already found the issuer',
-  listed: 'the agent has already asked the issuer',
-};
-
 /**
  * The world after `event`, or why the event cannot happen, written to follow the event's name.
  * A check that fails still happens: the world records that it ran, and `progress` says it refused.
  */
 export function next(w: World, event: DiscoveryEvent): World | Refusal {
-  if (!(event in GATE_OF)) {
-    const server = event as Server;
-    if (server === w.server && w.ran === 0) return refuse(`the agent is already about to fetch ${SERVERS[server].start}’s poppy.json`);
-    return { server, ran: 0 };
+  if (event !== 'check') {
+    if (event === w.server && w.ran === 0) return refuse(`the agent is already about to fetch ${SERVERS[event].start}’s poppy.json`);
+    return { server: event, ran: 0 };
   }
-  const gate = GATE_OF[event as CheckEvent], index = GATES.indexOf(gate), { verdict } = progress(w);
-  if (index < w.ran) return refuse(ALREADY[gate]);
+  const { verdict } = progress(w);
   if (verdict && !verdict.accepted) return refuse(`the agent refused this document at the ${GATE_NAME[verdict.gate]} check, so it checks nothing more`);
-  // A gate not yet run after an acceptance can only be the issuer's listing of a Company with no issuer.
-  if (verdict?.accepted) return refuse(`${SERVERS[w.server].start} has no issuer, so there is nothing to confirm`);
-  if (index > w.ran) return refuse(NOT_YET[gate]);
+  // Accepted after three checks: a Company with no issuer, so there is no listing to ask for.
+  if (verdict?.accepted && w.ran === 3) return refuse(`${SERVERS[w.server].start} has no issuer, so there is no listing to check`);
+  if (verdict?.accepted) return refuse(`the agent has run all ${GATES.length} checks and uses this document`);
   return { ...w, ran: w.ran + 1 };
 }
 
 /** The events of the story, in order: what the steps replay. */
+const checks = (n: number): DiscoveryEvent[] => Array.from({ length: n }, () => 'check' as const);
 export const STORY: readonly DiscoveryEvent[] = [
-  'fetch', 'read', 'find issuer', 'confirm',
-  'copy', 'fetch', 'read',
-  'claim', 'fetch', 'read', 'find issuer', 'confirm',
-  'upload', 'fetch',
-  'small', 'fetch', 'read', 'find issuer',
-  'outage', 'fetch', 'read', 'find issuer',
-  'uk', 'fetch', 'read', 'find issuer', 'confirm',
+  ...checks(2), ...checks(2),
+  'copy', ...checks(2),
+  'claim', ...checks(4),
+  'upload', ...checks(1),
+  'small', ...checks(3),
+  'outage', ...checks(3),
+  'uk', ...checks(4),
 ];

@@ -436,8 +436,32 @@ export function usableSkills(index: SkillIndex | undefined): readonly SkillEntry
   if (!index || index.$schema !== SKILLS_SCHEMA) return [];
   return index.skills
     .filter((s) => s.type === 'skill-md' || s.type === 'archive')
-    .map((s) => ({ ...s, url: new URL(s.url, TASKS_ENDPOINT).href }))
+    .map((s) => ({ ...s, url: resolveReference(s.url, TASKS_ENDPOINT) }))
     .filter((s) => s.url.startsWith('https://'));
+}
+
+/**
+ * RFC 3986 §5.2 reference resolution, for the references a skill index uses: a full URL, a
+ * network-path (//host/…), an origin-relative path (/…) or a relative path, with dot segments
+ * removed (§5.2.4). Queries and fragments are kept as written; the empty reference is left out.
+ * Written here because the page's runtime has no URL class; the test holds it to Node's.
+ */
+export function resolveReference(ref: string, base: string): string {
+  if (/^[a-z][a-z0-9+.-]*:/i.test(ref)) return ref;
+  const m = /^([a-z][a-z0-9+.-]*:)\/\/([^/?#]*)([^?#]*)/i.exec(base);
+  if (!m) throw new Error(`resolveReference(): ${base} is not an absolute URL`);
+  const [, scheme, authority, basePath] = m;
+  if (ref.startsWith('//')) return scheme + ref;
+  const [path, rest] = ((r) => { const i = r.search(/[?#]/); return i < 0 ? [r, ''] : [r.slice(0, i), r.slice(i)]; })(ref);
+  const merged = path.startsWith('/') ? path : basePath!.slice(0, basePath!.lastIndexOf('/') + 1) + path;
+  const out: string[] = [];
+  const segments = merged.split('/');
+  segments.forEach((seg, i) => {
+    if (seg === '.') { if (i === segments.length - 1) out.push(''); return; }
+    if (seg === '..') { if (out.length > 1) out.pop(); if (i === segments.length - 1) out.push(''); return; }
+    out.push(seg);
+  });
+  return `${scheme}//${authority}${out.join('/')}${rest}`;
 }
 
 /** Whether the bytes fetched are the artifact the index lists (9.4): the digest is well formed and equals SHA-256 of the bytes. */

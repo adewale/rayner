@@ -1,4 +1,4 @@
-import { refuse } from '../../../explain/index.ts';
+import { isRefusal, refuse } from '../../../explain/index.ts';
 import type { Refusal } from '../../../explain/index.ts';
 import { AGENT, COMPANY, OPERATIONS, POPPY_JSON, SCOPES, SID, USER_IDS, answer, sign } from '../poppy/model.ts';
 import type { AccessToken, HttpRequest, Operation, Scope, SessionJwt } from '../poppy/model.ts';
@@ -349,15 +349,17 @@ export function pursue(key: OpKey, o: Setup = {}): Sent[] {
   return run;
 }
 
-// The machine the scene drives. A trouble sends the request and the Company answers; a fix is the
-// reader's prediction of the agent's remedy, taken when it is the one the error table names and
-// refused, with the reason, when it is not: a Poppy agent does not apply the wrong one.
+// The machine the scene drives. A trouble sends the request and the Company answers. "Agent
+// answers" applies the one remedy the error table names. The other five remedies are what a reader
+// might be tempted to try: `tryFix` says, in the draft's words, why each would fail, and the
+// picture names the most tempting one for each refusal with that reason.
 
 export type Fix = 'refresh' | 'sign-in' | 'fix' | 'new-session' | 'reread' | 'wait';
 export const FIXES: readonly Fix[] = ['refresh', 'sign-in', 'fix', 'new-session', 'reread', 'wait'];
-export type RefusalEvent = Trouble | Fix;
-/** Every event, in the order the player shows its buttons: the troubles, then the remedies. */
-export const REFUSAL_EVENTS: readonly RefusalEvent[] = [...TROUBLES, ...FIXES];
+/** The machine's events: the seven troubles, and the agent answering the refusal. Eight buttons, as many as a phone takes. */
+export type RefusalEvent = Trouble | 'answer';
+/** Every event, in the order the player shows its buttons: the troubles, then the agent's answer. */
+export const REFUSAL_EVENTS: readonly RefusalEvent[] = [...TROUBLES, 'answer'];
 
 /** What was last sent: the trouble, the Company's reply, the remedy taken (null while it waits), and the reply to the send after it. */
 export type Last = { trouble: Trouble; reply: Reply; fix: Fix | null; again: Reply | null };
@@ -393,19 +395,12 @@ function wrongReason(chosen: Fix, right: Fix, last: Last): string {
 }
 
 /**
- * The errand after an event, or the reason the event cannot happen, written to follow its name.
- * A trouble is sent from a healthy errand; its effects last until its remedy is taken. The remedy
- * and the send after it are pursue()'s first two sends of the same trouble.
+ * A remedy tried against the refusal waiting in `w`: the errand after it when it is the one the error
+ * table names, with the reply to the send after it; otherwise the reason it would fail, written to
+ * follow the remedy's name. The remedy and the send after it are pursue()'s first two sends.
  */
-export function next(w: World, event: RefusalEvent): World | Refusal {
-  if ((TROUBLES as readonly string[]).includes(event)) {
-    const trouble = event as Trouble;
-    if (pending(w)) return refuse(`the agent has a refusal to answer first: ${sayReply(w.last!.reply)}`);
-    const t = troubled(trouble, { mcpKey: w.mcpKey, sid: w.cart ? SID : NEW_SID });
-    return { ...w, last: { trouble, reply: respond(t.request, t.company), fix: null, again: null } };
-  }
-  const fix = event as Fix;
-  if (!pending(w)) return refuse('nothing has been refused, so there is nothing to remedy');
+export function tryFix(w: World, fix: Fix): World | Refusal {
+  if (!pending(w)) return refuse('nothing has been refused, so the agent has nothing to answer');
   const last = w.last!, run = pursue(opFor(last.trouble), agentAfter(last.trouble, { mcpKey: w.mcpKey, sid: w.cart ? SID : NEW_SID }));
   const right = FIX_OF[run[0]!.move.kind];
   if (!right) return refuse(`the agent stops: ${'why' in run[0]!.move ? run[0]!.move.why : 'the draft names no remedy'}`);
@@ -417,7 +412,44 @@ export function next(w: World, event: RefusalEvent): World | Refusal {
   };
 }
 
+/** The remedy the error table names for the refusal waiting in `w`, or null when none waits. */
+export function rightFix(w: World): Fix | null {
+  if (!pending(w)) return null;
+  return FIXES.find((f) => !isRefusal(tryFix(w, f))) ?? null;
+}
+
+/**
+ * The wrong remedy a reader, or a careless agent, would most likely reach for after each trouble:
+ * the one the status codes are designed to prevent (section 7, 5.3), or the habit of asking the
+ * User again. A choice of this explainer, not of the draft.
+ */
+export const TEMPTING: Record<Trouble, Fix> = {
+  expire: 'sign-in', 'read-only': 'refresh', delegation: 'new-session', end: 'refresh', 'old-copy': 'new-session', 'too-fast': 'new-session', mcp: 'sign-in',
+};
+/** Why the tempting remedy would fail for the refusal waiting in `w` (or answered there): the draft's reason, from tryFix. */
+export function temptation(w: World): { fix: Fix; reason: string } | null {
+  if (!w.last || w.last.reply.status < 400) return null;
+  const right = w.last.fix ?? rightFix(w);
+  if (!right) return null;
+  const fix = TEMPTING[w.last.trouble];
+  return { fix, reason: wrongReason(fix, right, w.last) };
+}
+
+/**
+ * The errand after an event, or the reason the event cannot happen, written to follow its name.
+ * A trouble is sent from a healthy errand; its effects last until the agent answers it.
+ */
+export function next(w: World, event: RefusalEvent): World | Refusal {
+  if (event === 'answer') {
+    if (!pending(w)) return refuse('nothing has been refused, so the agent has nothing to answer');
+    return tryFix(w, rightFix(w)!);
+  }
+  if (pending(w)) return refuse(`the agent has a refusal to answer first: ${sayReply(w.last!.reply)}`);
+  const t = troubled(event, { mcpKey: w.mcpKey, sid: w.cart ? SID : NEW_SID });
+  return { ...w, last: { trouble: event, reply: respond(t.request, t.company), fix: null, again: null } };
+}
+
 /** The events of the story, in order: what the steps replay. */
 export const STORY: readonly RefusalEvent[] = [
-  'expire', 'refresh', 'read-only', 'sign-in', 'delegation', 'fix', 'end', 'new-session', 'old-copy', 'reread', 'mcp', 'refresh', 'too-fast', 'wait',
+  'expire', 'answer', 'read-only', 'answer', 'delegation', 'answer', 'end', 'answer', 'old-copy', 'answer', 'mcp', 'answer', 'too-fast', 'answer',
 ];
