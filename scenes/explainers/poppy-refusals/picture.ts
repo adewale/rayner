@@ -1,98 +1,99 @@
-import { Group, Polygon, Rectangle, VMobject, keyed } from '../../../src/index.ts';
+import { Circle, Group, Line, Polygon, Rectangle, VMobject, keyed } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
 import {
-  MARGIN, PALETTE as KIT_PALETTE, PLATE_HEIGHT, SPACE, TICKET, TONE, TYPE,
+  MARGIN, PALETTE as KIT_PALETTE, PLATE_HEIGHT, SPACE, STROKE, TICKET, TONE, TYPE,
   addAll, barrier, certificate, clock, counter, key, lane, laneRoute, ledger, person, seal, sheet, station, stationExit, stationHolds, ticket, words,
 } from '../lib/poppy-kit.ts';
 import { SID } from '../poppy/model.ts';
 import { MCP_URL, OPS, opFor, pending, sayReply, temptation } from './model.ts';
 import type { Fix, Reply, Trouble, World } from './model.ts';
 
-// One state as a picture, on the series' kit. The top band is chapter 1's line map: the agent's
-// station on the left, three lanes (the OpenAPI service, the MCP server, and the sign-in desk where
-// keys are cut) to the Company's counter, and behind the counter the ledger of what the Company
-// knows about this Session. The last request is a ticket on its lane. A refused one stands before a
-// barrier, and the Company hands back a slip: a paper tag with the status number, the part of the
-// ticket that number is about (the key, the seal, the version, the pace) and the error code. Along
-// the bottom runs the agent's remedy rail, six objects. When the agent answers, the one remedy it
-// applied lights, the remedy a careless agent would reach for is struck through, and the panel
-// under the ledger says why that one would have failed; the ticket, sent again, rests docked.
+// One state as a picture, on the series' kit. The chapter is about the parts of one request, so
+// the request is the hero: chapter 1's ticket drawn large on a single lane from the agent's station
+// to the Company's counter, its three parts set apart: the wax seal on the stub (the Session
+// header), the key in the body (the access token) and a paper tag hanging under it (Poppy-Version).
+// A refused ticket stands before a barrier, and the Company hands back a slip: torn from a pad, the
+// status number, the part it is about, the error code. A leader runs from the slip to that part and
+// rings it, so the number points at what was wrong. The MCP server's lane appears only for a call
+// to it. Along the bottom, the agent's remedy rail: idle remedies drawn in outline, the one applied
+// in its true colours, the tempting wrong one struck through; under the quiet ledger, on the right,
+// the focus: why that wrong one would have failed.
 //
 // Colours are the kit's, each with one meaning: WAX the agent's seal, BRASS a key, INK what is in
-// use, STEEL what is idle. Outcomes are said by position (docked or stopped at a barrier), the slip
-// and the rail, never by a red or green. Every word is at least TYPE.small (0.56 units).
-//
-// What the shown panel adds: step 5's "what if Session errors were 401", drawn from `shown.whatIf`.
+// use, STEEL what is idle. No red or green says how a request fared: position does (docked, or
+// stopped at a barrier), and the slip. Every word is at least TYPE.small (0.56 units).
 
 /** The stage's palette: the series' own. */
 export const PALETTE = KIT_PALETTE;
 /** What is shown apart from the model: whether the panel under the ledger shows the 401 counterfactual. */
 export type Shown = { whatIf?: boolean };
 
-/** The lanes: the two API types a Company can list, and the sign-in desk where keys are cut. */
-export const LANES = ['api', 'mcp', 'sign-in'] as const;
-export type Lane = (typeof LANES)[number];
-const LANE_NAME: Record<Lane, string> = { api: 'API', mcp: 'MCP', 'sign-in': 'Sign-in' };
+export type Lane = 'api' | 'mcp';
 const laneOfTrouble = (t: Trouble): Lane => (OPS[opFor(t)].service === 'mcp' ? 'mcp' : 'api');
 
 /** The remedies on the rail, in order, with their one-word names. */
 export const RAIL: readonly Fix[] = ['refresh', 'sign-in', 'fix', 'new-session', 'reread', 'wait'];
 export const FIX_NAME: Record<Fix, string> = { refresh: 'Refresh', 'sign-in': 'Sign in', fix: 'Re-sign', 'new-session': 'New Session', reread: 'Re-read', wait: 'Wait' };
-/** What a refusal's number is about: the part of the ticket, or the pace. */
-const ABOUT: Record<Trouble, string> = { expire: 'the key', 'read-only': 'the key', delegation: 'the seal', end: 'the seal', 'old-copy': 'the version', 'too-fast': 'the pace', mcp: 'the key' };
-/** Why the tempting remedy fails, in the words a panel 6 units wide holds. The draft's full reason is in the description. */
+/** What a refusal's number is about: a part of the ticket, or the pace. */
+type Part = 'key' | 'seal' | 'tab' | 'clock';
+const PART: Record<Trouble, Part> = { expire: 'key', 'read-only': 'key', delegation: 'seal', end: 'seal', 'old-copy': 'tab', 'too-fast': 'clock', mcp: 'key' };
+const ABOUT: Record<Part, string> = { key: 'the key', seal: 'the seal', tab: 'the version', clock: 'the pace' };
+/** Why the tempting remedy fails, in the words the right-hand panel holds. The draft's full reason is in the description. */
 const WHY_NOT: Record<Trouble, string> = {
-  expire: 'a refresh is enough', 'read-only': 'it cannot add a scope', delegation: 'the same seal fails', end: 'the key is fine',
-  'old-copy': 'read poppy.json first', 'too-fast': 'the pace is the problem', mcp: 'a refresh will do',
+  expire: 'a refresh is enough', 'read-only': 'it adds no scope', delegation: 'the same seal fails', end: 'the key is fine',
+  'old-copy': 're-read comes first', 'too-fast': 'only time helps', mcp: 'a refresh will do',
 };
 const WHAT: Record<Trouble, string> = { expire: 'exchange', 'read-only': 'exchange', delegation: 'exchange', end: 'exchange', 'old-copy': 'exchange', 'too-fast': 'exchange', mcp: 'sizing call' };
-const PHRASE: Record<number, string> = { 200: 'OK' };
 
-// The map's geometry, shared with the scene's transitions.
-const STATION: Vec = [-6.45, 3.15];
-const STATION_R = 0.8;
-const TRUNK_X = -5.25;
-const FAN = 0.45;
-export const LANE_Y: Record<Lane, number> = { api: 3.7, mcp: 2.95, 'sign-in': 2.2 };
-const BUNDLE: Record<Lane, number> = { api: 0.22, mcp: -0.2, 'sign-in': -0.42 };
-export const STOP_X = 0.62;
-const NAME_X = -4.85;
-const LEDGER_X = 1.45;
+// Geometry, shared with the scene's transitions.
+const STATION: Vec = [-6.55, 3.0];
+const STATION_R = 0.72;
+/** The lane in use: one lane, or, for a call to the MCP server, the MCP lane under an idle API lane. */
+const laneY = (on: Lane | null, mcpShown: boolean): number => (mcpShown ? (on === 'mcp' ? 2.85 : 3.92) : 3.0);
+const EXIT_DY = (on: Lane, mcpShown: boolean) => (mcpShown ? (on === 'mcp' ? -0.15 : 0.3) : 0);
+export const STOP_X = 1.15;
+const NAME_X = -5.45;
 const BARRIER_X = STOP_X - 0.45;
-export const routeOf = (on: Lane): Vec[] => laneRoute({ from: stationExit(STATION, STATION_R, BUNDLE[on]), trunk: TRUNK_X, y: LANE_Y[on], to: STOP_X, fan: FAN });
-export const ticketAt = (on: Lane, docked: boolean): Vec => [docked ? STOP_X - 0.17 - TICKET.width / 2 : BARRIER_X - 0.28 - TICKET.width / 2, LANE_Y[on]];
+const LEDGER_X = 2.15;
+/** The hero ticket: chapter 1's ticket at this scale. */
+const BIG = 1.9;
+const TW = TICKET.width * BIG, TH = TICKET.height * BIG;
+export const routeOf = (on: Lane, mcpShown: boolean): Vec[] =>
+  laneRoute({ from: stationExit(STATION, STATION_R, EXIT_DY(on, mcpShown)), trunk: STATION[0] + STATION_R + 0.1, y: laneY(on, mcpShown), to: STOP_X, fan: 0.45 });
+export const ticketAt = (y: number, docked: boolean): Vec => [docked ? STOP_X - 0.17 - TW / 2 : BARRIER_X - 0.28 - TW / 2, y];
 const HOLDS = stationHolds(STATION, STATION_R);
 export const SEAL_AT: Vec = HOLDS.seal;
 export const KEY_AT: Vec = HOLDS.key;
-/** Where the agent hangs a key cut for the MCP server: under the lanes, beside its station. */
-export const MCP_KEY_AT: Vec = [-3.75, 1.55];
-/** A key's way from the Company's sign-in stop back along the sign-in lane to the agent. */
-export const keyRoute = (): Vec[] => { const [from, trunk, bend, end] = routeOf('sign-in'); return [end!, bend!, trunk!, from!]; };
-/** Where a new copy of poppy.json sets off (the Company's counter) and where the agent takes it in. */
-export const DOCUMENT_ROUTE: Vec[] = [[STOP_X - 0.6, 1.4], [STATION[0] + 0.3, STATION[1] - 0.2]];
+/** Where the agent hangs a key cut for the MCP server: under its station. */
+export const MCP_KEY_AT: Vec = [STATION[0], 1.22];
+/** Where the Company's clock stands, at the foot of its counter, for a rate limit. */
+const CLOCK_AT: Vec = [STOP_X + 0.15, 1.45];
+const CLOCK_R = 0.4;
+/** A key's way from the Company's counter back along the lane into the agent's station. */
+export const keyRoute = (y: number): Vec[] => [[STOP_X, y], [STATION[0] + STATION_R, y], KEY_AT];
+/** A fresh poppy.json's way, from the counter to the agent. */
+export const documentRoute = (y: number): Vec[] => [[STOP_X - 0.5, y], [STATION[0] + 0.3, STATION[1] - 0.1]];
 /** Where a new delegation comes from: the agent's own systems, under its station. */
-export const DELEGATION_ROUTE: Vec[] = [[STATION[0], 1.0], SEAL_AT];
+export const DELEGATION_ROUTE: Vec[] = [[STATION[0], 0.9], SEAL_AT];
 
 // The slip and the panels below the map.
-const SLIP = { left: MARGIN.left, right: -0.45, top: 1.2, bottom: -1.55 };
-const OUTCOME_Y = -2.0;
-const PANEL_Y = [-0.25, -0.85] as const;
-const RAIL_Y = -3.1, RAIL_LABEL_Y = -3.86;
+const SLIP = { left: MARGIN.left, right: -0.75, top: 0.72, bottom: -2.02 };
+const OUTCOME_Y = -2.5;
+const RAIL_Y = -3.28, RAIL_LABEL_Y = -4.0;
 
 /** The poppy.json, as a sheet of paper, for the transition that carries a fresh copy to the agent. */
 export const documentToken = (s: Stage): Mobject => sheet(s, { width: 0.9, height: 1.15, lines: 3 });
 /** A delegation, for the transition that brings the agent a new one. */
 export const delegationToken = (s: Stage): Mobject => certificate(s, { width: 1.2, height: 0.86 });
+/** The Company's clock at the counter, for a rate limit: full while the agent must wait, empty once it has. */
+export const paceClock = (s: Stage, remaining: number): Mobject => clock(s, { at: CLOCK_AT, r: CLOCK_R, remaining });
 
-/** A filled polygon. */
 const poly = (points: Vec[], colour: string) => new Polygon(points, { fill: colour, stroke: 'none' });
+const keyedPart = <T extends Mobject>(m: T, k: string): T => keyed(m, k);
 
-/**
- * A key cut for one service: the kit's key with a square plate round its bow, so it reads as a
- * different key at a glance (a key for the MCP server's door only). Same size and teeth as `key`.
- */
+/** A key cut for one service: the kit's key with a square plate round its bow, so it reads as a different key at a glance. */
 export function serviceKey(s: Stage, { at, size, teeth, onPaper = false }: { at: Vec; size: number; teeth: number; onPaper?: boolean }): Group {
   const bow: Vec = [at[0] - 0.66 * size, at[1]], o = 0.4 * size, i = 0.17 * size, colour = onPaper ? TONE.brassDeep : TONE.brass;
   const plate = new VMobject({ fill: colour, stroke: 'none', fillRule: 'evenodd' });
@@ -101,25 +102,78 @@ export function serviceKey(s: Stage, { at, size, teeth, onPaper = false }: { at:
   return new Group(key(s, { at, size, teeth, onPaper }), plate);
 }
 
-/** The slip the Company hands back with a refused ticket: paper, torn along its foot, the number, what it is about, and the code. */
-function slip(s: Stage, reply: Reply, trouble: Trouble, waited: boolean): Mobject[] {
-  const { left: l, right: r, top: t, bottom: b } = SLIP, w = r - l, teeth = Math.round(w / 0.18), tear: Vec[] = [];
-  for (let i = 0; i <= teeth; i++) tear.push([r - (i * w) / teeth, b + (i % 2 ? 0.08 : 0)]);
-  const out: Mobject[] = [];
-  const paper = new Group(poly([[l, t], [r, t], ...tear], TONE.paper));
-  out.push(keyedPart(paper, 'slip:paper'));
-  const number = words(s, String(reply.status), { at: [l + SPACE.m - 0.06, 0.4], size: TYPE.display, mono: true, bold: true, color: TONE.print });
-  out.push(keyedPart(emphasised(number, `the Company's answer: ${sayReply(reply)}, about ${ABOUT[trouble]}`), 'slip:number'));
-  const aboutX = l + SPACE.m + number.width() + SPACE.m;
-  out.push(keyedPart(words(s, 'about', { at: [aboutX, 0.72], color: TONE.print }), 'slip:about'));
-  const about = words(s, ABOUT[trouble], { at: [aboutX, 0.06], bold: true, color: TONE.print });
-  out.push(keyedPart(about, 'slip:part'));
-  const code = reply.status === 429 ? `Retry-After: ${reply.retryAfter}` : reply.error ?? '';
-  out.push(keyedPart(words(s, code, { at: [l + SPACE.m, -1.12], mono: true, bold: true, color: TONE.print }), 'slip:code'));
-  if (reply.status === 429) out.push(keyedPart(clock(s, { at: [aboutX + about.width() + SPACE.m + 0.38, 0.35], r: 0.38, remaining: waited ? 0 : 1 }), 'slip:clock'));
-  return out;
+/** Where each part of a hero ticket centred at `at` sits, and the box a ring round it takes. */
+function partsOf(at: Vec): Record<'seal' | 'key' | 'tab', { at: Vec; w: number; h: number }> {
+  const [x, y] = at;
+  return {
+    seal: { at: [x + (-TICKET.width / 2 + 0.4) * BIG, y], w: 1.25, h: 1.25 },
+    key: { at: [x + (-TICKET.width / 2 + 0.8 + 0.66) * BIG, y + 0.05 * BIG], w: 2.25, h: 0.95 },
+    tab: { at: [x + TW / 2 - 0.62, y - TH / 2 - 0.7], w: 1.24, h: PLATE_HEIGHT },
+  };
 }
-const keyedPart = <T extends Mobject>(m: T, k: string): T => keyed(m, k);
+
+/**
+ * The hero ticket: the kit's ticket, scaled up, so its seal and its key read as objects; marks of
+ * what is wrong drawn on it (an expired key's empty clock, a cracked seal); and its version tag,
+ * hung under its body on a cord. Keyed `ticket` (the ticket and its marks) and `ticket:tab`, `ticket:tab:version`.
+ */
+function heroTicket(s: Stage, at: Vec, o: { teeth: number; mcpKey: boolean; expired: boolean; cracked: boolean; version: string }): Mobject[] {
+  const p = partsOf(at), body: Mobject[] = [ticket(s, { at, keyTeeth: o.teeth }).scale(BIG, { aboutPoint: at })];
+  if (o.mcpKey) body.push(serviceKey(s, { at: p.key.at, size: 0.52 * BIG, teeth: 2, onPaper: true }));
+  if (o.expired) body.push(clock(s, { at: [p.key.at[0] - 0.62, p.key.at[1]], r: 0.36, remaining: 0 }));
+  if (o.cracked) {
+    const [cx, cy] = p.seal.at;
+    body.push(poly([[cx - 0.08, cy + 0.56], [cx + 0.1, cy + 0.16], [cx - 0.1, cy - 0.02], [cx + 0.12, cy - 0.56], [cx + 0.02, cy - 0.04], [cx + 0.2, cy + 0.14], [cx + 0.03, cy + 0.56]], TONE.ground));
+  }
+  const tag = p.tab.at, top = at[1] - TH / 2;
+  const tab = new Group(
+    new Rectangle({ width: 0.05, height: top - (tag[1] + p.tab.h / 2) + 0.04, fill: TONE.paperLine, stroke: 'none' }).moveTo([tag[0], (top + tag[1] + p.tab.h / 2) / 2]),
+    new Rectangle({ width: p.tab.w, height: p.tab.h, fill: TONE.paper, stroke: 'none', cornerRadius: RADIUS_TAG }).moveTo(tag),
+    new Circle({ radius: 0.06, fill: TONE.ground, stroke: 'none' }).moveTo([tag[0], tag[1] + p.tab.h / 2 - 0.13]),
+  );
+  const v = words(s, o.version, { at: [tag[0], tag[1] - 0.06], mono: true, bold: true, color: TONE.print, align: 'middle' });
+  return [keyedPart(new Group(...body), 'ticket'), keyedPart(tab, 'ticket:tab'), keyedPart(emphasised(v, `the request's Poppy-Version: ${o.version}`), 'ticket:tab:version')];
+}
+const RADIUS_TAG = 0.08;
+
+/** The slip the Company hands back with a refused ticket: torn from a pad along its top edge, the number large, what it is about, and the code. */
+function slip(s: Stage, reply: Reply, part: Part): Mobject[] {
+  const { left: l, right: r, top: t, bottom: b } = SLIP, w = r - l, teeth = Math.round(w / 0.2), tear: Vec[] = [];
+  for (let i = 0; i <= teeth; i++) tear.push([l + (i * w) / teeth, t - (i % 2 ? 0.1 : 0)]);
+  const k = 0.08;
+  const paper = new Group(
+    poly([...tear, [r, b + k], [r - k, b], [l + k, b], [l, b + k]], TONE.paper),
+    new Rectangle({ width: w - 2 * SPACE.m, height: STROKE.hair, fill: TONE.paperLine, stroke: 'none' }).moveTo([(l + r) / 2, -1.1]),
+  );
+  const number = words(s, String(reply.status), { at: [l + SPACE.m - 0.06, -0.22], size: TYPE.display, mono: true, bold: true, color: TONE.print });
+  const aboutX = l + SPACE.m + number.width() + SPACE.l;
+  const code = reply.status === 429 ? `Retry-After: ${reply.retryAfter}` : reply.error ?? '';
+  return [
+    keyedPart(paper, 'slip:paper'),
+    keyedPart(emphasised(number, `the Company's answer: ${sayReply(reply)}, about ${ABOUT[part]}`), 'slip:number'),
+    keyedPart(words(s, 'about', { at: [aboutX, 0.06], color: TONE.print }), 'slip:about'),
+    keyedPart(words(s, ABOUT[part], { at: [aboutX, -0.56], bold: true, color: TONE.print }), 'slip:part'),
+    keyedPart(words(s, code, { at: [l + SPACE.m, -1.56], mono: true, bold: true, color: TONE.print }), 'slip:code'),
+  ];
+}
+
+/**
+ * The slip's pointer: a leader from the slip's top edge to the part it is about, and a ring round
+ * that part (PRINT on paper, where INK would vanish; INK round the clock on the ground).
+ */
+function pointer(at: Vec, part: Part): Mobject[] {
+  const target = part === 'clock' ? { at: CLOCK_AT, w: 2 * CLOCK_R + 0.3, h: 2 * CLOCK_R + 0.3 } : partsOf(at)[part];
+  const [tx, ty] = target.at, bottom = ty - target.h / 2;
+  const fromX = Math.min(Math.max(tx, SLIP.left + 0.5), SLIP.right - 0.3), from: Vec = [fromX, SLIP.top + 0.02];
+  const ringColour = part === 'clock' ? TONE.ink : TONE.print;
+  const ring = part === 'clock' || part === 'seal'
+    ? new Circle({ radius: target.w / 2, fill: 'none', stroke: ringColour, strokeWidth: STROKE.line }).moveTo(target.at)
+    : new Rectangle({ width: target.w, height: target.h, fill: 'none', stroke: ringColour, strokeWidth: STROKE.line, cornerRadius: target.h / 2 }).moveTo(target.at);
+  // The leader stops at the ticket's lower edge (or the ring), where it meets the paper.
+  const end: Vec = part === 'tab' || part === 'clock' ? [tx, bottom] : [tx, at[1] - TH / 2];
+  const leader = new Line(from, from[0] === end[0] ? end : [end[0], end[1]], { stroke: TONE.ink, strokeWidth: STROKE.fine });
+  return [keyedPart(leader, 'slip:leader'), keyedPart(new Circle({ radius: 0.07, fill: TONE.ink, stroke: 'none' }).moveTo(end), 'slip:leader:end'), keyedPart(ring, 'slip:ring')];
+}
 
 /** One remedy on the rail, drawn as an object of the subject's world: centre (x, RAIL_Y), about 0.8 high. */
 function remedyObject(s: Stage, fix: Fix, x: number): Group {
@@ -168,103 +222,95 @@ function railSlots(s: Stage): number[] {
   let x = MARGIN.left;
   return widths.map((w) => { const c = x + w / 2; x += w + gap; return c; });
 }
-/** Where a remedy sits on the rail: its object's centre. */
-export const railAt = (s: Stage, fix: Fix): Vec => [railSlots(s)[RAIL.indexOf(fix)]!, RAIL_Y];
 
-/** The ledger's rows: what the Company knows about this Session and the account. */
+/** The ledger's rows, kept to two: the Session and its cart, what a new Session leaves behind. */
 function knownBy(w: World): { label: string; value: string; quiet?: boolean; changed?: boolean }[] {
-  const last = w.last, refusedNow = pending(w);
-  const ended = refusedNow && last!.trouble === 'end', newly = !!last?.fix && (last.fix === 'new-session' || last.fix === 'reread');
-  const readOnly = refusedNow && last!.trouble === 'read-only';
+  const last = w.last, ended = pending(w) && last!.trouble === 'end', newly = !!last?.fix && (last.fix === 'new-session' || last.fix === 'reread');
   return [
     { label: 'session', value: ended ? 'ended' : w.cart ? SID : 'a new one', changed: ended || newly },
     { label: 'cart', value: w.cart ? '1 in cart' : 'empty', quiet: !w.cart, changed: newly },
-    { label: 'account', value: readOnly ? 'read only' : 'read+write', changed: readOnly || (last?.fix === 'sign-in') },
   ];
 }
 
 /** The state as its picture. */
 export function drawWorld(w: World, shown: Shown, s: Stage): Group {
   const parts = keyedParts(), last = w.last, refused = pending(w), answered = !!last?.fix;
-  const onLane = last ? laneOfTrouble(last.trouble) : null, docked = !!last && !refused;
+  const on = last ? laneOfTrouble(last.trouble) : null, docked = !!last && !refused, mcpShown = on === 'mcp';
   const teeth = refused && last!.trouble === 'read-only' ? 1 : 2;
 
   // The agent's station, with its seal and the key it holds; and, once cut, its key for the MCP server.
   addAll(parts, station(s, { at: STATION, r: STATION_R, keyTeeth: teeth }));
   if (w.mcpKey) {
-    parts.add(serviceKey(s, { at: MCP_KEY_AT, size: 0.5, teeth: 2 }), 'agent:mcp-key');
-    parts.add(words(s, 'for MCP', { at: [MCP_KEY_AT[0] + 0.85, MCP_KEY_AT[1]], color: TONE.soft }), 'agent:mcp-key:name');
+    parts.add(serviceKey(s, { at: MCP_KEY_AT, size: 0.45, teeth: 2 }), 'agent:mcp-key');
+    parts.add(words(s, 'for MCP', { at: [MCP_KEY_AT[0] + 0.75, MCP_KEY_AT[1]], color: TONE.soft }), 'agent:mcp-key:name');
   }
 
-  // The counter, and the lanes to it.
-  addAll(parts, counter(s, { x: STOP_X, top: MARGIN.top, bottom: 1.75 }));
-  for (const name of LANES) {
-    const [from, , , end] = routeOf(name);
-    addAll(parts, lane(s, { id: name, name: LANE_NAME[name], y: LANE_Y[name], from: from!, trunk: TRUNK_X, to: end![0], nameX: NAME_X, active: onLane === name, reached: onLane === name && docked }));
+  // The counter, and the lane to it: one lane, or for a call to the MCP server the MCP lane under the idle API lane.
+  addAll(parts, counter(s, { x: STOP_X, top: MARGIN.top, bottom: 1.95 }));
+  for (const id of (mcpShown ? ['api', 'mcp'] : ['api']) as Lane[]) {
+    const [from, , , end] = routeOf(id, mcpShown);
+    addAll(parts, lane(s, { id, name: id === 'api' ? 'API' : 'MCP', y: laneY(id, mcpShown), from: from!, trunk: STATION[0] + STATION_R + 0.1, to: end![0], nameX: NAME_X, active: on === id, reached: on === id && docked }));
   }
 
-  // The last request: a ticket on its lane, with its version tab, and the mark of what was wrong with it.
-  if (last && onLane) {
-    const at = ticketAt(onLane, docked), l = at[0] - TICKET.width / 2;
-    if (refused) parts.add(barrier(s, { at: [BARRIER_X, at[1]] }), 'barrier');
-    const mcpTicket = last.trouble === 'mcp' && docked;
-    parts.add(ticket(s, { at, keyTeeth: teeth }), 'ticket');
-    if (mcpTicket) parts.add(serviceKey(s, { at: [l + 1.46, at[1] + 0.05], size: 0.52, teeth: 2, onPaper: true }), 'ticket:key');
-    if (refused && last.trouble === 'expire') parts.add(clock(s, { at: [l + 1.12, at[1] + 0.05], r: 0.24, remaining: 0 }), 'ticket:mark');
-    if (refused && last.trouble === 'delegation') {
-      const c: Vec = [l + 0.4, at[1]];
-      parts.add(poly([[c[0] - 0.05, c[1] + 0.3], [c[0] + 0.06, c[1] + 0.08], [c[0] - 0.06, c[1] - 0.02], [c[0] + 0.07, c[1] - 0.3], [c[0] + 0.01, c[1] - 0.02], [c[0] + 0.12, c[1] + 0.08], [c[0] + 0.02, c[1] + 0.3]], TONE.ground), 'ticket:mark');
-    }
-    const version = refused && last.trouble === 'old-copy' ? '0.3' : '0.4';
-    const v = words(s, version, { mono: true, bold: true, color: TONE.print, align: 'middle', at: [l - 0.04 - 0.55, at[1]] });
-    parts.add(new Rectangle({ width: 1.1, height: PLATE_HEIGHT, fill: TONE.paper, stroke: 'none', cornerRadius: 0.05 }).moveTo([l - 0.04 - 0.55, at[1]]), 'ticket:tab');
-    parts.add(emphasised(v, `the request's Poppy-Version: ${version}`), 'ticket:tab:version');
+  // The request: the hero ticket on its lane, before a barrier when refused, docked when accepted.
+  const at = last && on ? ticketAt(laneY(on, mcpShown), docked) : null;
+  if (last && at) {
+    if (refused) parts.add(barrier(s, { at: [BARRIER_X, at[1]], height: TH + 0.2 }), 'barrier');
+    addAll(parts, heroTicket(s, at, {
+      teeth, mcpKey: last.trouble === 'mcp' && docked, expired: refused && last.trouble === 'expire', cracked: refused && last.trouble === 'delegation',
+      version: refused && last.trouble === 'old-copy' ? '0.3' : '0.4',
+    }));
   }
+  if (last?.reply.status === 429) parts.add(paceClock(s, answered ? 0 : 1), 'slip:clock');
 
-  // Under the map, on the agent's side: the slip the Company handed back, and what came of the send after it.
-  if (!last) parts.add(words(s, 'nothing sent yet', { at: [MARGIN.left, 0], size: TYPE.label, color: TONE.soft }), 'slip:none');
-  else if (last.reply.status >= 400) addAll(parts, slip(s, last.reply, last.trouble, answered));
-  else {
-    parts.add(words(s, String(last.reply.status), { at: [MARGIN.left - 0.06, 0.4], size: TYPE.display, mono: true, bold: true }), 'slip:number');
-    parts.add(words(s, PHRASE[last.reply.status] ?? '', { at: [MARGIN.left + 3.3, 0.35], size: TYPE.title, bold: true }), 'slip:about');
-    parts.add(words(s, `sizes from ${new URL(MCP_URL).host}`, { at: [MARGIN.left, -1.12], mono: true }), 'slip:code');
+  // Under the map: the slip the Company handed back, pointing at what was wrong, and what came of the send after it.
+  if (!last) parts.add(words(s, 'nothing sent yet', { at: [MARGIN.left, -0.6], size: TYPE.label, color: TONE.soft }), 'slip:none');
+  else if (last.reply.status >= 400 && at) {
+    addAll(parts, slip(s, last.reply, PART[last.trouble]));
+    addAll(parts, pointer(at, PART[last.trouble]));
+  } else {
+    parts.add(words(s, String(last.reply.status), { at: [MARGIN.left - 0.06, -0.22], size: TYPE.display, mono: true, bold: true }), 'slip:number');
+    parts.add(words(s, 'OK', { at: [MARGIN.left + 3.3, 0.0], size: TYPE.title, bold: true }), 'slip:about');
+    parts.add(words(s, `sizes from ${new URL(MCP_URL).host}`, { at: [MARGIN.left + 3.3, -0.62], mono: true }), 'slip:code');
   }
   if (answered && last!.again) {
-    const again = words(s, `sent again: ${last!.again.status} ${PHRASE[last!.again.status] ?? ''}`, { at: [MARGIN.left, OUTCOME_Y], bold: true });
+    const again = words(s, `sent again: ${last!.again.status} OK`, { at: [MARGIN.left, OUTCOME_Y], bold: true });
     parts.add(emphasised(again, `sent again after ${FIX_NAME[last!.fix!]}: ${sayReply(last!.again)}`), 'outcome');
   }
 
-  // Behind the counter: what the Company knows.
-  addAll(parts, ledger(s, knownBy(w), { at: [LEDGER_X, 3.85], width: MARGIN.right - LEDGER_X, title: 'The Company knows', key: 'company', rowGap: 0.8 }));
+  // Behind the counter, quiet: what the Company knows of the Session.
+  addAll(parts, ledger(s, knownBy(w), { at: [LEDGER_X, 3.85], width: MARGIN.right - LEDGER_X, title: 'The Company knows', key: 'company', rowGap: 0.74 }));
 
-  // Under the ledger: what to predict, why the tempting remedy would fail, or the 401 counterfactual.
-  const panel = (first: string, second: string, quiet = false) => {
-    parts.add(words(s, first, { at: [LEDGER_X, PANEL_Y[0]], bold: !quiet, color: quiet ? TONE.soft : TONE.ink }), 'panel:head');
-    parts.add(words(s, second, { at: [LEDGER_X, PANEL_Y[1]], color: TONE.soft }), 'panel:body');
+  // The right-hand focus: what to predict, why the tempting remedy would fail, or the 401 counterfactual.
+  const room = MARGIN.right - LEDGER_X, tempting = temptation(w);
+  const focus = (over: string, head: string, under: string) => {
+    parts.add(words(s, over, { at: [LEDGER_X, 1.0], color: TONE.soft }), 'panel:over');
+    const big = words(s, head, { at: [LEDGER_X, 0.3], size: TYPE.title, bold: true });
+    parts.add(big.width() <= room ? big : words(s, head, { at: [LEDGER_X, 0.3], size: TYPE.label, bold: true }), 'panel:head');
+    parts.add(words(s, under, { at: [LEDGER_X, -0.42] }), 'panel:body');
   };
-  const tempting = temptation(w);
   if (shown.whatIf) {
-    parts.add(words(s, 'An OAuth library', { at: [LEDGER_X, PANEL_Y[0]], bold: true }), 'panel:head');
-    parts.add(words(s, '400', { at: [LEDGER_X, -0.95], mono: true, bold: true }), 'panel:400');
-    parts.add(key(s, { at: [LEDGER_X + 1.5, -0.95], size: 0.42, teeth: 2 }), 'panel:400:key');
-    parts.add(words(s, 'keeps the key', { at: [LEDGER_X + 2.15, -0.95] }), 'panel:400:says');
-    parts.add(words(s, '401', { at: [LEDGER_X, -1.65], mono: true, bold: true }), 'panel:401');
-    parts.add(key(s, { at: [LEDGER_X + 1.5, -1.65], size: 0.42, teeth: 2, ghost: true }), 'panel:401:key');
-    parts.add(emphasised(words(s, 'throws it away', { at: [LEDGER_X + 2.15, -1.65] }), 'a 401 would make an OAuth library discard a good token'), 'panel:401:says');
-  } else if (refused) panel('Which remedy fits?', 'the slip says', false);
-  else if (answered && tempting) panel(`Why not ${FIX_NAME[tempting.fix]}?`, WHY_NOT[last!.trouble]);
-  else if (last && !refused) panel('No refusal', 'the MCP key fits');
+    parts.add(words(s, 'An OAuth library', { at: [LEDGER_X, 1.0], color: TONE.soft }), 'panel:over');
+    parts.add(words(s, '400', { at: [LEDGER_X, 0.3], size: TYPE.label, mono: true, bold: true }), 'panel:400');
+    parts.add(key(s, { at: [LEDGER_X + 1.95, 0.3], size: 0.45, teeth: 2 }), 'panel:400:key');
+    parts.add(words(s, 'keeps it', { at: [LEDGER_X + 2.8, 0.3] }), 'panel:400:says');
+    parts.add(words(s, '401', { at: [LEDGER_X, -0.42], size: TYPE.label, mono: true, bold: true }), 'panel:401');
+    parts.add(key(s, { at: [LEDGER_X + 1.95, -0.42], size: 0.45, teeth: 2, ghost: true }), 'panel:401:key');
+    parts.add(emphasised(words(s, 'throws it away', { at: [LEDGER_X + 2.8, -0.42] }), 'a 401 would make an OAuth library discard a good token'), 'panel:401:says');
+  } else if (refused) focus('predict', 'Which remedy?', 'the slip says');
+  else if (answered && tempting) focus('why not', `${FIX_NAME[tempting.fix]}?`, WHY_NOT[last!.trouble]);
+  else if (last && !refused) focus('no refusal', 'The key fits', 'cut for the MCP server');
 
-  // The agent's remedies, along the bottom: the one applied lit, the tempting one struck through.
+  // The agent's remedies, along the bottom: idle ones in outline, the one applied in its colours, the tempting one struck through.
   const slots = railSlots(s);
   RAIL.forEach((fix, i) => {
     const x = slots[i]!, lit = answered && last!.fix === fix, struck = answered && tempting?.fix === fix;
     const object = parts.add(remedyObject(s, fix, x), `rail:${fix}`);
-    if (!lit) object.setFill(TONE.steel);
+    if (!lit) object.setStyle({ fill: 'none', stroke: TONE.steel, strokeWidth: STROKE.fine });
     const label = parts.add(words(s, FIX_NAME[fix], { at: [x, RAIL_LABEL_Y], align: 'middle', bold: lit, color: lit ? TONE.ink : TONE.soft }), `rail:${fix}:name`);
     if (lit) {
       emphasised(label, `the remedy applied: ${FIX_NAME[fix]}`);
-      parts.add(new Rectangle({ width: label.width(), height: 0.07, fill: TONE.ink, stroke: 'none', cornerRadius: 0.02 }).moveTo([x, RAIL_LABEL_Y - 0.38]), `rail:${fix}:mark`);
+      parts.add(new Rectangle({ width: label.width(), height: 0.07, fill: TONE.ink, stroke: 'none', cornerRadius: 0.02 }).moveTo([x, RAIL_LABEL_Y - 0.37]), `rail:${fix}:mark`);
     }
     if (struck) parts.add(poly([[x - 0.5, RAIL_Y - 0.42], [x - 0.42, RAIL_Y - 0.5], [x + 0.5, RAIL_Y + 0.42], [x + 0.42, RAIL_Y + 0.5]], TONE.ink), `rail:${fix}:strike`);
   });
@@ -273,12 +319,12 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
 
 /** The picture in words, for a reader who cannot see it; no two reachable states read alike. */
 export function sayWorld(w: World, shown: Shown): string {
-  const last = w.last, refused = pending(w);
-  const map = 'Three lanes run from the agent to the Company’s counter: the API, the MCP server, and Sign-in.';
+  const last = w.last, refused = pending(w), part = last ? ABOUT[PART[last.trouble]] : '';
+  const map = last?.trouble === 'mcp' ? 'Two lanes run from the agent to the Company’s counter: the API, idle, and the MCP server’s, in use.' : 'One lane runs from the agent to the Company’s counter.';
   const holds = `The agent holds its seal and a key for ${refused && last!.trouble === 'read-only' ? 'orders:read only' : 'orders:read and orders:write'}${w.mcpKey ? ', and a second key, cut for the MCP server only' : ''}.`;
   const sent = !last ? 'Nothing has been sent.'
-    : refused ? `The agent sent the ${WHAT[last.trouble]} on the ${LANE_NAME[laneOfTrouble(last.trouble)]} lane after this: ${troubleWords(last.trouble)}. The ticket stands before a barrier, and the Company handed back a slip: ${sayReply(last.reply)}, about ${ABOUT[last.trouble]}${last.reply.retryAfter ? `, Retry-After ${last.reply.retryAfter} seconds` : ''}${last.reply.needs ? `, naming ${last.reply.needs}` : ''}${last.reply.resourceMetadata ? `, with resource_metadata ${last.reply.resourceMetadata}` : ''}. The agent has not answered yet.`
-    : last.fix ? `After this: ${troubleWords(last.trouble)}, the ${WHAT[last.trouble]} was refused with ${sayReply(last.reply)}, about ${ABOUT[last.trouble]}. The agent answered with ${FIX_NAME[last.fix]} and sent it again: ${sayReply(last.again!)}; the ticket rests docked at its stop.`
+    : refused ? `The agent sent the ${WHAT[last.trouble]} after this: ${troubleWords(last.trouble)}. The ticket, with its seal, its key and a tag reading version ${last.trouble === 'old-copy' ? '0.3' : '0.4'}, stands before a barrier, and the Company handed back a slip: ${sayReply(last.reply)}, about ${part}${last.reply.retryAfter ? `, Retry-After ${last.reply.retryAfter} seconds` : ''}${last.reply.needs ? `, naming ${last.reply.needs}` : ''}${last.reply.resourceMetadata ? `, with resource_metadata ${last.reply.resourceMetadata}` : ''}; a leader from the slip rings ${part}. The agent has not answered yet.`
+    : last.fix ? `After this: ${troubleWords(last.trouble)}, the ${WHAT[last.trouble]} was refused with ${sayReply(last.reply)}; the slip still points at ${part}. The agent answered with ${FIX_NAME[last.fix]} and sent it again: ${sayReply(last.again!)}; the ticket rests docked at its stop.`
     : `The agent sent the ${WHAT[last.trouble]} with its key for the MCP server: ${sayReply(last.reply)}, no refusal; the ticket rests docked at its stop.`;
   const t = temptation(w);
   const why = last?.fix && t ? ` On the remedy rail, ${FIX_NAME[last.fix]} is lit and ${FIX_NAME[t.fix]} is struck through: ${FIX_NAME[t.fix]} would fail, because ${t.reason}.` : refused ? ' The remedy rail is idle: which remedy fits is for you to predict.' : '';
@@ -293,4 +339,10 @@ function troubleWords(t: Trouble): string {
     end: 'the Company ended the Session', 'old-copy': 'it used an old copy of poppy.json and sent version 0.3', 'too-fast': 'it sent too many requests too fast',
     mcp: 'it asked the MCP server with its everyday key',
   }[t];
+}
+
+/** The lane a world's last request took, and its height, for the scene's flights. */
+export function laneOfWorld(w: World): { on: Lane; y: number; route: Vec[] } {
+  const on = w.last ? laneOfTrouble(w.last.trouble) : 'api', mcpShown = on === 'mcp';
+  return { on, y: laneY(on, mcpShown), route: routeOf(on, mcpShown) };
 }

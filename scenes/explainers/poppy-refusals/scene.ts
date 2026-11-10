@@ -1,23 +1,22 @@
-import { Scene } from '../../../src/index.ts';
+import { Scene, linear } from '../../../src/index.ts';
 import { answerOf, isRefusal, stage, Machine, view } from '../../../explain/index.ts';
 import type { ExplainerMeta, Transition } from '../../../explain/index.ts';
 import { beats, flight, pass, seal } from '../lib/poppy-kit.ts';
 import type { Beat } from '../lib/poppy-kit.ts';
-import { REFUSAL_EVENTS, STORY, next, opFor, OPS, start, temptation } from './model.ts';
-import type { RefusalEvent, Trouble, World } from './model.ts';
+import { REFUSAL_EVENTS, STORY, next, start, temptation } from './model.ts';
+import type { RefusalEvent, World } from './model.ts';
 import {
-  DELEGATION_ROUTE, DOCUMENT_ROUTE, FIX_NAME, LANES, MCP_KEY_AT, PALETTE, RAIL, SEAL_AT,
-  delegationToken, documentToken, drawWorld, keyRoute, routeOf, sayWorld,
+  DELEGATION_ROUTE, FIX_NAME, MCP_KEY_AT, PALETTE, RAIL, SEAL_AT,
+  delegationToken, documentRoute, documentToken, drawWorld, keyRoute, laneOfWorld, paceClock, sayWorld,
 } from './picture.ts';
-import type { Lane, Shown } from './picture.ts';
+import type { Shown } from './picture.ts';
 
 /** What lights up before a ticket or a key sets off: the lanes' lines and names. */
-const LANE_PARTS = LANES.flatMap((name) => [`lane:${name}:line`, `lane:${name}:name`, `lane:${name}:plate`]);
+const LANE_PARTS = ['api', 'mcp'].flatMap((name) => [`lane:${name}:line`, `lane:${name}:name`, `lane:${name}:plate`, `lane:${name}:stop`]);
 /** The remedy rail's objects and names, which light (or dim) before anything travels. */
 const RAIL_PARTS = RAIL.flatMap((fix) => [`rail:${fix}`, `rail:${fix}:name`]);
 /** The rail's marks of the last answer, which go before a new request sets off. */
 const RAIL_MARKS = RAIL.flatMap((fix) => [`rail:${fix}:mark`, `rail:${fix}:strike`]);
-const laneOf = (t: Trouble): Lane => (OPS[opFor(t)].service === 'mcp' ? 'mcp' : 'api');
 
 // The errand of chapter 1, broken seven ways, as a machine. A trouble sends the jacket exchange (or
 // the MCP sizing call) and the Company refuses it with a slip; "Agent answers" applies the one
@@ -63,33 +62,35 @@ export default class Refusals extends Scene<World, Shown> {
 
     /** A request sets off: its lane lights, the ticket leaves the agent's seal along the lane, and a refused one meets the barrier. */
     const request = (t: Transition<World, RefusalEvent>) => {
-      const c = t.choreograph(world), on = laneOf(t.after.last!.trouble);
-      return beats(c, flight(c, 'ticket', [SEAL_AT, ...routeOf(on).slice(1, 3)]), { fresh, then: ['barrier'], lead: [...LANE_PARTS, ...RAIL_PARTS] });
+      const c = t.choreograph(world), { route } = laneOfWorld(t.after);
+      return beats(c, flight(c, 'ticket', [SEAL_AT, ...route.slice(1, 3)]), { fresh, then: ['barrier'], lead: [...LANE_PARTS, ...RAIL_PARTS] });
     };
     /** The agent answers: the remedy lights on the rail, its product travels from where it comes from, then the request goes again and docks. */
     const answer = (t: Transition<World, RefusalEvent>) => {
-      const c = t.choreograph(world), last = t.after.last!, on = laneOf(last.trouble);
-      const sendAgain = flight(c, 'ticket', [SEAL_AT, ...routeOf(on).slice(1, 3)], { move: 0.9 });
-      const [stop, bend] = [routeOf('sign-in')[3]!, routeOf('sign-in')[2]!];
+      const c = t.choreograph(world), last = t.after.last!, { route, y } = laneOfWorld(t.after);
+      const sendAgain = flight(c, 'ticket', [SEAL_AT, ...route.slice(1, 3)], { move: 0.9 });
       const product = (): Beat[] => {
         switch (last.fix) {
           case 'refresh':
             return last.trouble === 'mcp'
-              ? flight(c, 'agent:mcp-key', [stop, bend, [bend[0], MCP_KEY_AT[1]]], { move: 0.9 })()
-              : flight(c, 'agent:key', keyRoute(), { move: 0.9 })();
+              ? flight(c, 'agent:mcp-key', [[route.at(-1)![0], y], [MCP_KEY_AT[0] + 1.2, y], [MCP_KEY_AT[0] + 1.2, MCP_KEY_AT[1]]], { move: 0.9 })()
+              : flight(c, 'agent:key', keyRoute(y).slice(0, -1), { move: 0.9 })();
           case 'sign-in':
-            return flight(c, 'agent:key', keyRoute(), { move: 0.9 })();
+            return flight(c, 'agent:key', keyRoute(y).slice(0, -1), { move: 0.9 })();
           case 'fix':
             return pass(c, 'delegation', delegationToken(s), DELEGATION_ROUTE, { move: 0.7 });
           case 'new-session':
             return pass(c, 'fresh-seal', seal(s, { r: 0.42 }), DELEGATION_ROUTE, { move: 0.7 });
           case 'reread':
-            return pass(c, 'document', documentToken(s), DOCUMENT_ROUTE, { move: 0.8 });
+            return pass(c, 'document', documentToken(s), documentRoute(y), { move: 0.8 });
+          case 'wait':
+            // Time passes: the Company's clock empties, one number followed from full to none, before the agent sends again.
+            return [c.follow({ from: 1, to: 0, draw: (v: number) => [paceClock(s, v)] }, { targets: ['slip:clock'], runTime: 1.4, rateFunc: linear })];
           default:
             return [];
         }
       };
-      return beats(c, () => [...product(), ...sendAgain()], { fresh: ['ticket', 'barrier', 'outcome', 'panel'], then: last.fix === 'wait' ? ['slip:clock'] : [], lead: RAIL_PARTS });
+      return beats(c, () => [...product(), ...sendAgain()], { fresh: ['ticket', 'barrier', 'outcome', 'panel'], lead: RAIL_PARTS });
     };
     const machine = new Machine<World, RefusalEvent>(this, {
       start: start(),
