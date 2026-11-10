@@ -233,3 +233,49 @@ test('each verdict cites the section that decided it', () => {
   assert.deepEqual(sections, ['5.3', '5.3', '10.4', '5.3', '5.2', '5.3', '5.2', '5.2']);
   assert.match(ruleOf(play('required', STORY).last).says, /grants no account access/);
 });
+
+// ---------------------------------------------------------------------------------------------
+// Against the protocol's own published artifacts, not a reading of its text: the JSON Schemas of
+// its Company implementation kit (delegation, Session JWT) and the 5.2 examples of spec.md, in
+// fixtures/poppy-official.json with their source, commit and retrieval date. A key here is its
+// thumbprint's first characters and a signature is the key's name, so the schema rules on key and
+// ID formats fail where the model writes those stand-ins; the tests name each such field.
+
+import { readFileSync } from 'node:fs';
+import { validate, type Schemas } from '../poppy/fixtures/json-schema.ts';
+
+const OFFICIAL: { examples: Record<string, any>; schemas: Schemas } = JSON.parse(readFileSync(new URL('./fixtures/poppy-official.json', import.meta.url), 'utf8'));
+const SPEC_JWT = OFFICIAL.examples['5.2 The Session header #2 Session JWT'];
+const SPEC_DLG_HEADER = OFFICIAL.examples['5.2 Delegated keys #1 delegation header'];
+const SPEC_DLG = OFFICIAL.examples['5.2 Delegated keys #2 delegation payload'];
+/** The paths at which a value fails a schema, from the checker's "path: what" lines. */
+const failingPaths = (errors: readonly string[]) => [...new Set(errors.map((e) => e.slice(0, e.indexOf(':'))))].sort();
+
+test('official delegation.schema.json and spec.md 5.2 example (poppy-official.json): every delegation has the schema’s claims and typ and none it forbids; only the stand-in key and jti fail', () => {
+  assert.deepEqual(validate(OFFICIAL.schemas, 'delegation.schema.json', { header: SPEC_DLG_HEADER, payload: SPEC_DLG }), []);
+  const all = [...Object.values(AGENT_SIGNER.byUser), ...Object.values(THIEF_SIGNER.byUser)].map((h) => h.delegation);
+  for (const d of all) {
+    const { typ, kid, signedBy: _signature, ...payload } = d;
+    assert.deepEqual(validate(OFFICIAL.schemas, 'delegation.schema.json#/$defs/header/properties/typ', typ), []);
+    assert.deepEqual(validate(OFFICIAL.schemas, 'delegation.schema.json#/$defs/header/properties/kid', kid), []);
+    // The schema forbids sub, aud and agent_id (no User, Agent ID or Company); the model's payload has none of them.
+    assert.deepEqual(failingPaths(validate(OFFICIAL.schemas, 'delegation.schema.json#/$defs/payload', payload)), ['/cnf/jwk', '/jti'], d.jti);
+  }
+  const yours = AGENT_SIGNER.byUser[USER_IDS['example.com']]!.delegation;
+  assert.deepEqual({ typ: yours.typ, iss: yours.iss, iat: yours.iat, exp: yours.exp }, { typ: SPEC_DLG_HEADER.typ, iss: SPEC_DLG.iss, iat: SPEC_DLG.iat, exp: SPEC_DLG.exp });
+  assert.ok(SPEC_DLG_HEADER.kid.startsWith(yours.kid) && SPEC_DLG.jti.startsWith(yours.jti), 'kid and jti are the example’s, shortened');
+});
+
+test('official session-jwt.schema.json and spec.md 5.2 example (poppy-official.json): the genuine request’s header has the schema’s claims and the example’s values; only stand-ins fail', () => {
+  assert.deepEqual(validate(OFFICIAL.schemas, 'session-jwt.schema.json', SPEC_JWT), []);
+  const s = genuine().session!;
+  const { typ, kid, poppy_dlg, signedBy: _signature, ...payload } = s;
+  assert.deepEqual(validate(OFFICIAL.schemas, 'session-jwt.schema.json#/$defs/header/properties/typ', typ), []);
+  assert.ok(poppy_dlg, 'the header carries its delegation');
+  // kid is the thumbprint's first eight characters; sid and jti are shortened; ath only has to differ per token.
+  assert.deepEqual(failingPaths(validate(OFFICIAL.schemas, 'session-jwt.schema.json#/$defs/header/properties/kid', kid)), ['/']);
+  assert.deepEqual(failingPaths(validate(OFFICIAL.schemas, 'session-jwt.schema.json#/$defs/payload', payload)), ['/ath', '/jti', '/sid']);
+  for (const name of ['iss', 'aud', 'sub', 'htm', 'htu', 'iat'] as const) assert.equal(payload[name], SPEC_JWT.payload[name], name);
+  assert.equal(typ, SPEC_JWT.header.typ);
+  assert.ok(SPEC_JWT.header.kid.startsWith(kid) && SPEC_JWT.payload.sid.startsWith(payload.sid), 'kid and sid are the example’s, shortened');
+});

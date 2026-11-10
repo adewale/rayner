@@ -373,6 +373,12 @@ export type LaneOptions = {
   reached?: boolean;
   /** How steeply it fans out: horizontal run per unit of rise. Default 0.45. */
   fan?: number;
+  /**
+   * Where the name sits: 'line' (default), on the line on an opaque plate; or 'above', its centre
+   * 0.46 above the line with no plate, so a token riding the line (at most 0.24 high) passes under
+   * it. With 'above' there is no `:plate` part, and lanes need about 1.1 between them.
+   */
+  nameAt?: 'line' | 'above';
 };
 
 /**
@@ -391,11 +397,16 @@ export function laneRoute({ from, trunk, y, to, fan = 0.45 }: Pick<LaneOptions, 
  * to its stop at the counter (see `laneRoute`), its corners rounded as a transit map's are. Its name is set on the line, signage fashion, on an
  * opaque plate of the ground's colour; its stop is a ringed circle on the counter's face. STEEL
  * when idle; INK, bold and with a filled stop when `active`.
- * Keyed parts: `lane:<id>:line`, `lane:<id>:plate`, `lane:<id>:name`, `lane:<id>:stop`.
+ * Keyed parts: `lane:<id>:line`, `lane:<id>:plate` (not with `nameAt: 'above'`), `lane:<id>:name`,
+ * `lane:<id>:stop`.
  */
-export function lane(s: Stage, { id, name, y, from, trunk, to, nameX, active = false, reached = active, fan = 0.45 }: LaneOptions): Mobject[] {
+export function lane(s: Stage, { id, name, y, from, trunk, to, nameX, active = false, reached = active, fan = 0.45, nameAt = 'line' }: LaneOptions): Mobject[] {
   const colour = active ? TONE.ink : TONE.steel, k = `lane:${id}`;
   const line = roundedPath(laneRoute({ from, trunk, y, to, fan }), 0.22, { stroke: colour, strokeWidth: active ? STROKE.bold : STROKE.line, fill: 'none' });
+  if (nameAt === 'above') {
+    const over = words(s, name, { at: [nameX, y + 0.46], color: active ? TONE.ink : TONE.soft, bold: active });
+    return [keyedAs(line, `${k}:line`), keyedAs(over, `${k}:name`), keyedAs(stop(s, { at: [to, y], active: reached }), `${k}:stop`)];
+  }
   const label = words(s, name, { at: [nameX, y], color: active ? TONE.ink : TONE.soft, bold: active });
   const plate = new Rectangle({ width: label.width() + 0.36, height: PLATE_HEIGHT, fill: TONE.ground, stroke: 'none' }).moveTo([nameX + label.width() / 2, y]);
   return [keyedAs(line, `${k}:line`), keyedAs(plate, `${k}:plate`), keyedAs(label, `${k}:name`), keyedAs(stop(s, { at: [to, y], active: reached }), `${k}:stop`)];
@@ -1003,8 +1014,12 @@ export function beats(c: Choreography, flight: () => Beat[] = () => [], { fresh 
   ]);
 }
 
-/** Timing of a flight or a pass, in seconds. */
-export type FlightTiming = { appear?: number; move?: number; leave?: number };
+/**
+ * Timing of a flight or a pass, in seconds; and, for `flight`, `scale`: the travelling copy's size
+ * relative to the part (default 1), so a token can ride under labels and give way to the full part
+ * where it lands.
+ */
+export type FlightTiming = { appear?: number; move?: number; leave?: number; scale?: number };
 
 /**
  * A part's flight, for `beats`: a copy of the target part `key`, as it will rest, appears at the
@@ -1013,13 +1028,15 @@ export type FlightTiming = { appear?: number; move?: number; leave?: number };
  * If the current picture has the part too, it leaves as the copy appears. Returns the thunk
  * `beats` expects.
  */
-export function flight(c: Choreography, k: string, via: readonly Vec[], { appear = 0.25, move = 1.0, leave = 0.2 }: FlightTiming = {}): () => Beat[] {
+export function flight(c: Choreography, k: string, via: readonly Vec[], { appear = 0.25, move = 1.0, leave = 0.2, scale = 1 }: FlightTiming = {}): () => Beat[] {
   return () => {
     if (!c.has(k, 'to')) throw new RangeError(`flight(): the target picture has no part keyed ${JSON.stringify(k)}`);
     if (!via.length) throw new RangeError('flight(): give at least the point it starts from');
     const part = c.to(k), end = part.center() as Vec;
     const gone = leaveOnce(c, k, appear);
-    const walk = c.travel(`${k}:flight`, part.copy(), route(via[0]!, ...via.slice(1), end), { appear, move, leave });
+    const token = part.copy();
+    if (scale !== 1) token.scale(scale);
+    const walk = c.travel(`${k}:flight`, token, route(via[0]!, ...via.slice(1), end), { appear, move, leave });
     return [gone ? new AnimationGroup([gone, walk.appear]) : walk.appear, walk.move, new AnimationGroup([walk.leave, c.enter(k, {}, { runTime: leave })])];
   };
 }

@@ -8,7 +8,11 @@ import { DOCUMENT_ROUTE, LANES, LANE_Y, PALETTE, SEAL_AT, THIEF_FROM, documentTo
 import type { Lane } from './picture.ts';
 
 /** What lights up before a ticket or a key sets off: the lanes' lines and names. */
-const LEAD = LANES.flatMap((name) => [`lane:${name}:line`, `lane:${name}:name`, `lane:${name}:plate`]);
+const LEAD = LANES.flatMap((name) => [`lane:${name}:line`, `lane:${name}:name`]);
+/** What belongs to the last event, and goes before the next one moves: the ticket, the barrier, the answer, the step's object, the closed door. */
+const FRESH = ['answer:', 'ticket', 'barrier', 'exhibit:', 'door:'];
+/** A ticket travels as a token half its size, under the lane names, and gives way to the full ticket where it lands. */
+const TOKEN = { scale: 0.28 };
 /** The lane whose level run is at this height. */
 const laneOf = (y: number): Lane => LANES.find((name) => Math.abs(LANE_Y[name] - y) < 0.01)!;
 
@@ -75,7 +79,7 @@ export default class Poppy extends Scene<World, {}> {
     /** A request leaves the agent: its ticket appears on the agent's seal, follows its lane and stops where it rests. */
     const request = (t: Transition<World, PoppyEvent>) => {
       const c = t.choreograph(world), lane = laneOf(c.to('ticket').center()[1]!);
-      return beats(c, flight(c, 'ticket', [SEAL_AT, ...routeOf(lane).slice(1, 3)]), { then: ['barrier'], lead: LEAD });
+      return beats(c, flight(c, 'ticket', [SEAL_AT, ...routeOf(lane).slice(1, 3)], TOKEN), { then: ['barrier'], lead: LEAD, fresh: FRESH });
     };
     const machine = new Machine<World, PoppyEvent>(this, {
       start: start(approves),
@@ -93,8 +97,8 @@ export default class Poppy extends Scene<World, {}> {
           const c = t.choreograph(world);
           return beats(c, () => {
             const lanes = LANES.map((name) => c.enter(`lane:${name}:line`, { create: true }, { runTime: 0.6 }));
-            return [c.leave('lane:none', { runTime: 0.25 }), ...pass(c, 'document', documentToken(s), DOCUMENT_ROUTE), new AnimationGroup(lanes)];
-          });
+            return [...pass(c, 'document', documentToken(s), DOCUMENT_ROUTE), new AnimationGroup(lanes)];
+          }, { fresh: FRESH });
         },
         cart: request,
         browse: request,
@@ -103,20 +107,20 @@ export default class Poppy extends Scene<World, {}> {
         // The key comes to the agent from the Company's counter, where the User approved it, along the sign-in lane.
         'sign-in': (t) => {
           const c = t.choreograph(world);
-          return beats(c, flight(c, 'agent:key', keyRoute().slice(0, -1)), { lead: LEAD });
+          return beats(c, flight(c, 'agent:key', keyRoute().slice(0, -1), { scale: 0.5 }), { lead: LEAD, fresh: FRESH });
         },
         // A thief's ticket comes from under the map, not from the agent, and stops where the Company refuses it.
         thief: (t) => {
           const c = t.choreograph(world);
-          return beats(c, flight(c, 'ticket', [THIEF_FROM]), { then: ['barrier'], lead: LEAD });
+          return beats(c, flight(c, 'ticket', [THIEF_FROM], TOKEN), { then: ['barrier'], lead: LEAD, fresh: FRESH });
         },
         // The key goes back the way it came, to the Company's sign-in stop, and is gone.
         'sign-out': (t) => {
           const c = t.choreograph(world);
           return beats(c, () => {
-            const back = pass(c, 'agent:key:return', c.from('agent:key').copy(), [...keyRoute()].reverse(), { appear: 0.2, move: 0.9, leave: 0.25 });
+            const back = pass(c, 'agent:key:return', c.from('agent:key').copy().scale(0.5), [...keyRoute()].reverse(), { appear: 0.2, move: 0.9, leave: 0.25 });
             return [new AnimationGroup([c.leave('agent:key', { runTime: 0.2 }), back[0]!]), ...back.slice(1)];
-          }, { lead: LEAD });
+          }, { lead: LEAD, fresh: FRESH });
         },
       },
     });

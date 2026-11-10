@@ -67,7 +67,7 @@ const HOLDS = stationHolds(STATION, STATION_R);
 export const SEAL_AT: Vec = HOLDS.seal;
 export const KEY_AT: Vec = HOLDS.key;
 /** Where a request sets off: on its lane, its ticket clear of the station. */
-export const launchAt = (y: number): Vec => [STATION[0] + STATION_R + 0.2 + TW / 2, y];
+export const launchAt = (y: number): Vec => [NAME_X + 1.3 + TW / 2, y];
 /** Where the agent hangs a key cut for the MCP server: under its station. */
 export const MCP_KEY_AT: Vec = [STATION[0], 1.22];
 /** Where the Company's clock stands, at the foot of its counter, for a rate limit. */
@@ -77,8 +77,8 @@ const CLOCK_R = 0.38;
 export const keyRoute = (y: number): Vec[] => [[STOP_X, y], [STATION[0] + STATION_R, y], KEY_AT];
 /** A fresh poppy.json's way, from the counter to the agent. */
 export const documentRoute = (y: number): Vec[] => [[STOP_X - 0.5, y], [STATION[0] + 0.3, STATION[1] - 0.1]];
-/** Where a new delegation comes from: the agent's own systems, under its station. */
-export const DELEGATION_ROUTE: Vec[] = [[STATION[0], 0.9], SEAL_AT];
+/** Where a new delegation (or a fresh seal) comes from: the agent's own systems, off the stage above its station. */
+export const DELEGATION_ROUTE: Vec[] = [[MARGIN.left, 4.3], SEAL_AT];
 
 // The slip and the panels below the map.
 const SLIP = { left: MARGIN.left, right: -0.4, top: 0.72, bottom: -1.92 };
@@ -359,8 +359,8 @@ function troubleWords(t: Trouble): string {
   }[t];
 }
 
-/** The lane a world's last request took, and its height, for the scene's flights. */
-export function laneOfWorld(w: World): { on: Lane; y: number; route: Vec[] } {
+/** The lane a world's last request took, its height, and whether the MCP lane is drawn, for the scene's flights. */
+export function laneOfWorld(w: World): { on: Lane; y: number; route: Vec[]; mcpShown: boolean } {
   const on = w.last ? laneOfTrouble(w.last.trouble) : 'api', mcpShown = on === 'mcp';
-  return { on, y: laneY(on, mcpShown), route: routeOf(on, mcpShown) };
+  return { on, y: laneY(on, mcpShown), route: routeOf(on, mcpShown), mcpShown };
 }

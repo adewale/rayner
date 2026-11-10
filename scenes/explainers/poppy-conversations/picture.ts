@@ -70,7 +70,7 @@ export function seatsOf(w: World) {
 /** Where a person who joins comes from: the Company's back office, off the right edge of the stage. */
 export const BACK_OFFICE_X = 8.6;
 /** The narrow ledger of state fields, on the right. */
-const LEDGER = { x: 3.0, width: MARGIN.right - 3.0 } as const;
+const LEDGER = { x: 2.6, width: MARGIN.right - 2.6 } as const;
 /** The thread between the two tables runs down here, clear of every label. */
 const THREAD_X = -1.5;
 
@@ -318,9 +318,9 @@ export function drawWorld(w: World, s: Stage, shown: Shown = {}): Group {
     parts.add(words(s, 'AI, watching', { at: [seats.agent[0] + 0.75, seats.agent[1] - 0.37], color: TONE.soft }), 'agent:kind');
   } else if (w.direct === 'closed') {
     // Closed: the small table is gone, and the ledger's column notes that it was there.
-    parts.add(words(s, 'Direct', { at: [LEDGER.x, -3.45], color: TONE.soft }), 'direct:closed');
-    parts.add(words(s, 'closed', { at: [MARGIN.right, -3.45], mono: true, align: 'end' }), 'direct:closed:value');
-    parts.add(new Rectangle({ width: LEDGER.width, height: STROKE.hair, fill: TONE.rule, stroke: 'none' }).moveTo([LEDGER.x + LEDGER.width / 2, -3.78]), 'direct:closed:rule');
+    parts.add(words(s, 'Direct', { at: [LEDGER.x, -3.2], color: TONE.soft }), 'direct:closed');
+    parts.add(words(s, 'closed', { at: [MARGIN.right, -3.2], mono: true, align: 'end' }), 'direct:closed:value');
+    parts.add(new Rectangle({ width: LEDGER.width, height: STROKE.hair, fill: TONE.rule, stroke: 'none' }).moveTo([LEDGER.x + LEDGER.width / 2, -3.53]), 'direct:closed:rule');
   }
 
   // Working: a typing badge by the seat of whoever handles the Company's side of the table in use.

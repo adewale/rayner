@@ -336,3 +336,79 @@ test('what is said fits a phone: at most 20 characters, and 16 at the Direct Con
     assert.ok(text.length <= (w.said.at === 'direct' ? 16 : 20), `${w.said.at}: ${text}`);
   }
 });
+
+// ---------------------------------------------------------------------------------------------
+// Against the protocol's own published artifacts, not a reading of its text: the JSON Schemas of
+// its Company implementation kit (message, event, events response, error) and the section 8
+// examples of spec.md, in fixtures/poppy-official.json with their source, commit and retrieval date.
+
+import { readFileSync } from 'node:fs';
+import { validate, type Schemas } from '../poppy/fixtures/json-schema.ts';
+import type { Message, Side } from './model.ts';
+
+const OFFICIAL: { examples: Record<string, any>; schemas: Schemas } = JSON.parse(readFileSync(new URL('./fixtures/poppy-official.json', import.meta.url), 'utf8'));
+const ex = (key: string) => OFFICIAL.examples[key];
+const SPEC_EVENT_LISTS = [ex('8.5 Reading events #2'), ex('8.7 State #1')];
+/** Every message in spec.md's section 8 examples, with the side that sends it. */
+const SPEC_MESSAGES: readonly [string, Message, Side][] = [
+  ...(['8.3 Sending messages #1 (Personal Agent)', '8.3 Sending messages #3 (Personal Agent)', '8.3 Sending messages #4 (Personal Agent)', '8.8 Human or AI #1 (Personal Agent)', '8.10 Direct Conversations #1 (Personal Agent)'] as const)
+    .map((k): [string, Message, Side] => [k, ex(k).message, 'personal agent']),
+  ['8.4 Message fields #1', ex('8.4 Message fields #1 (Personal Agent message)'), 'personal agent'],
+  ['8.4 Message fields #2', ex('8.4 Message fields #2 (Personal Agent message)'), 'personal agent'],
+  ['8.4 Message fields #3', ex('8.4 Message fields #3 (Company message)'), 'company'],
+  ...SPEC_EVENT_LISTS.flatMap((list) => list.events.filter((e: { type: string }) => e.type === 'message').map((e: { id: string; message: Message }): [string, Message, Side] => [`event ${e.id}`, e.message, 'company'])),
+];
+
+test('official kit schemas (poppy-official.json): spec.md’s section 8 examples pass them, so the checker reads them as the project does', () => {
+  for (const [key, message] of SPEC_MESSAGES) assert.deepEqual(validate(OFFICIAL.schemas, 'message.schema.json', message), [], key);
+  for (const list of SPEC_EVENT_LISTS) assert.deepEqual(validate(OFFICIAL.schemas, 'events-response.schema.json', list), []);
+  for (const key of ['8.10 Direct Conversations #2 event', '8.11 Sign-in during a conversation #1 event']) assert.deepEqual(validate(OFFICIAL.schemas, 'event.schema.json', ex(key)), [], key);
+  assert.deepEqual(validate(OFFICIAL.schemas, 'error.schema.json', ex('8.2 Requests #1 error')), []);
+});
+
+test('spec.md 8.3 to 8.11 examples (poppy-official.json): problemsOf accepts every example message from its side, and isId every example ID', () => {
+  assert.equal(SPEC_MESSAGES.length, 10);
+  for (const [key, message, side] of SPEC_MESSAGES) assert.deepEqual(problemsOf(message, side), [], key);
+  const ids = [
+    ...['8.3 Sending messages #1 (Personal Agent)', '8.3 Sending messages #3 (Personal Agent)', '8.3 Sending messages #4 (Personal Agent)', '8.8 Human or AI #1 (Personal Agent)', '8.10 Direct Conversations #1 (Personal Agent)', '8.10 Direct Conversations #2 event', '8.11 Sign-in during a conversation #1 event'].map((k) => ex(k).id),
+    ...SPEC_EVENT_LISTS.flatMap((list) => [list.conversation_id, list.cursor, ...list.events.map((e: { id: string }) => e.id)]),
+  ];
+  for (const id of ids) assert.ok(isId(id), id);
+});
+
+test('official message.schema.json (poppy-official.json): every message the schema rejects, problemsOf rejects from either side; the model is stricter only where 8.4 says who may send a field', () => {
+  const authors = [{ type: 'agent' }, { type: 'human' }, { type: 'agent', name: 'Alex' }, { type: 'robot' }, undefined];
+  const contents = [{}, { text: 'Medium, please.' }, { data: { size: 'M' } }, { context: { user_available: true } }, { extensions: { 'example.com/gift-wrap': {} } }];
+  const asOfs = [{}, { as_of_request: 'msg_1' }, { as_of_cursor: 'evt_1' }, { as_of_request: 'msg_1', as_of_cursor: 'evt_1' }];
+  let compared = 0, stricter = 0;
+  for (const side of ['personal agent', 'company'] as const) for (const author of authors) for (const content of contents) for (const asOf of asOfs) {
+    const message = { ...(author ? { author } : {}), ...content, ...asOf } as Message;
+    // As the Company records it (8.4), so the schema's role rules apply.
+    const schemaErrors = validate(OFFICIAL.schemas, 'message.schema.json', record(message, side, 'msg_x'));
+    const problems = problemsOf(message, side);
+    compared++;
+    if (schemaErrors.length > 0) assert.notDeepEqual(problems, [], `${side} ${JSON.stringify(message)}: ${schemaErrors.join('; ')}`);
+    else if (problems.length > 0) {
+      stricter++;
+      assert.deepEqual(problems.filter((p) => p !== 'only Company messages name their author' && p !== 'only the Personal Agent sends context'), [], JSON.stringify(message));
+    }
+  }
+  assert.equal(compared, 200);
+  assert.ok(stricter > 0);
+});
+
+test('official event.schema.json (poppy-official.json): the state of every conversation the handoff steps reach, and the authorization event, pass; the examples’ event types are the model’s', () => {
+  const states = new Map<string, Conv>();
+  const steps = [askForPerson, personJoins, nobodyAvailable, closeConv, (c: Conv) => cancelPerson(c, 'withdraws')];
+  const walk = (c: Conv, depth: number) => { states.set(JSON.stringify(c), c); if (depth) for (const step of steps) walk(step(c), depth - 1); };
+  walk(NEW_CONVERSATION, 4);
+  for (const c of states.values()) {
+    const event = { id: 'evt_s1', type: 'state', created_at: '2026-10-08T19:05:10Z', handoff: c.handoff, responder: c.responder, closed: c.closed };
+    assert.deepEqual(validate(OFFICIAL.schemas, 'event.schema.json', event), [], JSON.stringify(c));
+  }
+  assert.deepEqual(validate(OFFICIAL.schemas, 'event.schema.json', { ...authorizationEvent('evt_d3', ['orders:read', 'orders:write'], false), created_at: '2026-10-08T19:04:00Z' }), []);
+  const { created_at: _at, ...specAuthorization } = ex('8.11 Sign-in during a conversation #1 event');
+  assert.deepEqual(authorizationEvent('evt_d3', ['orders:read', 'orders:write'], true), specAuthorization);
+  const exampleTypes = [...SPEC_EVENT_LISTS.flatMap((list) => list.events.map((e: { type: string }) => e.type)), ex('8.10 Direct Conversations #2 event').type, ex('8.11 Sign-in during a conversation #1 event').type];
+  for (const type of exampleTypes) assert.ok((EVENT_TYPES as readonly string[]).includes(type), type);
+});

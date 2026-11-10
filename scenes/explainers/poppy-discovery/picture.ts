@@ -57,7 +57,9 @@ const VERDICT = { x: -1.1, phrase: -1.72, meaning: -2.5 } as const;
 
 /** Where the sheet rests, where it first lands (the doorstep), and where the arm starts, for the scene's motion. */
 export const SHEET_CENTRE = SHEET_AT;
-export const DOORSTEP: Vec = [(DOOR.l + DOOR.r) / 2, STEP_Y];
+export const DOORSTEP: Vec = [(DOOR.l + DOOR.r) / 2, STEP_Y - 0.46];
+/** The x of the street beside the shop, where the document comes down from the address bar. */
+export const STREET_X = -1.2;
 export const ARM_FROM: Vec = [FINGER.r, ARM_Y];
 
 /** A host and path, without the scheme the padlock stands for. */
@@ -215,7 +217,7 @@ function registerPage(): Group {
 
 /** Where the noticeboard stands, in the street beside the shop, and where a sheet is pinned on it. */
 const BOARD = { x: 0.65, y: 0.25, w: 4.0, h: 1.7 } as const;
-const BOARD_SHEET: Vec = [BOARD.x, BOARD.y];
+export const BOARD_SHEET: Vec = [BOARD.x, BOARD.y];
 /** A noticeboard on two legs: a RAISED board with a STEEL frame, where anyone can pin a page. */
 function noticeboard(): Group {
   const { x, y, w, h } = BOARD;

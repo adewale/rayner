@@ -1,4 +1,4 @@
-import { AnimationGroup, Scene, Succession, Text } from '../../../src/index.ts';
+import { AnimationGroup, Scene, Succession, Text, matchByKey } from '../../../src/index.ts';
 import type { Animation } from '../../../src/index.ts';
 import { answerOf, isRefusal, stage, Machine, view } from '../../../explain/index.ts';
 import type { Choreography, ExplainerMeta, Transition } from '../../../explain/index.ts';
@@ -48,8 +48,11 @@ export default class Conversations extends Scene<World, Shown> {
 
     /** A turn of speech grows out of its writer's mark and comes to rest on the table. */
     const spoken = (t: Transition<World, TableEvent>) => {
-      const c = t.choreograph(world), from = speakerAt(t.after);
-      return beats(c, from && c.has('turn', 'to') ? flight(c, 'turn', [from], { appear: 0.2, move: 0.7, leave: 0.2 }) : () => [], { fresh: ['turn', 'written:'] });
+      const c = t.choreograph(world), seat = speakerAt(t.after);
+      if (!seat || !c.has('turn', 'to')) return beats(c, () => [], { fresh: ['turn', 'written:'] });
+      // It sets off a little way from its rest towards the writer's seat, so the copy never covers the seat's name.
+      const [rx, ry] = c.to('turn').center(), from: Vec = [rx! + 0.3 * (seat[0] - rx!), ry! + 0.3 * (seat[1] - ry!)];
+      return beats(c, flight(c, 'turn', [from], { appear: 0.2, move: 0.5, leave: 0.2 }), { fresh: ['turn', 'written:'] });
     };
     /** A part comes in from a point and stops where it rests. */
     const arrives = (c: Choreography, key: string, ...via: Vec[]) => (c.has(key, 'to') ? flight(c, key, via, { appear: 0.2, move: 0.9, leave: 0.2 }) : () => []);
@@ -73,9 +76,9 @@ export default class Conversations extends Scene<World, Shown> {
         const [ax, ay] = a.center(), [bx, by] = b.center();
         return !TRAVELS.has(k) && Math.hypot(ax! - bx!, ay! - by!) > 0.01;
       };
-      for (const k of c.keys('from')) if (!c.has(k, 'to') || moved(k) || k === 'turn') out.push(c.leave(k, { runTime: 0.3 }));
+      for (const k of c.keys('from')) if (!c.has(k, 'to') || moved(k) || k === 'turn') out.push(c.leave(k, { runTime: 0.25 }));
       for (const k of c.keys('to')) if (!c.has(k, 'from') || moved(k) || k === 'turn') back.push(c.enter(k, {}, { runTime: 0.4 }));
-      return new Succession([...(out.length ? [new AnimationGroup(out)] : []), c.rest({ runTime: 0.8 }), ...(back.length ? [new AnimationGroup(back)] : [])]);
+      return new Succession([...(out.length ? [new AnimationGroup(out)] : []), c.rest({ runTime: 0.7 }), ...(back.length ? [new AnimationGroup(back)] : [])]);
     };
     const machine = new Machine<World, TableEvent>(this, {
       start: start(),
@@ -96,7 +99,8 @@ export default class Conversations extends Scene<World, Shown> {
         joins: (t) => {
           const c = t.choreograph(world), key = c.has('specialist:mark', 'to') && !c.has('specialist:mark', 'from') ? 'specialist:mark' : 'person:mark';
           const seats = seatsOf(t.after), seatAt = key === 'person:mark' ? seats.person : seats.directCompany;
-          return beats(c, arrives(c, key, [BACK_OFFICE_X, seatAt[1]]), { fresh: ['turn'] });
+          // Under the ledger, along the stage's foot, then up to the seat.
+          return beats(c, arrives(c, key, [BACK_OFFICE_X, -3.95], [seatAt[0] + 1.5, -3.95]), { fresh: ['turn'] });
         },
         // The invitation crosses the table from the Company's end, under the turn on the table, and stops in front of your agent.
         invite: (t) => {
@@ -167,7 +171,7 @@ export default class Conversations extends Scene<World, Shown> {
         'Suppose the Company Agent had needed your account. It adds an authorization event; your agent signs you in and carries on in the same conversation with an access token. From then on the conversation belongs to agent.example, User ID usr_Q7c1vK and account A, whatever Session asks. Signed out, the agent gets a challenge to sign in again. Another User ID, or account B, gets 404, as if it did not exist.',
     });
     this.shown = { owner: true };
-    await this.play(world.sync({ runTime: 0.8 }));
+    await this.play(world.sync({ runTime: 0.8, match: matchByKey({ text: 'whole' }) }));
 
     await this.step('close', {
       title: 'The small table closes, the big one listens',
@@ -176,7 +180,7 @@ export default class Conversations extends Scene<World, Shown> {
         'You are done, so your agent closes the Direct Conversation, and the first conversation takes messages again. A close does not wait its turn: the Company may drop anything it has not acted on yet, so the agent reads until working is false before it closes. Closing does not cancel the exchange itself. Now press the events, for both sides, and read why a refused press is refused.',
     });
     this.shown = {};
-    await this.play(world.sync({ runTime: 0.6 }));
+    await this.play(world.sync({ runTime: 0.6, match: matchByKey({ text: 'whole' }) }));
     await this.play(machine.replay(STORY.slice(11, 12)));
   }
 }

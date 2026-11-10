@@ -62,8 +62,10 @@ export default class Refusals extends Scene<World, Shown> {
 
     /** A request sets off: its lane lights, the ticket leaves the agent's seal along the lane, and a refused one meets the barrier. */
     const request = (t: Transition<World, RefusalEvent>) => {
-      const c = t.choreograph(world), { y } = laneOfWorld(t.after);
-      return beats(c, flight(c, 'ticket', [launchAt(y)]), { fresh, then: ['barrier'], lead: [...LANE_PARTS, ...RAIL_PARTS] });
+      const c = t.choreograph(world), { y, mcpShown } = laneOfWorld(t.after);
+      // When the MCP lane comes or goes, the lanes are re-laid: cross-fade them rather than slide them.
+      const relaid = mcpShown !== laneOfWorld(t.before).mcpShown;
+      return beats(c, flight(c, 'ticket', [launchAt(y)]), { fresh: relaid ? [...fresh, 'lane'] : fresh, then: ['barrier'], lead: relaid ? RAIL_PARTS : [...LANE_PARTS, ...RAIL_PARTS] });
     };
     /** The agent answers: the remedy lights on the rail, its product travels from where it comes from, then the request goes again and docks. */
     const answer = (t: Transition<World, RefusalEvent>) => {
@@ -73,7 +75,7 @@ export default class Refusals extends Scene<World, Shown> {
         switch (last.fix) {
           case 'refresh':
             return last.trouble === 'mcp'
-              ? flight(c, 'agent:mcp-key', [[route.at(-1)![0], y], [MCP_KEY_AT[0] + 1.2, y], [MCP_KEY_AT[0] + 1.2, MCP_KEY_AT[1]]], { move: 0.9 })()
+              ? flight(c, 'agent:mcp-key', [[route.at(-1)![0], y], [MCP_KEY_AT[0] + 2.6, y], [MCP_KEY_AT[0] + 2.6, MCP_KEY_AT[1]]], { move: 0.9 })()
               : flight(c, 'agent:key', keyRoute(y).slice(0, -1), { move: 0.9 })();
           case 'sign-in':
             return flight(c, 'agent:key', keyRoute(y).slice(0, -1), { move: 0.9 })();

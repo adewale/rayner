@@ -4,7 +4,7 @@ import type { Stage } from '../../../explain/index.ts';
 import { keyedParts } from '../../../explain/drawing.ts';
 import {
   MARGIN, PALETTE as KIT_PALETTE, RADIUS, STROKE, TICKET, TONE, TYPE,
-  addAll, answer, barrier, browserWindow, codeSlip, cookie, person, counter, key, lane, seal, station, stationExit, stationHolds, stop, ticket, words,
+  addAll, answer, barrier, browserWindow, codeSlip, cookie, person, counter, key, seal, station, stationExit, stationHolds, stop, ticket, words,
 } from '../lib/poppy-kit.ts';
 import { AGENT, SID } from '../poppy/model.ts';
 import { ACCOUNT, ATTACKER, ATTACK_CODE, CODES, PHISH_CODE, joinEffect } from './model.ts';
@@ -79,6 +79,17 @@ const EVIL: Vec = [4.65, -2.95];
 export const EVIL_HALF_AT: Vec = [EVIL[0] + 0.9, EVIL[1] - 0.45];
 /** Where a code that came in a message rests: beside the agent, outside its station. */
 export const MESSAGE_AT: Vec = [-6.35, -0.15];
+/** Where that message comes from: just outside the attacker's browser, along the bottom of the stage. */
+export const MESSAGE_FROM: Vec = [1.05, -2.95];
+/** The browser window's edges, and the column just right of it where things go between the road and the shelf. */
+export const WIN_LEFT = WIN[0] - WIN_W / 2;
+export const WIN_RIGHT = WIN[0] + WIN_W / 2;
+export const SIDE_X = WIN_RIGHT + 0.4;
+/** Where the agent's reading line leaves its station. */
+export const READ_FROM: Vec = [STATION[0] + STATION_R * Math.cos(-0.45), STATION[1] + STATION_R * Math.sin(-0.45)];
+/** The height at which the attacker's things leave its browser for the counter, under the rack; and where its forged stub starts. */
+export const ATTACK_Y = -1.55;
+export const EVIL_OUT: Vec = [EVIL[0] + 2.2, EVIL[1] - 0.05];
 
 // ---------------------------------------------------------------------------------------------
 // The torn ticket.
@@ -197,14 +208,15 @@ export function drawWorld(w: World, s: Stage, shown: Shown): Group {
   // Your agent: its station, with its seal and its key (or the empty slot for one).
   addAll(parts, station(s, { at: STATION, r: STATION_R, keyTeeth: teeth }));
   // The agent reads its own browser's page: a dotted line from the station to the window.
-  const readFrom: Vec = [STATION[0] + STATION_R * Math.cos(-0.45), STATION[1] + STATION_R * Math.sin(-0.45)];
-  parts.add(new Line(readFrom, [WIN[0] - WIN_W / 2, 1.95], { stroke: TONE.steel, strokeWidth: STROKE.line, dashArray: '0.16 0.12' }), 'reads');
+  parts.add(new Line(READ_FROM, [WIN[0] - WIN_W / 2, 1.95], { stroke: TONE.steel, strokeWidth: STROKE.line, dashArray: '0.16 0.12' }), 'reads');
 
   // The Company's counter, and the two roads that reach it.
   addAll(parts, counter(s, { x: COUNTER_X, top: MARGIN.top, bottom: -1.75 }));
   const agentRoad = last?.event === 'fetch' || last?.event === 'authorize';
   const agentReached = last?.event === 'fetch' || (last?.event === 'authorize' && last.answer.status === 204);
-  addAll(parts, lane(s, { id: 'agent', name: 'agent’s requests', y: ROAD_A, from: ROAD_A_FROM, trunk: ROAD_A_FROM[0], to: COUNTER_X, nameX: -5.0, active: agentRoad, reached: agentReached, fan: 0 }));
+  // The agent's road carries no name on it: its tickets travel the whole of it, and a name there would be run over.
+  parts.add(new Line(ROAD_A_FROM, [COUNTER_X, ROAD_A], { stroke: agentRoad ? TONE.ink : TONE.steel, strokeWidth: agentRoad ? STROKE.bold : STROKE.line }), 'lane:agent:line');
+  parts.add(stop(s, { at: [COUNTER_X, ROAD_A], active: agentReached }), 'lane:agent:stop');
   const browserRoad = !!last && ['load', 'submit', 'browse', 'forge'].includes(last.event);
   parts.add(new Line(ROAD_B_FROM, [COUNTER_X, ROAD_B], { stroke: browserRoad ? TONE.ink : TONE.steel, strokeWidth: browserRoad ? STROKE.bold : STROKE.line }), 'road:browser');
   parts.add(stop(s, { at: [COUNTER_X, ROAD_B], active: browserRoad }), 'road:browser:stop');

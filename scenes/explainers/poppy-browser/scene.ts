@@ -1,13 +1,13 @@
 import { AnimationGroup, Group, Rectangle, Scene } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import { answerOf, isRefusal, settingsOf, stage, Machine, view } from '../../../explain/index.ts';
-import type { Choreography, ExplainerMeta, Setting, Transition } from '../../../explain/index.ts';
-import { TONE, beats, flight, pass } from '../lib/poppy-kit.ts';
+import type { ExplainerMeta, Setting, Stage, Transition } from '../../../explain/index.ts';
+import { TONE, beats, cookie, flight, pass } from '../lib/poppy-kit.ts';
 import type { Beat } from '../lib/poppy-kit.ts';
 import { ATTACK_CODE, JOIN_EVENTS, PHISH_CODE, bound, end, next, start, storyOf } from './model.ts';
 import type { JoinEvent, SignIn, World } from './model.ts';
 import {
-  COUNTER_X, EVIL_HALF_AT, JOIN_AT, MESSAGE_AT, PAGE_AT, PALETTE, ROAD_A_FROM, ROAD_B, ROAD_B_FROM, SEAL_AT, SESSION_AT, SHOWN_START,
+  ATTACK_Y, COUNTER_X, EVIL_HALF_AT, EVIL_OUT, JOIN_AT, MESSAGE_AT, MESSAGE_FROM, PAGE_AT, PALETTE, READ_FROM, ROAD_A_FROM, ROAD_B, ROAD_B_FROM, SEAL_AT, SESSION_AT, SHOWN_START, SIDE_X, WIN_LEFT, WIN_RIGHT,
   drawLogins, drawWorld, sayLogins, sayWorld, shortCode, stub,
 } from './picture.ts';
 import type { Shown } from './picture.ts';
@@ -22,12 +22,15 @@ const COUNTER_B: Vec = [COUNTER_X, ROAD_B];
 const together = (...lists: Beat[][]): Beat[] =>
   Array.from({ length: Math.max(...lists.map((l) => l.length)) }, (_, i) => new AnimationGroup(lists.map((l) => l[i]).filter((b): b is Beat => !!b)));
 
-/** A request from the browser: a plain slip of paper, with no seal, since a browser cannot carry the agent's header. */
-const browserRequest = () => new Group(
+/** A request from the browser: a plain slip of paper, with no seal, since a browser cannot carry the agent's header; with its cookie, when it sends one. */
+const browserRequest = (s?: Stage, withCookie = false) => new Group(
   new Rectangle({ width: 0.9, height: 0.52, fill: TONE.paper, stroke: 'none', cornerRadius: 0.06 }),
   new Rectangle({ width: 0.55, height: 0.07, fill: TONE.paperLine, stroke: 'none', cornerRadius: 0.03 }).moveTo([-0.05, 0.08]),
   new Rectangle({ width: 0.35, height: 0.07, fill: TONE.paperLine, stroke: 'none', cornerRadius: 0.03 }).moveTo([-0.15, -0.1]),
+  ...(withCookie && s ? [cookie(s, { at: [0.62, 0], r: 0.24 })] : []),
 );
+/** Parts of the last event, which leave before the next one's flight: its ticket, barrier and answer, the declined message, and the rack's empty notice. */
+const FRESH = ['answer:', 'ticket', 'barrier', 'message', 'rack:none'];
 
 // The agent's browser joining the Session, as a machine: each step of section 6 and each of the
 // attacker's tries is an event of the model; the picture is a view of its state; the last step is
@@ -96,8 +99,6 @@ export default class PoppyBrowser extends Scene<World, Shown> {
       if (!last || !('code' in last)) throw new Error(`${t.event} left no code`);
       return shortCode(last.code);
     };
-    /** Where a row's stub sits on the rack, for things that travel to it. */
-    const rowAt = (c: Choreography, id: string): Vec => c.to(`row:${id}:stub`).center() as Vec;
 
     const machine = new Machine<World, JoinEvent>(this, {
       start: start(signIn),
@@ -117,59 +118,61 @@ export default class PoppyBrowser extends Scene<World, Shown> {
           const c = t.choreograph(world);
           return beats(c, flight(c, 'ticket', [SEAL_AT, ROAD_A_FROM]), { lead: AGENT_ROAD });
         },
-        // The browser asks for the join page; the code comes back into the page and the cookie half onto the shelf.
+        // The browser asks for the join page; the code comes back into the page, then the cookie half down onto the shelf.
         load: (t) => {
           const c = t.choreograph(world), id = codeOf(t);
           return beats(c, () => [
-            ...pass(c, 'request', browserRequest(), [ROAD_B_FROM, COUNTER_B], { appear: 0.2, move: 0.5, leave: 0.15 }),
-            ...together(
-              flight(c, 'page:stub', [COUNTER_B, ROAD_B_FROM, PAGE_AT], { move: 0.9 })(),
-              flight(c, 'shelf:join', [COUNTER_B, [ROAD_B_FROM[0] + 0.4, ROAD_B], [ROAD_B_FROM[0] + 0.4, JOIN_AT[1]], JOIN_AT], { move: 0.9 })(),
-            ),
-          ], { lead: BROWSER_ROAD, then: [`row:${id}:stub`, `row:${id}:ring`] });
+            ...pass(c, 'request', browserRequest(), [ROAD_B_FROM, COUNTER_B], { appear: 0.2, move: 0.45, leave: 0.25 }),
+            ...flight(c, 'page:stub', [COUNTER_B, ROAD_B_FROM, PAGE_AT], { appear: 0.2, move: 0.6, leave: 0.25 })(),
+            ...flight(c, 'shelf:join', [COUNTER_B, [SIDE_X, ROAD_B], [SIDE_X, JOIN_AT[1]], JOIN_AT], { appear: 0.2, move: 0.7, leave: 0.25 })(),
+          ], { fresh: FRESH, lead: BROWSER_ROAD, then: [`row:${id}:stub`, `row:${id}:ring`] });
         },
-        // The agent reads the code from its own page, then sends it on its own road; the stamp is pressed after it lands.
+        // The agent reads the code from its own page along its dotted line, then sends it on its own road; the stamp is
+        // pressed on the Company's stub only once the ticket lands, and covers the ring.
         authorize: (t) => {
           const c = t.choreograph(world), id = codeOf(t);
+          const read = c.from('page:stub').copy().scale(0.6);
           return beats(c, () => [
-            ...pass(c, 'read', c.from('page:stub').copy(), [PAGE_AT, [PAGE_AT[0] - 2.2, 1.95], SEAL_AT], { appear: 0.2, move: 0.7, leave: 0.2 }),
-            ...flight(c, 'ticket', [SEAL_AT, ROAD_A_FROM])(),
-          ], { lead: AGENT_ROAD, then: ['barrier', `row:${id}:ring`, `row:${id}:stamp`, `row:${id}:key`] });
+            ...pass(c, 'read', read, [PAGE_AT, [WIN_LEFT + 0.9, PAGE_AT[1]], [WIN_LEFT, 1.95], READ_FROM, SEAL_AT], { appear: 0.2, move: 0.75, leave: 0.2 }),
+            ...flight(c, 'ticket', [SEAL_AT, ROAD_A_FROM], { appear: 0.2, move: 0.9, leave: 0.2 })(),
+          ], { fresh: FRESH, lead: AGENT_ROAD, then: ['barrier', `row:${id}:stamp`, `row:${id}:key`] });
         },
-        // The stub leaves the page and its half leaves the shelf; they travel together and the half seats on the Company's stub.
+        // The code leaves the page and its cookie half the shelf, in place; both travel the browser's road and are handed
+        // in at the counter. Then the Company's stub shows what came: the half seated against its tear, or a barrier.
+        // On a join, the Session's cookie comes back along the same road to the shelf.
         submit: (t) => {
-          const c = t.choreograph(world), id = codeOf(t), at = rowAt(c, id);
+          const c = t.choreograph(world), id = codeOf(t);
           const joined = t.after.last?.event === 'submit' && t.after.last.answer.status === 303;
           return beats(c, () => {
-            const stubTrip = pass(c, 'carried', c.from('page:stub').copy(), [PAGE_AT, ROAD_B_FROM, COUNTER_B, [at[0] - 0.6, at[1]]], { appear: 0.2, move: 1.0, leave: 0.2 });
-            const halfTrip = flight(c, `row:${id}:half`, [JOIN_AT, [ROAD_B_FROM[0] + 0.4, JOIN_AT[1]], [ROAD_B_FROM[0] + 0.4, ROAD_B], COUNTER_B], { appear: 0.2, move: 1.0, leave: 0.2 })();
-            const away = [c.leave('page:stub', { runTime: 0.2 }), ...(c.has('shelf:join', 'from') && !c.has('shelf:join', 'to') ? [c.leave('shelf:join', { runTime: 0.2 })] : [])];
-            const back = joined ? flight(c, 'shelf:session', [COUNTER_B, [ROAD_B_FROM[0] + 0.4, ROAD_B], [ROAD_B_FROM[0] + 0.4, SESSION_AT[1]], SESSION_AT], { move: 0.7 })() : [];
-            return [new AnimationGroup(away), ...together(stubTrip, halfTrip), ...back];
-          }, { lead: BROWSER_ROAD, then: [`row:${id}:gap`, `row:${id}:barrier`] });
+            const stubTrip = pass(c, 'carried', c.from('page:stub').copy(), [PAGE_AT, ROAD_B_FROM, COUNTER_B], { appear: 0.2, move: 0.8, leave: 0.2 });
+            const halfTrip = pass(c, 'carried:half', c.from('shelf:join').copy(), [JOIN_AT, [SIDE_X, JOIN_AT[1]], [SIDE_X, ROAD_B], COUNTER_B], { appear: 0.2, move: 0.8, leave: 0.2 });
+            const away = [c.leave('page:stub', { runTime: 0.2 }), ...(!c.has('shelf:join', 'to') ? [c.leave('shelf:join', { runTime: 0.2 })] : [])];
+            const seat = c.has(`row:${id}:half`, 'to') ? [new AnimationGroup([c.enter(`row:${id}:half`, {}, { runTime: 0.3 })])] : [];
+            const back = joined ? flight(c, 'shelf:session', [COUNTER_B, [SIDE_X, ROAD_B], [SIDE_X, SESSION_AT[1]], SESSION_AT], { appear: 0.2, move: 0.6, leave: 0.25 })() : [];
+            return [new AnimationGroup([...away, stubTrip[0]!, halfTrip[0]!]), ...together(stubTrip.slice(1), halfTrip.slice(1)), ...seat, ...back];
+          }, { fresh: FRESH, lead: BROWSER_ROAD, then: [`row:${id}:gap`, `row:${id}:barrier`] });
         },
-        // The browser opens a page; its cookie goes with the slip, and the page changes once the answer is back.
+        // The browser opens a page: a slip with its cookie goes to the counter; the page changes once the answer is back.
         browse: (t) => {
           const c = t.choreograph(world);
-          return beats(c, () => pass(c, 'request', browserRequest(), [ROAD_B_FROM, COUNTER_B], { appear: 0.2, move: 0.55, leave: 0.15 }), { lead: BROWSER_ROAD });
+          return beats(c, () => pass(c, 'request', browserRequest(s, true), [ROAD_B_FROM, COUNTER_B], { appear: 0.2, move: 0.55, leave: 0.25 }), { fresh: FRESH, lead: BROWSER_ROAD });
         },
-        // The attacker's stamped stub comes from its own browser, through yours, alone, and stops at a barrier.
+        // The attacker's stamped stub comes from its own browser, into yours, and is handed in at the counter alone:
+        // then the Company's stub shows the empty outline where the cookie half should be, and a barrier.
         forge: (t) => {
-          const c = t.choreograph(world), id = shortCode(ATTACK_CODE), at = rowAt(c, id);
-          const token = stub(s, { at: [0, 0], code: ATTACK_CODE, width: 2.3 }), from: Vec = [EVIL_HALF_AT[0] - 1.6, EVIL_HALF_AT[1] + 0.9];
-          return beats(c, () => pass(c, 'forged', token, [from, [PAGE_AT[0] + 1.0, PAGE_AT[1] - 0.2], ROAD_B_FROM, COUNTER_B, [at[0] - 0.6, at[1]]], { appear: 0.25, move: 1.4, leave: 0.2 }),
-            { lead: BROWSER_ROAD, then: [`row:${id}:gap`, `row:${id}:barrier`] });
+          const c = t.choreograph(world), id = shortCode(ATTACK_CODE);
+          const token = stub(s, { at: [0, 0], code: ATTACK_CODE, width: 2.3 }).scale(0.6);
+          return beats(c, () => pass(c, 'forged', token, [EVIL_OUT, [EVIL_OUT[0], ATTACK_Y], [SIDE_X, ATTACK_Y], [WIN_RIGHT - 0.6, 0.95], ROAD_B_FROM, COUNTER_B], { appear: 0.25, move: 1.3, leave: 0.2 }),
+            { fresh: FRESH, lead: BROWSER_ROAD, then: [`row:${id}:gap`, `row:${id}:barrier`] });
         },
-        // A message brings the attacker's code to your agent, which keeps it out; then the attacker's own browser sends stub and half.
+        // A message brings the attacker's code to your agent along the bottom of the stage and stops beside it, declined.
+        // Then the attacker's own browser sends its cookie half up to the counter: the Company's stub shows it seated, unstamped.
         phish: (t) => {
-          const c = t.choreograph(world), id = shortCode(PHISH_CODE), at = rowAt(c, id);
+          const c = t.choreograph(world), id = shortCode(PHISH_CODE);
           return beats(c, () => [
-            ...flight(c, 'message', [[EVIL_HALF_AT[0] - 1.6, EVIL_HALF_AT[1] + 0.9], [MESSAGE_AT[0] + 2.0, MESSAGE_AT[1] - 0.6]], { move: 0.9 })(),
-            ...together(
-              flight(c, `row:${id}:half`, [EVIL_HALF_AT, [COUNTER_X + 0.3, EVIL_HALF_AT[1]], [COUNTER_X + 0.3, at[1]]], { move: 0.9 })(),
-              pass(c, 'carried', stub(s, { at: [0, 0], code: PHISH_CODE, width: 2.3 }), [[EVIL_HALF_AT[0] - 1.2, EVIL_HALF_AT[1]], [COUNTER_X + 0.3, EVIL_HALF_AT[1] + 0.3], [at[0] - 0.6, at[1]]], { appear: 0.2, move: 0.9, leave: 0.2 }),
-            ),
-          ], { then: [`row:${id}:gap`, `row:${id}:barrier`] });
+            ...flight(c, 'message', [MESSAGE_FROM, [MESSAGE_AT[0], MESSAGE_FROM[1]]], { appear: 0.2, move: 0.8, leave: 0.25 })(),
+            ...pass(c, 'carried:half', c.from('evil:half').copy(), [EVIL_HALF_AT, [EVIL_HALF_AT[0], ATTACK_Y], [COUNTER_X + 0.35, ATTACK_Y]], { appear: 0.2, move: 0.7, leave: 0.2 }),
+          ], { fresh: FRESH, then: [`row:${id}:half`, `row:${id}:gap`, `row:${id}:barrier`] });
         },
       },
     });

@@ -1,12 +1,12 @@
-import { AnimationGroup, Scene } from '../../../src/index.ts';
+import { AnimationGroup, Scene, Succession, Text } from '../../../src/index.ts';
 import type { Animation } from '../../../src/index.ts';
 import { answerOf, isRefusal, stage, Machine, view } from '../../../explain/index.ts';
 import type { Choreography, ExplainerMeta, Transition } from '../../../explain/index.ts';
-import { beats, flight } from '../lib/poppy-kit.ts';
+import { beats, pass, sheet } from '../lib/poppy-kit.ts';
 import type { Beat } from '../lib/poppy-kit.ts';
 import { EVENTS, GATE_NAME, STORY, next, progress, start } from './model.ts';
 import type { DiscoveryEvent, World } from './model.ts';
-import { DOORSTEP, PALETTE, drawWorld, sayWorld } from './picture.ts';
+import { BOARD_SHEET, DOORSTEP, PALETTE, STREET_X, drawWorld, sayWorld } from './picture.ts';
 
 /** Parts that belong to one run of the checks: they go when the reader chooses another server. */
 const RUN = ['url:', 'sheet', 'board', 'shop:mark', 'out:', 'register:', 'back:', 'verdict:', 'rail:barrier', 'rail:done'];
@@ -49,23 +49,39 @@ export default class PoppyDiscovery extends Scene<World, {}> {
       const c = t.choreograph(world), gate = t.after.ran;
       const g = (keys: readonly string[], create: readonly string[] = []) => bring(c, keys, create) as Animation[];
       const thunk = (): Beat[] => {
-        if (gate === 1) {
-          // The fetch: a redirect's first URL and the path's underline come as the sheet sets off from the
-          // address bar; it lands at the doorstep and settles in front of it (or on the noticeboard).
-          const extras = g(['url:first', 'url:redirect', 'url:under', 'board']);
-          if (!c.has('sheet', 'to')) return together(extras);
-          const via: [number, number][] = [c.to('url:path').center() as [number, number], ...(c.to('sheet').center()[1]! < DOORSTEP[1] ? [DOORSTEP] : [])];
-          const [go, ...rest] = flight(c, 'sheet', via, { appear: 0.2, move: 0.7, leave: 0.2 })();
-          return [new AnimationGroup([...extras, go as Animation]), ...rest];
-        }
         if (gate === 2) return [...together(g(['sheet:head'])), ...together(g(['shop:mark', 'sheet:mark']))];
         // The closed register gives way as the arm is drawn out to it; then it stands open at its page.
-        const shut = c.has('register:closed', 'from') && !c.has('register:closed', 'to') ? [c.leave('register:closed', { runTime: 0.5 })] : [];
+        const shut = c.has('register:closed', 'from') && !c.has('register:closed', 'to') ? [c.leave('register:closed', { runTime: 0.3 })] : [];
         if (gate === 3) return [...together([...g(['out:line'], ['out:line']), ...shut]), ...together(g(['out:head', 'out:plate', 'out:label', 'out:code', 'out:note', 'register:title', 'register:page', 'register:none']))];
         // The issuer's rows; then either the arrow back to the shop, or the empty slot and the ghost of an arrow that never arrives.
         return [...together(g(['register:row:0', 'register:row:1'])), ...together(g(['register:slot', 'register:slot:text', 'back:ghost', 'back:line'], ['back:line', 'back:ghost']))];
       };
-      return beats(c, thunk, { fresh: ['verdict:'], then: ['rail:barrier'], lead: ['url:lock', 'url:host', 'url:path'] });
+      return gate === 1 ? fetch(c) : beats(c, thunk, { fresh: ['verdict:'], then: ['rail:barrier'] });
+    };
+
+    /**
+     * The fetch, in its real order. The address bar changes first: the URL the agent ends on (after a
+     * redirect, the first URL above it and the bracket between), and the fascia of the shop it has
+     * arrived at. Then a document travels down from the address bar, beside the shop, to the doorstep
+     * (or to the noticeboard, for a file found at another path), and the sheet is there. Then the
+     * agent's line moves on, or the barrier drops.
+     */
+    const fetch = (c: Choreography): Succession => {
+      const changed = c.keys('to').filter((k) => c.has(k, 'from') && c.from(k) instanceof Text && c.to(k) instanceof Text && (c.from(k) as Text).text !== (c.to(k) as Text).text);
+      const out = changed.map((k) => c.leave(k, { runTime: 0.2 }));
+      const arrive = [...changed.filter((k) => k.startsWith('url:') || k === 'shop:name').map((k) => c.enter(k, {}, { runTime: 0.3 })), ...(bring(c, ['url:first', 'url:redirect', 'url:under', 'board']) as Animation[])];
+      const path = c.to('url:path'), from: [number, number] = [path.center()[0]!, 2.55];
+      const onBoard = c.has('board', 'to'), to = onBoard ? BOARD_SHEET : DOORSTEP;
+      const route: [number, number][] = onBoard ? [from, to] : [from, [STREET_X, from[1]], [STREET_X, to[1]], to];
+      const token = pass(c, 'sheet:token', sheet(s, { width: 0.7, height: 0.9, lines: 2 }), route, { appear: 0.15, move: 0.6, leave: 0.15 });
+      const barrier = bring(c, ['rail:barrier']) as Animation[];
+      return new Succession([
+        ...(out.length ? [new AnimationGroup(out)] : []),
+        ...together(arrive),
+        ...token,
+        ...together(barrier),
+        c.rest({ runTime: 0.35 }),
+      ]);
     };
 
     const machine = new Machine<World, DiscoveryEvent>(this, {
@@ -77,7 +93,7 @@ export default class PoppyDiscovery extends Scene<World, {}> {
       },
       next,
       views: [world],
-      runTime: ({ event, after }) => (event !== 'check' ? 0.4 : after.ran === 1 ? 1.2 : after.ran === 2 ? 0.8 : 1.0),
+      runTime: ({ event, after }) => (event !== 'check' ? 0.4 : after.ran === 1 ? 1.3 : after.ran === 2 ? 0.8 : 1.0),
       transition: {
         check,
         // Choosing a server is a cut to another shop: the last run's parts go, the fascia's name is replaced.

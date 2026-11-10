@@ -254,3 +254,44 @@ test('each picture cites the section of the draft that decided it', () => {
   assert.deepEqual(sections('direct'), ['4.2', '4.7', '4.2', '4.2', '4.2', '4.7', '4.7', '4.4', '5.5']);
   assert.deepEqual(sections('device'), ['4.3', '4.3', '4.7', '4.3', '4.3', '4.3', '4.7', '4.7', '4.4', '5.5']);
 });
+
+// ---------------------------------------------------------------------------------------------
+// Against published artifacts, not a reading of the draft's text: the JSON Schemas of the
+// protocol's Company implementation kit and the example documents of spec.md, in
+// fixtures/poppy-official.json, and RFC 7636 Appendix B, in fixtures/rfc7636-appendix-b.json, each
+// with its source and retrieval date.
+
+import { readFileSync } from 'node:fs';
+import { validate, type Schemas } from '../poppy/fixtures/json-schema.ts';
+import { ISSUER, challengeOf } from './model.ts';
+
+const OFFICIAL: { examples: Record<string, any>; schemas: Schemas } = JSON.parse(readFileSync(new URL('./fixtures/poppy-official.json', import.meta.url), 'utf8'));
+const RFC7636: { verifier_octets: number[]; code_verifier: string; challenge_octets: number[]; code_challenge: string } = JSON.parse(readFileSync(new URL('./fixtures/rfc7636-appendix-b.json', import.meta.url), 'utf8'));
+/** Every value `part` gives is the value at the same place in `whole`. */
+const within = (part: unknown, whole: unknown): boolean =>
+  typeof part === 'object' && part !== null
+    ? typeof whole === 'object' && whole !== null && Object.entries(part).every(([k, v]) => within(v, (whole as Record<string, unknown>)[k]))
+    : part === whole;
+
+test('official kit schemas (poppy-official.json): the client metadata, the device authorization response and auth pass them', () => {
+  assert.deepEqual(validate(OFFICIAL.schemas, 'client-metadata.schema.json', CLIENT), []);
+  assert.deepEqual(validate(OFFICIAL.schemas, 'device-authorization-response.schema.json', DEVICE), []);
+  assert.deepEqual(validate(OFFICIAL.schemas, 'poppy.schema.json#/properties/auth', AUTH), []);
+  assert.notDeepEqual(validate(OFFICIAL.schemas, 'poppy.schema.json#/properties/auth', { ...AUTH, scope_hints: { addresses: { changes: 'maybe', personal_data: true } } }), [], 'and an unknown changes value fails');
+});
+
+test('spec.md 3, 3.2, 4.1 and 4.3 examples (poppy-official.json): AUTH, ISSUER, CLIENT and DEVICE give the example documents’ values', () => {
+  assert.deepEqual(AUTH, OFFICIAL.examples['3 Discovery #1 poppy.json'].auth);
+  assert.ok(within(ISSUER, OFFICIAL.examples['3.2 OAuth server #2 authorization server metadata']));
+  assert.ok(within(CLIENT, OFFICIAL.examples['4.1 Agent identity #1 client metadata']));
+  assert.deepEqual(DEVICE, OFFICIAL.examples['4.3 Device Sign-In #1 device authorization response']);
+});
+
+test('RFC 7636 Appendix B (rfc7636-appendix-b.json): PKCE is the RFC’s pair, the verifier its octets in base64url and the challenge the SHA-256 of the verifier', () => {
+  assert.equal(PKCE.verifier, RFC7636.code_verifier);
+  assert.equal(PKCE.challenge, RFC7636.code_challenge);
+  assert.equal(Buffer.from(RFC7636.verifier_octets).toString('base64url'), RFC7636.code_verifier);
+  assert.deepEqual([...createHash('sha256').update(RFC7636.code_verifier, 'ascii').digest()], RFC7636.challenge_octets);
+  assert.equal(Buffer.from(RFC7636.challenge_octets).toString('base64url'), RFC7636.code_challenge);
+  assert.equal(challengeOf(RFC7636.code_verifier), RFC7636.code_challenge);
+});

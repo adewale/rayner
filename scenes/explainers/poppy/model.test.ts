@@ -201,3 +201,48 @@ test('each picture cites the section of the draft that decided it', () => {
   assert.match(ruleOf(play(RW, ['exchange']).last).says, /grants no account access/);
   assert.match(ruleOf(play(RW, ['sign-in', 'thief']).last).says, /must have signed the header beside it/);
 });
+
+// ---------------------------------------------------------------------------------------------
+// Against the protocol's own published artifacts, not a reading of its text: the JSON Schemas of
+// its Company implementation kit and the example documents of spec.md, both in
+// fixtures/poppy-official.json with their source, commit and retrieval date.
+
+import { readFileSync } from 'node:fs';
+import { validate, type Schemas } from './fixtures/json-schema.ts';
+
+const OFFICIAL: { examples: Record<string, any>; schemas: Schemas } = JSON.parse(readFileSync(new URL('./fixtures/poppy-official.json', import.meta.url), 'utf8'));
+const SPEC_POPPY_JSON = OFFICIAL.examples['3 Discovery #1 poppy.json'];
+const SPEC_AS_METADATA = OFFICIAL.examples['3.2 OAuth server #2 authorization server metadata'];
+const SPEC_SESSION_JWT = OFFICIAL.examples['5.2 The Session header #2 Session JWT'];
+/** Every value `part` gives is the value at the same place in `whole`. */
+const within = (part: unknown, whole: unknown): boolean =>
+  typeof part === 'object' && part !== null
+    ? typeof whole === 'object' && whole !== null && Object.entries(part).every(([k, v]) => within(v, (whole as Record<string, unknown>)[k]))
+    : part === whole;
+
+test('official kit schemas (poppy-official.json): the spec’s own examples pass them, so the checker reads them as the project does', () => {
+  assert.deepEqual(validate(OFFICIAL.schemas, 'poppy.schema.json', SPEC_POPPY_JSON), []);
+  assert.deepEqual(validate(OFFICIAL.schemas, 'protected-resource-metadata.schema.json', OFFICIAL.examples['3.2 OAuth server #1 protected resource metadata']), []);
+  assert.deepEqual(validate(OFFICIAL.schemas, 'authorization-server-metadata.schema.json', SPEC_AS_METADATA), []);
+  assert.deepEqual(validate(OFFICIAL.schemas, 'session-jwt.schema.json', SPEC_SESSION_JWT), []);
+  assert.notDeepEqual(validate(OFFICIAL.schemas, 'poppy.schema.json', { ...SPEC_POPPY_JSON, organization: { name: 'Example Company', domain: 'https://example.com' } }), [], 'and a broken document fails');
+});
+
+test('spec.md 3 and 3.2 examples (poppy-official.json): POPPY_JSON and ISSUER_METADATA give the example documents’ values, and discover accepts the documents themselves', () => {
+  assert.ok(within(POPPY_JSON, SPEC_POPPY_JSON), 'POPPY_JSON is part of the spec’s example poppy.json');
+  assert.ok(within(ISSUER_METADATA, SPEC_AS_METADATA), 'ISSUER_METADATA is part of the spec’s example issuer metadata');
+  assert.deepEqual(discover('example.com', SPEC_POPPY_JSON, SPEC_AS_METADATA), ['api', 'web', 'chat']);
+});
+
+test('official session-jwt.schema.json and spec.md 5.2 example: the claims sign writes are the schema’s, iss, aud, sub, htm and htu are the example’s; sid and ath are shortened stand-ins', () => {
+  const { key: _signature, ...claims } = sign(AGENT, { method: OPERATIONS.exchange.method, url: OPERATIONS.exchange.url, token: tokenOf(play(RW, ['sign-in'])) }, USER_IDS[COMPANY.domain], SID);
+  const claimSchema = (name: string) => `session-jwt.schema.json#/$defs/payload/properties/${name}`;
+  const payload = OFFICIAL.schemas['session-jwt.schema.json'] as { $defs: { payload: { properties: Record<string, unknown> } } };
+  for (const name of Object.keys(claims)) assert.ok(name in payload.$defs.payload.properties, `${name} is a claim the schema defines`);
+  const failing = Object.entries(claims).filter(([name, value]) => validate(OFFICIAL.schemas, claimSchema(name), value).length > 0).map(([name]) => name);
+  // The model's sid is the first six characters of the example's 22, and its ath only has to differ
+  // per token (hashOf); the schema asks for 22 to 256 URL-safe characters and a 43-character hash.
+  assert.deepEqual(failing.sort(), ['ath', 'sid']);
+  assert.ok(SPEC_SESSION_JWT.payload.sid.startsWith(claims.sid));
+  for (const name of ['iss', 'aud', 'sub', 'htm', 'htu'] as const) assert.equal(claims[name], SPEC_SESSION_JWT.payload[name], name);
+});

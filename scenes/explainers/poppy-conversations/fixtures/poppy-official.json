@@ -1,0 +1,887 @@
+{
+ "source": {
+  "what": "Official artifacts of the Personal Agent Protocol (Poppy), draft 0.4, which the project marks as in progress: JSON Schemas from its Company implementation kit, and example documents from the specification text.",
+  "retrieved": "2026-11-10",
+  "licence": "Apache-2.0 (https://personalagentprotocol.org/license: the specification and documentation, including their examples; the repository LICENSE)",
+  "schemas_from": "https://personalagentprotocol.org/kit/company/schemas/{name}, byte-identical to kit/company/schemas/{name} in https://github.com/personal-agent-protocol/personal-agent-protocol at commit 9af9904f19f75f11d0e6352fbf27b42791e18ebe",
+  "schema_sha256": {
+   "approval.schema.json": "a6678d0d99770ccf14873d27e51272d3101dedf0a1c469a15adff14e8e5eee9f",
+   "disclosures-content.schema.json": "bf8a116dc951919c4367dea99c622f640c6ef6a3e92fbc122088fd10d558f42c",
+   "error.schema.json": "c3b0f3810f621b6070de1ee49c580852fce07080a176e0d3d9f77f222718d5f7",
+   "event.schema.json": "c5483c7b83554eeb385c359e7485e03806a214a1e951f4a5b074cc1c56ac995d",
+   "events-response.schema.json": "cc79253ea0cdea26ee9edc3be186f6e282ed168be337b172d9c5aa9c9490b67a",
+   "links-content.schema.json": "63819d5de8d271af2d5b1d615ad0ea2a5215965613911c137c262842591c9c63",
+   "message.schema.json": "6c3f46663d7a8cc5e3def9e0b3e16eb598df1cf245304010cd043b9caf23f78a",
+   "operation.schema.json": "67aa4f9d4a6a03bfb28ee7175a6ed49fdb7b4f503ae6cc303120ecf48f686dc6",
+   "operations-content.schema.json": "51d22d83862c63d0a5172cf3bdae1259b635ba2cac3ac19f3fdd4c69a2a81e9f"
+  },
+  "examples_from": "https://personalagentprotocol.org/docs/0.4/spec.md (sha256 b65e9620fd777a214e73e923f8e17691be390fcc07c5dd4e21c3707c8468a967), each JSON code block as published, keyed by section and its place in that section. The HTTP request line and headers before each request body are left out; the body is as published.",
+  "note": "Copied as published; nothing edited. The project checks every JSON example in the spec against these schemas in its own build (lib/kit/examples.ts)."
+ },
+ "examples": {
+  "8.3 Sending messages #1 (Personal Agent)": {
+   "id": "msg_Yq3v8LrT0aWc5NkE",
+   "message": {
+    "author": {
+     "type": "agent"
+    },
+    "text": "The jacket from order #1042 isn't warm enough. The user wants to return it.",
+    "context": {
+     "locale": "en-US",
+     "time_zone": "America/Los_Angeles",
+     "user_available": true
+    }
+   }
+  },
+  "8.3 Sending messages #3 (Personal Agent)": {
+   "id": "msg_Hc72PwZn4eKs1QxB",
+   "message": {
+    "author": {
+     "type": "agent"
+    },
+    "text": "Does the insulated version come in medium?"
+   }
+  },
+  "8.3 Sending messages #4 (Personal Agent)": {
+   "id": "msg_Tb5nRw8Ke2Lp0VsD",
+   "message": {
+    "author": {
+     "type": "agent"
+    },
+    "as_of_cursor": "evt_c2",
+    "text": "Medium, please."
+   }
+  },
+  "8.4 Message fields #1 (Personal Agent message)": {
+   "author": {
+    "type": "agent"
+   },
+   "text": "The user would like seats together for their family of six on flight SB 482.",
+   "data": {
+    "travelers": [
+     {
+      "name": "Dana Reyes",
+      "seat": "14A",
+      "frequent_flyer": "SB 4821 9930",
+      "known_traveler": "TT7K2M9QX"
+     },
+     {
+      "name": "Sam Reyes",
+      "seat": "14B",
+      "frequent_flyer": "SB 4821 9947",
+      "known_traveler": "TT9W4R1LD"
+     },
+     {
+      "name": "Ava Reyes",
+      "seat": "14C",
+      "frequent_flyer": "SB 5530 1182"
+     },
+     {
+      "name": "Leo Reyes",
+      "seat": "15A"
+     },
+     {
+      "name": "Mia Reyes",
+      "seat": "15B"
+     },
+     {
+      "name": "Noah Reyes",
+      "seat": "15C"
+     }
+    ]
+   }
+  },
+  "8.4 Message fields #2 (Personal Agent message)": {
+   "author": {
+    "type": "agent"
+   },
+   "context": {
+    "user_available": false
+   }
+  },
+  "8.4 Message fields #3 (Company message)": {
+   "id": "msg_p7Rt",
+   "role": "company",
+   "author": {
+    "type": "agent"
+   },
+   "text": "Unopened boxes can be returned within 30 days. We can't take back opened food.",
+   "extensions": {
+    "links": {
+     "items": [
+      {
+       "url": "https://example.com/help/returns",
+       "title": "Return policy"
+      }
+     ]
+    }
+   }
+  },
+  "8.5 Reading events #2": {
+   "conversation_id": "cnv_8f3Kd2",
+   "events": [
+    {
+     "id": "evt_c2",
+     "type": "message",
+     "created_at": "2026-10-08T19:03:00Z",
+     "message": {
+      "id": "msg_r2Kq",
+      "role": "company",
+      "author": {
+       "type": "agent"
+      },
+      "as_of_request": "msg_Hc72PwZn4eKs1QxB",
+      "text": "I can do that. The insulated version would be warmer. Want to exchange instead for $70 more?",
+      "data": {
+       "replacement_sku": "stormline-insulated-m",
+       "price_difference": 70
+      }
+     }
+    }
+   ],
+   "cursor": "evt_c2",
+   "has_more": false,
+   "working": false,
+   "handoff": "none",
+   "responder": "agent",
+   "closed": false
+  },
+  "8.7 State #1": {
+   "conversation_id": "cnv_8f3Kd2",
+   "events": [
+    {
+     "id": "evt_c4",
+     "type": "state",
+     "created_at": "2026-10-08T19:05:10Z",
+     "handoff": "none",
+     "responder": "human",
+     "closed": false
+    },
+    {
+     "id": "evt_c5",
+     "type": "message",
+     "created_at": "2026-10-08T19:05:20Z",
+     "message": {
+      "id": "msg_t8Vn",
+      "role": "company",
+      "author": {
+       "type": "human",
+       "id": "aut_alex",
+       "name": "Alex"
+      },
+      "text": "I've reviewed the exchange. Can you confirm which size the user wants?"
+     }
+    }
+   ],
+   "cursor": "evt_c5",
+   "has_more": false,
+   "working": false,
+   "handoff": "none",
+   "responder": "human",
+   "closed": false
+  },
+  "8.8 Human or AI #1 (Personal Agent)": {
+   "id": "msg_Fz4kQa9Ue1YoBs6R",
+   "message": {
+    "author": {
+     "type": "human"
+    },
+    "text": "Medium, please."
+   }
+  },
+  "8.10 Direct Conversations #1 (Personal Agent)": {
+   "id": "msg_Pe6jWm3Kd0RtXc8V",
+   "parent_conversation_id": "cnv_8f3Kd2",
+   "message": {
+    "author": {
+     "type": "human"
+    },
+    "text": "Hi, I have a question about the exchange."
+   }
+  },
+  "8.10 Direct Conversations #2 event": {
+   "id": "evt_c6",
+   "type": "user_requested",
+   "created_at": "2026-10-08T19:06:00Z",
+   "reason": "A specialist needs to confirm the exchange with the customer."
+  },
+  "8.11 Sign-in during a conversation #1 event": {
+   "id": "evt_d3",
+   "type": "authorization",
+   "created_at": "2026-10-08T19:04:00Z",
+   "error": "insufficient_scope",
+   "scope": "orders:read orders:write"
+  },
+  "8.2 Requests #1 error": {
+   "error": "version_mismatch",
+   "protocol_version": "0.4"
+  }
+ },
+ "schemas": {
+  "approval.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "approval.schema.json",
+   "title": "Approval",
+   "description": "An approval of one revision of an operation, user approved or agent approved (the Personal Agent approved on the User's instruction), sent by the Personal Agent. Operations extension 5 and 6. In a conversation message's extensions.operations.approval, or in an MCP tool call's _meta under personalagentprotocol.org/approval. At APIs, the same members go in the Poppy-Approval header as a Dictionary Structured Field. Unknown members are ignored.",
+   "type": "object",
+   "required": [
+    "operation_id",
+    "revision",
+    "approver"
+   ],
+   "if": {
+    "properties": {
+     "approver": {
+      "const": "agent"
+     }
+    }
+   },
+   "then": {
+    "not": {
+     "required": [
+      "input_type"
+     ]
+    }
+   },
+   "properties": {
+    "operation_id": {
+     "$ref": "message.schema.json#/$defs/id"
+    },
+    "revision": {
+     "$ref": "message.schema.json#/$defs/id"
+    },
+    "approver": {
+     "enum": [
+      "user",
+      "agent"
+     ],
+     "description": "user for a user approval, agent for an agent approval on the User's instruction. Operations extension 5 and 6."
+    },
+    "approved_at": {
+     "type": "integer",
+     "description": "In Unix seconds. With user, when the User approved. With agent, when the Personal Agent approved. Operations extension 6."
+    },
+    "input_type": {
+     "type": "string",
+     "description": "Only with user, never with agent. How the User gave their answer, such as tap, typed, or voice. Other values are allowed. Operations extension 6."
+    },
+    "reference": {
+     "$ref": "message.schema.json#/$defs/id",
+     "description": "An opaque ID for the Personal Agent's own record of the approval, such as a ledger entry. Never the same at two Companies. Operations extension 6."
+    }
+   }
+  },
+  "disclosures-content.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "disclosures-content.schema.json",
+   "title": "Disclosures extension message content",
+   "description": "The value of extensions.disclosures in a Company message (spec 8.4, Disclosures 3).",
+   "type": "object",
+   "required": [
+    "items"
+   ],
+   "properties": {
+    "items": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "required": [
+       "text"
+      ],
+      "properties": {
+       "text": {
+        "type": "string",
+        "minLength": 1
+       }
+      }
+     }
+    }
+   }
+  },
+  "error.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "error.schema.json",
+   "title": "Poppy JSON error",
+   "description": "An error with a JSON body from an endpoint this protocol or an extension defines, such as conversations (spec 8.13), feedback (9.3), and the browser-session authorization (6), including invalid_session, session_ended, and version_unsupported (HTTP 400, spec 5.3, 5.5, and 3.4) and extension_required (HTTP 403, 3.3), all also at APIs. extension_required names the extension in extension, direct_conversation_open names the open Direct Conversation in conversation_id (8.10), and version_mismatch gives the conversation's protocol version in protocol_version (8.2). Unknown fields are allowed.",
+   "type": "object",
+   "required": [
+    "error"
+   ],
+   "properties": {
+    "error": {
+     "type": "string",
+     "minLength": 1
+    },
+    "error_description": {
+     "type": "string"
+    },
+    "extension": {
+     "type": "string",
+     "minLength": 1
+    },
+    "conversation_id": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_-]{1,256}$"
+    },
+    "protocol_version": {
+     "type": "string",
+     "pattern": "^[0-9]+\\.[0-9]+$"
+    }
+   },
+   "allOf": [
+    {
+     "if": {
+      "properties": {
+       "error": {
+        "const": "extension_required"
+       }
+      },
+      "required": [
+       "error"
+      ]
+     },
+     "then": {
+      "required": [
+       "extension"
+      ]
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "error": {
+        "const": "direct_conversation_open"
+       }
+      },
+      "required": [
+       "error"
+      ]
+     },
+     "then": {
+      "required": [
+       "conversation_id"
+      ]
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "error": {
+        "const": "version_mismatch"
+       }
+      },
+      "required": [
+       "error"
+      ]
+     },
+     "then": {
+      "required": [
+       "protocol_version"
+      ]
+     }
+    }
+   ]
+  },
+  "event.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "event.schema.json",
+   "title": "Conversation event",
+   "description": "One event in a conversation, as returned by GET {endpoint}/{id}/events or streamed. Spec sections 8.5 (Reading events), 8.7 (State), 8.10, and 8.11. Every event has id, type, and created_at, and its type says which other fields it has. Personal Agents skip types they don't recognize, so other types are allowed.",
+   "type": "object",
+   "required": [
+    "id",
+    "type",
+    "created_at"
+   ],
+   "properties": {
+    "id": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_-]{1,256}$"
+    },
+    "type": {
+     "type": "string",
+     "minLength": 1
+    },
+    "created_at": {
+     "type": "string",
+     "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt][0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?([Zz]|[+-][0-9]{2}:[0-9]{2})$",
+     "format": "date-time"
+    }
+   },
+   "allOf": [
+    {
+     "if": {
+      "properties": {
+       "type": {
+        "const": "message"
+       }
+      }
+     },
+     "then": {
+      "required": [
+       "message"
+      ],
+      "properties": {
+       "message": {
+        "allOf": [
+         {
+          "$ref": "message.schema.json"
+         },
+         {
+          "required": [
+           "id",
+           "role"
+          ]
+         }
+        ]
+       }
+      }
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "type": {
+        "const": "state"
+       }
+      }
+     },
+     "then": {
+      "required": [
+       "handoff",
+       "responder",
+       "closed"
+      ],
+      "properties": {
+       "handoff": {
+        "enum": [
+         "none",
+         "pending"
+        ]
+       },
+       "responder": {
+        "enum": [
+         "agent",
+         "human"
+        ]
+       },
+       "closed": {
+        "type": "boolean"
+       }
+      }
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "type": {
+        "const": "authorization"
+       }
+      }
+     },
+     "then": {
+      "required": [
+       "error",
+       "scope"
+      ],
+      "properties": {
+       "error": {
+        "const": "insufficient_scope"
+       },
+       "scope": {
+        "type": "string"
+       }
+      }
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "type": {
+        "const": "user_requested"
+       }
+      }
+     },
+     "then": {
+      "required": [
+       "reason"
+      ],
+      "properties": {
+       "reason": {
+        "type": "string"
+       }
+      }
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "type": {
+        "enum": [
+         "direct_opened",
+         "direct_closed"
+        ]
+       }
+      }
+     },
+     "then": {
+      "required": [
+       "conversation_id"
+      ],
+      "properties": {
+       "conversation_id": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{1,256}$"
+       }
+      }
+     }
+    }
+   ]
+  },
+  "events-response.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "events-response.schema.json",
+   "title": "Events response",
+   "description": "The response to GET {endpoint}/{id}/events, and to a POST with the wait query parameter. Spec sections 8.5 (Reading events) and 8.7 (State). Every successful read includes conversation_id, events, cursor, has_more, and the state fields working, handoff, responder, and closed, with events empty when there are none. cursor is the last event returned, or the request's cursor if there were none; the spec doesn't say what it is for an empty read without a cursor, so null is allowed.",
+   "type": "object",
+   "required": [
+    "conversation_id",
+    "events",
+    "cursor",
+    "has_more",
+    "working",
+    "handoff",
+    "responder",
+    "closed"
+   ],
+   "properties": {
+    "conversation_id": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_-]{1,256}$"
+    },
+    "events": {
+     "type": "array",
+     "items": {
+      "$ref": "event.schema.json"
+     }
+    },
+    "cursor": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "has_more": {
+     "type": "boolean"
+    },
+    "working": {
+     "type": "boolean"
+    },
+    "handoff": {
+     "enum": [
+      "none",
+      "pending"
+     ]
+    },
+    "responder": {
+     "enum": [
+      "agent",
+      "human"
+     ]
+    },
+    "closed": {
+     "type": "boolean"
+    }
+   }
+  },
+  "links-content.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "links-content.schema.json",
+   "title": "Links extension message content",
+   "description": "The value of extensions.links in a Company message (spec 8.4, Links 3).",
+   "type": "object",
+   "required": [
+    "items"
+   ],
+   "properties": {
+    "items": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "required": [
+       "url"
+      ],
+      "properties": {
+       "url": {
+        "type": "string",
+        "pattern": "^https://",
+        "format": "uri"
+       },
+       "title": {
+        "type": "string",
+        "minLength": 1
+       }
+      }
+     }
+    }
+   }
+  },
+  "message.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "message.schema.json",
+   "title": "Conversation message",
+   "description": "A message in a Personal Agent Protocol conversation, from either side. Spec sections 8.3 (Sending messages) and 8.4 (Message fields). A message has text, data, context, or extensions. extensions holds content that extensions define, keyed by extension name: operations (Operations extension 2, 4, 6), links, and disclosures are checked here, and other extensions' content must be an object. id and role are set by the Company when it records the message as an event: a Personal Agent message's id is its request's ID. The Personal Agent doesn't send them. as_of_request is only on Company Agent messages and as_of_cursor only on messages the Personal Agent wrote; a message with author.type human has neither (8.4). Unknown fields are allowed.",
+   "type": "object",
+   "required": [
+    "author"
+   ],
+   "properties": {
+    "id": {
+     "$ref": "#/$defs/id"
+    },
+    "role": {
+     "enum": [
+      "user",
+      "company"
+     ]
+    },
+    "as_of_request": {
+     "$ref": "#/$defs/id"
+    },
+    "as_of_cursor": {
+     "type": "string",
+     "minLength": 1
+    },
+    "text": {
+     "type": "string"
+    },
+    "data": {
+     "type": "object"
+    },
+    "author": {
+     "type": "object",
+     "required": [
+      "type"
+     ],
+     "properties": {
+      "type": {
+       "enum": [
+        "agent",
+        "human"
+       ]
+      },
+      "id": {
+       "type": "string",
+       "minLength": 1
+      },
+      "name": {
+       "type": "string",
+       "minLength": 1
+      },
+      "image": {
+       "type": "string",
+       "pattern": "^https://",
+       "format": "uri"
+      }
+     }
+    },
+    "context": {
+     "type": "object",
+     "properties": {
+      "locale": {
+       "type": "string",
+       "minLength": 1
+      },
+      "time_zone": {
+       "type": "string",
+       "minLength": 1
+      },
+      "user_available": {
+       "type": "boolean"
+      }
+     }
+    },
+    "extensions": {
+     "type": "object",
+     "properties": {
+      "operations": {
+       "$ref": "operations-content.schema.json"
+      },
+      "links": {
+       "$ref": "links-content.schema.json"
+      },
+      "disclosures": {
+       "$ref": "disclosures-content.schema.json"
+      }
+     },
+     "additionalProperties": {
+      "type": "object"
+     }
+    }
+   },
+   "anyOf": [
+    {
+     "required": [
+      "text"
+     ]
+    },
+    {
+     "required": [
+      "data"
+     ]
+    },
+    {
+     "required": [
+      "context"
+     ]
+    },
+    {
+     "required": [
+      "extensions"
+     ]
+    }
+   ],
+   "$defs": {
+    "id": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_-]{1,256}$"
+    }
+   },
+   "allOf": [
+    {
+     "if": {
+      "properties": {
+       "author": {
+        "properties": {
+         "type": {
+          "const": "human"
+         }
+        },
+        "required": [
+         "type"
+        ]
+       }
+      },
+      "required": [
+       "author"
+      ]
+     },
+     "then": {
+      "not": {
+       "anyOf": [
+        {
+         "required": [
+          "as_of_request"
+         ]
+        },
+        {
+         "required": [
+          "as_of_cursor"
+         ]
+        }
+       ]
+      }
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "role": {
+        "const": "user"
+       }
+      },
+      "required": [
+       "role"
+      ]
+     },
+     "then": {
+      "not": {
+       "required": [
+        "as_of_request"
+       ]
+      }
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "role": {
+        "const": "company"
+       }
+      },
+      "required": [
+       "role"
+      ]
+     },
+     "then": {
+      "not": {
+       "required": [
+        "as_of_cursor"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "operation.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "operation.schema.json",
+   "title": "Operation",
+   "description": "An action the Company performs only once its exact terms are approved, by the User or by the Personal Agent on the User's instruction. Operations extension 3 (The operation). Returned in the body of an approval_required API error, in structuredContent of an MCP tool result, or in a Company message's extensions.operations.operation (Operations 4).",
+   "type": "object",
+   "required": [
+    "operation_id",
+    "revision",
+    "terms",
+    "expires_at"
+   ],
+   "properties": {
+    "operation_id": {
+     "$ref": "message.schema.json#/$defs/id"
+    },
+    "revision": {
+     "$ref": "message.schema.json#/$defs/id"
+    },
+    "summary": {
+     "type": "string",
+     "minLength": 1
+    },
+    "terms": {
+     "type": "object"
+    },
+    "expires_at": {
+     "type": "string",
+     "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt][0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?([Zz]|[+-][0-9]{2}:[0-9]{2})$",
+     "format": "date-time"
+    }
+   }
+  },
+  "operations-content.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "operations-content.schema.json",
+   "title": "Operations extension message content",
+   "description": "The value of extensions.operations in a conversation message (spec 8.4, Operations 2): operation in a Company message (Operations 4), approval in a Personal Agent message (Operations 6).",
+   "type": "object",
+   "properties": {
+    "operation": {
+     "$ref": "operation.schema.json"
+    },
+    "approval": {
+     "$ref": "approval.schema.json"
+    }
+   },
+   "oneOf": [
+    {
+     "required": [
+      "operation"
+     ]
+    },
+    {
+     "required": [
+      "approval"
+     ]
+    }
+   ]
+  }
+ }
+}

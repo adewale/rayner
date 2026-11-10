@@ -273,3 +273,48 @@ test('the story replays without a refusal and ends where the reader can press', 
   assert.deepEqual(w, { server: 'uk', ran: 4 });
   assert.deepEqual(progress(w).verdict, { accepted: true, company: ISSUER, signIn: true, userId: 'usr_Q7c1vK' });
 });
+
+// ---------------------------------------------------------------------------------------------
+// Against the protocol's own published artifacts, not a reading of its text: the JSON Schemas of
+// its Company implementation kit and the example documents of spec.md, both in
+// fixtures/poppy-official.json with their source, commit and retrieval date.
+
+import { readFileSync } from 'node:fs';
+import { validate, type Schemas } from '../poppy/fixtures/json-schema.ts';
+
+const OFFICIAL: { examples: Record<string, any>; schemas: Schemas } = JSON.parse(readFileSync(new URL('./fixtures/poppy-official.json', import.meta.url), 'utf8'));
+const SPEC_POPPY_JSON = OFFICIAL.examples['3 Discovery #1 poppy.json'];
+const SPEC_PRM = OFFICIAL.examples['3.2 OAuth server #1 protected resource metadata'];
+const SPEC_AS_METADATA = OFFICIAL.examples['3.2 OAuth server #2 authorization server metadata'];
+/** Every value `part` gives is the value at the same place in `whole`. */
+const within = (part: unknown, whole: unknown): boolean =>
+  typeof part === 'object' && part !== null
+    ? typeof whole === 'object' && whole !== null && Object.entries(part).every(([k, v]) => within(v, (whole as Record<string, unknown>)[k]))
+    : part === whole;
+
+test('official kit schemas (poppy-official.json): every protected resource and issuer metadata document in the story’s web passes them, and so does the small shop’s poppy.json', () => {
+  const checked: string[] = [];
+  for (const [url, answer] of Object.entries(BASE_WEB)) {
+    if (answer === 'timeout' || answer.status !== 200) continue;
+    const schema = url.includes('/.well-known/oauth-protected-resource') ? 'protected-resource-metadata.schema.json'
+      : url.includes('/.well-known/oauth-authorization-server') ? 'authorization-server-metadata.schema.json' : null;
+    if (!schema) continue;
+    assert.deepEqual(validate(OFFICIAL.schemas, schema, answer.body), [], url);
+    checked.push(url);
+  }
+  assert.equal(checked.length, 4);
+  const corner = BASE_WEB[wellKnownUrl('corner.example')];
+  assert.ok(corner !== 'timeout' && corner?.status === 200);
+  assert.deepEqual(validate(OFFICIAL.schemas, 'poppy.schema.json', corner.body), []);
+});
+
+test('spec.md 3 and 3.2 examples (poppy-official.json): the model’s documents give the examples’ values, and discover accepts the example documents themselves', () => {
+  const { supported_versions: _from34, ...realDoc } = REAL_DOC;
+  assert.ok(within(realDoc, SPEC_POPPY_JSON), 'REAL_DOC is part of the spec’s example poppy.json (supported_versions is 3.4’s example)');
+  assert.ok(within(AS_METADATA, SPEC_AS_METADATA), 'AS_METADATA is part of the spec’s example issuer metadata');
+  assert.deepEqual(validate(OFFICIAL.schemas, 'poppy.schema.json', SPEC_POPPY_JSON), []);
+  const web: Web = { [wellKnownUrl('example.com')]: { status: 200, body: SPEC_POPPY_JSON }, [prmUrl('example.com')]: { status: 200, body: SPEC_PRM }, [asMetadataUrl(SPEC_AS_METADATA.issuer)]: { status: 200, body: SPEC_AS_METADATA } };
+  const found = discover('example.com', web);
+  assert.ok(!isStop(found), JSON.stringify(found));
+  assert.deepEqual({ company: found.company, signIn: found.signIn, channels: [...found.channels].sort() }, { company: COMPANY.issuer, signIn: true, channels: ['api', 'chat', 'web'] });
+});

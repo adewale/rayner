@@ -275,3 +275,47 @@ test('9.4: skill URLs resolve against tasks.endpoint as RFC 3986 §5 says (held 
   for (const ref of ['skills/a/SKILL.md', '/skills/b/SKILL.md', './c/SKILL.md', '../d/SKILL.md', '../../e.zip', 'f?x=1', '//cdn.example.com/g', 'https://cdn.other.example/h.zip', 'skills/./i/../j.md'])
     assert.equal(resolveReference(ref, TASKS_ENDPOINT), new URL(ref, TASKS_ENDPOINT).href, ref);
 });
+
+// ---------------------------------------------------------------------------------------------
+// Against published artifacts, not a reading of the draft's text: the JSON Schemas of the
+// protocol's Company implementation kit and the section 9 examples of spec.md, in
+// fixtures/poppy-official.json, and SHA-256 test vectors from RFC 6234 and RFC 9449, in
+// fixtures/sha256-vectors.json, each with its source and retrieval date.
+
+import { readFileSync } from 'node:fs';
+import { validate, type Schemas } from '../poppy/fixtures/json-schema.ts';
+
+const OFFICIAL: { examples: Record<string, any>; schemas: Schemas } = JSON.parse(readFileSync(new URL('./fixtures/poppy-official.json', import.meta.url), 'utf8'));
+const VECTORS: { rfc6234_sha256: { test: number; text: string; repeat: number; sha256: string }[]; rfc9449_ath: { access_token: string; ath: string } } =
+  JSON.parse(readFileSync(new URL('./fixtures/sha256-vectors.json', import.meta.url), 'utf8'));
+const SPEC_TASKS = OFFICIAL.examples['9 Task coverage #1 tasks response'];
+const SPEC_ALTERNATIVE = OFFICIAL.examples['9.2 Alternatives #1 alternative'];
+const SPEC_REPORT = OFFICIAL.examples['9.3 Feedback #1 report'];
+
+test('official kit schemas (poppy-official.json): both Companies’ tasks responses and alternatives, and every report the agent writes, pass them', () => {
+  assert.deepEqual(validate(OFFICIAL.schemas, 'tasks.schema.json', SPEC_TASKS), [], 'the spec’s own example passes, so the checker reads them as the project does');
+  for (const company of COMPANIES) {
+    assert.deepEqual(validate(OFFICIAL.schemas, 'tasks.schema.json', tasksResponse(company)), [], company);
+    assert.deepEqual(validate(OFFICIAL.schemas, 'alternative.schema.json', giftAlternative(company)), [], company);
+  }
+  for (const task of Object.keys(TASKS) as (keyof typeof TASKS)[]) assert.deepEqual(validate(OFFICIAL.schemas, 'feedback-report.schema.json', reportFor(task)), [], task);
+  assert.notDeepEqual(validate(OFFICIAL.schemas, 'tasks.schema.json', { ...tasksResponse('honest'), skill_index: { $schema: SKILLS_SCHEMA, skills: [{ ...tasksResponse('honest').skill_index!.skills[0]!, digest: 'sha256:ABC' }] } }), [], 'and a malformed digest fails');
+});
+
+test('spec.md 9, 9.2 and 9.3 examples (poppy-official.json): the model reads the example tasks response, gives the example alternative, and writes the example report', () => {
+  const coverage = coverageOf(SPEC_TASKS);
+  assert.deepEqual(coverage.excluded, SPEC_TASKS.excluded_tasks);
+  assert.deepEqual(coverage.skills.map((s) => s.name), ['manage-bookings']);
+  assert.equal(coverage.feedback, SPEC_TASKS.feedback.endpoint);
+  assert.deepEqual(giftAlternative('honest'), SPEC_ALTERNATIVE);
+  assert.ok(isAlternative(SPEC_ALTERNATIVE));
+  assert.deepEqual(reportFor('gift'), SPEC_REPORT);
+  assert.deepEqual(reportProblems(SPEC_REPORT), []);
+});
+
+test('RFC 6234 test vectors and RFC 9449’s ath example (sha256-vectors.json): sha256 gives the published digests', () => {
+  assert.equal(VECTORS.rfc6234_sha256.length, 4);
+  for (const v of VECTORS.rfc6234_sha256) assert.equal(sha256(v.text.repeat(v.repeat)), v.sha256, `RFC 6234 SHA-256 test ${v.test}`);
+  const { access_token, ath } = VECTORS.rfc9449_ath;
+  assert.equal(Buffer.from(sha256(access_token), 'hex').toString('base64url'), ath);
+});

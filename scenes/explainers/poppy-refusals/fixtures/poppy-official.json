@@ -1,0 +1,108 @@
+{
+ "source": {
+  "what": "Official artifacts of the Personal Agent Protocol (Poppy), draft 0.4, which the project marks as in progress: JSON Schemas from its Company implementation kit, and example documents from the specification text.",
+  "retrieved": "2026-11-10",
+  "licence": "Apache-2.0 (https://personalagentprotocol.org/license: the specification and documentation, including their examples; the repository LICENSE)",
+  "schemas_from": "https://personalagentprotocol.org/kit/company/schemas/{name}, byte-identical to kit/company/schemas/{name} in https://github.com/personal-agent-protocol/personal-agent-protocol at commit 9af9904f19f75f11d0e6352fbf27b42791e18ebe",
+  "schema_sha256": {
+   "error.schema.json": "c3b0f3810f621b6070de1ee49c580852fce07080a176e0d3d9f77f222718d5f7"
+  },
+  "examples_from": "https://personalagentprotocol.org/docs/0.4/spec.md (sha256 b65e9620fd777a214e73e923f8e17691be390fcc07c5dd4e21c3707c8468a967), each JSON code block as published, keyed by section and its place in that section. ",
+  "note": "Copied as published; nothing edited. The project checks every JSON example in the spec against these schemas in its own build (lib/kit/examples.ts)."
+ },
+ "examples": {
+  "3.3 Extensions #2 error": {
+   "error": "extension_required",
+   "extension": "example.com/gift-wrap"
+  },
+  "3.4 Versions #3 error": {
+   "error": "version_unsupported"
+  }
+ },
+ "schemas": {
+  "error.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "error.schema.json",
+   "title": "Poppy JSON error",
+   "description": "An error with a JSON body from an endpoint this protocol or an extension defines, such as conversations (spec 8.13), feedback (9.3), and the browser-session authorization (6), including invalid_session, session_ended, and version_unsupported (HTTP 400, spec 5.3, 5.5, and 3.4) and extension_required (HTTP 403, 3.3), all also at APIs. extension_required names the extension in extension, direct_conversation_open names the open Direct Conversation in conversation_id (8.10), and version_mismatch gives the conversation's protocol version in protocol_version (8.2). Unknown fields are allowed.",
+   "type": "object",
+   "required": [
+    "error"
+   ],
+   "properties": {
+    "error": {
+     "type": "string",
+     "minLength": 1
+    },
+    "error_description": {
+     "type": "string"
+    },
+    "extension": {
+     "type": "string",
+     "minLength": 1
+    },
+    "conversation_id": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_-]{1,256}$"
+    },
+    "protocol_version": {
+     "type": "string",
+     "pattern": "^[0-9]+\\.[0-9]+$"
+    }
+   },
+   "allOf": [
+    {
+     "if": {
+      "properties": {
+       "error": {
+        "const": "extension_required"
+       }
+      },
+      "required": [
+       "error"
+      ]
+     },
+     "then": {
+      "required": [
+       "extension"
+      ]
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "error": {
+        "const": "direct_conversation_open"
+       }
+      },
+      "required": [
+       "error"
+      ]
+     },
+     "then": {
+      "required": [
+       "conversation_id"
+      ]
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "error": {
+        "const": "version_mismatch"
+       }
+      },
+      "required": [
+       "error"
+      ]
+     },
+     "then": {
+      "required": [
+       "protocol_version"
+      ]
+     }
+    }
+   ]
+  }
+ }
+}

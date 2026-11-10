@@ -1,0 +1,261 @@
+{
+ "source": {
+  "what": "Official artifacts of the Personal Agent Protocol (Poppy), draft 0.4, which the project marks as in progress: JSON Schemas from its Company implementation kit, and example documents from the specification text.",
+  "retrieved": "2026-11-10",
+  "licence": "Apache-2.0 (https://personalagentprotocol.org/license: the specification and documentation, including their examples; the repository LICENSE)",
+  "schemas_from": "https://personalagentprotocol.org/kit/company/schemas/{name}, byte-identical to kit/company/schemas/{name} in https://github.com/personal-agent-protocol/personal-agent-protocol at commit 9af9904f19f75f11d0e6352fbf27b42791e18ebe",
+  "schema_sha256": {
+   "delegation.schema.json": "5fae80ffead36cbb382b247516e031e743cea0779b06ed8e9d29e0a1bcc64365",
+   "session-jwt.schema.json": "60351055732e25fcda349a71cfb35ed03eddfdf7b52f93e58ef4ac3651052f73"
+  },
+  "examples_from": "https://personalagentprotocol.org/docs/0.4/spec.md (sha256 b65e9620fd777a214e73e923f8e17691be390fcc07c5dd4e21c3707c8468a967), each JSON code block as published, keyed by section and its place in that section. The 5.2 Session JWT block is a header and a payload separated by a line holding \".\", stored here as {header, payload}.",
+  "note": "Copied as published; nothing edited. The project checks every JSON example in the spec against these schemas in its own build (lib/kit/examples.ts)."
+ },
+ "examples": {
+  "5.2 The Session header #2 Session JWT": {
+   "header": {
+    "typ": "poppy-session+jwt",
+    "alg": "ES256",
+    "kid": "9E421cSqd5UfAq5slDKYxXQd8Zmm8B3CIsT9cDxRHx8",
+    "poppy_dlg": "eyJhbGciOiJFUzI1NiIsInR5cCI6InBvcHB5LWRlbGVnYXRpb24rand0Iiw…"
+   },
+   "payload": {
+    "iss": "https://agent.example/agent.json",
+    "aud": "https://auth.example.com",
+    "sid": "Yx2b7Qd_Kp8mR3vT1nWc4A",
+    "sub": "usr_Q7c1vK",
+    "htm": "POST",
+    "htu": "https://api.example.com/orders/ord_7Hk2/exchanges",
+    "iat": 1790900000,
+    "jti": "e1j3V_bKic8-LAEBq7Rw2g",
+    "ath": "fUHyO2r2Z3DZ53EsNrWBb0xWXoaNy59IiKCAqksmQEo"
+   }
+  },
+  "5.2 Delegated keys #1 delegation header": {
+   "alg": "ES256",
+   "typ": "poppy-delegation+jwt",
+   "kid": "qijAJ9BUDC4h-e0ACwvoePoD599MZschC3kfU5kvQPE"
+  },
+  "5.2 Delegated keys #2 delegation payload": {
+   "iss": "https://agent.example/agent.json",
+   "cnf": {
+    "jwk": {
+     "kty": "EC",
+     "crv": "P-256",
+     "x": "B484TQp7695xQfzTcW5Rf8HUNC3a-Bt9zYTlgxtJUeU",
+     "y": "5ji2Z0dKOVQLXZJ2yzHiryVoopigNfpEVr_D36MPgwM"
+    }
+   },
+   "iat": 1790899200,
+   "exp": 1790920800,
+   "jti": "Dl1x7yQbX1m3Jk0aT9cWvA"
+  }
+ },
+ "schemas": {
+  "delegation.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "delegation.schema.json",
+   "title": "Delegation",
+   "description": "A delegation as its decoded JWT header and payload: signed with ES256 or PS384 by a key in the Personal Agent's jwks_uri, it vouches for the delegated key in cnf.jwk (RFC 7800), which signs the Personal Agent's Session JWTs. Spec section 5.2 (Delegated keys). exp is at most 24 hours after iat. A delegation names no User, Agent ID, or Company. The header and payload are also available on their own as delegation.schema.json#/$defs/header and #/$defs/payload. The Session JWT that carries a delegation in poppy_dlg is session-jwt.schema.json.",
+   "type": "object",
+   "required": [
+    "header",
+    "payload"
+   ],
+   "properties": {
+    "header": {
+     "$ref": "#/$defs/header"
+    },
+    "payload": {
+     "$ref": "#/$defs/payload"
+    }
+   },
+   "$defs": {
+    "header": {
+     "type": "object",
+     "required": [
+      "alg",
+      "typ",
+      "kid"
+     ],
+     "properties": {
+      "alg": {
+       "enum": [
+        "ES256",
+        "PS384"
+       ]
+      },
+      "typ": {
+       "const": "poppy-delegation+jwt"
+      },
+      "kid": {
+       "type": "string",
+       "minLength": 1
+      }
+     }
+    },
+    "payload": {
+     "type": "object",
+     "required": [
+      "iss",
+      "cnf",
+      "iat",
+      "exp",
+      "jti"
+     ],
+     "properties": {
+      "iss": {
+       "type": "string",
+       "pattern": "^https://[^\\s/?#]+",
+       "format": "uri"
+      },
+      "cnf": {
+       "type": "object",
+       "required": [
+        "jwk"
+       ],
+       "properties": {
+        "jwk": {
+         "type": "object",
+         "required": [
+          "kty"
+         ],
+         "properties": {
+          "kty": {
+           "type": "string"
+          },
+          "d": false,
+          "p": false,
+          "q": false,
+          "dp": false,
+          "dq": false,
+          "qi": false,
+          "k": false
+         }
+        }
+       }
+      },
+      "iat": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "exp": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "jti": {
+       "type": "string",
+       "minLength": 22
+      },
+      "sub": false,
+      "aud": false,
+      "agent_id": false
+     }
+    }
+   }
+  },
+  "session-jwt.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "session-jwt.schema.json",
+   "title": "Session JWT",
+   "description": "The JWT in the Poppy-Session header, as its decoded header and payload (spec 5.2). The Personal Agent signs one for each request with a delegated key: kid is the delegated key's JWK thumbprint, and poppy_dlg is the delegation that vouches for it (delegation.schema.json). The Company verifies it as spec 5.3 describes. agent_id is optional, and ath is present only when the request carries an access token. The header and payload are also available on their own as session-jwt.schema.json#/$defs/header and #/$defs/payload.",
+   "type": "object",
+   "required": [
+    "header",
+    "payload"
+   ],
+   "properties": {
+    "header": {
+     "$ref": "#/$defs/header"
+    },
+    "payload": {
+     "$ref": "#/$defs/payload"
+    }
+   },
+   "$defs": {
+    "header": {
+     "type": "object",
+     "required": [
+      "typ",
+      "alg",
+      "kid",
+      "poppy_dlg"
+     ],
+     "properties": {
+      "typ": {
+       "const": "poppy-session+jwt"
+      },
+      "alg": {
+       "const": "ES256"
+      },
+      "kid": {
+       "type": "string",
+       "pattern": "^[A-Za-z0-9_-]{43}$"
+      },
+      "poppy_dlg": {
+       "type": "string",
+       "minLength": 1
+      }
+     }
+    },
+    "payload": {
+     "type": "object",
+     "required": [
+      "iss",
+      "aud",
+      "sid",
+      "sub",
+      "htm",
+      "htu",
+      "iat",
+      "jti"
+     ],
+     "properties": {
+      "iss": {
+       "type": "string",
+       "pattern": "^https://[^\\s/?#]+",
+       "format": "uri"
+      },
+      "aud": {
+       "type": "string",
+       "pattern": "^https://[^\\s/?#]+",
+       "format": "uri"
+      },
+      "sid": {
+       "type": "string",
+       "pattern": "^[A-Za-z0-9_-]{22,256}$"
+      },
+      "sub": {
+       "type": "string",
+       "minLength": 1
+      },
+      "agent_id": {
+       "type": "string",
+       "minLength": 1
+      },
+      "htm": {
+       "type": "string",
+       "pattern": "^[A-Z]+$"
+      },
+      "htu": {
+       "type": "string",
+       "pattern": "^https://[^?#]+$"
+      },
+      "iat": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "jti": {
+       "type": "string",
+       "minLength": 22
+      },
+      "ath": {
+       "type": "string",
+       "pattern": "^[A-Za-z0-9_-]{43}$"
+      }
+     }
+    }
+   }
+  }
+ }
+}

@@ -277,3 +277,27 @@ test('the scene’s machine (no section): the events are the troubles then the f
   const fixes: readonly Fix[] = FIXES;
   assert.equal(fixes.length, 6);
 });
+
+// ---------------------------------------------------------------------------------------------
+// Against the protocol's own published artifacts, not a reading of its text: the error JSON Schema
+// of its Company implementation kit and the 3.3 and 3.4 error examples of spec.md, in
+// fixtures/poppy-official.json with their source, commit and retrieval date.
+
+import { readFileSync } from 'node:fs';
+import { validate, type Schemas } from '../poppy/fixtures/json-schema.ts';
+
+const OFFICIAL: { examples: Record<string, any>; schemas: Schemas } = JSON.parse(readFileSync(new URL('./fixtures/poppy-official.json', import.meta.url), 'utf8'));
+/** The JSON body of a reply the model says carries its error in one. */
+const bodyOf = (r: Reply) => ({ error: r.error, ...(r.extension ? { extension: r.extension } : {}) });
+
+test('official error.schema.json and spec.md 3.3 and 3.4 examples (poppy-official.json): every error the model sends in a JSON body passes the schema, and two are the examples', () => {
+  for (const key of ['3.3 Extensions #2 error', '3.4 Versions #3 error']) assert.deepEqual(validate(OFFICIAL.schemas, 'error.schema.json', OFFICIAL.examples[key]), [], key);
+  const company = { ...EXAMPLE_COMPANY, requires: { exchange: { name: 'example.com/gift-wrap', versions: ['2', '1'] } } };
+  const replies = [...TROUBLES.map(replyTo), respond(healthy('exchange').request, company)];
+  const json = replies.filter((r) => r.error && carriedIn(r) === 'JSON body');
+  assert.deepEqual([...new Set(json.map((r) => r.error))].sort(), ['extension_required', 'invalid_session', 'session_ended', 'version_unsupported']);
+  for (const r of json) assert.deepEqual(validate(OFFICIAL.schemas, 'error.schema.json', bodyOf(r)), [], r.error);
+  assert.deepEqual(bodyOf(json.find((r) => r.error === 'extension_required')!), OFFICIAL.examples['3.3 Extensions #2 error']);
+  assert.deepEqual(bodyOf(json.find((r) => r.error === 'version_unsupported')!), OFFICIAL.examples['3.4 Versions #3 error']);
+  assert.notDeepEqual(validate(OFFICIAL.schemas, 'error.schema.json', { error: 'extension_required' }), [], 'and extension_required without the extension fails');
+});

@@ -71,8 +71,9 @@ export default class Coverage extends Scene<World, {}> {
       return last;
     };
     const alternative = used(4), skill = used(5);
-    const aside = alternative.verdicts.filter((v) => !v.use.use).length;
-    const followed = alternative.verdicts.filter((v) => v.use.use).length;
+    // What the picture tears the note into: the strips it draws on each side (the reference to an unlisted API is in words only).
+    const strips = stripKeys(after[5]!), count = ['No', 'One', 'Two', 'Three', 'Four', 'Five'];
+    const followed = strips.filter((x) => x.key.startsWith('strip:used:')).length, aside = strips.filter((x) => x.key.startsWith('strip:aside:')).length;
 
     this.state = start(company);
     const s = stage(this, { palette: { ...PALETTE }, heading: false });
@@ -88,13 +89,16 @@ export default class Coverage extends Scene<World, {}> {
      * no strip passes over another.
      */
     const sort = (c: Choreography, w: World, card: boolean) => () => {
-      const laid = card ? pass(c, 'skill:read', cardToken(s), [SKILL_AT, NOTE_AT], { appear: 0.2, move: 0.35, leave: 0.2 }) : [];
+      // The card itself is taken down to the desk to be read (so it is never shown twice), and goes back up as the ticket lands.
+      const carried = card ? pass(c, 'skill:read', cardToken(s), [SKILL_AT, NOTE_AT], { appear: 0.2, move: 0.35, leave: 0.2 }) : [];
+      const laid = carried.length ? [new AnimationGroup([c.leave('skill:card', { runTime: 0.2 }), carried[0] as Animation]), ...carried.slice(1)] : [];
       const torn = stripKeys(w), group = (keep: (x: (typeof torn)[number]) => boolean) => together(torn.filter(keep).map((x) => flight(c, x.key, [noteLineAt(x.line)], T)()));
       const kept = group((x) => x.key.startsWith('strip:used:'));
       const left = group((x) => x.key.startsWith('strip:aside:') && !x.reveal);
       const reaching = torn.filter((x) => x.reveal).flatMap((x) => flight(c, x.key, [noteLineAt(x.line), REACH_AT], { appear: 0.2, move: 0.8, leave: 0.2 })());
       const sent = flight(c, 'ticket', [SEAL_AT, ...routeOf('api').slice(1, 3)], T)();
-      return [...laid, ...kept, ...left, ...reaching, ...sent];
+      const back = card ? [new AnimationGroup([sent.at(-1) as Animation, c.enter('skill:card', {}, { runTime: 0.2 })])] : sent.slice(-1);
+      return [...laid, ...kept, ...left, ...reaching, ...sent.slice(0, -1), ...back];
     };
     const motion = (t: Transition<World, CoverageEvent>) => {
       const c = t.choreograph(world);
@@ -169,7 +173,7 @@ export default class Coverage extends Scene<World, {}> {
 
     await this.step('sort', {
       title: hostile ? 'Advice in, orders left at the counter' : 'Advice in, used as advice',
-      line: hostile ? `${followed === 1 ? 'One way' : `${followed} ways`} followed; ${aside} requests left behind.` : `Both lines followed: ${alternative.answer.status}, card applied.`,
+      line: hostile ? `${count[followed]} ${followed === 1 ? 'way' : 'ways'} followed; ${count[aside]!.toLowerCase()} requests left behind.` : `Both lines followed: ${alternative.answer.status}, card applied.`,
       caption: hostile
         ? 'Your agent’s model reads the note as data. applyGiftCard is in the shop’s own poppy.json, so the agent uses it under its own seal and key. The rest stays at the counter: your task does not need your address book, a shop saying you agreed is never your consent, and the agent acts at shop.example only when your task needs it. Switch the Company to honest: the same way is followed.'
         : 'Your agent’s model reads the note as data, and both lines serve the task you gave it. applyGiftCard is in the shop’s own poppy.json, so the agent calls it under its own seal and key; the checkout page may be opened, and nothing secret goes with it. Switch the Company to hostile to see what else a note can ask for.',

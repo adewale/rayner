@@ -1,0 +1,634 @@
+{
+ "source": {
+  "what": "Official artifacts of the Personal Agent Protocol (Poppy), draft 0.4, which the project marks as in progress: JSON Schemas from its Company implementation kit, and example documents from the specification text.",
+  "retrieved": "2026-11-10",
+  "licence": "Apache-2.0 (https://personalagentprotocol.org/license: the specification and documentation, including their examples; the repository LICENSE)",
+  "schemas_from": "https://personalagentprotocol.org/kit/company/schemas/{name}, byte-identical to kit/company/schemas/{name} in https://github.com/personal-agent-protocol/personal-agent-protocol at commit 9af9904f19f75f11d0e6352fbf27b42791e18ebe",
+  "schema_sha256": {
+   "alternative.schema.json": "3aedbb27d47be37612618afee0e4009819b8057fa3f80673a7999d27236c415f",
+   "feedback-report.schema.json": "cce0b2eaed5dad7172bd2698466dbbbdbc4671505be7d65b98bcd50973fa235a",
+   "poppy.schema.json": "716e359e07f83d1db79a4f0d3a63fae2f4fa207b07af82a489e2bfd7a803f18e",
+   "skill-index.schema.json": "082c06cbde336b2f946a78f479df406bd78c14765d3a61b91d0ef687fff9b62c",
+   "tasks.schema.json": "50f2ff48c0bb6e48bc048d70504aa9cd796d6128af61845e821e5ba11f7293e1"
+  },
+  "examples_from": "https://personalagentprotocol.org/docs/0.4/spec.md (sha256 b65e9620fd777a214e73e923f8e17691be390fcc07c5dd4e21c3707c8468a967), each JSON code block as published, keyed by section and its place in that section. ",
+  "note": "Copied as published; nothing edited. The project checks every JSON example in the spec against these schemas in its own build (lib/kit/examples.ts)."
+ },
+ "examples": {
+  "9 Task coverage #1 tasks response": {
+   "excluded_tasks": [
+    {
+     "task": "Send a wire transfer",
+     "alternative": {
+      "instructions": "Wire transfers can only be sent in the Example app, after the User verifies their identity.",
+      "references": [
+       {
+        "type": "web",
+        "url": "https://example.com/transfers/wire"
+       }
+      ]
+     }
+    },
+    {
+     "task": "Close an account"
+    }
+   ],
+   "skill_index": {
+    "$schema": "https://schemas.agentskills.io/discovery/0.2.0/schema.json",
+    "skills": [
+     {
+      "name": "manage-bookings",
+      "description": "Manage the User's bookings with this Company.",
+      "type": "skill-md",
+      "url": "https://cdn.example.com/skills/manage-bookings/SKILL.md",
+      "digest": "sha256:1b2a8cde934e632f7e14fa080a627ad7191e29d412d2b8a7aa07d9c9ab2f475e"
+     }
+    ]
+   },
+   "feedback": {
+    "endpoint": "https://api.example.com/poppy/feedback"
+   }
+  },
+  "9.2 Alternatives #1 alternative": {
+   "instructions": "Gift cards are applied with the payment API, before the order is placed.",
+   "references": [
+    {
+     "type": "openapi",
+     "url": "https://api.example.com/openapi.json",
+     "operation_id": "applyGiftCard"
+    },
+    {
+     "type": "web",
+     "url": "https://example.com/checkout"
+    }
+   ]
+  },
+  "9.3 Feedback #1 report": {
+   "task": "Pay with a gift card",
+   "description": "The User wanted to pay for a new order with a gift card they were given. Neither the API nor the Company Agent can apply a gift card, and the checkout page in the browser session has no field for one."
+  }
+ },
+ "schemas": {
+  "alternative.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "alternative.schema.json",
+   "title": "Alternative",
+   "description": "Another way to do a task: in an excluded task, or as the body of a 200 response to a feedback report. Spec 9.2 (Alternatives). Personal Agents skip reference types they don't recognize. Web references can point to any HTTPS website or app and don't authorize sending Session JWTs or access tokens. OpenAPI and MCP references name APIs listed in the Company's poppy.json.",
+   "type": "object",
+   "anyOf": [
+    {
+     "required": [
+      "instructions"
+     ]
+    },
+    {
+     "required": [
+      "references"
+     ]
+    }
+   ],
+   "properties": {
+    "instructions": {
+     "type": "string",
+     "minLength": 1
+    },
+    "references": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/reference"
+     }
+    }
+   },
+   "$defs": {
+    "reference": {
+     "type": "object",
+     "required": [
+      "type"
+     ],
+     "properties": {
+      "type": {
+       "type": "string",
+       "minLength": 1
+      },
+      "url": {
+       "$ref": "poppy.schema.json#/$defs/https_url"
+      },
+      "operation_id": {
+       "type": "string",
+       "minLength": 1
+      },
+      "tool": {
+       "type": "string",
+       "minLength": 1
+      }
+     },
+     "allOf": [
+      {
+       "if": {
+        "properties": {
+         "type": {
+          "const": "openapi"
+         }
+        }
+       },
+       "then": {
+        "required": [
+         "url",
+         "operation_id"
+        ]
+       }
+      },
+      {
+       "if": {
+        "properties": {
+         "type": {
+          "const": "mcp"
+         }
+        }
+       },
+       "then": {
+        "required": [
+         "url",
+         "tool"
+        ]
+       }
+      },
+      {
+       "if": {
+        "properties": {
+         "type": {
+          "const": "web"
+         }
+        }
+       },
+       "then": {
+        "required": [
+         "url"
+        ]
+       }
+      }
+     ]
+    }
+   }
+  },
+  "feedback-report.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "feedback-report.schema.json",
+   "title": "Feedback report",
+   "description": "The JSON body a Personal Agent posts to the feedback.endpoint in the tasks response to report a User's task that can't be done through the protocol. Spec 9.3 (Feedback).",
+   "type": "object",
+   "required": [
+    "task",
+    "description"
+   ],
+   "properties": {
+    "task": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "description": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 2000
+    }
+   }
+  },
+  "poppy.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "poppy.schema.json",
+   "title": "poppy.json",
+   "description": "The discovery document a Company publishes at /.well-known/poppy.json. Spec section 3 (Discovery) and 3.1 (Fields). Unknown fields are allowed: Personal Agents ignore fields they don't recognize.",
+   "type": "object",
+   "required": [
+    "protocol_version",
+    "organization"
+   ],
+   "properties": {
+    "protocol_version": {
+     "type": "string",
+     "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "supported_versions": {
+     "description": "The other protocol versions the Company serves, each mapped to the HTTPS URL of that version's document, on the host that served poppy.json (spec 3.4). A version's document has no supported_versions.",
+     "type": "object",
+     "propertyNames": {
+      "pattern": "^[0-9]+\\.[0-9]+$"
+     },
+     "additionalProperties": {
+      "$ref": "#/$defs/https_url"
+     }
+    },
+    "organization": {
+     "type": "object",
+     "required": [
+      "name",
+      "domain"
+     ],
+     "properties": {
+      "name": {
+       "type": "string",
+       "minLength": 1
+      },
+      "domain": {
+       "$ref": "#/$defs/domain"
+      },
+      "logo_uri": {
+       "$ref": "#/$defs/https_url"
+      }
+     }
+    },
+    "auth": {
+     "description": "Optional. issuer is required only when the domain's protected resource metadata lists more than one authorization server, and must then be one of them (spec 3.1, 3.2), which is checked separately.",
+     "type": "object",
+     "properties": {
+      "issuer": {
+       "$ref": "#/$defs/https_url"
+      },
+      "disabled": {
+       "description": "true if the Company offers Personal Agents no sign-in, even though it has an issuer (spec 3.2).",
+       "type": "boolean"
+      },
+      "scopes": {
+       "description": "Scope descriptions, keyed by scope name, in the same form as an OpenAPI OAuth 2.0 security scheme. Describing offered scopes here or in a listed OpenAPI description is recommended.",
+       "type": "object",
+       "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+       }
+      },
+      "scope_hints": {
+       "description": "Hints about each scope, keyed by scope name, describing the most consequential operation that requires it.",
+       "type": "object",
+       "additionalProperties": {
+        "type": "object",
+        "required": [
+         "changes",
+         "personal_data"
+        ],
+        "properties": {
+         "changes": {
+          "enum": [
+           "none",
+           "reversible",
+           "irreversible"
+          ]
+         },
+         "personal_data": {
+          "type": "boolean"
+         }
+        }
+       }
+      }
+     }
+    },
+    "agent": {
+     "type": "object",
+     "required": [
+      "protocols"
+     ],
+     "properties": {
+      "protocols": {
+       "type": "array",
+       "minItems": 1,
+       "items": {
+        "type": "object",
+        "required": [
+         "type",
+         "endpoint"
+        ],
+        "properties": {
+         "type": {
+          "type": "string",
+          "minLength": 1
+         },
+         "endpoint": {
+          "$ref": "#/$defs/https_url"
+         },
+         "access": {
+          "type": "string",
+          "description": "For a poppy protocol entry, session (the default) or signed_in. Unknown values are ignored as an absent hint (spec 3.2)."
+         }
+        }
+       }
+      }
+     }
+    },
+    "tasks": {
+     "type": "object",
+     "required": [
+      "endpoint"
+     ],
+     "properties": {
+      "endpoint": {
+       "$ref": "#/$defs/https_url"
+      }
+     }
+    },
+    "web": {
+     "type": "object",
+     "properties": {
+      "browser_session_endpoint": {
+       "$ref": "#/$defs/https_url"
+      },
+      "disabled": {
+       "description": "true if the Company asks Personal Agents not to browse its website, and to use its Company Agent and APIs instead (spec section 6).",
+       "type": "boolean"
+      },
+      "unscoped": {
+       "description": "true if the website doesn't apply the Company's other scopes, so poppy:browser-sign-in gives the account's full access there (spec section 6).",
+       "type": "boolean"
+      }
+     }
+    },
+    "apis": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "required": [
+       "type",
+       "url",
+       "description"
+      ],
+      "properties": {
+       "type": {
+        "type": "string",
+        "minLength": 1
+       },
+       "url": {
+        "$ref": "#/$defs/https_url"
+       },
+       "description": {
+        "type": "string",
+        "minLength": 1
+       }
+      }
+     }
+    },
+    "extensions": {
+     "type": "object",
+     "properties": {
+      "mediated-sign-in": {
+       "description": "The Mediated Sign-In extension (Mediated Sign-In 2), with an entry for each version. Version 1 has the credentials to collect, each sent as a token request parameter of that name, and the scopes it can grant. The grant is at the issuer's token_endpoint, which lists https://personalagentprotocol.org/grant/mediated-sign-in in grant_types_supported.",
+       "type": "array",
+       "minItems": 1,
+       "items": {
+        "type": "object",
+        "required": [
+         "version"
+        ],
+        "properties": {
+         "version": {
+          "type": "string",
+          "minLength": 1
+         }
+        },
+        "if": {
+         "properties": {
+          "version": {
+           "const": "1"
+          }
+         }
+        },
+        "then": {
+         "required": [
+          "version",
+          "fields",
+          "scopes"
+         ],
+         "properties": {
+          "version": {
+           "type": "string",
+           "minLength": 1
+          },
+          "fields": {
+           "type": "array",
+           "minItems": 1,
+           "items": {
+            "type": "object",
+            "required": [
+             "name",
+             "label",
+             "secret"
+            ],
+            "properties": {
+             "name": {
+              "description": "Not grant_type, scope, resource, a client authentication parameter such as client_id or client_assertion, or a parameter the extension defines, such as sign_in_id.",
+              "type": "string",
+              "minLength": 1,
+              "not": {
+               "enum": [
+                "grant_type",
+                "scope",
+                "client_id",
+                "client_secret",
+                "client_assertion",
+                "client_assertion_type",
+                "resource",
+                "sign_in_id",
+                "one_time_code"
+               ]
+              }
+             },
+             "label": {
+              "type": "string",
+              "minLength": 1
+             },
+             "secret": {
+              "type": "boolean"
+             }
+            }
+           }
+          },
+          "scopes": {
+           "$ref": "#/$defs/scopes"
+          }
+         }
+        }
+       }
+      }
+     },
+     "additionalProperties": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+       "type": "object",
+       "required": [
+        "version"
+       ],
+       "properties": {
+        "version": {
+         "type": "string",
+         "minLength": 1
+        },
+        "endpoint": {
+         "$ref": "#/$defs/https_url"
+        }
+       }
+      }
+     },
+     "description": "The extensions the Company supports, keyed by name, each a list with an entry for each major version (spec 3.3)."
+    }
+   },
+   "allOf": [
+    {
+     "anyOf": [
+      {
+       "required": [
+        "agent"
+       ]
+      },
+      {
+       "required": [
+        "apis"
+       ]
+      },
+      {
+       "required": [
+        "web"
+       ]
+      }
+     ]
+    }
+   ],
+   "$defs": {
+    "https_url": {
+     "type": "string",
+     "pattern": "^https://[^\\s/?#]+",
+     "format": "uri"
+    },
+    "domain": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$"
+    },
+    "scopes": {
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "type": "string",
+      "pattern": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$"
+     }
+    }
+   }
+  },
+  "skill-index.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "skill-index.schema.json",
+   "title": "Personal Agent skill index",
+   "description": "The optional skill_index in the tasks response (spec 9.4). Local validation of the Agent Skills discovery proposal pinned by the spec, not an upstream-published JSON Schema. Unknown schema versions remain opaque to clients.",
+   "type": "object",
+   "required": [
+    "$schema"
+   ],
+   "properties": {
+    "$schema": {
+     "type": "string",
+     "minLength": 1
+    }
+   },
+   "if": {
+    "properties": {
+     "$schema": {
+      "const": "https://schemas.agentskills.io/discovery/0.2.0/schema.json"
+     }
+    },
+    "required": [
+     "$schema"
+    ]
+   },
+   "then": {
+    "required": [
+     "skills"
+    ],
+    "properties": {
+     "skills": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "name",
+        "description",
+        "type",
+        "url",
+        "digest"
+       ],
+       "properties": {
+        "name": {
+         "type": "string",
+         "minLength": 1
+        },
+        "description": {
+         "type": "string",
+         "minLength": 1
+        },
+        "type": {
+         "description": "skill-md or archive. Clients skip unknown types.",
+         "type": "string",
+         "minLength": 1
+        },
+        "url": {
+         "description": "An HTTPS URL or a relative reference resolved against the final poppy.json URL. Clients check the resolved URL and every redirect under spec section 3.",
+         "type": "string",
+         "minLength": 1,
+         "anyOf": [
+          {
+           "$ref": "poppy.schema.json#/$defs/https_url"
+          },
+          {
+           "pattern": "^(?![A-Za-z][A-Za-z0-9+.-]*:)[^\\s\\\\]+$"
+          }
+         ]
+        },
+        "digest": {
+         "type": "string",
+         "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "tasks.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "tasks.schema.json",
+   "title": "Tasks response",
+   "description": "The response to GET {tasks.endpoint}: the tasks a Company chose not to offer through the protocol, the skills it publishes, and its feedback endpoint, for one Session. Spec section 9, 9.1 (Excluded tasks), 9.3 (Feedback), and 9.4 (Agent context).",
+   "type": "object",
+   "properties": {
+    "excluded_tasks": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "required": [
+       "task"
+      ],
+      "properties": {
+       "task": {
+        "type": "string",
+        "minLength": 1
+       },
+       "alternative": {
+        "$ref": "alternative.schema.json"
+       }
+      }
+     }
+    },
+    "skill_index": {
+     "$ref": "skill-index.schema.json"
+    },
+    "feedback": {
+     "type": "object",
+     "required": [
+      "endpoint"
+     ],
+     "properties": {
+      "endpoint": {
+       "$ref": "poppy.schema.json#/$defs/https_url"
+      }
+     }
+    }
+   }
+  }
+ }
+}
