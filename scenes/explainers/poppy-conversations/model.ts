@@ -542,10 +542,11 @@ export function ruleOf(w: World): Rule {
   if (w.invited) return { section: '8.10', says: 'The Company asks for you, and only your agent can bring you in.' };
   if (direct) return { section: '8.10', says: 'A Direct Conversation is linked to the first, which waits; your agent may observe.' };
   if (main.handoff === 'pending') return { section: '8.9', says: 'While the Company looks for a person, handoff is pending and its agent keeps answering.' };
+  if (w.direct === 'closed' && said === null) return { section: '8.10', says: 'The Direct Conversation has closed, so the conversation takes messages again.' };
   if (main.working) return { section: '8.3', says: 'Accepted is not answered: the agent reads until working is false.' };
   if (said && authorOf(said.speaker) === 'human' && roleOf(said.speaker) === 'company') return { section: '8.7', says: 'A person at the Company wrote this: its author.type is human.' };
   return { section: '8.8', says: 'Every message says whether a person or an AI wrote it.' };
 }
 
 /** The events of the story, in order: what the steps replay. */
-export const STORY: readonly TableEvent[] = ['ask', 'read', 'person', 'joins', 'read', 'invite', 'direct', 'joins', 'read', 'you', 'read', 'close', 'close'];
+export const STORY: readonly TableEvent[] = ['ask', 'read', 'person', 'joins', 'read', 'invite', 'direct', 'joins', 'read', 'you', 'read', 'close'];

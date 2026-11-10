@@ -749,8 +749,8 @@ export function speech(s: Stage, text: string, { at = [0, 0], who, side = 'left'
   const w = width ?? t.width() + 0.56, h = 0.9, [x, y] = at, f = side === 'left' ? -1 : 1, k = RADIUS.panel;
   const l = x - w / 2, r = x + w / 2, top = y + h / 2, b = y - h / 2;
   const outline: P[] = side === 'left'
-    ? [...arc([l + k, top - k], k, Math.PI, Math.PI / 2, 5), ...arc([r - k, top - k], k, Math.PI / 2, 0, 5), ...arc([r - k, b + k], k, 0, -Math.PI / 2, 5), [l + 0.42, b], [l - 0.12, b - 0.16], [l + 0.12, b + 0.12], ...arc([l + k, top - k], 0.0001, Math.PI, Math.PI, 1)]
-    : [...arc([l + k, top - k], k, Math.PI, Math.PI / 2, 5), ...arc([r - k, top - k], k, Math.PI / 2, 0, 5), [r - 0.12, b + 0.12], [r + 0.12, b - 0.16], [r - 0.42, b], ...arc([l + k, b + k], k, -Math.PI / 2, -Math.PI, 5)];
+    ? [...arc([l + k, top - k], k, Math.PI, Math.PI / 2, 5), ...arc([r - k, top - k], k, Math.PI / 2, 0, 5), ...arc([r - k, b + k], k, 0, -Math.PI / 2, 5), [l + 0.55, b], [l - 0.12, b - 0.2], [l, b + 0.2]]
+    : [...arc([l + k, top - k], k, Math.PI, Math.PI / 2, 5), ...arc([r - k, top - k], k, Math.PI / 2, 0, 5), [r, b + 0.2], [r + 0.12, b - 0.2], [r - 0.55, b], ...arc([l + k, b + k], k, -Math.PI / 2, -Math.PI, 5)];
   const bubble = isPerson ? fill(outline, TONE.paper) : shape([outline], { fill: TONE.raised, stroke: TONE.ink, strokeWidth: STROKE.fine, lineJoin: 'round' });
   const markAt: P = [x + f * (w / 2 + 0.55), y - 0.18];
   const mark = isPerson ? person(s, { at: markAt, size: 0.62 }) : aiMark(s, { at: markAt, size: 1 });
