@@ -198,14 +198,14 @@ function signet(at: P, colour: string, deep: string): Group {
 function die(knobX: number, faceX: number, y: number, colour: string, deep: string): Group {
   const L = faceX - knobX;
   const profile: [number, number][] = [
-    [0, 0.06], [0.01, 0.2], [0.035, 0.26], [0.07, 0.27], [0.1, 0.23], [0.13, 0.12], [0.24, 0.1], [0.34, 0.15], [0.47, 0.19],
-    [0.6, 0.16], [0.69, 0.11], [0.8, 0.17], [0.88, 0.27], [0.9, 0.3], [1, 0.3],
+    [0, 0.08], [0.01, 0.22], [0.035, 0.28], [0.07, 0.29], [0.1, 0.25], [0.13, 0.15], [0.22, 0.13], [0.33, 0.2], [0.46, 0.25],
+    [0.6, 0.21], [0.69, 0.14], [0.79, 0.2], [0.87, 0.3], [0.9, 0.34], [1, 0.34],
   ];
   const top = profile.map(([f, h]): P => [knobX + f * L, y + h]), bottom = profile.map(([f, h]): P => [knobX + f * L, y - h]).reverse();
   return new Group(
     shape([[...top, ...bottom]], { fill: TONE.raised, stroke: colour, strokeWidth: STROKE.fine }),
-    new Rectangle({ width: 0.08, height: 0.6, fill: deep, stroke: 'none' }).moveTo([knobX + 0.9 * L + 0.04, y]),
-    new Rectangle({ width: 0.05, height: 0.6, fill: deep, stroke: 'none' }).moveTo([faceX - 0.025, y]),
+    new Rectangle({ width: 0.08, height: 0.68, fill: deep, stroke: 'none' }).moveTo([knobX + 0.9 * L + 0.04, y]),
+    new Rectangle({ width: 0.05, height: 0.68, fill: deep, stroke: 'none' }).moveTo([faceX - 0.025, y]),
   );
 }
 
@@ -264,7 +264,7 @@ export function drawWorld(w: SealWorld, shown: Shown, s: Stage): Group {
       parts.add(certificate(s, { at: CERT_AT, title: 'delegation', foreign: owner === 'thief' }), 'chain:cert');
       const left = Math.max(0, Math.min(1, (sealed.exp - nowOf(w)) / (sealed.exp - sealed.iat)));
       parts.add(clockFace(s, { at: [-6.5, -1.3], r: 0.32, remaining: left }), `chain:clock:${left > 0 ? 'running' : 'run-out'}`);
-      text('chain:until', `${left > 0 ? 'until' : 'expired'} ${clock(sealed.exp).slice(0, 5)}`, { at: [-6.05, -1.3], bold: left === 0 });
+      text('chain:until', `${left > 0 ? 'until' : 'ended'} ${clock(sealed.exp).slice(0, 5)}`, { at: [-6.05, -1.3], color: left > 0 ? TONE.ink : TONE.soft });
       parts.add(chain(AXIS, ...LINK_SPAN.signature, statusOf(w, 'signature')), `link:signature:${statusOf(w, 'signature')}`);
       text('chain:die:name', 'delegated key', { at: [AXIS + 0.4, -2.62] });
       parts.add(die(AXIS, SEAL_AT[0] - 0.4, DIE_Y, ink, deep), 'chain:die');
