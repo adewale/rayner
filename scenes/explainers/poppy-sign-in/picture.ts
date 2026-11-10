@@ -59,7 +59,7 @@ export const SEAL_AT: Vec = STATION;
 const RING_AT: Vec = [-5.22, -2.2];
 export const KEY_AT: Vec = [-3.86, -2.2];
 const KEY_SIZE = 1.15;
-export const TAG_AT: Vec = [-2.6, -3.48];
+export const TAG_AT: Vec = [-2.3, -3.48];
 export const THIEF_AT: Vec = [-1.2, STRIP_Y];
 /** Where the address bar is: an authorization request arrives there. */
 export const ADDRESS_AT: Vec = [(WIN.left + WIN.right) / 2, WIN.top - WIN.bar / 2];
@@ -254,7 +254,8 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
   } else parts.add(words(s, 'no sign-in open', { at: [(WIN.left + WIN.right) / 2, 1.2], size: TYPE.label, color: TONE.soft, align: 'middle' }), 'page:closed');
 
   // Behind the counter: the scopes the Company offers, each on its page line's row. A tooth for each the agent holds.
-  parts.add(words(s, 'Scopes offered', { at: [RACK_X, ROW.title], bold: true }), 'rack:title');
+  parts.add(words(s, 'The Company', { at: [RACK_X, WIN.top - WIN.bar / 2], size: TYPE.label, bold: true }), 'company');
+  parts.add(words(s, 'Scopes offered', { at: [RACK_X, ROW.title], color: TONE.soft }), 'rack:title');
   for (const scope of RACK) {
     const y = RACK_Y[scope]!, status = statusOf(w, scope), asked = !!w.sign && scope !== 'addresses';
     parts.add(words(s, scope, { at: [RACK_X, y], mono: true, color: asked || status === 'granted' ? TONE.ink : TONE.soft, bold: asked }), `rack:${scope}:name`);
