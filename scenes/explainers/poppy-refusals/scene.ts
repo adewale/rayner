@@ -90,7 +90,7 @@ export default class Refusals extends Scene<World, Shown> {
             return [];
         }
       };
-      return beats(c, () => [...product(), ...sendAgain()], { fresh: ['ticket', 'barrier', 'outcome', 'panel'], lead: RAIL_PARTS });
+      return beats(c, () => [...product(), ...sendAgain()], { fresh: ['ticket', 'barrier', 'outcome', 'panel', 'slip:leader', 'slip:ring'], lead: RAIL_PARTS });
     };
     const machine = new Machine<World, RefusalEvent>(this, {
       start: start(),
