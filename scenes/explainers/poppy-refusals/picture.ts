@@ -66,6 +66,8 @@ export const ticketAt = (y: number, docked: boolean): Vec => [docked ? STOP_X - 
 const HOLDS = stationHolds(STATION, STATION_R);
 export const SEAL_AT: Vec = HOLDS.seal;
 export const KEY_AT: Vec = HOLDS.key;
+/** Where a request sets off: on its lane, its ticket clear of the station. */
+export const launchAt = (y: number): Vec => [STATION[0] + STATION_R + 0.2 + TW / 2, y];
 /** Where the agent hangs a key cut for the MCP server: under its station. */
 export const MCP_KEY_AT: Vec = [STATION[0], 1.22];
 /** Where the Company's clock stands, at the foot of its counter, for a rate limit. */
@@ -79,9 +81,9 @@ export const documentRoute = (y: number): Vec[] => [[STOP_X - 0.5, y], [STATION[
 export const DELEGATION_ROUTE: Vec[] = [[STATION[0], 0.9], SEAL_AT];
 
 // The slip and the panels below the map.
-const SLIP = { left: MARGIN.left, right: -0.4, top: 0.72, bottom: -2.0 };
-const OUTCOME_Y = -2.45;
-const RAIL_Y = -3.36, RAIL_LABEL_Y = -4.05;
+const SLIP = { left: MARGIN.left, right: -0.4, top: 0.72, bottom: -1.92 };
+const OUTCOME_Y = -2.32;
+const RAIL_Y = -3.42, RAIL_LABEL_Y = -4.08;
 
 /** The poppy.json, as a sheet of paper, for the transition that carries a fresh copy to the agent. */
 export const documentToken = (s: Stage): Mobject => sheet(s, { width: 0.9, height: 1.15, lines: 3 });
@@ -326,7 +328,7 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
     const label = parts.add(words(s, FIX_NAME[fix], { at: [x, RAIL_LABEL_Y], align: 'middle', bold: lit, color: lit ? TONE.ink : TONE.soft }), `rail:${fix}:name`);
     if (lit) {
       emphasised(label, `the remedy applied: ${FIX_NAME[fix]}`);
-      parts.add(new Rectangle({ width: label.width(), height: 0.07, fill: TONE.ink, stroke: 'none', cornerRadius: 0.02 }).moveTo([x, RAIL_LABEL_Y - 0.34]), `rail:${fix}:mark`);
+      parts.add(new Rectangle({ width: label.width(), height: 0.07, fill: TONE.ink, stroke: 'none', cornerRadius: 0.02 }).moveTo([x, RAIL_LABEL_Y - 0.32]), `rail:${fix}:mark`);
     }
     if (struck) parts.add(poly([[x - 0.5, RAIL_Y - 0.42], [x - 0.42, RAIL_Y - 0.5], [x + 0.5, RAIL_Y + 0.42], [x + 0.42, RAIL_Y + 0.5]], TONE.ink), `rail:${fix}:strike`);
   });

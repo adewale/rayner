@@ -6,8 +6,8 @@ import type { Beat } from '../lib/poppy-kit.ts';
 import { REFUSAL_EVENTS, STORY, next, start, temptation } from './model.ts';
 import type { RefusalEvent, World } from './model.ts';
 import {
-  DELEGATION_ROUTE, FIX_NAME, MCP_KEY_AT, PALETTE, RAIL, SEAL_AT,
-  delegationToken, documentRoute, documentToken, drawWorld, keyRoute, laneOfWorld, paceClock, sayWorld,
+  DELEGATION_ROUTE, FIX_NAME, MCP_KEY_AT, PALETTE, RAIL,
+  delegationToken, documentRoute, launchAt, documentToken, drawWorld, keyRoute, laneOfWorld, paceClock, sayWorld,
 } from './picture.ts';
 import type { Shown } from './picture.ts';
 
@@ -62,13 +62,13 @@ export default class Refusals extends Scene<World, Shown> {
 
     /** A request sets off: its lane lights, the ticket leaves the agent's seal along the lane, and a refused one meets the barrier. */
     const request = (t: Transition<World, RefusalEvent>) => {
-      const c = t.choreograph(world), { route } = laneOfWorld(t.after);
-      return beats(c, flight(c, 'ticket', [SEAL_AT, ...route.slice(1, 3)]), { fresh, then: ['barrier'], lead: [...LANE_PARTS, ...RAIL_PARTS] });
+      const c = t.choreograph(world), { y } = laneOfWorld(t.after);
+      return beats(c, flight(c, 'ticket', [launchAt(y)]), { fresh, then: ['barrier'], lead: [...LANE_PARTS, ...RAIL_PARTS] });
     };
     /** The agent answers: the remedy lights on the rail, its product travels from where it comes from, then the request goes again and docks. */
     const answer = (t: Transition<World, RefusalEvent>) => {
       const c = t.choreograph(world), last = t.after.last!, { route, y } = laneOfWorld(t.after);
-      const sendAgain = flight(c, 'ticket', [SEAL_AT, ...route.slice(1, 3)], { move: 0.9 });
+      const sendAgain = flight(c, 'ticket', [launchAt(y)], { move: 0.8 });
       const product = (): Beat[] => {
         switch (last.fix) {
           case 'refresh':

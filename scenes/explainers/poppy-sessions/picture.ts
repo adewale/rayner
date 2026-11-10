@@ -164,12 +164,12 @@ function stadium(c: P, w: number, h: number): P[] {
  * apart, INK.
  */
 function chain(x0: number, x1: number, y: number, status: 'held' | 'broke' | 'open'): Group {
-  const pitch = 0.46, n = Math.max(3, Math.round((x1 - x0) / pitch)), step = (x1 - x0) / n, colour = status === 'open' ? TONE.steel : TONE.ink;
+  const pitch = 0.38, n = Math.max(3, Math.round((x1 - x0) / pitch)), step = (x1 - x0) / n, colour = status === 'open' ? TONE.steel : TONE.ink;
   const parts: Mobject[] = [], broken = status === 'broke' ? 2 * Math.floor(n / 4) : -1;
   for (let i = 0; i < n; i++) {
     const cx = x0 + step * (i + 0.5);
     if (i % 2 === 0) {
-      const outer = stadium([cx, y], step + 0.2, 0.42), inner = stadium([cx, y], step - 0.06, 0.2);
+      const outer = stadium([cx, y], step + 0.14, 0.3), inner = stadium([cx, y], step - 0.02, 0.16);
       if (i === broken) {
         // Split open: two halves, pulled apart, with a gap where they parted.
         for (const side of [-1, 1]) {
@@ -177,7 +177,7 @@ function chain(x0: number, x1: number, y: number, status: 'held' | 'broke' | 'op
           parts.push(shape([[...half(outer), ...half(inner).reverse()]], { fill: colour }));
         }
       } else parts.push(shape([outer, inner], { fill: colour }));
-    } else parts.push(shape([stadium([cx, y], step + 0.18, 0.12)], { fill: colour }));
+    } else parts.push(shape([stadium([cx, y], step + 0.12, 0.07)], { fill: colour }));
   }
   return new Group(...parts);
 }
@@ -330,8 +330,8 @@ export function drawWorld(w: SealWorld, shown: Shown, s: Stage): Group {
     text(`memory:${k}:value`, value, { at: [CO.right, y], align: 'end', mono: !quiet, color: quiet ? TONE.soft : TONE.ink });
     parts.add(new Rectangle({ width, height: STROKE.hair, fill: TONE.rule, stroke: 'none' }).moveTo([mid, y - 0.34]), `memory:${k}:rule`);
   };
-  row('jti', 'seen', !remembers ? 'skipped' : jtis.length === 0 ? 'nothing yet' : jtis.length === 1 ? jtis[0]! : `${jtis.length} jtis`, !remembers || jtis.length === 0, -3.1);
-  row('key', 'key for', !remembers ? 'skipped' : user ?? 'nobody yet', !remembers || !user, -3.8);
+  row('jti', 'once', !remembers ? 'skipped' : jtis.length === 0 ? 'nothing yet' : jtis.length === 1 ? jtis[0]! : `${jtis.length} jtis`, !remembers || jtis.length === 0, -3.1);
+  row('key', 'who', !remembers ? 'skipped' : user ?? 'nobody yet', !remembers || !user, -3.8);
   return parts.group();
 }
 
