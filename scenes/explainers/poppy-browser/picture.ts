@@ -76,7 +76,7 @@ const BARRIER_X = COUNTER_X - 0.45;
 const ticketAt = (delivered: boolean): Vec => [delivered ? COUNTER_X - 0.17 - TICKET.width / 2 : BARRIER_X - 0.28 - TICKET.width / 2, ROAD_A];
 /** The attacker's browser, lower right, and where its cookie half rests in it. */
 const EVIL: Vec = [4.65, -2.95];
-export const EVIL_HALF_AT: Vec = [EVIL[0] + 0.9, EVIL[1] - 0.45];
+export const EVIL_HALF_AT: Vec = [EVIL[0] - 1.75, EVIL[1] - 0.45];
 /** Where a code that came in a message rests: beside the agent, outside its station. */
 export const MESSAGE_AT: Vec = [-6.35, -0.15];
 /** Where that message comes from: just outside the attacker's browser, along the bottom of the stage. */
@@ -89,7 +89,9 @@ export const SIDE_X = WIN_RIGHT + 0.4;
 export const READ_FROM: Vec = [STATION[0] + STATION_R * Math.cos(-0.45), STATION[1] + STATION_R * Math.sin(-0.45)];
 /** The height at which the attacker's things leave its browser for the counter, under the rack; and where its forged stub starts. */
 export const ATTACK_Y = -1.55;
-export const EVIL_OUT: Vec = [EVIL[0] + 2.2, EVIL[1] - 0.05];
+export const EVIL_OUT: Vec = [EVIL[0] - WIN_W / 2 - 0.35, EVIL[1] + 0.2];
+/** The column just left of the attacker's browser, where its things leave it. */
+export const EVIL_SIDE_X = EVIL[0] - WIN_W / 2 - 0.35;
 
 // ---------------------------------------------------------------------------------------------
 // The torn ticket.
@@ -265,7 +267,7 @@ export function drawWorld(w: World, s: Stage, shown: Shown): Group {
   // Lower right: the attacker's browser once it is on stage; before that, what the stamps mean.
   if (shown.attacker) {
     parts.add(browserWindow(s, { at: EVIL, width: 5.9, height: 2.2, host: ATTACKER.site, lines: 0 }), 'evil');
-    parts.add(words(s, 'cookies', { at: [EVIL[0] - 2.6, EVIL_HALF_AT[1]], color: TONE.soft }), 'evil:shelf');
+    parts.add(words(s, 'cookies', { at: [EVIL_HALF_AT[0] + 0.75, EVIL_HALF_AT[1]], color: TONE.soft }), 'evil:shelf');
     // A browser sends a copy of a cookie and keeps it: the half stays on its shelf.
     if (w.attacker.join) parts.add(cookieHalf(s, { left: EVIL_HALF_AT[0] - HALF_W / 2, y: EVIL_HALF_AT[1], code: PHISH_CODE }), 'evil:half');
   } else {

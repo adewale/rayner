@@ -7,7 +7,7 @@ import type { Beat } from '../lib/poppy-kit.ts';
 import { ATTACK_CODE, JOIN_EVENTS, PHISH_CODE, bound, end, next, start, storyOf } from './model.ts';
 import type { JoinEvent, SignIn, World } from './model.ts';
 import {
-  ATTACK_Y, COUNTER_X, EVIL_HALF_AT, EVIL_OUT, JOIN_AT, MESSAGE_AT, MESSAGE_FROM, PAGE_AT, PALETTE, READ_FROM, ROAD_A_FROM, ROAD_B, ROAD_B_FROM, SEAL_AT, SESSION_AT, SHOWN_START, SIDE_X, WIN_LEFT, WIN_RIGHT,
+  ATTACK_Y, COUNTER_X, EVIL_HALF_AT, EVIL_OUT, EVIL_SIDE_X, JOIN_AT, MESSAGE_AT, MESSAGE_FROM, PAGE_AT, PALETTE, READ_FROM, ROAD_A_FROM, ROAD_B, ROAD_B_FROM, SEAL_AT, SESSION_AT, SHOWN_START, SIDE_X, WIN_LEFT, WIN_RIGHT,
   drawLogins, drawWorld, sayLogins, sayWorld, shortCode, stub,
 } from './picture.ts';
 import type { Shown } from './picture.ts';
@@ -167,7 +167,7 @@ export default class PoppyBrowser extends Scene<World, Shown> {
         forge: (t) => {
           const c = t.choreograph(world), id = shortCode(ATTACK_CODE);
           const token = stub(s, { at: [0, 0], code: ATTACK_CODE, width: 2.3 }).scale(0.6);
-          return beats(c, () => pass(c, 'forged', token, [EVIL_OUT, [EVIL_OUT[0], ATTACK_Y], [SIDE_X, ATTACK_Y], [WIN_RIGHT - 0.6, 0.95], ROAD_B_FROM, [COUNTER_X - 0.75, ROAD_B]], { appear: 0.25, move: 1.3, leave: 0.2 }),
+          return beats(c, () => pass(c, 'forged', token, [EVIL_OUT, [EVIL_SIDE_X, 0.95], [WIN_RIGHT - 0.6, 0.95], ROAD_B_FROM, [COUNTER_X - 0.75, ROAD_B]], { appear: 0.25, move: 1.3, leave: 0.2 }),
             { fresh: FRESH, lead: BROWSER_ROAD, then: [`row:${id}:gap`, `row:${id}:barrier`] });
         },
         // A message brings the attacker's code to your agent along the bottom of the stage and stops beside it, declined.
@@ -176,7 +176,7 @@ export default class PoppyBrowser extends Scene<World, Shown> {
           const c = t.choreograph(world), id = shortCode(PHISH_CODE);
           return beats(c, () => [
             ...flight(c, 'message', [MESSAGE_FROM, [MESSAGE_AT[0], MESSAGE_FROM[1]]], { appear: 0.2, move: 0.8, leave: 0.25 })(),
-            ...pass(c, 'carried:half', c.from('evil:half').copy(), [EVIL_HALF_AT, [EVIL_HALF_AT[0], ATTACK_Y], [COUNTER_X + 0.35, ATTACK_Y]], { appear: 0.2, move: 0.7, leave: 0.2 }),
+            ...pass(c, 'carried:half', c.from('evil:half').copy(), [EVIL_HALF_AT, [EVIL_SIDE_X, EVIL_HALF_AT[1]], [EVIL_SIDE_X, ATTACK_Y], [COUNTER_X + 0.35, ATTACK_Y]], { appear: 0.2, move: 0.7, leave: 0.2 }),
           ], { fresh: FRESH, then: [`row:${id}:half`, `row:${id}:gap`, `row:${id}:barrier`] });
         },
       },
