@@ -71,12 +71,12 @@ export default class Sessions extends Scene<SealWorld, Shown> {
       const c = t.choreograph(world), from = SOURCE[sourceOf(t.event)];
       /** A part's trip from where another part rests, the other leaving as the trip begins, so the thing is never in two places. */
       const trip = (k: string, fromKey: string, also: string[] = []): Beat[] => {
-        const [appear, ...rest] = flight(c, k, [c.from(fromKey).center() as Vec], { appear: 0.25, move: 0.45, leave: 0.25 })();
+        const [appear, ...rest] = flight(c, k, [c.from(fromKey).center() as Vec], { appear: 0.25, move: 0.35, leave: 0.2 })();
         return [new AnimationGroup([appear!, c.leave(fromKey, { runTime: 0.25 }), ...also.filter((x) => c.has(x, 'from')).map((x) => c.leave(x, { runTime: 0.25 }))]), ...rest];
       };
       const hand = (): Beat[] => {
         const come = (keys: string[]): Beat[] => {
-          const here = keys.filter((k) => c.has(k, 'to') && !c.has(k, 'from')).map((k) => c.enter(k, {}, { runTime: 0.3 }));
+          const here = keys.filter((k) => c.has(k, 'to') && !c.has(k, 'from')).map((k) => c.enter(k, {}, { runTime: 0.25 }));
           return here.length ? [new AnimationGroup(here)] : [];
         };
         const clocks = c.keys('to').filter((k) => k.startsWith('chain:clock:'));
@@ -90,10 +90,10 @@ export default class Sessions extends Scene<SealWorld, Shown> {
       };
       return beats(c, () => {
         // The ticket is brought in first, so what is punched and stamped on it is drawn over it.
-        const moved = [...hand(), ...flight(c, 'ticket', [from], { appear: 0.25, move: 0.5, leave: 0.2 })()];
-        const arrived = c.has('ticket:arrived', 'to') ? [c.enter('ticket:arrived', {}, { runTime: 0.25 })] : [];
-        // Each punch fades in over 0.3 s, the next starting 0.09 s after it: one after another, in the draft's order.
-        const punches = punchOrder().filter((k) => c.has(k, 'to')).map((k) => c.enter(k, {}, { runTime: 0.3 }));
+        const moved = [...hand(), ...flight(c, 'ticket', [from], { appear: 0.25, move: 0.45, leave: 0.2 })()];
+        const arrived = c.has('ticket:arrived', 'to') ? [c.enter('ticket:arrived', {}, { runTime: 0.2 })] : [];
+        // Each punch fades in over 0.25 s, the next starting 0.075 s after it: one after another, in the draft's order.
+        const punches = punchOrder().filter((k) => c.has(k, 'to')).map((k) => c.enter(k, {}, { runTime: 0.25 }));
         return [...moved, ...arrived, ...(punches.length ? [new AnimationGroup(punches, { lagRatio: 0.3 })] : [])];
       }, { fresh: ['verdict:', 'ticket', 'hole', 'tear', 'link'], lead: ['chain:'] });
     };
@@ -107,12 +107,12 @@ export default class Sessions extends Scene<SealWorld, Shown> {
       next,
       views: [world],
       // Each transition's own length, so the machine plays it at its authored pace: the words and the old
-      // ticket go (0.25 s), the ticket travels (0.95 s), the validator stamps it (0.25 s), eleven punches
-      // (1.2 s), then the answer (0.45 s); the published key's trip to or from the wax adds its own time.
+      // ticket go (0.25 s), the ticket travels (0.9 s), the validator stamps it (0.2 s), eleven punches
+      // (1.0 s), then the answer (0.45 s); the published key's trip to or from the wax adds its own time.
       runTime: ({ before, after }) => {
         const toWax = after.last?.tamper === 'published' && before.last?.tamper !== 'published';
         const fromWax = before.last?.tamper === 'published' && after.last?.tamper !== 'published';
-        return 3.1 + (toWax || fromWax ? 1.25 : 0);
+        return 2.85 + (toWax || fromWax ? 1.05 : 0);
       },
       transition: Object.fromEntries(TAMPERS.map((t) => [t, check])),
     });
