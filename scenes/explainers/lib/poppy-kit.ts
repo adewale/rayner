@@ -15,7 +15,7 @@ import { emphasised } from '../../../explain/drawing.ts';
  * GROUND AND PALETTE. Each colour has one meaning, and no colour means "good" or "bad".
  *   GROUND  #13203b  the night desk everything sits on. Pass PALETTE to stage().
  *   INK     #f3efe6  words, and whatever is in use: the active lane, the counter's face, paper.
- *   SOFT    #aeb8cc  secondary words (8:1 on the ground).
+ *   SOFT    #aeb8cc  secondary words (about 8:1 on the ground).
  *   STEEL   #5f7299  idle: lanes not in use, empty slots, a key not yet cut. Never words.
  *   RAISED  #1d2c4c  the body of a structure: the station, the counter, a device, a window.
  *   RULE    #34476e  hairlines that separate (ledger rules).
@@ -26,15 +26,18 @@ import { emphasised } from '../../../explain/drawing.ts';
  * WAX, BRASS and PEWTER each come with a DEEP and LIGHT tone for the object's own relief.
  *
  * TYPE. Inter and JetBrains Mono (the two embedded faces), four sizes and no others:
- *   TYPE.small   0.56  secondary words, quiet values, protocol literals in mono. The floor:
+ *   TYPE.small   0.56  nearly every word: names, lane names, ledger rows and heading (bold), the
+ *                      asked line, an answer's meaning; protocol literals in mono. The floor:
  *                      0.56 units is 12.5 px on a 358 px phone stage. Never smaller.
- *   TYPE.label   0.64  names of things: "your agent", a ledger's heading, a speech turn's words.
- *   TYPE.title   0.8   bold, one per picture at most: the answer's phrase.
+ *   TYPE.label   0.64  a quiet notice standing alone in an empty place ("no way in yet").
+ *   TYPE.title   0.8   bold, one per picture: the answer's phrase ("Unauthorized").
  *   TYPE.display 1.6   mono bold, status numbers only (200, 401).
- * Protocol literals (hosts, IDs, scopes, status codes, file names) are always mono. Sentence
- * case everywhere; bold marks the live thing (the lane in use, a changed value), not decoration.
- * Width budget: Inter averages 0.27 units a character at 0.56, mono 0.336. Measure with
- * `words(...).width()`.
+ * Hierarchy comes from the jump between small and title/display and from weight, not from many
+ * sizes. Protocol literals (hosts, IDs, scopes, status codes, file names) are always mono. Sentence
+ * case everywhere; bold marks the live thing (the lane in use, a changed value, a heading), not
+ * decoration. Width budget at 0.56: Inter about 0.27 units a character (bold 0.3), mono 0.336.
+ * Measure with `words(...).width()`. A fact that does not fit at 0.56 goes into the caption or the
+ * picture's description, never into smaller type.
  *
  * LINES. STROKE.hair 0.035 (rules), fine 0.06 (outlines of objects), line 0.1 (idle lanes, rings),
  * bold 0.16 (the lane in use). Objects are mostly filled shapes; outlines are for ghosts.
@@ -42,10 +45,24 @@ import { emphasised } from '../../../explain/drawing.ts';
  * SPACE. Multiples of 0.14: SPACE.xs 0.14, s 0.28, m 0.42, l 0.7, xl 1.12. Related things sit
  * xs-s apart, separate groups l-xl apart. Keep text inside MARGIN (x within ±7.65, y within ±4.15).
  *
- * OUTCOMES WITHOUT SEMAPHORES. A request is a ticket. Accepted: it rests docked on its stop at the
- * Company's counter. Refused: it stops short, before a barrier, and the answer block says the
- * number and its phrase in words. The answer's number is always INK. Changes in a ledger carry a
- * margin change bar (as revised lines in a specification do), not a colour.
+ * OUTCOMES WITHOUT SEMAPHORES. A request is a ticket. Accepted: it rests docked at its stop on the
+ * Company's counter, and the stop fills. Refused: it stops short, before a barrier, the stop stays
+ * open, and the answer block says the number and its phrase in words. The answer's number is
+ * always INK. A change in a ledger carries a margin change bar (as revised lines in a specification
+ * do) and a bold value, not a colour.
+ *
+ * COMPOSITION (chapter 1's grid; follow it unless the chapter's idea needs another). The stage has
+ * no heading (`heading: false`). The agent's side is on the left, the Company's on the right, the
+ * counter between them at about x 0.6; what the Company keeps (a ledger) stands behind the counter
+ * from x 1.45 to MARGIN.right. The map takes the top band (y 4.15 to about 0); the answer block
+ * sits under it on the agent's side at (MARGIN.left, -1.5), and a key to the marks or a second
+ * object sits under the ledger. Text columns line up: the answer's phrase with the lane names.
+ *
+ * MOTION. Things come from where they really come from and stop where they really stop: a ticket
+ * is stamped at the agent's seal and travels its lane; a key comes from the Company's sign-in stop
+ * and goes back there; a document crosses from the party that publishes it. The lane in use lights
+ * before the ticket sets off; the answer appears only once the ticket has landed. No bounce, no
+ * pulse, no overshoot: `beats`, `flight` and `pass` below do this with the engine's own easing.
  *
  * CONVENTIONS. Every drawing takes the stage `s` first and one options object, `at` being the
  * object's centre unless its JSDoc says otherwise, and returns plain mobjects. A single object
@@ -247,8 +264,8 @@ export function key(_s: Stage, { at = [0, 0], size = 1, teeth = 1, ghost = false
   const bow = [ring(bowC, 0.34 * u, 40), ring(bowC, 0.15 * u, 28)];
   if (ghost)
     return new Group(
-      shape([blade], { fill: 'none', stroke: TONE.steel, strokeWidth: STROKE.fine, dashArray: `${0.1 * u} ${0.07 * u}`, lineJoin: 'round' }),
-      shape(bow, { fill: 'none', stroke: TONE.steel, strokeWidth: STROKE.fine, dashArray: `${0.1 * u} ${0.07 * u}` }),
+      shape([blade], { fill: 'none', stroke: TONE.steel, strokeWidth: STROKE.fine, dashArray: `${0.12 * u} ${0.06 * u}`, lineJoin: 'round' }),
+      shape([bow[0]!], { fill: 'none', stroke: TONE.steel, strokeWidth: STROKE.fine, dashArray: `${0.12 * u} ${0.06 * u}` }),
     );
   const [base, light] = onPaper ? [TONE.brassDeep, TONE.brass] : [TONE.brass, TONE.brassLight];
   return new Group(
@@ -282,7 +299,7 @@ export type StationOptions = {
 
 /** Where a station holds its seal and its key, for flights that start or end there. */
 export const stationHolds = (at: Vec, r = 1.05, withKey = true): { seal: Vec; key: Vec } =>
-  withKey ? { seal: [at[0], at[1] + 0.3 * r], key: [at[0], at[1] - 0.44 * r] } : { seal: at, key: at };
+  withKey ? { seal: [at[0], at[1] + 0.3 * r], key: [at[0] + 0.02 * r, at[1] - 0.46 * r] } : { seal: at, key: at };
 
 /**
  * The agent's station, where its lanes begin: a transit interchange roundel (RAISED, an INK ring)
@@ -296,12 +313,12 @@ export function station(s: Stage, { at = [0, 0], r = 1.05, name = 'your agent', 
   const holds = stationHolds(at, r, keyTeeth !== undefined);
   const out: Mobject[] = [
     keyedAs(new Group(new Circle({ radius: r, fill: TONE.raised, stroke: TONE.ink, strokeWidth: STROKE.bold }).moveTo(at)), `${k}:station`),
-    keyedAs(seal(s, { at: holds.seal, r: (keyTeeth !== undefined ? 0.4 : 0.64) * r, foreign }), `${k}:seal`),
+    keyedAs(seal(s, { at: holds.seal, r: (keyTeeth !== undefined ? 0.44 : 0.64) * r, foreign }), `${k}:seal`),
     keyedAs(words(s, name, { at: [at[0], at[1] - r - 0.42], align: 'middle' }), `${k}:name`),
   ];
   if (keyTeeth !== undefined) {
-    out.push(keyedAs(key(s, { at: holds.key, size: 0.56 * r, teeth: Math.max(1, keyTeeth), ghost: true }), `${k}:key:slot`));
-    if (keyTeeth > 0) out.push(keyedAs(key(s, { at: holds.key, size: 0.56 * r, teeth: keyTeeth }), `${k}:key`));
+    out.push(keyedAs(key(s, { at: holds.key, size: 0.66 * r, teeth: Math.max(1, keyTeeth), ghost: true }), `${k}:key:slot`));
+    if (keyTeeth > 0) out.push(keyedAs(key(s, { at: holds.key, size: 0.66 * r, teeth: keyTeeth }), `${k}:key`));
   }
   return out;
 }
@@ -317,15 +334,20 @@ export type CounterOptions = {
 };
 
 /**
- * The Company's counter, its edge, seen from above as the lanes are: a RAISED slab 0.46 wide
- * whose face, the side the agent's lanes arrive at (on the left), is a heavy INK band. Stops sit on the face (see `stop`); what the Company keeps (its ledger)
- * stands behind it, to the right. One keyed part, `<key>`, a Group.
+ * The Company's counter, its shopfront, seen from above as the lanes are: a counter 0.5 deep,
+ * striped across in RAISED and RULE like a shop's awning, whose front edge (the face, on the left,
+ * where the agent's lanes arrive) is a heavy INK band. Stops sit on the
+ * face (see `stop`); what the Company keeps (its ledger) stands behind it, to the right.
+ * One keyed part, `<key>`, a Group.
  */
 export function counter(_s: Stage, { x, top, bottom, key: k = 'counter' }: CounterOptions): Mobject[] {
-  const h = top - bottom, cy = (top + bottom) / 2;
+  const h = top - bottom, cy = (top + bottom) / 2, depth = 0.5, n = Math.max(3, 2 * Math.round(h / 0.56) + 1), pitch = h / n;
+  const stripes = Array.from({ length: n }, (_, i) => i).filter((i) => i % 2 === 1)
+    .map((i) => new Rectangle({ width: depth - 0.12, height: pitch, fill: TONE.rule, stroke: 'none' }).moveTo([x + 0.12 + (depth - 0.12) / 2, top - pitch * (i + 0.5)]));
   return [keyedAs(new Group(
-    new Rectangle({ width: 0.46, height: h, fill: TONE.raised, stroke: 'none', cornerRadius: 0.04 }).moveTo([x + 0.23, cy]),
-    new Rectangle({ width: 0.13, height: h, fill: TONE.ink, stroke: 'none', cornerRadius: 0.04 }).moveTo([x + 0.065, cy]),
+    new Rectangle({ width: depth, height: h, fill: TONE.raised, stroke: 'none' }).moveTo([x + depth / 2, cy]),
+    ...stripes,
+    new Rectangle({ width: 0.12, height: h, fill: TONE.ink, stroke: 'none' }).moveTo([x + 0.06, cy]),
   ), k)];
 }
 
@@ -345,8 +367,10 @@ export type LaneOptions = {
   to: number;
   /** Where its name starts. */
   nameX: number;
-  /** The lane in use: INK, bold, its name bold, its stop filled. Otherwise STEEL. */
+  /** The lane in use: INK, bold, its name bold. Otherwise STEEL. */
   active?: boolean;
+  /** Whether the last request reached its stop (filled INK). Default: `active`. A refused request does not. */
+  reached?: boolean;
   /** How steeply it fans out: horizontal run per unit of rise. Default 0.45. */
   fan?: number;
 };
@@ -364,18 +388,38 @@ export function laneRoute({ from, trunk, y, to, fan = 0.45 }: Pick<LaneOptions, 
 
 /**
  * One lane of the line map: out of the station in a bundle, fanned to its own height, then level
- * to its stop at the counter (see `laneRoute`). Its name is set on the line, signage fashion, on an
+ * to its stop at the counter (see `laneRoute`), its corners rounded as a transit map's are. Its name is set on the line, signage fashion, on an
  * opaque plate of the ground's colour; its stop is a ringed circle on the counter's face. STEEL
  * when idle; INK, bold and with a filled stop when `active`.
  * Keyed parts: `lane:<id>:line`, `lane:<id>:plate`, `lane:<id>:name`, `lane:<id>:stop`.
  */
-export function lane(s: Stage, { id, name, y, from, trunk, to, nameX, active = false, fan = 0.45 }: LaneOptions): Mobject[] {
-  const colour = active ? TONE.ink : TONE.steel, k = `lane:${id}`, [first, ...rest] = laneRoute({ from, trunk, y, to, fan });
-  const line = new Line(first!, rest[0]!, { stroke: colour, strokeWidth: active ? STROKE.bold : STROKE.line, fill: 'none', lineJoin: 'round' });
-  for (const p of rest.slice(1)) line.addLineTo(p);
+export function lane(s: Stage, { id, name, y, from, trunk, to, nameX, active = false, reached = active, fan = 0.45 }: LaneOptions): Mobject[] {
+  const colour = active ? TONE.ink : TONE.steel, k = `lane:${id}`;
+  const line = roundedPath(laneRoute({ from, trunk, y, to, fan }), 0.22, { stroke: colour, strokeWidth: active ? STROKE.bold : STROKE.line, fill: 'none' });
   const label = words(s, name, { at: [nameX, y], color: active ? TONE.ink : TONE.soft, bold: active });
   const plate = new Rectangle({ width: label.width() + 0.36, height: PLATE_HEIGHT, fill: TONE.ground, stroke: 'none' }).moveTo([nameX + label.width() / 2, y]);
-  return [keyedAs(line, `${k}:line`), keyedAs(plate, `${k}:plate`), keyedAs(label, `${k}:name`), keyedAs(stop(s, { at: [to, y], active }), `${k}:stop`)];
+  return [keyedAs(line, `${k}:line`), keyedAs(plate, `${k}:plate`), keyedAs(label, `${k}:name`), keyedAs(stop(s, { at: [to, y], active: reached }), `${k}:stop`)];
+}
+
+/**
+ * An open route through corner points with each corner rounded (radius up to `r`), as a transit
+ * map draws its lines: a Line, so the layout check treats it as a connector.
+ */
+function roundedPath(points: readonly Vec[], r: number, style: Style): Line {
+  const line = new Line(points[0]!, points[0]!, style);
+  line.subpaths = []; line.closed = [];
+  line.startNewPath(points[0]!);
+  for (let i = 1; i < points.length - 1; i++) {
+    const a = points[i - 1]!, b = points[i]!, c = points[i + 1]!;
+    const la = Math.hypot(b[0] - a[0], b[1] - a[1]), lc = Math.hypot(c[0] - b[0], c[1] - b[1]);
+    const k = Math.min(r, la / 2, lc / 2);
+    if (k < 1e-6) { line.addLineTo(b); continue; }
+    const p: Vec = [b[0] + ((a[0] - b[0]) * k) / la, b[1] + ((a[1] - b[1]) * k) / la], q: Vec = [b[0] + ((c[0] - b[0]) * k) / lc, b[1] + ((c[1] - b[1]) * k) / lc];
+    line.addLineTo(p);
+    line.addCubic([p[0] + (b[0] - p[0]) * 0.55, p[1] + (b[1] - p[1]) * 0.55], [q[0] + (b[0] - q[0]) * 0.55, q[1] + (b[1] - q[1]) * 0.55], q);
+  }
+  line.addLineTo(points.at(-1)!);
+  return line;
 }
 
 /** A stop: a circle of radius 0.17 on the counter's face, ringed in INK, filled INK when `active`. One unkeyed Circle. */
@@ -395,18 +439,18 @@ export type TicketOptions = {
   keyTeeth?: number | null;
 };
 
-/** A ticket's size: 1.9 × 0.8 units. */
-export const TICKET = { width: 1.9, height: 0.8 } as const;
+/** A ticket's size: 2.1 × 0.86 units. */
+export const TICKET = { width: 2.1, height: 0.86 } as const;
 
 /**
  * A ticket, one request: paper, with a notched stub. The stub carries the sender's seal (WAX, or
  * PEWTER with `foreign`); the body carries a key in deep brass when the request carries an access
- * token, and otherwise two printed lines (the request itself). Size: 1.9 × 0.8 units, always, so a
+ * token, and otherwise two printed lines (the request itself). Size: 2.1 × 0.86 units, always, so a
  * ticket with and without a key are the same object. One unkeyed Group.
  */
 export function ticket(s: Stage, { at = [0, 0], foreign = false, keyTeeth = null }: TicketOptions = {}): Group {
   const { width: w, height: h } = TICKET, [x, y] = at, l = x - w / 2, r = x + w / 2, t = y + h / 2, b = y - h / 2;
-  const k = RADIUS.ticket, stub = l + 0.74, bite = 0.11;
+  const k = RADIUS.ticket, stub = l + 0.8, bite = 0.12;
   const outline: P[] = [
     ...arc([l + k, t - k], k, Math.PI, Math.PI / 2, 5),
     ...arc([stub, t], bite, Math.PI, 2 * Math.PI, 10),
@@ -415,18 +459,18 @@ export function ticket(s: Stage, { at = [0, 0], foreign = false, keyTeeth = null
     ...arc([stub, b], bite, 0, Math.PI, 10),
     ...arc([l + k, b + k], k, -Math.PI / 2, -Math.PI, 5),
   ];
-  const perforation = [0.2, 0.06, -0.08, -0.22].map((dy) => new Circle({ radius: 0.022, fill: TONE.paperLine, stroke: 'none' }).moveTo([stub, y + dy]));
-  const body = keyTeeth ? [key(s, { at: [stub + 0.58, y + 0.04], size: 0.46, teeth: keyTeeth, onPaper: true })]
-    : [0.13, -0.11].map((dy, i) => new Rectangle({ width: i ? 0.5 : 0.78, height: 0.07, fill: TONE.paperLine, stroke: 'none', cornerRadius: 0.03 }).moveTo([stub + 0.2 + (i ? 0.25 : 0.39), y + dy]));
-  return new Group(fill(outline, TONE.paper), ...perforation, seal(s, { at: [l + 0.37, y], r: 0.25, foreign }), ...body);
+  const perforation = [0.21, 0.07, -0.07, -0.21].map((dy) => new Circle({ radius: 0.024, fill: TONE.paperLine, stroke: 'none' }).moveTo([stub, y + dy]));
+  const body = keyTeeth ? [key(s, { at: [stub + 0.66, y + 0.05], size: 0.52, teeth: keyTeeth, onPaper: true })]
+    : [0.14, -0.12].map((dy, i) => new Rectangle({ width: i ? 0.56 : 0.9, height: 0.075, fill: TONE.paperLine, stroke: 'none', cornerRadius: 0.03 }).moveTo([stub + 0.22 + (i ? 0.28 : 0.45), y + dy]));
+  return new Group(fill(outline, TONE.paper), ...perforation, seal(s, { at: [l + 0.4, y], r: 0.28, foreign }), ...body);
 }
 
 /**
- * A barrier across a lane: an upright boom, 0.28 × `height` (default 1.1), with rounded ends,
+ * A barrier across a lane: an upright boom, 0.28 × `height` (default 0.96), with rounded ends,
  * banded INK and ground like a level-crossing arm. It stands where the Company stops a request,
  * between the refused ticket and the counter. One unkeyed Group.
  */
-export function barrier(_s: Stage, { at = [0, 0], height = 1.1 }: { at?: Vec; height?: number } = {}): Group {
+export function barrier(_s: Stage, { at = [0, 0], height = 0.96 }: { at?: Vec; height?: number } = {}): Group {
   const w = 0.28, n = 5, inner = height - 0.1, band = inner / n;
   const bands = Array.from({ length: n }, (_, i) => i).filter((i) => i % 2 === 0)
     .map((i) => new Rectangle({ width: w - 0.1, height: band, fill: TONE.ink, stroke: 'none', cornerRadius: i === 0 || i === n - 1 ? 0.06 : 0 }).moveTo([at[0], at[1] + inner / 2 - band * (i + 0.5)]));
@@ -452,7 +496,7 @@ export type LedgerOptions = {
   at: Vec;
   /** From the labels' start to the values' end. */
   width: number;
-  /** The heading, in TYPE.label bold. */
+  /** The heading, in TYPE.small bold over the double rule. */
   title: string;
   /** Prefix of the parts' keys. */
   key: string;
@@ -472,13 +516,13 @@ export type LedgerOptions = {
  */
 export function ledger(s: Stage, rows: readonly LedgerRow[], { at, width, title, key: k, rowGap = 0.86, changedAs = 'changed' }: LedgerOptions): Mobject[] {
   const [x, top] = at, right = x + width, out: Mobject[] = [];
-  out.push(keyedAs(words(s, title, { at, size: TYPE.label, bold: true }), `${k}:title`));
+  out.push(keyedAs(words(s, title, { at, bold: true }), `${k}:title`));
   out.push(keyedAs(new Group(
-    new Rectangle({ width, height: 0.04, fill: TONE.ink, stroke: 'none' }).moveTo([x + width / 2, top - 0.5]),
-    new Rectangle({ width, height: 0.025, fill: TONE.ink, stroke: 'none' }).moveTo([x + width / 2, top - 0.6]),
+    new Rectangle({ width, height: 0.045, fill: TONE.ink, stroke: 'none' }).moveTo([x + width / 2, top - 0.46]),
+    new Rectangle({ width, height: 0.025, fill: TONE.ink, stroke: 'none' }).moveTo([x + width / 2, top - 0.56]),
   ), `${k}:rule`));
   rows.forEach((row, i) => {
-    const y = top - 1.08 - i * rowGap, slug = `${k}:${row.label.toLowerCase().replace(/\s+/g, '-')}`;
+    const y = top - 1.02 - i * rowGap, slug = `${k}:${row.label.toLowerCase().replace(/\s+/g, '-')}`;
     out.push(keyedAs(words(s, row.label, { at: [x, y], color: TONE.soft }), `${slug}:label`));
     const value = keyedAs(words(s, row.value, { at: [right, y], align: 'end', color: row.quiet ? TONE.soft : TONE.ink, mono: !row.quiet, bold: !!row.changed }), `${slug}:value`);
     out.push(value);
@@ -509,6 +553,10 @@ export type AnswerOptions = {
   key?: string;
   /** The emphasis words for the phrase, for the phone's tour and descriptions. */
   emphasis?: string;
+  /** The x where the phrase and meaning start, to align them with something above; default just after the number column. */
+  textX?: number;
+  /** Set the meaning in mono: for a meaning that is a protocol literal alone ("invalid_session"). */
+  meaningMono?: boolean;
 };
 
 /** The width the answer block keeps for its number, so the phrase stays put from answer to answer. */
@@ -521,14 +569,14 @@ export const ANSWER_NUMBER_WIDTH = 3 * 0.6 * TYPE.display;
  * ANSWER_NUMBER_WIDTH (2.88) wide. Size: about 3.4 + phrase width × 2.6 units.
  * Keyed parts: `<key>:asked`, `<key>:code` (Text) or `<key>:key` (Group), `<key>:phrase`, `<key>:meaning`.
  */
-export function answer(s: Stage, { at, asked, number, keyTeeth = 1, phrase, meaning, key: k = 'answer', emphasis }: AnswerOptions): Mobject[] {
-  const [x, y] = at, mid = y - 1.48, textX = x + ANSWER_NUMBER_WIDTH + SPACE.m;
+export function answer(s: Stage, { at, asked, number, keyTeeth = 1, phrase, meaning, key: k = 'answer', emphasis, textX = at[0] + ANSWER_NUMBER_WIDTH + SPACE.m, meaningMono = false }: AnswerOptions): Mobject[] {
+  const [x, y] = at, mid = y - 1.48;
   const out: Mobject[] = [keyedAs(words(s, asked, { at, color: TONE.soft }), `${k}:asked`)];
   if (number !== null) out.push(keyedAs(words(s, number, { at: [x - 0.06, mid], size: TYPE.display, mono: true, bold: true }), `${k}:code`));
   else out.push(keyedAs(key(s, { at: [x + ANSWER_NUMBER_WIDTH / 2 - 0.1, mid + 0.06], size: 1.25, teeth: keyTeeth }), `${k}:key`));
   const head = keyedAs(words(s, phrase, { at: [textX, mid + 0.3], size: TYPE.title, bold: true }), `${k}:phrase`);
   if (emphasis) markAs(head, emphasis);
-  out.push(head, keyedAs(words(s, meaning, { at: [textX, mid - 0.46] }), `${k}:meaning`));
+  out.push(head, keyedAs(words(s, meaning, { at: [textX, mid - 0.46], mono: meaningMono }), `${k}:meaning`));
   return out;
 }
 
@@ -592,9 +640,9 @@ export function codeSlip(s: Stage, { at = [0, 0], code = 'K7Q-29F' }: { at?: Vec
 /** Options for `certificate`. */
 export type CertificateOptions = {
   at?: Vec;
-  /** Default 1.7. */
+  /** Default 1.9. */
   width?: number;
-  /** Default 1.2. */
+  /** Default 1.3. */
   height?: number;
   /** Printed at the top in mono, e.g. "delegation". */
   title?: string;
@@ -605,11 +653,12 @@ export type CertificateOptions = {
 /**
  * A delegation or certificate: PAPER with a fine inset border, printed lines, and a seal pressed at
  * its lower right over two ribbon tails: someone vouches for what it says (the agent, in WAX, or
- * another party, PEWTER, with `foreign`). Default 1.7 × 1.2 units. One unkeyed Group.
+ * another party, PEWTER, with `foreign`). Default 1.9 × 1.3 units (1.5 high, and wide enough, with a
+ * title). The ribbon tails hang 0.5 below the seal, past the paper's edge. One unkeyed Group.
  */
-export function certificate(s: Stage, { at = [0, 0], width = 1.7, height = 1.2, title, foreign = false }: CertificateOptions = {}): Group {
+export function certificate(s: Stage, { at = [0, 0], width = 1.9, height = 1.3, title, foreign = false }: CertificateOptions = {}): Group {
   const head = title ? words(s, title, { mono: true, bold: true, color: TONE.print }) : null;
-  const w = Math.max(width, head ? head.width() + 0.7 : 0), h = Math.max(height, head ? 1.45 : 0), [x, y] = at, l = x - w / 2, t = y + h / 2;
+  const w = Math.max(width, head ? head.width() + 0.9 : 0), h = Math.max(height, head ? 1.5 : 0), [x, y] = at, l = x - w / 2, t = y + h / 2;
   const sealAt: P = [x + w / 2 - 0.42, y - h / 2 + 0.34], ribbon = foreign ? TONE.pewterDeep : TONE.waxDeep;
   const tail = (dx: number): P[] => [add(sealAt, [dx - 0.08, 0]), add(sealAt, [dx + 0.08, 0]), add(sealAt, [dx * 1.6 + 0.1, -0.5]), add(sealAt, [dx * 1.6, -0.4]), add(sealAt, [dx * 1.6 - 0.1, -0.5])];
   const parts: Mobject[] = [
@@ -760,7 +809,8 @@ export type SpeechOptions = {
  * A turn of speech in a conversation: a bubble holding the words (TYPE.small; a PAPER bubble with
  * PRINT words for a person, a RAISED bubble with INK words for an AI), its tail pointing to the
  * speaker's mark beside it, the person mark or the AI mark. Every message says who wrote it, so the
- * mark is never left out. `at` is the bubble's centre. Height 0.9; width the words + 0.56.
+ * mark is never left out. `at` is the bubble's centre; the mark stands 0.42 beyond its side, a
+ * little low, by the tail's tip. Height 0.9 (1.2 with the tail); width the words + 0.56.
  * One unkeyed Group.
  */
 export function speech(s: Stage, text: string, { at = [0, 0], who, side = 'left', width }: SpeechOptions): Group {
@@ -768,11 +818,11 @@ export function speech(s: Stage, text: string, { at = [0, 0], who, side = 'left'
   const t = words(s, text, { at, align: 'middle', color: isPerson ? TONE.print : TONE.ink });
   const w = width ?? t.width() + 0.56, h = 0.9, [x, y] = at, f = side === 'left' ? -1 : 1, k = RADIUS.panel;
   const l = x - w / 2, r = x + w / 2, top = y + h / 2, b = y - h / 2;
-  const outline: P[] = side === 'left'
-    ? [...arc([l + k, top - k], k, Math.PI, Math.PI / 2, 5), ...arc([r - k, top - k], k, Math.PI / 2, 0, 5), ...arc([r - k, b + k], k, 0, -Math.PI / 2, 5), [l + 0.55, b], [l - 0.12, b - 0.2], [l, b + 0.2]]
-    : [...arc([l + k, top - k], k, Math.PI, Math.PI / 2, 5), ...arc([r - k, top - k], k, Math.PI / 2, 0, 5), [r, b + 0.2], [r + 0.12, b - 0.2], [r - 0.55, b], ...arc([l + k, b + k], k, -Math.PI / 2, -Math.PI, 5)];
+  const tip = 0.3, outline: P[] = side === 'left'
+    ? [...arc([l + k, top - k], k, Math.PI, Math.PI / 2, 5), ...arc([r - k, top - k], k, Math.PI / 2, 0, 5), ...arc([r - k, b + k], k, 0, -Math.PI / 2, 5), [l + 0.62, b], [l + 0.08, b - tip], [l + 0.3, b], ...arc([l + k, b + k], k, -Math.PI / 2, -Math.PI, 5)]
+    : [...arc([l + k, top - k], k, Math.PI, Math.PI / 2, 5), ...arc([r - k, top - k], k, Math.PI / 2, 0, 5), ...arc([r - k, b + k], k, 0, -Math.PI / 2, 5), [r - 0.3, b], [r - 0.08, b - tip], [r - 0.62, b], ...arc([l + k, b + k], k, -Math.PI / 2, -Math.PI, 5)];
   const bubble = isPerson ? fill(outline, TONE.paper) : shape([outline], { fill: TONE.raised, stroke: TONE.ink, strokeWidth: STROKE.fine, lineJoin: 'round' });
-  const markAt: P = [x + f * (w / 2 + 0.55), y - 0.18];
+  const markAt: P = [x + f * (w / 2 + 0.42), y - 0.5];
   const mark = isPerson ? person(s, { at: markAt, size: 0.62 }) : aiMark(s, { at: markAt, size: 1 });
   return new Group(bubble, t, mark);
 }
@@ -789,7 +839,8 @@ export type PhoneOptions = {
 /**
  * A phone, a second device (as Device Sign-In uses): a RAISED body with an INK outline, a GROUND
  * screen inset, a STEEL speaker slot and home bar. 1.3 × 2.3 units at size 1; the screen is
- * 1.06 × 1.7 at its centre, raised 0.02. One unkeyed Group.
+ * (1.06 × 1.7) × size at its centre, raised 0.02 × size: a code slip of four digits needs size 1.8.
+ * One unkeyed Group.
  */
 export function phone(_s: Stage, { at = [0, 0], size = 1, screen }: PhoneOptions = {}): Group {
   const u = size, [x, y] = at;
@@ -900,17 +951,30 @@ export type BeatsOptions = {
   fresh?: readonly string[];
   /** Keys to bring in right after the flight, before the rest settles (a barrier dropping in). */
   then?: readonly string[];
+  /**
+   * Key prefixes of parts that change before the flight, as the first beat: the lane a request
+   * takes lights up before its ticket sets off. Parts both pictures have are morphed; words that
+   * change are still replaced at the end.
+   */
+  lead?: readonly string[];
 };
 
 /**
  * A transition in three beats. First, words that change, and every part of the last event
- * (`fresh`), go. Then the flight plays (made only now, after the leaves, since a part may enter
+ * (`fresh`), go, while the `lead` parts change (the lane in use lights up). Then the flight plays (made only now, after the leaves, since a part may enter
  * again only once it has left). Then the `then` parts come, and finally the new words come while
  * every other part settles (`c.rest()`). Words are replaced, never morphed glyph by glyph.
  */
-export function beats(c: Choreography, flight: () => Beat[] = () => [], { fresh = ['answer:', 'ticket', 'barrier'], then = [] }: BeatsOptions = {}): Succession {
-  const isFresh = (k: string) => fresh.some((f) => k === f || k.startsWith(f.endsWith(':') ? f : `${f}:`));
+export function beats(c: Choreography, flight: () => Beat[] = () => [], { fresh = ['answer:', 'ticket', 'barrier'], then = [], lead = [] }: BeatsOptions = {}): Succession {
+  const starts = (list: readonly string[]) => (k: string) => list.some((f) => k === f || k.startsWith(f.endsWith(':') ? f : `${f}:`));
+  const isFresh = starts(fresh), isLead = starts(lead);
   const out: Animation[] = [], back: Animation[] = [];
+  for (const k of c.keys('to')) {
+    if (!isLead(k) || !c.has(k, 'from') || isFresh(k) || then.includes(k)) continue;
+    const now = c.from(k), next = c.to(k);
+    if (now instanceof Text && next instanceof Text && now.text !== next.text) continue;
+    out.push(c.morph(k, { runTime: 0.3 }));
+  }
   for (const k of c.keys('to')) {
     if (!c.has(k, 'from') || then.includes(k)) continue;
     const now = c.from(k), next = c.to(k);

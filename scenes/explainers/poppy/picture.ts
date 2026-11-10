@@ -93,24 +93,24 @@ export function sayWorld(w: World): string {
 const STATION: Vec = [-6.3, 2.0];
 const STATION_R = 1.05;
 /** Where the station's bundle of lanes ends and they fan out. */
-const TRUNK_X = -5.0;
+const TRUNK_X = -5.15;
 /** Each lane's level run, and its place in the bundle leaving the station. */
-export const LANE_Y: Record<Lane, number> = { api: 3.85, web: 3.0, chat: 2.15, 'sign-in': 1.3 };
+export const LANE_Y: Record<Lane, number> = { api: 3.8, web: 2.95, chat: 2.1, 'sign-in': 1.25 };
 const BUNDLE: Record<Lane, number> = { api: 0.33, web: 0.11, chat: -0.11, 'sign-in': -0.33 };
 /** The counter's face, where every lane ends at its stop. */
 export const STOP_X = 0.62;
 /** Where the lanes' names start, on their level runs. */
-const NAME_X = -4.25;
+const NAME_X = -4.05;
 /** The ledger's left edge, behind the counter. */
-const LEDGER_X = 1.55;
+const LEDGER_X = 1.45;
+/** How steeply the lanes fan out of the bundle. */
+const FAN = 0.6;
 /** The corners of a lane, from the station to its stop. */
 export const routeOf = (on: Lane): Vec[] => laneRoute({ from: stationExit(STATION, STATION_R, BUNDLE[on]), trunk: TRUNK_X, y: LANE_Y[on], to: STOP_X, fan: FAN });
-/** How steeply the lanes fan out of the bundle. */
-const FAN = 0.4;
 /** The barrier's place on a lane: just short of the counter. */
-const BARRIER_X = STOP_X - 0.36;
+const BARRIER_X = STOP_X - 0.45;
 /** Where a ticket rests on its lane: docked at its stop when delivered, before the barrier when refused. */
-export const ticketAt = (on: Lane, delivered: boolean): Vec => [delivered ? STOP_X - 0.17 - TICKET.width / 2 : BARRIER_X - 0.14 - 0.12 - TICKET.width / 2, LANE_Y[on]];
+export const ticketAt = (on: Lane, delivered: boolean): Vec => [delivered ? STOP_X - 0.17 - TICKET.width / 2 : BARRIER_X - 0.14 - 0.14 - TICKET.width / 2, LANE_Y[on]];
 /** Where the agent holds its seal (where a request is stamped and sets off) and its key. */
 const HOLDS = stationHolds(STATION, STATION_R);
 export const SEAL_AT: Vec = HOLDS.seal;
@@ -119,7 +119,7 @@ export const KEY_AT: Vec = HOLDS.key;
 export const THIEF_FROM: Vec = [ticketAt('api', false)[0], 0.3];
 /** Where the Company's poppy.json sets off from, and where the agent takes it in. */
 export const DOCUMENT_ROUTE: [Vec, Vec] = [[STOP_X - 0.7, LANE_Y.web - 0.4], [STATION[0] + 0.5, STATION[1] + 0.2]];
-/** The route a key takes from the Company's sign-in stop to the agent's hook, and back. */
+/** The route a key takes from the Company's sign-in stop into the agent's station, and back. */
 export const keyRoute = (): Vec[] => {
   const [from, trunk, bend, stop] = routeOf('sign-in');
   return [stop!, bend!, trunk!, from!, KEY_AT];
@@ -135,7 +135,7 @@ export function drawWorld(w: World, s: Stage): Group {
   const parts = keyedParts();
   const last = w.last, report = reportOf(w), request = last?.kind === 'request' ? last : null, teeth = w.approves.length;
 
-  // The agent's station, holding its seal; under its name, its key, or the empty slot for one.
+  // The agent's station, holding its seal and, under it, its key or the empty slot for one.
   const agent = station(s, { at: STATION, r: STATION_R, keyTeeth: w.grant ? teeth : 0 });
   const held = agent.find((m) => m.key === 'agent:key');
   if (held && last?.kind === 'sign-in') emphasised(held, `changed: the agent now holds a key for ${scopesOf(w.approves)}`);
@@ -146,7 +146,7 @@ export function drawWorld(w: World, s: Stage): Group {
   if (w.found)
     for (const name of LANES) {
       const [from, , , end] = routeOf(name);
-      addAll(parts, lane(s, { id: name, name: LANE_NAME[name], y: LANE_Y[name], from: from!, trunk: TRUNK_X, to: end![0], nameX: NAME_X, active: report?.lane === name }));
+      addAll(parts, lane(s, { id: name, name: LANE_NAME[name], y: LANE_Y[name], from: from!, trunk: TRUNK_X, to: end![0], nameX: NAME_X, active: report?.lane === name, reached: report?.lane === name && report.delivered }));
     }
   else parts.add(words(s, 'no way in yet', { at: [(TRUNK_X + STOP_X) / 2, LANE_Y.web - 0.4], size: TYPE.label, color: TONE.soft, align: 'middle' }), 'lane:none');
 
@@ -160,10 +160,10 @@ export function drawWorld(w: World, s: Stage): Group {
   // Under the map, on the agent's side: what was asked, and what came back.
   if (report)
     addAll(parts, answer(s, {
-      at: [MARGIN.left, -1.35], asked: report.asked, number: report.number, keyTeeth: last?.kind === 'sign-in' ? last.granted.length : teeth,
-      phrase: report.phrase, meaning: report.outcome, emphasis: `the answer: ${report.number ?? ''} ${report.phrase}, ${report.outcome}`,
+      at: [MARGIN.left, -1.5], asked: report.asked, number: report.number, keyTeeth: last?.kind === 'sign-in' ? last.granted.length : teeth,
+      phrase: report.phrase, meaning: report.outcome, meaningMono: /^[a-z_]+$/.test(report.outcome), textX: NAME_X, emphasis: `the answer: ${report.number ?? ''} ${report.phrase}, ${report.outcome}`,
     }));
-  else parts.add(words(s, 'nothing sent yet', { at: [MARGIN.left, -2.6], size: TYPE.label, color: TONE.soft }), 'answer:code');
+  else parts.add(words(s, 'nothing sent yet', { at: [MARGIN.left, -2.75], size: TYPE.label, color: TONE.soft }), 'answer:code');
 
   // Behind the counter: what the Company knows. The row the last request changed carries a change bar.
   const verified = request && request.by === 'agent' && request.answer.error !== 'invalid_session' ? request : null;
@@ -175,11 +175,11 @@ export function drawWorld(w: World, s: Stage): Group {
 
   // The two marks, named, under the ledger: what each proof says.
   const markX = LEDGER_X + 0.5, textX = LEDGER_X + 1.3;
-  parts.add(seal(s, { at: [markX, -1.68], r: 0.44 }), 'legend:seal');
-  parts.add(words(s, 'Session header', { at: [textX, -1.4], size: TYPE.label, bold: true }), 'legend:seal:name');
-  parts.add(words(s, 'who is asking', { at: [textX, -2.0], color: TONE.soft }), 'legend:seal:says');
-  parts.add(key(s, { at: [markX, -3.26], size: 0.5, teeth }), 'legend:key');
-  parts.add(words(s, 'Access token', { at: [textX, -2.98], size: TYPE.label, bold: true }), 'legend:key:name');
-  parts.add(words(s, 'what you allow', { at: [textX, -3.58], color: TONE.soft }), 'legend:key:says');
+  parts.add(seal(s, { at: [markX, -1.83], r: 0.44 }), 'legend:seal');
+  parts.add(words(s, 'Session header', { at: [textX, -1.55], bold: true }), 'legend:seal:name');
+  parts.add(words(s, 'who is asking', { at: [textX, -2.15], color: TONE.soft }), 'legend:seal:says');
+  parts.add(key(s, { at: [markX, -3.41], size: 0.5, teeth }), 'legend:key');
+  parts.add(words(s, 'Access token', { at: [textX, -3.13], bold: true }), 'legend:key:name');
+  parts.add(words(s, 'what you allow', { at: [textX, -3.73], color: TONE.soft }), 'legend:key:says');
   return parts.group();
 }

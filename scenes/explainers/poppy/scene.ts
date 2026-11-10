@@ -7,6 +7,8 @@ import type { PoppyEvent, Scope, World } from './model.ts';
 import { DOCUMENT_ROUTE, LANES, LANE_Y, PALETTE, SEAL_AT, THIEF_FROM, documentToken, drawWorld, keyRoute, routeOf, sayWorld } from './picture.ts';
 import type { Lane } from './picture.ts';
 
+/** What lights up before a ticket or a key sets off: the lanes' lines and names. */
+const LEAD = LANES.flatMap((name) => [`lane:${name}:line`, `lane:${name}:name`, `lane:${name}:plate`]);
 /** The lane whose level run is at this height. */
 const laneOf = (y: number): Lane => LANES.find((name) => Math.abs(LANE_Y[name] - y) < 0.01)!;
 
@@ -16,11 +18,14 @@ const APPROVALS: Record<string, readonly Scope[]> = { 'read-write': ['orders:rea
 // poppy.json, each request, sign-in and sign-out is an event of the model, the picture is a view of
 // its state, and the last step is live. The story is the model's STORY, replayed step by step.
 //
-// The motion is the explanation's: a request leaves the agent as a packet that grows out of the
-// agent's seal and travels its lane; the key comes to the agent from the Company's edge, where the
-// User approved it; a thief's packet drops onto the lane from outside the agent; and poppy.json crosses to the
-// agent before the lanes are drawn. Each is an authored transition, so a reader's own presses at
-// the live step move as the story's do, and rayner check plays every one from every state.
+// The motion is the explanation's, built with the series' kit (beats, flight, pass): poppy.json
+// crosses from the Company to the agent before the lanes it lists are drawn; a request's lane lights,
+// then its ticket is stamped at the agent's seal and travels the lane, and a refused one meets a
+// barrier; the key comes to the agent from the Company's sign-in stop, where the User approved it,
+// and goes back there at sign-out; a thief's ticket rises onto the lane from outside the agent's
+// network. The answer appears only once the ticket has landed. Each is an authored transition, so
+// a reader's own presses at the live step move as the story's do, and rayner check plays every one
+// from every state.
 export default class Poppy extends Scene<World, {}> {
   static meta = {
     sources: [
@@ -70,7 +75,7 @@ export default class Poppy extends Scene<World, {}> {
     /** A request leaves the agent: its ticket appears on the agent's seal, follows its lane and stops where it rests. */
     const request = (t: Transition<World, PoppyEvent>) => {
       const c = t.choreograph(world), lane = laneOf(c.to('ticket').center()[1]!);
-      return beats(c, flight(c, 'ticket', [SEAL_AT, ...routeOf(lane).slice(1, 3)]), { then: ['barrier'] });
+      return beats(c, flight(c, 'ticket', [SEAL_AT, ...routeOf(lane).slice(1, 3)]), { then: ['barrier'], lead: LEAD });
     };
     const machine = new Machine<World, PoppyEvent>(this, {
       start: start(approves),
@@ -98,12 +103,12 @@ export default class Poppy extends Scene<World, {}> {
         // The key comes to the agent from the Company's counter, where the User approved it, along the sign-in lane.
         'sign-in': (t) => {
           const c = t.choreograph(world);
-          return beats(c, flight(c, 'agent:key', keyRoute().slice(0, -1)));
+          return beats(c, flight(c, 'agent:key', keyRoute().slice(0, -1)), { lead: LEAD });
         },
         // A thief's ticket comes from under the map, not from the agent, and stops where the Company refuses it.
         thief: (t) => {
           const c = t.choreograph(world);
-          return beats(c, flight(c, 'ticket', [THIEF_FROM]), { then: ['barrier'] });
+          return beats(c, flight(c, 'ticket', [THIEF_FROM]), { then: ['barrier'], lead: LEAD });
         },
         // The key goes back the way it came, to the Company's sign-in stop, and is gone.
         'sign-out': (t) => {
@@ -111,7 +116,7 @@ export default class Poppy extends Scene<World, {}> {
           return beats(c, () => {
             const back = pass(c, 'agent:key:return', c.from('agent:key').copy(), [...keyRoute()].reverse(), { appear: 0.2, move: 0.9, leave: 0.25 });
             return [new AnimationGroup([c.leave('agent:key', { runTime: 0.2 }), back[0]!]), ...back.slice(1)];
-          });
+          }, { lead: LEAD });
         },
       },
     });
