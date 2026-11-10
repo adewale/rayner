@@ -42,7 +42,7 @@ type Box = { x: number; y: number; w: number; h: number };
 const top = (b: Box) => b.y + b.h / 2, bottom = (b: Box) => b.y - b.h / 2, left = (b: Box) => b.x - b.w / 2, right = (b: Box) => b.x + b.w / 2;
 
 /** The conversation's table: the hero, and the smaller, stepped-back table while a Direct Conversation is open. */
-const MAIN_FULL: Box = { x: -2.4, y: 0.5, w: 8.4, h: 3.5 };
+const MAIN_FULL: Box = { x: -2.4, y: 0.4, w: 8.4, h: 3.5 };
 const MAIN_BACK: Box = { x: -2.4, y: 2.3, w: 8.4, h: 1.4 };
 /** The Direct Conversation's table, lower on the stage. */
 const DIRECT: Box = { x: -2.4, y: -2.25, w: 7.0, h: 2.0 };
@@ -183,7 +183,7 @@ const fields = (c: Conv) => `working ${c.working}, handoff ${c.handoff}, respond
 
 /** The rows of the ledger for a conversation, or for none yet. */
 function ledgerRows(c: Conv | null) {
-  if (!c) return ['working', 'handoff', 'responder', 'closed'].map((label) => ({ label, value: 'none yet', quiet: true }));
+  if (!c) return ['working', 'handoff', 'responder', 'closed'].map((label) => ({ label, value: 'none', quiet: true }));
   return [
     { label: 'working', value: String(c.working) },
     { label: 'handoff', value: c.handoff },
@@ -260,7 +260,7 @@ export function drawWorld(w: World, s: Stage, shown: Shown = {}): Group {
   const ink = paused ? TONE.steel : TONE.ink;
   /** A seat's name and, under it, what sits there; above the seat for a seat on the table's far edge. */
   const named = (key: string, at: Vec, name: string, kind: string, above: boolean, quiet = false) => {
-    const nameY = above ? at[1] + SEAT_R + 0.98 : at[1] - SEAT_R - 0.4, kindY = above ? at[1] + SEAT_R + 0.4 : at[1] - SEAT_R - 0.98;
+    const nameY = above ? at[1] + SEAT_R + 1.06 : at[1] - SEAT_R - 0.4, kindY = above ? at[1] + SEAT_R + 0.4 : at[1] - SEAT_R - 1.06;
     parts.add(words(s, name, { at: [at[0], nameY], align: 'middle', color: quiet ? TONE.soft : TONE.ink, bold: !quiet }), `${key}:name`);
     parts.add(words(s, kind, { at: [at[0], kindY], align: 'middle', color: TONE.soft }), `${key}:kind`);
   };

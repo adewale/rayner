@@ -7,7 +7,7 @@ import type { Beat } from '../lib/poppy-kit.ts';
 import { COVERAGE_EVENTS, STORY, next, start } from './model.ts';
 import type { Company, CoverageEvent, World } from './model.ts';
 import {
-  BOARD_AT, LANES, NOTE_AT, PALETTE, cardToken, noteLineAt, SKILL_AT, SEAL_AT, SLOT_AT, TRAY_AT,
+  BOARD_AT, LANES, NOTE_AT, PALETTE, REACH_AT, cardToken, noteLineAt, SKILL_AT, SEAL_AT, SLOT_AT, TRAY_AT,
   drawWorld, kindOf, noteToken, probeToken, requestToken, routeOf, sayWorld, slipToken, stripKeys,
 } from './picture.ts';
 
@@ -83,11 +83,13 @@ export default class Coverage extends Scene<World, {}> {
       const from = noteLineAt;
       const laid = card ? pass(c, 'skill:read', cardToken(s), [SKILL_AT, NOTE_AT], { appear: 0.2, move: 0.8, leave: 0.25 }) : [];
       const torn = stripKeys(w), kept = torn.filter((x) => x.key.startsWith('strip:used:'));
-      const strips = together(torn.map((x) => flight(c, x.key, [from(x.line)], { appear: 0.2, move: 0.8, leave: 0.25 })()));
+      const strips = together(torn.filter((x) => !x.reveal).map((x) => flight(c, x.key, [from(x.line)], { appear: 0.2, move: 0.8, leave: 0.25 })()));
+      // A strip that asks for a secret reaches across toward the station, stops under the rule, and falls back to the shop's side.
+      const reaching = torn.filter((x) => x.reveal).flatMap((x) => flight(c, x.key, [from(x.line), REACH_AT], { appear: 0.2, move: 1.4, leave: 0.25 })());
       const first = kept[0] ? c.to(kept[0].key) : null;
       const handed = first ? pass(c, 'strip:handed', first.copy(), [first.center() as [number, number], SEAL_AT], { appear: 0.15, move: 0.6, leave: 0.25 }) : [];
       const sent = flight(c, 'ticket', [SEAL_AT, ...routeOf('api').slice(1, 3)], { appear: 0.2, move: 0.9, leave: 0.25 })();
-      return [...laid, ...strips, ...handed, ...sent];
+      return [...laid, ...strips, ...reaching, ...handed, ...sent];
     };
     const motion = (t: Transition<World, CoverageEvent>) => {
       const c = t.choreograph(world);
@@ -122,7 +124,7 @@ export default class Coverage extends Scene<World, {}> {
       },
       next,
       views: [world],
-      runTime: ({ event, after: a }) => ({ probe: 2.75, read: 2.2, report: 4.0, sort: event === 'use skill' ? 5.55 : 4.3, told: 0.7 })[kindOf(event, a)],
+      runTime: ({ event, after: a }) => ({ probe: 2.75, read: 2.2, report: 4.0, sort: event === 'use skill' ? (a.company === 'hostile' ? 7.4 : 5.55) : 4.3, told: 0.7 })[kindOf(event, a)],
       transition: Object.fromEntries(COVERAGE_EVENTS.map((e) => [e, motion])) as Record<CoverageEvent, typeof motion>,
     });
 

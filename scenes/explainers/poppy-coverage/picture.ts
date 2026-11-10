@@ -3,7 +3,7 @@ import type { Mobject, Vec } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
 import {
-  MARGIN, PALETTE as KIT_PALETTE, RADIUS, TICKET, TONE, TYPE,
+  MARGIN, PALETTE as KIT_PALETTE, RADIUS, STROKE, TICKET, TONE, TYPE,
   addAll, barrier, counter, instructionCard, lane, laneRoute, sheet, speech, station, stationExit, stationHolds, ticket, words,
 } from '../lib/poppy-kit.ts';
 import { asksOf, keyOf, TASKS } from './model.ts';
@@ -52,26 +52,32 @@ export const SEAL_AT: Vec = stationHolds(STATION, STATION_R).seal;
 /** A ticket docked at the API stop. */
 const TICKET_AT: Vec = [COUNTER_X - 0.17 - TICKET.width / 2, LANE_Y.api];
 
-/** The tray: the agent's model. */
-const TRAY = { left: MARGIN.left - 0.05, right: COUNTER_X - 0.42, top: 0.12, bottom: -4.3 };
-const TRAY_IN = TRAY.left + 0.3;
+/** The ruled line under which each side shows what it holds: the agent's model on the left, the shop's desk on the right. */
+const RULE_Y = 0.05;
+const HEAD_Y = 0.5;
+/** The agent's model: everything below the rule on the agent's side. */
+const TRAY = { left: MARGIN.left, right: COUNTER_X - 0.45 };
+const TRAY_IN = TRAY.left;
+/** The furthest a strip reaches toward the agent's station: just under the rule, beneath the seal and key. */
+export const REACH_AT: Vec = [-5.2, RULE_Y - 0.45];
 /** Where the shop's note lies on its side of the counter, unread. */
 export const NOTE_AT: Vec = [3.0, -2.0];
 /** Where paper lands in the tray, for flights in and out. */
-export const TRAY_AT: Vec = [(TRAY.left + TRAY.right) / 2, -2.2];
+export const TRAY_AT: Vec = [(TRAY.left + TRAY.right) / 2, -2.0];
 
 /** The notice board. */
 const BOARD = { left: 0.45, right: MARGIN.right, top: 4.2, bottom: 2.36 };
 export const BOARD_AT: Vec = [(BOARD.left + BOARD.right) / 2, (BOARD.top + BOARD.bottom) / 2];
 /** The skill card. */
-export const SKILL_AT: Vec = [6.1, 1.6];
-const SKILL_W = 3.0, SKILL_H = 0.95 + 2 * 0.22;
-/** The feedback box, and its slot. */
-const BOX: Vec = [0.98, 1.55];
-export const SLOT_AT: Vec = [BOX[0], BOX[1] + 0.3];
+export const SKILL_AT: Vec = [6.3, 1.56];
+const SKILL_W = 2.6;
+/** The feedback slot, cut through the counter. */
+export const SLOT_AT: Vec = [COUNTER_X + 0.25, 1.3];
 /** The Company's side, where strips set aside lie. */
-const ASIDE_X = 0.5;
+const ASIDE_X = 0.45;
+/** The agent's followed strips, and the shop's set-aside strips with the reason under each. */
 const STRIP_Y = (i: number) => -1.2 - i * 0.92;
+const ASIDE_Y = (i: number) => -0.62 - i * 1.24;
 
 // ---------------------------------------------------------------------------------------------
 // Words
@@ -95,6 +101,11 @@ function stripOf(ask: Ask): { text: string; mono: boolean } | null {
     case 'reveal': return { text: 'your access token', mono: false };
   }
 }
+/** Why the agent set an ask aside, in a few plain words a reader can check against the caption. Section numbers stay in the words. */
+function reasonOf(ask: Ask): string {
+  return { send: 'not needed', consent: 'not your consent', act: 'another shop', script: 'no scripts', grant: 'grants nothing', reveal: 'a secret', way: 'not listed' }[ask.kind];
+}
+
 /** What the shop sees: only what reached it. */
 export function seenBy(w: World): string {
   if (w.gift === 'reported' || w.gift === 'paid') return '1 report';
@@ -160,28 +171,19 @@ function board(s: Stage, read: boolean, marked: boolean): Mobject[] {
   return out;
 }
 
-/** The feedback box: a box with a slot in its lid. */
-function feedbackBox(holds: boolean): Group {
-  return new Group(
-    ...(holds ? [new Rectangle({ width: 0.5, height: 0.34, fill: TONE.paper, stroke: 'none' }).moveTo([BOX[0], BOX[1] + 0.32])] : []),
-    new Rectangle({ width: 1.3, height: 0.86, fill: TONE.steel, stroke: 'none', cornerRadius: RADIUS.ticket }).moveTo(BOX),
-    new Rectangle({ width: 1.44, height: 0.16, fill: TONE.soft, stroke: 'none', cornerRadius: 0.04 }).moveTo([BOX[0], BOX[1] + 0.43]),
-    new Rectangle({ width: 0.7, height: 0.1, fill: TONE.ground, stroke: 'none', cornerRadius: 0.05 }).moveTo([BOX[0], BOX[1] + 0.2]),
-  );
-}
-
-/** The shop's desk behind its counter, where the paper it hands over lies, and what the agent leaves there. */
-function desk(): Group {
-  const l = COUNTER_X + 0.62, r = 8.2, w = r - l, h = TRAY.top - TRAY.bottom;
-  return new Group(new Rectangle({ width: w, height: h, fill: TONE.raised, stroke: 'none', cornerRadius: RADIUS.panel }).moveTo([l + w / 2, TRAY.bottom + h / 2]));
-}
-
-/** The tray: the agent's model, an open tray that paper lands in. */
-function tray(): Group {
-  const w = TRAY.right - TRAY.left, h = TRAY.top - TRAY.bottom;
-  return new Group(
-    new Rectangle({ width: w, height: h, fill: TONE.raised, stroke: 'none', cornerRadius: RADIUS.panel }).moveTo([TRAY.left + w / 2, TRAY.bottom + h / 2]),
-  );
+/**
+ * The feedback slot: a letterbox cut through the counter, ringed in INK, its mouth dark. With
+ * `holds`, the edge of a report sticks out of it on the agent's side.
+ */
+function feedbackSlot(holds: boolean): Mobject[] {
+  const [x, y] = SLOT_AT;
+  const out: Mobject[] = [];
+  if (holds) out.push(keyed(new Rectangle({ width: 0.42, height: 0.5, fill: TONE.paper, stroke: 'none', cornerRadius: RADIUS.paper }).moveTo([x - 0.3, y - 0.03]), 'feedback:held'));
+  out.push(keyed(new Group(
+    new Rectangle({ width: 0.3, height: 0.86, fill: TONE.ink, stroke: 'none', cornerRadius: 0.06 }).moveTo([x, y]),
+    new Rectangle({ width: 0.14, height: 0.62, fill: TONE.ground, stroke: 'none', cornerRadius: 0.05 }).moveTo([x, y - 0.03]),
+  ), 'feedback:slot'));
+  return out;
 }
 
 /** The paper a report is written on, and a note travelling, for the transitions. */
@@ -201,12 +203,12 @@ export const noteLineAt = (i: number): Vec => [ASIDE_X + 2.6, -0.3 - 0.2 - 0.34 
 export const cardToken = (s: Stage): Mobject => instructionCard(s, { title: 'skill', lines: 2, width: SKILL_W });
 
 /** The strips of the last `used` exchange, keyed as drawn, each with its line on the paper it was torn from. */
-export function stripKeys(w: World): { key: string; line: number }[] {
+export function stripKeys(w: World): { key: string; line: number; reveal: boolean }[] {
   const last = w.last;
   if (last?.kind !== 'used') return [];
-  const drawn = asksOf(last.source, w.company).map((a, i) => ({ s: stripOf(a), v: last.verdicts[i]! })).filter((x) => x.s).map((x, line) => ({ ...x, line }));
-  const kept = drawn.filter((x) => x.v.use.use).map((x, i) => ({ key: `strip:used:${i}`, line: x.line }));
-  const left = drawn.filter((x) => !x.v.use.use).map((x, i) => ({ key: `strip:aside:${i}`, line: x.line }));
+  const drawn = asksOf(last.source, w.company).map((a, i) => ({ a, s: stripOf(a), v: last.verdicts[i]! })).filter((x) => x.s).map((x, line) => ({ ...x, line }));
+  const kept = drawn.filter((x) => x.v.use.use).map((x, i) => ({ key: `strip:used:${i}`, line: x.line, reveal: false }));
+  const left = drawn.filter((x) => !x.v.use.use).map((x, i) => ({ key: `strip:aside:${i}`, line: x.line, reveal: x.a.kind === 'reveal' }));
   return [...kept, ...left];
 }
 
@@ -232,25 +234,30 @@ export function drawWorld(w: World, s: Stage): Group {
   addAll(parts, board(s, w.board, last?.kind === 'board' && last.explains.length > 0));
   parts.add(instructionCard(s, { at: SKILL_AT, title: 'skill', lines: 2, width: SKILL_W }), 'skill:card');
   if (used?.source === 'skill') {
-    // The digest checked: printed over the card's lines, since it is a fact about the card.
-    const y = SKILL_AT[1] + SKILL_H / 2 - 1.08;
-    const said = words(s, used.verified ? 'digest ok' : 'digest fails', { at: [SKILL_AT[0] - SKILL_W / 2 + 0.28, y], color: TONE.print, bold: true });
-    parts.add(new Group(new Rectangle({ width: SKILL_W - 0.3, height: 0.5, fill: TONE.paper, stroke: 'none' }).moveTo([SKILL_AT[0], y]), said), 'skill:digest');
+    // The digest checked, under the card it is about.
+    const said = parts.add(words(s, used.verified ? 'digest ok' : 'digest fails', { at: [SKILL_AT[0] + SKILL_W / 2, HEAD_Y], align: 'end', bold: true }), 'skill:digest');
     emphasised(said, `the skill’s digest ${used.verified ? 'matches its bytes' : 'does not match'}`);
   }
-  parts.add(feedbackBox(w.gift === 'reported' || w.gift === 'paid'), w.gift === 'reported' || w.gift === 'paid' ? 'feedback:box:holds' : 'feedback:box');
-  parts.add(words(s, 'feedback', { at: [BOX[0] + 0.9, BOX[1]], color: TONE.soft }), 'feedback:name');
-  const seen = seenBy(w), seenChanged = last?.kind === 'searched' || last?.kind === 'reported';
-  parts.add(words(s, 'shop sees', { at: [ASIDE_X, 0.6], color: TONE.soft }), 'sees:label');
-  const seenValue = parts.add(words(s, seen, { at: [MARGIN.right, 0.6], align: 'end', bold: seenChanged && seen !== 'nothing yet', color: seen === 'nothing yet' ? TONE.soft : TONE.ink }), 'sees:value');
-  if (seenChanged) emphasised(seenValue, `changed: the shop sees ${seen}`);
-  parts.add(desk(), 'desk');
-  if (last?.kind === 'searched' && w.gift !== 'reported' && w.gift !== 'paid')
-    parts.add(words(s, 'and never learns why', { at: [MARGIN.right, -0.45], color: TONE.soft, align: 'end' }), 'desk:why');
+  // The feedback slot is drawn over the counter, so a report's edge comes out of the counter's face.
+  addAll(parts, feedbackSlot(w.gift === 'reported' || w.gift === 'paid'));
+  parts.add(words(s, 'feedback', { at: [ASIDE_X, SLOT_AT[1]], color: TONE.soft }), 'feedback:name');
 
-  // The agent's model: the tray, and what is on it.
-  parts.add(tray(), 'tray');
-  parts.add(words(s, 'its model', { at: [TRAY.left + 0.05, TRAY.top + 0.45], color: TONE.soft }), 'trayname');
+  // Under the rule, each side's own: the agent's model on the left, the shop's desk on the right.
+  parts.add(new Rectangle({ width: TRAY.right - TRAY.left, height: STROKE.hair * 1.5, fill: TONE.steel, stroke: 'none' }).moveTo([(TRAY.left + TRAY.right) / 2, RULE_Y]), 'rule:agent');
+  parts.add(new Rectangle({ width: MARGIN.right - ASIDE_X, height: STROKE.hair * 1.5, fill: TONE.steel, stroke: 'none' }).moveTo([(MARGIN.right + ASIDE_X) / 2, RULE_Y]), 'rule:shop');
+  parts.add(words(s, 'what its model reads', { at: [TRAY.left, HEAD_Y], color: TONE.soft }), 'trayname');
+  const deskHead = last?.kind === 'reported' ? 'the shop’s reply' : used ? 'not followed' : null;
+  if (deskHead) parts.add(words(s, deskHead, { at: [ASIDE_X, HEAD_Y], color: TONE.soft }), 'desk:head');
+  else {
+    // What the shop sees, while nothing lies on its desk.
+    const seen = seenBy(w), changed = last?.kind === 'searched' && seen !== 'nothing yet';
+    parts.add(words(s, 'the shop sees', { at: [ASIDE_X, HEAD_Y], color: TONE.soft }), 'desk:head');
+    const value = parts.add(words(s, seen, { at: [ASIDE_X, -1.0], size: TYPE.title, bold: seen !== 'nothing yet', color: seen === 'nothing yet' ? TONE.soft : TONE.ink }), 'desk:seen');
+    if (changed) emphasised(value, `changed: the shop sees ${seen}`);
+    if (last?.kind === 'searched') parts.add(words(s, 'and never learns why', { at: [ASIDE_X, -1.8], color: TONE.soft }), 'desk:why');
+  }
+
+  // The agent's model, and what is in it.
   const userSays = (task: TaskKey, y = -1.15) => parts.add(speech(s, USER_SAYS[task], { at: [TRAY_IN + 0.84 + stripWidth(s, USER_SAYS[task], false) / 2, y], who: 'person' }), `tray:user:${task}`);
   /** The answer that came back, at the foot of the model's tray: the number, its phrase and what it meant. */
   const answerBlock = (code: string, phrase: string, meaning: string) => {
@@ -294,15 +301,13 @@ export function drawWorld(w: World, s: Stage): Group {
   }
   if (used) {
     parts.add(words(s, used.source === 'skill' ? 'from the skill, followed' : 'from the note, followed', { at: [TRAY_IN, -0.4], color: TONE.soft }), 'tray:caption');
-    parts.add(words(s, 'not followed', { at: [ASIDE_X, -0.5], color: TONE.soft }), 'aside:name');
-    const drawn = asksOf(used.source, w.company).map((a, i) => ({ s: stripOf(a), v: used.verdicts[i]! })).filter((x): x is { s: { text: string; mono: boolean }; v: Verdict } => !!x.s);
+    const drawn = asksOf(used.source, w.company).map((a, i) => ({ a, s: stripOf(a), v: used.verdicts[i]! })).filter((x): x is { a: Ask; s: { text: string; mono: boolean }; v: Verdict } => !!x.s);
     drawn.filter((x) => x.v.use.use).forEach((x, i) => parts.add(strip(s, x.s.text, { at: [TRAY_IN, STRIP_Y(i)], mono: x.s.mono }), `strip:used:${i}`));
     drawn.filter((x) => !x.v.use.use).forEach((x, i) => {
-      parts.add(strip(s, x.s.text, { at: [ASIDE_X, STRIP_Y(i)], mono: x.s.mono }), `strip:aside:${i}`);
-      const u = x.v.use;
-      if (!u.use) parts.add(words(s, u.section, { at: [MARGIN.right, STRIP_Y(i)], align: 'end', mono: true, bold: true }), `strip:aside:${i}:tag`);
+      parts.add(strip(s, x.s.text, { at: [ASIDE_X, ASIDE_Y(i)], mono: x.s.mono }), `strip:aside:${i}`);
+      parts.add(words(s, reasonOf(x.a), { at: [ASIDE_X + 0.28, ASIDE_Y(i) - 0.62], color: TONE.soft }), `strip:aside:${i}:why`);
     });
-    if (!drawn.some((x) => !x.v.use.use)) parts.add(words(s, 'nothing', { at: [ASIDE_X, STRIP_Y(0)], size: TYPE.label, color: TONE.soft }), 'aside:none');
+    if (!drawn.some((x) => !x.v.use.use)) parts.add(words(s, 'nothing', { at: [ASIDE_X, ASIDE_Y(0)], size: TYPE.label, color: TONE.soft }), 'aside:none');
     const ok = used.answer.status === 200;
     answerBlock(String(used.answer.status), ok ? 'OK' : 'Forbidden', ok ? (used.source === 'skill' ? 'exchanged' : 'applied') : `lacks ${used.answer.needs}`);
   }
