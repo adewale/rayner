@@ -7,7 +7,7 @@ import type { Beat } from '../lib/poppy-kit.ts';
 import { COVERAGE_EVENTS, STORY, next, start } from './model.ts';
 import type { Company, CoverageEvent, World } from './model.ts';
 import {
-  BOARD_AT, LANES, NOTE_AT, PALETTE, REACH_AT, cardToken, noteLineAt, SKILL_AT, SEAL_AT, SLOT_AT, TRAY_AT,
+  BOARD_AT, LANES, NOTE_AT, PALETTE, REACH_AT, cardToken, noteLineAt, SKILL_AT, SEAL_AT, SLOT_AT,
   drawWorld, kindOf, noteToken, probeToken, requestToken, routeOf, sayWorld, stripKeys,
 } from './picture.ts';
 
@@ -115,7 +115,7 @@ export default class Coverage extends Scene<World, {}> {
             { fresh: FRESH, then: LANES.map((name) => `barrier:${name}`) });
         case 'read':
           // The list comes down from the shop's board and crosses the counter under the rule into the agent's model, over no label.
-          return beats(c, () => pass(c, 'list', noteToken(s), [[BOARD_AT[0], 2.0], [BOARD_AT[0], REACH_AT[1]], [TRAY_AT[0], REACH_AT[1]], TRAY_AT], { appear: 0.2, move: 1.0, leave: 0.25 }), { fresh: FRESH });
+          return beats(c, () => pass(c, 'list', noteToken(s), [[BOARD_AT[0], 2.0], [BOARD_AT[0], REACH_AT[1]], [-1.9, REACH_AT[1]]], { appear: 0.2, move: 1.0, leave: 0.25 }), { fresh: FRESH });
         case 'report':
           // The report leaves the station sealed and goes into the counter's slot; the reply comes back out onto the desk.
           return beats(c, () => [

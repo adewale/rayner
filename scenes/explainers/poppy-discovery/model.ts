@@ -371,9 +371,8 @@ export const REAL_DOC: PoppyDocument = {
   supported_versions: { '0.3': 'https://example.com/poppy/0.3.json' },
   auth: { scopes: { 'orders:read': 'See your orders, returns, and bookings', 'orders:write': 'Exchange or return items, and change bookings' } },
   tasks: { endpoint: 'https://api.example.com/poppy/tasks' },
-  // 3.1: each API has a type, a url and a short description. Chapter 1's POPPY_JSON gives no
-  // description yet; this one is the spec example's, and chapter 1's wins once it has one.
-  apis: POPPY_JSON.apis.map((api) => ({ description: 'Orders, returns, and exchanges', ...api })),
+  // 3.1: each API has a type, a url and a short description; chapter 1's POPPY_JSON carries the spec example's.
+  apis: POPPY_JSON.apis,
 };
 const { supported_versions: _versions, ...REAL_DOC_03_BASE } = REAL_DOC;
 

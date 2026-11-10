@@ -40,7 +40,7 @@ export const POPPY_JSON = {
   organization: { name: 'Example Company', domain: 'example.com' },
   agent: { protocols: [{ type: 'poppy', endpoint: 'https://api.example.com/poppy/conversations' }] },
   web: { browser_session_endpoint: 'https://example.com/poppy/browser-session' },
-  apis: [{ type: 'openapi', url: 'https://api.example.com/openapi.json' }],
+  apis: [{ type: 'openapi', url: 'https://api.example.com/openapi.json', description: 'Orders, returns, and exchanges' }],
 } as const;
 /** The issuer's metadata (3.2): the domains whose issuer it is. */
 export const ISSUER_METADATA = { issuer: 'https://auth.example.com', protected_resources: ['https://example.com', 'https://example.co.uk'] } as const;
