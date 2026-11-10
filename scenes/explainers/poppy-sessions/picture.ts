@@ -103,7 +103,7 @@ const pathOf = (url: string) => url.replace(/^https:\/\/[^/]+/, '');
 /** The answer's title: what happened, in a few plain words. */
 function titleOf(w: SealWorld): string {
   const v = w.last!.verdict, r = requestOf(w);
-  if (!v.failed) return v.answer.status === 200 ? 'Accepted' : 'Signed out';
+  if (!v.failed) return v.answer.status === 200 ? 'Accepted' : 'Needs a key';
   return {
     header: 'No seal', client: 'Unknown agent', delegation: r.session!.poppy_dlg ? 'Pass expired' : 'No delegation', signature: 'Wrong stamp',
     typ: 'Not a seal', aud: 'Other shop', request: 'Other URL', time: 'Too old', token: 'Not its token', replay: 'Seen before', 'one-user': 'Key reused',
@@ -318,8 +318,8 @@ export function drawWorld(w: SealWorld, shown: Shown, s: Stage): Group {
     text('verdict:code', String(a.status), { at: [CO.left - 0.06, 1.25], size: TYPE.display, mono: true, bold: true });
     emphasised(text('verdict:title', titleOf(w), { at: [CO.left, -0.28], size: TYPE.title, bold: true }), `the answer: ${a.status} ${PHRASE[a.status]}, ${titleOf(w)}`);
     if (a.status === 401) {
-      const needs = text('verdict:detail', 'needs', { at: [CO.left, -1.2] });
-      text('verdict:detail:scope', a.needs!, { at: [CO.left + needs.width() + 0.2, -1.2], mono: true });
+      // The seal is accepted, and grants no account access: the answer names the scope a key would need.
+      text('verdict:detail', a.needs!, { at: [CO.left, -1.2], mono: true });
     } else text('verdict:detail', a.error ?? 'exchange made', { at: [CO.left, -1.2], mono: !!a.error });
   } else text('verdict:code', 'not checked yet', { at: [CO.left, 0.6], size: TYPE.label, color: TONE.soft });
 

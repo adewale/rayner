@@ -226,7 +226,12 @@ const crossBarrier = (s: Stage, at: Vec, length: number) => barrier(s, { at, hei
 /** A request on its way, for the transitions: the kit's ticket, stamped with the agent's seal. */
 export const requestToken = (s: Stage): Mobject => ticket(s, {});
 /** A one-time code on its way to the agent, with the PKCE verifier riding on it to the token endpoint. */
-export const codeToken = (s: Stage): Mobject => codeSlip(s, { code: 'c_5Rm2' });
+export const codeToken = (_s: Stage): Mobject => {
+  // A small slip of paper with a torn lower edge and a printed line: the code in transit, too small to carry words.
+  const w = 1.3, h = 0.52, l = -w / 2, r = w / 2, t = h / 2, b = -h / 2, n = 9, tear: Vec[] = [];
+  for (let i = 0; i <= n; i++) tear.push([r - (i * w) / n, b + (i % 2 ? 0.05 : 0)]);
+  return new Group(outline([[l, t], [r, t], ...tear], TONE.paper), new Rectangle({ width: 0.8, height: 0.09, fill: TONE.print, stroke: 'none', cornerRadius: 0.04 }).moveTo([0, 0.04]));
+};
 
 // ---------------------------------------------------------------------------------------------
 // The picture

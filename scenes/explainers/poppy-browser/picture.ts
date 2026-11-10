@@ -164,7 +164,7 @@ function reportOf(w: World): Report | null {
       const a = last.answer;
       return {
         asked: `agent: authorize ${shortCode(last.code)}`, number: String(a.status),
-        meaning: a.status === 204 ? (last.withToken ? `stamped: account ${ACCOUNT}` : 'stamped: no account') : a.status === 403 ? 'needs browser-sign-in' : 'code refused',
+        meaning: a.status === 204 ? (last.withToken ? `stamped: account ${ACCOUNT}` : 'stamped: no account') : a.status === 403 ? 'needs browser scope' : 'code refused',
       };
     }
     case 'submit': return { asked: `browser: submit ${shortCode(last.code)}`, number: String(last.answer.status), meaning: last.answer.status === 303 ? 'joined the Session' : 'no agent stamped it' };

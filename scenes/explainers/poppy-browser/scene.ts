@@ -2,13 +2,13 @@ import { AnimationGroup, Group, Rectangle, Scene } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import { answerOf, isRefusal, settingsOf, stage, Machine, view } from '../../../explain/index.ts';
 import type { ExplainerMeta, Setting, Stage, Transition } from '../../../explain/index.ts';
-import { TONE, beats, cookie, flight, pass } from '../lib/poppy-kit.ts';
+import { TONE, beats, codeSlip, cookie, flight, pass } from '../lib/poppy-kit.ts';
 import type { Beat } from '../lib/poppy-kit.ts';
 import { ATTACK_CODE, JOIN_EVENTS, PHISH_CODE, bound, end, next, start, storyOf } from './model.ts';
 import type { JoinEvent, SignIn, World } from './model.ts';
 import {
   ATTACK_Y, COUNTER_X, EVIL_HALF_AT, EVIL_OUT, EVIL_SIDE_X, JOIN_AT, MESSAGE_AT, MESSAGE_FROM, PAGE_AT, PALETTE, READ_FROM, ROAD_A_FROM, ROAD_B, ROAD_B_FROM, SEAL_AT, SESSION_AT, SHOWN_START, SIDE_X, WIN_LEFT, WIN_RIGHT,
-  drawLogins, drawWorld, sayLogins, sayWorld, shortCode, stub,
+  drawLogins, drawWorld, sayLogins, sayWorld, shortCode,
 } from './picture.ts';
 import type { Shown } from './picture.ts';
 
@@ -136,9 +136,9 @@ export default class PoppyBrowser extends Scene<World, Shown> {
         // pressed on the Company's stub only once the ticket lands, and covers the ring.
         authorize: (t) => {
           const c = t.choreograph(world), id = codeOf(t);
-          const read = c.from('page:stub').copy().scale(0.6);
+          const read = codeSlip(s, { code: shortCode(t.after.page ?? '') });
           return beats(c, () => [
-            ...pass(c, 'read', read, [[WIN_LEFT + 1.2, PAGE_AT[1]], [WIN_LEFT, 1.95], READ_FROM, SEAL_AT], { appear: 0.2, move: 0.75, leave: 0.2 }),
+            ...pass(c, 'read', read, [[WIN_LEFT + 1.0, PAGE_AT[1]], [WIN_LEFT, 1.95], READ_FROM, SEAL_AT], { appear: 0.2, move: 0.75, leave: 0.2 }),
             ...flight(c, 'ticket', [SEAL_AT, ROAD_A_FROM], { appear: 0.2, move: 0.9, leave: 0.2 })(),
           ], { fresh: FRESH, lead: AGENT_ROAD, then: ['barrier', `row:${id}:stamp`, `row:${id}:key`] });
         },
@@ -166,7 +166,7 @@ export default class PoppyBrowser extends Scene<World, Shown> {
         // then the Company's stub shows the empty outline where the cookie half should be, and a barrier.
         forge: (t) => {
           const c = t.choreograph(world), id = shortCode(ATTACK_CODE);
-          const token = stub(s, { at: [0, 0], code: ATTACK_CODE, width: 2.3 }).scale(0.6);
+          const token = codeSlip(s, { code: shortCode(ATTACK_CODE) });
           return beats(c, () => pass(c, 'forged', token, [EVIL_OUT, [EVIL_SIDE_X, 0.95], [WIN_RIGHT - 0.6, 0.95], ROAD_B_FROM, [COUNTER_X - 0.75, ROAD_B]], { appear: 0.25, move: 1.3, leave: 0.2 }),
             { fresh: FRESH, lead: BROWSER_ROAD, then: [`row:${id}:gap`, `row:${id}:barrier`] });
         },

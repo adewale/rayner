@@ -93,7 +93,7 @@ export default class SignIn extends Scene<World, Shown> {
     const toDesk = (seal: Pt): Pt[] => [seal, [seal[0] + 0.55, LANE], [DESK[0] - 0.4, LANE], DESK];
     const toAddress = (seal: Pt): Pt[] => [seal, [seal[0] + 0.55, LANE], [-3.9, LANE], [-3.9, ADDRESS_AT[1]], ADDRESS_AT];
     const request = () => requestToken(s).scale(0.55);
-    const code = () => codeToken(s).scale(0.6);
+    const code = () => codeToken(s);
     /** A part's flight that, unlike the kit's, leaves the current part alone (the caller has faded it already). */
     const fly = (c: C, k: string, via: Pt[], times = { appear: 0.25, move: 0.6, leave: 0.25 }): Beat[] => {
       const part = c.to(k), walk = c.travel(`${k}:flight`, part.copy(), route(via[0]!, ...via.slice(1), part.center() as Pt), times);
@@ -171,17 +171,20 @@ export default class SignIn extends Scene<World, Shown> {
       const c = t.choreograph(world), from = centre(c, 'you:password', 'from'), to = centre(c, 'page:password', 'to');
       return beats(c, () => {
         // Round the page's lines, not over them: out to the right of the window, up, and into the field.
-        const side = device ? [from, to] as Pt[] : [from, [-2.05, from[1]], [-2.05, to[1]], to] as Pt[];
+        const side = device ? [from, to] as Pt[] : [from, [-1.7, from[1]], [-1.7, to[1]], to] as Pt[];
         const card = pass(c, 'password:travel', c.from('you:password').copy(), side, { appear: 0.2, move: 0.9, leave: 0.25 });
         return [new AnimationGroup([c.leave('you:password', { runTime: 0.2 }), card[0]!]), card[1]!, new AnimationGroup([card[2]!, c.enter('page:password', {}, { runTime: 0.25 })])];
       }, { fresh: FRESH, then: ['page:orders:read:box', 'page:orders:write:box'] });
     };
     /** The tag goes back to the Company's desk, and the key with it. */
     const giveBack = (t: Transition<World, SignInEvent>) => {
-      const c = t.choreograph(world), from = centre(c, 'tag', 'from');
+      const c = t.choreograph(world), from = centre(c, 'tag', 'from'), to: Pt = [FACE_LEFT, DESK[1]];
+      // The tag goes back to the Company, stopping with its edge at the counter rather than over the scopes;
+      // the key and the cord fade as it sets off: without the tag the agent can get no more keys.
+      const going = ['agent:key', 'tag:cord'].filter((k) => c.has(k, 'from') && !c.has(k, 'to'));
       return beats(c, () => {
-        const back = pass(c, 'tag:return', c.from('tag').copy(), [from, [from[0] + 0.8, DESK[1]], DESK], { appear: 0.2, move: 0.8 });
-        return [new AnimationGroup([c.leave('tag', { runTime: 0.2 }), back[0]!]), ...back.slice(1)];
+        const back = pass(c, 'tag:return', c.from('tag').copy(), [from, [from[0] + 0.4, to[1]], to], { appear: 0.25, move: 0.7, leave: 0.25 });
+        return [new AnimationGroup([c.leave('tag', { runTime: 0.25 }), ...going.map((k) => c.leave(k, { runTime: 0.3 })), back[0]!]), ...back.slice(1)];
       }, { fresh: FRESH });
     };
 
