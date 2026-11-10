@@ -49,7 +49,7 @@ const ROWS: Record<Flow, Rows> = {
 };
 const RACK: readonly OfferedScope[] = ['addresses', 'orders:read', 'orders:write'];
 const rackY = (rows: Rows, scope: OfferedScope) => (scope === 'addresses' ? rows.field : rows[scope as Scope]);
-const RACK_X = 1.0, TOOTH_X = 0.42;
+const RACK_X = 0.88, TOOTH_X = 0.4;
 const PAGE_X = WIN.left + 0.3;
 const LINE: Record<Scope, string> = { 'orders:read': 'See your orders', 'orders:write': 'Exchange items' };
 const SHORT: Record<Scope, string> = { 'orders:read': 'read', 'orders:write': 'write' };
@@ -335,7 +335,7 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
   parts.add(person(s, { at: place.you, size: place.size }), 'you');
   if (!w.sign?.approved) parts.add(passwordCard(s, { at: place.card }), 'you:password');
   // What lies between: the code the agent shows you, a swapped code stopped short of the agent, a lookalike link kept from you.
-  if (device && w.sign && !w.sign.approved) parts.add(deviceCard(s, [FACE - 0.15, STRIP_Y - 0.05], false), 'card');
+  if (device && w.sign && !w.sign.approved) parts.add(deviceCard(s, [FACE - 0.15, STRIP_Y - 0.12], false), 'card');
   if (last?.kind === 'trick') {
     if (device) {
       parts.add(deviceCard(s, [-2.6, -1.42], true), 'trick');
