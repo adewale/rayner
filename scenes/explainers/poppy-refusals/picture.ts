@@ -254,7 +254,8 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
   addAll(parts, counter(s, { x: STOP_X, top: MARGIN.top, bottom: 1.95 }));
   for (const id of (mcpShown ? ['api', 'mcp'] : ['api']) as Lane[]) {
     const [from, , , end] = routeOf(id, mcpShown);
-    addAll(parts, lane(s, { id, name: id === 'api' ? 'API' : 'MCP', y: laneY(id, mcpShown), from: from!, trunk: STATION[0] + STATION_R + 0.1, to: end![0], nameX: NAME_X, active: on === id, reached: on === id && docked }));
+    // Keyed apart in the two layouts, so the scene cross-fades the lanes when the MCP lane comes or goes.
+    addAll(parts, lane(s, { id: mcpShown ? `mcp-${id}` : id, name: id === 'api' ? 'API' : 'MCP', y: laneY(id, mcpShown), from: from!, trunk: STATION[0] + STATION_R + 0.1, to: end![0], nameX: NAME_X, active: on === id, reached: on === id && docked }));
   }
 
   // The request: the hero ticket on its lane, before a barrier when refused, docked when accepted.

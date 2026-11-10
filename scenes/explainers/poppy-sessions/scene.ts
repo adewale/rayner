@@ -71,8 +71,8 @@ export default class Sessions extends Scene<SealWorld, Shown> {
       start: start(policy),
       events: TAMPERS,
       labels: {
-        send: 'Send the exchange', replay: 'Copy it, 10 s later', url: 'Copy it to another URL', aud: 'Replay from shoes.example',
-        thief: 'Thief seals the token', published: 'Seal with the published key', expired: 'Leaked key at 07:00', 'other-user': 'Leaked key, another User',
+        send: 'Send the exchange', replay: 'Copy it 10 s later', url: 'Copy it to another URL', aud: 'Replay from shoes.example',
+        thief: 'Thief seals the token', published: 'Seal with the published key', expired: 'Leaked key at 07:00', 'other-user': 'Leaked key for another User',
       },
       next,
       views: [world],

@@ -1,4 +1,4 @@
-import { Scene, linear } from '../../../src/index.ts';
+import { AnimationGroup, Scene, linear } from '../../../src/index.ts';
 import { answerOf, isRefusal, stage, Machine, view } from '../../../explain/index.ts';
 import type { ExplainerMeta, Transition } from '../../../explain/index.ts';
 import { beats, flight, pass, seal } from '../lib/poppy-kit.ts';
@@ -12,7 +12,7 @@ import {
 import type { Shown } from './picture.ts';
 
 /** What lights up before a ticket or a key sets off: the lanes' lines and names. */
-const LANE_PARTS = ['api', 'mcp'].flatMap((name) => [`lane:${name}:line`, `lane:${name}:name`, `lane:${name}:plate`, `lane:${name}:stop`]);
+const LANE_PARTS = ['api', 'mcp-api', 'mcp-mcp'].flatMap((name) => [`lane:${name}:line`, `lane:${name}:name`, `lane:${name}:plate`, `lane:${name}:stop`]);
 /** The remedy rail's objects and names, which light (or dim) before anything travels. */
 const RAIL_PARTS = RAIL.flatMap((fix) => [`rail:${fix}`, `rail:${fix}:name`]);
 /** The rail's marks of the last answer, which go before a new request sets off. */
@@ -65,7 +65,12 @@ export default class Refusals extends Scene<World, Shown> {
       const c = t.choreograph(world), { y, mcpShown } = laneOfWorld(t.after);
       // When the MCP lane comes or goes, the lanes are re-laid: cross-fade them rather than slide them.
       const relaid = mcpShown !== laneOfWorld(t.before).mcpShown;
-      return beats(c, flight(c, 'ticket', [launchAt(y)]), { fresh: relaid ? [...fresh, 'lane'] : fresh, then: ['barrier'], lead: relaid ? RAIL_PARTS : [...LANE_PARTS, ...RAIL_PARTS] });
+      const relay = (): Beat[] => relaid ? [new AnimationGroup([
+        ...c.keys('from').filter((k) => k.startsWith('lane:') && !c.has(k, 'to')).map((k) => c.leave(k, { runTime: 0.35 })),
+        ...c.keys('to').filter((k) => k.startsWith('lane:') && !c.has(k, 'from')).map((k) => c.enter(k, {}, { runTime: 0.35 })),
+      ])] : [];
+      const go = flight(c, 'ticket', [launchAt(y)]);
+      return beats(c, () => [...relay(), ...go()], { fresh, then: ['barrier'], lead: [...LANE_PARTS, ...RAIL_PARTS] });
     };
     /** The agent answers: the remedy lights on the rail, its product travels from where it comes from, then the request goes again and docks. */
     const answer = (t: Transition<World, RefusalEvent>) => {
