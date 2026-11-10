@@ -44,7 +44,7 @@ const LABEL_Y = 3.85, OBJ_Y = 2.82;
 const COL = { sheet: -5.97, ring: -1.865, pass: 1.945, stamp: 5.78 } as const;
 const CERT_X = 1.57, CLOCK_X = 2.82;
 /** The ticket's edges. */
-export const TK = { left: -1.63, right: 7.85, top: 1.6, bottom: -4.42 } as const;
+export const TK = { left: -1.79, right: 7.85, top: 1.6, bottom: -4.42 } as const;
 /** The wax on the ticket's top edge, under the stamp. */
 export const SEAL_AT: Vec = [COL.stamp, TK.top];
 /** The ticket's rows, in three pairs, and the check that punches each. */
@@ -57,7 +57,7 @@ const ROWS: readonly { id: RowId; word: string; y: number }[] = [
 const rowY = (id: RowId) => ROWS.find((r) => r.id === id)!.y;
 const ROW_CHECK: Partial<Record<CheckId, RowId | 'typ'>> = { typ: 'typ', aud: 'aud', request: 'htu', time: 'iat', token: 'ath', replay: 'jti', 'one-user': 'sub' };
 const HEAD_Y = 1.12;
-const HOLE_X = TK.left + 0.31, PERF_X = TK.left + 0.62, WORD_X = TK.left + 0.84, CLAIM_X = WORD_X + 1.74, VALUE_X = CLAIM_X + 1.22;
+const HOLE_X = TK.left + 0.31, PERF_X = TK.left + 0.62, WORD_X = TK.left + 0.84, CLAIM_X = WORD_X + 1.92, VALUE_X = CLAIM_X + 1.2;
 /** The chain's three lengths and the checks they stand for. */
 export const LINKS = ['client', 'delegation', 'signature'] as const;
 type LinkId = (typeof LINKS)[number];
@@ -196,14 +196,14 @@ function signet(at: P, colour: string, deep: string, down = false): Group {
  * that narrows to a waist, a collar, and a broad head whose face meets the wax at `foot`.
  */
 function stamp(at: P, foot: number, colour: string, deep: string): Group {
-  const [x] = at, top = foot + 1.18;
-  const profile: [number, number][] = [[0, 0.32], [0.12, 0.32], [0.16, 0.2], [0.2, 0.12], [0.42, 0.17], [0.62, 0.11], [0.72, 0.1], [0.78, 0.15]];
+  const [x] = at, top = foot + 1.42;
+  const profile: [number, number][] = [[0, 0.4], [0.12, 0.4], [0.17, 0.24], [0.22, 0.13], [0.44, 0.2], [0.64, 0.12], [0.74, 0.11], [0.8, 0.17]];
   const right = profile.map(([d, hw]): P => [x + hw, foot + d * (top - foot - 0.2)]), left = right.map(([px, py]): P => [2 * x - px, py]).reverse();
   return new Group(
     shape([[...right, ...left]], { fill: colour }),
-    new Rectangle({ width: 0.66, height: 0.06, fill: deep, stroke: 'none' }).moveTo([x, foot + 0.15]),
+    new Rectangle({ width: 0.82, height: 0.06, fill: deep, stroke: 'none' }).moveTo([x, foot + 0.15]),
     new Rectangle({ width: 0.26, height: 0.05, fill: deep, stroke: 'none' }).moveTo([x, foot + 0.23 * (top - foot - 0.2)]),
-    new Circle({ radius: 0.2, fill: colour, stroke: 'none' }).moveTo([x, top - 0.08]),
+    new Circle({ radius: 0.24, fill: colour, stroke: 'none' }).moveTo([x, top - 0.1]),
   );
 }
 
@@ -309,20 +309,20 @@ export function drawWorld(w: SealWorld, shown: Shown, s: Stage): Group {
   // Bottom left: the Company's answer, appearing only once the ticket has been checked.
   if (last) {
     const a = last.verdict.answer;
-    text('verdict:code', String(a.status), { at: [CO.left - 0.06, 1.2], size: TYPE.display, mono: true, bold: true });
-    emphasised(text('verdict:title', titleOf(w), { at: [CO.left, -0.35], size: TYPE.title, bold: true }), `the answer: ${a.status} ${PHRASE[a.status]}, ${titleOf(w)}`);
+    text('verdict:code', String(a.status), { at: [CO.left - 0.06, 1.25], size: TYPE.display, mono: true, bold: true });
+    emphasised(text('verdict:title', titleOf(w), { at: [CO.left, -0.28], size: TYPE.title, bold: true }), `the answer: ${a.status} ${PHRASE[a.status]}, ${titleOf(w)}`);
     if (a.status === 401) {
-      const needs = text('verdict:detail', 'needs', { at: [CO.left, -1.22] });
-      text('verdict:detail:scope', a.needs!, { at: [CO.left + needs.width() + 0.2, -1.22], mono: true });
-    } else text('verdict:detail', a.error ?? 'the exchange is made', { at: [CO.left, -1.22], mono: !!a.error });
+      const needs = text('verdict:detail', 'needs', { at: [CO.left, -1.2] });
+      text('verdict:detail:scope', a.needs!, { at: [CO.left + needs.width() + 0.2, -1.2], mono: true });
+    } else text('verdict:detail', a.error ?? 'exchange made', { at: [CO.left, -1.2], mono: !!a.error });
   } else text('verdict:code', 'not checked yet', { at: [CO.left, 0.6], size: TYPE.label, color: TONE.soft });
 
   // Bottom left, under the answer: what the Company may remember, as a small ruled ledger.
   const width = CO.right - CO.left, mid = (CO.left + CO.right) / 2;
-  text('memory:title', 'It may remember', { at: [CO.left, -2.0], bold: true });
+  text('memory:title', 'Optional memory', { at: [CO.left, -2.1], bold: true });
   parts.add(new Group(
-    new Rectangle({ width, height: 0.045, fill: TONE.ink, stroke: 'none' }).moveTo([mid, -2.44]),
-    new Rectangle({ width, height: 0.025, fill: TONE.ink, stroke: 'none' }).moveTo([mid, -2.53]),
+    new Rectangle({ width, height: 0.045, fill: TONE.ink, stroke: 'none' }).moveTo([mid, -2.54]),
+    new Rectangle({ width, height: 0.025, fill: TONE.ink, stroke: 'none' }).moveTo([mid, -2.63]),
   ), 'memory:rule');
   const remembers = w.policy === 'remembers', jtis = w.memory.jtis, user = Object.values(w.memory.keyUser)[0];
   const row = (k: string, label: string, value: string, quiet: boolean, y: number) => {
@@ -330,8 +330,8 @@ export function drawWorld(w: SealWorld, shown: Shown, s: Stage): Group {
     text(`memory:${k}:value`, value, { at: [CO.right, y], align: 'end', mono: !quiet, color: quiet ? TONE.soft : TONE.ink });
     parts.add(new Rectangle({ width, height: STROKE.hair, fill: TONE.rule, stroke: 'none' }).moveTo([mid, y - 0.34]), `memory:${k}:rule`);
   };
-  row('jti', 'seen', !remembers ? 'skipped' : jtis.length === 0 ? 'nothing yet' : jtis.length === 1 ? jtis[0]! : `${jtis.length} jtis`, !remembers || jtis.length === 0, -3.0);
-  row('key', 'key for', !remembers ? 'skipped' : user ?? 'nobody yet', !remembers || !user, -3.72);
+  row('jti', 'seen', !remembers ? 'skipped' : jtis.length === 0 ? 'nothing yet' : jtis.length === 1 ? jtis[0]! : `${jtis.length} jtis`, !remembers || jtis.length === 0, -3.1);
+  row('key', 'key for', !remembers ? 'skipped' : user ?? 'nobody yet', !remembers || !user, -3.8);
   return parts.group();
 }
 

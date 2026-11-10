@@ -45,16 +45,16 @@ export const DESK: Vec = [FACE - 0.2, -1.05];
 type Rows = { title: number; field: number; 'orders:read': number; 'orders:write': number };
 const ROWS: Record<Flow, Rows> = {
   direct: { title: 2.76, field: 1.96, 'orders:read': 1.08, 'orders:write': 0.26 },
-  device: { title: 3.05, field: 2.5, 'orders:read': 1.6, 'orders:write': 0.8 },
+  device: { title: 2.95, field: 2.32, 'orders:read': 1.48, 'orders:write': 0.68 },
 };
 const RACK: readonly OfferedScope[] = ['addresses', 'orders:read', 'orders:write'];
 const rackY = (rows: Rows, scope: OfferedScope) => (scope === 'addresses' ? rows.field : rows[scope as Scope]);
-const RACK_X = 0.85, TOOTH_X = 0.4;
+const RACK_X = 1.0, TOOTH_X = 0.42;
 const PAGE_X = WIN.left + 0.3;
 const LINE: Record<Scope, string> = { 'orders:read': 'See your orders', 'orders:write': 'Exchange items' };
 const SHORT: Record<Scope, string> = { 'orders:read': 'read', 'orders:write': 'write' };
 /** The phone of Device Sign-In: the kit's phone, upright, at twice its size. */
-const PHONE = { at: [-2.9, 1.85] as Vec, size: 2.0 };
+const PHONE = { at: [-2.9, 1.95] as Vec, size: 2.0 };
 const SCREEN = { left: PHONE.at[0] - 0.53 * PHONE.size, right: PHONE.at[0] + 0.53 * PHONE.size, top: PHONE.at[1] + 0.87 * PHONE.size, bottom: PHONE.at[1] - 0.83 * PHONE.size };
 /** The strip under the browser window, and where a slip or card rests in it. */
 const STRIP_Y = -1.06;
@@ -64,13 +64,13 @@ type Place = { you: Vec; size: number; card: Vec };
 const YOU: { direct: Place; device: Place; closed: Place } = {
   direct: { you: [-7.0, STRIP_Y], size: 1.1, card: [-5.3, STRIP_Y] },
   device: { you: [-6.5, 2.55], size: 1.3, card: [-6.2, 0.75] },
-  closed: { you: [-6.9, -2.75], size: 1.2, card: [-5.0, -2.8] },
+  closed: { you: [-6.9, -2.6], size: 1.2, card: [-5.0, -2.65] },
 };
 /** The agent's station and keyring in each layout: small at the bottom, or the hero at the top. */
 type Ring = { station: Vec; ring: Vec; key: Vec; size: number; tag: Vec };
 const AGENT_AT: { open: Ring; closed: Ring } = {
   open: { station: [-6.3, -2.86], ring: [-5.22, -2.2], key: [-3.86, -2.2], size: 1.15, tag: [-2.3, -3.48] },
-  closed: { station: [-6.3, 3.0], ring: [-5.22, 3.3], key: [-3.02, 3.3], size: 2.0, tag: [-2.8, 0.8] },
+  closed: { station: [-6.3, 2.3], ring: [-5.22, 2.6], key: [-3.02, 2.6], size: 2.0, tag: [-2.8, 0.15] },
 };
 const STATION_R = 0.72;
 export const THIEF_AT: Vec = [-0.95, -2.1];
@@ -189,11 +189,12 @@ const dots = (from: Vec, colour: string, pitch = 0.16, r = 0.07) => Array.from({
 
 /**
  * A key's tooth, as the rack marks a scope: the same size as a tooth of the agent's key at its
- * largest (0.3 × 0.6). BRASS when the agent holds the scope; a STEEL outline, hollow, when not.
+ * largest. BRASS when the agent holds the scope; dashed STEEL, hollow, as an uncut key is, when not.
  */
 function tooth(at: Vec, cut: boolean): Mobject {
-  const [x, y] = at, pts: Vec[] = [[x - 0.15, y + 0.3], [x + 0.15, y + 0.3], [x + 0.15, y - 0.22], [x + 0.07, y - 0.3], [x - 0.15, y - 0.3]];
-  return cut ? outline(pts, TONE.brass) : new Polygon(pts, { fill: 'none', stroke: TONE.steel, strokeWidth: STROKE.fine });
+  // One tooth of a key at the hero key's scale (size 2): 0.3 wide, 0.5 deep, its tip cut on one corner.
+  const [x, y] = at, pts: Vec[] = [[x - 0.15, y + 0.25], [x + 0.15, y + 0.25], [x + 0.15, y - 0.17], [x + 0.07, y - 0.25], [x - 0.15, y - 0.25]];
+  return cut ? outline(pts, TONE.brass) : new Polygon(pts, { fill: 'none', stroke: TONE.steel, strokeWidth: STROKE.fine, dashArray: '0.1 0.06' });
 }
 
 /** A tick box: an INK outline; ticked, an INK check mark drawn as a filled stroke. */
@@ -203,17 +204,18 @@ function box(at: Vec, ticked: boolean): Mobject {
   return new Group(frame, outline([[x - 0.15, y + 0.01], [x - 0.08, y + 0.08], [x - 0.03, y - 0.03], [x + 0.13, y + 0.15], [x + 0.19, y + 0.08], [x - 0.03, y - 0.16]], TONE.ink));
 }
 
-/** The display card the agent shows for Device Sign-In: the code, and the Company's name; or a card someone else's, face down. */
+/** The display card the agent shows for Device Sign-In: the code, and the Company's name, its right edge at `at`; or a card someone else's, face down, centred at `at`. */
 function deviceCard(s: Stage, at: Vec, foreign: boolean): Group {
-  const w = foreign ? 3.4 : 4.5, h = 1.36, [x, y] = at;
+  const code = words(s, DEVICE.user_code, { mono: true, bold: true }), name = words(s, 'Example Company');
+  const w = foreign ? 3.4 : Math.max(code.width(), name.width()) + 0.7, h = 1.3, y = at[1], x = foreign ? at[0] : at[0] - w / 2;
   if (foreign)
     return new Group(
-      new Rectangle({ width: w, height: h, fill: TONE.pewterDeep, stroke: TONE.pewter, strokeWidth: STROKE.fine, cornerRadius: RADIUS.ticket }).moveTo(at),
+      new Rectangle({ width: w, height: h, fill: TONE.pewterDeep, stroke: TONE.pewter, strokeWidth: STROKE.fine, cornerRadius: RADIUS.ticket }).moveTo([x, y]),
       ...[-0.9, -0.3, 0.3, 0.9].map((dx) => new Rectangle({ width: 0.42, height: 0.08, fill: TONE.pewter, stroke: 'none', cornerRadius: 0.04 }).moveTo([x + dx, y])),
     );
   return new Group(
-    new Rectangle({ width: w, height: h, fill: TONE.paper, stroke: 'none', cornerRadius: RADIUS.ticket }).moveTo(at),
-    words(s, DEVICE.user_code, { at: [x, y + 0.35], mono: true, bold: true, color: TONE.print, align: 'middle' }),
+    new Rectangle({ width: w, height: h, fill: TONE.paper, stroke: 'none', cornerRadius: RADIUS.ticket }).moveTo([x, y]),
+    words(s, DEVICE.user_code, { at: [x, y + 0.33], mono: true, bold: true, color: TONE.print, align: 'middle' }),
     words(s, 'Example Company', { at: [x, y - 0.37], color: TONE.print, align: 'middle' }),
   );
 }
@@ -333,11 +335,11 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
   parts.add(person(s, { at: place.you, size: place.size }), 'you');
   if (!w.sign?.approved) parts.add(passwordCard(s, { at: place.card }), 'you:password');
   // What lies between: the code the agent shows you, a swapped code stopped short of the agent, a lookalike link kept from you.
-  if (device && w.sign && !w.sign.approved) parts.add(deviceCard(s, [SLIP_AT[0] - 0.25, SLIP_AT[1]], false), 'card');
+  if (device && w.sign && !w.sign.approved) parts.add(deviceCard(s, [FACE - 0.15, STRIP_Y - 0.05], false), 'card');
   if (last?.kind === 'trick') {
     if (device) {
-      parts.add(deviceCard(s, [-3.3, STRIP_Y], true), 'trick');
-      parts.add(crossBarrier(s, [-3.3, STRIP_Y - 0.92], 2.6), 'barrier');
+      parts.add(deviceCard(s, [-2.6, -1.42], true), 'trick');
+      parts.add(crossBarrier(s, [-2.6, -2.34], 2.6), 'barrier');
     } else {
       parts.add(swappedSlip(s, [SLIP_AT[0], STRIP_Y + 0.12]), 'trick');
       parts.add(crossBarrier(s, [SLIP_AT[0], STRIP_Y - 0.56], 2.6), 'barrier');

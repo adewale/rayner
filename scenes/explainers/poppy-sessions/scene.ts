@@ -92,7 +92,7 @@ export default class Sessions extends Scene<SealWorld, Shown> {
       title: 'The sender’s name is an address',
       line: 'iss is a URL that returns the agent’s keys.',
       caption:
-        'The first claim, iss, names the agent as a URL, https://agent.example/agent.json, and the shop fetches it. The document there must give that same URL as its client_id, and it lists the agent’s published keys on the same domain. Anyone can claim to be agent.example. Only agent.example decides which keys hang at that address.',
+        'Inside the seal, a claim called iss names the agent as a URL, https://agent.example/agent.json, and the shop fetches it. The document there must give that same URL as its client_id, and it lists the agent’s published keys on the same domain. Anyone can claim to be agent.example. Only agent.example decides which keys hang at that address.',
     });
     this.shown = { links: 1 };
     await world.sync();
@@ -109,7 +109,7 @@ export default class Sessions extends Scene<SealWorld, Shown> {
       title: 'Punched in order',
       line: remembers ? `All ${sent.passed.length} checks hold, two of them optional.` : `All ${sent.passed.length} required checks hold.`,
       caption: `The shop walks the chain from iss down to the seal, then the claims: typed as a Session JWT, addressed to this shop, for this method and URL, signed a second ago, covering the token it carries. ${
-        remembers ? 'Then two optional checks: a jti it has not seen, and a key that has signed for no other User.' : 'This shop skips the two optional checks, so the jti and sub rows stay unpunched.'
+        remembers ? 'Then two optional checks: a jti it has not seen, and a key that has signed for no other User.' : 'This shop skips the two optional checks, so the once and who rows stay unpunched.'
       } ${sent.answer.status}. Some agents also sign for the network edge with Web Bot Auth; that replaces none of this.`,
     });
     await this.play(machine.replay(STORY.slice(0, 1)));
@@ -117,7 +117,7 @@ export default class Sessions extends Scene<SealWorld, Shown> {
     await this.step('moved', {
       title: 'Copied to another address',
       line: 'Another URL, or another shop: refused.',
-      caption: `A thief copies the whole request, seal and token, to read the order instead: the seal says POST /exchanges, so ${url.answer.status} ${url.answer.error}. Next, shoes.example. Its own poppy.json named example.com’s cart URL, which nobody checks, so the agent signed for that URL with aud shoes.example. Replayed here, every signature is genuine, and aud refuses it. Look at sub: you are usr_m4Tz9P there, under another key.`,
+      caption: `A thief copies the whole request, seal and token, to read the order instead: the seal says POST /exchanges, so ${url.answer.status} ${url.answer.error}. Next, shoes.example. Its own poppy.json named example.com’s cart URL, which nobody checks, so the agent signed for that URL with aud shoes.example. Replayed here, every signature is genuine, and aud refuses it. Look at who: you are usr_m4Tz9P there, under another key.`,
     });
     await this.play(machine.replay(STORY.slice(1, 3)));
 
