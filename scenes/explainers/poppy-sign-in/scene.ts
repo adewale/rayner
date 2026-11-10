@@ -1,4 +1,4 @@
-import { AnimationGroup, Scene } from '../../../src/index.ts';
+import { AnimationGroup, Scene, Text } from '../../../src/index.ts';
 import { answerOf, isRefusal, settingsOf, stage, Machine, view } from '../../../explain/index.ts';
 import type { Choreography, ExplainerMeta, Setting, Transition } from '../../../explain/index.ts';
 import { beats, flight, pass, route } from '../lib/poppy-kit.ts';
@@ -116,10 +116,15 @@ export default class SignIn extends Scene<World, Shown> {
       // You and the agent take your places by the page (a cross-fade); the request leaves the agent's seal; the page opens.
       ask: (t: Transition<World, SignInEvent>) => {
         const c = t.choreograph(world), seal = centre(c, 'agent:seal', 'to'), moved = relaid(c);
-        const swap = (): Beat[] => moved.length ? [new AnimationGroup(fadeOut(c, moved)), new AnimationGroup(fadeIn(c, moved))] : [];
+        // A page of another shape (step 1's website before the phone) goes first, so nothing fades in over it.
+        const stale = c.keys('from').filter((k) => (k.startsWith('window:') || k.startsWith('page:')) && !FRESH.some((f) => k.startsWith(f))
+          && (!c.has(k, 'to') || (!(c.from(k) instanceof Text) && Math.abs(c.from(k).width() - c.to(k).width()) > 0.05)));
+        const reopen = stale.filter((k) => c.has(k, 'to'));
+        const swap = (): Beat[] => [new AnimationGroup([...fadeOut(c, moved), ...fadeOut(c, stale)]), ...(moved.length ? [new AnimationGroup(fadeIn(c, moved))] : [])];
+        const opens = pageIn(c), frame = (): Beat[] => (reopen.length ? [new AnimationGroup(fadeIn(c, reopen))] : []);
         if (device)
-          return beats(c, () => [...swap(), ...pass(c, 'request', request(), toDesk(seal), { appear: 0.25, move: 0.6, leave: 0.25 }), ...flight(c, 'card', [DESK], { appear: 0.25, move: 0.5, leave: 0.25 })()], { fresh: FRESH, then: pageIn(c) });
-        return beats(c, () => [...swap(), ...pass(c, 'request', request(), toAddress(seal), { appear: 0.25, move: 0.9, leave: 0.25 })], { fresh: FRESH, then: pageIn(c) });
+          return beats(c, () => [...swap(), ...pass(c, 'request', request(), toDesk(seal), { appear: 0.25, move: 0.6, leave: 0.25 }), ...fly(c, 'card', [seal]), ...frame()], { fresh: FRESH, then: opens });
+        return beats(c, () => [...swap(), ...pass(c, 'request', request(), toAddress(seal), { appear: 0.25, move: 0.9, leave: 0.25 }), ...frame()], { fresh: FRESH, then: opens });
       },
       'approve-all': (t: Transition<World, SignInEvent>) => approve(t),
       'approve-read': (t: Transition<World, SignInEvent>) => approve(t),
@@ -131,10 +136,12 @@ export default class SignIn extends Scene<World, Shown> {
         // agent's signature, to the desk. Device: a poll runs to the desk. If tokens come back, the page
         // closes and the layout cross-fades (an old key and tag fade with it: they are replaced), then the
         // key comes from the desk to the agent's ring, and the tag after it.
-        const route: Pt[] = device ? toDesk(seal) : [[-2.4, -0.62], [-3.9, LANE], [seal[0] + 0.55, LANE], [DESK[0] - 0.4, LANE], DESK];
+        const low = (p: Pt): Pt[] => [p, [p[0] + 0.9, p[1]], [DESK[0] - 0.4, p[1]], DESK];
+        const poll = (p: Pt) => (c.has('card', 'from') ? low(p) : toDesk(p));
+        const route: Pt[] = device ? poll(seal) : [[-2.4, -0.62], [-3.9, LANE], [seal[0] + 0.55, LANE], [DESK[0] - 0.4, LANE], DESK];
         return beats(c, () => {
           const run = pass(c, device ? 'poll' : 'code', device ? request() : code(), route, { appear: 0.25, move: device ? 0.6 : 0.9, leave: 0.25 });
-          if (!got) return [...run, ...pass(c, 'poll:back', request(), [...toDesk(seal)].reverse(), { appear: 0.25, move: 0.5, leave: 0.25 })];
+          if (!got) return [...run, ...pass(c, 'poll:back', request(), [...poll(seal)].reverse(), { appear: 0.25, move: 0.5, leave: 0.25 })];
           const closing = c.keys('from').filter((k) => (k.startsWith('page:') || k.startsWith('window:')) && !c.has(k, 'to'));
           const moved = relaid(c, ['agent:key', 'tag']);
           const old = ['agent:key', 'tag'].filter((k) => c.has(k, 'from'));
@@ -161,8 +168,13 @@ export default class SignIn extends Scene<World, Shown> {
     };
     /** Your password goes from your hand straight into the page; then the boxes you tick are ticked. */
     const approve = (t: Transition<World, SignInEvent>) => {
-      const c = t.choreograph(world);
-      return beats(c, flight(c, 'page:password', [centre(c, 'you:password', 'from')], { move: 0.8 }), { fresh: FRESH, then: ['page:orders:read:box', 'page:orders:write:box'] });
+      const c = t.choreograph(world), from = centre(c, 'you:password', 'from'), to = centre(c, 'page:password', 'to');
+      return beats(c, () => {
+        // Round the page's lines, not over them: out to the right of the window, up, and into the field.
+        const side = device ? [from, to] as Pt[] : [from, [-2.05, from[1]], [-2.05, to[1]], to] as Pt[];
+        const card = pass(c, 'password:travel', c.from('you:password').copy(), side, { appear: 0.2, move: 0.9, leave: 0.25 });
+        return [new AnimationGroup([c.leave('you:password', { runTime: 0.2 }), card[0]!]), card[1]!, new AnimationGroup([card[2]!, c.enter('page:password', {}, { runTime: 0.25 })])];
+      }, { fresh: FRESH, then: ['page:orders:read:box', 'page:orders:write:box'] });
     };
     /** The tag goes back to the Company's desk, and the key with it. */
     const giveBack = (t: Transition<World, SignInEvent>) => {

@@ -126,9 +126,11 @@ export default class PoppyBrowser extends Scene<World, Shown> {
           const c = t.choreograph(world), id = codeOf(t);
           return beats(c, () => [
             ...pass(c, 'request', browserRequest(), [ROAD_B_FROM, COUNTER_B], { appear: 0.2, move: 0.45, leave: 0.25 }),
+            // The Company keeps its record of the new code before handing out the two halves.
+            new AnimationGroup([c.enter(`row:${id}:stub`, {}, { runTime: 0.3 }), c.enter(`row:${id}:ring`, {}, { runTime: 0.3 })]),
             ...flight(c, 'page:stub', [[COUNTER_X - 1.2, ROAD_B], PAGE_AT], { appear: 0.2, move: 0.6, leave: 0.25 })(),
             ...flight(c, 'shelf:join', [MEET_HALF, [SIDE_X, ROAD_B], [SIDE_X, JOIN_AT[1]], JOIN_AT], { appear: 0.2, move: 0.7, leave: 0.25 })(),
-          ], { fresh: FRESH, lead: BROWSER_ROAD, then: [`row:${id}:stub`, `row:${id}:ring`] });
+          ], { fresh: FRESH, lead: BROWSER_ROAD });
         },
         // The agent reads the code from its own page along its dotted line, then sends it on its own road; the stamp is
         // pressed on the Company's stub only once the ticket lands, and covers the ring.
@@ -136,7 +138,7 @@ export default class PoppyBrowser extends Scene<World, Shown> {
           const c = t.choreograph(world), id = codeOf(t);
           const read = c.from('page:stub').copy().scale(0.6);
           return beats(c, () => [
-            ...pass(c, 'read', read, [PAGE_AT, [WIN_LEFT + 0.9, PAGE_AT[1]], [WIN_LEFT, 1.95], READ_FROM, SEAL_AT], { appear: 0.2, move: 0.75, leave: 0.2 }),
+            ...pass(c, 'read', read, [[WIN_LEFT + 1.2, PAGE_AT[1]], [WIN_LEFT, 1.95], READ_FROM, SEAL_AT], { appear: 0.2, move: 0.75, leave: 0.2 }),
             ...flight(c, 'ticket', [SEAL_AT, ROAD_A_FROM], { appear: 0.2, move: 0.9, leave: 0.2 })(),
           ], { fresh: FRESH, lead: AGENT_ROAD, then: ['barrier', `row:${id}:stamp`, `row:${id}:key`] });
         },

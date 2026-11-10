@@ -4,7 +4,7 @@ import type { Stage } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
 import {
   MARGIN, PALETTE as KIT_PALETTE, STROKE, TICKET, TONE, TYPE,
-  addAll, aiMark, barrier, codeSlip, key, lane, laneRoute, ledger, person, seal, sheet, station, stationExit, stationHolds, ticket, words,
+  addAll, aiMark, barrier, padlock, codeSlip, key, lane, laneRoute, ledger, person, seal, sheet, station, stationExit, stationHolds, ticket, words,
 } from '../lib/poppy-kit.ts';
 import { AGENT, COMPANY, OPERATIONS, SID, THIEF, USER_IDS, ruleOf } from './model.ts';
 import type { Channel, Exchange, Scope, World } from './model.ts';
@@ -232,7 +232,8 @@ export function drawWorld(w: World, s: Stage): Group {
     parts.add(words(s, 'a stranger at the door', { at: [ax, meaningY] }), 'answer:meaning');
   } else {
     if (report.number !== null) parts.add(words(s, report.number, { at: [ax - 0.06, numberY], size: TYPE.display, mono: true, bold: true }), 'answer:code');
-    else parts.add(key(s, { at: [ax + 1.25, numberY + 0.05], size: 1.25, teeth: last?.kind === 'sign-in' ? last.granted.length : teeth }), 'answer:key');
+    // A sign-in's answer is your account, opened to the agent: the key it cut is the step's object, on the left.
+    else parts.add(padlock(s, { at: [ax + 0.55, numberY - 0.05], size: 1.35, open: true }), 'answer:lock');
     emphasised(parts.add(words(s, report.phrase, { at: [ax, phraseY], size: TYPE.title, bold: true }), 'answer:phrase'), `the answer: ${report.number ?? ''} ${report.phrase}, ${report.outcome}`);
     parts.add(words(s, report.outcome, { at: [ax, meaningY], mono: /^[a-z_]+$/.test(report.outcome) }), 'answer:meaning');
   }

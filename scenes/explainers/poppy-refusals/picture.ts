@@ -73,8 +73,8 @@ export const MCP_KEY_AT: Vec = [STATION[0], 1.22];
 /** Where the Company's clock stands, at the foot of its counter, for a rate limit. */
 const CLOCK_AT: Vec = [STOP_X, 0.2];
 const CLOCK_R = 0.38;
-/** A key's way from the Company's counter back along the lane into the agent's station. */
-export const keyRoute = (y: number): Vec[] => [[STOP_X, y], [STATION[0] + STATION_R, y], KEY_AT];
+/** A key's way from the Company's counter back along the lane into the agent's station, passing under the lane's name. */
+export const keyRoute = (y: number): Vec[] => [[STOP_X, y], [NAME_X + 1.3, y], [NAME_X + 1.0, y - 0.55], [STATION[0] + STATION_R + 0.4, y - 0.55], KEY_AT];
 /** A fresh poppy.json's way, from the counter to the agent. */
 export const documentRoute = (y: number): Vec[] => [[STOP_X - 0.5, y], [STATION[0] + 0.3, STATION[1] - 0.1]];
 /** Where a new delegation (or a fresh seal) comes from: the agent's own systems, off the stage above its station. */

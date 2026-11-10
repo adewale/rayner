@@ -12,7 +12,7 @@ import {
 } from './picture.ts';
 
 /** Parts that belong to the last event: they go before the next one's motion, and come back after it. */
-const FRESH = ['tray:', 'desk:', 'strip:', 'note:', 'ticket', 'barrier:', 'answer:', 'aside:', 'skill:digest', 'board:mark'];
+const FRESH = ['tray:', 'strip:', 'note:', 'ticket', 'barrier:', 'answer:', 'aside:', 'skill:digest', 'board:mark'];
 /** The lanes' lines and names, which light before a ticket sets off. */
 const LEAD = LANES.flatMap((name) => [`lane:${name}:line`, `lane:${name}:name`, `lane:${name}:plate`, `lane:${name}:stop`]);
 
@@ -111,11 +111,11 @@ export default class Coverage extends Scene<World, {}> {
       switch (kindOf(t.event, t.after)) {
         case 'probe':
           // The User asks first; then a blank probe goes down each lane, and each stops where a barrier then stands.
-          return beats(c, () => [c.enter(c.keys('to').find((k) => k.startsWith('tray:user:'))!, {}, { runTime: 0.4 }), ...together(LANES.map((name) => pass(c, `probe:${name}`, probeToken(s), [SEAL_AT, ...routeOf(name).slice(1, 3), [routeOf(name)[3]![0] - 0.9, routeOf(name)[3]![1]]], { appear: 0.2, move: 0.9, leave: 0.25 })))],
+          return beats(c, () => [c.enter(c.keys('to').find((k) => k.startsWith('user:'))!, {}, { runTime: 0.4 }), ...together(LANES.map((name) => pass(c, `probe:${name}`, probeToken(s), [SEAL_AT, ...routeOf(name).slice(1, 3), [routeOf(name)[3]![0] - 0.9, routeOf(name)[3]![1]]], { appear: 0.2, move: 0.7, leave: 0.25 })))],
             { fresh: FRESH, then: LANES.map((name) => `barrier:${name}`) });
         case 'read':
-          // The list crosses from the shop's board into the agent's model.
-          return beats(c, () => pass(c, 'list', noteToken(s), [BOARD_AT, TRAY_AT], { appear: 0.25, move: 1.0, leave: 0.25 }), { fresh: FRESH });
+          // The list comes down from the shop's board and crosses the counter under the rule into the agent's model, over no label.
+          return beats(c, () => pass(c, 'list', noteToken(s), [[BOARD_AT[0], 2.0], [BOARD_AT[0], REACH_AT[1]], [TRAY_AT[0], REACH_AT[1]], TRAY_AT], { appear: 0.2, move: 1.0, leave: 0.25 }), { fresh: FRESH });
         case 'report':
           // The report leaves the station sealed and goes into the counter's slot; the reply comes back out onto the desk.
           return beats(c, () => [
@@ -141,7 +141,7 @@ export default class Coverage extends Scene<World, {}> {
       runTime: ({ event, after: a }) => {
         // Each is the sum of its beats: the leaves (0.3), the flights, the settle (0.45).
         const beat = 0.8, sort = 0.75 + beat + beat + (event === 'use skill' ? 0.75 + (a.company === 'hostile' ? 1.8 : 0) : 0);
-        return ({ probe: 2.75, read: 2.2, report: 2.75, sort, told: 0.7 })[kindOf(event, a)];
+        return ({ probe: 2.55, read: 2.2, report: 2.75, sort, told: 0.7 })[kindOf(event, a)];
       },
       transition: Object.fromEntries(COVERAGE_EVENTS.map((e) => [e, motion])) as Record<CoverageEvent, typeof motion>,
     });

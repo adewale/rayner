@@ -67,7 +67,8 @@ export default class PoppyDiscovery extends Scene<World, {}> {
      * agent's line moves on, or the barrier drops.
      */
     const fetchMotion = (c: Choreography): Succession => {
-      const changed = c.keys('to').filter((k) => c.has(k, 'from') && c.from(k) instanceof Text && c.to(k) instanceof Text && (c.from(k) as Text).text !== (c.to(k) as Text).text);
+      // Words that change are replaced; so is the whole URL, whose path would otherwise slide when a redirect shortens the host.
+      const changed = c.keys('to').filter((k) => c.has(k, 'from') && c.from(k) instanceof Text && c.to(k) instanceof Text && ((c.from(k) as Text).text !== (c.to(k) as Text).text || k === 'url:host' || k === 'url:path'));
       const out = changed.map((k) => c.leave(k, { runTime: 0.2 }));
       const arrive = [...changed.filter((k) => k.startsWith('url:') || k === 'shop:name').map((k) => c.enter(k, {}, { runTime: 0.3 })), ...(bring(c, ['url:first', 'url:redirect', 'url:under', 'board']) as Animation[])];
       const path = c.to('url:path'), from: [number, number] = [path.center()[0]!, 2.55];

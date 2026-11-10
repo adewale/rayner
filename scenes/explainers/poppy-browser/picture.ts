@@ -274,7 +274,7 @@ export function drawWorld(w: World, s: Stage, shown: Shown): Group {
     parts.add(person(s, { at: [EVIL[0] - 2.05, EVIL[1] - 0.5], size: 0.62 }), 'yours:person');
     parts.add(words(s, 'your browser', { at: [EVIL[0] - 1.45, EVIL[1] - 0.45], color: TONE.soft }), 'yours:name');
     // Right under the rows, so the marks are named beside the stubs that carry them.
-    const y0 = ROW_Y[Math.max(1, ordered.length)]! + 0.1;
+    const y0 = ROW_Y[1] + 0.1; // the story shows at most one row before the attacker comes, so the legend never moves
     parts.add(seal(s, { at: [RACK_X + 0.5, y0], r: 0.32 }), 'legend:stamp');
     parts.add(words(s, 'agent stamped', { at: [RACK_X + 1.1, y0], color: TONE.soft }), 'legend:stamp:name');
     parts.add(new Circle({ radius: 0.28, fill: 'none', stroke: TONE.steel, strokeWidth: STROKE.line, dashArray: '0.12 0.08' }).moveTo([RACK_X + 0.5, y0 - 0.85]), 'legend:ring');

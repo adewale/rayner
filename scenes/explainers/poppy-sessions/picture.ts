@@ -69,8 +69,8 @@ type LinkId = (typeof LINKS)[number];
 const LINK_SPAN: Record<LinkId, [number, number]> = { client: [COL.sheet + 0.5, COL.ring - 0.5], delegation: [COL.ring + 0.48, CERT_X - 0.86], signature: [CLOCK_X + 0.38, COL.stamp - 0.42] };
 /** The resting centre of the ticket. */
 export const TICKET_AT: Vec = [(TK.left + TK.right) / 2, (TK.top + TK.bottom) / 2];
-/** Where a ticket's centre comes from: out from under the stamp (the agent, or someone holding its key), up from below the stage (a copy), in from the right (another Company). */
-export const SOURCE: Record<'agent' | 'copy' | 'company', Vec> = { agent: [TICKET_AT[0] + 0.9, TICKET_AT[1] + 0.7], copy: [TICKET_AT[0], -9.2], company: [14.5, TICKET_AT[1]] };
+/** Where a ticket's centre comes from: in from under the stamp's side (the agent, or someone holding its key), up from below the stage (a copy), in from the right (another Company). */
+export const SOURCE: Record<'agent' | 'copy' | 'company', Vec> = { agent: [TICKET_AT[0] + 1.4, TICKET_AT[1]], copy: [TICKET_AT[0], -9.2], company: [14.5, TICKET_AT[1]] };
 /** The Company's zone. */
 const CO = { left: MARGIN.left, right: TK.left - 0.5 } as const;
 

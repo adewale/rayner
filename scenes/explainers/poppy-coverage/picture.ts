@@ -258,7 +258,7 @@ export function drawWorld(w: World, s: Stage): Group {
   }
 
   // The agent's model, and what is in it.
-  const userSays = (task: TaskKey, y = -1.15) => parts.add(speech(s, USER_SAYS[task], { at: [TRAY_IN + 0.84 + stripWidth(s, USER_SAYS[task], false) / 2, y], who: 'person' }), `tray:user:${task}`);
+  const userSays = (task: TaskKey, y = -1.15) => parts.add(speech(s, USER_SAYS[task], { at: [TRAY_IN + 0.84 + stripWidth(s, USER_SAYS[task], false) / 2, y], who: 'person' }), `user:${task}`);
   /** The answer that came back, at the foot of the model's tray: the number, its phrase and what it meant. */
   const answerBlock = (code: string, phrase: string, meaning: string) => {
     parts.add(words(s, code, { at: [TRAY_IN - 0.06, -3.42], size: TYPE.display, mono: true, bold: true }), 'answer:code');
