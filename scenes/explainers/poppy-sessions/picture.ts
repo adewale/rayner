@@ -44,15 +44,15 @@ const LABEL_Y = 3.85, OBJ_Y = 2.82;
 const COL = { sheet: -5.97, ring: -1.865, pass: 1.945, stamp: 5.78 } as const;
 const CERT_X = 1.57, CLOCK_X = 2.82;
 /** The ticket's edges. */
-export const TK = { left: -1.63, right: 7.85, top: 1.6, bottom: -4.38 } as const;
+export const TK = { left: -1.63, right: 7.85, top: 1.6, bottom: -4.42 } as const;
 /** The wax on the ticket's top edge, under the stamp. */
 export const SEAL_AT: Vec = [COL.stamp, TK.top];
 /** The ticket's rows, in three pairs, and the check that punches each. */
 export type RowId = 'aud' | 'htu' | 'iat' | 'ath' | 'jti' | 'sub';
 const ROWS: readonly { id: RowId; word: string; y: number }[] = [
   { id: 'aud', word: 'for', y: 0.36 }, { id: 'htu', word: 'where', y: -0.3 },
-  { id: 'iat', word: 'when', y: -1.18 }, { id: 'ath', word: 'with', y: -1.84 },
-  { id: 'jti', word: 'once', y: -2.72 }, { id: 'sub', word: 'who', y: -3.38 },
+  { id: 'iat', word: 'when', y: -1.08 }, { id: 'ath', word: 'with', y: -1.74 },
+  { id: 'jti', word: 'once', y: -2.52 }, { id: 'sub', word: 'who', y: -3.18 },
 ];
 const rowY = (id: RowId) => ROWS.find((r) => r.id === id)!.y;
 const ROW_CHECK: Partial<Record<CheckId, RowId | 'typ'>> = { typ: 'typ', aud: 'aud', request: 'htu', time: 'iat', token: 'ath', replay: 'jti', 'one-user': 'sub' };
@@ -225,7 +225,7 @@ function ticketOf(s: Stage, r: Request, foreign: boolean): Group {
     } else parts.push(words(s, rows[row.id], { at: [VALUE_X, row.y], mono: true, bold: rows[row.id] !== 'none', color: print }));
   }
   // Hairlines between the three pairs.
-  for (const y of [-0.74, -2.28]) parts.push(new Rectangle({ width: TK.right - WORD_X - 0.3, height: 0.025, fill: TONE.paperLine, stroke: 'none' }).moveTo([(WORD_X + TK.right - 0.3) / 2, y]));
+  for (const y of [-0.69, -2.13]) parts.push(new Rectangle({ width: TK.right - WORD_X - 0.3, height: 0.025, fill: TONE.paperLine, stroke: 'none' }).moveTo([(WORD_X + TK.right - 0.3) / 2, y]));
   parts.push(seal(s, { at: SEAL_AT, r: 0.4, foreign }));
   return new Group(...parts);
 }
@@ -243,10 +243,10 @@ function tear(y: number, valueWidth: number): Group {
 }
 /** The validator's stamp: when the Company received the ticket, inked in an outlined box. */
 function arrived(s: Stage, t: number): Group {
-  const label = words(s, 'in', { at: [VALUE_X + 0.24, -4.0], color: TONE.print });
-  const time = words(s, clock(t), { at: [VALUE_X + 0.24 + label.width() + 0.24, -4.0], mono: true, bold: true, color: TONE.print });
+  const label = words(s, 'in', { at: [VALUE_X + 0.24, -3.95], color: TONE.print });
+  const time = words(s, clock(t), { at: [VALUE_X + 0.24 + label.width() + 0.24, -3.95], mono: true, bold: true, color: TONE.print });
   const w = label.width() + time.width() + 0.72;
-  return new Group(new Rectangle({ width: w, height: 0.62, fill: 'none', stroke: TONE.print, strokeWidth: STROKE.fine, cornerRadius: 0.08 }).moveTo([VALUE_X + w / 2, -4.0]), label, time);
+  return new Group(new Rectangle({ width: w, height: 0.62, fill: 'none', stroke: TONE.print, strokeWidth: STROKE.fine, cornerRadius: 0.08 }).moveTo([VALUE_X + w / 2, -3.95]), label, time);
 }
 
 // ------------------------------------------------------------------ the picture
@@ -309,21 +309,20 @@ export function drawWorld(w: SealWorld, shown: Shown, s: Stage): Group {
   // Bottom left: the Company's answer, appearing only once the ticket has been checked.
   if (last) {
     const a = last.verdict.answer;
-    text('verdict:code', String(a.status), { at: [CO.left - 0.06, 0.8], size: TYPE.display, mono: true, bold: true });
-    emphasised(text('verdict:title', titleOf(w), { at: [CO.left, -0.45], size: TYPE.title, bold: true }), `the answer: ${a.status} ${PHRASE[a.status]}, ${titleOf(w)}`);
+    text('verdict:code', String(a.status), { at: [CO.left - 0.06, 1.2], size: TYPE.display, mono: true, bold: true });
+    emphasised(text('verdict:title', titleOf(w), { at: [CO.left, -0.35], size: TYPE.title, bold: true }), `the answer: ${a.status} ${PHRASE[a.status]}, ${titleOf(w)}`);
     if (a.status === 401) {
-      const needs = text('verdict:detail', 'needs', { at: [CO.left, -1.12] });
-      text('verdict:detail:scope', a.needs!, { at: [CO.left + needs.width() + 0.2, -1.12], mono: true });
-    } else text('verdict:detail', a.error ?? 'the exchange is made', { at: [CO.left, -1.12], mono: !!a.error });
+      const needs = text('verdict:detail', 'needs', { at: [CO.left, -1.22] });
+      text('verdict:detail:scope', a.needs!, { at: [CO.left + needs.width() + 0.2, -1.22], mono: true });
+    } else text('verdict:detail', a.error ?? 'the exchange is made', { at: [CO.left, -1.22], mono: !!a.error });
   } else text('verdict:code', 'not checked yet', { at: [CO.left, 0.6], size: TYPE.label, color: TONE.soft });
 
   // Bottom left, under the answer: what the Company may remember, as a small ruled ledger.
   const width = CO.right - CO.left, mid = (CO.left + CO.right) / 2;
-  text('memory:title', 'The Company', { at: [CO.left, -1.95], bold: true });
-  text('memory:title2', 'may remember', { at: [CO.left, -2.52], bold: true });
+  text('memory:title', 'It may remember', { at: [CO.left, -2.0], bold: true });
   parts.add(new Group(
-    new Rectangle({ width, height: 0.045, fill: TONE.ink, stroke: 'none' }).moveTo([mid, -2.93]),
-    new Rectangle({ width, height: 0.025, fill: TONE.ink, stroke: 'none' }).moveTo([mid, -3.02]),
+    new Rectangle({ width, height: 0.045, fill: TONE.ink, stroke: 'none' }).moveTo([mid, -2.44]),
+    new Rectangle({ width, height: 0.025, fill: TONE.ink, stroke: 'none' }).moveTo([mid, -2.53]),
   ), 'memory:rule');
   const remembers = w.policy === 'remembers', jtis = w.memory.jtis, user = Object.values(w.memory.keyUser)[0];
   const row = (k: string, label: string, value: string, quiet: boolean, y: number) => {
@@ -331,8 +330,8 @@ export function drawWorld(w: SealWorld, shown: Shown, s: Stage): Group {
     text(`memory:${k}:value`, value, { at: [CO.right, y], align: 'end', mono: !quiet, color: quiet ? TONE.soft : TONE.ink });
     parts.add(new Rectangle({ width, height: STROKE.hair, fill: TONE.rule, stroke: 'none' }).moveTo([mid, y - 0.34]), `memory:${k}:rule`);
   };
-  row('jti', 'seen', !remembers ? 'skipped' : jtis.length === 0 ? 'nothing yet' : jtis.length === 1 ? jtis[0]! : `${jtis.length} jtis`, !remembers || jtis.length === 0, -3.46);
-  row('key', 'key for', !remembers ? 'skipped' : user ?? 'nobody yet', !remembers || !user, -4.06);
+  row('jti', 'seen', !remembers ? 'skipped' : jtis.length === 0 ? 'nothing yet' : jtis.length === 1 ? jtis[0]! : `${jtis.length} jtis`, !remembers || jtis.length === 0, -3.0);
+  row('key', 'key for', !remembers ? 'skipped' : user ?? 'nobody yet', !remembers || !user, -3.72);
   return parts.group();
 }
 
