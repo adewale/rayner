@@ -50,7 +50,7 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 - The explainer is one tile: the title and scenario picker over the stage, then the stepper, the step's words and the transcript. Pages at least 1100 px wide add a steps rail, which holds a live step's buttons. [The tile](docs/REFERENCE.md#the-tile)
 - The step bar names a step only once the reader has reached it. After the last step the player asks the reader questions, each answer behind a disclosure.
 - The page carries its default scenario's trace, so it shows without running the scene first. Each trace keeps only the watched keys of each step's state.
-- On a phone the stage is taller than 16:9, and each step opens on a close-up of what it changed, or of what `s.opening` names.
+- On a phone the stage is taller than 16:9 when the scenario has close-ups, as tall as its most zoomed close-up uses (up to 4:5), and each step opens on a close-up of what it changed, or of what `s.opening` names. A scenario whose every label reads on the whole picture keeps a 16:9 stage, so its picture is not letterboxed, framed or standalone.
 - A scenario whose run throws in the page leaves the stage usable. Under reduced motion a step crossfades to its resting picture.
 - An explainer can opt into checked palette colours, square corners and a minimum stage width (`meta.player`).
 - A built page must fit in 1.5 MiB of HTML and 450 KiB gzipped. A page whose scenarios make no diagram carries no diagram code, and no page ships a Brotli decoder.

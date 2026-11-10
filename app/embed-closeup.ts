@@ -34,7 +34,8 @@ export const NARROW_PX = 600;
 /**
  * A narrow stage's height over its width, at most: taller than the picture's 16:9, so each
  * close-up shows the picture's full height or close to it, and a phone needs fewer views to
- * cover a change. The stage never gets shorter than 16:9, and on a standalone page never so
+ * cover a change. A scenario's stage is only as tall as its close-ups use (narrowAspect): 16:9
+ * when it has none. The stage never gets shorter than 16:9, and on a standalone page never so
  * tall that Next leaves the screen (app/embed.css, .stage.narrow). `rayner check` estimates phone legibility at the minimum 16:9 geometry;
  * served-page review measures the actual stage.
  */
@@ -551,6 +552,25 @@ export function closeUps(layout: StepLayout | undefined, w: number, h: number, m
     if (!zooms.some((o) => Math.abs(o.k - z.k) < 1e-6 && Math.abs(o.x - z.x) < 1e-6 && Math.abs(o.y - z.y) < 1e-6))
       zooms.push(z);
   return zooms;
+}
+/**
+ * A narrow stage's height over its width for a scenario whose steps have these layouts, on a
+ * stage `w` px wide: as tall as its most zoomed close-up uses, and no taller. A close-up at
+ * scale k shows the picture's full height on a stage k × 9/16 of its width, so more height
+ * only adds paper above and below it, as it does around the whole picture. With no close-up in
+ * any step (every label already reads at READ_PX on the whole picture) that is 16:9, so the
+ * whole picture fills the stage; never more than NARROW_ASPECT. The scale a close-up needs
+ * depends only on the width once the stage is at least 16:9 (the picture fills its width), so
+ * the tours are planned at 16:9 here and the answer does not change with the height it sets.
+ * Two px over the exact height, so a stage rounded to whole layout units still holds the full
+ * picture height and its tour keeps one row of views.
+ */
+export function narrowAspect(layouts: Iterable<StepLayout>, w: number, max = ZOOM_MAX): number {
+  if (!(w > 0)) return NARROW_ASPECT;
+  const flat = FRAME.h / FRAME.w;
+  let k = 1;
+  for (const layout of layouts) for (const z of closeUps(layout, w, w * flat, max)) k = Math.max(k, z.k);
+  return k <= 1 + 1e-9 ? flat : Math.min(NARROW_ASPECT, k * flat + 2 / w);
 }
 /** Where a step opens on a `w`×`h` stage: the first of its close-ups. */
 export const closeUp = (layout: StepLayout | undefined, w: number, h: number, max = ZOOM_MAX): Zoom =>
