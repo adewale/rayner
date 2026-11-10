@@ -386,6 +386,7 @@ function wrongReason(chosen: Fix, right: Fix, last: Last): string {
   if ((chosen === 'refresh' || chosen === 'sign-in') && reply.status === 400) return `${code} is a 400: the access token is fine, so the agent keeps it`;
   if (chosen === 'refresh' && right === 'sign-in') return `the refresh token covers only ${agentAfter(trouble).scopes?.join(' ')}, and a refresh cannot add ${reply.needs}, so the agent asks you`;
   if (chosen === 'sign-in' && right === 'refresh') return `the refresh token still covers what the ${what} needs, so the agent refreshes without asking you`;
+  if (chosen === 'new-session' && reply.error === 'version_unsupported') return 'version_unsupported asks for a fresh copy of poppy.json first; a new Session follows only if the agent then chooses another version';
   if (chosen === 'wait') return `${code} asks for ${FIX_WORDS[right]}, and waiting will not change the answer`;
   return `${code} asks for ${FIX_WORDS[right]}, not ${FIX_WORDS[chosen]}`;
 }
