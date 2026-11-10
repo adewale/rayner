@@ -5,12 +5,17 @@ import { emphasised, keyedParts } from '../../../explain/drawing.ts';
 import { AGENT, COMPANY, OPERATIONS, SID, THIEF, USER_IDS, ruleOf } from './model.ts';
 import type { Channel, Exchange, Scope, World } from './model.ts';
 
-// One state as a picture. Left, the wire: the agent, the lanes its poppy.json opened to the
-// Company, and the last request as a packet on its lane. The packet carries a round seal (the
-// Session header: who is asking) and, when the request is signed in, a diamond key (the access
-// token: what the account allows). A packet that was accepted rests against the Company's edge;
-// one that was refused rests short of it. Under the wire, what was asked and what came back.
-// Right, what the Company knows, and the two marks named.
+// One state as a picture, drawn as a line map. The agent is a station on the left; the lanes its
+// poppy.json opened run from it to stops at the Company's counter on the right. The last request is
+// a ticket on its lane. It carries a wax seal (the Session header: who is asking) and, when the
+// request is signed in, a brass key (the access token: what the account allows), cut with one tooth
+// for each scope the User approved. A ticket that was accepted rests on its stop; one that was
+// refused rests before a barrier. Under the map, what was asked and what came back. Right, what
+// the Company knows, as a ledger, and the two marks named.
+//
+// Three colours carry meaning and nothing else does: poppy red is the agent's seal, brass is a key,
+// and white is what is in use. Outcomes are said by position, by the barrier and in words, so red is
+// never also "refused". Protocol literals (hosts, IDs, status codes) are set in the mono face.
 //
 // Every label is at least 0.56 units high, 12.5 px on a 358 px stage: a phone shows the whole
 // picture, and while a reader presses events it shows nothing else, so no label may depend on a
@@ -22,32 +27,33 @@ const PHRASE: Record<number, string> = { 200: 'OK', 201: 'Created', 204: 'No Con
 const scopesOf = (scopes: readonly Scope[]) => scopes.join(' ');
 /** Scopes in the few characters a row has. */
 const briefly = (scopes: readonly Scope[]) => (scopes.length > 1 ? 'read+write' : 'read only');
-/** The colour of the key, the mark of an access token: an amber that reads on the stage's paper. */
-export const KEY_COLOUR = '#9a6700';
+/** The stage's own colours: a navy ground, warm white ink, poppy red for the seal, steel for what is idle. */
+export const PALETTE = { paper: '#13203b', ink: '#f3efe6', accent: '#ef4b34', muted: '#62749c' } as const;
+/** Brass, for a key; and the grey of a seal that is not the agent's. */
+const BRASS = '#e3a92f', OTHER_SEAL = '#aeb6c9';
 
-type Tone = 'good' | 'bad' | 'plain';
 /** The lanes of the wire: the three channels a poppy.json lists, and the Company's sign-in page. */
 export const LANES = ['api', 'web', 'chat', 'sign-in'] as const;
 export type Lane = (typeof LANES)[number];
 const LANE_NAME: Record<Lane, string> = { api: 'API', web: 'Website', chat: 'Chat', 'sign-in': 'Sign-in' };
 const lane = (channel: Channel): Lane => channel;
 
-/** The words under the wire: who asked for what, and what came back; and the lane it went by. */
-export type Report = { asked: string; code: string; outcome: string; tone: Tone; lane: Lane | null; delivered: boolean };
+/** The words under the map: who asked for what; the answer's number, its phrase and what it meant; and the lane it went by. */
+export type Report = { asked: string; number: string | null; phrase: string; outcome: string; lane: Lane | null; delivered: boolean };
 export function reportOf(w: World): Report | null {
   const last: Exchange | null = w.last;
   if (!last) return null;
-  if (last.kind === 'discover') return { asked: 'Agent: read poppy.json', code: '200 OK', outcome: `${last.channels.length} channels + sign-in`, tone: 'good', lane: null, delivered: true };
-  if (last.kind === 'sign-in') return { asked: 'You: sign in', code: 'Approved', outcome: `key: ${briefly(last.granted)}`, tone: 'good', lane: 'sign-in', delivered: true };
-  if (last.kind === 'revoke') return { asked: 'Agent: sign out', code: '200 OK', outcome: 'access has ended', tone: 'plain', lane: 'sign-in', delivered: true };
+  if (last.kind === 'discover') return { asked: 'agent: read poppy.json', number: '200', phrase: 'OK', outcome: `${last.channels.length} channels + sign-in`, lane: null, delivered: true };
+  if (last.kind === 'sign-in') return { asked: 'you: sign in', number: null, phrase: 'Approved', outcome: `cut for ${briefly(last.granted)}`, lane: 'sign-in', delivered: true };
+  if (last.kind === 'revoke') return { asked: 'agent: sign out', number: '200', phrase: 'OK', outcome: 'access has ended', lane: 'sign-in', delivered: true };
   const { status, needs, error } = last.answer, ok = status === OPERATIONS[last.op].ok;
   return {
-    asked: `${last.by === 'thief' ? 'Thief' : 'Agent'}: ${{ cart: 'add to cart', browse: 'browse the site', chat: 'ask about sizes', order: 'see the order', exchange: 'exchange jacket' }[last.op]}`,
-    code: `${status} ${PHRASE[status]}`,
+    asked: `${last.by === 'thief' ? 'thief' : 'agent'}: ${{ cart: 'add to cart', browse: 'browse the site', chat: 'ask about sizes', order: 'see the order', exchange: 'exchange the jacket' }[last.op]}`,
+    number: String(status),
+    phrase: PHRASE[status]!,
     outcome: ok
       ? { cart: 'added to the cart', browse: 'browser joins Session', chat: 'an AI answers: yes', order: 'here is order 1042', exchange: 'exchange is made' }[last.op]
       : status === 401 ? `needs ${needs}` : status === 403 ? `lacks ${needs}` : (error ?? 'refused'),
-    tone: ok ? 'good' : 'bad',
     lane: lane(OPERATIONS[last.op].channel),
     delivered: ok,
   };
@@ -56,10 +62,10 @@ export function reportOf(w: World): Report | null {
 /** What the Company knows, row by row: only what verified requests have told it. */
 export function knownBy(w: World): [string, string][] {
   return [
-    ['Agent', w.started ? AGENT.name : 'not met yet'],
-    ['User ID', w.started ? USER_IDS[COMPANY.domain] : 'not met yet'],
-    ['Session', w.started ? (w.cart ? '1 in cart' : 'cart empty') : 'none yet'],
-    ['Account', w.linked === 'yes' ? briefly(w.approves) : w.linked === 'no' ? 'not linked' : 'signed out'],
+    ['agent', w.started ? AGENT.name : 'not met yet'],
+    ['user ID', w.started ? USER_IDS[COMPANY.domain] : 'not met yet'],
+    ['session', w.started ? (w.cart ? '1 in cart' : 'cart empty') : 'none yet'],
+    ['account', w.linked === 'yes' ? briefly(w.approves) : w.linked === 'no' ? 'not linked' : 'signed out'],
   ];
 }
 
@@ -73,8 +79,8 @@ export function sayWorld(w: World): string {
     : last.kind === 'revoke' ? 'The agent revoked its refresh token, and its key is gone.'
     : `${last.by === 'thief' ? 'A thief' : 'The agent'} sent ${OPERATIONS[last.op].method} ${OPERATIONS[last.op].path} on the ${LANE_NAME[lane(OPERATIONS[last.op].channel)]} lane, with a seal signed by ${last.by === 'thief' ? THIEF.name : AGENT.name} and ${
         last.token ? (last.by === 'thief' ? 'the agent’s copied key' : `a key for ${scopes}`) : 'no key'
-      }; the Company answered ${last.answer.status}${last.answer.error ? ` ${last.answer.error}` : ''}${last.answer.needs ? `, naming ${last.answer.needs}` : ''}, and the packet ${
-        last.answer.status === OPERATIONS[last.op].ok ? 'rests at the Company’s edge' : 'stopped short of it'
+      }; the Company answered ${last.answer.status}${last.answer.error ? ` ${last.answer.error}` : ''}${last.answer.needs ? `, naming ${last.answer.needs}` : ''}, and the ticket ${
+        last.answer.status === OPERATIONS[last.op].ok ? 'rests on its stop at the Company’s counter' : 'stopped at a barrier before it'
       }.`;
   const known = w.started
     ? `The Company knows ${AGENT.name}, User ID ${USER_IDS[COMPANY.domain]} and Session ${SID}, whose cart ${w.cart ? 'holds the medium' : 'is empty'}; the account is ${
@@ -84,113 +90,141 @@ export function sayWorld(w: World): string {
   return `${wire} ${sent} ${known} The agent holds its seal and ${w.grant ? `a key for ${scopes}` : 'no key'}. The rule, from section ${rule.section} of the draft: ${rule.says}`;
 }
 
-// The wire's geometry, shared with the scene's transitions.
-const TOP = 4.2, BOTTOM = -4.2, LEFT = -7.75;
-/** The agent's box, and the Company's edge the lanes end on. */
-const AGENT_BOX = { left: LEFT, right: -5.25, top: 4.05, bottom: -0.75 };
-export const EDGE_X = -0.02;
-const LANE_Y: Record<Lane, number> = { api: 3.05, web: 1.9, chat: 0.75, 'sign-in': -0.4 };
-/** Where a packet rests on its lane: against the Company's edge when delivered, short of it when refused. */
-export const packetAt = (on: Lane, delivered: boolean): [number, number] => [delivered ? -0.98 : -1.9, LANE_Y[on]];
-/** Where a thief's packet comes from: above the lanes, outside the agent. */
-export const THIEF_FROM_Y = 4.05;
-/** Where the lanes leave the agent. */
-export const LANE_START = AGENT_BOX.right + 0.55;
+// The map's geometry, shared with the scene's transitions.
+const LEFT = -7.75, RIGHT = 7.75;
+/** The agent's station, where every lane starts. */
+const STATION = { x: -6.35, y: 2.25, r: 1.2 };
+const FAN_X = STATION.x + STATION.r + 0.2;
+export const LANE_Y: Record<Lane, number> = { api: 3.6, web: 2.6, chat: 1.6, 'sign-in': 0.6 };
+/** Where each lane ends: its stop at the Company's counter. */
+export const STOP_X = 0.38;
+/** Where a lane, having fanned out from the agent, turns level. */
+export const levelAt = (on: Lane): [number, number] => levelAtY(LANE_Y[on]);
+/** The same, for a lane known by its height. */
+export const levelAtY = (y: number): [number, number] => [FAN_X + 0.6 * Math.abs(y - STATION.y), y];
+/** Where a ticket rests on its lane: on its stop when delivered, before the barrier when refused. */
+export const ticketAt = (on: Lane, delivered: boolean): [number, number] => [delivered ? STOP_X : -1.0, LANE_Y[on]];
+/** Where a thief's ticket comes from: under the map, away from the agent. */
+export const THIEF_FROM: [number, number] = [-2.9, -0.35];
 /** Where the Company's poppy.json sets off from, and where the agent takes it in. */
-export const DOCUMENT_ROUTE: [[number, number], [number, number]] = [[EDGE_X - 0.6, 1.65], [AGENT_BOX.right + 0.6, 1.65]];
+export const DOCUMENT_ROUTE: [[number, number], [number, number]] = [[STOP_X - 0.5, STATION.y], [FAN_X + 0.4, STATION.y]];
 
-const LABEL = 0.62, ROW = 0.66, TITLE = 0.7, HALF = 7.3, PAD = 0.28;
+const SMALL = 0.56, BODY = 0.6, TITLE = 0.66;
+/** Where the lanes' names start, on their level runs. */
+const NAME_X = -3.7;
 
-const diamond = (centre: [number, number], half: number, style: object) =>
-  new Polygon([[centre[0], centre[1] + half], [centre[0] + half, centre[1]], [centre[0], centre[1] - half], [centre[0] - half, centre[1]]], style);
+/** A wax seal: a scalloped disc with a pressed ring, or, for a seal that is not the agent's, a plain star. */
+function seal(centre: [number, number], radius: number, colour: string, ground: string, other = false): Group {
+  const lobes = 12, steps = other ? 16 : lobes * 10;
+  const edge = Array.from({ length: steps }, (_, k): [number, number] => {
+    const a = (k / steps) * 2 * Math.PI, r = other ? (k % 2 ? radius * 0.72 : radius) : radius * (0.93 + 0.07 * Math.cos(lobes * a));
+    return [centre[0] + r * Math.cos(a), centre[1] + r * Math.sin(a)];
+  });
+  return new Group(
+    new Polygon(edge, { fill: colour, stroke: 'none' }),
+    new Circle({ radius: radius * 0.56, fill: 'none', stroke: ground, strokeWidth: radius * 0.1 }).moveTo(centre),
+    new Circle({ radius: radius * 0.2, fill: ground, stroke: 'none' }).moveTo(centre),
+  );
+}
+
+/** A key, bow to the left: a ring, a shaft and one tooth for each scope it was cut for. */
+function key(centre: [number, number], size: number, teeth: number, colour: string): Group {
+  const length = 2.2 * size, bow = 0.42 * size, x0 = centre[0] - length / 2, y = centre[1];
+  return new Group(
+    new Circle({ radius: bow - 0.09 * size, fill: 'none', stroke: colour, strokeWidth: 0.18 * size }).moveTo([x0 + bow, y]),
+    new Rectangle({ width: length - 2 * bow + 0.06 * size, height: 0.18 * size, fill: colour, stroke: 'none' }).moveTo([x0 + bow + length / 2 - 0.03 * size, y]),
+    ...Array.from({ length: teeth }, (_, i) => new Rectangle({ width: 0.2 * size, height: 0.36 * size, fill: colour, stroke: 'none' }).moveTo([x0 + length - 0.1 * size - i * 0.38 * size, y - 0.26 * size])),
+  );
+}
 
 /** The poppy.json as a sheet of paper, for the transition that carries it to the agent. */
 export function documentToken(s: Stage): Mobject {
-  const { ink, paper, soft } = s.look;
-  const sheet = new Rectangle({ width: 0.8, height: 1.0, stroke: ink, strokeWidth: 0.05, fill: paper, cornerRadius: 0.06 });
-  const lines = [0.25, 0, -0.25].map((y) => new Line([-0.24, y], [0.24, y], { stroke: soft, strokeWidth: 0.05 }));
+  const { ink, paper } = s.look;
+  const sheet = new Rectangle({ width: 0.9, height: 1.15, fill: ink, stroke: 'none', cornerRadius: 0.06 });
+  const lines = [0.3, 0.05, -0.2].map((y, i) => new Line([-0.28, y], [i === 2 ? 0.05 : 0.28, y], { stroke: paper, strokeWidth: 0.07 }));
   return new Group(sheet, ...lines);
 }
 
-/** The state as its picture: the wire and the last exchange on the left, what the Company knows on the right. */
+/** The state as its picture: the line map and the last answer on the left, what the Company knows on the right. */
 export function drawWorld(w: World, s: Stage): Group {
-  const { ink, soft, good, bad, emphasis, raised, rule: hairline, paper, muted } = s.look, shaping = s.scene.textShaping;
+  const { ink, soft, emphasis: poppy, raised, paper, muted } = s.look, shaping = s.scene.textShaping;
   const parts = keyedParts();
-  const tone = (t: Tone) => (t === 'good' ? good : t === 'bad' ? bad : ink);
-  const text = (key: string, value: string, at: [number, number], o: { size: number; color?: string; bold?: boolean; end?: boolean; middle?: boolean }) =>
+  const text = (id: string, value: string, at: [number, number], o: { size: number; color?: string; bold?: boolean; mono?: boolean; end?: boolean; middle?: boolean }) =>
     parts.add(
-      new Text(value, { fontSize: o.size, color: o.color ?? ink, shaping, anchor: o.end ? 'end' : o.middle ? 'middle' : 'start', ...(o.bold ? { weight: 'bold' as const } : {}) }).moveTo(at, [o.end ? 1 : o.middle ? 0 : -1, 0]),
-      key,
+      new Text(value, { fontSize: o.size, color: o.color ?? ink, shaping, anchor: o.end ? 'end' : o.middle ? 'middle' : 'start', ...(o.bold ? { weight: 'bold' as const } : {}), ...(o.mono ? { font: 'mono' as const } : {}) })
+        .moveTo(at, [o.end ? 1 : o.middle ? 0 : -1, 0]),
+      id,
     );
-  const panel = (key: string, left: number, right: number, top: number, bottom: number, o: { stroke?: string; fill?: string; fillOpacity?: number; strokeWidth?: number } = {}) =>
-    parts.add(
-      new Rectangle({ width: right - left, height: top - bottom, stroke: o.stroke ?? hairline, strokeWidth: o.strokeWidth ?? 0.04, fill: o.fill ?? raised, fillOpacity: o.fillOpacity ?? 1, cornerRadius: 0.18 }).moveTo([(left + right) / 2, (top + bottom) / 2]),
-      key,
-    );
+  const last = w.last, report = reportOf(w), request = last?.kind === 'request' ? last : null, teeth = w.approves.length;
 
-  const last = w.last, report = reportOf(w), request = last?.kind === 'request' ? last : null;
-
-  // The agent: its seal always, and its key once the User has approved one.
-  const ax = (AGENT_BOX.left + AGENT_BOX.right) / 2;
-  panel('agent:box', AGENT_BOX.left, AGENT_BOX.right, AGENT_BOX.top, AGENT_BOX.bottom);
-  text('agent:name', 'Agent', [ax, AGENT_BOX.top - 0.55], { size: LABEL, bold: true, middle: true });
-  parts.add(new Circle({ radius: 0.5, fill: emphasis, stroke: 'none' }).moveTo([ax, 2.05]), 'agent:seal');
-  const slot = parts.add(diamond([ax, 0.4], 0.62, { fill: 'none', stroke: hairline, strokeWidth: 0.05 }), 'agent:key:slot');
-  slot.style.dashArray = '0.16 0.12';
+  // The agent's station: its seal always, and its key once the User has had one cut.
+  parts.add(new Circle({ radius: STATION.r, fill: raised, stroke: ink, strokeWidth: 0.14 }).moveTo([STATION.x, STATION.y]), 'agent:station');
+  parts.add(seal([STATION.x, STATION.y], 0.72, poppy, paper), 'agent:seal');
+  text('agent:name', 'your agent', [STATION.x, 0.6], { size: SMALL, middle: true });
+  const hook: [number, number] = [STATION.x, -0.15];
+  parts.add(key(hook, 0.95, teeth, muted), 'agent:key:slot').setOpacity(0.38);
   if (w.grant) {
-    const key = parts.add(diamond([ax, 0.4], 0.62, { fill: KEY_COLOUR, stroke: 'none' }), 'agent:key');
-    if (last?.kind === 'sign-in') emphasised(key, `changed: the agent now holds a key for ${scopesOf(w.approves)}`);
+    const held = parts.add(key(hook, 0.95, teeth, BRASS), 'agent:key');
+    if (last?.kind === 'sign-in') emphasised(held, `changed: the agent now holds a key for ${scopesOf(w.approves)}`);
   }
 
-  // The Company's edge, coloured by how the last request fared, and the lanes poppy.json opened.
-  const edge = report && report.lane && report.lane !== 'sign-in' ? tone(report.tone) : soft;
-  parts.add(new Rectangle({ width: 0.2, height: AGENT_BOX.top - AGENT_BOX.bottom, fill: edge, stroke: 'none', cornerRadius: 0.1 }).moveTo([EDGE_X + 0.1, (AGENT_BOX.top + AGENT_BOX.bottom) / 2]), 'edge');
+  // The Company's counter, the lanes poppy.json opened, and a stop where each lane meets the counter.
+  parts.add(new Rectangle({ width: 0.24, height: 4.0, fill: ink, stroke: 'none', cornerRadius: 0.05 }).moveTo([STOP_X + 0.5, (LANE_Y.api + LANE_Y['sign-in']) / 2]), 'edge');
   if (w.found)
     for (const name of LANES) {
-      const y = LANE_Y[name], active = report?.lane === name;
-      parts.add(new Line([AGENT_BOX.right, y], [EDGE_X, y], { stroke: active ? ink : muted, strokeWidth: active ? 0.07 : 0.04 }), `lane:${name}:line`);
-      text(`lane:${name}:name`, LANE_NAME[name], [AGENT_BOX.right + 0.3, y + 0.48], { size: 0.56, color: active ? ink : soft });
+      const y = LANE_Y[name], active = report?.lane === name, [bend] = levelAt(name);
+      const line = new Line([STATION.x + STATION.r, STATION.y], [FAN_X, STATION.y], { stroke: active ? ink : muted, strokeWidth: active ? 0.16 : 0.1, fill: 'none' });
+      line.addLineTo([bend, y]).addLineTo([STOP_X, y]);
+      parts.add(line, `lane:${name}:line`);
+      // The lane's name is set on the line, signage fashion, on a plate of the ground's colour.
+      const label = new Text(LANE_NAME[name], { fontSize: SMALL, color: active ? ink : soft, shaping, anchor: 'start', ...(active ? { weight: 'bold' as const } : {}) }).moveTo([NAME_X, y], [-1, 0]);
+      parts.add(new Rectangle({ width: label.width() + 0.4, height: 0.84, fill: paper, stroke: 'none' }).moveTo([NAME_X + label.width() / 2, y]), `lane:${name}:plate`);
+      parts.add(label, `lane:${name}:name`);
+      parts.add(new Circle({ radius: 0.2, fill: paper, stroke: active ? ink : muted, strokeWidth: 0.1 }).moveTo([STOP_X, y]), `lane:${name}:stop`);
     }
-  else text('lane:none', 'no way in yet', [(AGENT_BOX.right + EDGE_X) / 2, 1.65], { size: LABEL, color: soft, middle: true });
+  else text('lane:none', 'no way in yet', [(FAN_X + STOP_X) / 2, STATION.y], { size: BODY, color: soft, middle: true });
 
-  // The last request, as a packet on its lane: a seal, and a key when it carried a token.
+  // The last request, as a ticket on its lane: a seal, and a key when it carried a token.
   if (request && report?.lane) {
-    const [x, y] = packetAt(report.lane, report.delivered), thief = request.by === 'thief';
-    const pill = new Rectangle({ width: request.token ? 1.8 : 1.1, height: 0.8, cornerRadius: 0.4, fill: paper, stroke: report.delivered ? ink : bad, strokeWidth: 0.07 }).moveTo([x, y]);
-    const seal = new Circle({ radius: 0.25, fill: thief ? bad : emphasis, stroke: 'none' }).moveTo([request.token ? x - 0.36 : x, y]);
-    const packet = new Group(pill, seal, ...(request.token ? [diamond([x + 0.38, y], 0.29, { fill: KEY_COLOUR, stroke: 'none' })] : []));
-    parts.add(packet, 'packet');
+    const [x, y] = ticketAt(report.lane, report.delivered), thief = request.by === 'thief', wide = request.token;
+    if (!report.delivered) parts.add(new Rectangle({ width: 0.18, height: 0.92, fill: ink, stroke: 'none', cornerRadius: 0.04 }).moveTo([0.0, y]), 'barrier');
+    const plate = new Rectangle({ width: wide ? 1.7 : 0.9, height: 0.74, cornerRadius: 0.16, fill: ink, stroke: paper, strokeWidth: 0.07 }).moveTo([x, y]);
+    const stamp = seal([wide ? x - 0.5 : x, y], 0.26, thief ? OTHER_SEAL : poppy, thief ? paper : ink, thief);
+    parts.add(new Group(plate, stamp, ...(wide ? [key([x + 0.3, y + 0.04], 0.4, teeth, '#b07a12')] : [])), 'ticket');
   }
 
-  // Under the wire: what was asked, and what came back.
-  const strip = { left: LEFT, right: LEFT + HALF, top: -1.2, bottom: BOTTOM };
+  // Under the map: what was asked, the answer's number, and what it meant.
+  parts.add(new Line([LEFT, -0.85], [RIGHT, -0.85], { stroke: muted, strokeWidth: 0.03 }), 'divider');
   if (report) {
-    const colour = tone(report.tone), plain = report.tone === 'plain';
-    emphasised(panel('answer:box', strip.left, strip.right, strip.top, strip.bottom, { stroke: colour, fill: plain ? raised : colour, fillOpacity: plain ? 1 : 0.1, strokeWidth: 0.08 }), `the answer: ${report.code}, ${report.outcome}`);
-    text('answer:asked', report.asked, [strip.left + PAD, -1.78], { size: LABEL, color: soft });
-    text('answer:code', report.code, [strip.left + PAD, -2.68], { size: 0.78, bold: true, color: colour });
-    text('answer:outcome', report.outcome, [strip.left + PAD, -3.6], { size: ROW });
-  } else {
-    panel('answer:box', strip.left, strip.right, strip.top, strip.bottom, { fill: paper }).style.dashArray = '0.22 0.16';
-    text('answer:code', 'Nothing sent yet', [strip.left + PAD, -2.7], { size: 0.7, color: soft });
-  }
+    text('answer:asked', report.asked, [LEFT, -1.5], { size: BODY, color: soft });
+    if (report.number) text('answer:code', report.number, [LEFT, -3.0], { size: 1.5, mono: true, bold: true });
+    else parts.add(key([LEFT + 1.25, -2.95], 1.1, last?.kind === 'sign-in' ? last.granted.length : teeth, BRASS), 'answer:key');
+    emphasised(text('answer:phrase', report.phrase, [LEFT + 3.2, -2.62], { size: 0.74, bold: true }), `the answer: ${report.number ?? ''} ${report.phrase}, ${report.outcome}`);
+    text('answer:outcome', report.outcome, [LEFT + 3.2, -3.42], { size: BODY, color: report.delivered ? ink : soft });
+  } else text('answer:code', 'nothing sent yet', [LEFT, -2.6], { size: TITLE, color: soft });
 
-  // Right: what the Company knows. A value the last request changed is drawn in the emphasis colour and marked.
-  const r = 0.45, pitch = 1.14, verified = request && request.by === 'agent' && request.answer.error !== 'invalid_session' ? request : null;
-  text('company:title', 'The Company knows', [r, TOP - 0.4], { size: TITLE, bold: true });
-  panel('company:panel', r, r + HALF, TOP - 0.92, TOP - 0.92 - 4 * pitch - 0.08);
+  // Right: what the Company knows, as a ledger. The row the last request changed carries a marker.
+  const r = 1.45, verified = request && request.by === 'agent' && request.answer.error !== 'invalid_session' ? request : null;
+  text('company:title', 'The Company knows', [r, 3.75], { size: 0.62, bold: true });
   knownBy(w).forEach(([label, value], i) => {
-    const y = TOP - 0.92 - 0.61 - i * pitch, quiet = ['none yet', 'not met yet', 'not linked'].includes(value);
-    const changed = !!verified && (label === 'Account' ? verified.token : label === 'Session' && verified.op === 'cart');
-    text(`company:${label}:label`, label, [r + PAD, y], { size: ROW, color: soft });
-    const shown = text(`company:${label}:value`, value, [r + HALF - PAD, y], { size: ROW, color: quiet ? soft : changed ? emphasis : ink, end: true });
-    if (changed) emphasised(shown, `changed: ${label} is now ${value}`);
+    const y = 2.8 - i * 0.92, quiet = ['none yet', 'not met yet', 'not linked'].includes(value);
+    const changed = !!verified && (label === 'account' ? verified.token : label === 'session' && verified.op === 'cart');
+    parts.add(new Line([r, y + 0.46], [RIGHT, y + 0.46], { stroke: muted, strokeWidth: 0.03 }), `company:${label}:rule`);
+    text(`company:${label}:label`, label, [r, y], { size: SMALL, color: soft });
+    const shown = text(`company:${label}:value`, value, [RIGHT, y], { size: SMALL, color: quiet ? soft : ink, end: true, mono: !quiet });
+    if (changed) {
+      emphasised(shown, `changed: ${label} is now ${value}`);
+      const tip = shown.center()[0]! - shown.width() / 2 - 0.3;
+      parts.add(new Polygon([[tip - 0.24, y + 0.17], [tip, y], [tip - 0.24, y - 0.17]], { fill: BRASS, stroke: 'none' }), `company:${label}:mark`);
+    }
   });
 
   // The two marks, named: what each proof says.
-  parts.add(new Circle({ radius: 0.3, fill: emphasis, stroke: 'none' }).moveTo([r + 0.45, -2.35]), 'legend:seal');
-  text('legend:seal:name', 'Session header: who', [r + 1.05, -2.35], { size: LABEL });
-  parts.add(diamond([r + 0.45, -3.45], 0.36, { fill: KEY_COLOUR, stroke: 'none' }), 'legend:key');
-  text('legend:key:name', 'Access token: what', [r + 1.05, -3.45], { size: LABEL });
+  parts.add(seal([r + 0.5, -2.05], 0.44, poppy, paper), 'legend:seal');
+  text('legend:seal:name', 'Session header', [r + 1.3, -1.75], { size: BODY, bold: true });
+  text('legend:seal:says', 'who is asking', [r + 1.3, -2.42], { size: SMALL, color: soft });
+  parts.add(key([r + 0.5, -3.42], 0.42, teeth, BRASS), 'legend:key');
+  text('legend:key:name', 'Access token', [r + 1.3, -3.15], { size: BODY, bold: true });
+  text('legend:key:says', 'what you allow', [r + 1.3, -3.82], { size: SMALL, color: soft });
   return parts.group();
 }
