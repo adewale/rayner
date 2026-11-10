@@ -42,13 +42,13 @@ type Box = { x: number; y: number; w: number; h: number };
 const top = (b: Box) => b.y + b.h / 2, bottom = (b: Box) => b.y - b.h / 2, left = (b: Box) => b.x - b.w / 2, right = (b: Box) => b.x + b.w / 2;
 
 /** The conversation's table: the hero, and the smaller, stepped-back table while a Direct Conversation is open. */
-const MAIN_FULL: Box = { x: -2.4, y: 0.0, w: 8.4, h: 3.5 };
+const MAIN_FULL: Box = { x: -2.4, y: 0.0, w: 8.4, h: 3.3 };
 const MAIN_BACK: Box = { x: -2.4, y: 2.25, w: 8.4, h: 1.3 };
 /** The Direct Conversation's table, lower on the stage. */
 const DIRECT: Box = { x: -2.4, y: -2.25, w: 7.0, h: 2.0 };
 const SEAT_R = 0.6;
 /** How far a seat's centre stands out from the table's edge: the disc tucks under the edge a little. */
-const OUT = 0.45;
+const OUT = 0.55;
 /** Seat columns at the conversation's table: your side, the Company's side. */
 const YOUR_X = -5.2, THEIR_X = 0.4;
 
@@ -241,7 +241,7 @@ function turnPlace(s: Stage, w: World, t: Turn): { at: Vec; seat: Vec } {
   const seat = t.speaker === 'agent' ? seats.agentSeat : t.speaker === 'you' ? seats.youSeat : t.speaker === 'person' ? seats.person : seats.company;
   const upper = seat[1] > MAIN_FULL.y, lo = left(MAIN_FULL) + 0.3 + width / 2, hi = right(MAIN_FULL) - 0.3 - width / 2;
   const x = Math.max(lo, Math.min(hi, seat[0] + (seat[0] < MAIN_FULL.x ? 1.2 : -1.2)));
-  return { at: [x, upper ? MAIN_FULL.y - 0.05 : MAIN_FULL.y - 1.05], seat };
+  return { at: [x, upper ? MAIN_FULL.y + 0.3 : MAIN_FULL.y - 0.75], seat };
 }
 
 /** Where a turn sets off from: the seat of the writer, in the picture of this state. */
@@ -295,7 +295,7 @@ export function drawWorld(w: World, s: Stage, shown: Shown = {}): Group {
 
   // The Company's invitation stops in front of your agent's seat.
   if (w.invited) {
-    const at: Vec = [YOUR_X - 0.3, top(MAIN_FULL) - 0.7];
+    const at: Vec = [YOUR_X - 0.3, top(MAIN_FULL) - 0.55];
     parts.add(emphasised(envelope(at), 'the Company asks for you, through your agent'), 'invite');
     parts.add(words(s, 'user_requested', { at: [at[0] + 0.75, at[1]], mono: true }), 'invite:type');
   }
@@ -318,9 +318,9 @@ export function drawWorld(w: World, s: Stage, shown: Shown = {}): Group {
     parts.add(words(s, 'AI, watching', { at: [seats.agent[0] + 0.75, seats.agent[1] - 0.37], color: TONE.soft }), 'agent:kind');
   } else if (w.direct === 'closed') {
     // Closed: the small table is gone, and the ledger's column notes that it was there.
-    parts.add(words(s, 'Direct', { at: [LEDGER.x, -1.95], color: TONE.soft }), 'direct:closed');
-    parts.add(words(s, 'closed', { at: [MARGIN.right, -1.95], mono: true, align: 'end' }), 'direct:closed:value');
-    parts.add(new Rectangle({ width: LEDGER.width, height: STROKE.hair, fill: TONE.rule, stroke: 'none' }).moveTo([LEDGER.x + LEDGER.width / 2, -2.28]), 'direct:closed:rule');
+    parts.add(words(s, 'Direct', { at: [LEDGER.x, -2.45], color: TONE.soft }), 'direct:closed');
+    parts.add(words(s, 'closed', { at: [MARGIN.right, -2.45], mono: true, align: 'end' }), 'direct:closed:value');
+    parts.add(new Rectangle({ width: LEDGER.width, height: STROKE.hair, fill: TONE.rule, stroke: 'none' }).moveTo([LEDGER.x + LEDGER.width / 2, -2.78]), 'direct:closed:rule');
   }
 
   // Working: a typing badge by the seat of whoever handles the Company's side of the table in use.
@@ -338,7 +338,7 @@ export function drawWorld(w: World, s: Stage, shown: Shown = {}): Group {
   }
 
   // On the right: the state fields of the conversation in use, or, at the ownership step, who may continue it.
-  const at: Vec = [LEDGER.x, back ? 3.6 : 1.9];
+  const at: Vec = [LEDGER.x, back ? 3.6 : 1.5];
   if (shown.owner) narrowLedger(s, parts, ['Continue it?'], ownerRows(), 'owner', at);
   else narrowLedger(s, parts, active === 'direct' ? ['Direct', 'Conversation'] : w.main ? ['Conversation'] : ['No conversation'], ledgerRows(c ?? null), 'state', at);
   return parts.group();

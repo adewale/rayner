@@ -69,8 +69,8 @@ export const KEY_AT: Vec = HOLDS.key;
 /** Where the agent hangs a key cut for the MCP server: under its station. */
 export const MCP_KEY_AT: Vec = [STATION[0], 1.22];
 /** Where the Company's clock stands, at the foot of its counter, for a rate limit. */
-const CLOCK_AT: Vec = [STOP_X + 0.15, 1.45];
-const CLOCK_R = 0.4;
+const CLOCK_AT: Vec = [STOP_X + 0.4, 0.2];
+const CLOCK_R = 0.38;
 /** A key's way from the Company's counter back along the lane into the agent's station. */
 export const keyRoute = (y: number): Vec[] => [[STOP_X, y], [STATION[0] + STATION_R, y], KEY_AT];
 /** A fresh poppy.json's way, from the counter to the agent. */
@@ -79,9 +79,9 @@ export const documentRoute = (y: number): Vec[] => [[STOP_X - 0.5, y], [STATION[
 export const DELEGATION_ROUTE: Vec[] = [[STATION[0], 0.9], SEAL_AT];
 
 // The slip and the panels below the map.
-const SLIP = { left: MARGIN.left, right: -0.75, top: 0.72, bottom: -2.02 };
-const OUTCOME_Y = -2.5;
-const RAIL_Y = -3.28, RAIL_LABEL_Y = -4.0;
+const SLIP = { left: MARGIN.left, right: -0.4, top: 0.72, bottom: -2.0 };
+const OUTCOME_Y = -2.45;
+const RAIL_Y = -3.36, RAIL_LABEL_Y = -4.05;
 
 /** The poppy.json, as a sheet of paper, for the transition that carries a fresh copy to the agent. */
 export const documentToken = (s: Stage): Mobject => sheet(s, { width: 0.9, height: 1.15, lines: 3 });
@@ -162,7 +162,8 @@ function slip(s: Stage, reply: Reply, part: Part): Mobject[] {
  * that part (PRINT on paper, where INK would vanish; INK round the clock on the ground).
  */
 function pointer(at: Vec, part: Part): Mobject[] {
-  const target = part === 'clock' ? { at: CLOCK_AT, w: 2 * CLOCK_R + 0.3, h: 2 * CLOCK_R + 0.3 } : partsOf(at)[part];
+  const box = partsOf(at)[part === 'clock' ? 'key' : part];
+  const target = part === 'clock' ? { at: CLOCK_AT, w: 2 * CLOCK_R + 0.3, h: 2 * CLOCK_R + 0.3 } : part === 'tab' ? { ...box, w: box.w + 0.28, h: box.h + 0.24 } : box;
   const [tx, ty] = target.at, bottom = ty - target.h / 2;
   const fromX = Math.min(Math.max(tx, SLIP.left + 0.5), SLIP.right - 0.3), from: Vec = [fromX, SLIP.top + 0.02];
   const ringColour = part === 'clock' ? TONE.ink : TONE.print;
@@ -171,8 +172,10 @@ function pointer(at: Vec, part: Part): Mobject[] {
     : new Rectangle({ width: target.w, height: target.h, fill: 'none', stroke: ringColour, strokeWidth: STROKE.line, cornerRadius: target.h / 2 }).moveTo(target.at);
   // The leader stops at the ticket's lower edge (or the ring), where it meets the paper.
   const end: Vec = part === 'tab' || part === 'clock' ? [tx, bottom] : [tx, at[1] - TH / 2];
-  const leader = new Line(from, from[0] === end[0] ? end : [end[0], end[1]], { stroke: TONE.ink, strokeWidth: STROKE.fine });
-  return [keyedPart(leader, 'slip:leader'), keyedPart(new Circle({ radius: 0.07, fill: TONE.ink, stroke: 'none' }).moveTo(end), 'slip:leader:end'), keyedPart(ring, 'slip:ring')];
+  const start: Vec = part === 'clock' ? [SLIP.right + 0.02, CLOCK_AT[1]] : from;
+  const stopAt: Vec = part === 'clock' ? [tx - target.w / 2, ty] : end;
+  const leader = new Line(start, stopAt, { stroke: TONE.ink, strokeWidth: STROKE.fine });
+  return [keyedPart(leader, 'slip:leader'), keyedPart(new Circle({ radius: 0.07, fill: TONE.ink, stroke: 'none' }).moveTo(stopAt), 'slip:leader:end'), keyedPart(ring, 'slip:ring')];
 }
 
 /** One remedy on the rail, drawn as an object of the subject's world: centre (x, RAIL_Y), about 0.8 high. */
@@ -279,7 +282,12 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
   }
 
   // Behind the counter, quiet: what the Company knows of the Session.
-  addAll(parts, ledger(s, knownBy(w), { at: [LEDGER_X, 3.85], width: MARGIN.right - LEDGER_X, title: 'The Company knows', key: 'company', rowGap: 0.74 }));
+  const rows = knownBy(w), book = ledger(s, rows, { at: [LEDGER_X, 3.85], width: MARGIN.right - LEDGER_X, title: 'The Company knows', key: 'company', rowGap: 0.74 });
+  for (const m of book) {
+    const changed = rows.some((r) => r.changed && m.key === `company:${r.label}:value`);
+    if ((m.key === 'company:title' || m.key?.endsWith(':value')) && !changed) m.setFill(TONE.soft);
+  }
+  addAll(parts, book);
 
   // The right-hand focus: what to predict, why the tempting remedy would fail, or the 401 counterfactual.
   const room = MARGIN.right - LEDGER_X, tempting = temptation(w);
@@ -310,7 +318,7 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
     const label = parts.add(words(s, FIX_NAME[fix], { at: [x, RAIL_LABEL_Y], align: 'middle', bold: lit, color: lit ? TONE.ink : TONE.soft }), `rail:${fix}:name`);
     if (lit) {
       emphasised(label, `the remedy applied: ${FIX_NAME[fix]}`);
-      parts.add(new Rectangle({ width: label.width(), height: 0.07, fill: TONE.ink, stroke: 'none', cornerRadius: 0.02 }).moveTo([x, RAIL_LABEL_Y - 0.37]), `rail:${fix}:mark`);
+      parts.add(new Rectangle({ width: label.width(), height: 0.07, fill: TONE.ink, stroke: 'none', cornerRadius: 0.02 }).moveTo([x, RAIL_LABEL_Y - 0.34]), `rail:${fix}:mark`);
     }
     if (struck) parts.add(poly([[x - 0.5, RAIL_Y - 0.42], [x - 0.42, RAIL_Y - 0.5], [x + 0.5, RAIL_Y + 0.42], [x + 0.42, RAIL_Y + 0.5]], TONE.ink), `rail:${fix}:strike`);
   });
