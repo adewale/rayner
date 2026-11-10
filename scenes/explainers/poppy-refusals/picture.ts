@@ -3,7 +3,7 @@ import type { Mobject, Vec } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
 import {
-  MARGIN, PALETTE as KIT_PALETTE, PLATE_HEIGHT, SPACE, STROKE, TICKET, TONE, TYPE,
+  MARGIN, PALETTE as KIT_PALETTE, PLATE_HEIGHT, SPACE, TICKET, TONE, TYPE,
   addAll, barrier, certificate, clock, counter, key, lane, laneRoute, ledger, person, seal, sheet, station, stationExit, stationHolds, ticket, words,
 } from '../lib/poppy-kit.ts';
 import { SID } from '../poppy/model.ts';

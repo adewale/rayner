@@ -64,7 +64,7 @@ export default class Sessions extends Scene<SealWorld, Shown> {
       return beats(c, () => {
         // The punches overlap, each starting a moment after the last, in the draft's order of checks.
         const punches = punchOrder().filter((k) => c.has(k, 'to')).map((k) => c.enter(k, {}, { runTime: 0.3 }));
-        return [...flight(c, 'ticket', [from], { appear: 0.15, move: 0.7, leave: 0.12 })(), ...(punches.length ? [new AnimationGroup(punches, { lagRatio: 0.3 })] : [])];
+        return [...flight(c, 'ticket', [from], { appear: 0.25, move: 0.7, leave: 0.25 })(), ...(punches.length ? [new AnimationGroup(punches, { lagRatio: 0.3 })] : [])];
       }, { fresh: ['verdict:', 'ticket', 'hole', 'tear', 'link'] });
     };
     const machine = new Machine<SealWorld, Tamper>(this, {

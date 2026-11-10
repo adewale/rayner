@@ -51,6 +51,7 @@ export default class PoppyDiscovery extends Scene<World, {}> {
         if (gate === 1) {
           // The fetch: a redirect's first URL, then the sheet comes down from the address bar to the doorstep.
           const first = together(bring(c, ['url:first', 'url:redirect', 'url:under', 'board']) as Animation[]);
+          // The sheet's own printing (a ruled line, or its name on the noticeboard) comes with the rest, once it has landed.
           const sheet = c.has('sheet', 'to') ? flight(c, 'sheet', [c.to('url:path').center() as [number, number]], { appear: 0.2, move: 0.8, leave: 0.25 })() : [];
           return [...first, ...sheet];
         }

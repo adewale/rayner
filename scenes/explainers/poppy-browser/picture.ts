@@ -70,7 +70,7 @@ const BARRIER_X = COUNTER_X - 0.45;
 const ticketAt = (delivered: boolean): Vec => [delivered ? COUNTER_X - 0.17 - TICKET.width / 2 : BARRIER_X - 0.28 - TICKET.width / 2, ROAD_A];
 /** The attacker's browser, lower right, and where its cookie half rests in it. */
 const EVIL: Vec = [4.65, -2.95];
-export const EVIL_HALF_AT: Vec = [EVIL[0], EVIL[1] - 0.45];
+export const EVIL_HALF_AT: Vec = [EVIL[0] + 0.9, EVIL[1] - 0.45];
 /** Where a code that came in a message rests: beside the agent, outside its station. */
 export const MESSAGE_AT: Vec = [-6.35, -0.15];
 
@@ -151,7 +151,7 @@ function reportOf(w: World): Report | null {
     }
     case 'submit': return { asked: `browser: submit ${shortCode(last.code)}`, number: String(last.answer.status), meaning: last.answer.status === 303 ? 'joined the Session' : 'no agent stamped it' };
     case 'browse': return { asked: 'browser: open /orders', number: String(last.status), meaning: last.visit.via === 'session' ? `as account ${last.visit.account}` : 'Session, signed out' };
-    case 'forge': return { asked: `${ATTACKER.site}: post ${shortCode(last.code)}`, number: String(last.answer.status), meaning: 'no cookie came with it' };
+    case 'forge': return { asked: `${ATTACKER.site}: post ${shortCode(last.code)}`, number: String(last.answer.status), meaning: 'no cookie came' };
     case 'phish': return { asked: `attacker: submit ${shortCode(last.code)}`, number: String(last.answer.status), meaning: 'no agent stamped it' };
   }
 }
@@ -253,10 +253,12 @@ export function drawWorld(w: World, s: Stage, shown: Shown): Group {
     // A browser sends a copy of a cookie and keeps it: the half stays on its shelf.
     if (w.attacker.join) parts.add(cookieHalf(s, { left: EVIL_HALF_AT[0] - HALF_W / 2, y: EVIL_HALF_AT[1], code: PHISH_CODE }), 'evil:half');
   } else {
-    parts.add(seal(s, { at: [RACK_X + 0.44, -2.15], r: 0.29 }), 'legend:stamp');
-    parts.add(words(s, 'agent stamped', { at: [RACK_X + 1.0, -2.15], color: TONE.soft }), 'legend:stamp:name');
-    parts.add(new Circle({ radius: 0.25, fill: 'none', stroke: TONE.steel, strokeWidth: STROKE.fine, dashArray: '0.08 0.06' }).moveTo([RACK_X + 0.44, -3.05]), 'legend:ring');
-    parts.add(words(s, 'not stamped', { at: [RACK_X + 1.0, -3.05], color: TONE.soft }), 'legend:ring:name');
+    // Right under the rows, so the marks are named beside the stubs that carry them.
+    const y0 = ROW_Y[Math.max(1, ordered.length)]! - 0.05;
+    parts.add(seal(s, { at: [RACK_X + 0.44, y0], r: 0.29 }), 'legend:stamp');
+    parts.add(words(s, 'agent stamped', { at: [RACK_X + 1.0, y0], color: TONE.soft }), 'legend:stamp:name');
+    parts.add(new Circle({ radius: 0.25, fill: 'none', stroke: TONE.steel, strokeWidth: STROKE.fine, dashArray: '0.08 0.06' }).moveTo([RACK_X + 0.44, y0 - 0.8]), 'legend:ring');
+    parts.add(words(s, 'not stamped', { at: [RACK_X + 1.0, y0 - 0.8], color: TONE.soft }), 'legend:ring:name');
   }
 
   // Under the browser: what was asked, and what came back.

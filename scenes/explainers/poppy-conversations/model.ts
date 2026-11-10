@@ -337,21 +337,23 @@ export const authorOf = (speaker: Speaker): AuthorType => (speaker === 'you' || 
 export const roleOf = (speaker: Speaker): 'user' | 'company' => (speaker === 'agent' || speaker === 'you' ? 'user' : 'company');
 
 /**
- * What is said, short enough to read on a phone. The agent's, yours and the Company Agent's first
- * lines abridge the specification's own examples (8.3, 8.5, 8.7, 8.8, 8.10); the rest are ours.
+ * What is said, short enough to set large on a phone (at most 20 characters, 16 for what can be
+ * said at the Direct Conversation's smaller table). The agent's first line, the Company Agent's
+ * offer, your "Medium, please." and the person's question abridge the specification's own examples
+ * (8.3, 8.5, 8.7, 8.8); the rest are ours.
  */
 export const LINES = {
-  cold: 'Jacket 1042 is too cold.',
-  insulated: 'Insulated, in medium?',
+  cold: 'Return jacket 1042.',
+  insulated: 'Insulated in medium?',
   medium: 'Medium, please.',
-  question: 'About my exchange.',
+  question: 'About my order.',
   offer: 'Insulated: $70 more?',
-  stock: 'Yes, in stock. Exchange?',
-  size: 'Which size, please?',
-  confirm: 'Medium it is. Done.',
-  finding: 'Specialist coming.',
-  help: 'Sure. Which size?',
-  decline: 'They can’t talk just now.',
+  stock: 'Yes, in stock.',
+  size: 'Which size?',
+  confirm: 'Done: medium.',
+  finding: 'Finding someone.',
+  help: 'How can I help?',
+  decline: 'They can’t talk now.',
 } as const;
 export type LineKey = keyof typeof LINES;
 

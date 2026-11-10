@@ -35,7 +35,7 @@ const SHOP = { l: -7.55, r: -1.95, base: -0.45, facade: 1.5, awning: 2.0 } as co
 const SHOP_X = (SHOP.l + SHOP.r) / 2;
 /** The fascia's text centre, and the letterhead's: one column, so their characters line up. */
 const FASCIA_Y = 1.05, HEAD_Y = -0.86;
-const SHEET_AT: Vec = [SHOP_X, -1.33], SHEET_W = 5.4, SHEET_H = 1.58;
+const SHEET_AT: Vec = [SHOP_X, -1.07], SHEET_W = 5.4, SHEET_H = 1.06;
 /** The signpost's finger and the arm it sends to the issuer. */
 const ARM_Y = 2.45, FINGER = { l: -2.9, r: -1.85 } as const;
 const REG = { l: 2.25, r: MARGIN.right, top: 1.45, bottom: -1.0, titleY: 1.85 } as const;
@@ -46,7 +46,7 @@ const URL_Y = 3.32, FIRST_Y = 4.0, URL_X = -6.95;
 /** The agent's line of checks. */
 const RAIL_Y = -3.35, SEAL_X = -7.2;
 export const STOP_X: Record<Gate, number> = { fetch: -3.45, read: -0.15, issuer: 3.1, listed: 6.35 };
-const VERDICT_Y = -2.55;
+const VERDICT_Y = -2.3;
 
 /** Where the sheet rests on the doorstep, and where the arm and the return arrow start, for the scene's motion. */
 export const SHEET_CENTRE = SHEET_AT;
@@ -138,7 +138,7 @@ function shopfront(): Group {
     parts.push(new Polygon(pts, { fill: i % 2 ? TONE.steel : TONE.rule, stroke: 'none' }));
   }
   // The fascia board, the windows with their glazing bars, and the door with its handle.
-  parts.push(new Rectangle({ width: w - 0.24, height: 0.66, fill: TONE.ground, stroke: TONE.ink, strokeWidth: STROKE.fine, cornerRadius: RADIUS.paper }).moveTo([SHOP_X, FASCIA_Y]));
+  parts.push(new Rectangle({ width: w - 0.24, height: 0.78, fill: TONE.ground, stroke: TONE.ink, strokeWidth: STROKE.fine, cornerRadius: RADIUS.paper }).moveTo([SHOP_X, FASCIA_Y]));
   for (const [x0, x1] of [[l + 0.3, SHOP_X - 0.75], [SHOP_X + 0.75, r - 0.3]] as const) {
     const cx = (x0 + x1) / 2;
     parts.push(new Rectangle({ width: x1 - x0, height: 0.7, fill: TONE.rule, stroke: 'none', cornerRadius: RADIUS.paper }).moveTo([cx, 0.2]));
@@ -181,7 +181,7 @@ function registerPage(): Group {
 
 /** Underlines under the characters of `t` (a mono line) at these indices. */
 function underlines(t: Text, indices: readonly number[], colour: string): Group {
-  const cw = t.width() / t.text.length, left = t.center()[0]! - t.width() / 2, y = t.center()[1]! - 0.36;
+  const cw = t.width() / t.text.length, left = t.center()[0]! - t.width() / 2, y = t.center()[1]! - 0.33;
   return new Group(...indices.map((i) => new Rectangle({ width: cw * 0.9, height: 0.1, fill: colour, stroke: 'none' }).moveTo([left + (i + 0.5) * cw, y])));
 }
 
@@ -226,8 +226,8 @@ export function drawWorld(w: World, s: Stage): Group {
   // The document on the doorstep, once fetched from the well-known path; its letterhead once read.
   if (fetched && stoppedAt !== 'fetch') {
     parts.add(sheet(s, { at: SHEET_AT, width: SHEET_W, height: SHEET_H, lines: 0 }), 'sheet');
-    // The file's name, printed under where the letterhead goes, and a ruled line for the rest.
-    parts.add(words(s, 'poppy.json', { at: [SHOP.l + 0.55, -1.56], mono: true, color: TONE.print }), 'sheet:name');
+    // A ruled line under where the letterhead goes, for the rest of the file.
+    parts.add(new Rectangle({ width: 3.6, height: 0.075, fill: TONE.paperLine, stroke: 'none', cornerRadius: 0.03 }).moveTo([SHOP_X, -1.36]), 'sheet:lines');
     if (sc.letterhead && sc.ran >= 2) {
       const letter = parts.add(words(s, sc.letterhead, { at: [SHOP_X, HEAD_Y], mono: true, bold: true, color: TONE.print, align: 'middle' }), 'sheet:head');
       if (stoppedAt === 'read') {

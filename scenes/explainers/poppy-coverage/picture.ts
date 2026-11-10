@@ -197,8 +197,8 @@ export const requestToken = (s: Stage): Mobject => ticket(s, {});
 
 /** The middle of line `i` of the shop's note as it lies on the desk: where that line's strip is torn from. */
 export const noteLineAt = (i: number): Vec => [ASIDE_X + 2.6, -0.3 - 0.2 - 0.34 - i * 0.68];
-/** Where a strip of the skill card starts: the card, each a little lower than the last. */
-export const cardLineAt = (i: number): Vec => [SKILL_AT[0], SKILL_AT[1] - 0.2 * i];
+/** The skill card, travelling from where the shop keeps it to the desk, to be read. */
+export const cardToken = (s: Stage): Mobject => instructionCard(s, { title: 'skill', lines: 2, width: SKILL_W });
 
 /** The strips of the last `used` exchange, keyed as drawn, each with its line on the paper it was torn from. */
 export function stripKeys(w: World): { key: string; line: number }[] {

@@ -47,9 +47,9 @@ const RACK_X = 0.95, TOOTH_X = 0.42;
 const PAGE_X = WIN.left + 0.3;
 const LINE: Record<Scope, string> = { 'orders:read': 'See your orders', 'orders:write': 'Exchange items' };
 /** The strip under the window: you, your password, and the slip or card between you and the agent. */
-const STRIP_Y = -1.2;
+const STRIP_Y = -1.06;
 export const YOU_AT: Vec = [-7.2, STRIP_Y];
-export const PASSWORD_AT: Vec = [-6.0, STRIP_Y];
+export const PASSWORD_AT: Vec = [-6.08, STRIP_Y];
 export const SLIP_AT: Vec = [-3.55, STRIP_Y];
 /** The agent's station, bottom left. */
 const STATION: Vec = [-6.3, -2.86];
@@ -60,7 +60,7 @@ const RING_AT: Vec = [-5.22, -2.2];
 export const KEY_AT: Vec = [-3.86, -2.2];
 const KEY_SIZE = 1.15;
 export const TAG_AT: Vec = [-2.3, -3.48];
-export const THIEF_AT: Vec = [-1.2, STRIP_Y];
+export const THIEF_AT: Vec = [-0.95, -2.2];
 /** Where the address bar is: an authorization request arrives there. */
 export const ADDRESS_AT: Vec = [(WIN.left + WIN.right) / 2, WIN.top - WIN.bar / 2];
 /** Where a code leaves the page for the agent's redirect. */
@@ -166,8 +166,8 @@ export function tag(s: Stage, { at, value, foreign = false }: { at: Vec; value: 
 /** A password card: a small PAPER card with six PRINT dots, the secret you type. One unkeyed Group. */
 export function passwordCard(_s: Stage, { at }: { at: Vec }): Group {
   return new Group(
-    new Rectangle({ width: 1.3, height: 0.6, fill: TONE.paper, stroke: 'none', cornerRadius: RADIUS.paper }).moveTo(at),
-    ...dots([at[0] - 0.4, at[1]], TONE.print),
+    new Rectangle({ width: 1.16, height: 0.6, fill: TONE.paper, stroke: 'none', cornerRadius: RADIUS.paper }).moveTo(at),
+    ...dots([at[0] - 0.4, at[1]], TONE.print), // six dots, 0.96 wide
   );
 }
 const dots = (from: Vec, colour: string) => Array.from({ length: 6 }, (_, i) => new Circle({ radius: 0.07, fill: colour, stroke: 'none' }).moveTo([from[0] + i * 0.16, from[1]]));
@@ -188,7 +188,7 @@ function box(at: Vec, ticked: boolean): Mobject[] {
 
 /** The display card the agent shows for Device Sign-In: the code in mono bold, the Company's domain under it. */
 function deviceCard(s: Stage, at: Vec, foreign: boolean): Group {
-  const w = 3.4, h = 1.42, [x, y] = at;
+  const w = foreign ? 3.4 : 4.5, h = 1.36, [x, y] = at;
   if (foreign)
     return new Group(
       new Rectangle({ width: w, height: h, fill: TONE.pewterDeep, stroke: TONE.pewter, strokeWidth: STROKE.fine, cornerRadius: RADIUS.ticket }).moveTo(at),
@@ -196,8 +196,8 @@ function deviceCard(s: Stage, at: Vec, foreign: boolean): Group {
     );
   return new Group(
     new Rectangle({ width: w, height: h, fill: TONE.paper, stroke: 'none', cornerRadius: RADIUS.ticket }).moveTo(at),
-    words(s, DEVICE.user_code, { at: [x, y + 0.32], mono: true, bold: true, color: TONE.print, align: 'middle' }),
-    words(s, 'Example Company', { at: [x, y - 0.36], color: TONE.print, align: 'middle' }),
+    words(s, DEVICE.user_code, { at: [x, y + 0.35], mono: true, bold: true, color: TONE.print, align: 'middle' }),
+    words(s, 'Example Company', { at: [x, y - 0.37], color: TONE.print, align: 'middle' }),
   );
 }
 
@@ -215,10 +215,16 @@ function hatch(s: Stage, parts: Parts, flow: Flow, host: string, open = true) {
   const device = flow === 'device';
   const address = words(s, host, { mono: true, at: [cx, WIN.top - WIN.bar / 2], align: 'middle', color: open ? TONE.ink : TONE.soft });
   const frame: Mobject[] = [
-    new Rectangle({ width: w, height: h, fill: TONE.ground, stroke: open ? TONE.ink : TONE.steel, strokeWidth: device ? STROKE.line : STROKE.fine, cornerRadius: device ? RADIUS.device : RADIUS.panel }).moveTo([cx, cy]),
-    new Rectangle({ width: address.width() + 0.5, height: 0.6, fill: TONE.raised, stroke: 'none', cornerRadius: 0.3 }).moveTo([cx, WIN.top - WIN.bar / 2]),
+    new Rectangle({ width: w, height: h, fill: device ? TONE.raised : TONE.ground, stroke: open ? TONE.ink : TONE.steel, strokeWidth: STROKE.fine, cornerRadius: device ? RADIUS.device * 1.6 : RADIUS.panel }).moveTo([cx, cy]),
   ];
-  if (device) frame.push(new Rectangle({ width: 0.07, height: 0.5, fill: TONE.steel, stroke: 'none', cornerRadius: 0.035 }).moveTo([WIN.left + 0.13, cy - 0.3]));
+  // A phone, turned on its side: a body with a bezel, the screen inset, a camera dot and a speaker slot at its left end.
+  if (device)
+    frame.push(
+      new Rectangle({ width: w - 0.44, height: h - 0.28, fill: TONE.ground, stroke: 'none', cornerRadius: 0.12 }).moveTo([cx, cy]),
+      new Circle({ radius: 0.06, fill: TONE.steel, stroke: 'none' }).moveTo([WIN.left + 0.11, cy + 0.5]),
+      new Rectangle({ width: 0.06, height: 0.5, fill: TONE.steel, stroke: 'none', cornerRadius: 0.03 }).moveTo([WIN.left + 0.11, cy - 0.1]),
+    );
+  frame.push(new Rectangle({ width: address.width() + 0.44, height: 0.6, fill: TONE.raised, stroke: device ? TONE.rule : 'none', strokeWidth: STROKE.hair, cornerRadius: 0.3 }).moveTo([cx, WIN.top - WIN.bar / 2 - (device ? 0.06 : 0)]));
   parts.add(new Group(...frame), 'window:frame');
   parts.add(address, 'window:host');
   // The page, in the Company's tone, running out through the window's right edge into the counter.
@@ -270,10 +276,10 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
   // The strip under the window: you; your password unless it is on the page; the card or slip in between.
   parts.add(person(s, { at: YOU_AT, size: 0.86 }), 'you');
   if (!w.sign?.approved) parts.add(passwordCard(s, { at: PASSWORD_AT }), 'you:password');
-  if (device && w.sign && !w.sign.approved) parts.add(deviceCard(s, SLIP_AT, false), 'card');
+  if (device && w.sign && !w.sign.approved) parts.add(deviceCard(s, [SLIP_AT[0] + 0.55, SLIP_AT[1]], false), 'card');
   if (last?.kind === 'trick') {
-    parts.add(barrier(s, { at: [SLIP_AT[0] - 2.1, SLIP_AT[1]], height: 1.0 }), 'barrier');
-    parts.add(device ? deviceCard(s, [SLIP_AT[0] + 0.15, SLIP_AT[1]], true) : swappedSlip(s, [SLIP_AT[0] - 0.2, SLIP_AT[1]]), 'trick');
+    parts.add(barrier(s, { at: [SLIP_AT[0] - 1.75, SLIP_AT[1]], height: 1.0 }), 'barrier');
+    parts.add(device ? deviceCard(s, [SLIP_AT[0] + 0.25, SLIP_AT[1]], true) : swappedSlip(s, [SLIP_AT[0] - 0.05, SLIP_AT[1]]), 'trick');
   }
 
   // Bottom left: the agent, its seal, and its keyring: the key (access token) and the tag (refresh token).

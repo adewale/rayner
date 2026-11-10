@@ -7,7 +7,7 @@ import type { Beat } from '../lib/poppy-kit.ts';
 import { COVERAGE_EVENTS, STORY, next, start } from './model.ts';
 import type { Company, CoverageEvent, World } from './model.ts';
 import {
-  BOARD_AT, LANES, NOTE_AT, PALETTE, cardLineAt, noteLineAt, SEAL_AT, SLOT_AT, TRAY_AT,
+  BOARD_AT, LANES, NOTE_AT, PALETTE, cardToken, noteLineAt, SKILL_AT, SEAL_AT, SLOT_AT, TRAY_AT,
   drawWorld, kindOf, noteToken, probeToken, requestToken, routeOf, sayWorld, slipToken, stripKeys,
 } from './picture.ts';
 
@@ -79,13 +79,15 @@ export default class Coverage extends Scene<World, {}> {
     const world = view(this, (w) => drawWorld(w, s), { place: false });
 
     /** Strips land from the model's tray to their places; the agent's station then seals a ticket for the way it follows. */
-    const sort = (c: Choreography, w: World, from: (line: number) => [number, number]) => () => {
+    const sort = (c: Choreography, w: World, card: boolean) => () => {
+      const from = noteLineAt;
+      const laid = card ? pass(c, 'skill:read', cardToken(s), [SKILL_AT, NOTE_AT], { appear: 0.2, move: 0.8, leave: 0.25 }) : [];
       const torn = stripKeys(w), kept = torn.filter((x) => x.key.startsWith('strip:used:'));
       const strips = together(torn.map((x) => flight(c, x.key, [from(x.line)], { appear: 0.2, move: 0.8, leave: 0.25 })()));
       const first = kept[0] ? c.to(kept[0].key) : null;
       const handed = first ? pass(c, 'strip:handed', first.copy(), [first.center() as [number, number], SEAL_AT], { appear: 0.15, move: 0.6, leave: 0.25 }) : [];
       const sent = flight(c, 'ticket', [SEAL_AT, ...routeOf('api').slice(1, 3)], { appear: 0.2, move: 0.9, leave: 0.25 })();
-      return [...strips, ...handed, ...sent];
+      return [...laid, ...strips, ...handed, ...sent];
     };
     const motion = (t: Transition<World, CoverageEvent>) => {
       const c = t.choreograph(world);
@@ -105,8 +107,8 @@ export default class Coverage extends Scene<World, {}> {
             ...pass(c, 'report:reply', noteToken(s), [SLOT_AT, NOTE_AT], { appear: 0.2, move: 0.8, leave: 0.2 }),
           ], { fresh: FRESH });
         case 'sort':
-          // A note lying on the counter, or the skill card, is torn into strips where it lies.
-          return beats(c, sort(c, t.after, t.event === 'use skill' ? cardLineAt : noteLineAt), { fresh: FRESH, lead: LEAD });
+          // A note lying on the desk is torn into strips where it lies; the skill card is laid there first.
+          return beats(c, sort(c, t.after, t.event === 'use skill'), { fresh: FRESH, lead: LEAD });
         case 'told':
           return beats(c, () => [], { fresh: FRESH });
       }
@@ -120,7 +122,7 @@ export default class Coverage extends Scene<World, {}> {
       },
       next,
       views: [world],
-      runTime: ({ event, after: a }) => ({ probe: 2.75, read: 2.2, report: 4.0, sort: 4.3, told: 0.7 })[kindOf(event, a)],
+      runTime: ({ event, after: a }) => ({ probe: 2.75, read: 2.2, report: 4.0, sort: event === 'use skill' ? 5.55 : 4.3, told: 0.7 })[kindOf(event, a)],
       transition: Object.fromEntries(COVERAGE_EVENTS.map((e) => [e, motion])) as Record<CoverageEvent, typeof motion>,
     });
 
