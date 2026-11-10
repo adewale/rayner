@@ -12,7 +12,7 @@ import {
 import type { Shown } from './picture.ts';
 
 /** Parts that belong to the last event: they go before the next event's motion. */
-const FRESH = ['answer:', 'trick', 'barrier', 'thief'];
+const FRESH = ['answer:', 'trick', 'barrier', 'thief', 'page:hint', 'page:by', 'sees', 'agent:password'];
 /** The Company's page, which opens after the request reaches it. */
 const PAGE = ['window:page', 'page:title', 'page:field', 'page:hint', 'page:orders:read:box', 'page:orders:read:line', 'page:orders:write:box', 'page:orders:write:line'];
 

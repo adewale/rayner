@@ -5,7 +5,7 @@ import { beats, flight } from '../lib/poppy-kit.ts';
 import type { Vec } from '../../../src/index.ts';
 import { STORY, TABLE_EVENTS, bound, next, start } from './model.ts';
 import type { TableEvent, World } from './model.ts';
-import { BACK_OFFICE_X, PALETTE, SEATS, drawWorld, sayWorld, speakerAt } from './picture.ts';
+import { BACK_OFFICE_X, PALETTE, drawWorld, sayWorld, seatsOf, speakerAt } from './picture.ts';
 import type { Shown } from './picture.ts';
 
 // A conversation between your agent and a Company, as a table with four seats, driven as a machine:
@@ -71,13 +71,14 @@ export default class Conversations extends Scene<World, Shown> {
         // The person comes from the Company's back office, off the right edge, to the seat where they will sit.
         joins: (t) => {
           const c = t.choreograph(world), key = c.has('specialist:mark', 'to') && !c.has('specialist:mark', 'from') ? 'specialist:mark' : 'person:mark';
-          const seatAt = key === 'person:mark' ? SEATS.person : SEATS.directCompany;
+          const seats = seatsOf(t.after), seatAt = key === 'person:mark' ? seats.person : seats.directCompany;
           return beats(c, arrives(c, key, [BACK_OFFICE_X, seatAt[1]]), { fresh: ['turn'] });
         },
         // The invitation crosses the table from the Company's end, under the turn on the table, and stops in front of your agent.
         invite: (t) => {
           const c = t.choreograph(world);
-          return beats(c, arrives(c, 'invite', SEATS.company, [SEATS.company[0] - 1.6, c.to('invite').center()[1]!]), { fresh: [] });
+          const from = seatsOf(t.after).company;
+          return beats(c, arrives(c, 'invite', from, [from[0] - 1.2, c.to('invite').center()[1]!]), { fresh: [] });
         },
         person: (t) => beats(t.choreograph(world), () => [], { fresh: [] }),
         direct: (t) => beats(t.choreograph(world), () => [], { fresh: ['turn', 'invite'] }),

@@ -156,15 +156,15 @@ export default class PoppyBrowser extends Scene<World, Shown> {
         // The attacker's stamped stub comes from its own browser, through yours, alone, and stops at a barrier.
         forge: (t) => {
           const c = t.choreograph(world), id = shortCode(ATTACK_CODE), at = rowAt(c, id);
-          const token = stub(s, { at: [0, 0], code: ATTACK_CODE, width: 2.3 });
-          return beats(c, () => pass(c, 'forged', token, [EVIL_HALF_AT, [PAGE_AT[0] + 1.0, PAGE_AT[1] - 0.2], ROAD_B_FROM, COUNTER_B, [at[0] - 0.6, at[1]]], { appear: 0.25, move: 1.4, leave: 0.2 }),
+          const token = stub(s, { at: [0, 0], code: ATTACK_CODE, width: 2.3 }), from: Vec = [EVIL_HALF_AT[0] - 1.6, EVIL_HALF_AT[1] + 0.9];
+          return beats(c, () => pass(c, 'forged', token, [from, [PAGE_AT[0] + 1.0, PAGE_AT[1] - 0.2], ROAD_B_FROM, COUNTER_B, [at[0] - 0.6, at[1]]], { appear: 0.25, move: 1.4, leave: 0.2 }),
             { lead: BROWSER_ROAD, then: [`row:${id}:punch`, `row:${id}:barrier`] });
         },
         // A message brings the attacker's code to your agent, which keeps it out; then the attacker's own browser sends stub and half.
         phish: (t) => {
           const c = t.choreograph(world), id = shortCode(PHISH_CODE), at = rowAt(c, id);
           return beats(c, () => [
-            ...flight(c, 'message', [EVIL_HALF_AT, [MESSAGE_AT[0] + 2.0, MESSAGE_AT[1] - 0.6]], { move: 0.9 })(),
+            ...flight(c, 'message', [[EVIL_HALF_AT[0] - 1.6, EVIL_HALF_AT[1] + 0.9], [MESSAGE_AT[0] + 2.0, MESSAGE_AT[1] - 0.6]], { move: 0.9 })(),
             ...together(
               flight(c, `row:${id}:half`, [EVIL_HALF_AT, [COUNTER_X + 0.3, EVIL_HALF_AT[1]], [COUNTER_X + 0.3, at[1]]], { move: 0.9 })(),
               pass(c, 'carried', stub(s, { at: [0, 0], code: PHISH_CODE, width: 2.3 }), [[EVIL_HALF_AT[0] - 1.2, EVIL_HALF_AT[1]], [COUNTER_X + 0.3, EVIL_HALF_AT[1] + 0.3], [at[0] - 0.6, at[1]]], { appear: 0.2, move: 0.9, leave: 0.2 }),

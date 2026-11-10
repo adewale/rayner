@@ -2,7 +2,7 @@ import { Circle, Group, Line, Polygon, Rectangle } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
-import { MARGIN, PALETTE as KIT_PALETTE, RADIUS, SPACE, STROKE, TONE, TYPE, aiMark, person, words } from '../lib/poppy-kit.ts';
+import { MARGIN, PALETTE as KIT_PALETTE, RADIUS, STROKE, TONE, TYPE, aiMark, person, words } from '../lib/poppy-kit.ts';
 import type { Parts } from '../lib/poppy-kit.ts';
 import { AGENT } from '../poppy/model.ts';
 import { ACCOUNT, CONVERSATION_ID, LINES, OWNER, PERSON, USER_ID, activeOf, authorOf, continueAs, openDirectOf, roleOf, ruleOf } from './model.ts';

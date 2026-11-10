@@ -4,7 +4,7 @@ import type { Stage } from '../../../explain/index.ts';
 import { keyedParts } from '../../../explain/drawing.ts';
 import {
   MARGIN, PALETTE as KIT_PALETTE, RADIUS, STROKE, TICKET, TONE, TYPE,
-  addAll, answer, barrier, browserWindow, codeSlip, cookie, counter, key, lane, seal, station, stationExit, stationHolds, stop, ticket, words,
+  addAll, answer, barrier, browserWindow, codeSlip, cookie, person, counter, key, lane, seal, station, stationExit, stationHolds, stop, ticket, words,
 } from '../lib/poppy-kit.ts';
 import { AGENT, SID } from '../poppy/model.ts';
 import { ATTACKER, ATTACK_CODE, CODES, PHISH_CODE, joinEffect } from './model.ts';
@@ -179,7 +179,8 @@ export function sayWorld(w: World, shown: Shown): string {
     : last.event === 'browse' ? `The browser opened /orders: ${last.status}, ${sayVisit(last.visit)}.`
     : last.event === 'forge' ? `A page on ${ATTACKER.site} made the agent’s browser post ${last.code}: 400, ${last.answer.status === 400 ? last.answer.failed.join('; ') : ''}.`
     : `A message gave the agent ${last.code}; it declined, since ${last.declined}. The attacker’s browser submitted it: 400, ${last.answer.status === 400 ? last.answer.failed.join('; ') : ''}.`;
-  return `Your agent holds its seal and ${key}. ${page} ${shelf} ${rack}${evil} ${sent}`;
+  const yours = shown.attacker ? '' : ' Your own browser, lower right, is never joined.';
+  return `Your agent holds its seal and ${key}. ${page} ${shelf} ${rack}${evil}${yours} ${sent}`;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -253,6 +254,10 @@ export function drawWorld(w: World, s: Stage, shown: Shown): Group {
     // A browser sends a copy of a cookie and keeps it: the half stays on its shelf.
     if (w.attacker.join) parts.add(cookieHalf(s, { left: EVIL_HALF_AT[0] - HALF_W / 2, y: EVIL_HALF_AT[1], code: PHISH_CODE }), 'evil:half');
   } else {
+    // Your own browser: on the same website, never joined; the agent joins only a browser it controls (6).
+    parts.add(browserWindow(s, { at: EVIL, width: 5.9, height: 2.2, lines: 0 }), 'yours');
+    parts.add(person(s, { at: [EVIL[0] - 2.2, EVIL[1] - 0.5], size: 0.62 }), 'yours:person');
+    parts.add(words(s, 'your own browser', { at: [EVIL[0] - 1.6, EVIL[1] - 0.45], color: TONE.soft }), 'yours:name');
     // Right under the rows, so the marks are named beside the stubs that carry them.
     const y0 = ROW_Y[Math.max(1, ordered.length)]! - 0.05;
     parts.add(seal(s, { at: [RACK_X + 0.44, y0], r: 0.29 }), 'legend:stamp');
