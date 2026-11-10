@@ -6,7 +6,7 @@ import type { Beat } from '../lib/poppy-kit.ts';
 import { CARDS, SIGN_IN_EVENTS, STORY, next, start } from './model.ts';
 import type { Flow, SignInEvent, World } from './model.ts';
 import {
-  ADDRESS_AT, DESK, PAGE_OUT, PALETTE, THIEF_AT,
+  ADDRESS_AT, DESK, PALETTE, THIEF_AT,
   codeToken, drawWorld, requestToken, sayWorld,
 } from './picture.ts';
 import type { Shown } from './picture.ts';
@@ -95,7 +95,7 @@ export default class SignIn extends Scene<World, Shown> {
     const request = () => requestToken(s).scale(0.55);
     const code = () => codeToken(s).scale(0.6);
     /** A part's flight that, unlike the kit's, leaves the current part alone (the caller has faded it already). */
-    const fly = (c: C, k: string, via: Pt[], times = { appear: 0.15, move: 0.6, leave: 0.15 }): Beat[] => {
+    const fly = (c: C, k: string, via: Pt[], times = { appear: 0.25, move: 0.6, leave: 0.25 }): Beat[] => {
       const part = c.to(k), walk = c.travel(`${k}:flight`, part.copy(), route(via[0]!, ...via.slice(1), part.center() as Pt), times);
       return [walk.appear, walk.move, new AnimationGroup([walk.leave, c.enter(k, {}, { runTime: times.leave })])];
     };
@@ -118,8 +118,8 @@ export default class SignIn extends Scene<World, Shown> {
         const c = t.choreograph(world), seal = centre(c, 'agent:seal', 'to'), moved = relaid(c);
         const swap = (): Beat[] => moved.length ? [new AnimationGroup(fadeOut(c, moved)), new AnimationGroup(fadeIn(c, moved))] : [];
         if (device)
-          return beats(c, () => [...swap(), ...pass(c, 'request', request(), toDesk(seal), { appear: 0.15, move: 0.6, leave: 0.15 }), ...flight(c, 'card', [DESK], { appear: 0.15, move: 0.5, leave: 0.15 })()], { fresh: FRESH, then: pageIn(c) });
-        return beats(c, () => [...swap(), ...pass(c, 'request', request(), toAddress(seal), { appear: 0.15, move: 0.9, leave: 0.15 })], { fresh: FRESH, then: pageIn(c) });
+          return beats(c, () => [...swap(), ...pass(c, 'request', request(), toDesk(seal), { appear: 0.25, move: 0.6, leave: 0.25 }), ...flight(c, 'card', [DESK], { appear: 0.25, move: 0.5, leave: 0.25 })()], { fresh: FRESH, then: pageIn(c) });
+        return beats(c, () => [...swap(), ...pass(c, 'request', request(), toAddress(seal), { appear: 0.25, move: 0.9, leave: 0.25 })], { fresh: FRESH, then: pageIn(c) });
       },
       'approve-all': (t: Transition<World, SignInEvent>) => approve(t),
       'approve-read': (t: Transition<World, SignInEvent>) => approve(t),
@@ -133,16 +133,16 @@ export default class SignIn extends Scene<World, Shown> {
         // key comes from the desk to the agent's ring, and the tag after it.
         const route: Pt[] = device ? toDesk(seal) : [[-2.4, -0.62], [-3.9, LANE], [seal[0] + 0.55, LANE], [DESK[0] - 0.4, LANE], DESK];
         return beats(c, () => {
-          const run = pass(c, device ? 'poll' : 'code', device ? request() : code(), route, { appear: 0.15, move: device ? 0.6 : 0.9, leave: 0.15 });
-          if (!got) return [...run, ...pass(c, 'poll:back', request(), [...toDesk(seal)].reverse(), { appear: 0.15, move: 0.5, leave: 0.15 })];
+          const run = pass(c, device ? 'poll' : 'code', device ? request() : code(), route, { appear: 0.25, move: device ? 0.6 : 0.9, leave: 0.25 });
+          if (!got) return [...run, ...pass(c, 'poll:back', request(), [...toDesk(seal)].reverse(), { appear: 0.25, move: 0.5, leave: 0.25 })];
           const closing = c.keys('from').filter((k) => (k.startsWith('page:') || k.startsWith('window:')) && !c.has(k, 'to'));
           const moved = relaid(c, ['agent:key', 'tag']);
           const old = ['agent:key', 'tag'].filter((k) => c.has(k, 'from'));
           const out: Pt = [FACE_LEFT, DESK[1]];
+          const gone = new AnimationGroup([run[2]!, ...fadeOut(c, [...closing, ...moved, ...old])]);
           const key = fly(c, 'agent:key', [out]), tag = fly(c, 'tag', [out]);
           return [
-            run[0]!, run[1]!,
-            new AnimationGroup([run[2]!, ...fadeOut(c, [...closing, ...moved, ...old])]),
+            run[0]!, run[1]!, gone,
             new AnimationGroup([...fadeIn(c, moved), key[0]!]),
             key[1]!, new AnimationGroup([key[2]!, tag[0]!]), tag[1]!, tag[2]!,
           ];
@@ -183,7 +183,7 @@ export default class SignIn extends Scene<World, Shown> {
       },
       next,
       views: [world],
-      runTime: ({ event, after: a }) => (event === 'collect' ? (a.last?.kind === 'tokens' ? 3.4 : 1.8) : event === 'ask' ? 2.2 : 1.6),
+      runTime: ({ event, after: a }) => (event === 'collect' ? (a.last?.kind === 'tokens' ? 3.4 : 1.8) : event === 'ask' ? 2.6 : 1.6),
       transition,
     });
     const replay = (from: number, to: number) => machine.replay(story.slice(from, to));

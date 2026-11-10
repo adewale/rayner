@@ -371,6 +371,9 @@ export const REAL_DOC: PoppyDocument = {
   supported_versions: { '0.3': 'https://example.com/poppy/0.3.json' },
   auth: { scopes: { 'orders:read': 'See your orders, returns, and bookings', 'orders:write': 'Exchange or return items, and change bookings' } },
   tasks: { endpoint: 'https://api.example.com/poppy/tasks' },
+  // 3.1: each API has a type, a url and a short description. Chapter 1's POPPY_JSON gives no
+  // description yet; this one is the spec example's, and chapter 1's wins once it has one.
+  apis: POPPY_JSON.apis.map((api) => ({ description: 'Orders, returns, and exchanges', ...api })),
 };
 const { supported_versions: _versions, ...REAL_DOC_03_BASE } = REAL_DOC;
 
@@ -387,16 +390,16 @@ export const BASE_WEB: Web = {
   [prmUrl('example.com')]: prm('example.com', [COMPANY.issuer]),
   [asMetadataUrl(COMPANY.issuer)]: { status: 200, body: AS_METADATA },
   // The same Company's second domain, with its own document and the same issuer.
-  [wellKnownUrl('example.co.uk')]: page({ ...REAL_DOC_03_BASE, organization: { name: 'Example Company UK', domain: 'example.co.uk' }, apis: [{ type: 'openapi', url: 'https://api.example.co.uk/openapi.json' }] }),
+  [wellKnownUrl('example.co.uk')]: page({ ...REAL_DOC_03_BASE, organization: { name: 'Example Company UK', domain: 'example.co.uk' }, apis: [{ type: 'openapi', url: 'https://api.example.co.uk/openapi.json', description: 'Orders, returns, and exchanges' }] }),
   [prmUrl('example.co.uk')]: prm('example.co.uk', [COMPANY.issuer]),
   // A lookalike domain serving a copy of example.com's document, its API pointed at itself.
-  [wellKnownUrl('examp1e.com')]: page({ ...REAL_DOC, apis: [{ type: 'openapi', url: 'https://api.examp1e.com/openapi.json' }] }),
+  [wellKnownUrl('examp1e.com')]: page({ ...REAL_DOC, apis: [{ type: 'openapi', url: 'https://api.examp1e.com/openapi.json', description: 'Orders, returns, and exchanges' }] }),
   // A domain that names itself truthfully, and claims example.com's issuer.
-  [wellKnownUrl('evil.example')]: page({ ...REAL_DOC_03_BASE, organization: org('evil.example'), apis: [{ type: 'openapi', url: 'https://api.evil.example/openapi.json' }] }),
+  [wellKnownUrl('evil.example')]: page({ ...REAL_DOC_03_BASE, organization: org('evil.example'), apis: [{ type: 'openapi', url: 'https://api.evil.example/openapi.json', description: 'Orders, returns, and exchanges' }] }),
   [prmUrl('evil.example')]: prm('evil.example', [COMPANY.issuer]),
   // A domain that redirects to a file someone uploaded to example.com, naming example.com.
   [wellKnownUrl('deals.example')]: { status: 302, location: 'https://example.com/uploads/poppy.json' },
-  'https://example.com/uploads/poppy.json': page({ ...REAL_DOC_03_BASE, apis: [{ type: 'openapi', url: 'https://api.deals.example/openapi.json' }] }),
+  'https://example.com/uploads/poppy.json': page({ ...REAL_DOC_03_BASE, apis: [{ type: 'openapi', url: 'https://api.deals.example/openapi.json', description: 'Orders, returns, and exchanges' }] }),
   // A small shop with no issuer: a website, signed-out Sessions only.
   [wellKnownUrl('corner.example')]: page({ protocol_version: '0.4', organization: { name: 'Corner Shop', domain: 'corner.example' }, web: {} }),
 };

@@ -5,7 +5,7 @@ import { isRefusal } from '../../../explain/index.ts';
 import { AGENT, COMPANY, POPPY_JSON, SID, USER_IDS } from '../poppy/model.ts';
 import type { Scope } from '../poppy/model.ts';
 import {
-  COMPANIES, COVERAGE_EVENTS, FEEDBACK_ENDPOINT, KNOWN, MUST_KEEP_OUT, POPPY_JSON_WITH_TASKS, SECRETS_HELD, SKILLS_SCHEMA, SKILL_BYTES, STORY, TASKS, TASKS_ENDPOINT,
+  COMPANIES, COVERAGE_EVENTS, FEEDBACK_ENDPOINT, KNOWN, MCP_API, MUST_KEEP_OUT, POPPY_JSON_WITH_TASKS, SECRETS_HELD, SKILLS_SCHEMA, SKILL_BYTES, STORY, TASKS, TASKS_ENDPOINT,
   asksOf, cacheControlAllowed, channelsToTry, companyAnswers, coverageOf, digestOf, exchangeRequest, giftAlternative, isAlternative, keyOf, listedAs,
   mayReport, mayUseTasksResponse, modelContext, next, referenceUse, reportFor, reportProblems, sha256, start, tasksRequest, tasksResponse, usableSkills,
   verifies, weigh, whereItGoes, resolveReference,
@@ -318,4 +318,37 @@ test('RFC 6234 test vectors and RFC 9449’s ath example (sha256-vectors.json): 
   for (const v of VECTORS.rfc6234_sha256) assert.equal(sha256(v.text.repeat(v.repeat)), v.sha256, `RFC 6234 SHA-256 test ${v.test}`);
   const { access_token, ath } = VECTORS.rfc9449_ath;
   assert.equal(Buffer.from(sha256(access_token), 'hex').toString('base64url'), ath);
+});
+
+test('alternative.schema.json (poppy-official.json): isAlternative agrees with the schema on instructions and on each reference type’s required fields, and keeps 9.2’s MUST on an empty list', () => {
+  const api = 'https://api.example.com/openapi.json';
+  const cases: unknown[] = [
+    {}, { instructions: '' }, { instructions: 'Use the app.' },
+    { references: [{ type: 'web', url: 'https://example.com/checkout' }] },
+    { references: [{ type: 'web' }] }, { references: [{ type: 'web', url: 'http://example.com' }] },
+    { references: [{ type: 'openapi', url: api, operation_id: 'applyGiftCard' }] }, { references: [{ type: 'openapi', url: api }] }, { references: [{ type: 'openapi', operation_id: 'x' }] },
+    { references: [{ type: 'mcp', url: 'https://mcp.example.com/mcp', tool: 'size_guide' }] }, { references: [{ type: 'mcp', url: 'https://mcp.example.com/mcp' }] },
+    { references: [{ type: 'company-agent' }] }, { references: [{ type: '' }] }, { references: [{ url: 'https://example.com' }] },
+    { instructions: 'x', references: [{ type: 'openapi', url: api }] }, { instructions: 'x', references: [] },
+  ];
+  for (const c of cases)
+    assert.equal(isAlternative(c as never), validate(OFFICIAL.schemas, 'alternative.schema.json', c).length === 0, JSON.stringify(c));
+  // The schema accepts an empty references list; 9.2 says an alternative MUST have instructions or references, and an empty list has none.
+  assert.deepEqual(validate(OFFICIAL.schemas, 'alternative.schema.json', { references: [] }), []);
+  assert.equal(isAlternative({ references: [] }), false);
+  for (const company of COMPANIES) for (const alt of [giftAlternative(company), tasksResponse(company).excluded_tasks![0]!.alternative!]) assert.ok(isAlternative(alt));
+});
+
+test('feedback-report.schema.json (poppy-official.json): a report with an empty task or description is a problem, and the Company answers it 400 invalid_request', () => {
+  for (const report of [{ task: '', description: 'The User wanted a thing.' }, { task: 'Pay with a gift card', description: '' }]) {
+    assert.notDeepEqual(validate(OFFICIAL.schemas, 'feedback-report.schema.json', report), []);
+    assert.notDeepEqual(reportProblems(report), [], JSON.stringify(report));
+    assert.deepEqual(companyAnswers(report, 'honest'), { status: 400, error: 'invalid_request' });
+  }
+  assert.deepEqual(reportProblems({ task: '', description: '' }), ['the task is empty', 'the description is empty']);
+});
+
+test('poppy.schema.json (poppy-official.json): the apis entry this chapter adds to poppy.json has the description 3.1 requires', () => {
+  assert.deepEqual(validate(OFFICIAL.schemas, 'poppy.schema.json#/properties/apis/items', MCP_API), []);
+  assert.equal(MCP_API.description, 'Product search and sizing', 'as section 3’s example document has it');
 });

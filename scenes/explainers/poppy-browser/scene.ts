@@ -17,6 +17,9 @@ const SIGN_INS: Record<string, SignIn> = { 'signed-in': 'signed in', 'signed-out
 const AGENT_ROAD = ['lane:agent:line', 'lane:agent:name', 'lane:agent:plate', 'lane:agent:stop'];
 const BROWSER_ROAD = ['road:browser', 'road:browser:stop'];
 const COUNTER_B: Vec = [COUNTER_X, ROAD_B];
+/** Where the submitted code and its cookie half end their trip: side by side at the counter, the half's tear against the stub's. */
+const MEET_HALF: Vec = [COUNTER_X - 0.45, ROAD_B];
+const MEET_STUB: Vec = [MEET_HALF[0] - 0.425 - 1.15, ROAD_B];
 
 /** Several flights at once: their beats played side by side, beat by beat. */
 const together = (...lists: Beat[][]): Beat[] =>
@@ -123,8 +126,8 @@ export default class PoppyBrowser extends Scene<World, Shown> {
           const c = t.choreograph(world), id = codeOf(t);
           return beats(c, () => [
             ...pass(c, 'request', browserRequest(), [ROAD_B_FROM, COUNTER_B], { appear: 0.2, move: 0.45, leave: 0.25 }),
-            ...flight(c, 'page:stub', [COUNTER_B, ROAD_B_FROM, PAGE_AT], { appear: 0.2, move: 0.6, leave: 0.25 })(),
-            ...flight(c, 'shelf:join', [COUNTER_B, [SIDE_X, ROAD_B], [SIDE_X, JOIN_AT[1]], JOIN_AT], { appear: 0.2, move: 0.7, leave: 0.25 })(),
+            ...flight(c, 'page:stub', [[COUNTER_X - 1.2, ROAD_B], PAGE_AT], { appear: 0.2, move: 0.6, leave: 0.25 })(),
+            ...flight(c, 'shelf:join', [MEET_HALF, [SIDE_X, ROAD_B], [SIDE_X, JOIN_AT[1]], JOIN_AT], { appear: 0.2, move: 0.7, leave: 0.25 })(),
           ], { fresh: FRESH, lead: BROWSER_ROAD, then: [`row:${id}:stub`, `row:${id}:ring`] });
         },
         // The agent reads the code from its own page along its dotted line, then sends it on its own road; the stamp is
@@ -144,11 +147,11 @@ export default class PoppyBrowser extends Scene<World, Shown> {
           const c = t.choreograph(world), id = codeOf(t);
           const joined = t.after.last?.event === 'submit' && t.after.last.answer.status === 303;
           return beats(c, () => {
-            const stubTrip = pass(c, 'carried', c.from('page:stub').copy(), [PAGE_AT, ROAD_B_FROM, COUNTER_B], { appear: 0.2, move: 0.8, leave: 0.2 });
-            const halfTrip = pass(c, 'carried:half', c.from('shelf:join').copy(), [JOIN_AT, [SIDE_X, JOIN_AT[1]], [SIDE_X, ROAD_B], COUNTER_B], { appear: 0.2, move: 0.8, leave: 0.2 });
+            const stubTrip = pass(c, 'carried', c.from('page:stub').copy(), [PAGE_AT, MEET_STUB], { appear: 0.2, move: 0.8, leave: 0.25 });
+            const halfTrip = pass(c, 'carried:half', c.from('shelf:join').copy(), [JOIN_AT, [SIDE_X, JOIN_AT[1]], [SIDE_X, ROAD_B], MEET_HALF], { appear: 0.2, move: 0.8, leave: 0.25 });
             const away = [c.leave('page:stub', { runTime: 0.2 }), ...(!c.has('shelf:join', 'to') ? [c.leave('shelf:join', { runTime: 0.2 })] : [])];
             const seat = c.has(`row:${id}:half`, 'to') ? [new AnimationGroup([c.enter(`row:${id}:half`, {}, { runTime: 0.3 })])] : [];
-            const back = joined ? flight(c, 'shelf:session', [COUNTER_B, [SIDE_X, ROAD_B], [SIDE_X, SESSION_AT[1]], SESSION_AT], { appear: 0.2, move: 0.6, leave: 0.25 })() : [];
+            const back = joined ? flight(c, 'shelf:session', [MEET_HALF, [SIDE_X, ROAD_B], [SIDE_X, SESSION_AT[1]], SESSION_AT], { appear: 0.2, move: 0.6, leave: 0.25 })() : [];
             return [new AnimationGroup([...away, stubTrip[0]!, halfTrip[0]!]), ...together(stubTrip.slice(1), halfTrip.slice(1)), ...seat, ...back];
           }, { fresh: FRESH, lead: BROWSER_ROAD, then: [`row:${id}:gap`, `row:${id}:barrier`] });
         },
@@ -162,7 +165,7 @@ export default class PoppyBrowser extends Scene<World, Shown> {
         forge: (t) => {
           const c = t.choreograph(world), id = shortCode(ATTACK_CODE);
           const token = stub(s, { at: [0, 0], code: ATTACK_CODE, width: 2.3 }).scale(0.6);
-          return beats(c, () => pass(c, 'forged', token, [EVIL_OUT, [EVIL_OUT[0], ATTACK_Y], [SIDE_X, ATTACK_Y], [WIN_RIGHT - 0.6, 0.95], ROAD_B_FROM, COUNTER_B], { appear: 0.25, move: 1.3, leave: 0.2 }),
+          return beats(c, () => pass(c, 'forged', token, [EVIL_OUT, [EVIL_OUT[0], ATTACK_Y], [SIDE_X, ATTACK_Y], [WIN_RIGHT - 0.6, 0.95], ROAD_B_FROM, [COUNTER_X - 0.75, ROAD_B]], { appear: 0.25, move: 1.3, leave: 0.2 }),
             { fresh: FRESH, lead: BROWSER_ROAD, then: [`row:${id}:gap`, `row:${id}:barrier`] });
         },
         // A message brings the attacker's code to your agent along the bottom of the stage and stops beside it, declined.

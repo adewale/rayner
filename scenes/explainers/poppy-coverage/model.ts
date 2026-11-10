@@ -33,7 +33,8 @@ import type { AccessToken, Answer, Channel, HttpRequest, Scope } from '../poppy/
 
 export const TASKS_ENDPOINT = 'https://api.example.com/poppy/tasks';
 export const FEEDBACK_ENDPOINT = 'https://api.example.com/poppy/feedback';
-export const MCP_API = { type: 'mcp', url: 'https://mcp.example.com/mcp' } as const;
+/** The MCP server section 3's example poppy.json lists, with the description 3.1 requires of every apis entry. */
+export const MCP_API = { type: 'mcp', url: 'https://mcp.example.com/mcp', description: 'Product search and sizing' } as const;
 
 /**
  * example.com's poppy.json as section 3's example has it: chapter 1's document, with the tasks
@@ -301,7 +302,31 @@ export function channelsToTry(task: TaskKey, coverage: Coverage): readonly Chann
 // 9.2: alternatives
 
 /** An alternative MUST have instructions or references, or both (9.2). */
-export const isAlternative = (a: Alternative) => a.instructions !== undefined || (a.references?.length ?? 0) > 0;
+/**
+ * Whether a reference is well formed (9.2, and the kit's alternative.schema.json): a non-empty type;
+ * an openapi reference has url and operation_id, an mcp reference url and tool, a web reference url;
+ * any url given is HTTPS (section 3). A type this version does not define needs only its type, so it
+ * can be skipped (9.2). The field requirements are the schema's, which the spec's table implies.
+ */
+export function isReference(ref: unknown): boolean {
+  if (!ref || typeof ref !== 'object') return false;
+  const r = ref as Record<string, unknown>, text = (k: string) => typeof r[k] === 'string' && (r[k] as string).length > 0;
+  if (!text('type')) return false;
+  if (r.url !== undefined && !(typeof r.url === 'string' && /^https:\/\/[^\s/?#]+/.test(r.url))) return false;
+  const needs: Record<string, string[]> = { openapi: ['url', 'operation_id'], mcp: ['url', 'tool'], web: ['url'] };
+  return (needs[r.type as string] ?? []).every(text);
+}
+/**
+ * An alternative MUST have instructions or references, or both (9.2). Instructions must be
+ * non-empty (the schema's minLength 1, stricter than the spec's words, which this follows), and every
+ * reference well formed. An empty references list counts as no references: the schema accepts it,
+ * but 9.2's MUST asks for at least one way, so the model keeps the stricter reading.
+ */
+export function isAlternative(a: Alternative): boolean {
+  if (a.instructions !== undefined && !(typeof a.instructions === 'string' && a.instructions.length > 0)) return false;
+  if (a.references !== undefined && !(Array.isArray(a.references) && a.references.every(isReference))) return false;
+  return a.instructions !== undefined || (a.references?.length ?? 0) > 0;
+}
 
 /**
  * What the agent does with one reference (9.2): an openapi or mcp reference MUST name an API listed
@@ -392,6 +417,9 @@ export function reportFor(task: TaskKey): Report {
 /** What is wrong with a report before it is sent (9.3): too long, an identifier, or a secret. */
 export function reportProblems(report: Report): readonly string[] {
   const text = `${report.task}\n${report.description}`, out: string[] = [];
+  // Neither may be empty: the kit's feedback-report.schema.json says minLength 1, which the spec's "Req. Yes" implies.
+  if (report.task.length === 0) out.push('the task is empty');
+  if (report.description.length === 0) out.push('the description is empty');
   if (report.task.length > 200) out.push('the task is longer than 200 characters');
   if (report.description.length > 2000) out.push('the description is longer than 2,000 characters');
   for (const id of KNOWN) if (text.includes(id)) out.push(`it names ${id}`);
@@ -419,7 +447,7 @@ export function mayReport(task: TaskKey, coverage: Coverage, reported: readonly 
 export type ReportAnswer = { status: 202 } | { status: 200; alternative: Alternative } | { status: 400; error: 'invalid_request' };
 export function companyAnswers(body: unknown, company: Company): ReportAnswer {
   const r = body as Partial<Report> | null;
-  if (!r || typeof r.task !== 'string' || typeof r.description !== 'string' || r.task.length > 200 || r.description.length > 2000)
+  if (!r || typeof r.task !== 'string' || typeof r.description !== 'string' || !r.task.length || !r.description.length || r.task.length > 200 || r.description.length > 2000)
     return { status: 400, error: 'invalid_request' };
   return /gift card/i.test(r.task) ? { status: 200, alternative: giftAlternative(company) } : { status: 202 };
 }
