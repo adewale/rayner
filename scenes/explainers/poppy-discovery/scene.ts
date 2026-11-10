@@ -41,27 +41,29 @@ export default class PoppyDiscovery extends Scene<World, {}> {
 
     /** Parts only the new picture has, brought in one after another in this order, where present. */
     const bring = (c: Choreography, keys: readonly string[], create: readonly string[] = []): Beat[] =>
-      keys.filter((k) => c.has(k, 'to') && !c.has(k, 'from')).map((k) => c.enter(k, create.includes(k) ? { create: true } : {}, { runTime: create.includes(k) ? 0.6 : 0.3 }));
+      keys.filter((k) => c.has(k, 'to') && !c.has(k, 'from')).map((k) => c.enter(k, create.includes(k) ? { create: true } : {}, { runTime: create.includes(k) ? 0.5 : 0.3 }));
     const together = (list: Animation[]): Beat[] => (list.length ? [new AnimationGroup(list)] : []);
 
     /** One check: what it found arrives where it really comes from, then the agent's line moves on. */
     const check = (t: Transition<World, DiscoveryEvent>) => {
       const c = t.choreograph(world), gate = t.after.ran;
+      const g = (keys: readonly string[], create: readonly string[] = []) => bring(c, keys, create) as Animation[];
       const thunk = (): Beat[] => {
         if (gate === 1) {
-          // The fetch: a redirect's first URL, then the sheet comes down from the address bar to the doorstep.
-          const first = together(bring(c, ['url:first', 'url:redirect', 'url:under', 'board']) as Animation[]);
-          // The sheet's own printing (a ruled line, or its name on the noticeboard) comes with the rest, once it has landed.
-          const sheet = c.has('sheet', 'to') ? flight(c, 'sheet', [c.to('url:path').center() as [number, number], ...(c.to('sheet').center()[1]! < DOORSTEP[1] ? [DOORSTEP] : [])], { appear: 0.2, move: 0.8, leave: 0.25 })() : [];
-          return [...first, ...sheet];
+          // The fetch: a redirect's first URL and the path's underline come as the sheet sets off from the
+          // address bar; it lands at the doorstep and settles in front of it (or on the noticeboard).
+          const extras = g(['url:first', 'url:redirect', 'url:under', 'board']);
+          if (!c.has('sheet', 'to')) return together(extras);
+          const via: [number, number][] = [c.to('url:path').center() as [number, number], ...(c.to('sheet').center()[1]! < DOORSTEP[1] ? [DOORSTEP] : [])];
+          const [go, ...rest] = flight(c, 'sheet', via, { appear: 0.2, move: 0.7, leave: 0.2 })();
+          return [new AnimationGroup([...extras, go as Animation]), ...rest];
         }
-        if (gate === 2) return [...bring(c, ['sheet:head']), ...together(bring(c, ['shop:mark', 'sheet:mark']) as Animation[])];
-        const g = (keys: readonly string[], create: readonly string[] = []) => together(bring(c, keys, create) as Animation[]);
-        // The closed register gives way as the arm reaches it, and opens at its page.
-        const shut = c.has('register:closed', 'from') && !c.has('register:closed', 'to') ? [c.leave('register:closed', { runTime: 0.25 })] : [];
-        if (gate === 3) return [...g(['out:line'], ['out:line']), ...together(shut), ...g(['out:head', 'out:plate', 'out:label', 'out:code', 'out:note']), ...g(['register:title', 'register:page', 'register:none'])];
+        if (gate === 2) return [...together(g(['sheet:head'])), ...together(g(['shop:mark', 'sheet:mark']))];
+        // The closed register gives way as the arm is drawn out to it; then it stands open at its page.
+        const shut = c.has('register:closed', 'from') && !c.has('register:closed', 'to') ? [c.leave('register:closed', { runTime: 0.5 })] : [];
+        if (gate === 3) return [...together([...g(['out:line'], ['out:line']), ...shut]), ...together(g(['out:head', 'out:plate', 'out:label', 'out:code', 'out:note', 'register:title', 'register:page', 'register:none']))];
         // The issuer's rows; then either the arrow back to the shop, or the empty slot and the ghost of an arrow that never arrives.
-        return [...g(['register:row:0', 'register:row:1']), ...g(['register:slot', 'register:slot:text', 'back:ghost', 'back:line'], ['back:line', 'back:ghost']), ...g(['back:head', 'back:plate', 'back:label'])];
+        return [...together(g(['register:row:0', 'register:row:1'])), ...together(g(['register:slot', 'register:slot:text', 'back:ghost', 'back:line'], ['back:line', 'back:ghost']))];
       };
       return beats(c, thunk, { fresh: ['verdict:'], then: ['rail:barrier'], lead: ['url:lock', 'url:host', 'url:path'] });
     };
@@ -75,7 +77,7 @@ export default class PoppyDiscovery extends Scene<World, {}> {
       },
       next,
       views: [world],
-      runTime: ({ event, after }) => (event !== 'check' ? 0.5 : after.ran === 1 ? 1.5 : 0.95),
+      runTime: ({ event, after }) => (event !== 'check' ? 0.4 : after.ran === 1 ? 1.2 : after.ran === 2 ? 0.8 : 1.0),
       transition: {
         check,
         // Choosing a server is a cut to another shop: the last run's parts go, the fascia's name is replaced.

@@ -86,13 +86,26 @@ export default class SignIn extends Scene<World, Shown> {
     const centre = (c: C, k: string, side: 'from' | 'to') => (side === 'from' ? c.from(k) : c.to(k)).center() as Pt;
     /** The route from the agent's seal to the counter's desk. */
     const toDesk = (seal: Pt): Pt[] => [seal, [seal[0] + 1.2, DESK[1]], DESK];
+    /**
+     * The parts of you and the agent that a new layout puts elsewhere (the page opening or closing):
+     * they fade out where they were and fade in where they will be, rather than slide, since the
+     * move says nothing about the protocol. `except` are parts a flight carries instead.
+     */
+    const relaid = (c: C, except: readonly string[] = []) => c.keys('from').filter((k) => {
+      if (!PEOPLE.some((p) => k.startsWith(p)) || !c.has(k, 'to') || except.includes(k)) return false;
+      const a = c.from(k), b = c.to(k), [ax, ay] = a.center(), [bx, by] = b.center();
+      return Math.hypot(ax! - bx!, ay! - by!) > 0.05 || Math.abs(a.width() - b.width()) > 0.05;
+    });
+    const fadeOut = (c: C, keys: readonly string[]) => keys.map((k) => c.leave(k, { runTime: 0.3 }));
+    const fadeIn = (c: C, keys: readonly string[]) => keys.map((k) => c.enter(k, {}, { runTime: 0.3 }));
     const transition = {
-      // The agent and you take your places by the page; the request leaves the agent's seal; the page opens.
+      // You and the agent take your places by the page (a cross-fade); the request leaves the agent's seal; the page opens.
       ask: (t: Transition<World, SignInEvent>) => {
-        const c = t.choreograph(world), seal = centre(c, 'agent:seal', 'to');
+        const c = t.choreograph(world), seal = centre(c, 'agent:seal', 'to'), moved = relaid(c);
+        const swap = (): Beat[] => moved.length ? [new AnimationGroup(fadeOut(c, moved)), new AnimationGroup(fadeIn(c, moved))] : [];
         if (device)
-          return beats(c, () => [...pass(c, 'request', requestToken(s), toDesk(seal), { move: 0.7 }), ...flight(c, 'card', [DESK], { move: 0.6 })()], { fresh: FRESH, then: pageIn(c), lead: PEOPLE });
-        return beats(c, () => pass(c, 'request', requestToken(s), [seal, [-4.6, seal[1] + 0.6], [-4.6, ADDRESS_AT[1]], ADDRESS_AT], { move: 1.0 }), { fresh: FRESH, then: pageIn(c), lead: PEOPLE });
+          return beats(c, () => [...swap(), ...pass(c, 'request', requestToken(s), toDesk(seal), { appear: 0.2, move: 0.6, leave: 0.2 }), ...flight(c, 'card', [DESK], { appear: 0.2, move: 0.5, leave: 0.2 })()], { fresh: FRESH, then: pageIn(c) });
+        return beats(c, () => [...swap(), ...pass(c, 'request', requestToken(s), [seal, [-4.6, seal[1] + 0.6], [-4.6, ADDRESS_AT[1]], ADDRESS_AT], { appear: 0.2, move: 0.9, leave: 0.2 })], { fresh: FRESH, then: pageIn(c) });
       },
       'approve-all': (t: Transition<World, SignInEvent>) => approve(t),
       'approve-read': (t: Transition<World, SignInEvent>) => approve(t),
@@ -100,16 +113,24 @@ export default class SignIn extends Scene<World, Shown> {
       // then the page closes, the agent takes the top, and the key and the tag come to it from the desk.
       collect: (t: Transition<World, SignInEvent>) => {
         const c = t.choreograph(world), got = t.after.last?.kind === 'tokens', seal = centre(c, 'agent:seal', 'from');
+        // Direct: the code comes out of the page to the agent and goes on, with its signature, to the desk, in one run.
+        // Device: a poll runs to the desk. Then, if tokens come back, the page closes and the layout cross-fades
+        // while the key and the tag leave the desk together for the agent.
+        const route: Pt[] = device ? toDesk(seal) : [PAGE_OUT, [PAGE_OUT[0], seal[1] + 1.0], ...toDesk(seal)];
         return beats(c, () => {
-          const steps: Beat[] = [];
-          if (device) steps.push(...pass(c, 'poll', requestToken(s), toDesk(seal), { move: 0.6 }));
-          else steps.push(...pass(c, 'code', codeToken(s), [PAGE_OUT, [PAGE_OUT[0], seal[1] + 1.0], seal], { move: 0.8 }), ...pass(c, 'redeem', codeToken(s), toDesk(seal), { move: 0.6 }));
-          if (!got) { steps.push(...pass(c, 'poll:back', requestToken(s), [...toDesk(seal)].reverse(), { move: 0.5 })); return steps; }
-          const closing = PAGE.filter((k) => c.has(k, 'from') && !c.has(k, 'to')).concat(c.keys('from').filter((k) => k.startsWith('page:') && !c.has(k, 'to') && !PAGE.includes(k)));
-          const moving = c.keys('from').filter((k) => PEOPLE.some((p) => k.startsWith(p)) && c.has(k, 'to') && k !== 'agent:key' && k !== 'tag');
-          steps.push(new AnimationGroup([...closing.map((k) => c.leave(k, { runTime: 0.3 })), ...moving.map((k) => c.morph(k, { runTime: 0.5 }))]));
-          steps.push(...flight(c, 'agent:key', [DESK, [DESK[0] - 1.5, DESK[1] + 2.0]], { move: 0.7 })(), ...flight(c, 'tag', [DESK], { move: 0.5 })());
-          return steps;
+          const run = pass(c, device ? 'poll' : 'code', device ? requestToken(s) : codeToken(s), route, { appear: 0.2, move: device ? 0.6 : 1.0, leave: 0.2 });
+          if (!got) return [...run.slice(0, 2), run[2]!, ...pass(c, 'poll:back', requestToken(s), [...toDesk(seal)].reverse(), { appear: 0.15, move: 0.5, leave: 0.2 })];
+          const closing = c.keys('from').filter((k) => (k.startsWith('page:') || k.startsWith('window:')) && !c.has(k, 'to'));
+          const moved = relaid(c, ['agent:key', 'tag']);
+          const key = flight(c, 'agent:key', [DESK, [DESK[0] - 1.5, DESK[1] + 2.0]], { appear: 0.2, move: 0.7, leave: 0.2 })();
+          const tag = flight(c, 'tag', [DESK], { appear: 0.2, move: 0.7, leave: 0.2 })();
+          return [
+            run[0]!, run[1]!,
+            new AnimationGroup([run[2]!, ...fadeOut(c, [...closing, ...moved])]),
+            new AnimationGroup([key[0]!, tag[0]!, ...fadeIn(c, moved)]),
+            new AnimationGroup([key[1]!, tag[1]!]),
+            new AnimationGroup([key[2]!, tag[2]!]),
+          ];
         }, { fresh: FRESH, then: got ? ['tag:cord'].filter((k) => c.has(k, 'to') && !c.has(k, 'from')) : [] });
       },
       trick: (t: Transition<World, SignInEvent>) => {
@@ -147,7 +168,7 @@ export default class SignIn extends Scene<World, Shown> {
       },
       next,
       views: [world],
-      runTime: ({ event, after: a }) => (event === 'collect' ? (a.last?.kind === 'tokens' ? 4.8 : 1.8) : event === 'ask' ? 2.2 : 1.6),
+      runTime: ({ event, after: a }) => (event === 'collect' ? (a.last?.kind === 'tokens' ? 3.3 : 1.8) : event === 'ask' ? 2.2 : 1.6),
       transition,
     });
     const replay = (from: number, to: number) => machine.replay(story.slice(from, to));
