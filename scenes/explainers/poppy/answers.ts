@@ -4,7 +4,7 @@ import { AGENT, COMPANY, OPERATIONS, SID, STORY, USER_IDS, agentRequest, answer,
 import type { Answer, PoppyEvent, Scope, World } from './model.ts';
 
 const play = (approves: readonly Scope[], events: readonly PoppyEvent[]): World =>
-  events.reduce<World>((w, e) => {
+  ['discover' as const, ...events.filter((e) => e !== 'discover')].reduce<World>((w, e) => {
     const after = next(w, e);
     if (isRefusal(after)) throw new Error(`${e}: ${after.reason}`);
     return after;
@@ -21,15 +21,15 @@ const moved = () => {
   const genuine = agentRequest(play(['orders:read', 'orders:write'], ['sign-in']), 'order');
   return answer({ ...genuine, method: OPERATIONS.exchange.method, url: OPERATIONS.exchange.url });
 };
-const signedOut = () => play(['orders:read', 'orders:write'], [...STORY, 'order']);
+const signedOut = () => play(['orders:read', 'orders:write'], [...STORY]);
 
 export const questions = {
   1: () =>
-    `The exchange gets ${say(answered(play(readOnly, ['sign-in', 'exchange'])))}; the order gets ${say(answered(play(readOnly, ['sign-in', 'order'])))}. The Session header is the same on both: the token decides.`,
+    `The exchange gets ${say(answered(play(readOnly, ['sign-in', 'exchange'])))}; the order gets ${say(answer(agentRequest(play(readOnly, ['sign-in']), 'order')))}. The Session header is the same on both: the token decides.`,
   2: () => `${say(moved())}: ${moved().reason}. A Session header is signed for one request, so it cannot be moved to another.`,
   3: () => {
     const w = signedOut();
-    return `${say(answered(w))}. The Company still knows ${AGENT.name}, User ID ${USER_IDS[COMPANY.domain]} and Session ${SID} with its cart: sign-out ended account access, not the Session.`;
+    return `${say(answer(agentRequest(w, 'order')))}. The Company still knows ${AGENT.name}, User ID ${USER_IDS[COMPANY.domain]} and Session ${SID} with its cart: sign-out ended account access, not the Session.`;
   },
   4: () =>
     `Nothing the agent sends: example.com sees ${USER_IDS['example.com']} and shoes.example sees ${USER_IDS['shoes.example']}, and neither ID is derived from anything about you.`,

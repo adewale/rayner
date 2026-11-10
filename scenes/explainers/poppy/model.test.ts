@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { isRefusal } from '../../../explain/index.ts';
 import {
-  AGENT, COMPANY, OPERATIONS, POPPY_EVENTS, SCOPES, SID, STORY, THIEF, USER_IDS,
-  agentRequest, answer, hashOf, next, ruleOf, sign, start, thiefRequest, tokenOf,
+  AGENT, COMPANY, ISSUER_METADATA, OPERATIONS, POPPY_EVENTS, POPPY_JSON, SCOPES, SID, STORY, THIEF, USER_IDS,
+  agentRequest, answer, discover, hashOf, next, ruleOf, sign, start, thiefRequest, tokenOf,
   type AccessToken, type HttpRequest, type PoppyEvent, type Scope, type World,
 } from './model.ts';
 
@@ -12,8 +12,9 @@ import {
 // no reference implementation here, so these pin the model to the draft's rules and examples.
 
 const RW: readonly Scope[] = ['orders:read', 'orders:write'], RO: readonly Scope[] = ['orders:read'];
+/** The world after these events, the agent having read poppy.json first. */
 const play = (approves: readonly Scope[], events: readonly PoppyEvent[]) =>
-  events.reduce<World>((w, e) => {
+  ['discover' as const, ...events.filter((e) => e !== 'discover')].reduce<World>((w, e) => {
     const after = next(w, e);
     assert.ok(!isRefusal(after), `${e} was refused: ${isRefusal(after) ? after.reason : ''}`);
     return after as World;
@@ -49,6 +50,8 @@ test('5.1: the User ID differs at each Company and holds nothing personal', () =
 
 test('section 7: signed out, an account operation gets 401 naming its scope, and a cart needs no account', () => {
   assert.deepEqual(answer(signed('cart')), { status: 200 });
+  assert.deepEqual(answer(signed('browse')), { status: 204 });
+  assert.deepEqual(answer(signed('chat')), { status: 201 });
   assert.deepEqual(answer(signed('order')), { status: 401, needs: 'orders:read' });
   assert.deepEqual(answer(signed('exchange')), { status: 401, needs: 'orders:write' });
 });
@@ -109,24 +112,30 @@ test('5.4: sign-in changes what the agent holds and nothing about the Session; t
 
 test('4.7: the token carries exactly the scopes approved, so read-only approval reads the order and cannot exchange it', () => {
   assert.deepEqual(tokenOf(start(RO)).scopes, RO);
-  assert.deepEqual(lastAnswer(play(RO, ['sign-in', 'order'])), { status: 200 });
+  assert.deepEqual(answer(agentRequest(play(RO, ['sign-in']), 'order')), { status: 200 });
   assert.deepEqual(lastAnswer(play(RO, ['sign-in', 'exchange'])), { status: 403, error: 'insufficient_scope', needs: 'orders:write' });
   assert.deepEqual(lastAnswer(play(RW, ['sign-in', 'exchange'])), { status: 200 });
 });
 
 test('5.5: sign-out ends account access and leaves the Session, its cart and the User ID as they were', () => {
   const w = play(RW, [...STORY]);
-  assert.deepEqual(w, { approves: RW, started: true, cart: true, grant: false, linked: 'signed out', last: { kind: 'revoke' } });
-  assert.deepEqual(lastAnswer(play(RW, [...STORY, 'order'])), { status: 401, needs: 'orders:read' });
+  assert.deepEqual(w, { approves: RW, found: true, started: true, cart: true, grant: false, linked: 'signed out', last: { kind: 'revoke' } });
+  assert.deepEqual(answer(agentRequest(w, 'order')), { status: 401, needs: 'orders:read' });
   assert.equal(agentRequest(w, 'order').session!.sub, 'usr_Q7c1vK');
   assert.equal(agentRequest(w, 'order').session!.sid, SID);
 });
 
 test('every refusal says why, and each event is refused or taken as the state decides', () => {
   const reasonOf = (w: World, e: PoppyEvent) => { const n = next(w, e); return isRefusal(n) ? n.reason : null; };
-  const fresh = start(RW), signedIn = play(RW, ['sign-in']), carted = play(RW, ['cart']);
-  assert.deepEqual(POPPY_EVENTS.map((e) => reasonOf(fresh, e)), [
-    null, null, null, null,
+  const unread = 'the agent has not read poppy.json, so it does not know where example.com takes this';
+  assert.deepEqual(POPPY_EVENTS.map((e) => reasonOf(start(RW), e)), [
+    null, unread, unread, unread, unread, unread,
+    'there is no access token to copy until you sign in',
+    'the agent holds no refresh token, so there is nothing to revoke',
+  ]);
+  const found = play(RW, []), signedIn = play(RW, ['sign-in']), carted = play(RW, ['cart']);
+  assert.deepEqual(POPPY_EVENTS.map((e) => reasonOf(found, e)), [
+    'the agent has already read example.com’s poppy.json', null, null, null, null, null,
     'there is no access token to copy until you sign in',
     'the agent holds no refresh token, so there is nothing to revoke',
   ]);
@@ -134,6 +143,37 @@ test('every refusal says why, and each event is refused or taken as the state de
   assert.equal(reasonOf(signedIn, 'thief'), null);
   assert.equal(reasonOf(signedIn, 'sign-out'), null);
   assert.equal(reasonOf(carted, 'cart'), 'the medium is already in this Session’s cart');
+});
+
+test('section 3: a poppy.json is used only when it names the host that served it and the issuer lists that host', () => {
+  assert.deepEqual(discover('example.com', POPPY_JSON, ISSUER_METADATA), ['api', 'web', 'chat']);
+  assert.deepEqual(discover('EXAMPLE.com', POPPY_JSON, ISSUER_METADATA), ['api', 'web', 'chat'], 'domains are compared ignoring case');
+  const copied = discover('evil.example', POPPY_JSON, ISSUER_METADATA);
+  assert.ok(isRefusal(copied) && copied.reason === 'the document names example.com, and evil.example served it');
+  const claimed = discover('evil.example', { ...POPPY_JSON, organization: { domain: 'evil.example' } }, ISSUER_METADATA);
+  assert.ok(isRefusal(claimed) && claimed.reason === 'the issuer does not list https://evil.example as one of its domains');
+  assert.deepEqual(discover('example.com', { organization: POPPY_JSON.organization, apis: POPPY_JSON.apis }, ISSUER_METADATA), ['api']);
+  const found = next(start(RW), 'discover') as World;
+  assert.deepEqual(found.last, { kind: 'discover', channels: ['api', 'web', 'chat'] });
+});
+
+test('5.2: every request the agent sends carries a Session header for the same User ID and Session, on every channel', () => {
+  for (const approves of [RW, RO])
+    for (const w of [play(approves, []), play(approves, ['cart', 'sign-in']), play(approves, [...STORY])])
+      for (const key of Object.keys(OPERATIONS) as (keyof typeof OPERATIONS)[]) {
+        const jwt = agentRequest(w, key).session;
+        assert.ok(jwt, key);
+        assert.deepEqual([jwt.iss, jwt.sub, jwt.sid], [AGENT.clientId, 'usr_Q7c1vK', SID]);
+      }
+});
+
+test('sections 6 and 8: the website and the chat join the Session without an account, and leave the Company’s record as it was', () => {
+  const before = play(RW, ['cart']), after = play(RW, ['cart', 'browse', 'chat']);
+  assert.deepEqual({ ...after, last: null }, { ...before, last: null });
+  assert.deepEqual(lastAnswer(play(RW, ['cart', 'browse'])), { status: 204 });
+  assert.deepEqual(lastAnswer(after), { status: 201 });
+  assert.equal(agentRequest(play(RW, ['sign-in']), 'browse').token, undefined, 'the agent sends no token where none is needed');
+  assert.deepEqual([OPERATIONS.cart.channel, OPERATIONS.browse.channel, OPERATIONS.chat.channel], ['api', 'web', 'chat']);
 });
 
 test('from the start, every state the events reach leaves an event to press, for both approvals', () => {
@@ -155,7 +195,8 @@ test('from the start, every state the events reach leaves an event to press, for
 test('each picture cites the section of the draft that decided it', () => {
   const sectionAfter = (approves: readonly Scope[], events: readonly PoppyEvent[]) => ruleOf(play(approves, events).last).section;
   assert.equal(ruleOf(null).section, '3');
-  assert.deepEqual(STORY.map((_, i) => sectionAfter(RW, STORY.slice(0, i + 1))), ['5.2', '5.3', '5.4', '5', '5.3', '5.5']);
+  assert.equal(ruleOf(next(start(RW), 'discover') === null ? null : (next(start(RW), 'discover') as World).last).section, '3');
+  assert.deepEqual(STORY.slice(1).map((_, i) => sectionAfter(RW, STORY.slice(0, i + 2))), ['5.2', '6', '8', '5.3', '5.4', '5', '5.3', '5.5']);
   assert.equal(sectionAfter(RO, ['sign-in', 'exchange']), '7');
   assert.match(ruleOf(play(RW, ['exchange']).last).says, /grants no account access/);
   assert.match(ruleOf(play(RW, ['sign-in', 'thief']).last).says, /must have signed the header beside it/);

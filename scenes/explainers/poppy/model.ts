@@ -1,4 +1,4 @@
-import { refuse } from '../../../explain/index.ts';
+import { isRefusal, refuse } from '../../../explain/index.ts';
 import type { Refusal } from '../../../explain/index.ts';
 
 // Poppy (Personal Agent Protocol, draft 0.4): how a Company decides what one request from a
@@ -9,7 +9,8 @@ import type { Refusal } from '../../../explain/index.ts';
 //
 // What it leaves out, each beside the rule it qualifies below: real signatures (who holds a key is a
 // field, not cryptography), time (the iat acceptance window, token and delegation lifetimes, jti
-// replay), discovery's checks of poppy.json, DPoP, browser join and conversations.
+// replay), DPoP, the steps of browser join (section 6) and the messages of a conversation (section 8):
+// each of those two is one request here, answered once.
 
 export type Scope = 'orders:read' | 'orders:write';
 export const SCOPES: readonly Scope[] = ['orders:read', 'orders:write'];
@@ -29,13 +30,51 @@ export const USER_IDS = { 'example.com': 'usr_Q7c1vK', 'shoes.example': 'usr_m4T
 /** The Session ID the agent chose at random for this task (5.2). */
 export const SID = 'Yx2b7Q';
 
-export type OperationKey = 'cart' | 'order' | 'exchange';
-export type Operation = { method: 'GET' | 'POST'; url: string; path: string; needs: Scope | null };
-/** The three things the agent asks example.com to do, and the scope each needs. A cart needs no account. */
+/** The ways into a Company that its poppy.json lists (3.1): its APIs, its website and its own agent. */
+export type Channel = 'api' | 'web' | 'chat';
+export const CHANNELS: readonly Channel[] = ['api', 'web', 'chat'];
+
+/** The parts of example.com's poppy.json this model reads, from the specification's example document (section 3). */
+export const POPPY_JSON = {
+  protocol_version: '0.4',
+  organization: { name: 'Example Company', domain: 'example.com' },
+  agent: { protocols: [{ type: 'poppy', endpoint: 'https://api.example.com/poppy/conversations' }] },
+  web: { browser_session_endpoint: 'https://example.com/poppy/browser-session' },
+  apis: [{ type: 'openapi', url: 'https://api.example.com/openapi.json' }],
+} as const;
+/** The issuer's metadata (3.2): the domains whose issuer it is. */
+export const ISSUER_METADATA = { issuer: 'https://auth.example.com', protected_resources: ['https://example.com', 'https://example.co.uk'] } as const;
+
+/**
+ * Whether an agent may use a poppy.json (section 3): the document must name the host that served
+ * it, so a copy on another domain cannot speak for the Company, and the issuer must list that
+ * domain in return, so a domain cannot claim another Company's issuer and receive its tokens.
+ * Gives the channels the document offers, or the reason it is refused.
+ * Left out: redirects, the well-known path check, protocol versions and HTTPS-only URLs.
+ */
+export function discover(
+  servedBy: string,
+  doc: { organization: { domain: string }; agent?: unknown; web?: unknown; apis?: unknown },
+  issuer: { protected_resources: readonly string[] },
+): readonly Channel[] | Refusal {
+  if (doc.organization.domain.toLowerCase() !== servedBy.toLowerCase()) return refuse(`the document names ${doc.organization.domain}, and ${servedBy} served it`);
+  if (!issuer.protected_resources.includes(`https://${servedBy.toLowerCase()}`)) return refuse(`the issuer does not list https://${servedBy.toLowerCase()} as one of its domains`);
+  return CHANNELS.filter((channel) => ({ api: doc.apis, web: doc.web, chat: doc.agent })[channel] !== undefined);
+}
+
+export type OperationKey = 'cart' | 'browse' | 'chat' | 'order' | 'exchange';
+export type Operation = { channel: Channel; method: 'GET' | 'POST'; url: string; path: string; needs: Scope | null; ok: number };
+/**
+ * What the agent asks example.com to do, the channel each goes by, the scope each needs and the
+ * status of success. A cart, a browser joining the Session (the agent authorizes its browser's
+ * one-time code, section 6) and a question to the Company's agent (section 8) need no account.
+ */
 export const OPERATIONS: Record<OperationKey, Operation> = {
-  cart: { method: 'POST', url: 'https://api.example.com/cart', path: '/cart', needs: null },
-  order: { method: 'GET', url: 'https://api.example.com/orders/ord_7Hk2', path: '/orders/ord_7Hk2', needs: 'orders:read' },
-  exchange: { method: 'POST', url: 'https://api.example.com/orders/ord_7Hk2/exchanges', path: '/orders/ord_7Hk2/exchanges', needs: 'orders:write' },
+  cart: { channel: 'api', method: 'POST', url: 'https://api.example.com/cart', path: '/cart', needs: null, ok: 200 },
+  browse: { channel: 'web', method: 'POST', url: 'https://example.com/poppy/browser-session/authorize', path: '/poppy/browser-session/authorize', needs: null, ok: 204 },
+  chat: { channel: 'chat', method: 'POST', url: 'https://api.example.com/poppy/conversations', path: '/poppy/conversations', needs: null, ok: 201 },
+  order: { channel: 'api', method: 'GET', url: 'https://api.example.com/orders/ord_7Hk2', path: '/orders/ord_7Hk2', needs: 'orders:read', ok: 200 },
+  exchange: { channel: 'api', method: 'POST', url: 'https://api.example.com/orders/ord_7Hk2/exchanges', path: '/orders/ord_7Hk2/exchanges', needs: 'orders:write', ok: 200 },
 };
 
 /** An OAuth access token: the client it was issued to and the scopes the User approved. */
@@ -92,18 +131,19 @@ export function answer(request: HttpRequest): Answer {
   if (token?.revoked) return { status: 401, error: 'invalid_token' };
   if (op.needs && !token) return { status: 401, needs: op.needs };
   if (op.needs && !token!.scopes.includes(op.needs)) return { status: 403, error: 'insufficient_scope', needs: op.needs };
-  return { status: 200 };
+  return { status: op.ok };
 }
 
 /** What was last sent, and what came back: the middle of the picture. */
 export type Exchange =
+  | { kind: 'discover'; channels: readonly Channel[] }
   | { kind: 'request'; by: 'agent' | 'thief'; op: OperationKey; token: boolean; answer: Answer }
   | { kind: 'sign-in'; granted: readonly Scope[] }
   | { kind: 'revoke' };
 
 /**
  * The world between one agent and one Company, for one User and one Session.
- * `started` is whether the Company holds a record of the Session, which the first verified request
+ * `found` is whether the agent has read and checked the Company's poppy.json. `started` is whether the Company holds a record of the Session, which the first verified request
  * creates (section 5: there is no separate step to start one). `grant` is whether the agent holds a
  * refresh token, with the scopes in `approves`. `linked` is whether the Company has joined this
  * Session to the User's account: a Session is signed in on each request that carries an access
@@ -111,6 +151,7 @@ export type Exchange =
  */
 export type World = {
   approves: readonly Scope[];
+  found: boolean;
   started: boolean;
   cart: boolean;
   grant: boolean;
@@ -118,12 +159,12 @@ export type World = {
   last: Exchange | null;
 };
 
-export type PoppyEvent = 'cart' | 'order' | 'exchange' | 'sign-in' | 'thief' | 'sign-out';
+export type PoppyEvent = 'discover' | 'cart' | 'browse' | 'chat' | 'exchange' | 'sign-in' | 'thief' | 'sign-out';
 /** Every event, in the order the player shows its buttons. */
-export const POPPY_EVENTS: readonly PoppyEvent[] = ['cart', 'order', 'exchange', 'sign-in', 'thief', 'sign-out'];
+export const POPPY_EVENTS: readonly PoppyEvent[] = ['discover', 'cart', 'browse', 'chat', 'exchange', 'sign-in', 'thief', 'sign-out'];
 
 /** Before anything is sent: the Company knows nothing, and the agent holds no token. */
-export const start = (approves: readonly Scope[]): World => ({ approves, started: false, cart: false, grant: false, linked: 'no', last: null });
+export const start = (approves: readonly Scope[]): World => ({ approves, found: false, started: false, cart: false, grant: false, linked: 'no', last: null });
 
 /** The access token the agent's refresh token yields: issued to the agent, for exactly the scopes approved (4.7). */
 export const tokenOf = (w: World): AccessToken => ({ value: 'at_Qp4w', client: AGENT.clientId, scopes: w.approves });
@@ -154,10 +195,19 @@ export function thiefRequest(w: World): HttpRequest {
  * name. A request the Company answers with an error still happens: the world records the answer.
  */
 export function next(w: World, event: PoppyEvent): World | Refusal {
+  // Section 3: the endpoints and the Company's identifier come from its poppy.json, so nothing can be sent before it is read.
+  const unread = (): Refusal => refuse('the agent has not read poppy.json, so it does not know where example.com takes this');
   switch (event) {
+    case 'discover': {
+      if (w.found) return refuse('the agent has already read example.com’s poppy.json');
+      const channels = discover(COMPANY.domain, POPPY_JSON, ISSUER_METADATA);
+      return isRefusal(channels) ? channels : { ...w, found: true, last: { kind: 'discover', channels } };
+    }
     case 'cart':
-    case 'order':
+    case 'browse':
+    case 'chat':
     case 'exchange': {
+      if (!w.found) return unread();
       if (event === 'cart' && w.cart) return refuse('the medium is already in this Session’s cart');
       const request = agentRequest(w, event), result = answer(request);
       // 5.3: a verified header starts the Session; a verified token signs this request in.
@@ -165,12 +215,13 @@ export function next(w: World, event: PoppyEvent): World | Refusal {
       return {
         ...w,
         started: w.started || verified,
-        cart: w.cart || (event === 'cart' && result.status === 200),
+        cart: w.cart || (event === 'cart' && result.status === OPERATIONS.cart.ok),
         linked: verified && request.token ? 'yes' : w.linked,
         last: { kind: 'request', by: 'agent', op: event, token: !!request.token, answer: result },
       };
     }
     case 'sign-in':
+      if (!w.found) return unread();
       // 4.4: a refresh token is there so the agent need not ask the User to sign in again.
       if (w.grant) return refuse('the agent already holds a refresh token for what you approve, so it has no reason to ask you again');
       // Sign-in is plain OAuth and does not mention the Session (5.4), so nothing else changes.
@@ -190,16 +241,18 @@ export function next(w: World, event: PoppyEvent): World | Refusal {
 export type Rule = { section: string; says: string };
 export function ruleOf(last: Exchange | null): Rule {
   if (!last) return { section: '3', says: 'An agent reads the Company’s poppy.json before it sends anything.' };
+  if (last.kind === 'discover') return { section: '3', says: 'A poppy.json speaks for the domain that served it, and for no other.' };
   if (last.kind === 'sign-in') return { section: '5.4', says: 'Sign-in is plain OAuth, and does not need to know the Session.' };
   if (last.kind === 'revoke') return { section: '5.5', says: 'Sign-out revokes the refresh token; the Session continues signed out.' };
   const { status, error } = last.answer;
   if (error === 'invalid_session') return { section: '5.3', says: 'The agent a token was issued to must have signed the header beside it.' };
   if (status === 401) return { section: '5.3', says: 'A Session header grants no account access, whatever it holds.' };
   if (status === 403) return { section: '7', says: 'A token without the scope is refused, and the answer names the scope.' };
-  return last.token
-    ? { section: '5', says: 'The header says which Session; the token says which account and scopes.' }
-    : { section: '5.2', says: 'A signed-out request carries the Session header alone.' };
+  if (last.token) return { section: '5', says: 'The header says which Session; the token says which account and scopes.' };
+  if (last.op === 'browse') return { section: '6', says: 'A browser joins the Session by a one-time code; the access token does not pass through it.' };
+  if (last.op === 'chat') return { section: '8', says: 'Each message in a conversation says whether a person or an AI wrote it.' };
+  return { section: '5.2', says: 'A signed-out request carries the Session header alone.' };
 }
 
-/** The events of the story, for a User who approves `approves`: the reader's first six presses. */
-export const STORY: readonly PoppyEvent[] = ['cart', 'exchange', 'sign-in', 'exchange', 'thief', 'sign-out'];
+/** The events of the story, in order: what the steps replay. */
+export const STORY: readonly PoppyEvent[] = ['discover', 'cart', 'browse', 'chat', 'exchange', 'sign-in', 'exchange', 'thief', 'sign-out'];
