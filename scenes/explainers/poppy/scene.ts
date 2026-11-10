@@ -135,7 +135,7 @@ export default class Poppy extends Scene<World, {}> {
     await this.step('seal', {
       title: 'The agent seals what it sends',
       line: 'The seal says which agent is asking, and for which User.',
-      caption: `The agent adds a medium to the cart. The request carries a Session header, drawn as the round seal: a signature the Company checks against keys the agent publishes. The Company now knows the agent, a User ID and a Session to keep the cart in. The User ID is a pseudonym the agent made up for this Company, so the shop still does not know who you are. ${answerOf(this)}.`,
+      caption: `The agent adds a medium to the cart. The request carries a Session header, drawn as the wax seal: a signature the Company checks against keys the agent publishes. The Company now knows the agent, a User ID and a Session to keep the cart in. The User ID is a pseudonym the agent made up for this Company, so the shop still does not know who you are. ${answerOf(this)}.`,
     });
     await this.play(machine.replay(STORY.slice(1, 2)));
 
@@ -157,7 +157,7 @@ export default class Poppy extends Scene<World, {}> {
     await this.step('approve', {
       title: 'You hand over a key, not your password',
       line: 'Standard OAuth, on the Company’s own page.',
-      caption: `The agent sends you to the Company’s sign-in page. You sign in there and approve ${scopes}. The Company gives the agent an access token, drawn as the diamond key, cut to what you approved. Your password stays with you, and the Company can take this one key back without locking you out. Sign-in does not mention the Session: what the Company knows has not changed.`,
+      caption: `The agent sends you to the Company’s sign-in page. You sign in there and approve ${scopes}. The Company gives the agent an access token, drawn as a key with one tooth for each scope you approved. Your password stays with you, and the Company can take this one key back without locking you out. Sign-in does not mention the Session: what the Company knows has not changed.`,
     });
     await this.play(machine.replay(STORY.slice(5, 6)));
 
