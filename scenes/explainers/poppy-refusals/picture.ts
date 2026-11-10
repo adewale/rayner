@@ -88,7 +88,7 @@ export const documentToken = (s: Stage): Mobject => sheet(s, { width: 0.9, heigh
 /** A delegation, for the transition that brings the agent a new one. */
 export const delegationToken = (s: Stage): Mobject => certificate(s, { width: 1.2, height: 0.86 });
 /** The Company's clock at the counter, for a rate limit: full while the agent must wait, empty once it has. */
-export const paceClock = (s: Stage, remaining: number): Mobject => clock(s, { at: CLOCK_AT, r: CLOCK_R, remaining });
+export const paceClock = (s: Stage, remaining: number): Mobject => clock(s, { at: CLOCK_AT, r: CLOCK_R, remaining: Math.max(remaining, 0.004) });
 
 const poly = (points: Vec[], colour: string) => new Polygon(points, { fill: colour, stroke: 'none' });
 const keyedPart = <T extends Mobject>(m: T, k: string): T => keyed(m, k);
@@ -290,7 +290,7 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
     parts.add(words(s, under, { at: [LEDGER_X, -0.42] }), 'panel:body');
   };
   if (shown.whatIf) {
-    parts.add(words(s, 'An OAuth library', { at: [LEDGER_X, 1.0], color: TONE.soft }), 'panel:over');
+    parts.add(words(s, 'An OAuth library', { at: [LEDGER_X, 1.0], color: TONE.soft }), 'panel:whatif');
     parts.add(words(s, '400', { at: [LEDGER_X, 0.3], size: TYPE.label, mono: true, bold: true }), 'panel:400');
     parts.add(key(s, { at: [LEDGER_X + 1.95, 0.3], size: 0.45, teeth: 2 }), 'panel:400:key');
     parts.add(words(s, 'keeps it', { at: [LEDGER_X + 2.8, 0.3] }), 'panel:400:says');

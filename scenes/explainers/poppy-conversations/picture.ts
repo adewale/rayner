@@ -42,18 +42,20 @@ type Box = { x: number; y: number; w: number; h: number };
 const top = (b: Box) => b.y + b.h / 2, bottom = (b: Box) => b.y - b.h / 2, left = (b: Box) => b.x - b.w / 2, right = (b: Box) => b.x + b.w / 2;
 
 /** The conversation's table: the hero, and the smaller, stepped-back table while a Direct Conversation is open. */
-const MAIN_FULL: Box = { x: -2.4, y: 0.4, w: 8.4, h: 3.5 };
-const MAIN_BACK: Box = { x: -2.4, y: 2.3, w: 8.4, h: 1.4 };
+const MAIN_FULL: Box = { x: -2.4, y: 0.0, w: 8.4, h: 3.5 };
+const MAIN_BACK: Box = { x: -2.4, y: 2.25, w: 8.4, h: 1.3 };
 /** The Direct Conversation's table, lower on the stage. */
 const DIRECT: Box = { x: -2.4, y: -2.25, w: 7.0, h: 2.0 };
 const SEAT_R = 0.6;
+/** How far a seat's centre stands out from the table's edge: the disc tucks under the edge a little. */
+const OUT = 0.45;
 /** Seat columns at the conversation's table: your side, the Company's side. */
 const YOUR_X = -5.2, THEIR_X = 0.4;
 
 /** Where each seat is, in the picture of this state. */
 export function seatsOf(w: World) {
   const back = !!openDirectOf(w), t = back ? MAIN_BACK : MAIN_FULL;
-  const up = top(t), down = bottom(t);
+  const up = top(t) + OUT, down = bottom(t) - OUT;
   return {
     agent: (back ? [left(DIRECT) - 0.95, top(DIRECT) + 0.95] : [YOUR_X, up]) as Vec,
     agentSeat: [YOUR_X, up] as Vec,
@@ -68,7 +70,7 @@ export function seatsOf(w: World) {
 /** Where a person who joins comes from: the Company's back office, off the right edge of the stage. */
 export const BACK_OFFICE_X = 8.6;
 /** The narrow ledger of state fields, on the right. */
-const LEDGER = { x: 3.3, top: 3.0, width: MARGIN.right - 3.3 } as const;
+const LEDGER = { x: 3.0, width: MARGIN.right - 3.0 } as const;
 /** The thread between the two tables runs down here, clear of every label. */
 const THREAD_X = -1.5;
 
@@ -157,7 +159,7 @@ function turn(s: Stage, text: string, who: 'person' | 'ai', at: Vec, towards: Ve
 }
 
 /** A narrow ledger: a title of one or two bold lines over a double rule, then rows of a SOFT name and a mono value over hairlines. Keyed `<key>:…`. */
-function narrowLedger(s: Stage, parts: Parts, title: readonly string[], rows: readonly { label: string; value: string; quiet?: boolean }[], key: string, at: Vec = [LEDGER.x, LEDGER.top]) {
+function narrowLedger(s: Stage, parts: Parts, title: readonly string[], rows: readonly { label: string; value: string; quiet?: boolean }[], key: string, at: Vec) {
   const [x, y0] = at, width = LEDGER.width;
   title.forEach((line, i) => parts.add(words(s, line, { at: [x, y0 - i * 0.62], bold: true }), `${key}:title:${i}`));
   const ruleY = y0 - (title.length - 1) * 0.62 - 0.46;
@@ -239,7 +241,7 @@ function turnPlace(s: Stage, w: World, t: Turn): { at: Vec; seat: Vec } {
   const seat = t.speaker === 'agent' ? seats.agentSeat : t.speaker === 'you' ? seats.youSeat : t.speaker === 'person' ? seats.person : seats.company;
   const upper = seat[1] > MAIN_FULL.y, lo = left(MAIN_FULL) + 0.3 + width / 2, hi = right(MAIN_FULL) - 0.3 - width / 2;
   const x = Math.max(lo, Math.min(hi, seat[0] + (seat[0] < MAIN_FULL.x ? 1.2 : -1.2)));
-  return { at: [x, upper ? MAIN_FULL.y + 0.05 : MAIN_FULL.y - 1.1], seat };
+  return { at: [x, upper ? MAIN_FULL.y - 0.05 : MAIN_FULL.y - 1.05], seat };
 }
 
 /** Where a turn sets off from: the seat of the writer, in the picture of this state. */
@@ -267,7 +269,7 @@ export function drawWorld(w: World, s: Stage, shown: Shown = {}): Group {
 
   // The conversation's table. Its seats are drawn first, so the table's edge covers their inner half.
   const joined = w.main?.responder === 'human', looking = w.main?.handoff === 'pending';
-  parts.add(seat(seats.agentSeat, paused ? 'idle' : 'taken'), 'seat:agent');
+  parts.add(seat(seats.agentSeat, back ? 'empty' : paused ? 'idle' : 'taken'), 'seat:agent');
   parts.add(seat(seats.youSeat, back ? 'empty' : paused ? 'idle' : 'taken'), 'seat:you');
   parts.add(seat(seats.company, paused ? 'idle' : 'taken'), 'seat:company');
   parts.add(seat(seats.person, joined ? (paused ? 'idle' : 'taken') : looking ? 'awaited' : 'empty'), 'seat:person');
@@ -293,7 +295,7 @@ export function drawWorld(w: World, s: Stage, shown: Shown = {}): Group {
 
   // The Company's invitation stops in front of your agent's seat.
   if (w.invited) {
-    const at: Vec = [YOUR_X, MAIN_FULL.y + 0.7];
+    const at: Vec = [YOUR_X - 0.3, top(MAIN_FULL) - 0.7];
     parts.add(emphasised(envelope(at), 'the Company asks for you, through your agent'), 'invite');
     parts.add(words(s, 'user_requested', { at: [at[0] + 0.75, at[1]], mono: true }), 'invite:type');
   }
@@ -312,8 +314,8 @@ export function drawWorld(w: World, s: Stage, shown: Shown = {}): Group {
     // Your agent, set back beside the table: it may watch, and it says nothing here.
     parts.add(seat(seats.agent, 'taken', 0.5), 'seat:watch');
     parts.add(markOf(s, 'ai', seats.agent, TONE.ink, 0.82), 'agent:mark');
-    parts.add(words(s, 'your agent', { at: [seats.agent[0] + 0.75, seats.agent[1] + 0.29], bold: true }), 'agent:name');
-    parts.add(words(s, 'AI, watching', { at: [seats.agent[0] + 0.75, seats.agent[1] - 0.29], color: TONE.soft }), 'agent:kind');
+    parts.add(words(s, 'your agent', { at: [seats.agent[0] + 0.75, seats.agent[1] + 0.31], bold: true }), 'agent:name');
+    parts.add(words(s, 'AI, watching', { at: [seats.agent[0] + 0.75, seats.agent[1] - 0.37], color: TONE.soft }), 'agent:kind');
   } else if (w.direct === 'closed') {
     parts.add(table({ ...DIRECT, y: DIRECT.y - 0.25, h: 1.2 }, true), 'direct:table');
     parts.add(words(s, 'Direct Conversation: closed', { at: [DIRECT.x, DIRECT.y - 0.25], color: TONE.soft, align: 'middle' }), 'direct:closed');
@@ -334,8 +336,9 @@ export function drawWorld(w: World, s: Stage, shown: Shown = {}): Group {
   }
 
   // On the right: the state fields of the conversation in use, or, at the ownership step, who may continue it.
-  if (shown.owner) narrowLedger(s, parts, ['Continue it?'], ownerRows(), 'owner');
-  else narrowLedger(s, parts, active === 'direct' ? ['Direct', 'Conversation'] : w.main ? ['Conversation'] : ['No conversation'], ledgerRows(c ?? null), 'state');
+  const at: Vec = [LEDGER.x, back ? 3.6 : 1.9];
+  if (shown.owner) narrowLedger(s, parts, ['Continue it?'], ownerRows(), 'owner', at);
+  else narrowLedger(s, parts, active === 'direct' ? ['Direct', 'Conversation'] : w.main ? ['Conversation'] : ['No conversation'], ledgerRows(c ?? null), 'state', at);
   return parts.group();
 }
 
