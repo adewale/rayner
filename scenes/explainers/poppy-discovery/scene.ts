@@ -75,7 +75,7 @@ export default class PoppyDiscovery extends Scene<World, {}> {
       },
       next,
       views: [world],
-      runTime: ({ event, after }) => (event !== 'check' ? 0.6 : after.ran === 1 ? 1.7 : 1.1),
+      runTime: ({ event, after }) => (event !== 'check' ? 0.5 : after.ran === 1 ? 1.5 : 0.95),
       transition: {
         check,
         // Choosing a server is a cut to another shop: the last run's parts go, the fascia's name is replaced.

@@ -49,21 +49,32 @@ export default class Conversations extends Scene<World, Shown> {
     /** A turn of speech grows out of its writer's mark and comes to rest on the table. */
     const spoken = (t: Transition<World, TableEvent>) => {
       const c = t.choreograph(world), from = speakerAt(t.after);
-      return beats(c, from && c.has('turn', 'to') ? flight(c, 'turn', [from], { appear: 0.2, move: 0.7, leave: 0.2 }) : () => [], { fresh: ['turn'] });
+      return beats(c, from && c.has('turn', 'to') ? flight(c, 'turn', [from], { appear: 0.2, move: 0.7, leave: 0.2 }) : () => [], { fresh: ['turn', 'written:'] });
     };
     /** A part comes in from a point and stops where it rests. */
     const arrives = (c: Choreography, key: string, ...via: Vec[]) => (c.has(key, 'to') ? flight(c, key, via, { appear: 0.2, move: 0.9, leave: 0.2 }) : () => []);
 
     /**
-     * A change of layout in three beats: what goes, goes; then everything both pictures have moves
-     * to its new place; only then do new things, and words that changed, come in, so nothing
-     * arrives in a place that is still moving.
+     * Who travels when the Direct Conversation opens or closes, because the travel means something:
+     * you and your agent go to the small table and come back; the first table steps back and its
+     * seats with it. Everything else that only changes place for the composition is cross-faded.
+     */
+    const TRAVELS = new Set(['agent:mark', 'you:mark', 'main:table', 'seat:agent', 'seat:you', 'seat:company', 'seat:person', 'company:mark', 'person:mark']);
+    /**
+     * A change of layout in three beats: what goes, goes (with words that change and parts that
+     * only move for the layout); then the travellers move to their new places; only then do the new
+     * things come in, so nothing arrives where something is still moving.
      */
     const reflow = (c: Choreography): Succession => {
       const out: Animation[] = [], back: Animation[] = [];
-      const changed = (k: string) => { const a = c.from(k), b = c.to(k); return a instanceof Text && b instanceof Text && a.text !== b.text; };
-      for (const k of c.keys('from')) if (!c.has(k, 'to') || changed(k) || k === 'turn') out.push(c.leave(k, { runTime: 0.3 }));
-      for (const k of c.keys('to')) if (!c.has(k, 'from') || changed(k) || k === 'turn') back.push(c.enter(k, {}, { runTime: 0.4 }));
+      const moved = (k: string) => {
+        const a = c.from(k), b = c.to(k);
+        if (a instanceof Text && b instanceof Text && a.text !== b.text) return true;
+        const [ax, ay] = a.center(), [bx, by] = b.center();
+        return !TRAVELS.has(k) && Math.hypot(ax! - bx!, ay! - by!) > 0.01;
+      };
+      for (const k of c.keys('from')) if (!c.has(k, 'to') || moved(k) || k === 'turn') out.push(c.leave(k, { runTime: 0.3 }));
+      for (const k of c.keys('to')) if (!c.has(k, 'from') || moved(k) || k === 'turn') back.push(c.enter(k, {}, { runTime: 0.4 }));
       return new Succession([...(out.length ? [new AnimationGroup(out)] : []), c.rest({ runTime: 0.8 }), ...(back.length ? [new AnimationGroup(back)] : [])]);
     };
     const machine = new Machine<World, TableEvent>(this, {

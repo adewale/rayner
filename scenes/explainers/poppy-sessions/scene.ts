@@ -2,7 +2,7 @@ import { AnimationGroup, Scene } from '../../../src/index.ts';
 import { answerOf, isRefusal, settingsOf, stage, Machine, view } from '../../../explain/index.ts';
 import type { ExplainerMeta, Setting, Transition } from '../../../explain/index.ts';
 import { beats, flight } from '../lib/poppy-kit.ts';
-import { STORY, TAMPERS, next, start } from './model.ts';
+import { OTHER_USER, STORY, TAMPERS, next, start } from './model.ts';
 import type { Policy, SealWorld, Tamper, Verdict } from './model.ts';
 import { ALL_SHOWN, PALETTE, SOURCE, drawWorld, punchOrder, sayWorld, sourceOf } from './picture.ts';
 import type { Shown } from './picture.ts';
@@ -142,9 +142,28 @@ export default class Sessions extends Scene<SealWorld, Shown> {
       title: 'One key, one User',
       line: 'Now tamper yourself: each refusal names its check.',
       caption: remembers
-        ? 'The agent gives every User ID its own delegated key, so a leaked key exposes one User at one shop. A thief signs with your key for another User; this shop remembers, an optional check, that the key signed for usr_Q7c1vK, and refuses. Press Reset, then the leaked key before Send: the shop refuses your own request, since it cannot tell which use came first.'
+        ? 'The agent gives every User ID its own delegated key, so a leaked key exposes one User at one shop. A thief signs with your key for another User; this shop remembers, an optional check, that the key signed for usr_Q7c1vK, and refuses. Press the tampers and predict each check. The detail after this shows the leaked key used first.'
         : `The agent gives every User ID its own delegated key, so a leaked key exposes one User at one shop. A thief signs with your key for another User. This shop skips the optional check, so it accepts the header as that User, signed out: ${leaked.answer.status}, naming ${leaked.answer.needs}. No account opens. Press the tampers and predict each check.`,
     });
     await this.play(machine.replay(STORY.slice(7, 8)));
+
+    // A detail, where the shop remembers: the other history, in which the leaked key is used before
+    // the agent sends. The picture is the model's state after those two tampers, from the start.
+    if (remembers) {
+      const first = ['other-user', 'send'].reduce<SealWorld>((w, t) => {
+        const n = next(w, t as Tamper);
+        if (isRefusal(n)) throw new Error(`the detail's ${t} is refused: ${n.reason}`);
+        return n;
+      }, start(policy));
+      await this.step('first-use', {
+        title: 'If the leaked key comes first',
+        line: 'The shop refuses your own request.',
+        kind: 'detail',
+        caption: `Suppose the thief uses your leaked key for another User before your agent sends the exchange. This shop accepts that header as the other User, signed out, and notes, an optional check, that the key signed for ${OTHER_USER}. Then your agent's genuine exchange arrives under the same key and is refused: ${first.last!.verdict.answer.reason}. The shop cannot tell which use came first.`,
+      });
+      this.state = first;
+      this.shown = { links: 3, take: 2 };
+      await world.sync();
+    }
   }
 }

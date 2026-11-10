@@ -33,7 +33,12 @@ import type { CheckId, Request, SealWorld, Tamper } from './model.ts';
 export const PALETTE = KIT_PALETTE;
 
 /** How much of the chain the scene has explained so far: none, the address and its keys, or all of it. */
-export type Shown = { links: 0 | 1 | 3 };
+/**
+ * `take` marks a picture shown apart from the machine (the detail step's other history): its
+ * ticket and punches are keyed afresh, so the change to it cross-fades instead of morphing one
+ * ticket's printing into another's.
+ */
+export type Shown = { links: 0 | 1 | 3; take?: 2 };
 export const ALL_SHOWN: Shown = { links: 3 };
 
 // ------------------------------------------------------------------ geometry (shared with the scene)
@@ -290,18 +295,19 @@ export function drawWorld(w: SealWorld, shown: Shown, s: Stage): Group {
   } else if (shown.links === 0) text('chain:none', 'pressed by?', { at: [COL.stamp, OBJ_Y - 0.1], size: TYPE.label, color: TONE.soft, align: 'middle' });
 
   // Bottom right: the ticket, its punches and its tear, and the validator's stamp once it has arrived.
-  parts.add(ticketOf(s, r, owner === 'thief'), 'ticket');
+  const fk = (k: string) => (shown.take ? `${k}@${shown.take}` : k);
+  parts.add(ticketOf(s, r, owner === 'thief'), fk('ticket'));
   if (last) {
-    parts.add(arrived(s, nowOf(w)), 'ticket:arrived');
+    parts.add(arrived(s, nowOf(w)), fk('ticket:arrived'));
     for (const check of CHECKS) {
       const on = ROW_CHECK[check.id];
       if (!on) continue;
       const y = on === 'typ' ? HEAD_Y : rowY(on), state = statusOf(w, check.id);
-      if (state === 'held') parts.add(hole(y), `hole:${on}`);
+      if (state === 'held') parts.add(hole(y), fk(`hole:${on}`));
       if (state === 'broke') {
         const value = on === 'typ' ? r.session!.typ : rowsOf(r)[on];
         const width = words(s, value, { mono: true }).width() + (on === 'ath' && r.session!.ath ? 1.1 : 0);
-        emphasised(parts.add(tear(y, width), `tear:${on}`), `torn at ${on}`);
+        emphasised(parts.add(tear(y, width), fk(`tear:${on}`)), `torn at ${on}`);
       }
     }
   }
@@ -327,7 +333,7 @@ export function drawWorld(w: SealWorld, shown: Shown, s: Stage): Group {
   const remembers = w.policy === 'remembers', jtis = w.memory.jtis, user = Object.values(w.memory.keyUser)[0];
   const row = (k: string, label: string, value: string, quiet: boolean, y: number) => {
     text(`memory:${k}:label`, label, { at: [CO.left, y], color: TONE.soft });
-    text(`memory:${k}:value`, value, { at: [CO.right, y], align: 'end', mono: !quiet, color: quiet ? TONE.soft : TONE.ink });
+    text(fk(`memory:${k}:value`), value, { at: [CO.right, y], align: 'end', mono: !quiet, color: quiet ? TONE.soft : TONE.ink });
     parts.add(new Rectangle({ width, height: STROKE.hair, fill: TONE.rule, stroke: 'none' }).moveTo([mid, y - 0.34]), `memory:${k}:rule`);
   };
   row('jti', 'once', !remembers ? 'skipped' : jtis.length === 0 ? 'nothing yet' : jtis.length === 1 ? jtis[0]! : `${jtis.length} jtis`, !remembers || jtis.length === 0, -3.1);

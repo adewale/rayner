@@ -318,9 +318,9 @@ export function drawWorld(w: World, s: Stage, shown: Shown = {}): Group {
     parts.add(words(s, 'AI, watching', { at: [seats.agent[0] + 0.75, seats.agent[1] - 0.37], color: TONE.soft }), 'agent:kind');
   } else if (w.direct === 'closed') {
     // Closed: the small table is gone, and the ledger's column notes that it was there.
-    parts.add(words(s, 'Direct', { at: [LEDGER.x, -2.45], color: TONE.soft }), 'direct:closed');
-    parts.add(words(s, 'closed', { at: [MARGIN.right, -2.45], mono: true, align: 'end' }), 'direct:closed:value');
-    parts.add(new Rectangle({ width: LEDGER.width, height: STROKE.hair, fill: TONE.rule, stroke: 'none' }).moveTo([LEDGER.x + LEDGER.width / 2, -2.78]), 'direct:closed:rule');
+    parts.add(words(s, 'Direct', { at: [LEDGER.x, -3.45], color: TONE.soft }), 'direct:closed');
+    parts.add(words(s, 'closed', { at: [MARGIN.right, -3.45], mono: true, align: 'end' }), 'direct:closed:value');
+    parts.add(new Rectangle({ width: LEDGER.width, height: STROKE.hair, fill: TONE.rule, stroke: 'none' }).moveTo([LEDGER.x + LEDGER.width / 2, -3.78]), 'direct:closed:rule');
   }
 
   // Working: a typing badge by the seat of whoever handles the Company's side of the table in use.
@@ -338,9 +338,15 @@ export function drawWorld(w: World, s: Stage, shown: Shown = {}): Group {
   }
 
   // On the right: the state fields of the conversation in use, or, at the ownership step, who may continue it.
-  const at: Vec = [LEDGER.x, back ? 3.6 : 1.5];
+  const at: Vec = [LEDGER.x, back ? 3.6 : 3.0];
   if (shown.owner) narrowLedger(s, parts, ['Continue it?'], ownerRows(), 'owner', at);
   else narrowLedger(s, parts, active === 'direct' ? ['Direct', 'Conversation'] : w.main ? ['Conversation'] : ['No conversation'], ledgerRows(c ?? null), 'state', at);
+
+  // Under it: who wrote the turn on the table, in the two fields a message carries for it (8.4, 8.8).
+  const shownTurn = w.said && w.said.at === active ? w.said : null;
+  narrowLedger(s, parts, ['On the table'], shownTurn
+    ? [{ label: 'author.type', value: authorOf(shownTurn.speaker) }, { label: 'role', value: roleOf(shownTurn.speaker) }]
+    : [{ label: 'author.type', value: 'none', quiet: true }, { label: 'role', value: 'none', quiet: true }], 'written', [LEDGER.x, back ? -0.75 : -0.85]);
   return parts.group();
 }
 

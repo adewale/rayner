@@ -8,7 +8,7 @@ import { COVERAGE_EVENTS, STORY, next, start } from './model.ts';
 import type { Company, CoverageEvent, World } from './model.ts';
 import {
   BOARD_AT, LANES, NOTE_AT, PALETTE, REACH_AT, cardToken, noteLineAt, SKILL_AT, SEAL_AT, SLOT_AT, TRAY_AT,
-  drawWorld, kindOf, noteToken, probeToken, requestToken, routeOf, sayWorld, slipToken, stripKeys,
+  drawWorld, kindOf, noteToken, probeToken, requestToken, routeOf, sayWorld, stripKeys,
 } from './picture.ts';
 
 /** Parts that belong to the last event: they go before the next one's motion, and come back after it. */
@@ -78,19 +78,23 @@ export default class Coverage extends Scene<World, {}> {
     const s = stage(this, { palette: { ...PALETTE }, heading: false });
     const world = view(this, (w) => drawWorld(w, s), { place: false });
 
-    /** Strips land from the model's tray to their places; the agent's station then seals a ticket for the way it follows. */
+    /** A beat's timing: short, since each tear or flight is one idea. */
+    const T = { appear: 0.2, move: 0.4, leave: 0.2 };
+    /**
+     * A note (or the skill card, laid on the desk first) is torn into strips. The strips the agent
+     * follows cross into its model first; then the ones it sets aside settle on the shop's side; then a
+     * strip that asks for a secret reaches toward the station on its own, and stops under the rule.
+     * Only after that does a ticket leave the station, sealed and keyed. Each group moves alone, so
+     * no strip passes over another.
+     */
     const sort = (c: Choreography, w: World, card: boolean) => () => {
-      const from = noteLineAt;
-      const laid = card ? pass(c, 'skill:read', cardToken(s), [SKILL_AT, NOTE_AT], { appear: 0.15, move: 0.45, leave: 0.2 }) : [];
-      const torn = stripKeys(w), kept = torn.filter((x) => x.key.startsWith('strip:used:'));
-      const strips = together(torn.filter((x) => !x.reveal).map((x) => flight(c, x.key, [from(x.line)], { appear: 0.2, move: 0.65, leave: 0.25 })()));
-      // A strip that asks for a secret reaches across toward the station, stops under the rule, and falls back to the shop's side.
-      const reaching = torn.filter((x) => x.reveal).flatMap((x) => flight(c, x.key, [from(x.line), REACH_AT], { appear: 0.2, move: 0.9, leave: 0.25 })());
-      const first = kept[0] ? c.to(kept[0].key) : null;
-      const handed = first ? pass(c, 'strip:handed', first.copy(), [first.center() as [number, number], SEAL_AT], { appear: 0.15, move: 0.6, leave: 0.25 }) : [];
-      const sent = flight(c, 'ticket', [SEAL_AT, ...routeOf('api').slice(1, 3)], { appear: 0.2, move: 0.7, leave: 0.25 })();
-      // The secret's reach and the followed strip's hand-over play together: one is stopped, the other goes in.
-      return [...laid, ...strips, ...together([reaching, handed]), ...sent];
+      const laid = card ? pass(c, 'skill:read', cardToken(s), [SKILL_AT, NOTE_AT], { appear: 0.2, move: 0.35, leave: 0.2 }) : [];
+      const torn = stripKeys(w), group = (keep: (x: (typeof torn)[number]) => boolean) => together(torn.filter(keep).map((x) => flight(c, x.key, [noteLineAt(x.line)], T)()));
+      const kept = group((x) => x.key.startsWith('strip:used:'));
+      const left = group((x) => x.key.startsWith('strip:aside:') && !x.reveal);
+      const reaching = torn.filter((x) => x.reveal).flatMap((x) => flight(c, x.key, [noteLineAt(x.line), REACH_AT], { appear: 0.2, move: 0.8, leave: 0.2 })());
+      const sent = flight(c, 'ticket', [SEAL_AT, ...routeOf('api').slice(1, 3)], T)();
+      return [...laid, ...kept, ...left, ...reaching, ...sent];
     };
     const motion = (t: Transition<World, CoverageEvent>) => {
       const c = t.choreograph(world);
@@ -103,11 +107,10 @@ export default class Coverage extends Scene<World, {}> {
           // The list crosses from the shop's board into the agent's model.
           return beats(c, () => pass(c, 'list', noteToken(s), [BOARD_AT, TRAY_AT], { appear: 0.25, move: 1.0, leave: 0.25 }), { fresh: FRESH });
         case 'report':
-          // The report goes from the model to the station, which seals it, and into the box; the reply comes back out.
+          // The report leaves the station sealed and goes into the counter's slot; the reply comes back out onto the desk.
           return beats(c, () => [
-            ...pass(c, 'report:slip', slipToken(s), [TRAY_AT, SEAL_AT], { appear: 0.2, move: 0.6, leave: 0.15 }),
-            ...pass(c, 'report:sent', requestToken(s), [SEAL_AT, SLOT_AT], { appear: 0.15, move: 0.8, leave: 0.2 }),
-            ...pass(c, 'report:reply', noteToken(s), [SLOT_AT, NOTE_AT], { appear: 0.2, move: 0.8, leave: 0.2 }),
+            ...pass(c, 'report:sent', requestToken(s), [SEAL_AT, SLOT_AT], { appear: 0.15, move: 0.7, leave: 0.2 }),
+            ...pass(c, 'report:reply', noteToken(s), [SLOT_AT, NOTE_AT], { appear: 0.15, move: 0.6, leave: 0.2 }),
           ], { fresh: FRESH });
         case 'sort':
           // A note lying on the desk is torn into strips where it lies; the skill card is laid there first.
@@ -125,7 +128,11 @@ export default class Coverage extends Scene<World, {}> {
       },
       next,
       views: [world],
-      runTime: ({ event, after: a }) => ({ probe: 2.75, read: 2.2, report: 4.0, sort: event === 'use skill' ? (a.company === 'hostile' ? 5.15 : 4.8) : 4.0, told: 0.7 })[kindOf(event, a)],
+      runTime: ({ event, after: a }) => {
+        // Each is the sum of its beats: the leaves (0.3), the flights, the settle (0.45).
+        const beat = 0.8, sort = 0.75 + beat + (a.company === 'hostile' ? beat : 0) + beat + (event === 'use skill' ? 0.75 + (a.company === 'hostile' ? 1.2 : 0) : 0);
+        return ({ probe: 2.75, read: 2.2, report: 2.75, sort, told: 0.7 })[kindOf(event, a)];
+      },
       transition: Object.fromEntries(COVERAGE_EVENTS.map((e) => [e, motion])) as Record<CoverageEvent, typeof motion>,
     });
 
