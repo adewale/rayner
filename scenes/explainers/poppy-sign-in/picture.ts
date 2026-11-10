@@ -1,4 +1,4 @@
-import { Circle, Group, Polygon, Rectangle } from '../../../src/index.ts';
+import { Circle, Group, Polygon, Rectangle, keyed as keyedAs } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
@@ -52,21 +52,21 @@ export const YOU_AT: Vec = [-7.2, STRIP_Y];
 export const PASSWORD_AT: Vec = [-6.0, STRIP_Y];
 export const SLIP_AT: Vec = [-3.55, STRIP_Y];
 /** The agent's station, bottom left. */
-const STATION: Vec = [-6.3, -3.0];
+const STATION: Vec = [-6.3, -2.86];
 const STATION_R = 0.72;
 export const SEAL_AT: Vec = STATION;
 /** The agent's keyring, beside its station: the ring, the key on it, and the tag on a cord below. */
-const RING_AT: Vec = [-5.22, -2.42];
-export const KEY_AT: Vec = [-4.06, -2.42];
-const KEY_SIZE = 0.95;
-export const TAG_AT: Vec = [-2.6, -3.42];
+const RING_AT: Vec = [-5.22, -2.2];
+export const KEY_AT: Vec = [-3.86, -2.2];
+const KEY_SIZE = 1.15;
+export const TAG_AT: Vec = [-2.6, -3.48];
 export const THIEF_AT: Vec = [-1.2, STRIP_Y];
 /** Where the address bar is: an authorization request arrives there. */
 export const ADDRESS_AT: Vec = [(WIN.left + WIN.right) / 2, WIN.top - WIN.bar / 2];
 /** Where a code leaves the page for the agent's redirect. */
 export const PAGE_OUT: Vec = [-2.4, 0.0];
 /** Where the readout starts: behind the counter, under the scopes. */
-const READ_X = 0.75, READ_Y = -1.62;
+const READ_X = 0.4, READ_Y = -1.62;
 
 const scopesOf = (scopes: readonly Scope[]) => scopes.join(' ');
 const briefly = (scopes: readonly Scope[]) => (scopes.length > 1 ? 'both scopes' : 'orders:read only');
@@ -153,12 +153,12 @@ const outline = (points: Vec[], fill: string) => new Polygon(points, { fill, str
 export function tag(s: Stage, { at, value, foreign = false }: { at: Vec; value: string | null; foreign?: boolean }): Group {
   const text = value ? words(s, value, { mono: true, bold: true, color: TONE.print }) : null;
   const name = value ? words(s, 'refresh token', { color: TONE.print }) : null;
-  const w = text && name ? Math.max(text.width(), name.width()) + 1.0 : 1.0, h = value ? 1.24 : 0.8, [x, y] = at, l = x - w / 2, r = x + w / 2, t = y + h / 2, b = y - h / 2, cut = 0.3;
+  const w = text && name ? Math.max(text.width(), name.width()) + 1.0 : 1.0, h = value ? 1.44 : 0.8, [x, y] = at, l = x - w / 2, r = x + w / 2, t = y + h / 2, b = y - h / 2, cut = 0.3;
   const parts: Mobject[] = [
     outline([[l + cut, t], [r - RADIUS.ticket, t], [r, t - RADIUS.ticket], [r, b + RADIUS.ticket], [r - RADIUS.ticket, b], [l + cut, b], [l, y - 0.12], [l, y + 0.12]], TONE.paper),
     new Circle({ radius: 0.12, fill: TONE.ground, stroke: foreign ? TONE.pewterDeep : TONE.brassDeep, strokeWidth: STROKE.fine }).moveTo([l + 0.3, value ? t - 0.3 : y]),
   ];
-  if (text && name) parts.push(name.moveTo([l + 0.62, y + 0.25], [-1, 0]), text.moveTo([l + 0.62, y - 0.27], [-1, 0]));
+  if (text && name) parts.push(name.moveTo([l + 0.62, y + 0.36], [-1, 0]), text.moveTo([l + 0.62, y - 0.36], [-1, 0]));
   if (foreign) parts.push(seal(s, { at: [r - 0.38, y], r: 0.26, foreign: true }));
   return new Group(...parts);
 }
@@ -210,18 +210,19 @@ export const codeToken = (s: Stage): Mobject => codeSlip(s, { code: 'c_5Rm2' });
 // The picture
 
 /** The window or phone the Company's page shows in, and the page itself, joined to the counter. */
-function hatch(s: Stage, parts: Parts, flow: Flow, host: string) {
+function hatch(s: Stage, parts: Parts, flow: Flow, host: string, open = true) {
   const w = WIN.right - WIN.left, h = WIN.top - WIN.bottom, cx = (WIN.left + WIN.right) / 2, cy = (WIN.top + WIN.bottom) / 2;
   const device = flow === 'device';
-  const address = words(s, host, { mono: true, at: [cx, WIN.top - WIN.bar / 2], align: 'middle' });
+  const address = words(s, host, { mono: true, at: [cx, WIN.top - WIN.bar / 2], align: 'middle', color: open ? TONE.ink : TONE.soft });
   const frame: Mobject[] = [
-    new Rectangle({ width: w, height: h, fill: TONE.ground, stroke: TONE.ink, strokeWidth: device ? STROKE.line : STROKE.fine, cornerRadius: device ? RADIUS.device : RADIUS.panel }).moveTo([cx, cy]),
+    new Rectangle({ width: w, height: h, fill: TONE.ground, stroke: open ? TONE.ink : TONE.steel, strokeWidth: device ? STROKE.line : STROKE.fine, cornerRadius: device ? RADIUS.device : RADIUS.panel }).moveTo([cx, cy]),
     new Rectangle({ width: address.width() + 0.5, height: 0.6, fill: TONE.raised, stroke: 'none', cornerRadius: 0.3 }).moveTo([cx, WIN.top - WIN.bar / 2]),
   ];
   if (device) frame.push(new Rectangle({ width: 0.07, height: 0.5, fill: TONE.steel, stroke: 'none', cornerRadius: 0.035 }).moveTo([WIN.left + 0.13, cy - 0.3]));
   parts.add(new Group(...frame), 'window:frame');
   parts.add(address, 'window:host');
   // The page, in the Company's tone, running out through the window's right edge into the counter.
+  if (!open) return;
   const pageTop = WIN.top - WIN.bar - 0.08, pageBottom = WIN.bottom + 0.14, pageLeft = WIN.left + (device ? 0.3 : 0.14);
   parts.add(new Group(
     new Rectangle({ width: WIN.right - pageLeft, height: pageTop - pageBottom, fill: TONE.raised, stroke: 'none', cornerRadius: 0.08 }).moveTo([(pageLeft + WIN.right) / 2, (pageTop + pageBottom) / 2]),
@@ -236,7 +237,7 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
   const report = reportOf(w, shown), last = w.last, device = w.flow === 'device';
 
   // Top left: your browser or phone, with the Company's page in it when a sign-in is open.
-  hatch(s, parts, w.flow, 'auth.example.com');
+  hatch(s, parts, w.flow, 'auth.example.com', !!w.sign);
   addAll(parts, counter(s, { x: FACE, top: MARGIN.top, bottom: COUNTER_BOTTOM }));
   if (w.sign) {
     parts.add(words(s, 'Example Company', { at: [PAGE_X, ROW.title], bold: true }), 'page:title');
@@ -290,21 +291,21 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
 /**
  * The agent's keyring beside its station: a brass ring on a short bar from the station; on it the
  * key (with one tooth per scope it holds, or the empty slot for one) and, on a cord, the tag.
- * Keyed parts: `agent:ring`, `agent:key:slot`, `agent:key`, `agent:key:name`, `tag:cord`, `tag`.
+ * Keyed parts: `agent:ring`, `agent:key:slot`, `agent:key`, `tag:cord`, `tag`.
  */
 function keyring(s: Stage, teeth: number, card: string | null): Mobject[] {
-  const keyed = (m: Mobject, k: string) => { m.key = k; return m; };
+  const EDGE = STATION[0] + Math.sqrt(Math.max(0, STATION_R ** 2 - (RING_AT[1] - STATION[1]) ** 2)) - 0.04;
+  const keyed = <T extends Mobject>(m: T, k: string): T => keyedAs(m, k);
   const out: Mobject[] = [
     keyed(new Group(
-      new Rectangle({ width: RING_AT[0] - 0.2 - (STATION[0] + STATION_R) + 0.04, height: 0.08, fill: TONE.brassDeep, stroke: 'none' }).moveTo([(RING_AT[0] - 0.2 + STATION[0] + STATION_R) / 2, RING_AT[1]]),
+      new Rectangle({ width: RING_AT[0] - 0.2 - EDGE + 0.04, height: 0.08, fill: TONE.brassDeep, stroke: 'none' }).moveTo([(RING_AT[0] - 0.2 + EDGE) / 2, RING_AT[1]]),
       new Circle({ radius: 0.2, fill: 'none', stroke: TONE.brass, strokeWidth: STROKE.line }).moveTo(RING_AT),
     ), 'agent:ring'),
     keyed(key(s, { at: KEY_AT, size: KEY_SIZE, teeth: Math.max(1, teeth), ghost: true }), 'agent:key:slot'),
-    keyed(words(s, 'access token', { at: [KEY_AT[0] + 1.2, KEY_AT[1]], color: TONE.soft }), 'agent:key:name'),
   ];
   if (teeth > 0) out.push(keyed(key(s, { at: KEY_AT, size: KEY_SIZE, teeth }), 'agent:key'));
   if (card) {
-    const t = tag(s, { at: TAG_AT, value: card }), hole: Vec = [t.center()[0]! - t.width() / 2 + 0.3, TAG_AT[1] + 0.62 - 0.3];
+    const t = tag(s, { at: TAG_AT, value: card }), hole: Vec = [t.center()[0]! - t.width() / 2 + 0.3, TAG_AT[1] + 0.72 - 0.3];
     const from: Vec = [RING_AT[0], RING_AT[1] - 0.2];
     const dx = hole[0] - from[0], dy = hole[1] - from[1], len = Math.hypot(dx, dy), nx = (-dy / len) * 0.035, ny = (dx / len) * 0.035;
     out.push(keyed(outline([[from[0] + nx, from[1] + ny], [hole[0] + nx, hole[1] + ny], [hole[0] - nx, hole[1] - ny], [from[0] - nx, from[1] - ny]], TONE.brassDeep), 'tag:cord'));
@@ -346,9 +347,10 @@ function drawShortcut(s: Stage, parts: Parts): Group {
   // You, with nothing in hand; the agent, holding your password.
   parts.add(person(s, { at: YOU_AT, size: 0.86 }), 'you');
   addAll(parts, station(s, { at: STATION, r: STATION_R }));
-  addAll(parts, keyring(s, 0, null));
-  parts.add(passwordCard(s, { at: [TAG_AT[0] - 1.3, TAG_AT[1]] }), 'agent:password');
-  parts.add(words(s, 'your password', { at: [TAG_AT[0] - 0.4, TAG_AT[1]], color: TONE.soft }), 'agent:password:label');
+  // On the agent's keyring, where a key would hang, your password.
+  addAll(parts, keyring(s, 0, null).filter((m) => m.key !== 'agent:key:slot'));
+  parts.add(passwordCard(s, { at: [RING_AT[0] + 0.85, RING_AT[1]] }), 'agent:password');
+  parts.add(words(s, 'your password', { at: [RING_AT[0] + 1.7, RING_AT[1]], color: TONE.soft }), 'agent:password:label');
   readout(s, parts, reportOf({ flow: 'direct', sign: null, holds: null, ended: false, last: null }, { password: true }));
   return parts.group();
 }

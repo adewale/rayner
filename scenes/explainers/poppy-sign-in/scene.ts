@@ -14,7 +14,7 @@ import type { Shown } from './picture.ts';
 /** Parts that belong to the last event: they go before the next event's motion. */
 const FRESH = ['answer:', 'trick', 'barrier', 'thief'];
 /** The Company's page, which opens after the request reaches it. */
-const PAGE = ['page:title', 'page:field', 'page:hint', 'page:orders:read:box', 'page:orders:read:line', 'page:orders:write:box', 'page:orders:write:line'];
+const PAGE = ['window:page', 'page:title', 'page:field', 'page:hint', 'page:orders:read:box', 'page:orders:read:line', 'page:orders:write:box', 'page:orders:write:line'];
 
 // Signing in, as a machine: each step of Direct or Device Sign-In, a trick, a thief, sign-out and
 // disconnecting are events of the tested model; the picture is a view of its state; the last step

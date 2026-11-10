@@ -62,8 +62,8 @@ export default class Sessions extends Scene<SealWorld, Shown> {
     const check = (t: Transition<SealWorld, Tamper>) => {
       const c = t.choreograph(world), from = SOURCE[sourceOf(t.event)];
       return beats(c, () => {
-        const punches = punchOrder().filter((k) => c.has(k, 'to')).map((k) => c.enter(k, {}, { runTime: 0.16 }));
-        return [...flight(c, 'ticket', [from], { appear: 0.2, move: 0.8, leave: 0.15 })(), ...punches];
+        const punches = punchOrder().filter((k) => c.has(k, 'to')).map((k) => c.enter(k, {}, { runTime: 0.08 }));
+        return [...flight(c, 'ticket', [from], { appear: 0.15, move: 0.7, leave: 0.12 })(), ...punches];
       }, { fresh: ['verdict:', 'ticket', 'hole', 'tear', 'link'] });
     };
     const machine = new Machine<SealWorld, Tamper>(this, {
@@ -75,7 +75,7 @@ export default class Sessions extends Scene<SealWorld, Shown> {
       },
       next,
       views: [world],
-      runTime: () => 3.4,
+      runTime: () => 2.6,
       transition: Object.fromEntries(TAMPERS.map((t) => [t, check])),
     });
 

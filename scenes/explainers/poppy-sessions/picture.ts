@@ -55,8 +55,8 @@ const LINK_SPAN: Record<LinkId, [number, number]> = { client: [3.02, 2.48], dele
 const SHEET_AT: Vec = [AXIS, 3.55], RING_AT: Vec = [AXIS, 1.98], CERT_AT: Vec = [-5.52, 0.3], DIE_Y = TK.bottom + 0.15;
 /** The wax seal on the ticket's lower-left corner, which the die pressed. */
 export const SEAL_AT: Vec = [TK.left, DIE_Y];
-/** Where a ticket comes from: under the die (the agent, or someone holding its key), up from below (a copy), down from above (another Company). */
-export const SOURCE: Record<'agent' | 'copy' | 'company', Vec> = { agent: [-4.6, DIE_Y], copy: [0.9, -5.6], company: [5.6, 5.4] };
+/** Where a ticket's centre comes from: out from the die's corner (the agent, or someone holding its key), up from below the stage (a copy), down from above it (another Company). */
+export const SOURCE: Record<'agent' | 'copy' | 'company', Vec> = { agent: [-0.1, -2.1], copy: [0.92, -8.6], company: [2.4, 8.6] };
 /** The resting centre of the ticket. */
 export const TICKET_AT: Vec = [(TK.left + TK.right) / 2, (TK.top + TK.bottom) / 2];
 const RIGHT_X = 4.95;

@@ -4,7 +4,7 @@ import { answerOf, isRefusal, stage, Machine, view } from '../../../explain/inde
 import type { Choreography, ExplainerMeta, Transition } from '../../../explain/index.ts';
 import { beats, flight } from '../lib/poppy-kit.ts';
 import type { Beat } from '../lib/poppy-kit.ts';
-import { EVENTS, STORY, next, progress, start } from './model.ts';
+import { EVENTS, GATE_NAME, STORY, next, progress, start } from './model.ts';
 import type { DiscoveryEvent, World } from './model.ts';
 import { PALETTE, drawWorld, sayWorld } from './picture.ts';
 
@@ -116,7 +116,7 @@ export default class PoppyDiscovery extends Scene<World, {}> {
     await this.step('copy', {
       title: 'A copy on a lookalike domain',
       line: 'Refused: it names example.com, not examp1e.com.',
-      caption: `The first forger copies example.com’s file to examp1e.com and points the API address at its own server. The file is at the right path, over HTTPS. But it still says example.com, and examp1e.com served it, so the agent refuses it at the ${copy.accepted ? '' : copy.gate === 'read' ? 'domain' : copy.gate} check. Change the letterhead to examp1e.com and the file speaks for examp1e.com, which is no use to a forger.`,
+      caption: `The first forger copies example.com’s file to examp1e.com and points the API address at its own server. The file is at the right path, over HTTPS. But it still says example.com, and examp1e.com served it, so the agent refuses it at the ${copy.accepted ? 'no' : GATE_NAME[copy.gate]} check. Change the letterhead to examp1e.com and the file speaks for examp1e.com, which is no use to a forger.`,
     });
     await play(3);
 

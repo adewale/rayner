@@ -3,7 +3,7 @@ import type { Mobject, Vec } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
 import {
-  MARGIN, PALETTE as KIT_PALETTE, RADIUS, STROKE, TICKET, TONE, TYPE,
+  MARGIN, PALETTE as KIT_PALETTE, RADIUS, TICKET, TONE, TYPE,
   addAll, barrier, counter, instructionCard, lane, laneRoute, sheet, speech, station, stationExit, stationHolds, ticket, words,
 } from '../lib/poppy-kit.ts';
 import { asksOf, keyOf, TASKS } from './model.ts';
@@ -164,8 +164,9 @@ function board(s: Stage, read: boolean, marked: boolean): Mobject[] {
 function feedbackBox(holds: boolean): Group {
   return new Group(
     ...(holds ? [new Rectangle({ width: 0.5, height: 0.34, fill: TONE.paper, stroke: 'none' }).moveTo([BOX[0], BOX[1] + 0.32])] : []),
-    new Rectangle({ width: 1.3, height: 0.86, fill: TONE.raised, stroke: TONE.ink, strokeWidth: STROKE.fine, cornerRadius: RADIUS.ticket }).moveTo(BOX),
-    new Rectangle({ width: 0.7, height: 0.1, fill: TONE.ground, stroke: 'none', cornerRadius: 0.05 }).moveTo([BOX[0], BOX[1] + 0.22]),
+    new Rectangle({ width: 1.3, height: 0.86, fill: TONE.steel, stroke: 'none', cornerRadius: RADIUS.ticket }).moveTo(BOX),
+    new Rectangle({ width: 1.44, height: 0.16, fill: TONE.soft, stroke: 'none', cornerRadius: 0.04 }).moveTo([BOX[0], BOX[1] + 0.43]),
+    new Rectangle({ width: 0.7, height: 0.1, fill: TONE.ground, stroke: 'none', cornerRadius: 0.05 }).moveTo([BOX[0], BOX[1] + 0.2]),
   );
 }
 
@@ -180,7 +181,6 @@ function tray(): Group {
   const w = TRAY.right - TRAY.left, h = TRAY.top - TRAY.bottom;
   return new Group(
     new Rectangle({ width: w, height: h, fill: TONE.raised, stroke: 'none', cornerRadius: RADIUS.panel }).moveTo([TRAY.left + w / 2, TRAY.bottom + h / 2]),
-    new Rectangle({ width: w - 0.24, height: h - 0.24, fill: 'none', stroke: TONE.rule, strokeWidth: STROKE.fine, cornerRadius: RADIUS.panel - 0.06 }).moveTo([TRAY.left + w / 2, TRAY.bottom + h / 2]),
   );
 }
 
@@ -246,7 +246,7 @@ export function drawWorld(w: World, s: Stage): Group {
   if (seenChanged) emphasised(seenValue, `changed: the shop sees ${seen}`);
   parts.add(desk(), 'desk');
   if (last?.kind === 'searched' && w.gift !== 'reported' && w.gift !== 'paid')
-    parts.add(words(s, 'and never learns why', { at: [(COUNTER_X + 0.62 + MARGIN.right) / 2, -2.1], size: TYPE.label, color: TONE.soft, align: 'middle' }), 'desk:why');
+    parts.add(words(s, 'and never learns why', { at: [MARGIN.right, -0.45], color: TONE.soft, align: 'end' }), 'desk:why');
 
   // The agent's model: the tray, and what is on it.
   parts.add(tray(), 'tray');

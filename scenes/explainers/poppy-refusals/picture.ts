@@ -147,7 +147,7 @@ function remedyObject(s: Stage, fix: Fix, x: number): Group {
         new Rectangle({ width: 0.3, height: 0.08, fill: TONE.ink, stroke: 'none' }).moveTo(p), new Rectangle({ width: 0.08, height: 0.3, fill: TONE.ink, stroke: 'none' }).moveTo(p));
     }
     case 'reread':
-      return sheet(s, { at: [x, y], width: 0.6, height: 0.74, lines: 3 });
+      return sheet(s, { at: [x, y], width: 0.62, height: 0.8, lines: 1 });
     case 'wait': {
       // An hourglass.
       const h = 0.36, wd = 0.27;
@@ -210,7 +210,7 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
     const mcpTicket = last.trouble === 'mcp' && docked;
     parts.add(ticket(s, { at, keyTeeth: teeth }), 'ticket');
     if (mcpTicket) parts.add(serviceKey(s, { at: [l + 1.46, at[1] + 0.05], size: 0.52, teeth: 2, onPaper: true }), 'ticket:key');
-    if (refused && last.trouble === 'expire') parts.add(clock(s, { at: [l + TICKET.width - 0.3, at[1] + 0.12], r: 0.24, remaining: 0 }), 'ticket:mark');
+    if (refused && last.trouble === 'expire') parts.add(clock(s, { at: [l + 1.12, at[1] + 0.05], r: 0.24, remaining: 0 }), 'ticket:mark');
     if (refused && last.trouble === 'delegation') {
       const c: Vec = [l + 0.4, at[1]];
       parts.add(poly([[c[0] - 0.05, c[1] + 0.3], [c[0] + 0.06, c[1] + 0.08], [c[0] - 0.06, c[1] - 0.02], [c[0] + 0.07, c[1] - 0.3], [c[0] + 0.01, c[1] - 0.02], [c[0] + 0.12, c[1] + 0.08], [c[0] + 0.02, c[1] + 0.3]], TONE.ground), 'ticket:mark');
