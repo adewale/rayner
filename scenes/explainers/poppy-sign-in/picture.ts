@@ -4,7 +4,7 @@ import type { Stage } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
 import {
   MARGIN, PALETTE as KIT_PALETTE, RADIUS, STROKE, TONE, TYPE,
-  addAll, barrier, codeSlip, counter, person, seal, station, stationHolds, ticket, words,
+  addAll, barrier, codeSlip, counter, key, person, seal, station, ticket, words,
 } from '../lib/poppy-kit.ts';
 import type { Parts } from '../lib/poppy-kit.ts';
 import { SID, USER_IDS } from '../poppy/model.ts';
@@ -54,17 +54,19 @@ export const SLIP_AT: Vec = [-3.55, STRIP_Y];
 /** The agent's station, bottom left. */
 const STATION: Vec = [-6.3, -3.0];
 const STATION_R = 0.72;
-const HOLDS = stationHolds(STATION, STATION_R);
-export const SEAL_AT: Vec = HOLDS.seal;
-export const KEY_AT: Vec = HOLDS.key;
-export const TAG_AT: Vec = [-3.55, -2.72];
+export const SEAL_AT: Vec = STATION;
+/** The agent's keyring, beside its station: the ring, the key on it, and the tag on a cord below. */
+const RING_AT: Vec = [-5.22, -2.42];
+export const KEY_AT: Vec = [-4.06, -2.42];
+const KEY_SIZE = 0.95;
+export const TAG_AT: Vec = [-2.6, -3.42];
 export const THIEF_AT: Vec = [-1.2, STRIP_Y];
 /** Where the address bar is: an authorization request arrives there. */
 export const ADDRESS_AT: Vec = [(WIN.left + WIN.right) / 2, WIN.top - WIN.bar / 2];
 /** Where a code leaves the page for the agent's redirect. */
 export const PAGE_OUT: Vec = [-2.4, 0.0];
 /** Where the readout starts: behind the counter, under the scopes. */
-const READ_X = 0.4, READ_Y = -1.62;
+const READ_X = 0.75, READ_Y = -1.62;
 
 const scopesOf = (scopes: readonly Scope[]) => scopes.join(' ');
 const briefly = (scopes: readonly Scope[]) => (scopes.length > 1 ? 'both scopes' : 'orders:read only');
@@ -150,12 +152,13 @@ const outline = (points: Vec[], fill: string) => new Polygon(points, { fill, str
  */
 export function tag(s: Stage, { at, value, foreign = false }: { at: Vec; value: string | null; foreign?: boolean }): Group {
   const text = value ? words(s, value, { mono: true, bold: true, color: TONE.print }) : null;
-  const w = text ? text.width() + 1.05 : 1.0, h = 0.8, [x, y] = at, l = x - w / 2, r = x + w / 2, t = y + h / 2, b = y - h / 2, cut = 0.3;
+  const name = value ? words(s, 'refresh token', { color: TONE.print }) : null;
+  const w = text && name ? Math.max(text.width(), name.width()) + 1.0 : 1.0, h = value ? 1.24 : 0.8, [x, y] = at, l = x - w / 2, r = x + w / 2, t = y + h / 2, b = y - h / 2, cut = 0.3;
   const parts: Mobject[] = [
     outline([[l + cut, t], [r - RADIUS.ticket, t], [r, t - RADIUS.ticket], [r, b + RADIUS.ticket], [r - RADIUS.ticket, b], [l + cut, b], [l, y - 0.12], [l, y + 0.12]], TONE.paper),
-    new Circle({ radius: 0.12, fill: TONE.ground, stroke: foreign ? TONE.pewterDeep : TONE.brassDeep, strokeWidth: STROKE.fine }).moveTo([l + 0.3, y]),
+    new Circle({ radius: 0.12, fill: TONE.ground, stroke: foreign ? TONE.pewterDeep : TONE.brassDeep, strokeWidth: STROKE.fine }).moveTo([l + 0.3, value ? t - 0.3 : y]),
   ];
-  if (text) parts.push(text.moveTo([l + 0.62, y], [-1, 0]));
+  if (text && name) parts.push(name.moveTo([l + 0.62, y + 0.25], [-1, 0]), text.moveTo([l + 0.62, y - 0.27], [-1, 0]));
   if (foreign) parts.push(seal(s, { at: [r - 0.38, y], r: 0.26, foreign: true }));
   return new Group(...parts);
 }
@@ -263,7 +266,7 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
   parts.add(words(s, 'can’t be undone', { at: [RACK_X, ROW['orders:write'] - 0.7], color: TONE.soft }), 'rack:hint');
 
   // The strip under the window: you; your password unless it is on the page; the card or slip in between.
-  parts.add(person(s, { at: YOU_AT, size: 0.72 }), 'you');
+  parts.add(person(s, { at: YOU_AT, size: 0.86 }), 'you');
   if (!w.sign?.approved) parts.add(passwordCard(s, { at: PASSWORD_AT }), 'you:password');
   if (device && w.sign && !w.sign.approved) parts.add(deviceCard(s, SLIP_AT, false), 'card');
   if (last?.kind === 'trick') {
@@ -271,21 +274,43 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
     parts.add(device ? deviceCard(s, [SLIP_AT[0] + 0.15, SLIP_AT[1]], true) : swappedSlip(s, [SLIP_AT[0] - 0.2, SLIP_AT[1]]), 'trick');
   }
 
-  // Bottom left: the agent, its seal and key, and its tag.
-  const agent = station(s, { at: STATION, r: STATION_R, keyTeeth: w.holds ? w.holds.scopes.length : 0 });
-  const held = agent.find((m) => m.key === 'agent:key');
+  // Bottom left: the agent, its seal, and its keyring: the key (access token) and the tag (refresh token).
+  addAll(parts, station(s, { at: STATION, r: STATION_R }));
+  const ring = keyring(s, w.holds ? w.holds.scopes.length : 0, w.holds ? CARDS[w.holds.card] : null);
+  const held = ring.find((m) => m.key === 'agent:key');
   if (held && last?.kind === 'tokens') emphasised(held, `changed: the agent holds a key for ${scopesOf(w.holds!.scopes)}`);
-  addAll(parts, agent);
-  if (w.holds) {
-    parts.add(new Rectangle({ width: TAG_AT[0] - 1.45 - (STATION[0] + STATION_R) + 0.1, height: 0.06, fill: TONE.brassDeep, stroke: 'none' }).moveTo([(STATION[0] + STATION_R + TAG_AT[0] - 1.45) / 2, TAG_AT[1]]), 'tag:cord');
-    parts.add(tag(s, { at: TAG_AT, value: CARDS[w.holds.card] }), 'tag');
-    parts.add(words(s, 'refresh token', { at: [TAG_AT[0], TAG_AT[1] - 0.72], color: TONE.soft, align: 'middle' }), 'tag:label');
-  }
+  addAll(parts, ring);
   if (last?.kind === 'thief') parts.add(tag(s, { at: THIEF_AT, value: null, foreign: true }), 'thief');
 
   // Bottom right: what happened last.
   readout(s, parts, report);
   return parts.group();
+}
+
+/**
+ * The agent's keyring beside its station: a brass ring on a short bar from the station; on it the
+ * key (with one tooth per scope it holds, or the empty slot for one) and, on a cord, the tag.
+ * Keyed parts: `agent:ring`, `agent:key:slot`, `agent:key`, `agent:key:name`, `tag:cord`, `tag`.
+ */
+function keyring(s: Stage, teeth: number, card: string | null): Mobject[] {
+  const keyed = (m: Mobject, k: string) => { m.key = k; return m; };
+  const out: Mobject[] = [
+    keyed(new Group(
+      new Rectangle({ width: RING_AT[0] - 0.2 - (STATION[0] + STATION_R) + 0.04, height: 0.08, fill: TONE.brassDeep, stroke: 'none' }).moveTo([(RING_AT[0] - 0.2 + STATION[0] + STATION_R) / 2, RING_AT[1]]),
+      new Circle({ radius: 0.2, fill: 'none', stroke: TONE.brass, strokeWidth: STROKE.line }).moveTo(RING_AT),
+    ), 'agent:ring'),
+    keyed(key(s, { at: KEY_AT, size: KEY_SIZE, teeth: Math.max(1, teeth), ghost: true }), 'agent:key:slot'),
+    keyed(words(s, 'access token', { at: [KEY_AT[0] + 1.2, KEY_AT[1]], color: TONE.soft }), 'agent:key:name'),
+  ];
+  if (teeth > 0) out.push(keyed(key(s, { at: KEY_AT, size: KEY_SIZE, teeth }), 'agent:key'));
+  if (card) {
+    const t = tag(s, { at: TAG_AT, value: card }), hole: Vec = [t.center()[0]! - t.width() / 2 + 0.3, TAG_AT[1] + 0.62 - 0.3];
+    const from: Vec = [RING_AT[0], RING_AT[1] - 0.2];
+    const dx = hole[0] - from[0], dy = hole[1] - from[1], len = Math.hypot(dx, dy), nx = (-dy / len) * 0.035, ny = (dx / len) * 0.035;
+    out.push(keyed(outline([[from[0] + nx, from[1] + ny], [hole[0] + nx, hole[1] + ny], [hole[0] - nx, hole[1] - ny], [from[0] - nx, from[1] - ny]], TONE.brassDeep), 'tag:cord'));
+    out.push(keyed(t, 'tag'));
+  }
+  return out;
 }
 
 /** A code slip from another Company's sign-in: the kit's slip, with a PEWTER issuer stamp: someone else's. */
@@ -319,10 +344,11 @@ function drawShortcut(s: Stage, parts: Parts): Group {
   parts.add(words(s, 'you', { at: [RACK_X + 1.45, 1.45], size: TYPE.title, bold: true }), 'sees:who');
   parts.add(words(s, 'not your agent', { at: [RACK_X, 0.2], color: TONE.soft }), 'sees:not');
   // You, with nothing in hand; the agent, holding your password.
-  parts.add(person(s, { at: YOU_AT, size: 0.72 }), 'you');
-  addAll(parts, station(s, { at: STATION, r: STATION_R, keyTeeth: 0 }));
-  parts.add(passwordCard(s, { at: TAG_AT }), 'agent:password');
-  parts.add(words(s, 'your password', { at: [TAG_AT[0], TAG_AT[1] - 0.72], color: TONE.soft, align: 'middle' }), 'agent:password:label');
+  parts.add(person(s, { at: YOU_AT, size: 0.86 }), 'you');
+  addAll(parts, station(s, { at: STATION, r: STATION_R }));
+  addAll(parts, keyring(s, 0, null));
+  parts.add(passwordCard(s, { at: [TAG_AT[0] - 1.3, TAG_AT[1]] }), 'agent:password');
+  parts.add(words(s, 'your password', { at: [TAG_AT[0] - 0.4, TAG_AT[1]], color: TONE.soft }), 'agent:password:label');
   readout(s, parts, reportOf({ flow: 'direct', sign: null, holds: null, ended: false, last: null }, { password: true }));
   return parts.group();
 }

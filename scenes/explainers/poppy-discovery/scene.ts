@@ -55,8 +55,10 @@ export default class PoppyDiscovery extends Scene<World, {}> {
           return [...first, ...sheet];
         }
         if (gate === 2) return [...bring(c, ['sheet:head']), ...together(bring(c, ['shop:mark', 'sheet:mark']) as Animation[])];
-        if (gate === 3) return [...bring(c, ['out:line', 'out:head', 'out:plate', 'out:label', 'out:code', 'out:note'], ['out:line']), ...together(bring(c, ['register:title', 'register:page']) as Animation[])];
-        return [...bring(c, ['register:row:0', 'register:row:1', 'register:slot', 'register:slot:text', 'back:ghost', 'back:line', 'back:head', 'back:label'], ['back:line', 'back:ghost'])];
+        const g = (keys: readonly string[], create: readonly string[] = []) => together(bring(c, keys, create) as Animation[]);
+        if (gate === 3) return [...g(['out:line'], ['out:line']), ...g(['out:head', 'out:plate', 'out:label', 'out:code', 'out:note']), ...g(['register:title', 'register:page'])];
+        // The issuer's rows; then either the arrow back to the shop, or the empty slot and the ghost of an arrow that never arrives.
+        return [...g(['register:row:0', 'register:row:1']), ...g(['register:slot', 'register:slot:text', 'back:ghost', 'back:line'], ['back:line', 'back:ghost']), ...g(['back:head', 'back:label'])];
       };
       return beats(c, thunk, { fresh: ['verdict:'], then: ['rail:barrier'], lead: ['url:lock', 'url:host', 'url:path'] });
     };
