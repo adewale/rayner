@@ -303,16 +303,18 @@ export type CounterOptions = {
 };
 
 /**
- * The Company's counter, its edge, seen end on: a RAISED slab 0.46 wide whose face (the side the
- * agent's lanes arrive at, on the left) is an INK band, under an INK counter top that overhangs
- * both sides. Stops sit on the face (see `stop`). One keyed part, `<key>`, a Group.
+ * The Company's counter, its edge, seen from above as the lanes are: a RAISED slab 0.46 wide
+ * whose face, the side the agent's lanes arrive at (on the left), is a heavy INK band, with an
+ * INK return at each end. Stops sit on the face (see `stop`); what the Company keeps (its ledger)
+ * stands behind it, to the right. One keyed part, `<key>`, a Group.
  */
 export function counter(_s: Stage, { x, top, bottom, key: k = 'counter' }: CounterOptions): Mobject[] {
   const h = top - bottom, cy = (top + bottom) / 2;
   return [keyedAs(new Group(
-    new Rectangle({ width: 0.46, height: h - 0.1, fill: TONE.raised, stroke: 'none' }).moveTo([x + 0.23, cy - 0.05]),
-    new Rectangle({ width: 0.12, height: h - 0.1, fill: TONE.ink, stroke: 'none' }).moveTo([x + 0.06, cy - 0.05]),
-    new Rectangle({ width: 0.78, height: 0.16, fill: TONE.ink, stroke: 'none', cornerRadius: 0.03 }).moveTo([x + 0.22, top - 0.08]),
+    new Rectangle({ width: 0.46, height: h, fill: TONE.raised, stroke: 'none', cornerRadius: 0.04 }).moveTo([x + 0.23, cy]),
+    new Rectangle({ width: 0.13, height: h, fill: TONE.ink, stroke: 'none', cornerRadius: 0.04 }).moveTo([x + 0.065, cy]),
+    new Rectangle({ width: 0.46, height: 0.1, fill: TONE.ink, stroke: 'none', cornerRadius: 0.03 }).moveTo([x + 0.23, top - 0.05]),
+    new Rectangle({ width: 0.46, height: 0.1, fill: TONE.ink, stroke: 'none', cornerRadius: 0.03 }).moveTo([x + 0.23, bottom + 0.05]),
   ), k)];
 }
 
@@ -324,32 +326,42 @@ export type LaneOptions = {
   name: string;
   /** Height of its level run. */
   y: number;
-  /** Where it starts: the station's right-hand point. */
+  /** Where it leaves the station: a point on the roundel's edge (see `stationExit`). */
   from: Vec;
+  /** The x where the station's bundle of lanes ends and this lane fans out to its own height. */
+  trunk: number;
   /** The x where it ends at its stop (the counter's face). */
   to: number;
   /** Where its name starts. */
   nameX: number;
   /** The lane in use: INK, bold, its name bold, its stop filled. Otherwise STEEL. */
   active?: boolean;
-  /** How steeply lanes fan out of the station: horizontal run per unit of rise. Default 0.5. */
+  /** How steeply it fans out: horizontal run per unit of rise. Default 0.45. */
   fan?: number;
 };
 
-/** Where a lane of this height turns level after fanning out of a station at `from`. */
-export const laneBend = (from: Vec, y: number, fan = 0.5): Vec => [from[0] + 0.22 + fan * Math.abs(y - from[1]), y];
+/**
+ * The point on a station's roundel (centre `at`, radius `r`) where a lane leaves it at height
+ * `at.y + dy`: lanes leave a station as a bundle of parallel lines, 0.22 apart.
+ */
+export const stationExit = (at: Vec, r: number, dy: number): Vec => [at[0] + Math.sqrt(Math.max(0, r * r - dy * dy)), at[1] + dy];
+
+/** The corner points of a lane: out of the station, along the bundle to `trunk`, fanned to its height, level to its stop. */
+export function laneRoute({ from, trunk, y, to, fan = 0.45 }: Pick<LaneOptions, 'from' | 'trunk' | 'y' | 'to' | 'fan'>): Vec[] {
+  return [from, [trunk, from[1]], [trunk + fan * Math.abs(y - from[1]), y], [to, y]];
+}
 
 /**
- * One lane of the line map: out of the station's right-hand point, a short run, a fanned bend to
- * its own height, then level to its stop at the counter. Its name is set on the line, signage
- * fashion, on an opaque plate of the ground's colour; its stop is a ringed circle on the counter's
- * face. STEEL when idle; INK and bold when `active`.
+ * One lane of the line map: out of the station in a bundle, fanned to its own height, then level
+ * to its stop at the counter (see `laneRoute`). Its name is set on the line, signage fashion, on an
+ * opaque plate of the ground's colour; its stop is a ringed circle on the counter's face. STEEL
+ * when idle; INK, bold and with a filled stop when `active`.
  * Keyed parts: `lane:<id>:line`, `lane:<id>:plate`, `lane:<id>:name`, `lane:<id>:stop`.
  */
-export function lane(s: Stage, { id, name, y, from, to, nameX, active = false, fan = 0.5 }: LaneOptions): Mobject[] {
-  const colour = active ? TONE.ink : TONE.steel, k = `lane:${id}`;
-  const line = new Line(from, [from[0] + 0.22, from[1]], { stroke: colour, strokeWidth: active ? STROKE.bold : STROKE.line, fill: 'none', lineJoin: 'round', lineCap: 'round' });
-  line.addLineTo(laneBend(from, y, fan)).addLineTo([to, y]);
+export function lane(s: Stage, { id, name, y, from, trunk, to, nameX, active = false, fan = 0.45 }: LaneOptions): Mobject[] {
+  const colour = active ? TONE.ink : TONE.steel, k = `lane:${id}`, [first, ...rest] = laneRoute({ from, trunk, y, to, fan });
+  const line = new Line(first!, rest[0]!, { stroke: colour, strokeWidth: active ? STROKE.bold : STROKE.line, fill: 'none', lineJoin: 'round' });
+  for (const p of rest.slice(1)) line.addLineTo(p);
   const label = words(s, name, { at: [nameX, y], color: active ? TONE.ink : TONE.soft, bold: active });
   const plate = new Rectangle({ width: label.width() + 0.36, height: PLATE_HEIGHT, fill: TONE.ground, stroke: 'none' }).moveTo([nameX + label.width() / 2, y]);
   return [keyedAs(line, `${k}:line`), keyedAs(plate, `${k}:plate`), keyedAs(label, `${k}:name`), keyedAs(stop(s, { at: [to, y], active }), `${k}:stop`)];
@@ -399,19 +411,15 @@ export function ticket(s: Stage, { at = [0, 0], foreign = false, keyTeeth = null
 }
 
 /**
- * A barrier across a lane: an upright boom, 0.24 × `height` (default 1.0), banded INK and
- * ground like a level-crossing arm, with its pivot cap on top. It stands where the Company stops
- * a request. One unkeyed Group.
+ * A barrier across a lane: an upright boom, 0.28 × `height` (default 1.1), with rounded ends,
+ * banded INK and ground like a level-crossing arm. It stands where the Company stops a request,
+ * between the refused ticket and the counter. One unkeyed Group.
  */
-export function barrier(_s: Stage, { at = [0, 0], height = 1.0 }: { at?: Vec; height?: number } = {}): Group {
-  const w = 0.24, n = 5, band = (height - 0.06) / n;
-  const bands = Array.from({ length: n }, (_, i) => i % 2 ? null : new Rectangle({ width: w - 0.06, height: band, fill: TONE.ink, stroke: 'none' }).moveTo([at[0], at[1] + height / 2 - 0.03 - band * (i + 0.5)]))
-    .filter((m): m is Rectangle => m !== null);
-  return new Group(
-    new Rectangle({ width: w, height, fill: TONE.ground, stroke: TONE.ink, strokeWidth: STROKE.fine, cornerRadius: 0.05 }).moveTo(at),
-    ...bands,
-    new Circle({ radius: 0.11, fill: TONE.ink, stroke: 'none' }).moveTo([at[0], at[1] + height / 2 + 0.05]),
-  );
+export function barrier(_s: Stage, { at = [0, 0], height = 1.1 }: { at?: Vec; height?: number } = {}): Group {
+  const w = 0.28, n = 5, inner = height - 0.1, band = inner / n;
+  const bands = Array.from({ length: n }, (_, i) => i).filter((i) => i % 2 === 0)
+    .map((i) => new Rectangle({ width: w - 0.1, height: band, fill: TONE.ink, stroke: 'none', cornerRadius: i === 0 || i === n - 1 ? 0.06 : 0 }).moveTo([at[0], at[1] + inner / 2 - band * (i + 0.5)]));
+  return new Group(new Rectangle({ width: w, height, fill: TONE.ground, stroke: TONE.ink, strokeWidth: STROKE.fine, cornerRadius: w / 2 }).moveTo(at), ...bands);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -590,7 +598,7 @@ export type CertificateOptions = {
  */
 export function certificate(s: Stage, { at = [0, 0], width = 1.7, height = 1.2, title, foreign = false }: CertificateOptions = {}): Group {
   const head = title ? words(s, title, { mono: true, bold: true, color: TONE.print }) : null;
-  const w = Math.max(width, head ? head.width() + 0.7 : 0), h = height, [x, y] = at, l = x - w / 2, t = y + h / 2;
+  const w = Math.max(width, head ? head.width() + 0.7 : 0), h = Math.max(height, head ? 1.45 : 0), [x, y] = at, l = x - w / 2, t = y + h / 2;
   const sealAt: P = [x + w / 2 - 0.42, y - h / 2 + 0.34], ribbon = foreign ? TONE.pewterDeep : TONE.waxDeep;
   const tail = (dx: number): P[] => [add(sealAt, [dx - 0.08, 0]), add(sealAt, [dx + 0.08, 0]), add(sealAt, [dx * 1.6 + 0.1, -0.5]), add(sealAt, [dx * 1.6, -0.4]), add(sealAt, [dx * 1.6 - 0.1, -0.5])];
   const parts: Mobject[] = [
@@ -652,12 +660,13 @@ export type BrowserOptions = {
  * A browser window: a RAISED frame with a fine INK outline and panel radius; a top bar with three
  * STEEL window controls and an address field holding the host in mono TYPE.small; below, the page,
  * with a few STEEL bars standing for its content. The page area is the window less its top 0.92
- * units. Default 4.4 × 2.8 units. One unkeyed Group.
+ * units. Default 4.4 × 2.8 units, widened to hold the host. One unkeyed Group.
  */
 export function browserWindow(s: Stage, { at = [0, 0], width = 4.4, height = 2.8, host = 'example.com', lines = 3 }: BrowserOptions = {}): Group {
+  const probe = words(s, host, { mono: true }), fieldW = probe.width() + 0.5;
+  width = Math.max(width, 1.05 + fieldW + 0.3);
   const [x, y] = at, l = x - width / 2, t = y + height / 2, bar = 0.92;
-  const address = words(s, host, { mono: true, at: [l + 1.3, t - bar / 2] });
-  const fieldW = Math.min(width - 1.3, address.width() + 0.5);
+  const address = probe.moveTo([l + 1.3, t - bar / 2], [-1, 0]);
   const parts: Mobject[] = [
     new Rectangle({ width, height, fill: TONE.raised, stroke: TONE.ink, strokeWidth: STROKE.fine, cornerRadius: RADIUS.panel }).moveTo(at),
     new Rectangle({ width: width - 0.06, height: STROKE.hair, fill: TONE.rule, stroke: 'none' }).moveTo([x, t - bar]),

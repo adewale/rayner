@@ -1,10 +1,14 @@
-import { AnimationGroup, Line, Scene, Succession, Text } from '../../../src/index.ts';
-import type { Animation } from '../../../src/index.ts';
+import { AnimationGroup, Scene } from '../../../src/index.ts';
 import { answerOf, isRefusal, settingsOf, stage, Machine, view } from '../../../explain/index.ts';
-import type { Choreography, ExplainerMeta, Setting, Transition } from '../../../explain/index.ts';
+import type { ExplainerMeta, Setting, Transition } from '../../../explain/index.ts';
+import { beats, flight, pass } from '../lib/poppy-kit.ts';
 import { POPPY_EVENTS, STORY, next, start } from './model.ts';
 import type { PoppyEvent, Scope, World } from './model.ts';
-import { DOCUMENT_ROUTE, LANES, LANE_Y, PALETTE, STOP_X, THIEF_FROM, documentToken, drawWorld, levelAt, levelAtY, sayWorld } from './picture.ts';
+import { DOCUMENT_ROUTE, LANES, LANE_Y, PALETTE, SEAL_AT, THIEF_FROM, documentToken, drawWorld, keyRoute, routeOf, sayWorld } from './picture.ts';
+import type { Lane } from './picture.ts';
+
+/** The lane whose level run is at this height. */
+const laneOf = (y: number): Lane => LANES.find((name) => Math.abs(LANE_Y[name] - y) < 0.01)!;
 
 const APPROVALS: Record<string, readonly Scope[]> = { 'read-write': ['orders:read', 'orders:write'], 'read-only': ['orders:read'] };
 
@@ -63,47 +67,10 @@ export default class Poppy extends Scene<World, {}> {
     const s = stage(this, { palette: { ...PALETTE }, heading: false });
     const world = view(this, (w) => drawWorld(w, s), { place: false });
 
-    /** One thing a transition plays: an animation, or several together. */
-    type Beat = Animation | AnimationGroup;
-    /** A transition's three beats: words that change go, the flight plays, the new words come and the rest settles. */
-    const beats = (c: Choreography, flight: () => Beat[]): Succession => {
-      const out: Animation[] = [], back: Animation[] = [];
-      for (const key of c.keys('to')) {
-        if (!c.has(key, 'from')) continue;
-        const now = c.from(key), then = c.to(key);
-        // Words that change are replaced, and the answer's words always are: an answer must not be read before its request lands.
-        if (now instanceof Text && then instanceof Text && (now.text !== then.text || key.startsWith('answer:'))) {
-          out.push(c.leave(key, { runTime: 0.25 }));
-          back.push(c.enter(key, {}, { runTime: 0.35 }));
-        }
-      }
-      // What the request before left on the map goes too, so the new one sets off from its sender on a clear lane;
-      // and so does a part of the old answer that the new one has no place for.
-      for (const key of c.keys('from'))
-        if (key === 'ticket' || key === 'barrier' || (key.startsWith('answer:') && !c.has(key, 'to'))) out.push(c.leave(key, { runTime: 0.25 }));
-      // The flight is made after the leaves, since a part may enter again only once it has left.
-      const flown = flight();
-      return new Succession([...(out.length ? [new AnimationGroup(out)] : []), ...flown, new AnimationGroup([...back, c.rest({ runTime: 0.45 })])]);
-    };
-    /** A route through these points, for a token to travel. */
-    const route = (first: [number, number], ...rest: [number, number][]) => {
-      const path = new Line(first, rest[0]!);
-      for (const point of rest.slice(1)) path.addLineTo(point);
-      return path;
-    };
-    /**
-     * A token's flight: a copy of the part as it will rest appears at the start of its route, travels
-     * the route to that resting place, and gives way there to the part itself.
-     */
-    const flight = (c: Choreography, key: string, ...via: [number, number][]) => (): Beat[] => {
-      const part = c.to(key);
-      const walk = c.travel(`${key}:flight`, part.copy(), route(via[0]!, ...via.slice(1), part.center() as [number, number]), { appear: 0.25, move: 1.0, leave: 0.2 });
-      return [walk.appear, walk.move, new AnimationGroup([walk.leave, c.enter(key, {}, { runTime: 0.2 })])];
-    };
     /** A request leaves the agent: its ticket appears on the agent's seal, follows its lane and stops where it rests. */
     const request = (t: Transition<World, PoppyEvent>) => {
-      const c = t.choreograph(world);
-      return beats(c, flight(c, 'ticket', c.from('agent:seal').center() as [number, number], levelAtY(c.to('ticket').center()[1]!)));
+      const c = t.choreograph(world), lane = laneOf(c.to('ticket').center()[1]!);
+      return beats(c, flight(c, 'ticket', [SEAL_AT, ...routeOf(lane).slice(1, 3)]), { then: ['barrier'] });
     };
     const machine = new Machine<World, PoppyEvent>(this, {
       start: start(approves),
@@ -114,15 +81,14 @@ export default class Poppy extends Scene<World, {}> {
       },
       next,
       views: [world],
-      runTime: ({ event }) => (event === 'sign-out' ? 0.9 : event === 'discover' ? 2.4 : 1.9),
+      runTime: ({ event }) => (event === 'sign-out' ? 1.6 : event === 'discover' ? 2.4 : 2.1),
       transition: {
         // poppy.json crosses from the Company to the agent, and then the lanes it lists are drawn.
         discover: (t) => {
           const c = t.choreograph(world);
           return beats(c, () => {
-            const sheet = c.travel('document', documentToken(s), new Line(...DOCUMENT_ROUTE), { appear: 0.25, move: 0.9, leave: 0.25 });
             const lanes = LANES.map((name) => c.enter(`lane:${name}:line`, { create: true }, { runTime: 0.6 }));
-            return [c.leave('lane:none', { runTime: 0.25 }), sheet.appear, sheet.move, sheet.leave, new AnimationGroup(lanes)];
+            return [c.leave('lane:none', { runTime: 0.25 }), ...pass(c, 'document', documentToken(s), DOCUMENT_ROUTE), new AnimationGroup(lanes)];
           });
         },
         cart: request,
@@ -132,12 +98,20 @@ export default class Poppy extends Scene<World, {}> {
         // The key comes to the agent from the Company's counter, where the User approved it, along the sign-in lane.
         'sign-in': (t) => {
           const c = t.choreograph(world);
-          return beats(c, flight(c, 'agent:key', [STOP_X, LANE_Y['sign-in']], levelAt('sign-in')));
+          return beats(c, flight(c, 'agent:key', keyRoute().slice(0, -1)));
         },
         // A thief's ticket comes from under the map, not from the agent, and stops where the Company refuses it.
         thief: (t) => {
           const c = t.choreograph(world);
-          return beats(c, flight(c, 'ticket', THIEF_FROM));
+          return beats(c, flight(c, 'ticket', [THIEF_FROM]), { then: ['barrier'] });
+        },
+        // The key goes back the way it came, to the Company's sign-in stop, and is gone.
+        'sign-out': (t) => {
+          const c = t.choreograph(world);
+          return beats(c, () => {
+            const back = pass(c, 'agent:key:return', c.from('agent:key').copy(), [...keyRoute()].reverse(), { appear: 0.2, move: 0.9, leave: 0.25 });
+            return [new AnimationGroup([c.leave('agent:key', { runTime: 0.2 }), back[0]!]), ...back.slice(1)];
+          });
         },
       },
     });
