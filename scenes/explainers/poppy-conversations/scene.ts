@@ -1,4 +1,5 @@
-import { Scene } from '../../../src/index.ts';
+import { AnimationGroup, Scene, Succession, Text } from '../../../src/index.ts';
+import type { Animation } from '../../../src/index.ts';
 import { answerOf, isRefusal, stage, Machine, view } from '../../../explain/index.ts';
 import type { Choreography, ExplainerMeta, Transition } from '../../../explain/index.ts';
 import { beats, flight } from '../lib/poppy-kit.ts';
@@ -53,6 +54,18 @@ export default class Conversations extends Scene<World, Shown> {
     /** A part comes in from a point and stops where it rests. */
     const arrives = (c: Choreography, key: string, ...via: Vec[]) => (c.has(key, 'to') ? flight(c, key, via, { appear: 0.2, move: 0.9, leave: 0.2 }) : () => []);
 
+    /**
+     * A change of layout in three beats: what goes, goes; then everything both pictures have moves
+     * to its new place; only then do new things, and words that changed, come in, so nothing
+     * arrives in a place that is still moving.
+     */
+    const reflow = (c: Choreography): Succession => {
+      const out: Animation[] = [], back: Animation[] = [];
+      const changed = (k: string) => { const a = c.from(k), b = c.to(k); return a instanceof Text && b instanceof Text && a.text !== b.text; };
+      for (const k of c.keys('from')) if (!c.has(k, 'to') || changed(k) || k === 'turn') out.push(c.leave(k, { runTime: 0.3 }));
+      for (const k of c.keys('to')) if (!c.has(k, 'from') || changed(k) || k === 'turn') back.push(c.enter(k, {}, { runTime: 0.4 }));
+      return new Succession([...(out.length ? [new AnimationGroup(out)] : []), c.rest({ runTime: 0.8 }), ...(back.length ? [new AnimationGroup(back)] : [])]);
+    };
     const machine = new Machine<World, TableEvent>(this, {
       start: start(),
       events: TABLE_EVENTS,
@@ -81,8 +94,10 @@ export default class Conversations extends Scene<World, Shown> {
           return beats(c, arrives(c, 'invite', from, [from[0] - 1.2, c.to('invite').center()[1]!]), { fresh: [] });
         },
         person: (t) => beats(t.choreograph(world), () => [], { fresh: [] }),
-        direct: (t) => beats(t.choreograph(world), () => [], { fresh: ['turn', 'invite'] }),
-        close: (t) => beats(t.choreograph(world), () => [], { fresh: ['turn'] }),
+        // The first table steps back and the small one is set below it; you and your agent move to it.
+        direct: (t) => reflow(t.choreograph(world)),
+        // The small table is cleared away; you and your agent come back to the first, which wakes.
+        close: (t) => reflow(t.choreograph(world)),
       },
     });
 
