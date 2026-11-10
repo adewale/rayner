@@ -317,8 +317,10 @@ export function drawWorld(w: World, s: Stage, shown: Shown = {}): Group {
     parts.add(words(s, 'your agent', { at: [seats.agent[0] + 0.75, seats.agent[1] + 0.31], bold: true }), 'agent:name');
     parts.add(words(s, 'AI, watching', { at: [seats.agent[0] + 0.75, seats.agent[1] - 0.37], color: TONE.soft }), 'agent:kind');
   } else if (w.direct === 'closed') {
-    parts.add(table({ ...DIRECT, y: DIRECT.y - 0.25, h: 1.2 }, true), 'direct:table');
-    parts.add(words(s, 'Direct Conversation: closed', { at: [DIRECT.x, DIRECT.y - 0.25], color: TONE.soft, align: 'middle' }), 'direct:closed');
+    // Closed: the small table is gone, and the ledger's column notes that it was there.
+    parts.add(words(s, 'Direct', { at: [LEDGER.x, -1.95], color: TONE.soft }), 'direct:closed');
+    parts.add(words(s, 'closed', { at: [MARGIN.right, -1.95], mono: true, align: 'end' }), 'direct:closed:value');
+    parts.add(new Rectangle({ width: LEDGER.width, height: STROKE.hair, fill: TONE.rule, stroke: 'none' }).moveTo([LEDGER.x + LEDGER.width / 2, -2.28]), 'direct:closed:rule');
   }
 
   // Working: a typing badge by the seat of whoever handles the Company's side of the table in use.

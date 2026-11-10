@@ -43,7 +43,7 @@ export const DESK: Vec = [FACE - 0.2, -1.05];
 const ROW = { title: 2.76, field: 1.96, 'orders:read': 1.08, 'orders:write': 0.26 } as const;
 const RACK: readonly OfferedScope[] = ['addresses', 'orders:read', 'orders:write'];
 const RACK_Y: Record<string, number> = { addresses: ROW.field, 'orders:read': ROW['orders:read'], 'orders:write': ROW['orders:write'] };
-const RACK_X = 0.95, TOOTH_X = 0.42;
+const RACK_X = 0.78, TOOTH_X = 0.3;
 const PAGE_X = WIN.left + 0.3;
 const LINE: Record<Scope, string> = { 'orders:read': 'See your orders', 'orders:write': 'Exchange items' };
 /** The strip under the window: you, your password, and the slip or card between you and the agent. */
@@ -74,7 +74,7 @@ const briefly = (scopes: readonly Scope[]) => (scopes.length > 1 ? 'both scopes'
 /** The words at the bottom right: who did what, the outcome in a phrase, and what it means. */
 export type Report = { asked: string; phrase: string; meaning: string; mono?: boolean };
 export function reportOf(w: World, shown: Shown): Report | null {
-  if (shown.password) return { asked: 'agent: types your password', phrase: 'Looks like you', meaning: 'it can only be blocked' };
+  if (shown.password) return { asked: 'agent: types your password', phrase: 'No limit on it', meaning: 'it can only be blocked' };
   const last = w.last;
   if (!last) return null;
   switch (last.kind) {
@@ -261,7 +261,7 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
 
   // Behind the counter: the scopes the Company offers, each on its page line's row. A tooth for each the agent holds.
   parts.add(words(s, 'The Company', { at: [RACK_X, WIN.top - WIN.bar / 2], size: TYPE.label, bold: true }), 'company');
-  parts.add(words(s, 'Scopes offered', { at: [RACK_X, ROW.title], color: TONE.soft }), 'rack:title');
+  parts.add(words(s, 'Scopes offered', { at: [RACK_X, ROW.title], bold: true }), 'rack:title');
   for (const scope of RACK) {
     const y = RACK_Y[scope]!, status = statusOf(w, scope), asked = !!w.sign && scope !== 'addresses';
     parts.add(words(s, scope, { at: [RACK_X, y], mono: true, color: asked || status === 'granted' ? TONE.ink : TONE.soft, bold: asked }), `rack:${scope}:name`);
@@ -357,7 +357,7 @@ function drawShortcut(s: Stage, parts: Parts): Group {
   // On the agent's keyring, where a key would hang, your password.
   addAll(parts, keyring(s, 0, null).filter((m) => m.key !== 'agent:key:slot'));
   parts.add(passwordCard(s, { at: [RING_AT[0] + 0.85, RING_AT[1]] }), 'agent:password');
-  parts.add(words(s, 'your password', { at: [RING_AT[0] + 1.7, RING_AT[1]], color: TONE.soft }), 'agent:password:label');
+  parts.add(words(s, 'your password', { at: [RING_AT[0] + 0.27, RING_AT[1] - 0.66], color: TONE.soft }), 'agent:password:label');
   readout(s, parts, reportOf({ flow: 'direct', sign: null, holds: null, ended: false, last: null }, { password: true }));
   return parts.group();
 }

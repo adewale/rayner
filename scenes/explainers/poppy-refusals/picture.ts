@@ -7,7 +7,7 @@ import {
   addAll, barrier, certificate, clock, counter, key, lane, laneRoute, ledger, person, seal, sheet, station, stationExit, stationHolds, ticket, words,
 } from '../lib/poppy-kit.ts';
 import { SID } from '../poppy/model.ts';
-import { MCP_URL, OPS, opFor, pending, sayReply, temptation } from './model.ts';
+import { OPS, opFor, pending, sayReply, temptation } from './model.ts';
 import type { Fix, Reply, Trouble, World } from './model.ts';
 
 // One state as a picture, on the series' kit. The chapter is about the parts of one request, so
@@ -270,8 +270,8 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
     addAll(parts, pointer(at, PART[last.trouble]));
   } else {
     parts.add(words(s, String(last.reply.status), { at: [MARGIN.left - 0.06, -0.22], size: TYPE.display, mono: true, bold: true }), 'slip:number');
-    parts.add(words(s, 'OK', { at: [MARGIN.left + 3.3, 0.0], size: TYPE.title, bold: true }), 'slip:about');
-    parts.add(words(s, `sizes from ${new URL(MCP_URL).host}`, { at: [MARGIN.left + 3.3, -0.62], mono: true }), 'slip:code');
+    parts.add(words(s, 'OK', { at: [MARGIN.left + 3.3, -0.22], size: TYPE.title, bold: true }), 'slip:about');
+    parts.add(words(s, 'sizes found', { at: [MARGIN.left, -1.56] }), 'slip:code');
   }
   if (answered && last!.again) {
     const again = words(s, `sent again: ${last!.again.status} OK`, { at: [MARGIN.left, OUTCOME_Y], bold: true });
@@ -284,22 +284,22 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
   // The right-hand focus: what to predict, why the tempting remedy would fail, or the 401 counterfactual.
   const room = MARGIN.right - LEDGER_X, tempting = temptation(w);
   const focus = (over: string, head: string, under: string) => {
-    parts.add(words(s, over, { at: [LEDGER_X, 1.0], color: TONE.soft }), 'panel:over');
+    parts.add(words(s, over, { at: [LEDGER_X, 1.22], color: TONE.soft }), 'panel:over');
     const big = words(s, head, { at: [LEDGER_X, 0.3], size: TYPE.title, bold: true });
     parts.add(big.width() <= room ? big : words(s, head, { at: [LEDGER_X, 0.3], size: TYPE.label, bold: true }), 'panel:head');
-    parts.add(words(s, under, { at: [LEDGER_X, -0.42] }), 'panel:body');
+    parts.add(words(s, under, { at: [LEDGER_X, -0.62] }), 'panel:body');
   };
   if (shown.whatIf) {
-    parts.add(words(s, 'An OAuth library', { at: [LEDGER_X, 1.0], color: TONE.soft }), 'panel:whatif');
-    parts.add(words(s, '400', { at: [LEDGER_X, 0.3], size: TYPE.label, mono: true, bold: true }), 'panel:400');
-    parts.add(key(s, { at: [LEDGER_X + 1.95, 0.3], size: 0.45, teeth: 2 }), 'panel:400:key');
-    parts.add(words(s, 'keeps it', { at: [LEDGER_X + 2.8, 0.3] }), 'panel:400:says');
-    parts.add(words(s, '401', { at: [LEDGER_X, -0.42], size: TYPE.label, mono: true, bold: true }), 'panel:401');
-    parts.add(key(s, { at: [LEDGER_X + 1.95, -0.42], size: 0.45, teeth: 2, ghost: true }), 'panel:401:key');
-    parts.add(emphasised(words(s, 'throws it away', { at: [LEDGER_X + 2.8, -0.42] }), 'a 401 would make an OAuth library discard a good token'), 'panel:401:says');
+    parts.add(words(s, 'An OAuth library', { at: [LEDGER_X, 1.22], color: TONE.soft }), 'panel:whatif');
+    parts.add(words(s, '400', { at: [LEDGER_X, 0.4], size: TYPE.label, mono: true, bold: true }), 'panel:400');
+    parts.add(key(s, { at: [LEDGER_X + 1.85, 0.4], size: 0.45, teeth: 2 }), 'panel:400:key');
+    parts.add(words(s, 'keeps it', { at: [LEDGER_X + 2.7, 0.4] }), 'panel:400:says');
+    parts.add(words(s, '401', { at: [LEDGER_X, -0.5], size: TYPE.label, mono: true, bold: true }), 'panel:401');
+    parts.add(key(s, { at: [LEDGER_X + 1.85, -0.5], size: 0.45, teeth: 2, ghost: true }), 'panel:401:key');
+    parts.add(emphasised(words(s, 'discards it', { at: [LEDGER_X + 2.7, -0.5], bold: true }), 'a 401 would make an OAuth library discard a good token'), 'panel:401:says');
   } else if (refused) focus('predict', 'Which remedy?', 'the slip says');
   else if (answered && tempting) focus('why not', `${FIX_NAME[tempting.fix]}?`, WHY_NOT[last!.trouble]);
-  else if (last && !refused) focus('no refusal', 'The key fits', 'cut for the MCP server');
+  else if (last && !refused) focus('no refusal', 'The key fits', 'cut for this server');
 
   // The agent's remedies, along the bottom: idle ones in outline, the one applied in its colours, the tempting one struck through.
   const slots = railSlots(s);

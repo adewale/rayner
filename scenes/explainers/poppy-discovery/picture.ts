@@ -318,7 +318,7 @@ export function drawWorld(w: World, s: Stage): Group {
       const match = listed.indexOf(sc.host.toLowerCase());
       if (match >= 0) {
         // Back from the row that lists the shop to its fascia, along the fascia's level.
-        const y = ROW_Y[match]!, to: Vec = [SHOP.r + 0.02, FASCIA_Y], from: Vec = [REG.l - 0.2, y], bend = REG.l - 0.45;
+        const y = ROW_Y[match]!, to: Vec = [SHOP.r + 0.02, FASCIA_Y], from: Vec = [REG.l - 0.2, y], bend = REG.l - 0.7;
         const points: Vec[] = match === 0 ? [from, to] : [from, [bend, y], [bend, FASCIA_Y], to];
         parts.add(path(points, TONE.ink), 'back:line');
         parts.add(head(to, [-1, 0], TONE.ink), 'back:head');
