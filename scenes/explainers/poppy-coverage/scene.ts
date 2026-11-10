@@ -95,10 +95,16 @@ export default class Coverage extends Scene<World, {}> {
       const torn = stripKeys(w), group = (keep: (x: (typeof torn)[number]) => boolean) => together(torn.filter(keep).map((x) => flight(c, x.key, [noteLineAt(x.line)], T)()));
       const kept = group((x) => x.key.startsWith('strip:used:'));
       const left = group((x) => x.key.startsWith('strip:aside:') && !x.reveal);
-      const reaching = torn.filter((x) => x.reveal).flatMap((x) => flight(c, x.key, [noteLineAt(x.line), REACH_AT], { appear: 0.2, move: 0.8, leave: 0.2 })());
+      // A strip that asks for a secret goes alone, before the rest settle: up to the corridor under the rule, across the
+      // counter toward the station, stopped there, and back down to the shop's side. It passes over no other strip.
+      const reaching = torn.filter((x) => x.reveal).flatMap((x) => {
+        const [lx, ly] = noteLineAt(x.line), corridor: [number, number] = [lx, REACH_AT[1]];
+        return flight(c, x.key, [[lx, ly], corridor, REACH_AT, corridor], { appear: 0.2, move: 1.4, leave: 0.2 })();
+      });
       const sent = flight(c, 'ticket', [SEAL_AT, ...routeOf('api').slice(1, 3)], T)();
-      const back = card ? [new AnimationGroup([sent.at(-1) as Animation, c.enter('skill:card', {}, { runTime: 0.2 })])] : sent.slice(-1);
-      return [...laid, ...kept, ...left, ...reaching, ...sent.slice(0, -1), ...back];
+      const ticket = card ? [...sent.slice(0, -1), new AnimationGroup([sent.at(-1) as Animation, c.enter('skill:card', {}, { runTime: 0.2 })])] : sent;
+      // The strips set aside settle on the shop's desk while the ticket goes down the API lane: two places, no crossing.
+      return [...laid, ...kept, ...reaching, ...together([left, ticket])];
     };
     const motion = (t: Transition<World, CoverageEvent>) => {
       const c = t.choreograph(world);
@@ -134,7 +140,7 @@ export default class Coverage extends Scene<World, {}> {
       views: [world],
       runTime: ({ event, after: a }) => {
         // Each is the sum of its beats: the leaves (0.3), the flights, the settle (0.45).
-        const beat = 0.8, sort = 0.75 + beat + (a.company === 'hostile' ? beat : 0) + beat + (event === 'use skill' ? 0.75 + (a.company === 'hostile' ? 1.2 : 0) : 0);
+        const beat = 0.8, sort = 0.75 + beat + beat + (event === 'use skill' ? 0.75 + (a.company === 'hostile' ? 1.8 : 0) : 0);
         return ({ probe: 2.75, read: 2.2, report: 2.75, sort, told: 0.7 })[kindOf(event, a)];
       },
       transition: Object.fromEntries(COVERAGE_EVENTS.map((e) => [e, motion])) as Record<CoverageEvent, typeof motion>,

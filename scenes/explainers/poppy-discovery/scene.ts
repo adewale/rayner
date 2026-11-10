@@ -56,7 +56,7 @@ export default class PoppyDiscovery extends Scene<World, {}> {
         // The issuer's rows; then either the arrow back to the shop, or the empty slot and the ghost of an arrow that never arrives.
         return [...together(g(['register:row:0', 'register:row:1'])), ...together(g(['register:slot', 'register:slot:text', 'back:ghost', 'back:line'], ['back:line', 'back:ghost']))];
       };
-      return gate === 1 ? fetch(c) : beats(c, thunk, { fresh: ['verdict:'], then: ['rail:barrier'] });
+      return gate === 1 ? fetchMotion(c) : beats(c, thunk, { fresh: ['verdict:'], then: ['rail:barrier'] });
     };
 
     /**
@@ -66,20 +66,18 @@ export default class PoppyDiscovery extends Scene<World, {}> {
      * (or to the noticeboard, for a file found at another path), and the sheet is there. Then the
      * agent's line moves on, or the barrier drops.
      */
-    const fetch = (c: Choreography): Succession => {
+    const fetchMotion = (c: Choreography): Succession => {
       const changed = c.keys('to').filter((k) => c.has(k, 'from') && c.from(k) instanceof Text && c.to(k) instanceof Text && (c.from(k) as Text).text !== (c.to(k) as Text).text);
       const out = changed.map((k) => c.leave(k, { runTime: 0.2 }));
       const arrive = [...changed.filter((k) => k.startsWith('url:') || k === 'shop:name').map((k) => c.enter(k, {}, { runTime: 0.3 })), ...(bring(c, ['url:first', 'url:redirect', 'url:under', 'board']) as Animation[])];
       const path = c.to('url:path'), from: [number, number] = [path.center()[0]!, 2.55];
       const onBoard = c.has('board', 'to'), to = onBoard ? BOARD_SHEET : DOORSTEP;
       const route: [number, number][] = onBoard ? [from, to] : [from, [STREET_X, from[1]], [STREET_X, to[1]], to];
-      const token = pass(c, 'sheet:token', sheet(s, { width: 0.7, height: 0.9, lines: 2 }), route, { appear: 0.15, move: 0.6, leave: 0.15 });
-      const barrier = bring(c, ['rail:barrier']) as Animation[];
+      const token = pass(c, 'sheet:token', sheet(s, { width: 0.7, height: 0.9, lines: 2 }), route, { appear: 0.25, move: 0.6, leave: 0.25 });
       return new Succession([
         ...(out.length ? [new AnimationGroup(out)] : []),
         ...together(arrive),
         ...token,
-        ...together(barrier),
         c.rest({ runTime: 0.35 }),
       ]);
     };
@@ -93,7 +91,7 @@ export default class PoppyDiscovery extends Scene<World, {}> {
       },
       next,
       views: [world],
-      runTime: ({ event, after }) => (event !== 'check' ? 0.4 : after.ran === 1 ? 1.3 : after.ran === 2 ? 0.8 : 1.0),
+      runTime: ({ event, after }) => (event !== 'check' ? 0.35 : after.ran === 1 ? 1.5 : after.ran === 2 ? 0.75 : 1.0),
       transition: {
         check,
         // Choosing a server is a cut to another shop: the last run's parts go, the fascia's name is replaced.

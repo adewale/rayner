@@ -1,7 +1,7 @@
 import { AnimationGroup, Scene } from '../../../src/index.ts';
 import { answerOf, isRefusal, settingsOf, stage, Machine, view } from '../../../explain/index.ts';
 import type { Choreography, ExplainerMeta, Setting, Transition } from '../../../explain/index.ts';
-import { beats, flight, pass } from '../lib/poppy-kit.ts';
+import { beats, flight, pass, route } from '../lib/poppy-kit.ts';
 import type { Beat } from '../lib/poppy-kit.ts';
 import { CARDS, SIGN_IN_EVENTS, STORY, next, start } from './model.ts';
 import type { Flow, SignInEvent, World } from './model.ts';
@@ -12,7 +12,7 @@ import {
 import type { Shown } from './picture.ts';
 
 /** Parts that belong to the last event: they go before the next event's motion. */
-const FRESH = ['answer:', 'trick', 'barrier', 'thief', 'page:hint', 'page:by', 'sees', 'agent:password'];
+const FRESH = ['answer:', 'trick', 'barrier', 'thief', 'page:hint', 'page:by', 'page:password', 'sees', 'agent:password'];
 /** You and the agent, who change places when a page opens or closes. */
 const PEOPLE = ['agent:', 'tag', 'you'];
 /** The Company's page, which opens after the request reaches it. */
@@ -84,8 +84,22 @@ export default class SignIn extends Scene<World, Shown> {
     /** The page's parts the target has, to open after the request lands. */
     const pageIn = (c: C) => PAGE.filter((k) => c.has(k, 'to') && !c.has(k, 'from'));
     const centre = (c: C, k: string, side: 'from' | 'to') => (side === 'from' ? c.from(k) : c.to(k)).center() as Pt;
-    /** The route from the agent's seal to the counter's desk. */
-    const toDesk = (seal: Pt): Pt[] => [seal, [seal[0] + 1.2, DESK[1]], DESK];
+    /**
+     * Routes for the small tokens that cross the agent's side: out of the seal, along the gap between
+     * the strip and the keyring (y LANE), then up to the address bar or across to the counter's desk,
+     * so they pass over no label on the way.
+     */
+    const LANE = -1.62, FACE_LEFT = DESK[0] - 2.2;
+    const toDesk = (seal: Pt): Pt[] => [seal, [seal[0] + 0.55, LANE], [DESK[0] - 0.4, LANE], DESK];
+    const toAddress = (seal: Pt): Pt[] => [seal, [seal[0] + 0.55, LANE], [-3.9, LANE], [-3.9, ADDRESS_AT[1]], ADDRESS_AT];
+    const request = () => requestToken(s).scale(0.55);
+    const code = () => codeToken(s).scale(0.6);
+    /** A part's flight that, unlike the kit's, leaves the current part alone (the caller has faded it already). */
+    const fly = (c: C, k: string, via: Pt[], times = { appear: 0.15, move: 0.6, leave: 0.15 }): Beat[] => {
+      const part = c.to(k), walk = c.travel(`${k}:flight`, part.copy(), route(via[0]!, ...via.slice(1), part.center() as Pt), times);
+      return [walk.appear, walk.move, new AnimationGroup([walk.leave, c.enter(k, {}, { runTime: times.leave })])];
+    };
+
     /**
      * The parts of you and the agent that a new layout puts elsewhere (the page opening or closing):
      * they fade out where they were and fade in where they will be, rather than slide, since the
@@ -104,8 +118,8 @@ export default class SignIn extends Scene<World, Shown> {
         const c = t.choreograph(world), seal = centre(c, 'agent:seal', 'to'), moved = relaid(c);
         const swap = (): Beat[] => moved.length ? [new AnimationGroup(fadeOut(c, moved)), new AnimationGroup(fadeIn(c, moved))] : [];
         if (device)
-          return beats(c, () => [...swap(), ...pass(c, 'request', requestToken(s), toDesk(seal), { appear: 0.2, move: 0.6, leave: 0.2 }), ...flight(c, 'card', [DESK], { appear: 0.2, move: 0.5, leave: 0.2 })()], { fresh: FRESH, then: pageIn(c) });
-        return beats(c, () => [...swap(), ...pass(c, 'request', requestToken(s), [seal, [-4.6, seal[1] + 0.6], [-4.6, ADDRESS_AT[1]], ADDRESS_AT], { appear: 0.2, move: 0.9, leave: 0.2 })], { fresh: FRESH, then: pageIn(c) });
+          return beats(c, () => [...swap(), ...pass(c, 'request', request(), toDesk(seal), { appear: 0.15, move: 0.6, leave: 0.15 }), ...flight(c, 'card', [DESK], { appear: 0.15, move: 0.5, leave: 0.15 })()], { fresh: FRESH, then: pageIn(c) });
+        return beats(c, () => [...swap(), ...pass(c, 'request', request(), toAddress(seal), { appear: 0.15, move: 0.9, leave: 0.15 })], { fresh: FRESH, then: pageIn(c) });
       },
       'approve-all': (t: Transition<World, SignInEvent>) => approve(t),
       'approve-read': (t: Transition<World, SignInEvent>) => approve(t),
@@ -113,23 +127,24 @@ export default class SignIn extends Scene<World, Shown> {
       // then the page closes, the agent takes the top, and the key and the tag come to it from the desk.
       collect: (t: Transition<World, SignInEvent>) => {
         const c = t.choreograph(world), got = t.after.last?.kind === 'tokens', seal = centre(c, 'agent:seal', 'from');
-        // Direct: the code comes out of the page to the agent and goes on, with its signature, to the desk, in one run.
-        // Device: a poll runs to the desk. Then, if tokens come back, the page closes and the layout cross-fades
-        // while the key and the tag leave the desk together for the agent.
-        const route: Pt[] = device ? toDesk(seal) : [PAGE_OUT, [PAGE_OUT[0], seal[1] + 1.0], ...toDesk(seal)];
+        // Direct: the code drops out of the bottom of the page to the agent's side and runs on, under the
+        // agent's signature, to the desk. Device: a poll runs to the desk. If tokens come back, the page
+        // closes and the layout cross-fades (an old key and tag fade with it: they are replaced), then the
+        // key comes from the desk to the agent's ring, and the tag after it.
+        const route: Pt[] = device ? toDesk(seal) : [[-2.4, -0.62], [-3.9, LANE], [seal[0] + 0.55, LANE], [DESK[0] - 0.4, LANE], DESK];
         return beats(c, () => {
-          const run = pass(c, device ? 'poll' : 'code', device ? requestToken(s) : codeToken(s), route, { appear: 0.2, move: device ? 0.6 : 1.0, leave: 0.2 });
-          if (!got) return [...run.slice(0, 2), run[2]!, ...pass(c, 'poll:back', requestToken(s), [...toDesk(seal)].reverse(), { appear: 0.15, move: 0.5, leave: 0.2 })];
+          const run = pass(c, device ? 'poll' : 'code', device ? request() : code(), route, { appear: 0.15, move: device ? 0.6 : 0.9, leave: 0.15 });
+          if (!got) return [...run, ...pass(c, 'poll:back', request(), [...toDesk(seal)].reverse(), { appear: 0.15, move: 0.5, leave: 0.15 })];
           const closing = c.keys('from').filter((k) => (k.startsWith('page:') || k.startsWith('window:')) && !c.has(k, 'to'));
           const moved = relaid(c, ['agent:key', 'tag']);
-          const key = flight(c, 'agent:key', [DESK, [DESK[0] - 1.5, DESK[1] + 2.0]], { appear: 0.2, move: 0.7, leave: 0.2 })();
-          const tag = flight(c, 'tag', [DESK], { appear: 0.2, move: 0.7, leave: 0.2 })();
+          const old = ['agent:key', 'tag'].filter((k) => c.has(k, 'from'));
+          const out: Pt = [FACE_LEFT, DESK[1]];
+          const key = fly(c, 'agent:key', [out]), tag = fly(c, 'tag', [out]);
           return [
             run[0]!, run[1]!,
-            new AnimationGroup([run[2]!, ...fadeOut(c, [...closing, ...moved])]),
-            new AnimationGroup([key[0]!, tag[0]!, ...fadeIn(c, moved)]),
-            new AnimationGroup([key[1]!, tag[1]!]),
-            new AnimationGroup([key[2]!, tag[2]!]),
+            new AnimationGroup([run[2]!, ...fadeOut(c, [...closing, ...moved, ...old])]),
+            new AnimationGroup([...fadeIn(c, moved), key[0]!]),
+            key[1]!, new AnimationGroup([key[2]!, tag[0]!]), tag[1]!, tag[2]!,
           ];
         }, { fresh: FRESH, then: got ? ['tag:cord'].filter((k) => c.has(k, 'to') && !c.has(k, 'from')) : [] });
       },
@@ -168,7 +183,7 @@ export default class SignIn extends Scene<World, Shown> {
       },
       next,
       views: [world],
-      runTime: ({ event, after: a }) => (event === 'collect' ? (a.last?.kind === 'tokens' ? 3.3 : 1.8) : event === 'ask' ? 2.2 : 1.6),
+      runTime: ({ event, after: a }) => (event === 'collect' ? (a.last?.kind === 'tokens' ? 3.4 : 1.8) : event === 'ask' ? 2.2 : 1.6),
       transition,
     });
     const replay = (from: number, to: number) => machine.replay(story.slice(from, to));

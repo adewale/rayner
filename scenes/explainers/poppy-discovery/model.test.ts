@@ -318,3 +318,11 @@ test('spec.md 3 and 3.2 examples (poppy-official.json): the model’s documents 
   assert.ok(!isStop(found), JSON.stringify(found));
   assert.deepEqual({ company: found.company, signIn: found.signIn, channels: [...found.channels].sort() }, { company: COMPANY.issuer, signIn: true, channels: ['api', 'chat', 'web'] });
 });
+
+test('official poppy.schema.json (poppy-official.json): every poppy.json document in the story’s web passes it in full, forgeries included', () => {
+  // A forgery can be a well-formed document: what refuses it is a check of section 3, not its shape.
+  const documents = Object.entries(BASE_WEB).filter(([, answer]) => answer !== 'timeout' && answer.status === 200 && typeof answer.body === 'object' && answer.body !== null && 'organization' in (answer.body as object));
+  assert.equal(documents.length, 7, documents.map(([url]) => url).join(', '));
+  for (const [url, answer] of documents) assert.deepEqual(validate(OFFICIAL.schemas, 'poppy.schema.json', (answer as { body: unknown }).body), [], url);
+  assert.deepEqual(validate(OFFICIAL.schemas, 'poppy.schema.json', REAL_DOC), [], 'REAL_DOC');
+});

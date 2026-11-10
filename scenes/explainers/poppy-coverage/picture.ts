@@ -59,7 +59,7 @@ const HEAD_Y = 0.5;
 const TRAY = { left: MARGIN.left, right: COUNTER_X - 0.45 };
 const TRAY_IN = TRAY.left;
 /** The furthest a strip reaches toward the agent's station: just under the rule, beneath the seal and key. */
-export const REACH_AT: Vec = [-5.2, RULE_Y - 0.45];
+export const REACH_AT: Vec = [-4.4, RULE_Y - 0.47];
 /** Where the shop's note lies on its side of the counter, unread. */
 export const NOTE_AT: Vec = [3.0, -2.0];
 /** Where paper lands in the tray, for flights in and out. */
