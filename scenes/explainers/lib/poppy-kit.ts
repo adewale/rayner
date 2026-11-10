@@ -265,7 +265,7 @@ export function key(_s: Stage, { at = [0, 0], size = 1, teeth = 1, ghost = false
 /** Options for `station`. */
 export type StationOptions = {
   at?: Vec;
-  /** Radius of the roundel. Default 0.95. */
+  /** Radius of the roundel. Default 1.05. */
   r?: number;
   /** The name under the roundel; default "your agent". */
   name?: string;
@@ -273,23 +273,37 @@ export type StationOptions = {
   key?: string;
   /** Pewter wax: a station that is some other agent's. */
   foreign?: boolean;
+  /**
+   * The key the agent holds, hung in the roundel under its seal: its number of teeth, or 0 for the
+   * empty slot (a ghost key). Absent: no key slot, and the seal sits in the middle.
+   */
+  keyTeeth?: number;
 };
+
+/** Where a station holds its seal and its key, for flights that start or end there. */
+export const stationHolds = (at: Vec, r = 1.05, withKey = true): { seal: Vec; key: Vec } =>
+  withKey ? { seal: [at[0], at[1] + 0.3 * r], key: [at[0], at[1] - 0.44 * r] } : { seal: at, key: at };
 
 /**
  * The agent's station, where its lanes begin: a transit interchange roundel (RAISED, an INK ring)
- * holding the agent's seal, with its name under it in TYPE.label. Size: 2r across, plus the name
- * 0.5 below. Lanes leave from its right-hand point, `[at.x + r, at.y]`.
- * Keyed parts: `<key>:station` (the roundel), `<key>:seal`, `<key>:name`.
+ * holding what the agent holds: its seal, and with `keyTeeth`, under the seal, its key (or the
+ * empty slot for one). Its name sits under the roundel in TYPE.small. Size: 2r across (default
+ * 1.05), plus the name 0.42 below. Lanes leave from its right-hand edge (see `stationExit`).
+ * Keyed parts: `<key>:station`, `<key>:seal`, `<key>:name`, and with `keyTeeth` the slot
+ * `<key>:key:slot` (a ghost key, always) and, when it has teeth, `<key>:key`.
  */
-export function station(s: Stage, { at = [0, 0], r = 0.95, name = 'your agent', key: k = 'agent', foreign = false }: StationOptions = {}): Mobject[] {
-  const roundel = new Group(
-    new Circle({ radius: r, fill: TONE.raised, stroke: TONE.ink, strokeWidth: STROKE.bold }).moveTo(at),
-  );
-  return [
-    keyedAs(roundel, `${k}:station`),
-    keyedAs(seal(s, { at, r: 0.64 * r, foreign }), `${k}:seal`),
-    keyedAs(words(s, name, { at: [at[0], at[1] - r - 0.46], size: TYPE.label, align: 'middle' }), `${k}:name`),
+export function station(s: Stage, { at = [0, 0], r = 1.05, name = 'your agent', key: k = 'agent', foreign = false, keyTeeth }: StationOptions = {}): Mobject[] {
+  const holds = stationHolds(at, r, keyTeeth !== undefined);
+  const out: Mobject[] = [
+    keyedAs(new Group(new Circle({ radius: r, fill: TONE.raised, stroke: TONE.ink, strokeWidth: STROKE.bold }).moveTo(at)), `${k}:station`),
+    keyedAs(seal(s, { at: holds.seal, r: (keyTeeth !== undefined ? 0.4 : 0.64) * r, foreign }), `${k}:seal`),
+    keyedAs(words(s, name, { at: [at[0], at[1] - r - 0.42], align: 'middle' }), `${k}:name`),
   ];
+  if (keyTeeth !== undefined) {
+    out.push(keyedAs(key(s, { at: holds.key, size: 0.56 * r, teeth: Math.max(1, keyTeeth), ghost: true }), `${k}:key:slot`));
+    if (keyTeeth > 0) out.push(keyedAs(key(s, { at: holds.key, size: 0.56 * r, teeth: keyTeeth }), `${k}:key`));
+  }
+  return out;
 }
 
 /** Options for `counter`. */
@@ -304,8 +318,7 @@ export type CounterOptions = {
 
 /**
  * The Company's counter, its edge, seen from above as the lanes are: a RAISED slab 0.46 wide
- * whose face, the side the agent's lanes arrive at (on the left), is a heavy INK band, with an
- * INK return at each end. Stops sit on the face (see `stop`); what the Company keeps (its ledger)
+ * whose face, the side the agent's lanes arrive at (on the left), is a heavy INK band. Stops sit on the face (see `stop`); what the Company keeps (its ledger)
  * stands behind it, to the right. One keyed part, `<key>`, a Group.
  */
 export function counter(_s: Stage, { x, top, bottom, key: k = 'counter' }: CounterOptions): Mobject[] {
@@ -313,8 +326,6 @@ export function counter(_s: Stage, { x, top, bottom, key: k = 'counter' }: Count
   return [keyedAs(new Group(
     new Rectangle({ width: 0.46, height: h, fill: TONE.raised, stroke: 'none', cornerRadius: 0.04 }).moveTo([x + 0.23, cy]),
     new Rectangle({ width: 0.13, height: h, fill: TONE.ink, stroke: 'none', cornerRadius: 0.04 }).moveTo([x + 0.065, cy]),
-    new Rectangle({ width: 0.46, height: 0.1, fill: TONE.ink, stroke: 'none', cornerRadius: 0.03 }).moveTo([x + 0.23, top - 0.05]),
-    new Rectangle({ width: 0.46, height: 0.1, fill: TONE.ink, stroke: 'none', cornerRadius: 0.03 }).moveTo([x + 0.23, bottom + 0.05]),
   ), k)];
 }
 
@@ -492,7 +503,7 @@ export type AnswerOptions = {
   keyTeeth?: number;
   /** The status phrase ("Unauthorized"), TYPE.title bold. */
   phrase: string;
-  /** What it meant ("needs orders:write"), TYPE.label. */
+  /** What it meant ("needs orders:write"), TYPE.small in INK. */
   meaning: string;
   /** Prefix of the parts' keys. Default "answer". */
   key?: string;
@@ -506,7 +517,7 @@ export const ANSWER_NUMBER_WIDTH = 3 * 0.6 * TYPE.display;
 /**
  * The large answer block: what was asked on a small SOFT line; under it the status number in
  * TYPE.display mono bold (or, for an answer that is a key, the key itself); beside the number, the
- * phrase in TYPE.title bold over its meaning in TYPE.label. The number column is always
+ * phrase in TYPE.title bold over its meaning in TYPE.small. The number column is always
  * ANSWER_NUMBER_WIDTH (2.88) wide. Size: about 3.4 + phrase width × 2.6 units.
  * Keyed parts: `<key>:asked`, `<key>:code` (Text) or `<key>:key` (Group), `<key>:phrase`, `<key>:meaning`.
  */
@@ -515,9 +526,9 @@ export function answer(s: Stage, { at, asked, number, keyTeeth = 1, phrase, mean
   const out: Mobject[] = [keyedAs(words(s, asked, { at, color: TONE.soft }), `${k}:asked`)];
   if (number !== null) out.push(keyedAs(words(s, number, { at: [x - 0.06, mid], size: TYPE.display, mono: true, bold: true }), `${k}:code`));
   else out.push(keyedAs(key(s, { at: [x + ANSWER_NUMBER_WIDTH / 2 - 0.1, mid + 0.06], size: 1.25, teeth: keyTeeth }), `${k}:key`));
-  const head = keyedAs(words(s, phrase, { at: [textX, mid + 0.36], size: TYPE.title, bold: true }), `${k}:phrase`);
+  const head = keyedAs(words(s, phrase, { at: [textX, mid + 0.3], size: TYPE.title, bold: true }), `${k}:phrase`);
   if (emphasis) markAs(head, emphasis);
-  out.push(head, keyedAs(words(s, meaning, { at: [textX, mid - 0.42], size: TYPE.label }), `${k}:meaning`));
+  out.push(head, keyedAs(words(s, meaning, { at: [textX, mid - 0.46] }), `${k}:meaning`));
   return out;
 }
 
