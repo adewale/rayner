@@ -328,3 +328,11 @@ test('each picture cites the section of the draft that decides it', () => {
   assert.equal(ruleOf(start()).section, '8.3');
   assert.equal(ruleOf(play(['ask', 'read', 'close'])).section, '8.12');
 });
+
+test('what is said fits a phone: at most 20 characters, and 16 at the Direct Conversation’s smaller table', () => {
+  for (const w of reachable()) {
+    if (!w.said) continue;
+    const text = LINES[w.said.line];
+    assert.ok(text.length <= (w.said.at === 'direct' ? 16 : 20), `${w.said.at}: ${text}`);
+  }
+});

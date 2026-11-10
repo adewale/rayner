@@ -8,7 +8,7 @@ import { ATTACK_CODE, JOIN_EVENTS, PHISH_CODE, bound, end, next, start, storyOf 
 import type { JoinEvent, SignIn, World } from './model.ts';
 import {
   COUNTER_X, EVIL_HALF_AT, JOIN_AT, MESSAGE_AT, PAGE_AT, PALETTE, ROAD_A_FROM, ROAD_B, ROAD_B_FROM, SEAL_AT, SESSION_AT, SHOWN_START,
-  drawWorld, sayWorld, shortCode, stub,
+  drawLogins, drawWorld, sayLogins, sayWorld, shortCode, stub,
 } from './picture.ts';
 import type { Shown } from './picture.ts';
 
@@ -226,8 +226,9 @@ export default class PoppyBrowser extends Scene<World, Shown> {
       caption:
         'A browser may already be logged in on the website from before. A join without a key leaves that login alone, and scopes do not apply to it. A join with a key signs the browser in to that account in its place, and when the Session’s sign-in ends, by sign-out, disconnection, expiry or a join without a key, the browser is signed out: the earlier login does not come back.',
     });
-    this.shown = { panel: 'logins', attacker: false };
-    await this.play(world.sync({ runTime: 1.2 }));
+    // The map fades out whole, then the table fades in whole: no part shrinks, since the two pictures share nothing.
+    await this.play(s.clear({ runTime: 0.6 }));
+    await this.play(s.enter(drawLogins(s), { describe: sayLogins(), runTime: 0.7 }));
 
     await this.step('forge', {
       title: 'A stamped code without its cookie',
@@ -235,8 +236,11 @@ export default class PoppyBrowser extends Scene<World, Shown> {
       caption:
         'Now be the attacker. It opens the join page in its own browser and stamps the code in its own Session, signed in to its account. Then a page on evil.example makes your agent’s browser post that code. Had it worked, your agent would shop inside the attacker’s account. It fails: a browser sends no join cookie with a form from another site, and no other host can plant one, so the stub arrives alone.',
     });
-    this.shown = { panel: 'world', attacker: true };
-    await this.play(world.sync({ runTime: 1.0 }));
+    // And back: the table fades out, and the map, with the attacker's browser now on it, fades in.
+    await this.play(s.clear({ runTime: 0.6 }));
+    this.shown = { attacker: true };
+    world.rebuild();
+    await this.play(s.enter(world, { describe: () => sayWorld(this.state, this.shown), runTime: 0.7 }));
     await this.play(machine.replay(story.slice(k + 2, k + 3)));
 
     await this.step('phish', {

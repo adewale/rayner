@@ -4,7 +4,7 @@ import type { Stage } from '../../../explain/index.ts';
 import { emphasised, keyedParts } from '../../../explain/drawing.ts';
 import {
   MARGIN, PALETTE as KIT_PALETTE, PLATE_HEIGHT, SPACE, STROKE, TICKET, TONE, TYPE,
-  addAll, barrier, certificate, clock, counter, key, lane, laneRoute, ledger, person, seal, sheet, station, stationExit, stationHolds, ticket, words,
+  addAll, barrier, certificate, clock, counter, key, lane, laneRoute, person, seal, sheet, station, stationExit, stationHolds, ticket, words,
 } from '../lib/poppy-kit.ts';
 import { SID } from '../poppy/model.ts';
 import { OPS, opFor, pending, sayReply, temptation } from './model.ts';
@@ -69,7 +69,7 @@ export const KEY_AT: Vec = HOLDS.key;
 /** Where the agent hangs a key cut for the MCP server: under its station. */
 export const MCP_KEY_AT: Vec = [STATION[0], 1.22];
 /** Where the Company's clock stands, at the foot of its counter, for a rate limit. */
-const CLOCK_AT: Vec = [STOP_X + 0.4, 0.2];
+const CLOCK_AT: Vec = [STOP_X, 0.2];
 const CLOCK_R = 0.38;
 /** A key's way from the Company's counter back along the lane into the agent's station. */
 export const keyRoute = (y: number): Vec[] => [[STOP_X, y], [STATION[0] + STATION_R, y], KEY_AT];
@@ -282,12 +282,20 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
   }
 
   // Behind the counter, quiet: what the Company knows of the Session.
-  const rows = knownBy(w), book = ledger(s, rows, { at: [LEDGER_X, 3.85], width: MARGIN.right - LEDGER_X, title: 'The Company knows', key: 'company', rowGap: 0.74 });
-  for (const m of book) {
-    const changed = rows.some((r) => r.changed && m.key === `company:${r.label}:value`);
-    if ((m.key === 'company:title' || m.key?.endsWith(':value')) && !changed) m.setFill(TONE.soft);
-  }
-  addAll(parts, book);
+  // Drawn quiet, in SOFT, as the kit's ledger is laid out: only a row the last event changed is set in INK, bold, with a change bar.
+  const rows = knownBy(w), right = MARGIN.right;
+  parts.add(words(s, 'The Company knows', { at: [LEDGER_X, 3.85], color: TONE.soft, bold: true }), 'company:title');
+  parts.add(new Rectangle({ width: right - LEDGER_X, height: 0.03, fill: TONE.rule, stroke: 'none' }).moveTo([(LEDGER_X + right) / 2, 3.42]), 'company:rule');
+  rows.forEach((row, i) => {
+    const y = 2.9 - i * 0.74, k = `company:${row.label}`;
+    parts.add(words(s, row.label, { at: [LEDGER_X, y], color: TONE.soft }), `${k}:label`);
+    const value = parts.add(words(s, row.value, { at: [right, y], align: 'end', mono: !row.quiet, bold: !!row.changed, color: row.changed ? TONE.ink : TONE.soft }), `${k}:value`);
+    parts.add(new Rectangle({ width: right - LEDGER_X, height: STROKE.hair, fill: TONE.rule, stroke: 'none' }).moveTo([(LEDGER_X + right) / 2, y - 0.37]), `${k}:rule`);
+    if (row.changed) {
+      emphasised(value, `changed: ${row.label} is now ${row.value}`);
+      parts.add(new Rectangle({ width: 0.09, height: 0.56, fill: TONE.ink, stroke: 'none', cornerRadius: 0.02 }).moveTo([LEDGER_X - 0.26, y]), `${k}:mark`);
+    }
+  });
 
   // The right-hand focus: what to predict, why the tempting remedy would fail, or the 401 counterfactual.
   const room = MARGIN.right - LEDGER_X, tempting = temptation(w);

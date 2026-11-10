@@ -30,8 +30,8 @@ import type { CodeRecord, SignIn, Visit, World } from './model.ts';
 
 export const PALETTE = KIT_PALETTE;
 /** What the scene shows apart from the state: the world or the table of logins, and whether the attacker is on stage. */
-export type Shown = { panel: 'world' | 'logins'; attacker: boolean };
-export const SHOWN_START: Shown = { panel: 'world', attacker: false };
+export type Shown = { attacker: boolean };
+export const SHOWN_START: Shown = { attacker: false };
 
 const PHRASE: Record<number, string> = { 200: 'OK', 204: 'No Content', 303: 'See Other', 400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden' };
 /** A code as the stage prints it: the four characters after bc_. The caption and the words give it whole. */
@@ -63,9 +63,14 @@ const SHELF_Y = -1.4;
 export const JOIN_AT: Vec = [-1.75, SHELF_Y + 0.53];
 export const SESSION_AT: Vec = [-1.75, SHELF_Y + 0.47];
 /** The rack behind the counter: its left edge and the rows' heights. */
-const RACK_X = 2.85;
-const ROW_Y = [2.72, 1.62, 0.52, -0.58] as const;
-const STUB_W = 3.3, HALF_W = 0.85, SLIP_H = 0.95;
+const RACK_X = 2.75;
+const ROW_Y = [2.8, 1.5, 0.2, -1.1] as const;
+/** A slip's height in the window and on the shelves; a record's on the rack, larger, since the tear is the point. */
+const SLIP_H = 0.95, ROW_H = 1.2;
+const STUB_W = 3.3;
+/** A cookie half's width at a slip height. */
+const halfW = (h: number) => 0.85 * h / SLIP_H;
+const HALF_W = halfW(SLIP_H);
 /** The barrier on the agent's road, and where a ticket rests there. */
 const BARRIER_X = COUNTER_X - 0.45;
 const ticketAt = (delivered: boolean): Vec => [delivered ? COUNTER_X - 0.17 - TICKET.width / 2 : BARRIER_X - 0.28 - TICKET.width / 2, ROAD_A];
@@ -83,52 +88,52 @@ function tear(code: string): number[] {
   const seed = [...code].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) % 9973, 7);
   return Array.from({ length: 7 }, (_, k) => (k % 2 ? 0.16 : 0) + 0.05 * ((seed >> k) % 3));
 }
-/** The tear's points from the top of the ticket to its bottom, at x `edge`. */
+/** The tear's points from the top of the ticket to its bottom, at x `edge`, scaled with the slip's height `h`. */
 const tearPoints = (code: string, edge: number, top: number, h: number): Vec[] =>
-  tear(code).map((dx, k, all): Vec => [edge - dx, top - (k * h) / (all.length - 1)]);
+  tear(code).map((dx, k, all): Vec => [edge - (dx * h) / SLIP_H, top - (k * h) / (all.length - 1)]);
 
 /**
  * The stub: paper, the code printed on it in mono bold, its right edge torn along the code's zigzag.
  * `at` is the centre of its whole rectangle. With `stampRoom`, the printing moves right of a place
  * for the stamp.
  */
-export function stub(s: Stage, { at, code, width, stampRoom = false }: { at: Vec; code: string; width: number; stampRoom?: boolean }): Group {
-  const [x, y] = at, l = x - width / 2, r = x + width / 2, t = y + SLIP_H / 2, b = y - SLIP_H / 2, k = RADIUS.ticket;
-  const outline: Vec[] = [[l + k, t], ...tearPoints(code, r, t, SLIP_H), [l + k, b], [l, b + k], [l, t - k]];
-  const text = words(s, shortCode(code), { mono: true, bold: true, color: TONE.print, at: stampRoom ? [l + 0.86, y] : [x - 0.1, y], align: stampRoom ? 'start' : 'middle' });
+export function stub(s: Stage, { at, code, width, stampRoom = false, h = SLIP_H }: { at: Vec; code: string; width: number; stampRoom?: boolean; h?: number }): Group {
+  const [x, y] = at, l = x - width / 2, r = x + width / 2, t = y + h / 2, b = y - h / 2, k = RADIUS.ticket;
+  const outline: Vec[] = [[l + k, t], ...tearPoints(code, r, t, h), [l + k, b], [l, b + k], [l, t - k]];
+  const text = words(s, shortCode(code), { mono: true, bold: true, color: TONE.print, at: stampRoom ? [l + 0.95, y] : [x - 0.1, y], align: stampRoom ? 'start' : 'middle' });
   return new Group(new Polygon(outline, { fill: TONE.paper, stroke: 'none' }), text);
 }
 
 /** The cookie half: the dark part of the ticket, its left edge torn along the code's zigzag, a cookie on it. `left` is its tear's straight line. */
-export function cookieHalf(s: Stage, { left, y, code }: { left: number; y: number; code: string }): Group {
-  const t = y + SLIP_H / 2, b = y - SLIP_H / 2, r = left + HALF_W, k = RADIUS.ticket;
-  const outline: Vec[] = [...tearPoints(code, left, t, SLIP_H), [r - k, b], [r, b + k], [r, t - k], [r - k, t]];
+export function cookieHalf(s: Stage, { left, y, code, h = SLIP_H }: { left: number; y: number; code: string; h?: number }): Group {
+  const t = y + h / 2, b = y - h / 2, r = left + halfW(h), k = RADIUS.ticket;
+  const outline: Vec[] = [...tearPoints(code, left, t, h), [r - k, b], [r, b + k], [r, t - k], [r - k, t]];
   return new Group(
     new Polygon(outline, { fill: TONE.raised, stroke: TONE.ink, strokeWidth: STROKE.fine }),
-    cookie(s, { at: [left + HALF_W / 2 + 0.02, y], r: 0.27 }),
+    cookie(s, { at: [left + halfW(h) / 2 + 0.03, y], r: 0.28 * h / SLIP_H }),
   );
 }
 
 /** The outline of a cookie half that did not come: dashed STEEL along the code's tear, nothing inside. */
-function missingHalf(code: string, left: number, y: number): Polygon {
-  const t = y + SLIP_H / 2, b = y - SLIP_H / 2, r = left + HALF_W, k = RADIUS.ticket;
-  return new Polygon([...tearPoints(code, left, t, SLIP_H), [r - k, b], [r, b + k], [r, t - k], [r - k, t]], { fill: 'none', stroke: TONE.steel, strokeWidth: STROKE.fine, dashArray: '0.1 0.07' });
+function missingHalf(code: string, left: number, y: number, h = SLIP_H): Polygon {
+  const t = y + h / 2, b = y - h / 2, r = left + halfW(h), k = RADIUS.ticket;
+  return new Polygon([...tearPoints(code, left, t, h), [r - k, b], [r, b + k], [r, t - k], [r - k, t]], { fill: 'none', stroke: TONE.steel, strokeWidth: STROKE.line, dashArray: '0.14 0.09' });
 }
 
 /** The Company's record of a code, as one row of the rack: its keyed parts. */
 function row(s: Stage, parts: ReturnType<typeof keyedParts>, record: CodeRecord, y: number) {
   const id = `row:${shortCode(record.code)}`, l = RACK_X, edge = l + STUB_W;
-  parts.add(stub(s, { at: [l + STUB_W / 2, y], code: record.code, width: STUB_W, stampRoom: true }), `${id}:stub`);
-  const stampAt: Vec = [l + 0.44, y];
+  parts.add(stub(s, { at: [l + STUB_W / 2, y], code: record.code, width: STUB_W, stampRoom: true, h: ROW_H }), `${id}:stub`);
+  const stampAt: Vec = [l + 0.5, y];
   const g = record.authorized;
   if (g) {
-    parts.add(seal(s, { at: stampAt, r: 0.29, foreign: g.agent !== AGENT.clientId }), `${id}:stamp`);
-    if (g.account) parts.add(key(s, { at: [l + 2.7, y + 0.04], size: 0.34, teeth: g.scopes.length, onPaper: true }), `${id}:key`);
-  } else parts.add(new Circle({ radius: 0.25, fill: 'none', stroke: TONE.steel, strokeWidth: STROKE.fine, dashArray: '0.08 0.06' }).moveTo(stampAt), `${id}:ring`);
-  if (record.seated) parts.add(cookieHalf(s, { left: edge, y, code: record.code }), `${id}:half`);
+    parts.add(seal(s, { at: stampAt, r: 0.36, foreign: g.agent !== AGENT.clientId }), `${id}:stamp`);
+    if (g.account) parts.add(key(s, { at: [l + 2.66, y + 0.04], size: 0.3, teeth: g.scopes.length, onPaper: true }), `${id}:key`);
+  } else parts.add(new Circle({ radius: 0.31, fill: 'none', stroke: TONE.steel, strokeWidth: STROKE.line, dashArray: '0.12 0.08' }).moveTo(stampAt), `${id}:ring`);
+  if (record.seated) parts.add(cookieHalf(s, { left: edge, y, code: record.code, h: ROW_H }), `${id}:half`);
   // Submitted without its cookie: the place where the half should have fitted, outlined and empty.
-  else if (record.submitted) parts.add(missingHalf(record.code, edge, y), `${id}:gap`);
-  if (record.submitted && !record.joined) parts.add(barrier(s, { at: [edge + HALF_W + 0.36, y], height: 0.9 }), `${id}:barrier`);
+  else if (record.submitted) parts.add(missingHalf(record.code, edge, y, ROW_H), `${id}:gap`);
+  if (record.submitted && !record.joined) parts.add(barrier(s, { at: [edge + halfW(ROW_H) + 0.32, y], height: 1.1 }), `${id}:barrier`);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -163,7 +168,6 @@ const sayRecord = (r: CodeRecord) =>
 
 /** The picture in words, for a reader who cannot see it; no two reachable states read alike. */
 export function sayWorld(w: World, shown: Shown): string {
-  if (shown.panel === 'logins') return sayLogins();
   const key = teethOf(w.signIn) ? `its key with ${teethOf(w.signIn)} teeth${w.dropped ? ', which it has stopped sending after the 403' : ''}` : 'no key';
   const page = w.page ? `The browser shows the join page with code ${w.page}.` : w.browser.session ? 'The browser shows the website.' : w.last?.event === 'submit' ? 'The browser shows an error page.' : 'The browser shows no page of the website yet.';
   const shelf = `Its cookies: ${w.browser.join ? `a join cookie (${w.browser.join})` : 'no join cookie'}, ${w.browser.session ? `the Session’s cookie for ${w.browser.session.grant.sid}${w.browser.session.grant.account ? ` acting for account ${w.browser.session.grant.account}` : ', signed out'}` : 'no Session cookie'}.`;
@@ -188,17 +192,16 @@ export function sayWorld(w: World, shown: Shown): string {
 
 /** The state as its picture: agent, browser and Company, the rack of codes, and the last answer. */
 export function drawWorld(w: World, s: Stage, shown: Shown): Group {
-  if (shown.panel === 'logins') return drawLogins(s);
   const parts = keyedParts(), last = w.last, report = reportOf(w), teeth = teethOf(w.signIn);
 
   // Your agent: its station, with its seal and its key (or the empty slot for one).
   addAll(parts, station(s, { at: STATION, r: STATION_R, keyTeeth: teeth }));
   // The agent reads its own browser's page: a dotted line from the station to the window.
   const readFrom: Vec = [STATION[0] + STATION_R * Math.cos(-0.45), STATION[1] + STATION_R * Math.sin(-0.45)];
-  parts.add(new Line(readFrom, [WIN[0] - WIN_W / 2, 1.95], { stroke: TONE.soft, strokeWidth: STROKE.fine, dashArray: '0.1 0.1' }), 'reads');
+  parts.add(new Line(readFrom, [WIN[0] - WIN_W / 2, 1.95], { stroke: TONE.steel, strokeWidth: STROKE.line, dashArray: '0.16 0.12' }), 'reads');
 
   // The Company's counter, and the two roads that reach it.
-  addAll(parts, counter(s, { x: COUNTER_X, top: MARGIN.top, bottom: -1.15 }));
+  addAll(parts, counter(s, { x: COUNTER_X, top: MARGIN.top, bottom: -1.75 }));
   const agentRoad = last?.event === 'fetch' || last?.event === 'authorize';
   const agentReached = last?.event === 'fetch' || (last?.event === 'authorize' && last.answer.status === 204);
   addAll(parts, lane(s, { id: 'agent', name: 'agent’s requests', y: ROAD_A, from: ROAD_A_FROM, trunk: ROAD_A_FROM[0], to: COUNTER_X, nameX: -5.0, active: agentRoad, reached: agentReached, fan: 0 }));
@@ -259,11 +262,11 @@ export function drawWorld(w: World, s: Stage, shown: Shown): Group {
     parts.add(person(s, { at: [EVIL[0] - 2.05, EVIL[1] - 0.5], size: 0.62 }), 'yours:person');
     parts.add(words(s, 'your browser', { at: [EVIL[0] - 1.45, EVIL[1] - 0.45], color: TONE.soft }), 'yours:name');
     // Right under the rows, so the marks are named beside the stubs that carry them.
-    const y0 = ROW_Y[Math.max(1, ordered.length)]! - 0.05;
-    parts.add(seal(s, { at: [RACK_X + 0.44, y0], r: 0.29 }), 'legend:stamp');
-    parts.add(words(s, 'agent stamped', { at: [RACK_X + 1.0, y0], color: TONE.soft }), 'legend:stamp:name');
-    parts.add(new Circle({ radius: 0.25, fill: 'none', stroke: TONE.steel, strokeWidth: STROKE.fine, dashArray: '0.08 0.06' }).moveTo([RACK_X + 0.44, y0 - 0.8]), 'legend:ring');
-    parts.add(words(s, 'not stamped', { at: [RACK_X + 1.0, y0 - 0.8], color: TONE.soft }), 'legend:ring:name');
+    const y0 = ROW_Y[Math.max(1, ordered.length)]! + 0.1;
+    parts.add(seal(s, { at: [RACK_X + 0.5, y0], r: 0.32 }), 'legend:stamp');
+    parts.add(words(s, 'agent stamped', { at: [RACK_X + 1.1, y0], color: TONE.soft }), 'legend:stamp:name');
+    parts.add(new Circle({ radius: 0.28, fill: 'none', stroke: TONE.steel, strokeWidth: STROKE.line, dashArray: '0.12 0.08' }).moveTo([RACK_X + 0.5, y0 - 0.85]), 'legend:ring');
+    parts.add(words(s, 'not stamped', { at: [RACK_X + 1.1, y0 - 0.85], color: TONE.soft }), 'legend:ring:name');
   }
 
   // Under the browser: what was asked, and what came back.
@@ -317,7 +320,7 @@ export function drawLogins(s: Stage): Group {
   return parts.group();
 }
 
-function sayLogins(): string {
+export function sayLogins(): string {
   const say = (v: Visit) => (v.via === 'session' ? `signed in to ${v.account} with the token’s scopes` : v.account ? `logged in as ${v.account}` : 'not logged in');
   return `What a join does to a login the browser already had, row by row. ${ROWS.map((r, i) => {
     const e = joinEffect(r.before, r.key);
