@@ -77,7 +77,7 @@ export const SLOT_AT: Vec = [COUNTER_X + 0.25, 1.3];
 const ASIDE_X = 0.45;
 /** The agent's followed strips, and the shop's set-aside strips with the reason under each. */
 const STRIP_Y = (i: number) => -1.2 - i * 0.92;
-const ASIDE_Y = (i: number) => -0.62 - i * 1.24;
+const ASIDE_Y = (i: number) => -0.6 - i * 1.4;
 
 // ---------------------------------------------------------------------------------------------
 // Words
@@ -252,9 +252,9 @@ export function drawWorld(w: World, s: Stage): Group {
     // What the shop sees, while nothing lies on its desk.
     const seen = seenBy(w), changed = last?.kind === 'searched' && seen !== 'nothing yet';
     parts.add(words(s, 'the shop sees', { at: [ASIDE_X, HEAD_Y], color: TONE.soft }), 'desk:head');
-    const value = parts.add(words(s, seen, { at: [ASIDE_X, -1.0], size: TYPE.title, bold: seen !== 'nothing yet', color: seen === 'nothing yet' ? TONE.soft : TONE.ink }), 'desk:seen');
+    const value = parts.add(words(s, seen, { at: [ASIDE_X, -1.75], size: TYPE.title, bold: seen !== 'nothing yet', color: seen === 'nothing yet' ? TONE.soft : TONE.ink }), 'desk:seen');
     if (changed) emphasised(value, `changed: the shop sees ${seen}`);
-    if (last?.kind === 'searched') parts.add(words(s, 'and never learns why', { at: [ASIDE_X, -1.8], color: TONE.soft }), 'desk:why');
+    if (last?.kind === 'searched') parts.add(words(s, 'and never learns why', { at: [ASIDE_X, -2.55], color: TONE.soft }), 'desk:why');
   }
 
   // The agent's model, and what is in it.
@@ -305,7 +305,7 @@ export function drawWorld(w: World, s: Stage): Group {
     drawn.filter((x) => x.v.use.use).forEach((x, i) => parts.add(strip(s, x.s.text, { at: [TRAY_IN, STRIP_Y(i)], mono: x.s.mono }), `strip:used:${i}`));
     drawn.filter((x) => !x.v.use.use).forEach((x, i) => {
       parts.add(strip(s, x.s.text, { at: [ASIDE_X, ASIDE_Y(i)], mono: x.s.mono }), `strip:aside:${i}`);
-      parts.add(words(s, reasonOf(x.a), { at: [ASIDE_X + 0.28, ASIDE_Y(i) - 0.62], color: TONE.soft }), `strip:aside:${i}:why`);
+      parts.add(words(s, reasonOf(x.a), { at: [ASIDE_X + 0.28, ASIDE_Y(i) - 0.6], color: TONE.soft }), `strip:aside:${i}:why`);
     });
     if (!drawn.some((x) => !x.v.use.use)) parts.add(words(s, 'nothing', { at: [ASIDE_X, ASIDE_Y(0)], size: TYPE.label, color: TONE.soft }), 'aside:none');
     const ok = used.answer.status === 200;

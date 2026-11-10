@@ -155,7 +155,7 @@ export default class SignIn extends Scene<World, Shown> {
           title: 'The agent shows you a code',
           line: 'It checks the link is the Company’s first.',
           caption:
-            'Poppy’s way is OAuth. The agent asks example.com for a sign-in code for the two scopes the exchange needs, orders:read and orders:write, and not addresses. It shows you the code, with a link it has checked is on the Company’s own host, and the Company’s name and domain beside it. Then it polls the Company every few seconds. Until you answer, each poll gets authorization_pending.',
+            'Poppy’s way is OAuth. The agent asks example.com for a sign-in code for the two scopes the exchange needs, orders:read and orders:write, and not addresses. It shows you the code, with a link it has checked is on the Company’s own host, and the Company’s name and domain beside it. Then it polls the Company, five seconds apart, as the Company asked. Until you answer, each poll gets authorization_pending.',
         }
       : {
           title: 'The agent opens the Company’s own page',
@@ -209,11 +209,18 @@ export default class SignIn extends Scene<World, Shown> {
     const again = story.lastIndexOf('ask');
     await this.step('reask', {
       title: 'To do more, ask for everything again',
-      line: `Both scopes asked again; ${CARDS[1]} replaces ${CARDS[0]}.`,
+      line: 'Both scopes asked again; the old tag still works.',
       caption:
-        'The response said orders:read, so the exchange is out of reach. The agent asks again, for orders:read and orders:write, everything it still needs, not just the missing scope. You approve both. The new key has two teeth, and the new refresh token replaces the old one, which the agent revokes. Revoking a replaced token does not sign you out.',
+        'The response said orders:read, so the exchange is out of reach. The agent asks you again, and asks for orders:read and orders:write, everything it still needs, not just the missing scope. This time you approve both. Until the new sign-in finishes, the agent keeps the key and tag it has: a sign-in that is pending, or fails, changes nothing it holds.',
     });
-    await this.play(replay(again, again + 3));
+    await this.play(replay(again, again + 2));
+
+    await this.step('replace', {
+      title: 'The new tag replaces the old',
+      line: `${CARDS[1]} replaces ${CARDS[0]}, which is not sign-out.`,
+      caption: `The new key has two teeth, one for each scope you approved, and it comes with a new refresh token, ${CARDS[1]}. The new tag replaces the old one, which the agent revokes. Revoking a replaced token does not sign you out: the account stays signed in through the new one.`,
+    });
+    await this.play(replay(again + 2, again + 3));
 
     await this.step('thief', {
       title: 'A copied tag opens nothing',

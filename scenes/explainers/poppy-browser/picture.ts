@@ -7,7 +7,7 @@ import {
   addAll, answer, barrier, browserWindow, codeSlip, cookie, person, counter, key, lane, seal, station, stationExit, stationHolds, stop, ticket, words,
 } from '../lib/poppy-kit.ts';
 import { AGENT, SID } from '../poppy/model.ts';
-import { ATTACKER, ATTACK_CODE, CODES, PHISH_CODE, joinEffect } from './model.ts';
+import { ACCOUNT, ATTACKER, ATTACK_CODE, CODES, PHISH_CODE, joinEffect } from './model.ts';
 import type { CodeRecord, SignIn, Visit, World } from './model.ts';
 
 // One state as a picture, drawn with the series' kit. Three actors: your agent on the left (its
@@ -20,8 +20,9 @@ import type { CodeRecord, SignIn, Visit, World } from './model.ts';
 // a cookie on it, is the join cookie the browser keeps. Each code tears along its own zigzag, so a half
 // fits only its own stub. The Company's record of a code is its stub on the rack behind the counter:
 // a ring where the stamp goes, the agent's seal pressed there once the agent authorizes it (with a
-// key beside it when the authorization carried one), a punched hole once it has been submitted, the
-// cookie half seated against its tear when the right cookie came back with it, and a barrier when the
+// key beside it when the authorization carried one), the
+// cookie half seated against its tear when the right cookie came back with it (its outline, dashed and empty,
+// when none came), and a barrier when the
 // submission was refused. Which half is missing reads from the row.
 //
 // Colour is the kit's and keeps its meanings: WAX is the agent's seal and stamp, PEWTER the attacker's,
@@ -124,7 +125,6 @@ function row(s: Stage, parts: ReturnType<typeof keyedParts>, record: CodeRecord,
     parts.add(seal(s, { at: stampAt, r: 0.29, foreign: g.agent !== AGENT.clientId }), `${id}:stamp`);
     if (g.account) parts.add(key(s, { at: [l + 2.7, y + 0.04], size: 0.34, teeth: g.scopes.length, onPaper: true }), `${id}:key`);
   } else parts.add(new Circle({ radius: 0.25, fill: 'none', stroke: TONE.steel, strokeWidth: STROKE.fine, dashArray: '0.08 0.06' }).moveTo(stampAt), `${id}:ring`);
-  if (record.submitted) parts.add(new Circle({ radius: 0.075, fill: TONE.ground, stroke: 'none' }).moveTo([edge - 0.5, y + 0.3]), `${id}:punch`);
   if (record.seated) parts.add(cookieHalf(s, { left: edge, y, code: record.code }), `${id}:half`);
   // Submitted without its cookie: the place where the half should have fitted, outlined and empty.
   else if (record.submitted) parts.add(missingHalf(record.code, edge, y), `${id}:gap`);
@@ -146,7 +146,7 @@ function reportOf(w: World): Report | null {
       const a = last.answer;
       return {
         asked: `agent: authorize ${shortCode(last.code)}`, number: String(a.status),
-        meaning: a.status === 204 ? (last.withToken ? 'stamped, with your key' : 'stamped, no account') : a.status === 403 ? 'needs browser-sign-in' : 'code refused',
+        meaning: a.status === 204 ? (last.withToken ? `stamped: account ${ACCOUNT}` : 'stamped: no account') : a.status === 403 ? 'needs browser-sign-in' : 'code refused',
       };
     }
     case 'submit': return { asked: `browser: submit ${shortCode(last.code)}`, number: String(last.answer.status), meaning: last.answer.status === 303 ? 'joined the Session' : 'no agent stamped it' };
@@ -256,8 +256,8 @@ export function drawWorld(w: World, s: Stage, shown: Shown): Group {
   } else {
     // Your own browser: on the same website, never joined; the agent joins only a browser it controls (6).
     parts.add(browserWindow(s, { at: EVIL, width: 5.9, height: 2.2, lines: 0 }), 'yours');
-    parts.add(person(s, { at: [EVIL[0] - 2.2, EVIL[1] - 0.5], size: 0.62 }), 'yours:person');
-    parts.add(words(s, 'your own browser', { at: [EVIL[0] - 1.6, EVIL[1] - 0.45], color: TONE.soft }), 'yours:name');
+    parts.add(person(s, { at: [EVIL[0] - 2.05, EVIL[1] - 0.5], size: 0.62 }), 'yours:person');
+    parts.add(words(s, 'your browser', { at: [EVIL[0] - 1.45, EVIL[1] - 0.45], color: TONE.soft }), 'yours:name');
     // Right under the rows, so the marks are named beside the stubs that carry them.
     const y0 = ROW_Y[Math.max(1, ordered.length)]! - 0.05;
     parts.add(seal(s, { at: [RACK_X + 0.44, y0], r: 0.29 }), 'legend:stamp');

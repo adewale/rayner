@@ -146,7 +146,7 @@ export default class PoppyBrowser extends Scene<World, Shown> {
             const away = [c.leave('page:stub', { runTime: 0.2 }), ...(c.has('shelf:join', 'from') && !c.has('shelf:join', 'to') ? [c.leave('shelf:join', { runTime: 0.2 })] : [])];
             const back = joined ? flight(c, 'shelf:session', [COUNTER_B, [ROAD_B_FROM[0] + 0.4, ROAD_B], [ROAD_B_FROM[0] + 0.4, SESSION_AT[1]], SESSION_AT], { move: 0.7 })() : [];
             return [new AnimationGroup(away), ...together(stubTrip, halfTrip), ...back];
-          }, { lead: BROWSER_ROAD, then: [`row:${id}:punch`, `row:${id}:barrier`] });
+          }, { lead: BROWSER_ROAD, then: [`row:${id}:gap`, `row:${id}:barrier`] });
         },
         // The browser opens a page; its cookie goes with the slip, and the page changes once the answer is back.
         browse: (t) => {
@@ -158,7 +158,7 @@ export default class PoppyBrowser extends Scene<World, Shown> {
           const c = t.choreograph(world), id = shortCode(ATTACK_CODE), at = rowAt(c, id);
           const token = stub(s, { at: [0, 0], code: ATTACK_CODE, width: 2.3 }), from: Vec = [EVIL_HALF_AT[0] - 1.6, EVIL_HALF_AT[1] + 0.9];
           return beats(c, () => pass(c, 'forged', token, [from, [PAGE_AT[0] + 1.0, PAGE_AT[1] - 0.2], ROAD_B_FROM, COUNTER_B, [at[0] - 0.6, at[1]]], { appear: 0.25, move: 1.4, leave: 0.2 }),
-            { lead: BROWSER_ROAD, then: [`row:${id}:punch`, `row:${id}:barrier`] });
+            { lead: BROWSER_ROAD, then: [`row:${id}:gap`, `row:${id}:barrier`] });
         },
         // A message brings the attacker's code to your agent, which keeps it out; then the attacker's own browser sends stub and half.
         phish: (t) => {
@@ -169,7 +169,7 @@ export default class PoppyBrowser extends Scene<World, Shown> {
               flight(c, `row:${id}:half`, [EVIL_HALF_AT, [COUNTER_X + 0.3, EVIL_HALF_AT[1]], [COUNTER_X + 0.3, at[1]]], { move: 0.9 })(),
               pass(c, 'carried', stub(s, { at: [0, 0], code: PHISH_CODE, width: 2.3 }), [[EVIL_HALF_AT[0] - 1.2, EVIL_HALF_AT[1]], [COUNTER_X + 0.3, EVIL_HALF_AT[1] + 0.3], [at[0] - 0.6, at[1]]], { appear: 0.2, move: 0.9, leave: 0.2 }),
             ),
-          ], { then: [`row:${id}:punch`, `row:${id}:barrier`] });
+          ], { then: [`row:${id}:gap`, `row:${id}:barrier`] });
         },
       },
     });
@@ -207,7 +207,7 @@ export default class PoppyBrowser extends Scene<World, Shown> {
       title: 'The halves meet in one browser',
       line: 'Code and cookie fit; the browser gets the Session’s cookie.',
       caption:
-        'Now the browser submits the form. The code goes back with the cookie half from its shelf, and the Company checks that the half fits this stub, that the stub is stamped, and that it was not used before: it is punched now, whatever the answer. It fits, so the Company sets the Session’s own cookie on the shelf. Only this browser held that half, and only the agent could stamp the stub.',
+        'Now the browser submits the form. The code goes back with the cookie half from its shelf, and the Company checks that the half fits this stub, that the stub is stamped, and that it was not used before; a code works once, whatever the answer. It fits, so the Company sets the Session’s own cookie on the shelf. Only this browser held that half, and only the agent could stamp the stub.',
     });
     await this.play(machine.replay(story.slice(k, k + 1)));
 

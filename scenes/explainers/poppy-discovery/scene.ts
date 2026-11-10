@@ -6,7 +6,7 @@ import { beats, flight } from '../lib/poppy-kit.ts';
 import type { Beat } from '../lib/poppy-kit.ts';
 import { EVENTS, GATE_NAME, STORY, next, progress, start } from './model.ts';
 import type { DiscoveryEvent, World } from './model.ts';
-import { PALETTE, drawWorld, sayWorld } from './picture.ts';
+import { DOORSTEP, PALETTE, drawWorld, sayWorld } from './picture.ts';
 
 /** Parts that belong to one run of the checks: they go when the reader chooses another server. */
 const RUN = ['url:', 'sheet', 'board', 'shop:mark', 'out:', 'register:', 'back:', 'verdict:', 'rail:barrier', 'rail:done'];
@@ -52,14 +52,16 @@ export default class PoppyDiscovery extends Scene<World, {}> {
           // The fetch: a redirect's first URL, then the sheet comes down from the address bar to the doorstep.
           const first = together(bring(c, ['url:first', 'url:redirect', 'url:under', 'board']) as Animation[]);
           // The sheet's own printing (a ruled line, or its name on the noticeboard) comes with the rest, once it has landed.
-          const sheet = c.has('sheet', 'to') ? flight(c, 'sheet', [c.to('url:path').center() as [number, number]], { appear: 0.2, move: 0.8, leave: 0.25 })() : [];
+          const sheet = c.has('sheet', 'to') ? flight(c, 'sheet', [c.to('url:path').center() as [number, number], ...(c.to('sheet').center()[1]! < DOORSTEP[1] ? [DOORSTEP] : [])], { appear: 0.2, move: 0.8, leave: 0.25 })() : [];
           return [...first, ...sheet];
         }
         if (gate === 2) return [...bring(c, ['sheet:head']), ...together(bring(c, ['shop:mark', 'sheet:mark']) as Animation[])];
         const g = (keys: readonly string[], create: readonly string[] = []) => together(bring(c, keys, create) as Animation[]);
-        if (gate === 3) return [...g(['out:line'], ['out:line']), ...g(['out:head', 'out:plate', 'out:label', 'out:code', 'out:note']), ...g(['register:title', 'register:page'])];
+        // The closed register gives way as the arm reaches it, and opens at its page.
+        const shut = c.has('register:closed', 'from') && !c.has('register:closed', 'to') ? [c.leave('register:closed', { runTime: 0.25 })] : [];
+        if (gate === 3) return [...g(['out:line'], ['out:line']), ...together(shut), ...g(['out:head', 'out:plate', 'out:label', 'out:code', 'out:note']), ...g(['register:title', 'register:page', 'register:none'])];
         // The issuer's rows; then either the arrow back to the shop, or the empty slot and the ghost of an arrow that never arrives.
-        return [...g(['register:row:0', 'register:row:1']), ...g(['register:slot', 'register:slot:text', 'back:ghost', 'back:line'], ['back:line', 'back:ghost']), ...g(['back:head', 'back:label'])];
+        return [...g(['register:row:0', 'register:row:1']), ...g(['register:slot', 'register:slot:text', 'back:ghost', 'back:line'], ['back:line', 'back:ghost']), ...g(['back:head', 'back:plate', 'back:label'])];
       };
       return beats(c, thunk, { fresh: ['verdict:'], then: ['rail:barrier'], lead: ['url:lock', 'url:host', 'url:path'] });
     };
