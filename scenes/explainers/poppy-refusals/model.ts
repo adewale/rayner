@@ -381,14 +381,15 @@ const FIX_WORDS: Record<Fix, string> = { refresh: 'a refresh', 'sign-in': 'a new
 /** Why `chosen` is the wrong remedy for this refusal, whose right one is `right`: a clause that follows the remedy's name. */
 function wrongReason(chosen: Fix, right: Fix, last: Last): string {
   const { reply, trouble } = last, code = reply.error ?? String(reply.status), what = trouble === 'mcp' ? 'sizing call' : 'exchange';
+  const words = (f: Fix) => (f === 'refresh' && reply.resourceMetadata ? 'a refresh for a token issued to the MCP server' : FIX_WORDS[f]);
   if (reply.status === 429) return `429 says the agent is sending too often; it waits at least ${reply.retryAfter} s and sends the same request`;
   if (chosen === 'new-session' && reply.error === 'invalid_session') return 'a new Session does not fix invalid_session: the same header fails in any Session, so the agent stops and fixes the cause';
   if ((chosen === 'refresh' || chosen === 'sign-in') && reply.status === 400) return `${code} is a 400: the access token is fine, so the agent keeps it`;
   if (chosen === 'refresh' && right === 'sign-in') return `the refresh token covers only ${agentAfter(trouble).scopes?.join(' ')}, and a refresh cannot add ${reply.needs}, so the agent asks you`;
   if (chosen === 'sign-in' && right === 'refresh') return `the refresh token still covers what the ${what} needs, so the agent refreshes without asking you`;
   if (chosen === 'new-session' && reply.error === 'version_unsupported') return 'version_unsupported asks for a fresh copy of poppy.json first; a new Session follows only if the agent then chooses another version';
-  if (chosen === 'wait') return `${code} asks for ${FIX_WORDS[right]}, and waiting will not change the answer`;
-  return `${code} asks for ${FIX_WORDS[right]}, not ${FIX_WORDS[chosen]}`;
+  if (chosen === 'wait') return `${code} asks for ${words(right)}, and waiting will not change the answer`;
+  return `${code} asks for ${words(right)}, not ${words(chosen)}`;
 }
 
 /**
