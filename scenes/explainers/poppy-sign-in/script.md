@@ -1,0 +1,35 @@
+# How do you give your agent a key without giving it your password?
+
+- **Reader:** a developer who knows OAuth roughly ("Sign in with…", a redirect, a code, a token) and has read chapter 1 of this series, so has met the Session header as the seal and the access token as the key, but has not read section 4 of the Personal Agent Protocol and does not know what it changes about OAuth for an AI agent.
+- **Answer:** Your password stays on the Company's own page; the agent gets a key cut to what you approved, revocable on its own
+- **Changed condition:** the sign-in type. With Direct Sign-In the one-time code comes back through your browser, only to the agent's registered address, and a response swapped in from another Company's sign-in fails the agent's iss check. With Device Sign-In you approve on another device while the agent polls, and the agent refuses to show you a link whose host is not the Company's. And, by pressing, what you approve: approve only orders:read and the key has one tooth, and getting the second means asking again for both.
+- **Reader's own work:** predict what the Company can do about an agent that holds your password; predict what the agent gets back when you approve less than it asked for, and what it must ask for next time; switch the sign-in type and predict which check stops the trick; at the last step, drive sign-in yourself, approve less or more, try the trick, the thief, sign-out and disconnecting from the Company's side, and read why each refused press is refused.
+- **Checked against:** the Personal Agent Protocol draft 0.4, read and not run: `model.test.ts` holds the model to the rules and examples of its sections 4.1 to 4.7, 5.4, 5.5 and 10.5, each test naming its section, and checks the draft's PKCE challenge against RFC 7636's verifier with real SHA-256. There is no reference implementation here to run the model against.
+- **Leaves out:** real signatures (who signed is a field of the model, and S256 is a stand-in apart from the one pair the test checks), time (code, token and device-request lifetimes, the poll interval and slow_down), DPoP and tokens for one service (4.5), refreshing for fewer scopes, Mediated Sign-In, a Company refusing an agent by client_id, what the key then opens (chapter 1), and the moment the agent learns it was disconnected: its next refresh is folded into the disconnect.
+
+## Check yourself
+
+1. The agent asks for orders:read and orders:write, and you approve only orders:read. What does the token response say, and how does the agent get orders:write for the exchange?
+   The response’s scope says orders:read, so the agent sees orders:write is missing. You sign in again and it asks for orders:read orders:write, everything it still needs; the new refresh token pat_3Fz9 replaces pat_8Hk2.
+2. During Direct Sign-In, a response from shoes.example's sign-in, with a code in it, reaches the agent's redirect. What stops it?
+   The agent rejects it: its iss names https://auth.shoes.example, and the agent started sign-in with https://auth.example.com.
+3. During Device Sign-In, the link the agent is given to show you is https://auth.shoes.example/device. What does the agent do?
+   It does not show the link: its host auth.shoes.example is neither auth.example.com nor example.com, nor a subdomain of either. A link it shows has Example Company and example.com beside it.
+4. A thief copies the agent's refresh token and sends it to the token endpoint with a client assertion of its own. What comes back?
+   invalid_grant: the refresh token was issued to https://agent.example/agent.json. The thief can sign an assertion only as itself.
+5. Suppose your agent signed in by typing your password into the website instead. What can the Company do if the agent misbehaves?
+   It sees you, not agent.example, so it can limit nothing and can only block it entirely. Through sign-in it could revoke agent.example’s refresh tokens without affecting you.
+
+## Why this explainer
+
+Chapter 1 drew the access token as a brass key and said, in one step, that you have it cut on the Company's own page. That step carried most of section 4 and hid all of it. This chapter opens that step up, because it is where a reader's real worry sits: an AI agent that acts on my account sounds like an AI agent that knows my password. The answer is OAuth, which the reader half knows, so the risk is an explainer that recites OAuth. I want the reader to see instead what each piece is for, and what Poppy tightens.
+
+So the chapter starts from the shortcut people actually take, and the one the draft names in 10.5: hand the agent your password and let it type it in. The draft expects agents to do it wherever a Company offers no sign-in that covers what Users need, and the first picture shows what the Company is left with: a visitor that looks like you, that it cannot limit, and that it can only block entirely. Every later picture answers that one. The password goes across the Company's counter and nowhere else. What crosses to the agent is a claim slip it can redeem only with its own signature and the stub of the ticket it tore in half; what it gets for it is a key cut tooth by tooth, one tooth per scope you approved, and a tag that brings new keys only to the agent's own signature.
+
+The turn is the moment you approve less than the agent asked for. A reader who knows OAuth expects the server to be generous, or the agent to be stuck; instead the key comes back with one tooth, the response says so, and when the agent needs the second it asks for both again and the new tag replaces the old. That is the chapter's point in miniature: what the agent holds is narrower than your account, it is yours to narrow, and it can be taken back without touching your password.
+
+The setting is the sign-in type, because each type has its own weak spot and its own check, and seeing them side by side is the clearest way to see why each check is there. Direct Sign-In sends the code through a browser, so the risk is a code arriving that did not come from the Company the agent started with; iss catches it, and the exact redirect match keeps the Company from sending a code anywhere the agent did not register. Device Sign-In sends nothing through a browser the agent controls, so the risk is a link that leads to the wrong Company's page; the host check and the Company's name beside the link catch that, and the draft says plainly that this type is the easier one to phish. A setting over what you approve would have repeated chapter 1's lever; here approval is a press at the live step instead, where the reader can approve less, then ask again.
+
+The ending is sign-out, and the contrast with the opening: the agent hands back its tags, and the Session carries on signed out, with what did not need the account, such as the cart, still there; or you go to your account settings and disconnect the agent, and keep your account. Nobody had to change a password.
+
+What I left out is said beside each rule in the model and in the Leaves out line. The largest omission is time: codes, tokens and device requests expire, and the poll has an interval; nothing here turns on when.
