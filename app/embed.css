@@ -59,12 +59,14 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .player{position:relative;min-width:0}
 .frame{position:relative;container-type:inline-size}
 /* A narrow stage (a phone) is taller than the picture's 16:9, up to 4:5 (NARROW_ASPECT in
-   app/embed-closeup.ts), so its close-ups show more of the picture at the same readable size.
-   It is never shorter than 16:9, and on a standalone page never so tall that the stepper row
+   app/embed-closeup.ts), so its close-ups show more of the picture at the same readable size:
+   as tall as the scenario's most zoomed close-up uses (--stage-narrow-aspect, narrowAspect),
+   so a scenario with no close-ups is 16:9 and its whole picture fills the stage. Until the
+   scenario's close-ups are known it is 4:5. It is never shorter than 16:9, and on a standalone page never so tall that the stepper row
    and the caption's first lines leave the screen (--stage-narrow-max, which also leaves the 52 px
    view row a narrow stage adds under the stepper). Under the loader, which
    sizes the frame to its content, the cap is lifted (app/embed.ts) so height cannot feed back. */
-.stage.narrow{aspect-ratio:auto;height:clamp(calc(100cqw * 9 / 16),var(--stage-narrow-max),calc(100cqw * 5 / 4))}
+.stage.narrow{aspect-ratio:auto;height:clamp(calc(100cqw * 9 / 16),var(--stage-narrow-max),calc(100cqw * var(--stage-narrow-aspect,1.25)))}
 .stage{position:relative;min-width:0;aspect-ratio:16/9;overflow:hidden;background:var(--surface);touch-action:pan-y}
 .stage svg{width:100%;height:100%;display:block}
 .stage svg.glide{transition:transform 220ms var(--ease-out)}

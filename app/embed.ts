@@ -17,7 +17,7 @@ import { icon } from './embed-icons.ts';
 import type { IconName } from './embed-icons.ts';
 import { ReaderSink, ReaderView, StageZoom, stageSize } from './embed-zoom.ts';
 import type { Zoom } from './embed-zoom.ts';
-import { NARROW_PX, closeUps, layoutSink, stageScale, stepLayouts } from './embed-closeup.ts';
+import { NARROW_PX, closeUps, layoutSink, narrowAspect, stageScale, stepLayouts } from './embed-closeup.ts';
 import type { LayoutSink, StepLayout } from './embed-closeup.ts';
 import { Lru } from './embed-lru.ts';
 import { changeText, chromeFor, descriptionsLang } from './embed-strings.ts';
@@ -589,7 +589,16 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     tour: Zoom[] = [],
     scenarioTours = false,
     stop = 0;
+  // What the narrow stage's height was last worked out for: the scenario's layouts and the stage's width.
+  let aspectFor: { layouts: Map<string, StepLayout>; w: number } | undefined;
   function refreshTour() {
+    // The scenario's narrow height first (embed.css), so its close-ups are planned at the height it
+    // settles at: one height for the whole scenario, so stepping never moves the page.
+    const width = stageSize(stage)[0];
+    if (scenarioLayouts && width > 0 && (aspectFor?.layouts !== scenarioLayouts || aspectFor.w !== width)) {
+      aspectFor = { layouts: scenarioLayouts, w: width };
+      stage.style.setProperty('--stage-narrow-aspect', String(narrowAspect(scenarioLayouts.values(), width, zoom.max)));
+    }
     const [w, h] = stageSize(stage), key = `${w} ${h}`;
     if (!scenarioLayouts || w <= 0 || h <= 0 || key === tourSize) return;
     tourSize = key;

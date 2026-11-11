@@ -1,0 +1,601 @@
+{
+ "source": {
+  "what": "Official artifacts of the Personal Agent Protocol (Poppy), draft 0.4, which the project marks as in progress: JSON Schemas from its Company implementation kit, and example documents from the specification text.",
+  "retrieved": "2026-11-10",
+  "licence": "Apache-2.0 (https://personalagentprotocol.org/license: the specification and documentation, including their examples; the repository LICENSE)",
+  "schemas_from": "https://personalagentprotocol.org/kit/company/schemas/{name}, byte-identical to kit/company/schemas/{name} in https://github.com/personal-agent-protocol/personal-agent-protocol at commit 9af9904f19f75f11d0e6352fbf27b42791e18ebe",
+  "schema_sha256": {
+   "authorization-server-metadata.schema.json": "beb1be8a78122b64062010742ebdf0f514a31ba9f950aad1b7c1d19a35a39023",
+   "client-metadata.schema.json": "63e5353df01558a106baffa914ba2532f5a5a0fb4592292daa6cd22c825560d7",
+   "device-authorization-response.schema.json": "0e2280abd02fd493e15f25b526d3890befbf2f54356cc0f6e573e929b60ce448",
+   "poppy.schema.json": "716e359e07f83d1db79a4f0d3a63fae2f4fa207b07af82a489e2bfd7a803f18e"
+  },
+  "examples_from": "https://personalagentprotocol.org/docs/0.4/spec.md (sha256 b65e9620fd777a214e73e923f8e17691be390fcc07c5dd4e21c3707c8468a967), each JSON code block as published, keyed by section and its place in that section. ",
+  "note": "Copied as published; nothing edited. The project checks every JSON example in the spec against these schemas in its own build (lib/kit/examples.ts)."
+ },
+ "examples": {
+  "3 Discovery #1 poppy.json": {
+   "protocol_version": "0.4",
+   "organization": {
+    "name": "Example Company",
+    "domain": "example.com",
+    "logo_uri": "https://example.com/logo.png"
+   },
+   "auth": {
+    "scopes": {
+     "orders:read": "See your orders, returns, and bookings",
+     "orders:write": "Exchange or return items, and change bookings",
+     "addresses": "See and change your saved shipping addresses",
+     "poppy:browser-sign-in": "Use the website signed in, with the other access you approve"
+    },
+    "scope_hints": {
+     "orders:read": {
+      "changes": "none",
+      "personal_data": true
+     },
+     "orders:write": {
+      "changes": "irreversible",
+      "personal_data": true
+     },
+     "addresses": {
+      "changes": "reversible",
+      "personal_data": true
+     }
+    }
+   },
+   "agent": {
+    "protocols": [
+     {
+      "type": "poppy",
+      "endpoint": "https://api.example.com/poppy/conversations"
+     }
+    ]
+   },
+   "web": {
+    "browser_session_endpoint": "https://example.com/poppy/browser-session"
+   },
+   "tasks": {
+    "endpoint": "https://api.example.com/poppy/tasks"
+   },
+   "apis": [
+    {
+     "type": "openapi",
+     "url": "https://api.example.com/openapi.json",
+     "description": "Orders, returns, and exchanges"
+    },
+    {
+     "type": "mcp",
+     "url": "https://mcp.example.com/mcp",
+     "description": "Product search and sizing"
+    }
+   ]
+  },
+  "3.2 OAuth server #2 authorization server metadata": {
+   "issuer": "https://auth.example.com",
+   "token_endpoint": "https://auth.example.com/oauth/token",
+   "revocation_endpoint": "https://auth.example.com/oauth/revoke",
+   "authorization_endpoint": "https://auth.example.com/oauth/authorize",
+   "device_authorization_endpoint": "https://auth.example.com/oauth/device",
+   "grant_types_supported": [
+    "refresh_token",
+    "authorization_code",
+    "urn:ietf:params:oauth:grant-type:device_code"
+   ],
+   "scopes_supported": [
+    "orders:read",
+    "orders:write",
+    "addresses",
+    "poppy:browser-sign-in"
+   ],
+   "protected_resources": [
+    "https://example.com",
+    "https://example.co.uk",
+    "https://mcp.example.com/mcp"
+   ]
+  },
+  "4.1 Agent identity #1 client metadata": {
+   "client_id": "https://agent.example/agent.json",
+   "client_name": "Example Agent",
+   "logo_uri": "https://agent.example/logo.png",
+   "jwks_uri": "https://agent.example/jwks.json",
+   "redirect_uris": [
+    "https://agent.example/oauth/callback"
+   ],
+   "token_endpoint_auth_method": "private_key_jwt"
+  },
+  "4.3 Device Sign-In #1 device authorization response": {
+   "device_code": "GmRhmhcxhwAzkoEqiMEg_DnyEysNkuNhszIySk9eS",
+   "user_code": "WDJB-MJHT",
+   "verification_uri": "https://auth.example.com/device",
+   "verification_uri_complete": "https://auth.example.com/device?user_code=WDJB-MJHT",
+   "expires_in": 600,
+   "interval": 5
+  }
+ },
+ "schemas": {
+  "authorization-server-metadata.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "authorization-server-metadata.schema.json",
+   "title": "OAuth Authorization Server Metadata",
+   "description": "The RFC 8414 metadata the Company's issuer publishes, with the fields Poppy requires. Spec section 3.2 (OAuth server). Other fields are allowed, and Personal Agents ignore them. grant_types_supported says which of Direct and Device Sign-In the Company offers: authorization_endpoint is required when it includes authorization_code, and device_authorization_endpoint when it includes the device_code grant. Publishing scopes_supported and a complete scope inventory is recommended. Endpoint conditions and scope recommendations are checked separately.",
+   "type": "object",
+   "required": [
+    "issuer",
+    "token_endpoint",
+    "revocation_endpoint",
+    "grant_types_supported",
+    "protected_resources"
+   ],
+   "properties": {
+    "issuer": {
+     "$ref": "#/$defs/https_url"
+    },
+    "token_endpoint": {
+     "$ref": "#/$defs/https_url"
+    },
+    "revocation_endpoint": {
+     "$ref": "#/$defs/https_url"
+    },
+    "authorization_endpoint": {
+     "$ref": "#/$defs/https_url"
+    },
+    "device_authorization_endpoint": {
+     "$ref": "#/$defs/https_url"
+    },
+    "token_endpoint_auth_signing_alg_values_supported": {
+     "description": "RFC 8414 section 2. Accepted client-assertion algorithms, not delegation algorithms. Poppy requires ES256 and recommends PS384.",
+     "type": "array",
+     "items": {
+      "type": "string",
+      "minLength": 1
+     }
+    },
+    "grant_types_supported": {
+     "description": "Must include refresh_token, which is checked separately.",
+     "type": "array",
+     "items": {
+      "type": "string",
+      "minLength": 1
+     }
+    },
+    "scopes_supported": {
+     "type": "array",
+     "items": {
+      "type": "string",
+      "pattern": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$"
+     }
+    },
+    "protected_resources": {
+     "description": "RFC 9728 section 4. Lists https://{domain} for every domain whose issuer it is, and may list other resources.",
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "$ref": "#/$defs/https_url"
+     }
+    }
+   },
+   "$defs": {
+    "https_url": {
+     "type": "string",
+     "pattern": "^https://[^\\s/?#]+",
+     "format": "uri"
+    }
+   }
+  },
+  "client-metadata.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "client-metadata.schema.json",
+   "title": "Personal Agent client metadata document",
+   "description": "The document at a Personal Agent's client_id URL. Spec section 4.1 (Agent identity). client_id must equal the URL it was fetched from, and jwks_uri and each redirect_uris entry other than a loopback redirect URI must be on the same domain as client_id; those depend on the fetch and are checked separately. Unknown fields are allowed.",
+   "type": "object",
+   "required": [
+    "client_id",
+    "client_name",
+    "jwks_uri",
+    "redirect_uris",
+    "token_endpoint_auth_method"
+   ],
+   "properties": {
+    "client_id": {
+     "$ref": "#/$defs/https_url"
+    },
+    "client_name": {
+     "type": "string",
+     "minLength": 1
+    },
+    "logo_uri": {
+     "$ref": "#/$defs/https_url"
+    },
+    "jwks_uri": {
+     "$ref": "#/$defs/https_url"
+    },
+    "redirect_uris": {
+     "type": "array",
+     "items": {
+      "anyOf": [
+       {
+        "$ref": "#/$defs/https_url"
+       },
+       {
+        "$ref": "#/$defs/loopback_url"
+       }
+      ]
+     }
+    },
+    "token_endpoint_auth_method": {
+     "const": "private_key_jwt"
+    }
+   },
+   "$defs": {
+    "https_url": {
+     "type": "string",
+     "pattern": "^https://[^\\s/?#]+",
+     "format": "uri"
+    },
+    "loopback_url": {
+     "description": "A loopback redirect URI for an app on the User's computer, RFC 8252 section 7.3.",
+     "type": "string",
+     "pattern": "^http://(127\\.0\\.0\\.1|\\[::1\\])(:[0-9]+)?([/?#]|$)"
+    }
+   }
+  },
+  "device-authorization-response.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "device-authorization-response.schema.json",
+   "title": "Device authorization response",
+   "description": "The response from the device_authorization_endpoint that starts Device Sign-In (RFC 8628 section 3.2). Spec section 4.3 (Device Sign-In). Unknown fields are allowed.",
+   "type": "object",
+   "required": [
+    "device_code",
+    "user_code",
+    "verification_uri",
+    "expires_in"
+   ],
+   "properties": {
+    "device_code": {
+     "type": "string",
+     "minLength": 1
+    },
+    "user_code": {
+     "type": "string",
+     "minLength": 1
+    },
+    "verification_uri": {
+     "type": "string",
+     "pattern": "^https://[^\\s/?#]+",
+     "format": "uri"
+    },
+    "verification_uri_complete": {
+     "type": "string",
+     "pattern": "^https://[^\\s/?#]+",
+     "format": "uri"
+    },
+    "expires_in": {
+     "type": "integer",
+     "minimum": 1
+    },
+    "interval": {
+     "type": "integer",
+     "minimum": 1
+    }
+   }
+  },
+  "poppy.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "poppy.schema.json",
+   "title": "poppy.json",
+   "description": "The discovery document a Company publishes at /.well-known/poppy.json. Spec section 3 (Discovery) and 3.1 (Fields). Unknown fields are allowed: Personal Agents ignore fields they don't recognize.",
+   "type": "object",
+   "required": [
+    "protocol_version",
+    "organization"
+   ],
+   "properties": {
+    "protocol_version": {
+     "type": "string",
+     "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "supported_versions": {
+     "description": "The other protocol versions the Company serves, each mapped to the HTTPS URL of that version's document, on the host that served poppy.json (spec 3.4). A version's document has no supported_versions.",
+     "type": "object",
+     "propertyNames": {
+      "pattern": "^[0-9]+\\.[0-9]+$"
+     },
+     "additionalProperties": {
+      "$ref": "#/$defs/https_url"
+     }
+    },
+    "organization": {
+     "type": "object",
+     "required": [
+      "name",
+      "domain"
+     ],
+     "properties": {
+      "name": {
+       "type": "string",
+       "minLength": 1
+      },
+      "domain": {
+       "$ref": "#/$defs/domain"
+      },
+      "logo_uri": {
+       "$ref": "#/$defs/https_url"
+      }
+     }
+    },
+    "auth": {
+     "description": "Optional. issuer is required only when the domain's protected resource metadata lists more than one authorization server, and must then be one of them (spec 3.1, 3.2), which is checked separately.",
+     "type": "object",
+     "properties": {
+      "issuer": {
+       "$ref": "#/$defs/https_url"
+      },
+      "disabled": {
+       "description": "true if the Company offers Personal Agents no sign-in, even though it has an issuer (spec 3.2).",
+       "type": "boolean"
+      },
+      "scopes": {
+       "description": "Scope descriptions, keyed by scope name, in the same form as an OpenAPI OAuth 2.0 security scheme. Describing offered scopes here or in a listed OpenAPI description is recommended.",
+       "type": "object",
+       "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+       }
+      },
+      "scope_hints": {
+       "description": "Hints about each scope, keyed by scope name, describing the most consequential operation that requires it.",
+       "type": "object",
+       "additionalProperties": {
+        "type": "object",
+        "required": [
+         "changes",
+         "personal_data"
+        ],
+        "properties": {
+         "changes": {
+          "enum": [
+           "none",
+           "reversible",
+           "irreversible"
+          ]
+         },
+         "personal_data": {
+          "type": "boolean"
+         }
+        }
+       }
+      }
+     }
+    },
+    "agent": {
+     "type": "object",
+     "required": [
+      "protocols"
+     ],
+     "properties": {
+      "protocols": {
+       "type": "array",
+       "minItems": 1,
+       "items": {
+        "type": "object",
+        "required": [
+         "type",
+         "endpoint"
+        ],
+        "properties": {
+         "type": {
+          "type": "string",
+          "minLength": 1
+         },
+         "endpoint": {
+          "$ref": "#/$defs/https_url"
+         },
+         "access": {
+          "type": "string",
+          "description": "For a poppy protocol entry, session (the default) or signed_in. Unknown values are ignored as an absent hint (spec 3.2)."
+         }
+        }
+       }
+      }
+     }
+    },
+    "tasks": {
+     "type": "object",
+     "required": [
+      "endpoint"
+     ],
+     "properties": {
+      "endpoint": {
+       "$ref": "#/$defs/https_url"
+      }
+     }
+    },
+    "web": {
+     "type": "object",
+     "properties": {
+      "browser_session_endpoint": {
+       "$ref": "#/$defs/https_url"
+      },
+      "disabled": {
+       "description": "true if the Company asks Personal Agents not to browse its website, and to use its Company Agent and APIs instead (spec section 6).",
+       "type": "boolean"
+      },
+      "unscoped": {
+       "description": "true if the website doesn't apply the Company's other scopes, so poppy:browser-sign-in gives the account's full access there (spec section 6).",
+       "type": "boolean"
+      }
+     }
+    },
+    "apis": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "required": [
+       "type",
+       "url",
+       "description"
+      ],
+      "properties": {
+       "type": {
+        "type": "string",
+        "minLength": 1
+       },
+       "url": {
+        "$ref": "#/$defs/https_url"
+       },
+       "description": {
+        "type": "string",
+        "minLength": 1
+       }
+      }
+     }
+    },
+    "extensions": {
+     "type": "object",
+     "properties": {
+      "mediated-sign-in": {
+       "description": "The Mediated Sign-In extension (Mediated Sign-In 2), with an entry for each version. Version 1 has the credentials to collect, each sent as a token request parameter of that name, and the scopes it can grant. The grant is at the issuer's token_endpoint, which lists https://personalagentprotocol.org/grant/mediated-sign-in in grant_types_supported.",
+       "type": "array",
+       "minItems": 1,
+       "items": {
+        "type": "object",
+        "required": [
+         "version"
+        ],
+        "properties": {
+         "version": {
+          "type": "string",
+          "minLength": 1
+         }
+        },
+        "if": {
+         "properties": {
+          "version": {
+           "const": "1"
+          }
+         }
+        },
+        "then": {
+         "required": [
+          "version",
+          "fields",
+          "scopes"
+         ],
+         "properties": {
+          "version": {
+           "type": "string",
+           "minLength": 1
+          },
+          "fields": {
+           "type": "array",
+           "minItems": 1,
+           "items": {
+            "type": "object",
+            "required": [
+             "name",
+             "label",
+             "secret"
+            ],
+            "properties": {
+             "name": {
+              "description": "Not grant_type, scope, resource, a client authentication parameter such as client_id or client_assertion, or a parameter the extension defines, such as sign_in_id.",
+              "type": "string",
+              "minLength": 1,
+              "not": {
+               "enum": [
+                "grant_type",
+                "scope",
+                "client_id",
+                "client_secret",
+                "client_assertion",
+                "client_assertion_type",
+                "resource",
+                "sign_in_id",
+                "one_time_code"
+               ]
+              }
+             },
+             "label": {
+              "type": "string",
+              "minLength": 1
+             },
+             "secret": {
+              "type": "boolean"
+             }
+            }
+           }
+          },
+          "scopes": {
+           "$ref": "#/$defs/scopes"
+          }
+         }
+        }
+       }
+      }
+     },
+     "additionalProperties": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+       "type": "object",
+       "required": [
+        "version"
+       ],
+       "properties": {
+        "version": {
+         "type": "string",
+         "minLength": 1
+        },
+        "endpoint": {
+         "$ref": "#/$defs/https_url"
+        }
+       }
+      }
+     },
+     "description": "The extensions the Company supports, keyed by name, each a list with an entry for each major version (spec 3.3)."
+    }
+   },
+   "allOf": [
+    {
+     "anyOf": [
+      {
+       "required": [
+        "agent"
+       ]
+      },
+      {
+       "required": [
+        "apis"
+       ]
+      },
+      {
+       "required": [
+        "web"
+       ]
+      }
+     ]
+    }
+   ],
+   "$defs": {
+    "https_url": {
+     "type": "string",
+     "pattern": "^https://[^\\s/?#]+",
+     "format": "uri"
+    },
+    "domain": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$"
+    },
+    "scopes": {
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "type": "string",
+      "pattern": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$"
+     }
+    }
+   }
+  }
+ }
+}
