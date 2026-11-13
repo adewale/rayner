@@ -8,15 +8,15 @@ import {
   type Fix, type Holding, type Reply, type RefusalEvent, type Trouble, type World,
 } from './model.ts';
 
-// Each test names the section of the Personal Agent Protocol draft 0.4 it holds the model to
-// (https://personalagentprotocol.org/docs/0.4/spec). The draft was read, not run: there is no
+// Each test names the section of the Personal Agent Protocol draft 1.0 it holds the model to
+// (https://personalagentprotocol.org/docs/1.0/spec). The draft was read, not run: there is no
 // reference implementation here, so these pin the model to the draft's rules, its error table
 // (section 7) and its examples.
 
 const RW = ['orders:read', 'orders:write'] as const, RO = ['orders:read'] as const;
 const holding = (over: Partial<Holding> = {}): Holding => ({
-  token: healthy().request.token, refresh: RW, signedOut: false, resent: false, version: '0.4',
-  implements: ['0.3', '0.4'], extensions: [], offered: {}, ...over,
+  token: healthy().request.token, refresh: RW, signedOut: false, resent: false, version: '1.0',
+  implements: ['0.4', '1.0'], extensions: [], offered: {}, ...over,
 });
 const replyTo = (trouble: Trouble) => { const t = troubled(trouble); return respond(t.request, t.company); };
 const play = (events: readonly RefusalEvent[], from: World = start()) => events.reduce<World>((w, e) => {
@@ -95,6 +95,14 @@ test('section 7: 401 with no code is handled as insufficient_scope: a refresh to
   assert.deepEqual(remedy({ status: 401, needs: 'orders:write' }, holding({ token: undefined, refresh: null })), { kind: 'sign-in', scopes: ['orders:write'] });
 });
 
+test('8.13 (1.0): an error code the agent does not recognize is handled by the response’s status, as an error with no code', () => {
+  // A later version's code on a 401: the same move as a 401 with no code.
+  assert.deepEqual(remedy({ status: 401, error: 'step_up_required', needs: 'orders:write' }, holding({ token: undefined, refresh: RO })), { kind: 'sign-in', scopes: RW });
+  assert.deepEqual(remedy({ status: 401, error: 'step_up_required', needs: 'orders:write' }, holding({ token: undefined, refresh: RO })), remedy({ status: 401, needs: 'orders:write' }, holding({ token: undefined, refresh: RO })));
+  // A 400 the agent cannot read says the request is at fault, so it is not sent again as it was.
+  assert.deepEqual(remedy({ status: 400, error: 'new_kind_of_problem' }, holding()), { kind: 'stop', why: 'a 400 with no code the agent knows: the request itself is at fault' });
+});
+
 test('section 7 and 4.7: 403 insufficient_scope: refresh if the refresh token covers the scope; otherwise sign in again for every scope, keeping the old ones', () => {
   const reply = replyTo('read-only');
   assert.deepEqual(remedy(reply, holding({ refresh: RW })), { kind: 'refresh', scope: 'orders:write' });
@@ -143,14 +151,15 @@ test('3.4: compatible versions share major and, before 1.0, minor; the agent cho
   assert.equal(compatible('0.4', '0.3'), false);
   assert.equal(compatible('1.2', '1.0'), true);
   assert.equal(compatible('2.0', '1.9'), false);
-  assert.equal(choose({ protocol_version: '0.4', supported_versions: { '0.3': 'https://example.com/poppy/0.3.json' } }, ['0.3', '0.4']), '0.4');
-  assert.equal(choose({ protocol_version: '0.4', supported_versions: { '0.3': 'https://example.com/poppy/0.3.json' } }, ['0.3']), '0.3');
-  assert.equal(choose({ protocol_version: '0.4' }, ['0.3']), null, 'with none compatible the agent uses none of them');
+  assert.equal(compatible('1.0', '0.4'), false);
+  assert.equal(choose({ protocol_version: '1.0', supported_versions: { '0.4': 'https://example.com/poppy/0.4.json' } }, ['0.4', '1.0']), '1.0');
+  assert.equal(choose({ protocol_version: '1.0', supported_versions: { '0.4': 'https://example.com/poppy/0.4.json' } }, ['0.4']), '0.4');
+  assert.equal(choose({ protocol_version: '1.0' }, ['0.4']), null, 'with none compatible the agent uses none of them');
 });
 
 test('3.4 and section 7: version_unsupported: fetch poppy.json again; another version means a new Session and one more send, the same version means stop', () => {
-  assert.deepEqual(remedy(replyTo('old-copy'), holding({ version: '0.3' })), { kind: 'reread' });
-  assert.deepEqual(remedy(replyTo('old-copy'), holding({ version: '0.3', resent: true })), { kind: 'stop', why: 'the request was already sent again under a newly chosen version' });
+  assert.deepEqual(remedy(replyTo('old-copy'), holding({ version: '0.4' })), { kind: 'reread' });
+  assert.deepEqual(remedy(replyTo('old-copy'), holding({ version: '0.4', resent: true })), { kind: 'stop', why: 'the request was already sent again under a newly chosen version' });
   const missing = { ...healthy().request, version: undefined };
   assert.deepEqual(respond(missing, EXAMPLE_COMPANY), { status: 400, error: 'version_unsupported' }, 'a request without Poppy-Version');
 });
@@ -167,7 +176,7 @@ test('5.6: 429 asks the agent to wait at least Retry-After before sending again'
 });
 
 test('section 7: every refusal in the table gets one remedy, and no two codes share one', () => {
-  const kinds = TROUBLES.filter((t) => t !== 'mcp').map((t) => remedy(replyTo(t), holding({ refresh: t === 'read-only' ? RO : RW, version: t === 'old-copy' ? '0.3' : '0.4' })).kind);
+  const kinds = TROUBLES.filter((t) => t !== 'mcp').map((t) => remedy(replyTo(t), holding({ refresh: t === 'read-only' ? RO : RW, version: t === 'old-copy' ? '0.4' : '1.0' })).kind);
   assert.deepEqual(kinds, ['refresh', 'sign-in', 'fix', 'new-session', 'reread', 'wait']);
   assert.equal(new Set(kinds).size, kinds.length);
 });

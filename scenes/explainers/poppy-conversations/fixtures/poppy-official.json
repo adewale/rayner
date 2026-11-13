@@ -1,21 +1,24 @@
 {
  "source": {
-  "what": "Official artifacts of the Personal Agent Protocol (Poppy), draft 0.4, which the project marks as in progress: JSON Schemas from its Company implementation kit, and example documents from the specification text.",
-  "retrieved": "2026-11-10",
+  "what": "Official artifacts of the Personal Agent Protocol (Poppy), draft 1.0, which the project marks as in progress: JSON Schemas from its Company implementation kit, and example documents from the specification text.",
+  "retrieved": "2026-11-13",
   "licence": "Apache-2.0 (https://personalagentprotocol.org/license: the specification and documentation, including their examples; the repository LICENSE)",
-  "schemas_from": "https://personalagentprotocol.org/kit/company/schemas/{name}, byte-identical to kit/company/schemas/{name} in https://github.com/personal-agent-protocol/personal-agent-protocol at commit 9af9904f19f75f11d0e6352fbf27b42791e18ebe",
+  "schemas_from": "https://personalagentprotocol.org/kit/company/schemas/{name}, byte-identical to kit/company/schemas/{name} in https://github.com/personal-agent-protocol/personal-agent-protocol at commit bb9833219c59554518164ce53bf659abcdf99863",
   "schema_sha256": {
+   "alternative.schema.json": "3aedbb27d47be37612618afee0e4009819b8057fa3f80673a7999d27236c415f",
+   "approval-declined.schema.json": "08fb341b7ac6477d8e275ed27381871a5831be479131a0945a9c7d056f33d27a",
    "approval.schema.json": "a6678d0d99770ccf14873d27e51272d3101dedf0a1c469a15adff14e8e5eee9f",
    "disclosures-content.schema.json": "bf8a116dc951919c4367dea99c622f640c6ef6a3e92fbc122088fd10d558f42c",
    "error.schema.json": "c3b0f3810f621b6070de1ee49c580852fce07080a176e0d3d9f77f222718d5f7",
    "event.schema.json": "c5483c7b83554eeb385c359e7485e03806a214a1e951f4a5b074cc1c56ac995d",
    "events-response.schema.json": "cc79253ea0cdea26ee9edc3be186f6e282ed168be337b172d9c5aa9c9490b67a",
    "links-content.schema.json": "63819d5de8d271af2d5b1d615ad0ea2a5215965613911c137c262842591c9c63",
-   "message.schema.json": "6c3f46663d7a8cc5e3def9e0b3e16eb598df1cf245304010cd043b9caf23f78a",
+   "message.schema.json": "08b1bf32a64a391d9b3ebf03cfc2e96faf5aa7eafcc20be7d4ac619d35f52edd",
    "operation.schema.json": "67aa4f9d4a6a03bfb28ee7175a6ed49fdb7b4f503ae6cc303120ecf48f686dc6",
-   "operations-content.schema.json": "51d22d83862c63d0a5172cf3bdae1259b635ba2cac3ac19f3fdd4c69a2a81e9f"
+   "operations-content.schema.json": "4080178ff77c7bc7fd3cab02be6aecb1360245104c7be54d300abe34f89c598f",
+   "poppy.schema.json": "3b4ade4931b77ca6a511c28f98eb03762122f1878b62982b6b0e1bb595d86142"
   },
-  "examples_from": "https://personalagentprotocol.org/docs/0.4/spec.md (sha256 b65e9620fd777a214e73e923f8e17691be390fcc07c5dd4e21c3707c8468a967), each JSON code block as published, keyed by section and its place in that section. The HTTP request line and headers before each request body are left out; the body is as published.",
+  "examples_from": "https://personalagentprotocol.org/docs/1.0/spec.md (sha256 1def33c03ae65badc27c94b74af603209de5394bf8306170484ec0a52e09d8a7), each JSON code block as published, keyed by section and its place in that section. The HTTP request line and headers before each request body are left out; the body is as published.",
   "note": "Copied as published; nothing edited. The project checks every JSON example in the spec against these schemas in its own build (lib/kit/examples.ts)."
  },
  "examples": {
@@ -214,10 +217,142 @@
   },
   "8.2 Requests #1 error": {
    "error": "version_mismatch",
-   "protocol_version": "0.4"
+   "protocol_version": "1.0"
   }
  },
  "schemas": {
+  "alternative.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "alternative.schema.json",
+   "title": "Alternative",
+   "description": "Another way to do a task: in an excluded task, or as the body of a 200 response to a feedback report. Spec 9.2 (Alternatives). Personal Agents skip reference types they don't recognize. Web references can point to any HTTPS website or app and don't authorize sending Session JWTs or access tokens. OpenAPI and MCP references name APIs listed in the Company's poppy.json.",
+   "type": "object",
+   "anyOf": [
+    {
+     "required": [
+      "instructions"
+     ]
+    },
+    {
+     "required": [
+      "references"
+     ]
+    }
+   ],
+   "properties": {
+    "instructions": {
+     "type": "string",
+     "minLength": 1
+    },
+    "references": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/reference"
+     }
+    }
+   },
+   "$defs": {
+    "reference": {
+     "type": "object",
+     "required": [
+      "type"
+     ],
+     "properties": {
+      "type": {
+       "type": "string",
+       "minLength": 1
+      },
+      "url": {
+       "$ref": "poppy.schema.json#/$defs/https_url"
+      },
+      "operation_id": {
+       "type": "string",
+       "minLength": 1
+      },
+      "tool": {
+       "type": "string",
+       "minLength": 1
+      }
+     },
+     "allOf": [
+      {
+       "if": {
+        "properties": {
+         "type": {
+          "const": "openapi"
+         }
+        }
+       },
+       "then": {
+        "required": [
+         "url",
+         "operation_id"
+        ]
+       }
+      },
+      {
+       "if": {
+        "properties": {
+         "type": {
+          "const": "mcp"
+         }
+        }
+       },
+       "then": {
+        "required": [
+         "url",
+         "tool"
+        ]
+       }
+      },
+      {
+       "if": {
+        "properties": {
+         "type": {
+          "const": "web"
+         }
+        }
+       },
+       "then": {
+        "required": [
+         "url"
+        ]
+       }
+      }
+     ]
+    }
+   }
+  },
+  "approval-declined.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "approval-declined.schema.json",
+   "title": "Declined approval",
+   "description": "A Company's final refusal of an approval that passed its checks: it performs nothing and returns no new operation. Operations extension 6 (Declining an approval). At an API, and at the extension's endpoint, the body of an HTTP 403 with error approval_declined. In an MCP tool error result's structuredContent, with error approval_declined. In a Company message's extensions.operations.declined, without error. reason and alternative are content from the Company (spec 10.1), and there are no reason codes. Unknown members are allowed.",
+   "type": "object",
+   "required": [
+    "operation_id",
+    "revision"
+   ],
+   "properties": {
+    "error": {
+     "const": "approval_declined"
+    },
+    "operation_id": {
+     "$ref": "message.schema.json#/$defs/id"
+    },
+    "revision": {
+     "$ref": "message.schema.json#/$defs/id"
+    },
+    "reason": {
+     "type": "string",
+     "minLength": 1,
+     "description": "Why, in short plain language for the User. Nothing the Session couldn't already see."
+    },
+    "alternative": {
+     "$ref": "alternative.schema.json"
+    }
+   }
+  },
   "approval.schema.json": {
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "$id": "approval.schema.json",
@@ -630,7 +765,7 @@
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "$id": "message.schema.json",
    "title": "Conversation message",
-   "description": "A message in a Personal Agent Protocol conversation, from either side. Spec sections 8.3 (Sending messages) and 8.4 (Message fields). A message has text, data, context, or extensions. extensions holds content that extensions define, keyed by extension name: operations (Operations extension 2, 4, 6), links, and disclosures are checked here, and other extensions' content must be an object. id and role are set by the Company when it records the message as an event: a Personal Agent message's id is its request's ID. The Personal Agent doesn't send them. as_of_request is only on Company Agent messages and as_of_cursor only on messages the Personal Agent wrote; a message with author.type human has neither (8.4). Unknown fields are allowed.",
+   "description": "A message in a Personal Agent Protocol conversation, from either side. Spec sections 8.3 (Sending messages) and 8.4 (Message fields). A message has text, data, context, or extensions. extensions holds content that extensions define, keyed by extension name: operations (Operations extension 2, 4, 6), links, and disclosures are checked here, and other extensions' content must be an object. id and role are set by the Company when it records the message as an event: a Personal Agent message's id is its request's ID. The Personal Agent doesn't send them. as_of_request is only on Company Agent messages and as_of_cursor only on messages the Personal Agent wrote; a message with author.type human has neither (8.4). A context field set to null clears it (8.4). Unknown fields are allowed.",
    "type": "object",
    "required": [
     "author"
@@ -689,15 +824,24 @@
      "type": "object",
      "properties": {
       "locale": {
-       "type": "string",
+       "type": [
+        "string",
+        "null"
+       ],
        "minLength": 1
       },
       "time_zone": {
-       "type": "string",
+       "type": [
+        "string",
+        "null"
+       ],
        "minLength": 1
       },
       "user_available": {
-       "type": "boolean"
+       "type": [
+        "boolean",
+        "null"
+       ]
       }
      }
     },
@@ -860,7 +1004,7 @@
    "$schema": "https://json-schema.org/draft/2020-12/schema",
    "$id": "operations-content.schema.json",
    "title": "Operations extension message content",
-   "description": "The value of extensions.operations in a conversation message (spec 8.4, Operations 2): operation in a Company message (Operations 4), approval in a Personal Agent message (Operations 6).",
+   "description": "The value of extensions.operations in a conversation message (spec 8.4, Operations 2): operation (Operations 4) or declined (Operations 6) in a Company message, approval in a Personal Agent message (Operations 6).",
    "type": "object",
    "properties": {
     "operation": {
@@ -868,6 +1012,14 @@
     },
     "approval": {
      "$ref": "approval.schema.json"
+    },
+    "declined": {
+     "$ref": "approval-declined.schema.json",
+     "not": {
+      "required": [
+       "error"
+      ]
+     }
     }
    },
    "oneOf": [
@@ -880,8 +1032,336 @@
      "required": [
       "approval"
      ]
+    },
+    {
+     "required": [
+      "declined"
+     ]
     }
    ]
+  },
+  "poppy.schema.json": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "$id": "poppy.schema.json",
+   "title": "poppy.json",
+   "description": "The discovery document a Company publishes at /.well-known/poppy.json. Spec section 3 (Discovery) and 3.1 (Fields). Unknown fields are allowed: Personal Agents ignore fields they don't recognize.",
+   "type": "object",
+   "required": [
+    "protocol_version",
+    "organization"
+   ],
+   "properties": {
+    "protocol_version": {
+     "type": "string",
+     "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "supported_versions": {
+     "description": "The other protocol versions the Company serves, each mapped to the HTTPS URL of that version's document, on the host that served poppy.json (spec 3.4). A version's document has no supported_versions.",
+     "type": "object",
+     "propertyNames": {
+      "pattern": "^[0-9]+\\.[0-9]+$"
+     },
+     "additionalProperties": {
+      "$ref": "#/$defs/https_url"
+     }
+    },
+    "organization": {
+     "type": "object",
+     "required": [
+      "name",
+      "domain"
+     ],
+     "properties": {
+      "name": {
+       "type": "string",
+       "minLength": 1
+      },
+      "domain": {
+       "$ref": "#/$defs/domain"
+      },
+      "logo_uri": {
+       "$ref": "#/$defs/https_url"
+      }
+     }
+    },
+    "auth": {
+     "description": "Optional. issuer is required only when the domain's protected resource metadata lists more than one authorization server, and must then be one of them (spec 3.1, 3.2), which is checked separately.",
+     "type": "object",
+     "properties": {
+      "issuer": {
+       "$ref": "#/$defs/https_url"
+      },
+      "disabled": {
+       "description": "true if the Company offers Personal Agents no sign-in, even though it has an issuer (spec 3.2).",
+       "type": "boolean"
+      },
+      "scopes": {
+       "description": "Scope descriptions, keyed by scope name, in the same form as an OpenAPI OAuth 2.0 security scheme. Describing offered scopes here or in a listed OpenAPI description is recommended.",
+       "type": "object",
+       "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+       }
+      },
+      "scope_hints": {
+       "description": "Hints about each scope, keyed by scope name, describing the most consequential operation that requires it.",
+       "type": "object",
+       "additionalProperties": {
+        "type": "object",
+        "required": [
+         "changes",
+         "personal_data"
+        ],
+        "properties": {
+         "changes": {
+          "enum": [
+           "none",
+           "reversible",
+           "irreversible"
+          ]
+         },
+         "personal_data": {
+          "type": "boolean"
+         }
+        }
+       }
+      }
+     }
+    },
+    "agent": {
+     "type": "object",
+     "required": [
+      "protocols"
+     ],
+     "properties": {
+      "protocols": {
+       "type": "array",
+       "minItems": 1,
+       "items": {
+        "type": "object",
+        "required": [
+         "type",
+         "endpoint",
+         "description"
+        ],
+        "properties": {
+         "type": {
+          "type": "string",
+          "minLength": 1
+         },
+         "endpoint": {
+          "$ref": "#/$defs/https_url"
+         },
+         "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What the agent at this endpoint can help with. It may say anything (spec 8.1)."
+         },
+         "access": {
+          "type": "string",
+          "description": "For a poppy protocol entry, session (the default) or signed_in. Unknown values are ignored as an absent hint (spec 3.2)."
+         }
+        }
+       }
+      }
+     }
+    },
+    "tasks": {
+     "type": "object",
+     "required": [
+      "endpoint"
+     ],
+     "properties": {
+      "endpoint": {
+       "$ref": "#/$defs/https_url"
+      }
+     }
+    },
+    "web": {
+     "type": "object",
+     "properties": {
+      "browser_session_endpoint": {
+       "$ref": "#/$defs/https_url"
+      },
+      "disabled": {
+       "description": "true if the Company asks Personal Agents not to browse its website, and to use its Company Agent and APIs instead (spec section 6).",
+       "type": "boolean"
+      },
+      "unscoped": {
+       "description": "true if the website doesn't apply the Company's other scopes, so poppy:browser-sign-in gives the account's full access there (spec section 6).",
+       "type": "boolean"
+      }
+     }
+    },
+    "apis": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "required": [
+       "type",
+       "url",
+       "description"
+      ],
+      "properties": {
+       "type": {
+        "type": "string",
+        "minLength": 1
+       },
+       "url": {
+        "$ref": "#/$defs/https_url"
+       },
+       "description": {
+        "type": "string",
+        "minLength": 1
+       }
+      }
+     }
+    },
+    "extensions": {
+     "type": "object",
+     "properties": {
+      "mediated-sign-in": {
+       "description": "The Mediated Sign-In extension (Mediated Sign-In 2), with an entry for each version. Version 1 has the credentials to collect, each sent as a token request parameter of that name, and the scopes it can grant. The grant is at the issuer's token_endpoint, which lists https://personalagentprotocol.org/grant/mediated-sign-in in grant_types_supported.",
+       "type": "array",
+       "minItems": 1,
+       "items": {
+        "type": "object",
+        "required": [
+         "version"
+        ],
+        "properties": {
+         "version": {
+          "type": "string",
+          "minLength": 1
+         }
+        },
+        "if": {
+         "properties": {
+          "version": {
+           "const": "1"
+          }
+         }
+        },
+        "then": {
+         "required": [
+          "version",
+          "fields",
+          "scopes"
+         ],
+         "properties": {
+          "version": {
+           "type": "string",
+           "minLength": 1
+          },
+          "fields": {
+           "type": "array",
+           "minItems": 1,
+           "items": {
+            "type": "object",
+            "required": [
+             "name",
+             "label",
+             "secret"
+            ],
+            "properties": {
+             "name": {
+              "description": "Not grant_type, scope, resource, a client authentication parameter such as client_id or client_assertion, or a parameter the extension defines, such as sign_in_id.",
+              "type": "string",
+              "minLength": 1,
+              "not": {
+               "enum": [
+                "grant_type",
+                "scope",
+                "client_id",
+                "client_secret",
+                "client_assertion",
+                "client_assertion_type",
+                "resource",
+                "sign_in_id",
+                "one_time_code"
+               ]
+              }
+             },
+             "label": {
+              "type": "string",
+              "minLength": 1
+             },
+             "secret": {
+              "type": "boolean"
+             }
+            }
+           }
+          },
+          "scopes": {
+           "$ref": "#/$defs/scopes"
+          }
+         }
+        }
+       }
+      }
+     },
+     "additionalProperties": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+       "type": "object",
+       "required": [
+        "version"
+       ],
+       "properties": {
+        "version": {
+         "type": "string",
+         "minLength": 1
+        },
+        "endpoint": {
+         "$ref": "#/$defs/https_url"
+        }
+       }
+      }
+     },
+     "description": "The extensions the Company supports, keyed by name, each a list with an entry for each major version (spec 3.3)."
+    }
+   },
+   "allOf": [
+    {
+     "anyOf": [
+      {
+       "required": [
+        "agent"
+       ]
+      },
+      {
+       "required": [
+        "apis"
+       ]
+      },
+      {
+       "required": [
+        "web"
+       ]
+      }
+     ]
+    }
+   ],
+   "$defs": {
+    "https_url": {
+     "type": "string",
+     "pattern": "^https://[^\\s/?#]+",
+     "format": "uri"
+    },
+    "domain": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+(:[1-9][0-9]{0,4})?$"
+    },
+    "scopes": {
+     "type": "array",
+     "minItems": 1,
+     "items": {
+      "type": "string",
+      "pattern": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$"
+     }
+    }
+   }
   }
  }
 }

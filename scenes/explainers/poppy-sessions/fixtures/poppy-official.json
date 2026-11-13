@@ -1,14 +1,14 @@
 {
  "source": {
-  "what": "Official artifacts of the Personal Agent Protocol (Poppy), draft 0.4, which the project marks as in progress: JSON Schemas from its Company implementation kit, and example documents from the specification text.",
-  "retrieved": "2026-11-10",
+  "what": "Official artifacts of the Personal Agent Protocol (Poppy), draft 1.0, which the project marks as in progress: JSON Schemas from its Company implementation kit, and example documents from the specification text.",
+  "retrieved": "2026-11-13",
   "licence": "Apache-2.0 (https://personalagentprotocol.org/license: the specification and documentation, including their examples; the repository LICENSE)",
-  "schemas_from": "https://personalagentprotocol.org/kit/company/schemas/{name}, byte-identical to kit/company/schemas/{name} in https://github.com/personal-agent-protocol/personal-agent-protocol at commit 9af9904f19f75f11d0e6352fbf27b42791e18ebe",
+  "schemas_from": "https://personalagentprotocol.org/kit/company/schemas/{name}, byte-identical to kit/company/schemas/{name} in https://github.com/personal-agent-protocol/personal-agent-protocol at commit bb9833219c59554518164ce53bf659abcdf99863",
   "schema_sha256": {
    "delegation.schema.json": "5fae80ffead36cbb382b247516e031e743cea0779b06ed8e9d29e0a1bcc64365",
    "session-jwt.schema.json": "60351055732e25fcda349a71cfb35ed03eddfdf7b52f93e58ef4ac3651052f73"
   },
-  "examples_from": "https://personalagentprotocol.org/docs/0.4/spec.md (sha256 b65e9620fd777a214e73e923f8e17691be390fcc07c5dd4e21c3707c8468a967), each JSON code block as published, keyed by section and its place in that section. The 5.2 Session JWT block is a header and a payload separated by a line holding \".\", stored here as {header, payload}.",
+  "examples_from": "https://personalagentprotocol.org/docs/1.0/spec.md (sha256 1def33c03ae65badc27c94b74af603209de5394bf8306170484ec0a52e09d8a7), each JSON code block as published, keyed by section and its place in that section. The 5.2 Session JWT block is a header and a payload separated by a line holding \".\", stored here as {header, payload}.",
   "note": "Copied as published; nothing edited. The project checks every JSON example in the spec against these schemas in its own build (lib/kit/examples.ts)."
  },
  "examples": {

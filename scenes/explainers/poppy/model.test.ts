@@ -7,8 +7,8 @@ import {
   type AccessToken, type HttpRequest, type PoppyEvent, type Scope, type World,
 } from './model.ts';
 
-// Each test names the section of the Personal Agent Protocol draft 0.4 it holds the model to
-// (https://personalagentprotocol.org/docs/0.4/spec). The specification was read, not run: there is
+// Each test names the section of the Personal Agent Protocol draft 1.0 it holds the model to
+// (https://personalagentprotocol.org/docs/1.0/spec). The specification was read, not run: there is
 // no reference implementation here, so these pin the model to the draft's rules and examples.
 
 const RW: readonly Scope[] = ['orders:read', 'orders:write'], RO: readonly Scope[] = ['orders:read'];

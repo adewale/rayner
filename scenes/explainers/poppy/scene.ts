@@ -33,7 +33,7 @@ const APPROVALS: Record<string, readonly Scope[]> = { 'read-write': ['orders:rea
 export default class Poppy extends Scene<World, {}> {
   static meta = {
     sources: [
-      'https://personalagentprotocol.org/docs/0.4/spec',
+      'https://personalagentprotocol.org/docs/1.0/spec',
       'https://www.rfc-editor.org/rfc/rfc6749',
       'https://www.rfc-editor.org/rfc/rfc9449',
     ],

@@ -1,17 +1,17 @@
 {
  "source": {
-  "what": "Official artifacts of the Personal Agent Protocol (Poppy), draft 0.4, which the project marks as in progress: JSON Schemas from its Company implementation kit, and example documents from the specification text.",
-  "retrieved": "2026-11-10",
+  "what": "Official artifacts of the Personal Agent Protocol (Poppy), draft 1.0, which the project marks as in progress: JSON Schemas from its Company implementation kit, and example documents from the specification text.",
+  "retrieved": "2026-11-13",
   "licence": "Apache-2.0 (https://personalagentprotocol.org/license: the specification and documentation, including their examples; the repository LICENSE)",
-  "schemas_from": "https://personalagentprotocol.org/kit/company/schemas/{name}, byte-identical to kit/company/schemas/{name} in https://github.com/personal-agent-protocol/personal-agent-protocol at commit 9af9904f19f75f11d0e6352fbf27b42791e18ebe",
+  "schemas_from": "https://personalagentprotocol.org/kit/company/schemas/{name}, byte-identical to kit/company/schemas/{name} in https://github.com/personal-agent-protocol/personal-agent-protocol at commit bb9833219c59554518164ce53bf659abcdf99863",
   "schema_sha256": {
    "alternative.schema.json": "3aedbb27d47be37612618afee0e4009819b8057fa3f80673a7999d27236c415f",
    "feedback-report.schema.json": "cce0b2eaed5dad7172bd2698466dbbbdbc4671505be7d65b98bcd50973fa235a",
-   "poppy.schema.json": "716e359e07f83d1db79a4f0d3a63fae2f4fa207b07af82a489e2bfd7a803f18e",
+   "poppy.schema.json": "3b4ade4931b77ca6a511c28f98eb03762122f1878b62982b6b0e1bb595d86142",
    "skill-index.schema.json": "082c06cbde336b2f946a78f479df406bd78c14765d3a61b91d0ef687fff9b62c",
    "tasks.schema.json": "50f2ff48c0bb6e48bc048d70504aa9cd796d6128af61845e821e5ba11f7293e1"
   },
-  "examples_from": "https://personalagentprotocol.org/docs/0.4/spec.md (sha256 b65e9620fd777a214e73e923f8e17691be390fcc07c5dd4e21c3707c8468a967), each JSON code block as published, keyed by section and its place in that section. ",
+  "examples_from": "https://personalagentprotocol.org/docs/1.0/spec.md (sha256 1def33c03ae65badc27c94b74af603209de5394bf8306170484ec0a52e09d8a7), each JSON code block as published, keyed by section and its place in that section. ",
   "note": "Copied as published; nothing edited. The project checks every JSON example in the spec against these schemas in its own build (lib/kit/examples.ts)."
  },
  "examples": {
@@ -295,7 +295,8 @@
         "type": "object",
         "required": [
          "type",
-         "endpoint"
+         "endpoint",
+         "description"
         ],
         "properties": {
          "type": {
@@ -304,6 +305,11 @@
          },
          "endpoint": {
           "$ref": "#/$defs/https_url"
+         },
+         "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What the agent at this endpoint can help with. It may say anything (spec 8.1)."
          },
          "access": {
           "type": "string",
@@ -499,7 +505,7 @@
     },
     "domain": {
      "type": "string",
-     "pattern": "^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$"
+     "pattern": "^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+(:[1-9][0-9]{0,4})?$"
     },
     "scopes": {
      "type": "array",

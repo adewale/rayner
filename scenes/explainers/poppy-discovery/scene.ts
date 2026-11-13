@@ -25,7 +25,7 @@ const RUN = ['url:', 'sheet', 'board', 'shop:mark', 'out:', 'register:', 'back:'
 // that refuses. The verdict comes last, once its check has run.
 export default class PoppyDiscovery extends Scene<World, {}> {
   static meta = {
-    sources: ['https://personalagentprotocol.org/docs/0.4/spec', 'https://www.rfc-editor.org/rfc/rfc9728', 'https://www.rfc-editor.org/rfc/rfc8414'],
+    sources: ['https://personalagentprotocol.org/docs/1.0/spec', 'https://www.rfc-editor.org/rfc/rfc9728', 'https://www.rfc-editor.org/rfc/rfc8414'],
     claims: [
       { says: 'never falls back', test: 'model.test.ts: 3.2: after a timeout, another error status or invalid metadata the agent stops, and never falls back to the domain' },
       { says: 'every other check would pass', test: 'model.test.ts: section 3 and 10.3: each forgery is refused by exactly one check, and would be accepted without it' },
@@ -136,7 +136,7 @@ export default class PoppyDiscovery extends Scene<World, {}> {
     await this.step('copy', {
       title: 'A copy on a lookalike domain',
       line: 'Refused: it names example.com, not examp1e.com.',
-      caption: `The first forger copies example.com’s file to examp1e.com and points the API address at its own server. The file is at the right path, over HTTPS. But it still says example.com, and examp1e.com served it, so the agent refuses it at the ${copy.accepted ? 'no' : GATE_NAME[copy.gate]} check. Change the letterhead to examp1e.com and the file speaks for examp1e.com, which is no use to a forger.`,
+      caption: `The first forger copies example.com’s file to examp1e.com and points the API address at its own server. The file is at the right path, over HTTPS. But it still says example.com, and examp1e.com served it, so the agent refuses it at the ${copy.accepted ? 'no' : GATE_NAME[copy.gate]} check. Change the letterhead to examp1e.com and every check passes, even under example.com’s name and logo: draft 1.0 says so plainly (10.3). The file then speaks for examp1e.com, a different Company with different User IDs, and seeing which domain that is falls to the agent.`,
     });
     await play(3);
 

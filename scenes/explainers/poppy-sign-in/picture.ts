@@ -139,7 +139,7 @@ export function sayWorld(w: World, shown: Shown): string {
     ? `The agent holds a key with ${w.holds.scopes.length === 1 ? 'one tooth, for orders:read' : 'two teeth, for orders:read and orders:write'}, and the refresh token ${CARDS[w.holds.card]}.`
     : `The agent holds no key and no refresh token${w.ended ? ': it is signed out, and its Session goes on' : ''}.`;
   const said = !last ? 'Nothing has happened yet.'
-    : last.kind === 'ask' ? (device ? `The agent asked for a code for orders:read and orders:write, checked that the link’s host is the Company’s, and showed it to you.` : 'The agent opened the Company’s authorization page in your browser, asking for orders:read and orders:write, with a PKCE challenge.')
+    : last.kind === 'ask' ? (device ? `The agent asked for a code for orders:read and orders:write, checked that the link’s host is the Company’s, and showed it to you.` : 'The agent opened the Company’s authorization page in your browser, asking for orders:read and orders:write, with a PKCE challenge and prompt=consent.')
     : last.kind === 'approve' ? `You signed in on the Company’s page and approved ${scopesOf(last.approved)}.`
     : last.kind === 'pending' ? 'The agent polled the token endpoint with its client assertion and got authorization_pending.'
     : last.kind === 'tokens' ? (last.replaced

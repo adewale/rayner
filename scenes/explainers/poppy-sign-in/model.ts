@@ -3,7 +3,7 @@ import type { Refusal } from '../../../explain/index.ts';
 import { AGENT, COMPANY, SCOPES, SID, THIEF, USER_IDS } from '../poppy/model.ts';
 import type { Scope } from '../poppy/model.ts';
 
-// Poppy (Personal Agent Protocol, draft 0.4), section 4: how a User gives their Personal Agent
+// Poppy (Personal Agent Protocol, draft 1.0), section 4: how a User gives their Personal Agent
 // account access without giving it their password. Sign-in is standard OAuth with stricter choices
 // (4.8): the User signs in on the Company's own page, approves some or all of the scopes the agent
 // asked for, and the agent gets an access token and a refresh token for exactly what was approved.
@@ -37,9 +37,9 @@ export type Hint = { changes: Changes; personal_data: boolean };
 /** example.com's auth.scopes and auth.scope_hints, as the specification's example poppy.json gives them (section 3, 4.7). */
 export const AUTH = {
   scopes: {
-    'orders:read': 'See your orders, returns, and bookings',
-    'orders:write': 'Exchange or return items, and change bookings',
-    addresses: 'See and change your saved shipping addresses',
+    'orders:read': 'See your orders, returns, and bookings. Needed to track an order or find one to change',
+    'orders:write': 'Exchange or return items, and change bookings. Needed for any change to an order',
+    addresses: 'See and change your saved shipping addresses. Not needed to enter an address at checkout',
     'poppy:browser-sign-in': 'Use the website signed in, with the other access you approve',
   },
   scope_hints: {
@@ -106,11 +106,62 @@ const rejected = (error: OAuthError, reason: string): Rejected => ({ error, reas
 export const isRejected = (value: unknown): value is Rejected => typeof value === 'object' && value !== null && 'error' in value;
 
 /** An authorization request, as the agent opens it in the User's browser (4.2). */
-export type AuthorizationRequest = { client_id: string; redirect_uri: string; scope?: string; state: string; code_challenge: string; code_challenge_method: 'S256' };
+export type AuthorizationRequest = { client_id: string; redirect_uri: string; scope?: string; state: string; code_challenge: string; code_challenge_method: 'S256'; prompt?: 'consent' };
 
 /** The authorization URL's parameters for these scopes: the specification's example when they are the task's. */
-export function authorizationRequest(scopes: readonly Scope[]): AuthorizationRequest {
-  return { client_id: CLIENT.client_id, redirect_uri: CLIENT.redirect_uris[0], scope: scopes.join(' '), state: STATE, code_challenge: PKCE.challenge, code_challenge_method: 'S256' };
+/**
+ * 1.0 adds prompt=consent (OpenID Connect Core §3.1.2.1), unless the agent receives the redirect only
+ * on the device that opened the URL, where a forwarded link fails (4.2, 10.8). This agent's redirect is
+ * its web address, which a link opened on another device reaches too, so its requests carry it; the
+ * specification's example URL is the same request without it.
+ */
+export function authorizationRequest(scopes: readonly Scope[], o: { sameDevice?: boolean } = {}): AuthorizationRequest {
+  return {
+    client_id: CLIENT.client_id, redirect_uri: CLIENT.redirect_uris[0], scope: scopes.join(' '), state: STATE, code_challenge: PKCE.challenge, code_challenge_method: 'S256',
+    ...(o.sameDevice ? {} : { prompt: 'consent' as const }),
+  };
+}
+
+/** Where a Company that takes Pushed Authorization Requests would list its endpoint, and the request_uri it answers with (RFC 9126). */
+export const PAR_ENDPOINT = 'https://auth.example.com/oauth/par';
+export const REQUEST_URI = 'urn:ietf:params:oauth:request_uri:R7b2Lq';
+
+/**
+ * 4.2 (1.0): how the agent opens the authorization page, from the issuer's metadata (3.2). A Company
+ * that requires Pushed Authorization Requests gets them; one that lists the endpoint should; the
+ * specification's example lists none, so its agent opens the URL with every parameter in it.
+ */
+export function howToOpen(metadata: { issuer: string; pushed_authorization_request_endpoint?: string; require_pushed_authorization_requests?: boolean }): 'must push' | 'should push' | 'open' {
+  if (metadata.require_pushed_authorization_requests) return 'must push';
+  return metadata.pushed_authorization_request_endpoint ? 'should push' : 'open';
+}
+
+/**
+ * 4.2 (1.0): pushing an authorization request (RFC 9126). The agent sends the parameters to the PAR
+ * endpoint with its client assertion, so the Company knows which agent asked before the User sees
+ * its page and nothing in the browser can change the request; the agent then opens the page with
+ * only client_id and the request_uri. The pushed request gets every check a browser's would.
+ * Left out: the request_uri's expiry as time (`expires_in` is a field nobody counts down), and DPoP.
+ */
+export function push(request: AuthorizationRequest, assertion: Assertion, o: { requirePushed?: boolean } = {}): { request_uri: string; expires_in: number } | Rejected {
+  if (assertion.by !== request.client_id) return rejected('invalid_client', `the assertion was signed by ${assertion.by}, not by the client the request names`);
+  const addressed = checkAssertion(assertion);
+  if (isRejected(addressed)) return addressed;
+  const page = authorize(request, CLIENT, { ...o, pushed: true });
+  return isRejected(page) ? page : { request_uri: REQUEST_URI, expires_in: 60 };
+}
+
+/**
+ * The Company's consent page (4.2, 4.3, 10.8 in 1.0). Every User of an agent shares one client_id, so
+ * the page lists every scope the Company will grant, including ones the account granted before
+ * (it may leave out poppy:browser-sign-in, section 6). It is shown for prompt=consent and in Device
+ * Sign-In even when the account granted every scope before; without either, a Company may skip it
+ * then, which lets a forwarded link get tokens with no page at all.
+ */
+export function consentPage(requested: readonly OfferedScope[], o: { alreadyGranted: readonly OfferedScope[]; prompt: boolean; device: boolean }): { shown: boolean; lists: OfferedScope[] } {
+  const known = requested.every((s) => o.alreadyGranted.includes(s));
+  if (known && !o.prompt && !o.device) return { shown: false, lists: [] };
+  return { shown: true, lists: requested.filter((s) => s !== 'poppy:browser-sign-in') };
 }
 
 /**
@@ -120,7 +171,9 @@ export function authorizationRequest(scopes: readonly Scope[]): AuthorizationReq
  * scope in it known. Gives the scopes the page asks the User to approve.
  * Left out: the loopback port exception (RFC 8252 §7.3), and a Company refusing the client.
  */
-export function authorize(request: AuthorizationRequest, client: { client_id: string; redirect_uris: readonly string[] } = CLIENT): readonly OfferedScope[] | Rejected {
+export function authorize(request: AuthorizationRequest, client: { client_id: string; redirect_uris: readonly string[] } = CLIENT, o: { requirePushed?: boolean; pushed?: boolean } = {}): readonly OfferedScope[] | Rejected {
+  // 4.2 (1.0): a Company that requires PAR takes the parameters only from its PAR endpoint (push).
+  if (o.requirePushed && !o.pushed) return rejected('invalid_request', `${COMPANY.domain} requires the request to be pushed to its PAR endpoint first`);
   if (request.client_id !== client.client_id) return rejected('invalid_request', `the request names ${request.client_id}, whose metadata is not this client's`);
   if (!client.redirect_uris.includes(request.redirect_uri)) return rejected('invalid_request', `${request.redirect_uri} is not one of the redirect URIs agent.example registered, so no code is sent there`);
   if (request.scope === undefined || request.scope.trim() === '') return rejected('invalid_scope', 'every sign-in request names its scopes');
