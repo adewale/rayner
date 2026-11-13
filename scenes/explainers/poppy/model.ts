@@ -134,6 +134,14 @@ export function answer(request: HttpRequest): Answer {
   return { status: op.ok };
 }
 
+/**
+ * Whether a request signs its Session in to the User's account (5.4): it carries an access token,
+ * and the Company accepted both the Session header and the token. A 403 still names the account
+ * the token is for; a refused header or a revoked token signs nothing in.
+ */
+export const signsIn = (request: HttpRequest, result: Answer): boolean =>
+  !!request.token && result.error !== 'invalid_session' && result.error !== 'invalid_token';
+
 /** What was last sent, and what came back: the middle of the picture. */
 export type Exchange =
   | { kind: 'discover'; channels: readonly Channel[] }
@@ -210,13 +218,13 @@ export function next(w: World, event: PoppyEvent): World | Refusal {
       if (!w.found) return unread();
       if (event === 'cart' && w.cart) return refuse('the medium is already in this Session’s cart');
       const request = agentRequest(w, event), result = answer(request);
-      // 5.3: a verified header starts the Session; a verified token signs this request in.
+      // 5.3: a verified header starts the Session; 5.4: an accepted token signs this request in.
       const verified = result.error !== 'invalid_session';
       return {
         ...w,
         started: w.started || verified,
         cart: w.cart || (event === 'cart' && result.status === OPERATIONS.cart.ok),
-        linked: verified && request.token ? 'yes' : w.linked,
+        linked: signsIn(request, result) ? 'yes' : w.linked,
         last: { kind: 'request', by: 'agent', op: event, token: !!request.token, answer: result },
       };
     }
@@ -246,6 +254,7 @@ export function ruleOf(last: Exchange | null): Rule {
   if (last.kind === 'revoke') return { section: '5.5', says: 'Sign-out revokes the refresh token; the Session continues signed out.' };
   const { status, error } = last.answer;
   if (error === 'invalid_session') return { section: '5.3', says: 'The agent a token was issued to must have signed the header beside it.' };
+  if (error === 'invalid_token') return { section: '7', says: 'A revoked access token is refused; the agent must sign in again.' };
   if (status === 401) return { section: '5.3', says: 'A Session header grants no account access, whatever it holds.' };
   if (status === 403) return { section: '7', says: 'A token without the scope is refused, and the answer names the scope.' };
   if (last.token) return { section: '5', says: 'The header says which Session; the token says which account and scopes.' };

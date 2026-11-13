@@ -52,6 +52,13 @@ test('4.7: every sign-in request names scopes the Company knows, or gets invalid
   assert.equal(errorOf(authorize(noScope)), 'invalid_scope: every sign-in request names its scopes');
   assert.equal(errorOf(authorize({ ...authorizationRequest(TASK), scope: 'orders:read payments:write' })), 'invalid_scope: payments:write is not a scope example.com offers');
   assert.deepEqual(authorize({ ...authorizationRequest(TASK), scope: 'addresses' }), ['addresses']);
+  // RFC 6749 §3.3: scope tokens are separated by single spaces, so an empty token is malformed, and it
+  // must not hide an unknown scope after it.
+  for (const scope of ['orders:read  payments:write', ' orders:read', 'orders:read '])
+    assert.equal(errorOf(authorize({ ...authorizationRequest(TASK), scope })), `invalid_scope: the scope list ${JSON.stringify(scope)} has an empty entry`);
+  // Only the scopes the Company states are known; names every object inherits are not.
+  for (const name of ['constructor', 'toString', '__proto__', 'hasOwnProperty'])
+    assert.equal(errorOf(authorize({ ...authorizationRequest(TASK), scope: `orders:read ${name}` })), `invalid_scope: ${name} is not a scope example.com offers`);
 });
 
 test('4.7: the Company grants what you approved and nothing beyond what was asked; approving none is a decline', () => {
@@ -70,6 +77,8 @@ test('4.2: the agent checks iss exactly, so a response from another Company’s 
   assert.equal(errorOf(checkResponse({ ...denied, error: 'access_denied', iss: OTHER.issuer })), 'invalid_request: its iss names https://auth.shoes.example, and the agent started sign-in with https://auth.example.com');
   assert.equal(errorOf(checkResponse({ ...denied, error: 'access_denied' })), 'access_denied: you declined on the Company’s page');
   assert.equal(errorOf(checkResponse({ ...good, state: 'zz' })), 'invalid_request: its state is zz, not the Xq81vR the agent sent');
+  // RFC 6749 §4.1.2: a response carries a code or an error; one with neither is malformed, not a code.
+  assert.equal(errorOf(checkResponse(denied)), 'invalid_request: it carries neither a code nor an error');
 });
 
 test('4.1: a client assertion is addressed to the issuer as a single string, and to nothing else', () => {
@@ -95,6 +104,16 @@ test('4.3: a device link is shown only on the issuer’s host or the Company’s
   assert.equal(errorOf(deviceLink(LOOKALIKE)), 'invalid_request: its host auth.shoes.example is neither auth.example.com nor example.com, nor a subdomain of either');
   assert.ok(isRejected(deviceLink('https://example.com.evil.example/device')), 'a host that only starts with the domain');
   assert.ok(isRejected(deviceLink('https://notexample.com/device')), 'a host that only ends with the domain’s letters');
+  // A port is not part of the host.
+  assert.ok(!isRejected(deviceLink('https://auth.example.com:443/device')), 'the issuer’s host with a port');
+  // A browser goes to the host before the first \ (it reads \ as /), to what follows an @, and drops
+  // tabs and newlines: none of these may pass for a subdomain.
+  const neither = 'is neither auth.example.com nor example.com, nor a subdomain of either';
+  assert.equal(errorOf(deviceLink('https://evil.example\\.example.com/device')), `invalid_request: its host evil.example ${neither}`);
+  assert.equal(errorOf(deviceLink('https://evil.example\\@auth.example.com/device')), `invalid_request: its host evil.example ${neither}`);
+  for (const uri of ['https://auth.example.com@evil.example/device', 'https://evil.example\n/.example.com/device', 'https://evil.example%2F.example.com/device',
+    'https:\\\\evil.example\\.example.com/device', 'http://auth.example.com/device'])
+    assert.equal(errorOf(deviceLink(uri)), `invalid_request: ${uri} is not an HTTPS URL with a plain host name`, uri);
 });
 
 test('4.3: each poll carries the assertion; it gets authorization_pending until you answer, then the tokens', () => {

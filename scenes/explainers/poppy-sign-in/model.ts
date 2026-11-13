@@ -124,9 +124,12 @@ export function authorize(request: AuthorizationRequest, client: { client_id: st
   if (request.client_id !== client.client_id) return rejected('invalid_request', `the request names ${request.client_id}, whose metadata is not this client's`);
   if (!client.redirect_uris.includes(request.redirect_uri)) return rejected('invalid_request', `${request.redirect_uri} is not one of the redirect URIs agent.example registered, so no code is sent there`);
   if (request.scope === undefined || request.scope.trim() === '') return rejected('invalid_scope', 'every sign-in request names its scopes');
+  // RFC 6749 §3.3: scope tokens are separated by single spaces, so an empty one is malformed.
   const asked = request.scope.split(' ');
-  const unknown = asked.find((s) => !(s in AUTH.scopes));
-  if (unknown) return rejected('invalid_scope', `${unknown} is not a scope example.com offers`);
+  if (asked.includes('')) return rejected('invalid_scope', `the scope list ${JSON.stringify(request.scope)} has an empty entry`);
+  // Own keys only: a name every object inherits, such as constructor, is not a scope the Company states.
+  const unknown = asked.find((s) => !Object.hasOwn(AUTH.scopes, s));
+  if (unknown !== undefined) return rejected('invalid_scope', `${unknown} is not a scope example.com offers`);
   return asked as OfferedScope[];
 }
 
@@ -154,7 +157,9 @@ export function checkResponse(response: AuthorizationResponse, startedWith: stri
   if (response.iss !== startedWith) return rejected('invalid_request', `its iss names ${response.iss}, and the agent started sign-in with ${startedWith}`);
   if (response.state !== STATE) return rejected('invalid_request', `its state is ${response.state}, not the ${STATE} the agent sent`);
   if (response.error) return rejected(response.error, 'you declined on the Company’s page');
-  return { code: response.code! };
+  // RFC 6749 §4.1.2: a response carries a code or an error, and one with neither is malformed.
+  if (response.code === undefined) return rejected('invalid_request', 'it carries neither a code nor an error');
+  return { code: response.code };
 }
 
 /**
@@ -199,8 +204,20 @@ const tokensFor = (requested: readonly Scope[], scopes: readonly Scope[], card: 
   access_token: ACCESS, refresh_token: CARDS[card], granted: scopes, ...(scopes.length !== requested.length ? { scope: scopes.join(' ') } : {}),
 });
 
-/** The host of an HTTPS URL, in lower case: what lies between the scheme and the first slash, query or fragment. */
-export const hostOf = (uri: string) => uri.replace(/^https:\/\//i, '').split(/[/?#]/)[0]!.toLowerCase();
+/**
+ * The host of an HTTPS URL, in lower case and without a port, or null when the URL is not HTTPS or
+ * its host is not a plain host name. The host ends at the first /, \, ? or #: a browser reads \ as /
+ * in an https URL. Anything else a browser would rewrite before choosing the host (userinfo before
+ * an @, a tab or newline it drops, a percent-escape) makes the host null rather than a guess, so a
+ * suffix check on the host cannot be fooled by text that only looks like a subdomain. (The page
+ * runtime has no URL, so this is parsed by hand.)
+ */
+export function hostOf(uri: string): string | null {
+  const authority = /^https:\/\/([^/\\?#]*)/i.exec(uri)?.[1];
+  if (authority === undefined) return null;
+  const host = authority.toLowerCase().replace(/:\d*$/, '');
+  return /^[a-z0-9-]+(\.[a-z0-9-]+)*$/.test(host) ? host : null;
+}
 
 /**
  * Whether the agent may show a Device Sign-In link (4.3): its host must be the host of the Company's
@@ -210,7 +227,8 @@ export const hostOf = (uri: string) => uri.replace(/^https:\/\//i, '').split(/[/
  */
 export function deviceLink(uri: string, company: { issuer: string; domain: string; name: string } = { issuer: COMPANY.issuer, ...ORGANIZATION }): { show: string; beside: string } | Rejected {
   const host = hostOf(uri);
-  const allowed = [hostOf(company.issuer), company.domain.toLowerCase()];
+  if (host === null) return rejected('invalid_request', `${uri} is not an HTTPS URL with a plain host name`);
+  const allowed = [hostOf(company.issuer) ?? company.issuer, company.domain.toLowerCase()];
   if (!allowed.some((a) => host === a || host.endsWith(`.${a}`))) return rejected('invalid_request', `its host ${host} is neither ${allowed.join(' nor ')}, nor a subdomain of either`);
   return { show: uri, beside: `${company.name} · ${company.domain}` };
 }
