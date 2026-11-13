@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { isRefusal } from '../../../explain/index.ts';
 import {
   AGENT, COMPANY, ISSUER_METADATA, OPERATIONS, POPPY_EVENTS, POPPY_JSON, SCOPES, SID, STORY, THIEF, USER_IDS,
-  agentRequest, answer, discover, hashOf, next, ruleOf, sign, start, thiefRequest, tokenOf,
+  agentRequest, answer, discover, hashOf, next, ruleOf, sign, signsIn, start, thiefRequest, tokenOf,
   type AccessToken, type HttpRequest, type PoppyEvent, type Scope, type World,
 } from './model.ts';
 
@@ -61,6 +61,15 @@ test('section 7: a token without the scope gets 403 insufficient_scope naming it
   assert.deepEqual(answer(signed('order', RO)), { status: 200 });
   assert.deepEqual(answer(signed('exchange', RW)), { status: 200 });
   assert.deepEqual(answer({ ...signed('order', RO), token: { ...token(RO), revoked: true } }), { status: 401, error: 'invalid_token' });
+});
+
+test('5.4: a request signs its Session in only when the Company accepts its header and its token', () => {
+  const revoked = { ...signed('order', RO), token: { ...token(RO), revoked: true } };
+  assert.equal(signsIn(revoked, answer(revoked)), false, 'a revoked token signs nothing in');
+  assert.deepEqual(ruleOf({ kind: 'request', by: 'agent', op: 'order', token: true, answer: answer(revoked) }), { section: '7', says: 'A revoked access token is refused; the agent must sign in again.' });
+  assert.equal(signsIn(signed('order', RO), answer(signed('order', RO))), true);
+  assert.equal(signsIn(signed('exchange', RO), answer(signed('exchange', RO))), true, 'a 403 still names the account the token is for');
+  assert.equal(signsIn(signed('order'), answer(signed('order'))), false, 'no token, nothing to sign in');
 });
 
 test('5.3: a Session header never grants account access, whatever it holds', () => {
