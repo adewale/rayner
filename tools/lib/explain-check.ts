@@ -1,4 +1,4 @@
-import { scriptReport, predictionsOf, claimsReport, checkClaimsMeta, captionLookProblems, describesItself, seenSource, isHeading, withoutHeading, undescribed, watchedChanges, diagramsOn, restingDrawing, LiveSink, liveMachine, runLive, labelOf, readingLabelSize, isView, machinesOf, viewMismatch, scenarioName } from '../../explain/internal.ts';
+import { scriptReport, predictionsOf, claimsReport, checkClaimsMeta, captionLookProblems, describesItself, seenSource, isHeading, withoutHeading, undescribed, watchedChanges, diagramsOn, restingDrawing, LiveSink, liveMachine, runLive, labelOf, readingLabelSize, isView, machinesOf, viewMismatch, scenarioName, scriptOf } from '../../explain/internal.ts';
 import type { View } from '../../explain/index.ts';
 import type { Settings } from '../../explain/index.ts';
 import { renderElements } from '../../src/output.ts';
@@ -9,7 +9,7 @@ import { sceneEntry } from './scene-entry.ts';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { build } from 'esbuild';
 import type { Plugin } from 'esbuild';
 import { browserFonts } from './explain-browser-fonts.ts';
@@ -19,7 +19,7 @@ import { Text } from '../../src/index.ts';
 import { renderFrame, toSvgString } from '../../src/output.ts';
 import { InvariantSink, jsonObject } from '../../explain/testing.ts';
 import { LIB_ROOT, engineAlias, importAuthored, sceneSlug } from './explain-project.ts';
-import { checkedAgainstFiles, compareAnswers, runModelTest } from './explain-evidence.ts';
+import { checkedAgainstFiles, compareAnswers, placeholderTodo, runModelTest } from './explain-evidence.ts';
 import { READ_PX, closeUps, stageScale, stepLayouts, toView, viewBox } from '../../app/embed-closeup.ts';
 import type { Box, EndedStep, Mobject, Scene, SceneClass, Sink, Step } from '../../src/index.ts';
 import type { Project } from './explain-project.ts';
@@ -761,6 +761,9 @@ export async function checkProject(project: Project, out: string): Promise<Recor
   await mkdir(out, { recursive: true });
   // The folder's own evidence first: a scene drawn from a model its test refuses shows nothing true.
   const model = await runModelTest(project.file);
+  // A blank explainer (rayner init --blank) fails here with what is left to write, in order.
+  const todo = placeholderTodo(await readFile(scriptOf(project.file), 'utf8').catch(() => null), model, project.scenarios.flatMap((v) => v.trace.steps), basename(project.file));
+  assert.ok(!todo.length, `This explainer still has placeholders, each marked TODO:. To do, in order:\n${todo.map((item, i) => `${i + 1}. ${item}`).join('\n')}`);
   assert.ok(!model?.failed.length, `The model test fails (${model?.file}): ${model?.failed.join('; ')}`);
   const answers = await compareAnswers(project.file, project.Scene.meta, async (file) => (await importAuthored(file)).module);
   assert.deepEqual(answers?.problems ?? [], [], `script.md disagrees with answers.ts (${answers?.file}): ${answers?.problems.join('; ')}`);

@@ -358,6 +358,26 @@ Two kinds of picture need more than Node, and only in the scenes that draw them 
 - A Mermaid diagram, `s.show({ source: 'graph LR\nA --> B' })`, is laid out by Agentic Mermaid in Chromium at build time and pinned in `scene.snapshots/`. Install the add-on with `npm install --save-dev agentic-mermaid@0.5.1 svgpath@2.6.0`, and Chromium with `npx playwright-core install chromium`. Without them, a command that must capture a diagram fails and prints that install line; committed snapshots replay without Chromium.
 - Letters the embedded Inter and JetBrains Mono do not have, other scripts, replacement faces, real bold and italic, and maths need a [lettering request](LETTERING.md). Capturing one needs Python and the source fonts; a committed `scene.lettering.json` replays without them.
 
+## Start your own
+
+The tutorial edits a finished explainer. Writing your own is the same loop from the other end: state the question and intent, model the system, test the model against something real, then draw. `init --blank` starts there:
+
+```sh
+npx rayner init --blank my-question --question "Why does [10, 9, 1].sort() give [1, 10, 9]?"
+```
+
+It writes the four files of [step 2](#2-generate-the-explainer) with nothing decided. Every part still to write says `TODO:` and what goes there: each line of the script's intent header, the oracle test in `model.test.ts` (it fails until you replace it), and the words of the scene's one step, which draws the stub model's state as text. `model.ts` is a stub to replace with your system's state and rules. `rayner check` then fails with what is left, in the order to write it:
+
+```text
+rayner: This explainer still has placeholders, each marked TODO:. To do, in order:
+1. script.md: fill in the intent header: write Reader, Answer, Changed condition, Reader's own work, Leaves out, Check yourself question 1 and Why this explainer in place of each TODO
+2. script.md: write Checked against and Grounding: the real system model.test.ts compares the model with, and how (live, recorded, read or none, then the system and its version)
+3. model.test.ts fails: the model agrees with the real system (TODO: replace this placeholder with a comparison of the model against something real: a reference implementation run live, published test vectors, or a recorded run of the real system)
+4. scene.ts: step "start" still says TODO in its title, line and caption: draw the model's state and say what the picture shows
+```
+
+Work down the list, rerunning `check`: plan the explainer as in [step 1](#1-plan-on-paper); name what the model is checked against and grade it; write the model and make its test compare it with the real system, as in [step 4](#4-check-the-model-against-the-source); then draw the picture from the model's state, as in [step 5](#5-read-the-scene). Once nothing says `TODO:`, the list is gone and `check` holds the explainer to the same checks as any other: some step must state the answer, the model test must pass, and every picture must read. [The skill's table](../skills/rayner-explainers/SKILL.md#start-from-an-example) names an example to borrow the picture from.
+
 ## Next
 
 - To explain another kind of subject, start from the nearest example. The [skill's table](../skills/rayner-explainers/SKILL.md#start-from-an-example) matches subjects such as a protocol, a race, a state machine or a code change to explainers in `scenes/explainers/`.
