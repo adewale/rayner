@@ -8,6 +8,7 @@ import { collectProject, defaultScenario, ROOT, baseReceipt, sceneInputs, sceneS
 import { describeProject, checkBuilt } from './lib/explain-site-describe.ts';
 import { htmlEscape, pictureSummary, stepWords } from '../../explain/trace.ts';
 import { teaching } from '../../explain/script.ts';
+import { groundingLabel } from '../../explain/grounding.ts';
 import { buildExplainer, buildLoader } from '../lib/explain-build.ts';
 import { restingPngs } from '../lib/explain-shots.ts';
 import { checkProject } from '../lib/explain-check.ts';
@@ -40,12 +41,16 @@ await mkdir(directory, { recursive: true });
 await rm(join(directory, 'output-hashes.json'), { force: true });
 // What the gallery and docs point at, with source and snapshot fingerprints.
 const evidence: import('../lib/explain-artifacts.ts').EvidenceScene[] = [];
+// Each explainer's Grounding line, for its gallery card.
+const groundings = new Map<string, NonNullable<import('../lib/explain-artifacts.ts').CatalogScene['grounding']>>();
 for (const item of items) {
   // Remove the record of what this explainer's files were built from now and write it last (below),
   // so a build that stops part way leaves no record for site:export to trust.
   await rm(join(directory, item.id, 'inputs.json'), { force: true });
   const project = await collectProject(join(ROOT, 'scenes/explainers', item.id));
   checkPageId(item.id, sceneSlug(project));
+  const grounding = project.Scene.meta?.grounding;
+  if (grounding) groundings.set(item.id, { grade: grounding.grade, label: groundingLabel(grounding) });
   // For agents: what site:export publishes as <id>.json, described right after the run, as
   // `rayner describe` does.
   const described = await describeProject(project);
@@ -164,6 +169,7 @@ const catalog: import('../lib/explain-artifacts.ts').Catalog = {
       lang: data.lang,
       scenarios: data.scenarios.length,
       entry: data.entry,
+      ...(groundings.has(item.id) ? { grounding: groundings.get(item.id)! } : {}),
     };
   }),
 };

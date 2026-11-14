@@ -48,7 +48,7 @@ The code is a stack, and each layer imports only the layers under it. From the b
 | Layer | Modules | May import |
 | --- | --- | --- |
 | Engine | `src/` | Nothing else in the repository but the vendored shaper, `vendor/glyph.js` |
-| Explain core | `explain/`: `view.ts`, `state.ts`, `machine.ts`, `live.ts`, `choreograph.ts` (views, machines, the run to a live step, and state); `action.ts` (what a stage or diagram action returns); `look.ts`, `palettes.ts`, `layout-direction.ts` (the look); `words.ts`, `trace.ts`, `script.ts`, `claims.ts`, `caption-looks.ts` (words); `diagram-snapshot.ts`, `diagram-text.ts` (diagram snapshots: their types, keys, validation and findings, and a captured label's text); `settings.ts`, `page-query.ts`, `intent.ts`, `mermaid.ts`, `audio.ts` | The engine |
+| Explain core | `explain/`: `view.ts`, `state.ts`, `machine.ts`, `live.ts`, `choreograph.ts` (views, machines, the run to a live step, and state); `action.ts` (what a stage or diagram action returns); `look.ts`, `palettes.ts`, `layout-direction.ts` (the look); `words.ts`, `trace.ts`, `script.ts`, `claims.ts`, `caption-looks.ts` (words); `diagram-snapshot.ts`, `diagram-text.ts` (diagram snapshots: their types, keys, validation and findings, and a captured label's text); `settings.ts`, `page-query.ts`, `intent.ts`, `grounding.ts`, `mermaid.ts`, `audio.ts` | The engine |
 | Diagrams and panels | `explain/diagrams.ts`, `explain/labels.ts`, `explain/panels.ts` | The core and the engine |
 | Drawing kit | `explain/drawing.ts`, `explain/annotate.ts`, `explain/geo.ts`, `explain/seen-from.ts` | Diagrams and panels, the core and the engine |
 | Stage | `explain/stage.ts`, and `explain/index.ts`, the `rayner/explain` entry point | Every layer above |

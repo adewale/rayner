@@ -5,6 +5,7 @@
 - **Changed condition:** the place observed from (Tromsø, London, Quito or Sydney). The swing between June and December grows with latitude: Tromsø goes from all-day to all-night, Quito stays at 12 hours, and Sydney swaps the other way from London, while the distance effect is the same for all of them.
 - **Reader's own work:** predict the month Earth is nearest the Sun, whether the chosen place gets more or less than 12 hours of daylight in June, and whose daylight changes most; choose the place to observe from; then the two check questions.
 - **Checked against:** Nothing external: the model computes the cited formulas (the sunrise equation, a cosine approximation of the declination, and Wikipedia's Position of the Sun distance formula), and its own tests in `model.test.ts` check them by property (hemisphere symmetry, opposite seasons summing to 24 h, polar day and night, the equator at 12 h) and by hand-worked values (London 16.4 h and 7.6 h, perihelion 0.98329 AU); `fidelity.ts` holds each step's state and printed arithmetic to the model.
+- **Grounding:** none
 - **Leaves out:** refraction, the Sun's disc, hills and buildings (so almanac days are longer and polar nights shorter); absorption by the atmosphere; weather and temperature; any tilt but 23.44°; places beyond the four cities and their mirrored latitudes; and an almanac check of every date on the yearly curve, which comes from the approximation.
 
 ## Check yourself

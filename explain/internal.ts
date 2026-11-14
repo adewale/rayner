@@ -10,6 +10,8 @@ export { describeScenario, restingDrawing } from './describe.ts';
 export { RENDERER, SVG_PX_PER_UNIT, diagramKey } from './diagram-snapshot.ts';
 export type { ChartData, SnapshotPart, SnapshotShape, SnapshotTextRun } from './diagram-snapshot.ts';
 export { importedText, outlineText } from './diagram-text.ts';
+export { groundingDetails, groundingSentence } from './grounding.ts';
+export type { Grounding } from './grounding.ts';
 export { diagramsOn, isDiagramConnector } from './diagrams.ts';
 export { labelOf, readingLabelSize } from './labels.ts';
 export { LiveSink, liveBase, liveMachine, liveSteps, runLive } from './live.ts';

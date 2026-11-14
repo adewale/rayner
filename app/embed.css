@@ -222,6 +222,9 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .transcript li li{padding:0}
 .transcript p{margin:4px 0 0;text-wrap:pretty}
 .transcript a{overflow-wrap:anywhere}
+.transcript .grounding,.transcript .grounding-details{max-width:68ch}
+.transcript .grounding-details{margin-top:4px}
+.transcript .grounding-details code{overflow-wrap:anywhere}
 
 /* The card's footer: the maker's mark at the start; inside a frame, the way out at the end. Each link
    is the row's height, so it is easy to hit. */

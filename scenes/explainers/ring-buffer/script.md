@@ -5,6 +5,7 @@
 - **Changed condition:** the operations. "Push 5, pop 2, push 2" shows the freed slots reused, with the queue read from head rather than left to right; "Push 7 into five slots" shows the policy at the limit: push 6 and push 7 are refused with Full and nothing changes.
 - **Reader's own work:** predict where head and tail are after five pushes, which values two pops take, and where the next pushes go; choose the operations; at the end, press push and pop on the live ring (the story pushes the values 1 to 9); the three check questions.
 - **Checked against:** a reference queue: `model.test.ts` runs random push and pop sequences on rings of 1 to 24 slots and checks each pop, each refusal, and that the values read from head are the queue's; the array comparison follows ECMAScript's definition of `Array.prototype.shift`, and `answers.ts` computes the check answers from the ring and that array. Nothing external runs the ring itself.
+- **Grounding:** none
 - **Leaves out:** other designs: this ring tracks length to tell full from empty and refuses a push when full, where others keep a spare slot or overwrite the oldest value. Concurrent producers and consumers and memory ordering. The array's move counts are the copies the language's definition describes, not timings; engines may store arrays differently.
 
 ## Check yourself

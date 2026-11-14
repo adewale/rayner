@@ -1,5 +1,7 @@
 // A script's intent header, parsed and adopted: pure, so the page, the tools and an author's tests
 // share it (rayner/testing's withIntent). loadProject and the command read the script from disk (adoptExplainer).
+import { parseGrounding } from './grounding.ts';
+import type { Grounding } from './grounding.ts';
 /**
  * A script's intent: what the explainer must achieve, written for its author. The script states
  * the question (its `#` heading), a few labelled lines, and the questions a reader should be able
@@ -13,6 +15,7 @@
  *     - **Reader:** knows the rules, has never asked why the answer is 7.
  *     - **Answer:** the smaller tower moves twice and the largest disk once.
  *     - **Checked against:** a search of every arrangement of three, four and five disks.
+ *     - **Grounding:** none
  *
  *     ## Check yourself
  *
@@ -58,16 +61,21 @@ export function parseIntent(text: string, where = 'script.md'): Intent | null {
   if (missing.length) throw new Error(`${where}: the intent header has no ${missing.join(', ')}; write each as a labelled line, - **Answer:** …`);
   const questions = items.map((c) => ({ question: c.question, answer: c.answer.join(' ') }));
   for (const c of questions) if (!c.answer) throw new Error(`${where}: the question ${JSON.stringify(c.question)} has no answer under it; write its answer on the indented lines below it`);
+  if ('Grounding' in fields) parseGrounding(fields['Grounding']!, where);
   return { question, fields, questions };
 }
 
-/** What the scene's metadata takes from an intent: its title, answer, reader questions and what its model is checked against. */
-export function intentMeta(intent: Intent): { title: string; answer: string; questions?: Intent['questions']; checkedAgainst: string } {
+/**
+ * What the scene's metadata takes from an intent: its title, answer, reader questions, what its model
+ * is checked against and, when the script has a Grounding line, its grade (explain/grounding.ts).
+ */
+export function intentMeta(intent: Intent): { title: string; answer: string; questions?: Intent['questions']; checkedAgainst: string; grounding?: Grounding } {
   return {
     title: intent.question,
     answer: intent.fields['Answer']!.replace(/\.$/, ''),
     ...(intent.questions.length ? { questions: intent.questions } : {}),
     checkedAgainst: intent.fields['Checked against']!,
+    ...(intent.fields['Grounding'] ? { grounding: parseGrounding(intent.fields['Grounding']) } : {}),
   };
 }
 

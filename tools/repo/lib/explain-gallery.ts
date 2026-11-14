@@ -3,15 +3,15 @@ import { stepQuery } from '../../../explain/settings.ts';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-/** Poster frames are curated; opening a tile starts the reader at step one. */
-export function galleryTile(item: { id: string; title: string; lang: string }, lead = false): string {
+/** Poster frames are curated; opening a tile starts the reader at step one. Under the title, how the model was checked (its script's Grounding line). */
+export function galleryTile(item: { id: string; title: string; lang: string; grounding?: { grade: string; label: string } }, lead = false): string {
   const href = `${item.id}.html`;
   const lang = item.lang === 'en' ? '' : ` lang="${htmlEscape(item.lang)}"`;
   const hreflang = item.lang === 'en' ? '' : ` hreflang="${htmlEscape(item.lang)}"`;
-  return `<li${lead ? ' class="lead"' : ''}><a href="${htmlEscape(href)}"${hreflang}><img src="${htmlEscape(item.id)}.png" width="960" height="540" alt="" loading="${lead ? 'eager' : 'lazy'}"><span${lang}>${htmlEscape(item.title)}</span></a></li>`;
+  return `<li${lead ? ' class="lead"' : ''}><a href="${htmlEscape(href)}"${hreflang}><img src="${htmlEscape(item.id)}.png" width="960" height="540" alt="" loading="${lead ? 'eager' : 'lazy'}"><span${lang}>${htmlEscape(item.title)}</span>${item.grounding ? `<small class="grounding" data-grade="${htmlEscape(item.grounding.grade)}">${htmlEscape(item.grounding.label)}</small>` : ''}</a></li>`;
 }
 
-type GalleryCatalog = Pick<import('../../lib/explain-artifacts.ts').Catalog, 'product'> & {scenes: Pick<import('../../lib/explain-artifacts.ts').CatalogScene, 'id' | 'title' | 'lang' | 'group' | 'tier'>[]};
+type GalleryCatalog = Pick<import('../../lib/explain-artifacts.ts').Catalog, 'product'> & {scenes: Pick<import('../../lib/explain-artifacts.ts').CatalogScene, 'id' | 'title' | 'lang' | 'group' | 'tier' | 'grounding'>[]};
 /** Full collections lead with the showcase tier, of either group, and list the gallery tier behind "More"; coverage scenes get no card. An explicit subset shows its selected cards. */
 /** The player stylesheet's design tokens (everything before its body rule), which the gallery and embed lab share. */
 export async function galleryTokens(root: string): Promise<string> {
@@ -23,7 +23,7 @@ export function galleryPage(catalog: GalleryCatalog, tokens: string, collection 
     entry = product.entry;
   const text = (key: keyof GalleryCatalog['product']) => (typeof product[key] === 'string' ? (product[key] as string) : '');
   const tile = (item: GalleryCatalog['scenes'][number], lead = false) =>
-    galleryTile({ id: item.id, title: item.title ?? item.id, lang: item.lang ?? 'en' }, lead);
+    galleryTile({ id: item.id, title: item.title ?? item.id, lang: item.lang ?? 'en', ...(item.grounding ? { grounding: item.grounding } : {}) }, lead);
   const featured = collection
     ? scenes.filter((scene) => scene.tier === 'showcase')
     : scenes;
@@ -54,6 +54,7 @@ ul.tiles .lead{grid-column:1/-1}
 .tiles img{display:block;width:100%;height:auto;aspect-ratio:16/9;border-radius:10px;outline:1px solid var(--outline);outline-offset:-1px;transition:transform 200ms cubic-bezier(.23,1,.32,1)}
 .tiles span{display:block;margin-top:12px;font-weight:600;line-height:1.35;text-wrap:balance}
 .tiles .lead span{font-size:1.25rem}
+.tiles small{display:block;margin-top:4px;color:var(--muted);font-size:.875rem;line-height:1.4}
 .tiles a:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
 @media(hover:hover) and (pointer:fine){.tiles a:hover img{transform:scale(1.01)}.tiles a:hover span{color:var(--accent)}}
 .library{margin-top:48px}.library>summary{cursor:pointer;font-weight:600;margin-bottom:24px}.more{display:flex;flex-wrap:wrap;gap:8px 24px;margin:24px 0 0;padding:0;list-style:none}

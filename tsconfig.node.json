@@ -10,6 +10,6 @@
     "resolveJsonModule": true,
     "tsBuildInfoFile": "node_modules/.cache/tsc/node.tsbuildinfo"
   },
-  "include": ["tools/**/*.ts", "test/**/*.ts", "scenes/**/*.test.ts", "scenes/**/fidelity.ts", "scenes/**/oracle/**/*.ts", "scenes/explainers/lib/pbt.ts", "recipes/**/*.ts"],
+  "include": ["tools/**/*.ts", "test/**/*.ts", "scenes/**/*.test.ts", "scenes/**/fidelity.ts", "scenes/**/oracle/**/*.ts", "scenes/explainers/lib/pbt.ts", "scenes/explainers/lib/oracle.ts", "recipes/**/*.ts"],
   "exclude": ["test/consumer"]
 }

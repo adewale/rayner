@@ -5,6 +5,7 @@
 - **Changed condition:** version B's timing. With two notes started half a beat later, G holds across the bar line and the 1 of bar 2 brings no new note; with B given A's timing, every start falls on a beat and E starts on the 1, so the control has no shifted starts.
 - **Reader's own work:** listen to both versions and predict where B pulls against the beat; play them again counting along with the clicks, and again with every pitch C; switch B to the control timing; answer the check questions, which move a different note, count in threes, and leave the E after G a full beat long.
 - **Checked against:** nothing external: the score is the model's own arithmetic. `model.test.ts` and `scene.test.ts` check it at 96 and 120 BPM: the pitches and total length are unchanged, exactly two starts and two lengths move, A starts a note on every beat, the shifted B starts none on the 1 of bar 2 and holds G across the bar line, the control B starts every note on a beat, and each check answer follows from the notes it describes.
+- **Grounding:** none
 - **Leaves out:** rests, accents, swing, articulation and loudness changes, and other ways of making syncopation; meters other than two bars of four beats; how strongly a listener hears the pull, which no listening study here measures.
 
 ## Check yourself

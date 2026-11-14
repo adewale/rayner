@@ -10,7 +10,8 @@ import { packPageSnapshots } from './page-snapshots.ts';
 import { sceneEntry, shippedScenario, shippedStore } from './scene-entry.ts';
 import { renderFrame } from '../../src/output.ts';
 import { chromeFor, scenarioNameIn, changeText, descriptionLang } from '../../app/embed-strings.ts';
-import { pictureHtml, htmlEscape, stepWords, watchedChanges, wordsHtml, stepAudio, liveBase, stepQuery } from '../../explain/internal.ts';
+import { pictureHtml, htmlEscape, stepWords, watchedChanges, wordsHtml, stepAudio, liveBase, stepQuery, groundingDetails, groundingSentence } from '../../explain/internal.ts';
+import type { Grounding } from '../../explain/internal.ts';
 import { RTL_SCRIPTS, SnapshotSink } from '../../src/internal.ts';
 import { ROOT, engineAlias, defaultScenario, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';
 import type { Project } from './explain-project.ts';
@@ -140,10 +141,13 @@ export async function buildExplainer(
   const questions = (project.Scene.meta?.questions ?? [])
     .map((c) => `<li><p>${htmlEscape(c.question)}</p><details><summary>${htmlEscape(t.showAnswer)}</summary><p>${htmlEscape(c.answer)}</p></details></li>`)
     .join('');
-  const checkedAgainst = (project.Scene.meta as { checkedAgainst?: string } | undefined)?.checkedAgainst;
-  const sources = (checkedAgainst ? `<li>${htmlEscape(t.checkedAgainst(checkedAgainst))}</li>` : '') + (project.Scene.meta?.sources ?? [])
+  // How the model was checked, then the scene's sources: a short receipt, with the script's full
+  // Checked against line (its file names as code) behind a disclosure.
+  const checked = groundingHtml(project.Scene.meta?.checkedAgainst, project.Scene.meta?.grounding, lang, t.checkedAgainst);
+  const links = (project.Scene.meta?.sources ?? [])
     .map((url) => `<li><a href="${htmlEscape(url)}" target="_blank" rel="noopener">${htmlEscape(url)}</a></li>`)
     .join('');
+  const sources = checked + (links ? `<ul>${links}</ul>` : '');
   const notices = await Promise.all(
     ['LICENSE', 'vendor/licenses/Inter-OFL.txt', 'vendor/licenses/JetBrainsMono-OFL.txt', 'vendor/licenses/Noto-OFL.txt', 'vendor/licenses/glyph-MIT.txt'].map((file) =>
       readFile(join(ROOT, file), 'utf8'),
@@ -153,7 +157,7 @@ export async function buildExplainer(
   const licenses = notices.join('\n\n') + (project.outlineLettering
     ? letteringLicences(project.outlineLettering).filter((notice) => !notices.includes(notice)).map((notice) => '\n\n' + notice).join('')
     : '');
-  const html = `<!doctype html>\n<html lang="${htmlEscape(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(title)}</title><meta name="generator" content="Rayner"><style>${css}</style></head><body><script>${framedJs}</script><main id="content"><div class="layout tile"><section class="player"><h1>${htmlEscape(title)}</h1><div class="stage poster">${sink.svg}</div><p class="caption">${htmlEscape(stepWords(first).caption)}</p><details class="transcript" open><summary>${htmlEscape(t.transcript)}</summary>${transcript}${questions ? `<h2>${htmlEscape(t.checkYourself)}</h2><ol class="reader-questions">${questions}</ol>` : ''}${sources ? `<h2>${htmlEscape(t.sources)}</h2><ul>${sources}</ul>` : ''}</details></section></div></main><template id="licenses"><pre>${htmlEscape(licenses)}</pre></template><script>${js}</script></body></html>\n`;
+  const html = `<!doctype html>\n<html lang="${htmlEscape(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(title)}</title><meta name="generator" content="Rayner"><style>${css}</style></head><body><script>${framedJs}</script><main id="content"><div class="layout tile"><section class="player"><h1>${htmlEscape(title)}</h1><div class="stage poster">${sink.svg}</div><p class="caption">${htmlEscape(stepWords(first).caption)}</p><details class="transcript" open><summary>${htmlEscape(t.transcript)}</summary>${transcript}${questions ? `<h2>${htmlEscape(t.checkYourself)}</h2><ol class="reader-questions">${questions}</ol>` : ''}${sources ? `<h2>${htmlEscape(t.sources)}</h2>${sources}` : ''}</details></section></div></main><template id="licenses"><pre>${htmlEscape(licenses)}</pre></template><script>${js}</script></body></html>\n`;
   const sri = (value: string) => "'sha256-" + createHash('sha256').update(value).digest('base64') + "'";
   const policy = `default-src 'none'; script-src ${sri(framedJs)} ${sri(js)}; style-src ${sri(css)}; img-src data:; connect-src 'none'; font-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors *`;
   const receipt = {
@@ -177,6 +181,20 @@ export async function buildExplainer(
   // Sidecar deployment recipe: static hosts must apply these as response headers.
   await writeFile(out + '.headers.json', JSON.stringify(receipt.headers, null, 2) + '\n');
   return { html, receipt };
+}
+/**
+ * The page's receipt for how its model was checked, first under Sources: the grade's one sentence
+ * (explain/grounding.ts), then the script's Checked against line behind a disclosure, with each
+ * backticked name as code. Without a Grounding line the sentence is `ungraded`'s, given the line.
+ */
+export function groundingHtml(checkedAgainst: string | undefined, grounding: Grounding | undefined, lang: string, ungraded: (what: string) => string): string {
+  if (!checkedAgainst && !grounding) return '';
+  const code = (text: string) => text.split(/`([^`]+)`/).map((part, i) => (i % 2 ? `<code>${htmlEscape(part)}</code>` : htmlEscape(part))).join('');
+  const sentence = grounding ? htmlEscape(groundingSentence(grounding, lang)) : code(ungraded(checkedAgainst!));
+  const details = grounding && checkedAgainst
+    ? `<details class="grounding-details"><summary>${htmlEscape(groundingDetails(lang))}</summary><p>${code(checkedAgainst)}</p></details>`
+    : '';
+  return `<p class="grounding"${grounding ? ` data-grade="${grounding.grade}"` : ''}>${sentence}</p>${details}`;
 }
 /** CSS as the page ships it: esbuild's minifier, with no trailing newline. */
 export const minifyCss = async (css: string) => (await transform(css, { loader: 'css', minify: true })).code.trimEnd();

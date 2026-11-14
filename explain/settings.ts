@@ -3,6 +3,7 @@ import type { Scene, SceneClass } from '../src/index.ts';
 import { useDiagrams, snapshotResolver } from './diagram-snapshot.ts';
 import type { SnapshotStore, DiagramResolver } from './diagram-snapshot.ts';
 import { PAGE_QUERY } from './page-query.ts';
+import type { Grounding } from './grounding.ts';
 
 export interface Setting {
   id: string;
@@ -21,8 +22,8 @@ export interface PlayerMeta { accent?: boolean; paper?: boolean; corners?: 'roun
 /**
  * What a scene's `static meta` declares: `static meta = { … } satisfies ExplainerMeta`. Collection
  * refuses a key not named here (and a `player` key not in PlayerMeta), so a misspelt key fails
- * rather than being ignored. A script's intent header supplies `title`, `answer`, `questions` and
- * `checkedAgainst`; a scene with one declares none of those four itself.
+ * rather than being ignored. A script's intent header supplies `title`, `answer`, `questions`,
+ * `checkedAgainst` and `grounding`; a scene with one declares none of those itself.
  */
 export interface ExplainerMeta {
   /** Names the output files; the scene's folder name (or its file's, for a scene not named scene.ts) unless declared. One path segment: letters, digits, - and _. */
@@ -59,6 +60,8 @@ export interface ExplainerMeta {
   questions?: readonly { question: string; answer: string }[];
   /** What the model is checked against, shown under the sources; each file it names in backticks must be in the explainer's folder. */
   checkedAgainst?: string;
+  /** How the model was checked, from the script's optional Grounding line: a grade and the system checked against (explain/grounding.ts). */
+  grounding?: Grounding;
   /**
    * Claims that reach beyond the scenarios shown (a sentence with "every", "never", "only" and the like),
    * each with the test that holds it: `says` is a phrase of the sentence, `test` is
@@ -75,7 +78,7 @@ export type ExplainerClass = SceneClass & {
 // Every key of ExplainerMeta and PlayerMeta, so the type and the check below cannot drift apart.
 const META_KEYS: { readonly [K in keyof Required<ExplainerMeta>]: true } = {
   id: true, title: true, lang: true, sources: true, lettering: true, textContext: true, scenarioNavigation: true,
-  player: true, watch: true, answer: true, questions: true, checkedAgainst: true, claims: true,
+  player: true, watch: true, answer: true, questions: true, checkedAgainst: true, grounding: true, claims: true,
 };
 const PLAYER_KEYS: { readonly [K in keyof Required<PlayerMeta>]: true } = { accent: true, paper: true, corners: true, minStageWidth: true, outline: true };
 const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
