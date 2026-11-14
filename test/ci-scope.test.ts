@@ -12,9 +12,10 @@ test('only prose uses the small owner; every tracked executable input forces ful
   for (const file of ['docs/REFERENCE.md', 'docs/LETTERING.md', 'docs/UPSTREAM.md', 'new-file', '.github/workflows/ci.yml', 'docs/example.json'])
     assert.equal(proseOnly([file]), false, file);
 });
-test('reusing a campaign requires every protected owner to have run successfully', () => {
+test('reusing a campaign requires every owner to have run successfully, the unprotected macOS 26 Safari lane included', () => {
   const jobs = requiredJobs.map(name => ({name, conclusion: 'success'}));
-  assert.equal(jobs.length, 9);
+  assert.equal(jobs.length, 8);
+  assert.ok(requiredJobs.includes('compatibility (macos-26, 24)'));
   assert.equal(completedCampaign(jobs), true);
   for (let i = 0; i < jobs.length; i++) {
     for (const conclusion of ['skipped', 'failure', 'cancelled', null])
@@ -41,9 +42,14 @@ test('a prose run reports every required compatibility context, and is never a c
   const job = (name: string) => workflow.split(new RegExp(`^  ${name}:$`, 'm'))[1]!.split(/^  [a-z-]+:$/m)[0]!;
   const contexts = (name: string) => {
     const [, os] = job(name).match(/^ +os: \[(.+)\]$/m)!, [, node] = job(name).match(/^ +node: \[(.+)\]$/m)!;
-    return os!.split(', ').flatMap(o => node!.split(', ').map(n => `compatibility (${o}, ${n.replaceAll("'", '')})`));
+    // Each `- os: …` / `node: …` pair under exclude removes that one combination.
+    const excluded = [...job(name).matchAll(/^ +- os: (\S+)\n +node: '?([^'\n]+)'?$/gm)].map(([, o, n]) => `${o}, ${n}`);
+    return os!.split(', ').flatMap(o => node!.split(', ').map(n => `${o}, ${n.replaceAll("'", '')}`))
+      .filter(combination => !excluded.includes(combination)).map(combination => `compatibility (${combination})`);
   };
   const required = requiredJobs.filter(name => name.startsWith('compatibility'));
+  // One macOS 26 job: the Node 24 lane, which runs the WebKit and Safari checks.
+  assert.deepEqual(required.filter(name => name.includes('macos-26')), ['compatibility (macos-26, 24)']);
   assert.deepEqual(contexts('compatibility').sort(), [...required].sort());
   assert.deepEqual(contexts('compatibility-prose').sort(), [...required].sort());
   assert.match(job('compatibility-prose'), /if: needs\.scope\.outputs\.full == 'false'/);
