@@ -8,7 +8,6 @@ import type { ShippedScenario } from '../../app/embed.ts';
 import { playerTrace } from '../../app/embed-trace.ts';
 import type { LetteringSnapshot, PackedLetteringSnapshot } from '../../src/internal.ts';
 import type { SnapshotStore } from '../../explain/index.ts';
-import { pageSnapshot } from './lettering.ts';
 import { pageFaces } from './explain-lettering.ts';
 import { pageSnapshots } from './page-snapshots.ts';
 import { LIB_ROOT, ROOT } from './roots.ts';
@@ -48,7 +47,8 @@ export function shippedStore(store: SnapshotStore): SnapshotStore {
 function shippedOutlines(project: Project): Promise<PackedLetteringSnapshot> | undefined {
   if (!project.outlineLettering) return undefined;
   let outline = shippedLettering.get(project.outlineLettering);
-  if (!outline) shippedLettering.set(project.outlineLettering, (outline = pageSnapshot(project.outlineLettering)));
+  // Lazy, as collection loads the lettering toolchain's module: only a lettered page needs it.
+  if (!outline) shippedLettering.set(project.outlineLettering, (outline = import('./lettering.ts').then(({ pageSnapshot }) => pageSnapshot(project.outlineLettering!))));
   return outline;
 }
 

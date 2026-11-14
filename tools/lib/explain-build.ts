@@ -15,7 +15,7 @@ import { RTL_SCRIPTS, SnapshotSink } from '../../src/internal.ts';
 import { ROOT, engineAlias, defaultScenario, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';
 import type { Project } from './explain-project.ts';
 import { letteringReport, useProjectLettering } from './explain-lettering.ts';
-import { letteringLicences } from './lettering.ts';
+import { letteringLicences } from './lettering-validation.ts';
 import { playerCss } from '../../app/embed-style.ts';
 import { outcomes } from '../../app/embed-live.ts';
 
