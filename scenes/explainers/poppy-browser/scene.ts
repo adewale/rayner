@@ -50,7 +50,7 @@ const FRESH = ['answer:', 'ticket', 'barrier', 'message', 'rack:none'];
 export default class PoppyBrowser extends Scene<World, Shown> {
   static meta = {
     sources: [
-      'https://personalagentprotocol.org/docs/0.4/spec',
+      'https://personalagentprotocol.org/docs/1.0/spec',
       'https://www.rfc-editor.org/rfc/rfc9700',
       'https://www.rfc-editor.org/rfc/rfc6265',
     ],

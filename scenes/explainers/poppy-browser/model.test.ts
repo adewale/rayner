@@ -5,13 +5,13 @@ import { AGENT, COMPANY, OPERATIONS, POPPY_JSON, SID, THIEF, USER_IDS } from '..
 import {
   ACCOUNT, ATTACK_CODE, PAGE_STATUS, ATTACKER, AUTHORIZE_URL, BROWSER_SIGN_IN, CODES, ENDPOINT, JOIN_EVENTS, PAGE_RESPONSE, PHISH_CODE, SIGN_INS, SIGN_IN_ENDS, STORY,
   agentMayJoin, agentTakesCode, authorize, authorizeRequest, bound, end, browse, browserSignInMeans, browsingPlan, emptyCompany, endSignIn,
-  issuerWebUnscoped, joinEffect, load, mayRequestBrowserSignIn, mustSupportBrowserSignIn, newBrowser, next, pageFetch, pageRuleFailures,
+  issuerWebUnscoped, joinEffect, joinReaches, load, mayRequestBrowserSignIn, mustSupportBrowserSignIn, newBrowser, next, pageFetch, pageRuleFailures,
   plantJoinCookie, start, storyOf, submit, tokenFor, userToken, webProblems, websiteAllows,
   type Browser, type JoinEvent, type SignIn, type World,
 } from './model.ts';
 
-// Each test names the section of the Personal Agent Protocol draft 0.4 it holds the model to
-// (https://personalagentprotocol.org/docs/0.4/spec). The specification was read, not run: there is
+// Each test names the section of the Personal Agent Protocol draft 1.0 it holds the model to
+// (https://personalagentprotocol.org/docs/1.0/spec). The specification was read, not run: there is
 // no reference implementation here, so these pin the model to the draft's rules and examples.
 
 const SIGNED_IN = userToken(['orders:read', 'orders:write', BROWSER_SIGN_IN]);
@@ -41,6 +41,19 @@ test('section 6: the endpoint comes from poppy.json, and the authorize URL is th
   assert.equal(ENDPOINT, 'https://example.com/poppy/browser-session');
   assert.equal(AUTHORIZE_URL, 'https://example.com/poppy/browser-session/authorize');
   assert.equal(AUTHORIZE_URL, OPERATIONS.browse.url, 'chapter 1’s browse request is this step 2');
+});
+
+test('section 6 (1.0): the endpoint can be on any host, and the join reaches only the pages the Session cookie from step 3 reaches', () => {
+  // Set by accounts.example.com with no Domain attribute: that host only (RFC 6265 §5.3).
+  const hostOnly = { setBy: 'accounts.example.com' };
+  assert.equal(joinReaches(hostOnly, 'accounts.example.com'), true);
+  assert.equal(joinReaches(hostOnly, 'example.com'), false, 'the website on example.com would not see the Session');
+  // With Domain=example.com: that domain and every host under it (RFC 6265 §5.1.3).
+  const wide = { setBy: 'accounts.example.com', domain: 'example.com' };
+  for (const page of ['example.com', 'www.example.com', 'accounts.example.com']) assert.equal(joinReaches(wide, page), true, page);
+  assert.equal(joinReaches(wide, 'notexample.com'), false);
+  // The story's endpoint is on the website's own host, so its cookie reaches the pages the agent browses.
+  assert.equal(joinReaches({ setBy: new URL(ENDPOINT).host }, COMPANY.domain), true);
 });
 
 test('6, step 1: the spec’s example response meets every rule for the page and its cookie, and each missing value opens a hole', () => {

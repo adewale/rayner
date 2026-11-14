@@ -9,8 +9,8 @@ import {
   type CheckId, type Policy, type Request, type SealWorld, type Tamper,
 } from './model.ts';
 
-// Each test names the section of the Personal Agent Protocol draft 0.4 it holds the model to
-// (https://personalagentprotocol.org/docs/0.4/spec). The specification was read, not run: there is
+// Each test names the section of the Personal Agent Protocol draft 1.0 it holds the model to
+// (https://personalagentprotocol.org/docs/1.0/spec). The specification was read, not run: there is
 // no reference implementation here, and no real cryptography (a signature is the name of the key
 // that made it), so these pin the model to the draft's rules and examples.
 
