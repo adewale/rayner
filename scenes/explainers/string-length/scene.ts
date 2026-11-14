@@ -121,7 +121,7 @@ export default class StringLength extends Scene<LengthState, {}> {
     await this.step('predict', {
       title: `Shalom has ${count(he.characters)} characters. How many code points?`,
       line: `Predict: ${he.characters}, ${he.points} or ${he.bytes}?`,
-      caption: `Another greeting: shalom, in Hebrew, written with its vowel points, the dots and dashes above and below the letters. A reader sees ${count(he.characters)} characters, read from the right. Before the next step takes the word apart: how many code points will Python’s len() count?`,
+      caption: `Another greeting: shalom, in Hebrew, written with its points, the dots and dashes above and below the letters. A reader sees ${count(he.characters)} characters, read from the right. Before the next step takes the word apart: how many code points will Python’s len() count?`,
       // The reader commits before the cells split; the answer is the model's count.
       predict: { options: [String(he.characters), String(he.points), String(he.bytes)], answer: String(he.points) },
     });
@@ -135,9 +135,9 @@ export default class StringLength extends Scene<LengthState, {}> {
     // 6. The answer: every code point in its own cell, the vowel points among them.
     const marks = he.parts.filter((p) => p.kind !== 'letter').length, plain = lengths(he.parts.filter((p) => p.kind === 'letter').map((p) => p.char).join(''));
     await this.step('hebrew', {
-      title: `${Count(he.points)}: ${count(marks)} of them are vowel points`,
+      title: `${Count(he.points)}: ${count(marks)} of them are points on a letter`,
       line: `${he.characters} characters, ${he.points} code points, ${he.bytes} bytes.`,
-      caption: `Each vowel point is a code point of its own. The first letter carries two and the third carries one, so ${count(he.characters)} characters are ${he.points} code points, and at two bytes each in UTF-8, ${he.bytes} bytes. Written without its points, as everyday Hebrew usually is, the same word is ${plain.points} code points and ${plain.bytes} bytes. Its length to a reader has not changed: still ${plain.characters} characters.`,
+      caption: `Each point is a code point of its own. The first letter carries two, its vowel and the dot that makes it sh, and the third carries one, so ${count(he.characters)} characters are ${he.points} code points, and at two bytes each in UTF-8, ${he.bytes} bytes. Written without its points, as everyday Hebrew usually is, the same word is ${plain.points} code points and ${plain.bytes} bytes. Its length to a reader has not changed: still ${plain.characters} characters.`,
     });
     this.state = { ...base(he), view: 'points', shown: shown(he) };
     const hePointsX = spread(he.parts.length, 2.2, true), heRow = cells(s, he, hePointsX, 0.2, 'he:cp'), heNamed = names(s, he, hePointsX, -1.05, 'he:cp');
@@ -154,7 +154,7 @@ export default class StringLength extends Scene<LengthState, {}> {
         id: 'table',
         title: 'Five greetings, three counts each',
         line: 'Only hello has one length.',
-        caption: `The same three counts for five greetings. hello is ${rows[0]!.bytes} by any of them, which is why code that confuses them passes its tests in English. Chinese has no marks, so code points and characters agree, but each character takes three bytes. Hebrew and Arabic carry vowel marks as extra code points. Hindi fuses letters. The further a script is from one letter, one code point, one byte, the further its counts drift apart.`,
+        caption: `The same three counts for five greetings. hello is ${rows[0]!.bytes} by any of them, which is why code that confuses them passes its tests in English. Chinese has no marks, so code points and characters agree, but each character takes three bytes. Hebrew and Arabic carry their marks as extra code points. Hindi fuses letters. The further a script is from one letter, one code point, one byte, the further its counts drift apart.`,
         state: { ...base(hi), view: 'whole', table: rows } as LengthState,
         draw: (st: LengthState, s: Stage) =>
           new Group(table(s, ['In', 'Word', 'Bytes', 'Code points', 'Characters'],
