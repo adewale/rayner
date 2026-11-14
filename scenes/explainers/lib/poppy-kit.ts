@@ -1,7 +1,7 @@
-import { Circle, Group, Line, Rectangle, VMobject, keyed } from '../../../src/index.ts';
+import { Circle, Group, Rectangle, VMobject, keyed } from '../../../src/index.ts';
 import type { Mobject, Style, Vec } from '../../../src/index.ts';
 // The series' measures, words, parts and choreography are rayner/kit's; this file adds the Poppy palette and objects.
-import { TYPE, STROKE, SPACE, MARGIN, PLATE_HEIGHT, RADIUS as KIT_RADIUS, words, addAll, route, flight, pass, beats as kitBeats } from '../../../explain/kit.ts';
+import { TYPE, STROKE, SPACE, MARGIN, PLATE_HEIGHT, RADIUS as KIT_RADIUS, words, addAll, connector, plate, route, flight, pass, beats as kitBeats } from '../../../explain/kit.ts';
 import type { WordsOptions, Parts, Beat, BeatsOptions, FlightTiming } from '../../../explain/kit.ts';
 import type { Choreography, Stage } from '../../../explain/index.ts';
 import { emphasised } from '../../../explain/drawing.ts';
@@ -358,36 +358,14 @@ export function laneRoute({ from, trunk, y, to, fan = 0.45 }: Pick<LaneOptions, 
  * `lane:<id>:stop`.
  */
 export function lane(s: Stage, { id, name, y, from, trunk, to, nameX, active = false, reached = active, fan = 0.45, nameAt = 'line' }: LaneOptions): Mobject[] {
-  const colour = active ? TONE.ink : TONE.steel, k = `lane:${id}`;
-  const line = roundedPath(laneRoute({ from, trunk, y, to, fan }), 0.22, { stroke: colour, strokeWidth: active ? STROKE.bold : STROKE.line, fill: 'none' });
+  const k = `lane:${id}`;
+  const line = connector(s, laneRoute({ from, trunk, y, to, fan }), { active });
   if (nameAt === 'above') {
     const over = words(s, name, { at: [nameX, y + 0.46], color: active ? TONE.ink : TONE.soft, bold: active });
     return [keyedAs(line, `${k}:line`), keyedAs(over, `${k}:name`), keyedAs(stop(s, { at: [to, y], active: reached }), `${k}:stop`)];
   }
-  const label = words(s, name, { at: [nameX, y], color: active ? TONE.ink : TONE.soft, bold: active });
-  const plate = new Rectangle({ width: label.width() + 0.36, height: PLATE_HEIGHT, fill: TONE.ground, stroke: 'none' }).moveTo([nameX + label.width() / 2, y]);
-  return [keyedAs(line, `${k}:line`), keyedAs(plate, `${k}:plate`), keyedAs(label, `${k}:name`), keyedAs(stop(s, { at: [to, y], active: reached }), `${k}:stop`)];
-}
-
-/**
- * An open route through corner points with each corner rounded (radius up to `r`), as a transit
- * map draws its lines: a Line, so the layout check treats it as a connector.
- */
-function roundedPath(points: readonly Vec[], r: number, style: Style): Line {
-  const line = new Line(points[0]!, points[0]!, style);
-  line.subpaths = []; line.closed = [];
-  line.startNewPath(points[0]!);
-  for (let i = 1; i < points.length - 1; i++) {
-    const a = points[i - 1]!, b = points[i]!, c = points[i + 1]!;
-    const la = Math.hypot(b[0] - a[0], b[1] - a[1]), lc = Math.hypot(c[0] - b[0], c[1] - b[1]);
-    const k = Math.min(r, la / 2, lc / 2);
-    if (k < 1e-6) { line.addLineTo(b); continue; }
-    const p: Vec = [b[0] + ((a[0] - b[0]) * k) / la, b[1] + ((a[1] - b[1]) * k) / la], q: Vec = [b[0] + ((c[0] - b[0]) * k) / lc, b[1] + ((c[1] - b[1]) * k) / lc];
-    line.addLineTo(p);
-    line.addCubic([p[0] + (b[0] - p[0]) * 0.55, p[1] + (b[1] - p[1]) * 0.55], [q[0] + (b[0] - q[0]) * 0.55, q[1] + (b[1] - q[1]) * 0.55], q);
-  }
-  line.addLineTo(points.at(-1)!);
-  return line;
+  const [back, label] = plate(s, name, { at: [nameX, y], key: k, color: active ? TONE.ink : TONE.soft, bold: active });
+  return [keyedAs(line, `${k}:line`), back!, keyedAs(label!, `${k}:name`), keyedAs(stop(s, { at: [to, y], active: reached }), `${k}:stop`)];
 }
 
 /** A stop: a circle of radius 0.17 on the counter's face, ringed in INK, filled INK when `active`. One unkeyed Circle. */
