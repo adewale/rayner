@@ -304,7 +304,7 @@ What it does not show:
 
 Round 1 left the core question open: on a topic an unaided model gets wrong, does the method catch errors the plain page makes? Round 2 repeats the plain-page test on three topics picked by a pilot. It was run on 2026-11-14 against commit `5e9d07d4`.
 
-Short result: the pilot found few errors anywhere. On the three topics where it found the most, the plain pages made 5 errors in 109 claims and the Rayner pages none in 147. All three plain pages gave the right headline answer, and every error was in a secondary detail. Four of the five contradict values the Rayner page states, and those values come from its oracle. The fifth is outside what the Rayner page covers; only the source file its model pins exposed it.
+Short result: the pilot found few errors anywhere. On the three topics where it found the most, the plain pages made 5 errors in 109 claims and the Rayner pages none in 147. All three plain pages gave the right headline answer, and every error was in a secondary detail. Three of the five contradict values the Rayner page states, and those values come from its oracle. The other two (both about `mkfs.ext4 -T`) are outside what the Rayner page covers; only the source file its model pins exposed them.
 
 ### Pilot
 
@@ -582,7 +582,7 @@ The plain pages' central answers were right in all three. ext4: the reserve and 
 It shows:
 
 - Unaided pages by this model on these topics made more errors than in round 1: 5 in 109 claims, against 3 in 96. Four of the five concern mke2fs details (the orphan file, its size types and its profile ratios). Two would mislead a reader who acted on them: the `-T largefile` ratios and the predicted expiry.
-- The Rayner pages made none in 147 claims. For four of the five plain-page errors the Rayner page states the contradicting fact, taken from its oracle: the first files' block counts, the big and huge inode ratios, and renewals continuing under the limit. The oracle the method requires is also what exposed the errors in this check. On the fifth the Rayner page is silent: it is narrower than the plain page.
+- The Rayner pages made none in 147 claims. For three of the five plain-page errors the Rayner page states the contradicting fact, taken from its oracle: the first files' block counts, the big and huge inode ratios, and renewals continuing under the limit. The oracle the method requires is also what exposed the errors in this check. On the other two the Rayner page is silent: it is narrower than the plain page.
 - 31 of the plain pages' 109 claims could not be checked against any oracle, against 5 of the Rayner pages' 147. Much of what a plain page adds (tool advice, other clients, history) is exactly what nobody checked.
 
 It does not show:
