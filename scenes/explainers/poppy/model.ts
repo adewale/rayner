@@ -1,7 +1,7 @@
 import { isRefusal, refuse } from '../../../explain/index.ts';
 import type { Refusal } from '../../../explain/index.ts';
 
-// Poppy (Personal Agent Protocol, draft 0.4): how a Company decides what one request from a
+// Poppy (Personal Agent Protocol, draft 1.0): how a Company decides what one request from a
 // Personal Agent may do. Two proofs travel separately. The Session header (5.2) is a JWT the agent
 // signs for one request; it names the agent, a pseudonymous User ID and a Session, and the Company
 // verifies it (5.3). The access token is plain OAuth (section 4): it says which account the request
@@ -36,9 +36,10 @@ export const CHANNELS: readonly Channel[] = ['api', 'web', 'chat'];
 
 /** The parts of example.com's poppy.json this model reads, from the specification's example document (section 3). */
 export const POPPY_JSON = {
-  protocol_version: '0.4',
+  protocol_version: '1.0',
   organization: { name: 'Example Company', domain: 'example.com' },
-  agent: { protocols: [{ type: 'poppy', endpoint: 'https://api.example.com/poppy/conversations' }] },
+  // 8.1: every conversation entry says what the agent there can help with.
+  agent: { protocols: [{ type: 'poppy', endpoint: 'https://api.example.com/poppy/conversations', description: 'Anything about your orders, returns, account, and our products' }] },
   web: { browser_session_endpoint: 'https://example.com/poppy/browser-session' },
   apis: [{ type: 'openapi', url: 'https://api.example.com/openapi.json', description: 'Orders, returns, and exchanges' }],
 } as const;

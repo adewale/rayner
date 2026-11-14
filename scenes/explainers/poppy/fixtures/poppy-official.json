@@ -1,21 +1,21 @@
 {
  "source": {
-  "what": "Official artifacts of the Personal Agent Protocol (Poppy), draft 0.4, which the project marks as in progress: JSON Schemas from its Company implementation kit, and example documents from the specification text.",
-  "retrieved": "2026-11-10",
+  "what": "Official artifacts of the Personal Agent Protocol (Poppy), draft 1.0, which the project marks as in progress: JSON Schemas from its Company implementation kit, and example documents from the specification text.",
+  "retrieved": "2026-11-13",
   "licence": "Apache-2.0 (https://personalagentprotocol.org/license: the specification and documentation, including their examples; the repository LICENSE)",
-  "schemas_from": "https://personalagentprotocol.org/kit/company/schemas/{name}, byte-identical to kit/company/schemas/{name} in https://github.com/personal-agent-protocol/personal-agent-protocol at commit 9af9904f19f75f11d0e6352fbf27b42791e18ebe",
+  "schemas_from": "https://personalagentprotocol.org/kit/company/schemas/{name}, byte-identical to kit/company/schemas/{name} in https://github.com/personal-agent-protocol/personal-agent-protocol at commit bb9833219c59554518164ce53bf659abcdf99863",
   "schema_sha256": {
-   "authorization-server-metadata.schema.json": "beb1be8a78122b64062010742ebdf0f514a31ba9f950aad1b7c1d19a35a39023",
-   "poppy.schema.json": "716e359e07f83d1db79a4f0d3a63fae2f4fa207b07af82a489e2bfd7a803f18e",
+   "authorization-server-metadata.schema.json": "bf109a1ca3a9e2b184ce3963dc87d01a98a227023ebb991dda3216836d9df0c7",
+   "poppy.schema.json": "3b4ade4931b77ca6a511c28f98eb03762122f1878b62982b6b0e1bb595d86142",
    "protected-resource-metadata.schema.json": "b7d01704794f1340d121257bb3aa9199dc1a930ff64177a671294063c954957a",
    "session-jwt.schema.json": "60351055732e25fcda349a71cfb35ed03eddfdf7b52f93e58ef4ac3651052f73"
   },
-  "examples_from": "https://personalagentprotocol.org/docs/0.4/spec.md (sha256 b65e9620fd777a214e73e923f8e17691be390fcc07c5dd4e21c3707c8468a967), each JSON code block as published, keyed by section and its place in that section. The 5.2 Session JWT block is a header and a payload separated by a line holding \".\", stored here as {header, payload}.",
+  "examples_from": "https://personalagentprotocol.org/docs/1.0/spec.md (sha256 1def33c03ae65badc27c94b74af603209de5394bf8306170484ec0a52e09d8a7), each JSON code block as published, keyed by section and its place in that section. The 5.2 Session JWT block is a header and a payload separated by a line holding \".\", stored here as {header, payload}.",
   "note": "Copied as published; nothing edited. The project checks every JSON example in the spec against these schemas in its own build (lib/kit/examples.ts)."
  },
  "examples": {
   "3 Discovery #1 poppy.json": {
-   "protocol_version": "0.4",
+   "protocol_version": "1.0",
    "organization": {
     "name": "Example Company",
     "domain": "example.com",
@@ -23,9 +23,9 @@
    },
    "auth": {
     "scopes": {
-     "orders:read": "See your orders, returns, and bookings",
-     "orders:write": "Exchange or return items, and change bookings",
-     "addresses": "See and change your saved shipping addresses",
+     "orders:read": "See your orders, returns, and bookings. Needed to track an order or find one to change",
+     "orders:write": "Exchange or return items, and change bookings. Needed for any change to an order",
+     "addresses": "See and change your saved shipping addresses. Not needed to enter an address at checkout",
      "poppy:browser-sign-in": "Use the website signed in, with the other access you approve"
     },
     "scope_hints": {
@@ -47,7 +47,8 @@
     "protocols": [
      {
       "type": "poppy",
-      "endpoint": "https://api.example.com/poppy/conversations"
+      "endpoint": "https://api.example.com/poppy/conversations",
+      "description": "Anything about your orders, returns, account, and our products"
      }
     ]
    },
@@ -74,6 +75,12 @@
    "resource": "https://example.com",
    "authorization_servers": [
     "https://auth.example.com"
+   ],
+   "scopes_supported": [
+    "orders:read",
+    "orders:write",
+    "addresses",
+    "poppy:browser-sign-in"
    ]
   },
   "3.2 OAuth server #2 authorization server metadata": {
@@ -150,7 +157,7 @@
      "$ref": "#/$defs/https_url"
     },
     "token_endpoint_auth_signing_alg_values_supported": {
-     "description": "RFC 8414 section 2. Accepted client-assertion algorithms, not delegation algorithms. Poppy requires ES256 and recommends PS384.",
+     "description": "RFC 8414 section 2. Accepted client-assertion algorithms, not delegation algorithms. Poppy requires ES256 and PS384.",
      "type": "array",
      "items": {
       "type": "string",
@@ -290,7 +297,8 @@
         "type": "object",
         "required": [
          "type",
-         "endpoint"
+         "endpoint",
+         "description"
         ],
         "properties": {
          "type": {
@@ -299,6 +307,11 @@
          },
          "endpoint": {
           "$ref": "#/$defs/https_url"
+         },
+         "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What the agent at this endpoint can help with. It may say anything (spec 8.1)."
          },
          "access": {
           "type": "string",
@@ -494,7 +507,7 @@
     },
     "domain": {
      "type": "string",
-     "pattern": "^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$"
+     "pattern": "^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+(:[1-9][0-9]{0,4})?$"
     },
     "scopes": {
      "type": "array",

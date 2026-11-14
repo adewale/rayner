@@ -3,7 +3,7 @@ import type { Refusal } from '../../../explain/index.ts';
 import { AGENT, COMPANY, POPPY_JSON, SID, THIEF, USER_IDS, answer as verifySession, sign } from '../poppy/model.ts';
 import type { AccessToken, Scope, SessionJwt } from '../poppy/model.ts';
 
-// Poppy (Personal Agent Protocol, draft 0.4), section 6 and 10.6: how the agent's browser joins a
+// Poppy (Personal Agent Protocol, draft 1.0), section 6 and 10.6: how the agent's browser joins a
 // Session. A browser sends cookies, not the agent's headers, so it cannot carry the Session header
 // (5.2) or the access token (4.5). Instead the Company's browser-session page gives the browser a
 // one-time code and, in the same response, a short-lived cookie that ties the code to that browser.
@@ -178,6 +178,19 @@ export type SubmitAnswer = { status: 303; location: string } | { status: 400; fa
  * is why the join cookie also needs the __Host- prefix (6, step 1).
  */
 export const sameSite = (site: string) => site === COMPANY.domain || site.endsWith(`.${COMPANY.domain}`);
+
+/**
+ * Section 6 (1.0): the browser-session endpoint can be on any host the Company chooses, such as
+ * accounts.example.com, and the join works only on the pages the Session cookie set in step 3
+ * reaches. A cookie without a Domain attribute goes back only to the host that set it (RFC 6265
+ * §5.3); one with Domain goes to that domain and every host under it (§5.1.3).
+ */
+export function joinReaches(cookie: { setBy: string; domain?: string }, page: string): boolean {
+  const host = page.toLowerCase();
+  if (cookie.domain === undefined) return host === cookie.setBy.toLowerCase();
+  const domain = cookie.domain.toLowerCase();
+  return host === domain || host.endsWith(`.${domain}`);
+}
 
 /**
  * A host on the Company's domain other than the website setting a join cookie in a browser. A

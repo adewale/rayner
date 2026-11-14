@@ -3,7 +3,7 @@ import type { Refusal } from '../../../explain/index.ts';
 import { AGENT, COMPANY, OPERATIONS, POPPY_JSON, SID, USER_IDS, answer, sign } from '../poppy/model.ts';
 import type { AccessToken, Answer, Channel, HttpRequest, Scope } from '../poppy/model.ts';
 
-// Poppy (Personal Agent Protocol, draft 0.4), sections 9 and 10.1 to 10.2: what a Company may tell a
+// Poppy (Personal Agent Protocol, draft 1.0), sections 9 and 10.1 to 10.2: what a Company may tell a
 // Personal Agent about the tasks it serves, and what the agent does with what it is told.
 //
 // A Company publishes, at the tasks endpoint its poppy.json lists, three things: the tasks it chose

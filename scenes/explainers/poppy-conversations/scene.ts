@@ -21,7 +21,7 @@ import type { Shown } from './picture.ts';
 // when it closes. Words that change are replaced, never morphed.
 export default class Conversations extends Scene<World, Shown> {
   static meta = {
-    sources: ['https://personalagentprotocol.org/docs/0.4/spec'],
+    sources: ['https://personalagentprotocol.org/docs/1.0/spec'],
     claims: [
       { says: 'Every message says whether a person or an AI wrote it', test: 'model.test.ts: 8.8 and 8.7: every turn at the table is marked by who wrote it' },
       { says: 'only your own agent can bring you in', test: 'model.test.ts: 8.10: the Company can only ask for the User' },
@@ -160,7 +160,7 @@ export default class Conversations extends Scene<World, Shown> {
       title: 'Your own words are marked human',
       line: 'The same words from your agent would be marked AI.',
       caption:
-        'You type “Medium, please.” and your agent sends it as written, marked human. Had your agent passed on your wish in its own words, as a summary or a paraphrase, the message would be marked agent: only your own words count as yours. The specialist’s reply carries the person mark too, so anyone reading these tables later can tell the four voices apart.',
+        'You type “Medium, please.” and your agent sends it as written, marked human. Had your agent passed on your wish in its own words, as a summary or a paraphrase, the message would be marked agent: only your own words count as yours. The specialist’s reply carries the person mark too, so anyone reading these tables later can tell the four voices apart. Draft 1.0 adds a rule for marks a later version might invent: either side reads one it does not know as AI, so nothing passes for a person’s words unless it says human.',
     });
     await this.play(machine.replay(STORY.slice(9, 11)));
 

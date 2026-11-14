@@ -33,7 +33,7 @@ const RAIL_MARKS = RAIL.flatMap((fix) => [`rail:${fix}:mark`, `rail:${fix}:strik
 export default class Refusals extends Scene<World, Shown> {
   static meta = {
     sources: [
-      'https://personalagentprotocol.org/docs/0.4/spec',
+      'https://personalagentprotocol.org/docs/1.0/spec',
       'https://www.rfc-editor.org/rfc/rfc6750',
       'https://www.rfc-editor.org/rfc/rfc8707',
       'https://www.rfc-editor.org/rfc/rfc9728',
@@ -163,7 +163,7 @@ export default class Refusals extends Scene<World, Shown> {
     await this.step('version', {
       title: 'Same 400, a different move',
       line: `${version.refused.error}: read poppy.json again, then choose.`,
-      caption: `Third 400, third remedy. The agent used an old copy of poppy.json and sent version 0.3, which the Company no longer serves. It fetches poppy.json again, uncached, chooses 0.4, and, since a Session keeps one version, starts a new Session and sends once more. The extensions a request declares work the same way: a 403 extension_required names the one missing. Read the code, not just the number.`,
+      caption: `Third 400, third remedy. The agent used an old copy of poppy.json and sent version 0.4, which the Company no longer serves. It fetches poppy.json again, uncached, chooses 1.0, and, since a Session keeps one version, starts a new Session and sends once more. The extensions a request declares work the same way: a 403 extension_required names the one missing. Read the code, not just the number.`,
     });
     await this.play(machine.replay(STORY.slice(8, 10)));
 

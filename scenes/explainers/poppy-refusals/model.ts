@@ -3,7 +3,7 @@ import type { Refusal } from '../../../explain/index.ts';
 import { AGENT, COMPANY, OPERATIONS, POPPY_JSON, SCOPES, SID, USER_IDS, answer, sign } from '../poppy/model.ts';
 import type { AccessToken, HttpRequest, Operation, Scope, SessionJwt } from '../poppy/model.ts';
 
-// Poppy (Personal Agent Protocol, draft 0.4), chapter 6: what the agent does when the Company says
+// Poppy (Personal Agent Protocol, draft 1.0), chapter 6: what the agent does when the Company says
 // no. Chapter 1's answer() decides whether a request's Session header verifies and what its access
 // token allows (5.3, section 7); this model wraps it with the refusals chapter 1 leaves out (a rate
 // limit, the protocol version, an ended Session, a required extension, a token for one service) and
@@ -56,12 +56,14 @@ export type Declared = { name: string; v: string };
 export type PoppyRequest = Omit<HttpRequest, 'token' | 'session'> & { token?: Token; session?: Session; version?: string; extensions?: readonly Declared[] };
 
 export type Code = 'invalid_token' | 'insufficient_scope' | 'invalid_session' | 'session_ended' | 'version_unsupported' | 'extension_required';
+/** The codes this agent recognizes: section 7's table and 3.3's. */
+export const CODES: readonly Code[] = ['invalid_token', 'insufficient_scope', 'invalid_session', 'session_ended', 'version_unsupported', 'extension_required'];
 /** What the Company answers: a status, an error code, and what the refusal names (a scope, an extension, a wait, a metadata URL). */
-export type Reply = { status: number; error?: Code; needs?: Scope; reason?: string; extension?: string; retryAfter?: number; resourceMetadata?: string };
+export type Reply = { status: number; error?: Code | (string & {}); needs?: Scope; reason?: string; extension?: string; retryAfter?: number; resourceMetadata?: string };
 
 /** What the Company is doing that a request can run into. */
 export type Company = {
-  /** The protocol versions it serves (3.4). Chapter 1's poppy.json is 0.4 and lists no supported_versions. */
+  /** The protocol versions it serves (3.4). Chapter 1's poppy.json is 1.0 and lists no supported_versions. */
   serves: readonly string[];
   /** The sids of Sessions it ended and remembers (5.5), or 'all' for a Company that ends every Session it sees. */
   ended: readonly string[] | 'all';
@@ -200,9 +202,16 @@ export type Move =
  *   declares are fixed for it (3.4), so the agent declares the extension in a new Session if it
  *   implements a version the Company lists, and sends once more; otherwise it stops.
  * - 429: wait at least Retry-After before sending again (5.6).
+ * - An error code the agent does not recognize: handled by the status, as an error with no code.
+ *   Draft 1.0 says so in 8.13, so later versions and extensions can add codes; the model applies it
+ *   to every reply, its own reading.
  */
 export function remedy(reply: Reply, h: Holding): Move {
   if (reply.status < 400) return { kind: 'done' };
+  if (reply.error !== undefined && !(CODES as readonly string[]).includes(reply.error)) {
+    const { error: _unknown, ...plain } = reply;
+    return remedy(plain, h);
+  }
   if (reply.status === 429) return { kind: 'wait', seconds: reply.retryAfter ?? 0 };
   const resource = reply.resourceMetadata ? METADATA[reply.resourceMetadata]?.resource : undefined;
   const forResource = resource && resource !== DEFAULT_RESOURCE ? { resource } : {};
@@ -228,7 +237,7 @@ export function remedy(reply: Reply, h: Holding): Move {
       return h.resent ? { kind: 'stop', why: `the request was already sent again declaring ${name}` } : { kind: 'declare', extension: usable };
     }
     default:
-      return { kind: 'stop', why: `the draft names no remedy for ${reply.status}` };
+      return { kind: 'stop', why: reply.status === 400 ? 'a 400 with no code the agent knows: the request itself is at fault' : `the draft names no remedy for ${reply.status}` };
   }
 }
 
@@ -250,13 +259,13 @@ export type Setup = {
   /** The most sends a run makes. */
   limit?: number;
 };
-/** The agent implements 0.3 and 0.4, so an old copy of poppy.json can leave it on 0.3. */
-const IMPLEMENTS = ['0.3', '0.4'] as const;
+/** The agent implements 0.4 and 1.0, so an old copy of poppy.json can leave it on 0.4. */
+const IMPLEMENTS = ['0.4', '1.0'] as const;
 
 function agentFrom(o: Setup): Agent {
   const scopes = o.scopes ?? DEFAULT_TOKEN.scopes;
   const token = o.token === false ? null : o.token ?? { ...DEFAULT_TOKEN, scopes, ...(o.tokenExpired ? { expired: true } : {}) };
-  return { token, mcpToken: o.mcpKey ? MCP_TOKEN : null, refresh: scopes, signedOut: false, sid: o.sid ?? SID, version: o.version ?? '0.4', dlgExpired: !!o.dlgExpired, extensions: [], resent: false };
+  return { token, mcpToken: o.mcpKey ? MCP_TOKEN : null, refresh: scopes, signedOut: false, sid: o.sid ?? SID, version: o.version ?? '1.0', dlgExpired: !!o.dlgExpired, extensions: [], resent: false };
 }
 
 /** The request the agent sends: the Session header always (5.2), Poppy-Version beside it (3.4), and the token for the service it goes to (4.5). */
@@ -285,7 +294,7 @@ export function agentAfter(t: Trouble, o: Setup = {}): Setup {
     'read-only': { scopes: ['orders:read'] },
     delegation: { dlgExpired: true },
     end: { company: { ...EXAMPLE_COMPANY, ended: [o.sid ?? SID] } },
-    'old-copy': { version: '0.3' },
+    'old-copy': { version: '0.4' },
     'too-fast': { company: { ...EXAMPLE_COMPANY, retryAfter: RETRY_AFTER } },
     mcp: {},
   };

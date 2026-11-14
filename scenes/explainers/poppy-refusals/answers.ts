@@ -19,7 +19,7 @@ export const answer = () => 'Each refusal’s code names its own remedy, and the
 export const questions = {
   1: () => {
     const t = troubled('delegation'), reply = respond(t.request, t.company);
-    expect(remedy(reply, { token: t.request.token, refresh: ['orders:read', 'orders:write'], signedOut: false, resent: false, version: '0.4', implements: ['0.4'], extensions: [], offered: {} }), 'fix');
+    expect(remedy(reply, { token: t.request.token, refresh: ['orders:read', 'orders:write'], signedOut: false, resent: false, version: '1.0', implements: ['1.0'], extensions: [], offered: {} }), 'fix');
     const inNew = troubled('delegation', { sid: NEW_SID });
     const kept = play(['delegation', 'answer']).cart;
     return `It stops sending the exchange and fixes the cause: a new delegation, in the same Session, so the cart is ${kept ? 'kept' : 'lost'}. A new Session would carry the same broken header and get ${sayReply(respond(inNew.request, inNew.company))} again.`;
@@ -37,12 +37,12 @@ export const questions = {
   },
   4: () => {
     const t = troubled('mcp'), reply = respond(t.request, t.company);
-    const move = expect(remedy(reply, { token: t.request.token, refresh: ['orders:read', 'orders:write'], signedOut: false, resent: false, version: '0.4', implements: ['0.4'], extensions: [], offered: {} }), 'refresh');
+    const move = expect(remedy(reply, { token: t.request.token, refresh: ['orders:read', 'orders:write'], signedOut: false, resent: false, version: '1.0', implements: ['1.0'], extensions: [], offered: {} }), 'refresh');
     if (move.resource !== MCP_URL) throw new Error('the model asks for another resource');
     return `It reads the metadata, refreshes for a token with resource ${move.resource}, and uses that token only at the MCP server. Its everyday token keeps working at the API.`;
   },
   5: () => {
-    const move = remedy({ status: 401, needs: 'orders:write' }, { token: undefined, refresh: null, signedOut: true, resent: false, version: '0.4', implements: ['0.4'], extensions: [], offered: {} });
+    const move = remedy({ status: 401, needs: 'orders:write' }, { token: undefined, refresh: null, signedOut: true, resent: false, version: '1.0', implements: ['1.0'], extensions: [], offered: {} });
     expect(move, 'signed-out');
     return 'No. A 401 with no code is handled as insufficient_scope, and after you sign out the agent continues signed out: it asks you to sign in again only if you ask it to.';
   },

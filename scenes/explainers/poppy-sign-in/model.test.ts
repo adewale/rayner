@@ -4,14 +4,14 @@ import { createHash } from 'node:crypto';
 import { isRefusal } from '../../../explain/index.ts';
 import { AGENT, COMPANY, SCOPES, SID, THIEF } from '../poppy/model.ts';
 import {
-  AUTH, CARDS, CLIENT, CODE, DEVICE, LOOKALIKE, OTHER, PKCE, SESSION, SIGN_IN_EVENTS, STATE, STORY, SWAPPED, TASK,
-  assertionOf, authorizationRequest, authorize, checkAssertion, checkResponse, deviceLink, grant, hintOf, isRejected,
-  next, poll, redeem, refresh, refreshTokenOf, ruleOf, scopesToAsk, sessionFor, signedIn, start, whatTheCompanySees,
+  AUTH, CARDS, CLIENT, CODE, DEVICE, LOOKALIKE, OTHER, PAR_ENDPOINT, PKCE, REQUEST_URI, SESSION, SIGN_IN_EVENTS, STATE, STORY, SWAPPED, TASK,
+  assertionOf, authorizationRequest, authorize, checkAssertion, checkResponse, consentPage, deviceLink, grant, hintOf, howToOpen, isRejected,
+  next, poll, push, redeem, refresh, refreshTokenOf, ruleOf, scopesToAsk, sessionFor, signedIn, start, whatTheCompanySees,
   type Flow, type IssuedCode, type RefreshToken, type SignInEvent, type World,
 } from './model.ts';
 
-// Each test names the section of the Personal Agent Protocol draft 0.4 it holds the model to
-// (https://personalagentprotocol.org/docs/0.4/spec). The specification was read, not run: there is
+// Each test names the section of the Personal Agent Protocol draft 1.0 it holds the model to
+// (https://personalagentprotocol.org/docs/1.0/spec). The specification was read, not run: there is
 // no reference implementation here, so these pin the model to the draft's rules and examples.
 
 const FLOWS: readonly Flow[] = ['direct', 'device'];
@@ -28,15 +28,18 @@ const issued = (over: Partial<IssuedCode> = {}): IssuedCode => ({
 });
 const redemption = { code: CODE, redirect_uri: CLIENT.redirect_uris[0], verifier: PKCE.verifier, assertion: assertionOf(AGENT) };
 
-test('4.2: the authorization request is the specification’s example, with PKCE S256', () => {
-  assert.deepEqual(authorizationRequest(TASK), {
+test('4.2: the authorization request is the specification’s example, with PKCE S256, and prompt=consent unless the redirect comes back only to the same device', () => {
+  const example = {
     client_id: 'https://agent.example/agent.json',
     redirect_uri: 'https://agent.example/oauth/callback',
     scope: 'orders:read orders:write',
     state: 'Xq81vR',
     code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
     code_challenge_method: 'S256',
-  });
+  };
+  // 1.0: this agent's redirect is its web address, which a link forwarded to another device reaches too.
+  assert.deepEqual(authorizationRequest(TASK), { ...example, prompt: 'consent' });
+  assert.deepEqual(authorizationRequest(TASK, { sameDevice: true }), example, 'the specification’s example URL, for an agent whose redirect returns only to the device that opened it');
   // The draft's challenge is RFC 7636 Appendix B's: the base64url SHA-256 of the verifier the model uses.
   assert.equal(createHash('sha256').update(PKCE.verifier).digest('base64url'), PKCE.challenge);
 });
@@ -59,6 +62,30 @@ test('4.7: every sign-in request names scopes the Company knows, or gets invalid
   // Only the scopes the Company states are known; names every object inherits are not.
   for (const name of ['constructor', 'toString', '__proto__', 'hasOwnProperty'])
     assert.equal(errorOf(authorize({ ...authorizationRequest(TASK), scope: `orders:read ${name}` })), `invalid_scope: ${name} is not a scope example.com offers`);
+});
+
+test('10.8 (1.0): the consent page lists every scope it will grant, earlier ones too, and prompt=consent shows it even when all were granted before', () => {
+  const before = { alreadyGranted: TASK };
+  assert.deepEqual(consentPage(TASK, { ...before, prompt: true, device: false }), { shown: true, lists: TASK });
+  assert.deepEqual(consentPage(['orders:read', 'orders:write', 'addresses'], { alreadyGranted: ['orders:read'], prompt: true, device: false }),
+    { shown: true, lists: ['orders:read', 'orders:write', 'addresses'] }, 'a page for more access lists the earlier scopes too');
+  // The hole prompt=consent closes: a forwarded link for scopes the account already granted, and no page at all.
+  assert.deepEqual(consentPage(TASK, { ...before, prompt: false, device: false }), { shown: false, lists: [] });
+  assert.equal(consentPage(TASK, { ...before, prompt: false, device: true }).shown, true, 'Device Sign-In shows the page every time');
+  assert.deepEqual(consentPage(['orders:read', 'poppy:browser-sign-in'], { alreadyGranted: [], prompt: true, device: false }).lists, ['orders:read'], 'poppy:browser-sign-in may be granted without asking');
+});
+
+test('4.2 (1.0): a Company may require Pushed Authorization Requests; then the agent pushes the request with its client assertion and opens only a request_uri', () => {
+  assert.equal(howToOpen(ISSUER), 'open', 'the specification’s example issuer lists no PAR endpoint');
+  assert.equal(howToOpen({ ...ISSUER, pushed_authorization_request_endpoint: PAR_ENDPOINT }), 'should push');
+  assert.equal(howToOpen({ ...ISSUER, pushed_authorization_request_endpoint: PAR_ENDPOINT, require_pushed_authorization_requests: true }), 'must push');
+  const required = { requirePushed: true };
+  assert.equal(errorOf(authorize(authorizationRequest(TASK), CLIENT, required)), 'invalid_request: example.com requires the request to be pushed to its PAR endpoint first');
+  assert.deepEqual(push(authorizationRequest(TASK), assertionOf(AGENT), required), { request_uri: REQUEST_URI, expires_in: 60 });
+  assert.equal(errorOf(push(authorizationRequest(TASK), assertionOf(THIEF), required)), 'invalid_client: the assertion was signed by https://thief.example/agent.json, not by the client the request names');
+  assert.equal(errorOf(push(authorizationRequest(TASK), assertionOf(AGENT, ISSUER_TOKEN), required)), `invalid_client: the assertion is addressed to ${ISSUER_TOKEN}, not to the issuer https://auth.example.com`);
+  assert.equal(errorOf(push({ ...authorizationRequest(TASK), redirect_uri: 'https://evil.example/cb' }, assertionOf(AGENT), required)),
+    'invalid_request: https://evil.example/cb is not one of the redirect URIs agent.example registered, so no code is sent there', 'a pushed request is checked like any other');
 });
 
 test('4.7: the Company grants what you approved and nothing beyond what was asked; approving none is a decline', () => {

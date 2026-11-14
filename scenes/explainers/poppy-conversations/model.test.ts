@@ -6,12 +6,12 @@ import {
   ACCOUNT, CONVERSATION_ID, ENDPOINT, ERRORS, EVENT_TYPES, LINES, NEW_CONVERSATION, OWNER, STORY, TABLE_EVENTS, USER_ID,
   activeOf, addsStateEvent, askForPerson, authorFor, authorOf, authorizationEvent, bound, cancelPerson, chooseProtocol, closeConv,
   closeParent, consistent, continueAs, handle, interpret, isId, mergeContext, next, nobodyAvailable, openDirect, openDirectOf,
-  pathOf, personJoins, problemsOf, readEvents, record, resumeFrom, roleOf, ruleOf, shownText, start, submit,
+  pathOf, personJoins, problemsOf, readAuthor, readEvents, readRole, readStream, record, resumeFrom, roleOf, ruleOf, shownText, start, submit,
   type Accepted, type Caller, type Conv, type ConvEvent, type Stored, type TableEvent, type World,
 } from './model.ts';
 
-// Each test names the section of the Personal Agent Protocol draft 0.4 it holds the model to
-// (https://personalagentprotocol.org/docs/0.4/spec, section 8). The specification was read, not
+// Each test names the section of the Personal Agent Protocol draft 1.0 it holds the model to
+// (https://personalagentprotocol.org/docs/1.0/spec, section 8). The specification was read, not
 // run: there is no reference implementation here, so these pin the model to the draft's rules and
 // examples.
 
@@ -41,8 +41,11 @@ const caller = (o: Partial<Caller> = {}): Caller => ({ client: AGENT.clientId, u
 test('8.1: the agent uses the first conversation protocol it supports and skips types it does not know', () => {
   assert.equal(chooseProtocol(POPPY_JSON.agent.protocols)?.endpoint, 'https://api.example.com/poppy/conversations');
   assert.equal(ENDPOINT, 'https://api.example.com/poppy/conversations');
-  assert.deepEqual(chooseProtocol([{ type: 'chatml', endpoint: 'https://x' }, { type: 'poppy', endpoint: 'https://y' }]), { type: 'poppy', endpoint: 'https://y' });
-  assert.equal(chooseProtocol([{ type: 'chatml', endpoint: 'https://x' }]), null);
+  const chatml = { type: 'chatml', endpoint: 'https://x', description: 'Product questions' }, poppy = { type: 'poppy', endpoint: 'https://y', description: 'Anything' };
+  assert.deepEqual(chooseProtocol([chatml, poppy]), poppy);
+  assert.equal(chooseProtocol([chatml]), null);
+  // 1.0: every entry says what the agent there can help with.
+  assert.equal(POPPY_JSON.agent.protocols[0].description, 'Anything about your orders, returns, account, and our products');
 });
 
 test('8.2: IDs are 1 to 256 characters of letters, digits, - and _', () => {
@@ -107,11 +110,24 @@ test('8.4: a message needs author.type and some content; a person’s message ca
   assert.deepEqual(problemsOf({ author: {} as { type: 'agent' }, text: 'x' }, 'company'), ['author.type must be agent or human']);
 });
 
+test('8.4 (1.0): a sender of this version sends agent or human, but a receiver reads an author.type it does not recognize as agent, and a role it does not recognize as the Company’s', () => {
+  assert.equal(readAuthor('human'), 'human');
+  for (const raw of ['agent', 'assistant', 'person', 'Human', ''])
+    assert.equal(readAuthor(raw), raw === 'human' ? 'human' : 'agent', `${raw}: a message is a person’s own words only when it says human`);
+  assert.equal(readRole('user'), 'user');
+  for (const raw of ['company', 'system', 'moderator']) assert.equal(readRole(raw), 'company', `${raw}: content from the Company (10.1)`);
+});
+
 test('8.4: the Company sets id and role when it records a message, ignoring any the agent sent; context keeps fields left out', () => {
   assert.deepEqual(record({ id: 'mine', role: 'company', author: { type: 'agent' }, text: 'x' }, 'personal agent', 'msg_Hc72PwZn4eKs1QxB'), { id: 'msg_Hc72PwZn4eKs1QxB', role: 'user', author: { type: 'agent' }, text: 'x' });
+  // 1.0: the Company ignores id, name and image on the agent's messages.
+  assert.deepEqual(record({ author: { type: 'agent', id: 'aut_x', name: 'Robo', image: 'https://agent.example/robo.png' }, text: 'x' }, 'personal agent', 'msg_k1').author, { type: 'agent' });
+  assert.deepEqual(record({ author: { type: 'human', id: 'aut_alex', name: 'Alex' }, text: 'x' }, 'company', 'msg_k2').author, { type: 'human', id: 'aut_alex', name: 'Alex' });
   assert.equal(record({ author: { type: 'human' }, text: 'x' }, 'company', 'msg_t8Vn').role, 'company');
   const before = { locale: 'en-US', time_zone: 'America/Los_Angeles', user_available: true };
   assert.deepEqual(mergeContext(before, { author: { type: 'agent' }, context: { user_available: false } }), { ...before, user_available: false });
+  // 1.0: a field set to null clears it, as if the agent had never shared it.
+  assert.deepEqual(mergeContext(before, { author: { type: 'agent' }, context: { time_zone: null } }), { locale: 'en-US', user_available: true });
 });
 
 test('8.5: a read returns the events after the cursor, and its cursor is the last one returned or the one it was given', () => {
@@ -143,6 +159,10 @@ test('8.6: a stream resumes from Last-Event-ID, which wins over cursor; pieces o
   assert.deepEqual(shownText(pieces, [], false), { msg_r2Kq: 'I can do that. The insulated' });
   assert.deepEqual(shownText(pieces, [{ id: 'msg_r2Kq', author: { type: 'agent' }, text: 'I can do that. The insulated version would be warmer.' }], false), { msg_r2Kq: 'I can do that. The insulated version would be warmer.' });
   assert.deepEqual(shownText(pieces, [], true), {});
+});
+
+test('8.6 (1.0): the agent skips stream events with an SSE event name it does not recognize', () => {
+  assert.deepEqual(readStream(['working', 'text-delta', 'message', 'citation', 'state', 'typing-indicator']), ['working', 'text-delta', 'message', 'state']);
 });
 
 test('8.7: a new conversation starts with handoff none, responder agent, closed false; unknown values read as pending and human', () => {

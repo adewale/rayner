@@ -264,7 +264,7 @@ export function drawWorld(w: World, shown: Shown, s: Stage): Group {
     if (refused) parts.add(barrier(s, { at: [BARRIER_X, at[1]], height: TH + 0.2 }), 'barrier');
     addAll(parts, heroTicket(s, at, {
       teeth, mcpKey: last.trouble === 'mcp' && docked, expired: refused && last.trouble === 'expire', cracked: refused && last.trouble === 'delegation',
-      version: refused && last.trouble === 'old-copy' ? '0.3' : '0.4',
+      version: refused && last.trouble === 'old-copy' ? '0.4' : '1.0',
     }));
   }
   if (last?.reply.status === 429) parts.add(paceClock(s, answered ? 0 : 1), 'slip:clock');
@@ -342,7 +342,7 @@ export function sayWorld(w: World, shown: Shown): string {
   const map = last?.trouble === 'mcp' ? 'Two lanes run from the agent to the Company’s counter: the API, idle, and the MCP server’s, in use.' : 'One lane runs from the agent to the Company’s counter.';
   const holds = `The agent holds its seal and a key for ${refused && last!.trouble === 'read-only' ? 'orders:read only' : 'orders:read and orders:write'}${w.mcpKey ? ', and a second key, cut for the MCP server only' : ''}.`;
   const sent = !last ? 'Nothing has been sent.'
-    : refused ? `The agent sent the ${WHAT[last.trouble]} after this: ${troubleWords(last.trouble)}. The ticket, with its seal, its key and a tag reading version ${last.trouble === 'old-copy' ? '0.3' : '0.4'}, stands before a barrier, and the Company handed back a slip: ${sayReply(last.reply)}, about ${part}${last.reply.retryAfter ? `, Retry-After ${last.reply.retryAfter} seconds` : ''}${last.reply.needs ? `, naming ${last.reply.needs}` : ''}${last.reply.resourceMetadata ? `, with resource_metadata ${last.reply.resourceMetadata}` : ''}; a leader from the slip rings ${part}. The agent has not answered yet.`
+    : refused ? `The agent sent the ${WHAT[last.trouble]} after this: ${troubleWords(last.trouble)}. The ticket, with its seal, its key and a tag reading version ${last.trouble === 'old-copy' ? '0.4' : '1.0'}, stands before a barrier, and the Company handed back a slip: ${sayReply(last.reply)}, about ${part}${last.reply.retryAfter ? `, Retry-After ${last.reply.retryAfter} seconds` : ''}${last.reply.needs ? `, naming ${last.reply.needs}` : ''}${last.reply.resourceMetadata ? `, with resource_metadata ${last.reply.resourceMetadata}` : ''}; a leader from the slip rings ${part}. The agent has not answered yet.`
     : last.fix ? `After this: ${troubleWords(last.trouble)}, the ${WHAT[last.trouble]} was refused with ${sayReply(last.reply)}; the slip still points at ${part}. The agent answered with ${FIX_NAME[last.fix]} and sent it again: ${sayReply(last.again!)}; the ticket rests docked at its stop.`
     : `The agent sent the ${WHAT[last.trouble]} with its key for the MCP server: ${sayReply(last.reply)}, no refusal; the ticket rests docked at its stop.`;
   const t = temptation(w);
@@ -355,7 +355,7 @@ export function sayWorld(w: World, shown: Shown): string {
 function troubleWords(t: Trouble): string {
   return {
     expire: 'its access token expired', 'read-only': 'you had approved only orders:read', delegation: 'the delegation behind its seal expired',
-    end: 'the Company ended the Session', 'old-copy': 'it used an old copy of poppy.json and sent version 0.3', 'too-fast': 'it sent too many requests too fast',
+    end: 'the Company ended the Session', 'old-copy': 'it used an old copy of poppy.json and sent version 0.4', 'too-fast': 'it sent too many requests too fast',
     mcp: 'it asked the MCP server with its everyday key',
   }[t];
 }
