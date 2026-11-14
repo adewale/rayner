@@ -31,10 +31,11 @@ export const CAPTION_WORDS_MAX = 80;
 /**
  * A caption's words as a reader counts them: each run of text between spaces that holds a letter or
  * a digit. "don't", "x-ray", "10.0.0.1", "O(n)" and "3×" are one word each; a dash, arrow or other
- * mark standing alone between spaces is none.
+ * mark standing alone between spaces is none. A no-break space joins what it separates, as it does
+ * on the page, so French "65 673,88 €" or "30 %" written with one is one word.
  */
 export function captionWords(text: string): number {
-  return text.split(/\s+/u).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+  return text.split(/[^\S\u00a0\u2007\u202f]+/u).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
 }
 
 /** Refuse an `answer` or `questions` that cannot work: wrong types, empty text, or too many questions. */

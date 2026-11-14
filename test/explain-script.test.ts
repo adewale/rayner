@@ -45,6 +45,9 @@ test('a caption is counted as a reader counts words: runs between spaces holding
   // A contraction, a hyphenated word, an address, a call and a multiplier are one word each; a dash or arrow alone is none.
   assert.equal(captionWords("don't  x-ray 10.0.0.1 O(n) 3× — → ."), 5);
   assert.equal(captionWords('a\nb\tc'), 3);
+  // A no-break space holds a number's groups, or a number and its unit, together, as the page does.
+  assert.equal(captionWords('les mêmes 65\u202f673,88\u00a0€ à 30\u00a0%'), 5);
+  assert.equal(captionWords('les mêmes 65 673,88 € à 30 %'), 6);
 });
 
 test('the gate fails a step whose caption runs over the limit, naming the step and the count, detail steps included', () => {
