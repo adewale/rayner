@@ -70,6 +70,11 @@ test('3.1 (1.0): organization.domain carries the port when it is not 443, and an
   // Port 443 is the default, so a URL that spells it out is served by the same host.
   const web = webWith({ 'https://example.com:443/.well-known/poppy.json': { status: 200, body: REAL_DOC }, 'https://www.example.com/.well-known/poppy.json': { status: 301, location: 'https://example.com:443/.well-known/poppy.json' } });
   assert.equal(ok(fetchDocument(web, 'www.example.com')).host, 'example.com');
+  // The rule is applied before each request: an agent not configured for other ports never connects to one, even by redirect.
+  const toPort = webWith({ 'https://example.com/.well-known/poppy.json': { status: 302, location: 'https://example.com:8443/.well-known/poppy.json' }, 'https://example.com:8443/.well-known/poppy.json': { status: 200, body: doc({ organization: { name: 'Example Company', domain: 'example.com:8443' } }) } });
+  assert.deepEqual(stopOf(fetchDocument(toPort, 'example.com')), { stopped: 'fetch', reason: 'example.com:8443 is not on port 443, and the agent uses another port only when configured to, such as for testing' });
+  assert.equal(ok(fetchDocument(toPort, 'example.com', { otherPorts: true })).host, 'example.com:8443');
+  assert.equal(ok(discover('example.com', toPort, { otherPorts: true, skip: 'listed' })).domain, 'example.com:8443');
 });
 
 test('3.1: a document needs protocol_version, organization, and at least one of agent, apis or web', () => {
@@ -215,6 +220,9 @@ test('3.4: the agent uses the newest compatible version, only from a URL on the 
   assert.equal(stopOf(chooseVersion(REAL_DOC, 'example.com', BASE_WEB, ['0.5'])).reason, 'no version the document offers, 1.0 or 0.3, is compatible with 0.5');
   const elsewhere = doc({ supported_versions: { '0.3': 'https://files.example.net/poppy/0.3.json' } });
   assert.ok(isStop(chooseVersion(elsewhere, 'example.com', webWith({ 'https://files.example.net/poppy/0.3.json': { status: 200, body: { ...REAL_DOC, protocol_version: '0.3' } } }), ['0.3'])), 'a version on another host is not used');
+  // :443 is the default port, so a version URL that spells it out is on the same host.
+  const spelled = doc({ supported_versions: { '0.3': 'https://example.com:443/poppy/0.3.json' } });
+  assert.equal(ok(chooseVersion(spelled, 'example.com', webWith({ 'https://example.com:443/poppy/0.3.json': { status: 200, body: { ...REAL_DOC, protocol_version: '0.3', supported_versions: undefined } } }), ['0.3'])).version, '0.3');
   const relabelled = webWith({ 'https://example.com/poppy/0.3.json': { status: 200, body: { ...REAL_DOC, protocol_version: '0.2', supported_versions: undefined } } });
   assert.ok(isStop(chooseVersion(REAL_DOC, 'example.com', relabelled, ['0.3'])), 'a version document must have the version it is listed under');
   const redirected = webWith({ 'https://example.com/poppy/0.3.json': { status: 302, location: 'https://example.com/poppy/old.json' } });
