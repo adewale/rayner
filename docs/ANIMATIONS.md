@@ -96,10 +96,11 @@ whose member brings an updater matches the full run").
 
 ## In the explainers
 
-- `saveState`/`Restore`: the [feature tour](https://github.com/adewale/rayner/blob/main/scenes/explainers/feature-tour/scene.ts)'s
-  `restore` scenario moves a circle and restores it.
-- `TransformFromCopy`: only the [feature tour](https://github.com/adewale/rayner/blob/main/scenes/explainers/feature-tour/scene.ts)'s
-  `copy` scenario.
+- `saveState`/`Restore`: [unified-diff](https://github.com/adewale/rayner/blob/main/scenes/explainers/unified-diff/scene.ts), where the frame that searches
+  a file for a hunk's lines returns to the line it started from when the hunk fits nowhere; and the
+  [feature tour](https://github.com/adewale/rayner/blob/main/scenes/explainers/feature-tour/scene.ts)'s `restore` scenario.
+- `TransformFromCopy`: [float-sum](https://github.com/adewale/rayner/blob/main/scenes/explainers/float-sum/scene.ts), where a typed decimal's ring stays put
+  and a copy of it settles on the double it is stored as; and the feature tour's `copy` scenario.
 - `Succession`: [state-machine](https://github.com/adewale/rayner/blob/main/scenes/explainers/state-machine/scene.ts),
   [token-bucket](https://github.com/adewale/rayner/blob/main/scenes/explainers/token-bucket/scene.ts) and
   [ring-buffer](https://github.com/adewale/rayner/blob/main/scenes/explainers/ring-buffer/scene.ts) build each event's authored

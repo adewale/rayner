@@ -6,8 +6,8 @@ They are ordinary animations on native mobjects: pass them to `play`,
 
 | Repetition | Public animation | Collection use |
 | --- | --- | --- |
-| Stretch from a baseline while fading in | `GrowFromEdge` | Captured chart bars grow from the bottom; Gantt tasks from the left |
-| Move a temporary token along a route while it fades in and out | `PulseAlongPath` | Captured sequence-message build-ins |
+| Stretch from a baseline while fading in | `GrowFromEdge` | Captured chart bars grow from the bottom; Gantt tasks from the left; the Galton board's bins fill from their floor |
+| Move a temporary token along a route while it fades in and out | `PulseAlongPath` | Captured sequence-message build-ins; the Galton board's 64 balls, one down each route |
 | Drive drawings from one sampled number | `view.tween`; `c.follow` in an authored transition | Great circle and henge: a globe and a sky redrawn from a turning viewpoint; token bucket: the gauge and the chart's climb from the same elapsed time; ring-buffer pointers turning round the ring |
 
 The first two replaced private classes in `explain/diagrams.ts`, whose diagram

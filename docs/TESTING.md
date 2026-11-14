@@ -93,6 +93,10 @@ Some model tests run the outside system the explainer describes. A test that nee
 | birthday-paradox | `oracle/birthdays.py`, compared with `fixtures/birthdays.json` | CPython 3.12 |
 | python-dict | `oracle/cpython_dict.py`, which reads the dict's storage from memory | 64-bit CPython 3.12 |
 | isdigit | `python3` on the check questions' cases and the `isdigit()` row; Node's own Unicode data | any `python3`; Node with Unicode 17.0 |
+| galton-board | `oracle/galton.py`: `math.comb`, `fractions.Fraction` and `statistics.NormalDist` | any `python3` from 3.8 |
+| float-sum | `oracle/doubles.py`: CPython's float, with `decimal`, `fractions` and `math.nextafter`; JavaScript's own `+` and `Number()` | any `python3` from 3.9 |
+| unified-diff | `git diff --no-index` and `git apply -v`, on the page's files and on drifted copies of random files | the Git CLI |
+| string-length | `Intl.Segmenter` and `TextEncoder`, compared with `fixtures/segments.json`; `oracle/lengths.py` for `len()` and `str.encode()` | Node with Unicode 17.0; any `python3` |
 | send-sync | `rustc` compiles the model's claims and the opening program | `rustc` on PATH or in `RUSTC` (the runner image has one) |
 | fork | `git show` of Lantern's code at the fork base | the full history (`fetch-depth: 0`) |
 
