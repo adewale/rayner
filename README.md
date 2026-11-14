@@ -21,6 +21,8 @@ How closely a model matches its subject varies from explainer to explainer. Each
 | [Which address should Express call the client?](https://oshineye.dev/projects/rayner/trust-proxy) | Express 5.3.0, run once over a real HTTP connection | recorded |
 | [Where does an empty ext4 filesystem’s space go?](https://oshineye.dev/projects/rayner/ext4-space) | mkfs.ext4 1.47.3 on Linux 6.8.0, for 22 filesystem sizes | recorded |
 | [How does a token bucket let a burst through but refuse a flood?](https://oshineye.dev/projects/rayner/token-bucket) | Go’s `golang.org/x/time/rate` v0.15.0 limiter | recorded |
+| [Why is 0.1 + 0.2 not 0.3?](https://oshineye.dev/projects/rayner/float-sum) | CPython’s floats and JavaScript’s own numbers, run by the model’s tests | live |
+| [Why does a patch still apply after the file has changed?](https://oshineye.dev/projects/rayner/unified-diff) | Git’s own `git diff` and `git apply` | live |
 | [What is a statechart, and why use one instead of a state machine?](https://oshineye.dev/projects/rayner/statecharts) | The states and transitions XState 5.33.3 reaches | recorded |
 | [Does isdigit guarantee int can parse it?](https://oshineye.dev/projects/rayner/isdigit) | CPython 3.15.1’s answers and Unicode 17.0.0’s data files | recorded |
 | [Why does a Bloom filter answer “maybe”?](https://oshineye.dev/projects/rayner/bloom-filter) | An independent FNV-1a hash in CPython 3.12; the filter is a teaching model, not a production one | live |
