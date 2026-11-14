@@ -7,6 +7,7 @@ import { CLEARED, EEL } from './answers.ts';
 import { readFileSync } from 'node:fs';
 import { fc, params } from '../lib/pbt.ts';
 import { fnv1a, locations, makeFilter, membership, bloomStory, saturation } from './model.ts';
+import { skipOracle } from '../lib/oracle.ts';
 
 test('the check answers’ words: eel’s bits are 23, 20 and 1, and clearing dog refuses cat at 16 bits only', () => {
   // The first answer's words name eel's bits: 23 now from eel, and eel set bit 20.
@@ -104,7 +105,7 @@ test('a name gets through only when all three of its bits are set, the row only 
 
 test('native CPython storage and exact arithmetic reproduce the recorded vectors',t=>{
   const version=spawnSync('python3',['-c','import sys; print(".".join(map(str,sys.version_info[:2])))'],{encoding:'utf8'});
-  if(version.status!==0||version.stdout.trim()!=='3.12') {t.skip('64-bit CPython 3.12 is required for the native storage oracle');return;}
+  if(skipOracle(t,(version.status!==0||version.stdout.trim()!=='3.12')&&'64-bit CPython 3.12 is required for the native storage oracle')) return;
   const now=JSON.parse(execFileSync('python3',[fileURLToPath(new URL('./oracle/fnv.py',import.meta.url))],{encoding:'utf8'}));
   delete now.python; const {python:_,...expected}=fixture;
   assert.deepEqual(now,expected);

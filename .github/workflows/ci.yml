@@ -45,6 +45,10 @@ jobs:
     if: needs.scope.outputs.full == 'true'
     runs-on: ubuntu-24.04  # the pinned image the embed tests were validated on
     timeout-minutes: 60  # full suite, browser gates and installed capture; catalog/story run separately
+    env:
+      # An explainer oracle CI is meant to run (CPython 3.12, rustc, the fork base) fails here
+      # instead of skipping (scenes/explainers/lib/oracle.ts; docs/TESTING.md lists them).
+      RAYNER_REQUIRE_ORACLES: '1'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CRITERIA, GUIDELINES, LEVELS, VERSIONS, change, criteria, guidelinesIn, inVersion, opened, tally, totals } from './model.ts';
 import type { Level, Version } from './model.ts';
+import { skipOptionalOracle } from '../lib/oracle.ts';
 
 // w3c/wcag at tag WCAG22-20241212, commit 1dfe1647bdecf32fb4f76b9ce1cc33139505630c, read on 2026-10-25.
 // guidelines/index.html: the line of each principle's and guideline's <section>, then each criterion's
@@ -188,7 +189,8 @@ test('every criterion, its level and the version that added it are the pinned re
   );
 });
 
-test('re-reading the repository gives the same table, when WCAG_REPO points at a checkout', { skip: !process.env.WCAG_REPO }, () => {
+test('re-reading the repository gives the same table, when WCAG_REPO points at a checkout', (t) => {
+  if (skipOptionalOracle(t, !process.env.WCAG_REPO && 'set WCAG_REPO to a w3c/wcag checkout at WCAG22-20241212 to re-read it')) return;
   const root = join(process.env.WCAG_REPO!, 'guidelines');
   const lines = readFileSync(join(root, 'index.html'), 'utf8').split('\n');
   const includes = lines.flatMap((l, i) => {

@@ -79,3 +79,47 @@ Browser tests live in `test/browser/`; `test:embeds` discovers every test there.
 CI runs the full campaign for code, fixtures, workflow changes, executable documentation, unknown paths and explicit dispatches. Prose-only changes on PRs and main run the onboarding and tutorial assertions plus whitespace checks. The `compatibility-prose` job reports the six required compatibility contexts for those runs, on one Ubuntu runner each, because GitHub counts only the pull request's own run towards a merge. The required `story` job rejects a failed scope decision. A main push may reuse a successful same-repository PR campaign from the last 24 hours only when all nine protected owners ran successfully, the archive records the same Node version and clean checkout, and the tested synthetic merge has exactly the same Git tree as main. Missing or expired proof runs full CI. Release dispatches always run fresh validation and produce their own artifacts.
 
 `scenes/explainers/statecharts/model.test.ts` compares the statecharts model with XState; `oracle/statecharts.ts` beside it says how to regenerate its fixture.
+
+## Oracles CI runs and recordings
+
+Some model tests run the outside system the explainer describes. A test that needs a tool this machine lacks skips, so `npm test` passes for a contributor without it. CI's `check` job sets `RAYNER_REQUIRE_ORACLES=1`, and there the same test fails instead of skipping. Every skip in an explainer's tests goes through `scenes/explainers/lib/oracle.ts`: `skipOracle` for an oracle CI runs, `skipOptionalOracle` for a rerun CI does not run. `test/explain-oracles.test.ts` fails on any other skip, and on an explainer missing from the tables below.
+
+### Run live in CI
+
+| Explainer | What the test runs | What it needs |
+| --- | --- | --- |
+| bloom-filter | `oracle/fnv.py`, compared with `fixtures/fnv.json` | CPython 3.12 (the Ubuntu 24.04 runner's `python3`) |
+| birthday-paradox | `oracle/birthdays.py`, compared with `fixtures/birthdays.json` | CPython 3.12 |
+| python-dict | `oracle/cpython_dict.py`, which reads the dict's storage from memory | 64-bit CPython 3.12 |
+| isdigit | `python3` on the check questions' cases and the `isdigit()` row; Node's own Unicode data | any `python3`; Node with Unicode 17.0 |
+| send-sync | `rustc` compiles the model's claims and the opening program | `rustc` on PATH or in `RUSTC` (the runner image has one) |
+| fork | `git show` of Lantern's code at the fork base | the full history (`fetch-depth: 0`) |
+
+These run without a skip, so they fail wherever their tool is missing: git-branches and exgit (the Git CLI), mr-cache's `fidelity.ts` (`git diff`), latest-search (Node's promises), lantern (Rayner's engine) and agentic-mermaid (its verifier, a dependency of this checkout).
+
+### Recorded once, not run by CI
+
+CI compares the model with what these systems answered when someone ran them; it does not run the system. The date or version is in each script's **Checked against** line.
+
+| Explainer | Recording | Rerun by hand |
+| --- | --- | --- |
+| isdigit | CPython 3.15.1's answers for the shown characters | with a `python3` whose Unicode is 17.0.0 (CI's 3.12 has 15.0) |
+| ical-recurrence | sabre/vobject 4.5.7 (`fixtures/sabre.json`) and a Baïkal 0.10.1 run | `SABRE_DOCKER=1` (Docker) |
+| wcag-map | the w3c/wcag repository at WCAG22-20241212, transcribed | `WCAG_REPO=<checkout>` |
+| pg-page | Postgres 18.6 in Docker, 2026-10-25 | by hand |
+| ext4-space | mkfs.ext4 1.47.3 on Linux 6.8.0 | by hand |
+| send-sync | rustc 1.99.1's table, from the `rust:1.99.1-slim` image | by hand |
+| token-bucket | golang.org/x/time/rate v0.15.0 (`oracle/`, a Go program) | `go run` in `oracle/` |
+| traffic-policy | kube-proxy v1.37.1's test strings and one Go run | by hand |
+| trust-proxy | Express 5.3.0, one run over HTTP | by hand |
+| statecharts | XState 5.33.3 (`oracle/statecharts.ts`) | `node oracle/statecharts.ts <dir>` with XState installed |
+| tailwind-gamut | Color.js 0.7.1 | by hand |
+| gtfs | gtfs-kit 13.0.1 | by hand |
+| henge | pyerfa 2.0.1.5 (`oracle/henge.py`) | with pyerfa installed |
+| great-circle | GeographicLib 2.0 (`oracle/great-circle.py`) | with geographiclib installed |
+| periodic-groups | NIST Atomic Spectra Database ground configurations | by hand |
+| quotient-familial | openfisca-france 176.1.3 | by hand |
+| cert-renewal | Let's Encrypt's ARI windows on 2026-10-25; Certbot 5.8.0 and Boulder test vectors | by hand |
+| font-metrics | uharfbuzz over EB Garamond 5.3.0's original fonts | by hand |
+
+Each script's **Grounding** line gives the same grade to readers: `live`, `recorded`, `read` (a specification or source read, not run) or `none` (nothing outside the model's own tests).
