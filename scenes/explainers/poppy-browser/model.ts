@@ -183,12 +183,14 @@ export const sameSite = (site: string) => site === COMPANY.domain || site.endsWi
  * Section 6 (1.0): the browser-session endpoint can be on any host the Company chooses, such as
  * accounts.example.com, and the join works only on the pages the Session cookie set in step 3
  * reaches. A cookie without a Domain attribute goes back only to the host that set it (RFC 6265
- * §5.3); one with Domain goes to that domain and every host under it (§5.1.3).
+ * §5.3); one with Domain goes to that domain and every host under it (§5.1.3), and a leading dot
+ * in Domain is ignored (§5.2.3). Cookies ignore ports (§8.5), so hosts are compared without one.
  */
 export function joinReaches(cookie: { setBy: string; domain?: string }, page: string): boolean {
-  const host = page.toLowerCase();
-  if (cookie.domain === undefined) return host === cookie.setBy.toLowerCase();
-  const domain = cookie.domain.toLowerCase();
+  const bare = (h: string) => h.toLowerCase().replace(/:\d+$/, '');
+  const host = bare(page);
+  if (cookie.domain === undefined) return host === bare(cookie.setBy);
+  const domain = bare(cookie.domain).replace(/^\./, '');
   return host === domain || host.endsWith(`.${domain}`);
 }
 
