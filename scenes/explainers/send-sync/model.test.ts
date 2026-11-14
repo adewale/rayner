@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fc, params } from '../lib/pbt.ts';
 import type { Ctor, Inner, Needs, RustType, Wrapper } from './model.ts';
+import { skipOracle } from '../lib/oracle.ts';
 
 test('the third check answer’s word “neither”: Arc<MutexGuard<i32>> is not Sync either', () => {
   assert.equal(isSync(ARC_GUARD), false);
@@ -292,7 +293,8 @@ test('the nine scenarios, built inside out, end where rustc puts them', () => {
   );
 });
 
-test('rustc, run now, gives the model’s answers and this table’s', { skip: rustcSkip }, (tc) => {
+test('rustc, run now, gives the model’s answers and this table’s', (tc) => {
+  if (skipOracle(tc, rustcSkip)) return;
   const start = performance.now();
   const claims = modelClaims();
   const answers = rustcAnswers(RUSTC_BIN, claims);
@@ -313,7 +315,8 @@ test('rustc, run now, gives the model’s answers and this table’s', { skip: r
 });
 
 // The check questions' types are not in the frozen 1.99.1 table: they are checked by the rustc on PATH only.
-test('rustc, run now, gives the model’s answers for the check questions’ types', { skip: rustcSkip }, (tc) => {
+test('rustc, run now, gives the model’s answers for the check questions’ types', (tc) => {
+  if (skipOracle(tc, rustcSkip)) return;
   const claims = CHECK_TYPES.flatMap((type) => [
     { rust: rustName(type), check: 'send' as const, holds: isSend(type) },
     { rust: rustName(type), check: 'sync' as const, holds: isSync(type) },
@@ -372,7 +375,8 @@ test('T is Sync exactly when &T is Send; Rc is never either; Cell and a MutexGua
   );
 });
 
-test('rustc refuses the opening program with the error lines the explainer shows', { skip: rustcSkip }, () => {
+test('rustc refuses the opening program with the error lines the explainer shows', (tc) => {
+  if (skipOracle(tc, rustcSkip)) return;
   const dir = mkdtempSync(join(tmpdir(), 'send-sync-opening-'));
   try {
     const source = ['use std::{cell::Cell, sync::Arc, thread};', 'pub fn opening() {', ...OPENING, '}'].join('\n') + '\n';

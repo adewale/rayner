@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../explain/testing.ts';
 import { assertStepState, assertSteps } from '../../../explain/testing.ts';
-import {bloomStory,saturation} from './model.ts';
+import {bloomStory,saturation,rowStart,take} from './model.ts';
 
 /** The model has native/exhaustive oracles in model.test.ts. This boundary
  * proves each authored setting puts those answers in its completed steps. */
 export function check(trace:Trace,values:Record<string,string>) {
   // The steps each check below reads, predictions included, in story order; other steps may come and go.
-  assertSteps(trace,['question','insert','shared','absent','present','predict','false-positive','pipeline','full']);
+  assertSteps(trace,['question','insert','shared','absent','present','predict','false-positive','pipeline','full','try']);
   for(const step of trace.steps) {
     // Which picture is showing is not part of the model.
     assert.equal(step.after.chapter,undefined,`bloom-filter/${step.step}: no chapter in the model`);
@@ -29,5 +29,9 @@ export function check(trace:Trace,values:Record<string,string>) {
   // The last step keeps taking names until the row is full: every bit 1, every lookup and sample name maybe.
   const full=saturation(m.size);
   assertStepState(trace,'full',{bits:Array(m.size).fill(1),stored:full.words,owners:full.owners,trail:full.trail,lookups:[true,true,true],sampleSize:10000,samplePass:10000});
+  // The live row starts from cat and dog again, and the step takes eel through the model, so the reader starts there.
+  assertStepState(trace,'try',{...take(rowStart(m.size),'eel')});
+  // The prediction's answer is the model's lookup of wolf.
+  assert.equal(trace.steps.find(s=>s.step==='predict')!.meta.predict?.answer,m.queries[2]!.maybe?'Maybe':'Definitely not');
   
 }

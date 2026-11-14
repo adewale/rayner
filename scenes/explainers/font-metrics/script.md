@@ -5,6 +5,7 @@
 - **Changed condition:** the diagram's widths. Measured in EB Garamond first, both boxes fit their words and both stretch factors are ×1.000; laid out from Inter estimates, the renderer stretches Ink by 1.135 and Paper by 1.399, so no single scale converts Inter widths into Garamond ones.
 - **Reader's own work:** predict where the phrase's width comes from after seeing the misplaced marker; switch the diagram between measured widths and Inter estimates; answer the check questions on the reversed mistake, a Bold cut, a trailing space and a ×1.000 box.
 - **Checked against:** the fonts themselves, outside the scene's own shaping: `fidelity.ts` compares every phrase width with independent uharfbuzz runs over `@fontsource/eb-garamond@5.3.0`'s original latin WOFF2 files (Regular, Bold and Italic, before subsetting or snapshot capture), checks JetBrains Mono's twelve 0.54 cells, and holds the diagram's recorded widths to original-font measurements in Rayner's docs/evidence/authoring-layout/font-vectors.json; `scene.test.ts` checks every Garamond glyph against the Mono cell. There is no model of its own; the measurements come from the captured lettering snapshot.
+- **Grounding:** recorded: HarfBuzz measurements of EB Garamond 5.3.0’s original font files
 - **Leaves out:** any font other than EB Garamond, JetBrains Mono and Inter's recorded estimates, and any phrase but “Ink on paper” and the two diagram labels; the stretch factors describe those two labels, not a general conversion between the fonts.
 
 ## Check yourself

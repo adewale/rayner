@@ -1,10 +1,7 @@
 import { parseRegisteredMermaid } from 'agentic-mermaid';
 import type { SceneNode } from 'agentic-mermaid';
 import type { TextMeasurementProfile } from 'agentic-mermaid';
-import { createHash } from 'node:crypto';
-import { SANS, MONO, FALLBACK } from '../../src/internal.ts';
 import { loadFonts } from '../../explain/testing.ts';
-import type { TextShaping } from '../../src/index.ts';
 import { importedText, diagramKey, RENDERER, SVG_PX_PER_UNIT as PX } from '../../explain/internal.ts';
 import type { DiagramResolver, DiagramSnapshot, DiagramSpec, SnapshotStore } from '../../explain/index.ts';
 import type { SnapshotPart, ChartData } from '../../explain/internal.ts';
@@ -14,6 +11,10 @@ import { mutate, serializeMermaid, verifyMermaid, WARNING_SEVERITY } from 'agent
 import { launch } from '../../tools/lib/browser.ts';
 import { capture } from './capture.ts';
 import { readSvg } from './read-svg.ts';
+import { naturalMeasurementIdentity } from './measurement.ts';
+import type { NaturalMeasurementOptions } from './measurement.ts';
+export { naturalMeasurementIdentity } from './measurement.ts';
+export type { NaturalMeasurementOptions } from './measurement.ts';
 
 export function replayMorph(
   before: DiagramSpec,
@@ -49,21 +50,6 @@ function chartOf(spec: DiagramSpec): { chart?: ChartData } {
   };
 }
 
-export interface NaturalMeasurementOptions { shaping?: TextShaping; measurementHash?: string; styles?: readonly string[] }
-export function naturalMeasurementIdentity({ measurementHash, styles = [] }: NaturalMeasurementOptions = {}) {
-  // What decides a natural label's measured width: the identity's format (raise the version when
-  // what it covers changes), the renderer release, the embedded faces' bytes and the measured faces
-  // (measurementHash, which for requested lettering covers the shaper too). Rayner's own code is not
-  // hashed here; CI recaptures every committed snapshot and compares (test/snapshot-capture.test.ts).
-  const metrics = createHash('sha256').update(JSON.stringify([
-    'rayner-natural-labels-v2', RENDERER,
-    createHash('sha256').update(JSON.stringify([SANS, MONO, FALLBACK])).digest('hex'),
-    measurementHash,
-    styles,
-  ])).digest('hex');
-  return { id: 'rayner:shaped:' + metrics, version: '1.0.0' };
-}
-
 export async function snapshotBuilder(
   store: SnapshotStore = {},
   options: NaturalMeasurementOptions = {},
@@ -83,7 +69,7 @@ export async function snapshotBuilder(
       }, undefined, options.shaping).advance();
     },
   };
-  const browser = await launch();
+  const browser = await launch('Capturing a Mermaid diagram');
   const page = await browser.newPage();
   await page.route('**/*', (r) => r.abort());
   const pending = new Map<string, Promise<DiagramSnapshot>>();

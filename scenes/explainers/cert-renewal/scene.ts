@@ -303,6 +303,11 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
         key === '90d'
           ? `Predict: what share of a 90-day life has passed at day ${days(ninety.renewsAt)}?`
           : `Predict: when does a 30-day margin renew a ${adjective} certificate?`,
+      // How far through its life the 30-day rule renews this certificate, from the model's due point.
+      predict: {
+        options: ['Under half way through', 'Half to three quarters through', 'Over three quarters through', 'At once, from issue'],
+        answer: dueOffset('fixed30', LIFETIMES[key].hours) < 0 ? 3 : [0.5, 0.75, Infinity].findIndex((top) => 1 - FIXED_INTERVAL / LIFETIMES[key].hours < top),
+      },
       caption: `Certbot 3.3 renews when the certificate expires within renew_before_expiry, 30 days unless the renewal file sets it. Let’s Encrypt dates a certificate ${+(BACKDATE * 60).toFixed(1)} minutes before it issues it, so a 90-day one falls due just before the twice-daily run at day ${days(ninety.renewsAt)}, which replaces it.`,
     });
     await s.clear();
@@ -355,11 +360,11 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
         fixedHere.due < 0
           ? `So it is due from issue, and the first run, at hour ${renewsHere}, renews it.`
           : `The rule counts 30 days back from expiry: ${pct(fixedHere.share)} of a ${adjective} life.`,
-      caption: `Each bar is one certificate, from issue to expiry, drawn to one time scale and lined up at expiry. The highlighted line is the 30-day test: renew once expiry is less than 30 days away. The tick at the start of each 30-day bracket marks where that test starts to pass: 30 days before the right-hand end of each bar. On a 90-day certificate that is day ${days(rows[0]!.due)}, with ${lifeLeft(rows[0]!.share)} of its life left. ${
+      caption: `Each bar is one certificate, issue to expiry, lined up at expiry on one time scale. The highlighted line is the 30-day test: renew when under 30 days remain. Each bracket’s tick marks where it starts to pass. On a 90-day certificate that is day ${days(rows[0]!.due)}, with ${lifeLeft(rows[0]!.share)} of its life left. ${
         key === '90d'
           ? 'A ninety-day lifetime is what the 30-day margin was written for.'
           : fixedHere.due < 0
-            ? `A ${named(key)} is shorter than the margin: its due point falls ${Math.round(-fixedHere.due)} hours, ${days(-fixedHere.due)} days, before it was issued. It is due from the moment it exists, so the first twice-daily run, at hour ${renewsHere}, replaces it, and the replacement is due from issue too.`
+            ? `A ${named(key)} is shorter than the margin, due ${Math.round(-fixedHere.due)} hours before issue, so every replacement is due the moment it exists.`
             : `A ${named(key)} falls due at day ${days(fixedHere.due)}, with ${lifeLeft(fixedHere.share)} of its life left.`
       }`,
     });
@@ -387,7 +392,7 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
     // --------------------------------------------------------------- new-rule
     const payoff =
       byRule.fixed30.due === 0
-        ? `Thirty days is longer than a ${adjective} certificate’s whole life, so under the old rule every run tries to renew; the new one waits until ${at(byRule.fraction.due, short)}.`
+        ? `Thirty days outlasts a ${adjective} certificate: under the old rule every run tries to renew; the new one waits until ${at(byRule.fraction.due, short)}.`
         : byRule.fixed30.due === byRule.fraction.due
           ? `On a ${adjective} certificate both fall due at ${at(byRule.fraction.due, short)}.`
           : `On a ${adjective} certificate the old rule falls due at ${at(byRule.fixed30.due, short)}, the new one at ${at(byRule.fraction.due, short)}.`;
@@ -417,7 +422,7 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
       line: both
         ? `${upperFirst(share)} of ${life.label} is ${at(byRule.fraction.due, short)}, where the 30-day rule renews too.`
         : `${upperFirst(share)} of ${life.label} is ${at(byRule.fraction.due, short)}${byRun}; the 30-day rule renews at ${at(byRule.fixed30.renewsAt, short)}.`,
-      caption: `Certbot 4.1 changed the rule: ${answer}. With renew_before_expiry unset, it renews two thirds of the way through, or half way under ten days, unless the CA sends an ARI answer, a renewal window of its own (RFC 9773). A fraction scales with the lifetime; a fixed number of days does not. ${payoff}`,
+      caption: `Certbot 4.1 changed the rule: ${answer}. With renew_before_expiry unset, it renews two thirds of the way through, or half way under ten days, unless the CA’s ARI answer (RFC 9773) sets the window. A fraction scales with the lifetime; a fixed margin does not. ${payoff}`,
     });
     // The margin picture gives way to the replacements each rule makes, in the chart's place above the code.
     await this.play(new FadeOut(marginView, { runTime: 0.3 }));
@@ -480,7 +485,7 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
           : `Each certificate is ${dueWords(rule)}.`,
       caption: `Each tick after the first is a renewal, counted at the right, over ${span} from a first certificate on 1 March 2028. Under ${RULES[rule].short} a certificate is ${dueWords(rule)}, ${
         limitedGaps && mine.firstRefused != null
-          ? `so even a fresh replacement is already due under the same rule. Every run renews until, at hour ${mine.firstRefused}, Let’s Encrypt starts refusing most runs (the short marks under the strip, counted as refused). Later ticks are ${limitedGaps[0]} to ${limitedGaps[1]} hours apart.`
+          ? `so even a fresh replacement is due. Every run renews until, at hour ${mine.firstRefused}, Let’s Encrypt starts refusing most runs (the short marks under the strip, counted as refused). Later ticks are ${limitedGaps[0]} to ${limitedGaps[1]} hours apart.`
           : `and ${replacedBy(rule)} replaces it.`
       }`,
     });

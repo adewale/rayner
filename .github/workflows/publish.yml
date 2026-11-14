@@ -100,7 +100,8 @@ jobs:
           sudo apt-get install -y fonts-lmodern
           python3 -m venv out/lettering-venv
           out/lettering-venv/bin/pip install -r tools/lettering-requirements.txt
-          bash tools/lettering-outline-fonts.sh
+          # LETTERING_CJK also fetches Noto Sans SC, which the string-length explainer's snapshot draws.
+          LETTERING_CJK=1 RAYNER_LETTERING_PYTHON="$PWD/out/lettering-venv/bin/python" bash tools/lettering-outline-fonts.sh
           echo "RAYNER_LETTERING_PYTHON=$PWD/out/lettering-venv/bin/python" >> "$GITHUB_ENV"
         working-directory: release-source
       - name: Validate public npm bytes and preserve them on GitHub Releases

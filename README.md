@@ -1,52 +1,60 @@
 # Rayner
 
-Rayner is for explaining how a system (such as a protocol, an algorithm or a data structure) behaves. You ground the explainer in a TypeScript model of the domain and we use that model to check the explainer. Each step records the model's state, and `rayner check` fails a picture that differs from what that state draws: every view at the end of every step, every staged step, and every machine state a reader can reach. Two kinds of picture are checked another way: a Mermaid diagram against the renderer's output pinned beside the scene, and a hand-placed callout only by the scene's own tests. The result is one HTML page with no runtime dependencies, which opens from a file, a static host or an embed.
+Rayner makes a verified explanation of what this version of this system really does, with a short receipt the person who commissioned it can review. It is for the person who commissions an explainer of a protocol, an algorithm or a data structure, and for the agent or person who writes it.
 
-A picture of a Python dict after `del d[0]` is easy to draw wrong. Draw slot 0 empty and a later lookup for key 8 stops there and misses it; CPython instead leaves a deleted marker that sends the search on. In Rayner the dict is a TypeScript model checked against CPython 3.12’s own storage, each step is drawn from the model’s state, and `rayner check` fails a picture that disagrees with that state. How closely a model matches its subject varies from explainer to explainer, and the table below says what each was checked against.
+The writer models the system in TypeScript and tests the model against the real system where it can: run live, recorded once, or read from its specification. Every picture on the page is checked against the model’s state, and the receipt says what the model was checked against and how. The result is one HTML page of steps and a transcript, with no runtime network requests.
+
+Each step records the model's state, and `rayner check` fails a picture that differs from what that state draws: every view at the end of every step, every staged step, and every machine state a reader can reach. Two kinds of picture are checked another way: a Mermaid diagram against the renderer's output pinned beside the scene, and a hand-placed callout only by the scene's own tests. The page opens from a file, a static host or an embed.
+
+A picture of a Python dict after `del d[0]` is easy to draw wrong. Draw slot 0 empty and a later lookup for key 8 stops there and misses it; CPython instead leaves a deleted marker that sends the search on. In Rayner the dict is a TypeScript model checked against CPython 3.12’s own storage, each step is drawn from the model’s state, and `rayner check` fails a picture that disagrees with that state.
 
 [![Step 3 of the Python dict explainer: slot 0 holds D, the deleted marker, so the lookup for key 8 moves on to slot 1 and finds pear. A setting switches the lookup to key 16, and the step list and caption sit beside and below the picture.](https://raw.githubusercontent.com/adewale/rayner/main/docs/images/python-dict-marker.png)](https://oshineye.dev/projects/rayner/python-dict)
 
-| Explainer | Its model is checked against |
-|---|---|
-| [Why does a deleted dictionary slot need a marker?](https://oshineye.dev/projects/rayner/python-dict) | CPython 3.12’s dict storage, read from memory |
-| [Why does a merge sometimes need a new commit?](https://oshineye.dev/projects/rayner/git-branches) | Git repositories the test builds and merges |
-| [What is a statechart, and why use one instead of a state machine?](https://oshineye.dev/projects/rayner/statecharts) | The states and transitions XState 5.33.3 reaches |
-| [Does isdigit guarantee int can parse it?](https://oshineye.dev/projects/rayner/isdigit) | CPython 3.15.1’s answers and Unicode 17.0.0’s data files |
-| [How does a token bucket let a burst through but refuse a flood?](https://oshineye.dev/projects/rayner/token-bucket) | Go’s `golang.org/x/time/rate` limiter |
-| [Why does sunset line up with Manhattan’s streets?](https://oshineye.dev/projects/rayner/henge) | ERFA’s horizon coordinates; the orbit is idealised, so it does not predict viewing dates |
-| [Why does the periodic table have this shape?](https://oshineye.dev/projects/rayner/periodic-groups) | NIST’s ground-state configurations, which agree for 88 of the 108 elements compared |
-| [Why does the host’s rule change the odds of switching?](https://oshineye.dev/projects/rayner/monty-hall) | Its own probability tests, with three, four and a hundred doors |
-| [Why does a Bloom filter answer “maybe”?](https://oshineye.dev/projects/rayner/bloom-filter) | Invariant tests of a teaching model with its own hashes, not a production filter |
-| [Why does the north have summer when Earth is farthest from the Sun?](https://oshineye.dev/projects/rayner/seasons) | Nothing external: a cited approximation of the Sun’s path, not validated against an almanac |
+How closely a model matches its subject varies from explainer to explainer. Each page's receipt, and the table below, say what it was checked against and how: **live** (the model's tests run the system each time), **recorded** (the system was run once and its answers frozen), **read** (a specification or source was read, not run) or **none** (only the model's own tests).
 
-Each explainer’s `script.md` says what its model is checked against and what it leaves out; the [Bloom filter’s scene](https://github.com/adewale/rayner/blob/main/scenes/explainers/bloom-filter/scene.ts) shows a model supplying a picture and its caption. [All explainers](https://oshineye.dev/projects/rayner/)
+| Explainer | Its model is checked against | How |
+|---|---|---|
+| [Why does a deleted dictionary slot need a marker?](https://oshineye.dev/projects/rayner/python-dict) | CPython 3.12’s dict storage, read from memory | live |
+| [Why does a merge sometimes need a new commit?](https://oshineye.dev/projects/rayner/git-branches) | Git repositories the test builds and merges | live |
+| [Can this Rust value cross a thread boundary?](https://oshineye.dev/projects/rayner/send-sync) | rustc, compiling the model’s claims; the table is rustc 1.99.1’s | live |
+| [Why can int4 and int8 rows take the same space?](https://oshineye.dev/projects/rayner/pg-page) | A Postgres 18.6 server, measured on 2026-10-25 | recorded |
+| [Which address should Express call the client?](https://oshineye.dev/projects/rayner/trust-proxy) | Express 5.3.0, run once over a real HTTP connection | recorded |
+| [Where does an empty ext4 filesystem’s space go?](https://oshineye.dev/projects/rayner/ext4-space) | mkfs.ext4 1.47.3 on Linux 6.8.0, for 22 filesystem sizes | recorded |
+| [How does a token bucket let a burst through but refuse a flood?](https://oshineye.dev/projects/rayner/token-bucket) | Go’s `golang.org/x/time/rate` v0.15.0 limiter | recorded |
+| [What is a statechart, and why use one instead of a state machine?](https://oshineye.dev/projects/rayner/statecharts) | The states and transitions XState 5.33.3 reaches | recorded |
+| [Does isdigit guarantee int can parse it?](https://oshineye.dev/projects/rayner/isdigit) | CPython 3.15.1’s answers and Unicode 17.0.0’s data files | recorded |
+| [Why does a Bloom filter answer “maybe”?](https://oshineye.dev/projects/rayner/bloom-filter) | An independent FNV-1a hash in CPython 3.12; the filter is a teaching model, not a production one | live |
+| [Why does the north have summer when Earth is farthest from the Sun?](https://oshineye.dev/projects/rayner/seasons) | A cited approximation of the Sun’s path, not validated against an almanac | none |
+
+Each explainer’s `script.md` says what its model is checked against, how, and what it leaves out; [testing](docs/TESTING.md#oracles-ci-runs-and-recordings) lists which outside systems CI runs and which are recordings. The [Bloom filter’s scene](https://github.com/adewale/rayner/blob/main/scenes/explainers/bloom-filter/scene.ts) shows a model supplying a picture and its caption. [All explainers](https://oshineye.dev/projects/rayner/)
 
 ## Quick start
 
-> [!NOTE]
-> These steps are for Rayner 0.2.0, which is not on npm yet; npm’s current release is 0.1.0, whose `init` writes a different starter. Until 0.2.0 is published, [work from this repository](#contributing).
+Writing, checking and building an explainer requires Node 24 or later. `rayner review` and diagram capture also need Chromium. Authoring targets Ubuntu and macOS; Windows is not yet supported.
 
-Requires Node 24 or later and Chromium. Authoring targets Ubuntu and macOS; Windows is not yet supported.
+These steps are for Rayner 0.2.0, the version this repository describes. Check what npm has with `npm view rayner-cli versions`. Until it lists 0.2.0 (npm's `rayner` 0.1.0 is an earlier, single-package release whose `init` writes a different starter, and there is no `rayner-cli` before 0.2.0), build both packages from a clone and install them from there:
 
 ```sh
+git clone https://github.com/adewale/rayner
+(cd rayner && npm ci && npm pack && cd cli && npm pack --pack-destination ..)
 mkdir my-rayner && cd my-rayner
 npm init -y
 npm pkg set type=module
-npm install --save-dev rayner@0.2.0 rayner-cli@0.2.0
-npx playwright-core install chromium
+npm install --save-dev ../rayner/rayner-0.2.0.tgz ../rayner/rayner-cli-0.2.0.tgz
 npx rayner init my-explainer
 npx rayner preview my-explainer/scene.ts --watch
 ```
 
-If Chromium is already installed, set `CHROMIUM_EXECUTABLE_PATH` instead of downloading it.
+Once npm lists 0.2.0 for both packages, `npm install --save-dev rayner@0.2.0 rayner-cli@0.2.0` replaces the clone and the two archives.
 
-Rayner is two packages at one version. `rayner` is what scenes import: the vocabulary, the drawing kit and the runtime, with no dependencies. `rayner-cli` is the `rayner` command, with the player it bundles into each page and the tools that capture diagram and lettering snapshots (esbuild, TypeScript, Agentic Mermaid, Playwright, svgpath and resvg); it requires `rayner` at exactly its own version.
+Rayner is two packages at one version. `rayner` is what scenes import: the vocabulary, the drawing kits and the runtime, with no dependencies. `rayner-cli` is the `rayner` command, with the player it bundles into each page, esbuild, TypeScript, Playwright's library (for `review`) and resvg (for PNG contact sheets); it requires `rayner` at exactly its own version. Mermaid diagrams and extra lettering are [add-ons](#add-ons-diagrams-and-lettering).
 
 `init` writes the tutorial’s explainer of LRU and MRU cache replacement: the script (`script.md`), the model (`model.ts`), the model’s test (`model.test.ts`) and the scene (`scene.ts`). Open the URL `preview` prints (port 5174 by default) and switch between **A B C D again** and **C D C D**. Edit `my-explainer/scene.ts` and reload to see the rebuilt page.
 
-When the explanation is ready, review every scenario and save the page:
+When the explanation is ready, review every scenario and save the page. Review opens the page in Chromium, so install it once first (or set `CHROMIUM_EXECUTABLE_PATH` to a Chromium you already have):
 
 ```sh
+npx playwright-core install chromium
 npx rayner review my-explainer/scene.ts --out public/my-explainer.html
 ```
 
@@ -195,11 +203,37 @@ Where the author built the model as a [machine](docs/MACHINES.md), the reader ca
 
 ## The authoring loop
 
-1. **Script.** `script.md` states the intent: the reader’s question, the answer the explanation must reach, the condition whose change the reader should predict, what the model is checked against, and the questions a reader should be able to answer afterwards. Rayner reads its header and holds the scene to it.
+1. **Script.** `script.md` states the intent: the reader’s question, the answer the explanation must reach, the condition whose change the reader should predict, what the model is checked against and how (its **Grounding**: live, recorded, read or none), and the questions a reader should be able to answer afterwards. It is also what the person who commissioned the explainer reviews. Rayner reads its header and holds the scene to it.
 2. **Model.** `model.ts` expresses the system’s constraints, and `model.test.ts` compares it with whatever the system can be checked against: a published test vector, a reference implementation, the program itself, or an exhaustive search.
-3. **Scene.** `scene.ts` explains the system: its steps, their words, and which states and events each shows. A picture module draws one state.
+3. **Scene.** `scene.ts` explains the system: its steps, their words, and which states and events each shows. A picture module draws one state, with [the kit](#drawing-pictures).
 4. **Check and review.** `rayner check` and `rayner review`, [above](#what-rayner-check-and-rayner-review-catch).
 5. **Publish.** `rayner review --out` saves the exact page it reviewed.
+
+## Drawing pictures
+
+A picture is drawn from the model's state by a function you write, with [`rayner/kit`](docs/REFERENCE.md#kit): a type scale whose smallest size reads on a phone (`TYPE`, `MIN_TEXT`), spacing and strokes, the stage's colours by role (`tones(s)`), and `words`, `box`, `plate` and `connector` for the parts. Each part is keyed, so when the state changes a view moves it instead of redrawing it, and `beats`, `flight` and `pass` author a transition in which words are replaced and a token travels its route. `rayner check` redraws the picture from each step's state and fails one that differs, and `words` refuses a size under the phone floor. [`rayner/drawing`](docs/REFERENCE.md#drawing-kit) adds ready-made pictures built the same way: tables, bars, cards, code panels, callouts, dimension lines, pins and legends.
+
+```ts
+import { keyedParts } from 'rayner/drawing';
+import { addAll, box, connector, words } from 'rayner/kit';
+
+const cache = view(this, (st) => {
+  const parts = keyedParts();
+  st.slots.forEach((item, i) => addAll(parts, box(s, item, { at: [-4 + 2.6 * i, 0.4], width: 2, key: `slot:${item}`, active: item === st.used })));
+  parts.add(connector(s, [[-5.3, -0.8], [5.3, -0.8]]), 'shelf');
+  parts.add(words(s, `${st.hits} hits`, { at: [0, -2], align: 'middle' }), 'hits');
+  return parts.group();
+});
+```
+
+The Poppy chapters draw with `rayner/kit`: their own kit ([`poppy-kit.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/lib/poppy-kit.ts)) takes its measures, words and transitions from it and adds the series' palette and objects (a seal, a key, a ticket, a ledger).
+
+## Add-ons: diagrams and lettering
+
+A scene that draws no Mermaid diagram and asks for no lettering needs nothing but Node to `init`, `check`, `see`, `describe` and `build`. Two kinds of picture need more, and only for the scenes that draw them ([add-ons](docs/REFERENCE.md#add-ons)):
+
+- **Diagrams.** `s.show({ source })` lays out Mermaid source with [Agentic Mermaid](https://github.com/adewale/agentic-mermaid), captured in Chromium at build time into `scene.snapshots/` beside the scene; the page replays the capture and loads no diagram renderer. Install the add-on with `npm install --save-dev agentic-mermaid@0.5.1 svgpath@2.6.0` and Chromium with `npx playwright-core install chromium`. Committed snapshots replay without Chromium. A scene that needs a capture and lacks the add-on fails with that install command.
+- **Lettering.** Text is drawn with the embedded Inter and JetBrains Mono. Letters outside them, other scripts, replacement faces, real bold and italic, and typeset maths need a [lettering request](docs/LETTERING.md) (`meta.lettering`); capturing one needs Python and the source fonts, and a committed `scene.lettering.json` replays without them. Every command fails on text the embedded fonts cannot draw unless the scene asks for it.
 
 ## How Rayner compares
 
@@ -215,14 +249,14 @@ Rayner keeps Lantern’s engine ([upstream](docs/UPSTREAM.md) lists the changes)
 ## Guides
 
 - **Writing explainers:** [the tutorial](docs/TUTORIAL.md), [Judging an explainer](docs/EXPLAINER-RUBRIC.md), [machines](docs/MACHINES.md), the [agent authoring skill](skills/rayner-explainers/SKILL.md) and the [FAQ](FAQ.md). The [feature tour](https://oshineye.dev/projects/rayner/feature-tour) answers “how do I write that?” for 29 features: each opens at **Recipe**, the lines an author writes, and **Result** shows the picture before and after they run. The [feature guide](docs/FEATURE-TOUR.md) links the full source and the setup some features need.
-- **Using Rayner as a library:** [engine fundamentals](docs/ENGINE-FUNDAMENTALS.md), the [engine map](docs/ENGINE.md) of guides and the invariants they keep, and the [API and CLI reference](docs/REFERENCE.md). The [drawing kit](docs/REFERENCE.md#drawing-kit) (`rayner/drawing`) builds tables, bars, callouts, dimension lines, pins and legends from state.
+- **Using Rayner as a library:** [engine fundamentals](docs/ENGINE-FUNDAMENTALS.md), the [engine map](docs/ENGINE.md) of guides and the invariants they keep, and the [API and CLI reference](docs/REFERENCE.md). The [kit](docs/REFERENCE.md#kit) (`rayner/kit`) is the type scale, colours by role, parts and transitions a hand-drawn picture is made of; the [drawing kit](docs/REFERENCE.md#drawing-kit) (`rayner/drawing`) builds tables, bars, callouts, dimension lines, pins and legends from state.
 - **Agents:** `rayner describe` and `rayner see` give every step as JSON or text, including the picture drawn as text, so an agent can inspect and revise a scene without a browser.
 
 ## Scope and limits
 
-Scenes are ordinary TypeScript classes. Reader settings are finite choices, with every combination built ahead of time. Diagrams are captured from [Agentic Mermaid](https://github.com/adewale/agentic-mermaid) at build time; authors can also draw native shapes, charts, code diffs and camera moves. The browser loads no diagram renderer, and the page makes no runtime network requests.
+Scenes are ordinary TypeScript classes. Reader settings are finite choices, with every combination built ahead of time. Pictures are native shapes, charts, code diffs and camera moves drawn from state; a Mermaid diagram is an [add-on](#add-ons-diagrams-and-lettering), captured at build time. The page makes no runtime network requests.
 
-- Default text uses embedded Inter and JetBrains Mono. Additional scripts, replacement faces, real bold and italic, and typeset maths need explicit [lettering requests](docs/LETTERING.md). New lettering capture needs Python and source fonts; committed snapshots replay without them.
+- Default text uses embedded Inter and JetBrains Mono. Additional scripts, replacement faces, real bold and italic, and typeset maths need explicit [lettering requests](docs/LETTERING.md), an add-on. New lettering capture needs Python and source fonts; committed snapshots replay without them.
 - Paragraph direction follows the text. Authors can also choose [card field order and logical panel placement](docs/REFERENCE.md#stage) with `direction: 'rtl'`. Mermaid graph direction remains explicit in its source (`graph LR`, `graph RL`, and so on).
 - Diagram labels fit captured widths by default. Opt into [`lettering: 'natural'`](docs/LETTERING.md#diagram-measurements) to measure the requested face before layout. A diagram style does not implicitly select its font.
 - Player controls and generated picture descriptions are available in English and French. Other caption languages retain English controls and descriptions.

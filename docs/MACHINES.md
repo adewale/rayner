@@ -3,7 +3,7 @@
 A `Machine` is a scene's model driven by events. The scene replays events through it as one
 schedule, `rayner check` draws and checks every state those events can reach, and at the step
 where the machine last played the player gives the reader a button per event
-([the player](#the-player)). Nine explainers are machines ([the table](#nine-machines)).
+([the player](#the-player)). Ten explainers are machines ([the table](#ten-machines)).
 
 ## Making one
 
@@ -213,6 +213,9 @@ picture, and fails if it
 
 - has colliding text or a connector over a label (the same rules as resting pictures),
 - shows a label under 14 px at a 1280 px stage,
+- at a live step, shows a label under 12 px on a 390 px phone both on the whole picture, which the
+  player shows after each press, and in every close-up of the step that holds it whole (a label set
+  at 0.54 or more with the camera at home always reads; see [Phone at live steps](REFERENCE.md#checks)),
 - has no description,
 - does not show its state (the fidelity check `assertViewFollowsState` makes), or
 - is described exactly as another reachable state is, so neither a reader nor a screen
@@ -263,7 +266,7 @@ which is the shrinking a generated-sequence check would otherwise need. `statech
 At the step where a machine last played, the reader can drive it: one button per event under the
 step's caption, then **Undo** and **Reset**. [Controls and accessibility](REFERENCE.md#controls-and-accessibility)
 gives the reader-facing contract: what the buttons say, how a refused event explains itself, what
-Undo, Reset and the keyboard do, and what a screen reader hears. Every one of the nine machines
+Undo, Reset and the keyboard do, and what a screen reader hears. Every one of the ten machines
 is live at its step, in every scenario that plays it (oauth-pkce without the attacker plays none).
 This section says how it works and why.
 
@@ -389,7 +392,7 @@ afresh (oauth-pkce's sign-in runs to its end first). The finish takes the event'
 **Not done.**
 - The [benchmark](https://github.com/adewale/rayner/blob/main/bench/explainers/README.md) has not been re-run with the buttons.
 
-## Nine machines
+## Ten machines
 
 | Explainer | Live at | State | Events | What is drawn from state | Explored |
 | --- | --- | --- | --- | --- | --- |
@@ -401,6 +404,7 @@ afresh (oauth-pkce's sign-in runs to its end first). The finish takes the event'
 | `latest-search` | `overwrite`, `reader-guard` | `RaceState`: tickets, the event log, what the page shows and every write | `start A`, `start B`, `A lands`, `B lands` (B starts after A; a response lands once, after its search started) | The timeline: search bars, landings and the page's spans, a stale span outlined | 10 states per machine, unguarded and guarded: every interleaving; the guarded page never shows a stale result (an invariant), the unguarded one does after two orders |
 | `oauth-pkce` | `any-order` | `SignIn`: the request and its challenge, who holds the code, each app's answer, whether the code is spent | `AUTHORIZE`, `AUTHORIZE_S256`, `REDIRECT`, `INTERCEPT`, `CLIENT_REDEEMS`, `APP_REDEEMS`; a code is used once (RFC 6749 §4.1.2) | Three lifelines across the browser and TLS lanes, each message in its slot with a refusal's reason | 20 states; with a challenge the malicious app gets no token in any order (an invariant, and a deliberate defect that sends the real verifier fails it) |
 | `just-bash` | `lesson` | `ShellSession`: the shells the caller holds and what `cat` printed on each | The script's lines: the pipeline on the newest shell, `cat` on the newest or on s0, `ls` (refused, as `exec` refuses it); a second write is past the script's bound | s0 and s1, the write's arrow, each cat's output, the kept shell outlined | 6 states; s0 stays the empty shell through every transition |
+| `bloom-filter` | `try` | `Row`: the bits, the names that set each one (the fills), the names taken and cleared, and the last check with the filter's answer | `take eel`, `take owl`, `check wolf`, `check owl`, `check cat`, `clear dog` (through the model's `take`, `check` and `clearBits`); taking a name twice and clearing dog twice are refused | The row with each name's fill, the legend of names taken, the check's bits outlined (a 0 in red) and its answer beside the truth: a false positive, or after clearing dog at 16 bits a false negative | 52 rows per scenario, from cat and dog taken |
 | `python-dict` | `broken`, `missing` | `DictState`: the eight-slot index and the entries, how a deletion leaves its slot (CPython's D, or the counterfactual that empties it), and the last event's search | `del d[0]`, `del d[8]`, `del d[16]` (refused when the key's search cannot find it, as Python raises KeyError), `d[0]`, `d[8]`, `d[16]`, `d[24]` (a missing key is an answer, not a refusal) | The slot row, the search's arrows, the entry table with [keyed cells](REFERENCE.md#drawing-kit), the panel and the note | 40 states with emptying (`broken`), 45 with CPython's marker (`missing`); the staged keyed morph writes D (or a dash) into the slot and dashes into the entry row in place |
 
 What each refuses, in its model's words (the tests pin each reason):
@@ -428,6 +432,8 @@ What each refuses, in its model's words (the tests pin each reason):
   has redeemed the code already, and the server answered Access token".
 - `just-bash`: ls: "exec throws “Unknown model command: ls”, since the model runs only echo, tr and
   cat". A second write is past the script's bound.
+- `bloom-filter`: "eel is taken already, and its bits 23, 20 and 1 are set" (at 32 bits), and
+  "dog’s bits are cleared already: dog has left".
 - `python-dict`: a deletion whose search cannot find its key: "the search for 0 stops at
   never-used slot 7, so del d[0] raises KeyError and changes nothing".
 

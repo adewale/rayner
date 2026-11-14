@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Express and X-Forwarded-For</title>
+<style>
+:root{
+  --bg:#fbfaf7; --panel:#ffffff; --ink:#1d1f23; --muted:#5d636d; --line:#d9d6cf;
+  --accent:#2557c7; --ok:#1f7a4a; --ok-bg:#e3f3ea; --bad:#b3261e; --bad-bg:#fbe6e4;
+  --warn:#8a5a00; --warn-bg:#fdf1d8; --trust:#e8eefb; --code:#f2f0ea;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15171b; --panel:#1d2026; --ink:#e7e8ea; --muted:#a2a8b2; --line:#343842;
+    --accent:#7ea2ff; --ok:#6fd39c; --ok-bg:#16301f; --bad:#ff8a80; --bad-bg:#3a1a18;
+    --warn:#f2c46b; --warn-bg:#352a12; --trust:#1f2a44; --code:#262a31;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15171b; --panel:#1d2026; --ink:#e7e8ea; --muted:#a2a8b2; --line:#343842;
+  --accent:#7ea2ff; --ok:#6fd39c; --ok-bg:#16301f; --bad:#ff8a80; --bad-bg:#3a1a18;
+  --warn:#f2c46b; --warn-bg:#352a12; --trust:#1f2a44; --code:#262a31;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:860px;margin:0 auto;padding:32px 16px 64px}
+h1{font-size:1.9rem;line-height:1.2;margin:0 0 8px}
+h2{font-size:1.3rem;margin:40px 0 8px}
+h3{font-size:1.05rem;margin:24px 0 6px}
+p,li{max-width:70ch}
+.lede{color:var(--muted);font-size:1.08rem}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9em}
+code{background:var(--code);padding:1px 5px;border-radius:4px}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto;font-size:.88rem;line-height:1.5}
+pre code{background:none;padding:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin:16px 0}
+.answer{border-left:4px solid var(--accent)}
+svg{display:block;width:100%;height:auto}
+svg text{fill:var(--ink);font-family:system-ui,sans-serif}
+svg .muted{fill:var(--muted)}
+svg .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+svg .box{fill:var(--panel);stroke:var(--line);stroke-width:1.5}
+svg .arrow{stroke:var(--muted);stroke-width:1.5;fill:none}
+svg .hl{fill:var(--accent)}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:600}
+.tablewrap{overflow-x:auto}
+/* simulator */
+.controls{display:grid;gap:12px;grid-template-columns:1fr}
+@media(min-width:640px){.controls{grid-template-columns:1fr 1fr}}
+label{font-weight:600;font-size:.92rem;display:block;margin-bottom:4px}
+select{width:100%;padding:8px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit}
+.radio{display:flex;flex-direction:column;gap:4px;font-size:.92rem}
+.radio label{font-weight:400;margin:0;display:flex;gap:6px;align-items:flex-start}
+.hops{margin:16px 0 0;display:flex;flex-direction:column;gap:6px}
+.hop{display:grid;grid-template-columns:150px 1fr;gap:8px;font-size:.88rem;align-items:baseline}
+@media(max-width:520px){.hop{grid-template-columns:1fr}}
+.hop .who{color:var(--muted)}
+.strip{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.addr{border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;min-width:120px;font-size:.85rem;background:var(--bg)}
+.addr .idx{display:block;color:var(--muted);font-size:.72rem}
+.addr .ip{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600}
+.addr .src{display:block;color:var(--muted);font-size:.75rem}
+.addr.trusted{background:var(--trust);border-color:var(--accent)}
+.addr.chosen{border-color:var(--ink);border-width:2.5px}
+.addr.skipped{opacity:.4}
+.tag{display:inline-block;font-size:.7rem;padding:0 6px;border-radius:10px;margin-top:3px}
+.tag.t{background:var(--accent);color:var(--bg)}
+.tag.c{background:var(--ink);color:var(--bg)}
+.verdict{padding:12px 14px;border-radius:8px;margin-top:12px}
+.verdict.ok{background:var(--ok-bg);color:var(--ok)}
+.verdict.bad{background:var(--bad-bg);color:var(--bad)}
+.verdict.warn{background:var(--warn-bg);color:var(--warn)}
+.verdict b{color:inherit}
+.small{font-size:.86rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+
+<h1>Which address should Express call the client?</h1>
+<p class="lede">Your app sits behind a CDN and a load balancer. Every request it gets arrives from the load balancer, so the real visitor's address has to be read from a header. The <code>trust proxy</code> setting tells Express how far into that header to read. Set it too low and every visitor shares one address. Set it too high and visitors can choose their own.</p>
+
+<div class="card answer">
+<strong>Short answer.</strong> Express should use the address of the first machine <em>you don't run</em>, counting back from your app. That's the address your outermost trusted proxy (the CDN edge) saw connect to it. In practice that means one of two settings:
+<ul>
+<li><code>app.set('trust proxy', 2)</code>, which trusts two hops: the load balancer and the CDN. This is right if nobody can reach your load balancer without going through the CDN.</li>
+<li>A list of addresses you control, e.g. <code>app.set('trust proxy', ['loopback', 'uniquelocal', '&lt;your CDN's IP ranges&gt;'])</code>. This is sturdier because it checks <em>who</em> each hop is rather than counting hops.</li>
+</ul>
+Don't use <code>true</code> in this setup. It lets any visitor pick their own <code>req.ip</code>.
+</div>
+
+<h2>1. What arrives at your app</h2>
+<p>A TCP connection only tells you about the machine at the other end of it, and for your app that machine is always the load balancer. So each proxy adds a line to the <code>X-Forwarded-For</code> header (XFF): "I received this request from <em>this</em> address." Each proxy <strong>adds to the end</strong> of whatever header it was given. It doesn't check or replace what's already there.</p>
+
+<svg viewBox="0 0 820 300" role="img" aria-labelledby="d1t d1d">
+  <title id="d1t">How X-Forwarded-For grows on the way to the app</title>
+  <desc id="d1d">The browser at 203.0.113.7 connects to a CDN edge at 198.51.100.20, which connects to a load balancer at 10.0.0.5, which connects to the Express app. The CDN appends 203.0.113.7 to the header. The load balancer appends 198.51.100.20. The app sees the socket address 10.0.0.5.</desc>
+  <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--muted)"/></marker></defs>
+  <!-- boxes -->
+  <rect class="box" x="10" y="30" width="160" height="70" rx="10"/>
+  <text x="90" y="58" text-anchor="middle" font-weight="600">Browser</text>
+  <text x="90" y="80" text-anchor="middle" class="mono muted" font-size="13">203.0.113.7</text>
+
+  <rect class="box" x="225" y="30" width="160" height="70" rx="10"/>
+  <text x="305" y="58" text-anchor="middle" font-weight="600">CDN edge</text>
+  <text x="305" y="80" text-anchor="middle" class="mono muted" font-size="13">198.51.100.20</text>
+
+  <rect class="box" x="440" y="30" width="160" height="70" rx="10"/>
+  <text x="520" y="58" text-anchor="middle" font-weight="600">Load balancer</text>
+  <text x="520" y="80" text-anchor="middle" class="mono muted" font-size="13">10.0.0.5</text>
+
+  <rect class="box" x="655" y="30" width="155" height="70" rx="10" style="stroke:var(--accent)"/>
+  <text x="732" y="58" text-anchor="middle" font-weight="600">Express app</text>
+  <text x="732" y="80" text-anchor="middle" class="muted" font-size="13">reads req.ip</text>
+
+  <line class="arrow" x1="170" y1="65" x2="222" y2="65" marker-end="url(#ah)"/>
+  <line class="arrow" x1="385" y1="65" x2="437" y2="65" marker-end="url(#ah)"/>
+  <line class="arrow" x1="600" y1="65" x2="652" y2="65" marker-end="url(#ah)"/>
+
+  <!-- header under each link -->
+  <text x="196" y="130" text-anchor="middle" class="muted" font-size="12">XFF sent:</text>
+  <text x="196" y="150" text-anchor="middle" class="mono muted" font-size="12">(none)</text>
+
+  <text x="411" y="130" text-anchor="middle" class="muted" font-size="12">XFF sent:</text>
+  <text x="411" y="150" text-anchor="middle" class="mono" font-size="12"><tspan class="hl" font-weight="700">203.0.113.7</tspan></text>
+
+  <text x="626" y="130" text-anchor="middle" class="muted" font-size="12">XFF sent:</text>
+  <text x="626" y="150" text-anchor="middle" class="mono" font-size="12">203.0.113.7,</text>
+  <text x="626" y="167" text-anchor="middle" class="mono" font-size="12"><tspan class="hl" font-weight="700">198.51.100.20</tspan></text>
+
+  <!-- what app sees -->
+  <rect x="150" y="205" width="660" height="80" rx="10" fill="none" stroke="var(--line)" stroke-dasharray="4 4"/>
+  <text x="170" y="232" font-size="14" font-weight="600">What Express can see</text>
+  <text x="170" y="256" class="mono" font-size="13">X-Forwarded-For: 203.0.113.7, 198.51.100.20</text>
+  <text x="170" y="276" class="mono" font-size="13">socket remote address: 10.0.0.5</text>
+  <text x="10" y="232" class="muted" font-size="12">Each proxy appends</text>
+  <text x="10" y="250" class="muted" font-size="12">the address it was</text>
+  <text x="10" y="268" class="muted" font-size="12">connected to <tspan class="hl">(blue)</tspan>.</text>
+</svg>
+
+<p>The key point: <strong>each entry is only as trustworthy as the machine that wrote it.</strong> Your load balancer wrote the last entry, and you trust your load balancer. The browser can put anything it likes in the header before the CDN ever sees it, and the CDN will pass that text along, adding the real address after it.</p>
+
+<svg viewBox="0 0 820 130" role="img" aria-labelledby="d2t d2d">
+  <title id="d2t">Who wrote each part of the header</title>
+  <desc id="d2d">The header reads 1.2.3.4, 203.0.113.7, 198.51.100.20. The first entry was typed by the visitor. The second was written by the CDN. The third was written by the load balancer. The socket address 10.0.0.5 comes from the operating system.</desc>
+  <text x="10" y="22" class="muted" font-size="13">If the visitor sends their own <tspan class="mono">X-Forwarded-For: 1.2.3.4</tspan>, your app receives:</text>
+  <rect x="10" y="36" width="150" height="40" rx="6" fill="var(--bad-bg)" stroke="var(--bad)"/>
+  <text x="85" y="61" text-anchor="middle" class="mono" font-size="14">1.2.3.4</text>
+  <rect x="170" y="36" width="170" height="40" rx="6" fill="var(--trust)" stroke="var(--accent)"/>
+  <text x="255" y="61" text-anchor="middle" class="mono" font-size="14">203.0.113.7</text>
+  <rect x="350" y="36" width="180" height="40" rx="6" fill="var(--trust)" stroke="var(--accent)"/>
+  <text x="440" y="61" text-anchor="middle" class="mono" font-size="14">198.51.100.20</text>
+  <rect x="580" y="36" width="230" height="40" rx="6" fill="var(--panel)" stroke="var(--line)"/>
+  <text x="695" y="61" text-anchor="middle" class="mono" font-size="14">socket: 10.0.0.5</text>
+  <text x="85" y="98" text-anchor="middle" font-size="12" style="fill:var(--bad)">typed by visitor</text>
+  <text x="255" y="98" text-anchor="middle" font-size="12" class="muted">written by CDN</text>
+  <text x="440" y="98" text-anchor="middle" font-size="12" class="muted">written by LB</text>
+  <text x="695" y="98" text-anchor="middle" font-size="12" class="muted">from the operating system</text>
+  <text x="10" y="122" font-size="12" class="muted">Read from right to left, trustworthiness only gets worse. The leftmost entry is the one most easily faked.</text>
+</svg>
+
+<h2>2. How Express reads it</h2>
+<p>Express hands this job to a small library called <code>proxy-addr</code>. It works in three steps:</p>
+<ol>
+<li><strong>Make a list, nearest first.</strong> Start with the socket address (index 0), then add the XFF entries from <em>right to left</em>. For the example above that gives <code>[10.0.0.5, 198.51.100.20, 203.0.113.7]</code>.</li>
+<li><strong>Move along the list while each address is trusted.</strong> For each address, ask your <code>trust proxy</code> setting: "is this one of my proxies?" (The question is passed the address and its index.)</li>
+<li><strong>Stop at the first address that isn't trusted.</strong> That address becomes <code>req.ip</code>. If every address is trusted, Express uses the last one in the list, which is the leftmost XFF entry.</li>
+</ol>
+<p>So the setting isn't really "how many proxies do I have". It answers "which machines am I willing to believe when they report who connected to them?" <code>req.ip</code> is the first machine you aren't willing to believe. Its <em>address</em> is reliable, because a trusted proxy recorded it, but anything it wrote in the header is not.</p>
+<p class="small"><code>req.ips</code> holds the addresses that were examined, in the opposite order: from the client end through to your outermost trusted proxy, leaving out the socket address. It is empty when <code>trust proxy</code> is off.</p>
+
+<h2>3. Try it</h2>
+<p>Pick a setting and a situation. Below you'll see the header at each hop, the list Express builds, which entries it trusts, and what it ends up calling the client.</p>
+
+<div class="card" id="sim">
+  <div class="controls">
+    <div>
+      <label for="setting">trust proxy setting</label>
+      <select id="setting">
+        <option value="false">false (the default)</option>
+        <option value="true">true</option>
+        <option value="1">1</option>
+        <option value="2" selected>2</option>
+        <option value="3">3</option>
+        <option value="list">['loopback', 'uniquelocal', '198.51.100.0/24']</option>
+      </select>
+      <p class="small" style="margin:6px 0 0">In this example the CDN's addresses are <span class="mono">198.51.100.0/24</span> and the load balancer is on a private <span class="mono">10.x</span> address.</p>
+    </div>
+    <div class="radio" role="radiogroup" aria-label="Situation">
+      <label style="font-weight:600;margin-bottom:2px">Situation</label>
+      <label><input type="radio" name="sc" value="normal" checked> An ordinary visitor</label>
+      <label><input type="radio" name="sc" value="spoof"> Visitor sends a fake <span class="mono">X-Forwarded-For: 1.2.3.4</span></label>
+      <label><input type="radio" name="sc" value="bypass"> Attacker skips the CDN and connects straight to a public load balancer with a fake header</label>
+    </div>
+  </div>
+
+  <div class="hops" id="hops"></div>
+  <h3 style="margin-top:18px">The list Express checks (nearest first)</h3>
+  <div class="strip" id="strip"></div>
+  <div id="verdict" class="verdict"></div>
+</div>
+
+<h2>4. What each setting means here</h2>
+<div class="tablewrap">
+<table>
+<thead><tr><th>Setting</th><th>Express trusts…</th><th><code>req.ip</code> for an ordinary visitor</th><th>Problem</th></tr></thead>
+<tbody>
+<tr><td><code>false</code></td><td>nothing; it uses the socket address</td><td class="mono">10.0.0.5</td><td>Every visitor appears to be your load balancer. Rate limits and logs treat everyone as one user.</td></tr>
+<tr><td><code>true</code></td><td>every address</td><td class="mono">203.0.113.7</td><td>Right only by luck. Express always takes the leftmost entry, and the visitor writes that one.</td></tr>
+<tr><td><code>1</code></td><td>index 0 (the LB)</td><td class="mono">198.51.100.20</td><td>You get the CDN edge's address, so many visitors share it.</td></tr>
+<tr><td><code>2</code></td><td>indexes 0–1 (LB, CDN)</td><td class="mono">203.0.113.7</td><td>Correct, but only if the CDN is the only way to reach the LB.</td></tr>
+<tr><td><code>3</code></td><td>one hop more than you have</td><td class="mono">203.0.113.7</td><td>Looks right until someone sends a fake entry. Then the fake entry wins.</td></tr>
+<tr><td>address list</td><td>addresses in your ranges</td><td class="mono">203.0.113.7</td><td>Correct, and it stops at a direct attacker. You do need to keep the CDN ranges up to date.</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>5. Choosing and checking</h2>
+<h3>Counting hops vs. listing addresses</h3>
+<p>A number like <code>2</code> means "the last two writers are mine, no matter who they are." That only holds if every request takes exactly that path. A list means "trust a hop only if its address is in my ranges." The list keeps working if an attacker reaches the load balancer directly, and it keeps working if the CDN sometimes adds an extra internal hop (some CDNs route through a second "shield" or "origin" tier). The downside is that you have to keep your copy of the CDN's published IP ranges current.</p>
+<pre><code>// Count: fine when the LB only accepts traffic from the CDN
+app.set('trust proxy', 2);
+
+// List: checks who each hop actually is
+app.set('trust proxy', [
+  'loopback', 'uniquelocal',      // 127.0.0.0/8, 10/8, 172.16/12, 192.168/16, fc00::/7 ...
+  '198.51.100.0/24',              // your CDN's published ranges go here
+]);
+
+// Function: full control; i is the index (0 = socket peer)
+app.set('trust proxy', (addr, i) =&gt; i === 0 || cdnRanges.has(addr));</code></pre>
+<p class="small">Set it with <code>app.set</code> before any middleware that reads <code>req.ip</code>, such as a rate limiter or logger, handles requests. Express evaluates the setting on every request, so a later change does take effect, but it's easy to get confused if you change it after startup.</p>
+
+<h3>Close the side door</h3>
+<p>Whatever setting you choose, make the load balancer accept connections only from the CDN, using security groups or firewall rules, or by checking a secret header the CDN adds. If the origin can be reached directly, a count-based setting will believe whatever the attacker writes.</p>
+
+<h3>Check it in production</h3>
+<pre><code>app.get('/_whoami', (req, res) =&gt; res.json({
+  ip: req.ip,
+  ips: req.ips,
+  xff: req.get('x-forwarded-for'),
+  socket: req.socket.remoteAddress,
+}));</code></pre>
+<p>Request it normally, then again with <code>curl -H 'X-Forwarded-For: 1.2.3.4'</code>. <code>ip</code> should show your real public address both times. If the second request shows <code>1.2.3.4</code>, you're trusting too much. If <code>ip</code> is one of your proxies' addresses, you're trusting too little. Remove the route once you're done.</p>
+
+<h3>The same setting controls other headers</h3>
+<p><code>trust proxy</code> also decides whether Express believes <code>X-Forwarded-Proto</code> for <code>req.protocol</code> and <code>req.secure</code> (which matter for secure cookies and HTTPS redirects), and <code>X-Forwarded-Host</code> for <code>req.hostname</code>. For those headers Express only asks whether the socket peer is trusted. If you widen the setting to fix <code>req.ip</code>, you're trusting those headers too.</p>
+
+<h3>Things that can trip you up</h3>
+<ul>
+<li>Some CDNs put the client in a separate header as well (for example a "connecting IP" or "true client IP" header). Express ignores those. It only reads XFF, so the CDN still has to append to XFF, and most do.</li>
+<li>Multiple <code>X-Forwarded-For</code> headers are joined by Node into one comma-separated list, so splitting the value across headers doesn't get around anything.</li>
+<li>If IPv4 addresses show up as <code>::ffff:10.0.0.5</code>, that's the same address written in IPv6 notation. <code>proxy-addr</code> matches it against IPv4 ranges correctly.</li>
+<li>The newer standard <code>Forwarded</code> header is not read by Express.</li>
+</ul>
+
+</main>
+
+<script>
+(function(){
+  var CLIENT='203.0.113.7', CDN='198.51.100.20', LB='10.0.0.5', FAKE='1.2.3.4', ATTACKER='192.0.2.66';
+
+  function ip2n(ip){var p=ip.split('.').map(Number);return ((p[0]<<24)>>>0)+(p[1]<<16)+(p[2]<<8)+p[3];}
+  function inCidr(ip,c){var s=c.split('/'),bits=+s[1];var mask=bits===0?0:(~0<<(32-bits))>>>0;return ((ip2n(ip)&mask)>>>0)===((ip2n(s[0])&mask)>>>0);}
+  var LIST=['127.0.0.0/8','10.0.0.0/8','172.16.0.0/12','192.168.0.0/16','198.51.100.0/24'];
+
+  function trustFn(setting){
+    if(setting==='false') return null;
+    if(setting==='true') return function(){return true;};
+    if(setting==='list') return function(a){return LIST.some(function(c){return inCidr(a,c);});};
+    var n=+setting; return function(a,i){return i<n;};
+  }
+
+  function scenario(sc){
+    // returns hops [{who, xff}] and final xff + socket + labels for entries
+    if(sc==='bypass'){
+      return {
+        hops:[
+          {who:'Attacker '+ATTACKER, xff:FAKE, note:'typed by the attacker'},
+          {who:'Load balancer', xff:FAKE+', '+ATTACKER, note:'LB appends who connected to it'}
+        ],
+        xff:[FAKE,ATTACKER], src:{}, socket:LB
+      };
+    }
+    var start = sc==='spoof' ? [FAKE] : [];
+    var afterCdn = start.concat([CLIENT]);
+    var afterLb = afterCdn.concat([CDN]);
+    return {
+      hops:[
+        {who:'Browser '+CLIENT, xff:start.length?start.join(', '):'(none)', note:start.length?'typed by the visitor':''},
+        {who:'CDN edge', xff:afterCdn.join(', '), note:'CDN appends '+CLIENT},
+        {who:'Load balancer', xff:afterLb.join(', '), note:'LB appends '+CDN}
+      ],
+      xff:afterLb, socket:LB
+    };
+  }
+
+  function describe(ip){
+    return {
+      '10.0.0.5':'socket: load balancer',
+      '198.51.100.20':'CDN edge',
+      '203.0.113.7':'real visitor',
+      '1.2.3.4':'fake, typed by sender',
+      '192.0.2.66':'real attacker'
+    }[ip]||'';
+  }
+
+  function render(){
+    var setting=document.getElementById('setting').value;
+    var sc=document.querySelector('input[name=sc]:checked').value;
+    var s=scenario(sc);
+
+    var hopsEl=document.getElementById('hops');
+    hopsEl.innerHTML='<div class="small" style="font-weight:600">X-Forwarded-For as each machine sends it on</div>'+
+      s.hops.map(function(h){
+        return '<div class="hop"><span class="who">'+h.who+' →</span><span><span class="mono">'+h.xff+'</span>'+
+          (h.note?' <span class="small">('+h.note+')</span>':'')+'</span></div>';
+      }).join('')+
+      '<div class="hop"><span class="who">Socket peer at app</span><span class="mono">'+s.socket+'</span></div>';
+
+    var addrs=[s.socket].concat(s.xff.slice().reverse());
+    var t=trustFn(setting);
+    var trusted=[], chosen;
+    if(!t){ chosen=0; }
+    else{
+      chosen=addrs.length-1;
+      for(var i=0;i<addrs.length;i++){
+        if(i===addrs.length-1){ break; }
+        if(t(addrs[i],i)){ trusted.push(i); } else { chosen=i; break; }
+      }
+      // if loop ended because all before last trusted, chosen = last
+    }
+
+    var strip=document.getElementById('strip');
+    strip.innerHTML=addrs.map(function(a,i){
+      var cls='addr', tag='';
+      if(i===chosen){cls+=' chosen'; tag='<span class="tag c">req.ip</span>';}
+      else if(trusted.indexOf(i)>=0){cls+=' trusted'; tag='<span class="tag t">trusted, keep going</span>';}
+      else if(i>chosen){cls+=' skipped'; tag='<span class="small">never examined</span>';}
+      return '<div class="'+cls+'"><span class="idx">index '+i+(i===0?' (socket)':' (XFF, '+ordinal(i)+' from right)')+'</span>'+
+        '<span class="ip">'+a+'</span><span class="src">'+describe(a)+'</span>'+tag+'</div>';
+    }).join('');
+
+    var ip=addrs[chosen];
+    var v=document.getElementById('verdict');
+    var msg, kind;
+    if(ip===FAKE){kind='bad';msg='<b>req.ip = '+ip+'. Spoofed.</b> The sender picked this address. Rate limits, bans and audit logs can all be dodged or aimed at someone else.';}
+    else if(sc==='bypass' && ip===ATTACKER){kind='ok';msg='<b>req.ip = '+ip+'. Correct.</b> This is the attacker\'s real address. The fake entry was ignored because '+ATTACKER+' is not one of your proxies, so Express stopped there.';}
+    else if(ip===CLIENT){kind='ok';msg='<b>req.ip = '+ip+'. Correct.</b> The CDN edge (which you trust) recorded this address, and the walk stopped at the first machine you don\'t run.';
+      if(setting==='3'||setting==='true'){kind='warn';msg='<b>req.ip = '+ip+'. Correct this time, but only by luck.</b> Every entry was trusted, so Express fell back to the leftmost one. Try the fake-header situation.';}}
+    else if(ip===LB){kind='bad';msg='<b>req.ip = '+ip+'. Too little trust.</b> That\'s your load balancer, so every visitor looks the same.';}
+    else if(ip===CDN){kind='bad';msg='<b>req.ip = '+ip+'. Too little trust.</b> That\'s a CDN edge server, which many unrelated visitors share.';}
+    else {kind='warn';msg='<b>req.ip = '+ip+'</b>';}
+    v.className='verdict '+kind; v.innerHTML=msg;
+  }
+  function ordinal(i){return i===1?'1st':i===2?'2nd':i===3?'3rd':i+'th';}
+
+  document.getElementById('setting').addEventListener('change',render);
+  Array.prototype.forEach.call(document.querySelectorAll('input[name=sc]'),function(r){r.addEventListener('change',render);});
+  render();
+})();
+</script>
+</body>
+</html>

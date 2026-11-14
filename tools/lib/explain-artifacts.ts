@@ -12,7 +12,7 @@ export interface SceneEntry { step: string; settings: Record<string, string> }
 export interface CatalogProduct {
   entry: CatalogEntry;
   home?: string; summary?: string; audience?: string; description?: string; requirements?: string;
-  tutorial?: string; reference?: string; skill?: string;
+  tutorial?: string; reference?: string; skill?: string; install?: string; installGuide?: string;
 }
 export interface CatalogScene {
   id: string; scenarios: number; title?: string; lang?: string; group?: 'topic' | 'toolchain';
@@ -21,6 +21,8 @@ export interface CatalogScene {
   showcase?: boolean;
   /** Where the gallery lists it (scenes/explainers/catalog.ts): showcase cards, the gallery behind "More", or no card for coverage. */
   tier?: 'showcase' | 'gallery' | 'coverage';
+  /** How its model was checked, from its script's Grounding line: the grade and the gallery card's label ("Recorded: Postgres 18.6"). */
+  grounding?: { grade: 'live' | 'recorded' | 'read' | 'none'; label: string };
 }
 export interface Catalog { version: 2; product: CatalogProduct; totals: CatalogTotals; scenes: CatalogScene[] }
 export interface EvidenceScene {
@@ -59,7 +61,7 @@ export function catalog(value: unknown): Catalog {
   const fail = (): never => {throw new Error('catalog(): the catalog artifact does not match its version 2 format; write it again with the site build');};
   if (!object(value) || value.version !== 2 || !totals(value.totals) || !object(value.product) ||
       !object(value.product.entry) || typeof value.product.entry.id !== 'string' || !Array.isArray(value.scenes)) return fail();
-  for (const key of ['home','summary','audience','description','requirements','tutorial','reference','skill'])
+  for (const key of ['home','summary','audience','description','requirements','tutorial','reference','skill','install','installGuide'])
     if (value.product[key] !== undefined && typeof value.product[key] !== 'string') return fail();
   const opening = value.product.entry;
   if ((opening.step !== undefined && typeof opening.step !== 'string') || (opening.label !== undefined && typeof opening.label !== 'string') ||
@@ -69,7 +71,8 @@ export function catalog(value: unknown): Catalog {
     if (['title','lang','step'].some(key => scene[key] !== undefined && typeof scene[key] !== 'string') ||
         (scene.group !== undefined && scene.group !== 'topic' && scene.group !== 'toolchain') ||
         (scene.showcase !== undefined && typeof scene.showcase !== 'boolean') ||
-        (scene.tier !== undefined && scene.tier !== 'showcase' && scene.tier !== 'gallery' && scene.tier !== 'coverage') || (scene.entry !== undefined && !entry(scene.entry))) return fail();
+        (scene.tier !== undefined && scene.tier !== 'showcase' && scene.tier !== 'gallery' && scene.tier !== 'coverage') || (scene.entry !== undefined && !entry(scene.entry)) ||
+        (scene.grounding !== undefined && !(object(scene.grounding) && ['live','recorded','read','none'].includes(scene.grounding.grade as string) && typeof scene.grounding.label === 'string'))) return fail();
   }
   try { uniquePageIds(value.scenes.map((scene) => (scene as {id: string}).id)); }
   catch (error) { throw new Error(`catalog(): ${(error as Error).message.replace(/^site: /, '')}`); }

@@ -103,5 +103,9 @@ state by a [view](VIEWS.md).
 - `Cross`: [ring-buffer](https://github.com/adewale/rayner/blob/main/scenes/explainers/ring-buffer/scene.ts), on a refused value, and
   [latest-search](https://github.com/adewale/rayner/blob/main/scenes/explainers/latest-search/scene.ts), on a response the guard drops. On one flat
   line of code a `Cross` reads as a strikethrough rather than an X.
+- `Brace`: [unified-diff](https://github.com/adewale/rayner/blob/main/scenes/explainers/unified-diff/scene.ts) braces the file's lines a hunk's header
+  counts and joins the header to `brace.tip()`; [float-sum](https://github.com/adewale/rayner/blob/main/scenes/explainers/float-sum/scene.ts) braces the gap
+  between two neighbouring doubles and puts its width, a formula, at the tip with `putAtTip`;
+  [galton-board](https://github.com/adewale/rayner/blob/main/scenes/explainers/galton-board/scene.ts) braces the three middle bins.
 - `BraceLabel`: [glyph](https://github.com/adewale/rayner/blob/main/scenes/explainers/glyph/scene.ts) (each font's measured width) and
   [exgit](https://github.com/adewale/rayner/blob/main/scenes/explainers/exgit/scene.ts) (the seven digits that name a blob).

@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "scene": "pg-page",
+  "sourceHash": "16f524b46497a7cbe8998700b52a38229b33f67ee774511c5d86ee9a388dcffe",
+  "engine": "lantern@2c7bad5+explainer",
+  "agenticMermaid": "0.5.1",
+  "snapshotHashes": [
+    "4a7a5b053ff641045163a856d33724ceb7af1403050bf1ad89d20a56717b137c",
+    "8b73d0769ce4554bceb1e02be4468214a79215da07d201fe55064162e8963746",
+    "7771c50ce5a4c3e074ea0252de20e494b459c77cad9a03e3129315f030179433"
+  ],
+  "title": "Why can int4 and int8 rows take the same space?",
+  "artifactHash": "600d96688b1473c5c8a2588ca551ba07e62d8e0f3db9180534b3676a0003bc07",
+  "scenarios": [
+    {
+      "settings": {
+        "column": "int4"
+      },
+      "steps": 6,
+      "duration": 144.467
+    },
+    {
+      "settings": {
+        "column": "int8"
+      },
+      "steps": 6,
+      "duration": 141.067
+    },
+    {
+      "settings": {
+        "column": "int4-text"
+      },
+      "steps": 6,
+      "duration": 151.967
+    }
+  ],
+  "bytes": 695382,
+  "gzipBytes": 249399,
+  "headers": {
+    "Content-Security-Policy": "default-src 'none'; script-src 'sha256-EdnQUL2fjtm41KTLHPJsIWxNj1iD7SISGAX5p/yJBK8=' 'sha256-L977iPsAve+n7taWxvx9WE1Sw1BYRcBF1YBJWexmP/Q='; style-src 'sha256-NLZVLPxMW3hNsjUfTd5gYIxJngBZjNPjYwYM7u6oU3A='; img-src data:; connect-src 'none'; font-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors *",
+    "Cache-Control": "public, max-age=0, must-revalidate"
+  }
+}

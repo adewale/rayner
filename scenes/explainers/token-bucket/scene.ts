@@ -3,7 +3,7 @@ import type { View, ExplainerMeta } from '../../../explain/index.ts';
 import type { ScheduledAnimation, VMobject } from '../../../src/index.ts';
 import { stage, settingsOf, Machine, view } from '../../../explain/index.ts';
 import { code } from '../../../explain/drawing.ts';
-import type { Card, CodeBlock } from '../../../explain/drawing.ts';
+import type { CodeBlock } from '../../../explain/drawing.ts';
 import { TokenBucket, bucketStart, bucketRequest } from './model.ts';
 import type { BucketCall as Call, BucketState } from './model.ts';
 import { counted, listed } from '../lib/format.ts';
@@ -174,8 +174,10 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
     await this.step('balance', {
       title: 'Ten requests from one client, and a bucket of five tokens',
       line: 'Predict: R1–R6 arrive at the same instant. How many get 200?',
+      // The model's answers to the burst: how many of R1–R6 it serves.
+      predict: { options: ['4', '5', '6'], answer: String(plan.slice(0, 6).filter((c) => c.ok).length) },
       caption:
-        'A server shares its work among many clients, so it limits each one: a request it serves gets 200, OK, and one it refuses gets 429, Too Many Requests, which tells the client to slow down. A short burst, such as the requests a page makes as it loads, should still get through. So the server keeps a balance for the client of at most five tokens: the bucket. Each accepted request spends one token, and a request that finds less than one, under the 1 token line, gets 429. Ten requests will arrive at the times written above their boxes.',
+        'A server limits each client: a request it serves gets 200, OK; one it refuses gets 429, Too Many Requests, telling the client to slow down. A short burst should still get through, so the server keeps the client a balance of at most five tokens: the bucket. Each accepted request spends one token; one that finds less than one, under the 1 token line, gets 429. Ten requests arrive at the times above their boxes.',
     });
     await s.clear();
     const start = bucketStart(rate, CAPACITY);
@@ -219,7 +221,6 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
       },
       { place: false },
     );
-    const codeLines = () => (codeView.current as CodeBlock).code.lines;
     await s.enter(codeView, { runTime: 0.4 });
     await this.play(new FadeIn(readout));
 
@@ -348,7 +349,7 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
     ];
     const captions = [
       `No time passed between R1 and R6, so the line drops one token per request and R6 finds ${f(5)}, under the 1 token line: 429. A burst can spend only the tokens saved up, and only elapsed time adds more. On each arrival the server adds elapsed time multiplied by the refill rate, here ${perSecond(rate)}, before deciding whether to spend a token. The line between arrivals shows available credit; no background timer needs to update the balance.`,
-      `Between calls the line climbs ${perSecond(rate)}. Half a second after the burst, R7 finds ${tokens(r7.found)}, ${r7.ok ? 'enough for one request' : 'less than the one a request needs'}, so it gets ${code7}. The rate decides it: the same half second buys ${listed(halfSecond)}. R8 at 1 s finds ${f(7)}; R9 arrives at the same instant, so nothing is added and it finds what R8 left. Fractional tokens are saved, but a request must spend a whole one. ${verdict}`,
+      `Between calls the line climbs ${perSecond(rate)}. Half a second after the burst, R7 finds ${tokens(r7.found)}, ${r7.ok ? 'enough for one request' : 'less than the one a request needs'}, so it gets ${code7}. The rate decides it: the same half second buys ${listed(halfSecond)}. ${verdict}`,
       uncapped > CAPACITY
         ? `R9 left ${formatState(r9.after)}. A wait of ${seconds(wait)} s at ${perSecond(rate)} would bring the balance to ${formatState(uncapped)}, but min(5, …) stops it at five, reached at ${seconds(fullAt)} s, and the line runs flat from there. However long a client waits, its next burst is at most five requests. R10 spends one and leaves ${formatState(r10.after)}.`
         : `R9 left ${formatState(r9.after)}, and a wait of ${seconds(wait)} s at ${perSecond(rate)} brings the balance to ${formatState(uncapped)}, under min(5, …)'s cap. R10 spends one and leaves ${formatState(r10.after)}.${capped.length ? ` At ${listed(capped.map(perSecond))} the same wait would pass five, and min(5, …) would stop the balance there.` : ''}`,
@@ -358,6 +359,7 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
         title: titles[index],
         line: lines[index],
         caption: captions[index],
+        ...(index === 0 ? { predict: { options: ['200', '429'], answer: String(code7) } } : {}),
       });
       // Ask the program, one request at a time; the code's focus bar moves with each call.
       for (let i = from; i < to; i++) await this.play(machine.send('request'));
@@ -366,23 +368,18 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
       // R7 (its climb, dot, drop and tag) and R6's tag, where the climb to R7 starts, are read together.
       if (index === 1)
         s.opening(...['balance:refill:R7', 'balance:found:R7', 'balance:spend:R7', 'balance:found:R7:value', 'balance:tag:R6'].flatMap((k) => chart.current.find(k) ?? []));
-      if (index === 2)
-        s.opening(codeLines()[1]!, part(chips, 'request:R9'), part(chips, 'request:R10'), times[8]!, times[9]!, names[8]!, names[9]!,
-          (readout.current as Card).labels.get('Tokens left')!, (readout.current as Card).values.get('Tokens left')!,
-          ...['balance:refill:R10', 'balance:found:R10', 'balance:spend:R10', 'balance:cap:note'].flatMap((k) => chart.current.find(k) ?? []));
+      // The live step: a phone shows the whole picture after each press, so its close-ups take in every
+      // view the reader drives, and each label reads 12 px in one of them.
+      if (index === 2) s.opening(shell, gauge, bucketLabel, axes, need, needLabel, chart, chips, ...times, ...names, readout, codeView);
     }
 
     // --------------------------------------------------------------- trace
-    // R7–R9, the requests whose answer the rate decides on this schedule.
-    const between = (r: number) => refusedAt(r).filter((n) => ['R7', 'R8', 'R9'].includes(n));
-    const betweenSay = (r: number) =>
-      between(r).length ? `${listed(between(r))} ${between(r).length > 1 ? 'are' : 'is'} refused` : 'none of them is refused';
     // Below a fifth of a token a second, R6–R9 all fail, the bucket refills from empty at 0 s, and R10 at 5 s finds
     // under 5 × 0.2 = 1 token (model.test.ts).
     await this.step('trace', {
       title: 'The same ten requests at 1, 2 and 4 tokens a second',
       line: `429s at 4 / s: ${listed(refusedAt(4))}; at 1 / s: ${listed(refusedAt(1))}.`,
-      caption: `Each row runs the same ten requests at its labelled refill rate; the outlined row is this scenario. Circles are 200s and crosses are 429s. R6 is refused at every rate, because no time passes inside the burst, and R10 is accepted at every rate, because after its ${seconds(wait)}-second wait it finds at least ${formatState(Math.min(...RATES.map((r) => runs.get(r)![9]!.found)))} tokens. Those are the three rates offered here; below a fifth of a token a second, R10 too would find less than one token. For R7 to R9 the rate decides: at ${perSecond(4)} ${betweenSay(4)}; at ${perSecond(1)} ${betweenSay(1)}. The bucket’s capacity sets the burst, and its rate sets how soon the client can send again.`,
+      caption: `Each row runs the same ten requests at its rate; outlined: this scenario. Circles are 200s, crosses 429s. R6 is refused at every rate, since no time passes inside the burst, and R10 is accepted at every rate: after its ${seconds(wait)}-second wait it finds at least ${formatState(Math.min(...RATES.map((r) => runs.get(r)![9]!.found)))} tokens. Below a fifth of a token a second, R10 too would be refused. The bucket’s capacity sets the burst; its rate sets how soon the client can send again.`,
     });
     // The curves explain refill in earlier steps. End on a large comparison of
     // their outcomes, so a phone reader sees all three rates together.

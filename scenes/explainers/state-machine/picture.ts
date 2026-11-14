@@ -18,7 +18,7 @@ export function frames(stage: Stage, which: string, answer: string, opts?: Stage
       id: 'reader-path',
       title: 'Should a late OPENED reopen a closed session?',
       line: `Predict: the session ends in ${closed}, then an OPENED arrives. What happens?`,
-      caption: `A session connects in two moves: CONNECT takes it from idle to connecting, and the network’s reply, OPENED or ERROR, decides where it goes next. Here the reply is ${event}, which moves it to ${next}${which === 'success' ? ', and later CLOSE moves it to closed' : ''}. Then a reply from an earlier attempt turns up: OPENED. Read on its own, OPENED means open. Should the session reopen? The code that decides is a reducer: a function given the current state and an event, which returns the next state.`,
+      caption: `A session connects in two moves: CONNECT takes it from idle to connecting, and the network’s reply, OPENED or ERROR, decides where it goes next. Here the reply is ${event}, which moves it to ${next}${which === 'success' ? ', and later CLOSE moves it to closed' : ''}. Then a reply from an earlier attempt turns up: OPENED. Should the session reopen? The code that decides is a reducer: a function given the current state and an event, which returns the next state.`,
       state: { event, next },
       draw: (st, s) =>
         new Group(

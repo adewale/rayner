@@ -11,9 +11,9 @@ import { fileURLToPath } from 'node:url';
 export const COMPILED = import.meta.url.endsWith('.js');
 /** The command's own files: app/, tools/lettering.py, vendor/lettering/, the bundle in dist/tools/. */
 export const ROOT = fileURLToPath(new URL('../../', import.meta.url));
-/** The command's manifest: its version and the pinned tool dependencies. */
+/** The command's manifest: its version, the pinned tool dependencies and the add-ons' optional peers. */
 export const CLI_MANIFEST = join(ROOT, COMPILED ? 'package.json' : 'cli/package.json');
-export const cliManifest: { name: string; version: string; dependencies: Record<string, string> } = JSON.parse(readFileSync(CLI_MANIFEST, 'utf8'));
+export const cliManifest: { name: string; version: string; dependencies: Record<string, string>; peerDependencies?: Record<string, string> } = JSON.parse(readFileSync(CLI_MANIFEST, 'utf8'));
 
 function libraryRoot(): string {
   if (!COMPILED) return ROOT;

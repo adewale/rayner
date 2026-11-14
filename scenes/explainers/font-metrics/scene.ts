@@ -102,7 +102,7 @@ export default class FontMetrics extends Scene<FontState, {}> {
         id: 'rulers',
         title: 'The upper marker went 0.5 past a JetBrains Mono ruler',
         line: 'Upper ticks: Garamond’s advances, as drawn. Lower: JetBrains Mono’s, as measured.',
-        caption: `This is the opening’s upper row, with both measurements laid under the words from the same start. Each slanted line joins a Garamond pen stop to the same stop in JetBrains Mono. Every Garamond glyph here advances less than Mono’s ${monoRun.glyphs[0]!.ax.toFixed(2)}, so the lines lean further apart at each glyph and the rulers end ${(measuredEnd - drawnEnd).toFixed(2)} units apart. The filled marker sits ${GAP} past the Mono ruler’s end, as the layout placed it. The ring sits ${GAP} past the Garamond ruler’s end, where the lower row put its marker.`,
+        caption: `This is the opening’s upper row, both measurements laid under the words from one start. Slanted lines join each Garamond pen stop to the same stop in JetBrains Mono. Every Garamond glyph here advances less than Mono’s ${monoRun.glyphs[0]!.ax.toFixed(2)}, so the lines fan out glyph by glyph and the rulers end ${(measuredEnd - drawnEnd).toFixed(2)} units apart. The filled marker sits ${GAP} past the Mono ruler’s end, where the layout put it; the ring, ${GAP} past Garamond’s, where the lower row put its marker.`,
         state: rulers,
         describe: (st) => {
           const { drawn, measured, markers } = st.rulers;

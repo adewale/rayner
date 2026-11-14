@@ -10,5 +10,5 @@
   "include": ["app/**/*.ts", "scenes/**/*.ts"],
   // A folder's tests, fidelity checks and oracles, and the shared property-test settings, run in Node;
   // tsconfig.node.json checks them.
-  "exclude": ["scenes/**/*.test.ts", "scenes/**/fidelity.ts", "scenes/**/oracle/**", "scenes/explainers/lib/pbt.ts"]
+  "exclude": ["scenes/**/*.test.ts", "scenes/**/fidelity.ts", "scenes/**/oracle/**", "scenes/explainers/lib/pbt.ts", "scenes/explainers/lib/oracle.ts"]
 }

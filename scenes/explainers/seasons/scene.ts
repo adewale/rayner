@@ -3,7 +3,7 @@ import type { Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, view, having } from '../../../explain/index.ts';
 import type { ExplainerMeta } from '../../../explain/index.ts';
 import { emphasised, dimension, callout } from '../../../explain/drawing.ts';
-import { sunlight, daylightYear, noonShare, noonPatch, sunDistance, declinationOn } from './model.ts';
+import { sunlight, daylightYear, noonShare, noonPatch, sunDistance, declinationOn, MID_MONTH } from './model.ts';
 import {
   SUN, TILT, R, CY, JUNE_C, DEC_C,
   degrees, pct, metres, hours, latitudeName, exactly, drawSpread,
@@ -82,6 +82,8 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
     await this.step('nearest', {
       title: 'Earth’s distance from the Sun changes through the year',
       line: 'Predict: in which month is Earth nearest the Sun?',
+      // The month whose 15th is nearest, from the model's distance.
+      predict: { options: ['January', 'April', 'July', 'October'], answer: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][((d) => d.indexOf(Math.min(...d)))(MID_MONTH.map(sunDistance))]! },
       caption:
         'Earth’s orbit is slightly oval, so it passes nearest the Sun once a year and farthest half a year later. A common guess is that the seasons follow this distance, with summer when Earth is nearest. The oval is drawn far more stretched than it is.',
     });
@@ -94,6 +96,7 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
     await this.step('tilt', {
       title: 'Nearest the Sun in early January, while the north tilts away',
       line: `Predict: in June, does ${place.name} get more or less than 12 hours of daylight?`,
+      predict: { options: ['More', 'Less', 'About 12 hours'], answer: ((h) => (h > 12.05 ? 'More' : h < 11.95 ? 'Less' : 'About 12 hours'))(sunlight(place.lat, TILT).daylight) },
       caption:
         'Earth is nearest the Sun in early January, when the north has winter and the south summer. Distance cannot explain opposite seasons at once. The tilt of Earth’s axis, not its distance from the Sun, makes the seasons: the tilted axis keeps pointing the same way, so the north leans sunward in June and away in December. Sizes and distances are not to scale.',
     });
@@ -217,8 +220,14 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
           ? `December: the same axis, and ${place.name}’s daylight goes ${hours(june.daylight)} to ${hours(december.daylight)}`
           : `December: the same axis, and ${place.name}’s daylight stays ${hours(december.daylight)}`,
       line: 'Predict: of Tromsø, London, Quito and Sydney, whose daylight changes most?',
+      // The place whose June and December daylight differ most, from the model; the latitude step shows the swings.
+      predict: {
+        options: ORDER.map((k) => PLACES[k]!.name),
+        answer: ((swings) => ORDER.indexOf(ORDER.reduce((a, b) => (swings[b]! > swings[a]! ? b : a))))(Object.fromEntries(ORDER.map((k) => [k, Math.abs(sunlight(PLACES[k]!.lat, TILT).daylight - sunlight(PLACES[k]!.lat, -TILT).daylight)])) as Record<string, number>),
+        reveal: 'latitude',
+      },
       caption:
-        'Half an orbit later Earth is on the far side of the Sun, but the axis still points the same way, so the south end now leans sunward and the hemispheres swap seasons. ' +
+        'Half an orbit later the axis still points the same way, so the south end now leans sunward and the hemispheres swap seasons. ' +
         (Math.abs(june.daylight - december.daylight) > 0.05
           ? `${place.name}’s daylight ${december.daylight > june.daylight ? 'rises' : 'falls'} to ${hours(december.daylight)}. ` +
             (december.altitude > 0
@@ -262,7 +271,7 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
         : { month: 'June', other: 'December', ratio: junePatch / decPatch, from: decShare, to: juneShare }
       : null;
     const beamSaid = (month: string, alt: number, patch: number, share: number) =>
-      `${month}’s Sun, ${degrees(alt)} up, lays its beam on ${metres(patch)} of ground, so each square metre gets 1 ÷ ${patch.toFixed(2)} = ${pct(share)} of what an overhead Sun gives`;
+      `${month}’s Sun, ${degrees(alt)} up, lays it on ${metres(patch)}: 1 ÷ ${patch.toFixed(2)} = ${pct(share)} of overhead per m²`;
     await this.step('spread', {
       title:
         decPatch === null
@@ -272,12 +281,12 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
             : `The same 1 m beam lands on ${metres(decPatch)} of ground in June and in December`,
       line: `Both noon beams on level ground at ${place.name}, drawn to one scale.`,
       caption:
-        `Here the noon sunlight from both globes lands on level ground at ${place.name}. Each beam is 1 m across, measured at right angles to its rays. ` +
+        `Both globes’ noon sunlight lands on level ground at ${place.name}, each beam 1 m across at right angles to its rays. ` +
         `${beamSaid('June', june.altitude, junePatch!, juneShare)}. ` +
         (decPatch === null
           ? `In December the noon Sun stays ${degrees(-december.altitude)} below the horizon, so no beam reaches the ground.`
           : longer
-            ? `${beamSaid('December', december.altitude, decPatch, decShare)}. Counted at Earth’s average distance, as the percentages are, both beams carry the same sunlight; ${longer.month}’s spreads it over ${longer.ratio.toFixed(1)} times as much ground as ${longer.other}’s, which is how ${pct(longer.from)} per m² falls to ${pct(longer.to)}.`
+            ? `${beamSaid('December', december.altitude, decPatch, decShare)}. At Earth’s average distance both beams carry the same sunlight; ${longer.month}’s spreads it over ${longer.ratio.toFixed(1)} times the ground, so ${pct(longer.from)} per m² falls to ${pct(longer.to)}.`
             : `December’s Sun stands at the same ${degrees(december.altitude)}, so the beam lands on the same ${metres(decPatch)} and the share stays ${pct(decShare)}.`),
     });
     emphasised(juneDaylight, null);
@@ -457,8 +466,8 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
           : `Earth is ${farther}% farther from the Sun in July; ${place.name} still gets ${hours(year[6]!)}.`,
       caption:
         place.lat !== 0
-          ? `Back to the opening question. ${distanceSaid} The tilt moves ${place.name}’s noon sunlight between ${pct(shares[0]!)} and ${pct(shares[1]!)} of overhead. On 15 January ${place.name} gets ${hours(year[0]!)} of daylight and ${latitudeName(-place.lat)}, the purple curve, gets ${hours(mirror[0]!)}; both are the same distance from the Sun that day, so the gap between them comes from the tilt.`
-          : `Back to the opening question. ${distanceSaid} Quito gets ${hours(year[0]!)} in January and in July, and its noon Sun stands at ${degrees(june.altitude)} at both solstices, ${pct(juneShare)} of overhead, so the tilt bar has no length here. On 15 January London gets ${hours(daylightYear(PLACES.london!.lat)[0]!)} and Sydney ${hours(daylightYear(PLACES.sydney!.lat)[0]!)}, at one distance from the Sun.`,
+          ? `${distanceSaid} The tilt moves ${place.name}’s noon sunlight between ${pct(shares[0]!)} and ${pct(shares[1]!)} of overhead. On 15 January ${place.name} gets ${hours(year[0]!)} of daylight and ${latitudeName(-place.lat)}, the purple curve, gets ${hours(mirror[0]!)}; both are the same distance from the Sun that day, so the gap between them comes from the tilt.`
+          : `${distanceSaid} Quito gets ${hours(year[0]!)} in January and in July, and its noon Sun stands at ${degrees(june.altitude)} at both solstices, ${pct(juneShare)} of overhead, so the tilt bar has no length here. On 15 January London gets ${hours(daylightYear(PLACES.london!.lat)[0]!)} and Sydney ${hours(daylightYear(PLACES.sydney!.lat)[0]!)}, at one distance from the Sun.`,
     });
     // `mirror`: the same model at the mirrored latitude, month by month.
     this.state.mirror = mirror;

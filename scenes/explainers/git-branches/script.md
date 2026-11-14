@@ -5,6 +5,7 @@
 - **Changed condition:** main's history. When main makes its own commit C, moving main to feature's B would drop C from main's history, so git merge writes M with parents C and B. When main stays at A, A is already in B's history, so the merge fast-forwards main to B with no new commit.
 - **Reader's own work:** predict which edit main would lose if its label just moved to B (or whether it would lose anything); predict whether Git would still need M in the other history; choose main's history; then the three check questions, which apply the parent-arrow argument to a repeated merge, a reverse merge and `--no-ff`.
 - **Checked against:** real Git: `model.test.ts` replays both histories in a temporary repository with `merge.ff=true` and compares branch labels, parents and checked-out files frame by frame with the model; checks that moving only the main label leaves C on no branch exactly when real Git would; and runs the three check questions' commands (a repeated merge reports Already up to date, the reverse merge fast-forwards, `--no-ff` makes a commit with parents B and M).
+- **Grounding:** live: Git, run by the model’s tests
 - **Leaves out:** conflicts, squash merges, rebases and octopus merges; `--ff-only`; tags, other branches, reflogs, remote-tracking references, recovery and garbage collection ("no branch reaches C" means the two branches drawn, and C is still stored).
 
 ## Check yourself

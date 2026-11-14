@@ -207,7 +207,7 @@ export default class ForkExplainer extends Scene<ForkState, ForkShown> {
         id: 'choice',
         title: `The build made ${RATES.length} scenarios, and a link opens one of them`,
         line: `A link naming ${UNBUILT} matches no scenario, so the page opens the default, ${byDefault}.`,
-        caption: `The rate setting lists ${RATES.length} options, so the build ran the scene once for each and rayner check tested each of the ${RATES.length} scenarios; R10 is accepted in all three. A link picks a scenario by naming its option: ?rate=4 opens the 4-token scenario. ?rate=${UNBUILT} matches no option, so Rayner refuses it with “${fallback.refused}” and opens the default scenario, ${byDefault}. The ${UNBUILT} row from the last step exists in this explainer, not on the token-bucket page.`,
+        caption: `The rate setting lists ${RATES.length} options, so the build made ${RATES.length} scenarios and rayner check tested each; R10 is accepted in all three. A link names an option: ?rate=4 opens the 4-token scenario. ?rate=${UNBUILT} matches no option, so Rayner refuses it with “${fallback.refused}” and opens the default, ${byDefault}. The last step’s ${UNBUILT} row exists in this explainer, not on the token-bucket page.`,
         state: { choice },
         draw: (st) => choicePicture(st),
         opening: ['fork-choice-scenarios', 'fork-choice-fallback'],

@@ -271,7 +271,7 @@ export default class TrafficPolicyExplainer extends Scene<TrafficState, { cluste
           : `Probabilities 1/(n−i) give each pod ${frac(each[0]!)} of the node’s requests.`,
       // proxier.go:1464-1471: rule i of n has --probability 1/(n-i); the last has none and always matches.
       caption:
-        `In iptables mode kube-proxy tries one rule per pod in order. For three candidates, the first takes 1/3 of requests; the second sees the remaining 2/3 and takes half of those, another 1/3 overall; the last gets the remaining 1/3. In general, rule i of n matches 1/(n−i) of the requests that reach it, counting i from zero, so each pod gets 1/n of the node’s traffic. ` +
+        `In iptables mode kube-proxy tries one rule per pod in order. For three pods, the first takes 1/3; the second takes half of the remaining 2/3, another 1/3; the last gets the final 1/3. In general, rule i of n matches 1/(n−i) of the requests that reach it, counting i from zero, so each pod gets 1/n. ` +
         (policy === 'cluster'
           ? `Under Cluster every node lists all ${n} pods: ${spelled}, so each gets 1/${n} of what the node receives.`
           : chainPods.length === 1
@@ -418,7 +418,7 @@ export default class TrafficPolicyExplainer extends Scene<TrafficState, { cluste
       c === 0
         ? [`${NODES[j]} gets no band`]
         : c === 1
-          ? [`${NODES[j]} hands its whole ${frac(localNode[j]!)} to pod ${pods.find((p) => p.node === j)!.id}`]
+          ? [`${NODES[j]}’s whole ${frac(localNode[j]!)} goes to pod ${pods.find((p) => p.node === j)!.id}`]
           : [`${NODES[j]} cuts its ${frac(localNode[j]!)} into ${numberWord(c)} bands of ${frac(shares(counts, 'local')[pods.find((p) => p.node === j)!.id]!)}`],
     );
     const cutWords = listed(localCuts);
@@ -428,12 +428,12 @@ export default class TrafficPolicyExplainer extends Scene<TrafficState, { cluste
         : `Both policies give each pod ${frac(lHigh[0])}; only Cluster’s bands cross nodes`,
       line: 'Band width is share of requests; colour is the node a request enters.',
       caption:
-        `Each band is as wide as its share of the outside requests and takes the colour of the node it enters. The load balancer makes the first cut, by node; each node’s rules make the second, among the pods they list. ` +
+        `The load balancer cuts by node; each node’s rules cut among the pods they list. ` +
         `Under Cluster each node’s ${frac(clusterNode[0]!)} fans out to all ${n} pods, so every pod bar collects ${numberWord(counts.length)} colours and ends at ${frac(q(1, n))}. ` +
         `Under Local ${cutWords}` +
         (lUneven
           ? `, so pod ${lHigh[1][0]}’s bar ends ${value(lHigh[0]) / value(lLowest[0])} times as wide as pod ${lLowest[1][0]}’s.`
-          : `, so every pod ends at ${frac(lHigh[0])}, as under Cluster, and no band crosses to another node.`),
+          : `, so every pod ends at ${frac(lHigh[0])}, as under Cluster, but no band crosses nodes.`),
     });
     await s.clear();
     // The cluster's view went with the rest of the stage.

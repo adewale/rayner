@@ -5,6 +5,7 @@
 - **Changed condition:** the agent's first edit. With the branch labels left out, verify keeps ok true and warns once per unlabelled exit of the decision; with yes sent to Database, or to Reply, it reports ok true with no warnings either way, although only one sends a cache hit to Reply. Cutting the end off the last edge fails verify in every scenario.
 - **Reader's own work:** predict whether verify accepts the agent's diagram before the report; choose which first edit the agent made; answer the check questions, which ask what verify reports for diagrams the scene does not show (an undeclared node, a second edge between the same nodes, a rectangle instead of a decision, a decision with one exit).
 - **Checked against:** the pinned verifier, agentic-mermaid 0.5.1: every report shown is its verify result, captured with the diagram's snapshot; `scene.test.ts` runs verifyMermaid on each scenario's broken source, which cannot be captured, and requires the report the scene writes for it, and on each check question's diagram and requires the answer given here.
+- **Grounding:** live: agentic-mermaid 0.5.1’s verifier
 - **Leaves out:** what Mermaid implementations in general accept; any check of what a diagram's labels mean, including the cache-specific check the ending describes; diagrams beyond three-node flowcharts and the verifier's other warnings.
 
 ## Check yourself

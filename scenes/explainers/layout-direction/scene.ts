@@ -85,7 +85,7 @@ export default class LayoutDirectionExplainer extends Scene<LayoutState, { lit?:
         ? 'The End card’s own ltr puts its Field name on the left.'
         : 'The End card’s ltr matches the stage, so here it changes nothing.',
       caption: rtl
-        ? `The rtl stage maps start to the right half and end to the left. The Start card also takes rtl columns from the stage, so its Field name sits to the right of the value, while the End card’s ltr puts its name on the left. Both still read 123: the columns swap sides, the digits inside a field do not. ${answer}.`
+        ? `The rtl stage maps start to the right half and end to the left. The Start card also takes rtl columns from the stage, so its Field name sits right of the value, while the End card’s ltr puts its name on the left. Both still read 123: columns swap sides, the digits inside a field do not. ${answer}.`
         : `The ltr stage maps start to the left half and end to the right. The Start card takes ltr columns from the stage, so both cards put Field before 123, and the End card’s own ltr makes no visible difference. ${answer}; on an rtl stage the Start card’s columns flip while the End card’s stay.`,
     });
     await s.clear();
@@ -121,7 +121,7 @@ export default class LayoutDirectionExplainer extends Scene<LayoutState, { lit?:
       title: rtl ? 'A card placed at left stays on the left' : 'At left and at start name the same half here',
       line: rtl ? 'Same rtl stage; these cards name sides, not logical places.' : 'Here they coincide; on an rtl stage start moves to the right.',
       caption: rtl
-        ? 'Placed at left and at right, the cards keep those halves on this rtl stage, where start was the right. Use start and end for panels that should follow the reading direction, and left or right for something that must keep its side, such as a flowchart whose arrows run left to right. Both cards still take rtl columns from the stage. These cards hold Latin labels and digits; the page does not show how Arabic or Hebrew text is shaped.'
+        ? 'Placed at left and at right, the cards keep those halves on this rtl stage, where start was the right. Use start and end for panels that should follow the reading direction, and left or right for something that must keep its side, such as a flowchart whose arrows run left to right. These cards hold Latin labels and digits; the page does not show how Arabic or Hebrew text is shaped.'
         : 'On this ltr stage the card at left sits where the Start card did, so the two names cannot be told apart. On an rtl stage start moves to the right half and left stays put. These cards hold Latin labels and digits; the page does not show how Arabic or Hebrew text is shaped.',
     });
     await s.clear();

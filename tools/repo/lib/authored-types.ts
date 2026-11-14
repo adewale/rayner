@@ -14,12 +14,12 @@ const run = promisify(execFile);
 
 /**
  * A scene's own source, as tsconfig.app.json checks it: not a folder's tests, fidelity checks or
- * oracles, not the shared property-test settings, and not the catalog, which lists the collection
+ * oracles, not the shared property-test settings or oracle-skip helper (both read the environment), and not the catalog, which lists the collection
  * for the site and the player rather than being an explainer (test/scene-imports.test.ts).
  */
 export const authorSource = (file: string): boolean =>
   file.endsWith('.ts') && !file.endsWith('.test.ts') && !/(^|\/)fidelity\.ts$/.test(file) && !/(^|\/)oracle\//.test(file) &&
-  file !== 'explainers/lib/pbt.ts' && file !== 'explainers/catalog.ts';
+  file !== 'explainers/lib/pbt.ts' && file !== 'explainers/lib/oracle.ts' && file !== 'explainers/catalog.ts';
 
 /**
  * What a folder's tests may import beside the scene's source: the tests themselves, the oracles and

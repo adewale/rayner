@@ -5,6 +5,7 @@
 - **Changed condition:** the root reserve and the disk size. Formatting with `-m 1` or `-m 0` hands reserved blocks to ordinary users and leaves every inode table and the journal where they were, which shows the space was free all along. The size changes the balance: the reserve grows with the disk while the journal stops at 1 GiB and the largest disks get fewer inodes per byte, so at 20 TiB the reserve is twelve times the metadata and at 1 GiB it only just covers it.
 - **Reader's own work:** predict where the missing space went, then what fills the metadata; choose a smaller reserve and another disk size; answer the check questions on a 2 GiB disk, the 4 TiB size-type switch and `tune2fs -m 0`.
 - **Checked against:** mkfs.ext4 1.47.3 runs recorded for 22 sizes and reserves from 512 MiB to 64 TiB (dumpe2fs counts, debugfs block counts of the files mke2fs makes, and statfs on the filesystem mounted under Linux 6.8.0), frozen in `model.test.ts`; the model must reproduce every count, and `answers.ts` computes the answer and check answers from it. Its constants and rules are transcribed from e2fsprogs v1.47.3 and Linux v6.8 source, with the lines cited in `model.ts`.
+- **Grounding:** recorded: mkfs.ext4 1.47.3 on Linux 6.8.0, 22 filesystems
 - **Leaves out:** every mkfs option but `-m`, block sizes other than 4 KiB, quotas, snapshots and the space a working filesystem later uses; there is no fixed overhead percentage that holds for every ext4 filesystem.
 
 ## Check yourself

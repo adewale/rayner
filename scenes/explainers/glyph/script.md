@@ -5,6 +5,7 @@
 - **Changed condition:** which font is the embedded one (Inter or JetBrains Mono). The phrase and its two widths stay the same, 6.02 against 8.10; the setting swaps which row is measured first and which font the shape matcher tries to pair with its own copy and with the other.
 - **Reader's own work:** say which letters make up the 2.08-unit difference; predict whether shape matching will pair any Inter glyph with a JetBrains Mono one; choose the embedded font; then the three check questions (a space's advance, "illicit" against "mammoth", and whether moving or resizing could make the outlines pair).
 - **Checked against:** Nothing external: the widths and outlines are Rayner's own shaper's, read from the bundled Inter and JetBrains Mono font files; `model.test.ts` and `scene.test.ts` measure the stated advances (0.218, 0.540, the H, the 1.29, 0.81 and −0.13 groups) and the check answers' widths with those shapers rather than reading them from the scene, and `fidelity.ts` holds the measure step's state and caption to them.
+- **Grounding:** none
 - **Leaves out:** any claim about fonts or phrases beyond this phrase in these two font files (some glyphs of other fonts may well pair); and how a diagram label measured before layout is drawn, which belongs to the font-metrics explainer.
 
 ## Check yourself

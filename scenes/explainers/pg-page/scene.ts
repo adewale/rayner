@@ -163,6 +163,8 @@ export default class PgPageExplainer extends Scene<PgState, PgShown> {
     await this.step('page', {
       title: `Do ${narrow.label} rows fit more on a page than ${wide.label} rows?`,
       line: `Predict: ${narrow.label} saves 4 bytes a row. How many more rows fit in this page?`,
+      // The model's full pages: how many more narrow rows than wide ones, answered where the tuples are swapped.
+      predict: { options: ['None', '1 to 10', '11 to 30', 'More than 30'], answer: [0, 10, 30, Infinity].findIndex((top) => narrow.page.rows - wide.page.rows <= top), reveal: 'swap' },
       // bufpage.h:121-122 "pd_lower - offset to start of free space", "pd_upper - offset to end of free space";
       // bufpage.c:55-57 PageInit sets pd_lower = SizeOfPageHeaderData and pd_upper = pageSize - specialSize (0 for a table).
       caption: `Postgres stores a table in pages of ${BLCKSZ} bytes, and every page starts with a ${PAGE_HEADER}-byte header, so an empty page has ${BLCKSZ - PAGE_HEADER} bytes free. A common way to save space is to declare an integer column int4 rather than int8 (bigint): 4 bytes a value instead of 8${isText ? `, here followed by an ${TEXT_CHARS}-character text column` : ''}. Predict how many more ${narrow.label} rows than ${wide.label} rows fit on one page.`,
@@ -198,6 +200,7 @@ export default class PgPageExplainer extends Scene<PgState, PgShown> {
     await this.step('row', {
       title: `One ${c.label} row takes ${t.perRow} bytes of the page`,
       line: `Predict: ${w.label} ${w.tuple.data > t.data ? 'adds' : 'saves'} ${Math.abs(w.tuple.data - t.data)} bytes of data. How big is its tuple?`,
+      predict: { options: [t.stored - 8, t.stored, t.stored + 8].map((n) => `${n} bytes`), answer: `${w.tuple.stored} bytes` },
       // heap_form_tuple (heaptuple.c:1151-1160); PageAddItemExtended (bufpage.c:310-316).
       caption: `A row has two allocations: a ${LINE_POINTER}-byte line pointer, which locates it on the page, and the row itself, called a tuple, at the other end: a ${TUPLE_HEADER}-byte header padded to ${t.hoff}, then ${valueWords}, ${t.lpLen} bytes. On a 64-bit build the page gives each tuple a multiple of 8 bytes, ${
         t.lpLen === t.stored ? `which ${t.lpLen} already is` : `here ${t.stored}`
