@@ -239,9 +239,9 @@ export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
       title: `Answer: 5% is held back for root, ${ratio} all the metadata`,
       line: `Predict: what fills the ${grouped(l.metadata)} blocks of metadata?`,
       // mke2fs.c:2375-2378, 2832-2833; mke2fs.8.in:637-644; Linux super.c:4255-4283, balloc.c:620-665.
-      caption: `${answer}. Without -m, mke2fs reserves 5% of the blocks for root, ${grouped(sp.root)} here, held back for privileged use. Those blocks can still be free: the reserve changes who may fill them, not whether metadata occupies them. The metadata, the filesystem’s own structures, is ${grouped(l.metadata)} blocks, ${of(l.metadata)}, and once mounted the kernel holds back ${grouped(sp.kernel)} more${
+      caption: `${answer}. Without -m, mke2fs reserves 5% of the blocks for root, ${grouped(sp.root)} here, free but kept for privileged use. The metadata is ${grouped(l.metadata)} blocks, ${of(l.metadata)}; once mounted the kernel holds back ${grouped(sp.kernel)} more${
         kernelDrawn ? '' : `, ${of(sp.kernel)}, too thin to draw`
-      }. Free blocks less both reserves is what ordinary users can write. Lowering the root reserve can change that availability without removing a single metadata block.`,
+      }. Users can write the free blocks less both reserves.`,
     });
     await s.clearOverlays();
     this.state.reserve = {
@@ -288,7 +288,7 @@ export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
       title: `Inode tables are ${ofMeta(l.inodeTables)} of the metadata`,
       line: `One ${INODE_SIZE}-byte inode per ${perInode} KiB of disk: ${grouped(l.inodes)} inodes.`,
       // mke2fs.c:1433-1443 size types; mke2fs.conf.in:7, 24-29 inode_ratio; mke2fs.c:2811-2812.
-      caption: `This pie’s whole is the ${grouped(l.metadata)} metadata blocks. An inode records one file, so mke2fs sets aside a fixed number up front, by the disk’s size type: one inode per 16 KiB of disk for the default type, 512 MiB to under 4 TiB; per 32 KiB for big, under 16 TiB; and per 64 KiB for huge, above that. ${name}, of the ${l.type} type, gets ${grouped(
+      caption: `This pie’s whole is the ${grouped(l.metadata)} metadata blocks. An inode records one file, so mke2fs sets aside a fixed number, by the disk’s size type: one inode per 16 KiB for the default type, 512 MiB to under 4 TiB; per 32 KiB for big, under 16 TiB; and per 64 KiB for huge, above that. ${name}, of the ${l.type} type, gets ${grouped(
         l.inodes,
       )} inodes of ${INODE_SIZE} bytes, in tables set aside now: ${grouped(l.inodeTables)} blocks, ${of(l.inodeTables)} of the disk.`,
     });

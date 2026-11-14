@@ -294,7 +294,7 @@ export default class LanternExplainer extends Scene<LanternState, LanternShown> 
         id: 'played',
         title: `Played, the dot is halfway at t = ${t} s`,
         line: `A still at t = ${SEEK_T} s skips computing frames 1–${run.seekAt - 1}. Where is its dot?`,
-        caption: `A direct link opens a later picture without playing the earlier steps, so Rayner makes that picture as a still. Here a box fades in, then a dot moves along a track. ${how} Playback has the dot halfway at t = ${SEEK_T} s. To make the still, Rayner re-runs the scene and counts frames 1–${run.seekAt - 1} without computing them. Predict where the still’s dot will be before you go on.`,
+        caption: `A direct link opens a later picture without playing earlier steps, so Rayner makes it as a still. A box fades in, then a dot moves along a track. ${how} Playback has the dot halfway at t = ${SEEK_T} s. To make the still, Rayner re-runs the scene and counts frames 1–${run.seekAt - 1} without computing them. Predict where its dot will be.`,
         // The played frame, and where the still will be taken; what the still shows is not yet known.
         state: { at, played },
         describe: (st) =>
@@ -309,7 +309,7 @@ export default class LanternExplainer extends Scene<LanternState, LanternShown> 
         line: match
           ? 'Blending works the dot out from the time alone.'
           : `Played, the dot made ${run.playedMoves} nudges by t = ${SEEK_T} s; seeked, it made ${run.seekedMoves}.`,
-        caption: match ? `The pictures match because animate.moveTo calculates position from elapsed time and fixed endpoints. It does not need the earlier dot positions. ${answer}.` : `The still makes ${run.seekedMoves} nudge while playback has made ${run.playedMoves}. A nudge adds to the previous position, so skipping calculations loses the accumulated moves. The box still matches because its size is calculated from fixed endpoints. ${answer}.`,
+        caption: match ? `The pictures match because animate.moveTo calculates position from elapsed time and fixed endpoints. It does not need the earlier dot positions. ${answer}.` : `The still makes ${run.seekedMoves} nudge to playback’s ${run.playedMoves}: skipping frames loses the moves a nudge adds up. The box matches: its size comes from fixed endpoints. ${answer}.`,
         state: {
           seek: { motion, match, played: print, seeked: seekPrint, playedMoves: run.playedMoves, seekedMoves: run.seekedMoves },
           at,
@@ -326,7 +326,7 @@ export default class LanternExplainer extends Scene<LanternState, LanternShown> 
         id: 'timeline',
         title: 'Seeked frame by frame, the nudged dot never passes its first step',
         line: 'Line: where playback has the dot. Dots: a still taken at each frame.',
-        caption: `Each panel plots the dot’s place on its track against the frame number, for all ${total} frames of the tiny scene. The line is playback; each dot is a separate still, seeked to that frame. Through the fade, frames 1–${moveStarts - 1}, the dot has not moved and the two agree. From frame ${moveStarts} the dot moves: played, the blend eases in and out and the nudge climbs evenly, and both are halfway at frame ${run.seekAt}, where the story took its still. A blended dot is placed by the frame’s time, so in this scene each still lands on playback’s line. A nudged still computes one frame of the move and makes one nudge, so its dots stay at the first step while playback climbs a nudge a frame. This scenario’s panel, on the ${motion === 'blend' ? 'left' : 'right'}, has the bold title.`,
+        caption: `Each panel plots the dot’s place over all ${total} frames; this scenario’s, on the ${motion === 'blend' ? 'left' : 'right'}, has the bold title. The line is playback; each dot is a still seeked to that frame. They agree through the fade, frames 1–${moveStarts - 1}. From frame ${moveStarts} the dot moves, halfway by frame ${run.seekAt}. A blended still is placed by the frame’s time, so it lands on the line; a nudged still makes one nudge, so its dots stay at the first step.`,
         state: {
           timeline: {
             frames: total,
@@ -460,7 +460,7 @@ export default class LanternExplainer extends Scene<LanternState, LanternShown> 
         id: 'check',
         title: `Seeked frame by frame: ${count('blend')} of ${total} match with blending, ${count('nudge')} with the nudge`,
         line: 'rayner check fails a page on the first seeked frame that differs from playback.',
-        caption: `The strips compare each of those ${total} stills with its played frame, the whole SVG, box and dot together. Blending agrees throughout; the nudge first differs at frame ${firstMiss}. rayner check samples less: in every step of every scenario it seeks three frames: one midway, then its second-last and its last. A mismatch fails the check, but agreement at those three times proves nothing about the times between them. An updater follows a different path: in a scene with updaters, a still computes every frame before t.`,
+        caption: `The strips compare each of those ${total} stills with its played frame, the whole SVG. Blending agrees throughout; the nudge first differs at frame ${firstMiss}. rayner check samples less: in every step of every scenario it seeks three frames: one midway, then its second-last and its last. A mismatch fails the check, but agreement at those three times proves nothing about the times between them. Updaters differ: in a scene with updaters, a still computes every frame before t.`,
         state: {
           check: { frames: total, matched: { blend: count('blend'), nudge: count('nudge') } },
           // Whether each frame's still is the played frame, for both kinds of motion: the cells.

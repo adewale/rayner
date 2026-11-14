@@ -171,7 +171,7 @@ export default class Statecharts extends Scene<Model, Shown> {
     await this.step('copies', {
       title: 'A POWER_OFF copied onto every state, and one copy missed',
       line: 'Predict: the marked arrows all do the same thing. How could one arrow do the job?',
-      caption: `In this hand-copied machine brewing’s POWER_OFF is missing, so the power button does nothing while the machine brews, until the brew finishes. The copies are needed because in a plain state machine an arrow leaves exactly one state: idle, grinding, brewing and ready each need their own POWER_OFF, and off needs a POWER_ON, ${coffeeFlat.transitions - coffeePlain} more arrows and ${coffeeFlat.transitions} in all. A state added later would need a copy of its own. One event leading from several states to the same place is the first of two signs to look for in a flat machine.`,
+      caption: `In this hand-copied machine brewing’s POWER_OFF is missing, so the power button does nothing until the brew finishes. In a plain state machine an arrow leaves one state: idle, grinding, brewing and ready each need their own POWER_OFF and off a POWER_ON, ${coffeeFlat.transitions - coffeePlain} more arrows and ${coffeeFlat.transitions} in all. A state added later would need its own copy. One event leading from several states to the same place is the first of two signs in a flat machine.`,
     });
     await morph('copies');
 
@@ -179,7 +179,7 @@ export default class Statecharts extends Scene<Model, Shown> {
     await this.step('parent', {
       title: 'A box around the four states takes the one POWER_OFF',
       line: 'In XState and SCXML, the current state is asked first, then the box around it.',
-      caption: `Put the four in a box called on, and give the box the one POWER_OFF: the ${coffeeFlat.transitions} transitions a complete flat machine needs become ${coffeeChart.transitions}. The shared rule is written once on the parent rather than copied onto each child. When POWER_OFF arrives while brewing, brewing is asked first; it has no POWER_OFF arrow, so the box around it, its parent, takes the event. The box is half of the answer: a statechart is a state machine whose states can contain other states, active one at a time or several at once. Inside on, one state is active at a time; the next machine needs several at once.`,
+      caption: `Put the four in a box called on and give the box the one POWER_OFF: the ${coffeeFlat.transitions} transitions a complete flat machine needs become ${coffeeChart.transitions}. Brewing has no POWER_OFF arrow, so the event goes to the box around it, its parent. The box is half of the answer: a statechart is a state machine whose states can contain other states, active one at a time or several at once. Inside on, one state is active at a time.`,
     });
     // The machine starts off; switching it on and starting a brew takes it to brewing, where POWER_OFF arrives.
     await replay(brew, 'parent', RUNS.coffee.slice(0, 3));
@@ -188,7 +188,7 @@ export default class Statecharts extends Scene<Model, Shown> {
     await this.step('multiply', {
       title: 'A media player: two on/off features make four flat states',
       line: `Predict: add a third on/off feature, ${SUBTITLES.region}. How many combinations must the flat states name?`,
-      caption: `A media player is playing or paused, and muted or unmuted, and playback and volume never affect each other. A plain state machine is in one state at a time, so each state must name both: four combinations, which with off make ${playerFlat.states} states and ${playerFlat.transitions} transitions. Changing playback needs the same transition in both volume settings, and changing volume repeats it for both playback settings. Every name is two words, one per feature, and every arrow between them changes one word and keeps the other. States named by two independent words are the second sign.`,
+      caption: `A media player is playing or paused, and muted or unmuted, and playback and volume never affect each other. A plain state machine is in one state at a time, so each state must name both: four combinations, which with off make ${playerFlat.states} states and ${playerFlat.transitions} transitions. Every name is two words, one per feature, and every arrow between them changes one word and keeps the other. States named by two independent words are the second sign.`,
     });
     await fresh('multiply');
     this.state = { current: null } satisfies Model; // the coffee machine's configuration ends with its pictures
@@ -197,7 +197,7 @@ export default class Statecharts extends Scene<Model, Shown> {
     await this.step('regions', {
       title: 'Split the box on into two small machines, called regions',
       line: 'Predict: can a statechart do anything a state machine can’t?',
-      caption: `Draw a line through on and give each side one feature: the grid’s words slide apart, and playing · muted becomes playing on one side and muted on the other. Each side is a region, a small machine in one state at a time, and both run at once. A flat state had to name both features at once; a state in a region names only its own, so a further feature adds a region of two states where the flat machine doubles: ${SUBTITLES.region} would make ${threeFlat} combinations, against ${threeChart} states in three regions.`,
+      caption: `Draw a line through on and give each side one feature: playing · muted becomes playing on one side, muted on the other. Each side is a region, a small machine in one state at a time, and both run at once. A region’s state names only its own feature, so a further feature adds a region of two states where the flat machine doubles: ${SUBTITLES.region} would make ${threeFlat} combinations, against ${threeChart} states in three regions.`,
     });
     await fresh('grid');
     await morph('regions');
@@ -226,7 +226,7 @@ export default class Statecharts extends Scene<Model, Shown> {
     await this.step('frother', {
       title: 'The frother is a second region, beside the brewing cycle',
       line: `A flat machine would need ${frotherFlat.states} states and ${frotherFlat.transitions} transitions; the statechart draws ${frotherChart.transitions} arrows.`,
-      caption: `In a flat machine every state while on would pair one of the four brewing states with still or frothing, like grinding · frothing, all ${frotherFlat.states - 1} pairs reachable, and every arrow between them would change one word and keep the other: the second sign. So the frother goes in a second region inside on, and on’s one POWER_OFF covers both regions. The highlighted boxes are where the machine is after POWER_ON, START and FROTH: grinding in one region and frothing in the other, both at once.`,
+      caption: `In a flat machine every state while on would pair one of the four brewing states with still or frothing, like grinding · frothing, all ${frotherFlat.states - 1} pairs reachable, and every arrow between them would change one word and keep the other: the second sign. So the frother goes in a second region inside on, and on’s one POWER_OFF covers both regions. The highlighted boxes are where the machine is after POWER_ON, START and FROTH: grinding and frothing, both at once.`,
     });
     // The machine starts off; the transfer answer's events take it to grinding and frothing.
     await replay(frother, 'frother', RUNS.frother.slice(0, 3));

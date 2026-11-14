@@ -22,6 +22,22 @@ export function answerOf(scene: object): string {
 /** The most reader questions a scene may ask: more is a test, not a recap. */
 export const QUESTIONS_MAX = 6;
 
+/**
+ * The most words a step's caption may have. A phone shows the caption under the picture, so a step
+ * says its point in the first sentence and stops by here; a longer caption is two steps, or detail
+ * that belongs in the script. A hard limit, not a target: `rayner check` fails a caption over it.
+ */
+export const CAPTION_WORDS_MAX = 80;
+/**
+ * A caption's words as a reader counts them: each run of text between spaces that holds a letter or
+ * a digit. "don't", "x-ray", "10.0.0.1", "O(n)" and "3×" are one word each; a dash, arrow or other
+ * mark standing alone between spaces is none. A no-break space joins what it separates, as it does
+ * on the page, so French "65 673,88 €" or "30 %" written with one is one word.
+ */
+export function captionWords(text: string): number {
+  return text.split(/[^\S\u00a0\u2007\u202f]+/u).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+}
+
 /** Refuse an `answer` or `questions` that cannot work: wrong types, empty text, or too many questions. */
 export function checkScriptMeta(meta: ScriptMeta | undefined): void {
   if (meta?.answer !== undefined && (typeof meta.answer !== 'string' || !meta.answer.trim()))
@@ -110,7 +126,8 @@ export interface ScriptReport {
   problems: string[];
 }
 /**
- * The script gate for one scenario: some teaching step must state a declared answer. Where it first
+ * The script gate for one scenario: some teaching step must state a declared answer, and no step's
+ * caption, detail steps included, may run over CAPTION_WORDS_MAX words (captionWords). Where the answer first
  * does is reported (`answer.at`), not gated: whether it arrives before the explanation elaborates
  * is a reader's judgement, and a fixed step number would only stand in for it. An undeclared
  * answer or question list is reported as missing, not failed, so older scenes still check; new
@@ -125,6 +142,11 @@ export function scriptReport(meta: ScriptMeta | undefined, steps: readonly Step[
     found = answerStep(meta.answer, steps);
     if (!found) problems.push(`No step states meta.answer ("${meta.answer}"); put it in a title, line or caption, before the explanation elaborates`);
   } else missing.push('answer');
+  for (const s of steps) {
+    const words = captionWords(stepWords(s).caption);
+    if (words > CAPTION_WORDS_MAX)
+      problems.push(`Step "${s.step}" has a caption of ${words} words, over ${CAPTION_WORDS_MAX}; keep its point in the first sentence and cut the rest, or give it a step of its own`);
+  }
   const questions = Array.isArray(meta?.questions) ? meta.questions.length : 0;
   if (!questions) missing.push('questions');
   return { ...(found === undefined ? {} : { answer: found }), questions, missing, problems };

@@ -347,7 +347,8 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
       return true;
     });
     await this.play(new FadeIn(chain, { runTime: 0.4 }));
-    // The script's code, its focus bar on the line the lesson runs next: shown, set between replays.
+    // The script's code, its focus bar on the line the lesson runs next: shown, set between replays. The cat
+    // command is named once, so each line fits one of the live step's phone close-ups whole and reads there.
     this.shown = { story: 0 };
     const story = view(
       this,
@@ -356,9 +357,10 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
           s,
           [
             `s1 = exec(s0, pipeline, "${FILE}").shell`,
-            `exec(s1, [["cat", "${FILE}"]]).stdout   // ${q(viaNew)}`,
-            `exec(s0, [["cat", "${FILE}"]]).stdout   // ${q(viaOld)}`,
-            `s0.fs                               // ${JSON.stringify(old.fs)}`,
+            `catFile = [["cat", "${FILE}"]]`,
+            `exec(s1, catFile).stdout   // ${q(viaNew)}`,
+            `exec(s0, catFile).stdout   // ${q(viaOld)}`,
+            `s0.fs                      // ${JSON.stringify(old.fs)}`,
           ],
           { at: BOTTOM, size: 0.3, lit: sh.story == null ? null : { lines: sh.story }, key: 'story' },
         ),
@@ -378,12 +380,12 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
       ),
     });
     await s.enter(story, { runTime: 0.4 });
-    // The lesson's three lines, in order: the write on s0, whose returned shell is kept, then cat on each shell.
-    for (const [line, event] of [[0, 'RUN_PIPELINE'], [1, 'CAT_NEWEST'], [2, 'CAT_S0']] as const) {
+    // The lesson's three calls, in order: the write on s0, whose returned shell is kept, then cat on each shell.
+    for (const [line, event] of [[0, 'RUN_PIPELINE'], [2, 'CAT_NEWEST'], [3, 'CAT_S0']] as const) {
       await focus(story, 'story', line);
       await this.play(machine.replay([event]));
     }
-    await focus(story, 'story', 1);
+    await focus(story, 'story', 2);
   }
 }
 

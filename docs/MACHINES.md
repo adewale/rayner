@@ -213,6 +213,9 @@ picture, and fails if it
 
 - has colliding text or a connector over a label (the same rules as resting pictures),
 - shows a label under 14 px at a 1280 px stage,
+- at a live step, shows a label under 12 px on a 390 px phone both on the whole picture, which the
+  player shows after each press, and in every close-up of the step that holds it whole (a label set
+  at 0.54 or more with the camera at home always reads; see [Phone at live steps](REFERENCE.md#checks)),
 - has no description,
 - does not show its state (the fidelity check `assertViewFollowsState` makes), or
 - is described exactly as another reachable state is, so neither a reader nor a screen

@@ -270,7 +270,7 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
     await this.step('paths', {
       title: trustKey === 'list' ? 'With trust proxy set to an address list, what is req.ip?' : `With trust proxy ${trustKey}, what is req.ip?`,
       line: `Predict: ${ASKED[reqKey]}. Whose address does Express report?`,
-      caption: `Requests are meant to reach Express through a CDN and then a load balancer, so every connection Express sees comes from the load balancer, ${ADDR.balancer}. Express’s req.ip should still name the machine that sent the request. ${meaning} But the load balancer also accepts connections from the internet, so an attacker can skip the CDN. Here ${ASKED[reqKey]}: will req.ip be the ${req.sender.name}’s real address, ${req.sender.addr}? All the addresses are examples.`,
+      caption: `Requests should reach Express through a CDN, then a load balancer, so every connection Express sees comes from the load balancer, ${ADDR.balancer}. req.ip should still name the sender. ${meaning} But the load balancer also takes internet connections, so an attacker can skip the CDN. Here ${ASKED[reqKey]}: will req.ip be the ${req.sender.name}’s real address, ${req.sender.addr}?`,
     });
     await s.clear();
     const d = await s.show({ source: NETWORK }, { box: DIAGRAM });
@@ -338,7 +338,7 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
       line: `Beyond its own connection, Express sees only X-Forwarded-For: ${got.xff}.`,
       // The proxies' behaviour is this explainer's assumption; Express's guide does not describe it.
       caption:
-        `Express’s own connection comes from the load balancer, ${ADDR.balancer}. All it learns about the machines before that comes from the X-Forwarded-For header: each proxy here appends the address its connection came from. A sender can write entries of its own first, so the header is a reported chain, not proof that each address belongs to a proxy. ` +
+        `Each proxy here appends to X-Forwarded-For the address its connection came from. A sender can write its own entries first, so the header is a reported chain, not proof. ` +
         (reqKey === 'client'
           ? `The client sends ${sent}. The CDN edge appends the client’s address, ${ADDR.client}, and the load balancer appends the edge’s, ${ADDR.edge}. `
           : reqKey === 'forged'
@@ -385,13 +385,13 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
       ? `The list ends at ${mine.ip}, so that is req.ip.`
       : trustKey === 'list'
         ? `${mine.ip} is in neither range, so Express stops there: req.ip is ${mine.ip}.`
-        : `Express does not trust the next address, ${mine.ip}, so it stops there: req.ip is ${mine.ip}.`;
+        : `It does not trust the next, ${mine.ip}, so req.ip is ${mine.ip}.`;
     const verdict =
       mine.outcome === 'sender'
         ? `That is the ${req.sender.name}’s real address.`
         : mine.outcome === 'proxy'
-          ? `That is the CDN edge, an honest proxy, so the ${req.sender.name}’s address is lost.`
-          : `The attacker wrote that address, and Express trusted its real one, ${ADDR.attacker}, as if it were a proxy.`;
+          ? `That is the CDN edge, so the ${req.sender.name}’s address is lost.`
+          : `The attacker wrote that address; Express trusted its real one, ${ADDR.attacker}, as a proxy.`;
     await this.step('read', {
       title:
         trustKey === 'true'
@@ -402,7 +402,7 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
       line: last
         ? `Express trusts ${count(trusted.length, 'address')} and reaches the end of the list.`
         : `Express trusts ${count(trusted.length, 'address')}, then stops at the next.`,
-      caption: `Express reads the addresses from its own connection outward: the socket address, then X-Forwarded-For from right to left. It skips each address it trusts, and ${scriptAnswer}. ${why} ${stop} ${verdict}${forgedUnread ? ` Express never reads ${ADDR.forged}.` : ''}`,
+      caption: `Express reads outward from its own connection: the socket address, then X-Forwarded-For right to left. It skips each address it trusts, and ${scriptAnswer}. ${why} ${stop} ${verdict}${forgedUnread ? ` Express never reads ${ADDR.forged}.` : ''}`,
     });
     await hideNet();
     await s.clearOverlays();
@@ -457,14 +457,13 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
       Object.fromEntries(ROUTES.map((q) => [q, positions(REQUESTS[q], TRUSTS[t])])) as Record<Route, Position[]>;
     const byCount = routesOf(counted),
       byList = routesOf('list');
-    const trustedOf = (ps: readonly Position[]) => ps.filter((p) => p.verdict === 'trusted').map((p) => WHO_NAME[p.who]);
     const countSays =
       counted === 'true'
         ? `trust proxy true trusts every position but the last, and Express takes the last without a test, so on both routes req.ip is ${WHO_ANSWER[answerOf(byCount.forged).who]}.`
-        : `trust proxy ${counted} trusts the first ${counted === '1' ? 'position' : `${numberWord(Number(counted), { zero: 'none' })} positions`}, inside the dashed band, whatever stands there. Through the CDN that is ${listed(trustedOf(byCount.forged))}, so req.ip is ${WHO_ANSWER[answerOf(byCount.forged).who]}; skipping the CDN it is ${listed(trustedOf(byCount.direct))}, so req.ip is ${WHO_ANSWER[answerOf(byCount.direct).who]}.`;
+        : `trust proxy ${counted} trusts the first ${counted === '1' ? 'position' : `${numberWord(Number(counted), { zero: 'none' })} positions`}, whatever stands there: through the CDN req.ip is ${WHO_ANSWER[answerOf(byCount.forged).who]}; skipping the CDN, ${WHO_ANSWER[answerOf(byCount.direct).who]}.`;
     if (answerOf(byList.forged).who !== 'attacker' || answerOf(byList.direct).who !== 'attacker')
       throw new Error('The address list must stop at the attacker on both routes');
-    const listSays = `The address list trusts an address inside ${TRUSTED_RANGES.join(' or ')}: ${listed(trustedOf(byList.forged))} through the CDN, ${listed(trustedOf(byList.direct))} on the short route. The attacker’s address is in neither range, so on both routes req.ip is ${WHO_ANSWER.attacker}.`;
+    const listSays = `The address list trusts ${TRUSTED_RANGES.join(' and ')}, not the attacker’s address, so on both routes req.ip is ${WHO_ANSWER.attacker}.`;
     await this.step('routes', {
       title:
         trustKey === 'list'
@@ -475,7 +474,7 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
             ? 'Position 1 is the load balancer on both routes; what comes next differs'
             : 'Position 2 is the CDN edge on one route and the attacker on the other',
       line: `Left: trust proxy ${counted} ${counted === 'true' ? 'trusts every position' : 'counts positions from Express'}. Right: the address list checks each address.`,
-      caption: `The same attacker sends X-Forwarded-For: ${ADDR.forged} twice, once through the CDN and once straight to the load balancer. Each column lists the addresses Express reads for one route, nearest first, and the numbers count positions from Express. A green box is trusted, a thick outline is req.ip, and a dashed box is not read. ${countSays} ${listSays}`,
+      caption: `The same attacker sends X-Forwarded-For: ${ADDR.forged} through the CDN and straight to the load balancer. Each column lists one route’s addresses, nearest first, numbered from Express. ${countSays} ${listSays}`,
     });
     await s.clearOverlays();
     /** The colours the routes panels and the table are drawn in. */

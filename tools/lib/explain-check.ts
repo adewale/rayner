@@ -20,7 +20,7 @@ import { renderFrame, toSvgString } from '../../src/output.ts';
 import { InvariantSink, jsonObject } from '../../explain/testing.ts';
 import { LIB_ROOT, engineAlias, importAuthored, sceneSlug } from './explain-project.ts';
 import { checkedAgainstFiles, compareAnswers, runModelTest } from './explain-evidence.ts';
-import { closeUps, stageScale, stepLayouts, toView, viewBox } from '../../app/embed-closeup.ts';
+import { READ_PX, closeUps, stageScale, stepLayouts, toView, viewBox } from '../../app/embed-closeup.ts';
 import type { Box, EndedStep, Mobject, Scene, SceneClass, Sink, Step } from '../../src/index.ts';
 import type { Project } from './explain-project.ts';
 import { letteringReport, useProjectLettering } from './explain-lettering.ts';
@@ -172,6 +172,18 @@ export function restingTextProblems(scene: Viewed): string[] {
 const PHONE_PAGE = PHONE_VIEWPORT.width,
   PHONE_W = PHONE_PAGE - 32,
   PHONE_H = PHONE_W * FRAME.h / FRAME.w;
+/** Phone CSS px per view unit with the whole picture on the phone's stage. */
+const PHONE_UNIT = stageScale(PHONE_W, PHONE_H).s;
+/** Phone CSS px per CSS px of a 1280 px stage, with the whole picture on the phone's stage (358 / 1280). */
+const PHONE_WHOLE = PHONE_UNIT / STAGE_PX_PER_UNIT;
+/** The smallest font size, in stage units with the camera at home, that reads READ_PX on the whole picture on a phone (0.54). */
+export const PHONE_WHOLE_MIN_SIZE = READ_PX / PHONE_UNIT;
+/** A step's close-ups on the phone, as the player works them out: the opening's zoom, and each view's zoom and box in view units. */
+type PhoneCloseUps = { k: number; views: { k: number; box: Box }[] };
+function phoneCloseUps(layout: Parameters<typeof closeUps>[0]): PhoneCloseUps {
+  const tour = closeUps(layout, PHONE_W, PHONE_H);
+  return { k: tour[0]!.k, views: tour.map((z) => ({ k: z.k, box: viewBox(z, PHONE_W, PHONE_H) })) };
+}
 /** One label across a scenario: its largest size at 1280 px, and in the phone's close-ups at rest. */
 interface LabelSizes {
   text: string;
@@ -193,7 +205,7 @@ function legibilityReport(records: LabelSizes[]) {
     min = sizes.length ? Math.min(...sizes.map((r) => r.px)) : null;
   const atRest = sizes.filter((r) => r.phone > 0),
     phoneMin = atRest.length ? Math.min(...atRest.map((r) => r.phone)) : null;
-  const whole = stageScale(PHONE_W, PHONE_H).s / STAGE_PX_PER_UNIT;
+  const whole = PHONE_WHOLE;
   return {
     phoneEstimate: { stageWidth: PHONE_W, stageHeight: PHONE_H, geometry: 'minimum-stage' },
     minLabelPx1280: min == null ? null : round1(min),
@@ -456,8 +468,11 @@ export class LegibilitySink implements Sink {
   async frame(scene: Scene): Promise<void> { this.measure(scene, false); }
   /** A step's resting picture, as the step ends: measured in full, and on the phone in its close-ups. */
   async stepEnd(scene: Scene, step: Step): Promise<void> { this.measure(scene, true, step.path); }
-  /** A resting picture that belongs to no step (a state a machine reaches): measured in full, not on the phone. */
-  resting(scene: Scene): void { this.measure(scene, true); }
+  /**
+   * A resting picture that belongs to no step (a state a machine reaches): measured in full, and on
+   * the phone in the close-ups of `step` when given (the live step the state is shown at).
+   */
+  resting(scene: Scene, step?: string): void { this.measure(scene, true, step); }
 
   private measure(scene: Scene, completed: boolean, step?: string): void {
     // Sizes on screen: world size times the camera's zoom, inside the camera's view
@@ -496,8 +511,13 @@ export class LegibilitySink implements Sink {
  * label it shows at least MIN_PX at a 1280 px stage (measured by the same LegibilitySink a run
  * uses), a description, a picture that follows the state (viewMismatch, for views of the scene's
  * state), and a description no other reachable state shares, so a reader, or a screen reader, can
- * tell them apart. A problem is named by the shortest events reaching it. Phone close-ups are not
- * worked out for explored states.
+ * tell them apart. A problem is named by the shortest events reaching it.
+ *
+ * A machine's step is live (the player gives the reader its events there), and on a phone the player
+ * shows the whole picture after each press, with the step's close-ups one Next view away. So at a live
+ * step every label a reachable state shows must also read READ_PX on a 390 px phone, on the whole
+ * picture or whole inside one of the step's close-ups (livePhoneProblems). `layouts` are the scene's
+ * step layouts (stepLayouts), worked out here when not given.
  *
  * Each machine of `scene` (a run of `Source`, the scene's class) is explored on the stage the reader
  * drives it on: `Source` run again to the end of the step it last played in, by the live player's
@@ -510,12 +530,14 @@ export class LegibilitySink implements Sink {
 export async function exploreMachines(
   scene: Scene,
   Source: SceneClass,
+  layouts?: Awaited<ReturnType<typeof stepLayouts>>,
 ): Promise<{ events: string[]; states: number; sampled: boolean; diagrams: boolean; problems: string[] }[]> {
   const explored = [];
+  if (!layouts && machinesOf(scene).some((m) => m.lastPlayedIn !== null)) layouts = await stepLayouts(Source);
   for (const [index, made] of machinesOf(scene).entries()) {
     const step = made.lastPlayedIn, place = { index, identity: made.identity };
     let found: Awaited<ReturnType<typeof exploreMachines>>[number] | undefined;
-    const explore: LiveExplore = async (host, machine, draw) => { found = await exploreMachine(host, machine, step, draw); };
+    const explore: LiveExplore = async (host, machine, draw) => { found = await exploreMachine(host, machine, step, draw, step === null ? undefined : phoneCloseUps(layouts?.get(step))); };
     // The stage the reader saw the machine on, rather than the stage the run ends with, which may
     // have cleared its views away.
     if (step !== null) await runLive(Source, step, place, [], { explore });
@@ -530,7 +552,7 @@ export async function exploreMachines(
 }
 
 /** One machine explored on `host`, which may still play, as the step it last played in (`step`) ends, or as the run ends when it never played; `draw` routes the host's frames. */
-async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf>[number], step: string | null, draw: (to?: Sink) => void) {
+async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf>[number], step: string | null, draw: (to?: Sink) => void, tour?: PhoneCloseUps) {
   const diagramsBefore = diagramsOn(host);
   const problems: string[] = [];
   const missing = machine.spec.views.filter((v) => !host.familyMembers().includes(v));
@@ -558,11 +580,13 @@ async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf
     }
     problems.push(...[...restingTextProblems(host), ...restingRouteProblems(host)].map((p) => `${at}: ${p}`));
     // Each label this state shows, at the size a 1280 px stage draws it; one not shown (outside
-    // the view, clipped or transparent) is never measured and stays at 0.
-    const sizes = new LegibilitySink(new Map(), 0);
-    sizes.resting(host);
+    // the view, clipped or transparent) is never measured and stays at 0. At a live step, also on
+    // the phone in the step's close-ups.
+    const sizes = new LegibilitySink(step !== null && tour ? new Map([[step, tour]]) : new Map(), PHONE_UNIT);
+    sizes.resting(host, step ?? undefined);
     for (const r of [...sizes.labels.values(), ...sizes.staticLabels.values()])
       if (r.px > 0 && r.px < MIN_PX) problems.push(`${at}: “${r.text}” is ${r.px.toFixed(1)} px at a 1280 px stage, under ${MIN_PX}`);
+    if (step !== null) problems.push(...livePhoneProblems(sizes, step).map((p) => `${at}: ${p}`));
     const picture = host.shownJson().picture as { entries?: { what?: string; items?: string[] }[] } | undefined;
     const words = JSON.stringify(picture?.entries ?? []);
     if (!picture?.entries?.some((e) => e.what?.trim())) problems.push(`${at}: the picture has no description`);
@@ -573,6 +597,29 @@ async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf
   host.shown = shownThen;
   const sampled = fromStart.length >= machine.spec.limit || fromStep.length >= machine.spec.limit;
   return { events: [...machine.spec.events], states: reached.length, sampled, diagrams: diagramsOn(host) > diagramsBefore, problems };
+}
+
+/**
+ * At live step `step`, the labels a phone reader cannot read: each must read READ_PX at a 390 px
+ * phone on the whole picture, which the player shows after every press, or whole inside one of the
+ * step's close-ups, which Next view brings back. A label no close-up holds whole counts at its
+ * whole-picture size, as the served review counts what a press changed: a view must show it whole,
+ * not a pan across it from a close-up planned for another part of the picture. The stage's
+ * heading is left out, as a phone's stage leaves it out (LegibilitySink). `sizes` measured one
+ * resting picture with the step's close-ups.
+ */
+function livePhoneProblems(sizes: LegibilitySink, step: string): string[] {
+  const records = [...[...sizes.labels].filter(([m]) => !isHeading(m)).map(([, r]) => r), ...sizes.staticLabels.values()];
+  const problems: string[] = [];
+  for (const r of records) {
+    if (!(r.px > 0)) continue;
+    const whole = r.px * PHONE_WHOLE,
+      best = Math.max(whole, r.inView ? r.phone : 0);
+    if (round1(best) >= READ_PX) continue;
+    const closest = r.inView && r.phone > whole + 1e-9 ? `, ${round1(r.phone)} px in the best close-up of "${step}" that holds it` : `, and no close-up of "${step}" shows it larger`;
+    problems.push(`“${r.text}” reads ${round1(whole)} px on the whole picture at a ${PHONE_PAGE} px phone${closest}, under ${READ_PX}; the player shows a live step's whole picture after each press, so draw it at a size of at least ${PHONE_WHOLE_MIN_SIZE.toFixed(2)} with the camera at home, or bring it into one of the step's close-ups`);
+  }
+  return problems;
 }
 
 /** A picture in full for telling two drawings apart: each part's kind, key, text, box and style. */
@@ -742,16 +789,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     // Each step's close-ups on the phone, worked out as the player works them out.
     const layouts = await stepLayouts(v.Scene);
     const legibility = new LegibilitySink(
-      new Map(
-        v.trace.steps.map((s) => {
-          const tour = closeUps(layouts.get(s.step), PHONE_W, PHONE_H);
-          return [
-            s.step,
-            { k: tour[0]!.k, views: tour.map((z) => ({ k: z.k, box: viewBox(z, PHONE_W, PHONE_H) })) },
-          ] as const;
-        }),
-      ),
-      stageScale(PHONE_W, PHONE_H).s,
+      new Map(v.trace.steps.map((s) => [s.step, phoneCloseUps(layouts.get(s.step))] as const)),
+      PHONE_UNIT,
     );
     const restingSink = new RestingSink();
     const looks = new LookWordsSink();
@@ -785,7 +824,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       `Invariants never held ${where}: each ran but found nothing to check on every frame (a key it reads may be misspelt)`,
     );
     // Each machine is explored on the stage where it last played: the scene run again to that step's end, as the player runs it.
-    const machines = await exploreMachines(ran, v.Scene);
+    const machines = await exploreMachines(ran, v.Scene, layouts);
     assert.ok(
       showsDiagrams(project) || !machines.some((m) => m.diagrams),
       `Diagrams ${where}: a reader's event draws a diagram no scenario draws, so the page, built without diagram code, cannot draw it; draw the diagram in a scenario too`,
