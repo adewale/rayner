@@ -75,7 +75,9 @@ jobs:
           sudo apt-get install -y fonts-lmodern
           python3 -m venv out/lettering-venv
           out/lettering-venv/bin/pip install -r tools/lettering-requirements.txt
-          bash tools/lettering-outline-fonts.sh
+          # LETTERING_CJK also fetches Noto Sans SC, which the string-length explainer's snapshot draws;
+          # its weight is fixed with the venv's fontTools.
+          LETTERING_CJK=1 RAYNER_LETTERING_PYTHON="$PWD/out/lettering-venv/bin/python" bash tools/lettering-outline-fonts.sh
           echo "RAYNER_LETTERING_PYTHON=$PWD/out/lettering-venv/bin/python" >> "$GITHUB_ENV"
       - name: Check lettering capture and playback
         run: EXPLAIN_LETTERING=1 EXPLAIN_BROWSER=1 node tools/repo/ci-tests.ts --test --test-reporter=spec test/diagram-natural-lettering.test.ts test/lettering-cache.test.ts test/lettering-outlines.test.ts test/lettering-styles.test.ts test/lettering-rtl.test.ts test/lettering-*-audit.test.ts test/snapshot-capture.test.ts

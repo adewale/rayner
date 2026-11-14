@@ -1,6 +1,6 @@
 import { Scene, VMobject, Succession } from '../../../src/index.ts';
 import type { Viewpoint } from '../../../explain/geo.ts';
-import { depthOrder, seenPictures, latLon, toLatLon } from '../../../explain/geo.ts';
+import { depthOrder, seenPictures, latLon, toLatLon, between } from '../../../explain/geo.ts';
 import type { Vec } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, view } from '../../../explain/index.ts';
 import type { Stage, ExplainerMeta } from '../../../explain/index.ts';
@@ -147,9 +147,10 @@ export default class GreatCircle extends Scene<GlobeState & { turn: { from: numb
     s.opening(picture);
     await s.enter(picture, { runTime: 0.24, describe: () => turnWords(this.state.viewpoint, L) });
     const base = { ...this.state };
-    const pitchTo = (from: number, to: number, runTime: number) =>
-      picture.tween((t) => ({ ...base, viewpoint: { ...EDGE_ON, pitch: from + (to - from) * t } }), { runTime });
-    await this.play(new Succession([pitchTo(HELD.pitch, PAST.pitch, 2.6), pitchTo(PAST.pitch, EDGE_ON.pitch, 1.4)]));
+    // The eye moves from one viewpoint to the next: between() gives the viewpoint a fraction of the way.
+    const turnTo = (from: Viewpoint, to: Viewpoint, runTime: number) =>
+      picture.tween((t) => ({ ...base, viewpoint: between(from, to, t) }), { runTime });
+    await this.play(new Succession([turnTo(HELD, PAST, 2.6), turnTo(PAST, EDGE_ON, 1.4)]));
 
     await s.steps(after);
   }
