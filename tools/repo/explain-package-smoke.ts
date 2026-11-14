@@ -108,6 +108,60 @@ try {
   assert.equal(commandManifest.version, version);
   assert.equal(commandManifest.dependencies.rayner, version, 'rayner-cli requires rayner at exactly its own version');
   assert.ok(!existsSync(join(command, 'node_modules/rayner')), 'one rayner: the command uses the author\'s');
+  // PNG and browser tools ship in the default authoring install; the diagram add-on's packages are
+  // optional peers, which npm leaves out until an author installs them.
+  assert.ok(existsSync(join(folder, 'node_modules/@resvg/resvg-js')));
+  assert.ok(existsSync(join(folder, 'node_modules/playwright-core')));
+  for (const name of Object.keys(commandManifest.peerDependencies ?? {}))
+    assert.ok(!existsSync(join(folder, 'node_modules', name)), `the default authoring install brings ${name}`);
+  assert.deepEqual(Object.keys(commandManifest.peerDependencies).sort(), ['agentic-mermaid', 'svgpath']);
+  // Copy the real authoring examples into the outside project, each folder whole (its scene,
+  // model and picture modules). Engine imports use the installed package; other imports keep
+  // their relative paths, so a dependency outside the explainer's folder still fails.
+  const copyAuthorSource = async (source: string, target: string) => {
+    const code = packageImports(await readFile(source, 'utf8'), ROOT);
+    await writeFile(target, code);
+  };
+  /** Copy an explainer's folder into the outside project as `<prefix><name>`, with its script and the tests its claims name. */
+  const copyExample = async (name: string, source: string, prefix = 'outline-') => {
+    const target = join(folder, prefix + name);
+    await mkdir(target);
+    for (const file of (await readdir(source)).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts')))
+      await copyAuthorSource(join(source, file), join(target, file));
+    // The script holds the explainer's intent (its answer among it), which check reads beside the scene.
+    if (existsSync(join(source, 'script.md'))) await copyFile(join(source, 'script.md'), join(target, 'script.md'));
+    // A claim names the test that backs it, found in the scene's folder first. An outside project
+    // keeps its tests beside its scenes, so carry each named test file over (with its fixtures);
+    // check still fails if the named test is not in it.
+    for (const [, file] of (await readFile(join(source, 'scene.ts'), 'utf8')).matchAll(/test:\s*['"`]([^'"`:]+\.test\.ts):/g)) {
+      if (existsSync(join(source, file!))) {
+        await mkdir(dirname(join(target, file!)), { recursive: true });
+        await copyAuthorSource(join(source, file!), join(target, file!));
+        if (existsSync(join(source, 'fixtures')) && !existsSync(join(target, 'fixtures'))) await cp(join(source, 'fixtures'), join(target, 'fixtures'), { recursive: true });
+      } else {
+        await mkdir(dirname(join(folder, file!)), { recursive: true });
+        await copyFile(join(ROOT, file!), join(folder, file!));
+      }
+    }
+    return target;
+  };
+  // The diagram add-on, from the installed command. Without it, a diagram that scene.snapshots/ lacks
+  // is refused with the line that installs it, and pinned natural diagrams (font-metrics) replay.
+  await mkdir(join(folder, 'drawn'));
+  await writeFile(join(folder, 'drawn/scene.ts'), `import{Scene}from'rayner';import{stage}from'rayner/explain';export default class Drawn extends Scene{static meta={id:'drawn',title:'One diagram'};async construct(){const s=stage(this);await this.step('one',{caption:'A diagram from Mermaid source.'});await s.show({source:'graph LR\\nA --> B'});}}`);
+  const addOn = Object.entries(commandManifest.peerDependencies as Record<string, string>).map(([name, range]) => `${name}@${range}`);
+  const refused = await run(process.execPath, [cli, 'check', 'drawn'], { cwd: folder }).then(() => undefined, (error: { stderr: string }) => error);
+  assert.ok(refused, 'a diagram to capture without the diagram add-on is refused');
+  assert.match(refused.stderr, /capturing the diagram "graph LR", which scene\.snapshots\/ does not hold, needs the diagram add-on/);
+  assert.ok(refused.stderr.includes(`Install it with: npm install --save-dev ${addOn.join(' ')}.`), refused.stderr);
+  const bare = await copyExample('font-metrics', join(ROOT, 'scenes/explainers/font-metrics'), 'without-diagram-addon-');
+  for (const pinned of ['scene.lettering.json', 'scene.snapshots'])
+    await cp(join(ROOT, 'scenes/explainers/font-metrics', pinned), join(bare, pinned), { recursive: true });
+  await run(process.execPath, [cli, 'build', bare, '--out', 'public/without-diagram-addon.html'], {
+    cwd: folder, env: { ...process.env, RAYNER_LETTERING_PYTHON: join(folder, 'no-python-here'), RAYNER_LETTERING_FONTS: join(folder, 'no-source-fonts-here') },
+  });
+  // The collection's own tests import Agentic Mermaid, and they type-check below: install the add-on now.
+  await run('npm', ['install', '--no-audit', '--no-fund', '--save-dev', ...addOn], { cwd: folder, maxBuffer: 4 * 1024 * 1024 });
   for (const file of ['app/embed-audio.ts', 'app/embed-audio.css', 'tools/lettering.py', 'tools/lettering-requirements.txt', 'tools/lettering-outline-fonts.sh', 'vendor/glyph-math.js', 'vendor/font-data-sfnt.json', 'vendor/glyph.pin.json', 'vendor/lettering/inter.woff2', 'vendor/licenses/LatinModernMath-GUST.txt', 'vendor/licenses/glyph-MIT.txt', 'LICENSE'])
     assert.ok(existsSync(join(command, file)), `rayner-cli is missing ${file}`);
   // Public-API extension recipes must work from the installed archive too.
@@ -149,8 +203,6 @@ try {
   await writeFile(starter, (await readFile(starter, 'utf8')).replace('static meta = {',
     `static meta = { claims: [{ says: 'LRU evicts the item used longest ago', test: "first/model.test.ts: LRU matches Wikipedia" }],`));
   await run(process.execPath, [cli, 'check', 'first'], { cwd: folder });
-  // Diagram capture and PNG tools ship in the default authoring install.
-  assert.ok(existsSync(join(folder, 'node_modules/@resvg/resvg-js')));
   if (process.env.EXPLAIN_BROWSER) {
     await run(bin, ['snapshots', 'first', '--refresh'], { cwd: folder });
     // The starter draws no diagrams, so it keeps no snapshots.
@@ -286,33 +338,8 @@ try {
     ['font-metrics', join(ROOT, 'scenes/explainers/font-metrics')],
     ['layout-direction', join(ROOT, 'scenes/explainers/layout-direction')],
   ];
-  // Copy the real authoring examples into the outside project, each folder whole (its scene,
-  // model and picture modules). Engine imports use the installed package; other imports keep
-  // their relative paths, so a dependency outside the explainer's folder still fails.
-  const copyAuthorSource = async (source: string, target: string) => {
-    const code = packageImports(await readFile(source, 'utf8'), ROOT);
-    await writeFile(target, code);
-  };
   for (const [name, source] of replayFixtures) {
-    const target = join(folder, 'outline-' + name);
-    await mkdir(target);
-    for (const file of (await readdir(source)).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts')))
-      await copyAuthorSource(join(source, file), join(target, file));
-    // The script holds the explainer's intent (its answer among it), which check reads beside the scene.
-    if (existsSync(join(source, 'script.md'))) await copyFile(join(source, 'script.md'), join(target, 'script.md'));
-    // A claim names the test that backs it, found in the scene's folder first. An outside project
-    // keeps its tests beside its scenes, so carry each named test file over (with its fixtures);
-    // check still fails if the named test is not in it.
-    for (const [, file] of (await readFile(join(source, 'scene.ts'), 'utf8')).matchAll(/test:\s*['"`]([^'"`:]+\.test\.ts):/g)) {
-      if (existsSync(join(source, file!))) {
-        await mkdir(dirname(join(target, file!)), { recursive: true });
-        await copyAuthorSource(join(source, file!), join(target, file!));
-        if (existsSync(join(source, 'fixtures')) && !existsSync(join(target, 'fixtures'))) await cp(join(source, 'fixtures'), join(target, 'fixtures'), { recursive: true });
-      } else {
-        await mkdir(dirname(join(folder, file!)), { recursive: true });
-        await copyFile(join(ROOT, file!), join(folder, file!));
-      }
-    }
+    const target = await copyExample(name, source);
     if (name !== 'layout-direction') await copyFile(join(source, 'scene.lettering.json'), join(target, 'scene.lettering.json'));
     if (name === 'style' || name === 'font-metrics') {
       await cp(join(source, 'scene.snapshots'), join(target, 'scene.snapshots'), { recursive: true });
@@ -326,6 +353,17 @@ try {
     await run(process.execPath, [cli, 'build', target, '--out', `public/outline-${name}.html`], { cwd: folder, env });
     const receipt = JSON.parse(await readFile(join(folder, `public/outline-${name}.html.receipt.json`), 'utf8'));
     assert.equal(!!receipt.letteringHash, name !== 'layout-direction', name);
+  }
+  // With the diagram add-on installed (above), the morph edits a pinned explainer makes replay through
+  // Agentic Mermaid as the build collects it.
+  const morphing = await copyExample('agentic-mermaid', join(ROOT, 'scenes/explainers/agentic-mermaid'), 'diagram-');
+  await cp(join(ROOT, 'scenes/explainers/agentic-mermaid/scene.snapshots'), join(morphing, 'scene.snapshots'), { recursive: true });
+  await run(process.execPath, [cli, 'build', morphing, '--out', 'public/diagram-agentic-mermaid.html'], { cwd: folder });
+  if (process.env.EXPLAIN_BROWSER) {
+    // And with Chromium, the command captures the new diagram.
+    await run(bin, ['snapshots', 'drawn'], { cwd: folder });
+    assert.ok(existsSync(join(folder, 'drawn/scene.snapshots/index.json')), 'the installed command captured the diagram');
+    await run(bin, ['build', 'drawn', '--out', 'public/drawn.html'], { cwd: folder });
   }
   if (process.env.EXPLAIN_LETTERING === '1') {
     const target = join(folder, 'captured-lettering');
@@ -410,7 +448,7 @@ try {
   assert.match(walked, /^After A B C D, request: C D C D · rest: .+\n  changed: .*\bHits\b/m);
 
   console.log(
-    'Package gate passed: rayner alone with no dependencies, its entry points the only modules it exports; both tested archives installed with diagram and PNG authoring, installed TypeScript consumer, every explainer, its tests and every recipe type-checked against the packed declarations, executable JS bin, external native author, settings, checks, see, build, optional score audio, describeExplainer and its REFERENCE example, notices, lettering on request, one compiled engine' +
+    'Package gate passed: rayner alone with no dependencies, its entry points the only modules it exports; both tested archives installed with PNG authoring and without the diagram add-on, which a diagram to capture asks for by its install line and which then replays morph edits, installed TypeScript consumer, every explainer, its tests and every recipe type-checked against the packed declarations, executable JS bin, external native author, settings, checks, see, build, optional score audio, describeExplainer and its REFERENCE example, notices, lettering on request, one compiled engine' +
       (process.env.EXPLAIN_LETTERING === '1' ? ', installed Arabic and maths capture' : '') +
       (process.env.EXPLAIN_BROWSER ? ', installed diagram capture' : '') +
       '.',
