@@ -1,12 +1,14 @@
 // node tools/repo/public-names.ts [--write] [--docs]
-// Prints each public name with its reason to be public (used, tooling or taught) and the scenes and
-// recipes that use it, then any problem with the ledger. --write renders the reference's engine features table and
+// Prints each public name with its class (used, tour-only, unused or tooling), its reason to be public
+// (used, tooling or kept) and the scenes, tutorial and recipes that use it, then counts the classes and
+// lists any problem with the ledger (docs/ENGINE.md, "What stays in the public API"). --write renders the reference's engine features table and
 // the skill's examples table from the ledger (test/public-names.test.ts fails when they differ). --docs lists the
 // whole public surface instead (every exported value and type, every public member of an exported class, and the
 // stage's members) with whether docs/ documents each, and counts them (tools/repo/lib/public-docs.ts).
 import { writeFileSync, readFileSync } from 'node:fs';
 import { relative } from 'node:path';
-import { ROOT, publicNames, problems, readLedger, reasonOf, rendered, usage, usersOf } from './lib/public-names.ts';
+import { ROOT, classOf, publicNames, problems, readLedger, reasonOf, rendered, usage, usersOf } from './lib/public-names.ts';
+import type { NameClass } from './lib/public-names.ts';
 import { UNDOCUMENTED, docsProblems, docsReport } from './lib/public-docs.ts';
 
 if (process.argv.includes('--docs')) {
@@ -27,13 +29,16 @@ if (process.argv.includes('--docs')) {
 
 const ledger = readLedger();
 const u = usage();
+const counts: Record<NameClass, number> = { used: 0, 'tour-only': 0, unused: 0, tooling: 0 };
 for (const [entry, names] of await publicNames()) {
   console.log(`\n${entry}`);
   for (const name of names) {
-    const who = usersOf(u, name, entry);
-    console.log(`  ${name.padEnd(26)} ${reasonOf(ledger, u, entry, name).padEnd(8)} ${who.length ? who.join(' ') : ''}`);
+    const who = usersOf(u, name, entry), cls = classOf(u, entry, name);
+    counts[cls]++;
+    console.log(`  ${name.padEnd(26)} ${cls.padEnd(10)}${reasonOf(ledger, u, entry, name).padEnd(8)} ${who.length ? who.join(' ') : ''}`);
   }
 }
+console.log(`\n${Object.entries(counts).map(([c, n]) => `${n} ${c}`).join(', ')}`);
 if (process.argv.includes('--write'))
   for (const [file, text] of rendered(ledger, ROOT, u))
     if (readFileSync(file, 'utf8') !== text) { writeFileSync(file, text); console.log(`\nwrote ${relative(ROOT, file)}`); }

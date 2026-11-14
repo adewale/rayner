@@ -22,8 +22,6 @@ import type { Stage } from './stage.ts';
  * the jump from `small` to `title` or `display`, and from weight, not from many sizes.
  */
 export const TYPE = { small: 0.56, label: 0.64, title: 0.8, display: 1.6 } as const;
-/** The smallest text size the kit sets, in units: `TYPE.small`. `words()` refuses anything smaller. */
-export const MIN_TEXT = TYPE.small;
 /** Line weights, in units: rules, outlines of objects, idle lines, the line in use. */
 export const STROKE = { hair: 0.035, fine: 0.06, line: 0.1, bold: 0.16 } as const;
 /** Corner radii, in units, from a sheet's near-square corner to a device's round one. */
@@ -77,7 +75,7 @@ export function tones(s: Stage): Tones {
 export type WordsOptions = {
   /** The anchor point: the start, middle or end of the line (per `align`), at the line's vertical centre. Default [0, 0]. */
   at?: Vec;
-  /** One of `TYPE`'s sizes; default `TYPE.small`. Anything under `MIN_TEXT` is refused. */
+  /** One of `TYPE`'s sizes; default `TYPE.small`, the floor. Anything smaller is refused. */
   size?: number;
   /** Default: the stage's ink. */
   color?: string;
@@ -91,12 +89,12 @@ export type WordsOptions = {
 /**
  * One line of text in the kit's type: Inter, or JetBrains Mono with `mono`, at one of `TYPE`'s sizes,
  * in the stage's ink unless given a colour, shaped as the scene shapes text. `at` is the start,
- * middle or end of the line (per `align`), at its vertical centre. A size under `MIN_TEXT` is a
+ * middle or end of the line (per `align`), at its vertical centre. A size under `TYPE.small` is a
  * RangeError: a fact that does not fit at `TYPE.small` belongs in the caption or the description.
  * Returns an unkeyed Text; its `width()` is its measured width.
  */
 export function words(s: Stage, value: string, { at = [0, 0], size = TYPE.small, color = s.look.ink, bold = false, mono = false, align = 'start' }: WordsOptions = {}): Text {
-  if (!(size >= MIN_TEXT - 1e-9)) throw new RangeError(`words(): ${JSON.stringify(value)} at ${size} units is under MIN_TEXT (${MIN_TEXT}), which a phone cannot read; put the fact in the caption instead`);
+  if (!(size >= TYPE.small - 1e-9)) throw new RangeError(`words(): ${JSON.stringify(value)} at ${size} units is under TYPE.small (${TYPE.small}), which a phone cannot read; put the fact in the caption instead`);
   return new Text(value, { fontSize: size, color, shaping: s.scene.textShaping, anchor: align, ...(bold ? { weight: 'bold' as const } : {}), ...(mono ? { font: 'mono' as const } : {}) })
     .moveTo(at, [align === 'start' ? -1 : align === 'end' ? 1 : 0, 0]);
 }

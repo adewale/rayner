@@ -2,6 +2,7 @@
   "names": {
     "rayner": {
       "Frame": {
+        "reason": "The class of every scene's camera, `this.frame`, which `s.focus` moves: a camera helper or an author's test names it as a type, and a scene drawn without a stage moves it directly. A scene on a stage moves the camera with `s.focus`, which keeps the heading on screen, never with `this.frame.animate`. 0.1.0 published it.",
         "guide": "docs/CAMERA.md#what-it-is",
         "test": "test/camera.test.ts"
       },
@@ -51,6 +52,11 @@
       },
       "view": {
         "check": "Views: at the end of every step, a view whose words, parts, boxes or opacity differ from a fresh draw of the state, placed where a sync would put it, fails"
+      },
+      "palette": {
+        "reason": "A named style's four colours, so a scene can start from a style and change one of them (`{ ...palette('dusk'), accent }`), which the stage's `style` option cannot; the stage resolves its own `style` with it. 0.1.0 published it.",
+        "guide": "docs/REFERENCE.md#colours",
+        "test": "test/explain-helpers.test.ts"
       }
     },
     "rayner/drawing": {
@@ -77,10 +83,6 @@
     },
     "rayner/kit": {
       "MARGIN": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "MIN_TEXT": {
         "guide": "docs/REFERENCE.md#kit",
         "test": "test/kit.test.ts"
       },
@@ -267,13 +269,9 @@
     },
     {
       "feature": "Camera",
-      "uses": "`this.frame.animate.fit(...)`, `.reset()`; `s.focus`",
+      "uses": "`s.focus(target)`, `s.focus('all')`",
       "guide": "[Camera](CAMERA.md)",
       "items": [
-        {
-          "label": "this.frame.animate",
-          "pattern": "frame\\.animate"
-        },
         {
           "label": "s.focus",
           "pattern": "\\bs\\.focus\\("

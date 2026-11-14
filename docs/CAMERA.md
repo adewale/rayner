@@ -23,6 +23,8 @@ it like anything else.
 
 ## Moving it
 
+On a stage, move the camera with `s.focus`, which keeps the heading on screen ([in the explainers](#in-the-explainers)); `test/public-names.test.ts` fails a scene with a stage whose code contains `frame.animate`. The moves below are `Frame`'s own, for a scene drawn without a stage and for tests:
+
 ```ts
 await this.play(this.frame.animate.fit(code, { margin: 0.5 }));  // zoom onto the code block
 await this.play(this.frame.animate.scale(0.5).moveTo(dot));      // twice as close, centered on dot
