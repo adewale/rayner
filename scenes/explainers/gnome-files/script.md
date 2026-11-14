@@ -5,6 +5,7 @@
 - **Changed condition:** none changes the conclusion. The participant setting chooses whose first give-up opens the story (P1's Undo, P2's icon size, P5's Select All, and so on), while the give-up table and the heat map keep all six visible; the comparison the explainer makes is across people, to test whether a few weaker users account for the give-ups.
 - **Reader's own work:** decide whether one give-up was bad luck or a pattern before seeing the same task across all six; follow another participant's first give-up; answer the check questions on a later build, on skill, and on the gray cell.
 - **Checked against:** the report's own sentences. The heat map is transcribed by hand from page 7 of GNOME's 2024 report and cross-checked by sampling every cell of the PDF page and the article's image (all 66 agree); `model.test.ts` holds it to what the report says about each task, and holds the title's claim and the moderate-or-worse ranking. There is no other measurement to check it against.
+- **Grounding:** read: GNOME’s 2024 usability report, transcribed by hand
 - **Leaves out:** any rate for users in general, task times, later versions of Files, and a causal test of menus against other design factors: six first-time GNOME users on two Files 47 test builds support an account of those sessions only.
 
 ## Check yourself

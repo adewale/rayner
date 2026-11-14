@@ -44,3 +44,16 @@ test('the product entry is a showcase subject, and the showcase stays mostly sub
   const showcase = EXPLAINERS.filter(scene => scene.tier === 'showcase');
   assert.ok(showcase.filter(scene => scene.group === 'toolchain').length * 4 <= showcase.length, 'toolchain lessons are at most a quarter of the showcase');
 });
+
+test('every showcase explainer was checked against the real system, run live or recorded, and the first after the entry ran it live', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { intentMeta, parseIntent } = await import('../explain/intent.ts');
+  const grade = (id: string) => {
+    const file = `scenes/explainers/${id}/script.md`;
+    return intentMeta(parseIntent(readFileSync(file, 'utf8'), file)!).grounding?.grade;
+  };
+  const showcase = EXPLAINERS.filter(scene => scene.tier === 'showcase').map(scene => scene.id);
+  const weak = showcase.filter(id => grade(id) !== 'live' && grade(id) !== 'recorded');
+  assert.deepEqual(weak, [], 'a showcase explainer graded read or none belongs in the gallery tier');
+  assert.equal(grade(showcase.find(id => id !== PRODUCT.entry.id)!), 'live');
+});

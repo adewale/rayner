@@ -55,6 +55,8 @@ export default class BirthdayParadox extends Scene<{}, {}> {
         line: 'Predict: what is the chance that a room this size holds a shared birthday?',
         caption: `A year has 365 days, so a match can seem to need a crowd. Each card is one person. Before searching the dates, guess how likely a shared birthday is in a room this size. The chances on this page assume independent birthdays, and give every day of a 365-day year the same chance, with no 29 February.`,
         state: { people: n, sample: m.sample.first, dates: m.dates },
+        // The model's exact chance, by band; the next step gives it.
+        predict: { options: ['Under 20%', '20% to 40%', '40% to 60%', 'Over 60%'], answer: [0.2, 0.4, 0.6, Infinity].findIndex((top) => m.chance < top) },
         draw: (st, s) => room(s, st.sample, st.dates, [], `${st.people} people, ${st.people} random birthdays`),
       },
       {
@@ -91,6 +93,7 @@ export default class BirthdayParadox extends Scene<{}, {}> {
         line: 'Predict: how many comparisons does the whole room make?',
         caption: `Mark the first card as you. Each square in the column compares your birthday with one other person’s. You have just one opportunity per person: the chance that someone here shares your birthday is only ${percent(m.one)}, and an even chance would take ${m.evenOthers} other people. But a match elsewhere in the room need not involve you.`,
         state: { people: n, others: m.others, one: m.one, evenOthers: m.evenOthers },
+        predict: { options: [m.others, n, m.pairs, n * n].map(String), answer: String(m.pairs) },
         draw: (st, s) =>
           pairGrid(s, { you: true, people: st.people, count: st.others, chance: st.one, matched: [], footer: `Your ${st.others} comparisons, one square each` }),
         opening: ['birthday-you-lines', 'birthday-comparisons', 'birthday-chance'],
@@ -145,6 +148,7 @@ export default class BirthdayParadox extends Scene<{}, {}> {
         line: `Predict: do ${m.pairs} pairs at 1 in 365 each give the same chance?`,
         caption: `Turn the question around: what would it take for nobody to match? Add people one at a time and ask each to miss every date taken so far. Provided earlier people have all missed, each new arrival has one fewer free date. Multiply those chances to get ${pct2(m.noMatch)} for no match, then subtract from 1: ${pct2(m.chance)} for a match. The picture shows the free dates facing person ${n}.`,
         state: { people: n, factors: m.factors, noMatch: m.noMatch, chance: m.chance, occupied: n - 1, allowed: 365 - (n - 1) },
+        predict: { options: ['Yes, the same', 'Close, but not the same'], answer: Math.abs(m.shortcut - m.chance) < 1e-12 ? 'Yes, the same' : 'Close, but not the same' },
         draw: (st, s) => drawDays(s, st.people, st.occupied, st.allowed),
       },
       {

@@ -113,3 +113,9 @@ test('stage.steps types each step by its own state, so one list holds steps whos
   }
   void Mixed;
 });
+
+test('a staged step’s prediction reaches its step’s metadata, where the player and check read it', async () => {
+  const predict = { options: ['1', '2'], answer: '2' };
+  const { trace } = await run(() => [{ ...step('ask', 1, (st, s) => words(s, st.n)), predict }, step('answer', 2, (st, s) => words(s, st.n))]);
+  assert.deepEqual(trace.steps.map((s) => s.meta.predict), [predict, undefined]);
+});

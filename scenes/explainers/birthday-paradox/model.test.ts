@@ -5,6 +5,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fc, params } from '../lib/pbt.ts';
 import { birthdayChance, birthdaySample, matches } from './model.ts';
+import { skipOracle } from '../lib/oracle.ts';
 
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/birthdays.json',import.meta.url),'utf8'));
 
@@ -40,7 +41,7 @@ test('birthday formulas match exhaustive small calendars and independent exact P
 
 test('native CPython storage and exact arithmetic reproduce the recorded vectors',t=>{
   const version=spawnSync('python3',['-c','import sys; print(".".join(map(str,sys.version_info[:2])))'],{encoding:'utf8'});
-  if(version.status!==0||version.stdout.trim()!=='3.12') {t.skip('64-bit CPython 3.12 is required for the native storage oracle');return;}
+  if(skipOracle(t,(version.status!==0||version.stdout.trim()!=='3.12')&&'64-bit CPython 3.12 is required for the native storage oracle')) return;
   const now=JSON.parse(execFileSync('python3',[fileURLToPath(new URL('./oracle/birthdays.py',import.meta.url))],{encoding:'utf8'}));
   delete now.python; const {python:_,...expected}=fixture;
   assert.deepEqual(now,expected);

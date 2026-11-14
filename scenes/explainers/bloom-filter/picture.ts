@@ -2,12 +2,13 @@ import { Group, Rectangle, Text, lerpColor, keyed } from '../../../src/index.ts'
 import type { Stage } from '../../../explain/index.ts';
 import { label, table, stat, legend } from '../../../explain/drawing.ts';
 import { locations } from './model.ts';
-import { grouped } from '../lib/format.ts';
+import type { Row } from './model.ts';
+import { grouped, listed } from '../lib/format.ts';
 
 /** Each taken name's colour: text on white at 4.5:1 or better, and a pale fill behind a bit it set. */
-const OWNER: Record<string, string> = { cat: '#8250df', dog: '#9a6700', more: '#57606a' };
+const OWNER: Record<string, string> = { cat: '#8250df', dog: '#9a6700', more: '#57606a', eel: '#0e7c7b', owl: '#0550ae' };
 /** Each owner's fill in words, as the captions and the legend say it. */
-const OWNER_NAME: Record<string, string> = { cat: 'purple', dog: 'brown', more: 'grey' };
+const OWNER_NAME: Record<string, string> = { cat: 'purple', dog: 'brown', more: 'grey', eel: 'teal', owl: 'blue' };
 const PAPER = '#ffffff';
 const fillOf = (name: string) => lerpColor(PAPER, OWNER[name]!, 0.36);
 
@@ -16,15 +17,16 @@ const fillOf = (name: string) => lerpColor(PAPER, OWNER[name]!, 0.36);
  * it set. The legend says each fill's colour too ("purple fill, cat (1, 6, 15)"), the word the captions use.
  * `stored`: the names in the filter; `full`: the full row, where the later names share one grey entry.
  */
-export function takenLabel(s: Stage, size: number, full: boolean, stored: readonly string[]): Group {
+export function takenLabel(s: Stage, size: number, full: boolean, stored: readonly string[], { positions = true, cleared = [] as readonly string[] } = {}): Group {
   const SIZE = 0.66;
-  const lead = new Text(stored.length ? 'Taken:' : 'Taken: cat, dog. Not yet in the filter', { fontSize: SIZE, color: s.look.ink });
+  // The live row names who left and had their bits cleared; its names alone fit four in a row.
+  const lead = new Text(stored.length ? (cleared.length ? `Taken (${listed(cleared)} cleared):` : 'Taken:') : 'Taken: cat, dog. Not yet in the filter', { fontSize: SIZE, color: s.look.ink });
   const entry = (owner: string, label: string) => ({ label, fill: fillOf(owner), stroke: OWNER[owner]!, name: OWNER_NAME[owner]! });
   const items = !stored.length
     ? []
     : full
       ? [entry('cat', 'cat'), entry('dog', 'dog'), entry('more', `${stored.length - 2} more`)]
-      : stored.map((name) => entry(name, `${name} (${locations(name, size).join(', ')})`));
+      : stored.map((name) => entry(name, positions ? `${name} (${locations(name, size).join(', ')})` : name));
   const key = items.length ? legend(s, items, { size: SIZE, stack: 'row', gap: 0.36, key: 'bloom-key' }) : null;
   // The lead and the legend in one centred row over the bits.
   const gap = 0.36,
@@ -59,19 +61,21 @@ export function drawBits(
   const bitTile = (j: number, bit: number, x: number, y: number, setBy: readonly string[], { active = false, bad = false } = {}) => {
     const part = W / Math.max(1, setBy.length);
     const color = bad ? s.look.bad : active ? s.look.emphasis : s.look.soft;
+    // Each part keyed within its bit, so the live row's keyed morph pairs a fill with its own name's
+    // fill and the value with the value, however many names set the bit.
     const g = new Group(
       ...setBy.map((name, k) =>
-        new Rectangle({ width: part, height: H, fill: fillOf(name), fillOpacity: 1, stroke: 'none' }).moveTo([
+        keyed(new Rectangle({ width: part, height: H, fill: fillOf(name), fillOpacity: 1, stroke: 'none' }).moveTo([
           x - W / 2 + part * (k + 0.5),
           y,
-        ]),
+        ]), `bit-${j}:fill:${name}`),
       ),
-      new Rectangle({ width: W, height: H, fill: 'none', stroke: color, strokeWidth: active || bad ? 0.055 : 0.025 }).moveTo([
+      keyed(new Rectangle({ width: W, height: H, fill: 'none', stroke: color, strokeWidth: active || bad ? 0.055 : 0.025 }).moveTo([
         x,
         y,
-      ]),
-      label(s, String(j), { at: [x, y + H / 2 + positionGap], color: s.look.soft, size: 0.66 }),
-      label(s, String(bit), { at: [x, y], color: bad ? s.look.bad : s.look.ink, size: size === 16 ? 0.9 : 0.74 }),
+      ]), `bit-${j}:box`),
+      keyed(label(s, String(j), { at: [x, y + H / 2 + positionGap], color: s.look.soft, size: 0.66 }), `bit-${j}:position`),
+      keyed(label(s, String(bit), { at: [x, y], color: bad ? s.look.bad : s.look.ink, size: size === 16 ? 0.9 : 0.74 }), `bit-${j}:value`),
     );
     keyed(g, `bit-${j}`);
     return g;
@@ -121,5 +125,33 @@ export function drawPipeline(
     top,
     reads,
     table(s, sample.headers, sample.rows, { columns: { left: LEFT, gap: COLUMN_GAP }, gap: 0.98, key: 'bloom-sample', size: TABLE, at: [0, -1.75] }),
+  );
+}
+
+/**
+ * The live row: the bits with each name's fill, the names taken (and any cleared), and the last check, its bits
+ * outlined, a 0 among them in red, and the filter's answer beside the truth: a maybe for an untaken name is a
+ * false positive, and a "definitely not" for a taken one, which only clearing bits can cause, a false negative.
+ */
+export function drawRow(s: Stage, row: Row): Group {
+  const c = row.check;
+  const grid = drawBits(s, row.bits, row.owners, c?.locations ?? [], (j) => !!c && c.locations.includes(j) && !row.bits[j]);
+  const query = c
+    ? `Check ${c.word}: bits ${c.locations.join(', ')}`
+    : row.cleared.length
+      ? `${listed(row.cleared)} left: bits ${row.cleared.flatMap((w) => locations(w, row.size)).join(', ')} set to 0`
+      : 'Take a name, or check one';
+  const answer = !c
+    ? 'Fill: who set the bit. The filter keeps only the 1'
+    : c.maybe
+      ? `maybe > database: ${c.taken ? 'taken' : 'not taken, a false positive'}`
+      : c.taken
+        ? `a 0 bit: definitely not, yet ${c.word} is taken`
+        : 'a 0 bit: definitely not taken, skip the database';
+  return new Group(
+    grid,
+    takenLabel(s, row.size, false, row.taken, { positions: false, cleared: row.cleared }),
+    keyed(label(s, query, { at: [0, -2.85], color: s.look.soft, size: 0.66 }), 'bloom-query'),
+    keyed(label(s, answer, { at: [0, -3.7], size: 0.66 }), 'bloom-answer'),
   );
 }

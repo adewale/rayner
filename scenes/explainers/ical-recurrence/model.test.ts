@@ -7,6 +7,7 @@ import { fc, params } from '../lib/pbt.ts';
 import type { Cardinality, Change, Copy, VEvent } from './model.ts';
 import { RFC_EXAMPLES, inputsDigest, runSabre } from './oracle/sabre.ts';
 import type { Frozen, Stored } from './oracle/sabre.ts';
+import { skipOptionalOracle } from '../lib/oracle.ts';
 
 test('the check answers’ words: the last meeting stays the rule’s sixth start, Bob keeps his meeting, and his copy has no RRULE', () => {
   // The answers' words: the last meeting is still the rule's sixth start; the update Bob is sent keeps his
@@ -224,9 +225,11 @@ test('the guest’s messages and copy are the ones sabre/vobject’s Broker prod
   }
 });
 
-test('sabre/vobject, run now in Docker, gives the frozen answers', { skip: SABRE_LIVE ? false : 'set SABRE_DOCKER=1 to run sabre/vobject 4.5.7 in Docker (composer:2.8)' }, (tc) => {
+test('sabre/vobject, run now in Docker, gives the frozen answers', (tc) => {
+  if (skipOptionalOracle(tc, !SABRE_LIVE && 'set SABRE_DOCKER=1 to run sabre/vobject 4.5.7 in Docker (composer:2.8)')) return;
   const r = runSabre();
-  if ('skip' in r) return tc.skip(r.skip);
+  // SABRE_DOCKER=1 asked for this run, so a Docker failure fails rather than skips.
+  assert.ok(!('skip' in r), 'skip' in r ? r.skip : '');
   assert.deepEqual(r.answers, FROZEN.answers);
 });
 

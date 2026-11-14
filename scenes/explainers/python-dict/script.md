@@ -5,6 +5,7 @@
 - **Changed condition:** the key looked up after deleting key 0. Key 8 is found one slot past the marker; key 16 has a longer route (slots 0, 1, 6) through the same deletion, so the marker is shown keeping a longer search open, not repairing a second case.
 - **Reader's own work:** predict what d[8] (or d[16]) gives if deletion just empties slot 0; predict where the search for absent key 24 stops and why; choose which key to look up; then the two check questions, which move the deletion into the middle of a route and take away the never-used slots.
 - **Checked against:** CPython 3.12.14's dict storage: `oracle/cpython_dict.py` builds `{0: 'apple', 8: 'pear', 16: 'plum'}`, reads its index and entries from memory before and after `del d[0]`, and captures them with its lookups into `fixtures/cpython-dict.json`, which `model.test.ts` compares with the model; the probe recurrence follows CPython's Objects/dictobject.c. The emptied-slot version is a counterfactual with nothing to check it against but the model's own tests.
+- **Grounding:** live: CPython 3.12’s dict storage, read from memory
 - **Leaves out:** resizing, insertion after deletion and reuse of deleted slots, split instance dictionaries, custom hashing or equality, and keys other than 0, 8, 16 and 24 (the hash-equals-value fact holds for these keys only; `hash(-1)` is -2).
 
 ## Check yourself

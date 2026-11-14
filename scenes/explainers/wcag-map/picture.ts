@@ -105,10 +105,10 @@ export function frames(stage: Stage, level: Level, guideline: string, answer: st
       id: 'reader-focus',
       title: 'The outline shows which button Tab reached',
       line: 'Success criterion 2.4.7 Focus Visible asks for the lower drawing; WCAG files it at level AA.',
-      caption: `Press Tab on a payment form and focus moves to Cancel or Pay. In the upper drawing nothing shows which, so pressing Enter is a guess; in the lower one an outline marks Pay. Focus Visible requires that keyboard focus be visible. Whether a site must meet it depends on two choices its accessibility policy makes: a conformance level and a WCAG version. ${
+      caption: `Press Tab on a payment form and focus moves to Cancel or Pay. In the upper drawing nothing shows which, so pressing Enter is a guess; in the lower one an outline marks Pay. Focus Visible requires that keyboard focus be visible. Whether a site must meet it depends on two choices in its accessibility policy: a conformance level and a WCAG version. ${
         focus
-          ? `At level ${level}, the selected level, Focus Visible is on the list.`
-          : `At level ${level}, the selected level, it is not on the list, because it is a level AA criterion.`
+          ? `At level ${level}, Focus Visible is on the list.`
+          : `At level ${level}, it is not on the list: it is a level AA criterion.`
       }`,
       // The form both drawings show, and the button Tab reached, which only the lower one outlines.
       state: { level, focusRequired: focus, buttons, focused: 'Pay' },
@@ -143,7 +143,7 @@ export function frames(stage: Stage, level: Level, guideline: string, answer: st
       id: 'reader-versions',
       title: `Level ${level} asks for ${t20.total}, ${t21.total} or ${total.total} criteria, by version`,
       line: `One column per criterion, one row per version: 2.2 adds ${c22.added.length} and leaves a gap at 4.1.1 Parsing.`,
-      caption: `Each column is one criterion at ${level === 'A' ? 'level A' : `level ${level} or below`}, coloured by the version that added it; each row is one version’s list. WCAG 2.1 added ${c21.added.length}. WCAG 2.2 added ${c22.added.length} and removed 4.1.1 Parsing, the dashed gap in its row, which W3C judged obsolete. A newer version is not the older list plus extras, so “level ${level}” without a version names no list. ${answer}.`,
+      caption: `Each column is one criterion at ${level === 'A' ? 'level A' : `level ${level} or below`}, coloured by the version that added it; each row is one version’s list. WCAG 2.1 added ${c21.added.length}; 2.2 added ${c22.added.length} and removed 4.1.1 Parsing, the dashed gap in its row. A newer version is not the older list plus extras, so “level ${level}” without a version names no list. ${answer}.`,
       state: {
         level,
         totals: [t20.total, t21.total, total.total],

@@ -131,7 +131,10 @@ export const REQUEST_URI = 'urn:ietf:params:oauth:request_uri:R7b2Lq';
  * that requires Pushed Authorization Requests gets them; one that lists the endpoint should; the
  * specification's example lists none, so its agent opens the URL with every parameter in it.
  */
-export function howToOpen(metadata: { issuer: string; pushed_authorization_request_endpoint?: string; require_pushed_authorization_requests?: boolean }): 'must push' | 'should push' | 'open' {
+export function howToOpen(metadata: { issuer: string; pushed_authorization_request_endpoint?: string; require_pushed_authorization_requests?: boolean }): 'must push' | 'should push' | 'open' | Rejected {
+  // RFC 9126 §5: metadata that requires pushed requests names the endpoint to push to; without one it is inconsistent.
+  if (metadata.require_pushed_authorization_requests && !metadata.pushed_authorization_request_endpoint)
+    return rejected('invalid_request', `${metadata.issuer} requires pushed authorization requests and names no pushed_authorization_request_endpoint`);
   if (metadata.require_pushed_authorization_requests) return 'must push';
   return metadata.pushed_authorization_request_endpoint ? 'should push' : 'open';
 }
@@ -396,7 +399,8 @@ export type Last =
  */
 export type World = {
   flow: Flow;
-  sign: { approved: readonly Scope[] | null } | null;
+  /** A sign-in waiting on the Company's page: the scopes the page lists (consentPage) and what the User approved of them. */
+  sign: { lists: readonly Scope[]; approved: readonly Scope[] | null } | null;
   holds: { scopes: readonly Scope[]; card: Card } | null;
   ended: boolean;
   last: Last | null;
@@ -433,21 +437,26 @@ export function next(w: World, event: SignInEvent): World | Refusal {
       // 4.7: request only what the task needs; with a token in hand, every scope still needed.
       if (covers(w.holds?.scopes, TASK)) return refuse(`the agent already holds a refresh token for ${TASK.join(' ')}, everything the exchange needs`);
       const scopes = scopesToAsk(TASK, w.holds?.scopes);
-      const page = authorize(authorizationRequest(scopes));
+      const request = authorizationRequest(scopes), page = authorize(request);
       if (isRejected(page)) return refuse(page.reason);
+      // 4.2 and 10.8 (1.0): the page the Company shows, read from the request's prompt, and every scope it lists.
+      const consent = consentPage(page, { alreadyGranted: w.holds?.scopes ?? [], prompt: request.prompt === 'consent', device: w.flow === 'device' });
+      if (!consent.shown) return refuse('the Company would grant these scopes again without showing its page');
+      const sign = { lists: consent.lists as Scope[], approved: null };
       if (w.flow === 'device') {
         const link = deviceLink(DEVICE.verification_uri_complete);
         if (isRejected(link)) return refuse(link.reason);
-        return { ...w, sign: { approved: null }, last: { kind: 'ask', scopes, link: link.show } };
+        return { ...w, sign, last: { kind: 'ask', scopes, link: link.show } };
       }
-      return { ...w, sign: { approved: null }, last: { kind: 'ask', scopes } };
+      return { ...w, sign, last: { kind: 'ask', scopes } };
     }
     case 'approve-all':
     case 'approve-read': {
       if (!w.sign) return refuse(`no sign-in is waiting: ${where}`);
       if (w.sign.approved) return refuse('you have answered this sign-in already');
-      const approved = event === 'approve-all' ? TASK : TASK.filter((s) => s === 'orders:read');
-      return { ...w, sign: { approved }, last: { kind: 'approve', approved } };
+      // The User approves from what the page lists: all of it, or reading only.
+      const approved = event === 'approve-all' ? w.sign.lists : w.sign.lists.filter((s) => s === 'orders:read');
+      return { ...w, sign: { ...w.sign, approved }, last: { kind: 'approve', approved } };
     }
     case 'collect': {
       if (!w.sign) return refuse(`there is nothing to collect: ${where}`);

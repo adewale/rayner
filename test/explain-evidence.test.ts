@@ -129,3 +129,17 @@ test('every explainer’s Checked against line names its evidence by files in it
   }
   assert.ok(named.length >= dirs.length, `${named.length} files named`);
 });
+
+test('every catalogued explainer grades its grounding, names what it checked unless the grade is none, and says nothing external only with none', () => {
+  const grades: Record<string, string[]> = {};
+  for (const { id } of EXPLAINERS) {
+    const file = join('scenes/explainers', id, 'script.md');
+    const { checkedAgainst, grounding } = intentMeta(parseIntent(readFileSync(file, 'utf8'), file)!);
+    assert.ok(grounding, `${file}: add - **Grounding:** live | recorded | read | none, then a colon and what was checked`);
+    if (grounding.grade !== 'none') assert.ok(grounding.subject && grounding.subject.length <= 120, `${file}: a ${grounding.grade} grade names the system it checked, in at most 120 characters`);
+    if (/^nothing external/i.test(checkedAgainst)) assert.equal(grounding.grade, 'none', `${file}: Checked against says nothing external was checked`);
+    if (grounding.grade === 'none') assert.match(checkedAgainst, /nothing external/i, `${file}: a none grade's Checked against line says nothing external was checked`);
+    (grades[grounding.grade] ??= []).push(id);
+  }
+  assert.ok(grades.live?.length && grades.recorded?.length && grades.read?.length && grades.none?.length, JSON.stringify(grades));
+});

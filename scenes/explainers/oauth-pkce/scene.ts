@@ -119,7 +119,7 @@ export default class OAuthExplainer extends Scene<OAuthState, OAuthShown> {
       title: 'Answer: bind the code to a secret the real client keeps',
       line: 'The challenge is the base64url SHA-256 of the verifier.',
       caption:
-        'A fixed secret shipped inside the app could be extracted from any copy, so for each sign-in the client makes a fresh random code_verifier and keeps it. Ahead of the redirect it sends the code_challenge instead: the verifier’s SHA-256 in base64url, a method called S256. Redeeming the code also needs the verifier, which never passes through the redirect. The server stores the challenge now and recognizes the right verifier later without having seen it. This is PKCE, Proof Key for Code Exchange; the card uses RFC 7636’s example verifier.',
+        'A secret built into the app could be extracted from any copy, so each sign-in the client makes and keeps a fresh random code_verifier. Ahead of the redirect it sends the code_challenge instead: the verifier’s SHA-256 in base64url, called S256. Redeeming the code also needs the verifier, which never passes through the redirect. The server stores the challenge and later recognizes the verifier. This is PKCE, Proof Key for Code Exchange; the card uses RFC 7636’s example verifier.',
     });
     await s.clear();
     const derive = await s.show(
@@ -255,7 +255,7 @@ export default class OAuthExplainer extends Scene<OAuthState, OAuthShown> {
       title: 'The code crosses the browser; the verifier does not',
       line: 'Red lane: what another app can read. Green: the client’s own TLS.',
       caption:
-        'Drawn by channel instead of by time, the client’s sign-in uses two routes. The challenge and the code pass through the browser and the operating system’s redirect, the red lane, where another app can read them. The verifier, made from 32 random bytes, goes only in the client’s own TLS request to the token endpoint, the green lane, together with the code. Reading the challenge does not help a thief, because finding a verifier whose S256 equals it is computationally infeasible. The protection lasts while the verifier stays secret: an attacker who can read the app’s memory gets the verifier as well as the code, and the server can no longer tell the two apps apart.',
+        'Drawn by channel, the sign-in uses two routes. The challenge and the code pass through the browser and the system redirect, the red lane, where another app can read them. The verifier goes only in the client’s own TLS request, the green lane, with the code. Reading the challenge does not help a thief: finding a verifier whose S256 equals it is infeasible. The protection lasts while the verifier stays secret: an attacker who reads the app’s memory gets both.',
     });
     const map = lanes(flow),
       held = readable(flow);
@@ -279,7 +279,7 @@ export default class OAuthExplainer extends Scene<OAuthState, OAuthShown> {
       title: 'Even redeemed first, the stolen code gets invalid_grant',
       line: 'The malicious app catches the redirect first and redeems before the client has the code.',
       caption:
-        'Here the malicious app catches the redirect before the client does and sends its token request at once. The server compares S256 of its guess with the challenge stored with the code and answers invalid_grant; in this model the refusal leaves the code unused, so the client’s request with the verifier still gets the token. While the authorization request carries the challenge, in every order of these messages the malicious app never gets a token. Without the challenge, whichever app redeems first gets it, and the other gets invalid_grant, because a code is used once.',
+        'Here the malicious app catches the redirect first and redeems at once. The server compares S256 of its guess with the stored challenge and answers invalid_grant; in this model the code stays unused, so the client’s request with the verifier still gets the token. With the challenge in the authorization request, in every order of these messages the malicious app never gets a token. Without it, whichever app redeems first gets the token: a code is used once.',
     });
     await s.clear();
     const start = signInStart();

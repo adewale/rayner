@@ -220,7 +220,7 @@ export default class TailwindGamutExplainer extends Scene<GamutState, { dotNotes
     await this.step('palette', {
       title: `${out} of the ${n} ${shade} shades lie outside sRGB`,
       line: 'Predict: measured against its own spoke’s edge, which colour is furthest out?',
-      caption: `Most of these colours lie outside sRGB, so an sRGB screen shows them less vivid than written. Tailwind’s own chroma for each colour is drawn over the edge: ${out} of ${n} lie outside, and only ${listed(sum.insideSrgb)} fit. At this scale the overshoot looks like a sliver; ${sum.furthest.family}-${shade}, the furthest out in raw chroma, is ${sum.furthest.value.toFixed(3)} past its edge. But each spoke’s edge sits at a different chroma. As a share of its own edge, which colour goes furthest?`,
+      caption: `Most of these colours lie outside sRGB, so an sRGB screen shows them less vivid than written. Tailwind’s own chroma for each colour is drawn over the edge: ${out} of ${n} lie outside, and only ${listed(sum.insideSrgb)} fit. Raw chroma puts ${sum.furthest.family}-${shade} furthest out, ${sum.furthest.value.toFixed(3)} past its edge, a sliver at this scale. But each spoke’s edge sits at a different chroma. As a share of its own edge, which colour goes furthest?`,
     });
     await nextSlate(d);
     await d.reveal(['curve:tw']);
@@ -238,7 +238,7 @@ export default class TailwindGamutExplainer extends Scene<GamutState, { dotNotes
     await this.step('share', {
       title: `Answer: as a share of its edge, ${sum.mostOfSrgb.family}-${shade} reaches ${pct(sum.mostOfSrgb.value)}`,
       line: `The edge is now the 100 ring; ${sum.leastOfSrgb.family} has most room, at ${pct(sum.leastOfSrgb.value)}.`,
-      caption: `The same colours, each as a percentage of the sRGB edge on its own spoke: the edge becomes the 100 ring, and every colour past it shows. ${sum.mostOfSrgb.family}, the colour from the first step, goes furthest, to ${pct(sum.mostOfSrgb.value)}${
+      caption: `The same colours, each as a percentage of the sRGB edge on its own spoke: the edge becomes the 100 ring, and every colour past it shows. ${sum.mostOfSrgb.family} goes furthest, to ${pct(sum.mostOfSrgb.value)}${
         sum.mostOfSrgb.family === sum.furthest.family ? '' : `: its edge is lower than ${sum.furthest.family}’s, so a smaller overshoot is a larger share of it`
       }.${level.length ? ` ${listed(level)} ${level.length === 1 ? 'is' : 'are'} level with it to one decimal.` : ''} ${sum.leastOfSrgb.family} has the most room, at ${pct(sum.leastOfSrgb.value)}. The centre is now 50%, and the rings are 25 points apart.`,
     });

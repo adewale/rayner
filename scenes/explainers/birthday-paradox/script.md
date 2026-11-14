@@ -5,6 +5,7 @@
 - **Changed condition:** the size of the room. Ten people make 45 pairs and share a birthday 11.7% of the time, and the sampled room of ten has no shared date; twenty-three make 253 pairs, just over an even chance; forty make 780, 89.1%. A marked person's own chance stays far lower at every size.
 - **Reader's own work:** guess the chance for the room before searching its dates, and predict how many comparisons the whole room makes after seeing your own; choose a room of 10, 23 or 40; answer the check questions, which merge two rooms and shrink the calendar to 100 days.
 - **Checked against:** exhaustive enumeration of every birthday assignment for calendars of 1 to 5 days and rooms of 1 to 5 people, and exact fractions and the seeded samples from an independent CPython 3.12 script (`oracle/birthdays.py`, stored in `fixtures/birthdays.json`) for rooms of 10, 23, 40 and 50, both in `model.test.ts`; `scene.test.ts` also holds the answer's and check answers' numbers to the model.
+- **Grounding:** live: an independent CPython 3.12 script and an exhaustive count of small rooms
 - **Leaves out:** leap day, twins and seasonal birth patterns: birthdays are independent and equally likely over 365 days. A sampled room shows matches but not their probability.
 
 ## Check yourself

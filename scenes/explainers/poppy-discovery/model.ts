@@ -64,16 +64,21 @@ export function asMetadataUrl(issuer: string): string {
 }
 const isHttps = (url: string) => /^https:\/\//.test(url);
 /**
- * The parts of an absolute URL this model reads: scheme, host (with any port, in lower case), path
- * and query. A plain parse, with no normalization of the path: the draft says the path must be
+ * The parts of an absolute URL this model reads: scheme, host (with any port other than HTTPS's
+ * default 443, in lower case: https://example.com:443 is example.com), path and query. A plain parse, with no normalization of the path: the draft says the path must be
  * "exactly" /.well-known/poppy.json, and the model reads that literally (WHATWG URL parsing would
  * resolve dot segments first; the draft does not say which).
  */
 export function parseUrl(url: string): { scheme: string; host: string; path: string; search: string } {
   const m = /^([a-z][a-z0-9+.-]*):\/\/([^/?#]*)([^?#]*)(\?[^#]*)?/i.exec(url);
   if (!m) return { scheme: '', host: '', path: '', search: '' };
-  return { scheme: m[1]!.toLowerCase(), host: m[2]!.toLowerCase(), path: m[3] || '/', search: m[4] ?? '' };
+  const scheme = m[1]!.toLowerCase(), host = m[2]!.toLowerCase();
+  return { scheme, host: scheme === 'https' ? host.replace(/:443$/, '') : host, path: m[3] || '/', search: m[4] ?? '' };
 }
+
+/** A host with a port other than 443, which the agent uses only when configured to (3.1, 1.0). */
+const otherPort = (host: string) => /:\d+$/.test(host);
+const portStop = (gate: Gate, host: string) => stop(gate, `${host} is not on port 443, and the agent uses another port only when configured to, such as for testing`);
 
 /**
  * Section 3: redirects. The draft sets no limit on how many an agent follows; this model stops
@@ -94,10 +99,13 @@ export type Fetched = { hops: readonly string[]; url: string; host: string; doc:
  * The path is compared as written, with no normalization (see `parseUrl`). Left out: the rule against
  * connecting to loopback, private and link-local addresses.
  */
-export function fetchDocument(web: Web, domain: string, o: { exactPath?: boolean } = {}): Fetched | Stop {
+export function fetchDocument(web: Web, domain: string, o: { exactPath?: boolean; otherPorts?: boolean } = {}): Fetched | Stop {
   const hops: string[] = [];
   let url = wellKnownUrl(domain);
   for (;;) {
+    // 3.1 (1.0): checked before each request, the first and every redirect's, so an agent not
+    // configured for other ports never connects to one.
+    if (otherPort(parseUrl(url).host) && !o.otherPorts) return portStop('fetch', parseUrl(url).host);
     hops.push(url);
     const answer = get(web, url);
     if (answer === 'timeout') return stop('fetch', `${url} did not answer, so there is no poppy.json`);
@@ -106,8 +114,7 @@ export function fetchDocument(web: Web, domain: string, o: { exactPath?: boolean
       if (o.exactPath !== false && last.path !== '/.well-known/poppy.json') return stop('fetch', `the last URL, ${url}, is not at /.well-known/poppy.json`);
       if (o.exactPath !== false && last.search !== '') return stop('fetch', `the last URL, ${url}, has a query`);
       if (typeof answer.body !== 'object' || answer.body === null) return stop('fetch', `${url} is not a JSON document`);
-      // 443 is the default port, so a URL that spells it out is served by the same host.
-      return { hops, url, host: last.host.replace(/:443$/, ''), doc: answer.body as PoppyDocument };
+      return { hops, url, host: last.host, doc: answer.body as PoppyDocument };
     }
     if ('location' in answer) {
       if (!isHttps(answer.location)) return stop('fetch', `the redirect to ${answer.location} is not HTTPS`);
@@ -153,7 +160,8 @@ export function readDocument(fetched: Fetched, web: Web, o: { checkDomain?: bool
   const { doc, host } = fetched, domain = doc.organization?.domain;
   // 3.1 (1.0): a Company on another port carries the port in organization.domain, and an agent uses
   // one only when configured to on purpose. `otherPorts` is that configuration.
-  if (/:\d+$/.test(host) && !o.otherPorts) return stop('read', `${host} is not on port 443, and the agent uses another port only when configured to, such as for testing`);
+  // fetchDocument applies the same rule before connecting; this holds for a Fetched made elsewhere.
+  if (otherPort(host) && !o.otherPorts) return portStop('read', host);
   if (!domain) return stop('read', 'the document names no organization.domain');
   if (o.checkDomain !== false && domain.toLowerCase() !== host.toLowerCase()) return stop('read', `the document names ${domain}, and ${host} served it`);
   if (!doc.protocol_version) return stop('read', 'the document has no protocol_version');
@@ -246,10 +254,10 @@ export type Discovered = { host: string; domain: string; issuer: string | null; 
  * knows for this Company, if any. Sign-in is offered only by a Company with an issuer that does
  * not set auth.disabled (3.2).
  */
-export function discover(domain: string, web: Web, o: { skip?: Gate; known?: string | null; implemented?: readonly string[] } = {}): Discovered | Stop {
-  const fetched = fetchDocument(web, domain, { exactPath: o.skip !== 'fetch' });
+export function discover(domain: string, web: Web, o: { skip?: Gate; known?: string | null; implemented?: readonly string[]; otherPorts?: boolean } = {}): Discovered | Stop {
+  const fetched = fetchDocument(web, domain, { exactPath: o.skip !== 'fetch', ...(o.otherPorts ? { otherPorts: true } : {}) });
   if (isStop(fetched)) return fetched;
-  const read = readDocument(fetched, web, { checkDomain: o.skip !== 'read', ...(o.implemented ? { implemented: o.implemented } : {}) });
+  const read = readDocument(fetched, web, { checkDomain: o.skip !== 'read', ...(o.implemented ? { implemented: o.implemented } : {}), ...(o.otherPorts ? { otherPorts: true } : {}) });
   if (isStop(read)) return read;
   const found = findIssuer(read, web, o.known ?? null);
   if (isStop(found)) return found;

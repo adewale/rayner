@@ -55,9 +55,9 @@ export type Declared = { name: string; v: string };
 /** A request with the headers this chapter reads: Poppy-Version and Poppy-Extensions beside the Session header (3.4). */
 export type PoppyRequest = Omit<HttpRequest, 'token' | 'session'> & { token?: Token; session?: Session; version?: string; extensions?: readonly Declared[] };
 
-export type Code = 'invalid_token' | 'insufficient_scope' | 'invalid_session' | 'session_ended' | 'version_unsupported' | 'extension_required';
 /** The codes this agent recognizes: section 7's table and 3.3's. */
-export const CODES: readonly Code[] = ['invalid_token', 'insufficient_scope', 'invalid_session', 'session_ended', 'version_unsupported', 'extension_required'];
+export const CODES = ['invalid_token', 'insufficient_scope', 'invalid_session', 'session_ended', 'version_unsupported', 'extension_required'] as const;
+export type Code = typeof CODES[number];
 /** What the Company answers: a status, an error code, and what the refusal names (a scope, an extension, a wait, a metadata URL). */
 export type Reply = { status: number; error?: Code | (string & {}); needs?: Scope; reason?: string; extension?: string; retryAfter?: number; resourceMetadata?: string };
 
@@ -217,7 +217,14 @@ export function remedy(reply: Reply, h: Holding): Move {
   const forResource = resource && resource !== DEFAULT_RESOURCE ? { resource } : {};
   if ((reply.status === 401 && !reply.error) || reply.error === 'insufficient_scope') {
     if (h.signedOut) return { kind: 'signed-out' };
-    const needs = reply.needs!;
+    const needs = reply.needs;
+    // A 401 that names no scope, such as one whose code the agent does not recognize: the token was
+    // missing or refused. A refresh gets a new one for the scopes the agent holds; with nothing to
+    // refresh, the agent cannot tell which scopes to ask for.
+    if (needs === undefined) {
+      if (reply.error !== 'insufficient_scope' && h.refresh) return { kind: 'refresh', ...forResource };
+      return { kind: 'stop', why: `${reply.error === 'insufficient_scope' ? 'an insufficient_scope' : 'a 401'} that names no scope, with nothing to refresh: the agent cannot tell which scopes to ask for` };
+    }
     if (h.refresh?.includes(needs)) return { kind: 'refresh', scope: needs, ...forResource };
     return { kind: 'sign-in', scopes: SCOPES.filter((s) => s === needs || h.refresh?.includes(s)) };
   }

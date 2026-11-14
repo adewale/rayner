@@ -144,7 +144,7 @@ export default class Poppy extends Scene<World, {}> {
     await this.step('seal', {
       title: 'The agent seals what it sends',
       line: 'The seal says which agent is asking, and for which User.',
-      caption: `The agent adds a medium to the cart. The request carries a Session header, drawn as the wax seal: a signature the Company checks against keys the agent publishes. The Company now knows the agent, a User ID and a Session to keep the cart in. The User ID is a pseudonym the agent made up for this Company, so the shop still does not know who you are. ${answerOf(this)}.`,
+      caption: `The agent adds a medium to the cart. The request carries a Session header, drawn as the wax seal, signed with the agent’s published keys. The Company now knows the agent, a User ID and a Session for the cart. The User ID is a pseudonym made for this Company, so the shop still does not know you. ${answerOf(this)}.`,
     });
     await this.play(machine.replay(STORY.slice(1, 2)));
 

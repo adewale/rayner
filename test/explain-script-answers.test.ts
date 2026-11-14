@@ -19,6 +19,7 @@ const COMPARED: Record<string, number> = {
   '2password': 2, 'bloom-filter': 2, 'cert-renewal': 2, exgit: 3, 'ext4-space': 4, gtfs: 3, 'ical-recurrence': 2, isdigit: 3, 'just-bash': 3,
   'monty-hall': 2, 'pg-page': 3, 'quotient-familial': 4, 'ring-buffer': 3, 'send-sync': 3, 'state-machine': 1, statecharts: 3,
   'tailwind-gamut': 3, 'traffic-policy': 3, 'trust-proxy': 3,
+  'float-sum': 3, 'galton-board': 3, 'string-length': 3, 'unified-diff': 3,
   poppy: 4, 'poppy-discovery': 5, 'poppy-sessions': 5, 'poppy-sign-in': 5, 'poppy-browser': 5, 'poppy-refusals': 6, 'poppy-conversations': 5, 'poppy-coverage': 5,
 };
 

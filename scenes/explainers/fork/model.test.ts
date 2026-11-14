@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { skipOracle } from '../lib/oracle.ts';
 
 /** The checkout the fork explainer speaks of: Rayner's own tree, three folders up. */
 const ROOT = join(import.meta.dirname, '../../..');
@@ -14,11 +15,13 @@ test('fork: what it says Lantern had and the fork deleted matches both trees', a
     assert.ok(!existsSync(join(ROOT, gone)), `${gone} is still here`);
   assert.match(readFileSync(join(ROOT, 'docs/UPSTREAM.md'), 'utf8'), /None has been offered upstream/);
   const git = (...args: string[]) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  let missing: string | false = false;
   try {
     git('cat-file', '-e', `${BASE}^{commit}`);
   } catch {
-    return t.skip('the fork base is not in this clone (shallow checkout)');
+    missing = 'the fork base is not in this clone (shallow checkout; fetch with --unshallow)';
   }
+  if (skipOracle(t, missing)) return;
   const show = (path: string) => git('show', `${BASE}:${path}`);
   const worker = show('app/worker.ts');
   for (const route of ['/frame.svg', '/text', '/trace.json', '/llms.txt']) assert.ok(worker.includes(`'${route}'`), route);

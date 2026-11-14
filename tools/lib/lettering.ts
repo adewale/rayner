@@ -385,6 +385,4 @@ export async function pageSnapshot(snapshot: LetteringSnapshot): Promise<PackedL
     faces: Object.fromEntries([...used].sort().map((name) => [name, { hash: '', data: sfntBase64(snapshot.faces[name]!.data), license: '' }])),
   });
 }
-/** The face licences a lettered page adds to its licence block: each distinct notice once. */
-export const letteringLicences = (snapshot: LetteringSnapshot): string[] =>
-  [...new Set(Object.values(snapshot.faces).map((face) => face.license))];
+export { letteringLicences } from './lettering-validation.ts';

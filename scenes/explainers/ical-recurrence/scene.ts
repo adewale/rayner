@@ -144,7 +144,7 @@ export default class IcalRecurrenceExplainer extends Scene<IcalState, IcalShown>
       title: 'A weekly stand-up is stored as one VEVENT',
       line: 'DTSTART is the first meeting; RRULE with COUNT=6 makes six.',
       // RFC 5545 §3.3.10, lines 2272–2274: COUNT; DTSTART counts as the first occurrence.
-      caption: `Alice cancels one meeting of her weekly stand-up. Bob, invited to that meeting alone, can still find it in his calendar, marked cancelled. To see why, start with how Alice’s app stores the series: as one VEVENT, the iCalendar record for an event. DTSTART is the first meeting, ${long(DTSTART)} 2026 at 09:00 UTC. RRULE repeats it weekly, and COUNT=6 stops after six meetings, with DTSTART counting as the first. The list shows the meetings a calendar computes from those two lines.`,
+      caption: `Alice cancels one meeting of her weekly stand-up. Bob, invited to that meeting alone, can still find it in his calendar, marked cancelled. Alice’s app stores the series as one VEVENT, the iCalendar record for an event. DTSTART is the first meeting, ${long(DTSTART)} 2026 at 09:00 UTC. RRULE repeats it weekly, and COUNT=6 stops after six meetings, with DTSTART counting as the first. The list shows the meetings a calendar computes from those two lines.`,
     });
     await s.clear();
     // `components`: the VEVENTs Alice's object holds after each step, which her meeting list is computed from.
@@ -404,7 +404,7 @@ export default class IcalRecurrenceExplainer extends Scene<IcalState, IcalShown>
         // Broker.php:459–620 (what each attendee is sent), :269–317 (how it is stored).
         caption:
           change === 'skip'
-            ? `${upperFirst(answer)}. Bob is now in no meeting, so the server, Baïkal running sabre/dav, sends him an iTIP CANCEL, the scheduling message that calls a meeting off. Delivering it sets STATUS:CANCELLED on the one VEVENT he holds. Alice’s calendar no longer has a third meeting, because she excluded its start from her rule; Bob had no rule to exclude it from, so his copy still contains ${long(GUEST_MEETING)}, marked cancelled.`
+            ? `${upperFirst(answer)}. Bob is now in no meeting, so the server, Baïkal running sabre/dav, sends him an iTIP CANCEL, which sets STATUS:CANCELLED on the one VEVENT he holds. Alice excluded the third meeting’s start from her rule; Bob had no rule to exclude it from, so his copy still contains ${long(GUEST_MEETING)}, marked cancelled.`
             : change === 'move'
               ? `${upperFirst(answer)}. Saving the move sends Bob an iTIP REQUEST, a scheduling message carrying a meeting’s details, but the server, Baïkal running sabre/dav, puts in it only the VEVENTs Bob attends: the third meeting’s override again. His copy still holds that one VEVENT, and the moved Tuesday meeting never appears in it.`
               : `${upperFirst(answer)}. The invitation reached Bob as an iTIP REQUEST, a scheduling message carrying a meeting’s details, holding only the VEVENTs he attends. The server stored it as it came: the third meeting’s override, with RECURRENCE-ID and no master, which RFC 4791 allows. His stored copy contains ${counted(expand(mine).length, 'meeting', { words: true })} and no rule to generate the others.`,

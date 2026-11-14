@@ -5,6 +5,7 @@
 - **Changed condition:** what the second commit does. Adding world.txt writes three objects and the new tree names hello's stored blob again; editing hello.txt also writes three, but now the blob is new too and the change climbs through the tree's id to the commit's.
 - **Reader's own work:** predict whether Git stores hello's bytes again (or what it must write for an edit) before the change step; try the other second commit; answer the check questions on a rename, a copy and two machines.
 - **Checked against:** real Git. `model.test.ts` checks every object id the model computes against `git hash-object`, and makes each of the four second commits (add, edit, and the rename and copy the check questions ask about) with the Git CLI, under the model's author and dates, and checks that the commit id and the set of objects Git writes are the model's; `answers.ts` computes the check answers from the model.
+- **Grounding:** live: Git, run by the model’s tests
 - **Leaves out:** how objects sit on disk (compression, packfiles and delta compression), garbage collection, SHA-256 repositories and merges. The hash comparison shows only that ids change with any byte; matching hex digits say nothing about how similar two file versions are.
 
 ## Check yourself

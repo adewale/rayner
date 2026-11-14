@@ -107,7 +107,14 @@ test('8.4: a message needs author.type and some content; a person’s message ca
   assert.deepEqual(problemsOf({ author: { type: 'agent', name: 'Robo' }, text: 'x' }, 'personal agent'), ['only Company messages name their author']);
   assert.deepEqual(problemsOf({ author: { type: 'agent' }, text: 'x', context: { locale: 'en-US' } }, 'company'), ['only the Personal Agent sends context']);
   assert.deepEqual(problemsOf({ author: { type: 'agent' }, text: 'x', as_of_request: 'msg_Hc72PwZn4eKs1QxB' }, 'company'), []);
-  assert.deepEqual(problemsOf({ author: {} as { type: 'agent' }, text: 'x' }, 'company'), ['author.type must be agent or human']);
+  assert.deepEqual(problemsOf({ author: {} as { type: 'agent' }, text: 'x' }, 'company'), ['a message needs author.type']);
+  assert.deepEqual(problemsOf({ author: { type: 'assistant' as 'agent' }, text: 'x' }, 'company'), ['author.type must be agent or human']);
+  // A 1.0 receiver tolerates what a later sender may add: no contradiction with record() and readAuthor.
+  const later = { author: { type: 'agent' as const, name: 'Robo' }, text: 'x' }, unknownType = { author: { type: 'assistant' as 'agent' }, text: 'x' };
+  assert.deepEqual(problemsOf(later, 'personal agent', { as: 'receiver' }), []);
+  assert.deepEqual(problemsOf(unknownType, 'personal agent', { as: 'receiver' }), []);
+  assert.deepEqual(record(unknownType, 'personal agent', 'msg_k3').author, { type: 'agent' }, 'recorded as the agent reads it');
+  assert.deepEqual(problemsOf({ author: { type: 'agent' } }, 'personal agent', { as: 'receiver' }), ['a message needs text, data, context or extensions'], 'a receiver still needs content');
 });
 
 test('8.4 (1.0): a sender of this version sends agent or human, but a receiver reads an author.type it does not recognize as agent, and a role it does not recognize as the Company’s', () => {
@@ -396,7 +403,7 @@ test('spec.md 8.3 to 8.11 examples (poppy-official.json): problemsOf accepts eve
   for (const id of ids) assert.ok(isId(id), id);
 });
 
-test('official message.schema.json (poppy-official.json): every message the schema rejects, problemsOf rejects from either side; the model is stricter only where 8.4 says who may send a field', () => {
+test('official message.schema.json (poppy-official.json): every message the schema rejects, problemsOf rejects from either side; the model is stricter only where 8.4 says who may send a field, or what a receiver reads another way', () => {
   const authors = [{ type: 'agent' }, { type: 'human' }, { type: 'agent', name: 'Alex' }, { type: 'robot' }, undefined];
   const contents = [{}, { text: 'Medium, please.' }, { data: { size: 'M' } }, { context: { user_available: true } }, { extensions: { 'example.com/gift-wrap': {} } }];
   const asOfs = [{}, { as_of_request: 'msg_1' }, { as_of_cursor: 'evt_1' }, { as_of_request: 'msg_1', as_of_cursor: 'evt_1' }];
@@ -410,7 +417,9 @@ test('official message.schema.json (poppy-official.json): every message the sche
     if (schemaErrors.length > 0) assert.notDeepEqual(problems, [], `${side} ${JSON.stringify(message)}: ${schemaErrors.join('; ')}`);
     else if (problems.length > 0) {
       stricter++;
-      assert.deepEqual(problems.filter((p) => p !== 'only Company messages name their author' && p !== 'only the Personal Agent sends context'), [], JSON.stringify(message));
+      // The Company records an agent's unknown author.type as agent (8.4, 1.0), so the stored message passes while a 1.0 sender may not send it.
+      const readOtherwise = side === 'personal agent' ? ['author.type must be agent or human'] : [];
+      assert.deepEqual(problems.filter((p) => p !== 'only Company messages name their author' && p !== 'only the Personal Agent sends context' && !readOtherwise.includes(p)), [], JSON.stringify(message));
     }
   }
   assert.equal(compared, 200);

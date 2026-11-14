@@ -5,6 +5,7 @@
 - **Changed condition:** the plate's drawing, first or second. The second drawing moves the sea strokes and gulls and changes every stroke's wobble, but every plank, tag and word lands in the same laid-out boxes as the first, shown dashed over it.
 - **Reader's own work:** say what must be fixed before any ink, from the opening's words poking out of their boxes; judge which marks a second drawing would move; switch between the two drawings; answer the check questions.
 - **Checked against:** Nothing external for the hand: the spring hand and the chained free hand are the explainer's own models, and `model.test.ts` and `scene.test.ts` check their own properties (a seed repeats its stroke, the ink strays no more than the tremor, a free hand's error carries into every later corner, both drawings trace the same construction marks, any seed leaves every box where the layout put it). The Hershey Simplex glyphs are tested against Hershey's own strokes for A, from Paul Bourke's transcription; the layout comes from Agentic Mermaid with Inter's measured letter widths.
+- **Grounding:** none
 - **Leaves out:** how a real person draws: the spring and the free hand's 2° and 3% errors are chosen, not measured. Only seeds 1967 and 7 are pictured, on one made-up timeline of four periods with one event each. rough.js is compared from its documented rectangle-and-seed API, not rendered; pele-art-diagrams is credited for the visual treatment, whose page code is not used.
 
 ## Check yourself

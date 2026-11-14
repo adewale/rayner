@@ -5,6 +5,7 @@
 - **Changed condition:** how the dot moves. Blending fixed endpoints gives a still identical to playback at t = 1 s and at all 45 frames; a nudge each frame gives a still whose dot has made 1 nudge where playback made 15, and only the first 16 frames match.
 - **Reader's own work:** predict where the still's dot will be before the seek step; switch between blending and nudging; then the three check questions, which ask the reader to transfer the rule to a stretched fade, a delta-based move and a typing animation.
 - **Checked against:** Rayner's own engine: the scene runs its tiny scene through the real engine's src/scene.ts and `renderFrame` (played, seeked to frame 30 at t = 1 s, and seeked to every frame) and refuses to build if blending fails to match or the nudge matches; `model.test.ts` holds the engine's clock, sinks, blending and seeking rules, and `fidelity.ts` checks each step's state against an independent calculation of the 45 frames (15 nudges played against 1 seeked, 45 and 16 matching frames).
+- **Grounding:** live: Rayner’s own engine, run by the scene and its tests
 - **Leaves out:** scenes with updaters and plays containing a Succession, which take the slower seek that computes every earlier frame; sinks other than Rayner's own, whose freedom from mutation it does not promise; and proof of agreement between the two times per step that `rayner check` samples.
 
 ## Check yourself

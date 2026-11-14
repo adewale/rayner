@@ -9,13 +9,12 @@ import { collectProject, defaultScenario, sceneSlug } from './lib/explain-projec
 import { cliManifest } from './lib/roots.ts';
 import { buildExplainer, buildLoader } from './lib/explain-build.ts';
 import { MACHINE_STARTER, MACHINE_STARTER_FILES, STARTER, STARTER_FILES, packageImports } from './lib/explain-init.ts';
+import { DIAGRAM_PACKAGES, installCommand, missingPackage } from './lib/addons.ts';
 
-// Authoring packages, grouped for installation error messages.
-const CAPTURE = ['agentic-mermaid', 'playwright-core', 'svgpath'],
-  RASTER = ['@resvg/resvg-js'];
+// Authoring packages, grouped for installation error messages: the diagram add-on's optional peers,
+// then the browser and PNG dependencies rayner-cli installs itself.
+const GROUPS: readonly (readonly string[])[] = [DIAGRAM_PACKAGES, ['playwright-core'], ['@resvg/resvg-js']];
 const pkg = cliManifest;
-const peers = pkg.dependencies;
-const install = (names: string[]) => 'npm i ' + names.map((n) => `${n}@${peers[n]}`).join(' ');
 const HELP = `Rayner ${pkg.version} (Node 24+)
 
 Usage: rayner <command> <scene.ts | directory> [options]
@@ -53,10 +52,20 @@ Options:
   --machine           Init: write the machine starter instead of the tutorial's
   --version           Print the version
 
-Diagram capture is included. Install Chromium once:
+init, check, build, describe, see, snapshots, preview and shots need Node alone
+for a scene that draws no Mermaid diagram and asks for no lettering. review
+opens the page in Chromium: install it once with
   npx playwright-core install chromium
   or set CHROMIUM_EXECUTABLE_PATH
-PNG output is included.
+PNG output (shots) is included.
+
+Add-ons, for scenes that ask for them:
+  Diagrams   Mermaid diagrams, captured into scene.snapshots/:
+             ${installCommand(DIAGRAM_PACKAGES)}
+             Capturing a new diagram needs Chromium too; pinned snapshots
+             replay without it.
+  Lettering  meta.lettering: capturing needs Python and the source fonts
+             (docs/LETTERING.md); committed snapshots replay without them.
 `;
 export async function main(args = process.argv.slice(2)): Promise<void> {
   if (!args.length || args.includes('--help') || args[0] === 'help') {
@@ -222,11 +231,11 @@ export function watchAndRebuild(folder: string, out: string, rebuild: () => Prom
 export const run = (): Promise<void> =>
   main().catch((error) => {
     // Diagnose an incomplete authoring install with the pinned dependency versions.
-    const missing = error.code === 'ERR_MODULE_NOT_FOUND' && /Cannot find package '([^']+)'/.exec(error.message)?.[1];
-    const group = missing && [CAPTURE, RASTER].find((g) => g.includes(missing));
+    const missing = missingPackage(error);
+    const group = missing && GROUPS.find((g) => g.includes(missing));
     console.error(
       missing
-        ? `rayner: this command needs ${missing}${group ? `. Install: ${install(group)}` : ''}`
+        ? `rayner: this command needs ${missing}${group ? `. Install: ${installCommand(group)}` : ''}`
         : `rayner: ${error.message}`,
     );
     process.exitCode = 1;

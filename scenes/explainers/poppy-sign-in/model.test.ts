@@ -79,6 +79,8 @@ test('4.2 (1.0): a Company may require Pushed Authorization Requests; then the a
   assert.equal(howToOpen(ISSUER), 'open', 'the specification’s example issuer lists no PAR endpoint');
   assert.equal(howToOpen({ ...ISSUER, pushed_authorization_request_endpoint: PAR_ENDPOINT }), 'should push');
   assert.equal(howToOpen({ ...ISSUER, pushed_authorization_request_endpoint: PAR_ENDPOINT, require_pushed_authorization_requests: true }), 'must push');
+  // RFC 9126 §5: requiring pushed requests without naming the endpoint is inconsistent metadata, not "push to the usual place".
+  assert.equal(errorOf(howToOpen({ ...ISSUER, require_pushed_authorization_requests: true })), 'invalid_request: https://auth.example.com requires pushed authorization requests and names no pushed_authorization_request_endpoint');
   const required = { requirePushed: true };
   assert.equal(errorOf(authorize(authorizationRequest(TASK), CLIENT, required)), 'invalid_request: example.com requires the request to be pushed to its PAR endpoint first');
   assert.deepEqual(push(authorizationRequest(TASK), assertionOf(AGENT), required), { request_uri: REQUEST_URI, expires_in: 60 });
@@ -178,6 +180,8 @@ test('4.7: the new refresh token replaces the old one; a pending sign-in leaves 
   for (const flow of FLOWS) {
     const before = play(flow, ['ask', 'approve-read', 'collect']);
     const waiting = play(flow, ['ask', 'approve-read', 'collect', 'ask', 'approve-all']);
+    // 10.8 (1.0), in the story: the second page lists orders:read, granted before, beside orders:write.
+    assert.deepEqual(play(flow, ['ask', 'approve-read', 'collect', 'ask']).sign!.lists, TASK);
     assert.deepEqual(waiting.holds, before.holds, 'a pending sign-in leaves existing tokens unchanged');
     const after = play(flow, ['ask', 'approve-read', 'collect', 'ask', 'approve-all', 'collect']);
     assert.deepEqual(after.holds, { scopes: TASK, card: 1 });

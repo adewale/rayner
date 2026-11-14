@@ -181,6 +181,8 @@ export async function story(order: CompletionOrder, answer: string): Promise<{ r
           : `Latest is still ${latest}: finishing a search does not change it.`,
       caption: `${q(query)} carries ticket ${ticket} and latest is ${latest}, so the guard ${accepted ? 'publishes its results' : 'drops its results'}. ${page}`,
       state: { query, ticket, latest, accepted, off: off.snapshots[i + 1]!, on: on.snapshots[i + 1]! },
+      // The next landing's fate under the guard, from its ticket; the next step answers it.
+      ...(i === 0 ? { predict: { options: ['Published', 'Dropped'], answer: TICKET[done[1]!] === latest ? 'Published' : 'Dropped' } } : {}),
       draw: (st, s) =>
         new Group(
           tile(s, `${q(st.query)}: ticket ${st.ticket}`, { at: [-4, 2], width: 5.4, height: 1.2 }),
@@ -207,6 +209,8 @@ export async function story(order: CompletionOrder, answer: string): Promise<{ r
       line: `Predict: ${q(first)} answers first and ${q(last)} last. Which results does the page end on?`,
       caption: `Each bar is one search, from the keystroke that starts it to the moment its answer lands. ${q('A')} starts first and ${q('B')} second, and the user now wants ${q('B')}. Both are running at once, and they can finish in a different order from the one they started in; here ${q(first)} lands first. The bars show the order of events, not measured time. Both requests succeed in this example. The page starts empty and publishes results as they arrive.`,
       state: { order, completion: done, lifetimes: off.lifetimes },
+      // What the unguarded page ends on, from the model's run of the real promises.
+      predict: { options: [q('A'), q('B')], answer: q(off.snapshots.at(-1)!.shown as Query) },
       draw: (st, s) =>
         new Group(
           ...timeline(s, st.lifetimes, [], 3).children,
@@ -233,6 +237,7 @@ export async function story(order: CompletionOrder, answer: string): Promise<{ r
       line: `Predict: ${q(first)} lands first with ticket ${TICKET[first]}. Published or dropped?`,
       caption: `Give each search a ticket from a counter as it starts: ${q('A')} gets 1, ${q('B')} gets 2, and latest is now 2. Finishing changes neither. When a result lands, publish it only if its ticket is still the latest. Starting a newer request makes every older ticket stale; arrival order cannot make an old ticket current again.`,
       state: { tickets: { A: TICKET.A, B: TICKET.B }, latest },
+      predict: { options: ['Published', 'Dropped'], answer: TICKET[first] === latest ? 'Published' : 'Dropped' },
       draw: (st, s) =>
         new Group(
           tile(s, `${q('A')}: ticket ${st.tickets.A}`, { at: [-4, 2], width: 5.4, height: 1.2 }),

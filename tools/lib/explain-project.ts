@@ -4,7 +4,6 @@ import { diagramsOn, liveSteps, paperOf, paletteOf, checkWatch, adoptExplainer, 
 import type { Live } from '../../explain/internal.ts';
 import type { DiagramResolver } from '../../explain/index.ts';
 import type { Palette } from '../../src/index.ts';
-import { canonicalRequest, offPage, prepareLettering as prepareOutlineLettering } from './lettering.ts';
 import { build } from 'esbuild';
 import type { Plugin } from 'esbuild';
 import { readFile, writeFile, mkdir, stat, readdir, rm, rename, rmdir } from 'node:fs/promises';
@@ -26,6 +25,7 @@ import { buildInputs } from './build-inputs.ts';
 import { COMPILED, GLYPH, LIB_ROOT, ROOT } from './roots.ts';
 import { entryPoints } from './entry-points.ts';
 import { listTree, relativePosix, sha256 } from './hash.ts';
+import { diagramAddOn, diagramName } from './addons.ts';
 
 export { LIB_ROOT, ROOT };
 /** SHA-256, hex (tools/lib/hash.ts). */
@@ -242,17 +242,20 @@ export async function collectProject(
   // name the explainer by its folder unless it declares an id.
   const intent = adoptExplainer(loaded.Scene, file, await readFile(scriptOf(file), 'utf8').catch(() => null), file);
   const outlineRequested = usesOutlineLettering(loaded.Scene);
+  // Lazy: the lettering toolchain's module (its Python bridge and face registry) loads only for a
+  // scene that asks for lettering.
+  const letteringTools = outlineRequested ? await import('./lettering.ts') : undefined;
   const outline = outlineRequested
-    ? await prepareOutlineLettering(loaded.Scene, file, captureLettering, write) : undefined;
+    ? await letteringTools!.prepareLettering(loaded.Scene, file, captureLettering, write) : undefined;
   const Source = outline?.Scene ?? loaded.Scene;
   const request = outlineRequested ? undefined : letteringRequest(Source);
-  const subsetMetrics = request ? hash(JSON.stringify([canonicalRequest(request), ...(await Promise.all(
+  const subsetMetrics = request ? hash(JSON.stringify([(await import('./lettering.ts')).canonicalRequest(request), ...(await Promise.all(
     ['inter.woff2', 'jetbrains-mono.woff2'].map(async (name) =>
       [name, hash(await readFile(join(ROOT, 'vendor/lettering', name)))]),
   ))])) : undefined;
   const base = file.replace(/\.[^.]+$/, '');
   const previous: SnapshotStore = refresh ? {} : await readSnapshots(base);
-  // Lazy: native scenes never require Agentic Mermaid or Chromium.
+  // Lazy: a scene with no diagrams, or only pinned ones, never loads Agentic Mermaid or Chromium.
   const builders = diagramBuilders<Awaited<ReturnType<typeof import('../../integrations/agentic-mermaid/index.ts').snapshotBuilder>>>();
   const store: SnapshotStore = {};
   // Every scene this collection runs: its page needs diagram code when one of them made a diagram.
@@ -277,7 +280,7 @@ export async function collectProject(
       } : undefined;
       // The one check of a cached natural diagram's font metrics: its nodes and routes were laid out for them.
       if (previous[key] && metricOptions) {
-          const { naturalMeasurementIdentity } = await import('../../integrations/agentic-mermaid/index.ts');
+          const { naturalMeasurementIdentity } = await import('../../integrations/agentic-mermaid/measurement.ts');
           if (previous[key].textMeasurement?.id !== naturalMeasurementIdentity(metricOptions).id) {
             if (captureLettering) delete previous[key];
             else throw new Error(`scene.snapshots: the natural diagram font metrics are stale; run rayner snapshots ${file}`);
@@ -288,7 +291,8 @@ export async function collectProject(
         return inspect(previous[key]);
       }
       const active = await builders.get(spec.lettering === 'natural', async () => {
-        const { snapshotBuilder } = await import('../../integrations/agentic-mermaid/index.ts');
+        const { snapshotBuilder } = await diagramAddOn(`${file}: capturing the diagram ${diagramName(spec.source)}, which scene.snapshots/ does not hold,`,
+          () => import('../../integrations/agentic-mermaid/index.ts'));
         return snapshotBuilder(previous, metricOptions);
       });
       const result = await active.diagram(spec);
@@ -296,7 +300,8 @@ export async function collectProject(
       return inspect(result);
     },
     async morph(before, after, ops) {
-      const { replayMorphExplained } = await import('./explain-morph.ts');
+      const { replayMorphExplained } = await diagramAddOn(`${file}: checking the edits d.morph() makes to the diagram ${diagramName(before.source)}`,
+        () => import('./explain-morph.ts'));
       replayMorphExplained(before, after, ops);
       edits++;
     },
@@ -348,7 +353,7 @@ export async function collectProject(
     for (const { values, Scene: Bound, trace, scene: traced } of await traceScenarios(Source, store, file)) {
       ran.push(traced);
       // The page never draws these (offPage): they stay out of what it carries
-      if (outline) await withSceneLettering(Bound, () => offPage(async () => {
+      if (outline) await withSceneLettering(Bound, () => letteringTools!.offPage(async () => {
         const { Text } = await import('../../src/index.ts');
         for (const [i, s] of trace.steps.entries()) {
           // Contact sheets draw this numbered title outside the authored scene.

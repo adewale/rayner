@@ -2,6 +2,8 @@
 // the state the scene recorded, what each step changed and its resting picture drawn as text.
 // One definition behind `rayner describe` and anything an agent imports; it runs the scene in
 // Node or a browser, with no Chromium, given the diagrams' pinned snapshots.
+import { groundingLabel, groundingSentence } from './grounding.ts';
+import type { Grounding } from './grounding.ts';
 import { renderText } from '../src/output.ts';
 import { machinesOf } from './machine.ts';
 import { traceRun } from '../src/trace.ts';
@@ -87,6 +89,8 @@ export interface ExplainerDescription {
   questions?: { question: string; answer: string }[];
   /** What the model is checked against, from the script's intent header. */
   checkedAgainst?: string;
+  /** How the model was checked, from the script's Grounding line: a grade, the system checked against, and the receipt's sentence and short label (explain/grounding.ts). */
+  grounding?: Grounding & { label: string; sentence: string };
   scenarios: ScenarioDescription[];
 }
 export interface DescribeOptions {
@@ -116,6 +120,7 @@ export async function describeExplainer(Scene: ExplainerClass, options: Describe
     lang: meta.lang ?? 'en',
     sources: [...(meta.sources ?? [])],
     ...((meta as { checkedAgainst?: string }).checkedAgainst ? { checkedAgainst: (meta as { checkedAgainst?: string }).checkedAgainst } : {}),
+    ...(meta.grounding ? { grounding: { ...meta.grounding, label: groundingLabel(meta.grounding, meta.lang), sentence: groundingSentence(meta.grounding, meta.lang) } } : {}),
     settings: (Scene.settings ?? []).map((s) => ({ ...s, options: s.options.map((o) => ({ ...o })) })),
     ...(meta.answer ? { answer: meta.answer } : {}),
     ...(meta.questions?.length ? { questions: meta.questions.map((c) => ({ question: c.question, answer: c.answer })) } : {}),

@@ -126,8 +126,10 @@ export const pointerAt = (k: Ink, name: 'head' | 'tail', at: number) => {
     dir = [start[0] - slot[0], start[1] - slot[1]],
     len = Math.hypot(dir[0]!, dir[1]!),
     end: Vec = [slot[0] + (dir[0]! / len) * (SLOT + 0.07), slot[1] + (dir[1]! / len) * (SLOT + 0.07)];
+  // The word sits just past the arrow's tail, near enough the ring that at the top slot it stays inside
+  // the live step's phone close-ups, where it reads 12 px.
   const label = new Text(name, { fontSize: 0.24, font: 'mono', color, weight: 'bold' }).moveTo(
-    polar(a + (name === 'head' ? 0.06 : -0.06), R + 1.42),
+    polar(a + (name === 'head' ? 0.06 : -0.06), R + 1.34),
   );
   return new Group(
     keyed(new Arrow(start, end, { stroke: color, strokeWidth: 0.035, tipLength: 0.16, tipWidth: 0.14 }), `ring:pointer:${name}:arrow`),

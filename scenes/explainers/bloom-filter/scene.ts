@@ -1,9 +1,10 @@
-import { Scene, Group, keyed } from '../../../src/index.ts';
-import { settingsOf, stage, having } from '../../../explain/index.ts';
+import { Scene, Group, Text, FadeIn, keyed } from '../../../src/index.ts';
+import { settingsOf, stage, having, Machine, view } from '../../../explain/index.ts';
 import type { Stage, ExplainerMeta } from '../../../explain/index.ts';
-import { bloomStory, locations, saturation } from './model.ts';
+import { bloomStory, locations, saturation, ROW_EVENTS, rowStart, rowNext } from './model.ts';
+import type { Row, RowEvent } from './model.ts';
 import { label } from '../../../explain/drawing.ts';
-import { drawBits, drawPipeline, takenLabel } from './picture.ts';
+import { drawBits, drawPipeline, drawRow, takenLabel } from './picture.ts';
 import { counted, grouped, listed, numberWord, ordinal, percent } from '../lib/format.ts';
 
 // Two decimals under 1%, so a rate of a few in a thousand does not read 0.0%.
@@ -11,7 +12,7 @@ const pct = (x: number) => percent(x, { under1: { digits: 2 } });
 
 const count = (n: number) => numberWord(n, { zero: 'none' });
 
-export default class BloomFilter extends Scene<{}, {}> {
+export default class BloomFilter extends Scene<Row, {}> {
   static meta = {
     sources: [
       'https://doi.org/10.1145/362686.362692',
@@ -105,6 +106,8 @@ export default class BloomFilter extends Scene<{}, {}> {
         title: `${probe.word} is not taken. What does the filter say?`,
         line: `Predict: ${probe.word} hashes to ${listed(probe.locations)}. Maybe, or definitely not?`,
         caption: `Only cat and dog are taken. Find bits ${listed(probe.locations)} in the row. Will the filter answer “definitely not”, or say maybe and ask the database?`,
+        // The reader commits before the next step answers; the answer is the model's lookup.
+        predict: { options: ['Maybe', 'Definitely not'], answer: probe.maybe ? 'Maybe' : 'Definitely not' },
       },
       {
         id: 'false-positive',
@@ -132,7 +135,8 @@ export default class BloomFilter extends Scene<{}, {}> {
       },
     ];
 
-    await stage(this, { style: 'github-light', headingSize: 0.6 }).steps(
+    const s = stage(this, { style: 'github-light', headingSize: 0.6 });
+    await s.steps(
       frames.map((frame, i) => {
         const bits = i === 0 ? Array<number>(size).fill(0) : i === 1 ? m.first : i === FULL ? full.bits : m.bits;
         const query = i >= 3 && i <= 6 ? m.queries[Math.min(i - 3, 2)]! : null;
@@ -205,5 +209,31 @@ export default class BloomFilter extends Scene<{}, {}> {
         };
       }),
     );
+
+    // The reader's own row: cat and dog taken again, and buttons that take eel or owl, check wolf, owl
+    // or cat, and clear dog's bits as dog leaves. Every event is the model's (rowNext), and check draws
+    // every row the buttons reach. The step takes eel, so the reader starts from a row with three names.
+    const start = rowStart(size),
+      withEel = rowNext(start, 'take eel') as Row;
+    await this.step('try', {
+      title: 'Your turn: take names, check names',
+      line: 'Take eel or owl, check a name, or clear dog’s bits.',
+      caption: `cat and dog are taken again, and eel takes bits ${listed(withEel.owners.flatMap((o, j) => (o.includes('eel') ? [j] : [])))}. Check wolf, owl or cat to see which bits each lands on and whether the filter says maybe or definitely not. Then let dog leave: clearing its bits back to 0 also clears any bit another name set, so a check can turn away a name that is still taken.`,
+    });
+    await s.clear({ runTime: 0.18 });
+    this.state = start;
+    const row = view(this, (st) => drawRow(s, st), { place: false });
+    const machine = new Machine<Row, RowEvent>(this, {
+      start,
+      events: ROW_EVENTS,
+      labels: { 'take eel': 'Take eel', 'take owl': 'Take owl', 'check wolf': 'Check wolf', 'check owl': 'Check owl', 'check cat': 'Check cat', 'clear dog': 'Clear dog’s bits' },
+      next: rowNext,
+      views: [row],
+    });
+    // What the row shows in words: its labels, in drawing order, as the story's steps describe theirs.
+    s.keep(row, { describe: () => row.current.family().filter((t): t is Text => t instanceof Text).map((t) => t.text).filter(Boolean).join('. ') });
+    s.opening(row);
+    await this.play(new FadeIn(row, { runTime: 0.24 }));
+    await this.play(machine.replay(['take eel']));
   }
 }

@@ -75,6 +75,76 @@
         "check": "Invariants: registered with addInvariant, it fails on the first frame that draws a piece out of depth order"
       }
     },
+    "rayner/kit": {
+      "MARGIN": {
+        "guide": "docs/REFERENCE.md#kit",
+        "test": "test/kit.test.ts"
+      },
+      "MIN_TEXT": {
+        "guide": "docs/REFERENCE.md#kit",
+        "test": "test/kit.test.ts"
+      },
+      "PLATE_HEIGHT": {
+        "guide": "docs/REFERENCE.md#kit",
+        "test": "test/kit.test.ts"
+      },
+      "RADIUS": {
+        "guide": "docs/REFERENCE.md#kit",
+        "test": "test/kit.test.ts"
+      },
+      "SPACE": {
+        "guide": "docs/REFERENCE.md#kit",
+        "test": "test/kit.test.ts"
+      },
+      "STROKE": {
+        "guide": "docs/REFERENCE.md#kit",
+        "test": "test/kit.test.ts"
+      },
+      "TYPE": {
+        "guide": "docs/REFERENCE.md#kit",
+        "test": "test/kit.test.ts"
+      },
+      "addAll": {
+        "guide": "docs/REFERENCE.md#kit",
+        "test": "test/kit.test.ts"
+      },
+      "beats": {
+        "guide": "docs/REFERENCE.md#kit",
+        "test": "test/kit.test.ts"
+      },
+      "box": {
+        "guide": "docs/REFERENCE.md#kit",
+        "test": "test/kit.test.ts"
+      },
+      "connector": {
+        "guide": "docs/REFERENCE.md#kit",
+        "test": "test/kit.test.ts"
+      },
+      "flight": {
+        "guide": "docs/REFERENCE.md#kit",
+        "test": "test/kit.test.ts"
+      },
+      "pass": {
+        "guide": "docs/REFERENCE.md#kit",
+        "test": "test/kit.test.ts"
+      },
+      "plate": {
+        "guide": "docs/REFERENCE.md#kit",
+        "test": "test/kit.test.ts"
+      },
+      "route": {
+        "guide": "docs/REFERENCE.md#kit",
+        "test": "test/kit.test.ts"
+      },
+      "tones": {
+        "guide": "docs/REFERENCE.md#kit",
+        "test": "test/kit.test.ts"
+      },
+      "words": {
+        "guide": "docs/REFERENCE.md#kit",
+        "test": "test/kit.test.ts"
+      }
+    },
     "rayner/output": {
       "DomSink": {
         "tooling": "a host page that plays a scene into its own live SVG element, as the player's zoom view does (docs/SCENE-OUTPUTS.md)"

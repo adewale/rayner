@@ -1,10 +1,14 @@
 // Insert-only Bloom filter. Three seeded FNV-1a hashes are a small teaching
 // implementation, not a reproduction of Jason Davies's double-hash implementation or a
-// production filter. What it leaves out: deletion, counting filters, other numbers of hashes,
+// production filter. What it leaves out: deletion (clearBits, for the live step, shows why clearing
+// a leaving name's bits is not one), counting filters, other numbers of hashes,
 // and sizing a row for a target false-positive rate. The pass rates are measured over 10,000
 // fixed untaken sample names for these hashes, not the independent-uniform estimate
 // (setBits / size)^3, since these hashes need not be independent; and the counts of names
 // that fill each row (12 at 16 bits, 45 at 32) belong to the insertion order in MORE.
+import { refuse } from '../../../explain/index.ts';
+import type { Refusal } from '../../../explain/index.ts';
+import { listed } from '../lib/format.ts';
 export function fnv1a(text: string): number {
   let h = 2166136261;
   for (const byte of new TextEncoder().encode(text)) h = Math.imul(h ^ byte, 16777619) >>> 0;
@@ -65,4 +69,64 @@ export function bloomStory(size: 16 | 32) {
     /** The chance that a name whose three positions are independent and uniform lands only on set bits. */
     passChance: (setBits / size) ** 3,
     sampleSize: sample.length, sampleFalsePositives: sample.filter(word => membership(bits, word)).length};
+}
+
+// ---- the row as a machine: the reader takes names, checks names, and clears a departing name's bits ----
+/**
+ * The row the live step holds: its bits, which names set each one (the fills; the filter itself keeps
+ * only the 1s), the names taken, the names whose bits someone cleared, and the last name checked with
+ * the filter's answer and whether it is taken.
+ */
+export interface Row {
+  size: 16 | 32;
+  bits: number[];
+  owners: string[][];
+  taken: string[];
+  cleared: string[];
+  check: { word: string; locations: number[]; maybe: boolean; taken: boolean } | null;
+}
+/** What the reader can do to the row: take eel or owl, check wolf, owl or cat, and clear dog's bits as dog leaves. */
+export const ROW_EVENTS = ['take eel', 'take owl', 'check wolf', 'check owl', 'check cat', 'clear dog'] as const;
+export type RowEvent = (typeof ROW_EVENTS)[number];
+/** The row with cat and dog taken, as the story leaves it before the row fills. */
+export function rowStart(size: 16 | 32): Row {
+  return { size, bits: makeFilter(TAKEN, size), owners: owners(TAKEN, size), taken: [...TAKEN], cleared: [], check: null };
+}
+/** Take `word`: its three bits become 1, and the fills record that it set them. */
+export function take(row: Row, word: string): Row {
+  const at = new Set(locations(word, row.size));
+  return {
+    ...row,
+    bits: row.bits.map((b, i) => (at.has(i) ? 1 : b)),
+    owners: row.owners.map((o, i) => (at.has(i) && !o.includes(word) ? [...o, word] : o)),
+    taken: [...row.taken, word],
+    check: null,
+  };
+}
+/**
+ * Clear `word`'s three bits back to 0 as it leaves, the deletion an insert-only filter cannot make: a bit
+ * does not say which names set it, so clearing it clears it for every other name that set it too.
+ */
+export function clearBits(row: Row, word: string): Row {
+  const at = new Set(locations(word, row.size));
+  return {
+    ...row,
+    bits: row.bits.map((b, i) => (at.has(i) ? 0 : b)),
+    owners: row.owners.map((o, i) => (at.has(i) ? [] : o)),
+    taken: row.taken.filter((w) => w !== word),
+    cleared: [...row.cleared, word],
+    check: null,
+  };
+}
+/** Look `word` up: its positions, the filter's answer (maybe only when all three bits are 1), and whether it is taken. */
+export function check(row: Row, word: string): Row {
+  return { ...row, check: { word, locations: locations(word, row.size), maybe: membership(row.bits, word), taken: row.taken.includes(word) } };
+}
+/** The model's step for a reader's event: a new row, or why the row refuses it. */
+export function rowNext(row: Row, event: RowEvent): Row | Refusal {
+  const [verb, word] = event.split(' ') as ['take' | 'check' | 'clear', string];
+  if (verb === 'check') return check(row, word);
+  if (verb === 'take')
+    return row.taken.includes(word) ? refuse(`${word} is taken already, and its bits ${listed(locations(word, row.size))} are set`) : take(row, word);
+  return row.taken.includes(word) ? clearBits(row, word) : refuse(`${word}’s bits are cleared already: ${word} has left`);
 }

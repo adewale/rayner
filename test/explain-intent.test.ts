@@ -126,3 +126,54 @@ test('Hanoi\'s scene declares no title, answer or questions, and its page shows 
     await rm(folder, { recursive: true, force: true });
   }
 });
+
+test('a Grounding line gives the model a grade and the system it was checked against; an unknown grade is refused', () => {
+  const graded = SCRIPT.replace('  wiring diagram.\n', '  wiring diagram.\n- **Grounding:** recorded: the lamp’s wiring diagram, measured on 2026-10-25.\n');
+  const Scene = { meta: {} as Record<string, unknown> };
+  adoptIntent(Scene, parseIntent(graded)!, 'lamp');
+  assert.deepEqual(Scene.meta.grounding, { grade: 'recorded', subject: 'the lamp’s wiring diagram, measured on 2026-10-25' });
+  adoptIntent(Scene, parseIntent(SCRIPT)!, 'lamp');
+  assert.equal(Scene.meta.grounding, undefined, 'a script without the line gives no grade');
+  assert.throws(() => parseIntent(SCRIPT.replace('  wiring diagram.\n', '  wiring diagram.\n- **Grounding:** tested: lots\n'), 'lamp/script.md'),
+    /^Error: lamp\/script\.md: Grounding must start with one of live, recorded, read, none/);
+  assert.throws(() => adoptIntent({ meta: { grounding: { grade: 'live' } } }, parseIntent(graded)!, 'lamp'), /grounding is declared in both script\.md and the scene/);
+});
+
+test('the page’s receipt is one sentence for the grade, with the full Checked against line, its files as code, behind a disclosure', async () => {
+  const { groundingHtml } = await import('../tools/lib/explain-build.ts');
+  const { chromeFor } = await import('../app/embed-strings.ts');
+  const line = 'CPython 3.12’s storage, captured by `oracle/dict.py` into `fixtures/dict.json`';
+  const en = groundingHtml(line, { grade: 'live', subject: 'CPython 3.12’s dict storage' }, 'en', chromeFor('en').checkedAgainst);
+  assert.equal(en,
+    '<p class="grounding" data-grade="live">Checked live, each time the model’s tests run, against CPython 3.12’s dict storage.</p>' +
+    '<details class="grounding-details"><summary>How it was checked</summary><p>CPython 3.12’s storage, captured by <code>oracle/dict.py</code> into <code>fixtures/dict.json</code></p></details>');
+  assert.ok(!en.includes('`'), 'no raw backticks reach the reader');
+  assert.match(groundingHtml(line, { grade: 'recorded', subject: 'Postgres 18.6, on 2026-10-25' }, 'en', chromeFor('en').checkedAgainst), />Checked against a recording made once, which the model’s tests compare with: Postgres 18\.6, on 2026-10-25\.</);
+  assert.match(groundingHtml(line, { grade: 'read', subject: 'RFC 7636' }, 'en', chromeFor('en').checkedAgainst), />Checked by reading, not running: RFC 7636\.</);
+  assert.match(groundingHtml(line, { grade: 'none' }, 'en', chromeFor('en').checkedAgainst), />Not checked against an outside system: only the model’s own tests check it\.</);
+  assert.match(groundingHtml(line, { grade: 'recorded', subject: 'openfisca-france 176.1.3' }, 'fr', chromeFor('fr').checkedAgainst), />Vérifié par un enregistrement fait une fois, auquel les tests du modèle se comparent\s?: openfisca-france 176\.1\.3\..*<summary>Comment il a été vérifié<\/summary>/);
+  // Without a grade the line is the receipt, as before, with its files as code.
+  assert.equal(groundingHtml(line, undefined, 'en', chromeFor('en').checkedAgainst),
+    '<p class="grounding">The model is checked against: CPython 3.12’s storage, captured by <code>oracle/dict.py</code> into <code>fixtures/dict.json</code></p>');
+  assert.equal(groundingHtml(undefined, undefined, 'en', chromeFor('en').checkedAgainst), '');
+});
+
+test('a catalogued explainer’s page, describe and gallery card give the same grade', async () => {
+  const { describeExplainer } = await import('../explain/describe.ts');
+  const { galleryTile } = await import('../tools/repo/lib/explain-gallery.ts');
+  const project = await collectProject('scenes/explainers/pg-page', { write: false });
+  const grounding = project.Scene.meta?.grounding;
+  assert.deepEqual(grounding, { grade: 'recorded', subject: 'a Postgres 18.6 server, measured on 2026-10-25' });
+  const d = await describeExplainer(project.Scene, { snapshots: project.store, drawings: false });
+  assert.deepEqual(d.grounding, { ...grounding, label: 'Recorded: a Postgres 18.6 server, measured on 2026-10-25',
+    sentence: 'Checked against a recording made once, which the model’s tests compare with: a Postgres 18.6 server, measured on 2026-10-25.' });
+  assert.match(galleryTile({ id: 'pg-page', title: 'Pages', lang: 'en', grounding: { grade: 'recorded', label: d.grounding!.label } }),
+    /<\/span><small class="grounding" data-grade="recorded">Recorded: a Postgres 18\.6 server, measured on 2026-10-25<\/small><\/a>/);
+  const folder = await mkdtemp(join(tmpdir(), 'rayner-grounding-'));
+  try {
+    const { html } = await buildExplainer(project, join(folder, 'pg-page.html'));
+    assert.ok(html.includes(`<h2>Sources</h2><p class="grounding" data-grade="recorded">${d.grounding!.sentence}</p><details class="grounding-details"><summary>How it was checked</summary><p>a real Postgres 18.6 server (Docker <code>postgres:18</code>`));
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});

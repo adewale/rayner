@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Same-Size Rows</title>
+<style>
+:root{
+  --bg:#fbfaf7; --panel:#ffffff; --ink:#1d1f23; --muted:#61656e; --line:#d9d6cf; --grid:#ebe8e1;
+  --hdr:#c9ccd3; --hdr-ink:#2f333a; --bm:#c7b3e6; --pad:#e0533d; --pad-bg:#fbe3de;
+  --c1:#4f8fd6; --c2:#3ea88a; --c3:#d99a2b; --c4:#a66bd1; --c5:#d1607f; --c6:#6b8f3a;
+  --lp:#9fb8d8; --free:#f1efe9; --accent:#2b62b8; --code:#f2f0ea;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16181c; --panel:#1e2126; --ink:#e7e8ea; --muted:#a2a7b0; --line:#373b43; --grid:#2b2f36;
+    --hdr:#4a4f59; --hdr-ink:#eef0f3; --bm:#6d5a8f; --pad:#ff7a63; --pad-bg:#4a2620;
+    --c1:#5b9be0; --c2:#45b796; --c3:#e0a63d; --c4:#b47fdc; --c5:#e0708e; --c6:#86ab52;
+    --lp:#4f6889; --free:#23262c; --accent:#7fb0ff; --code:#262a31;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16181c; --panel:#1e2126; --ink:#e7e8ea; --muted:#a2a7b0; --line:#373b43; --grid:#2b2f36;
+  --hdr:#4a4f59; --hdr-ink:#eef0f3; --bm:#6d5a8f; --pad:#ff7a63; --pad-bg:#4a2620;
+  --c1:#5b9be0; --c2:#45b796; --c3:#e0a63d; --c4:#b47fdc; --c5:#e0708e; --c6:#86ab52;
+  --lp:#4f6889; --free:#23262c; --accent:#7fb0ff; --code:#262a31;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:860px;margin:0 auto;padding:32px 16px 80px}
+h1{font-size:2rem;line-height:1.2;margin:0 0 8px}
+h2{font-size:1.3rem;margin:48px 0 8px}
+p{margin:0 0 14px}
+.lede{font-size:1.1rem;color:var(--muted)}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9em}
+code{background:var(--code);padding:1px 5px;border-radius:4px}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto;line-height:1.45}
+.answer{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:8px;padding:14px 16px;margin:20px 0}
+figure{margin:20px 0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+figcaption{color:var(--muted);font-size:.9rem;margin-top:8px}
+svg{display:block;max-width:100%;height:auto}
+svg text{fill:var(--ink);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:620px){.pair{grid-template-columns:1fr}}
+.pair h3{font-size:1rem;margin:0 0 6px;font-family:ui-monospace,Menlo,monospace}
+.stat{font-size:.9rem;color:var(--muted);margin-top:6px}
+.stat b{color:var(--ink)}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:.85rem;color:var(--muted);margin-top:10px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:3px;display:inline-block;border:1px solid var(--line)}
+.sw.pad{background:repeating-linear-gradient(45deg,var(--pad-bg) 0 3px,var(--pad) 3px 4px)}
+/* builder */
+.builder{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin:20px 0}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.row .lbl{font-size:.85rem;color:var(--muted);min-width:70px}
+button{font:inherit;font-size:.85rem;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;min-height:40px;padding:8px;border:1px dashed var(--line);border-radius:8px;margin-bottom:12px}
+.chip{display:inline-flex;align-items:center;gap:4px;border-radius:6px;padding:3px 4px 3px 8px;font-family:ui-monospace,Menlo,monospace;font-size:.85rem;color:#fff}
+.chip.isnull{opacity:.45;text-decoration:line-through}
+.chip button{padding:0 6px;font-size:.8rem;background:rgba(0,0,0,.18);color:#fff;border:0;border-radius:4px;line-height:1.6}
+.chip button:hover{background:rgba(0,0,0,.35)}
+.empty{color:var(--muted);font-size:.9rem;align-self:center}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0}
+.stats div{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.stats .k{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.stats .v{font-size:1.25rem;font-weight:600;font-variant-numeric:tabular-nums}
+.note{font-size:.88rem;color:var(--muted)}
+.builder-grid{display:grid;grid-template-columns:minmax(0,340px) 1fr;gap:16px;align-items:start}
+@media (max-width:680px){.builder-grid{grid-template-columns:1fr}}
+table{border-collapse:collapse;font-size:.9rem;width:100%}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:600}
+td.n{font-variant-numeric:tabular-nums;text-align:right}
+.tablewrap{overflow-x:auto}
+</style>
+</head>
+<body>
+<!-- shared pattern for padding bytes -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="6" height="6" style="fill:var(--pad-bg)"/>
+      <line x1="0" y1="0" x2="0" y2="6" style="stroke:var(--pad)" stroke-width="2"/>
+    </pattern>
+  </defs>
+</svg>
+<main>
+<h1>Why int4 and int8 rows can take the same space</h1>
+<p class="lede">You switched a column from <code>bigint</code> to <code>integer</code> to save four bytes per row. The table came out exactly the same size. The four bytes didn't disappear: they turned into padding.</p>
+
+<div class="answer">
+<strong>Short answer.</strong> On 64-bit builds, PostgreSQL starts every row on an 8-byte boundary and rounds every row's footprint up to a multiple of 8 bytes. The row header is 23 bytes, which rounds up to 24. A row of <code>header + int4</code> is 28 bytes, so it rounds up to 32. A row of <code>header + int8</code> is exactly 32. Both rows use 32 bytes on the page, plus a 4-byte pointer, so both tables fit 226 rows per 8&nbsp;KB page.
+</div>
+
+<h2>1. What a heap page looks like</h2>
+<p>A table file is a sequence of 8,192-byte pages. Each page has a small header, then an array of 4-byte <em>line pointers</em> growing forward from the start, and the rows themselves (<em>tuples</em>) packed backward from the end. Whatever is left in the middle is free space. When the two regions meet, the page is full.</p>
+
+<figure>
+<svg viewBox="0 0 800 210" role="img" aria-label="Heap page layout: page header, line pointers growing right, free space, tuples growing left from the end of the page">
+  <text x="0" y="16" font-size="12" style="fill:var(--muted)">byte 0</text>
+  <text x="800" y="16" font-size="12" text-anchor="end" style="fill:var(--muted)">byte 8191</text>
+  <rect x="0" y="26" width="40" height="70" style="fill:var(--hdr)"/>
+  <text x="20" y="66" font-size="11" text-anchor="middle" style="fill:var(--hdr-ink)">hdr</text>
+  <g>
+    <rect x="40" y="26" width="18" height="70" style="fill:var(--lp);stroke:var(--panel)"/>
+    <rect x="58" y="26" width="18" height="70" style="fill:var(--lp);stroke:var(--panel)"/>
+    <rect x="76" y="26" width="18" height="70" style="fill:var(--lp);stroke:var(--panel)"/>
+    <rect x="94" y="26" width="18" height="70" style="fill:var(--lp);stroke:var(--panel)"/>
+    <text x="40" y="112" font-size="11">line pointers (4 B each) →</text>
+  </g>
+  <rect x="112" y="26" width="368" height="70" style="fill:var(--free);stroke:var(--line)" stroke-dasharray="4 3"/>
+  <text x="296" y="66" font-size="12" text-anchor="middle" style="fill:var(--muted)">free space</text>
+  <g>
+    <rect x="480" y="26" width="80" height="70" style="fill:var(--c2);stroke:var(--panel)" stroke-width="2"/>
+    <rect x="560" y="26" width="80" height="70" style="fill:var(--c2);stroke:var(--panel)" stroke-width="2"/>
+    <rect x="640" y="26" width="80" height="70" style="fill:var(--c2);stroke:var(--panel)" stroke-width="2"/>
+    <rect x="720" y="26" width="80" height="70" style="fill:var(--c2);stroke:var(--panel)" stroke-width="2"/>
+    <text x="800" y="112" font-size="11" text-anchor="end">← tuples, packed from the end</text>
+  </g>
+  <path d="M49 96 C 49 160, 760 160, 760 98" fill="none" style="stroke:var(--muted)" stroke-width="1.2" marker-end="url(#arr)"/>
+  <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" style="fill:var(--muted)"/></marker></defs>
+  <text x="400" y="150" font-size="11" text-anchor="middle" style="fill:var(--muted)">each line pointer stores the offset and length of one tuple</text>
+  <text x="0" y="190" font-size="12">Every tuple starts at an offset that is a multiple of 8 (MAXALIGN),</text>
+  <text x="0" y="206" font-size="12">so each tuple's slot is its length rounded up to the next multiple of 8.</text>
+</svg>
+<figcaption>Rows per page = (8,192 − 24 page-header bytes) ÷ (rounded tuple size + 4 line-pointer bytes).</figcaption>
+</figure>
+
+<p>Two rounding rules matter for the column-width question:</p>
+<ol>
+<li><strong>Each column is aligned to its type's boundary.</strong> <code>int2</code> aligns to 2 bytes, <code>int4</code> to 4, and <code>int8</code>, <code>float8</code> and <code>timestamptz</code> to 8. If the previous column ends at an awkward offset, padding bytes are inserted first.</li>
+<li><strong>Each whole tuple is rounded up to 8 bytes.</strong> The next tuple must start on an 8-byte boundary, so the tail of every tuple is padded out.</li>
+</ol>
+
+<h2>2. The two rows, byte by byte</h2>
+<p>Each grid row below is 8 bytes, the alignment unit. The 23-byte tuple header holds the visibility information (<code>xmin</code>, <code>xmax</code>, command id, <code>ctid</code>, flag bits, header length). The data must start at <code>t_hoff</code>, which is itself rounded up to a multiple of 8, so user data always begins at byte 24.</p>
+
+<figure>
+<div class="pair">
+  <div><h3>CREATE TABLE t4 (id int4)</h3><div id="fig-int4"></div><div class="stat" id="st-int4"></div></div>
+  <div><h3>CREATE TABLE t8 (id int8)</h3><div id="fig-int8"></div><div class="stat" id="st-int8"></div></div>
+</div>
+<div class="legend">
+  <span><i class="sw" style="background:var(--hdr)"></i>tuple header</span>
+  <span><i class="sw pad"></i>padding (allocated, holds nothing)</span>
+  <span><i class="sw" style="background:var(--c1)"></i>column data</span>
+</div>
+<figcaption>The int4 row is 28 bytes long and the int8 row is 32, but the next tuple can't start until byte 32 either way. The four bytes you saved become tail padding.</figcaption>
+</figure>
+
+<p>The arithmetic for both tables comes out the same:</p>
+<pre>usable bytes per page   8192 − 24          = 8168
+bytes per row           32 (tuple) + 4 (line pointer) = 36
+rows per page           floor(8168 / 36)  = 226</pre>
+
+<h2>3. Try it: build a row</h2>
+<p>Add columns, reorder them, mark values as NULL, or flip a column between <code>int4</code> and <code>int8</code>, and watch where the padding goes. This only models fixed-width types (no <code>text</code> or <code>numeric</code>) on a 64-bit server.</p>
+
+<div class="builder">
+  <div class="row"><span class="lbl">Add</span><span id="addbtns" class="row" style="margin:0"></span></div>
+  <div class="row"><span class="lbl">Presets</span><span id="presets" class="row" style="margin:0"></span></div>
+  <div class="chips" id="chips"></div>
+  <div class="row">
+    <button class="primary" id="sortbtn">Reorder to minimise padding</button>
+    <button id="clearbtn">Clear</button>
+    <span class="note">Chip buttons: ‹ › move · ⇄ flip int4/int8 · ∅ toggle NULL · × remove</span>
+  </div>
+  <div class="stats" id="stats"></div>
+  <div class="builder-grid">
+    <div id="b-grid"></div>
+    <div>
+      <div id="b-page"></div>
+      <p class="note" id="b-explain" style="margin-top:10px"></p>
+    </div>
+  </div>
+</div>
+
+<h2>4. When narrowing a column does save space</h2>
+<p>Shrinking a column only helps if the row ends up crossing one fewer 8-byte boundary. What matters is total length after alignment, not any single column's width. Some cases (all with no NULLs):</p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>Columns</th><th class="n">Data end</th><th class="n">Slot</th><th class="n">Rows/page</th></tr></thead>
+<tbody id="cases"></tbody>
+</table>
+</div>
+<p style="margin-top:14px">The patterns:</p>
+<ul>
+<li><strong>int4s save space in pairs.</strong> Two <code>int4</code> columns fill one 8-byte word. A single one leaves four bytes of padding beside it.</li>
+<li><strong>Column order matters.</strong> An <code>int4</code> placed directly before an <code>int8</code> forces 4 bytes of padding so the <code>int8</code> can start on an 8-byte boundary. Putting 8-byte-aligned columns first, then 4-, 2- and 1-byte ones, removes that internal padding. The tail rounding still applies.</li>
+<li><strong>NULLs are free, mostly.</strong> A NULL value takes no data bytes, but a row with any NULL gets a null bitmap of one bit per column, stored right after the 23-byte header. With up to 8 columns, the bitmap fits in byte 23, which was padding anyway. With 9 or more columns it pushes the data start from 24 to 32.</li>
+</ul>
+
+<h2>5. Indexes round the same way</h2>
+<p>A B-tree index entry has an 8-byte header (a heap pointer plus flags) followed by the key, and it is also padded to 8 bytes. <code>8 + 4 = 12</code> rounds to 16, and <code>8 + 8 = 16</code> stays 16. So an index on unique <code>int4</code> values is generally the same size as one on <code>int8</code>. (B-tree deduplication in PostgreSQL 13+ can change this when values repeat.)</p>
+<figure>
+<div class="pair">
+  <div><h3>index entry, int4 key</h3><div id="fig-idx4"></div></div>
+  <div><h3>index entry, int8 key</h3><div id="fig-idx8"></div></div>
+</div>
+</figure>
+
+<h2>6. Check it on your own server</h2>
+<pre>CREATE TABLE t4 (id int4);
+CREATE TABLE t8 (id int8);
+INSERT INTO t4 SELECT g FROM generate_series(1, 100000) g;
+INSERT INTO t8 SELECT g FROM generate_series(1, 100000) g;
+
+SELECT pg_relation_size('t4') AS t4, pg_relation_size('t8') AS t8;
+-- both: 3629056 bytes = 443 pages (100000 / 226, rounded up)</pre>
+<p>With the <code>pageinspect</code> extension you can see the padding directly:</p>
+<pre>CREATE EXTENSION pageinspect;
+SELECT lp, lp_off, lp_len FROM heap_page_items(get_raw_page('t4', 0)) LIMIT 3;
+--  lp | lp_off | lp_len
+--   1 |   8160 |     28     ← tuple is 28 bytes long…
+--   2 |   8128 |     28     ← …but the next one starts 32 bytes earlier
+--   3 |   8096 |     28</pre>
+<p>Run the same query on <code>t8</code>: <code>lp_len</code> is 32 and the offsets are identical.</p>
+
+<h2>What this means when designing a table</h2>
+<ul>
+<li>Don't pick <code>int4</code> over <code>int8</code> to save space without doing the arithmetic for the whole row. For many narrow tables, especially a single key column or a key plus timestamps, the saving is zero. Meanwhile a key that outgrows 2,147,483,647 forces a painful migration later.</li>
+<li>For wide tables with many fixed-width columns, ordering them from widest alignment to narrowest (8 → 4 → 2 → 1, variable-width last) is the reliable way to reclaim padding.</li>
+<li>Per-row overhead (24-byte header + 4-byte line pointer + tail padding) is often larger than the data itself. For tiny rows, the row count dominates storage, not the column widths.</li>
+</ul>
+</main>
+
+<script>
+(function(){
+const TYPES = {
+  int8:{len:8,al:8}, timestamptz:{len:8,al:8}, float8:{len:8,al:8},
+  int4:{len:4,al:4}, date:{len:4,al:4}, float4:{len:4,al:4},
+  int2:{len:2,al:2}, bool:{len:1,al:1}, uuid:{len:16,al:1}
+};
+const COLORS = ['--c1','--c2','--c3','--c4','--c5','--c6'];
+const PAGE = 8192, PAGEHDR = 24, MAXTUP = 291;
+const A = (x,a)=>Math.ceil(x/a)*a;
+const NS = 'http://www.w3.org/2000/svg';
+
+function layoutHeap(cols){
+  const segs = [{s:0,l:23,k:'hdr',label:'header'}];
+  const anyNull = cols.some(c=>c.nul);
+  let h = 23, bm = 0;
+  if(anyNull){ bm = Math.ceil(cols.length/8); segs.push({s:23,l:bm,k:'bm',label:'nulls'}); h = 23+bm; }
+  const hoff = A(h,8);
+  let hdrPad = hoff-h, colPad = 0;
+  if(hdrPad) segs.push({s:h,l:hdrPad,k:'pad',label:'pad'});
+  let off = hoff, data = 0;
+  cols.forEach((c,i)=>{
+    if(c.nul) return;
+    const t = TYPES[c.type]; const a = A(off,t.al);
+    if(a>off){ segs.push({s:off,l:a-off,k:'pad',label:'pad'}); colPad += a-off; }
+    segs.push({s:a,l:t.len,k:'col',i,label:c.type,color:c.color});
+    off = a+t.len; data += t.len;
+  });
+  const tlen = off, slot = A(off,8), tail = slot-off;
+  if(tail) segs.push({s:off,l:tail,k:'pad',label:'pad'});
+  const per = slot+4;
+  const rows = Math.min(MAXTUP, Math.floor((PAGE-PAGEHDR)/per));
+  return {segs,tlen,slot,tail,hdrPad,colPad,data,hoff,rows,per,bm};
+}
+
+function el(name, attrs, parent){
+  const e = document.createElementNS(NS,name);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  if(parent) parent.appendChild(e);
+  return e;
+}
+
+function drawGrid(container, segs, total){
+  const cw = 34, rh = 30, left = 34, top = 4;
+  const rowsN = Math.max(1, Math.ceil(total/8));
+  const W = left + 8*cw + 2, H = top + rowsN*rh + 4;
+  const svg = el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
+  svg.style.maxWidth = W+'px';
+  el('title',{},svg).textContent = 'Byte layout, 8 bytes per row';
+  for(let r=0;r<rowsN;r++){
+    const t = el('text',{x:left-6,y:top+r*rh+rh/2+4,'font-size':10,'text-anchor':'end'},svg);
+    t.style.fill='var(--muted)'; t.textContent = r*8;
+  }
+  // byte cell background grid
+  for(let b=0;b<rowsN*8;b++){
+    const r=Math.floor(b/8), c=b%8;
+    const rc = el('rect',{x:left+c*cw,y:top+r*rh,width:cw,height:rh},svg);
+    rc.style.fill = b<total ? 'none' : 'var(--free)';
+    rc.style.stroke='var(--grid)';
+  }
+  segs.forEach(sg=>{
+    let pieces=[], b=sg.s, end=sg.s+sg.l;
+    while(b<end){ const r=Math.floor(b/8); const rEnd=Math.min(end,(r+1)*8); pieces.push({r,c:b%8,n:rEnd-b}); b=rEnd; }
+    let best = pieces.reduce((a,p)=>p.n>a.n?p:a, pieces[0]);
+    pieces.forEach(p=>{
+      const g = el('g',{},svg);
+      const rc = el('rect',{x:left+p.c*cw+1,y:top+p.r*rh+1,width:p.n*cw-2,height:rh-2,rx:3},g);
+      let fill, ink='#fff';
+      if(sg.k==='hdr'){ fill='var(--hdr)'; ink='var(--hdr-ink)'; }
+      else if(sg.k==='bm'){ fill='var(--bm)'; ink='var(--hdr-ink)'; }
+      else if(sg.k==='pad'){ fill='url(#hatch)'; ink='var(--pad)'; rc.style.stroke='var(--pad)'; }
+      else fill = `var(${sg.color||'--c1'})`;
+      rc.style.fill = fill;
+      el('title',{},g).textContent = `${sg.label}: bytes ${sg.s}–${sg.s+sg.l-1} (${sg.l} B)`;
+      if(p===best){
+        const txt = sg.k==='pad' ? (p.n>=2?'pad':'') : (sg.label + (p.n*cw > (sg.label.length+4)*7 ? ` ${sg.l}B` : ''));
+        if(txt && p.n*cw >= txt.length*6.6){
+          const t = el('text',{x:left+(p.c+p.n/2)*cw,y:top+p.r*rh+rh/2+4,'font-size':11,'text-anchor':'middle'},g);
+          t.style.fill = ink; if(sg.k==='pad') t.style.fontWeight='600';
+          t.textContent = txt;
+        }
+      }
+    });
+  });
+  container.innerHTML=''; container.appendChild(svg);
+}
+
+// static figures
+[['int4','fig-int4','st-int4'],['int8','fig-int8','st-int8']].forEach(([ty,fid,sid])=>{
+  const L = layoutHeap([{type:ty,color:'--c1'}]);
+  drawGrid(document.getElementById(fid), L.segs, L.slot);
+  document.getElementById(sid).innerHTML =
+    `tuple length <b>${L.tlen} B</b> → slot <b>${L.slot} B</b> + 4 B pointer → <b>${L.rows} rows/page</b>`;
+});
+function idx(len, fid){
+  const segs=[{s:0,l:8,k:'hdr',label:'IndexTuple hdr'},{s:8,l:len,k:'col',label:len===4?'int4':'int8',color:'--c1'}];
+  if(8+len<16) segs.push({s:8+len,l:16-8-len,k:'pad',label:'pad'});
+  drawGrid(document.getElementById(fid), segs, 16);
+}
+idx(4,'fig-idx4'); idx(8,'fig-idx8');
+
+// cases table
+const CASES = [
+  ['int4'],['int8'],['int4','int4'],['int8','int8'],
+  ['int4','int8'],['int8','int4'],['int4','int8','int4'],['int8','int4','int4'],['int8','int8','int8'],
+  ['int8','timestamptz','timestamptz'],['int4','timestamptz','timestamptz']
+];
+document.getElementById('cases').innerHTML = CASES.map(cs=>{
+  const L = layoutHeap(cs.map(t=>({type:t})));
+  return `<tr><td><code>${cs.join(', ')}</code></td><td class="n">${L.tlen}</td><td class="n">${L.slot}</td><td class="n">${L.rows}</td></tr>`;
+}).join('');
+
+// builder
+let cols = [], colorIdx = 0;
+const nextColor = ()=>COLORS[(colorIdx++)%COLORS.length];
+const add = t=>{ if(cols.length>=24) return; cols.push({type:t,nul:false,color:nextColor()}); render(); };
+const addbtns = document.getElementById('addbtns');
+Object.keys(TYPES).forEach(t=>{
+  const b=document.createElement('button'); b.textContent='+ '+t; b.onclick=()=>add(t); addbtns.appendChild(b);
+});
+const PRESETS = {
+  'int4 only':['int4'], 'int8 only':['int8'],
+  'int4, int8, int4':['int4','int8','int4'],
+  'bool, int8, bool, int8':['bool','int8','bool','int8'],
+  'id + 2 timestamps':['int4','timestamptz','timestamptz'],
+  'wide (10 cols)':['bool','int8','int2','timestamptz','int4','bool','float8','int2','date','int8']
+};
+const presets = document.getElementById('presets');
+Object.entries(PRESETS).forEach(([n,ts])=>{
+  const b=document.createElement('button'); b.textContent=n;
+  b.onclick=()=>{ colorIdx=0; cols = ts.map(t=>({type:t,nul:false,color:nextColor()})); render(); };
+  presets.appendChild(b);
+});
+document.getElementById('clearbtn').onclick=()=>{cols=[];colorIdx=0;render();};
+document.getElementById('sortbtn').onclick=()=>{
+  cols = cols.map((c,i)=>({c,i})).sort((a,b)=>(TYPES[b.c.type].al-TYPES[a.c.type].al)||(a.i-b.i)).map(x=>x.c);
+  render();
+};
+
+function chipBtn(label,title,fn){ const b=document.createElement('button'); b.textContent=label; b.title=title; b.setAttribute('aria-label',title); b.onclick=fn; return b; }
+
+function drawPage(container, L){
+  const W=520,H=86, sc=W/PAGE;
+  const n = L.rows;
+  const lpEnd = PAGEHDR + n*4, tupStart = PAGE - n*L.slot;
+  const svg = el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
+  el('title',{},svg).textContent = `One 8 KB page holding ${n} rows`;
+  const bar=(x0,x1,fill,stroke)=>{ const r=el('rect',{x:x0*sc,y:18,width:Math.max(0,(x1-x0)*sc),height:34},svg); r.style.fill=fill; if(stroke) r.style.stroke=stroke; return r; };
+  bar(0,PAGE,'var(--free)','var(--line)');
+  bar(0,PAGEHDR,'var(--hdr)');
+  bar(PAGEHDR,lpEnd,'var(--lp)');
+  bar(tupStart,PAGE,'var(--c2)');
+  const padBytes = n*(L.slot - L.data);
+  const t1=el('text',{x:0,y:12,'font-size':11},svg); t1.textContent='one 8 KB heap page';
+  const t2=el('text',{x:0,y:68,'font-size':11},svg); t2.style.fill='var(--muted)';
+  t2.textContent=`pointers ${n*4} B · tuples ${n*L.slot} B · left over ${tupStart-lpEnd} B`;
+  const t3=el('text',{x:0,y:82,'font-size':11},svg); t3.style.fill='var(--muted)';
+  t3.textContent=`of the tuple bytes, ${n*L.data} B are your data (${(100*n*L.data/PAGE).toFixed(0)}% of the page)`;
+  container.innerHTML=''; container.appendChild(svg);
+}
+
+function render(){
+  const chips = document.getElementById('chips'); chips.innerHTML='';
+  if(!cols.length){ chips.innerHTML='<span class="empty">No columns yet. Add some above or pick a preset.</span>'; }
+  cols.forEach((c,i)=>{
+    const d=document.createElement('span'); d.className='chip'+(c.nul?' isnull':'');
+    d.style.background=`var(${c.color})`;
+    const s=document.createElement('span'); s.textContent=c.type+(c.nul?' (NULL)':''); d.appendChild(s);
+    d.appendChild(chipBtn('‹','Move left',()=>{ if(i>0){[cols[i-1],cols[i]]=[cols[i],cols[i-1]];render();} }));
+    d.appendChild(chipBtn('›','Move right',()=>{ if(i<cols.length-1){[cols[i+1],cols[i]]=[cols[i],cols[i+1]];render();} }));
+    if(c.type==='int4'||c.type==='int8') d.appendChild(chipBtn('⇄','Flip int4/int8',()=>{ c.type=c.type==='int4'?'int8':'int4'; render(); }));
+    d.appendChild(chipBtn('∅','Toggle NULL',()=>{ c.nul=!c.nul; render(); }));
+    d.appendChild(chipBtn('×','Remove',()=>{ cols.splice(i,1); render(); }));
+    chips.appendChild(d);
+  });
+  const L = layoutHeap(cols);
+  const sorted = layoutHeap(cols.map((c,i)=>({c,i})).sort((a,b)=>(TYPES[b.c.type].al-TYPES[a.c.type].al)||(a.i-b.i)).map(x=>x.c));
+  const padTotal = L.hdrPad + L.colPad + L.tail;
+  const stats = [
+    ['data bytes', L.data],
+    ['padding bytes', padTotal],
+    ['tuple length', L.tlen],
+    ['slot on page', L.slot],
+    ['+ pointer', L.per],
+    ['rows / page', L.rows]
+  ];
+  document.getElementById('stats').innerHTML = stats.map(([k,v])=>`<div><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+  drawGrid(document.getElementById('b-grid'), L.segs, L.slot);
+  drawPage(document.getElementById('b-page'), L);
+
+  // explanation, incl. what flipping each int4/int8 would do
+  let msg = [];
+  msg.push(`Data starts at byte ${L.hoff}${L.bm?` (the ${L.bm}-byte null bitmap ${L.hoff>24?'pushed it past 24':'fit in the header\'s spare byte'})`:''}.`);
+  if(L.colPad) msg.push(`${L.colPad} B of padding sit between columns to align them.`);
+  if(L.tail) msg.push(`${L.tail} B of tail padding round the row up to ${L.slot}.`);
+  if(sorted.slot < L.slot) msg.push(`Reordering would shrink the slot to ${sorted.slot} B (${sorted.rows} rows/page).`);
+  const flips = [];
+  cols.forEach((c,i)=>{
+    if(c.nul || (c.type!=='int4' && c.type!=='int8')) return;
+    const alt = cols.map((x,j)=>j===i?{...x,type:x.type==='int4'?'int8':'int4'}:x);
+    const F = layoutHeap(alt);
+    const word = F.slot===L.slot ? 'no change' : `${F.slot>L.slot?'+':''}${F.slot-L.slot} B per row, ${F.rows} rows/page`;
+    flips.push(`column ${i+1} as ${c.type==='int4'?'int8':'int4'}: ${word}`);
+  });
+  if(flips.length) msg.push('If you flipped ' + flips.join('; ') + '.');
+  document.getElementById('b-explain').textContent = cols.length ? msg.join(' ') : 'An empty row still costs a 24-byte header and a 4-byte pointer.';
+}
+cols = [{type:'int4',nul:false,color:nextColor()}];
+render();
+})();
+</script>
+</body>
+</html>

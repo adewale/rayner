@@ -5,6 +5,7 @@
 - **Changed condition:** which search answers first. When "cat" answers first, the unguarded page ends on the stale "ca" and the guarded page stays on "cat". When "ca" answers first, both pages end on "cat", but the unguarded page shows "ca" along the way while the guarded one stays empty until ticket 2 lands: the same final display, different histories.
 - **Reader's own work:** predict which query the page ends up showing; choose which search answers first; then the two check questions, a repeated query (tickets, not text) and a failed newest request (the guard is no fallback policy).
 - **Checked against:** real JavaScript promises resolved in chosen orders through the same `createSearch` handler the code panel prints: `model.test.ts` runs both completion orders and the check questions' cases (repeated query text, a failing newest request) through it, checks the printed ticket check against the executed handler, and runs every state the race machines explore (10 per rule) through real promises to get the same page; `scene.test.ts` checks the chart scenarios of `fixtures/latest-search-view.ts` and the public story, and `fidelity.ts` holds each step's state to an independent expectation. No network latency is measured.
+- **Grounding:** live: JavaScript promises resolved in chosen orders, through the handler the page prints
 - **Leaves out:** network timing; debounce, cancellation, retries, loading states, error display and fallback policy; an application that keeps earlier results on the page; failed requests in the drawn scenarios.
 
 ## Check yourself

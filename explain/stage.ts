@@ -7,7 +7,7 @@ import { center, unionBoxes } from '../src/box.ts';
 import { atHome } from '../src/svg.ts';
 import { FRAME, STAGE_BOX, zoomOf } from '../src/units.ts';
 import { isDetail, teaching } from './script.ts';
-import type { StepKind } from './script.ts';
+import type { StepKind, StepPrediction } from './script.ts';
 import type { StepAudio } from './audio.ts';
 import { tool, Sketch, oneStrokeEach } from './annotate.ts';
 import type { ToolKind } from './annotate.ts';
@@ -75,6 +75,8 @@ export interface StagedStep<S extends object = Record<string, unknown>> {
   audio?: StepAudio;
   /** Which path this step is on, when not the list's (see StagedStepsOptions). */
   kind?: StepKind;
+  /** A prediction the reader commits to on this step, answered by a later one (`StepMeta`'s `predict`). */
+  predict?: StepPrediction;
   /** Keys of the parts the step is about, when that is less than the whole picture: a phone opens on them. */
   opening?: readonly string[];
   /**
@@ -702,7 +704,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
         const kind = step.kind ?? listKind;
         await scene.step(step.id, {
           title: step.title, line: step.line, caption: step.caption,
-          ...(step.audio ? { audio: step.audio } : {}), ...(kind !== 'main' ? { kind } : {}),
+          ...(step.audio ? { audio: step.audio } : {}), ...(kind !== 'main' ? { kind } : {}), ...(step.predict ? { predict: step.predict } : {}),
         });
         await this.clear({ runTime: 0.18 });
         const state = cloneJson(step.state, 's.steps()', 'state', ` (step ${JSON.stringify(step.id)})`) as object;

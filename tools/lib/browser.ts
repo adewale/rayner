@@ -1,4 +1,5 @@
 // Chromium for diagram capture and browser review, via the included playwright-core dependency.
+// Nothing else loads this module: check, build, describe, see, shots and init run without a browser.
 import { chromium } from 'playwright-core';
 import type { Browser } from 'playwright-core';
 import { existsSync, readdirSync } from 'node:fs';
@@ -50,4 +51,22 @@ function executable(): string | undefined {
   return installed()[0]?.path; // none found: let Playwright find its own
 }
 
-export const launch = (): Promise<Browser> => chromium.launch({ executablePath: executable() });
+/**
+ * Start headless Chromium, for `rayner review` and diagram capture, the two things that need a
+ * browser. `purpose` names the work in the error when no Chromium can be found.
+ */
+export async function launch(purpose = 'This command'): Promise<Browser> {
+  const executablePath = executable();
+  try {
+    return await chromium.launch({ executablePath });
+  } catch (error) {
+    if (!/executable doesn't exist|ENOENT/i.test(String((error as Error).message))) throw error;
+    const where = process.env.CHROMIUM_EXECUTABLE_PATH ? ` at CHROMIUM_EXECUTABLE_PATH (${process.env.CHROMIUM_EXECUTABLE_PATH})` : '';
+    throw new Error(
+      `${purpose} needs Chromium, and none was found${where}. Install it once with npx playwright-core install chromium, ` +
+        'or set CHROMIUM_EXECUTABLE_PATH to a Chromium or Chrome executable. ' +
+        'Writing, checking and building a scene without new diagrams needs no browser.',
+      { cause: error },
+    );
+  }
+}

@@ -40,6 +40,11 @@ test('a clean scene passes every gate', async () => {
   assert.equal((report.scenarios as unknown[]).length, 1);
 });
 
+test('a prediction that works passes, and the report names its options, answer and revealing step', async () => {
+  const report = await checked(await write(scene(`await this.step('one',{caption:'Guess.',predict:{options:['Yes','No'],answer:1}});${label('hello')}await this.step('two',{caption:'No.'});${label('world', '[0,-2]')}`)));
+  assert.deepEqual((report.scenarios as { predictions?: unknown }[])[0]!.predictions, [{ step: 'one', options: ['Yes', 'No'], answer: 'No', reveal: 'two' }]);
+});
+
 test('numerals outside Latin draw from the fallback faces and pass every gate, in sans and mono', async () => {
   const report = await checked(
     await write(
@@ -278,6 +283,18 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
     gate: 'a step that ends on a different picture from its last frame',
     source: `import{Scene,Rectangle,Animation}from'rayner';import{stage}from'rayner/explain';class Recolour extends Animation{override doFinish(){super.doFinish();this.mobject.setFill('#ff0000',1);}}export default class Bad extends Scene{async construct(){const s=stage(this);await this.step('one');await this.play(new Recolour(new Rectangle({width:1,height:1})));await this.step('two');await this.wait(.5);}}`,
     message: /These steps end on a different picture from their last frame in the scene/,
+  },
+  {
+    // The prediction's answer is not one of the options the reader can choose.
+    gate: 'a prediction whose answer is not one of its options',
+    source: scene(`await this.step('one',{caption:'Guess.',predict:{options:['Yes','No'],answer:'Maybe'}});${label('hello')}await this.step('two',{caption:'Answer.'});${label('world', '[0,-2]')}`),
+    message: /Predictions in the scene: step "one": meta\.predict has the answer "Maybe", which is not one of its options \["Yes","No"\]/,
+  },
+  {
+    // Asked on the last step, nothing after it can reveal the answer.
+    gate: 'a prediction no later step reveals',
+    source: scene(`await this.step('one',{caption:'Hello.'});${label('hello')}await this.step('two',{caption:'Guess.',predict:{options:['Yes','No'],answer:0}});${label('world', '[0,-2]')}`),
+    message: /Predictions in the scene: step "two": meta\.predict has no later step to reveal its answer/,
   },
   {
     gate: 'a scenario with no steps',

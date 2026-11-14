@@ -136,7 +136,7 @@ export default class PoppyDiscovery extends Scene<World, {}> {
     await this.step('copy', {
       title: 'A copy on a lookalike domain',
       line: 'Refused: it names example.com, not examp1e.com.',
-      caption: `The first forger copies example.com’s file to examp1e.com and points the API address at its own server. The file is at the right path, over HTTPS. But it still says example.com, and examp1e.com served it, so the agent refuses it at the ${copy.accepted ? 'no' : GATE_NAME[copy.gate]} check. Change the letterhead to examp1e.com and every check passes, even under example.com’s name and logo: draft 1.0 says so plainly (10.3). The file then speaks for examp1e.com, a different Company with different User IDs, and seeing which domain that is falls to the agent.`,
+      caption: `The first forger copies example.com’s file to examp1e.com and points the API address at its own server. The file is at the right path, over HTTPS, but it still says example.com and examp1e.com served it, so the agent refuses it at the ${copy.accepted ? 'no' : GATE_NAME[copy.gate]} check. Change the letterhead to examp1e.com and every check passes, even under example.com’s name and logo (draft 1.0, 10.3). The file then speaks for examp1e.com, a different Company, and noticing that domain falls to the agent.`,
     });
     await play(3);
 

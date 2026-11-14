@@ -9,6 +9,7 @@
     { "step": "false-positive", "opening": true, "targets": [{ "key": "bloom-bits" }, { "key": "bloom-query" }, { "key": "bloom-answer" }] },
     { "step": "pipeline", "opening": true, "targets": [{ "key": "bloom-pipeline" }, { "key": "bloom-checks" }] },
     { "step": "full", "opening": true, "targets": [{ "key": "bloom-bits" }, { "key": "bloom-taken" }, { "key": "bloom-query" }, { "key": "bloom-answer" }] },
-    { "step": "predict", "opening": true, "targets": [{ "key": "bloom-bits" }, { "key": "bloom-answer" }] }
+    { "step": "predict", "opening": true, "targets": [{ "key": "bloom-bits" }, { "key": "bloom-answer" }] },
+    { "step": "try", "opening": true, "targets": [{ "key": "bloom-bits" }, { "key": "bloom-taken" }, { "key": "bloom-query" }, { "key": "bloom-answer" }] }
   ]
 }

@@ -54,6 +54,10 @@ export default class GitBranches extends Scene<{}, {}> {
           ? `${intro} on main, commit C added title.txt, Home. We have main checked out (HEAD), so the files below are C’s. A branch label names a commit; arrows lead back through its history. Could moving main to B combine the edits?`
           : `${intro} main has made no commit since, so it still points at A. We have main checked out (HEAD), so the files below are A’s. A branch label names a commit; arrows lead back through its history. Could moving main to B bring in feature’s edit?`,
         state: shown(before),
+        // What the moved label would lose, from the model: the commits neither branch reaches any more.
+        predict: advanced
+          ? { options: ['Nothing', 'The green edit', 'The Home edit'], answer: unreachable(moved).some((id) => moved.commits.find((c) => c.id === id)!.title) ? 'The Home edit' : unreachable(moved).length ? 'The green edit' : 'Nothing' }
+          : { options: ['Yes, an edit', 'No, nothing'], answer: unreachable(moved).length ? 'Yes, an edit' : 'No, nothing' },
         draw: (st: Shown, s: Stage) => picture(s, st.frame, 'Arrows point from a commit to its parent.'),
       },
       ...(advanced
@@ -78,6 +82,10 @@ export default class GitBranches extends Scene<{}, {}> {
           ? 'git merge feature creates M with parents C and B and moves main to it. M’s files have both edits, green and Home, because the two edits touch different files. Feature stays at B, and C stays in main’s history.'
           : 'Main’s commit, A, is B’s parent, so B already holds everything main had. git merge feature moves main from A to B without a new commit, which Git calls a fast-forward and does by default, and colour.txt turns green. A merge needs a new commit when each branch has a commit the other lacks; here only feature does.',
         state: shown(merged),
+        // Whether the other history's merge writes a commit, from the model.
+        predict: advanced
+          ? { options: ['Yes, it still needs M', 'No, main just moves to B'], answer: other.merge === 'commit' ? 'Yes, it still needs M' : 'No, main just moves to B' }
+          : { options: ['Yes, moving the label still does', 'No, it needs a new commit M'], answer: other.merge === 'commit' ? 'No, it needs a new commit M' : 'Yes, moving the label still does' },
         draw: (st: Shown, s: Stage) => picture(s, st.frame, mergeNote(st)),
       },
       {

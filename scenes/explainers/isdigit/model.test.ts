@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fc, params } from '../lib/pbt.ts';
 import type { Char, CharId } from './model.ts';
+import { skipOptionalOracle, skipOracle } from '../lib/oracle.ts';
 
 test('the answer’s claim: of the lineup, isdigit() passes and int() rejects ² alone', () => {
   assert.deepEqual(
@@ -171,7 +172,8 @@ test('Numeric_Type follows UAX #44: which of fields 6, 7 and 8 are filled', () =
   );
 });
 
-test('Node’s Unicode agrees where it can: the decimals are general category Nd', { skip: process.versions.unicode !== '17.0' && `Node has Unicode ${process.versions.unicode}, not 17.0` }, () => {
+test('Node’s Unicode agrees where it can: the decimals are general category Nd', (t) => {
+  if (skipOracle(t, process.versions.unicode !== '17.0' && `Node has Unicode ${process.versions.unicode}, not 17.0`)) return;
   // stdtypes.rst:2437: "Formally a decimal character is a character in the Unicode General Category Nd".
   let nd = 0;
   for (let cp = 0; cp < 0x110000; cp++) if ((cp < 0xd800 || cp > 0xdfff) && /\p{Nd}/u.test(String.fromCodePoint(cp))) nd++;
@@ -179,7 +181,9 @@ test('Node’s Unicode agrees where it can: the decimals are general category Nd
   for (const id of LINEUP) assert.equal(/\p{Nd}/u.test(CHARS[id].char), predicates(CHARS[id]).isdecimal, id);
 });
 
-test('python3, run now, gives the frozen answers', { skip: !PY && 'no python3 with Unicode 17.0.0 on PATH or in $PYTHON' }, () => {
+test('python3, run now, gives the frozen answers', (t) => {
+  // CI's python3 (3.12) has Unicode 15.0, so this rerun is opt-in: the frozen answers are compared above.
+  if (skipOptionalOracle(t, !PY && 'no python3 with Unicode 17.0.0 on PATH or in $PYTHON')) return;
   const r = spawnSync(PY!, ['-I', '-c', SCRIPT], { encoding: 'utf8', timeout: 120_000 });
   assert.equal(r.status, 0, r.stderr);
   const got = JSON.parse(r.stdout) as { unidata: string; rows: Record<string, unknown[]>; counts: object; nested: boolean };
@@ -225,7 +229,8 @@ test('the check questions’ cases follow from the model: an ideographic space b
   assert.throws(() => rewrite(['²']), /as a Char/);
 });
 
-test('python3, run now, agrees on the check questions’ cases', { skip: !ANY_PY && 'no python3 on PATH or in $PYTHON' }, () => {
+test('python3, run now, agrees on the check questions’ cases', (t) => {
+  if (skipOracle(t, !ANY_PY && 'no python3 on PATH or in $PYTHON')) return;
   const script = [
     'import json',
     "c = chr(0x2464)",
@@ -244,7 +249,8 @@ test('python3, run now, agrees on the check questions’ cases', { skip: !ANY_PY
   assert.deepEqual(JSON.parse(second!), [b.isdecimal, b.isdigit, b.isnumeric, bold.value, true, "invalid literal for int() with base 10: '٣4²'"]);
 });
 
-test('python3, run now, agrees on the check questions’ space and float() cases', { skip: !ANY_PY && 'no python3 on PATH or in $PYTHON' }, () => {
+test('python3, run now, agrees on the check questions’ space and float() cases', (t) => {
+  if (skipOracle(t, !ANY_PY && 'no python3 on PATH or in $PYTHON')) return;
   const script = [
     'import json',
     "s = chr(0x3000) + '7'",
@@ -308,7 +314,8 @@ test('every character in the isdigit() row was encoded before Unicode 6.3.0', ()
   for (const id of LINEUP) assert.equal(listed.includes(hex(CHARS[id])), numericType(CHARS[id]) === 'Digit', id);
 });
 
-test('python3, run now, finds the isdigit() row the fixture lists, up to its own Unicode version', { skip: !ANY_PY && 'no python3 on PATH or in $PYTHON' }, () => {
+test('python3, run now, finds the isdigit() row the fixture lists, up to its own Unicode version', (t) => {
+  if (skipOracle(t, !ANY_PY && 'no python3 on PATH or in $PYTHON')) return;
   const script = [
     'import json, unicodedata',
     'cps = ["%04X" % cp for cp in range(0x110000) if not 0xD800 <= cp <= 0xDFFF and chr(cp).isdigit() and not chr(cp).isdecimal()]',

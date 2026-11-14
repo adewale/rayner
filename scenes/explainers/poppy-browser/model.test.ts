@@ -53,6 +53,10 @@ test('section 6 (1.0): the endpoint can be on any host, and the join reaches onl
   for (const page of ['example.com', 'www.example.com', 'accounts.example.com']) assert.equal(joinReaches(wide, page), true, page);
   assert.equal(joinReaches(wide, 'notexample.com'), false);
   // The story's endpoint is on the website's own host, so its cookie reaches the pages the agent browses.
+  // A leading dot in Domain is ignored (RFC 6265 §5.2.3), and cookies ignore ports (§8.5).
+  for (const page of ['example.com', 'www.example.com', 'accounts.example.com']) assert.equal(joinReaches({ setBy: 'accounts.example.com', domain: '.example.com' }, page), true, `.example.com reaches ${page}`);
+  assert.equal(joinReaches({ setBy: 'example.com:8443' }, 'example.com'), true);
+  assert.equal(joinReaches({ setBy: 'accounts.example.com' }, 'accounts.example.com:8443'), true);
   assert.equal(joinReaches({ setBy: new URL(ENDPOINT).host }, COMPANY.domain), true);
 });
 
