@@ -1,6 +1,6 @@
 // rayner/kit (explain/kit.ts): the type scale and its floor, colour roles, words, boxes, plates,
-// connectors, routes and transitions in beats; and, for the parts it took from the Poppy series' kit
-// (scenes/explainers/lib/poppy-kit.ts), that the two still draw and play the same marks and frames.
+// connectors, routes and transitions in beats; and that the Poppy series' kit (scenes/explainers/lib/poppy-kit.ts),
+// which builds on it, draws its lanes with the kit's connector and plate, and keeps the kit's frames.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

@@ -1,5 +1,8 @@
-import { AnimationGroup, Circle, Group, Line, Rectangle, Succession, Text, VMobject, keyed } from '../../../src/index.ts';
-import type { Animation, Mobject, Style, Vec } from '../../../src/index.ts';
+import { Circle, Group, Line, Rectangle, VMobject, keyed } from '../../../src/index.ts';
+import type { Mobject, Style, Vec } from '../../../src/index.ts';
+// The series' measures, words, parts and choreography are rayner/kit's; this file adds the Poppy palette and objects.
+import { TYPE, STROKE, SPACE, MARGIN, PLATE_HEIGHT, RADIUS as KIT_RADIUS, words, addAll, route, flight, pass, beats as kitBeats } from '../../../explain/kit.ts';
+import type { WordsOptions, Parts, Beat, BeatsOptions, FlightTiming } from '../../../explain/kit.ts';
 import type { Choreography, Stage } from '../../../explain/index.ts';
 import { emphasised } from '../../../explain/drawing.ts';
 
@@ -99,56 +102,10 @@ export const TONE = {
 /** The stage's palette for `stage(this, { palette: { ...PALETTE }, heading: false })`. */
 export const PALETTE = { paper: TONE.ground, ink: TONE.ink, accent: TONE.wax, muted: TONE.steel } as const;
 
-/** The four type sizes, in units. Nothing is set smaller than TYPE.small. */
-export const TYPE = { small: 0.56, label: 0.64, title: 0.8, display: 1.6 } as const;
-/** Line weights, in units. */
-export const STROKE = { hair: 0.035, fine: 0.06, line: 0.1, bold: 0.16 } as const;
-/** Corner radii, in units. */
-export const RADIUS = { paper: 0.05, ticket: 0.08, panel: 0.16, device: 0.26 } as const;
-/** The spacing scale, multiples of 0.14 units. */
-export const SPACE = { xs: 0.14, s: 0.28, m: 0.42, l: 0.7, xl: 1.12 } as const;
-/** The stage's safe area: no text beyond these. */
-export const MARGIN = { left: -7.65, right: 7.65, top: 4.15, bottom: -4.15 } as const;
-/** The height of an opaque plate that hides a line behind a label of TYPE.small or TYPE.label. */
-export const PLATE_HEIGHT = 0.84;
-
-// ---------------------------------------------------------------------------------------------
-// Words
-
-/** How `words` sets a line of text. */
-export type WordsOptions = {
-  /** The anchor point: the start, middle or end of the line (per `align`), at the line's vertical centre. */
-  at?: Vec;
-  /** One of TYPE's sizes; default TYPE.small. */
-  size?: number;
-  color?: string;
-  bold?: boolean;
-  /** JetBrains Mono, for protocol literals. */
-  mono?: boolean;
-  /** Which end of the line `at` is: 'start' (default), 'middle' or 'end'. */
-  align?: 'start' | 'middle' | 'end';
-};
-
-/**
- * One line of text in the series' type: Inter, or JetBrains Mono with `mono`, at one of TYPE's
- * sizes, in INK unless given a colour. `at` is the start, middle or end of the line (per `align`),
- * at its vertical centre. Returns an unkeyed Text; its `width()` is its measured width.
- */
-export function words(s: Stage, value: string, { at = [0, 0], size = TYPE.small, color = TONE.ink, bold = false, mono = false, align = 'start' }: WordsOptions = {}): Text {
-  if (size < TYPE.small - 1e-9) throw new RangeError(`words(): ${JSON.stringify(value)} at ${size} units is under TYPE.small (0.56), which a phone cannot read`);
-  return new Text(value, { fontSize: size, color, shaping: s.scene.textShaping, anchor: align, ...(bold ? { weight: 'bold' as const } : {}), ...(mono ? { font: 'mono' as const } : {}) })
-    .moveTo(at, [align === 'start' ? -1 : align === 'end' ? 1 : 0, 0]);
-}
-
-/** A keyedParts() collector, as `keyedParts()` from the drawing kit returns it. */
-export type Parts = { add<T extends Mobject>(m: T, key: string): T; group(): Group };
-/** Adds a composite's parts (each already keyed by the kit) to a keyedParts() collector, by their own keys. */
-export function addAll(parts: Parts, list: readonly Mobject[]): void {
-  for (const m of list) {
-    if (!m.key) throw new Error('addAll(): a part has no key; kit composites key every part they return');
-    parts.add(m, m.key);
-  }
-}
+export { TYPE, STROKE, SPACE, MARGIN, PLATE_HEIGHT, words, addAll, route, flight, pass };
+export type { WordsOptions, Parts, Beat, FlightTiming };
+/** Corner radii, in units, named for the series' objects: rayner/kit's RADIUS. */
+export const RADIUS = { paper: KIT_RADIUS.sharp, ticket: KIT_RADIUS.small, panel: KIT_RADIUS.panel, device: KIT_RADIUS.round } as const;
 
 // ---------------------------------------------------------------------------------------------
 // Geometry (private): paths sampled from shapes, so every object is a filled VMobject, never an
@@ -925,131 +882,15 @@ export function warning(_s: Stage, { at = [0, 0], size = 1 }: { at?: Vec; size?:
 }
 
 // ---------------------------------------------------------------------------------------------
-// Choreography: authored transitions that explain
-
-/** One thing a transition plays: an animation, or several together. */
-export type Beat = Animation | AnimationGroup;
-
-/** Keys each choreography has already sent out, so `flight` never leaves a part twice. */
-const departed = new WeakMap<Choreography, Set<string>>();
-const leaveOnce = (c: Choreography, k: string, runTime: number): Animation | null => {
-  const gone = departed.get(c) ?? new Set<string>();
-  departed.set(c, gone);
-  if (gone.has(k) || !c.has(k, 'from')) return null;
-  gone.add(k);
-  return c.leave(k, { runTime });
-};
+// Choreography: rayner/kit's, with the series' default for the parts of the last event
 
 /**
- * A route through these points, for a token to travel: a Line from the first to the second, then
- * `addLineTo` each next point. Consecutive repeats are dropped (a zero-length hop stalls a token).
+ * rayner/kit's `beats`, whose `fresh` parts default to the series' last event: the answer, the
+ * ticket and the barrier leave before the flight, so an answer is never readable before its
+ * request lands.
  */
-export function route(first: Vec, ...rest: Vec[]): Line {
-  const points = [first, ...rest].filter((p, i, all) => i === 0 || Math.hypot(p[0] - all[i - 1]![0], p[1] - all[i - 1]![1]) > 1e-6);
-  if (points.length < 2) throw new RangeError('route(): a route needs two distinct points');
-  const path = new Line(points[0]!, points[1]!);
-  for (const p of points.slice(2)) path.addLineTo(p);
-  return path;
-}
-
-/** Options for `beats`. */
-export type BeatsOptions = {
-  /**
-   * Key prefixes of parts that belong to the last event (the ticket, the barrier, the answer):
-   * they leave before the flight, and their words are replaced after it, even when unchanged, so
-   * an answer is never readable before its request lands. Default `['answer:', 'ticket', 'barrier']`.
-   */
-  fresh?: readonly string[];
-  /** Keys to bring in right after the flight, before the rest settles (a barrier dropping in). */
-  then?: readonly string[];
-  /**
-   * Key prefixes of parts that change before the flight, as the first beat: the lane a request
-   * takes lights up before its ticket sets off. Parts both pictures have are morphed; words that
-   * change are still replaced at the end.
-   */
-  lead?: readonly string[];
-};
-
-/**
- * A transition in three beats. First, words that change, and every part of the last event
- * (`fresh`), go, while the `lead` parts change (the lane in use lights up). Then the flight plays (made only now, after the leaves, since a part may enter
- * again only once it has left). Then the `then` parts come, and finally the new words come while
- * every other part settles (`c.rest()`). Words are replaced, never morphed glyph by glyph.
- */
-export function beats(c: Choreography, flight: () => Beat[] = () => [], { fresh = ['answer:', 'ticket', 'barrier'], then = [], lead = [] }: BeatsOptions = {}): Succession {
-  const starts = (list: readonly string[]) => (k: string) => list.some((f) => k === f || k.startsWith(f.endsWith(':') ? f : `${f}:`));
-  const isFresh = starts(fresh), isLead = starts(lead);
-  const out: Animation[] = [], back: Animation[] = [];
-  for (const k of c.keys('to')) {
-    if (!isLead(k) || !c.has(k, 'from') || isFresh(k) || then.includes(k)) continue;
-    const now = c.from(k), next = c.to(k);
-    if (now instanceof Text && next instanceof Text && now.text !== next.text) continue;
-    out.push(c.morph(k, { runTime: 0.3 }));
-  }
-  for (const k of c.keys('to')) {
-    if (!c.has(k, 'from') || then.includes(k)) continue;
-    const now = c.from(k), next = c.to(k);
-    if (now instanceof Text && next instanceof Text && (now.text !== next.text || isFresh(k))) {
-      const gone = leaveOnce(c, k, 0.25);
-      if (gone) out.push(gone);
-      back.push(c.enter(k, {}, { runTime: 0.35 }));
-    }
-  }
-  for (const k of c.keys('from'))
-    if (isFresh(k) && !(c.from(k) instanceof Text && c.has(k, 'to'))) {
-      const gone = leaveOnce(c, k, 0.25);
-      if (gone) out.push(gone);
-    }
-  for (const k of then) {
-    const gone = leaveOnce(c, k, 0.25);
-    if (gone) out.push(gone);
-  }
-  const flown = flight();
-  const arriving = then.filter((k) => c.has(k, 'to')).map((k) => c.enter(k, {}, { runTime: 0.3 }));
-  return new Succession([
-    ...(out.length ? [new AnimationGroup(out)] : []),
-    ...flown,
-    ...(arriving.length ? [new AnimationGroup(arriving)] : []),
-    new AnimationGroup([...back, c.rest({ runTime: 0.45 })]),
-  ]);
-}
-
-/**
- * Timing of a flight or a pass, in seconds; and, for `flight`, `scale`: the travelling copy's size
- * relative to the part (default 1), so a token can ride under labels and give way to the full part
- * where it lands.
- */
-export type FlightTiming = { appear?: number; move?: number; leave?: number; scale?: number };
-
-/**
- * A part's flight, for `beats`: a copy of the target part `key`, as it will rest, appears at the
- * first point, travels through the others to the part's resting centre, and there gives way to the
- * part itself. A Group cannot `enter` from another part, so this is how a ticket or a key moves.
- * If the current picture has the part too, it leaves as the copy appears. Returns the thunk
- * `beats` expects.
- */
-export function flight(c: Choreography, k: string, via: readonly Vec[], { appear = 0.25, move = 1.0, leave = 0.2, scale = 1 }: FlightTiming = {}): () => Beat[] {
-  return () => {
-    if (!c.has(k, 'to')) throw new RangeError(`flight(): the target picture has no part keyed ${JSON.stringify(k)}`);
-    if (!via.length) throw new RangeError('flight(): give at least the point it starts from');
-    const part = c.to(k), end = part.center() as Vec;
-    const gone = leaveOnce(c, k, appear);
-    const token = part.copy();
-    if (scale !== 1) token.scale(scale);
-    const walk = c.travel(`${k}:flight`, token, route(via[0]!, ...via.slice(1), end), { appear, move, leave });
-    return [gone ? new AnimationGroup([gone, walk.appear]) : walk.appear, walk.move, new AnimationGroup([walk.leave, c.enter(k, {}, { runTime: leave })])];
-  };
-}
-
-/**
- * A token passing through, which neither picture keeps (a poppy.json carried to the agent, a key
- * handed back): `token` appears at the first point, travels the route and fades at the last.
- * `id` must be unused by both pictures. Returns its three beats, to place in a flight thunk.
- * To send away a part the current picture has, leave it in the same beat as the token appears.
- */
-export function pass(c: Choreography, id: string, token: Mobject, via: readonly Vec[], { appear = 0.25, move = 0.9, leave = 0.25 }: FlightTiming = {}): Beat[] {
-  const walk = c.travel(id, token.moveTo(via[0]!), route(via[0]!, ...via.slice(1)), { appear, move, leave });
-  return [walk.appear, walk.move, walk.leave];
+export function beats(c: Choreography, flight?: () => Beat[], { fresh = ['answer:', 'ticket', 'barrier'], ...rest }: BeatsOptions = {}): ReturnType<typeof kitBeats> {
+  return kitBeats(c, flight, { fresh, ...rest });
 }
 
 // ---------------------------------------------------------------------------------------------

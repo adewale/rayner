@@ -226,7 +226,7 @@ const cache = view(this, (st) => {
 });
 ```
 
-`rayner/kit` comes from the Poppy chapters' kit ([`poppy-kit.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/lib/poppy-kit.ts)): the same measures, words, connectors and transitions, which a test holds to drawing the same marks, without the series' own objects (a seal, a key, a ticket, a ledger).
+The Poppy chapters draw with `rayner/kit`: their own kit ([`poppy-kit.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/lib/poppy-kit.ts)) takes its measures, words and transitions from it and adds the series' palette and objects (a seal, a key, a ticket, a ledger).
 
 ## Add-ons: diagrams and lettering
 
