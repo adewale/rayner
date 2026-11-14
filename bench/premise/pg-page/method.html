@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why can int4 and int8 rows take the same space?</title>
+<style>
+:root { color-scheme: light; --ink:#1d1d1f; --soft:#6e6e73; --line:#d2d2d7; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #fff; color: var(--ink); font: 16px/1.5 system-ui, sans-serif; }
+main { max-width: 720px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 1.5rem; line-height: 1.25; margin: 0.5rem 0; }
+h2 { font-size: 1.15rem; line-height: 1.3; margin: 1rem 0 0.5rem; }
+.intro, .leaves { color: var(--soft); font-size: 0.95rem; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 12px 0; }
+.controls label { font-weight: 600; font-size: 0.95rem; }
+select, button { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); }
+button:disabled { opacity: 0.4; }
+.nav { display: flex; align-items: center; gap: 12px; }
+.counter { color: var(--soft); font-size: 0.9rem; }
+.figure { border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin: 8px 0; }
+.figure svg { display: block; max-width: 100%; height: auto; }
+.caption { margin: 8px 0 16px; }
+details { border-top: 1px solid var(--line); padding: 8px 0; }
+summary { cursor: pointer; font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+<h1>Why can int4 and int8 rows take the same space?</h1>
+<p class="intro">For someone designing Postgres tables. Pick a column type, then step through. Every number on this page is computed from a model of a Postgres 18 heap page that is tested against measurements from a real Postgres 18.6 server (64-bit, 8192-byte pages); the last step shows those measured values.</p>
+<div id="app"></div>
+<p class="leaves">Leaves out: 32-bit builds, nulls and the null bitmap, updates and dead tuples, TOAST, text needing a four-byte length header, other column orders, and storage beyond heap pages.</p>
+</main>
+<script>(() => {
+  // bench/premise/shell.ts
+  var el = (tag, attrs = {}, text2) => {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    if (text2 !== void 0) e.textContent = text2;
+    return e;
+  };
+  function mount(root, spec) {
+    const values = Object.fromEntries(spec.settings.map((s) => [s.id, s.default]));
+    let index = 0;
+    const controls = el("div", { class: "controls" });
+    for (const s of spec.settings) {
+      const label = el("label", {}, `${s.label} `);
+      const select = el("select", { "aria-label": s.label });
+      for (const o of s.options) {
+        const opt = el("option", { value: o.value }, o.label);
+        if (o.value === s.default) opt.selected = true;
+        select.append(opt);
+      }
+      select.addEventListener("change", () => {
+        values[s.id] = select.value;
+        render();
+      });
+      label.append(select);
+      controls.append(label);
+    }
+    const nav = el("div", { class: "nav" });
+    const prev = el("button", { type: "button" }, "\u2190 Prev");
+    const counter = el("span", { class: "counter", "aria-live": "polite" });
+    const next = el("button", { type: "button" }, "Next \u2192");
+    nav.append(prev, counter, next);
+    const title = el("h2");
+    const figure = el("div", { class: "figure" });
+    const caption = el("p", { class: "caption" });
+    const checks = el("section", { class: "checks" });
+    checks.append(el("h2", {}, "Check yourself"));
+    for (const c of spec.checks) {
+      const d = el("details");
+      d.append(el("summary", {}, c.q), el("p", {}, c.a));
+      checks.append(d);
+    }
+    root.append(controls, nav, title, figure, caption, checks);
+    function render() {
+      const all = spec.steps(values);
+      index = Math.max(0, Math.min(index, all.length - 1));
+      const s = all[index];
+      title.textContent = s.title;
+      figure.innerHTML = s.svg;
+      caption.textContent = s.caption;
+      counter.textContent = `Step ${index + 1} of ${all.length}`;
+      prev.disabled = index === 0;
+      next.disabled = index === all.length - 1;
+      checks.hidden = index !== all.length - 1;
+    }
+    prev.addEventListener("click", () => {
+      index--;
+      render();
+    });
+    next.addEventListener("click", () => {
+      index++;
+      render();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.target.tagName === "SELECT") return;
+      if (e.key === "ArrowRight") next.click();
+      if (e.key === "ArrowLeft") prev.click();
+    });
+    render();
+  }
+
+  // scenes/explainers/lib/format.ts
+  function percent(x, { digits = 1, of = 1, under1, least, rounding = "toFixed" } = {}) {
+    let p = of === 100 ? x : 100 * x / of;
+    if (under1 && p < 1) {
+      if ("significant" in under1) return `${p.toPrecision(under1.significant)}%`;
+      digits = under1.digits;
+    }
+    if (rounding === "Math.round") p = Math.round(p * 10 ** digits) / 10 ** digits;
+    if (least !== void 0 && x > 0) p = Math.max(least, p);
+    return `${p.toFixed(digits)}%`;
+  }
+
+  // scenes/explainers/pg-page/model.ts
+  var BLCKSZ = 8192;
+  var MAXIMUM_ALIGNOF = 8;
+  var PAGE_HEADER = 24;
+  var LINE_POINTER = 4;
+  var TUPLE_HEADER = 23;
+  var typeAlign = (align, n) => Math.ceil(n / align) * align;
+  var maxalign = (n) => typeAlign(MAXIMUM_ALIGNOF, n);
+  var MAX_HEAP_TUPLE_SIZE = BLCKSZ - maxalign(PAGE_HEADER + LINE_POINTER);
+  var MAX_HEAP_TUPLES_PER_PAGE = Math.floor((BLCKSZ - PAGE_HEADER) / (maxalign(TUPLE_HEADER) + LINE_POINTER));
+  var INT4 = { name: "int4", len: 4, align: 4 };
+  var INT8 = { name: "int8", len: 8, align: 8 };
+  var shortText = (chars) => {
+    if (chars + 1 > 127) throw new Error("A text value over 126 bytes takes a 4-byte header");
+    return { name: "text", len: 1 + chars, align: 1 };
+  };
+  var TEXT_CHARS = 11;
+  var COLUMNS = {
+    int4: { label: "int4", attrs: [INT4] },
+    int8: { label: "int8", attrs: [INT8] },
+    "int4-text": { label: "int4 + text", attrs: [INT4, shortText(TEXT_CHARS)] },
+    "int8-text": { label: "int8 + text", attrs: [INT8, shortText(TEXT_CHARS)] }
+  };
+  var SWAP = { int4: "int8", int8: "int4", "int4-text": "int8-text", "int8-text": "int4-text" };
+  function tuple(attrs) {
+    const hoff = maxalign(TUPLE_HEADER);
+    const bytes = [...Array(TUPLE_HEADER).fill("header"), ...Array(hoff - TUPLE_HEADER).fill("padding")];
+    let data = 0;
+    for (const a of attrs) {
+      const at = typeAlign(a.align, bytes.length);
+      while (bytes.length < at) bytes.push("padding");
+      for (let i = 0; i < a.len; i++) bytes.push("data");
+      data += a.len;
+    }
+    const lpLen = bytes.length, stored = maxalign(lpLen);
+    while (bytes.length < stored) bytes.push("padding");
+    return { header: TUPLE_HEADER, hoff, data, lpLen, stored, padding: stored - TUPLE_HEADER - data, perRow: stored + LINE_POINTER, bytes };
+  }
+  var reserveFor = (fillfactor) => Math.floor(BLCKSZ * (100 - fillfactor) / 100);
+  function heapFreeSpace(lower, upper, n) {
+    const space = upper - lower;
+    if (space < LINE_POINTER) return 0;
+    return n >= MAX_HEAP_TUPLES_PER_PAGE ? 0 : space - LINE_POINTER;
+  }
+  function fill(stored, fillfactor) {
+    if (!(fillfactor >= 10 && fillfactor <= 100)) throw new Error("fillfactor runs from 10 to 100");
+    const reserve = reserveFor(fillfactor);
+    const nearlyEmpty = MAX_HEAP_TUPLE_SIZE - Math.floor(MAX_HEAP_TUPLES_PER_PAGE / 8) * LINE_POINTER;
+    const target = stored + reserve > nearlyEmpty ? Math.max(stored, nearlyEmpty) : stored + reserve;
+    let lower = PAGE_HEADER, upper = BLCKSZ, rows = 0;
+    const offsets = [];
+    while (rows === 0 || target <= heapFreeSpace(lower, upper, rows)) {
+      lower += LINE_POINTER;
+      upper -= stored;
+      offsets.push(upper);
+      rows++;
+    }
+    return { rows, lower, upper, free: upper - lower, reserve, target, heapFree: heapFreeSpace(lower, upper, rows), offsets };
+  }
+  function share(t, p) {
+    const freeBytes = p.free;
+    const reserved = Math.min(p.reserve, freeBytes);
+    return {
+      data: p.rows * t.data,
+      headers: p.rows * t.header,
+      padding: p.rows * t.padding,
+      pointers: p.rows * LINE_POINTER,
+      pageHeader: PAGE_HEADER,
+      reserved,
+      free: freeBytes - reserved
+    };
+  }
+  function scenarioOf(column, fillfactor) {
+    const t = tuple(COLUMNS[column].attrs), p = fill(t.stored, fillfactor);
+    return { column, label: COLUMNS[column].label, fillfactor, tuple: t, page: p, share: share(t, p), pagesFor10000: Math.ceil(1e4 / p.rows) };
+  }
+  var percent2 = (bytes) => percent(bytes, { of: BLCKSZ, least: 0.1, rounding: "Math.round" });
+
+  // scenes/explainers/pg-page/answers.ts
+  var INT2 = { name: "int2", len: 2, align: 2 };
+  var rowOf = (attrs) => {
+    const tu = tuple(attrs);
+    return { ...tu, rows: fill(tu.stored, 100).rows };
+  };
+  var ONE = rowOf([INT4]);
+  var TWO = rowOf([INT4, INT4]);
+  var SMALL_INT = rowOf([INT2]);
+  var T15 = 15;
+  var NARROW15 = rowOf([INT4, shortText(T15)]);
+  var WIDE15 = rowOf([INT8, shortText(T15)]);
+  var questions = {
+    1: () => `No. The first int4 ends at byte ${ONE.lpLen}, and the second fills bytes ${ONE.lpLen} to ${TWO.lpLen - 1}, the padding one int4 leaves. Both tuples take ${ONE.stored} bytes, so both rows cost ${ONE.perRow} and a page holds ${TWO.rows} of either.`,
+    2: () => `No. Its tuple is ${SMALL_INT.hoff} + 2 = ${SMALL_INT.lpLen} bytes, which the page rounds up to ${SMALL_INT.stored}, the same as int4\u2019s ${ONE.lpLen}. Both rows cost ${ONE.perRow} bytes and a page holds ${SMALL_INT.rows}.`,
+    3: () => ({
+      question: `With a ${T15}-character text after the integer instead of an ${TEXT_CHARS}-character one, does int4 still fit more rows than int8?`,
+      answer: `No. After an int4 the tuple is ${NARROW15.lpLen} bytes, rounded up to ${NARROW15.stored}; after an int8 it is ${WIDE15.lpLen}, already a multiple of 8. Both rows cost ${NARROW15.perRow} bytes, so the saving the ${TEXT_CHARS}-character text showed disappears.`
+    })
+  };
+
+  // bench/premise/pg-page/method/oracle.ts
+  var MEASURED = {
+    int4: { rows: 226, lower: 928, upper: 960, pages: 45, lpLen: 28, hoff: 24, data: 4, firstOff: 8160 },
+    int8: { rows: 226, lower: 928, upper: 960, pages: 45, lpLen: 32, hoff: 24, data: 8, firstOff: 8160 },
+    "int4-text": { rows: 185, lower: 764, upper: 792, pages: 55, lpLen: 40, hoff: 24, data: 16, firstOff: 8152 },
+    "int8-text": { rows: 157, lower: 652, upper: 656, pages: 64, lpLen: 44, hoff: 24, data: 20, firstOff: 8144 }
+  };
+
+  // bench/premise/pg-page/method/page.ts
+  var esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  var W = 400;
+  var C = { ink: "#1d1d1f", soft: "#6e6e73", line: "#c7c7cc", header: "#c9d7f2", data: "#f6c17a", padding: "#ececec", pointer: "#b9e0c4", free: "#ffffff", pageHeader: "#8aa4d6" };
+  var svg = (h, body, label) => `<svg viewBox="0 0 ${W} ${h}" width="100%" role="img" aria-label="${esc(label)}" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, sans-serif">${body}</svg>`;
+  var text = (x, y, s, o = {}) => `<text x="${x}" y="${y}" font-size="${o.size ?? 13}" fill="${o.fill ?? C.ink}" text-anchor="${o.anchor ?? "start"}"${o.weight ? ` font-weight="${o.weight}"` : ""}${o.mono ? ' font-family="ui-monospace, Menlo, monospace"' : ""}>${esc(s)}</text>`;
+  var rect = (x, y, w, h, fill2, o = {}) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill2}" stroke="${o.stroke ?? C.ink}" stroke-width="${o.sw ?? 1}"${o.dash ? ' stroke-dasharray="4 3"' : ""}/>`;
+  var swatch = (x, y, fill2, label) => rect(x, y, 12, 12, fill2) + text(x + 16, y + 11, label, { size: 11.5 });
+  function pageSvg(c) {
+    const x = 8, w = 120, top = 10, h = 300;
+    let body = rect(x, top, w, h, C.free);
+    body += rect(x, top, w, 26, C.pageHeader);
+    body += text(x + w / 2, top + 17, "page header", { anchor: "middle", size: 12 });
+    const lx = x + w + 14;
+    body += text(lx, top + 17, `page header, ${PAGE_HEADER} bytes`, { size: 12 });
+    if (!c) {
+      body += text(x + w / 2, top + h / 2, `${BLCKSZ - PAGE_HEADER} bytes free`, { anchor: "middle", size: 12 });
+      body += text(lx, top + 44, `pd_lower = ${PAGE_HEADER}`, { size: 12, mono: true });
+      body += text(lx, top + h - 6, `pd_upper = ${BLCKSZ}`, { size: 12, mono: true });
+      body += text(lx, top + h / 2, `free: ${BLCKSZ} \u2212 ${PAGE_HEADER} = ${BLCKSZ - PAGE_HEADER}`, { size: 12 });
+      return svg(top + h + 30, body + text(8, top + h + 22, `One ${BLCKSZ}-byte heap page, not to scale.`, { size: 11, fill: C.soft }), "An empty 8192-byte page: a 24-byte header, then free space");
+    }
+    const t = c.tuple, off = BLCKSZ - t.stored;
+    body += rect(x, top + 26, w, 12, C.pointer);
+    body += text(lx, top + 36, `pointer, ${LINE_POINTER} bytes; pd_lower ${PAGE_HEADER + LINE_POINTER}`, { size: 12 });
+    body += rect(x, top + h - 40, w, 40, C.data);
+    body += text(x + w / 2, top + h - 16, `tuple, ${t.stored} bytes`, { anchor: "middle", size: 12 });
+    body += text(lx, top + h - 26, `tuple at ${off}; pd_upper ${off}`, { size: 12 });
+    body += text(lx, top + h - 10, `lp_len ${t.lpLen}, given ${t.stored} bytes`, { size: 12 });
+    body += `<line x1="${x + w}" y1="${top + 32}" x2="${x + w + 10}" y2="${top + 32}" stroke="${C.ink}"/>`;
+    body += text(x + w / 2, top + h / 2, `${off - PAGE_HEADER - LINE_POINTER} bytes free`, { anchor: "middle", size: 12 });
+    body += `<path d="M${x + w - 20},${top + 38} C${x + w + 40},${top + 120} ${x + w + 40},${top + h - 80} ${x + w - 20},${top + h - 30}" fill="none" stroke="${C.soft}" stroke-dasharray="3 3"/>`;
+    body += text(lx + 30, top + h / 2, `pointer\u2019s lp_off: ${off}`, { size: 11, fill: C.soft });
+    return svg(top + h + 30, body + text(8, top + h + 22, `One ${BLCKSZ}-byte heap page, not to scale.`, { size: 11, fill: C.soft }), `A page with one ${c.label} row: a 4-byte line pointer under the header and a ${t.stored}-byte tuple at the end`);
+  }
+  var FILL = { header: C.header, padding: C.padding, data: C.data };
+  function tupleGrid(t, title, y0) {
+    const cell = 34, x0 = 44;
+    let body = text(8, y0 + 14, title, { weight: "600", size: 12.5 });
+    const lines = t.stored / 8;
+    for (let line = 0; line < lines; line++) {
+      const y = y0 + 22 + line * (cell * 0.8 + 2);
+      body += text(x0 - 6, y + 17, String(line * 8), { size: 11, anchor: "end", fill: C.soft, mono: true });
+      for (let b = 0; b < 8; b++) {
+        const kind = t.bytes[line * 8 + b];
+        body += rect(x0 + b * cell, y, cell - 2, cell * 0.8, FILL[kind], { stroke: C.line });
+      }
+    }
+    const lineH = cell * 0.8 + 2;
+    if (t.lpLen < t.stored) {
+      const line = Math.floor(t.lpLen / 8), b = t.lpLen % 8;
+      const x = x0 + b * cell - 1, y = y0 + 22 + line * lineH;
+      body += `<line x1="${x}" y1="${y - 3}" x2="${x}" y2="${y + cell * 0.8 + 3}" stroke="${C.ink}" stroke-width="2.5"/>`;
+    }
+    const after = y0 + 22 + lines * lineH;
+    body += text(x0, after + 14, `lp_len ${t.lpLen}${t.lpLen < t.stored ? ` (black bar), rounded up to ${t.stored}` : `, already a multiple of 8`}`, { size: 11.5 });
+    return { body, h: after + 22 - y0 };
+  }
+  var GRID_KEY = (y) => swatch(8, y, C.header, "tuple header") + swatch(120, y, C.padding, "padding") + swatch(200, y, C.data, "data (values)");
+  var tupleTitle = (c) => `${c.label}: header ${c.tuple.header}, data ${c.tuple.data}, padding ${c.tuple.padding} = ${c.tuple.stored} bytes`;
+  function rowSvg(c) {
+    const g = tupleGrid(c.tuple, tupleTitle(c), 0);
+    return svg(g.h + 24, g.body + GRID_KEY(g.h + 4), `The ${c.label} tuple, ${c.tuple.stored} bytes, in lines of 8`);
+  }
+  function swapSvg(c, w) {
+    const a = tupleGrid(c.tuple, tupleTitle(c), 0);
+    const b = tupleGrid(w.tuple, tupleTitle(w), a.h + 8);
+    const h = a.h + 8 + b.h;
+    return svg(h + 24, a.body + b.body + GRID_KEY(h + 4), `The ${c.label} and ${w.label} tuples side by side`);
+  }
+  function shareSvg(c) {
+    const sh = c.share;
+    const parts = [
+      ["Tuple headers", sh.headers, C.header],
+      ["Row data", sh.data, C.data],
+      ["Alignment padding", sh.padding, C.padding],
+      ["Line pointers", sh.pointers, C.pointer],
+      ["Page header", sh.pageHeader, C.pageHeader],
+      ["Free space", sh.free + sh.reserved, C.free]
+    ];
+    let body = text(8, 14, `One full page of ${c.label} rows: ${c.page.rows} rows`, { weight: "600" });
+    let x = 8;
+    const bw = W - 16;
+    for (const [, n, fill2] of parts) {
+      const w = n / BLCKSZ * bw;
+      body += rect(x, 24, w, 34, fill2, { stroke: C.line, sw: 0.5 });
+      x += w;
+    }
+    body += rect(8, 24, bw, 34, "none");
+    parts.forEach(([name, n, fill2], i) => {
+      const y = 76 + i * 20;
+      body += rect(8, y - 10, 12, 12, fill2) + text(26, y, name, { size: 12 }) + text(250, y, `${n} B`, { size: 12, anchor: "end", mono: true }) + text(310, y, percent2(n), { size: 12, anchor: "end", mono: true });
+    });
+    return svg(76 + parts.length * 20, body, `Where a full page of ${c.label} rows goes`);
+  }
+  function whySvg(c) {
+    const p = c.page, t = c.tuple;
+    const rows = [
+      ["rows on the page", String(p.rows)],
+      ["bytes per row (tuple + pointer)", `${t.stored} + ${LINE_POINTER} = ${t.perRow}`],
+      ["used by rows", `${p.rows} \xD7 ${t.perRow} = ${p.rows * t.perRow}`],
+      ["free: pd_upper \u2212 pd_lower", `${p.upper} \u2212 ${p.lower} = ${p.free}`],
+      ["free less one new pointer", `${p.free} \u2212 ${LINE_POINTER} = ${p.heapFree}`],
+      ["the next tuple needs", `${t.stored} (lp_len ${t.lpLen})`]
+    ];
+    let body = text(8, 14, `Why ${p.rows} rows and not ${p.rows + 1}`, { weight: "600" });
+    rows.forEach(([k, v], i) => {
+      const y = 40 + i * 24;
+      body += text(8, y, k, { size: 12 }) + text(W - 8, y, v, { size: 12, anchor: "end", mono: true });
+      body += `<line x1="8" y1="${y + 7}" x2="${W - 8}" y2="${y + 7}" stroke="${C.line}"/>`;
+    });
+    return svg(40 + rows.length * 24, body, `Why ${p.rows} rows fit`);
+  }
+  function compareSvg(column) {
+    const cols = ["int4", "int8", "int4-text", "int8-text"];
+    const x0 = 140, cw = 64;
+    let body = "";
+    cols.forEach((k, i) => body += text(x0 + i * cw + cw / 2, 16, COLUMNS[k].label.replace(" + text", "+text"), { size: 11.5, anchor: "middle", weight: "600" }));
+    const lines = [
+      ["lp_len (measured)", (k) => String(MEASURED[k].lpLen)],
+      ["bytes a row", (k) => String(scenarioOf(k, 100).tuple.perRow)],
+      ["rows a page (measured)", (k) => String(MEASURED[k].rows)],
+      ["pages, 10,000 rows (measured)", (k) => String(MEASURED[k].pages)]
+    ];
+    lines.forEach(([label, f], r) => {
+      const y = 30 + r * 30;
+      body += text(8, y + 20, label, { size: 11.5 });
+      cols.forEach((k, i) => {
+        body += rect(x0 + i * cw + 2, y + 2, cw - 4, 26, k === column ? "#fff4c2" : "white", { stroke: k === column ? C.ink : C.line });
+        body += text(x0 + i * cw + cw / 2, y + 20, f(k), { size: 12.5, anchor: "middle", mono: true });
+      });
+    });
+    return svg(30 + lines.length * 30 + 6, body, "Measured rows per page and table sizes for the four columns");
+  }
+  function steps(column) {
+    const c = scenarioOf(column, 100), w = scenarioOf(SWAP[column], 100);
+    const t = c.tuple, p = c.page;
+    const text_ = column.endsWith("text");
+    const [narrow, wide] = column.startsWith("int4") ? [c, w] : [w, c];
+    const diff = narrow.page.rows - wide.page.rows;
+    const out = [];
+    out.push({
+      id: "page",
+      title: `Do ${narrow.label} rows fit more on a page than ${wide.label} rows?`,
+      caption: `Postgres stores a table in pages of ${BLCKSZ} bytes, and each page starts with a ${PAGE_HEADER}-byte header, so an empty page has ${BLCKSZ - PAGE_HEADER} bytes free. Declaring an integer column int4 instead of int8 (bigint) stores 4 bytes a value instead of 8${text_ ? `; here the integer is followed by an ${TEXT_CHARS}-character text column` : ""}. Predict: how many more ${narrow.label} rows than ${wide.label} rows fit on one page?`,
+      svg: pageSvg(null)
+    });
+    const parts = text_ ? `then the ${column.slice(0, 4)}, then ${TEXT_CHARS} characters after a 1-byte length` : `then the ${column}`;
+    out.push({
+      id: "row",
+      title: `One ${c.label} row takes ${t.perRow} bytes of the page`,
+      caption: `A row is two allocations: a ${LINE_POINTER}-byte line pointer after the header, which records where the row is, and the row itself, the tuple, placed from the end of the page. The tuple is a ${TUPLE_HEADER}-byte header padded to ${t.hoff}, ${parts}: ${t.lpLen} bytes (pageinspect\u2019s lp_len). On a 64-bit build the page gives each tuple a multiple of 8 bytes: ${t.lpLen === t.stored ? `${t.stored} already is one` : `${t.lpLen} becomes ${t.stored}`}. So the row costs ${t.perRow} bytes, of which ${t.data} are the value${text_ ? "s" : ""}.`,
+      svg: pageSvg(c) + rowSvg(c)
+    });
+    out.push({
+      id: "swap",
+      title: diff === 0 ? `Answer: none. Both tuples are ${t.stored} bytes` : `Answer: ${diff} more. The tuples are ${narrow.tuple.stored} and ${wide.tuple.stored} bytes`,
+      caption: text_ ? `On a 64-bit build every tuple gets a multiple of 8 bytes. Text with a 1-byte length needs no alignment, so after an int4 it starts at byte ${narrow.tuple.hoff + 4}, in what would have been padding, and the tuple ends at ${narrow.tuple.lpLen}${narrow.tuple.lpLen === narrow.tuple.stored ? ", already a multiple of 8" : ""}. After an int8 it starts at ${wide.tuple.hoff + 8} and the tuple ends at ${wide.tuple.lpLen}, rounded up to ${wide.tuple.stored}. A full page holds ${narrow.page.rows} ${narrow.label} rows and ${wide.page.rows} ${wide.label} rows: ${diff} more.` : `On a 64-bit build every tuple gets a multiple of 8 bytes. The int4 tuple is ${narrow.tuple.lpLen} bytes rounded up to ${narrow.tuple.stored}, so its last ${narrow.tuple.stored - narrow.tuple.lpLen} bytes are padding; int8\u2019s extra 4 bytes land exactly there. Both rows cost ${t.perRow} bytes, and a full page holds ${p.rows} of either.`,
+      svg: swapSvg(c, w)
+    });
+    const sh = c.share;
+    out.push({
+      id: "full",
+      title: `A full page holds ${p.rows} ${c.label} rows; ${percent2(sh.data)} of it is data`,
+      caption: `Inserts fill the page until the next row does not fit: ${p.rows} rows. The ${p.rows} tuple headers take ${percent2(sh.headers)} of the ${BLCKSZ} bytes, more than the ${percent2(sh.data)} that is values${text_ ? " (counting the text\u2019s length byte)" : ""}. Each row pays ${TUPLE_HEADER} header bytes for ${t.data} bytes of value${text_ ? "s" : ""}.`,
+      svg: shareSvg(c)
+    });
+    out.push({
+      id: "why",
+      title: `Row ${p.rows + 1} would need ${t.stored} bytes and a pointer; ${p.free} are left`,
+      caption: `${p.rows} rows of ${t.perRow} bytes use ${p.rows * t.perRow} of the ${BLCKSZ - PAGE_HEADER} free bytes, leaving ${p.free}. A new row needs a pointer and a tuple: after the ${LINE_POINTER}-byte pointer, ${p.heapFree} bytes remain for a tuple that needs ${t.stored}. ${t.lpLen <= p.heapFree ? `The tuple\u2019s own ${t.lpLen} bytes would fit; rounding up to ${t.stored} is what keeps row ${p.rows + 1} out.` : `Even unrounded, its ${t.lpLen} bytes would not fit.`}`,
+      svg: whySvg(c)
+    });
+    const m = (k) => MEASURED[k];
+    out.push({
+      id: "compare",
+      title: `int4 and int8 fill ${m("int4").pages} pages alike; with text after them, ${m("int4-text").pages} and ${m("int8-text").pages}`,
+      caption: `Measured on a real Postgres 18.6 server, 10,000 rows of each column at fillfactor 100: int4 and int8 both take ${m("int4").pages} pages (${m("int4").rows} rows a page). With an ${TEXT_CHARS}-character text after the integer, int4 takes ${m("int4-text").pages} pages (${m("int4-text").rows} a page) and int8 ${m("int8-text").pages} (${m("int8-text").rows} a page). Whether a narrower type saves space depends on where the row\u2019s bytes end relative to an 8-byte boundary.`,
+      svg: compareSvg(column)
+    });
+    return out;
+  }
+  var CHECKS = [
+    { q: "Would a row with two int4 columns take more page space than a row with one?", a: questions[1]() },
+    { q: "Would smallint (int2, 2 bytes) fit more rows on a page than int4?", a: questions[2]() },
+    { q: questions[3]().question, a: questions[3]().answer }
+  ];
+
+  // bench/premise/pg-page/method/main.ts
+  mount(document.getElementById("app"), {
+    settings: [
+      {
+        id: "column",
+        label: "Column",
+        default: "int4",
+        options: [
+          { value: "int4", label: "int4" },
+          { value: "int8", label: "int8 (bigint)" },
+          { value: "int4-text", label: "int4 + text" }
+        ]
+      }
+    ],
+    steps: (v) => steps(v.column),
+    checks: CHECKS
+  });
+})();
+</script>
+</body>
+</html>

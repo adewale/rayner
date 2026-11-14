@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "scene": "trust-proxy",
+  "sourceHash": "95d3c6640336d7fc7cf130a1976efbe64310c7fb66dfd7472da8bcdd58d4e373",
+  "engine": "lantern@2c7bad5+explainer",
+  "agenticMermaid": "0.5.1",
+  "snapshotHashes": [
+    "531da6aa3462ca4d4061911c955fb611db90f0d1c5bba55dea074af1ed603322"
+  ],
+  "title": "Which address should Express call the client?",
+  "artifactHash": "dfeea89e556ecfa6428bdece761dd4e1201c75bd3203cec01abd4aec3c7b94ca",
+  "scenarios": [
+    {
+      "settings": {
+        "trust": "true",
+        "request": "client"
+      },
+      "steps": 9,
+      "duration": 232.2
+    },
+    {
+      "settings": {
+        "trust": "true",
+        "request": "forged"
+      },
+      "steps": 9,
+      "duration": 239.3
+    },
+    {
+      "settings": {
+        "trust": "true",
+        "request": "direct"
+      },
+      "steps": 9,
+      "duration": 240.433
+    },
+    {
+      "settings": {
+        "trust": "1",
+        "request": "client"
+      },
+      "steps": 9,
+      "duration": 253.6
+    },
+    {
+      "settings": {
+        "trust": "1",
+        "request": "forged"
+      },
+      "steps": 9,
+      "duration": 256.967
+    },
+    {
+      "settings": {
+        "trust": "1",
+        "request": "direct"
+      },
+      "steps": 9,
+      "duration": 253.233
+    },
+    {
+      "settings": {
+        "trust": "2",
+        "request": "client"
+      },
+      "steps": 9,
+      "duration": 253.267
+    },
+    {
+      "settings": {
+        "trust": "2",
+        "request": "forged"
+      },
+      "steps": 9,
+      "duration": 258.9
+    },
+    {
+      "settings": {
+        "trust": "2",
+        "request": "direct"
+      },
+      "steps": 9,
+      "duration": 261.5
+    },
+    {
+      "settings": {
+        "trust": "list",
+        "request": "client"
+      },
+      "steps": 9,
+      "duration": 250.233
+    },
+    {
+      "settings": {
+        "trust": "list",
+        "request": "forged"
+      },
+      "steps": 9,
+      "duration": 254.733
+    },
+    {
+      "settings": {
+        "trust": "list",
+        "request": "direct"
+      },
+      "steps": 9,
+      "duration": 254
+    }
+  ],
+  "bytes": 918290,
+  "gzipBytes": 273391,
+  "headers": {
+    "Content-Security-Policy": "default-src 'none'; script-src 'sha256-EdnQUL2fjtm41KTLHPJsIWxNj1iD7SISGAX5p/yJBK8=' 'sha256-NGN9Y5XI3TUkXVdXT9uwlMyRIsI116KnimuzwrPSNYE='; style-src 'sha256-NLZVLPxMW3hNsjUfTd5gYIxJngBZjNPjYwYM7u6oU3A='; img-src data:; connect-src 'none'; font-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors *",
+    "Cache-Control": "public, max-age=0, must-revalidate"
+  }
+}
