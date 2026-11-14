@@ -187,8 +187,9 @@ test('framed: a raw iframe and the loader both let the reader choose and see the
     const page = await browser.newPage({ viewport: { width: 1000, height: 900 } });
     try {
       await page.goto(host);
-      await page.waitForFunction(() => document.querySelector('iframe')?.contentWindow);
-      const frame = page.frames().find((f) => f.url().includes('prediction.html'));
+      // The loader makes its iframe before pointing it at the page, so wait for the frame to load the page.
+      let frame = page.frames().find((f) => f.url().includes('prediction.html'));
+      for (const start = Date.now(); !frame && Date.now() - start < 10_000; frame = page.frames().find((f) => f.url().includes('prediction.html'))) await page.waitForTimeout(50);
       assert.ok(frame, `${name}: the explainer's frame`);
       await frame.waitForSelector('[data-ready=true]');
       assert.ok(await frame.evaluate(() => 'framed' in document.documentElement.dataset), `${name}: the page knows it is framed`);

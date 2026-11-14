@@ -1416,6 +1416,8 @@ test('stepping keeps Next, the heading line and the caption in place', options, 
   // Heading and caption lengths and tour controls cannot shift a path while the reader steps:
   // the heading keeps the tallest heading's height, its line the tallest title's place, and the
   // caption the tallest caption's height, so what follows the caption does not move either.
+  // A narrow page's prediction or live row follows the caption's words rather than that reserve
+  // (embed.css), so on those steps only the stepper and the caption's top are held.
   // Opening the separate source disclosure deliberately changes the page's height.
   let detailScenes = 0;
   for (const [width, height] of [[1180, 800], [390, 844]] as const)
@@ -1430,7 +1432,7 @@ test('stepping keeps Next, the heading line and the caption in place', options, 
           });
         });
         await visitReader(page, `${embed}/${scene}.html`);
-        const paths = {story:{places:new Set<string>(),lines:new Set<string>()}, detail:{places:new Set<string>(),lines:new Set<string>()}};
+        const paths = {story:{places:new Set<string>(),heads:new Set<string>(),lines:new Set<string>()}, detail:{places:new Set<string>(),heads:new Set<string>(),lines:new Set<string>()}};
         const n = await page.locator('.steps button').count();
         for (let i = 0; i < n; i++) {
           const before = await page.evaluate(() => (window as unknown as { __layoutSettles: number }).__layoutSettles);
@@ -1446,21 +1448,26 @@ test('stepping keeps Next, the heading line and the caption in place', options, 
           await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
           if (await page.locator('.lede .line').isVisible())
             path.lines.add(await page.locator('.lede .line').evaluate((line) => (line.getBoundingClientRect().top + scrollY).toFixed(1)));
-          path.places.add(
-            await page.evaluate(() => {
-              const top = (s: string) => document.querySelector(s)!.getBoundingClientRect().top + scrollY;
-              const caption = document.querySelector('.words > .caption')!.getBoundingClientRect();
-              return [top('.stepper'), caption.top + scrollY, caption.bottom + scrollY].map((v) => v.toFixed(1)).join(' ');
-            }),
-          );
+          const { head, bottom, rowFollows } = await page.evaluate(() => {
+            const top = (s: string) => document.querySelector(s)!.getBoundingClientRect().top + scrollY;
+            const caption = document.querySelector('.words > .caption')!.getBoundingClientRect();
+            return {
+              head: [top('.stepper'), caption.top + scrollY].map((v) => v.toFixed(1)).join(' '),
+              bottom: (caption.bottom + scrollY).toFixed(1),
+              rowFollows: !!document.querySelector('.words > .caption ~ .predict:not([hidden]), .words > .caption ~ .live:not([hidden])'),
+            };
+          });
+          path.heads.add(head);
+          if (!rowFollows) path.places.add(`${head} ${bottom}`);
         }
         // A scene's notes, when it has any, form the detail path; token-bucket tells one story.
         const project = projects.get(scene)!, notes = stepsOf(project, resolveSettings(project.Scene)).some(s => s.detail);
         if (notes) detailScenes++;
         for(const [name,path] of Object.entries(paths)){
-          if (name === 'detail' && !notes) { assert.equal(path.places.size, 0, `${scene}: no detail path without notes`); continue; }
-          assert.ok(path.places.size, `${scene}: ${name} path was exercised`);
-          assert.equal(path.places.size, 1, `${scene}/${name} at ${width} px: stepper top, caption top and bottom per step ${[...path.places].join(' | ')}`);
+          if (name === 'detail' && !notes) { assert.equal(path.heads.size, 0, `${scene}: no detail path without notes`); continue; }
+          assert.ok(path.heads.size, `${scene}: ${name} path was exercised`);
+          assert.equal(path.heads.size, 1, `${scene}/${name} at ${width} px: stepper top and caption top per step ${[...path.heads].join(' | ')}`);
+          assert.ok(path.places.size <= 1, `${scene}/${name} at ${width} px: stepper top, caption top and bottom per step ${[...path.places].join(' | ')}`);
           assert.ok(path.lines.size <= 1, `${scene}/${name} at ${width} px: heading line tops per step ${[...path.lines].join(' | ')}`);
 
         }
