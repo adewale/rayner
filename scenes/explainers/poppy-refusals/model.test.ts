@@ -101,6 +101,10 @@ test('8.13 (1.0): an error code the agent does not recognize is handled by the r
   assert.deepEqual(remedy({ status: 401, error: 'step_up_required', needs: 'orders:write' }, holding({ token: undefined, refresh: RO })), remedy({ status: 401, needs: 'orders:write' }, holding({ token: undefined, refresh: RO })));
   // A 400 the agent cannot read says the request is at fault, so it is not sent again as it was.
   assert.deepEqual(remedy({ status: 400, error: 'new_kind_of_problem' }, holding()), { kind: 'stop', why: 'a 400 with no code the agent knows: the request itself is at fault' });
+  // A new code usually names no scope: refresh for the scopes held, never a sign-in for none or for fewer.
+  assert.deepEqual(remedy({ status: 401, error: 'step_up_required' }, holding({ token: undefined, refresh: RO })), { kind: 'refresh' });
+  assert.deepEqual(remedy({ status: 401, error: 'step_up_required' }, holding({ token: undefined, refresh: null })), { kind: 'stop', why: 'a 401 that names no scope, with nothing to refresh: the agent cannot tell which scopes to ask for' });
+  assert.deepEqual(remedy({ status: 403, error: 'insufficient_scope' }, holding({ refresh: RO })), { kind: 'stop', why: 'an insufficient_scope that names no scope, with nothing to refresh: the agent cannot tell which scopes to ask for' });
 });
 
 test('section 7 and 4.7: 403 insufficient_scope: refresh if the refresh token covers the scope; otherwise sign in again for every scope, keeping the old ones', () => {
