@@ -218,7 +218,7 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
           : `December: the same axis, and ${place.name}’s daylight stays ${hours(december.daylight)}`,
       line: 'Predict: of Tromsø, London, Quito and Sydney, whose daylight changes most?',
       caption:
-        'Half an orbit later Earth is on the far side of the Sun, but the axis still points the same way, so the south end now leans sunward and the hemispheres swap seasons. ' +
+        'Half an orbit later the axis still points the same way, so the south end now leans sunward and the hemispheres swap seasons. ' +
         (Math.abs(june.daylight - december.daylight) > 0.05
           ? `${place.name}’s daylight ${december.daylight > june.daylight ? 'rises' : 'falls'} to ${hours(december.daylight)}. ` +
             (december.altitude > 0
@@ -262,7 +262,7 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
         : { month: 'June', other: 'December', ratio: junePatch / decPatch, from: decShare, to: juneShare }
       : null;
     const beamSaid = (month: string, alt: number, patch: number, share: number) =>
-      `${month}’s Sun, ${degrees(alt)} up, lays its beam on ${metres(patch)} of ground, so each square metre gets 1 ÷ ${patch.toFixed(2)} = ${pct(share)} of what an overhead Sun gives`;
+      `${month}’s Sun, ${degrees(alt)} up, lays it on ${metres(patch)}: 1 ÷ ${patch.toFixed(2)} = ${pct(share)} of overhead per m²`;
     await this.step('spread', {
       title:
         decPatch === null
@@ -272,12 +272,12 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
             : `The same 1 m beam lands on ${metres(decPatch)} of ground in June and in December`,
       line: `Both noon beams on level ground at ${place.name}, drawn to one scale.`,
       caption:
-        `Here the noon sunlight from both globes lands on level ground at ${place.name}. Each beam is 1 m across, measured at right angles to its rays. ` +
+        `Both globes’ noon sunlight lands on level ground at ${place.name}, each beam 1 m across at right angles to its rays. ` +
         `${beamSaid('June', june.altitude, junePatch!, juneShare)}. ` +
         (decPatch === null
           ? `In December the noon Sun stays ${degrees(-december.altitude)} below the horizon, so no beam reaches the ground.`
           : longer
-            ? `${beamSaid('December', december.altitude, decPatch, decShare)}. Counted at Earth’s average distance, as the percentages are, both beams carry the same sunlight; ${longer.month}’s spreads it over ${longer.ratio.toFixed(1)} times as much ground as ${longer.other}’s, which is how ${pct(longer.from)} per m² falls to ${pct(longer.to)}.`
+            ? `${beamSaid('December', december.altitude, decPatch, decShare)}. At Earth’s average distance both beams carry the same sunlight; ${longer.month}’s spreads it over ${longer.ratio.toFixed(1)} times the ground, so ${pct(longer.from)} per m² falls to ${pct(longer.to)}.`
             : `December’s Sun stands at the same ${degrees(december.altitude)}, so the beam lands on the same ${metres(decPatch)} and the share stays ${pct(decShare)}.`),
     });
     emphasised(juneDaylight, null);
@@ -457,8 +457,8 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
           : `Earth is ${farther}% farther from the Sun in July; ${place.name} still gets ${hours(year[6]!)}.`,
       caption:
         place.lat !== 0
-          ? `Back to the opening question. ${distanceSaid} The tilt moves ${place.name}’s noon sunlight between ${pct(shares[0]!)} and ${pct(shares[1]!)} of overhead. On 15 January ${place.name} gets ${hours(year[0]!)} of daylight and ${latitudeName(-place.lat)}, the purple curve, gets ${hours(mirror[0]!)}; both are the same distance from the Sun that day, so the gap between them comes from the tilt.`
-          : `Back to the opening question. ${distanceSaid} Quito gets ${hours(year[0]!)} in January and in July, and its noon Sun stands at ${degrees(june.altitude)} at both solstices, ${pct(juneShare)} of overhead, so the tilt bar has no length here. On 15 January London gets ${hours(daylightYear(PLACES.london!.lat)[0]!)} and Sydney ${hours(daylightYear(PLACES.sydney!.lat)[0]!)}, at one distance from the Sun.`,
+          ? `${distanceSaid} The tilt moves ${place.name}’s noon sunlight between ${pct(shares[0]!)} and ${pct(shares[1]!)} of overhead. On 15 January ${place.name} gets ${hours(year[0]!)} of daylight and ${latitudeName(-place.lat)}, the purple curve, gets ${hours(mirror[0]!)}; both are the same distance from the Sun that day, so the gap between them comes from the tilt.`
+          : `${distanceSaid} Quito gets ${hours(year[0]!)} in January and in July, and its noon Sun stands at ${degrees(june.altitude)} at both solstices, ${pct(juneShare)} of overhead, so the tilt bar has no length here. On 15 January London gets ${hours(daylightYear(PLACES.london!.lat)[0]!)} and Sydney ${hours(daylightYear(PLACES.sydney!.lat)[0]!)}, at one distance from the Sun.`,
     });
     // `mirror`: the same model at the mirrored latitude, month by month.
     this.state.mirror = mirror;

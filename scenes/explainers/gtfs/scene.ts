@@ -222,7 +222,7 @@ export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
     await this.step('day-before', {
       title: `On ${longDate(before)}, the sample feed runs ${of(was.length)}`,
       line: `Predict: which of these bars still run the next day, ${longDate(date)}?`,
-      caption: `Google publishes a sample GTFS feed, the CSV files a transit agency gives trip planners, for an invented Demo Transit Authority with ${FEED.routes.length} bus routes. Here is its day: one bar per trip, labelled with its route and grouped under its service_id, the feed’s name for the timetable a trip follows: FULLW or WE. A trip that runs once spans its first departure to its last arrival; a trip that repeats on a fixed gap spans the hours its vehicles leave the first stop. Bars marked “no service” do not run that day. On ${shortDate(before)} ${
+      caption: `Google’s sample GTFS feed, the CSV files a transit agency gives trip planners, describes an invented Demo Transit Authority with ${FEED.routes.length} bus routes. Here is its day: one bar per trip, labelled with its route and grouped under its service_id, the timetable it follows. A one-off trip spans first departure to last arrival; a repeating trip, the hours its vehicles leave the first stop. Bars marked “no service” do not run that day. On ${shortDate(before)} ${
         wasServices.length === 2 ? 'both timetables run' : wasServices.length ? `only ${wasServices[0]} runs` : 'neither runs'
       }.`,
     });
@@ -264,7 +264,7 @@ export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
       line: `Follow AB1: route ${route(ab1Row.route_id!).route_short_name}’s trip ${ab1Row.trip_headsign}, service_id ${ab1Row.service_id}.`,
       // reference.md:120 and :260.
       caption:
-        'routes.txt gives a route its names, vehicle type, colours and web page, and nothing about when it runs. Each row of trips.txt names one route in route_id, so a route has zero or more trips, and names in service_id the timetable the trip follows. A route groups journeys that riders see as one service. It does not itself promise a dated departure. The diagram shows the feed’s tables and the ID columns that join them; the marks at a line’s ends say how many rows can match.',
+        'routes.txt gives a route its names, vehicle type, colours and web page, but no times. Each row of trips.txt names its route in route_id, so a route has zero or more trips, and in service_id the timetable it follows. A route groups journeys riders see as one service; it promises no dated departure. The diagram shows the feed’s tables and the ID columns that join them; a line’s end marks say how many rows can match.',
     });
     await s.clear();
     const er = await s.show({ source: ER }, { box: LEFT });
@@ -308,7 +308,7 @@ export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
       title: `AB1 runs only on the dates its service, ${ab1Row.service_id}, runs`,
       line: `Predict: which rows of the two tables decide ${longDate(date)}?`,
       // reference.md:261, :356-357, :361, :363.
-      caption: `A trip’s service_id must match a row of calendar.txt, of calendar_dates.txt, or both. calendar.txt supplies a weekday pattern within a date range; calendar_dates.txt adds or removes a particular date, overriding that pattern. The same service_id can be shared by several trips, so one exception can stop them together without deleting their route. ${answer}: a route row promises nothing by itself. Here ${services
+      caption: `A trip’s service_id must match a row of calendar.txt, of calendar_dates.txt, or both. calendar.txt gives a weekday pattern within a date range; calendar_dates.txt adds or removes a date. Several trips can share a service_id, so one exception stops them together without deleting their route. ${answer}: a route row promises nothing by itself. Here ${services
         .map((x) => `${x.id} (${x.trips} trips) is in ${where(x).replace(' only', ' alone')}`)
         .join(', and ')}.`,
     });
@@ -419,7 +419,7 @@ export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
         (empties.length === 1
           ? `With no other service on that weekday, ${shortDate(empties[0]!)}’s column is empty: 0 trips. `
           : '') +
-        'routes.txt and trips.txt are the same in each column; the service cells are what change.',
+        'routes.txt and trips.txt stay the same; the service cells change.',
         state: { week: grid, date },
         draw: drawWeek,
         opening: ['gtfs-week:day'],

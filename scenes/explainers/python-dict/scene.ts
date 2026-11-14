@@ -144,8 +144,8 @@ export default class PythonDict extends Scene<DictState, {}> {
       caption: `Key 24’s search passes ${listed(missingPasses)}, and stops at slot ${missingStop}, which has never been used: 24 is not in the dict. ${
         offRoute === undefined
           ? ''
-          : `Slot ${offRoute} has never been used either, but the arrow from slot ${m.missing.slots[overHop - 1]} to slot ${m.missing.slots[overHop]} flies over it: 24’s search does not read it, and only slots on the route count. `
-      }A deleted marker keeps the route open, and a never-used slot on it is the evidence that the key is absent. This example keeps eight slots throughout and does not cover resizing.`,
+          : `Slot ${offRoute} has never been used either, but the arrow from slot ${m.missing.slots[overHop - 1]} to slot ${m.missing.slots[overHop]} flies over it, so the search skips it. `
+      }A deleted marker keeps the route open; a never-used slot on the route is the evidence that the key is absent.`,
     });
     await this.play(cpython.replay(['d[24]']));
 

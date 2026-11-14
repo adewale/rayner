@@ -53,12 +53,12 @@ export default class Henge extends Scene<HengeState, {}> {
         title: manhattan ? 'From above: sunset lines up with 42nd Street, sunrise does not' : 'From above: a due-west street lines up with sunrise and sunset',
         line: 'North is up; the grid is schematic. Gold arrows: the Sun at sunset and sunrise on an alignment day.',
         caption: manhattan
-          ? `${answer}. From above, Manhattan’s cross streets point ${(m.bearing - 270).toFixed(1)}° north of west, and the same angle south of east at the other end. On an alignment evening the setting Sun lies on that line and shines straight down 42nd Street. That morning it rose ${(90 - m.alignment.sunrise).toFixed(1)}° north of east, ${(m.alignment.back - m.alignment.sunrise).toFixed(1)}° from the street’s other end, which faces the sunrise only on winter mornings either side of the December solstice.`
+          ? `${answer}. From above, Manhattan’s cross streets point ${(m.bearing - 270).toFixed(1)}° north of west, and the same angle south of east at the other end. On an alignment evening the setting Sun lies on that line and shines straight down 42nd Street. That morning it rose ${(90 - m.alignment.sunrise).toFixed(1)}° north of east, ${(m.alignment.back - m.alignment.sunrise).toFixed(1)}° from the street’s other end, which faces the sunrise only on winter mornings around the December solstice.`
           : `${answer}. This street points due west, so its other end points due east. On an alignment evening, at an equinox in this model, the Sun sets due west down the street, and that morning it rose due east, up the street’s other end. Both ends line up on the same days.`,
         state: { alignment: m.alignment, backCrossings: m.backCrossings, bearing: m.bearing, street: m.street }, draw: overhead },
       { id: 'sky', title: `June’s Sun sets ${west(june.azimuth)}, December’s ${west(december.azimuth).replace(' of west', '')}`,
         line: manhattan ? `Red: the street’s arc, rising from the horizon where the street points, ${west(m.bearing)}.` : 'Red: the street’s arc, rising from the horizon where the street points, due west.',
-        caption: `New York’s sky as a dome, seen from outside, west of it. Each day the Sun’s centre goes round a circle about the celestial pole; the bold arc is its day, ending at a flat horizon. In June more of the circle lies above the horizon and it ends ${west(june.azimuth)}, ${manhattan ? `${(june.azimuth - m.bearing).toFixed(1)}° beyond the street` : 'north of the street'}. December’s shorter path ends ${west(december.azimuth)}${manhattan ? ', far short of it' : ', and the equinox path ends on the street'}. The circle shifts because Earth’s axis is tilted: the north leans toward the Sun in June, away in December.`,
+        caption: `New York’s sky as a dome, seen from outside, west of it. Each day the Sun’s centre goes round a circle about the celestial pole; the bold arc is its day, ending at a flat horizon. June’s circle lies more above the horizon and ends ${west(june.azimuth)}, ${manhattan ? `${(june.azimuth - m.bearing).toFixed(1)}° beyond the street` : 'north of the street'}. December’s shorter path ends ${west(december.azimuth)}${manhattan ? ', far short of it' : ', and the equinox path ends on the street'}. The circle shifts because Earth’s axis is tilted.`,
         state: { bearing: m.bearing, days: m.seasons.map(({ declination, azimuth, hourAngle }) => ({ declination, hourAngle, azimuth })) }, draw: dome },
     ] as const;
     const crossings = [
@@ -100,7 +100,7 @@ export default class Henge extends Scene<HengeState, {}> {
     const start: YearState = { bearing: m.bearing, start: -90, longitude: -90, crossings: m.half };
     await this.step('sweep', {
       title: 'Follow the sunset through a year', line: 'Predict: how many times will the sunset cross the street?',
-      caption: `Now let the year run, from the December solstice to the next. The Sun’s daily circle slides north, and its sunset, the gold band along the horizon, travels north with it. ${manhattan ? 'It passes the street, keeps going to its June turning point, then comes back south and passes the street again.' : 'It reaches the street at the March equinox, keeps going to its June turning point, then comes back south and reaches the street again at the September equinox.'} One fixed direction, crossed on the way out and on the way back. Each day’s circle comes from the Sun’s declination in an idealised circular orbit.`,
+      caption: `Now let the year run, from the December solstice to the next. The Sun’s daily circle slides north, and its sunset, the gold band along the horizon, travels north with it. ${manhattan ? 'It passes the street, turns back in June, and passes it again.' : 'It reaches the street at the March equinox, turns back in June, and reaches it again at the September equinox.'} One fixed direction, crossed on the way out and on the way back. Each day’s circle comes from the Sun’s declination in an idealised circular orbit.`,
     });
     await s.clear({ runTime: 0.18 });
     this.state = { ...start };
@@ -122,7 +122,7 @@ export default class Henge extends Scene<HengeState, {}> {
     await this.step('look', {
       kind: 'detail',
       title: 'From the sky to the street: bearing and height in one view', line: 'Stand at the dome’s centre and lower your eyes along the street.',
-      caption: `The calendar names four evenings: half Sun and full Sun in each season. Stand in the middle of the street, at the dome’s centre, and lower your eyes along the street’s circle, labelled Street, to the horizon. From the centre, the street’s circle, the horizon and the buildings’ edges stay straight, as a camera sees them. Left and right say whether the Sun is centred between the buildings; up and down say how much of its disc is above the horizon.`,
+      caption: `The calendar names four evenings: half Sun and full Sun in each season. Stand in the street, at the dome’s centre, and lower your eyes along the street’s circle to the horizon. From the centre, the street’s circle, the horizon and the buildings’ edges stay straight, as a camera sees them. Left and right say whether the Sun is centred between the buildings; up and down say how much of its disc is above the horizon.`,
     });
     await s.clear({ runTime: 0.18 });
     this.state = { ...eye(0) };

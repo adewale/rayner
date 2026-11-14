@@ -347,8 +347,8 @@ export default class MontyHall extends Scene<MontyState, { chapter?: Chapter }> 
       line: 'Each cell is one way the round can go, drawn as wide as its chance.',
       caption:
         host === 'informed'
-          ? `The strip lays out every round for a pick of ${X}, each as wide as its chance. The car is behind each door a third of the time. When it is behind ${X}, both other doors hide goats and he tosses a coin between ${others.join(' and ')}, a sixth each. When it is behind ${C}, ${B} is the only goat you didn’t pick, so he opens it in that whole third; when it is behind ${B}, he has to open ${C}. You saw ${B} open to a goat. Find the cells that match and add up their widths before going on.`
-          : `The strip lays out every round for a pick of ${X}, each as wide as its chance. The car is behind each door a third of the time, and wherever it is he tosses a coin between ${others.join(' and ')}, so each round is a sixth. In two of those rounds the door he opens hides the car and the game is over. You saw ${B} open to a goat. Find the cells that match and add up their widths before going on.`,
+          ? `The strip lays out every round for a pick of ${X}, each as wide as its chance; the car is behind each door a third of the time. Behind ${X}, he tosses a coin between ${others.join(' and ')}: a sixth each. Behind ${C}, ${B} is the only goat you didn’t pick, so he opens it in that whole third; behind ${B}, he must open ${C}. You saw ${B} open to a goat: add up the matching cells’ widths.`
+          : `The strip lays out every round for a pick of ${X}, each as wide as its chance. The car is behind each door a third of the time, and wherever it is he tosses a coin between ${others.join(' and ')}, so each round is a sixth. In two of those rounds the door he opens hides the car and the game is over. You saw ${B} open to a goat: add up the matching cells’ widths.`,
     });
     await fresh('rounds');
     at('rounds', { odds: m, cells: cells[host] });
@@ -370,7 +370,7 @@ export default class MontyHall extends Scene<MontyState, { chapter?: Chapter }> 
     await this.step('worlds', {
       title: `One goat behind ${B}, two hosts: switching wins 2 in 3 or 1 in 2`,
       line: `With the car behind ${C}, the host who knows always opens ${B}; the random host opens it half the time.`,
-      caption: `Switching wins 2 in 3 if the host knows where the car is and picks at random between two goats, but 1 in 2 if he opened a random door and showed a goat. With the car behind ${X}, either host opens ${B} in one sixth, and staying wins it. With the car behind ${C}, the host who knows must open ${B}, which gives switching two sixths; the random host opens ${B} in only one of them and opens the car in the other. In both strips, the rounds left are those that match what you saw: ${B} opened to a goat. The goat is the same evidence in both, but the host who knows produces it twice as often when the car is behind ${C}.`,
+      caption: `Switching wins 2 in 3 if the host knows where the car is and picks at random between two goats, but 1 in 2 if he opened a random door and showed a goat. Behind ${C}, the host who knows opens ${B} in both sixths; the random host opens ${B} in only one of them and opens the car in the other, so the host who knows shows that goat twice as often.`,
     });
     await morph('copy', 0.8);
     await morph('worlds', 1.3);
