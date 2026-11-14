@@ -25,7 +25,7 @@ What Rayner checks: the model's test, against the real system, checks principle 
 
 You need Node 24 or later. In your project, install `rayner` and `rayner-cli` at the same version, as [the quick start](../README.md#quick-start) shows: from npm once it lists that version (`npm view rayner-cli versions`), and until then from archives built in a clone of this repository. Your scenes import `rayner`, and `rayner-cli` provides the `rayner` command, so the commands below run as `npx rayner <command>`. In a checkout of this repository, run `npm ci` and use `npm run rayner -- <command>` instead.
 
-This explainer draws no diagrams, so `check`, `preview` and `build` work without a browser. `review` opens the page in Chromium: install it with `npx playwright-core install chromium`, or set `CHROMIUM_EXECUTABLE_PATH` to a Chromium you already have.
+This explainer draws its picture from state and uses no add-on, so `init`, `check`, `see`, `describe`, `preview` and `build` need nothing but Node: no browser and no Python. `review` opens the page in Chromium: install it with `npx playwright-core install chromium`, or set `CHROMIUM_EXECUTABLE_PATH` to a Chromium you already have. Mermaid diagrams and extra lettering are add-ons, which [the last section](#diagrams-and-lettering-are-add-ons) describes.
 
 ## 1. Plan on paper
 
@@ -242,6 +242,34 @@ The first step opens on the moment the policies are about to diverge (principle 
 
 The third step's captions are written by hand for each scenario; they are claims about the model too, so the repository's copy of this scene has [a test](https://github.com/adewale/rayner/blob/main/test/explain-tutorial.test.ts) that checks each one. The last step marks the Hits row, gives each scenario a title and caption written for its own outcome (principle 6), and ends on the plan's limit (principle 8). In the loop scenario that limit is Chou and DeWitt's condition: MRU suits a repeated scan only when the file is too large to fit.
 
+### Drawing a picture of your own
+
+The card is a ready-made picture. When the picture should look like the thing itself, draw it with [`rayner/kit`](REFERENCE.md#kit), the default way to draw by hand. A picture module like this one draws one policy's cache as a row of slots, newest first:
+
+<!-- kit example, run by test/kit.test.ts -->
+```ts
+import type { Stage } from 'rayner/explain';
+import { keyedParts } from 'rayner/drawing';
+import { MARGIN, SPACE, addAll, box, connector, tones, words } from 'rayner/kit';
+
+/** One policy's cache, newest first: a box per slot, keyed by its item, the newest in use. */
+export function drawSlots(s: Stage, policy: string, cache: readonly string[], y: number) {
+  const parts = keyedParts(), t = tones(s);
+  parts.add(words(s, policy, { at: [MARGIN.left, y], color: t.soft, bold: true }), `${policy}:name`);
+  cache.forEach((item, i) =>
+    addAll(parts, box(s, item, { at: [-3 + i * (1.6 + SPACE.m), y], width: 1.6, key: `${policy}:${item}`, active: i === 0 })));
+  parts.add(connector(s, [[-3.9, y - 0.6], [1.9, y - 0.6]]), `${policy}:shelf`);
+  return parts.group();
+}
+```
+
+- `words` sets text at one of the kit's four sizes, `TYPE.small` by default; anything smaller than `MIN_TEXT` is refused, because a phone could not read it.
+- `tones(s)` names the stage's colours by role: `soft` for secondary words, `idle` for what is not in use, `ink` for what is.
+- `box` returns two keyed parts, the box and its label, and `addAll` adds them under their own keys. A slot is keyed by its item, so when C moves from newest to second, `view.sync()` slides it there instead of fading one C out and another in.
+- `connector` draws a line through points, with rounded corners when there are any. It is a `Line`, so `rayner check` fails one that crosses a label.
+
+In the scene, `view(this, (st) => new Group(drawSlots(s, 'LRU', st.lru, 1), drawSlots(s, 'MRU', st.mru, -1)))` makes it a view of the state, and `check` redraws it from every step's state as it does the card. For motion that explains, such as a request travelling to the cache, `beats` and `flight` author a machine's transition in which changed words are replaced and a token flies its route ([kit](REFERENCE.md#kit)).
+
 ## 6. Preview it
 
 ```sh
@@ -322,6 +350,13 @@ npx rayner build lru-mru/scene.ts --out public/lru-mru.html
 ```
 
 `build` does not repeat the checks. It writes the page, which needs no network, plus `lru-mru.html.headers.json` with the response headers your host must send, a receipt of input hashes and an optional `loader.js` that sizes an embedding iframe. [Publishing](PUBLISHING.md) covers hosting and embedding.
+
+## Diagrams and lettering are add-ons
+
+Two kinds of picture need more than Node, and only in the scenes that draw them ([add-ons](REFERENCE.md#add-ons)):
+
+- A Mermaid diagram, `s.show({ source: 'graph LR\nA --> B' })`, is laid out by Agentic Mermaid in Chromium at build time and pinned in `scene.snapshots/`. Install the add-on with `npm install --save-dev agentic-mermaid@0.5.1 svgpath@2.6.0`, and Chromium with `npx playwright-core install chromium`. Without them, a command that must capture a diagram fails and prints that install line; committed snapshots replay without Chromium.
+- Letters the embedded Inter and JetBrains Mono do not have, other scripts, replacement faces, real bold and italic, and maths need a [lettering request](LETTERING.md). Capturing one needs Python and the source fonts; a committed `scene.lettering.json` replays without them.
 
 ## Next
 

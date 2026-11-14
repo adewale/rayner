@@ -297,6 +297,68 @@ const cache = view(this, (st) => card(s, [['Requests', 'A B C D'], ['Evicted', '
 
 A row gives one value per column, or one value that spans them all (Requests above). The headings sit above the first row with a value per column. `lit` lights the whole row. The description names each value by its row and column, "Hits (MRU): 3". A card's `cells` holds each row's values; its `values` keeps each row's last one. The [LRU/MRU tutorial scene](../scenes/tutorial/lru-mru/scene.ts) uses one.
 
+### Kit
+
+`rayner/kit` is the default way to draw a picture by hand from state. It holds the measures a picture is laid out in, the stage's colours by role, a line of words, a labelled box, a label on a plate, a connector, a route, and transitions that play in beats. It is the reusable part of the Poppy series' visual system ([`scenes/explainers/lib/poppy-kit.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/lib/poppy-kit.ts)), without Poppy's colours and objects; `test/kit.test.ts` checks that the two draw the same marks and play the same frames. Its functions follow the [drawing kit](#drawing-kit)'s conventions: the stage `s` first, then what the picture shows, then one options object, with `at` the point the picture stands at.
+
+```ts
+import { keyedParts } from 'rayner/drawing';
+import { MARGIN, TYPE, addAll, box, connector, tones, words } from 'rayner/kit';
+
+const picture = view(this, (st) => {
+  const parts = keyedParts(), t = tones(s);
+  parts.add(words(s, 'Newest first', { at: [MARGIN.left, 2], color: t.soft }), 'heading');
+  st.slots.forEach((item, i) => addAll(parts, box(s, item, { at: [-4 + 2.6 * i, 0.4], width: 2, key: `slot:${item}`, active: item === st.used })));
+  parts.add(connector(s, [[-5.3, -0.8], [5.3, -0.8]]), 'shelf');
+  parts.add(words(s, st.verdict, { at: [0, -2.2], size: TYPE.title, bold: true, align: 'middle' }), 'verdict');
+  return parts.group();
+});
+```
+
+Each slot is keyed by its item, so `picture.sync()` slides an item to its new slot instead of fading it.
+
+**Measures.** Every size is a scene unit, on the 16 × 9 stage.
+
+| Name | Value | Use |
+| --- | --- | --- |
+| `TYPE` | `{ small: 0.56, label: 0.64, title: 0.8, display: 1.6 }` | The four type sizes. `small` is for nearly every word; `title` (bold) for the one phrase a picture is about; `display` for a number that is the answer. Hierarchy comes from the jump in size and from weight, not from more sizes |
+| `MIN_TEXT` | `TYPE.small`, 0.56 | The floor: 12.5 CSS px on a 358 px phone stage, above the 12 px `rayner review` requires there. `words()` refuses anything smaller; a fact that does not fit at it goes into the caption or the description |
+| `STROKE` | `{ hair: 0.035, fine: 0.06, line: 0.1, bold: 0.16 }` | Rules; outlines of objects; idle lines; the line in use |
+| `RADIUS` | `{ sharp: 0.05, small: 0.08, panel: 0.16, round: 0.26 }` | Corner radii |
+| `SPACE` | `{ xs: 0.14, s: 0.28, m: 0.42, l: 0.7, xl: 1.12 }` | Spacing, in multiples of 0.14: related things `xs` to `s` apart, separate groups `l` to `xl` |
+| `MARGIN` | `{ left: -7.65, right: 7.65, top: 4.15, bottom: -4.15 }` | Where text may go on a stage with `heading: false`; with a heading, lay text into `regionBox('main')` |
+| `PLATE_HEIGHT` | 0.84 | The height of a plate or a box around one line of `TYPE.small` or `TYPE.label` |
+
+**Colours by role.** `tones(s)` gives the stage's [look](#colours) by the one job each colour does, as a `Tones`: `ground` (the paper; plates are this colour), `ink` (words, and whatever is in use), `soft` (secondary words), `idle` (lines and slots not in use; never words), `raised` (the body of a box or panel), `rule` (hairlines), `accent` (the one thing the step is about), and `good` and `bad` for an outcome a caption calls passed or refused. They follow the stage's style and palette.
+
+| Function | Draws | Keyed parts |
+| --- | --- | --- |
+| `words(s, value, { at, size, color, bold, mono, align })` | One line of text at one of `TYPE`'s sizes (default `TYPE.small`), in the stage's ink unless given a `color`, in Inter or, with `mono`, JetBrains Mono. `at` is the start, middle or end of the line (`align`: `'start'`, the default, `'middle'` or `'end'`) at its vertical centre. A size under `MIN_TEXT` is a `RangeError`. Returns an unkeyed `Text` whose `width()` is its measured width | |
+| `box(s, text, { at, key, width, height, active, size, mono, radius })` | A labelled box centred at `at`: a body in the `raised` tone with an `idle` outline at `STROKE.fine`, or, when `active`, an `ink` outline at `STROKE.bold` and bold words. As wide as its words plus `SPACE.m` each side unless given a `width`; `PLATE_HEIGHT` tall. Returns the two parts as a list | `key:box`, `key:label` |
+| `plate(s, text, { at, key, padding, size, color, bold, mono, align })` | A label on an opaque plate of the ground's colour, so a line behind it is hidden where the words sit, as a transit map sets a line's name on the line. `at` and `align` place the words as `words` does; `padding` (default 0.18) is the plate's margin each side | `key:plate`, `key:label` |
+| `connector(s, points, { active, color, strokeWidth, radius })` | An open route through two or more corner points, each corner rounded by up to `radius` (default 0.22): `idle` at `STROKE.line`, or `ink` at `STROKE.bold` when `active`. It is a `Line`, so `rayner check` treats it as a connector and fails one that crosses a label. Key it with `keyed()` | |
+| `route(first, ...rest)` | A `Line` through the points, for a token to travel (`c.travel`, `flight`, `pass`); repeated points are dropped, and fewer than two distinct points is a `RangeError` | |
+| `addAll(parts, list)` | Adds a composite's parts, each already keyed, to a `keyedParts()` collector (a `Parts`) by their own keys; a part with no key is refused | |
+
+`box` and `plate` return their parts as a list, not one `Group`, so a transition can replace the words and move the box apart: a [choreography](MACHINES.md) addresses a picture's outermost keyed parts.
+
+**Transitions in beats.** In a [machine's transition](MACHINES.md), given the choreography `c = t.choreograph(view)`:
+
+| Function | Plays |
+| --- | --- |
+| `beats(c, flight, { fresh, then, lead })` | A `Succession` in beats. First, words that change and every `fresh` part (by key prefix: a prefix ending in `:` matches keys that start with it, any other the key itself and keys under it) go, while the `lead` parts change, as the line a request takes lights before its token sets off. Then `flight()`, a function returning the `Beat`s of whatever travels, plays. Then the `then` parts come in, and last the new words come while every other part settles (`c.rest()`). Words are replaced, never morphed glyph by glyph. Each option is a list of keys, empty by default |
+| `flight(c, key, via, { appear, move, leave, scale })` | For `beats`: a copy of the target's part `key` appears at the first point of `via`, travels through the rest to where the part rests, and gives way to the part itself. A `Group` cannot `enter` from another part, so this is how a token moves. Timings are in seconds (a `FlightTiming`); `scale` shrinks the travelling copy |
+| `pass(c, id, token, via, { appear, move, leave })` | Three `Beat`s of a token that neither picture keeps: it appears at the first point, travels, and fades at the last. `id` must be a key neither picture uses |
+
+```ts
+transition: {
+  send: (t) => {
+    const c = t.choreograph(world);  // the token flies from the sender; the lane it takes lights first
+    return beats(c, flight(c, 'token', [[-6, 0]]), { fresh: ['token'], lead: ['lane:'] });
+  },
+},
+```
+
 ### Drawing kit
 
 `rayner/drawing` draws the parts explanations keep needing, as ordinary mobjects coloured from a stage's look; nothing here animates or reads scene state. Every function has the same shape:
@@ -661,7 +723,7 @@ These helpers throw plain errors, so they work under any test runner.
 
 ## Snapshots
 
-Every command except `init` runs every scenario, captures any diagram missing from `scene.snapshots/` beside the scene (a scene with no diagrams keeps no such folder), and deletes unused ones; `rayner snapshots` stops there. Commit the folder; `index.json` maps each diagram's key to its own file. A diagram is captured again when its spec changes, which changes its key, or when a different Agentic Mermaid release captured it; a change to Rayner's own capture code does not invalidate the cache. `--refresh` recaptures everything, and CI captures every committed snapshot afresh and fails on any difference (`test/snapshot-capture.test.ts`). Capture needs Chromium and the `rayner-cli` package ([the README's quick start](../README.md#quick-start)).
+Every command except `init` runs every scenario, captures any diagram missing from `scene.snapshots/` beside the scene (a scene with no diagrams keeps no such folder), and deletes unused ones; `rayner snapshots` stops there. Commit the folder; `index.json` maps each diagram's key to its own file. A diagram is captured again when its spec changes, which changes its key, or when a different Agentic Mermaid release captured it; a change to Rayner's own capture code does not invalidate the cache. `--refresh` recaptures everything, and CI captures every committed snapshot afresh and fails on any difference (`test/snapshot-capture.test.ts`). Capture needs the [diagram add-on](#add-ons) and Chromium; replaying pinned snapshots needs neither, except that a morph's edits are replayed through the add-on's Agentic Mermaid.
 
 Capture asserts that its output equals Agentic Mermaid's `renderMermaidSVG` byte for byte, and fails on SVG it cannot convert (unsupported paint, masks, filters). Chromium resolves CSS, transforms and markers at build time with network requests blocked. The page receives resolved geometry and text runs; it never runs Agentic Mermaid.
 
@@ -716,6 +778,19 @@ Motion is measured on screen, after the camera: a smooth camera move reports not
 These checks establish deterministic behaviour and readable pictures. They do not establish that a caption is true: test each model against its source.
 
 ## Command line
+
+### Add-ons
+
+The `rayner` command (the `rayner-cli` package) needs Node 24 and nothing else to `init`, `check`, `see`, `describe`, `build`, `snapshots`, `preview` and `shots` a scene that draws no Mermaid diagram and asks for no lettering: it then loads no Agentic Mermaid, no Playwright browser and no Python. `shots` draws its PNG with resvg, which `rayner-cli` installs. `review` opens the built page in Chromium, so it needs Chromium for every scene: `npx playwright-core install chromium` once, or `CHROMIUM_EXECUTABLE_PATH` set to a Chromium or Chrome executable.
+
+Two kinds of picture need an add-on, and only the scenes that draw them:
+
+| Add-on | A scene needs it when | Install | Without it |
+| --- | --- | --- | --- |
+| Diagrams | It shows a Mermaid diagram (`s.show`, `d.morph`) | `npm install --save-dev agentic-mermaid@0.5.1 svgpath@2.6.0`, the optional peer dependencies of `rayner-cli`; and Chromium, to capture | Diagrams pinned in `scene.snapshots/` replay, natural-lettering ones included. A diagram the folder does not hold, or a `d.morph(spec, { ops })` whose edits must be replayed, fails with the scene, the diagram's first line and the install command. With the packages but no Chromium, capture fails saying how to install it |
+| Lettering | `meta.lettering` asks for scripts, faces, styles or maths beyond the embedded fonts | Python with fonttools, brotli, uharfbuzz and python-bidi, and the source fonts ([lettering](LETTERING.md)) | A committed `scene.lettering.json` replays. Capturing one, which `rayner snapshots` and `preview` do when it is missing or stale, fails naming what it needs |
+
+`rayner --help` prints the same list with the versions this release pins.
 
 ### Reader review
 

@@ -41,14 +41,20 @@ test('rayner ships the vocabulary and runtime, with no dependencies, no command 
   for (const f of ['vendor/glyph.js', 'vendor/glyph.pin.json', 'vendor/font-data-sfnt.json']) assert.ok(!files.includes(f), `rayner does not ship ${f}`);
 });
 
-test('rayner-cli is the command at the library\'s version, depending on exactly what its bundle imports', async () => {
+test('rayner-cli is the command at the library\'s version, depending on exactly what its bundle imports, the diagram add-on as optional peers it loads lazily', async () => {
   const root = await json(join(ROOT, 'package.json')), cli = await json(join(ROOT, 'cli/package.json'));
   assert.equal(cli.name, 'rayner-cli');
   assert.equal(cli.version, root.version, 'one version for both packages');
   assert.deepEqual(cli.bin, { rayner: 'dist/tools/explain.js' });
   const { rayner, ...tools } = cli.dependencies as Record<string, string>;
   assert.equal(rayner, root.version, 'rayner-cli requires rayner at exactly its own version');
-  for (const [name, version] of Object.entries(tools))
+  // The diagram add-on's packages are optional peers: an author installs them for a scene that draws a
+  // Mermaid diagram (tools/lib/addons.ts), and npm installs them with nothing else.
+  const peers = cli.peerDependencies as Record<string, string>;
+  assert.deepEqual(Object.keys(peers).sort(), ['agentic-mermaid', 'svgpath']);
+  for (const name of Object.keys(peers)) assert.deepEqual(cli.peerDependenciesMeta?.[name], { optional: true }, `${name} is an optional peer`);
+  for (const name of Object.keys(peers)) assert.equal(tools[name], undefined, `${name} is a peer, not a dependency`);
+  for (const [name, version] of Object.entries({ ...tools, ...peers }))
     assert.equal(root.devDependencies[name], version, `the checkout develops with the ${name} rayner-cli ships`);
   const out = await mkdtemp(join(tmpdir(), 'rayner-cli-'));
   try {
@@ -61,7 +67,25 @@ test('rayner-cli is the command at the library\'s version, depending on exactly 
         if (path.startsWith(LIBRARY)) internal.add(path.slice(LIBRARY.length));
         else external.add(path.startsWith('@') ? path.split('/').slice(0, 2).join('/') : path.split('/')[0]!);
       }
-    assert.deepEqual([...external].sort(), Object.keys(tools).sort(), 'cli/package.json lists what the command imports');
+    assert.deepEqual([...external].sort(), Object.keys({ ...tools, ...peers }).sort(), 'cli/package.json lists what the command imports');
+    // What the command loads before any scene asks for more: the entry chunk and every chunk it imports
+    // statically. Browser, PNG, diagram-capture and lettering-capture code lie behind dynamic imports.
+    const outputs = meta.outputs, entry = Object.keys(outputs).find((o) => outputs[o]!.entryPoint === 'tools/installed.ts')!;
+    // tools/installed.ts imports the command itself dynamically, after registering its resolve hook.
+    const started = [entry, ...outputs[entry]!.imports.filter((i) => i.kind === 'dynamic-import' && !i.external).map((i) => i.path)];
+    const statically = new Set<string>(started), queue = [...started];
+    for (let at = queue.shift(); at; at = queue.shift())
+      for (const { path, kind, external: outside } of outputs[at]!.imports)
+        if (kind === 'import-statement' && (outside || !statically.has(path))) {
+          statically.add(path);
+          if (!outside) queue.push(path);
+        }
+    for (const lazy of ['agentic-mermaid', 'agentic-mermaid/agent', 'svgpath', 'playwright-core', '@resvg/resvg-js'])
+      assert.ok(!statically.has(lazy), `the command imports ${lazy} before a scene asks for it`);
+    const eager = [...statically].filter((o) => outputs[o]).flatMap((o) => Object.keys(outputs[o]!.inputs));
+    for (const lazy of ['tools/lib/browser.ts', 'tools/lib/lettering.ts', 'tools/lib/explain-morph.ts', 'integrations/agentic-mermaid/index.ts', 'integrations/agentic-mermaid/measurement.ts', 'vendor/glyph-math.js'])
+      assert.ok(!eager.includes(lazy), `the command loads ${lazy} before a scene asks for it`);
+    assert.ok(eager.includes('tools/lib/explain-project.ts'), 'the walk reaches the eagerly loaded modules');
     // The engine comes from the installed library, by modules the library compiles and ships, through
     // the private specifier the command's own resolve hook answers (tools/installed.ts), not an export.
     // It reaches the library as an outside project does, through the entry points, and beyond them through

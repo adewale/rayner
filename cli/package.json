@@ -2,7 +2,7 @@
   "name": "rayner-cli",
   "version": "0.2.0",
   "type": "module",
-  "description": "The rayner command for Rayner explainers: init, preview, snapshots, check, review, build, shots, describe and see, with diagram and lettering capture.",
+  "description": "The rayner command for Rayner explainers: init, preview, snapshots, check, review, build, shots, describe and see. Diagram capture and lettering capture are opt-in add-ons.",
   "bin": {
     "rayner": "dist/tools/explain.js"
   },
@@ -24,10 +24,20 @@
     "rayner": "0.2.0",
     "esbuild": "0.25.12",
     "typescript": "5.9.3",
-    "agentic-mermaid": "0.5.1",
     "playwright-core": "1.64.1",
-    "svgpath": "2.6.0",
     "@resvg/resvg-js": "2.6.2"
+  },
+  "peerDependencies": {
+    "agentic-mermaid": "0.5.1",
+    "svgpath": "2.6.0"
+  },
+  "peerDependenciesMeta": {
+    "agentic-mermaid": {
+      "optional": true
+    },
+    "svgpath": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=24"

@@ -62,3 +62,6 @@ export function licenceOf(notice: string): 'OFL-1.1' | 'Apache-2.0' | undefined 
   if (/Apache License/.test(notice) && /Version 2\.0/.test(notice)) return 'Apache-2.0';
   return undefined;
 }
+/** The face licences a lettered page adds to its licence block: each distinct notice once. */
+export const letteringLicences = (snapshot: LetteringSnapshot): string[] =>
+  [...new Set(Object.values(snapshot.faces).map((face) => face.license))];

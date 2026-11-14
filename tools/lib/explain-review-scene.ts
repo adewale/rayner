@@ -60,7 +60,7 @@ export async function reviewScene(project: Project, directory: string, subjectsF
   try {
     const { receipt } = await buildExplainer(project, join(temporary, 'scene.html'));
     server = await serve(temporary, 0, 'scene.html');
-    browser = await launch();
+    browser = await launch('rayner review');
     const page = await browser.newPage();
     const errors: string[] = [], connections: string[] = [];
     page.on('pageerror', error => errors.push(error.message));

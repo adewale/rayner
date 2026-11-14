@@ -50,6 +50,10 @@
       "types": "./dist/explain/drawing.d.ts",
       "default": "./dist/explain/drawing.js"
     },
+    "./kit": {
+      "types": "./dist/explain/kit.d.ts",
+      "default": "./dist/explain/kit.js"
+    },
     "./geo": {
       "types": "./dist/explain/geo.d.ts",
       "default": "./dist/explain/geo.js"

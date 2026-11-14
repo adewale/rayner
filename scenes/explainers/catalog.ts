@@ -15,7 +15,7 @@ export const PRODUCT = {
   /** README.md's second paragraph, and the gallery's. */
   description:
     'The writer models the system in TypeScript and tests the model against the real system where it can: run live, recorded once, or read from its specification. Every picture on the page is checked against the model’s state, and the receipt says what the model was checked against and how. The result is one HTML page of steps and a transcript, with no runtime network requests.',
-  requirements: 'Node 24 or later and Chromium. Authoring targets Ubuntu and macOS.',
+  requirements: 'Node 24 or later to write, check and build. Chromium for rayner review and screenshots, and to capture Mermaid diagrams. Authoring targets Ubuntu and macOS.',
   tutorial: 'https://github.com/adewale/rayner/blob/main/docs/TUTORIAL.md',
   reference: 'https://github.com/adewale/rayner/blob/main/docs/REFERENCE.md',
   skill: 'https://github.com/adewale/rayner/blob/main/skills/rayner-explainers/SKILL.md',
