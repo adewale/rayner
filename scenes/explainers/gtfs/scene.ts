@@ -222,6 +222,8 @@ export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
     await this.step('day-before', {
       title: `On ${longDate(before)}, the sample feed runs ${of(was.length)}`,
       line: `Predict: which of these bars still run the next day, ${longDate(date)}?`,
+      // How many of the day's trips the model's calendar still runs the next day.
+      predict: { options: ['All of them', 'Some of them', 'None of them'], answer: ((kept) => (kept === was.length ? 0 : kept ? 1 : 2))(was.filter((t) => tripsToday.includes(t)).length) },
       caption: `Google publishes a sample GTFS feed, the CSV files a transit agency gives trip planners, for an invented Demo Transit Authority with ${FEED.routes.length} bus routes. Here is its day: one bar per trip, labelled with its route and grouped under its service_id, the feed’s name for the timetable a trip follows: FULLW or WE. A trip that runs once spans its first departure to its last arrival; a trip that repeats on a fixed gap spans the hours its vehicles leave the first stop. Bars marked “no service” do not run that day. On ${shortDate(before)} ${
         wasServices.length === 2 ? 'both timetables run' : wasServices.length ? `only ${wasServices[0]} runs` : 'neither runs'
       }.`,

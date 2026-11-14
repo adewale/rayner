@@ -100,6 +100,8 @@ export default class Henge extends Scene<HengeState, {}> {
     const start: YearState = { bearing: m.bearing, start: -90, longitude: -90, crossings: m.half };
     await this.step('sweep', {
       title: 'Follow the sunset through a year', line: 'Predict: how many times will the sunset cross the street?',
+      // The model's crossings of the street's bearing in one year.
+      predict: { options: ['Once', 'Twice', 'Four times'], answer: ['Once', 'Twice', 'Four times'][[1, 2, 4].indexOf(m.half.length)]! },
       caption: `Now let the year run, from the December solstice to the next. The Sun’s daily circle slides north, and its sunset, the gold band along the horizon, travels north with it. ${manhattan ? 'It passes the street, keeps going to its June turning point, then comes back south and passes the street again.' : 'It reaches the street at the March equinox, keeps going to its June turning point, then comes back south and reaches the street again at the September equinox.'} One fixed direction, crossed on the way out and on the way back. Each day’s circle comes from the Sun’s declination in an idealised circular orbit.`,
     });
     await s.clear({ runTime: 0.18 });

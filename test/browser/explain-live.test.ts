@@ -1,4 +1,4 @@
-// The live machine in the served player (docs/MACHINES.md, "The player"): on each of the nine
+// The live machine in the served player (docs/MACHINES.md, "The player"): on each of the ten
 // explainers with a machine, the reader's buttons say what `outcome` says from every state the test
 // reaches by pressing them, the URL carries the events sent, and the picture the presses land on is
 // the picture a fresh load of that URL draws. A button that disagrees with `outcome` fails.
@@ -20,7 +20,7 @@ import { chromeFor } from '../../app/embed-strings.ts';
 
 const enabled = !!process.env.EXPLAIN_BROWSER;
 const options = { skip: enabled ? false : 'set EXPLAIN_BROWSER=1 for served live machine checks' };
-const EXPLAINERS = ['ring-buffer', 'state-machine', 'statecharts', 'token-bucket', 'monty-hall', 'latest-search', 'oauth-pkce', 'just-bash', 'python-dict'];
+const EXPLAINERS = ['ring-buffer', 'state-machine', 'statecharts', 'token-bucket', 'monty-hall', 'latest-search', 'oauth-pkce', 'just-bash', 'python-dict', 'bloom-filter'];
 /** How far the walk goes from each live step's start: events deep, and states in all. */
 const DEPTH = 2, STATES = 6;
 const t = chromeFor('en');
@@ -149,7 +149,7 @@ test('every live step: buttons agree with outcome, the URL holds the events, and
     await pressing.close();
     await fresh.close();
   }
-  assert.equal(subjects.length, 12, 'nine explainers; statecharts, latest-search and python-dict have two live steps each');
+  assert.equal(subjects.length, 13, 'ten explainers; statecharts, latest-search and python-dict have two live steps each');
   assert.ok(states >= 40 && presses >= 30, `${states} states, ${presses} presses`);
 });
 

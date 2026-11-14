@@ -127,6 +127,8 @@ export default class PeriodicGroupsExplainer extends Scene<PeriodicState, {}> {
     await this.step('column', {
       title: `Why are the jumps down ${name}’s column uneven?`,
       line: `Predict: what makes the jumps down the column ${list(distinct.map(String))}?`,
+      // Each jump is a row length the filling rule makes, so rows lower down are longer; the next step shows the rows.
+      predict: { options: ['Longer rows lower down', 'Missing elements', 'Heavier atoms'], answer: jumps.every((j) => ROW_CELLS.includes(j)) ? 'Longer rows lower down' : 'Missing elements' },
       caption: `${Name} is element ${z}, in group ${group}. Down its column the atomic number rises by ${list(jumps.map(String))}. Rows of equal length would give equal jumps, so the lower rows must hold more elements. To see why, add electrons one at a time in the order an atom fills them, then line up the runs they make.`,
     });
     await s.clear();

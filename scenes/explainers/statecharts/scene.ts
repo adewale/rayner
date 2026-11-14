@@ -161,6 +161,8 @@ export default class Statecharts extends Scene<Model, Shown> {
     await this.step('machine', {
       title: 'A coffee machine, one box at a time',
       line: 'Predict: a power button must switch it off from any state. How many arrows does that add?',
+      // The flat machine's transitions beyond the plain cycle's, from the model.
+      predict: { options: ['1', '2', '4', '5'], answer: String(coffeeFlat.transitions - coffeePlain) },
       caption: `This coffee machine is always in exactly one of four boxes: idle, grinding, brewing or ready. Each event moves it along one of ${coffeePlain} arrows: START, GROUND, BREWED and TAKE. The boxes are called states, the arrows transitions, and the whole drawing a state machine. Now give it a power button: the event POWER_OFF switches it off from whichever state it is in, and POWER_ON switches it back on.`,
     });
     main.rebuild();
@@ -188,6 +190,7 @@ export default class Statecharts extends Scene<Model, Shown> {
     await this.step('multiply', {
       title: 'A media player: two on/off features make four flat states',
       line: `Predict: add a third on/off feature, ${SUBTITLES.region}. How many combinations must the flat states name?`,
+      predict: { options: ['6', '8', '9', '12'], answer: String(threeFlat) },
       caption: `A media player is playing or paused, and muted or unmuted, and playback and volume never affect each other. A plain state machine is in one state at a time, so each state must name both: four combinations, which with off make ${playerFlat.states} states and ${playerFlat.transitions} transitions. Changing playback needs the same transition in both volume settings, and changing volume repeats it for both playback settings. Every name is two words, one per feature, and every arrow between them changes one word and keeps the other. States named by two independent words are the second sign.`,
     });
     await fresh('multiply');
@@ -197,6 +200,17 @@ export default class Statecharts extends Scene<Model, Shown> {
     await this.step('regions', {
       title: 'Split the box on into two small machines, called regions',
       line: 'Predict: can a statechart do anything a state machine can’t?',
+      // No, when the flattened player ends every event of the run in the chart's own configuration, as the next step's rows show.
+      predict: {
+        options: ['Yes', 'No'],
+        answer: ((flat) => {
+          let at = flat.initial;
+          return run(playerChart, RUNS.player).every((st) => {
+            at = flat.transitions.find((t) => t.from === at && t.event === st.event)?.to ?? at;
+            return JSON.stringify([...flat.configurations[at]!].sort()) === JSON.stringify([...st.config].sort());
+          });
+        })(flatten(playerChart)) ? 'No' : 'Yes',
+      },
       caption: `Draw a line through on and give each side one feature: the grid’s words slide apart, and playing · muted becomes playing on one side and muted on the other. Each side is a region, a small machine in one state at a time, and both run at once. A flat state had to name both features at once; a state in a region names only its own, so a further feature adds a region of two states where the flat machine doubles: ${SUBTITLES.region} would make ${threeFlat} combinations, against ${threeChart} states in three regions.`,
     });
     await fresh('grid');
@@ -217,6 +231,7 @@ export default class Statecharts extends Scene<Model, Shown> {
     await this.step('question', {
       title: 'Your turn: add a milk frother',
       line: 'Predict: where does the frother go, and how big is the flat machine?',
+      predict: { prompt: 'How many states would a flat machine need, off included?', options: ['6', '8', '9', '16'], answer: String(frotherFlat.states) },
       caption:
         'The frother can be still or frothing at any time while the machine is on, whatever the brewing cycle is doing. Is it a new parent, a new region, or more states in the cycle? And how many states would a flat machine need?',
     });

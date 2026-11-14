@@ -86,7 +86,9 @@ export default class GreatCircle extends Scene<GlobeState & { turn: { from: numb
     const before = [
       { id: 'question', title: 'Why does a flight from London to Los Angeles pass over Greenland?', line: 'Predict: which line is shorter, the bent one or the ruler’s?',
         caption: 'Open the seat-back map on a flight from London to Los Angeles. The line it draws leaves Heathrow heading north-west, climbs past the southern tip of Greenland, crosses Hudson Bay and only then turns south toward California. Los Angeles is far to the south of London, yet the plane goes north. Lay a ruler across the same map from Heathrow to LAX and you get a tidy line heading west-south-west across the Atlantic. Which route is shorter?',
-        state: { viewpoint: MERCATOR, route: L }, draw: (st: MapState, s: Stage) => mercator(st, s, false), opening: ['map'] },
+        state: { viewpoint: MERCATOR, route: L }, draw: (st: MapState, s: Stage) => mercator(st, s, false), opening: ['map'],
+        // The shorter route by the model's distances: the great circle's against the rhumb line's.
+        predict: { options: ['The bent one', 'The ruler’s line'], answer: L.km < L.rhumbKm ? 'The bent one' : 'The ruler’s line' } },
       { id: 'shorter', title: `Answer: the bent line, by ${tens(L.extraKm)} km`, line: 'Red: the plane’s route. Blue dashed: the ruler’s line.',
         caption: `The bent one, by a long way: ${tens(L.km)} kilometres against ${tens(L.rhumbKm)}. The ruler’s line is about ${tens(L.extraKm)} kilometres longer. ${answer}. On the globe the shortest route lies along the circle that a flat plane cuts when it passes through both cities and the centre of the Earth. Look at that circle from inside its plane and it is a straight line.`,
         state: { viewpoint: MERCATOR, route: L }, draw: (st: MapState, s: Stage) => mercator(st, s, true) },

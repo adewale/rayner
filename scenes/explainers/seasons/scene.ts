@@ -3,7 +3,7 @@ import type { Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, view, having } from '../../../explain/index.ts';
 import type { ExplainerMeta } from '../../../explain/index.ts';
 import { emphasised, dimension, callout } from '../../../explain/drawing.ts';
-import { sunlight, daylightYear, noonShare, noonPatch, sunDistance, declinationOn } from './model.ts';
+import { sunlight, daylightYear, noonShare, noonPatch, sunDistance, declinationOn, MID_MONTH } from './model.ts';
 import {
   SUN, TILT, R, CY, JUNE_C, DEC_C,
   degrees, pct, metres, hours, latitudeName, exactly, drawSpread,
@@ -82,6 +82,8 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
     await this.step('nearest', {
       title: 'Earth’s distance from the Sun changes through the year',
       line: 'Predict: in which month is Earth nearest the Sun?',
+      // The month whose 15th is nearest, from the model's distance.
+      predict: { options: ['January', 'April', 'July', 'October'], answer: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][((d) => d.indexOf(Math.min(...d)))(MID_MONTH.map(sunDistance))]! },
       caption:
         'Earth’s orbit is slightly oval, so it passes nearest the Sun once a year and farthest half a year later. A common guess is that the seasons follow this distance, with summer when Earth is nearest. The oval is drawn far more stretched than it is.',
     });
@@ -94,6 +96,7 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
     await this.step('tilt', {
       title: 'Nearest the Sun in early January, while the north tilts away',
       line: `Predict: in June, does ${place.name} get more or less than 12 hours of daylight?`,
+      predict: { options: ['More', 'Less', 'About 12 hours'], answer: ((h) => (h > 12.05 ? 'More' : h < 11.95 ? 'Less' : 'About 12 hours'))(sunlight(place.lat, TILT).daylight) },
       caption:
         'Earth is nearest the Sun in early January, when the north has winter and the south summer. Distance cannot explain opposite seasons at once. The tilt of Earth’s axis, not its distance from the Sun, makes the seasons: the tilted axis keeps pointing the same way, so the north leans sunward in June and away in December. Sizes and distances are not to scale.',
     });
@@ -217,6 +220,12 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
           ? `December: the same axis, and ${place.name}’s daylight goes ${hours(june.daylight)} to ${hours(december.daylight)}`
           : `December: the same axis, and ${place.name}’s daylight stays ${hours(december.daylight)}`,
       line: 'Predict: of Tromsø, London, Quito and Sydney, whose daylight changes most?',
+      // The place whose June and December daylight differ most, from the model; the latitude step shows the swings.
+      predict: {
+        options: ORDER.map((k) => PLACES[k]!.name),
+        answer: ((swings) => ORDER.indexOf(ORDER.reduce((a, b) => (swings[b]! > swings[a]! ? b : a))))(Object.fromEntries(ORDER.map((k) => [k, Math.abs(sunlight(PLACES[k]!.lat, TILT).daylight - sunlight(PLACES[k]!.lat, -TILT).daylight)])) as Record<string, number>),
+        reveal: 'latitude',
+      },
       caption:
         'Half an orbit later Earth is on the far side of the Sun, but the axis still points the same way, so the south end now leans sunward and the hemispheres swap seasons. ' +
         (Math.abs(june.daylight - december.daylight) > 0.05

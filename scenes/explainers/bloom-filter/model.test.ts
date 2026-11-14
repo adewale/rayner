@@ -6,7 +6,8 @@ import { listed } from '../lib/format.ts';
 import { CLEARED, EEL } from './answers.ts';
 import { readFileSync } from 'node:fs';
 import { fc, params } from '../lib/pbt.ts';
-import { fnv1a, locations, makeFilter, membership, bloomStory, saturation } from './model.ts';
+import { fnv1a, locations, makeFilter, membership, bloomStory, saturation, ROW_EVENTS, rowStart, rowNext, take, check, clearBits } from './model.ts';
+import { isRefusal } from '../../../explain/index.ts';
 
 test('the check answers’ words: eel’s bits are 23, 20 and 1, and clearing dog refuses cat at 16 bits only', () => {
   // The first answer's words name eel's bits: 23 now from eel, and eel set bit 20.
@@ -108,4 +109,48 @@ test('native CPython storage and exact arithmetic reproduce the recorded vectors
   const now=JSON.parse(execFileSync('python3',[fileURLToPath(new URL('./oracle/fnv.py',import.meta.url))],{encoding:'utf8'}));
   delete now.python; const {python:_,...expected}=fixture;
   assert.deepEqual(now,expected);
+});
+
+// The live step's row: the reader's events go through take, check and clearBits, built on locations and
+// membership, which the oracle fixtures hold.
+test('the live row: taking sets a name’s three bits, checking says maybe only on three 1s, and clearing a leaving name’s bits can turn away a taken one',()=>{
+  for(const size of [16,32] as const) {
+    const start=rowStart(size);
+    assert.deepEqual(start.bits,makeFilter(['cat','dog'],size));
+    // Any sequence of the reader's events: without a clear the row is makeFilter of the names taken, every
+    // check is membership, and a taken name is never turned away.
+    fc.assert(fc.property(fc.array(fc.constantFrom(...ROW_EVENTS),{maxLength:8}),events=>{
+      let row=start;
+      for(const event of events) {
+        const next=rowNext(row,event);
+        if(isRefusal(next)) continue;
+        if(event.startsWith('take ')) assert.ok(row.bits.every((b,i)=>b<=next.bits[i]!),`${event} cleared a bit`);
+        row=next;
+        if(!row.cleared.length) assert.deepEqual(row.bits,makeFilter(row.taken,size));
+        if(row.check) {
+          assert.equal(row.check.maybe,membership(row.bits,row.check.word));
+          assert.deepEqual(row.check.locations,locations(row.check.word,size));
+          if(row.check.taken&&!row.cleared.length) assert.equal(row.check.maybe,true,'a taken name always finds its bits set');
+        }
+        // A bit is set exactly when some name's fill is on it.
+        row.bits.forEach((b,i)=>assert.equal(b===1,row.owners[i]!.length>0));
+      }
+    }),params(300));
+    // Check 1: take eel, and wolf gets maybe (at 32 bits eel fills its missing bit 23) while owl keeps a 0.
+    const withEel=take(start,'eel');
+    assert.equal(check(withEel,'wolf').check!.maybe,true);
+    assert.equal(check(withEel,'owl').check!.maybe,false);
+    // Check 2: clear dog's bits, and cat, still taken, is turned away at 16 bits only.
+    const cleared=clearBits(start,'dog');
+    assert.deepEqual(cleared.taken,['cat']);
+    assert.equal(check(cleared,'cat').check!.maybe,size===32);
+    assert.equal(check(cleared,'cat').check!.taken,true);
+    // The refusals, in the reader's words.
+    const twice=rowNext(withEel,'take eel');
+    assert.ok(isRefusal(twice));
+    assert.equal(twice.reason,`eel is taken already, and its bits ${listed(locations('eel',size))} are set`);
+    const again=rowNext(cleared,'clear dog');
+    assert.ok(isRefusal(again));
+    assert.equal(again.reason,'dog’s bits are cleared already: dog has left');
+  }
 });

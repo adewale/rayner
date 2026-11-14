@@ -285,7 +285,7 @@ test('each internal barrel exports exactly the names the layers above use and no
   }
 });
 
-test('the engine types and reads a step\'s caption only: its title, line and kind are declared by the explainer layer', () => {
+test('the engine types and reads a step\'s caption only: its title, line, kind and prediction are declared by the explainer layer', () => {
   const fieldsOf = (file: string, declared: (n: ts.Node) => boolean) => {
     const source = ts.createSourceFile(file, readFileSync(join(ROOT, file), 'utf8'), ts.ScriptTarget.Latest, true);
     const names: string[] = [];
@@ -299,9 +299,9 @@ test('the engine types and reads a step\'s caption only: its title, line and kin
   };
   const inModule = (n: ts.Node) => ts.isModuleBlock(n.parent) && ts.isStringLiteral(n.parent.parent.name) && n.parent.parent.name.text === '../src/scene.ts';
   assert.deepEqual(fieldsOf('src/scene.ts', (n) => ts.isSourceFile(n.parent)), ['caption', '[key]'], 'the engine\'s StepMeta: a caption and anything else');
-  assert.deepEqual(fieldsOf('explain/script.ts', inModule), ['title', 'line', 'kind'], 'explain/script.ts declares the rest on it');
-  const reads = sources('src').filter((f) => /\bStepKind\b|meta\??\.(title|line|kind)\b|'(short|detail)'/.test(readFileSync(join(ROOT, f), 'utf8')));
-  assert.deepEqual(reads, [], 'no engine module names a step\'s kind or reads its title, line or kind');
+  assert.deepEqual(fieldsOf('explain/script.ts', inModule), ['title', 'line', 'kind', 'predict'], 'explain/script.ts declares the rest on it');
+  const reads = sources('src').filter((f) => /\bStepKind\b|meta\??\.(title|line|kind|predict)\b|'(short|detail)'/.test(readFileSync(join(ROOT, f), 'utf8')));
+  assert.deepEqual(reads, [], 'no engine module names a step\'s kind or reads its title, line, kind or prediction');
 });
 
 test('each rule rejects a seeded break and allows what the layers allow', () => {

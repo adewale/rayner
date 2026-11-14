@@ -2,7 +2,7 @@ import { Scene } from '../../../src/index.ts';
 import type { AudioClip } from '../../../explain/index.ts';
 import { settingsOf, stage } from '../../../explain/index.ts';
 import type { Stage, ExplainerMeta } from '../../../explain/index.ts';
-import { musicStory } from './model.ts';
+import { musicStory, NOTE_NAMES } from './model.ts';
 import type { Timing } from './model.ts';
 import { scorePicture } from './picture.ts';
 import type { Look } from './picture.ts';
@@ -82,6 +82,8 @@ export default class MelodyRhythm extends Scene<{}, {}> {
         id: 'pulse',
         title: 'Count 1 2 3 4: the 1 that opens each bar is the strong beat',
         line: 'Predict: in B, which note starts on the 1 of bar 2?',
+        // B's note that starts on beat 4, the 1 of bar 2, from the model's score; none when G holds across it.
+        predict: { options: ['C', 'D', 'E', 'G', 'No new note'], answer: ((n) => (n ? NOTE_NAMES[n.midi]! : 'No new note'))(m.clips[1]!.notes.find((n) => n.at === 4)) },
         caption: `Count along with the clicks: 1 2 3 4, then again. Each large 1 opens a bar and gets a different click. In A a new note starts on every click. At the start of bar 2 it is E, outlined in the picture. Which note starts there in B?`,
         clips: m.clips,
         look: (st: Music): Look => ({ pulse: true, accent: true, lit: ['a-0', ...onTheOne(st.clips[0]!)], footer: 'Large 1: the strong beat that opens each bar' }),

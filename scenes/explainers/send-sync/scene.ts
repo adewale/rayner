@@ -225,9 +225,13 @@ export default class SendSyncExplainer extends Scene<SendSyncState, SendSyncShow
     this.state.opening = openRun;
 
     // ------------------------------------------------------------------ the two questions
+    // A type's quadrant as a prediction's options, answered by the model's Send and Sync.
+    const QUADRANTS = ['Send and Sync', 'Send only', 'Sync only', 'Neither'],
+      quadrant = (l: { send: boolean; sync: boolean }) => (l.send ? (l.sync ? 0 : 1) : l.sync ? 2 : 3);
     await this.step('questions', {
       title: 'Send and Sync: the two questions in that error',
       line: 'Predict: Cell::set writes through a shared &self. Which quadrant holds Cell<i32>?',
+      predict: { options: QUADRANTS, answer: quadrant(cellLayer) },
       caption:
         'thread::spawn needs everything its closure owns to be Send: safe to move to another thread. Sync is the other question: can several threads hold a shared reference &T to it at once? The standard library defines T as Sync exactly when &T is Send. rustc answers both questions for a type, so the type lands in one of four quadrants.',
     });
@@ -300,7 +304,7 @@ export default class SendSyncExplainer extends Scene<SendSyncState, SendSyncShow
     const place = async (name: string, prepare?: () => Promise<void>) => {
       const p = single(name),
         meta = SINGLE_STEPS[name]!;
-      await this.step(meta.id, { title: meta.title, line: meta.line, caption: meta.caption });
+      await this.step(meta.id, { title: meta.title, line: meta.line, caption: meta.caption, ...(meta.id === 'cell' ? { predict: { options: QUADRANTS, answer: quadrant(arcCell) } } : {}) });
       if (prepare) await prepare();
       else await s.clearOverlays();
       const chartOf = d;

@@ -270,6 +270,8 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
     await this.step('paths', {
       title: trustKey === 'list' ? 'With trust proxy set to an address list, what is req.ip?' : `With trust proxy ${trustKey}, what is req.ip?`,
       line: `Predict: ${ASKED[reqKey]}. Whose address does Express report?`,
+      // Whose address req.ip names, from the model Express 5.3.0 is held to; the read step says it.
+      predict: { options: [`The ${req.sender.name}’s real address`, 'A proxy’s address', 'An address written in the header'], answer: (['sender', 'proxy', 'forged'] as Outcome[]).indexOf(mine.outcome), reveal: 'read' },
       caption: `Requests are meant to reach Express through a CDN and then a load balancer, so every connection Express sees comes from the load balancer, ${ADDR.balancer}. Express’s req.ip should still name the machine that sent the request. ${meaning} But the load balancer also accepts connections from the internet, so an attacker can skip the CDN. Here ${ASKED[reqKey]}: will req.ip be the ${req.sender.name}’s real address, ${req.sender.addr}? All the addresses are examples.`,
     });
     await s.clear();
