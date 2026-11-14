@@ -159,6 +159,13 @@ test('on a phone the options are taps at least 44 px tall that fit the width', o
     await resting(page, 'Even or odd?');
     // On a phone it follows the caption, as the live row does.
     assert.equal(await page.locator('.words > .caption + .predict').count(), 1);
+    // Right under the caption's words: the row does not wait below the space reserved for the scenario's longest caption.
+    const gap = await page.evaluate(() => {
+      const caption = document.querySelector('.words > .caption')!, range = document.createRange();
+      range.selectNodeContents(caption);
+      return document.querySelector('.predict')!.getBoundingClientRect().top - range.getBoundingClientRect().bottom;
+    });
+    assert.ok(gap < 32, `the prediction row starts ${gap} px below the caption's words`);
     for (const box of await page.locator('.predict .option').evaluateAll((bs) => bs.map((b) => b.getBoundingClientRect().toJSON() as DOMRect))) {
       assert.ok(box.height >= 44, `an option is ${box.height} px tall`);
       assert.ok(box.left >= 0 && box.right <= 390, `an option runs off the phone (${box.left}–${box.right})`);

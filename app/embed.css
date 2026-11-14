@@ -134,6 +134,8 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
    own width), so what follows it, the picture's description and the tools, never moves as the
    reader steps; a short caption leaves room below it instead. */
 .words>.caption{min-height:var(--caption-h,0px)}
+/* A prediction or live row under the caption (a narrow page) answers it, so it sits under the caption's words, not under the tallest caption's reserve; the caption still starts where it always does. */
+.words>.caption:has(~ .predict:not([hidden])),.words>.caption:has(~ .live:not([hidden])){min-height:0}
 .caption-ruler{position:absolute;top:0;left:0;min-height:0;visibility:hidden;pointer-events:none}
 .lede-ruler{position:absolute;top:0;left:0;margin:0;min-height:0;visibility:hidden;pointer-events:none}
 /* The step's heading on every width: "Step 3 of 4", the title, then the line. */

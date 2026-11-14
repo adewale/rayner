@@ -27,7 +27,7 @@ export default class Prediction extends Scene {
       predict: { prompt: `How many times does ${n} halve before it is odd?`, options: ['0', '1', '2', '3'], answer: String(halvings(n)), reveal: 'end' },
     });
     await say(`${n} ÷ 2`);
-    await this.step('pause', { title: 'A pause', caption: 'Not yet.' });
+    await this.step('pause', { title: 'A pause', caption: 'Not yet. This caption is the scenario’s longest on purpose, so that a phone reserves several lines of height for every caption, and a row that follows a short caption could end up far below its words if the reserve stayed in place under it.' });
     await say('…');
     await this.step('end', { title: 'The count', caption: `${n} halves ${halvings(n)} times.` });
     await say(`${halvings(n)}`);
