@@ -12,7 +12,26 @@ export interface SceneEntry { step: string; settings: Record<string, string> }
 export interface CatalogProduct {
   entry: CatalogEntry;
   home?: string; summary?: string; audience?: string; description?: string; requirements?: string;
-  tutorial?: string; reference?: string; skill?: string; install?: string; installGuide?: string;
+  tutorial?: string; reference?: string; skill?: string; install?: string; installGuide?: string; publishes?: string;
+}
+/**
+ * What a host's project page shows beside the explainers, each taken from PRODUCT
+ * (scenes/explainers/catalog.ts) or package.json by catalogFacts, never typed again. Catalogs
+ * written before facts existed have none, so a reader checks for it.
+ */
+export interface CatalogFacts {
+  /** package.json `name` and `version`: the package this checkout describes. */
+  name: string; version: string;
+  /** PRODUCT.install and PRODUCT.installGuide: how to install that version, and where the steps are. */
+  install: string; installGuide: string;
+  /** PRODUCT.requirements. */
+  requirements: string;
+  /** PRODUCT.publishes: what one build publishes, from PRODUCT.description's last sentence. */
+  publishes: string;
+  /** package.json `repository`, as an https URL (without `git+` and `.git`). */
+  repository: string;
+  /** package.json `license`, an SPDX expression. */
+  license: string;
 }
 export interface CatalogScene {
   id: string; scenarios: number; title?: string; lang?: string; group?: 'topic' | 'toolchain';
@@ -24,7 +43,7 @@ export interface CatalogScene {
   /** How its model was checked, from its script's Grounding line: the grade and the gallery card's label ("Recorded: Postgres 18.6"). */
   grounding?: { grade: 'live' | 'recorded' | 'read' | 'none'; label: string };
 }
-export interface Catalog { version: 2; product: CatalogProduct; totals: CatalogTotals; scenes: CatalogScene[] }
+export interface Catalog { version: 2; product: CatalogProduct; facts?: CatalogFacts; totals: CatalogTotals; scenes: CatalogScene[] }
 export interface EvidenceScene {
   id: string; scenarios: Record<string, string>[]; diagrams: number; styles: string[]; families: string[];
   title?: string; lang?: string; entry?: SceneEntry; sourceHash?: string; snapshotHashes?: string[];
@@ -56,13 +75,54 @@ export function uniquePageIds(ids: readonly string[]): void {
   }
 }
 
+const FACT_KEYS = ['name', 'version', 'install', 'installGuide', 'requirements', 'publishes', 'repository', 'license'] as const;
+const httpsUrl = (value: string) => { try { return new URL(value).protocol === 'https:'; } catch { return false; } };
+
+/** Throw unless `facts` has every CatalogFacts field, each a non-empty string, and agrees with the product copy beside it. */
+function checkFacts(facts: unknown, product: Record<string, unknown>): void {
+  const fail = (why: string): never => {throw new Error(`catalog(): the catalog's facts ${why}; write it again with the site build`);};
+  if (!object(facts)) fail('are not an object');
+  const f = facts as Record<string, unknown>;
+  for (const key of FACT_KEYS) if (typeof f[key] !== 'string' || !(f[key] as string).trim()) fail(`have no ${key}`);
+  for (const key of Object.keys(f)) if (!(FACT_KEYS as readonly string[]).includes(key)) fail(`have an unknown field, ${key}`);
+  for (const key of ['repository', 'installGuide'] as const) if (!httpsUrl(f[key] as string)) fail(`give ${key} as ${JSON.stringify(f[key])}, not an https URL`);
+  if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]+)?$/.test(f.version as string)) fail(`give version as ${JSON.stringify(f.version)}, not a semantic version`);
+  // The same copy is in `product`; the two must not say different things.
+  for (const key of ['install', 'installGuide', 'requirements', 'publishes'] as const)
+    if (product[key] !== undefined && product[key] !== f[key]) fail(`say ${key} differently from the product copy`);
+}
+
+/** The package.json fields catalogFacts reads. */
+export interface PackageFacts { name: string; version: string; license: string; repository: string | { url: string } }
+
+/**
+ * catalog.json's `facts`: PRODUCT's install, guide, requirements and publishes lines, with
+ * package.json's name, version, licence and repository (as an https URL).
+ */
+export function catalogFacts(
+  product: { install: string; installGuide: string; requirements: string; publishes: string },
+  pkg: PackageFacts,
+): CatalogFacts {
+  const url = typeof pkg.repository === 'string' ? pkg.repository : pkg.repository?.url;
+  const repository = String(url ?? '').replace(/^git\+/, '').replace(/\.git$/, '');
+  const facts: CatalogFacts = {
+    name: pkg.name, version: pkg.version,
+    install: product.install, installGuide: product.installGuide,
+    requirements: product.requirements, publishes: product.publishes,
+    repository, license: pkg.license,
+  };
+  checkFacts(facts, {});
+  return facts;
+}
+
 /** Validate serialized producer boundaries once; consumers use the same contracts. */
 export function catalog(value: unknown): Catalog {
   const fail = (): never => {throw new Error('catalog(): the catalog artifact does not match its version 2 format; write it again with the site build');};
   if (!object(value) || value.version !== 2 || !totals(value.totals) || !object(value.product) ||
       !object(value.product.entry) || typeof value.product.entry.id !== 'string' || !Array.isArray(value.scenes)) return fail();
-  for (const key of ['home','summary','audience','description','requirements','tutorial','reference','skill','install','installGuide'])
+  for (const key of ['home','summary','audience','description','requirements','tutorial','reference','skill','install','installGuide','publishes'])
     if (value.product[key] !== undefined && typeof value.product[key] !== 'string') return fail();
+  if (value.facts !== undefined) checkFacts(value.facts, value.product);
   const opening = value.product.entry;
   if ((opening.step !== undefined && typeof opening.step !== 'string') || (opening.label !== undefined && typeof opening.label !== 'string') ||
       (opening.settings !== undefined && !stringMap(opening.settings))) return fail();

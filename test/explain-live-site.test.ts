@@ -7,6 +7,7 @@ import {join} from 'node:path';
 import {createHash} from 'node:crypto';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
+import {llmsMarkers, manifestSection, replaceHeaderBlocks} from '../tools/repo/lib/site-headers.ts';
 
 const run = promisify(execFile);
 const script = new URL('../tools/repo/verify-live-site.ts', import.meta.url).pathname;
@@ -63,6 +64,44 @@ test('live verification binds every public byte and actual reader headers to the
     assert.deepEqual(report.results.map((r: {path: string}) => r.path).sort(), [...f.files.keys()].filter(p => p !== '/_headers' && !p.endsWith('/deployment.json')).concat(`${prefix}/sample`).sort());
     assert.equal(report.manifestSha256, digest(f.files.get(`${prefix}/deployment.json`)!));
     assert.equal(f.requests.includes('/_headers'), false, 'private host recipe is checked through actual response headers');
+  });
+});
+
+test('a version 2 manifest pins only its collection\'s section of _headers and llms.txt, so another collection\'s export leaves it valid', async () => {
+  await fixture(async f => {
+    const rules = f.files.get('/_headers')!.toString().trimEnd();
+    const write = async (path: string, bytes: string | Buffer) => { f.files.set(path, Buffer.from(bytes)); await writeFile(join(f.root, '.' + path), bytes); };
+    const headersFor = (other: string) => replaceHeaderBlocks(replaceHeaderBlocks('/*\n  X-Content-Type-Options: nosniff\n', prefix, rules, [`${prefix}/sample`, `${prefix}/sample.html`]), '/projects/other', `/projects/other/x.html\n  Content-Security-Policy: ${other}`, ['/projects/other/x.html']);
+    const llms = (other: string) => `# Site\n\n${llmsMarkers(prefix).begin}\n- [A model](${prefix}/sample)\n${llmsMarkers(prefix).end}\n\n${llmsMarkers('/projects/other').begin}\n- ${other}\n${llmsMarkers('/projects/other').end}\n`;
+    await write('/_headers', headersFor('one'));
+    await write('/llms.txt', llms('one'));
+    const v1 = JSON.parse(f.files.get(`${prefix}/deployment.json`)!.toString());
+    const manifest = {version: 2, path: prefix, files: v1.files.filter((e: {path: string}) => e.path !== '/_headers'), sections: [
+      manifestSection('/_headers', prefix, headersFor('one'), text => digest(Buffer.from(text))),
+      manifestSection('/llms.txt', prefix, llms('one'), text => digest(Buffer.from(text))),
+    ]};
+    await write(`${prefix}/deployment.json`, JSON.stringify(manifest));
+    const ok = await f.verify();
+    assert.equal(ok.code, 0, ok.stderr);
+    assert.equal(JSON.parse(await readFile(f.report, 'utf8')).publicFiles, 5);
+    // The other collection exports again, changing its own blocks: this manifest still holds.
+    await write('/_headers', headersFor('two'));
+    await write('/llms.txt', llms('two'));
+    const still = await f.verify();
+    assert.equal(still.code, 0, still.stderr);
+    // A change inside this collection's own block is refused before any request.
+    await write('/_headers', headersFor('two').replace(`Content-Security-Policy: ${csp}`, 'Content-Security-Policy: changed'));
+    f.requests.length = 0;
+    const changed = await f.verify();
+    assert.notEqual(changed.code, 0); assert.match(changed.stderr, /_headers: the section for \/projects\/example differs from the reviewed manifest/); assert.deepEqual(f.requests, []);
+    await write('/_headers', headersFor('two'));
+    await write('/llms.txt', llms('two').replace('[A model]', '[Another]'));
+    const llmsChanged = await f.verify();
+    assert.notEqual(llmsChanged.code, 0); assert.match(llmsChanged.stderr, /llms\.txt: the section for \/projects\/example differs/);
+    await write('/llms.txt', llms('two'));
+    await write(`${prefix}/deployment.json`, JSON.stringify({...manifest, path: '/projects/other'}));
+    const elsewhere = await f.verify();
+    assert.notEqual(elsewhere.code, 0); assert.match(elsewhere.stderr, /deployment manifest is for \/projects\/other/);
   });
 });
 

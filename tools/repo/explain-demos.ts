@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
-import { mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { EXPLAINERS, PRODUCT } from '../../scenes/explainers/catalog.ts';
@@ -23,6 +23,7 @@ import { launch } from '../lib/browser.ts';
 import { reviewSubjects } from '../lib/explain-review-scene.ts';
 import { narrowOpeningPlan } from '../lib/explain-story-review.ts';
 import { buildInputs } from '../lib/build-inputs.ts';
+import { catalogFacts } from '../lib/explain-artifacts.ts';
 import { checkPageId, isWholeCollection, onlyIds, selectedIds, selectExport } from './lib/explain-export-selection.ts';
 
 const { values } = parseArgs({ options: {
@@ -160,6 +161,8 @@ const evidenceDocument: import('../lib/explain-artifacts.ts').CatalogEvidence = 
 const catalog: import('../lib/explain-artifacts.ts').Catalog = {
   version: 2,
   product: PRODUCT,
+  // What a host's project page shows beside the explainers, from PRODUCT and package.json.
+  facts: catalogFacts(PRODUCT, JSON.parse(await readFile(join(ROOT, 'package.json'), 'utf8'))),
   totals,
   scenes: items.map((item) => {
     const data = evidence.find((scene) => scene.id === item.id)!;

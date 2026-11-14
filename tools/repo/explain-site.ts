@@ -7,7 +7,12 @@
 // step, <id>/<step>.html, whose link preview is that step, and the same Open Graph and Twitter card
 // tags in each explainer page, for its cover step (tools/lib/explain-share.ts); then checks them.
 // Each explainer's describeExplainer JSON, as demos:build wrote it, is copied to <id>.json, with an
-// llms.txt at the site root (tools/repo/lib/explain-site-describe.ts). Each page's known framed heights go
+// llms.txt at the site root (tools/repo/lib/explain-site-describe.ts). Several collections can share
+// one site (--path /projects/a, --path /projects/b): each export owns one marked section of the
+// site's `_headers` and llms.txt, named by its path, and replaces only that (tools/repo/lib/site-headers.ts);
+// its deployment.json (version 2) pins the files under <path> and the digest of each owned section.
+// --index none leaves out the generic gallery at <path>/index.html, for a host with its own page;
+// --llms-heading names the collection in llms.txt. Each page's known framed heights go
 // beside it as <id>.embed.json; with --origin, also an oEmbed response, <id>.oembed.json, named by a
 // discovery link in the page. Fails, before writing anything, if
 // demos:build has not run since a scene, its folder or the engine changed, if two page ids are
@@ -20,7 +25,7 @@ import { parseArgs } from 'node:util';
 import { EXPLAINERS } from '../../scenes/explainers/catalog.ts';
 import { ROOT, collectProject, defaultScenario, sceneSlug } from '../lib/explain-project.ts';
 import { writeDescriptions, checkBuilt } from './lib/explain-site-describe.ts';
-import { replaceHeaderBlocks } from './lib/site-headers.ts';
+import { headerMarkers, manifestSection, markedSection, replaceHeaderBlocks } from './lib/site-headers.ts';
 import { buildInputs } from '../lib/build-inputs.ts';
 import { checkBuiltOutput } from './lib/explain-built-files.ts';
 import {readArtifact, catalog as parseCatalog, catalogEvidence} from '../lib/explain-artifacts.ts';
@@ -39,13 +44,21 @@ const { values, positionals } = parseArgs({
     only: { type: 'string' },
     entry: { type: 'string' },
     from: { type: 'string' },
+    index: { type: 'string', default: 'gallery' },
+    'llms-heading': { type: 'string' },
   },
 });
 const root = positionals[0];
 if (!root)
   throw new Error(
-    'usage: npm run site:export -- <site-root> [--path /projects/rayner] [--origin https://example.org] [--only id,id] [--entry id] [--from built-directory]',
+    'usage: npm run site:export -- <site-root> [--path /projects/rayner] [--origin https://example.org] [--only id,id] [--entry id] [--from built-directory] [--index gallery|none] [--llms-heading "Heading"]',
   );
+// `none`: the host serves its own page for the collection, so no generic gallery is written at <path>/index.html.
+if (values.index !== 'gallery' && values.index !== 'none')
+  throw new Error(`--index must be gallery (the default) or none, not ${values.index}`);
+const heading = values['llms-heading'];
+if (heading !== undefined && (!heading.trim() || /[\r\n]/.test(heading) || heading !== heading.trim()))
+  throw new Error('--llms-heading must be one line of text, without leading or trailing spaces');
 const origin = values.origin;
 // Link previews need absolute https URLs: crawlers fetch the pictures from the public site.
 if (origin && !/^https:\/\/[^/]+\/?$/.test(origin))
@@ -66,6 +79,8 @@ const selected = selectExport(
 const items = EXPLAINERS.filter((item) => selected.ids.includes(item.id));
 if (items.length !== selected.ids.length || items.some((item, i) => item.id !== selected.ids[i]))
   throw new Error('Built catalog and checkout explainers mismatch');
+// A host's project page reads these; demos:build has written them since catalog facts existed.
+if (!selected.catalog.facts) throw new Error(`${join(built, 'catalog.json')} has no facts: run npm run demos:build`);
 
 // Refuse an explainer whose scene, scene folder or engine changed since demos:build built it;
 // check selected pages before staging and again before replacement.
@@ -130,11 +145,12 @@ try {
   await copyFile(join(built, 'loader.js'), join(target, 'loader.js'));
   if (collection)
     await copyFile(join(built, 'embed-lab.html'), join(target, 'embed-lab.html'));
-  await writeFile(join(target, 'index.html'), galleryPage(selected.catalog, await galleryTokens(ROOT), collection));
+  if (values.index === 'gallery')
+    await writeFile(join(target, 'index.html'), galleryPage(selected.catalog, await galleryTokens(ROOT), collection));
   await writeFile(join(target, 'evidence.json'), JSON.stringify(selected.evidence, null, 2) + '\n');
   await writeFile(join(target, 'catalog.json'), JSON.stringify(selected.catalog, null, 2) + '\n');
   // For agents: each explainer's describeExplainer object as <id>.json beside its page, and llms.txt at the site root.
-  const described = await writeDescriptions(staging, path, items, built, origin);
+  const described = await writeDescriptions(staging, path, items, built, origin, heading);
   console.log(
     `Wrote ${items.length} <id>.json files (${described.json} bytes) and ${join(resolve(root), 'llms.txt')} (${described.llms} bytes).`,
   );
@@ -145,7 +161,9 @@ try {
       `${pages} pages carry every Open Graph and Twitter card tag, with their pictures at the declared size`,
     );
   }
-  const headers = `# Rayner explainers: generated by \`npm run site:export\`; regenerate rather than edit.\n${blocks.join('\n\n')}\n`;
+  // This collection's block of the shared _headers, between comments that name its path.
+  const rules = blocks.join('\n\n');
+  const headers = markedSection(headerMarkers(path), rules);
   const headersFile = join(ROOT, 'out/site-headers.txt');
   const manifestFiles = [];
   for (const entry of await listTree(target)) {
@@ -159,19 +177,22 @@ try {
   }
   const hostHeaders = (await readOptional(join(destination, '_headers'), 'utf8')) ?? '';
   const ownedPaths = items.flatMap(({ id }) => [`${path}/${id}`, `${path}/${id}.html`]);
-  const publishedHeaders = replaceHeaderBlocks(hostHeaders, headers, ownedPaths);
+  const publishedHeaders = replaceHeaderBlocks(hostHeaders, path, rules, ownedPaths);
   await writeFile(join(staging, '_headers'), publishedHeaders);
-  manifestFiles.push({
-    path: '/_headers',
-    sha256: sha256(publishedHeaders),
-  });
+  // Version 2: the shared _headers and llms.txt are pinned by this collection's own section of each,
+  // not by the whole file, so exporting another collection to the same site leaves this manifest valid.
   await writeFile(
     join(target, 'deployment.json'),
     JSON.stringify(
       {
-        version: 1,
+        version: 2,
+        path,
         build: inputs,
         files: manifestFiles.sort((a, b) => byCodeUnit(a.path, b.path)),
+        sections: [
+          manifestSection('/_headers', path, publishedHeaders, sha256),
+          manifestSection('/llms.txt', path, await readFile(join(staging, 'llms.txt'), 'utf8'), sha256),
+        ],
       },
       null,
       2,
