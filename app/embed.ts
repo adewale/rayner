@@ -3,8 +3,8 @@ import { renderFrame } from '../src/output.ts';
 import { traceRun, isHex, canonicalJson, STAGE_BOX } from '../src/internal.ts';
 import type { Palette } from '../src/index.ts';
 import { withSettings } from '../explain/testing.ts';
-import { bindSnapshots, settingsProblem, stepQuery, PAGE_QUERY, pictureChange, pictureHtml, pictureSummary, stepWords, paletteOf, paperOf, offPath, liveBase, liveSteps, runLive } from '../explain/internal.ts';
-import type { Live, LiveDraw, LivePlace, LiveRun, LogStart } from '../explain/internal.ts';
+import { bindSnapshots, settingsProblem, stepQuery, PAGE_QUERY, pictureChange, pictureHtml, pictureSummary, stepWords, paletteOf, paperOf, offPath, liveBase, liveSteps, runLive, predictionsOf } from '../explain/internal.ts';
+import type { Live, Prediction, LiveDraw, LivePlace, LiveRun, LogStart } from '../explain/internal.ts';
 import type { SceneClass, SceneOptions, Sink } from '../src/index.ts';
 import { StopScene } from '../src/output.ts';
 import { resolveSettings } from '../explain/index.ts';
@@ -527,16 +527,38 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   liveRow.append(liveLede, liveEvents, liveTools, liveSaid);
   liveRow.hidden = true;
   (changes ?? caption).after(liveRow);
+  // A step's prediction (meta.predict, explain/script.ts): on the asking step one button per option,
+  // so the reader commits before the answer, and on the revealing step what they chose and the
+  // answer. The choice is kept for this page load, by scenario and step. Moving on never waits for
+  // a choice. Where it sits is placeLive's: beside the picture on a wide page, at the top of the rail,
+  // else under the caption (and its changes), before the live row, as the live row sits.
+  const predictRow = el('section', undefined, 'predict'),
+    predictReveal = el('div', undefined, 'predict-reveal'),
+    predictAsk = el('div', undefined, 'predict-ask'),
+    predictPrompt = el('p', undefined, 'predict-prompt'),
+    predictOptions = el('div', undefined, 'predict-options'),
+    predictSaid = el('p', undefined, 'predict-said');
+  predictPrompt.id = 'predict-prompt';
+  predictOptions.setAttribute('role', 'group');
+  predictOptions.setAttribute('aria-labelledby', predictPrompt.id);
+  predictSaid.setAttribute('role', 'status');
+  predictReveal.setAttribute('role', 'status');
+  predictAsk.append(predictPrompt, predictOptions, predictSaid);
+  predictRow.append(predictReveal, predictAsk);
+  predictRow.hidden = true;
+  (changes ?? caption).after(predictRow);
   // On a wide page the steps list is a rail beside the picture (placeRail), and the live row joins
   // it, at its top: the reader presses an event and watches the picture change without scrolling,
   // which under the caption at 1280 × 800 put the buttons below the fold. On a narrow page it stays
   // under the caption. Run after placeRail, on the same changes.
+  // A prediction's row moves with it, to the rail's top on a wide page and under the caption otherwise.
   const placeLive = () => {
     const beside = steps.parentElement === railBody;
     if (liveRow.parentElement === (beside ? railBody : words)) return;
-    const focused = liveRow.contains(document.activeElement) ? (document.activeElement as HTMLElement) : undefined;
-    if (beside) railBody.prepend(liveRow);
-    else (changes ?? caption).after(liveRow);
+    const active = document.activeElement,
+      focused = liveRow.contains(active) || predictRow.contains(active) ? (active as HTMLElement) : undefined;
+    if (beside) railBody.prepend(predictRow, liveRow);
+    else (changes ?? caption).after(predictRow, liveRow);
     focused?.focus({preventScroll:true});
   };
   placeLive();
@@ -760,6 +782,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     else lastStory = selected;
     endControls(atEnd(), atEnd() ? tryLabel() : '');
     if (questions) questions.hidden = selected !== mainIndices().at(-1);
+    drawPredict();
     reached.add(step.step);
     nameSteps();
     // Done, current, to do, in the rail and on the step bar. Only the current segment is a Tab
@@ -781,6 +804,66 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     if (isPlaying()) stage.setAttribute('aria-busy', 'true');
     else stage.removeAttribute('aria-busy');
     describePicture(step);
+  }
+  /** The reader's predictions this page load, by scenario and asking step: the option's index. */
+  const predicted = new Map<string, number>(),
+    predictionsFor = new WeakMap<PlayerTrace, Prediction[]>();
+  const predictKey = (p: Prediction) => JSON.stringify([shownScenario, p.step]);
+  /** The scenario's predictions that can work; check fails the rest, and the player leaves them out. */
+  const predictions = () => {
+    let found = predictionsFor.get(trace);
+    if (!found) predictionsFor.set(trace, (found = predictionsOf(trace.steps).predictions));
+    return found;
+  };
+  /** Text set only when it changes, so a status line is not announced again for the same words. */
+  const say = (node: HTMLElement, text: string) => { if (node.textContent !== text) node.textContent = text; };
+  /** The prediction row for the step on show: the answers it reveals, then the prediction it asks. */
+  let predictAsked = '';
+  function drawPredict() {
+    const all = predictions(),
+      asks = all.find((p) => p.at === selected),
+      reveals = all.filter((p) => p.revealAt === selected);
+    predictRow.hidden = !asks && !reveals.length;
+    const revealed = reveals.map((p) => {
+      const chosen = predicted.get(predictKey(p)), choice = chosen === undefined ? undefined : p.options[chosen];
+      return { p, text: t.predictRevealed(choice, p.options[p.answer]!), outcome: chosen === undefined ? 'none' : chosen === p.answer ? 'right' : 'wrong' };
+    });
+    if (revealed.map((r) => r.text).join('\n') !== predictReveal.dataset.said) {
+      predictReveal.dataset.said = revealed.map((r) => r.text).join('\n');
+      predictReveal.replaceChildren(...revealed.map(({ p, text, outcome }) => {
+        const line = el('p');
+        line.dataset.outcome = outcome;
+        if (p.prompt) line.append(el('strong', p.prompt), ' ');
+        line.append(el('span', text));
+        return line;
+      }));
+    }
+    predictAsk.hidden = !asks;
+    if (!asks) {
+      predictAsked = '';
+      predictOptions.replaceChildren();
+      return;
+    }
+    const key = predictKey(asks), chosen = predicted.get(key);
+    // Buttons are kept while the same prediction is on show, so focus stays on the one pressed.
+    if (predictAsked !== key) {
+      predictAsked = key;
+      say(predictPrompt, asks.prompt ?? t.predictHeading);
+      predictOptions.replaceChildren(...asks.options.map((option, i) => {
+        const b = el('button', option, 'button option');
+        b.type = 'button';
+        b.dataset.option = String(i);
+        b.addEventListener('click', () => {
+          if (!interactive()) return;
+          predicted.set(key, i);
+          drawPredict();
+          document.dispatchEvent(new CustomEvent('rayner:predict', { detail: { step: asks.step, choice: option, settings: values } }));
+        });
+        return b;
+      }));
+    }
+    for (const b of predictOptions.querySelectorAll<HTMLButtonElement>('button')) b.setAttribute('aria-pressed', String(Number(b.dataset.option) === chosen));
+    say(predictSaid, chosen === undefined ? t.predictHint : t.predictChosen(asks.options[chosen]!, asks.revealAt === adjacentStep(trace.steps, asks.at, 1)));
   }
   /** The resting picture in words: the step's, or what the scene shows after the reader's events (`shown`). */
   let describedShown: unknown;
@@ -820,6 +903,12 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   function keepInRail() {
     const item = steps.querySelector<HTMLElement>('[aria-current=step]');
     if (!item || !railBeside.isConnected || railBody.scrollHeight <= railBody.clientHeight) return;
+    // A step's own controls at the rail's top (a live row, a prediction) stay in view before its name does:
+    // scrolled to the current step, the last step's buttons would be out of sight.
+    if ([liveRow, predictRow].some((row) => !row.hidden && row.parentElement === railBody)) {
+      railBody.scrollTop = 0;
+      return;
+    }
     // The sticky rail body is the item's offset parent, so these are in its scrolled content.
     const top = item.offsetTop,
       bottom = top + item.offsetHeight;
@@ -1139,6 +1228,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       }
       return b;
     }));
+    keepInRail();
     // With nothing sent there is nothing to undo or reset; focus on them moves to the first event.
     const none = !sentLog().length;
     if (none && (document.activeElement === undo || document.activeElement === reset)) liveEvents.querySelector('button')?.focus();

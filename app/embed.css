@@ -111,6 +111,21 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .live .event:focus-visible .reason:not(:empty){display:block}
 @media(hover:hover){.live .event:hover .reason:not(:empty){display:block}}
 .live-said:empty{display:none}
+.predict{display:grid;gap:8px;margin:8px 0;padding:10px 12px;max-width:68ch;border:1px solid var(--line);border-radius:var(--player-control-radius,8px);overflow-wrap:anywhere}
+.predict[hidden],.predict-ask[hidden]{display:none}
+.predict-ask{display:grid;gap:8px}
+.predict p{margin:0}
+.predict-prompt{font-weight:600}
+.predict-options{display:flex;flex-wrap:wrap;gap:8px}
+.predict .option{min-height:44px;padding:6px 12px;text-align:start}
+.predict .option[aria-pressed=true]{border-color:var(--accent);background:var(--accent);color:var(--accent-fg);font-weight:600}
+.predict-said,.predict-reveal span{font-size:.9375rem}
+.predict-said{color:var(--muted)}
+.predict-reveal{display:grid;gap:6px}
+.predict-reveal:empty{display:none}
+.predict-reveal p[data-outcome=right]::before{content:"\2713\00a0"}
+.predict-reveal p[data-outcome=wrong]::before{content:"\2717\00a0"}
+.rail-body>.predict{margin:0 0 12px}
 .rail-body>.live{padding:8px 10px 12px;margin-block-end:8px;border-block-end:1px solid var(--line)}
 .words{display:grid;gap:6px;padding:14px var(--inset) 16px}
 .player>.caption{padding:14px var(--inset)}

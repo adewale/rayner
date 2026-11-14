@@ -1,4 +1,4 @@
-import { scriptReport, claimsReport, checkClaimsMeta, captionLookProblems, describesItself, seenSource, isHeading, withoutHeading, undescribed, watchedChanges, diagramsOn, restingDrawing, LiveSink, liveMachine, runLive, labelOf, readingLabelSize, isView, machinesOf, viewMismatch, scenarioName } from '../../explain/internal.ts';
+import { scriptReport, predictionsOf, claimsReport, checkClaimsMeta, captionLookProblems, describesItself, seenSource, isHeading, withoutHeading, undescribed, watchedChanges, diagramsOn, restingDrawing, LiveSink, liveMachine, runLive, labelOf, readingLabelSize, isView, machinesOf, viewMismatch, scenarioName } from '../../explain/internal.ts';
 import type { View } from '../../explain/index.ts';
 import type { Settings } from '../../explain/index.ts';
 import { renderElements } from '../../src/output.ts';
@@ -860,6 +860,9 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     assert.equal(bare.svg, finalSvg, `${disagrees}: its last frame draws differently`);
     const script = scriptReport(project.Scene.meta, v.trace.steps);
     assert.deepEqual(script.problems, [], `Script ${where}: ${script.problems.join('; ')}`);
+    // Each prediction a step asks the reader to commit to: its answer one of its options, revealed by a later step.
+    const predicted = predictionsOf(v.trace.steps);
+    assert.deepEqual(predicted.problems, [], `Predictions ${where}: ${predicted.problems.join('; ')}`);
     scenarios.push({
       settings: v.values,
       trace: v.trace,
@@ -880,6 +883,10 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       // The script gate (explain/script.ts): a declared meta.answer stated by some step (where, reported), and how many
       // reader questions the page asks. Undeclared parts are reported as missing.
       script,
+      // Each prediction (meta.predict): the step that asks it, its options, the answer and the step that reveals it.
+      ...(predicted.predictions.length
+        ? { predictions: predicted.predictions.map(({ step, options, answer, reveal }) => ({ step, options, answer: options[answer], reveal })) }
+        : {}),
       // Sentences with scope words, the declared claim (meta.claims) backing each, and the code names
       // reaching the steps' words (explain/claims.ts). Reported, not gated; see claimProblems below.
       claims: claimsReport(project.Scene.meta, v.trace.steps),
