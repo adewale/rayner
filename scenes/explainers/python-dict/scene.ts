@@ -81,6 +81,7 @@ export default class PythonDict extends Scene<DictState, {}> {
         line: `Predict: if del d[0] just empties slot 0, what does d[${key}] give?`,
         caption: `This dict uses an index and a separate entry table: a slot points to the entry holding its key and value. Here slot ${home} points to ${value}’s entry. The – marks a slot that has never been used. Delete key 0 by clearing slot 0 and its entry. Would d[${key}] still find ${value}?`,
         state: { dict: m.original, result: m.before, key, policy: 'prediction' },
+        predict: { options: [value, 'KeyError'], answer: m.broken.found ? m.broken.value! : 'KeyError' },
         view: {
           dict: m.original,
           path: null,
@@ -133,6 +134,8 @@ export default class PythonDict extends Scene<DictState, {}> {
     await this.step('marker', {
       title: 'CPython leaves D in slot 0, and the search goes on',
       line: 'Predict: key 24 was never stored and starts at slot 0. Where does its search stop, and why?',
+      // The route's later slots and the never-used slot it flies over; the answer is where the model's search stops.
+      predict: { options: [...new Set([...m.missing.slots.slice(1), ...(offRoute === undefined ? [] : [offRoute])])].sort((a, b) => a - b).map((i) => `slot ${i}`), answer: `slot ${missingStop}` },
       caption: `In CPython, del d[0] writes a deleted marker, drawn here as D, into slot 0 and empties entry 0. A search treats D as a taken slot whose key never matches: the search for ${key} reads D at slot 0, moves on to slot ${onward.join(', then ')}, and finds ${m.repaired.value}. The arrows under the slots follow the search from each slot it reads to the next.`,
     });
     const cpython = await play('CPython marker', ['del d[0]', `d[${key}]` as DictEvent]);

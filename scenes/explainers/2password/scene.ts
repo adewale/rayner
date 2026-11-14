@@ -70,6 +70,11 @@ export default class PasswordExplainer extends Scene<PasswordState, PasswordShow
     await this.step('boundary', {
       title: 'To pick a key, the agent searches titles, never values',
       line: `Predict: it asks for “${hitQuery}” and the typo “${missQuery}”. What comes back?`,
+      // What the model's find returns for the two queries.
+      predict: {
+        options: ['A match and a suggestion', 'A match, and nothing for the typo', 'Two matches', 'Nothing at all'],
+        answer: found.matches.length > 1 ? 'Two matches' : found.matches.length ? (found.suggestions?.length ? 'A match and a suggestion' : 'A match, and nothing for the typo') : 'Nothing at all',
+      },
       caption: `find chooses items by comparing the query with their titles, so it needs no field values to choose. Here “${hitQuery}” and “${missQuery}” search ${ITEMS.length} sample titles.`,
     });
     await s.clear();

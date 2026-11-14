@@ -212,6 +212,8 @@ export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
     await this.step('df', {
       title: `A new ${name} disk: users can write only ${of(sp.users)} of it`,
       line: `Predict: no file is written yet. Where did ${size === '1g' ? bytesOf(gone) : gib(gone)} go?`,
+      // The larger share of what users cannot write, from the model's layout: root's reserve or the metadata.
+      predict: { options: ['Mostly the root reserve', 'Mostly metadata'], answer: sp.root > l.metadata ? 'Mostly the root reserve' : 'Mostly metadata' },
       // Linux super.c:6807-6831 ext4_statfs; measured with statfs on the mounted filesystem.
       caption: `We ran mkfs.ext4 1.47.3 with no options on an empty ${name} disk, ${grouped(l.blocks)} blocks of ${BLOCK} bytes, mounted it and asked the kernel’s statfs, which df reads. A user other than root can write ${grouped(sp.users)} blocks, which df shows as Avail: ${of(sp.users)} of the disk. The other ${grouped(gone)} blocks, ${of(gone)}, are unavailable to this writer before any user files are added. Does unavailable mean already occupied?`,
     });

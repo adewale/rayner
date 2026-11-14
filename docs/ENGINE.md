@@ -69,7 +69,7 @@ Where the code departs from the stack:
   - `scene.shown` is half of the typed scene, `Scene<Model, Shown>`, which views, machines and staged steps take their types from, and the trace records it at the end of every step beside the state. Moving it means a base class from the explain layer for every scene.
   - `stateJson()`, `shownJson()` and `addJson()` are how the trace reads a step's state and what is shown. A helper adds its own JSON with `addJson`, as the stage adds its picture's description and recorded walks are kept; the hooks name nothing of an explanation.
 
-  A step's title, line and kind (`StepKind`) belong to the explainer layer, and the engine reads none of them: `explain/script.ts` declares them on the engine's open `StepMeta` interface, so they are typed wherever `rayner/explain` is loaded. `test/layers.test.ts` holds the engine to that.
+  A step's title, line, kind (`StepKind`) and prediction (`predict`) belong to the explainer layer, and the engine reads none of them: `explain/script.ts` declares them on the engine's open `StepMeta` interface, so they are typed wherever `rayner/explain` is loaded. `test/layers.test.ts` holds the engine to that.
 - **The explainer layer uses the engine's `@internal` interface.** The explainer layer imports the engine's modules directly, and beyond the public API it uses a short list of `@internal` names the published types leave out. The engine owns every animation's lifecycle (its begin, frames, finish and clean-up); where the explainer layer needs a piece of it, it extends or calls an engine name for that concept:
 
   | Engine concept | Names | Used by |

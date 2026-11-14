@@ -174,6 +174,8 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
     await this.step('balance', {
       title: 'Ten requests from one client, and a bucket of five tokens',
       line: 'Predict: R1–R6 arrive at the same instant. How many get 200?',
+      // The model's answers to the burst: how many of R1–R6 it serves.
+      predict: { options: ['4', '5', '6'], answer: String(plan.slice(0, 6).filter((c) => c.ok).length) },
       caption:
         'A server limits each client: a request it serves gets 200, OK; one it refuses gets 429, Too Many Requests, telling the client to slow down. A short burst should still get through, so the server keeps the client a balance of at most five tokens: the bucket. Each accepted request spends one token; one that finds less than one, under the 1 token line, gets 429. Ten requests arrive at the times above their boxes.',
     });
@@ -357,6 +359,7 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
         title: titles[index],
         line: lines[index],
         caption: captions[index],
+        ...(index === 0 ? { predict: { options: ['200', '429'], answer: String(code7) } } : {}),
       });
       // Ask the program, one request at a time; the code's focus bar moves with each call.
       for (let i = from; i < to; i++) await this.play(machine.send('request'));

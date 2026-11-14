@@ -79,7 +79,85 @@ declare module '../src/scene.ts' {
     line?: string;
     /** Which path the step is on (default 'main'): a 'short' path a reader can take first, or a 'detail' after the story that players skip. */
     kind?: StepKind;
+    /** A prediction the reader commits to on this step, answered by a later one (`StepPrediction`). */
+    predict?: StepPrediction;
   }
+}
+/**
+ * A prediction the reader commits to before the answer: the player shows `options` as buttons on
+ * the asking step, and the step that reveals it says what the reader chose and what the answer is.
+ * Compute `answer` from the model (`check(filter, 'wolf') ? 'Maybe' : 'Definitely not'`), never type
+ * it, so a changed model or setting changes the answer with it.
+ */
+export interface StepPrediction {
+  /** The question, when the step's line does not already ask it; the player says "Your prediction" otherwise. */
+  prompt?: string;
+  /** What the reader can commit to: two to six short, distinct choices. */
+  options: string[];
+  /** The right option, as its text or its index in `options`. */
+  answer: string | number;
+  /** The step that reveals the answer, by name; by default the next step on the reading path. */
+  reveal?: string;
+}
+/** The most options a prediction may offer. */
+export const PREDICTION_OPTIONS_MAX = 6;
+/** A step's prediction as the player and check read it: the answer as an index, the revealing step found. */
+export interface Prediction {
+  /** The asking step, and its index in the scenario. */
+  step: string;
+  at: number;
+  prompt?: string;
+  options: string[];
+  /** The answer's index in `options`. */
+  answer: number;
+  /** The revealing step, and its index. */
+  reveal: string;
+  revealAt: number;
+}
+const PREDICTION_KEYS = ['prompt', 'options', 'answer', 'reveal'];
+/** The step after `from` on the reading path: the next teaching step, or from a detail step the next step in order. */
+function nextOnPath(steps: readonly TeachingStep[], from: number): number | undefined {
+  if (offPath(steps, from)) return from + 1 < steps.length ? from + 1 : undefined;
+  return teachingIndices(steps).find((i) => i > from);
+}
+/**
+ * Each step's prediction (`meta.predict`), resolved, and what is wrong with any that cannot work:
+ * an answer that is not one of its options, fewer than two options or repeated ones, or no later
+ * step on the reading path to reveal it. `rayner check` fails a scenario with any problem; the
+ * player shows only the predictions without one.
+ */
+export function predictionsOf(steps: readonly Step[]): { predictions: Prediction[]; problems: string[] } {
+  const predictions: Prediction[] = [],
+    problems: string[] = [];
+  steps.forEach((s, at) => {
+    const p = s.meta.predict as Record<string, unknown> | undefined;
+    if (p === undefined) return;
+    const fail = (why: string) => problems.push(`step "${s.step}": meta.predict ${why}`);
+    if (!p || typeof p !== 'object' || Array.isArray(p)) return fail('must be { options, answer, prompt?, reveal? }');
+    const unknown = Object.keys(p).filter((k) => !PREDICTION_KEYS.includes(k));
+    if (unknown.length) return fail(`has ${unknown.map((k) => `"${k}"`).join(', ')}; its keys are ${PREDICTION_KEYS.join(', ')}`);
+    const { prompt, options, answer, reveal } = p;
+    if (prompt !== undefined && (typeof prompt !== 'string' || !prompt.trim())) return fail('has a prompt that is not text');
+    if (!Array.isArray(options) || options.length < 2 || options.length > PREDICTION_OPTIONS_MAX || options.some((o) => typeof o !== 'string' || !o.trim()))
+      return fail(`must offer two to ${PREDICTION_OPTIONS_MAX} options, each some text`);
+    const said = options.map((o: string) => normalise(o));
+    if (new Set(said).size !== said.length) return fail(`offers the same option twice (${JSON.stringify(options)})`);
+    const index = typeof answer === 'number' ? (Number.isInteger(answer) && answer >= 0 && answer < options.length ? answer : -1)
+      : typeof answer === 'string' ? options.indexOf(answer) : -1;
+    if (index < 0) return fail(`has the answer ${JSON.stringify(answer)}, which is not one of its options ${JSON.stringify(options)}`);
+    let revealAt: number | undefined;
+    if (reveal === undefined) {
+      revealAt = nextOnPath(steps, at);
+      if (revealAt === undefined) return fail('has no later step to reveal its answer; ask it before the last step, or name the step in reveal');
+    } else {
+      revealAt = typeof reveal === 'string' ? steps.findIndex((x) => x.step === reveal) : -1;
+      if (revealAt < 0) return fail(`names reveal ${JSON.stringify(reveal)}, which is not a step of this scenario`);
+      if (revealAt <= at) return fail(`names reveal "${reveal}", which comes before the question; reveal it on a later step`);
+      if (!offPath(steps, at) && offPath(steps, revealAt)) return fail(`names reveal "${reveal}", a detail step Next never reaches from the story`);
+    }
+    predictions.push({ step: s.step, at, ...(prompt ? { prompt: (prompt as string).trim() } : {}), options: options.map((o: string) => o.trim()), answer: index, reveal: steps[revealAt]!.step, revealAt });
+  });
+  return { predictions, problems };
 }
 /** A step as the reading-path rule reads it: a trace's step record, a scene's step, or anything with their `meta`. */
 export type TeachingStep = { readonly meta: Readonly<Record<string, unknown>> };

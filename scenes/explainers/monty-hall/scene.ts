@@ -334,6 +334,8 @@ export default class MontyHall extends Scene<MontyState, { chapter?: Chapter }> 
     await this.step('predict', {
       title: `Stay with ${X}, or switch to ${C}?`,
       line: 'Predict: does it matter what the host knew and how he picked a door?',
+      // It matters when the two hosts' switching chances differ, as the last step shows.
+      predict: { options: ['Yes', 'No'], answer: seen.informed.switchChance !== seen.random.switchChance ? 'Yes' : 'No', reveal: 'worlds' },
       caption:
         host === 'informed'
           ? 'Two doors are closed and you have seen a goat. Would switching win more often than staying? And would your answer change if the host had opened a door at random and happened to show a goat?'
@@ -349,6 +351,8 @@ export default class MontyHall extends Scene<MontyState, { chapter?: Chapter }> 
         host === 'informed'
           ? `The strip lays out every round for a pick of ${X}, each as wide as its chance; the car is behind each door a third of the time. Behind ${X}, he tosses a coin between ${others.join(' and ')}: a sixth each. Behind ${C}, ${B} is the only goat you didn’t pick, so he opens it in that whole third; behind ${B}, he must open ${C}. You saw ${B} open to a goat: add up the matching cells’ widths.`
           : `The strip lays out every round for a pick of ${X}, each as wide as its chance. The car is behind each door a third of the time, and wherever it is he tosses a coin between ${others.join(' and ')}, so each round is a sixth. In two of those rounds the door he opens hides the car and the game is over. You saw ${B} open to a goat: add up the matching cells’ widths.`,
+      // Switching's chance once the goat is seen, from the model's cells.
+      predict: { prompt: `Once ${B} shows a goat, how often does switching win?`, options: ['1 in 3', '1 in 2', '2 in 3'], answer: [1 / 3, 1 / 2, 2 / 3].findIndex((f) => Math.abs(f - seen[host].switchChance) < 1e-9) },
     });
     await fresh('rounds');
     at('rounds', { odds: m, cells: cells[host] });

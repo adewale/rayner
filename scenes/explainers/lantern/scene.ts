@@ -297,6 +297,8 @@ export default class LanternExplainer extends Scene<LanternState, LanternShown> 
         caption: `A direct link opens a later picture without playing earlier steps, so Rayner makes it as a still. A box fades in, then a dot moves along a track. ${how} Playback has the dot halfway at t = ${SEEK_T} s. To make the still, Rayner re-runs the scene and counts frames 1–${run.seekAt - 1} without computing them. Predict where its dot will be.`,
         // The played frame, and where the still will be taken; what the still shows is not yet known.
         state: { at, played },
+        // Where the seeked dot lands, from the two runs: as played when they match, else short of it.
+        predict: { options: ['Halfway, as played', 'Short of halfway', 'Past halfway'], answer: match ? 0 : run.seekedMoves < run.playedMoves ? 1 : 2 },
         describe: (st) =>
           `Left: the tiny scene ${playedLabel(st.at)}, the dot halfway along its track, fingerprint ${st.played.svg}. Right: an empty frame marked with a question mark, ${seekedLabel(st.at)}.`,
         draw: (st) => playedPicture(st, c),

@@ -124,6 +124,14 @@ export interface Chrome {
   notLive: string;
   /** The transcript's line of a live step: the events a reader can send there. */
   liveEvents: (events: string, fromStart: boolean) => string;
+  /** Over a prediction's options when the step gives no prompt of its own (meta.predict). */
+  predictHeading: string;
+  /** Under the options before the reader chooses: moving on is allowed either way. */
+  predictHint: string;
+  /** After the reader chooses: their choice, and whether Next (or a later step) shows the answer. */
+  predictChosen: (choice: string, next: boolean) => string;
+  /** On the revealing step: what the reader predicted, if anything, and the answer. */
+  predictRevealed: (choice: string | undefined, answer: string) => string;
 }
 
 const EN: Chrome = {
@@ -196,6 +204,11 @@ const EN: Chrome = {
   sentFallback: (event, reason) => `This link’s event “${event}” cannot be sent there (${reason}), so the picture stops before it.`,
   notLive: 'This step has no events to send, so the link’s events are left out.',
   liveEvents: (events, fromStart) => `Try it yourself: ${fromStart ? 'from the beginning, press ' : 'press '}${events}.`,
+  predictHeading: 'Your prediction',
+  predictHint: 'Choose one before you go on, or go on without choosing.',
+  predictChosen: (choice, next) => `You chose “${choice}”. ${next ? 'Next shows' : 'A later step shows'} the answer.`,
+  predictRevealed: (choice, answer) =>
+    choice === undefined ? `The answer is “${answer}”.` : choice === answer ? `You predicted “${choice}”, and the answer is “${answer}”.` : `You predicted “${choice}”; the answer is “${answer}”.`,
 };
 /** French typography: a narrow no-break space (U+202F) before : ; ! ? and inside « ». */
 const FR: Chrome = {
@@ -274,6 +287,11 @@ const FR: Chrome = {
   sentFallback: (event, reason) => `L’événement «\u202f${event}\u202f» de ce lien ne peut pas être envoyé là (${reason})\u202f: l’image s’arrête avant lui.`,
   notLive: 'Cette étape n’a pas d’événements à envoyer\u202f: ceux du lien sont ignorés.',
   liveEvents: (events, fromStart) => `À vous de jouer\u202f: ${fromStart ? 'depuis le début, appuyez sur ' : 'appuyez sur '}${events}.`,
+  predictHeading: 'Votre prédiction',
+  predictHint: 'Choisissez avant de continuer, ou continuez sans choisir.',
+  predictChosen: (choice, next) => `Vous avez choisi «\u202f${choice}\u202f». ${next ? 'L’étape suivante donne' : 'Une étape plus loin donne'} la réponse.`,
+  predictRevealed: (choice, answer) =>
+    choice === undefined ? `La réponse est «\u202f${answer}\u202f».` : choice === answer ? `Vous aviez prédit «\u202f${choice}\u202f», et c’est la réponse.` : `Vous aviez prédit «\u202f${choice}\u202f»\u202f; la réponse est «\u202f${answer}\u202f».`,
 };
 export const CHROME: Readonly<Record<string, Chrome>> = { en: EN, fr: FR };
 

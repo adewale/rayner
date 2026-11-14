@@ -303,6 +303,11 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
         key === '90d'
           ? `Predict: what share of a 90-day life has passed at day ${days(ninety.renewsAt)}?`
           : `Predict: when does a 30-day margin renew a ${adjective} certificate?`,
+      // How far through its life the 30-day rule renews this certificate, from the model's due point.
+      predict: {
+        options: ['Under half way through', 'Half to three quarters through', 'Over three quarters through', 'At once, from issue'],
+        answer: dueOffset('fixed30', LIFETIMES[key].hours) < 0 ? 3 : [0.5, 0.75, Infinity].findIndex((top) => 1 - FIXED_INTERVAL / LIFETIMES[key].hours < top),
+      },
       caption: `Certbot 3.3 renews when the certificate expires within renew_before_expiry, 30 days unless the renewal file sets it. Let’s Encrypt dates a certificate ${+(BACKDATE * 60).toFixed(1)} minutes before it issues it, so a 90-day one falls due just before the twice-daily run at day ${days(ninety.renewsAt)}, which replaces it.`,
     });
     await s.clear();

@@ -128,6 +128,8 @@ export default class IsDigitExplainer extends Scene<DigitState, {}> {
       line: run.passes
         ? `Predict: does int(${q(c)}) return a number, or raise ValueError?`
         : `Predict: had int() run, would int(${q(c)}) return a number, or raise ValueError?`,
+      // What int() does with the character, from the model's CPython answers.
+      predict: { options: ['A number', 'ValueError'], answer: parsed ? 'A number' : 'ValueError' },
       caption: `Python’s int() turns text into a whole number and raises ValueError when it cannot. One way to keep it from raising is a guard: check the text first, and call int() only if the check passes. The check here is the string method ${guard}(). ${q(c)} is a numeral whose Unicode value is ${valueOf(c)}, and ${guard}() returns ${
         run.passes
           ? 'True for it, so the next line calls int()'

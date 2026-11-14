@@ -82,6 +82,8 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
     await this.step('slots', {
       title: 'Answer: keep the values still, and move two markers instead',
       line: 'Predict: after five pushes, where are head and tail?',
+      // Where the model's ring leaves both markers after the fifth push.
+      predict: { options: ['Both at slot 0', 'Head at slot 0, tail at slot 4', 'Head at slot 4, tail at slot 0'], answer: ((r) => [[0, 0], [0, 4], [4, 0]].findIndex(([h, t]) => h === r.head && t === r.tail))(ringStory(which)[4]!.result) },
       caption:
         'Keep five fixed slots and remember two positions: head, the slot pop reads next, and tail, the slot push writes next. Push writes at tail and moves tail on; pop reads at head and moves head on. Values stay in their slots while head and tail move, and both wrap back to slot 0 to reuse freed slots. Queue order starts at head, not at the leftmost or lowest-numbered slot. The three fields start at 0.',
     });
@@ -270,6 +272,15 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
     });
 
     const story = ringStory(which);
+    // Each group's prediction, answered by the model's run: which values two pops take and whether the rest
+    // move, where 6 and 7 land, or what push 6 does to a full ring.
+    const [full, next] = [story[4]!.result, story[5]!];
+    const predictions = which === 'wrap'
+      ? [
+          { options: ['1 and 2 leave; nothing else moves', '1 and 2 leave; 3, 4 and 5 shift left'], answer: next.result.data.every((v, i) => v === null || v === full.data[i]) ? 0 : 1 },
+          { options: ['Slots 0 and 1', 'Slots 2 and 3', 'Neither: the ring is full'], answer: ((d) => (d.indexOf(6) === 0 && d.indexOf(7) === 1 ? 0 : d.indexOf(6) === 2 ? 1 : 2))(story.at(-1)!.result.data) },
+        ]
+      : [{ options: ['Throws Full', 'Overwrites 1', 'Writes past slot 4'], answer: next.error === 'Full' ? 'Throws Full' : 'Overwrites 1' }];
     const replays: RingEvent[][] = which === 'wrap' ? [['push', 'push', 'push', 'push', 'push'], ['pop', 'pop'], ['push', 'push']] : [['push', 'push', 'push', 'push', 'push'], ['push'], ['push']];
     for (let g = 0; g < replays.length; g++) {
       await this.step(['fill', 'next', 'result'][g]!, {
@@ -305,6 +316,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
               : g === 1
                 ? 'push checks length === capacity on its first line, so with length 5 it throws Full before writing a slot or moving either marker. The 6 is crossed out short of slot 0 and goes to the refused tray, and head, tail and length do not change.'
                 : 'push 7 is refused the same way and joins 6 in the refused tray; the ring still holds 1 to 5. Some ring buffers overwrite the oldest value instead. This one refuses, so no stored value is lost and the caller must handle Full.',
+        ...(predictions[g] ? { predict: predictions[g] } : {}),
       });
       // The code's lit lines and the card's lit Result row are drawn from the state each event leaves.
       await this.play(machine.replay(replays[g]!));
