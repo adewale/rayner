@@ -137,18 +137,21 @@ export type Side = 'personal agent' | 'company';
  * (author.type human) carries neither as_of field, since which messages a person had read is not
  * known. as_of_request is the Company Agent's, as_of_cursor the Personal Agent's. Only Company
  * messages name their author (id, name, image), and only the Personal Agent sends context.
- * These are what a sender of this version may send. From 1.0 a receiver is more forgiving, so later
- * versions can add to messages: see `readAuthor`, `readRole` and `record`.
+ * By default these are what a sender of this version may send. A receiver (`as: 'receiver'`) is more
+ * forgiving from 1.0, so later versions can add to messages: it reads an author.type it does not
+ * know as agent (`readAuthor`) and ignores author id, name and image on the Personal Agent's
+ * messages (`record`), so neither is a problem it reports.
  * Left out: the formats of locale, time_zone and user_available, and extension versions (3.4).
  */
-export function problemsOf(message: Message, from: Side): string[] {
-  const problems: string[] = [];
-  if (message.author?.type !== 'agent' && message.author?.type !== 'human') problems.push('author.type must be agent or human');
+export function problemsOf(message: Message, from: Side, o: { as?: 'sender' | 'receiver' } = {}): string[] {
+  const problems: string[] = [], receiver = o.as === 'receiver';
+  if (!message.author || typeof message.author.type !== 'string') problems.push('a message needs author.type');
+  else if (!receiver && message.author.type !== 'agent' && message.author.type !== 'human') problems.push('author.type must be agent or human');
   if ([message.text, message.data, message.context, message.extensions].every((field) => field === undefined)) problems.push('a message needs text, data, context or extensions');
   if (message.author?.type === 'human' && (message.as_of_request !== undefined || message.as_of_cursor !== undefined)) problems.push('a person’s message carries no as_of field');
   if (from === 'personal agent' && message.as_of_request !== undefined) problems.push('as_of_request is for the Company Agent’s messages');
   if (from === 'company' && message.as_of_cursor !== undefined) problems.push('as_of_cursor is for the Personal Agent’s messages');
-  if (from === 'personal agent' && (message.author?.id ?? message.author?.name ?? message.author?.image) !== undefined) problems.push('only Company messages name their author');
+  if (!receiver && from === 'personal agent' && (message.author?.id ?? message.author?.name ?? message.author?.image) !== undefined) problems.push('only Company messages name their author');
   if (from === 'company' && message.context !== undefined) problems.push('only the Personal Agent sends context');
   return problems;
 }
@@ -162,7 +165,7 @@ export function problemsOf(message: Message, from: Side): string[] {
 export function record(message: Message, from: Side, id: string): Message {
   const recorded = { ...message, id, role: from === 'company' ? ('company' as const) : ('user' as const) };
   if (from === 'company' || !message.author) return recorded;
-  return { ...recorded, author: { type: message.author.type } };
+  return { ...recorded, author: { type: readAuthor(message.author.type) } };
 }
 
 /**
@@ -200,6 +203,8 @@ export function interpret(raw: { handoff: string; responder: string }): { handof
 export type ConvEvent = { id: string; type: string };
 /** 8.5: the event types this version defines. A Personal Agent skips any other. */
 export const EVENT_TYPES = ['message', 'state', 'authorization', 'user_requested', 'direct_opened', 'direct_closed'] as const;
+/** 8.5 and 8.6: whether the agent recognizes an event type; `handle` and `readStream` skip the rest. */
+export const isEventType = (type: string): boolean => (EVENT_TYPES as readonly string[]).includes(type);
 
 export type Read =
   | { events: readonly ConvEvent[]; cursor: string | null; has_more: boolean }
@@ -237,7 +242,7 @@ export function handle(handled: ReadonlySet<string>, events: readonly ConvEvent[
   for (const event of events) {
     if (now.has(event.id)) continue;
     now.add(event.id);
-    if ((EVENT_TYPES as readonly string[]).includes(event.type)) act.push(event);
+    if (isEventType(event.type)) act.push(event);
   }
   return { act, handled: now };
 }
@@ -246,7 +251,7 @@ export function handle(handled: ReadonlySet<string>, events: readonly ConvEvent[
  * 8.6: the SSE event names a stream carries: the event types of 8.5, working and text-delta. From
  * 1.0 the agent skips any other name, so later versions and extensions can add them.
  */
-export const readStream = (names: readonly string[]) => names.filter((name) => name === 'working' || name === 'text-delta' || (EVENT_TYPES as readonly string[]).includes(name));
+export const readStream = (names: readonly string[]) => names.filter((name) => name === 'working' || name === 'text-delta' || isEventType(name));
 
 /** 8.6: reconnecting a stream, Last-Event-ID takes the place of cursor and wins when both are sent. */
 export const resumeFrom = (request: { cursor?: string; lastEventId?: string }) => request.lastEventId ?? request.cursor ?? null;
