@@ -145,13 +145,13 @@ test('the page’s receipt is one sentence for the grade, with the full Checked 
   const line = 'CPython 3.12’s storage, captured by `oracle/dict.py` into `fixtures/dict.json`';
   const en = groundingHtml(line, { grade: 'live', subject: 'CPython 3.12’s dict storage' }, 'en', chromeFor('en').checkedAgainst);
   assert.equal(en,
-    '<p class="grounding" data-grade="live">Checked against CPython 3.12’s dict storage, run again each time the model’s tests run.</p>' +
+    '<p class="grounding" data-grade="live">Checked live, each time the model’s tests run, against CPython 3.12’s dict storage.</p>' +
     '<details class="grounding-details"><summary>How it was checked</summary><p>CPython 3.12’s storage, captured by <code>oracle/dict.py</code> into <code>fixtures/dict.json</code></p></details>');
   assert.ok(!en.includes('`'), 'no raw backticks reach the reader');
-  assert.match(groundingHtml(line, { grade: 'recorded', subject: 'Postgres 18.6, on 2026-10-25' }, 'en', chromeFor('en').checkedAgainst), />Checked against Postgres 18\.6, on 2026-10-25: run once and recorded/);
-  assert.match(groundingHtml(line, { grade: 'read', subject: 'RFC 7636' }, 'en', chromeFor('en').checkedAgainst), />Checked against RFC 7636, read and not run\.</);
+  assert.match(groundingHtml(line, { grade: 'recorded', subject: 'Postgres 18.6, on 2026-10-25' }, 'en', chromeFor('en').checkedAgainst), />Checked against a recording made once, which the model’s tests compare with: Postgres 18\.6, on 2026-10-25\.</);
+  assert.match(groundingHtml(line, { grade: 'read', subject: 'RFC 7636' }, 'en', chromeFor('en').checkedAgainst), />Checked by reading, not running: RFC 7636\.</);
   assert.match(groundingHtml(line, { grade: 'none' }, 'en', chromeFor('en').checkedAgainst), />Not checked against an outside system: only the model’s own tests check it\.</);
-  assert.match(groundingHtml(line, { grade: 'recorded', subject: 'openfisca-france 176.1.3' }, 'fr', chromeFor('fr').checkedAgainst), />Vérifié par openfisca-france 176\.1\.3 : exécuté une fois et enregistré.*<summary>Comment il a été vérifié<\/summary>/);
+  assert.match(groundingHtml(line, { grade: 'recorded', subject: 'openfisca-france 176.1.3' }, 'fr', chromeFor('fr').checkedAgainst), />Vérifié par un enregistrement fait une fois, auquel les tests du modèle se comparent\s?: openfisca-france 176\.1\.3\..*<summary>Comment il a été vérifié<\/summary>/);
   // Without a grade the line is the receipt, as before, with its files as code.
   assert.equal(groundingHtml(line, undefined, 'en', chromeFor('en').checkedAgainst),
     '<p class="grounding">The model is checked against: CPython 3.12’s storage, captured by <code>oracle/dict.py</code> into <code>fixtures/dict.json</code></p>');
@@ -166,7 +166,7 @@ test('a catalogued explainer’s page, describe and gallery card give the same g
   assert.deepEqual(grounding, { grade: 'recorded', subject: 'a Postgres 18.6 server, measured on 2026-10-25' });
   const d = await describeExplainer(project.Scene, { snapshots: project.store, drawings: false });
   assert.deepEqual(d.grounding, { ...grounding, label: 'Recorded: a Postgres 18.6 server, measured on 2026-10-25',
-    sentence: 'Checked against a Postgres 18.6 server, measured on 2026-10-25: run once and recorded, and the model’s tests compare with that recording.' });
+    sentence: 'Checked against a recording made once, which the model’s tests compare with: a Postgres 18.6 server, measured on 2026-10-25.' });
   assert.match(galleryTile({ id: 'pg-page', title: 'Pages', lang: 'en', grounding: { grade: 'recorded', label: d.grounding!.label } }),
     /<\/span><small class="grounding" data-grade="recorded">Recorded: a Postgres 18\.6 server, measured on 2026-10-25<\/small><\/a>/);
   const folder = await mkdtemp(join(tmpdir(), 'rayner-grounding-'));

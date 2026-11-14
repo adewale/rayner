@@ -38,9 +38,9 @@ const WORDS: Record<string, Words> = {
     sentence: ({ grade, subject }) => {
       const what = subject ?? 'its source';
       switch (grade) {
-        case 'live': return `Checked against ${what}, run again each time the model’s tests run.`;
-        case 'recorded': return `Checked against ${what}: run once and recorded, and the model’s tests compare with that recording.`;
-        case 'read': return `Checked against ${what}, read and not run.`;
+        case 'live': return `Checked live, each time the model’s tests run, against ${what}.`;
+        case 'recorded': return `Checked against a recording made once, which the model’s tests compare with: ${what}.`;
+        case 'read': return `Checked by reading, not running: ${what}.`;
         case 'none': return 'Not checked against an outside system: only the model’s own tests check it.';
       }
     },
@@ -51,9 +51,9 @@ const WORDS: Record<string, Words> = {
     sentence: ({ grade, subject }) => {
       const what = subject ?? 'sa source';
       switch (grade) {
-        case 'live': return `Vérifié par ${what}, exécuté de nouveau à chaque passage des tests du modèle.`;
-        case 'recorded': return `Vérifié par ${what} : exécuté une fois et enregistré ; les tests du modèle comparent avec cet enregistrement.`;
-        case 'read': return `Vérifié par ${what}, lu et non exécuté.`;
+        case 'live': return `Vérifié en direct, à chaque passage des tests du modèle : ${what}.`;
+        case 'recorded': return `Vérifié par un enregistrement fait une fois, auquel les tests du modèle se comparent : ${what}.`;
+        case 'read': return `Vérifié par lecture, sans exécution : ${what}.`;
         case 'none': return 'Vérifié par aucun système extérieur : seuls les tests du modèle le vérifient.';
       }
     },
