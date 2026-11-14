@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Renewing Short-Lived Certificates</title>
+<style>
+:root{
+  --bg:#fbfaf7; --panel:#ffffff; --ink:#1d1f24; --muted:#5d636e; --line:#d9d6cf;
+  --cert:#3b6fb6; --cert-soft:#dbe6f5; --renew:#c46a12; --margin:#2e8b57; --margin-soft:#d6efe0;
+  --bad:#c0392b; --bad-soft:#f7dcd8; --warn:#a07400; --warn-soft:#f6ebc8; --check:#8a8f98;
+  --code:#f1efe9;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15171b; --panel:#1d2026; --ink:#e7e8ea; --muted:#a1a7b1; --line:#353a43;
+    --cert:#79a6e8; --cert-soft:#25344a; --renew:#f0a050; --margin:#5cc48a; --margin-soft:#1f3a2b;
+    --bad:#ef7a6c; --bad-soft:#47241f; --warn:#e2c154; --warn-soft:#3d3419; --check:#6d737d;
+    --code:#262a31;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15171b; --panel:#1d2026; --ink:#e7e8ea; --muted:#a1a7b1; --line:#353a43;
+  --cert:#79a6e8; --cert-soft:#25344a; --renew:#f0a050; --margin:#5cc48a; --margin-soft:#1f3a2b;
+  --bad:#ef7a6c; --bad-soft:#47241f; --warn:#e2c154; --warn-soft:#3d3419; --check:#6d737d;
+  --code:#262a31;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:820px;margin:0 auto;padding:40px 16px 80px}
+h1{font-size:2rem;line-height:1.2;margin:0 0 .4em}
+h2{font-size:1.3rem;margin:2.4em 0 .5em;padding-top:.4em;border-top:1px solid var(--line)}
+h3{font-size:1.05rem;margin:1.6em 0 .3em}
+p,li{max-width:70ch}
+.lede{font-size:1.1rem;color:var(--muted)}
+code{font:0.88em ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--code);padding:.1em .35em;border-radius:4px}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto;font:0.85rem/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+pre code{background:none;padding:0}
+.answer{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--margin);border-radius:8px;padding:14px 18px;margin:24px 0}
+.answer ol{margin:.3em 0 0;padding-left:1.3em}
+.answer li{margin:.3em 0}
+figure{margin:24px 0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+figcaption{font-size:.9rem;color:var(--muted);margin-top:8px}
+svg{display:block;width:100%;height:auto}
+svg text{fill:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.92rem;font-variant-numeric:tabular-nums}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{font-weight:600;color:var(--muted);font-size:.82rem;text-transform:uppercase;letter-spacing:.03em}
+td.bad{color:var(--bad);font-weight:600}
+td.warn{color:var(--warn)}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:14px 20px;margin-bottom:12px}
+@media (max-width:640px){.controls{grid-template-columns:1fr}}
+.ctl label{display:block;font-size:.85rem;font-weight:600;margin-bottom:4px}
+.ctl .val{font-variant-numeric:tabular-nums;color:var(--cert);font-weight:700}
+input[type=range]{width:100%}
+select{font:inherit;font-size:.95rem;padding:4px 6px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;width:100%}
+.presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.presets button,.seg button{font:inherit;font-size:.8rem;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.presets button[aria-pressed=true],.seg button[aria-pressed=true]{background:var(--cert);border-color:var(--cert);color:var(--panel)}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px}
+@media (max-width:640px){.metrics{grid-template-columns:repeat(2,1fr)}}
+.metric{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg)}
+.metric .k{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.metric .v{font-size:1.15rem;font-weight:700;font-variant-numeric:tabular-nums}
+.verdict{margin-top:12px;border-radius:8px;padding:10px 14px;font-size:.95rem}
+.verdict.ok{background:var(--margin-soft);border-left:4px solid var(--margin)}
+.verdict.warn{background:var(--warn-soft);border-left:4px solid var(--warn)}
+.verdict.bad{background:var(--bad-soft);border-left:4px solid var(--bad)}
+.note{font-size:.9rem;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.82rem;color:var(--muted);margin-top:6px}
+.legend span::before{content:"";display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px;background:var(--c)}
+</style>
+</head>
+<body>
+<main>
+
+<h1>When should a short-lived certificate renew?</h1>
+<p class="lede">Your renewal setting was written when certificates lasted ninety days. Lifetimes are now being cut in steps, toward 47 days for every public TLS certificate and as little as six days for some. Here is what a setting like "renew 30 days before expiry" actually does as that happens, and what to use instead.</p>
+
+<div class="answer">
+<strong>Short answer</strong>
+<ol>
+  <li><strong>Set the renewal point as a share of the lifetime, not a number of days.</strong> Renew when about <strong>one third of the lifetime is left</strong>. For a 90-day certificate that is the familiar "30 days before expiry". For a 47-day certificate it is about 16 days, and for a 6-day certificate it is about 2 days. For certificates shorter than about ten days, renew at <strong>half</strong> the lifetime.</li>
+  <li><strong>If your client and CA support ARI</strong> (ACME Renewal Information, RFC 9773), let the CA's suggested window decide, and keep the one-third rule as the fallback.</li>
+  <li><strong>Run the check often</strong>: at least twice a day, and every hour or few hours for very short certificates. The time between the renewal point and expiry is all the time you have to notice and fix a failure, and it shrinks along with the lifetime.</li>
+  <li><strong>Alert on the certificate actually being served</strong>, not on whether the job ran. Something like "less than one sixth of the lifetime left" means renewal should have happened and didn't.</li>
+</ol>
+</div>
+
+<h2>Three numbers describe every renewal policy</h2>
+<p>Each certificate has a <strong>lifetime</strong>, from <code>notBefore</code> to <code>notAfter</code>. Your renewal job picks a <strong>renewal point</strong> somewhere inside that span. Everything after the renewal point is your <strong>margin</strong>: the time you have to retry, notice an error, fix DNS or a firewall, and try again before the old certificate expires.</p>
+
+<figure>
+<svg viewBox="0 0 760 170" role="img" aria-label="A certificate lifetime bar from issue to expiry. The renewal point sits two thirds along. The final third is labelled margin: time to retry and fix failures.">
+  <rect x="40" y="60" width="680" height="34" rx="5" fill="var(--cert-soft)" stroke="var(--cert)"/>
+  <rect x="493" y="60" width="227" height="34" rx="0" fill="var(--margin-soft)" stroke="var(--margin)"/>
+  <line x1="40" y1="44" x2="40" y2="112" stroke="var(--ink)" stroke-width="2"/>
+  <line x1="720" y1="44" x2="720" y2="112" stroke="var(--ink)" stroke-width="2"/>
+  <line x1="493" y1="40" x2="493" y2="112" stroke="var(--renew)" stroke-width="3"/>
+  <text x="40" y="34" font-size="13" font-weight="600">Issued (notBefore)</text>
+  <text x="720" y="34" font-size="13" font-weight="600" text-anchor="end">Expires (notAfter)</text>
+  <text x="493" y="30" font-size="13" font-weight="600" text-anchor="middle" style="fill:var(--renew)">Renewal point</text>
+  <text x="266" y="82" font-size="13" text-anchor="middle">Certificate in use, no action needed</text>
+  <text x="606" y="82" font-size="13" text-anchor="middle">Margin</text>
+  <line x1="40" y1="130" x2="720" y2="130" stroke="var(--muted)"/>
+  <text x="380" y="150" font-size="12" text-anchor="middle" style="fill:var(--muted)">Lifetime</text>
+  <line x1="493" y1="122" x2="720" y2="122" stroke="var(--margin)" stroke-width="2"/>
+  <text x="606" y="117" font-size="12" text-anchor="middle" style="fill:var(--margin)">time to retry and fix failures</text>
+</svg>
+<figcaption>The renewal point divides the lifetime into time you don't need to act and time you have left to recover. The question is where to put that point.</figcaption>
+</figure>
+
+<p>The setting you have, such as Certbot's <code>renew_before_expiry = 30 days</code>, fixes the <em>margin</em> as a number of days. That worked because lifetimes stayed at 90 days for years, so 30 days of margin always meant "the last third". When the lifetime changes and the margin doesn't, the renewal point moves to a different place.</p>
+
+<h2>What a fixed "30 days before expiry" does as lifetimes shrink</h2>
+
+<figure>
+<svg id="cmp" viewBox="0 0 760 330" role="img" aria-label="For lifetimes of 90, 64, 47, 30 and 6 days, compare where a fixed 30-day rule renews against where a one-third rule renews."></svg>
+<div class="legend">
+  <span style="--c:var(--cert-soft)">Certificate in use</span>
+  <span style="--c:var(--margin-soft)">Margin</span>
+  <span style="--c:var(--bad-soft)">Born inside the renewal window</span>
+</div>
+<figcaption>Top bar of each pair: fixed 30 days before expiry. Bottom bar: renew when one third of the lifetime is left. Bars are drawn to the same day scale.</figcaption>
+</figure>
+
+<p>Two things happen, in order:</p>
+<ol>
+  <li><strong>Above 30 days, it works but wastes certificates.</strong> On a 47-day certificate, "30 days before expiry" means renewing on day 17, barely a third of the way through. Nothing breaks, but you issue about twice as many certificates as you need, and each extra issuance is another chance for a validation failure or rate limit.</li>
+  <li><strong>At 30 days or less, it fails abruptly.</strong> A certificate with a lifetime of 30 days or less already has 30 days or less left when it is issued. It is <em>born inside the renewal window</em>. Each time the job runs, it finds the certificate "due" and renews it again. With a twice-daily timer that is about 730 issuances a year for one name. A CA will rate-limit that (Let's Encrypt, for example, limits how many certificates can be issued for the same set of names per week). Then renewals start failing, and once they keep failing the certificate expires.</li>
+</ol>
+<p>The failure doesn't build up gradually. The setting looks fine until the lifetime drops to or below the fixed number, and then it flips straight to renewing on every run.</p>
+
+<h3>The opposite mistake: renewing on a calendar</h3>
+<p>Some setups don't check expiry at all. They run a forced renewal "every 60 days" from cron or a CI schedule. On 90-day certificates that left 30 days spare. On 47-day certificates the certificate expires on day 47 and the next renewal doesn't come until day 60, so the site is broken for 13 days of every cycle. If that's your setup, replace it with a frequent check that renews only when the certificate is due.</p>
+
+<h2>Try your own setting</h2>
+<figure>
+<div class="controls">
+  <div class="ctl">
+    <label for="life">Certificate lifetime: <span class="val" id="lifeVal"></span></label>
+    <input type="range" id="life" min="1" max="398" value="47">
+    <div class="presets" id="lifePresets"></div>
+  </div>
+  <div class="ctl">
+    <label>Renewal policy</label>
+    <div class="seg" id="policySeg">
+      <button data-p="fixed" aria-pressed="true">Days before expiry</button>
+      <button data-p="frac" aria-pressed="false">Share of lifetime left</button>
+      <button data-p="cron" aria-pressed="false">Every N days (calendar)</button>
+    </div>
+  </div>
+  <div class="ctl" id="paramBox">
+    <label for="param"><span id="paramLabel"></span> <span class="val" id="paramVal"></span></label>
+    <input type="range" id="param" min="1" max="120" value="30">
+  </div>
+  <div class="ctl">
+    <label for="chk">How often the renewal job runs</label>
+    <select id="chk">
+      <option value="1">Every hour</option>
+      <option value="6">Every 6 hours</option>
+      <option value="12" selected>Twice a day (Certbot's default timer)</option>
+      <option value="24">Once a day</option>
+      <option value="168">Once a week</option>
+    </select>
+  </div>
+</div>
+<svg id="sim" viewBox="0 0 760 190" role="img" aria-label="Timeline of one certificate showing where the chosen policy renews it."></svg>
+<div class="metrics">
+  <div class="metric"><div class="k">Renews on</div><div class="v" id="mDay"></div></div>
+  <div class="metric"><div class="k">Margin</div><div class="v" id="mMargin"></div></div>
+  <div class="metric"><div class="k">Tries within margin</div><div class="v" id="mTries"></div></div>
+  <div class="metric"><div class="k">Issuances / year</div><div class="v" id="mYear"></div></div>
+</div>
+<div class="verdict" id="verdict"></div>
+<figcaption>Small grey ticks are runs of the renewal job. "Tries within margin" counts how many times the job gets to attempt renewal before the old certificate expires, assuming every attempt fails until you fix it.</figcaption>
+</figure>
+
+<h2>Why one third, and why half for very short certificates</h2>
+<p>There are two costs you're trading against each other:</p>
+<ul>
+  <li><strong>Renew too early</strong> and you issue more certificates than necessary. That adds load on the CA, uses up rate limits, and adds more chances to fail validation.</li>
+  <li><strong>Renew too late</strong> and the margin is too short to recover from a bad day. CA outages, DNS changes, an expired API token for DNS-01 or a changed firewall rule can each take hours or days to notice and fix.</li>
+</ul>
+<p>Renewing with one third left means each certificate is replaced after it has served two thirds of its life. The margin is still twice as long as you will usually need. That ratio is what you were already using on 90-day certificates. It's also the default in several clients: Caddy renews with a third of the lifetime left, cert-manager renews at two thirds of the duration unless told otherwise, and recent Certbot releases use a proportional rule when <code>renew_before_expiry</code> isn't set.</p>
+<p>For a six-day certificate, one third left is only two days. That's a weekend, which isn't enough to recover from much. Renewing at half gives three days. Since these certificates are short by design, issuing them a bit more often costs little, and the CAs offering them recommend renewing around the halfway point.</p>
+
+<h3>The margin is what actually shrinks</h3>
+<p>With a proportional rule the renewal point stays put relative to the lifetime, but the margin in days still shrinks:</p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>Lifetime</th><th>Fixed 30 d: renews day</th><th>Fixed 30 d: margin</th><th>⅓ left: renews day</th><th>⅓ left: margin</th><th>Tries in margin at 12 h</th></tr></thead>
+<tbody id="tbl"></tbody>
+</table>
+</div>
+<p class="note">The 398, 200, 100 and 47-day rows are the maximum lifetimes for public TLS certificates set by the CA/Browser Forum, falling in steps from 2026 to 2029. 90, 64 and 45 days are typical ACME defaults during that transition. 6 days is the short-lived option some CAs already offer. Check your own CA's announced schedule for exact dates.</p>
+<p>This is the part a 90-day setting never had to deal with. A failure that took a week to notice was fine with 30 days of margin. With 16 days it's tight, and with 2 days the certificate has expired. As lifetimes shrink, the parts you need to change are how often the job runs and how quickly someone is alerted, not only the threshold.</p>
+
+<h2>ARI: letting the CA choose the moment</h2>
+<p>ACME Renewal Information (RFC 9773) lets your client ask the CA, for each certificate, "when should I renew this?" The CA replies with a time window. A good client picks a random moment inside it.</p>
+<figure>
+<svg viewBox="0 0 760 150" role="img" aria-label="A certificate lifetime with a CA-suggested renewal window around two thirds of the way. A second, earlier window shows the CA moving the window forward during an incident.">
+  <rect x="40" y="40" width="680" height="28" rx="5" fill="var(--cert-soft)" stroke="var(--cert)"/>
+  <rect x="460" y="40" width="80" height="28" fill="var(--margin-soft)" stroke="var(--margin)"/>
+  <text x="500" y="32" font-size="12" text-anchor="middle" style="fill:var(--margin)">Suggested window</text>
+  <line x1="487" y1="36" x2="487" y2="72" stroke="var(--renew)" stroke-width="3"/>
+  <text x="487" y="88" font-size="11" text-anchor="middle" style="fill:var(--renew)">client picks a random time</text>
+  <rect x="40" y="104" width="680" height="28" rx="5" fill="var(--cert-soft)" stroke="var(--cert)"/>
+  <rect x="150" y="104" width="40" height="28" fill="var(--bad-soft)" stroke="var(--bad)"/>
+  <text x="200" y="123" font-size="12" style="fill:var(--bad)">window moved earlier: CA needs this certificate replaced now</text>
+  <text x="40" y="22" font-size="12" style="fill:var(--muted)">Normal</text>
+  <text x="40" y="100" font-size="12" style="fill:var(--muted)">During a revocation event</text>
+</svg>
+<figcaption>Normally the window sits around the two-thirds point. If the CA must revoke certificates, it can move the window earlier so clients renew before the revocation takes effect.</figcaption>
+</figure>
+<p>ARI fixes things a local threshold can't. It spreads renewals out so they don't all hit the CA at once. It also lets the CA ask for early replacement after a mis-issuance, and some CAs exempt ARI-guided renewals from their rate limits. For ARI to help, your client still needs to check often, because a window that moves earlier only matters if the job runs before the old date. Keep a proportional fallback for when the CA doesn't answer.</p>
+
+<h2>What to change in practice</h2>
+<h3>Certbot</h3>
+<p>Look in <code>/etc/letsencrypt/renewal/&lt;name&gt;.conf</code> (and <code>cli.ini</code>) for a fixed setting:</p>
+<pre><code># written for 90-day certificates: means "the last third" only at 90 days
+renew_before_expiry = 30 days</code></pre>
+<p>On a current Certbot release, the simplest fix is to <strong>delete that line</strong> so the built-in proportional default (and ARI, where supported) applies. Run <code>certbot --version</code> and read the release notes for your version to confirm what its default is. If you must keep an explicit value, choose one smaller than the shortest lifetime you'll get, and revisit it each time the lifetime drops. Then confirm the timer runs at least twice a day (<code>systemctl list-timers | grep certbot</code>, or check your cron entry), and test with <code>certbot renew --dry-run</code>.</p>
+<h3>Other clients</h3>
+<ul>
+  <li><strong>cert-manager</strong>: prefer <code>renewBeforePercentage</code> over a fixed <code>renewBefore</code>, or leave both unset to get the default of renewing at two thirds of the duration.</li>
+  <li><strong>acme.sh, lego, custom scripts</strong>: find the "days" threshold (often 30) or a cron job that forces renewal on a calendar. Replace it with a frequent job that compares remaining time to a share of the certificate's own lifetime, calculated from <code>notBefore</code> and <code>notAfter</code>, or that uses ARI if supported.</li>
+  <li><strong>Hard-coded "every 60 days" schedules</strong> in CI or cron: remove them. They will break as soon as the lifetime drops below the interval.</li>
+</ul>
+<h3>Monitoring</h3>
+<p>Probe the certificate your endpoints actually serve. A renewed certificate on disk that the web server never reloaded doesn't help. Alert when the remaining time falls below about half the renewal margin (for example, one sixth of the lifetime). By then the job has had many tries and failed, so a person needs to act while there's still time.</p>
+
+<h3>The rule, in one line</h3>
+<pre><code>renew when  remaining &lt;= lifetime / 3      (lifetime / 2 if lifetime &lt; ~10 days)
+            or ARI window has opened
+check       every few hours, never less than twice a day
+alert when  remaining &lt;= lifetime / 6      (on the certificate actually served)</code></pre>
+
+</main>
+<script>
+(function(){
+const NS="http://www.w3.org/2000/svg";
+function el(tag,attrs,text){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;return e;}
+function fmtDays(d){
+  if(d<1){const h=Math.round(d*24);return h+" h";}
+  if(d<10)return (Math.round(d*10)/10)+" d";
+  return Math.round(d)+" d";
+}
+
+/* ---------- comparison diagram ---------- */
+(function(){
+  const svg=document.getElementById("cmp");
+  const lifes=[90,64,47,30,6], L=30;
+  const x0=110,x1=740,maxD=90,sc=(x1-x0)/maxD;
+  let y=14;
+  svg.appendChild(el("text",{x:x0,y:y+4,"font-size":11,style:"fill:var(--muted)"},"day 0"));
+  svg.appendChild(el("text",{x:x1,y:y+4,"font-size":11,"text-anchor":"end",style:"fill:var(--muted)"},"day 90"));
+  y=28;
+  lifes.forEach(life=>{
+    const w=life*sc;
+    svg.appendChild(el("text",{x:0,y:y+22,"font-size":13,"font-weight":600},life+"-day"));
+    // fixed row
+    const rows=[{name:"fixed",margin:Math.min(L,life),born:L>=life},{name:"third",margin:life/3,born:false}];
+    rows.forEach((r,i)=>{
+      const yy=y+i*20, h=15;
+      if(r.born){
+        svg.appendChild(el("rect",{x:x0,y:yy,width:w,height:h,rx:3,fill:"var(--bad-soft)",stroke:"var(--bad)"}));
+        svg.appendChild(el("text",{x:x0+w+8,y:yy+12,"font-size":11,style:"fill:var(--bad)"},"fixed 30 d: due at issuance, renews on every run"));
+      } else {
+        const rp=life-r.margin;
+        svg.appendChild(el("rect",{x:x0,y:yy,width:w,height:h,rx:3,fill:"var(--cert-soft)",stroke:"var(--cert)"}));
+        svg.appendChild(el("rect",{x:x0+rp*sc,y:yy,width:r.margin*sc,height:h,fill:"var(--margin-soft)",stroke:"var(--margin)"}));
+        svg.appendChild(el("line",{x1:x0+rp*sc,y1:yy-2,x2:x0+rp*sc,y2:yy+h+2,stroke:"var(--renew)","stroke-width":2.5}));
+        const lab=(i===0?"fixed 30 d":"⅓ left")+": day "+fmtDays(rp).replace(" d","");
+        const tx=x0+w+8;
+        if(tx<x1-90) svg.appendChild(el("text",{x:tx,y:yy+12,"font-size":11,style:"fill:var(--muted)"},lab));
+        else svg.appendChild(el("text",{x:x0+rp*sc-6,y:yy+12,"font-size":11,"text-anchor":"end"},lab));
+      }
+    });
+    y+=60;
+  });
+})();
+
+/* ---------- table ---------- */
+(function(){
+  const tb=document.getElementById("tbl");
+  [398,200,100,90,64,47,45,6].forEach(life=>{
+    const tr=document.createElement("tr");
+    const born=30>=life;
+    const third=life/3;
+    const tries=Math.floor(third*24/12);
+    const cells=[
+      [life+" days",""],
+      [born?"every run":"day "+(life-30), born?"bad":(life-30)/life<0.5?"warn":""],
+      [born?"—":"30 d", born?"bad":""],
+      ["day "+fmtDays(life-third).replace(" d",""),""],
+      [fmtDays(third), third<5?"warn":""],
+      [String(tries), tries<10?"warn":""]
+    ];
+    cells.forEach(([t,c])=>{const td=document.createElement("td");td.textContent=t;if(c)td.className=c;tr.appendChild(td);});
+    tb.appendChild(tr);
+  });
+})();
+
+/* ---------- simulator ---------- */
+const life=document.getElementById("life"), lifeVal=document.getElementById("lifeVal");
+const param=document.getElementById("param"), paramLabel=document.getElementById("paramLabel"), paramVal=document.getElementById("paramVal");
+const chk=document.getElementById("chk"), sim=document.getElementById("sim");
+const presetsBox=document.getElementById("lifePresets");
+let policy="fixed";
+const saved={fixed:30,frac:33,cron:60};
+const presets=[398,200,100,90,64,47,6];
+presets.forEach(p=>{const b=document.createElement("button");b.textContent=p+" d";b.dataset.v=p;b.onclick=()=>{life.value=p;update();};presetsBox.appendChild(b);});
+document.querySelectorAll("#policySeg button").forEach(b=>{
+  b.onclick=()=>{
+    saved[policy]=+param.value;
+    policy=b.dataset.p;
+    document.querySelectorAll("#policySeg button").forEach(x=>x.setAttribute("aria-pressed",x===b));
+    configParam();update();
+  };
+});
+function configParam(){
+  if(policy==="fixed"){param.min=1;param.max=120;paramLabel.textContent="Renew when this many days are left:";}
+  else if(policy==="frac"){param.min=10;param.max=60;paramLabel.textContent="Renew when this share of the lifetime is left:";}
+  else {param.min=1;param.max=120;paramLabel.textContent="Force renewal every:";}
+  param.value=saved[policy];
+}
+life.oninput=update;param.oninput=update;chk.onchange=update;
+
+function update(){
+  const T=+life.value, ch=+chk.value/24, p=+param.value;
+  lifeVal.textContent=T+" days";
+  presetsBox.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.v===T));
+  paramVal.textContent= policy==="frac" ? p+"%" : p+" days";
+
+  let renewAt, margin, mode="ok", perYear, gap=0;
+  if(policy==="fixed"){
+    if(p>=T){mode="churn";renewAt=0;margin=T;}
+    else{renewAt=T-p;margin=p;}
+  } else if(policy==="frac"){
+    margin=T*p/100;renewAt=T-margin;
+  } else {
+    renewAt=p;
+    if(p>T){mode="gap";gap=p-T;margin=0;}
+    else{margin=T-p;}
+  }
+  // the job only notices at its next run: renewal effectively happens up to ch later
+  let effRenew=renewAt;
+  if(policy!=="cron" && mode!=="churn"){effRenew=Math.ceil(renewAt/ch-1e-9)*ch;margin=Math.max(0,T-effRenew);}
+  if(mode==="churn"){effRenew=ch;perYear=365/ch;}
+  else if(mode==="gap"){perYear=365/p;}
+  else perYear=365/Math.max(effRenew,ch);
+
+  const tries= mode==="gap"?0:Math.max(0,Math.floor(margin/ch));
+
+  /* draw */
+  while(sim.firstChild)sim.removeChild(sim.firstChild);
+  const span=Math.max(T,mode==="gap"?p:T)*1.06;
+  const X0=30,X1=740,sc=(X1-X0)/span, y=70, h=36;
+  // axis
+  sim.appendChild(el("line",{x1:X0,y1:150,x2:X1,y2:150,stroke:"var(--line)"}));
+  const step=niceStep(span);
+  for(let d=0;d<=span;d+=step){
+    sim.appendChild(el("line",{x1:X0+d*sc,y1:150,x2:X0+d*sc,y2:155,stroke:"var(--muted)"}));
+    sim.appendChild(el("text",{x:X0+d*sc,y:170,"font-size":11,"text-anchor":"middle",style:"fill:var(--muted)"},"day "+d));
+  }
+  // check ticks
+  const nChecks=span/ch;
+  if(nChecks<=400){
+    for(let t=ch;t<=span;t+=ch) sim.appendChild(el("line",{x1:X0+t*sc,y1:136,x2:X0+t*sc,y2:144,stroke:"var(--check)","stroke-width":1}));
+  } else {
+    sim.appendChild(el("rect",{x:X0,y:136,width:span*sc,height:8,fill:"var(--check)",opacity:.35}));
+  }
+  sim.appendChild(el("text",{x:X1,y:130,"font-size":10,"text-anchor":"end",style:"fill:var(--muted)"},"renewal job runs"));
+  // cert bar
+  const fill = mode==="churn"?"var(--bad-soft)":"var(--cert-soft)", stroke= mode==="churn"?"var(--bad)":"var(--cert)";
+  sim.appendChild(el("rect",{x:X0,y:y,width:T*sc,height:h,rx:4,fill:fill,stroke:stroke}));
+  if(mode==="gap"){
+    sim.appendChild(el("rect",{x:X0+T*sc,y:y,width:gap*sc,height:h,fill:"var(--bad)",opacity:.85}));
+    sim.appendChild(el("text",{x:X0+(T+gap/2)*sc,y:y+h/2+4,"font-size":12,"text-anchor":"middle",style:"fill:var(--panel)","font-weight":700},gap*sc>70?"EXPIRED":"!"));
+  } else if(mode!=="churn"){
+    sim.appendChild(el("rect",{x:X0+effRenew*sc,y:y,width:Math.max(0,margin*sc),height:h,fill:"var(--margin-soft)",stroke:"var(--margin)"}));
+  }
+  // labels
+  sim.appendChild(el("text",{x:X0,y:y-10,"font-size":12,"font-weight":600},"Issued"));
+  sim.appendChild(el("line",{x1:X0+T*sc,y1:y-4,x2:X0+T*sc,y2:y+h+4,stroke:"var(--ink)","stroke-width":2}));
+  const expAnchor = T*sc>X1-X0-60 ? "end":"middle";
+  sim.appendChild(el("text",{x:X0+T*sc,y:y-10,"font-size":12,"font-weight":600,"text-anchor":expAnchor},"Expires"));
+  const rx=X0+(mode==="churn"?ch:effRenew)*sc;
+  sim.appendChild(el("line",{x1:rx,y1:y-22,x2:rx,y2:y+h+4,stroke:"var(--renew)","stroke-width":3}));
+  let rlab = mode==="churn" ? "renews on first run, and every run after" : (mode==="gap"?"forced renewal (too late)":"renews");
+  let anchor = rx<X0+90?"start":(rx>X1-120?"end":"middle");
+  sim.appendChild(el("text",{x:rx,y:y-28,"font-size":12,"text-anchor":anchor,"font-weight":600,style:"fill:var(--renew)"},rlab));
+  if(mode==="churn"){
+    sim.appendChild(el("text",{x:X0+T*sc/2,y:y+h/2+4,"font-size":12,"text-anchor":"middle",style:"fill:var(--bad)"},T*sc>260?"born inside the renewal window":""));
+  } else if(mode!=="gap" && margin*sc>60){
+    sim.appendChild(el("text",{x:X0+(effRenew+margin/2)*sc,y:y+h/2+4,"font-size":12,"text-anchor":"middle",style:"fill:var(--margin)"},"margin"));
+  }
+
+  /* metrics */
+  const pct=Math.round((mode==="churn"?ch:effRenew)/T*100);
+  document.getElementById("mDay").textContent = mode==="churn" ? "every run" : "day "+fmtDays(effRenew).replace(" d","")+" ("+pct+"%)";
+  document.getElementById("mMargin").textContent = mode==="gap" ? "none" : mode==="churn" ? "n/a" : fmtDays(margin);
+  document.getElementById("mTries").textContent = mode==="churn" ? "n/a" : String(tries);
+  document.getElementById("mYear").textContent = Math.round(perYear).toLocaleString();
+
+  /* verdict */
+  const v=document.getElementById("verdict");
+  let cls="ok", msg="";
+  if(mode==="gap"){
+    cls="bad";msg="<strong>Outage every cycle.</strong> The certificate expires on day "+T+" but the next forced renewal isn't until day "+p+", so the site serves an expired certificate for "+fmtDays(gap)+" each cycle. Replace calendar renewal with a frequent check of remaining time.";
+  } else if(mode==="churn"){
+    cls="bad";msg="<strong>Renewal storm.</strong> A "+T+"-day certificate already has less than "+p+" days left when it is issued, so every run finds it due and issues a new one: about "+Math.round(perYear).toLocaleString()+" a year for this one name. The CA's rate limits will start rejecting these, renewals will fail, and the certificate will then expire. Switch to a share of the lifetime.";
+  } else if(margin<1 || tries<2){
+    cls="bad";msg="<strong>Almost no margin.</strong> The job gets "+tries+" chance"+(tries===1?"":"s")+" to renew before expiry. One failed run, or the job simply running late, and the certificate expires. Renew earlier, run the job more often, or both.";
+  } else if(margin<2 || tries<6){
+    cls="warn";msg="<strong>Thin margin.</strong> "+fmtDays(margin)+" and "+tries+" tries to recover from a failure. Run the job more often, and make sure an alert reaches a person within hours.";
+  } else if(effRenew/T<0.5){
+    cls="warn";msg="<strong>Safe but wasteful.</strong> You replace the certificate after only "+pct+"% of its life, issuing about "+Math.round(perYear)+" a year. Nothing breaks, but each extra issuance is another chance to fail validation or hit a limit. Renewing with about a third left would halve that.";
+  } else if(effRenew/T>0.85){
+    cls="warn";msg="<strong>Late.</strong> Renewal waits until "+pct+"% of the lifetime has passed. You have "+fmtDays(margin)+" of margin; fine if alerts are fast, risky over a weekend.";
+  } else {
+    msg="<strong>Healthy.</strong> Renews at "+pct+"% of the lifetime, leaving "+fmtDays(margin)+" and "+tries+" tries to recover from a failure.";
+    if(margin<5) msg+=" Because the margin is short in absolute terms, make sure failures page someone, not just log.";
+  }
+  v.className="verdict "+cls; v.innerHTML=msg;
+}
+function niceStep(span){
+  const raw=span/8, pow=Math.pow(10,Math.floor(Math.log10(raw)));
+  for(const m of [1,2,5,10]) if(m*pow>=raw) return m*pow;
+  return 10*pow;
+}
+configParam();update();
+})();
+</script>
+</body>
+</html>

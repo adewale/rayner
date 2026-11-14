@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>isdigit Isn't int</title>
+<style>
+:root{
+  --bg:#fbfaf7; --fg:#1d1d1f; --muted:#5f6368; --card:#ffffff; --line:#d9d6cf;
+  --ok:#1a7f4b; --ok-bg:#e3f4ea; --bad:#b3261e; --bad-bg:#fbe7e5;
+  --accent:#3b5bdb; --accent-bg:#e8edff; --warn:#9a6700; --warn-bg:#fff4d6;
+  --ring1:#efe9ff; --ring2:#e2ecff; --ring3:#dff3e8;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16171a; --fg:#ececec; --muted:#a0a4ab; --card:#1f2125; --line:#3a3d43;
+    --ok:#5fd393; --ok-bg:#183527; --bad:#ff8a80; --bad-bg:#3d1d1b;
+    --accent:#8ea6ff; --accent-bg:#232b4a; --warn:#f2c14e; --warn-bg:#3a3018;
+    --ring1:#2a2540; --ring2:#1f2b45; --ring3:#1b3529;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16171a; --fg:#ececec; --muted:#a0a4ab; --card:#1f2125; --line:#3a3d43;
+  --ok:#5fd393; --ok-bg:#183527; --bad:#ff8a80; --bad-bg:#3d1d1b;
+  --accent:#8ea6ff; --accent-bg:#232b4a; --warn:#f2c14e; --warn-bg:#3a3018;
+  --ring1:#2a2540; --ring2:#1f2b45; --ring3:#1b3529;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:860px;margin:0 auto;padding:32px 16px 80px}
+h1{font-size:2rem;line-height:1.2;margin:0 0 8px}
+h2{font-size:1.35rem;margin:48px 0 12px}
+h3{font-size:1.05rem;margin:24px 0 8px}
+p{margin:0 0 14px}
+.lede{font-size:1.15rem;color:var(--muted)}
+code,kbd,.mono{font-family:var(--mono);font-size:.92em}
+code{background:var(--accent-bg);padding:1px 5px;border-radius:4px}
+pre{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:.9rem;line-height:1.5;margin:0 0 16px}
+pre code{background:none;padding:0}
+.answer{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--bad);border-radius:8px;padding:16px 18px;margin:20px 0}
+.answer strong{color:var(--bad)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0}
+.c-ok{color:var(--ok)} .c-bad{color:var(--bad)} .c-muted{color:var(--muted)}
+figure{margin:20px 0}
+figcaption{color:var(--muted);font-size:.9rem;margin-top:8px}
+svg{max-width:100%;height:auto;display:block}
+svg text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;fill:var(--fg)}
+svg .mono{font-family:var(--mono)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 14px}
+.chip{font-family:var(--mono);background:var(--bg);border:1px solid var(--line);color:var(--fg);border-radius:999px;padding:4px 11px;cursor:pointer;font-size:.92rem}
+.chip:hover,.chip:focus-visible{border-color:var(--accent);outline:none;background:var(--accent-bg)}
+input[type=text]{width:100%;font:1.3rem var(--mono);padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px}
+.results{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-top:14px}
+.res{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-family:var(--mono);font-size:.92rem;background:var(--bg)}
+.res .lbl{color:var(--muted);display:block;font-size:.8rem}
+.res.t{background:var(--ok-bg);border-color:transparent}
+.res.f{background:var(--bad-bg);border-color:transparent}
+.verdict{margin-top:12px;padding:10px 12px;border-radius:8px;font-weight:600}
+.verdict.danger{background:var(--bad-bg);color:var(--bad)}
+.verdict.miss{background:var(--warn-bg);color:var(--warn)}
+.verdict.fine{background:var(--ok-bg);color:var(--ok)}
+.tbl-wrap{overflow-x:auto;margin-top:12px}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;white-space:nowrap}
+th{color:var(--muted);font-weight:600}
+td.big{font-size:1.3rem}
+.y{color:var(--ok);font-weight:600} .n{color:var(--bad)}
+.note{font-size:.88rem;color:var(--muted)}
+ol li,ul li{margin-bottom:6px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.tab{border:1px solid var(--line);background:var(--bg);color:var(--fg);padding:6px 12px;border-radius:6px;cursor:pointer;font:inherit;font-size:.92rem}
+.tab[aria-selected=true]{background:var(--accent);color:#fff;border-color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+
+<h1>Does <code>isdigit()</code> guarantee <code>int()</code> can parse it?</h1>
+<p class="lede">You've probably written this, or seen it in a code review:</p>
+<pre><code>if s.isdigit():
+    n = int(s)      # safe… right?</code></pre>
+
+<div class="answer">
+<strong>No.</strong> <code>str.isdigit()</code> says yes to some characters that <code>int()</code> refuses, such as <code>"²"</code> (superscript two) and <code>"①"</code> (circled one). So the guarded line can still raise <code>ValueError</code>. It also goes wrong the other way: it says no to strings <code>int()</code> parses happily, like <code>"-5"</code> and <code>" 42 "</code>.
+</div>
+
+<pre><code>&gt;&gt;&gt; "²".isdigit()
+True
+&gt;&gt;&gt; int("²")
+<span class="c-bad">ValueError: invalid literal for int() with base 10: '²'</span></code></pre>
+
+<h2>Why: "digit" means more than 0–9</h2>
+<p>Python strings are Unicode, and Unicode has many characters that stand for digits. The Unicode standard sorts them into groups, and Python's three "is it a number?" methods each check a different group:</p>
+
+<ul>
+<li><code>isdecimal()</code>: characters you write ordinary numbers with, in base 10. This covers ASCII <code>0</code>–<code>9</code> and also the digits of other writing systems: Arabic-Indic <code>٣</code>, Devanagari <code>३</code>, full-width <code>３</code>, and so on.</li>
+<li><code>isdigit()</code>: all the decimal characters, <em>plus</em> characters that stand for a single digit but aren't meant for writing ordinary numbers: superscripts <code>²</code>, subscripts <code>₂</code>, circled <code>②</code>, and a few historical scripts whose digits don't work positionally.</li>
+<li><code>isnumeric()</code>: all of the above, plus anything with a numeric value at all: fractions <code>½</code>, Roman numerals <code>Ⅻ</code>, Chinese numerals <code>五</code>.</li>
+</ul>
+
+<p>They are nested sets, and <code>int()</code> uses the <em>smallest</em> one:</p>
+
+<figure>
+<svg viewBox="0 0 760 420" role="img" aria-labelledby="sets-t">
+  <title id="sets-t">Three nested sets: isnumeric contains isdigit, which contains isdecimal. int() accepts only isdecimal.</title>
+  <rect x="10" y="10" width="740" height="400" rx="22" fill="var(--ring1)" stroke="var(--line)"/>
+  <text x="34" y="44" font-weight="700" font-size="18">isnumeric()</text>
+  <text x="34" y="66" font-size="13" fill="var(--muted)" style="fill:var(--muted)">anything with a numeric value</text>
+  <text x="600" y="60" class="mono" font-size="26">½</text>
+  <text x="650" y="60" class="mono" font-size="26">Ⅻ</text>
+  <text x="700" y="60" class="mono" font-size="26">五</text>
+
+  <rect x="60" y="90" width="660" height="300" rx="18" fill="var(--ring2)" stroke="var(--line)"/>
+  <text x="84" y="122" font-weight="700" font-size="18">isdigit()</text>
+  <text x="84" y="144" font-size="13" style="fill:var(--muted)">adds superscripts, subscripts, circled digits…</text>
+  <text x="520" y="134" class="mono" font-size="26">²</text>
+  <text x="560" y="134" class="mono" font-size="26">₃</text>
+  <text x="600" y="134" class="mono" font-size="26">①</text>
+  <text x="645" y="134" class="mono" font-size="26">❼</text>
+
+  <rect x="110" y="170" width="560" height="200" rx="14" fill="var(--ring3)" stroke="var(--ok)" stroke-width="2.5"/>
+  <text x="134" y="202" font-weight="700" font-size="18">isdecimal()</text>
+  <text x="134" y="224" font-size="13" style="fill:var(--muted)">real base-10 digits, in any script</text>
+  <text x="134" y="280" class="mono" font-size="30">0 1 … 9</text>
+  <text x="330" y="280" class="mono" font-size="30">٣</text>
+  <text x="380" y="280" class="mono" font-size="30">३</text>
+  <text x="430" y="280" class="mono" font-size="30">３</text>
+  <text x="480" y="280" class="mono" font-size="30">𝟕</text>
+  <rect x="134" y="310" width="300" height="40" rx="8" fill="var(--ok)"/>
+  <text x="150" y="336" font-size="16" font-weight="700" style="fill:#fff">int() accepts only these</text>
+
+  <path d="M590 152 C 640 200, 650 250, 610 300" fill="none" stroke="var(--bad)" stroke-width="2" stroke-dasharray="5 4"/>
+  <text x="520" y="330" font-size="14" font-weight="600" style="fill:var(--bad)">the gap: isdigit says yes,</text>
+  <text x="520" y="350" font-size="14" font-weight="600" style="fill:var(--bad)">int() says ValueError</text>
+</svg>
+<figcaption>The danger zone is the ring between <code>isdigit()</code> and <code>isdecimal()</code>: characters like <code>²</code> and <code>①</code> pass the guard and then <code>int()</code> rejects them.</figcaption>
+</figure>
+
+<p>Why would <code>int()</code> refuse <code>²</code> when it plainly means 2? Because a superscript isn't a digit you write numbers with. What should <code>"1²"</code> parse to: 12, or 1 squared? The safe answer is to refuse, and Python refuses.</p>
+
+<h2>It's wrong in both directions</h2>
+<p>As a guard, <code>isdigit()</code> is too loose (it lets through things that crash) and too strict (it blocks things that would parse fine). <code>int()</code> strips surrounding whitespace and accepts a sign and underscores between digits; <code>isdigit()</code> accepts none of those.</p>
+
+<figure>
+<svg viewBox="0 0 760 400" role="img" aria-labelledby="mx-t">
+  <title id="mx-t">A two-by-two grid of isdigit result against whether int succeeds</title>
+  <text x="470" y="26" text-anchor="middle" font-weight="700" font-size="15">what int(s) does</text>
+  <text x="330" y="54" text-anchor="middle" font-size="14" style="fill:var(--muted)">returns a number</text>
+  <text x="610" y="54" text-anchor="middle" font-size="14" style="fill:var(--muted)">raises ValueError</text>
+  <text x="24" y="225" font-weight="700" font-size="15" transform="rotate(-90 24 225)" text-anchor="middle">s.isdigit()</text>
+  <text x="120" y="140" text-anchor="end" font-size="14" style="fill:var(--muted)">True</text>
+  <text x="120" y="305" text-anchor="end" font-size="14" style="fill:var(--muted)">False</text>
+
+  <rect x="190" y="66" width="280" height="155" rx="10" fill="var(--ok-bg)"/>
+  <text x="206" y="92" font-weight="700" font-size="14" style="fill:var(--ok)">✓ guard works</text>
+  <text x="206" y="130" class="mono" font-size="20">"42"  "٤٢"  "７"</text>
+  <text x="206" y="166" font-size="13" style="fill:var(--muted)">non-ASCII digits parse too:</text>
+  <text x="206" y="186" class="mono" font-size="13">int("٤٢") == 42</text>
+
+  <rect x="480" y="66" width="270" height="155" rx="10" fill="var(--bad-bg)" stroke="var(--bad)" stroke-width="2"/>
+  <text x="496" y="92" font-weight="700" font-size="14" style="fill:var(--bad)">✗ passes guard, then crashes</text>
+  <text x="496" y="130" class="mono" font-size="20">"²"  "①"  "₃"  "፫"</text>
+  <text x="496" y="166" font-size="13" style="fill:var(--muted)">also: 5,000 × "1"</text>
+  <text x="496" y="186" font-size="13" style="fill:var(--muted)">(digit-count limit, see below)</text>
+
+  <rect x="190" y="231" width="280" height="155" rx="10" fill="var(--warn-bg)"/>
+  <text x="206" y="257" font-weight="700" font-size="14" style="fill:var(--warn)">✗ blocked, but would parse</text>
+  <text x="206" y="295" class="mono" font-size="20">"-5"  "+3"  " 7\n"</text>
+  <text x="206" y="330" class="mono" font-size="20">"1_000"</text>
+  <text x="206" y="362" font-size="13" style="fill:var(--muted)">valid input rejected</text>
+
+  <rect x="480" y="231" width="270" height="155" rx="10" fill="var(--card)" stroke="var(--line)"/>
+  <text x="496" y="257" font-weight="700" font-size="14" style="fill:var(--muted)">✓ correctly blocked</text>
+  <text x="496" y="295" class="mono" font-size="20">"abc"  "3.5"  ""</text>
+  <text x="496" y="330" class="mono" font-size="20">"½"  "Ⅻ"</text>
+</svg>
+<figcaption>The red cell is the bug you were trying to prevent. The amber cell is valid user input you're turning away.</figcaption>
+</figure>
+
+<h2>Try it</h2>
+<div class="card">
+<p style="margin-bottom:8px">Type or paste anything, or pick an example. The page works out what Python would do.</p>
+<div class="chips" id="chips"></div>
+<input type="text" id="inp" value="²" aria-label="String to test" autocomplete="off" spellcheck="false">
+<div class="results" id="results"></div>
+<div class="verdict" id="verdict"></div>
+<div class="tbl-wrap"><table id="chars"></table></div>
+<p class="note" style="margin-top:10px">This is JavaScript imitating CPython. Decimal digits and general numeric characters come from your browser's Unicode tables. The extra <code>isdigit</code> characters and the Chinese numerals for <code>isnumeric</code> come from a built-in list that covers the common cases. To check an edge case, run it in Python.</p>
+</div>
+
+<h2>What to write instead</h2>
+<div class="tabs" role="tablist">
+  <button class="tab" role="tab" aria-selected="true" data-p="p1">Just try it</button>
+  <button class="tab" role="tab" aria-selected="false" data-p="p2">Pre-check with isdecimal</button>
+  <button class="tab" role="tab" aria-selected="false" data-p="p3">ASCII 0–9 only</button>
+</div>
+<div id="p1" class="panel">
+<pre><code>try:
+    n = int(s)
+except ValueError:
+    ...  # not an integer</code></pre>
+<p>This is the usual Python answer. <code>int()</code> is the only thing that knows exactly what <code>int()</code> accepts, so let it decide. You also get signs and surrounding whitespace for free.</p>
+</div>
+<div id="p2" class="panel" hidden>
+<pre><code>if s.isdecimal():
+    n = int(s)</code></pre>
+<p><code>isdecimal()</code> matches the set <code>int()</code> actually uses (and is the same as <code>re.fullmatch(r"\d+", s)</code> on a <code>str</code>). It still rejects <code>"-5"</code> and <code>" 5"</code>, and it doesn't protect you from the length limit below. Use it when you want "only unsigned digits", not as a stand-in for "<code>int()</code> won't raise".</p>
+</div>
+<div id="p3" class="panel" hidden>
+<pre><code>if s.isascii() and s.isdecimal():
+    n = int(s)</code></pre>
+<p>If <code>"٤٢"</code> turning into 42 would surprise your database, log parser or ID check, add <code>isascii()</code>. Together they mean "only the characters 0 to 9".</p>
+</div>
+
+<h3>One more trap: very long numbers</h3>
+<p>Since Python 3.11 (and in security releases of 3.7 to 3.10), <code>int()</code> refuses to convert a decimal string with more than 4,300 digits by default. This protects against a denial-of-service attack, because the conversion gets slow on huge inputs. So even <code>"1" * 5000</code>, which is plain ASCII digits and passes every check above, raises:</p>
+<pre><code><span class="c-bad">ValueError: Exceeds the limit (4300 digits) for integer string conversion: value has 5000 digits; use sys.set_int_max_str_digits() to increase the limit</span></code></pre>
+<p>That's one more reason to rely on <code>try</code>/<code>except</code> rather than a pre-check.</p>
+
+<h2>Summary</h2>
+<div class="card">
+<table>
+<tr><th>Check</th><th>Accepts <code>²</code>?</th><th>Accepts <code>٣</code>?</th><th>Accepts <code>-5</code>?</th><th>Means <code>int()</code> works?</th></tr>
+<tr><td><code>isnumeric()</code></td><td class="y">yes</td><td class="y">yes</td><td class="n">no</td><td class="n">no</td></tr>
+<tr><td><code>isdigit()</code></td><td class="y">yes</td><td class="y">yes</td><td class="n">no</td><td class="n">no</td></tr>
+<tr><td><code>isdecimal()</code></td><td class="n">no</td><td class="y">yes</td><td class="n">no</td><td>yes, up to 4,300 digits</td></tr>
+<tr><td><code>try: int(s)</code></td><td class="n">no</td><td class="y">yes</td><td class="y">yes</td><td class="y">by definition</td></tr>
+</table>
+</div>
+
+</main>
+<script>
+(function(){
+  var ND = /^\p{Nd}$/u, NUM = /^\p{N}$/u, WS = /^\s$/u;
+  // Characters with Unicode Numeric_Type=Digit (isdigit but not isdecimal)
+  var DIGIT_RANGES = [
+    [0xB2,0xB3],[0xB9,0xB9],[0x1369,0x1371],[0x19DA,0x19DA],[0x2070,0x2070],
+    [0x2074,0x2079],[0x2080,0x2089],[0x2460,0x2468],[0x2474,0x247C],[0x2488,0x2490],
+    [0x24EA,0x24EA],[0x24F5,0x24FD],[0x24FF,0x24FF],[0x2776,0x277E],[0x2780,0x2788],
+    [0x278A,0x2792],[0x10A40,0x10A43],[0x10E60,0x10E68],[0x11052,0x1105A],[0x1F100,0x1F10A]
+  ];
+  var CJK = "〇一二三四五六七八九十百千万億兆";
+  function inRanges(cp){ for (var i=0;i<DIGIT_RANGES.length;i++){ if(cp>=DIGIT_RANGES[i][0]&&cp<=DIGIT_RANGES[i][1]) return true;} return false; }
+  function isDec(c){ return ND.test(c); }
+  function isDig(c){ return isDec(c) || inRanges(c.codePointAt(0)); }
+  function isNum(c){ return isDig(c) || NUM.test(c) || CJK.indexOf(c) >= 0; }
+  function all(s, f){ var a=Array.from(s); return a.length>0 && a.every(f); }
+  function decVal(c){
+    var cp=c.codePointAt(0), start=cp;
+    while (start>0 && ND.test(String.fromCodePoint(start-1))) start--;
+    return (cp-start)%10;
+  }
+  function pyInt(s){
+    var a = Array.from(s), i=0, j=a.length;
+    while(i<j && WS.test(a[i])) i++;
+    while(j>i && WS.test(a[j-1])) j--;
+    var b = a.slice(i,j), sign="";
+    var bad = {ok:false, err:"ValueError: invalid literal for int() with base 10: " + pyRepr(s)};
+    if (b.length && (b[0]==="+"||b[0]==="-")){ sign = b[0]==="-"?"-":""; b=b.slice(1); }
+    if (!b.length) return bad;
+    var digits="", prevUnd=true;
+    for (var k=0;k<b.length;k++){
+      var c=b[k];
+      if (c==="_"){ if(prevUnd) return bad; prevUnd=true; continue; }
+      if (!isDec(c)) return bad;
+      digits += String(decVal(c)); prevUnd=false;
+    }
+    if (prevUnd) return bad;
+    if (digits.length > 4300) return {ok:false, err:"ValueError: Exceeds the limit (4300 digits) for integer string conversion: value has "+digits.length+" digits"};
+    var v = BigInt(digits).toString();
+    if (sign==="-" && v!=="0") v="-"+v;
+    return {ok:true, val:v};
+  }
+  function pyRepr(s){
+    if (s.length>40) s = s.slice(0,37)+"...";
+    return "'" + s.replace(/\\/g,"\\\\").replace(/\n/g,"\\n").replace(/\t/g,"\\t").replace(/'/g,"\\'") + "'";
+  }
+  function show(s){
+    return JSON.stringify(s).length>48 ? JSON.stringify(s.slice(0,20)).slice(0,-1)+"…\" ("+Array.from(s).length+" chars)" : JSON.stringify(s);
+  }
+  var examples = [
+    ["42","42"],["²","²"],["①","①"],["₃","₃"],["፫","፫"],["٤٢","٤٢"],["３","３"],["𝟕𝟕","𝟕𝟕"],
+    ["-5","-5"],[" 7 "," 7 "],["1_000","1_000"],["½","½"],["Ⅻ","Ⅻ"],["五","五"],["1²","1²"],
+    ["\"1\"×5000","1".repeat(5000)]
+  ];
+  var chips = document.getElementById("chips"), inp = document.getElementById("inp");
+  examples.forEach(function(e){
+    var b=document.createElement("button"); b.className="chip"; b.type="button"; b.textContent=e[0];
+    b.addEventListener("click", function(){ inp.value=e[1]; render(); inp.focus(); });
+    chips.appendChild(b);
+  });
+  function cell(label, val, cls){ return '<div class="res '+(cls||"")+'"><span class="lbl">'+label+'</span>'+val+'</div>'; }
+  function esc(t){ return String(t).replace(/[&<>"]/g, function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+  function render(){
+    var s = inp.value;
+    var d = all(s,isDig), dec = all(s,isDec), n = all(s,isNum), r = pyInt(s);
+    var html = "";
+    html += cell("s.isnumeric()", n?"True":"False", n?"t":"f");
+    html += cell("s.isdigit()", d?"True":"False", d?"t":"f");
+    html += cell("s.isdecimal()", dec?"True":"False", dec?"t":"f");
+    var shown = r.ok ? (r.val.length>30 ? r.val.slice(0,27)+"…" : r.val) : "ValueError";
+    html += cell("int(s)", esc(shown), r.ok?"t":"f");
+    document.getElementById("results").innerHTML = html;
+    var v = document.getElementById("verdict");
+    if (d && !r.ok){ v.className="verdict danger"; v.innerHTML = "This is the bug: <code>isdigit()</code> is True, but <code>int()</code> raises.<br><span style='font-weight:400' class='mono'>"+esc(r.err)+"</span>"; }
+    else if (!d && r.ok){ v.className="verdict miss"; v.innerHTML = "<code>isdigit()</code> turns this away, but <code>int()</code> would have returned "+esc(r.val.length>30?r.val.slice(0,27)+"…":r.val)+"."; }
+    else if (d && r.ok){ v.className="verdict fine"; v.innerHTML = "The guard and <code>int()</code> agree here: it parses."; }
+    else { v.className="verdict fine"; v.innerHTML = "Both reject it. <span style='font-weight:400' class='mono'>"+esc(r.err)+"</span>"; }
+    var chars = Array.from(s);
+    var t = "<tr><th>char</th><th>code point</th><th>isdecimal</th><th>isdigit</th><th>isnumeric</th><th>int() uses it as</th></tr>";
+    var lim = Math.min(chars.length, 24);
+    for (var i=0;i<lim;i++){
+      var c=chars[i], cp=c.codePointAt(0).toString(16).toUpperCase().padStart(4,"0");
+      var yn=function(x){return x?'<span class="y">yes</span>':'<span class="n">no</span>';};
+      var use = isDec(c) ? '<span class="y">digit '+decVal(c)+'</span>' :
+                WS.test(c) ? '<span class="c-muted">whitespace (only at the ends)</span>' :
+                (c==="+"||c==="-") ? '<span class="c-muted">sign (only at the start)</span>' :
+                c==="_" ? '<span class="c-muted">separator (between digits)</span>' :
+                '<span class="n">rejected</span>';
+      var disp = WS.test(c) ? '<span class="c-muted">␣</span>' : esc(c);
+      t += "<tr><td class='big'>"+disp+"</td><td class='mono'>U+"+cp+"</td><td>"+yn(isDec(c))+"</td><td>"+yn(isDig(c))+"</td><td>"+yn(isNum(c))+"</td><td>"+use+"</td></tr>";
+    }
+    if (chars.length>lim) t += "<tr><td colspan='6' class='c-muted'>… and "+(chars.length-lim)+" more characters</td></tr>";
+    document.getElementById("chars").innerHTML = chars.length ? t : "<tr><td class='c-muted'>Empty string: every is…() method returns False, and int(\"\") raises ValueError.</td></tr>";
+  }
+  inp.addEventListener("input", render);
+  render();
+  document.querySelectorAll(".tab").forEach(function(tab){
+    tab.addEventListener("click", function(){
+      document.querySelectorAll(".tab").forEach(function(x){ x.setAttribute("aria-selected", x===tab ? "true":"false"); });
+      document.querySelectorAll(".panel").forEach(function(p){ p.hidden = p.id !== tab.dataset.p; });
+    });
+  });
+})();
+</script>
+</body>
+</html>

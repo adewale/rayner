@@ -10,7 +10,7 @@ export const PRODUCT = {
   /** The project's home, where every page's footer mark links (app/embed-share.ts). */
   home: HOME,
   /** The one summary and audience: README.md's opening paragraph is `${summary} ${audience}`, and the gallery's (test/explain-gallery.test.ts). */
-  summary: 'Rayner makes a verified explanation of what this version of this system really does, with a short receipt the person who commissioned it can review.',
+  summary: 'Rayner makes an explanation of what this version of this system does, drawn from a model checked against that system where it can be, with a short receipt the person who commissioned it can review.',
   audience: 'It is for the person who commissions an explainer of a protocol, an algorithm or a data structure, and for the agent or person who writes it.',
   /** README.md's second paragraph, and the gallery's. */
   description:

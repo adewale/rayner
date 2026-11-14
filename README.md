@@ -1,6 +1,6 @@
 # Rayner
 
-Rayner makes a verified explanation of what this version of this system really does, with a short receipt the person who commissioned it can review. It is for the person who commissions an explainer of a protocol, an algorithm or a data structure, and for the agent or person who writes it.
+Rayner makes an explanation of what this version of this system does, drawn from a model checked against that system where it can be, with a short receipt the person who commissioned it can review. It is for the person who commissions an explainer of a protocol, an algorithm or a data structure, and for the agent or person who writes it.
 
 The writer models the system in TypeScript and tests the model against the real system where it can: run live, recorded once, or read from its specification. Every picture on the page is checked against the model’s state, and the receipt says what the model was checked against and how. The result is one HTML page of steps and a transcript, with no runtime network requests.
 
@@ -10,7 +10,7 @@ A picture of a Python dict after `del d[0]` is easy to draw wrong. Draw slot 0 e
 
 [![Step 3 of the Python dict explainer: slot 0 holds D, the deleted marker, so the lookup for key 8 moves on to slot 1 and finds pear. A setting switches the lookup to key 16, and the step list and caption sit beside and below the picture.](https://raw.githubusercontent.com/adewale/rayner/main/docs/images/python-dict-marker.png)](https://oshineye.dev/projects/rayner/python-dict)
 
-How closely a model matches its subject varies from explainer to explainer. Each page's receipt, and the table below, say what it was checked against and how: **live** (the model's tests run the system each time), **recorded** (the system was run once and its answers frozen), **read** (a specification or source was read, not run) or **none** (only the model's own tests).
+How closely a model matches its subject varies from explainer to explainer. Each page's receipt, and the table below, say what it was checked against and how: **live** (the model's tests run the system each time), **recorded** (the system was run once and its answers frozen), **read** (a specification or source was read, not run) or **none** (only the model's own tests). In a [premise test](https://github.com/adewale/rayner/blob/main/bench/premise/README.md), a single checker compared every claim on pages for five catalogued topics with these oracles: plain pages a model wrote from memory made 8 errors in 205 claims, all in secondary details, and the Rayner pages none in 229.
 
 | Explainer | Its model is checked against | How |
 |---|---|---|

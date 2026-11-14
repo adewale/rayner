@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Empty ext4 Space</title>
+<style>
+:root{
+  --bg:#fbfaf7; --panel:#ffffff; --ink:#1d1d1b; --muted:#5f5d57; --line:#dedbd2;
+  --units:#9a968c; --meta:#d9822b; --journal:#b5541c; --small:#7a4a1f;
+  --resv:#7d5bbf; --avail:#2f7d6d; --code:#f2f0ea; --accent:#2f7d6d;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#161614; --panel:#1f1f1c; --ink:#ecebe6; --muted:#a8a59c; --line:#3a3934;
+    --units:#77746b; --meta:#e89a4c; --journal:#d06d33; --small:#c08a55;
+    --resv:#a487de; --avail:#4fae99; --code:#262622; --accent:#4fae99;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#161614; --panel:#1f1f1c; --ink:#ecebe6; --muted:#a8a59c; --line:#3a3934;
+  --units:#77746b; --meta:#e89a4c; --journal:#d06d33; --small:#c08a55;
+  --resv:#a487de; --avail:#4fae99; --code:#262622; --accent:#4fae99;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:40px 16px 80px}
+h1{font-size:2rem;line-height:1.2;margin:0 0 .4em;letter-spacing:-.01em}
+h2{font-size:1.3rem;margin:2.4em 0 .6em}
+p{margin:.7em 0}
+.lede{font-size:1.12rem;color:var(--muted)}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.88em}
+code{background:var(--code);padding:.1em .35em;border-radius:4px}
+pre{background:var(--code);padding:14px 16px;border-radius:8px;overflow-x:auto;line-height:1.45;margin:.8em 0}
+pre code{background:none;padding:0}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 18px 16px;margin:1.2em 0}
+.answer ol{margin:.4em 0 0;padding-left:1.3em}
+.answer li{margin:.45em 0}
+.sw{display:inline-block;width:.8em;height:.8em;border-radius:2px;vertical-align:-.05em;margin-right:.3em}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 18px;margin-bottom:16px}
+.controls label{display:block;font-size:.85rem;color:var(--muted);margin-bottom:4px}
+.controls input,.controls select{width:100%;font:inherit;font-size:.95rem;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+.controls input[type=range]{padding:0;accent-color:var(--resv)}
+.row-in{display:flex;gap:8px}
+.row-in input{flex:1 1 auto;min-width:0}
+.row-in select{flex:0 0 5.5em;width:auto}
+.wf{display:grid;gap:9px}
+.wf .r{display:grid;grid-template-columns:1fr;gap:3px}
+.wf .lab{display:flex;justify-content:space-between;gap:10px;font-size:.9rem}
+.wf .lab b{font-weight:600}
+.wf .lab span{color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.wf .track{position:relative;height:18px;background:transparent;border-left:1px solid var(--line)}
+.wf .bar{position:absolute;top:0;bottom:0;border-radius:2px;min-width:2px}
+.wf .r.total .lab b{font-weight:700}
+.wf .r.total .track{height:22px}
+.wf .r.sub .lab{font-size:.82rem;color:var(--muted)}
+.wf .r.sub .lab b{font-weight:500}
+.dfout{margin-top:14px}
+.note{font-size:.88rem;color:var(--muted)}
+figure{margin:1.4em 0}
+figure svg{width:100%;height:auto;display:block}
+figcaption{font-size:.88rem;color:var(--muted);margin-top:.5em}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:.92rem;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:.82rem}
+td.n{text-align:right;white-space:nowrap}
+.tablewrap{overflow-x:auto}
+.callout{border-left:3px solid var(--accent);padding:2px 0 2px 14px;margin:1.2em 0}
+footer{margin-top:3em;font-size:.85rem;color:var(--muted);border-top:1px solid var(--line);padding-top:1em}
+svg text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;fill:var(--ink)}
+svg .mut{fill:var(--muted)}
+@media (max-width:520px){h1{font-size:1.6rem} body{font-size:16px}}
+</style>
+</head>
+<body>
+<main>
+
+<h1>Where does an empty ext4 filesystem's space go?</h1>
+<p class="lede">You format a "1 TB" disk, mount it, run <code>df -h</code>, and see <code>916G</code> size and <code>870G</code> available on a filesystem holding nothing. It is natural to blame the filesystem's own bookkeeping. That bookkeeping is part of the answer, but on a typical disk it is the smallest of the three parts.</p>
+
+<div class="panel answer">
+<strong>The short answer, for a 1 TB disk with default <code>mkfs.ext4</code> settings:</strong>
+<ol>
+<li><span class="sw" style="background:var(--units)"></span><strong>About 7% is a change of units, not lost space.</strong> The box counts in GB (10<sup>9</sup> bytes). <code>df -h</code> counts in GiB (2<sup>30</sup> bytes) but labels them "G". 1,000 GB is 931 GiB. Nothing has been used yet.</li>
+<li><span class="sw" style="background:var(--resv)"></span><strong>5% is reserved for root, and it is not used either.</strong> ext4 sets aside 5% of blocks that only root (or a chosen user or group) can write to. <code>df</code> leaves them out of <em>Avail</em> but doesn't add them to <em>Used</em>. That is why Size − Used ≠ Avail. On 1 TB that's about 47 GiB, and you can shrink it in a second with <code>tune2fs -m</code>.</li>
+<li><span class="sw" style="background:var(--meta)"></span><strong>About 1.7% really is the filesystem's own structures.</strong> Nearly all of it is the <em>inode table</em>, which is allocated up front for every file the filesystem could ever hold (1.56% with the defaults). Then there's a 1 GiB journal. Superblocks, group descriptors and bitmaps add up to less than 0.02%.</li>
+</ol>
+</div>
+
+<h2>Follow the bytes</h2>
+<p>Each bar below is drawn to scale against the raw capacity of the disk. Change the inputs to match your own disk and <code>mkfs</code> options. The figures come from the same arithmetic <code>mke2fs</code> and the kernel use, with assumptions listed at the bottom of the page. They should land within a fraction of a percent of what your system reports.</p>
+
+<div class="panel">
+  <div class="controls">
+    <div>
+      <label for="cap">Capacity on the label</label>
+      <div class="row-in">
+        <input id="cap" type="number" min="1" step="any" value="1">
+        <select id="capu" aria-label="Capacity unit">
+          <option value="1e9">GB</option>
+          <option value="1e12" selected>TB</option>
+          <option value="1073741824">GiB</option>
+          <option value="1099511627776">TiB</option>
+        </select>
+      </div>
+    </div>
+    <div>
+      <label for="ratio">Bytes per inode (<code>-i</code> / <code>-T</code>)</label>
+      <select id="ratio">
+        <option value="4096">4 KiB (-T small-ish, many tiny files)</option>
+        <option value="16384" selected>16 KiB (default)</option>
+        <option value="65536">64 KiB (-T largefile)</option>
+        <option value="1048576">1 MiB (-T largefile4)</option>
+      </select>
+    </div>
+    <div>
+      <label for="pct">Reserved for root (<code>-m</code>): <strong id="pctv">5</strong>%</label>
+      <input id="pct" type="range" min="0" max="10" step="0.5" value="5">
+    </div>
+  </div>
+
+  <div class="wf" id="wf" aria-live="polite"></div>
+
+  <div class="dfout">
+    <div class="note">What <code>df -h</code> would print for this filesystem right after <code>mkfs</code> and <code>mount</code>:</div>
+<pre><code id="df"></code></pre>
+    <div class="note" id="dfnote"></div>
+  </div>
+</div>
+
+<h2>How <code>df</code> builds its three numbers</h2>
+<p>A lot of the confusion comes from the way the kernel fills in <code>statfs()</code> for ext4. Metadata and the reserve are handled differently, so they show up in different places:</p>
+
+<figure>
+<svg viewBox="0 0 680 270" role="img" aria-labelledby="dfT dfD">
+  <title id="dfT">How df Size, Used and Avail map onto the partition</title>
+  <desc id="dfD">A bar for the whole partition. The leftmost slice is metadata, which is subtracted before Size is reported. The rest is Size. Inside Size, a tiny Used slice, then Avail, then the reserved slice at the right, which is counted in neither Used nor Avail.</desc>
+  <text x="0" y="22" font-size="15" font-weight="600">Every block in the partition</text>
+  <!-- bar -->
+  <rect x="0" y="70" width="14" height="46" fill="var(--meta)"/>
+  <rect x="14" y="70" width="3" height="46" fill="var(--ink)"/>
+  <rect x="17" y="70" width="610" height="46" fill="var(--avail)"/>
+  <rect x="627" y="70" width="53" height="46" fill="var(--resv)"/>
+  <!-- top brackets -->
+  <path d="M14 60 V52 H680 V60" fill="none" stroke="var(--ink)" stroke-width="1.5"/>
+  <text x="347" y="44" font-size="15" text-anchor="middle" font-weight="600">Size: total blocks minus metadata overhead</text>
+  <!-- bottom labels -->
+  <path d="M0 126 V134 H14 V126" fill="none" stroke="var(--meta)" stroke-width="1.5"/>
+  <line x1="7" y1="134" x2="7" y2="170" stroke="var(--meta)" stroke-width="1.5"/>
+  <text x="0" y="188" font-size="14" font-weight="600">Metadata</text>
+  <text x="0" y="206" font-size="13" class="mut">inode tables, journal,</text>
+  <text x="0" y="222" font-size="13" class="mut">superblocks, bitmaps.</text>
+  <text x="0" y="238" font-size="13" class="mut">Never shown anywhere.</text>
+
+  <line x1="15.5" y1="126" x2="190" y2="150" stroke="var(--ink)" stroke-width="1.2"/>
+  <text x="194" y="155" font-size="14" font-weight="600">Used</text>
+  <text x="232" y="155" font-size="13" class="mut">≈ 0 (root dir + lost+found)</text>
+
+  <path d="M17 126 V134 H627 V126" fill="none" stroke="var(--avail)" stroke-width="1.5"/>
+  <text x="400" y="190" font-size="14" font-weight="600" text-anchor="middle">Avail</text>
+  <text x="400" y="207" font-size="13" class="mut" text-anchor="middle">what ordinary users can write</text>
+
+  <path d="M627 126 V134 H680 V126" fill="none" stroke="var(--resv)" stroke-width="1.5"/>
+  <line x1="653" y1="134" x2="653" y2="222" stroke="var(--resv)" stroke-width="1.5"/>
+  <text x="680" y="240" font-size="14" font-weight="600" text-anchor="end">Reserved</text>
+  <text x="680" y="258" font-size="13" class="mut" text-anchor="end">in Size, but not in Used or Avail</text>
+</svg>
+<figcaption>Metadata is removed before <em>Size</em> is reported, so it never appears as "Used". The root reserve stays inside <em>Size</em> but is left out of <em>Avail</em>. Widths are roughly to scale for 1 TB with defaults.</figcaption>
+</figure>
+
+<div class="callout">
+<p><strong>The quick check:</strong> on a fresh ext4 filesystem, <code>Size − Used − Avail</code> is the root reserve (plus a fixed reserve of at most 16 MiB that ext4 keeps for delayed allocation). It is not metadata. You can't see the metadata in <code>df</code> output at all. It shows up only as a gap between the partition size and <em>Size</em>.</p>
+</div>
+
+<p>This is also why <em>Use%</em> can climb past 100% for root, and why a "full" disk still lets root write. <code>df</code> computes Use% as <code>Used ÷ (Used + Avail)</code>, which leaves the reserve out on purpose.</p>
+
+<h2>What the structures actually are</h2>
+<p>ext4 splits the partition into <em>block groups</em> of 32,768 blocks, which is 128 MiB with 4 KiB blocks. A 1 TB disk has about 7,450 of them. Each group gets a fixed set of metadata, decided once at <code>mkfs</code> time:</p>
+
+<figure>
+<svg viewBox="0 0 680 250" role="img" aria-labelledby="bgT bgD">
+  <title id="bgT">Metadata inside one 128 MiB block group</title>
+  <desc id="bgD">A 128 MiB block group drawn to scale is almost entirely data blocks. The inode table takes 2 MiB, about 1.6 percent. Bitmaps take 8 KiB. Some groups also carry a superblock and group descriptor backup of about 4.5 MiB.</desc>
+  <text x="0" y="20" font-size="15" font-weight="600">One block group: 32,768 blocks = 128 MiB (to scale)</text>
+  <rect x="0" y="38" width="680" height="44" fill="var(--avail)" opacity=".85"/>
+  <rect x="0" y="38" width="10.6" height="44" fill="var(--meta)"/>
+  <rect x="10.6" y="38" width="1.2" height="44" fill="var(--small)"/>
+  <text x="340" y="66" font-size="15" text-anchor="middle" fill="#fff" style="fill:#fff">data blocks: about 98.4% of the group</text>
+  <line x1="5" y1="82" x2="5" y2="108" stroke="var(--meta)" stroke-width="1.5"/>
+  <text x="0" y="124" font-size="13" class="mut">inode table: 8,192 inodes × 256 B = 2 MiB (1/64 of the group)</text>
+
+  <text x="0" y="164" font-size="15" font-weight="600">Zoom into the first few MiB of the group (not to scale)</text>
+  <g font-size="12.5">
+    <rect x="0" y="178" width="70" height="40" fill="var(--small)"/>
+    <text x="35" y="202" text-anchor="middle" style="fill:#fff">super</text>
+    <rect x="72" y="178" width="110" height="40" fill="var(--small)" opacity=".75"/>
+    <text x="127" y="196" text-anchor="middle" style="fill:#fff">group desc +</text>
+    <text x="127" y="211" text-anchor="middle" style="fill:#fff">reserved GDT</text>
+    <rect x="184" y="178" width="76" height="40" fill="var(--journal)" opacity=".8"/>
+    <text x="222" y="196" text-anchor="middle" style="fill:#fff">block +</text>
+    <text x="222" y="211" text-anchor="middle" style="fill:#fff">inode bitmap</text>
+    <rect x="262" y="178" width="250" height="40" fill="var(--meta)"/>
+    <text x="387" y="203" text-anchor="middle" style="fill:#fff">inode table (2 MiB)</text>
+    <rect x="514" y="178" width="166" height="40" fill="var(--avail)" opacity=".85"/>
+    <text x="597" y="203" text-anchor="middle" style="fill:#fff">data →</text>
+  </g>
+  <text x="0" y="240" font-size="12.5" class="mut">Superblock and descriptor copies exist only in groups 0, 1 and powers of 3, 5 and 7 (19 of about 7,450 groups on 1 TB).</text>
+</svg>
+<figcaption>With <code>flex_bg</code> (the default), bitmaps and inode tables for 16 neighbouring groups are packed together at the start of the first one. The layout changes but the total stays the same.</figcaption>
+</figure>
+
+<div class="tablewrap">
+<table>
+<thead><tr><th>Structure</th><th>What it's for</th><th>How it scales</th><th class="n">1 TB, defaults</th></tr></thead>
+<tbody>
+<tr><td><span class="sw" style="background:var(--meta)"></span>Inode tables</td><td>One 256-byte record per possible file or directory. All of them are allocated at format time.</td><td>Capacity ÷ bytes-per-inode × inode size. Fixed after <code>mkfs</code>.</td><td class="n">14.6 GiB<br><span class="note">61 M inodes</span></td></tr>
+<tr><td><span class="sw" style="background:var(--journal)"></span>Journal</td><td>Write-ahead log that keeps metadata consistent after a crash.</td><td>Grows in steps with size. Tops out at 1 GiB for filesystems of 128 GiB and up.</td><td class="n">1.0 GiB</td></tr>
+<tr><td><span class="sw" style="background:var(--small)"></span>Superblocks + descriptors</td><td>Filesystem-wide settings plus a table describing every group, along with spare descriptor blocks so the filesystem can be grown online. Backup copies are kept in a few groups.</td><td>Few copies (<code>sparse_super</code>), about 4.5 MiB each.</td><td class="n">≈ 85 MiB</td></tr>
+<tr><td><span class="sw" style="background:var(--small)"></span>Bitmaps</td><td>One bit per block and one bit per inode, recording which are free.</td><td>8 KiB per 128 MiB group.</td><td class="n">≈ 58 MiB</td></tr>
+<tr><td><span class="sw" style="background:var(--units)"></span>Partition table + alignment</td><td>GPT and the 1 MiB gap before the first partition.</td><td>Constant.</td><td class="n">≈ 1 MiB</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>The inode table dominates because ext4 decides how many files you can ever have at format time. By default that's one inode for every 16 KiB of capacity, and every inode is paid for whether you use it or not. On a volume that will hold large media files, backups or VM images, most of those inodes will never be used. <code>df -i</code> shows how many you've used.</p>
+
+<p class="note">One side effect: right after the first mount you may see the disk busy even though nothing is happening. That's the kernel's <code>ext4lazyinit</code> thread zeroing those inode tables in the background, because <code>mkfs</code> skipped writing them to save time.</p>
+
+<h2>Getting some of it back</h2>
+<p>Here's what you can change, from the most recoverable space to the least:</p>
+
+<p><strong>Reserved blocks: instant, safe, reversible on a mounted filesystem.</strong> The reserve is there so that root and system daemons can still write logs when a disk fills, and to give the allocator room to avoid fragmentation. That matters on <code>/</code> and <code>/var</code>. On a large data-only volume, 1% or even 0 is a common choice.</p>
+<pre><code># see the current reserve
+sudo tune2fs -l /dev/sdb1 | grep -Ei 'block count|reserved block count|block size'
+
+# drop it to 1% (or -m 0 for none). Works while mounted.
+sudo tune2fs -m 1 /dev/sdb1
+
+# or set an absolute number of blocks
+sudo tune2fs -r 262144 /dev/sdb1   # 1 GiB at 4 KiB blocks</code></pre>
+
+<p><strong>Inode tables: only at format time.</strong> Fewer inodes means less overhead. But you can't add inodes later, and running out gives "No space left on device" while <code>df -h</code> still shows free space.</p>
+<pre><code># one inode per 1 MiB, 1% reserve, for a volume of big files
+sudo mkfs.ext4 -T largefile4 -m 1 /dev/sdb1
+
+# or pick an explicit ratio
+sudo mkfs.ext4 -i 65536 /dev/sdb1</code></pre>
+
+<p><strong>Journal and the rest: leave them alone.</strong> You can shrink or drop the journal (<code>tune2fs -O ^has_journal</code>), but it saves 1 GiB out of a terabyte and costs you crash consistency.</p>
+
+<p><strong>Units: nothing to fix.</strong> If you'd like <code>df</code> to count the way the box does, use <code>df -H</code> (powers of 1000) instead of <code>df -h</code> (powers of 1024).</p>
+
+<h2>Check it on your own system</h2>
+<pre><code># raw partition size in bytes
+lsblk -b -o NAME,SIZE /dev/sdb1
+
+# what mkfs decided
+sudo dumpe2fs -h /dev/sdb1 2&gt;/dev/null | grep -Ei \
+  'block count|reserved block count|inode count|inode size|blocks per group|journal size|overhead'
+
+# the kernel's view, in exact bytes
+df -B1 /mnt/data
+df -i  /mnt/data</code></pre>
+<p>Partition bytes minus <code>df</code> Size gives you the metadata. Size − Used − Avail gives you the reserve. The difference between the label and partition bytes is the GPT and alignment. And the leftover gap between what the box says and what <code>df -h</code> says is just GB versus GiB.</p>
+
+<footer>
+<p><strong>Assumptions behind the numbers.</strong> Default <code>mke2fs.conf</code> for ext4 on a recent e2fsprogs: 4 KiB blocks, 256-byte inodes, 32,768 blocks per group, and the <code>64bit</code>, <code>flex_bg</code>, <code>sparse_super</code> and <code>resize_inode</code> features. The partition is GPT, starting at 1 MiB. The kernel reports <code>df</code> in its default <code>bsddf</code> mode, which subtracts metadata from Size (the <code>minixdf</code> mount option reports the raw block count instead). The journal size follows e2fsprogs' default size table. Sizes for an inode-count-limited or bigalloc filesystem, or for non-default <code>mke2fs.conf</code> profiles that some distributions ship, will differ. The "1 TB" example uses 1,000,204,886,016 bytes, a common real capacity for drives sold as 1 TB.</p>
+</footer>
+
+</main>
+
+<script>
+(function(){
+  var B=4096, BPG=32768;
+  function model(D, ratio, pct){
+    var P=Math.floor((D-1048576-16896)/B)*B; if(P<B*4096) P=B*4096;
+    var N=P/B, G=Math.ceil(N/BPG);
+    var isz=256, ipb=B/isz, step=Math.max(ipb,8);
+    var ipg=Math.ceil(P/ratio/G); ipg=Math.min(Math.ceil(ipg/step)*step, BPG);
+    var itab=G*ipg/ipb, bmp=2*G, gdb=Math.ceil(G/64);
+    var rsvG=Math.ceil(Math.min(Math.pow(2,32),N*1024)/BPG);
+    var rgdb=Math.max(0,Math.min(1024,Math.ceil(rsvG/64)-gdb));
+    var s={0:1,1:1};[3,5,7].forEach(function(b){for(var x=b;x<G;x*=b)s[x]=1;});
+    var copies=Object.keys(s).filter(function(g){return +g<G;}).length;
+    var sb=copies*(1+gdb+rgdb);
+    var jt=[[2048,0],[32768,1024],[262144,4096],[524288,8192],[4194304,16384],[8388608,32768],[16777216,65536],[33554432,131072],[Infinity,262144]];
+    var j=0; for(var i=0;i<jt.length;i++){ if(N<jt[i][0]){ j=jt[i][1]; break; } }
+    var used=5, res=Math.floor(N*pct/100), resv=Math.min(Math.floor(N/50),4096);
+    var over=itab+bmp+sb+j;
+    return {D:D,P:P,N:N,G:G,itab:itab*B,j:j*B,small:(bmp+sb)*B,part:D-P,
+      size:(N-over)*B,used:used*B,res:(res+resv)*B,avail:Math.max(0,(N-over-used-res-resv))*B,inodes:G*ipg};
+  }
+  function gib(x){ var v=x/1073741824; return v>=100? v.toFixed(0)+' GiB' : v>=1? v.toFixed(1)+' GiB' : (x/1048576).toFixed(0)+' MiB'; }
+  function gb(x){ var v=x/1e9; return v>=100? v.toFixed(0)+' GB' : v>=1? v.toFixed(1)+' GB' : (x/1e6).toFixed(0)+' MB'; }
+  function both(x){ return gb(x)+' · '+gib(x); }
+  function human(x, base){
+    var u=['','K','M','G','T','P','E'], i=0, v=x;
+    if(base===1024){ v=x/1024; i=1; } else { v=x/1000; i=1; }
+    while(v>=base && i<u.length-1){ v/=base; i++; }
+    if(v<10){ var r=Math.ceil(v*10)/10; if(r>=10) return Math.ceil(r)+u[i]; return r.toFixed(1)+u[i]; }
+    var c=Math.ceil(v); if(c>=base && i<u.length-1) return '1.0'+u[i+1];
+    return c+u[i];
+  }
+  function pad(s,n){ s=String(s); while(s.length<n) s=' '+s; return s; }
+
+  var el=function(id){return document.getElementById(id);};
+  function render(){
+    var cap=parseFloat(el('cap').value), unit=parseFloat(el('capu').value);
+    if(!(cap>0)) cap=1;
+    var D=Math.max(cap*unit, 64*1048576);
+    var ratio=parseInt(el('ratio').value,10), pct=parseFloat(el('pct').value);
+    el('pctv').textContent=pct;
+    var m=model(D, ratio, pct);
+    var rows=[], x=0;
+    function pc(v){ return (v/D*100); }
+    rows.push({cls:'total', lab:'On the label', val:both(D), off:0, w:D, col:'var(--units)'});
+    rows.push({cls:'', lab:'Partition table + alignment', val:gib(m.part).replace(' GiB',' GiB'), off:D-m.part, w:m.part, col:'var(--units)', left:true});
+    // stack subtracted pieces from the right end down
+    var pos=m.P;
+    rows.push({cls:'', lab:'Inode tables ('+(m.inodes/1e6).toFixed(m.inodes<1e7?1:0)+' M inodes)', val:both(m.itab), off:pos-m.itab, w:m.itab, col:'var(--meta)'}); pos-=m.itab;
+    rows.push({cls:'', lab:'Journal', val:both(m.j), off:pos-m.j, w:m.j, col:'var(--journal)'}); pos-=m.j;
+    rows.push({cls:'', lab:'Superblocks, descriptors, bitmaps', val:both(m.small), off:pos-m.small, w:m.small, col:'var(--small)'}); pos-=m.small;
+    rows.push({cls:'total', lab:'df “Size”', val:both(m.size)+'  →  '+human(m.size,1024), off:0, w:m.size, col:'var(--avail)', cap:true});
+    rows.push({cls:'', lab:'Reserved for root ('+pct+'%) + 16 MiB delalloc reserve', val:both(m.res), off:m.size-m.res, w:m.res, col:'var(--resv)'});
+    rows.push({cls:'total', lab:'df “Avail”', val:both(m.avail)+'  →  '+human(m.avail,1024), off:0, w:m.avail, col:'var(--avail)'});
+    var h='';
+    rows.forEach(function(r){
+      h+='<div class="r '+r.cls+'"><div class="lab"><b>'+r.lab+'</b><span>'+r.val+'</span></div>'+
+         '<div class="track"><div class="bar" style="left:'+pc(r.off).toFixed(3)+'%;width:'+pc(r.w).toFixed(3)+'%;background:'+r.col+'"></div></div></div>';
+    });
+    el('wf').innerHTML=h;
+
+    var used=m.used, avail=m.avail, size=m.size;
+    var usep=Math.ceil(used*100/(used+avail));
+    var line=function(base){
+      return 'Filesystem      Size  Used Avail Use% Mounted on\n'+
+        '/dev/sdb1     '+pad(human(size,base),6)+pad(human(used,base),6)+pad(human(avail,base),6)+pad(usep+'%',5)+' /mnt/data';
+    };
+    el('df').textContent='$ df -h /mnt/data\n'+line(1024)+'\n\n$ df -H /mnt/data   # powers of 1000, like the box\n'+line(1000);
+    var lost=(D-m.avail)/D*100, struct=(m.itab+m.j+m.small)/D*100, rp=m.res/D*100;
+    var unitGap=(1-1e9/1073741824)*100;
+    el('dfnote').textContent='Of the label capacity, '+struct.toFixed(2)+'% goes to filesystem structures and '+rp.toFixed(2)+'% to the reserve, '+lost.toFixed(1)+'% in total. Then df -h shows the rest in GiB, which makes every number another '+unitGap.toFixed(1)+'% smaller than the same number in GB.';
+  }
+  ['cap','capu','ratio','pct'].forEach(function(id){ el(id).addEventListener('input',render); el(id).addEventListener('change',render); });
+  render();
+})();
+</script>
+</body>
+</html>
