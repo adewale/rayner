@@ -308,6 +308,9 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
       });
       // The code's lit lines and the card's lit Result row are drawn from the state each event leaves.
       await this.play(machine.replay(replays[g]!));
+      // The live step: a phone shows the whole picture after each press, so its close-ups take in every
+      // view the reader drives, not only what the step changed, and each label reads 12 px in one of them.
+      if (g === replays.length - 1) s.opening(ring, readout, results, resultCard, codePanel);
     }
   }
 }
