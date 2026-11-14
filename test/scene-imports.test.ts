@@ -90,7 +90,7 @@ test('the entry points are the documented package exports', () => {
     [...ENTRY].sort(),
     [
       ['explain/drawing.ts', 'rayner/drawing'], ['explain/geo.ts', 'rayner/geo'], ['explain/index.ts', 'rayner/explain'],
-      ['explain/testing.ts', 'rayner/testing'], ['src/index.ts', 'rayner'], ['src/output.ts', 'rayner/output'],
+      ['explain/kit.ts', 'rayner/kit'], ['explain/testing.ts', 'rayner/testing'], ['src/index.ts', 'rayner'], ['src/output.ts', 'rayner/output'],
     ],
   );
 });

@@ -14,7 +14,7 @@ They need a static host and nothing else. `rayner build` writes one HTML file ho
 
 ## Why are diagrams captured at build time instead of drawn in the browser?
 
-So the page carries no diagram renderer. Rayner renders each Mermaid diagram with [Agentic Mermaid](https://github.com/adewale/agentic-mermaid) in Chromium while building, checks the capture against the renderer's own output, and commits the result to `scene.snapshots/`. The browser only replays that geometry, decompressing it with its native `DecompressionStream`. A later build reuses the snapshot until the diagram's spec (its source, style or lettering) or the Agentic Mermaid release changes; a change to Rayner's own code does not recapture it ([snapshots](docs/REFERENCE.md#snapshots)).
+So the page carries no diagram renderer. Diagrams are an [add-on](docs/REFERENCE.md#add-ons): Rayner renders each Mermaid diagram with [Agentic Mermaid](https://github.com/adewale/agentic-mermaid) in Chromium while building, checks the capture against the renderer's own output, and commits the result to `scene.snapshots/`. The browser only replays that geometry, decompressing it with its native `DecompressionStream`. A later build reuses the snapshot until the diagram's spec (its source, style or lettering) or the Agentic Mermaid release changes; a change to Rayner's own code does not recapture it ([snapshots](docs/REFERENCE.md#snapshots)).
 
 ## How many scenarios can one explainer have?
 

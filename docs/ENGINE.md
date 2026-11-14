@@ -50,7 +50,7 @@ The code is a stack, and each layer imports only the layers under it. From the b
 | Engine | `src/` | Nothing else in the repository but the vendored shaper, `vendor/glyph.js` |
 | Explain core | `explain/`: `view.ts`, `state.ts`, `machine.ts`, `live.ts`, `choreograph.ts` (views, machines, the run to a live step, and state); `action.ts` (what a stage or diagram action returns); `look.ts`, `palettes.ts`, `layout-direction.ts` (the look); `words.ts`, `trace.ts`, `script.ts`, `claims.ts`, `caption-looks.ts` (words); `diagram-snapshot.ts`, `diagram-text.ts` (diagram snapshots: their types, keys, validation and findings, and a captured label's text); `settings.ts`, `page-query.ts`, `intent.ts`, `mermaid.ts`, `audio.ts` | The engine |
 | Diagrams and panels | `explain/diagrams.ts`, `explain/labels.ts`, `explain/panels.ts` | The core and the engine |
-| Drawing kit | `explain/drawing.ts`, `explain/annotate.ts`, `explain/geo.ts`, `explain/seen-from.ts` | Diagrams and panels, the core and the engine |
+| Drawing kit | `explain/kit.ts` (`rayner/kit`), `explain/drawing.ts`, `explain/annotate.ts`, `explain/geo.ts`, `explain/seen-from.ts` | Diagrams and panels, the core and the engine |
 | Stage | `explain/stage.ts`, and `explain/index.ts`, the `rayner/explain` entry point | Every layer above |
 | Author tooling | `explain/describe.ts`, `explain/project.ts`, `explain/test-helpers.ts`, `explain/testing.ts` (with the engine's half, `src/testing.ts`) | The library |
 | Internal interface | `src/internal.ts`, `explain/internal.ts`: what the player, the command and diagram capture use beyond the entry points | The library |
@@ -63,7 +63,7 @@ A constant more than one layer needs has one source, a leaf module: the frame, i
 
 Where the code departs from the stack:
 
-- **The kit names the stage's type.** Each kit function takes the stage `s` first, to read its colours and text shaping, so `drawing.ts` imports the `Stage` type. Its values come only from the core and the engine; the test allows that one type import and no other.
+- **The kit names the stage's type.** Each kit function takes the stage `s` first, to read its colours and text shaping, so `drawing.ts` and `kit.ts` import the `Stage` type. Their values come only from the core and the engine; the test allows that one type import and no other.
 - **The engine carries a step's caption, what is shown, and the trace's JSON hooks.** `src/scene.ts` keeps them because the engine's own work reads them:
   - The caption-reading hold (`StepMeta.caption`, `Scene.captionWpm`, `Step.hold`) is part of the timeline. It adds frames to every captioned step of every scene, with a stage or without one (the command and the player run both), and seeking, the trace and the player stop at it. Moving its arithmetic into `explain/` would need each scene to register it, through a stage every scene must make before its first step or a base class every scene must extend, and a scene that missed it would play a different timeline from the same source.
   - `scene.shown` is half of the typed scene, `Scene<Model, Shown>`, which views, machines and staged steps take their types from, and the trace records it at the end of every step beside the state. Moving it means a base class from the explain layer for every scene.
@@ -118,7 +118,7 @@ A review on 2026-11-03 found that 34 of the 40 explainers then in the collection
 
 ## Public names
 
-The package has an entry point per audience. A scene is written with `rayner`, `rayner/explain` and `rayner/drawing`, and opts in to `rayner/geo` (3D and the globe). `rayner/output` draws a scene's frames outside the built page, for a host page or a tool, and `rayner/testing` holds what an author's tests and tools use; no scene may import it ([the reference lists both](REFERENCE.md#testing-and-tooling-api)).
+The package has an entry point per audience. A scene is written with `rayner`, `rayner/explain`, `rayner/kit` and `rayner/drawing`, and opts in to `rayner/geo` (3D and the globe). `rayner/output` draws a scene's frames outside the built page, for a host page or a tool, and `rayner/testing` holds what an author's tests and tools use; no scene may import it ([the reference lists both](REFERENCE.md#testing-and-tooling-api)).
 
 The package has no dependencies; the `rayner` command is the separate `rayner-cli` package, at the same version. The package exports its entry points and nothing else, so an outside project can import no other module. The command shares the library's compiled modules with the scenes it loads without an export, by a private specifier ([the command's contract](#the-internal-interface-and-the-commands-contract)). `npm run pack:smoke` checks that an outside project cannot import `rayner/internal/...` or the private specifier.
 

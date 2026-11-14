@@ -2,7 +2,7 @@
 
 ## 0.2.0 (unreleased)
 
-This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It requires Node 24 or later. Authoring targets Ubuntu and macOS, and diagram capture needs Chromium. Start with [the tutorial](docs/TUTORIAL.md). [The reference](docs/REFERENCE.md) covers the API and the command line.
+This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It requires Node 24 or later. Authoring targets Ubuntu and macOS; `rayner review` and diagram capture need Chromium. Start with [the tutorial](docs/TUTORIAL.md). [The reference](docs/REFERENCE.md) covers the API and the command line.
 
 ### Authoring explainers
 
@@ -31,6 +31,7 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 
 ### Drawing kit and 3D
 
+- `rayner/kit` is the default way to draw a picture by hand: the type scale `TYPE` with its phone-safe floor `MIN_TEXT` (0.56 units, which `words()` will not go below), `STROKE`, `RADIUS`, `SPACE`, `MARGIN` and `PLATE_HEIGHT`; `tones(s)`, the stage's colours by role; `words`, `box`, `plate`, `connector` and `route`; `addAll`; and `beats`, `flight` and `pass`, transitions in which changed words are replaced and a token travels its route. It is the reusable part of the Poppy series' kit, which a test holds to drawing the same marks and playing the same frames. [Kit](docs/REFERENCE.md#kit)
 - `rayner/drawing` draws the parts explanations keep needing as keyed mobjects: `keyedParts`, `label`, `tile`, `segment`, `dot`, `table`, `stat`, `flow`, `bars`, `legend`, `callout`, `dimension`, `pin`, `emphasised`, and the panels `card` and `code`. Each takes the stage first, its content next and one options object (`at`, `size`, `key`). `table`, `stat`, `flow`, `bars` and `legend` require a `key`; `tile`, `dot`, `callout`, `dimension` and `pin` take one optionally. A keyed picture keys its parts under its key. `label` and `segment` take no `key`: key them with `keyed()`. [Drawing kit](docs/REFERENCE.md#drawing-kit)
 - `table()` rows given as `{ key, cells }` keep their identity wherever they move; a duplicated row key or header is refused.
 - `emphasised(m, as)` marks a part as emphasis where it is drawn, so the close-up tour and the descriptions find it.
@@ -79,8 +80,12 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 
 ### Tooling and publishing
 
-- Rayner is two packages at one version: `rayner`, the vocabulary and runtime, with no dependencies, and `rayner-cli`, the `rayner` command with the player, diagram capture and lettering capture. Install both. [Quick start](README.md#quick-start)
-- The entry points are `rayner` (the engine), `rayner/explain` (stage, views, diagrams, machines, settings), `rayner/drawing`, `rayner/geo`, `rayner/output` (drawing frames outside the page) and `rayner/testing` (author tooling). A scene may not import `rayner/testing`.
+- Rayner is two packages at one version: `rayner`, the vocabulary and runtime, with no dependencies, and `rayner-cli`, the `rayner` command with the player. Install both. [Quick start](README.md#quick-start)
+- Diagram capture and lettering capture are add-ons. A scene that draws no Mermaid diagram and asks for no lettering runs `init`, `check`, `see`, `describe`, `build`, `snapshots`, `preview` and `shots` with Node alone: the command loads no Agentic Mermaid, no Playwright browser and no Python for it. `review` still opens the page in Chromium. [Add-ons](docs/REFERENCE.md#add-ons)
+  - `agentic-mermaid` and `svgpath` are optional peer dependencies of `rayner-cli`, so `npm install rayner-cli` no longer installs them. To draw Mermaid diagrams, run `npm install --save-dev agentic-mermaid@0.5.1 svgpath@2.6.0`, and install Chromium to capture them. A diagram that `scene.snapshots/` does not hold, or a morph whose edits must be replayed, fails with the scene, the diagram and that install line when the packages are missing. Pinned snapshots, natural-lettering ones included, replay without the add-on or Chromium.
+  - When no Chromium can be found, `review` and diagram capture say how to install it (`npx playwright-core install chromium`, or `CHROMIUM_EXECUTABLE_PATH`) instead of Playwright's own error.
+  - `shots` draws its contact sheet with resvg and needs no browser.
+- The entry points are `rayner` (the engine), `rayner/explain` (stage, views, diagrams, machines, settings), `rayner/kit`, `rayner/drawing`, `rayner/geo`, `rayner/output` (drawing frames outside the page) and `rayner/testing` (author tooling). A scene may not import `rayner/testing`.
 - `rayner/testing` loads an explainer for its tests: `loadProject(Scene, folder)` adopts the script and traces every scenario; `assertStepState`, `assertSteps` and `assertViewFollowsState` assert against the model; `withIntent`, `loadSnapshots`, `pictureWordsAt`, `diagramFindings` and `diagramOf` read the rest. Traces are typed from the scene class (`TraceOf`). [An explainer's test](docs/REFERENCE.md#an-explainers-test)
 - `rayner see` prints one step for a person at a terminal. `rayner describe` prints every scenario and step as JSON, including the machines and invariants. `rayner preview --watch` rebuilds when `script.md` changes too.
 - Every error an author can see starts with the call that failed (`card():`, `meta.watch:`), says what is wrong in one sentence, and is a `TypeError` for a wrong type and a `RangeError` for a value out of range. [Error messages](docs/ENGINE.md#error-messages)

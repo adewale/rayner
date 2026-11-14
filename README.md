@@ -26,27 +26,25 @@ Each explainer’s `script.md` says what its model is checked against and what i
 > [!NOTE]
 > These steps are for Rayner 0.2.0, which is not on npm yet; npm’s current release is 0.1.0, whose `init` writes a different starter. Until 0.2.0 is published, [work from this repository](#contributing).
 
-Requires Node 24 or later and Chromium. Authoring targets Ubuntu and macOS; Windows is not yet supported.
+Writing, checking and building an explainer requires Node 24 or later. `rayner review` and diagram capture also need Chromium. Authoring targets Ubuntu and macOS; Windows is not yet supported.
 
 ```sh
 mkdir my-rayner && cd my-rayner
 npm init -y
 npm pkg set type=module
 npm install --save-dev rayner@0.2.0 rayner-cli@0.2.0
-npx playwright-core install chromium
 npx rayner init my-explainer
 npx rayner preview my-explainer/scene.ts --watch
 ```
 
-If Chromium is already installed, set `CHROMIUM_EXECUTABLE_PATH` instead of downloading it.
-
-Rayner is two packages at one version. `rayner` is what scenes import: the vocabulary, the drawing kit and the runtime, with no dependencies. `rayner-cli` is the `rayner` command, with the player it bundles into each page and the tools that capture diagram and lettering snapshots (esbuild, TypeScript, Agentic Mermaid, Playwright, svgpath and resvg); it requires `rayner` at exactly its own version.
+Rayner is two packages at one version. `rayner` is what scenes import: the vocabulary, the drawing kits and the runtime, with no dependencies. `rayner-cli` is the `rayner` command, with the player it bundles into each page, esbuild, TypeScript, Playwright's library (for `review`) and resvg (for PNG contact sheets); it requires `rayner` at exactly its own version. Mermaid diagrams and extra lettering are [add-ons](#add-ons-diagrams-and-lettering).
 
 `init` writes the tutorial’s explainer of LRU and MRU cache replacement: the script (`script.md`), the model (`model.ts`), the model’s test (`model.test.ts`) and the scene (`scene.ts`). Open the URL `preview` prints (port 5174 by default) and switch between **A B C D again** and **C D C D**. Edit `my-explainer/scene.ts` and reload to see the rebuilt page.
 
-When the explanation is ready, review every scenario and save the page:
+When the explanation is ready, review every scenario and save the page. Review opens the page in Chromium, so install it once first (or set `CHROMIUM_EXECUTABLE_PATH` to a Chromium you already have):
 
 ```sh
+npx playwright-core install chromium
 npx rayner review my-explainer/scene.ts --out public/my-explainer.html
 ```
 
@@ -197,9 +195,35 @@ Where the author built the model as a [machine](docs/MACHINES.md), the reader ca
 
 1. **Script.** `script.md` states the intent: the reader’s question, the answer the explanation must reach, the condition whose change the reader should predict, what the model is checked against, and the questions a reader should be able to answer afterwards. Rayner reads its header and holds the scene to it.
 2. **Model.** `model.ts` expresses the system’s constraints, and `model.test.ts` compares it with whatever the system can be checked against: a published test vector, a reference implementation, the program itself, or an exhaustive search.
-3. **Scene.** `scene.ts` explains the system: its steps, their words, and which states and events each shows. A picture module draws one state.
+3. **Scene.** `scene.ts` explains the system: its steps, their words, and which states and events each shows. A picture module draws one state, with [the kit](#drawing-pictures).
 4. **Check and review.** `rayner check` and `rayner review`, [above](#what-rayner-check-and-rayner-review-catch).
 5. **Publish.** `rayner review --out` saves the exact page it reviewed.
+
+## Drawing pictures
+
+A picture is drawn from the model's state by a function you write, with [`rayner/kit`](docs/REFERENCE.md#kit): a type scale whose smallest size reads on a phone (`TYPE`, `MIN_TEXT`), spacing and strokes, the stage's colours by role (`tones(s)`), and `words`, `box`, `plate` and `connector` for the parts. Each part is keyed, so when the state changes a view moves it instead of redrawing it, and `beats`, `flight` and `pass` author a transition in which words are replaced and a token travels its route. `rayner check` redraws the picture from each step's state and fails one that differs, and `words` refuses a size under the phone floor. [`rayner/drawing`](docs/REFERENCE.md#drawing-kit) adds ready-made pictures built the same way: tables, bars, cards, code panels, callouts, dimension lines, pins and legends.
+
+```ts
+import { keyedParts } from 'rayner/drawing';
+import { addAll, box, connector, words } from 'rayner/kit';
+
+const cache = view(this, (st) => {
+  const parts = keyedParts();
+  st.slots.forEach((item, i) => addAll(parts, box(s, item, { at: [-4 + 2.6 * i, 0.4], width: 2, key: `slot:${item}`, active: item === st.used })));
+  parts.add(connector(s, [[-5.3, -0.8], [5.3, -0.8]]), 'shelf');
+  parts.add(words(s, `${st.hits} hits`, { at: [0, -2], align: 'middle' }), 'hits');
+  return parts.group();
+});
+```
+
+`rayner/kit` comes from the Poppy chapters' kit ([`poppy-kit.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/lib/poppy-kit.ts)): the same measures, words, connectors and transitions, which a test holds to drawing the same marks, without the series' own objects (a seal, a key, a ticket, a ledger).
+
+## Add-ons: diagrams and lettering
+
+A scene that draws no Mermaid diagram and asks for no lettering needs nothing but Node to `init`, `check`, `see`, `describe` and `build`. Two kinds of picture need more, and only for the scenes that draw them ([add-ons](docs/REFERENCE.md#add-ons)):
+
+- **Diagrams.** `s.show({ source })` lays out Mermaid source with [Agentic Mermaid](https://github.com/adewale/agentic-mermaid), captured in Chromium at build time into `scene.snapshots/` beside the scene; the page replays the capture and loads no diagram renderer. Install the add-on with `npm install --save-dev agentic-mermaid@0.5.1 svgpath@2.6.0` and Chromium with `npx playwright-core install chromium`. Committed snapshots replay without Chromium. A scene that needs a capture and lacks the add-on fails with that install command.
+- **Lettering.** Text is drawn with the embedded Inter and JetBrains Mono. Letters outside them, other scripts, replacement faces, real bold and italic, and typeset maths need a [lettering request](docs/LETTERING.md) (`meta.lettering`); capturing one needs Python and the source fonts, and a committed `scene.lettering.json` replays without them. Every command fails on text the embedded fonts cannot draw unless the scene asks for it.
 
 ## How Rayner compares
 
@@ -215,14 +239,14 @@ Rayner keeps Lantern’s engine ([upstream](docs/UPSTREAM.md) lists the changes)
 ## Guides
 
 - **Writing explainers:** [the tutorial](docs/TUTORIAL.md), [Judging an explainer](docs/EXPLAINER-RUBRIC.md), [machines](docs/MACHINES.md), the [agent authoring skill](skills/rayner-explainers/SKILL.md) and the [FAQ](FAQ.md). The [feature tour](https://oshineye.dev/projects/rayner/feature-tour) answers “how do I write that?” for 29 features: each opens at **Recipe**, the lines an author writes, and **Result** shows the picture before and after they run. The [feature guide](docs/FEATURE-TOUR.md) links the full source and the setup some features need.
-- **Using Rayner as a library:** [engine fundamentals](docs/ENGINE-FUNDAMENTALS.md), the [engine map](docs/ENGINE.md) of guides and the invariants they keep, and the [API and CLI reference](docs/REFERENCE.md). The [drawing kit](docs/REFERENCE.md#drawing-kit) (`rayner/drawing`) builds tables, bars, callouts, dimension lines, pins and legends from state.
+- **Using Rayner as a library:** [engine fundamentals](docs/ENGINE-FUNDAMENTALS.md), the [engine map](docs/ENGINE.md) of guides and the invariants they keep, and the [API and CLI reference](docs/REFERENCE.md). The [kit](docs/REFERENCE.md#kit) (`rayner/kit`) is the type scale, colours by role, parts and transitions a hand-drawn picture is made of; the [drawing kit](docs/REFERENCE.md#drawing-kit) (`rayner/drawing`) builds tables, bars, callouts, dimension lines, pins and legends from state.
 - **Agents:** `rayner describe` and `rayner see` give every step as JSON or text, including the picture drawn as text, so an agent can inspect and revise a scene without a browser.
 
 ## Scope and limits
 
-Scenes are ordinary TypeScript classes. Reader settings are finite choices, with every combination built ahead of time. Diagrams are captured from [Agentic Mermaid](https://github.com/adewale/agentic-mermaid) at build time; authors can also draw native shapes, charts, code diffs and camera moves. The browser loads no diagram renderer, and the page makes no runtime network requests.
+Scenes are ordinary TypeScript classes. Reader settings are finite choices, with every combination built ahead of time. Pictures are native shapes, charts, code diffs and camera moves drawn from state; a Mermaid diagram is an [add-on](#add-ons-diagrams-and-lettering), captured at build time. The page makes no runtime network requests.
 
-- Default text uses embedded Inter and JetBrains Mono. Additional scripts, replacement faces, real bold and italic, and typeset maths need explicit [lettering requests](docs/LETTERING.md). New lettering capture needs Python and source fonts; committed snapshots replay without them.
+- Default text uses embedded Inter and JetBrains Mono. Additional scripts, replacement faces, real bold and italic, and typeset maths need explicit [lettering requests](docs/LETTERING.md), an add-on. New lettering capture needs Python and source fonts; committed snapshots replay without them.
 - Paragraph direction follows the text. Authors can also choose [card field order and logical panel placement](docs/REFERENCE.md#stage) with `direction: 'rtl'`. Mermaid graph direction remains explicit in its source (`graph LR`, `graph RL`, and so on).
 - Diagram labels fit captured widths by default. Opt into [`lettering: 'natural'`](docs/LETTERING.md#diagram-measurements) to measure the requested face before layout. A diagram style does not implicitly select its font.
 - Player controls and generated picture descriptions are available in English and French. Other caption languages retain English controls and descriptions.

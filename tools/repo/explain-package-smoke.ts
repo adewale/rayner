@@ -178,7 +178,7 @@ try {
   const sourceKit = Object.keys(await import(pathToFileURL(join(ROOT, 'explain/drawing.ts')).href)).sort().join(',');
   assert.equal(kit.stdout.trim(), sourceKit);
   // So do the output and testing entry points, with the checkout's names.
-  for (const [entry, source] of [['rayner/output', 'src/output.ts'], ['rayner/testing', 'explain/testing.ts']] as const) {
+  for (const [entry, source] of [['rayner/kit', 'explain/kit.ts'], ['rayner/output', 'src/output.ts'], ['rayner/testing', 'explain/testing.ts']] as const) {
     const names = await run(process.execPath, ['--input-type=module', '-e', `const k = await import('${entry}'); console.log(Object.keys(k).sort().join(','))`], { cwd: folder });
     assert.equal(names.stdout.trim(), Object.keys(await import(pathToFileURL(join(ROOT, source)).href)).sort().join(','), entry);
   }
