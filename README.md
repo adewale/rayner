@@ -51,11 +51,11 @@ Rayner is two packages at one version. `rayner` is what scenes import: the vocab
 
 `init` writes the tutorial’s explainer of LRU and MRU cache replacement: the script (`script.md`), the model (`model.ts`), the model’s test (`model.test.ts`) and the scene (`scene.ts`). Open the URL `preview` prints (port 5174 by default) and switch between **A B C D again** and **C D C D**. Edit `my-explainer/scene.ts` and reload to see the rebuilt page.
 
-When the explanation is ready, review every scenario and save the page. Review opens the page in Chromium, so install it once first (or set `CHROMIUM_EXECUTABLE_PATH` to a Chromium you already have):
+When the explanation is ready, review every scenario and save the page. Review opens the page in Chromium: Playwright's own build if it is installed, otherwise another Playwright build or the Chrome or Chromium already on the machine, and it prints which one it used. Only if none is found, install Playwright's once (or set `CHROMIUM_EXECUTABLE_PATH` to a Chromium you already have):
 
 ```sh
-npx playwright-core install chromium
 npx rayner review my-explainer/scene.ts --out public/my-explainer.html
+npx playwright-core install chromium   # only if review finds no Chromium
 ```
 
 `review --out` checks every scenario, audits the served page at phone and desktop widths, and saves that exact HTML with its receipt, a response-header recipe and its loader. [The tutorial](docs/TUTORIAL.md) builds a complete explainer; [publishing](docs/PUBLISHING.md) covers hosting and embedding it. `npx rayner init --machine` writes the other starter, a door that locks, for explainers a reader drives with events.
@@ -232,7 +232,7 @@ The Poppy chapters draw with `rayner/kit`: their own kit ([`poppy-kit.ts`](https
 
 A scene that draws no Mermaid diagram and asks for no lettering needs nothing but Node to `init`, `check`, `see`, `describe` and `build`. Two kinds of picture need more, and only for the scenes that draw them ([add-ons](docs/REFERENCE.md#add-ons)):
 
-- **Diagrams.** `s.show({ source })` lays out Mermaid source with [Agentic Mermaid](https://github.com/adewale/agentic-mermaid), captured in Chromium at build time into `scene.snapshots/` beside the scene; the page replays the capture and loads no diagram renderer. Install the add-on with `npm install --save-dev agentic-mermaid@0.5.1 svgpath@2.6.0` and Chromium with `npx playwright-core install chromium`. Committed snapshots replay without Chromium. A scene that needs a capture and lacks the add-on fails with that install command.
+- **Diagrams.** `s.show({ source })` lays out Mermaid source with [Agentic Mermaid](https://github.com/adewale/agentic-mermaid), captured in Chromium at build time into `scene.snapshots/` beside the scene; the page replays the capture and loads no diagram renderer. Install the add-on with `npm install --save-dev agentic-mermaid@0.5.1 svgpath@2.6.0`; capture uses the same Chromium as `review`, so `npx playwright-core install chromium` is needed only if none is found. Committed snapshots replay without Chromium. A scene that needs a capture and lacks the add-on fails with that install command.
 - **Lettering.** Text is drawn with the embedded Inter and JetBrains Mono. Letters outside them, other scripts, replacement faces, real bold and italic, and typeset maths need a [lettering request](docs/LETTERING.md) (`meta.lettering`); capturing one needs Python and the source fonts, and a committed `scene.lettering.json` replays without them. Every command fails on text the embedded fonts cannot draw unless the scene asks for it.
 
 ## How Rayner compares
@@ -271,7 +271,7 @@ Build the full local gallery when developing or reviewing Rayner itself:
 ```sh
 git clone https://github.com/adewale/rayner && cd rayner
 npm ci
-npx playwright-core install chromium
+npx playwright-core install chromium   # only if no Chromium is found (docs/TESTING.md)
 npm run demos:build
 npm run demos:serve
 ```

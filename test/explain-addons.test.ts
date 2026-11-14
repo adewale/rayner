@@ -89,10 +89,11 @@ test('a diagram the snapshots lack, without the diagram add-on, fails naming the
 });
 
 test('capturing a diagram with no Chromium to be found says how to install it', async () => {
+  // No Playwright build and no system install searched (CI runners have Chrome on PATH; tools/lib/browser.ts).
   const folder = await mkdtemp(join(tmpdir(), 'rayner-addons-'));
   try {
     await writeFile(join(folder, 'scene.ts'), DIAGRAM_SCENE);
-    const r = rayner(['check', folder, '--out', join(folder, 'checks')], { PATH: process.env.PATH ?? '', PLAYWRIGHT_BROWSERS_PATH: join(folder, 'no-browsers') });
+    const r = rayner(['check', folder, '--out', join(folder, 'checks')], { PATH: process.env.PATH ?? '', PLAYWRIGHT_BROWSERS_PATH: join(folder, 'no-browsers'), RAYNER_SYSTEM_CHROMIUM: '0' });
     assert.equal(r.status, 1);
     assert.equal(errorLine(r.stderr), 'rayner: Capturing a Mermaid diagram needs Chromium, and none was found. Install it once with npx playwright-core install chromium, or set CHROMIUM_EXECUTABLE_PATH to a Chromium or Chrome executable. Writing, checking and building a scene without new diagrams needs no browser.');
     const named = rayner(['check', folder, '--out', join(folder, 'checks')], { PATH: process.env.PATH ?? '', CHROMIUM_EXECUTABLE_PATH: join(folder, 'no-chromium') });
