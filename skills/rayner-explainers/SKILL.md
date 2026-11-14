@@ -5,6 +5,8 @@ description: Author, check and publish Rayner explainers as reader-paced HTML em
 
 # Rayner explainers
 
+Rayner makes a verified explanation of what this version of this system really does, with a short receipt the person who commissioned it can review. You are usually the writer: someone else named the system, its version and the question, and they will judge the result by the script's header and the page's receipt (what the model was checked against, and how). Make the receipt true before you make the page good.
+
 An explainer is one Rayner `Scene`. The CLI builds it into a step-through HTML page. It needs no server or MCP. Start with [Your first explainer](https://github.com/adewale/rayner/blob/main/docs/TUTORIAL.md) for a worked example: LRU versus MRU cache replacement, with its model tested against published examples. Read the [reference](https://github.com/adewale/rayner/blob/main/docs/REFERENCE.md) for the helper API and the checks, and [publishing](https://github.com/adewale/rayner/blob/main/docs/PUBLISHING.md) before you host a page.
 
 ## How to use this skill
@@ -106,7 +108,7 @@ A good live step, the step where the machine last plays:
 
 ## Loop
 
-Commands are `rayner <command>`, from the `rayner-cli` package (install it beside `rayner`: `npm install --save-dev rayner rayner-cli`; scenes import only `rayner`), or `npm run rayner -- <command>` in a checkout; `rayner --help` prints the commands, the options and how to install Chromium for diagram capture.
+Commands are `rayner <command>`, from the `rayner-cli` package (install it beside `rayner` at the same version, as the [quick start](https://github.com/adewale/rayner#quick-start) shows: from npm once `npm view rayner-cli versions` lists that version, otherwise from archives built in a clone; scenes import only `rayner`), or `npm run rayner -- <command>` in a checkout; `rayner --help` prints the commands, the options and how to install Chromium for diagram capture.
 
 1. `rayner init <directory>` writes the tutorial's explainer: `script.md`, `scene.ts`, the model `model.ts` and its test `model.test.ts`; `rayner init --machine <directory>` writes a [machine](#which-way-to-step) explainer instead, with `scene.review.json`. Rewrite the script first; its [intent header](../../docs/REFERENCE.md#scene) becomes the page's title, answer, reader questions and what the model is checked against. Keep one default-exported `Scene` subclass with static `meta` (sources, and `lang` if not English; the id is the folder's name) and, if a second scenario teaches something, static `settings`.
 2. `rayner preview scene.ts --watch` while you work; `see` and `describe` give any step as text and JSON when you need to read it without a browser.

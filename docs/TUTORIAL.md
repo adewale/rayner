@@ -2,6 +2,8 @@
 
 A Rayner explainer is a web page that answers one technical question in steps. The reader presses Next, something on the stage changes, and the picture then holds still while they read the caption. This tutorial builds one that answers this question: what is the difference between the LRU and MRU cache replacement policies?
 
+An explainer usually has two people behind it. One commissions it: they name the system, its version and the question, and they review the result by the script's header and the receipt on the page, which says what the model was checked against and how. The other, often an agent, writes it: the script, the model and its tests, and the scene. This tutorial is for the writer; a commissioner can read [step 1](#1-plan-on-paper) to see what to ask for.
+
 You will plan the explainer, generate it with `rayner init`, test its model against a published source, read how the scene draws the model's answers, break it on purpose to see what the checks catch and what they miss, and build the page. Each step applies one of the principles below. The [authoring skill](../skills/rayner-explainers/SKILL.md) gives coding agents the same principles, and the [rubric](EXPLAINER-RUBRIC.md) judges finished explainers against them.
 
 ## What makes an explainer work
@@ -21,7 +23,7 @@ What Rayner checks: the model's test, against the real system, checks principle 
 
 ## Before you start
 
-You need Node 24 or later. In your project, run `npm install --save-dev rayner rayner-cli`: your scenes import `rayner`, and `rayner-cli` provides the `rayner` command, so the commands below run as `npx rayner <command>`. In a checkout of this repository, run `npm ci` and use `npm run rayner -- <command>` instead.
+You need Node 24 or later. In your project, install `rayner` and `rayner-cli` at the same version, as [the quick start](../README.md#quick-start) shows: from npm once it lists that version (`npm view rayner-cli versions`), and until then from archives built in a clone of this repository. Your scenes import `rayner`, and `rayner-cli` provides the `rayner` command, so the commands below run as `npx rayner <command>`. In a checkout of this repository, run `npm ci` and use `npm run rayner -- <command>` instead.
 
 This explainer draws no diagrams, so `check`, `preview` and `build` work without a browser. `review` opens the page in Chromium: install it with `npx playwright-core install chromium`, or set `CHROMIUM_EXECUTABLE_PATH` to a Chromium you already have.
 

@@ -147,7 +147,7 @@ It is an npm package with a command-line tool, plus an agent skill. An explainer
 
 | Who | What they use | Why this form |
 | --- | --- | --- |
-| Author, by hand | `npm i -D rayner`: the engine, helpers and Agentic Mermaid integration as one package with a pinned engine | Scenes are TypeScript; editor, types, tests and git all apply |
+| Author, by hand | `rayner` and `rayner-cli` as dev dependencies at one version (the README's quick start says where to get them): the engine and helpers in one package, the command and Agentic Mermaid capture in the other, with a pinned engine | Scenes are TypeScript; editor, types, tests and git all apply |
 | Author or CI | The CLI | Snapshots, checks, pages are build steps |
 | Coding agent | The agent skill in `skills/rayner-explainers/` | Agents already have a shell and an editor; a skill costs nothing to run |
 | Agent with no shell | An optional MCP server wrapping the same CLI, later | Useful only where an agent cannot run the CLI |

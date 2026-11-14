@@ -747,7 +747,7 @@ Removing a callout can reveal background ink and make it part of the automatic c
 
 The collection's reviewer (`npm run demos:review`) reads each scene's `scene.review.json` as `rayner review` does. Its parallel receipts include the `.review.json` files in their review fingerprint, so an older review cannot satisfy changed expectations. For a highlighted cell or boundary, name the outline's key with `paint: "stroke"`; checking its label does not prove that the outline exists.
 
-`rayner <command> <scene.ts | directory> [options]`. The command is the `rayner-cli` package, installed beside `rayner` at the same version (`npm install --save-dev rayner rayner-cli`); in a checkout, run `npm run rayner -- <command> ...`. `rayner --help` prints the commands and Chromium setup instructions.
+`rayner <command> <scene.ts | directory> [options]`. The command is the `rayner-cli` package, installed beside `rayner` at the same version ([the quick start](../README.md#quick-start): from npm once it lists that version, otherwise from archives built in a clone); in a checkout, run `npm run rayner -- <command> ...`. `rayner --help` prints the commands and Chromium setup instructions.
 
 | Command | What it does |
 | --- | --- |

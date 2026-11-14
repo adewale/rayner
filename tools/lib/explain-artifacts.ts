@@ -12,7 +12,7 @@ export interface SceneEntry { step: string; settings: Record<string, string> }
 export interface CatalogProduct {
   entry: CatalogEntry;
   home?: string; summary?: string; audience?: string; description?: string; requirements?: string;
-  tutorial?: string; reference?: string; skill?: string;
+  tutorial?: string; reference?: string; skill?: string; install?: string; installGuide?: string;
 }
 export interface CatalogScene {
   id: string; scenarios: number; title?: string; lang?: string; group?: 'topic' | 'toolchain';
@@ -61,7 +61,7 @@ export function catalog(value: unknown): Catalog {
   const fail = (): never => {throw new Error('catalog(): the catalog artifact does not match its version 2 format; write it again with the site build');};
   if (!object(value) || value.version !== 2 || !totals(value.totals) || !object(value.product) ||
       !object(value.product.entry) || typeof value.product.entry.id !== 'string' || !Array.isArray(value.scenes)) return fail();
-  for (const key of ['home','summary','audience','description','requirements','tutorial','reference','skill'])
+  for (const key of ['home','summary','audience','description','requirements','tutorial','reference','skill','install','installGuide'])
     if (value.product[key] !== undefined && typeof value.product[key] !== 'string') return fail();
   const opening = value.product.entry;
   if ((opening.step !== undefined && typeof opening.step !== 'string') || (opening.label !== undefined && typeof opening.label !== 'string') ||

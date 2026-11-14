@@ -9,14 +9,23 @@ import { HOME } from '../../app/embed-share.ts';
 export const PRODUCT = {
   /** The project's home, where every page's footer mark links (app/embed-share.ts). */
   home: HOME,
-  summary: 'Interactive explanations of technical subjects, from Git merges to Earth’s seasons.',
-  audience: 'For engineers and technical educators who write TypeScript.',
+  /** The one summary and audience: README.md's opening paragraph is `${summary} ${audience}`, and the gallery's (test/explain-gallery.test.ts). */
+  summary: 'Rayner makes a verified explanation of what this version of this system really does, with a short receipt the person who commissioned it can review.',
+  audience: 'It is for the person who commissions an explainer of a protocol, an algorithm or a data structure, and for the agent or person who writes it.',
+  /** README.md's second paragraph, and the gallery's. */
   description:
-    'Step through a picture at your own pace, or change a setting to follow another scenario. The model computes the numbers, diagrams and captions. Publish a portable HTML page with a transcript and no runtime network requests.',
+    'The writer models the system in TypeScript and tests the model against the real system where it can: run live, recorded once, or read from its specification. Every picture on the page is checked against the model’s state, and the receipt says what the model was checked against and how. The result is one HTML page of steps and a transcript, with no runtime network requests.',
   requirements: 'Node 24 or later and Chromium. Authoring targets Ubuntu and macOS.',
   tutorial: 'https://github.com/adewale/rayner/blob/main/docs/TUTORIAL.md',
   reference: 'https://github.com/adewale/rayner/blob/main/docs/REFERENCE.md',
   skill: 'https://github.com/adewale/rayner/blob/main/skills/rayner-explainers/SKILL.md',
+  /**
+   * How to install the version this checkout describes, for the gallery and catalog.json (a host's
+   * project page reads it there). It names package.json's version, so a release revisits it
+   * (test/explain-gallery.test.ts); say only what npm actually has (`npm view rayner versions`).
+   */
+  install: 'Rayner 0.2.0, which these guides describe, is not on npm yet: npm has rayner 0.1.0, an earlier single-package release, and no rayner-cli. Build both packages from the repository, as the quick start shows.',
+  installGuide: 'https://github.com/adewale/rayner#quick-start',
   entry: {
     id: 'bloom-filter',
     step: 'question',
@@ -27,7 +36,9 @@ export const PRODUCT = {
 
 /**
  * Where an explainer is shown. `showcase`: the selected exemplars, leading the gallery;
- * mostly subjects, plus any toolchain lesson that stands on its own. Selection is editorial; it is not evidence of learning or benchmark superiority.
+ * mostly subjects, plus any toolchain lesson that stands on its own, each with a model run against
+ * the real system or checked against a recording of it (its script's Grounding is `live` or
+ * `recorded`; test/explain-gallery.test.ts). Selection is editorial; it is not evidence of learning or benchmark superiority.
  * `gallery`: worth reading, behind "More". `coverage`: kept because it is
  * the only scene exercising some engine feature, diagram family or check (or until it is rebuilt);
  * its page is built and tested but not listed in the gallery or llms.txt.
@@ -35,15 +46,19 @@ export const PRODUCT = {
 export type Tier = 'showcase' | 'gallery' | 'coverage';
 
 export const EXPLAINERS: readonly { id: string; step: string; group: 'topic' | 'toolchain'; tier: Tier }[] = [
-  { id: 'periodic-groups', step: 'stack', group: 'topic', tier: 'showcase' },
   { id: 'python-dict', step: 'marker', group: 'topic', tier: 'showcase' },
   { id: 'bloom-filter', step: 'false-positive', group: 'topic', tier: 'showcase' },
   { id: 'git-branches', step: 'merge', group: 'topic', tier: 'showcase' },
+  { id: 'pg-page', step: 'swap', group: 'topic', tier: 'showcase' },
+  { id: 'trust-proxy', step: 'read', group: 'topic', tier: 'showcase' },
+  { id: 'send-sync', step: 'arc-cell', group: 'topic', tier: 'showcase' },
+  { id: 'ext4-space', step: 'reserve', group: 'topic', tier: 'showcase' },
+  { id: 'token-bucket', step: 'later', group: 'topic', tier: 'showcase' },
   { id: 'latest-search', step: 'reader-guard', group: 'topic', tier: 'showcase' },
-  { id: 'monty-hall', step: 'worlds', group: 'topic', tier: 'showcase' },
+  { id: 'monty-hall', step: 'worlds', group: 'topic', tier: 'gallery' },
   { id: 'birthday-paradox', step: 'chance', group: 'topic', tier: 'gallery' },
-  { id: 'melody-rhythm', step: 'bar', group: 'topic', tier: 'showcase' },
-  { id: 'seasons', step: 'latitude', group: 'topic', tier: 'showcase' },
+  { id: 'melody-rhythm', step: 'bar', group: 'topic', tier: 'gallery' },
+  { id: 'seasons', step: 'latitude', group: 'topic', tier: 'gallery' },
   { id: 'henge', step: 'crossings', group: 'topic', tier: 'showcase' },
   { id: 'great-circle', step: 'turn', group: 'topic', tier: 'gallery' },
   { id: 'oauth-pkce', step: 'attack', group: 'topic', tier: 'gallery' },
@@ -56,7 +71,6 @@ export const EXPLAINERS: readonly { id: string; step: string; group: 'topic' | '
   { id: 'poppy-conversations', step: 'direct', group: 'topic', tier: 'gallery' },
   { id: 'poppy-coverage', step: 'sort', group: 'topic', tier: 'gallery' },
   { id: 'exgit', step: 'change', group: 'topic', tier: 'gallery' },
-  { id: 'token-bucket', step: 'later', group: 'topic', tier: 'gallery' },
   { id: 'mr-cache', step: 'reader-outcome', group: 'topic', tier: 'coverage' },
   { id: 'state-machine', step: 'reader-reject', group: 'topic', tier: 'coverage' },
   { id: 'statecharts', step: 'regions', group: 'topic', tier: 'showcase' },
@@ -65,14 +79,11 @@ export const EXPLAINERS: readonly { id: string; step: string; group: 'topic' | '
   { id: 'just-bash', step: 'reader-values', group: 'topic', tier: 'coverage' },
   { id: 'cert-renewal', step: 'year', group: 'topic', tier: 'gallery' },
   { id: 'quotient-familial', step: 'multiplie', group: 'topic', tier: 'gallery' },
-  { id: 'send-sync', step: 'arc-cell', group: 'topic', tier: 'gallery' },
   { id: 'gtfs', step: 'day', group: 'topic', tier: 'gallery' },
-  { id: 'pg-page', step: 'swap', group: 'topic', tier: 'gallery' },
   { id: 'traffic-policy', step: 'shares', group: 'topic', tier: 'gallery' },
   { id: 'isdigit', step: 'outcome', group: 'topic', tier: 'showcase' },
+  { id: 'periodic-groups', step: 'stack', group: 'topic', tier: 'showcase' },
   { id: 'ical-recurrence', step: 'copy', group: 'topic', tier: 'gallery' },
-  { id: 'ext4-space', step: 'reserve', group: 'topic', tier: 'gallery' },
-  { id: 'trust-proxy', step: 'read', group: 'topic', tier: 'gallery' },
   { id: 'tailwind-gamut', step: 'reader-display', group: 'topic', tier: 'gallery' },
   { id: 'gnome-files', step: 'reader-sample', group: 'topic', tier: 'coverage' },
   { id: 'wcag-map', step: 'reader-levels', group: 'topic', tier: 'coverage' },
