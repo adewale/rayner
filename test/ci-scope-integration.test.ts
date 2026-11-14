@@ -35,7 +35,7 @@ else {const dest=args[args.indexOf('--dir')+1],name=args[args.indexOf('--name')+
     const make = () => ({api: {
       [`${prefix}/commits/${merged}/pulls`]: [{merged_at: new Date().toISOString(), merge_commit_sha: merged, base: {ref: 'main'}, head: {sha: head, repo: {full_name: 'owner/rayner'}}}],
       [`${prefix}/actions/workflows/ci.yml/runs?event=pull_request&head_sha=${head}&status=success&per_page=10`]: {workflow_runs: [{id: 1, created_at: new Date().toISOString(), head_repository: {full_name: 'owner/rayner'}}]},
-      [`${prefix}/actions/runs/1/jobs?per_page=100`]: {jobs: ['check', 'catalog', 'story', 'compatibility (ubuntu-24.04, 24.0.0)', 'compatibility (ubuntu-24.04, 24)', 'compatibility (macos-26, 24.0.0)', 'compatibility (macos-26, 24)', 'compatibility (macos-15-intel, 24.0.0)', 'compatibility (macos-15-intel, 24)'].map(name => ({name, conclusion: 'success'}))},
+      [`${prefix}/actions/runs/1/jobs?per_page=100`]: {jobs: ['check', 'catalog', 'story', 'compatibility (ubuntu-24.04, 24.0.0)', 'compatibility (ubuntu-24.04, 24)', 'compatibility (macos-26, 24)', 'compatibility (macos-15-intel, 24.0.0)', 'compatibility (macos-15-intel, 24)'].map(name => ({name, conclusion: 'success'}))},
       [`${prefix}/actions/runs/1/artifacts?per_page=100`]: {artifacts: [{name: `rayner-story-${tested}`, expired: false}, {name: `rayner-package-${tested}`, expired: false}]},
     } as Record<string, any>, story: {sourceCommit: tested, scenarios: 38, stepWidths: 200, consoleErrors: [], runtimeConnections: []},
       archive: {sourceCommit: tested, dirty: false, node: process.version, gates: {package: true, browser: true, letteringCapture: true}}});
