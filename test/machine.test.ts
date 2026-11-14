@@ -155,8 +155,55 @@ test('rayner check draws every reachable state: a picture that cannot tell two s
 test('rayner check measures every label an explored state shows: one too small to read fails, named by its shortest events', async () => {
   const Small = lampScene(false, 0.12);
   const [lamp] = await exploreMachines(await new Small(new NullSink()).run(), Small);
-  assert.equal(lamp!.problems.length, 1, JSON.stringify(lamp!.problems));
-  assert.match(lamp!.problems[0]!, /^after UP, UP: “lamp bright” is \d+(\.\d)? px at a 1280 px stage, under 14$/);
+  const desktop = lamp!.problems.filter((p) => p.includes('1280 px stage'));
+  assert.equal(desktop.length, 1, JSON.stringify(lamp!.problems));
+  assert.match(desktop[0]!, /^after UP, UP: “lamp bright” is \d+(\.\d)? px at a 1280 px stage, under 14$/);
+  // Far too small for a phone as well, even in the live step's close-up.
+  assert.equal(lamp!.problems.length, 2, JSON.stringify(lamp!.problems));
+});
+
+/**
+ * The lamp under a note that stays still: the note is drawn in the first step and the machine plays in
+ * the second, the live step, so the note is no part of what that step changed. `note` and `word` are
+ * their font sizes; with `play: false` the machine is made but never played, so no step is live.
+ */
+function notedLamp({ note, word, play = true }: { note: number; word: number; play?: boolean }) {
+  return class NotedLamp extends Scene<Lamp> {
+    machine!: Machine<Lamp, 'UP' | 'OFF'>;
+    override state = { level: 0 };
+    override async construct() {
+      const s = stage(this);
+      const picture = view(this, (st: Lamp) => keyed(new Group(
+        new Rectangle({ width: 4, height: 1.2 }),
+        keyed(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: word }), 'lamp:word'),
+      ), 'lamp'));
+      const caption = keyed(new Text('the hall light', { fontSize: note }).moveTo([-5, 3]), 'note');
+      s.keep(picture, { describe: () => picture.texts.join(' ') });
+      s.keep(caption, { describe: () => 'a note: the hall light' });
+      this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [picture], runTime: 0.3 });
+      await this.step('draw');
+      this.add(picture, caption);
+      await this.wait(0.2);
+      await this.step('press');
+      if (play) await this.play(this.machine.replay(['UP', 'UP']));
+      else await this.play(picture.sync({ runTime: 0.2 }));
+    }
+  };
+}
+const phoneProblems = async (S: ReturnType<typeof notedLamp>) =>
+  (await exploreMachines(await new S(new NullSink()).run(), S))[0]!.problems.filter((p) => p.includes('px phone'));
+
+test('at a live step, every label a reachable state shows reads 12 px on a phone: on the whole picture, or whole in one of the step’s close-ups', async () => {
+  // A note at 0.4 reads 8.9 px on the 358 px stage, and the step's close-ups are of the lamp it changed: it fails at every state, named.
+  const small = await phoneProblems(notedLamp({ note: 0.4, word: 0.6 }));
+  assert.equal(small.length, 3, JSON.stringify(small));
+  assert.match(small[0]!, /^at the start: “the hall light” reads 8.9 px on the whole picture at a 390 px phone, and no close-up of "press" shows it larger, under 12; the player shows a live step's whole picture after each press, so draw it at a size of at least 0\.54/);
+  // At 0.56, as the Poppy series draws every label, it reads 12.5 px on the whole picture.
+  assert.deepEqual(await phoneProblems(notedLamp({ note: 0.56, word: 0.6 })), []);
+  // The lamp's word at 0.5 reads 11.2 px whole, but it is what the step changed, so its close-up reads it at 12.
+  assert.deepEqual(await phoneProblems(notedLamp({ note: 0.56, word: 0.5 })), []);
+  // A machine that never plays is live nowhere: the reader never drives it, so the phone floor does not apply.
+  assert.deepEqual(await phoneProblems(notedLamp({ note: 0.4, word: 0.6, play: false })), []);
 });
 
 /** The lamp with an authored transition for UP, and (optionally) an invariant on the box. */
@@ -354,7 +401,7 @@ test('what is shown may change between a machine\'s events; exploration draws it
       // Which room the lamp is in is what is shown, not part of the lamp's model.
       const picture = view(this, (st: Lamp, shown) => {
         // Too small to read in the hall: exploration drawing there would say so.
-        const word = new Text(`${String(shown.room ?? 'hall')} lamp ${LEVELS[st.level]}`, { fontSize: shown.room === 'hall' ? 0.08 : 0.5 });
+        const word = new Text(`${String(shown.room ?? 'hall')} lamp ${LEVELS[st.level]}`, { fontSize: shown.room === 'hall' ? 0.08 : 0.6 });
         keyed(word, 'lamp:word');
         return keyed(new Group(new Rectangle({ width: 6, height: 1.2 }), word), 'lamp');
       });
