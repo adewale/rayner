@@ -2,7 +2,7 @@ import { isRefusal, refuse } from '../../../explain/index.ts';
 import type { Refusal } from '../../../explain/index.ts';
 import { AGENT, COMPANY, POPPY_JSON, USER_IDS } from '../poppy/model.ts';
 
-// Poppy (Personal Agent Protocol, draft 0.4), section 8: a conversation between the User's Personal
+// Poppy (Personal Agent Protocol, draft 1.0), section 8: a conversation between the User's Personal
 // Agent and a Company. Two layers, both pure.
 //
 // The wire layer holds single rules of the section: choosing the protocol (8.1), IDs and who owns a
@@ -33,8 +33,12 @@ export const USER_ID = USER_IDS[COMPANY.domain];
 /** The account the User signs in to at example.com: what the conversation is tied to once it uses it (8.2, 8.11). */
 export const ACCOUNT = 'A';
 
-/** 8.1: the agent takes the first entry whose type it supports, and skips types it does not know. */
-export type ProtocolEntry = { type: string; endpoint: string };
+/**
+ * 8.1: the agent takes the first entry whose type it supports, and skips types it does not know.
+ * From 1.0 every entry has a description of what the agent there can help with, which the agent
+ * reads to decide whether a conversation can serve the task at all.
+ */
+export type ProtocolEntry = { type: string; endpoint: string; description: string };
 export function chooseProtocol(entries: readonly ProtocolEntry[], supported: readonly string[] = ['poppy']): ProtocolEntry | null {
   return entries.find((e) => supported.includes(e.type)) ?? null;
 }
@@ -101,6 +105,13 @@ export function submit(accepted: readonly Accepted[], request: { id?: string; ur
 
 /** 8.8: who wrote a message, as author.type says. */
 export type AuthorType = 'agent' | 'human';
+/**
+ * 8.4 (1.0): later versions may add values. Either side reads an author.type it does not recognize
+ * as agent, so a message is never taken for a person's own words unless it says human.
+ */
+export const readAuthor = (raw: string): AuthorType => (raw === 'human' ? 'human' : 'agent');
+/** 8.4 (1.0): the agent reads a role it does not recognize as content from the Company (10.1). */
+export const readRole = (raw: string): 'user' | 'company' => (raw === 'user' ? 'user' : 'company');
 /** Where the words of a message on the User's side came from. */
 export type Words = 'agent' | 'user’s own words' | 'summary' | 'paraphrase' | 'translation';
 /** 8.8: human only for the User's own words; a summary, paraphrase or translation of them is the agent's. */
@@ -126,6 +137,8 @@ export type Side = 'personal agent' | 'company';
  * (author.type human) carries neither as_of field, since which messages a person had read is not
  * known. as_of_request is the Company Agent's, as_of_cursor the Personal Agent's. Only Company
  * messages name their author (id, name, image), and only the Personal Agent sends context.
+ * These are what a sender of this version may send. From 1.0 a receiver is more forgiving, so later
+ * versions can add to messages: see `readAuthor`, `readRole` and `record`.
  * Left out: the formats of locale, time_zone and user_available, and extension versions (3.4).
  */
 export function problemsOf(message: Message, from: Side): string[] {
@@ -142,14 +155,25 @@ export function problemsOf(message: Message, from: Side): string[] {
 
 /**
  * 8.4 and 8.5: how the Company records a message as an event. It sets id and role itself, ignoring
- * any the Personal Agent sent: the request's ID for the agent's messages, its own for its own.
+ * any the Personal Agent sent: the request's ID for the agent's messages, its own for its own. From
+ * 1.0 it also ignores author id, name and image on the agent's messages, so a later version can
+ * define them there.
  */
 export function record(message: Message, from: Side, id: string): Message {
-  return { ...message, id, role: from === 'company' ? 'company' : 'user' };
+  const recorded = { ...message, id, role: from === 'company' ? ('company' as const) : ('user' as const) };
+  if (from === 'company' || !message.author) return recorded;
+  return { ...recorded, author: { type: message.author.type } };
 }
 
-/** 8.4: a message's context updates the facts it names; fields it leaves out keep their values. */
-export const mergeContext = (before: Record<string, unknown>, message: Message) => ({ ...before, ...(message.context ?? {}) });
+/**
+ * 8.4: a message's context updates the facts it names; fields it leaves out keep their values. From
+ * 1.0 a field set to null clears it, as if the agent had never shared it.
+ */
+export function mergeContext(before: Record<string, unknown>, message: Message): Record<string, unknown> {
+  const after = { ...before, ...(message.context ?? {}) };
+  for (const [field, value] of Object.entries(after)) if (value === null) delete after[field];
+  return after;
+}
 
 /** The four state fields (8.7), each independent of the others. */
 export type Handoff = 'none' | 'pending';
@@ -217,6 +241,12 @@ export function handle(handled: ReadonlySet<string>, events: readonly ConvEvent[
   }
   return { act, handled: now };
 }
+
+/**
+ * 8.6: the SSE event names a stream carries: the event types of 8.5, working and text-delta. From
+ * 1.0 the agent skips any other name, so later versions and extensions can add them.
+ */
+export const readStream = (names: readonly string[]) => names.filter((name) => name === 'working' || name === 'text-delta' || (EVENT_TYPES as readonly string[]).includes(name));
 
 /** 8.6: reconnecting a stream, Last-Event-ID takes the place of cursor and wins when both are sent. */
 export const resumeFrom = (request: { cursor?: string; lastEventId?: string }) => request.lastEventId ?? request.cursor ?? null;

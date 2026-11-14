@@ -10,8 +10,8 @@ import {
   type DiscoveryEvent, type PoppyDocument, type Server, type Stop, type Web, type World,
 } from './model.ts';
 
-// Each test names the section of the Personal Agent Protocol draft 0.4 it holds the model to
-// (https://personalagentprotocol.org/docs/0.4/spec). The specification was read, not run: there is
+// Each test names the section of the Personal Agent Protocol draft 1.0 it holds the model to
+// (https://personalagentprotocol.org/docs/1.0/spec). The specification was read, not run: there is
 // no reference implementation here, so these pin the model to the draft's rules and examples.
 
 const ISSUER = 'https://auth.example.com';
@@ -61,6 +61,17 @@ test('3.1: organization.domain must be the host that served the document, ignori
   assert.deepEqual(stopOf(discover('examp1e.com', BASE_WEB)), { stopped: 'read', reason: 'the document names example.com, and examp1e.com served it' });
 });
 
+test('3.1 (1.0): organization.domain carries the port when it is not 443, and an agent uses another port only when configured to', () => {
+  const testing = { organization: { name: 'Example Company', domain: 'shop.example:8443' } };
+  const at = (host: string, d: PoppyDocument, o: { otherPorts?: boolean } = {}) => readDocument({ hops: [], url: wellKnownUrl(host), host, doc: d }, BASE_WEB, o);
+  assert.equal(stopOf(at('shop.example:8443', doc(testing))).reason, 'shop.example:8443 is not on port 443, and the agent uses another port only when configured to, such as for testing');
+  assert.equal(ok(at('shop.example:8443', doc(testing), { otherPorts: true })).domain, 'shop.example:8443');
+  assert.equal(stopOf(at('shop.example:8443', doc({ organization: { name: 'Example Company', domain: 'shop.example' } }), { otherPorts: true })).reason, 'the document names shop.example, and shop.example:8443 served it');
+  // Port 443 is the default, so a URL that spells it out is served by the same host.
+  const web = webWith({ 'https://example.com:443/.well-known/poppy.json': { status: 200, body: REAL_DOC }, 'https://www.example.com/.well-known/poppy.json': { status: 301, location: 'https://example.com:443/.well-known/poppy.json' } });
+  assert.equal(ok(fetchDocument(web, 'www.example.com')).host, 'example.com');
+});
+
 test('3.1: a document needs protocol_version, organization, and at least one of agent, apis or web', () => {
   const served = (d: PoppyDocument) => readDocument({ hops: [], url: wellKnownUrl('example.com'), host: 'example.com', doc: d }, BASE_WEB);
   const { agent: _a, apis: _p, web: _w, ...noChannel } = REAL_DOC;
@@ -84,7 +95,7 @@ test('3.2: the issuer comes from the domain’s protected resource metadata, and
   assert.deepEqual(ok(findIssuer(read, BASE_WEB)), { issuer: ISSUER });
   assert.equal(confirmIssuer(ISSUER, 'example.com', BASE_WEB), true);
   assert.deepEqual(ok(discover('www.example.com', BASE_WEB)), {
-    host: 'example.com', domain: 'example.com', issuer: ISSUER, company: ISSUER, signIn: true, channels: ['api', 'web', 'chat'], version: '0.4',
+    host: 'example.com', domain: 'example.com', issuer: ISSUER, company: ISSUER, signIn: true, channels: ['api', 'web', 'chat'], version: '1.0',
   });
 });
 
@@ -109,7 +120,7 @@ test('3.2: the issuer’s metadata URL is RFC 8414’s, with the well-known part
 
 test('3.2: 404 means no issuer: the Company is its HTTPS domain and offers signed-out Sessions only', () => {
   assert.deepEqual(ok(discover('corner.example', BASE_WEB)), {
-    host: 'corner.example', domain: 'corner.example', issuer: null, company: 'https://corner.example', signIn: false, channels: ['web'], version: '0.4',
+    host: 'corner.example', domain: 'corner.example', issuer: null, company: 'https://corner.example', signIn: false, channels: ['web'], version: '1.0',
   });
   const empty = webWith({ [prmUrl('corner.example')]: { status: 200, body: { resource: 'https://corner.example', authorization_servers: [] } } });
   assert.equal(ok(discover('corner.example', empty)).issuer, null, 'an empty authorization_servers also means no issuer');
@@ -177,18 +188,31 @@ test('section 3 and 10.3: each forgery is refused by exactly one check, and woul
   }
 });
 
+test('10.3 (1.0): a lookalike that names itself passes every check, whatever name and logo it uses; the domain is the Company’s identity', () => {
+  const web = webWith({
+    [wellKnownUrl('examp1e.com')]: { status: 200, body: { ...REAL_DOC, organization: { name: 'Example Company', domain: 'examp1e.com' } } },
+    [prmUrl('examp1e.com')]: { status: 404 },
+  });
+  const got = ok(discover('examp1e.com', web));
+  assert.deepEqual([got.domain, got.company, got.signIn], ['examp1e.com', 'https://examp1e.com', false]);
+  // Nothing ties it to example.com: another Company, so another User ID.
+  assert.notEqual(userIdAt(got.company), userIdAt(ok(discover('example.com', BASE_WEB)).company));
+});
+
 test('3.4: versions are compatible with the same major and, before 1.0, the same minor', () => {
   assert.ok(compatible('0.4', '0.4'));
   assert.ok(!compatible('0.4', '0.3'));
   assert.ok(compatible('1.2', '1.0'));
   assert.ok(!compatible('2.0', '1.9'));
+  assert.ok(!compatible('1.0', '0.4'), 'a 1.0 agent cannot read a 0.4 document');
 });
 
 test('3.4: the agent uses the newest compatible version, only from a URL on the host that served poppy.json', () => {
-  assert.deepEqual(ok(chooseVersion(REAL_DOC, 'example.com', BASE_WEB, ['0.4'])).version, '0.4');
+  assert.deepEqual(ok(chooseVersion(REAL_DOC, 'example.com', BASE_WEB, ['1.0'])).version, '1.0');
+  assert.deepEqual(ok(chooseVersion(REAL_DOC, 'example.com', BASE_WEB, ['1.1'])).version, '1.0', 'from 1.0, a newer minor reads an older one');
   const old = ok(chooseVersion(REAL_DOC, 'example.com', BASE_WEB, ['0.3']));
   assert.deepEqual([old.version, old.url], ['0.3', 'https://example.com/poppy/0.3.json']);
-  assert.equal(stopOf(chooseVersion(REAL_DOC, 'example.com', BASE_WEB, ['0.5'])).reason, 'no version the document offers, 0.4 or 0.3, is compatible with 0.5');
+  assert.equal(stopOf(chooseVersion(REAL_DOC, 'example.com', BASE_WEB, ['0.5'])).reason, 'no version the document offers, 1.0 or 0.3, is compatible with 0.5');
   const elsewhere = doc({ supported_versions: { '0.3': 'https://files.example.net/poppy/0.3.json' } });
   assert.ok(isStop(chooseVersion(elsewhere, 'example.com', webWith({ 'https://files.example.net/poppy/0.3.json': { status: 200, body: { ...REAL_DOC, protocol_version: '0.3' } } }), ['0.3'])), 'a version on another host is not used');
   const relabelled = webWith({ 'https://example.com/poppy/0.3.json': { status: 200, body: { ...REAL_DOC, protocol_version: '0.2', supported_versions: undefined } } });
@@ -200,13 +224,14 @@ test('3.4: the agent uses the newest compatible version, only from a URL on the 
 });
 
 test('3.4: an endpoint answers a missing or incompatible Poppy-Version with 400 version_unsupported; the agent retries once in a new Session', () => {
-  assert.equal(checkPoppyVersion('0.4', ['0.4', '0.3']), null);
-  assert.deepEqual(checkPoppyVersion(undefined, ['0.4']), { status: 400, error: 'version_unsupported' });
-  assert.deepEqual(checkPoppyVersion('0.5', ['0.4', '0.3']), { status: 400, error: 'version_unsupported' });
-  assert.equal(afterVersionUnsupported('0.4', '0.3', false), 'start a new Session and send the request again, once');
-  assert.equal(afterVersionUnsupported('0.4', '0.4', false), 'stop sending the request');
-  assert.equal(afterVersionUnsupported('0.4', null, false), 'stop sending the request');
-  assert.equal(afterVersionUnsupported('0.4', '0.3', true), 'stop sending the request');
+  assert.equal(checkPoppyVersion('1.0', ['1.0', '0.3']), null);
+  assert.equal(checkPoppyVersion('1.1', ['1.0']), null, 'from 1.0, a newer minor is compatible');
+  assert.deepEqual(checkPoppyVersion(undefined, ['1.0']), { status: 400, error: 'version_unsupported' });
+  assert.deepEqual(checkPoppyVersion('0.4', ['1.0', '0.3']), { status: 400, error: 'version_unsupported' });
+  assert.equal(afterVersionUnsupported('1.0', '0.3', false), 'start a new Session and send the request again, once');
+  assert.equal(afterVersionUnsupported('1.0', '1.0', false), 'stop sending the request');
+  assert.equal(afterVersionUnsupported('1.0', null, false), 'stop sending the request');
+  assert.equal(afterVersionUnsupported('1.0', '0.3', true), 'stop sending the request');
 });
 
 test('3.3: extensions: plain names are reserved, unknown ones are ignored, and a Company may answer extension_required', () => {

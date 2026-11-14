@@ -31,7 +31,7 @@ const PAGE = ['window:frame', 'window:host', 'window:page', 'page:title', 'page:
 export default class SignIn extends Scene<World, Shown> {
   static meta = {
     sources: [
-      'https://personalagentprotocol.org/docs/0.4/spec',
+      'https://personalagentprotocol.org/docs/1.0/spec',
       'https://www.rfc-editor.org/rfc/rfc6749',
       'https://www.rfc-editor.org/rfc/rfc7636',
       'https://www.rfc-editor.org/rfc/rfc8628',
@@ -224,7 +224,7 @@ export default class SignIn extends Scene<World, Shown> {
           title: 'The agent opens the Company’s own page',
           line: 'It asks for two scopes, and nothing more.',
           caption:
-            'Poppy’s way is OAuth. The agent opens example.com’s sign-in page in your browser and asks for the two scopes the exchange needs, orders:read and orders:write, and not addresses. The Company describes each scope and warns that orders:write makes changes that can’t be undone. The request also carries a fingerprint of a secret the agent keeps, its PKCE verifier, so only the agent can finish this sign-in.',
+            'Poppy’s way is OAuth. The agent opens example.com’s sign-in page in your browser and asks for the two scopes the exchange needs, orders:read and orders:write, and not addresses. The Company describes each scope and warns that orders:write makes changes that can’t be undone. The request also carries a fingerprint of a secret the agent keeps, its PKCE verifier, so only the agent can finish this sign-in, and prompt=consent, so the Company shows this page even for scopes you approved before: a link forwarded to someone else cannot get tokens without a page.',
         });
     this.shown = { password: false };
     await this.play(replay(0, asked));

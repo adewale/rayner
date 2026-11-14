@@ -3,7 +3,7 @@ import type { Refusal } from '../../../explain/index.ts';
 import { AGENT, COMPANY, OPERATIONS, SCOPES, SID, THIEF, USER_IDS, answer, hashOf, sign } from '../poppy/model.ts';
 import type { AccessToken, Answer, HttpRequest, OperationKey } from '../poppy/model.ts';
 
-// Poppy (Personal Agent Protocol, draft 0.4), what is inside the seal: how a Company knows which
+// Poppy (Personal Agent Protocol, draft 1.0), what is inside the seal: how a Company knows which
 // agent and which User a request is from, without learning who the User is. Chapter 1's model
 // (`../poppy/model.ts`) has the Session JWT's claims, `sign` and `answer`; this one adds what that
 // chapter left out: the agent's published keys (4.1), the delegation that vouches for a delegated

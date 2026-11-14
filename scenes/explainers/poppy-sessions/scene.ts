@@ -21,7 +21,7 @@ import type { Shown } from './picture.ts';
 export default class Sessions extends Scene<SealWorld, Shown> {
   static meta = {
     sources: [
-      'https://personalagentprotocol.org/docs/0.4/spec',
+      'https://personalagentprotocol.org/docs/1.0/spec',
       'https://www.rfc-editor.org/rfc/rfc9449',
       'https://www.rfc-editor.org/rfc/rfc7800',
     ],

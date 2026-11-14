@@ -4,7 +4,7 @@ import type { Choreography, Stage } from '../../../explain/index.ts';
 import { emphasised } from '../../../explain/drawing.ts';
 
 /*
- * THE POPPY KIT: the visual system of the Poppy series (Personal Agent Protocol, draft 0.4), as code.
+ * THE POPPY KIT: the visual system of the Poppy series (Personal Agent Protocol, draft 1.0), as code.
  * Every chapter draws with it, so the same thing looks the same in every chapter.
  *
  * THE IDEA. Night-blue ground, and on it real objects from the protocol's world: a wax seal, a cut

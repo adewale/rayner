@@ -3,7 +3,7 @@ import type { Refusal } from '../../../explain/index.ts';
 import { CHANNELS, COMPANY, ISSUER_METADATA, POPPY_JSON, USER_IDS } from '../poppy/model.ts';
 import type { Channel } from '../poppy/model.ts';
 
-// Poppy (Personal Agent Protocol, draft 0.4), section 3: how a Personal Agent decides that a
+// Poppy (Personal Agent Protocol, draft 1.0), section 3: how a Personal Agent decides that a
 // poppy.json speaks for a Company. Four checks, in the order the agent can make them:
 //
 //   fetch   the document was fetched from https://{host}/.well-known/poppy.json, redirects allowed,
@@ -106,7 +106,8 @@ export function fetchDocument(web: Web, domain: string, o: { exactPath?: boolean
       if (o.exactPath !== false && last.path !== '/.well-known/poppy.json') return stop('fetch', `the last URL, ${url}, is not at /.well-known/poppy.json`);
       if (o.exactPath !== false && last.search !== '') return stop('fetch', `the last URL, ${url}, has a query`);
       if (typeof answer.body !== 'object' || answer.body === null) return stop('fetch', `${url} is not a JSON document`);
-      return { hops, url, host: last.host, doc: answer.body as PoppyDocument };
+      // 443 is the default port, so a URL that spells it out is served by the same host.
+      return { hops, url, host: last.host.replace(/:443$/, ''), doc: answer.body as PoppyDocument };
     }
     if ('location' in answer) {
       if (!isHttps(answer.location)) return stop('fetch', `the redirect to ${answer.location} is not HTTPS`);
@@ -137,18 +138,22 @@ export function channelsOf(doc: PoppyDocument): Channel[] {
 }
 
 /** The protocol versions this agent implements. */
-export const AGENT_VERSIONS: readonly string[] = ['0.4'];
+export const AGENT_VERSIONS: readonly string[] = ['1.0'];
 
 /**
- * 3.1 and 3.4: reading the document. organization.domain must be the host that served it, compared
- * ignoring case and nothing else (a trailing dot is a different domain): this stops a document
- * copied to another domain from speaking for the Company. `checkDomain: false` skips that rule.
+ * 3.1 and 3.4: reading the document. organization.domain must be the host that served it, with its
+ * port when that is not 443, compared ignoring case and nothing else (a trailing dot is a different
+ * domain): this stops a document copied to another domain from speaking for the Company.
+ * `checkDomain: false` skips that rule.
  * Then the agent chooses a protocol version it implements (3.4) and reads that version's document.
  * Left out: the fields that do not decide which Company a document speaks for (scopes and their
  * hints, logo_uri, web.unscoped, tasks).
  */
-export function readDocument(fetched: Fetched, web: Web, o: { checkDomain?: boolean; implemented?: readonly string[] } = {}): Read | Stop {
+export function readDocument(fetched: Fetched, web: Web, o: { checkDomain?: boolean; implemented?: readonly string[]; otherPorts?: boolean } = {}): Read | Stop {
   const { doc, host } = fetched, domain = doc.organization?.domain;
+  // 3.1 (1.0): a Company on another port carries the port in organization.domain, and an agent uses
+  // one only when configured to on purpose. `otherPorts` is that configuration.
+  if (/:\d+$/.test(host) && !o.otherPorts) return stop('read', `${host} is not on port 443, and the agent uses another port only when configured to, such as for testing`);
   if (!domain) return stop('read', 'the document names no organization.domain');
   if (o.checkDomain !== false && domain.toLowerCase() !== host.toLowerCase()) return stop('read', `the document names ${domain}, and ${host} served it`);
   if (!doc.protocol_version) return stop('read', 'the document has no protocol_version');
@@ -369,7 +374,8 @@ export const AS_METADATA = {
 export const REAL_DOC: PoppyDocument = {
   ...POPPY_JSON,
   supported_versions: { '0.3': 'https://example.com/poppy/0.3.json' },
-  auth: { scopes: { 'orders:read': 'See your orders, returns, and bookings', 'orders:write': 'Exchange or return items, and change bookings' } },
+  // 4.7: from 1.0 a description also says which tasks need the scope.
+  auth: { scopes: { 'orders:read': 'See your orders, returns, and bookings. Needed to track an order or find one to change', 'orders:write': 'Exchange or return items, and change bookings. Needed for any change to an order' } },
   tasks: { endpoint: 'https://api.example.com/poppy/tasks' },
   // 3.1: each API has a type, a url and a short description; chapter 1's POPPY_JSON carries the spec example's.
   apis: POPPY_JSON.apis,
@@ -400,7 +406,7 @@ export const BASE_WEB: Web = {
   [wellKnownUrl('deals.example')]: { status: 302, location: 'https://example.com/uploads/poppy.json' },
   'https://example.com/uploads/poppy.json': page({ ...REAL_DOC_03_BASE, apis: [{ type: 'openapi', url: 'https://api.deals.example/openapi.json', description: 'Orders, returns, and exchanges' }] }),
   // A small shop with no issuer: a website, signed-out Sessions only.
-  [wellKnownUrl('corner.example')]: page({ protocol_version: '0.4', organization: { name: 'Corner Shop', domain: 'corner.example' }, web: {} }),
+  [wellKnownUrl('corner.example')]: page({ protocol_version: '1.0', organization: { name: 'Corner Shop', domain: 'corner.example' }, web: {} }),
 };
 
 /** Who serves the document the agent fetches: the events a reader chooses between. */

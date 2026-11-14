@@ -243,6 +243,9 @@ jobs:
       matrix:
         os: [ubuntu-24.04, macos-26, macos-15-intel]
         node: ['24.0.0', '24']
+        exclude:  # as in compatibility below
+          - os: macos-26
+            node: '24.0.0'
     name: compatibility (${{ matrix.os }}, ${{ matrix.node }})
     runs-on: ubuntu-24.04  # reports only; nothing here needs the named platform
     timeout-minutes: 5
@@ -258,6 +261,13 @@ jobs:
         # Current standard ARM image; macos-15 ARM jobs failed to acquire runners.
         os: [ubuntu-24.04, macos-26, macos-15-intel]
         node: ['24.0.0', '24']
+        # One macOS 26 job, the Node 24 lane, which runs WebKit and Safari. The Node 24.0.0 lane
+        # there only repeated the package smoke that Ubuntu and Intel macOS run, and each job on
+        # the hosted arm64 pool is another chance of being cancelled unrun when GitHub assigns no
+        # runner within 15 minutes (actions/runner#4833).
+        exclude:
+          - os: macos-26
+            node: '24.0.0'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30  # types, standard suite, browser checks and installed starter
     steps:

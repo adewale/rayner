@@ -13,8 +13,8 @@ import {
 } from './model.ts';
 import { answer } from '../poppy/model.ts';
 
-// Each test names the section of the Personal Agent Protocol draft 0.4 it holds the model to
-// (https://personalagentprotocol.org/docs/0.4/spec, sections 9, 10.1 and 10.2). The draft was read,
+// Each test names the section of the Personal Agent Protocol draft 1.0 it holds the model to
+// (https://personalagentprotocol.org/docs/1.0/spec, sections 9, 10.1 and 10.2). The draft was read,
 // not run: there is no reference implementation here, so these pin the model to its rules and examples.
 
 const RW: readonly Scope[] = ['orders:read', 'orders:write'], RO: readonly Scope[] = ['orders:read'];
