@@ -156,7 +156,7 @@ export default class PeriodicGroupsExplainer extends Scene<PeriodicState, {}> {
     await this.step('fill', {
       title: 'One electron per cell, in runs laid side by side',
       line: 'Predict: slide the runs so that runs of one length share columns. What shape do you get?',
-      caption: `Each element adds one electron, in a cell of its own. A filling rule groups them into runs; every full run is 2, 6, 10 or 14 long. ${ownRuns} Each run of 2 starts a row, giving rows of ${list(ROW_CELLS.map(String))} cells: every jump down step 1’s column is one of those row lengths.`,
+      caption: `A neutral atom with atomic number Z has Z electrons, one per cell. A filling rule groups them into runs; every full run is 2, 6, 10 or 14 long. ${ownRuns} Each run of 2 starts a row, giving rows of ${list(ROW_CELLS.map(String))} cells: every jump down step 1’s column is one of those row lengths.`,
     });
     {
       const fillState = (lit: number, runs: number, done: boolean): PeriodicState => ({

@@ -347,7 +347,8 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
       return true;
     });
     await this.play(new FadeIn(chain, { runTime: 0.4 }));
-    // The script's code, its focus bar on the line the lesson runs next: shown, set between replays.
+    // The script's code, its focus bar on the line the lesson runs next: shown, set between replays. The cat
+    // command is named once, so each line fits one of the live step's phone close-ups whole and reads there.
     this.shown = { story: 0 };
     const story = view(
       this,
@@ -380,7 +381,6 @@ export default class BashExplainer extends Scene<BashState, BashShown> {
     });
     await s.enter(story, { runTime: 0.4 });
     // The lesson's three calls, in order: the write on s0, whose returned shell is kept, then cat on each shell.
-    // Each line fits one of a phone's close-ups whole, so the reader can read it after a press (rayner check).
     for (const [line, event] of [[0, 'RUN_PIPELINE'], [2, 'CAT_NEWEST'], [3, 'CAT_S0']] as const) {
       await focus(story, 'story', line);
       await this.play(machine.replay([event]));
