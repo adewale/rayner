@@ -734,6 +734,7 @@ Capture asserts that its output equals Agentic Mermaid's `renderMermaidSVG` byte
 | Check | Rule |
 | --- | --- |
 | Model test | The `model.test.ts` beside the scene fails. `check` runs it first, with `node --test` in a child process (only that file: other tests in the folder, such as `scene.test.ts`, run the scene, which check runs anyway, and belong to the project's test suite), and names each failing test with the first lines of its error. A `rayner` import Node cannot resolve from the folder is the Rayner running the check. The report records it as `model: { file, tests, passed }`, with `skipped` when some tests were skipped (they are not counted in `tests`); a folder without a model test has no `model` |
+| Placeholders | Something still says `TODO:`, the mark `rayner init --blank` writes where the author has something to write: a line of `script.md` (read whether or not it has an Answer line), or a step's title, line, caption or picture. Checked once the model test has run, before its result is judged and before any scenario is checked, it fails with a numbered to-do list in the order to work: the intent header's parts by name; its Checked against and Grounding lines; the model test's failures, while it fails; then each step still holding a placeholder. A Grounding line that is a placeholder gives no grade. With no placeholder left, a failing model test is reported by Model test alone |
 | Catch lint | A `try`/`catch` or `.catch()` around awaited code in `construct()` |
 | Motion | Any pop (opacity changes by 0.5 or more in a frame), cut-in or cut-out, teleport or resize spike, flicker, or misplaced handoff |
 | Hold | The picture changes after a step's caption hold begins, where the player stops |
@@ -829,7 +830,7 @@ The collection's reviewer (`npm run demos:review`) reads each scene's `scene.rev
 
 | Command | What it does |
 | --- | --- |
-| `init <directory>` | Write the tutorial's explainer: `script.md`, its intent; `scene.ts` with one setting; its model `model.ts`; and `model.test.ts`, which tests the model against published examples. With `--machine`, write a [machine](MACHINES.md) explainer instead (a door that opens, closes, locks and unlocks): `script.md`; `model.ts`, whose `next` refuses events with `refuse(reason)`; `model.test.ts`, which pins every event from every state and every reason; `picture.ts`, which draws the state; `scene.ts`, a view of the state and a machine whose last step is live; and `scene.review.json`. It passes `check` and `review` as written |
+| `init <directory>` | Write the tutorial's explainer: `script.md`, its intent; `scene.ts` with one setting; its model `model.ts`; and `model.test.ts`, which tests the model against published examples. With `--machine`, write a [machine](MACHINES.md) explainer instead (a door that opens, closes, locks and unlocks): `script.md`; `model.ts`, whose `next` refuses events with `refuse(reason)`; `model.test.ts`, which pins every event from every state and every reason; `picture.ts`, which draws the state; `scene.ts`, a view of the state and a machine whose last step is live; and `scene.review.json`. It passes `check` and `review` as written. With `--blank`, write an explainer of your own to fill in: `script.md`, whose `#` question (unless `--question` gives it), labelled lines, reader question and notes each say `TODO:` and what to write; `model.ts`, a stub; `model.test.ts`, whose one test fails, saying to compare the model with something real, until it is replaced; and `scene.ts`, one step that draws the model's state, its title, line and caption placeholders. `check` fails it with a to-do list ([Placeholders](#checks)) until nothing says `TODO:` |
 | `preview <scene>` | Build and serve the page; use `shots` for a contact sheet |
 | `snapshots <scene>` | Capture and verify diagrams; replay morph edits |
 | `check <scene>` | The checks above, starting with the folder's `model.test.ts` when there is one |
@@ -850,6 +851,8 @@ The collection's reviewer (`npm run demos:review`) reads each scene's `scene.rev
 | `--watch` | `preview` | Rebuild the page when a `.ts`, `.mts`, `.js` or `.mjs` file beside the scene, or its `script.md`, changes; reload the browser to see it. One rebuild runs at a time: saves made while it runs start one more when it ends. Each rebuild reads `script.md` afresh, so a changed or removed line, or a removed intent header, shows in the rebuilt page |
 | `--subjects <file>` | `review` | Read the [review subjects](#reader-review) from this file instead of `scene.review.json` |
 | `--machine` | `init` | Write the machine starter instead of the tutorial's explainer |
+| `--blank` | `init` | Write a blank explainer to fill in instead of the tutorial's; not with `--machine` |
+| `--question <text>` | `init --blank` | The reader's question, one line, written as the script's `#` heading in place of its placeholder |
 
 `CHROMIUM_EXECUTABLE_PATH` selects a Chromium for capture; otherwise it is looked up in `PLAYWRIGHT_BROWSERS_PATH` and Playwright's cache. If an authoring package is missing, the command prints the line that installs it.
 

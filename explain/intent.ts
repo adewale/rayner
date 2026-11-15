@@ -61,7 +61,8 @@ export function parseIntent(text: string, where = 'script.md'): Intent | null {
   if (missing.length) throw new Error(`${where}: the intent header has no ${missing.join(', ')}; write each as a labelled line, - **Answer:** …`);
   const questions = items.map((c) => ({ question: c.question, answer: c.answer.join(' ') }));
   for (const c of questions) if (!c.answer) throw new Error(`${where}: the question ${JSON.stringify(c.question)} has no answer under it; write its answer on the indented lines below it`);
-  if ('Grounding' in fields) parseGrounding(fields['Grounding']!, where);
+  // A blank explainer's Grounding line says what to write (`rayner init --blank`); check lists it to do.
+  if ('Grounding' in fields && !isPlaceholder(fields['Grounding']!)) parseGrounding(fields['Grounding']!, where);
   return { question, fields, questions };
 }
 
@@ -75,8 +76,48 @@ export function intentMeta(intent: Intent): { title: string; answer: string; que
     answer: intent.fields['Answer']!.replace(/\.$/, ''),
     ...(intent.questions.length ? { questions: intent.questions } : {}),
     checkedAgainst: intent.fields['Checked against']!,
-    ...(intent.fields['Grounding'] ? { grounding: parseGrounding(intent.fields['Grounding']) } : {}),
+    ...(intent.fields['Grounding'] && !isPlaceholder(intent.fields['Grounding']) ? { grounding: parseGrounding(intent.fields['Grounding']) } : {}),
   };
+}
+
+/**
+ * The mark of a placeholder: text `rayner init --blank` writes where the author has something to
+ * write, saying what (`- **Answer:** TODO: the one sentence that answers the question …`).
+ */
+export const PLACEHOLDER = 'TODO:';
+/** Whether some text still holds a placeholder. */
+export const isPlaceholder = (text: string): boolean => text.includes(PLACEHOLDER);
+
+/** The labelled lines that say what the model is checked against and how: the evidence, written after the rest of the header. */
+const EVIDENCE = ['Checked against', 'Grounding'];
+/**
+ * The parts of a script that still hold a placeholder, each named as an author finds it: `the # question`,
+ * a labelled line by its label, `Check yourself question 2`, or the `##` section of any other line.
+ * `header` holds the intent header's parts, `evidence` its Checked against and Grounding lines. Read
+ * line by line, as parseIntent reads, but whether or not the script has an Answer line, so a removed
+ * line cannot hide a placeholder.
+ */
+export function placeholdersIn(text: string): { header: string[]; evidence: string[] } {
+  const header: string[] = [], evidence: string[] = [];
+  let section = '', last: string | undefined, item = 0, heading = false;
+  for (const [i, raw] of text.replace(/\r\n?/g, '\n').split('\n').entries()) {
+    const line = raw.trimEnd();
+    const h1 = /^#\s+(.+)$/.exec(line), h2 = /^##\s+(.+)$/.exec(line);
+    let part: string;
+    if (h1 && !heading) { heading = true; part = 'the # question'; }
+    else if (h2) { section = h2[1]!.trim(); last = undefined; part = section; }
+    else {
+      const field = /^[-*]\s+\*\*([^*:]+):\*\*/.exec(line);
+      if (field && !section) last = field[1]!.trim();
+      else if (!(last && !section && /^\s+\S/.test(line))) last = undefined;
+      if (section.toLowerCase() === 'check yourself' && /^\d+\.\s/.test(line)) item++;
+      part = last ?? (section.toLowerCase() === 'check yourself' && item ? `Check yourself question ${item}` : section ? section : `line ${i + 1}`);
+    }
+    if (!isPlaceholder(line)) continue;
+    const into = EVIDENCE.includes(part) ? evidence : header;
+    if (!into.includes(part)) into.push(part);
+  }
+  return { header, evidence };
 }
 
 /**

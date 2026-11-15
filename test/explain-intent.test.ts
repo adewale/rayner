@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseIntent, adoptIntent } from '../explain/intent.ts';
+import { parseIntent, adoptIntent, placeholdersIn } from '../explain/intent.ts';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import { buildExplainer } from '../tools/lib/explain-build.ts';
 
@@ -137,6 +137,24 @@ test('a Grounding line gives the model a grade and the system it was checked aga
   assert.throws(() => parseIntent(SCRIPT.replace('  wiring diagram.\n', '  wiring diagram.\n- **Grounding:** tested: lots\n'), 'lamp/script.md'),
     /^Error: lamp\/script\.md: Grounding must start with one of live, recorded, read, none/);
   assert.throws(() => adoptIntent({ meta: { grounding: { grade: 'live' } } }, parseIntent(graded)!, 'lamp'), /grounding is declared in both script\.md and the scene/);
+});
+
+test('a placeholder (TODO:) is read as still to write: a placeholder Grounding line gives no grade, and every placeholder is named, with or without an Answer line', () => {
+  const blank = SCRIPT.replace('has pressed the switch twice.', 'TODO: who asks.')
+    .replace('  wiring diagram.\n', '  wiring diagram.\n- **Grounding:** TODO: live, recorded, read or none.\n')
+    .replace('   It turns the lamp off,', '   TODO: its answer,')
+    .replace('Free prose', 'TODO: free prose');
+  const Scene = { meta: {} as Record<string, unknown> };
+  adoptIntent(Scene, parseIntent(blank)!, 'lamp');
+  assert.equal(Scene.meta.grounding, undefined, 'a placeholder Grounding line is not a grade');
+  const named = { header: ['Reader', 'Check yourself question 1', 'Why this explainer'], evidence: ['Grounding'] };
+  assert.deepEqual(placeholdersIn(blank), named);
+  // A removed Answer line leaves no intent header to read, and the placeholders are still named.
+  const headless = blank.replace(/^- \*\*Answer:\*\*.*\n/m, '');
+  assert.equal(parseIntent(headless), null);
+  assert.deepEqual(placeholdersIn(headless), named);
+  assert.deepEqual(placeholdersIn('# TODO: the question\n\n- **Checked against:** the system,\n  TODO: in which file.\n'), { header: ['the # question'], evidence: ['Checked against'] });
+  assert.deepEqual(placeholdersIn(SCRIPT), { header: [], evidence: [] });
 });
 
 test('the page’s receipt is one sentence for the grade, with the full Checked against line, its files as code, behind a disclosure', async () => {

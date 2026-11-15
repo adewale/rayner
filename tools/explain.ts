@@ -8,7 +8,7 @@ import { serve } from './lib/explain-serve.ts';
 import { collectProject, defaultScenario, sceneSlug } from './lib/explain-project.ts';
 import { cliManifest } from './lib/roots.ts';
 import { buildExplainer, buildLoader } from './lib/explain-build.ts';
-import { MACHINE_STARTER, MACHINE_STARTER_FILES, STARTER, STARTER_FILES, packageImports } from './lib/explain-init.ts';
+import { BLANK_FILES, MACHINE_STARTER, MACHINE_STARTER_FILES, STARTER, STARTER_FILES, blankStarter, packageImports } from './lib/explain-init.ts';
 import { DIAGRAM_PACKAGES, installCommand, missingPackage } from './lib/addons.ts';
 
 // Authoring packages, grouped for installation error messages: the diagram add-on's optional peers,
@@ -22,7 +22,9 @@ Usage: rayner <command> <scene.ts | directory> [options]
 Commands:
   init <directory>    Write the tutorial's LRU/MRU explainer: script, scene, model, test;
                       with --machine, a machine explainer: a model that refuses
-                      events with reasons, its test, a live step, review subjects
+                      events with reasons, its test, a live step, review subjects;
+                      with --blank (and --question "…"), your own explainer to
+                      write: check lists each part still marked TODO:, in order
   preview <scene>     Build and serve on localhost
   snapshots <scene>   Run every scenario, capture/verify diagrams and replay morph edits
   check <scene>       Every scenario: seek, motion, skipped trace, bare runtime, step
@@ -50,6 +52,8 @@ Options:
   --watch             Preview: rebuild the page on save
   --subjects <path>   Review: use this JSON file instead of <scene>.review.json
   --machine           Init: write the machine starter instead of the tutorial's
+  --blank             Init: write a blank explainer instead of the tutorial's
+  --question <text>   Init --blank: the reader's question, the script's # heading
   --version           Print the version
 
 init, check, build, describe, see, snapshots, preview and shots need Node alone
@@ -87,6 +91,8 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
       watch: { type: 'boolean' },
       subjects: { type: 'string' },
       machine: { type: 'boolean' },
+      blank: { type: 'boolean' },
+      question: { type: 'string' },
     },
   });
   const [command, input, ...extra] = positionals;
@@ -95,10 +101,19 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   const step = command === 'see' ? extra.shift() : undefined;
   if (extra.length) throw new TypeError(`${JSON.stringify(extra[0])} is one argument too many; rayner --help lists what each command takes`);
   if (flags.machine && command !== 'init') throw new TypeError('--machine is an option of rayner init alone');
+  if (flags.blank && command !== 'init') throw new TypeError('--blank is an option of rayner init alone');
+  if (flags.question !== undefined && !flags.blank) throw new TypeError('--question is an option of rayner init --blank alone');
+  if (flags.blank && flags.machine) throw new TypeError('rayner init takes --blank or --machine, not both');
   if (command === 'init') {
     const dir = resolve(input);
+    const blank = flags.blank ? blankStarter(flags.question) : undefined;
     await mkdir(dirname(dir), { recursive: true });
     await mkdir(dir, { recursive: false });
+    if (blank) {
+      for (const file of BLANK_FILES) await writeFile(join(dir, file), blank[file]);
+      console.log(`Created ${join(dir, 'script.md')}, model.ts, model.test.ts and scene.ts beside it: an explainer to write, each part still to write marked TODO:. rayner check ${join(dir, 'scene.ts')} lists them in order: the script's intent header, its Checked against and Grounding lines, the model's oracle test, then the picture`);
+      return;
+    }
     const [from, files] = flags.machine ? [MACHINE_STARTER, MACHINE_STARTER_FILES] : [STARTER, STARTER_FILES];
     for (const file of files)
       await writeFile(join(dir, file), packageImports(await readFile(join(from, file), 'utf8')));

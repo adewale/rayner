@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process';
 import { access } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep, isAbsolute } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { normalise } from '../../explain/internal.ts';
+import { isPlaceholder, normalise, placeholdersIn, stepWords } from '../../explain/internal.ts';
 import { COMPILED, LIB_ROOT } from './roots.ts';
 import { entryPoints } from './entry-points.ts';
 
@@ -86,6 +86,38 @@ export async function runModelTest(sceneFile: string): Promise<ModelTestReport |
   if (code !== 0 && !failed.length) failed.push(`node --test exited with ${code}: ${stderr.trim().split('\n').slice(-3).join(' ')}`);
   const shown = relative(process.cwd(), file);
   return { file: shown.startsWith('..') ? file : shown, tests: results.length, passed: results.filter((r) => r.passed).length, skipped: ended.length - results.length, failed };
+}
+
+/** A step as the trace records it: its name, its words and what it shows. */
+type TracedStep = { step: string; meta: Record<string, unknown>; shown?: unknown };
+/** `a, b and c`. */
+const listed = (items: readonly string[]) => (items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items.at(-1)}` : items[0] ?? '');
+
+/**
+ * What an explainer still holds of the placeholders `rayner init --blank` writes (text marked TODO:),
+ * as a to-do list in the order to work through it: the script's intent header; its Checked against
+ * and Grounding lines; the model's oracle test, while model.test.ts fails; then the picture, every
+ * step whose words or picture still say TODO (`scene` names the scene's file). Empty when nothing is a placeholder, so a finished
+ * explainer whose model test fails is reported as before, by the model test alone.
+ */
+export function placeholderTodo(script: string | null, model: ModelTestReport | undefined, steps: readonly TracedStep[], scene = 'scene.ts'): string[] {
+  const { header, evidence } = placeholdersIn(script ?? '');
+  const pictures = new Map<string, string[]>();
+  for (const s of steps) {
+    const words = stepWords(s);
+    const parts: string[] = (['title', 'line', 'caption'] as const).filter((k) => isPlaceholder(words[k]));
+    if (isPlaceholder(JSON.stringify(s.shown ?? null))) parts.push('picture');
+    if (parts.length && !pictures.has(s.step)) pictures.set(s.step, parts);
+  }
+  if (!header.length && !evidence.length && !pictures.size) return [];
+  const todo: string[] = [];
+  if (header.length) todo.push(`script.md: fill in the intent header: write ${listed(header)} in place of each TODO`);
+  if (evidence.length)
+    todo.push(`script.md: write ${listed(evidence)}: the real system model.test.ts compares the model with, and how (live, recorded, read or none, then the system and its version)`);
+  if (model?.failed.length) todo.push(`model.test.ts fails: ${model.failed.join('; ')}`);
+  for (const [step, parts] of pictures)
+    todo.push(`${scene}: step "${step}" still says TODO in its ${listed(parts)}: draw the model's state and say what the picture shows`);
+  return todo;
 }
 
 /** A reader question as answers.ts computes it: its answer, or its question, its answer or both. */

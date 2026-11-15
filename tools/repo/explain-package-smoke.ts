@@ -13,7 +13,7 @@ import { pathToFileURL } from 'node:url';
 import { ROOT } from '../lib/explain-project.ts';
 import { entryPoints, packageImports } from '../lib/entry-points.ts';
 import { integrity as integrityOf } from '../lib/hash.ts';
-import { typeCheckAuthored } from './lib/authored-types.ts';
+import { options as authoredOptions, typeCheckAuthored } from './lib/authored-types.ts';
 
 /** Poll `predicate` every 100 ms for up to 30 s, failing with `message` after; `meanwhile` asserts what must hold while it waits. */
 async function waitUntil(predicate: () => boolean, message: () => string, meanwhile: () => void = () => {}): Promise<void> {
@@ -203,6 +203,15 @@ try {
   await writeFile(starter, (await readFile(starter, 'utf8')).replace('static meta = {',
     `static meta = { claims: [{ says: 'LRU evicts the item used longest ago', test: "first/model.test.ts: LRU matches Wikipedia" }],`));
   await run(process.execPath, [cli, 'check', 'first'], { cwd: folder });
+  // The blank starter: its files type-check against the packed declarations, and check fails it with
+  // its to-do list, the script first and the picture last.
+  await run(process.execPath, [cli, 'init', '--blank', 'blank'], { cwd: folder });
+  await writeFile(join(folder, 'blank/tsconfig.json'), JSON.stringify({
+    compilerOptions: { ...authoredOptions, types: ['node'], typeRoots: [join(ROOT, 'node_modules/@types')] }, include: ['*.ts'],
+  }));
+  await run(join(folder, 'node_modules/.bin/tsc'), ['-p', 'blank/tsconfig.json'], { cwd: folder });
+  const blankCheck = await run(process.execPath, [cli, 'check', 'blank'], { cwd: folder }).then(() => ({ stderr: 'passed' }), (error: { stderr: string }) => error);
+  assert.match(blankCheck.stderr, /To do, in order:\n1\. script\.md: fill in the intent header[^\n]*\n2\. script\.md: write Checked against and Grounding[^\n]*\n3\. model\.test\.ts fails: [^\n]*TODO: replace this placeholder[^\n]*\n4\. scene\.ts: step "start" still says TODO/);
   if (process.env.EXPLAIN_BROWSER) {
     await run(bin, ['snapshots', 'first', '--refresh'], { cwd: folder });
     // The starter draws no diagrams, so it keeps no snapshots.
@@ -448,7 +457,7 @@ try {
   assert.match(walked, /^After A B C D, request: C D C D · rest: .+\n  changed: .*\bHits\b/m);
 
   console.log(
-    'Package gate passed: rayner alone with no dependencies, its entry points the only modules it exports; both tested archives installed with PNG authoring and without the diagram add-on, which a diagram to capture asks for by its install line and which then replays morph edits, installed TypeScript consumer, every explainer, its tests and every recipe type-checked against the packed declarations, executable JS bin, external native author, settings, checks, see, build, optional score audio, describeExplainer and its REFERENCE example, notices, lettering on request, one compiled engine' +
+    'Package gate passed: rayner alone with no dependencies, its entry points the only modules it exports; both tested archives installed with PNG authoring and without the diagram add-on, which a diagram to capture asks for by its install line and which then replays morph edits, installed TypeScript consumer, every explainer, its tests and every recipe type-checked against the packed declarations, executable JS bin, external native author, settings, checks, the blank starter type-checked and its to-do list, see, build, optional score audio, describeExplainer and its REFERENCE example, notices, lettering on request, one compiled engine' +
       (process.env.EXPLAIN_LETTERING === '1' ? ', installed Arabic and maths capture' : '') +
       (process.env.EXPLAIN_BROWSER ? ', installed diagram capture' : '') +
       '.',

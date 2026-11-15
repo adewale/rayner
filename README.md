@@ -62,6 +62,17 @@ npx rayner review my-explainer/scene.ts --out public/my-explainer.html
 
 `review --out` checks every scenario, audits the served page at phone and desktop widths, and saves that exact HTML with its receipt, a response-header recipe and its loader. [The tutorial](docs/TUTORIAL.md) builds a complete explainer; [publishing](docs/PUBLISHING.md) covers hosting and embedding it. `npx rayner init --machine` writes the other starter, a door that locks, for explainers a reader drives with events.
 
+### Start your own
+
+The starters above are finished explainers to edit. To write one about your own question, start blank:
+
+```sh
+npx rayner init --blank my-question --question "Why does [10, 9, 1].sort() give [1, 10, 9]?"
+npx rayner check my-question/scene.ts
+```
+
+`init --blank` writes the same four files with nothing decided: every part still to write says `TODO:` and what goes there. `check` fails and lists those parts in the order to write them: the script's intent header (who is asking, the answer, the reader questions and the rest); its **Checked against** and **Grounding** lines, which name the real system the model is compared with; the oracle test in `model.test.ts`, which fails until it compares the model with something real (a reference implementation run live, published test vectors or a recorded run); then the picture, one step drawn from the model's state. Rerun `check` as you go until it passes, then `review` as above. [The tutorial](docs/TUTORIAL.md#start-your-own) shows the list.
+
 ## A complete explainer
 
 An explainer is three files with one job each. The **script** states the intent, for the author. The **model** expresses the system's constraints. The **scene** expresses how the system is explained. This is [`scenes/tutorial/hanoi`](scenes/tutorial/hanoi), a Tower of Hanoi with three disks, or four with the **Disks** setting. `rayner check` explores all 27 arrangements of three disks and all 81 of four, and [`test/explain-tutorial.test.ts`](https://github.com/adewale/rayner/blob/main/test/explain-tutorial.test.ts) fails if the files below differ from those in the repository.

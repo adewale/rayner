@@ -31,7 +31,8 @@ const testSource = async (root: string, file: string): Promise<boolean> =>
   file.endsWith('.ts') && !authorSource(file) && file !== 'explainers/catalog.ts' &&
   !(/(^|\/)fidelity\.ts$/.test(file) && (await readFile(join(root, 'scenes', file), 'utf8')).includes('test/lib/'));
 
-const options = {
+/** The compiler options an outside author's project is checked with. */
+export const options = {
   target: 'es2022', module: 'nodenext', moduleResolution: 'nodenext', lib: ['es2023', 'dom', 'dom.iterable'],
   strict: true, noUncheckedIndexedAccess: true, noImplicitOverride: true, noFallthroughCasesInSwitch: true,
   verbatimModuleSyntax: true, erasableSyntaxOnly: true, isolatedModules: true, allowImportingTsExtensions: true, noEmit: true,
