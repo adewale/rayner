@@ -67,11 +67,11 @@ npx playwright-core install chromium   # only if review finds no Chromium
 The starters above are finished explainers to edit. To write one about your own question, start blank:
 
 ```sh
-npx rayner init --blank my-question --question "Why does [10, 9, 1].sort() give [1, 10, 9]?"
-npx rayner check my-question/scene.ts
+npx rayner init --blank sort-as-text --question "Why does [10, 9, 1].sort() give [1, 10, 9]?"
+npx rayner check sort-as-text/scene.ts
 ```
 
-`init --blank` writes the same four files with nothing decided: every part still to write says `TODO:` and what goes there. `check` fails and lists those parts in the order to write them: the script's intent header (who is asking, the answer, the reader questions and the rest); its **Checked against** and **Grounding** lines, which name the real system the model is compared with; the oracle test in `model.test.ts`, which fails until it compares the model with something real (a reference implementation run live, published test vectors or a recorded run); then the picture, one step drawn from the model's state. Rerun `check` as you go until it passes, then `review` as above. [The tutorial](docs/TUTORIAL.md#start-your-own) shows the list.
+`init --blank` writes the same four files with nothing decided: every part still to write says `TODO:` and what goes there. `check` fails and lists those parts in the order to write them: the script's intent header (who is asking, the answer, the reader questions and the rest); its **Checked against** and **Grounding** lines, which name the real system the model is compared with; the oracle test in `model.test.ts`, which fails until it compares the model with something real (a reference implementation run live, published test vectors or a recorded run); then the picture, one step drawn from the model's state. [Writing your own explainer](docs/WRITING.md) walks this question from that list to a reviewed page: choosing a subject and an oracle, what `check` says at each stage and the failures a first draft hits, and what explainers in this repository have cost to make.
 
 ## A complete explainer
 
@@ -261,7 +261,7 @@ Rayner keeps Lantern’s engine ([upstream](docs/UPSTREAM.md) lists the changes)
 
 ## Guides
 
-- **Writing explainers:** [the tutorial](docs/TUTORIAL.md), [Judging an explainer](docs/EXPLAINER-RUBRIC.md), [machines](docs/MACHINES.md), the [agent authoring skill](skills/rayner-explainers/SKILL.md) and the [FAQ](FAQ.md). The [feature tour](https://oshineye.dev/projects/rayner/feature-tour) answers “how do I write that?” for 29 features: each opens at **Recipe**, the lines an author writes, and **Result** shows the picture before and after they run. The [feature guide](docs/FEATURE-TOUR.md) links the full source and the setup some features need.
+- **Writing explainers:** [the tutorial](docs/TUTORIAL.md), [writing your own explainer](docs/WRITING.md) from a blank start, [Judging an explainer](docs/EXPLAINER-RUBRIC.md), [machines](docs/MACHINES.md), the [agent authoring skill](skills/rayner-explainers/SKILL.md) and the [FAQ](FAQ.md). The [feature tour](https://oshineye.dev/projects/rayner/feature-tour) answers “how do I write that?” for 29 features: each opens at **Recipe**, the lines an author writes, and **Result** shows the picture before and after they run. The [feature guide](docs/FEATURE-TOUR.md) links the full source and the setup some features need.
 - **Using Rayner as a library:** [engine fundamentals](docs/ENGINE-FUNDAMENTALS.md), the [engine map](docs/ENGINE.md) of guides and the invariants they keep, and the [API and CLI reference](docs/REFERENCE.md). The [kit](docs/REFERENCE.md#kit) (`rayner/kit`) is the type scale, colours by role, parts and transitions a hand-drawn picture is made of; the [drawing kit](docs/REFERENCE.md#drawing-kit) (`rayner/drawing`) builds tables, bars, callouts, dimension lines, pins and legends from state.
 - **Agents:** `rayner describe` and `rayner see` give every step as JSON or text, including the picture drawn as text, so an agent can inspect and revise a scene without a browser.
 

@@ -117,7 +117,7 @@ test('a backticked path in Checked against must be in the explainer’s folder; 
 });
 
 test('every explainer’s Checked against line names its evidence by files in its own folder, each there', async () => {
-  const dirs = [...EXPLAINERS.map((e) => `scenes/explainers/${e.id}`), 'scenes/tutorial/door', 'scenes/tutorial/hanoi', 'scenes/tutorial/lru-mru'];
+  const dirs = [...EXPLAINERS.map((e) => `scenes/explainers/${e.id}`), 'scenes/tutorial/door', 'scenes/tutorial/hanoi', 'scenes/tutorial/lru-mru', 'scenes/tutorial/sort-as-text'];
   const named: string[] = [];
   for (const dir of dirs) {
     const file = join(dir, 'script.md');

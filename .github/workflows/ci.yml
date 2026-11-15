@@ -38,7 +38,7 @@ jobs:
       - if: steps.scope.outputs.prose == 'true'
         run: |
           npm ci
-          node --test test/explain-onboarding.test.ts test/explain-tutorial.test.ts scenes/tutorial/*/model.test.ts
+          node --test test/explain-onboarding.test.ts test/explain-tutorial.test.ts test/explain-writing.test.ts scenes/tutorial/*/model.test.ts
 
   check:
     needs: scope
