@@ -73,8 +73,10 @@ export default class Conversations extends Scene<World, Shown> {
       const moved = (k: string) => {
         const a = c.from(k), b = c.to(k);
         if (a instanceof Text && b instanceof Text && a.text !== b.text) return true;
+        // A shift too small to see (the conversation's state panel settles 0.02 units) is morphed by rest(), not
+        // faded out and in: crossfading it would blink an unchanged label for a second (rayner check's keyed motion).
         const [ax, ay] = a.center(), [bx, by] = b.center();
-        return !TRAVELS.has(k) && Math.hypot(ax! - bx!, ay! - by!) > 0.01;
+        return !TRAVELS.has(k) && Math.hypot(ax! - bx!, ay! - by!) > 0.1;
       };
       for (const k of c.keys('from')) if (!c.has(k, 'to') || moved(k) || k === 'turn') out.push(c.leave(k, { runTime: 0.25 }));
       for (const k of c.keys('to')) if (!c.has(k, 'from') || moved(k) || k === 'turn') back.push(c.enter(k, {}, { runTime: 0.4 }));

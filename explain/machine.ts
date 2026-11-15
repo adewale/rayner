@@ -239,7 +239,7 @@ export class Machine<S extends object, E extends string> {
     if ('beyond' in o) throw new RangeError(`machine.send(): ${String(event)} is beyond the story in ${JSON.stringify(before)}: ${o.beyond}`);
     if ('refused' in o) throw new RangeError(`machine.send(): ${String(event)} is refused in ${JSON.stringify(before)}${o.refused ? `: ${o.refused}` : ''}`);
     const after = o.next;
-    const { views, match } = this.spec;
+    const { views } = this.spec;
     const transition = this.transitionPlay(event, before, after);
     const built = canonicalJson(before);
     return new Succession([
@@ -254,8 +254,18 @@ export class Machine<S extends object, E extends string> {
         // nothing when the transition ended where the model says (rayner check holds it to that).
         ? new Succession([transition, new TakePictures(this.scene, views)])
         // No authored motion: each view's keyed morph, staged, so what goes is gone before what comes appears.
-        : new AnimationGroup(views.map((v) => new ViewSync(v, { match, runTime: this.runTimeOf(event, before, after) }))),
+        : this.defaultPlay(event, before, after),
     ]);
+  }
+
+  /**
+   * @internal What `event` from `before` to `after` plays when it has no authored transition: each
+   * view's keyed morph, staged, so what goes is gone before what comes appears, over the event's run
+   * time. `rayner check` plays it to judge its motion, as it plays an authored one.
+   */
+  defaultPlay(event: E, before: S, after: S): AnimationGroup {
+    const { views, match } = this.spec;
+    return new AnimationGroup(views.map((v) => new ViewSync(v, { match, runTime: this.runTimeOf(event, before, after) })));
   }
 
   /** The run time of `event` from `before` to `after`: the spec's, or what its function gives. */

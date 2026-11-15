@@ -77,6 +77,7 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 - It fails a caption or line that names a colour or pattern no word on the stage says; a legend or a label that keys the look answers it.
 - It holds every key to one part on the stage.
 - It explores every machine from where it last played: each reachable state must not collide, must show readable labels and must be described apart from the others, and every authored transition must finish on the model's picture.
+- It follows every keyed part through every play and every press a reader can make from every reachable machine state, authored transitions and the views' own morphs alike, and fails a part that jumps, one that blinks out and back unchanged, and words readable near where a travelling token lands before it lands. Each finding names the part's key, the time and the measured value, and says how to fix it. Filming the Poppy series' transitions had found these by eye after every check passed. Its first run over the catalog found three explainers with such defects, now fixed: token-bucket wrote a request's 200 before its token arrived, poppy-discovery blinked the padlock and the closed register when the reader chose another server, and poppy-conversations faded state labels out for a second for a 0.02-unit shift. [Keyed motion](docs/REFERENCE.md#keyed-motion)
 - `scene.addInvariant(name, check)` states what must hold on every frame. `rayner check` fails the first frame that breaks it, and an invariant that never held.
 
 ### Tooling and publishing

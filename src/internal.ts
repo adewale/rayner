@@ -19,4 +19,5 @@ export { textContextOf } from './text-context.ts';
 export { dryRun } from './timeline.ts';
 export { traceRun } from './trace.ts';
 export { MotionSink, analyzeMotion } from './verify.ts';
+export { KeyedMotionSink, keyedMotionLine } from './keyed-motion.ts';
 export { FRAME, STAGE_BOX, UNITS, zoomOf } from './units.ts';

@@ -161,6 +161,7 @@ test('the player, the command and diagram capture import the library through its
  */
 const INTERNAL_USES: Record<string, { files: string[]; why: string }> = {
   'Machine.after': { files: ['tools/lib/explain-check.ts'], why: 'check reads the state an event leads to' },
+  'Machine.defaultPlay': { files: ['tools/lib/explain-check.ts'], why: "check plays an event with no authored transition, the views' own morph, to judge its motion" },
   'Machine.lastPlayedIn': { files: ['tools/lib/explain-check.ts'], why: 'check explores a machine on the step it last played in' },
   'Machine.identity': { files: ['tools/lib/explain-check.ts'], why: "check tells a scene's machines apart across runs" },
   'Machine.model': { files: ['tools/lib/explain-check.ts'], why: 'check asks the model alone whether an event beyond the story is refused' },

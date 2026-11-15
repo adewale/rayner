@@ -263,12 +263,16 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
           // The answer. A 200 takes the top token out of the bucket to the request, as the level
           // and the line drop by one; a 429 finds no whole token there, and the request turns red.
           const top = levelY(call.found, CAPACITY);
+          // A 200 is written on the request only as the token lands there (0.45 s in), never before
+          // its cause arrives; a 429 has no token to wait for.
+          const chipOut = q.leave(`request:${n}`, { runTime: call.ok ? 0.3 : ANSWER_S });
+          const chipIn = q.enter(`request:${n}`, {}, { runTime: call.ok ? 0.15 : ANSWER_S });
           const answer: ScheduledAnimation[] = [
             ...(call.ok ? [c.enter(`balance:spend:${n}`, { create: true }, { runTime: ANSWER_S })] : []),
             c.enter(`balance:found:${n}`, {}, { runTime: ANSWER_S }),
             new Transform(level, g.to('bucket:level'), { runTime: ANSWER_S }),
-            q.leave(`request:${n}`, { runTime: ANSWER_S }),
-            q.enter(`request:${n}`, {}, { runTime: ANSWER_S }),
+            chipOut,
+            ...(call.ok ? [] : [chipIn]),
             readout.sync({ match: 'index', runTime: ANSWER_S }),
           ];
           if (call.ok) {
@@ -278,7 +282,7 @@ export default class TokenBucketExplainer extends Scene<BucketState, {}> {
                 new Transform(token, coin([SHELL_X, top - 0.14], colours), { runTime: 0.18 }),
                 // rushFrom: the token is sent off, leaving the bucket at full speed and easing into the request.
                 new Transform(token, coin([chipX(i), CHIP_Y], colours), { runTime: 0.27, rateFunc: rushFrom }),
-                g.leave('bucket:token', { runTime: 0.15 }),
+                new AnimationGroup([g.leave('bucket:token', { runTime: 0.15 }), chipIn]),
               ]),
             );
           } else {
