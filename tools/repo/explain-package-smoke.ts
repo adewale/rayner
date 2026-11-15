@@ -77,7 +77,8 @@ try {
   // Nothing else: the compiled modules behind the entry points are not importable, by an export
   // pattern or by the private specifier rayner-cli's own resolve hook answers (tools/installed.ts).
   const unreachable = async (cwd: string) => {
-    for (const [specifier, code] of [['rayner/internal/src/scene.js', 'ERR_PACKAGE_PATH_NOT_EXPORTED'], ['rayner/dist/src/scene.js', 'ERR_PACKAGE_PATH_NOT_EXPORTED'], ['#rayner/src/scene.js', 'ERR_PACKAGE_IMPORT_NOT_DEFINED']] as const) {
+    // rayner/kit was folded into rayner/drawing before any release, so it is not an entry point either.
+    for (const [specifier, code] of [['rayner/internal/src/scene.js', 'ERR_PACKAGE_PATH_NOT_EXPORTED'], ['rayner/dist/src/scene.js', 'ERR_PACKAGE_PATH_NOT_EXPORTED'], ['rayner/kit', 'ERR_PACKAGE_PATH_NOT_EXPORTED'], ['#rayner/src/scene.js', 'ERR_PACKAGE_IMPORT_NOT_DEFINED']] as const) {
       const tried = await run(process.execPath, ['--input-type=module', '-e', `try{await import(${JSON.stringify(specifier)});console.log('imported')}catch(e){console.log(e.code)}`], { cwd });
       assert.equal(tried.stdout.trim(), code, `an outside project imports ${specifier}`);
     }
@@ -178,7 +179,7 @@ try {
   const sourceKit = Object.keys(await import(pathToFileURL(join(ROOT, 'explain/drawing.ts')).href)).sort().join(',');
   assert.equal(kit.stdout.trim(), sourceKit);
   // So do the output and testing entry points, with the checkout's names.
-  for (const [entry, source] of [['rayner/kit', 'explain/kit.ts'], ['rayner/output', 'src/output.ts'], ['rayner/testing', 'explain/testing.ts']] as const) {
+  for (const [entry, source] of [['rayner/output', 'src/output.ts'], ['rayner/testing', 'explain/testing.ts']] as const) {
     const names = await run(process.execPath, ['--input-type=module', '-e', `const k = await import('${entry}'); console.log(Object.keys(k).sort().join(','))`], { cwd: folder });
     assert.equal(names.stdout.trim(), Object.keys(await import(pathToFileURL(join(ROOT, source)).href)).sort().join(','), entry);
   }

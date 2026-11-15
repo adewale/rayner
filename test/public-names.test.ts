@@ -8,8 +8,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { relative } from 'node:path';
-import { ROOT, classOf, problems, publicNames, readLedger, rendered, usage } from '../tools/repo/lib/public-names.ts';
+import { join, relative } from 'node:path';
+import ts from 'typescript';
+import { ROOT, classOf, entryPoints, problems, publicNames, readLedger, rendered, usage } from '../tools/repo/lib/public-names.ts';
 import type { Ledger } from '../tools/repo/lib/public-names.ts';
 import { UNDOCUMENTED, docsProblems, docsReport, documented } from '../tools/repo/lib/public-docs.ts';
 
@@ -57,8 +58,8 @@ test('what stays in the public API: a subject user or a written reason, never th
   };
   // A new export with neither a user nor a reason fails, naming the ledger and the entry point's source to edit.
   const plus = (entry: string, name: string) => new Map([...exported].map(([e, n]) => [e, e === entry ? [...n, name] : n]));
-  assert.match(await found(() => {}, u, plus('rayner/kit', 'newHelper')),
-    /newHelper \(rayner\/kit\) has no reason to be public: no subject explainer, tutorial scene or recipe uses it; use it in one, give it a reason in test\/public-names\.json with the guide and test that teach it, or stop exporting it from explain\/kit\.ts/);
+  assert.match(await found(() => {}, u, plus('rayner/drawing', 'newHelper')),
+    /newHelper \(rayner\/drawing\) has no reason to be public: no subject explainer, tutorial scene or recipe uses it; use it in one, give it a reason in test\/public-names\.json with the guide and test that teach it, or stop exporting it from explain\/drawing\.ts/);
   assert.match(await found(() => {}, u, plus('rayner/testing', 'newTool')),
     /newTool \(rayner\/testing\) has no reason to be public: rayner\/testing is tooling, .* or stop exporting it from explain\/testing\.ts/);
   // The feature tour's use does not count: palette, which only the tour uses, needs its reason.
@@ -70,8 +71,8 @@ test('what stays in the public API: a subject user or a written reason, never th
   assert.equal(classOf(tourOnly, 'rayner', 'smooth'), 'tour-only');
   assert.match(await found(() => {}, tourOnly), /smooth \(rayner\) has no reason to be public: .*only the feature tour does/);
   // The tutorial's printed kit example counts as a use, so tones needs no reason while it draws with it.
-  assert.equal(classOf(u, 'rayner/kit', 'tones'), 'used');
-  assert.match(await found(() => {}, without('tones', () => false)), /tones \(rayner\/kit\) has no reason to be public/);
+  assert.equal(classOf(u, 'rayner/drawing', 'tones'), 'used');
+  assert.match(await found(() => {}, without('tones', () => false)), /tones \(rayner\/drawing\) has no reason to be public/);
   // A reason says who needs the name and for what, never Manim parity, and comes with its guide and test.
   const reason = (r: Record<string, string>) => (l: Ledger) => (l.names['rayner']!['Frame'] = r);
   const taught = { guide: 'docs/CAMERA.md#what-it-is', test: 'test/camera.test.ts' };
@@ -145,4 +146,27 @@ test('the docs check rejects a public name no guide names, and a stale entry amo
   assert.ok(!documented(n('member', 'Diagram.scene'), ['Diagram\ns.scene'], new Set()));
   assert.ok(!documented(n('member', 'Machine.scene'), ['Machine\nscene.ts'], new Set()));
   assert.ok(documented(n('member', 'Card.labels'), ['Card\ncard.labels'], new Set()));
+});
+
+// A name 0.1.0 published that loses its reason is deprecated before it goes (docs/ENGINE.md, "What stays
+// in the public API"): its ledger entry says so, its entry point marks it @deprecated where it exports
+// it, and the unreleased changelog names it. Every @deprecated export is in the ledger as deprecated.
+test('a deprecated name is marked @deprecated where its entry point exports it, and the changelog names it', () => {
+  const said = (r: { tooling?: string; reason?: string }) => /\bdeprecated\b/i.test(`${r.tooling ?? ''} ${r.reason ?? ''}`);
+  const inLedger = Object.entries(ledger.names).flatMap(([entry, names]) => Object.entries(names).filter(([, r]) => said(r)).map(([name]) => `${entry} ${name}`)).sort();
+  const marked: string[] = [];
+  for (const [entry, source] of entryPoints()) {
+    const sf = ts.createSourceFile(source, readFileSync(join(ROOT, source), 'utf8'), ts.ScriptTarget.Latest, true);
+    const visit = (node: ts.Node): void => {
+      if (ts.isExportSpecifier(node) && ts.getJSDocTags(node).some((t) => t.tagName.text === 'deprecated')) marked.push(`${entry} ${node.name.text}`);
+      node.forEachChild(visit);
+    };
+    visit(sf);
+  }
+  assert.ok(inLedger.length > 0, 'the ledger records the names deprecated in this release');
+  assert.deepEqual(marked.sort(), inLedger, 'the names the ledger calls deprecated are the ones the entry points mark @deprecated');
+  const changelog = readFileSync(join(ROOT, 'CHANGELOG.md'), 'utf8');
+  const unreleased = changelog.slice(0, changelog.indexOf('\n## ', changelog.indexOf('## ') + 1));
+  const deprecatedSection = unreleased.split(/^### /m).find((section) => section.startsWith('Deprecated\n')) ?? '';
+  for (const name of inLedger.map((n) => n.split(' ')[1]!)) assert.match(deprecatedSection, new RegExp(`\`${name}\``), `the changelog's Deprecated section names ${name}`);
 });

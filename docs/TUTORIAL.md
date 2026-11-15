@@ -244,20 +244,19 @@ The third step's captions are written by hand for each scenario; they are claims
 
 ### Drawing a picture of your own
 
-The card is a ready-made picture. When the picture should look like the thing itself, draw it with [`rayner/kit`](REFERENCE.md#kit), the default way to draw by hand. A picture module like this one draws one policy's cache as a row of slots, newest first:
+The card is a ready-made picture. When the picture should look like the thing itself, draw it by hand with the [drawing kit](REFERENCE.md#drawing-kit), `rayner/drawing`, the same module the card comes from. A picture module like this one draws one policy's cache as a row of slots, newest first:
 
-<!-- kit example, run by test/kit.test.ts -->
+<!-- kit example, run by test/drawing.test.ts -->
 ```ts
 import type { Stage } from 'rayner/explain';
-import { keyedParts } from 'rayner/drawing';
-import { MARGIN, SPACE, addAll, box, connector, tones, words } from 'rayner/kit';
+import { MARGIN, SPACE, TYPE, addAll, connector, keyedParts, tile, tones, words } from 'rayner/drawing';
 
 /** One policy's cache, newest first: a box per slot, keyed by its item, the newest in use. */
 export function drawSlots(s: Stage, policy: string, cache: readonly string[], y: number) {
   const parts = keyedParts(), t = tones(s);
   parts.add(words(s, policy, { at: [MARGIN.left, y], color: t.soft, bold: true }), `${policy}:name`);
   cache.forEach((item, i) =>
-    addAll(parts, box(s, item, { at: [-3 + i * (1.6 + SPACE.m), y], width: 1.6, key: `${policy}:${item}`, active: i === 0 })));
+    addAll(parts, tile(s, item, { at: [-3 + i * (1.6 + SPACE.m), y], width: 1.6, raised: true, size: TYPE.small, key: `${policy}:${item}`, active: i === 0 })));
   parts.add(connector(s, [[-3.9, y - 0.6], [1.9, y - 0.6]]), `${policy}:shelf`);
   return parts.group();
 }
@@ -265,10 +264,10 @@ export function drawSlots(s: Stage, policy: string, cache: readonly string[], y:
 
 - `words` sets text at one of the kit's four sizes, `TYPE.small` by default; anything smaller is refused, because a phone could not read it.
 - `tones(s)` names the stage's colours by role: `soft` for secondary words, `idle` for what is not in use, `ink` for what is.
-- `box` returns two keyed parts, the box and its label, and `addAll` adds them under their own keys. A slot is keyed by its item, so when C moves from newest to second, `view.sync()` slides it there instead of fading one C out and another in.
+- `tile` with `raised: true` draws a slot as a structure's body, in use when `active`. Given a `key`, it keys its two parts, the box and its label, and `addAll` adds them under their own keys. A slot is keyed by its item, so when C moves from newest to second, `view.sync()` slides it there instead of fading one C out and another in.
 - `connector` draws a line through points, with rounded corners when there are any. It is a `Line`, so `rayner check` fails one that crosses a label.
 
-In the scene, `view(this, (st) => new Group(drawSlots(s, 'LRU', st.lru, 1), drawSlots(s, 'MRU', st.mru, -1)))` makes it a view of the state, and `check` redraws it from every step's state as it does the card. For motion that explains, such as a request travelling to the cache, `beats` and `flight` author a machine's transition in which changed words are replaced and a token flies its route ([kit](REFERENCE.md#kit)).
+In the scene, `view(this, (st) => new Group(drawSlots(s, 'LRU', st.lru, 1), drawSlots(s, 'MRU', st.mru, -1)))` makes it a view of the state, and `check` redraws it from every step's state as it does the card. For motion that explains, such as a request travelling to the cache, `beats` and `flight` author a machine's transition in which changed words are replaced and a token flies its route ([transitions in beats](REFERENCE.md#transitions-in-beats)).
 
 ## 6. Preview it
 

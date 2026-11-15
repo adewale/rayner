@@ -11,7 +11,7 @@ import { KeyedMotionSink, keyedMotionLine } from '../src/internal.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { Machine, stage, view } from '../explain/index.ts';
 import type { Transition } from '../explain/index.ts';
-import { beats, flight, words } from '../explain/kit.ts';
+import { beats, flight, words } from '../explain/drawing.ts';
 import { exploreMachines } from '../tools/lib/explain-check.ts';
 import { motionFixture } from './fixtures/motion/scene.ts';
 import type { Defect } from './fixtures/motion/scene.ts';

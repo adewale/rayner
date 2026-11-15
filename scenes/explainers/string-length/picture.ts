@@ -5,7 +5,7 @@
 import { Group, Labeled, Rectangle, Text, keyed } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
-import { box } from '../../../explain/kit.ts';
+import { TYPE, tile } from '../../../explain/drawing.ts';
 import { byteHex } from './model.ts';
 import type { Apart } from './model.ts';
 
@@ -74,7 +74,7 @@ export const BYTE_PITCH = 0.9;
 export function byteBoxes(s: Stage, word: Apart, xs: readonly number[], y: number, key: string, lit: number): Group {
   const g = new Group();
   word.parts.forEach((part, i) => part.bytes.forEach((b, k) => {
-    g.add(...box(s, byteHex(b), { at: [xs[i]!, y - k * BYTE_PITCH], key: `${key}:byte:${i}:${k}`, width: 1.2, mono: true, active: i === lit }));
+    g.add(...tile(s, byteHex(b), { at: [xs[i]!, y - k * BYTE_PITCH], key: `${key}:byte:${i}:${k}`, width: 1.2, raised: true, size: TYPE.small, mono: true, active: i === lit }).children);
   }));
   return g;
 }

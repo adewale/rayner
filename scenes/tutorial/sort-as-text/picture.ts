@@ -1,15 +1,14 @@
 import { Group } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
-import { keyedParts } from '../../../explain/drawing.ts';
-import { SPACE, box, tones, words } from '../../../explain/kit.ts';
+import { SPACE, TYPE, keyedParts, tile, tones, words } from '../../../explain/drawing.ts';
 import { sorted, type State } from './model.ts';
 
 /** A box's width, and where row `y`'s boxes stand: centred on the stage, SPACE.s apart. */
 const WIDTH = 1.9;
 const row = (count: number) => (i: number) => (i - (count - 1) / 2) * (WIDTH + SPACE.s);
 
-/** One number as a box: its two parts, keyed `<key>:box` and `<key>:label`, in one group. */
-const numberBox = (s: Stage, text: string, at: [number, number], key: string) => new Group(...box(s, text, { at, key, width: WIDTH }));
+/** One number as a raised box: one group, its two parts keyed `<key>:box` and `<key>:label`. */
+const numberBox = (s: Stage, text: string, at: [number, number], key: string) => tile(s, text, { at, key, width: WIDTH, raised: true, size: TYPE.small });
 
 /**
  * The array as written, and under it what sort() makes of it once the state says it is sorted. With

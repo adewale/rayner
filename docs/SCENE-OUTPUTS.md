@@ -63,7 +63,7 @@ not for the animation program itself.
 
 ## Public output APIs
 
-Drawing a scene's frames somewhere is `rayner/output`; a trace is author tooling, in `rayner/testing`.
+Drawing a scene's frames somewhere is `rayner/output`; a trace is author tooling, in `rayner/testing`. `renderFrame`, `toSvgString` and `StringSink` are its lasting API. `renderText`, `renderElements`, `NullSink`, `StopScene` and `DomSink` are deprecated, since 0.1.0 published them and no explainer uses them, and 0.3.0 removes them; each one's doc comment, and [the reference](REFERENCE.md#testing-and-tooling-api), say what replaces it.
 
 ```ts
 import { renderFrame, toSvgString, renderText, renderElements } from 'rayner/output';
@@ -138,7 +138,7 @@ negative time when a play or wait next reads it. A sink without it draws every f
 
 ## Live browser output and publication
 
-In a browser module, pass a container element to `DomSink`, which appends its own SVG element, its `svg`:
+`DomSink` is deprecated, and 0.3.0 removes it: embed the page `rayner build` writes, or show a still from `renderFrame` and `toSvgString`. Until then, in a browser module, pass a container element to `DomSink`, which appends its own SVG element, its `svg`:
 
 ```ts
 import { DomSink } from 'rayner/output';
