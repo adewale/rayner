@@ -95,7 +95,7 @@ state by a [view](VIEWS.md).
 
 - `SurroundingRectangle`: [glyph](https://github.com/adewale/rayner/blob/main/scenes/explainers/glyph/scene.ts) (advance cells),
   [mr-cache](https://github.com/adewale/rayner/blob/main/scenes/explainers/mr-cache/scene.ts) (lines that run, from a `Box` of code lines),
-  [state-machine](https://github.com/adewale/rayner/blob/main/scenes/explainers/state-machine/scene.ts) (the reducer row, from a code span's box,
+  [state-machine](https://github.com/adewale/rayner/blob/main/scenes/explainers/state-machine/scene.ts) (the branch of `send()` the socket ran, from code spans' boxes,
   and a ring on the current state, drawn in a view so it moves with the state),
   [ring-buffer](https://github.com/adewale/rayner/blob/main/scenes/explainers/ring-buffer/scene.ts) (the slot an operation touched).
 - `Circumscribe({ keep: true })`: [mr-cache](https://github.com/adewale/rayner/blob/main/scenes/explainers/mr-cache/scene.ts) (the KV lookup).

@@ -103,8 +103,8 @@ test('check fails a declared claim no scenario states, or one whose test is not 
   assert.deepEqual(await declaredClaimProblems([{ says: 'every round', shown: true }], ['every round']), []);
   // A test beside the scene is named from its folder; one from where check runs still resolves there.
   const folder = 'scenes/explainers/state-machine';
-  const beside = { says: 'closed rejects', test: 'model.test.ts: both session histories come from the reducer' };
+  const beside = { says: 'sends only in OPEN', test: 'model.test.ts: Node’s own WebSocket does what the model says' };
   assert.deepEqual(await declaredClaimProblems([beside], [beside.says], process.cwd(), folder), []);
   assert.match((await declaredClaimProblems([beside], [beside.says])).join(), /not there/, 'without the folder, model.test.ts is looked for where check runs');
-  assert.deepEqual(await declaredClaimProblems([{ ...beside, test: `${folder}/model.test.ts: both session histories` }], [beside.says], process.cwd(), folder), []);
+  assert.deepEqual(await declaredClaimProblems([{ ...beside, test: `${folder}/model.test.ts: Node’s own WebSocket does what` }], [beside.says], process.cwd(), folder), []);
 });

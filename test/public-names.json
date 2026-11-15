@@ -450,7 +450,7 @@
     {
       "explaining": "A state machine",
       "start": "`state-machine`",
-      "shows": "A state diagram driven by the real reducer as a `Machine`, code spans boxed from the row it read",
+      "shows": "A state diagram driven as a `Machine` by a model run against the real client (Node’s WebSocket), and code spans of its real `send()` boxed from the branch it ran",
       "scenes": [
         "state-machine"
       ],

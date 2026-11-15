@@ -101,7 +101,7 @@ Some model tests run the outside system the explainer describes. A test that nee
 | send-sync | `rustc` compiles the model's claims and the opening program | `rustc` on PATH or in `RUSTC` (the runner image has one) |
 | fork | `git show` of Lantern's code at the fork base | the full history (`fetch-depth: 0`) |
 
-These run without a skip, so they fail wherever their tool is missing: git-branches and exgit (the Git CLI), mr-cache's `fidelity.ts` (`git diff`), latest-search (Node's promises), lantern (Rayner's engine) and agentic-mermaid (its verifier, a dependency of this checkout).
+These run without a skip, so they fail wherever their tool is missing: git-branches and exgit (the Git CLI), mr-cache's `fidelity.ts` (`git diff`), latest-search (Node's promises), state-machine (Node's own WebSocket, against the local server in its `oracle/socket.ts`), lantern (Rayner's engine) and agentic-mermaid (its verifier, a dependency of this checkout).
 
 ### Recorded once, not run by CI
 

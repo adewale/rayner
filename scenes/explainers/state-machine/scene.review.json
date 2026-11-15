@@ -1,8 +1,12 @@
 {
   "version": 2,
   "subjects": [
-    { "step": "reader-path", "opening": true, "targets": [{ "key": "reader-picture" }, { "text": "idle" }, { "text": "connecting" }, { "text": "CONNECT" }] },
-    { "step": "reader-reject", "opening": true, "targets": [{ "key": "reader-picture" }, { "text": "InvalidTransition" }, { "text": "State stays closed" }] },
-    { "step": "terminal", "targets": [{ "key": "reducer:idle:CONNECT" }, { "key": "reducer:connecting:OPENED" }, { "key": "reducer:connecting:ERROR" }, { "key": "reducer:open:CLOSE" }, { "key": "reducer:throw" }, { "key": "reducer:throw-box", "paint": "stroke" }, { "key": "closed" }, { "key": "session:ring:closed", "paint": "stroke" }, { "text": "State" }, { "key": "session:state" }, { "text": "Event" }, { "key": "session:event" }, { "text": "Returns" }, { "key": "session:returns" }] }
+    { "step": "ask", "settings": { "when": "connecting" }, "opening": true, "targets": [{ "text": "ws.send(\"hi\");" }, { "text": "The server has not answered yet" }] },
+    { "step": "ask", "settings": { "when": "closing" }, "opening": true, "targets": [{ "text": "  ws.send(\"bye\");" }, { "text": "The server accepted, so open fired" }] },
+    { "step": "answer", "targets": [{ "text": "readyState" }, { "key": "socket:ready" }, { "text": "Event" }, { "key": "socket:event" }, { "text": "Result" }, { "key": "socket:result" }] },
+    { "step": "answer", "settings": { "when": "connecting" }, "targets": [{ "key": "send:box:throw", "paint": "stroke" }, { "key": "socket:ring:CONNECTING", "paint": "stroke" }] },
+    { "step": "answer", "settings": { "when": "closing" }, "targets": [{ "key": "send:box:return", "paint": "stroke" }, { "key": "socket:ring:CLOSING", "paint": "stroke" }, { "text": "Server got" }, { "key": "socket:delivered" }] },
+    { "step": "send", "settings": { "when": "connecting" }, "targets": [{ "key": "send:box:queue", "paint": "stroke" }, { "key": "socket:ring:OPEN", "paint": "stroke" }, { "text": "Server got" }, { "key": "socket:delivered" }] },
+    { "step": "closed", "settings": { "when": "closing" }, "targets": [{ "key": "socket:ring:CLOSED", "paint": "stroke" }, { "text": "Result" }, { "key": "socket:result" }] }
   ]
 }

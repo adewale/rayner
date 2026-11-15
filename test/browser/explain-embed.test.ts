@@ -3429,15 +3429,13 @@ test('the PKCE attack opens with the stolen-code, guessed-verifier and rejection
   }
 });
 
-test('source tours show the token-cap calculation and terminal rejection in every scenario', options, async () => {
+test('source tours show the token-cap calculation and send()’s answer in every scenario', options, async () => {
   const {reviewSubjects} = await import('../../tools/lib/explain-review-scene.ts');
   const {storyFrames,reviewStoryScenario,inspectStoryFrame,covered} = await import('../../tools/lib/explain-story-review.ts');
   const roles = {
     'token-bucket': ['request:R9','name:R9','arrival:R9','request:R10','name:R10','arrival:R10','balance:refill:R10',
       'balance:found:R10','balance:spend:R10','balance:cap','balance:label','balance:value'],
-    'state-machine': ['reducer:idle:CONNECT','reducer:connecting:OPENED','reducer:connecting:ERROR',
-      'reducer:open:CLOSE','reducer:throw','reducer:throw-box','closed','session:ring:closed',
-      'State','session:state','Event','session:event','Returns','session:returns'],
+    'state-machine': ['readyState','socket:ready','Event','socket:event','Result','socket:result'],
   };
   const page = await browser.newPage();
   let scenarios=0,stepWidths=0,authoredSteps=0,labelChecks=0;
@@ -3445,9 +3443,9 @@ test('source tours show the token-cap calculation and terminal rejection in ever
     for(const id of ['token-bucket','state-machine'] as const){
       const project = projects.get(id) ?? await collectProject(`scenes/explainers/${id}`,{write:false});
       assert.deepEqual(project.scenarios.map(v=>v.values),id==='token-bucket'?
-        [{rate:'1'},{rate:'2'},{rate:'4'}]:[{events:'success'},{events:'failure'}]);
+        [{rate:'1'},{rate:'2'},{rate:'4'}]:[{when:'connecting'},{when:'closing'}]);
       if(!projects.has(id))await buildExplainer(project,join(folder,`${id}.html`));
-      const sourceStep = id==='token-bucket'?'later':'terminal';
+      const sourceStep = id==='token-bucket'?'later':'answer';
       const companion = await reviewSubjects(project);
       assert.deepEqual(companion.filter(c=>c.step===sourceStep&&!c.settings).flatMap(c=>c.targets.map(t=>'key' in t?t.key:t.text)),roles[id]);
       const claims = await reviewSubjects(project);
@@ -3477,17 +3475,15 @@ test('source tours show the token-cap calculation and terminal rejection in ever
             assert.ok(Math.abs(drop[1]-(-3.87+after*4.44/5))<1e-6&&Math.abs(drop[3]-dot[1])<1e-6);
             assert.equal(scene.state.tokens,after);
           }else{
-            for(const [key,value] of [
-              ['idle:CONNECT',"  'idle:CONNECT':      'connecting',"],
-              ['connecting:OPENED',"  'connecting:OPENED': 'open',"],
-              ['connecting:ERROR',"  'connecting:ERROR':  'closed',"],
-              ['open:CLOSE',"  'open:CLOSE':        'closed',"],
-              ['throw','  if (!result) throw new InvalidTransition();'],
-            ])text(`reducer:${key}`,value!);
-            text('session:state','closed');text('session:event','OPENED');text('session:returns','InvalidTransition');
-            const ring=keyed('session:ring:closed').box()!,closed=keyed('closed').box()!;
-            assert.ok(ring[0]<=closed[0]&&ring[1]<=closed[1]&&ring[2]>=closed[2]&&ring[3]>=closed[3]);
-            assert.equal(scene.state.session,'closed');
+            // A send() on a new socket throws; one after close() returns without sending.
+            const early=scenario.values.when==='connecting', ready=early?'CONNECTING':'CLOSING';
+            text('socket:ready',ready);text('socket:event','send()');
+            text('socket:result',early?'throws InvalidStateError':'returns, sends nothing');
+            const ring=keyed(`socket:ring:${ready}`).box()!,state=keyed(ready).box()!;
+            assert.ok(ring[0]<=state[0]&&ring[1]<=state[1]&&ring[2]>=state[2]&&ring[3]>=state[3]);
+            const box=keyed(`send:box:${early?'throw':'return'}`).box()!;
+            assert.ok(box[2]>box[0]&&box[3]>box[1]);
+            assert.equal(scene.state.ready,ready);
           }
           nativeChecked=true;
         }}).run();
@@ -3504,7 +3500,7 @@ test('source tours show the token-cap calculation and terminal rejection in ever
         const frame=(await storyFrames(scenario.Scene,applicable)).get(sourceStep)!;
         const indices=new Set(frame.targets.filter(t=>roles[id].includes(t.name)).flatMap(t=>t.indices));
         const labels=frame.labels.filter(label=>label.indices.some(index=>indices.has(index)));
-        assert.equal(labels.length,id==='token-bucket'?9:12,'exact caption-label inventory');
+        assert.equal(labels.length,id==='token-bucket'?9:6,'exact caption-label inventory');
         const readable=new Set<number>();
         await page.setViewportSize({width:390,height:844});
         await page.goto(`${embed}/${id}.html?${new URLSearchParams({...scenario.values,step:sourceStep})}`);
@@ -3533,7 +3529,7 @@ test('source tours show the token-cap calculation and terminal rejection in ever
     }
   }finally{await page.close();}
   // Every step of every scenario at both widths, whatever each scene's step count.
-  assert.equal(scenarios,5);assert.equal(stepWidths,authoredSteps);assert.equal(labelChecks,51);
+  assert.equal(scenarios,5);assert.equal(stepWidths,authoredSteps);assert.equal(labelChecks,39);
 });
 
 test('both pen drawings retain every construction mark and its readable count through source tours', options, async () => {

@@ -148,8 +148,8 @@ worse than none. `Circumscribe` is kept, because it can `keep`.
 - `Model`, `Store` or `Actor` for the event-driven model. `Model` is already the plain functions.
   `Store` suggests a reducer with no explorable graph. `Actor` (XState) suggests concurrency and
   messages between machines. `Machine` says states and events, and it is the word issue #88 used.
-- `Session` for the same thing. It clashes with the HTTP sessions in the state-machine explainer
-  and with its general meaning on the web.
+- `Session` for the same thing. It clashes with its general meaning on the web (an HTTP or login
+  session).
 - A public animation that sets the state (`SetState`). Outside a machine it would do what assigning
   `this.state` before a sync does, a second way to do one thing. A machine's events change the state
   at their turns in its schedule with an animation of their own, which no entry point exports.

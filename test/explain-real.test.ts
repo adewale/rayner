@@ -87,7 +87,7 @@ test('on every pinned snapshot, a picture dimming everything spares the frame an
 
 test('a diagram is described by the counts its source declares, and bare names name participants and classes', async () => {
   const cases: [DiagramSnapshot, string][] = [
-    [pinned('state-machine', 'stateDiagram'), 'State diagram: 4 states, 4 transitions'],
+    [pinned('state-machine', 'stateDiagram'), 'State diagram: 4 states, 3 transitions'],
     [pinned('lantern', 'classDiagram'), 'Class diagram: 4 classes, 3 relationships'],
     [pinned('oauth-pkce', 'participant X as Malicious app'), 'Sequence diagram: 3 participants, 7 messages'],
     [pinned('2password', 'participant O as op CLI'), 'Sequence diagram: 3 participants, 6 messages'],
@@ -133,15 +133,16 @@ test('shipped explainers describe their steps: chart values, marks, focus, walks
   assert.doesNotMatch(refill.full, /the rest as in the previous step/);
 
   const machine = await steps('state-machine');
-  const connect = machine.get('connect')!.summary;
-  assert.match(connect, /^State diagram: 4 states, 4 transitions; /);
+  const open = machine.get('open')!.summary;
+  assert.match(open, /^State diagram: 4 states, 3 transitions; /);
   // The trail is the machine's: its picture of the diagram draws the travelled link as a trail, and
   // the diagram says it once, among its marks.
-  assert.match(connect, /\. Travelled: idle → connecting: CONNECT; /);
-  assert.equal(connect.match(/Travelled: /g)?.length, 1);
-  // The reducer row is boxed, not focused: the box's description names the line and what it means
-  assert.match(connect, /A box around line 2 of the reducer: 'idle:CONNECT': 'connecting', the row the reducer reads/);
-  assert.match(connect, /A ring around connecting, the state the session is in/);
+  assert.match(open, /; travelled: CONNECTING → OPEN: accepted\. /);
+  assert.equal(open.match(/travelled: /gi)?.length, 1);
+  assert.match(open, /A ring around OPEN, the readyState the socket is in/);
+  // The branch of send() the socket ran is lit and boxed: the description names its lines and what the box means.
+  const answer = machine.get('answer')!.summary;
+  assert.match(answer, /A red box around the throw in send\(\): readyState is CONNECTING\. Run: 5: throw new DOMException\(; /);
 
   const pkce = await steps('oauth-pkce');
   // Only the first message is revealed, and what it carries is a note on it.
