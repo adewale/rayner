@@ -731,6 +731,22 @@ Every page graded in rounds 2 and 3 has its claims in JSON: [`ext4-space/claims.
 
 The survey's grades are in `survey/grades.json` in a similar shape, with each answer's place in `survey/session-N.md`.
 
+### Second grader
+
+A second grader, a different model from the one that graded rounds 2 and 3 (Sonnet 5.5; the first grader was Opus 5.5, both from Anthropic's Claude family), graded the four `claims-blind.json` files blind. It worked in a copy of this repository with every `claims.json`, `survey/grades.json`, `claims/*.py` and this README removed, and was told to open each claim's cited evidence and decide from the file, not from the evidence summary. Its grades, each with the value or line that decided it, are in [`second-grader/grades.json`](second-grader/grades.json); [`second-grader/agreement.py`](second-grader/agreement.py) compares them with the first grader's.
+
+| Topic | Items | Agreement | Cohen's kappa |
+| --- | --- | --- | --- |
+| ext4-space | 102 | 0.971 | 0.92 |
+| isdigit | 62 | 1.000 | 1.00 |
+| cert-renewal | 76 | 1.000 | 1.00 |
+| poppy-browser | 74 | 1.000 | 1.00 |
+| All | 314 (490 claims by count) | 0.990 (0.994 by count) | 0.97 |
+
+Both graders found the same 9 wrong claims, all on plain pages: 4 on ext4-space, 1 on cert-renewal and 4 on poppy-browser. Neither found a wrong claim on a method-only or Rayner page. The 3 disagreements are one claim each on ext4-space's plain, Rayner and method-only pages about how `df` reports statfs's numbers: the first grader called them unverifiable, because the recordings hold statfs and not `df`'s output; the second called them right, taking `df`'s columns as the oracle's stated convention. No claim the first grader called right was called wrong, or the reverse.
+
+The second grader also flagged its own hard calls, recorded in its `why` fields, among them: ext4's `-T largefile` and `largefile4` ratios, graded from the values the evidence quotes because `mke2fs.conf.in` itself is not in the repository; cert-renewal's "six days" for the 160-hour profile, graded right with loose rounding; and the poppy-browser status numbers, unverifiable on both pages because the draft does not give them.
+
 ### What round 3 shows and does not show
 
 It shows:
@@ -745,7 +761,7 @@ It does not show:
 - That models generally get these subjects wrong. The survey asked for a few sentences, one sample per question, from one model; a page written with more effort can do better than the short answer, as `poppy-browser`'s plain page did.
 - That the 45 questions are a fair sample of topics. They are this catalog's, chosen by its authors, and several name something specific the model could not see.
 - That the method-only pages are independent. One author wrote them after reading the Rayner explainers and graded them with the Rayner pages' claim lists, so their agreement with the Rayner pages is expected.
-- Anything from a second grader yet. The same model family wrote every page and did all the grading in all three rounds; the blind files exist so that a different model can regrade.
+- Independent grading. A second model regraded rounds 2 and 3 blind and agreed on 311 of 314 items (see Second grader, above), but both graders are from the same family as the model that wrote the pages, and no person has checked the grades.
 - How well any page teaches.
 
 ### PRODUCT.summary
