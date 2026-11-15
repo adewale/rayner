@@ -80,7 +80,7 @@ export const EXPLAINERS: readonly { id: string; step: string; group: 'topic' | '
   { id: 'poppy-coverage', step: 'sort', group: 'topic', tier: 'gallery' },
   { id: 'exgit', step: 'change', group: 'topic', tier: 'gallery' },
   { id: 'mr-cache', step: 'reader-outcome', group: 'topic', tier: 'coverage' },
-  { id: 'state-machine', step: 'reader-reject', group: 'topic', tier: 'coverage' },
+  { id: 'state-machine', step: 'answer', group: 'topic', tier: 'gallery' },
   { id: 'statecharts', step: 'regions', group: 'topic', tier: 'showcase' },
   { id: 'ring-buffer', step: 'result', group: 'topic', tier: 'gallery' },
   { id: '2password', step: 'reader-boundary', group: 'topic', tier: 'gallery' },

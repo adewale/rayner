@@ -166,7 +166,7 @@ default) costs a fraction of one that colours it.
   `node tools/repo/tokens.ts --theme light --engine shiki` generated and that are
   checked in beside the scene (`scenes/explainers/mr-cache/code.ts`);
   `TransformDiff` morphs one into the other.
-- [state-machine](https://github.com/adewale/rayner/blob/main/scenes/explainers/state-machine/scene.ts): finds the reducer
-  row it read with `code.token(line, text)`, takes `code.span` from the key to
-  the value, and rings it with a `SurroundingRectangle` built from the span's
-  `box()`.
+- [state-machine](https://github.com/adewale/rayner/blob/main/scenes/explainers/state-machine/scene.ts): takes `code.span`
+  of each line of the branch of Node's own `send()` the socket ran, from its first
+  word to its end, and rings them with a `SurroundingRectangle` built from the
+  spans' `box()`.

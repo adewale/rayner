@@ -2,6 +2,6 @@
   "version": 2,
   "renderer": "agentic-mermaid@0.5.1",
   "diagrams": {
-    "[\"stateDiagram-v2\\n direction LR\\n idle --> connecting: CONNECT\\n connecting --> open: OPENED\\n connecting --> closed: ERROR\\n open --> closed: CLOSE\",\"dracula\"]": "960a8dc2017bb001.json"
+    "[\"stateDiagram-v2\\n direction LR\\n CONNECTING --> OPEN: accepted\\n OPEN --> CLOSING: close()\\n CLOSING --> CLOSED: answered\",\"dracula\"]": "6b1b388d6bf4a372.json"
   }
 }

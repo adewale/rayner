@@ -371,7 +371,7 @@ in milliseconds, on a shared 4-core container (load about 3), before and after h
 | Live step | Node: run to the step and the log | First frame, before: 1× / 4× | First frame, held: 1× / 4× | Reduced motion, end picture, held: 4× |
 | --- | --- | --- | --- | --- |
 | `ring-buffer` `result` | 139 / 194 | 127 / 144 · 579 / 625 | 10 / 37 · 31 / 53 | 93 / 112 |
-| `state-machine` `terminal` | 110 / 127 | 102 / 128 · 521 / 629 | 7 / 16 · 22 / 43 | 50 / 79 |
+| `state-machine` `terminal` (its earlier reducer page) | 110 / 127 | 102 / 128 · 521 / 629 | 7 / 16 · 22 / 43 | 50 / 79 |
 | `statecharts` `parent` | 103 / 183 | 95 / 114 · 403 / 651 | 6 / 17 · 20 / 25 | 57 / 67 |
 | `statecharts` `frother` | 166 / 213 | 170 / 196 · 600 / 947 | 14 / 17 · 25 / 45 | 54 / 107 |
 | `token-bucket` `later` | 190 / 220 | 124 / 194 · 647 / 668 | 5 / 9 · 18 / 29 | 46 / 83 |
@@ -398,7 +398,7 @@ afresh (oauth-pkce's sign-in runs to its end first). The finish takes the event'
 | --- | --- | --- | --- | --- | --- |
 | `statecharts` | `parent`, `frother` | A chart's configuration and the boxes it is in | The chart's events, through the model's `send` (`drivenNext`); an event the configuration does not handle is refused, as SCXML discards it, naming the boxes without its arrow | The chart, its active boxes and the arrows they light | 5 and 9 configurations; every event authored: a token runs along the arrow of the state that handled it |
 | `ring-buffer` | `result` | `RingState`: the buffer, the last operation and its result, outlines, the tray, the next value | `push`, `pop`; a pop of an empty ring is refused, a push to a full one returns Full, and a push after the value 9 is past the story's bound | Slots, values, pointers, outlines, push(v), the next value, the tray; the readout and card values | 256 states sampled per scenario, every transition played |
-| `state-machine` | `terminal` | `SessionState`: the session, the last event and what it returned, the row read, the links travelled | `CONNECT`, `OPENED`, `ERROR`, `CLOSE` (none refused: a throw is the lesson) | The diagram with its trail (`Diagram.picture`), the ring, the lit row or throw; the card | All 21 states per scenario, every transition played |
+| `state-machine` | `send`, `closed` | `SocketState`: a WebSocket's readyState, the last event and what it did, the branch of `send()` it ran, the messages the server got, the links travelled | `send()`, `close()`, `server accepts`, `server answers close()`; the server's two answers are refused outside CONNECTING and CLOSING, `close()` before open and a third message are past the story's bound, and a `send()` that throws or sends nothing is an answer the picture shows | The diagram with its trail (`Diagram.picture`), the ring, `send()`'s branch boxed in Node's own code; the card | 23 states from a new socket, 14 from an open one; every transition played |
 | `token-bucket` | `later` | `BucketState`: tokens, last refill and every call so far (arrival, 200 or 429, balance found and left) | `request`: the next of the client's ten scheduled requests arrives; the bucket refills on arrival, so there is no tick, and an eleventh request is past the story's bound | The bucket's level, the balance chart, the request boxes and the readout | 11 states per rate; a request's refill climb is one `g.follow`, then a token leaves for its box or a 429 ring appears |
 | `monty-hall` | `choice` | `Round`: what the reader knows (the pick, the door opened and what it showed, stay or switch, where the car was shown) | `pick X`, `open X: goat` or `car`, `stay`, `switch`, `car behind X`; the rules refuse a second pick, the host opening your door or opening twice, the informed host opening the car, and a decision after the car is shown | The three doors | 46 rounds with the informed host, 52 with the random one; every round is a cell of the strip, with its winner |
 | `latest-search` | `overwrite`, `reader-guard` | `RaceState`: tickets, the event log, what the page shows and every write | `start A`, `start B`, `A lands`, `B lands` (B starts after A; a response lands once, after its search started) | The timeline: search bars, landings and the page's spans, a stale span outlined | 10 states per machine, unguarded and guarded: every interleaving; the guarded page never shows a stale result (an invariant), the unguarded one does after two orders |
@@ -413,8 +413,12 @@ What each refuses, in its model's words (the tests pin each reason):
   the box around it, so the machine ignores GROUND" (`drivenNext`).
 - `ring-buffer`: a pop of an empty ring: "the ring is empty, so pop has no value to take". A push
   to a full ring is not refused: it returns Full, which the ring shows.
-- `state-machine` and `token-bucket` refuse nothing: a throw and a 429 are answers the picture
-  shows. token-bucket's eleventh request is past the story's bound.
+- `state-machine`: the server's answers, where the socket cannot take them: "the socket is OPEN,
+  and the server accepts the handshake once, while it is CONNECTING"; "the socket is OPEN, so there
+  is no close() to answer". A `send()` that throws InvalidStateError is not refused: the throw is the
+  answer the picture shows. `close()` before open and a third message are past the story's bound.
+- `token-bucket` refuses nothing: a 429 is an answer the picture shows, and the eleventh request is
+  past the story's bound.
 - `monty-hall`: which rule of the game forbids the move: "you picked door A already, and you pick
   once", "the host opens a door only after you pick one", "door A is yours, and the host never
   opens your door", "the host knows where the car is, and never opens its door", "the host opened
