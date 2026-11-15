@@ -12,6 +12,7 @@ import { DOCS, docBlocks } from '../tools/repo/lib/docs-code.ts';
 import type { Picture } from '../explain/trace.ts';
 import { assertStepState, assertSteps } from '../explain/testing.ts';
 import { run } from '../scenes/tutorial/lru-mru/model.ts';
+import { withoutNodeWarnings } from './lib/writing-guide.ts';
 // The tutorials' own model tests (Wikipedia's worked LRU and MRU examples, every door event from every
 // state, no Hanoi route shorter than 7 or 15 moves) run beside them: npm test runs scenes/*/*/*.test.ts,
 // and rayner check runs each folder's model.test.ts.
@@ -61,8 +62,6 @@ test('`rayner init --machine` writes the machine starter, and `rayner check` pas
 });
 
 /** `rayner check` on a folder, as a reader of its output sees it: the exit status and what it printed. */
-// Node 24.0.0 prints an ExperimentalWarning for type stripping on stderr; later 24.x releases do not.
-const withoutNodeWarnings = (stderr: string) => stderr.replace(/^\(node:\d+\) ExperimentalWarning: .*\n(?:\(Use `node --trace-warnings .*\n)?/gm, '');
 const checkFolder = (dir: string, out: string) => {
   const { status, stdout, stderr } = spawnSync(process.execPath, ['tools/explain.ts', 'check', join(dir, 'scene.ts'), '--out', out], { encoding: 'utf8' });
   return { status, stdout, stderr: withoutNodeWarnings(stderr) };

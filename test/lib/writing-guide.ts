@@ -109,11 +109,14 @@ export async function buildStage(doc: string, stage: string, folder: string, roo
   return dir;
 }
 
+/** stderr without Node's own warnings: Node 24.0.0 prints an ExperimentalWarning for type stripping, and later 24.x releases do not. */
+export const withoutNodeWarnings = (stderr: string) => stderr.replace(/^\(node:\d+\) ExperimentalWarning: .*\n(?:\(Use `node --trace-warnings .*\n)?/gm, '');
+
 /** `rayner check` as the guide runs it, from `folder`: its exit status and what it printed. */
 export function check(doc: string, folder: string) {
   const { name } = initCommand(doc);
   const { status, stdout, stderr } = spawnSync(process.execPath, [CLI, 'check', `${name}/scene.ts`], { cwd: folder, encoding: 'utf8' });
-  return { status, stdout, stderr };
+  return { status, stdout, stderr: withoutNodeWarnings(stderr) };
 }
 
 /** The part of a passing check's report the guide prints: the oracle test's run and the first scenario's gates. */
