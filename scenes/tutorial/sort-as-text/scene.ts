@@ -1,7 +1,7 @@
 import { Scene } from '../../../src/index.ts';
 import { Machine, answerOf, settingsOf, stage, view } from '../../../explain/index.ts';
 import type { ExplainerMeta, Setting } from '../../../explain/index.ts';
-import { beats, flight } from '../../../explain/kit.ts';
+import { beats, flight } from '../../../explain/drawing.ts';
 import { EVENTS, bound, next, sorted, start, type Compare, type SortEvent, type State } from './model.ts';
 import { drawSort } from './picture.ts';
 

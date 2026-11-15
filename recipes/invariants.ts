@@ -4,7 +4,6 @@
 // across, and the invariant names the frames where it does.
 import { Scene, Circle, Dot, Transform, linear, keyed } from 'rayner';
 import { view } from 'rayner/explain';
-import { NullSink } from 'rayner/output';
 import { InvariantSink } from 'rayner/testing';
 import type { SceneClass, Sink } from 'rayner';
 import type { InvariantFailure } from 'rayner/testing';
@@ -46,8 +45,9 @@ export default SampledOrbit;
  * Play a scene in full and return every frame an invariant failed on, with how many frames
  * each was checked on. InvariantSink hands each frame on to `inner`, so the same run can
  * also render, trace or sample motion: this is how `rayner check` runs it beside its own sink.
+ * By default it hands them to a sink that draws nothing.
  */
-export async function invariantFailures(SceneClass: SceneClass, inner: Sink = new NullSink()): Promise<{ failures: InvariantFailure[]; checked: Record<string, number>; held: Record<string, number>; vacuous: string[] }> {
+export async function invariantFailures(SceneClass: SceneClass, inner: Sink = { skipUntil: Infinity, async frame() {} }): Promise<{ failures: InvariantFailure[]; checked: Record<string, number>; held: Record<string, number>; vacuous: string[] }> {
   const sink = new InvariantSink(inner);
   await new SceneClass(sink).run();
   return { failures: sink.failures, checked: Object.fromEntries(sink.checked), held: Object.fromEntries(sink.held), vacuous: sink.vacuous() };

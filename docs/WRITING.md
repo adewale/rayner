@@ -230,22 +230,21 @@ rayner: This explainer still has placeholders, each marked TODO:. To do, in orde
 
 ## 6. Draw the picture and write the steps
 
-A picture is a function from the model's state to shapes, in its own module. Draw it with [`rayner/kit`](REFERENCE.md#kit): its type sizes never go below `TYPE.small`, which a phone can read; `tones(s)` gives the stage's colours by role; `box` and `words` make the parts. Key each part by what it is, here each box by its number, so when the state changes a view slides a part to its new place instead of fading one out and another in.
+A picture is a function from the model's state to shapes, in its own module. Draw it with the [drawing kit](REFERENCE.md#drawing-kit), `rayner/drawing`: its type sizes never go below `TYPE.small`, which a phone can read; `tones(s)` gives the stage's colours by role; `tile` (here `raised`, a structure's body) and `words` make the parts. Key each part by what it is, here each box by its number, so when the state changes a view slides a part to its new place instead of fading one out and another in.
 
 <!-- sort-as-text/picture.ts -->
 ```ts
 import { Group } from 'rayner';
 import type { Stage } from 'rayner/explain';
-import { keyedParts } from 'rayner/drawing';
-import { SPACE, box, tones, words } from 'rayner/kit';
+import { SPACE, TYPE, keyedParts, tile, tones, words } from 'rayner/drawing';
 import { sorted, type State } from './model.ts';
 
 /** A box's width, and where row `y`'s boxes stand: centred on the stage, SPACE.s apart. */
 const WIDTH = 1.9;
 const row = (count: number) => (i: number) => (i - (count - 1) / 2) * (WIDTH + SPACE.s);
 
-/** One number as a box: its two parts, keyed `<key>:box` and `<key>:label`, in one group. */
-const numberBox = (s: Stage, text: string, at: [number, number], key: string) => new Group(...box(s, text, { at, key, width: WIDTH }));
+/** One number as a raised box: one group, its two parts keyed `<key>:box` and `<key>:label`. */
+const numberBox = (s: Stage, text: string, at: [number, number], key: string) => tile(s, text, { at, key, width: WIDTH, raised: true, size: TYPE.small });
 
 /**
  * The array as written, and under it what sort() makes of it once the state says it is sorted. With
@@ -273,7 +272,7 @@ The scene is the explanation: its steps, their words, which state each shows.
 import { Scene } from 'rayner';
 import { Machine, answerOf, settingsOf, stage, view } from 'rayner/explain';
 import type { ExplainerMeta, Setting } from 'rayner/explain';
-import { beats, flight } from 'rayner/kit';
+import { beats, flight } from 'rayner/drawing';
 import { EVENTS, bound, next, sorted, start, type Compare, type SortEvent, type State } from './model.ts';
 import { drawSort } from './picture.ts';
 
@@ -386,7 +385,7 @@ It names each state the live step reaches where it happens (the first five). Lay
 +import { Group } from 'rayner';
 @@
 -const numberBox = (s: Stage, text: string, at: [number, number], key: string) => new Group(keyed(new Text(text, { fontSize: 0.3, color: s.look.ink }).moveTo(at), `${key}:label`));
-+const numberBox = (s: Stage, text: string, at: [number, number], key: string) => new Group(...box(s, text, { at, key, width: WIDTH }));
++const numberBox = (s: Stage, text: string, at: [number, number], key: string) => tile(s, text, { at, key, width: WIDTH, raised: true, size: TYPE.small });
 ```
 
 <!-- check: phone -->
@@ -404,7 +403,7 @@ rayner: Machines in Compare function: none: a state the events reach fails (each
 - []
 ```
 
-After each press a phone shows the live step's whole picture, so every label must read 12 px there or whole inside one of the step's close-ups. The kit's `words` throws on such a size before anything is drawn (`words(): "10" at 0.3 units is under TYPE.small (0.56), which a phone cannot read; put the fact in the caption instead`), which is why the fix draws with `box`. Outside a live step the phone sizes are reported in `legibility` rather than gated, and `rayner review` measures them as served.
+After each press a phone shows the live step's whole picture, so every label must read 12 px there or whole inside one of the step's close-ups. The kit's `words` throws on such a size before anything is drawn (`words(): "10" at 0.3 units is under TYPE.small (0.56), which a phone cannot read; put the fact in the caption instead`), which is why the fix draws with `tile` at `TYPE.small`. Outside a live step the phone sizes are reported in `legibility` rather than gated, and `rayner review` measures them as served.
 
 **A caption over 80 words.** The first answer caption tried to say everything:
 
@@ -536,7 +535,7 @@ These are this repository's own numbers, from its Git history and pull requests.
 
 | Explainer | Grounding | script.md | model.ts | model.test.ts | scene.ts | picture.ts | Whole folder |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| sort-as-text (this guide) | live | 18 | 40 | 28 | 71 | 30 | 187 |
+| sort-as-text (this guide) | live | 18 | 40 | 28 | 71 | 29 | 186 |
 | galton-board | live | 30 | 115 | 140 | 175 | 140 | 765 |
 | float-sum | live | 30 | 177 | 175 | 181 | 58 | 794 |
 | unified-diff | live | 28 | 152 | 196 | 191 | 46 | 745 |

@@ -59,8 +59,8 @@ test('the guide prints the finished script\'s Checked against and Grounding line
   assert.equal(printedBlock(doc, 'receipt'), groundingSentence(parseGrounding(grounding)) + '\n');
 });
 
-test('the kit\'s refusal the guide quotes is what words() throws', async () => {
-  const { words } = await import('../explain/kit.ts');
+test('the drawing kit\'s refusal the guide quotes is what words() throws', async () => {
+  const { words } = await import('../explain/drawing.ts');
   const quoted = /\(`(words\(\): [^`]+)`\)/.exec(doc)?.[1];
   assert.ok(quoted);
   assert.throws(() => words({ look: { ink: '#000' } } as never, '10', { size: 0.3 }), { message: quoted });

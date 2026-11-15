@@ -403,19 +403,19 @@ export class Composed extends Scene {
   }
 }
 
-import { TYPE, SPACE, addAll, beats, box, connector, flight, plate, tones, words as kitWords } from 'rayner/kit';
-import type { Tones, WordsOptions, Beat } from 'rayner/kit';
+import { TYPE, SPACE, addAll, beats, connector, flight, plate, tones, words as kitWords } from 'rayner/drawing';
+import type { Tones, WordsOptions, Beat, Parts } from 'rayner/drawing';
 
-/** A picture drawn with the kit, and a transition between two of them in beats. */
+/** A picture drawn with the drawing kit's measures and parts, and a transition between two of them in beats. */
 export function kitPicture(s: Stage, used: string) {
-  const t: Tones = tones(s), parts = keyedParts();
+  const t: Tones = tones(s), parts: Parts = keyedParts();
   const options: WordsOptions = { size: TYPE.title, bold: true, color: t.soft };
   parts.add(kitWords(s, used, options), 'used');
-  addAll(parts, box(s, 'cache', { key: 'cache', at: [0, SPACE.l], active: true }));
+  addAll(parts, tile(s, 'cache', { key: 'cache', at: [0, SPACE.l], raised: true, active: true }));
   addAll(parts, plate(s, 'lane', { key: 'lane', at: [-2, 0] }));
   parts.add(connector(s, [[-3, 0], [3, 0]]), 'line');
-  // @ts-expect-error box needs the key its parts are keyed under.
-  box(s, 'unkeyed', {});
+  // @ts-expect-error plate needs the key its parts are keyed under.
+  plate(s, 'unkeyed', { at: [0, 0] });
   return { picture: parts.group(), floor: TYPE.small };
 }
 export const kitTransition = (c: Choreography): Beat => beats(c, flight(c, 'token', [[-6, 0]]), { fresh: ['token'] });

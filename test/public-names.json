@@ -60,11 +60,51 @@
       }
     },
     "rayner/drawing": {
+      "MARGIN": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "PLATE_HEIGHT": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "RADIUS": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "SPACE": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "STROKE": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "TYPE": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "addAll": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "beats": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
       "card": {
         "check": "Views: a card drawn from state is compared part by part, its lit row included, with a fresh draw"
       },
       "code": {
         "check": "Views: a code panel drawn from state is compared part by part, its lit bar included, with a fresh draw"
+      },
+      "connector": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "flight": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
       },
       "keyedParts": {
         "check": "Keys: two parts on the stage with one key at the end of a step fail"
@@ -72,8 +112,28 @@
       "legend": {
         "check": "Looks: a caption or line naming a colour or pattern that no word on the stage says fails; a legend that keys the look answers it"
       },
+      "pass": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "plate": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "route": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
       "table": {
         "check": "Keys: two parts on the stage with one key at the end of a step fail"
+      },
+      "tones": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "words": {
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
       }
     },
     "rayner/geo": {
@@ -81,81 +141,15 @@
         "check": "Invariants: registered with addInvariant, it fails on the first frame that draws a piece out of depth order"
       }
     },
-    "rayner/kit": {
-      "MARGIN": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "PLATE_HEIGHT": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "RADIUS": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "SPACE": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "STROKE": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "TYPE": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "addAll": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "beats": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "box": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "connector": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "flight": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "pass": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "plate": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "route": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "tones": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      },
-      "words": {
-        "guide": "docs/REFERENCE.md#kit",
-        "test": "test/kit.test.ts"
-      }
-    },
     "rayner/output": {
       "DomSink": {
-        "tooling": "a host page that plays a scene into its own live SVG element, as the player's zoom view does (docs/SCENE-OUTPUTS.md)"
+        "tooling": "a host page written against 0.1.0 that plays a scene into its own live SVG element, until 0.3.0; deprecated: 0.1.0 published it from rayner, no explainer uses it, and 0.3.0 removes it. The player's zoom view keeps it from the repository's own path"
       },
       "NullSink": {
-        "tooling": "a test or tool that runs a scene for its state, steps or invariants and draws nothing (the recipes, rayner check)"
+        "tooling": "a test or tool written against 0.1.0 that runs a scene for its state, steps or invariants and draws nothing, until 0.3.0; deprecated: 0.1.0 published it from rayner, no explainer uses it, and 0.3.0 removes it. rayner check and the repository's tests keep it from the repository's own path"
       },
       "StopScene": {
-        "tooling": "a host page or tool with its own sink, which throws it to stop a run and must rethrow it from a catch"
+        "tooling": "a host page or tool written against 0.1.0 with its own sink, which throws it to stop a run and must rethrow it from a catch, until 0.3.0; deprecated: 0.1.0 published it from rayner, no explainer uses it, and 0.3.0 removes it. The player keeps it from the repository's own path"
       },
       "StringSink": {
         "tooling": "a tool that collects every frame of a run as SVG strings (the render recipe)"
@@ -164,10 +158,10 @@
         "tooling": "a host page or tool that draws a step's resting picture, or any frame, by the frame number a trace records (the player, the build's poster and rayner check's seeks)"
       },
       "renderElements": {
-        "tooling": "a tool that reads a frame as element records, with each part's box, paint and text (the render recipe)"
+        "tooling": "a tool written against 0.1.0 that reads a frame as element records, with each part's box, paint and text (the render recipe), until 0.3.0; deprecated: 0.1.0 published it from rayner, no explainer uses it, and 0.3.0 removes it. rayner check and review keep it from the repository's own path"
       },
       "renderText": {
-        "tooling": "a tool or test that prints a frame as a text drawing, for a terminal or a reviewer (the render recipe)"
+        "tooling": "a tool or test written against 0.1.0 that prints a frame as a text drawing, for a terminal or a reviewer (the render recipe), until 0.3.0; deprecated: 0.1.0 published it from rayner, no explainer uses it, and 0.3.0 removes it. rayner describe and see keep it from the repository's own path"
       },
       "toSvgString": {
         "tooling": "a host page or tool that serializes the scene's current picture as one SVG document, such as a step's still from the scene renderFrame returns (the render recipe)"

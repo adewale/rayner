@@ -298,18 +298,23 @@ const cache = view(this, (st) => card(s, [['Requests', 'A B C D'], ['Evicted', '
 
 A row gives one value per column, or one value that spans them all (Requests above). The headings sit above the first row with a value per column. `lit` lights the whole row. The description names each value by its row and column, "Hits (MRU): 3". A card's `cells` holds each row's values; its `values` keeps each row's last one. The [LRU/MRU tutorial scene](../scenes/tutorial/lru-mru/scene.ts) uses one.
 
-### Kit
+### Drawing kit
 
-`rayner/kit` is the default way to draw a picture by hand from state. It holds the measures a picture is laid out in, the stage's colours by role, a line of words, a labelled box, a label on a plate, a connector, a route, and transitions that play in beats. The Poppy series' visual system ([`scenes/explainers/lib/poppy-kit.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/lib/poppy-kit.ts)) is built on it: it takes the kit's measures, words, routes and transitions and adds Poppy's colours and objects. Its functions follow the [drawing kit](#drawing-kit)'s conventions: the stage `s` first, then what the picture shows, then one options object, with `at` the point the picture stands at.
+`rayner/drawing` is the one way to draw a picture by hand from state. It holds the measures a picture is laid out in, the stage's colours by role, and the parts explanations keep needing, as ordinary mobjects coloured from a stage's look: a line of words, a labelled box, a label on a plate, a connector, tables, flows, bars, the annotations and the panels; and transitions that play in beats. Nothing in it reads scene state, and only the transitions animate. The Poppy series' visual system ([`scenes/explainers/lib/poppy-kit.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/lib/poppy-kit.ts)) is built on it: it takes the kit's measures, words, plates, connectors, routes and transitions and adds Poppy's colours and objects. Every function has the same shape:
+
+- the stage `s` first, for its look and its text shaping (all kit text is made with the scene's shaping, `shaping: s.scene.textShaping`);
+- then what the picture shows, positionally: its text, rows or items, and what it measures or points at (a callout's target, a dimension's ends, a pin's point);
+- then one options object: `at` is where the picture stands, `size` its text size, `key` its address.
+
+A function whose parts are keyed (`table`, `stat`, `flow`, `bars`, `legend`, `plate`) requires `key`, so two of one kind on a stage never collide. `tile`, `dot`, `callout`, `dimension` and `pin` take `key` optionally, and key the composite and its parts (the last column) only when given it. A keyed picture keys its parts under its own key, so a scene addresses a part by key (`find`, matching, a choreography's `c.from`), never by a child index. A single part, `words`, `label`, `connector` or `segment`, takes no `key`: it and any mobject a scene draws itself is keyed with `keyed(m, key)` from `rayner`, the one way to key a part, which returns `m`. `m.key` is read-only, and an empty key is refused with a `RangeError`.
 
 ```ts
-import { keyedParts } from 'rayner/drawing';
-import { MARGIN, TYPE, addAll, box, connector, tones, words } from 'rayner/kit';
+import { MARGIN, TYPE, addAll, connector, keyedParts, tile, tones, words } from 'rayner/drawing';
 
 const picture = view(this, (st) => {
   const parts = keyedParts(), t = tones(s);
   parts.add(words(s, 'Newest first', { at: [MARGIN.left, 2], color: t.soft }), 'heading');
-  st.slots.forEach((item, i) => addAll(parts, box(s, item, { at: [-4 + 2.6 * i, 0.4], width: 2, key: `slot:${item}`, active: item === st.used })));
+  st.slots.forEach((item, i) => addAll(parts, tile(s, item, { at: [-4 + 2.6 * i, 0.4], width: 2, raised: true, size: TYPE.small, key: `slot:${item}`, active: item === st.used })));
   parts.add(connector(s, [[-5.3, -0.8], [5.3, -0.8]]), 'shelf');
   parts.add(words(s, st.verdict, { at: [0, -2.2], size: TYPE.title, bold: true, align: 'middle' }), 'verdict');
   return parts.group();
@@ -327,55 +332,24 @@ Each slot is keyed by its item, so `picture.sync()` slides an item to its new sl
 | `RADIUS` | `{ sharp: 0.05, small: 0.08, panel: 0.16, round: 0.26 }` | Corner radii |
 | `SPACE` | `{ xs: 0.14, s: 0.28, m: 0.42, l: 0.7, xl: 1.12 }` | Spacing, in multiples of 0.14: related things `xs` to `s` apart, separate groups `l` to `xl` |
 | `MARGIN` | `{ left: -7.65, right: 7.65, top: 4.15, bottom: -4.15 }` | Where text may go on a stage with `heading: false`; with a heading, lay text into `regionBox('main')` |
-| `PLATE_HEIGHT` | 0.84 | The height of a plate or a box around one line of `TYPE.small` or `TYPE.label` |
+| `PLATE_HEIGHT` | 0.84 | The height of a plate or a raised tile around one line of `TYPE.small` or `TYPE.label` |
 
 **Colours by role.** `tones(s)` gives the stage's [look](#colours) by the one job each colour does, as a `Tones`: `ground` (the paper; plates are this colour), `ink` (words, and whatever is in use), `soft` (secondary words), `idle` (lines and slots not in use; never words), `raised` (the body of a box or panel), `rule` (hairlines), `accent` (the one thing the step is about), and `good` and `bad` for an outcome a caption calls passed or refused. They follow the stage's style and palette.
 
+**The parts.**
+
 | Function | Draws | Keyed parts |
 | --- | --- | --- |
-| `words(s, value, { at, size, color, bold, mono, align })` | One line of text at one of `TYPE`'s sizes (default `TYPE.small`), in the stage's ink unless given a `color`, in Inter or, with `mono`, JetBrains Mono. `at` is the start, middle or end of the line (`align`: `'start'`, the default, `'middle'` or `'end'`) at its vertical centre. A size under `TYPE.small` is a `RangeError`. Returns an unkeyed `Text` whose `width()` is its measured width | |
-| `box(s, text, { at, key, width, height, active, size, mono, radius })` | A labelled box centred at `at`: a body in the `raised` tone with an `idle` outline at `STROKE.fine`, or, when `active`, an `ink` outline at `STROKE.bold` and bold words. As wide as its words plus `SPACE.m` each side unless given a `width`; `PLATE_HEIGHT` tall. Returns the two parts as a list | `key:box`, `key:label` |
-| `plate(s, text, { at, key, padding, size, color, bold, mono, align })` | A label on an opaque plate of the ground's colour, so a line behind it is hidden where the words sit, as a transit map sets a line's name on the line. `at` and `align` place the words as `words` does; `padding` (default 0.18) is the plate's margin each side | `key:plate`, `key:label` |
+| `keyedParts()` | A picture built from keyed parts, a `Parts`: `add(m, key)` keys `m`, keeps it in order and returns it, `group()` returns the parts as one Group. A key added twice is refused at the `add` that repeats it | |
+| `addAll(parts, composite)` | Adds a composite's parts, each already keyed, to a `keyedParts()` collector by their own keys: a list (as `plate` returns) or a keyed composite's children (a keyed `tile`'s box and label), leaving the composite itself out. A part with no key is refused | |
+| `emphasised(m, as)` | Marks `m` as emphasis, `as` the words for what it shows (`'outlined: the full slot'`), so the phone's tour and the descriptions find the mark where it is drawn; `null` takes the mark off. Returns `m` ([emphasis](#the-phones-opening-emphasis-and-review-subjects)) | |
+| `words(s, value, { at, size, color, bold, mono, align })` | One line of text at one of `TYPE`'s sizes (default `TYPE.small`), in the stage's ink unless given a `color`, in Inter or, with `mono`, JetBrains Mono. `at` is the start, middle or end of the line (`align`: `'start'`, the default, `'middle'` or `'end'`) at its vertical centre. A size under `TYPE.small` is a `RangeError`. Returns an unkeyed `Text` whose `width()` is its measured width; `WordsOptions` names its options | |
+| `label(s, text, { at, color, size, bold, mono, align })` | A line of text at any size (default 0.6), centred at `at` unless `align` says its start or end; otherwise as `words`, which is `label` held to the type scale. Draw with `words`, and with `label` only where a picture's type is set otherwise. Key it with `keyed()` | |
+| `tile(s, text, { at, width, height, active, bad, raised, size, mono, radius, key })` | A labelled box centred at `at`. On the paper: outlined soft, emphasised when `active`, red, words too, when `bad`. With `raised`, a structure's body: filled in the `raised` tone with an `idle` outline at `STROKE.fine`, or, when `active`, an `ink` outline at `STROKE.bold` and bold words, its corners rounded by `RADIUS.small`. As wide as its label plus `SPACE.m` each side unless given a `width`; `PLATE_HEIGHT` tall unless given a `height`; `radius` rounds the corners | `key:box`, `key:label` |
+| `plate(s, text, { at, key, padding, size, color, bold, mono, align })` | A label on an opaque plate of the ground's colour, so a line behind it is hidden where the words sit, as a transit map sets a line's name on the line. `at` and `align` place the words as `words` does; `padding` (default 0.18) is the plate's margin each side. Returns the two parts as a list | `key:plate`, `key:label` |
 | `connector(s, points, { active, color, strokeWidth, radius })` | An open route through two or more corner points, each corner rounded by up to `radius` (default 0.22): `idle` at `STROKE.line`, or `ink` at `STROKE.bold` when `active`. It is a `Line`, so `rayner check` treats it as a connector and fails one that crosses a label. Key it with `keyed()` | |
 | `route(first, ...rest)` | A `Line` through the points, for a token to travel (`c.travel`, `flight`, `pass`); repeated points are dropped, and fewer than two distinct points is a `RangeError` | |
-| `addAll(parts, list)` | Adds a composite's parts, each already keyed, to a `keyedParts()` collector (a `Parts`) by their own keys; a part with no key is refused | |
-
-`box` and `plate` return their parts as a list, not one `Group`, so a transition can replace the words and move the box apart: a [choreography](MACHINES.md) addresses a picture's outermost keyed parts.
-
-**Transitions in beats.** In a [machine's transition](MACHINES.md), given the choreography `c = t.choreograph(view)`:
-
-| Function | Plays |
-| --- | --- |
-| `beats(c, flight, { fresh, then, lead })` | A `Succession` in beats. First, words that change and every `fresh` part (by key prefix: a prefix ending in `:` matches keys that start with it, any other the key itself and keys under it) go, while the `lead` parts change, as the line a request takes lights before its token sets off. Then `flight()`, a function returning the `Beat`s of whatever travels, plays. Then the `then` parts come in, and last the new words come while every other part settles (`c.rest()`). Words are replaced, never morphed glyph by glyph. Each option is a list of keys, empty by default |
-| `flight(c, key, via, { appear, move, leave, scale })` | For `beats`: a copy of the target's part `key` appears at the first point of `via`, travels through the rest to where the part rests, and gives way to the part itself. A `Group` cannot `enter` from another part, so this is how a token moves. Timings are in seconds (a `FlightTiming`); `scale` shrinks the travelling copy |
-| `pass(c, id, token, via, { appear, move, leave })` | Three `Beat`s of a token that neither picture keeps: it appears at the first point, travels, and fades at the last. `id` must be a key neither picture uses |
-
-```ts
-transition: {
-  send: (t) => {
-    const c = t.choreograph(world);  // the token flies from the sender; the lane it takes lights first
-    return beats(c, flight(c, 'token', [[-6, 0]]), { fresh: ['token'], lead: ['lane:'] });
-  },
-},
-```
-
-### Drawing kit
-
-`rayner/drawing` draws the parts explanations keep needing, as ordinary mobjects coloured from a stage's look; nothing here animates or reads scene state. Every function has the same shape:
-
-- the stage `s` first, for its look and its text shaping (all kit text is made with the scene's shaping, `shaping: s.scene.textShaping`);
-- then what the picture shows, positionally: its text, rows or items, and what it measures or points at (a callout's target, a dimension's ends, a pin's point);
-- then one options object: `at` is where the picture stands, `size` its text size, `key` its address.
-
-A function whose parts are keyed (`table`, `stat`, `flow`, `bars`, `legend`) requires `key`, so two of one kind on a stage never collide. `tile`, `dot`, `callout`, `dimension` and `pin` take `key` optionally, and key the composite and its parts (the last column) only when given it. A keyed picture keys its parts under its own key, so a scene addresses a part by key (`find`, matching, a choreography's `c.from`), never by a child index. A single part, `label` or `segment`, takes no `key`: it and any mobject a scene draws itself is keyed with `keyed(m, key)` from `rayner`, the one way to key a part, which returns `m`. `m.key` is read-only, and an empty key is refused with a `RangeError`.
-
-| Function | Draws | Keyed parts |
-| --- | --- | --- |
-| `keyedParts()` | A picture built from keyed parts: `add(m, key)` keys `m`, keeps it in order and returns it, `group()` returns the parts as one Group. A key added twice is refused at the `add` that repeats it | |
-| `emphasised(m, as)` | Marks `m` as emphasis, `as` the words for what it shows (`'outlined: the full slot'`), so the phone's tour and the descriptions find the mark where it is drawn; `null` takes the mark off. Returns `m` ([emphasis](#the-phones-opening-emphasis-and-review-subjects)) | |
-| `label(s, text, { at, color, size })` | A centred line of text at `at`, in the look's ink unless given a `color`. Key it with `keyed()` | |
-| `tile(s, text, { at, width, height, active, bad, size, key })` | A labelled box centred at `at`: soft, emphasised when `active`, red when `bad` | `key:box`, `key:label` |
-| `segment(s, a, b, { color, strokeWidth })` | A stroke from `a` to `b`. Key it with `keyed()` | |
+| `segment(s, a, b, { color, strokeWidth })` | A straight stroke from `a` to `b`, in the look's ink unless given a `color`. Key it with `keyed()` | |
 | `dot(s, text, { at, active, key })` | A labelled circle | `key:circle`, `key:label` |
 | `table(s, headers, rows, { key, columns, at, gap, size })` | Bold headers over rows; text columns start-aligned, numeric ones end-aligned, a rule spanning exactly the columns. `columns`, a `TableColumns`, is column centres, `{ left, right }` to spread the measured columns between two edges, or `{ left, gap }` to set them a gap apart; `at`'s x shifts them and its y is the header row's; the group's box is the table's measured extent. A row is an array of cells, each a `TableCell` (a string or a number), or a `TableRow`, `{ key, cells }` | below |
 | `stat(s, title, value, { at, key })` | A title over a large value | `key:title`, `key:value` |
@@ -402,6 +376,27 @@ A column is named by its header. A row is named by its own `key` when given as `
 ```ts
 const rows = dict.entries.map((e, i) => ({ key: `e${i}`, cells: [i, e.key ?? '–', e.value ?? '–'] }));
 table(s, ['Entry', 'Key', 'Value'], rows, { key: 'dict-entries' }); // dict-entries:e0:Key is entry 0's key, in every picture
+```
+
+A keyed `tile` is one `Group`, its box and label inside it; `plate` returns its parts as a list. Add either to a picture with `addAll(parts, ...)` when a transition should replace the words and move the box apart, since a [choreography](MACHINES.md) addresses a picture's outermost keyed parts; add a keyed tile with `parts.add(tile, key)` to move it whole.
+
+#### Transitions in beats
+
+In a [machine's transition](MACHINES.md), given the choreography `c = t.choreograph(view)`:
+
+| Function | Plays |
+| --- | --- |
+| `beats(c, flight, { fresh, then, lead })` | A `Succession` in beats. First, words that change and every `fresh` part (by key prefix: a prefix ending in `:` matches keys that start with it, any other the key itself and keys under it) go, while the `lead` parts change, as the line a request takes lights before its token sets off. Then `flight()`, a function returning the `Beat`s of whatever travels, plays. Then the `then` parts come in, and last the new words come while every other part settles (`c.rest()`). Words are replaced, never morphed glyph by glyph. Each option is a list of keys, empty by default |
+| `flight(c, key, via, { appear, move, leave, scale })` | For `beats`: a copy of the target's part `key` appears at the first point of `via`, travels through the rest to where the part rests, and gives way to the part itself. A `Group` cannot `enter` from another part, so this is how a token moves. Timings are in seconds (a `FlightTiming`); `scale` shrinks the travelling copy |
+| `pass(c, id, token, via, { appear, move, leave })` | Three `Beat`s of a token that neither picture keeps: it appears at the first point, travels, and fades at the last. `id` must be a key neither picture uses |
+
+```ts
+transition: {
+  send: (t) => {
+    const c = t.choreograph(world);  // the token flies from the sender; the lane it takes lights first
+    return beats(c, flight(c, 'token', [[-6, 0]]), { fresh: ['token'], lead: ['lane:'] });
+  },
+},
 ```
 
 The collection's scenes import the same functions through `explain/drawing.ts`.
@@ -643,9 +638,9 @@ The package has an entry point per audience. A scene is written with `rayner` (t
 
 | Export | From | What it is for | Guide |
 | --- | --- | --- | --- |
-| `renderFrame`, `NullSink` | `rayner/output` | The scene at one frame or step, without drawing the frames before it; `renderFrame(Scene, step.frame1, sink)` draws a step's resting picture, and `NullSink` runs a scene drawing nothing | [Scene outputs](SCENE-OUTPUTS.md#time-and-step-semantics) |
-| `toSvgString`, `StringSink`, `renderElements`, `renderText`, `DomSink` | `rayner/output` | One SVG frame, every frame, element records, a text drawing, the live DOM | [Scene outputs](SCENE-OUTPUTS.md#public-output-apis) |
-| `StopScene` | `rayner/output` | What a sink throws to stop a run (a seek does); a `catch` must rethrow it | [Fundamentals](ENGINE-FUNDAMENTALS.md#updaters-derived-pictures-and-seeking) |
+| `renderFrame` | `rayner/output` | The scene at one frame or step, without drawing the frames before it; `renderFrame(Scene, step.frame1, sink)` draws a step's resting picture | [Scene outputs](SCENE-OUTPUTS.md#time-and-step-semantics) |
+| `toSvgString`, `StringSink` | `rayner/output` | One SVG frame; every frame | [Scene outputs](SCENE-OUTPUTS.md#public-output-apis) |
+| `NullSink`, `renderElements`, `renderText`, `DomSink`, `StopScene` | `rayner/output` | Deprecated: 0.1.0 published them from `rayner`, no explainer uses them, and 0.3.0 stops exporting them. `NullSink` runs a scene drawing nothing (use `renderFrame`, `traceScene`, or a `Sink` `{ skipUntil: Infinity, async frame() {} }`); `renderElements` gives element records and `renderText` a text drawing (use `toSvgString`, or `describeExplainer`, whose steps carry each picture in words and as text); `DomSink` plays into the live DOM (embed the page `rayner build` writes); `StopScene` is what a sink throws to stop a run, which a `catch` must rethrow (rethrow once `this.phase` is `'stopped'`) | [Scene outputs](SCENE-OUTPUTS.md#public-output-apis), [fundamentals](ENGINE-FUNDAMENTALS.md#updaters-derived-pictures-and-seeking) |
 | `traceScene`, `TraceSink` | `rayner/testing` | Every step's timing, state before and after, `shown` and evidence, in one run, typed from the scene class (`TraceOf`, `Jsonified`) | [Scene outputs](SCENE-OUTPUTS.md), [fundamentals](ENGINE-FUNDAMENTALS.md#steps-state-and-evidence), [typed traces](#typed-traces) |
 | `InvariantSink` | `rayner/testing` | Check every frame against the scene's invariants, in a test | [Testing](TESTING.md), [invariants](EXTENDING.md#hold-an-invariant-on-every-frame) |
 | `loadFonts` | `rayner/testing` | Load the embedded fonts before drawing text outside a scene's run | [Scene](#scene) |
