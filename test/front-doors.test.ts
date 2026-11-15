@@ -7,7 +7,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { EXPLAINERS, PRODUCT } from '../scenes/explainers/catalog.ts';
 import { galleryPage } from '../tools/repo/lib/explain-gallery.ts';
-import { catalog } from '../tools/lib/explain-artifacts.ts';
+import { catalog, catalogFacts } from '../tools/lib/explain-artifacts.ts';
 
 const ROOT = join(import.meta.dirname, '..');
 const read = (file: string) => readFileSync(join(ROOT, file), 'utf8');
@@ -30,6 +30,38 @@ test('the gallery opens with the same words, and catalog.json carries them with 
   const totals = { explainers: 0, scenarios: 0, diagrams: 0, styles: 0, families: 0 };
   assert.equal(catalog({ version: 2, product: PRODUCT, totals, scenes }).product.install, PRODUCT.install);
   assert.throws(() => catalog({ version: 2, product: { ...PRODUCT, install: 7 }, totals, scenes }), /version 2 format/);
+});
+
+test('catalog.json’s facts for a host’s project panel come from PRODUCT and package.json, and the catalog reader checks them', () => {
+  const pkg = JSON.parse(read('package.json'));
+  const facts = catalogFacts(PRODUCT, pkg);
+  assert.deepEqual(facts, {
+    name: pkg.name,
+    version: pkg.version,
+    install: PRODUCT.install,
+    installGuide: PRODUCT.installGuide,
+    requirements: PRODUCT.requirements,
+    publishes: PRODUCT.publishes,
+    repository: 'https://github.com/adewale/rayner',
+    license: pkg.license,
+  });
+  assert.equal(pkg.repository.url, `git+${facts.repository}.git`);
+  // What it publishes is the description's own last sentence, not new copy.
+  assert.ok(PRODUCT.description.endsWith(`The result is ${PRODUCT.publishes[0]!.toLowerCase()}${PRODUCT.publishes.slice(1)}`), PRODUCT.publishes);
+  const totals = { explainers: 0, scenarios: 0, diagrams: 0, styles: 0, families: 0 };
+  const written = { version: 2, product: PRODUCT, facts, totals, scenes: [] };
+  assert.deepEqual(catalog(written).facts, facts);
+  // Catalogs from before facts existed still read.
+  assert.equal(catalog({ ...written, facts: undefined }).facts, undefined);
+  for (const [defect, reason] of [
+    [{ license: '' }, /facts have no license/],
+    [{ version: 'latest' }, /not a semantic version/],
+    [{ repository: 'git+https://github.com/adewale/rayner.git' }, /not an https URL/],
+    [{ install: 'npm install rayner' }, /say install differently from the product copy/],
+    [{ extra: 'x' }, /unknown field, extra/],
+  ] as const)
+    assert.throws(() => catalog({ ...written, facts: { ...facts, ...defect } }), reason);
+  assert.throws(() => catalogFacts(PRODUCT, { ...pkg, repository: undefined }), /repository/);
 });
 
 test('PRODUCT’s install line names the version this checkout describes, so a release revisits it', () => {

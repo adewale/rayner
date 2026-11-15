@@ -7,6 +7,7 @@ import {dirname, extname, join, relative, resolve, sep} from 'node:path';
 import {parseArgs} from 'node:util';
 import { byCodeUnit, posixPath, sha256 } from '../lib/hash.ts';
 import { isIdentifier } from '../../explain/settings.ts';
+import { verifySections } from './lib/site-headers.ts';
 
 type FilePin = {path: string; sha256: string; bytes: number};
 const mediaTypes: Record<string, string[]> = {
@@ -84,8 +85,16 @@ async function main() {
   if (output) await rm(output, {force: true}); // A failed attempt must not leave an old success receipt.
   const manifestPath = prefix + '/deployment.json';
   const manifestBytes = await readFile(join(root, '.' + manifestPath));
-  const manifest = JSON.parse(manifestBytes.toString()) as {version: number; files: {path: string; sha256: string}[]};
-  assert.ok(manifest.version === 1 && Array.isArray(manifest.files) && manifest.files.length, 'invalid deployment manifest');
+  const manifest = JSON.parse(manifestBytes.toString()) as {version: number; path?: string; files: {path: string; sha256: string}[]; sections?: unknown};
+  assert.ok((manifest.version === 1 || manifest.version === 2) && Array.isArray(manifest.files) && manifest.files.length, 'invalid deployment manifest');
+  // Version 1 pinned the whole _headers file in `files`; version 2 pins only this collection's
+  // marked section of _headers (and of llms.txt), so other collections' exports leave it valid.
+  if (manifest.version === 2) {
+    assert.equal(manifest.path, prefix, `deployment manifest is for ${String(manifest.path)}, not ${prefix}`);
+    assert.ok(!manifest.files.some(entry => entry?.path === '/_headers' || entry?.path === '/llms.txt'), 'a version 2 manifest pins shared files by their sections');
+    await verifySections(manifest.sections, prefix, file => readFile(join(root, '.' + file), 'utf8'), sha256)
+      .catch((error: Error) => assert.fail(`${error.message}: local bytes differ from reviewed manifest`));
+  }
   const pins = new Map<string, FilePin>();
   for (const entry of manifest.files) {
     assert.ok(entry && typeof entry.path === 'string' && /^\/[a-zA-Z0-9_.\/-]+$/.test(entry.path) && !entry.path.split('/').some(part => part === '..' || part === '.') && !entry.path.includes('//') && !entry.path.endsWith('/'), 'invalid manifest path');
@@ -104,7 +113,7 @@ async function main() {
     const path = '/' + posixPath(join(entry.parentPath, entry.name).slice(root.length + 1));
     assert.ok(path === manifestPath || pins.has(path), `unlisted local collection file: ${path}`);
   }
-  assert.ok(pins.has('/_headers') && pins.has(prefix + '/catalog.json') && pins.has(prefix + '/loader.js'), 'manifest must include headers, catalog and loader');
+  assert.ok((manifest.version === 2 || pins.has('/_headers')) && pins.has(prefix + '/catalog.json') && pins.has(prefix + '/loader.js'), 'manifest must include headers, catalog and loader');
   const catalog = JSON.parse(await readFile(join(root, prefix, 'catalog.json'), 'utf8')) as {version: number; totals: {explainers: number; scenarios: number}; scenes: {id: string; scenarios: number}[]};
   assert.ok(catalog.version === 2 && Array.isArray(catalog.scenes) && catalog.scenes.length, 'invalid catalog');
   const ids = new Set<string>();
@@ -195,7 +204,7 @@ async function main() {
     }));
   } finally { controller.abort(); }
   assert.equal(results.length, files.length);
-  const report = {version: 1, origin: origin.origin, path: prefix, checkedAt: new Date().toISOString(), manifestSha256: sha256(manifestBytes), publicFiles: pins.size - 1, cleanReaderRoutes: values['clean-urls'] ? ids.size : 0, privateFiles: ['/_headers: checked through actual reader response headers'], results: results.sort((a, b) => byCodeUnit(a.path, b.path))};
+  const report = {version: 1, origin: origin.origin, path: prefix, checkedAt: new Date().toISOString(), manifestSha256: sha256(manifestBytes), publicFiles: files.length - (values['clean-urls'] ? ids.size : 0), cleanReaderRoutes: values['clean-urls'] ? ids.size : 0, privateFiles: ['/_headers: checked through actual reader response headers'], results: results.sort((a, b) => byCodeUnit(a.path, b.path))};
   if (output) { await mkdir(dirname(output), {recursive: true}); await writeFile(output, JSON.stringify(report, null, 2) + '\n'); }
   console.log(`Verified ${report.publicFiles} public files and ${report.cleanReaderRoutes} clean reader routes against the reviewed export; media types, reader headers and loader revalidation passed. Browser interaction requires its separate review.`);
 }

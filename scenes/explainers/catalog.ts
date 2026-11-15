@@ -6,15 +6,20 @@ import { HOME } from '../../app/embed-share.ts';
  * are made (the engine, the diagrams, the text outlines). `step` chooses
  * the default scenario's poster step; gallery links open at step one instead.
  */
+/** What one build publishes, in the words of PRODUCT.description's last sentence. */
+const PUBLISHES = 'one HTML page of steps and a transcript, with no runtime network requests';
+
 export const PRODUCT = {
   /** The project's home, where every page's footer mark links (app/embed-share.ts). */
   home: HOME,
   /** The one summary and audience: README.md's opening paragraph is `${summary} ${audience}`, and the gallery's (test/explain-gallery.test.ts). */
   summary: 'Rayner makes a verified explanation of what this version of this system really does, with a short receipt the person who commissioned it can review.',
   audience: 'It is for the person who commissions an explainer of a protocol, an algorithm or a data structure, and for the agent or person who writes it.',
-  /** README.md's second paragraph, and the gallery's. */
+  /** README.md's second paragraph, and the gallery's. Its last sentence is `The result is ${PUBLISHES}.` */
   description:
-    'The writer models the system in TypeScript and tests the model against the real system where it can: run live, recorded once, or read from its specification. Every picture on the page is checked against the model’s state, and the receipt says what the model was checked against and how. The result is one HTML page of steps and a transcript, with no runtime network requests.',
+    `The writer models the system in TypeScript and tests the model against the real system where it can: run live, recorded once, or read from its specification. Every picture on the page is checked against the model’s state, and the receipt says what the model was checked against and how. The result is ${PUBLISHES}.`,
+  /** What a build publishes, as the description says it: catalog.json's `facts.publishes`. */
+  publishes: PUBLISHES[0]!.toUpperCase() + PUBLISHES.slice(1) + '.',
   requirements: 'Node 24 or later to write, check and build. Chromium for rayner review and screenshots, and to capture Mermaid diagrams. Authoring targets Ubuntu and macOS.',
   tutorial: 'https://github.com/adewale/rayner/blob/main/docs/TUTORIAL.md',
   reference: 'https://github.com/adewale/rayner/blob/main/docs/REFERENCE.md',
