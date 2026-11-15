@@ -104,7 +104,7 @@ This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It r
 
 ### Removed from the public API
 
-[The engine map](docs/ENGINE.md#public-names) gives the rule a public name meets: a subject explainer, a tutorial or a recipe uses it, or `test/public-names.json` records why it stays public, with the guide and test that teach it. The feature tour's use does not count, and Manim parity is not a reason ([what stays in the public API](docs/ENGINE.md#what-stays-in-the-public-api)); `Frame` and `palette` stay with recorded reasons.
+[The engine map](docs/ENGINE.md#public-names) gives the rule a public name meets: an explainer, a tutorial or a recipe uses it, or `test/public-names.json` records why it stays public, with the guide and test that teach it. Manim parity is not a reason ([what stays in the public API](docs/ENGINE.md#what-stays-in-the-public-api)); `Frame` and `palette` stay with recorded reasons.
 
 - The package exports its six entry points only. `rayner/lettering` is gone: import the `LetteringRequest` type from `rayner`.
 - Moved to `rayner/testing`: `traceScene`, `TraceSink`, `loadFonts`, `describeExplainer` and `withSettings`, and the types `Trace` and `StepRecord`. `CaseDescription` is `ScenarioDescription` there, and `findingsOf` is `diagramFindings`.

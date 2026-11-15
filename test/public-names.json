@@ -421,15 +421,6 @@
       ]
     },
     {
-      "explaining": "Authoring feature reference",
-      "start": "`feature-tour`",
-      "shows": "Choose a feature scenario: the recipe step shows the author-written API, the result step runs it. See [scope and specialized APIs](../../docs/FEATURE-TOUR.md)",
-      "scenes": [
-        "feature-tour"
-      ],
-      "names": []
-    },
-    {
       "explaining": "A protocol or request flow",
       "start": "`oauth-pkce`",
       "shows": "A sequence diagram revealed message by message (`build: 'frame'`, `reveal`); a setting that adds the attacker's step",
@@ -626,6 +617,389 @@
         "layout-direction"
       ],
       "names": []
+    }
+  ],
+  "lookup": [
+    {
+      "feature": "A step with its own link and resting picture",
+      "uses": "`this.step(id, { title, caption })`, then `s.enter(...)` for its picture",
+      "guide": "[Scene](REFERENCE.md#scene)",
+      "scenes": [
+        "token-bucket"
+      ],
+      "names": [],
+      "patterns": {
+        "this.step": "\\bthis\\.step\\(",
+        "s.enter": "\\bs\\.enter\\("
+      }
+    },
+    {
+      "feature": "Scenarios a reader chooses between",
+      "uses": "`static settings = [...]`, `settingsOf(this)`",
+      "guide": "[Settings](REFERENCE.md#settings)",
+      "scenes": [
+        "float-sum"
+      ],
+      "names": [
+        "settingsOf"
+      ],
+      "patterns": {
+        "static settings": "\\bstatic settings\\b"
+      }
+    },
+    {
+      "feature": "A captured diagram, an edge walked and left marked",
+      "uses": "`s.show({ source })`, `d.walk(...)`, `s.diagramView(d, ...)` with `d.trail(...)`",
+      "guide": "[Diagrams](REFERENCE.md#diagrams)",
+      "scenes": [
+        "oauth-pkce"
+      ],
+      "names": [],
+      "patterns": {
+        "s.show": "\\bs\\.show\\(\\{",
+        "d.walk": "\\.walk\\(",
+        "s.diagramView": "\\bs\\.diagramView\\(",
+        "d.trail": "\\.trail\\("
+      }
+    },
+    {
+      "feature": "One line of code lit",
+      "uses": "a `view` of `code(s, lines, { lit })`, synced when `lit` changes",
+      "guide": "[Code spans](CODE.md)",
+      "scenes": [
+        "trust-proxy"
+      ],
+      "names": [
+        "view",
+        "code"
+      ],
+      "patterns": {
+        "lit": "\\blit:"
+      }
+    },
+    {
+      "feature": "Edited code, the new lines marked",
+      "uses": "a `view` of `code(s, lines, { added })`, synced after the edit",
+      "guide": "[Code spans](CODE.md), [native diff](MATCHING.md#diff-driven)",
+      "scenes": [
+        "ical-recurrence"
+      ],
+      "names": [
+        "view",
+        "code"
+      ],
+      "patterns": {
+        "added": "\\badded:"
+      }
+    },
+    {
+      "feature": "A patch you already have, animated",
+      "uses": "`parseUnifiedDiff`, `new TransformDiff(before, after, { hunks })`; `diffLines` for a diff of your own",
+      "guide": "[Diff-driven](MATCHING.md#diff-driven)",
+      "scenes": [
+        "unified-diff",
+        "ical-recurrence"
+      ],
+      "names": [
+        "parseUnifiedDiff",
+        "TransformDiff",
+        "diffLines"
+      ],
+      "patterns": {
+        "hunks": "\\bhunks:"
+      }
+    },
+    {
+      "feature": "One shape turning into another",
+      "uses": "`new Transform(m, target)`",
+      "guide": "[Animations and the clock](ENGINE-FUNDAMENTALS.md#animations-and-the-clock)",
+      "scenes": [
+        "galton-board"
+      ],
+      "names": [
+        "Transform"
+      ]
+    },
+    {
+      "feature": "A label changed, its shared letters kept",
+      "uses": "`new TransformMatchingText(before, after)`",
+      "guide": "[Matching](MATCHING.md)",
+      "scenes": [
+        "float-sum"
+      ],
+      "names": [
+        "TransformMatchingText"
+      ]
+    },
+    {
+      "feature": "Items reordered, each travelling whole",
+      "uses": "`new TransformMatching(before, after, { key: matchByKey() })`",
+      "guide": "[Keyed components](MATCHING.md#keyed-components)",
+      "scenes": [
+        "string-length"
+      ],
+      "names": [
+        "TransformMatching",
+        "matchByKey"
+      ]
+    },
+    {
+      "feature": "An object put back where it was",
+      "uses": "`m.saveState()`, then `new Restore(m)`",
+      "guide": "[Restore](ANIMATIONS.md#restore-come-back-exactly)",
+      "scenes": [
+        "unified-diff"
+      ],
+      "names": [
+        "Restore"
+      ],
+      "patterns": {
+        "saveState": "\\.saveState\\(\\)"
+      }
+    },
+    {
+      "feature": "A new shape made from a copy, the original kept",
+      "uses": "`new TransformFromCopy(source, result)`",
+      "guide": "[TransformFromCopy](ANIMATIONS.md#transformfromcopy-derive-one-thing-from-another)",
+      "scenes": [
+        "float-sum"
+      ],
+      "names": [
+        "TransformFromCopy"
+      ]
+    },
+    {
+      "feature": "A shape drawn in, part after part",
+      "uses": "`new Create(m, { lagRatio })`",
+      "guide": "[Stage](REFERENCE.md#stage)",
+      "scenes": [
+        "cert-renewal"
+      ],
+      "names": [
+        "Create"
+      ],
+      "patterns": {
+        "lagRatio": "\\blagRatio:"
+      }
+    },
+    {
+      "feature": "A token sent along a curved route",
+      "uses": "`ArcBetweenPoints`, `new MoveAlongPath(token, route)`",
+      "guide": "[Animations and the clock](ENGINE-FUNDAMENTALS.md#animations-and-the-clock)",
+      "scenes": [
+        "galton-board",
+        "float-sum"
+      ],
+      "names": [
+        "ArcBetweenPoints",
+        "MoveAlongPath"
+      ]
+    },
+    {
+      "feature": "How a move speeds up and slows down",
+      "uses": "`rateFunc`: `smooth`, `rushInto`, `rushFrom`, `thereAndBack`",
+      "guide": "[Animations and the clock](ENGINE-FUNDAMENTALS.md#animations-and-the-clock)",
+      "scenes": [
+        "galton-board",
+        "latest-search",
+        "token-bucket"
+      ],
+      "names": [
+        "smooth",
+        "rushInto",
+        "rushFrom",
+        "thereAndBack"
+      ],
+      "patterns": {
+        "rateFunc": "\\brateFunc:"
+      }
+    },
+    {
+      "feature": "Emphasis left in the resting picture",
+      "uses": "`new Circumscribe(m, { keep: true })`",
+      "guide": "[Circumscribe](EMPHASIS.md#circumscribe)",
+      "scenes": [
+        "mr-cache"
+      ],
+      "names": [
+        "Circumscribe"
+      ],
+      "patterns": {
+        "keep: true": "\\bkeep:\\s*true"
+      }
+    },
+    {
+      "feature": "A span marked as one",
+      "uses": "`Brace` with `brace.putAtTip(label)`, or `BraceLabel`",
+      "guide": "[The shapes](EMPHASIS.md#the-shapes)",
+      "scenes": [
+        "float-sum",
+        "glyph"
+      ],
+      "names": [
+        "Brace",
+        "BraceLabel"
+      ],
+      "patterns": {
+        "brace.putAtTip": "\\.putAtTip\\("
+      }
+    },
+    {
+      "feature": "A point named in the picture",
+      "uses": "`s.enter(pin(s, point, { label }))`",
+      "guide": "[Drawing kit](REFERENCE.md#drawing-kit)",
+      "scenes": [
+        "great-circle"
+      ],
+      "names": [
+        "pin"
+      ]
+    },
+    {
+      "feature": "A line drawn as if by hand",
+      "uses": "`s.sketch(path, { tool: 'pen' })`",
+      "guide": "[Stage](REFERENCE.md#stage)",
+      "scenes": [
+        "seasons",
+        "pen-and-pencil"
+      ],
+      "names": [],
+      "patterns": {
+        "s.sketch": "\\bs\\.sketch\\("
+      }
+    },
+    {
+      "feature": "A closer view, the subject unmoved",
+      "uses": "`s.focus(subject)`, `s.focus('all')`",
+      "guide": "[Camera](CAMERA.md)",
+      "scenes": [
+        "lantern"
+      ],
+      "names": [],
+      "patterns": {
+        "s.focus": "\\bs\\.focus\\("
+      }
+    },
+    {
+      "feature": "The model's numbers plotted",
+      "uses": "`new Axes({ xRange, yRange })`, `axes.lineGraph(points)`",
+      "guide": "[Axes](GRAPHING.md#axes)",
+      "scenes": [
+        "token-bucket"
+      ],
+      "names": [
+        "Axes"
+      ],
+      "patterns": {
+        "axes.lineGraph": "\\.lineGraph\\("
+      }
+    },
+    {
+      "feature": "A value placed on a scale",
+      "uses": "`new NumberLine({ range })`, `line.n2p(value)`",
+      "guide": "[NumberLine](GRAPHING.md#numberline)",
+      "scenes": [
+        "float-sum"
+      ],
+      "names": [
+        "NumberLine"
+      ],
+      "patterns": {
+        "line.n2p": "\\.n2p\\("
+      }
+    },
+    {
+      "feature": "Values compared on one scale",
+      "uses": "`bars(s, rows, max)`",
+      "guide": "[Drawing kit](REFERENCE.md#drawing-kit)",
+      "scenes": [
+        "galton-board",
+        "string-length"
+      ],
+      "names": [
+        "bars"
+      ]
+    },
+    {
+      "feature": "A number counting up to its new value",
+      "uses": "`DecimalNumber`, morphed with `Transform`",
+      "guide": "[Graphing](GRAPHING.md#animating)",
+      "scenes": [
+        "galton-board"
+      ],
+      "names": [
+        "DecimalNumber",
+        "Transform"
+      ]
+    },
+    {
+      "feature": "A picture that follows the model's state",
+      "uses": "`this.state`, `view(this, draw)`, then `.sync()` after the state changes",
+      "guide": "[Views](VIEWS.md)",
+      "scenes": [
+        "ring-buffer"
+      ],
+      "names": [
+        "view"
+      ],
+      "patterns": {
+        "this.state": "\\bthis\\.state\\b",
+        ".sync()": "\\.sync\\("
+      }
+    },
+    {
+      "feature": "Panels placed for a right-to-left page",
+      "uses": "`stage(this, { direction })`, a card `at: 'start'`",
+      "guide": "[Spatial direction](REFERENCE.md#spatial-direction)",
+      "scenes": [
+        "layout-direction"
+      ],
+      "names": [
+        "stage"
+      ],
+      "patterns": {
+        "direction": "stage\\(this, \\{[^}]*\\bdirection\\b",
+        "at: 'start'": "at: 'start'"
+      }
+    },
+    {
+      "feature": "A named style's colours, one of them changed",
+      "uses": "`palette('nord')`, passed as the stage's `palette` option",
+      "guide": "[Colours](REFERENCE.md#colours)",
+      "scenes": [],
+      "names": [
+        "palette"
+      ]
+    },
+    {
+      "feature": "A formula set from TeX",
+      "uses": "`lettering: { math: true }` in `static meta`, `new MathTex(tex)`",
+      "guide": "[Maths](REFERENCE.md#maths)",
+      "scenes": [
+        "float-sum"
+      ],
+      "names": [
+        "MathTex"
+      ],
+      "patterns": {
+        "math: true": "\\bmath:\\s*true"
+      }
+    },
+    {
+      "feature": "A globe turned to face another place",
+      "uses": "`seenFrom(model, between(a, b, t))` in a view, `view.tween(...)`",
+      "guide": "[3D](REFERENCE.md#3d-seenfrommodel-viewpoint)",
+      "scenes": [
+        "great-circle"
+      ],
+      "names": [
+        "seenFrom",
+        "between",
+        "view"
+      ],
+      "patterns": {
+        "view.tween": "\\.tween\\("
+      }
     }
   ]
 }

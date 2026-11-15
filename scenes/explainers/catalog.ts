@@ -96,7 +96,6 @@ export const EXPLAINERS: readonly { id: string; step: string; group: 'topic' | '
   { id: 'tailwind-gamut', step: 'reader-display', group: 'topic', tier: 'gallery' },
   { id: 'gnome-files', step: 'reader-sample', group: 'topic', tier: 'coverage' },
   { id: 'wcag-map', step: 'reader-levels', group: 'topic', tier: 'coverage' },
-  { id: 'feature-tour', step: 'result', group: 'toolchain', tier: 'gallery' },
   { id: 'lantern', step: 'seek', group: 'toolchain', tier: 'showcase' },
   { id: 'fork', step: 'untested', group: 'toolchain', tier: 'gallery' },
   { id: 'agentic-mermaid', step: 'meaning', group: 'toolchain', tier: 'gallery' },

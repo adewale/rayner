@@ -1,14 +1,13 @@
 // The export rule as data (docs/ENGINE.md, "Public names" and "What stays in the public API"). Every
 // public name of every entry point needs a reason to be public, and the reason is computed where it can be:
 //
-//   used      a subject explainer, a tutorial scene, the tutorial's printed kit example or a recipe
-//             imports it and uses it, found from their imports. Nothing is written down. The feature
-//             tour (TOUR) does not count: it shows that a feature works, not that an explanation needs it.
+//   used      an explainer, a tutorial scene, the tutorial's printed kit example or a recipe imports
+//             it and uses it, found from their imports. Nothing is written down.
 //   tooling   it lives in rayner/output or rayner/testing, and test/public-names.json says who outside
 //             a scene uses it and for what (`tooling`): an author's tests and tools, or a host page.
 //             Every name in those two entry points needs this written reason, and no other name may
 //             have one: living in a tooling entry point is not by itself a reason to be public.
-//   kept      nothing above uses it (it is unused, or only the tour uses it), and test/public-names.json
+//   kept      nothing above uses it, and test/public-names.json
 //             says why it stays public all the same (`reason`, which may not lean on Manim) and names a
 //             guide section that teaches it and a test that runs it (`guide` and `test`), which must
 //             exist and mention the name. docs/ENGINE.md renders these exceptions as a table.
@@ -17,13 +16,15 @@
 // with its `guide` and `test`, a `guide` and `test` alone for a used name, or a `check`, what
 // `rayner check` verifies about the name, led by the check's name in the
 // reference's Checks table ("Views: ..."). The same file holds the rows of the reference's engine
-// features table and the skill's examples table, which are rendered from it, with their "used by"
-// computed from the same usage, so neither can go stale (test/public-names.test.ts).
+// features table, the skill's examples table and the feature index (docs/FEATURE-TOUR.md), which are
+// rendered from it, with what their scenes use computed from the same usage, so none can go stale
+// (test/public-names.test.ts).
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 import { entryPoints as libraryEntryPoints } from '../../lib/entry-points.ts';
+import { EXPLAINERS } from '../../../scenes/explainers/catalog.ts';
 
 import { ROOT } from '../../lib/roots.ts';
 export { ROOT };
@@ -51,19 +52,28 @@ export interface ExampleRow {
   /** Members and options the row says they show, each found in one of them by its pattern. */
   patterns?: Record<string, string>;
 }
+/**
+ * One row of the feature index (docs/FEATURE-TOUR.md): an authoring feature, the code an author writes
+ * for it, and the catalogued explainers that show it, each of which must use one of its names or match
+ * one of its patterns. A row with no scenes is a name no explainer uses yet, and fails once one does.
+ */
+export interface LookupRow {
+  feature: string;
+  uses: string;
+  guide: string;
+  scenes: string[];
+  names: string[];
+  patterns?: Record<string, string>;
+}
 export interface Ledger {
   names: Record<string, Record<string, NameEntry>>;
   features: FeatureRow[];
   examples: ExampleRow[];
+  lookup: LookupRow[];
 }
 
 /** The tooling entry points: each name in one of them is public as tooling only with a written reason, and only there. */
 export const TOOLING = new Set(['rayner/output', 'rayner/testing']);
-/**
- * The engine's own tour of its features. It uses names to show that they work, so its use is not a
- * reason to be public: a name only it uses is tour-only, and stays public only with a written reason.
- */
-export const TOUR = new Set(['feature-tour']);
 /** The tutorial's printed examples that a test runs: the code block after each such marker counts as a user. */
 export const TUTORIAL = 'docs/TUTORIAL.md';
 const PRINTED = /<!-- [^>]*run by test\/[\w.-]+\.test\.ts -->\n```ts\n([\s\S]*?)```/g;
@@ -248,24 +258,18 @@ export function checkNames(root = ROOT): Set<string> {
 
 const word = (name: string) => new RegExp(`(?<![\\w$])${name.replace(/[$]/g, '\\$')}(?![\\w$])`);
 
-/** Users of a name in an entry point other than the tour: the users whose use makes it public. */
-export function subjectUsersOf(u: Usage, name: string, entry: string): string[] {
-  return usersOf(u, name, entry).filter((x) => !TOUR.has(x));
-}
-
-/** The audit's class of a name: tooling (by its entry point), used (by a subject explainer, the tutorial or a recipe), tour-only, or unused. */
-export type NameClass = 'tooling' | 'used' | 'tour-only' | 'unused';
+/** The audit's class of a name: tooling (by its entry point), used (by an explainer, the tutorial or a recipe), or unused. */
+export type NameClass = 'tooling' | 'used' | 'unused';
 export function classOf(u: Usage, entry: string, name: string): NameClass {
   if (TOOLING.has(entry)) return 'tooling';
-  if (subjectUsersOf(u, name, entry).length) return 'used';
-  return usersOf(u, name, entry).length ? 'tour-only' : 'unused';
+  return usersOf(u, name, entry).length ? 'used' : 'unused';
 }
 
 /** Why `name` in `entry` is public: tooling (with its written reason), used (by whom), kept (with a written reason), or nothing. */
 export function reasonOf(ledger: Ledger, u: Usage, entry: string, name: string): 'tooling' | 'used' | 'kept' | 'NONE' {
   const r = ledger.names[entry]?.[name];
   if (TOOLING.has(entry)) return r?.tooling?.trim() ? 'tooling' : 'NONE';
-  if (subjectUsersOf(u, name, entry).length) return 'used';
+  if (usersOf(u, name, entry).length) return 'used';
   return r?.reason?.trim() ? 'kept' : 'NONE';
 }
 
@@ -287,7 +291,7 @@ export async function problems(ledger: Ledger, root = ROOT, u: Usage = usage(roo
       const stop = `or stop exporting it from ${sources.get(entry)}`;
       out.push(TOOLING.has(entry)
         ? `${name} (${entry}) has no reason to be public: ${entry} is tooling, and ${LEDGER} gives it no tooling reason (who uses it outside a scene, and for what); add one there, ${stop}`
-        : `${name} (${entry}) has no reason to be public: no subject explainer, tutorial scene or recipe uses it${classOf(u, entry, name) === 'tour-only' ? ' (only the feature tour does, which does not count)' : ''}; use it in one, give it a reason in ${LEDGER} with the guide and test that teach it, ${stop}`);
+        : `${name} (${entry}) has no reason to be public: no explainer, tutorial scene or recipe uses it; use it in one, give it a reason in ${LEDGER} with the guide and test that teach it, ${stop}`);
     }
   for (const [entry, names] of Object.entries(ledger.names)) {
     if (!exported.has(entry)) { out.push(`${LEDGER} lists ${entry}, which is not an entry point`); continue; }
@@ -301,7 +305,7 @@ export async function problems(ledger: Ledger, root = ROOT, u: Usage = usage(roo
       else if (r.tooling !== undefined && r.tooling.trim().split(/\s+/).length < 4)
         out.push(`${at}: its tooling reason must say who uses it outside a scene, and for what`);
       if (r.reason !== undefined) {
-        const who = subjectUsersOf(u, name, entry);
+        const who = usersOf(u, name, entry);
         if (TOOLING.has(entry)) out.push(`${at}: a tooling name says why it is public in its tooling reason, not a reason`);
         else if (who.length) out.push(`${at}: ${who.join(', ')} use${who.length > 1 ? '' : 's'} it, so it needs no written reason; delete its reason from ${LEDGER}`);
         else if (r.reason.trim().split(/\s+/).length < REASON_WORDS) out.push(`${at}: its reason must say who needs it public, and for what, when no explainer, tutorial or recipe uses it`);
@@ -334,18 +338,36 @@ export async function problems(ledger: Ledger, root = ROOT, u: Usage = usage(roo
   for (const who of usersOf(u, 'stage', 'rayner/explain'))
     if (/\bframe\.animate\b/.test(u.code.get(who) ?? '')) out.push(`${who} moves the camera with frame.animate on a stage; use s.focus, which keeps the heading on screen (docs/CAMERA.md)`);
   const scenes = new Set(u.code.keys());
-  for (const row of ledger.examples) {
-    for (const s of row.scenes) if (!scenes.has(s)) out.push(`examples "${row.explaining}": ${s} is not a scene`);
+  /** What a row of the examples or the feature index claims its scenes show, checked against what they use. */
+  const claims = (at: string, row: { scenes: string[]; names: string[]; patterns?: Record<string, string> }, words: string) => {
+    for (const s of row.scenes) if (!scenes.has(s)) out.push(`${at}: ${s} is not a scene`);
     for (const name of row.names) {
-      if (![...exported.values()].some((n) => n.includes(name))) out.push(`examples "${row.explaining}": ${name} is not exported`);
-      else if (!row.scenes.some((s) => usersOf(u, name).includes(s))) out.push(`examples "${row.explaining}": none of ${row.scenes.join(', ')} uses ${name}`);
+      if (![...exported.values()].some((n) => n.includes(name))) out.push(`${at}: ${name} is not exported`);
+      else if (row.scenes.length && !row.scenes.some((s) => usersOf(u, name).includes(s))) out.push(`${at}: none of ${row.scenes.join(', ')} uses ${name}`);
     }
     for (const [label, pattern] of Object.entries(row.patterns ?? {}))
-      if (!row.scenes.some((s) => matching(u, pattern).includes(s))) out.push(`examples "${row.explaining}": none of ${row.scenes.join(', ')} shows ${label}`);
+      if (row.scenes.length && !row.scenes.some((s) => matching(u, pattern).includes(s))) out.push(`${at}: none of ${row.scenes.join(', ')} shows ${label}`);
     // Every exported name the row's words claim is checked: in `names`, or the row cannot say it.
-    for (const [, token] of `${row.start} ${row.shows}`.matchAll(/`([A-Za-z_$][\w$]*)/g))
+    for (const [, token] of words.matchAll(/`([A-Za-z_$][\w$]*)/g))
       if ([...exported.values()].some((n) => n.includes(token!)) && !row.names.includes(token!) && !Object.keys(row.patterns ?? {}).some((l) => l.startsWith(token!)))
-        out.push(`examples "${row.explaining}": it names ${token} but does not list it in names, so nothing checks it`);
+        out.push(`${at}: it names ${token} but does not list it in names, so nothing checks it`);
+  };
+  for (const row of ledger.examples) claims(`examples "${row.explaining}"`, row, `${row.start} ${row.shows}`);
+  const catalogued = new Set(EXPLAINERS.map((e) => e.id));
+  for (const row of ledger.lookup) {
+    const at = `lookup "${row.feature}"`;
+    claims(at, row, row.uses);
+    for (const s of row.scenes) {
+      if (!catalogued.has(s)) out.push(`${at}: ${s} is not a catalogued explainer (scenes/explainers/catalog.ts)`);
+      // Each scene shows the feature: it uses one of the row's names or matches one of its patterns.
+      else if (!showing(u, row, s).length) out.push(`${at}: ${s} uses none of ${[...row.names, ...Object.keys(row.patterns ?? {})].join(', ')}`);
+    }
+    // A row that names no explainer is a feature none uses yet; once one does, the index must point at it.
+    if (!row.scenes.length)
+      for (const name of row.names) {
+        const who = usersOf(u, name).filter((x) => catalogued.has(x));
+        if (who.length) out.push(`${at}: ${who.join(', ')} use${who.length > 1 ? '' : 's'} ${name}; name ${who.length > 1 ? 'one' : 'it'} in its scenes`);
+      }
   }
   for (const row of ledger.features)
     for (const item of row.items) {
@@ -369,10 +391,19 @@ export function usedBy(row: FeatureRow, u: Usage): string {
   return [used.join('; '), unused.length ? `no explainer yet: ${unused.join(', ')}` : ''].filter(Boolean).join('; ');
 }
 
+/** The names and patterns of a feature-index row that `scene` uses, in the row's order. */
+function showing(u: Usage, row: LookupRow, scene: string): { name?: string; pattern?: string }[] {
+  return [
+    ...row.names.filter((name) => usersOf(u, name).includes(scene)).map((name) => ({ name })),
+    ...Object.values(row.patterns ?? {}).filter((pattern) => matching(u, pattern).includes(scene)).map((pattern) => ({ pattern })),
+  ];
+}
+
 export const MARK = {
   features: ['<!-- generated from test/public-names.json by `node tools/repo/public-names.ts --write`: engine features -->', '<!-- end of generated engine features -->'],
   examples: ['<!-- generated from test/public-names.json by `node tools/repo/public-names.ts --write`: examples -->', '<!-- end of generated examples -->'],
   exceptions: ['<!-- generated from test/public-names.json by `node tools/repo/public-names.ts --write`: kept with a reason -->', '<!-- end of generated kept names -->'],
+  lookup: ['<!-- generated from test/public-names.json by `node tools/repo/public-names.ts --write`: feature index -->', '<!-- end of generated feature index -->'],
 } as const;
 
 export function featuresTable(ledger: Ledger, u: Usage): string {
@@ -390,17 +421,49 @@ export function examplesTable(ledger: Ledger): string {
   ].join('\n');
 }
 
-/** The names kept public with a written reason, each with who uses it (the tour or nothing), why it stays and where it is taught. */
-export function exceptionsTable(ledger: Ledger, u: Usage): string {
+const REPOSITORY = 'https://github.com/adewale/rayner';
+/**
+ * The feature index: each feature, the code an author writes, and the files of each explainer that
+ * show it, found by the row's names and patterns, linked in the repository. A row with no explainer says so.
+ */
+export function lookupTable(ledger: Ledger, u: Usage, root = ROOT): string {
+  const filesOf = users(root);
+  /** A file's code without its import and re-export statements, so an import alone does not count as showing a name. */
+  const code = (file: string) => {
+    const sf = parse(file);
+    return sf.statements.filter((s) => !specifierOf(s)).map((s) => s.getText(sf)).join('\n');
+  };
+  const explainers = join(root, 'scenes/explainers');
+  const seen = (row: LookupRow, scene: string): string => {
+    const files: string[] = [];
+    for (const item of showing(u, row, scene)) {
+      const re = item.name ? word(item.name) : new RegExp(item.pattern!);
+      const file = (filesOf.get(scene) ?? []).find((f) => re.test(code(f)));
+      if (file && !files.includes(file)) files.push(file);
+    }
+    // The package ships docs/ but not the collection, so the links name the repository.
+    const folder = join(explainers, scene);
+    const links = files.map((f) => `[${relative(f.startsWith(folder + '/') ? folder : explainers, f)}](${REPOSITORY}/blob/main/${relative(root, f)})`);
+    return `[${scene}](${REPOSITORY}/tree/main/scenes/explainers/${scene})${links.length ? ` (${links.join(', ')})` : ''}`;
+  };
+  return [
+    '| Feature | What you write | See it in | Guide |',
+    '| --- | --- | --- | --- |',
+    ...ledger.lookup.map((r) => `| ${r.feature} | ${r.uses} | ${r.scenes.length ? r.scenes.map((s) => seen(r, s)).join('; ') : 'no explainer yet'} | ${r.guide} |`),
+  ].join('\n');
+}
+
+/** The names kept public with a written reason, each with why it stays and where it is taught. */
+export function exceptionsTable(ledger: Ledger): string {
   const rows: string[] = [];
   for (const [entry, names] of Object.entries(ledger.names))
     for (const [name, r] of Object.entries(names))
       if (r.reason !== undefined && !TOOLING.has(entry)) {
         const [doc, anchor] = r.guide?.split('#') ?? [];
         const guide = doc ? `[${doc.replace(/^docs\//, '')}${anchor ? `#${anchor}` : ''}](${doc.startsWith('docs/') ? doc.slice(5) : `../${doc}`}${anchor ? `#${anchor}` : ''})` : '';
-        rows.push(`| ${tick(name)} | ${tick(entry)} | ${classOf(u, entry, name) === 'tour-only' ? 'the feature tour only' : 'nothing'} | ${r.reason.trim()} | ${guide}, ${tick(r.test ?? '')} |`);
+        rows.push(`| ${tick(name)} | ${tick(entry)} | ${r.reason.trim()} | ${guide}, ${tick(r.test ?? '')} |`);
       }
-  return ['| Name | Entry point | Used by | Why it stays public | Taught and run by |', '| --- | --- | --- | --- | --- |', ...rows].join('\n');
+  return ['| Name | Entry point | Why it stays public | Taught and run by |', '| --- | --- | --- | --- |', ...rows].join('\n');
 }
 
 /** `markdown` with the region between `marks` replaced by `body`; throws when the marks are missing. */
@@ -413,9 +476,10 @@ export function replaceRegion(markdown: string, marks: readonly [string, string]
 /** The documents the ledger renders into, as they should read. */
 export function rendered(ledger: Ledger, root = ROOT, u: Usage = usage(root)): Map<string, string> {
   const out = new Map<string, string>();
-  const reference = join(root, 'docs/REFERENCE.md'), skill = join(root, 'skills/rayner-explainers/SKILL.md'), engine = join(root, 'docs/ENGINE.md');
+  const reference = join(root, 'docs/REFERENCE.md'), skill = join(root, 'skills/rayner-explainers/SKILL.md'), engine = join(root, 'docs/ENGINE.md'), index = join(root, 'docs/FEATURE-TOUR.md');
   out.set(reference, replaceRegion(readFileSync(reference, 'utf8'), MARK.features, featuresTable(ledger, u)));
   out.set(skill, replaceRegion(readFileSync(skill, 'utf8'), MARK.examples, examplesTable(ledger)));
-  out.set(engine, replaceRegion(readFileSync(engine, 'utf8'), MARK.exceptions, exceptionsTable(ledger, u)));
+  out.set(engine, replaceRegion(readFileSync(engine, 'utf8'), MARK.exceptions, exceptionsTable(ledger)));
+  out.set(index, replaceRegion(readFileSync(index, 'utf8'), MARK.lookup, lookupTable(ledger, u, root)));
   return out;
 }

@@ -47,7 +47,7 @@ before(async () => {
   host = `http://127.0.0.1:${(hostServer.address() as { port: number }).port}`;
   // quotient-familial is the one scene in French (meta.lang 'fr'); token-bucket,
   // mr-cache and quotient-familial watch state for readers (meta.watch).
-  for (const name of ['mr-cache', 'oauth-pkce', 'exgit', 'lantern', 'send-sync', 'quotient-familial', 'feature-tour', 'token-bucket']) {
+  for (const name of ['mr-cache', 'oauth-pkce', 'exgit', 'lantern', 'send-sync', 'quotient-familial', 'float-sum', 'token-bucket']) {
     const project = await collectProject(`scenes/explainers/${name}`, { write: false });
     projects.set(name, project);
     await buildExplainer(project, join(folder, name + '.html'));
@@ -55,6 +55,9 @@ before(async () => {
   const comparison = await collectProject('test/fixtures/reading-comparison', {write: false});
   projects.set('reading-comparison', comparison);
   await buildExplainer(comparison, join(folder, 'reading-comparison.html'));
+  const navigation = await collectProject('test/fixtures/scenario-navigation', {write: false});
+  projects.set('scenario-navigation', navigation);
+  await buildExplainer(navigation, join(folder, 'scenario-navigation.html'));
   const references = await collectProject('test/fixtures/reference-steps', {write: false});
   projects.set('references', references);
   await buildExplainer(references, join(folder, 'references.html'));
@@ -308,22 +311,23 @@ test('Next is on screen at load', options, async () => {
   }
 });
 
-readerTest('feature-tour scenario navigation starts with its recipe, including transcript links, while direct result permalinks still work', { viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' }, () => embed + '/feature-tour.html?feature=camera&step=result', async page => {
-    assert.equal(new URL(page.url()).searchParams.get('step'), 'result', 'a direct result permalink remains valid');
+readerTest('scenarioNavigation first starts each scenario at its first step, including transcript links, while a direct link to a later step still works', { viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' }, () => embed + '/scenario-navigation.html?pick=two&step=answer', async page => {
+    assert.equal(new URL(page.url()).searchParams.get('step'), 'answer', 'a direct link to a later step remains valid');
     const links = await page.locator('.transcript section a').evaluateAll(anchors => anchors.map(a => new URL((a as HTMLAnchorElement).href).searchParams.get('step')));
-    assert.equal(links.length, 29, 'each authoring scenario offers one entry link');
-    assert.deepEqual([...new Set(links)], ['recipe'], 'entry links start at the code, not the result');
-    await page.locator('fieldset.scenario input[value="state"]').check();
-    await page.waitForURL(/feature=state&step=recipe/);
-    assert.equal(await page.locator('.steps button[aria-current="step"]').getAttribute('data-step'), 'recipe');
+    assert.equal(links.length, 3, 'each scenario offers one entry link');
+    assert.deepEqual([...new Set(links)], ['question'], 'entry links start at the first step');
+    await page.locator('fieldset.scenario input[value="three"]').check();
+    await page.waitForURL(/pick=three&step=question/);
+    assert.equal(await page.locator('.steps button[aria-current="step"]').getAttribute('data-step'), 'question');
     await page.locator('.stepper button[aria-label="Next step"]').click();
-    await page.waitForURL(/feature=state&step=result/);
+    await page.waitForURL(/pick=three&step=answer/);
     await page.goBack();
-    await page.waitForURL(/feature=state&step=recipe/);
+    await page.waitForURL(/pick=three&step=question/);
     await page.goBack();
-    await page.waitForURL(/feature=camera&step=result/);
-    assert.equal(new URL(page.url()).searchParams.get('feature'), 'camera');
-    assert.equal(new URL(page.url()).searchParams.get('step'), 'result');
+    await page.waitForURL(/pick=two&step=answer/);
+    assert.equal(new URL(page.url()).searchParams.get('pick'), 'two');
+    assert.equal(new URL(page.url()).searchParams.get('step'), 'answer');
+    // A scene without it keeps the reader's step by name across a scenario change.
     await visitReader(page, embed + '/mr-cache.html?request=hit&step=request');
     await page.locator('fieldset.scenario input[value="miss"]').check();
     await page.waitForURL(/request=miss&step=request/);
@@ -365,7 +369,7 @@ readerTest('phone: the stepper row follows the picture, the words follow it, and
     });
 // Shell-wide assertions also run in every catalog story scenario. These fixtures keep the
 // independent language and hosting boundaries without rebuilding the whole collection.
-const shellFixtures = ['mr-cache', 'quotient-familial', 'feature-tour', 'lantern'];
+const shellFixtures = ['mr-cache', 'quotient-familial', 'float-sum', 'lantern'];
 test('the shared tile preserves English/French chrome and headings, standalone, in a raw iframe and in the loader', options, async () => {
   const { PRODUCT } = await import('../../scenes/explainers/catalog.ts');
 

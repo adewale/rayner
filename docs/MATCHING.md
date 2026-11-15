@@ -210,6 +210,8 @@ await this.play(new TransformDiff(before, after, { hunks: parseUnifiedDiff(patch
 It is a `TransformMatching` whose key is that pairing: `pairs`, `removed`,
 `added`, `summary()`, `replace` and seeking work as above, and `plan` says
 what each line did, a `LinePlan` (`same`, `changed`, `removed`, `added`, by index).
+`keys` is that pairing once the play has begun: each paired glyph, before and
+after, mapped to the key it shares with its partner; a glyph with no key fades.
 
 ### Hunks are the truth
 

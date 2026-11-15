@@ -14,7 +14,7 @@ function faces(): [string, Uint8Array][] {
   const out: [string, Uint8Array][] = [];
   for (const name of readdirSync(join(ROOT, 'vendor/lettering')).filter((f) => f.endsWith('.woff2')))
     out.push([name, readFileSync(join(ROOT, 'vendor/lettering', name))]);
-  const snapshots = ['scenes/explainers/font-metrics', 'scenes/explainers/feature-tour', 'test/fixtures/lettering',
+  const snapshots = ['scenes/explainers/font-metrics', 'scenes/explainers/float-sum', 'test/fixtures/lettering',
     ...readdirSync(join(ROOT, 'test/lettering')).map((d) => `test/lettering/${d}`)];
   for (const folder of snapshots) {
     let json: { faces?: Record<string, { data?: string; woff2?: string }> };
