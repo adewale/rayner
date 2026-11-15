@@ -58,7 +58,10 @@ export default class Conversations extends Scene<World, Shown> {
       if (!seat || !c.has('turn', 'to')) return beats(c, () => [], { fresh: SAID });
       // It sets off a little way from its rest towards the writer's seat, so the copy never covers the seat's name.
       const [rx, ry] = c.to('turn').center(), from: Vec = [rx! + 0.3 * (seat[0] - rx!), ry! + 0.3 * (seat[1] - ry!)];
-      return beats(c, flight(c, 'turn', [from], { appear: 0.2, move: 0.5, leave: 0.2 }), { fresh: SAID });
+      // The agent's answer takes up the Company's invitation: the envelope goes before the turn comes down over it.
+      const answered = c.has('invite', 'from') && !c.has('invite', 'to') ? [c.leave('invite', { runTime: 0.2 }), c.leave('invite:type', { runTime: 0.2 })] : [];
+      const fly = flight(c, 'turn', [from], { appear: 0.2, move: 0.5, leave: 0.2 });
+      return beats(c, () => [...(answered.length ? [new AnimationGroup(answered)] : []), ...fly()], { fresh: SAID });
     };
     /** A part comes in from a point and stops where it rests. */
     const arrives = (c: Choreography, key: string, ...via: Vec[]) => (c.has(key, 'to') ? flight(c, key, via, { appear: 0.2, move: 0.9, leave: 0.2 }) : () => []);

@@ -12,7 +12,7 @@ import { loadFonts } from '../explain/testing.ts';
 import { Machine, stage, view } from '../explain/index.ts';
 import type { Transition } from '../explain/index.ts';
 import { beats, flight, words } from '../explain/kit.ts';
-import { exploreMachines } from '../tools/lib/explain-check.ts';
+import { exploreMachines, keyedMotionSink } from '../tools/lib/explain-check.ts';
 import { motionFixture } from './fixtures/motion/scene.ts';
 import type { Defect } from './fixtures/motion/scene.ts';
 
@@ -84,7 +84,8 @@ async function played(transition: (t: Transition<N, 'go'>, post: ReturnType<type
       await this.play(machine.send('go'));
     }
   }
-  const sink = new KeyedMotionSink();
+  // As rayner check makes it: able to judge words by their size.
+  const sink = keyedMotionSink();
   await new Small(sink).run();
   return sink.finish().map((f) => `${f.kind} ${f.key}`);
 }
@@ -122,4 +123,20 @@ test('fast travel is not a jump; a one-frame move is, and so is a size snap', as
   const grown = await run(async (s, m) => { await s.play(m.animate.shift([1, 0]), { runTime: 1 }); m.scale(2); await s.play(m.animate.shift([1, 0]), { runTime: 1 }); });
   assert.deepEqual(grown.map((g) => g.split(' ').slice(0, 2).join(' ')), ['jump m']);
   assert.match(grown[0]!, /changed size by 50% in one 0\.033 s frame/);
+});
+
+test('a token drawn over a label for a run of frames covers it; one that passes beside it, or under it, does not', async () => {
+  // Flown at four times its size along the status line: its ink hides "status: ready" for most of the flight.
+  assert.deepEqual(await played((t, post) => { const c = t.choreograph(post); return beats(c, flight(c, 'box', [[-6, 2], [2, 2]], { scale: 4 })); }, 2.6), ['covers box:flight']);
+  // The same flight at its own size, a line below the words: it passes them by.
+  assert.deepEqual(await played((t, post) => { const c = t.choreograph(post); return beats(c, flight(c, 'box', [[-6, 1.2], [2, 1.2]])); }, 2.6), []);
+});
+
+test('words scaled down to travel, smaller than a phone reads and than every label at rest, are small words', async () => {
+  // The status line travels in from the bottom at a third of its size: under the 0.54 units a phone reads on the whole picture.
+  const small = await played((t, post) => { const c = t.choreograph(post); return beats(c, flight(c, 'status', [[0, -4]], { scale: 0.33 })); }, 2.6);
+  assert.ok(small.includes('small words status:flight'), small.join('\n'));
+  // At its own size it reads as it does at rest.
+  const whole = await played((t, post) => { const c = t.choreograph(post); return beats(c, flight(c, 'status', [[0, -4]])); }, 2.6);
+  assert.ok(!whole.some((f) => f.startsWith('small words')), whole.join('\n'));
 });

@@ -266,7 +266,7 @@ export const CORPUS: readonly CorpusEntry[] = [
     id: 'sign-in-tag-over-scopes', chapter: 'poppy-sign-in', kind: 'passes over', commit: 'cb20195a', method: 'adapted', events: ['sign-out', 'disconnect'],
     what: 'At sign-out the tag went back onto the desk over the scopes, and the key and cord stayed until it had gone; the fix stops it at the counter’s edge and fades them as it sets off.',
     edits: [
-      { file: 'poppy-sign-in/scene.ts', find: 'const back = pass(c, \'tag:return\', c.from(\'tag\').copy(), [from, [from[0] + 0.4, to[1]], to], { appear: 0.25, move: 0.7, leave: 0.25 });\n        return [new AnimationGroup([c.leave(\'tag\', { runTime: 0.25 }), ...going.map((k) => c.leave(k, { runTime: 0.3 })), back[0]!]), ...back.slice(1)];', replace: 'const back = pass(c, \'tag:return\', c.from(\'tag\').copy(), [from, [from[0] + 0.8, DESK[1]], DESK], { appear: 0.2, move: 0.8 });\n        return [new AnimationGroup([c.leave(\'tag\', { runTime: 0.2 }), back[0]!]), ...back.slice(1)];' },
+      { file: 'poppy-sign-in/scene.ts', find: 'const back = pass(c, \'tag:return\', c.from(\'tag\').copy(), [from, [to[0], from[1]], to], { appear: 0.25, move: 0.7, leave: 0.25 });\n        return [new AnimationGroup([c.leave(\'tag\', { runTime: 0.25 }), ...going.map((k) => c.leave(k, { runTime: 0.3 })), back[0]!]), ...back.slice(1)];', replace: 'const back = pass(c, \'tag:return\', c.from(\'tag\').copy(), [from, [from[0] + 0.8, DESK[1]], DESK], { appear: 0.2, move: 0.8 });\n        return [new AnimationGroup([c.leave(\'tag\', { runTime: 0.2 }), back[0]!]), ...back.slice(1)];' },
     ],
   },
   // --------------------------------------------------------------------------------------- browser
@@ -382,7 +382,7 @@ export const CORPUS: readonly CorpusEntry[] = [
     id: 'conversations-layout-slides', chapter: 'poppy-conversations', kind: 'layout motion', commit: 'f3a705cf', method: 'adapted', events: ['direct', 'close'],
     what: 'Opening or closing the Direct Conversation slid every part that only changed place for the composition; the fix moves only the travellers and cross-fades the rest.',
     edits: [
-      { file: 'poppy-conversations/scene.ts', find: 'return !TRAVELS.has(k) && Math.hypot(ax! - bx!, ay! - by!) > 0.1;', replace: 'return false;' },
+      { file: 'poppy-conversations/scene.ts', find: 'return !TRAVELS.has(k) && Math.hypot(ax! - bx!, ay! - by!) > 0.5;', replace: 'return false;' },
     ],
   },
   {
@@ -408,6 +408,20 @@ export const CORPUS: readonly CorpusEntry[] = [
       { file: 'poppy-conversations/scene.ts', find: 'arrives(c, key, [BACK_OFFICE_X, -3.95], [seatAt[0] + 1.5, -3.95])', replace: 'arrives(c, key, [BACK_OFFICE_X, seatAt[1]])' },
     ],
   },
+  {
+    id: 'conversations-table-block-blinks', chapter: 'poppy-conversations', kind: 'flicker', commit: '46cdb7e6', method: 'reverted', events: ['ask', 'you', 'read'],
+    what: 'Filmed after the audit (origin/claude/film-fixes): the whole “On the table” block (heading, rules, labels) went out from about 0.2 s to 1.1 s on every message, because beats’ fresh named its prefix; only the two values change. The fix lists just the values.',
+    edits: [
+      { file: 'poppy-conversations/scene.ts', find: "const SAID = ['turn', 'written:author.type:value', 'written:role:value'];", replace: "const SAID = ['turn', 'written:'];" },
+    ],
+  },
+  {
+    id: 'conversations-block-crossfades', chapter: 'poppy-conversations', kind: 'flicker', commit: '46cdb7e6', method: 'reverted', events: ['direct', 'close'],
+    what: 'Filmed after the audit: opening or closing the Direct Conversation shifted the “On the table” block 0.1 units, just over the reflow’s 0.1 threshold, so it was cross-faded and gone from 0.4 s to 1.0 s. The fix morphs shifts under 0.5 units.',
+    edits: [
+      { file: 'poppy-conversations/scene.ts', find: 'return !TRAVELS.has(k) && Math.hypot(ax! - bx!, ay! - by!) > 0.5;', replace: 'return !TRAVELS.has(k) && Math.hypot(ax! - bx!, ay! - by!) > 0.1;' },
+    ],
+  },
   // -------------------------------------------------------------------------------------- coverage
   {
     id: 'coverage-strips-cross', chapter: 'poppy-coverage', kind: 'passes over', commit: 'f3a705cf', method: 'adapted', events: ['use alternative', 'use skill'],
@@ -422,7 +436,7 @@ export const CORPUS: readonly CorpusEntry[] = [
     what: 'A report went in three legs (to the station, to the slot, back to the desk) over a 4.0 s event; the fix drops the first leg and runs it in 2.75 s.',
     edits: [
       { file: 'poppy-coverage/scene.ts', find: '  drawWorld, kindOf, noteToken, probeToken, requestToken, routeOf, sayWorld, stripKeys,\n', replace: '  drawWorld, kindOf, noteToken, probeToken, requestToken, routeOf, sayWorld, slipToken, stripKeys, TRAY_AT,\n' },
-      { file: 'poppy-coverage/scene.ts', find: '            ...pass(c, \'report:sent\', requestToken(s), [SEAL_AT, SLOT_AT], { appear: 0.15, move: 0.7, leave: 0.2 }),\n            ...pass(c, \'report:reply\', noteToken(s), [SLOT_AT, NOTE_AT], { appear: 0.15, move: 0.6, leave: 0.2 }),', replace: '            ...pass(c, \'report:slip\', slipToken(s), [TRAY_AT, SEAL_AT], { appear: 0.2, move: 0.6, leave: 0.15 }),\n            ...pass(c, \'report:sent\', requestToken(s), [SEAL_AT, SLOT_AT], { appear: 0.15, move: 0.8, leave: 0.2 }),\n            ...pass(c, \'report:reply\', noteToken(s), [SLOT_AT, NOTE_AT], { appear: 0.2, move: 0.8, leave: 0.2 }),' },
+      { file: 'poppy-coverage/scene.ts', find: '            ...pass(c, \'report:sent\', requestToken(s).scale(0.28), [SEAL_AT, SLOT_AT], { appear: 0.15, move: 0.7, leave: 0.2 }),\n            ...pass(c, \'report:reply\', noteToken(s), [SLOT_AT, NOTE_AT], { appear: 0.15, move: 0.6, leave: 0.2 }),', replace: '            ...pass(c, \'report:slip\', slipToken(s), [TRAY_AT, SEAL_AT], { appear: 0.2, move: 0.6, leave: 0.15 }),\n            ...pass(c, \'report:sent\', requestToken(s).scale(0.28), [SEAL_AT, SLOT_AT], { appear: 0.15, move: 0.8, leave: 0.2 }),\n            ...pass(c, \'report:reply\', noteToken(s), [SLOT_AT, NOTE_AT], { appear: 0.2, move: 0.8, leave: 0.2 }),' },
       { file: 'poppy-coverage/scene.ts', find: 'read: 2.2, report: 2.75, sort', replace: 'read: 2.2, report: 4.0, sort' },
     ],
   },
@@ -504,6 +518,7 @@ export const CORPUS: readonly CorpusEntry[] = [
  * every scene and picture hunk of the motion audit commits (d4392856 to 9e7d166a, with 0a887ad4).
  */
 export const NOT_IN_CORPUS: readonly { commit: string; chapter: string; what: string; why: string }[] = [
+  { commit: '46cdb7e6', chapter: 'poppy-conversations', what: 'filmed after the audit: the owner step’s place card drawn over its own words from 0.5 s until they popped in at the end', why: 'the cause was the engine’s (TransformMatching’s drawing order, fixed in src/animation.ts), not the scene, so no scene edit brings it back; measured by hand instead (docs/TESTING.md)' },
   { commit: '0a887ad4', chapter: 'poppy-browser', what: 'submit rewritten: the code and its half travel as copies and the half is seated after', why: 'the transition was rewritten whole; no one defect can be told from the hunk' },
   { commit: 'd99c9195', chapter: 'poppy-sessions', what: 'the validator’s stamp enters on its own beat; punches lag 0.3 to 0.4', why: 'a re-timing inside the same rewrite as the key’s trip (sessions-key-to-wax-after-check); no separate defect can be told' },
   { commit: 'f3a705cf', chapter: 'poppy-sessions', what: 'the detail step “If the leaked key comes first”, keyed afresh so its change cross-fades', why: 'a new step (#101 item 6), not a fix of an existing one; it has no defective before-state' },

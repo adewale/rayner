@@ -5,8 +5,9 @@
 // MotionSink (verify.ts) follows the renderer's leaves, so a part redrawn as new mobjects, which is
 // what a view's rebuild and a choreography's leave-then-enter do, is a different thing to it from
 // one frame to the next, and `rayner check` never ran it on a reader's press. A key is the part's
-// address across those redraws, so this follows parts by key and finds three defects that filming
-// every transition found in the Poppy series (issue #101, items 12 and 14), and no check saw:
+// address across those redraws, so this follows parts by key and finds five defects that filming
+// every transition found in the Poppy series (issue #101, items 12 and 14), and no check saw
+// (docs/MOTION-CORPUS.md measures how many of the filmed defects each catches):
 //
 //   jump          a part on screen in consecutive frames moves (or changes size) much more over one
 //                 frame step, or two, than in the steps either side: a snap, not travel. Measured on
@@ -21,6 +22,13 @@
 //                 token lands while it is still travelling: a result shown before its cause lands.
 //                 A token passes through (on screen in neither the first frame nor the last, as
 //                 c.travel, flight and pass make one) and travels at least a unit keeping its size.
+//   covers        a token, readable and drawn over it, hides a share of a readable label's box with
+//                 its ink (a filled shape's outline, not its box) for a run of frames before it
+//                 reaches its landing: a ticket over a lane's name; with the label's own words, two
+//                 copies of one thing at once.
+//   small words   a token carries words smaller than a phone reads on the whole picture and than
+//                 every label at rest: a label scaled down to travel. Judged only when the sink is
+//                 given a label's reading size (the explain layer's), as `rayner check` gives it.
 //
 // Each threshold (KEYED_MOTION_LIMITS) is in stage units of the default 16-wide frame (screen space:
 // a camera move is motion of every part) and in seconds, so a scene at another fps is judged alike.
@@ -498,6 +506,8 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
       const back = frames[k]!.parts.get(p)!;
       // Hidden while something travels, and back once it has landed: the part is the event's result
       // (the kit's `fresh`), shown again only when its cause arrives. That is deliberate, not a blink.
+      // (Narrowing this to the parts of a block that change fails the kit's answer, whose code and
+      // phrase go out and come back with a new meaning: docs/MOTION-CORPUS.md.)
       const awaited = travel.some((tr) => tr.p !== p && tr.to >= gone && tr.to <= k);
       if (!awaited && back.look === ref.look && samePlace(back.box, ref.box, L.same)) {
         const hidden = frames[k]!.t - frames[gone]!.t;

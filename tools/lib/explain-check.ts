@@ -837,7 +837,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     // picture is read as the step ends, the last-frame comparison first, before views and keys redraw anything.
     const views = new ViewSink();
     const keys = new KeySink();
-    // Every keyed part followed from frame to frame within each play: jumps, flicker and early words (src/keyed-motion.ts).
+    // Every keyed part followed from frame to frame within each play: jumps, flicker, early words, covers and small words (src/keyed-motion.ts).
     const keyedMotion = keyedMotionSink();
     const ran = await new v.Scene(new FanSink([invariants, motion, keyedMotion, holdSink, capture, lastFrame, restingSink, legibility, looks, views, keys])).run();
     const stepMotion = keyedMotion.finish().map((f) => `${f.segment}: ${keyedMotionLine(f)}`);
@@ -884,7 +884,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     assert.deepEqual(
       motionFound.slice(0, 8),
       [],
-      `Keyed motion ${where}: a keyed part jumps, flickers, or shows new words before what causes them lands, in a step or in a reader's event (${motionFound.length} found; the first eight)`,
+      `Keyed motion ${where}: a keyed part jumps, flickers, shows new words before what causes them lands, travels over a label, or carries words too small to read, in a step or in a reader's event (${motionFound.length} found; the first eight)`,
     );
     assert.deepEqual(
       [...moved],
