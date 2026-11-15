@@ -5,8 +5,9 @@
 // MotionSink (verify.ts) follows the renderer's leaves, so a part redrawn as new mobjects, which is
 // what a view's rebuild and a choreography's leave-then-enter do, is a different thing to it from
 // one frame to the next, and `rayner check` never ran it on a reader's press. A key is the part's
-// address across those redraws, so this follows parts by key and finds three defects that filming
-// every transition found in the Poppy series (issue #101, items 12 and 14), and no check saw:
+// address across those redraws, so this follows parts by key and finds five defects that filming
+// every transition found in the Poppy series (issue #101, items 12 and 14), and no check saw
+// (docs/MOTION-CORPUS.md measures how many of the filmed defects each catches):
 //
 //   jump          a part on screen in consecutive frames moves (or changes size) much more over one
 //                 frame step, or two, than in the steps either side: a snap, not travel. Measured on
@@ -21,6 +22,13 @@
 //                 token lands while it is still travelling: a result shown before its cause lands.
 //                 A token passes through (on screen in neither the first frame nor the last, as
 //                 c.travel, flight and pass make one) and travels at least a unit keeping its size.
+//   covers        a token, readable and drawn over it, hides a share of a readable label's box with
+//                 its ink (a filled shape's outline, not its box) for a run of frames before it
+//                 reaches its landing: a ticket over a lane's name; with the label's own words, two
+//                 copies of one thing at once.
+//   small words   a token carries words smaller than a phone reads on the whole picture and than
+//                 every label at rest: a label scaled down to travel. Judged only when the sink is
+//                 given a label's reading size (the explain layer's), as `rayner check` gives it.
 //
 // Each threshold (KEYED_MOTION_LIMITS) is in stage units of the default 16-wide frame (screen space:
 // a camera move is motion of every part) and in seconds, so a scene at another fps is judged alike.
@@ -34,7 +42,7 @@ import type { Scene, Sink } from './scene.ts';
 import { playsBegun } from './scene.ts';
 import { FRAME } from './units.ts';
 
-export type KeyedMotionKind = 'jump' | 'flicker' | 'early words';
+export type KeyedMotionKind = 'jump' | 'flicker' | 'early words' | 'covers' | 'small words';
 /** One defect: in which transition, which part, when (seconds from the transition's first frame), and how much. */
 export interface KeyedMotionFinding {
   kind: KeyedMotionKind;
@@ -45,7 +53,7 @@ export interface KeyedMotionFinding {
   path: string;
   /** Seconds since the transition's first sampled frame, to the millisecond. */
   t: number;
-  /** The measured value: units moved (jump, or a size change as a fraction), seconds hidden (flicker), or the alpha the words reached (early words). */
+  /** The measured value: units moved (jump, or a size change as a fraction), seconds hidden (flicker), the alpha the words reached (early words), seconds covered (covers), or the words' size in units (small words). */
   value: number;
   detail: string;
   /** One line on how to fix it. */
@@ -74,14 +82,29 @@ export const KEYED_MOTION_LIMITS = {
   /** ...and comes back to this share of it... */
   back: 0.9,
   /** ...in the same place (centre within `same` units, size within `same` units) with the same words and colours. */
-  same: 0.08,
+  same: 0.2,
   /** A token (a part passing through) travels at least this far (units) on one trip: its landing excuses a blink, and early words wait for it... */
   travel: 0.5,
   /** Early words: the token has at least this far (units) still to go when the words become readable... */
   toGo: 0.5,
   /** ...and the words are within this many units of where it lands: what its arrival makes, not words elsewhere on the stage. */
   near: 2,
+  /** Covers: a token, readable and drawn over them, hides at least this share of a readable label's box... */
+  cover: 0.3,
+  /** ...for at least this many seconds in a row (three frames at 30 fps), before it reaches its landing... */
+  covering: 0.1,
+  /** ...which it has reached when it has under this many units left to travel (its landing is its resting picture's, judged at rest). */
+  landed: 0.05,
+  /** Small words: a token's words are smaller than this share of the smallest readable label at rest in the transition's first and last frames... */
+  smaller: 0.85,
 } as const;
+
+/**
+ * What the sink needs from the explain layer to judge words by size: a label's reading size in
+ * stage units (the explain layer's readingLabelSize), and the smallest size that reads on a phone
+ * showing the whole picture (in units of the 16-wide frame). Without them, small words is not judged.
+ */
+export interface KeyedMotionOptions { labelSize?: (m: Mobject) => number | undefined; legible?: number }
 
 /** One keyed part in one frame. Its words and look are read from its leaves when asked, since few parts are ever asked. */
 class PartSample {
@@ -127,8 +150,8 @@ class PartSample {
     return this.#look;
   }
 }
-/** One drawn leaf: the renderer's id for it, its box on screen, its alpha, the fill and stroke that show, and its words if it is a run of text. */
-interface Leaf { id: number; box: Box; a: number; paint: string; text?: string }
+/** One drawn leaf: the renderer's id for it, its box on screen, its alpha, the fill and stroke that show, and its words and their reading size on screen if it is a run of text. */
+interface Leaf { id: number; box: Box; a: number; paint: string; text?: string; em?: number; poly?: Float64Array[] }
 interface Frame { t: number; parts: Map<string, PartSample>; leaves: Leaf[] }
 
 /** A leaf's alpha as MotionSink reads it: opacity times the paint that shows, times how far it is drawn. */
@@ -156,6 +179,7 @@ export class KeyedMotionSink implements Sink {
   #segment: string | null = null;
   #current: Frame[] = [];
   readonly #segmentOf: (scene: Scene) => string | null;
+  readonly #options: KeyedMotionOptions;
   #dt = 1 / 30;
   /** Plays begun in the step running, for naming a play by its place in its step, and the machine events sent in the play running. */
   #step: { path: string | null; plays: number; last: number; events: number } = { path: null, plays: 0, last: -1, events: 0 };
@@ -165,9 +189,10 @@ export class KeyedMotionSink implements Sink {
    * `segmentOf` names the transition a frame belongs to. By default each play() of a run is one
    * transition, named by its step and its place there (`step "burst", play 2`), and so is each
    * machine event a play sends (`step "fill", play 2, event 3`), since a replay sends several in one
-   * play; a wait's frames belong to the play before them.
+   * play; a wait's frames belong to the play before them. `options` lets it judge words by size.
    */
-  constructor(segmentOf?: (scene: Scene) => string | null) {
+  constructor(segmentOf?: (scene: Scene) => string | null, options: KeyedMotionOptions = {}) {
+    this.#options = options;
     this.#segmentOf = segmentOf ?? ((scene) => {
       const path = scene.currentStep?.path ?? null, n = playsBegun(scene);
       if (path !== this.#step.path) this.#step = { path, plays: 0, last: -1, events: 0 };
@@ -184,7 +209,7 @@ export class KeyedMotionSink implements Sink {
       this.#segment = segment;
     }
     this.#dt = 1 / scene.fps;
-    this.#current.push(sampleFrame(scene));
+    this.#current.push(sampleFrame(scene, this.#options.labelSize));
     this.frames++;
   }
   /** Analyse the transition still open. */
@@ -193,14 +218,14 @@ export class KeyedMotionSink implements Sink {
     return this.findings;
   }
   #close(): void {
-    if (this.#segment !== null && this.#current.length > 1) this.findings.push(...analyzeKeyedMotion(this.#current, this.#segment, this.#dt));
+    if (this.#segment !== null && this.#current.length > 1) this.findings.push(...analyzeKeyedMotion(this.#current, this.#segment, this.#dt, this.#options.legible));
     // The next transition starts from the picture this one left: its first frame.
     this.#current = this.#current.slice(-1);
   }
 }
 
 /** One frame's keyed parts, by address (the keys of the keyed parts around a part, then its own), and its drawn leaves. */
-function sampleFrame(scene: Scene): Frame {
+function sampleFrame(scene: Scene, labelSize?: (m: Mobject) => number | undefined): Frame {
   const [fx0, fy0, fx1, fy1] = scene.frame.box()!, k = FRAME.w / (fx1 - fx0), cx = (fx0 + fx1) / 2, cy = (fy0 + fy1) / 2;
   const parts = new Map<string, PartSample>(), leaves: Leaf[] = [];
   const seen = new Set<Mobject>();
@@ -220,7 +245,18 @@ function sampleFrame(scene: Scene): Frame {
       if (b) {
         const st = unit ? m.children[0]!.style : m.style;
         const leaf: Leaf = { id: mobjectId(m), box: [(b[0] - cx) * k, (b[1] - cy) * k, (b[2] - cx) * k, (b[3] - cy) * k], a, paint: `${paintsFill(st) ? st.fill : ''}/${paintsStroke(st) ? st.stroke : ''}` };
-        if (text !== undefined) leaf.text = text;
+        // A filled shape's outline, its anchors on screen, so what it covers is its ink, not its box (a speech
+        // bubble's long tail, a key's teeth): only read for covering, and only a filled leaf can cover.
+        if (text === undefined && !unit && paintsFill(st)) leaf.poly = m.pointArrays().map((arr) => {
+          const n = Math.floor(arr.length / 6) + 1, out = new Float64Array(2 * n);
+          for (let i = 0; i < n; i++) { out[2 * i] = (arr[6 * i]! - cx) * k; out[2 * i + 1] = (arr[6 * i + 1]! - cy) * k; }
+          return out;
+        });
+        if (text !== undefined) {
+          leaf.text = text;
+          const em = labelSize?.(m);
+          if (em !== undefined) leaf.em = em * k;
+        }
         leaves.push(leaf);
         alpha = a;
       }
@@ -303,14 +339,40 @@ function iou(a0: Box, b0: Box): number {
   const area = (r: Box) => (r[2] - r[0]) * (r[3] - r[1]), inter = ix * iy;
   return inter / (area(a) + area(b) - inter);
 }
+/** The area of the filled outline `poly` (subpaths of anchors, holes wound the other way) inside box `b`. */
+function inkIn(poly: readonly Float64Array[], b: Box): number {
+  let total = 0;
+  for (const ring of poly) {
+    let pts: number[] = Array.from(ring);
+    // Clip to each side of the box in turn (Sutherland-Hodgman), then take the shoelace area.
+    for (const [axis, bound, keepBelow] of [[0, b[0], false], [0, b[2], true], [1, b[1], false], [1, b[3], true]] as const) {
+      const out: number[] = [], n = pts.length / 2;
+      const inside = (i: number) => (keepBelow ? pts[2 * i + axis]! <= bound : pts[2 * i + axis]! >= bound);
+      for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n, a = inside(i), c = inside(j);
+        if (a) out.push(pts[2 * i]!, pts[2 * i + 1]!);
+        if (a !== c) {
+          const t = (bound - pts[2 * i + axis]!) / (pts[2 * j + axis]! - pts[2 * i + axis]!);
+          out.push(pts[2 * i]! + t * (pts[2 * j]! - pts[2 * i]!), pts[2 * i + 1]! + t * (pts[2 * j + 1]! - pts[2 * i + 1]!));
+        }
+      }
+      pts = out;
+      if (!pts.length) break;
+    }
+    for (let i = 0, n = pts.length / 2; i < n; i++) { const j = (i + 1) % n; total += pts[2 * i]! * pts[2 * j + 1]! - pts[2 * j]! * pts[2 * i + 1]!; }
+  }
+  return Math.abs(total) / 2;
+}
+
 /** A key's short form for messages: the part's own key, with the address when keys repeat inside it. */
 const named = (path: string) => path.split('/').at(-1)!;
 
 /**
  * The defects in one transition's frames (see the module's comment for each rule and
- * KEYED_MOTION_LIMITS for each threshold). `dt` is the frame step in seconds.
+ * KEYED_MOTION_LIMITS for each threshold). `dt` is the frame step in seconds; `legible`, the
+ * smallest size of words that reads, in units, for small words.
  */
-export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt: number): KeyedMotionFinding[] {
+export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt: number, legible?: number): KeyedMotionFinding[] {
   const L = KEYED_MOTION_LIMITS, out: KeyedMotionFinding[] = [];
   if (frames.length < 2) return out;
   const t0 = frames[0]!.t;
@@ -354,7 +416,7 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
   // in, how far it travels and how far it still has to go at each frame. A part that moves and stays
   // is the picture settling, not a cause arriving. One key may make several trips in one play (a
   // machine's replay sends the same token once per event), so each time on screen is a trip of its own.
-  type Trip = { p: string; from: number; to: number; length: number; left: number[]; lands: Box };
+  type Trip = { p: string; start: number; end: number; from: number; to: number; length: number; left: number[]; lands: Box };
   const trips: Trip[] = [];
   for (const p of paths)
     for (let i = 0; i < frames.length; i++) {
@@ -377,7 +439,7 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
       }
       if (passing && length >= L.travel && last >= first) {
         for (let j = i; j <= end; j++) left[j] = length - along[j]!;
-        trips.push({ p, from: first, to: last, length, left, lands: at(last, p)!.box });
+        trips.push({ p, start: i, end, from: first, to: last, length, left, lands: at(last, p)!.box });
       }
       i = end;
     }
@@ -444,6 +506,8 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
       const back = frames[k]!.parts.get(p)!;
       // Hidden while something travels, and back once it has landed: the part is the event's result
       // (the kit's `fresh`), shown again only when its cause arrives. That is deliberate, not a blink.
+      // (Narrowing this to the parts of a block that change fails the kit's answer, whose code and
+      // phrase go out and come back with a new meaning: docs/MOTION-CORPUS.md.)
       const awaited = travel.some((tr) => tr.p !== p && tr.to >= gone && tr.to <= k);
       if (!awaited && back.look === ref.look && samePlace(back.box, ref.box, L.same)) {
         const hidden = frames[k]!.t - frames[gone]!.t;
@@ -475,6 +539,80 @@ export function analyzeKeyedMotion(frames: readonly Frame[], segment: string, dt
           fix: `bring the words in after “${named(tr.p)}” lands (in beats, list the part as fresh, or put its entrance after the flight)` });
         break;
       }
+    }
+  }
+  // 4. Covers: a token, readable, drawn over a readable label that is not its own words, hiding a
+  // share of the label's box, for a run of frames before it reaches its landing. Its landing is where
+  // its part rests, which the resting checks judge. A label with the token's own words is a copy of it.
+  // 5. Small words: a token's words, readable, smaller than words a phone reads on the whole picture
+  // and than every label at rest in the transition's first and last frames: a label scaled down to travel.
+  if (travel.length) {
+    const area = (b: Box) => Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]);
+    const overlap = (a: Box, b: Box) => area([Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.min(a[2], b[2]), Math.min(a[3], b[3])]);
+    const run = Math.max(2, Math.round(L.covering / dt - 1e-9));
+    // The smallest readable words at rest: in the transition's first and last frames.
+    let rest = Infinity;
+    for (const f of [frames[0]!, frames.at(-1)!]) for (const l of f.leaves) if (l.em !== undefined && l.a >= L.readable && l.text) rest = Math.min(rest, l.em);
+    /** The innermost keyed part that holds leaf `q` of frame `f`, for naming the label. */
+    const owner = (f: Frame, q: number) => {
+      let best: string | undefined, span = Infinity;
+      for (const [path, s] of f.parts) if (s.from <= q && q < s.to && s.to - s.from < span) { best = path; span = s.to - s.from; }
+      return best;
+    };
+    for (const tr of travel) {
+      const own = new Set<string>();
+      let small: { j: number; em: number; text: string } | undefined;
+      // Label leaf id -> the frames in a row it has been covered, and the most of it covered; and the longest such run.
+      const covered = new Map<number, { n: number; first: number; most: number; text: string; key: string }>();
+      let longest: { n: number; first: number; most: number; text: string; key: string } | undefined;
+      const close = (c: NonNullable<typeof longest>) => { if (c.n >= run && (!longest || c.n > longest.n)) longest = { ...c }; };
+      for (let j = tr.start; j <= tr.end; j++) {
+        const f = frames[j]!, T = f.parts.get(tr.p);
+        const now = new Set<number>();
+        if (T && T.a >= L.readable) {
+          for (let q = T.from; q < T.to; q++) {
+            const w = f.leaves[q]!;
+            if (!w.text || w.a < L.readable) continue;
+            own.add(w.text);
+            if (legible !== undefined && w.em !== undefined && w.em < legible && w.em < L.smaller * rest && (!small || w.em < small.em)) small = { j, em: w.em, text: w.text };
+          }
+          for (let q = 0; q < T.from && tr.left[j]! > L.landed; q++) {
+            const l = f.leaves[q]!;
+            if (!l.text || l.a < L.readable) continue;
+            const whole = area(l.box);
+            if (whole <= 0) continue;
+            let most = 0;
+            // A leaf with a fill covers its box; an outline alone (a ring round a label, a line) covers almost none of it.
+            for (let r = T.from; r < T.to; r++) {
+              const t = f.leaves[r]!;
+              if (t.a < L.readable || t.paint.startsWith('/') || overlap(t.box, l.box) < L.cover * whole) continue;
+              most = Math.max(most, (t.poly ? inkIn(t.poly, l.box) : overlap(t.box, l.box)) / whole);
+            }
+            if (most < L.cover) continue;
+            now.add(l.id);
+            const c = covered.get(l.id) ?? { n: 0, first: j, most: 0, text: l.text, key: named(owner(f, q) ?? l.text) };
+            c.n++;
+            c.most = Math.max(c.most, most);
+            covered.set(l.id, c);
+          }
+        }
+        for (const [id, c] of [...covered]) if (!now.has(id)) { close(c); covered.delete(id); }
+      }
+      for (const c of covered.values()) close(c);
+      if (longest) {
+        const { n, first, most, text, key } = longest, twin = own.has(text), words = text.length > 40 ? text.slice(0, 39) + '…' : text;
+        out.push({ kind: 'covers', segment, key: named(tr.p), path: tr.p, t: ms(frames[first]!.t - t0), value: +fmt(n * dt, 3),
+          detail: twin
+            ? `travels over “${words}” (part “${key}”), the same words as its own, for ${fmt(n * dt)} s: two copies at once, one over the other`
+            : `travels over “${words}” (part “${key}”), covering ${(100 * most).toFixed(0)}% of it, for ${fmt(n * dt)} s before it lands`,
+          fix: twin
+            ? 'take the resting copy away as the travelling one sets off (leave it as the flight appears), or start the flight beside it'
+            : 'route it round the label (or under it, scaled down), or move the label off its way' });
+      }
+      if (small)
+        out.push({ kind: 'small words', segment, key: named(tr.p), path: tr.p, t: ms(frames[small.j]!.t - t0), value: +fmt(small.em, 3),
+          detail: `carries “${small.text.length > 40 ? small.text.slice(0, 39) + '…' : small.text}” ${fmt(small.em)} units high, under the ${fmt(legible!)} a phone reads on the whole picture and smaller than every label at rest (${fmt(rest)})`,
+          fix: 'carry the words at a size that reads, or a token without words (the words arrive with the part where it lands)' });
     }
   }
   // A part inside one that has the same defect at the same moment moves, blinks or arrives with it: name the outer one.

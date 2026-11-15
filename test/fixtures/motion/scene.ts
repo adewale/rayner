@@ -59,7 +59,8 @@ export function motionFixture(defect: Defect) {
       const post = view(this, (st: Post) => drawPost(st, s));
       const send = (t: Transition<Post, Send>) => {
         const c = t.choreograph(post);
-        const fly = flight(c, 'ticket', [CLIENT], { appear: 0.25, move: 1.0, leave: 0.2 });
+        // It sets off just under the client, not over the client's name.
+        const fly = flight(c, 'ticket', [[CLIENT[0], CLIENT[1] - 1.3]], { appear: 0.25, move: 1.0, leave: 0.2 });
         if (defect === 'early') {
           // The answer is written while the ticket is still in the air.
           const had = c.has('answer', 'from') ? [c.leave('answer', { runTime: 0.15 })] : [];

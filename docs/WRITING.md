@@ -295,7 +295,8 @@ export default class SortAsText extends Scene<State, {}> {
     this.state = start(compare);
     const picture = view(this, (st) => drawSort(s, st));
     // The reader's buttons: each puts a number on the end of the array. Its sorted box flies down
-    // from where the number joins the array, after the boxes it passes have made room.
+    // from just under where the number joins the array, along the gap between the rows and down into
+    // its place, over no other number, after the boxes it passes have made room.
     const machine = new Machine<State, SortEvent>(this, {
       start: { ...start(compare), sorted: true },
       events: EVENTS,
@@ -303,8 +304,8 @@ export default class SortAsText extends Scene<State, {}> {
       bound,
       views: [picture],
       transition: Object.fromEntries(EVENTS.map((event) => [event, (t) => {
-        const n = event.slice(4), c = t.choreograph(picture);
-        return beats(c, flight(c, `sorted:${n}`, [c.to(`array:${n}`).center() as [number, number]]), { fresh: [`sorted:${n}`], lead: ['array:', 'sorted:'] });
+        const n = event.slice(4), c = t.choreograph(picture), [x] = c.to(`array:${n}`).center(), [to] = c.to(`sorted:${n}`).center();
+        return beats(c, flight(c, `sorted:${n}`, [[x!, -0.2], [to!, -0.2]]), { fresh: [`sorted:${n}`], lead: ['array:', 'sorted:'] });
       }])),
       runTime: 2.2,
     });
@@ -535,7 +536,7 @@ These are this repository's own numbers, from its Git history and pull requests.
 
 | Explainer | Grounding | script.md | model.ts | model.test.ts | scene.ts | picture.ts | Whole folder |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| sort-as-text (this guide) | live | 18 | 40 | 28 | 71 | 29 | 186 |
+| sort-as-text (this guide) | live | 18 | 40 | 28 | 72 | 29 | 187 |
 | galton-board | live | 30 | 115 | 140 | 175 | 140 | 765 |
 | float-sum | live | 30 | 177 | 175 | 181 | 58 | 794 |
 | unified-diff | live | 28 | 152 | 196 | 191 | 46 | 745 |

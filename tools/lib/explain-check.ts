@@ -178,6 +178,12 @@ const PHONE_UNIT = stageScale(PHONE_W, PHONE_H).s;
 const PHONE_WHOLE = PHONE_UNIT / STAGE_PX_PER_UNIT;
 /** The smallest font size, in stage units with the camera at home, that reads READ_PX on the whole picture on a phone (0.54). */
 export const PHONE_WHOLE_MIN_SIZE = READ_PX / PHONE_UNIT;
+/**
+ * The keyed motion sink `rayner check` runs (src/keyed-motion.ts), able to judge words by size:
+ * a label's reading size, and the size that reads on a phone showing the whole picture.
+ */
+export const keyedMotionSink = (segmentOf?: (scene: Scene) => string | null) =>
+  new KeyedMotionSink(segmentOf, { labelSize: readingLabelSize, legible: PHONE_WHOLE_MIN_SIZE });
 /** A step's close-ups on the phone, as the player works them out: the opening's zoom, and each view's zoom and box in view units. */
 type PhoneCloseUps = { k: number; views: { k: number; box: Box }[] };
 function phoneCloseUps(layout: Parameters<typeof closeUps>[0]): PhoneCloseUps {
@@ -526,18 +532,21 @@ export class LegibilitySink implements Sink {
  * events start from, and each transition plays in a play of its own, as a reader's event plays it.
  * A machine that never played is explored on a fresh run of `Source` as it ends. `diagrams` says
  * whether exploring the machine made a diagram, which a page without diagram code could not draw.
+ * `only.events` plays the transitions of those events alone (the motion corpus's focused runs);
+ * `rayner check` plays every event's.
  */
 export async function exploreMachines(
   scene: Scene,
   Source: SceneClass,
   layouts?: Awaited<ReturnType<typeof stepLayouts>>,
+  only?: { events?: readonly string[] },
 ): Promise<{ events: string[]; states: number; sampled: boolean; diagrams: boolean; problems: string[]; motion: string[] }[]> {
   const explored = [];
   if (!layouts && machinesOf(scene).some((m) => m.lastPlayedIn !== null)) layouts = await stepLayouts(Source);
   for (const [index, made] of machinesOf(scene).entries()) {
     const step = made.lastPlayedIn, place = { index, identity: made.identity };
     let found: Awaited<ReturnType<typeof exploreMachines>>[number] | undefined;
-    const explore: LiveExplore = async (host, machine, draw) => { found = await exploreMachine(host, machine, step, draw, step === null ? undefined : phoneCloseUps(layouts?.get(step))); };
+    const explore: LiveExplore = async (host, machine, draw) => { found = await exploreMachine(host, machine, step, draw, step === null ? undefined : phoneCloseUps(layouts?.get(step)), only?.events); };
     // The stage the reader saw the machine on, rather than the stage the run ends with, which may
     // have cleared its views away.
     if (step !== null) await runLive(Source, step, place, [], { explore });
@@ -552,7 +561,7 @@ export async function exploreMachines(
 }
 
 /** One machine explored on `host`, which may still play, as the step it last played in (`step`) ends, or as the run ends when it never played; `draw` routes the host's frames. */
-async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf>[number], step: string | null, draw: (to?: Sink) => void, tour?: PhoneCloseUps) {
+async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf>[number], step: string | null, draw: (to?: Sink) => void, tour?: PhoneCloseUps, only?: readonly string[]) {
   const diagramsBefore = diagramsOn(host);
   const problems: string[] = [], motion: string[] = [];
   const missing = machine.spec.views.filter((v) => !host.familyMembers().includes(v));
@@ -592,7 +601,7 @@ async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf
     if (!picture?.entries?.some((e) => e.what?.trim())) problems.push(`${at}: the picture has no description`);
     else if (said.has(words)) problems.push(`${at}: the picture is described exactly as ${said.get(words)}, a different state`);
     else said.set(words, at);
-    const played = await transitionProblems(host, machine, state, path, origin, draw);
+    const played = await transitionProblems(host, machine, state, path, origin, draw, only);
     problems.push(...played.problems);
     motion.push(...played.motion);
   }
@@ -687,10 +696,11 @@ const marksOf = (svg: string) => svg.split('/>').sort().join('/>');
  * checked on every frame it draws (an InvariantSink, through `draw`), and when it ends the views must
  * show the pictures of the state it reaches, as rendered, so taking them moves nothing.
  */
-async function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[], origin: string, draw: (to?: Sink) => void): Promise<{ problems: string[]; motion: string[] }> {
+async function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[], origin: string, draw: (to?: Sink) => void, only?: readonly string[]): Promise<{ problems: string[]; motion: string[] }> {
   const problems: string[] = [], motionProblems: string[] = [];
   const { views, events } = machine.spec;
   for (const event of events) {
+    if (only && !only.includes(event)) continue;
     // A bound only bounds: an event it stops that the model refuses anyway is a refusal.
     const bound = machine.spec.bound?.(state, event);
     if (bound !== undefined && 'refused' in machine.model(state, event))
@@ -704,7 +714,7 @@ async function transitionProblems(scene: Scene, machine: ReturnType<typeof machi
       scene.state = jsonObject(state, 'machine state');
       for (const v of views) v.rebuild();
       scene.state = jsonObject(after, 'machine state');
-      const keyedMotion = new KeyedMotionSink(() => at);
+      const keyedMotion = keyedMotionSink(() => at);
       await keyedMotion.frame(scene, 0);
       draw(keyedMotion);
       try { await scene.play(machine.defaultPlay(event, state, after)); } finally { draw(); }
@@ -725,7 +735,7 @@ async function transitionProblems(scene: Scene, machine: ReturnType<typeof machi
     scene.state = jsonObject(after, 'machine state');
     const frames = new InvariantSink();
     // Every keyed part's motion, from the picture before the transition (its first frame) to its last frame.
-    const keyedMotion = new KeyedMotionSink(() => at);
+    const keyedMotion = keyedMotionSink(() => at);
     await keyedMotion.frame(scene, 0);
     const t0 = scene.time;
     draw(new FanSink([frames, keyedMotion]));
@@ -827,8 +837,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     // picture is read as the step ends, the last-frame comparison first, before views and keys redraw anything.
     const views = new ViewSink();
     const keys = new KeySink();
-    // Every keyed part followed from frame to frame within each play: jumps, flicker and early words (src/keyed-motion.ts).
-    const keyedMotion = new KeyedMotionSink();
+    // Every keyed part followed from frame to frame within each play: jumps, flicker, early words, covers and small words (src/keyed-motion.ts).
+    const keyedMotion = keyedMotionSink();
     const ran = await new v.Scene(new FanSink([invariants, motion, keyedMotion, holdSink, capture, lastFrame, restingSink, legibility, looks, views, keys])).run();
     const stepMotion = keyedMotion.finish().map((f) => `${f.segment}: ${keyedMotionLine(f)}`);
     // The last frame, before exploring machines moves the scene.
@@ -874,7 +884,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     assert.deepEqual(
       motionFound.slice(0, 8),
       [],
-      `Keyed motion ${where}: a keyed part jumps, flickers, or shows new words before what causes them lands, in a step or in a reader's event (${motionFound.length} found; the first eight)`,
+      `Keyed motion ${where}: a keyed part jumps, flickers, shows new words before what causes them lands, travels over a label, or carries words too small to read, in a step or in a reader's event (${motionFound.length} found; the first eight)`,
     );
     assert.deepEqual(
       [...moved],
