@@ -101,7 +101,8 @@ export default class Coverage extends Scene<World, {}> {
         const [lx, ly] = noteLineAt(x.line), corridor: [number, number] = [lx, REACH_AT[1]];
         return flight(c, x.key, [[lx, ly], corridor, REACH_AT, corridor], { appear: 0.2, move: 1.4, leave: 0.2 })();
       });
-      const sent = flight(c, 'ticket', [SEAL_AT, ...routeOf('api').slice(1, 3)], T)();
+      // The ticket rides the lane as a small token, under the lane's name, and gives way to the full ticket where it docks.
+      const sent = flight(c, 'ticket', [SEAL_AT, ...routeOf('api').slice(1, 3)], { ...T, scale: 0.28 })();
       const ticket = card ? [...sent.slice(0, -1), new AnimationGroup([sent.at(-1) as Animation, c.enter('skill:card', {}, { runTime: 0.2 })])] : sent;
       // The strips set aside settle on the shop's desk while the ticket goes down the API lane: two places, no crossing.
       return [...laid, ...kept, ...reaching, ...together([left, ticket])];
@@ -111,7 +112,7 @@ export default class Coverage extends Scene<World, {}> {
       switch (kindOf(t.event, t.after)) {
         case 'probe':
           // The User asks first; then a blank probe goes down each lane, and each stops where a barrier then stands.
-          return beats(c, () => [c.enter(c.keys('to').find((k) => k.startsWith('user:'))!, {}, { runTime: 0.4 }), ...together(LANES.map((name) => pass(c, `probe:${name}`, probeToken(s), [SEAL_AT, ...routeOf(name).slice(1, 3), [routeOf(name)[3]![0] - 0.9, routeOf(name)[3]![1]]], { appear: 0.2, move: 0.7, leave: 0.25 })))],
+          return beats(c, () => [c.enter(c.keys('to').find((k) => k.startsWith('user:'))!, {}, { runTime: 0.4 }), ...together(LANES.map((name) => pass(c, `probe:${name}`, probeToken(s).scale(0.45), [SEAL_AT, ...routeOf(name).slice(1, 3), [routeOf(name)[3]![0] - 0.9, routeOf(name)[3]![1]]], { appear: 0.2, move: 0.7, leave: 0.25 })))],
             { fresh: FRESH, then: LANES.map((name) => `barrier:${name}`) });
         case 'read':
           // The list comes down from the shop's board and crosses the counter under the rule into the agent's model, over no label.
@@ -119,12 +120,13 @@ export default class Coverage extends Scene<World, {}> {
         case 'report':
           // The report leaves the station sealed and goes into the counter's slot; the reply comes back out onto the desk.
           return beats(c, () => [
-            ...pass(c, 'report:sent', requestToken(s), [SEAL_AT, SLOT_AT], { appear: 0.15, move: 0.7, leave: 0.2 }),
+            ...pass(c, 'report:sent', requestToken(s).scale(0.28), [SEAL_AT, SLOT_AT], { appear: 0.15, move: 0.7, leave: 0.2 }),
             ...pass(c, 'report:reply', noteToken(s), [SLOT_AT, NOTE_AT], { appear: 0.15, move: 0.6, leave: 0.2 }),
           ], { fresh: FRESH });
         case 'sort':
           // A note lying on the desk is torn into strips where it lies; the skill card is laid there first.
-          return beats(c, sort(c, t.after, t.event === 'use skill'), { fresh: FRESH, lead: LEAD });
+          // What the shop's desk and the User's words showed goes first: the strips settle where they were.
+          return beats(c, sort(c, t.after, t.event === 'use skill'), { fresh: [...FRESH, 'desk:', 'user:'], lead: LEAD });
         case 'told':
           return beats(c, () => [], { fresh: FRESH });
       }

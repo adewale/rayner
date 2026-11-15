@@ -42,7 +42,8 @@ const NAME_X = -4.15;
 export const LANES = ['api', 'web', 'chat'] as const;
 export type Lane = (typeof LANES)[number];
 const LANE_NAME: Record<Lane, string> = { api: 'API', web: 'Website', chat: 'Chat' };
-const LANE_Y: Record<Lane, number> = { api: 3.8, web: 3.0, chat: 2.2 };
+// Names stand above their lanes, so a token riding a lane passes under its name, not over it.
+const LANE_Y: Record<Lane, number> = { api: 3.5, web: 2.7, chat: 1.9 };
 const BUNDLE: Record<Lane, number> = { api: 0.22, web: 0, chat: -0.22 };
 /** The corners of a lane, from the station to its stop on the counter. */
 export const routeOf = (on: Lane): Vec[] => laneRoute({ from: stationExit(STATION, STATION_R, BUNDLE[on]), trunk: TRUNK_X, y: LANE_Y[on], to: COUNTER_X, fan: FAN });
@@ -224,7 +225,7 @@ export function drawWorld(w: World, s: Stage): Group {
   const searched = last?.kind === 'searched';
   for (const name of LANES) {
     const [from, , , end] = routeOf(name), active = !!used && name === 'api';
-    addAll(parts, lane(s, { id: name, name: LANE_NAME[name], y: LANE_Y[name], from: from!, trunk: TRUNK_X, to: end![0], nameX: NAME_X, active, reached: active && used!.answer.status === 200, fan: FAN }));
+    addAll(parts, lane(s, { id: name, name: LANE_NAME[name], y: LANE_Y[name], from: from!, trunk: TRUNK_X, to: end![0], nameX: NAME_X, active, reached: active && used!.answer.status === 200, fan: FAN, nameAt: 'above' }));
     if (searched) parts.add(barrier(s, { at: [BARRIER_X, LANE_Y[name]], height: 0.72 }), `barrier:${name}`);
   }
   if (used) parts.add(ticket(s, { at: used.answer.status === 200 ? TICKET_AT : [BARRIER_X - 0.28 - TICKET.width / 2, LANE_Y.api], keyTeeth: keyOf(w).scopes.length }), 'ticket');

@@ -298,7 +298,8 @@ export default class MontyHall extends Scene<MontyState, { chapter?: Chapter }> 
               const { before, after } = t, c = t.choreograph(main);
               const from = roundDoor(round(before))!,
                 to = roundDoor(round(after))!;
-              const outline = c.from(`door-${from}`).find(`door-${from}:box`)!;
+              // The outline alone, unfilled: a filled copy of the door's box would hide the doors' words it passes over.
+              const outline = c.from(`door-${from}`).find(`door-${from}:box`)!.copy().setStyle({ fill: 'none' });
               const at = (i: number, lift: number) => outline.copy().moveTo([DOOR_X(i), DOOR_Y + lift]);
               const yours = c.insert('monty-yours', outline);
               return new Succession([
