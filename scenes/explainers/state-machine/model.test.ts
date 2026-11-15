@@ -1,7 +1,6 @@
 import { test, after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { isRefusal } from '../../../explain/index.ts';
-import { skipOracle } from '../lib/oracle.ts';
 import { HeldServer, drive, program } from './oracle/socket.ts';
 import type { Seen } from './oracle/socket.ts';
 import { READY, RESULT, SOCKET_EVENTS, socketStart, socketNext, socketBound, socketReplay, sendStatements } from './model.ts';
@@ -90,16 +89,16 @@ test('the page’s two opening programs, run as written on Node’s WebSocket', 
 });
 
 // What close() before open fires differs between Node 24 releases, by the undici they bundle: during
-// close(), then once the failed connection settles. Both were run; any other order fails this test.
-const CLOSE_BEFORE_OPEN: Record<string, { during: string[]; after: string[] }> = {
-  '7.8.0': { during: ['close at 3'], after: ['close at 3', 'error at 3', 'close at 3'] }, // Node 24.0.0
-  '7.30.1': { during: ['error at 3', 'close at 3'], after: ['error at 3', 'close at 3'] }, // Node 24.22.1
-};
+// close(), then once the failed connection settles. Each order lists the undici releases it was seen on;
+// a release listed must fire its own order, and any release must fire one of these, or this test fails.
+const CLOSE_BEFORE_OPEN = [
+  { seen: ['7.8.0'], during: ['close at 3'], after: ['close at 3', 'error at 3', 'close at 3'] }, // Node 24.0.0
+  { seen: ['7.30.1', '7.30.2'], during: ['error at 3', 'close at 3'], after: ['error at 3', 'close at 3'] }, // Node 24.22.1; CI's Node 24
+];
 
-test('close() before open fails the connection at once in Node 24, in an order that differs by release, which is why the page stops short of it', async (t) => {
+test('close() before open fails the connection at once in Node 24, in an order that differs by release, which is why the page stops short of it', async () => {
   assert.equal(socketBound(socketStart(), 'close()'), 'this page closes a socket only once it has opened');
   const undici = process.versions.undici ?? '';
-  const expected = CLOSE_BEFORE_OPEN[undici];
   const ws = new WebSocket(server.url);
   const fired: string[] = [];
   for (const e of ['open', 'error', 'close']) ws.addEventListener(e, () => fired.push(`${e} at ${ws.readyState}`));
@@ -108,9 +107,11 @@ test('close() before open fails the connection at once in Node 24, in an order t
   assert.equal(ws.readyState, READY.indexOf(socketReplay(['close()']).ready));
   const during = [...fired];
   await new Promise((resolve) => setTimeout(resolve, 250));
-  if (skipOracle(t, !expected && `undici ${undici} has not been run here: it fired ${JSON.stringify(during)} during close() and ${JSON.stringify(fired)} in all; record it in CLOSE_BEFORE_OPEN`) || !expected) return;
-  assert.deepEqual(during, expected.during);
-  assert.deepEqual(fired, expected.after);
+  const seen = { during, after: fired };
+  const recorded = CLOSE_BEFORE_OPEN.find((order) => order.seen.includes(undici));
+  if (recorded) assert.deepEqual(seen, { during: recorded.during, after: recorded.after }, `undici ${undici}`);
+  else assert.ok(CLOSE_BEFORE_OPEN.some((o) => JSON.stringify({ during: o.during, after: o.after }) === JSON.stringify(seen)),
+    `undici ${undici} fired ${JSON.stringify(during)} during close() and ${JSON.stringify(fired)} in all, an order not recorded in CLOSE_BEFORE_OPEN`);
 });
 
 test('the send() the code panel prints is the send() Node runs', () => {

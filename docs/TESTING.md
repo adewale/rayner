@@ -100,9 +100,8 @@ Some model tests run the outside system the explainer describes. A test that nee
 | string-length | `Intl.Segmenter` and `TextEncoder`, compared with `fixtures/segments.json`; `oracle/lengths.py` for `len()` and `str.encode()` | Node with Unicode 17.0; any `python3` |
 | send-sync | `rustc` compiles the model's claims and the opening program | `rustc` on PATH or in `RUSTC` (the runner image has one) |
 | fork | `git show` of Lantern's code at the fork base | the full history (`fetch-depth: 0`) |
-| state-machine | Node's own WebSocket against the local server in its `oracle/socket.ts`; what close() before open fires is compared with the order recorded for each undici release run | Node 24 with undici 7.8.0 (Node 24.0.0) or 7.30.1 (24.22.1); another release skips only that test, and fails it in CI |
 
-These run without a skip, so they fail wherever their tool is missing: git-branches and exgit (the Git CLI), mr-cache's `fidelity.ts` (`git diff`), latest-search (Node's promises), lantern (Rayner's engine) and agentic-mermaid (its verifier, a dependency of this checkout).
+These run without a skip, so they fail wherever their tool is missing: git-branches and exgit (the Git CLI), mr-cache's `fidelity.ts` (`git diff`), latest-search (Node's promises), state-machine (Node's own WebSocket, against the local server in its `oracle/socket.ts`), lantern (Rayner's engine) and agentic-mermaid (its verifier, a dependency of this checkout).
 
 ### Recorded once, not run by CI
 
