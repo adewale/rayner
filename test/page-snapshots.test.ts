@@ -8,7 +8,7 @@ import type {SnapshotStore} from '../explain/diagram-snapshot.ts';
 import {fc, params} from './lib/pbt.ts';
 import { loadProject } from '../explain/testing.ts';
 import { bindSnapshots } from '../explain/internal.ts';
-import { toSvgString } from '../src/output.ts';
+import { toSvgString } from '../src/svg.ts';
 import type {SceneClass} from '../src/index.ts';
 
 import { fixture } from './lib/page-snapshot-fixture.ts';

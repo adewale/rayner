@@ -1,4 +1,5 @@
-import { Scene, FadeIn, Create, Transform, AnimationGroup, Succession, rushFrom, thereAndBack, keyed } from '../../../src/index.ts';
+import { Scene, FadeIn, Create, Transform, AnimationGroup, Succession, keyed } from '../../../src/index.ts';
+import { rushFrom, thereAndBack } from '../../../extras/index.ts';
 import type { View, ExplainerMeta } from '../../../explain/index.ts';
 import type { ScheduledAnimation, VMobject } from '../../../src/index.ts';
 import { stage, settingsOf, Machine, view } from '../../../explain/index.ts';

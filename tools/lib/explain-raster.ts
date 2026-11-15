@@ -1,4 +1,4 @@
-import { toSvgString } from '../../src/output.ts';
+import { toSvgString } from '../../src/index.ts';
 import type { Scene } from '../../src/index.ts';
 import { FRAME } from '../../src/internal.ts';
 import { cliManifest } from './roots.ts';

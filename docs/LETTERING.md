@@ -27,7 +27,7 @@ export default class Example extends Scene<{}, {}> {
 
 `Text`, `Code`, native stage panels, headings and diagram labels use the requested faces. The browser and resvg draw the same stored paths: there is no browser font request, system-font lookup, HarfBuzz or TeX at runtime. `MathTex` is laid out at build time by glyph's TeX subset and OpenType MATH; `{ display: true }` selects display layout. Invalid TeX, unavailable glyphs, and `MathTex` without `math: true` fail the build.
 
-`textContext: 'explicit'` makes shaping belong to the objects the scene creates: pass `shaping: this.textShaping` to `Text`, `Code`, `ItalicText`, `MathTex`, axes and every other text-bearing primitive. Stage headings, cards, code blocks, the drawing kit's pictures (labels, tiles, tables, annotations and the rest) and diagram labels get the scene's shaping automatically. A copied text keeps its shaping, including when edited after the scene finishes, so explicit scenes with different faces can run together. A scene without `textContext` gives `new Text(...)` the running scene's shaping, which serializes conflicting scene contexts across awaits.
+`textContext: 'explicit'` makes shaping belong to the objects the scene creates: pass `shaping: this.textShaping` to `Text`, `Code`, `MathTex`, axes and every other text-bearing primitive. Stage headings, cards, code blocks, the drawing kit's pictures (labels, tiles, tables, annotations and the rest) and diagram labels get the scene's shaping automatically. A copied text keeps its shaping, including when edited after the scene finishes, so explicit scenes with different faces can run together. A scene without `textContext` gives `new Text(...)` the running scene's shaping, which serializes conflicting scene contexts across awaits.
 
 ## Capture, check, build
 
@@ -119,17 +119,17 @@ After opting in, run `rayner snapshots scene.ts` and commit both the diagram and
 Without a request, `weight: 'bold'` strokes the Regular outline (faux bold) and there is no italic. Ask for the real cuts:
 
 ```ts
-import { Scene, Text, ItalicText } from 'rayner';
+import { Scene, Text } from 'rayner';
 
 static meta = { id: 'cuts', title: 'Cuts', lettering: { styles: ['bold', 'italic'] } };
 // In construct():
 this.add(new Text('Bold', { weight: 'bold' }));            // the Bold cut, no stroke
-this.add(new ItalicText('Italic'));                         // the Italic cut
-this.add(new ItalicText('Both', { weight: 'bold' }));       // the Bold Italic cut
+this.add(new Text('Italic', { italic: true }));                    // the Italic cut
+this.add(new Text('Both', { weight: 'bold', italic: true }));       // the Bold Italic cut
 ```
 
 - `styles` lists `LetteringStyle`s, `'bold'` and `'italic'`. With `'bold'`, every bold Text in the explainer draws its face's Bold cut, the stage heading and panel titles included. Without it, bold stays faux.
-- `ItalicText` is a `Text` in the Italic cut. It fails the build unless `styles` includes `'italic'`; there is no faux italic. With both styles, `weight: 'bold'` gives Bold Italic.
+- `italic: true` draws a `Text` in the Italic cut. It fails the build unless `styles` includes `'italic'`; there is no faux italic. With both styles, `weight: 'bold'` gives Bold Italic.
 - The cuts come from the family's face: the requested `faces.sans` or `faces.mono`, else the full releases of Inter for `sans` and JetBrains Mono for `mono`. A requested face without the cut fails capture, naming it: `noto-sans-hebrew` has no italic.
 - Scripts follow the nearest cut their face has. Noto Naskh Arabic, Noto Sans Devanagari and Noto Sans Hebrew have Bold cuts and no italic, so italic text in them draws upright and bold italic draws bold. Noto Sans SC has no Bold cut in the registry, so bold Chinese fails capture, naming that face. Symbols and numerals that only the embedded Noto fallbacks draw stay at their one weight.
 - HarfBuzz shapes each cut at capture like any other run, keyed `["sans/bold", text, false]`. A cut's subset holds only the characters styled runs asked of it, plus the numeric alphabet for the family's own cut, so a bold counter replays at any frame rate.

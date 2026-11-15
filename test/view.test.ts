@@ -11,7 +11,8 @@ import { card } from '../explain/drawing.ts';
 import type { Card } from '../explain/drawing.ts';
 import assert from 'node:assert/strict';
 import { Scene, Group, Text, DecimalNumber, Rectangle, Circle, Animation, FadeIn, Succession, keyed } from '../src/index.ts';
-import { StringSink, renderFrame } from '../src/output.ts';
+import { StringSink } from '../src/svg.ts';
+import { renderFrame } from '../src/timeline.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { loadFonts, assertViewFollowsState } from '../explain/testing.ts';
 import { viewMismatch } from '../explain/internal.ts';
@@ -363,7 +364,7 @@ test('a returning sync preserves inherited scale for the next rebuild or sync', 
 
 test('rayner check names a view whose picture lags the state at the end of a step', async () => {
   const { ViewSink, FanSink } = await import('../tools/lib/explain-check.ts');
-  const { NullSink } = await import('../src/output.ts');
+  const { NullSink } = await import('../src/timeline.ts');
   const lagging = (sync: boolean) => class extends Scene<{ n: number }> {
     override state = { n: 1 };
     override async construct() {
@@ -386,7 +387,7 @@ test('rayner check names a view whose picture lags the state at the end of a ste
 
 test('rayner check names a view whose words match its state but whose marks do not', async () => {
   const { ViewSink, FanSink } = await import('../tools/lib/explain-check.ts');
-  const { Group, Rectangle } = await import('../src/index.ts'); const { NullSink } = await import('../src/output.ts');
+  const { Group, Rectangle } = await import('../src/index.ts'); const { NullSink } = await import('../src/timeline.ts');
   // A label and a bar under row `lit`: moving the bar by hand, outside the state, leaves the words alone.
   const marked = (byHand: boolean) => class extends Scene<{ lit: number }> {
     override state = { lit: 0 };
@@ -428,8 +429,8 @@ test('having narrows a state to the shapes that hold its keys and throws on a st
 });
 
 test('a view measures a fresh picture without changing itself, and records its fit only once it takes the picture', async () => {
-  const { thereAndBack } = await import('../src/index.ts');
-  const { NullSink } = await import('../src/output.ts');
+  const { thereAndBack } = await import('../extras/index.ts');
+  const { NullSink } = await import('../src/timeline.ts');
   const scene = new Scene<{ w: number }>(new NullSink());
   scene.state = { w: 1 };
   const v = view(scene, (st: { w: number }) => new Rectangle({ width: st.w, height: st.w }));

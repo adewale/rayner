@@ -38,8 +38,6 @@ export interface ExplainerMeta {
   lettering?: LetteringRequest;
   /** Text takes the scene's shaping as TextOptions.shaping (this.textShaping) instead of the running scene's. */
   textContext?: 'explicit';
-  /** A scenario picker starts at its first step; transcript links enter there too. Direct step URLs still work. */
-  scenarioNavigation?: 'first';
   player?: PlayerMeta;
   /**
    * The state readers follow, from a `scene.state` key to its label in the scene's language (at most
@@ -77,7 +75,7 @@ export type ExplainerClass = SceneClass & {
 };
 // Every key of ExplainerMeta and PlayerMeta, so the type and the check below cannot drift apart.
 const META_KEYS: { readonly [K in keyof Required<ExplainerMeta>]: true } = {
-  id: true, title: true, lang: true, sources: true, lettering: true, textContext: true, scenarioNavigation: true,
+  id: true, title: true, lang: true, sources: true, lettering: true, textContext: true,
   player: true, watch: true, answer: true, questions: true, checkedAgainst: true, grounding: true, claims: true,
 };
 const PLAYER_KEYS: { readonly [K in keyof Required<PlayerMeta>]: true } = { accent: true, paper: true, corners: true, minStageWidth: true, outline: true };

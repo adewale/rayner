@@ -1,9 +1,9 @@
-import { Group, Arrow, Text, keyed } from '../../../src/index.ts';
+import { Group, Arrow, Circle, Text, keyed } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { currentFiles, unreachable } from './model.ts';
 import type { GitFrame } from './model.ts';
-import { label, tile, dot, table } from '../../../explain/drawing.ts';
+import { label, tile, table } from '../../../explain/drawing.ts';
 
 // How the git-branches explainer draws one frame: the commits and their parent arrows, the branch
 // tags and HEAD, a "no branch" tag on a commit no label reaches, and the checked-out files.
@@ -33,7 +33,12 @@ export function picture(s: Stage, frame: GitFrame, note: string) {
         ),
       );
     }
-  for (const c of frame.commits) graph.add(dot(s, c.id, { at: AT[c.id]!, active: c.id === frame.current }));
+  // Each commit is a circle on the paper with its letter inside, outlined boldly in emphasis when HEAD is on it.
+  for (const c of frame.commits) {
+    const at = AT[c.id]!, current = c.id === frame.current;
+    const circle = new Circle({ radius: 0.5, fill: s.look.paper, stroke: current ? s.look.emphasis : s.look.soft, strokeWidth: current ? 0.055 : 0.03 }).moveTo(at);
+    graph.add(new Group(circle, label(s, c.id, { at, size: 0.7 })));
+  }
   const branches = new Map<string, string[]>();
   for (const [name, id] of [
     ['feature', frame.feature],

@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Dot } from '../src/index.ts';
-import { NullSink } from '../src/output.ts';
+import { NullSink } from '../src/timeline.ts';
 import { loadFonts } from '../explain/testing.ts';
 import type { Box, Mobject } from '../src/index.ts';
 import { Diagram } from '../explain/diagrams.ts';

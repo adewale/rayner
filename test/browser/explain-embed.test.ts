@@ -14,7 +14,7 @@ import { buildExplainer, buildLoader } from '../../tools/lib/explain-build.ts';
 import { serve } from '../../tools/lib/explain-serve.ts';
 import { publishedPage } from '../../tools/lib/explain-share.ts';
 import { fc, params } from '../lib/pbt.ts';
-import { resolveSettings } from '../../explain/index.ts';
+import { resolveSettings } from '../../explain/settings.ts';
 import type { Settings } from '../../explain/index.ts';
 import { settingsProblem } from '../../explain/settings.ts';
 import { pictureHtml, pictureSummary, stepWords } from '../../explain/trace.ts';
@@ -55,9 +55,6 @@ before(async () => {
   const comparison = await collectProject('test/fixtures/reading-comparison', {write: false});
   projects.set('reading-comparison', comparison);
   await buildExplainer(comparison, join(folder, 'reading-comparison.html'));
-  const navigation = await collectProject('test/fixtures/scenario-navigation', {write: false});
-  projects.set('scenario-navigation', navigation);
-  await buildExplainer(navigation, join(folder, 'scenario-navigation.html'));
   const references = await collectProject('test/fixtures/reference-steps', {write: false});
   projects.set('references', references);
   await buildExplainer(references, join(folder, 'references.html'));
@@ -311,26 +308,22 @@ test('Next is on screen at load', options, async () => {
   }
 });
 
-readerTest('scenarioNavigation first starts each scenario at its first step, including transcript links, while a direct link to a later step still works', { viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' }, () => embed + '/scenario-navigation.html?pick=two&step=answer', async page => {
-    assert.equal(new URL(page.url()).searchParams.get('step'), 'answer', 'a direct link to a later step remains valid');
-    const links = await page.locator('.transcript section a').evaluateAll(anchors => anchors.map(a => new URL((a as HTMLAnchorElement).href).searchParams.get('step')));
-    assert.equal(links.length, 3, 'each scenario offers one entry link');
-    assert.deepEqual([...new Set(links)], ['question'], 'entry links start at the first step');
-    await page.locator('fieldset.scenario input[value="three"]').check();
-    await page.waitForURL(/pick=three&step=question/);
-    assert.equal(await page.locator('.steps button[aria-current="step"]').getAttribute('data-step'), 'question');
-    await page.locator('.stepper button[aria-label="Next step"]').click();
-    await page.waitForURL(/pick=three&step=answer/);
-    await page.goBack();
-    await page.waitForURL(/pick=three&step=question/);
-    await page.goBack();
-    await page.waitForURL(/pick=two&step=answer/);
-    assert.equal(new URL(page.url()).searchParams.get('pick'), 'two');
-    assert.equal(new URL(page.url()).searchParams.get('step'), 'answer');
-    // A scene without it keeps the reader's step by name across a scenario change.
-    await visitReader(page, embed + '/mr-cache.html?request=hit&step=request');
+readerTest('a scenario change keeps the reader\'s step by name, each transcript step links its scenario, and Back returns through the change', { viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' }, () => embed + '/mr-cache.html?request=hit&step=diff', async page => {
+    // Every step of every scenario is a link in the transcript, to that scenario at that step.
+    const links = await page.locator('.transcript section a').evaluateAll(anchors => anchors.map(a => { const q = new URL((a as HTMLAnchorElement).href).searchParams; return `${q.get('request')}:${q.get('step')}`; }));
+    const project = projects.get('mr-cache')!;
+    assert.deepEqual(links, project.scenarios.flatMap(({ values, trace }) => trace.steps.map((s) => `${values.request}:${s.step}`)));
     await page.locator('fieldset.scenario input[value="miss"]').check();
-    await page.waitForURL(/request=miss&step=request/);
+    await page.waitForURL(/request=miss&step=diff/);
+    assert.equal(await page.locator('.steps button[aria-current="step"]').getAttribute('data-step'), 'diff');
+    await page.locator('.stepper button[aria-label="Next step"]').click();
+    await page.waitForURL(/request=miss&step=after/);
+    await page.goBack();
+    await page.waitForURL(/request=miss&step=diff/);
+    await page.goBack();
+    await page.waitForURL(/request=hit&step=diff/);
+    assert.equal(new URL(page.url()).searchParams.get('request'), 'hit');
+    assert.equal(new URL(page.url()).searchParams.get('step'), 'diff');
     });
 
 readerTest('fullscreen keeps the stepper row reachable when the player overflows', {viewport: {width: 1280, height: 800}, reducedMotion: 'reduce'}, () => embed + '/mr-cache.html?step=before&request=hit', async page => {

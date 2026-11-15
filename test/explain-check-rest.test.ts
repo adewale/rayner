@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Text, Rectangle, FadeIn } from '../src/index.ts';
-import { toSvgString } from '../src/output.ts';
+import { toSvgString } from '../src/svg.ts';
 import { stage, withoutHeading } from '../explain/stage.ts';
 import { FanSink, FrameCaptureSink, LastFrameSink, LegibilitySink, LookWordsSink, RestingSink } from '../tools/lib/explain-check.ts';
 import { restingPictures } from '../tools/lib/explain-shots.ts';

@@ -12,7 +12,7 @@
 // The measures, words, plates, connectors and choreography are the reusable part of the Poppy
 // series' visual system (scenes/explainers/lib/poppy-kit.ts), which builds on them: test/drawing.test.ts
 // checks that the two still draw and play alike.
-import { AnimationGroup, Group, Rectangle, Circle, Line, Arrow, Succession, Text, keyed } from '../src/index.ts';
+import { AnimationGroup, Group, Rectangle, Line, Arrow, Succession, Text, keyed } from '../src/index.ts';
 import type { Animation, Mobject, Style, Vec, Box } from '../src/index.ts';
 import type { Choreography } from './choreograph.ts';
 import type { Stage } from './stage.ts';
@@ -135,9 +135,9 @@ export function addAll(parts: Parts, composite: Mobject | readonly Mobject[]): v
  * text shaping; then what the picture shows, positionally (its text, rows or items, and what it
  * measures or points at); then one options object. In it, `at` is where the picture stands, `size`
  * its text size, and `key` the address of a composite and its parts. A function whose parts are keyed
- * requires `key`; one that takes it optionally (`tile`, `dot` and the annotations) keys its parts only
+ * requires `key`; one that takes it optionally (`tile` and the annotations) keys its parts only
  * when given it. Each keyed composite keys its parts under its own key (`key:box`, `key:label` and so
- * on), so a scene addresses a part by key, never by index. A single part (`words`, `label`, `connector`, `segment`) takes no
+ * on), so a scene addresses a part by key, never by index. A single part (`words`, `label`, `connector`) takes no
  * `key`: key it with `keyed()`, the one way to key a part.
  * Text is made with the scene's shaping.
  */
@@ -292,31 +292,6 @@ export function route(first: Vec, ...rest: Vec[]): Line {
   const path = new Line(points[0]!, points[1]!);
   for (const p of points.slice(2)) path.addLineTo(p);
   return path;
-}
-/** A straight stroke from `a` to `b`, in the look's ink unless given a `color`. Key it with `keyed()`. */
-export function segment(
-  s: Stage,
-  a: Vec,
-  b: Vec,
-  { color = s.look.ink, strokeWidth = 0.04 }: { color?: string; strokeWidth?: number } = {},
-): Line {
-  return new Line(a, b, { stroke: color, strokeWidth });
-}
-/** A labelled circle at `at`, emphasised when `active`. Keyed `key` when given, with its parts `key:circle` and `key:label`. */
-export function dot(
-  s: Stage,
-  text: string,
-  { at = [0, 0], active = false, key }: { at?: Vec; active?: boolean; key?: string } = {},
-): Group {
-  const circle = new Circle({
-    radius: 0.5,
-    fill: s.look.paper,
-    stroke: active ? s.look.emphasis : s.look.soft,
-    strokeWidth: active ? 0.055 : 0.03,
-  }).moveTo(at);
-  const words = label(s, text, { at, size: 0.7 });
-  if (key === undefined) return new Group(circle, words);
-  return keyed(new Group(keyed(circle, `${key}:circle`), keyed(words, `${key}:label`)), key);
 }
 /**
  * Where a table's columns go: their centres, or an edge for the measured columns to

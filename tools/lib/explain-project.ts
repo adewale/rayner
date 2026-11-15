@@ -12,10 +12,10 @@ import { pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { Scene } from '../../src/index.ts';
-import { NullSink } from '../../src/output.ts';
+import { NullSink } from '../../src/internal.ts';
 import type { Trace } from '../../explain/testing.ts';
 
-import { resolveSettings } from '../../explain/index.ts';
+import { resolveSettings } from '../../explain/internal.ts';
 import { withSettings } from '../../explain/testing.ts';
 import type { ExplainerClass, SnapshotStore, Settings } from '../../explain/index.ts';
 import { lostLabelWarnings } from './explain-warnings.ts';
@@ -68,7 +68,7 @@ export function engineAlias(node = false, outlines = false): Plugin {
         if (entry) file = join(LIB_ROOT, entry + '.ts');
         else if (args.path.startsWith('.') || args.path.startsWith('/')) {
           const absolute = resolve(args.resolveDir, args.path);
-          const compiled = absolute.match(/\/dist\/(src|explain)\/(.+)\.js$/);
+          const compiled = absolute.match(/\/dist\/(src|explain|extras)\/(.+)\.js$/);
           // The library's sources import its shaper beside them; it ships once, beside the compiled modules.
           if (!node && absolute === join(LIB_ROOT, 'vendor/glyph.js')) return { path: GLYPH };
           if (compiled) file = join(LIB_ROOT, compiled[1]!, compiled[2]! + '.ts');
@@ -77,7 +77,7 @@ export function engineAlias(node = false, outlines = false): Plugin {
             // so its imports land beside it; the engine itself is the library's.
             for (const base of new Set([LIB_ROOT, ROOT])) {
               const local = relativePosix(base, absolute);
-              if (local.startsWith('src/') || local.startsWith('explain/')) {
+              if (local.startsWith('src/') || local.startsWith('explain/') || local.startsWith('extras/')) {
                 file = join(LIB_ROOT, local);
                 break;
               }

@@ -1,5 +1,5 @@
 import {readFile} from 'node:fs/promises';
-import { jsonObject } from '../../explain/testing.ts';
+import { jsonObject } from '../../src/internal.ts';
 import { isIdentifier } from '../../explain/internal.ts';
 import type {NarrowOpeningObligation} from './explain-review-plan.ts';
 

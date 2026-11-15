@@ -1,4 +1,5 @@
-import { Scene, Rectangle, Dot, Line, GrowFromEdge, PulseAlongPath } from 'rayner';
+import { Scene, Rectangle, Dot, Line } from 'rayner';
+import { GrowFromEdge, PulseAlongPath } from 'rayner/extras';
 import { view, stage } from 'rayner/explain';
 import { card } from 'rayner/drawing';
 

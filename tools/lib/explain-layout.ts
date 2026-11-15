@@ -1,7 +1,7 @@
 // The geometric part of Lantern's layout verifier, adapted for Rayner's semantic
 // diagram labels, painted VMobject connectors, clipped camera and label plates.
 import { Arc, Line, Rectangle, VMobject } from '../../src/index.ts';
-import { renderElements } from '../../src/output.ts';
+import { renderElements } from '../../src/internal.ts';
 import type { Box, Mobject, Scene, Vec } from '../../src/index.ts';
 import { contains, intersect, nonempty, pad, pointsBox, isHex, mobjectId } from '../../src/internal.ts';
 import { isDiagramConnector, labelOf, isFurniture, isHeading } from '../../explain/internal.ts';

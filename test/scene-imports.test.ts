@@ -57,7 +57,7 @@ function violations(file: string, source: string): string[] {
   for (const { fileName: spec } of importedFiles) {
     if (isTest(file) && (spec === 'rayner/testing' || relative(ROOT, resolve(ROOT, dirname(file), spec)) === 'explain/testing.ts')) continue;
     if (spec === 'rayner/testing') {
-      out.push(`${file}: ${spec} (author tooling, for tests and tools: a scene is written with rayner, rayner/explain, rayner/drawing and rayner/geo)`);
+      out.push(`${file}: ${spec} (author tooling, for tests and tools: a scene is written with rayner, rayner/explain, rayner/drawing, rayner/geo and rayner/extras)`);
       continue;
     }
     if (spec === 'rayner' || spec.startsWith('rayner/')) {
@@ -90,7 +90,7 @@ test('the entry points are the documented package exports', () => {
     [...ENTRY].sort(),
     [
       ['explain/drawing.ts', 'rayner/drawing'], ['explain/geo.ts', 'rayner/geo'], ['explain/index.ts', 'rayner/explain'],
-      ['explain/testing.ts', 'rayner/testing'], ['src/index.ts', 'rayner'], ['src/output.ts', 'rayner/output'],
+      ['explain/testing.ts', 'rayner/testing'], ['extras/index.ts', 'rayner/extras'], ['src/index.ts', 'rayner'],
     ],
   );
 });
@@ -126,7 +126,8 @@ test('the rule rejects an internal module, a package name and a dynamic import, 
     "import { stage, Card } from '../../../explain/index.ts';",
     "import { table } from '../../../explain/drawing.ts';",
     "import type { LetteringRequest } from '../../../src/index.ts';",
-    "import { renderFrame } from '../../../src/output.ts';",
+    "import { renderFrame } from '../../../src/index.ts';",
+    "import { GrowFromEdge } from '../../../extras/index.ts';",
     "import { model } from '../lib/model.ts';",
     "import { readFile } from 'node:fs/promises';",
   ].join('\n');

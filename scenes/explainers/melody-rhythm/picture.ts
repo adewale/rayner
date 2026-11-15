@@ -1,7 +1,7 @@
-import { Group, Rectangle, Circle, keyed } from '../../../src/index.ts';
+import { Group, Rectangle, Circle, Line, keyed } from '../../../src/index.ts';
 import type { AudioClip } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
-import { label, segment } from '../../../explain/drawing.ts';
+import { label } from '../../../explain/drawing.ts';
 import { NOTE_NAMES } from './model.ts';
 
 /** What a step's score outlines, marks and says. */
@@ -38,8 +38,8 @@ export function scorePicture(s: Stage, clips: AudioClip[], look: Look = {}) {
     if (!look.bare)
     for (let beat = 0; beat <= 8; beat++)
       row.add(
-        segment(s, [X0 + beat * DX, base - 0.3], [X0 + beat * DX, top + 0.25], {
-          color: beat === 4 || look.pulse ? s.look.emphasis : s.look.soft,
+        new Line([X0 + beat * DX, base - 0.3], [X0 + beat * DX, top + 0.25], {
+          stroke: beat === 4 || look.pulse ? s.look.emphasis : s.look.soft,
           strokeWidth: beat === 4 ? 0.04 : look.pulse ? 0.035 : 0.012,
         }),
       );

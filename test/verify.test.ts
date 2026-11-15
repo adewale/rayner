@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, MoveAlongPath, Rectangle, Circle, FadeIn, FadeOut, Transform, Create, Line, linear, thereAndBack } from '../src/index.ts';
+import { Scene, MoveAlongPath, Rectangle, Circle, FadeIn, FadeOut, Transform, Create, Line, linear } from '../src/index.ts';
+import { thereAndBack } from '../extras/index.ts';
 import { MotionSink, analyzeMotion } from '../src/internal.ts';
 import type { Vec, MoveAlongPathOptions } from '../src/index.ts';
 // Manim's values, which the package no longer exports.
@@ -15,7 +16,7 @@ const run = async (body: (s: Scene) => Promise<void>): Promise<string[]> => {
 };
 
 test('MotionSink only reads a frame: after it takes each frame, the scene draws the same SVG and keeps the same state', async () => {
-  const { toSvgString } = await import('../src/output.ts');
+  const { toSvgString } = await import('../src/svg.ts');
   const inner = new MotionSink();
   const look = (s: Scene) => toSvgString(s) + JSON.stringify(s.stateJson());
   const changed: number[] = [];

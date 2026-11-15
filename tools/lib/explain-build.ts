@@ -8,7 +8,7 @@ import { gzipSync } from 'node:zlib';
 import { pageSize } from './page-budget.ts';
 import { packPageSnapshots } from './page-snapshots.ts';
 import { sceneEntry, shippedScenario, shippedStore } from './scene-entry.ts';
-import { renderFrame } from '../../src/output.ts';
+import { renderFrame } from '../../src/index.ts';
 import { chromeFor, scenarioNameIn, changeText, descriptionLang } from '../../app/embed-strings.ts';
 import { pictureHtml, htmlEscape, stepWords, watchedChanges, wordsHtml, stepAudio, liveBase, stepQuery, groundingDetails, groundingSentence, predictionsOf } from '../../explain/internal.ts';
 import type { Grounding } from '../../explain/internal.ts';
@@ -129,9 +129,7 @@ export async function buildExplainer(
           shows = pictureHtml(s.shown, trace.steps[i - 1]?.shown),
           words = stepWords(s),
           changes = watchedChanges(s, project.Scene.meta?.watch, lang).map((c) => changeText(t, c));
-        const entry = project.Scene.meta?.scenarioNavigation === 'first' && i > 0
-          ? `<span>${htmlEscape(words.title)}</span>`
-          : `<a href="${htmlEscape(href)}">${htmlEscape(words.title)}</a>`;
+        const entry = `<a href="${htmlEscape(href)}">${htmlEscape(words.title)}</a>`;
         const live = liveLines[n]!.get(s.step);
         // A prediction's question and options on the step that asks it, its answer only on the step that reveals it.
         const revealed = predictions.filter((p) => p.revealAt === i)

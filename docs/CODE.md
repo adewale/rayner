@@ -137,7 +137,7 @@ is the example). Nothing in `src/` or the browser bundle imports shiki or the le
 
 ## Cost: elements per line
 
-The DOM renderer (`DomSink`, absolute path mode) draws a group of glyphs as one
+The player's DOM renderer (absolute path mode) draws a group of glyphs as one
 `<path>` per run of consecutive equal-styled glyphs (`mergedRecords` in
 `src/svg.ts`). A plain line is one element; a coloured line is one element per
 colour run. Spaces have no glyph, so `return await` in one colour is one run.

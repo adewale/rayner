@@ -12,7 +12,9 @@ import {
   Scene, Code, Text, FadeIn, LaggedStart, TransformDiff, TransformMatchingText, VMobject,
   diffLines, parseUnifiedDiff, keyed,
 } from '../src/index.ts';
-import { StringSink, renderText, renderFrame } from '../src/output.ts';
+import { StringSink } from '../src/svg.ts';
+import { renderText } from '../src/ascii.ts';
+import { renderFrame } from '../src/timeline.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
 import { MotionSink, analyzeMotion } from '../src/internal.ts';

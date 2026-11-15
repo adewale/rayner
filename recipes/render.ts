@@ -1,10 +1,10 @@
-// Node 24 runner. Native SVG/text/trace generation needs no browser.
+// Node 24 runner. Native SVG, state and trace generation needs no browser.
 import { mkdir, writeFile } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { StringSink, renderFrame, renderText, renderElements, toSvgString } from 'rayner/output';
+import { StringSink, renderFrame, toSvgString } from 'rayner';
 import { traceScene } from 'rayner/testing';
 import type { SceneClass } from 'rayner';
 import DocumentScene from './document.ts';
@@ -21,10 +21,7 @@ export const recipes: Readonly<Record<string, SceneClass>> = {
 export async function outputs(SceneClass: SceneClass, frame = 15) {
   if (!Number.isInteger(frame) || frame < 0) throw new RangeError('frame must be a whole number, 0 or more');
   const scene = await renderFrame(SceneClass, frame);
-  return {
-    svg: toSvgString(scene), text: renderText(scene), elements: renderElements(scene),
-    state: scene.stateJson(), trace: await traceScene(SceneClass),
-  };
+  return { svg: toSvgString(scene), state: scene.stateJson(), trace: await traceScene(SceneClass) };
 }
 
 export async function main(args = process.argv.slice(2)): Promise<void> {
@@ -46,14 +43,14 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     }
     const result = await outputs(SceneClass, frame);
     for (const [suffix, body] of Object.entries({
-      svg: result.svg, txt: result.text, 'elements.json': JSON.stringify(result.elements, null, 2),
+      svg: result.svg, 'state.json': JSON.stringify(result.state, null, 2),
       'trace.json': JSON.stringify(result.trace, null, 2),
     })) await writeFile(join(folder, `${name}.${suffix}`), body + '\n');
     if (values.frames) {
       const sink = new StringSink(); await new SceneClass(sink).run();
       await writeFile(join(folder, `${name}.frames.json`), JSON.stringify(sink.frames));
     }
-    console.log(`${name}: SVG, text, elements and trace written to ${folder}`);
+    console.log(`${name}: SVG, state and trace written to ${folder}`);
   }
 }
 
