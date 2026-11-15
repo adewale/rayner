@@ -16,7 +16,7 @@ import { Group, Rectangle, Circle, VMobject, Arrow, keyed } from '../../../src/i
 import type { Vec } from '../../../src/index.ts';
 import type { Part, Vec3, Viewpoint, SeenOptions } from '../../../explain/geo.ts';
 import { seenFrom, project, circleOn, greatArc, latLon, toLatLon } from '../../../explain/geo.ts';
-import { label } from '../../../explain/drawing.ts';
+import { TYPE, label } from '../../../explain/drawing.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { LAND } from './land.ts';
 import { REFRACTION, TILT, along } from './model.ts';
@@ -24,8 +24,8 @@ import { INK, SUN, SUMMER, MUTED, ROAD, WALL, azAlt, facing, pinhole, flat, cany
 import type { Canyon } from './sky.ts';
 
 const rad = Math.PI / 180;
-/** Label size: 12 px on a 390 px phone's whole picture. */
-const NAME = 0.54;
+/** Label size: the drawing kit's floor, 12.5 px on a 358 px phone stage showing the whole picture. */
+const NAME = TYPE.small;
 /** The globe's labels: large enough that a phone's opening holds the globe and its key together. */
 const BIG = 0.6;
 
