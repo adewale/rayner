@@ -121,7 +121,7 @@ CI compares the model with what these systems answered when someone ran them; it
 | statecharts | XState 5.33.3 (`oracle/statecharts.ts`) | `node oracle/statecharts.ts <dir>` with XState installed |
 | tailwind-gamut | Color.js 0.7.1 | by hand |
 | gtfs | gtfs-kit 13.0.1 | by hand |
-| henge | pyerfa 2.0.1.5 (`oracle/henge.py`) | with pyerfa installed |
+| henge | Skyfield 1.55 with JPL DE440s and GeographicLib 2.1 over four OpenStreetMap nodes (`oracle/sun.py`); Natural Earth 1:110m land (`oracle/land.py`); pyerfa 2.0.1.5 (`oracle/henge.py`) | with skyfield, geographiclib and DE440s; with the Natural Earth file; with pyerfa installed |
 | great-circle | GeographicLib 2.0 (`oracle/great-circle.py`) | with geographiclib installed |
 | periodic-groups | NIST Atomic Spectra Database ground configurations | by hand |
 | quotient-familial | openfisca-france 176.1.3 | by hand |
