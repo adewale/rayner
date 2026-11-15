@@ -212,10 +212,10 @@ assume `copy()` knows how to clone an arbitrary closure or external handle.
 
 [continuous.ts](../recipes/continuous.ts) supplies `orbit(angle)`, `makeOrbit()` and
 `FollowAngle extends Animation`. One angle determines a dot's position, the radius
-endpoint and a decimal readout. Sample the middle of the motion:
+endpoint and a decimal readout. Sample the middle of the one-second sweep, frame 15 at 30 fps:
 
 ```sh
-npm run recipes -- --scene continuous --time 0.5 --out out/orbit
+npm run recipes -- --scene continuous --frame 15 --out out/orbit
 ```
 
 The dot is at the top of the circle and the number reads 1.57, because the recipe
