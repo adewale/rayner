@@ -77,7 +77,7 @@ test('a sample of the corpus: a defect each for covers, small words and flicker 
   }
 });
 
-test('the whole corpus: every defect caught when recall was measured is still caught', { skip: !process.env.FULL && 'set FULL=1 (npm run test:full): it checks every corpus entry, several minutes' }, async () => {
+test('the whole corpus: every defect caught when recall was measured is still caught', { skip: !process.env.FULL && 'set FULL=1 (npm run test:full): it checks every corpus entry, about 14 minutes on four cores' }, async () => {
   const { results } = await runCorpus(CORPUS, { bases: false });
   for (const r of results) assert.equal(r.error, undefined, `${r.id}: ${r.error}`);
   const caught = results.filter((r) => r.caught).map((r) => r.id);

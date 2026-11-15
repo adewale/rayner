@@ -20,7 +20,7 @@ node tools/repo/motion-corpus.ts --full         # every event's transitions, as 
 node tools/repo/motion-corpus.ts --only <id>,…  # some entries
 ```
 
-`test/motion-corpus.test.ts` checks that every entry's edits still apply, runs a sample by default (one entry each for covers, small words and flicker), and with `FULL=1` (`npm run test:full`, CI's `check` job) runs every entry and fails if one caught when recall was measured is missed. "Before" is the check as it was at 3e71fe38 (jump, flicker, early words); "after" is the check with the two rules added here (covers, small words) and flicker's same place widened from 0.08 to 0.2 units.
+`test/motion-corpus.test.ts` checks that every entry's edits still apply, runs a sample by default (one entry each for covers, small words and flicker; 16 s), and with `FULL=1` (`npm run test:full`, CI's `check` job) runs every entry (14 minutes on four cores) and fails if one caught when recall was measured is missed. "Before" is the check as it was at 3e71fe38 (jump, flicker, early words); "after" is the check with the two rules added here (covers, small words) and flicker's same place widened from 0.08 to 0.2 units.
 
 ## Recall
 
@@ -121,7 +121,7 @@ Run with `--full`, every event's transitions as `rayner check` plays them, every
 
 ## Found in the catalog, and fixed
 
-With the two rules, the catalog's first run found these, all in the Poppy series; each was a real defect of the kind filming fixed elsewhere, and each scene was fixed, not the rule loosened:
+With the two rules, the catalog's first run found these, in five Poppy chapters, monty-hall and the writing guide's example; each was a real defect of the kind filming fixed elsewhere, and each scene was fixed, not the rule loosened:
 
 - poppy-coverage: probes, the ticket and the report rode the lanes over the lane names; the names now stand above their lanes (`nameAt: 'above'`, lanes moved 0.3 down) and the tokens ride under them at a smaller scale. The note's strips and the skill card settled over the shop's desk and the User's words, which stayed until the end; in a sort those now go first.
 - poppy-refusals: a fresh poppy.json crossed the API lane's name; it now passes under the name, as a key does.
@@ -129,6 +129,7 @@ With the two rules, the catalog's first run found these, all in the Poppy series
 - poppy-conversations: the agent's answer to the Company's invitation came down over the invitation's words, which went only at the end; the envelope now goes first.
 - poppy-browser: a new code flew into the page over the last form's "error page"; the error page now goes first.
 - monty-hall: switching lifted a filled copy of your door's box over the doors' words; the comment said "outline", and now it is one.
+- scenes/tutorial/sort-as-text, the writing guide's example (docs/WRITING.md quotes its scene): a number's sorted box flew diagonally over its neighbours' numbers; it now flies along the gap between the rows and down into its place.
 - test/fixtures/motion: the fixture's ticket set off over the client's name; it now sets off under the client.
 
 Before the rule measured ink rather than boxes, it also flagged monty-hall's ring and a speech bubble whose tail crosses a label; measuring a filled shape's outline, clipped to the label's box, removed those.
