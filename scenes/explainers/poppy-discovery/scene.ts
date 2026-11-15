@@ -1,5 +1,5 @@
 import { AnimationGroup, Scene, Succession, Text } from '../../../src/index.ts';
-import type { Animation } from '../../../src/index.ts';
+import type { Animation, Mobject } from '../../../src/index.ts';
 import { answerOf, isRefusal, stage, Machine, view } from '../../../explain/index.ts';
 import type { Choreography, ExplainerMeta, Transition } from '../../../explain/index.ts';
 import { beats, pass, sheet } from '../lib/poppy-kit.ts';
@@ -10,6 +10,18 @@ import { BOARD_SHEET, DOORSTEP, PALETTE, STREET_X, drawWorld, sayWorld } from '.
 
 /** Parts that belong to one run of the checks: they go when the reader chooses another server. */
 const RUN = ['url:', 'sheet', 'board', 'shop:mark', 'out:', 'register:', 'back:', 'verdict:', 'rail:barrier', 'rail:done'];
+/** A part drawn the same way in both pictures: its kinds, words, places and styles. */
+const sameDrawing = (a: Mobject, b: Mobject) => {
+  const drawn = (m: Mobject) => JSON.stringify(m.family().map((x) => [x.constructor.name, (x as { text?: string }).text ?? null, x.box(), x.style]));
+  return drawn(a) === drawn(b);
+};
+/**
+ * The last run's parts that the new shop's picture draws differently, or not at all: those go. A part
+ * the new picture draws the same way (the padlock, a closed register) stays where it is, rather than
+ * blink out and back in a third of a second (rayner check's keyed motion).
+ */
+const runParts = (c: Choreography) =>
+  c.keys('from').filter((k) => RUN.some((f) => k === f || k.startsWith(f.endsWith(':') ? f : `${f}:`)) && !(c.has(k, 'to') && sameDrawing(c.from(k), c.to(k))));
 
 // The sceptic's question about chapter 1's first step, as a machine. The reader (and the story)
 // chooses who serves the poppy.json: the real shop, a copy on a lookalike domain, a domain that
@@ -96,7 +108,10 @@ export default class PoppyDiscovery extends Scene<World, {}> {
       transition: {
         check,
         // Choosing a server is a cut to another shop: the last run's parts go, the fascia's name is replaced.
-        ...Object.fromEntries((['shop', 'copy', 'claim', 'upload', 'small', 'outage', 'uk'] as const).map((e) => [e, (t: Transition<World, DiscoveryEvent>) => beats(t.choreograph(world), () => [], { fresh: RUN })])),
+        ...Object.fromEntries((['shop', 'copy', 'claim', 'upload', 'small', 'outage', 'uk'] as const).map((e) => [e, (t: Transition<World, DiscoveryEvent>) => {
+          const c = t.choreograph(world);
+          return beats(c, () => [], { fresh: runParts(c) });
+        }])),
       },
     });
 

@@ -295,6 +295,11 @@ export let keepOnTop: (scene: Scene<any, any>, ...mobs: Mobject[]) => () => void
  */
 export let drawFrame: (scene: Scene<any, any>, sink: Sink) => Promise<void>;
 /**
+ * @internal How many play() calls the scene has begun: a sink reads it to tell one play's frames
+ * from the next one's (the keyed motion check judges each play as one transition).
+ */
+export let playsBegun: (scene: Scene<any, any>) => number;
+/**
  * @internal Run `begin` once what `anims` read is ready (see the whenReady hook), in turn order: now
  * when nothing waits and nothing begun or made earlier in this frame of `scene`'s running play waits;
  * otherwise in the running play, which waits for it, and begins what waited in the order the turns
@@ -372,6 +377,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     setDrawn = (scene, mobjects) => { scene.#mobjects = mobjects as Mobject[]; };
     stopAt = (scene, path, at) => scene.#stopAt(path, at as (scene: Scene<any, any>, draw: (sink: Sink) => Promise<void>) => unknown);
     keepOnTop = (scene, ...mobs) => scene.#keepOnTop(mobs);
+    playsBegun = (scene) => scene.#plays;
     drawFrame = (scene, sink) => scene.#drawFrame(sink);
     beginWhenReady = (scene, anims, call, begin) => scene.#beginWhenReady(anims, call, begin);
     afterHeld = (scene, call, then) => scene.#holdInPlay(call, Promise.resolve(), then);
@@ -418,6 +424,8 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   #ran: boolean;
   /** What the running play() was given: what an animation begun later in it is checked against. */
   #playing: readonly ScheduledAnimation[] = [];
+  /** How many play() calls have begun (see playsBegun). */
+  #plays = 0;
   /** What was made at its turn in the running play and waits for what it reads: begun before the next frame. */
   #held: { ready: Promise<unknown>; begin: () => void }[] = [];
   /** Mobjects kept last in drawing order while on stage (see keepOnTop), in the order kept. */
@@ -864,6 +872,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
   }
 
   async #play(args: Playable[] | [...Playable[], PlayOptions]): Promise<void> {
+    this.#plays++;
     const list: unknown[] = [...args];
     const last = list[list.length - 1];
     // An .animate builder is never the options: its prototype is not Object.prototype (Mobject.animate)

@@ -144,7 +144,7 @@ test('reachable states are found breadth first, each with its shortest events, u
 
 test('rayner check draws every reachable state: a picture that cannot tell two states apart fails, named by its shortest events', async () => {
   const good = await exploreMachines(await new (lampScene())(new NullSink()).run(), lampScene());
-  assert.deepEqual(good, [{ events: ['UP', 'OFF'], states: 3, sampled: false, diagrams: false, problems: [] }]);
+  assert.deepEqual(good, [{ events: ['UP', 'OFF'], states: 3, sampled: false, diagrams: false, problems: [], motion: [] }]);
   const blind = await exploreMachines(await new (lampScene(true))(new NullSink()).run(), lampScene(true));
   assert.deepEqual(blind[0]!.problems, [
     'after UP: the picture is described exactly as at the start, a different state',

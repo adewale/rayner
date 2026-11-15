@@ -2,7 +2,7 @@ import { scriptReport, predictionsOf, claimsReport, checkClaimsMeta, captionLook
 import type { View } from '../../explain/index.ts';
 import type { Settings } from '../../explain/index.ts';
 import { renderElements } from '../../src/output.ts';
-import { serializeElement, canonicalJson, zoomOf, contains, intersect, nonempty, overlaps, paints, atHome, viewOf, FRAME, STAGE_BOX, MotionSink, analyzeMotion, SnapshotSink, traceRun } from '../../src/internal.ts';
+import { serializeElement, canonicalJson, zoomOf, contains, intersect, nonempty, overlaps, paints, atHome, viewOf, FRAME, STAGE_BOX, MotionSink, analyzeMotion, SnapshotSink, traceRun, KeyedMotionSink, keyedMotionLine } from '../../src/internal.ts';
 import type { LiveExplore } from '../../explain/internal.ts';
 import { restingRouteProblems } from './explain-layout.ts';
 import { sceneEntry } from './scene-entry.ts';
@@ -531,7 +531,7 @@ export async function exploreMachines(
   scene: Scene,
   Source: SceneClass,
   layouts?: Awaited<ReturnType<typeof stepLayouts>>,
-): Promise<{ events: string[]; states: number; sampled: boolean; diagrams: boolean; problems: string[] }[]> {
+): Promise<{ events: string[]; states: number; sampled: boolean; diagrams: boolean; problems: string[]; motion: string[] }[]> {
   const explored = [];
   if (!layouts && machinesOf(scene).some((m) => m.lastPlayedIn !== null)) layouts = await stepLayouts(Source);
   for (const [index, made] of machinesOf(scene).entries()) {
@@ -554,7 +554,7 @@ export async function exploreMachines(
 /** One machine explored on `host`, which may still play, as the step it last played in (`step`) ends, or as the run ends when it never played; `draw` routes the host's frames. */
 async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf>[number], step: string | null, draw: (to?: Sink) => void, tour?: PhoneCloseUps) {
   const diagramsBefore = diagramsOn(host);
-  const problems: string[] = [];
+  const problems: string[] = [], motion: string[] = [];
   const missing = machine.spec.views.filter((v) => !host.familyMembers().includes(v));
   if (missing.length) problems.push(`its views ${missing.map((v) => v.key ?? v.constructor.name).join(', ')} are not on the stage where it last played, so its states cannot be checked there`);
   // From the start, as exploration always has; and from the state the reader finds at the step
@@ -592,11 +592,13 @@ async function exploreMachine(host: Scene, machine: ReturnType<typeof machinesOf
     if (!picture?.entries?.some((e) => e.what?.trim())) problems.push(`${at}: the picture has no description`);
     else if (said.has(words)) problems.push(`${at}: the picture is described exactly as ${said.get(words)}, a different state`);
     else said.set(words, at);
-    problems.push(...await transitionProblems(host, machine, state, path, origin, draw));
+    const played = await transitionProblems(host, machine, state, path, origin, draw);
+    problems.push(...played.problems);
+    motion.push(...played.motion);
   }
   host.shown = shownThen;
   const sampled = fromStart.length >= machine.spec.limit || fromStep.length >= machine.spec.limit;
-  return { events: [...machine.spec.events], states: reached.length, sampled, diagrams: diagramsOn(host) > diagramsBefore, problems };
+  return { events: [...machine.spec.events], states: reached.length, sampled, diagrams: diagramsOn(host) > diagramsBefore, problems, motion };
 }
 
 /**
@@ -685,8 +687,8 @@ const marksOf = (svg: string) => svg.split('/>').sort().join('/>');
  * checked on every frame it draws (an InvariantSink, through `draw`), and when it ends the views must
  * show the pictures of the state it reaches, as rendered, so taking them moves nothing.
  */
-async function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[], origin: string, draw: (to?: Sink) => void): Promise<string[]> {
-  const problems: string[] = [];
+async function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[], origin: string, draw: (to?: Sink) => void): Promise<{ problems: string[]; motion: string[] }> {
+  const problems: string[] = [], motionProblems: string[] = [];
   const { views, events } = machine.spec;
   for (const event of events) {
     // A bound only bounds: an event it stops that the model refuses anyway is a refusal.
@@ -694,9 +696,23 @@ async function transitionProblems(scene: Scene, machine: ReturnType<typeof machi
     if (bound !== undefined && 'refused' in machine.model(state, event))
       problems.push(`${origin}${path.length ? `after ${path.join(', ')}, ` : ''}${event}: the bound says "${bound}", but the model refuses it anyway; it is a refusal, not where the story stops`);
     const after = machine.after(state, event);
-    const motion = after === undefined ? null : machine.transitionPlay(event, state, after);
-    if (!motion) continue;
+    if (after === undefined) continue;
+    const motion = machine.transitionPlay(event, state, after);
     const at = `${origin}${path.length ? `after ${path.join(', ')}, ` : ''}${event}`;
+    if (!motion) {
+      // No authored transition: the views' own staged morph, which a reader's press plays too. Only its motion is judged here.
+      scene.state = jsonObject(state, 'machine state');
+      for (const v of views) v.rebuild();
+      scene.state = jsonObject(after, 'machine state');
+      const keyedMotion = new KeyedMotionSink(() => at);
+      await keyedMotion.frame(scene, 0);
+      draw(keyedMotion);
+      try { await scene.play(machine.defaultPlay(event, state, after)); } finally { draw(); }
+      motionProblems.push(...keyedMotion.finish().map((f) => `${at}: ${keyedMotionLine(f)}`));
+      scene.state = jsonObject(state, 'machine state');
+      for (const v of views) v.rebuild();
+      continue;
+    }
     // What the reader should see when it ends: the views rebuilt for `after` where they stand
     // now (a rebuilt picture keeps its place), before the transition can move them.
     scene.state = jsonObject(after, 'machine state');
@@ -708,9 +724,13 @@ async function transitionProblems(scene: Scene, machine: ReturnType<typeof machi
     // begins, so a sync inside the transition draws the state reached.
     scene.state = jsonObject(after, 'machine state');
     const frames = new InvariantSink();
+    // Every keyed part's motion, from the picture before the transition (its first frame) to its last frame.
+    const keyedMotion = new KeyedMotionSink(() => at);
+    await keyedMotion.frame(scene, 0);
     const t0 = scene.time;
-    draw(frames);
+    draw(new FanSink([frames, keyedMotion]));
     try { await scene.play(motion); } finally { draw(); }
+    motionProblems.push(...keyedMotion.finish().map((f) => `${at}: ${keyedMotionLine(f)}`));
     // Each invariant's first failing frame, by how far through the transition it is.
     const failed = new Set<string>();
     for (const f of frames.failures) {
@@ -725,7 +745,7 @@ async function transitionProblems(scene: Scene, machine: ReturnType<typeof machi
     scene.state = jsonObject(after, 'machine state');
     for (const v of views) v.rebuild();
   }
-  return problems;
+  return { problems, motion: motionProblems };
 }
 
 /**
@@ -807,7 +827,10 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     // picture is read as the step ends, the last-frame comparison first, before views and keys redraw anything.
     const views = new ViewSink();
     const keys = new KeySink();
-    const ran = await new v.Scene(new FanSink([invariants, motion, holdSink, capture, lastFrame, restingSink, legibility, looks, views, keys])).run();
+    // Every keyed part followed from frame to frame within each play: jumps, flicker and early words (src/keyed-motion.ts).
+    const keyedMotion = new KeyedMotionSink();
+    const ran = await new v.Scene(new FanSink([invariants, motion, keyedMotion, holdSink, capture, lastFrame, restingSink, legibility, looks, views, keys])).run();
+    const stepMotion = keyedMotion.finish().map((f) => `${f.segment}: ${keyedMotionLine(f)}`);
     // The last frame, before exploring machines moves the scene.
     const finalSvg = toSvgString(ran);
     const { frames } = capture,
@@ -846,6 +869,12 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       machines.flatMap((s) => s.problems).slice(0, 5),
       [],
       `Machines ${where}: a state the events reach fails (each named by its shortest events; the first five)`,
+    );
+    const motionFound = [...stepMotion, ...machines.flatMap((m) => m.motion)];
+    assert.deepEqual(
+      motionFound.slice(0, 8),
+      [],
+      `Keyed motion ${where}: a keyed part jumps, flickers, or shows new words before what causes them lands, in a step or in a reader's event (${motionFound.length} found; the first eight)`,
     );
     assert.deepEqual(
       [...moved],
@@ -911,6 +940,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       frames: motion.frames.length,
       seekFrames: frames.size,
       motionEvents: events.length,
+      // Frames the keyed motion check followed every keyed part through, in the run (each press it plays is extra).
+      keyedMotionFrames: keyedMotion.frames,
       // Each declared invariant and the frames it held on: an invariant that held on no frame is not evidence.
       invariants: Object.fromEntries(invariants.held),
       // Each machine's events and how many states they reach, every one drawn and checked.
