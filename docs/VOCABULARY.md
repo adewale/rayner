@@ -110,9 +110,10 @@ Each name's promise is checkable:
   `scenes/explainers/bloom-filter/scene.test.ts` reads each keyed cell against the model.
 - `seenFrom` hides what the body hides. great-circle and henge draw with it: henge's two tilted
   Earths have a translucent body, the axis dashed inside it (`hidden: 'dashed'`) and solid where
-  it stands out of each pole (`'behind'`). Henge also draws New York's sky as a sphere, from
-  outside (the dome) and from its centre (the street, gnomonic), and turns the year with a view's
-  tween over the orbital longitude.
+  it stands out of each pole (`'behind'`). Henge also draws each place's sky as a sphere, from
+  outside (the dome) and from its centre (the street, gnomonic), turns the year with a view's
+  tween over the orbital longitude, and puts its places on a globe with the street carried on as
+  a great circle.
 
 ## Names deliberately kept
 

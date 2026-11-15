@@ -4,26 +4,29 @@ import { depthOrder, project } from '../../../explain/geo.ts';
 import type { View } from '../../../explain/index.ts';
 import { stage } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
-import { declination, sunset, henge, TILT, LATITUDE } from './model.ts';
+import { declination, sunset, henge, TILT, REFRACTION, PLACES, dayName } from './model.ts';
+import type { Place } from './model.ts';
 import Henge from './scene.ts';
 import { check as checkHengeScene } from './fidelity.ts';
 import { Scene, Transform } from '../../../src/index.ts';
 import { loadFonts, loadProject, assertViewFollowsState, sampleAnimation } from '../../../explain/testing.ts';
 import type { Mobject, VMobject, Sink } from '../../../src/index.ts';
 import { azAlt, sunsetOf, dome, year, crossedBy, look, lookView, globes } from './sky.ts';
+import { streetView, lensOf, globe, globeView, halfAndFull, WIDE } from './place.ts';
+import { latLon } from '../../../explain/geo.ts';
 
 const close = (a: number, b: number, tolerance = 1e-10) => assert.ok(Math.abs(a - b) < tolerance, `${a} versus ${b}`);
 
-const dayOf = (longitude: number) => { const d = sunset(declination(longitude)); return { declination: d.declination, hourAngle: d.hourAngle, azimuth: d.azimuth }; };
+const dayAt = (latitude: number) => (longitude: number) => { const d = sunset(latitude, declination(longitude)); return { latitude, declination: d.declination, hourAngle: d.hourAngle, azimuth: d.azimuth }; };
 
 type Piece = Mobject & { seen?: SeenPiece };
 
 const piece = (g: Mobject, key: string) => g.family().find((m) => m.key === key) as Piece | undefined;
 
 /** The look step's camera, as the scene moves it: pitch 78° to 3°, the lens narrowing from 2.4 to 6.5 units per radian. */
-function eye(street: 'manhattan' | 'west', t: number) {
-  const model = henge(street), { declination, hourAngle } = dayOf(model.half[0]!);
-  return { bearing: model.bearing, pitch: 78 + (3 - 78) * t, scale: 2.4 * (6.5 / 2.4) ** t, day: { declination, hourAngle } };
+function eye(place: Place, t: number) {
+  const model = henge(place), { latitude, declination, hourAngle } = dayAt(model.latitude)(model.ideal[0]!);
+  return { bearing: model.bearing, pitch: 78 + (3 - 78) * t, scale: 2.4 * (6.5 / 2.4) ** t, day: { latitude, declination, hourAngle } };
 }
 
 /** A piece's drawn anchors, all subpaths together. */
@@ -39,10 +42,10 @@ const sink: Sink = { async frame() {} };
 
 const bare = () => new (class extends Scene { override async construct() {} })(sink);
 
-test('Henge both street scenarios expose their geometry at all eight resting steps', async () => {
+test('Henge both place scenarios expose their geometry at all ten resting steps', async () => {
   const project=await loadProject(Henge,'scenes/explainers/henge');
   assert.equal(project.scenarios.length,2);
-  assert.deepEqual(project.scenarios.map(scenario => scenario.values.street).sort(), ['manhattan', 'west']);
+  assert.deepEqual(project.scenarios.map(scenario => scenario.values.place).sort(), ['chicago', 'manhattan']);
   for (const scenario of project.scenarios) {
     checkHengeScene(scenario.trace, scenario.values);
   }
@@ -54,17 +57,17 @@ await loadFonts();
 const s = stage(bare());
 
 test('Henge dome and year are drawn in depth order at every longitude; a day circle drawn in front where the dome hides it fails (a deliberate defect)', () => {
-  for (const model of [henge('manhattan'), henge('west')]) {
-    const days = model.seasons.map(({ declination, hourAngle, azimuth }) => ({ declination, hourAngle, azimuth }));
-    assert.equal(depthOrder(dome({ bearing: model.bearing, days }, s)), true);
-    const start = { bearing: model.bearing, start: -90, longitude: -90, crossings: model.half };
-    for (let i = 0; i <= 72; i++) assert.equal(depthOrder(year({ ...start, longitude: -90 + 5 * i }, dayOf, s)), true, `${model.street}, longitude ${-90 + 5 * i}`);
+  for (const model of [henge('manhattan'), henge('chicago')]) {
+    const days = model.seasons.map(({ latitude, declination, hourAngle, azimuth }) => ({ latitude, declination, hourAngle, azimuth }));
+    assert.equal(depthOrder(dome({ bearing: model.bearing, latitude: model.latitude, city: model.where.city, days }, s)), true);
+    const start = { bearing: model.bearing, latitude: model.latitude, start: -90, longitude: -90, crossings: model.ideal };
+    for (let i = 0; i <= 72; i++) assert.equal(depthOrder(year({ ...start, longitude: -90 + 5 * i }, dayAt(model.latitude), s)), true, `${model.place}, longitude ${-90 + 5 * i}`);
     // The sunset passes the street twice a year: on the way north and on the way back.
-    assert.deepEqual([-90, 0, 90, 180, 270].map((longitude) => crossedBy({ ...start, longitude })), model.street === 'manhattan' ? [0, 0, 1, 2, 2] : [0, 1, 1, 2, 2]);
+    assert.deepEqual([-90, 0, 90, 180, 270].map((longitude) => crossedBy({ ...start, longitude })), model.place === 'manhattan' ? [0, 0, 1, 2, 2] : [0, 1, 1, 1, 2]);
   }
   // The defect: June's path, whose noon lies on the far side of the dome, drawn in front of it.
   const model = henge('manhattan');
-  const picture = dome({ bearing: model.bearing, days: model.seasons.map(({ declination, hourAngle, azimuth }) => ({ declination, hourAngle, azimuth })) }, s);
+  const picture = dome({ bearing: model.bearing, latitude: model.latitude, city: model.where.city, days: model.seasons.map(({ latitude, declination, hourAngle, azimuth }) => ({ latitude, declination, hourAngle, azimuth })) }, s);
   const seen = picture.family().find((m) => m.key === 'henge-dome:seen')!;
   const hidden = piece(seen, 'henge-dome:june:day:hidden')!;
   assert.ok(hidden.seen!.lines.length > 0, 'part of June’s path is behind the dome');
@@ -76,7 +79,7 @@ test('Henge dome and year are drawn in depth order at every longitude; a day cir
 });
 
 test('Henge street view from the centre: the street’s circle and the horizon stay straight at every pitch, the alignment sunset sits where the street points, and a move by morph fails (a deliberate defect)', () => {
-  for (const street of ['manhattan', 'west'] as const) {
+  for (const street of ['manhattan', 'chicago'] as const) {
     for (let i = 0; i <= 40; i++) {
       const st = eye(street, i / 40), g = look(st, '#ffffff', { day: 'May' }, s);
       assert.equal(depthOrder(g), true, `${street}, frame ${i}`);
@@ -99,16 +102,16 @@ test('Henge street view from the centre: the street’s circle and the horizon s
   sampleAnimation(new Transform(first, last), 0.5);
   assert.equal(typeof depthOrder(first), 'string', 'a half-morphed street view is drawn from no viewpoint');
   // The year's turn by morph fails the same way: drawn from no day's circle.
-  const model = henge('manhattan'), start = { bearing: model.bearing, start: -90, longitude: -90, crossings: model.half };
-  const a = year(start, dayOf, s), b = year({ ...start, longitude: 90 }, dayOf, s);
+  const model = henge('manhattan'), start = { bearing: model.bearing, latitude: model.latitude, start: -90, longitude: -90, crossings: model.ideal };
+  const a = year(start, dayAt(model.latitude), s), b = year({ ...start, longitude: 90 }, dayAt(model.latitude), s);
   bare().add(a);
   sampleAnimation(new Transform(a, b), 0.5);
   assert.equal(typeof depthOrder(a), 'string', 'a half-morphed year is drawn from no viewpoint’s rules');
 });
 
-test('Henge globes: the gold arc of New York’s daily circle is exactly its sunlit part and the dark arc its night, cut at the model’s sunset hour angle; the axis is dashed inside Earth', () => {
+test('Henge globes: the gold arc of the place’s daily circle is exactly its sunlit part and the dark arc its night, cut at the model’s sunset hour angle; the axis is dashed inside Earth', () => {
   const model = henge('manhattan'), [december, , june] = model.seasons;
-  const g = globes({ tilt: model.tilt, latitude: model.latitude, june: june!, december: december! }, s);
+  const g = globes({ tilt: model.tilt, latitude: model.latitude, city: model.where.city, june: june!, december: december! }, s);
   assert.equal(depthOrder(g), true);
   const t = TILT * Math.PI / 180, axis = [Math.sin(t), 0, Math.cos(t)];
   const dot = (a: readonly number[], b: readonly number[]) => a[0]! * b[0]! + a[1]! * b[1]! + a[2]! * b[2]!;
@@ -119,7 +122,7 @@ test('Henge globes: the gold arc of New York’s daily circle is exactly its sun
     const day = drawn(`henge-earth:${season}:day`), night = drawn(`henge-earth:${season}:night`);
     assert.ok(day.length > 10 && night.length > 10);
     // On New York's circle: the points seenFrom adds where a piece crosses the limb lie on the 3° chord between two, lifted to the sphere.
-    for (const p of [...day, ...night]) close(Math.asin(dot(p, axis)) * 180 / Math.PI, LATITUDE, 0.01);
+    for (const p of [...day, ...night]) close(Math.asin(dot(p, axis)) * 180 / Math.PI, model.latitude, 0.01);
     // Gold is in sunlight and dark in night; both reach the terminator, at sunset and sunrise.
     assert.ok(day.every((p) => dot(p, sun) > -1e-12) && night.every((p) => dot(p, sun) < 1e-12));
     close(Math.min(...day.map((p) => Math.abs(dot(p, sun)))), 0, 1e-12);
@@ -148,5 +151,62 @@ test('Henge the year and the camera are views of their step’s state', async ()
       return found && scene.mobjects.includes(found) ? found : null;
     });
     assert.equal(checked, 1, key);
+  }
+});
+
+// ---------------------------------------------------------------- the real places (scenes/explainers/henge/place.ts)
+const toward = (a: readonly number[], b: readonly number[]) => Math.acos(Math.max(-1, Math.min(1, a[0]! * b[0]! + a[1]! * b[1]! + a[2]! * b[2]!))) * 180 / Math.PI;
+const discOf = (key: string, e: { date: string; azimuth: number; altitude: number; semidiameter: number }) =>
+  ({ key, name: dayName(e.date), azimuth: e.azimuth, altitude: e.altitude + REFRACTION, semidiameter: e.semidiameter });
+
+test('Henge street views: each Sun is drawn true size where the ephemeris puts it, half Sun centred on the straight horizon, full Sun resting on it', () => {
+  for (const place of ['manhattan', 'chicago'] as const) {
+    const model = henge(place), { metres } = PLACES[place];
+    const suns = model.evenings.filter((e) => e.role !== 'other').map((e) => discOf(e.role, e));
+    const g = streetView({ bearing: model.bearing, metres, suns }, s);
+    assert.equal(depthOrder(g), true, place);
+    const horizon = piece(g, 'henge-view:horizon')!;
+    assert.ok(offLine(anchors(horizon)) < 1e-4, `${place}: the horizon is straight from the centre`);
+    for (const d of suns) {
+      const ring = piece(g, `henge-view:sun:${d.key}`)!.seen!.lines.flat(), centre = azAlt(d.azimuth, d.altitude, 'inside');
+      for (const p of ring) close(toward(p, centre), d.semidiameter, 1e-9);
+      // Half Sun: the centre 34' down, lifted by refraction onto the horizon.
+      close(d.altitude, 0, 1e-5);
+    }
+    // In the window, the aligned Sun's centre is a fifth of a degree or less from the street's vanishing point.
+    const { vp, o } = lensOf(WIDE, model.bearing), first = model.aligned.half[0]!;
+    const at = project(azAlt(first.azimuth, 0, 'inside'), vp, 1, o).at, middle = project(azAlt(model.bearing, 0, 'inside'), vp, 1, o).at;
+    close(at[1], middle[1], 1e-9);
+    assert.ok(Math.abs(at[0] - middle[0]) < o.scale * Math.tan(0.2 * Math.PI / 180), `${place}: ${at[0] - middle[0]}`);
+    // Full Sun rests its lower edge on the horizon: its centre one semidiameter up.
+    const full = model.aligned.full[0]!;
+    close(full.altitude + REFRACTION, full.semidiameter, 1e-5);
+    const pair = halfAndFull({ bearing: model.bearing, metres, zone: PLACES[place].zone,
+      half: { ...discOf('half', first), date: dayName(first.date), clock: '' }, full: { ...discOf('full', full), date: dayName(full.date), clock: '' } }, s);
+    assert.equal(depthOrder(pair), true);
+  }
+});
+
+test('Henge globe: the place, the street carried on and the Sun overhead are where the model puts them, in depth order', () => {
+  for (const place of ['manhattan', 'chicago'] as const) {
+    const model = henge(place), first = model.aligned.half[0]!;
+    const st = { name: model.where.city, latitude: model.latitude, longitude: model.where.longitude, bearing: model.bearing, meets: model.meets,
+      suns: [{ key: 'aligned', name: dayName(first.date), ...first.overhead }] };
+    const g = globe(st, s);
+    assert.equal(depthOrder(g), true, place);
+    const here = latLon(model.latitude, model.where.longitude), meets = latLon(model.meets.lat, model.meets.lon);
+    // Both ends are in sight from the viewpoint, which faces the middle of the street's arc.
+    const vp = globeView(st);
+    assert.ok(project(here, vp).seen && project(meets, vp).seen);
+    // The street runs along one great circle from the place to the ring: every point in the plane through both and the centre.
+    const n = [here[1] * meets[2] - here[2] * meets[1], here[2] * meets[0] - here[0] * meets[2], here[0] * meets[1] - here[1] * meets[0]];
+    const street = [piece(g, 'henge-globe:street')!, piece(g, 'henge-globe:street:hidden')].flatMap((p) => p?.seen?.lines.flat() ?? []);
+    assert.ok(street.length > 50);
+    for (const p of street) close(p[0] * n[0]! + p[1] * n[1]! + p[2] * n[2]!, 0, 1e-9);
+    close(toward(here, meets), 90 + REFRACTION, 1e-9);
+    // The Sun overhead at half Sun is a quarter-turn and the refraction from the place, within its 8.8" parallax, and next to the street's end.
+    const sun = piece(g, 'henge-globe:sun:aligned')!.seen!.lines[0]![0]!;
+    close(toward(here, sun), 90 + REFRACTION, 0.003);
+    assert.ok(toward(sun, meets) < 0.2);
   }
 });
