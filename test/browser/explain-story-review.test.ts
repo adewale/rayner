@@ -10,7 +10,7 @@ import { buildExplainer } from '../../tools/lib/explain-build.ts';
 import { serve } from '../../tools/lib/explain-serve.ts';
 import { launch } from '../../tools/lib/browser.ts';
 import { Scene, Text, Line, Group, Rectangle, VMobject, keyed } from '../../src/index.ts';
-import { renderElements, toSvgString } from '../../src/output.ts';
+import { renderElements, toSvgString } from '../../src/svg.ts';
 import { traceScene } from '../../explain/testing.ts';
 import { stage } from '../../explain/index.ts';
 import { emphasises } from '../../explain/look.ts';

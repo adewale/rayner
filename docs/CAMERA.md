@@ -6,8 +6,8 @@ or follow a moving token, without touching anything you drew.
 
 ## What it is
 
-`Frame` is a mobject whose only points are its corner box `[x0, y0, x1, y1]`, in scene
-units. That has three consequences:
+The camera is a mobject whose only points are its corner box `[x0, y0, x1, y1]`, in scene
+units. Its class is the engine's own, so a scene reaches it as `this.frame` and does not import it. That has three consequences:
 
 - **It moves like any mobject.** `shift`, `scale`, `moveTo`, `.animate` and `Transform` all
   work on it, and an animated camera interpolates as points: pure in alpha over endpoints
@@ -23,7 +23,7 @@ it like anything else.
 
 ## Moving it
 
-On a stage, move the camera with `s.focus`, which keeps the heading on screen ([in the explainers](#in-the-explainers)); `test/public-names.test.ts` fails a scene with a stage whose code contains `frame.animate`. The moves below are `Frame`'s own, for a scene drawn without a stage and for tests:
+On a stage, move the camera with `s.focus`, which keeps the heading on screen ([in the explainers](#in-the-explainers)); `test/public-names.test.ts` fails a scene with a stage whose code contains `frame.animate`. The moves below are the camera's own, for a scene drawn without a stage and for tests:
 
 ```ts
 await this.play(this.frame.animate.fit(code, { margin: 0.5 }));  // zoom onto the code block
@@ -31,7 +31,7 @@ await this.play(this.frame.animate.scale(0.5).moveTo(dot));      // twice as clo
 await this.play(this.frame.animate.reset());                     // back to the whole frame
 ```
 
-| `Frame` | |
+| `this.frame` | |
 |---|---|
 | `fit(target, { margin })` | the smallest 16:9 box holding `target` (a mobject or a `Box`) plus `margin` on every side (default 0.5), centered on it |
 | `reset()` | the default box: 16 × 9 at the origin |
@@ -57,22 +57,22 @@ this.frame.scale(0.5).addUpdater((f) => f.moveTo(token));
   `viewBox` (integer user units, y flipped in the same helper that writes clip rects). The
   `width`/`height` attributes are unchanged, and the background rect covers whatever the
   viewBox shows. Path data and `transform` attributes do not change when only the camera
-  moves: `renderElements` returns the identical record objects frame to frame.
-- **Live DOM** (`DomSink`): writes `viewBox` only when it changed. A pure camera move is one
+  moves: the renderer's records for each element are the identical objects frame to frame.
+- **Live DOM** (the player): writes `viewBox` only when it changed. A pure camera move is one
   DOM write per frame.
 - **Clips**: `clipBox` is in world coordinates and so are clip rects; the viewBox only
   changes what part of the world is visible, so clipped groups zoom with everything else.
-- **Text** (`renderText`): the grid shows the frame box, so zoomed content reads larger.
+- **Text** (a step's picture drawn as text, in `describeExplainer` and `rayner see`): the grid shows the frame box, so zoomed content reads larger.
 - **Pages and PNGs**: they render through the sinks above. `rayner shots`
   and the gallery tiles turn on culling (below). A page's reader zoom narrows the `viewBox` inside the camera's box, so an
   author's camera move keeps playing under it ([reference](REFERENCE.md#controls-and-accessibility)).
 
 ## Rendering off-screen content
 
-By default the sinks write every mobject, on screen or not. `renderElements(scene, { cull: true })`
-and `toSvgString(scene, { cull: true })` (type `RenderOptions`) leave out a leaf whose box, grown
+By default the sinks write every mobject, on screen or not. `toSvgString(scene, { cull: true })`
+(an `SvgOptions`) leaves out a leaf whose box, grown
 by its stroke, leaves under 2 output pixels of the view (2 × view width ÷ `width`, the output's
-width in pixels, default 1280; `toSvgString` passes its own `width`), and skip a group whole only
+width in pixels, default 1280), and skips a group whole only
 when it clears the view by 0.5 units. Culling is a pure function of the state, so seeks are
 unaffected, and the records it keeps are the same objects as without it. Every PNG the
 authoring tools draw turns it on, because resvg 2.6.2 aborts on an element with `opacity`

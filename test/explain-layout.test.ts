@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Text, Line, Rectangle, Group } from '../src/index.ts';
-import { NullSink } from '../src/output.ts';
+import { NullSink } from '../src/timeline.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { restingRouteProblems } from '../tools/lib/explain-layout.ts';
 import { fc, params } from './lib/pbt.ts';

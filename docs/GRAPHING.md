@@ -139,7 +139,7 @@ are any.
   (red for 429), and the runs at all three rates overlaid in the last step.
 
 - [galton-board](https://github.com/adewale/rayner/blob/main/scenes/explainers/galton-board/scene.ts): `bar` for the balls in each bin, grown from the floor
-  with `GrowFromEdge`, then `plot` of the normal curve over them and `areaUnder` across the three
+  with `GrowFromEdge` (`rayner/extras`), then `plot` of the normal curve over them and `areaUnder` across the three
   middle bins. The board's own walls and floor frame the chart, so the axes only place the bars and
   the curve and are not drawn.
 - [float-sum](https://github.com/adewale/rayner/blob/main/scenes/explainers/float-sum/scene.ts): a `NumberLine` whose ticks are neighbouring doubles; the

@@ -241,7 +241,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
     request,
     shape(font, text, size, fallback, cut = '') {
       if (replay) return replay.shape(font, text, size, fallback, cut);
-      if (cut && !requestCuts(request).includes(cut)) throw new Error(`new ItalicText(): the ${cut} cut is not requested; add it to meta.lettering.styles`);
+      if (cut && !requestCuts(request).includes(cut)) throw new Error(`new Text(): the ${cut} cut is not requested; add it to meta.lettering.styles`);
       if (!cut && !request.faces?.[font] && !request.scripts?.length) return fallback(text, size);
       const key = runKey(cutFace(font, cut), text);
       let r = snapshot.runs[key];

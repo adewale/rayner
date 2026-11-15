@@ -3,10 +3,10 @@
 //
 //   used      an explainer, a tutorial scene, the tutorial's printed kit example or a recipe imports
 //             it and uses it, found from their imports. Nothing is written down.
-//   tooling   it lives in rayner/output or rayner/testing, and test/public-names.json says who outside
-//             a scene uses it and for what (`tooling`): an author's tests and tools, or a host page.
-//             Every name in those two entry points needs this written reason, and no other name may
-//             have one: living in a tooling entry point is not by itself a reason to be public.
+//   tooling   it lives in rayner/testing, and test/public-names.json says who outside a scene
+//             uses it and for what (`tooling`): an author's tests and tools. Every name in that entry
+//             point needs this written reason, and no other name may have one: living in the tooling
+//             entry point is not by itself a reason to be public.
 //   kept      nothing above uses it, and test/public-names.json
 //             says why it stays public all the same (`reason`, which may not lean on Manim) and names a
 //             guide section that teaches it and a test that runs it (`guide` and `test`), which must
@@ -31,7 +31,7 @@ export { ROOT };
 export const LEDGER = 'test/public-names.json';
 
 /**
- * What the ledger says about a name: who uses it as tooling and for what (only in a tooling entry
+ * What the ledger says about a name: who uses it as tooling and for what (only in the tooling entry
  * point), why it stays public although no explainer, tutorial or recipe uses it (`reason`), where it
  * is taught (a guide section and a test), and what check verifies it.
  */
@@ -72,8 +72,8 @@ export interface Ledger {
   lookup: LookupRow[];
 }
 
-/** The tooling entry points: each name in one of them is public as tooling only with a written reason, and only there. */
-export const TOOLING = new Set(['rayner/output', 'rayner/testing']);
+/** The tooling entry point: each name in it is public as tooling only with a written reason, and only there. */
+export const TOOLING = new Set(['rayner/testing']);
 /** The tutorial's printed examples that a test runs: the code block after each such marker counts as a user. */
 export const TUTORIAL = 'docs/TUTORIAL.md';
 const PRINTED = /<!-- [^>]*run by test\/[\w.-]+\.test\.ts -->\n```ts\n([\s\S]*?)```/g;
@@ -463,6 +463,7 @@ export function exceptionsTable(ledger: Ledger): string {
         const guide = doc ? `[${doc.replace(/^docs\//, '')}${anchor ? `#${anchor}` : ''}](${doc.startsWith('docs/') ? doc.slice(5) : `../${doc}`}${anchor ? `#${anchor}` : ''})` : '';
         rows.push(`| ${tick(name)} | ${tick(entry)} | ${r.reason.trim()} | ${guide}, ${tick(r.test ?? '')} |`);
       }
+  if (!rows.length) return 'None: every public name outside `rayner/testing` has a user.';
   return ['| Name | Entry point | Why it stays public | Taught and run by |', '| --- | --- | --- | --- |', ...rows].join('\n');
 }
 

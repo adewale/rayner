@@ -5,7 +5,8 @@ import { test } from 'node:test';
 import { choreograph } from '../explain/choreograph.ts';
 import assert from 'node:assert/strict';
 import { Scene, Group, Circle, Dot, Line, Rectangle, Succession, Transform, keyed } from '../src/index.ts';
-import { NullSink, toSvgString } from '../src/output.ts';
+import { NullSink } from '../src/timeline.ts';
+import { toSvgString } from '../src/svg.ts';
 import type { AnimationGroup } from '../src/index.ts';
 import type { Mobject, Animation } from '../src/index.ts';
 

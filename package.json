@@ -54,9 +54,9 @@
       "types": "./dist/explain/geo.d.ts",
       "default": "./dist/explain/geo.js"
     },
-    "./output": {
-      "types": "./dist/src/output.d.ts",
-      "default": "./dist/src/output.js"
+    "./extras": {
+      "types": "./dist/extras/index.d.ts",
+      "default": "./dist/extras/index.js"
     },
     "./testing": {
       "types": "./dist/explain/testing.d.ts",
@@ -70,10 +70,12 @@
   "files": [
     "dist/src",
     "dist/explain",
+    "dist/extras",
     "dist/vendor",
     "dist/recipes",
     "src",
     "explain",
+    "extras",
     "docs/*.md",
     "FAQ.md",
     "skills",

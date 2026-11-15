@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Rectangle, FadeIn } from '../src/index.ts';
-import { NullSink } from '../src/output.ts';
+import { NullSink } from '../src/timeline.ts';
 import { traceScene } from '../explain/testing.ts';
 import type { Step, Sink } from '../src/index.ts';
 import { fc, params } from './lib/pbt.ts';

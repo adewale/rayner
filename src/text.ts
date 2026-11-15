@@ -27,6 +27,7 @@ import type { Segment, Run } from '../vendor/glyph.js';
 export interface TextOptions {
   /** Explicit per-object shaping; copied texts retain it. */
   shaping?: TextShaping;
+  /** Draw in the face's Italic cut (Bold Italic with `weight: 'bold'`); the scene asks for it with meta.lettering.styles. */
   italic?: boolean;
   fontSize?: number;
   font?: FontName;
@@ -159,7 +160,7 @@ export class Text extends Group {
   /** Shape with this object's own service, including after its originating run ends. */
   shapeRun(text: string, size: number): Run {
     if (this.shaping) return this.shaping.shape(this, text, size);
-    if (this.italic) throw new Error("new ItalicText(): it needs meta.lettering.styles to include 'italic', and a fresh lettering snapshot (rayner snapshots)");
+    if (this.italic) throw new Error("new Text(): italic text needs meta.lettering.styles to include 'italic', and a fresh lettering snapshot (rayner snapshots)");
     if (this[formulaOf]) throw new Error('new MathTex(): it needs meta.lettering.math, and a fresh lettering snapshot (rayner snapshots)');
     return embeddedShaperFor(this.font)(text, size);
   }

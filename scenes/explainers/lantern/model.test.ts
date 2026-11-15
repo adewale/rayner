@@ -1,11 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Rectangle, Dot, Circle, Group, FadeIn, Transform, smooth } from '../../../src/index.ts';
-import { StringSink, NullSink, DomSink, StopScene, renderFrame, toSvgString } from '../../../src/output.ts';
-import { TraceSink } from '../../../explain/testing.ts';
-import type { EndedStep, Mobject, Sink, Step, Vec } from '../../../src/index.ts';
+import { Scene, Rectangle, Dot, Circle, Group, FadeIn, Transform, smooth, renderFrame, toSvgString } from '../../../src/index.ts';
+import type { Mobject, Vec } from '../../../src/index.ts';
 
 const FPS = 30;
+
+/** What a sink throws to end a seeking run once it has seen the frame it wanted. */
+class Seen extends Error {}
 
 /** A scene built only from Rayner's own animations: a fade, a morph, a move, a wait. */
 class TimeOnly extends Scene {
@@ -26,36 +27,6 @@ async function played(S: import('../../../src/index.ts').SceneClass): Promise<st
   const frames: string[] = [];
   await new S({ async frame(s: Scene) { frames[s.frameCount] = toSvgString(s); } }).run();
   return frames;
-}
-
-/** A small document that DomSink can patch: elements with attributes, text and ordered children. */
-function fakeDocument() {
-  type El = { tagName: string; attrs: Record<string, string>; children: El[]; parent: El | null; style: Record<string, string>; textContent: string } & Record<string, unknown>;
-  const make = (tagName: string): El => {
-    const el = { tagName, attrs: {}, children: [], parent: null, style: {}, textContent: '' } as unknown as El;
-    const detach = (c: El) => { if (c.parent) c.parent.children.splice(c.parent.children.indexOf(c), 1); c.parent = null; };
-    Object.assign(el, {
-      setAttribute: (k: string, v: string) => { el.attrs[k] = v; },
-      removeAttribute: (k: string) => { delete el.attrs[k]; },
-      appendChild: (c: El) => { detach(c); el.children.push(c); c.parent = el; return c; },
-      insertBefore: (c: El, ref: El | null) => {
-        detach(c);
-        const i = ref ? el.children.indexOf(ref) : -1;
-        el.children.splice(i < 0 ? el.children.length : i, 0, c);
-        c.parent = el;
-        return c;
-      },
-      replaceChildren: (...cs: El[]) => { for (const c of [...el.children]) detach(c); for (const c of cs) (el.appendChild as (c: El) => El)(c); },
-      remove: () => detach(el),
-    });
-    Object.defineProperty(el, 'firstChild', { get: () => el.children[0] ?? null });
-    Object.defineProperty(el, 'nextSibling', { get: () => (el.parent ? el.parent.children[el.parent.children.indexOf(el) + 1] ?? null : null) });
-    return el;
-  };
-  const doc = { createElementNS: (_ns: string, tag: string) => make(tag) };
-  const container = make('div');
-  (container as Record<string, unknown>).ownerDocument = doc;
-  return container as unknown as Element;
 }
 
 /** A Transform that records the alpha each interpolation is handed and the frame it is handed at. */
@@ -99,44 +70,9 @@ test('clock: frame k is t = k / fps in every run, whatever the sink’s pace, a 
   assert.deepEqual(slow, fast);
   assert.ok(fast.length > 60);
   for (let k = 1; k < fast.length; k++) {
-    const scene = await renderFrame(TimeOnly, k, new NullSink());
+    const scene = await renderFrame(TimeOnly, k);
     assert.equal(scene.frameCount, k, `renderFrame(${k})`);
     assert.equal(scene.time, fast[k]);
-  }
-});
-
-test('sinks only read a frame: after each of Rayner’s sinks takes it, the scene draws the same SVG and keeps the same state', async () => {
-  const sinks: Record<string, () => Sink> = {
-    string: () => new StringSink(),
-    null: () => new NullSink(),
-    trace: () => new TraceSink(),
-    browser: () => new DomSink(fakeDocument(), { realtime: false }),
-  };
-  const reference = await played(TimeOnly);
-  for (const [name, make] of Object.entries(sinks)) {
-    const inner = make();
-    const seen: string[] = [];
-    const look = (s: Scene) => toSvgString(s) + JSON.stringify(s.stateJson());
-    const guard = async (s: Scene, call: () => Promise<void> | void, what: string) => {
-      const before = look(s);
-      await call();
-      assert.equal(look(s), before, `the ${name} sink changed the scene in ${what} at frame ${s.frameCount}`);
-    };
-    try {
-      await new TimeOnly({
-        async frame(s: Scene, dt: number) {
-          await guard(s, () => inner.frame(s, dt), 'frame');
-          seen[s.frameCount] = toSvgString(s);
-        },
-        async stepBegin(s: Scene, st: Step) { await guard(s, () => inner.stepBegin?.(s, st), 'stepBegin'); },
-        async stepEnd(s: Scene, st: EndedStep) { await guard(s, () => inner.stepEnd?.(s, st), 'stepEnd'); },
-      }).run();
-    } catch (e) {
-      if (!(e instanceof StopScene)) throw e;
-    }
-    assert.deepEqual(seen, reference, `with the ${name} sink`);
-    // The fake document's elements keep their children in a list (fakeDocument).
-    if (inner instanceof DomSink) assert.ok((inner.svg as unknown as { children: unknown[] }).children.length > 0, 'the browser sink patched its document');
   }
 });
 
@@ -189,10 +125,10 @@ test('seek: unless the scene has updaters, a still computes no frame before t, a
         skipUntil: k / FPS,
         async frame(s: Scene) {
           if (s.frameCount > 0 && s.frameCount < k) before.push(s.frameCount);
-          if (s.frameCount >= k) throw new StopScene();
+          if (s.frameCount >= k) throw new Seen();
         },
       },
-    ).run();
+    ).run().catch((e: unknown) => { if (!(e instanceof Seen)) throw e; });
     assert.deepEqual(before, [], `seeking to frame ${k}`);
     assert.equal(toSvgString(await renderFrame(TimeOnly, k)), full[k], `frame ${k}`);
   }
@@ -220,10 +156,10 @@ test('seek: in a scene with updaters a still computes every frame before t, so a
         skipUntil: k / FPS,
         async frame(s: Scene) {
           if (s.frameCount > 0) computed.push(s.frameCount);
-          if (s.frameCount >= k) throw new StopScene();
+          if (s.frameCount >= k) throw new Seen();
         },
       },
-    ).run();
+    ).run().catch((e: unknown) => { if (!(e instanceof Seen)) throw e; });
     assert.deepEqual(computed, Array.from({ length: k }, (_, i) => i + 1), `seeking to frame ${k}`);
     assert.equal(toSvgString(await renderFrame(Nudged, k)), full[k], `frame ${k}`);
   }

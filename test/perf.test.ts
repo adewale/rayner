@@ -1,9 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Text } from '../src/index.ts';
-import { NullSink, toSvgString, renderElements } from '../src/output.ts';
+import { NullSink } from '../src/timeline.ts';
+import { toSvgString, renderElements } from '../src/svg.ts';
 import { perf } from '../src/perf.ts';
-import type { ElementRecord } from '../src/output.ts';
+import type { ElementRecord } from '../src/svg.ts';
 import { Fixture, explainers } from './lib/scenes.ts';
 import { mobjectId } from '../src/mobject.ts';
 
@@ -115,7 +116,7 @@ test('DOM output merges same-styled glyph lines into one element, and splits dur
 });
 
 test('failed and stopped sinks close their trace span before the next caller', async (t) => {
-  const { StopScene } = await import('../src/output.ts');
+  const { StopScene } = await import('../src/scene.ts');
   let clock = 100;
   t.mock.method(performance, 'now', () => clock);
   try {

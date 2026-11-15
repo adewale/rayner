@@ -5,8 +5,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
-import { Scene, MoveAlongPath, Group, VMobject, Rectangle, Circle, Line, Dot, Arc, Text, Code, DecimalNumber, Transform, FadeIn, FadeOut, Create, AnimationGroup, LaggedStart, linear, smooth, rushInto, rushFrom, thereAndBack, shaperFor } from '../src/index.ts';
-import { StringSink, NullSink, toSvgString, renderElements, renderFrame } from '../src/output.ts';
+import { Scene, MoveAlongPath, Group, VMobject, Rectangle, Circle, Line, Dot, Arc, Text, Code, DecimalNumber, Transform, FadeIn, FadeOut, Create, AnimationGroup, LaggedStart, linear, smooth, shaperFor } from '../src/index.ts';
+import { rushInto, rushFrom, thereAndBack } from '../extras/index.ts';
+import { StringSink, toSvgString, renderElements } from '../src/svg.ts';
+import { NullSink, renderFrame } from '../src/timeline.ts';
 import { loadFonts, traceScene } from '../explain/testing.ts';
 import { Indicate } from './lib/transient.ts';
 import type { Mobject, Sink, RateFunc, Style } from '../src/index.ts';

@@ -1,4 +1,4 @@
-import {Scene,Text,ItalicText,DecimalNumber,Transform} from 'rayner';
+import {Scene,Text,DecimalNumber,Transform} from 'rayner';
 import {stage} from 'rayner/explain';
 export default class Example extends Scene {
   static meta = {id: 'lettering-styles', title: 'Bold and italic', lettering: {styles: ['bold', 'italic'], scripts: ['Arab']}};
@@ -9,11 +9,11 @@ export default class Example extends Scene {
     await s.enter(
       new Text('Regular', ink).moveTo([-3.5, 1.8]),
       new Text('Bold', {...ink, weight: 'bold'}).moveTo([-3.5, 0.8]),
-      new ItalicText('Italic', ink).moveTo([-3.5, -0.2]),
-      new ItalicText('Bold italic', {...ink, weight: 'bold'}).moveTo([-3.5, -1.2]),
+      new Text('Italic', {...ink, italic: true}).moveTo([-3.5, -0.2]),
+      new Text('Bold italic', {...ink, weight: 'bold', italic: true}).moveTo([-3.5, -1.2]),
       new Text('const x = 1;', {...ink, font: 'mono', weight: 'bold'}).moveTo([-3.5, -2.2]),
       new Text('مرحبا', {...ink, weight: 'bold'}).moveTo([3.5, 0.8]),
-      new ItalicText('مرحبا', ink).moveTo([3.5, -0.2]),
+      new Text('مرحبا', {...ink, italic: true}).moveTo([3.5, -0.2]),
     );
     await this.step('count', {title: 'A bold count', caption: 'A bold number counts up in the Bold cut.'});
     await s.clear();

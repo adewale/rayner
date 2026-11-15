@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Resvg } from '@resvg/resvg-js';
-import { toSvgString } from '../src/output.ts';
+import { toSvgString } from '../src/svg.ts';
 import { labelOf } from '../explain/labels.ts';
 import { toView } from '../app/embed-closeup.ts';
 import { loadProject } from '../explain/testing.ts';

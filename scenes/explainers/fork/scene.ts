@@ -2,7 +2,7 @@ import { table } from '../../../explain/drawing.ts';
 import { answerOf, view, having } from '../../../explain/index.ts';
 import { Scene, Text, FadeIn } from '../../../src/index.ts';
 import type { EndedStep } from '../../../src/index.ts';
-import { stage, regionBox, resolveSettings } from '../../../explain/index.ts';
+import { stage, regionBox } from '../../../explain/index.ts';
 import type { Diagram, PictureNote, View, ExplainerMeta } from '../../../explain/index.ts';
 import { TokenBucket } from '../token-bucket/model.ts';
 import { PLACEMENTS } from '../traffic-policy/model.ts';
@@ -184,13 +184,13 @@ export default class ForkExplainer extends Scene<ForkState, ForkShown> {
     await this.play(unbuiltRow.sync({ staged: false, runTime: 0.6 }));
 
     // 3. Why no reader meets that row: a link picks one of the scenarios the build made, or gets the default.
-    const open = (asked: string) => {
-      try {
-        return { asked, opens: resolveSettings({ settings: [RATE_SETTING] }, { rate: asked }).rate! };
-      } catch (e) {
-        return { asked, opens: RATE_SETTING.default, refused: (e as Error).message };
-      }
-    };
+    // A link naming a listed rate opens it; any other is refused with the message the page's settings
+    // resolver gives, written here from the setting, and fidelity.ts holds both to that resolver.
+    const rates = RATE_SETTING.options.map((o) => o.value);
+    const open = (asked: string) =>
+      rates.includes(asked)
+        ? { asked, opens: asked }
+        : { asked, opens: RATE_SETTING.default, refused: `resolveSettings(): ${JSON.stringify(asked)} is not an option of the setting ${JSON.stringify(RATE_SETTING.id)}; it takes ${rates.join(', ')}` };
     const links = [open('4'), open(String(UNBUILT))];
     const fallback = links[1]!;
     const byDefault = perSecond(Number(RATE_SETTING.default));

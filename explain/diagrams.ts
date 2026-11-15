@@ -6,13 +6,12 @@ import {
   Create,
   Transform,
   Dot,
-  GrowFromEdge,
-  PulseAlongPath,
   AnimationGroup,
   linear,
   Rectangle,
   keyed,
 } from '../src/index.ts';
+import { GrowFromEdge, PulseAlongPath } from '../extras/index.ts';
 import { MoveAlongPath, finishAtOnce } from '../src/animation.ts';
 import type { Beat, BeatPlan } from '../src/animation.ts';
 import { Text } from '../src/text.ts';
@@ -382,6 +381,15 @@ export class Diagram {
   private walked: { step: string | undefined; hops: string[]; edges: string[] } | null = null;
   /** Notes notePicture built, for the description while they are on stage. */
   private drawnNotes = new Map<Mobject, { id: string; text: string }>();
+
+  /**
+   * The diagram `s.show` would build for `spec`, laid out from the scene's diagram snapshots but not
+   * on the stage: read its parts' geometry (`d.get`, `d.shapes`, `d.snapshot`) to plan a picture
+   * before anything is drawn. `box` is where it fits, a region name or a box, as for `s.show`.
+   */
+  static async measure(scene: Scene, spec: DiagramSpec, { box }: Pick<ShowOptions, 'box'> = {}): Promise<Diagram> {
+    return new Diagram(scene, spec, await resolverOf(scene, 'Diagram.measure()').diagram(spec), { box });
+  }
 
   constructor(
     scene: Scene,

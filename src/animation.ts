@@ -631,32 +631,6 @@ export class FadeOut extends Transform {
   }
 }
 
-export interface GrowFromEdgeOptions extends AnimationOptions {
-  /** Nonzero by default to keep the starting path nondegenerate; in [0, 1]. */
-  initialScale?: number;
-}
-
-/** Fade in while expanding along one axis from a fixed cardinal edge. */
-export class GrowFromEdge extends FadeIn {
-  readonly edge: Vec;
-  readonly #axis: 0 | 1;
-  readonly #initialScale: number;
-
-  constructor(mobject: Mobject, edge: Readonly<Vec> = [0, -1], { initialScale = 0.001, ...opts }: GrowFromEdgeOptions = {}) {
-    if (!Array.isArray(edge) || edge.length !== 2 || !Number.isFinite(edge[0]) || !Number.isFinite(edge[1]) ||
-      Math.abs(edge[0]) + Math.abs(edge[1]) !== 1 || (edge[0] !== 0 && edge[1] !== 0))
-      throw new TypeError('new GrowFromEdge(): the edge must be one unit step along an axis: [0, 1], [0, -1], [-1, 0] or [1, 0]');
-    if (!Number.isFinite(initialScale) || initialScale < 0 || initialScale > 1)
-      throw new RangeError('new GrowFromEdge(): initialScale must be a number from 0 to 1');
-    super(mobject, opts);
-    this.edge = [edge[0], edge[1]]; this.#axis = edge[0] === 0 ? 1 : 0; this.#initialScale = initialScale;
-  }
-
-  /** @internal */ override [startingCopy](): Mobject {
-    return super[startingCopy]().stretch(this.#initialScale, this.#axis, { aboutEdge: this.edge });
-  }
-}
-
 /** Create's default border, sized for text at the default font size (0.4). */
 const CREATE_BORDER = 0.012;
 
@@ -903,35 +877,6 @@ export class MoveAlongPath extends Animation {
       sub.touchPoints(); dropBox(sub);
     }
     this.mobject.invalidateBox();
-  }
-}
-
-/** Travel along a fixed route while fading in and out; remove the token by default. */
-export class PulseAlongPath extends MoveAlongPath {
-  readonly #sourcePath: VMobject;
-
-  constructor(mobject: Mobject, path: VMobject, opts: MoveAlongPathOptions = {}) {
-    super(mobject, path, { rateFunc: linear, remover: true, ...opts });
-    this.#sourcePath = path;
-  }
-
-  protected override doBegin(): void {
-    // The path, like the starting geometry, is fixed when the play begins.
-    this.path = this.#sourcePath.copy();
-    super.doBegin();
-  }
-
-  protected override doInterpolate(alpha: number): void {
-    super.doInterpolate(alpha);
-    const opacity = Math.sin(Math.PI * alpha);
-    for (const [sub, start] of this[families]) sub!.style.opacity = start!.style.opacity * opacity;
-  }
-
-  /** @internal */
-  override [cleanUp](scene: Scene): void {
-    super[cleanUp](scene);
-    // A removed token can be used again without inheriting its invisible end.
-    if (isRemover(this)) for (const [sub, start] of this[families]) sub!.style.opacity = start!.style.opacity;
   }
 }
 

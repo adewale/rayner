@@ -3,7 +3,6 @@
 import { Scene, Rectangle, Labeled, Text, Code, Arrow, FadeIn, Create, Transform, Circumscribe } from 'rayner';
 import { view, stage } from 'rayner/explain';
 import { card } from 'rayner/drawing';
-import { jsonObject } from 'rayner/testing';
 
 export interface RequestInput { cached: boolean }
 export function route(input: RequestInput): 'cache' | 'database' {
@@ -12,11 +11,10 @@ export function route(input: RequestInput): 'cache' | 'database' {
 
 /** Bind ordinary data to a SceneClass; renderFrame and traceScene need no special format. */
 export function requestScene(input: RequestInput) {
-  // Validate and copy the input under the trace's JSON rules, so later mutation by the caller cannot
-  // change a replay and a function or NaN is refused here, with its path, rather than in the trace.
-  const copy = jsonObject(input, 'input');
-  if (typeof copy.cached !== 'boolean') throw new TypeError('cached must be a boolean');
-  const cached = copy.cached;
+  // Read the one value the scene needs, checked, so a caller that changes its input later cannot
+  // change a replay, and a value the state could not hold is refused here rather than in the trace.
+  if (typeof input?.cached !== 'boolean') throw new TypeError('cached must be a boolean');
+  const cached = input.cached;
   return class RequestScene extends Scene<{ cached: boolean; destination: string }, {}> {
     override state = { cached, destination: 'pending' };
     override async construct() {

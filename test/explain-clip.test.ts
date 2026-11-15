@@ -8,7 +8,8 @@ import {
   Line,
   Transform,
   } from '../src/index.ts';
-import { NullSink, StringSink, renderFrame, toSvgString, renderElements } from '../src/output.ts';
+import { NullSink, renderFrame } from '../src/timeline.ts';
+import { StringSink, toSvgString, renderElements } from '../src/svg.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import type { Box } from '../src/index.ts';
 import { mobjectId } from '../src/mobject.ts';

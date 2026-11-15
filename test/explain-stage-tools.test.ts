@@ -4,7 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Rectangle, Group, VMobject, Text, keyed } from '../src/index.ts';
-import { NullSink, StringSink, renderFrame, toSvgString } from '../src/output.ts';
+import { NullSink, renderFrame } from '../src/timeline.ts';
+import { StringSink, toSvgString } from '../src/svg.ts';
 import { MotionSink, analyzeMotion } from '../src/internal.ts';
 import type { Box, Mobject, Vec } from '../src/index.ts';
 import { stage } from '../explain/index.ts';
@@ -233,7 +234,7 @@ await this.step('two',{title:'Second',caption:'No line here.'});await s.enter(ne
 
 test("engine defaults take the stage's palette: an axis, outlines and text drawn without a colour read on its paper", async () => {
   const { Axes, Circumscribe, SurroundingRectangle } = await import('../src/index.ts');
-  const { palette } = await import('../explain/index.ts');
+  const { palette } = await import('../explain/palettes.ts');
   const { sceneColors } = await import('../explain/stage.ts');
   const p = palette('pen-and-ink'), emphasis = sceneColors(p).emphasis;
   assert.notEqual(emphasis, p.ink, 'the roles differ on this palette, so the test can tell them apart');

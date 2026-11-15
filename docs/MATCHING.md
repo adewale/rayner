@@ -245,8 +245,8 @@ begins ([fundamentals](ENGINE-FUNDAMENTALS.md#steps-state-and-evidence)):
 `{ kind: 'match', matched, morphed, removed, added }`, and for `TransformDiff`,
 `{ kind: 'diff', hunks, lines: { unchanged, changed, removed, added }, matched,
 morphed, removed, added }`. A view's sync records its morph's `match` counts, with
-the view's key as `view`. The trace carries evidence per step, and `renderText`
-prints a one-line summary under the frame. The KV-cache explainer morphs its merge request's two texts with
+the view's key as `view`. The trace carries evidence per step, and a step's
+picture drawn as text (`rayner see`, `describeExplainer`) prints a one-line summary under it. The KV-cache explainer morphs its merge request's two texts with
 `TransformDiff`, and its `fidelity.ts` (`scenes/explainers/mr-cache/`) holds the hunks it
 records, in both of its scenarios, to `git diff --no-index --unified=0`, with its
 line counts git's. The same file checks the match evidence behind the counts

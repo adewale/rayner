@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Rectangle } from '../src/index.ts';
 import type { Text } from '../src/index.ts';
-import { NullSink } from '../src/output.ts';
+import { NullSink } from '../src/timeline.ts';
 import { traceScene, loadFonts } from '../explain/testing.ts';
 import { stage, regionBox } from '../explain/index.ts';
 import { paletteOf, paperOf } from '../explain/stage.ts';
@@ -17,7 +17,7 @@ import { bindSnapshots } from '../explain/internal.ts';
 import { takeMissingGlyphs } from '../src/fonts.ts';
 import FontMetrics from '../scenes/explainers/font-metrics/scene.ts';
 import GreekLettering from './fixtures/lettering/scene.ts';
-import { edgePartOf, diagramKey, snapshotResolver, useDiagrams, diagramResolverOf, RENDERER } from '../explain/diagram-snapshot.ts';
+import { edgePartOf, diagramKey, snapshotResolver, useDiagrams, resolverOf, RENDERER } from '../explain/diagram-snapshot.ts';
 import type { DiagramSnapshot, StageOptions } from '../explain/index.ts';
 import { raised, rule, emphasis, soft, good, bad, dimOpacity, seenSource } from '../explain/look.ts';
 import type { SeenSource } from '../explain/look.ts';
@@ -633,7 +633,7 @@ test('a snapshot stored under another spec is refused', async () => {
   );
 });
 
-test('diagramResolverOf returns the resolver last bound to that scene, and refuses an unbound scene', () => {
+test('a scene\'s diagram resolver is the one last bound to it, and an unbound scene is refused under the call made', () => {
   fc.assert(
     fc.property(fc.array(fc.nat({ max: 3 }), { maxLength: 10 }), (binds) => {
       const scenes = Array.from({ length: 4 }, () => new Scene(new NullSink()));
@@ -644,8 +644,8 @@ test('diagramResolverOf returns the resolver last bound to that scene, and refus
         last.set(scenes[i]!, r);
       }
       for (const scene of scenes)
-        if (last.has(scene)) assert.equal(diagramResolverOf(scene), last.get(scene));
-        else assert.throws(() => diagramResolverOf(scene), /diagramResolverOf\(\): no diagram snapshots are bound to this scene/);
+        if (last.has(scene)) assert.equal(resolverOf(scene, 'Diagram.measure()'), last.get(scene));
+        else assert.throws(() => resolverOf(scene, 'Diagram.measure()'), /^Error: Diagram\.measure\(\): no diagram snapshots are bound to this scene/);
     }),
     params(),
   );
@@ -909,12 +909,12 @@ test('the regions meant to sit side by side never overlap', () => {
 
 test('the explain entry point exports exactly its documented names', async () => {
   assert.deepEqual(Object.keys(await import('../explain/index.ts')).sort(), [
-    'Diagram', 'Machine', 'answerOf', 'diagramResolverOf', 'having', 'isRefusal', 'mermaid', 'palette', 'refuse', 'regionBox', 'resolveSettings', 'settingsOf', 'stage', 'view',
+    'Diagram', 'Machine', 'answerOf', 'having', 'isRefusal', 'mermaid', 'refuse', 'regionBox', 'settingsOf', 'stage', 'view',
   ]);
   // The tooling went to rayner/testing.
   assert.deepEqual(Object.keys(await import('../explain/testing.ts')).sort(), [
-    'InvariantSink', 'TraceSink', 'assertStepState', 'assertSteps', 'assertViewFollowsState', 'describeExplainer',
-    'diagramFindings', 'diagramOf', 'jsonObject', 'loadFonts',
+    'TraceSink', 'assertStepState', 'assertSteps', 'assertViewFollowsState', 'describeExplainer',
+    'diagramFindings', 'diagramOf', 'loadFonts',
     'loadProject', 'loadSnapshots', 'pictureWordsAt', 'sampleAnimation', 'traceScene', 'withIntent', 'withSettings',
   ]);
 });
@@ -946,7 +946,7 @@ test('the testing helpers name a missing step, and find no snapshots where none 
 
 test('loadProject draws a scene\'s lettering from the scene.lettering.json beside it, and refuses one missing or stale', async () => {
   // Outline lettering: font-metrics' italic and its Garamond measurements need its snapshot, which the class alone lacks.
-  await assert.rejects(traceScene(FontMetrics), /new ItalicText\(\): it needs meta\.lettering\.styles/);
+  await assert.rejects(traceScene(FontMetrics), /new Text\(\): italic text needs meta\.lettering\.styles/);
   const metrics = await loadProject(FontMetrics, 'scenes/explainers/font-metrics');
   const { layout } = metrics.scenario().trace.steps.find((s) => s.step === 'layout')!.after;
   assert.ok(layout.actual < layout.wrong, `Garamond ${layout.actual} is narrower than JetBrains Mono ${layout.wrong}`);

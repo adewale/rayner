@@ -1,10 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { Scene, Rectangle, FadeIn } from '../src/index.ts';
-import { NullSink, StringSink, renderFrame, renderText, StopScene } from '../src/output.ts';
+import { Scene, Rectangle, Dot, Circle, FadeIn, Transform, toSvgString } from '../src/index.ts';
+import type { EndedStep, Sink, Step } from '../src/index.ts';
+import { NullSink, renderFrame } from '../src/timeline.ts';
+import { StringSink, DomSink } from '../src/svg.ts';
+import { renderText } from '../src/ascii.ts';
+import { StopScene } from '../src/scene.ts';
 import { SnapshotSink } from '../src/svg.ts';
-import { traceScene } from '../explain/testing.ts';
+import { traceScene, TraceSink } from '../explain/testing.ts';
 import { Fixture } from './lib/scenes.ts';
 
 // The trace is what agents read and what fidelity tests compare: its records, timing and
@@ -128,4 +132,92 @@ test('renderFrame draws the frame a step records by its number, the frame a full
   class Fast extends Fixture { constructor(sink: ConstructorParameters<typeof Fixture>[0]) { super(sink, { fps: 60 }); } }
   assert.equal((await renderFrame(Fast, 45, new NullSink())).frameCount, 45);
   for (const bad of [-1, 1.5, NaN]) await assert.rejects(renderFrame(Fixture, bad, new NullSink()), (e: unknown) => e instanceof RangeError && e.message.startsWith('renderFrame(): ') && e.message.includes(String(bad)));
+});
+
+// Rayner's own sinks only read a frame (the lantern explainer says so, and names this test): each of
+// them, the browser's DomSink included, leaves the scene drawing the same SVG and holding the same state.
+/** A scene built only from Rayner's own animations: a fade, a morph, a move, a wait. */
+class TimeOnly extends Scene {
+  override async construct() {
+    await this.step('one');
+    const box = new Rectangle({ width: 2, height: 1, stroke: '#222222', fill: '#88aadd', fillOpacity: 0.4 }).moveTo([-3, 1]);
+    const dot = new Dot({ radius: 0.3 }).moveTo([-5, -2]);
+    await this.play(new FadeIn(box), new FadeIn(dot), { runTime: 0.5 });
+    await this.play(new Transform(box, new Rectangle({ width: 2.5, height: 2.5, stroke: '#222222' }).moveTo([2, 1])), dot.animate.moveTo([5, -2]), { runTime: 1 });
+    await this.step('two');
+    await this.play(new Transform(box, new Circle({ radius: 1, stroke: '#222222' }).moveTo([0, 0])), { runTime: 0.7 });
+    await this.wait(0.3);
+  }
+}
+
+/** Every frame of a full run, by frame number, as SVG. */
+async function played(S: typeof TimeOnly): Promise<string[]> {
+  const frames: string[] = [];
+  await new S({ async frame(s: Scene) { frames[s.frameCount] = toSvgString(s); } }).run();
+  return frames;
+}
+
+/** A small document that DomSink can patch: elements with attributes, text and ordered children. */
+function fakeDocument() {
+  type El = { tagName: string; attrs: Record<string, string>; children: El[]; parent: El | null; style: Record<string, string>; textContent: string } & Record<string, unknown>;
+  const make = (tagName: string): El => {
+    const el = { tagName, attrs: {}, children: [], parent: null, style: {}, textContent: '' } as unknown as El;
+    const detach = (c: El) => { if (c.parent) c.parent.children.splice(c.parent.children.indexOf(c), 1); c.parent = null; };
+    Object.assign(el, {
+      setAttribute: (k: string, v: string) => { el.attrs[k] = v; },
+      removeAttribute: (k: string) => { delete el.attrs[k]; },
+      appendChild: (c: El) => { detach(c); el.children.push(c); c.parent = el; return c; },
+      insertBefore: (c: El, ref: El | null) => {
+        detach(c);
+        const i = ref ? el.children.indexOf(ref) : -1;
+        el.children.splice(i < 0 ? el.children.length : i, 0, c);
+        c.parent = el;
+        return c;
+      },
+      replaceChildren: (...cs: El[]) => { for (const c of [...el.children]) detach(c); for (const c of cs) (el.appendChild as (c: El) => El)(c); },
+      remove: () => detach(el),
+    });
+    Object.defineProperty(el, 'firstChild', { get: () => el.children[0] ?? null });
+    Object.defineProperty(el, 'nextSibling', { get: () => (el.parent ? el.parent.children[el.parent.children.indexOf(el) + 1] ?? null : null) });
+    return el;
+  };
+  const doc = { createElementNS: (_ns: string, tag: string) => make(tag) };
+  const container = make('div');
+  (container as Record<string, unknown>).ownerDocument = doc;
+  return container as unknown as Element;
+}
+
+test('sinks only read a frame: after each of Rayner’s sinks takes it, the scene draws the same SVG and keeps the same state', async () => {
+  const sinks: Record<string, () => Sink> = {
+    string: () => new StringSink(),
+    null: () => new NullSink(),
+    trace: () => new TraceSink(),
+    browser: () => new DomSink(fakeDocument(), { realtime: false }),
+  };
+  const reference = await played(TimeOnly);
+  for (const [name, make] of Object.entries(sinks)) {
+    const inner = make();
+    const seen: string[] = [];
+    const look = (s: Scene) => toSvgString(s) + JSON.stringify(s.stateJson());
+    const guard = async (s: Scene, call: () => Promise<void> | void, what: string) => {
+      const before = look(s);
+      await call();
+      assert.equal(look(s), before, `the ${name} sink changed the scene in ${what} at frame ${s.frameCount}`);
+    };
+    try {
+      await new TimeOnly({
+        async frame(s: Scene, dt: number) {
+          await guard(s, () => inner.frame(s, dt), 'frame');
+          seen[s.frameCount] = toSvgString(s);
+        },
+        async stepBegin(s: Scene, st: Step) { await guard(s, () => inner.stepBegin?.(s, st), 'stepBegin'); },
+        async stepEnd(s: Scene, st: EndedStep) { await guard(s, () => inner.stepEnd?.(s, st), 'stepEnd'); },
+      }).run();
+    } catch (e) {
+      if (!(e instanceof StopScene)) throw e;
+    }
+    assert.deepEqual(seen, reference, `with the ${name} sink`);
+    // The fake document's elements keep their children in a list (fakeDocument).
+    if (inner instanceof DomSink) assert.ok((inner.svg as unknown as { children: unknown[] }).children.length > 0, 'the browser sink patched its document');
+  }
 });

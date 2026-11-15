@@ -4,12 +4,16 @@
 // and the timeline's preconditions (fps, run times, lag ratios, waits, steps that draw a frame).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Circle, Rectangle, FadeIn, FadeOut, Create, AnimationGroup, Succession, Transform, DecimalNumber, Text, Group, Mobject, Frame, Line, Dot } from '../src/index.ts';
+import { Scene, Circle, Rectangle, FadeIn, FadeOut, Create, AnimationGroup, Succession, Transform, DecimalNumber, Text, Group, Mobject, Line, Dot } from '../src/index.ts';
+import { Frame } from '../src/frame.ts';
 import type { ScheduledAnimation, Sink } from '../src/index.ts';
 import { publicClasses, MOBJECTS, USES, ANIMATIONS, SINKS, MADE_NOT_EXTENDED } from './lib/public-classes.ts';
 import type { ClassKind } from './lib/public-classes.ts';
-import { thereAndBack, linear } from '../src/rate.ts';
-import { NullSink, renderFrame, renderElements, StopScene } from '../src/output.ts';
+import { linear } from '../src/rate.ts';
+import { thereAndBack } from '../extras/index.ts';
+import { NullSink, renderFrame } from '../src/timeline.ts';
+import { renderElements } from '../src/svg.ts';
+import { StopScene } from '../src/scene.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { traceScene } from '../src/testing.ts';
 import type { Step } from '../src/index.ts';
@@ -215,7 +219,7 @@ test('a member an author writes on a subclass of Scene, or of a mobject, animati
   const built = (kind: ClassKind | undefined) => kind === 'mobject' ? MOBJECTS : kind === 'animation' ? ANIMATIONS : kind === 'sink' ? SINKS : { Scene: true };
   assert.deepEqual(classes.filter((c) => c.kind && !(c.name in built(c.kind))).map((c) => c.name), [], 'give each exported class a way to build it');
   for (const table of [MOBJECTS, ANIMATIONS, SINKS]) assert.deepEqual(Object.keys(table).filter((n) => !classes.some((c) => c.kind && c.name === n)), [], 'every class built here is exported');
-  assert.ok(classes.filter((c) => c.kind).length > 45);
+  assert.ok(classes.filter((c) => c.kind).length > 40);
 
   const changed: string[] = [];
   for (const { name, kind, C, surface } of classes) {
@@ -236,7 +240,7 @@ test('the names a subclass is checked with reach the engine\'s symbol-keyed stat
   const textNames = engineNames((await play('mobject', 'Text', Text)).instance, surface('Text'));
   assert.ok(['sceneColors', 'run', 'frameBox', 'mergeLeaves'].every((n) => textNames.includes(n)), textNames.join(', '));
   assert.ok(surface('Scene').has('play') && surface('Text').has('setText') && surface('Animation').has('doBegin'), 'public and protected members are the author\'s');
-  assert.ok(!surface('Scene').has('sink') && !surface('DomSink').has('patch'), 'engine state is not');
+  assert.ok(!surface('Scene').has('sink') && !surface('Text').has('run'), 'engine state is not');
 });
 
 test('a failed play lands what it began without calling an author\'s own land(), and reports the failure', async () => {
@@ -954,7 +958,7 @@ test('a frame with no updater on stage builds no family to look for one', async 
 
 test('a scene runs once, a step listener begins no step, and a listener leaves no play running', async () => {
   const { Scene, Circle, FadeIn } = await import('../src/index.ts');
-  const { NullSink } = await import('../src/output.ts');
+  const { NullSink } = await import('../src/timeline.ts');
   class One extends Scene { override async construct() { await this.step('a', {}); await this.wait(0.1); } }
   const once = new One(new NullSink());
   await once.run();

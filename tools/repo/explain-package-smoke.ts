@@ -169,7 +169,7 @@ try {
   await run(process.execPath, [join(installed, 'dist/recipes/render.js'), '--out', join(folder, 'recipe-output')], { cwd: folder });
   const recipeTrace = JSON.parse(await readFile(join(folder, 'recipe-output/document.trace.json'), 'utf8'));
   assert.equal(recipeTrace.steps.find((s: {step: string}) => s.step === 'result').after.destination, 'cache');
-  assert.match(await readFile(join(folder, 'recipe-output/continuous.txt'), 'utf8'), /1\.57/);
+  assert.ok(Math.abs(JSON.parse(await readFile(join(folder, 'recipe-output/continuous.state.json'), 'utf8')).angle - Math.PI / 2) < 1e-9);
   const choreographyTrace = JSON.parse(await readFile(join(folder, 'recipe-output/choreography.trace.json'), 'utf8'));
   assert.equal(choreographyTrace.steps.at(-1).after.count, 9);
   assert.ok(existsSync(join(folder, 'recipe-output/invariants.trace.json')), 'the invariant recipe runs from the archive');
@@ -178,8 +178,8 @@ try {
   // The same names the checkout's kit exports (test/drawing.test.ts pins those), 3D included.
   const sourceKit = Object.keys(await import(pathToFileURL(join(ROOT, 'explain/drawing.ts')).href)).sort().join(',');
   assert.equal(kit.stdout.trim(), sourceKit);
-  // So do the output and testing entry points, with the checkout's names.
-  for (const [entry, source] of [['rayner/output', 'src/output.ts'], ['rayner/testing', 'explain/testing.ts']] as const) {
+  // So do the extras and testing entry points, with the checkout's names.
+  for (const [entry, source] of [['rayner/extras', 'extras/index.ts'], ['rayner/testing', 'explain/testing.ts']] as const) {
     const names = await run(process.execPath, ['--input-type=module', '-e', `const k = await import('${entry}'); console.log(Object.keys(k).sort().join(','))`], { cwd: folder });
     assert.equal(names.stdout.trim(), Object.keys(await import(pathToFileURL(join(ROOT, source)).href)).sort().join(','), entry);
   }
@@ -430,7 +430,7 @@ try {
     [
       '--input-type=module',
       '-e',
-      `import{Scene}from'rayner';import{NullSink}from'rayner/output';import{stage}from'rayner/explain';const scene=new Scene(new NullSink());await scene.run();stage(scene);console.log(scene.mobjects.length);`,
+      `import{Scene}from'rayner';import{stage}from'rayner/explain';const scene=new Scene({skipUntil:Infinity,async frame(){}});await scene.run();stage(scene);console.log(scene.mobjects.length);`,
     ],
     { cwd: folder },
   );
