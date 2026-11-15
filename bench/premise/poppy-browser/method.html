@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How does the agent’s browser join the Session without ever carrying the key?</title>
+<style>
+:root { color-scheme: light; --ink:#1d1d1f; --soft:#6e6e73; --line:#d2d2d7; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #fff; color: var(--ink); font: 16px/1.5 system-ui, sans-serif; }
+main { max-width: 720px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 1.5rem; line-height: 1.25; margin: 0.5rem 0; }
+h2 { font-size: 1.15rem; line-height: 1.3; margin: 1rem 0 0.5rem; }
+.intro, .leaves { color: var(--soft); font-size: 0.95rem; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 12px 0; }
+.controls label { font-weight: 600; font-size: 0.95rem; }
+select, button { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); }
+button:disabled { opacity: 0.4; }
+.nav { display: flex; align-items: center; gap: 12px; }
+.counter { color: var(--soft); font-size: 0.9rem; }
+.figure { border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin: 8px 0; }
+.figure svg { display: block; max-width: 100%; height: auto; }
+.caption { margin: 8px 0 16px; }
+details { border-top: 1px solid var(--line); padding: 8px 0; }
+summary { cursor: pointer; font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+<h1>How does the agent’s browser join the Session without ever carrying the key?</h1>
+<p class="intro">For a developer who knows the seal (the Session header: who is asking) and the key (the access token: what the account allows). Pick how your agent stands with the shop, then step through. Every step replays a model of the Personal Agent Protocol draft 1.0 (as published on 2026-11-13), section 6, which is tested against the draft’s rules and examples; there is no reference implementation to run it against.</p>
+<div id="app"></div>
+<p class="leaves">Leaves out: time (the code’s and cookie’s 60-second life), real randomness and signatures, how a real browser enforces SameSite and the page headers, and Mediated Sign-In.</p>
+</main>
+<script>(() => {
+  // bench/premise/shell.ts
+  var el = (tag, attrs = {}, text2) => {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    if (text2 !== void 0) e.textContent = text2;
+    return e;
+  };
+  function mount(root, spec) {
+    const values = Object.fromEntries(spec.settings.map((s) => [s.id, s.default]));
+    let index = 0;
+    const controls = el("div", { class: "controls" });
+    for (const s of spec.settings) {
+      const label = el("label", {}, `${s.label} `);
+      const select = el("select", { "aria-label": s.label });
+      for (const o of s.options) {
+        const opt = el("option", { value: o.value }, o.label);
+        if (o.value === s.default) opt.selected = true;
+        select.append(opt);
+      }
+      select.addEventListener("change", () => {
+        values[s.id] = select.value;
+        render();
+      });
+      label.append(select);
+      controls.append(label);
+    }
+    const nav = el("div", { class: "nav" });
+    const prev = el("button", { type: "button" }, "\u2190 Prev");
+    const counter = el("span", { class: "counter", "aria-live": "polite" });
+    const next2 = el("button", { type: "button" }, "Next \u2192");
+    nav.append(prev, counter, next2);
+    const title = el("h2");
+    const figure = el("div", { class: "figure" });
+    const caption = el("p", { class: "caption" });
+    const checks = el("section", { class: "checks" });
+    checks.append(el("h2", {}, "Check yourself"));
+    for (const c of spec.checks) {
+      const d = el("details");
+      d.append(el("summary", {}, c.q), el("p", {}, c.a));
+      checks.append(d);
+    }
+    root.append(controls, nav, title, figure, caption, checks);
+    function render() {
+      const all = spec.steps(values);
+      index = Math.max(0, Math.min(index, all.length - 1));
+      const s = all[index];
+      title.textContent = s.title;
+      figure.innerHTML = s.svg;
+      caption.textContent = s.caption;
+      counter.textContent = `Step ${index + 1} of ${all.length}`;
+      prev.disabled = index === 0;
+      next2.disabled = index === all.length - 1;
+      checks.hidden = index !== all.length - 1;
+    }
+    prev.addEventListener("click", () => {
+      index--;
+      render();
+    });
+    next2.addEventListener("click", () => {
+      index++;
+      render();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.target.tagName === "SELECT") return;
+      if (e.key === "ArrowRight") next2.click();
+      if (e.key === "ArrowLeft") prev.click();
+    });
+    render();
+  }
+
+  // explain/machine.ts
+  var REFUSAL = Symbol.for("rayner.refusal");
+  var Refusal = class {
+    /** Why the model refuses the event, in the reader's words: what the player says of its button. */
+    reason;
+    constructor(reason) {
+      if (!reason.trim()) throw new RangeError("refuse(): the reason must be words; return undefined from next for a refusal with no reason");
+      this.reason = reason;
+      Object.defineProperty(this, REFUSAL, { value: true });
+      Object.freeze(this);
+    }
+  };
+  function refuse(reason) {
+    return new Refusal(reason);
+  }
+  function isRefusal(value) {
+    return typeof value === "object" && value !== null && value[REFUSAL] === true;
+  }
+
+  // scenes/explainers/poppy/model.ts
+  var COMPANY = { domain: "example.com", issuer: "https://auth.example.com" };
+  var AGENT = { clientId: "https://agent.example/agent.json", name: "agent.example" };
+  var THIEF = { clientId: "https://thief.example/agent.json", name: "thief.example" };
+  var USER_IDS = { "example.com": "usr_Q7c1vK", "shoes.example": "usr_m4Tz9P" };
+  var SID = "Yx2b7Q";
+  var POPPY_JSON = {
+    protocol_version: "1.0",
+    organization: { name: "Example Company", domain: "example.com" },
+    // 8.1: every conversation entry says what the agent there can help with.
+    agent: { protocols: [{ type: "poppy", endpoint: "https://api.example.com/poppy/conversations", description: "Anything about your orders, returns, account, and our products" }] },
+    web: { browser_session_endpoint: "https://example.com/poppy/browser-session" },
+    apis: [{ type: "openapi", url: "https://api.example.com/openapi.json", description: "Orders, returns, and exchanges" }]
+  };
+  var OPERATIONS = {
+    cart: { channel: "api", method: "POST", url: "https://api.example.com/cart", path: "/cart", needs: null, ok: 200 },
+    browse: { channel: "web", method: "POST", url: "https://example.com/poppy/browser-session/authorize", path: "/poppy/browser-session/authorize", needs: null, ok: 204 },
+    chat: { channel: "chat", method: "POST", url: "https://api.example.com/poppy/conversations", path: "/poppy/conversations", needs: null, ok: 201 },
+    order: { channel: "api", method: "GET", url: "https://api.example.com/orders/ord_7Hk2", path: "/orders/ord_7Hk2", needs: "orders:read", ok: 200 },
+    exchange: { channel: "api", method: "POST", url: "https://api.example.com/orders/ord_7Hk2/exchanges", path: "/orders/ord_7Hk2/exchanges", needs: "orders:write", ok: 200 }
+  };
+  var hashOf = (token) => `ath(${token.value})`;
+  function sign(client, request, sub, sid) {
+    return {
+      iss: client.clientId,
+      aud: COMPANY.issuer,
+      sid,
+      sub,
+      htm: request.method,
+      htu: request.url,
+      key: client.clientId,
+      ...request.token ? { ath: hashOf(request.token) } : {}
+    };
+  }
+  function answer(request) {
+    const op = Object.values(OPERATIONS).find((o) => o.method === request.method && o.url === request.url);
+    if (!op) return { status: 404 };
+    const invalid = (reason) => ({ status: 400, error: "invalid_session", reason });
+    const { session: s, token } = request;
+    if (!s) return invalid("the request has no Session header");
+    if (s.key !== s.iss) return invalid("the header was not signed with a key its named agent vouches for");
+    if (s.aud !== COMPANY.issuer) return invalid("the header is addressed to another Company");
+    if (s.htm !== request.method || s.htu !== request.url) return invalid("the header was signed for another method or URL");
+    if (token && s.ath !== hashOf(token)) return invalid("the header does not cover this access token");
+    if (!token && s.ath !== void 0) return invalid("the header covers an access token the request does not carry");
+    if (token && token.client !== s.iss) return invalid("the access token was issued to another agent");
+    if (token?.revoked) return { status: 401, error: "invalid_token" };
+    if (op.needs && !token) return { status: 401, needs: op.needs };
+    if (op.needs && !token.scopes.includes(op.needs)) return { status: 403, error: "insufficient_scope", needs: op.needs };
+    return { status: op.ok };
+  }
+
+  // scenes/explainers/poppy-browser/model.ts
+  var ENDPOINT = POPPY_JSON.web.browser_session_endpoint;
+  var AUTHORIZE_URL = `${ENDPOINT}/authorize`;
+  var BROWSER_SIGN_IN = "poppy:browser-sign-in";
+  var JOIN_COOKIE = "__Host-poppy_join";
+  var SESSION_COOKIE = "__Host-sb_session";
+  var CODES = ["bc_K9wdP4sNe7Lq2Xa8TfUj3B", "bc_R5tyH1mGz6Vc0Dp9WkQx2E", "bc_Vn3qT8xLw2Rk9mZ4yHc1Ad", "bc_Ws8eJ3nBq5Yt1Lm7Gx0Pa4"];
+  var JOIN_VALUES = ["Hk3sX9", "Lr6tB2", "Jq7mW2", "Np4cZ8"];
+  var SESSION_VALUES = ["Pz81kQ", "Tf27vR", "Ux50aD"];
+  var ATTACKER = { client: THIEF, sub: "usr_Mx2c9T", sid: "Kd4nP0", account: "M", site: "evil.example" };
+  var ACCOUNT = "A";
+  var PAGE_RESPONSE = {
+    headers: {
+      "Content-Type": "text/html",
+      "Cache-Control": "no-store",
+      "Content-Security-Policy": "frame-ancestors 'none'",
+      "Cross-Origin-Opener-Policy": "same-origin"
+    },
+    cookie: { name: JOIN_COOKIE, path: "/", maxAge: 60, secure: true, httpOnly: true, sameSite: "Strict" }
+  };
+  var emptyCompany = () => ({ codes: [], sessions: [], cookiesSet: 0 });
+  var newBrowser = (name, login = null) => ({ name, join: null, session: null, login });
+  function load(company, browser) {
+    const i = company.codes.length, code = CODES[i] ?? `bc_${i}`, cookie = JOIN_VALUES[i] ?? `jn_${i}`;
+    return {
+      company: { ...company, codes: [...company.codes, { code, cookie, authorized: null, submitted: false, expired: false, seated: false, joined: false }] },
+      browser: { ...browser, join: cookie },
+      code,
+      response: PAGE_RESPONSE
+    };
+  }
+  var asAccessToken = (t) => ({
+    value: t.value,
+    client: t.client,
+    scopes: t.scopes.filter((s) => s !== BROWSER_SIGN_IN),
+    ...t.revoked ? { revoked: true } : {}
+  });
+  function authorizeRequest(client, code, sub, sid, token) {
+    const base = { method: "POST", url: AUTHORIZE_URL, ...token ? { token: asAccessToken(token) } : {} };
+    return { session: sign(client, base, sub, sid), code, ...token ? { token } : {} };
+  }
+  function authorize(company, request) {
+    const { session, token, code } = request;
+    const checked = answer({ method: "POST", url: AUTHORIZE_URL, ...session ? { session } : {}, ...token ? { token: asAccessToken(token) } : {} });
+    if (checked.status !== 204) return { company, answer: checked };
+    const sid = session.sid, started = company.sessions.includes(sid) ? company : { ...company, sessions: [...company.sessions, sid] };
+    if (token && !token.scopes.includes(BROWSER_SIGN_IN)) return { company: started, answer: { status: 403, error: "insufficient_scope", needs: BROWSER_SIGN_IN } };
+    const record = company.codes.find((r) => r.code === code);
+    const invalid = (reason) => ({ company: started, answer: { status: 400, error: "invalid_request", reason } });
+    if (!record) return invalid("the Company did not issue this code");
+    if (record.expired) return invalid("the code has expired");
+    if (record.authorized) return invalid("the code was authorized before");
+    const grant = { sid, agent: session.iss, account: token ? token.account : null, scopes: token ? token.scopes : [] };
+    return { company: { ...started, codes: started.codes.map((r) => r === record ? { ...r, authorized: grant } : r) }, answer: { status: 204 } };
+  }
+  var sameSite = (site) => site === COMPANY.domain || site.endsWith(`.${COMPANY.domain}`);
+  function submit(company, browser, code, from = COMPANY.domain) {
+    const sent = sameSite(from) ? browser.join : null, record = company.codes.find((r) => r.code === code), failed2 = [];
+    if (!sent) failed2.push(sameSite(from) ? "the browser sent no join cookie" : `the form came from ${from}, so the browser sent no join cookie`);
+    else if (!record || record.cookie !== sent) failed2.push("the join cookie was set with another code");
+    if (!record) failed2.push("the Company did not issue this code");
+    else {
+      if (!record.authorized) failed2.push("no agent authorized the code");
+      if (record.expired) failed2.push("the code has expired");
+      if (record.submitted) failed2.push("the code was submitted before");
+    }
+    const ok = !failed2.length && !!record?.authorized, seated = !!sent && record?.cookie === sent;
+    const spent = record ? { ...company, codes: company.codes.map((r) => r === record ? { ...r, submitted: true, seated, joined: ok } : r) } : company;
+    if (!ok || !record?.authorized) return { company: spent, browser, answer: { status: 400, failed: failed2 } };
+    const grant = record.authorized, value = SESSION_VALUES[company.cookiesSet] ?? `sb_${company.cookiesSet}`;
+    return {
+      company: { ...spent, cookiesSet: company.cookiesSet + 1 },
+      browser: { ...browser, join: null, session: { value, grant }, login: grant.account ? null : browser.login },
+      answer: { status: 303, location: "/" }
+    };
+  }
+  function browse(browser) {
+    const own = { account: browser.login, scopes: null, via: browser.login ? "own login" : null };
+    if (!browser.session) return { session: null, ...own };
+    const g = browser.session.grant;
+    return g.account ? { session: g.sid, account: g.account, scopes: g.scopes, via: "session" } : { session: g.sid, ...own };
+  }
+  var endSignIn = (browser) => browser.session ? { ...browser, session: { ...browser.session, grant: { ...browser.session.grant, account: null, scopes: [] } } } : browser;
+  var userToken = (scopes, account = ACCOUNT) => ({ value: "at_Qp4w", client: AGENT.clientId, account, scopes });
+  function joinEffect(before, tokenFor2) {
+    const loaded = load(emptyCompany(), newBrowser("agent\u2019s browser", before));
+    const token = tokenFor2 ? userToken(["orders:read", "orders:write", BROWSER_SIGN_IN], tokenFor2) : void 0;
+    const authorized = authorize(loaded.company, authorizeRequest(AGENT, loaded.code, USER_IDS[COMPANY.domain], SID, token));
+    const joined = submit(authorized.company, loaded.browser, loaded.code);
+    return { whileJoined: browse(joined.browser), afterSignInEnds: browse(endSignIn(joined.browser)) };
+  }
+  function agentTakesCode(source) {
+    return source === "its own browser\u2019s page" ? true : refuse(`a code from ${source} may come from someone else\u2019s browser, and the agent authorizes only a code its own browser loaded`);
+  }
+  function pageFetch(url, doc, client, _browserSignedIn = false) {
+    if (client === "a browser") return { session: null, token: null };
+    const m = /^([a-z]+):\/\/([^/?#:]+)([^?#]*)/i.exec(url);
+    if (!m) return { session: null, token: null };
+    const [, scheme, host, path] = m, origin = `${scheme.toLowerCase()}://${host.toLowerCase()}`;
+    if (scheme.toLowerCase() !== "https" || host.toLowerCase() !== doc.organization.domain.toLowerCase() || path.startsWith("/.well-known/")) return { session: null, token: null };
+    return { session: sign(AGENT, { method: "GET", url: `${origin}${path || "/"}` }, USER_IDS[COMPANY.domain], SID), token: null };
+  }
+  function tokenFor(signIn) {
+    if (signIn === "signed out") return null;
+    return userToken(signIn === "signed in" ? ["orders:read", "orders:write", BROWSER_SIGN_IN] : ["orders:read", "orders:write"]);
+  }
+  var HELP_URL = "https://example.com/help/exchanges";
+  var PAGE_STATUS = 200;
+  var ATTACK_CODE = CODES[0];
+  var PHISH_CODE = CODES[1];
+  function start(signIn) {
+    const first = load(emptyCompany(), newBrowser("attacker\u2019s browser"));
+    const token = { value: "at_Mz7t", client: ATTACKER.client.clientId, account: ATTACKER.account, scopes: [BROWSER_SIGN_IN] };
+    const authorized = authorize(first.company, authorizeRequest(ATTACKER.client, first.code, ATTACKER.sub, ATTACKER.sid, token));
+    const second = load(authorized.company, first.browser);
+    return { signIn, company: second.company, browser: newBrowser("agent\u2019s browser"), page: null, attacker: second.browser, dropped: false, last: null };
+  }
+  function next(w, event) {
+    const record = (code) => w.company.codes.find((r) => r.code === code);
+    switch (event) {
+      case "fetch": {
+        const sent = pageFetch(HELP_URL, POPPY_JSON, "its own HTTP client", !!w.browser.session?.grant.account);
+        return { ...w, last: { event: "fetch", status: PAGE_STATUS, session: !!sent.session, token: sent.token !== null } };
+      }
+      case "load": {
+        if (w.page) return refuse(`the browser\u2019s page already shows ${w.page.slice(0, 7)}, which the agent has not used yet`);
+        const loaded = load(w.company, w.browser);
+        return { ...w, company: loaded.company, browser: loaded.browser, page: loaded.code, last: { event: "load", status: PAGE_STATUS, code: loaded.code } };
+      }
+      case "authorize": {
+        if (!w.page) return refuse("the browser has no browser-session page open, so there is no code to read");
+        if (record(w.page).authorized) return refuse(`the agent has authorized ${w.page.slice(0, 7)} already, and a code is authorized once`);
+        const token = w.dropped ? null : tokenFor(w.signIn);
+        const sent = authorize(w.company, authorizeRequest(AGENT, w.page, USER_IDS[COMPANY.domain], SID, token ?? void 0));
+        return {
+          ...w,
+          company: sent.company,
+          // 6, step 2: after insufficient_scope, the agent authorizes the same code again without an access token.
+          dropped: w.dropped || sent.answer.error === "insufficient_scope",
+          last: { event: "authorize", code: w.page, withToken: !!token, answer: sent.answer }
+        };
+      }
+      case "submit": {
+        if (!w.page) return refuse("the browser has no browser-session form to submit, so it loads the page first");
+        const sent = submit(w.company, w.browser, w.page);
+        return { ...w, company: sent.company, browser: sent.browser, page: null, last: { event: "submit", code: w.page, answer: sent.answer } };
+      }
+      case "browse":
+        if (!w.browser.session) return refuse(`${COMPANY.domain} lists a browser-session endpoint, so the agent joins its browser to the Session before browsing`);
+        return { ...w, last: { event: "browse", status: PAGE_STATUS, visit: browse(w.browser) } };
+      case "forge": {
+        if (record(ATTACK_CODE).submitted) return refuse("the attacker\u2019s code was used by the first form that submitted it, and a code works once");
+        const sent = submit(w.company, w.browser, ATTACK_CODE, ATTACKER.site);
+        return { ...w, company: sent.company, browser: sent.browser, last: { event: "forge", code: ATTACK_CODE, answer: sent.answer } };
+      }
+      case "phish": {
+        if (record(PHISH_CODE).submitted) return refuse("the attacker\u2019s browser has used its code already, and a code works once");
+        const takes = agentTakesCode("a message"), token = w.dropped ? null : tokenFor(w.signIn);
+        const company = isRefusal(takes) ? w.company : authorize(w.company, authorizeRequest(AGENT, PHISH_CODE, USER_IDS[COMPANY.domain], SID, token ?? void 0)).company;
+        const sent = submit(company, w.attacker, PHISH_CODE);
+        return {
+          ...w,
+          company: sent.company,
+          attacker: sent.browser,
+          last: { event: "phish", code: PHISH_CODE, declined: isRefusal(takes) ? takes.reason ?? "" : "", answer: sent.answer }
+        };
+      }
+    }
+  }
+  var STORY = ["fetch", "load", "authorize", "submit", "browse", "forge", "phish"];
+  var storyOf = (signIn) => signIn === "signed in without the browser scope" ? ["fetch", "load", "authorize", "authorize", "submit", "browse", "forge", "phish"] : STORY;
+
+  // scenes/explainers/poppy-browser/answers.ts
+  var play = (signIn, events) => events.reduce((w, e) => {
+    const after = next(w, e);
+    if (isRefusal(after)) throw new Error(`${e}: ${after.reason}`);
+    return after;
+  }, start(signIn));
+  var lastOf = (w, event) => {
+    if (w.last?.event !== event) throw new Error(`the last event was not ${event}`);
+    return w.last;
+  };
+  var failed = (a) => {
+    if (a.status !== 400) throw new Error("the submission was accepted");
+    return a.failed.join(", and ");
+  };
+  var as = (v) => v.via === "session" ? `signed in to ${v.account}, with the token\u2019s scopes` : v.account ? `logged in as ${v.account}` : "signed out";
+  var questions = {
+    1: () => {
+      const forged = lastOf(play("signed in", STORY.slice(0, 6)), "forge");
+      return `An error page and no Session cookie: ${failed(forged.answer)}. The code was authorized, but it arrived without its cookie.`;
+    },
+    2: () => {
+      const phished = lastOf(play("signed in", STORY), "phish");
+      return `It declines: ${phished.declined}. The attacker\u2019s browser has the cookie, but it gets an error page, since ${failed(phished.answer)}.`;
+    },
+    3: () => {
+      const lacking = "signed in without the browser scope", events = storyOf(lacking);
+      const refused = lastOf(play(lacking, events.slice(0, 3)), "authorize").answer;
+      const visit = lastOf(play(lacking, events.slice(0, 6)), "browse").visit;
+      if (refused.needs !== BROWSER_SIGN_IN) throw new Error("step 2 did not name the browser scope");
+      return `${refused.status} ${refused.error}, naming ${refused.needs}. The agent authorizes the same code again without the token, and the browser joins the Session ${as(visit)}.`;
+    },
+    4: () => {
+      const { whileJoined, afterSignInEnds } = joinEffect("B", "A");
+      return `It browses ${as(whileJoined)}. When the Session\u2019s sign-in ends it is ${as(afterSignInEnds)}: the login as B does not come back.`;
+    },
+    5: () => {
+      const sent = pageFetch(HELP_URL, POPPY_JSON, "its own HTTP client", true);
+      if (!sent.session || sent.token !== null || "ath" in sent.session) throw new Error("the fetch carried more than the Session header");
+      return "The Session header alone, with no access token and no token hash in it, so the request is signed out.";
+    }
+  };
+
+  // bench/premise/draw.ts
+  var W = 400;
+  var C = {
+    ink: "#1d1d1f",
+    soft: "#6e6e73",
+    line: "#c7c7cc",
+    good: "#2e7d32",
+    bad: "#c62828",
+    goodFill: "#dcefdc",
+    badFill: "#f6d5d5",
+    a: "#c9d7f2",
+    b: "#f6c17a",
+    c: "#b9e0c4",
+    d: "#ececec",
+    e: "#e4d4f4",
+    hi: "#fff4c2"
+  };
+  var esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  var svg = (h, body, label) => `<svg viewBox="0 0 ${W} ${Math.ceil(h)}" width="100%" role="img" aria-label="${esc(label)}" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, sans-serif">${body}</svg>`;
+  var text = (x, y, s, o = {}) => `<text x="${x}" y="${y}" font-size="${o.size ?? 13}" fill="${o.fill ?? C.ink}" text-anchor="${o.anchor ?? "start"}"${o.weight ? ` font-weight="${o.weight}"` : ""}${o.mono ? ' font-family="ui-monospace, Menlo, monospace"' : ""}>${esc(s)}</text>`;
+  var rect = (x, y, w, h, fill, o = {}) => `<rect x="${x}" y="${y}" width="${Math.max(0, w)}" height="${Math.max(0, h)}" fill="${fill}" stroke="${o.stroke ?? C.ink}" stroke-width="${o.sw ?? 1}"${o.rx ? ` rx="${o.rx}"` : ""}${o.dash ? ' stroke-dasharray="4 3"' : ""}/>`;
+  var line = (x1, y1, x2, y2, o = {}) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${o.stroke ?? C.ink}" stroke-width="${o.sw ?? 1}"${o.dash ? ' stroke-dasharray="4 3"' : ""}/>`;
+
+  // bench/premise/poppy-browser/method/oracle.ts
+  var ENDPOINT2 = "https://example.com/poppy/browser-session";
+  var AUTHORIZE_URL2 = "https://example.com/poppy/browser-session/authorize";
+  var PAGE = { status: 200, maxAge: 60, httpOnly: true, sameSite: "Strict", namePrefix: "__Host-" };
+  var LOGIN_TABLE = [
+    { before: null, token: null, whileJoined: "not logged in; requests belong to the Session", after: "not logged in" },
+    { before: null, token: "A", whileJoined: "signed in to A, with the token\u2019s scopes", after: "signed out" },
+    { before: "A", token: null, whileJoined: "logged in as A through its own login", after: "logged in as A" },
+    { before: "B", token: "A", whileJoined: "signed in to A, with the token\u2019s scopes", after: "signed out; the login as B does not come back" }
+  ];
+
+  // bench/premise/poppy-browser/method/page.ts
+  var SETTING_KEYS = ["signed-in", "signed-out", "no-scope"];
+  var SIGN_IN = { "signed-in": "signed in", "signed-out": "signed out", "no-scope": "signed in without the browser scope" };
+  var LABEL = { "signed-in": "Signed in", "signed-out": "Signed out", "no-scope": "Signed in, no browser scope" };
+  var short = (code) => code.slice(0, 7) + "\u2026";
+  function story(signIn) {
+    const out = [];
+    let w = start(signIn);
+    for (const e of storyOf(signIn)) {
+      const n = next(w, e);
+      if (isRefusal(n)) throw new Error(`${e}: ${n.reason}`);
+      out.push(w = n);
+    }
+    return out;
+  }
+  var LANES = { agent: 70, browser: 200, company: 330 };
+  function worldSvg(w) {
+    const token = w.dropped ? null : tokenFor(w.signIn);
+    let body = "";
+    const head = (x, t) => rect(x - 58, 6, 116, 26, "#fafafa", { stroke: C.line, rx: 6 }) + text(x, 24, t, { size: 13, anchor: "middle", weight: "600" });
+    body += head(LANES.agent, "Your agent") + head(LANES.browser, "Its browser") + head(LANES.company, COMPANY.domain);
+    for (const x of Object.values(LANES)) body += line(x, 32, x, 150, { stroke: C.line, dash: true });
+    const arrow = (x1, x2, y, label, ok = true) => {
+      const dir = x2 > x1 ? 1 : -1;
+      return line(x1, y, x2 - dir * 6, y, { stroke: ok ? C.ink : C.bad, sw: 1.6 }) + `<path d="M${x2},${y} l${-dir * 8},-5 v10 z" fill="${ok ? C.ink : C.bad}"/>` + text((x1 + x2) / 2, y - 6, label, { size: 12, anchor: "middle", fill: ok ? C.ink : C.bad });
+    };
+    const l = w.last;
+    if (l) {
+      if (l.event === "fetch") body += arrow(LANES.agent, LANES.company, 70, "GET page: seal, no key") + arrow(LANES.company, LANES.agent, 100, `${l.status}, signed out`);
+      if (l.event === "load") body += arrow(LANES.browser, LANES.company, 70, "GET join page") + arrow(LANES.company, LANES.browser, 100, `code + join cookie`);
+      if (l.event === "authorize") body += arrow(LANES.agent, LANES.company, 70, `code + seal${l.withToken ? " + key" : ""}`) + arrow(LANES.company, LANES.agent, 100, `${l.answer.status}${l.answer.error ? " " + l.answer.error : ""}`, l.answer.status < 400);
+      if (l.event === "submit") body += arrow(LANES.browser, LANES.company, 70, "code + join cookie") + arrow(LANES.company, LANES.browser, 100, "answer" in l && l.answer.status === 303 ? "303 + Session cookie" : `${l.answer.status}`, l.answer.status === 303);
+      if (l.event === "browse") body += arrow(LANES.browser, LANES.company, 70, "Session cookie") + arrow(LANES.company, LANES.browser, 100, `${l.status}`);
+      if (l.event === "forge") body += arrow(LANES.browser, LANES.company, 70, "form from evil.example: code only", false) + arrow(LANES.company, LANES.browser, 100, `${l.answer.status} error page`, false);
+      if (l.event === "phish") body += arrow(LANES.agent, LANES.agent + 60, 70, "") + text(LANES.agent, 88, "declines", { size: 12, anchor: "middle", fill: C.bad }) + arrow(LANES.browser, LANES.company, 120, "attacker\u2019s browser: cookie, no stamp", false);
+    }
+    const holds = (x, y, items) => items.map((s, i) => text(x, y + i * 17, s, { size: 12, anchor: "middle", mono: true })).join("");
+    body += rect(8, 158, W - 16, 1, C.line, { stroke: "none" });
+    body += holds(LANES.agent, 178, ["seal \u2713", token ? `key \u2713${token.scopes.includes(BROWSER_SIGN_IN) ? " (browser)" : ""}` : "no key"]);
+    body += holds(LANES.browser, 178, [w.page ? `page: ${short(w.page)}` : "no page", w.browser.join ? `join cookie \u2713` : "no join cookie", w.browser.session ? "Session cookie \u2713" : "no Session cookie", "never a key"]);
+    const mine = w.company.codes.slice(2);
+    const r = mine.at(-1);
+    body += holds(LANES.company - 6, 178, r ? [`code ${short(r.code)}`, r.authorized ? "authorized" : "not authorized", r.joined ? "joined" : r.submitted ? "used" : "not used"] : ["no code yet"]);
+    const h = 178 + 4 * 17;
+    body += text(8, h + 8, `The attacker\u2019s browser: ${w.attacker.session ? "joined" : "not joined"}; it holds the cookie for ${short(w.company.codes[1].code)}.`, { size: 11.5, fill: C.soft });
+    return svg(h + 16, body, `After ${l?.event ?? "nothing"}: browser ${w.browser.session ? "joined" : "not joined"}, agent ${token ? "holds a key" : "holds no key"}`);
+  }
+  function loginsSvg() {
+    let body = text(8, 16, "Login before \xB7 join with \xB7 while joined \xB7 after sign-in ends", { size: 12, weight: "600" });
+    LOGIN_TABLE.forEach((r, i) => {
+      const y = 40 + i * 52;
+      body += rect(8, y - 14, W - 16, 46, i % 2 ? "#fff" : "#fafafa", { stroke: C.line, rx: 4 });
+      body += text(16, y + 2, `${r.before ? `logged in as ${r.before}` : "not logged in"} \xB7 ${r.token ? `key for ${r.token}` : "no key"}`, { size: 12.5, weight: "600" });
+      body += text(16, y + 22, `${r.whileJoined} \u2192 ${r.after}`, { size: 11.5 });
+    });
+    return svg(40 + LOGIN_TABLE.length * 52, body, "What a join does to a login the browser already had");
+  }
+  function steps(key) {
+    const signIn = SIGN_IN[key], worlds = story(signIn);
+    const out = [];
+    const lastOf2 = (w, e) => w.last;
+    let authorizeCount = 0;
+    for (const w of worlds) {
+      const e = w.last.event;
+      if (e === "fetch") {
+        const l = lastOf2(w, "fetch");
+        out.push({
+          id: "fetch",
+          title: "A browser carries cookies, not the agent\u2019s headers",
+          caption: `Your agent fetches a help page on ${COMPANY.domain} with its own HTTP client: the request carries its seal (the Session header) ${l.token ? "and its key" : "and never its key"}, so it is signed out${signIn !== "signed out" ? " even though the agent is signed in" : ""}, and gets ${l.status}. A real browser cannot add the agent's headers to its requests; it sends cookies. So the browser needs its own way into the Session, one the agent controls. Predict: how can the shop tie a browser to the Session without the browser holding the key?`,
+          svg: worldSvg(w)
+        });
+      }
+      if (e === "load") {
+        const l = lastOf2(w, "load");
+        out.push({
+          id: "load",
+          title: "The join page: a code to read, a cookie to keep",
+          caption: `The browser opens ${ENDPOINT2}. The page (${l.status}) shows a one-time code, ${short(l.code)}, and the same response sets a join cookie (${JOIN_COOKIE}: HttpOnly, SameSite=${PAGE.sameSite}, Max-Age ${PAGE.maxAge}) that ties the code to this browser. No page script can read the cookie. Loading the page starts and changes no Session. The answer: the agent authorizes its browser's one-time code in a request of its own; the code works only with the cookie set in that browser.`,
+          svg: worldSvg(w)
+        });
+      }
+      if (e === "authorize") {
+        const l = lastOf2(w, "authorize");
+        authorizeCount++;
+        out.push({
+          id: authorizeCount === 1 ? "authorize" : "authorize-again",
+          title: l.answer.status === 403 ? `403: the key lacks ${l.answer.needs}` : authorizeCount > 1 ? "The same code again, without the key: 204" : "Only the agent can authorize the code: 204",
+          caption: l.answer.status === 403 ? `The agent reads the code from its own browser's page and POSTs it to ${AUTHORIZE_URL2} with its seal and its key. The key lacks ${BROWSER_SIGN_IN}, so the answer is ${l.answer.status} ${l.answer.error} and the code stays unauthorized. The key never went near the browser.` : l.withToken ? `The agent reads the code from its own browser's page and POSTs it to ${AUTHORIZE_URL2} with its seal and its key. ${COMPANY.domain} checks the seal and finds ${BROWSER_SIGN_IN} among the key's scopes, and records the code as authorized for Session ${SID}, account ${ACCOUNT}, with the key's scopes: ${l.answer.status}. The key goes from the agent to the shop and nowhere else.` : `The agent ${authorizeCount > 1 ? "sends the same code again, now without its key," : "reads the code from its own browser\u2019s page and sends it"} with its seal alone. The shop records the code as authorized for Session ${SID} with no account: ${l.answer.status}. The browser will join signed out.`,
+          svg: worldSvg(w)
+        });
+      }
+      if (e === "submit") {
+        const l = lastOf2(w, "submit");
+        out.push({
+          id: "submit",
+          title: l.answer.status === 303 ? "The halves meet in one browser" : "The submission fails",
+          caption: `The browser submits the form: the code goes back with the join cookie. The shop checks that the cookie came and was set with this code, that the code was authorized, and that it was not submitted before; a code is used by the first request that submits it, whatever the result. ${l.answer.status === 303 ? `Every check passes, so it sets the Session's own cookie (${SESSION_COOKIE}), clears the join cookie and redirects (${l.answer.status}). Only this browser held the cookie; only the agent could authorize the code.` : `It fails: ${"failed" in l.answer ? l.answer.failed.join("; ") : ""}.`}`,
+          svg: worldSvg(w)
+        });
+      }
+      if (e === "browse") {
+        const v = lastOf2(w, "browse").visit;
+        out.push({
+          id: "browse",
+          title: v.account ? `The browser browses as the Session, signed in to ${v.account}` : "The browser browses as the Session, signed out",
+          caption: v.account ? `The browser opens your orders. Its Session cookie makes the request Session ${v.session}'s: signed in to account ${v.account}, within the key's scopes, whatever cookies it had before. Where a website cannot apply scopes, ${BROWSER_SIGN_IN} means everything your account can do there, and the shop must say so when you approve it and set web.unscoped in poppy.json. The key stayed with the agent.` : `The browser opens your orders as Session ${v.session}, signed out: the same visitor as the agent's other requests, and no account. Signing the browser in takes a key with ${BROWSER_SIGN_IN}.`,
+          svg: worldSvg(w)
+        });
+        const t = joinEffect("B", "A");
+        out.push({
+          id: "logins",
+          title: "A join and the login the browser already had",
+          caption: `A browser may already be logged in on the website. A join without a key leaves that login alone, and scopes do not apply to it. A join with a key signs the browser in to that account in its place; when the Session's sign-in ends, the browser is signed out and the earlier login does not come back (logged in as B, joined with a key for A: ${t.whileJoined.account ? `signed in to ${t.whileJoined.account}` : ""}, then ${t.afterSignInEnds.account ? `logged in as ${t.afterSignInEnds.account}` : "signed out"}).`,
+          svg: loginsSvg()
+        });
+      }
+      if (e === "forge") {
+        const l = lastOf2(w, "forge");
+        out.push({
+          id: "forge",
+          title: "An authorized code without its cookie",
+          caption: `Now the attacker: it loaded the join page in its own browser and authorized that code in its own Session, signed in to account ${ATTACKER.account}. A page on ${ATTACKER.site} makes your agent's browser post that code to ${COMPANY.domain}; had it worked, your agent would shop inside the attacker's account. It fails (${l.answer.status}): ${"failed" in l.answer ? l.answer.failed[0] : ""}. A form from another site carries no SameSite=${PAGE.sameSite} cookie, and the ${PAGE.namePrefix} prefix stops another host on the domain planting one.`,
+          svg: worldSvg(w)
+        });
+      }
+      if (e === "phish") {
+        const l = lastOf2(w, "phish");
+        out.push({
+          id: "phish",
+          title: "A cookie without an authorization",
+          caption: `The attacker's browser holds the join cookie for its second code, so it sends that code to your agent in a message, hoping the agent will authorize it. ${COMPANY.domain} could not tell the difference; only the agent's own rule stops it: ${l.declined}. So the agent declines, and when the attacker's browser submits the code with its cookie it gets ${l.answer.status}: ${"failed" in l.answer ? l.answer.failed[0] : ""}.`,
+          svg: worldSvg(w)
+        });
+      }
+    }
+    return out;
+  }
+  var CHECKS = [
+    { q: "An attacker authorizes a code in its own signed-in Session, then a page on evil.example makes your agent\u2019s browser post that code to example.com. What comes back, and which half is missing?", a: questions[1]() },
+    { q: "A message to your agent says: here is your code. What does your agent do, and what happens when the attacker\u2019s browser, which loaded that code, submits it anyway?", a: questions[2]() },
+    { q: "Your agent is signed in, but its token lacks poppy:browser-sign-in. What does step 2 answer, and how does the browser still join?", a: questions[3]() },
+    { q: "The agent\u2019s browser was already logged in as B on the website, and joins with a token for account A. How does it browse, and what is it once the Session\u2019s sign-in ends?", a: questions[4]() },
+    { q: "While its browser is joined and signed in, the agent fetches a help article with its own HTTP client. What does that request carry?", a: questions[5]() }
+  ];
+
+  // bench/premise/poppy-browser/method/main.ts
+  mount(document.getElementById("app"), {
+    settings: [{ id: "signin", label: "Your agent is", default: "signed-in", options: SETTING_KEYS.map((k) => ({ value: k, label: LABEL[k] })) }],
+    steps: (v) => steps(v.signin),
+    checks: CHECKS
+  });
+})();
+</script>
+</body>
+</html>

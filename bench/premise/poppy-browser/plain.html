@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Browser Joins Session</title>
+<style>
+:root{
+  --bg:#fbfaf7; --fg:#1d1c1a; --muted:#6b675f; --line:#d9d5cc; --card:#ffffff;
+  --key:#b4471f; --seal:#2d5fa8; --cookie:#3f7d3a; --code:#8a5a00; --warn:#b3261e;
+  --dim:.22;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#161614; --fg:#ecebe6; --muted:#a19d94; --line:#3a3833; --card:#1f1e1b;
+    --key:#f08a5d; --seal:#7fa8ea; --cookie:#86c47f; --code:#e0b252; --warn:#ff8a80;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#161614; --fg:#ecebe6; --muted:#a19d94; --line:#3a3833; --card:#1f1e1b;
+  --key:#f08a5d; --seal:#7fa8ea; --cookie:#86c47f; --code:#e0b252; --warn:#ff8a80;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.6 Georgia,"Iowan Old Style",serif}
+main{max-width:860px;margin:0 auto;padding:40px 16px 80px}
+h1{font-size:2rem;line-height:1.2;margin:0 0 .4em}
+h2{font-size:1.35rem;margin:2.4em 0 .5em}
+p{margin:.7em 0}
+.lede{font-size:1.12rem;color:var(--muted)}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.86em}
+.k{color:var(--key);font-weight:600}
+.s{color:var(--seal);font-weight:600}
+.c{color:var(--cookie);font-weight:600}
+.h{color:var(--code);font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:1.2em 0}
+.answer{border-left:4px solid var(--cookie)}
+svg{width:100%;height:auto;display:block;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+svg text{fill:var(--fg)}
+.lane{stroke:var(--line);stroke-width:2;stroke-dasharray:4 5}
+.box{fill:var(--card);stroke:var(--fg);stroke-width:1.5}
+.msg line,.msg path{stroke:var(--fg);stroke-width:1.6;fill:none}
+.msg .lbl{font-size:12.5px}
+.msg .sub{font-size:11px;fill:var(--muted)}
+.msg{transition:opacity .25s}
+.msg.future{opacity:var(--dim)}
+.msg.now line,.msg.now path{stroke-width:2.6}
+.msg.now .lbl{font-weight:700}
+.badge{font-size:11px;font-weight:700}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0}
+button{font:600 14px/1 system-ui,sans-serif;padding:9px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer}
+button:hover{border-color:var(--fg)}
+button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.stepnote{min-height:7.5em}
+.stepnote b{font-family:system-ui,sans-serif}
+table{border-collapse:collapse;width:100%;font:14px/1.4 system-ui,sans-serif}
+th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:600}
+td.has{font-weight:700}
+td.no{color:var(--muted)}
+.tablewrap{overflow-x:auto}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:640px){.grid2{grid-template-columns:1fr} body{font-size:16px}}
+.verdict{font:14.5px/1.5 system-ui,sans-serif;min-height:6em}
+.verdict .bad{color:var(--warn);font-weight:700}
+.verdict .ok{color:var(--cookie);font-weight:700}
+.small{font-size:.9rem;color:var(--muted)}
+ol li,ul li{margin:.35em 0}
+.themetoggle{position:absolute;top:12px;right:16px}
+</style>
+</head>
+<body>
+<button class="themetoggle" id="theme" aria-label="Toggle colour theme">◐</button>
+<main>
+
+<h1>How the agent's browser joins the Session without ever carrying the key</h1>
+<p class="lede">The agent already has a Session with the shop: it signs every API call with the <span class="s">seal</span> (the <code>Session</code> header: who is asking) and the <span class="k">key</span> (the access token: what the account allows). Now it has to drive a real browser through the shop's website, because some things (a checkout page, a 3-D Secure prompt, a size picker) only exist as web pages. The browser needs to be inside the <em>same</em> Session. It must not get the key.</p>
+
+<div class="card answer">
+<p style="margin-top:0"><b>The short answer.</b> The agent stays on its own server and uses the key once, over the back channel, to ask the shop for a <span class="h">join code</span>: a one-time, 30-second ticket bound to its Session <em>and</em> to one specific browser. The browser hands the code to the shop and gets back an ordinary first-party <span class="c">session cookie</span> that points at the same Session record. From then on the cookie does the job of the seal for that browser. The shop looks up the account's permissions on its own side; the browser never holds anything it could use against the API.</p>
+<p style="margin-bottom:0">If you know OAuth, this is the authorization-code flow with PKCE turned around. In OAuth the browser carries a code to the back end, which swaps it for a token. Here the back end, which already has the token, mints a code that the browser swaps for a cookie.</p>
+</div>
+
+<h2>1. Why not just give the browser the key?</h2>
+<p>Because the browser is the most exposed place the agent works in. It runs scripts written by the shop, the shop's analytics vendors and its ad partners. Pages can contain text written to steer the agent (prompt injection). The agent takes screenshots and keeps logs of what it saw. An access token is a bearer credential: whoever holds it can use it from anywhere, against every API the account allows, until it expires. Putting it in <code>localStorage</code> or a URL means any of those parties can walk off with the whole account.</p>
+<p>There is also a plainer reason: <b>a browser can't attach the seal anyway.</b> When you click a link or submit a form, the browser makes the request. It sends cookies, but you can't add an <code>Authorization</code> or <code>Session</code> header to a top-level navigation. So the web side of the shop needs the Session in a form a browser carries by itself, and that form is a cookie.</p>
+
+<svg viewBox="0 0 760 270" role="img" aria-label="Two doors into one Session: the API door takes key plus seal, the web door takes a cookie which the shop maps to the same Session">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+  </defs>
+  <g style="color:var(--fg)">
+  <rect class="box" x="20" y="30" width="190" height="70" rx="8"/>
+  <text x="115" y="58" text-anchor="middle" font-weight="700">Agent back end</text>
+  <text x="115" y="80" text-anchor="middle" font-size="12"><tspan fill="var(--key)">key</tspan> + <tspan fill="var(--seal)">seal</tspan></text>
+  <rect class="box" x="20" y="170" width="190" height="70" rx="8"/>
+  <text x="115" y="198" text-anchor="middle" font-weight="700">Agent's browser</text>
+  <text x="115" y="220" text-anchor="middle" font-size="12"><tspan fill="var(--cookie)">cookie</tspan> only</text>
+
+  <rect class="box" x="300" y="30" width="170" height="70" rx="8"/>
+  <text x="385" y="58" text-anchor="middle" font-weight="700">API door</text>
+  <text x="385" y="80" text-anchor="middle" font-size="11.5" fill="var(--muted)">needs key + seal headers</text>
+  <rect class="box" x="300" y="170" width="170" height="70" rx="8"/>
+  <text x="385" y="198" text-anchor="middle" font-weight="700">Web door</text>
+  <text x="385" y="220" text-anchor="middle" font-size="11.5" fill="var(--muted)">maps cookie → Session</text>
+
+  <rect class="box" x="560" y="85" width="180" height="100" rx="8" style="stroke:var(--seal);stroke-width:2.5"/>
+  <text x="650" y="114" text-anchor="middle" font-weight="700">Session S</text>
+  <text x="650" y="136" text-anchor="middle" font-size="11.5">account, grant, limits,</text>
+  <text x="650" y="152" text-anchor="middle" font-size="11.5">audit log, end switch</text>
+  <text x="650" y="172" text-anchor="middle" font-size="11" fill="var(--muted)">(kept by the shop)</text>
+
+  <line x1="210" y1="65" x2="298" y2="65" stroke="currentColor" stroke-width="1.6" marker-end="url(#ah)"/>
+  <line x1="210" y1="205" x2="298" y2="205" stroke="currentColor" stroke-width="1.6" marker-end="url(#ah)"/>
+  <path d="M470,65 C520,65 520,115 558,120" stroke="currentColor" stroke-width="1.6" fill="none" marker-end="url(#ah)"/>
+  <path d="M470,205 C520,205 520,155 558,150" stroke="currentColor" stroke-width="1.6" fill="none" marker-end="url(#ah)"/>
+  <line x1="115" y1="100" x2="115" y2="168" stroke="var(--key)" stroke-width="2" stroke-dasharray="3 5"/>
+  <text x="125" y="139" font-size="11.5" fill="var(--key)">key never crosses</text>
+  <text x="385" y="135" text-anchor="middle" font-size="11.5" fill="var(--muted)">the API door rejects cookies;</text>
+  <text x="385" y="151" text-anchor="middle" font-size="11.5" fill="var(--muted)">the web door ignores tokens</text>
+  </g>
+</svg>
+<p class="small">Two doors, one Session. What the agent may do through either door comes from the Session record, which the shop keeps. The cookie only says which record to use.</p>
+
+<h2>2. The handoff, step by step</h2>
+<p>Step through it. The table underneath shows who holds what after each step. Keep an eye on the <span class="k">key</span> row.</p>
+
+<div class="card">
+<svg id="seq" viewBox="0 0 760 560" role="img" aria-label="Sequence diagram of the join handoff between agent back end, browser and shop">
+  <defs>
+    <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--fg)"/></marker>
+  </defs>
+  <rect class="box" x="40" y="14" width="160" height="50" rx="8"/>
+  <text x="120" y="36" text-anchor="middle" font-weight="700">Agent back end</text>
+  <text x="120" y="54" text-anchor="middle" font-size="11" fill="var(--muted)">holds key + seal</text>
+  <rect class="box" x="300" y="14" width="160" height="50" rx="8"/>
+  <text x="380" y="36" text-anchor="middle" font-weight="700">Browser</text>
+  <text x="380" y="54" text-anchor="middle" font-size="11" fill="var(--muted)">driven by the agent</text>
+  <rect class="box" x="560" y="14" width="160" height="50" rx="8"/>
+  <text x="640" y="36" text-anchor="middle" font-weight="700">Shop</text>
+  <text x="640" y="54" text-anchor="middle" font-size="11" fill="var(--muted)">web + API + Session store</text>
+  <line class="lane" x1="120" y1="64" x2="120" y2="545"/>
+  <line class="lane" x1="380" y1="64" x2="380" y2="545"/>
+  <line class="lane" x1="640" y1="64" x2="640" y2="545"/>
+
+  <g class="msg" data-step="1">
+    <line x1="380" y1="100" x2="636" y2="100" marker-end="url(#a2)"/>
+    <text class="lbl" x="508" y="93" text-anchor="middle">① GET /join</text>
+  </g>
+  <g class="msg" data-step="1">
+    <line x1="640" y1="135" x2="384" y2="135" marker-end="url(#a2)"/>
+    <text class="lbl" x="508" y="128" text-anchor="middle">Set-Cookie: <tspan fill="var(--cookie)">join=J</tspan></text>
+    <text class="sub" x="508" y="150" text-anchor="middle">page shows challenge C = hash(J)</text>
+  </g>
+  <g class="msg" data-step="2">
+    <line x1="380" y1="180" x2="124" y2="180" marker-end="url(#a2)" stroke-dasharray="5 4"/>
+    <text class="lbl" x="250" y="173" text-anchor="middle">② agent reads C from the page</text>
+  </g>
+  <g class="msg" data-step="3">
+    <path d="M120,225 C300,212 460,212 636,225" marker-end="url(#a2)"/>
+    <text class="lbl" x="380" y="208" text-anchor="middle">③ POST /api/session/join-code  {challenge: C}</text>
+    <text class="sub" x="380" y="242" text-anchor="middle"><tspan fill="var(--key)">Authorization: Bearer key</tspan> · <tspan fill="var(--seal)">Session: S</tspan>  (back channel, browser not involved)</text>
+  </g>
+  <g class="msg" data-step="4">
+    <path d="M640,280 C460,293 300,293 124,280" marker-end="url(#a2)"/>
+    <text class="lbl" x="380" y="275" text-anchor="middle">④ {code: <tspan fill="var(--code)">H</tspan>, expires_in: 30}</text>
+  </g>
+  <g class="msg" data-step="5">
+    <line x1="120" y1="330" x2="376" y2="330" marker-end="url(#a2)" stroke-dasharray="5 4"/>
+    <text class="lbl" x="250" y="323" text-anchor="middle">⑤ agent types <tspan fill="var(--code)">H</tspan> into the join form</text>
+  </g>
+  <g class="msg" data-step="5">
+    <line x1="380" y1="370" x2="636" y2="370" marker-end="url(#a2)"/>
+    <text class="lbl" x="508" y="363" text-anchor="middle">POST /join  code=<tspan fill="var(--code)">H</tspan></text>
+    <text class="sub" x="508" y="386" text-anchor="middle">Cookie: join=J (same-site)</text>
+  </g>
+  <g class="msg" data-step="6">
+    <rect x="575" y="400" width="130" height="44" rx="6" fill="var(--bg)" stroke="var(--fg)"/>
+    <text class="lbl" x="640" y="418" text-anchor="middle">⑥ checks</text>
+    <text class="sub" x="640" y="434" text-anchor="middle">H fresh · hash(J)=C</text>
+    <line x1="640" y1="460" x2="384" y2="460" marker-end="url(#a2)"/>
+    <text class="lbl" x="508" y="453" text-anchor="middle">Set-Cookie: <tspan fill="var(--cookie)">sid=…</tspan> → Session S</text>
+    <text class="sub" x="508" y="476" text-anchor="middle">J deleted, H burned</text>
+  </g>
+  <g class="msg" data-step="7">
+    <line x1="380" y1="515" x2="636" y2="515" marker-end="url(#a2)"/>
+    <text class="lbl" x="508" y="508" text-anchor="middle">⑦ GET /checkout  Cookie: <tspan fill="var(--cookie)">sid</tspan></text>
+    <text class="sub" x="508" y="532" text-anchor="middle">shop resolves sid → Session S</text>
+  </g>
+</svg>
+
+<div class="controls">
+  <button id="prev">← Back</button>
+  <button id="next">Next →</button>
+  <button id="all">Show all</button>
+  <span class="small" id="pos" style="font-family:system-ui,sans-serif"></span>
+</div>
+<div class="stepnote" id="note" aria-live="polite"></div>
+
+<div class="tablewrap">
+<table id="inv">
+  <thead><tr><th>Item</th><th>Agent back end</th><th>Browser</th><th>Shop</th></tr></thead>
+  <tbody></tbody>
+</table>
+</div>
+</div>
+
+<h2>3. What each piece is for</h2>
+<ul>
+<li><span class="c">join=J</span>: a random value in an <code>HttpOnly</code>, <code>Secure</code>, <code>SameSite=Strict</code> cookie. Page scripts can't read it and other sites can't make the browser send it. It ties the handoff to <em>this</em> browser, the way the PKCE verifier ties an OAuth code to one client.</li>
+<li><span class="h">C = hash(J)</span>: the public half. It can appear in the page and in the agent's logs, because nobody can work J out from it.</li>
+<li><span class="h">H</span>: the join code. The shop only mints one for a caller that shows the <span class="k">key</span> and <span class="s">seal</span>, so minting it is the step where the account says "this browser may act for me." It's single-use, lives for 30 seconds and works only alongside J.</li>
+<li><span class="c">sid</span>: the result, an ordinary session cookie (<code>__Host-</code> prefix, <code>HttpOnly</code>, <code>Secure</code>, <code>SameSite=Lax</code>). On the shop's side it points at Session S. It carries no permissions itself: no scopes, no token, nothing the API would accept.</li>
+</ul>
+<p>Why does the agent type the code into a form on the shop's own page instead of loading <code>/join?code=H</code>? URLs end up in history, <code>Referer</code> headers, proxy logs and screenshots. A same-site POST keeps H out of all of those, and since J is <code>SameSite=Strict</code>, the POST only works when it comes from the shop's own page.</p>
+
+<h2>4. Try to steal something</h2>
+<p>Assume the worst: a script on the page, a poisoned product description that talks the agent into leaking things, or a screenshot that ends up somewhere public. Pick what the attacker gets.</p>
+
+<div class="card">
+<div class="controls" id="steal">
+  <button data-x="C">challenge C</button>
+  <button data-x="H">join code H</button>
+  <button data-x="J">join cookie J</button>
+  <button data-x="sid">sid cookie</button>
+  <button data-x="K">the key</button>
+  <button data-x="naive">key, if it had been in localStorage</button>
+</div>
+<div class="verdict" id="verdict" aria-live="polite"><span class="small">Choose an item above.</span></div>
+</div>
+
+<h2>5. The cross-site form post that has to fail</h2>
+<p>You know cross-site request forgery: a hostile page auto-submits a form to another site, and the browser attaches that site's cookies. Two versions of it matter here.</p>
+<div class="grid2">
+<div class="card">
+<p style="margin-top:0"><b>Forcing a purchase.</b> evil.example posts a hidden form to <code>shop/checkout/confirm</code> while the agent's browser is joined. Because <span class="c">sid</span> is <code>SameSite=Lax</code>, the browser leaves it off cross-site POSTs, so the shop sees a request with no Session and turns it down. Normal CSRF tokens on the shop's forms back this up.</p>
+</div>
+<div class="card">
+<p style="margin-top:0"><b>Joining the wrong Session.</b> The nastier one: the attacker mints a join code in <em>their own</em> Session and gets the agent's browser to submit it. If that worked, the agent would be shopping inside the attacker's account, typing in your address and card. (This is "login CSRF", or session swapping.) It fails because the shop also wants a J whose hash is the C that was sent with that code. The attacker's code is bound to the attacker's C, and the cross-site post doesn't carry the browser's J anyway.</p>
+</div>
+</div>
+
+<h2>6. One Session, one off switch</h2>
+<p>Because the cookie points at the Session and doesn't copy anything out of it, everything that governs the Session governs the browser too:</p>
+<ul>
+<li><b>Same audit trail.</b> API calls made with the seal and clicks made with the cookie are logged under Session S, so the account owner sees one story, not an API story and a mystery browser.</li>
+<li><b>Same limits, or tighter.</b> The shop can give the web side less than the key allows, for example browse and pay up to the Session's spending cap but never change the password. It can't give more, because the browser's authority is read from the Session.</li>
+<li><b>Same end.</b> When the agent ends Session S, or the user revokes it, or the key's grant is withdrawn, the shop drops every <span class="c">sid</span> that points at S. Nobody has to hunt down a browser.</li>
+</ul>
+
+<div class="card answer">
+<p style="margin:0"><b>In one line:</b> the key stays on the agent's server and is used once, to ask for a short-lived ticket bound to one browser. The browser swaps the ticket for a cookie. The cookie stands in for the seal and points at the same Session, so the browser works inside it without ever holding what the account allows.</p>
+</div>
+</main>
+
+<script>
+(function(){
+  // theme toggle
+  var root=document.documentElement, tb=document.getElementById('theme');
+  tb.addEventListener('click',function(){
+    var dark = root.getAttribute('data-theme') ? root.getAttribute('data-theme')==='dark'
+      : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    root.setAttribute('data-theme', dark?'light':'dark');
+  });
+
+  var notes={
+    0:"<b>Before.</b> The agent's server holds the <span class='k'>key</span> and the <span class='s'>seal</span> for Session S. The browser is a clean profile with nothing for this shop in it.",
+    1:"<b>① Browser opens the join page.</b> The shop sets a random <span class='c'>join=J</span> cookie (HttpOnly, SameSite=Strict) and prints its hash, the challenge C, into the page. No account is involved yet; any visitor gets this.",
+    2:"<b>② The agent reads C.</b> The agent drives the browser, so it can read the page. C is safe to see: it can't be reversed into J.",
+    3:"<b>③ Back channel.</b> From its own server, the agent calls the shop's API with the <span class='k'>key</span> and <span class='s'>seal</span>, as it does for every API call, and asks for a join code for challenge C. <b>This is the only time the key is used in the whole handoff, and it never goes near the browser.</b>",
+    4:"<b>④ The shop mints H.</b> A random one-time code, valid for 30 seconds, recorded as \"for Session S, for challenge C\".",
+    5:"<b>⑤ The browser presents H.</b> The agent types H into the shop's join form and submits it. It's a same-site POST, so the browser attaches <span class='c'>J</span>.",
+    6:"<b>⑥ The shop checks and swaps.</b> H exists, is unused and unexpired, its Session is still active, and hash(J) equals the C it was minted for. The shop burns H, deletes J, and sets <span class='c'>sid</span>, a fresh cookie pointing at Session S.",
+    7:"<b>⑦ Business as usual.</b> Each page load carries sid. The shop maps it to Session S and checks what S allows in its own records. The browser joined the Session, and the key row below is still empty on the browser side."
+  };
+  // inventory: [item, agent, browser, shop] per step; '' = none
+  var K="<span class='k'>key</span>", S="<span class='s'>seal S</span>";
+  function inv(step){
+    var rows=[
+      ["Key (access token)", "yes", "never", "verifies it"],
+      ["Seal (Session S)", "yes", step>=6?"via sid":"—", "yes"],
+      ["J (join cookie)", "—", step>=1&&step<6?"yes (HttpOnly)":"—", step>=1&&step<6?"knows hash":"—"],
+      ["C (challenge)", step>=2?"yes":"—", step>=1?"in page":"—", step>=1?"yes":"—"],
+      ["H (join code)", step>=4?(step>=6?"burned":"yes"):"—", step>=5?(step>=6?"burned":"submitted"):"—", step>=4?(step>=6?"burned":"yes"):"—"],
+      ["sid cookie", "—", step>=6?"yes (HttpOnly)":"—", step>=6?"→ Session S":"—"]
+    ];
+    return rows.map(function(r,i){
+      return "<tr><td>"+(i===0?"<span class='k'>"+r[0]+"</span>":i===1?"<span class='s'>"+r[0]+"</span>":r[0])+"</td>"+
+        r.slice(1).map(function(v,j){
+          var cls = (v==="—"||v==="never"||v==="burned")?"no":"has";
+          var style = (i===0&&j===1)?" style='color:var(--key)'":"";
+          return "<td class='"+cls+"'"+style+">"+v+"</td>";
+        }).join("")+"</tr>";
+    }).join("");
+  }
+  var step=0, MAX=7, showAll=false;
+  var msgs=document.querySelectorAll('#seq .msg');
+  function render(){
+    msgs.forEach(function(g){
+      var s=+g.getAttribute('data-step');
+      g.classList.toggle('future', !showAll && s>step);
+      g.classList.toggle('now', !showAll && s===step);
+    });
+    var st = showAll?MAX:step;
+    document.getElementById('note').innerHTML = showAll
+      ? "<b>The whole handoff.</b> Three channels: the browser and the shop talk directly (①⑤⑦), the agent talks to the shop over its own back channel (③④), and the agent drives the browser (②⑤). The key appears only on the back channel."
+      : notes[step];
+    document.getElementById('inv').tBodies[0].innerHTML = inv(st);
+    document.getElementById('pos').textContent = showAll ? "all steps" : ("step "+step+" of "+MAX);
+    document.getElementById('prev').disabled = !showAll && step===0;
+    document.getElementById('next').disabled = !showAll && step===MAX;
+    document.getElementById('all').setAttribute('aria-pressed', showAll?"true":"false");
+  }
+  document.getElementById('next').onclick=function(){ if(showAll){showAll=false;step=0;} else if(step<MAX) step++; render(); };
+  document.getElementById('prev').onclick=function(){ if(showAll){showAll=false;step=MAX;} else if(step>0) step--; render(); };
+  document.getElementById('all').onclick=function(){ showAll=!showAll; render(); };
+  document.addEventListener('keydown',function(e){
+    if(e.target.tagName==='INPUT') return;
+    var r=document.getElementById('seq').getBoundingClientRect();
+    if(r.bottom<0||r.top>innerHeight) return;
+    if(e.key==='ArrowRight') document.getElementById('next').click();
+    if(e.key==='ArrowLeft') document.getElementById('prev').click();
+  });
+  render();
+
+  var V={
+    C:"<span class='ok'>Nothing useful.</span> C is meant to be public. Turning it into a join code takes the key, and redeeming that code takes J. The attacker has neither.",
+    H:"<span class='ok'>Almost nothing.</span> H shows up in the agent's transcript, so assume it leaks. To redeem it you need the J cookie from the browser it was minted for, and that is HttpOnly and never leaves that browser. H is also single-use and dies after 30 seconds, and the agent normally uses it within one.",
+    J:"<span class='ok'>Nothing on its own.</span> Page scripts can't read J at all (HttpOnly). Malware that could read it would still need a fresh H, which only the holder of the key can mint.",
+    sid:"<span class='bad'>Some damage, with limits.</span> sid is HttpOnly, so page scripts can't read it, but malware on the machine could copy it. That gives access to <b>this shop's website, inside Session S</b>: whatever S allows on the web side, under S's spending caps, until S ends. It doesn't work against the API, other services or other accounts, and ending Session S makes it worthless straight away.",
+    K:"<span class='ok'>There's nothing to take.</span> The key was never in the browser: not in a cookie, not in storage, not in a URL, not on screen. Prompt injection can only make the agent leak what the browser can see, and the browser never sees the key.",
+    naive:"<span class='bad'>Everything.</span> A token in localStorage can be read by any script on the page, including the shop's third-party vendors. It's a bearer credential, so it works from the attacker's own machine, against every API the account allows, and it isn't tied to this browser or Session. It stays valid until it expires or someone notices. That is the design this handoff exists to avoid."
+  };
+  var bs=document.querySelectorAll('#steal button');
+  bs.forEach(function(b){ b.addEventListener('click',function(){
+    bs.forEach(function(x){x.setAttribute('aria-pressed','false');});
+    b.setAttribute('aria-pressed','true');
+    document.getElementById('verdict').innerHTML=V[b.getAttribute('data-x')];
+  });});
+})();
+</script>
+</body>
+</html>

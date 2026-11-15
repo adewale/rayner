@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Does isdigit guarantee int can parse it?</title>
+<style>
+:root { color-scheme: light; --ink:#1d1d1f; --soft:#6e6e73; --line:#d2d2d7; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #fff; color: var(--ink); font: 16px/1.5 system-ui, sans-serif; }
+main { max-width: 720px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 1.5rem; line-height: 1.25; margin: 0.5rem 0; }
+h2 { font-size: 1.15rem; line-height: 1.3; margin: 1rem 0 0.5rem; }
+.intro, .leaves { color: var(--soft); font-size: 0.95rem; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 12px 0; }
+.controls label { font-weight: 600; font-size: 0.95rem; }
+select, button { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); }
+button:disabled { opacity: 0.4; }
+.nav { display: flex; align-items: center; gap: 12px; }
+.counter { color: var(--soft); font-size: 0.9rem; }
+.figure { border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin: 8px 0; }
+.figure svg { display: block; max-width: 100%; height: auto; }
+.caption { margin: 8px 0 16px; }
+details { border-top: 1px solid var(--line); padding: 8px 0; }
+summary { cursor: pointer; font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+<h1>Does isdigit guarantee int can parse it?</h1>
+<p class="intro">For a Python programmer who guards int(s) with s.isdigit(). Pick a character and a check, then step through. Every answer on this page is computed from a model of CPython 3.15.1 and Unicode 17.0.0 that is tested against CPython 3.15.1’s recorded answers; the lineup and the counts are those recorded values.</p>
+<div id="app"></div>
+<p class="leaves">Leaves out: whole strings (signs, underscores, surrounding spaces and the rest of int()’s grammar), other bases, and other Python and Unicode versions.</p>
+</main>
+<script>(() => {
+  // bench/premise/shell.ts
+  var el = (tag, attrs = {}, text2) => {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    if (text2 !== void 0) e.textContent = text2;
+    return e;
+  };
+  function mount(root, spec) {
+    const values = Object.fromEntries(spec.settings.map((s) => [s.id, s.default]));
+    let index = 0;
+    const controls = el("div", { class: "controls" });
+    for (const s of spec.settings) {
+      const label = el("label", {}, `${s.label} `);
+      const select = el("select", { "aria-label": s.label });
+      for (const o of s.options) {
+        const opt = el("option", { value: o.value }, o.label);
+        if (o.value === s.default) opt.selected = true;
+        select.append(opt);
+      }
+      select.addEventListener("change", () => {
+        values[s.id] = select.value;
+        render();
+      });
+      label.append(select);
+      controls.append(label);
+    }
+    const nav = el("div", { class: "nav" });
+    const prev = el("button", { type: "button" }, "\u2190 Prev");
+    const counter = el("span", { class: "counter", "aria-live": "polite" });
+    const next = el("button", { type: "button" }, "Next \u2192");
+    nav.append(prev, counter, next);
+    const title = el("h2");
+    const figure = el("div", { class: "figure" });
+    const caption = el("p", { class: "caption" });
+    const checks = el("section", { class: "checks" });
+    checks.append(el("h2", {}, "Check yourself"));
+    for (const c of spec.checks) {
+      const d = el("details");
+      d.append(el("summary", {}, c.q), el("p", {}, c.a));
+      checks.append(d);
+    }
+    root.append(controls, nav, title, figure, caption, checks);
+    function render() {
+      const all = spec.steps(values);
+      index = Math.max(0, Math.min(index, all.length - 1));
+      const s = all[index];
+      title.textContent = s.title;
+      figure.innerHTML = s.svg;
+      caption.textContent = s.caption;
+      counter.textContent = `Step ${index + 1} of ${all.length}`;
+      prev.disabled = index === 0;
+      next.disabled = index === all.length - 1;
+      checks.hidden = index !== all.length - 1;
+    }
+    prev.addEventListener("click", () => {
+      index--;
+      render();
+    });
+    next.addEventListener("click", () => {
+      index++;
+      render();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.target.tagName === "SELECT") return;
+      if (e.key === "ArrowRight") next.click();
+      if (e.key === "ArrowLeft") prev.click();
+    });
+    render();
+  }
+
+  // scenes/explainers/isdigit/model.ts
+  var PREDICATES = ["isdecimal", "isdigit", "isnumeric"];
+  var row = (id, char, name, ucd, ucdLine, unihan) => ({
+    id,
+    char,
+    code: "U+" + char.codePointAt(0).toString(16).toUpperCase().padStart(4, "0"),
+    name,
+    ucd,
+    ucdLine,
+    ...unihan ? { unihan } : {}
+  });
+  var CHARS = {
+    ascii: row("ascii", "3", "DIGIT THREE", "0033;DIGIT THREE;Nd;0;EN;;3;3;3;N;;;;;", 52),
+    arabic: row("arabic", "\u0663", "ARABIC-INDIC DIGIT THREE", "0663;ARABIC-INDIC DIGIT THREE;Nd;0;AN;;3;3;3;N;;;;;", 1598),
+    devanagari: row("devanagari", "\u0969", "DEVANAGARI DIGIT THREE", "0969;DEVANAGARI DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;", 2337),
+    fullwidth: row("fullwidth", "\uFF13", "FULLWIDTH DIGIT THREE", "FF13;FULLWIDTH DIGIT THREE;Nd;0;EN;<wide> 0033;3;3;3;N;;;;;", 16765),
+    super: row("super", "\xB2", "SUPERSCRIPT TWO", "00B2;SUPERSCRIPT TWO;No;0;EN;<super> 0032;;2;2;N;SUPERSCRIPT DIGIT TWO;;;;", 179),
+    half: row("half", "\xBD", "VULGAR FRACTION ONE HALF", "00BD;VULGAR FRACTION ONE HALF;No;0;ON;<fraction> 0031 2044 0032;;;1/2;N;FRACTION ONE HALF;;;;", 190),
+    roman: row("roman", "\u216B", "ROMAN NUMERAL TWELVE", "216B;ROMAN NUMERAL TWELVE;Nl;0;L;<compat> 0058 0049 0049;;;12;N;;;;217B;", 7719),
+    han: row("han", "\u4E09", "CJK UNIFIED IDEOGRAPH-4E09", "4E00;<CJK Ideograph, First>;Lo;0;L;;;;;N;;;;;", 12349, {
+      tag: "kPrimaryNumeric",
+      value: "3",
+      line: 29
+    })
+  };
+  var LINEUP = ["ascii", "arabic", "devanagari", "fullwidth", "super", "half", "roman", "han"];
+  var UNSHOWN = {
+    ...row("super", "\u2464", "CIRCLED DIGIT FIVE", "2464;CIRCLED DIGIT FIVE;No;0;ON;<circle> 0035;;5;5;N;;;;;", 8433),
+    id: "unshown"
+  };
+  var UNSHOWN_DECIMAL = {
+    ...row("ascii", "\u{1D7D7}", "MATHEMATICAL BOLD DIGIT NINE", "1D7D7;MATHEMATICAL BOLD DIGIT NINE;Nd;0;EN;<font> 0039;9;9;9;N;;;;;", 35286),
+    id: "unshown"
+  };
+  var SPACE = {
+    ...row("ascii", "\u3000", "IDEOGRAPHIC SPACE", "3000;IDEOGRAPHIC SPACE;Zs;0;WS;<wide> 0020;;;;N;;;;;", 11279),
+    id: "unshown",
+    space: true
+  };
+  function fields(c) {
+    const f = c.ucd.split(";");
+    if (f.length !== 15) throw new Error(`${c.code}: a UnicodeData.txt row has 15 fields, not ${f.length}`);
+    return { decimal: f[6], digit: f[7], numeric: c.unihan ? c.unihan.value : f[8] };
+  }
+  function numericType(c) {
+    const { decimal, digit, numeric } = fields(c);
+    if (decimal && digit && numeric) return "Decimal";
+    if (digit && numeric) return "Digit";
+    if (numeric) return "Numeric";
+    return "None";
+  }
+  function flags(c) {
+    const { decimal, digit, numeric } = fields(c);
+    return { DECIMAL_MASK: decimal !== "", DIGIT_MASK: digit !== "", NUMERIC_MASK: numeric !== "" };
+  }
+  function predicates(c) {
+    const f = flags(c);
+    return { isdecimal: f.DECIMAL_MASK, isdigit: f.DIGIT_MASK, isnumeric: f.NUMERIC_MASK };
+  }
+  function asciiFor(c) {
+    const cp = c.char.codePointAt(0);
+    if (cp < 127) return c.char;
+    if (c.space) return " ";
+    const { decimal } = fields(c);
+    return decimal ? String.fromCharCode(48 + Number(decimal)) : "?";
+  }
+  function intOf(c) {
+    const ascii = asciiFor(c);
+    return /^[0-9]$/.test(ascii) ? { value: Number(ascii) } : { error: `invalid literal for int() with base 10: '${c.char}'` };
+  }
+  function rewrite(parts) {
+    let out = "";
+    for (const part of parts) for (const ch of typeof part === "string" ? [...part] : [asciiFor(part)]) {
+      if (ch.codePointAt(0) >= 127) throw new Error(`Give ${ch} as a Char, with its row`);
+      out += ch;
+      if (ch === "?") return out;
+    }
+    return out;
+  }
+  var valueOf = (c) => fields(c).numeric;
+  function guarded(c, guard) {
+    const passes = predicates(c)[guard], int = intOf(c);
+    return { passes, int, outcome: !passes ? "refused" : "value" in int ? "parsed" : "raised" };
+  }
+  var COUNTS = { isdecimal: 770, isdigit: 898, isnumeric: 2023, int: 770 };
+  var accepts = (p) => COUNTS[p] - COUNTS.int;
+
+  // scenes/explainers/isdigit/answers.ts
+  var TF = (b) => b ? "True" : "False";
+  var SPACED = rewrite([SPACE, "7"]);
+  var FLOATS = { arabic: rewrite([CHARS.arabic, ".5"]), super: rewrite(["2.", CHARS.super]) };
+  var answer = () => `No: isdigit() is True for ${CHARS.super.char}, and int('${CHARS.super.char}') raises ValueError`;
+  var questions = {
+    1: () => ({
+      question: `s is two characters: ${SPACE.code}, IDEOGRAPHIC SPACE, then an ASCII 7. Its line in UnicodeData.txt is ${SPACE.ucd}. Does the isdigit() guard let s through, and what would int(s) do?`,
+      answer: `The guard turns s away: ${SPACE.code} has nothing in field 7, so s.isdigit() is ${TF(predicates(SPACE).isdigit)}. Yet int(s) returns 7. Its category Zs makes it whitespace to Python, so the rewrite turns it into a space, '${SPACED}', and int() ignores surrounding spaces. The isdigit() guard also refuses text that int() can parse.`
+    }),
+    2: () => ({
+      question: `float() runs the same rewrite as int() before it parses. What do float('${CHARS.arabic.char}.5') and float('2.${CHARS.super.char}') do?`,
+      answer: `float('${CHARS.arabic.char}.5') returns 3.5: ${CHARS.arabic.char} has a decimal digit value, so the text becomes '${FLOATS.arabic}'. float('2.${CHARS.super.char}') raises ValueError: ${CHARS.super.char} has none, so the text becomes '${FLOATS.super}', for the same reason int('${CHARS.super.char}') fails.`
+    })
+  };
+
+  // bench/premise/draw.ts
+  var W = 400;
+  var C = {
+    ink: "#1d1d1f",
+    soft: "#6e6e73",
+    line: "#c7c7cc",
+    good: "#2e7d32",
+    bad: "#c62828",
+    goodFill: "#dcefdc",
+    badFill: "#f6d5d5",
+    a: "#c9d7f2",
+    b: "#f6c17a",
+    c: "#b9e0c4",
+    d: "#ececec",
+    e: "#e4d4f4",
+    hi: "#fff4c2"
+  };
+  var esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  var svg = (h, body, label) => `<svg viewBox="0 0 ${W} ${Math.ceil(h)}" width="100%" role="img" aria-label="${esc(label)}" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, sans-serif">${body}</svg>`;
+  var text = (x, y, s, o = {}) => `<text x="${x}" y="${y}" font-size="${o.size ?? 13}" fill="${o.fill ?? C.ink}" text-anchor="${o.anchor ?? "start"}"${o.weight ? ` font-weight="${o.weight}"` : ""}${o.mono ? ' font-family="ui-monospace, Menlo, monospace"' : ""}>${esc(s)}</text>`;
+  var rect = (x, y, w, h, fill, o = {}) => `<rect x="${x}" y="${y}" width="${Math.max(0, w)}" height="${Math.max(0, h)}" fill="${fill}" stroke="${o.stroke ?? C.ink}" stroke-width="${o.sw ?? 1}"${o.rx ? ` rx="${o.rx}"` : ""}${o.dash ? ' stroke-dasharray="4 3"' : ""}/>`;
+  var line = (x1, y1, x2, y2, o = {}) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${o.stroke ?? C.ink}" stroke-width="${o.sw ?? 1}"${o.dash ? ' stroke-dasharray="4 3"' : ""}/>`;
+  function bars(y0, list, max, o = {}) {
+    const lw = o.labelW ?? 130, gap = o.gap ?? 26, bw = W - lw - 70;
+    let body = "";
+    list.forEach((b, i) => {
+      const y = y0 + i * gap;
+      body += text(8, y + 14, b.label, { size: 12.5, weight: b.heavy ? "600" : void 0 });
+      body += rect(lw, y + 2, b.value / max * bw, 16, b.fill, { stroke: b.heavy ? C.ink : C.line, sw: b.heavy ? 2 : 1 });
+      body += text(lw + b.value / max * bw + 6, y + 15, b.text, { size: 12.5, mono: true });
+    });
+    return { body, h: list.length * gap };
+  }
+  var fmt = (n, d = 0) => n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+
+  // bench/premise/isdigit/method/oracle.ts
+  var CPYTHON = {
+    ascii: [true, true, true, 3],
+    arabic: [true, true, true, 3],
+    devanagari: [true, true, true, 3],
+    fullwidth: [true, true, true, 3],
+    super: [false, true, true, "invalid literal for int() with base 10: '\xB2'"],
+    half: [false, false, true, "invalid literal for int() with base 10: '\xBD'"],
+    roman: [false, false, true, "invalid literal for int() with base 10: '\u216B'"],
+    han: [false, false, true, "invalid literal for int() with base 10: '\u4E09'"]
+  };
+  var CPYTHON_COUNTS = { isdecimal: 770, isdigit: 898, isnumeric: 2023, int: 770 };
+
+  // bench/premise/isdigit/method/page.ts
+  var SHOWN = ["arabic", "super", "half", "roman", "han"];
+  var DEFAULT = { char: "super", guard: "isdigit" };
+  var KIND = {
+    ascii: "ASCII",
+    arabic: "Arabic-Indic",
+    devanagari: "Devanagari",
+    fullwidth: "fullwidth",
+    super: "superscript",
+    half: "fraction",
+    roman: "Roman numeral",
+    han: "Chinese"
+  };
+  var call = (p) => `${p}()`;
+  function codeSvg(c, guard) {
+    const r = guarded(c, guard);
+    const lines = [`s = "${c.char}"`, `if s.${guard}():`, `    n = int(s)`, `else:`, `    n = None  # not a number`];
+    let body = rect(8, 8, W - 16, 22 + lines.length * 24, "#fafafa", { stroke: C.line, rx: 6 });
+    lines.forEach((l, i) => {
+      const y = 32 + i * 24;
+      const live = i === 2 && r.passes || i >= 3 && !r.passes || i < 2;
+      body += text(20, y, l, { size: 14, mono: true, fill: live ? C.ink : C.soft });
+    });
+    const y1 = 32 + 24;
+    body += text(W - 20, y1, `\u2192 ${r.passes ? "True" : "False"}`, { size: 13.5, mono: true, anchor: "end", fill: r.passes ? C.good : C.bad, weight: "600" });
+    const h = 30 + lines.length * 24;
+    body += text(8, h + 22, r.passes ? "The check passes, so int() runs." : "The check fails, so int() never runs.", { size: 12.5, fill: C.soft });
+    return svg(h + 32, body, `The guard: s.${guard}() returns ${r.passes ? "True" : "False"} for ${c.char}`);
+  }
+  function rewriteSvg(c) {
+    const ascii = asciiFor(c), { decimal } = fields(c);
+    const ok = /^[0-9]$/.test(ascii);
+    let body = "";
+    body += rect(20, 20, 90, 70, C.a, { rx: 6 }) + text(65, 66, c.char, { size: 32, anchor: "middle" });
+    body += text(65, 108, c.code, { size: 12, anchor: "middle", mono: true, fill: C.soft });
+    body += line(118, 55, 168, 55, { sw: 1.5 }) + `<path d="M168,50 L176,55 L168,60 z" fill="${C.ink}"/>`;
+    body += text(147, 44, "rewrite", { size: 12, anchor: "middle", fill: C.soft });
+    body += rect(186, 20, 70, 70, ok ? C.goodFill : C.badFill, { rx: 6 }) + text(221, 66, `'${ascii}'`, { size: 26, anchor: "middle", mono: true });
+    body += line(264, 55, 300, 55, { sw: 1.5 }) + `<path d="M300,50 L308,55 L300,60 z" fill="${C.ink}"/>`;
+    body += text(354, 52, ok ? `${ascii}` : "ValueError", { size: ok ? 26 : 13.5, anchor: "middle", weight: "600", fill: ok ? C.good : C.bad });
+    body += text(354, 72, ok ? "int() returns" : "int() raises", { size: 12, anchor: "middle", fill: C.soft });
+    const why = decimal ? `Field 6 (decimal digit value) is ${decimal}, so it becomes '${ascii}'.` : `Field 6 (decimal digit value) is empty, so it becomes '?'.`;
+    body += text(8, 136, why, { size: 12.5 });
+    body += text(8, 156, "ASCII stays; whitespace becomes a space; anything else becomes ?.", { size: 12, fill: C.soft });
+    return svg(166, body, `int() rewrites ${c.char} as '${ascii}' and ${ok ? `returns ${ascii}` : "raises ValueError"}`);
+  }
+  function lineupSvg(id) {
+    const x0 = 96, cw = (W - x0 - 4) / LINEUP.length;
+    let body = "";
+    LINEUP.forEach((k, i) => {
+      const x = x0 + i * cw;
+      if (k === id) body += rect(x + 1, 4, cw - 2, 196, C.hi, { stroke: C.ink, sw: 1.5, rx: 4 });
+      body += text(x + cw / 2, 32, CHARS[k].char, { size: 20, anchor: "middle" });
+      body += text(x + cw / 2, 50, valueOf(CHARS[k]), { size: 11.5, anchor: "middle", fill: C.soft, mono: true });
+    });
+    body += text(8, 50, "value", { size: 12, fill: C.soft });
+    const rowsOf = [
+      ["isdecimal()", (k) => CPYTHON[k][0]],
+      ["isdigit()", (k) => CPYTHON[k][1]],
+      ["isnumeric()", (k) => CPYTHON[k][2]],
+      ["int(c)", (k) => typeof CPYTHON[k][3] === "number"]
+    ];
+    rowsOf.forEach(([label, f], r) => {
+      const y = 70 + r * 32;
+      body += text(8, y + 18, label, { size: 12.5, mono: true });
+      LINEUP.forEach((k, i) => {
+        const x = x0 + i * cw, yes = f(k);
+        body += rect(x + 4, y + 2, cw - 8, 24, yes ? C.goodFill : C.badFill, { stroke: C.line, rx: 3 });
+        const v = CPYTHON[k][3];
+        const word = r === 3 ? typeof v === "number" ? String(v) : "Error" : yes ? "True" : "False";
+        body += text(x + cw / 2, y + 19, word, { size: r === 3 && !yes ? 10.5 : 11.5, anchor: "middle", mono: true });
+      });
+    });
+    body += text(8, 222, "Recorded from CPython 3.15.1 (Unicode 17.0.0). int(c) raises ValueError for the last four.", { size: 11.5, fill: C.soft });
+    return svg(230, body, "Eight numerals and what each check and int() give for them");
+  }
+  function ucdSvg(c) {
+    const f = c.ucd.split(";");
+    const { decimal, digit, numeric } = fields(c);
+    let body = text(8, 18, `UnicodeData.txt line ${fmt(c.ucdLine)}:`, { size: 12.5, fill: C.soft });
+    body += text(8, 40, c.ucd.length > 52 ? c.ucd.slice(0, 52) : c.ucd, { size: 11.5, mono: true });
+    if (c.ucd.length > 52) body += text(8, 56, c.ucd.slice(52), { size: 11.5, mono: true });
+    const cells = [
+      ["6", "decimal digit value", decimal],
+      ["7", "digit value", digit],
+      ["8", "numeric value", c.unihan ? "" : f[8]]
+    ];
+    cells.forEach(([n, name, v], i) => {
+      const y = 76 + i * 40;
+      body += rect(8, y, 36, 30, C.d, { rx: 4 }) + text(26, y + 20, n, { size: 14, anchor: "middle", weight: "600" });
+      body += text(54, y + 20, `field ${n}, ${name}`, { size: 12.5 });
+      body += rect(W - 90, y, 82, 30, v ? C.goodFill : "#fff", { stroke: v ? C.good : C.line, dash: !v, rx: 4 });
+      body += text(W - 49, y + 20, v || "empty", { size: 13, anchor: "middle", mono: true, fill: v ? C.ink : C.soft });
+    });
+    let h = 76 + 3 * 40;
+    if (c.unihan) {
+      body += text(8, h + 16, `Unihan_NumericValues.txt line ${c.unihan.line}: U+4E09 ${c.unihan.tag} ${c.unihan.value}`, { size: 12, mono: true });
+      body += text(8, h + 34, `CPython puts the Unihan value in field 8, so isnumeric() sees ${numeric}.`, { size: 12, fill: C.soft });
+      h += 40;
+    }
+    const map = "isdecimal() and int() read field 6; isdigit() field 7; isnumeric() field 8.";
+    body += text(8, h + 18, map, { size: 12, fill: C.soft });
+    return svg(h + 28, body, `${c.name}: fields 6, 7 and 8 are ${decimal || "empty"}, ${digit || "empty"} and ${numeric || "empty"}`);
+  }
+  function nestSvg(c, guard) {
+    const p = predicates(c);
+    const boxes = [
+      ["isnumeric", CPYTHON_COUNTS.isnumeric, C.e],
+      ["isdigit", CPYTHON_COUNTS.isdigit, C.a],
+      ["isdecimal", CPYTHON_COUNTS.isdecimal, C.c]
+    ];
+    let body = "";
+    boxes.forEach(([k, n, fill], i) => {
+      const x = 8 + i * 34, y = 8 + i * 40, w = W - 16 - i * 68, h = 230 - i * 64;
+      body += rect(x, y, w, h, fill, { stroke: C.ink, sw: k === guard ? 3 : 1, rx: 8 });
+      body += text(x + 10, y + 22, `${call(k)}: ${fmt(n)}`, { size: 13, weight: k === guard ? "700" : "400" });
+    });
+    body += text(W / 2, 8 + 2 * 40 + 46, `int() accepts these ${fmt(CPYTHON_COUNTS.int)} and no others`, { size: 12, anchor: "middle", fill: C.soft });
+    const depth = p.isdecimal ? 2 : p.isdigit ? 1 : p.isnumeric ? 0 : -1;
+    const cy = [210, 160, 112][depth] ?? 250;
+    const cx = depth === 2 ? W / 2 : W - 60 - depth * 34;
+    body += `<circle cx="${cx}" cy="${cy}" r="18" fill="#fff" stroke="${C.ink}" stroke-width="2"/>` + text(cx, cy + 7, c.char, { size: 18, anchor: "middle" });
+    return svg(250, body, `Nested sets: isnumeric ${CPYTHON_COUNTS.isnumeric}, isdigit ${CPYTHON_COUNTS.isdigit}, isdecimal ${CPYTHON_COUNTS.isdecimal}; ${c.char} in the ${["isnumeric", "isdigit", "isdecimal"][depth]} box`);
+  }
+  function matchSvg(guard) {
+    const max = accepts("isnumeric");
+    const b = bars(
+      30,
+      PREDICATES.map((p) => ({ label: call(p), value: Math.max(accepts(p), max * 4e-3), text: fmt(accepts(p)), fill: accepts(p) ? C.badFill : C.goodFill, heavy: p === guard })),
+      max,
+      { labelW: 104 }
+    );
+    const body = text(8, 18, "Single characters a check passes but int() rejects", { size: 12.5, weight: "600" }) + b.body;
+    return svg(30 + b.h + 4, body, `Characters each check passes that int() rejects: ${PREDICATES.map((p) => `${p} ${accepts(p)}`).join(", ")}`);
+  }
+  function steps(id, guard) {
+    const c = CHARS[id];
+    const r = guarded(c, guard);
+    const ascii = asciiFor(c);
+    const value = valueOf(c);
+    const type = numericType(c);
+    const p = predicates(c);
+    const out = [];
+    const intWords = "value" in r.int ? `returns ${r.int.value}` : "raises ValueError";
+    out.push({
+      id: "guard",
+      title: `${call(guard)} checks '${c.char}' before int()`,
+      caption: `int() turns text into a whole number, and raises ValueError when it cannot. A common guard checks the text first and calls int() only when the check passes. Here the check is ${call(guard)}, and '${c.char}' (${c.name.toLowerCase()}) is a ${KIND[id]} numeral with the value ${value}. ${call(guard)} returns ${r.passes ? "True, so int() runs" : "False, so int() is skipped"}. Predict: ${r.passes ? `does int('${c.char}') return a number or raise ValueError?` : `had it run, would int('${c.char}') return a number or raise ValueError?`}`,
+      svg: codeSvg(c, guard)
+    });
+    out.push({
+      id: "int",
+      title: `int('${c.char}') ${intWords}`,
+      caption: `Before it parses, int() rewrites each non-ASCII character: a character with a decimal digit value becomes that ASCII digit, whitespace becomes a space, and anything else becomes '?', which no number contains. '${c.char}' ${fields(c).decimal ? `has decimal digit value ${fields(c).decimal}, so it becomes '${ascii}' and int() returns ${ascii}` : `has no decimal digit value, so it becomes '?' and int() raises ValueError`}.${r.outcome === "raised" ? " The check passed, and the parse still failed." : r.outcome === "refused" ? " The check kept int() from running; it would have failed anyway." : ""}`,
+      svg: rewriteSvg(c)
+    });
+    const accepted = (k) => LINEUP.filter((x) => CPYTHON[x][k]).length;
+    out.push({
+      id: "lineup",
+      title: `Of eight numerals, int() accepts ${LINEUP.filter((x) => typeof CPYTHON[x][3] === "number").length}; isdigit() passes ${accepted(1)}`,
+      caption: `Four ways to write 3, then superscript two, one half, Roman twelve and Chinese three, each with a Unicode numeric value. Recorded on CPython 3.15.1: isdecimal() passes ${accepted(0)}, the same ${accepted(0)} int() accepts; isdigit() passes ${accepted(1)}, adding \xB2; isnumeric() passes all ${accepted(2)}. So the answer is ${answer().replace(/^No:/, "no:")}.`,
+      svg: lineupSvg(id)
+    });
+    const filled = [fields(c).decimal && "6", fields(c).digit && "7", fields(c).numeric && "8"].filter(Boolean);
+    out.push({
+      id: "ucd",
+      title: c.unihan ? `'${c.char}' gets its value, ${value}, from Unihan, not fields 6 or 7` : `'${c.char}' fills field${filled.length > 1 ? "s" : ""} ${filled.join(", ").replace(/, (\d)$/, " and $1")}${fields(c).decimal ? "" : "; field 6 is empty"}`,
+      caption: `UnicodeData.txt keeps three numeric fields: decimal digit value (6), digit value (7) and numeric value (8). CPython builds its tables from them: int() and isdecimal() use field 6, isdigit() field 7, isnumeric() field 8. ${c.unihan ? `'${c.char}' falls in the ideograph range 4E00 to 9FFF, whose row leaves all three empty; Unihan gives it kPrimaryNumeric ${c.unihan.value}, which CPython copies into field 8.` : `'${c.char}' fills ${filled.join(", ")}.`} Its Unicode numeric type is ${type}${p.isdigit !== /^[0-9]$/.test(ascii) ? ", so isdigit() and int() disagree on it" : ""}.`,
+      svg: ucdSvg(c)
+    });
+    const where = p.isdecimal ? "in the innermost box" : p.isdigit ? "in the isdigit() box but outside the innermost" : "in the outer box only";
+    out.push({
+      id: "outcome",
+      title: r.outcome === "parsed" ? `${call(guard)} and int() agree on '${c.char}'` : r.outcome === "raised" ? `${call(guard)} let '${c.char}' through to a ValueError` : `${call(guard)} turned '${c.char}' away, as int() would`,
+      caption: `Scanning every code point on CPython 3.15.1 finds ${fmt(CPYTHON_COUNTS.isdecimal)} characters that pass isdecimal(), ${fmt(CPYTHON_COUNTS.isdigit)} that pass isdigit() and ${fmt(CPYTHON_COUNTS.isnumeric)} that pass isnumeric(). Each decimal also has a digit value and each digit a numeric value, so the sets nest, and the innermost holds every single character int() accepts. '${c.char}' is ${where}. ${r.outcome === "parsed" ? `The check passes and int() returns ${ascii}.` : r.outcome === "raised" ? `The check passes and int() raises ValueError.` : `The check fails, so int() never runs.`}`,
+      svg: nestSvg(c, guard)
+    });
+    out.push({
+      id: "match",
+      title: "For one character, only isdecimal() matches int()",
+      caption: `isdecimal() passes ${accepts("isdecimal")} characters that int() rejects, isdigit() ${fmt(accepts("isdigit"))} and isnumeric() ${fmt(accepts("isnumeric"))}. For a whole string, int() also accepts surrounding spaces, a sign and underscores between digits, so no character check matches it; to know whether int() can parse a string, call int() and catch ValueError.`,
+      svg: matchSvg(guard)
+    });
+    return out;
+  }
+  var CHECKS = [questions[1](), questions[2]()].map((q) => ({ q: q.question, a: q.answer }));
+
+  // bench/premise/isdigit/method/main.ts
+  var NAMES = { arabic: "Arabic-Indic", super: "superscript", half: "fraction", roman: "Roman", han: "Chinese" };
+  mount(document.getElementById("app"), {
+    settings: [
+      { id: "char", label: "Character", default: DEFAULT.char, options: SHOWN.map((k) => ({ value: k, label: `${CHARS[k].char} ${NAMES[k]}` })) },
+      { id: "guard", label: "Checked with", default: DEFAULT.guard, options: PREDICATES.map((p) => ({ value: p, label: `${p}()` })) }
+    ],
+    steps: (v) => steps(v.char, v.guard),
+    checks: CHECKS
+  });
+})();
+</script>
+</body>
+</html>
