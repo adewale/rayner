@@ -1,11 +1,11 @@
-# Frames, text and traces from native scenes
+# Frames, state and traces from native scenes
 
 ## Use case
 
 Use this when a documentation builder, test, CLI, agent or application needs the
 outputs Lantern's JSON document produced, without a JSON scene language or a whole
-reader page. Write a native TypeScript scene once, then ask for an SVG frame, a text
-frame, structured state or its step index. Ordinary input data can choose the scene's
+reader page. Write a native TypeScript scene once, then ask for an SVG frame,
+structured state or its step index. Ordinary input data can choose the scene's
 inputs.
 
 Lantern's `sceneFromDoc(doc)` compiled nodes, edges, code, state and operation lists
@@ -32,15 +32,15 @@ node node_modules/rayner/dist/recipes/render.js --scene document --step result -
 ```
 
 These recipes ship in the package built from this source. A previously published
-version may not contain them. The runner writes `document.svg`, `document.txt`,
-`document.elements.json`, `document.trace.json` and `document.index.json`. Add
-`--frames` to write the full SVG frame sequence as `document.frames.json`.
+version may not contain them. The runner writes `document.svg`, `document.state.json`
+and `document.trace.json`. Add `--frames` to write the full SVG frame sequence as
+`document.frames.json`.
 
 [The scene](../recipes/document.ts) explains a request's cache/database decision.
 `requestScene({ cached: true })` binds data to a Scene class; `false` gives the
 database path. Its `route()` function supplies the result,
-and the state-derived readout follows it. Inputs are copied when binding the class
-so a caller cannot mutate a later replay by changing the original input object.
+and the state-derived readout follows it. The input is read when binding the class
+so a caller cannot change a later replay by changing the original input object.
 
 ## From document concepts to TypeScript
 
@@ -63,10 +63,10 @@ not for the animation program itself.
 
 ## Public output APIs
 
-Drawing a scene's frames somewhere is `rayner/output`; a trace is author tooling, in `rayner/testing`. `renderFrame`, `toSvgString` and `StringSink` are its lasting API. `renderText`, `renderElements`, `NullSink`, `StopScene` and `DomSink` are deprecated, since 0.1.0 published them and no explainer uses them, and 0.3.0 removes them; each one's doc comment, and [the reference](REFERENCE.md#testing-and-tooling-api), say what replaces it.
+Drawing a scene's frames is `rayner`'s own: `renderFrame`, `toSvgString` and `StringSink`. A trace is author tooling, in `rayner/testing`. Each step's resting picture in words and drawn as text is in `describeExplainer` (`rayner/testing`), and `rayner see` prints one step's for a terminal.
 
 ```ts
-import { renderFrame, toSvgString, renderText, renderElements } from 'rayner/output';
+import { renderFrame, toSvgString } from 'rayner';
 import { traceScene } from 'rayner/testing';
 import { requestScene } from './document.ts';
 
@@ -77,21 +77,18 @@ if (!result) throw new Error('Unknown step');
 const scene = await renderFrame(Request, result.frame1);
 
 const svg = toSvgString(scene);             // one SVG frame
-const text = renderText(scene);             // lossy spatial text view
-const elements = renderElements(scene);     // geometry/paint records
 const state = scene.stateJson();            // the model at this frame; shownJson() for what is shown
 ```
 
 Copy `recipes/document.ts` beside this code, or import your own Scene class instead.
-[The runnable runner](../recipes/render.ts) uses these same public APIs. Text is a
-spatial approximation, not a full accessible transcript; publication combines
-captions and explanatory descriptions in its transcript.
+[The runnable runner](../recipes/render.ts) uses these same public APIs. A published
+page's transcript combines captions and explanatory descriptions for a reader who
+cannot see the picture.
 
 | Requested result | API | Former Lantern service equivalent |
 | --- | --- | --- |
 | One SVG | `toSvgString` of the scene `renderFrame` returns at a frame, such as a step's `frame1` | `/frame.svg` |
-| Text at a frame | `renderText` on that sampled scene | `/text` |
-| Element records | `renderElements`, one `ElementRecord` per drawn element | `/elements.json` |
+| A step's picture in words and as text | `describeExplainer`, whose steps carry both | `/text` |
 | Full step/state trace, with each step's timing and the duration | `traceScene`, a `Trace` (`{ fps, duration, frames, steps }`) | `/trace.json`, `/index.json` |
 | Every SVG frame | `new SceneClass(new StringSink()).run()`; read sink's `frames` | frame-sequence rendering (`/render`) |
 
@@ -120,7 +117,7 @@ trace it beside other output.
 For all SVG frames:
 
 ```ts
-import { StringSink } from 'rayner/output';
+import { StringSink } from 'rayner';
 const all = new StringSink();
 await new Request(all, { fps: 30 }).run();
 // all.frames contains SVG strings in frame order; it retains the whole run. all.last() is the final one.
@@ -132,35 +129,22 @@ frames rather than retaining a large sequence in memory. Forward `stepBegin` and
 `EndedStep`, whose `t1` and `frame1` are numbers. A sink that draws only from
 some time on says so with `skipUntil`, the one way to skip frames: frames that end before it are
 counted, not drawn, and the sink may move it between plays. It is a time in seconds, 0 or more, or
-`Infinity` to skip every frame, as `NullSink` and `TraceSink` do; the scene refuses `NaN` or a
+`Infinity` to skip every frame, as `TraceSink` does and `{ skipUntil: Infinity, async frame() {} }`,
+a sink that draws nothing, does; the scene refuses `NaN` or a
 negative time when a play or wait next reads it. A sink without it draws every frame, and
 `new TraceSink({ skipUntil: 0 })` traces a run that draws them all.
 
 ## Live browser output and publication
 
-`DomSink` is deprecated, and 0.3.0 removes it: embed the page `rayner build` writes, or show a still from `renderFrame` and `toSvgString`. Until then, in a browser module, pass a container element to `DomSink`, which appends its own SVG element, its `svg`:
-
-```ts
-import { DomSink } from 'rayner/output';
-const container = document.querySelector('#diagram');
-if (!container) throw new Error('Missing diagram container');
-await new Request(new DomSink(container)).run();
-```
-
-By default the sink plays in real time (`realtime: true`): when the page falls more than a
-frame behind, it drops that frame's DOM patch rather than slow the clock, but never goes
-longer than 100 ms without a patch. `{ realtime: false }`
-patches every frame as fast as the scene runs.
-
-This runs the raw scene, without the reader's Next and Previous controls, scenario
-selection, transcript or deep links; for those, use `rayner build` and the
-[publishing workflow](PUBLISHING.md). A raw scene has not passed `rayner check` or a
-served reader review.
+To show a scene on a host page, embed the page `rayner build` writes: it plays the scene with the
+reader's Next and Previous controls, scenario selection, transcript and deep links, and it has passed
+`rayner check` ([publishing](PUBLISHING.md)). For a still, put `toSvgString(await renderFrame(Scene, frame))`
+in the page. A raw run of the scene in a page of your own has neither.
 
 ## What is checked
 
-`test/recipes.test.ts` checks both inputs against explicit expected results, the
-displayed text and the trace's state and evidence. It also checks continuous
+`test/recipes.test.ts` checks both inputs against explicit expected results and
+the trace's state and evidence. It also checks continuous
 sample geometry and SVG seek/playback agreement. `npm run pack:smoke` runs the
 recipes from a fresh installation, not just from the checkout. Those checks do
 not certify arbitrary authors' models or every historical Lantern document.

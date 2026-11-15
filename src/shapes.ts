@@ -178,20 +178,19 @@ export class Arc extends VMobject {
 }
 
 /**
- * Arc from `start` to `end` turning through `angle` radians about its center:
- * positive is counterclockwise (as in manim), which bulges to the right of start → end.
+ * The arc from `start` to `end` turning through `angle` radians about its center: positive is
+ * counterclockwise, which bulges to the right of start → end (rayner/extras' ArcBetweenPoints is
+ * this arc as a shape of its own).
  */
-export class ArcBetweenPoints extends Arc {
-  constructor(start: Readonly<Vec>, end: Readonly<Vec>, { angle = Math.PI / 4, ...style }: Style & { angle?: number } = {}) {
-    const chord = V.sub(end, start), d = V.norm(chord);
-    const radius = d / (2 * Math.sin(Math.abs(angle) / 2));
-    const mid = V.lerp(start, end, 0.5);
-    const perp = V.normalize([-chord[1], chord[0]]);
-    const h = radius * Math.cos(Math.abs(angle) / 2) * Math.sign(angle);
-    const center = V.add(mid, V.mul(perp, h));
-    const startAngle = V.angleOf(V.sub(start, center));
-    super({ center, radius, startAngle, angle, ...style });
-  }
+function arcBetween(start: Readonly<Vec>, end: Readonly<Vec>, angle: number, style: Style): Arc {
+  const chord = V.sub(end, start), d = V.norm(chord);
+  const radius = d / (2 * Math.sin(Math.abs(angle) / 2));
+  const mid = V.lerp(start, end, 0.5);
+  const perp = V.normalize([-chord[1], chord[0]]);
+  const h = radius * Math.cos(Math.abs(angle) / 2) * Math.sign(angle);
+  const center = V.add(mid, V.mul(perp, h));
+  const startAngle = V.angleOf(V.sub(start, center));
+  return new Arc({ center, radius, startAngle, angle, ...style });
 }
 
 export interface CurvedArrowOptions { angle?: number; tipLength?: number; tipWidth?: number; stroke?: string; strokeWidth?: number }
@@ -201,7 +200,7 @@ export class CurvedArrow extends Group {
   constructor(start: Readonly<Vec>, end: Readonly<Vec>, { angle = Math.PI / 4, tipLength = 0.28, tipWidth = 0.2, stroke: given, strokeWidth = 0.04 }: CurvedArrowOptions = {}) {
     super();
     const stroke = given ?? NEUTRAL_COLORS.ink;
-    const arc = new ArcBetweenPoints(start, end, { angle, stroke, strokeWidth });
+    const arc = arcBetween(start, end, angle, { stroke, strokeWidth });
     // Trim the arc so it ends at the tip's base, then place the tip along the end tangent
     const n = curveCount(arc, 0);
     const pEnd = arc.pointOnCurve(0, n - 1, 1), pNear = arc.pointOnCurve(0, n - 1, 0.97);
@@ -214,7 +213,7 @@ export class CurvedArrow extends Group {
     this.add(arc, new Polygon([pEnd, V.add(base, V.mul(perp, tipWidth / 2)), V.sub(base, V.mul(perp, tipWidth / 2))], { fill: stroke, stroke: 'none' }));
     if (given === undefined) followScene(this, { fill: 'ink', stroke: 'ink' });
   }
-  get arc(): ArcBetweenPoints { return this.children[0] as ArcBetweenPoints; }
+  get arc(): Arc { return this.children[0] as Arc; }
   get tip(): Polygon { return this.children[1] as Polygon; }
 }
 

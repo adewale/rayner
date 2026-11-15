@@ -2,15 +2,13 @@ import type {TextShaping} from '../src/text-context.ts';
 import { Group, Text } from '../src/index.ts';
 import { affine } from '../src/mobject.ts';
 import { buildText, textRun } from '../src/text.ts';
-import { ItalicText } from '../src/italic.ts';
 import type { VMobject, Style } from '../src/index.ts';
 import { SVG_PX_PER_UNIT as PX } from './diagram-snapshot.ts';
 import type { SnapshotTextRun } from './diagram-snapshot.ts';
 
 /** Replays a captured label: its text, in the scene's faces, as glyph outlines. */
 export function importedText(run: Pick<SnapshotTextRun, 'text' | 'size' | 'font' | 'weight' | 'italic'>, color?: string, shaping?: TextShaping): Text {
-  const Type = run.italic ? ItalicText : Text;
-  return new Type(run.text, { fontSize: run.size, font: run.font ?? 'sans', weight: run.weight ?? 'normal', color, shaping });
+  return new Text(run.text, { fontSize: run.size, font: run.font ?? 'sans', weight: run.weight ?? 'normal', color, shaping, ...(run.italic ? { italic: true } : {}) });
 }
 
 /** Shared lowering of a resolved SVG text run to embedded glyph outlines.

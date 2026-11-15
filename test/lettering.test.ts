@@ -15,7 +15,7 @@ import { SCRIPTS, letteringRequest, pageFaces, useProjectLettering } from '../to
 import type { LetteringFace } from '../tools/lib/explain-lettering.ts';
 import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
 import { shaperFor } from '../src/index.ts';
-import { renderFrame } from '../src/output.ts';
+import { renderFrame } from '../src/timeline.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { useLettering, withLettering, takeLetteringMissing } from '../src/lettering.ts';

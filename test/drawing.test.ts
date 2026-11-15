@@ -19,12 +19,13 @@ import { MARGIN, PLATE_HEIGHT, RADIUS, SPACE, STROKE, TYPE, addAll, beats, conne
 import * as poppy from '../scenes/explainers/lib/poppy-kit.ts';
 import { Scene, Group, Line, Text } from '../src/index.ts';
 import type { Box, Mobject, Vec } from '../src/index.ts';
-import { NullSink, StringSink, toSvgString } from '../src/output.ts';
+import { NullSink } from '../src/timeline.ts';
+import { StringSink, toSvgString } from '../src/svg.ts';
 
 test('rayner/drawing exports exactly the kit, and package.json publishes it', () => {
   assert.deepEqual(Object.keys(drawing).sort(), [
-    'MARGIN', 'PLATE_HEIGHT', 'RADIUS', 'SPACE', 'STROKE', 'TYPE', 'addAll', 'bars', 'beats', 'callout', 'card', 'code', 'connector', 'dimension', 'dot', 'emphasised',
-    'flight', 'flow', 'keyedParts', 'label', 'legend', 'pass', 'pin', 'plate', 'route', 'segment', 'stat', 'table', 'tile', 'tones',
+    'MARGIN', 'PLATE_HEIGHT', 'RADIUS', 'SPACE', 'STROKE', 'TYPE', 'addAll', 'bars', 'beats', 'callout', 'card', 'code', 'connector', 'dimension', 'emphasised',
+    'flight', 'flow', 'keyedParts', 'label', 'legend', 'pass', 'pin', 'plate', 'route', 'stat', 'table', 'tile', 'tones',
   ]);
   const exports = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).exports;
   assert.deepEqual(exports['./drawing'], { types: './dist/explain/drawing.d.ts', default: './dist/explain/drawing.js' });
@@ -32,14 +33,14 @@ test('rayner/drawing exports exactly the kit, and package.json publishes it', ()
 });
 
 test('a keyed composite keys its parts under its own key, and an unkeyed one keys none', async () => {
-  const { Scene } = await import('../src/index.ts'); const { NullSink } = await import('../src/output.ts'); const { loadFonts } = await import('../explain/testing.ts');
+  const { Scene } = await import('../src/index.ts'); const { NullSink } = await import('../src/timeline.ts'); const { loadFonts } = await import('../explain/testing.ts');
   await loadFonts();
   const { stage } = await import('../explain/index.ts');
   const s = stage(new Scene(new NullSink()));
-  const node = drawing.dot(s, 'A', { key: 'node:A' });
+  const node = drawing.tile(s, 'A', { width: 1, height: 1, key: 'node:A' });
   assert.equal(node.key, 'node:A');
-  assert.deepEqual(node.children.map((m) => m.key), ['node:A:circle', 'node:A:label']);
-  const plain = drawing.dot(s, 'A');
+  assert.deepEqual(node.children.map((m) => m.key), ['node:A:box', 'node:A:label']);
+  const plain = drawing.tile(s, 'A', { width: 1, height: 1 });
   assert.equal(plain.key, undefined);
   assert.ok(plain.family().every((m) => m.key === undefined), 'an unkeyed picture keys none of its parts');
   const box = drawing.tile(s, 'x', { at: [1, 2], width: 2, height: 1, key: 'slot' });
@@ -63,7 +64,7 @@ test('a keyed composite keys its parts under its own key, and an unkeyed one key
 });
 
 test('a kit function keys an empty key exactly as keyed() does', async () => {
-  const { Scene, Circle, keyed } = await import('../src/index.ts'); const { NullSink } = await import('../src/output.ts'); const { loadFonts } = await import('../explain/testing.ts');
+  const { Scene, Circle, keyed } = await import('../src/index.ts'); const { NullSink } = await import('../src/timeline.ts'); const { loadFonts } = await import('../explain/testing.ts');
   await loadFonts();
   const s = stage(new Scene(new NullSink()));
   const outcome = (make: () => { key: string | undefined }): string => {
@@ -78,12 +79,11 @@ test('a kit function keys an empty key exactly as keyed() does', async () => {
     [
       outcome(() => keyed(drawing.label(s, 'x'), '')),
       outcome(() => drawing.tile(s, 'x', { width: 2, height: 1, key: '' })),
-      outcome(() => drawing.dot(s, 'x', { key: '' })),
       outcome(() => drawing.callout(s, [0, 0], 'x', { key: '' })),
       outcome(() => drawing.dimension(s, [0, 0], [1, 0], 'x', { key: '' })),
       outcome(() => drawing.pin(s, [0, 0], { key: '' })),
     ],
-    Array(6).fill(expected),
+    Array(5).fill(expected),
   );
 });
 
@@ -98,7 +98,7 @@ test('keyedParts keys each part in order, groups them, and refuses a key used tw
 });
 
 test('callout keys its parts, and dimension and pin describe themselves', async () => {
-  const { Scene, Rectangle } = await import('../src/index.ts'); const { NullSink } = await import('../src/output.ts'); const { loadFonts } = await import('../explain/testing.ts');
+  const { Scene, Rectangle } = await import('../src/index.ts'); const { NullSink } = await import('../src/timeline.ts'); const { loadFonts } = await import('../explain/testing.ts');
   const { describesItself, seenSource } = await import('../explain/look.ts');
   await loadFonts();
   const s = stage(new Scene(new NullSink()));
@@ -123,7 +123,7 @@ test('callout keys its parts, and dimension and pin describe themselves', async 
 });
 
 test('legend draws swatches with words, keyed by label, describes itself as its swatch→meaning pairs', async () => {
-  const { Scene } = await import('../src/index.ts'); const { NullSink } = await import('../src/output.ts'); const { loadFonts } = await import('../explain/testing.ts');
+  const { Scene } = await import('../src/index.ts'); const { NullSink } = await import('../src/timeline.ts'); const { loadFonts } = await import('../explain/testing.ts');
   const { describesItself, seenSource } = await import('../explain/look.ts');
   await loadFonts();
   const s = stage(new Scene(new NullSink()));

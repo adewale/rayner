@@ -1,4 +1,5 @@
-import { Scene, Group, ArcBetweenPoints, Brace, MathTex, Create, FadeIn, MoveAlongPath, keyed, Transform } from '../../../src/index.ts';
+import { Scene, Group, Brace, MathTex, Create, FadeIn, MoveAlongPath, Transform, keyed } from '../../../src/index.ts';
+import { ArcBetweenPoints } from '../../../extras/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, having } from '../../../explain/index.ts';
 import type { Stage, ExplainerMeta, Setting } from '../../../explain/index.ts';

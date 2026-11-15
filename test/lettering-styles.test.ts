@@ -1,5 +1,5 @@
 // Real bold and italic on request (meta.lettering.styles): Text with weight 'bold' draws the
-// face's Bold cut instead of a stroked Regular, ItalicText draws the Italic cut, and both are
+// face's Bold cut instead of a stroked Regular, italic Text draws the Italic cut, and both are
 // shaped at build time into the outline snapshot like any other requested lettering. A scene
 // that asks for neither keeps the faux bold, byte for byte (test/lettering-outlines.test.ts).
 import { sfntBase64 } from '../tools/lib/woff2.ts';
@@ -10,8 +10,8 @@ import { join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
-import { Scene, Text, ItalicText, MathTex, shaperFor } from '../src/index.ts';
-import { NullSink } from '../src/output.ts';
+import { Scene, Text, MathTex, shaperFor } from '../src/index.ts';
+import { NullSink } from '../src/timeline.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { bindLettering, runKey, snapshotProvider, unpackLettering } from '../src/lettering-outlines.ts';
 import type { LetteringSnapshot } from '../src/lettering-outlines.ts';
@@ -64,11 +64,11 @@ test('bold maths keeps its faux stroke: a formula is drawn from its own run, wit
   for (const g of formula.children) assert.equal(g.style.stroke, '#112233', 'the Regular maths outline keeps the stroke that fakes bold');
 });
 
-test('ItalicText draws the Italic and Bold Italic cuts; Arabic in it stays upright', async () => {
+test('italic Text draws the Italic and Bold Italic cuts; Arabic in it stays upright', async () => {
   const s = await stored();
-  const italic = await built(s, () => new ItalicText('Italic', { fontSize: 0.6 }));
+  const italic = await built(s, () => new Text('Italic', { fontSize: 0.6, italic: true }));
   assert.ok(Math.abs(italic[textRun].width - s.runs[runKey('sans/italic', 'Italic')]!.width * 0.6) < 1e-9);
-  const both = await built(s, () => new ItalicText('Bold italic', { fontSize: 0.6, weight: 'bold' }));
+  const both = await built(s, () => new Text('Bold italic', { fontSize: 0.6, weight: 'bold', italic: true }));
   assert.ok(Math.abs(both[textRun].width - s.runs[runKey('sans/bold-italic', 'Bold italic')]!.width * 0.6) < 1e-9);
   for (const g of both.children) assert.equal(g.style.stroke, 'none');
   // Noto Naskh Arabic has no italic: the italic run uses the regular cut's glyphs,
@@ -78,12 +78,12 @@ test('ItalicText draws the Italic and Bold Italic cuts; Arabic in it stays uprig
   assert.notDeepEqual(upright.glyphs.map((g) => g.path), heavy.glyphs.map((g) => g.path));
 });
 
-test('ItalicText fails the build unless the scene asked for italic', async () => {
+test('italic Text fails the build unless the scene asked for italic', async () => {
   const s = await stored();
   await loadFonts();
-  assert.throws(() => new ItalicText('x'), /new ItalicText\(\): it needs meta\.lettering\.styles to include 'italic'/);
+  assert.throws(() => new Text('x', { italic: true }), /new Text\(\): italic text needs meta\.lettering\.styles to include 'italic'/);
   const boldOnly = { ...s, request: { ...s.request, styles: ['bold'] as const } };
-  await assert.rejects(built(boldOnly, () => new ItalicText('Italic')), /new ItalicText\(\): it needs/);
+  await assert.rejects(built(boldOnly, () => new Text('Italic', { italic: true })), /new Text\(\): italic text needs/);
 });
 
 test('a bold count replays its intermediate values in the Bold cut', async () => {
@@ -163,9 +163,9 @@ for (const [family, text, file, features] of [
 test('a face without the asked cut fails capture, naming it; a script without Bold cannot draw bold', { skip: !capture && 'set EXPLAIN_LETTERING=1 to capture' }, async () => {
   const scene = (lettering: string, body: string) => `import{Scene,Text}from'rayner';export default class L extends Scene{static meta={id:'cut',lettering:${lettering}};async construct(){await this.step('one');this.add(${body});await this.wait(1);}}`;
   const dir = await mkdtemp(join(folder, 'cut-'));
-  await writeFile(join(dir, 'scene.ts'), scene(`{faces:{sans:'noto-sans-hebrew'},scripts:['Hebr'],styles:['italic']}`, `new (await import('rayner')).ItalicText('שלום')`));
+  await writeFile(join(dir, 'scene.ts'), scene(`{faces:{sans:'noto-sans-hebrew'},scripts:['Hebr'],styles:['italic']}`, `new (await import('rayner')).Text('שלום',{italic:true})`));
   await assert.rejects(collectProject(dir, { captureLettering: true, write: false }), /noto-sans-hebrew has no italic cut/);
-  await writeFile(join(dir, 'scene.ts'), scene(`{scripts:['Hebr'],styles:['bold','italic']}`, `new (await import('rayner')).ItalicText('שלום',{weight:'bold'})`));
+  await writeFile(join(dir, 'scene.ts'), scene(`{scripts:['Hebr'],styles:['bold','italic']}`, `new (await import('rayner')).Text('שלום',{weight:'bold',italic:true})`));
   const hebrew = await collectProject(dir, { captureLettering: true, write: false });
   assert.ok(hebrew.outlineLettering!.faces['noto-sans-hebrew/bold'], 'Hebrew bold italic stands in with the Bold cut');
   // A cut carries only what it drew: bold Latin beside regular Arabic leaves the Arabic Bold cut out

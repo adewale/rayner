@@ -19,7 +19,7 @@ export interface LetteringRequest {
   /** ISO 15924 script codes, e.g. Arab, Deva, Hebr, Hani. */
   scripts?: readonly string[];
   math?: boolean;
-  /** Draw `weight: 'bold'` Text in the face's Bold cut, and allow ItalicText. */
+  /** Draw `weight: 'bold'` Text in the face's Bold cut, and allow `italic: true` Text. */
   styles?: readonly LetteringStyle[];
 }
 /** The cut a run is shaped in: '' for the regular cut. */
@@ -398,7 +398,7 @@ export function textShaping(provider: LetteringProvider): TextShaping {
       prepare: provider.prepare?.bind(provider),
       shape(owner, text, size) {
         if (owner.italic && !provider.request?.styles?.includes('italic'))
-          throw new Error("new ItalicText(): it needs meta.lettering.styles to include 'italic', and a fresh lettering snapshot (rayner snapshots)");
+          throw new Error("new Text(): italic text needs meta.lettering.styles to include 'italic', and a fresh lettering snapshot (rayner snapshots)");
         return owner[formulaOf] ? provider.math(text, size, owner[formulaOf].display)
           : provider.shape(owner.font, text, size, embeddedShaperFor(owner.font), cutOf(owner, provider));
       },

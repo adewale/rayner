@@ -1,4 +1,5 @@
-import { Scene, Group, Text, Brace, DecimalNumber, Create, FadeIn, FadeOut, Transform, Succession, LaggedStart, MoveAlongPath, PulseAlongPath, GrowFromEdge, smooth, linear, keyed } from '../../../src/index.ts';
+import { Scene, Group, Text, Brace, DecimalNumber, Create, FadeIn, FadeOut, Transform, Succession, LaggedStart, MoveAlongPath, smooth, linear, keyed } from '../../../src/index.ts';
+import { PulseAlongPath, GrowFromEdge } from '../../../extras/index.ts';
 import type { Box, Mobject } from '../../../src/index.ts';
 import { stage, answerOf, having } from '../../../explain/index.ts';
 import type { Stage, ExplainerMeta } from '../../../explain/index.ts';

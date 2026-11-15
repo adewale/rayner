@@ -1,5 +1,4 @@
-import { Scene, Rectangle, Dot, FadeIn, Transform, Animation } from '../../../src/index.ts';
-import { toSvgString, renderFrame, StringSink } from '../../../src/output.ts';
+import { Scene, Rectangle, Dot, FadeIn, Transform, Animation, toSvgString, renderFrame, StringSink } from '../../../src/index.ts';
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
 import { stage, regionBox, settingsOf, answerOf, view, having } from '../../../explain/index.ts';
 import type { Diagram, PictureNote, ExplainerMeta } from '../../../explain/index.ts';
@@ -220,7 +219,7 @@ export default class LanternExplainer extends Scene<LanternState, LanternShown> 
       },
       {
         says: 'Rayner’s sinks only read the frame',
-        test: 'model.test.ts: sinks only read a frame: after each of Rayner’s sinks takes it',
+        test: 'test/timeline.test.ts: sinks only read a frame: after each of Rayner’s sinks takes it',
       },
       {
         says: 'by an amount set only by how far through its run time the animation is',

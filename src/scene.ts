@@ -99,7 +99,7 @@ export interface Sink {
    * Frames that end before this time are counted, not rendered: the one way to skip frames. A sink
    * that draws only from some point says so here, and may move it between plays (the live player's
    * sink skips to a step, then draws a reader's event frame by frame; the player's runner skips to
-   * the step it is headed for); one that draws nothing (NullSink, TraceSink) skips every frame with
+   * the step it is headed for); one that draws nothing (a TraceSink) skips every frame with
    * Infinity. Without it every frame is drawn. A time in seconds, 0 or more, or Infinity; the scene
    * refuses NaN or a negative time when it next reads it, which every play and wait does.
    */
@@ -409,8 +409,8 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    */
   frame: Frame;
   /**
-   * What the scene is doing now (see ScenePhase). `stopped` once a sink throws StopScene: from
-   * then on play(), wait(), step() and emitFrame() rethrow it at once, so a construct() that
+   * What the scene is doing now (see ScenePhase). `stopped` once its run is stopped (renderFrame
+   * stops it at its frame): from then on play(), wait(), step() and emitFrame() rethrow the stop at once, so a construct() that
    * swallows the stop in a broad catch cannot emit frames after it (a seeked frame would differ
    * from the played one). run() still ends quietly.
    */

@@ -4,7 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Rectangle, Text, Code, Create, FadeOut, Circumscribe, SurroundingRectangle, Cross, Brace, BraceLabel, VMobject, Line, keyed } from '../src/index.ts';
-import { StringSink, renderFrame } from '../src/output.ts';
+import { StringSink } from '../src/svg.ts';
+import { renderFrame } from '../src/timeline.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { MotionSink, analyzeMotion } from '../src/internal.ts';
@@ -255,7 +256,7 @@ test('seeking into and past Circumscribe renders the frame a full run produces',
 
 test('emphasis can name a part by its key: the part on the stage now, and nothing when it is not there', async () => {
   const { emphasises, emphasisOf } = await import('../explain/look.ts');
-  const { Scene, Circle } = await import('../src/index.ts'); const { NullSink } = await import('../src/output.ts');
+  const { Scene, Circle } = await import('../src/index.ts'); const { NullSink } = await import('../src/timeline.ts');
   const scene = new Scene(new NullSink());
   const ring = keyed(new Circle(), 'ring:3');
   scene.add(ring);

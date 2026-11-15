@@ -15,15 +15,13 @@ export type { ToolKind } from './annotate.ts';
 export type { Description, DescriptionPart } from './trace.ts';
 export { regionBox } from './look.ts';
 export type { Region, Look } from './look.ts';
-export { palette } from './palettes.ts';
 export { mermaid } from './mermaid.ts';
 export type { FrontMatterValue, PieSlice, PieOptions } from './mermaid.ts';
-export { settingsOf, resolveSettings } from './settings.ts';
+export { settingsOf } from './settings.ts';
 export { answerOf } from './script.ts';
 export type { StepKind } from './script.ts';
 export type { Setting, Settings, ExplainerClass, ExplainerMeta, PlayerMeta } from './settings.ts';
 export type { AudioClip, ScoreNote, StepAudio } from './audio.ts';
-export { diagramResolverOf } from './diagram-snapshot.ts';
 export type {
   DiagramSpec,
   DiagramSnapshot,

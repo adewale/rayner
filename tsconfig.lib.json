@@ -13,5 +13,5 @@
     "sourceMap": true,
     "tsBuildInfoFile": "node_modules/.cache/tsc/lib.tsbuildinfo"
   },
-  "include": ["src/**/*.ts", "explain/**/*.ts"]
+  "include": ["src/**/*.ts", "explain/**/*.ts", "extras/**/*.ts"]
 }

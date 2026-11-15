@@ -1,11 +1,6 @@
 {
   "names": {
     "rayner": {
-      "Frame": {
-        "reason": "The class of every scene's camera, `this.frame`, which `s.focus` moves: a camera helper or an author's test names it as a type, and a scene drawn without a stage moves it directly. A scene on a stage moves the camera with `s.focus`, which keeps the heading on screen, never with `this.frame.animate`. 0.1.0 published it.",
-        "guide": "docs/CAMERA.md#what-it-is",
-        "test": "test/camera.test.ts"
-      },
       "MathTex": {
         "check": "Glyphs: a formula the lettering snapshot does not hold fails every command"
       },
@@ -43,11 +38,6 @@
       },
       "view": {
         "check": "Views: at the end of every step, a view whose words, parts, boxes or opacity differ from a fresh draw of the state, placed where a sync would put it, fails"
-      },
-      "palette": {
-        "reason": "A named style's four colours, so a scene can start from a style and change one of them (`{ ...palette('dusk'), accent }`), which the stage's `style` option cannot; the stage resolves its own `style` with it. 0.1.0 published it.",
-        "guide": "docs/REFERENCE.md#colours",
-        "test": "test/explain-helpers.test.ts"
       }
     },
     "rayner/drawing": {
@@ -128,36 +118,7 @@
         "check": "Invariants: registered with addInvariant, it fails on the first frame that draws a piece out of depth order"
       }
     },
-    "rayner/output": {
-      "DomSink": {
-        "tooling": "a host page written against 0.1.0 that plays a scene into its own live SVG element, until 0.3.0; deprecated: 0.1.0 published it from rayner, no explainer uses it, and 0.3.0 removes it. The player's zoom view keeps it from the repository's own path"
-      },
-      "NullSink": {
-        "tooling": "a test or tool written against 0.1.0 that runs a scene for its state, steps or invariants and draws nothing, until 0.3.0; deprecated: 0.1.0 published it from rayner, no explainer uses it, and 0.3.0 removes it. rayner check and the repository's tests keep it from the repository's own path"
-      },
-      "StopScene": {
-        "tooling": "a host page or tool written against 0.1.0 with its own sink, which throws it to stop a run and must rethrow it from a catch, until 0.3.0; deprecated: 0.1.0 published it from rayner, no explainer uses it, and 0.3.0 removes it. The player keeps it from the repository's own path"
-      },
-      "StringSink": {
-        "tooling": "a tool that collects every frame of a run as SVG strings (the render recipe)"
-      },
-      "renderFrame": {
-        "tooling": "a host page or tool that draws a step's resting picture, or any frame, by the frame number a trace records (the player, the build's poster and rayner check's seeks)"
-      },
-      "renderElements": {
-        "tooling": "a tool written against 0.1.0 that reads a frame as element records, with each part's box, paint and text (the render recipe), until 0.3.0; deprecated: 0.1.0 published it from rayner, no explainer uses it, and 0.3.0 removes it. rayner check and review keep it from the repository's own path"
-      },
-      "renderText": {
-        "tooling": "a tool or test written against 0.1.0 that prints a frame as a text drawing, for a terminal or a reviewer (the render recipe), until 0.3.0; deprecated: 0.1.0 published it from rayner, no explainer uses it, and 0.3.0 removes it. rayner describe and see keep it from the repository's own path"
-      },
-      "toSvgString": {
-        "tooling": "a host page or tool that serializes the scene's current picture as one SVG document, such as a step's still from the scene renderFrame returns (the render recipe)"
-      }
-    },
     "rayner/testing": {
-      "InvariantSink": {
-        "tooling": "an author's test that checks every frame of a run against the scene's invariants (the invariants recipe)"
-      },
       "TraceSink": {
         "tooling": "an author's test or tool that records each step's timing, state and evidence while it runs a scene its own way"
       },
@@ -178,9 +139,6 @@
       },
       "diagramOf": {
         "tooling": "an author's test that reads a pinned diagram's words or parts (pg-page, traffic-policy, gnome-files, tailwind-gamut and gtfs)"
-      },
-      "jsonObject": {
-        "tooling": "an author's test or tool that validates and clones state under the trace's JSON rules (the document recipe)"
       },
       "loadFonts": {
         "tooling": "an author's test or tool that draws text outside a scene's run, and so loads the embedded fonts first"
@@ -777,7 +735,7 @@
     },
     {
       "feature": "A token sent along a curved route",
-      "uses": "`ArcBetweenPoints`, `new MoveAlongPath(token, route)`",
+      "uses": "`ArcBetweenPoints` (`rayner/extras`), `new MoveAlongPath(token, route)`",
       "guide": "[Animations and the clock](ENGINE-FUNDAMENTALS.md#animations-and-the-clock)",
       "scenes": [
         "galton-board",
@@ -790,7 +748,7 @@
     },
     {
       "feature": "How a move speeds up and slows down",
-      "uses": "`rateFunc`: `smooth`, `rushInto`, `rushFrom`, `thereAndBack`",
+      "uses": "`rateFunc`: `smooth`, and `rushInto`, `rushFrom`, `thereAndBack` from `rayner/extras`",
       "guide": "[Animations and the clock](ENGINE-FUNDAMENTALS.md#animations-and-the-clock)",
       "scenes": [
         "galton-board",
@@ -954,15 +912,6 @@
         "direction": "stage\\(this, \\{[^}]*\\bdirection\\b",
         "at: 'start'": "at: 'start'"
       }
-    },
-    {
-      "feature": "A named style's colours, one of them changed",
-      "uses": "`palette('nord')`, passed as the stage's `palette` option",
-      "guide": "[Colours](REFERENCE.md#colours)",
-      "scenes": [],
-      "names": [
-        "palette"
-      ]
     },
     {
       "feature": "A formula set from TeX",

@@ -159,7 +159,7 @@ the sync **still takes its run time**, so step timing, frame numbers and
 `Succession` timings follow from the program alone rather than from whether the
 state happened to change. If you don't want the hold, don't play the sync.
 
-A rate function that does not end at 1 (`thereAndBack`) ends on the old
+A rate function that does not end at 1 (`thereAndBack`, from `rayner/extras`) ends on the old
 picture, and the View does not swap; the fidelity check below reports that step.
 
 ## Placement

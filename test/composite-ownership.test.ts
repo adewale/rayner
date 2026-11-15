@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Scene, Group, Code} from '../src/index.ts';
-import { NullSink } from '../src/output.ts';
+import { NullSink } from '../src/timeline.ts';
 import { loadFonts } from '../explain/testing.ts';
 import {Card, CodeBlock} from '../explain/panels.ts';
 import {emphasisOf} from '../explain/look.ts';

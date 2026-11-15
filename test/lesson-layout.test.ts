@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Text, Rectangle, Line, Transform } from '../src/index.ts';
-import { NullSink } from '../src/output.ts';
+import { NullSink } from '../src/timeline.ts';
 import { loadFonts } from '../explain/testing.ts';
 import type { Mobject } from '../src/index.ts';
 import { stage } from '../explain/index.ts';

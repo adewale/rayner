@@ -7,7 +7,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { VMobject, Rectangle, Circle, Polygon, linear, smooth, rushInto, rushFrom, thereAndBack } from '../src/index.ts';
+import { VMobject, Rectangle, Circle, Polygon, linear, smooth } from '../src/index.ts';
+import { rushInto, rushFrom, thereAndBack } from '../extras/index.ts';
 import type { Vec } from '../src/index.ts';
 import { curveCount, insertCurves } from '../src/vmobject.ts';
 

@@ -186,6 +186,7 @@ These are how the engine works, not advice; breaking one breaks the build or the
 - A setting may change diagrams, captions, numbers and which steps exist; keep the palette fixed. A scene may have at most 64 scenarios, and its page must fit [the page budget](../../docs/REFERENCE.md#page).
 - Default lettering is embedded Inter and JetBrains Mono. Other scripts, replacement faces, real bold and italic, and maths need a `lettering` request in `static meta` and committed snapshots; unsupported or unrequested characters fail the build. See [Lettering on request](https://github.com/adewale/rayner/blob/main/docs/LETTERING.md) and REFERENCE, Maths.
 - Arabic or Hebrew text sets its own reading direction; `stage` and card `direction` choose spatial order; set a diagram's flow in its Mermaid source.
+- Extend Rayner from its public entry points only. An animation, shape or easing the engine lacks is written as `rayner/extras` writes its own (`GrowFromEdge`, `ArcBetweenPoints`, `rushInto`): [Extending Rayner](../../docs/EXTENDING.md#write-an-animation-of-your-own) walks through one line by line.
 
 ## Reporting
 

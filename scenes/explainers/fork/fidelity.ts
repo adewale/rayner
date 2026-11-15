@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { loadProject, assertStepState } from '../../../explain/testing.ts';
 import type { Trace } from '../../../explain/testing.ts';
 import { Scene } from '../../../src/index.ts';
-import { resolveSettings } from '../../../explain/index.ts';
+import { resolveSettings } from '../../../explain/settings.ts';
 import { VOCABULARY } from '../../../explain/words.ts';
 import type { FidelityRun } from '../../../test/lib/fidelity.ts';
 

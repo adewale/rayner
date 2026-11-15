@@ -10,7 +10,7 @@ import { buildExplainer } from '../../tools/lib/explain-build.ts';
 import { chromeFor, scenarioNameIn, CHROME, descriptionLang, descriptionsLang } from '../../app/embed-strings.ts';
 import { settingsProblem } from '../../explain/settings.ts';
 import type { SettingsProblem } from '../../app/embed-strings.ts';
-import { resolveSettings } from '../../explain/index.ts';
+import { resolveSettings } from '../../explain/settings.ts';
 import { scenarioName } from '../../explain/internal.ts';
 import { pictureSummary, pictureHtml, picture } from '../../explain/trace.ts';
 import { VOCABULARY, wordsFor, describedIn, familyNames, markHeading } from '../../explain/words.ts';

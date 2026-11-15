@@ -4,7 +4,7 @@ import { readFile, mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Scene, Text, DecimalNumber, shaperFor } from '../src/index.ts';
-import { NullSink, renderFrame } from '../src/output.ts';
+import { NullSink, renderFrame } from '../src/timeline.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { takeMissingGlyphs } from '../src/fonts.ts';

@@ -9,7 +9,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Text, Code, VMobject, Transform } from '../src/index.ts';
-import { StringSink, renderFrame } from '../src/output.ts';
+import { StringSink } from '../src/svg.ts';
+import { renderFrame } from '../src/timeline.ts';
 import { SnapshotSink } from '../src/svg.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { MotionSink, analyzeMotion } from '../src/internal.ts';

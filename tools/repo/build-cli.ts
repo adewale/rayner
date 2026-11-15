@@ -31,7 +31,7 @@ export const CLI_FILES = [
 ];
 /** The library's modules, which the command imports from the installed rayner package: its sources and the shaper it ships. */
 export const libraryModule = (name: string) =>
-  name.startsWith('src/') || name.startsWith('explain/') || name === 'vendor/glyph.js';
+  name.startsWith('src/') || name.startsWith('explain/') || name.startsWith('extras/') || name === 'vendor/glyph.js';
 
 export async function buildCli(out = join(ROOT, 'cli')): Promise<Metafile> {
   out = resolve(out);

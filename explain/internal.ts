@@ -23,7 +23,7 @@ export { PAGE_QUERY } from './page-query.ts';
 export { adoptExplainer, readSnapshotStore, sceneIdOf, scriptOf, traceScenarios } from './project.ts';
 export { checkScriptMeta, isDetail, normalise, offPath, predictionsOf, scriptReport, teachingIndices } from './script.ts';
 export type { Prediction, TeachingStep } from './script.ts';
-export { bindSnapshots, isIdentifier, scenarioName, scenariosOf, settingsProblem, stepQuery } from './settings.ts';
+export { bindSnapshots, isIdentifier, resolveSettings, scenarioName, scenariosOf, settingsProblem, stepQuery } from './settings.ts';
 export type { SettingsProblem } from './settings.ts';
 export { isFurniture, isHeading, paletteOf, paperOf, withoutHeading } from './stage.ts';
 export { checkWatch, htmlEscape, pictureChange, pictureHtml, pictureSummary, stepWords, undescribed, watchedChanges, wordsHtml } from './trace.ts';

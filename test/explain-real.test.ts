@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene } from '../src/index.ts';
-import { NullSink } from '../src/output.ts';
+import { NullSink } from '../src/timeline.ts';
 import { diagramFindings, loadFonts, loadProject, loadSnapshots, pictureWordsAt } from '../explain/testing.ts';
 import type { Mobject } from '../src/index.ts';
 import { Diagram } from '../explain/diagrams.ts';
