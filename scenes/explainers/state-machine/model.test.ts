@@ -108,7 +108,7 @@ test('close() before open fails the connection at once in Node 24, in an order t
   assert.equal(ws.readyState, READY.indexOf(socketReplay(['close()']).ready));
   const during = [...fired];
   await new Promise((resolve) => setTimeout(resolve, 250));
-  if (skipOracle(t, !expected && `undici ${undici} has not been run here: it fired ${JSON.stringify(during)} during close() and ${JSON.stringify(fired)} in all; record it in CLOSE_BEFORE_OPEN`)) return;
+  if (skipOracle(t, !expected && `undici ${undici} has not been run here: it fired ${JSON.stringify(during)} during close() and ${JSON.stringify(fired)} in all; record it in CLOSE_BEFORE_OPEN`) || !expected) return;
   assert.deepEqual(during, expected.during);
   assert.deepEqual(fired, expected.after);
 });
