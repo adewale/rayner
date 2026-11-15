@@ -1,0 +1,942 @@
+{
+ "topic": "ext4-space",
+ "oracle": "22 recorded mkfs.ext4 1.47.3 runs in scenes/explainers/ext4-space/model.test.ts:34-55 (dumpe2fs counts, debugfs block counts of inodes 2, 7, 8, 11, 12, statfs under Linux 6.8.0), the model in scenes/explainers/ext4-space/model.ts and the e2fsprogs v1.47.3 and Linux v6.8 lines it cites (scenes/explainers/ext4-space/model.ts:5-35).",
+ "pages": {
+  "plain": {
+   "file": "bench/premise/ext4-space/plain.html",
+   "round": 2,
+   "how": "Written by a fresh session with no repository from the question and Reader line (bench/premise/README.md, round 2)."
+  },
+  "rayner": {
+   "file": "scenes/explainers/ext4-space (rayner describe at 5e9d07d4)",
+   "round": 2,
+   "how": "The catalogued explainer; text read from `rayner describe`."
+  },
+  "method": {
+   "file": "bench/premise/ext4-space/method.html",
+   "round": 3,
+   "how": "Method-only page (bench/premise/ext4-space/method/), built for round 3 with the model and oracle and no engine."
+  }
+ },
+ "rules": "Grade each claim against the evidence only. right: agrees with a recorded value, with the tested model on an input of the same shape as a recorded one, with a source file the model pins, or is plain arithmetic. wrong: contradicted by a recorded value or a pinned source. unverifiable: nothing in the evidence decides it; do not guess, even where the claim is well known. A claim with count n stands for n claims of the same kind graded together.",
+ "claims": [
+  {
+   "id": "ext4-space-plain-01",
+   "page": "plain",
+   "count": 1,
+   "claim": "A \"1 TB\" disk shows 916G Size and 870G Avail in df -h (lede and simulator)",
+   "evidence": "The page uses a 1,000,204,886,016-byte drive, not a whole number of 128 MiB groups; compared with the model (scenes/explainers/ext4-space/model.ts layout/space) at 7,452 and 7,453 groups: Size 915.8-915.9 GiB, Avail 869.2-869.3 GiB, root reserve plus 16 MiB 46.59-46.60 GiB, structures 1.68% of the label, superblocks+descriptors+bitmaps 143 MiB (0.015%), 61,046,784 inodes, 14.55 GiB of inode tables, tables 84.8 and 58.2 MiB, 7,452 groups, 19 superblock copies of 1+117+1024 blocks df's Size, Used and Avail taken as statfs f_blocks, f_blocks - f_bfree and f_bavail (coreutils behaviour; not part of the recording).",
+   "grade": "right",
+   "note": "model, bracketed; df -h rounds up"
+  },
+  {
+   "id": "ext4-space-plain-02",
+   "page": "plain",
+   "count": 1,
+   "claim": "On a typical disk the structures are the smallest of three parts: units about 7%, reserve 5%, structures about 1.7%",
+   "evidence": "The page uses a 1,000,204,886,016-byte drive, not a whole number of 128 MiB groups; compared with the model (scenes/explainers/ext4-space/model.ts layout/space) at 7,452 and 7,453 groups: Size 915.8-915.9 GiB, Avail 869.2-869.3 GiB, root reserve plus 16 MiB 46.59-46.60 GiB, structures 1.68% of the label, superblocks+descriptors+bitmaps 143 MiB (0.015%), 61,046,784 inodes, 14.55 GiB of inode tables, tables 84.8 and 58.2 MiB, 7,452 groups, 19 superblock copies of 1+117+1024 blocks",
+   "grade": "right",
+   "note": "model, bracketed"
+  },
+  {
+   "id": "ext4-space-plain-03",
+   "page": "plain",
+   "count": 1,
+   "claim": "1,000 GB is 931 GiB; the unit change is about 7% (6.9%)",
+   "evidence": "Arithmetic: 1e12 / 2^30 = 931.3; 1 - 931.3/1000 = 6.9%",
+   "grade": "right",
+   "note": "arithmetic"
+  },
+  {
+   "id": "ext4-space-plain-04",
+   "page": "plain",
+   "count": 1,
+   "claim": "df -h counts in GiB but labels them G; df -H uses powers of 1000",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this. (coreutils behaviour)",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-05",
+   "page": "plain",
+   "count": 1,
+   "claim": "The default reserve is 5% of the blocks, for root",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330; scenes/explainers/ext4-space/model.ts:56 DEFAULT_RESERVE = 5 (misc/mke2fs.c:2375-2378)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-06",
+   "page": "plain",
+   "count": 1,
+   "claim": "...or for a chosen user or group",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-07",
+   "page": "plain",
+   "count": 1,
+   "claim": "df shows statfs's numbers",
+   "evidence": "df's Size, Used and Avail taken as statfs f_blocks, f_blocks - f_bfree and f_bavail (coreutils behaviour; not part of the recording).",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-08",
+   "page": "plain",
+   "count": 1,
+   "claim": "The reserve is inside Size but in neither Used nor Avail, so Size - Used != Avail",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330: the reserved blocks are counted in f_bfree but not in f_bavail",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-09",
+   "page": "plain",
+   "count": 1,
+   "claim": "On 1 TB the reserve is about 47 GiB (46.6 GiB in the simulator)",
+   "evidence": "The page uses a 1,000,204,886,016-byte drive, not a whole number of 128 MiB groups; compared with the model (scenes/explainers/ext4-space/model.ts layout/space) at 7,452 and 7,453 groups: Size 915.8-915.9 GiB, Avail 869.2-869.3 GiB, root reserve plus 16 MiB 46.59-46.60 GiB, structures 1.68% of the label, superblocks+descriptors+bitmaps 143 MiB (0.015%), 61,046,784 inodes, 14.55 GiB of inode tables, tables 84.8 and 58.2 MiB, 7,452 groups, 19 superblock copies of 1+117+1024 blocks",
+   "grade": "right",
+   "note": "model, bracketed"
+  },
+  {
+   "id": "ext4-space-plain-10",
+   "page": "plain",
+   "count": 1,
+   "claim": "tune2fs -m and -r change the reserve, while mounted",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this. Only mkfs runs were recorded.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-11",
+   "page": "plain",
+   "count": 1,
+   "claim": "About 1.7% is the filesystem's own structures (1.68% of the label)",
+   "evidence": "The page uses a 1,000,204,886,016-byte drive, not a whole number of 128 MiB groups; compared with the model (scenes/explainers/ext4-space/model.ts layout/space) at 7,452 and 7,453 groups: Size 915.8-915.9 GiB, Avail 869.2-869.3 GiB, root reserve plus 16 MiB 46.59-46.60 GiB, structures 1.68% of the label, superblocks+descriptors+bitmaps 143 MiB (0.015%), 61,046,784 inodes, 14.55 GiB of inode tables, tables 84.8 and 58.2 MiB, 7,452 groups, 19 superblock copies of 1+117+1024 blocks",
+   "grade": "right",
+   "note": "model, bracketed"
+  },
+  {
+   "id": "ext4-space-plain-12",
+   "page": "plain",
+   "count": 1,
+   "claim": "Nearly all of it is inode tables, 1.56%",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330: 67108864 inodes x 256 bytes = 4,194,304 blocks of 268,435,456 (1.56%)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-13",
+   "page": "plain",
+   "count": 1,
+   "claim": "A 1 GiB journal",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330: journal 2097160 sectors = 262,145 blocks (262,144 journal + 1 extent block)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-14",
+   "page": "plain",
+   "count": 1,
+   "claim": "Superblocks, descriptors and bitmaps are under 0.02%",
+   "evidence": "The page uses a 1,000,204,886,016-byte drive, not a whole number of 128 MiB groups; compared with the model (scenes/explainers/ext4-space/model.ts layout/space) at 7,452 and 7,453 groups: Size 915.8-915.9 GiB, Avail 869.2-869.3 GiB, root reserve plus 16 MiB 46.59-46.60 GiB, structures 1.68% of the label, superblocks+descriptors+bitmaps 143 MiB (0.015%), 61,046,784 inodes, 14.55 GiB of inode tables, tables 84.8 and 58.2 MiB, 7,452 groups, 19 superblock copies of 1+117+1024 blocks",
+   "grade": "right",
+   "note": "model, bracketed"
+  },
+  {
+   "id": "ext4-space-plain-15",
+   "page": "plain",
+   "count": 1,
+   "claim": "Simulator: 61 M inodes, 14.6 GiB of inode tables (also in the table)",
+   "evidence": "The page uses a 1,000,204,886,016-byte drive, not a whole number of 128 MiB groups; compared with the model (scenes/explainers/ext4-space/model.ts layout/space) at 7,452 and 7,453 groups: Size 915.8-915.9 GiB, Avail 869.2-869.3 GiB, root reserve plus 16 MiB 46.59-46.60 GiB, structures 1.68% of the label, superblocks+descriptors+bitmaps 143 MiB (0.015%), 61,046,784 inodes, 14.55 GiB of inode tables, tables 84.8 and 58.2 MiB, 7,452 groups, 19 superblock copies of 1+117+1024 blocks",
+   "grade": "right",
+   "note": "model, bracketed"
+  },
+  {
+   "id": "ext4-space-plain-16",
+   "page": "plain",
+   "count": 1,
+   "claim": "Superblocks, descriptors and bitmaps 143 MiB; table about 85 MiB and about 58 MiB",
+   "evidence": "The page uses a 1,000,204,886,016-byte drive, not a whole number of 128 MiB groups; compared with the model (scenes/explainers/ext4-space/model.ts layout/space) at 7,452 and 7,453 groups: Size 915.8-915.9 GiB, Avail 869.2-869.3 GiB, root reserve plus 16 MiB 46.59-46.60 GiB, structures 1.68% of the label, superblocks+descriptors+bitmaps 143 MiB (0.015%), 61,046,784 inodes, 14.55 GiB of inode tables, tables 84.8 and 58.2 MiB, 7,452 groups, 19 superblock copies of 1+117+1024 blocks",
+   "grade": "right",
+   "note": "model, bracketed"
+  },
+  {
+   "id": "ext4-space-plain-17",
+   "page": "plain",
+   "count": 1,
+   "claim": "Reserved for root plus 16 MiB: 46.6 GiB",
+   "evidence": "The page uses a 1,000,204,886,016-byte drive, not a whole number of 128 MiB groups; compared with the model (scenes/explainers/ext4-space/model.ts layout/space) at 7,452 and 7,453 groups: Size 915.8-915.9 GiB, Avail 869.2-869.3 GiB, root reserve plus 16 MiB 46.59-46.60 GiB, structures 1.68% of the label, superblocks+descriptors+bitmaps 143 MiB (0.015%), 61,046,784 inodes, 14.55 GiB of inode tables, tables 84.8 and 58.2 MiB, 7,452 groups, 19 superblock copies of 1+117+1024 blocks",
+   "grade": "right",
+   "note": "model, bracketed"
+  },
+  {
+   "id": "ext4-space-plain-18",
+   "page": "plain",
+   "count": 1,
+   "claim": "Partition table and alignment, 1 MiB",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this. (outside the filesystem)",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-19",
+   "page": "plain",
+   "count": 1,
+   "claim": "df Used is 20K (21K with -H): \"about 0 (root dir + lost+found)\"; the page's code hard-codes 5 blocks",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330; scenes/explainers/ext4-space/model.test.ts:35 (1 GiB, -m 5): blocks 262144, reserved 13107, overhead 12949, free 249125, inodes 65536; debugfs sectors root 8, resize 5088, journal 65536, lost+found 32, orphan 512; statfs 249195 / 249125 / 231922. f_blocks - f_bfree = 519 blocks at 1 TiB and 70 at 1 GiB. debugfs: root 1 block, lost+found 4, orphan file 512 (64 at 1 GiB), resize inode 1, journal index 1. df's Size, Used and Avail taken as statfs f_blocks, f_blocks - f_bfree and f_bavail (coreutils behaviour; not part of the recording).",
+   "grade": "wrong",
+   "note": "leaves out the orphan file"
+  },
+  {
+   "id": "ext4-space-plain-20",
+   "page": "plain",
+   "count": 1,
+   "claim": "5.00% reserve, 6.7% in total",
+   "evidence": "The page uses a 1,000,204,886,016-byte drive, not a whole number of 128 MiB groups; compared with the model (scenes/explainers/ext4-space/model.ts layout/space) at 7,452 and 7,453 groups: Size 915.8-915.9 GiB, Avail 869.2-869.3 GiB, root reserve plus 16 MiB 46.59-46.60 GiB, structures 1.68% of the label, superblocks+descriptors+bitmaps 143 MiB (0.015%), 61,046,784 inodes, 14.55 GiB of inode tables, tables 84.8 and 58.2 MiB, 7,452 groups, 19 superblock copies of 1+117+1024 blocks",
+   "grade": "right",
+   "note": "model, bracketed"
+  },
+  {
+   "id": "ext4-space-plain-21",
+   "page": "plain",
+   "count": 1,
+   "claim": "Metadata is subtracted before Size is reported (bsddf)",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330: f_blocks 263940717 = blocks 268435456 - overhead 4494739",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-22",
+   "page": "plain",
+   "count": 1,
+   "claim": "minixdf reports the raw block count",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-23",
+   "page": "plain",
+   "count": 1,
+   "claim": "Metadata never appears in Used; partition bytes minus Size gives the metadata",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330 (statfs f_blocks = blocks - overhead)",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-24",
+   "page": "plain",
+   "count": 1,
+   "claim": "Size - Used - Avail is the root reserve plus at most 16 MiB kept by ext4",
+   "evidence": "scenes/explainers/ext4-space/model.ts:32-35 (fs/ext4/super.c:4255-4283: at mount 2% of blocks or 4096, whichever is less; ext4_statfs: f_bavail = free - (reserved + mount reserve)); scenes/explainers/ext4-space/model.test.ts:137-145; scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330: f_bfree - f_bavail = 13,425,868 = 13,421,772 + 4,096",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-25",
+   "page": "plain",
+   "count": 1,
+   "claim": "...kept for delayed allocation",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-26",
+   "page": "plain",
+   "count": 1,
+   "claim": "Use% can pass 100% for root; a full disk still lets root write",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-27",
+   "page": "plain",
+   "count": 1,
+   "claim": "df computes Use% as Used / (Used + Avail)",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this. (coreutils)",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-28",
+   "page": "plain",
+   "count": 1,
+   "claim": "Block groups of 32,768 blocks, 128 MiB",
+   "evidence": "scenes/explainers/ext4-space/model.ts:51 BLOCKS_PER_GROUP = BLOCK * 8 (lib/ext2fs/initialize.c:266); scenes/explainers/ext4-space/model.test.ts:64-70",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-29",
+   "page": "plain",
+   "count": 1,
+   "claim": "A 1 TB disk has about 7,450 groups",
+   "evidence": "The page uses a 1,000,204,886,016-byte drive, not a whole number of 128 MiB groups; compared with the model (scenes/explainers/ext4-space/model.ts layout/space) at 7,452 and 7,453 groups: Size 915.8-915.9 GiB, Avail 869.2-869.3 GiB, root reserve plus 16 MiB 46.59-46.60 GiB, structures 1.68% of the label, superblocks+descriptors+bitmaps 143 MiB (0.015%), 61,046,784 inodes, 14.55 GiB of inode tables, tables 84.8 and 58.2 MiB, 7,452 groups, 19 superblock copies of 1+117+1024 blocks",
+   "grade": "right",
+   "note": "model, bracketed"
+  },
+  {
+   "id": "ext4-space-plain-30",
+   "page": "plain",
+   "count": 1,
+   "claim": "A group's inode table is 8,192 x 256 B = 2 MiB, 1/64 of the group",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330: inodes per group 8192",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-31",
+   "page": "plain",
+   "count": 1,
+   "claim": "Bitmaps are 8 KiB per group",
+   "evidence": "scenes/explainers/ext4-space/model.ts layout: bitmaps = 2 x groups; matches recorded overhead scenes/explainers/ext4-space/model.test.ts:116-123",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "ext4-space-plain-32",
+   "page": "plain",
+   "count": 1,
+   "claim": "Superblock and descriptor copies only in groups 0, 1 and powers of 3, 5 and 7",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:64-114 (journal steps from lib/ext2fs/mkjournal.c:359-378: 16 MiB at 128 MiB doubling to 1 GiB at 128 GiB; size types from misc/mke2fs.c:1433-1443; sparse_super groups from lib/ext2fs/closefs.c:23-55); scenes/explainers/ext4-space/model.test.ts:209-220",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-33",
+   "page": "plain",
+   "count": 1,
+   "claim": "19 copies on 1 TB, about 4.5 MiB each, with spare descriptor blocks",
+   "evidence": "The page uses a 1,000,204,886,016-byte drive, not a whole number of 128 MiB groups; compared with the model (scenes/explainers/ext4-space/model.ts layout/space) at 7,452 and 7,453 groups: Size 915.8-915.9 GiB, Avail 869.2-869.3 GiB, root reserve plus 16 MiB 46.59-46.60 GiB, structures 1.68% of the label, superblocks+descriptors+bitmaps 143 MiB (0.015%), 61,046,784 inodes, 14.55 GiB of inode tables, tables 84.8 and 58.2 MiB, 7,452 groups, 19 superblock copies of 1+117+1024 blocks",
+   "grade": "right",
+   "note": "model, bracketed"
+  },
+  {
+   "id": "ext4-space-plain-34",
+   "page": "plain",
+   "count": 1,
+   "claim": "flex_bg packs 16 groups' bitmaps and tables together",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-35",
+   "page": "plain",
+   "count": 1,
+   "claim": "Inode records are 256 bytes, all set aside at format time",
+   "evidence": "misc/mke2fs.conf.in at e2fsprogs v1.47.3 (cited at scenes/explainers/ext4-space/model.ts:5-10): inode_size = 256; recorded inode counts scenes/explainers/ext4-space/model.test.ts:34-55",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-36",
+   "page": "plain",
+   "count": 1,
+   "claim": "\"By default that's one inode for every 16 KiB of capacity\", and the calculator's \"16 KiB (default)\" at every size",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:44 (4 TiB, -m 5): inodes 134217728 (one per 32 KiB); scenes/explainers/ext4-space/model.test.ts:47 (16 TiB): inodes 268435456; scenes/explainers/ext4-space/model.test.ts:48 (20 TiB, -m 5): blocks 5368709120, reserved 268435456, overhead 21625369, free 5347083233, inodes 335544320, inodes/group 2048; statfs 5347083751 / 5347083233 / 5078643681 (335,544,320 inodes = one per 64 KiB); misc/mke2fs.conf.in at e2fsprogs v1.47.3 (cited at scenes/explainers/ext4-space/model.ts:5-10): big = { inode_ratio = 32768 }, huge = { inode_ratio = 65536 }; size types from misc/mke2fs.c:1433-1443",
+   "grade": "wrong",
+   "note": "true only below 4 TiB"
+  },
+  {
+   "id": "ext4-space-plain-37",
+   "page": "plain",
+   "count": 1,
+   "claim": "The journal grows in steps and stops at 1 GiB from 128 GiB; the calculator's step table",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:64-114 (journal steps from lib/ext2fs/mkjournal.c:359-378: 16 MiB at 128 MiB doubling to 1 GiB at 128 GiB; size types from misc/mke2fs.c:1433-1443; sparse_super groups from lib/ext2fs/closefs.c:23-55); recorded journals scenes/explainers/ext4-space/model.test.ts:41-48",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-38",
+   "page": "plain",
+   "count": 1,
+   "claim": "The journal is a write-ahead log for crash consistency",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-39",
+   "page": "plain",
+   "count": 1,
+   "claim": "Inodes cannot be added later; running out gives ENOSPC; df -i",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-40",
+   "page": "plain",
+   "count": 1,
+   "claim": "ext4lazyinit zeroes the inode tables after the first mount",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-41",
+   "page": "plain",
+   "count": 1,
+   "claim": "The reserve's purposes (logs when full, fragmentation)",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-42",
+   "page": "plain",
+   "count": 1,
+   "claim": "-T largefile is 64 KiB per inode",
+   "evidence": "misc/mke2fs.conf.in at e2fsprogs v1.47.3 (cited at scenes/explainers/ext4-space/model.ts:5-10): largefile = { inode_ratio = 1048576 }",
+   "grade": "wrong",
+   "note": "1 MiB, not 64 KiB"
+  },
+  {
+   "id": "ext4-space-plain-43",
+   "page": "plain",
+   "count": 1,
+   "claim": "-T largefile4 is 1 MiB per inode (option label and the \"one inode per 1 MiB\" comment)",
+   "evidence": "misc/mke2fs.conf.in at e2fsprogs v1.47.3 (cited at scenes/explainers/ext4-space/model.ts:5-10): largefile4 = { inode_ratio = 4194304 }",
+   "grade": "wrong",
+   "note": "4 MiB, not 1 MiB"
+  },
+  {
+   "id": "ext4-space-plain-44",
+   "page": "plain",
+   "count": 1,
+   "claim": "4 KiB per inode for many tiny files",
+   "evidence": "misc/mke2fs.conf.in at e2fsprogs v1.47.3 (cited at scenes/explainers/ext4-space/model.ts:5-10): small and news have inode_ratio = 4096",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-45",
+   "page": "plain",
+   "count": 1,
+   "claim": "Defaults: 4 KiB blocks, 256-byte inodes, 64bit, flex_bg, sparse_super, resize_inode",
+   "evidence": "misc/mke2fs.conf.in at e2fsprogs v1.47.3 (cited at scenes/explainers/ext4-space/model.ts:5-10) lines 2-14 as cited at scenes/explainers/ext4-space/model.ts:7-9",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-plain-46",
+   "page": "plain",
+   "count": 1,
+   "claim": "\"1 TB\" drives commonly hold 1,000,204,886,016 bytes",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-rayner-01",
+   "page": "rayner",
+   "count": 3,
+   "claim": "The answer: the 5% reserve is 1.0, 3.0 and 12.4 times the metadata on 1 GiB, 1 TiB and 20 TiB",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:35 (1 GiB, -m 5): blocks 262144, reserved 13107, overhead 12949, free 249125, inodes 65536; debugfs sectors root 8, resize 5088, journal 65536, lost+found 32, orphan 512; statfs 249195 / 249125 / 231922; scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330; scenes/explainers/ext4-space/model.test.ts:48 (20 TiB, -m 5): blocks 5368709120, reserved 268435456, overhead 21625369, free 5347083233, inodes 335544320, inodes/group 2048; statfs 5347083751 / 5347083233 / 5078643681; metadata = blocks - free; scenes/explainers/ext4-space/model.test.ts:243-254",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-rayner-02",
+   "page": "rayner",
+   "count": 3,
+   "claim": "Block counts of the three disks (262,144; 268,435,456; 5,368,709,120)",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:35 (1 GiB, -m 5): blocks 262144, reserved 13107, overhead 12949, free 249125, inodes 65536; debugfs sectors root 8, resize 5088, journal 65536, lost+found 32, orphan 512; statfs 249195 / 249125 / 231922; scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330; scenes/explainers/ext4-space/model.test.ts:48 (20 TiB, -m 5): blocks 5368709120, reserved 268435456, overhead 21625369, free 5347083233, inodes 335544320, inodes/group 2048; statfs 5347083751 / 5347083233 / 5078643681",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-rayner-03",
+   "page": "rayner",
+   "count": 6,
+   "claim": "Blocks users can write, with shares (88.5%, 93.3%, 94.6%), and blocks unavailable to them, with sizes (118.1 MiB, 68.4 GiB, 1106.5 GiB)",
+   "evidence": "statfs f_bavail in scenes/explainers/ext4-space/model.test.ts:35 (1 GiB, -m 5): blocks 262144, reserved 13107, overhead 12949, free 249125, inodes 65536; debugfs sectors root 8, resize 5088, journal 65536, lost+found 32, orphan 512; statfs 249195 / 249125 / 231922; scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330; scenes/explainers/ext4-space/model.test.ts:48 (20 TiB, -m 5): blocks 5368709120, reserved 268435456, overhead 21625369, free 5347083233, inodes 335544320, inodes/group 2048; statfs 5347083751 / 5347083233 / 5078643681",
+   "grade": "right",
+   "note": "recorded statfs"
+  },
+  {
+   "id": "ext4-space-rayner-04",
+   "page": "rayner",
+   "count": 1,
+   "claim": "df reads statfs and shows f_bavail as Avail",
+   "evidence": "df's Size, Used and Avail taken as statfs f_blocks, f_blocks - f_bfree and f_bavail (coreutils behaviour; not part of the recording).",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-rayner-05",
+   "page": "rayner",
+   "count": 3,
+   "claim": "Root reserves 13,107, 13,421,772 and 268,435,456",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:35 (1 GiB, -m 5): blocks 262144, reserved 13107, overhead 12949, free 249125, inodes 65536; debugfs sectors root 8, resize 5088, journal 65536, lost+found 32, orphan 512; statfs 249195 / 249125 / 231922; scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330; scenes/explainers/ext4-space/model.test.ts:48 (20 TiB, -m 5): blocks 5368709120, reserved 268435456, overhead 21625369, free 5347083233, inodes 335544320, inodes/group 2048; statfs 5347083751 / 5347083233 / 5078643681",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-rayner-06",
+   "page": "rayner",
+   "count": 3,
+   "claim": "Metadata 13,019, 4,495,258 and 21,625,887 blocks: 5.0%, 1.7%, 0.40%",
+   "evidence": "blocks - f_bfree in scenes/explainers/ext4-space/model.test.ts:35 (1 GiB, -m 5): blocks 262144, reserved 13107, overhead 12949, free 249125, inodes 65536; debugfs sectors root 8, resize 5088, journal 65536, lost+found 32, orphan 512; statfs 249195 / 249125 / 231922; scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330; scenes/explainers/ext4-space/model.test.ts:48 (20 TiB, -m 5): blocks 5368709120, reserved 268435456, overhead 21625369, free 5347083233, inodes 335544320, inodes/group 2048; statfs 5347083751 / 5347083233 / 5078643681",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-rayner-07",
+   "page": "rayner",
+   "count": 2,
+   "claim": "The kernel holds back 4,096 more; users can write the free blocks less both reserves",
+   "evidence": "scenes/explainers/ext4-space/model.ts:32-35 (fs/ext4/super.c:4255-4283: at mount 2% of blocks or 4096, whichever is less; ext4_statfs: f_bavail = free - (reserved + mount reserve)); scenes/explainers/ext4-space/model.test.ts:137-145",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-rayner-08",
+   "page": "rayner",
+   "count": 1,
+   "claim": "Size types: one inode per 16 KiB from 512 MiB to under 4 TiB, 32 KiB under 16 TiB, 64 KiB above",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:64-114 (journal steps from lib/ext2fs/mkjournal.c:359-378: 16 MiB at 128 MiB doubling to 1 GiB at 128 GiB; size types from misc/mke2fs.c:1433-1443; sparse_super groups from lib/ext2fs/closefs.c:23-55); misc/mke2fs.conf.in at e2fsprogs v1.47.3 (cited at scenes/explainers/ext4-space/model.ts:5-10); scenes/explainers/ext4-space/model.test.ts:44 (4 TiB, -m 5): inodes 134217728 (one per 32 KiB); scenes/explainers/ext4-space/model.test.ts:47 (16 TiB): inodes 268435456",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-rayner-09",
+   "page": "rayner",
+   "count": 3,
+   "claim": "Inode counts, table blocks, shares of disk and of metadata for each disk",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:35 (1 GiB, -m 5): blocks 262144, reserved 13107, overhead 12949, free 249125, inodes 65536; debugfs sectors root 8, resize 5088, journal 65536, lost+found 32, orphan 512; statfs 249195 / 249125 / 231922; scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330; scenes/explainers/ext4-space/model.test.ts:48 (20 TiB, -m 5): blocks 5368709120, reserved 268435456, overhead 21625369, free 5347083233, inodes 335544320, inodes/group 2048; statfs 5347083751 / 5347083233 / 5078643681",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-rayner-10",
+   "page": "rayner",
+   "count": 1,
+   "claim": "Journal steps: 16 MiB at 128 MiB, doubling to 1 GiB at 128 GiB",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:64-114 (journal steps from lib/ext2fs/mkjournal.c:359-378: 16 MiB at 128 MiB doubling to 1 GiB at 128 GiB; size types from misc/mke2fs.c:1433-1443; sparse_super groups from lib/ext2fs/closefs.c:23-55); recorded scenes/explainers/ext4-space/model.test.ts:34-41",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-rayner-11",
+   "page": "rayner",
+   "count": 3,
+   "claim": "Journal 32 MiB, 1 GiB, 1 GiB, with shares",
+   "evidence": "debugfs journal sectors in scenes/explainers/ext4-space/model.test.ts:35 (1 GiB, -m 5): blocks 262144, reserved 13107, overhead 12949, free 249125, inodes 65536; debugfs sectors root 8, resize 5088, journal 65536, lost+found 32, orphan 512; statfs 249195 / 249125 / 231922; scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330; scenes/explainers/ext4-space/model.test.ts:48 (20 TiB, -m 5): blocks 5368709120, reserved 268435456, overhead 21625369, free 5347083233, inodes 335544320, inodes/group 2048; statfs 5347083751 / 5347083233 / 5078643681",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-rayner-12",
+   "page": "rayner",
+   "count": 3,
+   "claim": "Superblock copies in 5 of 8, 19 of 8,192 and 25 of 163,840 groups",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:64-114 (journal steps from lib/ext2fs/mkjournal.c:359-378: 16 MiB at 128 MiB doubling to 1 GiB at 128 GiB; size types from misc/mke2fs.c:1433-1443; sparse_super groups from lib/ext2fs/closefs.c:23-55); recorded resize-inode counts scenes/explainers/ext4-space/model.test.ts:124-136",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-rayner-13",
+   "page": "rayner",
+   "count": 2,
+   "claim": "127 and 1,024 spare descriptor blocks per copy",
+   "evidence": "reserved GDT blocks in scenes/explainers/ext4-space/model.test.ts:35 (1 GiB, -m 5): blocks 262144, reserved 13107, overhead 12949, free 249125, inodes 65536; debugfs sectors root 8, resize 5088, journal 65536, lost+found 32, orphan 512; statfs 249195 / 249125 / 231922; scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-rayner-14",
+   "page": "rayner",
+   "count": 1,
+   "claim": "Two bitmaps in every group",
+   "evidence": "scenes/explainers/ext4-space/model.ts layout: bitmaps = 2 x groups; matches recorded overhead scenes/explainers/ext4-space/model.test.ts:116-123",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "ext4-space-rayner-15",
+   "page": "rayner",
+   "count": 3,
+   "claim": "Other metadata 731, 38,810 and 392,223 blocks; the first files 70, 519 and 518 blocks",
+   "evidence": "debugfs counts in scenes/explainers/ext4-space/model.test.ts:35 (1 GiB, -m 5): blocks 262144, reserved 13107, overhead 12949, free 249125, inodes 65536; debugfs sectors root 8, resize 5088, journal 65536, lost+found 32, orphan 512; statfs 249195 / 249125 / 231922; scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330; scenes/explainers/ext4-space/model.test.ts:48 (20 TiB, -m 5): blocks 5368709120, reserved 268435456, overhead 21625369, free 5347083233, inodes 335544320, inodes/group 2048; statfs 5347083751 / 5347083233 / 5078643681; scenes/explainers/ext4-space/model.test.ts:124-136",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-rayner-16",
+   "page": "rayner",
+   "count": 3,
+   "claim": "Shares users can write at -m 5, 1 and 0 on all three disks",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:50-55 (-m 1 and -m 0 runs at 1 GiB, 1 TiB, 20 TiB): f_bavail 242408, 245029, 261251748, 263936102, 5293392046, 5347079137; scenes/explainers/ext4-space/model.test.ts:35 (1 GiB, -m 5): blocks 262144, reserved 13107, overhead 12949, free 249125, inodes 65536; debugfs sectors root 8, resize 5088, journal 65536, lost+found 32, orphan 512; statfs 249195 / 249125 / 231922; scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330; scenes/explainers/ext4-space/model.test.ts:48 (20 TiB, -m 5): blocks 5368709120, reserved 268435456, overhead 21625369, free 5347083233, inodes 335544320, inodes/group 2048; statfs 5347083751 / 5347083233 / 5078643681",
+   "grade": "right",
+   "note": "recorded, nine runs"
+  },
+  {
+   "id": "ext4-space-rayner-17",
+   "page": "rayner",
+   "count": 1,
+   "claim": "Metadata's share falls because the journal stops at 1 GiB and large disks get fewer inodes per byte",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:64-114 (journal steps from lib/ext2fs/mkjournal.c:359-378: 16 MiB at 128 MiB doubling to 1 GiB at 128 GiB; size types from misc/mke2fs.c:1433-1443; sparse_super groups from lib/ext2fs/closefs.c:23-55); scenes/explainers/ext4-space/model.test.ts:44 (4 TiB, -m 5): inodes 134217728 (one per 32 KiB); scenes/explainers/ext4-space/model.test.ts:47 (16 TiB): inodes 268435456",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-rayner-18",
+   "page": "rayner",
+   "count": 2,
+   "claim": "At 20 TiB the 5% reserve is 1 TiB (12.4 times) and 1% is 204.8 GiB (2.5 times)",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:48 (20 TiB, -m 5): blocks 5368709120, reserved 268435456, overhead 21625369, free 5347083233, inodes 335544320, inodes/group 2048; statfs 5347083751 / 5347083233 / 5078643681; scenes/explainers/ext4-space/model.test.ts:54",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-rayner-19",
+   "page": "rayner",
+   "count": 3,
+   "claim": "-m 1: reserves, blocks users can write and the gain on each disk",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:50-55 (-m 1 and -m 0 runs at 1 GiB, 1 TiB, 20 TiB): f_bavail 242408, 245029, 261251748, 263936102, 5293392046, 5347079137",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-rayner-20",
+   "page": "rayner",
+   "count": 3,
+   "claim": "-m 0: only the kernel's 4,096 held back; blocks users can write and the gain",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:50-55 (-m 1 and -m 0 runs at 1 GiB, 1 TiB, 20 TiB): f_bavail 242408, 245029, 261251748, 263936102, 5293392046, 5347079137; scenes/explainers/ext4-space/model.ts:32-35 (fs/ext4/super.c:4255-4283: at mount 2% of blocks or 4096, whichever is less; ext4_statfs: f_bavail = free - (reserved + mount reserve)); scenes/explainers/ext4-space/model.test.ts:137-145",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-rayner-21",
+   "page": "rayner",
+   "count": 1,
+   "claim": "tune2fs -m changes the reserve without reformatting",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this. Only mkfs runs were recorded.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-rayner-22",
+   "page": "rayner",
+   "count": 1,
+   "claim": "With -m 0 root gets no more room than other users",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:51, 53, 55: reserved block count 0",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-rayner-23",
+   "page": "rayner",
+   "count": 1,
+   "claim": "Check 1: at 2 GiB the journal doubles to 64 MiB, and 26,214 reserved blocks fall short of 26,284, 0.997 times",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:36 (2 GiB): reserved 26214, blocks 524288 - free 498004 = 26284; journal 131072 sectors = 16384 blocks",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-rayner-24",
+   "page": "rayner",
+   "count": 1,
+   "claim": "Check 2: 4 TiB is big, with 8,750,621 metadata blocks against 17,138,715 at 128 MiB less, and 32.1 GiB more for users",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:43-44: 1073709056-1056570341 = 17138715; 1073741824-1064991203 = 8750621; f_bavail 1011300016 - 1002880793 = 8,419,223 blocks = 32.1 GiB",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-rayner-25",
+   "page": "rayner",
+   "count": 1,
+   "claim": "Check 3: 13,421,772 blocks (51.2 GiB) come back; 4,495,258 blocks of metadata and the kernel's 4,096 stay",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:42 and :53 (1 TiB at -m 5 and -m 0)",
+   "grade": "right",
+   "note": "recorded -m 0 run"
+  },
+  {
+   "id": "ext4-space-rayner-26",
+   "page": "rayner",
+   "count": 1,
+   "claim": "Check 3: tune2fs -m 0 on an existing filesystem gives that",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this. Only mkfs -m 0 was recorded.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-rayner-27",
+   "page": "rayner",
+   "count": 1,
+   "claim": "The reserve is free space, kept for privileged use",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330: reserved blocks are counted in f_bfree; scenes/explainers/ext4-space/model.ts:32-35 (fs/ext4/super.c:4255-4283: at mount 2% of blocks or 4096, whichever is less; ext4_statfs: f_bavail = free - (reserved + mount reserve)); scenes/explainers/ext4-space/model.test.ts:137-145",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-rayner-28",
+   "page": "rayner",
+   "count": 1,
+   "claim": "An inode records one file; a fixed number of 256-byte inodes is set aside at mkfs",
+   "evidence": "misc/mke2fs.conf.in at e2fsprogs v1.47.3 (cited at scenes/explainers/ext4-space/model.ts:5-10); recorded inode counts scenes/explainers/ext4-space/model.test.ts:34-55",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-method-01",
+   "page": "method",
+   "count": 3,
+   "claim": "The answer: the 5% reserve is 1.0, 3.0 and 12.4 times the metadata on 1 GiB, 1 TiB and 20 TiB",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:35 (1 GiB, -m 5): blocks 262144, reserved 13107, overhead 12949, free 249125, inodes 65536; debugfs sectors root 8, resize 5088, journal 65536, lost+found 32, orphan 512; statfs 249195 / 249125 / 231922; scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330; scenes/explainers/ext4-space/model.test.ts:48 (20 TiB, -m 5): blocks 5368709120, reserved 268435456, overhead 21625369, free 5347083233, inodes 335544320, inodes/group 2048; statfs 5347083751 / 5347083233 / 5078643681; metadata = blocks - free; scenes/explainers/ext4-space/model.test.ts:243-254",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-method-02",
+   "page": "method",
+   "count": 3,
+   "claim": "Block counts of the three disks (262,144; 268,435,456; 5,368,709,120)",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:35 (1 GiB, -m 5): blocks 262144, reserved 13107, overhead 12949, free 249125, inodes 65536; debugfs sectors root 8, resize 5088, journal 65536, lost+found 32, orphan 512; statfs 249195 / 249125 / 231922; scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330; scenes/explainers/ext4-space/model.test.ts:48 (20 TiB, -m 5): blocks 5368709120, reserved 268435456, overhead 21625369, free 5347083233, inodes 335544320, inodes/group 2048; statfs 5347083751 / 5347083233 / 5078643681",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-method-03",
+   "page": "method",
+   "count": 6,
+   "claim": "Blocks users can write, with shares (88.5%, 93.3%, 94.6%), and blocks unavailable to them, with sizes (118.1 MiB, 68.4 GiB, 1.1 TiB)",
+   "evidence": "statfs f_bavail in scenes/explainers/ext4-space/model.test.ts:35 (1 GiB, -m 5): blocks 262144, reserved 13107, overhead 12949, free 249125, inodes 65536; debugfs sectors root 8, resize 5088, journal 65536, lost+found 32, orphan 512; statfs 249195 / 249125 / 231922; scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330; scenes/explainers/ext4-space/model.test.ts:48 (20 TiB, -m 5): blocks 5368709120, reserved 268435456, overhead 21625369, free 5347083233, inodes 335544320, inodes/group 2048; statfs 5347083751 / 5347083233 / 5078643681",
+   "grade": "right",
+   "note": "recorded statfs"
+  },
+  {
+   "id": "ext4-space-method-04",
+   "page": "method",
+   "count": 1,
+   "claim": "df reads statfs and shows f_bavail as Avail",
+   "evidence": "df's Size, Used and Avail taken as statfs f_blocks, f_blocks - f_bfree and f_bavail (coreutils behaviour; not part of the recording).",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-method-05",
+   "page": "method",
+   "count": 3,
+   "claim": "Root reserves 13,107, 13,421,772 and 268,435,456",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:35 (1 GiB, -m 5): blocks 262144, reserved 13107, overhead 12949, free 249125, inodes 65536; debugfs sectors root 8, resize 5088, journal 65536, lost+found 32, orphan 512; statfs 249195 / 249125 / 231922; scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330; scenes/explainers/ext4-space/model.test.ts:48 (20 TiB, -m 5): blocks 5368709120, reserved 268435456, overhead 21625369, free 5347083233, inodes 335544320, inodes/group 2048; statfs 5347083751 / 5347083233 / 5078643681",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-method-06",
+   "page": "method",
+   "count": 3,
+   "claim": "Metadata 13,019, 4,495,258 and 21,625,887 blocks: 5.0%, 1.7%, 0.40%",
+   "evidence": "blocks - f_bfree in scenes/explainers/ext4-space/model.test.ts:35 (1 GiB, -m 5): blocks 262144, reserved 13107, overhead 12949, free 249125, inodes 65536; debugfs sectors root 8, resize 5088, journal 65536, lost+found 32, orphan 512; statfs 249195 / 249125 / 231922; scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330; scenes/explainers/ext4-space/model.test.ts:48 (20 TiB, -m 5): blocks 5368709120, reserved 268435456, overhead 21625369, free 5347083233, inodes 335544320, inodes/group 2048; statfs 5347083751 / 5347083233 / 5078643681",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-method-07",
+   "page": "method",
+   "count": 2,
+   "claim": "The kernel holds back 4,096 more; users can write the free blocks less both reserves",
+   "evidence": "scenes/explainers/ext4-space/model.ts:32-35 (fs/ext4/super.c:4255-4283: at mount 2% of blocks or 4096, whichever is less; ext4_statfs: f_bavail = free - (reserved + mount reserve)); scenes/explainers/ext4-space/model.test.ts:137-145",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-method-08",
+   "page": "method",
+   "count": 1,
+   "claim": "Size types: one inode per 16 KiB from 512 MiB to under 4 TiB, 32 KiB under 16 TiB, 64 KiB above",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:64-114 (journal steps from lib/ext2fs/mkjournal.c:359-378: 16 MiB at 128 MiB doubling to 1 GiB at 128 GiB; size types from misc/mke2fs.c:1433-1443; sparse_super groups from lib/ext2fs/closefs.c:23-55); misc/mke2fs.conf.in at e2fsprogs v1.47.3 (cited at scenes/explainers/ext4-space/model.ts:5-10); scenes/explainers/ext4-space/model.test.ts:44 (4 TiB, -m 5): inodes 134217728 (one per 32 KiB); scenes/explainers/ext4-space/model.test.ts:47 (16 TiB): inodes 268435456",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-method-09",
+   "page": "method",
+   "count": 3,
+   "claim": "Inode counts, table blocks, shares of disk and of metadata for each disk",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:35 (1 GiB, -m 5): blocks 262144, reserved 13107, overhead 12949, free 249125, inodes 65536; debugfs sectors root 8, resize 5088, journal 65536, lost+found 32, orphan 512; statfs 249195 / 249125 / 231922; scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330; scenes/explainers/ext4-space/model.test.ts:48 (20 TiB, -m 5): blocks 5368709120, reserved 268435456, overhead 21625369, free 5347083233, inodes 335544320, inodes/group 2048; statfs 5347083751 / 5347083233 / 5078643681",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-method-10",
+   "page": "method",
+   "count": 1,
+   "claim": "Journal steps: 16 MiB at 128 MiB, doubling to 1 GiB at 128 GiB",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:64-114 (journal steps from lib/ext2fs/mkjournal.c:359-378: 16 MiB at 128 MiB doubling to 1 GiB at 128 GiB; size types from misc/mke2fs.c:1433-1443; sparse_super groups from lib/ext2fs/closefs.c:23-55); recorded scenes/explainers/ext4-space/model.test.ts:34-41",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-method-11",
+   "page": "method",
+   "count": 3,
+   "claim": "Journal 32 MiB, 1 GiB, 1 GiB, with shares",
+   "evidence": "debugfs journal sectors in scenes/explainers/ext4-space/model.test.ts:35 (1 GiB, -m 5): blocks 262144, reserved 13107, overhead 12949, free 249125, inodes 65536; debugfs sectors root 8, resize 5088, journal 65536, lost+found 32, orphan 512; statfs 249195 / 249125 / 231922; scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330; scenes/explainers/ext4-space/model.test.ts:48 (20 TiB, -m 5): blocks 5368709120, reserved 268435456, overhead 21625369, free 5347083233, inodes 335544320, inodes/group 2048; statfs 5347083751 / 5347083233 / 5078643681",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-method-12",
+   "page": "method",
+   "count": 3,
+   "claim": "Superblock copies in 5 of 8, 19 of 8,192 and 25 of 163,840 groups",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:64-114 (journal steps from lib/ext2fs/mkjournal.c:359-378: 16 MiB at 128 MiB doubling to 1 GiB at 128 GiB; size types from misc/mke2fs.c:1433-1443; sparse_super groups from lib/ext2fs/closefs.c:23-55); recorded resize-inode counts scenes/explainers/ext4-space/model.test.ts:124-136",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-method-13",
+   "page": "method",
+   "count": 2,
+   "claim": "127 and 1,024 spare descriptor blocks per copy",
+   "evidence": "reserved GDT blocks in scenes/explainers/ext4-space/model.test.ts:35 (1 GiB, -m 5): blocks 262144, reserved 13107, overhead 12949, free 249125, inodes 65536; debugfs sectors root 8, resize 5088, journal 65536, lost+found 32, orphan 512; statfs 249195 / 249125 / 231922; scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-method-14",
+   "page": "method",
+   "count": 1,
+   "claim": "Two bitmaps in every group",
+   "evidence": "scenes/explainers/ext4-space/model.ts layout: bitmaps = 2 x groups; matches recorded overhead scenes/explainers/ext4-space/model.test.ts:116-123",
+   "grade": "right",
+   "note": "model"
+  },
+  {
+   "id": "ext4-space-method-15",
+   "page": "method",
+   "count": 3,
+   "claim": "Other metadata 731, 38,810 and 392,223 blocks; the first files 70, 519 and 518 blocks",
+   "evidence": "debugfs counts in scenes/explainers/ext4-space/model.test.ts:35 (1 GiB, -m 5): blocks 262144, reserved 13107, overhead 12949, free 249125, inodes 65536; debugfs sectors root 8, resize 5088, journal 65536, lost+found 32, orphan 512; statfs 249195 / 249125 / 231922; scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330; scenes/explainers/ext4-space/model.test.ts:48 (20 TiB, -m 5): blocks 5368709120, reserved 268435456, overhead 21625369, free 5347083233, inodes 335544320, inodes/group 2048; statfs 5347083751 / 5347083233 / 5078643681; scenes/explainers/ext4-space/model.test.ts:124-136",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-method-16",
+   "page": "method",
+   "count": 3,
+   "claim": "Shares users can write at -m 5, 1 and 0 on all three disks",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:50-55 (-m 1 and -m 0 runs at 1 GiB, 1 TiB, 20 TiB): f_bavail 242408, 245029, 261251748, 263936102, 5293392046, 5347079137; scenes/explainers/ext4-space/model.test.ts:35 (1 GiB, -m 5): blocks 262144, reserved 13107, overhead 12949, free 249125, inodes 65536; debugfs sectors root 8, resize 5088, journal 65536, lost+found 32, orphan 512; statfs 249195 / 249125 / 231922; scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330; scenes/explainers/ext4-space/model.test.ts:48 (20 TiB, -m 5): blocks 5368709120, reserved 268435456, overhead 21625369, free 5347083233, inodes 335544320, inodes/group 2048; statfs 5347083751 / 5347083233 / 5078643681",
+   "grade": "right",
+   "note": "recorded, nine runs"
+  },
+  {
+   "id": "ext4-space-method-17",
+   "page": "method",
+   "count": 1,
+   "claim": "Metadata's share falls because the journal stops at 1 GiB and large disks get fewer inodes per byte",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:64-114 (journal steps from lib/ext2fs/mkjournal.c:359-378: 16 MiB at 128 MiB doubling to 1 GiB at 128 GiB; size types from misc/mke2fs.c:1433-1443; sparse_super groups from lib/ext2fs/closefs.c:23-55); scenes/explainers/ext4-space/model.test.ts:44 (4 TiB, -m 5): inodes 134217728 (one per 32 KiB); scenes/explainers/ext4-space/model.test.ts:47 (16 TiB): inodes 268435456",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-method-18",
+   "page": "method",
+   "count": 2,
+   "claim": "At 20 TiB the 5% reserve is 1 TiB (12.4 times) and 1% is 204.8 GiB (2.5 times)",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:48 (20 TiB, -m 5): blocks 5368709120, reserved 268435456, overhead 21625369, free 5347083233, inodes 335544320, inodes/group 2048; statfs 5347083751 / 5347083233 / 5078643681; scenes/explainers/ext4-space/model.test.ts:54",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-method-19",
+   "page": "method",
+   "count": 3,
+   "claim": "-m 1: reserves, blocks users can write and the gain on each disk",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:50-55 (-m 1 and -m 0 runs at 1 GiB, 1 TiB, 20 TiB): f_bavail 242408, 245029, 261251748, 263936102, 5293392046, 5347079137",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-method-20",
+   "page": "method",
+   "count": 3,
+   "claim": "-m 0: only the kernel's 4,096 held back; blocks users can write and the gain",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:50-55 (-m 1 and -m 0 runs at 1 GiB, 1 TiB, 20 TiB): f_bavail 242408, 245029, 261251748, 263936102, 5293392046, 5347079137; scenes/explainers/ext4-space/model.ts:32-35 (fs/ext4/super.c:4255-4283: at mount 2% of blocks or 4096, whichever is less; ext4_statfs: f_bavail = free - (reserved + mount reserve)); scenes/explainers/ext4-space/model.test.ts:137-145",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-method-21",
+   "page": "method",
+   "count": 1,
+   "claim": "With -m 0 root gets no more room than other users",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:51, 53, 55: reserved block count 0",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-method-22",
+   "page": "method",
+   "count": 1,
+   "claim": "Check 1: at 2 GiB the journal doubles to 64 MiB, and 26,214 reserved blocks fall short of 26,284, 0.997 times",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:36 (2 GiB): reserved 26214, blocks 524288 - free 498004 = 26284; journal 131072 sectors = 16384 blocks",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-method-23",
+   "page": "method",
+   "count": 1,
+   "claim": "Check 2: 4 TiB is big, with 8,750,621 metadata blocks against 17,138,715 at 128 MiB less, and 32.1 GiB more for users",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:43-44: 1073709056-1056570341 = 17138715; 1073741824-1064991203 = 8750621; f_bavail 1011300016 - 1002880793 = 8,419,223 blocks = 32.1 GiB",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-method-24",
+   "page": "method",
+   "count": 1,
+   "claim": "Check 3: 13,421,772 blocks (51.2 GiB) come back; 4,495,258 blocks of metadata and the kernel's 4,096 stay",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:42 and :53 (1 TiB at -m 5 and -m 0)",
+   "grade": "right",
+   "note": "recorded -m 0 run"
+  },
+  {
+   "id": "ext4-space-method-25",
+   "page": "method",
+   "count": 1,
+   "claim": "Check 3: tune2fs -m 0 on an existing filesystem gives that",
+   "evidence": "No recorded value, model rule or pinned source in the oracle covers this. Only mkfs -m 0 was recorded.",
+   "grade": "unverifiable",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-method-26",
+   "page": "method",
+   "count": 1,
+   "claim": "The reserve is free space, kept for privileged use",
+   "evidence": "scenes/explainers/ext4-space/model.test.ts:42 (1 TiB, -m 5): blocks 268435456, reserved 13421772, overhead 4494739, free 263940198, inodes 67108864, inodes/group 8192, reserved GDT 1024; debugfs sectors root 8, resize 155656, journal 2097160, lost+found 32, orphan 4096; statfs f_blocks 263940717, f_bfree 263940198, f_bavail 250514330: reserved blocks are counted in f_bfree; scenes/explainers/ext4-space/model.ts:32-35 (fs/ext4/super.c:4255-4283: at mount 2% of blocks or 4096, whichever is less; ext4_statfs: f_bavail = free - (reserved + mount reserve)); scenes/explainers/ext4-space/model.test.ts:137-145",
+   "grade": "right",
+   "note": "recorded"
+  },
+  {
+   "id": "ext4-space-method-27",
+   "page": "method",
+   "count": 1,
+   "claim": "An inode records one file; a fixed number of 256-byte inodes is set aside at mkfs",
+   "evidence": "misc/mke2fs.conf.in at e2fsprogs v1.47.3 (cited at scenes/explainers/ext4-space/model.ts:5-10); recorded inode counts scenes/explainers/ext4-space/model.test.ts:34-55",
+   "grade": "right",
+   "note": ""
+  },
+  {
+   "id": "ext4-space-method-28",
+   "page": "method",
+   "count": 1,
+   "claim": "Intro: every number is computed from a model of mkfs.ext4 1.47.3 tested against mkfs.ext4 1.47.3 runs and a mounted Linux 6.8.0's statfs; the first and last steps show those recorded values",
+   "evidence": "bench/premise/ext4-space/method/oracle.ts (copied from scenes/explainers/ext4-space/model.test.ts:34-55); bench/premise/ext4-space/method/method.test.ts",
+   "grade": "right",
+   "note": ""
+  }
+ ]
+}

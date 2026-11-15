@@ -184,7 +184,7 @@ export function steps(id: Shown, guard: Predicate): Step[] {
   out.push({
     id: 'guard',
     title: `${call(guard)} checks '${c.char}' before int()`,
-    caption: `int() turns text into a whole number, and raises ValueError when it cannot. A common guard checks the text first and calls int() only when the check passes. Here the check is ${call(guard)}, and '${c.char}' (${c.name.toLowerCase()}) is a ${KIND[id]} numeral with the value ${value}. ${call(guard)} returns ${r.passes ? 'True, so int() runs' : 'False, so int() is skipped'}. Predict: ${r.passes ? `does int('${c.char}') return a number or raise ValueError?` : `had it run, would int('${c.char}') return a number or raise ValueError?`}`,
+    caption: `int() turns text into a whole number, and raises ValueError when it cannot. A common guard checks the text first and calls int() only when the check passes. Here the check is ${call(guard)}, and '${c.char}' (${c.name}) is ${/^[AEIOU]/i.test(KIND[id]) ? 'an' : 'a'} ${KIND[id]} numeral with the value ${value}. ${call(guard)} returns ${r.passes ? 'True, so int() runs' : 'False, so int() is skipped'}. Predict: ${r.passes ? `does int('${c.char}') return a number or raise ValueError?` : `had it run, would int('${c.char}') return a number or raise ValueError?`}`,
     svg: codeSvg(c, guard),
   });
 
@@ -207,7 +207,7 @@ export function steps(id: Shown, guard: Predicate): Step[] {
   out.push({
     id: 'ucd',
     title: c.unihan ? `'${c.char}' gets its value, ${value}, from Unihan, not fields 6 or 7` : `'${c.char}' fills field${filled.length > 1 ? 's' : ''} ${filled.join(', ').replace(/, (\d)$/, ' and $1')}${fields(c).decimal ? '' : '; field 6 is empty'}`,
-    caption: `UnicodeData.txt keeps three numeric fields: decimal digit value (6), digit value (7) and numeric value (8). CPython builds its tables from them: int() and isdecimal() use field 6, isdigit() field 7, isnumeric() field 8. ${c.unihan ? `'${c.char}' falls in the ideograph range 4E00 to 9FFF, whose row leaves all three empty; Unihan gives it kPrimaryNumeric ${c.unihan.value}, which CPython copies into field 8.` : `'${c.char}' fills ${filled.join(', ')}.`} Its Unicode numeric type is ${type}${p.isdigit !== /^[0-9]$/.test(ascii) ? ', so isdigit() and int() disagree on it' : ''}.`,
+    caption: `UnicodeData.txt keeps three numeric fields: decimal digit value (6), digit value (7) and numeric value (8). CPython builds its tables from them: int() and isdecimal() use field 6, isdigit() field 7, isnumeric() field 8. ${c.unihan ? `'${c.char}' falls in the ideograph range 4E00 to 9FFF, whose row leaves all three empty; Unihan gives it kPrimaryNumeric ${c.unihan.value}, which CPython copies into field 8.` : `'${c.char}' fills field${filled.length > 1 ? 's' : ''} ${filled.join(', ').replace(/, (\d)$/, ' and $1')}.`} Its Unicode numeric type is ${type}${p.isdigit !== /^[0-9]$/.test(ascii) ? ', so isdigit() and int() disagree on it' : ''}.`,
     svg: ucdSvg(c),
   });
 

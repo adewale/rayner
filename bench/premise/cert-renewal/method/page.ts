@@ -151,8 +151,9 @@ export function ariSvg(key: LifetimeKey, rule: Rule): string {
     const starts = LIVE_ARI.map((r) => (s(r[3]) - s(r[1])) / 86400),
       ends = LIVE_ARI.map((r) => (s(r[4]) - s(r[1])) / 86400);
     h += 22;
-    body += text(8, h, `Recorded 2026-10-25, ten live 90-day certificates: windows open day ${Math.min(...starts).toFixed(2)}–${Math.max(...starts).toFixed(2)},`, { size: 12 });
-    body += text(8, h + 18, `close day ${Math.min(...ends).toFixed(2)}–${Math.max(...ends).toFixed(2)} after notBefore.`, { size: 12 });
+    const span = (xs: number[]) => (Math.min(...xs).toFixed(2) === Math.max(...xs).toFixed(2) ? Math.min(...xs).toFixed(2) : `${Math.min(...xs).toFixed(2)}–${Math.max(...xs).toFixed(2)}`);
+    body += text(8, h, `Recorded 2026-10-25, ten live 90-day certificates: every window`, { size: 12 });
+    body += text(8, h + 18, `opens at day ${span(starts)} and closes at day ${span(ends)} after notBefore.`, { size: 12 });
     h += 18;
   }
   return svg(h + 10, body, `ARI window ${a.start} to ${a.end} hours; runs ${a.runs.map((r) => r.at).join(', ')}`);

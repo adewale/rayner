@@ -1,0 +1,14 @@
+{
+  // Type-checks the premise bench's method-only pages (not part of `npm run check`):
+  // npx tsc -p bench/premise
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["es2023", "dom"],
+    "types": ["node"],
+    "allowImportingTsExtensions": true,
+    // esbuild (build.ts) reads this file too; without this it would prepend "use strict" to the bundles.
+    "alwaysStrict": false
+  },
+  "include": ["*.ts", "*/method/*.ts"]
+}
