@@ -22,7 +22,7 @@ time, not graphs.
 
 ```sh
 npm run build:lib
-npm run recipes -- --scene choreography --time 0.5 --out out/choreography
+npm run recipes -- --scene choreography --frame 15 --out out/choreography
 ```
 
 After installation, use the compiled runner:
