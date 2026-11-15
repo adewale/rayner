@@ -72,9 +72,10 @@ function replaceOnce(text: string, from: string, to: string, where: string): str
 const headerLine = (script: string, label: string) => script.split('\n').find((l) => l.startsWith(`- **${label}:**`))!;
 
 /**
- * Write the guide's explainer at `stage` into `folder`/<name>: the stages before the picture from
- * `rayner init --blank` and the finished files, and every other stage from the finished files with
- * that stage's drafts applied.
+ * Write the guide's explainer at `stage` into `folder`/<name>, as a reader following the guide has it:
+ * the stages before the picture from `rayner init --blank` and the finished files written so far (at
+ * 'model', with the guide's wrong model), and every later stage from the finished files with that
+ * stage's drafts applied.
  */
 export async function buildStage(doc: string, stage: string, folder: string, root = '.'): Promise<string> {
   const { name, question } = initCommand(doc);
@@ -96,17 +97,29 @@ export async function buildStage(doc: string, stage: string, folder: string, roo
       await put('script.md', script);
       await put('model.ts', finished('model.ts', root));
       return dir;
-    case 'tested':
-      for (const file of ['script.md', 'model.ts', 'model.test.ts']) await put(file, finished(file, root));
+    case 'model':
+    case 'tested': {
+      // The reader has the script, the model and its test, and still the blank scene init wrote.
+      // At 'model' the model is the guide's first, wrong draft.
+      const files: Record<string, string> = Object.fromEntries(['script.md', 'model.ts', 'model.test.ts'].map((f) => [f, finished(f, root)]));
+      if (stage === 'model') applyDrafts(doc, stage, files);
+      for (const [file, text] of Object.entries(files)) await put(file, text);
       return dir;
+    }
   }
   const files: Record<string, string> = Object.fromEntries(FINISHED_FILES.map((f) => [f, finished(f, root)]));
-  for (const draft of drafts(doc).filter((d) => d.stage === stage)) {
-    const file = draft.file.slice(draft.file.indexOf('/') + 1);
-    for (const [from, to] of draft.hunks) files[file] = replaceOnce(files[file]!, from, to, `${GUIDE}, draft ${stage} of ${draft.file}`);
-  }
+  applyDrafts(doc, stage, files);
   for (const [file, text] of Object.entries(files)) await put(file, text);
   return dir;
+}
+
+/** Apply the guide's drafts for `stage` to `files`, a finished file's name to its text. */
+function applyDrafts(doc: string, stage: string, files: Record<string, string>): void {
+  for (const draft of drafts(doc).filter((d) => d.stage === stage)) {
+    const file = draft.file.slice(draft.file.indexOf('/') + 1);
+    if (!(file in files)) throw new Error(`${GUIDE}: draft ${stage} changes ${file}, which the reader has not written at that stage`);
+    for (const [from, to] of draft.hunks) files[file] = replaceOnce(files[file]!, from, to, `${GUIDE}, draft ${stage} of ${draft.file}`);
+  }
 }
 
 /** stderr without Node's own warnings: Node 24.0.0 prints an ExperimentalWarning for type stripping, and later 24.x releases do not. */

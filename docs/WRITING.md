@@ -295,14 +295,16 @@ Diffs in this guide all read the same way: the `-` line is the draft, and the `+
 +const before = (a: number, b: number, compare: Compare) => (compare === 'none' ? String(a) < String(b) : a - b < 0);
 ```
 
-Run `check`. While the scene still has its placeholders, the two failing tests appear as item 1 of the to-do list, after the words "model.test.ts fails". Later, when no placeholder is left, a failing model test stops `check` before it looks at anything else, and this is all it prints:
+Run `check`. The scene still has its placeholders, so the failing test joins the to-do list, ahead of the scene:
 
 <!-- check: model -->
 ```text
-rayner: The model test fails (sort-as-text/model.test.ts): the model sorts as Node sorts, with no compare function and with (a, b) => a - b ([10,9,1] with none + actual - expected [); every array the live step reaches sorts as Node sorts it (Expected values to be strictly deep-equal: + actual - expected [)
+rayner: This explainer still has placeholders, each marked TODO:. To do, in order:
+1. model.test.ts fails: the model sorts as Node sorts, with no compare function and with (a, b) => a - b ([10,9,1] with none + actual - expected [); every array the live step reaches sorts as Node sorts it (Expected values to be strictly deep-equal: + actual - expected [)
+2. scene.ts: step "start" still says TODO in its title, line and caption: draw the model's state and say what the picture shows
 ```
 
-Both of the tests that call the oracle fail, and the first names its case: `[10,9,1] with none`. The oracle has caught the misconception the explainer is about. Put the real rule back and run `check` again. The test passes, and one item is left:
+Both of the tests that call the oracle fail, and the first names its case: `[10,9,1] with none`. The oracle has caught the misconception the explainer is about. Once no placeholder is left, a failing model test stops `check` before it looks at anything else, with the same reasons after "The model test fails". Put the real rule back and run `check` again. The test passes, and one item is left:
 
 <!-- check: tested -->
 ```text
