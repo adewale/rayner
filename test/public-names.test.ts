@@ -1,15 +1,16 @@
 // The export rule (docs/ENGINE.md, "Public names" and "What stays in the public API") as a test. Every
-// value each entry point exports needs a reason to be public: used (computed from the subject explainers,
-// tutorial scenes, the tutorial's printed kit example and recipes that import it; the feature tour does
-// not count), tooling (it lives in rayner/output or rayner/testing, and test/public-names.json says who
-// uses it outside a scene and for what) or kept (test/public-names.json says why it stays public, and
-// names a guide section and a test, which must exist and mention it). The reference's engine features
-// table, the skill's examples table and the engine map's table of kept names are rendered from the same file.
+// value each entry point exports needs a reason to be public: used (computed from the explainers, tutorial
+// scenes, the tutorial's printed kit example and recipes that import it), tooling (it lives in rayner/output
+// or rayner/testing, and test/public-names.json says who uses it outside a scene and for what) or kept
+// (test/public-names.json says why it stays public, and names a guide section and a test, which must exist
+// and mention it). The reference's engine features table, the skill's examples table, the engine map's
+// table of kept names and the feature index (docs/FEATURE-TOUR.md) are rendered from the same file.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { relative } from 'node:path';
-import { ROOT, classOf, problems, publicNames, readLedger, rendered, usage } from '../tools/repo/lib/public-names.ts';
+import { join, relative } from 'node:path';
+import ts from 'typescript';
+import { ROOT, classOf, entryPoints, problems, publicNames, readLedger, rendered, usage } from '../tools/repo/lib/public-names.ts';
 import type { Ledger } from '../tools/repo/lib/public-names.ts';
 import { UNDOCUMENTED, docsProblems, docsReport, documented } from '../tools/repo/lib/public-docs.ts';
 
@@ -21,7 +22,7 @@ test('every public name of every entry point has a live reason to be public', as
   assert.deepEqual(await problems(ledger, ROOT, u), []);
 });
 
-test('the engine features and examples tables are rendered from the ledger: run node tools/repo/public-names.ts --write', () => {
+test('the engine features, examples, kept names and feature index tables are rendered from the ledger: run node tools/repo/public-names.ts --write', () => {
   for (const [file, text] of rendered(ledger, ROOT, u))
     assert.equal(readFileSync(file, 'utf8'), text, `${relative(ROOT, file)} differs from what the ledger renders`);
 });
@@ -32,7 +33,7 @@ test('the rule rejects a name with no reason, a broken guide or test, and an ent
     edit(l);
     return (await problems(l, ROOT, u)).join('\n');
   };
-  assert.match(await found((l) => delete l.names['rayner']!['Frame']), /Frame \(rayner\) has no reason to be public: no subject explainer, tutorial scene or recipe uses it; .* or stop exporting it from src\/index\.ts/);
+  assert.match(await found((l) => delete l.names['rayner']!['Frame']), /Frame \(rayner\) has no reason to be public: no explainer, tutorial scene or recipe uses it; .* or stop exporting it from src\/index\.ts/);
   assert.match(await found((l) => (l.names['rayner']!['Gone'] = { check: 'Views: x' })), /Gone \(rayner\) is in test\/public-names\.json but rayner does not export it/);
   assert.match(await found((l) => (l.names['rayner']!['Brace'] = { guide: 'docs/EMPHASIS.md#no-such-section', test: 'test/emphasis.test.ts' })), /docs\/EMPHASIS\.md has no section #no-such-section/);
   assert.match(await found((l) => (l.names['rayner']!['Brace'] = { guide: 'docs/EMPHASIS.md#circumscribe', test: 'test/emphasis.test.ts' })), /docs\/EMPHASIS\.md#circumscribe does not mention it/);
@@ -48,7 +49,7 @@ test('the rule rejects a name with no reason, a broken guide or test, and an ent
   assert.match(await found((l) => (l.names['rayner']!['Brace'] = { tooling: 'a host page that draws braces around things' })), /Brace \(rayner\): only a name in rayner\/output or rayner\/testing is tooling/);
 });
 
-test('what stays in the public API: a subject user or a written reason, never the tour alone', async () => {
+test('what stays in the public API: a user or a written reason', async () => {
   const exported = await publicNames();
   const found = async (edit: (l: Ledger) => void, uu = u, exports = exported) => {
     const l = copy();
@@ -57,21 +58,23 @@ test('what stays in the public API: a subject user or a written reason, never th
   };
   // A new export with neither a user nor a reason fails, naming the ledger and the entry point's source to edit.
   const plus = (entry: string, name: string) => new Map([...exported].map(([e, n]) => [e, e === entry ? [...n, name] : n]));
-  assert.match(await found(() => {}, u, plus('rayner/kit', 'newHelper')),
-    /newHelper \(rayner\/kit\) has no reason to be public: no subject explainer, tutorial scene or recipe uses it; use it in one, give it a reason in test\/public-names\.json with the guide and test that teach it, or stop exporting it from explain\/kit\.ts/);
+  assert.match(await found(() => {}, u, plus('rayner/drawing', 'newHelper')),
+    /newHelper \(rayner\/drawing\) has no reason to be public: no explainer, tutorial scene or recipe uses it; use it in one, give it a reason in test\/public-names\.json with the guide and test that teach it, or stop exporting it from explain\/drawing\.ts/);
   assert.match(await found(() => {}, u, plus('rayner/testing', 'newTool')),
     /newTool \(rayner\/testing\) has no reason to be public: rayner\/testing is tooling, .* or stop exporting it from explain\/testing\.ts/);
-  // The feature tour's use does not count: palette, which only the tour uses, needs its reason.
-  assert.equal(classOf(u, 'rayner/explain', 'palette'), 'tour-only');
+  // The names nothing uses stay only with their reasons: palette (whose one user, the feature tour, is gone) and Frame.
+  assert.equal(classOf(u, 'rayner/explain', 'palette'), 'unused');
   assert.equal(classOf(u, 'rayner', 'Frame'), 'unused');
-  assert.match(await found((l) => delete l.names['rayner/explain']!['palette']!.reason), /palette \(rayner\/explain\) has no reason to be public: no subject explainer, tutorial scene or recipe uses it \(only the feature tour does, which does not count\)/);
+  assert.match(await found((l) => delete l.names['rayner/explain']!['palette']!.reason), /palette \(rayner\/explain\) has no reason to be public: no explainer, tutorial scene or recipe uses it; /);
+  // A used name meets the rule again when it loses its users (galton-board is smooth's one today).
   const without = (name: string, keep: (user: string) => boolean) => ({ ...u, names: new Map([...u.names].map(([e, m]) => [e, new Map([...m].map(([n, users]) => [n, n === name ? new Set([...users].filter(keep)) : users]))])) });
-  const tourOnly = without('smooth', (x) => x === 'feature-tour');
-  assert.equal(classOf(tourOnly, 'rayner', 'smooth'), 'tour-only');
-  assert.match(await found(() => {}, tourOnly), /smooth \(rayner\) has no reason to be public: .*only the feature tour does/);
+  assert.equal(classOf(u, 'rayner', 'smooth'), 'used');
+  const lost = without('smooth', () => false);
+  assert.equal(classOf(lost, 'rayner', 'smooth'), 'unused');
+  assert.match(await found(() => {}, lost), /smooth \(rayner\) has no reason to be public: no explainer, tutorial scene or recipe uses it/);
   // The tutorial's printed kit example counts as a use, so tones needs no reason while it draws with it.
-  assert.equal(classOf(u, 'rayner/kit', 'tones'), 'used');
-  assert.match(await found(() => {}, without('tones', () => false)), /tones \(rayner\/kit\) has no reason to be public/);
+  assert.equal(classOf(u, 'rayner/drawing', 'tones'), 'used');
+  assert.match(await found(() => {}, without('tones', () => false)), /tones \(rayner\/drawing\) has no reason to be public/);
   // A reason says who needs the name and for what, never Manim parity, and comes with its guide and test.
   const reason = (r: Record<string, string>) => (l: Ledger) => (l.names['rayner']!['Frame'] = r);
   const taught = { guide: 'docs/CAMERA.md#what-it-is', test: 'test/camera.test.ts' };
@@ -104,6 +107,33 @@ test('the tables cannot claim what their scenes do not do', async () => {
   const usersOfDiff = /`TransformDiff`: [^;|]*`mr-cache`/;
   assert.match(before.get(reference)!, usersOfDiff);
   assert.doesNotMatch(after.get(reference)!, usersOfDiff);
+});
+
+test('the feature index points each feature at a catalogued explainer that uses it, and at the file where it does', async () => {
+  const found = async (edit: (l: Ledger) => void, uu = u) => {
+    const l = copy();
+    edit(l);
+    return (await problems(l, ROOT, uu)).join('\n');
+  };
+  const at = (feature: RegExp) => ledger.lookup.findIndex((r) => feature.test(r.feature));
+  const restore = at(/put back/), maths = at(/formula/), palette = at(/named style/);
+  assert.ok(restore >= 0 && maths >= 0 && palette >= 0);
+  // The maths row points at float-sum, the explainer that sets formulas.
+  assert.deepEqual(ledger.lookup[maths]!.scenes, ['float-sum']);
+  assert.match(await found((l) => (l.lookup[restore]!.scenes = ['token-bucket'])), /lookup "An object put back where it was": none of token-bucket uses Restore/);
+  assert.match(await found((l) => (l.lookup[restore]!.scenes = ['tutorial/door'])), /tutorial\/door is not a catalogued explainer/);
+  assert.match(await found((l) => (l.lookup[restore]!.scenes = ['feature-tour'])), /feature-tour is not a scene/);
+  assert.match(await found((l) => (l.lookup[restore]!.uses += ', `TransformFromCopy`')), /it names TransformFromCopy but does not list it in names/);
+  assert.match(await found((l) => l.lookup[restore]!.scenes.push('glyph')), /lookup "An object put back where it was": glyph uses none of Restore, saveState/);
+  // A feature no explainer uses says so, until one does.
+  assert.deepEqual(ledger.lookup[palette]!.scenes, []);
+  const paletteUsed = { ...u, names: new Map([...u.names].map(([e, m]) => [e, e === 'rayner/explain' ? new Map([...m, ['palette', new Set(['seasons'])]]) : m])) };
+  assert.match(await found(() => {}, paletteUsed), /lookup "A named style's colours, one of them changed": seasons uses palette; name it in its scenes/);
+  // The page links the file that uses the feature, in the repository, since the package does not ship the collection.
+  const index = rendered(ledger, ROOT, u);
+  const page = index.get([...index.keys()].find((f) => f.endsWith('FEATURE-TOUR.md'))!)!;
+  assert.match(page, /\| An object put back where it was \| [^|]+ \| \[unified-diff\]\(https:\/\/github\.com\/adewale\/rayner\/tree\/main\/scenes\/explainers\/unified-diff\) \(\[scene\.ts\]\(https:\/\/github\.com\/adewale\/rayner\/blob\/main\/scenes\/explainers\/unified-diff\/scene\.ts\)\)/);
+  assert.match(page, /\| A named style's colours, one of them changed \| [^|]+ \| no explainer yet \|/);
 });
 
 // Every public name documented (docs/ENGINE.md, "Public names"): every exported value and type, every
@@ -145,4 +175,27 @@ test('the docs check rejects a public name no guide names, and a stale entry amo
   assert.ok(!documented(n('member', 'Diagram.scene'), ['Diagram\ns.scene'], new Set()));
   assert.ok(!documented(n('member', 'Machine.scene'), ['Machine\nscene.ts'], new Set()));
   assert.ok(documented(n('member', 'Card.labels'), ['Card\ncard.labels'], new Set()));
+});
+
+// A name 0.1.0 published that loses its reason is deprecated before it goes (docs/ENGINE.md, "What stays
+// in the public API"): its ledger entry says so, its entry point marks it @deprecated where it exports
+// it, and the unreleased changelog names it. Every @deprecated export is in the ledger as deprecated.
+test('a deprecated name is marked @deprecated where its entry point exports it, and the changelog names it', () => {
+  const said = (r: { tooling?: string; reason?: string }) => /\bdeprecated\b/i.test(`${r.tooling ?? ''} ${r.reason ?? ''}`);
+  const inLedger = Object.entries(ledger.names).flatMap(([entry, names]) => Object.entries(names).filter(([, r]) => said(r)).map(([name]) => `${entry} ${name}`)).sort();
+  const marked: string[] = [];
+  for (const [entry, source] of entryPoints()) {
+    const sf = ts.createSourceFile(source, readFileSync(join(ROOT, source), 'utf8'), ts.ScriptTarget.Latest, true);
+    const visit = (node: ts.Node): void => {
+      if (ts.isExportSpecifier(node) && ts.getJSDocTags(node).some((t) => t.tagName.text === 'deprecated')) marked.push(`${entry} ${node.name.text}`);
+      node.forEachChild(visit);
+    };
+    visit(sf);
+  }
+  assert.ok(inLedger.length > 0, 'the ledger records the names deprecated in this release');
+  assert.deepEqual(marked.sort(), inLedger, 'the names the ledger calls deprecated are the ones the entry points mark @deprecated');
+  const changelog = readFileSync(join(ROOT, 'CHANGELOG.md'), 'utf8');
+  const unreleased = changelog.slice(0, changelog.indexOf('\n## ', changelog.indexOf('## ') + 1));
+  const deprecatedSection = unreleased.split(/^### /m).find((section) => section.startsWith('Deprecated\n')) ?? '';
+  for (const name of inLedger.map((n) => n.split(' ')[1]!)) assert.match(deprecatedSection, new RegExp(`\`${name}\``), `the changelog's Deprecated section names ${name}`);
 });

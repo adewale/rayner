@@ -92,8 +92,8 @@ test('the SVG writer writes a straight segment as L and a curve as C', () => {
 test('a page whose lettering decodes no face of its own ships SFNT faces and no Brotli decoder', async () => {
   const out = await mkdtemp(join(tmpdir(), 'rayner-page-fonts-'));
   try {
-    // feature-tour asks for maths alone: outlines, and no face for the page to decode.
-    const project = await collectProject(join(ROOT, 'scenes/explainers/feature-tour/scene.ts'), { write: false });
+    // float-sum asks for maths alone: outlines, and no face for the page to decode.
+    const project = await collectProject(join(ROOT, 'scenes/explainers/float-sum/scene.ts'), { write: false });
     assert.ok(project.outlineLettering);
     const { html } = await buildExplainer(project, join(out, 'page.html'));
     assert.ok(!html.includes('large-window brotli'), 'no Brotli decoder');

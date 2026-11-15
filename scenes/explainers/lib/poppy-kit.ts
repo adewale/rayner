@@ -1,10 +1,9 @@
 import { Circle, Group, Rectangle, VMobject, keyed } from '../../../src/index.ts';
 import type { Mobject, Style, Vec } from '../../../src/index.ts';
-// The series' measures, words, parts and choreography are rayner/kit's; this file adds the Poppy palette and objects.
-import { TYPE, STROKE, SPACE, MARGIN, PLATE_HEIGHT, RADIUS as KIT_RADIUS, words, addAll, connector, plate, route, flight, pass, beats as kitBeats } from '../../../explain/kit.ts';
-import type { WordsOptions, Parts, Beat, BeatsOptions, FlightTiming } from '../../../explain/kit.ts';
+// The series' measures, words, parts and choreography are rayner/drawing's; this file adds the Poppy palette and objects.
+import { TYPE, STROKE, SPACE, MARGIN, PLATE_HEIGHT, RADIUS as KIT_RADIUS, words, addAll, connector, plate, route, flight, pass, beats as kitBeats, emphasised } from '../../../explain/drawing.ts';
+import type { WordsOptions, Parts, Beat, BeatsOptions, FlightTiming } from '../../../explain/drawing.ts';
 import type { Choreography, Stage } from '../../../explain/index.ts';
-import { emphasised } from '../../../explain/drawing.ts';
 
 /*
  * THE POPPY KIT: the visual system of the Poppy series (Personal Agent Protocol, draft 1.0), as code.
@@ -104,7 +103,7 @@ export const PALETTE = { paper: TONE.ground, ink: TONE.ink, accent: TONE.wax, mu
 
 export { TYPE, STROKE, SPACE, MARGIN, PLATE_HEIGHT, words, addAll, route, flight, pass };
 export type { WordsOptions, Parts, Beat, FlightTiming };
-/** Corner radii, in units, named for the series' objects: rayner/kit's RADIUS. */
+/** Corner radii, in units, named for the series' objects: rayner/drawing's RADIUS. */
 export const RADIUS = { paper: KIT_RADIUS.sharp, ticket: KIT_RADIUS.small, panel: KIT_RADIUS.panel, device: KIT_RADIUS.round } as const;
 
 // ---------------------------------------------------------------------------------------------
@@ -860,10 +859,10 @@ export function warning(_s: Stage, { at = [0, 0], size = 1 }: { at?: Vec; size?:
 }
 
 // ---------------------------------------------------------------------------------------------
-// Choreography: rayner/kit's, with the series' default for the parts of the last event
+// Choreography: rayner/drawing's, with the series' default for the parts of the last event
 
 /**
- * rayner/kit's `beats`, whose `fresh` parts default to the series' last event: the answer, the
+ * rayner/drawing's `beats`, whose `fresh` parts default to the series' last event: the answer, the
  * ticket and the barrier leave before the flight, so an answer is never readable before its
  * request lands.
  */

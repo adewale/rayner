@@ -1,6 +1,6 @@
 // A request and its answer, with one authored transition per send: a ticket flies from the client to
 // the server, the answer is written under the server, and a marker on a track counts the sends.
-// The default export choreographs it with the kit as the Poppy series' motion audit left its
+// The default export choreographs it with the drawing kit as the Poppy series' motion audit left its
 // transitions; `motionFixture(defect)` brings back one kind of defect that audit found by filming,
 // which the keyed motion check (src/keyed-motion.ts) now finds without a browser:
 //
@@ -16,10 +16,10 @@
 // check passed all three. test/keyed-motion.test.ts checks that each defect fails and the fixed
 // scene passes.
 import { AnimationGroup, Group, Rectangle, Scene, Succession, keyed } from '../../../src/index.ts';
-import type { Vec } from '../../../src/index.ts';
+import type { Mobject, Vec } from '../../../src/index.ts';
 import { stage, Machine, view } from '../../../explain/index.ts';
 import type { Stage, Transition } from '../../../explain/index.ts';
-import { TYPE, beats, box, flight, words } from '../../../explain/kit.ts';
+import { TYPE, beats, flight, tile, words } from '../../../explain/drawing.ts';
 
 type Post = { sent: number };
 type Send = 'send';
@@ -32,7 +32,8 @@ const markerAt = (n: number): Vec => [-3 + 1.5 * n, -2.6];
 function drawPost(st: Post, s: Stage): Group {
   // A ground the size of the stage, so the picture keeps its place as the ticket and the answer come and go.
   const ground = keyed(new Rectangle({ width: 15.5, height: 8.5, fill: s.look.paper, stroke: 'none' }), 'ground');
-  const parts: ReturnType<typeof box> = [ground, ...box(s, 'client', { at: CLIENT, key: 'client' }), ...box(s, 'server', { at: SERVER, key: 'server' })];
+  const box = (name: string, at: Vec) => tile(s, name, { at, key: name, raised: true, size: TYPE.small }).children;
+  const parts: Mobject[] = [ground, ...box('client', CLIENT), ...box('server', SERVER)];
   const track = keyed(new Rectangle({ width: 7.5, height: 0.06, fill: s.look.muted, stroke: 'none' }).moveTo([0, -2.6]), 'track');
   const marker = keyed(new Rectangle({ width: 0.4, height: 0.4, fill: s.look.emphasis, stroke: 'none' }).moveTo(markerAt(st.sent)), 'marker');
   parts.push(track, marker);

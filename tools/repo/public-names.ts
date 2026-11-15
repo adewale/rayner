@@ -1,8 +1,8 @@
 // node tools/repo/public-names.ts [--write] [--docs]
-// Prints each public name with its class (used, tour-only, unused or tooling), its reason to be public
+// Prints each public name with its class (used, unused or tooling), its reason to be public
 // (used, tooling or kept) and the scenes, tutorial and recipes that use it, then counts the classes and
-// lists any problem with the ledger (docs/ENGINE.md, "What stays in the public API"). --write renders the reference's engine features table and
-// the skill's examples table from the ledger (test/public-names.test.ts fails when they differ). --docs lists the
+// lists any problem with the ledger (docs/ENGINE.md, "What stays in the public API"). --write renders the reference's engine features table,
+// the skill's examples table, the engine map's kept names and the feature index (docs/FEATURE-TOUR.md) from the ledger (test/public-names.test.ts fails when they differ). --docs lists the
 // whole public surface instead (every exported value and type, every public member of an exported class, and the
 // stage's members) with whether docs/ documents each, and counts them (tools/repo/lib/public-docs.ts).
 import { writeFileSync, readFileSync } from 'node:fs';
@@ -29,7 +29,7 @@ if (process.argv.includes('--docs')) {
 
 const ledger = readLedger();
 const u = usage();
-const counts: Record<NameClass, number> = { used: 0, 'tour-only': 0, unused: 0, tooling: 0 };
+const counts: Record<NameClass, number> = { used: 0, unused: 0, tooling: 0 };
 for (const [entry, names] of await publicNames()) {
   console.log(`\n${entry}`);
   for (const name of names) {
